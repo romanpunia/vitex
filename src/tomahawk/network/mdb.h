@@ -35,32 +35,37 @@ namespace Tomahawk
 
 			class Queue;
 
-			enum Query
+			enum class Query
 			{
-				Query_None = 0,
-				Query_Tailable_Cursor = 1 << 1,
-				Query_Slave_Ok = 1 << 2,
-				Query_Oplog_Replay = 1 << 3,
-				Query_No_Cursor_Timeout = 1 << 4,
-				Query_Await_Data = 1 << 5,
-				Query_Exhaust = 1 << 6,
-				Query_Partial = 1 << 7,
+				None = 0,
+				Tailable_Cursor = 1 << 1,
+				Slave_Ok = 1 << 2,
+				Oplog_Replay = 1 << 3,
+				No_Cursor_Timeout = 1 << 4,
+				Await_Data = 1 << 5,
+				Exhaust = 1 << 6,
+				Partial = 1 << 7,
 			};
 
-			enum Type
+			enum class Type
 			{
-				Type_Unknown,
-				Type_Uncastable,
-				Type_Null,
-				Type_Document,
-				Type_Array,
-				Type_String,
-				Type_Integer,
-				Type_Number,
-				Type_Boolean,
-				Type_ObjectId,
-				Type_Decimal
+				Unknown,
+				Uncastable,
+				Null,
+				Document,
+				Array,
+				String,
+				Integer,
+				Number,
+				Boolean,
+				ObjectId,
+				Decimal
 			};
+
+			inline Query operator |(Query A, Query B)
+			{
+				return static_cast<Query>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			}
 
 			struct TH_OUT Property
 			{

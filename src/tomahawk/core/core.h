@@ -161,52 +161,52 @@ namespace Tomahawk
 
 		class Var;
 
-		enum FileMode
+		enum class FileMode
 		{
-			FileMode_Read_Only,
-			FileMode_Write_Only,
-			FileMode_Append_Only,
-			FileMode_Read_Write,
-			FileMode_Write_Read,
-			FileMode_Read_Append_Write,
-			FileMode_Binary_Read_Only,
-			FileMode_Binary_Write_Only,
-			FileMode_Binary_Append_Only,
-			FileMode_Binary_Read_Write,
-			FileMode_Binary_Write_Read,
-			FileMode_Binary_Read_Append_Write
+			Read_Only,
+			Write_Only,
+			Append_Only,
+			Read_Write,
+			Write_Read,
+			Read_Append_Write,
+			Binary_Read_Only,
+			Binary_Write_Only,
+			Binary_Append_Only,
+			Binary_Read_Write,
+			Binary_Write_Read,
+			Binary_Read_Append_Write
 		};
 
-		enum FileSeek
+		enum class FileSeek
 		{
-			FileSeek_Begin,
-			FileSeek_Current,
-			FileSeek_End
+			Begin,
+			Current,
+			End
 		};
 
-		enum VarType
+		enum class VarType
 		{
-			VarType_Null,
-			VarType_Undefined,
-			VarType_Object,
-			VarType_Array,
-			VarType_Pointer,
-			VarType_String,
-			VarType_Base64,
-			VarType_Integer,
-			VarType_Number,
-			VarType_Decimal,
-			VarType_Boolean
+			Null,
+			Undefined,
+			Object,
+			Array,
+			Pointer,
+			String,
+			Base64,
+			Integer,
+			Number,
+			Decimal,
+			Boolean
 		};
 
-		enum VarForm
+		enum class VarForm
 		{
-			VarForm_Dummy,
-			VarForm_Tab_Decrease,
-			VarForm_Tab_Increase,
-			VarForm_Write_Space,
-			VarForm_Write_Line,
-			VarForm_Write_Tab,
+			Dummy,
+			Tab_Decrease,
+			Tab_Increase,
+			Write_Space,
+			Write_Line,
+			Write_Tab,
 		};
 
 		typedef std::vector<struct Variant> VariantList;

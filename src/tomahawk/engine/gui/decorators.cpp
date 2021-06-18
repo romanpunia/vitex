@@ -135,7 +135,7 @@ namespace Tomahawk
 					Device->SetBuffer(IBoxShadow->Shader, 3, TH_PS);
 					Device->SetVertexBuffer(IBoxShadow->VertexBuffer, 0);
 					Device->UpdateBuffer(IBoxShadow->Shader, &IBoxShadow->RenderPass);
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw(IBoxShadow->VertexBuffer->GetElements(), 0);
 				}
 			};
@@ -190,7 +190,7 @@ namespace Tomahawk
 					Device->SetBuffer(IBoxBlur->Shader, 3, TH_PS);
 					Device->SetVertexBuffer(IBoxBlur->VertexBuffer, 0);
 					Device->UpdateBuffer(IBoxBlur->Shader, &IBoxBlur->RenderPass);
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw(IBoxBlur->VertexBuffer->GetElements(), 0);
 				}
 			};
@@ -214,9 +214,9 @@ namespace Tomahawk
 				Elements[5] = { Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) };
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = 6;
 				F.ElementWidth = sizeof(Rml::Vertex);
 				F.Elements = &Elements[0];
@@ -270,9 +270,9 @@ namespace Tomahawk
 				Elements[5] = { Rml::Vector2f(1.0f, -1.0f), Rml::Colourb(0, 0, 0, 0), Rml::Vector2f(0, 0) };
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = 6;
 				F.ElementWidth = sizeof(Rml::Vertex);
 				F.Elements = &Elements[0];

@@ -60,126 +60,125 @@ namespace Tomahawk
 		typedef void* Cipher;
 		typedef void* Digest;
 
-		enum Hybi10_Opcode
+		enum class Hybi10_Opcode
 		{
-			Hybi10_Opcode_Text,
-			Hybi10_Opcode_Close,
-			Hybi10_Opcode_Pong,
-			Hybi10_Opcode_Ping,
-			Hybi10_Opcode_Invalid
+			Text,
+			Close,
+			Pong,
+			Ping,
+			Invalid
 		};
 
-		enum Shape
+		enum class Shape
 		{
-			Shape_Box,
-			Shape_Triangle,
-			Shape_Tetrahedral,
-			Shape_Convex_Triangle_Mesh,
-			Shape_Convex_Hull,
-			Shape_Convex_Point_Cloud,
-			Shape_Convex_Polyhedral,
-			Shape_Implicit_Convex_Start,
-			Shape_Sphere,
-			Shape_Multi_Sphere,
-			Shape_Capsule,
-			Shape_Cone,
-			Shape_Convex,
-			Shape_Cylinder,
-			Shape_Uniform_Scaling,
-			Shape_Minkowski_Sum,
-			Shape_Minkowski_Difference,
-			Shape_Box_2D,
-			Shape_Convex_2D,
-			Shape_Custom_Convex,
-			Shape_Concaves_Start,
-			Shape_Triangle_Mesh,
-			Shape_Triangle_Mesh_Scaled,
-			Shape_Fast_Concave_Mesh,
-			Shape_Terrain,
-			Shape_Gimpact,
-			Shape_Triangle_Mesh_Multimaterial,
-			Shape_Empty,
-			Shape_Static_Plane,
-			Shape_Custom_Concave,
-			Shape_Concaves_End,
-			Shape_Compound,
-			Shape_Softbody,
-			Shape_HF_Fluid,
-			Shape_HF_Fluid_Bouyant_Convex,
-			Shape_Invalid,
-			Shape_Count
+			Box,
+			Triangle,
+			Tetrahedral,
+			Convex_Triangle_Mesh,
+			Convex_Hull,
+			Convex_Point_Cloud,
+			Convex_Polyhedral,
+			Implicit_Convex_Start,
+			Sphere,
+			Multi_Sphere,
+			Capsule,
+			Cone,
+			Convex,
+			Cylinder,
+			Uniform_Scaling,
+			Minkowski_Sum,
+			Minkowski_Difference,
+			Box_2D,
+			Convex_2D,
+			Custom_Convex,
+			Concaves_Start,
+			Triangle_Mesh,
+			Triangle_Mesh_Scaled,
+			Fast_Concave_Mesh,
+			Terrain,
+			Gimpact,
+			Triangle_Mesh_Multimaterial,
+			Empty,
+			Static_Plane,
+			Custom_Concave,
+			Concaves_End,
+			Compound,
+			Softbody,
+			HF_Fluid,
+			HF_Fluid_Bouyant_Convex,
+			Invalid,
+			Count
 		};
 
-		enum MotionState
+		enum class MotionState
 		{
-			MotionState_Active = 1,
-			MotionState_Island_Sleeping = 2,
-			MotionState_Deactivation_Needed = 3,
-			MotionState_Disable_Deactivation = 4,
-			MotionState_Disable_Simulation = 5,
+			Active = 1,
+			Island_Sleeping = 2,
+			Deactivation_Needed = 3,
+			Disable_Deactivation = 4,
+			Disable_Simulation = 5,
 		};
 
-		enum RegexState
+		enum class RegexState
 		{
-			RegexState_Preprocessed = 0,
-			RegexState_Match_Found = -1,
-			RegexState_No_Match = -2,
-			RegexState_Unexpected_Quantifier = -3,
-			RegexState_Unbalanced_Brackets = -4,
-			RegexState_Internal_Error = -5,
-			RegexState_Invalid_Character_Set = -6,
-			RegexState_Invalid_Metacharacter = -7,
-			RegexState_Sumatch_Array_Too_Small = -8,
-			RegexState_Too_Many_Branches = -9,
-			RegexState_Too_Many_Brackets = -10,
+			Preprocessed = 0,
+			Match_Found = -1,
+			No_Match = -2,
+			Unexpected_Quantifier = -3,
+			Unbalanced_Brackets = -4,
+			Internal_Error = -5,
+			Invalid_Character_Set = -6,
+			Invalid_Metacharacter = -7,
+			Sumatch_Array_Too_Small = -8,
+			Too_Many_Branches = -9,
+			Too_Many_Brackets = -10,
 		};
 
-		enum RegexFlags
+		enum class SoftFeature
 		{
-			RegexFlags_None = (1 << 0),
-			RegexFlags_IgnoreCase = (1 << 1)
+			None,
+			Node,
+			Link,
+			Face,
+			Tetra
 		};
 
-		enum SoftFeature
+		enum class SoftAeroModel
 		{
-			SoftFeature_None,
-			SoftFeature_Node,
-			SoftFeature_Link,
-			SoftFeature_Face,
-			SoftFeature_Tetra
+			VPoint,
+			VTwoSided,
+			VTwoSidedLiftDrag,
+			VOneSided,
+			FTwoSided,
+			FTwoSidedLiftDrag,
+			FOneSided
 		};
 
-		enum SoftAeroModel
+		enum class SoftCollision
 		{
-			SoftAeroModel_VPoint,
-			SoftAeroModel_VTwoSided,
-			SoftAeroModel_VTwoSidedLiftDrag,
-			SoftAeroModel_VOneSided,
-			SoftAeroModel_FTwoSided,
-			SoftAeroModel_FTwoSidedLiftDrag,
-			SoftAeroModel_FOneSided
+			RVS_Mask = 0x000f,
+			SDF_RS = 0x0001,
+			CL_RS = 0x0002,
+			SDF_RD = 0x0003,
+			SDF_RDF = 0x0004,
+			SVS_Mask = 0x00F0,
+			VF_SS = 0x0010,
+			CL_SS = 0x0020,
+			CL_Self = 0x0040,
+			VF_DD = 0x0050,
+			Default = SDF_RS | CL_SS
 		};
 
-		enum SoftCollision
+		enum class TransformSpace
 		{
-			SoftCollision_RVS_Mask = 0x000f,
-			SoftCollision_SDF_RS = 0x0001,
-			SoftCollision_CL_RS = 0x0002,
-			SoftCollision_SDF_RD = 0x0003,
-			SoftCollision_SDF_RDF = 0x0004,
-			SoftCollision_SVS_Mask = 0x00F0,
-			SoftCollision_VF_SS = 0x0010,
-			SoftCollision_CL_SS = 0x0020,
-			SoftCollision_CL_Self = 0x0040,
-			SoftCollision_VF_DD = 0x0050,
-			SoftCollision_Default = SoftCollision_SDF_RS | SoftCollision_CL_SS
+			Local,
+			Global
 		};
 
-		enum TransformSpace
+		inline SoftCollision operator |(SoftCollision A, SoftCollision B)
 		{
-			TransformSpace_Local,
-			TransformSpace_Global
-		};
+			return static_cast<SoftCollision>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 
 		struct TH_OUT IncludeDesc
 		{
@@ -930,11 +929,11 @@ namespace Tomahawk
 			RegexState State;
 
 		public:
-			RegexFlags Flags;
+			bool IgnoreCase;
 
 		public:
 			RegexSource();
-			RegexSource(const std::string& Regexp, RegexFlags fFlags = RegexFlags_None, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1);
+			RegexSource(const std::string& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1);
 			RegexSource(const RegexSource& Other);
 			RegexSource(RegexSource&& Other) noexcept;
 			RegexSource& operator =(const RegexSource& V);
@@ -1980,7 +1979,7 @@ namespace Tomahawk
 
 				struct SConfig
 				{
-					SoftAeroModel AeroModel = SoftAeroModel_VPoint;
+					SoftAeroModel AeroModel = SoftAeroModel::VPoint;
 					float VCF = 1;
 					float DP = 0;
 					float DG = 0;
@@ -2009,7 +2008,7 @@ namespace Tomahawk
 					int PIterations = 2;
 					int DIterations = 0;
 					int CIterations = 4;
-					int Collisions = SoftCollision_Default | SoftCollision_VF_SS;
+					int Collisions = (int)(SoftCollision::Default | SoftCollision::VF_SS);
 				} Config;
 
 				float Anticipation = 0;
@@ -2021,7 +2020,7 @@ namespace Tomahawk
 			struct RayCast
 			{
 				SoftBody* Body = nullptr;
-				SoftFeature Feature = SoftFeature_None;
+				SoftFeature Feature = SoftFeature::None;
 				float Fraction = 0;
 				int Index = 0;
 			};

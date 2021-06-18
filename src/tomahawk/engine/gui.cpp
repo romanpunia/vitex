@@ -74,7 +74,7 @@ namespace Tomahawk
 						return;
 
 					Device->Begin();
-					Device->Topology(Graphics::PrimitiveTopology_Triangle_List);
+					Device->Topology(Graphics::PrimitiveTopology::Triangle_List);
 
 					if (HasTransform)
 						Device->Transform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho);
@@ -101,18 +101,18 @@ namespace Tomahawk
 					Result->Texture = (Graphics::Texture2D*)Handle;
 
 					Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-					F.AccessFlags = Graphics::CPUAccess_Invalid;
-					F.Usage = Graphics::ResourceUsage_Default;
-					F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+					F.AccessFlags = Graphics::CPUAccess::Invalid;
+					F.Usage = Graphics::ResourceUsage::Default;
+					F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 					F.ElementCount = (unsigned int)VerticesCount;
 					F.Elements = (void*)Vertices;
 					F.ElementWidth = sizeof(Rml::Vertex);
 					Result->VertexBuffer = Device->CreateElementBuffer(F);
 
 					F = Graphics::ElementBuffer::Desc();
-					F.AccessFlags = Graphics::CPUAccess_Invalid;
-					F.Usage = Graphics::ResourceUsage_Default;
-					F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+					F.AccessFlags = Graphics::CPUAccess::Invalid;
+					F.Usage = Graphics::ResourceUsage::Default;
+					F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 					F.ElementCount = (unsigned int)IndicesCount;
 					F.ElementWidth = sizeof(int);
 					F.Elements = (void*)Indices;
@@ -135,8 +135,8 @@ namespace Tomahawk
 					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
 					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(Buffer->VertexBuffer, 0);
-					Device->SetIndexBuffer(Buffer->IndexBuffer, Graphics::Format_R32_Uint);
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->SetIndexBuffer(Buffer->IndexBuffer, Graphics::Format::R32_Uint);
+					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed(Buffer->IndexBuffer->GetElements(), 0, 0);
 				}
 				virtual void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle Handle) override
@@ -196,7 +196,7 @@ namespace Tomahawk
 					}
 
 					Graphics::MappedSubresource Subresource;
-					if (Device->Map(VertexBuffer, Graphics::ResourceMap_Write_Discard, &Subresource))
+					if (Device->Map(VertexBuffer, Graphics::ResourceMap::Write_Discard, &Subresource))
 					{
 						float fWidth = (float)Width;
 						float fHeight = (float)Height;
@@ -221,7 +221,7 @@ namespace Tomahawk
 					Device->SetBlendState(ColorlessBlend);
 					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(VertexBuffer, 0);
-					Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw(VertexBuffer->GetElements(), 0);
 					Device->SetDepthStencilState(ScissorDepthStencil);
 					Device->SetBlendState(AlphaBlend);
@@ -247,9 +247,9 @@ namespace Tomahawk
 						return false;
 
 					Graphics::Texture2D::Desc F = Graphics::Texture2D::Desc();
-					F.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-					F.Usage = Graphics::ResourceUsage_Default;
-					F.BindFlags = Graphics::ResourceBind_Shader_Input;
+					F.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
+					F.Usage = Graphics::ResourceUsage::Default;
+					F.BindFlags = Graphics::ResourceBind::Shader_Input;
 					F.Width = (unsigned int)SourceDimensions.x;
 					F.Height = (unsigned int)SourceDimensions.y;
 					F.MipLevels = 1;
@@ -291,9 +291,9 @@ namespace Tomahawk
 								Shader = Device->CreateShader(I);
 
 							Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-							F.AccessFlags = Graphics::CPUAccess_Write;
-							F.Usage = Graphics::ResourceUsage_Dynamic;
-							F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+							F.AccessFlags = Graphics::CPUAccess::Write;
+							F.Usage = Graphics::ResourceUsage::Dynamic;
+							F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 							F.ElementCount = (unsigned int)6;
 							F.Elements = (void*)nullptr;
 							F.ElementWidth = sizeof(Rml::Vertex);
@@ -354,7 +354,7 @@ namespace Tomahawk
 						Target = (Target.empty() ? Path.c_str() : Target.c_str());
 					}
 
-					return (Rml::FileHandle)Core::OS::File::Open(Target, Core::FileMode_Binary_Read_Only);
+					return (Rml::FileHandle)Core::OS::File::Open(Target, Core::FileMode::Binary_Read_Only);
 				}
 				virtual void Close(Rml::FileHandle File) override
 				{
@@ -405,31 +405,31 @@ namespace Tomahawk
 						return;
 					
 					if (CursorName == "none")
-						Activity->SetCursor(Graphics::DisplayCursor_None);
+						Activity->SetCursor(Graphics::DisplayCursor::None);
 					else if (CursorName == "default")
-						Activity->SetCursor(Graphics::DisplayCursor_Arrow);
+						Activity->SetCursor(Graphics::DisplayCursor::Arrow);
 					else if (CursorName == "move")
-						Activity->SetCursor(Graphics::DisplayCursor_ResizeAll);
+						Activity->SetCursor(Graphics::DisplayCursor::ResizeAll);
 					else if (CursorName == "pointer")
-						Activity->SetCursor(Graphics::DisplayCursor_Hand);
+						Activity->SetCursor(Graphics::DisplayCursor::Hand);
 					else if (CursorName == "text")
-						Activity->SetCursor(Graphics::DisplayCursor_TextInput);
+						Activity->SetCursor(Graphics::DisplayCursor::TextInput);
 					else if (CursorName == "progress")
-						Activity->SetCursor(Graphics::DisplayCursor_Progress);
+						Activity->SetCursor(Graphics::DisplayCursor::Progress);
 					else if (CursorName == "wait")
-						Activity->SetCursor(Graphics::DisplayCursor_Wait);
+						Activity->SetCursor(Graphics::DisplayCursor::Wait);
 					else if (CursorName == "not-allowed")
-						Activity->SetCursor(Graphics::DisplayCursor_No);
+						Activity->SetCursor(Graphics::DisplayCursor::No);
 					else if (CursorName == "crosshair")
-						Activity->SetCursor(Graphics::DisplayCursor_Crosshair);
+						Activity->SetCursor(Graphics::DisplayCursor::Crosshair);
 					else if (CursorName == "ns-resize")
-						Activity->SetCursor(Graphics::DisplayCursor_ResizeNS);
+						Activity->SetCursor(Graphics::DisplayCursor::ResizeNS);
 					else if (CursorName == "ew-resize")
-						Activity->SetCursor(Graphics::DisplayCursor_ResizeEW);
+						Activity->SetCursor(Graphics::DisplayCursor::ResizeEW);
 					else if (CursorName == "nesw-resize")
-						Activity->SetCursor(Graphics::DisplayCursor_ResizeNESW);
+						Activity->SetCursor(Graphics::DisplayCursor::ResizeNESW);
 					else if (CursorName == "nwse-resize")
-						Activity->SetCursor(Graphics::DisplayCursor_ResizeNWSE);
+						Activity->SetCursor(Graphics::DisplayCursor::ResizeNWSE);
 				}
 				virtual void SetClipboardText(const Rml::String& Text) override
 				{
@@ -675,7 +675,7 @@ namespace Tomahawk
 					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
 					if (!IsFunction)
 					{
-						Compiler->ExecuteEntry(Memory.c_str(), nullptr, Script::VMTypeId_VOID, [&Event](Script::VMContext* Context)
+						Compiler->ExecuteEntry(Memory.c_str(), nullptr, (int)Script::VMTypeId::VOIDF, [&Event](Script::VMContext* Context)
 						{
 							Context->SetArgObject(0, &Event);
 						});
@@ -863,10 +863,10 @@ namespace Tomahawk
 
 				switch (From->GetType())
 				{
-					case Core::VarType_Null:
+					case Core::VarType::Null:
 						*To = Rml::Variant((void*)nullptr);
 						break;
-					case Core::VarType_String:
+					case Core::VarType::String:
 					{
 						std::string Blob = From->GetBlob();
 						int Type = IVariant::GetVectorType(Blob);
@@ -889,16 +889,16 @@ namespace Tomahawk
 							*To = Rml::Variant(From->GetBlob());
 						break;
 					}
-					case Core::VarType_Integer:
+					case Core::VarType::Integer:
 						*To = Rml::Variant(From->GetInteger());
 						break;
-					case Core::VarType_Number:
+					case Core::VarType::Number:
 						*To = Rml::Variant(From->GetNumber());
 						break;
-					case Core::VarType_Boolean:
+					case Core::VarType::Boolean:
 						*To = Rml::Variant(From->GetBoolean());
 						break;
-					case Core::VarType_Pointer:
+					case Core::VarType::Pointer:
 						*To = Rml::Variant(From->GetPointer());
 						break;
 					default:
@@ -1070,7 +1070,7 @@ namespace Tomahawk
 			EventPhase IEvent::GetPhase() const
 			{
 				if (!IsValid())
-					return EventPhase_None;
+					return EventPhase::None;
 
 				return (EventPhase)Base->GetPhase();
 			}
@@ -1283,7 +1283,7 @@ namespace Tomahawk
 			Area IElement::GetClientArea() const
 			{
 				if (!IsValid())
-					return Area_Content;
+					return Area::Content;
 
 				return (Area)Base->GetClientArea();
 			}
@@ -1383,21 +1383,21 @@ namespace Tomahawk
 			Position IElement::GetPosition()
 			{
 				if (!IsValid())
-					return Position_Static;
+					return Position::Static;
 
 				return (Position)Base->GetPosition();
 			}
 			Float IElement::GetFloat()
 			{
 				if (!IsValid())
-					return Float_None;
+					return Float::None;
 
 				return (Float)Base->GetFloat();
 			}
 			Display IElement::GetDisplay()
 			{
 				if (!IsValid())
-					return Display_None;
+					return Display::None;
 
 				return (Display)Base->GetDisplay();
 			}
@@ -2912,7 +2912,7 @@ namespace Tomahawk
 				}
 
 				Result = TH_NEW(DataNode, this, (std::string*)&Name, Value);
-				if (Value.GetType() != Core::VarType_Null)
+				if (Value.GetType() != Core::VarType::Null)
 				{
 					if (Base->BindFunc(Name, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
 					{
@@ -3228,7 +3228,7 @@ namespace Tomahawk
 			}
 			void Context::EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 			{
-				if (Key == Graphics::KeyCode_CURSORLEFT)
+				if (Key == Graphics::KeyCode::CURSORLEFT)
 				{
 					if (Pressed)
 					{
@@ -3241,7 +3241,7 @@ namespace Tomahawk
 							Inputs.Cursor = true;
 					}
 				}
-				else if (Key == Graphics::KeyCode_CURSORRIGHT)
+				else if (Key == Graphics::KeyCode::CURSORRIGHT)
 				{
 					if (Pressed)
 					{
@@ -3254,7 +3254,7 @@ namespace Tomahawk
 							Inputs.Cursor = true;
 					}
 				}
-				else if (Key == Graphics::KeyCode_CURSORMIDDLE)
+				else if (Key == Graphics::KeyCode::CURSORMIDDLE)
 				{
 					if (Pressed)
 					{
@@ -3580,16 +3580,16 @@ namespace Tomahawk
 			bool Context::WasInputUsed(uint32_t InputTypeMask)
 			{
 				bool Result = false;
-				if (InputTypeMask & InputType_Keys && Inputs.Keys)
+				if (InputTypeMask & (uint32_t)InputType::Keys && Inputs.Keys)
 					Result = true;
 
-				if (InputTypeMask & InputType_Scroll && Inputs.Scroll)
+				if (InputTypeMask & (uint32_t)InputType::Scroll && Inputs.Scroll)
 					Result = true;
 
-				if (InputTypeMask & InputType_Text && Inputs.Text)
+				if (InputTypeMask & (uint32_t)InputType::Text && Inputs.Text)
 					Result = true;
 
-				if (InputTypeMask & InputType_Cursor && Inputs.Cursor)
+				if (InputTypeMask & (uint32_t)InputType::Cursor && Inputs.Cursor)
 					Result = true;
 
 				return Result;
@@ -3808,213 +3808,213 @@ namespace Tomahawk
 
 				switch (Key)
 				{
-					case Graphics::KeyCode_SPACE:
+					case Graphics::KeyCode::SPACE:
 						return KI_SPACE;
-					case Graphics::KeyCode_0:
+					case Graphics::KeyCode::D0:
 						return KI_0;
-					case Graphics::KeyCode_1:
+					case Graphics::KeyCode::D1:
 						return KI_1;
-					case Graphics::KeyCode_2:
+					case Graphics::KeyCode::D2:
 						return KI_2;
-					case Graphics::KeyCode_3:
+					case Graphics::KeyCode::D3:
 						return KI_3;
-					case Graphics::KeyCode_4:
+					case Graphics::KeyCode::D4:
 						return KI_4;
-					case Graphics::KeyCode_5:
+					case Graphics::KeyCode::D5:
 						return KI_5;
-					case Graphics::KeyCode_6:
+					case Graphics::KeyCode::D6:
 						return KI_6;
-					case Graphics::KeyCode_7:
+					case Graphics::KeyCode::D7:
 						return KI_7;
-					case Graphics::KeyCode_8:
+					case Graphics::KeyCode::D8:
 						return KI_8;
-					case Graphics::KeyCode_9:
+					case Graphics::KeyCode::D9:
 						return KI_9;
-					case Graphics::KeyCode_A:
+					case Graphics::KeyCode::A:
 						return KI_A;
-					case Graphics::KeyCode_B:
+					case Graphics::KeyCode::B:
 						return KI_B;
-					case Graphics::KeyCode_C:
+					case Graphics::KeyCode::C:
 						return KI_C;
-					case Graphics::KeyCode_D:
+					case Graphics::KeyCode::D:
 						return KI_D;
-					case Graphics::KeyCode_E:
+					case Graphics::KeyCode::E:
 						return KI_E;
-					case Graphics::KeyCode_F:
+					case Graphics::KeyCode::F:
 						return KI_F;
-					case Graphics::KeyCode_G:
+					case Graphics::KeyCode::G:
 						return KI_G;
-					case Graphics::KeyCode_H:
+					case Graphics::KeyCode::H:
 						return KI_H;
-					case Graphics::KeyCode_I:
+					case Graphics::KeyCode::I:
 						return KI_I;
-					case Graphics::KeyCode_J:
+					case Graphics::KeyCode::J:
 						return KI_J;
-					case Graphics::KeyCode_K:
+					case Graphics::KeyCode::K:
 						return KI_K;
-					case Graphics::KeyCode_L:
+					case Graphics::KeyCode::L:
 						return KI_L;
-					case Graphics::KeyCode_M:
+					case Graphics::KeyCode::M:
 						return KI_M;
-					case Graphics::KeyCode_N:
+					case Graphics::KeyCode::N:
 						return KI_N;
-					case Graphics::KeyCode_O:
+					case Graphics::KeyCode::O:
 						return KI_O;
-					case Graphics::KeyCode_P:
+					case Graphics::KeyCode::P:
 						return KI_P;
-					case Graphics::KeyCode_Q:
+					case Graphics::KeyCode::Q:
 						return KI_Q;
-					case Graphics::KeyCode_R:
+					case Graphics::KeyCode::R:
 						return KI_R;
-					case Graphics::KeyCode_S:
+					case Graphics::KeyCode::S:
 						return KI_S;
-					case Graphics::KeyCode_T:
+					case Graphics::KeyCode::T:
 						return KI_T;
-					case Graphics::KeyCode_U:
+					case Graphics::KeyCode::U:
 						return KI_U;
-					case Graphics::KeyCode_V:
+					case Graphics::KeyCode::V:
 						return KI_V;
-					case Graphics::KeyCode_W:
+					case Graphics::KeyCode::W:
 						return KI_W;
-					case Graphics::KeyCode_X:
+					case Graphics::KeyCode::X:
 						return KI_X;
-					case Graphics::KeyCode_Y:
+					case Graphics::KeyCode::Y:
 						return KI_Y;
-					case Graphics::KeyCode_Z:
+					case Graphics::KeyCode::Z:
 						return KI_Z;
-					case Graphics::KeyCode_SEMICOLON:
+					case Graphics::KeyCode::SEMICOLON:
 						return KI_OEM_1;
-					case Graphics::KeyCode_COMMA:
+					case Graphics::KeyCode::COMMA:
 						return KI_OEM_COMMA;
-					case Graphics::KeyCode_MINUS:
+					case Graphics::KeyCode::MINUS:
 						return KI_OEM_MINUS;
-					case Graphics::KeyCode_PERIOD:
+					case Graphics::KeyCode::PERIOD:
 						return KI_OEM_PERIOD;
-					case Graphics::KeyCode_SLASH:
+					case Graphics::KeyCode::SLASH:
 						return KI_OEM_2;
-					case Graphics::KeyCode_LEFTBRACKET:
+					case Graphics::KeyCode::LEFTBRACKET:
 						return KI_OEM_4;
-					case Graphics::KeyCode_BACKSLASH:
+					case Graphics::KeyCode::BACKSLASH:
 						return KI_OEM_5;
-					case Graphics::KeyCode_RIGHTBRACKET:
+					case Graphics::KeyCode::RIGHTBRACKET:
 						return KI_OEM_6;
-					case Graphics::KeyCode_KP_0:
+					case Graphics::KeyCode::KP_0:
 						return KI_NUMPAD0;
-					case Graphics::KeyCode_KP_1:
+					case Graphics::KeyCode::KP_1:
 						return KI_NUMPAD1;
-					case Graphics::KeyCode_KP_2:
+					case Graphics::KeyCode::KP_2:
 						return KI_NUMPAD2;
-					case Graphics::KeyCode_KP_3:
+					case Graphics::KeyCode::KP_3:
 						return KI_NUMPAD3;
-					case Graphics::KeyCode_KP_4:
+					case Graphics::KeyCode::KP_4:
 						return KI_NUMPAD4;
-					case Graphics::KeyCode_KP_5:
+					case Graphics::KeyCode::KP_5:
 						return KI_NUMPAD5;
-					case Graphics::KeyCode_KP_6:
+					case Graphics::KeyCode::KP_6:
 						return KI_NUMPAD6;
-					case Graphics::KeyCode_KP_7:
+					case Graphics::KeyCode::KP_7:
 						return KI_NUMPAD7;
-					case Graphics::KeyCode_KP_8:
+					case Graphics::KeyCode::KP_8:
 						return KI_NUMPAD8;
-					case Graphics::KeyCode_KP_9:
+					case Graphics::KeyCode::KP_9:
 						return KI_NUMPAD9;
-					case Graphics::KeyCode_KP_ENTER:
+					case Graphics::KeyCode::KP_ENTER:
 						return KI_NUMPADENTER;
-					case Graphics::KeyCode_KP_MULTIPLY:
+					case Graphics::KeyCode::KP_MULTIPLY:
 						return KI_MULTIPLY;
-					case Graphics::KeyCode_KP_PLUS:
+					case Graphics::KeyCode::KP_PLUS:
 						return KI_ADD;
-					case Graphics::KeyCode_KP_MINUS:
+					case Graphics::KeyCode::KP_MINUS:
 						return KI_SUBTRACT;
-					case Graphics::KeyCode_KP_PERIOD:
+					case Graphics::KeyCode::KP_PERIOD:
 						return KI_DECIMAL;
-					case Graphics::KeyCode_KP_DIVIDE:
+					case Graphics::KeyCode::KP_DIVIDE:
 						return KI_DIVIDE;
-					case Graphics::KeyCode_KP_EQUALS:
+					case Graphics::KeyCode::KP_EQUALS:
 						return KI_OEM_NEC_EQUAL;
-					case Graphics::KeyCode_BACKSPACE:
+					case Graphics::KeyCode::BACKSPACE:
 						return KI_BACK;
-					case Graphics::KeyCode_TAB:
+					case Graphics::KeyCode::TAB:
 						return KI_TAB;
-					case Graphics::KeyCode_CLEAR:
+					case Graphics::KeyCode::CLEAR:
 						return KI_CLEAR;
-					case Graphics::KeyCode_RETURN:
+					case Graphics::KeyCode::RETURN:
 						return KI_RETURN;
-					case Graphics::KeyCode_PAUSE:
+					case Graphics::KeyCode::PAUSE:
 						return KI_PAUSE;
-					case Graphics::KeyCode_CAPSLOCK:
+					case Graphics::KeyCode::CAPSLOCK:
 						return KI_CAPITAL;
-					case Graphics::KeyCode_PAGEUP:
+					case Graphics::KeyCode::PAGEUP:
 						return KI_PRIOR;
-					case Graphics::KeyCode_PAGEDOWN:
+					case Graphics::KeyCode::PAGEDOWN:
 						return KI_NEXT;
-					case Graphics::KeyCode_END:
+					case Graphics::KeyCode::END:
 						return KI_END;
-					case Graphics::KeyCode_HOME:
+					case Graphics::KeyCode::HOME:
 						return KI_HOME;
-					case Graphics::KeyCode_LEFT:
+					case Graphics::KeyCode::LEFT:
 						return KI_LEFT;
-					case Graphics::KeyCode_UP:
+					case Graphics::KeyCode::UP:
 						return KI_UP;
-					case Graphics::KeyCode_RIGHT:
+					case Graphics::KeyCode::RIGHT:
 						return KI_RIGHT;
-					case Graphics::KeyCode_DOWN:
+					case Graphics::KeyCode::DOWN:
 						return KI_DOWN;
-					case Graphics::KeyCode_INSERT:
+					case Graphics::KeyCode::INSERT:
 						return KI_INSERT;
-					case Graphics::KeyCode_DELETE:
+					case Graphics::KeyCode::DELETEKEY:
 						return KI_DELETE;
-					case Graphics::KeyCode_HELP:
+					case Graphics::KeyCode::HELP:
 						return KI_HELP;
-					case Graphics::KeyCode_F1:
+					case Graphics::KeyCode::F1:
 						return KI_F1;
-					case Graphics::KeyCode_F2:
+					case Graphics::KeyCode::F2:
 						return KI_F2;
-					case Graphics::KeyCode_F3:
+					case Graphics::KeyCode::F3:
 						return KI_F3;
-					case Graphics::KeyCode_F4:
+					case Graphics::KeyCode::F4:
 						return KI_F4;
-					case Graphics::KeyCode_F5:
+					case Graphics::KeyCode::F5:
 						return KI_F5;
-					case Graphics::KeyCode_F6:
+					case Graphics::KeyCode::F6:
 						return KI_F6;
-					case Graphics::KeyCode_F7:
+					case Graphics::KeyCode::F7:
 						return KI_F7;
-					case Graphics::KeyCode_F8:
+					case Graphics::KeyCode::F8:
 						return KI_F8;
-					case Graphics::KeyCode_F9:
+					case Graphics::KeyCode::F9:
 						return KI_F9;
-					case Graphics::KeyCode_F10:
+					case Graphics::KeyCode::F10:
 						return KI_F10;
-					case Graphics::KeyCode_F11:
+					case Graphics::KeyCode::F11:
 						return KI_F11;
-					case Graphics::KeyCode_F12:
+					case Graphics::KeyCode::F12:
 						return KI_F12;
-					case Graphics::KeyCode_F13:
+					case Graphics::KeyCode::F13:
 						return KI_F13;
-					case Graphics::KeyCode_F14:
+					case Graphics::KeyCode::F14:
 						return KI_F14;
-					case Graphics::KeyCode_F15:
+					case Graphics::KeyCode::F15:
 						return KI_F15;
-					case Graphics::KeyCode_NUMLOCKCLEAR:
+					case Graphics::KeyCode::NUMLOCKCLEAR:
 						return KI_NUMLOCK;
-					case Graphics::KeyCode_SCROLLLOCK:
+					case Graphics::KeyCode::SCROLLLOCK:
 						return KI_SCROLL;
-					case Graphics::KeyCode_LSHIFT:
+					case Graphics::KeyCode::LSHIFT:
 						return KI_LSHIFT;
-					case Graphics::KeyCode_RSHIFT:
+					case Graphics::KeyCode::RSHIFT:
 						return KI_RSHIFT;
-					case Graphics::KeyCode_LCTRL:
+					case Graphics::KeyCode::LCTRL:
 						return KI_LCONTROL;
-					case Graphics::KeyCode_RCTRL:
+					case Graphics::KeyCode::RCTRL:
 						return KI_RCONTROL;
-					case Graphics::KeyCode_LALT:
+					case Graphics::KeyCode::LALT:
 						return KI_LMENU;
-					case Graphics::KeyCode_RALT:
+					case Graphics::KeyCode::RALT:
 						return KI_RMENU;
-					case Graphics::KeyCode_LGUI:
+					case Graphics::KeyCode::LGUI:
 						return KI_LMETA;
-					case Graphics::KeyCode_RGUI:
+					case Graphics::KeyCode::RGUI:
 						return KI_RMETA;
 					default:
 						return KI_UNKNOWN;
@@ -4023,13 +4023,13 @@ namespace Tomahawk
 			int Context::GetKeyMod(Graphics::KeyMod Mod)
 			{
 				int Result = 0;
-				if (Mod & Graphics::KeyMod_CTRL)
+				if ((size_t)Mod & (size_t)Graphics::KeyMod::CTRL)
 					Result |= Rml::Input::KM_CTRL;
 
-				if (Mod & Graphics::KeyMod_SHIFT)
+				if ((size_t)Mod & (size_t)Graphics::KeyMod::SHIFT)
 					Result |= Rml::Input::KM_SHIFT;
 
-				if (Mod & Graphics::KeyMod_ALT)
+				if ((size_t)Mod & (size_t)Graphics::KeyMod::ALT)
 					Result |= Rml::Input::KM_ALT;
 
 				return Result;

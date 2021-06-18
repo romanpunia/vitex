@@ -376,15 +376,15 @@ namespace Tomahawk
 				Graphics::Activity* Activity;
 
 			public:
-				Graphics::KeyMap Forward = Graphics::KeyCode_W;
-				Graphics::KeyMap Backward = Graphics::KeyCode_S;
-				Graphics::KeyMap Right = Graphics::KeyCode_D;
-				Graphics::KeyMap Left = Graphics::KeyCode_A;
-				Graphics::KeyMap Up = Graphics::KeyCode_SPACE;
-				Graphics::KeyMap Down = Graphics::KeyCode_Z;
-				Graphics::KeyMap Fast = Graphics::KeyCode_LSHIFT;
-				Graphics::KeyMap Slow = Graphics::KeyCode_LCTRL;
-				Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);;
+				Graphics::KeyMap Forward = Graphics::KeyCode::W;
+				Graphics::KeyMap Backward = Graphics::KeyCode::S;
+				Graphics::KeyMap Right = Graphics::KeyCode::D;
+				Graphics::KeyMap Left = Graphics::KeyCode::A;
+				Graphics::KeyMap Up = Graphics::KeyCode::SPACE;
+				Graphics::KeyMap Down = Graphics::KeyCode::Z;
+				Graphics::KeyMap Fast = Graphics::KeyCode::LSHIFT;
+				Graphics::KeyMap Slow = Graphics::KeyCode::LCTRL;
+				Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);
 				float SpeedNormal = 1.2f;
 				float SpeedUp = 2.6f;
 				float SpeedDown = 0.25f;
@@ -767,11 +767,11 @@ namespace Tomahawk
 				int SetTypePropertyByName(const char* Name, const T& Value)
 				{
 					if (!Name || !Compiler)
-						return Script::VMResult_INVALID_ARG;
+						return (int)Script::VMResult::INVALID_ARG;
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
-						return Script::VMResult_MODULE_IS_IN_USE;
+					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
@@ -804,18 +804,18 @@ namespace Tomahawk
 				int SetRefPropertyByName(const char* Name, T* Value)
 				{
 					if (!Name || !Compiler)
-						return Script::VMResult_INVALID_ARG;
+						return (int)Script::VMResult::INVALID_ARG;
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
-						return Script::VMResult_MODULE_IS_IN_USE;
+					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
 					if (!Src.IsValid())
 					{
 						Safe.unlock();
-						return Script::VMResult_INVALID_CONFIGURATION;
+						return Script::VMResult::INVALID_CONFIGURATION;
 					}
 
 					int Index = Src.GetPropertyIndexByName(Name);
@@ -846,11 +846,11 @@ namespace Tomahawk
 				int SetTypePropertyByIndex(int Index, const T& Value)
 				{
 					if (Index < 0 || !Compiler)
-						return Script::VMResult_INVALID_ARG;
+						return (int)Script::VMResult::INVALID_ARG;
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
-						return Script::VMResult_MODULE_IS_IN_USE;
+					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
@@ -876,18 +876,18 @@ namespace Tomahawk
 				int SetRefPropertyByIndex(int Index, T* Value)
 				{
 					if (Index < 0 || !Compiler)
-						return Script::VMResult_INVALID_ARG;
+						return (int)Script::VMResult::INVALID_ARG;
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
-						return Script::VMResult_MODULE_IS_IN_USE;
+					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
 					if (!Src.IsValid())
 					{
 						Safe.unlock();
-						return Script::VMResult_INVALID_CONFIGURATION;
+						return Script::VMResult::INVALID_CONFIGURATION;
 					}
 
 					T** Address = (T**)Src.GetAddressOfProperty(Index);

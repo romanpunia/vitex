@@ -6,12 +6,12 @@
 #include <functional>
 #include <limits>
 
-#define TH_VS Tomahawk::Graphics::ShaderType_Vertex
-#define TH_PS Tomahawk::Graphics::ShaderType_Pixel
-#define TH_GS Tomahawk::Graphics::ShaderType_Geometry
-#define TH_CS Tomahawk::Graphics::ShaderType_Compute
-#define TH_HS Tomahawk::Graphics::ShaderType_Hull
-#define TH_DS Tomahawk::Graphics::ShaderType_Domain
+#define TH_VS (unsigned int)Tomahawk::Graphics::ShaderType::Vertex
+#define TH_PS (unsigned int)Tomahawk::Graphics::ShaderType::Pixel
+#define TH_GS (unsigned int)Tomahawk::Graphics::ShaderType::Geometry
+#define TH_CS (unsigned int)Tomahawk::Graphics::ShaderType::Compute
+#define TH_HS (unsigned int)Tomahawk::Graphics::ShaderType::Hull
+#define TH_DS (unsigned int)Tomahawk::Graphics::ShaderType::Domain
 
 struct SDL_SysWMinfo;
 struct SDL_Cursor;
@@ -22,725 +22,746 @@ namespace Tomahawk
 {
 	namespace Graphics
 	{
-		enum AppState
+		enum class AppState
 		{
-			AppState_Close_Window,
-			AppState_Terminating,
-			AppState_Low_Memory,
-			AppState_Enter_Background_Start,
-			AppState_Enter_Background_End,
-			AppState_Enter_Foreground_Start,
-			AppState_Enter_Foreground_End
+			Close_Window,
+			Terminating,
+			Low_Memory,
+			Enter_Background_Start,
+			Enter_Background_End,
+			Enter_Foreground_Start,
+			Enter_Foreground_End
 		};
 
-		enum WindowState
+		enum class WindowState
 		{
-			WindowState_Show,
-			WindowState_Hide,
-			WindowState_Expose,
-			WindowState_Move,
-			WindowState_Resize,
-			WindowState_Size_Change,
-			WindowState_Minimize,
-			WindowState_Maximize,
-			WindowState_Restore,
-			WindowState_Enter,
-			WindowState_Leave,
-			WindowState_Focus,
-			WindowState_Blur,
-			WindowState_Close
+			Show,
+			Hide,
+			Expose,
+			Move,
+			Resize,
+			Size_Change,
+			Minimize,
+			Maximize,
+			Restore,
+			Enter,
+			Leave,
+			Focus,
+			Blur,
+			Close
 		};
 
-		enum KeyCode
+		enum class KeyCode
 		{
-			KeyCode_A = 4,
-			KeyCode_B = 5,
-			KeyCode_C = 6,
-			KeyCode_D = 7,
-			KeyCode_E = 8,
-			KeyCode_F = 9,
-			KeyCode_G = 10,
-			KeyCode_H = 11,
-			KeyCode_I = 12,
-			KeyCode_J = 13,
-			KeyCode_K = 14,
-			KeyCode_L = 15,
-			KeyCode_M = 16,
-			KeyCode_N = 17,
-			KeyCode_O = 18,
-			KeyCode_P = 19,
-			KeyCode_Q = 20,
-			KeyCode_R = 21,
-			KeyCode_S = 22,
-			KeyCode_T = 23,
-			KeyCode_U = 24,
-			KeyCode_V = 25,
-			KeyCode_W = 26,
-			KeyCode_X = 27,
-			KeyCode_Y = 28,
-			KeyCode_Z = 29,
-			KeyCode_1 = 30,
-			KeyCode_2 = 31,
-			KeyCode_3 = 32,
-			KeyCode_4 = 33,
-			KeyCode_5 = 34,
-			KeyCode_6 = 35,
-			KeyCode_7 = 36,
-			KeyCode_8 = 37,
-			KeyCode_9 = 38,
-			KeyCode_0 = 39,
-			KeyCode_RETURN = 40,
-			KeyCode_ESCAPE = 41,
-			KeyCode_BACKSPACE = 42,
-			KeyCode_TAB = 43,
-			KeyCode_SPACE = 44,
-			KeyCode_MINUS = 45,
-			KeyCode_EQUALS = 46,
-			KeyCode_LEFTBRACKET = 47,
-			KeyCode_RIGHTBRACKET = 48,
-			KeyCode_BACKSLASH = 49,
-			KeyCode_NONUSHASH = 50,
-			KeyCode_SEMICOLON = 51,
-			KeyCode_APOSTROPHE = 52,
-			KeyCode_GRAVE = 53,
-			KeyCode_COMMA = 54,
-			KeyCode_PERIOD = 55,
-			KeyCode_SLASH = 56,
-			KeyCode_CAPSLOCK = 57,
-			KeyCode_F1 = 58,
-			KeyCode_F2 = 59,
-			KeyCode_F3 = 60,
-			KeyCode_F4 = 61,
-			KeyCode_F5 = 62,
-			KeyCode_F6 = 63,
-			KeyCode_F7 = 64,
-			KeyCode_F8 = 65,
-			KeyCode_F9 = 66,
-			KeyCode_F10 = 67,
-			KeyCode_F11 = 68,
-			KeyCode_F12 = 69,
-			KeyCode_PRINTSCREEN = 70,
-			KeyCode_SCROLLLOCK = 71,
-			KeyCode_PAUSE = 72,
-			KeyCode_INSERT = 73,
-			KeyCode_HOME = 74,
-			KeyCode_PAGEUP = 75,
-			KeyCode_DELETE = 76,
-			KeyCode_END = 77,
-			KeyCode_PAGEDOWN = 78,
-			KeyCode_RIGHT = 79,
-			KeyCode_LEFT = 80,
-			KeyCode_DOWN = 81,
-			KeyCode_UP = 82,
-			KeyCode_NUMLOCKCLEAR = 83,
-			KeyCode_KP_DIVIDE = 84,
-			KeyCode_KP_MULTIPLY = 85,
-			KeyCode_KP_MINUS = 86,
-			KeyCode_KP_PLUS = 87,
-			KeyCode_KP_ENTER = 88,
-			KeyCode_KP_1 = 89,
-			KeyCode_KP_2 = 90,
-			KeyCode_KP_3 = 91,
-			KeyCode_KP_4 = 92,
-			KeyCode_KP_5 = 93,
-			KeyCode_KP_6 = 94,
-			KeyCode_KP_7 = 95,
-			KeyCode_KP_8 = 96,
-			KeyCode_KP_9 = 97,
-			KeyCode_KP_0 = 98,
-			KeyCode_KP_PERIOD = 99,
-			KeyCode_NONUSBACKSLASH = 100,
-			KeyCode_APPLICATION = 101,
-			KeyCode_POWER = 102,
-			KeyCode_KP_EQUALS = 103,
-			KeyCode_F13 = 104,
-			KeyCode_F14 = 105,
-			KeyCode_F15 = 106,
-			KeyCode_F16 = 107,
-			KeyCode_F17 = 108,
-			KeyCode_F18 = 109,
-			KeyCode_F19 = 110,
-			KeyCode_F20 = 111,
-			KeyCode_F21 = 112,
-			KeyCode_F22 = 113,
-			KeyCode_F23 = 114,
-			KeyCode_F24 = 115,
-			KeyCode_EXECUTE = 116,
-			KeyCode_HELP = 117,
-			KeyCode_MENU = 118,
-			KeyCode_SELECT = 119,
-			KeyCode_STOP = 120,
-			KeyCode_AGAIN = 121,
-			KeyCode_UNDO = 122,
-			KeyCode_CUT = 123,
-			KeyCode_COPY = 124,
-			KeyCode_PASTE = 125,
-			KeyCode_FIND = 126,
-			KeyCode_MUTE = 127,
-			KeyCode_VOLUMEUP = 128,
-			KeyCode_VOLUMEDOWN = 129,
-			KeyCode_KP_COMMA = 133,
-			KeyCode_KP_EQUALSAS400 = 134,
-			KeyCode_INTERNATIONAL1 = 135,
-			KeyCode_INTERNATIONAL2 = 136,
-			KeyCode_INTERNATIONAL3 = 137,
-			KeyCode_INTERNATIONAL4 = 138,
-			KeyCode_INTERNATIONAL5 = 139,
-			KeyCode_INTERNATIONAL6 = 140,
-			KeyCode_INTERNATIONAL7 = 141,
-			KeyCode_INTERNATIONAL8 = 142,
-			KeyCode_INTERNATIONAL9 = 143,
-			KeyCode_LANG1 = 144,
-			KeyCode_LANG2 = 145,
-			KeyCode_LANG3 = 146,
-			KeyCode_LANG4 = 147,
-			KeyCode_LANG5 = 148,
-			KeyCode_LANG6 = 149,
-			KeyCode_LANG7 = 150,
-			KeyCode_LANG8 = 151,
-			KeyCode_LANG9 = 152,
-			KeyCode_ALTERASE = 153,
-			KeyCode_SYSREQ = 154,
-			KeyCode_CANCEL = 155,
-			KeyCode_CLEAR = 156,
-			KeyCode_PRIOR = 157,
-			KeyCode_RETURN2 = 158,
-			KeyCode_SEPARATOR = 159,
-			KeyCode_OUT = 160,
-			KeyCode_OPER = 161,
-			KeyCode_CLEARAGAIN = 162,
-			KeyCode_CRSEL = 163,
-			KeyCode_EXSEL = 164,
-			KeyCode_KP_00 = 176,
-			KeyCode_KP_000 = 177,
-			KeyCode_THOUSANDSSEPARATOR = 178,
-			KeyCode_DECIMALSEPARATOR = 179,
-			KeyCode_CURRENCYUNIT = 180,
-			KeyCode_CURRENCYSUBUNIT = 181,
-			KeyCode_KP_LEFTPAREN = 182,
-			KeyCode_KP_RIGHTPAREN = 183,
-			KeyCode_KP_LEFTBRACE = 184,
-			KeyCode_KP_RIGHTBRACE = 185,
-			KeyCode_KP_TAB = 186,
-			KeyCode_KP_BACKSPACE = 187,
-			KeyCode_KP_A = 188,
-			KeyCode_KP_B = 189,
-			KeyCode_KP_C = 190,
-			KeyCode_KP_D = 191,
-			KeyCode_KP_E = 192,
-			KeyCode_KP_F = 193,
-			KeyCode_KP_XOR = 194,
-			KeyCode_KP_POWER = 195,
-			KeyCode_KP_PERCENT = 196,
-			KeyCode_KP_LESS = 197,
-			KeyCode_KP_GREATER = 198,
-			KeyCode_KP_AMPERSAND = 199,
-			KeyCode_KP_DBLAMPERSAND = 200,
-			KeyCode_KP_VERTICALBAR = 201,
-			KeyCode_KP_DBLVERTICALBAR = 202,
-			KeyCode_KP_COLON = 203,
-			KeyCode_KP_HASH = 204,
-			KeyCode_KP_SPACE = 205,
-			KeyCode_KP_AT = 206,
-			KeyCode_KP_EXCLAM = 207,
-			KeyCode_KP_MEMSTORE = 208,
-			KeyCode_KP_MEMRECALL = 209,
-			KeyCode_KP_MEMCLEAR = 210,
-			KeyCode_KP_MEMADD = 211,
-			KeyCode_KP_MEMSUBTRACT = 212,
-			KeyCode_KP_MEMMULTIPLY = 213,
-			KeyCode_KP_MEMDIVIDE = 214,
-			KeyCode_KP_PLUSMINUS = 215,
-			KeyCode_KP_CLEAR = 216,
-			KeyCode_KP_CLEARENTRY = 217,
-			KeyCode_KP_BINARY = 218,
-			KeyCode_KP_OCTAL = 219,
-			KeyCode_KP_DECIMAL = 220,
-			KeyCode_KP_HEXADECIMAL = 221,
-			KeyCode_LCTRL = 224,
-			KeyCode_LSHIFT = 225,
-			KeyCode_LALT = 226,
-			KeyCode_LGUI = 227,
-			KeyCode_RCTRL = 228,
-			KeyCode_RSHIFT = 229,
-			KeyCode_RALT = 230,
-			KeyCode_RGUI = 231,
-			KeyCode_MODE = 257,
-			KeyCode_AUDIONEXT = 258,
-			KeyCode_AUDIOPREV = 259,
-			KeyCode_AUDIOSTOP = 260,
-			KeyCode_AUDIOPLAY = 261,
-			KeyCode_AUDIOMUTE = 262,
-			KeyCode_MEDIASELECT = 263,
-			KeyCode_WWW = 264,
-			KeyCode_MAIL = 265,
-			KeyCode_CALCULATOR = 266,
-			KeyCode_COMPUTER = 267,
-			KeyCode_AC_SEARCH = 268,
-			KeyCode_AC_HOME = 269,
-			KeyCode_AC_BACK = 270,
-			KeyCode_AC_FORWARD = 271,
-			KeyCode_AC_STOP = 272,
-			KeyCode_AC_REFRESH = 273,
-			KeyCode_AC_BOOKMARKS = 274,
-			KeyCode_BRIGHTNESSDOWN = 275,
-			KeyCode_BRIGHTNESSUP = 276,
-			KeyCode_DISPLAYSWITCH = 277,
-			KeyCode_KBDILLUMTOGGLE = 278,
-			KeyCode_KBDILLUMDOWN = 279,
-			KeyCode_KBDILLUMUP = 280,
-			KeyCode_EJECT = 281,
-			KeyCode_SLEEP = 282,
-			KeyCode_APP1 = 283,
-			KeyCode_APP2 = 284,
-			KeyCode_AUDIOREWIND = 285,
-			KeyCode_AUDIOFASTFORWARD = 286,
-			KeyCode_CURSORLEFT = 287,
-			KeyCode_CURSORMIDDLE = 288,
-			KeyCode_CURSORRIGHT = 289,
-			KeyCode_CURSORX1 = 290,
-			KeyCode_CURSORX2 = 291,
-			KeyCode_NONE = 292
+			A = 4,
+			B = 5,
+			C = 6,
+			D = 7,
+			E = 8,
+			F = 9,
+			G = 10,
+			H = 11,
+			I = 12,
+			J = 13,
+			K = 14,
+			L = 15,
+			M = 16,
+			N = 17,
+			O = 18,
+			P = 19,
+			Q = 20,
+			R = 21,
+			S = 22,
+			T = 23,
+			U = 24,
+			V = 25,
+			W = 26,
+			X = 27,
+			Y = 28,
+			Z = 29,
+			D1 = 30,
+			D2 = 31,
+			D3 = 32,
+			D4 = 33,
+			D5 = 34,
+			D6 = 35,
+			D7 = 36,
+			D8 = 37,
+			D9 = 38,
+			D0 = 39,
+			RETURN = 40,
+			ESCAPE = 41,
+			BACKSPACE = 42,
+			TAB = 43,
+			SPACE = 44,
+			MINUS = 45,
+			EQUALS = 46,
+			LEFTBRACKET = 47,
+			RIGHTBRACKET = 48,
+			BACKSLASH = 49,
+			NONUSHASH = 50,
+			SEMICOLON = 51,
+			APOSTROPHE = 52,
+			GRAVE = 53,
+			COMMA = 54,
+			PERIOD = 55,
+			SLASH = 56,
+			CAPSLOCK = 57,
+			F1 = 58,
+			F2 = 59,
+			F3 = 60,
+			F4 = 61,
+			F5 = 62,
+			F6 = 63,
+			F7 = 64,
+			F8 = 65,
+			F9 = 66,
+			F10 = 67,
+			F11 = 68,
+			F12 = 69,
+			PRINTSCREEN = 70,
+			SCROLLLOCK = 71,
+			PAUSE = 72,
+			INSERT = 73,
+			HOME = 74,
+			PAGEUP = 75,
+			DELETEKEY = 76,
+			END = 77,
+			PAGEDOWN = 78,
+			RIGHT = 79,
+			LEFT = 80,
+			DOWN = 81,
+			UP = 82,
+			NUMLOCKCLEAR = 83,
+			KP_DIVIDE = 84,
+			KP_MULTIPLY = 85,
+			KP_MINUS = 86,
+			KP_PLUS = 87,
+			KP_ENTER = 88,
+			KP_1 = 89,
+			KP_2 = 90,
+			KP_3 = 91,
+			KP_4 = 92,
+			KP_5 = 93,
+			KP_6 = 94,
+			KP_7 = 95,
+			KP_8 = 96,
+			KP_9 = 97,
+			KP_0 = 98,
+			KP_PERIOD = 99,
+			NONUSBACKSLASH = 100,
+			APPLICATION = 101,
+			POWER = 102,
+			KP_EQUALS = 103,
+			F13 = 104,
+			F14 = 105,
+			F15 = 106,
+			F16 = 107,
+			F17 = 108,
+			F18 = 109,
+			F19 = 110,
+			F20 = 111,
+			F21 = 112,
+			F22 = 113,
+			F23 = 114,
+			F24 = 115,
+			EXECUTE = 116,
+			HELP = 117,
+			MENU = 118,
+			SELECT = 119,
+			STOP = 120,
+			AGAIN = 121,
+			UNDO = 122,
+			CUT = 123,
+			COPY = 124,
+			PASTE = 125,
+			FIND = 126,
+			MUTE = 127,
+			VOLUMEUP = 128,
+			VOLUMEDOWN = 129,
+			KP_COMMA = 133,
+			KP_EQUALSAS400 = 134,
+			INTERNATIONAL1 = 135,
+			INTERNATIONAL2 = 136,
+			INTERNATIONAL3 = 137,
+			INTERNATIONAL4 = 138,
+			INTERNATIONAL5 = 139,
+			INTERNATIONAL6 = 140,
+			INTERNATIONAL7 = 141,
+			INTERNATIONAL8 = 142,
+			INTERNATIONAL9 = 143,
+			LANG1 = 144,
+			LANG2 = 145,
+			LANG3 = 146,
+			LANG4 = 147,
+			LANG5 = 148,
+			LANG6 = 149,
+			LANG7 = 150,
+			LANG8 = 151,
+			LANG9 = 152,
+			ALTERASE = 153,
+			SYSREQ = 154,
+			CANCEL = 155,
+			CLEAR = 156,
+			PRIOR = 157,
+			RETURN2 = 158,
+			SEPARATOR = 159,
+			OUTKEY = 160,
+			OPER = 161,
+			CLEARAGAIN = 162,
+			CRSEL = 163,
+			EXSEL = 164,
+			KP_00 = 176,
+			KP_000 = 177,
+			THOUSANDSSEPARATOR = 178,
+			DECIMALSEPARATOR = 179,
+			CURRENCYUNIT = 180,
+			CURRENCYSUBUNIT = 181,
+			KP_LEFTPAREN = 182,
+			KP_RIGHTPAREN = 183,
+			KP_LEFTBRACE = 184,
+			KP_RIGHTBRACE = 185,
+			KP_TAB = 186,
+			KP_BACKSPACE = 187,
+			KP_A = 188,
+			KP_B = 189,
+			KP_C = 190,
+			KP_D = 191,
+			KP_E = 192,
+			KP_F = 193,
+			KP_XOR = 194,
+			KP_POWER = 195,
+			KP_PERCENT = 196,
+			KP_LESS = 197,
+			KP_GREATER = 198,
+			KP_AMPERSAND = 199,
+			KP_DBLAMPERSAND = 200,
+			KP_VERTICALBAR = 201,
+			KP_DBLVERTICALBAR = 202,
+			KP_COLON = 203,
+			KP_HASH = 204,
+			KP_SPACE = 205,
+			KP_AT = 206,
+			KP_EXCLAM = 207,
+			KP_MEMSTORE = 208,
+			KP_MEMRECALL = 209,
+			KP_MEMCLEAR = 210,
+			KP_MEMADD = 211,
+			KP_MEMSUBTRACT = 212,
+			KP_MEMMULTIPLY = 213,
+			KP_MEMDIVIDE = 214,
+			KP_PLUSMINUS = 215,
+			KP_CLEAR = 216,
+			KP_CLEARENTRY = 217,
+			KP_BINARY = 218,
+			KP_OCTAL = 219,
+			KP_DECIMAL = 220,
+			KP_HEXADECIMAL = 221,
+			LCTRL = 224,
+			LSHIFT = 225,
+			LALT = 226,
+			LGUI = 227,
+			RCTRL = 228,
+			RSHIFT = 229,
+			RALT = 230,
+			RGUI = 231,
+			MODE = 257,
+			AUDIONEXT = 258,
+			AUDIOPREV = 259,
+			AUDIOSTOP = 260,
+			AUDIOPLAY = 261,
+			AUDIOMUTE = 262,
+			MEDIASELECT = 263,
+			WWW = 264,
+			MAIL = 265,
+			CALCULATOR = 266,
+			COMPUTER = 267,
+			AC_SEARCH = 268,
+			AC_HOME = 269,
+			AC_BACK = 270,
+			AC_FORWARD = 271,
+			AC_STOP = 272,
+			AC_REFRESH = 273,
+			AC_BOOKMARKS = 274,
+			BRIGHTNESSDOWN = 275,
+			BRIGHTNESSUP = 276,
+			DISPLAYSWITCH = 277,
+			KBDILLUMTOGGLE = 278,
+			KBDILLUMDOWN = 279,
+			KBDILLUMUP = 280,
+			EJECT = 281,
+			SLEEP = 282,
+			APP1 = 283,
+			APP2 = 284,
+			AUDIOREWIND = 285,
+			AUDIOFASTFORWARD = 286,
+			CURSORLEFT = 287,
+			CURSORMIDDLE = 288,
+			CURSORRIGHT = 289,
+			CURSORX1 = 290,
+			CURSORX2 = 291,
+			None = 292
 		};
 
-		enum KeyMod
+		enum class KeyMod
 		{
-			KeyMod_NONE = 0x0000,
-			KeyMod_LSHIFT = 0x0001,
-			KeyMod_RSHIFT = 0x0002,
-			KeyMod_LCTRL = 0x0040,
-			KeyMod_RCTRL = 0x0080,
-			KeyMod_LALT = 0x0100,
-			KeyMod_RALT = 0x0200,
-			KeyMod_LGUI = 0x0400,
-			KeyMod_RGUI = 0x0800,
-			KeyMod_NUM = 0x1000,
-			KeyMod_CAPS = 0x2000,
-			KeyMod_MODE = 0x4000,
-			KeyMod_RESERVED = 0x8000,
-			KeyMod_SHIFT = KeyMod_LSHIFT | KeyMod_RSHIFT,
-			KeyMod_CTRL = KeyMod_LCTRL | KeyMod_RCTRL,
-			KeyMod_ALT = KeyMod_LALT | KeyMod_RALT,
-			KeyMod_GUI = KeyMod_LGUI | KeyMod_RGUI
+			None = 0x0000,
+			LSHIFT = 0x0001,
+			RSHIFT = 0x0002,
+			LCTRL = 0x0040,
+			RCTRL = 0x0080,
+			LALT = 0x0100,
+			RALT = 0x0200,
+			LGUI = 0x0400,
+			RGUI = 0x0800,
+			NUM = 0x1000,
+			CAPS = 0x2000,
+			MODE = 0x4000,
+			RESERVED = 0x8000,
+			SHIFT = LSHIFT | RSHIFT,
+			CTRL = LCTRL | RCTRL,
+			ALT = LALT | RALT,
+			GUI = LGUI | RGUI
 		};
 
-		enum AlertType
+		enum class AlertType
 		{
-			AlertType_None = 0,
-			AlertType_Error = 0x00000010,
-			AlertType_Warning = 0x00000020,
-			AlertType_Info = 0x00000040
+			None = 0,
+			Error = 0x00000010,
+			Warning = 0x00000020,
+			Info = 0x00000040
 		};
 
-		enum AlertConfirm
+		enum class AlertConfirm
 		{
-			AlertConfirm_None = 0,
-			AlertConfirm_Return = 0x00000002,
-			AlertConfirm_Escape = 0x00000001
+			None = 0,
+			Return = 0x00000002,
+			Escape = 0x00000001
 		};
 
-		enum JoyStickHat
+		enum class JoyStickHat
 		{
-			JoyStickHat_Center = 0x00,
-			JoyStickHat_Up = 0x01,
-			JoyStickHat_Right = 0x02,
-			JoyStickHat_Down = 0x04,
-			JoyStickHat_Left = 0x08,
-			JoyStickHat_Right_Up = 0x02 | 0x01,
-			JoyStickHat_Right_Down = 0x02 | 0x04,
-			JoyStickHat_Left_Up = 0x08 | 0x01,
-			JoyStickHat_Left_Down = 0x08 | 0x04
+			Center = 0x00,
+			Up = 0x01,
+			Right = 0x02,
+			Down = 0x04,
+			Left = 0x08,
+			Right_Up = 0x02 | 0x01,
+			Right_Down = 0x02 | 0x04,
+			Left_Up = 0x08 | 0x01,
+			Left_Down = 0x08 | 0x04
 		};
 
-		enum RenderBackend
+		enum class RenderBackend
 		{
-			RenderBackend_NONE,
-			RenderBackend_D3D11,
-			RenderBackend_OGL
+			None,
+			D3D11,
+			OGL
 		};
 
-		enum VSync
+		enum class VSync
 		{
-			VSync_Disabled,
-			VSync_Frequency_X1,
-			VSync_Frequency_X2,
-			VSync_Frequency_X3,
-			VSync_Frequency_X4
+			None,
+			Frequency_X1,
+			Frequency_X2,
+			Frequency_X3,
+			Frequency_X4
 		};
 
-		enum SurfaceTarget
+		enum class SurfaceTarget
 		{
-			SurfaceTarget0 = 1,
-			SurfaceTarget1 = 2,
-			SurfaceTarget2 = 3,
-			SurfaceTarget3 = 4,
-			SurfaceTarget4 = 5,
-			SurfaceTarget5 = 6,
-			SurfaceTarget6 = 7,
-			SurfaceTarget7 = 8,
+			T0 = 1,
+			T1 = 2,
+			T2 = 3,
+			T3 = 4,
+			T4 = 5,
+			T5 = 6,
+			T6 = 7,
+			T7 = 8
 		};
 
-		enum PrimitiveTopology
+		enum class PrimitiveTopology
 		{
-			PrimitiveTopology_Invalid,
-			PrimitiveTopology_Point_List,
-			PrimitiveTopology_Line_List,
-			PrimitiveTopology_Line_Strip,
-			PrimitiveTopology_Triangle_List,
-			PrimitiveTopology_Triangle_Strip,
-			PrimitiveTopology_Line_List_Adj,
-			PrimitiveTopology_Line_Strip_Adj,
-			PrimitiveTopology_Triangle_List_Adj,
-			PrimitiveTopology_Triangle_Strip_Adj
+			Invalid,
+			Point_List,
+			Line_List,
+			Line_Strip,
+			Triangle_List,
+			Triangle_Strip,
+			Line_List_Adj,
+			Line_Strip_Adj,
+			Triangle_List_Adj,
+			Triangle_Strip_Adj
 		};
 
-		enum Format
+		enum class Format
 		{
-			Format_Unknown = 0,
-			Format_A8_Unorm = 65,
-			Format_D16_Unorm = 55,
-			Format_D24_Unorm_S8_Uint = 45,
-			Format_D32_Float = 40,
-			Format_D32_Float_S8X24_Uint = 20,
-			Format_R10G10B10A2_Typeless = 23,
-			Format_R10G10B10A2_Uint = 25,
-			Format_R10G10B10A2_Unorm = 24,
-			Format_R11G11B10_Float = 26,
-			Format_R16G16B16A16_Float = 10,
-			Format_R16G16B16A16_Sint = 14,
-			Format_R16G16B16A16_Snorm = 13,
-			Format_R16G16B16A16_Typeless = 9,
-			Format_R16G16B16A16_Uint = 12,
-			Format_R16G16B16A16_Unorm = 11,
-			Format_R16G16_Float = 34,
-			Format_R16G16_Sint = 38,
-			Format_R16G16_Snorm = 37,
-			Format_R16G16_Typeless = 33,
-			Format_R16G16_Uint = 36,
-			Format_R16G16_Unorm = 35,
-			Format_R16_Float = 54,
-			Format_R16_Sint = 59,
-			Format_R16_Snorm = 58,
-			Format_R16_Typeless = 53,
-			Format_R16_Uint = 57,
-			Format_R16_Unorm = 56,
-			Format_R1_Unorm = 66,
-			Format_R24G8_Typeless = 44,
-			Format_R24_Unorm_X8_Typeless = 46,
-			Format_R32G32B32A32_Float = 2,
-			Format_R32G32B32A32_Sint = 4,
-			Format_R32G32B32A32_Typeless = 1,
-			Format_R32G32B32A32_Uint = 3,
-			Format_R32G32B32_Float = 6,
-			Format_R32G32B32_Sint = 8,
-			Format_R32G32B32_Typeless = 5,
-			Format_R32G32B32_Uint = 7,
-			Format_R32G32_Float = 16,
-			Format_R32G32_Sint = 18,
-			Format_R32G32_Typeless = 15,
-			Format_R32G32_Uint = 17,
-			Format_R32G8X24_Typeless = 19,
-			Format_R32_Float = 41,
-			Format_R32_Float_X8X24_Typeless = 21,
-			Format_R32_Sint = 43,
-			Format_R32_Typeless = 39,
-			Format_R32_Uint = 42,
-			Format_R8G8B8A8_Sint = 32,
-			Format_R8G8B8A8_Snorm = 31,
-			Format_R8G8B8A8_Typeless = 27,
-			Format_R8G8B8A8_Uint = 30,
-			Format_R8G8B8A8_Unorm = 28,
-			Format_R8G8B8A8_Unorm_SRGB = 29,
-			Format_R8G8_B8G8_Unorm = 68,
-			Format_R8G8_Sint = 52,
-			Format_R8G8_Snorm = 51,
-			Format_R8G8_Typeless = 48,
-			Format_R8G8_Uint = 50,
-			Format_R8G8_Unorm = 49,
-			Format_R8_Sint = 64,
-			Format_R8_Snorm = 63,
-			Format_R8_Typeless = 60,
-			Format_R8_Uint = 62,
-			Format_R8_Unorm = 61,
-			Format_R9G9B9E5_Share_Dexp = 67,
-			Format_X24_Typeless_G8_Uint = 47,
-			Format_X32_Typeless_G8X24_Uint = 22
+			Unknown = 0,
+			A8_Unorm = 65,
+			D16_Unorm = 55,
+			D24_Unorm_S8_Uint = 45,
+			D32_Float = 40,
+			D32_Float_S8X24_Uint = 20,
+			R10G10B10A2_Typeless = 23,
+			R10G10B10A2_Uint = 25,
+			R10G10B10A2_Unorm = 24,
+			R11G11B10_Float = 26,
+			R16G16B16A16_Float = 10,
+			R16G16B16A16_Sint = 14,
+			R16G16B16A16_Snorm = 13,
+			R16G16B16A16_Typeless = 9,
+			R16G16B16A16_Uint = 12,
+			R16G16B16A16_Unorm = 11,
+			R16G16_Float = 34,
+			R16G16_Sint = 38,
+			R16G16_Snorm = 37,
+			R16G16_Typeless = 33,
+			R16G16_Uint = 36,
+			R16G16_Unorm = 35,
+			R16_Float = 54,
+			R16_Sint = 59,
+			R16_Snorm = 58,
+			R16_Typeless = 53,
+			R16_Uint = 57,
+			R16_Unorm = 56,
+			R1_Unorm = 66,
+			R24G8_Typeless = 44,
+			R24_Unorm_X8_Typeless = 46,
+			R32G32B32A32_Float = 2,
+			R32G32B32A32_Sint = 4,
+			R32G32B32A32_Typeless = 1,
+			R32G32B32A32_Uint = 3,
+			R32G32B32_Float = 6,
+			R32G32B32_Sint = 8,
+			R32G32B32_Typeless = 5,
+			R32G32B32_Uint = 7,
+			R32G32_Float = 16,
+			R32G32_Sint = 18,
+			R32G32_Typeless = 15,
+			R32G32_Uint = 17,
+			R32G8X24_Typeless = 19,
+			R32_Float = 41,
+			R32_Float_X8X24_Typeless = 21,
+			R32_Sint = 43,
+			R32_Typeless = 39,
+			R32_Uint = 42,
+			R8G8B8A8_Sint = 32,
+			R8G8B8A8_Snorm = 31,
+			R8G8B8A8_Typeless = 27,
+			R8G8B8A8_Uint = 30,
+			R8G8B8A8_Unorm = 28,
+			R8G8B8A8_Unorm_SRGB = 29,
+			R8G8_B8G8_Unorm = 68,
+			R8G8_Sint = 52,
+			R8G8_Snorm = 51,
+			R8G8_Typeless = 48,
+			R8G8_Uint = 50,
+			R8G8_Unorm = 49,
+			R8_Sint = 64,
+			R8_Snorm = 63,
+			R8_Typeless = 60,
+			R8_Uint = 62,
+			R8_Unorm = 61,
+			R9G9B9E5_Share_Dexp = 67,
+			X24_Typeless_G8_Uint = 47,
+			X32_Typeless_G8X24_Uint = 22
 		};
 
-		enum ResourceMap
+		enum class ResourceMap
 		{
-			ResourceMap_Read = 1,
-			ResourceMap_Write = 2,
-			ResourceMap_Read_Write = 3,
-			ResourceMap_Write_Discard = 4,
-			ResourceMap_Write_No_Overwrite = 5
+			Read = 1,
+			Write = 2,
+			Read_Write = 3,
+			Write_Discard = 4,
+			Write_No_Overwrite = 5
 		};
 
-		enum ResourceUsage
+		enum class ResourceUsage
 		{
-			ResourceUsage_Default = 0,
-			ResourceUsage_Immutable = 1,
-			ResourceUsage_Dynamic = 2,
-			ResourceUsage_Staging = 3
+			Default = 0,
+			Immutable = 1,
+			Dynamic = 2,
+			Staging = 3
 		};
 
-		enum ShaderModel
+		enum class ShaderModel
 		{
-			ShaderModel_Invalid,
-			ShaderModel_Auto,
-			ShaderModel_HLSL_1_0,
-			ShaderModel_HLSL_2_0,
-			ShaderModel_HLSL_3_0,
-			ShaderModel_HLSL_4_1,
-			ShaderModel_HLSL_4_0,
-			ShaderModel_HLSL_5_0,
-			ShaderModel_GLSL_1_1_0,
-			ShaderModel_GLSL_1_2_0,
-			ShaderModel_GLSL_1_3_0,
-			ShaderModel_GLSL_1_4_0,
-			ShaderModel_GLSL_1_5_0,
-			ShaderModel_GLSL_3_3_0,
-			ShaderModel_GLSL_4_0_0,
-			ShaderModel_GLSL_4_1_0,
-			ShaderModel_GLSL_4_2_0,
-			ShaderModel_GLSL_4_3_0,
-			ShaderModel_GLSL_4_4_0,
-			ShaderModel_GLSL_4_5_0,
-			ShaderModel_GLSL_4_6_0
+			Invalid,
+			Auto,
+			HLSL_1_0,
+			HLSL_2_0,
+			HLSL_3_0,
+			HLSL_4_1,
+			HLSL_4_0,
+			HLSL_5_0,
+			GLSL_1_1_0,
+			GLSL_1_2_0,
+			GLSL_1_3_0,
+			GLSL_1_4_0,
+			GLSL_1_5_0,
+			GLSL_3_3_0,
+			GLSL_4_0_0,
+			GLSL_4_1_0,
+			GLSL_4_2_0,
+			GLSL_4_3_0,
+			GLSL_4_4_0,
+			GLSL_4_5_0,
+			GLSL_4_6_0
 		};
 
-		enum ResourceBind
+		enum class ResourceBind
 		{
-			ResourceBind_Vertex_Buffer = 0x1L,
-			ResourceBind_Index_Buffer = 0x2L,
-			ResourceBind_Constant_Buffer = 0x4L,
-			ResourceBind_Shader_Input = 0x8L,
-			ResourceBind_Stream_Output = 0x10L,
-			ResourceBind_Render_Target = 0x20L,
-			ResourceBind_Depth_Stencil = 0x40L,
-			ResourceBind_Unordered_Access = 0x80L
+			Vertex_Buffer = 0x1L,
+			Index_Buffer = 0x2L,
+			Constant_Buffer = 0x4L,
+			Shader_Input = 0x8L,
+			Stream_Output = 0x10L,
+			Render_Target = 0x20L,
+			Depth_Stencil = 0x40L,
+			Unordered_Access = 0x80L
 		};
 
-		enum CPUAccess
+		enum class CPUAccess
 		{
-			CPUAccess_Invalid = 0,
-			CPUAccess_Write = 0x10000L,
-			CPUAccess_Read = 0x20000L
+			Invalid = 0,
+			Write = 0x10000L,
+			Read = 0x20000L
 		};
 
-		enum DepthWrite
+		enum class DepthWrite
 		{
-			DepthWrite_Zero,
-			DepthWrite_All
+			Zero,
+			All
 		};
 
-		enum Comparison
+		enum class Comparison
 		{
-			Comparison_Never = 1,
-			Comparison_Less = 2,
-			Comparison_Equal = 3,
-			Comparison_Less_Equal = 4,
-			Comparison_Greater = 5,
-			Comparison_Not_Equal = 6,
-			Comparison_Greater_Equal = 7,
-			Comparison_Always = 8
+			Never = 1,
+			Less = 2,
+			Equal = 3,
+			Less_Equal = 4,
+			Greater = 5,
+			Not_Equal = 6,
+			Greater_Equal = 7,
+			Always = 8
 		};
 
-		enum StencilOperation
+		enum class StencilOperation
 		{
-			StencilOperation_Keep = 1,
-			StencilOperation_Zero = 2,
-			StencilOperation_Replace = 3,
-			StencilOperation_SAT_Add = 4,
-			StencilOperation_SAT_Subtract = 5,
-			StencilOperation_Invert = 6,
-			StencilOperation_Add = 7,
-			StencilOperation_Subtract = 8
+			Keep = 1,
+			Zero = 2,
+			Replace = 3,
+			SAT_Add = 4,
+			SAT_Subtract = 5,
+			Invert = 6,
+			Add = 7,
+			Subtract = 8
 		};
 
-		enum Blend
+		enum class Blend
 		{
-			Blend_Zero = 1,
-			Blend_One = 2,
-			Blend_Source_Color = 3,
-			Blend_Source_Color_Invert = 4,
-			Blend_Source_Alpha = 5,
-			Blend_Source_Alpha_Invert = 6,
-			Blend_Destination_Alpha = 7,
-			Blend_Destination_Alpha_Invert = 8,
-			Blend_Destination_Color = 9,
-			Blend_Destination_Color_Invert = 10,
-			Blend_Source_Alpha_SAT = 11,
-			Blend_Blend_Factor = 14,
-			Blend_Blend_Factor_Invert = 15,
-			Blend_Source1_Color = 16,
-			Blend_Source1_Color_Invert = 17,
-			Blend_Source1_Alpha = 18,
-			Blend_Source1_Alpha_Invert = 19
+			Zero = 1,
+			One = 2,
+			Source_Color = 3,
+			Source_Color_Invert = 4,
+			Source_Alpha = 5,
+			Source_Alpha_Invert = 6,
+			Destination_Alpha = 7,
+			Destination_Alpha_Invert = 8,
+			Destination_Color = 9,
+			Destination_Color_Invert = 10,
+			Source_Alpha_SAT = 11,
+			Blend_Factor = 14,
+			Blend_Factor_Invert = 15,
+			Source1_Color = 16,
+			Source1_Color_Invert = 17,
+			Source1_Alpha = 18,
+			Source1_Alpha_Invert = 19
 		};
 
-		enum SurfaceFill
+		enum class SurfaceFill
 		{
-			SurfaceFill_Wireframe = 2,
-			SurfaceFill_Solid = 3
+			Wireframe = 2,
+			Solid = 3
 		};
 
-		enum PixelFilter
+		enum class PixelFilter
 		{
-			PixelFilter_Min_Mag_Mip_Point = 0,
-			PixelFilter_Min_Mag_Point_Mip_Linear = 0x1,
-			PixelFilter_Min_Point_Mag_Linear_Mip_Point = 0x4,
-			PixelFilter_Min_Point_Mag_Mip_Linear = 0x5,
-			PixelFilter_Min_Linear_Mag_Mip_Point = 0x10,
-			PixelFilter_Min_Linear_Mag_Point_Mip_Linear = 0x11,
-			PixelFilter_Min_Mag_Linear_Mip_Point = 0x14,
-			PixelFilter_Min_Mag_Mip_Linear = 0x15,
-			PixelFilter_Anistropic = 0x55,
-			PixelFilter_Compare_Min_Mag_Mip_Point = 0x80,
-			PixelFilter_Compare_Min_Mag_Point_Mip_Linear = 0x81,
-			PixelFilter_Compare_Min_Point_Mag_Linear_Mip_Point = 0x84,
-			PixelFilter_Compare_Min_Point_Mag_Mip_Linear = 0x85,
-			PixelFilter_Compare_Min_Linear_Mag_Mip_Point = 0x90,
-			PixelFilter_Compare_Min_Linear_Mag_Point_Mip_Linear = 0x91,
-			PixelFilter_Compare_Min_Mag_Linear_Mip_Point = 0x94,
-			PixelFilter_Compare_Min_Mag_Mip_Linear = 0x95,
-			PixelFilter_Compare_Anistropic = 0xd5
+			Min_Mag_Mip_Point = 0,
+			Min_Mag_Point_Mip_Linear = 0x1,
+			Min_Point_Mag_Linear_Mip_Point = 0x4,
+			Min_Point_Mag_Mip_Linear = 0x5,
+			Min_Linear_Mag_Mip_Point = 0x10,
+			Min_Linear_Mag_Point_Mip_Linear = 0x11,
+			Min_Mag_Linear_Mip_Point = 0x14,
+			Min_Mag_Mip_Linear = 0x15,
+			Anistropic = 0x55,
+			Compare_Min_Mag_Mip_Point = 0x80,
+			Compare_Min_Mag_Point_Mip_Linear = 0x81,
+			Compare_Min_Point_Mag_Linear_Mip_Point = 0x84,
+			Compare_Min_Point_Mag_Mip_Linear = 0x85,
+			Compare_Min_Linear_Mag_Mip_Point = 0x90,
+			Compare_Min_Linear_Mag_Point_Mip_Linear = 0x91,
+			Compare_Min_Mag_Linear_Mip_Point = 0x94,
+			Compare_Min_Mag_Mip_Linear = 0x95,
+			Compare_Anistropic = 0xd5
 		};
 
-		enum TextureAddress
+		enum class TextureAddress
 		{
-			TextureAddress_Wrap = 1,
-			TextureAddress_Mirror = 2,
-			TextureAddress_Clamp = 3,
-			TextureAddress_Border = 4,
-			TextureAddress_Mirror_Once = 5
+			Wrap = 1,
+			Mirror = 2,
+			Clamp = 3,
+			Border = 4,
+			Mirror_Once = 5
 		};
 
-		enum ColorWriteEnable
+		enum class ColorWriteEnable
 		{
-			ColorWriteEnable_Red = 1,
-			ColorWriteEnable_Green = 2,
-			ColorWriteEnable_Blue = 4,
-			ColorWriteEnable_Alpha = 8,
-			ColorWriteEnable_All = (((ColorWriteEnable_Red | ColorWriteEnable_Green) | ColorWriteEnable_Blue) | ColorWriteEnable_Alpha)
+			Red = 1,
+			Green = 2,
+			Blue = 4,
+			Alpha = 8,
+			All = (((Red | Green) | Blue) | Alpha)
 		};
 
-		enum BlendOperation
+		enum class BlendOperation
 		{
-			BlendOperation_Add = 1,
-			BlendOperation_Subtract = 2,
-			BlendOperation_Subtract_Reverse = 3,
-			BlendOperation_Min = 4,
-			BlendOperation_Max = 5
+			Add = 1,
+			Subtract = 2,
+			Subtract_Reverse = 3,
+			Min = 4,
+			Max = 5
 		};
 
-		enum VertexCull
+		enum class VertexCull
 		{
-			VertexCull_Disabled = 1,
-			VertexCull_Front = 2,
-			VertexCull_Back = 3
+			None = 1,
+			Front = 2,
+			Back = 3
 		};
 
-		enum ShaderCompile
+		enum class ShaderCompile
 		{
-			ShaderCompile_Debug = 1ll << 0,
-			ShaderCompile_Skip_Validation = 1ll << 1,
-			ShaderCompile_Skip_Optimization = 1ll << 2,
-			ShaderCompile_Matrix_Row_Major = 1ll << 3,
-			ShaderCompile_Matrix_Column_Major = 1ll << 4,
-			ShaderCompile_Partial_Precision = 1ll << 5,
-			ShaderCompile_FOE_VS_No_OPT = 1ll << 6,
-			ShaderCompile_FOE_PS_No_OPT = 1ll << 7,
-			ShaderCompile_No_Preshader = 1ll << 8,
-			ShaderCompile_Avoid_Flow_Control = 1ll << 9,
-			ShaderCompile_Prefer_Flow_Control = 1ll << 10,
-			ShaderCompile_Enable_Strictness = 1ll << 11,
-			ShaderCompile_Enable_Backwards_Compatibility = 1ll << 12,
-			ShaderCompile_IEEE_Strictness = 1ll << 13,
-			ShaderCompile_Optimization_Level0 = 1ll << 14,
-			ShaderCompile_Optimization_Level1 = 0,
-			ShaderCompile_Optimization_Level2 = (1ll << 14) | (1ll << 15),
-			ShaderCompile_Optimization_Level3 = 1ll << 15,
-			ShaderCompile_Reseed_X16 = 1ll << 16,
-			ShaderCompile_Reseed_X17 = 1ll << 17,
-			ShaderCompile_Picky = 1ll << 18
+			Debug = 1ll << 0,
+			Skip_Validation = 1ll << 1,
+			Skip_Optimization = 1ll << 2,
+			Matrix_Row_Major = 1ll << 3,
+			Matrix_Column_Major = 1ll << 4,
+			Partial_Precision = 1ll << 5,
+			FOE_VS_No_OPT = 1ll << 6,
+			FOE_PS_No_OPT = 1ll << 7,
+			No_Preshader = 1ll << 8,
+			Avoid_Flow_Control = 1ll << 9,
+			Prefer_Flow_Control = 1ll << 10,
+			Enable_Strictness = 1ll << 11,
+			Enable_Backwards_Compatibility = 1ll << 12,
+			IEEE_Strictness = 1ll << 13,
+			Optimization_Level0 = 1ll << 14,
+			Optimization_Level1 = 0,
+			Optimization_Level2 = (1ll << 14) | (1ll << 15),
+			Optimization_Level3 = 1ll << 15,
+			Reseed_X16 = 1ll << 16,
+			Reseed_X17 = 1ll << 17,
+			Picky = 1ll << 18
 		};
 
-		enum RenderBufferType
+		enum class RenderBufferType
 		{
-			RenderBufferType_Animation,
-			RenderBufferType_Render,
-			RenderBufferType_View
+			Animation,
+			Render,
+			View
 		};
 
-		enum ResourceMisc
+		enum class ResourceMisc
 		{
-			ResourceMisc_None = 0,
-			ResourceMisc_Generate_Mips = 0x1L,
-			ResourceMisc_Shared = 0x2L,
-			ResourceMisc_Texture_Cube = 0x4L,
-			ResourceMisc_Draw_Indirect_Args = 0x10L,
-			ResourceMisc_Buffer_Allow_Raw_Views = 0x20L,
-			ResourceMisc_Buffer_Structured = 0x40L,
-			ResourceMisc_Clamp = 0x80L,
-			ResourceMisc_Shared_Keyed_Mutex = 0x100L,
-			ResourceMisc_GDI_Compatible = 0x200L,
-			ResourceMisc_Shared_NT_Handle = 0x800L,
-			ResourceMisc_Restricted_Content = 0x1000L,
-			ResourceMisc_Restrict_Shared = 0x2000L,
-			ResourceMisc_Restrict_Shared_Driver = 0x4000L,
-			ResourceMisc_Guarded = 0x8000L,
-			ResourceMisc_Tile_Pool = 0x20000L,
-			ResourceMisc_Tiled = 0x40000L
+			None = 0,
+			Generate_Mips = 0x1L,
+			Shared = 0x2L,
+			Texture_Cube = 0x4L,
+			Draw_Indirect_Args = 0x10L,
+			Buffer_Allow_Raw_Views = 0x20L,
+			Buffer_Structured = 0x40L,
+			Clamp = 0x80L,
+			Shared_Keyed_Mutex = 0x100L,
+			GDI_Compatible = 0x200L,
+			Shared_NT_Handle = 0x800L,
+			Restricted_Content = 0x1000L,
+			Restrict_Shared = 0x2000L,
+			Restrict_Shared_Driver = 0x4000L,
+			Guarded = 0x8000L,
+			Tile_Pool = 0x20000L,
+			Tiled = 0x40000L
 		};
 
-		enum DisplayCursor
+		enum class DisplayCursor
 		{
-			DisplayCursor_None = -1,
-			DisplayCursor_Arrow = 0,
-			DisplayCursor_TextInput,
-			DisplayCursor_ResizeAll,
-			DisplayCursor_ResizeNS,
-			DisplayCursor_ResizeEW,
-			DisplayCursor_ResizeNESW,
-			DisplayCursor_ResizeNWSE,
-			DisplayCursor_Hand,
-			DisplayCursor_Crosshair,
-			DisplayCursor_Wait,
-			DisplayCursor_Progress,
-			DisplayCursor_No,
-			DisplayCursor_Count
+			None = -1,
+			Arrow = 0,
+			TextInput,
+			ResizeAll,
+			ResizeNS,
+			ResizeEW,
+			ResizeNESW,
+			ResizeNWSE,
+			Hand,
+			Crosshair,
+			Wait,
+			Progress,
+			No,
+			Count
 		};
 
-		enum ShaderType
+		enum class ShaderType
 		{
-			ShaderType_Vertex = 1,
-			ShaderType_Pixel = 2,
-			ShaderType_Geometry = 4,
-			ShaderType_Hull = 8,
-			ShaderType_Domain = 16,
-			ShaderType_Compute = 32,
-			ShaderType_All = ShaderType_Vertex | ShaderType_Pixel | ShaderType_Geometry | ShaderType_Hull | ShaderType_Domain | ShaderType_Compute
+			Vertex = 1,
+			Pixel = 2,
+			Geometry = 4,
+			Hull = 8,
+			Domain = 16,
+			Compute = 32,
+			All = Vertex | Pixel | Geometry | Hull | Domain | Compute
 		};
 
-		enum ShaderLang
+		enum class ShaderLang
 		{
-			ShaderLang_NONE,
-			ShaderLang_HLSL,
-			ShaderLang_GLSL,
-			ShaderLang_MSL,
-			ShaderLang_SPV
+			None,
+			HLSL,
+			GLSL,
+			MSL,
+			SPV
 		};
 
-		enum AttributeType
+		enum class AttributeType
 		{
-			AttributeType_Byte,
-			AttributeType_Ubyte,
-			AttributeType_Half,
-			AttributeType_Float,
-			AttributeType_Int,
-			AttributeType_Uint,
+			Byte,
+			Ubyte,
+			Half,
+			Float,
+			Int,
+			Uint,
 		};
+
+		inline ColorWriteEnable operator |(ColorWriteEnable A, ColorWriteEnable B)
+		{
+			return static_cast<ColorWriteEnable>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
+		inline ResourceMap operator |(ResourceMap A, ResourceMap B)
+		{
+			return static_cast<ResourceMap>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
+		inline ShaderCompile operator |(ShaderCompile A, ShaderCompile B)
+		{
+			return static_cast<ShaderCompile>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
+		inline ResourceMisc operator |(ResourceMisc A, ResourceMisc B)
+		{
+			return static_cast<ResourceMisc>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
+		inline ResourceBind operator |(ResourceBind A, ResourceBind B)
+		{
+			return static_cast<ResourceBind>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 
 		typedef std::function<void(AppState)> AppStateChangeCallback;
 		typedef std::function<void(WindowState, int, int)> WindowStateChangeCallback;
@@ -778,7 +799,7 @@ namespace Tomahawk
 			struct Element
 			{
 				std::string Name;
-				int Id, Flags;
+				int Id = -1, Flags = 0;
 			};
 
 		private:
@@ -842,7 +863,7 @@ namespace Tomahawk
 		};
 
 		struct TH_OUT PoseNode
-		{	
+		{
 			Compute::Vector3 Position;
 			Compute::Vector3 Rotation;
 		};
@@ -1065,7 +1086,7 @@ namespace Tomahawk
 				std::vector<std::string> Defines;
 				std::string Filename;
 				std::string Data;
-				ShaderLang Lang = ShaderLang_NONE;
+				ShaderLang Lang = ShaderLang::None;
 			};
 
 		protected:
@@ -1085,10 +1106,10 @@ namespace Tomahawk
 				unsigned int StructureByteStride = 0;
 				unsigned int ElementWidth = 0;
 				unsigned int ElementCount = 0;
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = ResourceBind_Vertex_Buffer;
-				ResourceMisc MiscFlags = ResourceMisc_None;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = ResourceBind::Vertex_Buffer;
+				ResourceMisc MiscFlags = ResourceMisc::None;
 				bool Writable = false;
 			};
 
@@ -1113,8 +1134,8 @@ namespace Tomahawk
 			{
 				std::vector<Compute::Vertex> Elements;
 				std::vector<int> Indices;
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				ResourceUsage Usage = ResourceUsage_Default;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				ResourceUsage Usage = ResourceUsage::Default;
 			};
 
 		protected:
@@ -1142,8 +1163,8 @@ namespace Tomahawk
 			{
 				std::vector<Compute::SkinVertex> Elements;
 				std::vector<int> Indices;
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				ResourceUsage Usage = ResourceUsage_Default;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				ResourceUsage Usage = ResourceUsage::Default;
 			};
 
 		protected:
@@ -1198,11 +1219,11 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				Format FormatMode = Format_R8G8B8A8_Unorm;
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = ResourceBind_Shader_Input;
-				ResourceMisc MiscFlags = ResourceMisc_None;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				Format FormatMode = Format::R8G8B8A8_Unorm;
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = ResourceBind::Shader_Input;
+				ResourceMisc MiscFlags = ResourceMisc::None;
 				void* Data = nullptr;
 				unsigned int RowPitch = 0;
 				unsigned int DepthPitch = 0;
@@ -1239,11 +1260,11 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				Format FormatMode = Format_R8G8B8A8_Unorm;
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = ResourceBind_Shader_Input;
-				ResourceMisc MiscFlags = ResourceMisc_None;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				Format FormatMode = Format::R8G8B8A8_Unorm;
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = ResourceBind::Shader_Input;
+				ResourceMisc MiscFlags = ResourceMisc::None;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
 				unsigned int Depth = 1;
@@ -1279,11 +1300,11 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				Format FormatMode = Format_R8G8B8A8_Unorm;
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = ResourceBind_Shader_Input;
-				ResourceMisc MiscFlags = ResourceMisc_Texture_Cube;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				Format FormatMode = Format::R8G8B8A8_Unorm;
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = ResourceBind::Shader_Input;
+				ResourceMisc MiscFlags = ResourceMisc::Texture_Cube;
 				unsigned int Width = 128;
 				unsigned int Height = 128;
 				int MipLevels = 1;
@@ -1317,8 +1338,8 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				ResourceUsage Usage = ResourceUsage_Default;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				ResourceUsage Usage = ResourceUsage::Default;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
 			};
@@ -1347,7 +1368,7 @@ namespace Tomahawk
 
 		protected:
 			RenderTarget();
-			
+
 		public:
 			virtual ~RenderTarget();
 			virtual void* GetTargetBuffer() = 0;
@@ -1365,11 +1386,11 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				Format FormatMode = Format_R8G8B8A8_Unorm;
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
-				ResourceMisc MiscFlags = ResourceMisc_None;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				Format FormatMode = Format::R8G8B8A8_Unorm;
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
+				ResourceMisc MiscFlags = ResourceMisc::None;
 				void* RenderSurface = nullptr;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
@@ -1398,12 +1419,12 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				SurfaceTarget Target = SurfaceTarget0;
-				Format FormatMode[8] = { Format_R8G8B8A8_Unorm, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown };
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
-				ResourceMisc MiscFlags = ResourceMisc_None;
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				SurfaceTarget Target = SurfaceTarget::T0;
+				Format FormatMode[8] = { Format::R8G8B8A8_Unorm, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown };
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
+				ResourceMisc MiscFlags = ResourceMisc::None;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
 				unsigned int MipLevels = 1;
@@ -1432,11 +1453,11 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				Format FormatMode = Format_R8G8B8A8_Unorm;
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
-				ResourceMisc MiscFlags = (ResourceMisc)(ResourceMisc_Generate_Mips | ResourceMisc_Texture_Cube);
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				Format FormatMode = Format::R8G8B8A8_Unorm;
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
+				ResourceMisc MiscFlags = (ResourceMisc)(ResourceMisc::Generate_Mips | ResourceMisc::Texture_Cube);
 				unsigned int Size = 512;
 				unsigned int MipLevels = 1;
 				bool DepthStencil = true;
@@ -1463,12 +1484,12 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				CPUAccess AccessFlags = CPUAccess_Invalid;
-				SurfaceTarget Target = SurfaceTarget0;
-				Format FormatMode[8] = { Format_R8G8B8A8_Unorm, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown, Format_Unknown };
-				ResourceUsage Usage = ResourceUsage_Default;
-				ResourceBind BindFlags = (ResourceBind)(ResourceBind_Render_Target | ResourceBind_Shader_Input);
-				ResourceMisc MiscFlags = (ResourceMisc)(ResourceMisc_Generate_Mips | ResourceMisc_Texture_Cube);
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				SurfaceTarget Target = SurfaceTarget::T0;
+				Format FormatMode[8] = { Format::R8G8B8A8_Unorm, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown, Format::Unknown };
+				ResourceUsage Usage = ResourceUsage::Default;
+				ResourceBind BindFlags = (ResourceBind)(ResourceBind::Render_Target | ResourceBind::Shader_Input);
+				ResourceMisc MiscFlags = (ResourceMisc)(ResourceMisc::Generate_Mips | ResourceMisc::Texture_Cube);
 				unsigned int MipLevels = 1;
 				unsigned int Size = 512;
 				bool DepthStencil = true;
@@ -1549,14 +1570,14 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				RenderBackend Backend = Graphics::RenderBackend_NONE;
-				ShaderModel ShaderMode = ShaderModel_Auto;
-				Format BufferFormat = Format_R8G8B8A8_Unorm;
-				VSync VSyncMode = VSync_Frequency_X1;
+				RenderBackend Backend = RenderBackend::None;
+				ShaderModel ShaderMode = ShaderModel::Auto;
+				Format BufferFormat = Format::R8G8B8A8_Unorm;
+				VSync VSyncMode = VSync::Frequency_X1;
 				int IsWindowed = 1;
 				bool Debug = false;
 				unsigned int PresentationFlags = 0;
-				unsigned int CompilationFlags = ShaderCompile_Enable_Strictness | ShaderCompile_Optimization_Level3 | ShaderCompile_Matrix_Row_Major;
+				unsigned int CompilationFlags = (unsigned int)(ShaderCompile::Enable_Strictness | ShaderCompile::Optimization_Level3 | ShaderCompile::Matrix_Row_Major);
 				unsigned int CreationFlags = 0;
 				unsigned int BufferWidth = 0;
 				unsigned int BufferHeight = 0;
@@ -1567,7 +1588,7 @@ namespace Tomahawk
 			{
 				std::string Name;
 				std::string Code;
-				ShaderLang Lang;
+				ShaderLang Lang = ShaderLang::None;
 			};
 
 		protected:
@@ -1584,7 +1605,7 @@ namespace Tomahawk
 			Shader* BasicEffect = nullptr;
 			unsigned int PresentFlags = 0;
 			unsigned int CompileFlags = 0;
-			VSync VSyncMode = VSync_Frequency_X1;
+			VSync VSyncMode = VSync::Frequency_X1;
 			std::vector<Vertex> Elements;
 			const void* Constants[4];
 			uint64_t MaxElements;
@@ -1824,7 +1845,7 @@ namespace Tomahawk
 			} Mapping;
 
 		private:
-			SDL_Cursor* Cursors[DisplayCursor_Count];
+			SDL_Cursor* Cursors[(size_t)DisplayCursor::Count];
 			SDL_Window* Handle;
 			Desc Descriptor;
 			bool Keys[2][1024];
@@ -1929,23 +1950,6 @@ namespace Tomahawk
 		private:
 			void ComputePose(PoseBuffer* Map, Compute::Joint* Root, const Compute::Matrix4x4& World);
 		};
-
-		inline ResourceMap operator |(ResourceMap A, ResourceMap B)
-		{
-			return static_cast<ResourceMap>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
-		}
-		inline ShaderCompile operator |(ShaderCompile A, ShaderCompile B)
-		{
-			return static_cast<ShaderCompile>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
-		}
-		inline ResourceMisc operator |(ResourceMisc A, ResourceMisc B)
-		{
-			return static_cast<ResourceMisc>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
-		}
-		inline ResourceBind operator |(ResourceBind A, ResourceBind B)
-		{
-			return static_cast<ResourceBind>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
-		}
 	}
 }
 #endif

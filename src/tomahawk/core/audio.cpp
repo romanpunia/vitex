@@ -133,7 +133,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alSource3f(Source, Value, F1, F2, F3);
+			alSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -143,7 +143,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetSource3f(Source, Value, F1, F2, F3);
+			alGetSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -153,7 +153,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alSourcefv(Source, Value, FS);
+			alSourcefv(Source, (uint32_t)Value, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -163,7 +163,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetSourcefv(Source, Value, FS);
+			alGetSourcefv(Source, (uint32_t)Value, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -173,7 +173,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alSourcef(Source, Value, F1);
+			alSourcef(Source, (uint32_t)Value, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -183,7 +183,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetSourcef(Source, Value, F1);
+			alGetSourcef(Source, (uint32_t)Value, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -193,7 +193,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alSource3i(Source, Value, F1, F2, F3);
+			alSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -203,7 +203,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetSource3i(Source, Value, F1, F2, F3);
+			alGetSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -213,7 +213,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alSourceiv(Source, Value, FS);
+			alSourceiv(Source, (uint32_t)Value, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -223,7 +223,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetSourceiv(Source, Value, FS);
+			alGetSourceiv(Source, (uint32_t)Value, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -233,7 +233,7 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alSourcei(Source, Value, F1);
+			alSourcei(Source, (uint32_t)Value, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
@@ -243,127 +243,127 @@ namespace Tomahawk
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetSourcei(Source, Value, F1);
+			alGetSourcei(Source, (uint32_t)Value, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::SetListenerData3F(unsigned int Listener, float F1, float F2, float F3)
+		void AudioContext::SetListenerData3F(SoundEx Listener, float F1, float F2, float F3)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alListener3f(Listener, F1, F2, F3);
+			alListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::GetListenerData3F(unsigned int Listener, float* F1, float* F2, float* F3)
+		void AudioContext::GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetListener3f(Listener, F1, F2, F3);
+			alGetListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::SetListenerDataVF(unsigned int Listener, float* FS)
+		void AudioContext::SetListenerDataVF(SoundEx Listener, float* FS)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alListenerfv(Listener, FS);
+			alListenerfv((uint32_t)Listener, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::GetListenerDataVF(unsigned int Listener, float* FS)
+		void AudioContext::GetListenerDataVF(SoundEx Listener, float* FS)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetListenerfv(Listener, FS);
+			alGetListenerfv((uint32_t)Listener, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::SetListenerData1F(unsigned int Listener, float F1)
+		void AudioContext::SetListenerData1F(SoundEx Listener, float F1)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alListenerf(Listener, F1);
+			alListenerf((uint32_t)Listener, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::GetListenerData1F(unsigned int Listener, float* F1)
+		void AudioContext::GetListenerData1F(SoundEx Listener, float* F1)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetListenerf(Listener, F1);
+			alGetListenerf((uint32_t)Listener, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::SetListenerData3I(unsigned int Listener, int F1, int F2, int F3)
+		void AudioContext::SetListenerData3I(SoundEx Listener, int F1, int F2, int F3)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alListener3i(Listener, F1, F2, F3);
+			alListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::GetListenerData3I(unsigned int Listener, int* F1, int* F2, int* F3)
+		void AudioContext::GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetListener3i(Listener, F1, F2, F3);
+			alGetListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::SetListenerDataVI(unsigned int Listener, int* FS)
+		void AudioContext::SetListenerDataVI(SoundEx Listener, int* FS)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alListeneriv(Listener, FS);
+			alListeneriv((uint32_t)Listener, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::GetListenerDataVI(unsigned int Listener, int* FS)
+		void AudioContext::GetListenerDataVI(SoundEx Listener, int* FS)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetListeneriv(Listener, FS);
+			alGetListeneriv((uint32_t)Listener, FS);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::SetListenerData1I(unsigned int Listener, int F1)
+		void AudioContext::SetListenerData1I(SoundEx Listener, int F1)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alListeneri(Listener, F1);
+			alListeneri((uint32_t)Listener, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();
 		}
-		void AudioContext::GetListenerData1I(unsigned int Listener, int* F1)
+		void AudioContext::GetListenerData1I(SoundEx Listener, int* F1)
 		{
 			if (Mutex != nullptr)
 				Mutex->lock();
 #ifdef TH_HAS_OPENAL
-			alGetListeneri(Listener, F1);
+			alGetListeneri((uint32_t)Listener, F1);
 #endif
 			if (Mutex != nullptr)
 				Mutex->unlock();

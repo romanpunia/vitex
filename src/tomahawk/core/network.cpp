@@ -237,19 +237,19 @@ namespace Tomahawk
 
 			switch (Type)
 			{
-				case SocketType_Stream:
+				case SocketType::Stream:
 					Hints.ai_socktype = SOCK_STREAM;
 					break;
-				case SocketType_Datagram:
+				case SocketType::Datagram:
 					Hints.ai_socktype = SOCK_DGRAM;
 					break;
-				case SocketType_Raw:
+				case SocketType::Raw:
 					Hints.ai_socktype = SOCK_RAW;
 					break;
-				case SocketType_Reliably_Delivered_Message:
+				case SocketType::Reliably_Delivered_Message:
 					Hints.ai_socktype = SOCK_RDM;
 					break;
-				case SocketType_Sequence_Packet_Stream:
+				case SocketType::Sequence_Packet_Stream:
 					Hints.ai_socktype = SOCK_SEQPACKET;
 					break;
 				default:
@@ -291,7 +291,7 @@ namespace Tomahawk
 		}
 		int Socket::Open(const char* Host, int Port, Address* Result)
 		{
-			return Open(Host, Port, SocketType_Stream, Result);
+			return Open(Host, Port, SocketType::Stream, Result);
 		}
 		int Socket::Open(addrinfo* Info, Address* Result)
 		{
@@ -398,7 +398,7 @@ namespace Tomahawk
 				Sync.IO.lock();
 				Multiplexer::Unlisten(this);
 				Sync.IO.unlock();
-				while (Skip(SocketEvent_Read | SocketEvent_Write, -2) == 1);
+				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), -2) == 1);
 			}
 
 			return 0;
@@ -762,13 +762,13 @@ namespace Tomahawk
 
 			return 0;
 		}
-		int Socket::Skip(int IO, int Code)
+		int Socket::Skip(unsigned int IO, int Code)
 		{
 			if (Code > 0)
 				return -1;
 
 			Sync.IO.lock();
-			if (IO & SocketEvent_Read && Input != nullptr)
+			if (IO & (uint32_t)SocketEvent::Read && Input != nullptr)
 			{
 				auto Callback = Input->Callback;
 				ReadFlush();
@@ -778,7 +778,7 @@ namespace Tomahawk
 				Sync.IO.lock();
 			}
 
-			if (IO & SocketEvent_Write && Output != nullptr)
+			if (IO & (uint32_t)SocketEvent::Write && Output != nullptr)
 			{
 				auto Callback = Output->Callback;
 				WriteFlush();
@@ -789,7 +789,7 @@ namespace Tomahawk
 			}
 
 			Sync.IO.unlock();
-			return ((IO & SocketEvent_Write && Output) || (IO & SocketEvent_Read && Input) ? 1 : 0);
+			return ((IO & (uint32_t)SocketEvent::Write && Output) || (IO & (size_t)SocketEvent::Read && Input) ? 1 : 0);
 		}
 		int Socket::SetTimeWait(int Timeout)
 		{
@@ -1264,27 +1264,27 @@ namespace Tomahawk
 			int64_t Time = Clock(); int Size = 0;
 			for (auto It = Events; It != Events + Count; It++)
 			{
-				int Flags = 0;
+				uint32_t Flags = 0;
 #ifdef TH_APPLE
 				if (It->filter == EVFILT_READ)
-					Flags |= SocketEvent_Read;
+					Flags |= (uint32_t)SocketEvent::Read;
 
 				if (It->filter == EVFILT_WRITE)
-					Flags |= SocketEvent_Write;
+					Flags |= (uint32_t)SocketEvent::Write;
 
 				if (It->flags & EV_EOF)
-					Flags |= SocketEvent_Close;
+					Flags |= (uint32_t)SocketEvent::Close;
 
 				Socket* Value = (Socket*)It->udata;
 #else
 				if (It->events & EPOLLIN)
-					Flags |= SocketEvent_Read;
+					Flags |= (uint32_t)SocketEvent::Read;
 
 				if (It->events & EPOLLOUT)
-					Flags |= SocketEvent_Write;
+					Flags |= (uint32_t)SocketEvent::Write;
 
 				if (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR)
-					Flags |= SocketEvent_Close;
+					Flags |= (uint32_t)SocketEvent::Close;
 
 				Socket* Value = (Socket*)It->data.ptr;
 #endif
@@ -1297,12 +1297,12 @@ namespace Tomahawk
 #endif
 			return Size;
 		}
-		int Multiplexer::Dispatch(Socket* Fd, int* Events, int64_t Time)
+		int Multiplexer::Dispatch(Socket* Fd, uint32_t* Events, int64_t Time)
 		{
 			if (!Fd || Fd->Fd == INVALID_SOCKET)
 				return 1;
 
-			if (*Events & SocketEvent_Read && !(*Events & SocketEvent_Close))
+			if (*Events & (uint32_t)SocketEvent::Read && !(*Events & (uint32_t)SocketEvent::Close))
 			{
 				if (Fd->Input != nullptr)
 				{
@@ -1329,7 +1329,7 @@ namespace Tomahawk
 								if (Callback)
 									Callback(Fd, nullptr, -1);
 
-								*Events = SocketEvent_Close;
+								*Events = (uint32_t)SocketEvent::Close;
 								Result = -1;
 								break;
 							}
@@ -1396,7 +1396,7 @@ namespace Tomahawk
 				}
 			}
 
-			if (*Events & SocketEvent_Write && !(*Events & SocketEvent_Close))
+			if (*Events & (uint32_t)SocketEvent::Write && !(*Events & (uint32_t)SocketEvent::Close))
 			{
 				if (Fd->Output != nullptr)
 				{
@@ -1423,7 +1423,7 @@ namespace Tomahawk
 								if (Callback)
 									Callback(Fd, -1);
 
-								*Events = SocketEvent_Close;
+								*Events = (uint32_t)SocketEvent::Close;
 								Result = -1;
 								break;
 							}
@@ -1469,7 +1469,7 @@ namespace Tomahawk
 				return 1;
 			}
 
-			if (!(*Events & SocketEvent_Close))
+			if (!(*Events & (uint32_t)SocketEvent::Close))
 			{
 				if (Fd->Sync.Timeout <= 0 || Time - Fd->Sync.Time <= Fd->Sync.Timeout)
 				{
@@ -1477,7 +1477,7 @@ namespace Tomahawk
 					return 0;
 				}
 
-				*Events = SocketEvent_Timeout;
+				*Events = (uint32_t)SocketEvent::Timeout;
 			}
 
 			Fd->Sync.IO.unlock();
@@ -1533,7 +1533,7 @@ namespace Tomahawk
 		}
 		bool SocketServer::Configure(SocketRouter* NewRouter)
 		{
-			if (State != ServerState_Idle)
+			if (State != ServerState::Idle)
 			{
 				TH_ERROR("cannot configure while running");
 				return false;
@@ -1607,19 +1607,19 @@ namespace Tomahawk
 				long Protocol = SSL_OP_ALL;
 				switch (It.second.Protocol)
 				{
-					case Secure_SSL_V2:
+					case Secure::SSL_V2:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_SSLv2;
 						break;
-					case Secure_SSL_V3:
+					case Secure::SSL_V3:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_SSLv3;
 						break;
-					case Secure_TLS_V1:
+					case Secure::TLS_V1:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_TLSv1;
 						break;
-					case Secure_TLS_V1_1:
+					case Secure::TLS_V1_1:
 						Protocol = SSL_OP_ALL | SSL_OP_NO_TLSv1_1;
 						break;
-					case Secure_Any:
+					case Secure::Any:
 					default:
 						Protocol = SSL_OP_ALL;
 						break;
@@ -1694,7 +1694,7 @@ namespace Tomahawk
 		}
 		bool SocketServer::Unlisten()
 		{
-			if (!Router && State == ServerState_Idle)
+			if (!Router && State == ServerState::Idle)
 				return false;
 
 			auto* Queue = Core::Schedule::Get();
@@ -1702,7 +1702,7 @@ namespace Tomahawk
 			Timer = -1;
 
 			Sync.lock();
-			State = ServerState_Stopping;
+			State = ServerState::Stopping;
 			for (auto It = Good.begin(); It != Good.end(); It++)
 			{
 				SocketConnection* Base = *It;
@@ -1736,17 +1736,17 @@ namespace Tomahawk
 			}
 
 			OnDeallocateRouter(Router);
-			State = ServerState_Idle;
+			State = ServerState::Idle;
 			Router = nullptr;
 
 			return true;
 		}
 		bool SocketServer::Listen()
 		{
-			if (Listeners.empty() || State != ServerState_Idle)
+			if (Listeners.empty() || State != ServerState::Idle)
 				return false;
 
-			State = ServerState_Working;
+			State = ServerState::Working;
 			if (!OnListen())
 				return false;
 
@@ -1754,10 +1754,10 @@ namespace Tomahawk
 			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
 				{
 					FreeQueued();
-					if (State == ServerState_Stopping)
+					if (State == ServerState::Stopping)
 					{
 						Sync.lock();
-						State = ServerState_Idle;
+						State = ServerState::Idle;
 						Sync.unlock();
 					}
 				});
@@ -1766,7 +1766,7 @@ namespace Tomahawk
 			{
 				It->Base->AcceptAsync([this, It](Socket*)
 					{
-						if (State != ServerState_Working)
+						if (State != ServerState::Working)
 							return false;
 
 						Accept(It);

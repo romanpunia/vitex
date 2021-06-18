@@ -15,34 +15,34 @@ namespace Tomahawk
 
 			class Queue;
 
-			enum AddressOp
+			enum class AddressOp
 			{
-				AddressOp_Host,
-				AddressOp_Ip,
-				AddressOp_Port,
-				AddressOp_Database,
-				AddressOp_User,
-				AddressOp_Password,
-				AddressOp_Timeout,
-				AddressOp_Encoding,
-				AddressOp_Options,
-				AddressOp_Profile,
-				AddressOp_Fallback_Profile,
-				AddressOp_KeepAlive,
-				AddressOp_KeepAlive_Idle,
-				AddressOp_KeepAlive_Interval,
-				AddressOp_KeepAlive_Count,
-				AddressOp_TTY,
-				AddressOp_SSL,
-				AddressOp_SSL_Compression,
-				AddressOp_SSL_Cert,
-				AddressOp_SSL_Root_Cert,
-				AddressOp_SSL_Key,
-				AddressOp_SSL_CRL,
-				AddressOp_Require_Peer,
-				AddressOp_Require_SSL,
-				AddressOp_KRB_Server_Name,
-				AddressOp_Service
+				Host,
+				Ip,
+				Port,
+				Database,
+				User,
+				Password,
+				Timeout,
+				Encoding,
+				Options,
+				Profile,
+				Fallback_Profile,
+				KeepAlive,
+				KeepAlive_Idle,
+				KeepAlive_Interval,
+				KeepAlive_Count,
+				TTY,
+				SSL,
+				SSL_Compression,
+				SSL_Cert,
+				SSL_Root_Cert,
+				SSL_Key,
+				SSL_CRL,
+				Require_Peer,
+				Require_SSL,
+				KRB_Server_Name,
+				Service
 			};
 
 			class TH_OUT Address

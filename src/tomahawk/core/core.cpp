@@ -1550,7 +1550,7 @@ namespace Tomahawk
 			return Value + '0';
 		}
 
-		Variant::Variant() : Type(VarType_Undefined), Data(nullptr)
+		Variant::Variant() : Type(VarType::Undefined), Data(nullptr)
 		{
 		}
 		Variant::Variant(VarType NewType, char* NewData) : Type(NewType), Data(NewData)
@@ -1563,7 +1563,7 @@ namespace Tomahawk
 		Variant::Variant(Variant&& Other) : Type(Other.Type), Data(Other.Data)
 		{
 			Other.Data = nullptr;
-			Other.Type = VarType_Undefined;
+			Other.Type = VarType::Undefined;
 		}
 		Variant::~Variant()
 		{
@@ -1576,31 +1576,31 @@ namespace Tomahawk
 			{
 				if (Value == TH_PREFIX_STR "null")
 				{
-					Type = VarType_Null;
+					Type = VarType::Null;
 					return true;
 				}
 
 				if (Value == TH_PREFIX_STR "undefined")
 				{
-					Type = VarType_Undefined;
+					Type = VarType::Undefined;
 					return true;
 				}
 
 				if (Value == TH_PREFIX_STR "object")
 				{
-					Type = VarType_Object;
+					Type = VarType::Object;
 					return true;
 				}
 
 				if (Value == TH_PREFIX_STR "array")
 				{
-					Type = VarType_Array;
+					Type = VarType::Array;
 					return true;
 				}
 
 				if (Value == TH_PREFIX_STR "pointer")
 				{
-					Type = VarType_Pointer;
+					Type = VarType::Pointer;
 					return true;
 				}
 
@@ -1643,27 +1643,27 @@ namespace Tomahawk
 		{
 			switch (Type)
 			{
-				case VarType_Null:
+				case VarType::Null:
 					return TH_PREFIX_STR "null";
-				case VarType_Undefined:
+				case VarType::Undefined:
 					return TH_PREFIX_STR "undefined";
-				case VarType_Object:
+				case VarType::Object:
 					return TH_PREFIX_STR "object";
-				case VarType_Array:
+				case VarType::Array:
 					return TH_PREFIX_STR "array";
-				case VarType_Pointer:
+				case VarType::Pointer:
 					return TH_PREFIX_STR "pointer";
-				case VarType_String:
+				case VarType::String:
 					return std::string(GetString(), GetSize());
-				case VarType_Base64:
+				case VarType::Base64:
 					return TH_PREFIX_STR + Compute::Common::Base64Encode(GetBase64(), GetSize()) + TH_PREFIX_STR;
-				case VarType_Decimal:
+				case VarType::Decimal:
 					return ((Decimal*)Data)->ToString();
-				case VarType_Integer:
+				case VarType::Integer:
 					return std::to_string(GetInteger());
-				case VarType_Number:
+				case VarType::Number:
 					return std::to_string(GetNumber());
-				case VarType_Boolean:
+				case VarType::Boolean:
 					return GetBoolean() ? "true" : "false";
 				default:
 					return "";
@@ -1671,31 +1671,31 @@ namespace Tomahawk
 		}
 		std::string Variant::GetBlob() const
 		{
-			if (Type == VarType_String || Type == VarType_Base64)
+			if (Type == VarType::String || Type == VarType::Base64)
 				return std::string(((String*)Data)->Buffer, ((String*)Data)->Size);
 
-			if (Type == VarType_Decimal)
+			if (Type == VarType::Decimal)
 				return ((Decimal*)Data)->ToString();
 
-			if (Type == VarType_Integer)
+			if (Type == VarType::Integer)
 				return std::to_string(GetInteger());
 
-			if (Type == VarType_Number)
+			if (Type == VarType::Number)
 				return std::to_string(GetNumber());
 
 			return "";
 		}
 		Decimal Variant::GetDecimal() const
 		{
-			if (Type != VarType_Decimal)
+			if (Type != VarType::Decimal)
 			{
-				if (Type == VarType_Integer)
+				if (Type == VarType::Integer)
 					return Decimal(std::to_string(GetInteger()));
 
-				if (Type == VarType_Number)
+				if (Type == VarType::Number)
 					return Decimal(std::to_string(GetNumber()));
 
-				if (Type == VarType_String)
+				if (Type == VarType::String)
 					return Decimal(GetString());
 
 				return Decimal::NaN();
@@ -1705,63 +1705,63 @@ namespace Tomahawk
 		}
 		void* Variant::GetPointer() const
 		{
-			if (Type == VarType_Pointer)
+			if (Type == VarType::Pointer)
 				return (void*)Data;
 
 			return nullptr;
 		}
 		const char* Variant::GetString() const
 		{
-			if (Type != VarType_String && Type != VarType_Base64)
+			if (Type != VarType::String && Type != VarType::Base64)
 				return nullptr;
 
 			return (const char*)((String*)Data)->Buffer;
 		}
 		unsigned char* Variant::GetBase64() const
 		{
-			if (Type != VarType_String && Type != VarType_Base64)
+			if (Type != VarType::String && Type != VarType::Base64)
 				return nullptr;
 
 			return (unsigned char*)((String*)Data)->Buffer;
 		}
 		int64_t Variant::GetInteger() const
 		{
-			if (Type == VarType_Integer)
+			if (Type == VarType::Integer)
 				return *(int64_t*)Data;
 
-			if (Type == VarType_Number)
+			if (Type == VarType::Number)
 				return (int64_t)*(double*)Data;
 
-			if (Type == VarType_Decimal)
+			if (Type == VarType::Decimal)
 				return (int64_t)((Decimal*)Data)->ToDouble();
 
 			return 0;
 		}
 		double Variant::GetNumber() const
 		{
-			if (Type == VarType_Integer)
+			if (Type == VarType::Integer)
 				return (double)*(int64_t*)Data;
 
-			if (Type == VarType_Number)
+			if (Type == VarType::Number)
 				return *(double*)Data;
 
-			if (Type == VarType_Decimal)
+			if (Type == VarType::Decimal)
 				return ((Decimal*)Data)->ToDouble();
 
 			return 0.0;
 		}
 		bool Variant::GetBoolean() const
 		{
-			if (Type == VarType_Boolean)
+			if (Type == VarType::Boolean)
 				return (Data != nullptr);
 
-			if (Type == VarType_Number)
+			if (Type == VarType::Number)
 				return GetNumber() > 0.0;
 
-			if (Type == VarType_Integer)
+			if (Type == VarType::Integer)
 				return GetInteger() > 0;
 
-			if (Type == VarType_Decimal)
+			if (Type == VarType::Decimal)
 				return ((Decimal*)Data)->ToFloat() > 0.0f;
 
 			return GetSize() > 0;
@@ -1774,22 +1774,22 @@ namespace Tomahawk
 		{
 			switch (Type)
 			{
-				case VarType_Null:
-				case VarType_Undefined:
-				case VarType_Object:
-				case VarType_Array:
-				case VarType_Boolean:
+				case VarType::Null:
+				case VarType::Undefined:
+				case VarType::Object:
+				case VarType::Array:
+				case VarType::Boolean:
 					return 0;
-				case VarType_Pointer:
+				case VarType::Pointer:
 					return sizeof(char*);
-				case VarType_String:
-				case VarType_Base64:
+				case VarType::String:
+				case VarType::Base64:
 					return ((String*)Data)->Size;
-				case VarType_Decimal:
+				case VarType::Decimal:
 					return ((Decimal*)Data)->Size();
-				case VarType_Integer:
+				case VarType::Integer:
 					return sizeof(int64_t);
-				case VarType_Number:
+				case VarType::Number:
 					return sizeof(double);
 			}
 
@@ -1821,18 +1821,18 @@ namespace Tomahawk
 		{
 			switch (Type)
 			{
-				case VarType_Object:
-				case VarType_Array:
+				case VarType::Object:
+				case VarType::Array:
 					return true;
-				case VarType_String:
-				case VarType_Base64:
-				case VarType_Decimal:
+				case VarType::String:
+				case VarType::Base64:
+				case VarType::Decimal:
 					return ((Decimal*)Data)->ToFloat() > 0.0f;
-				case VarType_Integer:
+				case VarType::Integer:
 					return GetInteger() > 0;
-				case VarType_Number:
+				case VarType::Number:
 					return GetNumber() > 0.0;
-				case VarType_Boolean:
+				case VarType::Boolean:
 					return GetBoolean();
 				default:
 					return Data != nullptr;
@@ -1840,7 +1840,7 @@ namespace Tomahawk
 		}
 		bool Variant::IsObject() const
 		{
-			return Type == VarType_Object || Type == VarType_Array;
+			return Type == VarType::Object || Type == VarType::Array;
 		}
 		bool Variant::IsEmpty() const
 		{
@@ -1853,13 +1853,13 @@ namespace Tomahawk
 
 			switch (Type)
 			{
-				case VarType_Null:
-				case VarType_Undefined:
+				case VarType::Null:
+				case VarType::Undefined:
 					return true;
-				case VarType_Pointer:
+				case VarType::Pointer:
 					return GetPointer() == Value.GetPointer();
-				case VarType_String:
-				case VarType_Base64:
+				case VarType::String:
+				case VarType::Base64:
 				{
 					if (GetSize() != Value.GetSize())
 						return false;
@@ -1871,13 +1871,13 @@ namespace Tomahawk
 
 					return strncmp(Src1, Src2, sizeof(char) * GetSize()) == 0;
 				}
-				case VarType_Decimal:
+				case VarType::Decimal:
 					return (*(Decimal*)Data) == (*(Decimal*)Value.Data);
-				case VarType_Integer:
+				case VarType::Integer:
 					return GetInteger() == Value.GetInteger();
-				case VarType_Number:
+				case VarType::Number:
 					return abs(GetNumber() - Value.GetNumber()) < std::numeric_limits<double>::epsilon();
-				case VarType_Boolean:
+				case VarType::Boolean:
 					return GetBoolean() == Value.GetBoolean();
 				default:
 					return false;
@@ -1888,12 +1888,12 @@ namespace Tomahawk
 			Type = Other.Type;
 			switch (Type)
 			{
-				case VarType_Pointer:
-				case VarType_Boolean:
+				case VarType::Pointer:
+				case VarType::Boolean:
 					Data = (char*)Other.Data;
 					break;
-				case VarType_String:
-				case VarType_Base64:
+				case VarType::String:
+				case VarType::Base64:
 				{
 					String* From = (String*)Other.Data;
 					String* Buffer = (String*)TH_MALLOC(sizeof(String));
@@ -1905,17 +1905,17 @@ namespace Tomahawk
 					Data = (char*)Buffer;
 					break;
 				}
-				case VarType_Decimal:
+				case VarType::Decimal:
 				{
 					Decimal* From = (Decimal*)Other.Data;
 					Data = (char*)TH_NEW(Decimal, *From);
 					break;
 				}
-				case VarType_Integer:
+				case VarType::Integer:
 					Data = (char*)TH_MALLOC(sizeof(int64_t));
 					memcpy(Data, Other.Data, sizeof(int64_t));
 					break;
-				case VarType_Number:
+				case VarType::Number:
 					Data = (char*)TH_MALLOC(sizeof(double));
 					memcpy(Data, Other.Data, sizeof(double));
 					break;
@@ -1927,7 +1927,7 @@ namespace Tomahawk
 		void Variant::Copy(Variant&& Other)
 		{
 			Type = Other.Type;
-			Other.Type = VarType_Undefined;
+			Other.Type = VarType::Undefined;
 			Data = Other.Data;
 			Other.Data = nullptr;
 		}
@@ -1936,18 +1936,18 @@ namespace Tomahawk
 			if (!Data)
 				return;
 
-			if (Type == VarType_String || Type == VarType_Base64)
+			if (Type == VarType::String || Type == VarType::Base64)
 			{
 				String* Buffer = (String*)Data;
 				TH_FREE(Buffer->Buffer);
 				TH_FREE(Data);
 			}
-			else if (Type == VarType_Decimal)
+			else if (Type == VarType::Decimal)
 			{
 				Decimal* Buffer = (Decimal*)Data;
 				TH_DELETE(Decimal, Buffer);
 			}
-			else if (Type != VarType_Undefined && Type != VarType_Null && Type != VarType_Pointer && Type != VarType_Boolean)
+			else if (Type != VarType::Undefined && Type != VarType::Null && Type != VarType::Pointer && Type != VarType::Boolean)
 				TH_FREE(Data);
 
 			Data = nullptr;
@@ -3955,26 +3955,26 @@ namespace Tomahawk
 		}
 		Variant Var::Null()
 		{
-			return Variant(VarType_Null, nullptr);
+			return Variant(VarType::Null, nullptr);
 		}
 		Variant Var::Undefined()
 		{
-			return Variant(VarType_Undefined, nullptr);
+			return Variant(VarType::Undefined, nullptr);
 		}
 		Variant Var::Object()
 		{
-			return Variant(VarType_Object, nullptr);
+			return Variant(VarType::Object, nullptr);
 		}
 		Variant Var::Array()
 		{
-			return Variant(VarType_Array, nullptr);
+			return Variant(VarType::Array, nullptr);
 		}
 		Variant Var::Pointer(void* Value)
 		{
 			if (!Value)
 				return Null();
 
-			return Variant(VarType_Pointer, (char*)Value);
+			return Variant(VarType::Pointer, (char*)Value);
 		}
 		Variant Var::String(const std::string& Value)
 		{
@@ -3985,7 +3985,7 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType_String, (char*)Buffer);
+			return Variant(VarType::String, (char*)Buffer);
 		}
 		Variant Var::String(const char* Value, size_t Size)
 		{
@@ -3999,7 +3999,7 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType_String, (char*)Buffer);
+			return Variant(VarType::String, (char*)Buffer);
 		}
 		Variant Var::Base64(const std::string& Value)
 		{
@@ -4010,7 +4010,7 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType_Base64, (char*)Buffer);
+			return Variant(VarType::Base64, (char*)Buffer);
 		}
 		Variant Var::Base64(const unsigned char* Value, size_t Size)
 		{
@@ -4028,41 +4028,41 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType_Base64, (char*)Buffer);
+			return Variant(VarType::Base64, (char*)Buffer);
 		}
 		Variant Var::Integer(int64_t Value)
 		{
 			char* Data = (char*)TH_MALLOC(sizeof(int64_t));
 			memcpy(Data, (void*)&Value, sizeof(int64_t));
 
-			return Variant(VarType_Integer, Data);
+			return Variant(VarType::Integer, Data);
 		}
 		Variant Var::Number(double Value)
 		{
 			char* Data = (char*)TH_MALLOC(sizeof(double));
 			memcpy(Data, (void*)&Value, sizeof(double));
 
-			return Variant(VarType_Number, Data);
+			return Variant(VarType::Number, Data);
 		}
 		Variant Var::Decimal(const BigNumber& Value)
 		{
 			BigNumber* Buffer = TH_NEW(BigNumber, Value);
-			return Variant(VarType_Decimal, (char*)Buffer);
+			return Variant(VarType::Decimal, (char*)Buffer);
 		}
 		Variant Var::Decimal(BigNumber&& Value)
 		{
 			BigNumber* Buffer = TH_NEW(BigNumber, std::move(Value));
-			return Variant(VarType_Decimal, (char*)Buffer);
+			return Variant(VarType::Decimal, (char*)Buffer);
 		}
 		Variant Var::DecimalString(const std::string& Value)
 		{
 			BigNumber* Buffer = TH_NEW(BigNumber, Value);
-			return Variant(VarType_Decimal, (char*)Buffer);
+			return Variant(VarType::Decimal, (char*)Buffer);
 		}
 		Variant Var::Boolean(bool Value)
 		{
 			void* Ptr = (Value ? (void*)&Value : nullptr);
-			return Variant(VarType_Boolean, (char*)Ptr);
+			return Variant(VarType::Boolean, (char*)Ptr);
 		}
 
 		void Mem::SetAlloc(const AllocCallback& Callback)
@@ -4680,9 +4680,9 @@ namespace Tomahawk
 		uint64_t Stream::GetSize()
 		{
 			uint64_t Position = Tell();
-			Seek(FileSeek_End, 0);
+			Seek(FileSeek::End, 0);
 			uint64_t Size = Tell();
-			Seek(FileSeek_Begin, Position);
+			Seek(FileSeek::Begin, Position);
 
 			return Size;
 		}
@@ -4708,40 +4708,40 @@ namespace Tomahawk
 			Path = OS::Path::Resolve(File);
 			switch (Mode)
 			{
-				case FileMode_Read_Only:
+				case FileMode::Read_Only:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "r");
 					break;
-				case FileMode_Write_Only:
+				case FileMode::Write_Only:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "w");
 					break;
-				case FileMode_Append_Only:
+				case FileMode::Append_Only:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "a");
 					break;
-				case FileMode_Read_Write:
+				case FileMode::Read_Write:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "r+");
 					break;
-				case FileMode_Write_Read:
+				case FileMode::Write_Read:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "w+");
 					break;
-				case FileMode_Read_Append_Write:
+				case FileMode::Read_Append_Write:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "a+");
 					break;
-				case FileMode_Binary_Read_Only:
+				case FileMode::Binary_Read_Only:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "rb");
 					break;
-				case FileMode_Binary_Write_Only:
+				case FileMode::Binary_Write_Only:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "wb");
 					break;
-				case FileMode_Binary_Append_Only:
+				case FileMode::Binary_Append_Only:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "ab");
 					break;
-				case FileMode_Binary_Read_Write:
+				case FileMode::Binary_Read_Write:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "rb+");
 					break;
-				case FileMode_Binary_Write_Read:
+				case FileMode::Binary_Write_Read:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "wb+");
 					break;
-				case FileMode_Binary_Read_Append_Write:
+				case FileMode::Binary_Read_Append_Write:
 					Resource = (FILE*)OS::File::Open(Path.c_str(), "ab+");
 					break;
 			}
@@ -4762,15 +4762,15 @@ namespace Tomahawk
 		{
 			switch (Mode)
 			{
-				case FileSeek_Begin:
+				case FileSeek::Begin:
 					if (Resource != nullptr)
 						return fseek(Resource, (long)Offset, SEEK_SET) == 0;
 					break;
-				case FileSeek_Current:
+				case FileSeek::Current:
 					if (Resource != nullptr)
 						return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 					break;
-				case FileSeek_End:
+				case FileSeek::End:
 					if (Resource != nullptr)
 						return fseek(Resource, (long)Offset, SEEK_END) == 0;
 					break;
@@ -4866,7 +4866,7 @@ namespace Tomahawk
 			if (!Path.empty())
 			{
 				fclose((FILE*)OS::File::Open(Path.c_str(), "w"));
-				Open(Path.c_str(), FileMode_Binary_Write_Only);
+				Open(Path.c_str(), FileMode::Binary_Write_Only);
 			}
 		}
 		bool GzStream::Open(const char* File, FileMode Mode)
@@ -4878,22 +4878,22 @@ namespace Tomahawk
 			Path = OS::Path::Resolve(File);
 			switch (Mode)
 			{
-				case FileMode_Binary_Read_Only:
-				case FileMode_Read_Only:
+				case FileMode::Binary_Read_Only:
+				case FileMode::Read_Only:
 					Resource = gzopen(Path.c_str(), "rb");
 					break;
-				case FileMode_Binary_Write_Only:
-				case FileMode_Write_Only:
+				case FileMode::Binary_Write_Only:
+				case FileMode::Write_Only:
 					Resource = gzopen(Path.c_str(), "wb");
 					break;
-				case FileMode_Read_Write:
-				case FileMode_Write_Read:
-				case FileMode_Append_Only:
-				case FileMode_Read_Append_Write:
-				case FileMode_Binary_Append_Only:
-				case FileMode_Binary_Read_Write:
-				case FileMode_Binary_Write_Read:
-				case FileMode_Binary_Read_Append_Write:
+				case FileMode::Read_Write:
+				case FileMode::Write_Read:
+				case FileMode::Append_Only:
+				case FileMode::Read_Append_Write:
+				case FileMode::Binary_Append_Only:
+				case FileMode::Binary_Read_Write:
+				case FileMode::Binary_Write_Read:
+				case FileMode::Binary_Read_Append_Write:
 					Close();
 					break;
 			}
@@ -4918,19 +4918,19 @@ namespace Tomahawk
 		{
 			switch (Mode)
 			{
-				case FileSeek_Begin:
+				case FileSeek::Begin:
 #ifdef TH_HAS_ZLIB
 					if (Resource != nullptr)
 						return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
 #endif
 					break;
-				case FileSeek_Current:
+				case FileSeek::Current:
 #ifdef TH_HAS_ZLIB
 					if (Resource != nullptr)
 						return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 #endif
 					break;
-				case FileSeek_End:
+				case FileSeek::End:
 #ifdef TH_HAS_ZLIB
 					if (Resource != nullptr)
 						return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
@@ -5035,8 +5035,8 @@ namespace Tomahawk
 			bool Chunked = false;
 			switch (Mode)
 			{
-				case FileMode_Binary_Read_Only:
-				case FileMode_Read_Only:
+				case FileMode::Binary_Read_Only:
+				case FileMode::Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
 					Client->Connect(&Address, false).Sync().Then<Core::Async<Network::HTTP::ResponseFrame*>>([Client, URL](int Code)
@@ -5083,16 +5083,16 @@ namespace Tomahawk
 					});
 					break;
 				}
-				case FileMode_Binary_Write_Only:
-				case FileMode_Write_Only:
-				case FileMode_Read_Write:
-				case FileMode_Write_Read:
-				case FileMode_Append_Only:
-				case FileMode_Read_Append_Write:
-				case FileMode_Binary_Append_Only:
-				case FileMode_Binary_Read_Write:
-				case FileMode_Binary_Write_Read:
-				case FileMode_Binary_Read_Append_Write:
+				case FileMode::Binary_Write_Only:
+				case FileMode::Write_Only:
+				case FileMode::Read_Write:
+				case FileMode::Write_Read:
+				case FileMode::Append_Only:
+				case FileMode::Read_Append_Write:
+				case FileMode::Binary_Append_Only:
+				case FileMode::Binary_Read_Write:
+				case FileMode::Binary_Write_Read:
+				case FileMode::Binary_Read_Append_Write:
 					Close();
 					break;
 			}
@@ -5113,13 +5113,13 @@ namespace Tomahawk
 		{
 			switch (Mode)
 			{
-				case FileSeek_Begin:
+				case FileSeek::Begin:
 					Offset = NewOffset;
 					return true;
-				case FileSeek_Current:
+				case FileSeek::Current:
 					Offset += NewOffset;
 					return true;
-				case FileSeek_End:
+				case FileSeek::End:
 					Offset = Size - Offset;
 					return true;
 			}
@@ -6387,7 +6387,7 @@ namespace Tomahawk
 		}
 		void ChangeLog::Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback)
 		{
-			Source->Open(Path.c_str(), FileMode_Binary_Read_Only);
+			Source->Open(Path.c_str(), FileMode::Binary_Read_Only);
 
 			uint64_t Length = Source->GetSize();
 			if (Length <= Offset || Offset <= 0)
@@ -6397,7 +6397,7 @@ namespace Tomahawk
 			}
 
 			int64_t Delta = Length - Offset;
-			Source->Seek(FileSeek_Begin, Length - Delta);
+			Source->Seek(FileSeek::Begin, Length - Delta);
 
 			char* Data = (char*)TH_MALLOC(sizeof(char) * ((size_t)Delta + 1));
 			if (!Data)
@@ -7399,7 +7399,7 @@ namespace Tomahawk
 		}
 		Document* Document::Find(const std::string& Name, bool Deep) const
 		{
-			if (Value.Type == VarType_Array)
+			if (Value.Type == VarType::Array)
 			{
 				Core::Parser Number(&Name);
 				if (Number.HasInteger())
@@ -7495,7 +7495,7 @@ namespace Tomahawk
 		Document* Document::Set(const std::string& Name, const Variant& Base)
 		{
 			Saved = false;
-			if (Value.Type == VarType_Object)
+			if (Value.Type == VarType::Object)
 			{
 				for (auto Node : Nodes)
 				{
@@ -7521,7 +7521,7 @@ namespace Tomahawk
 		Document* Document::Set(const std::string& Name, Variant&& Base)
 		{
 			Saved = false;
-			if (Value.Type == VarType_Object)
+			if (Value.Type == VarType::Object)
 			{
 				for (auto Node : Nodes)
 				{
@@ -7554,7 +7554,7 @@ namespace Tomahawk
 			Base->Parent = this;
 			Saved = false;
 
-			if (Value.Type == VarType_Object)
+			if (Value.Type == VarType::Object)
 			{
 				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 				{
@@ -7677,7 +7677,7 @@ namespace Tomahawk
 		bool Document::Has64(const std::string& Name, size_t Size) const
 		{
 			Document* Base = Fetch(Name);
-			if (!Base || Base->Value.GetType() != VarType_Base64)
+			if (!Base || Base->Value.GetType() != VarType::Base64)
 				return false;
 
 			return Base->Value.GetSize() == Size;
@@ -7717,7 +7717,7 @@ namespace Tomahawk
 					Result->Parent = this;
 					Saved = false;
 
-					if (Value.Type == VarType_Array && !Fast)
+					if (Value.Type == VarType::Array && !Fast)
 					{
 						for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 						{
@@ -7786,62 +7786,62 @@ namespace Tomahawk
 
 			std::vector<Document*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.GetSize() || ((int64_t)Base->Nodes.size() - (int64_t)Attributes.size()) > 0);
-			Callback(VarForm_Write_Tab, "", 0);
-			Callback(VarForm_Dummy, "<", 1);
-			Callback(VarForm_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
+			Callback(VarForm::Write_Tab, "", 0);
+			Callback(VarForm::Dummy, "<", 1);
+			Callback(VarForm::Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
 
 			if (Attributes.empty())
 			{
 				if (Scalable)
-					Callback(VarForm_Dummy, ">", 1);
+					Callback(VarForm::Dummy, ">", 1);
 				else
-					Callback(VarForm_Dummy, " />", 3);
+					Callback(VarForm::Dummy, " />", 3);
 			}
 			else
-				Callback(VarForm_Dummy, " ", 1);
+				Callback(VarForm::Dummy, " ", 1);
 
 			for (auto It = Attributes.begin(); It != Attributes.end(); ++It)
 			{
 				std::string Key = (*It)->GetName();
 				std::string Value = (*It)->Value.Serialize();
 
-				Callback(VarForm_Dummy, Key.c_str(), (int64_t)Key.size());
-				Callback(VarForm_Dummy, "=\"", 2);
-				Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
+				Callback(VarForm::Dummy, Key.c_str(), (int64_t)Key.size());
+				Callback(VarForm::Dummy, "=\"", 2);
+				Callback(VarForm::Dummy, Value.c_str(), (int64_t)Value.size());
 				++It;
 
 				if (It == Attributes.end())
 				{
 					if (!Scalable)
 					{
-						Callback(VarForm_Write_Space, "\"", 1);
-						Callback(VarForm_Dummy, "/>", 2);
+						Callback(VarForm::Write_Space, "\"", 1);
+						Callback(VarForm::Dummy, "/>", 2);
 					}
 					else
-						Callback(VarForm_Dummy, "\">", 2);
+						Callback(VarForm::Dummy, "\">", 2);
 				}
 				else
-					Callback(VarForm_Write_Space, "\"", 1);
+					Callback(VarForm::Write_Space, "\"", 1);
 
 				--It;
 			}
 
-			Callback(VarForm_Tab_Increase, "", 0);
+			Callback(VarForm::Tab_Increase, "", 0);
 			if (Base->Value.GetSize() > 0)
 			{
 				std::string Text = Base->Value.Serialize();
 				if (!Base->Nodes.empty())
 				{
-					Callback(VarForm_Write_Line, "", 0);
-					Callback(VarForm_Write_Tab, "", 0);
-					Callback(VarForm_Dummy, Text.c_str(), Text.size());
-					Callback(VarForm_Write_Line, "", 0);
+					Callback(VarForm::Write_Line, "", 0);
+					Callback(VarForm::Write_Tab, "", 0);
+					Callback(VarForm::Dummy, Text.c_str(), Text.size());
+					Callback(VarForm::Write_Line, "", 0);
 				}
 				else
-					Callback(VarForm_Dummy, Text.c_str(), Text.size());
+					Callback(VarForm::Dummy, Text.c_str(), Text.size());
 			}
 			else
-				Callback(VarForm_Write_Line, "", 0);
+				Callback(VarForm::Write_Line, "", 0);
 
 			for (auto&& It : Base->Nodes)
 			{
@@ -7849,16 +7849,16 @@ namespace Tomahawk
 					WriteXML(It, Callback);
 			}
 
-			Callback(VarForm_Tab_Decrease, "", 0);
+			Callback(VarForm::Tab_Decrease, "", 0);
 			if (!Scalable)
 				return true;
 
 			if (!Base->Nodes.empty())
-				Callback(VarForm_Write_Tab, "", 0);
+				Callback(VarForm::Write_Tab, "", 0);
 
-			Callback(VarForm_Dummy, "</", 2);
-			Callback(VarForm_Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
-			Callback(Base->Parent ? VarForm_Write_Line : VarForm_Dummy, ">", 1);
+			Callback(VarForm::Dummy, "</", 2);
+			Callback(VarForm::Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
+			Callback(Base->Parent ? VarForm::Write_Line : VarForm::Dummy, ">", 1);
 
 			return true;
 		}
@@ -7873,42 +7873,42 @@ namespace Tomahawk
 				Core::Parser Safe(&Value);
 				Safe.Escape();
 
-				if (Base->Value.Type != VarType_String && Base->Value.Type != VarType_Base64)
+				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Base64)
 				{
 					if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
-						Callback(VarForm_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
+						Callback(VarForm::Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
 					else
-						Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
+						Callback(VarForm::Dummy, Value.c_str(), (int64_t)Value.size());
 				}
 				else
 				{
-					Callback(VarForm_Dummy, "\"", 1);
-					Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
-					Callback(VarForm_Dummy, "\"", 1);
+					Callback(VarForm::Dummy, "\"", 1);
+					Callback(VarForm::Dummy, Value.c_str(), (int64_t)Value.size());
+					Callback(VarForm::Dummy, "\"", 1);
 				}
 
 				return true;
 			}
 
 			size_t Size = Base->Nodes.size(), Offset = 0;
-			bool Array = (Base->Value.Type == VarType_Array);
+			bool Array = (Base->Value.Type == VarType::Array);
 
 			if (Base->Parent != nullptr)
-				Callback(VarForm_Write_Line, "", 0);
+				Callback(VarForm::Write_Line, "", 0);
 
-			Callback(VarForm_Write_Tab, "", 0);
-			Callback(VarForm_Dummy, Array ? "[" : "{", 1);
-			Callback(VarForm_Tab_Increase, "", 0);
+			Callback(VarForm::Write_Tab, "", 0);
+			Callback(VarForm::Dummy, Array ? "[" : "{", 1);
+			Callback(VarForm::Tab_Increase, "", 0);
 
 			for (auto&& Document : Base->Nodes)
 			{
 				if (!Array)
 				{
-					Callback(VarForm_Write_Line, "", 0);
-					Callback(VarForm_Write_Tab, "", 0);
-					Callback(VarForm_Dummy, "\"", 1);
-					Callback(VarForm_Dummy, Document->Key.c_str(), (int64_t)Document->Key.size());
-					Callback(VarForm_Write_Space, "\":", 2);
+					Callback(VarForm::Write_Line, "", 0);
+					Callback(VarForm::Write_Tab, "", 0);
+					Callback(VarForm::Dummy, "\"", 1);
+					Callback(VarForm::Dummy, Document->Key.c_str(), (int64_t)Document->Key.size());
+					Callback(VarForm::Write_Space, "\":", 2);
 				}
 
 				if (!Document->Value.IsObject())
@@ -7919,22 +7919,22 @@ namespace Tomahawk
 
 					if (Array)
 					{
-						Callback(VarForm_Write_Line, "", 0);
-						Callback(VarForm_Write_Tab, "", 0);
+						Callback(VarForm::Write_Line, "", 0);
+						Callback(VarForm::Write_Tab, "", 0);
 					}
 
-					if (!Document->Value.IsObject() && Document->Value.Type != VarType_String && Document->Value.Type != VarType_Base64)
+					if (!Document->Value.IsObject() && Document->Value.Type != VarType::String && Document->Value.Type != VarType::Base64)
 					{
 						if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
-							Callback(VarForm_Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
+							Callback(VarForm::Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
 						else
-							Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
+							Callback(VarForm::Dummy, Value.c_str(), (int64_t)Value.size());
 					}
 					else
 					{
-						Callback(VarForm_Dummy, "\"", 1);
-						Callback(VarForm_Dummy, Value.c_str(), (int64_t)Value.size());
-						Callback(VarForm_Dummy, "\"", 1);
+						Callback(VarForm::Dummy, "\"", 1);
+						Callback(VarForm::Dummy, Value.c_str(), (int64_t)Value.size());
+						Callback(VarForm::Dummy, "\"", 1);
 					}
 				}
 				else
@@ -7942,16 +7942,16 @@ namespace Tomahawk
 
 				Offset++;
 				if (Offset < Size)
-					Callback(VarForm_Dummy, ",", 1);
+					Callback(VarForm::Dummy, ",", 1);
 			}
 
-			Callback(VarForm_Tab_Decrease, "", 0);
-			Callback(VarForm_Write_Line, "", 0);
+			Callback(VarForm::Tab_Decrease, "", 0);
+			Callback(VarForm::Write_Line, "", 0);
 
 			if (Base->Parent != nullptr)
-				Callback(VarForm_Write_Tab, "", 0);
+				Callback(VarForm::Write_Tab, "", 0);
 
-			Callback(VarForm_Dummy, Array ? "]" : "}", 1);
+			Callback(VarForm::Dummy, Array ? "]" : "}", 1);
 			return true;
 		}
 		bool Document::WriteJSONB(Document* Base, const DocWriteCallback& Callback)
@@ -7962,17 +7962,17 @@ namespace Tomahawk
 			std::unordered_map<std::string, uint64_t> Mapping = Base->GetNames();
 			uint64_t Set = (uint64_t)Mapping.size();
 
-			Callback(VarForm_Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
-			Callback(VarForm_Dummy, (const char*)&Set, sizeof(uint64_t));
+			Callback(VarForm::Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
+			Callback(VarForm::Dummy, (const char*)&Set, sizeof(uint64_t));
 
 			for (auto It = Mapping.begin(); It != Mapping.end(); ++It)
 			{
 				uint64_t Size = (uint64_t)It->first.size();
-				Callback(VarForm_Dummy, (const char*)&It->second, sizeof(uint64_t));
-				Callback(VarForm_Dummy, (const char*)&Size, sizeof(uint64_t));
+				Callback(VarForm::Dummy, (const char*)&It->second, sizeof(uint64_t));
+				Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint64_t));
 
 				if (Size > 0)
-					Callback(VarForm_Dummy, It->first.c_str(), sizeof(char) * Size);
+					Callback(VarForm::Dummy, It->first.c_str(), sizeof(char) * Size);
 			}
 
 			ProcessJSONBWrite(Base, &Mapping, Callback);
@@ -8290,7 +8290,7 @@ namespace Tomahawk
 			if (!Ref->IsArray())
 			{
 				VarType Type = Current->Value.Type;
-				Current->Value.Type = VarType_Array;
+				Current->Value.Type = VarType::Array;
 
 				std::string Name;
 				for (auto It = Ref->MemberBegin(); It != Ref->MemberEnd(); ++It)
@@ -8375,52 +8375,52 @@ namespace Tomahawk
 		bool Document::ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const DocWriteCallback& Callback)
 		{
 			uint64_t Id = Map->at(Current->Key);
-			Callback(VarForm_Dummy, (const char*)&Id, sizeof(uint64_t));
-			Callback(VarForm_Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
+			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint64_t));
+			Callback(VarForm::Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
 
 			switch (Current->Value.Type)
 			{
-				case VarType_Object:
-				case VarType_Array:
+				case VarType::Object:
+				case VarType::Array:
 				{
 					uint64_t Count = Current->Nodes.size();
-					Callback(VarForm_Dummy, (const char*)&Count, sizeof(uint64_t));
+					Callback(VarForm::Dummy, (const char*)&Count, sizeof(uint64_t));
 					for (auto& Document : Current->Nodes)
 						ProcessJSONBWrite(Document, Map, Callback);
 					break;
 				}
-				case VarType_String:
-				case VarType_Base64:
+				case VarType::String:
+				case VarType::Base64:
 				{
 					uint64_t Size = Current->Value.GetSize();
-					Callback(VarForm_Dummy, (const char*)&Size, sizeof(uint64_t));
-					Callback(VarForm_Dummy, Current->Value.GetString(), Size * sizeof(char));
+					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint64_t));
+					Callback(VarForm::Dummy, Current->Value.GetString(), Size * sizeof(char));
 					break;
 				}
-				case VarType_Decimal:
+				case VarType::Decimal:
 				{
 					std::string Number = ((Decimal*)Current->Value.Data)->ToString();
 					uint64_t Size = (uint64_t)Number.size();
-					Callback(VarForm_Dummy, (const char*)&Size, sizeof(uint64_t));
-					Callback(VarForm_Dummy, Number.c_str(), Size * sizeof(char));
+					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint64_t));
+					Callback(VarForm::Dummy, Number.c_str(), Size * sizeof(char));
 					break;
 				}
-				case VarType_Integer:
+				case VarType::Integer:
 				{
 					int64_t Copy = Current->Value.GetInteger();
-					Callback(VarForm_Dummy, (const char*)&Copy, sizeof(int64_t));
+					Callback(VarForm::Dummy, (const char*)&Copy, sizeof(int64_t));
 					break;
 				}
-				case VarType_Number:
+				case VarType::Number:
 				{
 					double Copy = Current->Value.GetNumber();
-					Callback(VarForm_Dummy, (const char*)&Copy, sizeof(double));
+					Callback(VarForm::Dummy, (const char*)&Copy, sizeof(double));
 					break;
 				}
-				case VarType_Boolean:
+				case VarType::Boolean:
 				{
 					bool Copy = Current->Value.GetBoolean();
-					Callback(VarForm_Dummy, (const char*)&Copy, sizeof(bool));
+					Callback(VarForm::Dummy, (const char*)&Copy, sizeof(bool));
 					break;
 				}
 				default:
@@ -8450,8 +8450,8 @@ namespace Tomahawk
 
 			switch (Current->Value.Type)
 			{
-				case VarType_Object:
-				case VarType_Array:
+				case VarType::Object:
+				case VarType::Array:
 				{
 					uint64_t Count = 0;
 					if (!Callback((char*)&Count, sizeof(uint64_t)))
@@ -8474,7 +8474,7 @@ namespace Tomahawk
 					}
 					break;
 				}
-				case VarType_String:
+				case VarType::String:
 				{
 					uint64_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint64_t)))
@@ -8495,7 +8495,7 @@ namespace Tomahawk
 					Current->Value = Var::String(Buffer);
 					break;
 				}
-				case VarType_Base64:
+				case VarType::Base64:
 				{
 					uint64_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint64_t)))
@@ -8516,7 +8516,7 @@ namespace Tomahawk
 					Current->Value = Var::Base64(Buffer);
 					break;
 				}
-				case VarType_Integer:
+				case VarType::Integer:
 				{
 					int64_t Integer = 0;
 					if (!Callback((char*)&Integer, sizeof(int64_t)))
@@ -8528,7 +8528,7 @@ namespace Tomahawk
 					Current->Value = Var::Integer(Integer);
 					break;
 				}
-				case VarType_Number:
+				case VarType::Number:
 				{
 					double Number = 0.0;
 					if (!Callback((char*)&Number, sizeof(double)))
@@ -8540,7 +8540,7 @@ namespace Tomahawk
 					Current->Value = Var::Number(Number);
 					break;
 				}
-				case VarType_Decimal:
+				case VarType::Decimal:
 				{
 					uint64_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint64_t)))
@@ -8561,7 +8561,7 @@ namespace Tomahawk
 					Current->Value = Var::Decimal(Buffer);
 					break;
 				}
-				case VarType_Boolean:
+				case VarType::Boolean:
 				{
 					bool Boolean = false;
 					if (!Callback((char*)&Boolean, sizeof(bool)))

@@ -11,76 +11,76 @@ namespace Tomahawk
 
 		class AudioEffect;
 
-		enum SoundDistanceModel
+		enum class SoundDistanceModel
 		{
-			SoundDistanceModel_Invalid = 0,
-			SoundDistanceModel_Invert = 0xD001,
-			SoundDistanceModel_Invert_Clamp = 0xD002,
-			SoundDistanceModel_Linear = 0xD003,
-			SoundDistanceModel_Linear_Clamp = 0xD004,
-			SoundDistanceModel_Exponent = 0xD005,
-			SoundDistanceModel_Exponent_Clamp = 0xD006,
+			Invalid = 0,
+			Invert = 0xD001,
+			Invert_Clamp = 0xD002,
+			Linear = 0xD003,
+			Linear_Clamp = 0xD004,
+			Exponent = 0xD005,
+			Exponent_Clamp = 0xD006,
 		};
 
-		enum SoundEx
+		enum class SoundEx
 		{
-			SoundEx_Source_Relative = 0x202,
-			SoundEx_Cone_Inner_Angle = 0x1001,
-			SoundEx_Cone_Outer_Angle = 0x1002,
-			SoundEx_Pitch = 0x1003,
-			SoundEx_Position = 0x1004,
-			SoundEx_Direction = 0x1005,
-			SoundEx_Velocity = 0x1006,
-			SoundEx_Looping = 0x1007,
-			SoundEx_Buffer = 0x1009,
-			SoundEx_Gain = 0x100A,
-			SoundEx_Min_Gain = 0x100D,
-			SoundEx_Max_Gain = 0x100E,
-			SoundEx_Orientation = 0x100F,
-			SoundEx_Channel_Mask = 0x3000,
-			SoundEx_Source_State = 0x1010,
-			SoundEx_Initial = 0x1011,
-			SoundEx_Playing = 0x1012,
-			SoundEx_Paused = 0x1013,
-			SoundEx_Stopped = 0x1014,
-			SoundEx_Buffers_Queued = 0x1015,
-			SoundEx_Buffers_Processed = 0x1016,
-			SoundEx_Seconds_Offset = 0x1024,
-			SoundEx_Sample_Offset = 0x1025,
-			SoundEx_Byte_Offset = 0x1026,
-			SoundEx_Source_Type = 0x1027,
-			SoundEx_Static = 0x1028,
-			SoundEx_Streaming = 0x1029,
-			SoundEx_Undetermined = 0x1030,
-			SoundEx_Format_Mono8 = 0x1100,
-			SoundEx_Format_Mono16 = 0x1101,
-			SoundEx_Format_Stereo8 = 0x1102,
-			SoundEx_Format_Stereo16 = 0x1103,
-			SoundEx_Reference_Distance = 0x1020,
-			SoundEx_Rolloff_Factor = 0x1021,
-			SoundEx_Cone_Outer_Gain = 0x1022,
-			SoundEx_Max_Distance = 0x1023,
-			SoundEx_Frequency = 0x2001,
-			SoundEx_Bits = 0x2002,
-			SoundEx_Channels = 0x2003,
-			SoundEx_Size = 0x2004,
-			SoundEx_Unused = 0x2010,
-			SoundEx_Pending = 0x2011,
-			SoundEx_Processed = 0x2012,
-			SoundEx_Invalid_Name = 0xA001,
-			SoundEx_Illegal_Enum = 0xA002,
-			SoundEx_Invalid_Enum = 0xA002,
-			SoundEx_Invalid_Value = 0xA003,
-			SoundEx_Illegal_Command = 0xA004,
-			SoundEx_Invalid_Operation = 0xA004,
-			SoundEx_Out_Of_Memory = 0xA005,
-			SoundEx_Vendor = 0xB001,
-			SoundEx_Version = 0xB002,
-			SoundEx_Renderer = 0xB003,
-			SoundEx_Extentions = 0xB004,
-			SoundEx_Doppler_Factor = 0xC000,
-			SoundEx_Doppler_Velocity = 0xC001,
-			SoundEx_Speed_Of_Sound = 0xC003
+			Source_Relative = 0x202,
+			Cone_Inner_Angle = 0x1001,
+			Cone_Outer_Angle = 0x1002,
+			Pitch = 0x1003,
+			Position = 0x1004,
+			Direction = 0x1005,
+			Velocity = 0x1006,
+			Looping = 0x1007,
+			Buffer = 0x1009,
+			Gain = 0x100A,
+			Min_Gain = 0x100D,
+			Max_Gain = 0x100E,
+			Orientation = 0x100F,
+			Channel_Mask = 0x3000,
+			Source_State = 0x1010,
+			Initial = 0x1011,
+			Playing = 0x1012,
+			Paused = 0x1013,
+			Stopped = 0x1014,
+			Buffers_Queued = 0x1015,
+			Buffers_Processed = 0x1016,
+			Seconds_Offset = 0x1024,
+			Sample_Offset = 0x1025,
+			Byte_Offset = 0x1026,
+			Source_Type = 0x1027,
+			Static = 0x1028,
+			Streaming = 0x1029,
+			Undetermined = 0x1030,
+			Format_Mono8 = 0x1100,
+			Format_Mono16 = 0x1101,
+			Format_Stereo8 = 0x1102,
+			Format_Stereo16 = 0x1103,
+			Reference_Distance = 0x1020,
+			Rolloff_Factor = 0x1021,
+			Cone_Outer_Gain = 0x1022,
+			Max_Distance = 0x1023,
+			Frequency = 0x2001,
+			Bits = 0x2002,
+			Channels = 0x2003,
+			Size = 0x2004,
+			Unused = 0x2010,
+			Pending = 0x2011,
+			Processed = 0x2012,
+			Invalid_Name = 0xA001,
+			Illegal_Enum = 0xA002,
+			Invalid_Enum = 0xA002,
+			Invalid_Value = 0xA003,
+			Illegal_Command = 0xA004,
+			Invalid_Operation = 0xA004,
+			Out_Of_Memory = 0xA005,
+			Vendor = 0xB001,
+			Version = 0xB002,
+			Renderer = 0xB003,
+			Extentions = 0xB004,
+			Doppler_Factor = 0xC000,
+			Doppler_Velocity = 0xC001,
+			Speed_Of_Sound = 0xC003
 		};
 
 		struct TH_OUT AudioSync
@@ -127,18 +127,18 @@ namespace Tomahawk
 			static void GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS);
 			static void SetSourceData1I(unsigned int Source, SoundEx Value, int F1);
 			static void GetSourceData1I(unsigned int Source, SoundEx Value, int* F1);
-			static void SetListenerData3F(unsigned int Listener, float F1, float F2, float F3);
-			static void GetListenerData3F(unsigned int Listener, float* F1, float* F2, float* F3);
-			static void SetListenerDataVF(unsigned int Listener, float* FS);
-			static void GetListenerDataVF(unsigned int Listener, float* FS);
-			static void SetListenerData1F(unsigned int Listener, float F1);
-			static void GetListenerData1F(unsigned int Listener, float* F1);
-			static void SetListenerData3I(unsigned int Listener, int F1, int F2, int F3);
-			static void GetListenerData3I(unsigned int Listener, int* F1, int* F2, int* F3);
-			static void SetListenerDataVI(unsigned int Listener, int* FS);
-			static void GetListenerDataVI(unsigned int Listener, int* FS);
-			static void SetListenerData1I(unsigned int Listener, int F1);
-			static void GetListenerData1I(unsigned int Listener, int* F1);
+			static void SetListenerData3F(SoundEx Listener, float F1, float F2, float F3);
+			static void GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3);
+			static void SetListenerDataVF(SoundEx Listener, float* FS);
+			static void GetListenerDataVF(SoundEx Listener, float* FS);
+			static void SetListenerData1F(SoundEx Listener, float F1);
+			static void GetListenerData1F(SoundEx Listener, float* F1);
+			static void SetListenerData3I(SoundEx Listener, int F1, int F2, int F3);
+			static void GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3);
+			static void SetListenerDataVI(SoundEx Listener, int* FS);
+			static void GetListenerDataVI(SoundEx Listener, int* FS);
+			static void SetListenerData1I(SoundEx Listener, int F1);
+			static void GetListenerData1I(SoundEx Listener, int* F1);
 		};
 
 		class TH_OUT AudioFilter : public Core::Object

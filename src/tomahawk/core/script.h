@@ -49,293 +49,306 @@ namespace Tomahawk
 		{
 		};
 
-		enum VMJIT
+		enum class VMOptimize
 		{
-			VMJIT_No_Suspend = 0x01,
-			VMJIT_Syscall_FPU_No_Reset = 0x02,
-			VMJIT_Syscall_No_Errors = 0x04,
-			VMJIT_Alloc_Simple = 0x08,
-			VMJIT_No_Switches = 0x10,
-			VMJIT_No_Script_Calls = 0x20,
-			VMJIT_Fast_Ref_Counter = 0x40,
-			VMJIT_Optimal = VMJIT_Alloc_Simple | VMJIT_Fast_Ref_Counter
+			No_Suspend = 0x01,
+			Syscall_FPU_No_Reset = 0x02,
+			Syscall_No_Errors = 0x04,
+			Alloc_Simple = 0x08,
+			No_Switches = 0x10,
+			No_Script_Calls = 0x20,
+			Fast_Ref_Counter = 0x40,
+			Optimal = Alloc_Simple | Fast_Ref_Counter
 		};
 
-		enum VMLogType
+		enum class VMLogType
 		{
-			VMLogType_ERROR = 0,
-			VMLogType_WARNING = 1,
-			VMLogType_INFORMATION = 2
+			ERR = 0,
+			WARNING = 1,
+			INFORMATION = 2
 		};
 
-		enum VMProp
+		enum class VMProp
 		{
-			VMProp_ALLOW_UNSAFE_REFERENCES = 1,
-			VMProp_OPTIMIZE_BYTECODE = 2,
-			VMProp_COPY_SCRIPT_SECTIONS = 3,
-			VMProp_MAX_STACK_SIZE = 4,
-			VMProp_USE_CHARACTER_LITERALS = 5,
-			VMProp_ALLOW_MULTILINE_STRINGS = 6,
-			VMProp_ALLOW_IMPLICIT_HANDLE_TYPES = 7,
-			VMProp_BUILD_WITHOUT_LINE_CUES = 8,
-			VMProp_INIT_GLOBAL_VARS_AFTER_BUILD = 9,
-			VMProp_REQUIRE_ENUM_SCOPE = 10,
-			VMProp_SCRIPT_SCANNER = 11,
-			VMProp_INCLUDE_JIT_INSTRUCTIONS = 12,
-			VMProp_STRING_ENCODING = 13,
-			VMProp_PROPERTY_ACCESSOR_MODE = 14,
-			VMProp_EXPAND_DEF_ARRAY_TO_TMPL = 15,
-			VMProp_AUTO_GARBAGE_COLLECT = 16,
-			VMProp_DISALLOW_GLOBAL_VARS = 17,
-			VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT = 18,
-			VMProp_COMPILER_WARNINGS = 19,
-			VMProp_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE = 20,
-			VMProp_ALTER_SYNTAX_NAMED_ARGS = 21,
-			VMProp_DISABLE_INTEGER_DIVISION = 22,
-			VMProp_DISALLOW_EMPTY_LIST_ELEMENTS = 23,
-			VMProp_PRIVATE_PROP_AS_PROTECTED = 24,
-			VMProp_ALLOW_UNICODE_IDENTIFIERS = 25,
-			VMProp_HEREDOC_TRIM_MODE = 26,
-			VMProp_MAX_NESTED_CALLS = 27,
-			VMProp_GENERIC_CALL_MODE = 28,
-			VMProp_INIT_STACK_SIZE = 29,
-			VMProp_INIT_CALL_STACK_SIZE = 30,
-			VMProp_MAX_CALL_STACK_SIZE = 31
+			ALLOW_UNSAFE_REFERENCES = 1,
+			OPTIMIZE_BYTECODE = 2,
+			COPY_SCRIPT_SECTIONS = 3,
+			MAX_STACK_SIZE = 4,
+			USE_CHARACTER_LITERALS = 5,
+			ALLOW_MULTILINE_STRINGS = 6,
+			ALLOW_IMPLICIT_HANDLE_TYPES = 7,
+			BUILD_WITHOUT_LINE_CUES = 8,
+			INIT_GLOBAL_VARS_AFTER_BUILD = 9,
+			REQUIRE_ENUM_SCOPE = 10,
+			SCRIPT_SCANNER = 11,
+			INCLUDE_JIT_INSTRUCTIONS = 12,
+			STRING_ENCODING = 13,
+			PROPERTY_ACCESSOR_MODE = 14,
+			EXPAND_DEF_ARRAY_TO_TMPL = 15,
+			AUTO_GARBAGE_COLLECT = 16,
+			DISALLOW_GLOBAL_VARS = 17,
+			ALWAYS_IMPL_DEFAULT_CONSTRUCT = 18,
+			COMPILER_WARNINGS = 19,
+			DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE = 20,
+			ALTER_SYNTAX_NAMED_ARGS = 21,
+			DISABLE_INTEGER_DIVISION = 22,
+			DISALLOW_EMPTY_LIST_ELEMENTS = 23,
+			PRIVATE_PROP_AS_PROTECTED = 24,
+			ALLOW_UNICODE_IDENTIFIERS = 25,
+			HEREDOC_TRIM_MODE = 26,
+			MAX_NESTED_CALLS = 27,
+			GENERIC_CALL_MODE = 28,
+			INIT_STACK_SIZE = 29,
+			INIT_CALL_STACK_SIZE = 30,
+			MAX_CALL_STACK_SIZE = 31
 		};
 
-		enum VMTypeMod
+		enum class VMTypeMod
 		{
-			VMTypeMod_NONE = 0,
-			VMTypeMod_INREF = 1,
-			VMTypeMod_OUTREF = 2,
-			VMTypeMod_INOUTREF = 3,
-			VMTypeMod_CONST = 4
+			NONE = 0,
+			INREF = 1,
+			OUTREF = 2,
+			INOUTREF = 3,
+			CONSTF = 4
 		};
 
-		enum VMCompileFlags
+		enum class VMCompileFlags
 		{
-			VMCompileFlags_ADD_TO_MODULE = 1
+			ADD_TO_MODULE = 1
 		};
 
-		enum VMFuncType
+		enum class VMFuncType
 		{
-			VMFuncType_DUMMY = -1,
-			VMFuncType_SYSTEM = 0,
-			VMFuncType_SCRIPT = 1,
-			VMFuncType_INTERFACE = 2,
-			VMFuncType_VIRTUAL = 3,
-			VMFuncType_FUNCDEF = 4,
-			VMFuncType_IMPORTED = 5,
-			VMFuncType_DELEGATE = 6
+			DUMMY = -1,
+			SYSTEM = 0,
+			SCRIPT = 1,
+			INTERFACE = 2,
+			VIRTUAL = 3,
+			FUNCDEF = 4,
+			IMPORTED = 5,
+			DELEGATE = 6
 		};
 
-		enum VMBehave
+		enum class VMBehave
 		{
-			VMBehave_CONSTRUCT,
-			VMBehave_LIST_CONSTRUCT,
-			VMBehave_DESTRUCT,
-			VMBehave_FACTORY,
-			VMBehave_LIST_FACTORY,
-			VMBehave_ADDREF,
-			VMBehave_RELEASE,
-			VMBehave_GET_WEAKREF_FLAG,
-			VMBehave_TEMPLATE_CALLBACK,
-			VMBehave_FIRST_GC,
-			VMBehave_GETREFCOUNT = VMBehave_FIRST_GC,
-			VMBehave_SETGCFLAG,
-			VMBehave_GETGCFLAG,
-			VMBehave_ENUMREFS,
-			VMBehave_RELEASEREFS,
-			VMBehave_LAST_GC = VMBehave_RELEASEREFS,
-			VMBehave_MAX
+			CONSTRUCT,
+			LIST_CONSTRUCT,
+			DESTRUCT,
+			FACTORY,
+			LIST_FACTORY,
+			ADDREF,
+			RELEASE,
+			GET_WEAKREF_FLAG,
+			TEMPLATE_CALLBACK,
+			FIRST_GC,
+			GETREFCOUNT = FIRST_GC,
+			SETGCFLAG,
+			GETGCFLAG,
+			ENUMREFS,
+			RELEASEREFS,
+			LAST_GC = RELEASEREFS,
+			MAX
 		};
 
-		enum VMExecState
+		enum class VMExecState
 		{
-			VMExecState_FINISHED = 0,
-			VMExecState_SUSPENDED = 1,
-			VMExecState_ABORTED = 2,
-			VMExecState_EXCEPTION = 3,
-			VMExecState_PREPARED = 4,
-			VMExecState_UNINITIALIZED = 5,
-			VMExecState_ACTIVE = 6,
-			VMExecState_ERROR = 7
+			FINISHED = 0,
+			SUSPENDED = 1,
+			ABORTED = 2,
+			EXCEPTION = 3,
+			PREPARED = 4,
+			UNINITIALIZED = 5,
+			ACTIVE = 6,
+			ERR = 7
 		};
 
-		enum VMCall
+		enum class VMCall
 		{
-			VMCall_CDECL = 0,
-			VMCall_STDCALL = 1,
-			VMCall_THISCALL_ASGLOBAL = 2,
-			VMCall_THISCALL = 3,
-			VMCall_CDECL_OBJLAST = 4,
-			VMCall_CDECL_OBJFIRST = 5,
-			VMCall_GENERIC = 6,
-			VMCall_THISCALL_OBJLAST = 7,
-			VMCall_THISCALL_OBJFIRST = 8
+			CDECLF = 0,
+			STDCALL = 1,
+			THISCALL_ASGLOBAL = 2,
+			THISCALL = 3,
+			CDECL_OBJLAST = 4,
+			CDECL_OBJFIRST = 5,
+			GENERIC = 6,
+			THISCALL_OBJLAST = 7,
+			THISCALL_OBJFIRST = 8
 		};
 
-		enum VMResult
+		enum class VMResult
 		{
-			VMResult_SUCCESS = 0,
-			VMResult_ERROR = -1,
-			VMResult_CONTEXT_ACTIVE = -2,
-			VMResult_CONTEXT_NOT_FINISHED = -3,
-			VMResult_CONTEXT_NOT_PREPARED = -4,
-			VMResult_INVALID_ARG = -5,
-			VMResult_NO_FUNCTION = -6,
-			VMResult_NOT_SUPPORTED = -7,
-			VMResult_INVALID_NAME = -8,
-			VMResult_NAME_TAKEN = -9,
-			VMResult_INVALID_DECLARATION = -10,
-			VMResult_INVALID_OBJECT = -11,
-			VMResult_INVALID_TYPE = -12,
-			VMResult_ALREADY_REGISTERED = -13,
-			VMResult_MULTIPLE_FUNCTIONS = -14,
-			VMResult_NO_MODULE = -15,
-			VMResult_NO_GLOBAL_VAR = -16,
-			VMResult_INVALID_CONFIGURATION = -17,
-			VMResult_INVALID_INTERFACE = -18,
-			VMResult_CANT_BIND_ALL_FUNCTIONS = -19,
-			VMResult_LOWER_ARRAY_DIMENSION_NOT_REGISTERED = -20,
-			VMResult_WRONG_CONFIG_GROUP = -21,
-			VMResult_CONFIG_GROUP_IS_IN_USE = -22,
-			VMResult_ILLEGAL_BEHAVIOUR_FOR_TYPE = -23,
-			VMResult_WRONG_CALLING_CONV = -24,
-			VMResult_BUILD_IN_PROGRESS = -25,
-			VMResult_INIT_GLOBAL_VARS_FAILED = -26,
-			VMResult_OUT_OF_MEMORY = -27,
-			VMResult_MODULE_IS_IN_USE = -28
+			SUCCESS = 0,
+			ERR = -1,
+			CONTEXT_ACTIVE = -2,
+			CONTEXT_NOT_FINISHED = -3,
+			CONTEXT_NOT_PREPARED = -4,
+			INVALID_ARG = -5,
+			NO_FUNCTION = -6,
+			NOT_SUPPORTED = -7,
+			INVALID_NAME = -8,
+			NAME_TAKEN = -9,
+			INVALID_DECLARATION = -10,
+			INVALID_OBJECT = -11,
+			INVALID_TYPE = -12,
+			ALREADY_REGISTERED = -13,
+			MULTIPLE_FUNCTIONS = -14,
+			NO_MODULE = -15,
+			NO_GLOBAL_VAR = -16,
+			INVALID_CONFIGURATION = -17,
+			INVALID_INTERFACE = -18,
+			CANT_BIND_ALL_FUNCTIONS = -19,
+			LOWER_ARRAY_DIMENSION_NOT_REGISTERED = -20,
+			WRONG_CONFIG_GROUP = -21,
+			CONFIG_GROUP_IS_IN_USE = -22,
+			ILLEGAL_BEHAVIOUR_FOR_TYPE = -23,
+			WRONG_CALLING_CONV = -24,
+			BUILD_IN_PROGRESS = -25,
+			INIT_GLOBAL_VARS_FAILED = -26,
+			OUT_OF_MEMORY = -27,
+			MODULE_IS_IN_USE = -28
 		};
 
-		enum VMTypeId
+		enum class VMTypeId
 		{
-			VMTypeId_VOID = 0,
-			VMTypeId_BOOL = 1,
-			VMTypeId_INT8 = 2,
-			VMTypeId_INT16 = 3,
-			VMTypeId_INT32 = 4,
-			VMTypeId_INT64 = 5,
-			VMTypeId_UINT8 = 6,
-			VMTypeId_UINT16 = 7,
-			VMTypeId_UINT32 = 8,
-			VMTypeId_UINT64 = 9,
-			VMTypeId_FLOAT = 10,
-			VMTypeId_DOUBLE = 11,
-			VMTypeId_OBJHANDLE = 0x40000000,
-			VMTypeId_HANDLETOCONST = 0x20000000,
-			VMTypeId_MASK_OBJECT = 0x1C000000,
-			VMTypeId_APPOBJECT = 0x04000000,
-			VMTypeId_SCRIPTOBJECT = 0x08000000,
-			VMTypeId_TEMPLATE = 0x10000000,
-			VMTypeId_MASK_SEQNBR = 0x03FFFFFF
+			VOIDF = 0,
+			BOOL = 1,
+			INT8 = 2,
+			INT16 = 3,
+			INT32 = 4,
+			INT64 = 5,
+			UINT8 = 6,
+			UINT16 = 7,
+			UINT32 = 8,
+			UINT64 = 9,
+			FLOAT = 10,
+			DOUBLE = 11,
+			OBJHANDLE = 0x40000000,
+			HANDLETOCONST = 0x20000000,
+			MASK_OBJECT = 0x1C000000,
+			APPOBJECT = 0x04000000,
+			SCRIPTOBJECT = 0x08000000,
+			TEMPLATE = 0x10000000,
+			MASK_SEQNBR = 0x03FFFFFF
 		};
 
-		enum VMObjType
+		enum class VMObjType
 		{
-			VMObjType_REF = (1 << 0),
-			VMObjType_VALUE = (1 << 1),
-			VMObjType_GC = (1 << 2),
-			VMObjType_POD = (1 << 3),
-			VMObjType_NOHANDLE = (1 << 4),
-			VMObjType_SCOPED = (1 << 5),
-			VMObjType_TEMPLATE = (1 << 6),
-			VMObjType_ASHANDLE = (1 << 7),
-			VMObjType_APP_CLASS = (1 << 8),
-			VMObjType_APP_CLASS_CONSTRUCTOR = (1 << 9),
-			VMObjType_APP_CLASS_DESTRUCTOR = (1 << 10),
-			VMObjType_APP_CLASS_ASSIGNMENT = (1 << 11),
-			VMObjType_APP_CLASS_COPY_CONSTRUCTOR = (1 << 12),
-			VMObjType_APP_CLASS_C = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR),
-			VMObjType_APP_CLASS_CD = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR + VMObjType_APP_CLASS_DESTRUCTOR),
-			VMObjType_APP_CLASS_CA = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR + VMObjType_APP_CLASS_ASSIGNMENT),
-			VMObjType_APP_CLASS_CK = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_CLASS_CDA = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR + VMObjType_APP_CLASS_DESTRUCTOR + VMObjType_APP_CLASS_ASSIGNMENT),
-			VMObjType_APP_CLASS_CDK = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR + VMObjType_APP_CLASS_DESTRUCTOR + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_CLASS_CAK = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR + VMObjType_APP_CLASS_ASSIGNMENT + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_CLASS_CDAK = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_CONSTRUCTOR + VMObjType_APP_CLASS_DESTRUCTOR + VMObjType_APP_CLASS_ASSIGNMENT + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_CLASS_D = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_DESTRUCTOR),
-			VMObjType_APP_CLASS_DA = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_DESTRUCTOR + VMObjType_APP_CLASS_ASSIGNMENT),
-			VMObjType_APP_CLASS_DK = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_DESTRUCTOR + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_CLASS_DAK = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_DESTRUCTOR + VMObjType_APP_CLASS_ASSIGNMENT + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_CLASS_A = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_ASSIGNMENT),
-			VMObjType_APP_CLASS_AK = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_ASSIGNMENT + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_CLASS_K = (VMObjType_APP_CLASS + VMObjType_APP_CLASS_COPY_CONSTRUCTOR),
-			VMObjType_APP_PRIMITIVE = (1 << 13),
-			VMObjType_APP_FLOAT = (1 << 14),
-			VMObjType_APP_ARRAY = (1 << 15),
-			VMObjType_APP_CLASS_ALLINTS = (1 << 16),
-			VMObjType_APP_CLASS_ALLFLOATS = (1 << 17),
-			VMObjType_NOCOUNT = (1 << 18),
-			VMObjType_APP_CLASS_ALIGN8 = (1 << 19),
-			VMObjType_IMPLICIT_HANDLE = (1 << 20),
-			VMObjType_MASK_VALID_FLAGS = 0x1FFFFF
+			REF = (1 << 0),
+			VALUE = (1 << 1),
+			GC = (1 << 2),
+			POD = (1 << 3),
+			NOHANDLE = (1 << 4),
+			SCOPED = (1 << 5),
+			TEMPLATE = (1 << 6),
+			ASHANDLE = (1 << 7),
+			APP_CLASS = (1 << 8),
+			APP_CLASS_CONSTRUCTOR = (1 << 9),
+			APP_CLASS_DESTRUCTOR = (1 << 10),
+			APP_CLASS_ASSIGNMENT = (1 << 11),
+			APP_CLASS_COPY_CONSTRUCTOR = (1 << 12),
+			APP_CLASS_C = (APP_CLASS + APP_CLASS_CONSTRUCTOR),
+			APP_CLASS_CD = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR),
+			APP_CLASS_CA = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_ASSIGNMENT),
+			APP_CLASS_CK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_CLASS_CDA = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT),
+			APP_CLASS_CDK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_CLASS_CAK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_CLASS_CDAK = (APP_CLASS + APP_CLASS_CONSTRUCTOR + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_CLASS_D = (APP_CLASS + APP_CLASS_DESTRUCTOR),
+			APP_CLASS_DA = (APP_CLASS + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT),
+			APP_CLASS_DK = (APP_CLASS + APP_CLASS_DESTRUCTOR + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_CLASS_DAK = (APP_CLASS + APP_CLASS_DESTRUCTOR + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_CLASS_A = (APP_CLASS + APP_CLASS_ASSIGNMENT),
+			APP_CLASS_AK = (APP_CLASS + APP_CLASS_ASSIGNMENT + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_CLASS_K = (APP_CLASS + APP_CLASS_COPY_CONSTRUCTOR),
+			APP_PRIMITIVE = (1 << 13),
+			APP_FLOAT = (1 << 14),
+			APP_ARRAY = (1 << 15),
+			APP_CLASS_ALLINTS = (1 << 16),
+			APP_CLASS_ALLFLOATS = (1 << 17),
+			NOCOUNT = (1 << 18),
+			APP_CLASS_ALIGN8 = (1 << 19),
+			IMPLICIT_HANDLE = (1 << 20),
+			MASK_VALID_FLAGS = 0x1FFFFF
 		};
 
-		enum VMOpFunc
+		enum class VMOpFunc
 		{
-			VMOpFunc_Neg,
-			VMOpFunc_Com,
-			VMOpFunc_PreInc,
-			VMOpFunc_PreDec,
-			VMOpFunc_PostInc,
-			VMOpFunc_PostDec,
-			VMOpFunc_Equals,
-			VMOpFunc_Cmp,
-			VMOpFunc_Assign,
-			VMOpFunc_AddAssign,
-			VMOpFunc_SubAssign,
-			VMOpFunc_MulAssign,
-			VMOpFunc_DivAssign,
-			VMOpFunc_ModAssign,
-			VMOpFunc_PowAssign,
-			VMOpFunc_AndAssign,
-			VMOpFunc_OrAssign,
-			VMOpFunc_XOrAssign,
-			VMOpFunc_ShlAssign,
-			VMOpFunc_ShrAssign,
-			VMOpFunc_UshrAssign,
-			VMOpFunc_Add,
-			VMOpFunc_Sub,
-			VMOpFunc_Mul,
-			VMOpFunc_Div,
-			VMOpFunc_Mod,
-			VMOpFunc_Pow,
-			VMOpFunc_And,
-			VMOpFunc_Or,
-			VMOpFunc_XOr,
-			VMOpFunc_Shl,
-			VMOpFunc_Shr,
-			VMOpFunc_Ushr,
-			VMOpFunc_Index,
-			VMOpFunc_Call,
-			VMOpFunc_Cast,
-			VMOpFunc_ImplCast
+			Neg,
+			Com,
+			PreInc,
+			PreDec,
+			PostInc,
+			PostDec,
+			Equals,
+			Cmp,
+			Assign,
+			AddAssign,
+			SubAssign,
+			MulAssign,
+			DivAssign,
+			ModAssign,
+			PowAssign,
+			AndAssign,
+			OrAssign,
+			XOrAssign,
+			ShlAssign,
+			ShrAssign,
+			UshrAssign,
+			Add,
+			Sub,
+			Mul,
+			Div,
+			Mod,
+			Pow,
+			And,
+			Or,
+			XOr,
+			Shl,
+			Shr,
+			Ushr,
+			Index,
+			Call,
+			Cast,
+			ImplCast
 		};
 
-		enum VMOp
+		enum class VMOp
 		{
-			VMOp_Left = 0,
-			VMOp_Right = 1,
-			VMOp_Const = 2
+			Left = 0,
+			Right = 1,
+			Const = 2
 		};
 
-		enum VMImport
+		enum class VMImport
 		{
-			VMImport_CLibraries = 1,
-			VMImport_CSymbols = 2,
-			VMImport_Submodules = 4,
-			VMImport_Files = 8,
-			VMImport_JSON = 8,
-			VMImport_All = (VMImport_CLibraries | VMImport_CSymbols | VMImport_Submodules | VMImport_Files | VMImport_JSON)
+			CLibraries = 1,
+			CSymbols = 2,
+			Submodules = 4,
+			Files = 8,
+			JSON = 8,
+			All = (CLibraries | CSymbols | Submodules | Files | JSON)
 		};
 
-		enum VMResume
+		enum class VMResume
 		{
-			VMResume_Continue,
-			VMResume_Finish,
-			VMResume_Finish_With_Error
+			Continue,
+			Finish,
+			Finish_With_Error
 		};
+
+		inline VMObjType operator |(VMObjType A, VMObjType B)
+		{
+			return static_cast<VMObjType>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
+		inline VMOp operator |(VMOp A, VMOp B)
+		{
+			return static_cast<VMOp>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
+		inline VMImport operator |(VMImport A, VMImport B)
+		{
+			return static_cast<VMImport>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 
 		typedef asIScriptEngine VMCManager;
 		typedef asIScriptContext VMCContext;
@@ -586,31 +599,31 @@ namespace Tomahawk
                 bool IsArray = std::is_array<T>::value;
 
                 if (IsFloat)
-                    return VMObjType_APP_FLOAT;
+                    return (size_t)VMObjType::APP_FLOAT;
 
                 if (IsPrimitive)
-                    return VMObjType_APP_PRIMITIVE;
+                    return (size_t)VMObjType::APP_PRIMITIVE;
 
                 if (IsClass)
                 {
-                    size_t Flags = VMObjType_APP_CLASS;
+                    size_t Flags = (size_t)VMObjType::APP_CLASS;
                     if (HasConstructor)
-                        Flags |= VMObjType_APP_CLASS_CONSTRUCTOR;
+                        Flags |= (size_t)VMObjType::APP_CLASS_CONSTRUCTOR;
 
                     if (HasDestructor)
-                        Flags |= VMObjType_APP_CLASS_DESTRUCTOR;
+                        Flags |= (size_t)VMObjType::APP_CLASS_DESTRUCTOR;
 
                     if (HasAssignmentOperator)
-                        Flags |= VMObjType_APP_CLASS_ASSIGNMENT;
+                        Flags |= (size_t)VMObjType::APP_CLASS_ASSIGNMENT;
 
                     if (HasCopyConstructor)
-                        Flags |= VMObjType_APP_CLASS_COPY_CONSTRUCTOR;
+                        Flags |= (size_t)VMObjType::APP_CLASS_COPY_CONSTRUCTOR;
 
                     return Flags;
                 }
 
                 if (IsArray)
-                    return VMObjType_APP_ARRAY;
+                    return (size_t)VMObjType::APP_ARRAY;
 
                 return 0;
             }
@@ -851,14 +864,14 @@ namespace Tomahawk
 			VMClass(VMManager* Engine, const std::string& Name, int Type);
 			int SetFunctionDef(const char* Decl);
 			int SetOperatorCopyAddress(asSFuncPtr* Value);
-			int SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall = VMCall_THISCALL);
+			int SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall = VMCall::THISCALL);
 			int SetPropertyAddress(const char* Decl, int Offset);
 			int SetPropertyStaticAddress(const char* Decl, void* Value);
-			int SetOperatorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_THISCALL);
-			int SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_THISCALL);
-			int SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL);
-			int SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL_OBJFIRST);
-			int SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL_OBJFIRST);
+			int SetOperatorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::THISCALL);
+			int SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::THISCALL);
+			int SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECLF);
+			int SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECL_OBJFIRST);
+			int SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECL_OBJFIRST);
 			int SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -873,7 +886,7 @@ namespace Tomahawk
 			int SetEnumRefs(void(T::*Value)(VMCManager*))
 			{
 				asSFuncPtr* EnumRefs = VMBridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", VMBehave_ENUMREFS, EnumRefs, VMCall_THISCALL);
+				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::ENUMREFS, EnumRefs, THISCALL);
                 VMFuncStore::ReleaseFunctor(&EnumRefs);
 
 				return Result;
@@ -882,7 +895,7 @@ namespace Tomahawk
 			int SetReleaseRefs(void(T::*Value)(VMCManager*))
 			{
 				asSFuncPtr* ReleaseRefs = VMBridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", VMBehave_RELEASEREFS, ReleaseRefs, VMCall_THISCALL);
+				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::RELEASEREFS, ReleaseRefs, THISCALL);
                 VMFuncStore::ReleaseFunctor(&ReleaseRefs);
 
 				return Result;
@@ -901,7 +914,7 @@ namespace Tomahawk
 			int SetGetter(const char* Type, const char* Name, R(T::*Value)())
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, R>(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -910,7 +923,7 @@ namespace Tomahawk
 			int SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -919,7 +932,7 @@ namespace Tomahawk
 			int SetSetter(const char* Type, const char* Name, void(T::*Value)(R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, R>(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -928,7 +941,7 @@ namespace Tomahawk
 			int SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -937,7 +950,7 @@ namespace Tomahawk
 			int SetArrayGetter(const char* Type, const char* Name, R(T::*Value)(unsigned int))
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, unsigned int>(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -946,7 +959,7 @@ namespace Tomahawk
 			int SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -955,7 +968,7 @@ namespace Tomahawk
 			int SetArraySetter(const char* Type, const char* Name, void(T::*Value)(unsigned int, R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, unsigned int, R>(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -964,7 +977,7 @@ namespace Tomahawk
 			int SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -975,12 +988,12 @@ namespace Tomahawk
 				if (!Out)
 					return -1;
 
-				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
+				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
 				if (Operator.Empty())
 					return -1;
 
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, A...>(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_THISCALL);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -991,12 +1004,12 @@ namespace Tomahawk
 				if (!Out)
 					return -1;
 
-				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & VMOp_Const, Opts & VMOp_Right);
+				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
 				if (Operator.Empty())
 					return -1;
 
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1014,7 +1027,7 @@ namespace Tomahawk
 			int SetMethod(const char* Decl, R(T::*Value)(Args...))
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Decl, Ptr, VMCall::THISCALL);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1023,7 +1036,7 @@ namespace Tomahawk
 			int SetMethod(const char* Decl, R(T::*Value)(Args...) const)
 			{
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, VMCall_THISCALL);
+				int Result = SetMethodAddress(Decl, Ptr, VMCall::THISCALL);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1032,15 +1045,15 @@ namespace Tomahawk
 			int SetMethodEx(const char* Decl, R(* Value)(Args...))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function<R(*)(Args...)>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetMethodAddress(Decl, Ptr, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetMethodStatic(const char* Decl, R(*Value)(Args...), VMCall Type = VMCall_CDECL)
+			int SetMethodStatic(const char* Decl, R(*Value)(Args...), VMCall Type = VMCall::CDECLF)
 			{
-				asSFuncPtr* Ptr = (Type == VMCall_GENERIC ? VMBridge::FunctionGeneric<R(*)(Args...)>(Value) : VMBridge::Function<R(*)(Args...)>(Value));
+				asSFuncPtr* Ptr = (Type == VMCall::GENERIC ? VMBridge::FunctionGeneric<R(*)(Args...)>(Value) : VMBridge::Function<R(*)(Args...)>(Value));
 				int Result = SetMethodStaticAddress(Decl, Ptr, Type);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
@@ -1063,7 +1076,7 @@ namespace Tomahawk
 					return -1;
 
 				asSFuncPtr* Functor = VMBridge::Function(&VMBridge::GetManagedCall<T, TypeName, Args...>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_CDECL);
+				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::CDECLF);
 				VMFuncStore::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1075,7 +1088,7 @@ namespace Tomahawk
 					return -1;
 
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetManagedCall<T, TypeName, VMCGeneric*>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_GENERIC);
+				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1084,7 +1097,7 @@ namespace Tomahawk
 			int SetManagedConstructorList(const char* Decl)
 			{
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetManagedListCall<T, TypeName>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_GENERIC);
+				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1096,7 +1109,7 @@ namespace Tomahawk
 					return -1;
 
 				asSFuncPtr* Functor = VMBridge::Function(&VMBridge::GetUnmanagedCall<T, Args...>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_CDECL);
+				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::CDECLF);
 				VMFuncStore::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1108,7 +1121,7 @@ namespace Tomahawk
 					return -1;
 
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedCall<T, VMCGeneric*>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_FACTORY, Functor, VMCall_GENERIC);
+				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1117,7 +1130,7 @@ namespace Tomahawk
 			int SetUnmanagedConstructorList(const char* Decl)
 			{
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedListCall<T>);
-				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_GENERIC);
+				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1126,7 +1139,7 @@ namespace Tomahawk
 			int SetUnmanagedConstructorListEx(const char* Decl, void(*Value)(VMCGeneric*))
 			{
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(Value);
-				int Result = SetBehaviourAddress(Decl, VMBehave_LIST_FACTORY, Functor, VMCall_GENERIC);
+				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
 
 				return Result;
@@ -1135,7 +1148,7 @@ namespace Tomahawk
 			int SetAddRef()
 			{
 				asSFuncPtr* AddRef = VMBridge::Function(&Core::Composer::AddRef);
-				int Result = SetBehaviourAddress("void f()", VMBehave_ADDREF, AddRef, VMCall_CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("void f()", VMBehave::ADDREF, AddRef, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&AddRef);
 
 				return Result;
@@ -1144,7 +1157,7 @@ namespace Tomahawk
 			int SetRelease()
 			{
 				asSFuncPtr* Release = VMBridge::Function(&Core::Composer::Release);
-				int Result = SetBehaviourAddress("void f()", VMBehave_RELEASE, Release, VMCall_CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("void f()", VMBehave::RELEASE, Release, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Release);
 
 				return Result;
@@ -1153,7 +1166,7 @@ namespace Tomahawk
 			int SetGetRefCount()
 			{
 				asSFuncPtr* GetRefCount = VMBridge::Function(&Core::Composer::GetRefCount);
-				int Result = SetBehaviourAddress("int f()", VMBehave_GETREFCOUNT, GetRefCount, VMCall_CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetRefCount);
 
 				return Result;
@@ -1162,7 +1175,7 @@ namespace Tomahawk
 			int SetSetGCFlag()
 			{
 				asSFuncPtr* SetGCFlag = VMBridge::Function(&Core::Composer::SetFlag);
-				int Result = SetBehaviourAddress("void f()", VMBehave_SETGCFLAG, SetGCFlag, VMCall_CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("void f()", VMBehave::SETGCFLAG, SetGCFlag, CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&SetGCFlag);
 
 				return Result;
@@ -1171,7 +1184,7 @@ namespace Tomahawk
 			int SetGetGCFlag()
 			{
 				asSFuncPtr* GetGCFlag = VMBridge::Function(&Core::Composer::GetFlag);
-				int Result = SetBehaviourAddress("bool f()", VMBehave_GETGCFLAG, GetGCFlag, VMCall_CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("bool f()", VMBehave::GETGCFLAG, GetGCFlag, CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetGCFlag);
 
 				return Result;
@@ -1228,7 +1241,7 @@ namespace Tomahawk
 			int SetConstructor(const char* Decl)
 			{
 				asSFuncPtr* Ptr = VMBridge::Function(&VMBridge::GetConstructorCall<T, Args...>);
-				int Result = SetConstructorAddress(Decl, Ptr, VMCall_CDECL_OBJFIRST);
+				int Result = SetConstructorAddress(Decl, Ptr, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1237,7 +1250,7 @@ namespace Tomahawk
 			int SetConstructor(const char* Decl)
 			{
 				asSFuncPtr* Ptr = VMBridge::FunctionGeneric(&VMBridge::GetConstructorCall<T, VMCGeneric*>);
-				int Result = SetConstructorAddress(Decl, Ptr, VMCall_GENERIC);
+				int Result = SetConstructorAddress(Decl, Ptr, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1246,7 +1259,7 @@ namespace Tomahawk
 			int SetConstructorList(const char* Decl)
 			{
 				asSFuncPtr* Ptr = VMBridge::FunctionGeneric(&VMBridge::GetConstructorListCall<T>);
-				int Result = SetConstructorListAddress(Decl, Ptr, VMCall_GENERIC);
+				int Result = SetConstructorListAddress(Decl, Ptr, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1424,11 +1437,11 @@ namespace Tomahawk
 		public:
 			VMGlobal(VMManager* Engine);
 			int SetFunctionDef(const char* Decl);
-			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall_CDECL);
+			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECLF);
 			int SetPropertyAddress(const char* Decl, void* Value);
-			VMTypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE);
-			VMTypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = VMObjType_VALUE | VMObjType_POD);
-			VMRefClass SetClassAddress(const char* Name, uint64_t Flags = VMObjType_REF);
+			VMTypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)VMObjType::VALUE);
+			VMTypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)(VMObjType::VALUE | VMObjType::POD));
+			VMRefClass SetClassAddress(const char* Name, uint64_t Flags = (uint64_t)VMObjType::REF);
 			VMInterface SetInterface(const char* Name);
 			VMEnum SetEnum(const char* Name);
 			size_t GetFunctionsCount() const;
@@ -1461,7 +1474,7 @@ namespace Tomahawk
 			int SetFunction(const char* Decl, T Value)
 			{
 				asSFuncPtr* Ptr = VMBridge::Function<T>(Value);
-				int Result = SetFunctionAddress(Decl, Ptr, VMCall_CDECL);
+				int Result = SetFunctionAddress(Decl, Ptr, VMCall::CDECLF);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1470,7 +1483,7 @@ namespace Tomahawk
 			int SetFunction(const char* Decl, void(* Value)(VMCGeneric*))
 			{
 				asSFuncPtr* Ptr = VMBridge::Function<void (*)(VMCGeneric*)>(Value);
-				int Result = SetFunctionAddress(Decl, Ptr, VMCall_GENERIC);
+				int Result = SetFunctionAddress(Decl, Ptr, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1483,7 +1496,7 @@ namespace Tomahawk
 			template <typename T>
 			VMRefClass SetClassManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
 			{
-				VMRefClass Class = SetClassAddress(Name, VMObjType_REF | VMObjType_GC);
+				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF | (size_t)VMObjType::GC);
 				Class.SetManaged<T>(EnumRefs, ReleaseRefs);
 
 				return Class;
@@ -1491,7 +1504,7 @@ namespace Tomahawk
 			template <typename T>
 			VMRefClass SetClassUnmanaged(const char* Name)
 			{
-				VMRefClass Class = SetClassAddress(Name, VMObjType_REF);
+				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF);
 				Class.SetUnmanaged<T>();
 
 				return Class;
@@ -1499,7 +1512,7 @@ namespace Tomahawk
 			template <typename T>
 			VMTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
 			{
-				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_GC | VMBridge::GetTypeTraits<T>());
+				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | (size_t)VMObjType::GC | VMBridge::GetTypeTraits<T>());
 				Struct.SetEnumRefs(EnumRefs);
 				Struct.SetReleaseRefs(ReleaseRefs);
 				Struct.SetDestructor<T>("void f()");
@@ -1509,7 +1522,7 @@ namespace Tomahawk
 			template <typename T>
 			VMTypeClass SetStructUnmanaged(const char* Name)
 			{
-				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), VMObjType_VALUE | VMBridge::GetTypeTraits<T>());
+				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | VMBridge::GetTypeTraits<T>());
 				Struct.SetOperatorCopy<T>();
 				Struct.SetDestructor<T>("void f()");
 
@@ -1518,7 +1531,7 @@ namespace Tomahawk
 			template <typename T>
 			VMTypeClass SetPod(const char* Name)
 			{
-				return SetPodAddress(Name, sizeof(T), VMObjType_VALUE | VMObjType_POD | VMBridge::GetTypeTraits<T>());
+				return SetPodAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | (size_t)VMObjType::POD | VMBridge::GetTypeTraits<T>());
 			}
 		};
 
@@ -1557,12 +1570,12 @@ namespace Tomahawk
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
 			int LoadCode(const std::string& Name, const char* Buffer, uint64_t Length);
-			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
+			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
+			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
 			int ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, ArgsCallback&& Callback);
-			int ExecuteScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
-			int ExecuteScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = VMTypeId_VOID);
+			int ExecuteScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
+			int ExecuteScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
 			VMModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -1693,7 +1706,7 @@ namespace Tomahawk
 			{
 				std::vector<std::string> Dependencies;
 				SubmoduleCallback Callback;
-				bool Registered;
+				bool Registered = false;
 			};
 
 		private:
@@ -1809,7 +1822,7 @@ namespace Tomahawk
 			typedef std::string(* ToStringCallback)(void* Object, int ExpandLevel, VMDebugger* Dbg);
 
 		protected:
-			enum DebugAction
+			enum class DebugAction
 			{
 				CONTINUE,
 				STEP_INTO,

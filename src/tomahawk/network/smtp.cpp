@@ -193,13 +193,13 @@ namespace Tomahawk
 
 							switch (Request.Prior)
 							{
-								case Priority_High:
+								case Priority::High:
 									Content.Append("X-Priority: 2 (High)\r\n");
 									break;
-								case Priority_Normal:
+								case Priority::Normal:
 									Content.Append("X-Priority: 3 (Normal)\r\n");
 									break;
-								case Priority_Low:
+								case Priority::Low:
 									Content.Append("X-Priority: 4 (Low)\r\n");
 									break;
 								default:

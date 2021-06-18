@@ -46,7 +46,7 @@ namespace Tomahawk
 #ifdef TH_HAS_OPENSSL
 	static std::vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
 #endif
-	static unsigned int Modes = 0;
+	static uint64_t Modes = 0;
 	static int State = 0;
 
 	void Library::Describe()
@@ -272,20 +272,20 @@ namespace Tomahawk
 		return "OS with C/C++ support";
 	}
 
-	bool Initialize(unsigned int Modules)
+	bool Initialize(uint64_t Modules)
 	{
 		State++;
 		if (State > 1)
 			return true;
 
 		Modes = Modules;
-		if (Modes & TInit_Core)
+		if (Modes & (uint64_t)Init::Core)
 		{
-			if (Modes & TInit_Debug)
+			if (Modes & (uint64_t)Init::Debug)
 				Core::Debug::AttachStream();
 		}
 
-		if (Modes & TInit_Network)
+		if (Modes & (uint64_t)Init::Network)
 		{
 #ifdef TH_MICROSOFT
 			WSADATA WSAData;
@@ -295,7 +295,7 @@ namespace Tomahawk
 #endif
 		}
 
-		if (Modes & TInit_SSL)
+		if (Modes & (uint64_t)Init::SSL)
 		{
 #ifdef TH_HAS_OPENSSL
 			SSL_library_init();
@@ -328,7 +328,7 @@ namespace Tomahawk
 #endif
 		}
 
-		if (Modes & TInit_SDL2)
+		if (Modes & (uint64_t)Init::SDL2)
 		{
 #ifdef TH_HAS_SDL2
 			SDL_SetMainReady();
@@ -408,28 +408,28 @@ namespace Tomahawk
 #endif
 		}
 
-		if (Modes & TInit_GLEW)
+		if (Modes & (uint64_t)Init::GLEW)
 		{
 #ifdef TH_HAS_GLEW
 			glewExperimental = true;
 #endif
 		}
 
-		if (Modes & TInit_Compute)
+		if (Modes & (uint64_t)Init::Compute)
 			Compute::Common::Randomize();
 
-		if (Modes & TInit_Locale)
+		if (Modes & (uint64_t)Init::Locale)
 		{
 			if (!setlocale(LC_TIME, "C"))
 				TH_WARN("en-US locale cannot be initialized");
 		}
 
-		if (Modes & TInit_Audio)
+		if (Modes & (uint64_t)Init::Audio)
 			Audio::AudioContext::Create();
 
 		Script::VMManager::SetMemoryFunctions(Core::Mem::Malloc, Core::Mem::Free);
 #ifdef TH_HAS_OPENSSL
-		if (Modes & TInit_SSL)
+		if (Modes & (uint64_t)Init::SSL)
 		{
 			int64_t Raw = 0;
 			RAND_bytes((unsigned char*)&Raw, sizeof(int64_t));
@@ -452,10 +452,10 @@ namespace Tomahawk
 		TH_RELEASE(Core::Schedule::Get());
 		TH_RELEASE(Core::Console::Get());
 
-		if (Modes & TInit_Audio)
+		if (Modes & (uint64_t)Init::Audio)
 			Audio::AudioContext::Release();
 
-		if (Modes & TInit_SSL)
+		if (Modes & (uint64_t)Init::SSL)
 		{
 #ifdef TH_HAS_OPENSSL
             OPENSSL_VERSION_NUMBER;
@@ -488,7 +488,7 @@ namespace Tomahawk
 #endif
 		}
 
-		if (Modes & TInit_SDL2)
+		if (Modes & (uint64_t)Init::SDL2)
 		{
 #ifdef TH_HAS_SDL2
 			SDL_Quit();
@@ -497,11 +497,11 @@ namespace Tomahawk
 #endif
 		}
 
-		if (Modes & TInit_Network)
+		if (Modes & (uint64_t)Init::Network)
 		{
-			Network::Multiplexer::Release();
 			Network::MDB::Driver::Release();
 			Network::PDB::Driver::Release();
+			Network::Multiplexer::Release();
 #ifdef TH_MICROSOFT
 			WSACleanup();
 #endif
@@ -510,9 +510,9 @@ namespace Tomahawk
 		Script::VMManager::FreeProxy();
 		Core::Composer::Clear();
 
-		if (Modes & TInit_Core)
+		if (Modes & (uint64_t)Init::Core)
 		{
-			if (Modes & TInit_Debug)
+			if (Modes & (uint64_t)Init::Debug)
 				Core::Debug::DetachStream();
 		}
 #ifdef TH_HAS_ASSIMP

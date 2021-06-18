@@ -76,16 +76,16 @@ namespace Tomahawk
 			}
 			void WebSocketFrame::Finish()
 			{
-				if (Error || State == WebSocketState_Close)
+				if (Error || State == (uint32_t)WebSocketState::Close)
 				{
-					State = WebSocketState_Free;
+					State = (uint32_t)WebSocketState::Free;
 					return Next();
 				}
 
-				if (State != WebSocketState_Free)
-					State = WebSocketState_Close;
+				if (State != (uint32_t)WebSocketState::Free)
+					State = (uint32_t)WebSocketState::Close;
 
-				Util::WebSocketWriteMask(Base, Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp_Close, 0, [this](HTTP::Connection*)
+				Util::WebSocketWriteMask(Base, Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp::Close, 0, [this](HTTP::Connection*)
 				{
 					Next();
 					return true;
@@ -93,7 +93,7 @@ namespace Tomahawk
 			}
 			void WebSocketFrame::Next()
 			{
-				if (State & WebSocketState_Free)
+				if (State & (uint32_t)WebSocketState::Free)
 				{
 					Base->Stream->Close(true);
 					if (Disconnect)
@@ -120,11 +120,11 @@ namespace Tomahawk
 						Store->Finish();
 					});
 				}
-				else if (State & WebSocketState_Handshake)
+				else if (State & (uint32_t)WebSocketState::Handshake)
 				{
 					if (Connect || Receive)
 					{
-						State = WebSocketState_Active;
+						State = (uint32_t)WebSocketState::Active;
 						if (Connect)
 							Connect(this);
 						else
@@ -133,9 +133,9 @@ namespace Tomahawk
 					else
 						Finish();
 				}
-				else if (State & WebSocketState_Reset)
+				else if (State & (uint32_t)WebSocketState::Reset)
 				{
-					State = WebSocketState_Free;
+					State = (uint32_t)WebSocketState::Free;
 					Finish();
 				}
 				else
@@ -144,7 +144,7 @@ namespace Tomahawk
 			void WebSocketFrame::Notify()
 			{
 				Notified = true;
-				Base->Stream->Skip(SocketEvent_Read, 0);
+				Base->Stream->Skip((uint32_t)SocketEvent::Read, 0);
 			}
 			bool WebSocketFrame::IsFinished()
 			{
@@ -156,7 +156,7 @@ namespace Tomahawk
 			}
 			void GatewayFrame::Execute(Script::VMResume State)
 			{
-				if (State == Script::VMResume_Finish_With_Error)
+				if (State == Script::VMResume::Finish_With_Error)
 				{
 					if (Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 500;
@@ -175,12 +175,12 @@ namespace Tomahawk
 
 				if (Base->WebSocket != nullptr)
 				{
-					if (State != Script::VMResume_Continue)
+					if (State != Script::VMResume::Continue)
 						Base->WebSocket->Finish();
 					else
 						Base->WebSocket->Next();
 				}
-				else if (State != Script::VMResume_Continue)
+				else if (State != Script::VMResume::Continue)
 					Finish();
 			}
 			bool GatewayFrame::Done(bool Normal)
@@ -287,19 +287,19 @@ namespace Tomahawk
 						return Error(500, "Module execution cannot be prepared.");
 
 					Result = Context->Execute();
-					if (Result == Script::VMExecState_FINISHED || Result == Script::VMExecState_ABORTED)
+					if (Result == (int)Script::VMExecState::FINISHED || Result == (int)Script::VMExecState::ABORTED)
 					{
-						Execute(Script::VMResume_Finish);
+						Execute(Script::VMResume::Finish);
 						return true;
 					}
-					else if (Result == Script::VMExecState_ERROR)
+					else if (Result == (int)Script::VMExecState::ERR)
 					{
-						Execute(Script::VMResume_Finish_With_Error);
+						Execute(Script::VMResume::Finish_With_Error);
 						return true;
 					}
-					else if (Result == Script::VMExecState_EXCEPTION)
+					else if (Result == (int)Script::VMExecState::EXCEPTION)
 					{
-						Execute(Context->IsThrown() ? Script::VMResume_Finish_With_Error : Script::VMResume_Finish);
+						Execute(Context->IsThrown() ? Script::VMResume::Finish_With_Error : Script::VMResume::Finish);
 						return true;
 					}
 
@@ -848,7 +848,7 @@ namespace Tomahawk
 
 			bool Connection::Consume(const ContentCallback& Callback)
 			{
-				if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
+				if (Request.ContentState == Content::Lost || Request.ContentState == Content::Empty || Request.ContentState == Content::Saved || Request.ContentState == Content::Wants_Save)
 				{
 					if (Callback)
 						Callback(this, nullptr, 0);
@@ -856,7 +856,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				if (Request.ContentState == Content_Corrupted || Request.ContentState == Content_Payload_Exceeded || Request.ContentState == Content_Save_Exception)
+				if (Request.ContentState == Content::Corrupted || Request.ContentState == Content::Payload_Exceeded || Request.ContentState == Content::Save_Exception)
 				{
 					if (Callback)
 						Callback(this, nullptr, -1);
@@ -864,7 +864,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				if (Request.ContentState == Content_Cached)
+				if (Request.ContentState == Content::Cached)
 				{
 					if (Callback)
 					{
@@ -877,7 +877,7 @@ namespace Tomahawk
 
 				if ((memcmp(Request.Method, "POST", 4) != 0 && memcmp(Request.Method, "PATCH", 5) != 0 && memcmp(Request.Method, "PUT", 3) != 0) && memcmp(Request.Method, "DELETE", 4) != 0)
 				{
-					Request.ContentState = Content_Empty;
+					Request.ContentState = Content::Empty;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -887,7 +887,7 @@ namespace Tomahawk
 				const char* ContentType = Request.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
-					Request.ContentState = Content_Wants_Save;
+					Request.ContentState = Content::Wants_Save;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -910,7 +910,7 @@ namespace Tomahawk
 							if (Result == -1)
 							{
 								TH_RELEASE(Parser);
-								Base->Request.ContentState = Content_Corrupted;
+								Base->Request.ContentState = Content::Corrupted;
 
 								if (Callback)
 									Callback(Base, nullptr, (int)Result);
@@ -933,12 +933,12 @@ namespace Tomahawk
 						if (Size != -1)
 						{
 							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Request.ContentState = Content_Cached;
+								Base->Request.ContentState = Content::Cached;
 							else
-								Base->Request.ContentState = Content_Lost;
+								Base->Request.ContentState = Content::Lost;
 						}
 						else
-							Base->Request.ContentState = Content_Corrupted;
+							Base->Request.ContentState = Content::Corrupted;
 
 						if (Callback)
 							Callback(Base, nullptr, Size);
@@ -957,9 +957,9 @@ namespace Tomahawk
 						if (Size <= 0)
 						{
 							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Request.ContentState = Content_Cached;
+								Base->Request.ContentState = Content::Cached;
 							else
-								Base->Request.ContentState = Content_Lost;
+								Base->Request.ContentState = Content::Lost;
 
 							if (Callback)
 								Callback(Base, nullptr, Size);
@@ -979,7 +979,7 @@ namespace Tomahawk
 
 				if (Request.ContentLength > Root->Router->PayloadMaxLength)
 				{
-					Request.ContentState = Content_Payload_Exceeded;
+					Request.ContentState = Content::Payload_Exceeded;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -988,7 +988,7 @@ namespace Tomahawk
 
 				if (!Route || Request.ContentLength > Route->MaxCacheLength)
 				{
-					Request.ContentState = Content_Wants_Save;
+					Request.ContentState = Content::Wants_Save;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -1006,12 +1006,12 @@ namespace Tomahawk
 						if (Size != -1)
 						{
 							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Request.ContentState = Content_Cached;
+								Base->Request.ContentState = Content::Cached;
 							else
-								Base->Request.ContentState = Content_Lost;
+								Base->Request.ContentState = Content::Lost;
 						}
 						else
-							Base->Request.ContentState = Content_Corrupted;
+							Base->Request.ContentState = Content::Corrupted;
 
 						if (Callback)
 							Callback(Base, nullptr, Size);
@@ -1030,7 +1030,7 @@ namespace Tomahawk
 			}
 			bool Connection::Store(const ResourceCallback& Callback)
 			{
-				if (!Route || Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Cached)
+				if (!Route || Request.ContentState == Content::Lost || Request.ContentState == Content::Empty || Request.ContentState == Content::Cached)
 				{
 					if (Callback)
 						Callback(this, nullptr, 0);
@@ -1038,7 +1038,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				if (Request.ContentState == Content_Corrupted || Request.ContentState == Content_Payload_Exceeded || Request.ContentState == Content_Save_Exception)
+				if (Request.ContentState == Content::Corrupted || Request.ContentState == Content::Payload_Exceeded || Request.ContentState == Content::Save_Exception)
 				{
 					if (Callback)
 						Callback(this, nullptr, -1);
@@ -1046,7 +1046,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				if (Request.ContentState == Content_Saved)
+				if (Request.ContentState == Content::Saved)
 				{
 					if (!Callback || Request.Resources.empty())
 						return true;
@@ -1060,7 +1060,7 @@ namespace Tomahawk
 
 				const char* ContentType = Request.GetHeader("Content-Type"), *BoundaryName;
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
-					Request.ContentState = Content_Wants_Save;
+					Request.ContentState = Content::Wants_Save;
 
 				if (ContentType != nullptr && (BoundaryName = strstr(ContentType, "boundary=")))
 				{
@@ -1090,9 +1090,9 @@ namespace Tomahawk
 						if (Size <= 0)
 						{
 							if (Size == -1)
-								Base->Request.ContentState = Content_Corrupted;
+								Base->Request.ContentState = Content::Corrupted;
 							else
-								Base->Request.ContentState = Content_Saved;
+								Base->Request.ContentState = Content::Saved;
 
 							if (Segment->Callback)
 								Segment->Callback(Base, nullptr, Size);
@@ -1105,7 +1105,7 @@ namespace Tomahawk
 
 						if (Parser->MultipartParse(Boundary.c_str(), Buffer, Size) == -1 || Segment->Close)
 						{
-							Base->Request.ContentState = Content_Saved;
+							Base->Request.ContentState = Content::Saved;
 							if (Segment->Callback)
 								Segment->Callback(Base, nullptr, 0);
 
@@ -1128,7 +1128,7 @@ namespace Tomahawk
 					FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
 					if (!File)
 					{
-						Request.ContentState = Content_Save_Exception;
+						Request.ContentState = Content::Save_Exception;
 						return false;
 					}
 
@@ -1142,14 +1142,14 @@ namespace Tomahawk
 						{
 							if (Size != -1)
 							{
-								Base->Request.ContentState = Content_Saved;
+								Base->Request.ContentState = Content::Saved;
 								Base->Request.Resources.push_back(fResource);
 
 								if (Callback)
 									Callback(Base, &Base->Request.Resources.back(), Size);
 							}
 							else
-								Base->Request.ContentState = Content_Corrupted;
+								Base->Request.ContentState = Content::Corrupted;
 
 							if (Callback)
 								Callback(Base, nullptr, Size);
@@ -1161,7 +1161,7 @@ namespace Tomahawk
 						if (fwrite(Buffer, 1, (size_t)Size, File) == Size)
 							return true;
 
-						Base->Request.ContentState = Content_Save_Exception;
+						Base->Request.ContentState = Content::Save_Exception;
 						fclose(File);
 
 						if (Callback)
@@ -1240,7 +1240,7 @@ namespace Tomahawk
 					Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Info.Start / 1000);
 
 					std::string Auth;
-					if (Route && Request.User.Type == Auth_Denied)
+					if (Route && Request.User.Type == Auth::Denied)
 						Auth = "WWW-Authenticate: " + Route->Auth.Type + " realm=\"" + Route->Auth.Realm + "\"\r\n";
 
 					int HasContents = (Response.StatusCode > 199 && Response.StatusCode != 204 && Response.StatusCode != 304);
@@ -3085,7 +3085,7 @@ namespace Tomahawk
 
 				unsigned char Header[14];
 				size_t HeaderLength = 1;
-				Header[0] = 0x80 + (Opcode & 0xF);
+				Header[0] = 0x80 + ((size_t)Opcode & 0xF);
 
 				if (Size < 126)
 				{
@@ -3658,7 +3658,7 @@ namespace Tomahawk
 
 				if (!IsSupported && !Base->Route->Auth.Methods.empty())
 				{
-					Base->Request.User.Type = Auth_Denied;
+					Base->Request.User.Type = Auth::Denied;
 					Base->Error(401, "Authorization method is not allowed");
 					return false;
 				}
@@ -3666,7 +3666,7 @@ namespace Tomahawk
 				const char* Authorization = Base->Request.GetHeader("Authorization");
 				if (!Authorization)
 				{
-					Base->Request.User.Type = Auth_Denied;
+					Base->Request.User.Type = Auth::Denied;
 					Base->Error(401, "Provide authorization header to continue.");
 					return false;
 				}
@@ -3686,13 +3686,13 @@ namespace Tomahawk
 				Base->Request.User.Password = std::string(Credentials.c_str() + Index + 1);
 				if (Base->Route->Callbacks.Authorize && Base->Route->Callbacks.Authorize(Base, &Base->Request.User, Type))
 				{
-					Base->Request.User.Type = Auth_Granted;
+					Base->Request.User.Type = Auth::Granted;
 					return true;
 				}
 
 				if (Type != Base->Route->Auth.Type)
 				{
-					Base->Request.User.Type = Auth_Denied;
+					Base->Request.User.Type = Auth::Denied;
 					Base->Error(401, "Authorization type \"%s\" is not allowed.", Type.c_str());
 					return false;
 				}
@@ -3702,11 +3702,11 @@ namespace Tomahawk
 					if (Item.Password != Base->Request.User.Password || Item.Username != Base->Request.User.Username)
 						continue;
 
-					Base->Request.User.Type = Auth_Granted;
+					Base->Request.User.Type = Auth::Granted;
 					return true;
 				}
 
-				Base->Request.User.Type = Auth_Denied;
+				Base->Request.User.Type = Auth::Denied;
 				Base->Error(401, "Invalid user access credentials were provided. Access denied.");
 				return false;
 			}
@@ -4612,7 +4612,7 @@ namespace Tomahawk
 				Base->Stream->SetTimeout(0);
 				Base->Stream->SetBlocking(false);
 
-				if (Router->State != ServerState_Working)
+				if (Router->State != ServerState::Working)
 				{
 					fclose(Stream);
 					return Base->Break();
@@ -4626,11 +4626,11 @@ namespace Tomahawk
 			}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
 			{
-				if (!ContentLength || Router->State != ServerState_Working)
+				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
 					fclose(Stream);
-					if (Router->State != ServerState_Working)
+					if (Router->State != ServerState::Working)
 						return Base->Break();
 
 					return Base->Finish() || true;
@@ -4750,11 +4750,11 @@ namespace Tomahawk
 #ifdef TH_HAS_ZLIB
 #define FREE_STREAMING { fclose(Stream); deflateEnd(ZStream); TH_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
-				if (!ContentLength || Router->State != ServerState_Working)
+				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
 					FREE_STREAMING;
-					if (Router->State != ServerState_Working)
+					if (Router->State != ServerState::Working)
 						return Base->Break();
 
 					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](Socket*, int64_t Size)
@@ -4817,7 +4817,7 @@ namespace Tomahawk
 					}
 
 					FREE_STREAMING;
-					return (Router->State == ServerState_Working ? Base->Finish() : Base->Break()) && false;
+					return (Router->State == ServerState::Working ? Base->Finish() : Base->Break()) && false;
 				});
 
 				return false;
@@ -5037,18 +5037,18 @@ namespace Tomahawk
 					}
 
 					Base->WebSocket->Clear = true;
-					if (Base->WebSocket->Opcode == WebSocketOp_Close)
+					if (Base->WebSocket->Opcode == (unsigned char)WebSocketOp::Close)
 					{
-						if (Base->WebSocket->State != WebSocketState_Close)
-							Base->WebSocket->State = WebSocketState_Reset;
+						if (Base->WebSocket->State != (uint32_t)WebSocketState::Close)
+							Base->WebSocket->State = (uint32_t)WebSocketState::Reset;
 						else
-							Base->WebSocket->State = WebSocketState_Free;
+							Base->WebSocket->State = (uint32_t)WebSocketState::Free;
 
 						Base->WebSocket->Next();
 					}
-					else if (Base->WebSocket->Opcode == WebSocketOp_Ping)
+					else if (Base->WebSocket->Opcode == (unsigned char)WebSocketOp::Ping)
 					{
-						Base->WebSocket->Write("", 0, WebSocketOp_Pong, [](Connection* Base)
+						Base->WebSocket->Write("", 0, WebSocketOp::Pong, [](Connection* Base)
 						{
 							Base->WebSocket->Next();
 							return true;
@@ -5160,12 +5160,13 @@ namespace Tomahawk
 					qsort((void*)Entry->Routes.data(), (size_t)Entry->Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int
 					{
 						HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
-						A->URI.Flags = Compute::RegexFlags_IgnoreCase;
+						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
+						A->URI.IgnoreCase = true;
+						B->URI.IgnoreCase = true;
+
 						if (A->URI.GetRegex().empty())
 							return -1;
 
-						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
-						B->URI.Flags = Compute::RegexFlags_IgnoreCase;
 						if (B->URI.GetRegex().empty())
 							return 1;
 
@@ -5186,7 +5187,7 @@ namespace Tomahawk
 				auto Base = (HTTP::Connection*)Root;
 				if (Check)
 				{
-					if (Base->Request.ContentLength > 0 && Base->Request.ContentState == Content_Not_Loaded)
+					if (Base->Request.ContentLength > 0 && Base->Request.ContentState == Content::Not_Loaded)
 					{
 						Base->Consume([](Connection* Base, const char*, int64_t Size)
 						{
@@ -5212,7 +5213,7 @@ namespace Tomahawk
 				Base->Stream->Income = 0;
 				Base->Stream->Outcome = 0;
 				Base->Info.Close = (Base->Info.Close || Base->Response.StatusCode < 0);
-				Base->Request.ContentState = Content_Not_Loaded;
+				Base->Request.ContentState = Content::Not_Loaded;
 				Base->Response.Error = false;
 				Base->Response.StatusCode = -1;
 				Base->Response.Buffer.clear();
@@ -5291,7 +5292,7 @@ namespace Tomahawk
 
 					Base->Stream->SetTimeWait((int)Base->Route->GracefulTimeWait);
 					if (!Base->Request.ContentLength)
-						Base->Request.ContentState = Content_Empty;
+						Base->Request.ContentState = Content::Empty;
 
 					if (!Base->Route->ProxyIpAddress.empty())
 					{
@@ -5422,7 +5423,7 @@ namespace Tomahawk
 				Stage("request delivery");
 
 				Request = *Root;
-				Request.ContentState = Content_Not_Loaded;
+				Request.ContentState = Content::Not_Loaded;
 				Done = [Result](SocketClient* Client, int Code) mutable
 				{
 					HTTP::Client* Base = Client->As<HTTP::Client>();
@@ -5531,13 +5532,13 @@ namespace Tomahawk
 			}
 			Core::Async<ResponseFrame*> Client::Consume(int64_t MaxSize)
 			{
-				if (Request.ContentState == Content_Lost || Request.ContentState == Content_Empty || Request.ContentState == Content_Saved || Request.ContentState == Content_Wants_Save)
+				if (Request.ContentState == Content::Lost || Request.ContentState == Content::Empty || Request.ContentState == Content::Saved || Request.ContentState == Content::Wants_Save)
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 
-				if (Request.ContentState == Content_Corrupted || Request.ContentState == Content_Payload_Exceeded || Request.ContentState == Content_Save_Exception)
+				if (Request.ContentState == Content::Corrupted || Request.ContentState == Content::Payload_Exceeded || Request.ContentState == Content::Save_Exception)
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 
-				if (Request.ContentState == Content_Cached)
+				if (Request.ContentState == Content::Cached)
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 
 				Response.Buffer.clear();
@@ -5545,7 +5546,7 @@ namespace Tomahawk
 				const char* ContentType = Response.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
-					Request.ContentState = Content_Wants_Save;
+					Request.ContentState = Content::Wants_Save;
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
@@ -5563,7 +5564,7 @@ namespace Tomahawk
 							if (Subresult == -1)
 							{
 								TH_RELEASE(Parser);
-								Request.ContentState = Content_Corrupted;
+								Request.ContentState = Content::Corrupted;
 								Result.Set(GetResponse());
 
 								return false;
@@ -5581,12 +5582,12 @@ namespace Tomahawk
 						if (Size != -1)
 						{
 							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content_Cached;
+								Request.ContentState = Content::Cached;
 							else
-								Request.ContentState = Content_Lost;
+								Request.ContentState = Content::Lost;
 						}
 						else
-							Request.ContentState = Content_Corrupted;
+							Request.ContentState = Content::Corrupted;
 
 						Result.Set(GetResponse());
 						return true;
@@ -5602,9 +5603,9 @@ namespace Tomahawk
 						if (Size <= 0)
 						{
 							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content_Cached;
+								Request.ContentState = Content::Cached;
 							else
-								Request.ContentState = Content_Lost;
+								Request.ContentState = Content::Lost;
 
 							Result.Set(GetResponse());
 							return false;
@@ -5622,27 +5623,27 @@ namespace Tomahawk
 				const char* HContentLength = Response.GetHeader("Content-Length");
 				if (!HContentLength)
 				{
-					Request.ContentState = Content_Corrupted;
+					Request.ContentState = Content::Corrupted;
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				Core::Parser HLength = HContentLength;
 				if (!HLength.HasInteger())
 				{
-					Request.ContentState = Content_Corrupted;
+					Request.ContentState = Content::Corrupted;
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				int64_t Length = HLength.ToInt64();
 				if (Length <= 0)
 				{
-					Request.ContentState = Content_Empty;
+					Request.ContentState = Content::Empty;
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
 				if (Length > MaxSize)
 				{
-					Request.ContentState = Content_Wants_Save;
+					Request.ContentState = Content::Wants_Save;
 					return Core::Async<ResponseFrame*>::Store(GetResponse());
 				}
 
@@ -5654,12 +5655,12 @@ namespace Tomahawk
 						if (Size != -1)
 						{
 							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content_Cached;
+								Request.ContentState = Content::Cached;
 							else
-								Request.ContentState = Content_Lost;
+								Request.ContentState = Content::Lost;
 						}
 						else
-							Request.ContentState = Content_Corrupted;
+							Request.ContentState = Content::Corrupted;
 
 						Result.Set(GetResponse());
 						return false;

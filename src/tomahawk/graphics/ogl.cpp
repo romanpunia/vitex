@@ -79,27 +79,27 @@ namespace Tomahawk
 
 					switch (It.Format)
 					{
-						case Tomahawk::Graphics::AttributeType_Byte:
+						case Tomahawk::Graphics::AttributeType::Byte:
 							Format = GL_BYTE;
 							Decimal = true;
 							break;
-						case Tomahawk::Graphics::AttributeType_Ubyte:
+						case Tomahawk::Graphics::AttributeType::Ubyte:
 							Format = GL_UNSIGNED_BYTE;
 							Decimal = true;
 							break;
-						case Tomahawk::Graphics::AttributeType_Half:
+						case Tomahawk::Graphics::AttributeType::Half:
 							Format = GL_HALF_FLOAT;
 							Decimal = false;
 							break;
-						case Tomahawk::Graphics::AttributeType_Float:
+						case Tomahawk::Graphics::AttributeType::Float:
 							Format = GL_FLOAT;
 							Decimal = false;
 							break;
-						case Tomahawk::Graphics::AttributeType_Int:
+						case Tomahawk::Graphics::AttributeType::Int:
 							Format = GL_INT;
 							Decimal = true;
 							break;
-						case Tomahawk::Graphics::AttributeType_Uint:
+						case Tomahawk::Graphics::AttributeType::Uint:
 							Format = GL_UNSIGNED_INT;
 							Decimal = true;
 							break;
@@ -158,7 +158,7 @@ namespace Tomahawk
 			Compute::Vertex* OGLMeshBuffer::GetElements(GraphicsDevice* Device)
 			{
 				MappedSubresource Resource;
-				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
+				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
 				Compute::Vertex* Vertices = (Compute::Vertex*)TH_MALLOC(sizeof(Compute::Vertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
@@ -173,7 +173,7 @@ namespace Tomahawk
 			Compute::SkinVertex* OGLSkinMeshBuffer::GetElements(GraphicsDevice* Device)
 			{
 				MappedSubresource Resource;
-				Device->Map(VertexBuffer, ResourceMap_Write, &Resource);
+				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
 				Compute::SkinVertex* Vertices = (Compute::SkinVertex*)TH_MALLOC(sizeof(Compute::SkinVertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
@@ -422,15 +422,15 @@ namespace Tomahawk
 				SDL_GL_MakeCurrent(Window->GetHandle(), Context);
 				switch (VSyncMode)
 				{
-					case VSync_Disabled:
+					case VSync::None:
 						SDL_GL_SetSwapInterval(0);
 						break;
-					case VSync_Frequency_X1:
+					case VSync::Frequency_X1:
 						SDL_GL_SetSwapInterval(1);
 						break;
-					case VSync_Frequency_X2:
-					case VSync_Frequency_X3:
-					case VSync_Frequency_X4:
+					case VSync::Frequency_X2:
+					case VSync::Frequency_X3:
+					case VSync::Frequency_X4:
 						if (SDL_GL_SetSwapInterval(-1) == -1)
 							SDL_GL_SetSwapInterval(1);
 						break;
@@ -466,7 +466,7 @@ namespace Tomahawk
 				glBindBufferBase(GL_UNIFORM_BUFFER, 2, ConstantBuffer[2]);
 				glEnable(GL_TEXTURE_2D);
 
-				SetShaderModel(I.ShaderMode == ShaderModel_Auto ? GetSupportedShaderModel() : I.ShaderMode);
+				SetShaderModel(I.ShaderMode == ShaderModel::Auto ? GetSupportedShaderModel() : I.ShaderMode);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				CreateStates();
 
@@ -496,34 +496,34 @@ namespace Tomahawk
 			void OGLDevice::SetShaderModel(ShaderModel Model)
 			{
 				ShaderModelType = Model;
-				if (ShaderModelType == ShaderModel_GLSL_1_1_0)
+				if (ShaderModelType == ShaderModel::GLSL_1_1_0)
 					ShaderVersion = "#version 110 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_1_2_0)
+				else if (ShaderModelType == ShaderModel::GLSL_1_2_0)
 					ShaderVersion = "#version 120 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_1_3_0)
+				else if (ShaderModelType == ShaderModel::GLSL_1_3_0)
 					ShaderVersion = "#version 130 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_1_4_0)
+				else if (ShaderModelType == ShaderModel::GLSL_1_4_0)
 					ShaderVersion = "#version 140 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_1_5_0)
+				else if (ShaderModelType == ShaderModel::GLSL_1_5_0)
 					ShaderVersion = "#version 150 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_3_3_0)
+				else if (ShaderModelType == ShaderModel::GLSL_3_3_0)
 					ShaderVersion = "#version 330 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_4_0_0)
+				else if (ShaderModelType == ShaderModel::GLSL_4_0_0)
 					ShaderVersion = "#version 400 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_4_1_0)
+				else if (ShaderModelType == ShaderModel::GLSL_4_1_0)
 					ShaderVersion = "#version 410 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_4_2_0)
+				else if (ShaderModelType == ShaderModel::GLSL_4_2_0)
 					ShaderVersion = "#version 420 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_4_3_0)
+				else if (ShaderModelType == ShaderModel::GLSL_4_3_0)
 					ShaderVersion = "#version 430 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_4_4_0)
+				else if (ShaderModelType == ShaderModel::GLSL_4_4_0)
 					ShaderVersion = "#version 440 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_4_5_0)
+				else if (ShaderModelType == ShaderModel::GLSL_4_5_0)
 					ShaderVersion = "#version 450 core\n";
-				else if (ShaderModelType == ShaderModel_GLSL_4_6_0)
+				else if (ShaderModelType == ShaderModel::GLSL_4_6_0)
 					ShaderVersion = "#version 460 core\n";
 				else
-					SetShaderModel(ShaderModel_GLSL_1_1_0);
+					SetShaderModel(ShaderModel::GLSL_1_1_0);
 			}
 			void OGLDevice::SetBlendState(BlendState* State)
 			{
@@ -577,12 +577,12 @@ namespace Tomahawk
 				else
 					glDisable(GL_MULTISAMPLE);
 
-				if (V->State.CullMode == VertexCull_Back)
+				if (V->State.CullMode == VertexCull::Back)
 				{
 					glCullFace(GL_FRONT);
 					glEnable(GL_CULL_FACE);
 				}
-				else if (V->State.CullMode == VertexCull_Front)
+				else if (V->State.CullMode == VertexCull::Front)
 				{
 					glCullFace(GL_BACK);
 					glEnable(GL_CULL_FACE);
@@ -590,7 +590,7 @@ namespace Tomahawk
 				else
 					glDisable(GL_CULL_FACE);
 
-				if (V->State.FillMode == SurfaceFill_Solid)
+				if (V->State.FillMode == SurfaceFill::Solid)
 					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 				else
 					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -617,7 +617,7 @@ namespace Tomahawk
 					glDisable(GL_STENCIL);
 
 				glDepthFunc(GetComparison(V->State.DepthFunction));
-				glDepthMask(V->State.DepthWriteMask == DepthWrite_All ? GL_TRUE : GL_FALSE);
+				glDepthMask(V->State.DepthWriteMask == DepthWrite::All ? GL_TRUE : GL_FALSE);
 				glStencilMask((GLuint)V->State.StencilWriteMask);
 				glStencilFuncSeparate(GL_FRONT, GetComparison(V->State.FrontFaceStencilFunction), 0, 1);
 				glStencilOpSeparate(GL_FRONT, GetStencilOperation(V->State.FrontFaceStencilFailOperation), GetStencilOperation(V->State.FrontFaceStencilDepthFailOperation), GetStencilOperation(V->State.FrontFaceStencilPassOperation));
@@ -650,22 +650,22 @@ namespace Tomahawk
 					return (void)glUseProgramObjectARB(It->second);
 
 				GLuint Program = glCreateProgram();
-				if (Type & ShaderType_Vertex && IResource->VertexShader != GL_NONE)
+				if (Type & (uint32_t)ShaderType::Vertex && IResource->VertexShader != GL_NONE)
 					glAttachShader(Program, IResource->VertexShader);
 
-				if (Type & ShaderType_Pixel && IResource->PixelShader != GL_NONE)
+				if (Type & (uint32_t)ShaderType::Pixel && IResource->PixelShader != GL_NONE)
 					glAttachShader(Program, IResource->PixelShader);
 
-				if (Type & ShaderType_Geometry && IResource->GeometryShader != GL_NONE)
+				if (Type & (uint32_t)ShaderType::Geometry && IResource->GeometryShader != GL_NONE)
 					glAttachShader(Program, IResource->GeometryShader);
 
-				if (Type & ShaderType_Domain && IResource->DomainShader != GL_NONE)
+				if (Type & (uint32_t)ShaderType::Domain && IResource->DomainShader != GL_NONE)
 					glAttachShader(Program, IResource->DomainShader);
 
-				if (Type & ShaderType_Hull && IResource->HullShader != GL_NONE)
+				if (Type & (uint32_t)ShaderType::Hull && IResource->HullShader != GL_NONE)
 					glAttachShader(Program, IResource->HullShader);
 
-				if (Type & ShaderType_Compute && IResource->ComputeShader != GL_NONE)
+				if (Type & (uint32_t)ShaderType::Compute && IResource->ComputeShader != GL_NONE)
 					glAttachShader(Program, IResource->ComputeShader);
 
 				GLint StatusCode = 0;
@@ -741,11 +741,11 @@ namespace Tomahawk
 			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
 			{
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_NONE);
-				if (FormatMode == Format::Format_R32_Uint)
+				if (FormatMode == Format::R32_Uint)
 					IndexType = GL_UNSIGNED_INT;
-				else if (FormatMode == Format::Format_R16_Uint)
+				else if (FormatMode == Format::R16_Uint)
 					IndexType = GL_UNSIGNED_SHORT;
-				else if (FormatMode == Format::Format_R8_Uint)
+				else if (FormatMode == Format::R8_Uint)
 					IndexType = GL_UNSIGNED_BYTE;
 				else
 					IndexType = GL_UNSIGNED_INT;
@@ -1085,7 +1085,7 @@ namespace Tomahawk
 					return false;
 
 				MappedSubresource MappedResource;
-				if (!Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource))
+				if (!Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource))
 					return false;
 
 				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::Vertex));
@@ -1098,7 +1098,7 @@ namespace Tomahawk
 					return false;
 
 				MappedSubresource MappedResource;
-				if (!Map(IResource->VertexBuffer, ResourceMap_Write, &MappedResource))
+				if (!Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource))
 					return false;
 
 				memcpy(MappedResource.Pointer, Data, (size_t)IResource->VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
@@ -1119,7 +1119,7 @@ namespace Tomahawk
 			}
 			bool OGLDevice::UpdateBuffer(RenderBufferType Buffer)
 			{
-				CopyConstantBuffer(ConstantBuffer[Buffer], &Constants[Buffer], ConstantSize[Buffer]);
+				CopyConstantBuffer(ConstantBuffer[(size_t)Buffer], &Constants[(size_t)Buffer], ConstantSize[(size_t)Buffer]);
 				return true;
 			}
 			bool OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
@@ -1150,10 +1150,10 @@ namespace Tomahawk
 				IResource->Array.Reserve(IResource->ElementLimit);
 
 				ElementBuffer::Desc F = ElementBuffer::Desc();
-				F.AccessFlags = CPUAccess_Write;
-				F.MiscFlags = ResourceMisc_Buffer_Structured;
-				F.Usage = ResourceUsage_Dynamic;
-				F.BindFlags = ResourceBind_Shader_Input;
+				F.AccessFlags = CPUAccess::Write;
+				F.MiscFlags = ResourceMisc::Buffer_Structured;
+				F.Usage = ResourceUsage::Dynamic;
+				F.BindFlags = ResourceBind::Shader_Input;
 				F.ElementCount = (unsigned int)IResource->ElementLimit;
 				F.ElementWidth = (unsigned int)IResource->ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
@@ -1265,7 +1265,7 @@ namespace Tomahawk
 
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
 				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
-				SetIndexBuffer(IndexBuffer, Format_R32_Uint);
+				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
 				glDrawElements(GetPrimitiveTopologyDraw(Primitive), IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
 			}
@@ -1276,7 +1276,7 @@ namespace Tomahawk
 
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
 				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
-				SetIndexBuffer(IndexBuffer, Format_R32_Uint);
+				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
 				glDrawElements(GetPrimitiveTopologyDraw(Primitive), IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
 			}
@@ -1427,7 +1427,7 @@ namespace Tomahawk
 			bool OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= IResource->Target || Face >= 6 || !Result)
+				if (!IResource || Cube >= (uint32_t)IResource->Target || Face >= 6 || !Result)
 					return false;
 
 				int Width, Height;
@@ -1507,7 +1507,7 @@ namespace Tomahawk
 			bool OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= IResource->Target || !Result)
+				if (!IResource || Cube >= (uint32_t)IResource->Target || !Result)
 					return false;
 
 				int Width, Height;
@@ -1687,11 +1687,11 @@ namespace Tomahawk
 				F.Width = Width;
 				F.Height = Height;
 				F.MipLevels = 1;
-				F.MiscFlags = ResourceMisc_None;
-				F.FormatMode = Format_R8G8B8A8_Unorm;
-				F.Usage = ResourceUsage_Default;
-				F.AccessFlags = CPUAccess_Invalid;
-				F.BindFlags = ResourceBind_Render_Target | ResourceBind_Shader_Input;
+				F.MiscFlags = ResourceMisc::None;
+				F.FormatMode = Format::R8G8B8A8_Unorm;
+				F.Usage = ResourceUsage::Default;
+				F.AccessFlags = CPUAccess::Invalid;
+				F.BindFlags = ResourceBind::Render_Target | ResourceBind::Shader_Input;
 				F.RenderSurface = (void*)this;
 
 				TH_RELEASE(RenderTarget);
@@ -1839,7 +1839,7 @@ namespace Tomahawk
 				if (DirectRenderer.VertexBuffer == GL_NONE && !CreateDirectBuffer(0))
 					return false;
 
-				Primitives = PrimitiveTopology_Triangle_List;
+				Primitives = PrimitiveTopology::Triangle_List;
 				Direct.WorldViewProjection = Compute::Matrix4x4::Identity();
 				Direct.Padding = { 0, 0, 0, 1 };
 				ViewResource = nullptr;
@@ -1987,10 +1987,10 @@ namespace Tomahawk
 				glSamplerParameterfv(DeviceState, GL_TEXTURE_BORDER_COLOR, (GLfloat*)I.BorderColor);
 
 #ifdef GL_TEXTURE_MAX_ANISOTROPY
-				if (I.Filter & Graphics::PixelFilter_Anistropic || I.Filter & Graphics::PixelFilter_Compare_Anistropic)
+				if ((size_t)I.Filter & (size_t)Graphics::PixelFilter::Anistropic || (size_t)I.Filter & (size_t)Graphics::PixelFilter::Compare_Anistropic)
 					glSamplerParameterf(DeviceState, GL_TEXTURE_MAX_ANISOTROPY, (float)I.MaxAnisotropy);
 #elif defined(GL_TEXTURE_MAX_ANISOTROPY_EXT)
-				if (I.Filter & Graphics::PixelFilter_Anistropic || I.Filter & Graphics::PixelFilter_Compare_Anistropic)
+				if ((size_t)I.Filter & (size_t)Graphics::PixelFilter::Anistropic || (size_t)I.Filter & (size_t)Graphics::PixelFilter::Compare_Anistropic)
 					glSamplerParameterf(DeviceState, GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)I.MaxAnisotropy);
 #endif
 				OGLSamplerState* Result = new OGLSamplerState(I);
@@ -2017,7 +2017,7 @@ namespace Tomahawk
 				Core::Parser Code(&F.Data);
 				GLint StatusCode = 0;
 
-				std::string VertexEntry = GetShaderMain(ShaderType_Vertex);
+				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
 				if ((Start = Code.Find(VertexEntry)).Found)
 				{
 					Core::Parser::Settle End = Code.Find("#program", Start.End);
@@ -2046,7 +2046,7 @@ namespace Tomahawk
 					}
 				}
 
-				std::string PixelEntry = GetShaderMain(ShaderType_Pixel);
+				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
 				if ((Start = Code.Find(PixelEntry)).Found)
 				{
 					Core::Parser::Settle End = Code.Find("#program", Start.End);
@@ -2075,7 +2075,7 @@ namespace Tomahawk
 					}
 				}
 
-				std::string GeometryEntry = GetShaderMain(ShaderType_Geometry);
+				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
 				if ((Start = Code.Find(GeometryEntry)).Found)
 				{
 					Core::Parser::Settle End = Code.Find("#program", Start.End);
@@ -2104,7 +2104,7 @@ namespace Tomahawk
 					}
 				}
 
-				std::string ComputeEntry = GetShaderMain(ShaderType_Compute);
+				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
 				if ((Start = Code.Find(ComputeEntry)).Found)
 				{
 					Core::Parser::Settle End = Code.Find("#program", Start.End);
@@ -2133,7 +2133,7 @@ namespace Tomahawk
 					}
 				}
 
-				std::string DomainEntry = GetShaderMain(ShaderType_Domain);
+				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
 				if ((Start = Code.Find(DomainEntry)).Found)
 				{
 					Core::Parser::Settle End = Code.Find("#program", Start.End);
@@ -2162,7 +2162,7 @@ namespace Tomahawk
 					}
 				}
 
-				std::string HullEntry = GetShaderMain(ShaderType_Hull);
+				std::string HullEntry = GetShaderMain(ShaderType::Hull);
 				if ((Start = Code.Find(HullEntry)).Found)
 				{
 					Core::Parser::Settle End = Code.Find("#program", Start.End);
@@ -2197,7 +2197,7 @@ namespace Tomahawk
 			{
 				OGLElementBuffer* Result = new OGLElementBuffer(I);
 				Result->Flags = OGLDevice::GetResourceBind(I.BindFlags);
-				if (I.MiscFlags & ResourceMisc_Buffer_Structured)
+				if ((size_t)I.MiscFlags & (size_t)ResourceMisc::Buffer_Structured)
 					Result->Flags = GL_SHADER_STORAGE_BUFFER;
 
 				glGenBuffers(1, &Result->Resource);
@@ -2211,7 +2211,7 @@ namespace Tomahawk
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
-				F.BindFlags = ResourceBind_Vertex_Buffer;
+				F.BindFlags = ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)I.Elements.size();
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::Vertex);
@@ -2222,7 +2222,7 @@ namespace Tomahawk
 				F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
-				F.BindFlags = ResourceBind_Index_Buffer;
+				F.BindFlags = ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
@@ -2235,7 +2235,7 @@ namespace Tomahawk
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
-				F.BindFlags = ResourceBind_Vertex_Buffer;
+				F.BindFlags = ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)I.Elements.size();
 				F.Elements = (void*)I.Elements.data();
 				F.ElementWidth = sizeof(Compute::SkinVertex);
@@ -2246,7 +2246,7 @@ namespace Tomahawk
 				F = ElementBuffer::Desc();
 				F.AccessFlags = I.AccessFlags;
 				F.Usage = I.Usage;
-				F.BindFlags = ResourceBind_Index_Buffer;
+				F.BindFlags = ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)I.Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = (void*)I.Indices.data();
@@ -2257,10 +2257,10 @@ namespace Tomahawk
 			InstanceBuffer* OGLDevice::CreateInstanceBuffer(const InstanceBuffer::Desc& I)
 			{
 				ElementBuffer::Desc F = ElementBuffer::Desc();
-				F.AccessFlags = CPUAccess_Write;
-				F.MiscFlags = ResourceMisc_Buffer_Structured;
-				F.Usage = ResourceUsage_Dynamic;
-				F.BindFlags = ResourceBind_Shader_Input;
+				F.AccessFlags = CPUAccess::Write;
+				F.MiscFlags = ResourceMisc::Buffer_Structured;
+				F.Usage = ResourceUsage::Dynamic;
+				F.BindFlags = ResourceBind::Shader_Input;
 				F.ElementCount = I.ElementLimit;
 				F.ElementWidth = I.ElementWidth;
 				F.StructureByteStride = F.ElementWidth;
@@ -2881,62 +2881,62 @@ namespace Tomahawk
 			{
 				const char* Version = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
 				if (!Version)
-					return ShaderModel_Invalid;
+					return ShaderModel::Invalid;
 
 				int Major, Minor;
 				if (sscanf(Version, "%i.%i", &Major, &Minor) != 2)
-					return ShaderModel_Invalid;
+					return ShaderModel::Invalid;
 
 				if (Major == 1)
 				{
 					if (Minor <= 10)
-						return ShaderModel_GLSL_1_1_0;
+						return ShaderModel::GLSL_1_1_0;
 
 					if (Minor <= 20)
-						return ShaderModel_GLSL_1_2_0;
+						return ShaderModel::GLSL_1_2_0;
 
 					if (Minor <= 30)
-						return ShaderModel_GLSL_1_3_0;
+						return ShaderModel::GLSL_1_3_0;
 
 					if (Minor <= 40)
-						return ShaderModel_GLSL_1_4_0;
+						return ShaderModel::GLSL_1_4_0;
 
 					if (Minor <= 50)
-						return ShaderModel_GLSL_1_5_0;
+						return ShaderModel::GLSL_1_5_0;
 
-					return ShaderModel_GLSL_1_5_0;
+					return ShaderModel::GLSL_1_5_0;
 				}
 				else if (Major == 2 || Major == 3)
 				{
 					if (Minor <= 30)
-						return ShaderModel_GLSL_3_3_0;
+						return ShaderModel::GLSL_3_3_0;
 
-					return ShaderModel_GLSL_1_5_0;
+					return ShaderModel::GLSL_1_5_0;
 				}
 				else if (Major == 4)
 				{
 					if (Minor <= 10)
-						return ShaderModel_GLSL_4_1_0;
+						return ShaderModel::GLSL_4_1_0;
 
 					if (Minor <= 20)
-						return ShaderModel_GLSL_4_2_0;
+						return ShaderModel::GLSL_4_2_0;
 
 					if (Minor <= 30)
-						return ShaderModel_GLSL_4_3_0;
+						return ShaderModel::GLSL_4_3_0;
 
 					if (Minor <= 40)
-						return ShaderModel_GLSL_4_4_0;
+						return ShaderModel::GLSL_4_4_0;
 
 					if (Minor <= 50)
-						return ShaderModel_GLSL_4_5_0;
+						return ShaderModel::GLSL_4_5_0;
 
 					if (Minor <= 60)
-						return ShaderModel_GLSL_4_6_0;
+						return ShaderModel::GLSL_4_6_0;
 
-					return ShaderModel_GLSL_4_6_0;
+					return ShaderModel::GLSL_4_6_0;
 				}
 
-				return ShaderModel_Invalid;
+				return ShaderModel::Invalid;
 			}
 			void* OGLDevice::GetDevice()
 			{
@@ -3130,141 +3130,141 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case Format_R32G32B32A32_Typeless:
+					case Format::R32G32B32A32_Typeless:
 						return GL_RGBA32UI;
-					case Format_R32G32B32A32_Float:
+					case Format::R32G32B32A32_Float:
 						return GL_RGBA32F;
-					case Format_R32G32B32A32_Uint:
+					case Format::R32G32B32A32_Uint:
 						return GL_RGBA32UI;
-					case Format_R32G32B32A32_Sint:
+					case Format::R32G32B32A32_Sint:
 						return GL_RGBA32I;
-					case Format_R32G32B32_Typeless:
+					case Format::R32G32B32_Typeless:
 						return GL_RGB32UI;
-					case Format_R32G32B32_Float:
+					case Format::R32G32B32_Float:
 						return GL_RGB32F;
-					case Format_R32G32B32_Uint:
+					case Format::R32G32B32_Uint:
 						return GL_RGB32UI;
-					case Format_R32G32B32_Sint:
+					case Format::R32G32B32_Sint:
 						return GL_RGB32I;
-					case Format_R16G16B16A16_Typeless:
+					case Format::R16G16B16A16_Typeless:
 						return GL_RGBA16UI;
-					case Format_R16G16B16A16_Float:
+					case Format::R16G16B16A16_Float:
 						return GL_RGBA16F;
-					case Format_R16G16B16A16_Unorm:
+					case Format::R16G16B16A16_Unorm:
 						return GL_RGBA16;
-					case Format_R16G16B16A16_Uint:
+					case Format::R16G16B16A16_Uint:
 						return GL_RGBA16UI;
-					case Format_R16G16B16A16_Snorm:
+					case Format::R16G16B16A16_Snorm:
 						return GL_RGBA16I;
-					case Format_R16G16B16A16_Sint:
+					case Format::R16G16B16A16_Sint:
 						return GL_RGBA16I;
-					case Format_R32G32_Typeless:
+					case Format::R32G32_Typeless:
 						return GL_RG16UI;
-					case Format_R32G32_Float:
+					case Format::R32G32_Float:
 						return GL_RG16F;
-					case Format_R32G32_Uint:
+					case Format::R32G32_Uint:
 						return GL_RG16UI;
-					case Format_R32G32_Sint:
+					case Format::R32G32_Sint:
 						return GL_RG16I;
-					case Format_R32G8X24_Typeless:
+					case Format::R32G8X24_Typeless:
 						return GL_R32UI;
-					case Format_D32_Float_S8X24_Uint:
+					case Format::D32_Float_S8X24_Uint:
 						return GL_R32UI;
-					case Format_R32_Float_X8X24_Typeless:
+					case Format::R32_Float_X8X24_Typeless:
 						return GL_R32UI;
-					case Format_X32_Typeless_G8X24_Uint:
+					case Format::X32_Typeless_G8X24_Uint:
 						return GL_R32UI;
-					case Format_R10G10B10A2_Typeless:
+					case Format::R10G10B10A2_Typeless:
 						return GL_RGB10_A2;
-					case Format_R10G10B10A2_Unorm:
+					case Format::R10G10B10A2_Unorm:
 						return GL_RGB10_A2;
-					case Format_R10G10B10A2_Uint:
+					case Format::R10G10B10A2_Uint:
 						return GL_RGB10_A2UI;
-					case Format_R11G11B10_Float:
+					case Format::R11G11B10_Float:
 						return GL_RGB12;
-					case Format_R8G8B8A8_Typeless:
+					case Format::R8G8B8A8_Typeless:
 						return GL_RGBA8UI;
-					case Format_R8G8B8A8_Unorm:
+					case Format::R8G8B8A8_Unorm:
 						return GL_RGBA;
-					case Format_R8G8B8A8_Unorm_SRGB:
+					case Format::R8G8B8A8_Unorm_SRGB:
 						return GL_RGBA;
-					case Format_R8G8B8A8_Uint:
+					case Format::R8G8B8A8_Uint:
 						return GL_RGBA8UI;
-					case Format_R8G8B8A8_Snorm:
+					case Format::R8G8B8A8_Snorm:
 						return GL_RGBA8I;
-					case Format_R8G8B8A8_Sint:
+					case Format::R8G8B8A8_Sint:
 						return GL_RGBA8I;
-					case Format_R16G16_Typeless:
+					case Format::R16G16_Typeless:
 						return GL_RG16UI;
-					case Format_R16G16_Float:
+					case Format::R16G16_Float:
 						return GL_RG16F;
-					case Format_R16G16_Unorm:
+					case Format::R16G16_Unorm:
 						return GL_RG16;
-					case Format_R16G16_Uint:
+					case Format::R16G16_Uint:
 						return GL_RG16UI;
-					case Format_R16G16_Snorm:
+					case Format::R16G16_Snorm:
 						return GL_RG16_SNORM;
-					case Format_R16G16_Sint:
+					case Format::R16G16_Sint:
 						return GL_RG16I;
-					case Format_R32_Typeless:
+					case Format::R32_Typeless:
 						return GL_R32UI;
-					case Format_D32_Float:
+					case Format::D32_Float:
 						return GL_R32F;
-					case Format_R32_Float:
+					case Format::R32_Float:
 						return GL_R32F;
-					case Format_R32_Uint:
+					case Format::R32_Uint:
 						return GL_R32UI;
-					case Format_R32_Sint:
+					case Format::R32_Sint:
 						return GL_R32I;
-					case Format_R24G8_Typeless:
+					case Format::R24G8_Typeless:
 						return GL_DEPTH24_STENCIL8;
-					case Format_D24_Unorm_S8_Uint:
+					case Format::D24_Unorm_S8_Uint:
 						return GL_DEPTH24_STENCIL8;
-					case Format_R24_Unorm_X8_Typeless:
+					case Format::R24_Unorm_X8_Typeless:
 						return GL_DEPTH24_STENCIL8;
-					case Format_X24_Typeless_G8_Uint:
+					case Format::X24_Typeless_G8_Uint:
 						return GL_DEPTH24_STENCIL8;
-					case Format_R8G8_Typeless:
+					case Format::R8G8_Typeless:
 						return GL_RG8UI;
-					case Format_R8G8_Unorm:
+					case Format::R8G8_Unorm:
 						return GL_RG8;
-					case Format_R8G8_Uint:
+					case Format::R8G8_Uint:
 						return GL_RG8UI;
-					case Format_R8G8_Snorm:
+					case Format::R8G8_Snorm:
 						return GL_RG8I;
-					case Format_R8G8_Sint:
+					case Format::R8G8_Sint:
 						return GL_RG8I;
-					case Format_R16_Typeless:
+					case Format::R16_Typeless:
 						return GL_R16UI;
-					case Format_R16_Float:
+					case Format::R16_Float:
 						return GL_R16F;
-					case Format_D16_Unorm:
+					case Format::D16_Unorm:
 						return GL_R16;
-					case Format_R16_Unorm:
+					case Format::R16_Unorm:
 						return GL_R16;
-					case Format_R16_Uint:
+					case Format::R16_Uint:
 						return GL_R16UI;
-					case Format_R16_Snorm:
+					case Format::R16_Snorm:
 						return GL_R16I;
-					case Format_R16_Sint:
+					case Format::R16_Sint:
 						return GL_R16I;
-					case Format_R8_Typeless:
+					case Format::R8_Typeless:
 						return GL_R8UI;
-					case Format_R8_Unorm:
+					case Format::R8_Unorm:
 						return GL_R8;
-					case Format_R8_Uint:
+					case Format::R8_Uint:
 						return GL_R8UI;
-					case Format_R8_Snorm:
+					case Format::R8_Snorm:
 						return GL_R8I;
-					case Format_R8_Sint:
+					case Format::R8_Sint:
 						return GL_R8I;
-					case Format_A8_Unorm:
+					case Format::A8_Unorm:
 						return GL_ALPHA8_EXT;
-					case Format_R1_Unorm:
+					case Format::R1_Unorm:
 						return GL_R8;
-					case Format_R9G9B9E5_Share_Dexp:
+					case Format::R9G9B9E5_Share_Dexp:
 						return GL_RGB9_E5;
-					case Format_R8G8_B8G8_Unorm:
+					case Format::R8G8_B8G8_Unorm:
 						return GL_RGB;
 					default:
 						break;
@@ -3276,15 +3276,15 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case TextureAddress_Wrap:
+					case TextureAddress::Wrap:
 						return GL_REPEAT;
-					case TextureAddress_Mirror:
+					case TextureAddress::Mirror:
 						return GL_MIRRORED_REPEAT;
-					case TextureAddress_Clamp:
+					case TextureAddress::Clamp:
 						return GL_CLAMP_TO_EDGE;
-					case TextureAddress_Border:
+					case TextureAddress::Border:
 						return GL_CLAMP_TO_BORDER;
-					case TextureAddress_Mirror_Once:
+					case TextureAddress::Mirror_Once:
 						return GL_MIRROR_CLAMP_TO_EDGE;
 				}
 
@@ -3294,21 +3294,21 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case Comparison_Never:
+					case Comparison::Never:
 						return GL_NEVER;
-					case Comparison_Less:
+					case Comparison::Less:
 						return GL_LESS;
-					case Comparison_Equal:
+					case Comparison::Equal:
 						return GL_EQUAL;
-					case Comparison_Less_Equal:
+					case Comparison::Less_Equal:
 						return GL_LEQUAL;
-					case Comparison_Greater:
+					case Comparison::Greater:
 						return GL_GREATER;
-					case Comparison_Not_Equal:
+					case Comparison::Not_Equal:
 						return GL_NOTEQUAL;
-					case Comparison_Greater_Equal:
+					case Comparison::Greater_Equal:
 						return GL_GEQUAL;
-					case Comparison_Always:
+					case Comparison::Always:
 						return GL_ALWAYS;
 				}
 
@@ -3318,32 +3318,32 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case PixelFilter_Min_Mag_Mip_Point:
-					case PixelFilter_Compare_Min_Mag_Mip_Point:
+					case PixelFilter::Min_Mag_Mip_Point:
+					case PixelFilter::Compare_Min_Mag_Mip_Point:
 						return GL_NEAREST;
-					case PixelFilter_Min_Mag_Point_Mip_Linear:
-					case PixelFilter_Compare_Min_Mag_Point_Mip_Linear:
+					case PixelFilter::Min_Mag_Point_Mip_Linear:
+					case PixelFilter::Compare_Min_Mag_Point_Mip_Linear:
 						return (Mag ? GL_NEAREST : GL_NEAREST_MIPMAP_LINEAR);
-					case PixelFilter_Min_Point_Mag_Linear_Mip_Point:
-					case PixelFilter_Compare_Min_Point_Mag_Linear_Mip_Point:
+					case PixelFilter::Min_Point_Mag_Linear_Mip_Point:
+					case PixelFilter::Compare_Min_Point_Mag_Linear_Mip_Point:
 						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_NEAREST);
-					case PixelFilter_Min_Point_Mag_Mip_Linear:
-					case PixelFilter_Compare_Min_Point_Mag_Mip_Linear:
+					case PixelFilter::Min_Point_Mag_Mip_Linear:
+					case PixelFilter::Compare_Min_Point_Mag_Mip_Linear:
 						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_LINEAR);
-					case PixelFilter_Min_Linear_Mag_Mip_Point:
-					case PixelFilter_Compare_Min_Linear_Mag_Mip_Point:
+					case PixelFilter::Min_Linear_Mag_Mip_Point:
+					case PixelFilter::Compare_Min_Linear_Mag_Mip_Point:
 						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_NEAREST);
-					case PixelFilter_Min_Linear_Mag_Point_Mip_Linear:
-					case PixelFilter_Compare_Min_Linear_Mag_Point_Mip_Linear:
+					case PixelFilter::Min_Linear_Mag_Point_Mip_Linear:
+					case PixelFilter::Compare_Min_Linear_Mag_Point_Mip_Linear:
 						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_LINEAR);
-					case PixelFilter_Min_Mag_Linear_Mip_Point:
-					case PixelFilter_Compare_Min_Mag_Linear_Mip_Point:
+					case PixelFilter::Min_Mag_Linear_Mip_Point:
+					case PixelFilter::Compare_Min_Mag_Linear_Mip_Point:
 						return (Mag ? GL_LINEAR : GL_LINEAR_MIPMAP_NEAREST);
-					case PixelFilter_Min_Mag_Mip_Linear:
-					case PixelFilter_Compare_Min_Mag_Mip_Linear:
+					case PixelFilter::Min_Mag_Mip_Linear:
+					case PixelFilter::Compare_Min_Mag_Mip_Linear:
 						return (Mag ? GL_LINEAR : GL_LINEAR_MIPMAP_LINEAR);
-					case PixelFilter_Anistropic:
-					case PixelFilter_Compare_Anistropic:
+					case PixelFilter::Anistropic:
+					case PixelFilter::Compare_Anistropic:
 						return GL_LINEAR;
 				}
 
@@ -3353,15 +3353,15 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case BlendOperation_Add:
+					case BlendOperation::Add:
 						return GL_FUNC_ADD;
-					case BlendOperation_Subtract:
+					case BlendOperation::Subtract:
 						return GL_FUNC_SUBTRACT;
-					case BlendOperation_Subtract_Reverse:
+					case BlendOperation::Subtract_Reverse:
 						return GL_FUNC_REVERSE_SUBTRACT;
-					case BlendOperation_Min:
+					case BlendOperation::Min:
 						return GL_MIN;
-					case BlendOperation_Max:
+					case BlendOperation::Max:
 						return GL_MAX;
 				}
 
@@ -3371,39 +3371,39 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case Blend_Zero:
+					case Blend::Zero:
 						return GL_ZERO;
-					case Blend_One:
+					case Blend::One:
 						return GL_ONE;
-					case Blend_Source_Color:
+					case Blend::Source_Color:
 						return GL_SRC_COLOR;
-					case Blend_Source_Color_Invert:
+					case Blend::Source_Color_Invert:
 						return GL_ONE_MINUS_SRC_COLOR;
-					case Blend_Source_Alpha:
+					case Blend::Source_Alpha:
 						return GL_SRC_ALPHA;
-					case Blend_Source_Alpha_Invert:
+					case Blend::Source_Alpha_Invert:
 						return GL_ONE_MINUS_SRC_ALPHA;
-					case Blend_Destination_Alpha:
+					case Blend::Destination_Alpha:
 						return GL_DST_ALPHA;
-					case Blend_Destination_Alpha_Invert:
+					case Blend::Destination_Alpha_Invert:
 						return GL_ONE_MINUS_DST_ALPHA;
-					case Blend_Destination_Color:
+					case Blend::Destination_Color:
 						return GL_DST_COLOR;
-					case Blend_Destination_Color_Invert:
+					case Blend::Destination_Color_Invert:
 						return GL_ONE_MINUS_DST_COLOR;
-					case Blend_Source_Alpha_SAT:
+					case Blend::Source_Alpha_SAT:
 						return GL_SRC_ALPHA_SATURATE;
-					case Blend_Blend_Factor:
+					case Blend::Blend_Factor:
 						return GL_CONSTANT_COLOR;
-					case Blend_Blend_Factor_Invert:
+					case Blend::Blend_Factor_Invert:
 						return GL_ONE_MINUS_CONSTANT_ALPHA;
-					case Blend_Source1_Color:
+					case Blend::Source1_Color:
 						return GL_SRC1_COLOR;
-					case Blend_Source1_Color_Invert:
+					case Blend::Source1_Color_Invert:
 						return GL_ONE_MINUS_SRC1_COLOR;
-					case Blend_Source1_Alpha:
+					case Blend::Source1_Alpha:
 						return GL_SRC1_ALPHA;
-					case Blend_Source1_Alpha_Invert:
+					case Blend::Source1_Alpha_Invert:
 						return GL_ONE_MINUS_SRC1_ALPHA;
 				}
 
@@ -3413,21 +3413,21 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case StencilOperation_Keep:
+					case StencilOperation::Keep:
 						return GL_KEEP;
-					case StencilOperation_Zero:
+					case StencilOperation::Zero:
 						return GL_ZERO;
-					case StencilOperation_Replace:
+					case StencilOperation::Replace:
 						return GL_REPLACE;
-					case StencilOperation_SAT_Add:
+					case StencilOperation::SAT_Add:
 						return GL_INCR_WRAP;
-					case StencilOperation_SAT_Subtract:
+					case StencilOperation::SAT_Subtract:
 						return GL_DECR_WRAP;
-					case StencilOperation_Invert:
+					case StencilOperation::Invert:
 						return GL_INVERT;
-					case StencilOperation_Add:
+					case StencilOperation::Add:
 						return GL_INCR;
-					case StencilOperation_Subtract:
+					case StencilOperation::Subtract:
 						return GL_DECR;
 				}
 
@@ -3437,17 +3437,17 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case PrimitiveTopology_Point_List:
+					case PrimitiveTopology::Point_List:
 						return GL_POINT;
-					case PrimitiveTopology_Line_List:
-					case PrimitiveTopology_Line_Strip:
-					case PrimitiveTopology_Line_List_Adj:
-					case PrimitiveTopology_Line_Strip_Adj:
+					case PrimitiveTopology::Line_List:
+					case PrimitiveTopology::Line_Strip:
+					case PrimitiveTopology::Line_List_Adj:
+					case PrimitiveTopology::Line_Strip_Adj:
 						return GL_LINE;
-					case PrimitiveTopology_Triangle_List:
-					case PrimitiveTopology_Triangle_Strip:
-					case PrimitiveTopology_Triangle_List_Adj:
-					case PrimitiveTopology_Triangle_Strip_Adj:
+					case PrimitiveTopology::Triangle_List:
+					case PrimitiveTopology::Triangle_Strip:
+					case PrimitiveTopology::Triangle_List_Adj:
+					case PrimitiveTopology::Triangle_Strip_Adj:
 						return GL_FILL;
 					default:
 						break;
@@ -3459,23 +3459,23 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case PrimitiveTopology_Point_List:
+					case PrimitiveTopology::Point_List:
 						return GL_POINTS;
-					case PrimitiveTopology_Line_List:
+					case PrimitiveTopology::Line_List:
 						return GL_LINES;
-					case PrimitiveTopology_Line_Strip:
+					case PrimitiveTopology::Line_Strip:
 						return GL_LINE_STRIP;
-					case PrimitiveTopology_Line_List_Adj:
+					case PrimitiveTopology::Line_List_Adj:
 						return GL_LINES_ADJACENCY;
-					case PrimitiveTopology_Line_Strip_Adj:
+					case PrimitiveTopology::Line_Strip_Adj:
 						return GL_LINE_STRIP_ADJACENCY;
-					case PrimitiveTopology_Triangle_List:
+					case PrimitiveTopology::Triangle_List:
 						return GL_TRIANGLES;
-					case PrimitiveTopology_Triangle_Strip:
+					case PrimitiveTopology::Triangle_Strip:
 						return GL_TRIANGLE_STRIP;
-					case PrimitiveTopology_Triangle_List_Adj:
+					case PrimitiveTopology::Triangle_List_Adj:
 						return GL_TRIANGLES_ADJACENCY;
-					case PrimitiveTopology_Triangle_Strip_Adj:
+					case PrimitiveTopology::Triangle_Strip_Adj:
 						return GL_TRIANGLE_STRIP_ADJACENCY;
 					default:
 						break;
@@ -3487,21 +3487,21 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case ResourceBind_Vertex_Buffer:
+					case ResourceBind::Vertex_Buffer:
 						return GL_ARRAY_BUFFER;
-					case ResourceBind_Index_Buffer:
+					case ResourceBind::Index_Buffer:
 						return GL_ELEMENT_ARRAY_BUFFER;
-					case ResourceBind_Constant_Buffer:
+					case ResourceBind::Constant_Buffer:
 						return GL_UNIFORM_BUFFER;
-					case ResourceBind_Shader_Input:
+					case ResourceBind::Shader_Input:
 						return GL_SHADER_STORAGE_BUFFER;
-					case ResourceBind_Stream_Output:
+					case ResourceBind::Stream_Output:
 						return GL_TEXTURE_BUFFER;
-					case ResourceBind_Render_Target:
+					case ResourceBind::Render_Target:
 						return GL_DRAW_INDIRECT_BUFFER;
-					case ResourceBind_Depth_Stencil:
+					case ResourceBind::Depth_Stencil:
 						return GL_DRAW_INDIRECT_BUFFER;
-					case ResourceBind_Unordered_Access:
+					case ResourceBind::Unordered_Access:
 						return GL_DISPATCH_INDIRECT_BUFFER;
 				}
 
@@ -3511,15 +3511,15 @@ namespace Tomahawk
 			{
 				switch (Value)
 				{
-					case ResourceMap_Read:
+					case ResourceMap::Read:
 						return GL_READ_ONLY;
-					case ResourceMap_Write:
+					case ResourceMap::Write:
 						return GL_WRITE_ONLY;
-					case ResourceMap_Read_Write:
+					case ResourceMap::Read_Write:
 						return GL_READ_WRITE;
-					case ResourceMap_Write_Discard:
+					case ResourceMap::Write_Discard:
 						return GL_WRITE_ONLY;
-					case ResourceMap_Write_No_Overwrite:
+					case ResourceMap::Write_No_Overwrite:
 						return GL_WRITE_ONLY;
 				}
 

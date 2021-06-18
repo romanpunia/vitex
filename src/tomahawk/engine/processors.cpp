@@ -91,7 +91,7 @@ namespace Tomahawk
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
 				auto IsActive = Args.find("active");
 
-				if (IsActive != Args.end() && IsActive->second.GetType() == Core::VarType_Boolean)
+				if (IsActive != Args.end() && IsActive->second.GetType() == Core::VarType::Boolean)
 					Object->SetActive(IsActive->second.GetBoolean());
 
 				Core::Document* Materials = Document->Find("materials");
@@ -536,7 +536,7 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					if (Device->GetBackend() == Graphics::RenderBackend_D3D11)
+					if (Device->GetBackend() == Graphics::RenderBackend::D3D11)
 					{
 						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
 						Compute::Common::ComputeVertexOrientation(F.Elements, true);
@@ -550,7 +550,7 @@ namespace Tomahawk
 					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
 					NMake::Unpack(Mesh->Find("world"), &Sub->World);
 
-					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
+					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend::D3D11)
 						Compute::Common::ComputeMatrixOrientation(&Sub->World, true);
 				}
 
@@ -851,7 +851,7 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					if (Device->GetBackend() == Graphics::RenderBackend_D3D11)
+					if (Device->GetBackend() == Graphics::RenderBackend::D3D11)
 					{
 						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
 						Compute::Common::ComputeInfluenceOrientation(F.Elements, true);
@@ -865,7 +865,7 @@ namespace Tomahawk
 					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
 					NMake::Unpack(Mesh->Find("world"), &Sub->World);
 
-					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend_D3D11)
+					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend::D3D11)
 						Compute::Common::ComputeMatrixOrientation(&Sub->World, true);
 				}
 
@@ -1043,12 +1043,12 @@ namespace Tomahawk
 				if (Object != nullptr)
 					return Object;
 
-				Stream->Seek(Core::FileSeek_Begin, Offset);
+				Stream->Seek(Core::FileSeek::Begin, Offset);
 				Object = Core::Document::ReadJSON(Length, Callback, false);
 				if (Object != nullptr)
 					return Object;
 
-				Stream->Seek(Core::FileSeek_Begin, Offset);
+				Stream->Seek(Core::FileSeek::Begin, Offset);
 				Object = Core::Document::ReadXML(Length, Callback, false);
 
 				if (!Object)
@@ -1077,19 +1077,19 @@ namespace Tomahawk
 
 						switch (Pretty)
 						{
-							case Tomahawk::Core::VarForm_Tab_Decrease:
+							case Tomahawk::Core::VarForm::Tab_Decrease:
 								Offset.assign(Offset.substr(0, Offset.size() - 1));
 								break;
-							case Tomahawk::Core::VarForm_Tab_Increase:
+							case Tomahawk::Core::VarForm::Tab_Increase:
 								Offset.append(1, '\t');
 								break;
-							case Tomahawk::Core::VarForm_Write_Space:
+							case Tomahawk::Core::VarForm::Write_Space:
 								Stream->Write(" ", 1);
 								break;
-							case Tomahawk::Core::VarForm_Write_Line:
+							case Tomahawk::Core::VarForm::Write_Line:
 								Stream->Write("\n", 1);
 								break;
-							case Tomahawk::Core::VarForm_Write_Tab:
+							case Tomahawk::Core::VarForm::Write_Tab:
 								Stream->Write(Offset.c_str(), Offset.size());
 								break;
 							default:
@@ -1106,19 +1106,19 @@ namespace Tomahawk
 
 						switch (Pretty)
 						{
-							case Tomahawk::Core::VarForm_Tab_Decrease:
+							case Tomahawk::Core::VarForm::Tab_Decrease:
 								Offset.assign(Offset.substr(0, Offset.size() - 1));
 								break;
-							case Tomahawk::Core::VarForm_Tab_Increase:
+							case Tomahawk::Core::VarForm::Tab_Increase:
 								Offset.append(1, '\t');
 								break;
-							case Tomahawk::Core::VarForm_Write_Space:
+							case Tomahawk::Core::VarForm::Write_Space:
 								Stream->Write(" ", 1);
 								break;
-							case Tomahawk::Core::VarForm_Write_Line:
+							case Tomahawk::Core::VarForm::Write_Line:
 								Stream->Write("\n", 1);
 								break;
-							case Tomahawk::Core::VarForm_Write_Tab:
+							case Tomahawk::Core::VarForm::Write_Tab:
 								Stream->Write(Offset.c_str(), Offset.size());
 								break;
 							default:
@@ -1204,15 +1204,15 @@ namespace Tomahawk
 					if (NMake::Unpack(It->Find("protocol"), &Name))
 					{
 						if (!strcmp(Name.c_str(), "SSL_V2"))
-							Cert->Protocol = Network::Secure_SSL_V2;
+							Cert->Protocol = Network::Secure::SSL_V2;
 						else if (!strcmp(Name.c_str(), "SSL_V3"))
-							Cert->Protocol = Network::Secure_SSL_V3;
+							Cert->Protocol = Network::Secure::SSL_V3;
 						else if (!strcmp(Name.c_str(), "TLS_V1"))
-							Cert->Protocol = Network::Secure_TLS_V1;
+							Cert->Protocol = Network::Secure::TLS_V1;
 						else if (!strcmp(Name.c_str(), "TLS_V1_1"))
-							Cert->Protocol = Network::Secure_TLS_V1_1;
+							Cert->Protocol = Network::Secure::TLS_V1_1;
 						else
-							Cert->Protocol = Network::Secure_Any;
+							Cert->Protocol = Network::Secure::Any;
 					}
 
 					if (!NMake::Unpack(It->Find("ciphers"), &Cert->Ciphers))
@@ -1314,7 +1314,7 @@ namespace Tomahawk
 						Network::HTTP::RouteEntry* Route = nullptr;
 						Core::Document* For = Base->GetAttribute("for");
 						Core::Document* From = Base->GetAttribute("from");
-						if (From != nullptr && From->Value.GetType() == Core::VarType_String)
+						if (From != nullptr && From->Value.GetType() == Core::VarType::String)
 						{
 							auto Subalias = Aliases.find(From->Value.GetBlob());
 							if (Subalias != Aliases.end())
@@ -1322,7 +1322,7 @@ namespace Tomahawk
 							else
 								Route = Site->Route(SourceURL);
 						}
-						else if (For != nullptr && For->Value.GetType() == Core::VarType_String && SourceURL.empty())
+						else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceURL.empty())
 							Route = Site->Route("..." + For->Value.GetBlob() + "...");
 						else
 							Route = Site->Route(SourceURL);
@@ -1338,7 +1338,7 @@ namespace Tomahawk
 						{
 							std::string Pattern;
 							if (NMake::Unpack(File, &Pattern))
-								Route->Gateway.Files.emplace_back(Pattern, Compute::RegexFlags_IgnoreCase);
+								Route->Gateway.Files.emplace_back(Pattern, true);
 						}
 
 						std::vector<Core::Document*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
@@ -1383,7 +1383,7 @@ namespace Tomahawk
 						{
 							std::string Value;
 							if (NMake::Unpack(File, &Value))
-								Route->Compression.Files.emplace_back(Value, Compute::RegexFlags_IgnoreCase);
+								Route->Compression.Files.emplace_back(Value, true);
 						}
 
 						std::vector<Core::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
@@ -1394,7 +1394,7 @@ namespace Tomahawk
 						{
 							std::string Value;
 							if (NMake::Unpack(File, &Value))
-								Route->HiddenFiles.emplace_back(Value, Compute::RegexFlags_IgnoreCase);
+								Route->HiddenFiles.emplace_back(Value, true);
 						}
 
 						std::vector<Core::Document*> IndexFiles = Base->FetchCollection("index-files.index");
@@ -1447,15 +1447,15 @@ namespace Tomahawk
 						if (NMake::Unpack(Base->Fetch("compression.tune"), &Tune))
 						{
 							if (!strcmp(Tune.c_str(), "Filtered"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune_Filtered;
+								Route->Compression.Tune = Network::HTTP::CompressionTune::Filtered;
 							else if (!strcmp(Tune.c_str(), "Huffman"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune_Huffman;
+								Route->Compression.Tune = Network::HTTP::CompressionTune::Huffman;
 							else if (!strcmp(Tune.c_str(), "Rle"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune_Rle;
+								Route->Compression.Tune = Network::HTTP::CompressionTune::Rle;
 							else if (!strcmp(Tune.c_str(), "Fixed"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune_Fixed;
+								Route->Compression.Tune = Network::HTTP::CompressionTune::Fixed;
 							else
-								Route->Compression.Tune = Network::HTTP::CompressionTune_Default;
+								Route->Compression.Tune = Network::HTTP::CompressionTune::Default;
 						}
 
 						if (NMake::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
@@ -1485,7 +1485,7 @@ namespace Tomahawk
 						NMake::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
 						NMake::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
 
-						if (!For || For->Value.GetType() != Core::VarType_String)
+						if (!For || For->Value.GetType() != Core::VarType::String)
 							continue;
 
 						std::string Alias = For->Value.GetBlob();

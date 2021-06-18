@@ -11,11 +11,11 @@ namespace Tomahawk
 		{
 			typedef std::function<void()> ReplyCallback;
 
-			enum Priority
+			enum class Priority
 			{
-				Priority_High = 2,
-				Priority_Normal = 3,
-				Priority_Low = 4
+				High = 2,
+				Normal = 3,
+				Low = 4
 			};
 
 			struct TH_OUT Recipient
@@ -46,7 +46,7 @@ namespace Tomahawk
 				std::string Login;
 				std::string Password;
 				std::string Hostname;
-				Priority Prior = Priority_Normal;
+				Priority Prior = Priority::Normal;
 				bool Authenticate = true;
 				bool NoNotification = false;
 				bool AllowHTML = false;

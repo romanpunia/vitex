@@ -10,61 +10,61 @@ namespace Tomahawk
 	{
 		namespace HTTP
 		{
-			enum Auth
+			enum class Auth
 			{
-				Auth_Granted,
-				Auth_Denied,
-				Auth_Unverified
+				Granted,
+				Denied,
+				Unverified
 			};
 
-			enum Content
+			enum class Content
 			{
-				Content_Not_Loaded,
-				Content_Lost,
-				Content_Cached,
-				Content_Empty,
-				Content_Corrupted,
-				Content_Payload_Exceeded,
-				Content_Wants_Save,
-				Content_Saved,
-				Content_Save_Exception
+				Not_Loaded,
+				Lost,
+				Cached,
+				Empty,
+				Corrupted,
+				Payload_Exceeded,
+				Wants_Save,
+				Saved,
+				Save_Exception
 			};
 
-			enum QueryValue
+			enum class QueryValue
 			{
-				QueryValue_Unknown,
-				QueryValue_Number,
-				QueryValue_String,
-				QueryValue_Boolean,
-				QueryValue_Object
+				Unknown,
+				Number,
+				String,
+				Boolean,
+				Object
 			};
 
-			enum WebSocketOp
+			enum class WebSocketOp
 			{
-				WebSocketOp_Continue = 0x00,
-				WebSocketOp_Text = 0x01,
-				WebSocketOp_Binary = 0x02,
-				WebSocketOp_Close = 0x08,
-				WebSocketOp_Ping = 0x09,
-				WebSocketOp_Pong = 0x0A
+				Continue = 0x00,
+				Text = 0x01,
+				Binary = 0x02,
+				Close = 0x08,
+				Ping = 0x09,
+				Pong = 0x0A
 			};
 
-			enum WebSocketState
+			enum class WebSocketState
 			{
-				WebSocketState_Active = (1 << 0),
-				WebSocketState_Handshake = (1 << 1),
-				WebSocketState_Reset = (1 << 2),
-				WebSocketState_Close = (1 << 3),
-				WebSocketState_Free = (1 << 4)
+				Active = (1 << 0),
+				Handshake = (1 << 1),
+				Reset = (1 << 2),
+				Close = (1 << 3),
+				Free = (1 << 4)
 			};
 
-			enum CompressionTune
+			enum class CompressionTune
 			{
-				CompressionTune_Filtered = 1,
-				CompressionTune_Huffman = 2,
-				CompressionTune_Rle = 3,
-				CompressionTune_Fixed = 4,
-				CompressionTune_Default = 0
+				Filtered = 1,
+				Huffman = 2,
+				Rle = 3,
+				Fixed = 4,
+				Default = 0
 			};
 
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
@@ -116,7 +116,7 @@ namespace Tomahawk
 			{
 				std::string Username;
 				std::string Password;
-				Auth Type = Auth_Unverified;
+				Auth Type = Auth::Unverified;
 			};
 
 			struct TH_OUT Header
@@ -162,7 +162,7 @@ namespace Tomahawk
 				std::string URI;
 				Compute::RegexResult Match;
 				Credentials User;
-				Content ContentState = Content_Not_Loaded;
+				Content ContentState = Content::Not_Loaded;
 				char RemoteAddress[48] = { 0 };
 				char Method[10] = { 0 };
 				char Version[10] = { 0 };
@@ -203,7 +203,7 @@ namespace Tomahawk
 				uint64_t MaskLength = 0;
 				uint64_t HeaderLength = 0;
 				uint64_t DataLength = 0;
-				int State = WebSocketState_Handshake;
+				unsigned int State = (uint32_t)WebSocketState::Handshake;
 				unsigned char Mask[4] = { 0 };
 				unsigned char Opcode = 0;
 				bool Clear = false;
@@ -314,7 +314,7 @@ namespace Tomahawk
 				struct
 				{
 					std::vector<Compute::RegexSource> Files;
-					CompressionTune Tune = CompressionTune_Default;
+					CompressionTune Tune = CompressionTune::Default;
 					int QualityLevel = 8;
 					int MemoryLevel = 8;
 					uint64_t MinLength = 16384;

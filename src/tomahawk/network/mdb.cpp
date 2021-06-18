@@ -41,7 +41,7 @@ namespace Tomahawk
 				return Result;
 			}
 #endif
-			Property::Property() : Object(nullptr), Array(nullptr), Mod(Type_Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
+			Property::Property() : Object(nullptr), Array(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
 			{
 			}
 			Property::~Property()
@@ -61,33 +61,33 @@ namespace Tomahawk
 				Integer = 0;
 				Number = 0;
 				Boolean = false;
-				Mod = Type_Unknown;
+				Mod = Type::Unknown;
 				IsValid = false;
 			}
 			std::string& Property::ToString()
 			{
 				switch (Mod)
 				{
-					case Type_Document:
+					case Type::Document:
 						return String.assign("{}");
-					case Type_Array:
+					case Type::Array:
 						return String.assign("[]");
-					case Type_String:
+					case Type::String:
 						return String;
-					case Type_Boolean:
+					case Type::Boolean:
 						return String.assign(Boolean ? "true" : "false");
-					case Type_Number:
+					case Type::Number:
 						return String.assign(std::to_string(Number));
-					case Type_Integer:
+					case Type::Integer:
 						return String.assign(std::to_string(Integer));
-					case Type_ObjectId:
+					case Type::ObjectId:
 						return String.assign(Compute::Common::Base64Encode((const char*)ObjectId));
-					case Type_Null:
+					case Type::Null:
 						return String.assign("null");
-					case Type_Unknown:
-					case Type_Uncastable:
+					case Type::Unknown:
+					case Type::Uncastable:
 						return String.assign("undefined");
-					case Type_Decimal:
+					case Type::Decimal:
 					{
 #ifdef TH_HAS_MONGOC
 						bson_decimal128_t Decimal;
@@ -490,21 +490,21 @@ namespace Tomahawk
 
 				switch (Value->Mod)
 				{
-					case Type_Document:
+					case Type::Document:
 						return SetDocument(Key, Document(Value->Object).Copy());
-					case Type_Array:
+					case Type::Array:
 						return SetArray(Key, Document(Value->Array).Copy());
-					case Type_String:
+					case Type::String:
 						return SetString(Key, Value->String.c_str());
-					case Type_Boolean:
+					case Type::Boolean:
 						return SetBoolean(Key, Value->Boolean);
-					case Type_Number:
+					case Type::Number:
 						return SetNumber(Key, Value->Number);
-					case Type_Integer:
+					case Type::Integer:
 						return SetInteger(Key, Value->Integer);
-					case Type_Decimal:
+					case Type::Decimal:
 						return SetDecimal(Key, Value->High, Value->Low);
-					case Type_ObjectId:
+					case Type::ObjectId:
 						return SetObjectId(Key, Value->ObjectId);
 					default:
 						return false;
@@ -561,69 +561,69 @@ namespace Tomahawk
 				switch (Value->value_type)
 				{
 					case BSON_TYPE_DOCUMENT:
-						Output->Mod = Type_Document;
+						Output->Mod = Type::Document;
 						Output->Object = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
 						break;
 					case BSON_TYPE_ARRAY:
-						Output->Mod = Type_Array;
+						Output->Mod = Type::Array;
 						Output->Array = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
 						break;
 					case BSON_TYPE_BOOL:
-						Output->Mod = Type_Boolean;
+						Output->Mod = Type::Boolean;
 						Output->Boolean = Value->value.v_bool;
 						break;
 					case BSON_TYPE_INT32:
-						Output->Mod = Type_Integer;
+						Output->Mod = Type::Integer;
 						Output->Integer = Value->value.v_int32;
 						break;
 					case BSON_TYPE_INT64:
-						Output->Mod = Type_Integer;
+						Output->Mod = Type::Integer;
 						Output->Integer = Value->value.v_int64;
 						break;
 					case BSON_TYPE_DOUBLE:
-						Output->Mod = Type_Number;
+						Output->Mod = Type::Number;
 						Output->Number = Value->value.v_double;
 						break;
 					case BSON_TYPE_DECIMAL128:
-						Output->Mod = Type_Decimal;
+						Output->Mod = Type::Decimal;
 						Output->High = (uint64_t)Value->value.v_decimal128.high;
 						Output->Low = (uint64_t)Value->value.v_decimal128.low;
 						break;
 					case BSON_TYPE_UTF8:
-						Output->Mod = Type_String;
+						Output->Mod = Type::String;
 						Output->String.assign(Value->value.v_utf8.str, (uint64_t)Value->value.v_utf8.len);
 						break;
 					case BSON_TYPE_TIMESTAMP:
-						Output->Mod = Type_Integer;
+						Output->Mod = Type::Integer;
 						Output->Integer = (int64_t)Value->value.v_timestamp.timestamp;
 						Output->Number = (double)Value->value.v_timestamp.increment;
 						break;
 					case BSON_TYPE_DATE_TIME:
-						Output->Mod = Type_Integer;
+						Output->Mod = Type::Integer;
 						Output->Integer = Value->value.v_datetime;
 						break;
 					case BSON_TYPE_REGEX:
-						Output->Mod = Type_String;
+						Output->Mod = Type::String;
 						Output->String.assign(Value->value.v_regex.regex).append(1, '\n').append(Value->value.v_regex.options);
 						break;
 					case BSON_TYPE_CODE:
-						Output->Mod = Type_String;
+						Output->Mod = Type::String;
 						Output->String.assign(Value->value.v_code.code, (uint64_t)Value->value.v_code.code_len);
 						break;
 					case BSON_TYPE_SYMBOL:
-						Output->Mod = Type_String;
+						Output->Mod = Type::String;
 						Output->String.assign(Value->value.v_symbol.symbol, (uint64_t)Value->value.v_symbol.len);
 						break;
 					case BSON_TYPE_CODEWSCOPE:
-						Output->Mod = Type_String;
+						Output->Mod = Type::String;
 						Output->String.assign(Value->value.v_codewscope.code, (uint64_t)Value->value.v_codewscope.code_len);
 						break;
 					case BSON_TYPE_UNDEFINED:
 					case BSON_TYPE_NULL:
-						Output->Mod = Type_Null;
+						Output->Mod = Type::Null;
 						break;
 					case BSON_TYPE_OID:
-						Output->Mod = Type_ObjectId;
+						Output->Mod = Type::ObjectId;
 						memcpy(Output->ObjectId, Value->value.v_oid.bytes, sizeof(unsigned char) * 12);
 						break;
 					case BSON_TYPE_EOD:
@@ -631,7 +631,7 @@ namespace Tomahawk
 					case BSON_TYPE_DBPOINTER:
 					case BSON_TYPE_MAXKEY:
 					case BSON_TYPE_MINKEY:
-						Output->Mod = Type_Uncastable;
+						Output->Mod = Type::Uncastable;
 						break;
 					default:
 						break;
@@ -737,38 +737,38 @@ namespace Tomahawk
 				Core::Document* Node = (IsArray ? Core::Document::Array() : Core::Document::Object());
 				Loop([Node](Property* Key) -> bool
 				{
-					std::string Name = (Node->Value.GetType() == Core::VarType_Array ? "" : Key->Name);
+					std::string Name = (Node->Value.GetType() == Core::VarType::Array ? "" : Key->Name);
 					switch (Key->Mod)
 					{
-						case Type_Document:
+						case Type::Document:
 						{
 							Node->Set(Name, Document(Key->Object).ToDocument(false));
 							break;
 						}
-						case Type_Array:
+						case Type::Array:
 						{
 							Node->Set(Name, Document(Key->Array).ToDocument(true));
 							break;
 						}
-						case Type_String:
+						case Type::String:
 							Node->Set(Name, Core::Var::String(Key->String));
 							break;
-						case Type_Boolean:
+						case Type::Boolean:
 							Node->Set(Name, Core::Var::Boolean(Key->Boolean));
 							break;
-						case Type_Number:
+						case Type::Number:
 							Node->Set(Name, Core::Var::Number(Key->Number));
 							break;
-						case Type_Decimal:
+						case Type::Decimal:
 							Node->Set(Name, Core::Var::DecimalString(Key->ToString()));
 							break;
-						case Type_Integer:
+						case Type::Integer:
 							Node->Set(Name, Core::Var::Integer(Key->Integer));
 							break;
-						case Type_ObjectId:
+						case Type::ObjectId:
 							Node->Set(Name, Core::Var::Base64(Key->ObjectId, 12));
 							break;
-						case Type_Null:
+						case Type::Null:
 							Node->Set(Name, Core::Var::Null());
 							break;
 						default:
@@ -813,7 +813,7 @@ namespace Tomahawk
 				if (!Src || !Src->Value.IsObject())
 					return nullptr;
 
-				bool Array = (Src->Value.GetType() == Core::VarType_Array);
+				bool Array = (Src->Value.GetType() == Core::VarType::Array);
 				Document Result = bson_new();
 				uint64_t Index = 0;
 
@@ -821,31 +821,31 @@ namespace Tomahawk
 				{
 					switch (Node->Value.GetType())
 					{
-						case Core::VarType_Object:
+						case Core::VarType::Object:
 							Result.SetDocument(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
 							break;
-						case Core::VarType_Array:
+						case Core::VarType::Array:
 							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
 							break;
-						case Core::VarType_String:
+						case Core::VarType::String:
 							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.GetSize(), Index);
 							break;
-						case Core::VarType_Boolean:
+						case Core::VarType::Boolean:
 							Result.SetBoolean(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBoolean(), Index);
 							break;
-						case Core::VarType_Decimal:
+						case Core::VarType::Decimal:
 							Result.SetDecimalString(Array ? nullptr : Node->Key.c_str(), Node->Value.GetDecimal().ToString(), Index);
 							break;
-						case Core::VarType_Number:
+						case Core::VarType::Number:
 							Result.SetNumber(Array ? nullptr : Node->Key.c_str(), Node->Value.GetNumber(), Index);
 							break;
-						case Core::VarType_Integer:
+						case Core::VarType::Integer:
 							Result.SetInteger(Array ? nullptr : Node->Key.c_str(), Node->Value.GetInteger(), Index);
 							break;
-						case Core::VarType_Null:
+						case Core::VarType::Null:
 							Result.SetNull(Array ? nullptr : Node->Key.c_str(), Index);
 							break;
-						case Core::VarType_Base64:
+						case Core::VarType::Base64:
 						{
 							if (Node->Value.GetSize() != 12)
 							{
@@ -3142,7 +3142,7 @@ namespace Tomahawk
 
 				switch (Source->Value.GetType())
 				{
-					case Core::VarType_Object:
+					case Core::VarType::Object:
 					{
 						std::string Result = "{";
 						for (auto* Node : *Source->GetNodes())
@@ -3156,7 +3156,7 @@ namespace Tomahawk
 
 						return Result + "}";
 					}
-					case Core::VarType_Array:
+					case Core::VarType::Array:
 					{
 						std::string Result = "[";
 						for (auto* Node : *Source->GetNodes())
@@ -3167,7 +3167,7 @@ namespace Tomahawk
 
 						return Result + "]";
 					}
-					case Core::VarType_String:
+					case Core::VarType::String:
 					{
 						std::string Result = Source->Value.GetBlob();
 						if (!Escape)
@@ -3177,15 +3177,15 @@ namespace Tomahawk
 						Result.append(1, '\"');
 						return Result;
 					}
-					case Core::VarType_Integer:
+					case Core::VarType::Integer:
 						return std::to_string(Source->Value.GetInteger());
-					case Core::VarType_Number:
+					case Core::VarType::Number:
 						return std::to_string(Source->Value.GetNumber());
-					case Core::VarType_Boolean:
+					case Core::VarType::Boolean:
 						return Source->Value.GetBoolean() ? "true" : "false";
-					case Core::VarType_Decimal:
+					case Core::VarType::Decimal:
 						return "{\"$numberDouble\":\"" + Source->Value.GetDecimal().ToString() + "\"}";
-					case Core::VarType_Base64:
+					case Core::VarType::Base64:
 					{
 						if (Source->Value.GetSize() != 12)
 						{
@@ -3195,8 +3195,8 @@ namespace Tomahawk
 
 						return "{\"$oid\":\"" + Util::IdToString(Source->Value.GetBase64()) + "\"}";
 					}
-					case Core::VarType_Null:
-					case Core::VarType_Undefined:
+					case Core::VarType::Null:
+					case Core::VarType::Undefined:
 						return "null";
 					default:
 						break;

@@ -67,57 +67,57 @@ namespace Tomahawk
 			{
 				switch (Key)
 				{
-					case AddressOp_Host:
+					case AddressOp::Host:
 						return "host";
-					case AddressOp_Ip:
+					case AddressOp::Ip:
 						return "hostaddr";
-					case AddressOp_Port:
+					case AddressOp::Port:
 						return "port";
-					case AddressOp_Database:
+					case AddressOp::Database:
 						return "dbname";
-					case AddressOp_User:
+					case AddressOp::User:
 						return "user";
-					case AddressOp_Password:
+					case AddressOp::Password:
 						return "password";
-					case AddressOp_Timeout:
+					case AddressOp::Timeout:
 						return "connect_timeout";
-					case AddressOp_Encoding:
+					case AddressOp::Encoding:
 						return "client_encoding";
-					case AddressOp_Options:
+					case AddressOp::Options:
 						return "options";
-					case AddressOp_Profile:
+					case AddressOp::Profile:
 						return "application_name";
-					case AddressOp_Fallback_Profile:
+					case AddressOp::Fallback_Profile:
 						return "fallback_application_name";
-					case AddressOp_KeepAlive:
+					case AddressOp::KeepAlive:
 						return "keepalives";
-					case AddressOp_KeepAlive_Idle:
+					case AddressOp::KeepAlive_Idle:
 						return "keepalives_idle";
-					case AddressOp_KeepAlive_Interval:
+					case AddressOp::KeepAlive_Interval:
 						return "keepalives_interval";
-					case AddressOp_KeepAlive_Count:
+					case AddressOp::KeepAlive_Count:
 						return "keepalives_count";
-					case AddressOp_TTY:
+					case AddressOp::TTY:
 						return "tty";
-					case AddressOp_SSL:
+					case AddressOp::SSL:
 						return "sslmode";
-					case AddressOp_SSL_Compression:
+					case AddressOp::SSL_Compression:
 						return "sslcompression";
-					case AddressOp_SSL_Cert:
+					case AddressOp::SSL_Cert:
 						return "sslcert";
-					case AddressOp_SSL_Root_Cert:
+					case AddressOp::SSL_Root_Cert:
 						return "sslrootcert";
-					case AddressOp_SSL_Key:
+					case AddressOp::SSL_Key:
 						return "sslkey";
-					case AddressOp_SSL_CRL:
+					case AddressOp::SSL_CRL:
 						return "sslcrl";
-					case AddressOp_Require_Peer:
+					case AddressOp::Require_Peer:
 						return "requirepeer";
-					case AddressOp_Require_SSL:
+					case AddressOp::Require_SSL:
 						return "requiressl";
-					case AddressOp_KRB_Server_Name:
+					case AddressOp::KRB_Server_Name:
 						return "krbservname";
-					case AddressOp_Service:
+					case AddressOp::Service:
 						return "service";
 					default:
 						return "";
@@ -702,11 +702,11 @@ namespace Tomahawk
 					return "NULL";
 
 				Core::Document* Parent = Source->GetParent();
-				bool Array = (Parent && Parent->Value.GetType() == Core::VarType_Array);
+				bool Array = (Parent && Parent->Value.GetType() == Core::VarType::Array);
 
 				switch (Source->Value.GetType())
 				{
-					case Core::VarType_Object:
+					case Core::VarType::Object:
 					{
 						if (Array)
 							return "";
@@ -720,7 +720,7 @@ namespace Tomahawk
 
 						return GetCharArray(Base, Result);
 					}
-					case Core::VarType_Array:
+					case Core::VarType::Array:
 					{
 						std::string Result = (Array ? "[" : "ARRAY[");
 						for (auto* Node : *Source->GetNodes())
@@ -731,7 +731,7 @@ namespace Tomahawk
 
 						return Result + "]";
 					}
-					case Core::VarType_String:
+					case Core::VarType::String:
 					{
 						std::string Result(GetCharArray(Base, Source->Value.GetBlob()));
 						if (Escape)
@@ -746,21 +746,21 @@ namespace Tomahawk
                         Result = Result.substr(1, Result.size() - 2);
 						return Result;
 					}
-					case Core::VarType_Integer:
+					case Core::VarType::Integer:
 						return std::to_string(Source->Value.GetInteger());
-					case Core::VarType_Number:
+					case Core::VarType::Number:
 						return std::to_string(Source->Value.GetNumber());
-					case Core::VarType_Boolean:
+					case Core::VarType::Boolean:
 						return Source->Value.GetBoolean() ? "TRUE" : "FALSE";
-					case Core::VarType_Decimal:
+					case Core::VarType::Decimal:
 					{
                         std::string Result(GetCharArray(Base, Source->Value.GetDecimal().ToString()));
 						return (Result.size() >= 2 ? Result.substr(1, Result.size() - 2) : Result);
 					}
-					case Core::VarType_Base64:
+					case Core::VarType::Base64:
 						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());
-					case Core::VarType_Null:
-					case Core::VarType_Undefined:
+					case Core::VarType::Null:
+					case Core::VarType::Undefined:
 						return "NULL";
 					default:
 						break;

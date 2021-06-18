@@ -120,7 +120,7 @@ namespace Tomahawk
 		VMLogType VMMessage::GetType() const
 		{
 			if (!IsValid())
-				return VMLogType_INFORMATION;
+				return VMLogType::INFORMATION;
 
 			return (VMLogType)Info->type;
 		}
@@ -531,7 +531,7 @@ namespace Tomahawk
 		VMFuncType VMFunction::GetType() const
 		{
 			if (!IsValid())
-				return VMFuncType_DUMMY;
+				return VMFuncType::DUMMY;
 
 			return (VMFuncType)Function->GetFuncType();
 		}
@@ -1232,151 +1232,151 @@ namespace Tomahawk
 		{
 			switch (Op)
 			{
-				case VMOpFunc_Neg:
+				case VMOpFunc::Neg:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opNeg()%s", Out, Const ? " const" : "");
-				case VMOpFunc_Com:
+				case VMOpFunc::Com:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCom()%s", Out, Const ? " const" : "");
-				case VMOpFunc_PreInc:
+				case VMOpFunc::PreInc:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPreInc()%s", Out, Const ? " const" : "");
-				case VMOpFunc_PreDec:
+				case VMOpFunc::PreDec:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPreDec()%s", Out, Const ? " const" : "");
-				case VMOpFunc_PostInc:
+				case VMOpFunc::PostInc:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPostInc()%s", Out, Const ? " const" : "");
-				case VMOpFunc_PostDec:
+				case VMOpFunc::PostDec:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPostDec()%s", Out, Const ? " const" : "");
-				case VMOpFunc_Equals:
+				case VMOpFunc::Equals:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Cmp:
+				case VMOpFunc::Cmp:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Assign:
+				case VMOpFunc::Assign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_AddAssign:
+				case VMOpFunc::AddAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_SubAssign:
+				case VMOpFunc::SubAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_MulAssign:
+				case VMOpFunc::MulAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_DivAssign:
+				case VMOpFunc::DivAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_ModAssign:
+				case VMOpFunc::ModAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_PowAssign:
+				case VMOpFunc::PowAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_AndAssign:
+				case VMOpFunc::AndAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_OrAssign:
+				case VMOpFunc::OrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_XOrAssign:
+				case VMOpFunc::XOrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_ShlAssign:
+				case VMOpFunc::ShlAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_ShrAssign:
+				case VMOpFunc::ShrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_UshrAssign:
+				case VMOpFunc::UshrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Add:
+				case VMOpFunc::Add:
 					return Core::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Sub:
+				case VMOpFunc::Sub:
 					return Core::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Mul:
+				case VMOpFunc::Mul:
 					return Core::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Div:
+				case VMOpFunc::Div:
 					return Core::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Mod:
+				case VMOpFunc::Mod:
 					return Core::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Pow:
+				case VMOpFunc::Pow:
 					return Core::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_And:
+				case VMOpFunc::And:
 					return Core::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Or:
+				case VMOpFunc::Or:
 					return Core::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_XOr:
+				case VMOpFunc::XOr:
 					return Core::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Shl:
+				case VMOpFunc::Shl:
 					return Core::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Shr:
+				case VMOpFunc::Shr:
 					return Core::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Ushr:
+				case VMOpFunc::Ushr:
 					return Core::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Index:
+				case VMOpFunc::Index:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Call:
+				case VMOpFunc::Call:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc_Cast:
+				case VMOpFunc::Cast:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCast()%s", Out, Const ? " const" : "");
-				case VMOpFunc_ImplCast:
+				case VMOpFunc::ImplCast:
 					if (Right)
 						return "";
 
@@ -2065,25 +2065,25 @@ namespace Tomahawk
 			if (!Manager || !Object)
 				return "null";
 
-			if (TypeId == VMTypeId_INT8)
+			if (TypeId == (int)VMTypeId::INT8)
 				return "int8(" + std::to_string(*(char*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_INT16)
+			else if (TypeId == (int)VMTypeId::INT16)
 				return "int16(" + std::to_string(*(short*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_INT32)
+			else if (TypeId == (int)VMTypeId::INT32)
 				return "int32(" + std::to_string(*(int*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_INT64)
+			else if (TypeId == (int)VMTypeId::INT64)
 				return "int64(" + std::to_string(*(int64_t*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_UINT8)
+			else if (TypeId == (int)VMTypeId::UINT8)
 				return "uint8(" + std::to_string(*(unsigned char*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_UINT16)
+			else if (TypeId == (int)VMTypeId::UINT16)
 				return "uint16(" + std::to_string(*(unsigned short*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_UINT32)
+			else if (TypeId == (int)VMTypeId::UINT32)
 				return "uint32(" + std::to_string(*(unsigned int*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_UINT64)
+			else if (TypeId == (int)VMTypeId::UINT64)
 				return "uint64(" + std::to_string(*(uint64_t*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_FLOAT)
+			else if (TypeId == (int)VMTypeId::FLOAT)
 				return "float(" + std::to_string(*(float*)(Object)) + "), ";
-			else if (TypeId == VMTypeId_DOUBLE)
+			else if (TypeId == (int)VMTypeId::DOUBLE)
 				return "double(" + std::to_string(*(double*)(Object)) + "), ";
 
 			VMCTypeInfo* Type = Manager->GetEngine()->GetTypeInfoById(TypeId);
@@ -2166,67 +2166,67 @@ namespace Tomahawk
 
 					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
 					if (Key == "ALLOW_UNSAFE_REFERENCES")
-						Manager->SetProperty(VMProp_ALLOW_UNSAFE_REFERENCES, Result);
+						Manager->SetProperty(VMProp::ALLOW_UNSAFE_REFERENCES, Result);
 					else if (Key == "OPTIMIZE_BYTECODE")
-						Manager->SetProperty(VMProp_OPTIMIZE_BYTECODE, Result);
+						Manager->SetProperty(VMProp::OPTIMIZE_BYTECODE, Result);
 					else if (Key == "COPY_SCRIPT_SECTIONS")
-						Manager->SetProperty(VMProp_COPY_SCRIPT_SECTIONS, Result);
+						Manager->SetProperty(VMProp::COPY_SCRIPT_SECTIONS, Result);
 					else if (Key == "MAX_STACK_SIZE")
-						Manager->SetProperty(VMProp_MAX_STACK_SIZE, Result);
+						Manager->SetProperty(VMProp::MAX_STACK_SIZE, Result);
 					else if (Key == "USE_CHARACTER_LITERALS")
-						Manager->SetProperty(VMProp_USE_CHARACTER_LITERALS, Result);
+						Manager->SetProperty(VMProp::USE_CHARACTER_LITERALS, Result);
 					else if (Key == "ALLOW_MULTILINE_STRINGS")
-						Manager->SetProperty(VMProp_ALLOW_MULTILINE_STRINGS, Result);
+						Manager->SetProperty(VMProp::ALLOW_MULTILINE_STRINGS, Result);
 					else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
-						Manager->SetProperty(VMProp_ALLOW_IMPLICIT_HANDLE_TYPES, Result);
+						Manager->SetProperty(VMProp::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
 					else if (Key == "BUILD_WITHOUT_LINE_CUES")
-						Manager->SetProperty(VMProp_BUILD_WITHOUT_LINE_CUES, Result);
+						Manager->SetProperty(VMProp::BUILD_WITHOUT_LINE_CUES, Result);
 					else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
-						Manager->SetProperty(VMProp_INIT_GLOBAL_VARS_AFTER_BUILD, Result);
+						Manager->SetProperty(VMProp::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
 					else if (Key == "REQUIRE_ENUM_SCOPE")
-						Manager->SetProperty(VMProp_REQUIRE_ENUM_SCOPE, Result);
+						Manager->SetProperty(VMProp::REQUIRE_ENUM_SCOPE, Result);
 					else if (Key == "SCRIPT_SCANNER")
-						Manager->SetProperty(VMProp_SCRIPT_SCANNER, Result);
+						Manager->SetProperty(VMProp::SCRIPT_SCANNER, Result);
 					else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
-						Manager->SetProperty(VMProp_INCLUDE_JIT_INSTRUCTIONS, Result);
+						Manager->SetProperty(VMProp::INCLUDE_JIT_INSTRUCTIONS, Result);
 					else if (Key == "STRING_ENCODING")
-						Manager->SetProperty(VMProp_STRING_ENCODING, Result);
+						Manager->SetProperty(VMProp::STRING_ENCODING, Result);
 					else if (Key == "PROPERTY_ACCESSOR_MODE")
-						Manager->SetProperty(VMProp_PROPERTY_ACCESSOR_MODE, Result);
+						Manager->SetProperty(VMProp::PROPERTY_ACCESSOR_MODE, Result);
 					else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
-						Manager->SetProperty(VMProp_EXPAND_DEF_ARRAY_TO_TMPL, Result);
+						Manager->SetProperty(VMProp::EXPAND_DEF_ARRAY_TO_TMPL, Result);
 					else if (Key == "AUTO_GARBAGE_COLLECT")
-						Manager->SetProperty(VMProp_AUTO_GARBAGE_COLLECT, Result);
+						Manager->SetProperty(VMProp::AUTO_GARBAGE_COLLECT, Result);
 					else if (Key == "DISALLOW_GLOBAL_VARS")
-						Manager->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
 					else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
-						Manager->SetProperty(VMProp_ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
 					else if (Key == "COMPILER_WARNINGS")
-						Manager->SetProperty(VMProp_COMPILER_WARNINGS, Result);
+						Manager->SetProperty(VMProp::COMPILER_WARNINGS, Result);
 					else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
-						Manager->SetProperty(VMProp_DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
+						Manager->SetProperty(VMProp::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
 					else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
-						Manager->SetProperty(VMProp_ALTER_SYNTAX_NAMED_ARGS, Result);
+						Manager->SetProperty(VMProp::ALTER_SYNTAX_NAMED_ARGS, Result);
 					else if (Key == "DISABLE_INTEGER_DIVISION")
-						Manager->SetProperty(VMProp_DISABLE_INTEGER_DIVISION, Result);
+						Manager->SetProperty(VMProp::DISABLE_INTEGER_DIVISION, Result);
 					else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
-						Manager->SetProperty(VMProp_DISALLOW_EMPTY_LIST_ELEMENTS, Result);
+						Manager->SetProperty(VMProp::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
 					else if (Key == "PRIVATE_PROP_AS_PROTECTED")
-						Manager->SetProperty(VMProp_PRIVATE_PROP_AS_PROTECTED, Result);
+						Manager->SetProperty(VMProp::PRIVATE_PROP_AS_PROTECTED, Result);
 					else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
-						Manager->SetProperty(VMProp_ALLOW_UNICODE_IDENTIFIERS, Result);
+						Manager->SetProperty(VMProp::ALLOW_UNICODE_IDENTIFIERS, Result);
 					else if (Key == "HEREDOC_TRIM_MODE")
-						Manager->SetProperty(VMProp_HEREDOC_TRIM_MODE, Result);
+						Manager->SetProperty(VMProp::HEREDOC_TRIM_MODE, Result);
 					else if (Key == "MAX_NESTED_CALLS")
-						Manager->SetProperty(VMProp_MAX_NESTED_CALLS, Result);
+						Manager->SetProperty(VMProp::MAX_NESTED_CALLS, Result);
 					else if (Key == "GENERIC_CALL_MODE")
-						Manager->SetProperty(VMProp_GENERIC_CALL_MODE, Result);
+						Manager->SetProperty(VMProp::GENERIC_CALL_MODE, Result);
 					else if (Key == "INIT_STACK_SIZE")
-						Manager->SetProperty(VMProp_INIT_STACK_SIZE, Result);
+						Manager->SetProperty(VMProp::INIT_STACK_SIZE, Result);
 					else if (Key == "INIT_CALL_STACK_SIZE")
-						Manager->SetProperty(VMProp_INIT_CALL_STACK_SIZE, Result);
+						Manager->SetProperty(VMProp::INIT_CALL_STACK_SIZE, Result);
 					else if (Key == "MAX_CALL_STACK_SIZE")
-						Manager->SetProperty(VMProp_MAX_CALL_STACK_SIZE, Result);
+						Manager->SetProperty(VMProp::MAX_CALL_STACK_SIZE, Result);
 				}
 				else if (Name == "comment" && Args.size() == 2)
 				{
@@ -2530,7 +2530,7 @@ namespace Tomahawk
 		int VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
 		{
 			if (!Name || !ModuleName || !EntryName)
-				return VMResult_INVALID_ARG;
+				return (int)VMResult::INVALID_ARG;
 
 			int R = Prepare(ModuleName, Name);
 			if (R < 0)
@@ -2549,7 +2549,7 @@ namespace Tomahawk
 		int VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
 		{
 			if (Buffer.empty() || !ModuleName || !EntryName)
-				return VMResult_INVALID_ARG;
+				return (int)VMResult::INVALID_ARG;
 
 			int R = Prepare(ModuleName, "anonymous");
 			if (R < 0)
@@ -2740,7 +2740,6 @@ namespace Tomahawk
 				if (Nested)
 					Context->PopState();
 
-				Safe.unlock();
 				return Result;
 			}
 
@@ -2841,19 +2840,19 @@ namespace Tomahawk
 
 			if (!Forced && State == asEXECUTION_FINISHED)
 			{
-				Resolve(VMResume_Finish);
+				Resolve(VMResume::Finish);
 				return asEXECUTION_ABORTED;
 			}
 
 			State = (asEContextState)Context->Execute();
 			if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
-				Resolve(VMResume_Finish);
+				Resolve(VMResume::Finish);
 			else if (State == asEXECUTION_ERROR)
-				Resolve(VMResume_Finish_With_Error);
+				Resolve(VMResume::Finish_With_Error);
 			else if (State == asEXECUTION_EXCEPTION)
-				Resolve(IsThrown() ? VMResume_Finish_With_Error : VMResume_Finish);
+				Resolve(IsThrown() ? VMResume::Finish_With_Error : VMResume::Finish);
 			else
-				Resolve(VMResume_Continue);
+				Resolve(VMResume::Continue);
 
 			return State;
 		}
@@ -2874,7 +2873,7 @@ namespace Tomahawk
 		VMExecState VMContext::GetState() const
 		{
 			if (!Context)
-				return VMExecState_UNINITIALIZED;
+				return VMExecState::UNINITIALIZED;
 
 			return (VMExecState)Context->GetState();
 		}
@@ -2931,7 +2930,7 @@ namespace Tomahawk
 		int VMContext::PopCoroutine()
 		{
 			if (!Async)
-				return VMResult_INVALID_ARG;
+				return (int)VMResult::INVALID_ARG;
 
 			Async--;
 			return 0;
@@ -3308,7 +3307,7 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports(VMImport_All), Nullable(0), JIT(nullptr), Cached(true)
+		VMManager::VMManager() : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports((uint32_t)VMImport::All), Nullable(0), JIT(nullptr), Cached(true)
 		{
 			asSetGlobalMemoryFunctions(Tomahawk::Core::Mem::Malloc, Tomahawk::Core::Mem::Free);
 			Include.Exts.push_back(".as");
@@ -3894,7 +3893,7 @@ namespace Tomahawk
 		}
 		bool VMManager::ImportFile(const std::string& Path, std::string* Out)
 		{
-			if (!(Imports & VMImport_Files))
+			if (!(Imports & (uint32_t)VMImport::Files))
 			{
 				TH_ERROR("file import is not allowed");
 				return false;
@@ -3932,7 +3931,7 @@ namespace Tomahawk
 		}
 		bool VMManager::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
 		{
-			if (!(Imports & VMImport_CSymbols))
+			if (!(Imports & (uint32_t)VMImport::CSymbols))
 			{
 				TH_ERROR("csymbols import is not allowed");
 				return false;
@@ -3993,7 +3992,7 @@ namespace Tomahawk
 		}
 		bool VMManager::ImportLibrary(const std::string& Path)
 		{
-			if (!(Imports & VMImport_CLibraries) && !Path.empty())
+			if (!(Imports & (uint32_t)VMImport::CLibraries) && !Path.empty())
 			{
 				TH_ERROR("clibraries import is not allowed");
 				return false;
@@ -4030,7 +4029,7 @@ namespace Tomahawk
 		}
 		bool VMManager::ImportSubmodule(const std::string& Name)
 		{
-			if (!(Imports & VMImport_Submodules))
+			if (!(Imports & (uint32_t)VMImport::Submodules))
 			{
 				TH_ERROR("submodules import is not allowed");
 				return false;
@@ -4071,7 +4070,7 @@ namespace Tomahawk
 		}
 		Core::Document* VMManager::ImportJSON(const std::string& Path)
 		{
-			if (!(Imports & VMImport_JSON))
+			if (!(Imports & (uint32_t)VMImport::JSON))
 			{
 				TH_ERROR("json import is not allowed");
 				return nullptr;
@@ -4306,7 +4305,7 @@ namespace Tomahawk
 		}
 		int VMManager::ManagerUD = 553;
 
-		VMDebugger::VMDebugger() : LastFunction(nullptr), Manager(nullptr), Action(CONTINUE)
+		VMDebugger::VMDebugger() : LastFunction(nullptr), Manager(nullptr), Action(DebugAction::CONTINUE)
 		{
 			LastCommandAtStackLevel = 0;
 		}
@@ -4328,12 +4327,12 @@ namespace Tomahawk
 			if (!Base || Base->GetState() != asEXECUTION_ACTIVE)
 				return;
 
-			if (Action == CONTINUE)
+			if (Action == DebugAction::CONTINUE)
 			{
 				if (!CheckBreakPoint(Context))
 					return;
 			}
-			else if (Action == STEP_OVER)
+			else if (Action == DebugAction::STEP_OVER)
 			{
 				if (Base->GetCallstackSize() > LastCommandAtStackLevel)
 				{
@@ -4341,7 +4340,7 @@ namespace Tomahawk
 						return;
 				}
 			}
-			else if (Action == STEP_OUT)
+			else if (Action == DebugAction::STEP_OUT)
 			{
 				if (Base->GetCallstackSize() >= LastCommandAtStackLevel)
 				{
@@ -4349,7 +4348,7 @@ namespace Tomahawk
 						return;
 				}
 			}
-			else if (Action == STEP_INTO)
+			else if (Action == DebugAction::STEP_INTO)
 				CheckBreakPoint(Context);
 
 			std::stringstream Stream;
@@ -4790,17 +4789,17 @@ namespace Tomahawk
 			switch (Command[0])
 			{
 				case 'c':
-					Action = CONTINUE;
+					Action = DebugAction::CONTINUE;
 					break;
 				case 's':
-					Action = STEP_INTO;
+					Action = DebugAction::STEP_INTO;
 					break;
 				case 'n':
-					Action = STEP_OVER;
+					Action = DebugAction::STEP_OVER;
 					LastCommandAtStackLevel = Base->GetCallstackSize();
 					break;
 				case 'o':
-					Action = STEP_OUT;
+					Action = DebugAction::STEP_OUT;
 					LastCommandAtStackLevel = Base->GetCallstackSize();
 					break;
 				case 'b':

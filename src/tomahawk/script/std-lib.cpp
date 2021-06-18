@@ -4119,7 +4119,7 @@ namespace Tomahawk
 				return Mutex.unlock();
 			}
 
-			if (Context->GetState() != VMExecState_SUSPENDED)
+			if (Context->GetState() != VMExecState::SUSPENDED)
 			{
 				Context->Prepare(Function);
 				Context->SetArgObject(0, this);
@@ -4130,7 +4130,7 @@ namespace Tomahawk
 			int Result = Context->Execute();
 			Mutex.lock();
 
-			if (Result != VMExecState_SUSPENDED)
+			if (Result != (int)VMExecState::SUSPENDED)
 			{
 				Context->SetUserData(nullptr, ContextUD);
 				TH_CLEAR(Context);
@@ -4149,7 +4149,7 @@ namespace Tomahawk
 		void VMCThread::Suspend()
 		{
 			Mutex.lock();
-			if (Context && Context->GetState() != VMExecState_SUSPENDED)
+			if (Context && Context->GetState() != VMExecState::SUSPENDED)
 				Context->Suspend();
 			Mutex.unlock();
 		}
@@ -4210,7 +4210,7 @@ namespace Tomahawk
 				std::unique_lock<std::mutex> Guard(Mutex);
 				if (CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
 				{
-					return !((Context && Context->GetState() != VMExecState_SUSPENDED));
+					return !((Context && Context->GetState() != VMExecState::SUSPENDED));
 				}))
 				{
 					Thread.join();
@@ -4278,7 +4278,7 @@ namespace Tomahawk
 		bool VMCThread::IsActive()
 		{
 			Mutex.lock();
-			bool State = (Context && Context->GetState() != VMExecState_SUSPENDED);
+			bool State = (Context && Context->GetState() != VMExecState::SUSPENDED);
 			Mutex.unlock();
 
 			return State;
@@ -4294,7 +4294,7 @@ namespace Tomahawk
 
 			if (Context != nullptr)
 			{
-				if (Context->GetState() != VMExecState_SUSPENDED)
+				if (Context->GetState() != VMExecState::SUSPENDED)
 				{
 					Mutex.unlock();
 					return false;

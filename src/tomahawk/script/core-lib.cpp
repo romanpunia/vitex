@@ -32,10 +32,10 @@ namespace Tomahawk
 				FormatBuffer(Global, Result, Offset, (void*)Buffer, TypeId);
 				Args.push_back(Result.R()[0] == '\n' ? Result.Substring(1).R() : Result.R());
 
-				if (TypeId & VMTypeId_MASK_OBJECT)
+				if (TypeId & (int)VMTypeId::MASK_OBJECT)
 				{
 					VMTypeInfo Type = Global.GetTypeInfoById(TypeId);
-					if (Type.IsValid() && Type.GetFlags() & VMObjType_VALUE)
+					if (Type.IsValid() && Type.GetFlags() & (size_t)VMObjType::VALUE)
 						Buffer += Type.GetSize();
 					else
 						Buffer += sizeof(void*);
@@ -117,7 +117,7 @@ namespace Tomahawk
 		}
 		void VMCFormat::FormatBuffer(VMGlobal& Global, Core::Parser& Result, std::string& Offset, void* Ref, int TypeId)
 		{
-			if (TypeId < VMTypeId_BOOL || TypeId > VMTypeId_DOUBLE)
+			if (TypeId < (int)VMTypeId::BOOL || TypeId > (int)VMTypeId::DOUBLE)
 			{
 				VMTypeInfo Type = Global.GetTypeInfoById(TypeId);
 				if (!Ref)
@@ -221,37 +221,37 @@ namespace Tomahawk
 			{
 				switch (TypeId)
 				{
-					case VMTypeId_BOOL:
+					case (int)VMTypeId::BOOL:
 						Result.fAppend("%s", *(bool*)Ref ? "true" : "false");
 						break;
-					case VMTypeId_INT8:
+					case (int)VMTypeId::INT8:
 						Result.fAppend("%i", *(char*)Ref);
 						break;
-					case VMTypeId_INT16:
+					case (int)VMTypeId::INT16:
 						Result.fAppend("%i", *(short*)Ref);
 						break;
-					case VMTypeId_INT32:
+					case (int)VMTypeId::INT32:
 						Result.fAppend("%i", *(int*)Ref);
 						break;
-					case VMTypeId_INT64:
+					case (int)VMTypeId::INT64:
 						Result.fAppend("%ll", *(int64_t*)Ref);
 						break;
-					case VMTypeId_UINT8:
+					case (int)VMTypeId::UINT8:
 						Result.fAppend("%u", *(unsigned char*)Ref);
 						break;
-					case VMTypeId_UINT16:
+					case (int)VMTypeId::UINT16:
 						Result.fAppend("%u", *(unsigned short*)Ref);
 						break;
-					case VMTypeId_UINT32:
+					case (int)VMTypeId::UINT32:
 						Result.fAppend("%u", *(unsigned int*)Ref);
 						break;
-					case VMTypeId_UINT64:
+					case (int)VMTypeId::UINT64:
 						Result.fAppend("%llu", *(uint64_t*)Ref);
 						break;
-					case VMTypeId_FLOAT:
+					case (int)VMTypeId::FLOAT:
 						Result.fAppend("%f", *(float*)Ref);
 						break;
-					case VMTypeId_DOUBLE:
+					case (int)VMTypeId::DOUBLE:
 						Result.fAppend("%f", *(double*)Ref);
 						break;
 					default:
@@ -262,7 +262,7 @@ namespace Tomahawk
 		}
 		void VMCFormat::FormatJSON(VMGlobal& Global, Core::Parser& Result, void* Ref, int TypeId)
 		{
-			if (TypeId < VMTypeId_BOOL || TypeId > VMTypeId_DOUBLE)
+			if (TypeId < (int)VMTypeId::BOOL || TypeId > (int)VMTypeId::DOUBLE)
 			{
 				VMTypeInfo Type = Global.GetTypeInfoById(TypeId);
 				void* Object = Type.GetInstance<void>(Ref, TypeId);
@@ -351,37 +351,37 @@ namespace Tomahawk
 			{
 				switch (TypeId)
 				{
-					case VMTypeId_BOOL:
+					case (int)VMTypeId::BOOL:
 						Result.fAppend("%s", *(bool*)Ref ? "true" : "false");
 						break;
-					case VMTypeId_INT8:
+					case (int)VMTypeId::INT8:
 						Result.fAppend("%i", *(char*)Ref);
 						break;
-					case VMTypeId_INT16:
+					case (int)VMTypeId::INT16:
 						Result.fAppend("%i", *(short*)Ref);
 						break;
-					case VMTypeId_INT32:
+					case (int)VMTypeId::INT32:
 						Result.fAppend("%i", *(int*)Ref);
 						break;
-					case VMTypeId_INT64:
+					case (int)VMTypeId::INT64:
 						Result.fAppend("%ll", *(int64_t*)Ref);
 						break;
-					case VMTypeId_UINT8:
+					case (int)VMTypeId::UINT8:
 						Result.fAppend("%u", *(unsigned char*)Ref);
 						break;
-					case VMTypeId_UINT16:
+					case (int)VMTypeId::UINT16:
 						Result.fAppend("%u", *(unsigned short*)Ref);
 						break;
-					case VMTypeId_UINT32:
+					case (int)VMTypeId::UINT32:
 						Result.fAppend("%u", *(unsigned int*)Ref);
 						break;
-					case VMTypeId_UINT64:
+					case (int)VMTypeId::UINT64:
 						Result.fAppend("%llu", *(uint64_t*)Ref);
 						break;
-					case VMTypeId_FLOAT:
+					case (int)VMTypeId::FLOAT:
 						Result.fAppend("%f", *(float*)Ref);
 						break;
-					case VMTypeId_DOUBLE:
+					case (int)VMTypeId::DOUBLE:
 						Result.fAppend("%f", *(double*)Ref);
 						break;
 				}
@@ -593,7 +593,7 @@ namespace Tomahawk
 			VMCMap* Map = VMCMap::Create(Manager->GetEngine());
 
 			for (auto& Item : Mapping)
-				Map->Set(Item.first, &Item.second, VMTypeId_INT64);
+				Map->Set(Item.first, &Item.second, (int)VMTypeId::INT64);
 
 			return Map;
 		}
@@ -623,22 +623,22 @@ namespace Tomahawk
 		{
 			switch (Base->Value.GetType())
 			{
-				case Core::VarType_Null:
-				case Core::VarType_Undefined:
-				case Core::VarType_Object:
-				case Core::VarType_Array:
-				case Core::VarType_Pointer:
+				case Core::VarType::Null:
+				case Core::VarType::Undefined:
+				case Core::VarType::Object:
+				case Core::VarType::Array:
+				case Core::VarType::Pointer:
 					break;
-				case Core::VarType_String:
-				case Core::VarType_Base64:
+				case Core::VarType::String:
+				case Core::VarType::Base64:
 					return Base->Value.GetBlob();
-				case Core::VarType_Integer:
+				case Core::VarType::Integer:
 					return std::to_string(Base->Value.GetInteger());
-				case Core::VarType_Number:
+				case Core::VarType::Number:
 					return std::to_string(Base->Value.GetNumber());
-				case Core::VarType_Decimal:
+				case Core::VarType::Decimal:
                     return Base->Value.GetDecimal().ToString();
-				case Core::VarType_Boolean:
+				case Core::VarType::Boolean:
 					return Base->Value.GetBoolean() ? "1" : "0";
 			}
 
@@ -723,7 +723,7 @@ namespace Tomahawk
 				return Base->Value == Other->Value;
 
 			Core::VarType Type = Base->Value.GetType();
-			return (Type == Core::VarType_Null || Type == Core::VarType_Undefined);
+			return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
 		}
 
 		bool RegisterFormatAPI(VMManager* Engine)
@@ -772,16 +772,16 @@ namespace Tomahawk
 			VMGlobal& Register = Engine->Global();
 
 			VMEnum VVarType = Register.SetEnum("VarType");
-			VVarType.SetValue("Null", Core::VarType_Null);
-			VVarType.SetValue("Undefined", Core::VarType_Undefined);
-			VVarType.SetValue("Object", Core::VarType_Object);
-			VVarType.SetValue("Array", Core::VarType_Array);
-			VVarType.SetValue("String", Core::VarType_String);
-			VVarType.SetValue("Base64", Core::VarType_Base64);
-			VVarType.SetValue("Integer", Core::VarType_Integer);
-			VVarType.SetValue("Number", Core::VarType_Number);
-			VVarType.SetValue("Decimal", Core::VarType_Decimal);
-			VVarType.SetValue("Boolean", Core::VarType_Boolean);
+			VVarType.SetValue("Null", (int)Core::VarType::Null);
+			VVarType.SetValue("Undefined", (int)Core::VarType::Undefined);
+			VVarType.SetValue("Object", (int)Core::VarType::Object);
+			VVarType.SetValue("Array", (int)Core::VarType::Array);
+			VVarType.SetValue("String", (int)Core::VarType::String);
+			VVarType.SetValue("Base64", (int)Core::VarType::Base64);
+			VVarType.SetValue("Integer", (int)Core::VarType::Integer);
+			VVarType.SetValue("Number", (int)Core::VarType::Number);
+			VVarType.SetValue("Decimal", (int)Core::VarType::Decimal);
+			VVarType.SetValue("Boolean", (int)Core::VarType::Boolean);
 
 			VMTypeClass VVariant = Register.SetStructUnmanaged<Core::Variant>("Variant");
 			VVariant.SetConstructor<Core::Variant, const Core::Variant&>("void f(const Variant &in)");
@@ -797,8 +797,8 @@ namespace Tomahawk
 			VVariant.SetMethod("bool IsObject() const", &Core::Variant::IsObject);
 			VVariant.SetMethod("bool IsEmpty() const", &Core::Variant::IsEmpty);
 			VVariant.SetMethodEx("uint64 GetSize() const", &VMCVariant::GetSize);
-			VVariant.SetOperatorEx(VMOpFunc_Equals, VMOp_Left | VMOp_Const, "bool", "const Variant &in", &VMCVariant::Equals);
-			VVariant.SetOperatorEx(VMOpFunc_ImplCast, VMOp_Left | VMOp_Const, "bool", "", &VMCVariant::ImplCast);
+			VVariant.SetOperatorEx(VMOpFunc::Equals, (uint32_t)(VMOp::Left | VMOp::Const), "bool", "const Variant &in", &VMCVariant::Equals);
+			VVariant.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)(VMOp::Left | VMOp::Const), "bool", "", &VMCVariant::ImplCast);
 
 			Engine->BeginNamespace("Var");
 			Register.SetFunction("Variant Auto(const String &in, bool = false)", &Core::Var::Auto);
@@ -868,10 +868,10 @@ namespace Tomahawk
 			VDocument.SetMethodStatic("Document@ FromJSON(const String &in)", &VMCDocument::FromJSON);
 			VDocument.SetMethodStatic("Document@ FromXML(const String &in)", &VMCDocument::FromXML);
 			VDocument.SetMethodStatic("Document@ Import(const String &in)", &VMCDocument::Import);
-			VDocument.SetOperatorEx(VMOpFunc_Assign, VMOp_Left, "Document@+", "const Variant &in", &VMCDocument::CopyAssign);
-			VDocument.SetOperatorEx(VMOpFunc_Equals, VMOp_Left | VMOp_Const, "bool", "Document@+", &VMCDocument::Equals);
-			VDocument.SetOperatorEx(VMOpFunc_Index, VMOp_Left, "Document@+", "const String &in", &VMCDocument::GetIndex);
-			VDocument.SetOperatorEx(VMOpFunc_Index, VMOp_Left, "Document@+", "uint64", &VMCDocument::GetIndexOffset);
+			VDocument.SetOperatorEx(VMOpFunc::Assign, (uint32_t)VMOp::Left, "Document@+", "const Variant &in", &VMCDocument::CopyAssign);
+			VDocument.SetOperatorEx(VMOpFunc::Equals, (uint32_t)(VMOp::Left | VMOp::Const), "bool", "Document@+", &VMCDocument::Equals);
+			VDocument.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Document@+", "const String &in", &VMCDocument::GetIndex);
+			VDocument.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Document@+", "uint64", &VMCDocument::GetIndexOffset);
 
 			return true;
 		}

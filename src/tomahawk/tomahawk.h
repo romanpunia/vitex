@@ -1,8 +1,8 @@
 #ifndef TOMAHAWK_H
 #define TOMAHAWK_H
 #define TH_MAJOR_VERSION 3
-#define TH_MINOR_VERSION 1
-#define TH_PATCH_LEVEL 1
+#define TH_MINOR_VERSION 2
+#define TH_PATCH_LEVEL 12
 #define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/core.h"
@@ -28,23 +28,28 @@
 
 namespace Tomahawk
 {
-	enum TInit
+	enum class Init
 	{
-		TInit_Core = 1,
-		TInit_Debug = 2,
-		TInit_Network = 4,
-		TInit_SSL = 8,
-		TInit_SDL2 = 16,
-		TInit_Compute = 32,
-		TInit_Locale = 64,
-		TInit_Audio = 128,
-		TInit_GLEW = 256
+		Core = 1,
+		Debug = 2,
+		Network = 4,
+		SSL = 8,
+		SDL2 = 16,
+		Compute = 32,
+		Locale = 64,
+		Audio = 128,
+		GLEW = 256
 	};
 
-	enum TPreset
+	constexpr inline Init operator |(Init A, Init B)
 	{
-		TPreset_Game = (TInit_Core | TInit_Debug | TInit_Network | TInit_SSL | TInit_SDL2 | TInit_Compute | TInit_Locale | TInit_Audio | TInit_GLEW),
-		TPreset_App = (TInit_Core | TInit_Debug | TInit_Network | TInit_SSL | TInit_Compute | TInit_Locale)
+		return static_cast<Init>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+	}
+
+	enum class Preset : uint64_t
+	{
+		Game = (uint64_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::SDL2 | Init::Compute | Init::Locale | Init::Audio | Init::GLEW),
+		App = (uint64_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale)
 	};
 
 	class TH_OUT Library
@@ -73,7 +78,7 @@ namespace Tomahawk
 		static const char* Platform();
 	};
 
-	TH_OUT bool Initialize(unsigned int Modules = TPreset_App);
+	TH_OUT bool Initialize(uint64_t Modules = (uint64_t)Preset::App);
 	TH_OUT bool Uninitialize();
 }
 #endif

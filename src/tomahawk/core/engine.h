@@ -43,80 +43,89 @@ namespace Tomahawk
 		
 		class Material;
 
-		enum ApplicationUse
+		enum class ApplicationUse
 		{
-			ApplicationUse_Graphics_Module = 1 << 0,
-			ApplicationUse_Activity_Module = 1 << 1,
-			ApplicationUse_Audio_Module = 1 << 3,
-			ApplicationUse_Script_Module = 1 << 4,
-			ApplicationUse_Content_Module = 1 << 5
+			Graphics_Module = 1 << 0,
+			Activity_Module = 1 << 1,
+			Audio_Module = 1 << 3,
+			Script_Module = 1 << 4,
+			Content_Module = 1 << 5
 		};
 
-		enum ApplicationState
+		enum class ApplicationState
 		{
-			ApplicationState_Terminated,
-			ApplicationState_Staging,
-			ApplicationState_Singlethreaded,
-			ApplicationState_Multithreaded
+			Terminated,
+			Staging,
+			Singlethreaded,
+			Multithreaded
 		};
 
-		enum ThreadId
+		enum class ThreadId
 		{
-			ThreadId_Update,
-			ThreadId_Render,
-			ThreadId_Simulation,
-			ThreadId_Synchronize,
-			ThreadId_Count
+			Update,
+			Render,
+			Simulation,
+			Synchronize,
+			Count
 		};
 
-		enum CullResult
+		enum class CullResult
 		{
-			CullResult_Always,
-			CullResult_Cache,
-			CullResult_Last
+			Always,
+			Cache,
+			Last
 		};
 
-		enum RenderOpt
+		enum class RenderOpt
 		{
-			RenderOpt_None = 0,
-			RenderOpt_Transparent = 1,
-			RenderOpt_Static = 2,
-			RenderOpt_Inner = 4
+			None = 0,
+			Transparent = 1,
+			Static = 2,
+			Inner = 4
 		};
 
-		enum RenderState
+		enum class RenderState
 		{
-			RenderState_Geometry_Result,
-			RenderState_Geometry_Voxels,
-			RenderState_Depth_Linear,
-			RenderState_Depth_Cubic
+			Geometry_Result,
+			Geometry_Voxels,
+			Depth_Linear,
+			Depth_Cubic
 		};
 
-		enum GeoCategory
+		enum class GeoCategory
 		{
-			GeoCategory_Opaque,
-			GeoCategory_Transparent
+			Opaque,
+			Transparent
 		};
 
-		enum BufferType
+		enum class BufferType
 		{
-			BufferType_Index = 0,
-			BufferType_Vertex = 1
+			Index = 0,
+			Vertex = 1
 		};
 
-		enum TargetType
+		enum class TargetType
 		{
-			TargetType_Main = 0,
-			TargetType_Secondary = 1,
-			TargetType_Count
+			Main = 0,
+			Secondary = 1,
+			Count
 		};
 
-		enum VoxelType
+		enum class VoxelType
 		{
-			VoxelType_Diffuse = 0,
-			VoxelType_Normal = 1,
-			VoxelType_Surface = 2
+			Diffuse = 0,
+			Normal = 1,
+			Surface = 2
 		};
+
+		inline ApplicationUse operator |(ApplicationUse A, ApplicationUse B)
+		{
+			return static_cast<ApplicationUse>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
+		inline RenderOpt operator |(RenderOpt A, RenderOpt B)
+		{
+			return static_cast<RenderOpt>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 
 		struct TH_OUT AssetCache
 		{
@@ -889,7 +898,7 @@ namespace Tomahawk
 		private:
 			struct
 			{
-				Thread Threads[ThreadId_Count];
+				Thread Threads[(size_t)ThreadId::Count];
 				std::condition_variable Callback;
 				std::condition_variable Condition;
 				std::atomic<std::thread::id> Id;
@@ -901,8 +910,8 @@ namespace Tomahawk
 
 			struct
 			{
-				Graphics::MultiRenderTarget2D* MRT[TargetType_Count * 2];
-				Graphics::RenderTarget2D* RT[TargetType_Count * 2];
+				Graphics::MultiRenderTarget2D* MRT[(size_t)TargetType::Count * 2];
+				Graphics::RenderTarget2D* RT[(size_t)TargetType::Count * 2];
 				Graphics::Texture3D* VoxelBuffers[3];
 				Graphics::ElementBuffer* MaterialBuffer;
 				Graphics::DepthStencilState* DepthStencil;
@@ -1234,7 +1243,12 @@ namespace Tomahawk
 				double Framerate = 0;
 				double MaxFrames = 60;
 				double MinFrames = 10;
-				unsigned int Usage = ApplicationUse_Graphics_Module | ApplicationUse_Activity_Module | ApplicationUse_Audio_Module | ApplicationUse_Script_Module | ApplicationUse_Content_Module;
+				size_t Usage =
+					(size_t)ApplicationUse::Graphics_Module |
+					(size_t)ApplicationUse::Activity_Module |
+					(size_t)ApplicationUse::Audio_Module |
+					(size_t)ApplicationUse::Script_Module |
+					(size_t)ApplicationUse::Content_Module;
 				bool Cursor = true;
 				bool Async = false;
 			};
@@ -1251,7 +1265,7 @@ namespace Tomahawk
 
 		private:
 			std::vector<Reactor*> Workers;
-			ApplicationState State = ApplicationState_Terminated;
+			ApplicationState State = ApplicationState::Terminated;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;
@@ -1303,11 +1317,6 @@ namespace Tomahawk
 			static Core::Schedule* Queue();
 			static Application* Get();
 		};
-
-		inline RenderOpt operator |(RenderOpt A, RenderOpt B)
-		{
-			return static_cast<RenderOpt>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
-		}
 	}
 }
 #endif

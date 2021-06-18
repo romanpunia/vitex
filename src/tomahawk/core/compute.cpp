@@ -529,7 +529,7 @@ namespace Tomahawk
 		}
 		bool Vector2::operator <(const Vector2& R) const
 		{
-			return X < R.X && Y < R.Y;
+			return X < R.X&& Y < R.Y;
 		}
 		bool Vector2::operator >(const Vector2& R) const
 		{
@@ -1036,7 +1036,7 @@ namespace Tomahawk
 		}
 		bool Vector3::operator <(const Vector3& R) const
 		{
-			return X < R.X && Y < R.Y && Z < R.Z;
+			return X < R.X&& Y < R.Y&& Z < R.Z;
 		}
 		bool Vector3::operator >(const Vector3& R) const
 		{
@@ -1578,7 +1578,7 @@ namespace Tomahawk
 		}
 		bool Vector4::operator <(const Vector4& R) const
 		{
-			return X < R.X && Y < R.Y && Z < R.Z && W < R.W;
+			return X < R.X&& Y < R.Y&& Z < R.Z&& W < R.W;
 		}
 		bool Vector4::operator >(const Vector4& R) const
 		{
@@ -1761,7 +1761,7 @@ namespace Tomahawk
 		{
 			Matrix4x4 Offset = World.Inv();
 			Vector3 Min = -1.0f, Max = 1.0f;
-			Vector3 O = (Vector4(Origin.X, Origin.Y, Origin.Z, 1.0f)  * Offset).XYZ();
+			Vector3 O = (Vector4(Origin.X, Origin.Y, Origin.Z, 1.0f) * Offset).XYZ();
 			if (O > Min && O < Max)
 				return true;
 
@@ -3096,49 +3096,49 @@ namespace Tomahawk
 		Hybi10_Opcode Hybi10Request::GetEnumType() const
 		{
 			if (Type == 0 || Type == 1 || Type == 2)
-				return Hybi10_Opcode_Text;
+				return Hybi10_Opcode::Text;
 
 			if (Type == 8)
-				return Hybi10_Opcode_Close;
+				return Hybi10_Opcode::Close;
 
 			if (Type == 9)
-				return Hybi10_Opcode_Ping;
+				return Hybi10_Opcode::Ping;
 
 			if (Type == 10)
-				return Hybi10_Opcode_Pong;
+				return Hybi10_Opcode::Pong;
 
-			return Hybi10_Opcode_Invalid;
+			return Hybi10_Opcode::Invalid;
 		}
 
 		RegexSource::RegexSource() :
-            MaxBranches(128), MaxBrackets(128), MaxMatches(128),
-            State(RegexState_No_Match), Flags(RegexFlags_None)
+			MaxBranches(128), MaxBrackets(128), MaxMatches(128),
+			State(RegexState::No_Match), IgnoreCase(false)
 		{
 		}
-		RegexSource::RegexSource(const std::string& Regexp, RegexFlags fFlags, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) :
+		RegexSource::RegexSource(const std::string& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) :
 			Expression(Regexp),
 			MaxBranches(fMaxBranches >= 1 ? fMaxBranches : 128),
 			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
-            MaxMatches(fMaxMatches >= 1 ? fMaxMatches : 128),
-            State(RegexState_Preprocessed), Flags(fFlags)
+			MaxMatches(fMaxMatches >= 1 ? fMaxMatches : 128),
+			State(RegexState::Preprocessed), IgnoreCase(fIgnoreCase)
 		{
 			Compile();
 		}
 		RegexSource::RegexSource(const RegexSource& Other) :
 			Expression(Other.Expression),
-            MaxBranches(Other.MaxBranches),
-            MaxBrackets(Other.MaxBrackets),
-            MaxMatches(Other.MaxMatches),
-            State(Other.State), Flags(Other.Flags)
+			MaxBranches(Other.MaxBranches),
+			MaxBrackets(Other.MaxBrackets),
+			MaxMatches(Other.MaxMatches),
+			State(Other.State), IgnoreCase(Other.IgnoreCase)
 		{
 			Compile();
 		}
 		RegexSource::RegexSource(RegexSource&& Other) noexcept :
 			Expression(std::move(Other.Expression)),
-            MaxBranches(Other.MaxBranches),
-            MaxBrackets(Other.MaxBrackets),
-            MaxMatches(Other.MaxMatches),
-            State(Other.State), Flags(Other.Flags)
+			MaxBranches(Other.MaxBranches),
+			MaxBrackets(Other.MaxBrackets),
+			MaxMatches(Other.MaxMatches),
+			State(Other.State), IgnoreCase(Other.IgnoreCase)
 		{
 			Brackets.reserve(Other.Brackets.capacity());
 			Branches.reserve(Other.Branches.capacity());
@@ -3154,7 +3154,7 @@ namespace Tomahawk
 			Branches.clear();
 			Branches.reserve(V.Branches.capacity());
 			Expression = V.Expression;
-			Flags = V.Flags;
+			IgnoreCase = V.IgnoreCase;
 			State = V.State;
 			MaxBrackets = V.MaxBrackets;
 			MaxBranches = V.MaxBranches;
@@ -3173,7 +3173,7 @@ namespace Tomahawk
 			Branches.clear();
 			Branches.reserve(V.Branches.capacity());
 			Expression = std::move(V.Expression);
-			Flags = V.Flags;
+			IgnoreCase = V.IgnoreCase;
 			State = V.State;
 			MaxBrackets = V.MaxBrackets;
 			MaxBranches = V.MaxBranches;
@@ -3243,15 +3243,15 @@ namespace Tomahawk
 				}
 				else if (vPtr[i] == '\\')
 				{
-					REGEX_FAIL_IN(i >= vSize - 1, RegexState_Invalid_Metacharacter);
+					REGEX_FAIL_IN(i >= vSize - 1, RegexState::Invalid_Metacharacter);
 					if (vPtr[i + 1] == 'x')
 					{
-						REGEX_FAIL_IN(i >= vSize - 3, RegexState_Invalid_Metacharacter);
-						REGEX_FAIL_IN(!(isxdigit(vPtr[i + 2]) && isxdigit(vPtr[i + 3])), RegexState_Invalid_Metacharacter);
+						REGEX_FAIL_IN(i >= vSize - 3, RegexState::Invalid_Metacharacter);
+						REGEX_FAIL_IN(!(isxdigit(vPtr[i + 2]) && isxdigit(vPtr[i + 3])), RegexState::Invalid_Metacharacter);
 					}
 					else
 					{
-						REGEX_FAIL_IN(!Regex::Meta((const unsigned char*)vPtr + i + 1), RegexState_Invalid_Metacharacter);
+						REGEX_FAIL_IN(!Regex::Meta((const unsigned char*)vPtr + i + 1), RegexState::Invalid_Metacharacter);
 					}
 				}
 				else if (vPtr[i] == '(')
@@ -3265,12 +3265,12 @@ namespace Tomahawk
 				{
 					int64_t Idx = (Brackets[Brackets.size() - 1].Length == -1 ? Brackets.size() - 1 : Depth);
 					Brackets[Idx].Length = (int64_t)(&vPtr[i] - Brackets[Idx].Pointer); Depth--;
-					REGEX_FAIL_IN(Depth < 0, RegexState_Unbalanced_Brackets);
-					REGEX_FAIL_IN(i > 0 && vPtr[i - 1] == '(', RegexState_No_Match);
+					REGEX_FAIL_IN(Depth < 0, RegexState::Unbalanced_Brackets);
+					REGEX_FAIL_IN(i > 0 && vPtr[i - 1] == '(', RegexState::No_Match);
 				}
 			}
 
-			REGEX_FAIL_IN(Depth != 0, RegexState_Unbalanced_Brackets);
+			REGEX_FAIL_IN(Depth != 0, RegexState::Unbalanced_Brackets);
 
 			RegexBranch Branch;
 			int64_t i, j;
@@ -3302,7 +3302,7 @@ namespace Tomahawk
 			}
 		}
 
-		RegexResult::RegexResult() : State(RegexState_No_Match), Steps(0), Src(nullptr)
+		RegexResult::RegexResult() : State(RegexState::No_Match), Steps(0), Src(nullptr)
 		{
 		}
 		RegexResult::RegexResult(const RegexResult& Other) : Matches(Other.Matches), State(Other.State), Steps(Other.Steps), Src(Other.Src)
@@ -3362,11 +3362,11 @@ namespace Tomahawk
 		}
 		bool Regex::Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length)
 		{
-			if (!Value || Value->State != RegexState_Preprocessed || !Buffer || !Length)
+			if (!Value || Value->State != RegexState::Preprocessed || !Buffer || !Length)
 				return false;
 
 			Result.Src = Value;
-			Result.State = RegexState_Preprocessed;
+			Result.State = RegexState::Preprocessed;
 			Result.Matches.clear();
 			Result.Matches.reserve(8);
 
@@ -3384,7 +3384,7 @@ namespace Tomahawk
 				It->End = It->Start + It->Length;
 			}
 
-			Result.State = RegexState_Match_Found;
+			Result.State = RegexState::Match_Found;
 			return true;
 		}
 		int64_t Regex::Meta(const unsigned char* Buffer)
@@ -3429,68 +3429,68 @@ namespace Tomahawk
 					switch (Value[1])
 					{
 						case 'S':
-							REGEX_FAIL(isspace(*Buffer), RegexState_No_Match);
+							REGEX_FAIL(isspace(*Buffer), (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 's':
-							REGEX_FAIL(!isspace(*Buffer), RegexState_No_Match);
+							REGEX_FAIL(!isspace(*Buffer), (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 'd':
-							REGEX_FAIL(!isdigit(*Buffer), RegexState_No_Match);
+							REGEX_FAIL(!isdigit(*Buffer), (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 'b':
-							REGEX_FAIL(*Buffer != '\b', RegexState_No_Match);
+							REGEX_FAIL(*Buffer != '\b', (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 'f':
-							REGEX_FAIL(*Buffer != '\f', RegexState_No_Match);
+							REGEX_FAIL(*Buffer != '\f', (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 'n':
-							REGEX_FAIL(*Buffer != '\n', RegexState_No_Match);
+							REGEX_FAIL(*Buffer != '\n', (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 'r':
-							REGEX_FAIL(*Buffer != '\r', RegexState_No_Match);
+							REGEX_FAIL(*Buffer != '\r', (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 't':
-							REGEX_FAIL(*Buffer != '\t', RegexState_No_Match);
+							REGEX_FAIL(*Buffer != '\t', (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 'v':
-							REGEX_FAIL(*Buffer != '\v', RegexState_No_Match);
+							REGEX_FAIL(*Buffer != '\v', (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						case 'x':
-							REGEX_FAIL((unsigned char)HexToInt(Value + 2) != *Buffer, RegexState_No_Match);
+							REGEX_FAIL((unsigned char)HexToInt(Value + 2) != *Buffer, (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 						default:
-							REGEX_FAIL(Value[1] != Buffer[0], RegexState_No_Match);
+							REGEX_FAIL(Value[1] != Buffer[0], (int64_t)RegexState::No_Match);
 							Result++;
 							break;
 					}
 					break;
 				case '|':
-					REGEX_FAIL(1, RegexState_Internal_Error);
+					REGEX_FAIL(1, (int64_t)RegexState::Internal_Error);
 					break;
 				case '$':
-					REGEX_FAIL(1, RegexState_No_Match);
+					REGEX_FAIL(1, (int64_t)RegexState::No_Match);
 					break;
 				case '.':
 					Result++;
 					break;
 				default:
-					if (Info->Src->Flags & RegexFlags_IgnoreCase)
+					if (Info->Src->IgnoreCase)
 					{
-						REGEX_FAIL(tolower(*Value) != tolower(*Buffer), RegexState_No_Match);
+						REGEX_FAIL(tolower(*Value) != tolower(*Buffer), (int64_t)RegexState::No_Match);
 					}
 					else
 					{
-						REGEX_FAIL(*Value != *Buffer, RegexState_No_Match);
+						REGEX_FAIL(*Value != *Buffer, (int64_t)RegexState::No_Match);
 					}
 					Result++;
 					break;
@@ -3508,7 +3508,7 @@ namespace Tomahawk
 			{
 				if (Value[Length] != '-' && Value[Length + 1] == '-' && Value[Length + 2] != ']' && Value[Length + 2] != '\0')
 				{
-					Result = (Info->Src->Flags & RegexFlags_IgnoreCase) ? tolower(*Buffer) >= tolower(Value[Length]) && tolower(*Buffer) <= tolower(Value[Length + 2]) : *Buffer >= Value[Length] && *Buffer <= Value[Length + 2];
+					Result = (Info->Src->IgnoreCase) ? tolower(*Buffer) >= tolower(Value[Length]) && tolower(*Buffer) <= tolower(Value[Length + 2]) : *Buffer >= Value[Length] && *Buffer <= Value[Length + 2];
 					Length += 3;
 				}
 				else
@@ -3526,8 +3526,8 @@ namespace Tomahawk
 			for (i = j = 0; i < ValueLength && j <= BufferLength; i += Step)
 			{
 				Step = Value[i] == '(' ? Info->Src->Brackets[Case + 1].Length + 2 : GetOpLength(Value + i, ValueLength - i);
-				REGEX_FAIL(Quantifier(&Value[i]), RegexState_Unexpected_Quantifier);
-				REGEX_FAIL(Step <= 0, RegexState_Invalid_Character_Set);
+				REGEX_FAIL(Quantifier(&Value[i]), (int64_t)RegexState::Unexpected_Quantifier);
+				REGEX_FAIL(Step <= 0, (int64_t)RegexState::Invalid_Character_Set);
 				Info->Steps++;
 
 				if (i + Step < ValueLength && Quantifier(Value + i + Step))
@@ -3568,8 +3568,8 @@ namespace Tomahawk
 						if (n1 < 0 && n2 < 0 && Value[i + Step] == '*' && (n2 = ParseInner(Value + ni, ValueLength - ni, Buffer + j, BufferLength - j, Info, Case)) > 0)
 							nj = j + n2;
 
-						REGEX_FAIL(Value[i + Step] == '+' && nj == j, RegexState_No_Match);
-						REGEX_FAIL(nj == j && ni < ValueLength && n2 < 0, RegexState_No_Match);
+						REGEX_FAIL(Value[i + Step] == '+' && nj == j, (int64_t)RegexState::No_Match);
+						REGEX_FAIL(nj == j && ni < ValueLength&& n2 < 0, (int64_t)RegexState::No_Match);
 						return nj;
 					}
 
@@ -3579,14 +3579,15 @@ namespace Tomahawk
 				if (Value[i] == '[')
 				{
 					n = MatchSet(Value + i + 1, ValueLength - (i + 2), Buffer + j, Info);
-					REGEX_FAIL(n <= 0, RegexState_No_Match);
+					REGEX_FAIL(n <= 0, (int64_t)RegexState::No_Match);
 					j += n;
 				}
 				else if (Value[i] == '(')
 				{
-					n = RegexState_No_Match;
+					n = (int64_t)RegexState::No_Match;
 					Case++;
-					REGEX_FAIL(Case >= (int64_t)Info->Src->Brackets.size(), RegexState_Internal_Error);
+
+					REGEX_FAIL(Case >= (int64_t)Info->Src->Brackets.size(), (int64_t)RegexState::Internal_Error);
 					if (ValueLength - (i + Step) > 0)
 					{
 						int64_t j2;
@@ -3619,15 +3620,15 @@ namespace Tomahawk
 				}
 				else if (Value[i] == '^')
 				{
-					REGEX_FAIL(j != 0, RegexState_No_Match);
+					REGEX_FAIL(j != 0, (int64_t)RegexState::No_Match);
 				}
 				else if (Value[i] == '$')
 				{
-					REGEX_FAIL(j != BufferLength, RegexState_No_Match);
+					REGEX_FAIL(j != BufferLength, (int64_t)RegexState::No_Match);
 				}
 				else
 				{
-					REGEX_FAIL(j >= BufferLength, RegexState_No_Match);
+					REGEX_FAIL(j >= BufferLength, (int64_t)RegexState::No_Match);
 					n = MatchOp((const unsigned char*)(Value + i), (const unsigned char*)(Buffer + j), Info);
 					REGEX_FAIL(n <= 0, n);
 					j += n;
@@ -7005,7 +7006,7 @@ namespace Tomahawk
 			Vector3 Tangent, Bitangent;
 			for (uint64_t i = 0; i < Vertices.size(); i += 3)
 			{
-				SkinVertex& V1 = Vertices[i], &V2 = Vertices[i + 1], &V3 = Vertices[i + 2];
+				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
 				V1.TangentX = Tangent.X;
 				V1.TangentY = Tangent.Y;
@@ -7032,7 +7033,7 @@ namespace Tomahawk
 			Vector3 Tangent, Bitangent;
 			for (uint64_t i = 0; i < Count; i += 3)
 			{
-				SkinVertex& V1 = Vertices[i], &V2 = Vertices[i + 1], &V3 = Vertices[i + 2];
+				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
 				V1.TangentX = Tangent.X;
 				V1.TangentY = Tangent.Y;
@@ -7309,15 +7310,15 @@ namespace Tomahawk
 
 			std::string Header;
 			Core::Document::WriteJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
-			{
-				Header.append(Buffer, Size);
-			});
+				{
+					Header.append(Buffer, Size);
+				});
 
 			std::string Payload;
 			Core::Document::WriteJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
-			{
-				Payload.append(Buffer, Size);
-			});
+				{
+					Payload.append(Buffer, Size);
+				});
 
 			std::string Data = Base64URLEncode(Header) + '.' + Base64URLEncode(Payload);
 			Src->Signature = JWTSign(Alg, Data, Key);
@@ -7334,22 +7335,22 @@ namespace Tomahawk
 				return nullptr;
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
-            Source[0] = Base64URLDecode(Source[0]);
+			Source[0] = Base64URLDecode(Source[0]);
 			Core::Document* Header = Core::Document::ReadJSON((int64_t)Source[0].size(), [&Source](char* Buffer, int64_t Size)
-			{
-				memcpy(Buffer, Source[0].c_str(), Size);
-				return true;
-			});
+				{
+					memcpy(Buffer, Source[0].c_str(), Size);
+					return true;
+				});
 
 			if (!Header)
 				return nullptr;
 
-            Source[1] = Base64URLDecode(Source[1]);
+			Source[1] = Base64URLDecode(Source[1]);
 			Core::Document* Payload = Core::Document::ReadJSON((int64_t)Source[1].size(), [&Source](char* Buffer, int64_t Size)
-			{
-				memcpy(Buffer, Source[1].c_str(), Size);
-				return true;
-			});
+				{
+					memcpy(Buffer, Source[1].c_str(), Size);
+					return true;
+				});
 
 			if (!Payload)
 			{
@@ -7357,7 +7358,7 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-            Source[0] = Header->GetVar("alg").GetBlob();
+			Source[0] = Header->GetVar("alg").GetBlob();
 			if (Base64URLEncode(JWTSign(Source[0], Value.substr(0, Offset), Key)) != Source[2])
 			{
 				TH_RELEASE(Header);
@@ -7365,7 +7366,7 @@ namespace Tomahawk
 			}
 
 			WebToken* Result = new WebToken();
-            Result->Signature = Base64URLDecode(Source[2]);
+			Result->Signature = Base64URLDecode(Source[2]);
 			Result->Header = Header;
 			Result->Payload = Payload;
 
@@ -7378,11 +7379,11 @@ namespace Tomahawk
 
 			std::string Result;
 			Core::Document::WriteJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
-			{
-				Result.append(Buffer, Size);
-			});
+				{
+					Result.append(Buffer, Size);
+				});
 
-            Result = Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
+			Result = Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
 			return Result;
 		}
 		Core::Document* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
@@ -7390,12 +7391,12 @@ namespace Tomahawk
 			if (Value.empty() || !Key || !Salt)
 				return nullptr;
 
-            std::string Source = Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt);
+			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt);
 			return Core::Document::ReadJSON((int64_t)Source.size(), [&Source](char* Buffer, int64_t Size)
-			{
-				memcpy(Buffer, Source.c_str(), Size);
-				return true;
-			});
+				{
+					memcpy(Buffer, Source.c_str(), Size);
+					return true;
+				});
 		}
 		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
@@ -7899,16 +7900,16 @@ namespace Tomahawk
 
 			switch (Request.GetEnumType())
 			{
-				case Hybi10_Opcode_Text:
+				case Hybi10_Opcode::Text:
 					Head = 129;
 					break;
-				case Hybi10_Opcode_Close:
+				case Hybi10_Opcode::Close:
 					Head = 136;
 					break;
-				case Hybi10_Opcode_Ping:
+				case Hybi10_Opcode::Ping:
 					Head = 137;
 					break;
-				case Hybi10_Opcode_Pong:
+				case Hybi10_Opcode::Pong:
 					Head = 138;
 					break;
 				default:
@@ -7974,7 +7975,7 @@ namespace Tomahawk
 			Hybi10Request Decoded;
 			Decoded.Type = Payload->Opcode;
 
-			if (Decoded.GetEnumType() == Hybi10_Opcode_Invalid)
+			if (Decoded.GetEnumType() == Hybi10_Opcode::Invalid)
 			{
 				Decoded.ExitCode = 1003;
 				return Decoded;
@@ -8115,11 +8116,11 @@ namespace Tomahawk
 		}
 		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) : Header(Core::Document::Object()), Payload(Core::Document::Object()), Token(nullptr)
 		{
-            Header->Set("alg", Core::Var::String("HS256"));
-            Header->Set("typ", Core::Var::String("JWT"));
-            Payload->Set("iss", Core::Var::String(Issuer));
-            Payload->Set("sub", Core::Var::String(Subject));
-            Payload->Set("exp", Core::Var::Integer(Expiration));
+			Header->Set("alg", Core::Var::String("HS256"));
+			Header->Set("typ", Core::Var::String("JWT"));
+			Payload->Set("iss", Core::Var::String(Issuer));
+			Payload->Set("sub", Core::Var::String(Subject));
+			Payload->Set("exp", Core::Var::Integer(Expiration));
 		}
 		WebToken::~WebToken()
 		{
@@ -9030,7 +9031,7 @@ namespace Tomahawk
 		}
 		void Transform::SetTransform(TransformSpace Space, const Vector3& _Position, const Vector3& _Scale, const Vector3& _Rotation)
 		{
-			if (Root != nullptr && Space == TransformSpace_Global)
+			if (Root != nullptr && Space == TransformSpace::Global)
 			{
 				Vector3 P = _Position, R = _Rotation, S = _Scale;
 				Localize(&P, &S, &R);
@@ -9506,7 +9507,7 @@ namespace Tomahawk
 				btScalar X, Y, Z;
 
 				Base.getRotation().getEulerZYX(Z, Y, X);
-				Transform->SetTransform(TransformSpace_Global, BT_TO_V3(Position), BT_TO_V3(Scale), Vector3(-X, -Y, Z));
+				Transform->SetTransform(TransformSpace::Global, BT_TO_V3(Position), BT_TO_V3(Scale), Vector3(-X, -Y, Z));
 			}
 			else
 			{
@@ -9517,16 +9518,16 @@ namespace Tomahawk
 		}
 		void RigidBody::SetActivity(bool Active)
 		{
-			if (!Instance || GetActivationState() == MotionState_Disable_Deactivation)
+			if (!Instance || GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
 			if (Active)
 			{
-				Instance->forceActivationState(MotionState_Active);
+				Instance->forceActivationState((int)MotionState::Active);
 				Instance->activate(true);
 			}
 			else
-				Instance->forceActivationState(MotionState_Deactivation_Needed);
+				Instance->forceActivationState((int)MotionState::Deactivation_Needed);
 		}
 		void RigidBody::SetAsGhost()
 		{
@@ -9695,14 +9696,14 @@ namespace Tomahawk
 		MotionState RigidBody::GetActivationState()
 		{
 			if (!Instance)
-				return MotionState_Active;
+				return MotionState::Active;
 
 			return (MotionState)Instance->getActivationState();
 		}
 		Shape RigidBody::GetCollisionShapeType()
 		{
 			if (!Instance || !Instance->getCollisionShape())
-				return Shape_Invalid;
+				return Shape::Invalid;
 
 			return (Shape)Instance->getCollisionShape()->getShapeType();
 		}
@@ -10110,7 +10111,7 @@ namespace Tomahawk
 			{
 				btScalar X, Y, Z;
 				Instance->getWorldTransform().getRotation().getEulerZYX(Z, Y, X);
-				Transform->SetTransform(TransformSpace_Global, Center.InvZ(), 1.0f, Vector3(-X, -Y, Z));
+				Transform->SetTransform(TransformSpace::Global, Center.InvZ(), 1.0f, Vector3(-X, -Y, Z));
 			}
 			else
 			{
@@ -10396,13 +10397,13 @@ namespace Tomahawk
 		}
 		void SoftBody::SetActivity(bool Active)
 		{
-			if (!Instance || GetActivationState() == MotionState_Disable_Deactivation)
+			if (!Instance || GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
 			if (Active)
-				Instance->forceActivationState(MotionState_Active);
+				Instance->forceActivationState((int)MotionState::Active);
 			else
-				Instance->forceActivationState(MotionState_Deactivation_Needed);
+				Instance->forceActivationState((int)MotionState::Deactivation_Needed);
 		}
 		void SoftBody::SetAsGhost()
 		{
@@ -10528,16 +10529,16 @@ namespace Tomahawk
 		MotionState SoftBody::GetActivationState()
 		{
 			if (!Instance)
-				return MotionState_Active;
+				return MotionState::Active;
 
 			return (MotionState)Instance->getActivationState();
 		}
 		Shape SoftBody::GetCollisionShapeType()
 		{
 			if (!Instance || !Initial.Shape.Convex.Enabled)
-				return Shape_Invalid;
+				return Shape::Invalid;
 
-			return Shape_Convex_Hull;
+			return Shape::Convex_Hull;
 		}
 		Vector3 SoftBody::GetAnisotropicFriction()
 		{
@@ -11617,7 +11618,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateConvexHull(btCollisionShape* From)
 		{
-			if (!From || From->getShapeType() != Shape_Convex_Hull)
+			if (!From || From->getShapeType() != (int)Shape::Convex_Hull)
 				return nullptr;
 
 			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
@@ -11640,15 +11641,15 @@ namespace Tomahawk
 		{
 			switch (Wanted)
 			{
-				case Shape::Shape_Box:
+				case Shape::Box:
 					return CreateCube();
-				case Shape::Shape_Sphere:
+				case Shape::Sphere:
 					return CreateSphere();
-				case Shape::Shape_Capsule:
+				case Shape::Capsule:
 					return CreateCapsule();
-				case Shape::Shape_Cone:
+				case Shape::Cone:
 					return CreateCone();
-				case Shape::Shape_Cylinder:
+				case Shape::Cylinder:
 					return CreateCylinder();
 				default:
 					return nullptr;
@@ -11660,34 +11661,34 @@ namespace Tomahawk
 				return nullptr;
 
 			Shape Type = (Shape)Value->getShapeType();
-			if (Type == Shape_Box)
+			if (Type == Shape::Box)
 			{
 				btBoxShape* Box = (btBoxShape*)Value;
 				btVector3 Size = Box->getHalfExtentsWithMargin() / Box->getLocalScaling();
 				return CreateCube(BT_TO_V3(Size));
 			}
-			else if (Type == Shape_Sphere)
+			else if (Type == Shape::Sphere)
 			{
 				btSphereShape* Sphere = (btSphereShape*)Value;
 				return CreateSphere(Sphere->getRadius());
 			}
-			else if (Type == Shape_Capsule)
+			else if (Type == Shape::Capsule)
 			{
 				btCapsuleShape* Capsule = (btCapsuleShape*)Value;
 				return CreateCapsule(Capsule->getRadius(), Capsule->getHalfHeight() * 2.0f);
 			}
-			else if (Type == Shape_Cone)
+			else if (Type == Shape::Cone)
 			{
 				btConeShape* Cone = (btConeShape*)Value;
 				return CreateCone(Cone->getRadius(), Cone->getHeight());
 			}
-			else if (Type == Shape_Cylinder)
+			else if (Type == Shape::Cylinder)
 			{
 				btCylinderShape* Cylinder = (btCylinderShape*)Value;
 				btVector3 Size = Cylinder->getHalfExtentsWithMargin() / Cylinder->getLocalScaling();
 				return CreateCylinder(BT_TO_V3(Size));
 			}
-			else if (Type == Shape_Convex_Hull)
+			else if (Type == Shape::Convex_Hull)
 				return CreateConvexHull(Value);
 
 			return nullptr;
@@ -11734,7 +11735,7 @@ namespace Tomahawk
 				return std::vector<Vector3>();
 
 			auto Type = (Shape)Value->getShapeType();
-			if (Type != Shape_Convex_Hull)
+			if (Type != Shape::Convex_Hull)
 				return std::vector<Vector3>();
 
 			btConvexHullShape* Hull = (btConvexHullShape*)Value;
@@ -11757,7 +11758,7 @@ namespace Tomahawk
 				return 0;
 
 			auto Type = (Compute::Shape)Value->getShapeType();
-			if (Type != Shape_Convex_Hull)
+			if (Type != Shape::Convex_Hull)
 				return 0;
 
 			btConvexHullShape* Hull = (btConvexHullShape*)Value;
@@ -11875,7 +11876,7 @@ namespace Tomahawk
 		}
 		btCollisionShape* Simulator::CreateUnmanagedShape(btCollisionShape* From)
 		{
-			if (!From || From->getShapeType() != Shape_Convex_Hull)
+			if (!From || From->getShapeType() != (int)Shape::Convex_Hull)
 				return nullptr;
 
 			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);

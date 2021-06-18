@@ -1768,7 +1768,7 @@ namespace Tomahawk
 
 			for (auto&& It : *Array->GetNodes())
 			{
-				if (It->Key == "s" && It->Value.GetType() == Core::VarType_String)
+				if (It->Key == "s" && It->Value.GetType() == Core::VarType::String)
 					O->push_back(It->Value.GetBlob());
 			}
 
@@ -2018,7 +2018,7 @@ namespace Tomahawk
 			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + Parent->Transform->Scale.Length();
 		}
 
-		Drawable::Drawable(Entity* Ref, uint64_t Hash, bool vComplex) : Cullable(Ref), Category(GeoCategory_Opaque), Source(Hash), Complex(vComplex), Static(true)
+		Drawable::Drawable(Entity* Ref, uint64_t Hash, bool vComplex) : Cullable(Ref), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true)
 		{
 			if (!Complex)
 				Materials[nullptr] = nullptr;
@@ -2057,18 +2057,18 @@ namespace Tomahawk
 			if (!Parent || !Parent->GetScene())
 			{
 				if (Enabled)
-					Category = GeoCategory_Transparent;
+					Category = GeoCategory::Transparent;
 				else
-					Category = GeoCategory_Opaque;
+					Category = GeoCategory::Opaque;
 
 				return false;
 			}
 
 			Detach();
 			if (Enabled)
-				Category = GeoCategory_Transparent;
+				Category = GeoCategory::Transparent;
 			else
-				Category = GeoCategory_Opaque;
+				Category = GeoCategory::Opaque;
 
 			Parent->GetScene()->AddDrawable(this, Category);
 			return true;
@@ -2091,7 +2091,7 @@ namespace Tomahawk
 		}
 		bool Drawable::HasTransparency()
 		{
-			return Category == GeoCategory_Transparent;
+			return Category == GeoCategory::Transparent;
 		}
 		int64_t Drawable::GetSlot(void* Surface)
 		{
@@ -2421,14 +2421,14 @@ namespace Tomahawk
 		}
 		PrimitiveCache::~PrimitiveCache()
 		{
-			TH_RELEASE(Sphere[BufferType_Index]);
-			TH_RELEASE(Sphere[BufferType_Vertex]);
-			TH_RELEASE(Cube[BufferType_Index]);
-			TH_RELEASE(Cube[BufferType_Vertex]);
-			TH_RELEASE(Box[BufferType_Index]);
-			TH_RELEASE(Box[BufferType_Vertex]);
-			TH_RELEASE(SkinBox[BufferType_Index]);
-			TH_RELEASE(SkinBox[BufferType_Vertex]);
+			TH_RELEASE(Sphere[(size_t)BufferType::Index]);
+			TH_RELEASE(Sphere[(size_t)BufferType::Vertex]);
+			TH_RELEASE(Cube[(size_t)BufferType::Index]);
+			TH_RELEASE(Cube[(size_t)BufferType::Vertex]);
+			TH_RELEASE(Box[(size_t)BufferType::Index]);
+			TH_RELEASE(Box[(size_t)BufferType::Vertex]);
+			TH_RELEASE(SkinBox[(size_t)BufferType::Index]);
+			TH_RELEASE(SkinBox[(size_t)BufferType::Vertex]);
 			TH_RELEASE(Quad);
 			ClearCache();
 		}
@@ -2438,9 +2438,9 @@ namespace Tomahawk
 				return false;
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Write;
-			F.Usage = Graphics::ResourceUsage_Dynamic;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.AccessFlags = Graphics::CPUAccess::Write;
+			F.Usage = Graphics::ResourceUsage::Dynamic;
+			F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 			F.ElementWidth = ElementSize;
 			F.ElementCount = ElementsCount;
 
@@ -2449,9 +2449,9 @@ namespace Tomahawk
 				return false;
 
 			F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Write;
-			F.Usage = Graphics::ResourceUsage_Dynamic;
-			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.AccessFlags = Graphics::CPUAccess::Write;
+			F.Usage = Graphics::ResourceUsage::Dynamic;
+			F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 			F.ElementWidth = sizeof(int);
 			F.ElementCount = ElementsCount * 3;
 
@@ -2464,8 +2464,8 @@ namespace Tomahawk
 
 			Safe.lock();
 			SCache& Result = Cache[Name];
-			Result.Buffers[BufferType_Index] = Results[BufferType_Index] = IndexBuffer;
-			Result.Buffers[BufferType_Vertex] = Results[BufferType_Vertex] = VertexBuffer;
+			Result.Buffers[(size_t)BufferType::Index] = Results[(size_t)BufferType::Index] = IndexBuffer;
+			Result.Buffers[(size_t)BufferType::Vertex] = Results[(size_t)BufferType::Vertex] = VertexBuffer;
 			Result.Count = 1;
 			Safe.unlock();
 
@@ -2483,8 +2483,8 @@ namespace Tomahawk
 				It->second.Count++;
 				Safe.unlock();
 
-				Results[BufferType_Index] = It->second.Buffers[BufferType_Index];
-				Results[BufferType_Vertex] = It->second.Buffers[BufferType_Vertex];
+				Results[(size_t)BufferType::Index] = It->second.Buffers[(size_t)BufferType::Index];
+				Results[(size_t)BufferType::Vertex] = It->second.Buffers[(size_t)BufferType::Vertex];
 				return true;
 			}
 
@@ -2573,9 +2573,9 @@ namespace Tomahawk
 			Elements[5] = { 1.0f, -1.0f, 0, 0, 0 };
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Invalid;
-			F.Usage = Graphics::ResourceUsage_Default;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.AccessFlags = Graphics::CPUAccess::Invalid;
+			F.Usage = Graphics::ResourceUsage::Default;
+			F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 			F.ElementCount = 6;
 			F.ElementWidth = sizeof(Compute::ShapeVertex);
 			F.Elements = &Elements[0];
@@ -2588,13 +2588,13 @@ namespace Tomahawk
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSphere(BufferType Type)
 		{
-			if (Sphere[Type] != nullptr)
-				return Sphere[Type];
+			if (Sphere[(size_t)Type] != nullptr)
+				return Sphere[(size_t)Type];
 
 			if (!Device)
 				return nullptr;
 
-			if (Type == BufferType_Index)
+			if (Type == BufferType::Index)
 			{
 				std::vector<int> Indices;
 				Indices.push_back(0);
@@ -2659,20 +2659,20 @@ namespace Tomahawk
 				Indices.push_back(11);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
 				Safe.lock();
-				Sphere[BufferType_Index] = Device->CreateElementBuffer(F);
+				Sphere[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return Sphere[BufferType_Index];
+				return Sphere[(size_t)BufferType::Index];
 			}
-			else if (Type == BufferType_Vertex)
+			else if (Type == BufferType::Vertex)
 			{
 				const float X = 0.525731112119133606;
 				const float Z = 0.850650808352039932;
@@ -2693,31 +2693,31 @@ namespace Tomahawk
 				Elements.push_back({ -Z, -X, N });
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
 				F.ElementWidth = sizeof(Compute::ShapeVertex);
 				F.Elements = &Elements[0];
 
 				Safe.lock();
-				Sphere[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				Sphere[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return Sphere[BufferType_Vertex];
+				return Sphere[(size_t)BufferType::Vertex];
 			}
 
 			return nullptr;
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetCube(BufferType Type)
 		{
-			if (Cube[Type] != nullptr)
-				return Cube[Type];
+			if (Cube[(size_t)Type] != nullptr)
+				return Cube[(size_t)Type];
 
 			if (!Device)
 				return nullptr;
 
-			if (Type == BufferType_Index)
+			if (Type == BufferType::Index)
 			{
 				std::vector<int> Indices;
 				Indices.push_back(0);
@@ -2758,20 +2758,20 @@ namespace Tomahawk
 				Indices.push_back(16);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
 				Safe.lock();
-				Cube[BufferType_Index] = Device->CreateElementBuffer(F);
+				Cube[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return Cube[BufferType_Index];
+				return Cube[(size_t)BufferType::Index];
 			}
-			else if (Type == BufferType_Vertex)
+			else if (Type == BufferType::Vertex)
 			{
 				std::vector<Compute::ShapeVertex> Elements;
 				Elements.push_back({ -1, 1, 1, 0.875, -0.5 });
@@ -2800,31 +2800,31 @@ namespace Tomahawk
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
 				F.ElementWidth = sizeof(Compute::ShapeVertex);
 				F.Elements = &Elements[0];
 
 				Safe.lock();
-				Cube[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				Cube[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return Cube[BufferType_Vertex];
+				return Cube[(size_t)BufferType::Vertex];
 			}
 
 			return nullptr;
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetBox(BufferType Type)
 		{
-			if (Box[Type] != nullptr)
-				return Box[Type];
+			if (Box[(size_t)Type] != nullptr)
+				return Box[(size_t)Type];
 
 			if (!Device)
 				return nullptr;
 
-			if (Type == BufferType_Index)
+			if (Type == BufferType::Index)
 			{
 				std::vector<int> Indices;
 				Indices.push_back(0);
@@ -2866,20 +2866,20 @@ namespace Tomahawk
 				Compute::Common::ComputeIndexWindingOrderFlip(Indices);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
 				Safe.lock();
-				Box[BufferType_Index] = Device->CreateElementBuffer(F);
+				Box[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return Box[BufferType_Index];
+				return Box[(size_t)BufferType::Index];
 			}
-			else if (Type == BufferType_Vertex)
+			else if (Type == BufferType::Vertex)
 			{
 				std::vector<Compute::Vertex> Elements;
 				Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
@@ -2908,31 +2908,31 @@ namespace Tomahawk
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
 				F.ElementWidth = sizeof(Compute::Vertex);
 				F.Elements = &Elements[0];
 
 				Safe.lock();
-				Box[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				Box[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return Box[BufferType_Vertex];
+				return Box[(size_t)BufferType::Vertex];
 			}
 
 			return nullptr;
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSkinBox(BufferType Type)
 		{
-			if (SkinBox[Type] != nullptr)
-				return SkinBox[Type];
+			if (SkinBox[(size_t)Type] != nullptr)
+				return SkinBox[(size_t)Type];
 
 			if (!Device)
 				return nullptr;
 
-			if (Type == BufferType_Index)
+			if (Type == BufferType::Index)
 			{
 				std::vector<int> Indices;
 				Indices.push_back(0);
@@ -2974,20 +2974,20 @@ namespace Tomahawk
 				Compute::Common::ComputeIndexWindingOrderFlip(Indices);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 				F.ElementCount = (unsigned int)Indices.size();
 				F.ElementWidth = sizeof(int);
 				F.Elements = &Indices[0];
 
 				Safe.lock();
-				SkinBox[BufferType_Index] = Device->CreateElementBuffer(F);
+				SkinBox[(size_t)BufferType::Index] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return SkinBox[BufferType_Index];
+				return SkinBox[(size_t)BufferType::Index];
 			}
-			else if (Type == BufferType_Vertex)
+			else if (Type == BufferType::Vertex)
 			{
 				std::vector<Compute::SkinVertex> Elements;
 				Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
@@ -3016,18 +3016,18 @@ namespace Tomahawk
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-				F.AccessFlags = Graphics::CPUAccess_Invalid;
-				F.Usage = Graphics::ResourceUsage_Default;
-				F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+				F.AccessFlags = Graphics::CPUAccess::Invalid;
+				F.Usage = Graphics::ResourceUsage::Default;
+				F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 				F.ElementCount = (unsigned int)Elements.size();
 				F.ElementWidth = sizeof(Compute::SkinVertex);
 				F.Elements = &Elements[0];
 
 				Safe.lock();
-				SkinBox[BufferType_Vertex] = Device->CreateElementBuffer(F);
+				SkinBox[(size_t)BufferType::Vertex] = Device->CreateElementBuffer(F);
 				Safe.unlock();
 
-				return SkinBox[BufferType_Vertex];
+				return SkinBox[(size_t)BufferType::Vertex];
 			}
 
 			return nullptr;
@@ -3036,32 +3036,32 @@ namespace Tomahawk
 		{
 			if (Result != nullptr)
 			{
-				Result[BufferType_Index] = GetSphere(BufferType_Index);
-				Result[BufferType_Vertex] = GetSphere(BufferType_Vertex);
+				Result[(size_t)BufferType::Index] = GetSphere(BufferType::Index);
+				Result[(size_t)BufferType::Vertex] = GetSphere(BufferType::Vertex);
 			}
 		}
 		void PrimitiveCache::GetCubeBuffers(Graphics::ElementBuffer** Result)
 		{
 			if (Result != nullptr)
 			{
-				Result[BufferType_Index] = GetCube(BufferType_Index);
-				Result[BufferType_Vertex] = GetCube(BufferType_Vertex);
+				Result[(size_t)BufferType::Index] = GetCube(BufferType::Index);
+				Result[(size_t)BufferType::Vertex] = GetCube(BufferType::Vertex);
 			}
 		}
 		void PrimitiveCache::GetBoxBuffers(Graphics::ElementBuffer** Result)
 		{
 			if (Result != nullptr)
 			{
-				Result[BufferType_Index] = GetBox(BufferType_Index);
-				Result[BufferType_Vertex] = GetBox(BufferType_Vertex);
+				Result[(size_t)BufferType::Index] = GetBox(BufferType::Index);
+				Result[(size_t)BufferType::Vertex] = GetBox(BufferType::Vertex);
 			}
 		}
 		void PrimitiveCache::GetSkinBoxBuffers(Graphics::ElementBuffer** Result)
 		{
 			if (Result != nullptr)
 			{
-				Result[BufferType_Index] = GetSkinBox(BufferType_Index);
-				Result[BufferType_Vertex] = GetSkinBox(BufferType_Vertex);
+				Result[(size_t)BufferType::Index] = GetSkinBox(BufferType::Index);
+				Result[(size_t)BufferType::Vertex] = GetSkinBox(BufferType::Vertex);
 			}
 		}
 		void PrimitiveCache::ClearCache()
@@ -3129,7 +3129,7 @@ namespace Tomahawk
 			Sampler = Device->GetSamplerState("point");
 			DepthSize = Size;
 
-			Graphics::MultiRenderTarget2D* MRT = Scene->GetMRT(TargetType_Main);
+			Graphics::MultiRenderTarget2D* MRT = Scene->GetMRT(TargetType::Main);
 			float Aspect = (float)MRT->GetWidth() / MRT->GetHeight();
 
 			Graphics::DepthBuffer::Desc I;
@@ -3256,7 +3256,7 @@ namespace Tomahawk
 		void RenderSystem::RestoreOutput()
 		{
 			if (Scene != nullptr)
-				Scene->SetMRT(TargetType_Main, false);
+				Scene->SetMRT(TargetType::Main, false);
 		}
 		void RenderSystem::FreeShader(const std::string& Name, Graphics::Shader* Shader)
 		{
@@ -3367,11 +3367,11 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PassCullable(Cullable* Base, CullResult Mode, float* Result)
 		{
-			if (Mode == CullResult_Last)
+			if (Mode == CullResult::Last)
 				return Base->Visibility;
 
 			float D = Base->Cull(Scene->View);
-			if (Mode == CullResult_Cache)
+			if (Mode == CullResult::Cache)
 				Base->Visibility = D;
 
 			if (Result != nullptr)
@@ -3381,7 +3381,7 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PassDrawable(Drawable* Base, CullResult Mode, float* Result)
 		{
-			if (Mode == CullResult_Last)
+			if (Mode == CullResult::Last)
 			{
 				if (OcclusionCulling)
 				{
@@ -3453,9 +3453,9 @@ namespace Tomahawk
 				return Cache->Compile(Result, Name, ElementSize, ElementsCount);
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Write;
-			F.Usage = Graphics::ResourceUsage_Dynamic;
-			F.BindFlags = Graphics::ResourceBind_Vertex_Buffer;
+			F.AccessFlags = Graphics::CPUAccess::Write;
+			F.Usage = Graphics::ResourceUsage::Dynamic;
+			F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
 			F.ElementWidth = ElementSize;
 			F.ElementCount = ElementsCount;
 
@@ -3464,9 +3464,9 @@ namespace Tomahawk
 				return false;
 
 			F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Write;
-			F.Usage = Graphics::ResourceUsage_Dynamic;
-			F.BindFlags = Graphics::ResourceBind_Index_Buffer;
+			F.AccessFlags = Graphics::CPUAccess::Write;
+			F.Usage = Graphics::ResourceUsage::Dynamic;
+			F.BindFlags = Graphics::ResourceBind::Index_Buffer;
 			F.ElementWidth = sizeof(int);
 			F.ElementCount = ElementsCount * 3;
 
@@ -3477,8 +3477,8 @@ namespace Tomahawk
 				return false;
 			}
 
-			Result[BufferType_Index] = IndexBuffer;
-			Result[BufferType_Vertex] = VertexBuffer;
+			Result[(size_t)BufferType::Index] = IndexBuffer;
+			Result[(size_t)BufferType::Vertex] = VertexBuffer;
 
 			return true;
 		}
@@ -3584,10 +3584,10 @@ namespace Tomahawk
 		}
 		void GeometryDraw::Render(Core::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
-			if (State == RenderState_Geometry_Result)
+			if (State == RenderState::Geometry_Result)
 			{
 				Core::Pool<Drawable*>* Geometry;
-				if (Options & RenderOpt_Transparent)
+				if ((size_t)Options & (size_t)RenderOpt::Transparent)
 					Geometry = GetTransparent();
 				else
 					Geometry = GetOpaque();
@@ -3598,9 +3598,9 @@ namespace Tomahawk
 					RenderGeometryResult(TimeStep, Geometry, Options);
 				}
 			}
-			else if (State == RenderState_Geometry_Voxels)
+			else if (State == RenderState::Geometry_Voxels)
 			{
-				if (Options & RenderOpt_Transparent)
+				if ((size_t)Options & (size_t)RenderOpt::Transparent)
 					return;
 
 				Core::Pool<Drawable*>* Geometry = GetOpaque();
@@ -3610,9 +3610,9 @@ namespace Tomahawk
 					RenderGeometryVoxels(TimeStep, Geometry, Options);
 				}
 			}
-			else if (State == RenderState_Depth_Linear)
+			else if (State == RenderState::Depth_Linear)
 			{
-				if (!(Options & RenderOpt_Inner))
+				if (!((size_t)Options & (size_t)RenderOpt::Inner))
 					return;
 
 				System->ClearMaterials();
@@ -3625,10 +3625,10 @@ namespace Tomahawk
 				if (Transparent != nullptr && Transparent->Size() > 0)
 					RenderDepthLinear(TimeStep, Transparent);
 			}
-			else if (State == RenderState_Depth_Cubic)
+			else if (State == RenderState::Depth_Cubic)
 			{
 				Viewer& View = System->GetScene()->View;
-				if (!(Options & RenderOpt_Inner))
+				if (!((size_t)Options & (size_t)RenderOpt::Inner))
 					return;
 
 				System->ClearMaterials();
@@ -3687,7 +3687,7 @@ namespace Tomahawk
 				Swap = Resource;
 			}
 			else
-				Output = System->GetRT(TargetType_Main);
+				Output = System->GetRT(TargetType::Main);
 
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetTarget(Output, 0, 0, 0, 0);
@@ -3770,14 +3770,14 @@ namespace Tomahawk
 			}
 
 			Device->Draw(6, 0);
-			Output = System->GetRT(TargetType_Main);
+			Output = System->GetRT(TargetType::Main);
 		}
 		void EffectDraw::RenderEffect(Core::Timer* Time)
 		{
 		}
 		void EffectDraw::Render(Core::Timer* Time, RenderState State, RenderOpt Options)
 		{
-			if (State != RenderState_Geometry_Result || Options & RenderOpt_Inner)
+			if (State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Inner)
 				return;
 
 			MaxSlot = 5;
@@ -3786,9 +3786,9 @@ namespace Tomahawk
 
 			Swap = nullptr;
 			if (!Output)
-				Output = System->GetRT(TargetType_Main);
+				Output = System->GetRT(TargetType::Main);
 
-			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType_Main);
+			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType::Main);
 			PrimitiveCache* Cache = System->GetPrimitives();
 			if (!Input || !Cache)
 				return;
@@ -3853,7 +3853,7 @@ namespace Tomahawk
 		}
 		unsigned int EffectDraw::GetMipLevels()
 		{
-			Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Main);
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			if (!RT)
 				return 0;
 
@@ -3861,7 +3861,7 @@ namespace Tomahawk
 		}
 		unsigned int EffectDraw::GetWidth()
 		{
-			Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Main);
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			if (!RT)
 				return 0;
 
@@ -3869,7 +3869,7 @@ namespace Tomahawk
 		}
 		unsigned int EffectDraw::GetHeight()
 		{
-			Graphics::RenderTarget2D* RT = System->GetRT(TargetType_Main);
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			if (!RT)
 				return 0;
 
@@ -3898,18 +3898,18 @@ namespace Tomahawk
 			Invoked(false), Active(true)
 		{
 			Sync.Count = 0; Sync.Locked = false;
-			for (unsigned int i = 0; i < ThreadId_Count; i++)
+			for (size_t i = 0; i < (size_t)ThreadId::Count; i++)
 				Sync.Threads[i].State = 0;
 
-			for (unsigned int i = 0; i < TargetType_Count * 2; i++)
+			for (size_t i = 0; i < (size_t)TargetType::Count * 2; i++)
 			{
 				Display.MRT[i] = nullptr;
 				Display.RT[i] = nullptr;
 			}
 
-			Display.VoxelBuffers[VoxelType_Diffuse] = nullptr;
-			Display.VoxelBuffers[VoxelType_Normal] = nullptr;
-			Display.VoxelBuffers[VoxelType_Surface] = nullptr;
+			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = nullptr;
+			Display.VoxelBuffers[(size_t)VoxelType::Normal] = nullptr;
+			Display.VoxelBuffers[(size_t)VoxelType::Surface] = nullptr;
 			Display.MaterialBuffer = nullptr;
 			Display.Merger = nullptr;
 			Display.DepthStencil = nullptr;
@@ -3936,12 +3936,12 @@ namespace Tomahawk
 			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 				TH_RELEASE(*It);
 
-			TH_RELEASE(Display.VoxelBuffers[VoxelType_Diffuse]);
-			TH_RELEASE(Display.VoxelBuffers[VoxelType_Normal]);
-			TH_RELEASE(Display.VoxelBuffers[VoxelType_Surface]);
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
 			TH_RELEASE(Display.Merger);
 
-			for (unsigned int i = 0; i < TargetType_Count; i++)
+			for (size_t i = 0; i < (size_t)TargetType::Count; i++)
 			{
 				TH_RELEASE(Display.MRT[i]);
 				TH_RELEASE(Display.RT[i]);
@@ -4027,24 +4027,24 @@ namespace Tomahawk
 			Conf.Device->SetInputLayout(Display.Layout);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
 			Conf.Device->SetVertexBuffer(Cache->GetQuad(), 0);
-			Conf.Device->SetTexture2D(Display.MRT[TargetType_Main]->GetTarget(0), 1, TH_PS);
-			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_Render);
+			Conf.Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
+			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 1, TH_PS);
 		}
 		void SceneGraph::Render(Core::Timer* Time)
 		{
-			BeginThread(ThreadId_Render);
+			BeginThread(ThreadId::Render);
 			if (Camera != nullptr)
 			{
 				RestoreViewBuffer(nullptr);
 				FillMaterialBuffers();
 
-				SetMRT(TargetType_Main, true);
-				Render(Time, RenderState_Geometry_Result, RenderOpt_None);
+				SetMRT(TargetType::Main, true);
+				Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 				View.Renderer->CullGeometry(Time, View);
 			}
-			EndThread(ThreadId_Render);
+			EndThread(ThreadId::Render);
 		}
 		void SceneGraph::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
 		{
@@ -4064,14 +4064,14 @@ namespace Tomahawk
 			if (!Active)
 				return;
 
-			BeginThread(ThreadId_Simulation);
+			BeginThread(ThreadId::Simulation);
 			Simulator->Simulate((float)Time->GetTimeStep());
-			EndThread(ThreadId_Simulation);
+			EndThread(ThreadId::Simulation);
 #endif
 		}
 		void SceneGraph::Synchronize(Core::Timer* Time)
 		{
-			BeginThread(ThreadId_Synchronize);
+			BeginThread(ThreadId::Synchronize);
 			for (auto It = Pending.Begin(); It != Pending.End(); ++It)
 				(*It)->Synchronize(Time);
 
@@ -4082,11 +4082,11 @@ namespace Tomahawk
 				Base->Transform->Synchronize();
 				Base->Id = Index; Index++;
 			}
-			EndThread(ThreadId_Synchronize);
+			EndThread(ThreadId::Synchronize);
 		}
 		void SceneGraph::Update(Core::Timer* Time)
 		{
-			BeginThread(ThreadId_Update);
+			BeginThread(ThreadId::Update);
 			if (Active)
 			{
 				for (auto It = Pending.Begin(); It != Pending.End(); ++It)
@@ -4101,7 +4101,7 @@ namespace Tomahawk
 				(*It)->Distance = (*It)->Transform->Position.Distance(Far);
 
 			DispatchLastEvent();
-			EndThread(ThreadId_Update);
+			EndThread(ThreadId::Update);
 		}
 		void SceneGraph::Actualize()
 		{
@@ -4318,16 +4318,16 @@ namespace Tomahawk
 			Conf.Device->View.Direction = View.WorldRotation.dDirection();
 			Conf.Device->View.Far = View.FarPlane;
 			Conf.Device->View.Near = View.NearPlane;
-			Conf.Device->UpdateBuffer(Graphics::RenderBufferType_View);
+			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::View);
 		}
 		void SceneGraph::ExpandMaterials()
 		{
 			Lock();
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-			F.AccessFlags = Graphics::CPUAccess_Write;
-			F.MiscFlags = Graphics::ResourceMisc_Buffer_Structured;
-			F.Usage = Graphics::ResourceUsage_Dynamic;
-			F.BindFlags = Graphics::ResourceBind_Shader_Input;
+			F.AccessFlags = Graphics::CPUAccess::Write;
+			F.MiscFlags = Graphics::ResourceMisc::Buffer_Structured;
+			F.Usage = Graphics::ResourceUsage::Dynamic;
+			F.BindFlags = Graphics::ResourceBind::Shader_Input;
 			F.ElementCount = (unsigned int)Surfaces;
 			F.ElementWidth = sizeof(Subsurface);
 			F.StructureByteStride = F.ElementWidth;
@@ -4431,7 +4431,7 @@ namespace Tomahawk
 			Graphics::RenderTarget2D::Desc RT = GetDescRT();
 			TH_CLEAR(Display.Merger);
 
-			for (unsigned int i = 0; i < TargetType_Count; i++)
+			for (size_t i = 0; i < (size_t)TargetType::Count; i++)
 			{
 				TH_RELEASE(Display.MRT[i]);
 				Display.MRT[i] = Conf.Device->CreateMultiRenderTarget2D(MRT);
@@ -4443,7 +4443,7 @@ namespace Tomahawk
 		void SceneGraph::FillMaterialBuffers()
 		{
 			Graphics::MappedSubresource Stream;
-			if (!Conf.Device->Map(Display.MaterialBuffer, Graphics::ResourceMap_Write_Discard, &Stream))
+			if (!Conf.Device->Map(Display.MaterialBuffer, Graphics::ResourceMap::Write_Discard, &Stream))
 				return;
 
 			Subsurface* Array = (Subsurface*)Stream.Pointer; uint64_t Size = 0;
@@ -4520,20 +4520,20 @@ namespace Tomahawk
 			I.MipLevels = 0;
 			I.Writable = true;
 
-			TH_RELEASE(Display.VoxelBuffers[VoxelType_Diffuse]);
-			Display.VoxelBuffers[VoxelType_Diffuse] = Conf.Device->CreateTexture3D(I);
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
+			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = Conf.Device->CreateTexture3D(I);
 
-			I.FormatMode = Graphics::Format_R16G16B16A16_Float;
-			TH_RELEASE(Display.VoxelBuffers[VoxelType_Normal]);
-			Display.VoxelBuffers[VoxelType_Normal] = Conf.Device->CreateTexture3D(I);
+			I.FormatMode = Graphics::Format::R16G16B16A16_Float;
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
+			Display.VoxelBuffers[(size_t)VoxelType::Normal] = Conf.Device->CreateTexture3D(I);
 
-			I.FormatMode = Graphics::Format_R8G8B8A8_Unorm;
-			TH_RELEASE(Display.VoxelBuffers[VoxelType_Surface]);
-			Display.VoxelBuffers[VoxelType_Surface] = Conf.Device->CreateTexture3D(I);
+			I.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
+			Display.VoxelBuffers[(size_t)VoxelType::Surface] = Conf.Device->CreateTexture3D(I);
 		}
 		void SceneGraph::SetMRT(TargetType Type, bool Clear)
 		{
-			Graphics::MultiRenderTarget2D* Target = Display.MRT[Type];
+			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
 			Conf.Device->SetTarget(Target);
 
 			if (!Clear)
@@ -4547,7 +4547,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::SetRT(TargetType Type, bool Clear)
 		{
-			Graphics::RenderTarget2D* Target = Display.RT[Type];
+			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
 			Conf.Device->SetTarget(Target);
 
 			if (!Clear)
@@ -4558,44 +4558,46 @@ namespace Tomahawk
 		}
 		void SceneGraph::SwapMRT(TargetType Type, Graphics::MultiRenderTarget2D* New)
 		{
-			if (Display.MRT[Type] == New)
+			size_t Index = (size_t)Type;
+			if (Display.MRT[Index] == New)
 				return;
 
-			Graphics::MultiRenderTarget2D* Cache = Display.MRT[Type + TargetType_Count];
+			Graphics::MultiRenderTarget2D* Cache = Display.MRT[Index + (size_t)TargetType::Count];
 			if (New != nullptr)
 			{
-				Graphics::MultiRenderTarget2D* Base = Display.MRT[Type];
-				Display.MRT[Type] = New;
+				Graphics::MultiRenderTarget2D* Base = Display.MRT[Index];
+				Display.MRT[Index] = New;
 
 				if (!Cache)
-					Display.MRT[Type + TargetType_Count] = Base;
+					Display.MRT[Index + (size_t)TargetType::Count] = Base;
 			}
 			else if (Cache != nullptr)
 			{
-				Display.MRT[Type] = Cache;
-				Display.MRT[Type + TargetType_Count] = nullptr;
+				Display.MRT[Index] = Cache;
+				Display.MRT[Index + (size_t)TargetType::Count] = nullptr;
 			}
 		}
 		void SceneGraph::SwapRT(TargetType Type, Graphics::RenderTarget2D* New)
 		{
-			Graphics::RenderTarget2D* Cache = Display.RT[Type + TargetType_Count];
+			size_t Index = (size_t)Type;
+			Graphics::RenderTarget2D* Cache = Display.RT[Index + (size_t)TargetType::Count];
 			if (New != nullptr)
 			{
-				Graphics::RenderTarget2D* Base = Display.RT[Type];
-				Display.RT[Type] = New;
+				Graphics::RenderTarget2D* Base = Display.RT[Index];
+				Display.RT[Index] = New;
 
 				if (!Cache)
-					Display.RT[Type + TargetType_Count] = Base;
+					Display.RT[Index + (size_t)TargetType::Count] = Base;
 			}
 			else if (Cache != nullptr)
 			{
-				Display.RT[Type] = Cache;
-				Display.RT[Type + TargetType_Count] = nullptr;
+				Display.RT[Index] = Cache;
+				Display.RT[Index + (size_t)TargetType::Count] = nullptr;
 			}
 		}
 		void SceneGraph::ClearMRT(TargetType Type, bool Color, bool Depth)
 		{
-			Graphics::MultiRenderTarget2D* Target = Display.MRT[Type];
+			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
 			if (Color)
 			{
 				Conf.Device->Clear(Target, 0, 0, 0, 0);
@@ -4609,7 +4611,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::ClearRT(TargetType Type, bool Color, bool Depth)
 		{
-			Graphics::RenderTarget2D* Target = Display.RT[Type];
+			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
 			if (Color)
 				Conf.Device->Clear(Target, 0, 0, 0, 0);
 
@@ -4747,9 +4749,9 @@ namespace Tomahawk
 			if (!Source)
 				return;
 
-			if (Category == GeoCategory_Opaque)
+			if (Category == GeoCategory::Opaque)
 				GetOpaque(Source->Source)->Add(Source);
-			else if (Category == GeoCategory_Transparent)
+			else if (Category == GeoCategory::Transparent)
 				GetTransparent(Source->Source)->Add(Source);
 		}
 		void SceneGraph::RemoveDrawable(Drawable* Source, GeoCategory Category)
@@ -4757,9 +4759,9 @@ namespace Tomahawk
 			if (!Source)
 				return;
 
-			if (Category == GeoCategory_Opaque)
+			if (Category == GeoCategory::Opaque)
 				GetOpaque(Source->Source)->Remove(Source);
-			else if (Category == GeoCategory_Transparent)
+			else if (Category == GeoCategory::Transparent)
 				GetTransparent(Source->Source)->Remove(Source);
 		}
 		Material* SceneGraph::AddMaterial(const std::string& Name)
@@ -5006,7 +5008,7 @@ namespace Tomahawk
 				return Graphics::RenderTarget2D::Desc();
 
 			Graphics::RenderTarget2D::Desc Desc;
-			Desc.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
+			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
 			Desc.Height = (unsigned int)(Target->GetHeight() * Conf.RenderQuality);
 			Desc.MipLevels = Conf.Device->GetMipLevel(Desc.Width, Desc.Height);
@@ -5021,11 +5023,11 @@ namespace Tomahawk
 				return Graphics::MultiRenderTarget2D::Desc();
 
 			Graphics::MultiRenderTarget2D::Desc Desc;
-			Desc.MiscFlags = Graphics::ResourceMisc_Generate_Mips;
+			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
 			Desc.Height = (unsigned int)(Target->GetHeight() * Conf.RenderQuality);
 			Desc.MipLevels = Conf.Device->GetMipLevel(Desc.Width, Desc.Height);
-			Desc.Target = Graphics::SurfaceTarget3;
+			Desc.Target = Graphics::SurfaceTarget::T3;
 			Desc.FormatMode[0] = GetFormatMRT(0);
 			Desc.FormatMode[1] = GetFormatMRT(1);
 			Desc.FormatMode[2] = GetFormatMRT(2);
@@ -5036,18 +5038,18 @@ namespace Tomahawk
 		Graphics::Format SceneGraph::GetFormatMRT(unsigned int Target)
 		{
 			if (Target == 0)
-				return Conf.EnableHDR ? Graphics::Format_R16G16B16A16_Unorm : Graphics::Format_R8G8B8A8_Unorm;
+				return Conf.EnableHDR ? Graphics::Format::R16G16B16A16_Unorm : Graphics::Format::R8G8B8A8_Unorm;
 
 			if (Target == 1)
-				return Graphics::Format_R16G16B16A16_Float;
+				return Graphics::Format::R16G16B16A16_Float;
 
 			if (Target == 2)
-				return Graphics::Format_R32_Float;
+				return Graphics::Format::R32_Float;
 
 			if (Target == 3)
-				return Graphics::Format_R8G8B8A8_Unorm;
+				return Graphics::Format::R8G8B8A8_Unorm;
 
-			return Graphics::Format_Unknown;
+			return Graphics::Format::Unknown;
 		}
 		std::vector<Entity*> SceneGraph::FindParentFreeEntities(Entity* Entity)
 		{
@@ -5188,11 +5190,11 @@ namespace Tomahawk
 		}
 		Graphics::MultiRenderTarget2D* SceneGraph::GetMRT(TargetType Type)
 		{
-			return Display.MRT[Type];
+			return Display.MRT[(size_t)Type];
 		}
 		Graphics::RenderTarget2D* SceneGraph::GetRT(TargetType Type)
 		{
-			return Display.RT[Type];
+			return Display.RT[(size_t)Type];
 		}
 		Graphics::Texture2D** SceneGraph::GetMerger()
 		{
@@ -5324,7 +5326,7 @@ namespace Tomahawk
 			if (Asset != nullptr)
 				return Processor->Duplicate(Asset, Map);
 
-			auto* Stream = Core::OS::File::Open(File, Core::FileMode_Binary_Read_Only);
+			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Read_Only);
 			if (!Stream)
 				return nullptr;
 
@@ -5357,7 +5359,7 @@ namespace Tomahawk
 			}
 
 			auto* Stream = Docker->second->Stream;
-			Stream->Seek(Core::FileSeek_Begin, It->second + Docker->second->Offset);
+			Stream->Seek(Core::FileSeek::Begin, It->second + Docker->second->Offset);
 			Stream->GetSource() = File.R();
 
 			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, Map);
@@ -5385,10 +5387,10 @@ namespace Tomahawk
 			File.append(Path.substr(Directory.size()));
 			Mutex.unlock();
 
-			auto* Stream = Core::OS::File::Open(File, Core::FileMode_Binary_Write_Only);
+			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Write_Only);
 			if (!Stream)
 			{
-				Stream = Core::OS::File::Open(Path, Core::FileMode_Binary_Write_Only);
+				Stream = Core::OS::File::Open(Path, Core::FileMode::Binary_Write_Only);
 				if (!Stream)
 				{
 					TH_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
@@ -5415,7 +5417,7 @@ namespace Tomahawk
 			}
 
 			auto* Stream = new Core::GzStream();
-			if (!Stream->Open(File.c_str(), Core::FileMode::FileMode_Binary_Read_Only))
+			if (!Stream->Open(File.c_str(), Core::FileMode::Binary_Read_Only))
 			{
 				TH_ERROR("cannot open \"%s\" for reading", File.c_str());
 				TH_RELEASE(Stream);
@@ -5485,7 +5487,7 @@ namespace Tomahawk
 			}
 
 			auto* Stream = new Core::GzStream();
-			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment).c_str(), Core::FileMode_Write_Only))
+			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment).c_str(), Core::FileMode::Write_Only))
 			{
 				TH_ERROR("cannot open \"%s\" for writing", Path.c_str());
 				TH_RELEASE(Stream);
@@ -5504,7 +5506,7 @@ namespace Tomahawk
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					auto* File = Core::OS::File::Open(Resource, Core::FileMode_Binary_Read_Only);
+					auto* File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
 					if (!File)
 						continue;
 
@@ -5532,7 +5534,7 @@ namespace Tomahawk
 			{
 				for (auto& Resource : Tree->Files)
 				{
-					auto* File = Core::OS::File::Open(Resource, Core::FileMode_Binary_Read_Only);
+					auto* File = Core::OS::File::Open(Resource, Core::FileMode::Binary_Read_Only);
 					if (!File)
 						continue;
 
@@ -5627,7 +5629,7 @@ namespace Tomahawk
 
 			Host = this;
 #ifdef TH_HAS_SDL2
-			if (I->Usage & ApplicationUse_Activity_Module)
+			if (I->Usage & (size_t)ApplicationUse::Activity_Module)
 			{
 				if (!I->Activity.Width || !I->Activity.Height)
 				{
@@ -5678,7 +5680,7 @@ namespace Tomahawk
 					Activity->Callbacks.WindowStateChange = [this](Graphics::WindowState NewState, int X, int Y)
 					{
 #ifdef TH_WITH_RMLUI
-						if (NewState == Graphics::WindowState_Resize)
+						if (NewState == Graphics::WindowState::Resize)
 						{
 							GUI::Context* GUI = (GUI::Context*)GetGUI();
 							if (GUI != nullptr)
@@ -5688,7 +5690,7 @@ namespace Tomahawk
 						WindowEvent(NewState, X, Y);
 					};
 
-					if (I->Usage & ApplicationUse_Graphics_Module)
+					if (I->Usage & (size_t)ApplicationUse::Graphics_Module)
 					{
 						Compute::Vector2 Size = Activity->GetSize();
 						if (!I->GraphicsDevice.BufferWidth)
@@ -5713,7 +5715,7 @@ namespace Tomahawk
 					TH_ERROR("cannot detect display to create activity");
 			}
 #endif
-			if (I->Usage & ApplicationUse_Audio_Module)
+			if (I->Usage & (size_t)ApplicationUse::Audio_Module)
 			{
 				Audio = new Audio::AudioDevice();
 				if (!Audio->IsValid())
@@ -5723,7 +5725,7 @@ namespace Tomahawk
 				}
 			}
 
-			if (I->Usage & ApplicationUse_Content_Module)
+			if (I->Usage & (size_t)ApplicationUse::Content_Module)
 			{
 				Content = new ContentManager(Renderer);
 				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
@@ -5741,7 +5743,7 @@ namespace Tomahawk
 				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
 			}
 
-			if (I->Usage & ApplicationUse_Script_Module)
+			if (I->Usage & (size_t)ApplicationUse::Script_Module)
 				VM = new Script::VMManager();
 
 #ifdef TH_WITH_RMLUI
@@ -5751,7 +5753,7 @@ namespace Tomahawk
 				GUI::Subsystem::SetManager(VM);
 			}
 #endif
-			State = ApplicationState_Staging;
+			State = ApplicationState::Staging;
 		}
 		Application::~Application()
 		{
@@ -5809,25 +5811,25 @@ namespace Tomahawk
 			if (!ComposeEvent())
 				Compose();
 
-			if (I->Usage & ApplicationUse_Activity_Module && !Activity)
+			if (I->Usage & (size_t)ApplicationUse::Activity_Module && !Activity)
 			{
 				TH_ERROR("(CONF): activity was not found");
 				return;
 			}
 
-			if (I->Usage & ApplicationUse_Graphics_Module && !Renderer)
+			if (I->Usage & (size_t)ApplicationUse::Graphics_Module && !Renderer)
 			{
 				TH_ERROR("(CONF): graphics device was not found");
 				return;
 			}
 
-			if (I->Usage & ApplicationUse_Audio_Module && !Audio)
+			if (I->Usage & (size_t)ApplicationUse::Audio_Module && !Audio)
 			{
 				TH_ERROR("(CONF): audio device was not found");
 				return;
 			}
 
-			if (I->Usage & ApplicationUse_Script_Module)
+			if (I->Usage & (size_t)ApplicationUse::Script_Module)
 			{
 				if (!VM)
 				{
@@ -5839,7 +5841,7 @@ namespace Tomahawk
 			}
 
 			Initialize(I);
-			if (State == ApplicationState_Terminated)
+			if (State == ApplicationState::Terminated)
 				return;
 
 			if (Scene != nullptr)
@@ -5864,12 +5866,12 @@ namespace Tomahawk
 #endif
 			if (I->Async)
 			{
-				State = ApplicationState_Multithreaded;
+				State = ApplicationState::Multithreaded;
 				Queue->Start(true, std::max((uint64_t)Workers.size(), I->Threads), I->Coroutines, I->Stack);
 
 				if (Activity != nullptr)
 				{
-					while (State == ApplicationState_Multithreaded)
+					while (State == ApplicationState::Multithreaded)
 					{
 						Activity->Dispatch();
 						Job->UpdateCore();
@@ -5878,18 +5880,18 @@ namespace Tomahawk
 				}
 				else
 				{
-					while (State == ApplicationState_Multithreaded)
+					while (State == ApplicationState::Multithreaded)
 						Job->UpdateCore();
 				}
 			}
 			else
 			{
-				State = ApplicationState_Singlethreaded;
+				State = ApplicationState::Singlethreaded;
 				Queue->Start(false, I->Threads, I->Coroutines, I->Stack);
 
 				if (Activity != nullptr)
 				{
-					while (State == ApplicationState_Singlethreaded)
+					while (State == ApplicationState::Singlethreaded)
 					{
 						Queue->Dispatch();
 						Activity->Dispatch();
@@ -5899,7 +5901,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					while (State == ApplicationState_Singlethreaded)
+					while (State == ApplicationState::Singlethreaded)
 					{
 						Queue->Dispatch();
 						Job->UpdateCore();
@@ -5911,7 +5913,7 @@ namespace Tomahawk
 		}
 		void Application::Stop()
 		{
-			State = ApplicationState_Terminated;
+			State = ApplicationState::Terminated;
 		}
 		void* Application::GetGUI()
 		{
@@ -5935,9 +5937,9 @@ namespace Tomahawk
 			do
 			{
 				Job->UpdateTask();
-			} while (Job->App->State == ApplicationState_Multithreaded && Queue->IsBlockable());
+			} while (Job->App->State == ApplicationState::Multithreaded && Queue->IsBlockable());
 
-			if (Job->App->State == ApplicationState_Singlethreaded && Queue->IsActive() && !Queue->IsBlockable())
+			if (Job->App->State == ApplicationState::Singlethreaded && Queue->IsActive() && !Queue->IsBlockable())
 				Queue->SetTask([Job]() { Callee(Job); });
 		}
 		void Application::Compose()

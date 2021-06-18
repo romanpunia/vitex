@@ -161,7 +161,7 @@ namespace Tomahawk
 					return;
 
 				Core::Document* CV = Node->Set("shape");
-				if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
+				if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 				{
 					AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Hull);
 					if (!Asset || !Hull)
@@ -263,7 +263,7 @@ namespace Tomahawk
 				if (Scene != nullptr)
 					Scene->Lock();
 
-				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
+				Parent->Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
 
@@ -548,7 +548,7 @@ namespace Tomahawk
 				auto& Desc = Instance->GetInitialState();
 				if (Desc.Shape.Convex.Enabled)
 				{
-					if (Instance->GetCollisionShapeType() == Compute::Shape_Convex_Hull)
+					if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 					{
 						AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Desc.Shape.Convex.Hull);
 						if (Asset != nullptr)
@@ -774,14 +774,14 @@ namespace Tomahawk
 				Graphics::MappedSubresource Map;
 				if (VertexBuffer != nullptr && !Vertices.empty())
 				{
-					Device->Map(VertexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
+					Device->Map(VertexBuffer, Graphics::ResourceMap::Write_Discard, &Map);
 					memcpy(Map.Pointer, (void*)Vertices.data(), Vertices.size() * sizeof(Compute::Vertex));
 					Device->Unmap(VertexBuffer, &Map);
 				}
 
 				if (IndexBuffer != nullptr && !Indices.empty())
 				{
-					Device->Map(IndexBuffer, Graphics::ResourceMap_Write_Discard, &Map);
+					Device->Map(IndexBuffer, Graphics::ResourceMap::Write_Discard, &Map);
 					memcpy(Map.Pointer, (void*)Indices.data(), Indices.size() * sizeof(int));
 					Device->Unmap(IndexBuffer, &Map);
 				}
@@ -826,7 +826,7 @@ namespace Tomahawk
 				if (Scene != nullptr)
 					Scene->Lock();
 
-				Parent->Transform->SetTransform(Compute::TransformSpace_Global, Position, Scale, Rotation);
+				Parent->Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
 
@@ -2316,7 +2316,7 @@ namespace Tomahawk
 				return Base;
 			}
 
-			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode_CURSORRIGHT), Sensivity(0.005f)
+			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode::CURSORRIGHT), Sensivity(0.005f)
 			{
 			}
 			void FreeLook::Awake(Component* New)
@@ -2540,7 +2540,7 @@ namespace Tomahawk
 			}
 			void AudioSource::ApplyPlayingPosition()
 			{
-				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx_Seconds_Offset, Sync.Position);
+				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx::Seconds_Offset, Sync.Position);
 			}
 			Component* AudioSource::Copy(Entity* New)
 			{
@@ -2593,19 +2593,19 @@ namespace Tomahawk
 				Compute::Vector3 Rotation = Parent->Transform->Rotation.dDirection();
 				float LookAt[6] = { Rotation.X, Rotation.Y, Rotation.Z, 0.0f, 1.0f, 0.0f };
 
-				Audio::AudioContext::SetListenerData3F(Audio::SoundEx_Velocity, Velocity.X, Velocity.Y, Velocity.Z);
-				Audio::AudioContext::SetListenerData3F(Audio::SoundEx_Position, -Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
-				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx_Orientation, LookAt);
-				Audio::AudioContext::SetListenerData1F(Audio::SoundEx_Gain, Gain);
+				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Velocity, Velocity.X, Velocity.Y, Velocity.Z);
+				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Position, -Parent->Transform->Position.X, -Parent->Transform->Position.Y, Parent->Transform->Position.Z);
+				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx::Orientation, LookAt);
+				Audio::AudioContext::SetListenerData1F(Audio::SoundEx::Gain, Gain);
 			}
 			void AudioListener::Asleep()
 			{
 				float LookAt[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
 
-				Audio::AudioContext::SetListenerData3F(Audio::SoundEx_Velocity, 0.0f, 0.0f, 0.0f);
-				Audio::AudioContext::SetListenerData3F(Audio::SoundEx_Position, 0.0f, 0.0f, 0.0f);
-				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx_Orientation, LookAt);
-				Audio::AudioContext::SetListenerData1F(Audio::SoundEx_Gain, 0.0f);
+				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Velocity, 0.0f, 0.0f, 0.0f);
+				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Position, 0.0f, 0.0f, 0.0f);
+				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx::Orientation, LookAt);
+				Audio::AudioContext::SetListenerData1F(Audio::SoundEx::Gain, 0.0f);
 			}
 			Component* AudioListener::Copy(Entity* New)
 			{
@@ -3562,79 +3562,79 @@ namespace Tomahawk
 						if (!NMake::Unpack(Var->Find("type"), &TypeId))
 							continue;
 
-						switch (TypeId)
+						switch ((Script::VMTypeId)TypeId)
 						{
-							case Script::VMTypeId_BOOL:
+							case Script::VMTypeId::BOOL:
 							{
 								bool Result = false;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
-							case Script::VMTypeId_INT8:
+							case Script::VMTypeId::INT8:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (char)Result);
 								break;
 							}
-							case Script::VMTypeId_INT16:
+							case Script::VMTypeId::INT16:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (short)Result);
 								break;
 							}
-							case Script::VMTypeId_INT32:
+							case Script::VMTypeId::INT32:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (int)Result);
 								break;
 							}
-							case Script::VMTypeId_INT64:
+							case Script::VMTypeId::INT64:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
-							case Script::VMTypeId_UINT8:
+							case Script::VMTypeId::UINT8:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned char)Result);
 								break;
 							}
-							case Script::VMTypeId_UINT16:
+							case Script::VMTypeId::UINT16:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned short)Result);
 								break;
 							}
-							case Script::VMTypeId_UINT32:
+							case Script::VMTypeId::UINT32:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned int)Result);
 								break;
 							}
-							case Script::VMTypeId_UINT64:
+							case Script::VMTypeId::UINT64:
 							{
 								int64_t Result = 0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (uint64_t)Result);
 								break;
 							}
-							case Script::VMTypeId_FLOAT:
+							case Script::VMTypeId::FLOAT:
 							{
 								float Result = 0.0f;
 								if (NMake::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
-							case Script::VMTypeId_DOUBLE:
+							case Script::VMTypeId::DOUBLE:
 							{
 								double Result = 0.0;
 								if (NMake::Unpack(Var->Find("data"), &Result))
@@ -3688,39 +3688,39 @@ namespace Tomahawk
 					Core::Document* Var = Core::Document::Object();
 					NMake::Pack(Var->Set("type"), Result.TypeId);
 
-					switch (Result.TypeId)
+					switch ((Script::VMTypeId)Result.TypeId)
 					{
-						case Script::VMTypeId_BOOL:
+						case Script::VMTypeId::BOOL:
 							NMake::Pack(Var->Set("data"), *(bool*)Result.Pointer);
 							break;
-						case Script::VMTypeId_INT8:
+						case Script::VMTypeId::INT8:
 							NMake::Pack(Var->Set("data"), (int64_t)*(char*)Result.Pointer);
 							break;
-						case Script::VMTypeId_INT16:
+						case Script::VMTypeId::INT16:
 							NMake::Pack(Var->Set("data"), (int64_t)*(short*)Result.Pointer);
 							break;
-						case Script::VMTypeId_INT32:
+						case Script::VMTypeId::INT32:
 							NMake::Pack(Var->Set("data"), (int64_t)*(int*)Result.Pointer);
 							break;
-						case Script::VMTypeId_INT64:
+						case Script::VMTypeId::INT64:
 							NMake::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
 							break;
-						case Script::VMTypeId_UINT8:
+						case Script::VMTypeId::UINT8:
 							NMake::Pack(Var->Set("data"), (int64_t)*(unsigned char*)Result.Pointer);
 							break;
-						case Script::VMTypeId_UINT16:
+						case Script::VMTypeId::UINT16:
 							NMake::Pack(Var->Set("data"), (int64_t)*(unsigned short*)Result.Pointer);
 							break;
-						case Script::VMTypeId_UINT32:
+						case Script::VMTypeId::UINT32:
 							NMake::Pack(Var->Set("data"), (int64_t)*(unsigned int*)Result.Pointer);
 							break;
-						case Script::VMTypeId_UINT64:
+						case Script::VMTypeId::UINT64:
 							NMake::Pack(Var->Set("data"), (int64_t)*(uint64_t*)Result.Pointer);
 							break;
-						case Script::VMTypeId_FLOAT:
+						case Script::VMTypeId::FLOAT:
 							NMake::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
 							break;
-						case Script::VMTypeId_DOUBLE:
+						case Script::VMTypeId::DOUBLE:
 							NMake::Pack(Var->Set("data"), *(double*)Result.Pointer);
 							break;
 						default:
@@ -3820,10 +3820,10 @@ namespace Tomahawk
 				if (!Compiler || !Target->Compiler)
 					return Target;
 
-				if (Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+				if (Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
 					return Target;
 
-				if (Target->Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+				if (Target->Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
 					return Target;
 
 				Script::VMModule From = Compiler->GetModule();
@@ -3848,7 +3848,7 @@ namespace Tomahawk
 					if (fSource.TypeId != Dest.TypeId)
 						continue;
 
-					if (fSource.TypeId < Script::VMTypeId_BOOL || fSource.TypeId > Script::VMTypeId_DOUBLE)
+					if (fSource.TypeId < (int)Script::VMTypeId::BOOL || fSource.TypeId >(int)Script::VMTypeId::DOUBLE)
 					{
 						Script::VMTypeInfo Type = Manager->Global().GetTypeInfoById(fSource.TypeId);
 						if (fSource.Pointer != nullptr && Type.IsValid())
@@ -3872,24 +3872,24 @@ namespace Tomahawk
 			int Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& ArgCallback)
 			{
 				if (!Compiler)
-					return Script::VMResult_INVALID_CONFIGURATION;
+					return (int)Script::VMResult::INVALID_CONFIGURATION;
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(ArgCallback));
 			}
 			int Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& ArgCallback)
 			{
 				if (!Compiler)
-					return Script::VMResult_INVALID_CONFIGURATION;
+					return (int)Script::VMResult::INVALID_CONFIGURATION;
 
 				if (!Function)
-					return Script::VMResult_INVALID_ARG;
+					return (int)Script::VMResult::INVALID_ARG;
 
 				Safe.lock();
 				Core::Async<int> Result = Compiler->GetContext()->Execute(Function, false, std::move(ArgCallback));
 				Safe.unlock();
 
 				if (Result.IsPending())
-					return Script::VMResult_CONTEXT_ACTIVE;
+					return (int)Script::VMResult::CONTEXT_ACTIVE;
 
 				return Result.Get();
 			}
@@ -3912,19 +3912,19 @@ namespace Tomahawk
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (!Scene)
-					return Script::VMResult_INVALID_CONFIGURATION;
+					return (int)Script::VMResult::INVALID_CONFIGURATION;
 
 				if (Compiler != nullptr)
 				{
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Script::VMExecState_ACTIVE)
-						return Script::VMResult_MODULE_IS_IN_USE;
+					if (VM->GetState() == Script::VMExecState::ACTIVE)
+						return (int)Script::VMResult::MODULE_IS_IN_USE;
 				}
 				else
 				{
 					auto* Manager = Scene->GetConf().Manager;
 					if (!Manager)
-						return Script::VMResult_INVALID_CONFIGURATION;
+						return (int)Script::VMResult::INVALID_CONFIGURATION;
 
 					Compiler = Manager->CreateCompiler();
 					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)
@@ -3952,7 +3952,7 @@ namespace Tomahawk
 					Compiler->Clear();
 					Safe.unlock();
 
-					return Script::VMResult_SUCCESS;
+					return (int)Script::VMResult::SUCCESS;
 				}
 
 				int R = Compiler->Prepare("base", Source == SourceType_Resource ? Resource : "anonymous", true, true);
@@ -4005,7 +4005,7 @@ namespace Tomahawk
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Script::VMExecState_ACTIVE)
+				if (VM->GetState() == Script::VMExecState::ACTIVE)
 					return nullptr;
 
 				Safe.lock();
@@ -4025,7 +4025,7 @@ namespace Tomahawk
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Script::VMExecState_ACTIVE)
+				if (VM->GetState() == Script::VMExecState::ACTIVE)
 					return nullptr;
 
 				Safe.lock();
@@ -4045,7 +4045,7 @@ namespace Tomahawk
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
 					return false;
 
 				Safe.lock();
@@ -4078,7 +4078,7 @@ namespace Tomahawk
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
+				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
 					return false;
 
 				Safe.lock();
@@ -4109,11 +4109,11 @@ namespace Tomahawk
 			int Scriptable::GetPropertiesCount()
 			{
 				if (!Compiler)
-					return Script::VMResult_INVALID_ARG;
+					return (int)Script::VMResult::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
-					return Script::VMResult_MODULE_IS_IN_USE;
+				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+					return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 				Safe.lock();
 				Script::VMModule fModule = Compiler->GetModule();
@@ -4131,11 +4131,11 @@ namespace Tomahawk
 			int Scriptable::GetFunctionsCount()
 			{
 				if (!Compiler)
-					return Script::VMResult_INVALID_ARG;
+					return (int)Script::VMResult::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState_ACTIVE)
-					return Script::VMResult_MODULE_IS_IN_USE;
+				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+					return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 				Safe.lock();
 				Script::VMModule fModule = Compiler->GetModule();

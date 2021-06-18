@@ -25,39 +25,44 @@ namespace Tomahawk
 
 		class Multiplexer;
 
-		enum Secure
+		enum class Secure
 		{
-			Secure_Any,
-			Secure_SSL_V2,
-			Secure_SSL_V3,
-			Secure_TLS_V1,
-			Secure_TLS_V1_1,
+			Any,
+			SSL_V2,
+			SSL_V3,
+			TLS_V1,
+			TLS_V1_1,
 		};
 
-		enum ServerState
+		enum class ServerState
 		{
-			ServerState_Working,
-			ServerState_Stopping,
-			ServerState_Idle
+			Working,
+			Stopping,
+			Idle
 		};
 
-		enum SocketEvent
+		enum class SocketEvent
 		{
-			SocketEvent_Read = (1 << 0),
-			SocketEvent_Write = (1 << 1),
-			SocketEvent_Close = (1 << 2),
-			SocketEvent_Timeout = (1 << 3),
-			SocketEvent_None = (1 << 4)
+			Read = (1 << 0),
+			Write = (1 << 1),
+			Close = (1 << 2),
+			Timeout = (1 << 3),
+			None = (1 << 4)
 		};
 
-		enum SocketType
+		enum class SocketType
 		{
-			SocketType_Stream,
-			SocketType_Datagram,
-			SocketType_Raw,
-			SocketType_Reliably_Delivered_Message,
-			SocketType_Sequence_Packet_Stream
+			Stream,
+			Datagram,
+			Raw,
+			Reliably_Delivered_Message,
+			Sequence_Packet_Stream
 		};
+
+		inline SocketEvent operator |(SocketEvent A, SocketEvent B)
+		{
+			return static_cast<SocketEvent>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		}
 
 		struct TH_OUT Address
 		{
@@ -120,7 +125,7 @@ namespace Tomahawk
 			int AcceptAsync(SocketAcceptCallback&& Callback);
 			int Close(bool Detach);
 			int CloseOnExec();
-			int Skip(int IO, int Code);
+			int Skip(unsigned int IO, int Code);
 			int Clear(bool Gracefully);
 			int Write(const char* Buffer, int Size);
 			int Write(const char* Buffer, int Size, const SocketWriteCallback& Callback);
@@ -240,7 +245,7 @@ namespace Tomahawk
 			std::string Key;
 			std::string Chain;
 			std::string Ciphers = "ALL";
-			Secure Protocol = Secure_Any;
+			Secure Protocol = Secure::Any;
 			bool VerifyPeers = true;
 			uint64_t Depth = 9;
 		};
@@ -300,7 +305,7 @@ namespace Tomahawk
 			static int Dispatch();
 			static int Listen(Socket* Value);
 			static int Unlisten(Socket* Value);
-			static int Dispatch(Socket* Value, int* Events, int64_t Time);
+			static int Dispatch(Socket* Value, uint32_t* Events, int64_t Time);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
             
@@ -317,7 +322,7 @@ namespace Tomahawk
 			std::unordered_set<SocketConnection*> Bad;
 			std::vector<Listener*> Listeners;
 			SocketRouter* Router = nullptr;
-			ServerState State = ServerState_Idle;
+			ServerState State = ServerState::Idle;
 			Core::EventId Timer = -1;
 			std::mutex Sync;
 

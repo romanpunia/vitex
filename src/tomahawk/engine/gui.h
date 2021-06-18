@@ -84,98 +84,103 @@ namespace Tomahawk
 			typedef std::function<void(const Core::Variant&)> SetterCallback;
 			typedef std::function<void(Context*)> ModelCallback;
 
-			enum ModalFlag
+			enum class ModalFlag
 			{
-				ModalFlag_None,
-				ModalFlag_Modal,
-				ModalFlag_Keep
+				None,
+				Modal,
+				Keep
 			};
 
-			enum FocusFlag
+			enum class FocusFlag
 			{
-				FocusFlag_None,
-				FocusFlag_Document,
-				FocusFlag_Keep,
-				FocusFlag_Auto
+				None,
+				Document,
+				Keep,
+				Auto
 			};
 
-			enum Area
+			enum class Area
 			{
-				Area_Margin = 0,
-				Area_Border = 1,
-				Area_Padding = 2,
-				Area_Content = 3
+				Margin = 0,
+				Border = 1,
+				Padding = 2,
+				Content = 3
 			};
 
-			enum Display : uint8_t
+			enum class Display : uint8_t
 			{
-				Display_None,
-				Display_Block,
-				Display_Inline,
-				Display_InlineBlock,
-				Display_Table,
-				Display_TableRow,
-				Display_TableRowGroup,
-				Display_TableColumn,
-				Display_TableColumnGroup,
-				Display_TableCell
+				None,
+				Block,
+				Inline,
+				InlineBlock,
+				Table,
+				TableRow,
+				TableRowGroup,
+				TableColumn,
+				TableColumnGroup,
+				TableCell
 			};
 
-			enum Position : uint8_t
+			enum class Position : uint8_t
 			{
-				Position_Static,
-				Position_Relative,
-				Position_Absolute,
-				Position_Fixed
+				Static,
+				Relative,
+				Absolute,
+				Fixed
 			};
 
-			enum Float : uint8_t
+			enum class Float : uint8_t
 			{
-				Float_None,
-				Float_Left,
-				Float_Right
+				None,
+				Left,
+				Right
 			};
 
-			enum TimingFunc
+			enum class TimingFunc
 			{
-				TimingFunc_None,
-				TimingFunc_Back,
-				TimingFunc_Bounce,
-				TimingFunc_Circular,
-				TimingFunc_Cubic,
-				TimingFunc_Elastic,
-				TimingFunc_Exponential,
-				TimingFunc_Linear,
-				TimingFunc_Quadratic,
-				TimingFunc_Quartic,
-				TimingFunc_Quintic,
-				TimingFunc_Sine,
-				TimingFunc_Callback
+				None,
+				Back,
+				Bounce,
+				Circular,
+				Cubic,
+				Elastic,
+				Exponential,
+				Linear,
+				Quadratic,
+				Quartic,
+				Quintic,
+				Sine,
+				Callback
 			};
 
-			enum TimingDir
+			enum class TimingDir
 			{
-				TimingDir_In = 1,
-				TimingDir_Out = 2,
-				TimingDir_InOut = 3
+				In = 1,
+				Out = 2,
+				InOut = 3
 			};
 
-			enum EventPhase
+			enum class EventPhase
 			{
-				EventPhase_None,
-				EventPhase_Capture = 1,
-				EventPhase_Target = 2,
-				EventPhase_Bubble = 4
+				None,
+				Capture = 1,
+				Target = 2,
+				Bubble = 4
 			};
 
-			enum InputType
+			enum class InputType
 			{
-				InputType_Keys = 1,
-				InputType_Scroll = 2,
-				InputType_Text = 3,
-				InputType_Cursor = 4,
-				InputType_Any = (InputType_Keys | InputType_Scroll | InputType_Text | InputType_Cursor)
+				Keys = 1,
+				Scroll = 2,
+				Text = 3,
+				Cursor = 4,
+				Any = (Keys | Scroll | Text | Cursor)
 			};
+
+			inline InputType operator |(InputType A, InputType B)
+			{
+				return static_cast<InputType>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			}
 
 			class TH_OUT IVariant
 			{
@@ -246,8 +251,8 @@ namespace Tomahawk
 				std::string GetClassNames() const;
 				std::string GetAddress(bool IncludePseudoClasses = false, bool IncludeParents = true) const;
 				void SetOffset(const Compute::Vector2& Offset, const IElement& OffsetParent, bool OffsetFixed = false);
-				Compute::Vector2 GetRelativeOffset(Area Type = Area_Content);
-				Compute::Vector2 GetAbsoluteOffset(Area Type = Area_Content);
+				Compute::Vector2 GetRelativeOffset(Area Type = Area::Content);
+				Compute::Vector2 GetAbsoluteOffset(Area Type = Area::Content);
 				void SetClientArea(Area ClientArea);
 				Area GetClientArea() const;
 				void SetContentBox(const Compute::Vector2& ContentOffset, const Compute::Vector2& ContentBox);
@@ -364,7 +369,7 @@ namespace Tomahawk
 				void SetTitle(const std::string& Title);
 				void PullToFront();
 				void PushToBack();
-				void Show(ModalFlag Modal = ModalFlag_None, FocusFlag Focus = FocusFlag_Auto);
+				void Show(ModalFlag Modal = ModalFlag::None, FocusFlag Focus = FocusFlag::Auto);
 				void Hide();
 				void Close();
 				std::string GetTitle() const;

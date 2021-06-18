@@ -886,7 +886,7 @@ namespace Tomahawk
 			int SetEnumRefs(void(T::*Value)(VMCManager*))
 			{
 				asSFuncPtr* EnumRefs = VMBridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::ENUMREFS, EnumRefs, THISCALL);
+				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::ENUMREFS, EnumRefs, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&EnumRefs);
 
 				return Result;
@@ -895,7 +895,7 @@ namespace Tomahawk
 			int SetReleaseRefs(void(T::*Value)(VMCManager*))
 			{
 				asSFuncPtr* ReleaseRefs = VMBridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::RELEASEREFS, ReleaseRefs, THISCALL);
+				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::RELEASEREFS, ReleaseRefs, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&ReleaseRefs);
 
 				return Result;
@@ -1166,7 +1166,7 @@ namespace Tomahawk
 			int SetGetRefCount()
 			{
 				asSFuncPtr* GetRefCount = VMBridge::Function(&Core::Composer::GetRefCount);
-				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetRefCount);
 
 				return Result;
@@ -1175,7 +1175,7 @@ namespace Tomahawk
 			int SetSetGCFlag()
 			{
 				asSFuncPtr* SetGCFlag = VMBridge::Function(&Core::Composer::SetFlag);
-				int Result = SetBehaviourAddress("void f()", VMBehave::SETGCFLAG, SetGCFlag, CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("void f()", VMBehave::SETGCFLAG, SetGCFlag, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&SetGCFlag);
 
 				return Result;
@@ -1184,7 +1184,7 @@ namespace Tomahawk
 			int SetGetGCFlag()
 			{
 				asSFuncPtr* GetGCFlag = VMBridge::Function(&Core::Composer::GetFlag);
-				int Result = SetBehaviourAddress("bool f()", VMBehave::GETGCFLAG, GetGCFlag, CDECL_OBJFIRST);
+				int Result = SetBehaviourAddress("bool f()", VMBehave::GETGCFLAG, GetGCFlag, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetGCFlag);
 
 				return Result;

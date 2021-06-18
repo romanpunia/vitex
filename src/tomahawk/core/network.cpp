@@ -1505,7 +1505,7 @@ namespace Tomahawk
 		epoll_handle Driver::Handle = INVALID_EPOLL;
 		int64_t Driver::PipeTimeout = 200;
 		int Driver::ArraySize = 0;
-		std::atomic<bool> Driver::Active = false;
+		std::atomic<bool> Driver::Active(false);
 
 		SocketServer::SocketServer()
 		{

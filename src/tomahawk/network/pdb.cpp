@@ -1808,8 +1808,8 @@ namespace Tomahawk
 			std::unordered_map<std::string, Driver::Sequence>* Driver::Queries = nullptr;
 			std::unordered_set<Connection*>* Driver::Listeners = nullptr;
 			std::mutex* Driver::Safe = nullptr;
-			std::atomic<bool> Driver::Active = false;
-			std::atomic<int> Driver::State = 0;
+			std::atomic<bool> Driver::Active(false);
+			std::atomic<int> Driver::State(0);
 		}
 	}
 }

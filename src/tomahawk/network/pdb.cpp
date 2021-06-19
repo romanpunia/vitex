@@ -1,4 +1,5 @@
 #include "pdb.h"
+#include <regex>
 #ifdef TH_HAS_POSTGRESQL
 #include <libpq-fe.h>
 #endif
@@ -9,6 +10,346 @@ namespace Tomahawk
 	{
 		namespace PDB
 		{
+			class ArrayFilter;
+
+			typedef std::function<void(void*, ArrayFilter*, char*, size_t)> FilterCallback;
+
+			class ArrayFilter
+			{
+			private:
+				std::vector<char> Records;
+				const char* Source;
+				size_t Size;
+				size_t Position;
+				size_t Dimension;
+				bool Subroutine;
+
+			public:
+				ArrayFilter(const char* NewSource, size_t NewSize) : Source(NewSource), Size(NewSize), Position(0), Dimension(0), Subroutine(false)
+				{
+				}
+				bool Parse(void* Context, const FilterCallback& Callback)
+				{
+					if (!Callback)
+						return false;
+
+					if (Source[0] == '[')
+					{
+						while (Position < Size)
+						{
+							if (Next().first == '=')
+								break;
+						}
+					}
+
+					bool Quote = false;
+					while (Position < Size)
+					{
+						auto Sym = Next();
+						if (Sym.first == '{' && !Quote)
+						{
+							Dimension++;
+							if (Dimension > 1)
+							{
+								ArrayFilter Subparser(Source + (Position - 1), Size - (Position - 1));
+								Subparser.Subroutine = true;
+								Callback(Context, &Subparser, nullptr, 0);
+								Position += Subparser.Position - 2;
+							}
+						}
+						else if (Sym.first == '}' && !Quote)
+						{
+							Dimension--;
+							if (!Dimension)
+							{
+								Emplace(Context, Callback, false);
+								if (Subroutine)
+									return true;
+							}
+						}
+						else if (Sym.first == '"' && !Sym.second)
+						{
+							if (Quote)
+								Emplace(Context, Callback, true);
+							Quote = !Quote;
+						}
+						else if (Sym.first == ',' && !Quote)
+							Emplace(Context, Callback, false);
+						else
+							Records.push_back(Sym.first);
+					}
+
+					return Dimension == 0;
+				}
+
+			private:
+				void Emplace(void* Context, const FilterCallback& Callback, bool Empties)
+				{
+					if (Records.empty() && !Empties)
+						return;
+
+					Callback(Context, nullptr, Records.data(), Records.size());
+					Records.clear();
+				}
+				std::pair<char, bool> Next()
+				{
+					char V = Source[Position++];
+					if (V != '\\')
+						return std::make_pair(V, false);
+
+					return std::make_pair(Source[Position++], true);
+				}
+			};
+
+			static Core::Document* ToDocument(const char* Data, int Size, Oid Id);
+			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
+			{
+				std::pair<Core::Document*, Oid>* Base = (std::pair<Core::Document*, Oid>*)Context;
+				if (Subdata != nullptr)
+				{
+					std::pair<Core::Document*, Oid> Next;
+					Next.first = Core::Document::Array();
+					Next.second = Base->second;
+
+					if (!Subdata->Parse(&Next, ToArrayField))
+					{
+						Base->first->Push(new Core::Document(Core::Var::Null()));
+						TH_RELEASE(Next.first);
+					}
+					else
+						Base->first->Push(Next.first);
+				}
+				else if (Data != nullptr && Size > 0)
+				{
+					Core::Parser Result(Data, Size);
+					Result.Trim();
+
+					if (Result.Empty())
+						return;
+
+					if (Result.R() != "NULL")
+						Base->first->Push(ToDocument(Result.Get(), (int)Result.Size(), Base->second));
+					else
+						Base->first->Push(new Core::Document(Core::Var::Null()));
+				}
+			}
+			static unsigned char* ToBytea(const char* Data, size_t* OutSize)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Data || !OutSize)
+					return nullptr;
+
+				unsigned char* Result = PQunescapeBytea((const unsigned char*)Data, OutSize);
+				if (!Result)
+					return nullptr;
+
+				unsigned char* Copy = (unsigned char*)TH_MALLOC(*OutSize * sizeof(unsigned char));
+				memcpy(Copy, Result, *OutSize * sizeof(unsigned char));
+				PQfreemem(Result);
+
+				return Result;
+#else
+				return nullptr;
+#endif
+			}
+			static Core::Variant ToVariant(const char* Data, int Size, Oid Id)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Data)
+					return Core::Var::Null();
+
+				OidType Type = (OidType)Id;
+				switch (Type)
+				{
+					case OidType::Char:
+					case OidType::Int2:
+					case OidType::Int4:
+					case OidType::Int8:
+					{
+						Core::Parser Source(Data, (size_t)Size);
+						if (Source.HasInteger())
+							return Core::Var::Integer(Source.ToInt64());
+
+						return Core::Var::String(Data, (size_t)Size);
+					}
+					case OidType::Bool:
+					{
+						Core::Parser Source(Data, (size_t)Size);
+						Source.ToLower();
+
+						bool Value = (Source.R() == "true" || Source.R() == "yes" || Source.R() == "on" || Source.R() == "1");
+						return Core::Var::Boolean(Value);
+					}
+					case OidType::Float4:
+					case OidType::Float8:
+					{
+						Core::Parser Source(Data, (size_t)Size);
+						if (Source.HasNumber())
+							return Core::Var::Number(Source.ToDouble());
+
+						return Core::Var::String(Data, (size_t)Size);
+					}
+					case OidType::Money:
+					case OidType::Numeric:
+						return Core::Var::DecimalString(std::string(Data, (size_t)Size));
+					case OidType::Bytea:
+					{
+						size_t Length = 0;
+						unsigned char* Buffer = PQunescapeBytea((const unsigned char*)Data, &Length);
+						Core::Variant Result = Core::Var::Base64(Buffer, Length);
+
+						PQfreemem(Buffer);
+						return Result;
+					}
+					case OidType::JSON:
+					case OidType::JSONB:
+					case OidType::Any_Array:
+					case OidType::Name_Array:
+					case OidType::Text_Array:
+					case OidType::Date_Array:
+					case OidType::Time_Array:
+					case OidType::UUID_Array:
+					case OidType::CString_Array:
+					case OidType::BpChar_Array:
+					case OidType::VarChar_Array:
+					case OidType::Bit_Array:
+					case OidType::VarBit_Array:
+					case OidType::Char_Array:
+					case OidType::Int2_Array:
+					case OidType::Int4_Array:
+					case OidType::Int8_Array:
+					case OidType::Bool_Array:
+					case OidType::Float4_Array:
+					case OidType::Float8_Array:
+					case OidType::Money_Array:
+					case OidType::Numeric_Array:
+					case OidType::Bytea_Array:
+					case OidType::Any:
+					case OidType::Name:
+					case OidType::Text:
+					case OidType::Date:
+					case OidType::Time:
+					case OidType::UUID:
+					case OidType::CString:
+					case OidType::BpChar:
+					case OidType::VarChar:
+					case OidType::Bit:
+					case OidType::VarBit:
+					default:
+						return Core::Var::String(Data, (size_t)Size);
+				}
+#else
+				return Core::Var::Undefined();
+#endif
+			}
+			static Core::Document* ToArray(const char* Data, int Size, Oid Id)
+			{
+				std::pair<Core::Document*, Oid> Context;
+				Context.first = Core::Document::Array();
+				Context.second = Id;
+
+				ArrayFilter Filter(Data, (size_t)Size);
+				if (!Filter.Parse(&Context, ToArrayField))
+				{
+					TH_RELEASE(Context.first);
+					return new Core::Document(Core::Var::String(Data, (size_t)Size));
+				}
+
+				return Context.first;
+			}
+			Core::Document* ToDocument(const char* Data, int Size, Oid Id)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Data)
+					return new Core::Document(Core::Var::Null());
+
+				OidType Type = (OidType)Id;
+				switch (Type)
+				{
+					case OidType::JSON:
+					case OidType::JSONB:
+					{
+						Core::Document* Result = Core::Document::ReadJSON((int64_t)Size, [Data](char* Dest, int64_t Size)
+						{
+							memcpy(Dest, Data, Size);
+							return true;
+						});
+
+						if (Result != nullptr)
+							return Result;
+
+						return new Core::Document(Core::Var::String(Data, (size_t)Size));
+					}
+					case OidType::Any_Array:
+						return ToArray(Data, Size, (Oid)OidType::Any);
+					case OidType::Name_Array:
+						return ToArray(Data, Size, (Oid)OidType::Name);
+						break;
+					case OidType::Text_Array:
+						return ToArray(Data, Size, (Oid)OidType::Name);
+						break;
+					case OidType::Date_Array:
+						return ToArray(Data, Size, (Oid)OidType::Name);
+						break;
+					case OidType::Time_Array:
+						return ToArray(Data, Size, (Oid)OidType::Name);
+						break;
+					case OidType::UUID_Array:
+						return ToArray(Data, Size, (Oid)OidType::UUID);
+						break;
+					case OidType::CString_Array:
+						return ToArray(Data, Size, (Oid)OidType::CString);
+						break;
+					case OidType::BpChar_Array:
+						return ToArray(Data, Size, (Oid)OidType::BpChar);
+						break;
+					case OidType::VarChar_Array:
+						return ToArray(Data, Size, (Oid)OidType::VarChar);
+						break;
+					case OidType::Bit_Array:
+						return ToArray(Data, Size, (Oid)OidType::Bit);
+						break;
+					case OidType::VarBit_Array:
+						return ToArray(Data, Size, (Oid)OidType::VarBit);
+						break;
+					case OidType::Char_Array:
+						return ToArray(Data, Size, (Oid)OidType::Char);
+						break;
+					case OidType::Int2_Array:
+						return ToArray(Data, Size, (Oid)OidType::Int2);
+						break;
+					case OidType::Int4_Array:
+						return ToArray(Data, Size, (Oid)OidType::Int4);
+						break;
+					case OidType::Int8_Array:
+						return ToArray(Data, Size, (Oid)OidType::Int8);
+						break;
+					case OidType::Bool_Array:
+						return ToArray(Data, Size, (Oid)OidType::Bool);
+						break;
+					case OidType::Float4_Array:
+						return ToArray(Data, Size, (Oid)OidType::Float4);
+						break;
+					case OidType::Float8_Array:
+						return ToArray(Data, Size, (Oid)OidType::Float8);
+						break;
+					case OidType::Money_Array:
+						return ToArray(Data, Size, (Oid)OidType::Money);
+						break;
+					case OidType::Numeric_Array:
+						return ToArray(Data, Size, (Oid)OidType::Numeric);
+						break;
+					case OidType::Bytea_Array:
+						return ToArray(Data, Size, (Oid)OidType::Bytea);
+						break;
+					default:
+						return new Core::Document(ToVariant(Data, Size, Id));
+				}
+#else
+				return nullptr;
+#endif
+			}
+
 			Address::Address()
 			{
 			}
@@ -232,137 +573,38 @@ namespace Tomahawk
 				return std::string();
 #endif
 			}
-			std::string Column::GetValueText() const
+			Core::Variant Column::GetValue() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return std::string();
+					return Core::Var::Undefined();
 
-				char* Text = PQgetvalue(Base, RowIndex, ColumnIndex);
-				if (!Text)
-					return std::string();
-				
+				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
+					return Core::Var::Null();
+
+				char* Data = PQgetvalue(Base, RowIndex, ColumnIndex);
 				int Size = PQgetlength(Base, RowIndex, ColumnIndex);
-				if (Size < 0)
-					return Text;
+				Oid Type = PQftype(Base, ColumnIndex);
 
-				return std::string(Text, (size_t)Size);
+				return ToVariant(Data, Size, Type);
 #else
-				return std::string();
+				return Core::Var::Undefined();
 #endif
 			}
-			bool Column::GetBool() const
-			{
-				char* Value = GetValueData();
-				if (!Value)
-					return false;
-
-				return Value[0] == 't' || Value[0] == 'T' || Value[0] == 'y' || Value[0] == 'Y' || Value[0] == '1';
-			}
-			short Column::GetShort() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return (short)Src.ToInt();
-			}
-			unsigned short Column::GetUShort() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return (unsigned short)Src.ToUInt();
-			}
-			long Column::GetLong() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return Src.ToLong();
-			}
-			unsigned long Column::GetULong() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return Src.ToULong();
-			}
-			int Column::GetInt32() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return Src.ToInt();
-			}
-			unsigned Column::GetUInt32() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return Src.ToUInt();
-			}
-			int64_t Column::GetInt64() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return Src.ToInt64();
-			}
-			uint64_t Column::GetUInt64() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasInteger())
-					return 0;
-
-				return Src.ToUInt64();
-			}
-			Core::Decimal Column::GetDecimal() const
-			{
-				return Core::Decimal(GetValueText());
-			}
-			float Column::GetFloat() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasNumber())
-					return 0;
-
-				return Src.ToFloat();
-			}
-			double Column::GetDouble() const
-			{
-				Core::Parser Src(GetValueData(), GetValueSize());
-				if (!Src.HasNumber())
-					return 0;
-
-				return Src.ToDouble();
-			}
-			char Column::GetChar() const
-			{
-				char* Value = GetValueData();
-				if (!Value)
-					return '\0';
-
-				return *Value;
-			}
-			unsigned char* Column::GetBlob(size_t* OutSize) const
+			Core::Document* Column::GetValueAuto() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!OutSize)
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
 					return nullptr;
 
-				unsigned char* Result = PQunescapeBytea(reinterpret_cast<unsigned char*>(GetValueData()), OutSize);
-				unsigned char* Copy = (unsigned char*)TH_MALLOC(*OutSize * sizeof(unsigned char));
-				memcpy(Copy, Result, *OutSize * sizeof(unsigned char));
-				PQfreemem(Result);
+				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
+					return nullptr;
 
-				return Copy;
+				char* Data = PQgetvalue(Base, RowIndex, ColumnIndex);
+				int Size = PQgetlength(Base, RowIndex, ColumnIndex);
+				Oid Type = PQftype(Base, ColumnIndex);
+
+				return ToDocument(Data, Size, Type);
 #else
 				return nullptr;
 #endif
@@ -493,6 +735,38 @@ namespace Tomahawk
 			Row::Row(TResult* NewBase, size_t fRowIndex) : Base(NewBase), RowIndex(fRowIndex)
 			{
 			}
+			Core::Document* Row::GetDocument() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
+					return nullptr;
+
+				int Size = PQnfields(Base);
+				if (Size <= 0)
+					return nullptr;
+
+				Core::Document* Result = Core::Document::Object();
+				Result->GetNodes()->reserve((size_t)Size);
+
+				for (int j = 0; j < Size; j++)
+				{
+					char* Name = PQfname(Base, j);
+					char* Data = PQgetvalue(Base, RowIndex, j);
+					int Size = PQgetlength(Base, RowIndex, j);
+					bool Null = PQgetisnull(Base, RowIndex, j) == 1;
+					Oid Type = PQftype(Base, j);
+
+					if (!Null)
+						Result->Set(Name ? Name : std::to_string(j), ToDocument(Data, Size, Type));
+					else
+						Result->Set(Name ? Name : std::to_string(j), Core::Var::Null());
+				}
+
+				return Result;
+#else
+				return nullptr;
+#endif
+			}
 			size_t Row::GetIndex() const
 			{
 				return RowIndex;
@@ -557,6 +831,58 @@ namespace Tomahawk
 
 				PQclear(Base);
 				Base = nullptr;
+#endif
+			}
+			Core::Document* Result::GetDocument() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base)
+					return nullptr;
+
+				int RowsSize = PQntuples(Base);
+				if (RowsSize <= 0)
+					return nullptr;
+
+				int ColumnsSize = PQnfields(Base);
+				if (ColumnsSize <= 0)
+					return nullptr;
+
+				std::vector<std::pair<std::string, Oid>> Meta;
+				Meta.reserve((size_t)ColumnsSize);
+
+				for (int j = 0; j < ColumnsSize; j++)
+				{
+					char* Name = PQfname(Base, j);
+					Meta.emplace_back(std::make_pair(Name ? Name : std::to_string(j), PQftype(Base, j)));
+				}
+
+				Core::Document* Result = Core::Document::Array();
+				Result->GetNodes()->reserve((size_t)RowsSize);
+
+				for (int i = 0; i < RowsSize; i++)
+				{
+					Core::Document* Subresult = Core::Document::Object();
+					Subresult->GetNodes()->reserve((size_t)ColumnsSize);
+
+					for (int j = 0; j < ColumnsSize; j++)
+					{
+						char* Data = PQgetvalue(Base, i, j);
+						int Size = PQgetlength(Base, i, j);
+						bool Null = PQgetisnull(Base, i, j) == 1;
+						auto& Field = Meta[j];
+
+						if (!Null)
+							Subresult->Set(Field.first, ToDocument(Data, Size, Field.second));
+						else
+							Subresult->Set(Field.first, Core::Var::Null());
+					}
+
+					Result->Push(Subresult);
+				}
+
+				return Result;
+#else
+				return nullptr;
 #endif
 			}
 			std::string Result::GetCommandStatusText() const
@@ -894,7 +1220,7 @@ namespace Tomahawk
 
 				Safe.lock();
 				Acquired = true;
-				int Code = PQsendQuery(Base, Command.c_str());
+				int Code = PQsendQueryParams(Base, Command.c_str(), 0, nullptr, nullptr, nullptr, nullptr, 0);
 				if (Code != 1)
 				{
 					char* Message = PQerrorMessage(Base);
@@ -919,13 +1245,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || Command.empty() || Acquired)
-					return Core::Async<Result>::Store(Result(nullptr));
+					return Core::Async<Result>::Store(Result());
 	
 				return Core::Async<Result>([this, Command](Core::Async<Result>& Future)
 				{
 					Safe.lock();
 					Acquired = true;
-					TResult* Data = PQexec(Base, Command.c_str());
+					TResult* Data = PQexecParams(Base, Command.c_str(), 0, nullptr, nullptr, nullptr, nullptr, 0);
 					Acquired = false;
 					Safe.unlock();
 
@@ -940,29 +1266,29 @@ namespace Tomahawk
 					Future.Set(Result(Data));
 				});
 #else
-				return Core::Async<Result>::Store(Result(nullptr));
+				return Core::Async<Result>::Store(Result());
 #endif
 			}
 			Core::Async<Result> Connection::Subscribe(const std::string& Channel)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || Channel.empty())
-					return Core::Async<Result>::Store(Result(nullptr));
+					return Core::Async<Result>::Store(Result());
 
 				return Query("LISTEN " + EscapeIdentifier(Channel));
 #else
-				return Core::Async<Result>::Store(Result(nullptr));
+				return Core::Async<Result>::Store(Result());
 #endif
 			}
 			Core::Async<Result> Connection::Unsubscribe(const std::string& Channel)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || Channel.empty())
-					return Core::Async<Result>::Store(Result(nullptr));
+					return Core::Async<Result>::Store(Result());
 
 				return Query("UNLISTEN " + EscapeIdentifier(Channel));
 #else
-				return Core::Async<Result>::Store(Result(nullptr));
+				return Core::Async<Result>::Store(Result());
 #endif
 			}
 			bool Connection::CancelQuery()
@@ -1076,25 +1402,7 @@ namespace Tomahawk
 			}
 			unsigned char* Connection::UnescapeBytea(const unsigned char* Data, size_t* OutSize)
 			{
-				if (!Data || !OutSize)
-					return nullptr;
-
-#ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return nullptr;
-
-				unsigned char* Result = PQunescapeBytea(Data, OutSize);
-				if (!Result)
-					return nullptr;
-
-				unsigned char* Copy = (unsigned char*)TH_MALLOC(*OutSize * sizeof(unsigned char));
-				memcpy(Copy, Result, *OutSize * sizeof(unsigned char));
-				PQfreemem(Result);
-
-				return Copy;
-#else
-				return nullptr;
-#endif
+				return ToBytea((const char*)Data, OutSize);
 			}
 			int Connection::GetServerVersion() const
 			{
@@ -1242,8 +1550,17 @@ namespace Tomahawk
 					return false;
 
 				Safe.lock();
-				Clear(*Client);
-				TH_RELEASE(*Client);
+				if (Active.find(*Client) == Active.end())
+				{
+					Inactive.erase(*Client);
+					Clear(*Client);
+					TH_RELEASE(*Client);
+				}
+				else
+				{
+					Active.erase(*Client);
+					Inactive.insert(*Client);
+				}
 				Safe.unlock();
 
 				return true;

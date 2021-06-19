@@ -16,7 +16,7 @@ namespace Tomahawk
 			class Notify;
 
 			class Row;
-			
+
 			class Result;
 
 			class Connection;
@@ -122,6 +122,54 @@ namespace Tomahawk
 				None
 			};
 
+			enum class OidType
+			{
+				JSON = 114,
+				JSONB = 3802,
+				Any_Array = 2277,
+				Name_Array = 1003,
+				Text_Array = 1009,
+				Date_Array = 1182,
+				Time_Array = 1183,
+				UUID_Array = 2951,
+				CString_Array = 1263,
+				BpChar_Array = 1014,
+				VarChar_Array = 1015,
+				Bit_Array = 1561,
+				VarBit_Array = 1563,
+				Char_Array = 1002,
+				Int2_Array = 1005,
+				Int4_Array = 1007,
+				Int8_Array = 1016,
+				Bool_Array = 1000,
+				Float4_Array = 1021,
+				Float8_Array = 1022,
+				Money_Array = 791,
+				Numeric_Array = 1231,
+				Bytea_Array = 1001,
+				Any = 2276,
+				Name = 19,
+				Text = 25,
+				Date = 1082,
+				Time = 1083,
+				UUID = 2950,
+				CString = 2275,
+				BpChar = 1042,
+				VarChar = 1043,
+				Bit = 1560,
+				VarBit = 1562,
+				Char = 18,
+				Int2 = 21,
+				Int4 = 23,
+				Int8 = 20,
+				Bool = 16,
+				Float4 = 700,
+				Float8 = 701,
+				Money = 790,
+				Numeric = 1700,
+				Bytea = 17
+			};
+
 			class TH_OUT Address
 			{
 			private:
@@ -174,21 +222,8 @@ namespace Tomahawk
 			public:
 				int SetValueText(char* Data, size_t Size);
 				std::string GetName() const;
-				std::string GetValueText() const;
-				bool GetBool() const;
-				short GetShort() const;
-				unsigned short GetUShort() const;
-				long GetLong() const;
-				unsigned long GetULong() const;
-				int32_t GetInt32() const;
-				uint32_t GetUInt32() const;
-				int64_t GetInt64() const;
-				uint64_t GetUInt64() const;
-				Core::Decimal GetDecimal() const;
-				float GetFloat() const;
-				double GetDouble() const;
-				char GetChar() const;
-				unsigned char* GetBlob(size_t* Size) const;
+				Core::Variant GetValue() const;
+				Core::Document* GetValueAuto() const;
 				char* GetValueData() const;
 				int GetFormatId() const;
 				int GetModId() const;
@@ -219,6 +254,7 @@ namespace Tomahawk
 				Row(TResult* NewBase, size_t fRowIndex);
 
 			public:
+				Core::Document* GetDocument() const;
 				size_t GetIndex() const;
 				size_t GetSize() const;
 				Result GetResult() const;
@@ -247,6 +283,7 @@ namespace Tomahawk
 				Result();
 				Result(TResult* NewBase);
 				void Release();
+				Core::Document* GetDocument() const;
 				std::string GetCommandStatusText() const;
 				std::string GetStatusText() const;
 				std::string GetErrorText() const;
@@ -343,7 +380,7 @@ namespace Tomahawk
 				std::string EscapeIdentifier(const char* Data, size_t Size);
 				std::string EscapeIdentifier(const std::string& Value);
 				unsigned char* EscapeBytea(const unsigned char* Data, size_t Size, size_t* OutSize);
-				unsigned char* UnescapeBytea(const unsigned char* Data, size_t *OutSize);
+				unsigned char* UnescapeBytea(const unsigned char* Data, size_t* OutSize);
 				int GetServerVersion() const;
 				int GetBackendPid() const;
 				ConnectionState GetStatus() const;

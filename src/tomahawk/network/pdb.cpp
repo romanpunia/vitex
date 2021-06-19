@@ -1,5 +1,4 @@
 #include "pdb.h"
-#include <regex>
 #ifdef TH_HAS_POSTGRESQL
 #include <libpq-fe.h>
 #endif
@@ -101,9 +100,10 @@ namespace Tomahawk
 				}
 			};
 
-			static Core::Document* ToDocument(const char* Data, int Size, Oid Id);
+			static Core::Document* ToDocument(const char* Data, int Size, unsigned int Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				std::pair<Core::Document*, Oid>* Base = (std::pair<Core::Document*, Oid>*)Context;
 				if (Subdata != nullptr)
 				{
@@ -132,6 +132,7 @@ namespace Tomahawk
 					else
 						Base->first->Push(new Core::Document(Core::Var::Null()));
 				}
+#endif
 			}
 			static unsigned char* ToBytea(const char* Data, size_t* OutSize)
 			{
@@ -152,7 +153,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			static Core::Variant ToVariant(const char* Data, int Size, Oid Id)
+			static Core::Variant ToVariant(const char* Data, int Size, unsigned int Id)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Data)
@@ -242,8 +243,9 @@ namespace Tomahawk
 				return Core::Var::Undefined();
 #endif
 			}
-			static Core::Document* ToArray(const char* Data, int Size, Oid Id)
+			static Core::Document* ToArray(const char* Data, int Size, unsigned int Id)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				std::pair<Core::Document*, Oid> Context;
 				Context.first = Core::Document::Array();
 				Context.second = Id;
@@ -256,8 +258,11 @@ namespace Tomahawk
 				}
 
 				return Context.first;
+#else
+				return nullptr;
+#endif
 			}
-			Core::Document* ToDocument(const char* Data, int Size, Oid Id)
+			Core::Document* ToDocument(const char* Data, int Size, unsigned int Id)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Data)

@@ -9,7 +9,6 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
-#ifdef TH_WITH_BULLET3
 			RigidBody::RigidBody(Entity* Ref) : Component(Ref)
 			{
 			}
@@ -1261,7 +1260,7 @@ namespace Tomahawk
 			{
 				return RigidBody;
 			}
-#endif
+
 			Model::Model(Entity* Ref) : Drawable(Ref, Model::GetTypeId(), true)
 			{
 			}

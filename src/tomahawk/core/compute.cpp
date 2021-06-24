@@ -1072,26 +1072,6 @@ namespace Tomahawk
 		{
 			return Vector3(Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
-#ifdef TH_WITH_BULLET3
-		void Vector3::ToBtVector3(const Vector3& In, btVector3* Out)
-		{
-			if (Out != nullptr)
-			{
-				Out->setX(In.X);
-				Out->setY(In.Y);
-				Out->setZ(In.Z);
-			}
-		}
-		void Vector3::FromBtVector3(const btVector3& In, Vector3* Out)
-		{
-			if (Out != nullptr)
-			{
-				Out->X = In.getX();
-				Out->Y = In.getY();
-				Out->Z = In.getZ();
-			}
-		}
-#endif
 		Vector4::Vector4() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
 		{
 		}
@@ -1858,24 +1838,6 @@ namespace Tomahawk
 		Matrix4x4::Matrix4x4() : Row{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
 		{
 		}
-#ifdef TH_WITH_BULLET3
-		Matrix4x4::Matrix4x4(btTransform* In)
-		{
-			if (!In)
-				return;
-
-			btMatrix3x3 Offset = In->getBasis();
-			Row[0] = Offset[0][0];
-			Row[1] = Offset[1][0];
-			Row[2] = Offset[2][0];
-			Row[4] = Offset[0][1];
-			Row[5] = Offset[1][1];
-			Row[6] = Offset[2][1];
-			Row[8] = Offset[0][2];
-			Row[9] = Offset[1][2];
-			Row[10] = Offset[2][2];
-		}
-#endif
 		Matrix4x4::Matrix4x4(float Array[16])
 		{
 			memcpy(Row, Array, sizeof(float) * 16);
@@ -3733,9 +3695,10 @@ namespace Tomahawk
 
 			return Ref;
 		}
-#ifdef TH_WITH_BULLET3
+
 		CollisionBody::CollisionBody(btCollisionObject* Object)
 		{
+#ifdef TH_WITH_BULLET3
 			btRigidBody* RigidObject = btRigidBody::upcast(Object);
 			if (RigidObject != nullptr)
 				Rigid = (RigidBody*)RigidObject->getUserPointer();
@@ -3743,8 +3706,9 @@ namespace Tomahawk
 			btSoftBody* SoftObject = btSoftBody::upcast(Object);
 			if (SoftObject != nullptr)
 				Soft = (SoftBody*)SoftObject->getUserPointer();
-		}
 #endif
+		}
+
 		Adjacencies::Adjacencies() : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
 		{
 		}
@@ -9312,9 +9276,10 @@ namespace Tomahawk
 
 			return true;
 		}
-#ifdef TH_WITH_BULLET3
+
 		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Initial.Shape || !Engine)
 				return;
 
@@ -9348,9 +9313,11 @@ namespace Tomahawk
 
 			if (Instance->getWorldArrayIndex() == -1)
 				Engine->GetWorld()->addRigidBody(Instance);
+#endif
 		}
 		RigidBody::~RigidBody()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -9398,6 +9365,7 @@ namespace Tomahawk
 				Engine->FreeShape(&Initial.Shape);
 
 			TH_DELETE(btRigidBody, Instance);
+#endif
 		}
 		RigidBody* RigidBody::Copy()
 		{
@@ -9440,27 +9408,34 @@ namespace Tomahawk
 		}
 		void RigidBody::Push(const Vector3& Velocity)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->applyCentralImpulse(V3_TO_BT(Velocity));
+#endif
 		}
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 			{
 				Instance->applyCentralImpulse(V3_TO_BT(Velocity));
 				Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 			}
+#endif
 		}
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 			{
 				Instance->applyImpulse(V3_TO_BT(Velocity), V3_TO_BT(Center));
 				Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 			}
+#endif
 		}
 		void RigidBody::PushKinematic(const Vector3& Velocity)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 			{
 				btTransform Offset;
@@ -9474,28 +9449,32 @@ namespace Tomahawk
 				Offset.setOrigin(Origin);
 				Instance->getMotionState()->setWorldTransform(Offset);
 			}
+#endif
 		}
 		void RigidBody::PushKinematic(const Vector3& Velocity, const Vector3& Torque)
 		{
-			if (Instance)
-			{
-				btTransform Offset;
-				Instance->getMotionState()->getWorldTransform(Offset);
+#ifdef TH_WITH_BULLET3
+			if (!Instance)
+				return;
 
-				Vector3 Rotation = Matrix4x4(&Offset).Rotation();
-				Offset.getBasis().setEulerZYX(Rotation.Z + Torque.Z, Rotation.Y + Torque.Y, Rotation.X + Torque.X);
+			btTransform Offset;
+			Instance->getMotionState()->getWorldTransform(Offset);
 
-				btVector3 Origin = Offset.getOrigin();
-				Origin.setX(Origin.getX() + Velocity.X);
-				Origin.setY(Origin.getY() + Velocity.Y);
-				Origin.setZ(Origin.getZ() + Velocity.Z);
+			Vector3 Rotation = Matrix4x4(&Offset).Rotation();
+			Offset.getBasis().setEulerZYX(Rotation.Z + Torque.Z, Rotation.Y + Torque.Y, Rotation.X + Torque.X);
 
-				Offset.setOrigin(Origin);
-				Instance->getMotionState()->setWorldTransform(Offset);
-			}
+			btVector3 Origin = Offset.getOrigin();
+			Origin.setX(Origin.getX() + Velocity.X);
+			Origin.setY(Origin.getY() + Velocity.Y);
+			Origin.setZ(Origin.getZ() + Velocity.Z);
+
+			Offset.setOrigin(Origin);
+			Instance->getMotionState()->setWorldTransform(Offset);
+#endif
 		}
 		void RigidBody::Synchronize(Transform* Transform, bool Kinematic)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -9515,9 +9494,11 @@ namespace Tomahawk
 				Base.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
 				Instance->getCollisionShape()->setLocalScaling(V3_TO_BT(Transform->Scale));
 			}
+#endif
 		}
 		void RigidBody::SetActivity(bool Active)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance || GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
@@ -9528,139 +9509,193 @@ namespace Tomahawk
 			}
 			else
 				Instance->forceActivationState((int)MotionState::Deactivation_Needed);
+#endif
 		}
 		void RigidBody::SetAsGhost()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+#endif
 		}
 		void RigidBody::SetAsNormal()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCollisionFlags(0);
+#endif
 		}
 		void RigidBody::SetSelfPointer()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setUserPointer(this);
+#endif
 		}
 		void RigidBody::SetWorldTransform(btTransform* Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance && Value)
 				Instance->setWorldTransform(*Value);
+#endif
 		}
 		void RigidBody::SetActivationState(MotionState Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->forceActivationState((int)Value);
+#endif
 		}
 		void RigidBody::SetAngularDamping(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDamping(Instance->getLinearDamping(), Value);
+#endif
 		}
 		void RigidBody::SetAngularSleepingThreshold(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSleepingThresholds(Instance->getLinearSleepingThreshold(), Value);
+#endif
 		}
 		void RigidBody::SetFriction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setFriction(Value);
+#endif
 		}
 		void RigidBody::SetRestitution(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitution(Value);
+#endif
 		}
 		void RigidBody::SetSpinningFriction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSpinningFriction(Value);
+#endif
 		}
 		void RigidBody::SetContactStiffness(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
+#endif
 		}
 		void RigidBody::SetContactDamping(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
+#endif
 		}
 		void RigidBody::SetHitFraction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setHitFraction(Value);
+#endif
 		}
 		void RigidBody::SetLinearDamping(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDamping(Value, Instance->getAngularDamping());
+#endif
 		}
 		void RigidBody::SetLinearSleepingThreshold(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSleepingThresholds(Value, Instance->getAngularSleepingThreshold());
+#endif
 		}
 		void RigidBody::SetCcdMotionThreshold(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCcdMotionThreshold(Value);
+#endif
 		}
 		void RigidBody::SetCcdSweptSphereRadius(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCcdSweptSphereRadius(Value);
+#endif
 		}
 		void RigidBody::SetContactProcessingThreshold(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setContactProcessingThreshold(Value);
+#endif
 		}
 		void RigidBody::SetDeactivationTime(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDeactivationTime(Value);
+#endif
 		}
 		void RigidBody::SetRollingFriction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRollingFriction(Value);
+#endif
 		}
 		void RigidBody::SetAngularFactor(const Vector3& Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setAngularFactor(V3_TO_BT(Value));
+#endif
 		}
 		void RigidBody::SetAnisotropicFriction(const Vector3& Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setAnisotropicFriction(V3_TO_BT(Value));
+#endif
 		}
 		void RigidBody::SetGravity(const Vector3& Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setGravity(V3_TO_BT(Value));
+#endif
 		}
 		void RigidBody::SetLinearFactor(const Vector3& Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setLinearFactor(V3_TO_BT(Value));
+#endif
 		}
 		void RigidBody::SetLinearVelocity(const Vector3& Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setLinearVelocity(V3_TO_BT(Value));
+#endif
 		}
 		void RigidBody::SetAngularVelocity(const Vector3& Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setAngularVelocity(V3_TO_BT(Value));
+#endif
 		}
 		void RigidBody::SetCollisionShape(btCollisionShape* Shape, Transform* Transform)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -9670,9 +9705,11 @@ namespace Tomahawk
 			Instance->setCollisionShape(Shape);
 			if (Transform)
 				Synchronize(Transform, true);
+#endif
 		}
 		void RigidBody::SetMass(float Mass)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance || !Engine)
 				return;
 
@@ -9687,255 +9724,398 @@ namespace Tomahawk
 				Engine->GetWorld()->addRigidBody(Instance);
 
 			SetActivity(true);
+#endif
 		}
 		void RigidBody::SetCollisionFlags(uint64_t Flags)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCollisionFlags((int)Flags);
+#endif
 		}
 		MotionState RigidBody::GetActivationState()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return MotionState::Active;
 
 			return (MotionState)Instance->getActivationState();
+#else
+			return MotionState::Island_Sleeping;
+#endif
 		}
 		Shape RigidBody::GetCollisionShapeType()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance || !Instance->getCollisionShape())
 				return Shape::Invalid;
 
 			return (Shape)Instance->getCollisionShape()->getShapeType();
+#else
+			return Shape::Invalid;
+#endif
 		}
 		Vector3 RigidBody::GetAngularFactor()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getAngularFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetAnisotropicFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getAnisotropicFriction();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetGravity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getGravity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetLinearFactor()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getLinearFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetLinearVelocity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getLinearVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetAngularVelocity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getAngularVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetScale()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance || !Instance->getCollisionShape())
 				return Vector3(1, 1, 1);
 
 			btVector3 Value = Instance->getCollisionShape()->getLocalScaling();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetPosition()
 		{
+#ifdef TH_WITH_BULLET3
 			btVector3 Value = Instance->getWorldTransform().getOrigin();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 RigidBody::GetRotation()
 		{
+#ifdef TH_WITH_BULLET3
 			btScalar X, Y, Z;
 			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
 
 			return Vector3(-X, -Y, Z);
+#else
+			return 0;
+#endif
 		}
 		btTransform* RigidBody::GetWorldTransform()
 		{
+#ifdef TH_WITH_BULLET3
 			return &Instance->getWorldTransform();
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* RigidBody::GetCollisionShape()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return nullptr;
 
 			return Instance->getCollisionShape();
+#else
+			return nullptr;
+#endif
 		}
 		btRigidBody* RigidBody::Bullet()
 		{
+#ifdef TH_WITH_BULLET3
 			return Instance;
+#else
+			return nullptr;
+#endif
 		}
 		bool RigidBody::IsGhost()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return (Instance->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE) != 0;
+#else
+			return false;
+#endif
 		}
 		bool RigidBody::IsActive()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return Instance->isActive();
+#else
+			return false;
+#endif
 		}
 		bool RigidBody::IsStatic()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return Instance->isStaticObject();
+#else
+			return true;
+#endif
 		}
 		bool RigidBody::IsColliding()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return Instance->hasContactResponse();
+#else
+			return false;
+#endif
 		}
 		float RigidBody::GetSpinningFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSpinningFriction();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetContactStiffness()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactStiffness();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetContactDamping()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactDamping();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetAngularDamping()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getAngularDamping();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetAngularSleepingThreshold()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getAngularSleepingThreshold();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getFriction();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetRestitution()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitution();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetHitFraction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getHitFraction();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetLinearDamping()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getLinearDamping();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetLinearSleepingThreshold()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getLinearSleepingThreshold();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetCcdMotionThreshold()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getCcdMotionThreshold();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetCcdSweptSphereRadius()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getCcdSweptSphereRadius();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetContactProcessingThreshold()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactProcessingThreshold();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetDeactivationTime()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDeactivationTime();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetRollingFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRollingFriction();
+#else
+			return 0;
+#endif
 		}
 		float RigidBody::GetMass()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance && Instance->getInvMass() != 0.0f)
 				return 1.0f / Instance->getInvMass();
 
 			return 0;
+#else
+			return 0;
+#endif
 		}
 		uint64_t RigidBody::GetCollisionFlags()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getCollisionFlags();
+#else
+			return 0;
+#endif
 		}
 		RigidBody::Desc& RigidBody::GetInitialState()
 		{
@@ -9947,14 +10127,19 @@ namespace Tomahawk
 		}
 		RigidBody* RigidBody::Get(btRigidBody* From)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!From)
 				return nullptr;
 
 			return (RigidBody*)From->getUserPointer();
+#else
+			return nullptr;
+#endif
 		}
 
 		SoftBody::SoftBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Engine || !Engine->HasSoftBodySupport())
 				return;
 
@@ -10030,9 +10215,11 @@ namespace Tomahawk
 
 			if (Instance->getWorldArrayIndex() == -1)
 				World->addSoftBody(Instance);
+#endif
 		}
 		SoftBody::~SoftBody()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -10042,6 +10229,7 @@ namespace Tomahawk
 
 			Instance->setUserPointer(nullptr);
 			TH_DELETE(btSoftBody, Instance);
+#endif
 		}
 		SoftBody* SoftBody::Copy()
 		{
@@ -10077,11 +10265,14 @@ namespace Tomahawk
 		}
 		void SoftBody::Activate(bool Force)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->activate(Force);
+#endif
 		}
 		void SoftBody::Synchronize(Transform* Transform, bool Kinematic)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -10119,9 +10310,11 @@ namespace Tomahawk
 				if (Position.Length() > 0.005f)
 					Instance->translate(V3_TO_BT(Position));
 			}
+#endif
 		}
 		void SoftBody::GetIndices(std::vector<int>* Result)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance || !Result)
 				return;
 
@@ -10139,9 +10332,11 @@ namespace Tomahawk
 						Result->push_back(It->second);
 				}
 			}
+#endif
 		}
 		void SoftBody::GetVertices(std::vector<Vertex>* Result)
 		{
+#ifdef TH_WITH_BULLET3
 			static size_t PositionX = offsetof(Compute::Vertex, PositionX);
 			static size_t NormalX = offsetof(Compute::Vertex, NormalX);
 
@@ -10163,9 +10358,11 @@ namespace Tomahawk
 				memcpy(&Position + PositionX, Node->m_x.m_floats, sizeof(float) * 3);
 				memcpy(&Position + NormalX, Node->m_n.m_floats, sizeof(float) * 3);
 			}
+#endif
 		}
 		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -10176,160 +10373,228 @@ namespace Tomahawk
 
 			if (Max != nullptr)
 				*Max = BT_TO_V3(bMax).InvZ();
+#endif
 		}
 		void SoftBody::SetContactStiffnessAndDamping(float Stiffness, float Damping)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setContactStiffnessAndDamping(Stiffness, Damping);
+#endif
 		}
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies, float Influence)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance && Body)
 				Instance->appendAnchor(Node, Body->Bullet(), DisableCollisionBetweenLinkedBodies, Influence);
+#endif
 		}
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies, float Influence)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance && Body)
 				Instance->appendAnchor(Node, Body->Bullet(), V3_TO_BT(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
+#endif
 		}
 		void SoftBody::AddForce(const Vector3& Force)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->addForce(V3_TO_BT(Force));
+#endif
 		}
 		void SoftBody::AddForce(const Vector3& Force, int Node)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->addForce(V3_TO_BT(Force), Node);
+#endif
 		}
 		void SoftBody::AddAeroForceToNode(const Vector3& WindVelocity, int NodeIndex)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->addAeroForceToNode(V3_TO_BT(WindVelocity), NodeIndex);
+#endif
 		}
 		void SoftBody::AddAeroForceToFace(const Vector3& WindVelocity, int FaceIndex)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->addAeroForceToFace(V3_TO_BT(WindVelocity), FaceIndex);
+#endif
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->addVelocity(V3_TO_BT(Velocity));
+#endif
 		}
 		void SoftBody::SetVelocity(const Vector3& Velocity)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setVelocity(V3_TO_BT(Velocity));
+#endif
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity, int Node)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->addVelocity(V3_TO_BT(Velocity), Node);
+#endif
 		}
 		void SoftBody::SetMass(int Node, float Mass)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setMass(Node, Mass);
+#endif
 		}
 		void SoftBody::SetTotalMass(float Mass, bool FromFaces)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setTotalMass(Mass, FromFaces);
+#endif
 		}
 		void SoftBody::SetTotalDensity(float Density)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setTotalDensity(Density);
+#endif
 		}
 		void SoftBody::SetVolumeMass(float Mass)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setVolumeMass(Mass);
+#endif
 		}
 		void SoftBody::SetVolumeDensity(float Density)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setVolumeDensity(Density);
+#endif
 		}
 		void SoftBody::Translate(const Vector3& Position)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->translate(btVector3(Position.X, Position.Y, -Position.Z));
+#endif
 		}
 		void SoftBody::Rotate(const Vector3& Rotation)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 			{
 				btQuaternion Value;
 				Value.setEulerZYX(Rotation.X, Rotation.Y, Rotation.Z);
 				Instance->rotate(Value);
 			}
+#endif
 		}
 		void SoftBody::Scale(const Vector3& Scale)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->scale(V3_TO_BT(Scale));
+#endif
 		}
 		void SoftBody::SetRestLengthScale(float RestLength)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestLengthScale(RestLength);
+#endif
 		}
 		void SoftBody::SetPose(bool Volume, bool Frame)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setPose(Volume, Frame);
+#endif
 		}
 		float SoftBody::GetMass(int Node) const
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getMass(Node);
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetTotalMass() const
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getTotalMass();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetRestLengthScale()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestLengthScale();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetVolume() const
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getVolume();
+#else
+			return 0;
+#endif
 		}
 		int SoftBody::GenerateBendingConstraints(int Distance)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->generateBendingConstraints(Distance);
+#else
+			return 0;
+#endif
 		}
 		void SoftBody::RandomizeConstraints()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->randomizeConstraints();
+#endif
 		}
 		bool SoftBody::CutLink(int Node0, int Node1, float Position)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return Instance->cutLink(Node0, Node1, Position);
+#else
+			return false;
+#endif
 		}
 		bool SoftBody::RayTest(const Vector3& From, const Vector3& To, RayCast& Result)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
@@ -10341,22 +10606,32 @@ namespace Tomahawk
 			Result.Fraction = Cast.fraction;
 
 			return R;
+#else
+			return false;
+#endif
 		}
 		void SoftBody::SetWindVelocity(const Vector3& Velocity)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setWindVelocity(V3_TO_BT(Velocity));
+#endif
 		}
 		Vector3 SoftBody::GetWindVelocity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getWindVelocity();
 			return BT_TO_V3(Value);
+#else
+			return 0;
+#endif
 		}
 		void SoftBody::GetAabb(Vector3& Min, Vector3& Max) const
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -10364,39 +10639,57 @@ namespace Tomahawk
 			Instance->getAabb(BMin, BMax);
 			Min = BT_TO_V3(BMin);
 			Max = BT_TO_V3(BMax);
+#endif
 		}
 		void SoftBody::IndicesToPointers(const int* Map)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->indicesToPointers(Map);
+#endif
 		}
 		void SoftBody::SetSpinningFriction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSpinningFriction(Value);
+#endif
 		}
 		Vector3 SoftBody::GetLinearVelocity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getInterpolationLinearVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 SoftBody::GetAngularVelocity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getInterpolationAngularVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 SoftBody::GetCenterPosition()
 		{
+#ifdef TH_WITH_BULLET3
 			return Center;
+#else
+			return 0;
+#endif
 		}
 		void SoftBody::SetActivity(bool Active)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance || GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
@@ -10404,89 +10697,123 @@ namespace Tomahawk
 				Instance->forceActivationState((int)MotionState::Active);
 			else
 				Instance->forceActivationState((int)MotionState::Deactivation_Needed);
+#endif
 		}
 		void SoftBody::SetAsGhost()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+#endif
 		}
 		void SoftBody::SetAsNormal()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCollisionFlags(0);
+#endif
 		}
 		void SoftBody::SetSelfPointer()
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setUserPointer(this);
+#endif
 		}
 		void SoftBody::SetWorldTransform(btTransform* Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance && Value)
 				Instance->setWorldTransform(*Value);
+#endif
 		}
 		void SoftBody::SetActivationState(MotionState Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->forceActivationState((int)Value);
+#endif
 		}
 		void SoftBody::SetFriction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setFriction(Value);
+#endif
 		}
 		void SoftBody::SetRestitution(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitution(Value);
+#endif
 		}
 		void SoftBody::SetContactStiffness(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
+#endif
 		}
 		void SoftBody::SetContactDamping(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
+#endif
 		}
 		void SoftBody::SetHitFraction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setHitFraction(Value);
+#endif
 		}
 		void SoftBody::SetCcdMotionThreshold(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCcdMotionThreshold(Value);
+#endif
 		}
 		void SoftBody::SetCcdSweptSphereRadius(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setCcdSweptSphereRadius(Value);
+#endif
 		}
 		void SoftBody::SetContactProcessingThreshold(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setContactProcessingThreshold(Value);
+#endif
 		}
 		void SoftBody::SetDeactivationTime(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDeactivationTime(Value);
+#endif
 		}
 		void SoftBody::SetRollingFriction(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRollingFriction(Value);
+#endif
 		}
 		void SoftBody::SetAnisotropicFriction(const Vector3& Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setAnisotropicFriction(V3_TO_BT(Value));
+#endif
 		}
 		void SoftBody::SetConfig(const Desc::SConfig& Conf)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return;
 
@@ -10525,31 +10852,45 @@ namespace Tomahawk
 
 			if (Initial.Config.Clusters > 0)
 				Instance->generateClusters(Initial.Config.Clusters);
+#endif
 		}
 		MotionState SoftBody::GetActivationState()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return MotionState::Active;
 
 			return (MotionState)Instance->getActivationState();
+#else
+			return MotionState::Island_Sleeping;
+#endif
 		}
 		Shape SoftBody::GetCollisionShapeType()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance || !Initial.Shape.Convex.Enabled)
 				return Shape::Invalid;
 
 			return Shape::Convex_Hull;
+#else
+			return Shape::Invalid;
+#endif
 		}
 		Vector3 SoftBody::GetAnisotropicFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			btVector3 Value = Instance->getAnisotropicFriction();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 SoftBody::GetScale()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return Vector3(1, 1, 1);
 
@@ -10559,145 +10900,232 @@ namespace Tomahawk
 			Vector3 Scale = BT_TO_V3(bScale);
 
 			return Scale.Div(2.0f).Abs();
+#else
+			return 0;
+#endif
 		}
 		Vector3 SoftBody::GetPosition()
 		{
+#ifdef TH_WITH_BULLET3
 			btVector3 Value = Instance->getWorldTransform().getOrigin();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
+#else
+			return 0;
+#endif
 		}
 		Vector3 SoftBody::GetRotation()
 		{
+#ifdef TH_WITH_BULLET3
 			btScalar X, Y, Z;
 			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
 
 			return Vector3(-X, -Y, Z);
+#else
+			return 0;
+#endif
 		}
 		btTransform* SoftBody::GetWorldTransform()
 		{
+#ifdef TH_WITH_BULLET3
 			return &Instance->getWorldTransform();
+#else
+			return nullptr;
+#endif
 		}
 		btSoftBody* SoftBody::Bullet()
 		{
+#ifdef TH_WITH_BULLET3
 			return Instance;
+#else
+			return nullptr;
+#endif
 		}
 		bool SoftBody::IsGhost()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return (Instance->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE) != 0;
+#else
+			return false;
+#endif
 		}
 		bool SoftBody::IsActive()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return Instance->isActive();
+#else
+			return false;
+#endif
 		}
 		bool SoftBody::IsStatic()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return Instance->isStaticObject();
+#else
+			return true;
+#endif
 		}
 		bool SoftBody::IsColliding()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return false;
 
 			return Instance->hasContactResponse();
+#else
+			return false;
+#endif
 		}
 		float SoftBody::GetSpinningFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSpinningFriction();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetContactStiffness()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactStiffness();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetContactDamping()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactDamping();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getFriction();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetRestitution()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitution();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetHitFraction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getHitFraction();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetCcdMotionThreshold()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getCcdMotionThreshold();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetCcdSweptSphereRadius()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getCcdSweptSphereRadius();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetContactProcessingThreshold()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getContactProcessingThreshold();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetDeactivationTime()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDeactivationTime();
+#else
+			return 0;
+#endif
 		}
 		float SoftBody::GetRollingFriction()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRollingFriction();
+#else
+			return 0;
+#endif
 		}
 		uint64_t SoftBody::GetCollisionFlags()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getCollisionFlags();
+#else
+			return 0;
+#endif
 		}
 		uint64_t SoftBody::GetVerticesCount()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->m_nodes.size();
+#else
+			return 0;
+#endif
 		}
 		SoftBody::Desc& SoftBody::GetInitialState()
 		{
@@ -10705,18 +11133,27 @@ namespace Tomahawk
 		}
 		Simulator* SoftBody::GetSimulator()
 		{
+#ifdef TH_WITH_BULLET3
 			return Engine;
+#else
+			return nullptr;
+#endif
 		}
 		SoftBody* SoftBody::Get(btSoftBody* From)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!From)
 				return nullptr;
 
 			return (SoftBody*)From->getUserPointer();
+#else
+			return nullptr;
+#endif
 		}
 
 		SliderConstraint::SliderConstraint(Simulator* Refer, const Desc& I) : First(nullptr), Second(nullptr), Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!I.Target1 || !I.Target2 || !Engine)
 				return;
 
@@ -10728,11 +11165,14 @@ namespace Tomahawk
 			Instance->setLowerLinLimit(10);
 
 			Engine->AddSliderConstraint(this);
+#endif
 		}
 		SliderConstraint::~SliderConstraint()
 		{
+#ifdef TH_WITH_BULLET3
 			Engine->RemoveSliderConstraint(this);
 			TH_DELETE(btSliderConstraint, Instance);
+#endif
 		}
 		SliderConstraint* SliderConstraint::Copy()
 		{
@@ -10775,371 +11215,560 @@ namespace Tomahawk
 		}
 		void SliderConstraint::SetAngularMotorVelocity(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setTargetAngMotorVelocity(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearMotorVelocity(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setTargetLinMotorVelocity(Value);
+#endif
 		}
 		void SliderConstraint::SetUpperLinearLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setUpperLinLimit(Value);
+#endif
 		}
 		void SliderConstraint::SetLowerLinearLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setLowerLinLimit(Value);
+#endif
 		}
 		void SliderConstraint::SetBreakingImpulseThreshold(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setBreakingImpulseThreshold(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularDampingDirection(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDampingDirAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearDampingDirection(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDampingDirLin(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularDampingLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDampingLimAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearDampingLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDampingLimLin(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularDampingOrtho(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDampingOrthoAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearDampingOrtho(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setDampingOrthoLin(Value);
+#endif
 		}
 		void SliderConstraint::SetUpperAngularLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setUpperAngLimit(Value);
+#endif
 		}
 		void SliderConstraint::SetLowerAngularLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setLowerAngLimit(Value);
+#endif
 		}
 		void SliderConstraint::SetMaxAngularMotorForce(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setMaxAngMotorForce(Value);
+#endif
 		}
 		void SliderConstraint::SetMaxLinearMotorForce(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setMaxLinMotorForce(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularRestitutionDirection(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitutionDirAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearRestitutionDirection(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitutionDirLin(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularRestitutionLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitutionLimAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearRestitutionLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitutionLimLin(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularRestitutionOrtho(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitutionOrthoAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearRestitutionOrtho(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setRestitutionOrthoLin(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularSoftnessDirection(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSoftnessDirAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearSoftnessDirection(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSoftnessDirLin(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularSoftnessLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSoftnessLimAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearSoftnessLimit(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSoftnessLimLin(Value);
+#endif
 		}
 		void SliderConstraint::SetAngularSoftnessOrtho(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSoftnessOrthoAng(Value);
+#endif
 		}
 		void SliderConstraint::SetLinearSoftnessOrtho(float Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setSoftnessOrthoLin(Value);
+#endif
 		}
 		void SliderConstraint::SetPoweredAngularMotor(bool Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setPoweredAngMotor(Value);
+#endif
 		}
 		void SliderConstraint::SetPoweredLinearMotor(bool Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setPoweredLinMotor(Value);
+#endif
 		}
 		void SliderConstraint::SetEnabled(bool Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Instance)
 				Instance->setEnabled(Value);
+#endif
 		}
 		btSliderConstraint* SliderConstraint::Bullet()
 		{
+#ifdef TH_WITH_BULLET3
 			return Instance;
+#else
+			return nullptr;
+#endif
 		}
 		btRigidBody* SliderConstraint::GetFirst()
 		{
+#ifdef TH_WITH_BULLET3
 			return First;
+#else
+			return nullptr;
+#endif
 		}
 		btRigidBody* SliderConstraint::GetSecond()
 		{
+#ifdef TH_WITH_BULLET3
 			return Second;
+#else
+			return nullptr;
+#endif
 		}
 		float SliderConstraint::GetAngularMotorVelocity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getTargetAngMotorVelocity();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearMotorVelocity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getTargetLinMotorVelocity();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetUpperLinearLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getUpperLinLimit();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLowerLinearLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getLowerLinLimit();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetBreakingImpulseThreshold()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getBreakingImpulseThreshold();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularDampingDirection()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDampingDirAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearDampingDirection()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDampingDirLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularDampingLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDampingLimAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearDampingLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDampingLimLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularDampingOrtho()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDampingOrthoAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearDampingOrtho()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getDampingOrthoLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetUpperAngularLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getUpperAngLimit();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLowerAngularLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getLowerAngLimit();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetMaxAngularMotorForce()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getMaxAngMotorForce();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetMaxLinearMotorForce()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getMaxLinMotorForce();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularRestitutionDirection()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitutionDirAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearRestitutionDirection()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitutionDirLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularRestitutionLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitutionLimAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearRestitutionLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitutionLimLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularRestitutionOrtho()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitutionOrthoAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearRestitutionOrtho()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getRestitutionOrthoLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularSoftnessDirection()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSoftnessDirAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearSoftnessDirection()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSoftnessDirLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularSoftnessLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSoftnessLimAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearSoftnessLimit()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSoftnessLimLin();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetAngularSoftnessOrtho()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSoftnessOrthoAng();
+#else
+			return 0;
+#endif
 		}
 		float SliderConstraint::GetLinearSoftnessOrtho()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getSoftnessOrthoLin();
+#else
+			return 0;
+#endif
 		}
 		bool SliderConstraint::GetPoweredAngularMotor()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getPoweredAngMotor();
+#else
+			return 0;
+#endif
 		}
 		bool SliderConstraint::GetPoweredLinearMotor()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->getPoweredLinMotor();
+#else
+			return 0;
+#endif
 		}
 		bool SliderConstraint::IsConnected()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!First || !Second)
 				return false;
 
@@ -11163,13 +11792,20 @@ namespace Tomahawk
 			}
 
 			return false;
+#else
+			return false;
+#endif
 		}
 		bool SliderConstraint::IsEnabled()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Instance)
 				return 0;
 
 			return Instance->isEnabled();
+#else
+			return false;
+#endif
 		}
 		SliderConstraint::Desc& SliderConstraint::GetInitialState()
 		{
@@ -11182,6 +11818,7 @@ namespace Tomahawk
 
 		Simulator::Simulator(const Desc& I) : SoftSolver(nullptr), TimeSpeed(1), Interpolate(1), Active(true)
 		{
+#ifdef TH_WITH_BULLET3
 			Broadphase = TH_NEW(btDbvtBroadphase);
 			Solver = TH_NEW(btSequentialImpulseConstraintSolver);
 
@@ -11253,9 +11890,11 @@ namespace Tomahawk
 						Body->OnCollisionExit(CollisionBody((btCollisionObject*)Manifold->getBody1()));
 				}
 			};
+#endif
 		}
 		Simulator::~Simulator()
 		{
+#ifdef TH_WITH_BULLET3
 			RemoveAll();
 			for (auto It = Shapes.begin(); It != Shapes.end(); ++It)
 			{
@@ -11269,21 +11908,27 @@ namespace Tomahawk
 			TH_DELETE(btBroadphaseInterface, Broadphase);
 			TH_DELETE(btSoftBodySolver, SoftSolver);
 			TH_DELETE(btDiscreteDynamicsWorld, World);
+#endif
 		}
 		void Simulator::SetGravity(const Vector3& Gravity)
 		{
+#ifdef TH_WITH_BULLET3
 			World->setGravity(V3_TO_BT(Gravity));
+#endif
 		}
 		void Simulator::SetLinearImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				Vector3 Velocity = Impulse * (RandomFactor ? Vector3::Random() : 1);
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(V3_TO_BT(Velocity));
 			}
+#endif
 		}
 		void Simulator::SetLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
 				for (int i = Start; i < End; i++)
@@ -11292,17 +11937,21 @@ namespace Tomahawk
 					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(V3_TO_BT(Velocity));
 				}
 			}
+#endif
 		}
 		void Simulator::SetAngularImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				Vector3 Velocity = Impulse * (RandomFactor ? Vector3::Random() : 1);
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(V3_TO_BT(Velocity));
 			}
+#endif
 		}
 		void Simulator::SetAngularImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
 				for (int i = Start; i < End; i++)
@@ -11311,17 +11960,23 @@ namespace Tomahawk
 					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(V3_TO_BT(Velocity));
 				}
 			}
+#endif
 		}
 		void Simulator::SetOnCollisionEnter(ContactStartedCallback Callback)
 		{
+#ifdef TH_WITH_BULLET3
 			gContactStartedCallback = Callback;
+#endif
 		}
 		void Simulator::SetOnCollisionExit(ContactEndedCallback Callback)
 		{
+#ifdef TH_WITH_BULLET3
 			gContactEndedCallback = Callback;
+#endif
 		}
 		void Simulator::CreateLinearImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				btRigidBody* Body = btRigidBody::upcast(World->getCollisionObjectArray()[i]);
@@ -11331,9 +11986,11 @@ namespace Tomahawk
 				Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Mathf::Random() : 1));
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(Velocity);
 			}
+#endif
 		}
 		void Simulator::CreateLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
 				for (int i = Start; i < End; i++)
@@ -11346,9 +12003,11 @@ namespace Tomahawk
 					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setLinearVelocity(Velocity);
 				}
 			}
+#endif
 		}
 		void Simulator::CreateAngularImpulse(const Vector3& Impulse, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				btRigidBody* Body = btRigidBody::upcast(World->getCollisionObjectArray()[i]);
@@ -11358,9 +12017,11 @@ namespace Tomahawk
 				Velocity.setZ(Velocity.getZ() + Impulse.Z * (RandomFactor ? Mathf::Random() : 1));
 				btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(Velocity);
 			}
+#endif
 		}
 		void Simulator::CreateAngularImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Start >= 0 && Start < World->getNumCollisionObjects() && End >= 0 && End < World->getNumCollisionObjects())
 			{
 				for (int i = Start; i < End; i++)
@@ -11373,41 +12034,55 @@ namespace Tomahawk
 					btRigidBody::upcast(World->getCollisionObjectArray()[i])->setAngularVelocity(Velocity);
 				}
 			}
+#endif
 		}
 		void Simulator::AddSoftBody(SoftBody* Body)
 		{
+#ifdef TH_WITH_BULLET3
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 			if (Body != nullptr && Body->Instance != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() == -1)
 				SoftWorld->addSoftBody(Body->Instance);
+#endif
 		}
 		void Simulator::RemoveSoftBody(SoftBody* Body)
 		{
+#ifdef TH_WITH_BULLET3
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
 			if (Body != nullptr && Body->Instance != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() >= 0)
 				SoftWorld->removeSoftBody(Body->Instance);
+#endif
 		}
 		void Simulator::AddRigidBody(RigidBody* Body)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Body != nullptr && Body->Instance != nullptr && Body->Instance->getWorldArrayIndex() == -1)
 				World->addRigidBody(Body->Instance);
+#endif
 		}
 		void Simulator::RemoveRigidBody(RigidBody* Body)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Body != nullptr && Body->Instance != nullptr && Body->Instance->getWorldArrayIndex() >= 0)
 				World->removeRigidBody(Body->Instance);
+#endif
 		}
 		void Simulator::AddSliderConstraint(SliderConstraint* Constraint)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Constraint != nullptr && Constraint->Instance != nullptr)
 				World->addConstraint(Constraint->Instance, !Constraint->Initial.UseCollisions);
+#endif
 		}
 		void Simulator::RemoveSliderConstraint(SliderConstraint* Constraint)
 		{
+#ifdef TH_WITH_BULLET3
 			if (Constraint != nullptr && Constraint->Instance != nullptr)
 				World->removeConstraint(Constraint->Instance);
+#endif
 		}
 		void Simulator::RemoveAll()
 		{
+#ifdef TH_WITH_BULLET3
 			for (int i = 0; i < World->getNumCollisionObjects(); i++)
 			{
 				btCollisionObject* Object = World->getCollisionObjectArray()[i];
@@ -11426,25 +12101,31 @@ namespace Tomahawk
 				World->removeCollisionObject(Object);
 				TH_DELETE(btCollisionObject, Object);
 			}
+#endif
 		}
 		void Simulator::Simulate(float TimeStep)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Active || TimeSpeed <= 0.0f)
 				return;
 
 			World->stepSimulation(TimeStep * TimeSpeed, Interpolate, TimeSpeed / 60.0f);
+#endif
 		}
 		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Callback || !Body)
 				return;
 
 			FindContactsHandler Handler;
 			Handler.Callback = Callback;
 			World->contactTest(Body->Bullet(), Handler);
+#endif
 		}
 		bool Simulator::FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&))
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Callback)
 				return false;
 
@@ -11453,9 +12134,13 @@ namespace Tomahawk
 
 			World->rayTest(btVector3(Start.X, Start.Y, Start.Z), btVector3(End.X, End.Y, End.Z), Handler);
 			return Handler.m_collisionObject != nullptr;
+#else
+			return false;
+#endif
 		}
 		RigidBody* Simulator::CreateRigidBody(const RigidBody::Desc& I, Transform* Transform)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Transform)
 				return CreateRigidBody(I);
 
@@ -11464,13 +12149,21 @@ namespace Tomahawk
 			F.Rotation = Transform->Rotation;
 			F.Scale = Transform->Scale;
 			return CreateRigidBody(F);
+#else
+			return nullptr;
+#endif
 		}
 		RigidBody* Simulator::CreateRigidBody(const RigidBody::Desc& I)
 		{
+#ifdef TH_WITH_BULLET3
 			return new RigidBody(this, I);
+#else
+			return nullptr;
+#endif
 		}
 		SoftBody* Simulator::CreateSoftBody(const SoftBody::Desc& I, Transform* Transform)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Transform)
 				return CreateSoftBody(I);
 
@@ -11479,65 +12172,97 @@ namespace Tomahawk
 			F.Rotation = Transform->Rotation;
 			F.Scale = Transform->Scale;
 			return CreateSoftBody(F);
+#else
+			return nullptr;
+#endif
 		}
 		SoftBody* Simulator::CreateSoftBody(const SoftBody::Desc& I)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!HasSoftBodySupport())
 				return nullptr;
 
 			return new SoftBody(this, I);
+#else
+			return nullptr;
+#endif
 		}
 		SliderConstraint* Simulator::CreateSliderConstraint(const SliderConstraint::Desc& I)
 		{
+#ifdef TH_WITH_BULLET3
 			return new SliderConstraint(this, I);
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateCube(const Vector3& Scale)
 		{
+#ifdef TH_WITH_BULLET3
 			btCollisionShape* Shape = TH_NEW(btBoxShape, V3_TO_BT(Scale));
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateSphere(float Radius)
 		{
+#ifdef TH_WITH_BULLET3
 			btCollisionShape* Shape = TH_NEW(btSphereShape, Radius);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateCapsule(float Radius, float Height)
 		{
+#ifdef TH_WITH_BULLET3
 			btCollisionShape* Shape = TH_NEW(btCapsuleShape, Radius, Height);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateCone(float Radius, float Height)
 		{
+#ifdef TH_WITH_BULLET3
 			btCollisionShape* Shape = TH_NEW(btConeShape, Radius, Height);
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateCylinder(const Vector3& Scale)
 		{
+#ifdef TH_WITH_BULLET3
 			btCollisionShape* Shape = TH_NEW(btCylinderShape, V3_TO_BT(Scale));
 			Safe.lock();
 			Shapes[Shape] = 1;
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<SkinVertex>& Vertices)
 		{
+#ifdef TH_WITH_BULLET3
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
@@ -11551,9 +12276,13 @@ namespace Tomahawk
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vertex>& Vertices)
 		{
+#ifdef TH_WITH_BULLET3
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
@@ -11567,9 +12296,13 @@ namespace Tomahawk
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector2>& Vertices)
 		{
+#ifdef TH_WITH_BULLET3
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, 0), false);
@@ -11583,9 +12316,13 @@ namespace Tomahawk
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector3>& Vertices)
 		{
+#ifdef TH_WITH_BULLET3
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
@@ -11599,9 +12336,13 @@ namespace Tomahawk
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateConvexHull(std::vector<Vector4>& Vertices)
 		{
+#ifdef TH_WITH_BULLET3
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->X, It->Y, It->Z), false);
@@ -11615,9 +12356,13 @@ namespace Tomahawk
 			Safe.unlock();
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateConvexHull(btCollisionShape* From)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!From || From->getShapeType() != (int)Shape::Convex_Hull)
 				return nullptr;
 
@@ -11636,9 +12381,13 @@ namespace Tomahawk
 			Safe.unlock();
 
 			return Hull;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateShape(Shape Wanted)
 		{
+#ifdef TH_WITH_BULLET3
 			switch (Wanted)
 			{
 				case Shape::Box:
@@ -11654,9 +12403,13 @@ namespace Tomahawk
 				default:
 					return nullptr;
 			}
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::TryCloneShape(btCollisionShape* Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Value)
 				return nullptr;
 
@@ -11692,9 +12445,13 @@ namespace Tomahawk
 				return CreateConvexHull(Value);
 
 			return nullptr;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::ReuseShape(btCollisionShape* Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Value)
 				return nullptr;
 
@@ -11709,9 +12466,13 @@ namespace Tomahawk
 			It->second++;
 			Safe.unlock();
 			return Value;
+#else
+			return nullptr;
+#endif
 		}
 		void Simulator::FreeShape(btCollisionShape** Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Value || !*Value)
 				return;
 
@@ -11728,9 +12489,11 @@ namespace Tomahawk
 				}
 			}
 			Safe.unlock();
+#endif
 		}
 		std::vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Value)
 				return std::vector<Vector3>();
 
@@ -11751,9 +12514,13 @@ namespace Tomahawk
 			}
 
 			return Vertices;
+#else
+			return std::vector<Vector3>();
+#endif
 		}
 		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Value)
 				return 0;
 
@@ -11763,107 +12530,181 @@ namespace Tomahawk
 
 			btConvexHullShape* Hull = (btConvexHullShape*)Value;
 			return Hull->getNumPoints();
+#else
+			return 0;
+#endif
 		}
 		float Simulator::GetMaxDisplacement()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
 				return 1000;
 
 			return ((btSoftRigidDynamicsWorld*)World)->getWorldInfo().m_maxDisplacement;
+#else
+			return 1000;
+#endif
 		}
 		float Simulator::GetAirDensity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
 				return 1.2f;
 
 			return ((btSoftRigidDynamicsWorld*)World)->getWorldInfo().air_density;
+#else
+			return 1.2f;
+#endif
 		}
 		float Simulator::GetWaterOffset()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
 				return 0;
 
 			return ((btSoftRigidDynamicsWorld*)World)->getWorldInfo().water_offset;
+#else
+			return 0;
+#endif
 		}
 		float Simulator::GetWaterDensity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
 				return 0;
 
 			return ((btSoftRigidDynamicsWorld*)World)->getWorldInfo().water_density;
+#else
+			return 0;
+#endif
 		}
 		Vector3 Simulator::GetWaterNormal()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
 				return 0;
 
 			btVector3 Value = ((btSoftRigidDynamicsWorld*)World)->getWorldInfo().water_normal;
 			return BT_TO_V3(Value);
+#else
+			return 0;
+#endif
 		}
 		Vector3 Simulator::GetGravity()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!World)
 				return 0;
 
 			btVector3 Value = World->getGravity();
 			return BT_TO_V3(Value);
+#else
+			return 0;
+#endif
 		}
 		ContactStartedCallback Simulator::GetOnCollisionEnter()
 		{
+#ifdef TH_WITH_BULLET3
 			return gContactStartedCallback;
+#else
+			return nullptr;
+#endif
 		}
 		ContactEndedCallback Simulator::GetOnCollisionExit()
 		{
+#ifdef TH_WITH_BULLET3
 			return gContactEndedCallback;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionConfiguration* Simulator::GetCollision()
 		{
+#ifdef TH_WITH_BULLET3
 			return Collision;
+#else
+			return nullptr;
+#endif
 		}
 		btBroadphaseInterface* Simulator::GetBroadphase()
 		{
+#ifdef TH_WITH_BULLET3
 			return Broadphase;
+#else
+			return nullptr;
+#endif
 		}
 		btConstraintSolver* Simulator::GetSolver()
 		{
+#ifdef TH_WITH_BULLET3
 			return Solver;
+#else
+			return nullptr;
+#endif
 		}
 		btDiscreteDynamicsWorld* Simulator::GetWorld()
 		{
+#ifdef TH_WITH_BULLET3
 			return World;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionDispatcher* Simulator::GetDispatcher()
 		{
+#ifdef TH_WITH_BULLET3
 			return Dispatcher;
+#else
+			return nullptr;
+#endif
 		}
 		btSoftBodySolver* Simulator::GetSoftSolver()
 		{
+#ifdef TH_WITH_BULLET3
 			return SoftSolver;
+#else
+			return nullptr;
+#endif
 		}
 		bool Simulator::HasSoftBodySupport()
 		{
+#ifdef TH_WITH_BULLET3
 			return SoftSolver != nullptr;
+#else
+			return false;
+#endif
 		}
 		int Simulator::GetContactManifoldCount()
 		{
+#ifdef TH_WITH_BULLET3
 			if (!Dispatcher)
 				return 0;
 
 			return Dispatcher->getNumManifolds();
+#else
+			return 0;
+#endif
 		}
 		void Simulator::FreeUnmanagedShape(btCollisionShape* Shape)
 		{
+#ifdef TH_WITH_BULLET3
 			TH_DELETE(btCollisionShape, Shape);
+#endif
 		}
 		Simulator* Simulator::Get(btDiscreteDynamicsWorld* From)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!From)
 				return nullptr;
 
 			return (Simulator*)From->getWorldUserInfo();
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateUnmanagedShape(std::vector<Vertex>& Vertices)
 		{
+#ifdef TH_WITH_BULLET3
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
 			for (auto It = Vertices.begin(); It != Vertices.end(); ++It)
 				Shape->addPoint(btVector3(It->PositionX, It->PositionY, It->PositionZ), false);
@@ -11873,9 +12714,13 @@ namespace Tomahawk
 			Shape->setMargin(0);
 
 			return Shape;
+#else
+			return nullptr;
+#endif
 		}
 		btCollisionShape* Simulator::CreateUnmanagedShape(btCollisionShape* From)
 		{
+#ifdef TH_WITH_BULLET3
 			if (!From || From->getShapeType() != (int)Shape::Convex_Hull)
 				return nullptr;
 
@@ -11890,7 +12735,9 @@ namespace Tomahawk
 			Hull->setMargin(0);
 
 			return Hull;
-		}
+#else
+			return nullptr;
 #endif
+		}
 	}
 }

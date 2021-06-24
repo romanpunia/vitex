@@ -96,8 +96,10 @@ namespace Tomahawk
 				return SendRequest(221, "QUIT\r\n", [this]()
 				{
 					Authorized = false;
-					Stream.Close(true);
-					return (void)Success(0);
+					Stream.CloseAsync(true, [this](Socket*)
+					{
+						return Success(0);
+					});
 				}) || true;
 			}
 			Core::Async<int> Client::Send(RequestFrame* Root)

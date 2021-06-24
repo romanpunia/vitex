@@ -9,7 +9,6 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
-#ifdef TH_WITH_BULLET3
 			class TH_OUT SoftBody final : public Drawable
 			{
 			protected:
@@ -137,7 +136,7 @@ namespace Tomahawk
 			public:
 				TH_COMPONENT("acceleration");
 			};
-#endif
+
 			class TH_OUT Model final : public Drawable
 			{
 			protected:

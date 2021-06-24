@@ -7,7 +7,6 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-#ifdef TH_WITH_BULLET3
 			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::SoftBody::GetTypeId()), VertexBuffer(nullptr), IndexBuffer(nullptr)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -234,7 +233,7 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				Device->SetShader(nullptr, TH_GS);
 			}
-#endif
+
 			Model::Model(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::Model::GetTypeId())
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();

@@ -175,7 +175,7 @@ namespace Tomahawk
 				Server(ContentManager* Manager);
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
-#ifdef TH_WITH_BULLET3
+
 			class TH_OUT Shape final : public Processor
 			{
 			public:
@@ -185,7 +185,6 @@ namespace Tomahawk
 				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
-#endif
 		}
 	}
 }

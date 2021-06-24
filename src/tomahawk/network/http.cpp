@@ -95,29 +95,32 @@ namespace Tomahawk
 			{
 				if (State & (uint32_t)WebSocketState::Free)
 				{
-					Base->Stream->Close(true);
-					if (Disconnect)
+					Base->Stream->CloseAsync(true, [this](Socket*)
 					{
-						WebSocketCallback Callback = Disconnect;
-						Disconnect = nullptr;
+						if (Disconnect)
+						{
+							WebSocketCallback Callback = Disconnect;
+							Disconnect = nullptr;
+							Callback(this);
 
-						return Callback(this);
-					}
+							return true;
+						}
 
-					if (Base->Gateway && !Base->Gateway->IsDone())
-						return (void)Base->Gateway->Done(true);
+						if (Base->Gateway && !Base->Gateway->IsDone())
+							return Base->Gateway->Done(true);
 
-					if (Base->Response.StatusCode <= 0)
-						Base->Response.StatusCode = 101;
+						if (Base->Response.StatusCode <= 0)
+							Base->Response.StatusCode = 101;
 
-					Save = true;
-					Base->Info.KeepAlive = 0;
-					Base->Unlock();
+						Save = true;
+						Base->Info.KeepAlive = 0;
+						Base->Unlock();
 
-					auto* Store = Base;
-					return (void)Core::Schedule::Get()->SetTask([Store]()
-					{
-						Store->Finish();
+						auto* Store = Base;
+						return Core::Schedule::Get()->SetTask([Store]()
+						{
+							Store->Finish();
+						});
 					});
 				}
 				else if (State & (uint32_t)WebSocketState::Handshake)
@@ -735,6 +738,14 @@ namespace Tomahawk
 				return std::make_pair(Range->first, Range->second - Range->first + 1);
 			}
 
+			void ResponseFrame::PutBuffer(const std::string& Data)
+			{
+				TextAppend(Buffer, Data);
+			}
+			void ResponseFrame::SetBuffer(const std::string& Data)
+			{
+				TextAssign(Buffer, Data);
+			}
 			void ResponseFrame::SetHeader(const char* Key, const char* Value)
 			{
 				if (!Key)
@@ -844,6 +855,10 @@ namespace Tomahawk
 				}
 
 				return nullptr;
+			}
+			std::string ResponseFrame::GetBuffer()
+			{
+				return std::string(Buffer.data(), Buffer.size());
 			}
 
 			bool Connection::Consume(const ContentCallback& Callback)
@@ -3201,7 +3216,7 @@ namespace Tomahawk
 				if (Base->Response.StatusCode == 401)
 					return "Connection: Close\r\n";
 
-				if (!Base->Root->Router->KeepAliveMaxCount)
+				if (Base->Root->Router->KeepAliveMaxCount == 0)
 					return "Connection: Close\r\n";
 
 				const char* Connection = Base->Request.GetHeader("Connection");
@@ -3210,6 +3225,9 @@ namespace Tomahawk
 
 				if (!Connection && strcmp(Base->Request.Version, "1.1") != 0)
 					return "Connection: Close\r\n";
+
+				if (Base->Root->Router->KeepAliveMaxCount < 0)
+					return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + "\r\n";
 
 				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + ", max=" + std::to_string(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
 			}
@@ -4934,9 +4952,6 @@ namespace Tomahawk
 					Base->WebSocket->Base = Base;
 					Base->Stream->SetAsyncTimeout(Base->Route->WebSocketTimeout);
 
-					if (!Base->Route->GracefulTimeWait)
-						Base->Stream->SetTimeWait(1);
-
 					if (ResourceProvided(Base, &Base->Resource))
 						return ProcessGateway(Base);
 
@@ -5290,7 +5305,6 @@ namespace Tomahawk
 						Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
 					}
 
-					Base->Stream->SetTimeWait((int)Base->Route->GracefulTimeWait);
 					if (!Base->Request.ContentLength)
 						Base->Request.ContentState = Content::Empty;
 

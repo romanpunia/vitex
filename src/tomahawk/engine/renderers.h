@@ -10,7 +10,6 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-#ifdef TH_WITH_BULLET3
 			class TH_OUT SoftBody final : public GeometryDraw
 			{
 			private:
@@ -50,7 +49,7 @@ namespace Tomahawk
 			public:
 				TH_COMPONENT("soft-body-renderer");
 			};
-#endif
+
 			class TH_OUT Model final : public GeometryDraw
 			{
 			private:

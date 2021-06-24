@@ -106,7 +106,6 @@ namespace Tomahawk
 			WriteEvent* Output;
 			ssl_st* Device;
 			socket_t Fd;
-			int TimeWait = 1;
 
 		public:
 			int64_t Income, Outcome;
@@ -123,7 +122,8 @@ namespace Tomahawk
 			int Listen(int Backlog);
 			int Accept(Socket* Connection, Address* Output);
 			int AcceptAsync(SocketAcceptCallback&& Callback);
-			int Close(bool Detach);
+			int Close(bool Gracefully = true);
+			int CloseAsync(bool Gracefully, const SocketAcceptCallback& Callback);
 			int CloseOnExec();
 			int Skip(unsigned int IO, int Code);
 			int Clear(bool Gracefully);
@@ -165,6 +165,7 @@ namespace Tomahawk
 			int64_t GetAsyncTimeout();
 
 		private:
+			static bool TryClose(Socket* Base, const char* Buffer, int64_t Size, const SocketAcceptCallback& Callback);
 			bool ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index);
 			bool ReadFlush();
 			bool WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size);
@@ -234,7 +235,7 @@ namespace Tomahawk
 			int64_t Start = 0;
 			int64_t Finish = 0;
 			int64_t Timeout = 0;
-			int KeepAlive = 1;
+			int64_t KeepAlive = 1;
 			bool Close = false;
 			bool Await = false;
 		};
@@ -270,14 +271,15 @@ namespace Tomahawk
 		{
 			std::unordered_map<std::string, SocketCertificate> Certificates;
 			std::unordered_map<std::string, Host> Listeners;
-			uint64_t KeepAliveMaxCount = 10;
 			uint64_t PayloadMaxLength = std::numeric_limits<uint64_t>::max();
 			uint64_t BacklogQueue = 20;
 			uint64_t SocketTimeout = 5000;
-			uint64_t MasterTimeout = 200;
+			uint64_t PollTimeout = 200;
 			uint64_t CloseTimeout = 500;
 			uint64_t MaxEvents = 256;
 			uint64_t MaxConnections = 0;
+			int64_t KeepAliveMaxCount = 10;
+			int64_t GracefulTimeWait = -1;
 			bool EnableNoDelay = false;
 
 			virtual ~SocketRouter();
@@ -303,9 +305,9 @@ namespace Tomahawk
 			static void Release();
             static void Assign(Core::Schedule* Queue);
 			static int Dispatch();
-			static int Listen(Socket* Value);
-			static int Unlisten(Socket* Value);
-			static int Dispatch(Socket* Value, uint32_t* Events, int64_t Time);
+			static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);
+			static int Listen(Socket* Value, bool Always);
+			static int Unlisten(Socket* Value, bool Always);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
             

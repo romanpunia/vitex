@@ -5,7 +5,6 @@
 #include <cmath>
 #include <map>
 #include <stack>
-#ifdef TH_WITH_BULLET3
 class btCollisionConfiguration;
 class btBroadphaseInterface;
 class btConstraintSolver;
@@ -28,19 +27,17 @@ typedef bool(* ContactDestroyedCallback)(void*);
 typedef bool(* ContactProcessedCallback)(class btManifoldPoint&, void*, void*);
 typedef void(* ContactStartedCallback)(class btPersistentManifold* const&);
 typedef void(* ContactEndedCallback)(class btPersistentManifold* const&);
-#endif
 
 namespace Tomahawk
 {
 	namespace Compute
 	{
-#ifdef TH_WITH_BULLET3
 		class RigidBody;
 
 		class SoftBody;
 
 		class Simulator;
-#endif
+
 		class WebToken;
 
 		class Transform;
@@ -449,11 +446,6 @@ namespace Tomahawk
 			bool operator <(const Vector3& V) const;
 			float& operator [](uint32_t Axis);
 			float operator [](uint32_t Axis) const;
-
-#ifdef TH_WITH_BULLET3
-			static void ToBtVector3(const Vector3& In, btVector3* Out);
-			static void FromBtVector3(const btVector3& In, Vector3* Out);
-#endif
 			static Vector3 Random();
 			static Vector3 RandomAbs();
 			static Vector3 One()
@@ -634,9 +626,6 @@ namespace Tomahawk
 
 		public:
 			Matrix4x4();
-#ifdef TH_WITH_BULLET3
-			Matrix4x4(btTransform* In);
-#endif
 			Matrix4x4(float Array[16]);
 			Matrix4x4(const Vector4& Row0, const Vector4& Row1, const Vector4& Row2, const Vector4& Row3);
 			Matrix4x4(float Row00, float Row01, float Row02, float Row03, float Row10, float Row11, float Row12, float Row13, float Row20, float Row21, float Row22, float Row23, float Row30, float Row31, float Row32, float Row33);
@@ -991,7 +980,6 @@ namespace Tomahawk
 			unsigned int FaceNb;
 		};
 
-#ifdef TH_WITH_BULLET3
 		struct TH_OUT UnmanagedShape
 		{
 			std::vector<Vertex> Vertices;
@@ -1005,7 +993,7 @@ namespace Tomahawk
 			SoftBody* Soft = nullptr;
 			CollisionBody(btCollisionObject* Object);
 		};
-#endif
+
 		class TH_OUT Adjacencies
 		{
 		public:
@@ -1818,7 +1806,6 @@ namespace Tomahawk
 			}
 		};
 
-#ifdef TH_WITH_BULLET3
 		class TH_OUT RigidBody : public Core::Object
 		{
 			friend Simulator;
@@ -2328,7 +2315,6 @@ namespace Tomahawk
 			static btCollisionShape* CreateUnmanagedShape(std::vector<Vertex>& Mesh);
 			static btCollisionShape* CreateUnmanagedShape(btCollisionShape* From);
 		};
-#endif
 	}
 }
 #endif

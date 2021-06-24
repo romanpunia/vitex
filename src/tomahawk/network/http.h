@@ -184,11 +184,14 @@ namespace Tomahawk
 				int StatusCode = -1;
 				bool Error = false;
 
+				void PutBuffer(const std::string& Data);
+				void SetBuffer(const std::string& Data);
 				void SetHeader(const char* Key, const char* Value);
 				void SetHeader(const char* Key, const std::string& Value);
 				void SetCookie(const char* Key, const char* Value, uint64_t Expires = 0, const char* Domain = nullptr, const char* Path = nullptr, bool Secure = false, bool HTTPOnly = false);
 				const char* GetHeader(const char* Key);
 				Cookie* GetCookie(const char* Key);
+				std::string GetBuffer();
 			};
 
 			struct TH_OUT WebSocketFrame
@@ -335,7 +338,6 @@ namespace Tomahawk
 				uint64_t WebSocketTimeout = 30000;
 				uint64_t StaticFileMaxAge = 604800;
 				uint64_t MaxCacheLength = 16384;
-				uint64_t GracefulTimeWait = 1;
 				bool AllowDirectoryListing = true;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = false;

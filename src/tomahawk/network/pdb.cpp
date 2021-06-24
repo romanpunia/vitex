@@ -405,6 +405,14 @@ namespace Tomahawk
 
 				return It->second;
 			}
+			std::string Address::GetAddress() const
+			{
+				std::string Hostname = Get(AddressOp::Ip);
+				if (Hostname.empty())
+					Hostname = Get(AddressOp::Host);
+
+				return "postgresql://" + Hostname + ':' + Get(AddressOp::Port) + '/';
+			}
 			const std::unordered_map<std::string, std::string>& Address::Get() const
 			{
 				return Params;
@@ -806,6 +814,21 @@ namespace Tomahawk
 				return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 #endif
 			}
+			Column Row::GetColumn(const char* Name) const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || !Name)
+					return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
+
+				int Index = PQfnumber(Base, Name);
+				if (Index < 0)
+					return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
+
+				return Column(Base, RowIndex, (size_t)Index);
+#else
+				return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
+#endif
+			}
 			bool Row::GetColumns(Column* Output, size_t Size) const
 			{
 #ifdef TH_HAS_POSTGRESQL
@@ -1089,59 +1112,49 @@ namespace Tomahawk
 				return Row(nullptr, std::numeric_limits<size_t>::max());
 #endif
 			}
+			Row Result::First() const
+			{
+				return GetRow(0);
+			}
+			Row Result::Last() const
+			{
+				return GetRow(GetSize() - 1);
+			}
 			TResult* Result::Get() const
 			{
 				return Base;
 			}
+			bool Result::IsEmpty() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base)
+					return true;
 
-			Results::Results() : Source(nullptr)
-			{
+				return PQntuples(Base) <= 0;
+#else
+				return true;
+#endif
 			}
-			Results::Results(Connection* NewSource) : Source(NewSource)
+			bool Result::IsError() const
 			{
-			}
-			void Results::Release()
-			{
-				if (!Source || Data.empty())
-					return;
-
-				Source = nullptr;
-				for (auto& Item : Data)
-					Item.Release();
-				Data.clear();
-			}
-			void Results::Push(TResult* NewResult)
-			{
-				Data.emplace_back(NewResult);
-			}
-			void Results::Swap(Results&& Other)
-			{
-				Source = Other.Source;
-				Data = std::move(Other.Data);
-			}
-			size_t Results::GetSize() const
-			{
-				return Data.size();
-			}
-			Result& Results::GetResult(size_t Index)
-			{
-				return Data[Index];
-			}
-			const Result& Results::GetResult(size_t Index) const
-			{
-				return Data[Index];
-			}
-			Connection* Results::GetSource() const
-			{
-				return Source;
+#ifdef TH_HAS_POSTGRESQL
+				QueryExec State = GetStatus();
+				return State == QueryExec::Fatal_Error || State == QueryExec::Non_Fatal_Error || State == QueryExec::Bad_Response;
+#else
+				return false;
+#endif
 			}
 
-			Connection::Connection() : Operation(this), Base(nullptr), Master(nullptr), Connected(false)
+			Connection::Connection() : Base(nullptr), Master(nullptr), State(-1)
 			{
 				Driver::Create();
+				Driver::Listen(this);
 			}
 			Connection::~Connection()
 			{
+				Cmd.Prev.Release();
+				Cmd.Next.Release();
+				Driver::Unlisten(this);
 				Driver::Release();
 			}
 			void Connection::SetNotificationCallback(const OnNotification& NewCallback)
@@ -1150,13 +1163,24 @@ namespace Tomahawk
 				Callback = NewCallback;
 				Safe.unlock();
 			}
+			int Connection::SetEncoding(const std::string& Name)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base)
+					return -1;
+
+				return PQsetClientEncoding(Base, Name.c_str());
+#else
+				return -1;
+#endif
+			}
 			Core::Async<bool> Connection::Connect(const Address& URI)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (Master != nullptr)
 					return Core::Async<bool>::Store(false);
 
-				if (Connected)
+				if (State != -1)
 				{
 					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
 					{
@@ -1184,7 +1208,7 @@ namespace Tomahawk
 						if (Message != nullptr)
 							TH_WARN("[pq] %s", Message);
 					}, nullptr);
-					Connected = true;
+					State = 0;
 					Future.Set(true);
 				});
 #else
@@ -1194,12 +1218,12 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Disconnect()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Connected || !Base)
+				if (State == -1 || !Base)
 					return Core::Async<bool>::Store(false);
 
 				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
-					Connected = false;
+					State = -1;
 					if (!Base)
 						return Future.Set(true);
 
@@ -1217,106 +1241,111 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Core::Async<Results> Connection::QuerySet(const std::string& Command)
+			Core::Async<bool> Connection::Query(const std::string& Command, bool Chunked, bool Prefetch)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || Command.empty() || Acquired)
-					return Core::Async<Results>::Store(Results());
+				if (!Base || Command.empty() || State == -1)
+					return Core::Async<bool>::Store(false);
 
-				Safe.lock();
-				Acquired = true;
-				int Code = PQsendQueryParams(Base, Command.c_str(), 0, nullptr, nullptr, nullptr, nullptr, 0);
-				if (Code != 1)
+				if (State == 0)
 				{
-					char* Message = PQerrorMessage(Base);
-					Acquired = false;
-					Safe.unlock();
+					if (!SendQuery(Command, Chunked))
+						return Core::Async<bool>::Store(false);
 
-					if (Message != nullptr)
-						TH_ERROR("[pqerr] %s", Message);
-
-					return Core::Async<Results>::Store(Results());
+					return (Prefetch ? Next() : Core::Async<bool>::Store(true));
 				}
 
-				Driver::Listen(this);
-				Safe.unlock();
-
-				return Income;
-#else
-				return Core::Async<Results>::Store(Results());
-#endif
-			}
-			Core::Async<Result> Connection::Query(const std::string& Command)
-			{
-#ifdef TH_HAS_POSTGRESQL
-				if (!Base || Command.empty() || Acquired)
-					return Core::Async<Result>::Store(Result());
-	
-				return Core::Async<Result>([this, Command](Core::Async<Result>& Future)
+				return Cancel().Then<Core::Async<bool>>([this, Command, Chunked, Prefetch](bool&&)
 				{
-					Safe.lock();
-					Acquired = true;
-					TResult* Data = PQexecParams(Base, Command.c_str(), 0, nullptr, nullptr, nullptr, nullptr, 0);
-					Acquired = false;
-					Safe.unlock();
+					if (!SendQuery(Command, Chunked))
+						return Core::Async<bool>::Store(false);
 
-					if (!Data)
-					{
-						char* Message = PQerrorMessage(Base);
-						if (Message != nullptr)
-							TH_ERROR("[pqerr] %s", Message);
-					}
-
-					PQflush(Base);
-					Future.Set(Result(Data));
+					return (Prefetch ? Next() : Core::Async<bool>::Store(true));
 				});
 #else
-				return Core::Async<Result>::Store(Result());
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Core::Async<Result> Connection::Subscribe(const std::string& Channel)
+			Core::Async<bool> Connection::Next()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || Channel.empty())
-					return Core::Async<Result>::Store(Result());
+				if (!Base || State != 1)
+					return Core::Async<bool>::Store(false);
 
-				return Query("LISTEN " + EscapeIdentifier(Channel));
-#else
-				return Core::Async<Result>::Store(Result());
-#endif
-			}
-			Core::Async<Result> Connection::Unsubscribe(const std::string& Channel)
-			{
-#ifdef TH_HAS_POSTGRESQL
-				if (!Base || Channel.empty())
-					return Core::Async<Result>::Store(Result());
+				Safe.lock();
+				Cmd.Future.Steal(Core::Async<bool>());
+				Cmd.State = (Cmd.Next ? 1 : -1);
+				State = 2;
+				Safe.unlock();
 
-				return Query("UNLISTEN " + EscapeIdentifier(Channel));
+				return Cmd.Future;
 #else
-				return Core::Async<Result>::Store(Result());
+				return Core::Async<bool>::Store(false);
 #endif
 			}
-			bool Connection::CancelQuery()
+			Core::Async<bool> Connection::Cancel()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return false;
+				if (!Base || State != 1)
+					return Core::Async<bool>::Store(false);
 
 				PGcancel* Cancel = PQgetCancel(Base);
 				if (!Cancel)
-					return false;
+					return Core::Async<bool>::Store(false);
 
 				char Error[256];
 				int Code = PQcancel(Cancel, Error, sizeof(Error));
-
 				if (Code != 1)
 					TH_ERROR("[pqerr] %s", Error);
 
 				PQfreeCancel(Cancel);
-				return Code == 1;
+				if (Code != 1)
+					return Core::Async<bool>::Store(false);
+
+				Safe.lock();
+				Cmd.Future.Steal(Core::Async<bool>());
+				Cmd.State = -1;
+				State = 3;
+				Safe.unlock();
+
+				return Cmd.Future;
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			bool Connection::SendQuery(const std::string& Command, bool Chunked)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				Safe.lock();
+				if (PQsendQueryParams(Base, Command.c_str(), 0, nullptr, nullptr, nullptr, nullptr, 0) != 1)
+				{
+					char* Message = PQerrorMessage(Base);
+					if (Message != nullptr)
+						TH_ERROR("[pqerr] %s", Message);
+
+					Safe.unlock();
+					return false;
+				}
+
+				Cmd.State = -1;
+				State = 1;
+
+				if (Chunked)
+					PQsetSingleRowMode(Base);
+
+				Safe.unlock();
+				return true;
 #else
 				return false;
 #endif
+			}
+			bool Connection::NextSync()
+			{
+				return Next().Get();
+			}
+			Result& Connection::GetCurrent()
+			{
+				return Cmd.Prev;
 			}
 			std::string Connection::GetErrorMessage() const
 			{
@@ -1409,6 +1438,20 @@ namespace Tomahawk
 			{
 				return ToBytea((const char*)Data, OutSize);
 			}
+			std::string Connection::GetEncoding() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base)
+					return std::string();
+
+				int Code = PQclientEncoding(Base);
+				const char* Name = pg_encoding_to_char(Code);
+
+				return Name ? Name : std::string();
+#else
+				return std::string();
+#endif
+			}
 			int Connection::GetServerVersion() const
 			{
 #ifdef TH_HAS_POSTGRESQL
@@ -1459,7 +1502,7 @@ namespace Tomahawk
 			}
 			bool Connection::IsConnected() const
 			{
-				return Connected;
+				return State != -1;
 			}
 
 			Queue::Queue() : Connected(false)
@@ -1547,7 +1590,7 @@ namespace Tomahawk
 #endif
 				Client->Base = nullptr;
 				Client->Master = nullptr;
-				Client->Connected = false;
+				Client->State = -1;
 			}
 			bool Queue::Push(Connection** Client)
 			{
@@ -1570,11 +1613,11 @@ namespace Tomahawk
 
 				return true;
 			}
-			Core::Async<Connection*> Queue::Pop()
+			Connection* Queue::Pop()
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Connected)
-					return Core::Async<Connection*>::Store(nullptr);
+					return nullptr;
 
 				Safe.lock();
 				if (!Inactive.empty())
@@ -1584,30 +1627,27 @@ namespace Tomahawk
 					Active.insert(Result);
 					Safe.unlock();
 
-					return Core::Async<Connection*>::Store(Result);
+					return Result;
 				}
 
 				Connection* Result = new Connection();
 				Active.insert(Result);
 				Safe.unlock();
 
-				return Result->Connect(Source).Then<Core::Async<Connection*>>([this, Result](bool&& Subresult)
+				if (Result->Connect(Source).Get())
 				{
-					if (Subresult)
-					{
-						Result->Master = this;
-						return Core::Async<Connection*>::Store(Result);
-					}
+					Result->Master = this;
+					return Result;
+				}
 
-					this->Safe.lock();
-					this->Active.erase(Result);
-					this->Safe.unlock();
+				Safe.lock();
+				Active.erase(Result);
+				Safe.unlock();
 
-					TH_RELEASE(Result);
-					return Core::Async<Connection*>::Store(nullptr);
-				});
+				TH_RELEASE(Result);
+				return nullptr;
 #else
-				return Core::Async<Connection*>::Store(nullptr);
+				return nullptr;
 #endif
 			}
 
@@ -1678,7 +1718,9 @@ namespace Tomahawk
 				if (!Queue)
 					return;
 
-				Dispatch();
+				if (Dispatch() <= 0)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
+
 				if (Queue->IsActive() && Active)
 					Queue->SetTask(Driver::Resolve);
 			}
@@ -1692,54 +1734,84 @@ namespace Tomahawk
 				Safe->lock();
 				for (auto It = Listeners->begin(); It != Listeners->end(); It++)
 				{
-					Connection* Base = *It;
-					int Consume = PQconsumeInput(Base->Base);
+					Connection* Src = *It;
+					if (!Src)
+						continue;
+
+					int Consume = PQconsumeInput(Src->Base);
 					if (Consume != 1)
 						continue;
 
-					int Busy = PQisBusy(Base->Base);
+					int Busy = PQisBusy(Src->Base);
 					if (Busy == 1)
 						continue;
 
-					PGnotify* Notification = PQnotifies(Base->Base);
+					PGnotify* Notification = PQnotifies(Src->Base);
 					if (Notification != nullptr)
 					{
-						Safe->lock();
-						OnNotification Callback = Base->Callback;
-						Safe->unlock();
+						Src->Safe.lock();
+						OnNotification Callback = Src->Callback;
+						Src->Safe.unlock();
 
 						if (Callback)
 							Callback(Notify(Notification));
 						else
 							PQfreeNotify(Notification);
-					}
-
-					if (!Base->Acquired)
+						Count++;
+					} else if (Src->State <= 1)
 						continue;
-
-					TResult* NewResult = PQgetResult(Base->Base);
-					if (!NewResult)
-					{
-						Base->Safe.lock();	
-						Core::Async<Results> Result = std::move(Base->Income);
-						Base->Income.Steal(Core::Async<Results>());
-
-						Results Data;
-						Data.Swap(std::move(Base->Operation));
-						Base->Acquired = false;
-						Base->Safe.unlock();
-
-						PQflush(Base->Base);
-						Result.Set(Data);
-					}
 					else
-					{
-						Base->Safe.lock();
-						Base->Operation.Push(NewResult);
-						Base->Safe.unlock();
-					}
+						Count++;
 
-					Count++;
+					Result Output(PQgetResult(Src->Base));
+					bool Continue = (Output.Get() != nullptr);
+					if (!Continue)
+						PQflush(Src->Base);
+
+					if (Src->State == 2)
+					{
+						if (Src->Cmd.State == -1)
+						{
+							Src->Safe.lock();
+							Src->Cmd.Prev.Release();
+							Src->Cmd.Prev = Output;
+							Src->Cmd.State = 0;
+							Src->Safe.unlock();
+						}
+						else if (Src->Cmd.State == 0)
+						{
+							Src->Safe.lock();
+							Core::Async<bool> Subresult(std::move(Src->Cmd.Future));
+							Src->Cmd.Next.Release();
+							Src->Cmd.Next = Output;
+							Src->Cmd.State = 1;
+							Src->State = (Continue ? 1 : 0);
+							Src->Safe.unlock();
+							Subresult.Set(Continue);
+						}
+						else if (Src->Cmd.State == 1)
+						{
+							Src->Safe.lock();
+							Src->Cmd.Prev.Release();
+							Src->Cmd.Prev = Src->Cmd.Next;
+							Src->Cmd.State = 0;
+							Src->Safe.unlock();
+						}
+					}
+					else if (Src->State == 3)
+					{
+						if (Continue)
+						{
+							Output.Release();
+							continue;
+						}
+
+						Src->Safe.lock();
+						Core::Async<bool> Subresult(std::move(Src->Cmd.Future));
+						Src->State = 0;
+						Src->Safe.unlock();
+						Subresult.Set(true);
+					}
 				}
 				Safe->unlock();
 
@@ -1928,7 +2000,7 @@ namespace Tomahawk
 			std::string Driver::GetQuery(Connection* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once)
 			{
 				if (!Queries || !Safe)
-					return nullptr;
+					return std::string();
 
 				Safe->lock();
 				auto It = Queries->find(Name);
@@ -1942,7 +2014,7 @@ namespace Tomahawk
 						Map->clear();
 					}
 
-					return nullptr;
+					return std::string();
 				}
 
 				if (!It->second.Cache.empty())

@@ -3890,12 +3890,7 @@ namespace Tomahawk
 			return I;
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) :
-#ifdef TH_WITH_BULLET3
-			Simulator(nullptr),
-#endif
-			Camera(nullptr), Conf(I), Surfaces(16),
-			Invoked(false), Active(true)
+		SceneGraph::SceneGraph(const Desc& I) : Simulator(nullptr), Camera(nullptr), Conf(I), Surfaces(16), Invoked(false), Active(true)
 		{
 			Sync.Count = 0; Sync.Locked = false;
 			for (size_t i = 0; i < (size_t)ThreadId::Count; i++)
@@ -3918,11 +3913,9 @@ namespace Tomahawk
 			Display.Sampler = nullptr;
 			Display.Layout = nullptr;
 			Display.VoxelSize = 0;
-
 			Configure(I);
-#ifdef TH_WITH_BULLET3
+
 			Simulator = new Compute::Simulator(I.Simulator);
-#endif
 			ExpandMaterials();
 		}
 		SceneGraph::~SceneGraph()
@@ -3948,9 +3941,8 @@ namespace Tomahawk
 			}
 
 			TH_RELEASE(Display.MaterialBuffer);
-#ifdef TH_WITH_BULLET3
 			TH_RELEASE(Simulator);
-#endif
+
 			Core::Schedule::Get()->ClearListener("scene-event", Listener);
 			Unlock();
 		}
@@ -4060,14 +4052,12 @@ namespace Tomahawk
 		}
 		void SceneGraph::Simulation(Core::Timer* Time)
 		{
-#ifdef TH_WITH_BULLET3
 			if (!Active)
 				return;
 
 			BeginThread(ThreadId::Simulation);
 			Simulator->Simulate((float)Time->GetTimeStep());
 			EndThread(ThreadId::Simulation);
-#endif
 		}
 		void SceneGraph::Synchronize(Core::Timer* Time)
 		{
@@ -5216,12 +5206,10 @@ namespace Tomahawk
 		{
 			return Conf.Primitives;
 		}
-#ifdef TH_WITH_BULLET3
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
 			return Simulator;
 		}
-#endif
 		SceneGraph::Desc& SceneGraph::GetConf()
 		{
 			return Conf;
@@ -5737,9 +5725,7 @@ namespace Tomahawk
 				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
 				Content->AddProcessor<Processors::Document, Core::Document>();
 				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
-#ifdef TH_WITH_BULLET3
 				Content->AddProcessor<Processors::Shape, Compute::UnmanagedShape>();
-#endif
 				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
 			}
 
@@ -5944,13 +5930,11 @@ namespace Tomahawk
 		}
 		void Application::Compose()
 		{
-#ifdef TH_WITH_BULLET3
 			Core::Composer::Push<Components::RigidBody, Entity*>();
 			Core::Composer::Push<Components::SoftBody, Entity*>();
 			Core::Composer::Push<Components::Acceleration, Entity*>();
 			Core::Composer::Push<Components::SliderConstraint, Entity*>();
 			Core::Composer::Push<Renderers::SoftBody, RenderSystem*>();
-#endif
 			Core::Composer::Push<Components::Model, Entity*>();
 			Core::Composer::Push<Components::Skin, Entity*>();
 			Core::Composer::Push<Components::Emitter, Entity*>();

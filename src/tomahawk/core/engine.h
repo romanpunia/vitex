@@ -871,9 +871,7 @@ namespace Tomahawk
 				uint64_t MaterialCount = 1ll << 14;
 				uint64_t EntityCount = 1ll << 15;
 				uint64_t ComponentCount = 1ll << 16;
-#ifdef TH_WITH_BULLET3
 				Compute::Simulator::Desc Simulator;
-#endif
 				Graphics::GraphicsDevice* Device = nullptr;
 				Script::VMManager* Manager = nullptr;
 				PrimitiveCache* Primitives = nullptr;
@@ -931,9 +929,7 @@ namespace Tomahawk
 			Core::Pool<Material*> Materials;
 			Core::Pool<Component*> Pending;
 			Core::Pool<Entity*> Entities;
-#ifdef TH_WITH_BULLET3
 			Compute::Simulator* Simulator;
-#endif
 			Core::EventId Listener;
 			Component* Camera;
 			Desc Conf;
@@ -1027,9 +1023,7 @@ namespace Tomahawk
 			Graphics::Texture2D** GetMerger();
 			Graphics::ElementBuffer* GetStructure();
 			Graphics::GraphicsDevice* GetDevice();
-#ifdef TH_WITH_BULLET3
 			Compute::Simulator* GetSimulator();
-#endif
 			ShaderCache* GetShaders();
 			PrimitiveCache* GetPrimitives();
 			Desc& GetConf();

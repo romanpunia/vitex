@@ -51,10 +51,8 @@ namespace Tomahawk
 
 	void Library::Describe()
 	{
-		TH_INFO("tomahawk info"
-			"\n\tbuild version"
-			"\n\t\t%i.%i.%i on %s (%s)"
-			"\n\tfeatured with"
+		TH_INFO("tomahawk %i.%i.%i on %s (%s)"
+			"\n\tfeature options"
 			"\n\t\tDirectX: %s"
 			"\n\t\tOpenGL: %s"
 			"\n\t\tOpenSSL: %s"
@@ -64,7 +62,27 @@ namespace Tomahawk
 			"\n\t\tMongoDB: %s"
 			"\n\t\tPostgreSQL: %s"
 			"\n\t\tOpenAL: %s"
-			"\n\t\tSDL2: %s", TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(), HasDirectX() ? "ON" : "OFF", HasOpenGL() ? "ON" : "OFF", HasOpenSSL() ? "ON" : "OFF", HasGLEW() ? "ON" : "OFF", HasZLib() ? "ON" : "OFF", HasAssimp() ? "ON" : "OFF", HasMongoDB() ? "ON" : "OFF", HasPostgreSQL() ? "ON" : "OFF", HasOpenAL() ? "ON" : "OFF", HasSDL2() ? "ON" : "OFF");
+			"\n\t\tSDL2: %s"
+			"\n\tcore options",
+			"\n\t\tSIMD: %s"
+			"\n\t\tBullet3: %s"
+			"\n\t\tRmlUI: %s"
+			"\n\t\tWepoll: %s",
+			TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(),
+			HasDirectX() ? "ON" : "OFF",
+			HasOpenGL() ? "ON" : "OFF",
+			HasOpenSSL() ? "ON" : "OFF",
+			HasGLEW() ? "ON" : "OFF",
+			HasZLib() ? "ON" : "OFF",
+			HasAssimp() ? "ON" : "OFF",
+			HasMongoDB() ? "ON" : "OFF",
+			HasPostgreSQL() ? "ON" : "OFF",
+			HasOpenAL() ? "ON" : "OFF",
+			HasSDL2() ? "ON" : "OFF",
+			WithSIMD() ? "ON" : "OFF",
+			WithBullet3() ? "ON" : "OFF",
+			WithRmlUi() ? "ON" : "OFF",
+			WithWepoll() ? "ON" : "OFF");
 	}
 	bool Library::HasDirectX()
 	{

@@ -181,6 +181,7 @@ namespace Tomahawk
 				void Override(const std::string& Key, const std::string& Value);
 				bool Set(AddressOp Key, const std::string& Value);
 				std::string Get(AddressOp Key) const;
+				std::string GetAddress() const;
 				const std::unordered_map<std::string, std::string>& Get() const;
 				const char** CreateKeys() const;
 				const char** CreateValues() const;
@@ -259,18 +260,19 @@ namespace Tomahawk
 				size_t GetSize() const;
 				Result GetResult() const;
 				Column GetColumn(size_t Index) const;
+				Column GetColumn(const char* Name) const;
 				bool GetColumns(Column* Output, size_t Size) const;
 				operator bool() const
 				{
 					return Base != nullptr;
 				}
-				Column operator [](size_t Index)
+				Column operator [](const char* Name)
 				{
-					return GetColumn(Index);
+					return GetColumn(Name);
 				}
-				Column operator [](size_t Index) const
+				Column operator [](const char* Name) const
 				{
-					return GetColumn(Index);
+					return GetColumn(Name);
 				}
 			};
 
@@ -294,7 +296,15 @@ namespace Tomahawk
 				size_t GetAffectedRows() const;
 				size_t GetSize() const;
 				Row GetRow(size_t Index) const;
+				Row First() const;
+				Row Last() const;
 				TResult* Get() const;
+				bool IsEmpty() const;
+				bool IsError() const;
+				bool IsErrorOrEmpty() const
+				{
+					return IsError() || IsEmpty();
+				}
 				operator bool() const
 				{
 					return Base != nullptr;
@@ -309,57 +319,26 @@ namespace Tomahawk
 				}
 			};
 
-			class TH_OUT Results
-			{
-				friend Connection;
-				friend Driver;
-
-			private:
-				std::vector<Result> Data;
-				Connection* Source;
-
-			private:
-				Results(Connection* NewSource);
-
-			public:
-				Results();
-				void Release();
-				size_t GetSize() const;
-				Result& GetResult(size_t Index);
-				const Result& GetResult(size_t Index) const;
-				Connection* GetSource() const;
-				operator bool() const
-				{
-					return Source != nullptr && !Data.empty();
-				}
-				Result operator [](size_t Index)
-				{
-					return GetResult(Index);
-				}
-				Result operator [](size_t Index) const
-				{
-					return GetResult(Index);
-				}
-
-			private:
-				void Push(TResult* NewResult);
-				void Swap(Results&& Other);
-			};
-
 			class TH_OUT Connection : public Core::Object
 			{
 				friend Queue;
 				friend Driver;
 
 			private:
-				Core::Async<Results> Income;
-				std::atomic<bool> Acquired;
-				std::atomic<bool> Connected;
+				struct
+				{
+					Core::Async<bool> Future;
+					Result Prev;
+					Result Next;
+					int State = -1;
+				} Cmd;
+
+			private:
+				std::atomic<int> State;
 				std::mutex Safe;
 				OnNotification Callback;
 				TConnection* Base;
 				Queue* Master;
-				Results Operation;
 
 			public:
 				Connection();
@@ -368,11 +347,11 @@ namespace Tomahawk
 				int SetEncoding(const std::string& Name);
 				Core::Async<bool> Connect(const Address& URI);
 				Core::Async<bool> Disconnect();
-				Core::Async<Results> QuerySet(const std::string& Command);
-				Core::Async<Result> Query(const std::string& Command);
-				Core::Async<Result> Subscribe(const std::string& Channel);
-				Core::Async<Result> Unsubscribe(const std::string& Channel);
-				bool CancelQuery();
+				Core::Async<bool> Query(const std::string& Command, bool Chunked = false, bool Prefetch = true);
+				Core::Async<bool> Next();
+				Core::Async<bool> Cancel();
+				bool NextSync();
+				Result& GetCurrent();
 				std::string GetEncoding() const;
 				std::string GetErrorMessage() const;
 				std::string EscapeLiteral(const char* Data, size_t Size);
@@ -387,6 +366,9 @@ namespace Tomahawk
 				TransactionState GetTransactionState() const;
 				TConnection* Get() const;
 				bool IsConnected() const;
+
+			private:
+				bool SendQuery(const std::string& Command, bool Chunked);
 			};
 
 			class TH_OUT Queue : public Core::Object
@@ -406,7 +388,7 @@ namespace Tomahawk
 				Core::Async<bool> Connect(const Address& URI);
 				Core::Async<bool> Disconnect();
 				bool Push(Connection** Client);
-				Core::Async<Connection*> Pop();
+				Connection* Pop();
 
 			private:
 				void Clear(Connection* Client);

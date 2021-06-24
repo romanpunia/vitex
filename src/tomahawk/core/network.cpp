@@ -37,7 +37,7 @@
 #define SOCKET_ERROR -1
 #define closesocket close
 #define epoll_close close
-#define SD_BOTH SHUT_RDWR
+#define SD_SEND SHUT_WR
 #endif
 
 extern "C"
@@ -378,7 +378,7 @@ namespace Tomahawk
 		{
 			Sync.IO.lock();
 			Listener = std::move(Callback);
-			Driver::Listen(this);
+			Driver::Listen(this, false);
 			Sync.IO.unlock();
 
 			return 0;
@@ -390,27 +390,24 @@ namespace Tomahawk
 				Sync.IO.lock();
 				ReadFlush();
 				WriteFlush();
-				Driver::Unlisten(this);
+				Driver::Unlisten(this, true);
 				Sync.IO.unlock();
 			}
 			else
 			{
 				Sync.IO.lock();
-				Driver::Unlisten(this);
+				Driver::Unlisten(this, true);
 				Sync.IO.unlock();
 				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), -2) == 1);
 			}
 
 			return 0;
 		}
-		int Socket::Close(bool Detach)
+		int Socket::Close(bool Gracefully)
 		{
-			if (Detach)
-				Clear(false);
-
+			Clear(false);
 			if (Fd == INVALID_SOCKET)
 				return -1;
-
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -420,24 +417,62 @@ namespace Tomahawk
 				Sync.Device.unlock();
 			}
 #endif
-
-			linger Linger;
-			Linger.l_onoff = 1;
-			Linger.l_linger = (TimeWait > 0 ? TimeWait : 0);
-			setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger));
-
 			int Error = 1;
 			socklen_t Size = sizeof(Error);
 			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
 
-			shutdown(Fd, SD_BOTH);
+			if (Gracefully)
+			{
+				int Timeout = 100;
+				SetBlocking(true);
+				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
+				shutdown(Fd, SD_SEND);
+
+				while (recv(Fd, (char*)&Error, 1, 0) > 0);
+				closesocket(Fd);
+			}
+			else
+			{
+				shutdown(Fd, SD_SEND);
+				closesocket(Fd);
+			}
+
+			Fd = INVALID_SOCKET;
+			return 0;
+		}
+		int Socket::CloseAsync(bool Gracefully, const SocketAcceptCallback& Callback)
+		{
+			Clear(false);
+			if (Fd == INVALID_SOCKET)
+				return -1;
+#ifdef TH_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				Sync.Device.lock();
+				SSL_free(Device);
+				Device = nullptr;
+				Sync.Device.unlock();
+			}
+#endif
+			int Error = 1;
+			socklen_t Size = sizeof(Error);
+			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
+			shutdown(Fd, SD_SEND);
+
+			if (Gracefully)
+				return TryClose(this, nullptr, 0, Callback) ? 0 : -1;
+
 			closesocket(Fd);
-			return (int)(Fd = INVALID_SOCKET);
+			Fd = INVALID_SOCKET;
+			if (Callback)
+				Callback(this);
+
+			return 0;
 		}
 		int Socket::CloseOnExec()
 		{
 #if defined(_WIN32)
-			return (int)SetHandleInformation((HANDLE)(intptr_t)Fd, HANDLE_FLAG_INHERIT, 0);
+			return 0;
 #else
 			return fcntl(Fd, F_SETFD, FD_CLOEXEC);
 #endif
@@ -519,7 +554,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = WriteSet(std::move(Callback), Buffer + Offset, Size);
-					Driver::Listen(this);
+					Driver::Listen(this, false);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -636,7 +671,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), nullptr, Size, 0);
-					Driver::Listen(this);
+					Driver::Listen(this, false);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -726,7 +761,7 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), Match, Size, Index);
-					Driver::Listen(this);
+					Driver::Listen(this, false);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -793,8 +828,11 @@ namespace Tomahawk
 		}
 		int Socket::SetTimeWait(int Timeout)
 		{
-			TimeWait = Timeout;
-			return 0;
+			linger Linger;
+			Linger.l_onoff = (Timeout >= 0 ? 1 : 0);
+			Linger.l_linger = Timeout;
+
+			return setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger));
 		}
 		int Socket::SetSocket(int Option, void* Value, int Size)
 		{
@@ -992,6 +1030,30 @@ namespace Tomahawk
 			TH_DELETE(WriteEvent, It);
 			return true;
 		}
+		bool Socket::TryClose(Socket* Base, const char* Buffer, int64_t Size, const SocketAcceptCallback& Callback)
+		{
+			if (Size > 0)
+				return true;
+
+			if (Size < 0)
+			{
+				Base->Clear(false);
+				closesocket(Base->Fd);
+				Base->Fd = INVALID_SOCKET;
+
+				if (Callback)
+					Callback(Base);
+			}
+			else
+			{
+				Base->ReadAsync(1, [Callback](Socket* Base, const char* Buffer, int64_t Size)
+				{
+					return TryClose(Base, Buffer, Size, Callback);
+				});
+			}
+
+			return false;
+		}
 		std::string Socket::GetRemoteAddress()
 		{
 			struct sockaddr_storage Address;
@@ -1180,55 +1242,6 @@ namespace Tomahawk
 			else if (Active)
 				Active = false;
 		}
-		int Driver::Listen(Socket* Value)
-		{
-			if (!Handle || !Value || Value->Sync.Poll || Value->Fd == INVALID_SOCKET)
-				return -1;
-
-			Value->Sync.Time = Clock();
-			Value->Sync.Poll = true;
-#ifdef TH_APPLE
-			struct kevent Event;
-			EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
-			int Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-
-			EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Value);
-			int Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-
-			return Result1 == 1 && Result2 == 1 ? 0 : -1;
-#else
-			epoll_event Event;
-			Event.data.ptr = (void*)Value;
-			if (!Value->Listener)
-				Event.events = EPOLLRDHUP | EPOLLIN | EPOLLOUT;
-			else
-				Event.events = EPOLLIN;
-
-			return epoll_ctl(Handle, EPOLL_CTL_ADD, Value->Fd, &Event);
-#endif
-		}
-		int Driver::Unlisten(Socket* Value)
-		{
-			if (!Handle || !Value || Value->Fd == INVALID_SOCKET || !Value->Sync.Poll)
-				return -1;
-
-			Value->Sync.Poll = false;
-#ifdef TH_APPLE
-			struct kevent Event;
-			EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-			int Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-
-			EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
-			int Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-
-			return Result1 == 1 && Result2 == 1 ? 0 : -1;
-#else
-			epoll_event Event;
-			int Result = epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
-
-			return Result;
-#endif
-		}
 		void Driver::Resolve()
 		{
 			Core::Schedule* Queue = Core::Schedule::Get();
@@ -1261,7 +1274,7 @@ namespace Tomahawk
 			if (Count <= 0)
 				return 0;
 
-			int64_t Time = Clock(); int Size = 0;
+			int64_t Time = Clock();
 			for (auto It = Events; It != Events + Count; It++)
 			{
 				uint32_t Flags = 0;
@@ -1288,202 +1301,224 @@ namespace Tomahawk
 
 				Socket* Value = (Socket*)It->data.ptr;
 #endif
-				if (Dispatch(Value, &Flags, Time) != 0)
-					Size++;
+				Driver::Dispatch(Value, Flags, Time);
 			}
-#ifdef TH_MICROSOFT
-			if (Size == 0)
-				std::this_thread::sleep_for(std::chrono::microseconds(100));
-#endif
-			return Size;
+
+			return Count;
 		}
-		int Driver::Dispatch(Socket* Fd, uint32_t* Events, int64_t Time)
+		int Driver::Dispatch(Socket* Fd, uint32_t Events, int64_t Time)
 		{
 			if (!Fd || Fd->Fd == INVALID_SOCKET)
 				return 1;
 
-			if (*Events & (uint32_t)SocketEvent::Read && !(*Events & (uint32_t)SocketEvent::Close))
+			if (Events & (uint32_t)SocketEvent::Close)
+				return Fd->Clear(true) ? 0 : 1;
+
+			Fd->Sync.IO.lock();
+			if (Events & (uint32_t)SocketEvent::Read)
 			{
 				if (Fd->Input != nullptr)
 				{
+					ReadEvent* Event = Fd->Input;
+					auto Callback = std::move(Event->Callback);
 					char Buffer[8192];
-					int Result = 0;
-					while (Result != -1)
+
+					while (Event->Size > 0)
 					{
-						Fd->Sync.IO.lock();
-						if (!Fd->Input)
+						int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, (int64_t)sizeof(Buffer)));
+						if (Size == -1)
 						{
+							Fd->ReadFlush();
 							Fd->Sync.IO.unlock();
-							break;
-						}
-
-						auto Callback = Fd->Input->Callback;
-						ReadEvent* Event = Fd->Input;
-						while (Event->Size > 0)
-						{
-							int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, (int64_t)sizeof(Buffer)));
-							if (Size == -1)
-							{
-								Fd->ReadFlush();
-								Fd->Sync.IO.unlock();
-								if (Callback)
-									Callback(Fd, nullptr, -1);
-
-								*Events = (uint32_t)SocketEvent::Close;
-								Result = -1;
-								break;
-							}
-							else if (Size == -2)
-							{
-								Fd->Sync.IO.unlock();
-								Result = -1;
-								break;
-							}
-
-							Fd->Sync.IO.unlock();
-							bool Done = (Callback && !Callback(Fd, Buffer, (int64_t)Size));
+							if (Callback)
+								Callback(Fd, nullptr, -1);
 							Fd->Sync.IO.lock();
-
-							if (!Fd->Input || Fd->Input != Event)
-							{
-								Fd->Sync.IO.unlock();
-								Result = -1;
-								break;
-							}
-
-							if (Done)
-								break;
-
-							if (!Event->Match)
-							{
-								Event->Size -= (int64_t)Size;
-								continue;
-							}
-
-							if (Event->Match[Event->Index] != Buffer[0])
-							{
-								Event->Index = 0;
-								continue;
-							}
-
-							Event->Index++;
-							if (Event->Index >= Event->Size)
-								break;
+							goto ReadEOF;
 						}
+						else if (Size == -2)
+							goto ReadEOF;
 
-						if (Result == -1)
+						Fd->Sync.IO.unlock();
+						bool Done = (Callback && !Callback(Fd, Buffer, (int64_t)Size));
+						Fd->Sync.IO.lock();
+
+						if (!Fd->Input || Fd->Input != Event)
+							goto ReadEOF;
+
+						if (Done)
 							break;
 
-						Fd->ReadFlush();
-						Fd->Sync.IO.unlock();
-						if (Callback)
-							Callback(Fd, nullptr, 0);
+						if (!Event->Match)
+						{
+							Event->Size -= (int64_t)Size;
+							continue;
+						}
+
+						if (Event->Match[Event->Index] != Buffer[0])
+						{
+							Event->Index = 0;
+							continue;
+						}
+
+						Event->Index++;
+						if (Event->Index >= Event->Size)
+							break;
 					}
+
+					Fd->ReadFlush();
+					Fd->Sync.IO.unlock();
+					if (Callback)
+						Callback(Fd, nullptr, 0);
+					Fd->Sync.IO.lock();
+				ReadEOF:
+					Event = nullptr;
 				}
 				else if (Fd->Listener)
 				{
-					Fd->Sync.IO.lock();
 					SocketAcceptCallback Callback = Fd->Listener;
 					Fd->Sync.IO.unlock();
+					bool Stop = !Callback(Fd);
+					Fd->Sync.IO.lock();
 
-					if (!Callback(Fd))
+					if (Stop)
 					{
-						Fd->Sync.IO.lock();
-						Driver::Unlisten(Fd);
+						Driver::Unlisten(Fd, true);
 						Fd->Listener = nullptr;
-						Fd->Sync.IO.unlock();
 					}
 				}
 			}
-
-			if (*Events & (uint32_t)SocketEvent::Write && !(*Events & (uint32_t)SocketEvent::Close))
+			else if (Events & (uint32_t)SocketEvent::Write && Fd->Output != nullptr)
 			{
-				if (Fd->Output != nullptr)
+				WriteEvent* Event = Fd->Output;
+				auto Callback = std::move(Event->Callback);
+				int64_t Offset = 0;
+
+				while (Event->Buffer && Event->Size > 0)
 				{
-					int Result = 0;
-					while (Result != -1)
+					int Size = Fd->Write(Event->Buffer + Offset, (int)Event->Size);
+					if (Size == -1)
 					{
-						Fd->Sync.IO.lock();
-						if (!Fd->Output)
-						{
-							Fd->Sync.IO.unlock();
-							break;
-						}
-
-						auto Callback = Fd->Output->Callback;
-						WriteEvent* Event = Fd->Output;
-						int64_t Offset = 0;
-						while (Event->Buffer && Event->Size > 0)
-						{
-							int Size = Fd->Write(Event->Buffer + Offset, (int)Event->Size);
-							if (Size == -1)
-							{
-								Fd->WriteFlush();
-								Fd->Sync.IO.unlock();
-								if (Callback)
-									Callback(Fd, -1);
-
-								*Events = (uint32_t)SocketEvent::Close;
-								Result = -1;
-								break;
-							}
-							else if (Size == -2)
-							{
-								Fd->Sync.IO.unlock();
-								Result = -1;
-								break;
-							}
-
-							Fd->Sync.IO.unlock();
-							bool Done = (Callback && !Callback(Fd, (int64_t)Size));
-							Fd->Sync.IO.lock();
-
-							if (!Fd->Output || Fd->Output != Event)
-							{
-								Fd->Sync.IO.unlock();
-								Result = -1;
-								break;
-							}
-
-							Event->Size -= (int64_t)Size;
-							if (Done)
-								break;
-						}
-
-						if (Result == -1)
-							break;
-
 						Fd->WriteFlush();
 						Fd->Sync.IO.unlock();
 						if (Callback)
-							Callback(Fd, 0);
+							Callback(Fd, -1);
+						Fd->Sync.IO.lock();
+						goto WriteEOF;
 					}
-				}
-			}
+					else if (Size == -2)
+						goto WriteEOF;
 
-			Fd->Sync.IO.lock();
-			if (!Fd->Input && !Fd->Output && !Fd->Listener)
-			{
-				Driver::Unlisten(Fd);
-				Fd->Sync.IO.unlock();
-				return 1;
-			}
-
-			if (!(*Events & (uint32_t)SocketEvent::Close))
-			{
-				if (Fd->Sync.Timeout <= 0 || Time - Fd->Sync.Time <= Fd->Sync.Timeout)
-				{
 					Fd->Sync.IO.unlock();
-					return 0;
+					bool Done = (Callback && !Callback(Fd, (int64_t)Size));
+					Fd->Sync.IO.lock();
+
+					if (!Fd->Output || Fd->Output != Event)
+						goto WriteEOF;
+
+					Event->Size -= (int64_t)Size;
+					if (Done)
+						break;
 				}
 
-				*Events = (uint32_t)SocketEvent::Timeout;
+				Fd->WriteFlush();
+				Fd->Sync.IO.unlock();
+				if (Callback)
+					Callback(Fd, 0);
+				Fd->Sync.IO.lock();
+			WriteEOF:
+				Event = nullptr;
 			}
+
+			bool Timeout = (Fd->Sync.Timeout > 0 && Time - Fd->Sync.Time > Fd->Sync.Timeout);
+			if (!Fd->Input && !Fd->Output && !Fd->Listener)
+				Driver::Unlisten(Fd, false);
 
 			Fd->Sync.IO.unlock();
-			Fd->Clear(true);
+			if (Timeout)
+				Fd->Clear(true);
 
-			return 1;
+			return Timeout ? 0 : 1;
+		}
+		int Driver::Listen(Socket* Value, bool Always)
+		{
+			if (!Handle || !Value || Value->Fd == INVALID_SOCKET)
+				return -1;
+
+			bool Set = Value->Sync.Poll;
+			Value->Sync.Time = Clock();
+			Value->Sync.Poll = true;
+#ifdef TH_APPLE
+			struct kevent Event;
+			int Result1, Result2;
+
+			if (Always || Value->Input != nullptr || Value->Listener)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
+				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			if (Always || Value->Output != nullptr)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Value);
+				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			return Result1 == 1 && Result2 == 1 ? 0 : -1;
+#else
+			epoll_event Event;
+			Event.data.ptr = (void*)Value;
+			Event.events = EPOLLRDHUP;
+
+			if (Always || Value->Input != nullptr || Value->Listener)
+				Event.events |= EPOLLIN;
+
+			if (Always || Value->Output != nullptr)
+				Event.events |= EPOLLOUT;
+
+			return epoll_ctl(Handle, Set ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, Value->Fd, &Event);
+#endif
+		}
+		int Driver::Unlisten(Socket* Value, bool Always)
+		{
+			if (!Handle || !Value || Value->Fd == INVALID_SOCKET || !Value->Sync.Poll)
+				return -1;
+
+#ifdef TH_APPLE
+			struct kevent Event;
+			int Result1, Result2;
+
+			if (Always || Value->Input != nullptr || Value->Listener)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			if (Always || Value->Output != nullptr)
+			{
+				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			return Result1 == 1 && Result2 == 1 ? 0 : -1;
+#else
+			epoll_event Event;
+			Event.data.ptr = (void*)Value;
+			Event.events = EPOLLRDHUP;
+
+			if (Always || (!Value->Input && !Value->Output))
+			{
+				Value->Sync.Poll = false;
+				return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
+			}
+
+			if (Value->Input != nullptr || Value->Listener)
+				Event.events |= EPOLLIN;
+
+			if (Value->Output != nullptr)
+				Event.events |= EPOLLOUT;
+
+			return epoll_ctl(Handle, EPOLL_CTL_MOD, Value->Fd, &Event);
+#endif
 		}
 		int Driver::Poll(pollfd* Fd, int FdCount, int Timeout)
 		{
@@ -1709,7 +1744,6 @@ namespace Tomahawk
 				Base->Info.KeepAlive = 0;
 				Base->Info.Close = true;
 				Base->Stream->SetAsyncTimeout(1);
-				Base->Stream->SetTimeWait(1);
 			}
 			Sync.unlock();
 
@@ -1727,7 +1761,7 @@ namespace Tomahawk
 			{
 				if (It->Base != nullptr)
 				{
-					It->Base->Close(true);
+					It->Base->Close();
 					TH_DELETE(Socket, It->Base);
 				}
 
@@ -1750,7 +1784,7 @@ namespace Tomahawk
 			if (!OnListen())
 				return false;
 
-			Driver::Create((int)Router->MaxEvents, Router->MasterTimeout);
+			Driver::Create((int)Router->MaxEvents, Router->PollTimeout);
 			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
 				{
 					FreeQueued();
@@ -1801,12 +1835,16 @@ namespace Tomahawk
 
 			if (Router->MaxConnections > 0 && Good.size() >= Router->MaxConnections)
 			{
-				Connection->SetTimeWait(0);
-				Connection->Close(true);
-				TH_DELETE(Socket, Connection);
-
+				Connection->CloseAsync(false, [](Socket* Base)
+				{
+					TH_DELETE(Socket, Base);
+					return true;
+				});
 				return false;
 			}
+
+			if (Router->GracefulTimeWait >= 0)
+				Connection->SetTimeWait((int)Router->GracefulTimeWait);
 
 			Connection->CloseOnExec();
 			Connection->SetAsyncTimeout(Router->SocketTimeout);
@@ -1816,22 +1854,26 @@ namespace Tomahawk
 
 			if (Host->Hostname->Secure && !Protect(Connection, Host))
 			{
-				Connection->Close(true);
-				TH_DELETE(Socket, Connection);
-
+				Connection->CloseAsync(false, [](Socket* Base)
+				{
+					TH_DELETE(Socket, Base);
+					return true;
+				});
 				return false;
 			}
 
 			auto Base = OnAllocate(Host, Connection);
 			if (!Base)
 			{
-				Connection->Close(true);
-				TH_DELETE(Socket, Connection);
-
+				Connection->CloseAsync(false, [](Socket* Base)
+				{
+					TH_DELETE(Socket, Base);
+					return true;
+				});
 				return false;
 			}
 
-			Base->Info.KeepAlive = (Router->KeepAliveMaxCount > 0 ? (int)Router->KeepAliveMaxCount : 1) - 1;
+			Base->Info.KeepAlive = (Router->KeepAliveMaxCount > 0 ? Router->KeepAliveMaxCount - 1 : 0);
 			Base->Host = Host;
 			Base->Stream = Connection;
 			Base->Stream->UserData = Base;
@@ -1903,7 +1945,9 @@ namespace Tomahawk
 			if (!OnRequestEnded(Base, true))
 				return false;
 
-			Base->Info.KeepAlive--;
+			if (Router->KeepAliveMaxCount >= 0)
+				Base->Info.KeepAlive--;
+
 			if (Base->Info.KeepAlive >= -1)
 				Base->Info.Finish = Driver::Clock();
 
@@ -1916,16 +1960,18 @@ namespace Tomahawk
 			if (!Base->Info.Close && Base->Info.KeepAlive > -1 && Base->Stream->IsValid())
 				return OnRequestBegin(Base);
 
-			Base->Stream->Close(true);
 			Base->Info.KeepAlive = -2;
+			Base->Stream->CloseAsync(true, [this, Base](Socket*)
+			{
+				Sync.lock();
+				auto It = Good.find(Base);
+				if (It != Good.end())
+					Good.erase(It);
 
-			Sync.lock();
-			auto It = Good.find(Base);
-			if (It != Good.end())
-				Good.erase(It);
-
-			Bad.insert(Base);
-			Sync.unlock();
+				Bad.insert(Base);
+				Sync.unlock();
+				return true;
+			});
 
 			return true;
 		}
@@ -2100,8 +2146,10 @@ namespace Tomahawk
 		}
 		bool SocketClient::OnClose()
 		{
-			Stream.Close(true);
-			return Success(0);
+			return Stream.CloseAsync(true, [this](Socket*)
+			{
+				return Success(0);
+			}) == 0;
 		}
 		bool SocketClient::Certify()
 		{
@@ -2162,9 +2210,10 @@ namespace Tomahawk
 			va_end(Args);
 
 			TH_ERROR("%.*s (at %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
-			Stream.Close(true);
-
-			return !Success(-1);
+			return Stream.CloseAsync(true, [this](Socket*)
+			{
+				return Success(-1);
+			}) == 0;
 		}
 		bool SocketClient::Success(int Code)
 		{

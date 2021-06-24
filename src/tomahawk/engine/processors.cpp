@@ -68,7 +68,6 @@ namespace Tomahawk
 				Core::Document* Metadata = Document->Find("metadata");
 				if (Metadata != nullptr)
 				{
-#ifdef TH_WITH_BULLET3
 					Core::Document* Simulator = Metadata->Find("simulator");
 					if (Simulator != nullptr)
 					{
@@ -80,7 +79,7 @@ namespace Tomahawk
 						NMake::Unpack(Simulator->Find("water-normal"), &I.Simulator.WaterNormal);
 						NMake::Unpack(Simulator->Find("gravity"), &I.Simulator.Gravity);
 					}
-#endif
+
 					NMake::Unpack(Metadata->Find("materials"), &I.MaterialCount);
 					NMake::Unpack(Metadata->Find("entities"), &I.EntityCount);
 					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
@@ -203,7 +202,7 @@ namespace Tomahawk
 				NMake::Pack(Metadata->Set("components"), Conf.ComponentCount);
 				NMake::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
 				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
-#ifdef TH_WITH_BULLET3
+
 				auto* fSimulator = Object->GetSimulator();
 				Core::Document* Simulator = Metadata->Set("simulator");
 				NMake::Pack(Simulator->Set("enable-soft-body"), fSimulator->HasSoftBodySupport());
@@ -213,7 +212,7 @@ namespace Tomahawk
 				NMake::Pack(Simulator->Set("water-density"), fSimulator->GetWaterDensity());
 				NMake::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
 				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
-#endif
+
                 Core::Document* Materials = Document->Set("materials", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
 				{
@@ -1161,36 +1160,42 @@ namespace Tomahawk
 				else if (Callback)
 					Callback((void*)Object, Document);
 
-				if (!NMake::Unpack(Document->Fetch("module-root"), &Router->ModuleRoot))
-					Router->ModuleRoot.clear();
+				Core::Document* Config = Document->Find("netstat");
+				if (Config != nullptr)
+				{
+					if (!NMake::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
+						Router->ModuleRoot.clear();
 
-				if (!NMake::Unpack(Document->Find("keep-alive"), &Router->KeepAliveMaxCount))
-					Router->KeepAliveMaxCount = 10;
+					if (!NMake::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
+						Router->KeepAliveMaxCount = 10;
 
-				if (!NMake::Unpack(Document->Find("payload-max-length"), &Router->PayloadMaxLength))
-					Router->PayloadMaxLength = std::numeric_limits<uint64_t>::max();
+					if (!NMake::Unpack(Config->Find("payload-max-length"), &Router->PayloadMaxLength))
+						Router->PayloadMaxLength = std::numeric_limits<uint64_t>::max();
 
-				if (!NMake::Unpack(Document->Find("max-events"), &Router->MaxEvents))
-					Router->MaxEvents = 256;
+					if (!NMake::Unpack(Config->Find("max-events"), &Router->MaxEvents))
+						Router->MaxEvents = 256;
 
-				if (!NMake::Unpack(Document->Find("backlog-queue"), &Router->BacklogQueue))
-					Router->BacklogQueue = 20;
+					if (!NMake::Unpack(Config->Find("backlog-queue"), &Router->BacklogQueue))
+						Router->BacklogQueue = 20;
 
-				if (!NMake::Unpack(Document->Find("socket-timeout"), &Router->SocketTimeout))
-					Router->SocketTimeout = 5000;
+					if (!NMake::Unpack(Config->Find("socket-timeout"), &Router->SocketTimeout))
+						Router->SocketTimeout = 5000;
 
-				if (!NMake::Unpack(Document->Find("master-timeout"), &Router->MasterTimeout))
-					Router->MasterTimeout = 200;
+					if (!NMake::Unpack(Config->Find("poll-timeout"), &Router->PollTimeout))
+						Router->PollTimeout = 200;
 
-				if (!NMake::Unpack(Document->Find("close-timeout"), &Router->CloseTimeout))
-					Router->CloseTimeout = 500;
+					if (!NMake::Unpack(Config->Find("close-timeout"), &Router->CloseTimeout))
+						Router->CloseTimeout = 500;
 
-				if (!NMake::Unpack(Document->Find("max-connections"), &Router->MaxConnections))
-					Router->MaxConnections = 0;
+					if (!NMake::Unpack(Config->Find("graceful-time-wait"), &Router->GracefulTimeWait))
+						Router->GracefulTimeWait = -1;
 
-				if (!NMake::Unpack(Document->Find("enable-no-delay"), &Router->EnableNoDelay))
-					Router->EnableNoDelay = false;
+					if (!NMake::Unpack(Config->Find("max-connections"), &Router->MaxConnections))
+						Router->MaxConnections = 0;
 
+					if (!NMake::Unpack(Config->Find("enable-no-delay"), &Router->EnableNoDelay))
+						Router->EnableNoDelay = false;
+				}
 				Core::Parser(&Router->ModuleRoot).Path(N, D);
 
 				std::vector<Core::Document*> Certificates = Document->FindCollection("certificate", true);
@@ -1478,7 +1483,6 @@ namespace Tomahawk
 						NMake::Unpack(Base->Find("refer"), &Route->Refer);
 						NMake::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
 						NMake::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
-						NMake::Unpack(Base->Find("graceful-time-wait"), &Route->GracefulTimeWait);
 						NMake::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength);
 						NMake::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
 						NMake::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
@@ -1503,7 +1507,7 @@ namespace Tomahawk
 
 				return (void*)Object;
 			}
-#ifdef TH_WITH_BULLET3
+
 			Shape::Shape(ContentManager* Manager) : Processor(Manager)
 			{
 			}
@@ -1560,7 +1564,6 @@ namespace Tomahawk
 				Content->Cache(this, Stream->GetSource(), Object);
 				return (void*)Object;
 			}
-#endif
 		}
 	}
 }

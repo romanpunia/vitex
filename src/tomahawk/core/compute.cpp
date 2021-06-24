@@ -103,6 +103,23 @@ namespace
 			return (btScalar)Callback(&Contact, CollisionBody(Body1));
 		}
 	};
+
+	Tomahawk::Compute::Matrix4x4 BT_TO_M16(btTransform* In)
+	{
+		Tomahawk::Compute::Matrix4x4 Result;
+		btMatrix3x3 Offset = In->getBasis();
+		Result.Row[0] = Offset[0][0];
+		Result.Row[1] = Offset[1][0];
+		Result.Row[2] = Offset[2][0];
+		Result.Row[4] = Offset[0][1];
+		Result.Row[5] = Offset[1][1];
+		Result.Row[6] = Offset[2][1];
+		Result.Row[8] = Offset[0][2];
+		Result.Row[9] = Offset[1][2];
+		Result.Row[10] = Offset[2][2];
+
+		return Result;
+	}
 #endif
 	size_t OffsetOf64(const char* Source, char Dest)
 	{
@@ -9460,7 +9477,7 @@ namespace Tomahawk
 			btTransform Offset;
 			Instance->getMotionState()->getWorldTransform(Offset);
 
-			Vector3 Rotation = Matrix4x4(&Offset).Rotation();
+			Vector3 Rotation = BT_TO_M16(&Offset).Rotation();
 			Offset.getBasis().setEulerZYX(Rotation.Z + Torque.Z, Rotation.Y + Torque.Y, Rotation.X + Torque.X);
 
 			btVector3 Origin = Offset.getOrigin();

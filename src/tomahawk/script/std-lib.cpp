@@ -4629,7 +4629,7 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveAt(uint index)", asMETHOD(VMCArray, RemoveAt), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveLast()", asMETHOD(VMCArray, RemoveLast), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveRange(uint start, uint count)", asMETHOD(VMCArray, RemoveRange), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "uint Length() const", asMETHOD(VMCArray, GetSize), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "uint Size() const", asMETHOD(VMCArray, GetSize), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void Reserve(uint length)", asMETHOD(VMCArray, Reserve), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void Resize(uint length)", asMETHODPR(VMCArray, Resize, (as_size_t), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void SortAsc()", asMETHODPR(VMCArray, SortAsc, (), void), asCALL_THISCALL);
@@ -4880,7 +4880,7 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("String", "bool opEquals(const String &in) const", asFUNCTIONPR(VMCString::Equals, (const std::string &, const std::string &), bool), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "int opCmp(const String &in) const", asFUNCTION(VMCString::Cmp), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "String opAdd(const String &in) const", asFUNCTIONPR(std::operator +, (const std::string &, const std::string &), std::string), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "uint Length() const", asFUNCTION(VMCString::Length), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "uint Size() const", asFUNCTION(VMCString::Length), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "void Resize(uint)", asFUNCTION(VMCString::Resize), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "bool IsEmpty() const", asFUNCTION(VMCString::IsEmpty), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "uint8 &opIndex(uint)", asFUNCTION(VMCString::CharAt), asCALL_CDECL_OBJLAST);

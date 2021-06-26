@@ -513,6 +513,25 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
+			Core::Document* Notify::GetDocument() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base || !Base->extra)
+					return nullptr;
+
+				size_t Size = strlen(Base->extra);
+				if (!Size)
+					return nullptr;
+
+				return Core::Document::ReadJSON((int64_t)Size, [this](char* Buffer, int64_t Size)
+				{
+					memcpy(Buffer, Base->extra, (size_t)Size);
+					return true;
+				});
+#else
+				return nullptr;
+#endif
+			}
 			std::string Notify::GetName() const
 			{
 #ifdef TH_HAS_POSTGRESQL
@@ -527,7 +546,7 @@ namespace Tomahawk
 				return std::string();
 #endif
 			}
-			std::string Notify::GetExtra() const
+			std::string Notify::GetData() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base)
@@ -1157,10 +1176,17 @@ namespace Tomahawk
 				Driver::Unlisten(this);
 				Driver::Release();
 			}
-			void Connection::SetNotificationCallback(const OnNotification& NewCallback)
+			void Connection::SetChannel(const std::string& Name, const OnNotification& NewCallback)
 			{
 				Safe.lock();
-				Callback = NewCallback;
+				if (!NewCallback)
+				{
+					auto It = Listeners.find(Name);
+					if (It != Listeners.end())
+						Listeners.erase(It);
+				}
+				else
+					Listeners[Name] = NewCallback;
 				Safe.unlock();
 			}
 			int Connection::SetEncoding(const std::string& Name)
@@ -1240,6 +1266,14 @@ namespace Tomahawk
 #else
 				return Core::Async<bool>::Store(false);
 #endif
+			}
+			Core::Async<bool> Connection::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, bool Chunked, bool Prefetch)
+			{
+				return Query(Driver::Emplace(this, Command, Map, Once), Chunked, Prefetch);
+			}
+			Core::Async<bool> Connection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, bool Chunked, bool Prefetch)
+			{
+				return Query(Driver::GetQuery(this, Name, Map, Once), Chunked, Prefetch);
 			}
 			Core::Async<bool> Connection::Query(const std::string& Command, bool Chunked, bool Prefetch)
 			{
@@ -1342,6 +1376,15 @@ namespace Tomahawk
 			bool Connection::NextSync()
 			{
 				return Next().Get();
+			}
+			Result Connection::PopCurrent()
+			{
+				Safe.lock();
+				Result Output(Cmd.Prev);
+				Cmd.Prev = nullptr;
+				Safe.unlock();
+
+				return Output;
 			}
 			Result& Connection::GetCurrent()
 			{
@@ -1747,18 +1790,25 @@ namespace Tomahawk
 						continue;
 
 					PGnotify* Notification = PQnotifies(Src->Base);
-					if (Notification != nullptr)
+					if (Notification != nullptr && Notification->relname != nullptr)
 					{
 						Src->Safe.lock();
-						OnNotification Callback = Src->Callback;
+						auto It = Src->Listeners.find(Notification->relname);
+						OnNotification Callback = (It != Src->Listeners.end() ? It->second : nullptr);
 						Src->Safe.unlock();
 
 						if (Callback)
-							Callback(Notify(Notification));
+						{
+							Core::Schedule::Get()->SetTask([Callback = std::move(Callback), Notification]()
+							{
+								Callback(Notify(Notification));
+							});
+						}
 						else
 							PQfreeNotify(Notification);
 						Count++;
-					} else if (Src->State <= 1)
+					}
+					else if (Src->State <= 1)
 						continue;
 					else
 						Count++;
@@ -1997,6 +2047,47 @@ namespace Tomahawk
 				Safe->unlock();
 				return true;
 			}
+			std::string Driver::Emplace(Connection* Base, const std::string& SQL, Core::DocumentList* Map, bool Once)
+			{
+				if (!Map || Map->empty())
+					return SQL;
+
+				Core::Parser Buffer(SQL);
+				Core::Parser::Settle Set;
+				std::string& Src = Buffer.R();
+				uint64_t Offset = 0;
+				size_t Next = 0;
+
+				while (Next < Map->size() && (Set = Buffer.Find('?', Offset)).Found)
+				{
+					bool Escape = true;
+					if (Set.Start > 0)
+					{
+						if (Src[Set.Start - 1] == '\\')
+						{
+							Offset = Set.Start;
+							Buffer.Erase(Set.Start - 1, 1);
+							continue;
+						}
+						else if (Src[Set.Start - 1] == '$')
+							Escape = false;
+					}
+
+					std::string Value = GetSQL(Base, (*Map)[Next++], Escape);
+					Buffer.Erase(Set.Start, (Escape ? 1 : 2));
+					Buffer.Insert(Value, Set.Start);
+					Offset = Set.Start + (uint64_t)Value.size();
+				}
+
+				if (!Once)
+					return Src;
+
+				for (auto* Item : *Map)
+					TH_RELEASE(Item);
+				Map->clear();
+
+				return Src;
+			}
 			std::string Driver::GetQuery(Connection* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once)
 			{
 				if (!Queries || !Safe)
@@ -2062,7 +2153,7 @@ namespace Tomahawk
 					if (Value.empty())
 						continue;
 
-					Result.Insert(Value, Word.Offset + Offset);
+					Result.Insert(Value, (uint64_t)(Word.Offset + Offset));
 					Offset += Value.size();
 				}
 

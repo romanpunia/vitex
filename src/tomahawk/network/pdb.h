@@ -198,8 +198,9 @@ namespace Tomahawk
 			public:
 				Notify(TNotify* NewBase);
 				void Release();
+				Core::Document* GetDocument() const;
 				std::string GetName() const;
-				std::string GetExtra() const;
+				std::string GetData() const;
 				int GetPid() const;
 				TNotify* Get() const;
 				operator bool() const
@@ -334,23 +335,26 @@ namespace Tomahawk
 				} Cmd;
 
 			private:
+				std::unordered_map<std::string, OnNotification> Listeners;
 				std::atomic<int> State;
 				std::mutex Safe;
-				OnNotification Callback;
 				TConnection* Base;
 				Queue* Master;
 
 			public:
 				Connection();
 				virtual ~Connection() override;
-				void SetNotificationCallback(const OnNotification& NewCallback);
+				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
 				int SetEncoding(const std::string& Name);
 				Core::Async<bool> Connect(const Address& URI);
 				Core::Async<bool> Disconnect();
+				Core::Async<bool> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, bool Chunked = false, bool Prefetch = true);
+				Core::Async<bool> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, bool Chunked = false, bool Prefetch = true);
 				Core::Async<bool> Query(const std::string& Command, bool Chunked = false, bool Prefetch = true);
 				Core::Async<bool> Next();
 				Core::Async<bool> Cancel();
 				bool NextSync();
+				Result PopCurrent();
 				Result& GetCurrent();
 				std::string GetEncoding() const;
 				std::string GetErrorMessage() const;
@@ -428,6 +432,7 @@ namespace Tomahawk
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
+				static std::string Emplace(Connection* Base, const std::string& SQL, Core::DocumentList* Map, bool Once = true);
 				static std::string GetQuery(Connection* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 

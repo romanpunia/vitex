@@ -210,10 +210,12 @@ namespace Tomahawk
 		};
 
 		typedef std::vector<struct Variant> VariantList;
+		typedef std::vector<Document*> DocumentList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
 		typedef std::unordered_map<std::string, Document*> DocumentArgs;
 		typedef std::function<void(VariantArgs&)> EventCallback;
 		typedef std::function<void()> TaskCallback;
+		typedef std::function<std::string(const std::string&)> DocNameCallback;
 		typedef std::function<void(VarForm, const char*, int64_t)> DocWriteCallback;
 		typedef std::function<bool(char*, int64_t)> DocReadCallback;
 		typedef std::function<void*(size_t)> AllocCallback;
@@ -1310,6 +1312,7 @@ namespace Tomahawk
 		public:
 			static Document* Object();
 			static Document* Array();
+			static bool Transform(Document* Value, const DocNameCallback& Callback);
 			static bool WriteXML(Document* Value, const DocWriteCallback& Callback);
 			static bool WriteJSON(Document* Value, const DocWriteCallback& Callback);
 			static bool WriteJSONB(Document* Value, const DocWriteCallback& Callback);

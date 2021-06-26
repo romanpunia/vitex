@@ -7779,6 +7779,17 @@ namespace Tomahawk
 		{
 			return new Document(Var::Array());
 		}
+		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
+		{
+			if (!Value || !Callback)
+				return false;
+
+			Value->Key = Callback(Value->Key);
+			for (auto* Item : Value->Nodes)
+				Transform(Item, Callback);
+
+			return true;
+		}
 		bool Document::WriteXML(Document* Base, const DocWriteCallback& Callback)
 		{
 			if (!Base || !Callback)

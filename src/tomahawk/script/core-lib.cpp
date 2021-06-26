@@ -844,7 +844,7 @@ namespace Tomahawk
 			VDocument.SetMethod("bool Has64(const String &in, uint = 12) const", &Core::Document::Has64);
 			VDocument.SetMethod("bool IsAttribute() const", &Core::Document::IsAttribute);
 			VDocument.SetMethod("bool IsSaved() const", &Core::Document::IsAttribute);
-			VDocument.SetMethod("int64 Size() const", &Core::Document::Size);
+			VDocument.SetMethod("uint64 Size() const", &Core::Document::Size);
 			VDocument.SetMethod("String GetName() const", &Core::Document::GetName);
 			VDocument.SetMethod("void Join(Document@+)", &Core::Document::Join);
 			VDocument.SetMethod("void Clear()", &Core::Document::Clear);

@@ -101,7 +101,7 @@ namespace Tomahawk
 			} Sync;
 
 		private:
-			SocketAcceptCallback Listener;
+			SocketAcceptCallback* Listener;
 			ReadEvent* Input;
 			WriteEvent* Output;
 			ssl_st* Device;
@@ -113,6 +113,8 @@ namespace Tomahawk
 
 		public:
 			Socket();
+			Socket(socket_t FromFd);
+			~Socket();
 			int Open(const char* Host, int Port, SocketType Type, Address* Result);
 			int Open(const char* Host, int Port, Address* Result);
 			int Open(addrinfo* Info, Address* Result);

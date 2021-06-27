@@ -223,11 +223,19 @@ namespace Tomahawk
 			return true;
 		}
 
-		Socket::Socket() : Input(nullptr), Output(nullptr), Device(nullptr), Fd(INVALID_SOCKET), Income(0), Outcome(0), UserData(nullptr)
+		Socket::Socket() : Listener(nullptr), Input(nullptr), Output(nullptr), Device(nullptr), Fd(INVALID_SOCKET), Income(0), Outcome(0), UserData(nullptr)
 		{
 			Sync.Poll = false;
 			Sync.Timeout = 0;
 			Sync.Time = 0;
+		}
+		Socket::Socket(socket_t FromFd) : Socket()
+		{
+			Fd = FromFd;
+		}
+		Socket::~Socket()
+		{
+			TH_DELETE(SocketAcceptCallback, Listener);
 		}
 		int Socket::Open(const char* Host, int Port, SocketType Type, Address* Result)
 		{
@@ -377,8 +385,17 @@ namespace Tomahawk
 		int Socket::AcceptAsync(SocketAcceptCallback&& Callback)
 		{
 			Sync.IO.lock();
-			Listener = std::move(Callback);
-			Driver::Listen(this, false);
+			TH_DELETE(SocketAcceptCallback, Listener);
+			if (Callback)
+			{
+				Listener = TH_NEW(SocketAcceptCallback, std::move(Callback));
+				Driver::Listen(this, false);
+			}
+			else
+			{
+				Listener = nullptr;
+				Driver::Unlisten(this, true);
+			}
 			Sync.IO.unlock();
 
 			return 0;
@@ -535,7 +552,7 @@ namespace Tomahawk
 		}
 		int Socket::WriteAsync(const char* Buffer, int64_t Size, SocketWriteCallback&& Callback)
 		{
-			if (Listener)
+			if (Listener != nullptr)
 				return 0;
 
 			if (Output != nullptr)
@@ -1373,17 +1390,18 @@ namespace Tomahawk
 				ReadEOF:
 					Event = nullptr;
 				}
-				else if (Fd->Listener)
+				else if (Fd->Listener != nullptr)
 				{
-					SocketAcceptCallback Callback = Fd->Listener;
+					SocketAcceptCallback Callback = *Fd->Listener;
 					Fd->Sync.IO.unlock();
 					bool Stop = !Callback(Fd);
 					Fd->Sync.IO.lock();
 
 					if (Stop)
 					{
-						Driver::Unlisten(Fd, true);
+						TH_DELETE(SocketAcceptCallback, Fd->Listener);
 						Fd->Listener = nullptr;
+						Driver::Unlisten(Fd, true);
 					}
 				}
 			}

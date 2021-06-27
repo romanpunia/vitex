@@ -372,6 +372,7 @@ namespace Tomahawk
 				bool IsConnected() const;
 
 			private:
+				Core::Async<bool> GetPrefetch();
 				bool SendQuery(const std::string& Command, bool Chunked);
 			};
 

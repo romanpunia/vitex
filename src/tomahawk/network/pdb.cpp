@@ -1286,7 +1286,7 @@ namespace Tomahawk
 					if (!SendQuery(Command, Chunked))
 						return Core::Async<bool>::Store(false);
 
-					return (Prefetch ? Next() : Core::Async<bool>::Store(true));
+					return (Prefetch ? GetPrefetch() : Core::Async<bool>::Store(true));
 				}
 
 				return Cancel().Then<Core::Async<bool>>([this, Command, Chunked, Prefetch](bool&&)
@@ -1294,7 +1294,7 @@ namespace Tomahawk
 					if (!SendQuery(Command, Chunked))
 						return Core::Async<bool>::Store(false);
 
-					return (Prefetch ? Next() : Core::Async<bool>::Store(true));
+					return (Prefetch ? GetPrefetch() : Core::Async<bool>::Store(true));
 				});
 #else
 				return Core::Async<bool>::Store(false);
@@ -1346,6 +1346,13 @@ namespace Tomahawk
 #else
 				return Core::Async<bool>::Store(false);
 #endif
+			}
+			Core::Async<bool> Connection::GetPrefetch()
+			{
+				return Next().Then<bool>([this](bool&&)
+				{
+					return !Cmd.Prev.IsError();
+				});
 			}
 			bool Connection::SendQuery(const std::string& Command, bool Chunked)
 			{
@@ -1773,7 +1780,9 @@ namespace Tomahawk
 				if (!Safe || !Listeners || Listeners->empty())
 					return -1;
 
+				auto* Queue = Core::Schedule::Get();
 				int Count = 0;
+
 				Safe->lock();
 				for (auto It = Listeners->begin(); It != Listeners->end(); It++)
 				{
@@ -1796,27 +1805,30 @@ namespace Tomahawk
 						auto It = Src->Listeners.find(Notification->relname);
 						OnNotification Callback = (It != Src->Listeners.end() ? It->second : nullptr);
 						Src->Safe.unlock();
+						Count++;
 
 						if (Callback)
 						{
-							Core::Schedule::Get()->SetTask([Callback = std::move(Callback), Notification]()
+							Queue->SetTask([Callback = std::move(Callback), Notification]()
 							{
 								Callback(Notify(Notification));
 							});
 						}
 						else
+						{
+							TH_WARN("[pq] notification from %s channel was missed", Notification->relname);
 							PQfreeNotify(Notification);
-						Count++;
+						}
 					}
-					else if (Src->State <= 1)
+					
+					if (Src->State <= 1)
 						continue;
-					else
-						Count++;
 
 					Result Output(PQgetResult(Src->Base));
 					bool Continue = (Output.Get() != nullptr);
 					if (!Continue)
 						PQflush(Src->Base);
+					Count++;
 
 					if (Src->State == 2)
 					{

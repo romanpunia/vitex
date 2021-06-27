@@ -95,20 +95,18 @@ namespace Tomahawk
 			{
 				if (State & (uint32_t)WebSocketState::Free)
 				{
+					if (Disconnect)
+					{
+						WebSocketCallback Callback = Disconnect;
+						Disconnect = nullptr;
+						return Callback(this);
+					}
+
+					if (Base->Gateway && !Base->Gateway->IsDone())
+						return (void)Base->Gateway->Done(true);
+
 					Base->Stream->CloseAsync(true, [this](Socket*)
 					{
-						if (Disconnect)
-						{
-							WebSocketCallback Callback = Disconnect;
-							Disconnect = nullptr;
-							Callback(this);
-
-							return true;
-						}
-
-						if (Base->Gateway && !Base->Gateway->IsDone())
-							return Base->Gateway->Done(true);
-
 						if (Base->Response.StatusCode <= 0)
 							Base->Response.StatusCode = 101;
 
@@ -178,10 +176,12 @@ namespace Tomahawk
 
 				if (Base->WebSocket != nullptr)
 				{
-					if (State != Script::VMResume::Continue)
+					if (State == Script::VMResume::Continue || IsScheduled())
+						Base->WebSocket->Next();
+					else if (Base->WebSocket->State == (uint32_t)WebSocketState::Active || Base->WebSocket->State == (uint32_t)WebSocketState::Handshake)
 						Base->WebSocket->Finish();
 					else
-						Base->WebSocket->Next();
+						Finish();
 				}
 				else if (State != Script::VMResume::Continue)
 					Finish();
@@ -312,6 +312,20 @@ namespace Tomahawk
 			bool GatewayFrame::IsDone()
 			{
 				return Save;
+			}
+			bool GatewayFrame::IsScheduled()
+			{
+				if (!Base->WebSocket)
+					return false;
+
+				if (Base->WebSocket->State != (uint32_t)WebSocketState::Active && Base->WebSocket->State != (uint32_t)WebSocketState::Handshake)
+					return false;
+
+				return
+					Base->WebSocket->Connect ||
+					Base->WebSocket->Disconnect ||
+					Base->WebSocket->Notification ||
+					Base->WebSocket->Receive;
 			}
 			Script::VMFunction GatewayFrame::GetMain(const Script::VMModule& Mod)
 			{

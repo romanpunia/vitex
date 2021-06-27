@@ -477,7 +477,7 @@ namespace Tomahawk
 			shutdown(Fd, SD_SEND);
 
 			if (Gracefully)
-				return TryClose(this, nullptr, 0, Callback) ? 0 : -1;
+				return CloseSet(Callback) ? 0 : -1;
 
 			closesocket(Fd);
 			Fd = INVALID_SOCKET;
@@ -571,7 +571,6 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = WriteSet(std::move(Callback), Buffer + Offset, Size);
-					Driver::Listen(this, false);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -688,7 +687,6 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), nullptr, Size, 0);
-					Driver::Listen(this, false);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -778,7 +776,6 @@ namespace Tomahawk
 				{
 					Sync.IO.lock();
 					bool OK = ReadSet(std::move(Callback), Match, Size, Index);
-					Driver::Listen(this, false);
 					Sync.IO.unlock();
 
 					if (!OK && Callback)
@@ -972,10 +969,6 @@ namespace Tomahawk
 		{
 			return Fd != INVALID_SOCKET;
 		}
-		bool Socket::IsAwaiting()
-		{
-			return Sync.Poll;
-		}
 		bool Socket::HasIncomingData()
 		{
 			return Input != nullptr;
@@ -1001,7 +994,7 @@ namespace Tomahawk
 			Input->Size = Size;
 			Input->Index = Index;
 			Input->Match = (Match ? strdup(Match) : nullptr);
-			Sync.Time = Driver::Clock();
+			Driver::Listen(this, false);
 
 			return true;
 		}
@@ -1010,12 +1003,11 @@ namespace Tomahawk
 			if (!Input)
 				return false;
 
-			ReadEvent* It = Input;
+			if (Input->Match != nullptr)
+				free((void*)Input->Match);
+			TH_DELETE(ReadEvent, Input);
 			Input = nullptr;
-			if (It->Match != nullptr)
-				free((void*)It->Match);
 
-			TH_DELETE(ReadEvent, It);
 			return true;
 		}
 		bool Socket::WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size)
@@ -1031,7 +1023,7 @@ namespace Tomahawk
 			Output->Size = Size;
 			Output->Buffer = (char*)TH_MALLOC((size_t)Size);
 			memcpy(Output->Buffer, Buffer, (size_t)Size);
-			Sync.Time = Driver::Clock();
+			Driver::Listen(this, false);
 
 			return true;
 		}
@@ -1040,36 +1032,44 @@ namespace Tomahawk
 			if (!Output)
 				return false;
 
-			WriteEvent* It = Output;
+			TH_FREE((void*)Output->Buffer);
+			TH_DELETE(WriteEvent, Output);
 			Output = nullptr;
-			TH_FREE((void*)It->Buffer);
 
-			TH_DELETE(WriteEvent, It);
 			return true;
 		}
-		bool Socket::TryClose(Socket* Base, const char* Buffer, int64_t Size, const SocketAcceptCallback& Callback)
+		bool Socket::CloseSet(const SocketAcceptCallback& Callback)
 		{
-			if (Size > 0)
-				return true;
-
-			if (Size < 0)
+			char Buffer;
+			while (true)
 			{
-				Base->Clear(false);
-				closesocket(Base->Fd);
-				Base->Fd = INVALID_SOCKET;
-
-				if (Callback)
-					Callback(Base);
-			}
-			else
-			{
-				Base->ReadAsync(1, [Callback](Socket* Base, const char* Buffer, int64_t Size)
+				int Length = Read(&Buffer, 1);
+				if (Length == -2)
 				{
-					return TryClose(Base, Buffer, Size, Callback);
-				});
+					Sync.IO.lock();
+					bool OK = ReadSet([this, Callback](Socket*, const char*, int64_t Size)
+					{
+						return (Size <= 0 ? CloseSet(Callback) : true);
+					}, nullptr, 1, 0);
+					Sync.IO.unlock();
+
+					if (!OK)
+						break;
+
+					return false;
+				}
+				else if (Length == -1)
+					break;
 			}
 
-			return false;
+			Clear(false);
+			closesocket(Fd);
+			Fd = INVALID_SOCKET;
+
+			if (Callback)
+				Callback(this);
+
+			return true;
 		}
 		std::string Socket::GetRemoteAddress()
 		{
@@ -1353,7 +1353,10 @@ namespace Tomahawk
 							goto ReadEOF;
 						}
 						else if (Size == -2)
+						{
+							Event->Callback = std::move(Callback);
 							goto ReadEOF;
+						}
 
 						Fd->Sync.IO.unlock();
 						bool Done = (Callback && !Callback(Fd, Buffer, (int64_t)Size));
@@ -1424,7 +1427,10 @@ namespace Tomahawk
 						goto WriteEOF;
 					}
 					else if (Size == -2)
+					{
+						Event->Callback = std::move(Callback);
 						goto WriteEOF;
+					}
 
 					Fd->Sync.IO.unlock();
 					bool Done = (Callback && !Callback(Fd, (int64_t)Size));
@@ -1498,7 +1504,7 @@ namespace Tomahawk
 		}
 		int Driver::Unlisten(Socket* Value, bool Always)
 		{
-			if (!Handle || !Value || Value->Fd == INVALID_SOCKET || !Value->Sync.Poll)
+			if (!Handle || !Value || Value->Fd == INVALID_SOCKET)
 				return -1;
 
 #ifdef TH_APPLE

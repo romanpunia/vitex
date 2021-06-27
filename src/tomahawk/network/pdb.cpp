@@ -1171,9 +1171,11 @@ namespace Tomahawk
 			}
 			Connection::~Connection()
 			{
+				Driver::Unlisten(this);
+				Safe.lock();
 				Cmd.Prev.Release();
 				Cmd.Next.Release();
-				Driver::Unlisten(this);
+				Safe.unlock();
 				Driver::Release();
 			}
 			void Connection::SetChannel(const std::string& Name, const OnNotification& NewCallback)
@@ -1351,14 +1353,20 @@ namespace Tomahawk
 			{
 				return Next().Then<bool>([this](bool&&)
 				{
-					return !Cmd.Prev.IsError();
+					Safe.lock();
+					bool Error = Cmd.Prev.IsError();
+					if (Error)
+						TH_ERROR("[pqerr] %s", Cmd.Prev.GetErrorText().c_str());
+					Safe.unlock();
+
+					return !Error;
 				});
 			}
 			bool Connection::SendQuery(const std::string& Command, bool Chunked)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				Safe.lock();
-				if (PQsendQueryParams(Base, Command.c_str(), 0, nullptr, nullptr, nullptr, nullptr, 0) != 1)
+				if (PQsendQuery(Base, Command.c_str()) != 1)
 				{
 					char* Message = PQerrorMessage(Base);
 					if (Message != nullptr)
@@ -1384,18 +1392,22 @@ namespace Tomahawk
 			{
 				return Next().Get();
 			}
-			Result Connection::PopCurrent()
+			bool Connection::GetCurrent(Result* Out)
 			{
+				if (!Out)
+					return false;
+
 				Safe.lock();
-				Result Output(Cmd.Prev);
+				if (!Cmd.Prev.Get())
+				{
+					Safe.unlock();
+					return false;
+				}
+
+				*Out = Cmd.Prev;
 				Cmd.Prev = nullptr;
 				Safe.unlock();
-
-				return Output;
-			}
-			Result& Connection::GetCurrent()
-			{
-				return Cmd.Prev;
+				return true;
 			}
 			std::string Connection::GetErrorMessage() const
 			{
@@ -1856,6 +1868,7 @@ namespace Tomahawk
 							Src->Safe.lock();
 							Src->Cmd.Prev.Release();
 							Src->Cmd.Prev = Src->Cmd.Next;
+							Src->Cmd.Next = nullptr;
 							Src->Cmd.State = 0;
 							Src->Safe.unlock();
 						}
@@ -2260,7 +2273,7 @@ namespace Tomahawk
 								Result.append(Buffer, Length);
 						});
 
-						return GetCharArray(Base, Result);
+						return Escape ? GetCharArray(Base, Result) : Result;
 					}
 					case Core::VarType::Array:
 					{
@@ -2275,18 +2288,10 @@ namespace Tomahawk
 					}
 					case Core::VarType::String:
 					{
-						std::string Result(GetCharArray(Base, Source->Value.GetBlob()));
 						if (Escape)
-							return Result;
+							return GetCharArray(Base, Source->Value.GetBlob());
 
-						if (Result.front() != '\'' || Result.back() != '\'')
-							return Result;
-
-						if (Result.size() == 2)
-							return "";
-
-                        Result = Result.substr(1, Result.size() - 2);
-						return Result;
+						return Source->Value.GetBlob();
 					}
 					case Core::VarType::Integer:
 						return std::to_string(Source->Value.GetInteger());
@@ -2296,8 +2301,10 @@ namespace Tomahawk
 						return Source->Value.GetBoolean() ? "TRUE" : "FALSE";
 					case Core::VarType::Decimal:
 					{
-                        std::string Result(GetCharArray(Base, Source->Value.GetDecimal().ToString()));
-						return (Result.size() >= 2 ? Result.substr(1, Result.size() - 2) : Result);
+						if (!Escape)
+							return Source->Value.GetDecimal().ToString();
+
+						return GetCharArray(Base, Source->Value.GetDecimal().ToString());
 					}
 					case Core::VarType::Base64:
 						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());

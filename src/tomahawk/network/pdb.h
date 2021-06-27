@@ -354,8 +354,7 @@ namespace Tomahawk
 				Core::Async<bool> Next();
 				Core::Async<bool> Cancel();
 				bool NextSync();
-				Result PopCurrent();
-				Result& GetCurrent();
+				bool GetCurrent(Result* Out);
 				std::string GetEncoding() const;
 				std::string GetErrorMessage() const;
 				std::string EscapeLiteral(const char* Data, size_t Size);

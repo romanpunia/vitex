@@ -159,7 +159,6 @@ namespace Tomahawk
 			socket_t GetFd();
 			ssl_st* GetDevice();
 			bool IsValid();
-			bool IsAwaiting();
 			bool HasIncomingData();
 			bool HasOutcomingData();
 			bool HasPendingData();
@@ -167,7 +166,7 @@ namespace Tomahawk
 			int64_t GetAsyncTimeout();
 
 		private:
-			static bool TryClose(Socket* Base, const char* Buffer, int64_t Size, const SocketAcceptCallback& Callback);
+			bool CloseSet(const SocketAcceptCallback& Callback);
 			bool ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index);
 			bool ReadFlush();
 			bool WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size);

@@ -258,6 +258,7 @@ namespace Tomahawk
 			private:
 				Script::VMFunction GetMain(const Script::VMModule& Mod);
 				bool Done(bool Normal);
+				bool IsScheduled();
 			};
 
 			struct TH_OUT ParserFrame

@@ -4516,6 +4516,14 @@ namespace Tomahawk
 
 			return Output;
 		}
+		bool Console::Reset()
+		{
+			if (!Singleton)
+				return false;
+
+			TH_RELEASE(Singleton);
+			return true;
+		}
 		Console* Console::Get()
 		{
 			if (Singleton == nullptr)
@@ -7300,6 +7308,14 @@ namespace Tomahawk
 				Clock++;
 
 			return Clock;
+		}
+		bool Schedule::Reset()
+		{
+			if (!Singleton)
+				return false;
+
+			TH_RELEASE(Singleton);
+			return true;
 		}
 		Schedule* Schedule::Get()
 		{

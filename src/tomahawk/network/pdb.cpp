@@ -1349,6 +1349,10 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
+			Core::Async<bool> Connection::KeepAlive()
+			{
+				return Query("SELECT TRUE");
+			}
 			Core::Async<bool> Connection::GetPrefetch()
 			{
 				return Next().Then<bool>([this](bool&&)
@@ -1722,8 +1726,7 @@ namespace Tomahawk
 					Listeners = new std::unordered_set<Connection*>();
 					Safe = TH_NEW(std::mutex);
 					State = 1;
-
-					Assign(Core::Schedule::Get());
+					Reschedule(true);
 				}
 				else
 					State++;
@@ -1761,13 +1764,13 @@ namespace Tomahawk
 					State--;
 #endif
 			}
-			void Driver::Assign(Core::Schedule* Queue)
+			void Driver::Reschedule(bool Set)
 			{
-				if (Queue != nullptr)
+				if (Set)
 				{
 					if (!Active)
 					{
-						Queue->SetTask(Driver::Resolve);
+						Core::Schedule::Get()->SetTask(Driver::Resolve);
 						Active = true;
 					}
 				}

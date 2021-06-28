@@ -1276,9 +1276,10 @@ namespace Tomahawk
 			virtual void InputEvent(char* Buffer, int Length);
 			virtual void WheelEvent(int X, int Y, bool Normal);
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
+			virtual void CloseEvent();
 			virtual void ScriptHook(Script::VMGlobal* Global);
 			virtual bool ComposeEvent();
-			virtual void Render(Core::Timer* Time);
+			virtual void Update(Core::Timer* Time);
 			virtual void Initialize(Desc* I);
 			virtual void* GetGUI();
 			void Start(Desc* I);

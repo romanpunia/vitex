@@ -102,9 +102,6 @@ namespace Tomahawk
 						return Callback(this);
 					}
 
-					if (Base->Gateway && !Base->Gateway->IsDone())
-						return (void)Base->Gateway->Done(true);
-
 					Base->Stream->CloseAsync(true, [this](Socket*)
 					{
 						if (Base->Response.StatusCode <= 0)
@@ -112,7 +109,6 @@ namespace Tomahawk
 
 						Save = true;
 						Base->Info.KeepAlive = 0;
-						Base->Unlock();
 
 						auto* Store = Base;
 						return Core::Schedule::Get()->SetTask([Store]()
@@ -221,7 +217,6 @@ namespace Tomahawk
 			}
 			bool GatewayFrame::Finish()
 			{
-				Base->Unlock();
 				if (Buffer != nullptr)
 				{
 					TH_FREE(Buffer);
@@ -243,7 +238,6 @@ namespace Tomahawk
 			}
 			bool GatewayFrame::Error()
 			{
-				Base->Unlock();
 				if (Buffer != nullptr)
 				{
 					TH_FREE(Buffer);
@@ -267,7 +261,6 @@ namespace Tomahawk
 					return Finish();
 				}
 
-				Base->Lock();
 				return Core::Schedule::Get()->SetTask([this]()
 				{
 					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
@@ -1206,14 +1199,6 @@ namespace Tomahawk
 			}
 			bool Connection::Finish()
 			{
-				Info.Sync.lock();
-				if (Info.Await)
-				{
-					Info.Sync.unlock();
-					return false;
-				}
-
-				Info.Sync.unlock();
 				if (WebSocket != nullptr)
 				{
 					if (!WebSocket->IsFinished())

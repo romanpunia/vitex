@@ -970,6 +970,7 @@ namespace Tomahawk
 
 		public:
 			static Console* Get();
+			static bool Reset();
 			static void Trace(const char* Format, ...);
 
 		private:
@@ -1253,6 +1254,7 @@ namespace Tomahawk
 
 		public:
 			static Schedule* Get();
+			static bool Reset();
 
 		private:
 			static Schedule* Singleton;

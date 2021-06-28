@@ -467,8 +467,8 @@ namespace Tomahawk
 		if (State > 0 || State < 0)
 			return State >= 0;
 
-		TH_RELEASE(Core::Schedule::Get());
-		TH_RELEASE(Core::Console::Get());
+		Core::Schedule::Reset();
+		Core::Console::Reset();
 
 		if (Modes & (uint64_t)Init::Audio)
 			Audio::AudioContext::Release();

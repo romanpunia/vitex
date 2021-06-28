@@ -353,6 +353,7 @@ namespace Tomahawk
 				Core::Async<bool> Query(const std::string& Command, bool Chunked = false, bool Prefetch = true);
 				Core::Async<bool> Next();
 				Core::Async<bool> Cancel();
+				Core::Async<bool> KeepAlive();
 				bool NextSync();
 				bool GetCurrent(Result* Out);
 				std::string GetEncoding() const;
@@ -425,7 +426,7 @@ namespace Tomahawk
 			public:
 				static void Create();
 				static void Release();
-				static void Assign(Core::Schedule* Queue);
+				static void Reschedule(bool Set);
 				static int Dispatch();
 				static bool Listen(Connection* Value);
 				static bool Unlisten(Connection* Value);

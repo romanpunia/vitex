@@ -461,7 +461,12 @@ namespace Tomahawk
 		{
 			Clear(false);
 			if (Fd == INVALID_SOCKET)
+			{
+				if (Callback)
+					Callback(this);
+
 				return -1;
+			}
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -477,7 +482,7 @@ namespace Tomahawk
 			shutdown(Fd, SD_SEND);
 
 			if (Gracefully)
-				return CloseSet(Callback) ? 0 : -1;
+				return CloseSet(Callback, true) ? 0 : -1;
 
 			closesocket(Fd);
 			Fd = INVALID_SOCKET;
@@ -1038,10 +1043,10 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Socket::CloseSet(const SocketAcceptCallback& Callback)
+		bool Socket::CloseSet(const SocketAcceptCallback& Callback, bool OK)
 		{
 			char Buffer;
-			while (true)
+			while (OK)
 			{
 				int Length = Read(&Buffer, 1);
 				if (Length == -2)
@@ -1049,7 +1054,7 @@ namespace Tomahawk
 					Sync.IO.lock();
 					bool OK = ReadSet([this, Callback](Socket*, const char*, int64_t Size)
 					{
-						return (Size <= 0 ? CloseSet(Callback) : true);
+						return (Size <= 0 ? CloseSet(Callback, Size != -2) : true);
 					}, nullptr, 1, 0);
 					Sync.IO.unlock();
 
@@ -1109,18 +1114,6 @@ namespace Tomahawk
 		SocketConnection::~SocketConnection()
 		{
 			TH_DELETE(Socket, Stream);
-		}
-		void SocketConnection::Lock()
-		{
-			Info.Sync.lock();
-			Info.Await = true;
-			Info.Sync.unlock();
-		}
-		void SocketConnection::Unlock()
-		{
-			Info.Sync.lock();
-			Info.Await = false;
-			Info.Sync.unlock();
 		}
 		bool SocketConnection::Finish()
 		{
@@ -1222,6 +1215,8 @@ namespace Tomahawk
 			if (Array != nullptr || Handle != INVALID_EPOLL)
 				return;
 
+			Sources = new std::unordered_set<Socket*>();
+			fSources = new std::mutex();
 			ArraySize = Length;
 #ifdef TH_APPLE
 			Handle = kqueue();
@@ -1230,7 +1225,7 @@ namespace Tomahawk
 			Handle = epoll_create(1);
 			Array = (epoll_event*)TH_MALLOC(sizeof(epoll_event) * ArraySize);
 #endif
-			Assign(Core::Schedule::Get());
+			Reschedule(true);
 		}
 		void Driver::Release()
 		{
@@ -1245,14 +1240,26 @@ namespace Tomahawk
 				TH_FREE(Array);
 				Array = nullptr;
 			}
+
+			if (Sources != nullptr)
+			{
+				delete Sources;
+				Sources = nullptr;
+			}
+
+			if (fSources != nullptr)
+			{
+				delete fSources;
+				fSources = nullptr;
+			}
 		}
-		void Driver::Assign(Core::Schedule* Queue)
+		void Driver::Reschedule(bool Set)
 		{
-			if (Queue != nullptr)
+			if (Set)
 			{
 				if (!Active)
 				{
-					Queue->SetTask(Driver::Resolve);
+					Core::Schedule::Get()->SetTask(Driver::Resolve);
 					Active = true;
 				}
 			}
@@ -1288,10 +1295,7 @@ namespace Tomahawk
 #else
 			int Count = epoll_wait(Handle, Events, ArraySize, (int)PipeTimeout);
 #endif
-			if (Count <= 0)
-				return 0;
-
-			int64_t Time = Clock();
+			int64_t Time = Clock(), Timeouts = 0;
 			for (auto It = Events; It != Events + Count; It++)
 			{
 				uint32_t Flags = 0;
@@ -1318,7 +1322,21 @@ namespace Tomahawk
 
 				Socket* Value = (Socket*)It->data.ptr;
 #endif
-				Driver::Dispatch(Value, Flags, Time);
+				if (Driver::Dispatch(Value, Flags, Time) == 0)
+					Timeouts++;
+			}
+
+			if (Timeouts > 0 || Sources->empty())
+				return Count;
+
+			fSources->lock();
+			auto Copy = *Sources;
+			fSources->unlock();
+
+			for (auto* Value : Copy)
+			{
+				if (Value->Sync.Timeout > 0 && Time - Value->Sync.Time > Value->Sync.Timeout)
+					Value->Clear(true);
 			}
 
 			return Count;
@@ -1468,6 +1486,13 @@ namespace Tomahawk
 			if (!Handle || !Value || Value->Fd == INVALID_SOCKET)
 				return -1;
 
+			if (Value->Sync.Timeout > 0)
+			{
+				fSources->lock();
+				Sources->insert(Value);
+				fSources->unlock();
+			}
+
 			bool Set = Value->Sync.Poll;
 			Value->Sync.Time = Clock();
 			Value->Sync.Poll = true;
@@ -1507,6 +1532,9 @@ namespace Tomahawk
 			if (!Handle || !Value || Value->Fd == INVALID_SOCKET)
 				return -1;
 
+			fSources->lock();
+			Sources->erase(Value);
+			fSources->unlock();
 #ifdef TH_APPLE
 			struct kevent Event;
 			int Result1, Result2;
@@ -1562,6 +1590,8 @@ namespace Tomahawk
 		epoll_event* Driver::Array = nullptr;
 #endif
 		epoll_handle Driver::Handle = INVALID_EPOLL;
+		std::unordered_set<Socket*>* Driver::Sources = nullptr;
+		std::mutex* Driver::fSources = nullptr;
 		int64_t Driver::PipeTimeout = 200;
 		int Driver::ArraySize = 0;
 		std::atomic<bool> Driver::Active(false);
@@ -1756,9 +1786,8 @@ namespace Tomahawk
 			if (!Router && State == ServerState::Idle)
 				return false;
 
-			auto* Queue = Core::Schedule::Get();
-			Queue->ClearTimeout(Timer);
-			Timer = -1;
+			if (Core::Schedule::Get()->ClearTimeout(Timer))
+				Timer = -1;
 
 			Sync.lock();
 			State = ServerState::Stopping;
@@ -1767,15 +1796,13 @@ namespace Tomahawk
 				SocketConnection* Base = *It;
 				Base->Info.KeepAlive = 0;
 				Base->Info.Close = true;
-				Base->Stream->SetAsyncTimeout(1);
+				Base->Stream->Clear(true);
 			}
 			Sync.unlock();
 
 			do
 			{
 				FreeQueued();
-				if (!Queue->IsActive())
-					Driver::Dispatch();
 			} while (!Bad.empty() || !Good.empty());
 
 			if (!OnUnlisten())

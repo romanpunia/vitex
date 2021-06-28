@@ -166,7 +166,7 @@ namespace Tomahawk
 			int64_t GetAsyncTimeout();
 
 		private:
-			bool CloseSet(const SocketAcceptCallback& Callback);
+			bool CloseSet(const SocketAcceptCallback& Callback, bool OK);
 			bool ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index);
 			bool ReadFlush();
 			bool WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size);
@@ -238,7 +238,6 @@ namespace Tomahawk
 			int64_t Timeout = 0;
 			int64_t KeepAlive = 1;
 			bool Close = false;
-			bool Await = false;
 		};
 
 		struct TH_OUT SocketCertificate
@@ -259,8 +258,6 @@ namespace Tomahawk
 			DataFrame Info;
 
 			virtual ~SocketConnection();
-			virtual void Lock();
-			virtual void Unlock();
 			virtual bool Finish();
 			virtual bool Finish(int);
 			virtual bool Error(int, const char* ErrorMessage, ...);
@@ -296,6 +293,8 @@ namespace Tomahawk
 #else
 			static epoll_event* Array;
 #endif
+			static std::unordered_set<Socket*>* Sources;
+			static std::mutex* fSources;
 			static epoll_handle Handle;
 			static int64_t PipeTimeout;
 			static int ArraySize;
@@ -304,7 +303,7 @@ namespace Tomahawk
 		public:
 			static void Create(int MaxEvents, int64_t Timeout);
 			static void Release();
-            static void Assign(Core::Schedule* Queue);
+            static void Reschedule(bool Set);
 			static int Dispatch();
 			static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);
 			static int Listen(Socket* Value, bool Always);

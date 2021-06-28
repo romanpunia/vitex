@@ -5776,6 +5776,9 @@ namespace Tomahawk
 		void Application::WindowEvent(Graphics::WindowState NewState, int X, int Y)
 		{
 		}
+		void Application::CloseEvent()
+		{
+		}
 		void Application::ScriptHook(Script::VMGlobal* Global)
 		{
 		}
@@ -5783,7 +5786,7 @@ namespace Tomahawk
 		{
 			return false;
 		}
-		void Application::Render(Core::Timer* Time)
+		void Application::Update(Core::Timer* Time)
 		{
 		}
 		void Application::Initialize(Desc* I)
@@ -5861,7 +5864,7 @@ namespace Tomahawk
 					{
 						Activity->Dispatch();
 						Job->UpdateCore();
-						Render(Job->Time);
+						Update(Job->Time);
 					}
 				}
 				else
@@ -5882,7 +5885,7 @@ namespace Tomahawk
 						Queue->Dispatch();
 						Activity->Dispatch();
 						Job->UpdateCore();
-						Render(Job->Time);
+						Update(Job->Time);
 					}
 				}
 				else
@@ -5895,6 +5898,7 @@ namespace Tomahawk
 				}
 			}
 
+			CloseEvent();
 			Queue->Stop();
 		}
 		void Application::Stop()

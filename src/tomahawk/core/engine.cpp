@@ -5764,6 +5764,9 @@ namespace Tomahawk
 
 			Host = nullptr;
 		}
+		void Application::ScriptHook(Script::VMGlobal* Global)
+		{
+		}
 		void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 		{
 		}
@@ -5779,14 +5782,11 @@ namespace Tomahawk
 		void Application::CloseEvent()
 		{
 		}
-		void Application::ScriptHook(Script::VMGlobal* Global)
-		{
-		}
 		bool Application::ComposeEvent()
 		{
 			return false;
 		}
-		void Application::Update(Core::Timer* Time)
+		void Application::Publish(Core::Timer* Time)
 		{
 		}
 		void Application::Initialize(Desc* I)
@@ -5864,7 +5864,7 @@ namespace Tomahawk
 					{
 						Activity->Dispatch();
 						Job->UpdateCore();
-						Update(Job->Time);
+						Publish(Job->Time);
 					}
 				}
 				else
@@ -5885,7 +5885,7 @@ namespace Tomahawk
 						Queue->Dispatch();
 						Activity->Dispatch();
 						Job->UpdateCore();
-						Update(Job->Time);
+						Publish(Job->Time);
 					}
 				}
 				else

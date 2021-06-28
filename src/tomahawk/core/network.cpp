@@ -1790,15 +1790,17 @@ namespace Tomahawk
 				Timer = -1;
 
 			Sync.lock();
+			auto Copy = Good;
 			State = ServerState::Stopping;
-			for (auto It = Good.begin(); It != Good.end(); It++)
+			Sync.unlock();
+
+			for (auto It = Copy.begin(); It != Copy.end(); It++)
 			{
 				SocketConnection* Base = *It;
 				Base->Info.KeepAlive = 0;
 				Base->Info.Close = true;
 				Base->Stream->Clear(true);
 			}
-			Sync.unlock();
 
 			do
 			{

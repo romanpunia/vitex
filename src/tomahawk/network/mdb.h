@@ -62,6 +62,14 @@ namespace Tomahawk
 				Decimal
 			};
 
+			enum class TransactionState
+			{
+				OK,
+				Retry_Commit,
+				Retry,
+				Fatal
+			};
+
 			inline Query operator |(Query A, Query B)
 			{
 				return static_cast<Query>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
@@ -334,7 +342,6 @@ namespace Tomahawk
 
 			public:
 				Transaction(TTransaction* NewBase);
-				void Release();
                 bool Push(Document& QueryOptions) const;
 				Core::Async<bool> Start();
 				Core::Async<bool> Abort();
@@ -348,15 +355,12 @@ namespace Tomahawk
 				Core::Async<Cursor> FindMany(const Collection& Base, const Document& Select, const Document& Options) const;
 				Core::Async<Cursor> FindOne(const Collection& Base, const Document& Select, const Document& Options) const;
 				Core::Async<Cursor> Aggregate(const Collection& Base, Query Flags, const Document& Pipeline, const Document& Options) const;
-				Core::Async<Document> Commit();
+				Core::Async<TransactionState> Commit();
 				TTransaction* Get() const;
 				operator bool() const
 				{
 					return Base != nullptr;
 				}
-
-			public:
-				static TTransaction* FromConnection(Connection* Client);
 			};
 
 			class TH_OUT Connection : public Core::Object
@@ -376,9 +380,12 @@ namespace Tomahawk
 				Core::Async<bool> Connect(const std::string& Address);
 				Core::Async<bool> Connect(Address* URI);
 				Core::Async<bool> Disconnect();
+				Core::Async<bool> MakeTransaction(const std::function<Core::Async<bool>(Transaction&)>& Callback);
+				Core::Async<bool> MakeCotransaction(const std::function<bool(Transaction&)>& Callback);
 				Core::Async<Cursor> FindDatabases(const Document& Options) const;
 				void SetProfile(const std::string& Name);
 				bool SetServer(bool Writeable);
+				Transaction GetSession();
 				Database GetDatabase(const std::string& Name) const;
 				Database GetDefaultDatabase() const;
 				Collection GetCollection(const char* DatabaseName, const char* Name) const;

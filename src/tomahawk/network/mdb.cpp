@@ -2177,16 +2177,6 @@ namespace Tomahawk
 			Transaction::Transaction(TTransaction* NewBase) : Base(NewBase)
 			{
 			}
-			void Transaction::Release()
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Base)
-					return;
-
-				mongoc_client_session_destroy(Base);
-				Base = nullptr;
-#endif
-			}
 			bool Transaction::Push(Document& QueryOptions) const
 			{
 #ifdef TH_HAS_MONGOC
@@ -2392,51 +2382,31 @@ namespace Tomahawk
 				return Core::Async<Cursor>(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::Commit()
+			Core::Async<TransactionState> Transaction::Commit()
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context](Core::Async<Document>& Future)
+				return Core::Async<TransactionState>([Context](Core::Async<TransactionState>& Future)
 				{
 					TDocument Subresult;
-					if (!MDB_EXEC(&mongoc_client_session_commit_transaction, Context, &Subresult))
-					{
-						bson_free(&Subresult);
-						Future.Set(Document(nullptr));
-					}
+					if (MDB_EXEC(&mongoc_client_session_commit_transaction, Context, &Subresult))
+						Future.Set(TransactionState::OK);
+					else if (mongoc_error_has_label(&Subresult, "TransientTransactionError"))
+						Future.Set(TransactionState::Retry);
+					else if (mongoc_error_has_label(&Subresult, "UnknownTransactionCommitResult"))
+						Future.Set(TransactionState::Retry_Commit);
 					else
-						Future.Set(Document::FromSource(&Subresult));
+						Future.Set(TransactionState::Fatal);
+					bson_free(&Subresult);
 				});
 #else
-				return Core::Async<Document>::Store(nullptr);
+				return Core::Async<TransactionState>::Store(TransactionState::Fatal);
 #endif
 			}
 			TTransaction* Transaction::Get() const
 			{
 #ifdef TH_HAS_MONGOC
 				return Base;
-#else
-				return nullptr;
-#endif
-			}
-			TTransaction* Transaction::FromConnection(Connection* Client)
-			{
-#ifdef TH_HAS_MONGOC
-				if (!Client)
-					return nullptr;
-
-				bson_error_t Error;
-				if (!Client->Session.Get())
-				{
-					Client->Session = mongoc_client_start_session(Client->Base, nullptr, &Error);
-					if (!Client->Session.Get())
-					{
-						TH_ERROR("[mongoc] couldn't create transaction\n\t%s", Error.message);
-						return nullptr;
-					}
-				}
-
-				return Client->Session.Get();
 #else
 				return nullptr;
 #endif
@@ -2448,7 +2418,11 @@ namespace Tomahawk
 			}
 			Connection::~Connection()
 			{
-				Session.Release();
+#ifdef TH_HAS_MONGOC
+				TTransaction* Context = Session.Get();
+				if (Context != nullptr)
+					mongoc_client_session_destroy(Context);
+#endif
 				Disconnect();
 				Driver::Release();
 			}
@@ -2554,6 +2528,100 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
+			Core::Async<bool> Connection::MakeTransaction(const std::function<Core::Async<bool>(Transaction&)>& Callback)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Callback)
+					return Core::Async<bool>::Store(false);
+
+				return Core::Coasync<bool>([this, Callback]()
+				{
+					Transaction Context = GetSession();
+					if (!Context)
+						return false;
+
+					while (true)
+					{
+						if (!Core::Coawait(Context.Start()))
+							return false;
+
+						if (!Core::Coawait(Callback(Context)))
+							break;
+
+						while (true)
+						{
+							TransactionState State = Coawait(Context.Commit());
+							if (State == TransactionState::OK || State == TransactionState::Fatal)
+								return State == TransactionState::OK;
+
+							if (State == TransactionState::Retry_Commit)
+							{
+								TH_WARN("[mdb] retrying transaction commit");
+								continue;
+							}
+
+							if (State == TransactionState::Retry)
+							{
+								TH_WARN("[mdb] retrying full transaction");
+								break;
+							}
+						}
+					}
+
+					Coawait(Context.Abort());
+					return false;
+				});
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
+			Core::Async<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Callback)
+					return Core::Async<bool>::Store(false);
+
+				return Core::Coasync<bool>([this, Callback]()
+				{
+					Transaction Context = GetSession();
+					if (!Context)
+						return false;
+
+					while (true)
+					{
+						if (!Core::Coawait(Context.Start()))
+							return false;
+
+						if (!Callback(Context))
+							break;
+
+						while (true)
+						{
+							TransactionState State = Coawait(Context.Commit());
+							if (State == TransactionState::OK || State == TransactionState::Fatal)
+								return State == TransactionState::OK;
+
+							if (State == TransactionState::Retry_Commit)
+							{
+								TH_WARN("[mdb] retrying transaction commit");
+								continue;
+							}
+
+							if (State == TransactionState::Retry)
+							{
+								TH_WARN("[mdb] retrying full transaction");
+								break;
+							}
+						}
+					}
+
+					Coawait(Context.Abort());
+					return false;
+				});
+#else
+				return Core::Async<bool>::Store(false);
+#endif
+			}
 			Core::Async<Cursor> Connection::FindDatabases(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
@@ -2591,6 +2659,25 @@ namespace Tomahawk
 				return true;
 #else
 				return false;
+#endif
+			}
+			Transaction Connection::GetSession()
+			{
+#ifdef TH_HAS_MONGOC
+				bson_error_t Error;
+				if (!Session.Get())
+				{
+					Session = mongoc_client_start_session(Base, nullptr, &Error);
+					if (!Session.Get())
+					{
+						TH_ERROR("[mongoc] couldn't create transaction\n\t%s", Error.message);
+						return nullptr;
+					}
+				}
+
+				return Session;
+#else
+				return nullptr;
 #endif
 			}
 			Database Connection::GetDatabase(const std::string& Name) const

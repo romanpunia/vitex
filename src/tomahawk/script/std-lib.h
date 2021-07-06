@@ -2,6 +2,12 @@
 #define TH_SCRIPT_STD_API_H
 
 #include "../core/script.h"
+#define TH_PROMISIFY(MemberFunction, TypeId) Tomahawk::Script::VMCPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define TH_PROMISIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::VMCPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
+#define TH_ARRAYIFY(MemberFunction, TypeId) Tomahawk::Script::VMCArray::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define TH_ARRAYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::VMCArray::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
+#define TH_ANYIFY(MemberFunction, TypeId) Tomahawk::Script::VMCAny::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define TH_ANYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::VMCAny::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
 
 namespace Tomahawk
 {
@@ -112,7 +118,7 @@ namespace Tomahawk
 
 		class TH_OUT VMCAny
 		{
-			friend class VMCAsync;
+			friend class VMCPromise;
 
 		protected:
 			struct ValueStruct
@@ -154,9 +160,32 @@ namespace Tomahawk
 			void FreeObject();
 
 		public:
+			static VMCAny* Create(int TypeId, void* Ref);
+			static VMCAny* Create(const char* Decl, void* Ref);
 			static void Factory1(VMCGeneric* G);
 			static void Factory2(VMCGeneric* G);
 			static VMCAny& Assignment(VMCAny* Other, VMCAny* Self);
+
+		public:
+			template <typename T, T>
+			struct Ify;
+
+			template <typename T, typename R, typename ...Args, R(T::* F)(Args...)>
+			struct Ify<R(T::*)(Args...), F>
+			{
+				template <VMTypeId TypeId>
+				static VMCAny* Id(T* Base, Args... Data)
+				{
+					R Subresult((Base->*F)(Data...));
+					return VMCAny::Create((int)TypeId, &Subresult);
+				}
+				template <const char* TypeName>
+				static VMCAny* Id(T* Base, Args... Data)
+				{
+					std::vector<R> Source((Base->*F)(Data...));
+					return VMCAny::Create(TypeName, &Subresult);
+				}
+			};
 		};
 
 		class TH_OUT VMCArray
@@ -254,7 +283,7 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			static VMCArray* ComposeFromObjects(VMCTypeInfo* ArrayType, const std::vector<T>& Objects)
+			static VMCArray* Compose(VMCTypeInfo* ArrayType, const std::vector<T>& Objects)
 			{
 				VMCArray* Array = Create(ArrayType, (unsigned int)Objects.size());
 				for (size_t i = 0; i < Objects.size(); i++)
@@ -263,44 +292,72 @@ namespace Tomahawk
 				return Array;
 			}
 			template <typename T>
-			static VMCArray* ComposeFromPointers(VMCTypeInfo* ArrayType, const std::vector<T*>& Objects)
+			static typename std::enable_if_t<std::is_pointer_v<T>, std::vector<T>> Decompose(VMCArray* Array)
 			{
-				VMCArray* Array = Create(ArrayType, (unsigned int)Objects.size());
-				for (size_t i = 0; i < Objects.size(); i++)
-					Array->SetValue(i, (void*)&Objects[i]);
-
-				return Array;
-			}
-			template <typename T>
-			static void DecomposeToObjects(VMCArray* Array, std::vector<T>* Objects)
-			{
-				if (!Objects)
-					return;
+				std::vector<T> Result;
+				if (!Array)
+					return Result;
 
 				unsigned int Size = Array->GetSize();
-				Objects->reserve(Size);
+				Result.reserve(Size);
 
 				for (unsigned int i = 0; i < Size; i++)
-				{
-					T* Object = (T*)Array->At(i);
-					Objects->push_back(*Object);
-				}
+					Result.push_back((T)Array->At(i));
+
+				return Result;
 			}
 			template <typename T>
-			static void DecomposeToPointers(VMCArray* Array, std::vector<T*>* Objects)
+			static typename std::enable_if_t<!std::is_pointer_v<T>, std::vector<T>> Decompose(VMCArray* Array)
 			{
-				if (!Objects)
-					return;
+				std::vector<T> Result;
+				if (!Array)
+					return Result;
 
 				unsigned int Size = Array->GetSize();
-				Objects->reserve(Size);
+				Result.reserve(Size);
 
 				for (unsigned int i = 0; i < Size; i++)
-				{
-					T* Object = (T*)Array->At(i);
-					Objects->push_back(Object);
-				}
+					Result.push_back(*((T*)Array->At(i)));
+
+				return Result;
 			}
+
+		public:
+			template <typename T, T>
+			struct Ify;
+
+			template <typename T, typename R, typename ...Args, std::vector<R>(T::* F)(Args...)>
+			struct Ify<std::vector<R>(T::*)(Args...), F>
+			{
+				template <VMTypeId TypeId>
+				static VMCArray* Id(T* Base, Args... Data)
+				{
+					VMManager* Manager = VMManager::Get();
+					if (!Manager)
+						return nullptr;
+
+					VMCTypeInfo* Info = Manager->Global().GetTypeInfoById((int)TypeId).GetTypeInfo();
+					if (!Info)
+						return nullptr;
+
+					std::vector<R> Source((Base->*F)(Data...));
+					return VMCArray::Compose(Info, Source);
+				}
+				template <const char* TypeName>
+				static VMCArray* Decl(T* Base, Args... Data)
+				{
+					VMManager* Manager = VMManager::Get();
+					if (!Manager)
+						return nullptr;
+
+					VMCTypeInfo* Info = Manager->Global().GetTypeInfoByDecl(TypeName).GetTypeInfo();
+					if (!Info)
+						return nullptr;
+
+					std::vector<R> Source((Base->*F)(Data...));
+					return VMCArray::Compose(Info, Source);
+				}
+			};
 		};
 
 		class TH_OUT VMCMapKey
@@ -660,7 +717,7 @@ namespace Tomahawk
 			static VMCRandom* Create();
 		};
 
-		class TH_OUT VMCAsync
+		class TH_OUT VMCPromise
 		{
 		private:
 			VMCContext* Context;
@@ -672,7 +729,7 @@ namespace Tomahawk
 			bool GCFlag;
 
 		private:
-			VMCAsync(VMCContext* Base, VMCTypeInfo* Info);
+			VMCPromise(VMCContext* Base, VMCTypeInfo* Info);
 
 		public:
 			void EnumReferences(VMCManager* Engine);
@@ -688,60 +745,44 @@ namespace Tomahawk
 			bool Retrieve(void* Ref, int TypeId);
 			void* Get();
 			VMCAny* GetSrc();
-			VMCAsync* Await();
+			VMCPromise* Await();
+
+		private:
+			static int GetTypeId(const char* Name);
 
 		public:
-			template <typename T>
-			VMCAsync* SetCast(const T& fRef, int TypeId)
-			{
-				Set((void*)&fRef, TypeId);
-				return this;
-			}
-			template <typename T>
-			VMCAsync* SetCast(const T& fRef, const char* TypeName)
-			{
-				Set((void*)&fRef, TypeName);
-				return this;
-			}
-
+			static VMCPromise* Create(VMCTypeInfo* Type = nullptr);
+			
 		public:
-			static VMCAsync* Promise(VMCTypeInfo* Type = nullptr);
-			static VMCAsync* Store(void* Ref, int TypeId);
-			static VMCAsync* Store(void* Ref, const char* TypeName);
+			template <typename T, T>
+			struct Ify;
 
-		public:
-			template <typename T>
-			static VMCAsync* Promise(int TypeId, Core::Async<T>&& Base)
+			template <typename T, typename R, typename ...Args, Core::Async<R>(T::*F)(Args...)>
+			struct Ify<Core::Async<R>(T::*)(Args...), F>
 			{
-				VMCAsync* Future = Promise();
-				Base.Await([Future, TypeId](T&& Result)
+				template <VMTypeId TypeId>
+				static VMCPromise* Id(T* Base, Args... Data)
 				{
-					Future->Set((void*)&Result, TypeId);
-				});
+					VMCPromise* Future = VMCPromise::Create();
+					((Base->*F)(Data...)).Await([Future](R&& Result)
+					{
+						Future->Set((void*)&Result, (int)TypeId);
+					});
 
-				return Future;
-			}
-			template <typename T>
-			static VMCAsync* Promise(const std::string& TypeName, Core::Async<T>&& Base)
-			{
-				VMCAsync* Future = Promise();
-				Base.Await([Future, TypeName](T&& Result)
+					return Future;
+				}
+				template <const char* TypeName>
+				static VMCPromise* Decl(T* Base, Args... Data)
 				{
-					Future->Set((void*)&Result, TypeName.c_str());
-				});
+					VMCPromise* Future = VMCPromise::Create();
+					((Base->*F)(Data...)).Await([Future](R&& Result)
+					{
+						Future->Set((void*)&Result, TypeName);
+					});
 
-				return Future;
-			}
-			template <typename T>
-			static VMCAsync* Cast(const T& Ref, int TypeId)
-			{
-				return Store((void*)&Ref, TypeId);
-			}
-			template <typename T>
-			static VMCAsync* Cast(const T& Ref, const char* TypeName)
-			{
-				return Store((void*)&Ref, TypeName);
-			}
+					return Future;
+				}
+			};
 		};
 
 		TH_OUT bool RegisterAnyAPI(VMManager* Manager);
@@ -757,7 +798,7 @@ namespace Tomahawk
 		TH_OUT bool RegisterMutexAPI(VMManager* Manager);
 		TH_OUT bool RegisterThreadAPI(VMManager* Manager);
 		TH_OUT bool RegisterRandomAPI(VMManager* Manager);
-		TH_OUT bool RegisterAsyncAPI(VMManager* Manager);
+		TH_OUT bool RegisterPromiseAPI(VMManager* Manager);
 		TH_OUT bool FreeCoreAPI();
 	}
 }

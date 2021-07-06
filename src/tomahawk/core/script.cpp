@@ -4252,7 +4252,7 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/exception", { "std/string" }, RegisterExceptionAPI);
 			Engine->AddSubmodule("std/mutex", { }, RegisterMutexAPI);
 			Engine->AddSubmodule("std/thread", { "std/any" }, RegisterThreadAPI);
-			Engine->AddSubmodule("std/async", { "std/any" }, RegisterAsyncAPI);
+			Engine->AddSubmodule("std/promise", { "std/any" }, RegisterPromiseAPI);
 			Engine->AddSubmodule("std",
 			{
 				"std/any",
@@ -4268,7 +4268,7 @@ namespace Tomahawk
 				"std/exception",
 				"std/mutex",
 				"std/thread",
-				"std/async"
+				"std/promise"
 			}, nullptr);
 
 			Engine->AddSubmodule("core/format", { "std/string" }, RegisterFormatAPI);

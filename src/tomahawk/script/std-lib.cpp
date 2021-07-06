@@ -945,6 +945,25 @@ namespace Tomahawk
 		{
 			return GCFlag;
 		}
+		VMCAny* VMCAny::Create(int TypeId, void* Ref)
+		{
+			VMCContext* Context = asGetActiveContext();
+			if (!Context)
+				return nullptr;
+
+			void* Data = asAllocMem(sizeof(VMCAny));
+			return new(Data) VMCAny(Ref, TypeId, Context->GetEngine());
+		}
+		VMCAny* VMCAny::Create(const char* Decl, void* Ref)
+		{
+			VMCContext* Context = asGetActiveContext();
+			if (!Context)
+				return nullptr;
+
+			VMCManager* Engine = Context->GetEngine();
+			void* Data = asAllocMem(sizeof(VMCAny));
+			return new(Data) VMCAny(Ref, Engine->GetTypeIdByDecl(Decl), Engine);
+		}
 		void VMCAny::Factory1(VMCGeneric* G)
 		{
 			VMCManager* Engine = G->GetEngine();
@@ -4375,7 +4394,7 @@ namespace Tomahawk
 		int VMCThread::ContextUD = 550;
 		int VMCThread::EngineListUD = 551;
 
-		VMCAsync::VMCAsync(VMCContext* Base, VMCTypeInfo* Info) : Context(Base), Any(nullptr), Type(Info), Ref(2), Stored(false), GCFlag(false)
+		VMCPromise::VMCPromise(VMCContext* Base, VMCTypeInfo* Info) : Context(Base), Any(nullptr), Type(Info), Ref(2), Stored(false), GCFlag(false)
 		{
 			if (!Context)
 				return;
@@ -4386,24 +4405,24 @@ namespace Tomahawk
 
 			VMCManager* Engine = Context->GetEngine();
 			Context->AddRef();
-			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Async"));
+			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Promise"));
 		}
-		void VMCAsync::Release()
+		void VMCPromise::Release()
 		{
 			GCFlag = false;
 			if (asAtomicDec(Ref) <= 0)
 			{
 				ReleaseReferences(nullptr);
-				this->~VMCAsync();
+				this->~VMCPromise();
 				asFreeMem((void*)this);
 			}
 		}
-		void VMCAsync::AddRef()
+		void VMCPromise::AddRef()
 		{
 			GCFlag = false;
 			asAtomicInc(Ref);
 		}
-		void VMCAsync::EnumReferences(VMCManager* Engine)
+		void VMCPromise::EnumReferences(VMCManager* Engine)
 		{
 			Safe.lock();
 			if (Context != nullptr)
@@ -4413,7 +4432,7 @@ namespace Tomahawk
 				Engine->GCEnumCallback(Any);
 			Safe.unlock();
 		}
-		void VMCAsync::ReleaseReferences(VMCManager*)
+		void VMCPromise::ReleaseReferences(VMCManager*)
 		{
 			Safe.lock();
 			if (Any != nullptr)
@@ -4429,19 +4448,19 @@ namespace Tomahawk
 			}
 			Safe.unlock();
 		}
-		void VMCAsync::SetGCFlag()
+		void VMCPromise::SetGCFlag()
 		{
 			GCFlag = true;
 		}
-		bool VMCAsync::GetGCFlag()
+		bool VMCPromise::GetGCFlag()
 		{
 			return GCFlag;
 		}
-		int VMCAsync::GetRefCount()
+		int VMCPromise::GetRefCount()
 		{
 			return Ref;
 		}
-		int VMCAsync::Acquire(VMCAny* Value)
+		int VMCPromise::Acquire(VMCAny* Value)
 		{
 			if (!Context || Stored)
 				return asEXECUTION_UNINITIALIZED;
@@ -4468,7 +4487,7 @@ namespace Tomahawk
 				Base->Resume();
 			});
 		}
-		int VMCAsync::Set(void* fRef, int TypeId)
+		int VMCPromise::Set(void* fRef, int TypeId)
 		{
 			if (!Context)
 				return -1;
@@ -4485,21 +4504,21 @@ namespace Tomahawk
 
 			return Acquire(Result);
 		}
-		int VMCAsync::Set(void* fRef, const char* TypeName)
+		int VMCPromise::Set(void* fRef, const char* TypeName)
 		{
 			if (!Context)
 				return -1;
 
 			return Set(fRef, Context->GetEngine()->GetTypeIdByDecl(TypeName));
 		}
-		bool VMCAsync::Retrieve(void* fRef, int TypeId)
+		bool VMCPromise::Retrieve(void* fRef, int TypeId)
 		{
 			if (!Any)
 				return Stored;
 
 			return Any->Retrieve(fRef, TypeId);
 		}
-		void* VMCAsync::Get()
+		void* VMCPromise::Get()
 		{
 			if (!Any)
 				return nullptr;
@@ -4525,11 +4544,11 @@ namespace Tomahawk
 			Context->SetException("retrieve this object explicitly with To(T& out)");
 			return nullptr;
 		}
-		VMCAny* VMCAsync::GetSrc()
+		VMCAny* VMCPromise::GetSrc()
 		{
 			return Any;
 		}
-		VMCAsync* VMCAsync::Await()
+		VMCPromise* VMCPromise::Await()
 		{
 			if (!Context)
 				return this;
@@ -4539,7 +4558,7 @@ namespace Tomahawk
 
 			return this;
 		}
-		VMCAsync* VMCAsync::Promise(VMCTypeInfo* Info)
+		VMCPromise* VMCPromise::Create(VMCTypeInfo* Info)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -4549,37 +4568,18 @@ namespace Tomahawk
 			if (!Engine)
 				return nullptr;
 
-			return new(asAllocMem(sizeof(VMCAsync))) VMCAsync(Context, Info);
+			return new(asAllocMem(sizeof(VMCPromise))) VMCPromise(Context, Info);
 		}
-		VMCAsync* VMCAsync::Store(void* Ref, int TypeId)
+		int VMCPromise::GetTypeId(const char* Name)
 		{
+			if (!Name)
+				return -1;
+
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
-				return nullptr;
+				return -1;
 
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new(asAllocMem(sizeof(VMCAsync))) VMCAsync(Context, nullptr);
-			Async->Set(Ref, TypeId);
-
-			return Async;
-		}
-		VMCAsync* VMCAsync::Store(void* Ref, const char* TypeName)
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			VMCAsync* Async = new(asAllocMem(sizeof(VMCAsync))) VMCAsync(Context, nullptr);
-			Async->Set(Ref, Engine->GetTypeIdByDecl(TypeName));
-
-			return Async;
+			return Context->GetEngine()->GetTypeIdByDecl(Name);
 		}
 
 		bool RegisterAnyAPI(VMManager* Manager)
@@ -5011,27 +5011,27 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Random", "void SeedFromTime()", asMETHOD(VMCRandom, SeedFromTime), asCALL_THISCALL);
 			return true;
 		}
-		bool RegisterAsyncAPI(VMManager* Manager)
+		bool RegisterPromiseAPI(VMManager* Manager)
 		{
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
 				return false;
 
-			Engine->RegisterObjectType("Async<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCArray::TemplateCallback), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_FACTORY, "Async<T>@ f(int&in)", asFUNCTIONPR(VMCAsync::Promise, (VMCTypeInfo*), VMCAsync*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAsync, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAsync, Release), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAsync, SetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCAsync, GetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAsync, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAsync, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Async<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAsync, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async<T>", "void Set(const ?&in)", asMETHODPR(VMCAsync, Set, (void*, int), int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async<T>", "Any@+ GetSrc()", asMETHOD(VMCAsync, GetSrc), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async<T>", "const T& Get()", asMETHOD(VMCAsync, Get), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async<T>", "bool To(?&out)", asMETHODPR(VMCAsync, Retrieve, (void*, int), bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Async<T>", "Async<T>@+ Await()", asMETHOD(VMCAsync, Await), asCALL_THISCALL);
+			Engine->RegisterObjectType("Promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCArray::TemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_FACTORY, "Promise<T>@ f(int&in)", asFUNCTIONPR(VMCPromise::Create, (VMCTypeInfo*), VMCPromise*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCPromise, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCPromise, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCPromise, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCPromise, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCPromise, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCPromise, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCPromise, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "void Set(const ?&in)", asMETHODPR(VMCPromise, Set, (void*, int), int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "Any@+ GetSrc()", asMETHOD(VMCPromise, GetSrc), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "const T& Get()", asMETHOD(VMCPromise, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "bool To(?&out)", asMETHODPR(VMCPromise, Retrieve, (void*, int), bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "Promise<T>@+ Await()", asMETHOD(VMCPromise, Await), asCALL_THISCALL);
 			return true;
 		}
 		bool FreeCoreAPI()

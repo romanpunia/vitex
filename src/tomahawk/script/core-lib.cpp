@@ -551,7 +551,7 @@ namespace Tomahawk
 				Node->AddRef();
 
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
-			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Nodes);
+			return VMCArray::Compose(Type.GetTypeInfo(), Nodes);
 		}
 		VMCArray* VMCDocument::GetNodes(Core::Document* Base)
 		{
@@ -564,7 +564,7 @@ namespace Tomahawk
 				return nullptr;
 
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
-			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), *Base->GetNodes());
+			return VMCArray::Compose(Type.GetTypeInfo(), *Base->GetNodes());
 		}
 		VMCArray* VMCDocument::GetAttributes(Core::Document* Base)
 		{
@@ -577,7 +577,7 @@ namespace Tomahawk
 				return nullptr;
 
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
-			return VMCArray::ComposeFromPointers(Type.GetTypeInfo(), Base->GetAttributes());
+			return VMCArray::Compose(Type.GetTypeInfo(), Base->GetAttributes());
 		}
 		VMCMap* VMCDocument::GetNames(Core::Document* Base)
 		{

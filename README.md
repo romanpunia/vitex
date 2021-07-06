@@ -137,9 +137,9 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Skinned, default and soft-body models
 + Particle systems
 + Deferred decals
-+ PBR Lighting with shadows
-+ PBR Surfaces (aka env. mapping, O(1) recursive reflections included)
-+ PBR global illumination (radiance, reflections and ambient occlusion)
++ PBR lighting with shadows
++ PBR surfaces (aka env. mapping, incremental recursive reflections included)
++ PBR global illumination volumes (radiance, reflections and ambient occlusion)
 + Bloom for emissive materials
 + Screen-space reflections
 + Screen-space ambient occlusion

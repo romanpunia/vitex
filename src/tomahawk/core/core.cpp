@@ -6890,6 +6890,12 @@ namespace Tomahawk
 			if (!Callback)
 				return false;
 
+			if (Costate::Get() != nullptr)
+			{
+				Callback();
+				return true;
+			}
+
 			Race.Asyncs.lock();
 			Asyncs.emplace(Callback);
 			Race.Asyncs.unlock();
@@ -6903,6 +6909,12 @@ namespace Tomahawk
 		{
 			if (!Callback)
 				return false;
+
+			if (Costate::Get() != nullptr)
+			{
+				Callback();
+				return true;
+			}
 
 			Race.Asyncs.lock();
 			Asyncs.emplace(std::move(Callback));

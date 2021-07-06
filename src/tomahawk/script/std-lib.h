@@ -292,7 +292,7 @@ namespace Tomahawk
 				return Array;
 			}
 			template <typename T>
-			static typename std::enable_if_t<std::is_pointer_v<T>, std::vector<T>> Decompose(VMCArray* Array)
+			static typename std::enable_if<std::is_pointer<T>::value, std::vector<T>>::type Decompose(VMCArray* Array)
 			{
 				std::vector<T> Result;
 				if (!Array)
@@ -307,7 +307,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T>
-			static typename std::enable_if_t<!std::is_pointer_v<T>, std::vector<T>> Decompose(VMCArray* Array)
+			static typename std::enable_if<!std::is_pointer<T>::value, std::vector<T>>::type Decompose(VMCArray* Array)
 			{
 				std::vector<T> Result;
 				if (!Array)

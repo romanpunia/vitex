@@ -182,7 +182,7 @@ namespace Tomahawk
 				template <const char* TypeName>
 				static VMCAny* Id(T* Base, Args... Data)
 				{
-					std::vector<R> Source((Base->*F)(Data...));
+					R Subresult((Base->*F)(Data...));
 					return VMCAny::Create(TypeName, &Subresult);
 				}
 			};

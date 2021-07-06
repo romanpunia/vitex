@@ -209,7 +209,7 @@ This will apply vcpkg toolchain file if it can be located and none CMAKE_TOOLCHA
 ```cmake
 include(path/to/th/lib/toolchain.cmake)
 ```
-4. Add subproject. This will link you application with Tomahawk.
+4. Add subproject. This will link your application with Tomahawk.
 ```cmake
 add_subdirectory(/path/to/th tomahawk)
 link_directories(/path/to/th)
@@ -272,4 +272,4 @@ These are recommended to be installed, but are not required to.
 Tomahawk is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing, THX to PVS-Studio, they became less often. Also dependency installation process can by quite tricky on some platforms like MacOS. OpenGL is not working properly, sooner or later it will be fully implemented, SPIRV-Cross will help with that. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)
+This project is under development, bugs aren't the rare thing, thx to PVS-Studio, they became less often. OpenGL is not working properly, sooner or later it will be fully implemented, SPIRV-Cross will help with that. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)

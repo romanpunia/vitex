@@ -170,6 +170,14 @@ namespace Tomahawk
 				Bytea = 17
 			};
 
+			enum class QueryState
+			{
+				Disconnected,
+				Ready,
+				Requested,
+				Receive
+			};
+
 			class TH_OUT Address
 			{
 			private:
@@ -326,18 +334,14 @@ namespace Tomahawk
 				friend Driver;
 
 			private:
-				struct
-				{
-					Core::Async<bool> Future;
-					Result Prev;
-					Result Next;
-					int State = -1;
-				} Cmd;
-
-			private:
-				std::unordered_map<std::string, OnNotification> Listeners;
-				std::atomic<int> State;
 				std::mutex Safe;
+				std::unordered_map<uint64_t, std::function<void(bool)>> Futures;
+				std::unordered_map<std::string, OnNotification> Listeners;
+				std::atomic<QueryState> State;
+				std::atomic<int64_t> Index;
+				std::atomic<uint64_t> Clock;
+				std::atomic<bool> Chunked;
+				std::vector<Result> Results;
 				TConnection* Base;
 				Queue* Master;
 
@@ -345,14 +349,15 @@ namespace Tomahawk
 				Connection();
 				virtual ~Connection() override;
 				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
+				void SetSingleRowMode(bool Enabled);
 				int SetEncoding(const std::string& Name);
 				Core::Async<bool> Connect(const Address& URI);
 				Core::Async<bool> Disconnect();
-				Core::Async<bool> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, bool Chunked = false, bool Prefetch = true);
-				Core::Async<bool> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, bool Chunked = false, bool Prefetch = true);
-				Core::Async<bool> Query(const std::string& Command, bool Chunked = false, bool Prefetch = true);
+				Core::Async<bool> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, bool Prefetch = true);
+				Core::Async<bool> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, bool Prefetch = true);
+				Core::Async<bool> Query(const std::string& Command, bool Prefetch = true);
 				Core::Async<bool> Next();
-				Core::Async<bool> Cancel();
+				Core::Async<bool> Cancel(bool Discard = false);
 				Core::Async<bool> KeepAlive();
 				bool NextSync();
 				bool GetCurrent(Result* Out);
@@ -373,7 +378,7 @@ namespace Tomahawk
 
 			private:
 				Core::Async<bool> GetPrefetch();
-				bool SendQuery(const std::string& Command, bool Chunked);
+				bool SendQuery(const std::string& Command);
 			};
 
 			class TH_OUT Queue : public Core::Object

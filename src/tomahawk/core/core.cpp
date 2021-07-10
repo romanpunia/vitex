@@ -7272,7 +7272,7 @@ namespace Tomahawk
 				return -1;
 			}
 
-			if (It->first >= Clock)
+			if (Active && It->first >= Clock)
 			{
                 if (When != nullptr)
                     *When = It->first - Clock;

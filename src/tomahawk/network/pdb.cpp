@@ -1164,17 +1164,16 @@ namespace Tomahawk
 #endif
 			}
 
-			Connection::Connection() : Base(nullptr), Master(nullptr), State(-1)
+			Connection::Connection() : Base(nullptr), Master(nullptr), State(QueryState::Disconnected), Index(-1), Clock(0), Chunked(true)
 			{
 				Driver::Create();
-				Driver::Listen(this);
 			}
 			Connection::~Connection()
 			{
 				Driver::Unlisten(this);
 				Safe.lock();
-				Cmd.Prev.Release();
-				Cmd.Next.Release();
+				for (auto& Item : Results)
+					Item.Release();
 				Safe.unlock();
 				Driver::Release();
 			}
@@ -1190,6 +1189,10 @@ namespace Tomahawk
 				else
 					Listeners[Name] = NewCallback;
 				Safe.unlock();
+			}
+			void Connection::SetSingleRowMode(bool Enabled)
+			{
+				Chunked = Enabled;
 			}
 			int Connection::SetEncoding(const std::string& Name)
 			{
@@ -1208,7 +1211,7 @@ namespace Tomahawk
 				if (Master != nullptr)
 					return Core::Async<bool>::Store(false);
 
-				if (State != -1)
+				if (State != QueryState::Disconnected)
 				{
 					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
 					{
@@ -1236,7 +1239,8 @@ namespace Tomahawk
 						if (Message != nullptr)
 							TH_WARN("[pq] %s", Message);
 					}, nullptr);
-					State = 0;
+					State = QueryState::Ready;
+					Driver::Listen(this);
 					Future.Set(true);
 				});
 #else
@@ -1246,12 +1250,13 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Disconnect()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (State == -1 || !Base)
+				if (State == QueryState::Disconnected || !Base)
 					return Core::Async<bool>::Store(false);
 
 				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
-					State = -1;
+					State = QueryState::Disconnected;
+					Driver::Unlisten(this);
 					if (!Base)
 						return Future.Set(true);
 
@@ -1269,31 +1274,26 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Core::Async<bool> Connection::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, bool Chunked, bool Prefetch)
+			Core::Async<bool> Connection::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, bool Prefetch)
 			{
-				return Query(Driver::Emplace(this, Command, Map, Once), Chunked, Prefetch);
+				return Query(Driver::Emplace(this, Command, Map, Once), Prefetch);
 			}
-			Core::Async<bool> Connection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, bool Chunked, bool Prefetch)
+			Core::Async<bool> Connection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, bool Prefetch)
 			{
-				return Query(Driver::GetQuery(this, Name, Map, Once), Chunked, Prefetch);
+				return Query(Driver::GetQuery(this, Name, Map, Once), Prefetch);
 			}
-			Core::Async<bool> Connection::Query(const std::string& Command, bool Chunked, bool Prefetch)
+			Core::Async<bool> Connection::Query(const std::string& Command, bool Prefetch)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || Command.empty() || State == -1)
-					return Core::Async<bool>::Store(false);
-
-				if (State == 0)
+				if (!Base || Command.empty() || State == QueryState::Disconnected)
 				{
-					if (!SendQuery(Command, Chunked))
-						return Core::Async<bool>::Store(false);
-
-					return (Prefetch ? GetPrefetch() : Core::Async<bool>::Store(true));
+					TH_ERROR("cannot make query while another in progress");
+					return Core::Async<bool>::Store(false);
 				}
 
-				return Cancel().Then<Core::Async<bool>>([this, Command, Chunked, Prefetch](bool&&)
+				return Cancel(false).Then<Core::Async<bool>>([this, Command, Prefetch](bool&&)
 				{
-					if (!SendQuery(Command, Chunked))
+					if (!SendQuery(Command))
 						return Core::Async<bool>::Store(false);
 
 					return (Prefetch ? GetPrefetch() : Core::Async<bool>::Store(true));
@@ -1305,46 +1305,88 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Next()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || State != 1)
+				if (!Base || State != QueryState::Requested)
 					return Core::Async<bool>::Store(false);
 
 				Safe.lock();
-				Cmd.Future.Steal(Core::Async<bool>());
-				Cmd.State = (Cmd.Next ? 1 : -1);
-				State = 2;
+				if (!Results.empty() && (size_t)++Index < Results.size())
+				{
+					if (Index > 0)
+						Results[Index - 1].Release();
+
+					Safe.unlock();
+					return Core::Async<bool>::Store(true);
+				}
+
+				Core::Async<bool> Future; uint64_t ClockId = Clock++;
+				Futures[ClockId] = [this, Future, ClockId](bool Result) mutable
+				{
+					Safe.lock();
+					Futures.erase(ClockId);
+					Safe.unlock();
+					Future.Set(Result);
+				};
+				State = QueryState::Receive;
 				Safe.unlock();
 
-				return Cmd.Future;
+				return Future;
 #else
 				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Core::Async<bool> Connection::Cancel()
+			Core::Async<bool> Connection::Cancel(bool Discard)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || State != 1)
+				if (!Base || State == QueryState::Disconnected)
 					return Core::Async<bool>::Store(false);
 
-				PGcancel* Cancel = PQgetCancel(Base);
-				if (!Cancel)
-					return Core::Async<bool>::Store(false);
+				if (Discard)
+				{
+					PGcancel* Cancel = PQgetCancel(Base);
+					if (!Cancel)
+						return Core::Async<bool>::Store(false);
 
-				char Error[256];
-				int Code = PQcancel(Cancel, Error, sizeof(Error));
-				if (Code != 1)
-					TH_ERROR("[pqerr] %s", Error);
+					char Error[256];
+					int Code = PQcancel(Cancel, Error, sizeof(Error));
+					if (Code != 1)
+						TH_ERROR("[pqerr] %s", Error);
 
-				PQfreeCancel(Cancel);
-				if (Code != 1)
-					return Core::Async<bool>::Store(false);
+					PQfreeCancel(Cancel);
+					if (Code != 1)
+						return Core::Async<bool>::Store(false);
+				}
 
-				Safe.lock();
-				Cmd.Future.Steal(Core::Async<bool>());
-				Cmd.State = -1;
-				State = 3;
-				Safe.unlock();
+				return Core::Coasync<bool>([this]()
+				{
+					PGresult* Result;
+					Safe.lock();
+					auto Callbacks = Futures;
+					for (auto& Item : Results)
+						Item.Release();
+					Results.clear();
+					Index = -1;
 
-				return Cmd.Future;
+					do
+					{
+					Retry:
+						PQconsumeInput(Base);
+						if (PQisBusy(Base) == 1)
+						{
+							Core::Cosuspend();
+							goto Retry;
+						}
+
+						Result = PQgetResult(Base);
+						if (Result != nullptr)
+							PQclear(Result);
+					} while (Result != nullptr);
+					Safe.unlock();
+					
+					for (auto Item : Callbacks)
+						Item.second(false);
+
+					return true;
+				});
 #else
 				return Core::Async<bool>::Store(false);
 #endif
@@ -1357,16 +1399,22 @@ namespace Tomahawk
 			{
 				return Next().Then<bool>([this](bool&&)
 				{
+					bool Error = false;
 					Safe.lock();
-					bool Error = Cmd.Prev.IsError();
-					if (Error)
-						TH_ERROR("[pqerr] %s", Cmd.Prev.GetErrorText().c_str());
+					if (!Results.empty())
+					{
+						Error = Results.front().IsError();
+						if (Error)
+							TH_ERROR("[pqerr] %s", Results.front().GetErrorText().c_str());
+					}
+					else
+						Error = true;
 					Safe.unlock();
 
 					return !Error;
 				});
 			}
-			bool Connection::SendQuery(const std::string& Command, bool Chunked)
+			bool Connection::SendQuery(const std::string& Command)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				Safe.lock();
@@ -1380,12 +1428,10 @@ namespace Tomahawk
 					return false;
 				}
 
-				Cmd.State = -1;
-				State = 1;
-
 				if (Chunked)
 					PQsetSingleRowMode(Base);
 
+				State = QueryState::Requested;
 				Safe.unlock();
 				return true;
 #else
@@ -1402,14 +1448,14 @@ namespace Tomahawk
 					return false;
 
 				Safe.lock();
-				if (!Cmd.Prev.Get())
+				if (Index < 0 || Results.empty() || (size_t)Index >= Results.size())
 				{
 					Safe.unlock();
 					return false;
 				}
 
-				*Out = Cmd.Prev;
-				Cmd.Prev = nullptr;
+				*Out = Results[Index];
+				Results[Index] = nullptr;
 				Safe.unlock();
 				return true;
 			}
@@ -1568,7 +1614,7 @@ namespace Tomahawk
 			}
 			bool Connection::IsConnected() const
 			{
-				return State != -1;
+				return State != QueryState::Disconnected;
 			}
 
 			Queue::Queue() : Connected(false)
@@ -1656,7 +1702,7 @@ namespace Tomahawk
 #endif
 				Client->Base = nullptr;
 				Client->Master = nullptr;
-				Client->State = -1;
+				Client->State = QueryState::Disconnected;
 			}
 			bool Queue::Push(Connection** Client)
 			{
@@ -1805,12 +1851,13 @@ namespace Tomahawk
 					if (!Src)
 						continue;
 
-					int Consume = PQconsumeInput(Src->Base);
-					if (Consume != 1)
-						continue;
+					if (Src->State == QueryState::Disconnected)
+					{
+						Listeners->erase(Src);
+						break;
+					}
 
-					int Busy = PQisBusy(Src->Base);
-					if (Busy == 1)
+					if (PQconsumeInput(Src->Base) != 1 || PQisBusy(Src->Base) == 1)
 						continue;
 
 					PGnotify* Notification = PQnotifies(Src->Base);
@@ -1835,60 +1882,20 @@ namespace Tomahawk
 							PQfreeNotify(Notification);
 						}
 					}
-					
-					if (Src->State <= 1)
-						continue;
-
-					Result Output(PQgetResult(Src->Base));
-					bool Continue = (Output.Get() != nullptr);
-					if (!Continue)
-						PQflush(Src->Base);
-					Count++;
-
-					if (Src->State == 2)
+					else if (Src->State == QueryState::Receive)
 					{
-						if (Src->Cmd.State == -1)
-						{
-							Src->Safe.lock();
-							Src->Cmd.Prev.Release();
-							Src->Cmd.Prev = Output;
-							Src->Cmd.State = 0;
-							Src->Safe.unlock();
-						}
-						else if (Src->Cmd.State == 0)
-						{
-							Src->Safe.lock();
-							Core::Async<bool> Subresult(std::move(Src->Cmd.Future));
-							Src->Cmd.Next.Release();
-							Src->Cmd.Next = Output;
-							Src->Cmd.State = 1;
-							Src->State = (Continue ? 1 : 0);
-							Src->Safe.unlock();
-							Subresult.Set(Continue);
-						}
-						else if (Src->Cmd.State == 1)
-						{
-							Src->Safe.lock();
-							Src->Cmd.Prev.Release();
-							Src->Cmd.Prev = Src->Cmd.Next;
-							Src->Cmd.Next = nullptr;
-							Src->Cmd.State = 0;
-							Src->Safe.unlock();
-						}
-					}
-					else if (Src->State == 3)
-					{
-						if (Continue)
-						{
-							Output.Release();
-							continue;
-						}
+						Result Frame(PQgetResult(Src->Base));
+						bool Next = (Frame.Get() != nullptr);
 
 						Src->Safe.lock();
-						Core::Async<bool> Subresult(std::move(Src->Cmd.Future));
-						Src->State = 0;
+						auto Callbacks = Src->Futures;
+						Src->Results.push_back(Frame);
+						Src->State = (Next ? QueryState::Requested : QueryState::Ready);
 						Src->Safe.unlock();
-						Subresult.Set(true);
+
+						for (auto Item : Callbacks)
+							Item.second(Next);
+						Count++;
 					}
 				}
 				Safe->unlock();

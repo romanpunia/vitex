@@ -1172,17 +1172,11 @@ namespace Tomahawk
 					if (!NMake::Unpack(Config->Find("payload-max-length"), &Router->PayloadMaxLength))
 						Router->PayloadMaxLength = std::numeric_limits<uint64_t>::max();
 
-					if (!NMake::Unpack(Config->Find("max-events"), &Router->MaxEvents))
-						Router->MaxEvents = 256;
-
 					if (!NMake::Unpack(Config->Find("backlog-queue"), &Router->BacklogQueue))
 						Router->BacklogQueue = 20;
 
 					if (!NMake::Unpack(Config->Find("socket-timeout"), &Router->SocketTimeout))
 						Router->SocketTimeout = 5000;
-
-					if (!NMake::Unpack(Config->Find("poll-timeout"), &Router->PollTimeout))
-						Router->PollTimeout = 200;
 
 					if (!NMake::Unpack(Config->Find("close-timeout"), &Router->CloseTimeout))
 						Router->CloseTimeout = 500;

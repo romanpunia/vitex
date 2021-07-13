@@ -272,9 +272,7 @@ namespace Tomahawk
 			uint64_t PayloadMaxLength = std::numeric_limits<uint64_t>::max();
 			uint64_t BacklogQueue = 20;
 			uint64_t SocketTimeout = 5000;
-			uint64_t PollTimeout = 200;
 			uint64_t CloseTimeout = 500;
-			uint64_t MaxEvents = 256;
 			uint64_t MaxConnections = 0;
 			int64_t KeepAliveMaxCount = 10;
 			int64_t GracefulTimeWait = -1;

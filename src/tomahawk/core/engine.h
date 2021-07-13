@@ -1282,6 +1282,7 @@ namespace Tomahawk
 			virtual void Publish(Core::Timer* Time);
 			virtual void Initialize(Desc* I);
 			virtual void* GetGUI();
+			ApplicationState GetState();
 			void Start(Desc* I);
 			void Stop();
 

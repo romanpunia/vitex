@@ -1642,9 +1642,6 @@ namespace Tomahawk
 			if (!OnConfigure(Router))
 				return false;
 
-			if (Router->MaxEvents < 1)
-				Router->MaxEvents = 256;
-
 			if (Router->Listeners.empty())
 			{
 				TH_ERROR("there are no listeners provided");
@@ -1837,7 +1834,6 @@ namespace Tomahawk
 			if (!OnListen())
 				return false;
 
-			Driver::Create((int)Router->MaxEvents, Router->PollTimeout);
 			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
 				{
 					FreeQueued();

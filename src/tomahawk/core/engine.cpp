@@ -5921,6 +5921,10 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
+		ApplicationState Application::GetState()
+		{
+			return State;
+		}
 		void Application::Callee(Reactor* Job)
 		{
 			auto* Queue = Core::Schedule::Get();

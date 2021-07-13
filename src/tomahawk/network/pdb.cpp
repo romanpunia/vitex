@@ -1461,6 +1461,7 @@ namespace Tomahawk
 						Error = Results.front().IsError();
 						if (Error)
 							PQlogMessage(Base);
+						Index = 0;
 					}
 					else
 						Error = true;
@@ -2334,9 +2335,11 @@ namespace Tomahawk
 
 				size_t Length = 0;
 				char* Subresult = (char*)PQescapeByteaConn(Base->Get(), (unsigned char*)Src, Size, &Length);
-				std::string Result(Subresult, Length);
+				std::string Result(Subresult, Length > 1 ? Length - 1 : Length);
 				PQfreemem((unsigned char*)Subresult);
 
+				Result.insert(Result.begin(), '\'');
+				Result.append("'::bytea");
 				return Result;
 #else
 				return "'\\x" + Compute::Common::HexEncode(Src, Size) + "'::bytea";

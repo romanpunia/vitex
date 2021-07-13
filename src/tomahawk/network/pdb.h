@@ -342,8 +342,12 @@ namespace Tomahawk
 				std::atomic<uint64_t> Clock;
 				std::atomic<bool> Chunked;
 				std::vector<Result> Results;
+				Address Source;
 				TConnection* Base;
 				Queue* Master;
+
+			public:
+				bool Reconnect;
 
 			public:
 				Connection();
@@ -379,6 +383,7 @@ namespace Tomahawk
 			private:
 				Core::Async<bool> GetPrefetch();
 				bool SendQuery(const std::string& Command);
+				void Reestablish();
 			};
 
 			class TH_OUT Queue : public Core::Object

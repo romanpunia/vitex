@@ -100,17 +100,32 @@ typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
 #if TH_DLEVEL >= 3
+#ifndef _DEBUG
+#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#else
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#endif
 #elif TH_DLEVEL >= 2
 #define TH_INFO(Format, ...)
+#ifndef _DEBUG
+#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#else
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#endif
 #elif TH_DLEVEL >= 1
 #define TH_INFO(Format, ...)
 #define TH_WARN(Format, ...)
+#ifndef _DEBUG
+#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#else
 #define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#endif
 #else
 #define TH_INFO(...)
 #define TH_WARN(...)

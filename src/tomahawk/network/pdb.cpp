@@ -100,6 +100,43 @@ namespace Tomahawk
 				}
 			};
 
+			static void PQlogMessage(TConnection* Base)
+			{
+				char* Message = PQerrorMessage(Base);
+				if (!Message || Message[0] == '\0')
+					return;
+
+				Core::Parser Buffer(Message);
+				if (Buffer.Empty())
+					return;
+
+				std::string Result;
+				Buffer.Erase(Buffer.Size() - 1);
+
+				std::vector<std::string> Errors = Buffer.Split('\n');
+				for (auto& Item : Errors)
+					Result += "\n\t" + Item;
+
+				TH_ERROR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
+			}
+			static void PQlogNotice(void*, const char* Message)
+			{
+				if (!Message || Message[0] == '\0')
+					return;
+
+				Core::Parser Buffer(Message);
+				if (Buffer.Empty())
+					return;
+
+				std::string Result;
+				Buffer.Erase(Buffer.Size() - 1);
+
+				std::vector<std::string> Errors = Buffer.Split('\n');
+				for (auto& Item : Errors)
+					Result += "\n\t" + Item;
+
+				TH_ERROR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
+			}
 			static Core::Document* ToDocument(const char* Data, int Size, unsigned int Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
 			{
@@ -1164,7 +1201,7 @@ namespace Tomahawk
 #endif
 			}
 
-			Connection::Connection() : Base(nullptr), Master(nullptr), State(QueryState::Disconnected), Index(-1), Clock(0), Chunked(true)
+			Connection::Connection() : Base(nullptr), Master(nullptr), State(QueryState::Disconnected), Index(-1), Clock(0), Chunked(true), Reconnect(true)
 			{
 				Driver::Create();
 			}
@@ -1200,7 +1237,10 @@ namespace Tomahawk
 				if (!Base)
 					return -1;
 
-				return PQsetClientEncoding(Base, Name.c_str());
+				int Result = PQsetClientEncoding(Base, Name.c_str());
+				PQlogMessage(Base);
+
+				return Result;
 #else
 				return -1;
 #endif
@@ -1208,9 +1248,7 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Connect(const Address& URI)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (Master != nullptr)
-					return Core::Async<bool>::Store(false);
-
+				Source = URI;
 				if (State != QueryState::Disconnected)
 				{
 					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
@@ -1219,26 +1257,24 @@ namespace Tomahawk
 					});
 				}
 
-				return Core::Async<bool>([this, URI](Core::Async<bool>& Future)
+				return Core::Async<bool>([this](Core::Async<bool>& Future)
 				{
-					const char** Keys = URI.CreateKeys();
-					const char** Values = URI.CreateValues();
+					const char** Keys = Source.CreateKeys();
+					const char** Values = Source.CreateValues();
 					Base = PQconnectdbParams(Keys, Values, 0);
 					TH_FREE(Keys);
 					TH_FREE(Values);
 
 					if (!Base)
 					{
-						TH_ERROR("couldn't connect to requested URI");
+						PQlogMessage(Base);
 						return Future.Set(false);
 					}
 
 					PQsetnonblocking(Base, 1);
-					PQsetNoticeProcessor(Base, [](void*, const char* Message)
-					{
-						if (Message != nullptr)
-							TH_WARN("[pq] %s", Message);
-					}, nullptr);
+					PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
+					PQlogMessage(Base);
+
 					State = QueryState::Ready;
 					Driver::Listen(this);
 					Future.Set(true);
@@ -1263,6 +1299,7 @@ namespace Tomahawk
 					if (!Master)
 					{
 						PQfinish(Base);
+						PQlogMessage(Base);
 						Base = nullptr;
 					}
 					else
@@ -1286,14 +1323,11 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || Command.empty() || State == QueryState::Disconnected)
-				{
-					TH_ERROR("cannot make query while another in progress");
 					return Core::Async<bool>::Store(false);
-				}
 
-				return Cancel(false).Then<Core::Async<bool>>([this, Command, Prefetch](bool&&)
+				return Cancel(false).Then<Core::Async<bool>>([this, Command, Prefetch](bool&& Result)
 				{
-					if (!SendQuery(Command))
+					if (!Result || !SendQuery(Command))
 						return Core::Async<bool>::Store(false);
 
 					return (Prefetch ? GetPrefetch() : Core::Async<bool>::Store(true));
@@ -1344,21 +1378,27 @@ namespace Tomahawk
 				{
 					PGcancel* Cancel = PQgetCancel(Base);
 					if (!Cancel)
+					{
+						PQlogMessage(Base);
 						return Core::Async<bool>::Store(false);
+					}
 
 					char Error[256];
 					int Code = PQcancel(Cancel, Error, sizeof(Error));
-					if (Code != 1)
-						TH_ERROR("[pqerr] %s", Error);
-
 					PQfreeCancel(Cancel);
+
 					if (Code != 1)
+					{
+						TH_ERROR("[pqerr] %s", Error);
 						return Core::Async<bool>::Store(false);
+					}
 				}
 
 				return Core::Coasync<bool>([this]()
 				{
-					PGresult* Result;
+					PGresult* Result = nullptr;
+					bool Broken = false;
+
 					Safe.lock();
 					auto Callbacks = Futures;
 					for (auto& Item : Results)
@@ -1369,7 +1409,13 @@ namespace Tomahawk
 					do
 					{
 					Retry:
-						PQconsumeInput(Base);
+						if (PQconsumeInput(Base) != 1)
+						{
+							PQlogMessage(Base);
+							Broken = true;
+							break;
+						}
+
 						if (PQisBusy(Base) == 1)
 						{
 							Core::Cosuspend();
@@ -1382,10 +1428,15 @@ namespace Tomahawk
 					} while (Result != nullptr);
 					Safe.unlock();
 					
-					for (auto Item : Callbacks)
-						Item.second(false);
+					if (!Broken)
+					{
+						for (auto Item : Callbacks)
+							Item.second(false);
+					}
+					else
+						Reestablish();
 
-					return true;
+					return State != QueryState::Disconnected;
 				});
 #else
 				return Core::Async<bool>::Store(false);
@@ -1405,7 +1456,7 @@ namespace Tomahawk
 					{
 						Error = Results.front().IsError();
 						if (Error)
-							TH_ERROR("[pqerr] %s", Results.front().GetErrorText().c_str());
+							PQlogMessage(Base);
 					}
 					else
 						Error = true;
@@ -1420,10 +1471,7 @@ namespace Tomahawk
 				Safe.lock();
 				if (PQsendQuery(Base, Command.c_str()) != 1)
 				{
-					char* Message = PQerrorMessage(Base);
-					if (Message != nullptr)
-						TH_ERROR("[pqerr] %s", Message);
-
+					PQlogMessage(Base);
 					Safe.unlock();
 					return false;
 				}
@@ -1615,6 +1663,23 @@ namespace Tomahawk
 			bool Connection::IsConnected() const
 			{
 				return State != QueryState::Disconnected;
+			}
+			void Connection::Reestablish()
+			{
+				Safe.lock();
+				auto Callbacks = Futures;
+				Safe.unlock();
+
+				for (auto Item : Callbacks)
+					Item.second(false);
+
+				if (Reconnect)
+				{
+					Connect(Source).Get();
+					return;
+				}
+				
+				State = QueryState::Disconnected;
 			}
 
 			Queue::Queue() : Connected(false)
@@ -1842,6 +1907,7 @@ namespace Tomahawk
 					return -1;
 
 				auto* Queue = Core::Schedule::Get();
+				Connection* Broken = nullptr;
 				int Count = 0;
 
 				Safe->lock();
@@ -1857,7 +1923,15 @@ namespace Tomahawk
 						break;
 					}
 
-					if (PQconsumeInput(Src->Base) != 1 || PQisBusy(Src->Base) == 1)
+					if (PQconsumeInput(Src->Base) != 1)
+					{
+						Listeners->erase(Src);
+						PQlogMessage(Src->Base);
+						Broken = Src;
+						break;
+					}
+
+					if (PQisBusy(Src->Base) == 1)
 						continue;
 
 					PGnotify* Notification = PQnotifies(Src->Base);
@@ -1899,6 +1973,9 @@ namespace Tomahawk
 					}
 				}
 				Safe->unlock();
+
+				if (Broken != nullptr)
+					Broken->Reestablish();
 
 				return Count;
 #else

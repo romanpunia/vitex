@@ -4148,6 +4148,27 @@ namespace Tomahawk
 				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
 
 			char Buffer[8192];
+#ifndef _DEBUG
+			if (Level == 1)
+			{
+				int ErrorCode = OS::Error::Get();
+#ifdef TH_MICROSOFT
+				if (ErrorCode != ERROR_SUCCESS)
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
+				else
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
+#else
+				if (ErrorCode > 0)
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
+				else
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
+#endif
+			}
+			else if (Level == 2)
+				snprintf(Buffer, sizeof(Buffer), "%s [warn] %s\n", Date, Source, Line, Format);
+			else
+				snprintf(Buffer, sizeof(Buffer), "%s [info] %s\n", Date, Source, Line, Format);
+#else
 			if (Level == 1)
 			{
 				int ErrorCode = OS::Error::Get();
@@ -4167,7 +4188,7 @@ namespace Tomahawk
 				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source, Line, Format);
 			else
 				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source, Line, Format);
-
+#endif
 			va_list Args;
 			va_start(Args, Format);
 

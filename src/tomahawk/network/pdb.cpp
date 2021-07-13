@@ -102,6 +102,7 @@ namespace Tomahawk
 
 			static void PQlogMessage(TConnection* Base)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				char* Message = PQerrorMessage(Base);
 				if (!Message || Message[0] == '\0')
 					return;
@@ -118,9 +119,11 @@ namespace Tomahawk
 					Result += "\n\t" + Item;
 
 				TH_ERROR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
+#endif
 			}
 			static void PQlogNotice(void*, const char* Message)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				if (!Message || Message[0] == '\0')
 					return;
 
@@ -136,6 +139,7 @@ namespace Tomahawk
 					Result += "\n\t" + Item;
 
 				TH_ERROR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
+#endif
 			}
 			static Core::Document* ToDocument(const char* Data, int Size, unsigned int Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)

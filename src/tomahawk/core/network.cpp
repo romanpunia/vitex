@@ -1517,12 +1517,11 @@ namespace Tomahawk
 				Sources->insert(Value);
 				fSources->unlock();
 			}
-
-			Value->Sync.Time = Clock();
-			Value->Sync.Poll = true;
 #ifdef TH_APPLE
 			struct kevent Event;
 			int Result1 = 1, Result2 = 1;
+            Value->Sync.Time = Clock();
+            Value->Sync.Poll = true;
 
 			if (Always || Value->Input != nullptr || Value->Listener)
 			{
@@ -1538,6 +1537,10 @@ namespace Tomahawk
 
 			return Result1 == 1 && Result2 == 1 ? 0 : -1;
 #else
+            bool Set = Value->Sync.Poll;
+            Value->Sync.Time = Clock();
+            Value->Sync.Poll = true;
+            
 			epoll_event Event;
 			Event.data.ptr = (void*)Value;
 			Event.events = EPOLLRDHUP;

@@ -4126,7 +4126,7 @@ namespace Tomahawk
 		}
 		void Debug::Log(int Level, int Line, const char* Source, const char* Format, ...)
 		{
-			if (!Source || !Format || (!Enabled && !Callback))
+			if (!Format || (!Enabled && !Callback))
 				return;
 
 			auto TimeStamp = (time_t)time(nullptr);
@@ -4165,29 +4165,29 @@ namespace Tomahawk
 #endif
 			}
 			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s [warn] %s\n", Date, Source, Line, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s [warn] %s\n", Date, Format);
 			else
-				snprintf(Buffer, sizeof(Buffer), "%s [info] %s\n", Date, Source, Line, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s [info] %s\n", Date, Format);
 #else
 			if (Level == 1)
 			{
 				int ErrorCode = OS::Error::Get();
 #ifdef TH_MICROSOFT
 				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::Error::GetName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
 #else
 				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source, Line, Format, OS::Error::GetName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source, Line, Format);
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
 #endif
 			}
 			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source, Line, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source ? Source : "log", Line, Format);
 			else
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source, Line, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source ? Source : "log", Line, Format);
 #endif
 			va_list Args;
 			va_start(Args, Format);
@@ -7176,8 +7176,7 @@ namespace Tomahawk
 			{
 				std::queue<EventTask> fQueue;
 				Race.Asyncs.lock();
-				if (!Asyncs.empty())
-					Asyncs.swap(fQueue);
+                Asyncs.swap(fQueue);
 				Race.Asyncs.unlock();
 
 				int Code = (fQueue.empty() ? -1 : 1);
@@ -7232,8 +7231,7 @@ namespace Tomahawk
 
 			std::queue<EventTask> fQueue;
 			Race.Tasks.lock();
-			if (!Tasks.empty())
-				Tasks.swap(fQueue);
+            Tasks.swap(fQueue);
 			Race.Tasks.unlock();
 
 			int Code = (fQueue.empty() ? -1 : 1);
@@ -7252,8 +7250,7 @@ namespace Tomahawk
 
 			std::queue<EventBase> fQueue;
 			Race.Events.lock();
-			if (!Events.empty())
-				Events.swap(fQueue);
+            Events.swap(fQueue);
 			Race.Events.unlock();
 
 			int Code = (fQueue.empty() ? -1 : 1);

@@ -43,13 +43,14 @@ namespace Tomahawk
 		
 		class Material;
 
-		enum class ApplicationUse
+		enum class ApplicationSet
 		{
-			Graphics_Module = 1 << 0,
-			Activity_Module = 1 << 1,
-			Audio_Module = 1 << 3,
-			Script_Module = 1 << 4,
-			Content_Module = 1 << 5
+			GraphicsSet = 1 << 0,
+			ActivitySet = 1 << 1,
+			AudioSet = 1 << 3,
+			ScriptSet = 1 << 4,
+			ContentSet = 1 << 5,
+            NetworkSet = 1 << 6
 		};
 
 		enum class ApplicationState
@@ -118,9 +119,9 @@ namespace Tomahawk
 			Surface = 2
 		};
 
-		inline ApplicationUse operator |(ApplicationUse A, ApplicationUse B)
+		inline ApplicationSet operator |(ApplicationSet A, ApplicationSet B)
 		{
-			return static_cast<ApplicationUse>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ApplicationSet>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
 		inline RenderOpt operator |(RenderOpt A, RenderOpt B)
 		{
@@ -1238,11 +1239,12 @@ namespace Tomahawk
 				double MaxFrames = 60;
 				double MinFrames = 10;
 				size_t Usage =
-					(size_t)ApplicationUse::Graphics_Module |
-					(size_t)ApplicationUse::Activity_Module |
-					(size_t)ApplicationUse::Audio_Module |
-					(size_t)ApplicationUse::Script_Module |
-					(size_t)ApplicationUse::Content_Module;
+					(size_t)ApplicationSet::GraphicsSet |
+					(size_t)ApplicationSet::ActivitySet |
+					(size_t)ApplicationSet::AudioSet |
+					(size_t)ApplicationSet::ScriptSet |
+					(size_t)ApplicationSet::ContentSet |
+                    (size_t)ApplicationSet::NetworkSet;
 				bool Cursor = true;
 				bool Async = false;
 			};
@@ -1260,6 +1262,7 @@ namespace Tomahawk
 		private:
 			std::vector<Reactor*> Workers;
 			ApplicationState State = ApplicationState::Terminated;
+            bool NetworkQueue = false;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;

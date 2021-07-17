@@ -26,7 +26,7 @@ extern "C"
 #define REGEX_FAIL(A, B) if (A) return (B)
 #define REGEX_FAIL_IN(A, B) if (A) { State = B; return; }
 #define MAKE_ADJ_TRI(x) ((x) & 0x3fffffff)
-#define IS_BOUNDARY(x) ((x) == 0xffffffff)
+#define IS_BOUNDARY(x) ((x) == 0xff)
 
 namespace
 {
@@ -1147,7 +1147,7 @@ namespace Tomahawk
 			return sqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z, W1 = W - Point.W;
-			return sqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1);
+			return sqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1 + W1 * W1);
 #endif
 		}
 		Vector4 Vector4::Cross(const Vector4& B) const

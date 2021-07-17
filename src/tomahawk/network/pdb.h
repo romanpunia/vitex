@@ -17,17 +17,15 @@ namespace Tomahawk
 
 			class Row;
 
-			class Result;
+			class Response;
 
-			class Connection;
-
-			class Queue;
+			class Cluster;
 
 			class Driver;
 
 			typedef std::function<void(Notify)> OnNotification;
 			typedef pg_conn TConnection;
-			typedef pg_result TResult;
+			typedef pg_result TResponse;
 			typedef pgNotify TNotify;
 			typedef uint64_t ObjectId;
 
@@ -172,10 +170,9 @@ namespace Tomahawk
 
 			enum class QueryState
 			{
-				Disconnected,
-				Ready,
-				Requested,
-				Receive
+				Lost,
+				Idle,
+				Busy
 			};
 
 			class TH_OUT Address
@@ -222,12 +219,12 @@ namespace Tomahawk
 				friend Row;
 
 			private:
-				TResult* Base;
+				TResponse* Base;
 				size_t RowIndex;
 				size_t ColumnIndex;
 
 			private:
-				Column(TResult* NewBase, size_t fRowIndex, size_t fColumnIndex);
+				Column(TResponse* NewBase, size_t fRowIndex, size_t fColumnIndex);
 
 			public:
 				int SetValueText(char* Data, size_t Size);
@@ -254,20 +251,20 @@ namespace Tomahawk
 			class TH_OUT Row
 			{
 				friend Column;
-				friend Result;
+				friend Response;
 
 			private:
-				TResult* Base;
+				TResponse* Base;
 				size_t RowIndex;
 
 			private:
-				Row(TResult* NewBase, size_t fRowIndex);
+				Row(TResponse* NewBase, size_t fRowIndex);
 
 			public:
 				Core::Document* GetDocument() const;
 				size_t GetIndex() const;
 				size_t GetSize() const;
-				Result GetResult() const;
+				Response GetCursor() const;
 				Column GetColumn(size_t Index) const;
 				Column GetColumn(const char* Name) const;
 				bool GetColumns(Column* Output, size_t Size) const;
@@ -285,14 +282,14 @@ namespace Tomahawk
 				}
 			};
 
-			class TH_OUT Result
+			class TH_OUT Response
 			{
 			private:
-				TResult* Base;
+				TResponse* Base;
 
 			public:
-				Result();
-				Result(TResult* NewBase);
+				Response();
+				Response(TResponse* NewBase);
 				void Release();
 				Core::Document* GetDocument() const;
 				std::string GetCommandStatusText() const;
@@ -307,7 +304,7 @@ namespace Tomahawk
 				Row GetRow(size_t Index) const;
 				Row First() const;
 				Row Last() const;
-				TResult* Get() const;
+				TResponse* Get() const;
 				bool IsEmpty() const;
 				bool IsError() const;
 				bool IsErrorOrEmpty() const
@@ -328,85 +325,83 @@ namespace Tomahawk
 				}
 			};
 
-			class TH_OUT Connection : public Core::Object
+			class TH_OUT Cursor
 			{
-				friend Queue;
-				friend Driver;
+				friend Cluster;
 
 			private:
-				std::mutex Safe;
-				std::unordered_map<uint64_t, std::function<void(bool)>> Futures;
+				std::vector<Response> Base;
+
+			public:
+				Cursor();
+				void Release();
+				bool OK();
+				bool IsEmpty() const;
+				bool IsError() const;
+				bool IsErrorOrEmpty() const
+				{
+					return IsError() || IsEmpty();
+				}
+				size_t Size() const;
+				Response First() const;
+				Response Last() const;
+				Response GetCursor(size_t Index) const;
+				Response operator [](size_t Index)
+				{
+					return GetCursor(Index);
+				}
+				Response operator [](size_t Index) const
+				{
+					return GetCursor(Index);
+				}
+				operator bool() const
+				{
+					return !Base.empty();
+				}
+			};
+
+			class TH_OUT Cluster : public Core::Object
+			{
+			private:
+				struct Request
+				{
+					Core::Async<Cursor> Future;
+					std::string Command;
+					Cursor Result;
+				};
+
+				struct Connection
+				{
+					TConnection* Base;
+					Request* Current;
+					QueryState State;
+				};
+
+			private:
 				std::unordered_map<std::string, OnNotification> Listeners;
-				std::atomic<QueryState> State;
-				std::atomic<int64_t> Index;
-				std::atomic<uint64_t> Clock;
-				std::atomic<bool> Chunked;
-				std::vector<Result> Results;
+                std::unordered_map<Socket*, Connection*> Pool;
+				std::vector<Request*> Requests;
+				std::mutex Update;
 				Address Source;
-				TConnection* Base;
-				Queue* Master;
 
 			public:
-				bool Reconnect;
-
-			public:
-				Connection();
-				virtual ~Connection() override;
+				Cluster();
+				virtual ~Cluster() override;
 				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
-				void SetSingleRowMode(bool Enabled);
-				int SetEncoding(const std::string& Name);
-				Core::Async<bool> Connect(const Address& URI);
+				Core::Async<bool> Connect(const Address& URI, size_t Connections);
 				Core::Async<bool> Disconnect();
-				Core::Async<bool> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, bool Prefetch = true);
-				Core::Async<bool> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, bool Prefetch = true);
-				Core::Async<bool> Query(const std::string& Command, bool Prefetch = true);
-				Core::Async<bool> Next();
-				Core::Async<bool> Cancel(bool Discard = false);
-				Core::Async<bool> KeepAlive();
-				bool NextSync();
-				bool GetCurrent(Result* Out);
-				std::string GetEncoding() const;
-				std::string GetErrorMessage() const;
-				std::string EscapeLiteral(const char* Data, size_t Size);
-				std::string EscapeLiteral(const std::string& Value);
-				std::string EscapeIdentifier(const char* Data, size_t Size);
-				std::string EscapeIdentifier(const std::string& Value);
-				unsigned char* EscapeBytea(const unsigned char* Data, size_t Size, size_t* OutSize);
-				unsigned char* UnescapeBytea(const unsigned char* Data, size_t* OutSize);
-				int GetServerVersion() const;
-				int GetBackendPid() const;
-				ConnectionState GetStatus() const;
-				TransactionState GetTransactionState() const;
-				TConnection* Get() const;
+				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true);
+				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+				Core::Async<Cursor> Query(const std::string& Command);
+				TConnection* GetConnection(QueryState State);
+				TConnection* GetConnection() const;
 				bool IsConnected() const;
 
 			private:
-				Core::Async<bool> GetPrefetch();
-				bool SendQuery(const std::string& Command);
-				void Reestablish();
-			};
-
-			class TH_OUT Queue : public Core::Object
-			{
-				friend Connection;
-
-			private:
-				std::unordered_set<Connection*> Active;
-				std::unordered_set<Connection*> Inactive;
-				std::atomic<bool> Connected;
-				std::mutex Safe;
-				Address Source;
-
-			public:
-				Queue();
-				virtual ~Queue() override;
-				Core::Async<bool> Connect(const Address& URI);
-				Core::Async<bool> Disconnect();
-				bool Push(Connection** Client);
-				Connection* Pop();
-
-			private:
-				void Clear(Connection* Client);
+				void Reestablish(Socket* Stream, Connection* Base);
+                bool Consume(Connection* Base);
+                bool Reprocess(Socket* Stream, Connection* Base);
+                bool Dispatch(Socket* Stream, const char*, int64_t);
 			};
 
 			class TH_OUT Driver
@@ -428,7 +423,6 @@ namespace Tomahawk
 
 			private:
 				static std::unordered_map<std::string, Sequence>* Queries;
-				static std::unordered_set<Connection*>* Listeners;
 				static std::mutex* Safe;
 				static std::atomic<bool> Active;
 				static std::atomic<int> State;
@@ -436,22 +430,17 @@ namespace Tomahawk
 			public:
 				static void Create();
 				static void Release();
-				static void Reschedule(bool Set);
-				static int Dispatch();
-				static bool Listen(Connection* Value);
-				static bool Unlisten(Connection* Value);
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
-				static std::string Emplace(Connection* Base, const std::string& SQL, Core::DocumentList* Map, bool Once = true);
-				static std::string GetQuery(Connection* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+				static std::string Emplace(Cluster* Base, const std::string& SQL, Core::DocumentList* Map, bool Once = true);
+				static std::string GetQuery(Cluster* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:
-				static void Resolve();
-				static std::string GetCharArray(Connection* Base, const std::string& Src);
-				static std::string GetByteArray(Connection* Base, const char* Src, size_t Size);
-				static std::string GetSQL(Connection* Base, Core::Document* Source, bool Escape);
+				static std::string GetCharArray(TConnection* Base, const std::string& Src);
+				static std::string GetByteArray(TConnection* Base, const char* Src, size_t Size);
+				static std::string GetSQL(TConnection* Base, Core::Document* Source, bool Escape);
 			};
 		}
 	}

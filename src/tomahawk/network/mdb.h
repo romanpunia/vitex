@@ -94,6 +94,8 @@ namespace Tomahawk
 				~Property();
 				void Release();
 				std::string& ToString();
+				Property operator [](const char* Name);
+				Property operator [](const char* Name) const;
 			};
 
 			class TH_OUT Util
@@ -132,10 +134,10 @@ namespace Tomahawk
 				bool SetBoolean(const char* Key, bool Value, uint64_t ArrayId = 0);
 				bool SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId = 0);
 				bool SetNull(const char* Key, uint64_t ArrayId = 0);
-				bool Set(const char* Key, Property* Value, uint64_t ArrayId = 0);
-				bool Has(const char* Key) const;
-				bool Get(const char* Key, Property* Output) const;
-				bool Find(const char* Key, Property* Output) const;
+				bool SetProperty(const char* Key, Property* Value, uint64_t ArrayId = 0);
+				bool HasProperty(const char* Key) const;
+				bool GetProperty(const char* Key, Property* Output) const;
+				bool FindProperty(const char* Key, Property* Output) const;
 				uint64_t Count() const;
 				std::string ToRelaxedJSON() const;
 				std::string ToExtendedJSON() const;
@@ -148,6 +150,18 @@ namespace Tomahawk
 				operator bool() const
 				{
 					return Base != nullptr;
+				}
+				Property operator [](const char* Name)
+				{
+					Property Result;
+					FindProperty(Name, &Result);
+					return Result;
+				}
+				Property operator [](const char* Name) const
+				{
+					Property Result;
+					FindProperty(Name, &Result);
+					return Result;
 				}
 
 			public:

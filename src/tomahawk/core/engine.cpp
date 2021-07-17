@@ -5617,7 +5617,7 @@ namespace Tomahawk
 
 			Host = this;
 #ifdef TH_HAS_SDL2
-			if (I->Usage & (size_t)ApplicationUse::Activity_Module)
+			if (I->Usage & (size_t)ApplicationSet::ActivitySet)
 			{
 				if (!I->Activity.Width || !I->Activity.Height)
 				{
@@ -5678,7 +5678,7 @@ namespace Tomahawk
 						WindowEvent(NewState, X, Y);
 					};
 
-					if (I->Usage & (size_t)ApplicationUse::Graphics_Module)
+					if (I->Usage & (size_t)ApplicationSet::GraphicsSet)
 					{
 						Compute::Vector2 Size = Activity->GetSize();
 						if (!I->GraphicsDevice.BufferWidth)
@@ -5703,7 +5703,7 @@ namespace Tomahawk
 					TH_ERROR("cannot detect display to create activity");
 			}
 #endif
-			if (I->Usage & (size_t)ApplicationUse::Audio_Module)
+			if (I->Usage & (size_t)ApplicationSet::AudioSet)
 			{
 				Audio = new Audio::AudioDevice();
 				if (!Audio->IsValid())
@@ -5713,7 +5713,7 @@ namespace Tomahawk
 				}
 			}
 
-			if (I->Usage & (size_t)ApplicationUse::Content_Module)
+			if (I->Usage & (size_t)ApplicationSet::ContentSet)
 			{
 				Content = new ContentManager(Renderer);
 				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
@@ -5729,9 +5729,8 @@ namespace Tomahawk
 				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
 			}
 
-			if (I->Usage & (size_t)ApplicationUse::Script_Module)
+			if (I->Usage & (size_t)ApplicationSet::ScriptSet)
 				VM = new Script::VMManager();
-
 #ifdef TH_WITH_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 			{
@@ -5739,6 +5738,10 @@ namespace Tomahawk
 				GUI::Subsystem::SetManager(VM);
 			}
 #endif
+            NetworkQueue = (I->Usage & (size_t)ApplicationSet::NetworkSet);
+            if (NetworkQueue)
+                Network::Driver::Create();
+
 			State = ApplicationState::Staging;
 		}
 		Application::~Application()
@@ -5762,6 +5765,9 @@ namespace Tomahawk
 			for (auto& Job : Workers)
 				TH_DELETE(Reactor, Job);
 
+            if (NetworkQueue)
+                Network::Driver::Release();
+            
 			Host = nullptr;
 		}
 		void Application::ScriptHook(Script::VMGlobal* Global)
@@ -5800,29 +5806,29 @@ namespace Tomahawk
 			if (!ComposeEvent())
 				Compose();
 
-			if (I->Usage & (size_t)ApplicationUse::Activity_Module && !Activity)
+			if (I->Usage & (size_t)ApplicationSet::ActivitySet && !Activity)
 			{
-				TH_ERROR("(CONF): activity was not found");
+				TH_ERROR("[conf] activity was not found");
 				return;
 			}
 
-			if (I->Usage & (size_t)ApplicationUse::Graphics_Module && !Renderer)
+			if (I->Usage & (size_t)ApplicationSet::GraphicsSet && !Renderer)
 			{
-				TH_ERROR("(CONF): graphics device was not found");
+				TH_ERROR("[conf] graphics device was not found");
 				return;
 			}
 
-			if (I->Usage & (size_t)ApplicationUse::Audio_Module && !Audio)
+			if (I->Usage & (size_t)ApplicationSet::AudioSet && !Audio)
 			{
-				TH_ERROR("(CONF): audio device was not found");
+				TH_ERROR("[conf] audio device was not found");
 				return;
 			}
 
-			if (I->Usage & (size_t)ApplicationUse::Script_Module)
+			if (I->Usage & (size_t)ApplicationSet::ScriptSet)
 			{
 				if (!VM)
 				{
-					TH_ERROR("(CONF): VM was not found");
+					TH_ERROR("[conf] VM was not found");
 					return;
 				}
 				else
@@ -5832,7 +5838,7 @@ namespace Tomahawk
 			Initialize(I);
 			if (State == ApplicationState::Terminated)
 				return;
-
+            
 			if (Scene != nullptr)
 				Scene->Dispatch();
 
@@ -5846,6 +5852,9 @@ namespace Tomahawk
 				Queue->SetTask([Job]() { Application::Callee(Job); });
 			}
 
+            if (NetworkQueue)
+                Network::Driver::Multiplex();
+            
 			Reactor* Job = Workers.front();
 			Job->Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
 			Job->Time->FrameLimit = I->Framerate;
@@ -5870,7 +5879,10 @@ namespace Tomahawk
 				else
 				{
 					while (State == ApplicationState::Multithreaded)
+                    {
 						Job->UpdateCore();
+                        Publish(Job->Time);
+                    }
 				}
 			}
 			else
@@ -5894,6 +5906,7 @@ namespace Tomahawk
 					{
 						Queue->Dispatch();
 						Job->UpdateCore();
+                        Publish(Job->Time);
 					}
 				}
 			}

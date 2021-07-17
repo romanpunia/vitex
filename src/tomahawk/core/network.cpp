@@ -58,7 +58,7 @@ namespace Tomahawk
 {
 	namespace Network
 	{
-		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Port(0), Protocol("file")
+		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(0)
 		{
 			if (URL.empty())
 				return;
@@ -845,6 +845,34 @@ namespace Tomahawk
 			Sync.IO.unlock();
 			return ((IO & (uint32_t)SocketEvent::Write && Output) || (IO & (size_t)SocketEvent::Read && Input) ? 1 : 0);
 		}
+        int Socket::SetFd(socket_t NewFd)
+        {
+            int Result = Clear(false);
+            Fd = NewFd;
+            return Result;
+        }
+        int Socket::SetReadNotify(SocketReadCallback&& Callback)
+        {
+            if (!Callback)
+                return -1;
+            
+            Sync.IO.lock();
+            bool OK = ReadSet(std::move(Callback), nullptr, -1, 0);
+            Sync.IO.unlock();
+            
+            return OK ? 0 : -1;
+        }
+        int Socket::SetWriteNotify(SocketWriteCallback&& Callback)
+        {
+            if (!Callback)
+                return -1;
+            
+            Sync.IO.lock();
+            bool OK = WriteSet(std::move(Callback), nullptr, -1);
+            Sync.IO.unlock();
+            
+            return OK ? 0 : -1;
+        }
 		int Socket::SetTimeWait(int Timeout)
 		{
 			linger Linger;
@@ -1026,10 +1054,14 @@ namespace Tomahawk
 			Output = TH_NEW(WriteEvent);
 			Output->Callback = std::move(Callback);
 			Output->Size = Size;
-			Output->Buffer = (char*)TH_MALLOC((size_t)Size);
-			memcpy(Output->Buffer, Buffer, (size_t)Size);
-			Driver::Listen(this, false);
-
+            
+            if (Size > 0)
+            {
+                Output->Buffer = (char*)TH_MALLOC((size_t)Size);
+                memcpy(Output->Buffer, Buffer, (size_t)Size);
+            }
+            
+            Driver::Listen(this, false);
 			return true;
 		}
 		bool Socket::WriteFlush()
@@ -1213,11 +1245,23 @@ namespace Tomahawk
 		{
 			PipeTimeout = Timeout;
 			if (Array != nullptr || Handle != INVALID_EPOLL)
-				return;
+            {
+                if (ArraySize == Length)
+                    return;
+                
+                if (Handle != INVALID_EPOLL)
+                    epoll_close(Handle);
 
-			Sources = new std::unordered_set<Socket*>();
-			fSources = new std::mutex();
-			ArraySize = Length;
+                if (Array != nullptr)
+                    TH_FREE(Array);
+            }
+            else
+            {
+                Sources = new std::unordered_set<Socket*>();
+                fSources = new std::mutex();
+            }
+            
+            ArraySize = Length;
 #ifdef TH_APPLE
 			Handle = kqueue();
 			Array = (struct kevent*)TH_MALLOC(sizeof(struct kevent) * ArraySize);
@@ -1225,7 +1269,6 @@ namespace Tomahawk
 			Handle = epoll_create(1);
 			Array = (epoll_event*)TH_MALLOC(sizeof(epoll_event) * ArraySize);
 #endif
-			Reschedule(true);
 		}
 		void Driver::Release()
 		{
@@ -1253,29 +1296,11 @@ namespace Tomahawk
 				fSources = nullptr;
 			}
 		}
-		void Driver::Reschedule(bool Set)
-		{
-			if (Set)
-			{
-				if (!Active)
-				{
-					Core::Schedule::Get()->SetTask(Driver::Resolve);
-					Active = true;
-				}
-			}
-			else if (Active)
-				Active = false;
-		}
-		void Driver::Resolve()
-		{
-			Core::Schedule* Queue = Core::Schedule::Get();
-			if (!Queue)
-				return;
-
-			Dispatch();
-			if (Queue->IsActive() && Active)
-				Queue->SetTask(Driver::Resolve);
-		}
+        void Driver::Multiplex()
+        {
+            Dispatch();
+            Core::Schedule::Get()->SetTask(&Driver::Multiplex);
+        }
 		int Driver::Dispatch()
 		{
 #ifdef TH_APPLE
@@ -1493,12 +1518,11 @@ namespace Tomahawk
 				fSources->unlock();
 			}
 
-			bool Set = Value->Sync.Poll;
 			Value->Sync.Time = Clock();
 			Value->Sync.Poll = true;
 #ifdef TH_APPLE
 			struct kevent Event;
-			int Result1, Result2;
+			int Result1 = 1, Result2 = 1;
 
 			if (Always || Value->Input != nullptr || Value->Listener)
 			{
@@ -1537,7 +1561,7 @@ namespace Tomahawk
 			fSources->unlock();
 #ifdef TH_APPLE
 			struct kevent Event;
-			int Result1, Result2;
+			int Result1 = 1, Result2 = 1;
 
 			if (Always || Value->Input != nullptr || Value->Listener)
 			{
@@ -1550,7 +1574,10 @@ namespace Tomahawk
 				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
 				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 			}
-
+            
+            if (Always || (!Value->Input && !Value->Output))
+                Value->Sync.Poll = false;
+            
 			return Result1 == 1 && Result2 == 1 ? 0 : -1;
 #else
 			epoll_event Event;
@@ -1584,6 +1611,10 @@ namespace Tomahawk
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
+        bool Driver::IsActive()
+        {
+            return Array != nullptr || Handle != INVALID_EPOLL;
+        }
 #ifdef TH_APPLE
 		struct kevent* Driver::Array = nullptr;
 #else
@@ -1592,9 +1623,8 @@ namespace Tomahawk
 		epoll_handle Driver::Handle = INVALID_EPOLL;
 		std::unordered_set<Socket*>* Driver::Sources = nullptr;
 		std::mutex* Driver::fSources = nullptr;
-		int64_t Driver::PipeTimeout = 200;
+		int64_t Driver::PipeTimeout = 100;
 		int Driver::ArraySize = 0;
-		std::atomic<bool> Driver::Active(false);
 
 		SocketServer::SocketServer()
 		{

@@ -105,6 +105,22 @@ namespace Tomahawk
 
 				return String;
 			}
+			Property Property::operator [](const char* Name)
+			{
+				Property Result;
+				Document Source(Object ? Object : Array);
+				Source.FindProperty(Name, &Result);
+
+				return Result;
+			}
+			Property Property::operator [](const char* Name) const
+			{
+				Property Result;
+				Document Source(Object ? Object : Array);
+				Source.FindProperty(Name, &Result);
+
+				return Result;
+			}
 
 			bool Util::GetId(unsigned char* Id12)
 			{
@@ -478,7 +494,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Set(const char* Key, Property* Value, uint64_t ArrayId)
+			bool Document::SetProperty(const char* Key, Property* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Value)
@@ -513,7 +529,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Has(const char* Key) const
+			bool Document::HasProperty(const char* Key) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -524,7 +540,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Get(const char* Key, Property* Output) const
+			bool Document::GetProperty(const char* Key, Property* Output) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It;
@@ -536,7 +552,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Find(const char* Key, Property* Output) const
+			bool Document::FindProperty(const char* Key, Property* Output) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It, Value;
@@ -1675,16 +1691,12 @@ namespace Tomahawk
 				auto* Context = Base;
 				return Core::Async<uint64_t>([Context, Match, Filter, Options](Core::Async<uint64_t>& Future)
 				{
-					Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(Match.Get()), "}", "{", "$project", "{", "Count", "{", "$Count", "{", "$filter", BCON_DOCUMENT(Filter.Get()), "}", "}", "}", "}", "]");
+					Document Pipeline = BCON_NEW("pipeline", "[", "{", "$match", BCON_DOCUMENT(Match.Get()), "}", "{", "$project", "{", "Count", "{", "$count", "{", "$filter", BCON_DOCUMENT(Filter.Get()), "}", "}", "}", "}", "]");
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, MONGOC_QUERY_NONE, Pipeline.Get(), Options.Get(), nullptr);
 					Property Count;
 
 					if (Subresult.NextSync())
-					{
-						Document Result = Subresult.GetCurrent();
-						if (Result.Get())
-							Result.Get("Count", &Count);
-					}
+						Subresult.GetCurrent().GetProperty("Count", &Count);
 
 					Subresult.Release();
 					Pipeline.Release();
@@ -2412,7 +2424,7 @@ namespace Tomahawk
 #endif
 			}
 
-			Connection::Connection() : Session(nullptr), Base(nullptr), Master(nullptr), Connected(false)
+			Connection::Connection() : Connected(false), Session(nullptr), Base(nullptr), Master(nullptr)
 			{
 				Driver::Create();
 			}
@@ -2750,7 +2762,7 @@ namespace Tomahawk
 				return Connected;
 			}
 
-			Queue::Queue() : Pool(nullptr), SrcAddress(nullptr), Connected(false)
+			Queue::Queue() : Connected(false), Pool(nullptr), SrcAddress(nullptr)
 			{
 				Driver::Create();
 			}

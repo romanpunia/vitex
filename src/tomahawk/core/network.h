@@ -140,6 +140,9 @@ namespace Tomahawk
 			int ReadAsync(int64_t Size, SocketReadCallback&& Callback);
 			int ReadUntil(const char* Match, const SocketReadCallback& Callback);
 			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback);
+            int SetFd(socket_t Fd);
+            int SetReadNotify(SocketReadCallback&& Callback);
+            int SetWriteNotify(SocketWriteCallback&& Callback);
 			int SetTimeWait(int Timeout);
 			int SetSocket(int Option, void* Value, int Size);
 			int SetAny(int Level, int Option, void* Value, int Size);
@@ -296,21 +299,20 @@ namespace Tomahawk
 			static epoll_handle Handle;
 			static int64_t PipeTimeout;
 			static int ArraySize;
-            static std::atomic<bool> Active;
 
 		public:
-			static void Create(int MaxEvents, int64_t Timeout);
+			static void Create(int MaxEvents = 256, int64_t Timeout = 100);
 			static void Release();
-            static void Reschedule(bool Set);
+            static void Multiplex();
 			static int Dispatch();
-			static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);
 			static int Listen(Socket* Value, bool Always);
 			static int Unlisten(Socket* Value, bool Always);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
-			static int64_t Clock();
+            static int64_t Clock();
+            static bool IsActive();
             
         private:
-            static void Resolve();
+            static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);
 		};
 
 		class TH_OUT SocketServer : public Core::Object

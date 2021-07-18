@@ -224,6 +224,13 @@ namespace Tomahawk
 			Write_Tab,
 		};
 
+        enum class Coactive
+        {
+            Active,
+            Inactive,
+            Resumable
+        };
+    
 		typedef std::vector<struct Variant> VariantList;
 		typedef std::vector<Document*> DocumentList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
@@ -245,6 +252,7 @@ namespace Tomahawk
 			friend Costate;
 
 		private:
+            std::atomic<Coactive> State;
 			TaskCallback Callback;
 			Cocontext* Switch;
 			Costate* Master;
@@ -1173,20 +1181,22 @@ namespace Tomahawk
 			Costate& operator= (Costate&&) = delete;
 			Coroutine* Pop(const TaskCallback& Procedure);
 			Coroutine* Pop(TaskCallback&& Procedure);
-			bool Reuse(Coroutine* Routine, const TaskCallback& Procedure);
-			bool Reuse(Coroutine* Routine, TaskCallback&& Procedure);
-			bool Reuse(Coroutine* Routine);
-			bool Push(Coroutine* Routine);
-			bool Resume(Coroutine* Routine);
-			bool Resume(bool Restore = true);
-			bool Dispatch(bool Restore = true);
-			bool Suspend();
+			int Reuse(Coroutine* Routine, const TaskCallback& Procedure);
+			int Reuse(Coroutine* Routine, TaskCallback&& Procedure);
+			int Reuse(Coroutine* Routine);
+			int Push(Coroutine* Routine);
+            int Activate(Coroutine* Routine);
+            int Deactivate(Coroutine* Routine);
+			int Resume(Coroutine* Routine);
+			int Resume(bool Restore = true);
+			int Dispatch(bool Restore = true);
+			int Suspend();
 			void Clear();
 			Coroutine* GetCurrent() const;
 			uint64_t GetCount() const;
 
 		private:
-			bool Swap(Coroutine* Routine);
+			int Swap(Coroutine* Routine);
 
 		public:
 			static Costate* Get();
@@ -2002,12 +2012,18 @@ namespace Tomahawk
 		inline T& Coawait(Async<T>&& Future)
 		{
 			Costate* State = Costate::Get();
-			if (!State)
+            if (!State || !Future.IsPending())
                 return Future.Get();
-        
-            while (Future.IsPending())
-                State->Suspend();
-
+            
+            Coroutine* Base = State->GetCurrent();
+            Future.Await([State, Base](T&&) mutable
+            {
+                State->Activate(Base);
+            });
+            
+            if (Future.IsPending())
+                State->Deactivate(Base);
+            
 			return Future.GetOrSet();
 		}
 		template <typename T>

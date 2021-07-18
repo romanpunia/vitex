@@ -202,10 +202,10 @@ namespace Tomahawk
 			}
 		};
 
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), State(Coactive::Active), Dead(false)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), State(Coactive::Active), Dead(false)
 		{
 		}
 		Coroutine::~Coroutine()
@@ -6503,6 +6503,7 @@ namespace Tomahawk
 			{
 				Routine = *Cached.begin();
 				Routine->Callback = Procedure;
+                Routine->State = Coactive::Active;
 				Cached.erase(Cached.begin());
 			}
 			else
@@ -6521,6 +6522,7 @@ namespace Tomahawk
 			{
 				Routine = *Cached.begin();
 				Routine->Callback = std::move(Procedure);
+                Routine->State = Coactive::Active;
 				Cached.erase(Cached.begin());
 			}
 			else
@@ -6531,43 +6533,53 @@ namespace Tomahawk
 
 			return Routine;
 		}
-		bool Costate::Reuse(Coroutine* Routine, const TaskCallback& Procedure)
+		int Costate::Reuse(Coroutine* Routine, const TaskCallback& Procedure)
 		{
 			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return false;
+				return -1;
 
 			Routine->Callback = Procedure;
             Routine->Dead = false;
-			return true;
+            Routine->State = Coactive::Active;
+			return 1;
 		}
-		bool Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
+		int Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
 		{
 			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return false;
+				return -1;
 
 			Routine->Callback = std::move(Procedure);
             Routine->Dead = false;
-			return true;
+            Routine->State = Coactive::Active;
+			return 1;
 		}
-		bool Costate::Reuse(Coroutine* Routine)
+		int Costate::Reuse(Coroutine* Routine)
 		{
 			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return false;
+				return -1;
 
 			Routine->Callback = nullptr;
             Routine->Dead = false;
+            Routine->State = Coactive::Active;
+            
 			Safe.lock();
 			Used.erase(Routine);
 			Cached.emplace(Routine);
 			Safe.unlock();
 
-			return true;
+			return 1;
 		}
-		bool Costate::Swap(Coroutine* Routine)
+		int Costate::Swap(Coroutine* Routine)
 		{
 			if (!Routine || Routine->Dead)
-				return false;
-
+				return -1;
+            
+            if (Routine->State == Coactive::Inactive)
+                return 0;
+            
+            if (Routine->State == Coactive::Resumable)
+                Routine->State = Coactive::Active;
+            
             Cocontext* Fiber = Routine->Switch;
             Current = Routine;
 #ifdef TH_MICROSOFT
@@ -6606,12 +6618,12 @@ namespace Tomahawk
 #endif
 			}
 
-			return !Routine->Dead;
+			return Routine->Dead ? -1 : 1;
 		}
-		bool Costate::Push(Coroutine* Routine)
+		int Costate::Push(Coroutine* Routine)
 		{
 			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return false;
+				return -1;
 
 			Safe.lock();
             Cached.erase(Routine);
@@ -6619,41 +6631,58 @@ namespace Tomahawk
 			Safe.unlock();
 
 			TH_DELETE(Coroutine, Routine);
-			return true;
+			return 1;
 		}
-		bool Costate::Resume(Coroutine* Routine)
+        int Costate::Activate(Coroutine* Routine)
+        {
+            if (!Routine || Routine->Master != this || Routine->Dead || Routine->State != Coactive::Inactive)
+                return -1;
+            
+            Routine->State = Coactive::Resumable;
+            return 1;
+        }
+        int Costate::Deactivate(Coroutine* Routine)
+        {
+            if (Thread != std::this_thread::get_id() || Current != Routine || !Routine || Routine->Master != this || Routine->Dead || Routine->State != Coactive::Active)
+                return -1;
+            
+            Routine->State = Coactive::Inactive;
+            return Suspend();
+        }
+		int Costate::Resume(Coroutine* Routine)
 		{
 			if (Thread != std::this_thread::get_id() || Current == Routine || !Routine || Routine->Master != this)
-				return false;
+				return -1;
 
 			return Swap(Routine);
 		}
-		bool Costate::Resume(bool Restore)
+		int Costate::Resume(bool Restore)
 		{
 			if (Used.empty() || Thread != std::this_thread::get_id())
-				return false;
+				return -1;
 
 			Safe.lock();
 			Coroutine* Routine = (Used.empty() ? nullptr : *Used.begin());
 			Safe.unlock();
 
 			if (!Routine)
-				return false;
+				return -1;
 
-			if (Swap(Routine))
-				return true;
+            int Code = Swap(Routine);
+			if (Code != -1)
+				return Code;
 
 			if (Restore)
 				Reuse(Routine);
 			else
 				Push(Routine);
 
-			return !Used.empty();
+			return Used.empty() ? Code : 1;
 		}
-		bool Costate::Dispatch(bool Restore)
+		int Costate::Dispatch(bool Restore)
 		{
 			if (Used.empty() || Thread != std::this_thread::get_id())
-				return false;
+				return -1;
 
 			Safe.lock();
 			auto Sources = Used;
@@ -6662,7 +6691,7 @@ namespace Tomahawk
 			size_t Activities = 0;
 			for (auto* Routine : Sources)
 			{
-				if (Swap(Routine))
+				if (Swap(Routine) != -1)
 					continue;
 
 				Activities++;
@@ -6673,25 +6702,22 @@ namespace Tomahawk
 				break;
 			}
 
-			if (!Activities)
-				std::this_thread::sleep_for(std::chrono::microseconds(100));
-
-			return !Used.empty();
+			return Used.empty() ? -1 : (int)Activities;
 		}
-		bool Costate::Suspend()
+		int Costate::Suspend()
 		{
 			if (Thread != std::this_thread::get_id())
-				return false;
+				return -1;
 
 			Coroutine* Routine = Current;
 			if (!Routine || Routine->Master != this)
-				return false;
+				return -1;
 
 #ifndef TH_MICROSOFT
 			char Bottom = 0;
 			char* Top = Routine->Switch->Stack + Size;
 			if (size_t(Top - &Bottom) > Size)
-				return false;
+				return -1;
 
 			Current = nullptr;
 			swapcontext(&Routine->Switch->Context, &Switch->Context);
@@ -6699,7 +6725,7 @@ namespace Tomahawk
 			Current = nullptr;
 			SwitchToFiber(Switch->Context);
 #endif
-			return true;
+			return 1;
 		}
 		void Costate::Clear()
 		{
@@ -7201,7 +7227,8 @@ namespace Tomahawk
 			if (!State->GetCount())
 				return Code;
 
-			while (State->Dispatch())
+            int Count = -1;
+			while ((Count = State->Dispatch()) != -1)
 			{
 				if (Reconsume)
 				{
@@ -7210,6 +7237,9 @@ namespace Tomahawk
 				}
 
 				DispatchTask();
+                if (Count == 0)
+                    std::this_thread::sleep_for(std::chrono::microseconds(100));
+                    
 				if (Asyncs.empty())
 					continue;
 

@@ -202,10 +202,10 @@ namespace Tomahawk
 			}
 		};
 
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), State(Coactive::Active), Dead(false)
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : State(Coactive::Active), Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), State(Coactive::Active), Dead(false)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : State(Coactive::Active), Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
 		{
 		}
 		Coroutine::~Coroutine()

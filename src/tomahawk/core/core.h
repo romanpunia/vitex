@@ -2015,14 +2015,8 @@ namespace Tomahawk
             if (!State || !Future.IsPending())
                 return Future.Get();
             
-            Coroutine* Base = State->GetCurrent();
-            Future.Await([State, Base](T&&) mutable
-            {
-                State->Activate(Base);
-            });
-            
-            if (Future.IsPending())
-                State->Deactivate(Base);
+            while (Future.IsPending())
+                State->Suspend();
             
 			return Future.GetOrSet();
 		}

@@ -4530,7 +4530,9 @@ namespace Tomahawk
 
 			memset(Value, 0, (size_t)Size * sizeof(char));
 			Value[Size] = '\0';
-
+#ifndef TH_MICROSOFT
+            std::cout.flush();
+#endif
 			std::cin.getline(Value, Size);
 			std::string Output = Value;
 			TH_FREE(Value);

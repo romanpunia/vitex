@@ -17,6 +17,8 @@ namespace Tomahawk
 
 			class Row;
 
+            class Request;
+        
 			class Response;
 
 			class Cluster;
@@ -359,24 +361,44 @@ namespace Tomahawk
 					return !Base.empty();
 				}
 			};
-
+        
+            class TH_OUT Connection
+            {
+                friend Cluster;
+                
+            private:
+                TConnection* Base;
+                Socket* Stream;
+                Request* Current;
+                QueryState State;
+                
+            public:
+                TConnection* GetBase() const;
+                Socket* GetStream() const;
+                Request* GetCurrent() const;
+                QueryState GetState() const;
+                bool IsBusy() const;
+            };
+        
+            class TH_OUT Request
+            {
+                friend Cluster;
+                
+            private:
+                Core::Async<Cursor> Future;
+                std::string Command;
+                Connection* Target;
+                Cursor Result;
+                
+            public:
+                Connection* GetTarget() const;
+                std::string GetCommand() const;
+                Cursor GetResult() const;
+                bool IsPending() const;
+            };
+        
 			class TH_OUT Cluster : public Core::Object
 			{
-			private:
-				struct Request
-				{
-					Core::Async<Cursor> Future;
-					std::string Command;
-					Cursor Result;
-				};
-
-				struct Connection
-				{
-					TConnection* Base;
-					Request* Current;
-					QueryState State;
-				};
-
 			private:
 				std::unordered_map<std::string, OnNotification> Listeners;
                 std::unordered_map<Socket*, Connection*> Pool;
@@ -390,17 +412,18 @@ namespace Tomahawk
 				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
 				Core::Async<bool> Connect(const Address& URI, size_t Connections);
 				Core::Async<bool> Disconnect();
-				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true);
-				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
-				Core::Async<Cursor> Query(const std::string& Command);
+				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, Connection* Session = nullptr);
+				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, Connection* Session = nullptr);
+				Core::Async<Cursor> Query(const std::string& Command, Connection* Session = nullptr);
 				TConnection* GetConnection(QueryState State);
 				TConnection* GetConnection() const;
+                Connection* GetSession() const;
 				bool IsConnected() const;
 
 			private:
-				void Reestablish(Socket* Stream, Connection* Base);
+				void Reestablish(Connection* Base);
                 bool Consume(Connection* Base);
-                bool Reprocess(Socket* Stream, Connection* Base);
+                bool Reprocess(Connection* Base);
                 bool Dispatch(Socket* Stream, const char*, int64_t);
 			};
 

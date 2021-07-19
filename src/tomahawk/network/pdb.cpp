@@ -1238,6 +1238,44 @@ namespace Tomahawk
 				return Base[Index];
 			}
 
+            TConnection* Connection::GetBase() const
+            {
+                return Base;
+            }
+            Socket* Connection::GetStream() const
+            {
+                return Stream;
+            }
+            Request* Connection::GetCurrent() const
+            {
+                return Current;
+            }
+            QueryState Connection::GetState() const
+            {
+                return State;
+            }
+            bool Connection::IsBusy() const
+            {
+                return Current != nullptr;
+            }
+
+            Connection* Request::GetTarget() const
+            {
+                return Target;
+            }
+            std::string Request::GetCommand() const
+            {
+                return Command;
+            }
+            Cursor Request::GetResult() const
+            {
+                return Result;
+            }
+            bool Request::IsPending() const
+            {
+                return Future.IsPending();
+            }
+            
 			Cluster::Cluster()
 			{
 				Driver::Create();
@@ -1289,7 +1327,7 @@ namespace Tomahawk
 				return Core::Async<bool>([this, Connections](Core::Async<bool>& Future)
 				{
 					const char** Keys = Source.CreateKeys();
-					const char **Values = Source.CreateValues();
+					const char** Values = Source.CreateValues();
 
 					Update.lock();
 					for (size_t i = 0; i < Connections; i++)
@@ -1312,13 +1350,13 @@ namespace Tomahawk
 						PQlogMessage(Base);
 
 						Connection* Next = TH_NEW(Connection);
+                        Next->Stream = TH_NEW(Socket, (socket_t)PQsocket(Base));
 						Next->Base = Base;
 						Next->Current = nullptr;
 						Next->State = QueryState::Idle;
                         
-                        Socket* Stream = TH_NEW(Socket, (socket_t)PQsocket(Base));
-                        Pool.insert(std::make_pair(Stream, Next));
-                        Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
+                        Pool.insert(std::make_pair(Next->Stream, Next));
+                        Next->Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
                         {
                             return Dispatch(Stream, Buffer, Size);
                         });
@@ -1358,21 +1396,22 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once)
+			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, Connection* Session)
 			{
-				return Query(Driver::Emplace(this, Command, Map, Once));
+				return Query(Driver::Emplace(this, Command, Map, Once), Session);
 			}
-			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
+			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Connection* Session)
 			{
-				return Query(Driver::GetQuery(this, Name, Map, Once));
+				return Query(Driver::GetQuery(this, Name, Map, Once), Session);
 			}
-			Core::Async<Cursor> Cluster::Query(const std::string& Command)
+			Core::Async<Cursor> Cluster::Query(const std::string& Command, Connection* Session)
 			{
 				if (Command.empty())
 					return Core::Async<Cursor>::Store(Cursor());
 
 				Request* Next = TH_NEW(Request);
 				Next->Command = Command;
+                Next->Target = Session;
 
 				Core::Async<Cursor> Future = Next->Future;
 				Update.lock();
@@ -1412,11 +1451,24 @@ namespace Tomahawk
                 
                 return nullptr;
 			}
+            Connection* Cluster::GetSession() const
+            {
+                for (auto& Item : Pool)
+                {
+                    if (Item.second->State == QueryState::Idle)
+                        return Item.second;
+                }
+                
+                for (auto& Item : Pool)
+                    return Item.second;
+                    
+                return nullptr;
+            }
 			bool Cluster::IsConnected() const
 			{
 				return !Pool.empty();
 			}
-			void Cluster::Reestablish(Socket* Stream, Connection* Target)
+			void Cluster::Reestablish(Connection* Target)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				const char** Keys = Source.CreateKeys();
@@ -1424,20 +1476,26 @@ namespace Tomahawk
 
 				if (Target->Current != nullptr)
 				{
-					TH_WARN("[pqwarn] query operation will retry");
-					Requests.push_back(Target->Current);
-					Target->Current->Result.Release();
-					Target->Current = nullptr;
+                    Request* Current = Target->Current;
+                    Current->Result.Release();
+                    Target->Current = nullptr;
+
+                    Update.unlock();
+                    Current->Future.Set(Cursor());
+                    Update.lock();
+                    
+                    TH_WARN("[pqwarn] query operation will not retry (neterr)");
+                    TH_DELETE(Request, Current);
 				}
 
-                Stream->Clear(false);
+                Target->Stream->Clear(false);
 				PQfinish(Target->Base);
 				Target->Base = PQconnectdbParams(Keys, Values, 0);
 				if (Target->Base != nullptr)
 				{
 					PQsetnonblocking(Target->Base, 1);
 					PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
-                    Stream->SetFd((socket_t)PQsocket(Target->Base));
+                    Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
 					Target->State = QueryState::Idle;
 				}
 				else
@@ -1454,7 +1512,11 @@ namespace Tomahawk
                 if (Base->State != QueryState::Idle || Requests.empty())
                     return false;
                 
-                Base->Current = Requests.front();
+                Request* Next = Requests.front();
+                if (Next->Target != nullptr && Next->Target != Base)
+                    return false;
+                
+                Base->Current = Next;
                 Requests.erase(Requests.begin());
                 if (!Base->Current)
                     return false;
@@ -1480,9 +1542,9 @@ namespace Tomahawk
                 return false;
 #endif
             }
-            bool Cluster::Reprocess(Socket* Stream, Connection* Base)
+            bool Cluster::Reprocess(Connection* Base)
             {
-                return Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
+                return Base->Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
                 {
                     return Dispatch(Stream, Buffer, Size);
                 }) == 1;
@@ -1501,10 +1563,10 @@ namespace Tomahawk
                 Connection* Source = It->second;
                 if (Source->State == QueryState::Lost)
                 {
-                    Reestablish(Stream, Source);
+                    Reestablish(Source);
                     Consume(Source);
                     Update.unlock();
-                    return Reprocess(Stream, Source);
+                    return Reprocess(Source);
                 }
 
             Retry:
@@ -1514,13 +1576,13 @@ namespace Tomahawk
                     PQlogMessage(Source->Base);
                     Source->State = QueryState::Lost;
                     Update.unlock();
-                    return Reprocess(Stream, Source);
+                    return Reprocess(Source);
                 }
 
                 if (PQisBusy(Source->Base) == 1)
                 {
                     Update.unlock();
-                    return Reprocess(Stream, Source);
+                    return Reprocess(Source);
                 }
                 
                 PGnotify* Notification = PQnotifies(Source->Base);
@@ -1562,7 +1624,7 @@ namespace Tomahawk
                             Consume(Source);
                             Update.unlock();
                             
-                            return Reprocess(Stream, Source);
+                            return Reprocess(Source);
                         }
                         
                         Source->Current->Result.Base.emplace_back(Frame);
@@ -1577,7 +1639,7 @@ namespace Tomahawk
                 
                 Consume(Source);
                 Update.unlock();
-                return Reprocess(Stream, Source);
+                return Reprocess(Source);
 #else
                 return false;
 #endif

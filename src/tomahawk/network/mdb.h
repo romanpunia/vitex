@@ -31,11 +31,13 @@ namespace Tomahawk
 			typedef _mongoc_change_stream_t TWatcher;
 			typedef _mongoc_client_session_t TTransaction;
 
+            class Transaction;
+        
 			class Connection;
 
-			class Queue;
+			class Cluster;
 
-			enum class Query
+			enum class QueryFlags
 			{
 				None = 0,
 				Tailable_Cursor = 1 << 1,
@@ -70,9 +72,9 @@ namespace Tomahawk
 				Fatal
 			};
 
-			inline Query operator |(Query A, Query B)
+			inline QueryFlags operator |(QueryFlags A, QueryFlags B)
 			{
-				return static_cast<Query>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+				return static_cast<QueryFlags>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 			}
 
 			struct TH_OUT Property
@@ -94,6 +96,7 @@ namespace Tomahawk
 				~Property();
 				void Release();
 				std::string& ToString();
+                TDocument* GetOwnership();
 				Property operator [](const char* Name);
 				Property operator [](const char* Name) const;
 			};
@@ -205,17 +208,23 @@ namespace Tomahawk
 			class TH_OUT Stream
 			{
 			private:
+                Document IOptions;
+                TCollection* Source;
 				TStream* Base;
+                size_t Count;
 
 			public:
-				Stream(TStream* NewBase);
+                Stream();
+				Stream(TCollection* NewSource, TStream* NewBase, const Document& NewOptions);
 				void Release();
 				bool RemoveMany(const Document& Select, const Document& Options);
 				bool RemoveOne(const Document& Select, const Document& Options);
 				bool ReplaceOne(const Document& Select, const Document& Replacement, const Document& Options);
-				bool Insert(const Document& Result, const Document& Options);
+				bool InsertOne(const Document& Result, const Document& Options);
 				bool UpdateOne(const Document& Select, const Document& Result, const Document& Options);
 				bool UpdateMany(const Document& Select, const Document& Result, const Document& Options);
+                bool TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+                bool Query(const Document& Command);
 				Core::Async<Document> ExecuteWithReply();
 				Core::Async<bool> Execute();
 				uint64_t GetHint() const;
@@ -225,8 +234,8 @@ namespace Tomahawk
 					return Base != nullptr;
 				}
 
-			public:
-				static Stream FromEmpty(bool IsOrdered);
+            private:
+                bool NextOperation();
 			};
 
 			class TH_OUT Cursor
@@ -260,6 +269,28 @@ namespace Tomahawk
 				}
 			};
 
+            class TH_OUT Response
+            {
+            private:
+                Cursor ICursor;
+                Document IDocument;
+                bool ISuccess;
+                
+            public:
+                Response();
+                Response(const Cursor& _Cursor);
+                Response(const Document& _Document);
+                Response(bool _Success);
+                void Release();
+                Cursor GetCursor() const;
+                Document GetDocument() const;
+                bool IsOK() const;
+                operator bool() const
+                {
+                    return IsOK();
+                }
+            };
+        
 			class TH_OUT Collection
 			{
 			private:
@@ -289,8 +320,10 @@ namespace Tomahawk
 				Core::Async<Cursor> FindIndexes(const Document& Options) const;
 				Core::Async<Cursor> FindMany(const Document& Select, const Document& Options) const;
 				Core::Async<Cursor> FindOne(const Document& Select, const Document& Options) const;
-				Core::Async<Cursor> Aggregate(Query Flags, const Document& Pipeline, const Document& Options) const;
-				const char* GetName() const;
+				Core::Async<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
+                Core::Async<Response> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, Transaction* Session = nullptr);
+                Core::Async<Response> Query(const Document& Command, Transaction* Session = nullptr);
+                const char* GetName() const;
 				Stream CreateStream(const Document& Options);
 				TCollection* Get() const;
 				operator bool() const
@@ -317,7 +350,7 @@ namespace Tomahawk
 				Core::Async<Cursor> FindCollections(const Document& Options) const;
 				std::vector<std::string> GetCollectionNames(const Document& Options) const;
 				const char* GetName() const;
-				Collection GetCollection(const std::string& Name) const;
+				Collection GetCollection(const std::string& Name);
 				TDatabase* Get() const;
 				operator bool() const
 				{
@@ -357,6 +390,7 @@ namespace Tomahawk
 			public:
 				Transaction(TTransaction* NewBase);
                 bool Push(Document& QueryOptions) const;
+                bool Put(TDocument** QueryOptions) const;
 				Core::Async<bool> Start();
 				Core::Async<bool> Abort();
 				Core::Async<Document> RemoveMany(const Collection& Base, const Document& Select, const Document& Options);
@@ -368,7 +402,7 @@ namespace Tomahawk
 				Core::Async<Document> UpdateOne(const Collection& Base, const Document& Select, const Document& Update, const Document& Options);
 				Core::Async<Cursor> FindMany(const Collection& Base, const Document& Select, const Document& Options) const;
 				Core::Async<Cursor> FindOne(const Collection& Base, const Document& Select, const Document& Options) const;
-				Core::Async<Cursor> Aggregate(const Collection& Base, Query Flags, const Document& Pipeline, const Document& Options) const;
+				Core::Async<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
 				Core::Async<TransactionState> Commit();
 				TTransaction* Get() const;
 				operator bool() const
@@ -379,14 +413,14 @@ namespace Tomahawk
 
 			class TH_OUT Connection : public Core::Object
 			{
-				friend Queue;
+				friend Cluster;
 				friend Transaction;
 
 			private:
 				std::atomic<bool> Connected;
 				Transaction Session;
 				TConnection* Base;
-				Queue* Master;
+				Cluster* Master;
 
 			public:
 				Connection();
@@ -404,13 +438,13 @@ namespace Tomahawk
 				Database GetDefaultDatabase() const;
 				Collection GetCollection(const char* DatabaseName, const char* Name) const;
 				Address GetAddress() const;
-				Queue* GetMaster() const;
+				Cluster* GetMaster() const;
 				TConnection* Get() const;
 				std::vector<std::string> GetDatabaseNames(const Document& Options) const;
 				bool IsConnected() const;
 			};
 
-			class TH_OUT Queue : public Core::Object
+			class TH_OUT Cluster : public Core::Object
 			{
 			private:
 				std::atomic<bool> Connected;
@@ -418,8 +452,8 @@ namespace Tomahawk
 				Address SrcAddress;
 
 			public:
-				Queue();
-				virtual ~Queue() override;
+				Cluster();
+				virtual ~Cluster() override;
 				Core::Async<bool> Connect(const std::string& Address);
 				Core::Async<bool> Connect(Address* URI);
 				Core::Async<bool> Disconnect();

@@ -105,6 +105,24 @@ namespace Tomahawk
 
 				return String;
 			}
+            TDocument* Property::GetOwnership()
+            {
+                if (Object != nullptr)
+                {
+                    TDocument* Result = Object;
+                    Object = Array = nullptr;
+                    return Result;
+                }
+                
+                if (Array != nullptr)
+                {
+                    TDocument* Result = Array;
+                    Object = Array = nullptr;
+                    return Result;
+                }
+                
+                return nullptr;
+            }
 			Property Property::operator [](const char* Name)
 			{
 				Property Result;
@@ -1022,12 +1040,17 @@ namespace Tomahawk
 #endif
 			}
 
-			Stream::Stream(TStream* NewBase) : Base(NewBase)
+            Stream::Stream() : IOptions(nullptr), Source(nullptr), Base(nullptr), Count(0)
+            {
+            }
+			Stream::Stream(TCollection* NewSource, TStream* NewBase, const Document& NewOptions) : IOptions(NewOptions), Source(NewSource), Base(NewBase), Count(0)
 			{
 			}
 			void Stream::Release()
 			{
 #ifdef TH_HAS_MONGOC
+                IOptions.Release();
+                Source = nullptr;
 				if (!Base)
 					return;
 
@@ -1038,6 +1061,9 @@ namespace Tomahawk
 			bool Stream::RemoveMany(const Document& Select, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
+                if (!NextOperation())
+                    return false;
+                
 				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_many_with_opts, Base, Select.Get(), Options.Get());
 				Select.Release();
 				Options.Release();
@@ -1050,6 +1076,9 @@ namespace Tomahawk
 			bool Stream::RemoveOne(const Document& Select, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
+                if (!NextOperation())
+                    return false;
+
 				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_remove_one_with_opts, Base, Select.Get(), Options.Get());
 				Select.Release();
 				Options.Release();
@@ -1062,6 +1091,9 @@ namespace Tomahawk
 			bool Stream::ReplaceOne(const Document& Select, const Document& Replacement, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
+                if (!NextOperation())
+                    return false;
+                
 				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_replace_one_with_opts, Base, Select.Get(), Replacement.Get(), Options.Get());
 				Select.Release();
 				Replacement.Release();
@@ -1072,9 +1104,12 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::Insert(const Document& Result, const Document& Options)
+			bool Stream::InsertOne(const Document& Result, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
+                if (!NextOperation())
+                    return false;
+                
 				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_insert_with_opts, Base, Result.Get(), Options.Get());
 				Result.Release();
 				Options.Release();
@@ -1087,6 +1122,9 @@ namespace Tomahawk
 			bool Stream::UpdateOne(const Document& Select, const Document& Result, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
+                if (!NextOperation())
+                    return false;
+                
 				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_one_with_opts, Base, Select.Get(), Result.Get(), Options.Get());
 				Select.Release();
 				Result.Release();
@@ -1100,6 +1138,9 @@ namespace Tomahawk
 			bool Stream::UpdateMany(const Document& Select, const Document& Result, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
+                if (!NextOperation())
+                    return false;
+                
 				bool Subresult = MDB_EXEC(&mongoc_bulk_operation_update_many_with_opts, Base, Select.Get(), Result.Get(), Options.Get());
 				Select.Release();
 				Result.Release();
@@ -1110,6 +1151,150 @@ namespace Tomahawk
 				return false;
 #endif
 			}
+            bool Stream::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
+            {
+                return Query(Driver::GetQuery(Name, Map, Once));
+            }
+            bool Stream::Query(const Document& Command)
+            {
+#ifdef TH_HAS_MONGOC
+                if (!Command.Get())
+                {
+                    TH_ERROR("cannot run empty query");
+                    return false;
+                }
+                
+                Property Type;
+                if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
+                {
+                    TH_ERROR("cannot run query without query @type");
+                    return false;
+                }
+                
+                if (Type.String == "update")
+                {
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-one query without @match");
+                        return false;
+                    }
+                    
+                    Property Update;
+                    if (!Command.GetProperty("update", &Update) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-one query without @update");
+                        return false;
+                    }
+                    
+                    Property Options = Command["options"];
+                    return UpdateOne(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership());
+                }
+                else if (Type.String == "update-many")
+                {
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-many query without @match");
+                        return false;
+                    }
+                    
+                    Property Update;
+                    if (!Command.GetProperty("update", &Update) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-many query without @update");
+                        return false;
+                    }
+                    
+                    Property Options = Command["options"];
+                    return UpdateMany(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership());
+                }
+                else if (Type.String == "insert")
+                {
+                    Property Value;
+                    if (!Command.GetProperty("value", &Value) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run insert-one query without @value");
+                        return false;
+                    }
+                    
+                    Property Options = Command["options"];
+                    return InsertOne(Value.GetOwnership(), Options.GetOwnership());
+                }
+                else if (Type.String == "replace")
+                {
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run replace-one query without @match");
+                        return false;
+                    }
+                    
+                    Property Value;
+                    if (!Command.GetProperty("value", &Value) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run replace-one query without @value");
+                        return false;
+                    }
+                    
+                    Property Options = Command["options"];
+                    return ReplaceOne(Match.GetOwnership(), Value.GetOwnership(), Options.GetOwnership());
+                }
+                else if (Type.String == "remove")
+                {
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run remove-one query without @value");
+                        return false;
+                    }
+                    
+                    Property Options = Command["options"];
+                    return RemoveOne(Match.GetOwnership(), Options.GetOwnership());
+                }
+                else if (Type.String == "remove-many")
+                {
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run remove-many query without @value");
+                        return false;
+                    }
+                    
+                    Property Options = Command["options"];
+                    return RemoveMany(Match.GetOwnership(), Options.GetOwnership());
+                }
+                
+                TH_ERROR("cannot find query of type \"%s\"", Type.String.c_str());
+                return false;
+#else
+                return false;
+#endif
+            }
+            bool Stream::NextOperation()
+            {
+#ifdef TH_HAS_MONGOC
+                if (!Base || !Source)
+                    return false;
+                
+                bool State = true;
+                if (Count > 768)
+                {
+                    TDocument Result;
+                    State = MDB_EXEC(&mongoc_bulk_operation_execute, Base, &Result);
+                    bson_destroy(&Result);
+                    
+                    if (Source != nullptr)
+                        *this = Collection(Source).CreateStream(IOptions);
+                }
+                else
+                    Count++;
+
+                return State;
+#else
+                return false;
+#endif
+            }
 			Core::Async<Document> Stream::ExecuteWithReply()
 			{
 #ifdef TH_HAS_MONGOC
@@ -1170,14 +1355,6 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				return Base;
-#else
-				return nullptr;
-#endif
-			}
-			Stream Stream::FromEmpty(bool IsOrdered)
-			{
-#ifdef TH_HAS_MONGOC
-				return mongoc_bulk_operation_new(IsOrdered);
 #else
 				return nullptr;
 #endif
@@ -1377,6 +1554,36 @@ namespace Tomahawk
 #endif
 			}
 
+            Response::Response() : ISuccess(false)
+            {
+            }
+            Response::Response(const Cursor& _Cursor) : ICursor(_Cursor), ISuccess(_Cursor && !_Cursor.HasError())
+            {
+            }
+            Response::Response(const Document& _Document) : IDocument(_Document), ISuccess(_Document.Get() != nullptr)
+            {
+            }
+            Response::Response(bool _Success) : ISuccess(_Success)
+            {
+            }
+            void Response::Release()
+            {
+                ICursor.Release();
+                IDocument.Release();
+            }
+            Cursor Response::GetCursor() const
+            {
+                return ICursor;
+            }
+            Document Response::GetDocument() const
+            {
+                return IDocument;
+            }
+            bool Response::IsOK() const
+            {
+                return ISuccess;
+            }
+        
             Collection::Collection() : Base(nullptr)
             {
             }
@@ -1796,7 +2003,7 @@ namespace Tomahawk
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Collection::Aggregate(Query Flags, const Document& Pipeline, const Document& Options) const
+			Core::Async<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1812,7 +2019,294 @@ namespace Tomahawk
 				return Core::Async<Cursor>::Store(nullptr);
 #endif
 			}
-			const char* Collection::GetName() const
+            Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Transaction* Session)
+            {
+                return Query(Driver::GetQuery(Name, Map, Once), Session);
+            }
+            Core::Async<Response> Collection::Query(const Document& Command, Transaction* Session)
+            {
+#ifdef TH_HAS_MONGOC
+                if (!Command.Get())
+                {
+                    TH_ERROR("cannot run empty query");
+                    return Core::Async<Response>::Store(Response());
+                }
+                
+                Property Type;
+                if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
+                {
+                    TH_ERROR("cannot run query without query @type");
+                    return Core::Async<Response>::Store(Response());
+                }
+                
+                if (Type.String == "aggregate")
+                {
+                    QueryFlags Flags = QueryFlags::None; Property QFlags;
+                    if (Command.GetProperty("flags", &QFlags) && QFlags.Mod == Type::String)
+                    {
+                        for (auto& Item : Core::Parser(&QFlags.String).Split(','))
+                        {
+                            if (Item == "tailable-cursor")
+                                Flags = Flags | QueryFlags::Tailable_Cursor;
+                            else if (Item == "slave-ok")
+                                Flags = Flags | QueryFlags::Slave_Ok;
+                            else if (Item == "oplog-replay")
+                                Flags = Flags | QueryFlags::Oplog_Replay;
+                            else if (Item == "no-cursor-timeout")
+                                Flags = Flags | QueryFlags::No_Cursor_Timeout;
+                            else if (Item == "await-data")
+                                Flags = Flags | QueryFlags::Await_Data;
+                            else if (Item == "exhaust")
+                                Flags = Flags | QueryFlags::Exhaust;
+                            else if (Item == "partial")
+                                Flags = Flags | QueryFlags::Partial;
+                        }
+                    }
+                    
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run aggregation query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Pipeline;
+                    if (!Command.GetProperty("pipeline", &Pipeline) || Type.Mod != Type::Array)
+                    {
+                        TH_ERROR("cannot run aggregation query without @pipeline");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return Aggregate(Flags, Pipeline.GetOwnership(), Options.GetOwnership()).Then<Response>([](Cursor&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "find")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run find-one query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run find-one query without @match");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return FindOne(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Cursor&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "find-many")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run find-many query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run find-many query without @match");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return FindMany(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Cursor&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "update")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run update-one query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-one query without @match");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Update;
+                    if (!Command.GetProperty("update", &Update) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-one query without @update");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return UpdateOne(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "update-many")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run update-many query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-many query without @match");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Update;
+                    if (!Command.GetProperty("update", &Update) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run update-many query without @update");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return UpdateMany(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "insert")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run insert-one query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Value;
+                    if (!Command.GetProperty("value", &Value) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run insert-one query without @value");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return InsertOne(Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "insert-many")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run insert-many query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Values;
+                    if (!Command.GetProperty("values", &Values) || Type.Mod != Type::Array)
+                    {
+                        TH_ERROR("cannot run insert-many query without @values");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    std::vector<Document> Data;
+                    Document(Values.Array).Loop([&Data](Property* Value)
+                    {
+                        Data.push_back(Value->GetOwnership());
+                        return true;
+                    });
+                    
+                    return InsertMany(Data, Options.GetOwnership()).Then<Response>([](Document&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "replace")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run replace-one query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run replace-one query without @match");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Value;
+                    if (!Command.GetProperty("value", &Value) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run replace-one query without @value");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return ReplaceOne(Match.GetOwnership(), Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "remove")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run remove-one query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run remove-one query without @value");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return RemoveOne(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                else if (Type.String == "remove-many")
+                {
+                    Property Options = Command["options"];
+                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    {
+                        TH_ERROR("cannot run remove-many query in transaction");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    Property Match;
+                    if (!Command.GetProperty("match", &Match) || Type.Mod != Type::Document)
+                    {
+                        TH_ERROR("cannot run remove-many query without @value");
+                        return Core::Async<Response>::Store(Response());
+                    }
+                    
+                    return RemoveMany(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+                    {
+                        return Response(Result);
+                    });
+                }
+                
+                TH_ERROR("cannot find query of type \"%s\"", Type.String.c_str());
+                return Core::Async<Response>::Store(Response());
+#else
+                return Core::Async<Response>::Store(Response());
+#endif
+            }
+            const char* Collection::GetName() const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -1829,15 +2323,13 @@ namespace Tomahawk
 				if (!Base)
 				{
 					Options.Release();
-					return nullptr;
+					return Stream(nullptr, nullptr, nullptr);
 				}
 
 				TStream* Operation = mongoc_collection_create_bulk_operation_with_opts(Base, Options.Get());
-				Options.Release();
-
-				return Operation;
+                return Stream(Base, Operation, Options);
 #else
-				return nullptr;
+                return Stream(nullptr, nullptr, nullptr);
 #endif
 			}
 			TCollection* Collection::Get() const
@@ -1857,7 +2349,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (!Base)
 					return;
-
+                
 				mongoc_database_destroy(Base);
 				Base = nullptr;
 #endif
@@ -1992,7 +2484,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			std::vector<std::string> Database::GetCollectionNames(const Document& Options) const
+            std::vector<std::string> Database::GetCollectionNames(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -2031,13 +2523,13 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Collection Database::GetCollection(const std::string& Name) const
+			Collection Database::GetCollection(const std::string& Name)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
 					return nullptr;
 
-				return mongoc_database_get_collection(Base, Name.c_str());
+                return mongoc_database_get_collection(Base, Name.c_str());
 #else
 				return nullptr;
 #endif
@@ -2205,6 +2697,25 @@ namespace Tomahawk
 				return false;
 #endif
 			}
+            bool Transaction::Put(TDocument** QueryOptions) const
+            {
+#ifdef TH_HAS_MONGOC
+                if (!QueryOptions)
+                    return false;
+                
+                if (!*QueryOptions)
+                    *QueryOptions = bson_new();
+
+                bson_error_t Error;
+                bool Result = mongoc_client_session_append(Base, *QueryOptions, &Error);
+                if (!Result && Error.code != 0)
+                    TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
+
+                return Result;
+#else
+                return false;
+#endif
+            }
 			Core::Async<bool> Transaction::Start()
 			{
 #ifdef TH_HAS_MONGOC
@@ -2378,7 +2889,7 @@ namespace Tomahawk
 				return Core::Async<Cursor>(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Transaction::Aggregate(const Collection& fBase, Query Flags, const Document& Pipeline, const Document& fOptions) const
+			Core::Async<Cursor> Transaction::Aggregate(const Collection& fBase, QueryFlags Flags, const Document& Pipeline, const Document& fOptions) const
 			{
 #ifdef TH_HAS_MONGOC
 				Document Options = fOptions;
@@ -2394,7 +2905,7 @@ namespace Tomahawk
 				return Core::Async<Cursor>(nullptr);
 #endif
 			}
-			Core::Async<TransactionState> Transaction::Commit()
+            Core::Async<TransactionState> Transaction::Commit()
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2724,7 +3235,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Queue* Connection::GetMaster() const
+			Cluster* Connection::GetMaster() const
 			{
 				return Master;
 			}
@@ -2762,16 +3273,16 @@ namespace Tomahawk
 				return Connected;
 			}
 
-			Queue::Queue() : Connected(false), Pool(nullptr), SrcAddress(nullptr)
+			Cluster::Cluster() : Connected(false), Pool(nullptr), SrcAddress(nullptr)
 			{
 				Driver::Create();
 			}
-			Queue::~Queue()
+			Cluster::~Cluster()
 			{
 				Disconnect();
 				Driver::Release();
 			}
-			Core::Async<bool> Queue::Connect(const std::string& URI)
+			Core::Async<bool> Cluster::Connect(const std::string& URI)
 			{
 #ifdef TH_HAS_MONGOC
 				if (Connected)
@@ -2808,7 +3319,7 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Core::Async<bool> Queue::Connect(Address* URI)
+			Core::Async<bool> Cluster::Connect(Address* URI)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!URI || !URI->Get())
@@ -2842,7 +3353,7 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
-			Core::Async<bool> Queue::Disconnect()
+			Core::Async<bool> Cluster::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Connected || !Pool)
@@ -2863,13 +3374,13 @@ namespace Tomahawk
 				return Core::Async<bool>::Store(false);
 #endif
 			}
-			void Queue::SetProfile(const char* Name)
+			void Cluster::SetProfile(const char* Name)
 			{
 #ifdef TH_HAS_MONGOC
 				mongoc_client_pool_set_appname(Pool, Name);
 #endif
 			}
-			void Queue::Push(Connection** Client)
+			void Cluster::Push(Connection** Client)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Client || !*Client)
@@ -2884,7 +3395,7 @@ namespace Tomahawk
 				*Client = nullptr;
 #endif
 			}
-			Connection* Queue::Pop()
+			Connection* Cluster::Pop()
 			{
 #ifdef TH_HAS_MONGOC
 				TConnection* Base = mongoc_client_pool_pop(Pool);
@@ -2901,11 +3412,11 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TConnectionPool* Queue::Get() const
+			TConnectionPool* Cluster::Get() const
 			{
 				return Pool;
 			}
-			Address Queue::GetAddress() const
+			Address Cluster::GetAddress() const
 			{
 				return SrcAddress;
 			}

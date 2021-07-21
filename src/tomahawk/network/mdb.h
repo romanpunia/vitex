@@ -253,7 +253,6 @@ namespace Tomahawk
 				bool SetHint(uint64_t Hint);
 				bool HasError() const;
 				bool HasMoreData() const;
-				bool NextSync() const;
 				Core::Async<bool> Next() const;
 				int64_t GetId() const;
 				int64_t GetLimit() const;
@@ -278,13 +277,22 @@ namespace Tomahawk
                 
             public:
                 Response();
+                Response(const Response& Other);
                 Response(const Cursor& _Cursor);
                 Response(const Document& _Document);
                 Response(bool _Success);
                 void Release();
+                Core::Async<Core::Document*> Fetch() const;
+                Core::Async<Core::Document*> FetchAll() const;
+                Property GetProperty(const char* Name);
                 Cursor GetCursor() const;
                 Document GetDocument() const;
                 bool IsOK() const;
+                bool OK();
+                Property operator [](const char* Name)
+                {
+                    return GetProperty(Name);
+                }
                 operator bool() const
                 {
                     return IsOK();
@@ -314,7 +322,6 @@ namespace Tomahawk
 				Core::Async<Document> UpdateMany(const Document& Select, const Document& Update, const Document& Options);
 				Core::Async<Document> UpdateOne(const Document& Select, const Document& Update, const Document& Options);
 				Core::Async<Document> FindAndModify(const Document& Select, const Document& Sort, const Document& Update, const Document& Fields, bool Remove, bool Upsert, bool New);
-				Core::Async<uint64_t> CountElementsInArray(const Document& Match, const Document& Filter, const Document& Options) const;
 				Core::Async<uint64_t> CountDocuments(const Document& Select, const Document& Options) const;
 				Core::Async<uint64_t> CountDocumentsEstimated(const Document& Options) const;
 				Core::Async<Cursor> FindIndexes(const Document& Options) const;
@@ -368,8 +375,6 @@ namespace Tomahawk
 				void Release();
 				Core::Async<bool> Next(const Document& Result) const;
 				Core::Async<bool> Error(const Document& Result) const;
-				bool NextSync(const Document& Result) const;
-				bool ErrorSync(const Document& Result) const;
 				TWatcher* Get() const;
 				operator bool() const
 				{
@@ -403,6 +408,8 @@ namespace Tomahawk
 				Core::Async<Cursor> FindMany(const Collection& Base, const Document& Select, const Document& Options) const;
 				Core::Async<Cursor> FindOne(const Collection& Base, const Document& Select, const Document& Options) const;
 				Core::Async<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
+                Core::Async<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+                Core::Async<Response> Query(const Collection& Base, const Document& Command);
 				Core::Async<TransactionState> Commit();
 				TTransaction* Get() const;
 				operator bool() const

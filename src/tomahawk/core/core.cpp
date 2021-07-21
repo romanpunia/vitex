@@ -7530,6 +7530,14 @@ namespace Tomahawk
 		{
 			return Get("[" + Name + "]");
 		}
+        Variant Document::FetchVar(const std::string& fKey, bool Deep) const
+        {
+            Document* Result = Fetch(fKey, Deep);
+            if (!Result)
+                return Var::Undefined();
+
+            return Result->Value;
+        }
 		Variant Document::GetVar(size_t Index) const
 		{
 			Document* Result = Get(Index);

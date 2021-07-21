@@ -1307,6 +1307,7 @@ namespace Tomahawk
 			std::vector<Document*>* GetNodes();
 			Document* Find(const std::string& Name, bool Deep = false) const;
 			Document* Fetch(const std::string& Notation, bool Deep = false) const;
+            Variant FetchVar(const std::string& Key, bool Deep = false) const;
 			Variant GetVar(size_t Index) const;
 			Variant GetVar(const std::string& Key) const;
 			Document* GetParent() const;

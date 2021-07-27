@@ -45,7 +45,7 @@ namespace Tomahawk
 			static Core::Document* Set(Core::Document* Base, const std::string& Name, Core::Document* Value);
 			static Core::Document* Push(Core::Document* Base, Core::Document* Value);
 			static VMCArray* GetCollection(Core::Document* Base, const std::string& Name, bool Here);
-			static VMCArray* GetNodes(Core::Document* Base);
+			static VMCArray* GetChilds(Core::Document* Base);
 			static VMCArray* GetAttributes(Core::Document* Base);
 			static VMCMap* GetNames(Core::Document* Base);
 			static std::string ToJSON(Core::Document* Base);

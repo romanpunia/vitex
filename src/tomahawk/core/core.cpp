@@ -216,21 +216,85 @@ namespace Tomahawk
 		Decimal::Decimal() : Length(0), Sign('\0'), Invalid(true)
 		{
 		}
-		Decimal::Decimal(const char* Value)
+		Decimal::Decimal(const char* Value) : Length(0), Sign('\0'), Invalid(false)
 		{
-			*this = Value;
+            int Count = 0;
+            if (Value[Count] == '+')
+            {
+                Sign = '+';
+                Count++;
+            }
+            else if (Value[Count] == '-')
+            {
+                Sign = '-';
+                Count++;
+            }
+            else if (isdigit(Value[Count]))
+            {
+                Sign = '+';
+            }
+            else
+            {
+                Invalid = 1;
+                return;
+            }
+
+            bool Points = false;
+            while (Value[Count] != '\0')
+            {
+                if (!Points && Value[Count] == '.')
+                {
+                    if (Source.empty())
+                    {
+                        Sign = '\0';
+                        Invalid = 1;
+                        return;
+                    }
+
+                    Points = true;
+                    Count++;
+                }
+
+                if (isdigit(Value[Count]))
+                {
+                    Source.push_front(Value[Count]);
+                    Count++;
+
+                    if (Points)
+                        Length++;
+                }
+                else
+                {
+                    Sign = '\0';
+                    Source.clear();
+                    Length = 0;
+                    Invalid = 1;
+                    return;
+                }
+            }
+
+            Unlead();
 		}
-		Decimal::Decimal(const std::string& Value)
+        Decimal::Decimal(const std::string& Value) : Decimal(Value.c_str())
 		{
-			*this = Value;
 		}
-		Decimal::Decimal(int Value)
+		Decimal::Decimal(int32_t Value) : Decimal(std::to_string(Value))
 		{
-			*this = Value;
 		}
-		Decimal::Decimal(double Value)
+        Decimal::Decimal(uint32_t Value) : Decimal(std::to_string(Value))
+        {
+        }
+        Decimal::Decimal(int64_t Value) : Decimal(std::to_string(Value))
+        {
+        }
+        Decimal::Decimal(uint64_t Value) : Decimal(std::to_string(Value))
+        {
+        }
+        Decimal::Decimal(float Value) : Decimal(std::to_string(Value))
+        {
+        }
+		Decimal::Decimal(double Value) : Decimal(std::to_string(Value))
 		{
-			*this = Value;
 		}
 		Decimal::Decimal(const Decimal& Value) : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
 		{
@@ -341,33 +405,9 @@ namespace Tomahawk
 
 			return var;
 		}
-		float Decimal::ToFloat() const
+		int64_t Decimal::ToInt64() const
 		{
-			if (Invalid)
-				return std::nan("");
-
-			float dec = 1;
-			if (Length > 0)
-			{
-				int aus = Length;
-				while (aus != 0)
-				{
-					dec /= 10;
-					aus--;
-				}
-			}
-
-			float var = 0;
-			for (int i = 0; i < Source.size(); i++)
-			{
-				var += CharToInt(Source[i]) * dec;
-				dec *= 10;
-			}
-
-			if (Sign == '-')
-				var *= -1;
-
-			return var;
+            return (int64_t)ToDouble();
 		}
 		std::string Decimal::ToString() const
 		{
@@ -471,86 +511,36 @@ namespace Tomahawk
 		{
 			return sizeof(*this) + Source.size() * sizeof(char);
 		}
-		Decimal& Decimal::operator=(const char* strNum)
-		{
-			Source.clear();
-			Length = 0;
-			Sign = '\0';
-			Invalid = 0;
-
-			int count = 0;
-			if (strNum[count] == '+')
-			{
-				Sign = '+';
-				count++;
-			}
-			else if (strNum[count] == '-')
-			{
-				Sign = '-';
-				count++;
-			}
-			else if (isdigit(strNum[count]))
-			{
-				Sign = '+';
-			}
-			else
-			{
-				Invalid = 1;
-				return *this;
-			}
-
-			bool start_dec = false;
-			while (strNum[count] != '\0')
-			{
-				if (!start_dec && strNum[count] == '.')
-				{
-					if (Source.empty())
-					{
-						Sign = '\0';
-						Invalid = 1;
-						return *this;
-					}
-
-					start_dec = true;
-					count++;
-				}
-
-				if (isdigit(strNum[count]))
-				{
-					Source.push_front(strNum[count]);
-					count++;
-
-					if (start_dec)
-						Length++;
-				}
-				else
-				{
-					Sign = '\0';
-					Source.clear();
-					Length = 0;
-					Invalid = 1;
-					return *this;
-				}
-			}
-
-			this->Unlead();
-			return *this;
-		}
-		Decimal& Decimal::operator=(const std::string& strNum)
-		{
-			*this = strNum.c_str();
-			return *this;
-		}
-		Decimal& Decimal::operator=(int Num)
-		{
-			*this = std::to_string(Num);
-			return *this;
-		}
-		Decimal& Decimal::operator=(double Num)
-		{
-			*this = std::to_string(Num);
-			return *this;
-		}
+        Decimal Decimal::operator -() const
+        {
+            Decimal Result = *this;
+            if (Result.Sign == '+')
+                Result.Sign = '-';
+            else if (Result.Sign == '-')
+                Result.Sign = '+';
+            
+            return Result;
+        }
+        Decimal& Decimal::operator *=(const Decimal& V)
+        {
+            *this = *this * V;
+            return *this;
+        }
+        Decimal& Decimal::operator /=(const Decimal& V)
+        {
+            *this = *this / V;
+            return *this;
+        }
+        Decimal& Decimal::operator +=(const Decimal& V)
+        {
+            *this = *this + V;
+            return *this;
+        }
+        Decimal& Decimal::operator -=(const Decimal& V)
+        {
+            *this = *this - V;
+            return *this;
+        }
 		Decimal& Decimal::operator=(const Decimal& Value)
 		{
 			Source = Value.Source;
@@ -600,32 +590,12 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Decimal::operator==(const int& int_right) const
-		{
-			Decimal right(int_right);
-			return *this == right;
-		}
-		bool Decimal::operator==(const double& double_right) const
-		{
-			Decimal right(double_right);
-			return *this == right;
-		}
 		bool Decimal::operator!=(const Decimal& right) const
 		{
 			if (Invalid || right.Invalid)
 				return false;
 
 			return !(*this == right);
-		}
-		bool Decimal::operator!=(const int& int_right) const
-		{
-			Decimal right(int_right);
-			return *this != right;
-		}
-		bool Decimal::operator!=(const double& double_right) const
-		{
-			Decimal right(double_right);
-			return *this != right;
 		}
 		bool Decimal::operator>(const Decimal& right) const
 		{
@@ -652,32 +622,12 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Decimal::operator>(const int& int_right) const
-		{
-			Decimal right(int_right);
-			return *this > right;
-		}
-		bool Decimal::operator>(const double& double_right) const
-		{
-			Decimal right(double_right);
-			return *this > right;
-		}
 		bool Decimal::operator>=(const Decimal& right) const
 		{
 			if (Invalid || right.Invalid)
 				return false;
 
 			return !(*this < right);
-		}
-		bool Decimal::operator>=(const int& int_right) const
-		{
-			Decimal right(int_right);
-			return *this >= right;
-		}
-		bool Decimal::operator>=(const double& double_right) const
-		{
-			Decimal right(double_right);
-			return *this >= right;
 		}
 		bool Decimal::operator<(const Decimal& right) const
 		{
@@ -704,58 +654,12 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Decimal::operator<(const int& int_right) const
-		{
-			Decimal right(int_right);
-			return *this < right;
-		}
-		bool Decimal::operator<(const double& double_right) const
-		{
-			Decimal right(double_right);
-			return *this < right;
-		}
 		bool Decimal::operator<=(const Decimal& right) const
 		{
 			if (Invalid || right.Invalid)
 				return false;
 
 			return !(*this > right);
-		}
-		bool Decimal::operator<=(const int& int_right) const
-		{
-			Decimal right(int_right);
-			return *this <= right;
-		}
-		bool Decimal::operator<=(const double& double_right) const
-		{
-			Decimal right(double_right);
-			return *this <= right;
-		}
-		std::ostream& operator<<(std::ostream& out, const Decimal& right)
-		{
-			if (right.Invalid)
-			{
-				out << "NaN";
-				return out;
-			}
-
-			out << right.Sign;
-			for (int i = right.Source.size() - 1; i >= 0; --i)
-			{
-				out << right.Source[i];
-				if ((i == right.Length) && (i != 0))
-					out << '.';
-			}
-
-			return out;
-		}
-		std::istream& operator>>(std::istream& in, Decimal& right)
-		{
-			std::string c;
-			in >> c;
-			right = c;
-
-			return in;
 		}
 		Decimal operator+(const Decimal& left_, const Decimal& right_)
 		{
@@ -1255,7 +1159,7 @@ namespace Tomahawk
 			right = int_right;
 			return left % right;
 		}
-		Decimal Decimal::PreciseDiv(const Decimal& left, const Decimal& right, int div_precision)
+		Decimal Decimal::Divide(const Decimal& left, const Decimal& right, int div_precision)
 		{
 			Decimal tmp;
 			Decimal Q, R, D, N, zero;
@@ -1362,18 +1266,6 @@ namespace Tomahawk
 			tmp.Unlead();
 
 			return tmp;
-		}
-		Decimal Decimal::PreciseDiv(const Decimal& left, const int& int_right, int div_precision)
-		{
-			Decimal right;
-			right = int_right;
-			return Decimal::PreciseDiv(left, right, div_precision);
-		}
-		Decimal Decimal::PreciseDiv(const Decimal& left, const double& double_right, int div_precision)
-		{
-			Decimal right;
-			right = double_right;
-			return Decimal::PreciseDiv(left, right, div_precision);
 		}
 		Decimal Decimal::NaN()
 		{
@@ -1762,7 +1654,7 @@ namespace Tomahawk
 				return GetInteger() > 0;
 
 			if (Type == VarType::Decimal)
-				return ((Decimal*)Data)->ToFloat() > 0.0f;
+                return ((Decimal*)Data)->ToDouble() > 0.0;
 
 			return GetSize() > 0;
 		}
@@ -1827,7 +1719,7 @@ namespace Tomahawk
 				case VarType::String:
 				case VarType::Base64:
 				case VarType::Decimal:
-					return ((Decimal*)Data)->ToFloat() > 0.0f;
+					return ((Decimal*)Data)->ToDouble() > 0.0;
 				case VarType::Integer:
 					return GetInteger() > 0;
 				case VarType::Number:
@@ -3944,6 +3836,83 @@ namespace Tomahawk
 		void SpinLock::Release()
 		{
 			Atom.clear(std::memory_order_release);
+		}
+
+		Document* Var::Set::Auto(Variant&& Value)
+		{
+			return new Document(std::move(Value));
+		}
+		Document* Var::Set::Auto(const Variant& Value)
+		{
+			return new Document(Value);
+		}
+		Document* Var::Set::Auto(const std::string& Value, bool Strict)
+		{
+			return new Document(Var::Auto(Value, Strict));
+		}
+		Document* Var::Set::Null()
+		{
+			return new Document(Var::Null());
+		}
+		Document* Var::Set::Undefined()
+		{
+			return new Document(Var::Undefined());
+		}
+		Document* Var::Set::Object()
+		{
+			return new Document(Var::Object());
+		}
+		Document* Var::Set::Array()
+		{
+			return new Document(Var::Array());
+		}
+		Document* Var::Set::Pointer(void* Value)
+		{
+			return new Document(Var::Pointer(Value));
+		}
+		Document* Var::Set::String(const std::string& Value)
+		{
+			return new Document(Var::String(Value));
+		}
+		Document* Var::Set::String(const char* Value, size_t Size)
+		{
+			return new Document(Var::String(Value, Size));
+		}
+		Document* Var::Set::Base64(const std::string& Value)
+		{
+			return new Document(Var::Base64(Value));
+		}
+		Document* Var::Set::Base64(const unsigned char* Value, size_t Size)
+		{
+			return new Document(Var::Base64(Value, Size));
+		}
+		Document* Var::Set::Base64(const char* Value, size_t Size)
+		{
+			return new Document(Var::Base64(Value, Size));
+		}
+		Document* Var::Set::Integer(int64_t Value)
+		{
+			return new Document(Var::Integer(Value));
+		}
+		Document* Var::Set::Number(double Value)
+		{
+			return new Document(Var::Number(Value));
+		}
+		Document* Var::Set::Decimal(const BigNumber& Value)
+		{
+			return new Document(Var::Decimal(Value));
+		}
+		Document* Var::Set::Decimal(BigNumber&& Value)
+		{
+			return new Document(Var::Decimal(std::move(Value)));
+		}
+		Document* Var::Set::DecimalString(const std::string& Value)
+		{
+			return new Document(Var::DecimalString(Value));
+		}
+		Document* Var::Set::Boolean(bool Value)
+		{
+			return new Document(Var::Boolean(Value));
 		}
 
 		Variant Var::Auto(const std::string& Value, bool Strict)
@@ -7471,9 +7440,9 @@ namespace Tomahawk
 
 			return Attributes;
 		}
-		std::vector<Document*>* Document::GetNodes()
+		std::vector<Document*>& Document::GetChilds()
 		{
-			return &Nodes;
+			return Nodes;
 		}
 		Document* Document::Find(const std::string& Name, bool Deep) const
 		{
@@ -7768,6 +7737,10 @@ namespace Tomahawk
 
 			return Base->Value.GetSize() == Size;
 		}
+		bool Document::IsEmpty() const
+		{
+			return Nodes.empty();
+		}
 		bool Document::IsAttribute() const
 		{
 			if (Key.size() < 2)
@@ -7779,9 +7752,9 @@ namespace Tomahawk
 		{
 			return Saved;
 		}
-		int64_t Document::Size() const
+		size_t Document::Size() const
 		{
-			return (int64_t)Nodes.size();
+			return Nodes.size();
 		}
 		std::string Document::GetName() const
 		{
@@ -7856,14 +7829,6 @@ namespace Tomahawk
 			}
 
 			Saved = true;
-		}
-		Document* Document::Object()
-		{
-			return new Document(Var::Object());
-		}
-		Document* Document::Array()
-		{
-			return new Document(Var::Array());
 		}
 		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
 		{
@@ -8140,7 +8105,7 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			Document* Result = Document::Array();
+			Document* Result = Var::Set::Array();
 			Result->Key = Base->name();
 
 			if (!ProcessXMLRead((void*)Base, Result))
@@ -8249,12 +8214,12 @@ namespace Tomahawk
 					Result = new Document(Var::Boolean(true));
 					break;
 				case rapidjson::kObjectType:
-					Result = Document::Object();
+					Result = Var::Set::Object();
 					if (!ProcessJSONRead((void*)&Base, Result))
 						TH_CLEAR(Result);
 					break;
 				case rapidjson::kArrayType:
-					Result = Document::Array();
+					Result = Var::Set::Array();
 					if (!ProcessJSONRead((void*)&Base, Result))
 						TH_CLEAR(Result);
 					break;
@@ -8342,7 +8307,7 @@ namespace Tomahawk
 				Map.insert({ Index, Name });
 			}
 
-			Document* Current = Document::Object();
+			Document* Current = Var::Set::Object();
 			if (!ProcessJSONBRead(Current, &Map, Callback))
 			{
 				TH_RELEASE(Current);
@@ -8368,7 +8333,7 @@ namespace Tomahawk
 				if (It->name()[0] == '\0')
 					continue;
 
-				Document* Subresult = Current->Set(It->name(), Document::Array());
+				Document* Subresult = Current->Set(It->name(), Var::Set::Array());
 				ProcessXMLRead((void*)It, Subresult);
 
 				if (Subresult->Nodes.empty() && It->value_size() > 0)
@@ -8563,7 +8528,7 @@ namespace Tomahawk
 					Current->Nodes.resize(Count);
 					for (auto&& Item : Current->Nodes)
 					{
-						Item = Document::Object();
+						Item = Var::Set::Object();
 						Item->Parent = Current;
 						Item->Saved = true;
 

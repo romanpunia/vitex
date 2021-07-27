@@ -411,7 +411,7 @@ namespace Tomahawk
 			if (!Buffer)
 				return nullptr;
 
-			Core::Document* Result = Core::Document::Object();
+			Core::Document* Result = Core::Var::Set::Object();
 			VMCContext* Context = asGetActiveContext();
 			VMCManager* Manager = Context->GetEngine();
 			asUINT Length = *(asUINT*)Buffer;
@@ -553,7 +553,7 @@ namespace Tomahawk
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
 			return VMCArray::Compose(Type.GetTypeInfo(), Nodes);
 		}
-		VMCArray* VMCDocument::GetNodes(Core::Document* Base)
+		VMCArray* VMCDocument::GetChilds(Core::Document* Base)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -564,7 +564,7 @@ namespace Tomahawk
 				return nullptr;
 
 			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
-			return VMCArray::Compose(Type.GetTypeInfo(), *Base->GetNodes());
+			return VMCArray::Compose(Type.GetTypeInfo(), Base->GetChilds());
 		}
 		VMCArray* VMCDocument::GetAttributes(Core::Document* Base)
 		{
@@ -822,6 +822,22 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
+			VMGlobal& Register = Engine->Global();
+			Engine->BeginNamespace("Var::Set");
+			Register.SetFunction("Document@ Auto(const String &in, bool = false)", &Core::Var::Auto);
+			Register.SetFunction("Document@ Null()", &Core::Var::Set::Null);
+			Register.SetFunction("Document@ Undefined()", &Core::Var::Set::Undefined);
+			Register.SetFunction("Document@ Object()", &Core::Var::Set::Object);
+			Register.SetFunction("Document@ Array()", &Core::Var::Set::Array);
+			Register.SetFunction("Document@ Pointer(Address@)", &Core::Var::Set::Pointer);
+			Register.SetFunction("Document@ Integer(int64)", &Core::Var::Set::Integer);
+			Register.SetFunction("Document@ Number(double)", &Core::Var::Set::Number);
+			Register.SetFunction("Document@ Boolean(bool)", &Core::Var::Set::Boolean);
+			Register.SetFunction<Core::Document*(const std::string&)>("Document@ String(const String &in)", &Core::Var::Set::String);
+			Register.SetFunction<Core::Document*(const std::string&)>("Document@ Base64(const String &in)", &Core::Var::Set::Base64);
+			Register.SetFunction<Core::Document*(const std::string&)>("Document@ Decimal(const String &in)", &Core::Var::Set::DecimalString);
+			Engine->EndNamespace();
+
 			VMRefClass VDocument = Engine->Global().SetClassUnmanaged<Core::Document>("Document");
 			VDocument.SetProperty<Core::Document>("String Key", &Core::Document::Key);
 			VDocument.SetProperty<Core::Document>("Variant Value", &Core::Document::Value);
@@ -842,6 +858,7 @@ namespace Tomahawk
 			VDocument.SetMethod("Document@ Copy() const", &Core::Document::Copy);
 			VDocument.SetMethod("bool Has(const String &in) const", &Core::Document::Has);
 			VDocument.SetMethod("bool Has64(const String &in, uint = 12) const", &Core::Document::Has64);
+			VDocument.SetMethod("bool IsEmpty() const", &Core::Document::IsEmpty);
 			VDocument.SetMethod("bool IsAttribute() const", &Core::Document::IsAttribute);
 			VDocument.SetMethod("bool IsSaved() const", &Core::Document::IsAttribute);
 			VDocument.SetMethod("uint64 Size() const", &Core::Document::Size);
@@ -853,7 +870,7 @@ namespace Tomahawk
 			VDocument.SetMethodEx("Document@+ Push(Document@+)", &VMCDocument::Push);
 			VDocument.SetMethodEx("Array<Document@>@ GetCollection(const String &in, bool = false) const", &VMCDocument::GetCollection);
 			VDocument.SetMethodEx("Array<Document@>@ GetAttributes() const", &VMCDocument::GetAttributes);
-			VDocument.SetMethodEx("Array<Document@>@ GetNodes() const", &VMCDocument::GetNodes);
+			VDocument.SetMethodEx("Array<Document@>@ GetChilds() const", &VMCDocument::GetChilds);
 			VDocument.SetMethodEx("Map@ GetNames() const", &VMCDocument::GetNames);
 			VDocument.SetMethodEx("String JSON() const", &VMCDocument::ToJSON);
 			VDocument.SetMethodEx("String XML() const", &VMCDocument::ToXML);
@@ -863,8 +880,6 @@ namespace Tomahawk
 			VDocument.SetMethodEx("double Num() const", &VMCDocument::ToNumber);
 			VDocument.SetMethodEx("String Dec() const", &VMCDocument::ToDecimal);
 			VDocument.SetMethodEx("bool Bool() const", &VMCDocument::ToBoolean);
-			VDocument.SetMethodStatic("Document@ Object()", &Core::Document::Object);
-			VDocument.SetMethodStatic("Document@ Array()", &Core::Document::Array);
 			VDocument.SetMethodStatic("Document@ FromJSON(const String &in)", &VMCDocument::FromJSON);
 			VDocument.SetMethodStatic("Document@ FromXML(const String &in)", &VMCDocument::FromXML);
 			VDocument.SetMethodStatic("Document@ Import(const String &in)", &VMCDocument::Import);

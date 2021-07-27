@@ -577,6 +577,16 @@ namespace Tomahawk
 				return nullptr;
 			}
 
+			void RequestFrame::SetMethod(const char* Value)
+			{
+				if (Value != nullptr)
+					strncpy(Method, Value, sizeof(Method));
+			}
+			void RequestFrame::SetVersion(unsigned int Major, unsigned int Minor)
+			{
+				std::string Value = "HTTP/" + std::to_string(Major) + '.' + std::to_string(Minor);
+				strncpy(Version, Value.c_str(), sizeof(Version));
+			}
 			void RequestFrame::SetHeader(const char* fKey, const char* Value)
 			{
 				if (!fKey)
@@ -1759,10 +1769,10 @@ namespace Tomahawk
 			}
 			std::string Query::EncodeAXWFD()
 			{
-				std::string Output; auto* Nodes = Object->GetNodes();
-				for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
+				std::string Output; auto& Nodes = Object->GetChilds();
+				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 				{
-					if (It + 1 < Nodes->end())
+					if (It + 1 < Nodes.end())
 						Output.append((*It)->As<QueryParameter>()->BuildFromBase()).append(1, '&');
 					else
 						Output.append((*It)->As<QueryParameter>()->BuildFromBase());
@@ -1800,7 +1810,7 @@ namespace Tomahawk
 
 				if (Name->Value && Name->Length > 0)
 				{
-					for (auto* Item : *Object->GetNodes())
+					for (auto* Item : Object->GetChilds())
 					{
 						if (Item->Key.size() != Name->Length)
 							continue;
@@ -1821,19 +1831,19 @@ namespace Tomahawk
 				}
 				else
 				{
-					New->Key.assign(std::to_string(Object->GetNodes()->size()));
+					New->Key.assign(std::to_string(Object->Size()));
 					Object->Value = Core::Var::Array();
 				}
 
 				New->Value = Core::Var::String("", 0);
-				Object->GetNodes()->push_back(New);
+				Object->Push(New);
 
 				return New;
 			}
 
 			Session::Session()
 			{
-				Query = Core::Document::Object();
+				Query = Core::Var::Set::Object();
 			}
 			Session::~Session()
 			{
@@ -3203,6 +3213,10 @@ namespace Tomahawk
 				}
 
 				return strcmp(A.Path.c_str(), B.Path.c_str()) < 0;
+			}
+			bool Util::ContentOK(Content State)
+			{
+				return State == Content::Cached || State == Content::Empty || State == Content::Saved;
 			}
 			std::string Util::ConnectionResolve(Connection* Base)
 			{
@@ -5426,6 +5440,41 @@ namespace Tomahawk
 			}
 			Client::~Client()
 			{
+			}
+			Core::Async<ResponseFrame*> Client::Fetch(HTTP::RequestFrame* Root, int64_t MaxSize)
+			{
+				return Send(Root).Then<Core::Async<ResponseFrame*>>([this, MaxSize](HTTP::ResponseFrame*&&)
+				{
+					return Consume(MaxSize);
+				});
+			}
+			Core::Async<Core::Document*> Client::JSON(HTTP::RequestFrame* Root, int64_t MaxSize)
+			{
+				return Fetch(Root, MaxSize).Then<Core::Document*>([this](HTTP::ResponseFrame*&& Response)
+				{
+					if (!HTTP::Util::ContentOK(Request.ContentState))
+						return (Core::Document*)nullptr;
+
+					return Core::Document::ReadJSON((int64_t)Response->Buffer.size(), [Response](char* Buffer, int64_t Size)
+					{
+						memcpy(Buffer, Response->Buffer.data(), (size_t)Size);
+						return true;
+					});
+				});
+			}
+			Core::Async<Core::Document*> Client::XML(HTTP::RequestFrame* Root, int64_t MaxSize)
+			{
+				return Fetch(Root, MaxSize).Then<Core::Document*>([this](HTTP::ResponseFrame*&& Response)
+				{
+					if (!HTTP::Util::ContentOK(Request.ContentState))
+						return (Core::Document*)nullptr;
+
+					return Core::Document::ReadXML((int64_t)Response->Buffer.size(), [Response](char* Buffer, int64_t Size)
+					{
+						memcpy(Buffer, Response->Buffer.data(), (size_t)Size);
+						return true;
+					});
+				});
 			}
 			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame* Root)
 			{

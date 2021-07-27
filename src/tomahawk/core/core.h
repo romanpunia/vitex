@@ -276,7 +276,11 @@ namespace Tomahawk
             Decimal();
             Decimal(const char* Value);
             Decimal(const std::string& Value);
-            Decimal(int Value);
+            Decimal(int32_t Value);
+            Decimal(uint32_t Value);
+            Decimal(int64_t Value);
+            Decimal(uint64_t Value);
+            Decimal(float Value);
             Decimal(double Value);
             Decimal(const Decimal& Value);
             Decimal(Decimal&& Value);
@@ -286,16 +290,17 @@ namespace Tomahawk
 			Decimal& Untrail();
 			bool IsNaN() const;
             double ToDouble() const;
-            float ToFloat() const;
+            int64_t ToInt64() const;
             std::string ToString() const;
             std::string Exp() const;
             int Decimals() const;
             int Ints() const;
             int Size() const;
-            Decimal& operator= (const char* Value);
-            Decimal& operator= (const std::string& Value);
-            Decimal& operator= (int Value);
-            Decimal& operator= (double Value);
+            Decimal operator -() const;
+            Decimal& operator *=(const Decimal& V);
+            Decimal& operator /=(const Decimal& V);
+            Decimal& operator +=(const Decimal& V);
+            Decimal& operator -=(const Decimal& V);
             Decimal& operator= (const Decimal& Value);
             Decimal& operator= (Decimal&& Value);
             Decimal& operator++ (int);
@@ -303,46 +308,21 @@ namespace Tomahawk
             Decimal& operator-- (int);
             Decimal& operator-- ();
             bool operator== (const Decimal& Right) const;
-            bool operator== (const int& Right) const;
-            bool operator== (const double& Right) const;
             bool operator!= (const Decimal& Right) const;
-            bool operator!= (const int& Right) const;
-            bool operator!= (const double& Right) const;
             bool operator> (const Decimal& Right) const;
-            bool operator> (const int& Right) const;
-            bool operator> (const double& Right) const;
             bool operator>= (const Decimal& Right) const;
-            bool operator>= (const int& Right) const;
-            bool operator>= (const double& Right) const;
             bool operator< (const Decimal& Right) const;
-            bool operator< (const int& Right) const;
-            bool operator< (const double& Right) const;
             bool operator<= (const Decimal& Right) const;
-            bool operator<= (const int& Right) const;
-            bool operator<= (const double& Right) const;
         
 		public:
-			TH_OUT friend std::ostream& operator << (std::ostream& Left, const Decimal& Right);
-			TH_OUT friend std::istream& operator >> (std::istream& Left, Decimal& Right);
 			TH_OUT friend Decimal operator + (const Decimal& Left, const Decimal& Right);
-			TH_OUT friend Decimal operator + (const Decimal& Left, const int& Right);
-			TH_OUT friend Decimal operator + (const Decimal& Left, const double& Right);
 			TH_OUT friend Decimal operator - (const Decimal& Left, const Decimal& Right);
-			TH_OUT friend Decimal operator - (const Decimal& Left, const int& Right);
-			TH_OUT friend Decimal operator - (const Decimal& Left, const double& Right);
 			TH_OUT friend Decimal operator * (const Decimal& Left, const Decimal& Right);
-			TH_OUT friend Decimal operator * (const Decimal& Left, const int& Right);
-			TH_OUT friend Decimal operator * (const Decimal& Left, const double& Right);
 			TH_OUT friend Decimal operator / (const Decimal& Left, const Decimal& Right);
-			TH_OUT friend Decimal operator / (const Decimal& Left, const int& Right);
-			TH_OUT friend Decimal operator / (const Decimal& Left, const double& Right);
 			TH_OUT friend Decimal operator % (const Decimal& Left, const Decimal& Right);
-			TH_OUT friend Decimal operator % (const Decimal& Left, const int& Right);
 
         public:
-            static Decimal PreciseDiv(const Decimal& Left, const Decimal& Right, int Precision);
-            static Decimal PreciseDiv(const Decimal& Left, const int& Right, int Precision);
-            static Decimal PreciseDiv(const Decimal& Left, const double& Right, int Precision);
+            static Decimal Divide(const Decimal& Left, const Decimal& Right, int Precision);
             static Decimal NaN();
             
         private:
@@ -721,6 +701,31 @@ namespace Tomahawk
 
 		class TH_OUT Var
 		{
+		public:
+			class TH_OUT Set
+			{
+			public:
+				static Document* Auto(Variant&& Value);
+				static Document* Auto(const Variant& Value);
+				static Document* Auto(const std::string& Value, bool Strict = false);
+				static Document* Null();
+				static Document* Undefined();
+				static Document* Object();
+				static Document* Array();
+				static Document* Pointer(void* Value);
+				static Document* String(const std::string& Value);
+				static Document* String(const char* Value, size_t Size);
+				static Document* Base64(const std::string& Value);
+				static Document* Base64(const unsigned char* Value, size_t Size);
+				static Document* Base64(const char* Value, size_t Size);
+				static Document* Integer(int64_t Value);
+				static Document* Number(double Value);
+				static Document* Decimal(const BigNumber& Value);
+				static Document* Decimal(BigNumber&& Value);
+				static Document* DecimalString(const std::string& Value);
+				static Document* Boolean(bool Value);
+			};
+
 		public:
 			static Variant Auto(const std::string& Value, bool Strict = false);
 			static Variant Null();
@@ -1304,7 +1309,7 @@ namespace Tomahawk
 			std::vector<Document*> FindCollection(const std::string& Name, bool Deep = false) const;
 			std::vector<Document*> FetchCollection(const std::string& Notation, bool Deep = false) const;
 			std::vector<Document*> GetAttributes() const;
-			std::vector<Document*>* GetNodes();
+			std::vector<Document*>& GetChilds();
 			Document* Find(const std::string& Name, bool Deep = false) const;
 			Document* Fetch(const std::string& Notation, bool Deep = false) const;
             Variant FetchVar(const std::string& Key, bool Deep = false) const;
@@ -1329,17 +1334,16 @@ namespace Tomahawk
             bool Rename(const std::string& Name, const std::string& NewName);
 			bool Has(const std::string& Name) const;
 			bool Has64(const std::string& Name, size_t Size = 12) const;
+			bool IsEmpty() const;
 			bool IsAttribute() const;
 			bool IsSaved() const;
-			int64_t Size() const;
+			size_t Size() const;
 			std::string GetName() const;
 			void Join(Document* Other, bool Copy = true, bool Fast = true);
 			void Clear();
 			void Save();
 
 		public:
-			static Document* Object();
-			static Document* Array();
 			static bool Transform(Document* Value, const DocNameCallback& Callback);
 			static bool WriteXML(Document* Value, const DocWriteCallback& Callback);
 			static bool WriteJSON(Document* Value, const DocWriteCallback& Callback);

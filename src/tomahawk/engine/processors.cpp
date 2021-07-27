@@ -192,7 +192,7 @@ namespace Tomahawk
 				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
 				Object->Actualize();
 
-				Core::Document* Document = Core::Document::Object();
+				Core::Document* Document = Core::Var::Set::Object();
 				Document->Key = "scene";
 
 				auto& Conf = Object->GetConf();
@@ -582,7 +582,7 @@ namespace Tomahawk
 						Joints.push_back(It.second);
 				}
 
-				auto* Document = Core::Document::Object();
+				auto* Document = Core::Var::Set::Object();
 				Document->Key = "model";
 
 				float Min = 0, Max = 0;
@@ -955,7 +955,7 @@ namespace Tomahawk
 					}
 				}
 
-				auto* Document = Core::Document::Object();
+				auto* Document = Core::Var::Set::Object();
 				Document->Key = "animation";
 
 				NMake::Pack(Document, Clips);

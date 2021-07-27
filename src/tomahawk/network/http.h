@@ -164,10 +164,12 @@ namespace Tomahawk
 				Credentials User;
 				Content ContentState = Content::Not_Loaded;
 				char RemoteAddress[48] = { 0 };
-				char Method[10] = { 0 };
-				char Version[10] = { 0 };
+				char Method[10] = { 'G', 'E', 'T' };
+				char Version[10] = { 'H', 'T', 'T', 'P', '/', '1', '.', '1' };
 				uint64_t ContentLength = 0;
 
+				void SetMethod(const char* Value);
+				void SetVersion(unsigned int Major, unsigned int Minor);
 				void SetHeader(const char* Key, const char* Value);
 				void SetHeader(const char* Key, const std::string& Value);
 				const char* GetCookie(const char* Key);
@@ -574,6 +576,7 @@ namespace Tomahawk
 				static bool WebSocketWrite(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, const SuccessCallback& Callback);
 				static bool WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, unsigned int Mask, const SuccessCallback& Callback);
 				static bool ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B);
+				static bool ContentOK(Content State);
 				static std::string ConnectionResolve(Connection* Base);
 				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContenLength);
 				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
@@ -662,7 +665,10 @@ namespace Tomahawk
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
 				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame* Root);
-				Core::Async<ResponseFrame*> Consume(int64_t MaxSize);
+				Core::Async<ResponseFrame*> Consume(int64_t MaxSize = 1024 * 64);
+				Core::Async<ResponseFrame*> Fetch(HTTP::RequestFrame* Root, int64_t MaxSize = 1024 * 64);
+				Core::Async<Core::Document*> JSON(HTTP::RequestFrame* Root, int64_t MaxSize = 1024 * 64);
+				Core::Async<Core::Document*> XML(HTTP::RequestFrame* Root, int64_t MaxSize = 1024 * 64);
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
 

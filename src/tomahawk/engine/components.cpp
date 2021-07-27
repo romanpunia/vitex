@@ -3555,7 +3555,7 @@ namespace Tomahawk
 				Core::Document* Cache = Node->Find("cache");
 				if (Cache != nullptr)
 				{
-					for (auto& Var : *Cache->GetNodes())
+					for (auto& Var : Cache->GetChilds())
 					{
 						int TypeId = -1;
 						if (!NMake::Unpack(Var->Find("type"), &TypeId))
@@ -3684,7 +3684,7 @@ namespace Tomahawk
 					if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
 						continue;
 
-					Core::Document* Var = Core::Document::Object();
+					Core::Document* Var = Core::Var::Set::Object();
 					NMake::Pack(Var->Set("type"), Result.TypeId);
 
 					switch ((Script::VMTypeId)Result.TypeId)

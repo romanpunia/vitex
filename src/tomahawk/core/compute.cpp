@@ -8095,7 +8095,7 @@ namespace Tomahawk
 		WebToken::WebToken() : Header(nullptr), Payload(nullptr), Token(nullptr)
 		{
 		}
-		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) : Header(Core::Document::Object()), Payload(Core::Document::Object()), Token(nullptr)
+		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
 		{
 			Header->Set("alg", Core::Var::String("HS256"));
 			Header->Set("typ", Core::Var::String("JWT"));
@@ -8112,74 +8112,74 @@ namespace Tomahawk
 		void WebToken::SetAlgorithm(const std::string& Value)
 		{
 			if (!Header)
-				Header = Core::Document::Object();
+				Header = Core::Var::Set::Object();
 			Header->Set("alg", Core::Var::String(Value));
 			Signature.clear();
 		}
 		void WebToken::SetType(const std::string& Value)
 		{
 			if (!Header)
-				Header = Core::Document::Object();
+				Header = Core::Var::Set::Object();
 			Header->Set("typ", Core::Var::String(Value));
 			Signature.clear();
 		}
 		void WebToken::SetContentType(const std::string& Value)
 		{
 			if (!Header)
-				Header = Core::Document::Object();
+				Header = Core::Var::Set::Object();
 			Header->Set("cty", Core::Var::String(Value));
 			Signature.clear();
 		}
 		void WebToken::SetIssuer(const std::string& Value)
 		{
 			if (!Payload)
-				Payload = Core::Document::Object();
+				Payload = Core::Var::Set::Object();
 			Payload->Set("iss", Core::Var::String(Value));
 			Signature.clear();
 		}
 		void WebToken::SetSubject(const std::string& Value)
 		{
 			if (!Payload)
-				Payload = Core::Document::Object();
+				Payload = Core::Var::Set::Object();
 			Payload->Set("sub", Core::Var::String(Value));
 			Signature.clear();
 		}
 		void WebToken::SetId(const std::string& Value)
 		{
 			if (!Payload)
-				Payload = Core::Document::Object();
+				Payload = Core::Var::Set::Object();
 			Payload->Set("jti", Core::Var::String(Value));
 			Signature.clear();
 		}
 		void WebToken::SetAudience(const std::vector<std::string>& Value)
 		{
-			Core::Document* Array = Core::Document::Array();
+			Core::Document* Array = Core::Var::Set::Array();
 			for (auto& Item : Value)
 				Array->Push(Core::Var::String(Item));
 
 			if (!Payload)
-				Payload = Core::Document::Object();
+				Payload = Core::Var::Set::Object();
 			Payload->Set("aud", Array);
 			Signature.clear();
 		}
 		void WebToken::SetExpiration(int64_t Value)
 		{
 			if (!Payload)
-				Payload = Core::Document::Object();
+				Payload = Core::Var::Set::Object();
 			Payload->Set("exp", Core::Var::Integer(Value));
 			Signature.clear();
 		}
 		void WebToken::SetNotBefore(int64_t Value)
 		{
 			if (!Payload)
-				Payload = Core::Document::Object();
+				Payload = Core::Var::Set::Object();
 			Payload->Set("nbf", Core::Var::Integer(Value));
 			Signature.clear();
 		}
 		void WebToken::SetCreated(int64_t Value)
 		{
 			if (!Payload)
-				Payload = Core::Document::Object();
+				Payload = Core::Var::Set::Object();
 			Payload->Set("iat", Core::Var::Integer(Value));
 			Signature.clear();
 		}

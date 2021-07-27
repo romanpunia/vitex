@@ -145,7 +145,7 @@ namespace Tomahawk
 				if (Subdata != nullptr)
 				{
 					std::pair<Core::Document*, Oid> Next;
-					Next.first = Core::Document::Array();
+					Next.first = Core::Var::Set::Array();
 					Next.second = Base->second;
 
 					if (!Subdata->Parse(&Next, ToArrayField))
@@ -259,7 +259,7 @@ namespace Tomahawk
 			static Core::Document* ToArray(const char* Data, int Size, unsigned int Id)
 			{
 				std::pair<Core::Document*, Oid> Context;
-				Context.first = Core::Document::Array();
+				Context.first = Core::Var::Set::Array();
 				Context.second = Id;
 
 				ArrayFilter Filter(Data, (size_t)Size);
@@ -783,8 +783,8 @@ namespace Tomahawk
 				if (Size <= 0)
 					return nullptr;
 
-				Core::Document* Result = Core::Document::Object();
-				Result->GetNodes()->reserve((size_t)Size);
+				Core::Document* Result = Core::Var::Set::Object();
+				Result->GetChilds().reserve((size_t)Size);
 
 				for (int j = 0; j < Size; j++)
 				{
@@ -909,13 +909,13 @@ namespace Tomahawk
 					Meta.emplace_back(std::make_pair(Name ? Name : std::to_string(j), PQftype(Base, j)));
 				}
 
-				Core::Document* Result = Core::Document::Array();
-				Result->GetNodes()->reserve((size_t)RowsSize);
+				Core::Document* Result = Core::Var::Set::Array();
+				Result->GetChilds().reserve((size_t)RowsSize);
 
 				for (int i = 0; i < RowsSize; i++)
 				{
-					Core::Document* Subresult = Core::Document::Object();
-					Subresult->GetNodes()->reserve((size_t)ColumnsSize);
+					Core::Document* Subresult = Core::Var::Set::Object();
+					Subresult->GetChilds().reserve((size_t)ColumnsSize);
 
 					for (int j = 0; j < ColumnsSize; j++)
 					{
@@ -2049,10 +2049,10 @@ namespace Tomahawk
 					case Core::VarType::Array:
 					{
 						std::string Result = (Array ? "[" : "ARRAY[");
-						for (auto* Node : *Source->GetNodes())
+						for (auto* Node : Source->GetChilds())
 							Result.append(GetSQL(Base, Node, true)).append(1, ',');
 
-						if (!Source->GetNodes()->empty())
+						if (!Source->IsEmpty())
 							Result = Result.substr(0, Result.size() - 1);
 
 						return Result + "]";

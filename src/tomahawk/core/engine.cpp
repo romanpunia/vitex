@@ -1647,8 +1647,8 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-			O->reserve(V->GetNodes()->size());
-			for (auto&& It : *V->GetNodes())
+			O->reserve(V->Size());
+			for (auto&& It : V->GetChilds())
 			{
 				O->push_back(Compute::Joint());
 				NMake::Unpack(It, &O->back());
@@ -1766,7 +1766,7 @@ namespace Tomahawk
 			if (!Array)
 				return false;
 
-			for (auto&& It : *Array->GetNodes())
+			for (auto&& It : Array->GetChilds())
 			{
 				if (It->Key == "s" && It->Value.GetType() == Core::VarType::String)
 					O->push_back(It->Value.GetBlob());

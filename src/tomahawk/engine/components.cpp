@@ -3890,7 +3890,7 @@ namespace Tomahawk
 				if (Result.IsPending())
 					return (int)Script::VMResult::CONTEXT_ACTIVE;
 
-				return Result.Get();
+				return Core::Coawait(std::move(Result));
 			}
 			int Scriptable::CallEntry(const std::string& Name)
 			{

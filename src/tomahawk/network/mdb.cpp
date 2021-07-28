@@ -13,6 +13,17 @@ namespace Tomahawk
 		namespace MDB
 		{
 #ifdef TH_HAS_MONGOC
+			typedef enum
+			{
+				BSON_FLAG_NONE = 0,
+				BSON_FLAG_INLINE = (1 << 0),
+				BSON_FLAG_STATIC = (1 << 1),
+				BSON_FLAG_RDONLY = (1 << 2),
+				BSON_FLAG_CHILD = (1 << 3),
+				BSON_FLAG_IN_CHILD = (1 << 4),
+				BSON_FLAG_NO_FREE = (1 << 5),
+			} BSON_FLAG;
+
 			template <typename R, typename T, typename... Args>
 			bool MDB_EXEC(R&& Function, T* Base, Args&&... Data)
 			{
@@ -41,7 +52,7 @@ namespace Tomahawk
 				return Result;
 			}
 #endif
-			Property::Property() : Object(nullptr), Array(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
+			Property::Property() : Source(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
 			{
 			}
 			Property::~Property()
@@ -50,12 +61,8 @@ namespace Tomahawk
 			}
 			void Property::Release()
 			{
-				Document(Object).Release();
-				Object = nullptr;
-
-				Document(Array).Release();
-				Array = nullptr;
-
+				Document(Source).Release();
+				Source = nullptr;
 				Name.clear();
 				String.clear();
 				Integer = 0;
@@ -107,35 +114,28 @@ namespace Tomahawk
 			}
             TDocument* Property::GetOwnership()
             {
-                if (Object != nullptr)
-                {
-                    TDocument* Result = Object;
-                    Object = Array = nullptr;
-                    return Result;
-                }
-                
-                if (Array != nullptr)
-                {
-                    TDocument* Result = Array;
-                    Object = Array = nullptr;
-                    return Result;
-                }
-                
-                return nullptr;
+                if (!Source)
+					return nullptr;
+
+                TDocument* Result = Source;
+				Source = nullptr;
+                return Result;
             }
+			Document Property::Get() const
+			{
+				return Document(Source);
+			}
 			Property Property::operator [](const char* Name)
 			{
 				Property Result;
-				Document Source(Object ? Object : Array);
-				Source.FindProperty(Name, &Result);
+				Get().FindProperty(Name, &Result);
 
 				return Result;
 			}
 			Property Property::operator [](const char* Name) const
 			{
 				Property Result;
-				Document Source(Object ? Object : Array);
-				Source.FindProperty(Name, &Result);
+				Get().FindProperty(Name, &Result);
 
 				return Result;
 			}
@@ -244,12 +244,7 @@ namespace Tomahawk
 				if (!Base || Store)
 					return;
 
-				if (Base->flags == 2)
-				{
-					bson_destroy(Base);
-					bson_free(Base);
-				}
-				else
+				if (!(Base->flags & BSON_FLAG_STATIC) && !(Base->flags & BSON_FLAG_RDONLY) && !(Base->flags & BSON_FLAG_INLINE) && !(Base->flags & BSON_FLAG_NO_FREE))
 					bson_destroy(Base);
 				*((TDocument**)&Base) = nullptr;
 #endif
@@ -525,9 +520,9 @@ namespace Tomahawk
 				switch (Value->Mod)
 				{
 					case Type::Document:
-						return SetDocument(Key, Document(Value->Object).Copy());
+						return SetDocument(Key, Value->Get().Copy());
 					case Type::Array:
-						return SetArray(Key, Document(Value->Array).Copy());
+						return SetArray(Key, Value->Get().Copy());
 					case Type::String:
 						return SetString(Key, Value->String.c_str());
 					case Type::Boolean:
@@ -596,11 +591,11 @@ namespace Tomahawk
 				{
 					case BSON_TYPE_DOCUMENT:
 						Output->Mod = Type::Document;
-						Output->Object = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
+						Output->Source = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
 						break;
 					case BSON_TYPE_ARRAY:
 						Output->Mod = Type::Array;
-						Output->Array = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
+						Output->Source = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
 						break;
 					case BSON_TYPE_BOOL:
 						Output->Mod = Type::Boolean;
@@ -776,12 +771,12 @@ namespace Tomahawk
 					{
 						case Type::Document:
 						{
-							Node->Set(Name, Document(Key->Object).ToDocument(false));
+							Node->Set(Name, Key->Get().ToDocument(false));
 							break;
 						}
 						case Type::Array:
 						{
-							Node->Set(Name, Document(Key->Array).ToDocument(true));
+							Node->Set(Name, Key->Get().ToDocument(true));
 							break;
 						}
 						case Type::String:
@@ -1167,6 +1162,7 @@ namespace Tomahawk
                 Property Type;
                 if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
                 {
+					Command.Release();
                     TH_ERROR("cannot run query without query @type");
                     return false;
                 }
@@ -1176,6 +1172,7 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-one query without @match");
                         return false;
                     }
@@ -1183,11 +1180,14 @@ namespace Tomahawk
                     Property Update;
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-one query without @update");
                         return false;
                     }
                     
                     Property Options = Command["options"];
+					Command.Release();
+
                     return UpdateOne(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership());
                 }
                 else if (Type.String == "update-many")
@@ -1195,6 +1195,7 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-many query without @match");
                         return false;
                     }
@@ -1202,11 +1203,14 @@ namespace Tomahawk
                     Property Update;
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-many query without @update");
                         return false;
                     }
                     
                     Property Options = Command["options"];
+					Command.Release();
+
                     return UpdateMany(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership());
                 }
                 else if (Type.String == "insert")
@@ -1214,11 +1218,14 @@ namespace Tomahawk
                     Property Value;
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run insert-one query without @value");
                         return false;
                     }
                     
                     Property Options = Command["options"];
+					Command.Release();
+
                     return InsertOne(Value.GetOwnership(), Options.GetOwnership());
                 }
                 else if (Type.String == "replace")
@@ -1226,6 +1233,7 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run replace-one query without @match");
                         return false;
                     }
@@ -1233,11 +1241,14 @@ namespace Tomahawk
                     Property Value;
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run replace-one query without @value");
                         return false;
                     }
                     
                     Property Options = Command["options"];
+					Command.Release();
+
                     return ReplaceOne(Match.GetOwnership(), Value.GetOwnership(), Options.GetOwnership());
                 }
                 else if (Type.String == "remove")
@@ -1245,11 +1256,14 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run remove-one query without @value");
                         return false;
                     }
                     
                     Property Options = Command["options"];
+					Command.Release();
+
                     return RemoveOne(Match.GetOwnership(), Options.GetOwnership());
                 }
                 else if (Type.String == "remove-many")
@@ -1257,14 +1271,18 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run remove-many query without @value");
                         return false;
                     }
                     
                     Property Options = Command["options"];
+					Command.Release();
+
                     return RemoveMany(Match.GetOwnership(), Options.GetOwnership());
                 }
-                
+
+				Command.Release();
                 TH_ERROR("cannot find query of type \"%s\"", Type.String.c_str());
                 return false;
 #else
@@ -1302,19 +1320,17 @@ namespace Tomahawk
 					return Core::Async<Document>::Store(nullptr);
 
 				Stream Context = *this; Base = nullptr;
-				return Core::Async<Document>([Context](Core::Async<Document>& Future) mutable
+				return Core::Async<Document>::Executor([Context](Core::Async<Document>& Future) mutable
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Subresult);
 					Context.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1327,7 +1343,7 @@ namespace Tomahawk
 					return Core::Async<bool>::Store(true);
 
 				Stream Context = *this; Base = nullptr;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future) mutable
+				return Core::Async<bool>::Executor([Context](Core::Async<bool>& Future) mutable
 				{
 					TDocument Result;
 					bool Subresult = MDB_EXEC(&mongoc_bulk_operation_execute, Context.Get(), &Result);
@@ -1447,7 +1463,7 @@ namespace Tomahawk
 					return Core::Async<bool>::Store(false);
 
 				auto* Context = Base;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context](Core::Async<bool>& Future)
 				{
 					TDocument* Query = nullptr;
 					Future.Set(mongoc_cursor_next(Context, (const TDocument**)&Query));
@@ -1619,7 +1635,7 @@ namespace Tomahawk
                     return Result;
                 }
                 
-                if (!ICursor.Next().Get())
+                if (!Core::Coawait(ICursor.Next()))
                     return Result;
                 
                 Source = ICursor.GetCurrent();
@@ -1668,7 +1684,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false));
 				});
@@ -1680,7 +1696,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
 					Options.Release();
@@ -1695,7 +1711,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true));
 				});
@@ -1707,7 +1723,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, NewDatabaseName, NewCollectionName, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
 					Options.Release();
@@ -1722,7 +1738,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_drop_with_opts, Context, Options.Get());
 					Options.Release();
@@ -1737,7 +1753,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Name, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Name, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
 					Options.Release();
@@ -1752,7 +1768,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context, Match, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>::Executor([Context, Match, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_collection_delete_many, Context, Match.Get(), Options.Get(), &Subresult);
@@ -1760,12 +1776,10 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1775,7 +1789,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context, Match, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>::Executor([Context, Match, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_collection_delete_one, Context, Match.Get(), Options.Get(), &Subresult);
@@ -1783,12 +1797,10 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1798,7 +1810,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context, Match, Replacement, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>::Executor([Context, Match, Replacement, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_collection_replace_one, Context, Match.Get(), Replacement.Get(), Options.Get(), &Subresult);
@@ -1807,12 +1819,10 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1827,7 +1837,7 @@ namespace Tomahawk
 				std::vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
-				return Core::Async<Document>([Context, Array = std::move(Array), Options](Core::Async<Document>& Future) mutable
+				return Core::Async<Document>::Executor([Context, Array = std::move(Array), Options](Core::Async<Document>& Future) mutable
 				{
 					TDocument** Subarray = (TDocument**)TH_MALLOC(sizeof(TDocument*) * Array.size());
 					for (size_t i = 0; i < Array.size(); i++)
@@ -1841,12 +1851,10 @@ namespace Tomahawk
 					TH_FREE(Subarray);
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1856,7 +1864,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context, Result, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>::Executor([Context, Result, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult);
@@ -1864,12 +1872,10 @@ namespace Tomahawk
 					Result.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1879,7 +1885,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context, Match, Update, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>::Executor([Context, Match, Update, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_collection_update_many, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult);
@@ -1888,12 +1894,10 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1903,7 +1907,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context, Match, Update, Options](Core::Async<Document>& Future)
+				return Core::Async<Document>::Executor([Context, Match, Update, Options](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_collection_update_one, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult);
@@ -1912,12 +1916,10 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1927,7 +1929,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>([Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
+				return Core::Async<Document>::Executor([Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MDB_EXEC(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult);
@@ -1937,12 +1939,10 @@ namespace Tomahawk
 					Fields.Release();
 
 					if (!fResult)
-					{
-						bson_free(&Subresult);
 						Future.Set(Document(nullptr));
-					}
 					else
 						Future.Set(Document::FromSource(&Subresult));
+					bson_destroy(&Subresult);
 				});
 #else
 				return Core::Async<Document>::Store(nullptr);
@@ -1952,7 +1952,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<uint64_t>([Context, Match, Options](Core::Async<uint64_t>& Future)
+				return Core::Async<uint64_t>::Executor([Context, Match, Options](Core::Async<uint64_t>& Future)
 				{
 					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
 					Match.Release();
@@ -1968,7 +1968,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<uint64_t>([Context, Options](Core::Async<uint64_t>& Future)
+				return Core::Async<uint64_t>::Executor([Context, Options](Core::Async<uint64_t>& Future)
 				{
 					uint64_t Subresult = (uint64_t)MDB_EXEC(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
 					Options.Release();
@@ -1983,12 +1983,12 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>([Context, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>::Executor([Context, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
 					Options.Release();
 
-					Future.Sync(true).Set(Subresult);
+					Future.Set(Subresult);
 				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -1998,13 +1998,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>([Context, Match, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>::Executor([Context, Match, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_find_with_opts, Context, Match.Get(), Options.Get(), nullptr);
 					Match.Release();
 					Options.Release();
 
-					Future.Sync(true).Set(Subresult);
+					Future.Set(Subresult);
 				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -2014,7 +2014,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>([Context, Match, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>::Executor([Context, Match, Options](Core::Async<Cursor>& Future)
 				{
 					Document Settings = Options;
 					if (Settings.Get() != nullptr)
@@ -2028,7 +2028,7 @@ namespace Tomahawk
 					Match.Release();
 					Options.Release();
 
-					Future.Sync(true).Set(Subresult);
+					Future.Set(Subresult);
 				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -2038,13 +2038,13 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>([Context, Flags, Pipeline, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>::Executor([Context, Flags, Pipeline, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_collection_aggregate, Context, (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
 					Pipeline.Release();
 					Options.Release();
 
-					Future.Sync(true).Set(Subresult);
+					Future.Set(Subresult);
 				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -2066,6 +2066,7 @@ namespace Tomahawk
                 Property Type;
                 if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
                 {
+					Command.Release();
                     TH_ERROR("cannot run query without query @type");
                     return Core::Async<Response>::Store(Response());
                 }
@@ -2095,8 +2096,9 @@ namespace Tomahawk
                     }
                     
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run aggregation query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2104,10 +2106,12 @@ namespace Tomahawk
                     Property Pipeline;
                     if (!Command.GetProperty("pipeline", &Pipeline) || Pipeline.Mod != Type::Array)
                     {
+						Command.Release();
                         TH_ERROR("cannot run aggregation query without @pipeline");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return Aggregate(Flags, Pipeline.GetOwnership(), Options.GetOwnership()).Then<Response>([](Cursor&& Result)
                     {
                         return Response(Result);
@@ -2116,8 +2120,9 @@ namespace Tomahawk
                 else if (Type.String == "find")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run find-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2125,10 +2130,12 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run find-one query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return FindOne(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Cursor&& Result)
                     {
                         return Response(Result);
@@ -2137,8 +2144,9 @@ namespace Tomahawk
                 else if (Type.String == "find-many")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run find-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2146,10 +2154,12 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run find-many query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return FindMany(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Cursor&& Result)
                     {
                         return Response(Result);
@@ -2158,8 +2168,9 @@ namespace Tomahawk
                 else if (Type.String == "update")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2167,6 +2178,7 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-one query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2174,10 +2186,12 @@ namespace Tomahawk
                     Property Update;
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-one query without @update");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return UpdateOne(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
@@ -2186,8 +2200,9 @@ namespace Tomahawk
                 else if (Type.String == "update-many")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2195,6 +2210,7 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-many query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2202,10 +2218,12 @@ namespace Tomahawk
                     Property Update;
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run update-many query without @update");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return UpdateMany(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
@@ -2214,8 +2232,9 @@ namespace Tomahawk
                 else if (Type.String == "insert")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run insert-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2223,10 +2242,12 @@ namespace Tomahawk
                     Property Value;
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run insert-one query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return InsertOne(Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
@@ -2235,8 +2256,9 @@ namespace Tomahawk
                 else if (Type.String == "insert-many")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run insert-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2244,17 +2266,19 @@ namespace Tomahawk
                     Property Values;
                     if (!Command.GetProperty("values", &Values) || Values.Mod != Type::Array)
                     {
+						Command.Release();
                         TH_ERROR("cannot run insert-many query without @values");
                         return Core::Async<Response>::Store(Response());
                     }
                     
                     std::vector<Document> Data;
-                    Document(Values.Array).Loop([&Data](Property* Value)
+                    Values.Get().Loop([&Data](Property* Value)
                     {
                         Data.push_back(Value->GetOwnership());
                         return true;
                     });
-                    
+
+					Command.Release();
                     return InsertMany(Data, Options.GetOwnership()).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
@@ -2265,6 +2289,7 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run find-and-modify query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2275,7 +2300,8 @@ namespace Tomahawk
                     Property Remove = Command["remove"];
                     Property Upsert = Command["upsert"];
                     Property New = Command["new"];
-                    
+
+					Command.Release();
                     return FindAndModify(Match.GetOwnership(), Sort.GetOwnership(), Update.GetOwnership(), Fields.GetOwnership(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
@@ -2284,8 +2310,9 @@ namespace Tomahawk
                 else if (Type.String == "replace")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run replace-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2293,6 +2320,7 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run replace-one query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2300,10 +2328,12 @@ namespace Tomahawk
                     Property Value;
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run replace-one query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return ReplaceOne(Match.GetOwnership(), Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
@@ -2312,8 +2342,9 @@ namespace Tomahawk
                 else if (Type.String == "remove")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run remove-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2321,10 +2352,12 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run remove-one query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return RemoveOne(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
@@ -2333,8 +2366,9 @@ namespace Tomahawk
                 else if (Type.String == "remove-many")
                 {
                     Property Options = Command["options"];
-                    if (Session != nullptr && !Session->Put(&Options.Object))
+                    if (Session != nullptr && !Session->Put(&Options.Source))
                     {
+						Command.Release();
                         TH_ERROR("cannot run remove-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
@@ -2342,16 +2376,19 @@ namespace Tomahawk
                     Property Match;
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
+						Command.Release();
                         TH_ERROR("cannot run remove-many query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
-                    
+
+					Command.Release();
                     return RemoveMany(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
                     {
                         return Response(Result);
                     });
                 }
-                
+
+				Command.Release();
                 TH_ERROR("cannot find query of type \"%s\"", Type.String.c_str());
                 return Core::Async<Response>::Store(Response());
 #else
@@ -2410,7 +2447,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_database_remove_all_users, Context));
 				});
@@ -2422,7 +2459,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Name](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Name](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_database_remove_user, Context, Name.c_str()));
 				});
@@ -2434,7 +2471,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_database_drop, Context));
 				});
@@ -2449,7 +2486,7 @@ namespace Tomahawk
 					return Remove();
 
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Options](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Options](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_database_drop_with_opts, Context, Options.Get());
 					Options.Release();
@@ -2464,7 +2501,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Username, Password, Roles, Custom](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Username, Password, Roles, Custom](Core::Async<bool>& Future)
 				{
 					bool Subresult = MDB_EXEC(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
 					Roles.Release();
@@ -2480,7 +2517,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Name](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Name](Core::Async<bool>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2498,12 +2535,12 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>([Context, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>::Executor([Context, Options](Core::Async<Cursor>& Future)
 				{
 					Cursor Subresult = MDB_EXEC_CUR(&mongoc_database_find_collections_with_opts, Context, Options.Get());
 					Options.Release();
 
-					Future.Sync(true).Set(Subresult);
+					Future.Set(Subresult);
 				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -2519,7 +2556,7 @@ namespace Tomahawk
 				}
 
 				auto* Context = Base;
-				return Core::Async<Collection>([Context, Name, Options](Core::Async<Collection>& Future)
+				return Core::Async<Collection>::Executor([Context, Name, Options](Core::Async<Collection>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2615,7 +2652,7 @@ namespace Tomahawk
 					return Core::Async<bool>::Store(false);
 
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Result](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Result](Core::Async<bool>& Future)
 				{
 					TDocument* Ptr = Result.Get();
 					Future.Set(mongoc_change_stream_next(Context, (const TDocument**)&Ptr));
@@ -2631,7 +2668,7 @@ namespace Tomahawk
 					return Core::Async<bool>::Store(false);
 
 				auto* Context = Base;
-				return Core::Async<bool>([Context, Result](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context, Result](Core::Async<bool>& Future)
 				{
 					TDocument* Ptr = Result.Get();
 					Future.Set(mongoc_change_stream_error_document(Context, nullptr, (const TDocument**)&Ptr));
@@ -2748,7 +2785,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_client_session_start_transaction, Context, nullptr));
 				});
@@ -2760,7 +2797,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>([Context](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([Context](Core::Async<bool>& Future)
 				{
 					Future.Set(MDB_EXEC(&mongoc_client_session_abort_transaction, Context));
 				});
@@ -2949,7 +2986,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<TransactionState>([Context](Core::Async<TransactionState>& Future)
+				return Core::Async<TransactionState>::Executor([Context](Core::Async<TransactionState>& Future)
 				{
 					TDocument Subresult;
 					if (MDB_EXEC(&mongoc_client_session_commit_transaction, Context, &Subresult))
@@ -3003,7 +3040,7 @@ namespace Tomahawk
 					});
 				}
 
-				return Core::Async<bool>([this, Address](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this, Address](Core::Async<bool>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -3044,7 +3081,7 @@ namespace Tomahawk
 				}
 
 				TAddress* URI = URL->Get();
-				return Core::Async<bool>([this, URI](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this, URI](Core::Async<bool>& Future)
 				{
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
@@ -3066,7 +3103,7 @@ namespace Tomahawk
 				if (!Connected || !Base)
 					return Core::Async<bool>::Store(false);
 
-				return Core::Async<bool>([this](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this](Core::Async<bool>& Future)
 				{
 					Connected = false;
 					if (Master != nullptr)
@@ -3188,12 +3225,12 @@ namespace Tomahawk
 			Core::Async<Cursor> Connection::FindDatabases(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				return Core::Async<Cursor>([this, Options](Core::Async<Cursor>& Future)
+				return Core::Async<Cursor>::Executor([this, Options](Core::Async<Cursor>& Future)
 				{
 					TCursor* Subresult = mongoc_client_find_databases_with_opts(Base, Options.Get());
 					Options.Release();
 
-					Future.Sync(true).Set(Subresult);
+					Future.Set(Subresult);
 				});
 #else
 				return Core::Async<Cursor>::Store(nullptr);
@@ -3333,7 +3370,7 @@ namespace Tomahawk
 					});
 				}
 
-				return Core::Async<bool>([this, URI](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this, URI](Core::Async<bool>& Future)
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -3376,7 +3413,7 @@ namespace Tomahawk
 				TAddress* Context = URI->Get();
 				*URI = nullptr;
 
-				return Core::Async<bool>([this, Context](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this, Context](Core::Async<bool>& Future)
 				{
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
@@ -3399,7 +3436,7 @@ namespace Tomahawk
 				if (!Connected || !Pool)
 					return Core::Async<bool>::Store(false);
 
-				return Core::Async<bool>([this](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this](Core::Async<bool>& Future)
 				{
 					if (Pool != nullptr)
 					{

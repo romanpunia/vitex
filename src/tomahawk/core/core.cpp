@@ -6752,7 +6752,7 @@ namespace Tomahawk
 				goto Reuse;
 		}
 		
-		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false)
+		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false), Enqueue(true)
 		{
 		}
 		Schedule::~Schedule()
@@ -6763,7 +6763,7 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetListener(const std::string& Name, const EventCallback& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
 			Race.Listeners.lock();
@@ -6786,7 +6786,7 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetListener(const std::string& Name, EventCallback&& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
 			Race.Listeners.lock();
@@ -6809,7 +6809,7 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -6826,7 +6826,7 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -6843,7 +6843,7 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -6860,7 +6860,7 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return -1;
 
 			int64_t Clock = GetClock();
@@ -6877,7 +6877,7 @@ namespace Tomahawk
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return false;
 
 			Race.Tasks.lock();
@@ -6891,7 +6891,7 @@ namespace Tomahawk
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return false;
 
 			Race.Tasks.lock();
@@ -6905,7 +6905,7 @@ namespace Tomahawk
 		}
 		bool Schedule::SetAsync(const TaskCallback& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return false;
 
 			if (Costate::Get() != nullptr)
@@ -6925,7 +6925,7 @@ namespace Tomahawk
 		}
 		bool Schedule::SetAsync(TaskCallback&& Callback)
 		{
-			if (!Callback)
+			if (!Callback || !Enqueue)
 				return false;
 
 			if (Costate::Get() != nullptr)
@@ -6945,6 +6945,9 @@ namespace Tomahawk
 		}
 		bool Schedule::SetEvent(const std::string& Name, const VariantArgs& Args)
 		{
+			if (!Enqueue)
+				return false;
+
 			Race.Events.lock();
 			Events.emplace(Name, Args);
 			Race.Events.unlock();
@@ -6956,6 +6959,9 @@ namespace Tomahawk
 		}
 		bool Schedule::SetEvent(const std::string& Name, VariantArgs&& Args)
 		{
+			if (!Enqueue)
+				return false;
+
 			Race.Events.lock();
 			Events.emplace(Name, std::move(Args));
 			Race.Events.unlock();
@@ -6967,6 +6973,9 @@ namespace Tomahawk
 		}
 		bool Schedule::SetEvent(const std::string& Name)
 		{
+			if (!Enqueue)
+				return false;
+
 			Race.Events.lock();
 			Events.emplace(Name);
 			Race.Events.unlock();
@@ -7052,7 +7061,7 @@ namespace Tomahawk
 				return false;
 			}
 
-			Active = false;
+			Active = Enqueue = false;
 			Queue.Publish.notify_all();
 			Queue.Consume.notify_all();
 
@@ -7096,6 +7105,7 @@ namespace Tomahawk
 
 			TH_CLEAR(Comain);
 			Terminate = false;
+			Enqueue = true;
 			Threads = Stack = Timer = 0;
 			Race.Basement.unlock();
 

@@ -1282,7 +1282,15 @@ namespace Tomahawk
 			}
 			Cluster::~Cluster()
 			{
-				Core::Coawait(Disconnect());
+				Update.lock();
+				for (auto& Item : Pool)
+				{
+					Item.first->Clear(false);
+					PQfinish(Item.second->Base);
+					TH_DELETE(Connection, Item.second);
+					TH_DELETE(Socket, Item.first);
+				}
+
 				for (auto* Item : Requests)
 				{
 					Item->Future.Set(Cursor());
@@ -1290,6 +1298,7 @@ namespace Tomahawk
 					TH_DELETE(Request, Item);
 				}
 
+				Update.unlock();
 				Driver::Release();
 			}
 			void Cluster::SetChannel(const std::string& Name, const OnNotification& NewCallback)
@@ -1324,7 +1333,7 @@ namespace Tomahawk
 				if (!Connections)
 					return Core::Async<bool>::Store(false);
 
-				return Core::Async<bool>([this, Connections](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this, Connections](Core::Async<bool>& Future)
 				{
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
@@ -1378,7 +1387,7 @@ namespace Tomahawk
 				if (Pool.empty())
 					return Core::Async<bool>::Store(false);
 
-				return Core::Async<bool>([this](Core::Async<bool>& Future)
+				return Core::Async<bool>::Executor([this](Core::Async<bool>& Future)
 				{
 					Update.lock();
 					for (auto& Item : Pool)

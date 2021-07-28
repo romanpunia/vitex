@@ -37,6 +37,8 @@ namespace Tomahawk
 
 			class Cluster;
 
+			class Document;
+
 			enum class QueryFlags
 			{
 				None = 0,
@@ -81,8 +83,7 @@ namespace Tomahawk
 			{
 				std::string Name;
 				std::string String;
-				TDocument* Object;
-				TDocument* Array;
+				TDocument* Source;
 				Type Mod;
 				int64_t Integer;
 				uint64_t High;
@@ -97,6 +98,7 @@ namespace Tomahawk
 				void Release();
 				std::string& ToString();
                 TDocument* GetOwnership();
+				Document Get() const;
 				Property operator [](const char* Name);
 				Property operator [](const char* Name) const;
 			};

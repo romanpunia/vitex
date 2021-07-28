@@ -1299,7 +1299,7 @@ namespace Tomahawk
         void Driver::Multiplex()
         {
             Dispatch();
-            Core::Schedule::Get()->SetTask(&Driver::Multiplex);
+			Core::Schedule::Get()->SetTask(&Driver::Multiplex);
         }
 		int Driver::Dispatch()
 		{

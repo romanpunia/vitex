@@ -1242,6 +1242,7 @@ namespace Tomahawk
 			uint64_t Threads;
 			uint64_t Stack;
 			EventId Timer;
+			bool Enqueue;
 			bool Terminate;
 			bool Active;
 
@@ -1714,25 +1715,6 @@ namespace Tomahawk
 			Async() noexcept : Next(TH_NEW(Base))
 			{
 			}
-			Async(std::function<void(Async&)>&& Executor) noexcept : Async()
-			{
-                if (!Executor)
-                    return;
-
-                Schedule* Queue = Schedule::Get();
-                if (Queue->IsActive())
-                {
-                    Base* Subresult = Next->Copy();
-                    Queue->SetTask([Subresult, Executor = std::move(Executor)]() mutable
-                    {
-                        Async Copy(Subresult);
-                        Subresult->Free();
-                        Executor(Copy);
-                    });
-                }
-                else
-                    Executor(*this);
-			}
 			Async(Base* Context) noexcept : Next(Context)
 			{
 				if (Next != nullptr)
@@ -1850,7 +1832,7 @@ namespace Tomahawk
 				Next->RW.unlock();
 				return Next->Result;
 			}
-			T& Get()
+			T& Wait()
 			{
 				while (IsPending())
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
@@ -1936,6 +1918,19 @@ namespace Tomahawk
 			{
 				return Async((Base*)nullptr);
 			}
+			static Async Executor(std::function<void(Async&)>&& Callback)
+			{
+				if (!Callback)
+					return Empty();
+
+				Async Result;
+				Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
+				{
+					Callback(Result);
+				});
+
+				return Result;
+			}
 		};
 
 		class Conditional
@@ -2018,14 +2013,14 @@ namespace Tomahawk
 		{
 			Costate* State = Costate::Get();
             if (!State || !Future.IsPending())
-                return Future.Get();
+                return Future.Wait();
             
             Coroutine* Base = State->GetCurrent();
-            Future.Await([State, Base](T&&)
+			Future.Await([State, Base](T&&)
             {
                 State->Activate(Base);
             });
-            
+			
             State->Deactivate(Base);
             while (Future.IsPending())
                 State->Suspend();

@@ -2587,7 +2587,7 @@ namespace Tomahawk
 				return asEXECUTION_ACTIVE;
 
 			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
-				return Result.Get();
+				return Core::Coawait(std::move(Result));
 
 			if (ReturnTypeId & asTYPEID_OBJHANDLE)
 			{
@@ -2601,8 +2601,8 @@ namespace Tomahawk
 				Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
 			else
 				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
-				
-			return Result.Get();
+
+			return Core::Coawait(std::move(Result));
 		}
 		int VMCompiler::ExecuteScoped(const std::string& Code, void* Return, int ReturnTypeId)
 		{
@@ -2649,7 +2649,7 @@ namespace Tomahawk
 			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
 			{
 				Function->Release();
-				return Result.Get();
+				return Core::Coawait(std::move(Result));
 			}
 
 			if (ReturnTypeId & asTYPEID_OBJHANDLE)
@@ -2666,7 +2666,7 @@ namespace Tomahawk
 				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
 
 			Function->Release();
-			return Result.Get();
+			return Core::Coawait(std::move(Result));
 		}
 		VMManager* VMCompiler::GetManager() const
 		{

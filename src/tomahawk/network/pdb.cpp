@@ -1283,6 +1283,7 @@ namespace Tomahawk
 			Cluster::~Cluster()
 			{
 				Update.lock();
+#ifdef TH_HAS_POSTGRESQL
 				for (auto& Item : Pool)
 				{
 					Item.first->Clear(false);
@@ -1290,7 +1291,7 @@ namespace Tomahawk
 					TH_DELETE(Connection, Item.second);
 					TH_DELETE(Socket, Item.first);
 				}
-
+#endif
 				for (auto* Item : Requests)
 				{
 					Item->Future.Set(Cursor());

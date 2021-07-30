@@ -3051,7 +3051,8 @@ namespace Tomahawk
 				if (!Base || !Buffer)
 					return;
 
-				Buffer->Append("Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
+				Buffer->Append(
+					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
 					"Pragma: no-cache\r\n"
 					"Expires: 0\r\n", 102);
 			}
@@ -4362,10 +4363,6 @@ namespace Tomahawk
 				}
 #endif
 				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Buffer.size());
-				if (strcmp(Base->Request.Method, "HEAD") != 0)
-					Content.Append(Base->Response.Buffer.data());
-
-				Base->Response.Buffer.clear();
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
 				{
 					auto Base = Socket->Context<HTTP::Connection>();
@@ -4374,7 +4371,19 @@ namespace Tomahawk
 					else if (Size > 0)
 						return true;
 
-					return Base->Finish(200);
+					if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
+						return Base->Finish(200);
+
+					return !Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t Size)
+					{
+						auto Base = Socket->Context<HTTP::Connection>();
+						if (Size < 0)
+							return Base->Break();
+						else if (Size > 0)
+							return true;
+
+						return Base->Finish(200);
+					});
 				});
 			}
 			bool Util::ProcessResource(Connection* Base)

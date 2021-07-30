@@ -5862,52 +5862,30 @@ namespace Tomahawk
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Content, Job->Time);
 #endif
+			ApplicationState OK;
 			if (I->Async)
-			{
-				State = ApplicationState::Multithreaded;
-				Queue->Start(true, std::max((uint64_t)Workers.size(), I->Threads), I->Coroutines, I->Stack);
+				OK = State = ApplicationState::Multithreaded;
+			else
+				OK = State = ApplicationState::Singlethreaded;
 
-				if (Activity != nullptr)
+			Queue->Start(I->Async, std::max((uint64_t)Workers.size(), I->Threads), I->Coroutines, I->Stack);
+			if (Activity != nullptr)
+			{
+				while (State == OK)
 				{
-					while (State == ApplicationState::Multithreaded)
-					{
-						Activity->Dispatch();
-						Job->UpdateCore();
-						Publish(Job->Time);
-					}
-				}
-				else
-				{
-					while (State == ApplicationState::Multithreaded)
-                    {
-						Job->UpdateCore();
-                        Publish(Job->Time);
-                    }
+					Queue->Dispatch();
+					Activity->Dispatch();
+					Job->UpdateCore();
+					Publish(Job->Time);
 				}
 			}
 			else
 			{
-				State = ApplicationState::Singlethreaded;
-				Queue->Start(false, I->Threads, I->Coroutines, I->Stack);
-
-				if (Activity != nullptr)
+				while (State == OK)
 				{
-					while (State == ApplicationState::Singlethreaded)
-					{
-						Queue->Dispatch();
-						Activity->Dispatch();
-						Job->UpdateCore();
-						Publish(Job->Time);
-					}
-				}
-				else
-				{
-					while (State == ApplicationState::Singlethreaded)
-					{
-						Queue->Dispatch();
-						Job->UpdateCore();
-                        Publish(Job->Time);
-					}
+					Queue->Dispatch();
+					Job->UpdateCore();
+					Publish(Job->Time);
 				}
 			}
 

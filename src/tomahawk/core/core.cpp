@@ -6880,12 +6880,9 @@ namespace Tomahawk
 			if (!Callback || !Enqueue)
 				return false;
 
-			Race.Tasks.lock();
-			Tasks.emplace(Callback);
-			Race.Tasks.unlock();
-
+			Tasks.TryPush(TH_NEW(TaskCallback, Callback));
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Publish.notify_one();
 
 			return true;
 		}
@@ -6894,12 +6891,9 @@ namespace Tomahawk
 			if (!Callback || !Enqueue)
 				return false;
 
-			Race.Tasks.lock();
-			Tasks.emplace(std::move(Callback));
-			Race.Tasks.unlock();
-
+			Tasks.TryPush(std::move(TH_NEW(TaskCallback, std::move(Callback))));
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Publish.notify_one();
 
 			return true;
 		}
@@ -6914,12 +6908,9 @@ namespace Tomahawk
 				return true;
 			}
 
-			Race.Asyncs.lock();
-			Asyncs.emplace(Callback);
-			Race.Asyncs.unlock();
-
+			Asyncs.TryPush(TH_NEW(TaskCallback, Callback));
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Publish.notify_one();
 
 			return true;
 		}
@@ -6934,12 +6925,9 @@ namespace Tomahawk
 				return true;
 			}
 
-			Race.Asyncs.lock();
-			Asyncs.emplace(std::move(Callback));
-			Race.Asyncs.unlock();
-
+			Asyncs.TryPush(std::move(TH_NEW(TaskCallback, std::move(Callback))));
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Publish.notify_one();
 
 			return true;
 		}
@@ -6948,10 +6936,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
-			Race.Events.lock();
-			Events.emplace(Name, Args);
-			Race.Events.unlock();
-
+			Events.TryPush(std::move(TH_NEW(EventBase, Name, Args)));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
@@ -6962,10 +6947,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
-			Race.Events.lock();
-			Events.emplace(Name, std::move(Args));
-			Race.Events.unlock();
-
+			Events.TryPush(std::move(TH_NEW(EventBase, Name, std::move(Args))));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
@@ -6976,10 +6958,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
-			Race.Events.lock();
-			Events.emplace(Name);
-			Race.Events.unlock();
-
+			Events.TryPush(std::move(TH_NEW(EventBase, Name)));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
@@ -7081,17 +7060,25 @@ namespace Tomahawk
 			Childs.clear();
 			while (Dispatch());
 
-			Race.Asyncs.lock();
-			std::queue<EventTask>().swap(Asyncs);
-			Race.Asyncs.unlock();
+			EventBase* Event = nullptr;
+			while (Events.TryPop(&Event) || !Events.Empty())
+			{
+				TH_DELETE(EventBase, Event);
+				Event = nullptr;
+			}
 
-			Race.Tasks.lock();
-			std::queue<EventTask>().swap(Tasks);
-			Race.Tasks.unlock();
+			TaskCallback* Callback = nullptr;
+			while (Asyncs.TryPop(&Callback) || !Asyncs.Empty())
+			{
+				TH_DELETE(function, Callback);
+				Callback = nullptr;
+			}
 
-			Race.Events.lock();
-			std::queue<EventBase>().swap(Events);
-			Race.Events.unlock();
+			while (Tasks.TryPop(&Callback) || !Tasks.Empty())
+			{
+				TH_DELETE(function, Callback);
+				Callback = nullptr;
+			}
 
 			Race.Listeners.lock();
 			for (auto& Listener : Listeners)
@@ -7113,15 +7100,19 @@ namespace Tomahawk
 		}
 		bool Schedule::Dispatch()
 		{
+			int fExchange = DispatchExchange();
+			if (Active && !Childs.empty())
+				return fExchange != -1;
+
 			if (!Comain && Stack > 0 && Coroutines > 0)
 				Comain = new Costate(Stack);
-
+				
 			int fAsyncs = DispatchAsync(Comain, true);
 			int fEvents = DispatchEvent();
 			int fTimers = DispatchTimer(nullptr);
 			int fTasks = DispatchTask();
 
-			return fAsyncs != -1 || fEvents != -1 || fTimers != -1 || fTasks != -1;
+			return fExchange != -1 || fAsyncs != -1 || fEvents != -1 || fTimers != -1 || fTasks != -1;
 		}
 		bool Schedule::Publish()
 		{
@@ -7134,8 +7125,8 @@ namespace Tomahawk
 			do
 			{
                 fEvents = DispatchEvent();
-				fTimers = DispatchTimer(&When);
-                
+				fTimers = DispatchTimer(&When);	
+
 				if (fEvents == -1 && fTimers == 0)
                 {
                     std::unique_lock<std::mutex> Lock(Race.Threads);
@@ -7174,117 +7165,104 @@ namespace Tomahawk
 			TH_RELEASE(State);
 			return true;
 		}
+		int Schedule::DispatchExchange()
+		{
+			bool fEvents = Events.Dispatch();
+			bool fAsyncs = Asyncs.Dispatch();
+			bool fTasks = Tasks.Dispatch();
+			if (fAsyncs || fTasks)
+				Queue.Consume.notify_one();
+
+			return fEvents || fAsyncs || fTasks ? 1 : -1;
+		}
 		int Schedule::DispatchAsync(Costate* State, bool Reconsume)
 		{
-			if (Asyncs.empty())
+			TaskCallback* Data = nullptr;
+			if (Asyncs.Empty())
 				return -1;
 
-			if (!State)
+			if (State != nullptr)
 			{
-				std::queue<EventTask> fQueue;
-				Race.Asyncs.lock();
-                Asyncs.swap(fQueue);
-				Race.Asyncs.unlock();
-
-				int Code = (fQueue.empty() ? -1 : 1);
-				while (!fQueue.empty())
+				while (Asyncs.TryPop(&Data) && State->GetCount() < Coroutines)
 				{
-					fQueue.front()();
-					fQueue.pop();
+					State->Pop(std::move(*Data));
+					TH_DELETE(function, Data);
 				}
 
-				return Code;
-			}
+				if (!State->GetCount())
+					return Data != nullptr ? 1 : -1;
 
-			Race.Asyncs.lock();
-			int Code = (Asyncs.empty() ? -1 : 1);
-			while (!Asyncs.empty() && State->GetCount() < Coroutines)
-			{
-				State->Pop(std::move(Asyncs.front()));
-				Asyncs.pop();
-			}
-			Race.Asyncs.unlock();
-
-			if (!State->GetCount())
-				return Code;
-
-            int Count = -1;
-			while ((Count = State->Dispatch()) != -1)
-			{
-				if (Reconsume)
+				int Count = -1;
+				while ((Count = State->Dispatch()) != -1)
 				{
-					DispatchEvent();
-					DispatchTimer(nullptr);
+					if (Reconsume)
+					{
+						DispatchExchange();
+						DispatchEvent();
+						DispatchTimer(nullptr);
+					}
+
+					DispatchTask();
+					if (Count == 0)
+						std::this_thread::sleep_for(std::chrono::microseconds(100));
+
+					while (Asyncs.TryPop(&Data) && State->GetCount() < Coroutines)
+					{
+						State->Pop(std::move(*Data));
+						TH_DELETE(function, Data);
+					}
+				}
+			}
+			else
+			{
+				while (Asyncs.TryPop(&Data))
+				{
+					(*Data)();
+					TH_DELETE(function, Data);
 				}
 
-				DispatchTask();
-                if (Count == 0)
-                    std::this_thread::sleep_for(std::chrono::microseconds(100));
-                    
-				if (Asyncs.empty())
-					continue;
-
-				Race.Asyncs.lock();
-				while (!Asyncs.empty() && State->GetCount() < Coroutines)
-				{
-					State->Pop(std::move(Asyncs.front()));
-					Asyncs.pop();
-				}
-				Race.Asyncs.unlock();
+				return Data != nullptr ? 1 : -1;
 			}
 
-			return Code;
+			return Data != nullptr ? 1 : -1;
 		}
 		int Schedule::DispatchTask()
 		{
-			if (Tasks.empty())
-				return -1;
-
-			std::queue<EventTask> fQueue;
-			Race.Tasks.lock();
-            Tasks.swap(fQueue);
-			Race.Tasks.unlock();
-
-			int Code = (fQueue.empty() ? -1 : 1);
-			while (!fQueue.empty())
+			TaskCallback* Data = nullptr;
+			while (Tasks.TryPop(&Data))
 			{
-				fQueue.front()();
-				fQueue.pop();
+				(*Data)();
+				TH_DELETE(function, Data);
 			}
 
-			return Code;
+			return Data != nullptr ? 1 : -1;
 		}
 		int Schedule::DispatchEvent()
 		{
-			if (Events.empty())
-				return -1;
-
-			std::queue<EventBase> fQueue;
-			Race.Events.lock();
-            Events.swap(fQueue);
-			Race.Events.unlock();
-
-			int Code = (fQueue.empty() ? -1 : 1);
-			while (!fQueue.empty())
+			EventBase* Data = nullptr;
+			while (Events.TryPop(&Data))
 			{
-				EventBase Src(std::move(fQueue.front()));
-				fQueue.pop();
-
 				Race.Listeners.lock();
-				auto Base = Listeners.find(Src.Name);
-				if (Base != Listeners.end())
+				auto Base = Listeners.find(Data->Name);
+				if (Base == Listeners.end())
 				{
-					auto Array = Base->second->Callbacks;
-					SetTask([Src = std::move(Src), Array]() mutable
-					{
-						for (auto& Callback : Array)
-							Callback.second(Src.Args);
-					});
+					Race.Listeners.unlock();
+					TH_DELETE(EventBase, Data);
+					continue;
 				}
+
+				auto Array = Base->second->Callbacks;
 				Race.Listeners.unlock();
+
+				SetTask([Data, Array]() mutable
+				{
+					for (auto& Callback : Array)
+						Callback.second(Data->Args);
+					TH_DELETE(EventBase, Data);
+				});
 			}
 
-			return Code;
+			return Data != nullptr ? 1 : -1;
 		}
 		int Schedule::DispatchTimer(int64_t* When)
 		{
@@ -7337,7 +7315,7 @@ namespace Tomahawk
 		}
 		bool Schedule::IsProcessing()
 		{
-			return !Asyncs.empty() || !Tasks.empty() || !Events.empty() || !Timers.empty();
+			return !Asyncs.Empty() || !Tasks.Empty() || !Events.Empty() || !Timers.empty();
 		}
 		int64_t Schedule::GetClock()
 		{

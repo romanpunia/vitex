@@ -7193,11 +7193,15 @@ namespace Tomahawk
 
 			if (State != nullptr)
 			{
+			ResolveStateful:
 				while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)
 				{
 					State->Pop(std::move(*Data));
 					TH_DELETE(function, Data);
 				}
+
+				if (cAsyncs->size_approx() > 0)
+					goto ResolveStateful;
 
 				if (!State->GetCount())
 					return Data != nullptr ? 1 : -1;
@@ -7215,20 +7219,28 @@ namespace Tomahawk
 					if (Count == 0)
 						std::this_thread::sleep_for(std::chrono::microseconds(100));
 
+				ResolveNext:
 					while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)
 					{
 						State->Pop(std::move(*Data));
 						TH_DELETE(function, Data);
 					}
+
+					if (cAsyncs->size_approx() > 0)
+						goto ResolveNext;
 				}
 			}
 			else
 			{
+			ResolveStateless:
 				while (cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data))
 				{
 					(*Data)();
 					TH_DELETE(function, Data);
 				}
+
+				if (cAsyncs->size_approx() > 0)
+					goto ResolveStateless;
 
 				return Data != nullptr ? 1 : -1;
 			}
@@ -7241,11 +7253,15 @@ namespace Tomahawk
 			TQueue* cTasks = (TQueue*)Tasks;
 			TaskCallback* Data = nullptr;
 
+		Resolve:
 			while (cToken ? cTasks->try_dequeue(*cToken, Data) : cTasks->try_dequeue(Data))
 			{
 				(*Data)();
 				TH_DELETE(function, Data);
 			}
+
+			if (cTasks->size_approx() > 0)
+				goto Resolve;
 
 			return Data != nullptr ? 1 : -1;
 		}
@@ -7255,6 +7271,7 @@ namespace Tomahawk
 			EQueue* cEvents = (EQueue*)Events;
 			EventBase* Data = nullptr;
 
+		Resolve:
 			while (cToken ? cEvents->try_dequeue(*cToken, Data) : cEvents->try_dequeue(Data))
 			{
 				Race.Listeners.lock();
@@ -7276,6 +7293,9 @@ namespace Tomahawk
 					TH_DELETE(EventBase, Data);
 				});
 			}
+
+			if (cEvents->size_approx() > 0)
+				goto Resolve;
 
 			return Data != nullptr ? 1 : -1;
 		}

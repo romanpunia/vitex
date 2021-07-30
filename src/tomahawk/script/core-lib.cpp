@@ -822,22 +822,6 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("Var::Set");
-			Register.SetFunction("Document@ Auto(const String &in, bool = false)", &Core::Var::Auto);
-			Register.SetFunction("Document@ Null()", &Core::Var::Set::Null);
-			Register.SetFunction("Document@ Undefined()", &Core::Var::Set::Undefined);
-			Register.SetFunction("Document@ Object()", &Core::Var::Set::Object);
-			Register.SetFunction("Document@ Array()", &Core::Var::Set::Array);
-			Register.SetFunction("Document@ Pointer(Address@)", &Core::Var::Set::Pointer);
-			Register.SetFunction("Document@ Integer(int64)", &Core::Var::Set::Integer);
-			Register.SetFunction("Document@ Number(double)", &Core::Var::Set::Number);
-			Register.SetFunction("Document@ Boolean(bool)", &Core::Var::Set::Boolean);
-			Register.SetFunction<Core::Document*(const std::string&)>("Document@ String(const String &in)", &Core::Var::Set::String);
-			Register.SetFunction<Core::Document*(const std::string&)>("Document@ Base64(const String &in)", &Core::Var::Set::Base64);
-			Register.SetFunction<Core::Document*(const std::string&)>("Document@ Decimal(const String &in)", &Core::Var::Set::DecimalString);
-			Engine->EndNamespace();
-
 			VMRefClass VDocument = Engine->Global().SetClassUnmanaged<Core::Document>("Document");
 			VDocument.SetProperty<Core::Document>("String Key", &Core::Document::Key);
 			VDocument.SetProperty<Core::Document>("Variant Value", &Core::Document::Value);
@@ -887,6 +871,22 @@ namespace Tomahawk
 			VDocument.SetOperatorEx(VMOpFunc::Equals, (uint32_t)(VMOp::Left | VMOp::Const), "bool", "Document@+", &VMCDocument::Equals);
 			VDocument.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Document@+", "const String &in", &VMCDocument::GetIndex);
 			VDocument.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Document@+", "uint64", &VMCDocument::GetIndexOffset);
+
+			VMGlobal& Register = Engine->Global();
+			Engine->BeginNamespace("Var::Set");
+			Register.SetFunction("Document@ Auto(const String &in, bool = false)", &Core::Var::Auto);
+			Register.SetFunction("Document@ Null()", &Core::Var::Set::Null);
+			Register.SetFunction("Document@ Undefined()", &Core::Var::Set::Undefined);
+			Register.SetFunction("Document@ Object()", &Core::Var::Set::Object);
+			Register.SetFunction("Document@ Array()", &Core::Var::Set::Array);
+			Register.SetFunction("Document@ Pointer(Address@)", &Core::Var::Set::Pointer);
+			Register.SetFunction("Document@ Integer(int64)", &Core::Var::Set::Integer);
+			Register.SetFunction("Document@ Number(double)", &Core::Var::Set::Number);
+			Register.SetFunction("Document@ Boolean(bool)", &Core::Var::Set::Boolean);
+			Register.SetFunction<Core::Document* (const std::string&)>("Document@ String(const String &in)", &Core::Var::Set::String);
+			Register.SetFunction<Core::Document* (const std::string&)>("Document@ Base64(const String &in)", &Core::Var::Set::Base64);
+			Register.SetFunction<Core::Document* (const std::string&)>("Document@ Decimal(const String &in)", &Core::Var::Set::DecimalString);
+			Engine->EndNamespace();
 
 			return true;
 		}

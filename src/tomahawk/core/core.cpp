@@ -3825,15 +3825,15 @@ namespace Tomahawk
 			return Result;
 		}
 
-		SpinLock::SpinLock()
+		Spin::Spin()
 		{
 		}
-		void SpinLock::Acquire()
+		void Spin::Lock()
 		{
 			while (Atom.test_and_set(std::memory_order_acquire))
 				std::this_thread::yield();
 		}
-		void SpinLock::Release()
+		void Spin::Unlock()
 		{
 			Atom.clear(std::memory_order_release);
 		}

@@ -4398,8 +4398,6 @@ namespace Tomahawk
 		}
 		void SceneGraph::Dispatch()
 		{
-			auto* Queue = Core::Schedule::Get();
-			while (Queue->Dispatch());
 			while (DispatchLastEvent());
 		}
 		void SceneGraph::ResizeBuffers()
@@ -5740,7 +5738,7 @@ namespace Tomahawk
 #endif
             NetworkQueue = (I->Usage & (size_t)ApplicationSet::NetworkSet);
             if (NetworkQueue)
-                Network::Driver::Create();
+                Network::Driver::Create(256, I->Async ? 100 : 0);
 
 			State = ApplicationState::Staging;
 		}
@@ -5852,9 +5850,9 @@ namespace Tomahawk
 				Queue->SetTask([Job]() { Application::Callee(Job); });
 			}
 
-            if (NetworkQueue)
-                Network::Driver::Multiplex();
-            
+			if (NetworkQueue)
+				Network::Driver::Multiplex();
+
 			Reactor* Job = Workers.front();
 			Job->Time->SetStepLimitation(I->MaxFrames, I->MinFrames);
 			Job->Time->FrameLimit = I->Framerate;

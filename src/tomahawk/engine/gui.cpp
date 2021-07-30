@@ -492,12 +492,6 @@ namespace Tomahawk
 						case Rml::Log::LT_ERROR:
 							TH_ERROR("[gui] %.*s", Message.size(), Message.c_str());
 							break;
-						case Rml::Log::LT_WARNING:
-							TH_WARN("[gui] %.*s", Message.size(), Message.c_str());
-							break;
-						case Rml::Log::LT_INFO:
-							TH_INFO("[gui] %.*s", Message.size(), Message.c_str());
-							break;
 						default:
 							break;
 					}

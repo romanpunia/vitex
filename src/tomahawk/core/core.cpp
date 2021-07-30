@@ -11,6 +11,7 @@
 #include <rapidxml.hpp>
 #include <json/document.h>
 #include <tinyfiledialogs.h>
+#include <concurrentqueue.h>
 #ifdef TH_MICROSOFT
 #include <Windows.h>
 #include <io.h>
@@ -156,6 +157,10 @@ namespace Tomahawk
 {
 	namespace Core
 	{
+		typedef moodycamel::ConcurrentQueue<EventBase*> EQueue;
+		typedef moodycamel::ConcurrentQueue<TaskCallback*> TQueue;
+		typedef moodycamel::ConsumerToken CToken;
+
 		struct Cocontext
 		{
 #ifndef TH_MICROSOFT
@@ -6754,10 +6759,23 @@ namespace Tomahawk
 		
 		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false), Enqueue(true)
 		{
+			Events = (ConcurrentQueue)TH_NEW(EQueue);
+			Asyncs = (ConcurrentQueue)TH_NEW(TQueue);
+			Tasks = (ConcurrentQueue)TH_NEW(TQueue);
 		}
 		Schedule::~Schedule()
 		{
 			Stop();
+
+			EQueue* cEvents = (EQueue*)Events;
+			TH_DELETE(ConcurrentQueue, cEvents);
+
+			TQueue* cAsyncs = (TQueue*)Asyncs;
+			TH_DELETE(ConcurrentQueue, cAsyncs);
+
+			TQueue* cTasks = (TQueue*)Tasks;
+			TH_DELETE(ConcurrentQueue, cTasks);
+
 			if (Singleton == this)
 				Singleton = nullptr;
 		}
@@ -6879,10 +6897,10 @@ namespace Tomahawk
 		{
 			if (!Callback || !Enqueue)
 				return false;
-
-			Tasks.TryPush(TH_NEW(TaskCallback, Callback));
+	
+			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, Callback));
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Consume.notify_one();
 
 			return true;
 		}
@@ -6891,9 +6909,9 @@ namespace Tomahawk
 			if (!Callback || !Enqueue)
 				return false;
 
-			Tasks.TryPush(std::move(TH_NEW(TaskCallback, std::move(Callback))));
+			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Consume.notify_one();
 
 			return true;
 		}
@@ -6908,9 +6926,9 @@ namespace Tomahawk
 				return true;
 			}
 
-			Asyncs.TryPush(TH_NEW(TaskCallback, Callback));
+			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, Callback));
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Consume.notify_one();
 
 			return true;
 		}
@@ -6925,9 +6943,9 @@ namespace Tomahawk
 				return true;
 			}
 
-			Asyncs.TryPush(std::move(TH_NEW(TaskCallback, std::move(Callback))));
+			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Consume.notify_one();
 
 			return true;
 		}
@@ -6936,7 +6954,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
-			Events.TryPush(std::move(TH_NEW(EventBase, Name, Args)));
+			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name, Args));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
@@ -6947,7 +6965,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
-			Events.TryPush(std::move(TH_NEW(EventBase, Name, std::move(Args))));
+			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name, std::move(Args)));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
@@ -6958,7 +6976,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
-			Events.TryPush(std::move(TH_NEW(EventBase, Name)));
+			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
@@ -7060,21 +7078,25 @@ namespace Tomahawk
 			Childs.clear();
 			while (Dispatch());
 
+			EQueue* cEvents = (EQueue*)Events;
+			TQueue* cAsyncs = (TQueue*)Asyncs;
+			TQueue* cTasks = (TQueue*)Tasks;
+			TaskCallback* Callback = nullptr;
 			EventBase* Event = nullptr;
-			while (Events.TryPop(&Event) || !Events.Empty())
+
+			while (cEvents->try_dequeue(Event) || cEvents->size_approx() > 0)
 			{
 				TH_DELETE(EventBase, Event);
 				Event = nullptr;
 			}
 
-			TaskCallback* Callback = nullptr;
-			while (Asyncs.TryPop(&Callback) || !Asyncs.Empty())
+			while (cAsyncs->try_dequeue(Callback) || cAsyncs->size_approx() > 0)
 			{
 				TH_DELETE(function, Callback);
 				Callback = nullptr;
 			}
 
-			while (Tasks.TryPop(&Callback) || !Tasks.Empty())
+			while (cTasks->try_dequeue(Callback) || cTasks->size_approx() > 0)
 			{
 				TH_DELETE(function, Callback);
 				Callback = nullptr;
@@ -7100,22 +7122,19 @@ namespace Tomahawk
 		}
 		bool Schedule::Dispatch()
 		{
-			int fExchange = DispatchExchange();
-			if (Active && !Childs.empty())
-				return fExchange != -1;
-
 			if (!Comain && Stack > 0 && Coroutines > 0)
 				Comain = new Costate(Stack);
 				
-			int fAsyncs = DispatchAsync(Comain, true);
-			int fEvents = DispatchEvent();
+			int fAsyncs = DispatchAsync(nullptr, Comain, true);
+			int fEvents = DispatchEvent(nullptr);
 			int fTimers = DispatchTimer(nullptr);
-			int fTasks = DispatchTask();
+			int fTasks = DispatchTask(nullptr);
 
-			return fExchange != -1 || fAsyncs != -1 || fEvents != -1 || fTimers != -1 || fTasks != -1;
+			return fAsyncs != -1 || fEvents != -1 || fTimers != -1 || fTasks != -1;
 		}
 		bool Schedule::Publish()
 		{
+			CToken Token(*((EQueue*)Events));
             int fEvents = -1, fTimers = -1;
             int64_t When = -1;
             
@@ -7124,7 +7143,7 @@ namespace Tomahawk
 
 			do
 			{
-                fEvents = DispatchEvent();
+                fEvents = DispatchEvent((ConcurrentToken*)&Token);
 				fTimers = DispatchTimer(&When);	
 
 				if (fEvents == -1 && fTimers == 0)
@@ -7145,6 +7164,7 @@ namespace Tomahawk
 		bool Schedule::Consume()
 		{
 			Costate* State = (Stack > 0 && Coroutines > 0 ? new Costate(Stack) : nullptr);
+			CToken tAsyncs(*((TQueue*)Asyncs)), tTasks(*((TQueue*)Tasks));
             int fAsyncs = -1, fTasks = -1;
             
             if (!Active)
@@ -7152,8 +7172,8 @@ namespace Tomahawk
 
 			do
 			{
-                fAsyncs = DispatchAsync(State, false);
-				fTasks = DispatchTask();
+                fAsyncs = DispatchAsync((ConcurrentToken*)&tAsyncs, State, false);
+				fTasks = DispatchTask((ConcurrentToken*)&tTasks);
 
 				if (fAsyncs != -1 || fTasks != -1)
 					continue;
@@ -7165,25 +7185,15 @@ namespace Tomahawk
 			TH_RELEASE(State);
 			return true;
 		}
-		int Schedule::DispatchExchange()
+		int Schedule::DispatchAsync(ConcurrentToken* Token, Costate* State, bool Reconsume)
 		{
-			bool fEvents = Events.Dispatch();
-			bool fAsyncs = Asyncs.Dispatch();
-			bool fTasks = Tasks.Dispatch();
-			if (fAsyncs || fTasks)
-				Queue.Consume.notify_one();
-
-			return fEvents || fAsyncs || fTasks ? 1 : -1;
-		}
-		int Schedule::DispatchAsync(Costate* State, bool Reconsume)
-		{
+			CToken* cToken = (CToken*)Token;
+			TQueue* cAsyncs = (TQueue*)Asyncs;
 			TaskCallback* Data = nullptr;
-			if (Asyncs.Empty())
-				return -1;
 
 			if (State != nullptr)
 			{
-				while (Asyncs.TryPop(&Data) && State->GetCount() < Coroutines)
+				while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)
 				{
 					State->Pop(std::move(*Data));
 					TH_DELETE(function, Data);
@@ -7197,16 +7207,15 @@ namespace Tomahawk
 				{
 					if (Reconsume)
 					{
-						DispatchExchange();
-						DispatchEvent();
+						DispatchEvent(nullptr);
 						DispatchTimer(nullptr);
 					}
 
-					DispatchTask();
+					DispatchTask(nullptr);
 					if (Count == 0)
 						std::this_thread::sleep_for(std::chrono::microseconds(100));
 
-					while (Asyncs.TryPop(&Data) && State->GetCount() < Coroutines)
+					while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)
 					{
 						State->Pop(std::move(*Data));
 						TH_DELETE(function, Data);
@@ -7215,7 +7224,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				while (Asyncs.TryPop(&Data))
+				while (cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data))
 				{
 					(*Data)();
 					TH_DELETE(function, Data);
@@ -7226,10 +7235,13 @@ namespace Tomahawk
 
 			return Data != nullptr ? 1 : -1;
 		}
-		int Schedule::DispatchTask()
+		int Schedule::DispatchTask(ConcurrentToken* Token)
 		{
+			CToken* cToken = (CToken*)Token;
+			TQueue* cTasks = (TQueue*)Tasks;
 			TaskCallback* Data = nullptr;
-			while (Tasks.TryPop(&Data))
+
+			while (cToken ? cTasks->try_dequeue(*cToken, Data) : cTasks->try_dequeue(Data))
 			{
 				(*Data)();
 				TH_DELETE(function, Data);
@@ -7237,10 +7249,13 @@ namespace Tomahawk
 
 			return Data != nullptr ? 1 : -1;
 		}
-		int Schedule::DispatchEvent()
+		int Schedule::DispatchEvent(ConcurrentToken* Token)
 		{
+			CToken* cToken = (CToken*)Token;
+			EQueue* cEvents = (EQueue*)Events;
 			EventBase* Data = nullptr;
-			while (Events.TryPop(&Data))
+
+			while (cToken ? cEvents->try_dequeue(*cToken, Data) : cEvents->try_dequeue(Data))
 			{
 				Race.Listeners.lock();
 				auto Base = Listeners.find(Data->Name);
@@ -7315,7 +7330,11 @@ namespace Tomahawk
 		}
 		bool Schedule::IsProcessing()
 		{
-			return !Asyncs.Empty() || !Tasks.Empty() || !Events.Empty() || !Timers.empty();
+			EQueue* cEvents = (EQueue*)Events;
+			TQueue* cAsyncs = (TQueue*)Asyncs;
+			TQueue* cTasks = (TQueue*)Tasks;
+
+			return cAsyncs->size_approx() > 0 || cTasks->size_approx() > 0 || cEvents->size_approx() || !Timers.empty();
 		}
 		int64_t Schedule::GetClock()
 		{

@@ -37,6 +37,7 @@ include(src/supplies/rapidjson/CMakeLists.txt)
 include(src/supplies/stb/CMakeLists.txt)
 include(src/supplies/wepoll/CMakeLists.txt)
 include(src/supplies/vcl/CMakeLists.txt)
+include(src/supplies/cqueue/CMakeLists.txt)
 
 #Group sources from previous stage
 foreach(ITEM IN ITEMS ${SOURCE})

@@ -245,6 +245,8 @@ namespace Tomahawk
 		typedef std::function<void(void*)> FreeCallback;
 		typedef uint64_t EventId;
         typedef Decimal BigNumber;
+		typedef void* ConcurrentQueue;
+		typedef void* ConcurrentToken;
 
 		struct TH_OUT Coroutine
 		{
@@ -1209,182 +1211,6 @@ namespace Tomahawk
 			static void TH_COCALL Execute(TH_CODATA);
 		};
 
-		template <typename T>
-		class TryQueue
-		{
-		private:
-			struct Atom
-			{
-				std::atomic<T>* Base;
-				size_t Volume;
-				size_t Size;
-
-				Atom(size_t Capacity) : Volume(Capacity > 0 ? Capacity : 1), Size(Volume - 1)
-				{
-					Base = new std::atomic<T>[Volume];
-				}
-				~Atom()
-				{
-					delete[] Base;
-				}
-				size_t Capacity() const noexcept
-				{
-					return Volume;
-				}
-				void Clear() const noexcept
-				{
-					Size = 0;
-				}
-				void Push(size_t Index, T&& Item) noexcept
-				{
-					Base[Index & Size].store(std::forward<T>(Item), std::memory_order_relaxed);
-				}
-				void Push(size_t Index, const T& Item) noexcept
-				{
-					Base[Index & Size].store(Item, std::memory_order_relaxed);
-				}
-				T Pop(size_t Index) noexcept
-				{
-					return Base[Index & Size].load(std::memory_order_relaxed);
-				}
-				Atom* Resize(size_t Index, size_t Offset)
-				{
-					Atom* Next = TH_NEW(Atom, 2 * Volume);
-					for (size_t i = Offset; i != Index; ++i)
-						Next->Push(i, Pop(i));
-
-					return Next;
-				}
-			};
-
-		private:
-			std::vector<T> Queue;
-			std::vector<Atom*> Garbage;
-			std::atomic<Atom*> Array;
-			std::atomic<size_t> Top;
-			std::atomic<size_t> Bottom;
-			std::mutex Context;
-
-		public:
-			TryQueue(size_t Reserve = 1024)
-			{
-				Top.store(0, std::memory_order_relaxed);
-				Bottom.store(0, std::memory_order_relaxed);
-				Array.store(TH_NEW(Atom, Reserve), std::memory_order_relaxed);
-				Garbage.reserve(32);
-				Queue.reserve(Reserve);
-			}
-			~TryQueue()
-			{
-				for (auto* Item : Garbage)
-					TH_DELETE(Atom, Item);
-
-				Atom* Item = Array.load();
-				TH_DELETE(Atom, Item);
-			}
-			bool Empty() const noexcept
-			{
-				size_t Index = Bottom.load(std::memory_order_relaxed);
-				size_t Offset = Top.load(std::memory_order_relaxed);
-				return Index <= Offset;
-			}
-			size_t Size() const noexcept
-			{
-				size_t Index = Bottom.load(std::memory_order_relaxed);
-				size_t Offset = Top.load(std::memory_order_relaxed);
-				return static_cast<size_t>(Index >= Offset ? Index - Offset : 0);
-			}
-			size_t Capacity() const noexcept
-			{
-				return Array.load(std::memory_order_relaxed)->Capacity();
-			}
-			bool Dispatch()
-			{
-				if (Queue.empty())
-					return false;
-
-				Context.lock();
-				for (auto& Item : Queue)
-					Push(std::move(Item));
-				Queue.clear();
-				Context.unlock();
-
-				return true;
-			}
-			void Clear()
-			{
-				Top.store(0, std::memory_order_relaxed);
-				Bottom.store(0, std::memory_order_relaxed);
-				Atom* Result = Array.load(std::memory_order_consume);
-				Result->Clear();
-			}
-			void Push(T&& Item)
-			{
-				size_t Index = Bottom.load(std::memory_order_relaxed);
-				size_t Offset = Top.load(std::memory_order_acquire);
-				Atom* Result = Array.load(std::memory_order_relaxed);
-
-				if (Result->Capacity() - 1 < Index - Offset)
-				{
-					Atom* Storage = Result->Resize(Index, Offset);
-					Garbage.push_back(Result);
-					std::swap(Result, Storage);
-					Array.store(Result, std::memory_order_relaxed);
-				}
-
-				Result->Push(Index, std::forward<T>(Item));
-				std::atomic_thread_fence(std::memory_order_release);
-				Bottom.store(Index + 1, std::memory_order_relaxed);
-			}
-			void Push(const T& Item)
-			{
-				size_t Index = Bottom.load(std::memory_order_relaxed);
-				size_t Offset = Top.load(std::memory_order_acquire);
-				Atom* Result = Array.load(std::memory_order_relaxed);
-
-				if (Result->Capacity() - 1 < Index - Offset)
-				{
-					Atom* Storage = Result->Resize(Index, Offset);
-					Garbage.push_back(Result);
-					std::swap(Result, Storage);
-					Array.store(Result, std::memory_order_relaxed);
-				}
-
-				Result->Push(Index, Item);
-				std::atomic_thread_fence(std::memory_order_release);
-				Bottom.store(Index + 1, std::memory_order_relaxed);
-			}
-			void TryPush(T&& Item)
-			{
-				Context.lock();
-				Queue.emplace_back(std::move(Item));
-				Context.unlock();
-			}
-			void TryPush(const T& Item)
-			{
-				Context.lock();
-				Queue.emplace_back(std::move(Item));
-				Context.unlock();
-			}
-			bool TryPop(T* Item)
-			{
-				size_t Offset = Top.load(std::memory_order_acquire);
-				std::atomic_thread_fence(std::memory_order_seq_cst);
-				size_t Index = Bottom.load(std::memory_order_acquire);
-				if (Offset >= Index)
-					return false;
-
-				Atom* Result = Array.load(std::memory_order_consume);
-				if (Item != nullptr)
-					*Item = Result->Pop(Offset);
-
-				if (!Top.compare_exchange_strong(Offset, Offset + 1, std::memory_order_seq_cst, std::memory_order_relaxed))
-					return false;
-
-				return true;
-			}
-		};
-
 		class TH_OUT Schedule : public Object
 		{
 		private:
@@ -1406,9 +1232,9 @@ namespace Tomahawk
 			std::unordered_map<std::string, EventListener*> Listeners;
 			std::map<int64_t, EventTimer> Timers;
 			std::vector<std::thread> Childs;
-			TryQueue<EventBase*> Events;
-			TryQueue<TaskCallback*> Asyncs;
-			TryQueue<TaskCallback*> Tasks;
+			ConcurrentQueue Events;
+			ConcurrentQueue Asyncs;
+			ConcurrentQueue Tasks;
 			Costate* Comain;
 			uint64_t Coroutines;
 			uint64_t Threads;
@@ -1448,10 +1274,9 @@ namespace Tomahawk
 		private:
 			bool Publish();
 			bool Consume();
-			int DispatchExchange();
-			int DispatchAsync(Costate* State, bool Reconsume);
-			int DispatchTask();
-			int DispatchEvent();
+			int DispatchAsync(ConcurrentToken* Token, Costate* State, bool Reconsume);
+			int DispatchTask(ConcurrentToken* Token);
+			int DispatchEvent(ConcurrentToken* Token);
 			int DispatchTimer(int64_t* When);
 			int64_t GetTimeout(int64_t Clock);
 			int64_t GetClock();

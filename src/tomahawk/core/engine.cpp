@@ -5867,7 +5867,16 @@ namespace Tomahawk
 				OK = State = ApplicationState::Singlethreaded;
 
 			Queue->Start(I->Async, std::max((uint64_t)Workers.size(), I->Threads), I->Coroutines, I->Stack);
-			if (Activity != nullptr)
+			if (Activity != nullptr && I->Async)
+			{
+				while (State == OK)
+				{
+					Activity->Dispatch();
+					Job->UpdateCore();
+					Publish(Job->Time);
+				}
+			}
+			else if (Activity != nullptr && !I->Async)
 			{
 				while (State == OK)
 				{
@@ -5877,7 +5886,15 @@ namespace Tomahawk
 					Publish(Job->Time);
 				}
 			}
-			else
+			else if (!Activity && I->Async)
+			{
+				while (State == OK)
+				{
+					Job->UpdateCore();
+					Publish(Job->Time);
+				}
+			}
+			else if (!Activity && !I->Async)
 			{
 				while (State == OK)
 				{

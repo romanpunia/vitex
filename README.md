@@ -253,6 +253,7 @@ These are used widely and presents useful features
 * [rapidjson](https://github.com/tencent/rapidjson)
 * [stb](https://github.com/nothings/stb)
 * [vectorclass](https://github.com/vectorclass/version1)
+* [concurrentqueue](https://github.com/cameron314/concurrentqueue)
 
 ## Optional dependencies from **/lib**
 These are recommended to be installed, but are not required to.

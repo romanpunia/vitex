@@ -1440,7 +1440,14 @@ namespace Tomahawk
 				if (!Base)
 					return false;
 
-				return mongoc_cursor_error(Base, nullptr);
+				bson_error_t Error;
+				memset(&Error, 0, sizeof(bson_error_t));
+
+				if (!mongoc_cursor_error(Base, &Error))
+					return false;
+
+				TH_ERROR("[mongoc] %s", Error.message);
+				return true;
 #else
 				return false;
 #endif

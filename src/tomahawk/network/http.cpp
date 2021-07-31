@@ -1631,6 +1631,15 @@ namespace Tomahawk
 				if (Object != nullptr)
 					Object->Clear();
 			}
+			void Query::Steal(Core::Document** Output)
+			{
+				if (!Output)
+					return;
+
+				TH_RELEASE(*Output);
+				*Output = Object;
+				Object = nullptr;
+			}
 			void Query::NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
 			{
 				std::string URI = Compute::Common::URIDecode(Name.Value, Name.Length);

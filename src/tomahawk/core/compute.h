@@ -1663,6 +1663,7 @@ namespace Tomahawk
 			void SetNotBefore(int64_t Value);
 			void SetCreated(int64_t Value);
 			void SetRefreshToken(const std::string& Value, const char* Key, const char* Salt);
+			bool Sign(const char* Key);
 			std::string GetRefreshToken(const char* Key, const char* Salt);
 			bool IsValid() const;
 		};

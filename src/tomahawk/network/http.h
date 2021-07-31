@@ -445,6 +445,7 @@ namespace Tomahawk
 				Query();
 				virtual ~Query() override;
 				void Clear();
+				void Steal(Core::Document** Output);
 				void Decode(const char* ContentType, const std::string& URI);
 				std::string Encode(const char* ContentType);
 				QueryParameter* Get(const char* Name);

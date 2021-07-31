@@ -1613,7 +1613,8 @@ namespace Tomahawk
                         PQfreeNotify(Notification);
                     }
                 }
-                else if (Source->State == QueryState::Busy)
+				
+				if (Source->State == QueryState::Busy)
                 {
                     Response Frame(PQgetResult(Source->Base));
                     if (Source->Current != nullptr)
@@ -1625,6 +1626,7 @@ namespace Tomahawk
                             Request* Item = Source->Current;
                             Source->State = QueryState::Idle;
                             Source->Current = nullptr;
+							PQlogMessage(Source->Base);
 
                             Update.unlock();
                             Future.Set(std::move(Results));
@@ -1702,6 +1704,7 @@ namespace Tomahawk
 				Sequence Result;
 				Result.Request.assign(Buffer, Size);
 
+				Core::Parser Tokens(" \n\r\t\'\"()<>=%&^*/+-,.!?:;");
 				Core::Parser Base(&Result.Request);
 				Base.Trim();
 
@@ -1745,9 +1748,10 @@ namespace Tomahawk
 								Base.RemovePart(Arg, Index + 1);
 								Index -= Index - Arg - 1; Args++;
 							}
+							else
+								Index++;
 
 							Spec = false;
-							Index++;
 							Arg = -1;
 						}
 						else if (Spec)
@@ -1778,9 +1782,15 @@ namespace Tomahawk
 						Spec = true;
 						Index++;
 					}
-					else if (!Lock && (V == '\n' || V == '\r' || V == '\t' || (L == ' ' && V == ' ')))
+					else if (!Lock && (V == '\n' || V == '\r' || V == '\t' || V == ' '))
 					{
-						Base.Erase(Index, 1);
+						if (!Tokens.Find(L).Found && (Index + 1 < Base.Size() && !Tokens.Find(Base.R()[Index + 1]).Found))
+						{
+							Base.R()[Index] = ' ';
+							Index++;
+						}
+						else
+							Base.Erase(Index, 1);
 					}
 					else
 					{

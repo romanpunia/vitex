@@ -8189,6 +8189,16 @@ namespace Tomahawk
 			Token = Common::DocDecrypt(Value, Key, Salt);
 			Refresher.assign(Value);
 		}
+		bool WebToken::Sign(const char* Key)
+		{
+			if (!Header || !Payload || !Key)
+				return false;
+
+			if (!Signature.empty())
+				return true;
+
+			return !Common::JWTEncode(this, Key).empty();
+		}
 		std::string WebToken::GetRefreshToken(const char* Key, const char* Salt)
 		{
 			if (!Key || !Salt)

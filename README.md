@@ -90,7 +90,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Support for real threads
 + Compiler with preprocessor from Compute module
 + Built-in switchable default interfaces
-+ Promise-like async data type support
++ Async functions are managed outside script context (looks and feels fully synchronous)
 + JIT compiler support for non-ARM platforms
 + Module system to add bindings as include files
 + Symbolic imports to import functions from C/C++ libraries directly to script

@@ -3884,13 +3884,13 @@ namespace Tomahawk
 					return (int)Script::VMResult::INVALID_ARG;
 
 				Safe.lock();
-				Core::Async<int> Result = Compiler->GetContext()->Execute(Function, false, std::move(ArgCallback));
+				Core::Async<int> Result = Compiler->GetContext()->Coexecute(Function, std::move(ArgCallback));
 				Safe.unlock();
 
-				if (Result.IsPending())
-					return (int)Script::VMResult::CONTEXT_ACTIVE;
+				if (!Result.IsPending())
+					return Result.GetOrSet();
 
-				return Core::Coawait(std::move(Result));
+				return (int)Script::VMResult::CONTEXT_ACTIVE;
 			}
 			int Scriptable::CallEntry(const std::string& Name)
 			{

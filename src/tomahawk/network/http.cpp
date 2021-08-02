@@ -70,6 +70,9 @@ namespace Tomahawk
 			{
 			}
 
+			WebSocketFrame::WebSocketFrame() : Base(nullptr), Opcode(0), BodyLength(0), MaskLength(0), HeaderLength(0), DataLength(0), State((uint32_t)WebSocketState::Handshake), Clear(false), Error(false), Notified(false), Save(false)
+			{
+			}
 			void WebSocketFrame::Write(const char* Data, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback)
 			{
 				Util::WebSocketWriteMask(Base, Data, Length, OpCode, 0, Callback);
@@ -102,20 +105,12 @@ namespace Tomahawk
 						return Callback(this);
 					}
 
-					Base->Stream->CloseAsync(true, [this](Socket*)
-					{
-						if (Base->Response.StatusCode <= 0)
-							Base->Response.StatusCode = 101;
+					Save = true;
+					if (Base->Response.StatusCode <= 0)
+						Base->Response.StatusCode = 101;
 
-						Save = true;
-						Base->Info.KeepAlive = 0;
-
-						auto* Store = Base;
-						return Core::Schedule::Get()->SetTask([Store]()
-						{
-							Store->Finish();
-						});
-					});
+					Base->Info.KeepAlive = 0;
+					Base->Finish();
 				}
 				else if (State & (uint32_t)WebSocketState::Handshake)
 				{
@@ -146,6 +141,10 @@ namespace Tomahawk
 			bool WebSocketFrame::IsFinished()
 			{
 				return Save;
+			}
+			Connection* WebSocketFrame::GetBase()
+			{
+				return Base;
 			}
 
 			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Size(DataSize), Compiler(nullptr), Base(nullptr), Buffer(Data), Save(false)
@@ -182,38 +181,13 @@ namespace Tomahawk
 				else if (State != Script::VMResume::Continue)
 					Finish();
 			}
-			bool GatewayFrame::Done(bool Normal)
+			bool GatewayFrame::Error(int StatusCode, const char* Text)
 			{
-				if (!Save)
-				{
-					if (Compiler != nullptr)
-					{
-						if (!Compiler->Clear())
-							return false;
+				Base->Response.StatusCode = StatusCode;
+				if (Text != nullptr)
+					Base->Info.Message.assign(Text);
 
-						TH_CLEAR(Compiler);
-						Save = true;
-					}
-					else
-						Save = true;
-				}
-
-				if (Base->WebSocket != nullptr)
-				{
-					Base->Response.Buffer.clear();
-					if (!Normal)
-						Base->WebSocket->Finish();
-					else
-						Base->WebSocket->Next();
-
-					return false;
-				}
-
-				auto* Store = Base;
-				return Core::Schedule::Get()->SetTask([Store]()
-				{
-					Store->Finish();
-				}) && false;
+				return Finish();
 			}
 			bool GatewayFrame::Finish()
 			{
@@ -224,32 +198,22 @@ namespace Tomahawk
 					Size = 0;
 				}
 
-				if (!Base->WebSocket)
-					return Done(true);
-
-				Base->WebSocket->Next();
-				return true;
-			}
-			bool GatewayFrame::Error(int StatusCode, const char* Text)
-			{
-				Base->Response.StatusCode = StatusCode;
-				Base->Info.Message.assign(Text);
-				return Error();
-			}
-			bool GatewayFrame::Error()
-			{
-				if (Buffer != nullptr)
+				if (Base->WebSocket != nullptr)
 				{
-					TH_FREE(Buffer);
-					Buffer = nullptr;
-					Size = 0;
+					Base->WebSocket->Finish();
+					return true;
 				}
 
-				if (!Base->WebSocket)
-					return Done(false);
+				if (Save)
+					return Base->Finish();
 
-				Base->WebSocket->Finish();
-				return true;
+				Save = true;
+				if (!Compiler)
+					return Base->Finish();
+
+				Compiler->Clear();
+				TH_CLEAR(Compiler);
+				return Base->Finish();
 			}
 			bool GatewayFrame::Start()
 			{
@@ -261,7 +225,7 @@ namespace Tomahawk
 					return Finish();
 				}
 
-				return Core::Schedule::Get()->SetTask([this]()
+				return Core::Coasync([this]()
 				{
 					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
 					if (Result < 0)
@@ -273,36 +237,16 @@ namespace Tomahawk
 
 					Script::VMFunction Main = GetMain(Compiler->GetModule());
 					if (!Main.IsValid())
-						return Error(400, "Requested method is not allowed.");
+						return Error(400, "Method is not allowed.");
 
 					Script::VMContext* Context = Compiler->GetContext();
 					Context->SetResumeCallback(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1));
-
-					Result = Context->Prepare(Main);
-					if (Result < 0)
-						return Error(500, "Module execution cannot be prepared.");
-
-					Result = Context->Execute();
-					if (Result == (int)Script::VMExecState::FINISHED || Result == (int)Script::VMExecState::ABORTED)
-					{
-						Execute(Script::VMResume::Finish);
-						return true;
-					}
-					else if (Result == (int)Script::VMExecState::ERR)
-					{
-						Execute(Script::VMResume::Finish_With_Error);
-						return true;
-					}
-					else if (Result == (int)Script::VMExecState::EXCEPTION)
-					{
-						Execute(Context->IsThrown() ? Script::VMResume::Finish_With_Error : Script::VMResume::Finish);
-						return true;
-					}
+					Context->Execute(Main, nullptr);
 
 					return true;
 				});
 			}
-			bool GatewayFrame::IsDone()
+			bool GatewayFrame::IsFinished()
 			{
 				return Save;
 			}
@@ -331,6 +275,14 @@ namespace Tomahawk
 			Script::VMContext* GatewayFrame::GetContext()
 			{
 				return (Compiler ? Compiler->GetContext() : nullptr);
+			}
+			Script::VMCompiler* GatewayFrame::GetCompiler()
+			{
+				return Compiler;
+			}
+			Connection* GatewayFrame::GetBase()
+			{
+				return Base;
 			}
 
 			SiteEntry::SiteEntry() : Base(TH_NEW(RouteEntry))
@@ -1209,12 +1161,14 @@ namespace Tomahawk
 			}
 			bool Connection::Finish()
 			{
+				Info.Sync.lock();
 				if (WebSocket != nullptr)
 				{
 					if (!WebSocket->IsFinished())
 					{
+						Info.Sync.unlock();
 						WebSocket->Finish();
-						return true;
+						return false;
 					}
 
 					TH_DELETE(WebSocketFrame, WebSocket);
@@ -1223,16 +1177,18 @@ namespace Tomahawk
 
 				if (Gateway != nullptr)
 				{
-					if (!Gateway->IsDone())
+					if (!Gateway->IsFinished())
 					{
+						Info.Sync.unlock();
 						Gateway->Finish();
-						return true;
+						return false;
 					}
 
 					TH_DELETE(GatewayFrame, Gateway);
 					Gateway = nullptr;
 				}
 
+				Info.Sync.unlock();
 				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
 					return Root->Manage(this);
 
@@ -3155,8 +3111,9 @@ namespace Tomahawk
 					auto Base = Socket->Context<HTTP::Connection>();
 					if (Length < 0)
 					{
-						if (Length != -2)
-							Base->WebSocket->Error = true;
+						Base->WebSocket->Error = true;
+						if (Callback)
+							Callback(Base);
 
 						return Base->Break();
 					}
@@ -3176,8 +3133,9 @@ namespace Tomahawk
 						auto Base = Socket->Context<HTTP::Connection>();
 						if (Size < 0)
 						{
-							if (Size != -2)
-								Base->WebSocket->Error = true;
+							Base->WebSocket->Error = true;
+							if (Callback)
+								Callback(Base);
 
 							return Base->Break();
 						}

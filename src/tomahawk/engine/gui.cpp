@@ -626,7 +626,7 @@ namespace Tomahawk
                         return;
 
                     Script::VMContext* Context = Compiler->GetContext();
-                    Context->Execute(Main, false, [Scope](Script::VMContext* Context)
+                    Context->Execute(Main, [Scope](Script::VMContext* Context)
                     {
                         Context->SetArgObject(0, Scope->Basis);
                     });

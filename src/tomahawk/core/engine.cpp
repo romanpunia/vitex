@@ -5851,7 +5851,7 @@ namespace Tomahawk
 			}
 
 			if (NetworkQueue)
-				Network::Driver::Multiplex();
+				Queue->SetTask(Network::Driver::Multiplex);
 
 			Reactor* Job = Workers.front();
 			Job->Time->SetStepLimitation(I->MaxFrames, I->MinFrames);

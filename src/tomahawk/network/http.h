@@ -203,32 +203,34 @@ namespace Tomahawk
 				friend class Util;
 
 			private:
+				Connection* Base;
 				std::string Buffer;
-				uint64_t BodyLength = 0;
-				uint64_t MaskLength = 0;
-				uint64_t HeaderLength = 0;
-				uint64_t DataLength = 0;
-				unsigned int State = (uint32_t)WebSocketState::Handshake;
 				unsigned char Mask[4] = { 0 };
-				unsigned char Opcode = 0;
-				bool Clear = false;
-				bool Error = false;
-				bool Notified = false;
-				bool Save = false;
+				unsigned char Opcode;
+				uint64_t BodyLength;
+				uint64_t MaskLength;
+				uint64_t HeaderLength;
+				uint64_t DataLength;
+				std::atomic<uint32_t> State;
+				std::atomic<bool> Clear;
+				std::atomic<bool> Error;
+				std::atomic<bool> Notified;
+				std::atomic<bool> Save;
 
 			public:
-				HTTP::Connection* Base = nullptr;
 				WebSocketCallback Connect;
 				WebSocketCallback Disconnect;
 				WebSocketCallback Notification;
 				WebSocketReadCallback Receive;
 
 			public:
+				WebSocketFrame();
 				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
 				void Finish();
 				void Next();
 				void Notify();
 				bool IsFinished();
+				Connection* GetBase();
 			};
 
 			struct TH_OUT GatewayFrame
@@ -237,29 +239,25 @@ namespace Tomahawk
 				friend class Util;
 
 			private:
-				int64_t Size;
-
-			public:
 				Script::VMCompiler* Compiler;
+				std::atomic<bool> Save;
 				Connection* Base;
-
-			public:
 				char* Buffer;
-				bool Save;
+				size_t Size;
 
 			public:
 				GatewayFrame(char* Data, int64_t DataSize);
 				void Execute(Script::VMResume State);
-				bool Finish();
 				bool Error(int StatusCode, const char* Text);
-				bool Error();
+				bool Finish();
 				bool Start();
-				bool IsDone();
+				bool IsFinished();
 				Script::VMContext* GetContext();
+				Script::VMCompiler* GetCompiler();
+				Connection* GetBase();
 
 			private:
 				Script::VMFunction GetMain(const Script::VMModule& Mod);
-				bool Done(bool Normal);
 				bool IsScheduled();
 			};
 

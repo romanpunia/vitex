@@ -4138,22 +4138,17 @@ namespace Tomahawk
 				return Mutex.unlock();
 			}
 
-			if (Context->GetState() != VMExecState::SUSPENDED)
-			{
-				Context->Prepare(Function);
-				Context->SetArgObject(0, this);
-				Context->SetUserData(this, ContextUD);
-			}
 			Mutex.unlock();
-
-			int Result = Context->Execute();
+			Context->Execute(Function, [this](Script::VMContext* Ctx)
+			{
+				Ctx->SetArgObject(0, this);
+				Ctx->SetUserData(this, ContextUD);
+			});
+			Context->SetUserData(nullptr, ContextUD);
 			Mutex.lock();
 
-			if (Result != (int)VMExecState::SUSPENDED)
-			{
-				Context->SetUserData(nullptr, ContextUD);
+			if (!Context->IsSuspended())
 				TH_CLEAR(Context);
-			}
 
 			CV.notify_all();
 			Mutex.unlock();
@@ -4393,194 +4388,6 @@ namespace Tomahawk
 		}
 		int VMCThread::ContextUD = 550;
 		int VMCThread::EngineListUD = 551;
-
-		VMCPromise::VMCPromise(VMCContext* Base, VMCTypeInfo* Info) : Context(Base), Any(nullptr), Type(Info), Ref(2), Stored(false), GCFlag(false)
-		{
-			if (!Context)
-				return;
-
-			VMContext* Next = VMContext::Get(Context);
-			if (Next != nullptr)
-				Next->PushCoroutine();
-
-			VMCManager* Engine = Context->GetEngine();
-			Context->AddRef();
-			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Promise"));
-		}
-		void VMCPromise::Release()
-		{
-			GCFlag = false;
-			if (asAtomicDec(Ref) <= 0)
-			{
-				ReleaseReferences(nullptr);
-				this->~VMCPromise();
-				asFreeMem((void*)this);
-			}
-		}
-		void VMCPromise::AddRef()
-		{
-			GCFlag = false;
-			asAtomicInc(Ref);
-		}
-		void VMCPromise::EnumReferences(VMCManager* Engine)
-		{
-			Safe.lock();
-			if (Context != nullptr)
-				Engine->GCEnumCallback(Context);
-
-			if (Any != nullptr)
-				Engine->GCEnumCallback(Any);
-			Safe.unlock();
-		}
-		void VMCPromise::ReleaseReferences(VMCManager*)
-		{
-			Safe.lock();
-			if (Any != nullptr)
-			{
-				Any->Release();
-				Any = nullptr;
-			}
-
-			if (Context != nullptr)
-			{
-				Context->Release();
-				Context = nullptr;
-			}
-			Safe.unlock();
-		}
-		void VMCPromise::SetGCFlag()
-		{
-			GCFlag = true;
-		}
-		bool VMCPromise::GetGCFlag()
-		{
-			return GCFlag;
-		}
-		int VMCPromise::GetRefCount()
-		{
-			return Ref;
-		}
-		int VMCPromise::Acquire(VMCAny* Value)
-		{
-			if (!Context || Stored)
-				return asEXECUTION_UNINITIALIZED;
-
-			Safe.lock();
-			if (Any != nullptr)
-				Any->Release();
-
-			if (Value != nullptr)
-				Value->AddRef();
-
-			Stored = true;
-			Any = Value;
-			Safe.unlock();
-			Release();
-
-			VMContext* Base = VMContext::Get(Context);
-			if (!Base)
-				return asEXECUTION_ERROR;
-
-			return Core::Schedule::Get()->SetTask([Base]()
-			{
-				Base->PopCoroutine();
-				Base->Resume();
-			});
-		}
-		int VMCPromise::Set(void* fRef, int TypeId)
-		{
-			if (!Context)
-				return -1;
-
-			void* Data = asAllocMem(sizeof(VMCAny));
-			VMCAny* Result = new(Data) VMCAny(fRef, TypeId, Context->GetEngine());
-			Result->Release();
-
-			if (TypeId & asTYPEID_OBJHANDLE)
-			{
-				VMCManager* Manager = Context->GetEngine();
-				Manager->ReleaseScriptObject(*(void**)fRef, Manager->GetTypeInfoById(TypeId));
-			}
-
-			return Acquire(Result);
-		}
-		int VMCPromise::Set(void* fRef, const char* TypeName)
-		{
-			if (!Context)
-				return -1;
-
-			return Set(fRef, Context->GetEngine()->GetTypeIdByDecl(TypeName));
-		}
-		bool VMCPromise::Retrieve(void* fRef, int TypeId)
-		{
-			if (!Any)
-				return Stored;
-
-			return Any->Retrieve(fRef, TypeId);
-		}
-		void* VMCPromise::Get()
-		{
-			if (!Any)
-				return nullptr;
-
-			int TypeId = Any->GetTypeId(), RefTypeId = (Type ? Type->GetTypeId() : -1);
-			if (RefTypeId != -1 && RefTypeId != TypeId)
-			{
-				VMCManager* Engine = Context->GetEngine();
-				const char* From = Engine->GetTypeDeclaration(TypeId);
-				const char* To = Engine->GetTypeDeclaration(RefTypeId);
-
-				Context->SetException(Core::Form("cannot convert from %s to %s", (From ? From : "[undefined]"), (To ? To : "[undefined]")).Get());
-				return nullptr;
-			}
-
-			if (TypeId & asTYPEID_OBJHANDLE)
-				return &Any->Value.ValueObj;
-			else if (TypeId & asTYPEID_MASK_OBJECT)
-				return Any->Value.ValueObj;
-			else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
-				return &Any->Value.ValueInt;
-
-			Context->SetException("retrieve this object explicitly with To(T& out)");
-			return nullptr;
-		}
-		VMCAny* VMCPromise::GetSrc()
-		{
-			return Any;
-		}
-		VMCPromise* VMCPromise::Await()
-		{
-			if (!Context)
-				return this;
-
-			if (!Any && !Stored)
-				Context->Suspend();
-
-			return this;
-		}
-		VMCPromise* VMCPromise::Create(VMCTypeInfo* Info)
-		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			return new(asAllocMem(sizeof(VMCPromise))) VMCPromise(Context, Info);
-		}
-		int VMCPromise::GetTypeId(const char* Name)
-		{
-			if (!Name)
-				return -1;
-
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return -1;
-
-			return Context->GetEngine()->GetTypeIdByDecl(Name);
-		}
 
 		bool RegisterAnyAPI(VMManager* Manager)
 		{
@@ -5009,29 +4816,6 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Random", "uint GetU()", asMETHOD(VMCRandom, GetU), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "double GetD()", asMETHOD(VMCRandom, GetD), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "void SeedFromTime()", asMETHOD(VMCRandom, SeedFromTime), asCALL_THISCALL);
-			return true;
-		}
-		bool RegisterPromiseAPI(VMManager* Manager)
-		{
-			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
-			Engine->RegisterObjectType("Promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCArray::TemplateCallback), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_FACTORY, "Promise<T>@ f(int&in)", asFUNCTIONPR(VMCPromise::Create, (VMCTypeInfo*), VMCPromise*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCPromise, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCPromise, Release), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCPromise, SetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCPromise, GetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCPromise, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCPromise, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCPromise, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Promise<T>", "void Set(const ?&in)", asMETHODPR(VMCPromise, Set, (void*, int), int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Promise<T>", "Any@+ GetSrc()", asMETHOD(VMCPromise, GetSrc), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Promise<T>", "const T& Get()", asMETHOD(VMCPromise, Get), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Promise<T>", "bool To(?&out)", asMETHODPR(VMCPromise, Retrieve, (void*, int), bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Promise<T>", "Promise<T>@+ Await()", asMETHOD(VMCPromise, Await), asCALL_THISCALL);
 			return true;
 		}
 		bool FreeCoreAPI()

@@ -1558,7 +1558,6 @@ namespace Tomahawk
 			void Define(const std::string& Word);
 			void Undefine(const std::string& Word);
 			bool Clear();
-			bool IsPending();
 			bool IsDefined(const std::string& Word);
 			bool IsBuilt();
 			bool IsCached();
@@ -1591,17 +1590,6 @@ namespace Tomahawk
 			static int ContextUD;
 
 		private:
-			struct Event
-			{
-				VMFunction Function;
-				ArgsCallback Callback;
-				Core::Async<int> Result;
-			};
-
-		private:
-			std::queue<Event> Events;
-			std::atomic<uint64_t> Async;
-			std::mutex Safe;
 			ResumeCallback Resolve;
 			VMCContext* Context;
 			VMManager* Manager;
@@ -1609,24 +1597,21 @@ namespace Tomahawk
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
-			Core::Async<int> Execute(const VMFunction& Function, bool Nested, ArgsCallback&& ArgsSetup);
+			Core::Async<int> Coexecute(const VMFunction& Function, ArgsCallback&& ArgsSetup);
 			int SetResumeCallback(ResumeCallback&& Callback);
 			int SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
 			int AddRefVM() const;
 			int ReleaseVM();
 			int Prepare(const VMFunction& Function);
 			int Unprepare();
-			int Execute();
-			int Resume(bool Forced = false);
+			int Execute(const VMFunction& Function, ArgsCallback&& ArgsSetup, bool Notify = true);
+			int Execute(bool Notify = true);
 			int Abort();
 			int Suspend();
 			VMExecState GetState() const;
 			std::string GetStackTrace() const;
 			int PushState();
 			int PopState();
-			int PushCoroutine();
-			int PopCoroutine();
-			bool IsPending();
 			bool IsNested(unsigned int* NestCount = 0) const;
 			bool IsThrown() const;
 			int SetObject(void* Object);
@@ -1674,9 +1659,6 @@ namespace Tomahawk
 			void* GetUserData(uint64_t Type = 0) const;
 			VMCContext* GetContext();
 			VMManager* GetManager();
-
-		private:
-			int ExecuteDeferred(const VMFunction& Function, bool Nested, const ArgsCallback& Callback);
 
 		public:
 			template <typename T>

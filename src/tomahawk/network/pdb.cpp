@@ -2007,7 +2007,6 @@ namespace Tomahawk
 				if (!Base)
 				{
 					Core::Parser Dest(Src);
-					Dest.Replace(TH_PREFIX_STR, TH_PREFIX_STR "\\");
 					return Dest.Insert('\'', 0).Append('\'').R();
 				}
 
@@ -2015,7 +2014,6 @@ namespace Tomahawk
 				std::string Result(Subresult);
 				PQfreemem(Subresult);
 
-				Core::Parser(&Result).Replace(TH_PREFIX_STR, TH_PREFIX_STR "\\");
 				return Result;
 #else
 				return "'" + Src + "'";

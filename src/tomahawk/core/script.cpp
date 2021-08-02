@@ -2303,7 +2303,7 @@ namespace Tomahawk
 		}
 		bool VMCompiler::Clear()
 		{
-			if (Context != nullptr && Context->IsPending())
+			if (!Manager)
 				return false;
 
 			Manager->Lock();
@@ -2316,12 +2316,10 @@ namespace Tomahawk
 			}
 			Manager->Unlock();
 
-			Processor->Clear();
+			if (Processor != nullptr)
+				Processor->Clear();
+
 			return true;
-		}
-		bool VMCompiler::IsPending()
-		{
-			return Context && Context->IsPending();
 		}
 		bool VMCompiler::IsDefined(const std::string& Word)
 		{
@@ -2530,7 +2528,7 @@ namespace Tomahawk
 		int VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
 		{
 			if (!Name || !ModuleName || !EntryName)
-				return (int)VMResult::INVALID_ARG;
+				return asINVALID_ARG;
 
 			int R = Prepare(ModuleName, Name);
 			if (R < 0)
@@ -2549,7 +2547,7 @@ namespace Tomahawk
 		int VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
 		{
 			if (Buffer.empty() || !ModuleName || !EntryName)
-				return (int)VMResult::INVALID_ARG;
+				return asINVALID_ARG;
 
 			int R = Prepare(ModuleName, "anonymous");
 			if (R < 0)
@@ -2582,12 +2580,9 @@ namespace Tomahawk
 			if (!Function)
 				return asNO_FUNCTION;
 
-			Core::Async<int> Result = Context->Execute(Function, false, std::move(Callback));
-			if (Result.IsPending())
-				return asEXECUTION_ACTIVE;
-
+			int Result = Core::Coawait(Context->Coexecute(Function, std::move(Callback)));
 			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
-				return Core::Coawait(std::move(Result));
+				return Result;
 
 			if (ReturnTypeId & asTYPEID_OBJHANDLE)
 			{
@@ -2602,7 +2597,7 @@ namespace Tomahawk
 			else
 				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
 
-			return Core::Coawait(std::move(Result));
+			return Result;
 		}
 		int VMCompiler::ExecuteScoped(const std::string& Code, void* Return, int ReturnTypeId)
 		{
@@ -2639,17 +2634,11 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			Core::Async<int> Result = Context->Execute(Function, false, nullptr);
-			if (Result.IsPending())
-			{
-				Result.Await([Function](int) { Function->Release(); });
-				return asEXECUTION_ACTIVE;
-			}
-
+			int Result = Core::Coawait(Context->Coexecute(Function, nullptr));
 			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
 			{
 				Function->Release();
-				return Core::Coawait(std::move(Result));
+				return Result;
 			}
 
 			if (ReturnTypeId & asTYPEID_OBJHANDLE)
@@ -2666,7 +2655,7 @@ namespace Tomahawk
 				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
 
 			Function->Release();
-			return Core::Coawait(std::move(Result));
+			return Result;
 		}
 		VMManager* VMCompiler::GetManager() const
 		{
@@ -2693,7 +2682,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Async(0), Context(Base), Manager(nullptr)
+		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr)
 		{
 			if (Context != nullptr)
 			{
@@ -2704,9 +2693,6 @@ namespace Tomahawk
 		}
 		VMContext::~VMContext()
 		{
-			if (IsPending())
-				TH_ERROR("[asyncerr] %llu operations are still pending", Async.load());
-
 			if (Context != nullptr)
 			{
 				if (Manager != nullptr)
@@ -2716,48 +2702,16 @@ namespace Tomahawk
 			}
 			asThreadCleanup();
 		}
-		Core::Async<int> VMContext::Execute(const VMFunction& Function, bool Nested, ArgsCallback&& Callback)
+		Core::Async<int> VMContext::Coexecute(const VMFunction& Function, ArgsCallback&& ArgsSetup)
 		{
-			asEContextState State = Context->GetState();
-			if (State != asEXECUTION_ACTIVE)
-				return Core::Async<int>::Store(ExecuteDeferred(Function, Nested, std::move(Callback)));
-
-			Core::Async<int> Result;
-			Safe.lock();
-			Events.push({ Function, std::move(Callback), Result });
-			Safe.unlock();
-
-			return Result;
-		}
-		int VMContext::ExecuteDeferred(const VMFunction& Function, bool Nested, const ArgsCallback& Callback)
-		{
-			if (Nested)
-				Context->PushState();
-
-			int Result = Context->Prepare(Function.GetFunction());
-			if (Result < 0)
+			return Core::Coasync<int>([this, Function, ArgsSetup = std::move(ArgsSetup)]() mutable
 			{
-				if (Nested)
-					Context->PopState();
-
-				return Result;
-			}
-
-			if (Callback)
-				Callback(this);
-
-			Result = Resume(true);
-			if (Nested)
-				Context->PopState();
-
-			return Result;
+				return Execute(Function, std::move(ArgsSetup));
+			});
 		}
 		int VMContext::SetResumeCallback(ResumeCallback&& Callback)
 		{
-			Safe.lock();
 			Resolve = std::move(Callback);
-			Safe.unlock();
-
 			return 0;
 		}
 		int VMContext::SetExceptionCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
@@ -2799,52 +2753,42 @@ namespace Tomahawk
 
 			return Context->Unprepare();
 		}
-		int VMContext::Execute()
+		int VMContext::Execute(const VMFunction& Function, ArgsCallback&& Callback, bool Notify)
 		{
-			if (!Context)
-				return -1;
+			if (!Context || !Function.IsValid())
+				return asINVALID_ARG;
 
-			int Result = Context->Execute();
-			if (Result != asEXECUTION_FINISHED || Events.empty())
-				return Result;
+			asEContextState State = Context->GetState();
+			if (State != asEXECUTION_FINISHED && State != asEXECUTION_ABORTED && State != asEXECUTION_EXCEPTION && State != asEXECUTION_ERROR && State != asEXECUTION_UNINITIALIZED)
+				return asCONTEXT_ACTIVE;
 
-			Safe.lock();
-			if (Events.empty())
+			bool Nested = Context->IsNested(nullptr);
+			if (Nested)
+				Context->PushState();
+
+			int Result = Context->Prepare(Function.GetFunction());
+			if (Result >= 0)
 			{
-				Safe.unlock();
-				return Result;
+				if (Callback)
+					Callback(this);
+				Result = Execute(Notify);
 			}
 
-			Event Next = Events.front();
-			Events.pop();
-			Safe.unlock();
-
-			Result = ExecuteDeferred(Next.Function, false, std::move(Next.Callback));
-			Next.Result.Set(Result);
+			if (Nested)
+				Context->PopState();
 
 			return Result;
 		}
-		int VMContext::Resume(bool Forced)
+		int VMContext::Execute(bool Notify)
 		{
 			asEContextState State = Context->GetState();
 			if (State == asEXECUTION_ACTIVE)
-				return asEXECUTION_ABORTED;
-
-			if (!Resolve)
-			{
-				if (!Forced && State == asEXECUTION_FINISHED)
-					return asEXECUTION_ABORTED;
-
-				return Context->Execute();
-			}
-
-			if (!Forced && State == asEXECUTION_FINISHED)
-			{
-				Resolve(VMResume::Finish);
-				return asEXECUTION_ABORTED;
-			}
+				return asEXECUTION_ACTIVE;
 
 			State = (asEContextState)Context->Execute();
+			if (!Notify || !Resolve)
+				return State;
+
 			if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
 				Resolve(VMResume::Finish);
 			else if (State == asEXECUTION_ERROR)
@@ -2921,23 +2865,6 @@ namespace Tomahawk
 				return -1;
 
 			return Context->PopState();
-		}
-		int VMContext::PushCoroutine()
-		{
-			Async++;
-			return 0;
-		}
-		int VMContext::PopCoroutine()
-		{
-			if (!Async)
-				return (int)VMResult::INVALID_ARG;
-
-			Async--;
-			return 0;
-		}
-		bool VMContext::IsPending()
-		{
-			return Async > 0;
 		}
 		bool VMContext::IsNested(unsigned int* NestCount) const
 		{
@@ -4252,7 +4179,6 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/exception", { "std/string" }, RegisterExceptionAPI);
 			Engine->AddSubmodule("std/mutex", { }, RegisterMutexAPI);
 			Engine->AddSubmodule("std/thread", { "std/any" }, RegisterThreadAPI);
-			Engine->AddSubmodule("std/promise", { "std/any" }, RegisterPromiseAPI);
 			Engine->AddSubmodule("std",
 			{
 				"std/any",
@@ -4268,7 +4194,6 @@ namespace Tomahawk
 				"std/exception",
 				"std/mutex",
 				"std/thread",
-				"std/promise"
 			}, nullptr);
 
 			Engine->AddSubmodule("core/format", { "std/string" }, RegisterFormatAPI);

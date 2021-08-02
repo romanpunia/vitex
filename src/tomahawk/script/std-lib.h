@@ -2,8 +2,7 @@
 #define TH_SCRIPT_STD_API_H
 
 #include "../core/script.h"
-#define TH_PROMISIFY(MemberFunction, TypeId) Tomahawk::Script::VMCPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define TH_PROMISIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::VMCPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
+#define TH_PROMISIFY(MemberFunction) Tomahawk::Script::VMCPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Function
 #define TH_ARRAYIFY(MemberFunction, TypeId) Tomahawk::Script::VMCArray::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define TH_ARRAYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::VMCArray::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
 #define TH_ANYIFY(MemberFunction, TypeId) Tomahawk::Script::VMCAny::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
@@ -14,6 +13,22 @@ namespace Tomahawk
 	namespace Script
 	{
 		class VMCArray;
+
+		class TH_OUT VMCPromise
+		{
+		public:
+			template <typename T, T>
+			struct Ify;
+
+			template <typename T, typename R, typename ...Args, Core::Async<R>(T::* F)(Args...)>
+			struct Ify<Core::Async<R>(T::*)(Args...), F>
+			{
+				static R Function(T* Base, Args... Data)
+				{
+					return Core::Coawait((Base->*F)(Data...));
+				}
+			};
+		};
 
 		class TH_OUT VMCException
 		{
@@ -118,8 +133,6 @@ namespace Tomahawk
 
 		class TH_OUT VMCAny
 		{
-			friend class VMCPromise;
-
 		protected:
 			struct ValueStruct
 			{
@@ -717,74 +730,6 @@ namespace Tomahawk
 			static VMCRandom* Create();
 		};
 
-		class TH_OUT VMCPromise
-		{
-		private:
-			VMCContext* Context;
-			VMCAny* Any;
-			VMCTypeInfo* Type;
-			std::mutex Safe;
-			int Ref;
-			bool Stored;
-			bool GCFlag;
-
-		private:
-			VMCPromise(VMCContext* Base, VMCTypeInfo* Info);
-
-		public:
-			void EnumReferences(VMCManager* Engine);
-			void ReleaseReferences(VMCManager* Engine);
-			void AddRef();
-			void Release();
-			void SetGCFlag();
-			bool GetGCFlag();
-			int GetRefCount();
-			int Acquire(VMCAny* Value);
-			int Set(void* Ref, int TypeId);
-			int Set(void* Ref, const char* TypeId);
-			bool Retrieve(void* Ref, int TypeId);
-			void* Get();
-			VMCAny* GetSrc();
-			VMCPromise* Await();
-
-		private:
-			static int GetTypeId(const char* Name);
-
-		public:
-			static VMCPromise* Create(VMCTypeInfo* Type = nullptr);
-			
-		public:
-			template <typename T, T>
-			struct Ify;
-
-			template <typename T, typename R, typename ...Args, Core::Async<R>(T::*F)(Args...)>
-			struct Ify<Core::Async<R>(T::*)(Args...), F>
-			{
-				template <VMTypeId TypeId>
-				static VMCPromise* Id(T* Base, Args... Data)
-				{
-					VMCPromise* Future = VMCPromise::Create();
-					((Base->*F)(Data...)).Await([Future](R&& Result)
-					{
-						Future->Set((void*)&Result, (int)TypeId);
-					});
-
-					return Future;
-				}
-				template <const char* TypeName>
-				static VMCPromise* Decl(T* Base, Args... Data)
-				{
-					VMCPromise* Future = VMCPromise::Create();
-					((Base->*F)(Data...)).Await([Future](R&& Result)
-					{
-						Future->Set((void*)&Result, TypeName);
-					});
-
-					return Future;
-				}
-			};
-		};
-
 		TH_OUT bool RegisterAnyAPI(VMManager* Manager);
 		TH_OUT bool RegisterArrayAPI(VMManager* Manager);
 		TH_OUT bool RegisterComplexAPI(VMManager* Manager);
@@ -798,7 +743,6 @@ namespace Tomahawk
 		TH_OUT bool RegisterMutexAPI(VMManager* Manager);
 		TH_OUT bool RegisterThreadAPI(VMManager* Manager);
 		TH_OUT bool RegisterRandomAPI(VMManager* Manager);
-		TH_OUT bool RegisterPromiseAPI(VMManager* Manager);
 		TH_OUT bool FreeCoreAPI();
 	}
 }

@@ -5417,8 +5417,8 @@ namespace Tomahawk
 			}
 			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame* Root)
 			{
-				TH_ASSERT(Root != nullptr, Core::Async<ResponseFrame*>::Store(nullptr), "request should be set");
-				TH_ASSERT(Stream.IsValid(), Core::Async<ResponseFrame*>::Store(nullptr), "stream should be opened");
+				TH_ASSERT(Root != nullptr, nullptr, "request should be set");
+				TH_ASSERT(Stream.IsValid(), nullptr, "stream should be opened");
 
 				Core::Async<ResponseFrame*> Result;
 				Stage("request delivery");
@@ -5431,7 +5431,7 @@ namespace Tomahawk
 					if (Code < 0)
 						Base->GetResponse()->StatusCode = -1;
 
-					Result.Set(Base->GetResponse());
+					Result = Base->GetResponse();
 				};
 
 				Core::Parser Content;
@@ -5532,13 +5532,13 @@ namespace Tomahawk
 			Core::Async<ResponseFrame*> Client::Consume(int64_t MaxSize)
 			{
 				if (Request.ContentState == Content::Lost || Request.ContentState == Content::Empty || Request.ContentState == Content::Saved || Request.ContentState == Content::Wants_Save)
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 
 				if (Request.ContentState == Content::Corrupted || Request.ContentState == Content::Payload_Exceeded || Request.ContentState == Content::Save_Exception)
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 
 				if (Request.ContentState == Content::Cached)
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 
 				Response.Buffer.clear();
 
@@ -5546,7 +5546,7 @@ namespace Tomahawk
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
 					Request.ContentState = Content::Wants_Save;
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 				}
 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
@@ -5564,7 +5564,7 @@ namespace Tomahawk
 							{
 								TH_RELEASE(Parser);
 								Request.ContentState = Content::Corrupted;
-								Result.Set(GetResponse());
+								Result = GetResponse();
 
 								return false;
 							}
@@ -5588,7 +5588,7 @@ namespace Tomahawk
 						else
 							Request.ContentState = Content::Corrupted;
 
-						Result.Set(GetResponse());
+						Result = GetResponse();
 						return true;
 					});
 
@@ -5606,7 +5606,7 @@ namespace Tomahawk
 							else
 								Request.ContentState = Content::Lost;
 
-							Result.Set(GetResponse());
+							Result = GetResponse();
 							return false;
 						}
 
@@ -5623,27 +5623,27 @@ namespace Tomahawk
 				if (!HContentLength)
 				{
 					Request.ContentState = Content::Corrupted;
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 				}
 
 				Core::Parser HLength = HContentLength;
 				if (!HLength.HasInteger())
 				{
 					Request.ContentState = Content::Corrupted;
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 				}
 
 				int64_t Length = HLength.ToInt64();
 				if (Length <= 0)
 				{
 					Request.ContentState = Content::Empty;
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 				}
 
 				if (Length > MaxSize)
 				{
 					Request.ContentState = Content::Wants_Save;
-					return Core::Async<ResponseFrame*>::Store(GetResponse());
+					return GetResponse();
 				}
 
 				Core::Async<ResponseFrame*> Result;
@@ -5661,7 +5661,7 @@ namespace Tomahawk
 						else
 							Request.ContentState = Content::Corrupted;
 
-						Result.Set(GetResponse());
+						Result = GetResponse();
 						return false;
 					}
 

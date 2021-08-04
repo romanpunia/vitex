@@ -2177,13 +2177,13 @@ namespace Tomahawk
 		}
 		Core::Async<int> SocketClient::Connect(Host* Address, bool Async)
 		{
-			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), Core::Async<int>::Store(-2), "address should be set");
-			TH_ASSERT(!Stream.IsValid(), Core::Async<int>::Store(-2), "stream should not be connected");
+			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), -2, "address should be set");
+			TH_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
 
 			Core::Async<int> Result;
 			Done = [Result](SocketClient*, int Code) mutable
 			{
-				Result.Set(Code);
+				Result = Code;
 			};
 
 			Stage("socket dns resolve");
@@ -2236,12 +2236,12 @@ namespace Tomahawk
 		Core::Async<int> SocketClient::Close()
 		{
 			if (!Stream.IsValid())
-				return Core::Async<int>::Store(-2);
+				return -2;
 
 			Core::Async<int> Result;
 			Done = [Result](SocketClient*, int Code) mutable
 			{
-				Result.Set(Code);
+				Result = Code;
 			};
 
 			OnClose();

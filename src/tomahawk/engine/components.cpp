@@ -4038,7 +4038,7 @@ namespace Tomahawk
 				Safe.unlock();
 
 				if (!Result.IsPending())
-					return Result.GetOrSet();
+					return Result.GetIfAny();
 
 				return (int)Script::VMResult::CONTEXT_ACTIVE;
 			}

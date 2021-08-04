@@ -105,9 +105,9 @@ namespace Tomahawk
 			}
 			Core::Async<int> Client::Send(RequestFrame* Root)
 			{
-				TH_ASSERT(Root != nullptr, Core::Async<int>::Store(-1), "request should be set");
+				TH_ASSERT(Root != nullptr, -1, "request should be set");
 				if (!Staging || !Stream.IsValid())
-					return Core::Async<int>::Store(-1);
+					return -1;
 
 				Core::Async<int> Result;
 				if (!Staging)
@@ -117,7 +117,7 @@ namespace Tomahawk
 
 					Done = [Result](SocketClient*, int Code) mutable
 					{
-						Result.Set(Code);
+						Result = Code;
 					};
 				}
 
@@ -128,7 +128,7 @@ namespace Tomahawk
 					{
 						Send(nullptr).Await([Result](int Code) mutable
 						{
-							Result.Set(Code);
+							Result = Code;
 						});
 					});
 

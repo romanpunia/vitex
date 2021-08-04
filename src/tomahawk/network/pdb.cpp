@@ -1301,7 +1301,7 @@ namespace Tomahawk
 #endif
 				for (auto* Item : Requests)
 				{
-					Item->Future.Set(Cursor());
+					Item->Future = Cursor();
 					Item->Result.Release();
 					TH_DELETE(Request, Item);
 				}
@@ -1325,7 +1325,7 @@ namespace Tomahawk
 			Core::Async<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_ASSERT(Connections > 0, Core::Async<bool>::Store(false), "connections count should be at least 1");
+				TH_ASSERT(Connections > 0, false, "connections count should be at least 1");
 				Update.lock();
 				Source = URI;
 
@@ -1339,7 +1339,7 @@ namespace Tomahawk
 				}
 
 				Update.unlock();
-				return Core::Async<bool>::Executor([this, Connections](Core::Async<bool>& Future)
+				return Core::Async<bool>::Execute([this, Connections](Core::Async<bool>& Future)
 				{
 					TH_PSTART("postgres-conn", TH_PERF_MAX);
 					const char** Keys = Source.CreateKeys();
@@ -1358,9 +1358,10 @@ namespace Tomahawk
                             PQlogMessage(Base);
                             if (Base != nullptr)
                                 PQfinish(Base);
-                            
+
+							Future = false;
 							TH_PEND();
-							return Future.Set(false);
+							return;
 						}
 						PQsetnonblocking(Base, 1);
 						PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
@@ -1380,21 +1381,20 @@ namespace Tomahawk
 					}
 					Update.unlock();
 
+					Future = true;
 					TH_FREE(Keys);
 					TH_FREE(Values);
-
-					Future.Set(true);
 					TH_PEND();
 				});
 #else
-				return Core::Async<bool>::Store(false);
+				return false;
 #endif
 			}
 			Core::Async<bool> Cluster::Disconnect()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_ASSERT(!Pool.empty(), Core::Async<bool>::Store(false), "connection should be established");
-				return Core::Async<bool>::Executor([this](Core::Async<bool>& Future)
+				TH_ASSERT(!Pool.empty(), false, "connection should be established");
+				return Core::Async<bool>::Execute([this](Core::Async<bool>& Future)
 				{
 					Update.lock();
 					for (auto& Item : Pool)
@@ -1406,10 +1406,10 @@ namespace Tomahawk
                     }
                     Pool.clear();
 					Update.unlock();
-					Future.Set(true);
+					Future = true;
 				});
 #else
-				return Core::Async<bool>::Store(false);
+				return false;
 #endif
 			}
 			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, Connection* Session)
@@ -1423,7 +1423,7 @@ namespace Tomahawk
 			Core::Async<Cursor> Cluster::Query(const std::string& Command, Connection* Session)
 			{
 				if (Command.empty())
-					return Core::Async<Cursor>::Store(Cursor());
+					return Cursor();
 
 				Request* Next = TH_NEW(Request);
 				Next->Command = Command;
@@ -1494,7 +1494,7 @@ namespace Tomahawk
                     Target->Current = nullptr;
 
                     Update.unlock();
-                    Current->Future.Set(Cursor());
+					Current->Future = Cursor();
                     Update.lock();
                     
                     TH_WARN("[pqwarn] query operation will not retry (neterr)");
@@ -1548,7 +1548,7 @@ namespace Tomahawk
                 PQlogMessage(Base->Base);
                 
                 Update.unlock();
-                Item->Future.Set(Cursor());
+				Item->Future = Cursor();
                 Update.lock();
                 
                 Item->Result.Release();
@@ -1646,7 +1646,7 @@ namespace Tomahawk
 							PQlogMessage(Source->Base);
 
                             Update.unlock();
-                            Future.Set(std::move(Results));
+                            Future = std::move(Results);
                             Update.lock();
                             
                             TH_DELETE(Request, Item);

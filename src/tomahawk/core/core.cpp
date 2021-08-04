@@ -4235,8 +4235,8 @@ namespace Tomahawk
 			DbgPerf.File = File;
 			DbgPerf.Section = Section;
 			DbgPerf.Function = Function;
-			DbgPerf.Threshold = ThresholdMS;
-			DbgPerf.Time = DateTime().Milliseconds();
+			DbgPerf.Threshold = ThresholdMS * 1000;
+			DbgPerf.Time = DateTime().Microseconds();
 			DbgPerf.Line = Line;
 		}
 		void Debug::TimeEnd()
@@ -4245,9 +4245,9 @@ namespace Tomahawk
 			TH_ASSERT_V(DbgPerf.Section != nullptr, "section should be set");
 			TH_ASSERT_V(DbgPerf.Function != nullptr, "function should be set");
 
-			uint64_t Diff = DateTime().Milliseconds() - DbgPerf.Time;
+			uint64_t Diff = DateTime().Microseconds() - DbgPerf.Time;
 			if (Diff > DbgPerf.Threshold)
-				TH_WARN("[perf] @%s took %llu ms\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", DbgPerf.Section, Diff, DbgPerf.Function, DbgPerf.File, DbgPerf.Line, DbgPerf.Threshold);
+				TH_WARN("[perf] @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", DbgPerf.Section, Diff / 1000, Diff, DbgPerf.Function, DbgPerf.File, DbgPerf.Line, DbgPerf.Threshold / 1000);
 		}
 		void Debug::Log(int Level, int Line, const char* Source, const char* Format, ...)
 		{
@@ -5225,55 +5225,49 @@ namespace Tomahawk
 			Address.Secure = (URL.Protocol == "https");
 			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
 
-			bool Chunked = false;
 			switch (Mode)
 			{
 				case FileMode::Binary_Read_Only:
 				case FileMode::Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					Client->Connect(&Address, false).Sync().Then<Core::Async<Network::HTTP::ResponseFrame*>>([Client, URL](int Code)
+					if (Coawait(Client->Connect(&Address, false)) < 0)
 					{
-						if (Code < 0)
-							return Core::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
+						TH_RELEASE(Client);
+						break;
+					}
+					
+					Network::HTTP::RequestFrame Request;
+					Request.URI.assign('/' + URL.Path);
+					for (auto& Item : URL.Query)
+						Request.Query += Item.first + "=" + Item.second;
 
-						Network::HTTP::RequestFrame Request;
-						strcpy(Request.Version, "HTTP/1.1");
-						strcpy(Request.Method, "GET");
-						Request.URI.assign('/' + URL.Path);
-
-						for (auto& Item : URL.Query)
-							Request.Query += Item.first + "=" + Item.second;
-
-						return Client->Send(&Request);
-					}).Then<Core::Async<Network::HTTP::ResponseFrame*>>([this, Client, &Chunked](Network::HTTP::ResponseFrame* Response)
+					Network::HTTP::ResponseFrame* Response = Coawait(Client->Send(&Request));
+					if (!Response || Response->StatusCode < 0)
 					{
-						if (!Response || Response->StatusCode < 0)
-							return Core::Async<Network::HTTP::ResponseFrame*>::Store(nullptr);
+						TH_RELEASE(Client);
+						break;
+					}
 
-						const char* ContentLength = Response->GetHeader("Content-Length");
-						if (ContentLength != nullptr)
+					const char* ContentLength = Response->GetHeader("Content-Length");
+					if (!ContentLength)
+					{
+						if (!Coawait(Client->Consume(1024 * 1024 * 16)) || !Network::HTTP::Util::ContentOK(Client->GetRequest()->ContentState))
 						{
-							this->Size = Parser(ContentLength).ToUInt64();
-							return Core::Async<Network::HTTP::ResponseFrame*>::Store(Response);
-						}
-
-						Chunked = true;
-						return Client->Consume(1024 * 1024 * 16);
-					}).Await([this, Client, &Chunked](Network::HTTP::ResponseFrame* Response)
-					{
-						if (Response != nullptr && Response->StatusCode >= 0)
-						{
-							this->Resource = Client;
-							if (!Chunked)
-								return;
-
-							this->Buffer.assign(Response->Buffer.begin(), Response->Buffer.end());
-							this->Size = Response->Buffer.size();
-						}
-						else
 							TH_RELEASE(Client);
-					});
+							break;
+						}
+
+						Buffer.assign(Response->Buffer.begin(), Response->Buffer.end());
+						Size = Response->Buffer.size();
+						Resource = Client;
+					}
+					else
+					{
+						Size = Parser(ContentLength).ToUInt64();
+						Resource = Client;
+					}
+
 					break;
 				}
 				case FileMode::Binary_Write_Only:
@@ -5347,12 +5341,10 @@ namespace Tomahawk
 				return Result;
 			}
 
-			((Network::HTTP::Client*)Resource)->Consume(Length).Sync().Await([&Data, &Length, &Result](Network::HTTP::ResponseFrame* Response)
-			{
-				Result = std::min(Length, (uint64_t)Response->Buffer.size());
-				memcpy(Data, Response->Buffer.data(), Result);
-			});
-
+			auto* Client = (Network::HTTP::Client*)Resource;
+			auto* Response = Coawait(Client->Consume(Length));
+			Result = std::min(Length, (uint64_t)Response->Buffer.size());
+			memcpy(Data, Response->Buffer.data(), Result);
 			Offset += Result;
 			return Result;
 		}
@@ -6701,7 +6693,7 @@ namespace Tomahawk
 		}
 
 		static thread_local Costate* Cothread = nullptr;
-		Costate::Costate(size_t StackSize) : Thread(std::this_thread::get_id()), Current(nullptr), Switch(TH_NEW(Cocontext, true)), Size(StackSize)
+		Costate::Costate(size_t StackSize) : Waitable(nullptr), Thread(std::this_thread::get_id()), Current(nullptr), Switch(TH_NEW(Cocontext, true)), Size(StackSize)
 		{
 		}
 		Costate::~Costate()
@@ -6871,6 +6863,9 @@ namespace Tomahawk
 				return -1;
 			
             Routine->State = Coactive::Resumable;
+			if (Waitable != nullptr)
+				Waitable->notify_all();
+
             return 1;
         }
         int Costate::Deactivate(Coroutine* Routine)
@@ -6975,6 +6970,20 @@ namespace Tomahawk
 				TH_DELETE(Coroutine, Routine);
 			Cached.clear();
 			Safe.unlock();
+		}
+		void Costate::Notify(std::condition_variable* Var)
+		{
+			Safe.lock();
+			Waitable = Var;
+			Safe.unlock();
+		}
+		bool Costate::IsWaitable() const
+		{
+			return Waitable != nullptr;
+		}
+		std::condition_variable* Costate::GetWaitable()
+		{
+			return Waitable;
 		}
 		Coroutine* Costate::GetCurrent() const
 		{
@@ -7454,7 +7463,8 @@ namespace Tomahawk
 		}
 		bool Schedule::Publish()
 		{
-			CToken Token(*((EQueue*)Events));
+			CToken tEvents(*((EQueue*)Events));
+			ConcurrentToken* vEvents = (ConcurrentToken*)&tEvents;
             int fEvents = -1, fTimers = -1;
             int64_t When = -1;
             
@@ -7463,7 +7473,7 @@ namespace Tomahawk
 
 			do
 			{
-                fEvents = DispatchEvent((ConcurrentToken*)&Token);
+                fEvents = DispatchEvent(vEvents);
 				fTimers = DispatchTimer(&When);
 
 				if (fEvents == -1 && fTimers == 0)
@@ -7483,17 +7493,25 @@ namespace Tomahawk
 		}
 		bool Schedule::Consume()
 		{
-			Costate* State = (Stack > 0 && Coroutines > 0 ? new Costate(Stack) : nullptr);
+			Costate* State = nullptr;
+			if (Stack > 0 && Coroutines > 0)
+			{
+				State = new Costate(Stack);
+				State->Notify(&Queue.Consume);
+			}
+
 			CToken tAsyncs(*((TQueue*)Asyncs)), tTasks(*((TQueue*)Tasks));
+			ConcurrentToken* vAsyncs = (ConcurrentToken*)&tAsyncs;
+			ConcurrentToken* vTasks = (ConcurrentToken*)&tTasks;
             int fAsyncs = -1, fTasks = -1;
-            
+
             if (!Active)
 				goto Wait;
 
 			do
 			{
-                fAsyncs = DispatchAsync((ConcurrentToken*)&tAsyncs, State, false);
-				fTasks = DispatchTask((ConcurrentToken*)&tTasks);
+                fAsyncs = DispatchAsync(vAsyncs, State, false);
+				fTasks = DispatchTask(vTasks);
 
 				if (fAsyncs != -1 || fTasks != -1)
 					continue;
@@ -7540,9 +7558,12 @@ namespace Tomahawk
 						DispatchTimer(nullptr);
 					}
 
-					DispatchTask(nullptr);
-					if (Count == 0)
-						std::this_thread::sleep_for(std::chrono::microseconds(100));
+					int fTasks = DispatchTask(nullptr);
+					if (fTasks == -1 && Count == 0 && State->IsWaitable())
+					{
+						std::unique_lock<std::mutex> Lock(Race.Threads);
+						State->GetWaitable()->wait(Lock);
+					}
 
 				ResolveNext:
 					while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)

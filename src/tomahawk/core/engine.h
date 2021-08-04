@@ -1139,10 +1139,10 @@ namespace Tomahawk
 			template <typename T>
 			Core::Async<T*> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return [this, Path, Keys](Core::Async<T*>& Base)
+				return Core::Async<T*>::Execute([this, Path, Keys](Core::Async<T*>& Future)
 				{
-					Base.Set((T*)LoadForward(Path, GetProcessor<T>(), Keys));
-				};
+					Base = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
+				});
 			}
 			template <typename T>
 			bool Save(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
@@ -1152,10 +1152,10 @@ namespace Tomahawk
 			template <typename T>
 			Core::Async<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return [this, Path, Object, Keys](Core::Async<bool>& Base)
+				return Core::Async<bool>::Execute([this, Path, Object, Keys](Core::Async<bool>& Future)
 				{
-					Base.Set(SaveForward(Path, GetProcessor<T>(), Object, Keys));
-				};
+					Base = SaveForward(Path, GetProcessor<T>(), Object, Keys);
+				});
 			}
 			template <typename T>
 			bool RemoveProcessor()

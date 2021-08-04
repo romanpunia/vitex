@@ -3123,12 +3123,16 @@ namespace Tomahawk
 		void RenderSystem::ClearCull()
 		{
 			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+			TH_PSTART("rs-clear-cull", TH_PERF_FRAME);
+
 			for (auto& Base : Cull)
 			{
 				auto* Array = Scene->GetComponents(Base);
 				for (auto It = Array->Begin(); It != Array->End(); ++It)
 					(*It)->As<Cullable>()->ClearCull();
 			}
+
+			TH_PEND();
 		}
 		void RenderSystem::Synchronize(Core::Timer* Time, const Viewer& View)
 		{
@@ -3136,6 +3140,7 @@ namespace Tomahawk
 			if (!FrustumCulling)
 				return;
 
+			TH_PSTART("rs-sync", TH_PERF_FRAME);
 			for (auto& Base : Cull)
 			{
 				auto* Array = Scene->GetComponents(Base);
@@ -3145,6 +3150,7 @@ namespace Tomahawk
 					Data->Visibility = Data->Cull(View);
 				}
 			}
+			TH_PEND();
 		}
 		void RenderSystem::CullGeometry(Core::Timer* Time, const Viewer& View)
 		{
@@ -3546,29 +3552,34 @@ namespace Tomahawk
 				else
 					Geometry = GetOpaque();
 
+				TH_PSTART("render-result", TH_PERF_CORE);
 				if (Geometry != nullptr && Geometry->Size() > 0)
 				{
 					System->ClearMaterials();
 					RenderGeometryResult(TimeStep, Geometry, Options);
 				}
+				TH_PEND();
 			}
 			else if (State == RenderState::Geometry_Voxels)
 			{
 				if ((size_t)Options & (size_t)RenderOpt::Transparent)
 					return;
 
+				TH_PSTART("render-voxels", TH_PERF_MIX);
 				Core::Pool<Drawable*>* Geometry = GetOpaque();
 				if (Geometry != nullptr && Geometry->Size() > 0)
 				{
 					System->ClearMaterials();
 					RenderGeometryVoxels(TimeStep, Geometry, Options);
 				}
+				TH_PEND();
 			}
 			else if (State == RenderState::Depth_Linear)
 			{
 				if (!((size_t)Options & (size_t)RenderOpt::Inner))
 					return;
 
+				TH_PSTART("render-depth-linear", TH_PERF_FRAME);
 				System->ClearMaterials();
 
 				Core::Pool<Drawable*>* Opaque = GetOpaque();
@@ -3578,6 +3589,7 @@ namespace Tomahawk
 				Core::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
 					RenderDepthLinear(TimeStep, Transparent);
+				TH_PEND();
 			}
 			else if (State == RenderState::Depth_Cubic)
 			{
@@ -3585,6 +3597,7 @@ namespace Tomahawk
 				if (!((size_t)Options & (size_t)RenderOpt::Inner))
 					return;
 
+				TH_PSTART("render-depth-cubic", TH_PERF_FRAME);
 				System->ClearMaterials();
 
 				Core::Pool<Drawable*>* Opaque = GetOpaque();
@@ -3594,6 +3607,7 @@ namespace Tomahawk
 				Core::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
 					RenderDepthCubic(TimeStep, Transparent, View.CubicViewProjection);
+				TH_PEND();
 			}
 		}
 		Core::Pool<Drawable*>* GeometryDraw::GetOpaque()
@@ -3760,6 +3774,7 @@ namespace Tomahawk
 			if (!Output)
 				Output = System->GetRT(TargetType::Main);
 
+			TH_PSTART("render-effect", TH_PERF_FRAME);
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType::Main);
 			PrimitiveCache* Cache = System->GetPrimitives();
 			Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -3780,6 +3795,7 @@ namespace Tomahawk
 			Device->FlushTexture2D(1, MaxSlot, TH_PS);
 			Device->CopyTarget(Output, 0, Input, 0);
 			System->RestoreOutput();
+			TH_PEND();
 		}
 		Graphics::Shader* EffectDraw::GetEffect(const std::string& Name)
 		{
@@ -4025,6 +4041,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Synchronize(Core::Timer* Time)
 		{
+			TH_PSTART("scene-sync", TH_PERF_CORE);
 			BeginThread(ThreadId::Synchronize);
 			for (auto It = Pending.Begin(); It != Pending.End(); ++It)
 				(*It)->Synchronize(Time);
@@ -4038,9 +4055,11 @@ namespace Tomahawk
 				Base->Id = Index++;
 			}
 			EndThread(ThreadId::Synchronize);
+			TH_PEND();
 		}
 		void SceneGraph::Update(Core::Timer* Time)
 		{
+			TH_PSTART("scene-update", TH_PERF_CORE);
 			BeginThread(ThreadId::Update);
 			if (Active)
 			{
@@ -4061,6 +4080,7 @@ namespace Tomahawk
 
 			DispatchLastEvent();
 			EndThread(ThreadId::Update);
+			TH_PEND();
 		}
 		void SceneGraph::Actualize()
 		{
@@ -4070,6 +4090,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Redistribute()
 		{
+			TH_PSTART("scene-redist", TH_PERF_FRAME);
 			Lock();
 			for (auto& Component : Components)
 				Component.second.Clear();
@@ -4080,9 +4101,11 @@ namespace Tomahawk
 
 			GetCamera();
 			Unlock();
+			TH_PEND();
 		}
 		void SceneGraph::Reindex()
 		{
+			TH_PSTART("scene-index", TH_PERF_FRAME);
 			Lock();
 			int64_t Index = 0;
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
@@ -4092,22 +4115,31 @@ namespace Tomahawk
 			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 				(*It)->Slot = Index++;
 			Unlock();
+			TH_PEND();
 		}
 		void SceneGraph::SortBackToFront(Core::Pool<Drawable*>* Array)
 		{
 			TH_ASSERT_V(Array != nullptr, "array should be set");
+			TH_PSTART("sort-btf", TH_PERF_FRAME);
+
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
 				return A->Parent->Distance > B->Parent->Distance;
 			});
+
+			TH_PEND();
 		}
 		void SceneGraph::SortFrontToBack(Core::Pool<Drawable*>* Array)
 		{
 			TH_ASSERT_V(Array != nullptr, "array should be set");
+			TH_PSTART("sort-ftb", TH_PERF_FRAME);
+
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
 				return A->Parent->Distance < B->Parent->Distance;
 			});
+
+			TH_PEND();
 		}
 		void SceneGraph::SetCamera(Entity* NewCamera)
 		{
@@ -4406,6 +4438,8 @@ namespace Tomahawk
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
+			TH_PSTART("ray-test", TH_PERF_FRAME);
+
 			Core::Pool<Component*>* Array = GetComponents(Section);
 			Compute::Ray Base = Origin;
 			Compute::Vector3 Hit;
@@ -4420,6 +4454,8 @@ namespace Tomahawk
 				if (Compute::Common::CursorRayTest(Base, Current->GetBoundingBox(), &Hit) && !Callback(Current, Hit))
 					break;
 			}
+			
+			TH_PEND();
 		}
 		void SceneGraph::ScriptHook(const std::string& Name)
 		{
@@ -4641,10 +4677,12 @@ namespace Tomahawk
 		}
 		bool SceneGraph::DispatchLastEvent()
 		{
+			TH_PSTART("scene-dispatch", TH_PERF_FRAME);
 			Sync.Events.lock();
 			if (Events.empty())
 			{
 				Sync.Events.unlock();
+				TH_PEND();
 				return false;
 			}
 
@@ -4682,6 +4720,8 @@ namespace Tomahawk
 			}
 
 			TH_DELETE(Event, Message);
+			TH_PEND();
+
 			return Result;
 		}
 		void SceneGraph::Mutate(Entity* Target, bool Added)
@@ -4872,6 +4912,8 @@ namespace Tomahawk
 		Entity* SceneGraph::CloneEntity(Entity* Entity)
 		{
 			TH_ASSERT(Entity != nullptr, nullptr, "entity should be set");
+			TH_PSTART("clone-entity", TH_PERF_FRAME);
+
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
 			Instance->Transform->UserPointer = Instance;
@@ -4889,6 +4931,8 @@ namespace Tomahawk
 			}
 
 			AddEntity(Instance);
+			TH_PEND();
+
 			return Instance;
 		}
 		Entity* SceneGraph::CloneEntities(Entity* Value)

@@ -3666,6 +3666,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
 			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
+			TH_PSTART("regex-parse", TH_PERF_FRAME);
 
 			int64_t is_anchored = Info->Src->Brackets[0].Pointer[0] == '^', i, result = -1;
 			for (i = 0; i <= BufferLength; i++)
@@ -3681,6 +3682,7 @@ namespace Tomahawk
 					break;
 			}
 
+			TH_PEND();
 			return result;
 		}
 		const char* Regex::Syntax()
@@ -11994,7 +11996,9 @@ namespace Tomahawk
 			if (!Active || TimeSpeed <= 0.0f)
 				return;
 
+			TH_PSTART("simulator-step", TH_PERF_MIX);
 			World->stepSimulation(TimeStep * TimeSpeed, Interpolate, TimeSpeed / 60.0f);
+			TH_PEND();
 #endif
 		}
 		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))
@@ -12002,21 +12006,26 @@ namespace Tomahawk
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Callback != nullptr, "callback should not be empty");
 			TH_ASSERT_V(Body != nullptr, "body should be set");
+			TH_PSTART("simulator-ctest", TH_PERF_CORE);
 
 			FindContactsHandler Handler;
 			Handler.Callback = Callback;
 			World->contactTest(Body->Bullet(), Handler);
+			TH_PEND();
 #endif
 		}
 		bool Simulator::FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&))
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Callback != nullptr, false, "callback should not be empty");
+			TH_PSTART("simulator-ray-test", TH_PERF_CORE);
 
 			FindRayContactsHandler Handler;
 			Handler.Callback = Callback;
 
 			World->rayTest(btVector3(Start.X, Start.Y, Start.Z), btVector3(End.X, End.Y, End.Z), Handler);
+			TH_PEND();
+
 			return Handler.m_collisionObject != nullptr;
 #else
 			return false;

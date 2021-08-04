@@ -1434,6 +1434,8 @@ namespace Tomahawk
 		bool Activity::Dispatch()
 		{
 			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
+			TH_PSTART("activity-dispatch", TH_PERF_MIX);
+
 			memcpy((void*)Keys[1], (void*)Keys[0], 1024);
 #ifdef TH_HAS_SDL2
 			Command = (int)SDL_GetModState();
@@ -1441,7 +1443,10 @@ namespace Tomahawk
 
 			SDL_Event Event;
 			if (!SDL_PollEvent(&Event))
+			{
+				TH_PEND();
 				return false;
+			}
 
 			int Id = SDL_GetWindowID(Handle);
 			switch (Event.type)
@@ -1509,34 +1514,42 @@ namespace Tomahawk
 								Callbacks.WindowStateChange(WindowState::Close, 0, 0);
 							break;
 					}
+					TH_PEND();
 					return true;
 				case SDL_QUIT:
 					if (Callbacks.AppStateChange)
 						Callbacks.AppStateChange(AppState::Close_Window);
+					TH_PEND();
 					return true;
 				case SDL_APP_TERMINATING:
 					if (Callbacks.AppStateChange)
 						Callbacks.AppStateChange(AppState::Terminating);
+					TH_PEND();
 					return true;
 				case SDL_APP_LOWMEMORY:
 					if (Callbacks.AppStateChange)
 						Callbacks.AppStateChange(AppState::Low_Memory);
+					TH_PEND();
 					return true;
 				case SDL_APP_WILLENTERBACKGROUND:
 					if (Callbacks.AppStateChange)
 						Callbacks.AppStateChange(AppState::Enter_Background_Start);
+					TH_PEND();
 					return true;
 				case SDL_APP_DIDENTERBACKGROUND:
 					if (Callbacks.AppStateChange)
 						Callbacks.AppStateChange(AppState::Enter_Background_End);
+					TH_PEND();
 					return true;
 				case SDL_APP_WILLENTERFOREGROUND:
 					if (Callbacks.AppStateChange)
 						Callbacks.AppStateChange(AppState::Enter_Foreground_Start);
+					TH_PEND();
 					return true;
 				case SDL_APP_DIDENTERFOREGROUND:
 					if (Callbacks.AppStateChange)
 						Callbacks.AppStateChange(AppState::Enter_Foreground_End);
+					TH_PEND();
 					return true;
 				case SDL_KEYDOWN:
 					if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1549,6 +1562,7 @@ namespace Tomahawk
 						Mapping.Captured = false;
 					}
 
+					TH_PEND();
 					return true;
 				case SDL_KEYUP:
 					if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1560,14 +1574,17 @@ namespace Tomahawk
 						Mapping.Captured = true;
 					}
 
+					TH_PEND();
 					return true;
 				case SDL_TEXTINPUT:
 					if (Callbacks.Input && Id == Event.window.windowID)
 						Callbacks.Input((char*)Event.text.text, (int)strlen(Event.text.text));
+					TH_PEND();
 					return true;
 				case SDL_TEXTEDITING:
 					if (Callbacks.InputEdit && Id == Event.window.windowID)
 						Callbacks.InputEdit((char*)Event.edit.text, (int)Event.edit.start, (int)Event.edit.length);
+					TH_PEND();
 					return true;
 				case SDL_MOUSEMOTION:
 					if (Id == Event.window.windowID)
@@ -1577,6 +1594,8 @@ namespace Tomahawk
 						if (Callbacks.CursorMove)
 							Callbacks.CursorMove(CX, CY, (int)Event.motion.xrel, (int)Event.motion.yrel);
 					}
+
+					TH_PEND();
 					return true;
 				case SDL_MOUSEBUTTONDOWN:
 					switch (Event.button.button)
@@ -1592,6 +1611,7 @@ namespace Tomahawk
 								Mapping.Captured = false;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_MIDDLE:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1604,6 +1624,7 @@ namespace Tomahawk
 								Mapping.Captured = false;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_RIGHT:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1616,6 +1637,7 @@ namespace Tomahawk
 								Mapping.Captured = false;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_X1:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1628,6 +1650,7 @@ namespace Tomahawk
 								Mapping.Captured = false;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_X2:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1640,8 +1663,11 @@ namespace Tomahawk
 								Mapping.Captured = false;
 							}
 
+							TH_PEND();
 							return true;
 					}
+
+					TH_PEND();
 					return true;
 				case SDL_MOUSEBUTTONUP:
 					switch (Event.button.button)
@@ -1656,6 +1682,7 @@ namespace Tomahawk
 								Mapping.Captured = true;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_MIDDLE:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1667,6 +1694,7 @@ namespace Tomahawk
 								Mapping.Captured = true;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_RIGHT:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1678,6 +1706,7 @@ namespace Tomahawk
 								Mapping.Captured = true;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_X1:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1689,6 +1718,7 @@ namespace Tomahawk
 								Mapping.Captured = true;
 							}
 
+							TH_PEND();
 							return true;
 						case SDL_BUTTON_X2:
 							if (Callbacks.KeyState && Id == Event.window.windowID)
@@ -1700,8 +1730,11 @@ namespace Tomahawk
 								Mapping.Captured = true;
 							}
 
+							TH_PEND();
 							return true;
 					}
+
+					TH_PEND();
 					return true;
 				case SDL_MOUSEWHEEL:
 #if SDL_VERSION_ATLEAST(2, 0, 4)
@@ -1711,14 +1744,17 @@ namespace Tomahawk
 					if (Callbacks.CursorWheelState && Id == Event.window.windowID)
 						Callbacks.CursorWheelState((int)Event.wheel.x, (int)Event.wheel.y, 1);
 #endif
+					TH_PEND();
 					return true;
 				case SDL_JOYAXISMOTION:
 					if (Callbacks.JoyStickAxisMove && Id == Event.window.windowID)
 						Callbacks.JoyStickAxisMove((int)Event.jaxis.which, (int)Event.jaxis.axis, (int)Event.jaxis.value);
+					TH_PEND();
 					return true;
 				case SDL_JOYBALLMOTION:
 					if (Callbacks.JoyStickBallMove && Id == Event.window.windowID)
 						Callbacks.JoyStickBallMove((int)Event.jball.which, (int)Event.jball.ball, (int)Event.jball.xrel, (int)Event.jball.yrel);
+					TH_PEND();
 					return true;
 				case SDL_JOYHATMOTION:
 					if (Callbacks.JoyStickHatMove && Id == Event.window.windowID)
@@ -1727,122 +1763,157 @@ namespace Tomahawk
 						{
 							case SDL_HAT_CENTERED:
 								Callbacks.JoyStickHatMove(JoyStickHat::Center, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_UP:
 								Callbacks.JoyStickHatMove(JoyStickHat::Up, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_DOWN:
 								Callbacks.JoyStickHatMove(JoyStickHat::Down, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_LEFT:
 								Callbacks.JoyStickHatMove(JoyStickHat::Left, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_LEFTUP:
 								Callbacks.JoyStickHatMove(JoyStickHat::Left_Up, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_LEFTDOWN:
 								Callbacks.JoyStickHatMove(JoyStickHat::Left_Down, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_RIGHT:
 								Callbacks.JoyStickHatMove(JoyStickHat::Right, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_RIGHTUP:
 								Callbacks.JoyStickHatMove(JoyStickHat::Right_Up, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 							case SDL_HAT_RIGHTDOWN:
 								Callbacks.JoyStickHatMove(JoyStickHat::Right_Down, (int)Event.jhat.which, (int)Event.jhat.hat);
+								TH_PEND();
 								return true;
 						}
 					}
+
+					TH_PEND();
 					return true;
 				case SDL_JOYBUTTONDOWN:
 					if (Callbacks.JoyStickKeyState && Id == Event.window.windowID)
 						Callbacks.JoyStickKeyState((int)Event.jbutton.which, (int)Event.jbutton.button, true);
+					TH_PEND();
 					return true;
 				case SDL_JOYBUTTONUP:
 					if (Callbacks.JoyStickKeyState && Id == Event.window.windowID)
 						Callbacks.JoyStickKeyState((int)Event.jbutton.which, (int)Event.jbutton.button, false);
+					TH_PEND();
 					return true;
 				case SDL_JOYDEVICEADDED:
 					if (Callbacks.JoyStickState && Id == Event.window.windowID)
 						Callbacks.JoyStickState((int)Event.jdevice.which, true);
+					TH_PEND();
 					return true;
 				case SDL_JOYDEVICEREMOVED:
 					if (Callbacks.JoyStickState && Id == Event.window.windowID)
 						Callbacks.JoyStickState((int)Event.jdevice.which, false);
+					TH_PEND();
 					return true;
 				case SDL_CONTROLLERAXISMOTION:
 					if (Callbacks.ControllerAxisMove && Id == Event.window.windowID)
 						Callbacks.ControllerAxisMove((int)Event.caxis.which, (int)Event.caxis.axis, (int)Event.caxis.value);
+					TH_PEND();
 					return true;
 				case SDL_CONTROLLERBUTTONDOWN:
 					if (Callbacks.ControllerKeyState && Id == Event.window.windowID)
 						Callbacks.ControllerKeyState((int)Event.cbutton.which, (int)Event.cbutton.button, true);
+					TH_PEND();
 					return true;
 				case SDL_CONTROLLERBUTTONUP:
 					if (Callbacks.ControllerKeyState && Id == Event.window.windowID)
 						Callbacks.ControllerKeyState((int)Event.cbutton.which, (int)Event.cbutton.button, false);
+					TH_PEND();
 					return true;
 				case SDL_CONTROLLERDEVICEADDED:
 					if (Callbacks.ControllerState && Id == Event.window.windowID)
 						Callbacks.ControllerState((int)Event.cdevice.which, 1);
+					TH_PEND();
 					return true;
 				case SDL_CONTROLLERDEVICEREMOVED:
 					if (Callbacks.ControllerState && Id == Event.window.windowID)
 						Callbacks.ControllerState((int)Event.cdevice.which, -1);
+					TH_PEND();
 					return true;
 				case SDL_CONTROLLERDEVICEREMAPPED:
 					if (Callbacks.ControllerState && Id == Event.window.windowID)
 						Callbacks.ControllerState((int)Event.cdevice.which, 0);
+					TH_PEND();
 					return true;
 				case SDL_FINGERMOTION:
 					if (Callbacks.TouchMove && Id == Event.window.windowID)
 						Callbacks.TouchMove((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure);
+					TH_PEND();
 					return true;
 				case SDL_FINGERDOWN:
 					if (Callbacks.TouchState && Id == Event.window.windowID)
 						Callbacks.TouchState((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure, true);
+					TH_PEND();
 					return true;
 				case SDL_FINGERUP:
 					if (Callbacks.TouchState && Id == Event.window.windowID)
 						Callbacks.TouchState((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure, false);
+					TH_PEND();
 					return true;
 				case SDL_DOLLARGESTURE:
 					if (Callbacks.GestureState && Id == Event.window.windowID)
 						Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, false);
+					TH_PEND();
 					return true;
 				case SDL_DOLLARRECORD:
 					if (Callbacks.GestureState && Id == Event.window.windowID)
 						Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, true);
+					TH_PEND();
 					return true;
 				case SDL_MULTIGESTURE:
 					if (Callbacks.MultiGestureState && Id == Event.window.windowID)
 						Callbacks.MultiGestureState((int)Event.mgesture.touchId, (int)Event.mgesture.numFingers, Event.mgesture.x, Event.mgesture.y, Event.mgesture.dDist, Event.mgesture.dTheta);
+					TH_PEND();
 					return true;
 #if SDL_VERSION_ATLEAST(2, 0, 5)
 				case SDL_DROPFILE:
 					if (Id != Event.window.windowID)
+					{
+						TH_PEND();
 						return true;
-
+					}
 					if (Callbacks.DropFile)
 						Callbacks.DropFile(Event.drop.file);
 
 					SDL_free(Event.drop.file);
+					TH_PEND();
 					return true;
 				case SDL_DROPTEXT:
 					if (Id != Event.window.windowID)
+					{
+						TH_PEND();
 						return true;
-
+					}
 					if (Callbacks.DropText)
 						Callbacks.DropText(Event.drop.file);
 
 					SDL_free(Event.drop.file);
+					TH_PEND();
 					return true;
 #endif
 			}
 
+			TH_PEND();
 			return true;
 #else
+			TH_PEND();
 			return false;
 #endif
 		}
@@ -2971,11 +3042,14 @@ namespace Tomahawk
 		void SkinModel::ComputePose(PoseBuffer* Map)
 		{
 			TH_ASSERT_V(Map != nullptr, "pose buffer should be set");
+			TH_PSTART("pose-buffer-reset", TH_PERF_ATOM);
+
 			if (Map->Pose.empty())
 				Map->SetPose(this);
 
 			for (auto& Child : Joints)
 				ComputePose(Map, &Child, Compute::Matrix4x4::Identity());
+			TH_PEND();
 		}
 		void SkinModel::ComputePose(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
 		{

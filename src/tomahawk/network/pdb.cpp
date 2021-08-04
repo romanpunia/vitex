@@ -1341,6 +1341,7 @@ namespace Tomahawk
 				Update.unlock();
 				return Core::Async<bool>::Executor([this, Connections](Core::Async<bool>& Future)
 				{
+					TH_PSTART("postgres-conn", TH_PERF_MAX);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
 
@@ -1358,6 +1359,7 @@ namespace Tomahawk
                             if (Base != nullptr)
                                 PQfinish(Base);
                             
+							TH_PEND();
 							return Future.Set(false);
 						}
 						PQsetnonblocking(Base, 1);
@@ -1382,6 +1384,7 @@ namespace Tomahawk
 					TH_FREE(Values);
 
 					Future.Set(true);
+					TH_PEND();
 				});
 #else
 				return Core::Async<bool>::Store(false);
@@ -1519,21 +1522,24 @@ namespace Tomahawk
             bool Cluster::Consume(Connection* Base)
             {
 #ifdef TH_HAS_POSTGRESQL
-                if (Base->State != QueryState::Idle || Requests.empty())
-                    return false;
-                
+				if (Base->State != QueryState::Idle || Requests.empty())
+					return false;
+
                 Request* Next = Requests.front();
                 if (Next->Target != nullptr && Next->Target != Base)
-                    return false;
+					return false;
                 
                 Base->Current = Next;
                 Requests.erase(Requests.begin());
                 if (!Base->Current)
-                    return false;
-                
+					return false;
+
+				TH_PSTART("postgres-send", TH_PERF_MAX);
                 if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
                 {
                     Base->State = QueryState::Busy;
+					TH_PEND();
+
                     return true;
                 }
                 
@@ -1547,6 +1553,8 @@ namespace Tomahawk
                 
                 Item->Result.Release();
                 TH_DELETE(Request, Item);
+				TH_PEND();
+
                 return true;
 #else
                 return false;
@@ -1562,11 +1570,14 @@ namespace Tomahawk
             bool Cluster::Dispatch(Socket* Stream, const char*, int64_t)
             {
 #ifdef TH_HAS_POSTGRESQL
+				TH_PSTART("postgres-recv", TH_PERF_MAX);
                 Update.lock();
                 auto It = Pool.find(Stream);
                 if (It == Pool.end())
                 {
                     Update.unlock();
+					TH_PEND();
+
                     return false;
                 }
                 
@@ -1576,6 +1587,8 @@ namespace Tomahawk
                     Reestablish(Source);
                     Consume(Source);
                     Update.unlock();
+					TH_PEND();
+
                     return Reprocess(Source);
                 }
 
@@ -1586,12 +1599,16 @@ namespace Tomahawk
                     PQlogMessage(Source->Base);
                     Source->State = QueryState::Lost;
                     Update.unlock();
+					TH_PEND();
+
                     return Reprocess(Source);
                 }
 
                 if (PQisBusy(Source->Base) == 1)
                 {
                     Update.unlock();
+					TH_PEND();
+
                     return Reprocess(Source);
                 }
                 
@@ -1635,6 +1652,7 @@ namespace Tomahawk
                             TH_DELETE(Request, Item);
                             Consume(Source);
                             Update.unlock();
+							TH_PEND();
                             
                             return Reprocess(Source);
                         }
@@ -1651,6 +1669,8 @@ namespace Tomahawk
                 
                 Consume(Source);
                 Update.unlock();
+				TH_PEND();
+
                 return Reprocess(Source);
 #else
                 return false;

@@ -139,9 +139,22 @@ typedef socklen_t socket_size_t;
 #define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return Returnable; }
 #define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return; }
 #endif
+#define TH_PERF_ATOM (1)
+#define TH_PERF_FRAME (5)
+#define TH_PERF_CORE (16)
+#define TH_PERF_MIX (50)
+#define TH_PERF_IO (80)
+#define TH_PERF_NET (150)
+#define TH_PERF_MAX (200)
+#define TH_PSTART(Section, Threshold) Tomahawk::Core::Debug::TimeStart(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
+#define TH_PEND() Tomahawk::Core::Debug::TimeEnd()
+#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::TimeEnd(); return __vfbuf; }
 #else
 #define TH_ASSERT(Condition, Returnable, Format, ...)
 #define TH_ASSERT_V(Condition, Format, ...)
+#define TH_PSTART(Section, Threshold)
+#define TH_PEND()
+#define TH_PRET(Value) return Value
 #endif
 #define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_STACKSIZE (512 * 1024)
@@ -360,8 +373,16 @@ namespace Tomahawk
 			};
 
 		private:
+			union Tag
+			{
+				char* Data;
+				int64_t Integer;
+				double Number;
+				bool Boolean;
+			} Value;
+
+		private:
 			VarType Type;
-			char* Data;
 
 		public:
 			Variant();
@@ -389,7 +410,7 @@ namespace Tomahawk
 			bool IsEmpty() const;
 
 		private:
-			Variant(VarType NewType, char* NewData);
+			Variant(VarType NewType);
 			bool Is(const Variant& Value) const;
 			void Copy(const Variant& Other);
 			void Copy(Variant&& Other);
@@ -880,6 +901,8 @@ namespace Tomahawk
 			static bool Enabled;
 
 		public:
+			static void TimeStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS);
+			static void TimeEnd();
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void AttachCallback(const std::function<void(const char*, int)>& Callback);

@@ -161,6 +161,16 @@ namespace Tomahawk
 		typedef moodycamel::ConcurrentQueue<TaskCallback*> TQueue;
 		typedef moodycamel::ConsumerToken CToken;
 
+		struct Dbg
+		{
+			const char* File = nullptr;
+			const char* Section = nullptr;
+			const char* Function = nullptr;
+			uint64_t Threshold = 0;
+			uint64_t Time = 0;
+			int Line = 0;
+		};
+
 		struct Cocontext
 		{
 #ifndef TH_MICROSOFT
@@ -1446,20 +1456,19 @@ namespace Tomahawk
 			return Value + '0';
 		}
 
-		Variant::Variant() : Type(VarType::Undefined), Data(nullptr)
+		Variant::Variant() : Type(VarType::Undefined)
 		{
 		}
-		Variant::Variant(VarType NewType, char* NewData) : Type(NewType), Data(NewData)
+		Variant::Variant(VarType NewType) : Type(NewType)
 		{
 		}
 		Variant::Variant(const Variant& Other)
 		{
 			Copy(Other);
 		}
-		Variant::Variant(Variant&& Other) : Type(Other.Type), Data(Other.Data)
+		Variant::Variant(Variant&& Other)
 		{
-			Other.Data = nullptr;
-			Other.Type = VarType::Undefined;
+			Copy(std::move(Other));
 		}
 		Variant::~Variant()
 		{
@@ -1554,13 +1563,13 @@ namespace Tomahawk
 				case VarType::Base64:
 					return TH_PREFIX_STR + Compute::Common::Base64Encode(GetBase64(), GetSize()) + TH_PREFIX_STR;
 				case VarType::Decimal:
-					return ((Decimal*)Data)->ToString();
+					return ((Decimal*)Value.Data)->ToString();
 				case VarType::Integer:
-					return std::to_string(GetInteger());
+					return std::to_string(Value.Integer);
 				case VarType::Number:
-					return std::to_string(GetNumber());
+					return std::to_string(Value.Number);
 				case VarType::Boolean:
-					return GetBoolean() ? "true" : "false";
+					return Value.Boolean ? "true" : "false";
 				default:
 					return "";
 			}
@@ -1568,10 +1577,10 @@ namespace Tomahawk
 		std::string Variant::GetBlob() const
 		{
 			if (Type == VarType::String || Type == VarType::Base64)
-				return std::string(((String*)Data)->Buffer, ((String*)Data)->Size);
+				return std::string(((String*)Value.Data)->Buffer, ((String*)Value.Data)->Size);
 
 			if (Type == VarType::Decimal)
-				return ((Decimal*)Data)->ToString();
+				return ((Decimal*)Value.Data)->ToString();
 
 			if (Type == VarType::Integer)
 				return std::to_string(GetInteger());
@@ -1579,30 +1588,34 @@ namespace Tomahawk
 			if (Type == VarType::Number)
 				return std::to_string(GetNumber());
 
+			if (Type == VarType::Boolean)
+				return Value.Boolean ? "1" : "0";
+
 			return "";
 		}
 		Decimal Variant::GetDecimal() const
 		{
-			if (Type != VarType::Decimal)
-			{
-				if (Type == VarType::Integer)
-					return Decimal(std::to_string(GetInteger()));
+			if (Type == VarType::Decimal)
+				return *(Decimal*)Value.Data;
 
-				if (Type == VarType::Number)
-					return Decimal(std::to_string(GetNumber()));
+			if (Type == VarType::Integer)
+				return Decimal(std::to_string(Value.Integer));
 
-				if (Type == VarType::String)
-					return Decimal(GetString());
+			if (Type == VarType::Number)
+				return Decimal(std::to_string(Value.Number));
 
-				return Decimal::NaN();
-			}
+			if (Type == VarType::Boolean)
+				return Decimal(Value.Boolean ? "1" : "0");
 
-			return *(Decimal*)Data;
+			if (Type == VarType::String)
+				return Decimal(GetString());
+
+			return Decimal::NaN();
 		}
 		void* Variant::GetPointer() const
 		{
 			if (Type == VarType::Pointer)
-				return (void*)Data;
+				return (void*)Value.Data;
 
 			return nullptr;
 		}
@@ -1611,54 +1624,60 @@ namespace Tomahawk
 			if (Type != VarType::String && Type != VarType::Base64)
 				return nullptr;
 
-			return (const char*)((String*)Data)->Buffer;
+			return (const char*)((String*)Value.Data)->Buffer;
 		}
 		unsigned char* Variant::GetBase64() const
 		{
 			if (Type != VarType::String && Type != VarType::Base64)
 				return nullptr;
 
-			return (unsigned char*)((String*)Data)->Buffer;
+			return (unsigned char*)((String*)Value.Data)->Buffer;
 		}
 		int64_t Variant::GetInteger() const
 		{
 			if (Type == VarType::Integer)
-				return *(int64_t*)Data;
+				return Value.Integer;
 
 			if (Type == VarType::Number)
-				return (int64_t)*(double*)Data;
+				return (int64_t)Value.Number;
 
 			if (Type == VarType::Decimal)
-				return (int64_t)((Decimal*)Data)->ToDouble();
+				return (int64_t)((Decimal*)Value.Data)->ToDouble();
+
+			if (Type == VarType::Boolean)
+				return Value.Boolean ? 1 : 0;
 
 			return 0;
 		}
 		double Variant::GetNumber() const
 		{
-			if (Type == VarType::Integer)
-				return (double)*(int64_t*)Data;
-
 			if (Type == VarType::Number)
-				return *(double*)Data;
+				return Value.Number;
+
+			if (Type == VarType::Integer)
+				return (double)Value.Integer;
 
 			if (Type == VarType::Decimal)
-				return ((Decimal*)Data)->ToDouble();
+				return ((Decimal*)Value.Data)->ToDouble();
+
+			if (Type == VarType::Boolean)
+				return Value.Boolean ? 1.0 : 0.0;
 
 			return 0.0;
 		}
 		bool Variant::GetBoolean() const
 		{
 			if (Type == VarType::Boolean)
-				return (Data != nullptr);
+				return Value.Boolean;
 
 			if (Type == VarType::Number)
-				return GetNumber() > 0.0;
+				return Value.Number > 0.0;
 
 			if (Type == VarType::Integer)
-				return GetInteger() > 0;
+				return Value.Integer > 0;
 
 			if (Type == VarType::Decimal)
-                return ((Decimal*)Data)->ToDouble() > 0.0;
+                return ((Decimal*)Value.Data)->ToDouble() > 0.0;
 
 			return GetSize() > 0;
 		}
@@ -1674,19 +1693,19 @@ namespace Tomahawk
 				case VarType::Undefined:
 				case VarType::Object:
 				case VarType::Array:
-				case VarType::Boolean:
-					return 0;
 				case VarType::Pointer:
-					return sizeof(char*);
+					return sizeof(void*);
 				case VarType::String:
 				case VarType::Base64:
-					return ((String*)Data)->Size;
+					return ((String*)Value.Data)->Size;
 				case VarType::Decimal:
-					return ((Decimal*)Data)->Size();
+					return ((Decimal*)Value.Data)->Size();
 				case VarType::Integer:
 					return sizeof(int64_t);
 				case VarType::Number:
 					return sizeof(double);
+				case VarType::Boolean:
+					return sizeof(bool);
 			}
 
 			return 0;
@@ -1715,24 +1734,7 @@ namespace Tomahawk
 		}
 		Variant::operator bool() const
 		{
-			switch (Type)
-			{
-				case VarType::Object:
-				case VarType::Array:
-					return true;
-				case VarType::String:
-				case VarType::Base64:
-				case VarType::Decimal:
-					return ((Decimal*)Data)->ToDouble() > 0.0;
-				case VarType::Integer:
-					return GetInteger() > 0;
-				case VarType::Number:
-					return GetNumber() > 0.0;
-				case VarType::Boolean:
-					return GetBoolean();
-				default:
-					return Data != nullptr;
-			}
+			return !IsEmpty();
 		}
 		bool Variant::IsObject() const
 		{
@@ -1740,11 +1742,34 @@ namespace Tomahawk
 		}
 		bool Variant::IsEmpty() const
 		{
-			return Data == nullptr;
+			switch (Type)
+			{
+				case VarType::Null:
+				case VarType::Undefined:
+					return true;
+				case VarType::Object:
+				case VarType::Array:
+					return false;
+				case VarType::Pointer:
+					return Value.Data == nullptr;
+				case VarType::String:
+				case VarType::Base64:
+					return ((String*)Value.Data)->Size == 0;
+				case VarType::Decimal:
+					return ((Decimal*)Value.Data)->ToDouble() == 0.0;
+				case VarType::Integer:
+					return Value.Integer == 0;
+				case VarType::Number:
+					return Value.Number == 0.0;
+				case VarType::Boolean:
+					return Value.Boolean == false;
+				default:
+					return true;
+			}
 		}
-		bool Variant::Is(const Variant& Value) const
+		bool Variant::Is(const Variant& Other) const
 		{
-			if (Type != Value.Type)
+			if (Type != Other.Type)
 				return false;
 
 			switch (Type)
@@ -1753,28 +1778,28 @@ namespace Tomahawk
 				case VarType::Undefined:
 					return true;
 				case VarType::Pointer:
-					return GetPointer() == Value.GetPointer();
+					return GetPointer() == Other.GetPointer();
 				case VarType::String:
 				case VarType::Base64:
 				{
-					if (GetSize() != Value.GetSize())
+					if (GetSize() != Other.GetSize())
 						return false;
 
 					const char* Src1 = GetString();
-					const char* Src2 = Value.GetString();
+					const char* Src2 = Other.GetString();
 					if (!Src1 || !Src2)
 						return false;
 
 					return strncmp(Src1, Src2, sizeof(char) * GetSize()) == 0;
 				}
 				case VarType::Decimal:
-					return (*(Decimal*)Data) == (*(Decimal*)Value.Data);
+					return (*(Decimal*)Value.Data) == (*(Decimal*)Other.Value.Data);
 				case VarType::Integer:
-					return GetInteger() == Value.GetInteger();
+					return GetInteger() == Other.GetInteger();
 				case VarType::Number:
-					return abs(GetNumber() - Value.GetNumber()) < std::numeric_limits<double>::epsilon();
+					return abs(GetNumber() - Other.GetNumber()) < std::numeric_limits<double>::epsilon();
 				case VarType::Boolean:
-					return GetBoolean() == Value.GetBoolean();
+					return GetBoolean() == Other.GetBoolean();
 				default:
 					return false;
 			}
@@ -1784,39 +1809,45 @@ namespace Tomahawk
 			Type = Other.Type;
 			switch (Type)
 			{
+				case VarType::Null:
+				case VarType::Undefined:
+				case VarType::Object:
+				case VarType::Array:
+					Value.Data = nullptr;
+					break;
 				case VarType::Pointer:
-				case VarType::Boolean:
-					Data = (char*)Other.Data;
+					Value.Data = Other.Value.Data;
 					break;
 				case VarType::String:
 				case VarType::Base64:
 				{
-					String* From = (String*)Other.Data;
+					String* From = (String*)Other.Value.Data;
 					String* Buffer = (String*)TH_MALLOC(sizeof(String));
 					Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (From->Size + 1));
 					Buffer->Size = From->Size;
 
 					memcpy(Buffer->Buffer, From->Buffer, sizeof(char) * From->Size);
 					Buffer->Buffer[Buffer->Size] = '\0';
-					Data = (char*)Buffer;
+					Value.Data = (char*)Buffer;
 					break;
 				}
 				case VarType::Decimal:
 				{
-					Decimal* From = (Decimal*)Other.Data;
-					Data = (char*)TH_NEW(Decimal, *From);
+					Decimal* From = (Decimal*)Other.Value.Data;
+					Value.Data = (char*)TH_NEW(Decimal, *From);
 					break;
 				}
 				case VarType::Integer:
-					Data = (char*)TH_MALLOC(sizeof(int64_t));
-					memcpy(Data, Other.Data, sizeof(int64_t));
+					Value.Integer = Other.Value.Integer;
 					break;
 				case VarType::Number:
-					Data = (char*)TH_MALLOC(sizeof(double));
-					memcpy(Data, Other.Data, sizeof(double));
+					Value.Number = Other.Value.Number;
+					break;
+				case VarType::Boolean:
+					Value.Boolean = Other.Value.Boolean;
 					break;
 				default:
-					Data = nullptr;
+					Value.Data = nullptr;
 					break;
 			}
 		}
@@ -1824,29 +1855,65 @@ namespace Tomahawk
 		{
 			Type = Other.Type;
 			Other.Type = VarType::Undefined;
-			Data = Other.Data;
-			Other.Data = nullptr;
+
+			switch (Type)
+			{
+				case VarType::Null:
+				case VarType::Undefined:
+				case VarType::Object:
+				case VarType::Array:
+				case VarType::Pointer:
+				case VarType::String:
+				case VarType::Base64:
+				case VarType::Decimal:
+					Value.Data = Other.Value.Data;
+					Other.Value.Data = nullptr;
+					break;
+				case VarType::Integer:
+					Value.Integer = Other.Value.Integer;
+					break;
+				case VarType::Number:
+					Value.Number = Other.Value.Number;
+					break;
+				case VarType::Boolean:
+					Value.Boolean = Other.Value.Boolean;
+					break;
+				default:
+					break;
+			}
 		}
 		void Variant::Free()
 		{
-			if (!Data)
-				return;
-
-			if (Type == VarType::String || Type == VarType::Base64)
+			switch (Type)
 			{
-				String* Buffer = (String*)Data;
-				TH_FREE(Buffer->Buffer);
-				TH_FREE(Data);
-			}
-			else if (Type == VarType::Decimal)
-			{
-				Decimal* Buffer = (Decimal*)Data;
-				TH_DELETE(Decimal, Buffer);
-			}
-			else if (Type != VarType::Undefined && Type != VarType::Null && Type != VarType::Pointer && Type != VarType::Boolean)
-				TH_FREE(Data);
+				case VarType::Pointer:
+					Value.Data = nullptr;
+					break;
+				case VarType::String:
+				case VarType::Base64:
+				{
+					if (!Value.Data)
+						break;
 
-			Data = nullptr;
+					String* Buffer = (String*)Value.Data;
+					TH_FREE(Buffer->Buffer);
+					TH_FREE(Value.Data);
+					Value.Data = nullptr;
+					break;
+				}
+				case VarType::Decimal:
+				{
+					if (!Value.Data)
+						break;
+
+					Decimal* Buffer = (Decimal*)Value.Data;
+					TH_DELETE(Decimal, Buffer);
+					Value.Data = nullptr;
+					break;
+				}
+				default:
+					break;
+			}
 		}
 
 		EventBase::EventBase(const std::string& NewName) : Name(NewName)
@@ -3979,26 +4046,28 @@ namespace Tomahawk
 		}
 		Variant Var::Null()
 		{
-			return Variant(VarType::Null, nullptr);
+			return Variant(VarType::Null);
 		}
 		Variant Var::Undefined()
 		{
-			return Variant(VarType::Undefined, nullptr);
+			return Variant(VarType::Undefined);
 		}
 		Variant Var::Object()
 		{
-			return Variant(VarType::Object, nullptr);
+			return Variant(VarType::Object);
 		}
 		Variant Var::Array()
 		{
-			return Variant(VarType::Array, nullptr);
+			return Variant(VarType::Array);
 		}
 		Variant Var::Pointer(void* Value)
 		{
 			if (!Value)
 				return Null();
 
-			return Variant(VarType::Pointer, (char*)Value);
+			Variant Result(VarType::Pointer);
+			Result.Value.Data = (char*)Value;
+			return Result;
 		}
 		Variant Var::String(const std::string& Value)
 		{
@@ -4009,7 +4078,9 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType::String, (char*)Buffer);
+			Variant Result(VarType::String);
+			Result.Value.Data = (char*)Buffer;
+			return Result;
 		}
 		Variant Var::String(const char* Value, size_t Size)
 		{
@@ -4021,7 +4092,9 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType::String, (char*)Buffer);
+			Variant Result(VarType::String);
+			Result.Value.Data = (char*)Buffer;
+			return Result;
 		}
 		Variant Var::Base64(const std::string& Value)
 		{
@@ -4032,7 +4105,9 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType::Base64, (char*)Buffer);
+			Variant Result(VarType::Base64);
+			Result.Value.Data = (char*)Buffer;
+			return Result;
 		}
 		Variant Var::Base64(const unsigned char* Value, size_t Size)
 		{
@@ -4048,41 +4123,48 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
 			Buffer->Buffer[Buffer->Size] = '\0';
 
-			return Variant(VarType::Base64, (char*)Buffer);
+			Variant Result(VarType::Base64);
+			Result.Value.Data = (char*)Buffer;
+			return Result;
 		}
 		Variant Var::Integer(int64_t Value)
 		{
-			char* Data = (char*)TH_MALLOC(sizeof(int64_t));
-			memcpy(Data, (void*)&Value, sizeof(int64_t));
-
-			return Variant(VarType::Integer, Data);
+			Variant Result(VarType::Integer);
+			Result.Value.Integer = Value;
+			return Result;
 		}
 		Variant Var::Number(double Value)
 		{
-			char* Data = (char*)TH_MALLOC(sizeof(double));
-			memcpy(Data, (void*)&Value, sizeof(double));
-
-			return Variant(VarType::Number, Data);
+			Variant Result(VarType::Number);
+			Result.Value.Number = Value;
+			return Result;
 		}
 		Variant Var::Decimal(const BigNumber& Value)
 		{
 			BigNumber* Buffer = TH_NEW(BigNumber, Value);
-			return Variant(VarType::Decimal, (char*)Buffer);
+			Variant Result(VarType::Decimal);
+			Result.Value.Data = (char*)Buffer;
+			return Result;
 		}
 		Variant Var::Decimal(BigNumber&& Value)
 		{
 			BigNumber* Buffer = TH_NEW(BigNumber, std::move(Value));
-			return Variant(VarType::Decimal, (char*)Buffer);
+			Variant Result(VarType::Decimal);
+			Result.Value.Data = (char*)Buffer;
+			return Result;
 		}
 		Variant Var::DecimalString(const std::string& Value)
 		{
 			BigNumber* Buffer = TH_NEW(BigNumber, Value);
-			return Variant(VarType::Decimal, (char*)Buffer);
+			Variant Result(VarType::Decimal);
+			Result.Value.Data = (char*)Buffer;
+			return Result;
 		}
 		Variant Var::Boolean(bool Value)
 		{
-			void* Ptr = (Value ? (void*)&Value : nullptr);
-			return Variant(VarType::Boolean, (char*)Ptr);
+			Variant Result(VarType::Boolean);
+			Result.Value.Boolean = Value;
+			return Result;
 		}
 
 		void Mem::SetAlloc(const AllocCallback& Callback)
@@ -4126,6 +4208,7 @@ namespace Tomahawk
 		ReallocCallback Mem::OnRealloc;
 		FreeCallback Mem::OnFree;
 
+		static thread_local Dbg DbgPerf;
 		void Debug::AttachCallback(const std::function<void(const char*, int)>& _Callback)
 		{
 			Callback = _Callback;
@@ -4141,6 +4224,30 @@ namespace Tomahawk
 		void Debug::DetachStream()
 		{
 			Enabled = false;
+		}
+		void Debug::TimeStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS)
+		{
+			TH_ASSERT_V(File != nullptr, "file should be set");
+			TH_ASSERT_V(Section != nullptr, "section should be set");
+			TH_ASSERT_V(Function != nullptr, "function should be set");
+			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than zero");
+
+			DbgPerf.File = File;
+			DbgPerf.Section = Section;
+			DbgPerf.Function = Function;
+			DbgPerf.Threshold = ThresholdMS;
+			DbgPerf.Time = DateTime().Milliseconds();
+			DbgPerf.Line = Line;
+		}
+		void Debug::TimeEnd()
+		{
+			TH_ASSERT_V(DbgPerf.File != nullptr, "file should be set");
+			TH_ASSERT_V(DbgPerf.Section != nullptr, "section should be set");
+			TH_ASSERT_V(DbgPerf.Function != nullptr, "function should be set");
+
+			uint64_t Diff = DateTime().Milliseconds() - DbgPerf.Time;
+			if (Diff > DbgPerf.Threshold)
+				TH_WARN("[perf] @%s took %llu ms\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", DbgPerf.Section, Diff, DbgPerf.Function, DbgPerf.File, DbgPerf.Line, DbgPerf.Threshold);
 		}
 		void Debug::Log(int Level, int Line, const char* Source, const char* Format, ...)
 		{
@@ -4843,68 +4950,79 @@ namespace Tomahawk
 		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			TH_ASSERT(Resource != nullptr, false, "file should be opened");
+			TH_PSTART("file-stream-seek", TH_PERF_IO);
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					return fseek(Resource, (long)Offset, SEEK_SET) == 0;
+					TH_PRET(fseek(Resource, (long)Offset, SEEK_SET) == 0);
 				case FileSeek::Current:
-					return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
+					TH_PRET(fseek(Resource, (long)Offset, SEEK_CUR) == 0);
 				case FileSeek::End:
-					return fseek(Resource, (long)Offset, SEEK_END) == 0;
+					TH_PRET(fseek(Resource, (long)Offset, SEEK_END) == 0);
 			}
 
+			TH_PEND();
 			return false;
 		}
 		bool FileStream::Move(int64_t Offset)
 		{
 			TH_ASSERT(Resource != nullptr, false, "file should be opened");
-			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
+			TH_PSTART("file-stream-move", TH_PERF_IO);
+			TH_PRET(fseek(Resource, (long)Offset, SEEK_CUR) == 0);
 		}
 		int FileStream::Flush()
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
-			return fflush(Resource);
+			TH_PSTART("file-stream-flush", TH_PERF_IO);
+			TH_PRET(fflush(Resource));
 		}
 		uint64_t FileStream::ReadAny(const char* Format, ...)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Format != nullptr, false, "format should be set");
+			TH_PSTART("file-stream-rscan", TH_PERF_IO);
 
 			va_list Args;
 			va_start(Args, Format);
 			uint64_t R = (uint64_t)vfscanf(Resource, Format, Args);
 			va_end(Args);
 
+			TH_PEND();
 			return R;
 		}
 		uint64_t FileStream::Read(char* Data, uint64_t Length)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, false, "data should be set");
-			return fread(Data, 1, (size_t)Length, Resource);
+			TH_PSTART("file-stream-read", TH_PERF_IO);
+			TH_PRET(fread(Data, 1, (size_t)Length, Resource));
 		}
 		uint64_t FileStream::WriteAny(const char* Format, ...)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Format != nullptr, false, "format should be set");
+			TH_PSTART("file-stream-wscan", TH_PERF_IO);
 
 			va_list Args;
 			va_start(Args, Format);
 			uint64_t R = (uint64_t)vfprintf(Resource, Format, Args);
 			va_end(Args);
 
+			TH_PEND();
 			return R;
 		}
 		uint64_t FileStream::Write(const char* Data, uint64_t Length)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, false, "data should be set");
-			return fwrite(Data, 1, (size_t)Length, Resource);
+			TH_PSTART("file-stream-read", TH_PERF_IO);
+			TH_PRET(fwrite(Data, 1, (size_t)Length, Resource));
 		}
 		uint64_t FileStream::Tell()
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
-			return ftell(Resource);
+			TH_PSTART("file-stream-tell", TH_PERF_IO);
+			TH_PRET(ftell(Resource));
 		}
 		int FileStream::GetFd()
 		{
@@ -4972,11 +5090,13 @@ namespace Tomahawk
 		bool GzStream::Close()
 		{
 #ifdef TH_HAS_ZLIB
+			TH_PSTART("gz-stream-close", TH_PERF_IO);
 			if (Resource != nullptr)
 			{
 				gzclose((gzFile)Resource);
 				Resource = nullptr;
 			}
+			TH_PEND();
 #endif
 			return true;
 		}
@@ -4984,15 +5104,17 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
+			TH_PSTART("gz-stream-seek", TH_PERF_IO);
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
+					TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0);
 				case FileSeek::Current:
-					return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
+					TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0);
 				case FileSeek::End:
-					return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
+					TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0);
 			}
+			TH_PEND();
 #endif
 			return false;
 		}
@@ -5000,7 +5122,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
+			TH_PSTART("gz-stream-move", TH_PERF_IO);
+			TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0);
 #else
 			return false;
 #endif
@@ -5009,7 +5132,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
+			TH_PSTART("gz-stream-flush", TH_PERF_IO);
+			TH_PRET(gzflush((gzFile)Resource, Z_SYNC_FLUSH));
 #else
 			return 0;
 #endif
@@ -5023,7 +5147,8 @@ namespace Tomahawk
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
-			return gzread((gzFile)Resource, Data, Length);
+			TH_PSTART("gz-stream-read", TH_PERF_IO);
+			TH_PRET(gzread((gzFile)Resource, Data, Length));
 #else
 			return 0;
 #endif
@@ -5032,6 +5157,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Format != nullptr, 0, "format should be set");
+			TH_PSTART("gz-stream-wscan", TH_PERF_IO);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -5042,6 +5168,7 @@ namespace Tomahawk
 #endif
 			va_end(Args);
 
+			TH_PEND();
 			return R;
 		}
 		uint64_t GzStream::Write(const char* Data, uint64_t Length)
@@ -5049,7 +5176,8 @@ namespace Tomahawk
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
-			return gzwrite((gzFile)Resource, Data, Length);
+			TH_PSTART("gz-stream-write", TH_PERF_IO);
+			TH_PRET(gzwrite((gzFile)Resource, Data, Length));
 #else
 			return 0;
 #endif
@@ -5058,7 +5186,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			return gztell((gzFile)Resource);
+			TH_PSTART("gz-stream-tell", TH_PERF_IO);
+			TH_PRET(gztell((gzFile)Resource));
 #else
 			return 0;
 #endif
@@ -5327,6 +5456,8 @@ namespace Tomahawk
 		bool OS::Directory::Scan(const std::string& Path, std::vector<ResourceEntry>* Entries)
 		{
 			TH_ASSERT(Entries != nullptr, false, "entries should be set");
+			TH_PSTART("os-dir-scan", TH_PERF_IO);
+
 			ResourceEntry Entry;
 #if defined(TH_MICROSOFT)
 			struct Dirent
@@ -5355,6 +5486,7 @@ namespace Tomahawk
 			else
 			{
 				TH_FREE(Value);
+				TH_PEND();
 				return false;
 			}
 
@@ -5378,13 +5510,14 @@ namespace Tomahawk
 
 			if (Value->Handle != INVALID_HANDLE_VALUE)
 				FindClose(Value->Handle);
-
 			TH_FREE(Value);
-			return true;
 #else
 			DIR* Value = opendir(Path.c_str());
 			if (!Value)
+			{
+				TH_PEND();
 				return false;
+			}
 
 			dirent* Dirent = nullptr;
 			while ((Dirent = readdir(Value)) != nullptr)
@@ -5395,9 +5528,9 @@ namespace Tomahawk
 					Entries->push_back(Entry);
 				}
 			}
-
 			closedir(Value);
 #endif
+			TH_PEND();
 			return true;
 		}
 		bool OS::Directory::Each(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback)
@@ -5429,41 +5562,59 @@ namespace Tomahawk
 		bool OS::Directory::Create(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_PSTART("os-dir-mk", TH_PERF_IO);
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[1024];
 			UnicodePath(Path, Buffer, 1024);
 			size_t Length = wcslen(Buffer);
 			if (!Length)
+			{
+				TH_PEND();
 				return false;
+			}
 
 			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
+			{
+				TH_PEND();
 				return true;
+			}
 
 			size_t Index = Length - 1;
 			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
 				Index--;
 
 			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
+			{
+				TH_PEND();
 				return false;
+			}
 
-			return ::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS;
+			TH_PRET(::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS);
 #else
 			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
+			{
+				TH_PEND();
 				return true;
+			}
 
 			size_t Index = strlen(Path) - 1;
 			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
 				Index--;
 
 			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
+			{
+				TH_PEND();
 				return false;
+			}
 
-			return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
+			TH_PRET(mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST);
 #endif
 		}
 		bool OS::Directory::Remove(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_PSTART("os-dir-rm", TH_PERF_IO);
+
 #ifdef TH_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
 			std::string FilePath, Pattern = std::string(Path) + "\\*.*";
@@ -5472,6 +5623,7 @@ namespace Tomahawk
 			if (Handle == INVALID_HANDLE_VALUE)
 			{
 				::FindClose(Handle);
+				TH_PEND();
 				return false;
 			}
 
@@ -5484,36 +5636,44 @@ namespace Tomahawk
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
 					::FindClose(Handle);
-					return Remove(FilePath.c_str());
+					TH_PRET(Remove(FilePath.c_str()));
 				}
 
 				if (::SetFileAttributes(FilePath.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)
 				{
 					::FindClose(Handle);
+					TH_PEND();
 					return false;
 				}
 
 				if (::DeleteFile(FilePath.c_str()) == FALSE)
 				{
 					::FindClose(Handle);
+					TH_PEND();
 					return false;
 				}
 			} while (::FindNextFile(Handle, &FileInformation) != FALSE);
 			::FindClose(Handle);
 
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
+			{
+				TH_PEND();
 				return false;
+			}
 
 			if (::SetFileAttributes(Path, FILE_ATTRIBUTE_NORMAL) == FALSE)
+			{
+				TH_PEND();
 				return false;
+			}
 
-			return ::RemoveDirectory(Path) != FALSE;
+			TH_PRET(::RemoveDirectory(Path) != FALSE);
 #elif defined TH_UNIX
 			DIR* Root = opendir(Path);
 			size_t Size = strlen(Path);
 
 			if (!Root)
-				return (rmdir(Path) == 0);
+				TH_PRET(rmdir(Path) == 0);
 
 			struct dirent* It;
 			while ((It = readdir(Root)))
@@ -5545,21 +5705,27 @@ namespace Tomahawk
 			}
 
 			closedir(Root);
-			return (rmdir(Path) == 0);
+			TH_PRET(rmdir(Path) == 0);
 #endif
 		}
 		bool OS::Directory::IsExists(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_PSTART("os-dir-exists", TH_PERF_IO);
 
 			struct stat Buffer;
 			if (stat(Path::Resolve(Path).c_str(), &Buffer) != 0)
+			{
+				TH_PEND();
 				return false;
+			}
 
+			TH_PEND();
 			return Buffer.st_mode & S_IFDIR;
 		}
 		std::string OS::Directory::Get()
 		{
+			TH_PSTART("os-dir-fetch", TH_PERF_IO);
 #ifndef TH_HAS_SDL2
 			char Buffer[TH_MAX_PATH + 1] = { 0 };
 #ifdef TH_MICROSOFT
@@ -5572,7 +5738,10 @@ namespace Tomahawk
 				Buffer[Result.size()] = '\0';
 #elif defined TH_UNIX
 			if (!getcwd(Buffer, TH_MAX_PATH))
-				return "";
+			{
+				TH_PEND();
+				return std::string();
+			}
 #endif
 			int64_t Length = strlen(Buffer);
 			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
@@ -5581,12 +5750,14 @@ namespace Tomahawk
 				Length++;
 			}
 
+			TH_PEND();
 			return std::string(Buffer, Length);
 #else
 			char* Base = SDL_GetBasePath();
 			std::string Result = Base;
 			SDL_free(Base);
 
+			TH_PEND();
 			return Result;
 #endif
 		}
@@ -5615,6 +5786,8 @@ namespace Tomahawk
 		bool OS::File::State(const std::string& Path, Resource* Resource)
 		{
 			TH_ASSERT(Resource != nullptr, false, "resource should be set");
+			TH_PSTART("os-file-stat", TH_PERF_IO);
+
 			memset(Resource, 0, sizeof(*Resource));
 #if defined(TH_MICROSOFT)
 			wchar_t WBuffer[1024];
@@ -5622,7 +5795,10 @@ namespace Tomahawk
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(WBuffer, GetFileExInfoStandard, &Info) == 0)
+			{
+				TH_PEND();
 				return false;
+			}
 
 			Resource->Size = MAKEUQUAD(Info.nFileSizeLow, Info.nFileSizeHigh);
 			Resource->LastModified = SYS2UNIX_TIME(Info.ftLastWriteTime.dwLowDateTime, Info.ftLastWriteTime.dwHighDateTime);
@@ -5632,21 +5808,34 @@ namespace Tomahawk
 
 			Resource->IsDirectory = Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 			if (Resource->IsDirectory)
+			{
+				TH_PEND();
 				return true;
+			}
 
 			if (Path.empty())
+			{
+				TH_PEND();
 				return false;
+			}
 
 			int End = Path.back();
 			if (isalnum(End) || strchr("_-", End) != nullptr)
+			{
+				TH_PEND();
 				return true;
+			}
 
+			TH_PEND();
 			memset(Resource, 0, sizeof(*Resource));
 			return false;
 #else
 			struct stat State;
 			if (stat(Path.c_str(), &State) != 0)
+			{
+				TH_PEND();
 				return false;
+			}
 
 			struct tm Time;
 			LocalTime(&State.st_ctime, &Time);
@@ -5655,6 +5844,7 @@ namespace Tomahawk
 			Resource->LastModified = State.st_mtime;
 			Resource->IsDirectory = S_ISDIR(State.st_mode);
 
+			TH_PEND();
 			return true;
 #endif
 		}
@@ -5667,8 +5857,10 @@ namespace Tomahawk
 			if (!Stream)
 				return false;
 
+			TH_PSTART("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data, (size_t)Length, 1, Stream);
 			fclose(Stream);
+			TH_PEND();
 
 			return true;
 		}
@@ -5679,35 +5871,47 @@ namespace Tomahawk
 			if (!Stream)
 				return false;
 
+			TH_PSTART("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
 			fclose(Stream);
+			TH_PEND();
 
 			return true;
 		}
 		bool OS::File::Move(const char* From, const char* To)
 		{
 			TH_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
+			TH_PSTART("os-file-mv", TH_PERF_IO);
 #ifdef TH_MICROSOFT
-			return MoveFileA(From, To) != 0;
+			TH_PRET(MoveFileA(From, To) != 0);
 #elif defined TH_UNIX
-			return !rename(From, To);
+			TH_PRET(!rename(From, To));
+#else
+			TH_PEND();
+			return false;
 #endif
 		}
 		bool OS::File::Remove(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_PSTART("os-file-rm", TH_PERF_IO);
 #ifdef TH_MICROSOFT
 			SetFileAttributesA(Path, 0);
-			return DeleteFileA(Path) != 0;
+			TH_PRET(DeleteFileA(Path) != 0);
 #elif defined TH_UNIX
-			return unlink(Path) == 0;
+			TH_PRET(unlink(Path) == 0);
+#else
+			TH_PEND();
+			return false;
 #endif
 		}
 		bool OS::File::IsExists(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_PSTART("os-file-exists", TH_PERF_IO);
+
 			struct stat Buffer;
-			return (stat(Path::Resolve(Path).c_str(), &Buffer) == 0);
+			TH_PRET(stat(Path::Resolve(Path).c_str(), &Buffer) == 0);
 		}
 		uint64_t OS::File::GetCheckSum(const std::string& Data)
 		{
@@ -5719,8 +5923,13 @@ namespace Tomahawk
 			struct stat Buffer;
 
 			TH_ASSERT(Path != nullptr, State, "path should be set");
+			TH_PSTART("os-file-state", TH_PERF_IO);
+
 			if (stat(Path, &Buffer) != 0)
+			{
+				TH_PEND();
 				return State;
+			}
 
 			State.Exists = true;
 			State.Size = Buffer.st_size;
@@ -5734,23 +5943,23 @@ namespace Tomahawk
 			State.LastPermissionChange = Buffer.st_ctime;
 			State.LastModified = Buffer.st_mtime;
 
+			TH_PEND();
 			return State;
 		}
 		void* OS::File::Open(const char* Path, const char* Mode)
 		{
+			TH_PSTART("os-file-open", TH_PERF_IO);
 			TH_ASSERT(Path != nullptr && Mode != nullptr, false, "path and mode should be set");
 #ifdef TH_MICROSOFT
 			wchar_t WBuffer[1024], WMode[20];
 			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
 			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
-
-			return (void*)_wfopen(WBuffer, WMode);
+			TH_PRET((void*)_wfopen(WBuffer, WMode));
 #else
 			FILE* Stream = fopen(Path, Mode);
 			if (Stream != nullptr)
 				fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
-
-			return (void*)Stream;
+			TH_PRET((void*)Stream);
 #endif
 		}
 		Stream* OS::File::Open(const std::string& Path, FileMode Mode)
@@ -5787,6 +5996,7 @@ namespace Tomahawk
 			if (!Stream)
 				return nullptr;
 
+			TH_PSTART("os-file-read-all", TH_PERF_IO);
 			fseek(Stream, 0, SEEK_END);
 			uint64_t Size = ftell(Stream);
 			fseek(Stream, 0, SEEK_SET);
@@ -5800,6 +6010,7 @@ namespace Tomahawk
 				if (Length != nullptr)
 					*Length = 0;
 
+				TH_PEND();
 				return nullptr;
 			}
 
@@ -5808,6 +6019,8 @@ namespace Tomahawk
 				*Length = Size;
 
 			fclose(Stream);
+			TH_PEND();
+
 			return Bytes;
 		}
 		unsigned char* OS::File::ReadAll(Stream* Stream, uint64_t* Length)
@@ -5885,18 +6098,26 @@ namespace Tomahawk
 		std::string OS::Path::Resolve(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_PSTART("os-path-resolve", TH_PERF_IO);
 #ifdef TH_MICROSOFT
 			char Buffer[2048] = { 0 };
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
+			{
+				TH_PEND();
 				return Path;
+			}
 #elif defined TH_UNIX
 			char* Data = realpath(Path, nullptr);
 			if (!Data)
+			{
+				TH_PEND();
 				return Path;
+			}
 
 			std::string Buffer = Data;
 			TH_FREE(Data);
 #endif
+			TH_PEND();
 			return Buffer;
 		}
 		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
@@ -6021,13 +6242,15 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Stream != nullptr, false, "stream should be set");
 			TH_ASSERT(Size > 0, false, "size should be greater than zero");
+			TH_PSTART("os-net-send", TH_PERF_NET);
 #ifdef TH_MICROSOFT
-			return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
+			TH_PRET(TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0);
 #elif defined(TH_APPLE)
-			return sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0);
+			TH_PRET(sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0));
 #elif defined(TH_UNIX)
-			return sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0;
+			TH_PRET(sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0);
 #else
+			TH_PEND();
 			return false;
 #endif
 		}
@@ -6839,6 +7062,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
+			TH_PSTART("schedule-listen", TH_PERF_ATOM);
 			Race.Listeners.lock();
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
@@ -6847,6 +7071,7 @@ namespace Tomahawk
 				It->second->Callbacks[Id] = Callback;
 				Race.Listeners.unlock();
 
+				TH_PEND();
 				return Id;
 			}
 
@@ -6855,6 +7080,7 @@ namespace Tomahawk
 			Src->Callbacks[Src->Counter++] = Callback;
 			Race.Listeners.unlock();
 
+			TH_PEND();
 			return 0;
 		}
 		EventId Schedule::SetListener(const std::string& Name, EventCallback&& Callback)
@@ -6863,6 +7089,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
+			TH_PSTART("schedule-listen", TH_PERF_ATOM);
 			Race.Listeners.lock();
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
@@ -6871,6 +7098,7 @@ namespace Tomahawk
 				It->second->Callbacks[Id] = std::move(Callback);
 				Race.Listeners.unlock();
 
+				TH_PEND();
 				return Id;
 			}
 
@@ -6879,6 +7107,7 @@ namespace Tomahawk
 			Src->Callbacks[Src->Counter++] = std::move(Callback);
 			Race.Listeners.unlock();
 
+			TH_PEND();
 			return 0;
 		}
 		EventId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
@@ -6887,6 +7116,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
+			TH_PSTART("schedule-interval", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
@@ -6896,7 +7126,8 @@ namespace Tomahawk
 
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
-
+			
+			TH_PEND();
 			return Id;
 		}
 		EventId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -6905,6 +7136,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
+			TH_PSTART("schedule-interval", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
@@ -6915,6 +7147,7 @@ namespace Tomahawk
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
+			TH_PEND();
 			return Id;
 		}
 		EventId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
@@ -6923,6 +7156,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
+			TH_PSTART("schedule-timeout", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
@@ -6933,6 +7167,7 @@ namespace Tomahawk
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
+			TH_PEND();
 			return Id;
 		}
 		EventId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
@@ -6941,6 +7176,7 @@ namespace Tomahawk
 			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
+			TH_PSTART("schedule-timeout", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
@@ -6951,6 +7187,7 @@ namespace Tomahawk
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
+			TH_PEND();
 			return Id;
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback)
@@ -6958,11 +7195,13 @@ namespace Tomahawk
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-	
+
+			TH_PSTART("schedule-task", TH_PERF_ATOM);
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, Callback));
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
+			TH_PEND();
 			return true;
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback)
@@ -6971,10 +7210,12 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
+			TH_PSTART("schedule-task", TH_PERF_ATOM);
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
+			TH_PEND();
 			return true;
 		}
 		bool Schedule::SetAsync(const TaskCallback& Callback)
@@ -6989,10 +7230,12 @@ namespace Tomahawk
 				return true;
 			}
 
+			TH_PSTART("schedule-async", TH_PERF_ATOM);
 			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, Callback));
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
-
+			
+			TH_PEND();
 			return true;
 		}
 		bool Schedule::SetAsync(TaskCallback&& Callback)
@@ -7007,10 +7250,12 @@ namespace Tomahawk
 				return true;
 			}
 
+			TH_PSTART("schedule-async", TH_PERF_ATOM);
 			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
+			TH_PEND();
 			return true;
 		}
 		bool Schedule::SetEvent(const std::string& Name, const VariantArgs& Args)
@@ -7019,10 +7264,12 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
+			TH_PSTART("schedule-event", TH_PERF_ATOM);
 			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name, Args));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
+			TH_PEND();
 			return true;
 		}
 		bool Schedule::SetEvent(const std::string& Name, VariantArgs&& Args)
@@ -7031,10 +7278,12 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
+			TH_PSTART("schedule-event", TH_PERF_ATOM);
 			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name, std::move(Args)));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
+			TH_PEND();
 			return true;
 		}
 		bool Schedule::SetEvent(const std::string& Name)
@@ -7043,15 +7292,19 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
+			TH_PSTART("schedule-event", TH_PERF_ATOM);
 			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name));
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
 
+			TH_PEND();
 			return true;
 		}
 		bool Schedule::ClearListener(const std::string& Name, EventId ListenerId)
 		{
 			TH_ASSERT(!Name.empty(), false, "name should not be empty");
+			TH_PSTART("schedule-unlisten", TH_PERF_ATOM);
+
 			Race.Listeners.lock();
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
@@ -7062,15 +7315,19 @@ namespace Tomahawk
 					It->second->Callbacks.erase(Callback);
 					Race.Listeners.unlock();
 
+					TH_PEND();
 					return true;
 				}
 			}
-
 			Race.Listeners.unlock();
+
+			TH_PEND();
 			return false;
 		}
 		bool Schedule::ClearTimeout(EventId TimerId)
 		{
+			TH_PSTART("schedule-cl-timeout", TH_PERF_ATOM);
+
 			Race.Timers.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); ++It)
 			{
@@ -7079,10 +7336,13 @@ namespace Tomahawk
 
 				Timers.erase(It);
 				Race.Timers.unlock();
+
+				TH_PEND();
 				return true;
 			}
-
 			Race.Timers.unlock();
+
+			TH_PEND();
 			return false;
 		}
 		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize)
@@ -7184,7 +7444,7 @@ namespace Tomahawk
 		{
 			if (!Comain && Stack > 0 && Coroutines > 0)
 				Comain = new Costate(Stack);
-				
+
 			int fAsyncs = DispatchAsync(nullptr, Comain, true);
 			int fEvents = DispatchEvent(nullptr);
 			int fTimers = DispatchTimer(nullptr);
@@ -7204,7 +7464,7 @@ namespace Tomahawk
 			do
 			{
                 fEvents = DispatchEvent((ConcurrentToken*)&Token);
-				fTimers = DispatchTimer(&When);	
+				fTimers = DispatchTimer(&When);
 
 				if (fEvents == -1 && fTimers == 0)
                 {
@@ -7266,9 +7526,14 @@ namespace Tomahawk
 				if (!State->GetCount())
 					return Data != nullptr ? 1 : -1;
 
-				int Count = -1;
-				while ((Count = State->Dispatch()) != -1)
+				while (true)
 				{
+					TH_PSTART("dispatch-async", TH_PERF_CORE);
+					int Count = State->Dispatch();
+					TH_PEND();
+					if (Count == -1)
+						break;
+
 					if (Reconsume)
 					{
 						DispatchEvent(nullptr);
@@ -7314,12 +7579,14 @@ namespace Tomahawk
 			TaskCallback* Data = nullptr;
 
 		Resolve:
+			TH_PSTART("dispatch-task", TH_PERF_MAX);
 			while (cToken ? cTasks->try_dequeue(*cToken, Data) : cTasks->try_dequeue(Data))
 			{
 				(*Data)();
 				TH_DELETE(function, Data);
 			}
 
+			TH_PEND();
 			if (cTasks->size_approx() > 0)
 				goto Resolve;
 
@@ -8525,7 +8792,7 @@ namespace Tomahawk
 				}
 				case VarType::Decimal:
 				{
-					std::string Number = ((Decimal*)Current->Value.Data)->ToString();
+					std::string Number = ((Decimal*)Current->Value.Value.Data)->ToString();
 					uint64_t Size = (uint64_t)Number.size();
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint64_t));
 					Callback(VarForm::Dummy, Number.c_str(), Size * sizeof(char));

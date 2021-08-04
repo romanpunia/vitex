@@ -55,9 +55,10 @@ namespace Tomahawk
 			{
 				if (Mod == Type::ObjectId)
 					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
-				
+#ifdef TH_HAS_MONGOC
 				if (Other.Source != nullptr)
 					Source = bson_copy(Other.Source);
+#endif
 			}
 			Property::Property(Property&& Other) : Name(std::move(Other.Name)), String(std::move(Other.String)), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
 			{
@@ -154,10 +155,10 @@ namespace Tomahawk
 
 				if (Mod == Type::ObjectId)
 					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
-
+#ifdef TH_HAS_MONGOC
 				if (Other.Source != nullptr)
 					Source = bson_copy(Other.Source);
-
+#endif
 				return *this;
 			}
 			Property& Property::operator= (Property&& Other)

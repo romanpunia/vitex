@@ -40,8 +40,7 @@ namespace
 		btScalar addSingleResult(btManifoldPoint& Point, const btCollisionObjectWrapper* Object1, int PartId0, int Index0, const btCollisionObjectWrapper* Object2, int PartId1, int Index1) override
 		{
 			using namespace Tomahawk::Compute;
-			if (!Callback || !Object1 || !Object1->getCollisionObject() || !Object2 || !Object2->getCollisionObject())
-				return 0;
+			TH_ASSERT(Callback && Object1 && Object1->getCollisionObject() && Object2 && Object2->getCollisionObject(), 0, "collision objects are not in available condition");
 
 			auto& PWOA = Point.getPositionWorldOnA();
 			auto& PWOB = Point.getPositionWorldOnB();
@@ -90,8 +89,7 @@ namespace
 		btScalar addSingleResult(btCollisionWorld::LocalRayResult& RayResult, bool NormalInWorldSpace) override
 		{
 			using namespace Tomahawk::Compute;
-			if (!Callback || !RayResult.m_collisionObject)
-				return 0;
+			TH_ASSERT(Callback && RayResult.m_collisionObject, 0, "collision objects are not in available condition");
 
 			RayContact Contact;
 			Contact.HitNormalLocal = BT_TO_V3(RayResult.m_hitNormalLocal);
@@ -107,6 +105,7 @@ namespace
 	Tomahawk::Compute::Matrix4x4 BT_TO_M16(btTransform* In)
 	{
 		Tomahawk::Compute::Matrix4x4 Result;
+		TH_ASSERT(In != nullptr, Result, "transform should be set");
 		btMatrix3x3 Offset = In->getBasis();
 		Result.Row[0] = Offset[0][0];
 		Result.Row[1] = Offset[1][0];
@@ -123,6 +122,7 @@ namespace
 #endif
 	size_t OffsetOf64(const char* Source, char Dest)
 	{
+		TH_ASSERT(Source != nullptr, 63, "source should be set");
 		for (size_t i = 0; i < 64; i++)
 		{
 			if (Source[i] == Dest)
@@ -387,6 +387,7 @@ namespace Tomahawk
 		}
 		void Vector2::Get2(float* In) const
 		{
+			TH_ASSERT_V(In != nullptr, "in of size 2 should be set");
 			In[0] = X;
 			In[1] = Y;
 		}
@@ -554,6 +555,7 @@ namespace Tomahawk
 		}
 		float& Vector2::operator [](uint32_t Axis)
 		{
+			TH_ASSERT(Axis >= 0 && Axis <= 1, X, "index out of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -563,6 +565,7 @@ namespace Tomahawk
 		}
 		float Vector2::operator [](uint32_t Axis) const
 		{
+			TH_ASSERT(Axis >= 0 && Axis <= 1, X, "index out of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -879,11 +882,13 @@ namespace Tomahawk
 		}
 		void Vector3::Get2(float* In) const
 		{
+			TH_ASSERT_V(In != nullptr, "in of size 2 should be set");
 			In[0] = X;
 			In[1] = Y;
 		}
 		void Vector3::Get3(float* In) const
 		{
+			TH_ASSERT_V(In != nullptr, "in of size 3 should be set");
 			In[0] = X;
 			In[1] = Y;
 			In[2] = Z;
@@ -1061,6 +1066,7 @@ namespace Tomahawk
 		}
 		float& Vector3::operator [](uint32_t Axis)
 		{
+			TH_ASSERT(Axis >= 0 && Axis <= 2, X, "index out of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -1072,6 +1078,7 @@ namespace Tomahawk
 		}
 		float Vector3::operator [](uint32_t Axis) const
 		{
+			TH_ASSERT(Axis >= 0 && Axis <= 2, X, "index out of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -1089,6 +1096,7 @@ namespace Tomahawk
 		{
 			return Vector3(Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
+
 		Vector4::Vector4() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
 		{
 		}
@@ -1376,17 +1384,20 @@ namespace Tomahawk
 		}
 		void Vector4::Get2(float* In) const
 		{
+			TH_ASSERT_V(In != nullptr, "in of size 2 should be set");
 			In[0] = X;
 			In[1] = Y;
 		}
 		void Vector4::Get3(float* In) const
 		{
+			TH_ASSERT_V(In != nullptr, "in of size 3 should be set");
 			In[0] = X;
 			In[1] = Y;
 			In[2] = Z;
 		}
 		void Vector4::Get4(float* In) const
 		{
+			TH_ASSERT_V(In != nullptr, "in of size 4 should be set");
 			In[0] = X;
 			In[1] = Y;
 			In[2] = Z;
@@ -1583,6 +1594,7 @@ namespace Tomahawk
 		}
 		float& Vector4::operator [](uint32_t Axis)
 		{
+			TH_ASSERT(Axis >= 0 && Axis <= 3, X, "index outside of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -1596,6 +1608,7 @@ namespace Tomahawk
 		}
 		float Vector4::operator [](uint32_t Axis) const
 		{
+			TH_ASSERT(Axis >= 0 && Axis <= 3, X, "index outside of range");
 			if (Axis == 0)
 				return X;
 			else if (Axis == 1)
@@ -2439,6 +2452,7 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateCubeMapLookAt(int Face, const Vector3& Position)
 		{
+			TH_ASSERT(Face >= 0 && Face <= 5, Matrix4x4::Identity(), "index outside of range");
 			if (Face == 0)
 				return Matrix4x4::CreateLookAt(Position, Position + Vector3(1, 0, 0), Vector3::Up());
 
@@ -3125,9 +3139,7 @@ namespace Tomahawk
 		}
 		RegexSource& RegexSource::operator=(const RegexSource& V)
 		{
-			if (this == &V)
-				return *this;
-
+			TH_ASSERT(this != &V, *this, "cannot set to self");
 			Brackets.clear();
 			Brackets.reserve(V.Brackets.capacity());
 			Branches.clear();
@@ -3144,9 +3156,7 @@ namespace Tomahawk
 		}
 		RegexSource& RegexSource::operator=(RegexSource&& V) noexcept
 		{
-			if (this == &V)
-				return *this;
-
+			TH_ASSERT(this != &V, *this, "cannot set to self");
 			Brackets.clear();
 			Brackets.reserve(V.Brackets.capacity());
 			Branches.clear();
@@ -3341,8 +3351,8 @@ namespace Tomahawk
 		}
 		bool Regex::Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length)
 		{
-			if (!Value || Value->State != RegexState::Preprocessed || !Buffer || !Length)
-				return false;
+			TH_ASSERT(Value != nullptr && Value->State == RegexState::Preprocessed, false, "invalid regex source");
+			TH_ASSERT(Buffer != nullptr && Length > 0, false, "invalid buffer");
 
 			Result.Src = Value;
 			Result.State = RegexState::Preprocessed;
@@ -3368,15 +3378,18 @@ namespace Tomahawk
 		}
 		int64_t Regex::Meta(const unsigned char* Buffer)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
 			static const char* Chars = "^$().[]*+?|\\Ssdbfnrtv";
 			return strchr(Chars, *Buffer) != nullptr;
 		}
 		int64_t Regex::OpLength(const char* Value)
 		{
+			TH_ASSERT(Value != nullptr, 1, "invalid value");
 			return Value[0] == '\\' && Value[1] == 'x' ? 4 : Value[0] == '\\' ? 2 : 1;
 		}
 		int64_t Regex::SetLength(const char* Value, int64_t ValueLength)
 		{
+			TH_ASSERT(Value != nullptr, -1, "invalid value");
 			int64_t Length = 0;
 			while (Length < ValueLength && Value[Length] != ']')
 				Length += OpLength(Value + Length);
@@ -3385,10 +3398,12 @@ namespace Tomahawk
 		}
 		int64_t Regex::GetOpLength(const char* Value, int64_t ValueLength)
 		{
+			TH_ASSERT(Value != nullptr, -1, "invalid value");
 			return Value[0] == '[' ? SetLength(Value + 1, ValueLength - 1) + 1 : OpLength(Value);
 		}
 		int64_t Regex::Quantifier(const char* Value)
 		{
+			TH_ASSERT(Value != nullptr, 0, "invalid value");
 			return Value[0] == '*' || Value[0] == '+' || Value[0] == '?';
 		}
 		int64_t Regex::ToInt(int64_t x)
@@ -3397,10 +3412,15 @@ namespace Tomahawk
 		}
 		int64_t Regex::HexToInt(const unsigned char* Buffer)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
 			return (ToInt(tolower(Buffer[0])) << 4) | ToInt(tolower(Buffer[1]));
 		}
 		int64_t Regex::MatchOp(const unsigned char* Value, const unsigned char* Buffer, RegexResult* Info)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
+			TH_ASSERT(Value != nullptr, 0, "invalid value");
+			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
+
 			int64_t Result = 0;
 			switch (*Value)
 			{
@@ -3479,6 +3499,10 @@ namespace Tomahawk
 		}
 		int64_t Regex::MatchSet(const char* Value, int64_t ValueLength, const char* Buffer, RegexResult* Info)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
+			TH_ASSERT(Value != nullptr, 0, "invalid value");
+			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
+
 			int64_t Length = 0, Result = -1, Invert = Value[0] == '^';
 			if (Invert)
 				Value++, ValueLength--;
@@ -3501,6 +3525,10 @@ namespace Tomahawk
 		}
 		int64_t Regex::ParseInner(const char* Value, int64_t ValueLength, const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
+			TH_ASSERT(Value != nullptr, 0, "invalid value");
+			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
+
 			int64_t i, j, n, Step;
 			for (i = j = 0; i < ValueLength && j <= BufferLength; i += Step)
 			{
@@ -3618,6 +3646,9 @@ namespace Tomahawk
 		}
 		int64_t Regex::ParseDOH(const char* Buffer, int64_t BufferLength, RegexResult* Info, int64_t Case)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
+			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
+
 			const RegexBracket* Bk = &Info->Src->Brackets[Case];
 			int64_t i = 0, Length, Result;
 			const char* Ptr;
@@ -3633,6 +3664,9 @@ namespace Tomahawk
 		}
 		int64_t Regex::Parse(const char* Buffer, int64_t BufferLength, RegexResult* Info)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
+			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
+
 			int64_t is_anchored = Info->Src->Brackets[0].Pointer[0] == '^', i, result = -1;
 			for (i = 0; i <= BufferLength; i++)
 			{
@@ -3738,12 +3772,7 @@ namespace Tomahawk
 		{
 			NbFaces = create.NbFaces;
 			Faces = (AdjTriangle*)TH_MALLOC(sizeof(AdjTriangle) * NbFaces);
-			if (!Faces)
-				return false;
-
 			Edges = (AdjEdge*)TH_MALLOC(sizeof(AdjEdge) * NbFaces * 3);
-			if (!Edges)
-				return false;
 
 			for (unsigned int i = 0; i < NbFaces; i++)
 			{
@@ -3759,23 +3788,8 @@ namespace Tomahawk
 		{
 			RadixSorter Core;
 			unsigned int* FaceNb = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
-			if (!FaceNb)
-				return false;
-
 			unsigned int* VRefs0 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
-			if (!VRefs0)
-			{
-				TH_FREE(FaceNb);
-				return false;
-			}
-
 			unsigned int* VRefs1 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
-			if (!VRefs1)
-			{
-				TH_FREE(FaceNb);
-				TH_FREE(VRefs1);
-				return false;
-			}
 
 			for (unsigned int i = 0; i < NbEdges; i++)
 			{
@@ -3915,52 +3929,37 @@ namespace Tomahawk
 		}
 		bool TriangleStrip::Fill(const TriangleStrip::Desc& create)
 		{
+			Adjacencies::Desc ac;
+			ac.NbFaces = create.NbFaces;
+			ac.Faces = create.Faces;
 			FreeBuffers();
+
+			Adj = TH_NEW(Adjacencies);
+			if (!Adj->Fill(ac))
 			{
-				Adj = TH_NEW(Adjacencies);
-				if (!Adj)
-					return false;
-
-				Adjacencies::Desc ac;
-				ac.NbFaces = create.NbFaces;
-				ac.Faces = create.Faces;
-
-				if (!Adj->Fill(ac))
-				{
-					TH_DELETE(Adjacencies, Adj);
-					Adj = nullptr;
-					return false;
-				}
-
-				if (!Adj->Resolve())
-				{
-					TH_DELETE(Adjacencies, Adj);
-					Adj = nullptr;
-					return false;
-				}
-
-				OneSided = create.OneSided;
-				SGICipher = create.SGICipher;
-				ConnectAllStrips = create.ConnectAllStrips;
+				TH_DELETE(Adjacencies, Adj);
+				Adj = nullptr;
+				return false;
 			}
+
+			if (!Adj->Resolve())
+			{
+				TH_DELETE(Adjacencies, Adj);
+				Adj = nullptr;
+				return false;
+			}
+
+			OneSided = create.OneSided;
+			SGICipher = create.SGICipher;
+			ConnectAllStrips = create.ConnectAllStrips;
 
 			return true;
 		}
 		bool TriangleStrip::Resolve(TriangleStrip::Result& result)
 		{
-			if (!Adj)
-				return false;
-
+			TH_ASSERT(Adj != nullptr, false, "triangle strip should be initialized");
 			Tags = (bool*)TH_MALLOC(sizeof(bool) * Adj->NbFaces);
-			if (!Tags)
-				return false;
-
 			unsigned int* Connectivity = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * Adj->NbFaces);
-			if (!Connectivity)
-			{
-				TH_FREE(Tags);
-				return false;
-			}
 
 			memset(Tags, 0, Adj->NbFaces * sizeof(bool));
 			memset(Connectivity, 0, Adj->NbFaces * sizeof(unsigned int));
@@ -4561,11 +4560,13 @@ namespace Tomahawk
 		}
 		void MD5Hasher::Decode(UInt4* Output, const UInt1* Input, unsigned int Length)
 		{
+			TH_ASSERT_V(Output != nullptr && Input != nullptr, "output and input should be set");
 			for (unsigned int i = 0, j = 0; j < Length; i++, j += 4)
 				Output[i] = ((UInt4)Input[j]) | (((UInt4)Input[j + 1]) << 8) | (((UInt4)Input[j + 2]) << 16) | (((UInt4)Input[j + 3]) << 24);
 		}
 		void MD5Hasher::Encode(UInt1* Output, const UInt4* Input, unsigned int Length)
 		{
+			TH_ASSERT_V(Output != nullptr && Input != nullptr, "output and input should be set");
 			for (unsigned int i = 0, j = 0; j < Length; i++, j += 4)
 			{
 				Output[j] = Input[i] & 0xff;
@@ -4576,6 +4577,7 @@ namespace Tomahawk
 		}
 		void MD5Hasher::Transform(const UInt1* Block, unsigned int Length)
 		{
+			TH_ASSERT_V(Block != nullptr, "block should be set");
 			UInt4 A = State[0], B = State[1], C = State[2], D = State[3], X[16];
 			Decode(X, Block, Length);
 
@@ -4660,6 +4662,7 @@ namespace Tomahawk
 		}
 		void MD5Hasher::Update(const unsigned char* Input, unsigned int Length, unsigned int BlockSize)
 		{
+			TH_ASSERT_V(Input != nullptr, "input should be set");
 			unsigned int Index = Count[0] / 8 % BlockSize;
 			Count[0] += (Length << 3);
 			if (Count[0] < Length << 3)
@@ -4706,9 +4709,7 @@ namespace Tomahawk
 		}
 		char* MD5Hasher::HexDigest() const
 		{
-			if (!Finalized)
-				return nullptr;
-
+			TH_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
 			char* Output = (char*)TH_MALLOC(sizeof(char) * 33);
 			memset((void*)Output, 0, 33);
 
@@ -4720,9 +4721,7 @@ namespace Tomahawk
 		}
 		unsigned char* MD5Hasher::RawDigest() const
 		{
-			if (!Finalized)
-				return nullptr;
-
+			TH_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
 			UInt1* Output = (UInt1*)TH_MALLOC(sizeof(UInt1) * 17);
 			memcpy(Output, Digest, 16);
 			Output[16] = '\0';
@@ -4731,9 +4730,7 @@ namespace Tomahawk
 		}
 		std::string MD5Hasher::ToHex() const
 		{
-			if (!Finalized)
-				return std::string();
-
+			TH_ASSERT(Finalized, std::string(), "md5 hash should be finalized");
 			char Data[33];
 			for (int i = 0; i < 16; i++)
 				sprintf(Data + i * 2, "%02x", Digest[i]);
@@ -4743,9 +4740,7 @@ namespace Tomahawk
 		}
 		std::string MD5Hasher::ToRaw() const
 		{
-			if (!Finalized)
-				return std::string();
-
+			TH_ASSERT(Finalized, std::string(), "md5 hash should be finalized");
 			UInt1 Data[17];
 			memcpy(Data, Digest, 16);
 			Data[16] = '\0';
@@ -6857,6 +6852,7 @@ namespace Tomahawk
 		}
 		bool Common::HasAABBIntersected(Transform* R0, Transform* R1)
 		{
+			TH_ASSERT(R0 != nullptr && R1 != nullptr, false, "transforms should be set");
 			return (R0->Position.X - R0->Scale.X) <= (R1->Position.X + R1->Scale.X) && (R1->Position.X - R1->Scale.X) <= (R0->Position.X + R0->Scale.X) && (R0->Position.Y - R0->Scale.Y) <= (R1->Position.Y + R1->Scale.Y) && (R1->Position.Y - R1->Scale.Y) <= (R0->Position.Y + R0->Scale.Y) && (R0->Position.Z - R0->Scale.Z) <= (R1->Position.Z + R1->Scale.Z) && (R1->Position.Z - R1->Scale.Z) <= (R0->Position.Z + R0->Scale.Z);
 		}
 		bool Common::Hex(char c, int& v)
@@ -6881,11 +6877,9 @@ namespace Tomahawk
 		}
 		bool Common::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
 		{
-			if (!Data || !Length || !Buffer || !BufferLength)
-				return false;
-
-			if (BufferLength < (3 * Length))
-				return false;
+			TH_ASSERT(Data != nullptr && Length > 0, false, "data buffer should be set");
+			TH_ASSERT(Buffer != nullptr && BufferLength > 0, false, "buffer should be set");
+			TH_ASSERT(BufferLength >= (3 * Length), false, "buffer is too small");
 
 			static const char HEX[] = "0123456789abcdef";
 			for (int i = 0; i < Length; i++)
@@ -6902,8 +6896,7 @@ namespace Tomahawk
 		}
 		bool Common::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
 		{
-			if (i >= s.size())
-				return false;
+			TH_ASSERT(i < s.size(), false, "index outside of range");
 
 			Value = 0;
 			for (; cnt; i++, cnt--)
@@ -6922,31 +6915,27 @@ namespace Tomahawk
 		}
 		void Common::ComputeJointOrientation(Compute::Joint* Value, bool LeftHanded)
 		{
-			if (Value != nullptr)
-			{
-				ComputeMatrixOrientation(&Value->BindShape, LeftHanded);
-				ComputeMatrixOrientation(&Value->Transform, LeftHanded);
-				for (auto&& Child : Value->Childs)
-					ComputeJointOrientation(&Child, LeftHanded);
-			}
+			TH_ASSERT_V(Value != nullptr, "value should be set");
+			ComputeMatrixOrientation(&Value->BindShape, LeftHanded);
+			ComputeMatrixOrientation(&Value->Transform, LeftHanded);
+			for (auto&& Child : Value->Childs)
+				ComputeJointOrientation(&Child, LeftHanded);
 		}
 		void Common::ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded)
 		{
+			TH_ASSERT_V(Matrix != nullptr, "matrix should be set");
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 			if (!LeftHanded)
 				Coord = Coord.Inv();
-
-			if (Matrix != nullptr)
-				*Matrix = *Matrix * Coord;
+			*Matrix = *Matrix * Coord;
 		}
 		void Common::ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded)
 		{
+			TH_ASSERT_V(Position != nullptr, "position should be set");
 			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
 			if (!LeftHanded)
 				Coord = Coord.Inv();
-
-			if (Position != nullptr)
-				*Position = (Coord * Compute::Matrix4x4::CreateTranslation(*Position)).Position();
+			*Position = (Coord * Compute::Matrix4x4::CreateTranslation(*Position)).Position();
 		}
 		void Common::ComputeIndexWindingOrderFlip(std::vector<int>& Indices)
 		{
@@ -7084,11 +7073,9 @@ namespace Tomahawk
 			RAND_poll();
 #endif
 		}
-		void Common::ConfigurateUnsafe(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale)
+		void Common::SetTransformPivot(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale)
 		{
-			if (!In)
-				return;
-
+			TH_ASSERT_V(In != nullptr, "transform should be set");
 			TH_DELETE(Matrix4x4, In->LocalTransform);
 			In->LocalTransform = LocalTransform;
 
@@ -7101,20 +7088,23 @@ namespace Tomahawk
 			TH_DELETE(Vector3, In->LocalScale);
 			In->LocalScale = LocalScale;
 		}
-		void Common::SetRootUnsafe(Transform* In, Transform* Root)
+		void Common::SetTransformRoot(Transform* In, Transform* Root)
 		{
+			TH_ASSERT_V(In != nullptr, "transform should be set");
 			In->Root = Root;
-
 			if (Root != nullptr)
 				Root->AddChild(In);
 		}
 		void Common::Sha1CollapseBufferBlock(unsigned int* Buffer)
 		{
+			TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 			for (int i = 16; --i >= 0;)
 				Buffer[i] = 0;
 		}
 		void Common::Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W)
 		{
+			TH_ASSERT_V(Result != nullptr, "result should be set");
+			TH_ASSERT_V(W != nullptr, "salt should be set");
 			unsigned int A = Result[0];
 			unsigned int B = Result[1];
 			unsigned int C = Result[2];
@@ -7163,6 +7153,9 @@ namespace Tomahawk
 		}
 		void Common::Sha1Compute(const void* Value, const int Length, unsigned char* Hash20)
 		{
+			TH_ASSERT_V(Value != nullptr, "value should be set");
+			TH_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
+
 			unsigned int Result[5] = { 0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0 };
 			const unsigned char* ValueCUC = (const unsigned char*)Value;
 			unsigned int W[80];
@@ -7200,6 +7193,9 @@ namespace Tomahawk
 		}
 		void Common::Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString)
 		{
+			TH_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
+			TH_ASSERT_V(HexString != nullptr, "result hex should be set");
+
 			const char Hex[] = { "0123456789abcdef" };
 			for (int i = 20; --i >= 0;)
 			{
@@ -7228,6 +7224,7 @@ namespace Tomahawk
 		}
 		uint64_t Common::Utf8(int code, char* Buffer)
 		{
+			TH_ASSERT(Buffer != nullptr, 0, "buffer should be set");
 			if (code < 0x0080)
 			{
 				Buffer[0] = (code & 0x7F);
@@ -7282,8 +7279,10 @@ namespace Tomahawk
 		}
 		std::string Common::JWTEncode(WebToken* Src, const char* Key)
 		{
-			if (!Key || !Src || !Src->Header || !Src->Payload)
-				return "";
+			TH_ASSERT(Src != nullptr, std::string(), "web token should be set");
+			TH_ASSERT(Src->Header != nullptr, std::string(), "web token header should be set");
+			TH_ASSERT(Src->Payload != nullptr, std::string(), "web token payload should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 
 			std::string Alg = Src->Header->GetVar("alg").GetBlob();
 			if (Alg.empty())
@@ -7291,15 +7290,15 @@ namespace Tomahawk
 
 			std::string Header;
 			Core::Document::WriteJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
-				{
-					Header.append(Buffer, Size);
-				});
+			{
+				Header.append(Buffer, Size);
+			});
 
 			std::string Payload;
 			Core::Document::WriteJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
-				{
-					Payload.append(Buffer, Size);
-				});
+			{
+				Payload.append(Buffer, Size);
+			});
 
 			std::string Data = Base64URLEncode(Header) + '.' + Base64URLEncode(Payload);
 			Src->Signature = JWTSign(Alg, Data, Key);
@@ -7308,9 +7307,7 @@ namespace Tomahawk
 		}
 		WebToken* Common::JWTDecode(const std::string& Value, const char* Key)
 		{
-			if (!Key || Value.empty())
-				return nullptr;
-
+			TH_ASSERT(Key != nullptr && !Value.empty(), nullptr, "key should be set and value should not be empty");
 			std::vector<std::string> Source = Core::Parser(&Value).Split('.');
 			if (Source.size() != 3)
 				return nullptr;
@@ -7318,20 +7315,20 @@ namespace Tomahawk
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
 			Source[0] = Base64URLDecode(Source[0]);
 			Core::Document* Header = Core::Document::ReadJSON((int64_t)Source[0].size(), [&Source](char* Buffer, int64_t Size)
-				{
-					memcpy(Buffer, Source[0].c_str(), Size);
-					return true;
-				});
+			{
+				memcpy(Buffer, Source[0].c_str(), Size);
+				return true;
+			});
 
 			if (!Header)
 				return nullptr;
 
 			Source[1] = Base64URLDecode(Source[1]);
 			Core::Document* Payload = Core::Document::ReadJSON((int64_t)Source[1].size(), [&Source](char* Buffer, int64_t Size)
-				{
-					memcpy(Buffer, Source[1].c_str(), Size);
-					return true;
-				});
+			{
+				memcpy(Buffer, Source[1].c_str(), Size);
+				return true;
+			});
 
 			if (!Payload)
 			{
@@ -7355,39 +7352,39 @@ namespace Tomahawk
 		}
 		std::string Common::DocEncrypt(Core::Document* Src, const char* Key, const char* Salt)
 		{
-			if (!Src || !Key || !Salt)
-				return "";
+			TH_ASSERT(Src != nullptr, std::string(), "document should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
 
 			std::string Result;
 			Core::Document::WriteJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
-				{
-					Result.append(Buffer, Size);
-				});
+			{
+				Result.append(Buffer, Size);
+			});
 
 			Result = Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
 			return Result;
 		}
 		Core::Document* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
 		{
-			if (Value.empty() || !Key || !Salt)
-				return nullptr;
+			TH_ASSERT(!Value.empty(), nullptr, "value should not be empty");
+			TH_ASSERT(Key != nullptr, nullptr, "key should be set");
+			TH_ASSERT(Salt != nullptr, nullptr, "salt should be set");
 
 			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt);
 			return Core::Document::ReadJSON((int64_t)Source.size(), [&Source](char* Buffer, int64_t Size)
-				{
-					memcpy(Buffer, Source.c_str(), Size);
-					return true;
-				});
+			{
+				memcpy(Buffer, Source.c_str(), Size);
+				return true;
+			});
 		}
 		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
+			TH_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, std::string(), "base should be between 1 and 64");
 			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
 			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			if (Value == 0)
 				return "0";
-
-			if (BaseLessThan65 > 64 || BaseLessThan65 < 1)
-				return "";
 
 			const char* Base = (BaseLessThan65 == 64 ? Base64 : Base62);
 			std::string Output;
@@ -7450,10 +7447,14 @@ namespace Tomahawk
 		}
 		std::string Common::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
 		{
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
 #if OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			HMAC_CTX* Context;
-			if (!Type || !Value || !Length || !Key || !(Context = HMAC_CTX_new()))
+			HMAC_CTX* Context = Context = HMAC_CTX_new();
+			if (!Context)
 				return "";
 
 			unsigned char Result[EVP_MAX_MD_SIZE];
@@ -7481,9 +7482,6 @@ namespace Tomahawk
 
 			return Output;
 #else
-			if (!Type || !Value || !Length || !Key)
-				return "";
-
 			HMAC_CTX Context;
 			HMAC_CTX_init(&Context);
 
@@ -7513,7 +7511,7 @@ namespace Tomahawk
 			return Output;
 #endif
 #else
-			return (Value ? (const char*)Value : "");
+			return (const char*)Value;
 #endif
 		}
 		std::string Common::Sign(Digest Type, const std::string& Value, const char* Key)
@@ -7522,10 +7520,11 @@ namespace Tomahawk
 		}
 		std::string Common::HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
 		{
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
-			if (!Type || !Value || !Length || !Key)
-				return "";
-
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
 
@@ -7535,7 +7534,7 @@ namespace Tomahawk
 			std::string Output((const char*)Result, Size);
 			return Output;
 #else
-			return (Value ? (const char*)Value : "");
+			return (const char*)Value;
 #endif
 		}
 		std::string Common::HMAC(Digest Type, const std::string& Value, const char* Key)
@@ -7544,9 +7543,13 @@ namespace Tomahawk
 		}
 		std::string Common::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt)
 		{
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
-			EVP_CIPHER_CTX* Context;
-			if (!Type || !Value || !Length || !(Context = EVP_CIPHER_CTX_new()))
+			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
+			if (!Context)
 				return "";
 
 			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
@@ -7578,7 +7581,7 @@ namespace Tomahawk
 
 			return Output;
 #else
-			return (Value ? (const char*)Value : "");
+			return (const char*)Value;
 #endif
 		}
 		std::string Common::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
@@ -7587,9 +7590,13 @@ namespace Tomahawk
 		}
 		std::string Common::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt)
 		{
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
-			EVP_CIPHER_CTX* Context;
-			if (!Type || !Value || !Length || !(Context = EVP_CIPHER_CTX_new()))
+			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
+			if (!Context)
 				return "";
 
 			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
@@ -7621,7 +7628,7 @@ namespace Tomahawk
 
 			return Output;
 #else
-			return (Value ? (const char*)Value : "");
+			return (const char*)Value;
 #endif
 		}
 		std::string Common::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
@@ -7630,8 +7637,8 @@ namespace Tomahawk
 		}
 		std::string Common::Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding)
 		{
-			if (!Value || !Length)
-				return "";
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 
 			std::string Result;
 			unsigned char Row3[3];
@@ -7679,8 +7686,9 @@ namespace Tomahawk
 		}
 		std::string Common::Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char))
 		{
-			if (!Value || !Length || !IsAlphabetic)
-				return "";
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(IsAlphabetic != nullptr, std::string(), "callback should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 
 			std::string Result;
 			unsigned char Row4[4];
@@ -7769,9 +7777,9 @@ namespace Tomahawk
 		}
 		std::string Common::HexEncode(const char* Value, size_t Size)
 		{
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Size > 0, std::string(), "length should be greater than zero");
 			static const char Hex[17] = "0123456789abcdef";
-			if (!Value || !Size)
-				return "";
 
 			std::string Output;
 			Output.reserve(Size * 2);
@@ -7791,8 +7799,8 @@ namespace Tomahawk
 		}
 		std::string Common::HexDecode(const char* Value, size_t Size)
 		{
-			if (!Value || !Size)
-				return "";
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Size > 0, std::string(), "length should be greater than zero");
 
 			std::string Output;
 			Output.reserve(Size / 2);
@@ -7816,8 +7824,8 @@ namespace Tomahawk
 		}
 		std::string Common::URIEncode(const char* Text, uint64_t Length)
 		{
-			if (!Text || !Length)
-				return "";
+			TH_ASSERT(Text != nullptr, std::string(), "text should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 
 			static const char* Unescape = "._-$,;~()";
 			static const char* Hex = "0123456789abcdef";
@@ -7847,14 +7855,11 @@ namespace Tomahawk
 		}
 		std::string Common::URIDecode(const char* Text, uint64_t Length)
 		{
-			if (!Text)
-				return "";
-
+			TH_ASSERT(Text != nullptr, std::string(), "text should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 			std::string Value;
-			if (!Length)
-				return Value;
-
 			int i = 0;
+
 			while (i < Length)
 			{
 				if (i < Length - 2 && Text[i] == '%' && isxdigit(*(const unsigned char*)(Text + i + 1)) && isxdigit(*(const unsigned char*)(Text + i + 2)))
@@ -8191,8 +8196,9 @@ namespace Tomahawk
 		}
 		bool WebToken::Sign(const char* Key)
 		{
-			if (!Header || !Payload || !Key)
-				return false;
+			TH_ASSERT(Header != nullptr, false, "header should be set");
+			TH_ASSERT(Payload != nullptr, false, "payload should be set");
+			TH_ASSERT(Key != nullptr, false, "key should be set");
 
 			if (!Signature.empty())
 				return true;
@@ -8201,8 +8207,8 @@ namespace Tomahawk
 		}
 		std::string WebToken::GetRefreshToken(const char* Key, const char* Salt)
 		{
-			if (!Key || !Salt)
-				return Refresher;
+			TH_ASSERT(Key != nullptr, false, "key should be set");
+			TH_ASSERT(Salt != nullptr, false, "salt should be set");
 
 			Refresher = Common::DocEncrypt(Token, Key, Salt);
 			return Refresher;
@@ -8259,9 +8265,7 @@ namespace Tomahawk
 		}
 		bool Preprocessor::IsDefined(const char* Name) const
 		{
-			if (!Name)
-				return false;
-
+			TH_ASSERT(Name != nullptr, false, "name should be set");
 			for (auto& It : Defines)
 			{
 				if (It == Name)
@@ -8355,7 +8359,7 @@ namespace Tomahawk
 				Start++;
 				if (Start == End)
 				{
-					TH_ERROR("%s: cannot process include directive", Path.c_str());
+					TH_ERR("%s: cannot process include directive", Path.c_str());
 					return false;
 				}
 
@@ -8373,7 +8377,7 @@ namespace Tomahawk
 				{
 					if (!Include || !Include(this, File, &Output))
 					{
-						TH_ERROR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
+						TH_ERR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
 						return false;
 					}
 
@@ -8402,7 +8406,7 @@ namespace Tomahawk
 				int R = FindDirective(Buffer, "#pragma", &Offset, &Base, &Start, &End);
 				if (R < 0)
 				{
-					TH_ERROR("cannot process pragma directive");
+					TH_ERR("cannot process pragma directive");
 					return false;
 				}
 				else if (R == 0)
@@ -8443,7 +8447,7 @@ namespace Tomahawk
 				Value.Substring(0, fStart.Start);
 				if (Pragma && !Pragma(this, Value.R(), Args))
 				{
-					TH_ERROR("cannot process pragma \"%s\" directive", Value.Get());
+					TH_ERR("cannot process pragma \"%s\" directive", Value.Get());
 					return false;
 				}
 
@@ -8461,7 +8465,7 @@ namespace Tomahawk
 				int R = FindBlockDirective(Buffer, Offset, false);
 				if (R < 0)
 				{
-					TH_ERROR("cannot process ifdef/endif directive");
+					TH_ERR("cannot process ifdef/endif directive");
 					return false;
 				}
 				else if (R == 0)
@@ -8479,7 +8483,7 @@ namespace Tomahawk
 				int R = FindDefineDirective(Buffer, Base, &Size);
 				if (R < 0)
 				{
-					TH_ERROR("cannot process define directive");
+					TH_ERR("cannot process define directive");
 					return false;
 				}
 				else if (R == 0)
@@ -8497,7 +8501,7 @@ namespace Tomahawk
 			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
 			if (R < 0)
 			{
-				TH_ERROR("cannot process define directive");
+				TH_ERR("cannot process define directive");
 				return -1;
 			}
 			else if (R == 0)
@@ -8526,7 +8530,7 @@ namespace Tomahawk
 				R = FindDirective(Buffer, "#ifndef", &Offset, nullptr, &Start, &End);
 				if (R < 0)
 				{
-					TH_ERROR("cannot parse ifdef block directive");
+					TH_ERR("cannot parse ifdef block directive");
 					return -1;
 				}
 				else if (R == 0)
@@ -8558,7 +8562,7 @@ namespace Tomahawk
 			R = FindBlockNesting(Buffer, Cond, Offset, B1Start + B1End == 0 ? Resolved : !Resolved);
 			if (R < 0)
 			{
-				TH_ERROR("cannot find endif directive of %s", Name.Get());
+				TH_ERR("cannot find endif directive of %s", Name.Get());
 				return -1;
 			}
 			else if (R == 1)
@@ -8566,7 +8570,7 @@ namespace Tomahawk
 				int C = FindBlockDirective(Buffer, Offset, true);
 				if (C == 0)
 				{
-					TH_ERROR("cannot process nested ifdef/endif directive of %s", Name.Get());
+					TH_ERR("cannot process nested ifdef/endif directive of %s", Name.Get());
 					return -1;
 				}
 				else if (C < 0)
@@ -8782,9 +8786,7 @@ namespace Tomahawk
 		}
 		FiniteState* FiniteState::Bind(const std::string& Name, const ActionCallback& Callback)
 		{
-			if (!Callback)
-				return this;
-
+			TH_ASSERT(Callback, nullptr, "callback should not be empty");
 			ActionCallback* Result = TH_NEW(ActionCallback, Callback);
 			Mutex.lock();
 			auto It = Actions.find(Name);
@@ -8900,6 +8902,7 @@ namespace Tomahawk
 		}
 		void Transform::Copy(Transform* Target)
 		{
+			TH_ASSERT_V(Target != nullptr, "target should be set");
 			if (!Target->Root)
 			{
 				TH_DELETE(Matrix4x4, LocalTransform);
@@ -8948,6 +8951,7 @@ namespace Tomahawk
 		}
 		void Transform::AddChild(Transform* Child)
 		{
+			TH_ASSERT_V(Child != nullptr, "child should be set");
 			if (Childs != nullptr)
 			{
 				for (auto* Item : *Childs)
@@ -8963,6 +8967,7 @@ namespace Tomahawk
 		}
 		void Transform::RemoveChild(Transform* Child)
 		{
+			TH_ASSERT_V(Child != nullptr, "child should be set");
 			if (!Childs)
 				return;
 
@@ -9090,7 +9095,7 @@ namespace Tomahawk
 		}
 		void Transform::GetRootBasis(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
 		{
-			if (!Root)
+			if (Root != nullptr)
 			{
 				Matrix4x4 Result = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
 				if (_Position != nullptr)
@@ -9116,6 +9121,7 @@ namespace Tomahawk
 		}
 		bool Transform::HasRoot(Transform* Target)
 		{
+			TH_ASSERT(Target != nullptr, false, "target should be set");
 			Compute::Transform* UpperRoot = Root;
 			while (true)
 			{
@@ -9132,6 +9138,7 @@ namespace Tomahawk
 		}
 		bool Transform::HasChild(Transform* Target)
 		{
+			TH_ASSERT(Target != nullptr, false, "target should be set");
 			if (!Childs)
 				return false;
 
@@ -9155,9 +9162,7 @@ namespace Tomahawk
 			if (!Childs)
 				return nullptr;
 
-			if (Child >= Childs->size())
-				return nullptr;
-
+			TH_ASSERT(Child < Childs->size(), nullptr, "index outside of range");
 			return (*Childs)[Child];
 		}
 		Vector3* Transform::GetLocalPosition()
@@ -9165,6 +9170,7 @@ namespace Tomahawk
 			if (!Root)
 				return &Position;
 
+			TH_ASSERT(LocalPosition != nullptr, nullptr, "corrupted root transform");
 			return LocalPosition;
 		}
 		Vector3* Transform::GetLocalRotation()
@@ -9172,6 +9178,7 @@ namespace Tomahawk
 			if (!Root)
 				return &Rotation;
 
+			TH_ASSERT(LocalRotation != nullptr, nullptr, "corrupted root transform");
 			return LocalRotation;
 		}
 		Vector3* Transform::GetLocalScale()
@@ -9179,26 +9186,36 @@ namespace Tomahawk
 			if (!Root)
 				return &Scale;
 
+			TH_ASSERT(LocalScale != nullptr, nullptr, "corrupted root transform");
 			return LocalScale;
 		}
 		Vector3 Transform::Up()
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalTransform != nullptr, Vector3::Up(), "corrupted root transform");
 				return LocalTransform->Up();
+			}
 
 			return Matrix4x4::Create(Position, Scale, Rotation).Up();
 		}
 		Vector3 Transform::Right()
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalTransform != nullptr, Vector3::Right(), "corrupted root transform");
 				return LocalTransform->Right();
+			}
 
 			return Matrix4x4::Create(Position, Scale, Rotation).Right();
 		}
 		Vector3 Transform::Forward()
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalTransform != nullptr, Vector3::Forward(), "corrupted root transform");
 				return LocalTransform->Forward();
+			}
 
 			return Matrix4x4::Create(Position, Scale, Rotation).Forward();
 		}
@@ -9213,7 +9230,6 @@ namespace Tomahawk
 		Transform* Transform::GetUpperRoot()
 		{
 			Compute::Transform* UpperRoot = Root;
-
 			while (true)
 			{
 				if (!UpperRoot)
@@ -9230,56 +9246,80 @@ namespace Tomahawk
 		Matrix4x4 Transform::GetWorld()
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return Matrix4x4::CreateScale(Scale) * *LocalTransform;
+			}
 
 			return Matrix4x4::Create(Position, Scale, Rotation);
 		}
 		Matrix4x4 Transform::GetWorld(const Vector3& Rescale)
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return Matrix4x4::CreateScale(Scale * Rescale) * *LocalTransform;
+			}
 
 			return Matrix4x4::Create(Position, Scale * Rescale, Rotation);
 		}
 		Matrix4x4 Transform::GetWorldUnscaled()
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return *LocalTransform;
+			}
 
 			return Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
 		}
 		Matrix4x4 Transform::GetWorldUnscaled(const Vector3& Rescale)
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return Matrix4x4::CreateScale(Rescale) * *LocalTransform;
+			}
 
 			return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
 		}
 		Matrix4x4 Transform::GetLocal()
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return Matrix4x4::Create(*LocalPosition, Scale, *LocalRotation);
+			}
 
 			return Matrix4x4::Create(Position, Scale, Rotation);
 		}
 		Matrix4x4 Transform::GetLocal(const Vector3& Rescale)
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return Matrix4x4::Create(*LocalPosition, Scale * Rescale, *LocalRotation);
+			}
 
 			return Matrix4x4::Create(Position, Scale * Rescale, Rotation);
 		}
 		Matrix4x4 Transform::GetLocalUnscaled()
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return Matrix4x4::CreateRotation(*LocalRotation) * Matrix4x4::CreateTranslation(*LocalPosition);
+			}
 
 			return Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
 		}
 		Matrix4x4 Transform::GetLocalUnscaled(const Vector3& Rescale)
 		{
 			if (Root)
+			{
+				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
 				return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(*LocalRotation) * Matrix4x4::CreateTranslation(*LocalPosition);
+			}
 
 			return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
 		}
@@ -9306,9 +9346,9 @@ namespace Tomahawk
 
 		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
+			TH_ASSERT_V(Initial.Shape, "collision shape should be set");
+			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
 #ifdef TH_WITH_BULLET3
-			if (!Initial.Shape || !Engine)
-				return;
 
 			Initial.Shape = Engine->ReuseShape(Initial.Shape);
 			if (!Initial.Shape)
@@ -9396,8 +9436,7 @@ namespace Tomahawk
 		}
 		RigidBody* RigidBody::Copy()
 		{
-			if (!Instance)
-				return nullptr;
+			TH_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
 
 			Desc I(Initial);
 			I.Position = GetPosition();
@@ -9436,53 +9475,47 @@ namespace Tomahawk
 		void RigidBody::Push(const Vector3& Velocity)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->applyCentralImpulse(V3_TO_BT(Velocity));
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->applyCentralImpulse(V3_TO_BT(Velocity));
 #endif
 		}
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-			{
-				Instance->applyCentralImpulse(V3_TO_BT(Velocity));
-				Instance->applyTorqueImpulse(V3_TO_BT(Torque));
-			}
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->applyCentralImpulse(V3_TO_BT(Velocity));
+			Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 #endif
 		}
 		void RigidBody::Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-			{
-				Instance->applyImpulse(V3_TO_BT(Velocity), V3_TO_BT(Center));
-				Instance->applyTorqueImpulse(V3_TO_BT(Torque));
-			}
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->applyImpulse(V3_TO_BT(Velocity), V3_TO_BT(Center));
+			Instance->applyTorqueImpulse(V3_TO_BT(Torque));
 #endif
 		}
 		void RigidBody::PushKinematic(const Vector3& Velocity)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-			{
-				btTransform Offset;
-				Instance->getMotionState()->getWorldTransform(Offset);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
 
-				btVector3 Origin = Offset.getOrigin();
-				Origin.setX(Origin.getX() + Velocity.X);
-				Origin.setY(Origin.getY() + Velocity.Y);
-				Origin.setZ(Origin.getZ() + Velocity.Z);
+			btTransform Offset;
+			Instance->getMotionState()->getWorldTransform(Offset);
 
-				Offset.setOrigin(Origin);
-				Instance->getMotionState()->setWorldTransform(Offset);
-			}
+			btVector3 Origin = Offset.getOrigin();
+			Origin.setX(Origin.getX() + Velocity.X);
+			Origin.setY(Origin.getY() + Velocity.Y);
+			Origin.setZ(Origin.getZ() + Velocity.Z);
+
+			Offset.setOrigin(Origin);
+			Instance->getMotionState()->setWorldTransform(Offset);
 #endif
 		}
 		void RigidBody::PushKinematic(const Vector3& Velocity, const Vector3& Torque)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return;
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
 
 			btTransform Offset;
 			Instance->getMotionState()->getWorldTransform(Offset);
@@ -9502,8 +9535,7 @@ namespace Tomahawk
 		void RigidBody::Synchronize(Transform* Transform, bool Kinematic)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return;
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
 
 			btTransform& Base = Instance->getWorldTransform();
 			if (!Kinematic)
@@ -9526,7 +9558,8 @@ namespace Tomahawk
 		void RigidBody::SetActivity(bool Active)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance || GetActivationState() == MotionState::Disable_Deactivation)
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			if (GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
 			if (Active)
@@ -9541,191 +9574,190 @@ namespace Tomahawk
 		void RigidBody::SetAsGhost()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
 #endif
 		}
 		void RigidBody::SetAsNormal()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCollisionFlags(0);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setCollisionFlags(0);
 #endif
 		}
 		void RigidBody::SetSelfPointer()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setUserPointer(this);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setUserPointer(this);
 #endif
 		}
 		void RigidBody::SetWorldTransform(btTransform* Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance && Value)
-				Instance->setWorldTransform(*Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			TH_ASSERT_V(Value != nullptr, "transform should be set");
+			Instance->setWorldTransform(*Value);
 #endif
 		}
 		void RigidBody::SetActivationState(MotionState Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->forceActivationState((int)Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->forceActivationState((int)Value);
 #endif
 		}
 		void RigidBody::SetAngularDamping(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDamping(Instance->getLinearDamping(), Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setDamping(Instance->getLinearDamping(), Value);
 #endif
 		}
 		void RigidBody::SetAngularSleepingThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSleepingThresholds(Instance->getLinearSleepingThreshold(), Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setSleepingThresholds(Instance->getLinearSleepingThreshold(), Value);
 #endif
 		}
 		void RigidBody::SetFriction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setFriction(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setFriction(Value);
 #endif
 		}
 		void RigidBody::SetRestitution(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitution(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setRestitution(Value);
 #endif
 		}
 		void RigidBody::SetSpinningFriction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSpinningFriction(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setSpinningFriction(Value);
 #endif
 		}
 		void RigidBody::SetContactStiffness(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
 #endif
 		}
 		void RigidBody::SetContactDamping(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
 #endif
 		}
 		void RigidBody::SetHitFraction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setHitFraction(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setHitFraction(Value);
 #endif
 		}
 		void RigidBody::SetLinearDamping(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDamping(Value, Instance->getAngularDamping());
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setDamping(Value, Instance->getAngularDamping());
 #endif
 		}
 		void RigidBody::SetLinearSleepingThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSleepingThresholds(Value, Instance->getAngularSleepingThreshold());
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setSleepingThresholds(Value, Instance->getAngularSleepingThreshold());
 #endif
 		}
 		void RigidBody::SetCcdMotionThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCcdMotionThreshold(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setCcdMotionThreshold(Value);
 #endif
 		}
 		void RigidBody::SetCcdSweptSphereRadius(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCcdSweptSphereRadius(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setCcdSweptSphereRadius(Value);
 #endif
 		}
 		void RigidBody::SetContactProcessingThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setContactProcessingThreshold(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setContactProcessingThreshold(Value);
 #endif
 		}
 		void RigidBody::SetDeactivationTime(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDeactivationTime(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setDeactivationTime(Value);
 #endif
 		}
 		void RigidBody::SetRollingFriction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRollingFriction(Value);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setRollingFriction(Value);
 #endif
 		}
 		void RigidBody::SetAngularFactor(const Vector3& Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setAngularFactor(V3_TO_BT(Value));
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setAngularFactor(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetAnisotropicFriction(const Vector3& Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setAnisotropicFriction(V3_TO_BT(Value));
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setAnisotropicFriction(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetGravity(const Vector3& Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setGravity(V3_TO_BT(Value));
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setGravity(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetLinearFactor(const Vector3& Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setLinearFactor(V3_TO_BT(Value));
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setLinearFactor(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetLinearVelocity(const Vector3& Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setLinearVelocity(V3_TO_BT(Value));
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setLinearVelocity(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetAngularVelocity(const Vector3& Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setAngularVelocity(V3_TO_BT(Value));
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setAngularVelocity(V3_TO_BT(Value));
 #endif
 		}
 		void RigidBody::SetCollisionShape(btCollisionShape* Shape, Transform* Transform)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return;
-
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
 			btCollisionShape* Collision = Instance->getCollisionShape();
 			TH_DELETE(btCollisionShape, Collision);
 
@@ -9737,9 +9769,7 @@ namespace Tomahawk
 		void RigidBody::SetMass(float Mass)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance || !Engine)
-				return;
-
+			TH_ASSERT_V(Instance != nullptr && Engine != nullptr, "rigidbody should be initialized");
 			btVector3 Inertia = Engine->GetWorld()->getGravity();
 			if (Instance->getWorldArrayIndex() >= 0)
 				Engine->GetWorld()->removeRigidBody(Instance);
@@ -9756,16 +9786,14 @@ namespace Tomahawk
 		void RigidBody::SetCollisionFlags(uint64_t Flags)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCollisionFlags((int)Flags);
+			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
+			Instance->setCollisionFlags((int)Flags);
 #endif
 		}
 		MotionState RigidBody::GetActivationState()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return MotionState::Active;
-
+			TH_ASSERT(Instance != nullptr, MotionState::Active, "rigidbody should be initialized");
 			return (MotionState)Instance->getActivationState();
 #else
 			return MotionState::Island_Sleeping;
@@ -9774,9 +9802,7 @@ namespace Tomahawk
 		Shape RigidBody::GetCollisionShapeType()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance || !Instance->getCollisionShape())
-				return Shape::Invalid;
-
+			TH_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, Shape::Invalid, "rigidbody should be initialized");
 			return (Shape)Instance->getCollisionShape()->getShapeType();
 #else
 			return Shape::Invalid;
@@ -9785,9 +9811,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetAngularFactor()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btVector3 Value = Instance->getAngularFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9797,9 +9821,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetAnisotropicFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btVector3 Value = Instance->getAnisotropicFriction();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9809,9 +9831,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetGravity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btVector3 Value = Instance->getGravity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9821,9 +9841,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetLinearFactor()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btVector3 Value = Instance->getLinearFactor();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9833,9 +9851,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetLinearVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btVector3 Value = Instance->getLinearVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9845,9 +9861,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetAngularVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btVector3 Value = Instance->getAngularVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9857,9 +9871,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetScale()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance || !Instance->getCollisionShape())
-				return Vector3(1, 1, 1);
-
+			TH_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, 1, "rigidbody should be initialized");
 			btVector3 Value = Instance->getCollisionShape()->getLocalScaling();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9869,6 +9881,7 @@ namespace Tomahawk
 		Vector3 RigidBody::GetPosition()
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btVector3 Value = Instance->getWorldTransform().getOrigin();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -9878,9 +9891,9 @@ namespace Tomahawk
 		Vector3 RigidBody::GetRotation()
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			btScalar X, Y, Z;
 			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
-
 			return Vector3(-X, -Y, Z);
 #else
 			return 0;
@@ -9889,6 +9902,7 @@ namespace Tomahawk
 		btTransform* RigidBody::GetWorldTransform()
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
 			return &Instance->getWorldTransform();
 #else
 			return nullptr;
@@ -9897,9 +9911,7 @@ namespace Tomahawk
 		btCollisionShape* RigidBody::GetCollisionShape()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return nullptr;
-
+			TH_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
 			return Instance->getCollisionShape();
 #else
 			return nullptr;
@@ -9916,9 +9928,7 @@ namespace Tomahawk
 		bool RigidBody::IsGhost()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
 			return (Instance->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE) != 0;
 #else
 			return false;
@@ -9927,9 +9937,7 @@ namespace Tomahawk
 		bool RigidBody::IsActive()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
 			return Instance->isActive();
 #else
 			return false;
@@ -9938,9 +9946,7 @@ namespace Tomahawk
 		bool RigidBody::IsStatic()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
 			return Instance->isStaticObject();
 #else
 			return true;
@@ -9949,9 +9955,7 @@ namespace Tomahawk
 		bool RigidBody::IsColliding()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
 			return Instance->hasContactResponse();
 #else
 			return false;
@@ -9960,9 +9964,7 @@ namespace Tomahawk
 		float RigidBody::GetSpinningFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getSpinningFriction();
 #else
 			return 0;
@@ -9971,9 +9973,7 @@ namespace Tomahawk
 		float RigidBody::GetContactStiffness()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getContactStiffness();
 #else
 			return 0;
@@ -9982,9 +9982,7 @@ namespace Tomahawk
 		float RigidBody::GetContactDamping()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getContactDamping();
 #else
 			return 0;
@@ -9993,9 +9991,7 @@ namespace Tomahawk
 		float RigidBody::GetAngularDamping()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getAngularDamping();
 #else
 			return 0;
@@ -10004,9 +10000,7 @@ namespace Tomahawk
 		float RigidBody::GetAngularSleepingThreshold()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getAngularSleepingThreshold();
 #else
 			return 0;
@@ -10015,9 +10009,7 @@ namespace Tomahawk
 		float RigidBody::GetFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getFriction();
 #else
 			return 0;
@@ -10026,9 +10018,7 @@ namespace Tomahawk
 		float RigidBody::GetRestitution()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getRestitution();
 #else
 			return 0;
@@ -10037,9 +10027,7 @@ namespace Tomahawk
 		float RigidBody::GetHitFraction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getHitFraction();
 #else
 			return 0;
@@ -10048,9 +10036,7 @@ namespace Tomahawk
 		float RigidBody::GetLinearDamping()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getLinearDamping();
 #else
 			return 0;
@@ -10059,9 +10045,7 @@ namespace Tomahawk
 		float RigidBody::GetLinearSleepingThreshold()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getLinearSleepingThreshold();
 #else
 			return 0;
@@ -10070,9 +10054,7 @@ namespace Tomahawk
 		float RigidBody::GetCcdMotionThreshold()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getCcdMotionThreshold();
 #else
 			return 0;
@@ -10081,9 +10063,7 @@ namespace Tomahawk
 		float RigidBody::GetCcdSweptSphereRadius()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getCcdSweptSphereRadius();
 #else
 			return 0;
@@ -10092,9 +10072,7 @@ namespace Tomahawk
 		float RigidBody::GetContactProcessingThreshold()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getContactProcessingThreshold();
 #else
 			return 0;
@@ -10103,9 +10081,7 @@ namespace Tomahawk
 		float RigidBody::GetDeactivationTime()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getDeactivationTime();
 #else
 			return 0;
@@ -10114,9 +10090,7 @@ namespace Tomahawk
 		float RigidBody::GetRollingFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getRollingFriction();
 #else
 			return 0;
@@ -10125,10 +10099,9 @@ namespace Tomahawk
 		float RigidBody::GetMass()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance && Instance->getInvMass() != 0.0f)
-				return 1.0f / Instance->getInvMass();
-
-			return 0;
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
+			float Mass = Instance->getInvMass();
+			return (Mass != 0.0f ? 1.0f / Mass : 0.0f);
 #else
 			return 0;
 #endif
@@ -10136,9 +10109,7 @@ namespace Tomahawk
 		uint64_t RigidBody::GetCollisionFlags()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
 			return Instance->getCollisionFlags();
 #else
 			return 0;
@@ -10155,9 +10126,7 @@ namespace Tomahawk
 		RigidBody* RigidBody::Get(btRigidBody* From)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!From)
-				return nullptr;
-
+			TH_ASSERT(From != nullptr, 0, "rigidbody should be initialized");
 			return (RigidBody*)From->getUserPointer();
 #else
 			return nullptr;
@@ -10167,8 +10136,8 @@ namespace Tomahawk
 		SoftBody::SoftBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Engine || !Engine->HasSoftBodySupport())
-				return;
+			TH_ASSERT_V(Engine != nullptr, "engine should be set");
+			TH_ASSERT_V(Engine->HasSoftBodySupport(), "soft body should be supported");
 
 			btQuaternion Rotation;
 			Rotation.setEulerZYX(Initial.Rotation.Z, Initial.Rotation.Y, Initial.Rotation.X);
@@ -10260,8 +10229,7 @@ namespace Tomahawk
 		}
 		SoftBody* SoftBody::Copy()
 		{
-			if (!Instance)
-				return nullptr;
+			TH_ASSERT(Instance != nullptr, nullptr, "softbody should be initialized");
 
 			Desc I(Initial);
 			I.Position = GetCenterPosition();
@@ -10293,16 +10261,15 @@ namespace Tomahawk
 		void SoftBody::Activate(bool Force)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->activate(Force);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->activate(Force);
 #endif
 		}
 		void SoftBody::Synchronize(Transform* Transform, bool Kinematic)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return;
-
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			TH_ASSERT_V(Transform != nullptr, "transform should be set");
 #ifdef TH_WITH_SIMD
 			LOD_VAL(_r1, 0.0f); LOD_VAL(_r2, 0.0f);
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
@@ -10342,8 +10309,8 @@ namespace Tomahawk
 		void SoftBody::GetIndices(std::vector<int>* Result)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance || !Result)
-				return;
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			TH_ASSERT_V(Result != nullptr, "result should be set");
 
 			std::unordered_map<btSoftBody::Node*, int> Nodes;
 			for (int i = 0; i < Instance->m_nodes.size(); i++)
@@ -10364,11 +10331,11 @@ namespace Tomahawk
 		void SoftBody::GetVertices(std::vector<Vertex>* Result)
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			TH_ASSERT_V(Result != nullptr, "result should be set");
+
 			static size_t PositionX = offsetof(Compute::Vertex, PositionX);
 			static size_t NormalX = offsetof(Compute::Vertex, NormalX);
-
-			if (!Instance || !Result)
-				return;
 
 			size_t Size = (size_t)Instance->m_nodes.size();
 			if (Result->size() != Size)
@@ -10390,8 +10357,7 @@ namespace Tomahawk
 		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return;
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
 
 			btVector3 bMin, bMax;
 			Instance->getAabb(bMin, bMax);
@@ -10405,153 +10371,151 @@ namespace Tomahawk
 		void SoftBody::SetContactStiffnessAndDamping(float Stiffness, float Damping)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setContactStiffnessAndDamping(Stiffness, Damping);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setContactStiffnessAndDamping(Stiffness, Damping);
 #endif
 		}
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies, float Influence)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance && Body)
-				Instance->appendAnchor(Node, Body->Bullet(), DisableCollisionBetweenLinkedBodies, Influence);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			TH_ASSERT_V(Body != nullptr, "body should be set");
+			Instance->appendAnchor(Node, Body->Bullet(), DisableCollisionBetweenLinkedBodies, Influence);
 #endif
 		}
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies, float Influence)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance && Body)
-				Instance->appendAnchor(Node, Body->Bullet(), V3_TO_BT(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			TH_ASSERT_V(Body != nullptr, "body should be set");
+			Instance->appendAnchor(Node, Body->Bullet(), V3_TO_BT(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
 #endif
 		}
 		void SoftBody::AddForce(const Vector3& Force)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->addForce(V3_TO_BT(Force));
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->addForce(V3_TO_BT(Force));
 #endif
 		}
 		void SoftBody::AddForce(const Vector3& Force, int Node)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->addForce(V3_TO_BT(Force), Node);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->addForce(V3_TO_BT(Force), Node);
 #endif
 		}
 		void SoftBody::AddAeroForceToNode(const Vector3& WindVelocity, int NodeIndex)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->addAeroForceToNode(V3_TO_BT(WindVelocity), NodeIndex);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->addAeroForceToNode(V3_TO_BT(WindVelocity), NodeIndex);
 #endif
 		}
 		void SoftBody::AddAeroForceToFace(const Vector3& WindVelocity, int FaceIndex)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->addAeroForceToFace(V3_TO_BT(WindVelocity), FaceIndex);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->addAeroForceToFace(V3_TO_BT(WindVelocity), FaceIndex);
 #endif
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->addVelocity(V3_TO_BT(Velocity));
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->addVelocity(V3_TO_BT(Velocity));
 #endif
 		}
 		void SoftBody::SetVelocity(const Vector3& Velocity)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setVelocity(V3_TO_BT(Velocity));
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setVelocity(V3_TO_BT(Velocity));
 #endif
 		}
 		void SoftBody::AddVelocity(const Vector3& Velocity, int Node)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->addVelocity(V3_TO_BT(Velocity), Node);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->addVelocity(V3_TO_BT(Velocity), Node);
 #endif
 		}
 		void SoftBody::SetMass(int Node, float Mass)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setMass(Node, Mass);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setMass(Node, Mass);
 #endif
 		}
 		void SoftBody::SetTotalMass(float Mass, bool FromFaces)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setTotalMass(Mass, FromFaces);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setTotalMass(Mass, FromFaces);
 #endif
 		}
 		void SoftBody::SetTotalDensity(float Density)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setTotalDensity(Density);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setTotalDensity(Density);
 #endif
 		}
 		void SoftBody::SetVolumeMass(float Mass)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setVolumeMass(Mass);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setVolumeMass(Mass);
 #endif
 		}
 		void SoftBody::SetVolumeDensity(float Density)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setVolumeDensity(Density);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setVolumeDensity(Density);
 #endif
 		}
 		void SoftBody::Translate(const Vector3& Position)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->translate(btVector3(Position.X, Position.Y, -Position.Z));
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->translate(btVector3(Position.X, Position.Y, -Position.Z));
 #endif
 		}
 		void SoftBody::Rotate(const Vector3& Rotation)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-			{
-				btQuaternion Value;
-				Value.setEulerZYX(Rotation.X, Rotation.Y, Rotation.Z);
-				Instance->rotate(Value);
-			}
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			btQuaternion Value;
+			Value.setEulerZYX(Rotation.X, Rotation.Y, Rotation.Z);
+			Instance->rotate(Value);
 #endif
 		}
 		void SoftBody::Scale(const Vector3& Scale)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->scale(V3_TO_BT(Scale));
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->scale(V3_TO_BT(Scale));
 #endif
 		}
 		void SoftBody::SetRestLengthScale(float RestLength)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestLengthScale(RestLength);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setRestLengthScale(RestLength);
 #endif
 		}
 		void SoftBody::SetPose(bool Volume, bool Frame)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setPose(Volume, Frame);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setPose(Volume, Frame);
 #endif
 		}
 		float SoftBody::GetMass(int Node) const
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getMass(Node);
 #else
 			return 0;
@@ -10560,9 +10524,7 @@ namespace Tomahawk
 		float SoftBody::GetTotalMass() const
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getTotalMass();
 #else
 			return 0;
@@ -10571,9 +10533,7 @@ namespace Tomahawk
 		float SoftBody::GetRestLengthScale()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getRestLengthScale();
 #else
 			return 0;
@@ -10582,9 +10542,7 @@ namespace Tomahawk
 		float SoftBody::GetVolume() const
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getVolume();
 #else
 			return 0;
@@ -10593,9 +10551,7 @@ namespace Tomahawk
 		int SoftBody::GenerateBendingConstraints(int Distance)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->generateBendingConstraints(Distance);
 #else
 			return 0;
@@ -10604,16 +10560,14 @@ namespace Tomahawk
 		void SoftBody::RandomizeConstraints()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->randomizeConstraints();
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->randomizeConstraints();
 #endif
 		}
 		bool SoftBody::CutLink(int Node0, int Node1, float Position)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
 			return Instance->cutLink(Node0, Node1, Position);
 #else
 			return false;
@@ -10622,9 +10576,7 @@ namespace Tomahawk
 		bool SoftBody::RayTest(const Vector3& From, const Vector3& To, RayCast& Result)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
 			btSoftBody::sRayCast Cast;
 			bool R = Instance->rayTest(V3_TO_BT(From), V3_TO_BT(To), Cast);
 			Result.Body = Get(Cast.body);
@@ -10640,16 +10592,14 @@ namespace Tomahawk
 		void SoftBody::SetWindVelocity(const Vector3& Velocity)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setWindVelocity(V3_TO_BT(Velocity));
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setWindVelocity(V3_TO_BT(Velocity));
 #endif
 		}
 		Vector3 SoftBody::GetWindVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
 			btVector3 Value = Instance->getWindVelocity();
 			return BT_TO_V3(Value);
 #else
@@ -10659,9 +10609,7 @@ namespace Tomahawk
 		void SoftBody::GetAabb(Vector3& Min, Vector3& Max) const
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return;
-
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
 			btVector3 BMin, BMax;
 			Instance->getAabb(BMin, BMax);
 			Min = BT_TO_V3(BMin);
@@ -10671,23 +10619,22 @@ namespace Tomahawk
 		void SoftBody::IndicesToPointers(const int* Map)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->indicesToPointers(Map);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			TH_ASSERT_V(Map != nullptr, "map should be set");
+			Instance->indicesToPointers(Map);
 #endif
 		}
 		void SoftBody::SetSpinningFriction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSpinningFriction(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setSpinningFriction(Value);
 #endif
 		}
 		Vector3 SoftBody::GetLinearVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			btVector3 Value = Instance->getInterpolationLinearVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -10697,9 +10644,7 @@ namespace Tomahawk
 		Vector3 SoftBody::GetAngularVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			btVector3 Value = Instance->getInterpolationAngularVelocity();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -10717,7 +10662,8 @@ namespace Tomahawk
 		void SoftBody::SetActivity(bool Active)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance || GetActivationState() == MotionState::Disable_Deactivation)
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			if (GetActivationState() == MotionState::Disable_Deactivation)
 				return;
 
 			if (Active)
@@ -10729,121 +10675,120 @@ namespace Tomahawk
 		void SoftBody::SetAsGhost()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setCollisionFlags(btCollisionObject::CF_NO_CONTACT_RESPONSE);
 #endif
 		}
 		void SoftBody::SetAsNormal()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCollisionFlags(0);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setCollisionFlags(0);
 #endif
 		}
 		void SoftBody::SetSelfPointer()
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setUserPointer(this);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setUserPointer(this);
 #endif
 		}
 		void SoftBody::SetWorldTransform(btTransform* Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance && Value)
-				Instance->setWorldTransform(*Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			TH_ASSERT_V(Value != nullptr, "transform should be set");
+			Instance->setWorldTransform(*Value);
 #endif
 		}
 		void SoftBody::SetActivationState(MotionState Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->forceActivationState((int)Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->forceActivationState((int)Value);
 #endif
 		}
 		void SoftBody::SetFriction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setFriction(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setFriction(Value);
 #endif
 		}
 		void SoftBody::SetRestitution(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitution(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setRestitution(Value);
 #endif
 		}
 		void SoftBody::SetContactStiffness(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setContactStiffnessAndDamping(Value, Instance->getContactDamping());
 #endif
 		}
 		void SoftBody::SetContactDamping(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setContactStiffnessAndDamping(Instance->getContactStiffness(), Value);
 #endif
 		}
 		void SoftBody::SetHitFraction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setHitFraction(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setHitFraction(Value);
 #endif
 		}
 		void SoftBody::SetCcdMotionThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCcdMotionThreshold(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setCcdMotionThreshold(Value);
 #endif
 		}
 		void SoftBody::SetCcdSweptSphereRadius(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setCcdSweptSphereRadius(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setCcdSweptSphereRadius(Value);
 #endif
 		}
 		void SoftBody::SetContactProcessingThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setContactProcessingThreshold(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setContactProcessingThreshold(Value);
 #endif
 		}
 		void SoftBody::SetDeactivationTime(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDeactivationTime(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setDeactivationTime(Value);
 #endif
 		}
 		void SoftBody::SetRollingFriction(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRollingFriction(Value);
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setRollingFriction(Value);
 #endif
 		}
 		void SoftBody::SetAnisotropicFriction(const Vector3& Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setAnisotropicFriction(V3_TO_BT(Value));
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
+			Instance->setAnisotropicFriction(V3_TO_BT(Value));
 #endif
 		}
 		void SoftBody::SetConfig(const Desc::SConfig& Conf)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return;
-
+			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
 			Initial.Config = Conf;
 			Instance->m_cfg.aeromodel = (btSoftBody::eAeroModel::_)Initial.Config.AeroModel;
 			Instance->m_cfg.kVCF = Initial.Config.VCF;
@@ -10884,9 +10829,7 @@ namespace Tomahawk
 		MotionState SoftBody::GetActivationState()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return MotionState::Active;
-
+			TH_ASSERT(Instance != nullptr, MotionState::Active, "softbody should be initialized");
 			return (MotionState)Instance->getActivationState();
 #else
 			return MotionState::Island_Sleeping;
@@ -10895,7 +10838,8 @@ namespace Tomahawk
 		Shape SoftBody::GetCollisionShapeType()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance || !Initial.Shape.Convex.Enabled)
+			TH_ASSERT(Instance != nullptr, Shape::Invalid, "softbody should be initialized");
+			if (!Initial.Shape.Convex.Enabled)
 				return Shape::Invalid;
 
 			return Shape::Convex_Hull;
@@ -10906,9 +10850,7 @@ namespace Tomahawk
 		Vector3 SoftBody::GetAnisotropicFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			btVector3 Value = Instance->getAnisotropicFriction();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -10918,9 +10860,7 @@ namespace Tomahawk
 		Vector3 SoftBody::GetScale()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return Vector3(1, 1, 1);
-
+			TH_ASSERT(Instance != nullptr, 1, "softbody should be initialized");
 			btVector3 bMin, bMax;
 			Instance->getAabb(bMin, bMax);
 			btVector3 bScale = bMax - bMin;
@@ -10934,6 +10874,7 @@ namespace Tomahawk
 		Vector3 SoftBody::GetPosition()
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			btVector3 Value = Instance->getWorldTransform().getOrigin();
 			return Vector3(Value.getX(), Value.getY(), Value.getZ());
 #else
@@ -10943,9 +10884,9 @@ namespace Tomahawk
 		Vector3 SoftBody::GetRotation()
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			btScalar X, Y, Z;
 			Instance->getWorldTransform().getBasis().getEulerZYX(Z, Y, X);
-
 			return Vector3(-X, -Y, Z);
 #else
 			return 0;
@@ -10954,6 +10895,7 @@ namespace Tomahawk
 		btTransform* SoftBody::GetWorldTransform()
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, nullptr, "softbody should be initialized");
 			return &Instance->getWorldTransform();
 #else
 			return nullptr;
@@ -10970,9 +10912,7 @@ namespace Tomahawk
 		bool SoftBody::IsGhost()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
 			return (Instance->getCollisionFlags() & btCollisionObject::CF_NO_CONTACT_RESPONSE) != 0;
 #else
 			return false;
@@ -10981,9 +10921,7 @@ namespace Tomahawk
 		bool SoftBody::IsActive()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
 			return Instance->isActive();
 #else
 			return false;
@@ -10992,9 +10930,7 @@ namespace Tomahawk
 		bool SoftBody::IsStatic()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
 			return Instance->isStaticObject();
 #else
 			return true;
@@ -11003,9 +10939,7 @@ namespace Tomahawk
 		bool SoftBody::IsColliding()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return false;
-
+			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
 			return Instance->hasContactResponse();
 #else
 			return false;
@@ -11014,9 +10948,7 @@ namespace Tomahawk
 		float SoftBody::GetSpinningFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getSpinningFriction();
 #else
 			return 0;
@@ -11025,9 +10957,7 @@ namespace Tomahawk
 		float SoftBody::GetContactStiffness()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getContactStiffness();
 #else
 			return 0;
@@ -11036,9 +10966,7 @@ namespace Tomahawk
 		float SoftBody::GetContactDamping()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getContactDamping();
 #else
 			return 0;
@@ -11047,9 +10975,7 @@ namespace Tomahawk
 		float SoftBody::GetFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getFriction();
 #else
 			return 0;
@@ -11058,9 +10984,7 @@ namespace Tomahawk
 		float SoftBody::GetRestitution()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getRestitution();
 #else
 			return 0;
@@ -11069,9 +10993,7 @@ namespace Tomahawk
 		float SoftBody::GetHitFraction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getHitFraction();
 #else
 			return 0;
@@ -11080,9 +11002,7 @@ namespace Tomahawk
 		float SoftBody::GetCcdMotionThreshold()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getCcdMotionThreshold();
 #else
 			return 0;
@@ -11091,9 +11011,7 @@ namespace Tomahawk
 		float SoftBody::GetCcdSweptSphereRadius()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getCcdSweptSphereRadius();
 #else
 			return 0;
@@ -11102,9 +11020,7 @@ namespace Tomahawk
 		float SoftBody::GetContactProcessingThreshold()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getContactProcessingThreshold();
 #else
 			return 0;
@@ -11113,9 +11029,7 @@ namespace Tomahawk
 		float SoftBody::GetDeactivationTime()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getDeactivationTime();
 #else
 			return 0;
@@ -11124,9 +11038,7 @@ namespace Tomahawk
 		float SoftBody::GetRollingFriction()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getRollingFriction();
 #else
 			return 0;
@@ -11135,9 +11047,7 @@ namespace Tomahawk
 		uint64_t SoftBody::GetCollisionFlags()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->getCollisionFlags();
 #else
 			return 0;
@@ -11146,9 +11056,7 @@ namespace Tomahawk
 		uint64_t SoftBody::GetVerticesCount()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			return Instance->m_nodes.size();
 #else
 			return 0;
@@ -11169,9 +11077,7 @@ namespace Tomahawk
 		SoftBody* SoftBody::Get(btSoftBody* From)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!From)
-				return nullptr;
-
+			TH_ASSERT(From != nullptr, nullptr, "softbody should be set");
 			return (SoftBody*)From->getUserPointer();
 #else
 			return nullptr;
@@ -11181,8 +11087,8 @@ namespace Tomahawk
 		SliderConstraint::SliderConstraint(Simulator* Refer, const Desc& I) : First(nullptr), Second(nullptr), Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!I.Target1 || !I.Target2 || !Engine)
-				return;
+			TH_ASSERT_V(I.Target1 != nullptr && I.Target2 != nullptr, "target rigidbodies should be set");
+			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
 
 			First = I.Target1->Bullet();
 			Second = I.Target2->Bullet();
@@ -11203,9 +11109,7 @@ namespace Tomahawk
 		}
 		SliderConstraint* SliderConstraint::Copy()
 		{
-			if (!Instance)
-				return nullptr;
-
+			TH_ASSERT(Instance != nullptr, nullptr, "slider constraint should be initialized");
 			SliderConstraint* Target = new SliderConstraint(Engine, Initial);
 			Target->SetAngularMotorVelocity(GetAngularMotorVelocity());
 			Target->SetLinearMotorVelocity(GetLinearMotorVelocity());
@@ -11243,211 +11147,211 @@ namespace Tomahawk
 		void SliderConstraint::SetAngularMotorVelocity(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setTargetAngMotorVelocity(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setTargetAngMotorVelocity(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearMotorVelocity(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setTargetLinMotorVelocity(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setTargetLinMotorVelocity(Value);
 #endif
 		}
 		void SliderConstraint::SetUpperLinearLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setUpperLinLimit(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setUpperLinLimit(Value);
 #endif
 		}
 		void SliderConstraint::SetLowerLinearLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setLowerLinLimit(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setLowerLinLimit(Value);
 #endif
 		}
 		void SliderConstraint::SetBreakingImpulseThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setBreakingImpulseThreshold(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setBreakingImpulseThreshold(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularDampingDirection(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDampingDirAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingDirAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearDampingDirection(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDampingDirLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingDirLin(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularDampingLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDampingLimAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingLimAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearDampingLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDampingLimLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingLimLin(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularDampingOrtho(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDampingOrthoAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingOrthoAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearDampingOrtho(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setDampingOrthoLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingOrthoLin(Value);
 #endif
 		}
 		void SliderConstraint::SetUpperAngularLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setUpperAngLimit(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setUpperAngLimit(Value);
 #endif
 		}
 		void SliderConstraint::SetLowerAngularLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setLowerAngLimit(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setLowerAngLimit(Value);
 #endif
 		}
 		void SliderConstraint::SetMaxAngularMotorForce(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setMaxAngMotorForce(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setMaxAngMotorForce(Value);
 #endif
 		}
 		void SliderConstraint::SetMaxLinearMotorForce(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setMaxLinMotorForce(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setMaxLinMotorForce(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularRestitutionDirection(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitutionDirAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionDirAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearRestitutionDirection(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitutionDirLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionDirLin(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularRestitutionLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitutionLimAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionLimAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearRestitutionLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitutionLimLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionLimLin(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularRestitutionOrtho(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitutionOrthoAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionOrthoAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearRestitutionOrtho(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setRestitutionOrthoLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionOrthoLin(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularSoftnessDirection(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSoftnessDirAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessDirAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearSoftnessDirection(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSoftnessDirLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessDirLin(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularSoftnessLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSoftnessLimAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessLimAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearSoftnessLimit(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSoftnessLimLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessLimLin(Value);
 #endif
 		}
 		void SliderConstraint::SetAngularSoftnessOrtho(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSoftnessOrthoAng(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessOrthoAng(Value);
 #endif
 		}
 		void SliderConstraint::SetLinearSoftnessOrtho(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setSoftnessOrthoLin(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessOrthoLin(Value);
 #endif
 		}
 		void SliderConstraint::SetPoweredAngularMotor(bool Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setPoweredAngMotor(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setPoweredAngMotor(Value);
 #endif
 		}
 		void SliderConstraint::SetPoweredLinearMotor(bool Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setPoweredLinMotor(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setPoweredLinMotor(Value);
 #endif
 		}
 		void SliderConstraint::SetEnabled(bool Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Instance)
-				Instance->setEnabled(Value);
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setEnabled(Value);
 #endif
 		}
 		btSliderConstraint* SliderConstraint::Bullet()
@@ -11477,9 +11381,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularMotorVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getTargetAngMotorVelocity();
 #else
 			return 0;
@@ -11488,9 +11390,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearMotorVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getTargetLinMotorVelocity();
 #else
 			return 0;
@@ -11499,9 +11399,7 @@ namespace Tomahawk
 		float SliderConstraint::GetUpperLinearLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getUpperLinLimit();
 #else
 			return 0;
@@ -11510,9 +11408,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLowerLinearLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getLowerLinLimit();
 #else
 			return 0;
@@ -11521,9 +11417,7 @@ namespace Tomahawk
 		float SliderConstraint::GetBreakingImpulseThreshold()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getBreakingImpulseThreshold();
 #else
 			return 0;
@@ -11532,9 +11426,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularDampingDirection()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getDampingDirAng();
 #else
 			return 0;
@@ -11543,9 +11435,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearDampingDirection()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getDampingDirLin();
 #else
 			return 0;
@@ -11554,9 +11444,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularDampingLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getDampingLimAng();
 #else
 			return 0;
@@ -11565,9 +11453,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearDampingLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getDampingLimLin();
 #else
 			return 0;
@@ -11576,9 +11462,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularDampingOrtho()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getDampingOrthoAng();
 #else
 			return 0;
@@ -11587,9 +11471,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearDampingOrtho()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getDampingOrthoLin();
 #else
 			return 0;
@@ -11598,9 +11480,7 @@ namespace Tomahawk
 		float SliderConstraint::GetUpperAngularLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getUpperAngLimit();
 #else
 			return 0;
@@ -11609,9 +11489,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLowerAngularLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getLowerAngLimit();
 #else
 			return 0;
@@ -11620,9 +11498,7 @@ namespace Tomahawk
 		float SliderConstraint::GetMaxAngularMotorForce()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getMaxAngMotorForce();
 #else
 			return 0;
@@ -11631,9 +11507,7 @@ namespace Tomahawk
 		float SliderConstraint::GetMaxLinearMotorForce()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getMaxLinMotorForce();
 #else
 			return 0;
@@ -11642,9 +11516,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularRestitutionDirection()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getRestitutionDirAng();
 #else
 			return 0;
@@ -11653,9 +11525,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearRestitutionDirection()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getRestitutionDirLin();
 #else
 			return 0;
@@ -11664,9 +11534,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularRestitutionLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getRestitutionLimAng();
 #else
 			return 0;
@@ -11675,9 +11543,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearRestitutionLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getRestitutionLimLin();
 #else
 			return 0;
@@ -11686,9 +11552,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularRestitutionOrtho()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getRestitutionOrthoAng();
 #else
 			return 0;
@@ -11697,9 +11561,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearRestitutionOrtho()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getRestitutionOrthoLin();
 #else
 			return 0;
@@ -11708,9 +11570,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularSoftnessDirection()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getSoftnessDirAng();
 #else
 			return 0;
@@ -11719,9 +11579,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearSoftnessDirection()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getSoftnessDirLin();
 #else
 			return 0;
@@ -11730,9 +11588,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularSoftnessLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getSoftnessLimAng();
 #else
 			return 0;
@@ -11741,9 +11597,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearSoftnessLimit()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getSoftnessLimLin();
 #else
 			return 0;
@@ -11752,9 +11606,7 @@ namespace Tomahawk
 		float SliderConstraint::GetAngularSoftnessOrtho()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getSoftnessOrthoAng();
 #else
 			return 0;
@@ -11763,9 +11615,7 @@ namespace Tomahawk
 		float SliderConstraint::GetLinearSoftnessOrtho()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
 			return Instance->getSoftnessOrthoLin();
 #else
 			return 0;
@@ -11774,23 +11624,19 @@ namespace Tomahawk
 		bool SliderConstraint::GetPoweredAngularMotor()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
 			return Instance->getPoweredAngMotor();
 #else
-			return 0;
+			return false;
 #endif
 		}
 		bool SliderConstraint::GetPoweredLinearMotor()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
 			return Instance->getPoweredLinMotor();
 #else
-			return 0;
+			return false;
 #endif
 		}
 		bool SliderConstraint::IsConnected()
@@ -11826,9 +11672,7 @@ namespace Tomahawk
 		bool SliderConstraint::IsEnabled()
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Instance)
-				return 0;
-
+			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
 			return Instance->isEnabled();
 #else
 			return false;
@@ -12066,45 +11910,59 @@ namespace Tomahawk
 		void Simulator::AddSoftBody(SoftBody* Body)
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Body != nullptr, "softbody should be set");
+			TH_ASSERT_V(Body->Instance != nullptr, "softbody instance should be set");
+			TH_ASSERT_V(Body->Instance->getWorldArrayIndex() == -1, "softbody should not be attached to other world");
+			TH_ASSERT_V(HasSoftBodySupport(), "softbodies should be supported");
+
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
-			if (Body != nullptr && Body->Instance != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() == -1)
-				SoftWorld->addSoftBody(Body->Instance);
+			SoftWorld->addSoftBody(Body->Instance);
 #endif
 		}
 		void Simulator::RemoveSoftBody(SoftBody* Body)
 		{
 #ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Body != nullptr, "softbody should be set");
+			TH_ASSERT_V(Body->Instance != nullptr, "softbody instance should be set");
+			TH_ASSERT_V(Body->Instance->getWorldArrayIndex() >= 0, "softbody should be attached to world");
+			TH_ASSERT_V(HasSoftBodySupport(), "softbodies should be supported");
+
 			btSoftRigidDynamicsWorld* SoftWorld = (btSoftRigidDynamicsWorld*)World;
-			if (Body != nullptr && Body->Instance != nullptr && HasSoftBodySupport() && Body->Instance->getWorldArrayIndex() >= 0)
-				SoftWorld->removeSoftBody(Body->Instance);
+			SoftWorld->removeSoftBody(Body->Instance);
 #endif
 		}
 		void Simulator::AddRigidBody(RigidBody* Body)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Body != nullptr && Body->Instance != nullptr && Body->Instance->getWorldArrayIndex() == -1)
-				World->addRigidBody(Body->Instance);
+			TH_ASSERT_V(Body != nullptr, "rigidbody should be set");
+			TH_ASSERT_V(Body->Instance != nullptr, "rigidbody instance should be set");
+			TH_ASSERT_V(Body->Instance->getWorldArrayIndex() == -1, "rigidbody should not be attached to other world");
+			World->addRigidBody(Body->Instance);
 #endif
 		}
 		void Simulator::RemoveRigidBody(RigidBody* Body)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Body != nullptr && Body->Instance != nullptr && Body->Instance->getWorldArrayIndex() >= 0)
-				World->removeRigidBody(Body->Instance);
+			TH_ASSERT_V(Body != nullptr, "rigidbody should be set");
+			TH_ASSERT_V(Body->Instance != nullptr, "rigidbody instance should be set");
+			TH_ASSERT_V(Body->Instance->getWorldArrayIndex() >= 0, "rigidbody should be attached to other world");
+			World->removeRigidBody(Body->Instance);
 #endif
 		}
 		void Simulator::AddSliderConstraint(SliderConstraint* Constraint)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Constraint != nullptr && Constraint->Instance != nullptr)
-				World->addConstraint(Constraint->Instance, !Constraint->Initial.UseCollisions);
+			TH_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
+			TH_ASSERT_V(Constraint->Instance != nullptr, "slider constraint instance should be set");
+			World->addConstraint(Constraint->Instance, !Constraint->Initial.UseCollisions);
 #endif
 		}
 		void Simulator::RemoveSliderConstraint(SliderConstraint* Constraint)
 		{
 #ifdef TH_WITH_BULLET3
-			if (Constraint != nullptr && Constraint->Instance != nullptr)
-				World->removeConstraint(Constraint->Instance);
+			TH_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
+			TH_ASSERT_V(Constraint->Instance != nullptr, "slider constraint instance should be set");
+			World->removeConstraint(Constraint->Instance);
 #endif
 		}
 		void Simulator::RemoveAll()
@@ -12142,8 +12000,8 @@ namespace Tomahawk
 		void Simulator::FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&))
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Callback || !Body)
-				return;
+			TH_ASSERT_V(Callback != nullptr, "callback should not be empty");
+			TH_ASSERT_V(Body != nullptr, "body should be set");
 
 			FindContactsHandler Handler;
 			Handler.Callback = Callback;
@@ -12153,8 +12011,7 @@ namespace Tomahawk
 		bool Simulator::FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&))
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Callback)
-				return false;
+			TH_ASSERT(Callback != nullptr, false, "callback should not be empty");
 
 			FindRayContactsHandler Handler;
 			Handler.Callback = Callback;
@@ -12390,8 +12247,8 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateConvexHull(btCollisionShape* From)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!From || From->getShapeType() != (int)Shape::Convex_Hull)
-				return nullptr;
+			TH_ASSERT(From != nullptr, nullptr, "shape should be set");
+			TH_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, nullptr, "shape type should be convex hull");
 
 			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;
@@ -12437,9 +12294,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::TryCloneShape(btCollisionShape* Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Value)
-				return nullptr;
-
+			TH_ASSERT(Value != nullptr, nullptr, "shape should be set");
 			Shape Type = (Shape)Value->getShapeType();
 			if (Type == Shape::Box)
 			{
@@ -12479,9 +12334,7 @@ namespace Tomahawk
 		btCollisionShape* Simulator::ReuseShape(btCollisionShape* Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Value)
-				return nullptr;
-
+			TH_ASSERT(Value != nullptr, nullptr, "shape should be set");
 			Safe.lock();
 			auto It = Shapes.find(Value);
 			if (It == Shapes.end())
@@ -12521,9 +12374,7 @@ namespace Tomahawk
 		std::vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Value)
-				return std::vector<Vector3>();
-
+			TH_ASSERT(Value != nullptr, std::vector<Vector3>(), "shape should be set");
 			auto Type = (Shape)Value->getShapeType();
 			if (Type != Shape::Convex_Hull)
 				return std::vector<Vector3>();
@@ -12548,9 +12399,7 @@ namespace Tomahawk
 		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!Value)
-				return 0;
-
+			TH_ASSERT(Value != nullptr, 0, "shape should be set");
 			auto Type = (Compute::Shape)Value->getShapeType();
 			if (Type != Shape::Convex_Hull)
 				return 0;
@@ -12748,8 +12597,8 @@ namespace Tomahawk
 		btCollisionShape* Simulator::CreateUnmanagedShape(btCollisionShape* From)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!From || From->getShapeType() != (int)Shape::Convex_Hull)
-				return nullptr;
+			TH_ASSERT(From != nullptr, nullptr, "shape should be set");
+			TH_ASSERT(From->getShapeType() 0= (int)Shape::Convex_Hull, nullptr, "shape type should be convex hull");
 
 			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;

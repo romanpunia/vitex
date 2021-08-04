@@ -18,12 +18,16 @@ namespace Tomahawk
 			}
 			void RigidBody::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				bool Extended = false;
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("manage"), &Manage);
 
-				SceneGraph* Scene = Parent->GetScene();
 				if (!Extended)
 					return;
 
@@ -31,6 +35,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("mass"), &Mass);
 				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
+				SceneGraph* Scene = Parent->GetScene();
 				Core::Document* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
@@ -152,13 +157,19 @@ namespace Tomahawk
 			}
 			void RigidBody::Serialize(ContentManager* Content, Core::Document* Node)
 			{
-				SceneGraph* Scene = Parent->GetScene();
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				NMake::Pack(Node->Set("kinematic"), Kinematic);
 				NMake::Pack(Node->Set("manage"), Manage);
 				NMake::Pack(Node->Set("extended"), Instance != nullptr);
+
 				if (!Instance)
 					return;
 
+				SceneGraph* Scene = Parent->GetScene();
 				Core::Document* CV = Node->Set("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 				{
@@ -211,13 +222,12 @@ namespace Tomahawk
 			}
 			void RigidBody::Create(btCollisionShape* Shape, float Mass, float Anticipation)
 			{
-				if (!Shape || !Parent)
-					return;
+				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_RELEASE(Instance);
 
@@ -233,66 +243,63 @@ namespace Tomahawk
 			}
 			void RigidBody::Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
 			{
-				if (Content != nullptr)
-				{
-					Hull = Content->Load<Compute::UnmanagedShape>(Path);
-					if (Hull != nullptr)
-						Create(Hull->Shape, Mass, Anticipation);
-				}
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				Hull = Content->Load<Compute::UnmanagedShape>(Path);
+				if (Hull != nullptr)
+					Create(Hull->Shape, Mass, Anticipation);
 			}
 			void RigidBody::Clear()
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
+
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_CLEAR(Instance);
 				Scene->Unlock();
 			}
 			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
 
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
 
+				SceneGraph* Scene = Parent->GetScene();
+				Scene->Lock();
 				Parent->Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
+				Scene->Unlock();
 			}
 			void RigidBody::SetTransform(bool Kinematics)
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
 
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
 
+				SceneGraph* Scene = Parent->GetScene();
+				Scene->Lock();
 				Instance->Synchronize(Parent->Transform, Kinematics);
 				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
+				Scene->Unlock();
 			}
 			void RigidBody::SetMass(float Mass)
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
+
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene)
-					return;
-
 				Scene->Lock();
 				Instance->SetMass(Mass);
 				Scene->Unlock();
@@ -324,6 +331,11 @@ namespace Tomahawk
 			}
 			void SoftBody::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
@@ -497,6 +509,9 @@ namespace Tomahawk
 			}
 			void SoftBody::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
 					NMake::Pack(Node->Set("material"), Slot->GetSlot());
@@ -637,13 +652,12 @@ namespace Tomahawk
 			}
 			void SoftBody::Create(Compute::UnmanagedShape* Shape, float Anticipation)
 			{
-				if (!Shape || !Parent)
-					return;
+				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_RELEASE(Instance);
 
@@ -655,7 +669,7 @@ namespace Tomahawk
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					TH_ERROR("cannot create soft body");
+					TH_ERR("cannot create soft body");
 					return Scene->Unlock();
 				}
 
@@ -668,22 +682,18 @@ namespace Tomahawk
 			}
 			void SoftBody::Create(ContentManager* Content, const std::string& Path, float Anticipation)
 			{
-				if (Content != nullptr)
-				{
-					Compute::UnmanagedShape* Hull = Content->Load<Compute::UnmanagedShape>(Path);
-					if (Hull != nullptr)
-						Create(Hull, Anticipation);
-				}
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				Compute::UnmanagedShape* Hull = Content->Load<Compute::UnmanagedShape>(Path);
+				if (Hull != nullptr)
+					Create(Hull, Anticipation);
 			}
 			void SoftBody::CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
-				if (!Parent)
-					return;
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_RELEASE(Instance);
 
@@ -695,7 +705,7 @@ namespace Tomahawk
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					TH_ERROR("cannot create soft body");
+					TH_ERR("cannot create soft body");
 					return Scene->Unlock();
 				}
 
@@ -708,13 +718,11 @@ namespace Tomahawk
 			}
 			void SoftBody::CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
 			{
-				if (!Parent)
-					return;
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_RELEASE(Instance);
 
@@ -726,7 +734,7 @@ namespace Tomahawk
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					TH_ERROR("cannot create soft body");
+					TH_ERR("cannot create soft body");
 					return Scene->Unlock();
 				}
 
@@ -739,13 +747,11 @@ namespace Tomahawk
 			}
 			void SoftBody::CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
 			{
-				if (!Parent)
-					return;
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_RELEASE(Instance);
 
@@ -757,7 +763,7 @@ namespace Tomahawk
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
 				{
-					TH_ERROR("cannot create soft body");
+					TH_ERR("cannot create soft body");
 					return Scene->Unlock();
 				}
 
@@ -787,65 +793,67 @@ namespace Tomahawk
 			}
 			void SoftBody::Regenerate()
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
+
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				Compute::SoftBody::Desc I = Instance->GetInitialState();
 				TH_RELEASE(Instance);
 
 				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->Transform);
 				if (!Instance)
-					TH_ERROR("cannot regenerate soft body");
+					TH_ERR("cannot regenerate soft body");
 				Scene->Unlock();
 			}
 			void SoftBody::Clear()
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
+
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_CLEAR(Instance);
 				Scene->Unlock();
 			}
 			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
 
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
+				SceneGraph* Scene = Parent->GetScene();
+				Scene->Lock();
 				Parent->Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
 				Instance->Synchronize(Parent->Transform, true);
 				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
+				Scene->Unlock();
 			}
 			void SoftBody::SetTransform(bool Kinematics)
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
 
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr)
-					Scene->Lock();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
+				SceneGraph* Scene = Parent->GetScene();
+				Scene->Lock();
 				Instance->Synchronize(Parent->Transform, Kinematics);
 				Instance->SetActivity(true);
-
-				if (Scene != nullptr)
-					Scene->Unlock();
+				Scene->Unlock();
 			}
 			float SoftBody::Cull(const Viewer& View)
 			{
@@ -904,6 +912,9 @@ namespace Tomahawk
 			}
 			void SliderConstraint::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				bool Extended;
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				if (!Extended)
@@ -1038,6 +1049,9 @@ namespace Tomahawk
 			}
 			void SliderConstraint::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("extended"), Instance != nullptr);
 				if (!Instance)
 					return;
@@ -1088,13 +1102,12 @@ namespace Tomahawk
 			}
 			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
-				if (Parent == Other || !Parent)
-					return;
+				TH_ASSERT_V(Parent != Other, "parent should not be equal to other");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetSimulator() != nullptr, "simulator should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_RELEASE(Instance);
 
@@ -1121,13 +1134,13 @@ namespace Tomahawk
 			}
 			void SliderConstraint::Clear()
 			{
-				if (!Instance || !Parent)
+				if (!Instance)
 					return;
+
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene || !Scene->GetSimulator())
-					return;
-
 				Scene->Lock();
 				TH_CLEAR(Instance);
 				Connection = nullptr;
@@ -1169,6 +1182,9 @@ namespace Tomahawk
 			}
 			void Acceleration::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
 				NMake::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
 				NMake::Unpack(Node->Find("constant-velocity"), &ConstantVelocity);
@@ -1178,6 +1194,9 @@ namespace Tomahawk
 			}
 			void Acceleration::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
 				NMake::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
 				NMake::Pack(Node->Set("constant-velocity"), ConstantVelocity);
@@ -1187,7 +1206,8 @@ namespace Tomahawk
 			}
 			void Acceleration::Awake(Component* New)
 			{
-				if (RigidBody)
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				if (RigidBody != nullptr)
 					return;
 
 				Components::RigidBody* Component = Parent->GetComponent<Components::RigidBody>();
@@ -1270,6 +1290,11 @@ namespace Tomahawk
 			}
 			void Model::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				std::string Path;
 				if (NMake::Unpack(Node->Find("model"), &Path))
 				{
@@ -1298,11 +1323,14 @@ namespace Tomahawk
 			}
 			void Model::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				AssetCache* Asset = Content->Find<Graphics::Model>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("model"), Asset->Path);
 
-                Core::Document* Slots = Node->Set("materials", Core::Var::Array());
+				Core::Document* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
@@ -1378,6 +1406,11 @@ namespace Tomahawk
 			}
 			void Skin::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				std::string Path;
 				if (NMake::Unpack(Node->Find("skin-model"), &Path))
 				{
@@ -1418,11 +1451,14 @@ namespace Tomahawk
 			}
 			void Skin::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				AssetCache* Asset = Content->Find<Graphics::SkinModel>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("skin-model"), Asset->Path);
 
-                Core::Document* Slots = Node->Set("materials", Core::Var::Array());
+				Core::Document* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
@@ -1439,7 +1475,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("static"), Static);
 
-                Core::Document* Poses = Node->Set("poses", Core::Var::Array());
+				Core::Document* Poses = Node->Set("poses", Core::Var::Array());
 				for (auto&& Pose : Skeleton.Pose)
 				{
 					Core::Document* Value = Poses->Set("pose");
@@ -1512,6 +1548,11 @@ namespace Tomahawk
 			}
 			void Emitter::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				SceneGraph* Scene = Parent->GetScene(); uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Scene->GetMaterial((uint64_t)Slot));
@@ -1543,6 +1584,9 @@ namespace Tomahawk
 			}
 			void Emitter::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
 					NMake::Pack(Node->Set("material"), Slot->GetSlot());
@@ -1569,13 +1613,13 @@ namespace Tomahawk
 			}
 			void Emitter::Awake(Component* New)
 			{
-				if (Instance || !Parent)
+				if (Instance)
 					return;
+
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene)
-					return;
-
 				Graphics::InstanceBuffer::Desc I = Graphics::InstanceBuffer::Desc();
 				I.ElementLimit = 1 << 10;
 
@@ -1616,6 +1660,11 @@ namespace Tomahawk
 			}
 			void Decal::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
@@ -1632,6 +1681,9 @@ namespace Tomahawk
 			}
 			void Decal::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
 					NMake::Pack(Node->Set("material"), Slot->GetSlot());
@@ -1686,6 +1738,11 @@ namespace Tomahawk
 			}
 			void SkinAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("path"), &Path))
 					NMake::Unpack(Node->Find("animation"), &Clips);
@@ -1698,6 +1755,9 @@ namespace Tomahawk
 			}
 			void SkinAnimator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				if (!Reference.empty())
 					NMake::Pack(Node->Set("path"), Reference);
 				else
@@ -1709,6 +1769,7 @@ namespace Tomahawk
 			}
 			void SkinAnimator::Awake(Component* New)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
 				Components::Skin* Base = Parent->GetComponent<Components::Skin>();
 				if (Base != nullptr && Base->GetDrawable() != nullptr)
 				{
@@ -1722,6 +1783,9 @@ namespace Tomahawk
 			}
 			void SkinAnimator::Synchronize(Core::Timer* Time)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				if (!Parent->GetScene()->IsActive())
 					return;
 
@@ -1815,9 +1879,7 @@ namespace Tomahawk
 			}
 			bool SkinAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
 			{
-				if (!Content)
-					return false;
-
+				TH_ASSERT(Content != nullptr, false, "content manager should be set");
 				Core::Document* Result = Content->Load<Core::Document>(Path);
 				if (!Result)
 					return false;
@@ -1831,9 +1893,7 @@ namespace Tomahawk
 			}
 			void SkinAnimator::GetPose(Compute::SkinAnimatorKey* Result)
 			{
-				if (!Result)
-					return;
-
+				TH_ASSERT_V(Result != nullptr, "result should be set");
 				Result->Pose.resize(Default.Pose.size());
 				Result->Time = Default.Time;
 
@@ -1903,16 +1963,14 @@ namespace Tomahawk
 			}
 			Compute::SkinAnimatorKey* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
-				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
-					return nullptr;
+				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
+				TH_ASSERT(Frame >= 0 || Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
 
 				return &Clips[Clip].Keys[Frame];
 			}
 			std::vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
 			{
-				if (Clip < 0 || Clip >= Clips.size())
-					return nullptr;
-
+				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
 				return &Clips[Clip].Keys;
 			}
 			std::string SkinAnimator::GetPath()
@@ -1942,6 +2000,9 @@ namespace Tomahawk
 			}
 			void KeyAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("path"), &Path))
 					NMake::Unpack(Node->Find("animation"), &Clips);
@@ -1954,6 +2015,9 @@ namespace Tomahawk
 			}
 			void KeyAnimator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				if (Reference.empty())
 					NMake::Pack(Node->Set("animation"), Clips);
 				else
@@ -1965,6 +2029,9 @@ namespace Tomahawk
 			}
 			void KeyAnimator::Synchronize(Core::Timer* Time)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				if (!Parent->GetScene()->IsActive())
 					return;
 
@@ -2029,9 +2096,7 @@ namespace Tomahawk
 			}
 			bool KeyAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
 			{
-				if (!Content)
-					return false;
-
+				TH_ASSERT(Content != nullptr, false, "content manager should be set");
 				Core::Document* Result = Content->Load<Core::Document>(Path);
 				if (!Result)
 					return false;
@@ -2045,9 +2110,7 @@ namespace Tomahawk
 			}
 			void KeyAnimator::GetPose(Compute::AnimatorKey* Result)
 			{
-				if (!Result)
-					return;
-
+				TH_ASSERT_V(Result != nullptr, "result should be set");
 				Result->Position = *Parent->Transform->GetLocalPosition();
 				Result->Rotation = *Parent->Transform->GetLocalRotation();
 				Result->Scale = *Parent->Transform->GetLocalScale();
@@ -2125,16 +2188,14 @@ namespace Tomahawk
 			}
 			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
-				if (Clip < 0 || Clip >= Clips.size() || Frame < 0 || Frame >= Clips[Clip].Keys.size())
-					return nullptr;
+				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
+				TH_ASSERT(Frame >= 0 || Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
 
 				return &Clips[Clip].Keys[Frame];
 			}
 			std::vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
 			{
-				if (Clip < 0 || Clip >= Clips.size())
-					return nullptr;
-
+				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
 				return &Clips[Clip].Keys;
 			}
 			std::string KeyAnimator::GetPath()
@@ -2172,6 +2233,9 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("position"), &Position);
 				NMake::Unpack(Node->Find("velocity"), &Velocity);
@@ -2183,6 +2247,9 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("diffuse"), Diffuse);
 				NMake::Pack(Node->Set("position"), Position);
 				NMake::Pack(Node->Set("velocity"), Velocity);
@@ -2194,11 +2261,15 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::Awake(Component* New)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
 				Base = Parent->GetComponent<Emitter>();
 				SetActive(Base != nullptr);
 			}
 			void EmitterAnimator::Synchronize(Core::Timer* Time)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				static size_t PositionX = offsetof(Compute::ElementVertex, PositionX);
 				static size_t VelocityX = offsetof(Compute::ElementVertex, VelocityX);
 				static size_t ColorX = offsetof(Compute::ElementVertex, ColorX);
@@ -2321,32 +2392,28 @@ namespace Tomahawk
 			void FreeLook::Awake(Component* New)
 			{
 				Application* App = Application::Get();
-				if (App == nullptr)
-					return SetActive(false);
+				if (App != nullptr)
+					Activity = App->Activity;
 
-				Activity = App->Activity;
 				SetActive(Activity != nullptr);
 			}
 			void FreeLook::Update(Core::Timer* Time)
 			{
-				if (!Activity)
+				if (!Activity && !Activity->IsKeyDown(Rotate))
 					return;
 
-				if (Activity->IsKeyDown(Rotate))
+				Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
+				if (!Activity->IsKeyDownHit(Rotate))
 				{
-					Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
-					if (!Activity->IsKeyDownHit(Rotate))
-					{
-						Compute::Vector2 Next = (Cursor - Position) * Sensivity;
-						Parent->Transform->Rotation += Compute::Vector3(Next.Y, Next.X);
-						Parent->Transform->Rotation.X = Compute::Mathf::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
-					}
-					else
-						Position = Cursor;
-
-					if ((int)Cursor.X != (int)Position.X || (int)Cursor.Y != (int)Position.Y)
-						Activity->SetGlobalCursorPosition(Position);
+					Compute::Vector2 Next = (Cursor - Position) * Sensivity;
+					Parent->Transform->Rotation += Compute::Vector3(Next.Y, Next.X);
+					Parent->Transform->Rotation.X = Compute::Mathf::Clamp(Parent->Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
 				}
+				else
+					Position = Cursor;
+
+				if ((int)Cursor.X != (int)Position.X || (int)Cursor.Y != (int)Position.Y)
+					Activity->SetGlobalCursorPosition(Position);
 			}
 			Component* FreeLook::Copy(Entity* New)
 			{
@@ -2369,10 +2436,9 @@ namespace Tomahawk
 			void Fly::Awake(Component* New)
 			{
 				Application* App = Application::Get();
-				if (App == nullptr)
-					return SetActive(false);
+				if (App != nullptr)
+					Activity = App->Activity;
 
-				Activity = App->Activity;
 				SetActive(Activity != nullptr);
 			}
 			void Fly::Update(Core::Timer* Time)
@@ -2441,6 +2507,9 @@ namespace Tomahawk
 			}
 			void AudioSource::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				std::string Path;
 				if (NMake::Unpack(Node->Find("audio-clip"), &Path))
 					Source->SetClip(Content->Load<Audio::AudioClip>(Path));
@@ -2493,11 +2562,14 @@ namespace Tomahawk
 			}
 			void AudioSource::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				AssetCache* Asset = Content->Find<Audio::AudioClip>(Source->GetClip());
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("audio-clip"), Asset->Path);
 
-                Core::Document* Effects = Node->Set("effects", Core::Var::Array());
+				Core::Document* Effects = Node->Set("effects", Core::Var::Array());
 				for (auto* Effect : *Source->GetEffects())
 				{
 					if (!Effect)
@@ -2534,7 +2606,7 @@ namespace Tomahawk
 					LastPosition = Parent->Transform->Position;
 				}
 
-				if (Source->GetClip())
+				if (Source->GetClip() != nullptr)
 					Source->Synchronize(&Sync, Parent->Transform->Position);
 			}
 			void AudioSource::ApplyPlayingPosition()
@@ -2574,10 +2646,12 @@ namespace Tomahawk
 			}
 			void AudioListener::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Unpack(Node->Find("gain"), &Gain);
 			}
 			void AudioListener::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Pack(Node->Set("gain"), Gain);
 			}
 			void AudioListener::Synchronize(Core::Timer* Time)
@@ -2620,6 +2694,7 @@ namespace Tomahawk
 			}
 			void PointLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("size"), &Size);
@@ -2634,6 +2709,7 @@ namespace Tomahawk
 			}
 			void PointLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("view"), View);
 				NMake::Pack(Node->Set("size"), Size);
@@ -2648,6 +2724,9 @@ namespace Tomahawk
 			}
 			float PointLight::Cull(const Viewer& Base)
 			{
+				TH_ASSERT(Parent != nullptr, 0.0f, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, 0.0f, "transform should be set");
+
 				float Result = 1.0f - Parent->Transform->Position.Distance(Base.WorldPosition) / Base.FarPlane;
 				if (Result > 0.0f)
 					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * Base.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
@@ -2656,6 +2735,9 @@ namespace Tomahawk
 			}
 			bool PointLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
+				TH_ASSERT(Parent != nullptr, false, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, false, "transform should be set");
+
 				if (Parent->Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
@@ -2663,6 +2745,9 @@ namespace Tomahawk
 			}
 			bool PointLight::IsNear(const Viewer& fView)
 			{
+				TH_ASSERT(Parent != nullptr, false, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, false, "transform should be set");
+
 				return Parent->Transform->Position.Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* PointLight::Copy(Entity* New)
@@ -2680,6 +2765,9 @@ namespace Tomahawk
 			}
 			void PointLight::AssembleDepthOrigin()
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->Transform != nullptr, "transform should be set");
+
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->Transform->Position.InvZ());
 			}
@@ -2687,12 +2775,13 @@ namespace Tomahawk
 			{
 				return Size.Range * 1.25;
 			}
-			
+
 			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref)
 			{
 			}
 			void SpotLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("size"), &Size);
@@ -2708,6 +2797,7 @@ namespace Tomahawk
 			}
 			void SpotLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("view"), View);
 				NMake::Pack(Node->Set("size"), Size);
@@ -2727,6 +2817,9 @@ namespace Tomahawk
 			}
 			float SpotLight::Cull(const Viewer& fView)
 			{
+				TH_ASSERT(Parent != nullptr, 0.0f, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, 0.0f, "transform should be set");
+
 				float Result = 1.0f - Parent->Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 				if (Result > 0.0f)
 					Result = Compute::Common::IsCubeInFrustum(Parent->Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
@@ -2735,6 +2828,9 @@ namespace Tomahawk
 			}
 			bool SpotLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
+				TH_ASSERT(Parent != nullptr, false, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, false, "transform should be set");
+
 				if (Parent->Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
@@ -2742,6 +2838,9 @@ namespace Tomahawk
 			}
 			bool SpotLight::IsNear(const Viewer& fView)
 			{
+				TH_ASSERT(Parent != nullptr, false, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, false, "transform should be set");
+
 				return Parent->Transform->Position.Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* SpotLight::Copy(Entity* New)
@@ -2759,6 +2858,9 @@ namespace Tomahawk
 			}
 			void SpotLight::AssembleDepthOrigin()
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->Transform != nullptr, "transform should be set");
+
 				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
 				View = Compute::Matrix4x4::CreateTranslation(-Parent->Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Parent->Transform->Rotation);
 			}
@@ -2772,6 +2874,7 @@ namespace Tomahawk
 			}
 			void LineLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 				NMake::Unpack(Node->Find("disperse"), &Disperse);
@@ -2802,6 +2905,7 @@ namespace Tomahawk
 			}
 			void LineLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Pack(Node->Set("diffuse"), Diffuse);
 				NMake::Pack(Node->Set("emission"), Emission);
 				NMake::Pack(Node->Set("disperse"), Disperse);
@@ -2844,6 +2948,9 @@ namespace Tomahawk
 			}
 			void LineLight::AssembleDepthOrigin()
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->Transform != nullptr, "transform should be set");
+
 				auto* Viewer = Parent->GetScene()->GetCamera()->As<Camera>();
 				auto* Transform = Viewer->GetEntity()->Transform;
 				Compute::Vector3 Eye = Transform->Position * Compute::Vector3(1.0f, 0.1f, 1.0f);
@@ -2880,6 +2987,9 @@ namespace Tomahawk
 			}
 			void SurfaceLight::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
 				{
@@ -2954,6 +3064,9 @@ namespace Tomahawk
 			}
 			void SurfaceLight::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				AssetCache* Asset = nullptr;
 				if (!DiffuseMap)
 				{
@@ -3004,6 +3117,9 @@ namespace Tomahawk
 			}
 			float SurfaceLight::Cull(const Viewer& fView)
 			{
+				TH_ASSERT(Parent != nullptr, 0.0f, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, 0.0f, "transform should be set");
+
 				float Result = 1.0f;
 				if (Infinity <= 0.0f)
 				{
@@ -3038,6 +3154,10 @@ namespace Tomahawk
 			}
 			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* Map)
 			{
+				TH_ASSERT(Parent != nullptr, false, "parent should be set");
+				TH_ASSERT(Parent->GetScene() != nullptr, false, "scene should be set");
+				TH_ASSERT(Parent->GetScene()->GetDevice() != nullptr, false, "graphics device should be set");
+
 				if (!Map)
 				{
 					TH_CLEAR(DiffuseMapX[0]);
@@ -3066,6 +3186,10 @@ namespace Tomahawk
 			}
 			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
 			{
+				TH_ASSERT(Parent != nullptr, false, "parent should be set");
+				TH_ASSERT(Parent->GetScene() != nullptr, false, "scene should be set");
+				TH_ASSERT(Parent->GetScene()->GetDevice() != nullptr, false, "graphics device should be set");
+
 				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
 				{
 					TH_CLEAR(DiffuseMapX[0]);
@@ -3156,6 +3280,9 @@ namespace Tomahawk
 			}
 			void Illuminator::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("ray-step"), &RayStep);
 				NMake::Unpack(Node->Find("max-steps"), &MaxSteps);
@@ -3168,6 +3295,9 @@ namespace Tomahawk
 			}
 			void Illuminator::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("size"), Size);
 				NMake::Pack(Node->Set("ray-step"), RayStep);
 				NMake::Pack(Node->Set("max-steps"), MaxSteps);
@@ -3179,23 +3309,21 @@ namespace Tomahawk
 			}
 			void Illuminator::Asleep()
 			{
-				if (!Parent)
-					return;
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetRenderer() != nullptr, "render system should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene)
-					return;
-
 				RenderSystem* System = (RenderSystem*)Scene->GetRenderer();
-				if (System != nullptr)
-				{
-					auto* Lighting = System->GetRenderer<Renderers::Lighting>();
-					if (Lighting != nullptr)
-						Lighting->ClearStorage();
-				}
+				auto* Lighting = System->GetRenderer<Renderers::Lighting>();
+				if (Lighting != nullptr)
+					Lighting->ClearStorage();
 			}
 			float Illuminator::Cull(const Viewer& View)
 			{
+				TH_ASSERT(Parent != nullptr, 0.0f, "parent should be set");
+				TH_ASSERT(Parent->Transform != nullptr, 0.0f, "transform should be set");
+
 				Compute::Matrix4x4 Box = Parent->Transform->GetWorld();
 				return IsVisible(View, &Box) ? 1.0f : 0.0f;
 			}
@@ -3216,17 +3344,15 @@ namespace Tomahawk
 			}
 			void Illuminator::SetBufferSize(size_t NewSize)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
+
 				if (NewSize % 8 != 0)
 					NewSize = Size;
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene)
-					return;
-
 				Graphics::GraphicsDevice* Device = Scene->GetDevice();
-				if (!Device)
-					return;
-
 				Graphics::Texture3D::Desc I;
 				I.Width = I.Height = I.Depth = Size = NewSize;
 				I.MipLevels = MipLevels = Device->GetMipLevel(Size, Size);
@@ -3260,13 +3386,12 @@ namespace Tomahawk
 			}
 			void Camera::Awake(Component* New)
 			{
-				if (!Parent)
-					return;
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetDevice()->GetRenderTarget() != nullptr, "render target should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene)
-					return;
-
 				Viewport = Scene->GetDevice()->GetRenderTarget()->GetViewport();
 				if (New && New != this)
 					return;
@@ -3279,7 +3404,7 @@ namespace Tomahawk
 					Renderer->SetScene(Scene);
 					Renderer->Remount();
 				}
-				
+
 				if (New == this)
 					Renderer->Unmount();
 				else if (!New)
@@ -3287,15 +3412,21 @@ namespace Tomahawk
 			}
 			void Camera::Asleep()
 			{
-				if (!Renderer || !Parent)
-					return;
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr && Scene->GetCamera() == this)
+				if (Renderer != nullptr && Scene->GetCamera() == this)
 					Scene->SetCamera(nullptr);
 			}
 			void Camera::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
+
 				int _Mode = 0;
 				if (NMake::Unpack(Node->Find("mode"), &_Mode))
 					Mode = (ProjectionMode)_Mode;
@@ -3359,6 +3490,9 @@ namespace Tomahawk
 			}
 			void Camera::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("mode"), (int)Mode);
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("field-of-view"), FieldOfView);
@@ -3373,7 +3507,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("frustum-cull"), Renderer->HasFrustumCulling());
 				NMake::Pack(Node->Set("occlusion-cull"), Renderer->HasOcclusionCulling());
 
-                Core::Document* Renderers = Node->Set("renderers", Core::Var::Array());
+				Core::Document* Renderers = Node->Set("renderers", Core::Var::Array());
 				for (auto& Ref : *Renderer->GetRenderers())
 				{
 					Core::Document* Render = Renderers->Set("renderer");
@@ -3384,6 +3518,9 @@ namespace Tomahawk
 			}
 			void Camera::Synchronize(Core::Timer* Time)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				float W = Width, H = Height;
 				if (W <= 0 || H <= 0)
 				{
@@ -3397,13 +3534,14 @@ namespace Tomahawk
 					Projection = Compute::Matrix4x4::CreateOrthographic(W, H, NearPlane, FarPlane);
 
 				SceneGraph* Scene = Parent->GetScene();
-				if (Scene != nullptr && Scene->GetCamera() == this)
+				if (Scene->GetCamera() == this)
 					Renderer->Synchronize(Time, FieldView);
 			}
 			void Camera::GetViewer(Viewer* View)
 			{
-				if (!View)
-					return;
+				TH_ASSERT_V(View != nullptr, "viewer should be set");
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->Transform != nullptr, "transform should be set");
 
 				Compute::Vector3 Position = Parent->Transform->Position.InvX().InvY();
 				Compute::Matrix4x4 World = Compute::Matrix4x4::CreateCamera(Position, -Parent->Transform->Rotation);
@@ -3414,6 +3552,9 @@ namespace Tomahawk
 			}
 			void Camera::ResizeBuffers()
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				if (!Renderer)
 					return;
 
@@ -3459,8 +3600,8 @@ namespace Tomahawk
 			}
 			float Camera::GetDistance(Entity* Other)
 			{
-				if (!Other)
-					return -1.0f;
+				TH_ASSERT(Other != nullptr, -1.0f, "other should be set");
+				TH_ASSERT(Other->Transform != nullptr, -1.0f, "other's transform should be set");
 
 				return Other->Transform->Position.Distance(FieldView.WorldPosition);
 			}
@@ -3493,8 +3634,8 @@ namespace Tomahawk
 			}
 			bool Camera::RayTest(const Compute::Ray& Ray, Entity* Other)
 			{
-				if (!Other)
-					return false;
+				TH_ASSERT(Other != nullptr, false, "other should be set");
+				TH_ASSERT(Other->Transform != nullptr, false, "other's transform should be set");
 
 				return Compute::Common::CursorRayTest(Ray, Other->Transform->GetWorld());
 			}
@@ -3525,6 +3666,9 @@ namespace Tomahawk
 			}
 			void Scriptable::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				std::string Type;
 				if (NMake::Unpack(Node->Find("source"), &Type))
 				{
@@ -3664,6 +3808,9 @@ namespace Tomahawk
 			}
 			void Scriptable::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				if (Source == SourceType_Memory)
 					NMake::Pack(Node->Set("source"), "memory");
 				else if (Source == SourceType_Resource)
@@ -3693,28 +3840,28 @@ namespace Tomahawk
 							NMake::Pack(Var->Set("data"), *(bool*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT8:
-							NMake::Pack(Var->Set("data"), (int64_t)*(char*)Result.Pointer);
+							NMake::Pack(Var->Set("data"), (int64_t) * (char*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT16:
-							NMake::Pack(Var->Set("data"), (int64_t)*(short*)Result.Pointer);
+							NMake::Pack(Var->Set("data"), (int64_t) * (short*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT32:
-							NMake::Pack(Var->Set("data"), (int64_t)*(int*)Result.Pointer);
+							NMake::Pack(Var->Set("data"), (int64_t) * (int*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT64:
 							NMake::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT8:
-							NMake::Pack(Var->Set("data"), (int64_t)*(unsigned char*)Result.Pointer);
+							NMake::Pack(Var->Set("data"), (int64_t) * (unsigned char*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT16:
-							NMake::Pack(Var->Set("data"), (int64_t)*(unsigned short*)Result.Pointer);
+							NMake::Pack(Var->Set("data"), (int64_t) * (unsigned short*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT32:
-							NMake::Pack(Var->Set("data"), (int64_t)*(unsigned int*)Result.Pointer);
+							NMake::Pack(Var->Set("data"), (int64_t) * (unsigned int*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT64:
-							NMake::Pack(Var->Set("data"), (int64_t)*(uint64_t*)Result.Pointer);
+							NMake::Pack(Var->Set("data"), (int64_t) * (uint64_t*)Result.Pointer);
 							break;
 						case Script::VMTypeId::FLOAT:
 							NMake::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
@@ -3750,6 +3897,9 @@ namespace Tomahawk
 			}
 			void Scriptable::Awake(Component* New)
 			{
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 				if (!Parent->GetScene()->IsActive())
 					return;
 
@@ -3909,10 +4059,10 @@ namespace Tomahawk
 			}
 			int Scriptable::SetSource(SourceType Type, const std::string& Data)
 			{
-				SceneGraph* Scene = Parent->GetScene();
-				if (!Scene)
-					return (int)Script::VMResult::INVALID_CONFIGURATION;
+				TH_ASSERT(Parent != nullptr, (int)Script::VMResult::INVALID_ARG, "parent  should be set");
+				TH_ASSERT(Parent->GetScene() != nullptr, (int)Script::VMResult::INVALID_ARG, "scene should be set");
 
+				SceneGraph* Scene = Parent->GetScene();
 				if (Compiler != nullptr)
 				{
 					auto* VM = Compiler->GetContext();
@@ -4000,7 +4150,8 @@ namespace Tomahawk
 			}
 			Script::VMFunction Scriptable::GetFunctionByName(const std::string& Name, unsigned int Args)
 			{
-				if (Name.empty() || !Compiler)
+				TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
+				if (!Compiler)
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
@@ -4020,7 +4171,8 @@ namespace Tomahawk
 			}
 			Script::VMFunction Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
 			{
-				if (Index < 0 || !Compiler)
+				TH_ASSERT(Index >= 0, nullptr, "index should be greater or equal to zero");
+				if (!Compiler)
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
@@ -4040,7 +4192,8 @@ namespace Tomahawk
 			}
 			bool Scriptable::GetPropertyByName(const char* Name, Script::VMProperty* Result)
 			{
-				if (!Name || !Compiler)
+				TH_ASSERT(Name != nullptr, false, "name should be set");
+				if (!Compiler)
 					return false;
 
 				auto* VM = Compiler->GetContext();
@@ -4073,7 +4226,8 @@ namespace Tomahawk
 			}
 			bool Scriptable::GetPropertyByIndex(int Index, Script::VMProperty* Result)
 			{
-				if (Index < 0 || !Compiler)
+				TH_ASSERT(Index >= 0, false, "index should be greater or equal to zero");
+				if (!Compiler)
 					return false;
 
 				auto* VM = Compiler->GetContext();

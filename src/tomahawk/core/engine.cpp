@@ -42,9 +42,7 @@ namespace Tomahawk
 		}
 		bool FragmentQuery::Begin(Graphics::GraphicsDevice* Device)
 		{
-			if (!Device)
-				return false;
-
+			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
 			if (!Query)
 			{
 				Graphics::Query::Desc I;
@@ -67,7 +65,8 @@ namespace Tomahawk
 		}
 		void FragmentQuery::End(Graphics::GraphicsDevice* Device)
 		{
-			if (Device && Satisfied == 0)
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+			if (Satisfied == 0)
 			{
 				Satisfied = -1;
 				Device->QueryEnd(Query);
@@ -79,7 +78,10 @@ namespace Tomahawk
 		}
 		int FragmentQuery::Fetch(RenderSystem* System)
 		{
-			if (!System || !Query || Satisfied != -1)
+			TH_ASSERT(System != nullptr, -1, "render system should be set");
+			TH_ASSERT(System->GetDevice() != nullptr, -1, "graphics device should be set");
+
+			if (!Query || Satisfied != -1)
 				return -1;
 
 			if (!System->GetDevice()->GetQueryData(Query, &Fragments))
@@ -115,6 +117,7 @@ namespace Tomahawk
 
 		Reactor::Reactor(Application* Ref, double Limit, JobCallback Callback) : App(Ref), Src(Callback)
 		{
+			TH_ASSERT_V(App != nullptr, "application should be set");
 			Time = new Core::Timer();
 			Time->FrameLimit = Limit;
 		}
@@ -136,116 +139,105 @@ namespace Tomahawk
 
 		void NMake::Pack(Core::Document* V, bool Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("b", Core::Var::Boolean(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("b", Core::Var::Boolean(Value));
 		}
 		void NMake::Pack(Core::Document* V, int Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("i", Core::Var::Integer(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void NMake::Pack(Core::Document* V, unsigned int Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("i", Core::Var::Integer(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-        void NMake::Pack(Core::Document* V, unsigned long Value)
-        {
-            if (V != nullptr)
-                V->SetAttribute("i", Core::Var::Integer(Value));
-        }
+		void NMake::Pack(Core::Document* V, unsigned long Value)
+		{
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("i", Core::Var::Integer(Value));
+		}
 		void NMake::Pack(Core::Document* V, float Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("n", Core::Var::Number(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("n", Core::Var::Number(Value));
 		}
 		void NMake::Pack(Core::Document* V, double Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("n", Core::Var::Number(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("n", Core::Var::Number(Value));
 		}
 		void NMake::Pack(Core::Document* V, int64_t Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("i", Core::Var::Integer(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void NMake::Pack(Core::Document* V, long double Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("n", Core::Var::Number(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("n", Core::Var::Number(Value));
 		}
 		void NMake::Pack(Core::Document* V, unsigned long long Value)
 		{
-			if (V != nullptr)
-                V->SetAttribute("i", Core::Var::Integer(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
 		void NMake::Pack(Core::Document* V, const char* Value)
 		{
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			V->SetAttribute("s", Core::Var::String(Value ? Value : ""));
 		}
 		void NMake::Pack(Core::Document* V, const Compute::Vector2& Value)
 		{
-			if (!V)
-				return;
-
-            V->SetAttribute("x", Core::Var::Number(Value.X));
-            V->SetAttribute("y", Core::Var::Number(Value.Y));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("x", Core::Var::Number(Value.X));
+			V->SetAttribute("y", Core::Var::Number(Value.Y));
 		}
 		void NMake::Pack(Core::Document* V, const Compute::Vector3& Value)
 		{
-			if (!V)
-				return;
-
-            V->SetAttribute("x", Core::Var::Number(Value.X));
-            V->SetAttribute("y", Core::Var::Number(Value.Y));
-            V->SetAttribute("z", Core::Var::Number(Value.Z));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("x", Core::Var::Number(Value.X));
+			V->SetAttribute("y", Core::Var::Number(Value.Y));
+			V->SetAttribute("z", Core::Var::Number(Value.Z));
 		}
 		void NMake::Pack(Core::Document* V, const Compute::Vector4& Value)
 		{
-			if (!V)
-				return;
-
-            V->SetAttribute("x", Core::Var::Number(Value.X));
-            V->SetAttribute("y", Core::Var::Number(Value.Y));
-            V->SetAttribute("z", Core::Var::Number(Value.Z));
-            V->SetAttribute("w", Core::Var::Number(Value.W));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("x", Core::Var::Number(Value.X));
+			V->SetAttribute("y", Core::Var::Number(Value.Y));
+			V->SetAttribute("z", Core::Var::Number(Value.Z));
+			V->SetAttribute("w", Core::Var::Number(Value.W));
 		}
 		void NMake::Pack(Core::Document* V, const Compute::Matrix4x4& Value)
 		{
-			if (!V)
-				return;
-
-            V->SetAttribute("m11", Core::Var::Number(Value.Row[0]));
-            V->SetAttribute("m12", Core::Var::Number(Value.Row[1]));
-            V->SetAttribute("m13", Core::Var::Number(Value.Row[2]));
-            V->SetAttribute("m14", Core::Var::Number(Value.Row[3]));
-            V->SetAttribute("m21", Core::Var::Number(Value.Row[4]));
-            V->SetAttribute("m22", Core::Var::Number(Value.Row[5]));
-            V->SetAttribute("m23", Core::Var::Number(Value.Row[6]));
-            V->SetAttribute("m24", Core::Var::Number(Value.Row[7]));
-            V->SetAttribute("m31", Core::Var::Number(Value.Row[8]));
-            V->SetAttribute("m32", Core::Var::Number(Value.Row[9]));
-            V->SetAttribute("m33", Core::Var::Number(Value.Row[10]));
-            V->SetAttribute("m34", Core::Var::Number(Value.Row[11]));
-            V->SetAttribute("m41", Core::Var::Number(Value.Row[12]));
-            V->SetAttribute("m42", Core::Var::Number(Value.Row[13]));
-            V->SetAttribute("m43", Core::Var::Number(Value.Row[14]));
-            V->SetAttribute("m44", Core::Var::Number(Value.Row[15]));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("m11", Core::Var::Number(Value.Row[0]));
+			V->SetAttribute("m12", Core::Var::Number(Value.Row[1]));
+			V->SetAttribute("m13", Core::Var::Number(Value.Row[2]));
+			V->SetAttribute("m14", Core::Var::Number(Value.Row[3]));
+			V->SetAttribute("m21", Core::Var::Number(Value.Row[4]));
+			V->SetAttribute("m22", Core::Var::Number(Value.Row[5]));
+			V->SetAttribute("m23", Core::Var::Number(Value.Row[6]));
+			V->SetAttribute("m24", Core::Var::Number(Value.Row[7]));
+			V->SetAttribute("m31", Core::Var::Number(Value.Row[8]));
+			V->SetAttribute("m32", Core::Var::Number(Value.Row[9]));
+			V->SetAttribute("m33", Core::Var::Number(Value.Row[10]));
+			V->SetAttribute("m34", Core::Var::Number(Value.Row[11]));
+			V->SetAttribute("m41", Core::Var::Number(Value.Row[12]));
+			V->SetAttribute("m42", Core::Var::Number(Value.Row[13]));
+			V->SetAttribute("m43", Core::Var::Number(Value.Row[14]));
+			V->SetAttribute("m44", Core::Var::Number(Value.Row[15]));
 		}
 		void NMake::Pack(Core::Document* V, const Attenuation& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("range"), Value.Range);
 			NMake::Pack(V->Set("c1"), Value.C1);
 			NMake::Pack(V->Set("c2"), Value.C2);
 		}
 		void NMake::Pack(Core::Document* V, const AnimatorState& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("looped"), Value.Looped);
 			NMake::Pack(V->Set("paused"), Value.Paused);
 			NMake::Pack(V->Set("blended"), Value.Blended);
@@ -257,9 +249,7 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, const SpawnerProperties& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("iterations"), Value.Iterations);
 
 			Core::Document* Angular = V->Set("angular");
@@ -306,8 +296,9 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, Material* Value, ContentManager* Content)
 		{
-			if (!V || !Value || !Content)
-				return;
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(Content != nullptr, "content manager should be set");
+			TH_ASSERT_V(Value != nullptr, "value should be set");
 
 			AssetCache* Asset = Content->Find<Graphics::Texture2D>(Value->GetDiffuseMap());
 			if (Asset)
@@ -355,30 +346,24 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, const Compute::SkinAnimatorKey& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("pose"), Value.Pose);
 			NMake::Pack(V->Set("time"), Value.Time);
 		}
 		void NMake::Pack(Core::Document* V, const Compute::SkinAnimatorClip& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("name"), Value.Name);
 			NMake::Pack(V->Set("duration"), Value.Duration);
 			NMake::Pack(V->Set("rate"), Value.Rate);
 
-            Core::Document* Array = V->Set("frames", Core::Var::Array());
+			Core::Document* Array = V->Set("frames", Core::Var::Array());
 			for (auto&& It : Value.Keys)
 				NMake::Pack(Array->Set("frame"), It);
 		}
 		void NMake::Pack(Core::Document* V, const Compute::KeyAnimatorClip& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("name"), Value.Name);
 			NMake::Pack(V->Set("rate"), Value.Rate);
 			NMake::Pack(V->Set("duration"), Value.Duration);
@@ -386,9 +371,7 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, const Compute::AnimatorKey& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("position"), Value.Position);
 			NMake::Pack(V->Set("rotation"), Value.Rotation);
 			NMake::Pack(V->Set("scale"), Value.Scale);
@@ -396,9 +379,7 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, const Compute::ElementVertex& Value)
 		{
-			if (!V)
-				return;
-			
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -415,9 +396,7 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, const Compute::Vertex& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -435,9 +414,7 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, const Compute::SkinVertex& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -463,169 +440,139 @@ namespace Tomahawk
 		}
 		void NMake::Pack(Core::Document* V, const Compute::Joint& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			NMake::Pack(V->Set("index"), Value.Index);
 			NMake::Pack(V->Set("name"), Value.Name);
 			NMake::Pack(V->Set("transform"), Value.Transform);
 			NMake::Pack(V->Set("bind-shape"), Value.BindShape);
 
-            Core::Document* Joints = V->Set("childs", Core::Var::Array());
+			Core::Document* Joints = V->Set("childs", Core::Var::Array());
 			for (auto& It : Value.Childs)
 				NMake::Pack(Joints->Set("joint"), It);
 		}
 		void NMake::Pack(Core::Document* V, const Core::TickTimer& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			V->SetAttribute("delay", Core::Var::Number(Value.Delay));
 		}
 		void NMake::Pack(Core::Document* V, const std::string& Value)
 		{
-			if (!V)
-				return;
-
-            V->SetAttribute("s", Core::Var::String(Value));
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			V->SetAttribute("s", Core::Var::String(Value));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<bool>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("b-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("b-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<int>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<unsigned int>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<float>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<double>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<int64_t>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<long double>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<uint64_t>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
 
-            V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vector2>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " ";
 
-            V->Set("v2-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("v2-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vector3>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " ";
 
-            V->Set("v3-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("v3-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vector4>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " " << It.W << " ";
 
-            V->Set("v4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("v4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::Matrix4x4>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -633,14 +580,12 @@ namespace Tomahawk
 					Stream << i << " ";
 			}
 
-            V->Set("m4x4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("m4x4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<AnimatorState>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -654,14 +599,12 @@ namespace Tomahawk
 				Stream << It.Clip << " ";
 			}
 
-            V->Set("as-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("as-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<SpawnerProperties>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -683,32 +626,26 @@ namespace Tomahawk
 				Stream << It.Iterations << " ";
 			}
 
-            V->Set("sp-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("sp-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value)
 		{
-			if (!V)
-				return;
-
-            Core::Document* Array = V->Set("clips", Core::Var::Array());
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			Core::Document* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
 				NMake::Pack(Array->Set("clip"), It);
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value)
 		{
-			if (!V)
-				return;
-
-            Core::Document* Array = V->Set("clips", Core::Var::Array());
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			Core::Document* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
 				NMake::Pack(Array->Set("clip"), It);
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::AnimatorKey>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -724,14 +661,12 @@ namespace Tomahawk
 				Stream << It.Time << " ";
 			}
 
-            V->Set("ak-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("ak-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::ElementVertex>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -750,22 +685,18 @@ namespace Tomahawk
 				Stream << It.Scale << " ";
 			}
 
-            V->Set("ev-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("ev-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::Joint>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			for (auto&& It : Value)
 				NMake::Pack(V->Set("joint"), It);
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vertex>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -786,14 +717,12 @@ namespace Tomahawk
 				Stream << "-1 -1 -1 -1 0 0 0 0 ";
 			}
 
-            V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Compute::SkinVertex>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -821,35 +750,32 @@ namespace Tomahawk
 				Stream << It.JointBias3 << " ";
 			}
 
-            V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<Core::TickTimer>& Value)
 		{
-			if (!V)
-				return;
-
+			TH_ASSERT_V(V != nullptr, "document should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.Delay << " ";
 
-            V->Set("tt-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("tt-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		void NMake::Pack(Core::Document* V, const std::vector<std::string>& Value)
 		{
-			if (!V)
-				return;
-
-            Core::Document* Array = V->Set("s-array", Core::Var::Array());
+			TH_ASSERT_V(V != nullptr, "document should be set");
+			Core::Document* Array = V->Set("s-array", Core::Var::Array());
 			for (auto&& It : Value)
-                Array->Set("s", Core::Var::String(It));
+				Array->Set("s", Core::Var::String(It));
 
-            V->Set("size", Core::Var::Integer((int64_t)Value.size()));
+			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
 		bool NMake::Unpack(Core::Document* V, bool* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = V->GetVar("[b]").GetBoolean();
@@ -857,7 +783,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, int* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = (int)V->GetVar("[i]").GetInteger();
@@ -865,23 +792,26 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, unsigned int* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = (unsigned int)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-        bool NMake::Unpack(Core::Document* V, unsigned long* O)
-        {
-            if (!V || !O)
-                return false;
+		bool NMake::Unpack(Core::Document* V, unsigned long* O)
+		{
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
+				return false;
 
-            *O = (unsigned long)V->GetVar("[i]").GetInteger();
-            return true;
-        }
+			*O = (unsigned long)V->GetVar("[i]").GetInteger();
+			return true;
+		}
 		bool NMake::Unpack(Core::Document* V, float* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = (float)V->GetVar("[n]").GetNumber();
@@ -889,7 +819,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, double* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = (int)V->GetVar("[n]").GetNumber();
@@ -897,7 +828,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, long double* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = V->GetVar("[n]").GetNumber();
@@ -905,7 +837,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, int64_t* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = V->GetVar("[i]").GetInteger();
@@ -913,7 +846,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, unsigned long long* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = (unsigned long long)V->GetVar("[i]").GetInteger();
@@ -921,7 +855,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::Vector2* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->X = (float)V->GetVar("[x]").GetNumber();
@@ -930,7 +865,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::Vector3* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->X = (float)V->GetVar("[x]").GetNumber();
@@ -940,7 +876,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::Vector4* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->X = (float)V->GetVar("[x]").GetNumber();
@@ -951,7 +888,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::Matrix4x4* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->Row[0] = (float)V->GetVar("[m11]").GetNumber();
@@ -974,7 +912,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Attenuation* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			NMake::Unpack(V->Get("range"), &O->Range);
@@ -984,7 +923,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, AnimatorState* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			NMake::Unpack(V->Get("looped"), &O->Looped);
@@ -999,7 +939,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, SpawnerProperties* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			NMake::Unpack(V->Get("iterations"), &O->Iterations);
@@ -1050,7 +991,9 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Material* O, ContentManager* Content)
 		{
-			if (!V || !O || !Content)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			TH_ASSERT(Content != nullptr, false, "content manager should be set");
+			if (!V)
 				return false;
 
 			std::string Path;
@@ -1095,6 +1038,7 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::SkinAnimatorKey* O)
 		{
+			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
@@ -1105,7 +1049,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::SkinAnimatorClip* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			NMake::Unpack(V->Get("name"), &O->Name);
@@ -1123,7 +1068,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::KeyAnimatorClip* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			NMake::Unpack(V->Get("name"), &O->Name);
@@ -1134,7 +1080,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::AnimatorKey* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			NMake::Unpack(V->Get("position"), &O->Position);
@@ -1145,7 +1092,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::Joint* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			NMake::Unpack(V->Get("index"), &O->Index);
@@ -1164,7 +1112,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::ElementVertex* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->PositionX = (float)V->GetVar("[px]").GetNumber();
@@ -1184,7 +1133,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::Vertex* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->PositionX = (float)V->GetVar("[px]").GetNumber();
@@ -1205,7 +1155,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Compute::SkinVertex* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->PositionX = (float)V->GetVar("[px]").GetNumber();
@@ -1234,7 +1185,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, Core::TickTimer* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->Delay = (float)V->GetVar("[delay]").GetNumber();
@@ -1242,7 +1194,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::string* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			*O = V->GetVar("[s]").GetBlob();
@@ -1250,10 +1203,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<bool>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("b-array").GetBlob());
+			std::string Array(V->GetVar("b-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1272,10 +1226,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<int>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("i-array").GetBlob());
+			std::string Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1294,10 +1249,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<unsigned int>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("i-array").GetBlob());
+			std::string Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1316,10 +1272,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<float>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("n-array").GetBlob());
+			std::string Array(V->GetVar("n-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1338,10 +1295,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<double>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("n-array").GetBlob());
+			std::string Array(V->GetVar("n-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1360,10 +1318,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<int64_t>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("i-array").GetBlob());
+			std::string Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1382,10 +1341,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<long double>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("n-array").GetBlob());
+			std::string Array(V->GetVar("n-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1404,10 +1364,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<uint64_t>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("i-array").GetBlob());
+			std::string Array(V->GetVar("i-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1426,10 +1387,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Vector2>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("v2-array").GetBlob());
+			std::string Array(V->GetVar("v2-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1444,10 +1406,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Vector3>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("v3-array").GetBlob());
+			std::string Array(V->GetVar("v3-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1462,10 +1425,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Vector4>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("v4-array").GetBlob());
+			std::string Array(V->GetVar("v4-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1480,10 +1444,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Matrix4x4>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("m4x4-array").GetBlob());
+			std::string Array(V->GetVar("m4x4-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1501,10 +1466,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<AnimatorState>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("as-array").GetBlob());
+			std::string Array(V->GetVar("as-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1528,10 +1494,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<SpawnerProperties>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("sp-array").GetBlob());
+			std::string Array(V->GetVar("sp-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1563,7 +1530,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::SkinAnimatorClip>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			std::vector<Core::Document*> Frames = V->FetchCollection("clips.clip", false);
@@ -1577,7 +1545,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::KeyAnimatorClip>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			std::vector<Core::Document*> Frames = V->FetchCollection("clips.clip", false);
@@ -1591,10 +1560,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::AnimatorKey>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("ak-array").GetBlob());
+			std::string Array(V->GetVar("ak-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1612,10 +1582,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::ElementVertex>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("ev-array").GetBlob());
+			std::string Array(V->GetVar("ev-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1644,7 +1615,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Joint>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			O->reserve(V->Size());
@@ -1661,7 +1633,7 @@ namespace Tomahawk
 			if (!V || !O)
 				return false;
 
-            std::string Array(V->GetVar("iv-array").GetBlob());
+			std::string Array(V->GetVar("iv-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1700,10 +1672,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Compute::SkinVertex>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("iv-array").GetBlob());
+			std::string Array(V->GetVar("iv-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1741,10 +1714,11 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<Core::TickTimer>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
-            std::string Array(V->GetVar("tt-array").GetBlob());
+			std::string Array(V->GetVar("tt-array").GetBlob());
 			int64_t Size = V->GetVar("size").GetInteger();
 			if (Array.empty() || !Size)
 				return false;
@@ -1759,7 +1733,8 @@ namespace Tomahawk
 		}
 		bool NMake::Unpack(Core::Document* V, std::vector<std::string>* O)
 		{
-			if (!V || !O)
+			TH_ASSERT(O != nullptr, false, "output should be set");
+			if (!V)
 				return false;
 
 			Core::Document* Array = V->Get("s-array");
@@ -1958,10 +1933,16 @@ namespace Tomahawk
 		}
 		Compute::Matrix4x4 Component::GetBoundingBox()
 		{
+			TH_ASSERT(Parent != nullptr, Compute::Matrix4x4::Identity(), "parent should be set");
+			TH_ASSERT(Parent->Transform != nullptr, Compute::Matrix4x4::Identity(), "transform should be set");
+
 			return Parent->Transform->GetWorld();
 		}
 		void Component::SetActive(bool Enabled)
 		{
+			TH_ASSERT_V(Parent != nullptr, "parent should be set");
+			TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+
 			if (Active == Enabled)
 				return;
 
@@ -1970,19 +1951,18 @@ namespace Tomahawk
 			else
 				Asleep();
 
-			if (!Parent || !Parent->GetScene())
-				return;
-
-			auto Components = Parent->GetScene()->GetComponents(GetId());
+			auto* Scene = Parent->GetScene();
+			auto Components = Scene->GetComponents(GetId());
 			if (Active)
+			{
 				Components->AddIfNotExists(this);
+				Scene->Pending.AddIfNotExists(this);
+			}
 			else
+			{
 				Components->Remove(this);
-
-			if (Active)
-				Parent->GetScene()->Pending.AddIfNotExists(this);
-			else
-				Parent->GetScene()->Pending.Remove(this);
+				Scene->Pending.Remove(this);
+			}
 		}
 		bool Component::IsActive()
 		{
@@ -1997,6 +1977,9 @@ namespace Tomahawk
 		}
 		float Cullable::GetRange()
 		{
+			TH_ASSERT(Parent != nullptr, 0.0f, "parent should be set");
+			TH_ASSERT(Parent->Transform != nullptr, 0.0f, "transform should be set");
+
 			float Max = Parent->Transform->Scale.X;
 			if (Max < Parent->Transform->Scale.Y)
 				Max = Parent->Transform->Scale.Y;
@@ -2008,6 +1991,9 @@ namespace Tomahawk
 		}
 		bool Cullable::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
 		{
+			TH_ASSERT(Parent != nullptr, false, "parent should be set");
+			TH_ASSERT(Parent->Transform != nullptr, false, "transform should be set");
+
 			if (Parent->Transform->Position.Distance(View.WorldPosition) > View.FarPlane + Parent->Transform->Scale.Length())
 				return false;
 
@@ -2015,6 +2001,9 @@ namespace Tomahawk
 		}
 		bool Cullable::IsNear(const Viewer& View)
 		{
+			TH_ASSERT(Parent != nullptr, false, "parent should be set");
+			TH_ASSERT(Parent->Transform != nullptr, false, "transform should be set");
+
 			return Parent->Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + Parent->Transform->Scale.Length();
 		}
 
@@ -2049,20 +2038,14 @@ namespace Tomahawk
 		}
 		void Drawable::Detach()
 		{
-			if (Parent && Parent->GetScene())
-				Parent->GetScene()->RemoveDrawable(this, Category);
+			TH_ASSERT_V(Parent != nullptr, "parent should be set");
+			TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
+			Parent->GetScene()->RemoveDrawable(this, Category);
 		}
 		bool Drawable::SetTransparency(bool Enabled)
 		{
-			if (!Parent || !Parent->GetScene())
-			{
-				if (Enabled)
-					Category = GeoCategory::Transparent;
-				else
-					Category = GeoCategory::Opaque;
-
-				return false;
-			}
+			TH_ASSERT(Parent != nullptr, false, "parent should be set");
+			TH_ASSERT(Parent->GetScene() != nullptr, false, "scene should be set");
 
 			Detach();
 			if (Enabled)
@@ -2086,7 +2069,7 @@ namespace Tomahawk
 				Materials[Instance] = Value;
 			else
 				It->second = Value;
-	
+
 			return true;
 		}
 		bool Drawable::HasTransparency()
@@ -2132,9 +2115,8 @@ namespace Tomahawk
 			return Materials;
 		}
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Id(-1), Tag(-1), Distance(0)
+		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Transform(new Compute::Transform), Id(-1), Tag(-1), Distance(0)
 		{
-			Transform = new Compute::Transform();
 			Transform->UserPointer = this;
 		}
 		Entity::~Entity()
@@ -2152,44 +2134,36 @@ namespace Tomahawk
 		}
 		void Entity::RemoveComponent(uint64_t fId)
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+
 			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(fId);
 			if (It == Components.end())
 				return;
 
 			It->second->SetActive(false);
-			if (Scene != nullptr)
-			{
-				Scene->Lock();
-				if (Scene->Camera == It->second)
-					Scene->Camera = nullptr;
-			}
+			Scene->Lock();
+			if (Scene->Camera == It->second)
+				Scene->Camera = nullptr;
 
 			TH_RELEASE(It->second);
 			Components.erase(It);
-			if (Scene != nullptr)
-			{
-				Scene->Unlock();
-				Scene->Mutate(this, false);
-			}
+			Scene->Unlock();
+			Scene->Mutate(this, false);
 		}
 		void Entity::RemoveChilds()
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+			TH_ASSERT_V(Transform != nullptr, "transform should be set");
+
 			if (!Transform->GetChilds())
 				return;
 
-			if (Scene != nullptr)
-				Scene->Lock();
-
+			Scene->Lock();
 			uint64_t Count = Transform->GetChilds()->size();
 			for (uint64_t i = 0; i < Count; i++)
 			{
 				if (!Transform->GetChilds())
-				{
-					if (Scene != nullptr)
-						Scene->Unlock();
-
-					return;
-				}
+					return Scene->Unlock();
 
 				Entity* Entity = Transform->GetChild(i)->Ptr<Engine::Entity>();
 				if (!Entity || Entity == this)
@@ -2201,22 +2175,16 @@ namespace Tomahawk
 					TH_RELEASE(Entity);
 
 				if (Transform->GetChildCount() == 0)
-				{
-					if (Scene != nullptr)
-						Scene->Unlock();
-
-					return;
-				}
+					return Scene->Unlock();
 
 				Count--;
 				i--;
 			}
-
-			if (Scene != nullptr)
-				Scene->Unlock();
+			Scene->Unlock();
 		}
 		void Entity::SetScene(SceneGraph* NewScene)
 		{
+			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
 			Scene = NewScene;
 		}
 		std::unordered_map<uint64_t, Component*>::iterator Entity::First()
@@ -2229,7 +2197,10 @@ namespace Tomahawk
 		}
 		Component* Entity::AddComponent(Component* In)
 		{
-			if (!In || In == GetComponent(In->GetId()))
+			TH_ASSERT(In != nullptr, nullptr, "component should be set");
+			TH_ASSERT(Scene != nullptr, nullptr, "scene should be set");
+
+			if (In == GetComponent(In->GetId()))
 				return In;
 
 			RemoveComponent(In->GetId());
@@ -2241,8 +2212,7 @@ namespace Tomahawk
 				Component.second->Awake(In == Component.second ? nullptr : In);
 
 			In->SetActive(true);
-			if (Scene != nullptr)
-				Scene->Mutate(this, true);
+			Scene->Mutate(this, true);
 
 			return In;
 		}
@@ -2292,6 +2262,7 @@ namespace Tomahawk
 		}
 		void Renderer::SetRenderer(RenderSystem* NewSystem)
 		{
+			TH_ASSERT_V(NewSystem != nullptr, "render system should be set");
 			System = NewSystem;
 		}
 		RenderSystem* Renderer::GetRenderer()
@@ -2346,6 +2317,7 @@ namespace Tomahawk
 		}
 		std::string ShaderCache::Find(Graphics::Shader* Shader)
 		{
+			TH_ASSERT(Shader != nullptr, std::string(), "shader should be set");
 			Safe.lock();
 			for (auto& Item : Cache)
 			{
@@ -2434,7 +2406,8 @@ namespace Tomahawk
 		}
 		bool PrimitiveCache::Compile(Graphics::ElementBuffer** Results, const std::string& Name, size_t ElementSize, size_t ElementsCount)
 		{
-			if (!Results || Get(Results, Name))
+			TH_ASSERT(Results != nullptr, false, "results should be set");
+			if (Get(Results, Name))
 				return false;
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -2473,9 +2446,7 @@ namespace Tomahawk
 		}
 		bool PrimitiveCache::Get(Graphics::ElementBuffer** Results, const std::string& Name)
 		{
-			if (!Results)
-				return false;
-
+			TH_ASSERT(Results != nullptr, false, "results should be set");
 			Safe.lock();
 			auto It = Cache.find(Name);
 			if (It != Cache.end())
@@ -2539,9 +2510,7 @@ namespace Tomahawk
 		}
 		std::string PrimitiveCache::Find(Graphics::ElementBuffer** Buffers)
 		{
-			if (!Buffers)
-				return std::string();
-
+			TH_ASSERT(Buffers != nullptr, std::string(), "buffers should be set");
 			Safe.lock();
 			for (auto& Item : Cache)
 			{
@@ -2558,11 +2527,9 @@ namespace Tomahawk
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetQuad()
 		{
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 			if (Quad != nullptr)
 				return Quad;
-
-			if (!Device)
-				return nullptr;
 
 			Compute::ShapeVertex Elements[6];
 			Elements[0] = { -1.0f, -1.0f, 0, -1, 0 };
@@ -2588,11 +2555,9 @@ namespace Tomahawk
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSphere(BufferType Type)
 		{
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 			if (Sphere[(size_t)Type] != nullptr)
 				return Sphere[(size_t)Type];
-
-			if (!Device)
-				return nullptr;
 
 			if (Type == BufferType::Index)
 			{
@@ -2711,11 +2676,9 @@ namespace Tomahawk
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetCube(BufferType Type)
 		{
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 			if (Cube[(size_t)Type] != nullptr)
 				return Cube[(size_t)Type];
-
-			if (!Device)
-				return nullptr;
 
 			if (Type == BufferType::Index)
 			{
@@ -2818,11 +2781,9 @@ namespace Tomahawk
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetBox(BufferType Type)
 		{
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 			if (Box[(size_t)Type] != nullptr)
 				return Box[(size_t)Type];
-
-			if (!Device)
-				return nullptr;
 
 			if (Type == BufferType::Index)
 			{
@@ -2926,11 +2887,9 @@ namespace Tomahawk
 		}
 		Graphics::ElementBuffer* PrimitiveCache::GetSkinBox(BufferType Type)
 		{
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 			if (SkinBox[(size_t)Type] != nullptr)
 				return SkinBox[(size_t)Type];
-
-			if (!Device)
-				return nullptr;
 
 			if (Type == BufferType::Index)
 			{
@@ -3034,35 +2993,27 @@ namespace Tomahawk
 		}
 		void PrimitiveCache::GetSphereBuffers(Graphics::ElementBuffer** Result)
 		{
-			if (Result != nullptr)
-			{
-				Result[(size_t)BufferType::Index] = GetSphere(BufferType::Index);
-				Result[(size_t)BufferType::Vertex] = GetSphere(BufferType::Vertex);
-			}
+			TH_ASSERT_V(Result != nullptr, "result should be set");
+			Result[(size_t)BufferType::Index] = GetSphere(BufferType::Index);
+			Result[(size_t)BufferType::Vertex] = GetSphere(BufferType::Vertex);
 		}
 		void PrimitiveCache::GetCubeBuffers(Graphics::ElementBuffer** Result)
 		{
-			if (Result != nullptr)
-			{
-				Result[(size_t)BufferType::Index] = GetCube(BufferType::Index);
-				Result[(size_t)BufferType::Vertex] = GetCube(BufferType::Vertex);
-			}
+			TH_ASSERT_V(Result != nullptr, "result should be set");
+			Result[(size_t)BufferType::Index] = GetCube(BufferType::Index);
+			Result[(size_t)BufferType::Vertex] = GetCube(BufferType::Vertex);
 		}
 		void PrimitiveCache::GetBoxBuffers(Graphics::ElementBuffer** Result)
 		{
-			if (Result != nullptr)
-			{
-				Result[(size_t)BufferType::Index] = GetBox(BufferType::Index);
-				Result[(size_t)BufferType::Vertex] = GetBox(BufferType::Vertex);
-			}
+			TH_ASSERT_V(Result != nullptr, "result should be set");
+			Result[(size_t)BufferType::Index] = GetBox(BufferType::Index);
+			Result[(size_t)BufferType::Vertex] = GetBox(BufferType::Vertex);
 		}
 		void PrimitiveCache::GetSkinBoxBuffers(Graphics::ElementBuffer** Result)
 		{
-			if (Result != nullptr)
-			{
-				Result[(size_t)BufferType::Index] = GetSkinBox(BufferType::Index);
-				Result[(size_t)BufferType::Vertex] = GetSkinBox(BufferType::Vertex);
-			}
+			TH_ASSERT_V(Result != nullptr, "result should be set");
+			Result[(size_t)BufferType::Index] = GetSkinBox(BufferType::Index);
+			Result[(size_t)BufferType::Vertex] = GetSkinBox(BufferType::Vertex);
 		}
 		void PrimitiveCache::ClearCache()
 		{
@@ -3121,8 +3072,8 @@ namespace Tomahawk
 		}
 		void RenderSystem::SetDepthSize(size_t Size)
 		{
-			if (!Scene || !Device)
-				return;
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 
 			DepthStencil = Device->GetDepthStencilState("less-no-stencil");
 			Blend = Device->GetBlendState("overwrite-colorless");
@@ -3141,14 +3092,13 @@ namespace Tomahawk
 		}
 		void RenderSystem::SetScene(SceneGraph* NewScene)
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
 			Scene = NewScene;
 			SetDepthSize(DepthSize);
 		}
 		void RenderSystem::Remount(Renderer* fTarget)
 		{
-			if (!fTarget)
-				return;
-
+			TH_ASSERT_V(fTarget != nullptr, "renderer should be set");
 			fTarget->Deactivate();
 			fTarget->SetRenderer(this);
 			fTarget->Activate();
@@ -3172,6 +3122,7 @@ namespace Tomahawk
 		}
 		void RenderSystem::ClearCull()
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
 			for (auto& Base : Cull)
 			{
 				auto* Array = Scene->GetComponents(Base);
@@ -3181,6 +3132,7 @@ namespace Tomahawk
 		}
 		void RenderSystem::Synchronize(Core::Timer* Time, const Viewer& View)
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
 			if (!FrustumCulling)
 				return;
 
@@ -3196,6 +3148,7 @@ namespace Tomahawk
 		}
 		void RenderSystem::CullGeometry(Core::Timer* Time, const Viewer& View)
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
 			if (!OcclusionCulling || !Target)
 				return;
 
@@ -3255,12 +3208,13 @@ namespace Tomahawk
 		}
 		void RenderSystem::RestoreOutput()
 		{
-			if (Scene != nullptr)
-				Scene->SetMRT(TargetType::Main, false);
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+			Scene->SetMRT(TargetType::Main, false);
 		}
 		void RenderSystem::FreeShader(const std::string& Name, Graphics::Shader* Shader)
 		{
-			ShaderCache* Cache = (Scene ? Scene->GetShaders() : nullptr);
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+			ShaderCache* Cache = Scene->GetShaders();
 			if (Cache != nullptr)
 			{
 				if (Cache->Has(Name))
@@ -3271,7 +3225,8 @@ namespace Tomahawk
 		}
 		void RenderSystem::FreeShader(Graphics::Shader* Shader)
 		{
-			ShaderCache* Cache = (Scene ? Scene->GetShaders() : nullptr);
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+			ShaderCache* Cache = Scene->GetShaders();
 			if (Cache != nullptr)
 				return FreeShader(Cache->Find(Shader), Shader);
 
@@ -3279,10 +3234,11 @@ namespace Tomahawk
 		}
 		void RenderSystem::FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers)
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
 			if (!Buffers)
 				return;
 
-			PrimitiveCache* Cache = (Scene ? Scene->GetPrimitives() : nullptr);
+			PrimitiveCache* Cache = Scene->GetPrimitives();
 			if (Cache != nullptr)
 			{
 				if (Cache->Has(Name))
@@ -3294,10 +3250,11 @@ namespace Tomahawk
 		}
 		void RenderSystem::FreeBuffers(Graphics::ElementBuffer** Buffers)
 		{
+			TH_ASSERT_V(Scene != nullptr, "scene should be set");
 			if (!Buffers)
 				return;
 
-			PrimitiveCache* Cache = (Scene ? Scene->GetPrimitives() : nullptr);
+			PrimitiveCache* Cache = Scene->GetPrimitives();
 			if (Cache != nullptr)
 				return FreeBuffers(Cache->Find(Buffers), Buffers);
 
@@ -3310,9 +3267,11 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushGeometryBuffer(Material* Next)
 		{
-			bool R = (Next != nullptr);
-			if (!R || Next == BaseMaterial)
-				return R;
+			TH_ASSERT(Next != nullptr, false, "material should be set");
+			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
+
+			if (Next == BaseMaterial)
+				return false;
 
 			BaseMaterial = Next;
 			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
@@ -3331,9 +3290,11 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushVoxelsBuffer(Material* Next)
 		{
-			bool R = (Next != nullptr);
-			if (!R || Next == BaseMaterial)
-				return R;
+			TH_ASSERT(Next != nullptr, false, "material should be set");
+			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
+
+			if (Next == BaseMaterial)
+				return false;
 
 			BaseMaterial = Next;
 			Device->SetTexture2D(Next->DiffuseMap, 4, TH_PS);
@@ -3350,9 +3311,11 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushDepthLinearBuffer(Material* Next)
 		{
-			bool R = (Next != nullptr);
-			if (!R || Next == BaseMaterial)
-				return R;
+			TH_ASSERT(Next != nullptr, false, "material should be set");
+			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
+
+			if (Next == BaseMaterial)
+				return false;
 
 			BaseMaterial = Next;
 			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
@@ -3367,6 +3330,7 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PassCullable(Cullable* Base, CullResult Mode, float* Result)
 		{
+			TH_ASSERT(Base != nullptr, false, "cullable should be set");
 			if (Mode == CullResult::Last)
 				return Base->Visibility;
 
@@ -3381,6 +3345,7 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PassDrawable(Drawable* Base, CullResult Mode, float* Result)
 		{
+			TH_ASSERT(Base != nullptr, false, "drawable should be set");
 			if (Mode == CullResult::Last)
 			{
 				if (OcclusionCulling)
@@ -3416,13 +3381,11 @@ namespace Tomahawk
 		}
 		Graphics::Shader* RenderSystem::CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
-			if (Desc.Filename.empty())
-			{
-				TH_ERROR("shader must have a name");
-				return nullptr;
-			}
+			TH_ASSERT(Scene != nullptr, nullptr, "scene should be set");
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+			TH_ASSERT(!Desc.Filename.empty(), nullptr, "shader must have a name");
 
-			ShaderCache* Cache = (Scene ? Scene->GetShaders() : nullptr);
+			ShaderCache* Cache = Scene->GetShaders();
 			if (Cache != nullptr)
 				return Cache->Compile(Desc.Filename, Desc, BufferSize);
 
@@ -3434,6 +3397,7 @@ namespace Tomahawk
 		}
 		Graphics::Shader* RenderSystem::CompileShader(const std::string& SectionName, size_t BufferSize)
 		{
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 			Graphics::Shader::Desc I = Graphics::Shader::Desc();
 			if (!Device->GetSection(SectionName, &I))
 				return nullptr;
@@ -3442,13 +3406,12 @@ namespace Tomahawk
 		}
 		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount)
 		{
-			if (Name.empty() || !Result)
-			{
-				TH_ERROR("buffers must have a name");
-				return false;
-			}
+			TH_ASSERT(Scene != nullptr, nullptr, "scene should be set");
+			TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+			TH_ASSERT(Result != nullptr, nullptr, "result should be set");
+			TH_ASSERT(!Name.empty(), nullptr, "buffers must have a name");
 
-			PrimitiveCache* Cache = (Scene ? Scene->GetPrimitives() : nullptr);
+			PrimitiveCache* Cache = Scene->GetPrimitives();
 			if (Cache != nullptr)
 				return Cache->Compile(Result, Name, ElementSize, ElementsCount);
 
@@ -3484,9 +3447,7 @@ namespace Tomahawk
 		}
 		Renderer* RenderSystem::AddRenderer(Renderer* In)
 		{
-			if (!In)
-				return nullptr;
-
+			TH_ASSERT(In != nullptr, nullptr, "renderer should be set");
 			for (auto It = Renderers.begin(); It != Renderers.end(); ++It)
 			{
 				if (*It && (*It)->GetId() == In->GetId())
@@ -3532,16 +3493,12 @@ namespace Tomahawk
 		}
 		Graphics::MultiRenderTarget2D* RenderSystem::GetMRT(TargetType Type)
 		{
-			if (!Scene)
-				return nullptr;
-
+			TH_ASSERT(Scene != nullptr, nullptr, "scene should be set");
 			return Scene->GetMRT(Type);
 		}
 		Graphics::RenderTarget2D* RenderSystem::GetRT(TargetType Type)
 		{
-			if (!Scene)
-				return nullptr;
-
+			TH_ASSERT(Scene != nullptr, nullptr, "scene should be set");
 			return Scene->GetRT(Type);
 		}
 		Graphics::GraphicsDevice* RenderSystem::GetDevice()
@@ -3550,16 +3507,12 @@ namespace Tomahawk
 		}
 		Graphics::Texture2D** RenderSystem::GetMerger()
 		{
-			if (!Scene)
-				return nullptr;
-
+			TH_ASSERT(Scene != nullptr, nullptr, "scene should be set");
 			return Scene->GetMerger();
 		}
 		PrimitiveCache* RenderSystem::GetPrimitives()
 		{
-			if (!Scene)
-				return nullptr;
-
+			TH_ASSERT(Scene != nullptr, nullptr, "scene should be set");
 			return Scene->GetPrimitives();
 		}
 		SceneGraph* RenderSystem::GetScene()
@@ -3584,6 +3537,7 @@ namespace Tomahawk
 		}
 		void GeometryDraw::Render(Core::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
+			TH_ASSERT_V(System != nullptr, "render system should be set");
 			if (State == RenderState::Geometry_Result)
 			{
 				Core::Pool<Drawable*>* Geometry;
@@ -3644,21 +3598,24 @@ namespace Tomahawk
 		}
 		Core::Pool<Drawable*>* GeometryDraw::GetOpaque()
 		{
-			if (!System || !System->GetScene())
-				return nullptr;
+			TH_ASSERT(System != nullptr, nullptr, "render system should be set");
+			TH_ASSERT(System->GetScene() != nullptr, nullptr, "scene should be set");
 
 			return System->GetScene()->GetOpaque(Source);
 		}
 		Core::Pool<Drawable*>* GeometryDraw::GetTransparent()
 		{
-			if (!System || !System->GetScene())
-				return nullptr;
+			TH_ASSERT(System != nullptr, nullptr, "render system should be set");
+			TH_ASSERT(System->GetScene() != nullptr, nullptr, "scene should be set");
 
 			return System->GetScene()->GetTransparent(Source);
 		}
 
 		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Swap(nullptr), MaxSlot(0)
 		{
+			TH_ASSERT_V(Lab != nullptr, "render system should be set");
+			TH_ASSERT_V(Lab->GetDevice() != nullptr, "graphics device should be set");
+
 			auto* Device = Lab->GetDevice();
 			DepthStencil = Device->GetDepthStencilState("none");
 			Rasterizer = Device->GetRasterizerState("cull-back");
@@ -3681,6 +3638,9 @@ namespace Tomahawk
 		}
 		void EffectDraw::RenderOutput(Graphics::RenderTarget2D* Resource)
 		{
+			TH_ASSERT_V(System != nullptr, "render system should be set");
+			TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 			if (Resource != nullptr)
 			{
 				Output = Resource;
@@ -3694,6 +3654,9 @@ namespace Tomahawk
 		}
 		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::Texture2D* Resource)
 		{
+			TH_ASSERT_V(System != nullptr, "render system should be set");
+			TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetTexture2D(Resource, 6 + Slot6, TH_PS);
 
@@ -3702,6 +3665,9 @@ namespace Tomahawk
 		}
 		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::Texture3D* Resource)
 		{
+			TH_ASSERT_V(System != nullptr, "render system should be set");
+			TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetTexture3D(Resource, 6 + Slot6, TH_PS);
 
@@ -3710,6 +3676,9 @@ namespace Tomahawk
 		}
 		void EffectDraw::RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource)
 		{
+			TH_ASSERT_V(System != nullptr, "render system should be set");
+			TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetTextureCube(Resource, 6 + Slot6, TH_PS);
 
@@ -3718,9 +3687,7 @@ namespace Tomahawk
 		}
 		void EffectDraw::RenderMerge(Graphics::Shader* Effect, void* Buffer, size_t Count)
 		{
-			if (!Count)
-				return;
-
+			TH_ASSERT_V(Count > 0, "count should be greater than zero");
 			if (!Effect)
 				Effect = Effects.begin()->second;
 
@@ -3731,7 +3698,7 @@ namespace Tomahawk
 				Device->SetTexture2D(Swap->GetTarget(0), 5, TH_PS);
 			else if (Merger != nullptr)
 				Device->SetTexture2D(*Merger, 5, TH_PS);
-				
+
 			Device->SetShader(Effect, TH_VS | TH_PS);
 			if (Buffer != nullptr)
 			{
@@ -3777,6 +3744,11 @@ namespace Tomahawk
 		}
 		void EffectDraw::Render(Core::Timer* Time, RenderState State, RenderOpt Options)
 		{
+			TH_ASSERT_V(System != nullptr, "render system should be set");
+			TH_ASSERT_V(System->GetPrimitives() != nullptr, "primitive cache should be set");
+			TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+			TH_ASSERT_V(System->GetMRT(TargetType::Main) != nullptr, "main render target should be set");
+
 			if (State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Inner)
 				return;
 
@@ -3790,9 +3762,6 @@ namespace Tomahawk
 
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType::Main);
 			PrimitiveCache* Cache = System->GetPrimitives();
-			if (!Input || !Cache)
-				return;
-
 			Graphics::GraphicsDevice* Device = System->GetDevice();
 			Device->SetSamplerState(Sampler, 0, TH_PS);
 			Device->SetDepthStencilState(DepthStencil);
@@ -3822,12 +3791,7 @@ namespace Tomahawk
 		}
 		Graphics::Shader* EffectDraw::CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize)
 		{
-			if (Desc.Filename.empty())
-			{
-				TH_ERROR("cannot compile unnamed shader source");
-				return nullptr;
-			}
-
+			TH_ASSERT(!Desc.Filename.empty(), nullptr, "cannot compile unnamed shader source");
 			Graphics::Shader* Shader = System->CompileShader(Desc, BufferSize);
 			if (!Shader)
 				return nullptr;
@@ -3845,6 +3809,9 @@ namespace Tomahawk
 		}
 		Graphics::Shader* EffectDraw::CompileEffect(const std::string& SectionName, size_t BufferSize)
 		{
+			TH_ASSERT(System != nullptr, nullptr, "render system should be set");
+			TH_ASSERT(System->GetDevice() != nullptr, nullptr, "graphics device should be set");
+
 			Graphics::Shader::Desc I = Graphics::Shader::Desc();
 			if (!System->GetDevice()->GetSection(SectionName, &I))
 				return nullptr;
@@ -3853,26 +3820,27 @@ namespace Tomahawk
 		}
 		unsigned int EffectDraw::GetMipLevels()
 		{
-			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
-			if (!RT)
-				return 0;
+			TH_ASSERT(System != nullptr, 0, "render system should be set");
+			TH_ASSERT(System->GetDevice() != nullptr, 0, "graphics device should be set");
+			TH_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return System->GetDevice()->GetMipLevel(RT->GetWidth(), RT->GetHeight());
 		}
 		unsigned int EffectDraw::GetWidth()
 		{
-			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
-			if (!RT)
-				return 0;
+			TH_ASSERT(System != nullptr, 0, "render system should be set");
+			TH_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return RT->GetWidth();
 		}
 		unsigned int EffectDraw::GetHeight()
 		{
-			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
-			if (!RT)
-				return 0;
+			TH_ASSERT(System != nullptr, 0, "render system should be set");
+			TH_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 
+			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return RT->GetHeight();
 		}
 
@@ -3886,7 +3854,7 @@ namespace Tomahawk
 				I.Device = Base->Renderer;
 				I.Manager = Base->VM;
 			}
-			
+
 			return I;
 		}
 
@@ -3925,7 +3893,7 @@ namespace Tomahawk
 
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 				TH_RELEASE(*It);
-			
+
 			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
 				TH_RELEASE(*It);
 
@@ -3948,9 +3916,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Configure(const Desc& NewConf)
 		{
-			if (!Conf.Device)
-				return;
-
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Display.DepthStencil = Conf.Device->GetDepthStencilState("none");
 			Display.Rasterizer = Conf.Device->GetRasterizerState("cull-back");
 			Display.Blend = Conf.Device->GetBlendState("overwrite");
@@ -4002,13 +3968,11 @@ namespace Tomahawk
 		}
 		void SceneGraph::Submit()
 		{
-			if (!View.Renderer)
-				return;
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
+			TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
+			TH_ASSERT_V(View.Renderer->GetPrimitives() != nullptr, "primitive cache should be set");
 
 			PrimitiveCache* Cache = View.Renderer->GetPrimitives();
-			if (!Cache)
-				return;
-
 			Conf.Device->SetTarget();
 			Conf.Device->Render.TexCoord = 1.0f;
 			Conf.Device->Render.WorldViewProj.Identify();
@@ -4026,6 +3990,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Render(Core::Timer* Time)
 		{
+			TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
 			BeginThread(ThreadId::Render);
 			if (Camera != nullptr)
 			{
@@ -4040,9 +4005,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
 		{
-			if (!View.Renderer)
-				return;
-
+			TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
 			auto* States = View.Renderer->GetRenderers();
 			for (auto& Renderer : *States)
 			{
@@ -4052,6 +4015,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Simulation(Core::Timer* Time)
 		{
+			TH_ASSERT_V(Simulator != nullptr, "simulator should be set");
 			if (!Active)
 				return;
 
@@ -4069,8 +4033,9 @@ namespace Tomahawk
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				Entity* Base = *It;
+				TH_ASSERT_V(Base->Transform != nullptr, "transform should be set");
 				Base->Transform->Synchronize();
-				Base->Id = Index; Index++;
+				Base->Id = Index++;
 			}
 			EndThread(ThreadId::Synchronize);
 		}
@@ -4088,7 +4053,11 @@ namespace Tomahawk
 				Far = Camera->Parent->Transform->Position;
 
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
-				(*It)->Distance = (*It)->Transform->Position.Distance(Far);
+			{
+				Entity* Base = *It;
+				TH_ASSERT_V(Base->Transform != nullptr, "transform should be set");
+				Base->Distance = Base->Transform->Position.Distance(Far);
+			}
 
 			DispatchLastEvent();
 			EndThread(ThreadId::Update);
@@ -4117,24 +4086,16 @@ namespace Tomahawk
 			Lock();
 			int64_t Index = 0;
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
-			{
-				(*It)->Id = Index;
-				Index++;
-			}
+				(*It)->Id = Index++;
 
 			Index = 0;
 			for (auto It = Materials.Begin(); It != Materials.End(); ++It)
-			{
-				(*It)->Slot = Index;
-				Index++;
-			}
+				(*It)->Slot = Index++;
 			Unlock();
 		}
 		void SceneGraph::SortBackToFront(Core::Pool<Drawable*>* Array)
 		{
-			if (!Array)
-				return;
-
+			TH_ASSERT_V(Array != nullptr, "array should be set");
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
 				return A->Parent->Distance > B->Parent->Distance;
@@ -4142,9 +4103,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::SortFrontToBack(Core::Pool<Drawable*>* Array)
 		{
-			if (!Array)
-				return;
-
+			TH_ASSERT_V(Array != nullptr, "array should be set");
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
 				return A->Parent->Distance < B->Parent->Distance;
@@ -4172,24 +4131,19 @@ namespace Tomahawk
 		}
 		void SceneGraph::RemoveEntity(Entity* Entity, bool Release)
 		{
-			if (!Entity)
-				return;
-
+			TH_ASSERT_V(Entity != nullptr, "entity should be set");
 			Dispatch();
 			if (!UnregisterEntity(Entity) || !Release)
 				return;
-			else
-				Entity->RemoveChilds();
 
+			Entity->RemoveChilds();
 			Lock();
 			TH_RELEASE(Entity);
 			Unlock();
 		}
 		void SceneGraph::RemoveMaterial(Material* Value)
 		{
-			if (!Value)
-				return;
-
+			TH_ASSERT_V(Value != nullptr, "entity should be set");
 			Core::VariantArgs Args;
 			Args["material-id"] = Core::Var::Pointer(Value);
 
@@ -4210,29 +4164,30 @@ namespace Tomahawk
 		}
 		void SceneGraph::RegisterEntity(Entity* In)
 		{
-			if (!In)
-				return;
-
+			TH_ASSERT_V(In != nullptr, "entity should be set");
 			for (auto& Component : In->Components)
 			{
 				Component.second->Awake(Component.second);
-
-				auto Storage = GetComponents(Component.second->GetId());
+				auto* Storage = GetComponents(Component.second->GetId());
 				if (Component.second->Active)
+				{
 					Storage->AddIfNotExists(Component.second);
-				else
-					Storage->Remove(Component.second);
-
-				if (Component.second->Active)
 					Pending.AddIfNotExists(Component.second);
+				}
 				else
+				{
+					Storage->Remove(Component.second);
 					Pending.Remove(Component.second);
+				}
 			}
 
 			Mutate(In, true);
 		}
 		bool SceneGraph::UnregisterEntity(Entity* In)
 		{
+			TH_ASSERT(In != nullptr, false, "entity should be set");
+			TH_ASSERT(In->GetScene() != this, false, "entity should be attached to current scene");
+
 			if (Camera != nullptr && In == Camera->Parent)
 			{
 				Lock();
@@ -4240,14 +4195,10 @@ namespace Tomahawk
 				Unlock();
 			}
 
-			if (!In || !In->GetScene())
-				return false;
-
 			for (auto& Component : In->Components)
 			{
 				Component.second->Asleep();
-
-				auto Storage = &Components[Component.second->GetId()];
+				auto* Storage = &Components[Component.second->GetId()];
 				Storage->Remove(Component.second);
 				Pending.Remove(Component.second);
 			}
@@ -4259,8 +4210,9 @@ namespace Tomahawk
 		}
 		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
 		{
-			if (!Instance || !Array)
-				return;
+			TH_ASSERT_V(Instance != nullptr, "entity should be set");
+			TH_ASSERT_V(Instance->Transform != nullptr, "transform should be set");
+			TH_ASSERT_V(Array != nullptr, "array should be set");
 
 			Lock();
 			Entity* Clone = CloneEntity(Instance);
@@ -4289,6 +4241,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::RestoreViewBuffer(Viewer* iView)
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			if (&View != iView)
 			{
 				if (iView == nullptr)
@@ -4415,6 +4368,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::ResizeRenderBuffers()
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Graphics::MultiRenderTarget2D::Desc MRT = GetDescMRT();
 			Graphics::RenderTarget2D::Desc RT = GetDescRT();
 			TH_CLEAR(Display.Merger);
@@ -4430,6 +4384,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::FillMaterialBuffers()
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Graphics::MappedSubresource Stream;
 			if (!Conf.Device->Map(Display.MaterialBuffer, Graphics::ResourceMap::Write_Discard, &Stream))
 				return;
@@ -4450,9 +4405,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
 		{
-			if (!Callback)
-				return;
-
+			TH_ASSERT_V(Callback, "callback should not be empty");
 			Core::Pool<Component*>* Array = GetComponents(Section);
 			Compute::Ray Base = Origin;
 			Compute::Vector3 Hit;
@@ -4460,6 +4413,7 @@ namespace Tomahawk
 			for (auto It = Array->Begin(); It != Array->End(); ++It)
 			{
 				Component* Current = *It;
+				TH_ASSERT_V(Current->Parent != nullptr, "parent should be set");
 				if (MaxDistance > 0.0f && Current->Parent->Distance > MaxDistance)
 					continue;
 
@@ -4500,6 +4454,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::SetVoxelBufferSize(size_t Size)
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			if (Size % 8 != 0)
 				Size = Display.VoxelSize;
 
@@ -4521,6 +4476,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::SetMRT(TargetType Type, bool Clear)
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
 			Conf.Device->SetTarget(Target);
 
@@ -4535,6 +4491,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::SetRT(TargetType Type, bool Clear)
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
 			Conf.Device->SetTarget(Target);
 
@@ -4585,6 +4542,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::ClearMRT(TargetType Type, bool Color, bool Depth)
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
 			if (Color)
 			{
@@ -4599,6 +4557,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::ClearRT(TargetType Type, bool Color, bool Depth)
 		{
+			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
 			if (Color)
 				Conf.Device->Clear(Target, 0, 0, 0, 0);
@@ -4608,8 +4567,10 @@ namespace Tomahawk
 		}
 		bool SceneGraph::GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out)
 		{
-			if (!In || !Out || !Display.VoxelBuffers[0] || !Display.VoxelBuffers[1] || !Display.VoxelBuffers[2])
-				return false;
+			TH_ASSERT(In && Out, false, "input and output should be set");
+			TH_ASSERT(Display.VoxelBuffers[0] != nullptr, false, "first voxel buffer should be set");
+			TH_ASSERT(Display.VoxelBuffers[1] != nullptr, false, "second voxel buffer should be set");
+			TH_ASSERT(Display.VoxelBuffers[2] != nullptr, false, "third voxel buffer should be set");
 
 			for (unsigned int i = 0; i < 3; i++)
 			{
@@ -4621,14 +4582,12 @@ namespace Tomahawk
 		}
 		bool SceneGraph::AddEventListener(const std::string& Name, const std::string& EventName, const MessageCallback& Callback)
 		{
-			if (!Callback || Invoked)
-				return false;
+			TH_ASSERT(Callback, false, "callback should not be empty");
+			TH_ASSERT(!Invoked, false, "cannot add listener inside listener callback");
 
 			Sync.Listener.lock();
 			Invoked = true;
-
 			Listeners[Name] = std::make_pair(EventName, Callback);
-
 			Invoked = false;
 			Sync.Listener.unlock();
 
@@ -4636,10 +4595,9 @@ namespace Tomahawk
 		}
 		bool SceneGraph::RemoveEventListener(const std::string& Name)
 		{
-			bool Result = false;
-			if (Invoked)
-				return Result;
+			TH_ASSERT(!Invoked, false, "cannot remove listener inside listener callback");
 
+			bool Result = false;
 			Sync.Listener.lock();
 			Invoked = true;
 
@@ -4665,6 +4623,7 @@ namespace Tomahawk
 		}
 		bool SceneGraph::DispatchEvent(Component* Target, const std::string& EventName, const Core::VariantArgs& Args)
 		{
+			TH_ASSERT(Target != nullptr, false, "target should be set");
 			Core::VariantArgs Subargs =
 			{
 				{ "event", Core::Var::Pointer(TH_NEW(Event, EventName, Target, Args)) }
@@ -4673,6 +4632,7 @@ namespace Tomahawk
 		}
 		bool SceneGraph::DispatchEvent(Entity* Target, const std::string& EventName, const Core::VariantArgs& Args)
 		{
+			TH_ASSERT(Target != nullptr, false, "target should be set");
 			Core::VariantArgs Subargs =
 			{
 				{ "event", Core::Var::Pointer(TH_NEW(Event, EventName, Target, Args)) }
@@ -4726,6 +4686,8 @@ namespace Tomahawk
 		}
 		void SceneGraph::Mutate(Entity* Target, bool Added)
 		{
+			TH_ASSERT_V(Target != nullptr, "target should be set");
+
 			Core::VariantArgs Args;
 			Args["entity-ptr"] = Core::Var::Pointer((void*)Target);
 			Args["added"] = Core::Var::Boolean(Added);
@@ -4734,9 +4696,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::AddDrawable(Drawable* Source, GeoCategory Category)
 		{
-			if (!Source)
-				return;
-
+			TH_ASSERT_V(Source != nullptr, "drawable should be set");
 			if (Category == GeoCategory::Opaque)
 				GetOpaque(Source->Source)->Add(Source);
 			else if (Category == GeoCategory::Transparent)
@@ -4744,9 +4704,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::RemoveDrawable(Drawable* Source, GeoCategory Category)
 		{
-			if (!Source)
-				return;
-
+			TH_ASSERT_V(Source != nullptr, "drawable should be set");
 			if (Category == GeoCategory::Opaque)
 				GetOpaque(Source->Source)->Remove(Source);
 			else if (Category == GeoCategory::Transparent)
@@ -4754,9 +4712,7 @@ namespace Tomahawk
 		}
 		Material* SceneGraph::AddMaterial(const std::string& Name)
 		{
-			if (Materials.Size() >= Materials.Capacity())
-				return nullptr;
-
+			TH_ASSERT(Materials.Size() < Materials.Capacity(), nullptr, "too many materials");
 			if (Materials.Size() > Surfaces)
 				ExpandMaterials();
 
@@ -4767,9 +4723,7 @@ namespace Tomahawk
 		}
 		Material* SceneGraph::CloneMaterial(Material* Base, const std::string& Name)
 		{
-			if (!Base)
-				return nullptr;
-
+			TH_ASSERT(Base != nullptr, nullptr, "material should be set");
 			Material* Copy = AddMaterial(Name);
 			if (!Copy)
 				return nullptr;
@@ -4855,16 +4809,12 @@ namespace Tomahawk
 		}
 		Material* SceneGraph::GetMaterial(uint64_t Material)
 		{
-			if (Material >= Materials.Size())
-				return nullptr;
-
+			TH_ASSERT(Material < Materials.Size(), nullptr, "index outside of range");
 			return Materials[Material];
 		}
 		Entity* SceneGraph::GetEntity(uint64_t Entity)
 		{
-			if (Entity >= Entities.Size())
-				return nullptr;
-
+			TH_ASSERT(Entity < Entities.Size(), nullptr, "index outside of range");
 			return Entities[Entity];
 		}
 		Entity* SceneGraph::GetLastEntity()
@@ -4921,9 +4871,7 @@ namespace Tomahawk
 		}
 		Entity* SceneGraph::CloneEntity(Entity* Entity)
 		{
-			if (!Entity)
-				return nullptr;
-
+			TH_ASSERT(Entity != nullptr, nullptr, "entity should be set");
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
 			Instance->Transform->UserPointer = Instance;
@@ -4945,9 +4893,7 @@ namespace Tomahawk
 		}
 		Entity* SceneGraph::CloneEntities(Entity* Value)
 		{
-			if (!Value)
-				return nullptr;
-
+			TH_ASSERT(Value != nullptr, nullptr, "entity should be set");
 			std::vector<Entity*> Array;
 			CloneEntities(Value, &Array);
 
@@ -4991,10 +4937,10 @@ namespace Tomahawk
 		}
 		Graphics::RenderTarget2D::Desc SceneGraph::GetDescRT()
 		{
+			TH_ASSERT(Conf.Device != nullptr, Graphics::RenderTarget2D::Desc(), "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
-			if (!Target)
-				return Graphics::RenderTarget2D::Desc();
 
+			TH_ASSERT(Target != nullptr, Graphics::RenderTarget2D::Desc(), "render target should be set");
 			Graphics::RenderTarget2D::Desc Desc;
 			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
@@ -5006,10 +4952,10 @@ namespace Tomahawk
 		}
 		Graphics::MultiRenderTarget2D::Desc SceneGraph::GetDescMRT()
 		{
+			TH_ASSERT(Conf.Device != nullptr, Graphics::MultiRenderTarget2D::Desc(), "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
-			if (!Target)
-				return Graphics::MultiRenderTarget2D::Desc();
 
+			TH_ASSERT(Target != nullptr, Graphics::MultiRenderTarget2D::Desc(), "render target should be set");
 			Graphics::MultiRenderTarget2D::Desc Desc;
 			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
@@ -5042,8 +4988,7 @@ namespace Tomahawk
 		std::vector<Entity*> SceneGraph::FindParentFreeEntities(Entity* Entity)
 		{
 			std::vector<Engine::Entity*> Array;
-			if (!Entity)
-				return Array;
+			TH_ASSERT(Entity != nullptr, Array, "entity should be set");
 
 			Lock();
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
@@ -5061,65 +5006,70 @@ namespace Tomahawk
 		std::vector<Entity*> SceneGraph::FindNamedEntities(const std::string& Name)
 		{
 			std::vector<Entity*> Array;
-			Lock();
 
+			Lock();
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Name == Name)
 					Array.push_back(*It);
 			}
-
 			Unlock();
+
 			return Array;
 		}
 		std::vector<Entity*> SceneGraph::FindEntitiesAt(const Compute::Vector3& Position, float Radius)
 		{
 			std::vector<Entity*> Array;
-			Lock();
 
+			Lock();
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
 					Array.push_back(*It);
 			}
-
 			Unlock();
+
 			return Array;
 		}
 		std::vector<Entity*> SceneGraph::FindTaggedEntities(uint64_t Tag)
 		{
 			std::vector<Entity*> Array;
-			Lock();
 
+			Lock();
 			for (auto It = Entities.Begin(); It != Entities.End(); ++It)
 			{
 				if ((*It)->Tag == Tag)
 					Array.push_back(*It);
 			}
-
 			Unlock();
+
 			return Array;
 		}
 		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection)
 		{
-			if (!Camera || !Entity || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.FarPlane + Entity->Transform->Scale.Length())
+			TH_ASSERT(Entity != nullptr, false, "entity should be set");
+			TH_ASSERT(Entity->Transform != nullptr, false, "transform should be set");
+
+			if (!Camera || Entity->Transform->Position.Distance(Camera->Parent->Transform->Position) > View.FarPlane + Entity->Transform->Scale.Length())
 				return false;
 
 			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) < 0.0f);
 		}
 		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance)
 		{
-			if (!Entity || Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
+			TH_ASSERT(Entity != nullptr, false, "entity should be set");
+			TH_ASSERT(Entity->Transform != nullptr, false, "transform should be set");
+
+			if (Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
 				return false;
 
 			return (Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2) < 0.0f);
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{
-			if (!Entity)
-				return false;
-
+			TH_ASSERT(Entity != nullptr, false, "entity should be set");
 			Entity->SetScene(this);
+
 			if (Entities.Add(Entity) == Entities.End())
 				return false;
 
@@ -5128,6 +5078,7 @@ namespace Tomahawk
 		}
 		bool SceneGraph::HasEntity(Entity* Entity)
 		{
+			TH_ASSERT(Entity != nullptr, false, "entity should be set");
 			for (uint64_t i = 0; i < Entities.Size(); i++)
 			{
 				if (Entities[i] == Entity)
@@ -5286,7 +5237,7 @@ namespace Tomahawk
 
 			if (!Processor)
 			{
-				TH_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
+				TH_ERR("file processor for \"%s\" wasn't found", Path.c_str());
 				return nullptr;
 			}
 
@@ -5303,7 +5254,7 @@ namespace Tomahawk
 
 				if (File.empty())
 				{
-					TH_ERROR("file \"%s\" wasn't found", Path.c_str());
+					TH_ERR("file \"%s\" wasn't found", Path.c_str());
 					return nullptr;
 				}
 			}
@@ -5340,7 +5291,7 @@ namespace Tomahawk
 			auto It = Streams.find(Docker->second->Stream);
 			if (It == Streams.end())
 			{
-				TH_ERROR("cannot resolve stream offset for \"%s\"", Path.c_str());
+				TH_ERR("cannot resolve stream offset for \"%s\"", Path.c_str());
 				return nullptr;
 			}
 
@@ -5352,18 +5303,13 @@ namespace Tomahawk
 		}
 		bool ContentManager::SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Map)
 		{
+			TH_ASSERT(Object != nullptr, false, "object should be set");
 			if (Path.empty())
 				return false;
 
 			if (!Processor)
 			{
-				TH_ERROR("file processor for \"%s\" wasn't found", Path.c_str());
-				return false;
-			}
-
-			if (!Object)
-			{
-				TH_ERROR("cannot save null object to \"%s\"", Path.c_str());
+				TH_ERR("file processor for \"%s\" wasn't found", Path.c_str());
 				return false;
 			}
 
@@ -5379,7 +5325,7 @@ namespace Tomahawk
 				Stream = Core::OS::File::Open(Path, Core::FileMode::Binary_Write_Only);
 				if (!Stream)
 				{
-					TH_ERROR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
+					TH_ERR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
 					TH_RELEASE(Stream);
 					return false;
 				}
@@ -5398,14 +5344,14 @@ namespace Tomahawk
 
 			if (File.empty())
 			{
-				TH_ERROR("file \"%s\" wasn't found", Path.c_str());
+				TH_ERR("file \"%s\" wasn't found", Path.c_str());
 				return false;
 			}
 
 			auto* Stream = new Core::GzStream();
 			if (!Stream->Open(File.c_str(), Core::FileMode::Binary_Read_Only))
 			{
-				TH_ERROR("cannot open \"%s\" for reading", File.c_str());
+				TH_ERR("cannot open \"%s\" for reading", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5414,7 +5360,7 @@ namespace Tomahawk
 			char Buffer[16];
 			if (Stream->Read(Buffer, 16) != 16)
 			{
-				TH_ERROR("file \"%s\" has corrupted header", File.c_str());
+				TH_ERR("file \"%s\" has corrupted header", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5422,7 +5368,7 @@ namespace Tomahawk
 
 			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
 			{
-				TH_ERROR("file \"%s\" header version is corrupted", File.c_str());
+				TH_ERR("file \"%s\" header version is corrupted", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5431,7 +5377,7 @@ namespace Tomahawk
 			uint64_t Size = 0;
 			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
 			{
-				TH_ERROR("file \"%s\" has corrupted dock size", File.c_str());
+				TH_ERR("file \"%s\" has corrupted dock size", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5466,16 +5412,11 @@ namespace Tomahawk
 		}
 		bool ContentManager::Export(const std::string& Path, const std::string& Directory, const std::string& Name)
 		{
-			if (Path.empty() || Directory.empty())
-			{
-				TH_ERROR("cannot export to/from unknown location");
-				return false;
-			}
-
+			TH_ASSERT(!Path.empty() && !Directory.empty(), false, "path and directory should not be empty");
 			auto* Stream = new Core::GzStream();
 			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment).c_str(), Core::FileMode::Write_Only))
 			{
-				TH_ERROR("cannot open \"%s\" for writing", Path.c_str());
+				TH_ERR("cannot open \"%s\" for writing", Path.c_str());
 				TH_RELEASE(Stream);
 				return false;
 			}
@@ -5610,9 +5551,7 @@ namespace Tomahawk
 
 		Application::Application(Desc* I)
 		{
-			if (!I)
-				return;
-
+			TH_ASSERT_V(I != nullptr, "desc should be set");
 			Host = this;
 #ifdef TH_HAS_SDL2
 			if (I->Usage & (size_t)ApplicationSet::ActivitySet)
@@ -5630,7 +5569,7 @@ namespace Tomahawk
 					Activity = new Graphics::Activity(I->Activity);
 					if (!Activity->GetHandle())
 					{
-						TH_ERROR("cannot create activity instance");
+						TH_ERR("cannot create activity instance");
 						return;
 					}
 
@@ -5689,7 +5628,7 @@ namespace Tomahawk
 						Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
 						if (!Renderer || !Renderer->IsValid())
 						{
-							TH_ERROR("graphics device cannot be created");
+							TH_ERR("graphics device cannot be created");
 							return;
 						}
 
@@ -5698,7 +5637,7 @@ namespace Tomahawk
 					}
 				}
 				else
-					TH_ERROR("cannot detect display to create activity");
+					TH_ERR("cannot detect display to create activity");
 			}
 #endif
 			if (I->Usage & (size_t)ApplicationSet::AudioSet)
@@ -5706,7 +5645,7 @@ namespace Tomahawk
 				Audio = new Audio::AudioDevice();
 				if (!Audio->IsValid())
 				{
-					TH_ERROR("audio device cannot be created");
+					TH_ERR("audio device cannot be created");
 					return;
 				}
 			}
@@ -5736,9 +5675,9 @@ namespace Tomahawk
 				GUI::Subsystem::SetManager(VM);
 			}
 #endif
-            NetworkQueue = (I->Usage & (size_t)ApplicationSet::NetworkSet);
-            if (NetworkQueue)
-                Network::Driver::Create(256, I->Async ? 100 : 0);
+			NetworkQueue = (I->Usage & (size_t)ApplicationSet::NetworkSet);
+			if (NetworkQueue)
+				Network::Driver::Create(256, I->Async ? 100 : 0);
 
 			State = ApplicationState::Staging;
 		}
@@ -5763,9 +5702,9 @@ namespace Tomahawk
 			for (auto& Job : Workers)
 				TH_DELETE(Reactor, Job);
 
-            if (NetworkQueue)
-                Network::Driver::Release();
-            
+			if (NetworkQueue)
+				Network::Driver::Release();
+
 			Host = nullptr;
 		}
 		void Application::ScriptHook(Script::VMGlobal* Global)
@@ -5798,27 +5737,25 @@ namespace Tomahawk
 		}
 		void Application::Start(Desc* I)
 		{
-			if (I == nullptr)
-				return;
-
+			TH_ASSERT_V(I != nullptr, "desc should be set");
 			if (!ComposeEvent())
 				Compose();
 
 			if (I->Usage & (size_t)ApplicationSet::ActivitySet && !Activity)
 			{
-				TH_ERROR("[conf] activity was not found");
+				TH_ERR("[conf] activity was not found");
 				return;
 			}
 
 			if (I->Usage & (size_t)ApplicationSet::GraphicsSet && !Renderer)
 			{
-				TH_ERROR("[conf] graphics device was not found");
+				TH_ERR("[conf] graphics device was not found");
 				return;
 			}
 
 			if (I->Usage & (size_t)ApplicationSet::AudioSet && !Audio)
 			{
-				TH_ERROR("[conf] audio device was not found");
+				TH_ERR("[conf] audio device was not found");
 				return;
 			}
 
@@ -5826,7 +5763,7 @@ namespace Tomahawk
 			{
 				if (!VM)
 				{
-					TH_ERROR("[conf] VM was not found");
+					TH_ERR("[conf] VM was not found");
 					return;
 				}
 				else
@@ -5836,7 +5773,7 @@ namespace Tomahawk
 			Initialize(I);
 			if (State == ApplicationState::Terminated)
 				return;
-            
+
 			if (Scene != nullptr)
 				Scene->Dispatch();
 

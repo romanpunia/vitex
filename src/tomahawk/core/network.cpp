@@ -60,9 +60,7 @@ namespace Tomahawk
 	{
 		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(0)
 		{
-			if (URL.empty())
-				return;
-
+			TH_ASSERT_V(!URL.empty(), "url should not be empty");
 			Core::Parser fURL(&URL);
 			fURL.Replace('\\', '/');
 
@@ -267,7 +265,10 @@ namespace Tomahawk
 
 			struct addrinfo* Address;
 			if (getaddrinfo(Host, Core::Parser(Port).Get(), &Hints, &Address))
+			{
+				TH_ERR("cannot connect to %s on port %i", Host, Port);
 				return -1;
+			}
 
 			for (auto It = Address; It; It = It->ai_next)
 			{
@@ -341,16 +342,12 @@ namespace Tomahawk
 		}
 		int Socket::Bind(Address* Address)
 		{
-			if (!Address || !Address->Active)
-				return -1;
-
+			TH_ASSERT(Address && Address->Active, -1, "address should be set and active");
 			return bind(Fd, Address->Active->ai_addr, (int)Address->Active->ai_addrlen);
 		}
 		int Socket::Connect(Address* Address)
 		{
-			if (!Address || !Address->Active)
-				return -1;
-
+			TH_ASSERT(Address && Address->Active, -1, "address should be set and active");
 			return connect(Fd, Address->Active->ai_addr, (int)Address->Active->ai_addrlen);
 		}
 		int Socket::Listen(int Backlog)
@@ -359,8 +356,7 @@ namespace Tomahawk
 		}
 		int Socket::Accept(Socket* Connection, Address* OutAddr)
 		{
-			if (!Connection)
-				return -1;
+			TH_ASSERT(Connection != nullptr, -1, "socket should be set");
 
 			sockaddr Address;
 			socket_size_t Length = sizeof(sockaddr);
@@ -501,9 +497,7 @@ namespace Tomahawk
 		}
 		int Socket::Write(const char* Buffer, int Size)
 		{
-			if (Fd == INVALID_SOCKET)
-				return -1;
-
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -534,20 +528,17 @@ namespace Tomahawk
 				if (Length <= 0)
 				{
 					if (Callback)
-						Callback(this, -1);
+						Callback(this, false);
 
 					return -1;
 				}
 
 				Size -= Length;
 				Offset += Length;
-
-				if (Callback && !Callback(this, Length))
-					break;
 			}
 
 			if (Callback)
-				Callback(this, 0);
+				Callback(this, true);
 
 			return Size;
 		}
@@ -557,8 +548,8 @@ namespace Tomahawk
 		}
 		int Socket::WriteAsync(const char* Buffer, int64_t Size, SocketWriteCallback&& Callback)
 		{
-			if (Listener != nullptr)
-				return 0;
+			TH_ASSERT(!Listener, -1, "socket should not be listener");
+			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
 
 			if (Output != nullptr)
 			{
@@ -593,9 +584,6 @@ namespace Tomahawk
 
 				Size -= (int64_t)Length;
 				Offset += (int64_t)Length;
-
-				if (Callback && !Callback(this, (int64_t)Length))
-					break;
 			}
 
 			if (Callback)
@@ -605,8 +593,9 @@ namespace Tomahawk
 		}
 		int Socket::fWrite(const char* Format, ...)
 		{
-			char Buffer[8192];
+			TH_ASSERT(Format != nullptr, -1, "format should be set");
 
+			char Buffer[8192];
 			va_list Args;
 			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -616,8 +605,9 @@ namespace Tomahawk
 		}
 		int Socket::fWriteAsync(SocketWriteCallback&& Callback, const char* Format, ...)
 		{
-			char Buffer[8192];
+			TH_ASSERT(Format != nullptr, -1, "format should be set");
 
+			char Buffer[8192];
 			va_list Args;
 			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -627,9 +617,8 @@ namespace Tomahawk
 		}
 		int Socket::Read(char* Buffer, int Size)
 		{
-			if (Fd == INVALID_SOCKET)
-				return -1;
-
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -653,6 +642,9 @@ namespace Tomahawk
 		}
 		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
 		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+
 			while (Size > 0)
 			{
 				int Length = Read(Buffer, Size > sizeof(Buffer) ? sizeof(Buffer) : Size);
@@ -676,6 +668,9 @@ namespace Tomahawk
 		}
 		int Socket::ReadAsync(int64_t Size, SocketReadCallback&& Callback)
 		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Size > 0, -1, "size should be greater than zero");
+
 			if (Input != nullptr)
 			{
 				if (!Callback)
@@ -719,14 +714,14 @@ namespace Tomahawk
 		}
 		int Socket::ReadUntil(const char* Match, const SocketReadCallback& Callback)
 		{
-			if (!Match)
-				return 0;
-
-			int Index = 0, Size = (int)strlen(Match);
-			if (!Size)
-				return 0;
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Match != nullptr, -1, "match should be set");
 
 			char Buffer = 0;
+			int Size = (int)strlen(Match);
+			int Index = 0;
+
+			TH_ASSERT(Size > 0, -1, "match should not be empty");
 			while (true)
 			{
 				int Length = Read(&Buffer, 1);
@@ -760,9 +755,11 @@ namespace Tomahawk
 		}
 		int Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback)
 		{
-			int64_t Size = (int64_t)(Match ? strlen(Match) : 0);
-			if (!Size)
-				return 0;
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Match != nullptr, -1, "match should be set");
+
+			int64_t Size = (int64_t)strlen(Match);
+			TH_ASSERT(Size > 0, -1, "match should not be empty");
 
 			if (Input != nullptr)
 			{
@@ -818,8 +815,7 @@ namespace Tomahawk
 		}
 		int Socket::Skip(unsigned int IO, int Code)
 		{
-			if (Code > 0)
-				return -1;
+			TH_ASSERT(Code <= 0, -1, "code should be less than 1");
 
 			Sync.IO.lock();
 			if (IO & (uint32_t)SocketEvent::Read && Input != nullptr)
@@ -845,34 +841,30 @@ namespace Tomahawk
 			Sync.IO.unlock();
 			return ((IO & (uint32_t)SocketEvent::Write && Output) || (IO & (size_t)SocketEvent::Read && Input) ? 1 : 0);
 		}
-        int Socket::SetFd(socket_t NewFd)
-        {
-            int Result = Clear(false);
-            Fd = NewFd;
-            return Result;
-        }
-        int Socket::SetReadNotify(SocketReadCallback&& Callback)
-        {
-            if (!Callback)
-                return -1;
-            
-            Sync.IO.lock();
-            bool OK = ReadSet(std::move(Callback), nullptr, -1, 0);
-            Sync.IO.unlock();
-            
-            return OK ? 0 : -1;
-        }
-        int Socket::SetWriteNotify(SocketWriteCallback&& Callback)
-        {
-            if (!Callback)
-                return -1;
-            
-            Sync.IO.lock();
-            bool OK = WriteSet(std::move(Callback), nullptr, -1);
-            Sync.IO.unlock();
-            
-            return OK ? 0 : -1;
-        }
+		int Socket::SetFd(socket_t NewFd)
+		{
+			int Result = Clear(false);
+			Fd = NewFd;
+			return Result;
+		}
+		int Socket::SetReadNotify(SocketReadCallback&& Callback)
+		{
+			TH_ASSERT(Callback, -1, "callback should not be empty");
+			Sync.IO.lock();
+			bool OK = ReadSet(std::move(Callback), nullptr, -1, 0);
+			Sync.IO.unlock();
+
+			return OK ? 0 : -1;
+		}
+		int Socket::SetWriteNotify(SocketWriteCallback&& Callback)
+		{
+			TH_ASSERT(Callback, -1, "callback should not be empty");
+			Sync.IO.lock();
+			bool OK = WriteSet(std::move(Callback), nullptr, -1);
+			Sync.IO.unlock();
+
+			return OK ? 0 : -1;
+		}
 		int Socket::SetTimeWait(int Timeout)
 		{
 			linger Linger;
@@ -1016,12 +1008,7 @@ namespace Tomahawk
 		}
 		bool Socket::ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index)
 		{
-			if (Input != nullptr)
-			{
-				TH_ERROR("cannot request read op while another already bound");
-				return false;
-			}
-
+			TH_ASSERT(!Input, false, "there must be only one async read request at a time");
 			Input = TH_NEW(ReadEvent);
 			Input->Callback = std::move(Callback);
 			Input->Size = Size;
@@ -1045,23 +1032,18 @@ namespace Tomahawk
 		}
 		bool Socket::WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size)
 		{
-			if (Output != nullptr)
-			{
-				TH_ERROR("cannot request write op while another already bound");
-				return false;
-			}
-
+			TH_ASSERT(!Output, false, "there must be only one async write request at a time");
 			Output = TH_NEW(WriteEvent);
 			Output->Callback = std::move(Callback);
 			Output->Size = Size;
-            
-            if (Size > 0)
-            {
-                Output->Buffer = (char*)TH_MALLOC((size_t)Size);
-                memcpy(Output->Buffer, Buffer, (size_t)Size);
-            }
-            
-            Driver::Listen(this, false);
+
+			if (Size > 0)
+			{
+				Output->Buffer = (char*)TH_MALLOC((size_t)Size);
+				memcpy(Output->Buffer, Buffer, (size_t)Size);
+			}
+
+			Driver::Listen(this, false);
 			return true;
 		}
 		bool Socket::WriteFlush()
@@ -1172,9 +1154,7 @@ namespace Tomahawk
 		bool SocketConnection::Certify(Certificate* Output)
 		{
 #ifdef TH_HAS_OPENSSL
-			if (!Output)
-				return false;
-
+			TH_ASSERT(Output != nullptr, false, "certificate should be set");
 			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
 			if (!Certificate)
 				return false;
@@ -1245,23 +1225,23 @@ namespace Tomahawk
 		{
 			PipeTimeout = Timeout;
 			if (Array != nullptr || Handle != INVALID_EPOLL)
-            {
-                if (ArraySize == Length)
-                    return;
-                
-                if (Handle != INVALID_EPOLL)
-                    epoll_close(Handle);
+			{
+				if (ArraySize == Length)
+					return;
 
-                if (Array != nullptr)
-                    TH_FREE(Array);
-            }
-            else
-            {
-                Sources = new std::unordered_set<Socket*>();
-                fSources = new std::mutex();
-            }
-            
-            ArraySize = Length;
+				if (Handle != INVALID_EPOLL)
+					epoll_close(Handle);
+
+				if (Array != nullptr)
+					TH_FREE(Array);
+			}
+			else
+			{
+				Sources = new std::unordered_set<Socket*>();
+				fSources = new std::mutex();
+			}
+
+			ArraySize = Length;
 #ifdef TH_APPLE
 			Handle = kqueue();
 			Array = (struct kevent*)TH_MALLOC(sizeof(struct kevent) * ArraySize);
@@ -1296,31 +1276,26 @@ namespace Tomahawk
 				fSources = nullptr;
 			}
 		}
-        void Driver::Multiplex()
-        {
-            Dispatch();
+		void Driver::Multiplex()
+		{
+			Dispatch();
 
 			Core::Schedule* Queue = Core::Schedule::Get();
 			if (Queue->IsActive())
 				Queue->SetTask(&Driver::Multiplex);
-        }
+		}
 		int Driver::Dispatch()
 		{
-#ifdef TH_APPLE
-			struct kevent* Events = (struct kevent*)Array;
-#else
-			epoll_event* Events = (epoll_event*)Array;
-#endif
-			if (!Events)
-				return -1;
-
+			TH_ASSERT(Array != nullptr, -1, "driver should be initialized");
 #ifdef TH_APPLE
 			struct timespec Wait;
 			Wait.tv_sec = (int)PipeTimeout / 1000;
 			Wait.tv_nsec = ((int)PipeTimeout % 1000) * 1000000;
 
+			struct kevent* Events = (struct kevent*)Array;
 			int Count = kevent(Handle, nullptr, 0, Events, ArraySize, &Wait);
 #else
+			epoll_event* Events = (epoll_event*)Array;
 			int Count = epoll_wait(Handle, Events, ArraySize, (int)PipeTimeout);
 #endif
 			int64_t Time = Clock(), Timeouts = 0;
@@ -1371,9 +1346,7 @@ namespace Tomahawk
 		}
 		int Driver::Dispatch(Socket* Fd, uint32_t Events, int64_t Time)
 		{
-			if (!Fd || Fd->Fd == INVALID_SOCKET)
-				return 1;
-
+			TH_ASSERT(Fd != nullptr || Fd->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
 			if (Events & (uint32_t)SocketEvent::Close)
 				return Fd->Clear(true) ? 0 : 1;
 
@@ -1478,16 +1451,10 @@ namespace Tomahawk
 						goto WriteEOF;
 					}
 
-					Fd->Sync.IO.unlock();
-					bool Done = (Callback && !Callback(Fd, (int64_t)Size));
-					Fd->Sync.IO.lock();
-
 					if (!Fd->Output || Fd->Output != Event)
 						goto WriteEOF;
 
 					Event->Size -= (int64_t)Size;
-					if (Done)
-						break;
 				}
 
 				Fd->WriteFlush();
@@ -1511,8 +1478,8 @@ namespace Tomahawk
 		}
 		int Driver::Listen(Socket* Value, bool Always)
 		{
-			if (!Handle || !Value || Value->Fd == INVALID_SOCKET)
-				return -1;
+			TH_ASSERT(Handle != nullptr, -1, "driver should be initialized");
+			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
 
 			if (Value->Sync.Timeout > 0)
 			{
@@ -1523,8 +1490,8 @@ namespace Tomahawk
 #ifdef TH_APPLE
 			struct kevent Event;
 			int Result1 = 1, Result2 = 1;
-            Value->Sync.Time = Clock();
-            Value->Sync.Poll = true;
+			Value->Sync.Time = Clock();
+			Value->Sync.Poll = true;
 
 			if (Always || Value->Input != nullptr || Value->Listener)
 			{
@@ -1540,10 +1507,10 @@ namespace Tomahawk
 
 			return Result1 == 1 && Result2 == 1 ? 0 : -1;
 #else
-            bool Set = Value->Sync.Poll;
-            Value->Sync.Time = Clock();
-            Value->Sync.Poll = true;
-            
+			bool Set = Value->Sync.Poll;
+			Value->Sync.Time = Clock();
+			Value->Sync.Poll = true;
+
 			epoll_event Event;
 			Event.data.ptr = (void*)Value;
 			Event.events = EPOLLRDHUP;
@@ -1559,8 +1526,8 @@ namespace Tomahawk
 		}
 		int Driver::Unlisten(Socket* Value, bool Always)
 		{
-			if (!Handle || !Value || Value->Fd == INVALID_SOCKET)
-				return -1;
+			TH_ASSERT(Handle != nullptr, -1, "driver should be initialized");
+			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
 
 			fSources->lock();
 			Sources->erase(Value);
@@ -1580,10 +1547,10 @@ namespace Tomahawk
 				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
 				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 			}
-            
-            if (Always || (!Value->Input && !Value->Output))
-                Value->Sync.Poll = false;
-            
+
+			if (Always || (!Value->Input && !Value->Output))
+				Value->Sync.Poll = false;
+
 			return Result1 == 1 && Result2 == 1 ? 0 : -1;
 #else
 			epoll_event Event;
@@ -1607,6 +1574,7 @@ namespace Tomahawk
 		}
 		int Driver::Poll(pollfd* Fd, int FdCount, int Timeout)
 		{
+			TH_ASSERT(Fd != nullptr, -1, "poll should be set");
 #if defined(TH_MICROSOFT)
 			return WSAPoll(Fd, FdCount, Timeout);
 #else
@@ -1617,10 +1585,10 @@ namespace Tomahawk
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
-        bool Driver::IsActive()
-        {
-            return Array != nullptr || Handle != INVALID_EPOLL;
-        }
+		bool Driver::IsActive()
+		{
+			return Array != nullptr || Handle != INVALID_EPOLL;
+		}
 #ifdef TH_APPLE
 		struct kevent* Driver::Array = nullptr;
 #else
@@ -1658,12 +1626,7 @@ namespace Tomahawk
 		}
 		bool SocketServer::Configure(SocketRouter* NewRouter)
 		{
-			if (State != ServerState::Idle)
-			{
-				TH_ERROR("cannot configure while running");
-				return false;
-			}
-
+			TH_ASSERT(State == ServerState::Idle, false, "server should not be running");
 			if (NewRouter != nullptr)
 			{
 				OnDeallocateRouter(Router);
@@ -1671,7 +1634,7 @@ namespace Tomahawk
 			}
 			else if (!(Router = OnAllocateRouter()))
 			{
-				TH_ERROR("cannot allocate router");
+				TH_ERR("cannot allocate router");
 				return false;
 			}
 
@@ -1680,7 +1643,7 @@ namespace Tomahawk
 
 			if (Router->Listeners.empty())
 			{
-				TH_ERROR("there are no listeners provided");
+				TH_ERR("there are no listeners provided");
 				return false;
 			}
 
@@ -1697,18 +1660,18 @@ namespace Tomahawk
 
 				if (Value->Base->Open(It.second.Hostname.c_str(), It.second.Port, &Value->Source))
 				{
-					TH_ERROR("cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERR("cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
 				if (Value->Base->Bind(&Value->Source))
 				{
-					TH_ERROR("cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERR("cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 				if (Value->Base->Listen((int)Router->BacklogQueue))
 				{
-					TH_ERROR("cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERR("cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
@@ -1718,7 +1681,7 @@ namespace Tomahawk
 
 				if (It.second.Port <= 0 && (It.second.Port = Value->Base->GetPort()) < 0)
 				{
-					TH_ERROR("cannot determine listener's port number");
+					TH_ERR("cannot determine listener's port number");
 					return false;
 				}
 			}
@@ -1749,7 +1712,7 @@ namespace Tomahawk
 
 				if (!(It.second.Context = SSL_CTX_new(SSLv23_server_method())))
 				{
-					TH_ERROR("cannot create server's SSL context");
+					TH_ERR("cannot create server's SSL context");
 					return false;
 				}
 
@@ -1767,31 +1730,31 @@ namespace Tomahawk
 				{
 					if (SSL_CTX_load_verify_locations(It.second.Context, It.second.Chain.c_str(), It.second.Key.c_str()) != 1)
 					{
-						TH_ERROR("SSL_CTX_load_verify_locations(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("SSL_CTX_load_verify_locations(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_set_default_verify_paths(It.second.Context) != 1)
 					{
-						TH_ERROR("SSL_CTX_set_default_verify_paths(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("SSL_CTX_set_default_verify_paths(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_certificate_file(It.second.Context, It.second.Chain.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						TH_ERROR("SSL_CTX_use_certificate_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("SSL_CTX_use_certificate_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_PrivateKey_file(It.second.Context, It.second.Key.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						TH_ERROR("SSL_CTX_use_PrivateKey_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("SSL_CTX_use_PrivateKey_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (!SSL_CTX_check_private_key(It.second.Context))
 					{
-						TH_ERROR("SSL_CTX_check_private_key(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("SSL_CTX_check_private_key(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
@@ -1806,7 +1769,7 @@ namespace Tomahawk
 				{
 					if (SSL_CTX_set_cipher_list(It.second.Context, It.second.Ciphers.c_str()) != 1)
 					{
-						TH_ERROR("SSL_CTX_set_cipher_list(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("SSL_CTX_set_cipher_list(): %s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 				}
@@ -1871,26 +1834,26 @@ namespace Tomahawk
 				return false;
 
 			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
+			{
+				FreeQueued();
+				if (State == ServerState::Stopping)
 				{
-					FreeQueued();
-					if (State == ServerState::Stopping)
-					{
-						Sync.lock();
-						State = ServerState::Idle;
-						Sync.unlock();
-					}
-				});
+					Sync.lock();
+					State = ServerState::Idle;
+					Sync.unlock();
+				}
+			});
 
 			for (auto&& It : Listeners)
 			{
 				It->Base->AcceptAsync([this, It](Socket*)
-					{
-						if (State != ServerState::Working)
-							return false;
+				{
+					if (State != ServerState::Working)
+						return false;
 
-						Accept(It);
-						return true;
-					});
+					Accept(It);
+					return true;
+				});
 			}
 
 			return true;
@@ -1968,17 +1931,19 @@ namespace Tomahawk
 			Sync.unlock();
 
 			return Core::Schedule::Get()->SetTask([this, Base]()
-				{
-					OnRequestBegin(Base);
-				});
+			{
+				OnRequestBegin(Base);
+			});
 		}
 		bool SocketServer::Protect(Socket* Fd, Listener* Host)
 		{
+			TH_ASSERT(Fd != nullptr, false, "socket should be set");
+
 			ssl_ctx_st* Context = nullptr;
 			if (!OnProtect(Fd, Host, &Context) || !Context)
 				return false;
 
-			if (!Fd || Fd->Secure(Context, nullptr) == -1)
+			if (Fd->Secure(Context, nullptr) == -1)
 				return false;
 
 #ifdef TH_HAS_OPENSSL
@@ -2024,7 +1989,8 @@ namespace Tomahawk
 		}
 		bool SocketServer::Manage(SocketConnection* Base)
 		{
-			if (!Base || Base->Info.KeepAlive < -1)
+			TH_ASSERT(Base != nullptr, false, "socket should be set");
+			if (Base->Info.KeepAlive < -1)
 				return false;
 
 			if (!OnRequestEnded(Base, true))
@@ -2098,6 +2064,10 @@ namespace Tomahawk
 		}
 		bool SocketServer::OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context)
 		{
+			TH_ASSERT(Fd != nullptr, false, "socket should be set");
+			TH_ASSERT(Host != nullptr, false, "host should be set");
+			TH_ASSERT(Context != nullptr, false, "context should be set");
+
 			if (Router->Certificates.empty())
 				return false;
 
@@ -2151,8 +2121,8 @@ namespace Tomahawk
 		}
 		Core::Async<int> SocketClient::Connect(Host* Address, bool Async)
 		{
-			if (!Address || Address->Hostname.empty() || Stream.IsValid())
-				return Core::Async<int>::Store(-2);
+			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), Core::Async<int>::Store(-2), "address should be set");
+			TH_ASSERT(!Stream.IsValid(), Core::Async<int>::Store(-2), "stream should not be connected");
 
 			Core::Async<int> Result;
 			Done = [Result](SocketClient*, int Code) mutable
@@ -2294,7 +2264,7 @@ namespace Tomahawk
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			TH_ERROR("%.*s (at %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
+			TH_ERR("%.*s (at %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
 			return Stream.CloseAsync(true, [this](Socket*)
 			{
 				return Success(-1);

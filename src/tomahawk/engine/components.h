@@ -765,8 +765,8 @@ namespace Tomahawk
 				template <typename T>
 				int SetTypePropertyByName(const char* Name, const T& Value)
 				{
-					if (!Name || !Compiler)
-						return (int)Script::VMResult::INVALID_ARG;
+					TH_ASSERT(Name != nullptr, (int)Script::VMResult::INVALID_ARG, "name should be set");
+					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
 					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
@@ -802,8 +802,8 @@ namespace Tomahawk
 				template <typename T>
 				int SetRefPropertyByName(const char* Name, T* Value)
 				{
-					if (!Name || !Compiler)
-						return (int)Script::VMResult::INVALID_ARG;
+					TH_ASSERT(Name != nullptr, (int)Script::VMResult::INVALID_ARG, "name should be set");
+					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
 					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
@@ -844,8 +844,8 @@ namespace Tomahawk
 				template <typename T>
 				int SetTypePropertyByIndex(int Index, const T& Value)
 				{
-					if (Index < 0 || !Compiler)
-						return (int)Script::VMResult::INVALID_ARG;
+					TH_ASSERT(Index >= 0, (int)Script::VMResult::INVALID_ARG, "index should be greater or equal to zero");
+					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
 					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
@@ -874,8 +874,8 @@ namespace Tomahawk
 				template <typename T>
 				int SetRefPropertyByIndex(int Index, T* Value)
 				{
-					if (Index < 0 || !Compiler)
-						return (int)Script::VMResult::INVALID_ARG;
+					TH_ASSERT(Index >= 0, (int)Script::VMResult::INVALID_ARG, "index should be greater or equal to zero");
+					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
 					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)

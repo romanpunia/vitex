@@ -100,273 +100,247 @@ namespace Tomahawk
 		}
 		void AudioContext::Lock()
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 		}
 		void AudioContext::Unlock()
 		{
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->unlock();
 		}
 		void AudioContext::GenerateBuffers(int Count, unsigned int* Buffers)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGenBuffers(Count, Buffers);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetBufferData(unsigned int Buffer, int Format, const void* Data, int Size, int Frequency)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alBufferData(Buffer, Format, Data, Size, Frequency);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData3F(unsigned int Source, SoundEx Value, float F1, float F2, float F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData3F(unsigned int Source, SoundEx Value, float* F1, float* F2, float* F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetSource3f(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alSourcefv(Source, (uint32_t)Value, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetSourceDataVF(unsigned int Source, SoundEx Value, float* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetSourcefv(Source, (uint32_t)Value, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData1F(unsigned int Source, SoundEx Value, float F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alSourcef(Source, (uint32_t)Value, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData1F(unsigned int Source, SoundEx Value, float* F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetSourcef(Source, (uint32_t)Value, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData3I(unsigned int Source, SoundEx Value, int F1, int F2, int F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData3I(unsigned int Source, SoundEx Value, int* F1, int* F2, int* F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetSource3i(Source, (uint32_t)Value, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alSourceiv(Source, (uint32_t)Value, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetSourceDataVI(unsigned int Source, SoundEx Value, int* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetSourceiv(Source, (uint32_t)Value, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetSourceData1I(unsigned int Source, SoundEx Value, int F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alSourcei(Source, (uint32_t)Value, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetSourceData1I(unsigned int Source, SoundEx Value, int* F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetSourcei(Source, (uint32_t)Value, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData3F(SoundEx Listener, float F1, float F2, float F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData3F(SoundEx Listener, float* F1, float* F2, float* F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListener3f((uint32_t)Listener, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetListenerDataVF(SoundEx Listener, float* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListenerfv((uint32_t)Listener, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetListenerDataVF(SoundEx Listener, float* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListenerfv((uint32_t)Listener, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData1F(SoundEx Listener, float F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListenerf((uint32_t)Listener, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData1F(SoundEx Listener, float* F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListenerf((uint32_t)Listener, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData3I(SoundEx Listener, int F1, int F2, int F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListener3i((uint32_t)Listener, F1, F2, F3);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetListenerDataVI(SoundEx Listener, int* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListeneriv((uint32_t)Listener, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetListenerDataVI(SoundEx Listener, int* FS)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListeneriv((uint32_t)Listener, FS);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::SetListenerData1I(SoundEx Listener, int F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListeneri((uint32_t)Listener, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		void AudioContext::GetListenerData1I(SoundEx Listener, int* F1)
 		{
-			if (Mutex != nullptr)
-				Mutex->lock();
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListeneri((uint32_t)Listener, F1);
 #endif
-			if (Mutex != nullptr)
-				Mutex->unlock();
+			Mutex->unlock();
 		}
 		std::mutex* AudioContext::Mutex = nullptr;
 		int AudioContext::State = 0;
@@ -467,11 +441,9 @@ namespace Tomahawk
 		}
 		bool AudioEffect::Bind(AudioSource* NewSource, int NewZone)
 		{
+			TH_ASSERT(Source != nullptr, false, "source should not be empty");
 			Source = NewSource;
 			Zone = NewZone;
-
-			if (!Source)
-				return false;
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, (ALint)Slot, Zone, (ALint)(Filter ? Filter->Filter : AL_FILTER_NULL));
@@ -481,9 +453,7 @@ namespace Tomahawk
 		}
 		bool AudioEffect::Unbind()
 		{
-			if (!Source)
-				return false;
-
+			TH_ASSERT(Source != nullptr, false, "source should not be empty");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, Zone, AL_FILTER_NULL);
@@ -593,18 +563,14 @@ namespace Tomahawk
 		}
 		int64_t AudioSource::AddEffect(AudioEffect* Effect)
 		{
-			if (!Effect)
-				return -1;
-
+			TH_ASSERT(Effect != nullptr, -1, "effect should be set");
 			Effect->Bind(this, (int)Effects.size());
 			Effects.push_back(Effect);
 			return Effects.size() - 1;
 		}
 		bool AudioSource::RemoveEffect(uint64_t EffectId)
 		{
-			if (EffectId >= Effects.size())
-				return false;
-
+			TH_ASSERT(EffectId < Effects.size(), false, "index outside of range");
 			auto It = Effects.begin() + EffectId;
 			TH_RELEASE(*It);
 			Effects.erase(It);
@@ -648,9 +614,7 @@ namespace Tomahawk
 		}
 		void AudioSource::Synchronize(AudioSync* Sync, const Compute::Vector3& Position)
 		{
-			if (!Sync)
-				return;
-
+			TH_ASSERT_V(Sync != nullptr, "sync should be set");
 			for (auto* Effect : Effects)
 			{
 				if (!Effect)
@@ -740,7 +704,6 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_OPENAL
 			int State = 0;
-
 			AudioContext::Lock();
 			alGetSourcei(Instance, AL_SOURCE_STATE, &State);
 			AudioContext::Unlock();
@@ -781,11 +744,11 @@ namespace Tomahawk
 			if (!Device)
 			{
 				AudioContext::Unlock();
-				TH_ERROR("couldn't create alc device");
+				TH_ERR("couldn't create alc device");
 
 				int Code = alGetError();
 				if (Code != AL_NO_ERROR)
-					TH_ERROR(alGetString(Code));
+					TH_ERR(alGetString(Code));
 
 				return;
 			}
@@ -794,11 +757,11 @@ namespace Tomahawk
 			if (!Context)
 			{
 				AudioContext::Unlock();
-				TH_ERROR("couldn't create alc device context");
+				TH_ERR("couldn't create alc device context");
 
 				int Code = alcGetError((ALCdevice*)Device);
 				if (Code != AL_NO_ERROR)
-					TH_ERROR(alcGetString((ALCdevice*)Device, Code));
+					TH_ERR(alcGetString((ALCdevice*)Device, Code));
 
 				return;
 			}
@@ -830,6 +793,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Offset(AudioSource* Source, float& Seconds, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -841,6 +805,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Relative(AudioSource* Source, int& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -852,6 +817,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Position(AudioSource* Source, Compute::Vector3& Position, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -866,6 +832,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Direction(AudioSource* Source, Compute::Vector3& Direction, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -877,6 +844,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -888,6 +856,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Pitch(AudioSource* Source, float& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -899,6 +868,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Gain(AudioSource* Source, float& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -910,6 +880,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::ConeInnerAngle(AudioSource* Source, float& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -921,6 +892,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::ConeOuterAngle(AudioSource* Source, float& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -932,6 +904,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::ConeOuterGain(AudioSource* Source, float& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -943,6 +916,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Distance(AudioSource* Source, float& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -954,6 +928,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::RefDistance(AudioSource* Source, float& Value, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -965,6 +940,7 @@ namespace Tomahawk
 		}
 		void AudioDevice::Loop(AudioSource* Source, int& IsLoop, bool Get)
 		{
+			TH_ASSERT_V(Source != nullptr, "souce should be set");
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
 			if (!Get)
@@ -989,14 +965,14 @@ namespace Tomahawk
 			if ((ALCCode = alcGetError((ALCdevice*)Device)) != ALC_NO_ERROR)
 			{
 				AudioContext::Unlock();
-				TH_ERROR(alcGetString((ALCdevice*)Device, ALCCode));
+				TH_ERR(alcGetString((ALCdevice*)Device, ALCCode));
 				AudioContext::Lock();
 			}
 
 			if ((ALCode = alGetError()) != AL_NO_ERROR)
 			{
 				AudioContext::Unlock();
-				TH_ERROR(alGetString(ALCode));
+				TH_ERR(alGetString(ALCode));
 				AudioContext::Lock();
 			}
 			AudioContext::Unlock();

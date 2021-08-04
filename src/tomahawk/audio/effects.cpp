@@ -189,6 +189,7 @@ namespace Tomahawk
 			}
 			void Reverb::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -219,6 +220,7 @@ namespace Tomahawk
 			}
 			void Reverb::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -305,6 +307,7 @@ namespace Tomahawk
 			}
 			void Chorus::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -318,6 +321,7 @@ namespace Tomahawk
 			}
 			void Chorus::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -369,6 +373,7 @@ namespace Tomahawk
 			}
 			void Distortion::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -381,6 +386,7 @@ namespace Tomahawk
 			}
 			void Distortion::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -430,6 +436,7 @@ namespace Tomahawk
 			}
 			void Echo::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -442,6 +449,7 @@ namespace Tomahawk
 			}
 			void Echo::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -492,6 +500,7 @@ namespace Tomahawk
 			}
 			void Flanger::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -505,6 +514,7 @@ namespace Tomahawk
 			}
 			void Flanger::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -554,6 +564,7 @@ namespace Tomahawk
 			}
 			void FrequencyShifter::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -564,6 +575,7 @@ namespace Tomahawk
 			}
 			void FrequencyShifter::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -610,6 +622,7 @@ namespace Tomahawk
 			}
 			void VocalMorpher::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -623,6 +636,7 @@ namespace Tomahawk
 			}
 			void VocalMorpher::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -671,6 +685,7 @@ namespace Tomahawk
 			}
 			void PitchShifter::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -680,6 +695,7 @@ namespace Tomahawk
 			}
 			void PitchShifter::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -721,6 +737,7 @@ namespace Tomahawk
 			}
 			void RingModulator::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -731,6 +748,7 @@ namespace Tomahawk
 			}
 			void RingModulator::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -775,6 +793,7 @@ namespace Tomahawk
 			}
 			void Autowah::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -786,6 +805,7 @@ namespace Tomahawk
 			}
 			void Autowah::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -824,12 +844,14 @@ namespace Tomahawk
 			}
 			void Compressor::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 			}
 			void Compressor::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 			}
@@ -870,6 +892,7 @@ namespace Tomahawk
 			}
 			void Equalizer::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -887,6 +910,7 @@ namespace Tomahawk
 			}
 			void Equalizer::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 

@@ -433,8 +433,8 @@ namespace Tomahawk
 				struct Pose
 				{
 					std::string Key;
-					size_t Offset;
-					bool Escape;
+					size_t Offset = 0;
+					bool Escape = false;
 				};
 
 				struct Sequence

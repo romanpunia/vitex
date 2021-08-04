@@ -309,7 +309,7 @@ namespace Tomahawk
 			WSADATA WSAData;
 			WORD VersionRequested = MAKEWORD(2, 2);
 			if (WSAStartup(VersionRequested, &WSAData) != 0)
-				TH_ERROR("windows socket refs cannot be initialized");
+				TH_ERR("windows socket refs cannot be initialized");
 #endif
 		}
 
@@ -420,7 +420,7 @@ namespace Tomahawk
 					SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 			}
 			else
-				TH_ERROR("[sdl2-err] %s", SDL_GetError());
+				TH_ERR("[sdl2-err] %s", SDL_GetError());
 #else
 			TH_WARN("sdl2 cannot be initialized");
 #endif

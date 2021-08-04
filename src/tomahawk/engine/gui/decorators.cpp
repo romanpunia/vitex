@@ -11,6 +11,9 @@ namespace Tomahawk
 		{
 			static void SetWorldViewProjection(Graphics::GraphicsDevice* Device, Rml::Element* Element, const Rml::Vector2f& Position, const Rml::Vector2f& Size, const Compute::Vector2& Mul = 1.0f)
 			{
+				TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+				TH_ASSERT_V(Element != nullptr, "element should be set");
+
 				Compute::Vector3 Scale(Size.x / 2.0f, Size.y / 2.0f);
 				Compute::Vector3 Offset(Position.x + Scale.X, Position.y + Scale.Y);
 				Compute::Matrix4x4& Ortho = *Subsystem::GetProjection();
@@ -113,6 +116,7 @@ namespace Tomahawk
 				}
 				virtual void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
+					TH_ASSERT_V(Element != nullptr, "element should be set");
 					Rml::Vector2f Position = Element->GetAbsoluteOffset(Rml::Box::PADDING).Round();
 					Rml::Vector2f Size = Element->GetBox().GetSize(Rml::Box::PADDING).Round();
 					float Alpha = Element->GetProperty<float>("opacity");
@@ -162,6 +166,7 @@ namespace Tomahawk
 				}
 				virtual void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
+					TH_ASSERT_V(Element != nullptr, "element should be set");
 					Graphics::Texture2D* Background = Subsystem::GetBackground();
 					if (!Background)
 						return;
@@ -197,6 +202,7 @@ namespace Tomahawk
 
 			BoxShadowInstancer::BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice) : Shader(nullptr), Device(NewDevice)
 			{
+				TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				if (Device->GetSection("interface/box-shadow", &I))
 				{
@@ -253,6 +259,7 @@ namespace Tomahawk
 
 			BoxBlurInstancer::BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice) : Background(nullptr), Shader(nullptr), Device(NewDevice)
 			{
+				TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				if (Device->GetSection("interface/box-blur", &I))
 				{
@@ -307,6 +314,7 @@ namespace Tomahawk
 			}
 			void Subsystem::CreateDecorators(Graphics::GraphicsDevice* Device)
 			{
+				TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 				if (!IBoxShadow)
 				{
 					IBoxShadow = TH_NEW(BoxShadowInstancer, Device);

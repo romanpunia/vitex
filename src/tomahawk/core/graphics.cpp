@@ -16,9 +16,7 @@ namespace Tomahawk
 		}
 		void Alert::Setup(AlertType Type, const std::string& Title, const std::string& Text)
 		{
-			if (View != AlertType::None)
-				return;
-
+			TH_ASSERT_V(View != AlertType::None, "alert type should not be none");
 			View = Type;
 			Name = Title;
 			Data = Text;
@@ -26,8 +24,8 @@ namespace Tomahawk
 		}
 		void Alert::Button(AlertConfirm Confirm, const std::string& Text, int Id)
 		{
-			if (View == AlertType::None || Buttons.size() >= 16)
-				return;
+			TH_ASSERT_V(View != AlertType::None, "alert type should not be none");
+			TH_ASSERT_V(Buttons.size() < 16, "there must be less than 16 buttons in alert");
 
 			for (auto& Item : Buttons)
 			{
@@ -44,16 +42,14 @@ namespace Tomahawk
 		}
 		void Alert::Result(const std::function<void(int)>& Callback)
 		{
-			if (View != AlertType::None)
-			{
-				Done = Callback;
-				Waiting = true;
-			}
+			TH_ASSERT_V(View != AlertType::None, "alert type should not be none");
+			Done = Callback;
+			Waiting = true;
 		}
 		void Alert::Dispatch()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Waiting || View == AlertType::None)
+			if (View == AlertType::None || !Waiting)
 				return;
 
 			SDL_MessageBoxButtonData Views[16];
@@ -99,6 +95,7 @@ namespace Tomahawk
 
 		void PoseBuffer::SetJointPose(Compute::Joint* Root)
 		{
+			TH_ASSERT_V(Root != nullptr, "root should be set");
 			auto& Node = Pose[Root->Index];
 			Node.Position = Root->Transform.Position();
 			Node.Rotation = Root->Transform.Rotation();
@@ -108,6 +105,9 @@ namespace Tomahawk
 		}
 		void PoseBuffer::GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result)
 		{
+			TH_ASSERT_V(Root != nullptr, "root should be set");
+			TH_ASSERT_V(Result != nullptr, "result should be set");
+
 			Compute::AnimatorKey* Key = &Result->at(Root->Index);
 			Key->Position = Root->Transform.Position();
 			Key->Rotation = Root->Transform.Rotation();
@@ -117,9 +117,7 @@ namespace Tomahawk
 		}
 		bool PoseBuffer::SetPose(SkinModel* Model)
 		{
-			if (!Model || Model->Joints.empty())
-				return false;
-
+			TH_ASSERT(Model != nullptr, false, "model should be set");
 			for (auto&& Child : Model->Joints)
 				SetJointPose(&Child);
 
@@ -127,8 +125,8 @@ namespace Tomahawk
 		}
 		bool PoseBuffer::GetPose(SkinModel* Model, std::vector<Compute::AnimatorKey>* Result)
 		{
-			if (!Model || Model->Joints.empty() || !Result)
-				return false;
+			TH_ASSERT(Model != nullptr, false, "model should be set");
+			TH_ASSERT(Result != nullptr, false, "result should be set");
 
 			for (auto&& Child : Model->Joints)
 				GetJointPose(&Child, Result);
@@ -137,9 +135,7 @@ namespace Tomahawk
 		}
 		Compute::Matrix4x4 PoseBuffer::GetOffset(PoseNode* Node)
 		{
-			if (!Node)
-				return Compute::Matrix4x4::Identity();
-
+			TH_ASSERT(Node != nullptr, Compute::Matrix4x4::Identity(), "node should be set");
 			return Compute::Matrix4x4::Create(Node->Position, Node->Rotation);
 		}
 		PoseNode* PoseBuffer::GetNode(int64_t Index)
@@ -190,9 +186,7 @@ namespace Tomahawk
 		int Surface::GetWidth()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return -1;
-
+			TH_ASSERT(Handle != nullptr, -1, "handle should be set");
 			return Handle->w;
 #else
 			return -1;
@@ -201,9 +195,7 @@ namespace Tomahawk
 		int Surface::GetHeight()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return -1;
-
+			TH_ASSERT(Handle != nullptr, -1, "handle should be set");
 			return Handle->h;
 #else
 			return -1;
@@ -212,9 +204,7 @@ namespace Tomahawk
 		int Surface::GetPitch()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return -1;
-
+			TH_ASSERT(Handle != nullptr, -1, "handle should be set");
 			return Handle->pitch;
 #else
 			return -1;
@@ -223,9 +213,7 @@ namespace Tomahawk
 		void* Surface::GetPixels()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return nullptr;
-
+			TH_ASSERT(Handle != nullptr, nullptr, "handle should be set");
 			return Handle->pixels;
 #else
 			return nullptr;
@@ -549,12 +537,15 @@ namespace Tomahawk
 
 		MultiRenderTarget2D::MultiRenderTarget2D(const Desc& I) : RenderTarget()
 		{
+			TH_ASSERT_V((uint32_t)I.Target <= 8, "target should be less than 9");
 			Target = I.Target;
+
 			for (uint32_t i = 0; i < 8; i++)
 				Resource[i] = nullptr;
 		}
 		MultiRenderTarget2D::~MultiRenderTarget2D()
 		{
+			TH_ASSERT_V((uint32_t)Target <= 8, "target should be less than 9");
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
 				TH_RELEASE(Resource[i]);
 		}
@@ -564,9 +555,7 @@ namespace Tomahawk
 		}
 		Texture2D* MultiRenderTarget2D::GetTarget(unsigned int Slot)
 		{
-			if (Slot >= (uint32_t)Target)
-				return nullptr;
-
+			TH_ASSERT(Slot < (uint32_t)Target, nullptr, "slot should be less than targets count");
 			return Resource[Slot];
 		}
 
@@ -588,12 +577,15 @@ namespace Tomahawk
 
 		MultiRenderTargetCube::MultiRenderTargetCube(const Desc& I) : RenderTarget()
 		{
+			TH_ASSERT_V((uint32_t)I.Target <= 8, "target should be less than 9");
 			Target = I.Target;
+
 			for (uint32_t i = 0; i < 8; i++)
 				Resource[i] = nullptr;
 		}
 		MultiRenderTargetCube::~MultiRenderTargetCube()
 		{
+			TH_ASSERT_V((uint32_t)Target <= 8, "target should be less than 9");
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
 				TH_RELEASE(Resource[i]);
 		}
@@ -603,9 +595,7 @@ namespace Tomahawk
 		}
 		Texture2D* MultiRenderTargetCube::GetTarget(unsigned int Slot)
 		{
-			if (Slot >= (uint32_t)Target)
-				return nullptr;
-
+			TH_ASSERT(Slot < (uint32_t)Target, nullptr, "slot should be less than targets count");
 			return Resource[Slot];
 		}
 
@@ -905,7 +895,7 @@ namespace Tomahawk
 			RemoveSection(Name);
 			if (Lang == ShaderLang::None)
 			{
-				TH_ERROR("shader resource is using unknown %s language:\n\t%s", Language.Get(), Name.c_str());
+				TH_ERR("shader resource is using unknown %s language:\n\t%s", Language.Get(), Name.c_str());
 				return false;
 			}
 
@@ -958,7 +948,7 @@ namespace Tomahawk
 
 					if (Result->Lang != Subresult.Lang)
 					{
-						TH_ERROR("mixed shader languages detected:\n\t%s", File.Module.c_str());
+						TH_ERR("mixed shader languages detected:\n\t%s", File.Module.c_str());
 						return false;
 					}
 
@@ -999,12 +989,13 @@ namespace Tomahawk
 		}
 		bool GraphicsDevice::Transpile(std::string* Source, ShaderLang From, ShaderLang To)
 		{
-			if (!Source || Source->empty() || From == To)
+			TH_ASSERT(From != To, false, "to should not equal from");
+			if (!Source || Source->empty())
 				return true;
 #ifdef TH_HAS_SPIRV
 
 #else
-			TH_ERROR("cannot transpile shader source without spirv-cross");
+			TH_ERR("cannot transpile shader source without spirv-cross");
 			return false;
 #endif
 		}
@@ -1013,7 +1004,7 @@ namespace Tomahawk
 			if (Name.empty() || Sections.empty())
 			{
 				if (!Internal)
-					TH_ERROR("\n\tcould not find shader: \"%s\"");
+					TH_ERR("\n\tcould not find shader: \"%s\"");
 
 				return false;
 			}
@@ -1041,7 +1032,7 @@ namespace Tomahawk
 				*Result = nullptr;
 
 			if (!Internal)
-				TH_ERROR("\n\tcould not find shader: \"%s\"", Name.c_str());
+				TH_ERR("\n\tcould not find shader: \"%s\"", Name.c_str());
 
 			return false;
 		}
@@ -1174,7 +1165,7 @@ namespace Tomahawk
 			if (I.Backend == RenderBackend::OGL)
 				return new OGL::OGLDevice(I);
 #endif
-			TH_ERROR("backend was not found");
+			TH_ERR("backend was not found");
 			return nullptr;
 		}
 
@@ -1215,9 +1206,7 @@ namespace Tomahawk
 		void Activity::SetClipboardText(const std::string& Text)
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return;
-
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_SetClipboardText(Text.c_str());
 #endif
 		}
@@ -1225,6 +1214,7 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 4)
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_WarpMouseInWindow(Handle, (int)Position.X, (int)Position.Y);
 #endif
 #endif
@@ -1233,6 +1223,7 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 4)
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_WarpMouseInWindow(Handle, (int)X, (int)Y);
 #endif
 #endif
@@ -1240,8 +1231,7 @@ namespace Tomahawk
 		void Activity::SetGlobalCursorPosition(const Compute::Vector2& Position)
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return;
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			SDL_WarpMouseGlobal((int)Position.X, (int)Position.Y);
 #endif
@@ -1250,8 +1240,7 @@ namespace Tomahawk
 		void Activity::SetGlobalCursorPosition(float X, float Y)
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return;
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			SDL_WarpMouseGlobal((int)X, (int)Y);
 #endif
@@ -1264,6 +1253,7 @@ namespace Tomahawk
 		void Activity::SetCursor(DisplayCursor Style)
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V((size_t)Style <= (size_t)DisplayCursor::Count, "style should be less than %i", (int)DisplayCursor::Count);
 			if (Style != DisplayCursor::None)
 			{
 				SDL_ShowCursor(1);
@@ -1279,34 +1269,36 @@ namespace Tomahawk
 		void Activity::SetCursorVisibility(bool Enabled)
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return;
-
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_ShowCursor(Enabled);
 #endif
 		}
 		void Activity::SetGrabbing(bool Enabled)
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowGrab(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
 #endif
 		}
 		void Activity::SetFullscreen(bool Enabled)
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowFullscreen(Handle, Enabled ? SDL_WINDOW_FULLSCREEN : 0);
 #endif
 		}
 		void Activity::SetBorderless(bool Enabled)
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowBordered(Handle, Enabled ? SDL_TRUE : SDL_FALSE);
 #endif
 		}
 		void Activity::SetScreenKeyboard(bool Enabled)
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle || !SDL_HasScreenKeyboardSupport())
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
+			if (!SDL_HasScreenKeyboardSupport())
 				return;
 
 			if (Enabled)
@@ -1366,24 +1358,28 @@ namespace Tomahawk
 		void Activity::Hide()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_HideWindow(Handle);
 #endif
 		}
 		void Activity::Show()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_ShowWindow(Handle);
 #endif
 		}
 		void Activity::Maximize()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_MaximizeWindow(Handle);
 #endif
 		}
 		void Activity::Minimize()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_MinimizeWindow(Handle);
 #endif
 		}
@@ -1391,6 +1387,7 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_SDL2
 #if SDL_VERSION_ATLEAST(2, 0, 5)
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowInputFocus(Handle);
 #endif
 #endif
@@ -1398,47 +1395,52 @@ namespace Tomahawk
 		void Activity::Move(int X, int Y)
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowPosition(Handle, X, Y);
 #endif
 		}
 		void Activity::Resize(int W, int H)
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
 			SDL_SetWindowSize(Handle, W, H);
 #endif
 		}
 		void Activity::SetTitle(const char* Value)
 		{
 #ifdef TH_HAS_SDL2
-			if (Value != nullptr)
-				SDL_SetWindowTitle(Handle, Value);
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
+			TH_ASSERT_V(Value != nullptr, "value should be set");
+			SDL_SetWindowTitle(Handle, Value);
 #endif
 		}
 		void Activity::SetIcon(Surface* Icon)
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
+			TH_ASSERT_V(Icon != nullptr, "icon should be set");
 			SDL_SetWindowIcon(Handle, (SDL_Surface*)Icon->GetResource());
 #endif
 		}
 		void Activity::Load(SDL_SysWMinfo* Base)
 		{
 #ifdef TH_HAS_SDL2
-			if (Base != nullptr)
-			{
-				SDL_VERSION(&Base->version);
-				SDL_GetWindowWMInfo(Handle, Base);
-			}
+			TH_ASSERT_V(Handle != nullptr, "activity should be initialized");
+			TH_ASSERT_V(Base != nullptr, "base should be set");
+			SDL_VERSION(&Base->version);
+			SDL_GetWindowWMInfo(Handle, Base);
 #endif
 		}
 		bool Activity::Dispatch()
 		{
+			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
 			memcpy((void*)Keys[1], (void*)Keys[0], 1024);
 #ifdef TH_HAS_SDL2
 			Command = (int)SDL_GetModState();
 			Message.Dispatch();
 
 			SDL_Event Event;
-			if (!Handle || !SDL_PollEvent(&Event))
+			if (!SDL_PollEvent(&Event))
 				return false;
 
 			int Id = SDL_GetWindowID(Handle);
@@ -1873,6 +1875,7 @@ namespace Tomahawk
 		bool Activity::IsFullscreen()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, false, "activity should be initialized"); 
 			Uint32 Flags = SDL_GetWindowFlags(Handle);
 			return Flags & SDL_WINDOW_FULLSCREEN || Flags & SDL_WINDOW_FULLSCREEN_DESKTOP;
 #else
@@ -1944,9 +1947,7 @@ namespace Tomahawk
 		bool Activity::IsScreenKeyboardEnabled()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return false;
-
+			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
 			return SDL_IsScreenKeyboardShown(Handle);
 #else
 			return false;
@@ -1955,9 +1956,10 @@ namespace Tomahawk
 		uint32_t Activity::GetX()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
+
 			int X, Y;
 			SDL_GetWindowPosition(Handle, &X, &Y);
-
 			return X;
 #else
 			return 0;
@@ -1966,9 +1968,10 @@ namespace Tomahawk
 		uint32_t Activity::GetY()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
+
 			int X, Y;
 			SDL_GetWindowPosition(Handle, &X, &Y);
-
 			return Y;
 #else
 			return 0;
@@ -1977,9 +1980,10 @@ namespace Tomahawk
 		uint32_t Activity::GetWidth()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
+
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
-
 			return W;
 #else
 			return 0;
@@ -1988,9 +1992,10 @@ namespace Tomahawk
 		uint32_t Activity::GetHeight()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
+
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
-
 			return H;
 #else
 			return 0;
@@ -1999,9 +2004,10 @@ namespace Tomahawk
 		float Activity::GetAspectRatio()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
+
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
-
 			return (H > 0 ? (float)W / (float)H : 0.0f);
 #else
 			return 0.0f;
@@ -2010,9 +2016,7 @@ namespace Tomahawk
 		KeyMod Activity::GetKeyModState()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return KeyMod::None;
-
+			TH_ASSERT(Handle != nullptr, KeyMod::None, "activity should be initialized");
 			return (KeyMod)SDL_GetModState();
 #else
 			return KeyMod::None;
@@ -2021,6 +2025,8 @@ namespace Tomahawk
 		Viewport Activity::GetViewport()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, Viewport(), "activity should be initialized");
+
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
 
@@ -2039,9 +2045,10 @@ namespace Tomahawk
 		Compute::Vector2 Activity::GetSize()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
+
 			int W, H;
 			SDL_GL_GetDrawableSize(Handle, &W, &H);
-
 			return Compute::Vector2((float)W, (float)H);
 #else
 			return Compute::Vector2();
@@ -2050,9 +2057,10 @@ namespace Tomahawk
 		Compute::Vector2 Activity::GetClientSize()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
+
 			int W, H;
 			SDL_GetWindowSize(Handle, &W, &H);
-
 			return Compute::Vector2((float)W, (float)H);
 #else
 			return Compute::Vector2();
@@ -2061,9 +2069,10 @@ namespace Tomahawk
 		Compute::Vector2 Activity::GetOffset()
 		{
 #ifdef TH_HAS_SDL2
+			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
+
 			SDL_DisplayMode Display;
 			SDL_GetCurrentDisplayMode(0, &Display);
-
 			Compute::Vector2 Size = GetSize();
 			return Compute::Vector2((float)Display.w / Size.X, (float)Display.h / Size.Y);
 #else
@@ -2073,13 +2082,10 @@ namespace Tomahawk
 		Compute::Vector2 Activity::GetGlobalCursorPosition()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return Compute::Vector2();
-
+			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
 			SDL_GetGlobalMouseState(&X, &Y);
-
 			return Compute::Vector2((float)X, (float)Y);
 #else
 			return Compute::Vector2();
@@ -2091,9 +2097,7 @@ namespace Tomahawk
 		Compute::Vector2 Activity::GetCursorPosition()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return Compute::Vector2();
-
+			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
 #if SDL_VERSION_ATLEAST(2, 0, 4)
 			int X, Y;
 			SDL_GetMouseState(&X, &Y);
@@ -2127,9 +2131,7 @@ namespace Tomahawk
 		std::string Activity::GetClipboardText()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return std::string();
-
+			TH_ASSERT(Handle != nullptr, std::string(), "activity should be initialized");
 			char* Text = SDL_GetClipboardText();
 			std::string Result = (Text ? Text : "");
 
@@ -2148,9 +2150,7 @@ namespace Tomahawk
 		std::string Activity::GetError()
 		{
 #ifdef TH_HAS_SDL2
-			if (!Handle)
-				return "";
-
+			TH_ASSERT(Handle != nullptr, std::string(), "activity should be initialized");
 			const char* Error = SDL_GetError();
 			if (!Error)
 				return "";
@@ -2970,17 +2970,18 @@ namespace Tomahawk
 		}
 		void SkinModel::ComputePose(PoseBuffer* Map)
 		{
-			if (Map != nullptr && !Joints.empty())
-			{
-				if (Map->Pose.empty())
-					Map->SetPose(this);
+			TH_ASSERT_V(Map != nullptr, "pose buffer should be set");
+			if (Map->Pose.empty())
+				Map->SetPose(this);
 
-				for (auto& Child : Joints)
-					ComputePose(Map, &Child, Compute::Matrix4x4::Identity());
-			}
+			for (auto& Child : Joints)
+				ComputePose(Map, &Child, Compute::Matrix4x4::Identity());
 		}
 		void SkinModel::ComputePose(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
 		{
+			TH_ASSERT_V(Map != nullptr, "pose buffer should be set");
+			TH_ASSERT_V(Base != nullptr, "base should be set");
+
 			PoseNode* Node = Map->GetNode(Base->Index);
 			Compute::Matrix4x4 Offset = (Node ? Map->GetOffset(Node) * World : World);
 

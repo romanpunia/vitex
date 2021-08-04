@@ -10,9 +10,7 @@ namespace Tomahawk
 		bool RegisterGuiElementAPI(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 
 			VMTypeClass VElement = Register.SetStructUnmanaged<Engine::GUI::IElement>("GuiElement");
@@ -25,9 +23,7 @@ namespace Tomahawk
 		bool RegisterGuiDocumentAPI(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 
 			VMTypeClass VDocument = Register.SetStructUnmanaged<Engine::GUI::IElementDocument>("GuiDocument");
@@ -40,9 +36,7 @@ namespace Tomahawk
 		bool RegisterGuiEventAPI(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 
 			VMTypeClass VEvent = Register.SetStructUnmanaged<Engine::GUI::IEvent>("GuiEvent");
@@ -55,9 +49,7 @@ namespace Tomahawk
 		bool RegisterGuiContextAPI(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 
 			VMRefClass VContext = Register.SetClassUnmanaged<Engine::GUI::Context>("GuiContext");

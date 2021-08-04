@@ -732,17 +732,13 @@ namespace Tomahawk
 			template <typename T>
 			T* GetInstance(void* Object)
 			{
-				if (!Object)
-					return nullptr;
-
+				TH_ASSERT(Object != nullptr, nullptr, "object should be set");
 				return IsHandle() ? *(T**)Object : (T*)Object;
 			}
 			template <typename T>
 			T* GetProperty(void* Object, int Offset)
 			{
-				if (!Object)
-					return nullptr;
-
+				TH_ASSERT(Object != nullptr, nullptr, "object should be set");
 				if (!IsHandle())
 					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
 
@@ -756,17 +752,13 @@ namespace Tomahawk
 			template <typename T>
 			static T* GetInstance(void* Object, int TypeId)
 			{
-				if (!Object)
-					return nullptr;
-
+				TH_ASSERT(Object != nullptr, nullptr, "object should be set");
 				return IsHandle(TypeId) ? *(T**)Object : (T*)Object;
 			}
 			template <typename T>
 			static T* GetProperty(void* Object, int Offset, int TypeId)
 			{
-				if (!Object)
-					return nullptr;
-
+				TH_ASSERT(Object != nullptr, nullptr, "object should be set");
 				if (!IsHandle(TypeId))
 					return reinterpret_cast<T*>(reinterpret_cast<char*>(Object) + Offset);
 
@@ -903,16 +895,21 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetProperty(const char* Decl, R T::*Value)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				return SetPropertyAddress(Decl, reinterpret_cast<std::size_t>(&(((T*)0)->*Value)));
 			}
 			template <typename T>
 			int SetPropertyStatic(const char* Decl, T* Value)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				return SetPropertyStaticAddress(Decl, (void*)Value);
 			}
 			template <typename T, typename R>
 			int SetGetter(const char* Type, const char* Name, R(T::*Value)())
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Method<T, R>(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -922,6 +919,9 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetGetterEx(const char* Type, const char* Name, R(*Value)(T*))
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -931,6 +931,9 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetSetter(const char* Type, const char* Name, void(T::*Value)(R))
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, R>(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -940,6 +943,9 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetSetterEx(const char* Type, const char* Name, void(*Value)(T*, R))
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -949,6 +955,9 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetArrayGetter(const char* Type, const char* Name, R(T::*Value)(unsigned int))
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, unsigned int>(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -958,6 +967,9 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetArrayGetterEx(const char* Type, const char* Name, R(*Value)(T*, unsigned int))
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -967,6 +979,9 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetArraySetter(const char* Type, const char* Name, void(T::*Value)(unsigned int, R))
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, unsigned int, R>(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -976,6 +991,9 @@ namespace Tomahawk
 			template <typename T, typename R>
 			int SetArraySetterEx(const char* Type, const char* Name, void(*Value)(T*, unsigned int, R))
 			{
+				TH_ASSERT(Type != nullptr, -1, "type should be set");
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
+
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -985,13 +1003,10 @@ namespace Tomahawk
 			template <typename T, typename R, typename... A>
 			int SetOperator(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(T::*Value)(A...))
 			{
-				if (!Out)
-					return -1;
-
+				TH_ASSERT(Out != nullptr, -1, "output should be set");
 				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
-				if (Operator.Empty())
-					return -1;
 
+				TH_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, A...>(Value);
 				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::THISCALL);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1001,13 +1016,10 @@ namespace Tomahawk
 			template <typename R, typename... A>
 			int SetOperatorEx(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
-				if (!Out)
-					return -1;
-
+				TH_ASSERT(Out != nullptr, -1, "output should be set");
 				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
-				if (Operator.Empty())
-					return -1;
-
+				
+				TH_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::CDECL_OBJFIRST);
                 VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1026,6 +1038,7 @@ namespace Tomahawk
 			template <typename T, typename R, typename... Args>
 			int SetMethod(const char* Decl, R(T::*Value)(Args...))
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, VMCall::THISCALL);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1035,6 +1048,7 @@ namespace Tomahawk
 			template <typename T, typename R, typename... Args>
 			int SetMethod(const char* Decl, R(T::*Value)(Args...) const)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, VMCall::THISCALL);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1044,6 +1058,7 @@ namespace Tomahawk
 			template <typename R, typename... Args>
 			int SetMethodEx(const char* Decl, R(* Value)(Args...))
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function<R(*)(Args...)>(Value);
 				int Result = SetMethodAddress(Decl, Ptr, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1053,6 +1068,7 @@ namespace Tomahawk
 			template <typename R, typename... Args>
 			int SetMethodStatic(const char* Decl, R(*Value)(Args...), VMCall Type = VMCall::CDECLF)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = (Type == VMCall::GENERIC ? VMBridge::FunctionGeneric<R(*)(Args...)>(Value) : VMBridge::Function<R(*)(Args...)>(Value));
 				int Result = SetMethodStaticAddress(Decl, Ptr, Type);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1072,9 +1088,7 @@ namespace Tomahawk
 			template <typename T, const char* TypeName, typename... Args>
 			int SetManagedConstructor(const char* Decl)
 			{
-				if (!Manager)
-					return -1;
-
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::Function(&VMBridge::GetManagedCall<T, TypeName, Args...>);
 				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::CDECLF);
 				VMFuncStore::ReleaseFunctor(&Functor);
@@ -1084,9 +1098,7 @@ namespace Tomahawk
 			template <typename T, const char* TypeName, VMCGeneric*>
 			int SetManagedConstructor(const char* Decl)
 			{
-				if (!Manager)
-					return -1;
-
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetManagedCall<T, TypeName, VMCGeneric*>);
 				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
@@ -1096,6 +1108,7 @@ namespace Tomahawk
 			template <typename T, const char* TypeName>
 			int SetManagedConstructorList(const char* Decl)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetManagedListCall<T, TypeName>);
 				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
@@ -1105,9 +1118,7 @@ namespace Tomahawk
 			template <typename T, typename... Args>
 			int SetUnmanagedConstructor(const char* Decl)
 			{
-				if (!Manager)
-					return -1;
-
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::Function(&VMBridge::GetUnmanagedCall<T, Args...>);
 				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::CDECLF);
 				VMFuncStore::ReleaseFunctor(&Functor);
@@ -1117,9 +1128,7 @@ namespace Tomahawk
 			template <typename T, VMCGeneric*>
 			int SetUnmanagedConstructor(const char* Decl)
 			{
-				if (!Manager)
-					return -1;
-
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedCall<T, VMCGeneric*>);
 				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
@@ -1129,6 +1138,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetUnmanagedConstructorList(const char* Decl)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedListCall<T>);
 				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
@@ -1138,6 +1148,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetUnmanagedConstructorListEx(const char* Decl, void(*Value)(VMCGeneric*))
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(Value);
 				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Functor);
@@ -1240,6 +1251,7 @@ namespace Tomahawk
 			template <typename T, typename... Args>
 			int SetConstructor(const char* Decl)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function(&VMBridge::GetConstructorCall<T, Args...>);
 				int Result = SetConstructorAddress(Decl, Ptr, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1249,6 +1261,7 @@ namespace Tomahawk
 			template <typename T, VMCGeneric*>
 			int SetConstructor(const char* Decl)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::FunctionGeneric(&VMBridge::GetConstructorCall<T, VMCGeneric*>);
 				int Result = SetConstructorAddress(Decl, Ptr, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1258,6 +1271,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetConstructorList(const char* Decl)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::FunctionGeneric(&VMBridge::GetConstructorListCall<T>);
 				int Result = SetConstructorListAddress(Decl, Ptr, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1267,6 +1281,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetDestructor(const char* Decl)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function(&VMBridge::GetDestructorCall<T>);
 				int Result = SetDestructorAddress(Decl, Ptr);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1276,6 +1291,7 @@ namespace Tomahawk
 			template <typename R, typename... Args>
 			int SetDestructorStatic(const char* Decl, R(*Value)(Args...))
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function<R(*)(Args...)>(Value);
 				int Result = SetDestructorAddress(Decl, Ptr);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1373,9 +1389,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetTypeProperty(const char* Name, T* Value)
 			{
-				if (!Name)
-					return -1;
-
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
 				int Index = GetPropertyIndexByName(Name);
 				if (Index < 0)
 					return Index;
@@ -1390,9 +1404,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetTypeProperty(const char* Name, const T& Value)
 			{
-				if (!Name)
-					return -1;
-
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
 				int Index = GetPropertyIndexByName(Name);
 				if (Index < 0)
 					return Index;
@@ -1407,9 +1419,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetRefProperty(const char* Name, T* Value)
 			{
-				if (Name)
-					return -1;
-
+				TH_ASSERT(Name != nullptr, -1, "name should be set");
 				int Index = GetPropertyIndexByName(Name);
 				if (Index < 0)
 					return Index;
@@ -1473,6 +1483,7 @@ namespace Tomahawk
 			template <typename T>
 			int SetFunction(const char* Decl, T Value)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function<T>(Value);
 				int Result = SetFunctionAddress(Decl, Ptr, VMCall::CDECLF);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1482,6 +1493,7 @@ namespace Tomahawk
 			template <void(*)(VMCGeneric*)>
 			int SetFunction(const char* Decl, void(* Value)(VMCGeneric*))
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function<void (*)(VMCGeneric*)>(Value);
 				int Result = SetFunctionAddress(Decl, Ptr, VMCall::GENERIC);
 				VMFuncStore::ReleaseFunctor(&Ptr);
@@ -1491,11 +1503,13 @@ namespace Tomahawk
 			template <typename T>
 			int SetProperty(const char* Decl, T* Value)
 			{
+				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
 			VMRefClass SetClassManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
 			{
+				TH_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
 				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF | (size_t)VMObjType::GC);
 				Class.SetManaged<T>(EnumRefs, ReleaseRefs);
 
@@ -1504,6 +1518,7 @@ namespace Tomahawk
 			template <typename T>
 			VMRefClass SetClassUnmanaged(const char* Name)
 			{
+				TH_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
 				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF);
 				Class.SetUnmanaged<T>();
 
@@ -1512,6 +1527,7 @@ namespace Tomahawk
 			template <typename T>
 			VMTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
 			{
+				TH_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
 				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | (size_t)VMObjType::GC | VMBridge::GetTypeTraits<T>());
 				Struct.SetEnumRefs(EnumRefs);
 				Struct.SetReleaseRefs(ReleaseRefs);
@@ -1522,6 +1538,7 @@ namespace Tomahawk
 			template <typename T>
 			VMTypeClass SetStructUnmanaged(const char* Name)
 			{
+				TH_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
 				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | VMBridge::GetTypeTraits<T>());
 				Struct.SetOperatorCopy<T>();
 				Struct.SetDestructor<T>("void f()");
@@ -1531,6 +1548,7 @@ namespace Tomahawk
 			template <typename T>
 			VMTypeClass SetPod(const char* Name)
 			{
+				TH_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
 				return SetPodAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | (size_t)VMObjType::POD | VMBridge::GetTypeTraits<T>());
 			}
 		};

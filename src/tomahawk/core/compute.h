@@ -1559,8 +1559,8 @@ namespace Tomahawk
 			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
-			static void ConfigurateUnsafe(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale);
-			static void SetRootUnsafe(Transform* In, Transform* Root);
+			static void SetTransformPivot(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale);
+			static void SetTransformRoot(Transform* In, Transform* Root);
 			static void Randomize();
 			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
 			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);

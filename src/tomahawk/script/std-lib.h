@@ -346,12 +346,10 @@ namespace Tomahawk
 				static VMCArray* Id(T* Base, Args... Data)
 				{
 					VMManager* Manager = VMManager::Get();
-					if (!Manager)
-						return nullptr;
+					TH_ASSERT(Manager != nullptr, nullptr, "manager should be present");
 
 					VMCTypeInfo* Info = Manager->Global().GetTypeInfoById((int)TypeId).GetTypeInfo();
-					if (!Info)
-						return nullptr;
+					TH_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 					std::vector<R> Source((Base->*F)(Data...));
 					return VMCArray::Compose(Info, Source);
@@ -360,12 +358,10 @@ namespace Tomahawk
 				static VMCArray* Decl(T* Base, Args... Data)
 				{
 					VMManager* Manager = VMManager::Get();
-					if (!Manager)
-						return nullptr;
+					TH_ASSERT(Manager != nullptr, nullptr, "manager should be present");
 
 					VMCTypeInfo* Info = Manager->Global().GetTypeInfoByDecl(TypeName).GetTypeInfo();
-					if (!Info)
-						return nullptr;
+					TH_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 					std::vector<R> Source((Base->*F)(Data...));
 					return VMCArray::Compose(Info, Source);

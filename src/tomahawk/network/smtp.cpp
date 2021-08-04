@@ -52,6 +52,7 @@ namespace Tomahawk
 			}
 			bool Client::OnResolveHost(Host* Address)
 			{
+				TH_ASSERT(Address != nullptr, false, "address should be set");
 				if (Address->Port == 0)
 				{
 					servent* Entry = getservbyname("mail", 0);
@@ -104,7 +105,8 @@ namespace Tomahawk
 			}
 			Core::Async<int> Client::Send(RequestFrame* Root)
 			{
-				if ((!Staging && !Root) || !Stream.IsValid())
+				TH_ASSERT(Root != nullptr, Core::Async<int>::Store(-1), "request should be set");
+				if (!Staging || !Stream.IsValid())
 					return Core::Async<int>::Store(-1);
 
 				Core::Async<int> Result;
@@ -162,15 +164,13 @@ namespace Tomahawk
 				for (auto& Item : Request.BCCRecipients)
 					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
 
-				Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
+				Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t State)
 				{
-					if (Size < 0)
-						return Error("cannot write data to smtp server");
-					else if (Size > 0)
-						return true;
+					if (State < 0)
+						return (void)Error("cannot write data to smtp server");
 
 					Pending = 1 + Request.Recipients.size() + Request.CCRecipients.size() + Request.BCCRecipients.size();
-					return ReadResponses(250, [this]()
+					ReadResponses(250, [this]()
 					{
 						Pending = Request.Attachments.size();
 						SendRequest(354, "DATA\r\n", [this]()
@@ -282,12 +282,10 @@ namespace Tomahawk
 								Content.fAppend("Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
 
 							Content.Append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-							Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
+							Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t State)
 							{
-								if (Size < 0)
-									return Error("smtp socket write %s", (Size == -2 ? "timeout" : "error"));
-								else if (Size > 0)
-									return true;
+								if (State < 0)
+									return (void)Error("smtp socket write %s", (State == -2 ? "timeout" : "error"));
 
 								Core::Parser Content;
 								for (auto& Item : Request.Messages)
@@ -296,15 +294,13 @@ namespace Tomahawk
 								if (Request.Messages.empty())
 									Content.Assign(" \r\n");
 
-								return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
+								Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t State)
 								{
-									if (Size < 0)
-										return Error("smtp socket write %s", (Size == -2 ? "timeout" : "error"));
-									else if (Size > 0)
-										return true;
+									if (State < 0)
+										return (void)Error("smtp socket write %s", (State == -2 ? "timeout" : "error"));
 
 									Stage("smtp attachment delivery");
-									return SendAttachment();
+									SendAttachment();
 								});
 							});
 						});
@@ -360,20 +356,17 @@ namespace Tomahawk
 			}
 			bool Client::SendRequest(int Code, const std::string& Content, const ReplyCallback& Callback)
 			{
-				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](Socket*, int64_t Size)
+				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](Socket*, int64_t State)
 				{
-					if (Size < 0)
-						return Error("cannot write data to smtp server");
-					else if (Size > 0)
-						return true;
-
-					return ReadResponse(Code, Callback);
+					if (State < 0)
+						Error("cannot write data to smtp server");
+					else
+						ReadResponse(Code, Callback);
 				}) || true;
 			}
 			bool Client::CanRequest(const char* Keyword)
 			{
-				if (Keyword == nullptr)
-					return false;
+				TH_ASSERT(Keyword != nullptr, false, "keyword should be set");
 
 				uint64_t L1 = Buffer.size(), L2 = strlen(Keyword);
 				if (L1 < L2)
@@ -640,11 +633,11 @@ namespace Tomahawk
 							Content.fAppend(",realm=\"%s\"", Realm.c_str());
 
 						Content.fAppend(",nonce=\"%s\""
-										",nc=%s"
-										",cnonce=\"%s\""
-										",digest-uri=\"%s\""
-										",Response=%s"
-										",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.Get());
+							",nc=%s"
+							",cnonce=\"%s\""
+							",digest-uri=\"%s\""
+							",Response=%s"
+							",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.Get());
 
 						EncodedChallenge = Compute::Common::Base64Encode(Content.R());
 						SendRequest(334, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
@@ -671,14 +664,12 @@ namespace Tomahawk
 						Content.fAppend("\r\n--%s--\r\n", Boundary.c_str());
 
 					Content.Append("\r\n.\r\n");
-					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t Size)
+					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](Socket*, int64_t State)
 					{
-						if (Size < 0)
-							return Error("cannot send finish request");
-						else if (Size > 0)
-							return true;
-
-						return Success(0);
+						if (State < 0)
+							Error("cannot send finish request");
+						else
+							Success(0);
 					});
 				}
 
@@ -696,18 +687,16 @@ namespace Tomahawk
 				Content.fAppend("Content-Transfer-Encoding: base64\r\n");
 				Content.fAppend("Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
 
-				return Stream.WriteAsync(Content.Get(), Content.Size(), [this, Name](Socket*, int64_t Size)
+				return Stream.WriteAsync(Content.Get(), Content.Size(), [this, Name](Socket*, int64_t State)
 				{
-					if (Size < 0)
-						return Error("cannot send attachment headers request");
-					else if (Size > 0)
-						return true;
+					if (State < 0)
+						return (void)Error("cannot send attachment headers request");
 
 					AttachmentFile = (FILE*)Core::OS::File::Open(Name, "rb");
 					if (!AttachmentFile)
-						return Error("cannot open attachment resource");
+						return (void)Error("cannot open attachment resource");
 
-					return ProcessAttachment();
+					ProcessAttachment();
 				}) || true;
 			}
 			bool Client::ProcessAttachment()
@@ -727,14 +716,14 @@ namespace Tomahawk
 					fclose(AttachmentFile);
 
 				bool Sent = (!It.Length);
-				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Sent](Socket*, int64_t Size)
+				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Sent](Socket*, int64_t State)
 				{
-					if (Size < 0)
-						return Error("cannot send attachment block request");
-					else if (Size > 0)
-						return true;
-
-					return Sent ? SendAttachment() : ProcessAttachment();
+					if (State < 0)
+						Error("cannot send attachment block request");
+					else if (Sent)
+						SendAttachment();
+					else
+						ProcessAttachment();
 				}) || true;
 			}
 			unsigned char* Client::Unicode(const char* String)

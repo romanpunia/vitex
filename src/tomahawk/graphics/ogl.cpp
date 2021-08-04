@@ -108,9 +108,9 @@ namespace Tomahawk
 					}
 
 					if (Decimal)
-						VertexLayout.push_back([i, Format, Stride, Size](uint64_t Width) { glVertexAttribIPointer(i, Size, Format, Width, (GLvoid*)Stride); });
+						VertexLayout.emplace_back([i, Format, Stride, Size](uint64_t Width) { glVertexAttribIPointer(i, Size, Format, Width, (GLvoid*)Stride); });
 					else
-						VertexLayout.push_back([i, Format, Stride, Size](uint64_t Width) { glVertexAttribPointer(i, Size, Format, GL_FALSE, Width, (GLvoid*)Stride); });
+						VertexLayout.emplace_back([i, Format, Stride, Size](uint64_t Width) { glVertexAttribPointer(i, Size, Format, GL_FALSE, Width, (GLvoid*)Stride); });
 				}
 			}
 			OGLInputLayout::~OGLInputLayout()
@@ -157,6 +157,8 @@ namespace Tomahawk
 			}
 			Compute::Vertex* OGLMeshBuffer::GetElements(GraphicsDevice* Device)
 			{
+				TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
@@ -172,6 +174,8 @@ namespace Tomahawk
 			}
 			Compute::SkinVertex* OGLSkinMeshBuffer::GetElements(GraphicsDevice* Device)
 			{
+				TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
+
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
@@ -356,20 +360,11 @@ namespace Tomahawk
 
 			OGLCubemap::OGLCubemap(const Desc& I) : Cubemap(I)
 			{
-				if (!I.Source || I.Target >= I.Source->GetTargetCount())
-				{
-					TH_ERROR("no correct render target found for cubemap");
-					Meta.Source = nullptr;
-					return;
-				}
+				TH_ASSERT_V(I.Source != nullptr, "source should be set");
+				TH_ASSERT_V(I.Target < I.Source->GetTargetCount(), "targets count should be less than %i", (int)I.Source->GetTargetCount());
 
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)I.Source->GetTargetBuffer();
-				if (TargetBuffer->Backbuffer)
-				{
-					TH_ERROR("cannot copy from backbuffer directly");
-					Meta.Source = nullptr;
-					return;
-				}
+				TH_ASSERT_V(!TargetBuffer->Backbuffer, "cannot copy from backbuffer directly");
 
 				glGenFramebuffers(2, Buffers);
 				glGenTextures(1, &Resource);
@@ -394,18 +389,12 @@ namespace Tomahawk
 
 			OGLDevice::OGLDevice(const Desc& I) : GraphicsDevice(I), ShaderVersion(nullptr), Layout(nullptr), Window(I.Window), Context(nullptr)
 			{
+				TH_ASSERT_V(Window != nullptr, "OpenGL device cannot be created without a window");
 				DirectRenderer.VertexShader = GL_NONE;
 				DirectRenderer.PixelShader = GL_NONE;
 				DirectRenderer.Program = GL_NONE;
 				DirectRenderer.VertexBuffer = GL_NONE;
 				IndexType = GL_UNSIGNED_INT;
-
-				if (!Window)
-				{
-					TH_ERROR("OpenGL cannot be created without a window");
-					return;
-				}
-
 #ifdef TH_HAS_SDL2
 				if (I.Debug)
 					SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
@@ -415,7 +404,7 @@ namespace Tomahawk
 				Context = SDL_GL_CreateContext(Window->GetHandle());
 				if (!Context)
 				{
-					TH_ERROR("OpenGL creation conflict -> %s", Window->GetError().c_str());
+					TH_ERR("OpenGL creation conflict -> %s", Window->GetError().c_str());
 					return;
 				}
 
@@ -439,7 +428,7 @@ namespace Tomahawk
 				const GLenum ErrorCode = glewInit();
 				if (ErrorCode != GLEW_OK)
 				{
-					TH_ERROR("[glew] %s", (const char*)glewGetErrorString(ErrorCode));
+					TH_ERR("[glew] %s", (const char*)glewGetErrorString(ErrorCode));
 					return;
 				}
 
@@ -527,9 +516,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetBlendState(BlendState* State)
 			{
-				if (!State)
-					return;
-
+				TH_ASSERT_V(State != nullptr, "blend state should be set");
 				OGLBlendState* V = (OGLBlendState*)State;
 				if (V->State.AlphaToCoverageEnable)
 				{
@@ -568,9 +555,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetRasterizerState(RasterizerState* State)
 			{
-				if (!State)
-					return;
-
+				TH_ASSERT_V(State != nullptr, "rasterizer state should be set");
 				OGLRasterizerState* V = (OGLRasterizerState*)State;
 				if (V->State.AntialiasedLineEnable || V->State.MultisampleEnable)
 					glEnable(GL_MULTISAMPLE);
@@ -602,9 +587,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetDepthStencilState(DepthStencilState* State)
 			{
-				if (!State)
-					return;
-
+				TH_ASSERT_V(State != nullptr, "depth stencil state should be set");
 				OGLDepthStencilState* V = (OGLDepthStencilState*)State;
 				if (V->State.DepthEnable)
 					glEnable(GL_DEPTH);
@@ -641,10 +624,10 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetShader(Shader* Resource, unsigned int Type)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLShader* IResource = Resource->As<OGLShader>();
-				if (!IResource || !IResource->IsValid())
-					return;
 
+				TH_ASSERT_V(IResource->IsValid(), "resource should be set");
 				auto It = IResource->Programs.find(Type);
 				if (It != IResource->Programs.end())
 					return (void)glUseProgramObjectARB(It->second);
@@ -710,7 +693,7 @@ namespace Tomahawk
 
 					char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 					glGetProgramInfoLog(Program, Size, &Size, Buffer);
-					TH_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
+					TH_ERR("couldn't link shaders\n\t%.*s", Size, Buffer);
 					TH_FREE(Buffer);
 
 					glDeleteProgram(Program);
@@ -781,9 +764,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					OGLTexture2D* IResource = (OGLTexture2D*)Resource[i];
@@ -797,9 +778,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					OGLTexture3D* IResource = (OGLTexture3D*)Resource[i];
@@ -813,9 +792,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					OGLTextureCube* IResource = (OGLTextureCube*)Resource[i];
@@ -837,10 +814,8 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTarget(DepthBuffer* Resource)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLDepthBuffer* IResource = (OGLDepthBuffer*)Resource;
-				if (!IResource)
-					return;
-
 				GLenum Target = GL_NONE;
 				glBindFramebuffer(GL_FRAMEBUFFER, IResource->FrameBuffer);
 				glDrawBuffers(1, &Target);
@@ -848,12 +823,13 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
 			{
-				if (!Resource || Target >= Resource->GetTargetCount())
-					return;
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+				TH_ASSERT_V(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
 
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
+				TH_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					GLenum Targets[8] = { GL_NONE };
@@ -875,12 +851,13 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, unsigned int Target)
 			{
-				if (!Resource || Target >= Resource->GetTargetCount())
-					return;
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+				TH_ASSERT_V(Target < Resource->GetTargetCount(), "targets count should be less than %i", (int)Resource->GetTargetCount());
 
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
+				TH_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					GLenum Targets[8] = { GL_NONE };
@@ -900,12 +877,11 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
+				TH_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					glBindFramebuffer(GL_FRAMEBUFFER, TargetBuffer->Buffer);
@@ -924,12 +900,11 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTarget(Graphics::RenderTarget* Resource)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
+				TH_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					glBindFramebuffer(GL_FRAMEBUFFER, TargetBuffer->Buffer);
@@ -946,12 +921,11 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8])
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
+				TH_ASSERT_V(TargetBuffer != nullptr, "target buffer should be set");
 				if (!TargetBuffer->Backbuffer)
 				{
 					GLenum Targets[8] = { GL_NONE };
@@ -974,21 +948,19 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetTargetRect(unsigned int Width, unsigned int Height)
 			{
-				if (!Width || !Height)
-					return;
-
+				TH_ASSERT_V(Width > 0 && Height > 0, "width and height should be greater than zero");
 				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 				glViewport(0, 0, Width, Height);
 			}
 			void OGLDevice::SetViewports(unsigned int Count, Viewport* Value)
 			{
-				if (Count > 0 && Value)
-					glViewport(Value[0].TopLeftX, Value[0].TopLeftY, Value[0].Width, Value[0].Height);
+				TH_ASSERT_V(Count > 0 && Value != nullptr, "at least one viewport should be set");
+				glViewport(Value[0].TopLeftX, Value[0].TopLeftY, Value[0].Width, Value[0].Height);
 			}
 			void OGLDevice::SetScissorRects(unsigned int Count, Compute::Rectangle* Value)
 			{
-				if (Count > 0 && Value)
-					glScissor(Value[0].Left, Value[0].Top, Value[0].Right - Value[0].Left, Value[0].Top - Value[0].Bottom);
+				TH_ASSERT_V(Count > 0 && Value != nullptr, "at least one scissor rect should be set");
+				glScissor(Value[0].Left, Value[0].Top, Value[0].Right - Value[0].Left, Value[0].Top - Value[0].Bottom);
 			}
 			void OGLDevice::SetPrimitiveTopology(PrimitiveTopology _Topology)
 			{
@@ -997,9 +969,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				if (Count > 31)
-					return;
-
+				TH_ASSERT_V(Count < 32, "count should be less than 32");
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
@@ -1009,9 +979,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				if (Count > 31)
-					return;
-
+				TH_ASSERT_V(Count < 32, "count should be less than 32");
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
@@ -1021,9 +989,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				if (Count > 31)
-					return;
-
+				TH_ASSERT_V(Count < 32, "count should be less than 32");
 				for (unsigned int i = 0; i < Count; i++)
 				{
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
@@ -1036,12 +1002,11 @@ namespace Tomahawk
 			}
 			bool OGLDevice::Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				if (!IResource)
-					return false;
+				glBindBuffer(IResource->Flags, IResource->Resource);
 
 				GLint Size;
-				glBindBuffer(IResource->Flags, IResource->Resource);
 				glGetBufferParameteriv(IResource->Flags, GL_BUFFER_SIZE, &Size);
 				Map->Pointer = glMapBuffer(IResource->Flags, OGLDevice::GetResourceMap(Mode));
 				Map->RowPitch = Size;
@@ -1051,39 +1016,33 @@ namespace Tomahawk
 			}
 			bool OGLDevice::Unmap(ElementBuffer* Resource, MappedSubresource* Map)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				if (!IResource)
-					return false;
-
 				glBindBuffer(IResource->Flags, IResource->Resource);
 				glUnmapBuffer(IResource->Flags);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				if (!IResource)
-					return false;
-
 				glBindBuffer(IResource->Flags, IResource->Resource);
 				glBufferData(IResource->Flags, (GLsizeiptr)Size, Data, GL_DYNAMIC_DRAW);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(Shader* Resource, const void* Data)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLShader* IResource = (OGLShader*)Resource;
-				if (!IResource)
-					return false;
-
 				CopyConstantBuffer(IResource->ConstantBuffer, (void*)Data, IResource->ConstantSize);
 				return true;
 			}
 			bool OGLDevice::UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data)
 			{
-				OGLMeshBuffer* IResource = (OGLMeshBuffer*)Resource;
-				if (!IResource)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Data != nullptr, false, "data should be set");
 
+				OGLMeshBuffer* IResource = (OGLMeshBuffer*)Resource;
 				MappedSubresource MappedResource;
 				if (!Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource))
 					return false;
@@ -1093,10 +1052,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data)
 			{
-				OGLSkinMeshBuffer* IResource = (OGLSkinMeshBuffer*)Resource;
-				if (!IResource)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Data != nullptr, false, "data should be set");
 
+				OGLSkinMeshBuffer* IResource = (OGLSkinMeshBuffer*)Resource;
 				MappedSubresource MappedResource;
 				if (!Map(IResource->VertexBuffer, ResourceMap::Write, &MappedResource))
 					return false;
@@ -1106,8 +1065,9 @@ namespace Tomahawk
 			}
 			bool OGLDevice::UpdateBuffer(InstanceBuffer* Resource)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
-				if (!IResource || IResource->Array.Size() <= 0 || IResource->Array.Size() > IResource->ElementLimit)
+				if (IResource->Array.Size() <= 0 || IResource->Array.Size() > IResource->ElementLimit)
 					return false;
 
 				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
@@ -1124,10 +1084,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::UpdateBufferSize(Shader* Resource, size_t Size)
 			{
-				OGLShader* IResource = (OGLShader*)Resource;
-				if (!IResource || !Size)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Size > 0, false, "size should be greater than zero");
 
+				OGLShader* IResource = (OGLShader*)Resource;
 				if (IResource->ConstantBuffer != GL_NONE)
 					glDeleteBuffers(1, &IResource->ConstantBuffer);
 
@@ -1135,17 +1095,13 @@ namespace Tomahawk
 			}
 			bool OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
 			{
-				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
-				if (!IResource)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Size > 0, false, "size should be greater than zero");
 
+				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
 				ClearBuffer(IResource);
 				TH_RELEASE(IResource->Elements);
-
 				IResource->ElementLimit = Size;
-				if (IResource->ElementLimit < 1)
-					IResource->ElementLimit = 1;
-
 				IResource->Array.Clear();
 				IResource->Array.Reserve(IResource->ElementLimit);
 
@@ -1163,8 +1119,9 @@ namespace Tomahawk
 			}
 			void OGLDevice::ClearBuffer(InstanceBuffer* Resource)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
-				if (!IResource || !IResource->Sync)
+				if (!IResource->Sync)
 					return;
 
 				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
@@ -1179,10 +1136,8 @@ namespace Tomahawk
 			}
 			void OGLDevice::ClearWritable(Texture2D* Resource, float R, float G, float B)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (!IResource)
-					return;
-
 				GLfloat ClearColor[4] = { R, G, B, 0.0f };
 				GLint PrevHandle = 0;
 
@@ -1197,10 +1152,8 @@ namespace Tomahawk
 			}
 			void OGLDevice::ClearWritable(Texture3D* Resource, float R, float G, float B)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				if (!IResource)
-					return;
-
 				GLfloat ClearColor[4] = { R, G, B, 0.0f };
 				GLint PrevHandle = 0;
 
@@ -1215,10 +1168,8 @@ namespace Tomahawk
 			}
 			void OGLDevice::ClearWritable(TextureCube* Resource, float R, float G, float B)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-				if (!IResource)
-					return;
-
 				GLfloat ClearColor[4] = { R, G, B, 0.0f };
 				GLint PrevHandle = 0;
 
@@ -1233,9 +1184,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 			}
@@ -1249,9 +1198,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::ClearDepth(Graphics::RenderTarget* Resource)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			}
 			void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
@@ -1260,9 +1207,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::DrawIndexed(MeshBuffer* Resource)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
 				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
@@ -1271,9 +1216,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::DrawIndexed(SkinMeshBuffer* Resource)
 			{
-				if (!Resource)
-					return;
-
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
 				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
@@ -1290,10 +1233,12 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyTexture2D(Texture2D* Resource, Texture2D** Result)
 			{
-				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (!IResource || IResource->Resource == GL_NONE || !Result)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
 
+				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
+
+				TH_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
@@ -1329,10 +1274,12 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
 			{
-				if (!Resource || !Result)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
 
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
+
+				TH_ASSERT(TargetBuffer != nullptr, false, "target buffer should be set");
 				if (TargetBuffer->Backbuffer)
 				{
 					if (!*Result)
@@ -1387,10 +1334,11 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result)
 			{
-				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
-				if (!IResource || Face >= 6 || !Result)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
+				TH_ASSERT(Face < 6, false, "face index should be less than 6");
 
+				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
@@ -1426,10 +1374,13 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result)
 			{
-				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= (uint32_t)IResource->Target || Face >= 6 || !Result)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
+				TH_ASSERT(Face < 6, false, "face index should be less than 6");
 
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+
+				TH_ASSERT(Cube < (uint32_t)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
 				int Width, Height;
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
@@ -1466,10 +1417,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
+
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
-				if (!IResource || !Result)
-					return false;
-				
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
@@ -1506,10 +1457,12 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
 			{
-				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
-				if (!IResource || Cube >= (uint32_t)IResource->Target || !Result)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
 
+				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
+
+				TH_ASSERT(Cube < (uint32_t)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
@@ -1546,14 +1499,11 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget)
 			{
-				if (!From || !To)
-					return false;
-
+				TH_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
 				OGLTexture2D* Source = (OGLTexture2D*)From->GetTarget(FromTarget);
 				OGLTexture2D* Dest = (OGLTexture2D*)To->GetTarget(ToTarget);
-				if (!Source || Source->Resource == GL_NONE || !Dest || Dest->Resource == GL_NONE)
-					return false;
 
+				TH_ASSERT(Source != nullptr && Source->Resource != GL_NONE && Dest != nullptr && Dest->Resource != GL_NONE, false, "src and dest should be valid");
 				uint32_t Width = From->GetWidth();
 				uint32_t Height = From->GetHeight();
 
@@ -1570,10 +1520,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CubemapBegin(Cubemap* Resource)
 			{
-				OGLCubemap* IResource = (OGLCubemap*)Resource;
-				if (!IResource || !Resource->IsValid())
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Resource->IsValid(), false, "resource should be valid");
 
+				OGLCubemap* IResource = (OGLCubemap*)Resource;
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -1596,10 +1546,11 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CubemapFace(Cubemap* Resource, unsigned int Target, unsigned int Face)
 			{
-				OGLCubemap* IResource = (OGLCubemap*)Resource;
-				if (!IResource || !IResource->IsValid() || Face >= 6)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Resource->IsValid(), false, "resource should be valid");
+				TH_ASSERT(Face < 6, false, "face index should be less than 6");
 
+				OGLCubemap* IResource = (OGLCubemap*)Resource;
 				OGLTexture2D* Source = (OGLTexture2D*)IResource->Meta.Source->GetTarget(Target);
 				glBindFramebuffer(GL_READ_FRAMEBUFFER, IResource->Buffers[0]);
 				glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + Face, Source->Resource, 0);
@@ -1611,10 +1562,11 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CubemapEnd(Cubemap* Resource, TextureCube* Result)
 			{
-				OGLCubemap* IResource = (OGLCubemap*)Resource;
-				if (!IResource || !IResource->IsValid() || !Result)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Resource->IsValid(), false, "resource should be valid");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
 
+				OGLCubemap* IResource = (OGLCubemap*)Resource;
 				OGLTextureCube* IResult = (OGLTextureCube*)Result;
 				if (!IResult->Resource)
 					glGenTextures(1, &IResult->Resource);
@@ -1629,9 +1581,7 @@ namespace Tomahawk
 			}
 			bool OGLDevice::CopyBackBuffer(Texture2D** Result)
 			{
-				if (!Result)
-					return false;
-
+				TH_ASSERT(Result != nullptr, false, "result should be set");
 				OGLTexture2D* Texture = (OGLTexture2D*)(*Result ? *Result : CreateTexture2D());
 				if (!*Result)
 					glGenTextures(1, &Texture->Resource);
@@ -1702,10 +1652,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::GenerateTexture(Texture2D* Resource)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (!IResource || IResource->Resource == GL_NONE)
-					return false;
 
+				TH_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
@@ -1718,10 +1668,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::GenerateTexture(Texture3D* Resource)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				if (!IResource || IResource->Resource == GL_NONE)
-					return false;
 
+				TH_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
 				int Width, Height, Depth;
 				glBindTexture(GL_TEXTURE_3D, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &Width);
@@ -1736,10 +1686,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::GenerateTexture(TextureCube* Resource)
 			{
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-				if (!IResource || IResource->Resource == GL_NONE)
-					return false;
 
+				TH_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
 				int Width, Height;
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP, 0, GL_TEXTURE_WIDTH, &Width);
@@ -1752,10 +1702,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::GetQueryData(Query* Resource, uint64_t* Result, bool Flush)
 			{
-				OGLQuery* IResource = (OGLQuery*)Resource;
-				if (!Result || !IResource)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
 
+				OGLQuery* IResource = (OGLQuery*)Resource;
 				GLint Available = 0;
 				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
 				if (Available == GL_FALSE)
@@ -1769,10 +1719,10 @@ namespace Tomahawk
 			}
 			bool OGLDevice::GetQueryData(Query* Resource, bool* Result, bool Flush)
 			{
-				OGLQuery* IResource = (OGLQuery*)Resource;
-				if (!Result || !IResource)
-					return false;
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+				TH_ASSERT(Result != nullptr, false, "result should be set");
 
+				OGLQuery* IResource = (OGLQuery*)Resource;
 				GLint Available = 0;
 				glGetQueryObjectiv(IResource->Async, GL_QUERY_RESULT_AVAILABLE, &Available);
 				if (Available == GL_FALSE)
@@ -1786,26 +1736,22 @@ namespace Tomahawk
 			}
 			void OGLDevice::QueryBegin(Query* Resource)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLQuery* IResource = (OGLQuery*)Resource;
-				if (!IResource)
-					return;
-
 				glBeginQuery(IResource->Predicate ? GL_ANY_SAMPLES_PASSED : GL_SAMPLES_PASSED, IResource->Async);
 			}
 			void OGLDevice::QueryEnd(Query* Resource)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLQuery* IResource = (OGLQuery*)Resource;
-				if (!IResource)
-					return;
-
 				glEndQuery(IResource->Predicate ? GL_ANY_SAMPLES_PASSED : GL_SAMPLES_PASSED);
 			}
 			void OGLDevice::GenerateMips(Texture2D* Resource)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (!IResource || IResource->Resource != GL_NONE)
-					return;
 
+				TH_ASSERT_V(IResource->Resource != GL_NONE, "resource should be valid");
 #ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
 #elif glGenerateMipmap
@@ -1815,18 +1761,20 @@ namespace Tomahawk
 			}
 			void OGLDevice::GenerateMips(Texture3D* Resource)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLTexture3D* IResource = (OGLTexture3D*)Resource;
-				if (!IResource)
-					return;
+
+				TH_ASSERT_V(IResource->Resource != GL_NONE, "resource should be valid");
 #ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
 #endif
 			}
 			void OGLDevice::GenerateMips(TextureCube* Resource)
 			{
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				OGLTextureCube* IResource = (OGLTextureCube*)Resource;
-				if (!IResource)
-					return;
+
+				TH_ASSERT_V(IResource->Resource != GL_NONE, "resource should be valid");
 #ifdef glGenerateTextureMipmap
 				glGenerateTextureMipmap(IResource->Resource);
 #elif glGenerateMipmap
@@ -1866,9 +1814,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::Color(float X, float Y, float Z, float W)
 			{
-				if (Elements.empty())
-					return;
-
+				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
 				Element.CX = X;
 				Element.CY = Y;
@@ -1881,9 +1827,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::TexCoord(float X, float Y)
 			{
-				if (Elements.empty())
-					return;
-
+				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
 				Element.TX = X;
 				Element.TY = Y;
@@ -1895,9 +1839,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::Position(float X, float Y, float Z)
 			{
-				if (Elements.empty())
-					return;
-
+				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
 				Element.PX = X;
 				Element.PY = Y;
@@ -1955,6 +1897,7 @@ namespace Tomahawk
 			bool OGLDevice::Submit()
 			{
 #ifdef TH_HAS_SDL2
+				TH_ASSERT(Window != nullptr, false, "window should be set");
 				SDL_GL_SwapWindow(Window->GetHandle());
 #endif
 				return true;
@@ -2009,7 +1952,7 @@ namespace Tomahawk
 
 				if (!Preprocess(F))
 				{
-					TH_ERROR("shader preprocessing failed");
+					TH_ERR("shader preprocessing failed");
 					return Result;
 				}
 
@@ -2041,7 +1984,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile vertex shader\n\t%.*s", Size, Buffer);
+						TH_ERR("couldn't compile vertex shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2070,7 +2013,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile pixel shader\n\t%.*s", Size, Buffer);
+						TH_ERR("couldn't compile pixel shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2099,7 +2042,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile geometry shader\n\t%.*s", Size, Buffer);
+						TH_ERR("couldn't compile geometry shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2128,7 +2071,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
+						TH_ERR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2157,7 +2100,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile hull shader\n\t%.*s", Size, Buffer);
+						TH_ERR("couldn't compile hull shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2186,7 +2129,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
 						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
-						TH_ERROR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
+						TH_ERR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2381,12 +2324,7 @@ namespace Tomahawk
 			}
 			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource[6])
 			{
-				if (!Resource[0] || !Resource[1] || !Resource[2] || !Resource[3] || !Resource[4] || !Resource[5])
-				{
-					TH_ERROR("couldn't create texture cube without proper mapping");
-					return nullptr;
-				}
-
+				TH_ASSERT(Resource[0] && Resource[1] && Resource[2] && Resource[3] && Resource[4] && Resource[5], nullptr, "all 6 faces should be set");
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
 					Resources[i] = (void*)Resource[i]->As<OGLTexture2D>();
@@ -2395,20 +2333,15 @@ namespace Tomahawk
 			}
 			TextureCube* OGLDevice::CreateTextureCube(Texture2D* Resource)
 			{
+				TH_ASSERT(Resource != nullptr, nullptr, "resource should be set");
 				OGLTexture2D* IResource = (OGLTexture2D*)Resource;
-				if (!IResource)
-				{
-					TH_ERROR("couldn't create texture cube without proper mapping");
-					return nullptr;
-				}
-
 				unsigned int Width = IResource->Width / 4;
 				unsigned int Height = Width;
 				unsigned int MipLevels = GetMipLevel(Width, Height);
 
 				if (IResource->Width % 4 != 0 || IResource->Height % 3 != 0)
 				{
-					TH_ERROR("couldn't create texture cube because width or height cannot be not divided");
+					TH_ERR("couldn't create texture cube because width or height cannot be not divided");
 					return nullptr;
 				}
 
@@ -2481,12 +2414,7 @@ namespace Tomahawk
 			}
 			TextureCube* OGLDevice::CreateTextureCubeInternal(void* Basis[6])
 			{
-				if (!Basis[0] || !Basis[1] || !Basis[2] || !Basis[3] || !Basis[4] || !Basis[5])
-				{
-					TH_ERROR("couldn't create texture cube without proper mapping");
-					return nullptr;
-				}
-
+				TH_ASSERT(Basis[0] && Basis[1] && Basis[2] && Basis[3] && Basis[4] && Basis[5], nullptr, "all 6 faces should be set");
 				OGLTexture2D* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
 					Resources[i] = (OGLTexture2D*)Basis[i];
@@ -2551,7 +2479,7 @@ namespace Tomahawk
 				Result->Resource->As<OGLTexture2D>()->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->Resource))
 				{
-					TH_ERROR("couldn't create 2d resource");
+					TH_ERR("couldn't create 2d resource");
 					return Result;
 				}
 
@@ -2595,7 +2523,7 @@ namespace Tomahawk
 					Result->Resource->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[0];
 					if (!GenerateTexture(Result->Resource))
 					{
-						TH_ERROR("couldn't create 2d resource");
+						TH_ERR("couldn't create 2d resource");
 						return Result;
 					}
 
@@ -2614,7 +2542,7 @@ namespace Tomahawk
 					Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
 					if (!GenerateTexture(Result->DepthStencil))
 					{
-						TH_ERROR("couldn't create 2d resource");
+						TH_ERR("couldn't create 2d resource");
 						return Result;
 					}
 
@@ -2665,7 +2593,7 @@ namespace Tomahawk
 					Result->Resource[i]->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[i];
 					if (!GenerateTexture(Result->Resource[i]))
 					{
-						TH_ERROR("couldn't create 2d resource");
+						TH_ERR("couldn't create 2d resource");
 						return Result;
 					}
 
@@ -2688,7 +2616,7 @@ namespace Tomahawk
 				Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->DepthStencil))
 				{
-					TH_ERROR("couldn't create 2d resource");
+					TH_ERR("couldn't create 2d resource");
 					return Result;
 				}
 
@@ -2707,7 +2635,6 @@ namespace Tomahawk
 			RenderTargetCube* OGLDevice::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
 			{
 				OGLRenderTargetCube* Result = new OGLRenderTargetCube(I);
-
 				GLenum Format = OGLDevice::GetFormat(I.FormatMode);
 				glGenTextures(1, &Result->FrameBuffer.Texture[0]);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->FrameBuffer.Texture[0]);
@@ -2737,7 +2664,7 @@ namespace Tomahawk
 				Result->Resource->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[0];
 				if (!GenerateTexture(Result->Resource))
 				{
-					TH_ERROR("couldn't create 2d resource");
+					TH_ERR("couldn't create 2d resource");
 					return Result;
 				}
 
@@ -2761,7 +2688,7 @@ namespace Tomahawk
 				Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->DepthStencil))
 				{
-					TH_ERROR("couldn't create 2d resource");
+					TH_ERR("couldn't create 2d resource");
 					return Result;
 				}
 
@@ -2817,7 +2744,7 @@ namespace Tomahawk
 					Result->Resource[i]->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[i];
 					if (!GenerateTexture(Result->Resource[i]))
 					{
-						TH_ERROR("couldn't create 2d resource");
+						TH_ERR("couldn't create 2d resource");
 						return Result;
 					}
 
@@ -2845,7 +2772,7 @@ namespace Tomahawk
 				Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->DepthStencil))
 				{
-					TH_ERROR("couldn't create 2d resource");
+					TH_ERR("couldn't create 2d resource");
 					return Result;
 				}
 
@@ -3003,7 +2930,7 @@ namespace Tomahawk
 						glGetShaderiv(DirectRenderer.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(DirectRenderer.VertexShader, BufferSize, &BufferSize, Buffer);
-						TH_ERROR("couldn't compile vertex shader\n\t%.*s", BufferSize, Buffer);
+						TH_ERR("couldn't compile vertex shader\n\t%.*s", BufferSize, Buffer);
 						TH_FREE(Buffer);
 
 						return false;
@@ -3045,7 +2972,7 @@ namespace Tomahawk
 						glGetShaderiv(DirectRenderer.PixelShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(DirectRenderer.PixelShader, BufferSize, &BufferSize, Buffer);
-						TH_ERROR("couldn't compile pixel shader\n\t%.*s", BufferSize, Buffer);
+						TH_ERR("couldn't compile pixel shader\n\t%.*s", BufferSize, Buffer);
 						TH_FREE(Buffer);
 
 						return false;
@@ -3067,7 +2994,7 @@ namespace Tomahawk
 
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetProgramInfoLog(DirectRenderer.Program, Size, &Size, Buffer);
-						TH_ERROR("couldn't link shaders\n\t%.*s", Size, Buffer);
+						TH_ERR("couldn't link shaders\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 
 						glDeleteProgram(DirectRenderer.Program);
@@ -3089,9 +3016,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size)
 			{
-				if (!Data || !Size)
-					return;
-
+				TH_ASSERT_V(Data != nullptr && Size > 0, "buffer should not be empty");
 				glBindBuffer(GL_UNIFORM_BUFFER, Buffer);
 				GLvoid* Subdata = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
 				memcpy(Subdata, Data, Size);
@@ -3099,9 +3024,7 @@ namespace Tomahawk
 			}
 			int OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)
 			{
-				if (!Buffer)
-					return -1;
-
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 				glGenBuffers(1, Buffer);
 				glBindBuffer(GL_UNIFORM_BUFFER, *Buffer);
 				glBufferData(GL_UNIFORM_BUFFER, Size, nullptr, GL_DYNAMIC_DRAW);
@@ -3581,13 +3504,10 @@ namespace Tomahawk
 				switch (Severity)
 				{
 					case GL_DEBUG_SEVERITY_HIGH:
-						TH_ERROR("%s (%s:%d): %s", _Source, _Type, Id, Message);
+						TH_ERR("%s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 					case GL_DEBUG_SEVERITY_MEDIUM:
 						TH_WARN("%s (%s:%d): %s", _Source, _Type, Id, Message);
-						break;
-					default:
-						//TH_INFO("%s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 				}
 			}

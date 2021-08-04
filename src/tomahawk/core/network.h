@@ -19,7 +19,7 @@ namespace Tomahawk
 	namespace Network
 	{
 		typedef std::function<bool(struct Socket*, const char*, int64_t)> SocketReadCallback;
-		typedef std::function<bool(struct Socket*, int64_t)> SocketWriteCallback;
+		typedef std::function<void(struct Socket*, int64_t)> SocketWriteCallback;
 		typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
 		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
 

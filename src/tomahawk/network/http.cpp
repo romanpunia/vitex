@@ -342,9 +342,7 @@ namespace Tomahawk
 			}
 			bool SiteEntry::Remove(RouteEntry* Source)
 			{
-				if (!Source)
-					return false;
-
+				TH_ASSERT(Source != nullptr, false, "source should be set");
 				auto It = std::find(Routes.begin(), Routes.end(), Source);
 				if (It == Routes.end())
 					return false;
@@ -454,9 +452,7 @@ namespace Tomahawk
 			}
 			SiteEntry* MapRouter::Site(const char* Pattern)
 			{
-				if (!Pattern)
-					return nullptr;
-
+				TH_ASSERT(Pattern != nullptr, false, "pattern should be set");
 				for (auto* Entry : Sites)
 				{
 					if (Entry->SiteName.find(Pattern) != std::string::npos)
@@ -472,9 +468,7 @@ namespace Tomahawk
 
 			void Resource::SetHeader(const char* fKey, const char* Value)
 			{
-				if (!fKey)
-					return;
-
+				TH_ASSERT_V(fKey != nullptr, "key should be set");
 				for (auto It = Headers.begin(); It != Headers.end(); ++It)
 				{
 					if (strcmp(It->Key.c_str(), fKey) != 0)
@@ -498,9 +492,7 @@ namespace Tomahawk
 			}
 			void Resource::SetHeader(const char* fKey, const std::string& Value)
 			{
-				if (!fKey)
-					return;
-
+				TH_ASSERT_V(fKey != nullptr, "key should be set");
 				for (auto& Head : Headers)
 				{
 					if (Head.Key == fKey)
@@ -517,9 +509,7 @@ namespace Tomahawk
 			}
 			const char* Resource::GetHeader(const char* fKey)
 			{
-				if (!fKey)
-					return nullptr;
-
+				TH_ASSERT(fKey != nullptr, nullptr, "key should be set");
 				for (auto& Head : Headers)
 				{
 					if (!Core::Parser::CaseCompare(Head.Key.c_str(), fKey))
@@ -531,8 +521,8 @@ namespace Tomahawk
 
 			void RequestFrame::SetMethod(const char* Value)
 			{
-				if (Value != nullptr)
-					strncpy(Method, Value, sizeof(Method));
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+				strncpy(Method, Value, sizeof(Method));
 			}
 			void RequestFrame::SetVersion(unsigned int Major, unsigned int Minor)
 			{
@@ -541,9 +531,7 @@ namespace Tomahawk
 			}
 			void RequestFrame::SetHeader(const char* fKey, const char* Value)
 			{
-				if (!fKey)
-					return;
-
+				TH_ASSERT_V(fKey != nullptr, "key should be set");
 				for (auto It = Headers.begin(); It != Headers.end(); ++It)
 				{
 					if (strcmp(It->Key.c_str(), fKey) != 0)
@@ -567,9 +555,7 @@ namespace Tomahawk
 			}
 			void RequestFrame::SetHeader(const char* Key, const std::string& Value)
 			{
-				if (!Key)
-					return;
-
+				TH_ASSERT_V(Key != nullptr, "key should be set");
 				for (auto& Head : Headers)
 				{
 					if (Head.Key == Key)
@@ -586,9 +572,7 @@ namespace Tomahawk
 			}
 			const char* RequestFrame::GetCookie(const char* Key)
 			{
-				if (!Key)
-					return nullptr;
-
+				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
 				if (!Cookies.empty())
 				{
 					for (auto& Cookie : Cookies)
@@ -639,9 +623,7 @@ namespace Tomahawk
 			}
 			const char* RequestFrame::GetHeader(const char* Key)
 			{
-				if (!Key)
-					return nullptr;
-
+				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
 				for (auto& Head : Headers)
 				{
 					if (!Core::Parser::CaseCompare(Head.Key.c_str(), Key))
@@ -717,9 +699,7 @@ namespace Tomahawk
 			}
 			void ResponseFrame::SetHeader(const char* Key, const char* Value)
 			{
-				if (!Key)
-					return;
-
+				TH_ASSERT_V(Key != nullptr, "key should be set");
 				for (auto It = Headers.begin(); It != Headers.end(); ++It)
 				{
 					if (strcmp(It->Key.c_str(), Key) != 0)
@@ -743,9 +723,7 @@ namespace Tomahawk
 			}
 			void ResponseFrame::SetHeader(const char* Key, const std::string& Value)
 			{
-				if (!Key)
-					return;
-
+				TH_ASSERT_V(Key != nullptr, "key should be set");
 				for (auto& Head : Headers)
 				{
 					if (strcmp(Head.Key.c_str(), Key) == 0)
@@ -762,8 +740,8 @@ namespace Tomahawk
 			}
 			void ResponseFrame::SetCookie(const char* Key, const char* Value, uint64_t Expires, const char* Domain, const char* Path, bool Secure, bool HTTPOnly)
 			{
-				if (!Key || !Value)
-					return;
+				TH_ASSERT_V(Key != nullptr, "key should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
 
 				for (auto& Cookie : Cookies)
 				{
@@ -800,9 +778,7 @@ namespace Tomahawk
 			}
 			const char* ResponseFrame::GetHeader(const char* Key)
 			{
-				if (!Key)
-					return nullptr;
-
+				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
 				for (auto& Head : Headers)
 				{
 					if (!Core::Parser::CaseCompare(Head.Key.c_str(), Key))
@@ -813,9 +789,7 @@ namespace Tomahawk
 			}
 			Cookie* ResponseFrame::GetCookie(const char* Key)
 			{
-				if (!Key)
-					return nullptr;
-
+				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
 				for (uint64_t i = 0; i < Cookies.size(); i++)
 				{
 					Cookie* Result = &Cookies[i];
@@ -884,9 +858,8 @@ namespace Tomahawk
 					Parser* Parser = new HTTP::Parser();
 					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [Parser, Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
-						Connection* Base = Socket->Context<Connection>();
-						if (!Base)
-							return false;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT(Base != nullptr, false, "socket should be set");
 
 						if (Size > 0)
 						{
@@ -934,9 +907,8 @@ namespace Tomahawk
 				{
 					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
-						Connection* Base = Socket->Context<Connection>();
-						if (!Base)
-							return false;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT(Base != nullptr, false, "socket should be set");
 
 						if (Size <= 0)
 						{
@@ -981,9 +953,8 @@ namespace Tomahawk
 
 				return Stream->ReadAsync((int64_t)Request.ContentLength, [Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 				{
-					Connection* Base = Socket->Context<Connection>();
-					if (!Base)
-						return false;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT(Base != nullptr, false, "socket should be set");
 
 					if (Size <= 0)
 					{
@@ -1067,9 +1038,8 @@ namespace Tomahawk
 
 					return Stream->ReadAsync((int64_t)Request.ContentLength, [Parser, Segment, Boundary](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
-						Connection* Base = Socket->Context<Connection>();
-						if (!Base)
-							return false;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT(Base != nullptr, false, "socket should be set");
 
 						if (Size <= 0)
 						{
@@ -1118,9 +1088,8 @@ namespace Tomahawk
 
 					return Stream->ReadAsync((int64_t)Request.ContentLength, [File, fResource, Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
 					{
-						Connection* Base = Socket->Context<Connection>();
-						if (!Base)
-							return false;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT(Base != nullptr, false, "socket should be set");
 
 						if (Size <= 0)
 						{
@@ -1242,15 +1211,11 @@ namespace Tomahawk
 						Content.fAppend("Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Util::ConnectionResolve(this).c_str(), Auth.c_str());
 					}
 
-					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t Size)
+					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 					{
-						auto Base = Socket->Context<HTTP::Connection>();
-						if (Size < 0)
-							return Base->Root->Manage(Base);
-						else if (Size > 0)
-							return true;
-
-						return Base->Root->Manage(Base);
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT_V(Base != nullptr, "socket should be set");
+						Base->Root->Manage(Base);
 					});
 				}
 
@@ -1405,30 +1370,20 @@ namespace Tomahawk
 					Route->Callbacks.Headers(this, &Content);
 
 				Content.Append("\r\n", 2);
-				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Root->Manage(Base);
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-					if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
-						return Base->Root->Manage(Base);
+					if (State < 0 || memcmp(Base->Request.Method, "HEAD", 4) == 0 || Base->Response.Buffer.empty())
+						return (void)Base->Root->Manage(Base);
 
-					if (!Base->Response.Buffer.empty())
+					Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t State)
 					{
-						return !Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t Size)
-						{
-							auto Base = Socket->Context<HTTP::Connection>();
-							if (Size > 0)
-								return true;
-
-							return Base->Root->Manage(Base);
-						});
-					}
-
-					return Base->Root->Manage(Base);
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT(Base != nullptr, false, "socket should be set");
+						return Base->Root->Manage(Base);
+					});
 				});
 			}
 			bool Connection::Finish(int StatusCode)
@@ -1439,9 +1394,7 @@ namespace Tomahawk
 			bool Connection::Certify(Certificate* Output)
 			{
 #ifdef TH_HAS_OPENSSL
-				if (!Output)
-					return false;
-
+				TH_ASSERT(Output != nullptr, false, "certificate should be set");
 				X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
 				if (!Certificate)
 					return false;
@@ -1541,9 +1494,7 @@ namespace Tomahawk
 			}
 			QueryParameter* QueryParameter::Find(QueryToken* Name)
 			{
-				if (!Name)
-					return nullptr;
-
+				TH_ASSERT(Name != nullptr, nullptr, "token should be set");
 				if (Name->Value && Name->Length > 0)
 				{
 					for (auto* Item : Nodes)
@@ -1770,9 +1721,7 @@ namespace Tomahawk
 			}
 			QueryParameter* Query::GetParameter(QueryToken* Name)
 			{
-				if (!Name)
-					return nullptr;
-
+				TH_ASSERT(Name != nullptr, nullptr, "token should be set");
 				if (Name->Value && Name->Length > 0)
 				{
 					for (auto* Item : Object->GetChilds())
@@ -1821,9 +1770,7 @@ namespace Tomahawk
 			}
 			bool Session::Write(Connection* Base)
 			{
-				if (!Base || !Base->Route || !Query || Query->IsSaved())
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Document.c_str(), "wb");
@@ -1844,9 +1791,7 @@ namespace Tomahawk
 			}
 			bool Session::Read(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
 				FILE* Stream = (FILE*)Core::OS::File::Open(Document.c_str(), "rb");
@@ -1873,7 +1818,7 @@ namespace Tomahawk
 					fclose(Stream);
 
 					if (!Core::OS::File::Remove(Document.c_str()))
-						TH_ERROR("session file %s cannot be deleted", Document.c_str());
+						TH_ERR("session file %s cannot be deleted", Document.c_str());
 
 					return false;
 				}
@@ -1898,9 +1843,10 @@ namespace Tomahawk
 			}
 			std::string& Session::FindSessionId(Connection* Base)
 			{
-				if (!Base || !Base->Route || !SessionId.empty())
+				if (!SessionId.empty())
 					return SessionId;
 
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
 				const char* Value = Base->Request.GetCookie(Base->Route->Site->Gateway.Session.Name.c_str());
 				if (!Value)
 					return GenerateSessionId(Base);
@@ -1909,9 +1855,7 @@ namespace Tomahawk
 			}
 			std::string& Session::GenerateSessionId(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return SessionId;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
 				int64_t Time = time(nullptr);
 				SessionId = Compute::Common::MD5Hash(Base->Request.URI + std::to_string(Time));
 				IsNewSession = true;
@@ -1936,7 +1880,7 @@ namespace Tomahawk
 
 					std::string Filename = (Split ? Path + '/' : Path) + Item.Path;
 					if (!Core::OS::File::Remove(Filename.c_str()))
-						TH_ERROR("couldn't invalidate session\n\t%s", Item.Path.c_str());
+						TH_ERR("couldn't invalidate session\n\t%s", Item.Path.c_str());
 				}
 
 				return true;
@@ -1951,11 +1895,11 @@ namespace Tomahawk
 			}
 			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, int64_t Length)
 			{
+				TH_ASSERT(Buffer != nullptr, -1, "buffer should be set");
+				TH_ASSERT(Boundary != nullptr, -1, "boundary should be set");
+
 				if (!Multipart.Boundary || !Multipart.LookBehind)
 				{
-					if (!Boundary)
-						return -1;
-
 					if (Multipart.Boundary)
 						TH_FREE(Multipart.Boundary);
 
@@ -2169,6 +2113,7 @@ namespace Tomahawk
 			}
 			int64_t Parser::ParseRequest(const char* BufferStart, uint64_t Length, uint64_t LastLength)
 			{
+				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = BufferStart + Length;
 				int Result;
@@ -2183,6 +2128,7 @@ namespace Tomahawk
 			}
 			int64_t Parser::ParseResponse(const char* BufferStart, uint64_t Length, uint64_t LastLength)
 			{
+				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = Buffer + Length;
 				int Result;
@@ -2197,9 +2143,7 @@ namespace Tomahawk
 			}
 			int64_t Parser::ParseDecodeChunked(char* Buffer, int64_t* Length)
 			{
-				if (!Buffer || !Length)
-					return -1;
-
+				TH_ASSERT(Buffer != nullptr && Length != nullptr, -1, "buffer should be set");
 				size_t Dest = 0, Src = 0, Size = *Length;
 				int64_t Result = -2;
 
@@ -2352,6 +2296,12 @@ namespace Tomahawk
 			}
 			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, uint64_t* TokenLength, int* Out)
 			{
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Token != nullptr, nullptr, "token should be set");
+				TH_ASSERT(TokenLength != nullptr, nullptr, "token length should be set");
+				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
+
 				const char* TokenStart = Buffer;
 				while (BufferEnd - Buffer >= 8)
 				{
@@ -2418,6 +2368,10 @@ namespace Tomahawk
 			}
 			const char* Parser::Complete(const char* Buffer, const char* BufferEnd, uint64_t LastLength, int* Out)
 			{
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
+
 				int Result = 0;
 				Buffer = LastLength < 3 ? Buffer : Buffer + LastLength - 3;
 
@@ -2464,6 +2418,10 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out)
 			{
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
+
 				if (BufferEnd - Buffer < 9)
 				{
 					*Out = -2;
@@ -2530,6 +2488,10 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out)
 			{
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
+
 				static const char* Mapping =
 					"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 					"\0\1\0\1\1\1\1\1\0\0\1\1\0\1\1\0\1\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0"
@@ -2660,6 +2622,10 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out)
 			{
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
+
 				if (Buffer == BufferEnd)
 				{
 					*Out = -2;
@@ -2815,6 +2781,10 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out)
 			{
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
+
 				if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
 					return nullptr;
 
@@ -2895,9 +2865,7 @@ namespace Tomahawk
 
 			void Util::ConstructPath(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return;
-
+				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
 				for (uint64_t i = 0; i < Base->Request.URI.size(); i++)
 				{
 					if (Base->Request.URI[i] == '%' && i + 1 < Base->Request.URI.size())
@@ -2961,7 +2929,7 @@ namespace Tomahawk
 				if (!Base->Request.Match.Empty())
 				{
 					auto& Match = Base->Request.Match.Get()[0];
-					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Match.Start, Match.Length).R();
+					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Match.Start, Match.End).R();
 				}
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
@@ -2980,8 +2948,9 @@ namespace Tomahawk
 			}
 			void Util::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Parser* Buffer)
 			{
-				if (!Request || !Response || !Buffer)
-					return;
+				TH_ASSERT_V(Request != nullptr, "connection should be set");
+				TH_ASSERT_V(Response != nullptr, "response should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				std::vector<Header>* Headers = (IsRequest ? &Request->Headers : &Response->Headers);
 				for (auto& Item : *Headers)
@@ -3003,8 +2972,8 @@ namespace Tomahawk
 			}
 			void Util::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)
 			{
-				if (!Base || !Base->Route || !Buffer)
-					return;
+				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
@@ -3013,8 +2982,8 @@ namespace Tomahawk
 			}
 			void Util::ConstructHeadUncache(Connection* Base, Core::Parser* Buffer)
 			{
-				if (!Base || !Buffer)
-					return;
+				TH_ASSERT_V(Base != nullptr, "connection should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				Buffer->Append(
 					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
@@ -3023,7 +2992,10 @@ namespace Tomahawk
 			}
 			bool Util::ConstructRoute(MapRouter* Router, Connection* Base)
 			{
-				if (!Router || !Base || Router->Sites.empty())
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
+				TH_ASSERT(Router != nullptr, false, "router should be set");
+
+				if (Router->Sites.empty())
 					return false;
 
 				std::string* Host = nullptr;
@@ -3070,8 +3042,8 @@ namespace Tomahawk
 			}
 			bool Util::WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Size, WebSocketOp Opcode, unsigned int Mask, const SuccessCallback& Callback)
 			{
-				if (!Base || !Buffer)
-					return false;
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				TH_ASSERT(Buffer != nullptr, false, "buffer should be set");
 
 				unsigned char Header[14];
 				size_t HeaderLength = 1;
@@ -3106,47 +3078,41 @@ namespace Tomahawk
 					HeaderLength += 4;
 				}
 
-				return !Base->Stream->WriteAsync((const char*)Header, HeaderLength, [Buffer, Size, Callback](Socket* Socket, int64_t Length)
+				return !Base->Stream->WriteAsync((const char*)Header, HeaderLength, [Buffer, Size, Callback](Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Length < 0)
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+					if (State < 0)
 					{
 						Base->WebSocket->Error = true;
 						if (Callback)
 							Callback(Base);
-
-						return Base->Break();
+						Base->Break();
 					}
-					else if (Length > 0)
-						return true;
-
-					if (Size <= 0)
+					else if (Size <= 0)
 					{
 						if (Callback)
 							Callback(Base);
-
-						return true;
 					}
-
-					return !Base->Stream->WriteAsync(Buffer, Size, [Callback](Network::Socket* Socket, int64_t Size)
+					else
 					{
-						auto Base = Socket->Context<HTTP::Connection>();
-						if (Size < 0)
+						Base->Stream->WriteAsync(Buffer, Size, [Callback](Network::Socket* Socket, int64_t State)
 						{
-							Base->WebSocket->Error = true;
-							if (Callback)
+							auto* Base = Socket->Context<HTTP::Connection>();
+							TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+							if (State < 0)
+							{
+								Base->WebSocket->Error = true;
+								if (Callback)
+									Callback(Base);
+								Base->Break();
+							}
+							else if (Callback)
 								Callback(Base);
-
-							return Base->Break();
-						}
-						else if (Size > 0)
-							return true;
-
-						if (Callback)
-							Callback(Base);
-
-						return true;
-					});
+						});
+					}
 				});
 			}
 			bool Util::ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B)
@@ -3188,9 +3154,7 @@ namespace Tomahawk
 			}
 			std::string Util::ConnectionResolve(Connection* Base)
 			{
-				if (!Base)
-					return "";
-
+				TH_ASSERT(Base != nullptr && Base->Root != nullptr && Base->Root->Router != nullptr, "Connection: Close\r\n", "connection should be set");
 				if (Base->Info.KeepAlive <= 0)
 					return "Connection: Close\r\n";
 
@@ -3225,6 +3189,7 @@ namespace Tomahawk
 			}
 			const char* Util::ContentType(const std::string& Path, std::vector<MimeType>* Types)
 			{
+				TH_ASSERT(Types != nullptr, nullptr, "types should be set");
 				static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
 
 				uint64_t PathLength = Path.size();
@@ -3422,8 +3387,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartHeaderValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
-				if (!Parser || !Data || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment)
@@ -3461,8 +3426,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartContentData(Parser* Parser, const char* Data, uint64_t Length)
 			{
-				if (!Parser || !Data || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Stream)
@@ -3476,9 +3441,7 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartResourceBegin(Parser* Parser)
 			{
-				if (!Parser)
-					return true;
-
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Request)
 					return true;
@@ -3510,9 +3473,7 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartResourceEnd(Parser* Parser)
 			{
-				if (!Parser)
-					return true;
-
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Stream || !Segment->Request)
 					return false;
@@ -3528,8 +3489,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseHeaderField(Parser* Parser, const char* Name, uint64_t Length)
 			{
-				if (!Parser || !Name || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Name != nullptr && Length > 0, false, "name should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment)
@@ -3540,8 +3501,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseHeaderValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
-				if (!Parser || !Data || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || Segment->Header.empty())
@@ -3562,8 +3523,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseVersion(Parser* Parser, const char* Data, uint64_t Length)
 			{
-				if (!Parser || !Data || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Request)
@@ -3574,9 +3535,7 @@ namespace Tomahawk
 			}
 			bool Util::ParseStatusCode(Parser* Parser, uint64_t Value)
 			{
-				if (!Parser)
-					return true;
-
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Response)
 					return true;
@@ -3586,8 +3545,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseMethodValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
-				if (!Parser || !Data || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Request)
@@ -3598,8 +3557,8 @@ namespace Tomahawk
 			}
 			bool Util::ParsePathValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
-				if (!Parser || !Data || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Request)
@@ -3610,8 +3569,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseQueryValue(Parser* Parser, const char* Data, uint64_t Length)
 			{
-				if (!Parser || !Data || !Length)
-					return true;
+				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Request)
@@ -3622,6 +3581,10 @@ namespace Tomahawk
 			}
 			int Util::ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2)
 			{
+				TH_ASSERT(ContentRange != nullptr, 0, "content range should be set");
+				TH_ASSERT(Range1 != nullptr, 0, "range 1 should be set");
+				TH_ASSERT(Range2 != nullptr, 0, "range 2 should be set");
+
 				return sscanf(ContentRange, "bytes=%lld-%lld", Range1, Range2);
 			}
 			std::string Util::ParseMultipartDataBoundary()
@@ -3639,9 +3602,7 @@ namespace Tomahawk
 			}
 			bool Util::Authorize(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (Base->Route->Auth.Type.empty())
 					return true;
 
@@ -3711,9 +3672,7 @@ namespace Tomahawk
 			}
 			bool Util::MethodAllowed(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				for (auto& Item : Base->Route->DisallowedMethods)
 				{
 					if (Item == Base->Request.Method)
@@ -3724,9 +3683,7 @@ namespace Tomahawk
 			}
 			bool Util::WebSocketUpgradeAllowed(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				const char* Upgrade = Base->Request.GetHeader("Upgrade");
 				if (!Upgrade)
 					return false;
@@ -3745,7 +3702,8 @@ namespace Tomahawk
 			}
 			bool Util::ResourceHidden(Connection* Base, std::string* Path)
 			{
-				if (!Base || !Base->Route || Base->Route->HiddenFiles.empty())
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				if (Base->Route->HiddenFiles.empty())
 					return false;
 
 				const std::string& Value = (Path ? *Path : Base->Request.Path);
@@ -3761,7 +3719,10 @@ namespace Tomahawk
 			}
 			bool Util::ResourceIndexed(Connection* Base, Core::Resource* Resource)
 			{
-				if (!Base || !Base->Route || !Resource || Base->Route->IndexFiles.empty())
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+
+				if (Base->Route->IndexFiles.empty())
 					return false;
 
 				std::string Path = Base->Request.Path;
@@ -3787,7 +3748,10 @@ namespace Tomahawk
 			}
 			bool Util::ResourceProvided(Connection* Base, Core::Resource* Resource)
 			{
-				if (!Base || !Base->Route || !Base->Route->Site->Gateway.Enabled || !Resource)
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+
+				if (!Base->Route->Site->Gateway.Enabled)
 					return false;
 
 				if (!Base->Route->Gateway.Methods.empty())
@@ -3815,6 +3779,9 @@ namespace Tomahawk
 			}
 			bool Util::ResourceModified(Connection* Base, Core::Resource* Resource)
 			{
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				TH_ASSERT(Resource != nullptr, false, "resource should be set");
+
 				const char* CacheControl = Base->Request.GetHeader("Cache-Control");
 				if (CacheControl != nullptr && (!Core::Parser::CaseCompare("no-cache", CacheControl) || !Core::Parser::CaseCompare("max-age=0", CacheControl)))
 					return true;
@@ -3835,9 +3802,7 @@ namespace Tomahawk
 			bool Util::ResourceCompressed(Connection* Base, uint64_t Size)
 			{
 #ifdef TH_HAS_ZLIB
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (!Base->Route->Compression.Enabled || Size < Base->Route->Compression.MinLength)
 					return false;
 
@@ -3858,9 +3823,7 @@ namespace Tomahawk
 			}
 			bool Util::RouteWEBSOCKET(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route || !Base->Route->AllowWebSocket)
 					return Base->Error(404, "Web Socket protocol is not allowed on this server.");
 
@@ -3878,7 +3841,9 @@ namespace Tomahawk
 
 				return Base->Stream->ReadAsync(8, [](Socket* Socket, const char* Buffer, int64_t Size)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT(Base != nullptr, false, "socket should be set");
+
 					if (Size > 0)
 					{
 						Base->Request.Buffer.append(Buffer, Size);
@@ -3892,9 +3857,7 @@ namespace Tomahawk
 			}
 			bool Util::RouteGET(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
@@ -3961,9 +3924,7 @@ namespace Tomahawk
 			}
 			bool Util::RoutePOST(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route)
 					return Base->Error(404, "Requested resource was not found.");
 
@@ -4002,9 +3963,7 @@ namespace Tomahawk
 			}
 			bool Util::RoutePUT(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route || ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
@@ -4071,23 +4030,21 @@ namespace Tomahawk
 						Base->Route->Callbacks.Headers(Base, nullptr);
 
 					Content.Append("\r\n", 2);
-					return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+					return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 					{
-						auto Base = Socket->Context<HTTP::Connection>();
-						if (Size < 0)
-							return Base->Break();
-						else if (Size > 0)
-							return true;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-						return Base->Finish();
+						if (State < 0)
+							Base->Break();
+						else
+							Base->Finish();
 					});
 				});
 			}
 			bool Util::RoutePATCH(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route)
 					return Base->Error(403, "Operation denied by server.");
 
@@ -4118,22 +4075,20 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-					return Base->Finish(204);
+					if (State < 0)
+						Base->Break();
+					else
+						Base->Finish(204);
 				});
 			}
 			bool Util::RouteDELETE(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route || ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Operation denied by server.");
 
@@ -4166,22 +4121,20 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-					return Base->Finish(204);
+					if (State < 0)
+						Base->Break();
+					else
+						Base->Finish(204);
 				});
 			}
 			bool Util::RouteOPTIONS(Connection* Base)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				char Date[64];
 				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -4192,22 +4145,20 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-					return Base->Finish(204);
+					if (State < 0)
+						Base->Break();
+					else
+						Base->Finish(204);
 				});
 			}
 			bool Util::ProcessDirectory(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				std::vector<Core::ResourceEntry> Entries;
 				if (!Core::OS::Directory::Scan(Base->Request.Path, &Entries))
 					return Base->Error(500, "System denied to directory listing.");
@@ -4330,34 +4281,32 @@ namespace Tomahawk
 				}
 #endif
 				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Buffer.size());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+					if (State < 0)
+						return (void)Base->Break();
 
 					if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
-						return Base->Finish(200);
-
-					return !Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t Size)
+						return (void)Base->Finish(200);
+					
+					Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t State)
 					{
-						auto Base = Socket->Context<HTTP::Connection>();
-						if (Size < 0)
-							return Base->Break();
-						else if (Size > 0)
-							return true;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-						return Base->Finish(200);
+						if (State < 0)
+							Base->Break();
+						else
+							Base->Finish(200);
 					});
 				});
 			}
 			bool Util::ProcessResource(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* Range = Base->Request.GetHeader("Range");
 				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
@@ -4427,27 +4376,27 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 					{
-						auto Base = Socket->Context<HTTP::Connection>();
-						if (Size < 0)
-							return Base->Break();
-						else if (Size > 0)
-							return true;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-						return Base->Finish();
+						if (State < 0)
+							Base->Break();
+						else
+							Base->Finish();
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [ContentLength, Range1](Socket* Socket, int64_t Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [ContentLength, Range1](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-					return Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
+					if (State < 0)
+						return (void)Base->Break();
+
+					Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
 					{
 						Util::ProcessFile(Base, ContentLength, Range1);
 					});
@@ -4455,8 +4404,9 @@ namespace Tomahawk
 			}
 			bool Util::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range)
 			{
-				if (!Base || !Base->Route || (!Deflate && !Gzip) || !ContentRange)
-					return false;
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				TH_ASSERT(ContentRange != nullptr, false, "content tange should be set");
+				TH_ASSERT(Deflate || Gzip, false, "uncompressable resource");
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
@@ -4500,27 +4450,27 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 					{
-						auto Base = Socket->Context<HTTP::Connection>();
-						if (Size < 0)
-							return Base->Break();
-						else if (Size > 0)
-							return true;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-						return Base->Finish();
+						if (State < 0)
+							Base->Break();
+						else
+							Base->Finish();
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Range, ContentLength, Gzip](Socket* Socket, int64_t Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Range, ContentLength, Gzip](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-					return Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
+					if (State < 0)
+						return (void)Base->Break();
+					
+					Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
 					{
 						Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
 					});
@@ -4528,9 +4478,7 @@ namespace Tomahawk
 			}
 			bool Util::ProcessResourceCache(Connection* Base)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				char Date[64];
 				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
@@ -4548,22 +4496,20 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.fAppend("Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Util::ConnectionResolve(Base).c_str());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-					return Base->Finish(304);
+					if (State < 0)
+						Base->Break();
+					else
+						Base->Finish(304);
 				});
 			}
 			bool Util::ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -4573,15 +4519,15 @@ namespace Tomahawk
 
 					if (Base->Response.Buffer.size() >= ContentLength)
 					{
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [](Network::Socket* Socket, int64_t State)
 						{
-							auto Base = Socket->Context<HTTP::Connection>();
-							if (Size < 0)
-								return Base->Break();
-							else if (Size > 0)
-								return true;
+							auto* Base = Socket->Context<HTTP::Connection>();
+							TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-							return Base->Finish();
+							if (State < 0)
+								Base->Break();
+							else
+								Base->Finish();
 						});
 					}
 				}
@@ -4633,6 +4579,10 @@ namespace Tomahawk
 			}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
 			{
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				TH_ASSERT(Router != nullptr, false, "router should be set");
+				TH_ASSERT(Stream != nullptr, false, "stream should be set");
+
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
@@ -4648,17 +4598,18 @@ namespace Tomahawk
 					goto Cleanup;
 
 				ContentLength -= (int64_t)Read;
-				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](Socket*, int64_t Size)
+				Base->Stream->WriteAsync(Buffer, Read, [Router, Stream, ContentLength](Network::Socket* Socket, int64_t State)
 				{
-					if (Size < 0)
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+					if (State < 0)
 					{
 						fclose(Stream);
-						return Base->Break() && false;
+						return (void)Base->Break();
 					}
-					else if (Size > 0)
-						return true;
 
-					return Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
+					Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
 					{
 						ProcessFileChunk(Base, Router, Stream, ContentLength);
 					});
@@ -4668,9 +4619,7 @@ namespace Tomahawk
 			}
 			bool Util::ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip)
 			{
-				if (!Base || !Base->Route)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
@@ -4696,15 +4645,15 @@ namespace Tomahawk
 								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)ZStream.total_out);
 						}
 #endif
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [](Socket* Socket, int64_t Size)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [](Network::Socket* Socket, int64_t State)
 						{
-							auto Base = Socket->Context<HTTP::Connection>();
-							if (Size < 0)
-								return Base->Break();
-							else if (Size > 0)
-								return true;
+							auto* Base = Socket->Context<HTTP::Connection>();
+							TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-							return Base->Finish();
+							if (State < 0)
+								Base->Break();
+							else
+								Base->Finish();
 						});
 					}
 				}
@@ -4754,6 +4703,10 @@ namespace Tomahawk
 			}
 			bool Util::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength)
 			{
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				TH_ASSERT(Router != nullptr, false, "router should be set");
+				TH_ASSERT(Stream != nullptr, false, "stream should be set");
+				TH_ASSERT(CStream != nullptr, false, "cstream should be set");
 #ifdef TH_HAS_ZLIB
 #define FREE_STREAMING { fclose(Stream); deflateEnd(ZStream); TH_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
@@ -4764,14 +4717,15 @@ namespace Tomahawk
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
-					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](Socket*, int64_t Size)
+					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [](Network::Socket* Socket, int64_t State)
 					{
-						if (Size < 0)
-							return Base->Break() && false;
-						else if (Size > 0)
-							return true;
+						auto* Base = Socket->Context<HTTP::Connection>();
+						TH_ASSERT_V(Base != nullptr, "socket should be set");
 
-						return Base->Finish() || true;
+						if (State < 0)
+							Base->Break();
+						else
+							Base->Finish();
 					}) || true;
 				}
 
@@ -4805,26 +4759,31 @@ namespace Tomahawk
 					Read += sizeof(char) * 2;
 				}
 
-				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](Socket*, int64_t Size)
+				Base->Stream->WriteAsync(Buffer, Read, [Router, Stream, ZStream, ContentLength](Network::Socket* Socket, int64_t State)
 				{
-					if (Size < 0)
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+					if (State < 0)
 					{
 						FREE_STREAMING;
-						return Base->Break() && false;
+						Base->Break();
 					}
-					else if (Size > 0)
-						return true;
-
-					if (ContentLength > 0)
+					else if (ContentLength > 0)
 					{
-						return Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
+						return (void)Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
 						{
 							ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
 						});
 					}
-
-					FREE_STREAMING;
-					return (Router->State == ServerState::Working ? Base->Finish() : Base->Break()) && false;
+					else
+					{
+						FREE_STREAMING;
+						if (Router->State == ServerState::Working)
+							Base->Finish();
+						else
+							Base->Break();
+					}
 				});
 
 				return false;
@@ -4835,7 +4794,8 @@ namespace Tomahawk
 			}
 			bool Util::ProcessGateway(Connection* Base)
 			{
-				if (!Base || !Base->Route || !Base->Route->Callbacks.Gateway)
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				if (!Base->Route->Callbacks.Gateway)
 					return false;
 
 				Script::VMManager* VM = ((MapRouter*)Base->Root->GetRouter())->VM;
@@ -4891,8 +4851,8 @@ namespace Tomahawk
 			bool Util::ProcessWebSocket(Connection* Base, const char* Key)
 			{
 				static const char* Magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-				if (!Base || !Key)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
+				TH_ASSERT(Key != nullptr, false, "key should be set");
 
 				const char* Version = Base->Request.GetHeader("Sec-WebSocket-Version");
 				if (!Base->Route || !Version || strcmp(Version, "13") != 0)
@@ -4926,13 +4886,13 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Socket* Socket, int64_t Size)
+				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
-					if (Size < 0)
-						return Base->Break();
-					else if (Size > 0)
-						return true;
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+					if (State < 0)
+						return (void)Base->Break();
 
 					Base->WebSocket = TH_NEW(WebSocketFrame);
 					Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
@@ -4941,18 +4901,15 @@ namespace Tomahawk
 					Base->WebSocket->Base = Base;
 					Base->Stream->SetAsyncTimeout(Base->Route->WebSocketTimeout);
 
-					if (ResourceProvided(Base, &Base->Resource))
-						return ProcessGateway(Base);
-
-					Base->WebSocket->Next();
-					return true;
+					if (!ResourceProvided(Base, &Base->Resource))
+						Base->WebSocket->Next();
+					else
+						ProcessGateway(Base);
 				});
 			}
 			bool Util::ProcessWebSocketPass(Connection* Base)
 			{
-				if (!Base || !Base->WebSocket)
-					return false;
-
+				TH_ASSERT(Base != nullptr && Base->WebSocket != nullptr, false, "connection should be set");
 				if (Base->WebSocket->Notified)
 				{
 					Base->WebSocket->Notified = false;
@@ -5008,9 +4965,8 @@ namespace Tomahawk
 
 						return Base->Stream->ReadAsync(Base->WebSocket->DataLength - Base->WebSocket->BodyLength, [](Socket* Socket, const char* Buffer, int64_t Size)
 						{
-							auto Base = Socket->Context<HTTP::Connection>();
-							if (!Base)
-								return false;
+							auto* Base = Socket->Context<HTTP::Connection>();
+							TH_ASSERT(Base != nullptr, false, "socket should be set");
 
 							if (Size > 0)
 							{
@@ -5068,7 +5024,9 @@ namespace Tomahawk
 
 				return !Base->Stream->ReadAsync(8192, [](Socket* Socket, const char* Buffer, int64_t Size)
 				{
-					auto Base = Socket->Context<HTTP::Connection>();
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT(Base != nullptr, false, "socket should be set");
+
 					if (Size < 0)
 					{
 						if (Size != -2)
@@ -5095,6 +5053,7 @@ namespace Tomahawk
 			}
 			bool Server::OnConfigure(SocketRouter* NewRouter)
 			{
+				TH_ASSERT(NewRouter != nullptr, false, "router should be set");
 				std::unordered_set<std::string> Modules;
 				std::string Directory = Core::OS::Directory::Get();
 				auto* Root = (MapRouter*)NewRouter;
@@ -5151,7 +5110,7 @@ namespace Tomahawk
 								for (auto& Name : Result)
 									Files += "\n\t" + Name;
 
-								TH_ERROR("(vm) there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
+								TH_ERR("(vm) there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
 								Entry->Gateway.Enabled = false;
 								break;
 							}
@@ -5188,6 +5147,7 @@ namespace Tomahawk
 			}
 			bool Server::OnRequestEnded(SocketConnection* Root, bool Check)
 			{
+				TH_ASSERT(Root != nullptr, false, "connection should be set");
 				auto Base = (HTTP::Connection*)Root;
 				if (Check)
 				{
@@ -5239,10 +5199,14 @@ namespace Tomahawk
 			}
 			bool Server::OnRequestBegin(SocketConnection* Base)
 			{
-				auto Conf = (MapRouter*)Router;
-				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Conf](Socket* Fd, const char* Buffer, int64_t Size)
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
+				auto* Conf = (MapRouter*)Router;
+
+				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Conf](Network::Socket* Socket, const char* Buffer, int64_t Size)
 				{
-					auto Base = Fd->Context<HTTP::Connection>();
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT(Base != nullptr, false, "socket should be set");
+
 					if (Size > 0)
 					{
 						Base->Request.Buffer.append(Buffer, Size);
@@ -5359,18 +5323,12 @@ namespace Tomahawk
 			}
 			bool Server::OnDeallocate(SocketConnection* Base)
 			{
-				if (!Base)
-					return false;
-
 				HTTP::Connection* sBase = (HTTP::Connection*)Base;
 				TH_DELETE(Connection, sBase);
 				return true;
 			}
 			bool Server::OnDeallocateRouter(SocketRouter* Base)
 			{
-				if (!Base)
-					return false;
-
 				HTTP::MapRouter* sBase = (HTTP::MapRouter*)Base;
 				TH_DELETE(MapRouter, sBase);
 				return true;
@@ -5381,16 +5339,18 @@ namespace Tomahawk
 			}
 			bool Server::OnUnlisten()
 			{
+				TH_ASSERT(Router != nullptr, false, "router should be set");
 				MapRouter* Root = (MapRouter*)Router;
+
 				for (auto* Entry : Root->Sites)
 				{
 					if (!Entry->ResourceRoot.empty())
 					{
 						if (!Core::OS::Directory::Remove(Entry->ResourceRoot.c_str()))
-							TH_ERROR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
+							TH_ERR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
 
 						if (!Core::OS::Directory::Create(Entry->ResourceRoot.c_str()))
-							TH_ERROR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
+							TH_ERR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
 					}
 
 					if (!Entry->Gateway.Session.DocumentRoot.empty())
@@ -5401,6 +5361,9 @@ namespace Tomahawk
 			}
 			SocketConnection* Server::OnAllocate(Listener* Host, Socket* Stream)
 			{
+				TH_ASSERT(Host != nullptr, nullptr, "host should be set");
+				TH_ASSERT(Stream != nullptr, nullptr, "host should be set");
+
 				auto Base = TH_NEW(HTTP::Connection);
 				Base->Root = this;
 
@@ -5454,8 +5417,8 @@ namespace Tomahawk
 			}
 			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame* Root)
 			{
-				if (!Root || !Stream.IsValid())
-					return Core::Async<ResponseFrame*>::Store(nullptr);
+				TH_ASSERT(Root != nullptr, Core::Async<ResponseFrame*>::Store(nullptr), "request should be set");
+				TH_ASSERT(Stream.IsValid(), Core::Async<ResponseFrame*>::Store(nullptr), "stream should be opened");
 
 				Core::Async<ResponseFrame*> Result;
 				Stage("request delivery");
@@ -5525,16 +5488,33 @@ namespace Tomahawk
 				Content.Append("\r\n");
 
 				Response.Buffer.clear();
-				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](Socket*, int64_t Size)
+				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](Socket*, int64_t State)
 				{
-					if (Size < 0)
-						return Error("http socket write %s", (Size == -2 ? "timeout" : "error"));
-					else if (Size > 0)
-						return true;
+					if (State < 0)
+						return (void)Error("http socket write %s", (State == -2 ? "timeout" : "error"));
 
-					if (this->Request.Buffer.empty())
+					if (!this->Request.Buffer.empty())
 					{
-						return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
+						Stream.WriteAsync(this->Request.Buffer.c_str(), (int64_t)this->Request.Buffer.size(), [this](Socket*, int64_t State)
+						{
+							if (State < 0)
+								return (void)Error("http socket write %s", (State == -2 ? "timeout" : "error"));
+
+							Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
+							{
+								if (Size < 0)
+									return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
+								else if (Size == 0)
+									return Receive();
+
+								TextAppend(this->Response.Buffer, Buffer, Size);
+								return true;
+							});
+						});
+					}
+					else
+					{
+						Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
 						{
 							if (Size < 0)
 								return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
@@ -5545,25 +5525,6 @@ namespace Tomahawk
 							return true;
 						});
 					}
-
-					return !Stream.WriteAsync(this->Request.Buffer.c_str(), (int64_t)this->Request.Buffer.size(), [this](Socket*, int64_t Size)
-					{
-						if (Size < 0)
-							return Error("http socket write %s", (Size == -2 ? "timeout" : "error"));
-						else if (Size > 0)
-							return true;
-
-						return !Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
-						{
-							if (Size < 0)
-								return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
-							else if (Size == 0)
-								return Receive();
-
-							TextAppend(this->Response.Buffer, Buffer, Size);
-							return true;
-						});
-					});
 				});
 
 				return Result;

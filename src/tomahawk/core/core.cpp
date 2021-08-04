@@ -1110,7 +1110,6 @@ namespace Tomahawk
 						avg = (avg - mod_avg * 2) ? (mod_avg + 1) : (mod_avg);
 
 						int div_check = Decimal::CompareNum(R, D * avg);
-
 						if (div_check != 2)
 						{
 							Q_sub = Q_sub + avg;
@@ -2046,7 +2045,6 @@ namespace Tomahawk
 		DateTime DateTime::FromWeeks(uint64_t Value)
 		{
 			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
 			using _Weeks = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<7>, _Days::period>>;
 
 			DateTime New;
@@ -2057,9 +2055,7 @@ namespace Tomahawk
 		DateTime DateTime::FromMonths(uint64_t Value)
 		{
 			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
 			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
-
 			using _Months = std::chrono::duration<uint64_t, std::ratio_divide<_Years::period, std::ratio<12>>>;
 
 			DateTime New;
@@ -2070,7 +2066,6 @@ namespace Tomahawk
 		DateTime DateTime::FromYears(uint64_t Value)
 		{
 			using _Days = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
-
 			using _Years = std::chrono::duration<uint64_t, std::ratio_multiply<std::ratio<146097, 400>, _Days::period>>;
 
 			DateTime New;
@@ -2563,6 +2558,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::EscapePrint()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			for (size_t i = 0; i < L->size(); i++)
 			{
 				if (L->at(i) != '%')
@@ -2587,6 +2583,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Escape()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			for (size_t i = 0; i < L->size(); i++)
 			{
 				char& V = L->at(i);
@@ -2615,6 +2612,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Unescape()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			for (size_t i = 0; i < L->size(); i++)
 			{
 				if (L->at(i) != '\\' || i + 1 >= L->size())
@@ -2645,36 +2643,43 @@ namespace Tomahawk
 		}
 		Parser& Parser::Reserve(uint64_t Count)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->reserve(L->capacity() + Count);
 			return *this;
 		}
 		Parser& Parser::Resize(uint64_t Count)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->resize(Count);
 			return *this;
 		}
 		Parser& Parser::Resize(uint64_t Count, char Char)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->resize(Count, Char);
 			return *this;
 		}
 		Parser& Parser::Clear()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->clear();
 			return *this;
 		}
 		Parser& Parser::ToUpper()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			std::transform(L->begin(), L->end(), L->begin(), ::toupper);
 			return *this;
 		}
 		Parser& Parser::ToLower()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			std::transform(L->begin(), L->end(), L->begin(), ::tolower);
 			return *this;
 		}
 		Parser& Parser::Clip(uint64_t Length)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			if (Length < L->size())
 				L->erase(Length, L->size() - Length);
 
@@ -2682,8 +2687,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::ReplaceOf(const char* Chars, const char* To, uint64_t Start)
 		{
-			if (!Chars || Chars[0] == '\0' || !To)
-				return *this;
+			TH_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
 
 			Parser::Settle Result{ };
 			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
@@ -2698,8 +2702,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::ReplaceNotOf(const char* Chars, const char* To, uint64_t Start)
 		{
-			if (!Chars || Chars[0] == '\0' || !To)
-				return *this;
+			TH_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
 
 			Parser::Settle Result{};
 			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
@@ -2714,6 +2717,8 @@ namespace Tomahawk
 		}
 		Parser& Parser::Replace(const std::string& From, const std::string& To, uint64_t Start)
 		{
+			TH_ASSERT(!From.empty(), *this, "match should not be empty");
+
 			uint64_t Offset = Start;
 			Parser::Settle Result{ };
 
@@ -2728,8 +2733,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Replace(const char* From, const char* To, uint64_t Start)
 		{
-			if (!From || !To)
-				return *this;
+			TH_ASSERT(From != nullptr && To != nullptr, *this, "from and to should not be empty");
 
 			uint64_t Offset = Start;
 			auto Size = (uint64_t)strlen(To);
@@ -2746,6 +2750,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Replace(const char& From, const char& To, uint64_t Position)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			for (uint64_t i = Position; i < L->size(); i++)
 			{
 				if (L->at(i) == From)
@@ -2756,8 +2761,8 @@ namespace Tomahawk
 		}
 		Parser& Parser::Replace(const char& From, const char& To, uint64_t Position, uint64_t Count)
 		{
-			if (L->size() < (Position + Count))
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(L->size() >= (Position + Count), *this, "invalid offset");
 
 			for (uint64_t i = Position; i < (Position + Count); i++)
 			{
@@ -2773,8 +2778,11 @@ namespace Tomahawk
 		}
 		Parser& Parser::ReplacePart(uint64_t Start, uint64_t End, const char* Value)
 		{
-			if (Start >= L->size() || End > L->size() || Start >= End || !Value)
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start < L->size(), *this, "invalid start");
+			TH_ASSERT(End <= L->size(), *this, "invalid end");
+			TH_ASSERT(Start < End, *this, "start should be less than end");
+			TH_ASSERT(Value != nullptr, *this, "replacer should not be empty");
 
 			if (Start == 0 && L->size() == End)
 				L->assign(Value);
@@ -2789,8 +2797,10 @@ namespace Tomahawk
 		}
 		Parser& Parser::RemovePart(uint64_t Start, uint64_t End)
 		{
-			if (Start >= L->size() || End > L->size() || Start >= End)
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start < L->size(), *this, "invalid start");
+			TH_ASSERT(End <= L->size(), *this, "invalid end");
+			TH_ASSERT(Start < End, *this, "start should be less than end");
 
 			if (Start == 0 && L->size() == End)
 				L->clear();
@@ -2805,48 +2815,42 @@ namespace Tomahawk
 		}
 		Parser& Parser::Reverse()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			return Reverse(0, L->size() - 1);
 		}
 		Parser& Parser::Reverse(uint64_t Start, uint64_t End)
 		{
-			if (Start == End || L->size() < 2 || End > (L->size() - 1) || Start > (L->size() - 1))
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(L->size() >= 2, *this, "length should be at least 2 chars");
+			TH_ASSERT(End <= (L->size() - 1), *this, "end should be less than length - 1");
+			TH_ASSERT(Start <= (L->size() - 1), *this, "start should be less than length - 1");
+			TH_ASSERT(Start < End, *this, "start should be less than end");
 
 			std::reverse(L->begin() + Start, L->begin() + End + 1);
 			return *this;
 		}
 		Parser& Parser::Substring(uint64_t Start)
 		{
-			if (Start >= L->size())
-			{
-				L->clear();
-				return *this;
-			}
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start < L->size(), *this, "start should not be greater than length");
 
 			L->assign(L->substr(Start));
 			return *this;
 		}
 		Parser& Parser::Substring(uint64_t Start, uint64_t Count)
 		{
-			if (Start >= L->size() || !Count)
-			{
-				L->clear();
-				return *this;
-			}
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start < L->size(), *this, "start should not be greater than length");
+			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
 
 			L->assign(L->substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::Substring(const Parser::Settle& Result)
 		{
-			if (!Result.Found)
-			{
-				L->clear();
-				return *this;
-			}
-
-			if (Result.Start > (L->size() - 1))
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Result.Found, *this, "result should be found");
+			TH_ASSERT(Result.Start <= (L->size() - 1), *this, "result start should be less or equal than length - 1");
 
 			auto Offset = (int64_t)Result.End;
 			if (Result.End > L->size())
@@ -2858,8 +2862,8 @@ namespace Tomahawk
 		}
 		Parser& Parser::Splice(uint64_t Start, uint64_t End)
 		{
-			if (Start > (L->size() - 1))
-				return (*this);
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start <= (L->size() - 1), *this, "result start should be less or equal than length - 1");
 
 			if (End > L->size())
 				End = (L->size() - Start);
@@ -2870,6 +2874,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Trim()
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->erase(L->begin(), std::find_if(L->begin(), L->end(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
@@ -2889,8 +2894,8 @@ namespace Tomahawk
 		}
 		Parser& Parser::Fill(const char& Char)
 		{
-			if (L->empty())
-				return (*this);
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(!L->empty(), *this, "length should be greater than zero");
 
 			for (char& i : *L)
 				i = Char;
@@ -2899,16 +2904,17 @@ namespace Tomahawk
 		}
 		Parser& Parser::Fill(const char& Char, uint64_t Count)
 		{
-			if (L->empty())
-				return (*this);
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(!L->empty(), *this, "length should be greater than zero");
 
 			L->assign(Count, Char);
 			return *this;
 		}
 		Parser& Parser::Fill(const char& Char, uint64_t Start, uint64_t Count)
 		{
-			if (L->empty() || Start > L->size())
-				return (*this);
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(!L->empty(), *this, "length should be greater than zero");
+			TH_ASSERT(Start <= L->size(), *this, "start should be less or equal than length");
 
 			if (Start + Count > L->size())
 				Count = L->size() - Start;
@@ -2920,6 +2926,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Assign(const char* Raw)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			if (Raw != nullptr)
 				L->assign(Raw);
 			else
@@ -2929,6 +2936,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Assign(const char* Raw, uint64_t Length)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			if (Raw != nullptr)
 				L->assign(Raw, Length);
 			else
@@ -2938,78 +2946,83 @@ namespace Tomahawk
 		}
 		Parser& Parser::Assign(const std::string& Raw)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->assign(Raw);
 			return *this;
 		}
 		Parser& Parser::Assign(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->assign(Raw.substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::Assign(const char* Raw, uint64_t Start, uint64_t Count)
 		{
-			if (!Raw)
-			{
-				L->clear();
-				return *this;
-			}
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Raw != nullptr, *this, "assign string should be set");
 
 			L->assign(Raw);
 			return Substring(Start, Count);
 		}
 		Parser& Parser::Append(const char* Raw)
 		{
-			if (Raw != nullptr)
-				L->append(Raw);
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
 
+			L->append(Raw);
 			return *this;
 		}
 		Parser& Parser::Append(const char& Char)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->append(1, Char);
 			return *this;
 		}
 		Parser& Parser::Append(const char& Char, uint64_t Count)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->append(Count, Char);
 			return *this;
 		}
 		Parser& Parser::Append(const std::string& Raw)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			L->append(Raw);
 			return *this;
 		}
 		Parser& Parser::Append(const char* Raw, uint64_t Count)
 		{
-			if (Raw != nullptr)
-				L->append(Raw, Count);
-
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
+			
+			L->append(Raw, Count);
 			return *this;
 		}
 		Parser& Parser::Append(const char* Raw, uint64_t Start, uint64_t Count)
 		{
-			if (!Raw)
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
+			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
 
 			std::string V(Raw);
-			if (!Count || V.size() < Start + Count)
-				return *this;
+			TH_ASSERT(V.size() >= Start + Count, *this, "offset should be less than append string length");
 
 			L->append(V.substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::Append(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
-			if (!Count || Raw.size() < Start + Count)
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+			TH_ASSERT(Raw.size() >= Start + Count, *this, "offset should be less than append string length");
 
 			L->append(Raw.substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::fAppend(const char* Format, ...)
 		{
-			if (!Format)
-				return *this;
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Format != nullptr, *this, "format should be set");
 
 			char Buffer[16384];
 			va_list Args;
@@ -3021,6 +3034,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Insert(const std::string& Raw, uint64_t Position)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			if (Position >= L->size())
 				Position = L->size();
 
@@ -3029,6 +3043,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			if (Position >= L->size())
 				Position = L->size();
 
@@ -3039,6 +3054,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::Insert(const std::string& Raw, uint64_t Position, uint64_t Count)
 		{
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			if (Position >= L->size())
 				Position = L->size();
 
@@ -3050,33 +3066,29 @@ namespace Tomahawk
 		}
 		Parser& Parser::Insert(const char& Char, uint64_t Position, uint64_t Count)
 		{
-			if (Position >= L->size())
-				return *this;
-
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
 			L->insert(Position, Count, Char);
 			return *this;
 		}
 		Parser& Parser::Insert(const char& Char, uint64_t Position)
 		{
-			if (Position >= L->size())
-				return *this;
-
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
 			L->insert(L->begin() + Position, Char);
 			return *this;
 		}
 		Parser& Parser::Erase(uint64_t Position)
 		{
-			if (Position >= L->size())
-				return *this;
-
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
 			L->erase(Position);
 			return *this;
 		}
 		Parser& Parser::Erase(uint64_t Position, uint64_t Count)
 		{
-			if (Position >= L->size())
-				return *this;
-
+			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
 			L->erase(Position, Count);
 			return *this;
 		}
@@ -3099,6 +3111,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::ReverseFind(const std::string& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
@@ -3120,6 +3133,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::ReverseFind(const char* Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
@@ -3142,6 +3156,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::ReverseFind(const char& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
@@ -3156,6 +3171,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::ReverseFindUnescaped(const char& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
@@ -3170,6 +3186,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::ReverseFindOf(const std::string& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
@@ -3187,6 +3204,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::ReverseFindOf(const char* Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			if (L->empty())
 				return { L->size() - 1, L->size(), false };
 
@@ -3208,6 +3226,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::Find(const std::string& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			const char* It = strstr(L->c_str() + Offset, Needle.c_str());
 			if (It == nullptr)
 				return { L->size() - 1, L->size(), false };
@@ -3217,8 +3236,8 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::Find(const char* Needle, uint64_t Offset) const
 		{
-			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
+			TH_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
 
 			const char* It = strstr(L->c_str() + Offset, Needle);
 			if (It == nullptr)
@@ -3229,6 +3248,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::Find(const char& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
 				if (L->at(i) == Needle)
@@ -3239,6 +3259,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::FindUnescaped(const char& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
 				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
@@ -3249,6 +3270,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::FindOf(const std::string& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
 				for (char k : Needle)
@@ -3262,8 +3284,8 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::FindOf(const char* Needle, uint64_t Offset) const
 		{
-			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
+			TH_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
 
 			auto Length = (uint64_t)strlen(Needle);
 			for (uint64_t i = Offset; i < L->size(); i++)
@@ -3279,6 +3301,7 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::FindNotOf(const std::string& Needle, uint64_t Offset) const
 		{
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			for (uint64_t i = Offset; i < L->size(); i++)
 			{
 				bool Result = false;
@@ -3299,8 +3322,8 @@ namespace Tomahawk
 		}
 		Parser::Settle Parser::FindNotOf(const char* Needle, uint64_t Offset) const
 		{
-			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
+			TH_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
 
 			auto Length = (uint64_t)strlen(Needle);
 			for (uint64_t i = Offset; i < L->size(); i++)
@@ -3336,8 +3359,8 @@ namespace Tomahawk
 		}
 		bool Parser::StartsWith(const char* Value, uint64_t Offset) const
 		{
-			if (!Value)
-				return false;
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			auto Length = (uint64_t)strlen(Value);
 			if (L->size() < Length)
@@ -3353,8 +3376,8 @@ namespace Tomahawk
 		}
 		bool Parser::StartsOf(const char* Value, uint64_t Offset) const
 		{
-			if (!Value)
-				return false;
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			auto Length = (uint64_t)strlen(Value);
 			if (Offset >= L->size())
@@ -3370,8 +3393,8 @@ namespace Tomahawk
 		}
 		bool Parser::StartsNotOf(const char* Value, uint64_t Offset) const
 		{
-			if (!Value)
-				return false;
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			auto Length = (uint64_t)strlen(Value);
 			if (Offset >= L->size())
@@ -3391,6 +3414,7 @@ namespace Tomahawk
 		}
 		bool Parser::EndsWith(const std::string& Value) const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			if (L->empty())
 				return false;
 
@@ -3398,6 +3422,9 @@ namespace Tomahawk
 		}
 		bool Parser::EndsWith(const char* Value) const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Value != nullptr, false, "value should be set");
+
 			if (L->empty() || !Value)
 				return false;
 
@@ -3405,12 +3432,13 @@ namespace Tomahawk
 		}
 		bool Parser::EndsWith(const char& Value) const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			return !L->empty() && L->back() == Value;
 		}
 		bool Parser::EndsOf(const char* Value) const
 		{
-			if (!Value)
-				return false;
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			auto Length = (uint64_t)strlen(Value);
 			for (uint64_t j = 0; j < Length; j++)
@@ -3423,8 +3451,8 @@ namespace Tomahawk
 		}
 		bool Parser::EndsNotOf(const char* Value) const
 		{
-			if (!Value)
-				return false;
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			auto Length = (uint64_t)strlen(Value);
 			bool Result = true;
@@ -3442,10 +3470,12 @@ namespace Tomahawk
 		}
 		bool Parser::Empty() const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			return L->empty();
 		}
 		bool Parser::HasInteger() const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			if (L->empty())
 				return false;
 
@@ -3469,6 +3499,7 @@ namespace Tomahawk
 		}
 		bool Parser::HasNumber() const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			if (L->empty() || (L->size() == 1 && L->front() == '.'))
 				return false;
 
@@ -3498,6 +3529,8 @@ namespace Tomahawk
 		}
 		bool Parser::HasDecimal() const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+
 			auto F = Find('.');
 			if (F.Found)
 			{
@@ -3516,6 +3549,7 @@ namespace Tomahawk
 		}
 		bool Parser::ToBoolean() const
 		{
+			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			return !strncmp(L->c_str(), "true", 4) || !strncmp(L->c_str(), "1", 1);
 		}
 		bool Parser::IsDigit(char Char)
@@ -3524,8 +3558,7 @@ namespace Tomahawk
 		}
 		int Parser::CaseCompare(const char* Value1, const char* Value2)
 		{
-			if (!Value1 || !Value2)
-				return 0;
+			TH_ASSERT(Value1 != nullptr && Value2 != nullptr, 0, "both values should be set");
 
 			int Result;
 			do
@@ -3541,8 +3574,7 @@ namespace Tomahawk
 		}
 		int Parser::Match(const char* Pattern, uint64_t Length, const char* Text)
 		{
-			if (!Pattern || !Text)
-				return -1;
+			TH_ASSERT(Pattern != nullptr && Text != nullptr, -1, "pattern and text should be set");
 
 			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
 			if (Token != nullptr)
@@ -3594,65 +3626,80 @@ namespace Tomahawk
 		}
 		int Parser::ToInt() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return (int)strtol(L->c_str(), nullptr, 10);
 		}
 		long Parser::ToLong() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return strtol(L->c_str(), nullptr, 10);
 		}
 		float Parser::ToFloat() const
 		{
+			TH_ASSERT(L != nullptr, 0.0f, "cannot parse without context");
 			return strtof(L->c_str(), nullptr);
 		}
 		unsigned int Parser::ToUInt() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return (unsigned int)ToULong();
 		}
 		unsigned long Parser::ToULong() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return strtoul(L->c_str(), nullptr, 10);
 		}
 		int64_t Parser::ToInt64() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return strtoll(L->c_str(), nullptr, 10);
 		}
 		double Parser::ToDouble() const
 		{
+			TH_ASSERT(L != nullptr, 0.0, "cannot parse without context");
 			return strtod(L->c_str(), nullptr);
 		}
 		long double Parser::ToLDouble() const
 		{
+			TH_ASSERT(L != nullptr, 0.0, "cannot parse without context");
 			return strtold(L->c_str(), nullptr);
 		}
 		uint64_t Parser::ToUInt64() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return strtoull(L->c_str(), nullptr, 10);
 		}
 		uint64_t Parser::Size() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return L->size();
 		}
 		uint64_t Parser::Capacity() const
 		{
+			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
 			return L->capacity();
 		}
 		char* Parser::Value() const
 		{
+			TH_ASSERT(L != nullptr, nullptr, "cannot parse without context");
 			return (char*)L->data();
 		}
 		const char* Parser::Get() const
 		{
+			TH_ASSERT(L != nullptr, nullptr, "cannot parse without context");
 			return L->c_str();
 		}
 		std::string& Parser::R()
 		{
+			TH_ASSERT(L != nullptr, *L, "cannot parse without context");
 			return *L;
 		}
-		std::basic_string<wchar_t> Parser::ToUnicode() const
+		std::wstring Parser::ToWide() const
 		{
+			TH_ASSERT(L != nullptr, std::wstring(), "cannot parse without context");
 #pragma warning(push)
 #pragma warning(disable: 4333)
-			std::basic_string<wchar_t> Output;
+			std::wstring Output;
 			wchar_t W;
 			for (uint64_t i = 0; i < L->size();)
 			{
@@ -3712,6 +3759,7 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::Split(const std::string& With, uint64_t Start) const
 		{
+			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
 			Parser::Settle Result = Find(With, Start);
 			uint64_t Offset = Start;
 
@@ -3729,6 +3777,7 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::Split(char With, uint64_t Start) const
 		{
+			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
 			Parser::Settle Result = Find(With, Start);
 			uint64_t Offset = Start;
 
@@ -3746,6 +3795,7 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::SplitMax(char With, uint64_t Count, uint64_t Start) const
 		{
+			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
 			Parser::Settle Result = Find(With, Start);
 			uint64_t Offset = Start;
 
@@ -3763,6 +3813,7 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::SplitOf(const char* With, uint64_t Start) const
 		{
+			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
 			Parser::Settle Result = FindOf(With, Start);
 			uint64_t Offset = Start;
 
@@ -3780,6 +3831,7 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::SplitNotOf(const char* With, uint64_t Start) const
 		{
+			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
 			Parser::Settle Result = FindNotOf(With, Start);
 			uint64_t Offset = Start;
 
@@ -3797,9 +3849,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::operator= (const Parser& Value)
 		{
-			if (&Value == this)
-				return *this;
-
+			TH_ASSERT(&Value != this, *this, "cannot set to self");
 			if (Safe)
 				TH_DELETE(basic_string, L);
 
@@ -3963,9 +4013,7 @@ namespace Tomahawk
 		}
 		Variant Var::String(const char* Value, size_t Size)
 		{
-			if (!Value)
-				return Null();
-
+			TH_ASSERT(Value != nullptr, Null(), "value should be set");
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
 			Buffer->Size = Size;
 			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
@@ -3992,9 +4040,7 @@ namespace Tomahawk
 		}
 		Variant Var::Base64(const char* Value, size_t Size)
 		{
-			if (!Value)
-				return Null();
-
+			TH_ASSERT(Value != nullptr, Null(), "value should be set");
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
 			Buffer->Size = Size;
 			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
@@ -4053,20 +4099,18 @@ namespace Tomahawk
 		}
 		void* Mem::Malloc(size_t Size)
 		{
-			if (!OnAlloc)
-				return malloc(Size);
-
-			return OnAlloc(Size);
+			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
+			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
+			return Result;
 		}
 		void* Mem::Realloc(void* Ptr, size_t Size)
 		{
 			if (!Ptr)
 				return Malloc(Size);
 
-			if (!OnRealloc)
-				return realloc(Ptr, Size);
-
-			return OnRealloc(Ptr, Size);
+			void* Result = (OnRealloc ? OnRealloc(Ptr, Size) : realloc(Ptr, Size));
+			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %llu bytes", (uint64_t)Size);
+			return Result;
 		}
 		void Mem::Free(void* Ptr)
 		{
@@ -4163,11 +4207,13 @@ namespace Tomahawk
 			else
 				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source ? Source : "log", Line, Format);
 #endif
+			char Storage[8192];
+
 			va_list Args;
 			va_start(Args, Format);
-
-			char Storage[8192];
 			vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+			va_end(Args);
+
 			if (Callback)
 				Callback(Storage, Level);
 
@@ -4178,8 +4224,60 @@ namespace Tomahawk
 #endif
 				printf("%s", Storage);
 			}
+		}
+		void Debug::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
+		{
+			if (!Function || !Condition || (!Enabled && !Callback))
+				return;
 
-			va_end(Args);
+			auto TimeStamp = (time_t)time(nullptr);
+			tm DateTime{ };
+			char Date[64];
+
+			if (Line < 0)
+				Line = 0;
+
+#if defined(TH_MICROSOFT)
+			if (gmtime_s(&DateTime, &TimeStamp) != 0)
+#elif defined(TH_UNIX)
+			if (gmtime_r(&TimeStamp, &DateTime) == 0)
+#else
+			if (true)
+#endif
+				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
+			else
+				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
+
+			char Buffer[8192];
+#ifndef _DEBUG
+			snprintf(Buffer, sizeof(Buffer), "%s [err] %s%s():\n\tassertion: %s\n\texception: %s\n", Date, Fatal ? "[fatal] " : "", Function, Condition, Format ? Format : "none");
+#else
+			snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s%s():\n\tassertion: %s\n\texception: %s\n", Date, Source ? Source : "log", Line, Fatal ? "[fatal] " : "", Function, Condition, Format ? Format : "none");
+#endif
+			char Storage[8192];
+			if (Format != nullptr)
+			{
+				va_list Args;
+				va_start(Args, Format);
+				vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+				va_end(Args);
+			}
+			else
+				memcpy(Storage, Buffer, sizeof(Buffer));
+
+			if (Callback)
+				Callback(Storage, 1);
+
+			if (Enabled)
+			{
+#if defined(TH_MICROSOFT) && defined(_DEBUG)
+				OutputDebugStringA(Storage);
+#endif
+				printf("%s", Storage);
+			}
+
+			if (Fatal)
+				Pause();
 		}
 		void Debug::Pause()
 		{
@@ -4190,31 +4288,32 @@ namespace Tomahawk
 
 		void Composer::AddRef(Object* Value)
 		{
-			if (Value != nullptr)
-				Value->AddRef();
+			TH_ASSERT_V(Value != nullptr, "object should be set");
+			Value->AddRef();
 		}
 		void Composer::SetFlag(Object* Value)
 		{
-			if (Value != nullptr)
-				Value->SetFlag();
+			TH_ASSERT_V(Value != nullptr, "object should be set");
+			Value->SetFlag();
 		}
 		bool Composer::GetFlag(Object* Value)
 		{
-			return Value ? Value->GetFlag() : false;
+			TH_ASSERT(Value != nullptr, false, "object should be set");
+			return Value->GetFlag();
 		}
 		int Composer::GetRefCount(Object* Value)
 		{
-			return Value ? Value->GetRefCount() : 1;
+			TH_ASSERT(Value != nullptr, 1, "object should be set");
+			return Value->GetRefCount();
 		}
 		void Composer::Release(Object* Value)
 		{
-			if (Value != nullptr)
-				Value->Release();
+			TH_ASSERT_V(Value != nullptr, "object should be set");
+			Value->Release();
 		}
 		bool Composer::Clear()
 		{
-			if (!Factory)
-				return false;
+			TH_ASSERT(Factory != nullptr, false, "composer should be initialized");
 
 			delete Factory;
 			Factory = nullptr;
@@ -4222,8 +4321,7 @@ namespace Tomahawk
 		}
 		bool Composer::Pop(const std::string& Hash)
 		{
-			if (!Factory)
-				return false;
+			TH_ASSERT(Factory != nullptr, false, "composer should be initialized");
 
 			auto It = Factory->find(TH_COMPONENT_HASH(Hash));
 			if (It == Factory->end())
@@ -4305,8 +4403,8 @@ namespace Tomahawk
 		void Console::Hide()
 		{
 #ifdef TH_MICROSOFT
-			if (Handle)
-				::ShowWindow(::GetConsoleWindow(), SW_HIDE);
+			TH_ASSERT_V(Handle, "console should be shown at least once to be hidden");
+			::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 #endif
 		}
 		void Console::Show()
@@ -4334,9 +4432,7 @@ namespace Tomahawk
 		void Console::Clear()
 		{
 #ifdef TH_MICROSOFT
-			if (!Handle)
-				return;
-
+			TH_ASSERT_V(Handle, "console should be shown at least once");
 			HANDLE Wnd = GetStdHandle(STD_OUTPUT_HANDLE);
 
 			CONSOLE_SCREEN_BUFFER_INFO Info;
@@ -4353,13 +4449,13 @@ namespace Tomahawk
 		}
 		void Console::Flush()
 		{
-			if (Handle)
-				std::cout.flush();
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			std::cout.flush();
 		}
 		void Console::FlushWrite()
 		{
-			if (Handle)
-				std::cout << std::flush;
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			std::cout << std::flush;
 		}
 		void Console::CaptureTime()
 		{
@@ -4367,19 +4463,17 @@ namespace Tomahawk
 		}
 		void Console::WriteLine(const std::string& Line)
 		{
-			if (Handle)
-				std::cout << Line << '\n';
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			std::cout << Line << '\n';
 		}
 		void Console::Write(const std::string& Line)
 		{
-			if (Handle)
-				std::cout << Line;
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			std::cout << Line;
 		}
 		void Console::fWriteLine(const char* Format, ...)
 		{
-			if (!Handle)
-				return;
-
+			TH_ASSERT_V(Handle, "console should be shown at least once");
 			char Buffer[8192] = { '\0' };
 
 			va_list Args;
@@ -4395,9 +4489,7 @@ namespace Tomahawk
 		}
 		void Console::fWrite(const char* Format, ...)
 		{
-			if (!Handle)
-				return;
-
+			TH_ASSERT_V(Handle, "console should be shown at least once");
 			char Buffer[8192] = { '\0' };
 
 			va_list Args;
@@ -4413,29 +4505,24 @@ namespace Tomahawk
 		}
 		void Console::sWriteLine(const std::string& Line)
 		{
-			if (!Handle)
-				return;
-
+			TH_ASSERT_V(Handle, "console should be shown at least once");
 			Lock.lock();
 			std::cout << Line << '\n';
 			Lock.unlock();
 		}
 		void Console::sWrite(const std::string& Line)
 		{
-			if (!Handle)
-				return;
-
+			TH_ASSERT_V(Handle, "console should be shown at least once");
 			Lock.lock();
 			std::cout << Line;
 			Lock.unlock();
 		}
 		void Console::sfWriteLine(const char* Format, ...)
 		{
-			if (!Handle)
-				return;
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			TH_ASSERT_V(Format != nullptr, "format should be set");
 
 			char Buffer[8192] = { '\0' };
-
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -4451,11 +4538,10 @@ namespace Tomahawk
 		}
 		void Console::sfWrite(const char* Format, ...)
 		{
-			if (!Handle)
-				return;
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			TH_ASSERT_V(Format != nullptr, "format should be set");
 
 			char Buffer[8192] = { '\0' };
-
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -4471,6 +4557,8 @@ namespace Tomahawk
 		}
 		void Console::Trace(const char* Format, ...)
 		{
+			TH_ASSERT_V(Format != nullptr, "format should be set");
+
 			char Buffer[2048];
 			va_list Args;
 			va_start(Args, Format);
@@ -4492,16 +4580,10 @@ namespace Tomahawk
 		}
 		std::string Console::Read(uint64_t Size)
 		{
-			if (!Handle || !Size)
-				return "";
-
-			if (Size < 2)
-				Size = 2;
+			TH_ASSERT(Handle, std::string(), "console should be shown at least once");
+			TH_ASSERT(Size > 0, std::string(), "read length should be greater than zero");
 
 			char* Value = (char*)TH_MALLOC(sizeof(char) * (size_t)(Size + 1));
-			if (!Value)
-				return "";
-
 			memset(Value, 0, (size_t)Size * sizeof(char));
 			Value[Size] = '\0';
 #ifndef TH_MICROSOFT
@@ -4554,28 +4636,22 @@ namespace Tomahawk
 		{
 #ifdef TH_MICROSOFT
 			Frequency = TH_NEW(LARGE_INTEGER);
-			if (Frequency != nullptr)
-				QueryPerformanceFrequency((LARGE_INTEGER*)Frequency);
+			QueryPerformanceFrequency((LARGE_INTEGER*)Frequency);
 
 			TimeLimit = TH_NEW(LARGE_INTEGER);
-			if (TimeLimit != nullptr)
-				QueryPerformanceCounter((LARGE_INTEGER*)TimeLimit);
+			QueryPerformanceCounter((LARGE_INTEGER*)TimeLimit);
 
 			PastTime = TH_NEW(LARGE_INTEGER);
-			if (PastTime != nullptr)
-				QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
+			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
 #elif defined TH_UNIX
 			Frequency = TH_NEW(timespec);
-			if (Frequency != nullptr)
-				clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
+			clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
 
 			TimeLimit = TH_NEW(timespec);
-			if (TimeLimit != nullptr)
-				clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
+			clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
 
 			PastTime = TH_NEW(timespec);
-			if (PastTime != nullptr)
-				clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
+			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
 #endif
 			SetStepLimitation(60.0f, 10.0f);
 		}
@@ -4707,10 +4783,11 @@ namespace Tomahawk
 		}
 		bool FileStream::Open(const char* File, FileMode Mode)
 		{
-			if (!File || !Close())
-				return false;
+			TH_ASSERT(File != nullptr, false, "filename should be set");
 
+			Close();
 			Path = OS::Path::Resolve(File);
+
 			switch (Mode)
 			{
 				case FileMode::Read_Only:
@@ -4765,88 +4842,73 @@ namespace Tomahawk
 		}
 		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
+			TH_ASSERT(Resource != nullptr, false, "file should be opened");
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					if (Resource != nullptr)
-						return fseek(Resource, (long)Offset, SEEK_SET) == 0;
-					break;
+					return fseek(Resource, (long)Offset, SEEK_SET) == 0;
 				case FileSeek::Current:
-					if (Resource != nullptr)
-						return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
-					break;
+					return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
-					if (Resource != nullptr)
-						return fseek(Resource, (long)Offset, SEEK_END) == 0;
-					break;
+					return fseek(Resource, (long)Offset, SEEK_END) == 0;
 			}
 
 			return false;
 		}
 		bool FileStream::Move(int64_t Offset)
 		{
-			if (!Resource)
-				return false;
-
+			TH_ASSERT(Resource != nullptr, false, "file should be opened");
 			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 		}
 		int FileStream::Flush()
 		{
-			if (!Resource)
-				return 0;
-
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			return fflush(Resource);
 		}
 		uint64_t FileStream::ReadAny(const char* Format, ...)
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Format != nullptr, false, "format should be set");
+
 			va_list Args;
-			uint64_t R = 0;
 			va_start(Args, Format);
-
-			if (Resource != nullptr)
-				R = (uint64_t)vfscanf(Resource, Format, Args);
-
+			uint64_t R = (uint64_t)vfscanf(Resource, Format, Args);
 			va_end(Args);
 
 			return R;
 		}
 		uint64_t FileStream::Read(char* Data, uint64_t Length)
 		{
-			if (!Resource)
-				return 0;
-
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Data != nullptr, false, "data should be set");
 			return fread(Data, 1, (size_t)Length, Resource);
 		}
 		uint64_t FileStream::WriteAny(const char* Format, ...)
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Format != nullptr, false, "format should be set");
+
 			va_list Args;
-			uint64_t R = 0;
 			va_start(Args, Format);
-			if (Resource != nullptr)
-				R = (uint64_t)vfprintf(Resource, Format, Args);
+			uint64_t R = (uint64_t)vfprintf(Resource, Format, Args);
 			va_end(Args);
 
 			return R;
 		}
 		uint64_t FileStream::Write(const char* Data, uint64_t Length)
 		{
-			if (!Resource)
-				return 0;
-
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Data != nullptr, false, "data should be set");
 			return fwrite(Data, 1, (size_t)Length, Resource);
 		}
 		uint64_t FileStream::Tell()
 		{
-			if (!Resource)
-				return 0;
-
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			return ftell(Resource);
 		}
 		int FileStream::GetFd()
 		{
-			if (!Resource)
-				return -1;
-
+			TH_ASSERT(Resource != nullptr, -1, "file should be opened");
 #ifdef TH_MICROSOFT
 			return _fileno(Resource);
 #else
@@ -4876,10 +4938,9 @@ namespace Tomahawk
 		}
 		bool GzStream::Open(const char* File, FileMode Mode)
 		{
-			if (!File || !Close())
-				return false;
-
+			TH_ASSERT(File != nullptr, 0, "filename should be set");
 #ifdef TH_HAS_ZLIB
+			Close();
 			Path = OS::Path::Resolve(File);
 			switch (Mode)
 			{
@@ -4921,42 +4982,32 @@ namespace Tomahawk
 		}
 		bool GzStream::Seek(FileSeek Mode, int64_t Offset)
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+#ifdef TH_HAS_ZLIB
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-#ifdef TH_HAS_ZLIB
-					if (Resource != nullptr)
-						return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
-#endif
-					break;
+					return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
 				case FileSeek::Current:
-#ifdef TH_HAS_ZLIB
-					if (Resource != nullptr)
-						return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
-#endif
-					break;
+					return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
-#ifdef TH_HAS_ZLIB
-					if (Resource != nullptr)
-						return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
-#endif
-					break;
+					return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
 			}
-
+#endif
 			return false;
 		}
 		bool GzStream::Move(int64_t Offset)
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			if (Resource != nullptr)
-				return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
-#endif
+			return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
+#else
 			return false;
+#endif
 		}
 		int GzStream::Flush()
 		{
-			if (!Resource)
-				return 0;
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
 			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
 #else
@@ -4969,20 +5020,25 @@ namespace Tomahawk
 		}
 		uint64_t GzStream::Read(char* Data, uint64_t Length)
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
-			if (Resource != nullptr)
-				return gzread((gzFile)Resource, Data, Length);
-#endif
+			return gzread((gzFile)Resource, Data, Length);
+#else
 			return 0;
+#endif
 		}
 		uint64_t GzStream::WriteAny(const char* Format, ...)
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Format != nullptr, 0, "format should be set");
+
 			va_list Args;
-			uint64_t R = 0;
 			va_start(Args, Format);
 #ifdef TH_HAS_ZLIB
-			if (Resource != nullptr)
-				R = (uint64_t)gzvprintf((gzFile)Resource, Format, Args);
+			uint64_t R = (uint64_t)gzvprintf((gzFile)Resource, Format, Args);
+#else
+			uint64_t R = 0;
 #endif
 			va_end(Args);
 
@@ -4990,19 +5046,22 @@ namespace Tomahawk
 		}
 		uint64_t GzStream::Write(const char* Data, uint64_t Length)
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
-			if (Resource != nullptr)
-				return gzwrite((gzFile)Resource, Data, Length);
-#endif
+			return gzwrite((gzFile)Resource, Data, Length);
+#else
 			return 0;
+#endif
 		}
 		uint64_t GzStream::Tell()
 		{
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			if (Resource != nullptr)
-				return gztell((gzFile)Resource);
-#endif
+			return gztell((gzFile)Resource);
+#else
 			return 0;
+#endif
 		}
 		int GzStream::GetFd()
 		{
@@ -5025,8 +5084,8 @@ namespace Tomahawk
 		}
 		bool WebStream::Open(const char* File, FileMode Mode)
 		{
-			if (!File || !Close())
-				return false;
+			TH_ASSERT(File != nullptr, 0, "filename should be set");
+			Close();
 
 			Network::SourceURL URL(File);
 			if (URL.Protocol != "http" && URL.Protocol != "https")
@@ -5145,8 +5204,9 @@ namespace Tomahawk
 		}
 		uint64_t WebStream::Read(char* Data, uint64_t Length)
 		{
-			if (!Resource || !Length)
-				return 0;
+			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
+			TH_ASSERT(Data != nullptr, 0, "data should be set");
+			TH_ASSERT(Length > 0, 0, "length should be greater than zero");
 
 			uint64_t Result = 0;
 			if (!Buffer.empty())
@@ -5181,6 +5241,7 @@ namespace Tomahawk
 		}
 		int WebStream::GetFd()
 		{
+			TH_ASSERT(Resource != nullptr, -1, "file should be opened");
 			return (int)((Network::HTTP::Client*)Resource)->GetStream()->GetFd();
 		}
 		void* WebStream::GetBuffer()
@@ -5217,7 +5278,8 @@ namespace Tomahawk
 		}
 		void FileTree::Loop(const std::function<bool(FileTree*)>& Callback)
 		{
-			if (!Callback || !Callback(this))
+			TH_ASSERT_V(Callback, "callback should not be empty");
+			if (!Callback(this))
 				return;
 
 			for (auto& Directory : Directories)
@@ -5248,15 +5310,13 @@ namespace Tomahawk
 
 		void OS::Directory::Set(const char* Path)
 		{
-			if (!Path)
-				return;
-
+			TH_ASSERT_V(Path != nullptr, "path should be set");
 #ifdef TH_MICROSOFT
 			if (!SetCurrentDirectoryA(Path))
-				TH_ERROR("[dir] couldn't set current directory");
+				TH_ERR("[dir] couldn't set current directory");
 #elif defined(TH_UNIX)
 			if (chdir(Path) != 0)
-				TH_ERROR("[dir] couldn't set current directory");
+				TH_ERR("[dir] couldn't set current directory");
 #endif
 		}
 		void OS::Directory::Patch(const std::string& Path)
@@ -5266,9 +5326,7 @@ namespace Tomahawk
 		}
 		bool OS::Directory::Scan(const std::string& Path, std::vector<ResourceEntry>* Entries)
 		{
-			if (!Entries)
-				return false;
-
+			TH_ASSERT(Entries != nullptr, false, "entries should be set");
 			ResourceEntry Entry;
 #if defined(TH_MICROSOFT)
 			struct Dirent
@@ -5287,9 +5345,6 @@ namespace Tomahawk
 			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]));
 
 			auto* Value = (Directory*)TH_MALLOC(sizeof(Directory));
-			if (!Value)
-				return false;
-
 			DWORD Attributes = GetFileAttributesW(WPath);
 			if (Attributes != 0xFFFFFFFF && ((Attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY))
 			{
@@ -5347,9 +5402,7 @@ namespace Tomahawk
 		}
 		bool OS::Directory::Each(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback)
 		{
-			if (!Path)
-				return false;
-
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 			std::vector<ResourceEntry> Entries;
 			std::string Result = Path::Resolve(Path);
 			Scan(Result, &Entries);
@@ -5375,9 +5428,7 @@ namespace Tomahawk
 		}
 		bool OS::Directory::Create(const char* Path)
 		{
-			if (!Path || Path[0] == '\0')
-				return false;
-
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[1024];
 			UnicodePath(Path, Buffer, 1024);
@@ -5412,6 +5463,7 @@ namespace Tomahawk
 		}
 		bool OS::Directory::Remove(const char* Path)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 #ifdef TH_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
 			std::string FilePath, Pattern = std::string(Path) + "\\*.*";
@@ -5498,6 +5550,8 @@ namespace Tomahawk
 		}
 		bool OS::Directory::IsExists(const char* Path)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
+
 			struct stat Buffer;
 			if (stat(Path::Resolve(Path).c_str(), &Buffer) != 0)
 				return false;
@@ -5560,9 +5614,7 @@ namespace Tomahawk
 
 		bool OS::File::State(const std::string& Path, Resource* Resource)
 		{
-			if (!Resource)
-				return false;
-
+			TH_ASSERT(Resource != nullptr, false, "resource should be set");
 			memset(Resource, 0, sizeof(*Resource));
 #if defined(TH_MICROSOFT)
 			wchar_t WBuffer[1024];
@@ -5608,6 +5660,9 @@ namespace Tomahawk
 		}
 		bool OS::File::Write(const char* Path, const char* Data, uint64_t Length)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_ASSERT(Data != nullptr, false, "data should be set");
+
 			FILE* Stream = (FILE*)Open(Path, "wb");
 			if (!Stream)
 				return false;
@@ -5619,6 +5674,7 @@ namespace Tomahawk
 		}
 		bool OS::File::Write(const char* Path, const std::string& Data)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 			FILE* Stream = (FILE*)Open(Path, "wb");
 			if (!Stream)
 				return false;
@@ -5630,6 +5686,7 @@ namespace Tomahawk
 		}
 		bool OS::File::Move(const char* From, const char* To)
 		{
+			TH_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
 #ifdef TH_MICROSOFT
 			return MoveFileA(From, To) != 0;
 #elif defined TH_UNIX
@@ -5638,6 +5695,7 @@ namespace Tomahawk
 		}
 		bool OS::File::Remove(const char* Path)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 #ifdef TH_MICROSOFT
 			SetFileAttributesA(Path, 0);
 			return DeleteFileA(Path) != 0;
@@ -5647,6 +5705,7 @@ namespace Tomahawk
 		}
 		bool OS::File::IsExists(const char* Path)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 			struct stat Buffer;
 			return (stat(Path::Resolve(Path).c_str(), &Buffer) == 0);
 		}
@@ -5659,6 +5718,7 @@ namespace Tomahawk
 			FileState State;
 			struct stat Buffer;
 
+			TH_ASSERT(Path != nullptr, State, "path should be set");
 			if (stat(Path, &Buffer) != 0)
 				return State;
 
@@ -5678,9 +5738,7 @@ namespace Tomahawk
 		}
 		void* OS::File::Open(const char* Path, const char* Mode)
 		{
-			if (!Path || !Mode)
-				return nullptr;
-
+			TH_ASSERT(Path != nullptr && Mode != nullptr, false, "path and mode should be set");
 #ifdef TH_MICROSOFT
 			wchar_t WBuffer[1024], WMode[20];
 			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
@@ -5724,6 +5782,7 @@ namespace Tomahawk
 		}
 		unsigned char* OS::File::ReadAll(const char* Path, uint64_t* Length)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 			FILE* Stream = (FILE*)Open(Path, "rb");
 			if (!Stream)
 				return nullptr;
@@ -5733,12 +5792,6 @@ namespace Tomahawk
 			fseek(Stream, 0, SEEK_SET);
 
 			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
-			if (!Bytes)
-			{
-				fclose(Stream);
-				return nullptr;
-			}
-
 			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
 			{
 				fclose(Stream);
@@ -5759,14 +5812,9 @@ namespace Tomahawk
 		}
 		unsigned char* OS::File::ReadAll(Stream* Stream, uint64_t* Length)
 		{
-			if (!Stream)
-				return nullptr;
-
+			TH_ASSERT(Stream != nullptr, false, "stream should be set");
 			uint64_t Size = Stream->GetSize();
 			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
-			if (!Bytes)
-				return nullptr;
-
 			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
 			Bytes[Size] = '\0';
 
@@ -5777,10 +5825,8 @@ namespace Tomahawk
 		}
 		unsigned char* OS::File::ReadChunk(Stream* Stream, uint64_t Length)
 		{
+			TH_ASSERT(Stream != nullptr, false, "stream should be set");
 			auto* Bytes = (unsigned char*)TH_MALLOC((size_t)(Length + 1));
-			if (!Bytes)
-				return nullptr;
-
 			Stream->Read((char*)Bytes, Length);
 			Bytes[Length] = '\0';
 
@@ -5788,6 +5834,7 @@ namespace Tomahawk
 		}
 		std::string OS::File::ReadAsString(const char* Path)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 			uint64_t Length = 0;
 			char* Data = (char*)ReadAll(Path, &Length);
 			if (!Data)
@@ -5800,6 +5847,7 @@ namespace Tomahawk
 		}
 		std::vector<std::string> OS::File::ReadAsArray(const char* Path)
 		{
+			TH_ASSERT(Path != nullptr, std::vector<std::string>(), "path should be set");
 			FILE* Stream = (FILE*)Open(Path, "rb");
 			if (!Stream)
 				return std::vector<std::string>();
@@ -5831,13 +5879,12 @@ namespace Tomahawk
 
 		bool OS::Path::IsRemote(const char* Path)
 		{
-			return Path && Network::SourceURL(Path).Protocol != "file";
+			TH_ASSERT(Path != nullptr, false, "path should be set");
+			return Network::SourceURL(Path).Protocol != "file";
 		}
 		std::string OS::Path::Resolve(const char* Path)
 		{
-			if (!Path || Path[0] == '\0')
-				return "";
-
+			TH_ASSERT(Path != nullptr, false, "path should be set");
 #ifdef TH_MICROSOFT
 			char Buffer[2048] = { 0 };
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
@@ -5854,9 +5901,7 @@ namespace Tomahawk
 		}
 		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
 		{
-			if (Path.empty() || Directory.empty())
-				return "";
-
+			TH_ASSERT(!Path.empty() && !Directory.empty(), "", "path and directory should not be empty");
 			if (Parser(&Path).StartsOf("/\\"))
 				return Resolve(("." + Path).c_str());
 
@@ -5917,6 +5962,8 @@ namespace Tomahawk
 		}
 		std::string OS::Path::GetDirectory(const char* Path, uint32_t Level)
 		{
+			TH_ASSERT(Path != nullptr, false, "path should be set");
+
 			Parser Buffer(Path);
 			Parser::Settle Result = Buffer.ReverseFindOf("/\\");
 			if (!Result.Found)
@@ -5944,9 +5991,7 @@ namespace Tomahawk
 		}
 		const char* OS::Path::GetFilename(const char* Path)
 		{
-			if (!Path)
-				return nullptr;
-
+			TH_ASSERT(Path != nullptr, nullptr, "path should be set");
 			int64_t Size = (int64_t)strlen(Path);
 			for (int64_t i = Size; i-- > 0;)
 			{
@@ -5958,9 +6003,7 @@ namespace Tomahawk
 		}
 		const char* OS::Path::GetExtension(const char* Path)
 		{
-			if (!Path)
-				return nullptr;
-
+			TH_ASSERT(Path != nullptr, nullptr, "path should be set");
 			const char* Buffer = Path;
 			while (*Buffer != '\0')
 				Buffer++;
@@ -5976,9 +6019,8 @@ namespace Tomahawk
 
 		bool OS::Net::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
 		{
-			if (!Stream || !Size)
-				return false;
-
+			TH_ASSERT(Stream != nullptr, false, "stream should be set");
+			TH_ASSERT(Size > 0, false, "size should be greater than zero");
 #ifdef TH_MICROSOFT
 			return TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0;
 #elif defined(TH_APPLE)
@@ -5991,24 +6033,18 @@ namespace Tomahawk
 		}
 		bool OS::Net::GetETag(char* Buffer, uint64_t Length, Resource* Resource)
 		{
-			if (!Resource)
-				return false;
-
+			TH_ASSERT(Resource != nullptr, false, "resource should be set");
 			return GetETag(Buffer, Length, Resource->LastModified, Resource->Size);
 		}
 		bool OS::Net::GetETag(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength)
 		{
-			if (!Buffer || !Length)
-				return false;
-
+			TH_ASSERT(Buffer != nullptr && Length > 0, false, "buffer should be set and size should be greater than zero");
 			snprintf(Buffer, (const size_t)Length, "\"%lx.%llu\"", (unsigned long)LastModified, ContentLength);
 			return true;
 		}
 		socket_t OS::Net::GetFd(FILE* Stream)
 		{
-			if (!Stream)
-				return -1;
-
+			TH_ASSERT(Stream != nullptr, -1, "stream should be set");
 #ifdef TH_MICROSOFT
 			return _fileno(Stream);
 #else
@@ -6026,18 +6062,17 @@ namespace Tomahawk
 			raise(SIGTRAP);
 #endif
 #else
-			if (!IsDebuggerPresent())
-				TH_ERROR("[dbg] cannot interrupt");
-			else
-				DebugBreak();
+			if (IsDebuggerPresent())
+				__debugbreak();
 #endif
-			TH_INFO("[dbg] process interruption called");
+			TH_INFO("[dbg] process paused");
 #endif
 		}
-		void OS::Process::Execute(const char* Format, ...)
+		int OS::Process::Execute(const char* Format, ...)
 		{
-			char Buffer[16384];
+			TH_ASSERT(Format != nullptr, -1, "format should be set");
 
+			char Buffer[16384];
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -6046,8 +6081,8 @@ namespace Tomahawk
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
 			va_end(Args);
-			if (system(Buffer) == 0)
-				TH_ERROR("[sys] couldn't execute command");
+			
+			return system(Buffer);
 		}
 		bool OS::Process::Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
 		{
@@ -6055,7 +6090,7 @@ namespace Tomahawk
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
 			{
-				TH_ERROR("cannot create job object for process");
+				TH_ERR("cannot create job object for process");
 				return false;
 			}
 
@@ -6063,7 +6098,7 @@ namespace Tomahawk
 			Info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 			if (SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Info, sizeof(Info)) == 0)
 			{
-				TH_ERROR("cannot set job object for process");
+				TH_ERR("cannot set job object for process");
 				return false;
 			}
 
@@ -6086,7 +6121,7 @@ namespace Tomahawk
 
 			if (!CreateProcessA(Exe.Get(), Args.Value(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
 			{
-				TH_ERROR("cannot spawn process %s", Exe.Get());
+				TH_ERR("cannot spawn process %s", Exe.Get());
 				return false;
 			}
 
@@ -6103,7 +6138,7 @@ namespace Tomahawk
 #else
 			if (!File::IsExists(Path.c_str()))
 			{
-				TH_ERROR("cannot spawn process %s (file does not exists)", Path.c_str());
+				TH_ERR("cannot spawn process %s (file does not exists)", Path.c_str());
 				return false;
 			}
 
@@ -6129,9 +6164,7 @@ namespace Tomahawk
 		}
 		bool OS::Process::Await(ChildProcess* Process, int* ExitCode)
 		{
-			if (!Process || !Process->Valid)
-				return false;
-
+			TH_ASSERT(Process != nullptr && Process->Valid, false, "process should be set and be valid");
 #ifdef TH_MICROSOFT
 			WaitForSingleObject(Process->Process, INFINITE);
 			if (ExitCode != nullptr)
@@ -6158,9 +6191,7 @@ namespace Tomahawk
 		}
 		bool OS::Process::Free(ChildProcess* Child)
 		{
-			if (!Child || !Child->Valid)
-				return false;
-
+			TH_ASSERT(Child != nullptr && Child->Valid, false, "child should be set and be valid");
 #ifdef TH_MICROSOFT
 			if (Child->Process != nullptr)
 			{
@@ -6217,9 +6248,7 @@ namespace Tomahawk
 		}
 		void* OS::Symbol::LoadFunction(void* Handle, const std::string& Name)
 		{
-			if (!Handle || Name.empty())
-				return nullptr;
-
+			TH_ASSERT(Handle != nullptr && !Name.empty(), nullptr, "handle should be set and name should not be empty");
 #ifdef TH_MICROSOFT
 			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
 			if (!Result)
@@ -6232,7 +6261,7 @@ namespace Tomahawk
 				LocalFree(Display);
 
 				if (!Text.empty())
-					TH_ERROR("dll symload error: %s", Text.c_str());
+					TH_ERR("dll symload error: %s", Text.c_str());
 			}
 
 			return Result;
@@ -6242,7 +6271,7 @@ namespace Tomahawk
 			{
 				const char* Text = dlerror();
 				if (Text != nullptr)
-					TH_ERROR("so symload error: %s", Text);
+					TH_ERR("so symload error: %s", Text);
 			}
 
 			return Result;
@@ -6252,9 +6281,7 @@ namespace Tomahawk
 		}
 		bool OS::Symbol::Unload(void* Handle)
 		{
-			if (!Handle)
-				return false;
-
+			TH_ASSERT(Handle != nullptr, nullptr, "handle should be set");
 #ifdef TH_MICROSOFT
 			return (FreeLibrary((HMODULE)Handle) != 0);
 #elif defined(TH_UNIX)
@@ -6392,6 +6419,7 @@ namespace Tomahawk
 		}
 		void ChangeLog::Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback)
 		{
+			TH_ASSERT_V(Callback, "callback should not be empty");
 			Source->Open(Path.c_str(), FileMode::Binary_Read_Only);
 
 			uint64_t Length = Source->GetSize();
@@ -6405,9 +6433,6 @@ namespace Tomahawk
 			Source->Seek(FileSeek::Begin, Length - Delta);
 
 			char* Data = (char*)TH_MALLOC(sizeof(char) * ((size_t)Delta + 1));
-			if (!Data)
-				return;
-
 			Source->Read(Data, sizeof(char) * Delta);
 
 			std::string Value = Data;
@@ -6439,14 +6464,14 @@ namespace Tomahawk
 					if (Line.empty())
 						continue;
 
-					if (Callback && !Callback(this, Line.c_str(), (int64_t)Line.size()))
+					if (!Callback(this, Line.c_str(), (int64_t)Line.size()))
 					{
 						Offset = Length;
 						return;
 					}
 				}
 			}
-			else if (!Value.empty() && Callback)
+			else if (!Value.empty())
 				Callback(this, Value.c_str(), (int64_t)Value.size());
 
 			Offset = Length;
@@ -6511,8 +6536,9 @@ namespace Tomahawk
 		}
 		int Costate::Reuse(Coroutine* Routine, const TaskCallback& Procedure)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return -1;
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
+			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Routine->Callback = Procedure;
             Routine->Dead = false;
@@ -6521,8 +6547,9 @@ namespace Tomahawk
 		}
 		int Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return -1;
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
+			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Routine->Callback = std::move(Procedure);
             Routine->Dead = false;
@@ -6531,8 +6558,9 @@ namespace Tomahawk
 		}
 		int Costate::Reuse(Coroutine* Routine)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return -1;
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
+			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Routine->Callback = nullptr;
             Routine->Dead = false;
@@ -6547,13 +6575,13 @@ namespace Tomahawk
 		}
 		int Costate::Swap(Coroutine* Routine)
 		{
-			if (!Routine || Routine->Dead)
-				return -1;
-            
-            if (Routine->State == Coactive::Inactive)
-                return 0;
-            
-            if (Routine->State == Coactive::Resumable)
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(!Routine->Dead, -1, "coroutine should not be dead");
+			
+			if (Routine->State == Coactive::Inactive)
+				return 0;
+			
+			if (Routine->State == Coactive::Resumable)
                 Routine->State = Coactive::Active;
             
             Cocontext* Fiber = Routine->Switch;
@@ -6598,8 +6626,9 @@ namespace Tomahawk
 		}
 		int Costate::Push(Coroutine* Routine)
 		{
-			if (!Routine || Routine->Master != this || !Routine->Dead)
-				return -1;
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
+			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Safe.lock();
             Cached.erase(Routine);
@@ -6611,30 +6640,44 @@ namespace Tomahawk
 		}
         int Costate::Activate(Coroutine* Routine)
         {
-            if (!Routine || Routine->Master != this || Routine->Dead || Routine->State != Coactive::Inactive)
-                return -1;
-            
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
+			TH_ASSERT(!Routine->Dead, -1, "coroutine should not be dead");
+
+			if (Routine->State != Coactive::Inactive)
+				return -1;
+			
             Routine->State = Coactive::Resumable;
             return 1;
         }
         int Costate::Deactivate(Coroutine* Routine)
         {
-            if (Thread != std::this_thread::get_id() || Current != Routine || !Routine || Routine->Master != this || Routine->Dead || Routine->State != Coactive::Active)
-                return -1;
-            
+			TH_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot deactive coroutine outside costate thread");
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
+			TH_ASSERT(!Routine->Dead, -1, "coroutine should not be dead");
+
+			if (Current != Routine || Routine->State != Coactive::Active)
+				return -1;
+
             Routine->State = Coactive::Inactive;
             return Suspend();
         }
 		int Costate::Resume(Coroutine* Routine)
 		{
-			if (Thread != std::this_thread::get_id() || Current == Routine || !Routine || Routine->Master != this)
-				return -1;
+			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
+			TH_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot resume coroutine outside costate thread");
+			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
 
+			if (Current == Routine)
+				return -1;
+			
 			return Swap(Routine);
 		}
 		int Costate::Resume(bool Restore)
 		{
-			if (Used.empty() || Thread != std::this_thread::get_id())
+			TH_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot resume coroutine outside costate thread");
+			if (Used.empty())
 				return -1;
 
 			Safe.lock();
@@ -6657,7 +6700,8 @@ namespace Tomahawk
 		}
 		int Costate::Dispatch(bool Restore)
 		{
-			if (Used.empty() || Thread != std::this_thread::get_id())
+			TH_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot dispatch coroutine outside costate thread");
+			if (Used.empty())
 				return -1;
 
 			Safe.lock();
@@ -6682,13 +6726,11 @@ namespace Tomahawk
 		}
 		int Costate::Suspend()
 		{
-			if (Thread != std::this_thread::get_id())
-				return -1;
+			TH_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot suspend coroutine outside costate thread");
 
 			Coroutine* Routine = Current;
 			if (!Routine || Routine->Master != this)
 				return -1;
-
 #ifndef TH_MICROSOFT
 			char Bottom = 0;
 			char* Top = Routine->Switch->Stack + Size;
@@ -6723,6 +6765,20 @@ namespace Tomahawk
 		{
 			return Cothread;
 		}
+		Coroutine* Costate::GetCoroutine()
+		{
+			return Cothread ? Cothread->Current : nullptr;
+		}
+		Coroutine* Costate::GetCoroutine(Costate** State)
+		{
+			TH_ASSERT(State != nullptr, nullptr, "state should be set");
+			*State = Cothread;
+			return Cothread ? Cothread->Current : nullptr;
+		}
+		bool Costate::IsCoroutine()
+		{
+			return Cothread ? Cothread->Current != nullptr : false;
+		}
 		void TH_COCALL Costate::Execute(TH_CODATA)
 		{
 #ifndef TH_MICROSOFT
@@ -6735,9 +6791,7 @@ namespace Tomahawk
 			Costate* State = (Costate*)Context;
 #endif
             Cothread = State;
-			if (!State)
-				return;
-
+			TH_ASSERT_V(State != nullptr, "costate should be set");
 			Coroutine* Routine = State->Current;
             if (Routine != nullptr)
 			{
@@ -6781,7 +6835,8 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetListener(const std::string& Name, const EventCallback& Callback)
 		{
-			if (!Callback || !Enqueue)
+			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
 			Race.Listeners.lock();
@@ -6804,7 +6859,8 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetListener(const std::string& Name, EventCallback&& Callback)
 		{
-			if (!Callback || !Enqueue)
+			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			if (!Enqueue)
 				return std::numeric_limits<uint64_t>::max();
 
 			Race.Listeners.lock();
@@ -6827,8 +6883,9 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			if (!Callback || !Enqueue)
-				return -1;
+			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			if (!Enqueue)
+				return std::numeric_limits<uint64_t>::max();
 
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
@@ -6844,8 +6901,9 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			if (!Callback || !Enqueue)
-				return -1;
+			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			if (!Enqueue)
+				return std::numeric_limits<uint64_t>::max();
 
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
@@ -6861,8 +6919,9 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			if (!Callback || !Enqueue)
-				return -1;
+			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			if (!Enqueue)
+				return std::numeric_limits<uint64_t>::max();
 
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
@@ -6878,8 +6937,9 @@ namespace Tomahawk
 		}
 		EventId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			if (!Callback || !Enqueue)
-				return -1;
+			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			if (!Enqueue)
+				return std::numeric_limits<uint64_t>::max();
 
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
@@ -6895,7 +6955,8 @@ namespace Tomahawk
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback)
 		{
-			if (!Callback || !Enqueue)
+			TH_ASSERT(Callback, false, "callback should not be empty");
+			if (!Enqueue)
 				return false;
 	
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, Callback));
@@ -6906,7 +6967,8 @@ namespace Tomahawk
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback)
 		{
-			if (!Callback || !Enqueue)
+			TH_ASSERT(Callback, false, "callback should not be empty");
+			if (!Enqueue)
 				return false;
 
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
@@ -6917,10 +6979,11 @@ namespace Tomahawk
 		}
 		bool Schedule::SetAsync(const TaskCallback& Callback)
 		{
-			if (!Callback || !Enqueue)
+			TH_ASSERT(Callback, false, "callback should not be empty");
+			if (!Enqueue)
 				return false;
 
-			if (Costate::Get() != nullptr)
+			if (Costate::IsCoroutine())
 			{
 				Callback();
 				return true;
@@ -6934,10 +6997,11 @@ namespace Tomahawk
 		}
 		bool Schedule::SetAsync(TaskCallback&& Callback)
 		{
-			if (!Callback || !Enqueue)
+			TH_ASSERT(Callback, false, "callback should not be empty");
+			if (!Enqueue)
 				return false;
 
-			if (Costate::Get() != nullptr)
+			if (Costate::IsCoroutine())
 			{
 				Callback();
 				return true;
@@ -6951,6 +7015,7 @@ namespace Tomahawk
 		}
 		bool Schedule::SetEvent(const std::string& Name, const VariantArgs& Args)
 		{
+			TH_ASSERT(!Name.empty(), false, "name should not be empty");
 			if (!Enqueue)
 				return false;
 
@@ -6962,6 +7027,7 @@ namespace Tomahawk
 		}
 		bool Schedule::SetEvent(const std::string& Name, VariantArgs&& Args)
 		{
+			TH_ASSERT(!Name.empty(), false, "name should not be empty");
 			if (!Enqueue)
 				return false;
 
@@ -6973,6 +7039,7 @@ namespace Tomahawk
 		}
 		bool Schedule::SetEvent(const std::string& Name)
 		{
+			TH_ASSERT(!Name.empty(), false, "name should not be empty");
 			if (!Enqueue)
 				return false;
 
@@ -6984,6 +7051,7 @@ namespace Tomahawk
 		}
 		bool Schedule::ClearListener(const std::string& Name, EventId ListenerId)
 		{
+			TH_ASSERT(!Name.empty(), false, "name should not be empty");
 			Race.Listeners.lock();
 			auto It = Listeners.find(Name);
 			if (It != Listeners.end())
@@ -7019,34 +7087,26 @@ namespace Tomahawk
 		}
 		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize)
 		{
-			Race.Basement.lock();
-			if (Active)
-			{
-				Race.Basement.unlock();
-				return false;
-			}
-
+			TH_ASSERT(!Active, false, "queue should be stopped");
 			Coroutines = CoroutinesCount;
 			Threads = ThreadsCount;
 			Stack = StackSize;
 
-			if (IsAsync)
+			if (!IsAsync)
 			{
-				Childs.reserve(Threads + 1);
-				Childs.emplace_back(std::thread(&Schedule::Publish, this));
-				for (uint64_t i = 0; i < Threads; i++)
-					Childs.emplace_back(std::thread(&Schedule::Consume, this));
+				Active = true;
+				return true;
 			}
+
+			Childs.reserve(Threads + 1);
+			Childs.emplace_back(std::thread(&Schedule::Publish, this));
+			for (uint64_t i = 0; i < Threads; i++)
+				Childs.emplace_back(std::thread(&Schedule::Consume, this));
 
 			Active = true;
-			Race.Basement.unlock();
 
-			if (IsAsync)
-			{
-				Queue.Publish.notify_one();
-				Queue.Consume.notify_one();
-			}
-
+			Queue.Publish.notify_one();
+			Queue.Consume.notify_one();
 			return true;
 		}
 		bool Schedule::Stop()
@@ -7396,13 +7456,12 @@ namespace Tomahawk
 			{
 				for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); ++It)
 				{
-					if (*It != this)
-						continue;
-
-					Parent->Nodes.erase(It);
-					break;
+					if (*It == this)
+					{
+						Parent->Nodes.erase(It);
+						break;
+					}
 				}
-
 				Parent = nullptr;
 			}
 
@@ -7552,16 +7611,12 @@ namespace Tomahawk
 		}
 		Document* Document::Get(size_t Index) const
 		{
-			if (Index >= Nodes.size())
-				return nullptr;
-
+			TH_ASSERT(Index < Nodes.size(), nullptr, "index outside of range");
 			return Nodes[Index];
 		}
 		Document* Document::Get(const std::string& Name) const
 		{
-			if (Name.empty())
-				return nullptr;
-
+			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 			for (auto Document : Nodes)
 			{
 				if (Document->Key == Name)
@@ -7699,8 +7754,7 @@ namespace Tomahawk
 		}
 		Document* Document::Pop(size_t Index)
 		{
-			if (Index >= Nodes.size())
-				return nullptr;
+			TH_ASSERT(Index < Nodes.size(), nullptr, "index outside of range");
 
 			Document* Base = Nodes[Index];
 			Base->Parent = nullptr;
@@ -7742,8 +7796,7 @@ namespace Tomahawk
 		}
 		bool Document::Rename(const std::string& Name, const std::string& NewName)
 		{
-			if (Name.empty() || NewName.empty())
-				return false;
+			TH_ASSERT(!Name.empty() && !NewName.empty(), false, "name and new name should not be empty");
 
 			Document* Result = Get(Name);
 			if (!Result)
@@ -7789,8 +7842,7 @@ namespace Tomahawk
 		}
 		void Document::Join(Document* Other, bool Copy, bool Fast)
 		{
-			if (!Other || !Value.IsObject())
-				return;
+			TH_ASSERT_V(Other != nullptr && Value.IsObject(), "other should be object and not empty");
 
 			Saved = false;
 			Nodes.reserve(Nodes.size() + Other->Nodes.size());
@@ -7859,9 +7911,7 @@ namespace Tomahawk
 		}
 		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
 		{
-			if (!Value || !Callback)
-				return false;
-
+			TH_ASSERT(Value != nullptr && Callback, false, "value should be set and callback should not be empty");
 			Value->Key = Callback(Value->Key);
 			for (auto* Item : Value->Nodes)
 				Transform(Item, Callback);
@@ -7870,9 +7920,7 @@ namespace Tomahawk
 		}
 		bool Document::WriteXML(Document* Base, const DocWriteCallback& Callback)
 		{
-			if (!Base || !Callback)
-				return false;
-
+			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			std::vector<Document*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.GetSize() || ((int64_t)Base->Nodes.size() - (int64_t)Attributes.size()) > 0);
 			Callback(VarForm::Write_Tab, "", 0);
@@ -7953,9 +8001,7 @@ namespace Tomahawk
 		}
 		bool Document::WriteJSON(Document* Base, const DocWriteCallback& Callback)
 		{
-			if (!Base || !Callback)
-				return false;
-
+			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			if (!Base->Parent && !Base->Value.IsObject())
 			{
 				std::string Value = Base->Value.Serialize();
@@ -8045,9 +8091,7 @@ namespace Tomahawk
 		}
 		bool Document::WriteJSONB(Document* Base, const DocWriteCallback& Callback)
 		{
-			if (!Base || !Callback)
-				return false;
-
+			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			std::unordered_map<std::string, uint64_t> Mapping = Base->GetNames();
 			uint64_t Set = (uint64_t)Mapping.size();
 
@@ -8069,15 +8113,13 @@ namespace Tomahawk
 		}
 		Document* Document::ReadXML(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
-			if (!Callback || !Size)
-				return nullptr;
-
+			TH_ASSERT(Size > 0 && Callback, nullptr, "size should be greater than zero and callback should not be empty");
 			std::string Buffer;
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
 			{
 				if (Assert)
-					TH_ERROR("cannot read xml document");
+					TH_ERR("cannot read xml document");
 
 				return nullptr;
 			}
@@ -8094,7 +8136,7 @@ namespace Tomahawk
 			{
 				TH_DELETE(xml_document, iDocument);
 				if (Assert)
-					TH_ERROR("[xml] %s", e.what());
+					TH_ERR("[xml] %s", e.what());
 
 				return nullptr;
 			}
@@ -8102,7 +8144,7 @@ namespace Tomahawk
 			{
 				TH_DELETE(xml_document, iDocument);
 				if (Assert)
-					TH_ERROR("[xml] %s", e.what());
+					TH_ERR("[xml] %s", e.what());
 
 				return nullptr;
 			}
@@ -8110,7 +8152,7 @@ namespace Tomahawk
 			{
 				TH_DELETE(xml_document, iDocument);
 				if (Assert)
-					TH_ERROR("[xml] %s", e.what());
+					TH_ERR("[xml] %s", e.what());
 
 				return nullptr;
 			}
@@ -8118,7 +8160,7 @@ namespace Tomahawk
 			{
 				TH_DELETE(xml_document, iDocument);
 				if (Assert)
-					TH_ERROR("[xml] parse error");
+					TH_ERR("[xml] parse error");
 
 				return nullptr;
 			}
@@ -8145,15 +8187,13 @@ namespace Tomahawk
 		}
 		Document* Document::ReadJSON(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
-			if (!Callback || !Size)
-				return nullptr;
-
+			TH_ASSERT(Size > 0 && Callback, nullptr, "size should be greater than zero and callback should not be empty");
 			std::string Buffer;
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
 			{
 				if (Assert)
-					TH_ERROR("cannot read json document");
+					TH_ERR("cannot read json document");
 
 				return nullptr;
 			}
@@ -8171,55 +8211,55 @@ namespace Tomahawk
 				switch (Base.GetParseError())
 				{
 					case rapidjson::kParseErrorDocumentEmpty:
-						TH_ERROR("[json:%i] the document is empty", Offset);
+						TH_ERR("[json:%i] the document is empty", Offset);
 						break;
 					case rapidjson::kParseErrorDocumentRootNotSingular:
-						TH_ERROR("[json:%i] the document root must not follow by other values", Offset);
+						TH_ERR("[json:%i] the document root must not follow by other values", Offset);
 						break;
 					case rapidjson::kParseErrorValueInvalid:
-						TH_ERROR("[json:%i] invalid value", Offset);
+						TH_ERR("[json:%i] invalid value", Offset);
 						break;
 					case rapidjson::kParseErrorObjectMissName:
-						TH_ERROR("[json:%i] missing a name for object member", Offset);
+						TH_ERR("[json:%i] missing a name for object member", Offset);
 						break;
 					case rapidjson::kParseErrorObjectMissColon:
-						TH_ERROR("[json:%i] missing a colon after a name of object member", Offset);
+						TH_ERR("[json:%i] missing a colon after a name of object member", Offset);
 						break;
 					case rapidjson::kParseErrorObjectMissCommaOrCurlyBracket:
-						TH_ERROR("[json:%i] missing a comma or '}' after an object member", Offset);
+						TH_ERR("[json:%i] missing a comma or '}' after an object member", Offset);
 						break;
 					case rapidjson::kParseErrorArrayMissCommaOrSquareBracket:
-						TH_ERROR("[json:%i] missing a comma or ']' after an array element", Offset);
+						TH_ERR("[json:%i] missing a comma or ']' after an array element", Offset);
 						break;
 					case rapidjson::kParseErrorStringUnicodeEscapeInvalidHex:
-						TH_ERROR("[json:%i] incorrect hex digit after \\u escape in string", Offset);
+						TH_ERR("[json:%i] incorrect hex digit after \\u escape in string", Offset);
 						break;
 					case rapidjson::kParseErrorStringUnicodeSurrogateInvalid:
-						TH_ERROR("[json:%i] the surrogate pair in string is invalid", Offset);
+						TH_ERR("[json:%i] the surrogate pair in string is invalid", Offset);
 						break;
 					case rapidjson::kParseErrorStringEscapeInvalid:
-						TH_ERROR("[json:%i] invalid escape character in string", Offset);
+						TH_ERR("[json:%i] invalid escape character in string", Offset);
 						break;
 					case rapidjson::kParseErrorStringMissQuotationMark:
-						TH_ERROR("[json:%i] missing a closing quotation mark in string", Offset);
+						TH_ERR("[json:%i] missing a closing quotation mark in string", Offset);
 						break;
 					case rapidjson::kParseErrorStringInvalidEncoding:
-						TH_ERROR("[json:%i] invalid encoding in string", Offset);
+						TH_ERR("[json:%i] invalid encoding in string", Offset);
 						break;
 					case rapidjson::kParseErrorNumberTooBig:
-						TH_ERROR("[json:%i] number too big to be stored in double", Offset);
+						TH_ERR("[json:%i] number too big to be stored in double", Offset);
 						break;
 					case rapidjson::kParseErrorNumberMissFraction:
-						TH_ERROR("[json:%i] miss fraction part in number", Offset);
+						TH_ERR("[json:%i] miss fraction part in number", Offset);
 						break;
 					case rapidjson::kParseErrorNumberMissExponent:
-						TH_ERROR("[json:%i] miss exponent in number", Offset);
+						TH_ERR("[json:%i] miss exponent in number", Offset);
 						break;
 					case rapidjson::kParseErrorTermination:
-						TH_ERROR("[json:%i] parsing was terminated", Offset);
+						TH_ERR("[json:%i] parsing was terminated", Offset);
 						break;
 					case rapidjson::kParseErrorUnspecificSyntaxError:
-						TH_ERROR("[json:%i] unspecific syntax error", Offset);
+						TH_ERR("[json:%i] unspecific syntax error", Offset);
 						break;
 					default:
 						break;
@@ -8268,14 +8308,12 @@ namespace Tomahawk
 		}
 		Document* Document::ReadJSONB(const DocReadCallback& Callback, bool Assert)
 		{
-			if (!Callback)
-				return nullptr;
-
+			TH_ASSERT(Callback, nullptr, "callback should not be empty");
 			char Hello[18];
 			if (!Callback((char*)Hello, sizeof(char) * 16))
 			{
 				if (Assert)
-					TH_ERROR("form cannot be defined");
+					TH_ERR("form cannot be defined");
 
 				return nullptr;
 			}
@@ -8283,7 +8321,7 @@ namespace Tomahawk
 			if (memcmp((void*)Hello, (void*)"\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16) != 0)
 			{
 				if (Assert)
-					TH_ERROR("version is undefined");
+					TH_ERR("version is undefined");
 
 				return nullptr;
 			}
@@ -8292,7 +8330,7 @@ namespace Tomahawk
 			if (!Callback((char*)&Set, sizeof(uint64_t)))
 			{
 				if (Assert)
-					TH_ERROR("name map is undefined");
+					TH_ERR("name map is undefined");
 
 				return nullptr;
 			}
@@ -8304,7 +8342,7 @@ namespace Tomahawk
 				if (!Callback((char*)&Index, sizeof(uint64_t)))
 				{
 					if (Assert)
-						TH_ERROR("name index is undefined");
+						TH_ERR("name index is undefined");
 
 					return nullptr;
 				}
@@ -8313,7 +8351,7 @@ namespace Tomahawk
 				if (!Callback((char*)&Size, sizeof(uint64_t)))
 				{
 					if (Assert)
-						TH_ERROR("name size is undefined");
+						TH_ERR("name size is undefined");
 
 					return nullptr;
 				}
@@ -8326,7 +8364,7 @@ namespace Tomahawk
 				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
 				{
 					if (Assert)
-						TH_ERROR("name data is undefined");
+						TH_ERR("name data is undefined");
 
 					return nullptr;
 				}
@@ -8345,10 +8383,9 @@ namespace Tomahawk
 		}
 		bool Document::ProcessXMLRead(void* Base, Document* Current)
 		{
-			auto Ref = (rapidxml::xml_node<>*)Base;
-			if (!Ref || !Current)
-				return false;
+			TH_ASSERT(Base != nullptr && Current != nullptr, false, "base and current should be set");
 
+			auto Ref = (rapidxml::xml_node<>*)Base;
 			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
 			{
 				if (It->name()[0] != '\0')
@@ -8371,11 +8408,11 @@ namespace Tomahawk
 		}
 		bool Document::ProcessJSONRead(void* Base, Document* Current)
 		{
-			auto Ref = (rapidjson::Value*)Base;
-			if (!Ref || !Current)
-				return false;
+			TH_ASSERT(Base != nullptr && Current != nullptr, false, "base and current should be set");
 
+			auto Ref = (rapidjson::Value*)Base;
 			std::string Value;
+
 			if (!Ref->IsArray())
 			{
 				VarType Type = Current->Value.Type;
@@ -8523,7 +8560,7 @@ namespace Tomahawk
 			uint64_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint64_t)))
 			{
-				TH_ERROR("key name index is undefined");
+				TH_ERR("key name index is undefined");
 				return false;
 			}
 
@@ -8533,7 +8570,7 @@ namespace Tomahawk
 
 			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
 			{
-				TH_ERROR("key type is undefined");
+				TH_ERR("key type is undefined");
 				return false;
 			}
 
@@ -8545,7 +8582,7 @@ namespace Tomahawk
 					uint64_t Count = 0;
 					if (!Callback((char*)&Count, sizeof(uint64_t)))
 					{
-						TH_ERROR("key value size is undefined");
+						TH_ERR("key value size is undefined");
 						return false;
 					}
 
@@ -8568,7 +8605,7 @@ namespace Tomahawk
 					uint64_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint64_t)))
 					{
-						TH_ERROR("key value size is undefined");
+						TH_ERR("key value size is undefined");
 						return false;
 					}
 
@@ -8577,7 +8614,7 @@ namespace Tomahawk
 
 					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
 					{
-						TH_ERROR("key value data is undefined");
+						TH_ERR("key value data is undefined");
 						return false;
 					}
 
@@ -8589,7 +8626,7 @@ namespace Tomahawk
 					uint64_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint64_t)))
 					{
-						TH_ERROR("key value size is undefined");
+						TH_ERR("key value size is undefined");
 						return false;
 					}
 
@@ -8598,7 +8635,7 @@ namespace Tomahawk
 
 					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
 					{
-						TH_ERROR("key value data is undefined");
+						TH_ERR("key value data is undefined");
 						return false;
 					}
 
@@ -8610,7 +8647,7 @@ namespace Tomahawk
 					int64_t Integer = 0;
 					if (!Callback((char*)&Integer, sizeof(int64_t)))
 					{
-						TH_ERROR("key value is undefined");
+						TH_ERR("key value is undefined");
 						return false;
 					}
 
@@ -8622,7 +8659,7 @@ namespace Tomahawk
 					double Number = 0.0;
 					if (!Callback((char*)&Number, sizeof(double)))
 					{
-						TH_ERROR("key value is undefined");
+						TH_ERR("key value is undefined");
 						return false;
 					}
 
@@ -8634,7 +8671,7 @@ namespace Tomahawk
 					uint64_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint64_t)))
 					{
-						TH_ERROR("key value size is undefined");
+						TH_ERR("key value size is undefined");
 						return false;
 					}
 
@@ -8643,7 +8680,7 @@ namespace Tomahawk
 
 					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
 					{
-						TH_ERROR("key value data is undefined");
+						TH_ERR("key value data is undefined");
 						return false;
 					}
 
@@ -8655,7 +8692,7 @@ namespace Tomahawk
 					bool Boolean = false;
 					if (!Callback((char*)&Boolean, sizeof(bool)))
 					{
-						TH_ERROR("key value is undefined");
+						TH_ERR("key value is undefined");
 						return false;
 					}
 

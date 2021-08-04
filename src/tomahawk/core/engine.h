@@ -1296,9 +1296,7 @@ namespace Tomahawk
 				static_assert(std::is_base_of<Application, T>::value,
 					"method is not from Application class");
 
-				if (!Event)
-					return nullptr;
-
+				TH_ASSERT(Event != nullptr, nullptr, "function ptr should be set");
 				Reactor* Result = TH_NEW(Reactor, this, UpdateLimit, [](Reactor* Job, Application* App)
 				{
 					(((T*)App)->*Event)(Job->Time);

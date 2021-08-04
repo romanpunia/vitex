@@ -103,36 +103,48 @@ typedef socklen_t socket_size_t;
 #ifndef _DEBUG
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 2
 #define TH_INFO(Format, ...)
 #ifndef _DEBUG
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 1
 #define TH_INFO(Format, ...)
 #define TH_WARN(Format, ...)
 #ifndef _DEBUG
-#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_ERROR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #else
 #define TH_INFO(...)
 #define TH_WARN(...)
-#define TH_ERROR(...)
+#define TH_ERR(...)
+#endif
+#ifdef _DEBUG
+#if TH_DLEVEL >= 1
+#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::Debug::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return Returnable; }
+#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::Debug::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return; }
+#else
+#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return Returnable; }
+#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return; }
+#endif
+#else
+#define TH_ASSERT(Condition, Returnable, Format, ...)
+#define TH_ASSERT_V(Condition, Format, ...)
 #endif
 #define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_STACKSIZE (64 * 1024)
+#define TH_STACKSIZE (512 * 1024)
 #define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
 #define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(__VA_ARGS__)
@@ -540,9 +552,9 @@ namespace Tomahawk
 		public:
 			struct Settle
 			{
-				uint64_t Start;
-				uint64_t End;
-				bool Found;
+				uint64_t Start = 0;
+				uint64_t End = 0;
+				bool Found = false;
 			};
 
 		private:
@@ -658,7 +670,7 @@ namespace Tomahawk
 			char* Value() const;
 			const char* Get() const;
 			std::string& R();
-			std::basic_string<wchar_t> ToUnicode() const;
+			std::wstring ToWide() const;
 			std::vector<std::string> Split(const std::string& With, uint64_t Start = 0U) const;
 			std::vector<std::string> Split(char With, uint64_t Start = 0U) const;
 			std::vector<std::string> SplitMax(char With, uint64_t MaxCount, uint64_t Start = 0U) const;
@@ -828,7 +840,7 @@ namespace Tomahawk
 			{
 			public:
 				static void Interrupt();
-				static void Execute(const char* Format, ...);
+				static int Execute(const char* Format, ...);
 				static bool Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Result);
 				static bool Await(ChildProcess* Process, int* ExitCode);
 				static bool Free(ChildProcess* Process);
@@ -869,6 +881,7 @@ namespace Tomahawk
 
 		public:
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
+			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void AttachCallback(const std::function<void(const char*, int)>& Callback);
 			static void AttachStream();
 			static void DetachCallback();
@@ -899,8 +912,7 @@ namespace Tomahawk
 			template <typename T, typename... Args>
 			static T* Create(uint64_t Id, Args... Data)
 			{
-				if (!Factory)
-					return nullptr;
+				TH_ASSERT(Factory != nullptr, nullptr, "composer should be initialized");
 
 				auto It = Factory->find(Id);
 				if (It == Factory->end() || !It->second)
@@ -920,9 +932,7 @@ namespace Tomahawk
 				if (!Factory)
 					Factory = new std::unordered_map<uint64_t, void*>();
 
-				if (Factory->find(T::GetTypeId()) != Factory->end())
-					return TH_ERROR("type \"%s\" already exists in composer's table", T::GetTypeName());
-
+				TH_ASSERT_V(Factory->find(T::GetTypeId()) == Factory->end(), "type \"%s\" already exists in composer's table", T::GetTypeName());
 				auto Callable = &Composer::Callee<T, Args...>;
 				void* Result = reinterpret_cast<void*&>(Callable);
 				(*Factory)[T::GetTypeId()] = Result;
@@ -959,6 +969,7 @@ namespace Tomahawk
 			template <typename T>
 			T* As() noexcept
 			{
+				static_assert(std::is_base_of<Object, T>::value, "type T should be derived from base class");
 				return (T*)this;
 			}
 		};
@@ -1206,6 +1217,9 @@ namespace Tomahawk
 
 		public:
 			static Costate* Get();
+			static Coroutine* GetCoroutine();
+			static Coroutine* GetCoroutine(Costate** State);
+			static bool IsCoroutine();
 
 		private:
 			static void TH_COCALL Execute(TH_CODATA);
@@ -1483,9 +1497,7 @@ namespace Tomahawk
 			}
 			Iterator Add(const T& Ref)
 			{
-				if (Count >= Volume)
-					return End();
-
+				TH_ASSERT(Count >= Volume, End(), "pool capacity overflow");
 				Data[Count++] = Ref;
 				return End() - 1;
 			}
@@ -1499,6 +1511,9 @@ namespace Tomahawk
 			}
 			Iterator RemoveAt(Iterator It)
 			{
+				TH_ASSERT(Count > 0, End(), "pool is empty");
+				TH_ASSERT(It - Data >= 0 && It - Data < Count, End(), "iterator ranges out of pool");
+
 				Count--;
 				Data[It - Data] = Data[Count];
 				Dispose(It);
@@ -1514,9 +1529,7 @@ namespace Tomahawk
 			}
 			Iterator At(uint64_t Index) const
 			{
-				if (Index >= Count)
-					return End();
-
+				TH_ASSERT(Index < Count, End(), "index ranges out of pool");
 				return Data + Index;
 			}
 			Iterator Find(const T& Ref)
@@ -1746,25 +1759,23 @@ namespace Tomahawk
 			}
 			Async& Sync(bool Blocking = true)
 			{
-				if (Next != nullptr)
-					Next->Deferred = !Blocking;
-
+				TH_ASSERT(Next != nullptr, *this, "async should be pending");
+				Next->Deferred = !Blocking;
 				return *this;
 			}
 			void Set(const T& Value)
 			{
-				if (Next != nullptr && Next->Set == -1)
-					Next->React(Value);
+				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
+				Next->React(Value);
 			}
 			void Set(T&& Value)
 			{
-				if (Next != nullptr && Next->Set == -1)
-					Next->React(std::move(Value));
+				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
+				Next->React(std::move(Value));
 			}
 			void Set(Async&& Other)
 			{
-				if (!Next || Next->Set != -1)
-					return;
+				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
 
 				Base* Subresult = Next->Copy();
 				Subresult->RW.lock();
@@ -1787,8 +1798,7 @@ namespace Tomahawk
 			}
 			void Await(std::function<void(T&&)>&& Callback) const
 			{
-				if (!Callback || !Next)
-					return;
+				TH_ASSERT_V(Next != nullptr && Callback, "async should be pending");
 
 				Base* Subresult = Next->Copy();
 				Next->Put([Subresult, Callback = std::move(Callback)]()
@@ -1842,8 +1852,7 @@ namespace Tomahawk
 			template <typename R>
 			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback) const
 			{
-				if (!Callback || !Next)
-					return Async<R>(nullptr);
+				TH_ASSERT(Next != nullptr && Callback, Async<R>(nullptr), "async should be pending");
 
 				Async<R> Result; Base* Subresult = Next->Copy();
 				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
@@ -1870,8 +1879,7 @@ namespace Tomahawk
 			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const
 			{
 				using F = typename Future<R>::type;
-				if (!Callback || !Next)
-					return Async<F>(nullptr);
+				TH_ASSERT(Next != nullptr && Callback, Async<F>(nullptr), "async should be pending");
 
 				Async<F> Result; Base* Subresult = Next->Copy();
 				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
@@ -1971,9 +1979,7 @@ namespace Tomahawk
 			template <typename T>
 			static bool ForEach(const std::vector<Async<T>>& Array, std::function<void(T&&)>&& Callback)
 			{
-				if (!Callback || Array.empty())
-					return false;
-
+				TH_ASSERT(Callback && !Array.empty(), false, "array and callback should not be empty");
 				for (auto& Item : Array)
 				{
 					std::function<void(T&&)> Actor = Callback;
@@ -2009,11 +2015,11 @@ namespace Tomahawk
 		template <typename T>
 		inline T& Coawait(Async<T>&& Future)
 		{
-			Costate* State = Costate::Get();
-            if (!State || !Future.IsPending())
+			Costate* State;
+			Coroutine* Base = Costate::GetCoroutine(&State);
+            if (!Base || !Future.IsPending())
                 return Future.Wait();
             
-            Coroutine* Base = State->GetCurrent();
 			Future.Await([State, Base](T&&)
             {
                 State->Activate(Base);
@@ -2028,8 +2034,7 @@ namespace Tomahawk
 		template <typename T>
 		inline Async<T> Coasync(const std::function<T()>& Callback)
 		{
-			if (!Callback)
-				return Async<T>::Empty();
+			TH_ASSERT(Callback, Async<T>::Empty(), "callback should not be empty");
 
 			Async<T> Result;
 			Schedule::Get()->SetAsync([Result, Callback]() mutable
@@ -2042,8 +2047,7 @@ namespace Tomahawk
 		template <typename T>
 		inline Async<T> Coasync(std::function<T()>&& Callback)
 		{
-			if (!Callback)
-				return Async<T>::Empty();
+			TH_ASSERT(Callback, Async<T>::Empty(), "callback should not be empty");
 
 			Async<T> Result;
 			Schedule::Get()->SetAsync([Result, Callback = std::move(Callback)]() mutable
@@ -2064,8 +2068,7 @@ namespace Tomahawk
         inline bool Cosuspend()
         {
             Costate* State = Costate::Get();
-            if (!State)
-                return false;
+			TH_ASSERT(State != nullptr, false, "cannot call suspend outside coroutine");
             
             return State->Suspend();
         }
@@ -2081,8 +2084,7 @@ namespace Tomahawk
 		}
 		inline Parser Form(const char* Format, ...)
 		{
-			if (!Format)
-				return Parser();
+			TH_ASSERT(Format != nullptr, Parser(), "format should be set");
 
 			va_list Args;
 			va_start(Args, Format);

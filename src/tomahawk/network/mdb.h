@@ -94,11 +94,15 @@ namespace Tomahawk
 				bool IsValid;
 
 				Property();
+				Property(const Property& Other);
+				Property(Property&& Other);
 				~Property();
 				void Release();
 				std::string& ToString();
                 TDocument* GetOwnership();
 				Document Get() const;
+				Property& operator= (const Property& Other);
+				Property& operator= (Property&& Other);
 				Property operator [](const char* Name);
 				Property operator [](const char* Name) const;
 			};
@@ -124,6 +128,7 @@ namespace Tomahawk
 				Document();
 				Document(TDocument* NewBase);
 				void Release() const;
+				void Release();
 				void Join(const Document& Value);
 				void Loop(const std::function<bool(Property*)>& Callback) const;
 				bool SetDocument(const char* Key, const Document& Value, uint64_t ArrayId = 0);
@@ -142,7 +147,6 @@ namespace Tomahawk
 				bool SetProperty(const char* Key, Property* Value, uint64_t ArrayId = 0);
 				bool HasProperty(const char* Key) const;
 				bool GetProperty(const char* Key, Property* Output) const;
-				bool FindProperty(const char* Key, Property* Output) const;
 				uint64_t Count() const;
 				std::string ToRelaxedJSON() const;
 				std::string ToExtendedJSON() const;
@@ -159,13 +163,13 @@ namespace Tomahawk
 				Property operator [](const char* Name)
 				{
 					Property Result;
-					FindProperty(Name, &Result);
+					GetProperty(Name, &Result);
 					return Result;
 				}
 				Property operator [](const char* Name) const
 				{
 					Property Result;
-					FindProperty(Name, &Result);
+					GetProperty(Name, &Result);
 					return Result;
 				}
 
@@ -479,8 +483,8 @@ namespace Tomahawk
 				struct Pose
 				{
 					std::string Key;
-					size_t Offset;
-					bool Escape;
+					size_t Offset = 0;
+					bool Escape = false;
 				};
 
 				struct Sequence

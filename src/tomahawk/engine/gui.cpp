@@ -70,8 +70,9 @@ namespace Tomahawk
 				}
 				virtual void RenderGeometry(Rml::Vertex* Vertices, int VerticesSize, int* Indices, int IndicesSize, Rml::TextureHandle Texture, const Rml::Vector2f& Translation) override
 				{
-					if (!Device)
-						return;
+					TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+					TH_ASSERT_V(Vertices != nullptr, "vertices should be set");
+					TH_ASSERT_V(Indices != nullptr, "indices should be set");
 
 					Device->Begin();
 					Device->Topology(Graphics::PrimitiveTopology::Triangle_List);
@@ -80,7 +81,7 @@ namespace Tomahawk
 						Device->Transform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho);
 					else
 						Device->Transform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho);
-					
+
 					for (int i = IndicesSize; i-- > 0;)
 					{
 						Rml::Vertex& V = Vertices[Indices[i]];
@@ -94,9 +95,7 @@ namespace Tomahawk
 				}
 				virtual Rml::CompiledGeometryHandle CompileGeometry(Rml::Vertex* Vertices, int VerticesCount, int* Indices, int IndicesCount, Rml::TextureHandle Handle) override
 				{
-					if (!Device)
-						return (Rml::CompiledGeometryHandle)nullptr;
-
+					TH_ASSERT(Device != nullptr, (Rml::CompiledGeometryHandle)nullptr, "graphics device should be set");
 					GeometryBuffer* Result = TH_NEW(GeometryBuffer);
 					Result->Texture = (Graphics::Texture2D*)Handle;
 
@@ -123,15 +122,15 @@ namespace Tomahawk
 				virtual void RenderCompiledGeometry(Rml::CompiledGeometryHandle Handle, const Rml::Vector2f& Translation) override
 				{
 					GeometryBuffer* Buffer = (GeometryBuffer*)Handle;
-					if (!Device || !Buffer)
-						return;
+					TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+					TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 					Device->Render.Diffuse = (Buffer->Texture != nullptr ? 1.0f : 0.0f);
 					if (HasTransform)
 						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
 					else
 						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
-					
+
 					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
 					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(Buffer->VertexBuffer, 0);
@@ -146,9 +145,7 @@ namespace Tomahawk
 				}
 				virtual void EnableScissorRegion(bool Enable) override
 				{
-					if (!Device)
-						return;
-
+					TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 					const Rml::Matrix4f Projection = Rml::Matrix4f::ProjectOrtho(0.0f,
 						(float)Device->GetRenderTarget()->GetWidth(),
 						(float)Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
@@ -178,9 +175,7 @@ namespace Tomahawk
 				}
 				virtual void SetScissorRegion(int X, int Y, int Width, int Height) override
 				{
-					if (!Device)
-						return;
-
+					TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 					if (!HasTransform)
 					{
 						float WY = Device->GetRenderTarget()->GetHeight();
@@ -228,9 +223,7 @@ namespace Tomahawk
 				}
 				virtual bool LoadTexture(Rml::TextureHandle& Handle, Rml::Vector2i& TextureDimensions, const Rml::String& Source) override
 				{
-					if (!Content)
-						return false;
-
+					TH_ASSERT(Content != nullptr, false, "content manager should be set");
 					Graphics::Texture2D* Result = Content->Load<Graphics::Texture2D>(Source);
 					if (!Result)
 						return false;
@@ -243,8 +236,8 @@ namespace Tomahawk
 				}
 				virtual bool GenerateTexture(Rml::TextureHandle& Handle, const Rml::byte* Source, const Rml::Vector2i& SourceDimensions) override
 				{
-					if (!Device)
-						return false;
+					TH_ASSERT(Device != nullptr, false, "graphics device should be set");
+					TH_ASSERT(Source != nullptr, false, "source should be set");
 
 					Graphics::Texture2D::Desc F = Graphics::Texture2D::Desc();
 					F.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
@@ -277,48 +270,36 @@ namespace Tomahawk
 				}
 				void Attach(ContentManager* NewContent)
 				{
+					TH_ASSERT_V(NewContent != nullptr, "content manager should be set");
+					TH_ASSERT_V(NewContent->GetDevice() != nullptr, "graphics device should be set");
+
 					TH_CLEAR(VertexBuffer);
 					TH_CLEAR(Shader);
 
 					Content = NewContent;
-					if (Content != nullptr)
-					{
-						Device = Content->GetDevice();
-						if (Device != nullptr)
-						{
-							Graphics::Shader::Desc I = Graphics::Shader::Desc();
-							if (Device->GetSection("interface/geometry", &I))
-								Shader = Device->CreateShader(I);
+					Device = Content->GetDevice();
 
-							Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
-							F.AccessFlags = Graphics::CPUAccess::Write;
-							F.Usage = Graphics::ResourceUsage::Dynamic;
-							F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
-							F.ElementCount = (unsigned int)6;
-							F.Elements = (void*)nullptr;
-							F.ElementWidth = sizeof(Rml::Vertex);
+					Graphics::Shader::Desc I = Graphics::Shader::Desc();
+					if (Device->GetSection("interface/geometry", &I))
+						Shader = Device->CreateShader(I);
 
-							VertexBuffer = Device->CreateElementBuffer(F);
-							Layout = Device->GetInputLayout("gui-vertex");
-							ScissorNoneRasterizer = Device->GetRasterizerState("cull-none-scissor");
-							NoneRasterizer = Device->GetRasterizerState("cull-none");
-							NoneDepthStencil = Device->GetDepthStencilState("none");
-							LessDepthStencil = Device->GetDepthStencilState("less");
-							ScissorDepthStencil = Device->GetDepthStencilState("greater-equal");
-							AlphaBlend = Device->GetBlendState("additive-source");
-							ColorlessBlend = Device->GetBlendState("overwrite-colorless");
-							return;
-						}
-					}
+					Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
+					F.AccessFlags = Graphics::CPUAccess::Write;
+					F.Usage = Graphics::ResourceUsage::Dynamic;
+					F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
+					F.ElementCount = (unsigned int)6;
+					F.Elements = (void*)nullptr;
+					F.ElementWidth = sizeof(Rml::Vertex);
 
-					Layout = nullptr;
-					ScissorNoneRasterizer = nullptr;
-					NoneRasterizer = nullptr;
-					LessDepthStencil = nullptr;
-					NoneDepthStencil = nullptr;
-					ScissorDepthStencil = nullptr;
-					AlphaBlend = nullptr;
-					ColorlessBlend = nullptr;
+					VertexBuffer = Device->CreateElementBuffer(F);
+					Layout = Device->GetInputLayout("gui-vertex");
+					ScissorNoneRasterizer = Device->GetRasterizerState("cull-none-scissor");
+					NoneRasterizer = Device->GetRasterizerState("cull-none");
+					NoneDepthStencil = Device->GetDepthStencilState("none");
+					LessDepthStencil = Device->GetDepthStencilState("less");
+					ScissorDepthStencil = Device->GetDepthStencilState("greater-equal");
+					AlphaBlend = Device->GetBlendState("additive-source");
+					ColorlessBlend = Device->GetBlendState("overwrite-colorless");
 				}
 				ContentManager* GetContent()
 				{
@@ -364,25 +345,19 @@ namespace Tomahawk
 				virtual size_t Read(void* Buffer, size_t Size, Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
-					if (!Stream)
-						return 0;
-
+					TH_ASSERT(Stream != nullptr, 0, "stream should be set");
 					return Stream->Read((char*)Buffer, Size);
 				}
 				virtual bool Seek(Rml::FileHandle File, long Offset, int Origin) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
-					if (!Stream)
-						return false;
-
+					TH_ASSERT(Stream != nullptr, false, "stream should be set");
 					return Stream->Seek((Core::FileSeek)Origin, Offset) == 0;
 				}
 				virtual size_t Tell(Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
-					if (!Stream)
-						return 0;
-
+					TH_ASSERT(Stream != nullptr, 0, "stream should be set");
 					return Stream->Tell();
 				}
 			};
@@ -401,9 +376,7 @@ namespace Tomahawk
 				}
 				virtual void SetMouseCursor(const Rml::String& CursorName) override
 				{
-					if (!Activity)
-						return;
-					
+					TH_ASSERT_V(Activity != nullptr, "activity should be set");
 					if (CursorName == "none")
 						Activity->SetCursor(Graphics::DisplayCursor::None);
 					else if (CursorName == "default")
@@ -433,35 +406,29 @@ namespace Tomahawk
 				}
 				virtual void SetClipboardText(const Rml::String& Text) override
 				{
-					if (!Activity)
-						return;
-
+					TH_ASSERT_V(Activity != nullptr, "activity should be set");
 					Activity->SetClipboardText(Text);
 				}
 				virtual void GetClipboardText(Rml::String& Text) override
 				{
-					if (!Activity)
-						return;
-
+					TH_ASSERT_V(Activity != nullptr, "activity should be set");
 					Text = Activity->GetClipboardText();
 				}
 				virtual void ActivateKeyboard() override
 				{
-					if (!Activity)
-						return;
-
+					TH_ASSERT_V(Activity != nullptr, "activity should be set");
 					Activity->SetScreenKeyboard(true);
 				}
 				virtual void DeactivateKeyboard() override
 				{
-					if (!Activity)
-						return;
-
+					TH_ASSERT_V(Activity != nullptr, "activity should be set");
 					Activity->SetScreenKeyboard(false);
 				}
 				virtual void JoinPath(Rml::String& Result, const Rml::String& Path1, const Rml::String& Path2) override
 				{
 					ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
+					TH_ASSERT_V(Content != nullptr, "activity should be set");
+
 					std::string Proto1, Proto2;
 					std::string Fixed1 = GetFixedURL(Path1, Proto1);
 					std::string Fixed2 = GetFixedURL(Path2, Proto2);
@@ -480,7 +447,7 @@ namespace Tomahawk
 					{
 						Result = Core::OS::Path::Resolve(Fixed2, Core::OS::Path::GetDirectory(Fixed1.c_str()));
 						if (Result.empty())
-							Result = (Content ? Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment()) : Core::OS::Path::Resolve(Fixed2.c_str()));
+							Result = Core::OS::Path::Resolve(Fixed2, Content->GetEnvironment());
 					}
 					else if (Proto1 == "file" && Proto2 != "file")
 						Result = Core::Parser(Path2).Replace("/////", "//").R();
@@ -490,7 +457,7 @@ namespace Tomahawk
 					switch (Type)
 					{
 						case Rml::Log::LT_ERROR:
-							TH_ERROR("[gui] %.*s", Message.size(), Message.c_str());
+							TH_ERR("[gui] %.*s", Message.size(), Message.c_str());
 							break;
 						default:
 							break;
@@ -522,6 +489,9 @@ namespace Tomahawk
 				}
 				void Attach(Graphics::Activity* NewActivity, Core::Timer* NewTime)
 				{
+					TH_ASSERT_V(NewActivity != nullptr, "activity should be set");
+					TH_ASSERT_V(NewTime != nullptr, "time should be set");
+
 					Activity = NewActivity;
 					Time = NewTime;
 				}
@@ -599,38 +569,36 @@ namespace Tomahawk
 				{
 				}
 				virtual ~DocumentSubsystem() = default;
-                void LoadInlineScript(const Rml::String& Content, const Rml::String& Path, int Line) override
-                {
-                    ScopedContext* Scope = (ScopedContext*)GetContext();
-                    if (!Scope || !Scope->Basis || !Scope->Basis->Compiler)
-                        return;
+				void LoadInlineScript(const Rml::String& Content, const Rml::String& Path, int Line) override
+				{
+					ScopedContext* Scope = (ScopedContext*)GetContext();
+					TH_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
-                    Script::VMCompiler* Compiler = Scope->Basis->Compiler;
-                    Compiler->ExecuteScoped(Content.c_str(), Content.size());
-                }
-                void LoadExternalScript(const Rml::String& Path) override
-                {
-                    ScopedContext* Scope = (ScopedContext*)GetContext();
-                    if (!Scope || !Scope->Basis || !Scope->Basis->Compiler)
-                        return;
+					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
+					Compiler->ExecuteScoped(Content.c_str(), Content.size());
+				}
+				void LoadExternalScript(const Rml::String& Path) override
+				{
+					ScopedContext* Scope = (ScopedContext*)GetContext();
+					TH_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
-                    Script::VMCompiler* Compiler = Scope->Basis->Compiler;
-                    if (Compiler->LoadFile(Core::Parser(Path).Replace('|', ':').R()) < 0)
-                        return;
+					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
+					if (Compiler->LoadFile(Core::Parser(Path).Replace('|', ':').R()) < 0)
+						return;
 
-                    if (Compiler->Compile(true) < 0)
-                        return;
+					if (Compiler->Compile(true) < 0)
+						return;
 
-                    Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
-                    if (!Main.IsValid())
-                        return;
+					Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
+					if (!Main.IsValid())
+						return;
 
-                    Script::VMContext* Context = Compiler->GetContext();
-                    Context->Execute(Main, [Scope](Script::VMContext* Context)
-                    {
-                        Context->SetArgObject(0, Scope->Basis);
-                    });
-                }
+					Script::VMContext* Context = Compiler->GetContext();
+					Context->Execute(Main, [Scope](Script::VMContext* Context)
+					{
+						Context->SetArgObject(0, Scope->Basis);
+					});
+				}
 			};
 
 			class DocumentInstancer : public Rml::ElementInstancer
@@ -663,8 +631,7 @@ namespace Tomahawk
 				void ProcessEvent(Rml::Event& Event) override
 				{
 					ScopedContext* Scope = (ScopedContext*)Event.GetCurrentElement()->GetContext();
-					if (!Scope || !Scope->Basis || !Scope->Basis->Compiler)
-						return;
+					TH_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
 					if (!IsFunction)
@@ -735,25 +702,21 @@ namespace Tomahawk
 				}
 				virtual void GetRow(Rml::StringList& Row, const Rml::String& Table, int RowIndex, const Rml::StringList& Columns) override
 				{
-					if (!Source)
-						return;
-
+					TH_ASSERT_V(Source != nullptr, "data source should be set");
 					auto It = Source->Nodes.find(Table);
 					if (It == Source->Nodes.end())
 						return;
 
-					if (RowIndex < 0 || RowIndex >= It->second->Childs.size())
-						return;
-					
+					TH_ASSERT_V(RowIndex >= 0 && RowIndex < It->second->Childs.size(), "index outside of range");
 					DataRow* Target = It->second->Childs[RowIndex];
 					std::string Result;
 
 					for (auto& Column : Columns)
 					{
 						if (Column == Rml::DataSource::DEPTH || Column == "depth")
-                            Row.emplace_back(std::to_string(Target->Depth));
+							Row.emplace_back(std::to_string(Target->Depth));
 						else if (Column == Rml::DataSource::NUM_CHILDREN)
-                            Row.emplace_back(std::to_string(Target->Childs.size()));
+							Row.emplace_back(std::to_string(Target->Childs.size()));
 						else if (Column == Rml::DataSource::CHILD_SOURCE)
 							Row.push_back(Source->Name + "." + Target->Name);
 						else if (Source->OnColumn)
@@ -769,8 +732,7 @@ namespace Tomahawk
 				}
 				virtual int GetNumRows(const Rml::String& Table) override
 				{
-					if (!Source)
-						return 0;
+					TH_ASSERT(Source != nullptr, 0, "data source should be set");
 
 					auto It = Source->Nodes.find(Table);
 					if (It == Source->Nodes.end())
@@ -794,67 +756,64 @@ namespace Tomahawk
 				}
 				virtual void FormatData(Rml::String& FormattedData, const Rml::StringList& RawData) override
 				{
-					if (Source != nullptr && Source->OnFormat)
+					TH_ASSERT_V(Source != nullptr, "data source should be set");
+					if (Source->OnFormat)
 						Source->OnFormat(RawData, FormattedData);
 				}
 			};
 
 			void IVariant::Convert(Rml::Variant* From, Core::Variant* To)
 			{
-				if (!From || !To)
-					return;
-
+				TH_ASSERT_V(From && To, "from and to should be set");
 				switch (From->GetType())
 				{
 					case Rml::Variant::BOOL:
-                        *To = Core::Var::Boolean(From->Get<bool>());
+						*To = Core::Var::Boolean(From->Get<bool>());
 						break;
 					case Rml::Variant::FLOAT:
 					case Rml::Variant::DOUBLE:
-                        *To = Core::Var::Number(From->Get<double>());
+						*To = Core::Var::Number(From->Get<double>());
 						break;
 					case Rml::Variant::BYTE:
 					case Rml::Variant::CHAR:
 					case Rml::Variant::INT:
 					case Rml::Variant::INT64:
-                        *To = Core::Var::Integer(From->Get<int64_t>());
+						*To = Core::Var::Integer(From->Get<int64_t>());
 						break;
 					case Rml::Variant::VECTOR2:
 					{
 						Rml::Vector2f T = From->Get<Rml::Vector2f>();
-                        *To = Core::Var::String(FromVector2(Compute::Vector2(T.x, T.y)));
+						*To = Core::Var::String(FromVector2(Compute::Vector2(T.x, T.y)));
 						break;
 					}
 					case Rml::Variant::VECTOR3:
 					{
 						Rml::Vector3f T = From->Get<Rml::Vector3f>();
-                        *To = Core::Var::String(FromVector3(Compute::Vector3(T.x, T.y, T.z)));
+						*To = Core::Var::String(FromVector3(Compute::Vector3(T.x, T.y, T.z)));
 						break;
 					}
 					case Rml::Variant::VECTOR4:
 					{
 						Rml::Vector4f T = From->Get<Rml::Vector4f>();
-                        *To = Core::Var::String(FromVector4(Compute::Vector4(T.x, T.y, T.z, T.w)));
+						*To = Core::Var::String(FromVector4(Compute::Vector4(T.x, T.y, T.z, T.w)));
 						break;
 					}
 					case Rml::Variant::STRING:
 					case Rml::Variant::COLOURF:
 					case Rml::Variant::COLOURB:
-                        *To = Core::Var::String(From->Get<std::string>());
+						*To = Core::Var::String(From->Get<std::string>());
 						break;
 					case Rml::Variant::VOIDPTR:
-                        *To = Core::Var::Pointer(From->Get<void*>());
+						*To = Core::Var::Pointer(From->Get<void*>());
 						break;
 					default:
-                        *To = Core::Var::Undefined();
+						*To = Core::Var::Undefined();
 						break;
 				}
 			}
 			void IVariant::Revert(Core::Variant* From, Rml::Variant* To)
 			{
-				if (!From || !To)
-					return;
-
+				TH_ASSERT_V(From && To, "from and to should be set");
 				switch (From->GetType())
 				{
 					case Core::VarType::Null:
@@ -952,7 +911,7 @@ namespace Tomahawk
 			{
 				if (!HEX)
 					return Core::Form("%d %d %d %d", (unsigned int)(Base.X * 255.0f), (unsigned int)(Base.Y * 255.0f), (unsigned int)(Base.Z * 255.0f), (unsigned int)(Base.W * 255.0f)).R();
-				
+
 				return Core::Form("#%02x%02x%02x%02x",
 					(unsigned int)(Base.X * 255.0f),
 					(unsigned int)(Base.Y * 255.0f),
@@ -1063,130 +1022,100 @@ namespace Tomahawk
 			}
 			EventPhase IEvent::GetPhase() const
 			{
-				if (!IsValid())
-					return EventPhase::None;
-
+				TH_ASSERT(IsValid(), EventPhase::None, "event should be valid");
 				return (EventPhase)Base->GetPhase();
 			}
 			void IEvent::SetPhase(EventPhase Phase)
 			{
-				if (IsValid())
-					Base->SetPhase((Rml::EventPhase)Phase);
+				TH_ASSERT_V(IsValid(), "event should be valid");
+				Base->SetPhase((Rml::EventPhase)Phase);
 			}
 			void IEvent::SetCurrentElement(const IElement& Element)
 			{
-				if (IsValid())
-					Base->SetCurrentElement(Element.GetElement());
+				TH_ASSERT_V(IsValid(), "event should be valid");
+				Base->SetCurrentElement(Element.GetElement());
 			}
 			IElement IEvent::GetCurrentElement() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "event should be valid");
 				return Base->GetCurrentElement();
 			}
 			IElement IEvent::GetTargetElement() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "event should be valid");
 				return Base->GetTargetElement();
 			}
 			std::string IEvent::GetType() const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "event should be valid");
 				return Base->GetType();
 			}
 			void IEvent::StopPropagation()
 			{
-				if (IsValid())
-					Base->StopPropagation();
+				TH_ASSERT_V(IsValid(), "event should be valid");
+				Base->StopPropagation();
 			}
 			void IEvent::StopImmediatePropagation()
 			{
-				if (IsValid())
-					Base->StopImmediatePropagation();
+				TH_ASSERT_V(IsValid(), "event should be valid");
+				Base->StopImmediatePropagation();
 			}
 			bool IEvent::IsInterruptible() const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->IsInterruptible();
 			}
 			bool IEvent::IsPropagating() const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->IsPropagating();
 			}
 			bool IEvent::IsImmediatePropagating() const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->IsImmediatePropagating();
 			}
 			bool IEvent::GetBoolean(const std::string& Key) const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->GetParameter<bool>(Key, false);
 			}
 			int64_t IEvent::GetInteger(const std::string& Key) const
 			{
-				if (!IsValid())
-					return 0;
-
+				TH_ASSERT(IsValid(), 0, "event should be valid");
 				return Base->GetParameter<int64_t>(Key, 0);
 			}
 			double IEvent::GetNumber(const std::string& Key) const
 			{
-				if (!IsValid())
-					return 0.0;
-
+				TH_ASSERT(IsValid(), 0.0, "event should be valid");
 				return Base->GetParameter<double>(Key, 0.0);
 			}
 			std::string IEvent::GetString(const std::string& Key) const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "event should be valid");
 				return Base->GetParameter<Rml::String>(Key, "");
 			}
 			Compute::Vector2 IEvent::GetVector2(const std::string& Key) const
 			{
-				if (!IsValid())
-					return Compute::Vector2();
-
+				TH_ASSERT(IsValid(), Compute::Vector2(), "event should be valid");
 				Rml::Vector2f Result = Base->GetParameter<Rml::Vector2f>(Key, Rml::Vector2f());
 				return Compute::Vector2(Result.x, Result.y);
 			}
 			Compute::Vector3 IEvent::GetVector3(const std::string& Key) const
 			{
-				if (!IsValid())
-					return Compute::Vector3();
-
+				TH_ASSERT(IsValid(), Compute::Vector3(), "event should be valid");
 				Rml::Vector3f Result = Base->GetParameter<Rml::Vector3f>(Key, Rml::Vector3f());
 				return Compute::Vector3(Result.x, Result.y, Result.z);
 			}
 			Compute::Vector4 IEvent::GetVector4(const std::string& Key) const
 			{
-				if (!IsValid())
-					return Compute::Vector4();
-
+				TH_ASSERT(IsValid(), Compute::Vector4(), "event should be valid");
 				Rml::Vector4f Result = Base->GetParameter<Rml::Vector4f>(Key, Rml::Vector4f());
 				return Compute::Vector4(Result.x, Result.y, Result.z, Result.w);
 			}
 			void* IEvent::GetPointer(const std::string& Key) const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "event should be valid");
 				return Base->GetParameter<void*>(Key, nullptr);
 			}
 			Rml::Event* IEvent::GetEvent() const
@@ -1208,9 +1137,7 @@ namespace Tomahawk
 			}
 			IElement IElement::Clone() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = Base->Clone();
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -1219,85 +1146,69 @@ namespace Tomahawk
 			}
 			void IElement::SetClass(const std::string& ClassName, bool Activate)
 			{
-				if (IsValid())
-					Base->SetClass(ClassName, Activate);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetClass(ClassName, Activate);
 			}
 			bool IElement::IsClassSet(const std::string& ClassName) const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->IsClassSet(ClassName);
 			}
 			void IElement::SetClassNames(const std::string& ClassNames)
 			{
-				if (IsValid())
-					Base->SetClassNames(ClassNames);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetClassNames(ClassNames);
 			}
 			std::string IElement::GetClassNames() const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetClassNames();
 			}
 			std::string IElement::GetAddress(bool IncludePseudoClasses, bool IncludeParents) const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetAddress(IncludePseudoClasses, IncludeParents);
 			}
 			void IElement::SetOffset(const Compute::Vector2& Offset, const IElement& OffsetParent, bool OffsetFixed)
 			{
-				if (IsValid())
-					Base->SetOffset(Rml::Vector2f(Offset.X, Offset.Y), OffsetParent.GetElement(), OffsetFixed);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetOffset(Rml::Vector2f(Offset.X, Offset.Y), OffsetParent.GetElement(), OffsetFixed);
 			}
 			Compute::Vector2 IElement::GetRelativeOffset(Area Type)
 			{
-				if (!IsValid())
-					return Compute::Vector2();
-
+				TH_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
 				Rml::Vector2f Result = Base->GetRelativeOffset((Rml::Box::Area)Type);
 				return Compute::Vector2(Result.x, Result.y);
 			}
 			Compute::Vector2 IElement::GetAbsoluteOffset(Area Type)
 			{
-				if (!IsValid())
-					return Compute::Vector2();
-
+				TH_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
 				Rml::Vector2f Result = Base->GetAbsoluteOffset((Rml::Box::Area)Type);
 				return Compute::Vector2(Result.x, Result.y);
 			}
 			void IElement::SetClientArea(Area ClientArea)
 			{
-				if (IsValid())
-					Base->SetClientArea((Rml::Box::Area)ClientArea);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetClientArea((Rml::Box::Area)ClientArea);
 			}
 			Area IElement::GetClientArea() const
 			{
-				if (!IsValid())
-					return Area::Content;
-
+				TH_ASSERT(IsValid(), Area::Content, "element should be valid");
 				return (Area)Base->GetClientArea();
 			}
 			void IElement::SetContentBox(const Compute::Vector2& ContentOffset, const Compute::Vector2& ContentBox)
 			{
-				if (IsValid())
-					Base->SetContentBox(Rml::Vector2f(ContentOffset.X, ContentOffset.Y), Rml::Vector2f(ContentBox.X, ContentBox.Y));
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetContentBox(Rml::Vector2f(ContentOffset.X, ContentOffset.Y), Rml::Vector2f(ContentBox.X, ContentBox.Y));
 			}
 			float IElement::GetBaseline() const
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetBaseline();
 			}
 			bool IElement::GetIntrinsicDimensions(Compute::Vector2& Dimensions, float& Ratio)
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				Rml::Vector2f Size;
 				bool Result = Base->GetIntrinsicDimensions(Size, Ratio);
 				Dimensions = Compute::Vector2(Size.x, Size.y);
@@ -1306,42 +1217,32 @@ namespace Tomahawk
 			}
 			bool IElement::IsPointWithinElement(const Compute::Vector2& Point)
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPointWithinElement(Rml::Vector2f(Point.X, Point.Y));
 			}
 			bool IElement::IsVisible() const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsVisible();
 			}
 			float IElement::GetZIndex() const
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetZIndex();
 			}
 			bool IElement::SetProperty(const std::string& Name, const std::string& Value)
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->SetProperty(Name, Value);
 			}
 			void IElement::RemoveProperty(const std::string& Name)
 			{
-				if (IsValid())
-					Base->RemoveProperty(Name);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->RemoveProperty(Name);
 			}
 			std::string IElement::GetProperty(const std::string& Name)
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				const Rml::Property* Result = Base->GetProperty(Name);
 				if (!Result)
 					return "";
@@ -1350,9 +1251,7 @@ namespace Tomahawk
 			}
 			std::string IElement::GetLocalProperty(const std::string& Name)
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				const Rml::Property* Result = Base->GetLocalProperty(Name);
 				if (!Result)
 					return "";
@@ -1361,52 +1260,38 @@ namespace Tomahawk
 			}
 			float IElement::ResolveNumericProperty(const std::string& PropertyName)
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->ResolveNumericProperty(PropertyName);
 			}
 			Compute::Vector2 IElement::GetContainingBlock()
 			{
-				if (!IsValid())
-					return Compute::Vector2();
-
+				TH_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
 				Rml::Vector2f Result = Base->GetContainingBlock();
 				return Compute::Vector2(Result.x, Result.y);
 			}
 			Position IElement::GetPosition()
 			{
-				if (!IsValid())
-					return Position::Static;
-
+				TH_ASSERT(IsValid(), Position::Static, "element should be valid");
 				return (Position)Base->GetPosition();
 			}
 			Float IElement::GetFloat()
 			{
-				if (!IsValid())
-					return Float::None;
-
+				TH_ASSERT(IsValid(), Float::None, "element should be valid");
 				return (Float)Base->GetFloat();
 			}
 			Display IElement::GetDisplay()
 			{
-				if (!IsValid())
-					return Display::None;
-
+				TH_ASSERT(IsValid(), Display::None, "element should be valid");
 				return (Display)Base->GetDisplay();
 			}
 			float IElement::GetLineHeight()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetLineHeight();
 			}
 			bool IElement::Project(Compute::Vector2& Point) const noexcept
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				Rml::Vector2f Offset(Point.X, Point.Y);
 				bool Result = Base->Project(Offset);
 				Point = Compute::Vector2(Offset.x, Offset.y);
@@ -1415,328 +1300,256 @@ namespace Tomahawk
 			}
 			bool IElement::Animate(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations, bool AlternateDirection, float Delay)
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->Animate(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir), NumIterations, AlternateDirection, Delay);
 			}
 			bool IElement::AddAnimationKey(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir)
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->AddAnimationKey(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir));
 			}
 			void IElement::SetPseudoClass(const std::string& PseudoClass, bool Activate)
 			{
-				if (IsValid())
-					Base->SetPseudoClass(PseudoClass, Activate);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetPseudoClass(PseudoClass, Activate);
 			}
 			bool IElement::IsPseudoClassSet(const std::string& PseudoClass) const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet(PseudoClass);
 			}
 			void IElement::SetAttribute(const std::string& Name, const std::string& Value)
 			{
-				if (IsValid())
-					Base->SetAttribute(Name, Value);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetAttribute(Name, Value);
 			}
 			std::string IElement::GetAttribute(const std::string& Name)
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetAttribute<std::string>(Name, "");
 			}
 			bool IElement::HasAttribute(const std::string& Name) const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->HasAttribute(Name);
 			}
 			void IElement::RemoveAttribute(const std::string& Name)
 			{
-				if (IsValid())
-					Base->RemoveAttribute(Name);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->RemoveAttribute(Name);
 			}
 			IElement IElement::GetFocusLeafNode()
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetFocusLeafNode();
 			}
 			std::string IElement::GetTagName() const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetTagName();
 			}
 			std::string IElement::GetId() const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetId();
 			}
 			void IElement::SetId(const std::string& Id)
 			{
-				if (IsValid())
-					Base->SetId(Id);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetId(Id);
 			}
 			float IElement::GetAbsoluteLeft()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetAbsoluteLeft();
 			}
 			float IElement::GetAbsoluteTop()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetAbsoluteTop();
 			}
 			float IElement::GetClientLeft()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientLeft();
 			}
 			float IElement::GetClientTop()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientTop();
 			}
 			float IElement::GetClientWidth()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientWidth();
 			}
 			float IElement::GetClientHeight()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientHeight();
 			}
 			IElement IElement::GetOffsetParent()
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetOffsetParent();
 			}
 			float IElement::GetOffsetLeft()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetLeft();
 			}
 			float IElement::GetOffsetTop()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetTop();
 			}
 			float IElement::GetOffsetWidth()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetWidth();
 			}
 			float IElement::GetOffsetHeight()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetHeight();
 			}
 			float IElement::GetScrollLeft()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollLeft();
 			}
 			void IElement::SetScrollLeft(float ScrollLeft)
 			{
-				if (IsValid())
-					Base->SetScrollLeft(ScrollLeft);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetScrollLeft(ScrollLeft);
 			}
 			float IElement::GetScrollTop()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollTop();
 			}
 			void IElement::SetScrollTop(float ScrollTop)
 			{
-				if (IsValid())
-					Base->SetScrollTop(ScrollTop);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetScrollTop(ScrollTop);
 			}
 			float IElement::GetScrollWidth()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollWidth();
 			}
 			float IElement::GetScrollHeight()
 			{
-				if (!IsValid())
-					return 0.0f;
-
+				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollHeight();
 			}
 			IElementDocument IElement::GetOwnerDocument() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetOwnerDocument();
 			}
 			IElement IElement::GetParentNode() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetParentNode();
 			}
 			IElement IElement::GetNextSibling() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetNextSibling();
 			}
 			IElement IElement::GetPreviousSibling() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetPreviousSibling();
 			}
 			IElement IElement::GetFirstChild() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetFirstChild();
 			}
 			IElement IElement::GetLastChild() const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetLastChild();
 			}
 			IElement IElement::GetChild(int Index) const
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetChild(Index);
 			}
 			int IElement::GetNumChildren(bool IncludeNonDOMElements) const
 			{
-				if (!IsValid())
-					return 0;
-
+				TH_ASSERT(IsValid(), 0, "element should be valid");
 				return Base->GetNumChildren(IncludeNonDOMElements);
 			}
 			void IElement::GetInnerHTML(std::string& Content) const
 			{
-				if (IsValid())
-					Base->GetInnerRML(Content);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->GetInnerRML(Content);
 			}
 			std::string IElement::GetInnerHTML() const
 			{
-				if (!IsValid())
-					return "";
-				
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetInnerRML();
 			}
 			void IElement::SetInnerHTML(const std::string& HTML)
 			{
-				if (IsValid())
-					Base->SetInnerRML(HTML);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->SetInnerRML(HTML);
 			}
 			bool IElement::IsFocused()
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("focus");
 			}
 			bool IElement::IsHovered()
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("hover");
 			}
 			bool IElement::IsActive()
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("active");
 			}
 			bool IElement::IsChecked()
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("checked");
 			}
 			bool IElement::Focus()
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->Focus();
 			}
 			void IElement::Blur()
 			{
-				if (IsValid())
-					Base->Blur();
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->Blur();
 			}
 			void IElement::Click()
 			{
-				if (IsValid())
-					Base->Click();
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->Click();
 			}
 			void IElement::AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
 			{
-				if (IsValid() && Listener != nullptr && Listener->Base != nullptr)
-					Base->AddEventListener(Event, Listener->Base, InCapturePhase);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be set");
+
+				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
 			}
 			void IElement::RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
 			{
-				if (IsValid() && Listener != nullptr && Listener->Base != nullptr)
-					Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be set");
+
+				Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
 			}
 			bool IElement::DispatchEvent(const std::string& Type, const Core::VariantArgs& Args)
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				Rml::Dictionary Props;
 				for (auto& Item : Args)
 				{
@@ -1748,28 +1561,22 @@ namespace Tomahawk
 			}
 			void IElement::ScrollIntoView(bool AlignWithTop)
 			{
-				if (IsValid())
-					Base->ScrollIntoView(AlignWithTop);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Base->ScrollIntoView(AlignWithTop);
 			}
 			IElement IElement::AppendChild(const IElement& Element, bool DOMElement)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->AppendChild(Rml::ElementPtr(Element.GetElement()), DOMElement);
 			}
 			IElement IElement::InsertBefore(const IElement& Element, const IElement& AdjacentElement)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->InsertBefore(Rml::ElementPtr(Element.GetElement()), AdjacentElement.GetElement());
 			}
 			IElement IElement::ReplaceChild(const IElement& InsertedElement, const IElement& ReplacedElement)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = Base->ReplaceChild(Rml::ElementPtr(InsertedElement.GetElement()), ReplacedElement.GetElement());
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -1778,9 +1585,7 @@ namespace Tomahawk
 			}
 			IElement IElement::RemoveChild(const IElement& Element)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = Base->RemoveChild(Element.GetElement());
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -1789,30 +1594,22 @@ namespace Tomahawk
 			}
 			bool IElement::HasChildNodes() const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->HasChildNodes();
 			}
 			IElement IElement::GetElementById(const std::string& Id)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetElementById(Id);
 			}
 			IElement IElement::QuerySelector(const std::string& Selector)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->QuerySelector(Selector);
 			}
 			std::vector<IElement> IElement::QuerySelectorAll(const std::string& Selectors)
 			{
-				if (!IsValid())
-					return std::vector<IElement>();
-
+				TH_ASSERT(IsValid(), std::vector<IElement>(), "element should be valid");
 				Rml::ElementList Elements;
 				Base->QuerySelectorAll(Elements, Selectors);
 
@@ -1826,24 +1623,20 @@ namespace Tomahawk
 			}
 			int IElement::GetClippingIgnoreDepth()
 			{
-				if (!IsValid())
-					return 0;
-
+				TH_ASSERT(IsValid(), 0, "element should be valid");
 				return Base->GetClippingIgnoreDepth();
 			}
 			bool IElement::IsClippingEnabled()
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsClippingEnabled();
 			}
 			bool IElement::CastFormColor(Compute::Vector4* Ptr, bool Alpha)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				std::string Value = Form->GetValue();
 				Compute::Vector4 Color = (Alpha ? IVariant::ToColor4(Value) : IVariant::ToColor3(Value));
 
@@ -1882,7 +1675,7 @@ namespace Tomahawk
 				}
 
 				if (Form->IsPseudoClassSet("focus"))
-				{		
+				{
 					if (!Alpha)
 						*Ptr = Compute::Vector4(Color.X, Color.Y, Color.Z, Ptr->W);
 					else
@@ -1900,10 +1693,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormString(std::string* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				std::string Value = Form->GetValue();
 				if (Value == *Ptr)
 					return false;
@@ -1913,16 +1706,16 @@ namespace Tomahawk
 					*Ptr = std::move(Value);
 					return true;
 				}
-					
+
 				Form->SetValue(*Ptr);
 				return false;
 			}
 			bool IElement::CastFormPointer(void** Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				void* Value = ToPointer(Form->GetValue());
 				if (Value == *Ptr)
 					return false;
@@ -1938,10 +1731,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormInt32(int32_t* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
@@ -1973,10 +1766,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormUInt32(uint32_t* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
@@ -2008,8 +1801,8 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormFlag32(uint32_t* Ptr, uint32_t Mask)
 			{
-				if (!IsValid() || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				bool Value = (*Ptr & Mask);
 				if (!CastFormBoolean(&Value))
@@ -2024,10 +1817,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormInt64(int64_t* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
@@ -2059,10 +1852,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormUInt64(uint64_t* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
@@ -2094,8 +1887,8 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormFlag64(uint64_t* Ptr, uint64_t Mask)
 			{
-				if (!IsValid() || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				bool Value = (*Ptr & Mask);
 				if (!CastFormBoolean(&Value))
@@ -2110,10 +1903,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormFloat(float* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
@@ -2145,8 +1938,8 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormFloat(float* Ptr, float Mult)
 			{
-				if (!Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
 				*Ptr *= Mult;
 				bool Result = CastFormFloat(Ptr);
@@ -2156,10 +1949,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormDouble(double* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Core::Parser Value(Form->GetValue());
 				if (Value.Empty())
 				{
@@ -2191,10 +1984,10 @@ namespace Tomahawk
 			}
 			bool IElement::CastFormBoolean(bool* Ptr)
 			{
-				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
-				if (!Form || !Ptr)
-					return false;
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				bool B = Form->HasAttribute("checked");
 				if (B == *Ptr)
 					return false;
@@ -2214,45 +2007,39 @@ namespace Tomahawk
 			}
 			std::string IElement::GetFormName() const
 			{
-				if (!IsValid())
-					return "";
-
-				return ((Rml::ElementFormControl*)Base)->GetName();
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				return Form->GetName();
 			}
 			void IElement::SetFormName(const std::string& Name)
 			{
-				if (!IsValid())
-					return;
-
-				((Rml::ElementFormControl*)Base)->SetName(Name);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				Form->SetName(Name);
 			}
 			std::string IElement::GetFormValue() const
 			{
-				if (!IsValid())
-					return "";
-
-				return ((Rml::ElementFormControl*)Base)->GetValue();
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				return Form->GetValue();
 			}
 			void IElement::SetFormValue(const std::string& Value)
 			{
-				if (!IsValid())
-					return;
-
-				((Rml::ElementFormControl*)Base)->SetValue(Value);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				Form->SetValue(Value);
 			}
 			bool IElement::IsFormDisabled() const
 			{
-				if (!IsValid())
-					return false;
-
-				return ((Rml::ElementFormControl*)Base)->IsDisabled();
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				return Form->IsDisabled();
 			}
 			void IElement::SetFormDisabled(bool Disable)
 			{
-				if (!IsValid())
-					return;
-
-				((Rml::ElementFormControl*)Base)->SetDisabled(Disable);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				Form->SetDisabled(Disable);
 			}
 			Rml::Element* IElement::GetElement() const
 			{
@@ -2292,53 +2079,47 @@ namespace Tomahawk
 			}
 			void IElementDocument::SetTitle(const std::string& Title)
 			{
-				if (IsValid())
-					((Rml::ElementDocument*)Base)->SetTitle(Title);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				((Rml::ElementDocument*)Base)->SetTitle(Title);
 			}
 			void IElementDocument::PullToFront()
 			{
-				if (IsValid())
-					((Rml::ElementDocument*)Base)->PullToFront();
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				((Rml::ElementDocument*)Base)->PullToFront();
 			}
 			void IElementDocument::PushToBack()
 			{
-				if (IsValid())
-					((Rml::ElementDocument*)Base)->PushToBack();
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				((Rml::ElementDocument*)Base)->PushToBack();
 			}
 			void IElementDocument::Show(ModalFlag Modal, FocusFlag Focus)
 			{
-				if (IsValid())
-					((Rml::ElementDocument*)Base)->Show((Rml::ModalFlag)Modal, (Rml::FocusFlag)Focus);
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				((Rml::ElementDocument*)Base)->Show((Rml::ModalFlag)Modal, (Rml::FocusFlag)Focus);
 			}
 			void IElementDocument::Hide()
 			{
-				if (IsValid())
-					((Rml::ElementDocument*)Base)->Hide();
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				((Rml::ElementDocument*)Base)->Hide();
 			}
 			void IElementDocument::Close()
 			{
-				if (IsValid())
-					((Rml::ElementDocument*)Base)->Close();
+				TH_ASSERT_V(IsValid(), "element should be valid");
+				((Rml::ElementDocument*)Base)->Close();
 			}
 			std::string IElementDocument::GetTitle() const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetTitle();
 			}
 			std::string IElementDocument::GetSourceURL() const
 			{
-				if (!IsValid())
-					return "";
-
+				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetSourceURL();
 			}
 			IElement IElementDocument::CreateElement(const std::string& Name)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = ((Rml::ElementDocument*)Base)->CreateElement(Name);
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
@@ -2347,9 +2128,7 @@ namespace Tomahawk
 			}
 			bool IElementDocument::IsModal() const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return ((Rml::ElementDocument*)Base)->IsModal();
 			}
 			Rml::ElementDocument* IElementDocument::GetElementDocument() const
@@ -2371,7 +2150,7 @@ namespace Tomahawk
 
 				SystemInterface = TH_NEW(MainSubsystem);
 				Rml::SetSystemInterface(SystemInterface);
-				
+
 				bool Result = Rml::Initialise();
 
 				ContextFactory = TH_NEW(ContextInstancer);
@@ -2442,8 +2221,8 @@ namespace Tomahawk
 			}
 			void Subsystem::SetTranslator(const std::string& Name, const TranslationCallback& Callback)
 			{
-				if (SystemInterface != nullptr)
-					SystemInterface->SetTranslator(Name, Callback);
+				TH_ASSERT_V(SystemInterface != nullptr, "system interface should be valid");
+				SystemInterface->SetTranslator(Name, Callback);
 			}
 			void Subsystem::SetManager(Script::VMManager* Manager)
 			{
@@ -2463,34 +2242,30 @@ namespace Tomahawk
 			}
 			Graphics::GraphicsDevice* Subsystem::GetDevice()
 			{
-				if (!RenderInterface)
-					return nullptr;
-
+				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
 				return RenderInterface->GetDevice();
 			}
 			Graphics::Texture2D* Subsystem::GetBackground()
 			{
-				if (!RenderInterface)
-					return nullptr;
-
+				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
 				return RenderInterface->Background;
 			}
 			Compute::Matrix4x4* Subsystem::GetTransform()
 			{
-				return (RenderInterface ? RenderInterface->GetTransform() : nullptr);
+				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
+				return RenderInterface->GetTransform();
 			}
 			Compute::Matrix4x4* Subsystem::GetProjection()
 			{
-				return (RenderInterface ? RenderInterface->GetProjection() : nullptr);
+				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
+				return RenderInterface->GetProjection();
 			}
 			Compute::Matrix4x4 Subsystem::ToMatrix(const void* Matrix)
 			{
-				Compute::Matrix4x4 Result;
-				if (!Matrix)
-					return Result;
-
+				TH_ASSERT(Matrix != nullptr, Compute::Matrix4x4::Identity(), "matrix should be set");
 				const Rml::Matrix4f* NewTransform = (const Rml::Matrix4f*)Matrix;
 				auto& Row11 = NewTransform->GetRow(0);
+				Compute::Matrix4x4 Result;
 				Result.Row[0] = Row11.x;
 				Result.Row[1] = Row11.y;
 				Result.Row[2] = Row11.z;
@@ -2562,10 +2337,10 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(const Core::VariantList& Initial)
 			{
-                Childs.emplace_back(DataNode(Handle, Name, Core::Var::Undefined()));
+				Childs.emplace_back(DataNode(Handle, Name, Core::Var::Undefined()));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
-				
+
 				DataNode& Result = Childs.back();
 				for (auto& Item : Initial)
 					Result.Add(Item);
@@ -2574,7 +2349,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(const Core::Variant& Initial)
 			{
-                Childs.emplace_back(DataNode(Handle, Name, Initial));
+				Childs.emplace_back(DataNode(Handle, Name, Initial));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 
@@ -2582,7 +2357,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::Add(Core::Variant* Reference)
 			{
-                Childs.emplace_back(DataNode(Handle, Name, Reference));
+				Childs.emplace_back(DataNode(Handle, Name, Reference));
 				if (Handle != nullptr && Name != nullptr)
 					Handle->Change(*Name);
 
@@ -2590,9 +2365,7 @@ namespace Tomahawk
 			}
 			DataNode& DataNode::At(size_t Index)
 			{
-				if (Index >= Childs.size())
-					return *this;
-
+				TH_ASSERT(Index < Childs.size(), *this, "index outside of range");
 				return Childs[Index];
 			}
 			size_t DataNode::GetSize()
@@ -2601,17 +2374,12 @@ namespace Tomahawk
 			}
 			bool DataNode::Remove(size_t Index)
 			{
-				if (Index >= Childs.size())
-					return false;
-
+				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
 				Childs.erase(Childs.begin() + Index);
 				return true;
 			}
 			bool DataNode::Clear()
 			{
-				if (Childs.empty())
-					return false;
-
 				Childs.clear();
 				return true;
 			}
@@ -2786,9 +2554,7 @@ namespace Tomahawk
 			}
 			DataRow* DataRow::GetChildByIndex(size_t Index)
 			{
-				if (Index >= Childs.size())
-					return nullptr;
-
+				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
 				return Childs[Index];
 			}
 			DataRow* DataRow::GetParent()
@@ -2828,9 +2594,7 @@ namespace Tomahawk
 			}
 			bool DataRow::RemoveChildByIndex(size_t Index)
 			{
-				if (Index >= Childs.size())
-					return false;
-
+				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
 				DataRow* Child = Childs[Index];
 				Childs.erase(Childs.begin() + Index);
 				TH_DELETE(DataRow, Child);
@@ -2881,10 +2645,8 @@ namespace Tomahawk
 
 			DataModel::DataModel(Rml::DataModelConstructor* Ref) : Base(nullptr)
 			{
-				if (!Ref)
-					return;
-
-				Base = TH_NEW(Rml::DataModelConstructor, *Ref);
+				if (Ref != nullptr)
+					Base = TH_NEW(Rml::DataModelConstructor, *Ref);
 			}
 			DataModel::~DataModel()
 			{
@@ -2895,9 +2657,7 @@ namespace Tomahawk
 			}
 			DataNode* DataModel::SetProperty(const std::string& Name, const Core::Variant& Value)
 			{
-				if (!IsValid())
-					return nullptr;
-
+				TH_ASSERT(IsValid(), nullptr, "data node should be valid");
 				DataNode* Result = GetProperty(Name);
 				if (Result != nullptr)
 				{
@@ -2925,8 +2685,8 @@ namespace Tomahawk
 			}
 			DataNode* DataModel::SetProperty(const std::string& Name, Core::Variant* Value)
 			{
-				if (!IsValid() || !Value)
-					return nullptr;
+				TH_ASSERT(IsValid(), nullptr, "data node should be valid");
+				TH_ASSERT(Value != nullptr, nullptr, "value should be set");
 
 				DataNode* Sub = GetProperty(Name);
 				if (Sub != nullptr)
@@ -3031,8 +2791,8 @@ namespace Tomahawk
 			}
 			bool DataModel::SetCallback(const std::string& Name, const DataCallback& Callback)
 			{
-				if (!IsValid() || !Callback)
-					return false;
+				TH_ASSERT(IsValid(), false, "data node should be valid");
+				TH_ASSERT(Callback, false, "callback should not be empty");
 
 				return Base->BindEventCallback(Name, [Callback](Rml::DataModelHandle Handle, Rml::Event& Event, const Rml::VariantList& Props)
 				{
@@ -3054,14 +2814,12 @@ namespace Tomahawk
 			}
 			void DataModel::Change(const std::string& VariableName)
 			{
-				if (IsValid())
-					Base->GetModelHandle().DirtyVariable(VariableName);
+				TH_ASSERT_V(IsValid(), "data node should be valid");
+				Base->GetModelHandle().DirtyVariable(VariableName);
 			}
 			bool DataModel::HasChanged(const std::string& VariableName) const
 			{
-				if (!IsValid())
-					return false;
-
+				TH_ASSERT(IsValid(), false, "data node should be valid");
 				return Base->GetModelHandle().IsVariableDirty(VariableName);
 			}
 			bool DataModel::IsValid() const
@@ -3071,14 +2829,8 @@ namespace Tomahawk
 
 			DataSource::DataSource(const std::string& NewName) : DFS(nullptr), DSS(nullptr), Name(NewName), Root(TH_NEW(DataRow, this, nullptr))
 			{
-				if (Name.empty())
-					return;
-
-				if (!DSS)
-					DSS = TH_NEW(DataSourceSubsystem, this);
-
-				if (!DFS)
-					DFS = TH_NEW(DataFormatterSubsystem, this);
+				DSS = TH_NEW(DataSourceSubsystem, this);
+				DFS = TH_NEW(DataFormatterSubsystem, this);
 			}
 			DataSource::~DataSource()
 			{
@@ -3104,23 +2856,19 @@ namespace Tomahawk
 			}
 			void DataSource::RowAdd(const std::string& Table, int FirstRowAdded, int NumRowsAdded)
 			{
-				if (DSS != nullptr)
-					DSS->NotifyRowAdd(Table, FirstRowAdded, NumRowsAdded);
+				DSS->NotifyRowAdd(Table, FirstRowAdded, NumRowsAdded);
 			}
 			void DataSource::RowRemove(const std::string& Table, int FirstRowRemoved, int NumRowsRemoved)
 			{
-				if (DSS != nullptr)
-					DSS->NotifyRowRemove(Table, FirstRowRemoved, NumRowsRemoved);
+				DSS->NotifyRowRemove(Table, FirstRowRemoved, NumRowsRemoved);
 			}
 			void DataSource::RowChange(const std::string& Table, int FirstRowChanged, int NumRowsChanged)
 			{
-				if (DSS != nullptr)
-					DSS->NotifyRowChange(Table, FirstRowChanged, NumRowsChanged);
+				DSS->NotifyRowChange(Table, FirstRowChanged, NumRowsChanged);
 			}
 			void DataSource::RowChange(const std::string& Table)
 			{
-				if (DSS != nullptr)
-					DSS->NotifyRowChange(Table);
+				DSS->NotifyRowChange(Table);
 			}
 			void DataSource::SetTarget(void* OldTarget, void* NewTarget)
 			{
@@ -3165,36 +2913,22 @@ namespace Tomahawk
 			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i(Size.X, Size.Y));
-				if (Base != nullptr)
-				{
-					Base->Basis = this;
-					CreateVM();
-				}
+				
+				TH_ASSERT_V(Base != nullptr, "context cannot be created");
+				Base->Basis = this;
+				CreateVM();
 			}
 			Context::Context(Graphics::GraphicsDevice* Device) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
-				if (Device != nullptr)
-				{
-					Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
-					if (Target != nullptr)
-					{
-						Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
-						if (Base != nullptr)
-						{
-							Base->Basis = this;
-							CreateVM();
-						}
+				TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+				TH_ASSERT_V(Device->GetRenderTarget() != nullptr, "graphics device should be set");
 
-						return;
-					}
-				}
-
-				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i(512, 512));
-				if (Base != nullptr)
-				{
-					Base->Basis = this;
-					CreateVM();
-				}
+				Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
+				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
+				
+				TH_ASSERT_V(Base != nullptr, "context cannot be created");
+				Base->Basis = this;
+				CreateVM();
 			}
 			Context::~Context()
 			{
@@ -3271,7 +3005,8 @@ namespace Tomahawk
 			}
 			void Context::EmitInput(const char* Buffer, int Length)
 			{
-				if (Buffer != nullptr && Length > 0 && Base->ProcessTextInput(std::string(Buffer, Length)))
+				TH_ASSERT_V(Buffer != nullptr && Length > 0, "buffer should be set");
+				if (Base->ProcessTextInput(std::string(Buffer, Length)))
 					Inputs.Text = true;
 			}
 			void Context::EmitWheel(int X, int Y, bool Normal, Graphics::KeyMod Mod)
@@ -3302,10 +3037,8 @@ namespace Tomahawk
 			}
 			void Context::RenderLists(Graphics::Texture2D* Target)
 			{
+				TH_ASSERT_V(Subsystem::GetRenderInterface() != nullptr, "render interface should be valid");
 				RenderSubsystem* Renderer = Subsystem::GetRenderInterface();
-				if (!Renderer)
-					return;
-
 				Renderer->Background = Target;
 				Base->Render();
 			}
@@ -3365,9 +3098,7 @@ namespace Tomahawk
 			}
 			bool Context::Inject(Core::Document* Conf, const std::string& Relative)
 			{
-				if (!Conf)
-					return false;
-
+				TH_ASSERT(Conf != nullptr, false, "conf should be set");
 				bool State = Loading;
 				Loading = true;
 
@@ -3377,7 +3108,7 @@ namespace Tomahawk
 					Core::Document* IPath = Face->GetAttribute("path");
 					if (!IPath)
 					{
-						TH_ERROR("path is required for font face");
+						TH_ERR("path is required for font face");
 						return false;
 					}
 
@@ -3397,7 +3128,7 @@ namespace Tomahawk
 					Core::Document* IPath = Document->GetAttribute("path");
 					if (!IPath)
 					{
-						TH_ERROR("path is required for document");
+						TH_ERR("path is required for document");
 						return false;
 					}
 
@@ -3420,8 +3151,8 @@ namespace Tomahawk
 			}
 			bool Context::Inject(const std::string& ConfPath)
 			{
-				if (!Subsystem::RenderInterface || !Subsystem::RenderInterface->GetContent())
-					return false;
+				TH_ASSERT(Subsystem::RenderInterface != nullptr, false, "render interface should be set");
+				TH_ASSERT(Subsystem::RenderInterface->GetContent() != nullptr, false, "content manager should be set");
 
 				bool State = Loading;
 				Loading = true;
@@ -3454,6 +3185,7 @@ namespace Tomahawk
 			}
 			bool Context::AddFontFace(const std::string& Path, bool UseAsFallback)
 			{
+				TH_ASSERT(Subsystem::GetSystemInterface() != nullptr, false, "system interface should be set");
 				bool State = Loading;
 				Loading = true;
 
@@ -3559,13 +3291,13 @@ namespace Tomahawk
 			}
 			void Context::AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
 			{
-				if (Listener != nullptr && Listener->Base != nullptr)
-					Base->AddEventListener(Event, Listener->Base, InCapturePhase);
+				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
+				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
 			}
 			void Context::RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
 			{
-				if (Listener != nullptr && Listener->Base != nullptr)
-					Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
+				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
+				Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
 			}
 			bool Context::IsMouseInteracting() const
 			{
@@ -3615,7 +3347,7 @@ namespace Tomahawk
 					Type.RegisterMember("at", &DataNode::Childs);
 					Type.RegisterMember("size", &DataNode::GetValueSize);
 				}
-				
+
 				Models[Name] = Handle;
 				return Handle;
 			}
@@ -3680,7 +3412,7 @@ namespace Tomahawk
 					TH_RELEASE(It->second);
 					Models.erase(It);
 				}
-			
+
 				return true;
 			}
 			bool Context::RemoveDataModels()

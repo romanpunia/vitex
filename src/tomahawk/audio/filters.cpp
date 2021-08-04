@@ -113,11 +113,13 @@ namespace Tomahawk
 			}
 			void Lowpass::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
 			void Lowpass::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				Engine::NMake::Pack(Node->Set("gain"), Gain);
 				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);
 			}
@@ -154,11 +156,13 @@ namespace Tomahawk
 			}
 			void Highpass::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 			}
 			void Highpass::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				Engine::NMake::Pack(Node->Set("gain"), Gain);
 				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
 			}
@@ -196,12 +200,14 @@ namespace Tomahawk
 			}
 			void Bandpass::Deserialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
 				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
 				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
 			void Bandpass::Serialize(Core::Document* Node)
 			{
+				TH_ASSERT_V(Node != nullptr, "document should be set");
 				Engine::NMake::Pack(Node->Set("gain"), Gain);
 				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
 				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);

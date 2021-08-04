@@ -9,6 +9,9 @@ namespace Tomahawk
 		{
 			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::SoftBody::GetTypeId()), VertexBuffer(nullptr), IndexBuffer(nullptr)
 			{
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("less");
 				Rasterizer = Device->GetRasterizerState("cull-none");
@@ -52,6 +55,9 @@ namespace Tomahawk
 			}
 			void SoftBody::CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetPrimitives() != nullptr, "primitives cache should be set");
+
 				Graphics::ElementBuffer* Box[2];
 				System->GetPrimitives()->GetBoxBuffers(Box);
 
@@ -97,6 +103,10 @@ namespace Tomahawk
 			}
 			void SoftBody::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = ((size_t)Options & (size_t)RenderOpt::Inner ? CullResult::Always : CullResult::Last);
 				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
@@ -122,7 +132,7 @@ namespace Tomahawk
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = System->GetScene()->View.ViewProjection;
+					Device->Render.WorldViewProj = Scene->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer, 0);
@@ -134,13 +144,17 @@ namespace Tomahawk
 			}
 			void SoftBody::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetSamplerState(Sampler, 0, TH_PS);
 				Device->SetInputLayout(Layout);
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = System->GetScene()->View;
+				Viewer& View = Scene->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
@@ -168,6 +182,10 @@ namespace Tomahawk
 			}
 			void SoftBody::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -190,7 +208,7 @@ namespace Tomahawk
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = System->GetScene()->View.ViewProjection;
+					Device->Render.WorldViewProj = Scene->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer, 0);
@@ -202,6 +220,10 @@ namespace Tomahawk
 			}
 			void SoftBody::RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -215,7 +237,7 @@ namespace Tomahawk
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
-					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(System->GetScene()->View.WorldPosition) >= System->GetScene()->View.FarPlane + Base->GetEntity()->Transform->Scale.Length())
+					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(Scene->View.WorldPosition) >= Scene->View.FarPlane + Base->GetEntity()->Transform->Scale.Length())
 						continue;
 
 					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
@@ -236,6 +258,9 @@ namespace Tomahawk
 
 			Model::Model(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::Model::GetTypeId())
 			{
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("less");
 				BackRasterizer = Device->GetRasterizerState("cull-back");
@@ -268,6 +293,9 @@ namespace Tomahawk
 			}
 			void Model::CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetPrimitives() != nullptr, "primitive cache should be set");
+
 				Graphics::ElementBuffer* Box[2];
 				System->GetPrimitives()->GetBoxBuffers(Box);
 
@@ -314,6 +342,10 @@ namespace Tomahawk
 			}
 			void Model::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = ((size_t)Options & (size_t)RenderOpt::Inner ? CullResult::Always : CullResult::Last);
 				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
@@ -342,7 +374,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
-						Device->Render.WorldViewProj = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -352,13 +384,17 @@ namespace Tomahawk
 			}
 			void Model::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 0, TH_PS);
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = System->GetScene()->View;
+				Viewer& View = Scene->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Model* Base = (Engine::Components::Model*)*It;
@@ -383,6 +419,10 @@ namespace Tomahawk
 			}
 			void Model::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -406,7 +446,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
-						Device->Render.WorldViewProj = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -416,6 +456,10 @@ namespace Tomahawk
 			}
 			void Model::RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -431,7 +475,7 @@ namespace Tomahawk
 					Engine::Components::Model* Base = (Engine::Components::Model*)*It;
 					auto* Drawable = Base->GetDrawable();
 
-					if (!Drawable || !Base->IsNear(System->GetScene()->View))
+					if (!Drawable || !Base->IsNear(Scene->View))
 						continue;
 
 					Device->Render.TexCoord = Base->TexCoord;
@@ -452,6 +496,9 @@ namespace Tomahawk
 
 			Skin::Skin(Engine::RenderSystem* Lab) : GeometryDraw(Lab, Components::Skin::GetTypeId())
 			{
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("less");
 				BackRasterizer = Device->GetRasterizerState("cull-back");
@@ -484,6 +531,9 @@ namespace Tomahawk
 			}
 			void Skin::CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetPrimitives() != nullptr, "primitive cache should be set");
+
 				Graphics::ElementBuffer* Box[2];
 				System->GetPrimitives()->GetSkinBoxBuffers(Box);
 
@@ -537,6 +587,10 @@ namespace Tomahawk
 			}
 			void Skin::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				CullResult Cull = ((size_t)Options & (size_t)RenderOpt::Inner ? CullResult::Always : CullResult::Last);
 				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
@@ -571,7 +625,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
-						Device->Render.WorldViewProj = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -581,13 +635,17 @@ namespace Tomahawk
 			}
 			void Skin::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 0, TH_PS);
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = System->GetScene()->View;
+				Viewer& View = Scene->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Skin* Base = (Engine::Components::Skin*)*It;
@@ -621,6 +679,10 @@ namespace Tomahawk
 			}
 			void Skin::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -650,7 +712,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
-						Device->Render.WorldViewProj = Device->Render.World * System->GetScene()->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -660,6 +722,10 @@ namespace Tomahawk
 			}
 			void Skin::RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -675,7 +741,7 @@ namespace Tomahawk
 					Engine::Components::Skin* Base = (Engine::Components::Skin*)*It;
 					auto* Drawable = Base->GetDrawable();
 
-					if (!Drawable || !Base->IsNear(System->GetScene()->View))
+					if (!Drawable || !Base->IsNear(Scene->View))
 						continue;
 
 					Device->Render.TexCoord = Base->TexCoord;
@@ -702,6 +768,9 @@ namespace Tomahawk
 
 			Emitter::Emitter(RenderSystem* Lab) : GeometryDraw(Lab, Components::Emitter::GetTypeId())
 			{
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencilOpaque = Device->GetDepthStencilState("less");
 				DepthStencilLimpid = Device->GetDepthStencilState("less-none");
@@ -735,10 +804,14 @@ namespace Tomahawk
 			}
 			void Emitter::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::Shader* BaseShader = nullptr;
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
-				Viewer& View = System->GetScene()->View;
+				Viewer& View = Scene->View;
 				CullResult Cull = ((size_t)Options & (size_t)RenderOpt::Inner ? CullResult::Always : CullResult::Last);
 				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
 
@@ -796,9 +869,13 @@ namespace Tomahawk
 			}
 			void Emitter::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
-				Viewer& View = System->GetScene()->View;
+				Viewer& View = Scene->View;
 
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology::Point_List);
 				Device->SetDepthStencilState(DepthStencilLimpid);
@@ -836,8 +913,12 @@ namespace Tomahawk
 			}
 			void Emitter::RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				auto& Source = System->GetScene()->View;
+				SceneGraph* Scene = System->GetScene();
+				auto& Source = Scene->View;
 				Depth.FaceView[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, Source.InvViewPosition);
 				Depth.FaceView[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, Source.InvViewPosition);
 				Depth.FaceView[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, Source.InvViewPosition);
@@ -880,6 +961,9 @@ namespace Tomahawk
 
 			Decal::Decal(RenderSystem* Lab) : GeometryDraw(Lab, Components::Decal::GetTypeId())
 			{
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("none");
 				Rasterizer = Device->GetRasterizerState("cull-back");
@@ -903,8 +987,12 @@ namespace Tomahawk
 			}
 			void Decal::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
+				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
+				SceneGraph* Scene = System->GetScene();
 				CullResult Cull = ((size_t)Options & (size_t)RenderOpt::Inner ? CullResult::Always : CullResult::Last);
 				bool Map[8] = { true, true, false, true, false, false, false, false };
 				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
@@ -935,7 +1023,7 @@ namespace Tomahawk
 
 					RenderPass.ViewProjection = Base->View * Base->Projection;
 					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->GetRange()) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->Transform->Position);
-					Device->Render.WorldViewProj = Device->Render.World * System->GetScene()->View.ViewProjection;
+					Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->UpdateBuffer(Shader, &RenderPass);
@@ -957,6 +1045,9 @@ namespace Tomahawk
 
 			Lighting::Lighting(RenderSystem* Lab) : Renderer(Lab), EnableGI(true)
 			{
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencilNone = Device->GetDepthStencilState("none");
 				DepthStencilGreater = Device->GetDepthStencilState("greater-read-only");
@@ -1010,6 +1101,9 @@ namespace Tomahawk
 			}
 			void Lighting::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				std::string Path;
 				if (NMake::Unpack(Node->Find("sky-map"), &Path))
 					SetSkyMap(Content->Load<Graphics::Texture2D>(Path));
@@ -1038,6 +1132,9 @@ namespace Tomahawk
 			}
 			void Lighting::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+				
 				AssetCache* Asset = Content->Find<Graphics::Texture2D>(SkyBase);
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("sky-map"), Asset->Path);
@@ -1066,11 +1163,14 @@ namespace Tomahawk
 			}
 			void Lighting::Activate()
 			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Illuminators = System->AddCull<Engine::Components::Illuminator>();
 				SurfaceLights = System->AddCull<Engine::Components::SurfaceLight>();
 				PointLights = System->AddCull<Engine::Components::PointLight>();
 				SpotLights = System->AddCull<Engine::Components::SpotLight>();
-				LineLights = System->GetScene()->GetComponents<Engine::Components::LineLight>();
+				LineLights = Scene->GetComponents<Engine::Components::LineLight>();
 			}
 			void Lighting::Deactivate()
 			{
@@ -1110,6 +1210,8 @@ namespace Tomahawk
 			}
 			Component* Lighting::GetIlluminator(Core::Timer* Time)
 			{
+				TH_ASSERT(Time != nullptr, nullptr, "time should be set");
+
 				Engine::Components::Illuminator* Src = nullptr;
 				float Distance = std::numeric_limits<float>::max();
 
@@ -1182,7 +1284,7 @@ namespace Tomahawk
 			bool Lighting::GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
 			{
 				Engine::Components::PointLight* Light = (Engine::Components::PointLight*)Src;
-				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->GetScene()->View.ViewProjection;
+				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
 				Dest->Position = Light->GetEntity()->Transform->Position.InvZ();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
 				Dest->Attenuation.X = Light->Size.C1;
@@ -1263,7 +1365,7 @@ namespace Tomahawk
 			{
 				*Position = Src->GetEntity()->Transform->Position;
 				*Scale = (Range > 0.0f ? Range : Src->GetEntity()->Transform->Scale);
-				
+
 				bool Front = Compute::Common::HasPointIntersectedCube(*Position, Scale->Mul(1.01f), State.View);
 				if (!(Front && State.Backcull) && !(!Front && !State.Backcull))
 					return;
@@ -1415,6 +1517,7 @@ namespace Tomahawk
 			}
 			void Lighting::Render(Core::Timer* Time, RenderState Status, RenderOpt Options)
 			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
 				State.Device = System->GetDevice();
 				State.Scene = System->GetScene();
 
@@ -1445,13 +1548,14 @@ namespace Tomahawk
 				State.Inner = ((size_t)Options & (size_t)RenderOpt::Inner);
 				State.Backcull = true;
 
+				SceneGraph* Scene = System->GetScene();
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::RenderTarget2D* RT = (State.Inner ? Surfaces.Input : System->GetRT(TargetType::Main));
 
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				AmbientLight.SkyOffset = System->GetScene()->View.Projection.Inv() * Compute::Matrix4x4::CreateRotation(System->GetScene()->View.WorldRotation);
+				AmbientLight.SkyOffset = Scene->View.Projection.Inv() * Compute::Matrix4x4::CreateRotation(Scene->View.WorldRotation);
 				State.Device->SetDepthStencilState(DepthStencilLess);
 				State.Device->SetBlendState(BlendAdditive);
 				State.Device->SetRasterizerState(BackRasterizer);
@@ -1623,7 +1727,7 @@ namespace Tomahawk
 				if (!Inside && Storage.Area == Area && Storage.Inside == Inside)
 					return;
 
-				Graphics::Texture3D* In[3], *Out[3];
+				Graphics::Texture3D* In[3], * Out[3];
 				if (!State.Scene->GetVoxelBuffer(In, Out))
 					return;
 
@@ -1653,7 +1757,7 @@ namespace Tomahawk
 			}
 			void Lighting::RenderLuminance()
 			{
-				Graphics::Texture3D* In[3], *Out[3];
+				Graphics::Texture3D* In[3], * Out[3];
 				if (!LightBuffer || !State.Scene->GetVoxelBuffer(In, Out))
 					return;
 
@@ -1902,8 +2006,11 @@ namespace Tomahawk
 			}
 			void Lighting::SetSurfaceBufferSize(size_t NewSize)
 			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Graphics::MultiRenderTarget2D::Desc F1 = System->GetScene()->GetDescMRT();
+				Graphics::MultiRenderTarget2D::Desc F1 = Scene->GetDescMRT();
 				F1.MipLevels = Device->GetMipLevel((unsigned int)Surfaces.Size, (unsigned int)Surfaces.Size);
 				F1.Width = (unsigned int)Surfaces.Size;
 				F1.Height = (unsigned int)Surfaces.Size;
@@ -1921,7 +2028,7 @@ namespace Tomahawk
 				TH_RELEASE(Surfaces.Subresource);
 				Surfaces.Subresource = Device->CreateCubemap(I);
 
-				Graphics::RenderTarget2D::Desc F2 = System->GetScene()->GetDescRT();
+				Graphics::RenderTarget2D::Desc F2 = Scene->GetDescRT();
 				F2.MipLevels = F1.MipLevels;
 				F2.Width = F1.Width;
 				F2.Height = F1.Height;
@@ -1934,8 +2041,9 @@ namespace Tomahawk
 			}
 			void Lighting::SetVoxelBuffer(RenderSystem* System, Graphics::Shader* Src, unsigned int Slot)
 			{
-				if (!System || !Src)
-					return;
+				TH_ASSERT_V(System != nullptr, "system should be set");
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				TH_ASSERT_V(Src != nullptr, "src should be set");
 
 				Lighting* Renderer = System->GetRenderer<Lighting>();
 				if (!Renderer)
@@ -1959,9 +2067,12 @@ namespace Tomahawk
 
 				return SkyBase;
 			}
-	
+
 			Transparency::Transparency(RenderSystem* Lab) : Renderer(Lab)
 			{
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
+
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("none");
 				Rasterizer = Device->GetRasterizerState("cull-back");
@@ -1979,8 +2090,11 @@ namespace Tomahawk
 			}
 			void Transparency::ResizeBuffers()
 			{
-				Graphics::MultiRenderTarget2D::Desc F1 = System->GetScene()->GetDescMRT();
-				Graphics::RenderTarget2D::Desc F2 = System->GetScene()->GetDescRT();
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
+				SceneGraph* Scene = System->GetScene();
+				Graphics::MultiRenderTarget2D::Desc F1 = Scene->GetDescMRT();
+				Graphics::RenderTarget2D::Desc F2 = Scene->GetDescRT();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				MipLevels[(size_t)TargetType::Main] = (float)F1.MipLevels;
 
@@ -2004,6 +2118,8 @@ namespace Tomahawk
 			}
 			void Transparency::Render(Core::Timer* Time, RenderState State, RenderOpt Options)
 			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+
 				bool Inner = ((size_t)Options & (size_t)RenderOpt::Inner);
 				if (State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Transparent)
 					return;
@@ -2059,6 +2175,9 @@ namespace Tomahawk
 			}
 			void SSR::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("samples-1"), &Reflectance.Samples);
 				NMake::Unpack(Node->Find("samples-2"), &Gloss.Samples);
 				NMake::Unpack(Node->Find("intensity"), &Reflectance.Intensity);
@@ -2066,6 +2185,9 @@ namespace Tomahawk
 			}
 			void SSR::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("samples-1"), Reflectance.Samples);
 				NMake::Pack(Node->Set("samples-2"), Gloss.Samples);
 				NMake::Pack(Node->Set("intensity"), Reflectance.Intensity);
@@ -2095,6 +2217,9 @@ namespace Tomahawk
 			}
 			void SSAO::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("samples-1"), &Shading.Samples);
 				NMake::Unpack(Node->Find("scale"), &Shading.Scale);
 				NMake::Unpack(Node->Find("intensity"), &Shading.Intensity);
@@ -2108,6 +2233,9 @@ namespace Tomahawk
 			}
 			void SSAO::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("samples-1"), Shading.Samples);
 				NMake::Pack(Node->Set("scale"), Shading.Scale);
 				NMake::Pack(Node->Set("intensity"), Shading.Intensity);
@@ -2136,6 +2264,9 @@ namespace Tomahawk
 			}
 			void DoF::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("distance"), &Distance);
 				NMake::Unpack(Node->Find("time"), &Time);
 				NMake::Unpack(Node->Find("radius"), &Radius);
@@ -2149,6 +2280,9 @@ namespace Tomahawk
 			}
 			void DoF::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("distance"), Distance);
 				NMake::Pack(Node->Set("time"), Time);
 				NMake::Pack(Node->Set("radius"), Radius);
@@ -2162,15 +2296,18 @@ namespace Tomahawk
 			}
 			void DoF::RenderEffect(Core::Timer* fTime)
 			{
+				TH_ASSERT_V(fTime != nullptr, "time should be set");
 				if (Distance > 0.0f)
 					FocusAtNearestTarget(fTime->GetDeltaTime());
-				
+
 				Focus.Texel[0] = 1.0f / GetWidth();
 				Focus.Texel[1] = 1.0f / GetHeight();
 				RenderResult(nullptr, &Focus);
 			}
 			void DoF::FocusAtNearestTarget(float DeltaTime)
 			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				
 				SceneGraph* Scene = System->GetScene();
 				Compute::Ray Origin;
 				Origin.Origin = Scene->View.WorldPosition.InvZ();
@@ -2231,22 +2368,30 @@ namespace Tomahawk
 			}
 			void MotionBlur::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("samples"), &Motion.Samples);
 				NMake::Unpack(Node->Find("blur"), &Motion.Blur);
 				NMake::Unpack(Node->Find("motion"), &Motion.Motion);
 			}
 			void MotionBlur::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("samples"), Motion.Samples);
 				NMake::Pack(Node->Set("blur"), Motion.Blur);
 				NMake::Pack(Node->Set("motion"), Motion.Motion);
 			}
 			void MotionBlur::RenderEffect(Core::Timer* Time)
 			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
 				RenderMerge(Shaders.Velocity, &Velocity);
 				RenderResult(Shaders.Motion, &Motion);
 
-				Velocity.LastViewProjection = System->GetScene()->View.ViewProjection;
+				SceneGraph* Scene = System->GetScene();
+				Velocity.LastViewProjection = Scene->View.ViewProjection;
 			}
 
 			Bloom::Bloom(RenderSystem* Lab) : EffectDraw(Lab)
@@ -2295,6 +2440,9 @@ namespace Tomahawk
 			}
 			void Tone::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("grayscale"), &Mapping.Grayscale);
 				NMake::Unpack(Node->Find("aces"), &Mapping.ACES);
 				NMake::Unpack(Node->Find("filmic"), &Mapping.Filmic);
@@ -2320,6 +2468,9 @@ namespace Tomahawk
 			}
 			void Tone::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("grayscale"), Mapping.Grayscale);
 				NMake::Pack(Node->Set("aces"), Mapping.ACES);
 				NMake::Pack(Node->Set("filmic"), Mapping.Filmic);
@@ -2352,6 +2503,7 @@ namespace Tomahawk
 			}
 			void Tone::RenderLUT(Core::Timer* Time)
 			{
+				TH_ASSERT_V(Time != nullptr, "time should be set");
 				if (!LutMap || !LutTarget)
 					SetLUTSize(1);
 
@@ -2371,11 +2523,13 @@ namespace Tomahawk
 			}
 			void Tone::SetLUTSize(size_t Size)
 			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
 				TH_CLEAR(LutTarget);
 				TH_CLEAR(LutMap);
 
+				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Graphics::RenderTarget2D::Desc RT = System->GetScene()->GetDescRT();
+				Graphics::RenderTarget2D::Desc RT = Scene->GetDescRT();
 				RT.MipLevels = Device->GetMipLevel(Size, Size);
 				RT.FormatMode = Graphics::Format::R16_Float;
 				RT.Width = Size;
@@ -2391,6 +2545,9 @@ namespace Tomahawk
 			}
 			void Glitch::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
 				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
 				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
@@ -2406,6 +2563,9 @@ namespace Tomahawk
 			}
 			void Glitch::Serialize(ContentManager* Content, Core::Document* Node)
 			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "document should be set");
+
 				NMake::Pack(Node->Set("scanline-jitter"), ScanLineJitter);
 				NMake::Pack(Node->Set("vertical-jump"), VerticalJump);
 				NMake::Pack(Node->Set("horizontal-shake"), HorizontalShake);
@@ -2441,6 +2601,8 @@ namespace Tomahawk
 			UserInterface::UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity) : Renderer(Lab), Activity(NewActivity)
 			{
 #ifdef TH_WITH_RMLUI
+				TH_ASSERT_V(System != nullptr, "render system should be set");
+				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
 				Context = new GUI::Context(System->GetDevice());
 #endif
 			}
@@ -2453,7 +2615,8 @@ namespace Tomahawk
 			void UserInterface::Render(Core::Timer* Timer, RenderState State, RenderOpt Options)
 			{
 #ifdef TH_WITH_RMLUI
-				if (!Context || State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Inner || (size_t)Options & (size_t)RenderOpt::Transparent)
+				TH_ASSERT_V(Context != nullptr, "context should be set");
+				if (State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Inner || (size_t)Options & (size_t)RenderOpt::Transparent)
 					return;
 
 				Context->UpdateEvents(Activity);

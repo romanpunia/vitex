@@ -41,10 +41,12 @@ namespace Tomahawk
 			}
 			void* Asset::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+
 				char* Binary = (char*)TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
 				{
-					TH_ERROR("cannot read %llu bytes from audio clip file", Length);
+					TH_ERR("cannot read %llu bytes from audio clip file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -58,8 +60,8 @@ namespace Tomahawk
 			void* SceneGraph::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
-				if (!I.Device)
-					return nullptr;
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				TH_ASSERT(I.Device != nullptr, nullptr, "graphics device should be set");
 
 				Core::Document* Document = Content->Load<Core::Document>(Stream->GetSource());
 				if (!Document)
@@ -90,7 +92,7 @@ namespace Tomahawk
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
 				auto IsActive = Args.find("active");
 
-				if (IsActive != Args.end() && IsActive->second.GetType() == Core::VarType::Boolean)
+				if (IsActive != Args.end())
 					Object->SetActive(IsActive->second.GetBoolean());
 
 				Core::Document* Materials = Document->Find("materials");
@@ -139,7 +141,7 @@ namespace Tomahawk
 							NMake::Unpack(Parent->Find("scale"), Scale);
 							NMake::Unpack(Parent->Find("world"), World);
 
-							Compute::Common::ConfigurateUnsafe(Entity->Transform, World, Position, Rotation, Scale);
+							Compute::Common::SetTransformPivot(Entity->Transform, World, Position, Rotation, Scale);
 						}
 
 						Core::Document* Components = It->Find("components");
@@ -181,7 +183,7 @@ namespace Tomahawk
 					Entity->Id = i;
 
 					if (Index >= 0 && Index < (int64_t)Object->GetEntityCount() && Index != i)
-						Compute::Common::SetRootUnsafe(Entity->Transform, Object->GetEntity(Index)->Transform);
+						Compute::Common::SetTransformRoot(Entity->Transform, Object->GetEntity(Index)->Transform);
 				}
 
 				Object->Actualize();
@@ -189,6 +191,9 @@ namespace Tomahawk
 			}
 			bool SceneGraph::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
+
 				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
 				Object->Actualize();
 
@@ -275,11 +280,15 @@ namespace Tomahawk
 			}
 			void AudioClip::Free(AssetCache* Asset)
 			{
+				TH_ASSERT_V(Asset != nullptr, "asset should be set");
 				TH_RELEASE((Audio::AudioClip*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* AudioClip::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				TH_ASSERT(Asset->Resource != nullptr, nullptr, "asset resource should be set");
+
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
@@ -294,11 +303,12 @@ namespace Tomahawk
 			}
 			void* AudioClip::DeserializeWAVE(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 #ifdef TH_HAS_SDL2
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					TH_ERROR("cannot read %llu bytes from audio clip file", Length);
+					TH_ERR("cannot read %llu bytes from audio clip file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -347,10 +357,11 @@ namespace Tomahawk
 			}
 			void* AudioClip::DeserializeOGG(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					TH_ERROR("cannot read %llu bytes from audio clip file", Length);
+					TH_ERR("cannot read %llu bytes from audio clip file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -360,7 +371,7 @@ namespace Tomahawk
 				int Samples = stb_vorbis_decode_memory((const unsigned char*)Binary, (int)Length, &Channels, &SampleRate, &Buffer);
 				if (Samples <= 0)
 				{
-					TH_ERROR("cannot interpret OGG stream");
+					TH_ERR("cannot interpret OGG stream");
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -391,20 +402,25 @@ namespace Tomahawk
 			}
 			void Texture2D::Free(AssetCache* Asset)
 			{
+				TH_ASSERT_V(Asset != nullptr, "asset should be set");
 				TH_RELEASE((Graphics::Texture2D*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* Texture2D::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				TH_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* Texture2D::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				unsigned char* Binary = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					TH_ERROR("cannot read %llu bytes from texture 2d file", Length);
+					TH_ERR("cannot read %llu bytes from texture 2d file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -450,22 +466,21 @@ namespace Tomahawk
 			}
 			void Shader::Free(AssetCache* Asset)
 			{
+				TH_ASSERT_V(Asset != nullptr, "asset should be set");
 				TH_RELEASE((Graphics::Shader*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* Shader::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				TH_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* Shader::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
-				if (Args.empty())
-				{
-					TH_ERROR("shader processor args: req pointer Layout and req integer LayoutSize");
-					return nullptr;
-				}
-
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				char* Code = (char*)TH_MALLOC(sizeof(char) * (unsigned int)Length);
 				Stream->Read(Code, Length);
 
@@ -496,16 +511,21 @@ namespace Tomahawk
 			}
 			void Model::Free(AssetCache* Asset)
 			{
+				TH_ASSERT_V(Asset != nullptr, "asset should be set");
 				TH_RELEASE((Graphics::Model*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* Model::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				TH_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+
 				((Graphics::Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* Model::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
@@ -567,7 +587,7 @@ namespace Tomahawk
 				auto* Scene = Importer.ReadFile(Path, Opts);
 				if (!Scene)
 				{
-					TH_ERROR("cannot import mesh because %s", Importer.GetErrorString());
+					TH_ERR("cannot import mesh\n\t%s", Importer.GetErrorString());
 					return nullptr;
 				}
 
@@ -810,16 +830,21 @@ namespace Tomahawk
 			}
 			void SkinModel::Free(AssetCache* Asset)
 			{
+				TH_ASSERT_V(Asset != nullptr, "asset should be set");
 				TH_RELEASE((Graphics::SkinModel*)Asset->Resource);
 				Asset->Resource = nullptr;
 			}
 			void* SkinModel::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				TH_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+
 				((Graphics::SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
 			void* SkinModel::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
@@ -882,7 +907,7 @@ namespace Tomahawk
 				auto* Scene = Importer.ReadFile(Path, Opts);
 				if (!Scene)
 				{
-					TH_ERROR("cannot import mesh animation because %s", Importer.GetErrorString());
+					TH_ERR("cannot import mesh animation because %s", Importer.GetErrorString());
 					return nullptr;
 				}
 
@@ -1030,6 +1055,7 @@ namespace Tomahawk
 			}
 			void* Document::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				Core::DocReadCallback Callback = [Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
@@ -1051,18 +1077,16 @@ namespace Tomahawk
 				Object = Core::Document::ReadXML(Length, Callback, false);
 
 				if (!Object)
-					TH_ERROR("[doc] file is not in JSON, JSONB or XML format");
+					TH_ERR("[doc] file is not in JSON, JSONB or XML format");
 
 				return Object;
 			}
 			bool Document::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				auto Type = Args.find("type");
-				if (Type == Args.end())
-				{
-					TH_ERROR("document type must be specified");
-					return false;
-				}
+				TH_ASSERT(Type != Args.end(), nullptr, "type argument should be set");
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
 
 				auto Document = (Core::Document*)Instance;
 				std::string Offset;
@@ -1142,6 +1166,7 @@ namespace Tomahawk
 			}
 			void* Server::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::string N = Network::Socket::LocalIpAddress();
 				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
@@ -1510,19 +1535,23 @@ namespace Tomahawk
 			}
 			void Shape::Free(AssetCache* Asset)
 			{
-				if (Asset->Resource != nullptr)
-				{
-					Compute::UnmanagedShape* Shape = (Compute::UnmanagedShape*)Asset->Resource;
-					Compute::Simulator::FreeUnmanagedShape(Shape->Shape);
-					TH_DELETE(UnmanagedShape, Shape);
-				}
+				TH_ASSERT_V(Asset != nullptr, "asset should be set");
+				TH_ASSERT_V(Asset->Resource != nullptr, "instance should be set");
+
+				Compute::UnmanagedShape* Shape = (Compute::UnmanagedShape*)Asset->Resource;
+				Compute::Simulator::FreeUnmanagedShape(Shape->Shape);
+				TH_DELETE(UnmanagedShape, Shape);
 			}
 			void* Shape::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				TH_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+
 				return Asset->Resource;
 			}
 			void* Shape::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;

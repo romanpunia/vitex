@@ -30,9 +30,7 @@ namespace Tomahawk
 				}
 				bool Parse(void* Context, const FilterCallback& Callback)
 				{
-					if (!Callback)
-						return false;
-
+					TH_ASSERT(Callback, false, "callback should be set");
 					if (Source[0] == '[')
 					{
 						while (Position < Size)
@@ -85,6 +83,7 @@ namespace Tomahawk
 			private:
 				void Emplace(void* Context, const FilterCallback& Callback, bool Empties)
 				{
+					TH_ASSERT_V(Callback, "callback should be set");
 					if (Records.empty() && !Empties)
 						return;
 
@@ -103,6 +102,7 @@ namespace Tomahawk
 
 			static void PQlogMessage(TConnection* Base)
 			{
+				TH_ASSERT_V(Base != nullptr, "base should be set");
 				char* Message = PQerrorMessage(Base);
 				if (!Message || Message[0] == '\0')
 					return;
@@ -118,7 +118,7 @@ namespace Tomahawk
 				for (auto& Item : Errors)
 					Result += "\n\t" + Item;
 
-				TH_ERROR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
+				TH_ERR("[pqerr] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
 			}
 			static void PQlogNotice(void*, const char* Message)
 			{
@@ -141,6 +141,7 @@ namespace Tomahawk
 			static Core::Document* ToDocument(const char* Data, int Size, unsigned int Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
 			{
+				TH_ASSERT_V(Context != nullptr, "context should be set");
 				std::pair<Core::Document*, Oid>* Base = (std::pair<Core::Document*, Oid>*)Context;
 				if (Subdata != nullptr)
 				{
@@ -384,7 +385,7 @@ namespace Tomahawk
 				{
 					if (Message != nullptr)
 					{
-						TH_ERROR("[pg] couldn't parse URI string\n\t%s", Message);
+						TH_ERR("[pg] couldn't parse URI string\n\t%s", Message);
 						PQfreemem(Message);
 					}
 				}
@@ -588,8 +589,10 @@ namespace Tomahawk
 			int Column::SetValueText(char* Data, size_t Size)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return -1;
+				TH_ASSERT(Data != nullptr, -1, "data should be set");
+				TH_ASSERT(Base != nullptr, -1, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
 
 				return PQsetvalue(Base, RowIndex, ColumnIndex, Data, Size);
 #else
@@ -599,8 +602,9 @@ namespace Tomahawk
 			std::string Column::GetName() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return std::string();
+				TH_ASSERT(Base != nullptr, std::string(), "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), std::string(), "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), std::string(), "column should be valid");
 
 				char* Text = PQfname(Base, ColumnIndex);
 				if (!Text)
@@ -614,8 +618,9 @@ namespace Tomahawk
 			Core::Variant Column::GetValue() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return Core::Var::Undefined();
+				TH_ASSERT(Base != nullptr, Core::Var::Undefined(), "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Core::Var::Undefined(), "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), Core::Var::Undefined(), "column should be valid");
 
 				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
 					return Core::Var::Null();
@@ -632,8 +637,9 @@ namespace Tomahawk
 			Core::Document* Column::GetValueAuto() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return nullptr;
+				TH_ASSERT(Base != nullptr, nullptr, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), nullptr, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), nullptr, "column should be valid");
 
 				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
 					return nullptr;
@@ -650,8 +656,9 @@ namespace Tomahawk
 			char* Column::GetValueData() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return nullptr;
+				TH_ASSERT(Base != nullptr, nullptr, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), nullptr, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), nullptr, "column should be valid");
 
 				return PQgetvalue(Base, RowIndex, ColumnIndex);
 #else
@@ -661,8 +668,9 @@ namespace Tomahawk
 			int Column::GetFormatId() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return 0;
+				TH_ASSERT(Base != nullptr, 0, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), 0, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), 0, "column should be valid");
 
 				return PQfformat(Base, ColumnIndex);
 #else
@@ -672,8 +680,9 @@ namespace Tomahawk
 			int Column::GetModId() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return -1;
+				TH_ASSERT(Base != nullptr, -1, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
 
 				return PQfmod(Base, ColumnIndex);
 #else
@@ -683,8 +692,9 @@ namespace Tomahawk
 			int Column::GetTableIndex() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return -1;
+				TH_ASSERT(Base != nullptr, -1, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
 
 				return PQftablecol(Base, ColumnIndex);
 #else
@@ -694,8 +704,9 @@ namespace Tomahawk
 			ObjectId Column::GetTableId() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return InvalidOid;
+				TH_ASSERT(Base != nullptr, InvalidOid, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), InvalidOid, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), InvalidOid, "column should be valid");
 
 				return PQftable(Base, ColumnIndex);
 #else
@@ -705,8 +716,9 @@ namespace Tomahawk
 			ObjectId Column::GetTypeId() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return InvalidOid;
+				TH_ASSERT(Base != nullptr, InvalidOid, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), InvalidOid, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), InvalidOid, "column should be valid");
 
 				return PQftype(Base, ColumnIndex);
 #else
@@ -735,8 +747,9 @@ namespace Tomahawk
 			size_t Column::GetValueSize() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return 0;
+				TH_ASSERT(Base != nullptr, 0, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), 0, "row should be valid");
+				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), 0, "column should be valid");
 
 				int Size = PQgetlength(Base, RowIndex, ColumnIndex);
 				if (Size < 0)
@@ -750,8 +763,8 @@ namespace Tomahawk
 			Row Column::GetRow() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
-					return Row(nullptr, std::numeric_limits<size_t>::max());
+				TH_ASSERT(Base != nullptr, Row(nullptr, std::numeric_limits<size_t>::max()), "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Row(nullptr, std::numeric_limits<size_t>::max()), "row should be valid");
 
 				return Row(Base, RowIndex);
 #else
@@ -762,7 +775,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
-					return nullptr;
+					return true;
 
 				return PQgetisnull(Base, RowIndex, ColumnIndex) == 1;
 #else
@@ -831,9 +844,9 @@ namespace Tomahawk
 			Column Row::GetColumn(size_t Index) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || Index >= GetSize())
-					return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
-
+				TH_ASSERT(Base != nullptr, Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "row should be valid");
+				
 				return Column(Base, RowIndex, Index);
 #else
 				return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
@@ -842,8 +855,9 @@ namespace Tomahawk
 			Column Row::GetColumn(const char* Name) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || !Name)
-					return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
+				TH_ASSERT(Name != nullptr, Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "name should be set");
+				TH_ASSERT(Base != nullptr, Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "row should be valid");
 
 				int Index = PQfnumber(Base, Name);
 				if (Index < 0)
@@ -857,8 +871,9 @@ namespace Tomahawk
 			bool Row::GetColumns(Column* Output, size_t Size) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || !Output || Size < 1)
-					return false;
+				TH_ASSERT(Output != nullptr && Size > 0, false, "output should be valid");
+				TH_ASSERT(Base != nullptr, false, "context should be valid");
+				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), false, "row should be valid");
 
 				Size = std::min(GetSize(), Size);
 				for (size_t i = 0; i < Size; i++)
@@ -941,9 +956,7 @@ namespace Tomahawk
 			std::string Response::GetCommandStatusText() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "context should be valid");
 				char* Text = PQcmdStatus(Base);
 				if (!Text)
 					return std::string();
@@ -956,9 +969,7 @@ namespace Tomahawk
 			std::string Response::GetStatusText() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "context should be valid");
 				char* Text = PQresStatus(PQresultStatus(Base));
 				if (!Text)
 					return std::string();
@@ -971,9 +982,7 @@ namespace Tomahawk
 			std::string Response::GetErrorText() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "context should be valid");
 				char* Text = PQresultErrorMessage(Base);
 				if (!Text)
 					return std::string();
@@ -986,9 +995,7 @@ namespace Tomahawk
 			std::string Response::GetErrorField(FieldCode Field) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "context should be valid");
 				int Code;
 				switch (Field)
 				{
@@ -1062,8 +1069,8 @@ namespace Tomahawk
 			int Response::GetNameIndex(const std::string& Name) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || Name.empty())
-					return -1;
+				TH_ASSERT(Base != nullptr, -1, "context should be valid");
+				TH_ASSERT(!Name.empty(), -1, "name should not be empty");
 
 				return PQfnumber(Base, Name.c_str());
 #else
@@ -1073,9 +1080,7 @@ namespace Tomahawk
 			QueryExec Response::GetStatus() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return QueryExec::Empty_Query;
-
+				TH_ASSERT(Base != nullptr, QueryExec::Empty_Query, "context should be valid");
 				return (QueryExec)PQresultStatus(Base);
 #else
 				return QueryExec::Empty_Query;
@@ -1084,9 +1089,7 @@ namespace Tomahawk
 			ObjectId Response::GetValueId() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return InvalidOid;
-
+				TH_ASSERT(Base != nullptr, InvalidOid, "context should be valid");
 				return PQoidValue(Base);
 #else
 				return 0;
@@ -1129,8 +1132,8 @@ namespace Tomahawk
 			Row Response::GetRow(size_t Index) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || Index >= GetSize())
-					return Row(nullptr, std::numeric_limits<size_t>::max());
+				TH_ASSERT(Base != nullptr, Row(nullptr, std::numeric_limits<size_t>::max()), "context should be valid");
+				TH_ASSERT(Index < GetSize(), Row(nullptr, std::numeric_limits<size_t>::max()), "index outside of range");
 
 				return Row(Base, Index);
 #else
@@ -1139,10 +1142,16 @@ namespace Tomahawk
 			}
 			Row Response::First() const
 			{
+				if (IsEmpty())
+					return Row(nullptr, std::numeric_limits<size_t>::max());
+
 				return GetRow(0);
 			}
 			Row Response::Last() const
 			{
+				if (IsEmpty())
+					return Row(nullptr, std::numeric_limits<size_t>::max());
+
 				return GetRow(GetSize() - 1);
 			}
 			TResponse* Response::Get() const
@@ -1163,7 +1172,7 @@ namespace Tomahawk
 			bool Response::IsError() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				QueryExec State = GetStatus();
+				QueryExec State = (Base ? GetStatus() : QueryExec::Non_Fatal_Error);
 				return State == QueryExec::Fatal_Error || State == QueryExec::Non_Fatal_Error || State == QueryExec::Bad_Response;
 #else
 				return false;
@@ -1202,7 +1211,7 @@ namespace Tomahawk
 			bool Cursor::IsError() const
 			{
 				if (Base.empty())
-					return false;
+					return true;
 
 				for (auto& Item : Base)
 				{
@@ -1232,9 +1241,7 @@ namespace Tomahawk
 			}
 			Response Cursor::GetCursor(size_t Index) const
 			{
-				if (Index >= Base.size())
-					return Response(nullptr);
-
+				TH_ASSERT(Index < Base.size(), Response(nullptr), "index outside of range");
 				return Base[Index];
 			}
 
@@ -1318,6 +1325,7 @@ namespace Tomahawk
 			Core::Async<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{
 #ifdef TH_HAS_POSTGRESQL
+				TH_ASSERT(Connections > 0, Core::Async<bool>::Store(false), "connections count should be at least 1");
 				Update.lock();
 				Source = URI;
 
@@ -1331,9 +1339,6 @@ namespace Tomahawk
 				}
 
 				Update.unlock();
-				if (!Connections)
-					return Core::Async<bool>::Store(false);
-
 				return Core::Async<bool>::Executor([this, Connections](Core::Async<bool>& Future)
 				{
 					const char** Keys = Source.CreateKeys();
@@ -1385,9 +1390,7 @@ namespace Tomahawk
 			Core::Async<bool> Cluster::Disconnect()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (Pool.empty())
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(!Pool.empty(), Core::Async<bool>::Store(false), "connection should be established");
 				return Core::Async<bool>::Executor([this](Core::Async<bool>& Future)
 				{
 					Update.lock();
@@ -1437,9 +1440,6 @@ namespace Tomahawk
 			}
 			TConnection* Cluster::GetConnection(QueryState State)
 			{
-				if (Pool.empty())
-					return nullptr;
-
 				Update.lock();
 				for (auto& Item : Pool)
 				{
@@ -1698,7 +1698,11 @@ namespace Tomahawk
 			}
 			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{
-				if (!Queries || !Safe || Name.empty() || !Buffer || !Size)
+				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
+				TH_ASSERT(!Name.empty(), false, "name should not be empty");
+				TH_ASSERT(Buffer, false, "buffer should be set");
+
+				if (!Size)
 					return false;
 
 				Sequence Result;
@@ -1844,9 +1848,7 @@ namespace Tomahawk
 			}
 			bool Driver::RemoveQuery(const std::string& Name)
 			{
-				if (!Queries || !Safe)
-					return false;
-
+				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->find(Name);
 				if (It == Queries->end())
@@ -1903,9 +1905,7 @@ namespace Tomahawk
 			}
 			std::string Driver::GetQuery(Cluster* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once)
 			{
-				if (!Queries || !Safe)
-					return std::string();
-
+				TH_ASSERT(Queries && Safe, std::string(), "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->find(Name);
 				if (It == Queries->end())
@@ -1980,15 +1980,14 @@ namespace Tomahawk
 
 				std::string Data = Origin.Request;
 				if (Data.empty())
-					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
+					TH_ERR("could not construct query: \"%s\"", Name.c_str());
 
 				return Data;
 			}
 			std::vector<std::string> Driver::GetQueries()
 			{
 				std::vector<std::string> Result;
-				if (!Queries || !Safe)
-					return Result;
+				TH_ASSERT(Queries && Safe, Result, "driver should be initialized");
 
 				Safe->lock();
 				Result.reserve(Queries->size());

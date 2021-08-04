@@ -24,9 +24,7 @@ namespace
 		}
 		int Read(void* Ptr, asUINT Size)
 		{
-			if (!Ptr || !Size)
-				return 0;
-
+			TH_ASSERT(Ptr && Size, 0, "corrupted read");
 			memcpy(Ptr, &Code[ReadPos], Size);
 			ReadPos += Size;
 
@@ -34,9 +32,7 @@ namespace
 		}
 		int Write(const void* Ptr, asUINT Size)
 		{
-			if (!Ptr || !Size)
-				return 0;
-
+			TH_ASSERT(Ptr && Size, 0, "corrupted write");
 			Code.resize(Code.size() + Size);
 			memcpy(&Code[WritePos], Ptr, Size);
 			WritePos += Size;
@@ -61,28 +57,28 @@ namespace Tomahawk
 	{
 		int VMFuncStore::AtomicNotifyGC(const char* TypeName, void* Object)
 		{
-			if (!TypeName || !Object)
-				return -1;
+			TH_ASSERT(TypeName != nullptr, -1, "typename should be set");
+			TH_ASSERT(Object != nullptr, -1, "object should be set");
 
 			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return -1;
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 
 			VMManager* Engine = VMManager::Get(Context->GetEngine());
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			VMTypeInfo Type = Engine->Global().GetTypeInfoByName(TypeName);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
 		}
 		asSFuncPtr* VMFuncStore::CreateFunctionBase(void(*Base)(), int Type)
 		{
+			TH_ASSERT(Base != nullptr, nullptr, "function pointer should be set");
 			asSFuncPtr* Ptr = TH_NEW(asSFuncPtr, Type);
 			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
 			return Ptr;
 		}
 		asSFuncPtr* VMFuncStore::CreateMethodBase(const void* Base, size_t Size, int Type)
 		{
+			TH_ASSERT(Base != nullptr, nullptr, "function pointer should be set");
 			asSFuncPtr* Ptr = TH_NEW(asSFuncPtr, Type);
 			Ptr->CopyMethodPtr(Base, Size);
 			return Ptr;
@@ -105,37 +101,27 @@ namespace Tomahawk
 		}
 		const char* VMMessage::GetSection() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "message should be valid");
 			return Info->section;
 		}
 		const char* VMMessage::GetText() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "message should be valid");
 			return Info->message;
 		}
 		VMLogType VMMessage::GetType() const
 		{
-			if (!IsValid())
-				return VMLogType::INFORMATION;
-
+			TH_ASSERT(IsValid(), VMLogType::INFORMATION, "message should be valid");
 			return (VMLogType)Info->type;
 		}
 		int VMMessage::GetRow() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "message should be valid");
 			return Info->row;
 		}
 		int VMMessage::GetColumn() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "message should be valid");
 			return Info->col;
 		}
 		asSMessageInfo* VMMessage::GetMessageInfo() const
@@ -153,8 +139,8 @@ namespace Tomahawk
 		}
 		void VMTypeInfo::ForEachProperty(const PropertyCallback& Callback)
 		{
-			if (!Callback || !IsValid())
-				return;
+			TH_ASSERT_V(IsValid(), "typeinfo should be valid");
+			TH_ASSERT_V(Callback, "typeinfo should not be empty");
 
 			unsigned int Count = Info->GetPropertyCount();
 			for (unsigned int i = 0; i < Count; i++)
@@ -166,8 +152,8 @@ namespace Tomahawk
 		}
 		void VMTypeInfo::ForEachMethod(const MethodCallback& Callback)
 		{
-			if (!Callback || !IsValid())
-				return;
+			TH_ASSERT_V(IsValid(), "typeinfo should be valid");
+			TH_ASSERT_V(Callback, "typeinfo should not be empty");
 
 			unsigned int Count = Info->GetMethodCount();
 			for (unsigned int i = 0; i < Count; i++)
@@ -179,30 +165,22 @@ namespace Tomahawk
 		}
 		const char* VMTypeInfo::GetGroup() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetConfigGroup();
 		}
 		size_t VMTypeInfo::GetAccessMask() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetAccessMask();
 		}
 		VMModule VMTypeInfo::GetModule() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetModule();
 		}
 		int VMTypeInfo::AddRef() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "typeinfo should be valid");
 			return Info->AddRef();
 		}
 		int VMTypeInfo::Release()
@@ -218,155 +196,112 @@ namespace Tomahawk
 		}
 		const char* VMTypeInfo::GetName() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetName();
 		}
 		const char* VMTypeInfo::GetNamespace() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetNamespace();
 		}
 		VMTypeInfo VMTypeInfo::GetBaseType() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetBaseType();
 		}
 		bool VMTypeInfo::DerivesFrom(const VMTypeInfo& Type) const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->DerivesFrom(Type.GetTypeInfo());
 		}
 		size_t VMTypeInfo::GetFlags() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetFlags();
 		}
 		unsigned int VMTypeInfo::GetSize() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetSize();
 		}
 		int VMTypeInfo::GetTypeId() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "typeinfo should be valid");
 			return Info->GetTypeId();
 		}
 		int VMTypeInfo::GetSubTypeId(unsigned int SubTypeIndex) const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "typeinfo should be valid");
 			return Info->GetSubTypeId(SubTypeIndex);
 		}
 		VMTypeInfo VMTypeInfo::GetSubType(unsigned int SubTypeIndex) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetSubType(SubTypeIndex);
 		}
 		unsigned int VMTypeInfo::GetSubTypeCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetSubTypeCount();
 		}
 		unsigned int VMTypeInfo::GetInterfaceCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetInterfaceCount();
 		}
 		VMTypeInfo VMTypeInfo::GetInterface(unsigned int Index) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetInterface(Index);
 		}
 		bool VMTypeInfo::Implements(const VMTypeInfo& Type) const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "typeinfo should be valid");
 			return Info->Implements(Type.GetTypeInfo());
 		}
 		unsigned int VMTypeInfo::GetFactoriesCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetFactoryCount();
 		}
 		VMFunction VMTypeInfo::GetFactoryByIndex(unsigned int Index) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetFactoryByIndex(Index);
 		}
 		VMFunction VMTypeInfo::GetFactoryByDecl(const char* Decl) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetFactoryByDecl(Decl);
 		}
 		unsigned int VMTypeInfo::GetMethodsCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetMethodCount();
 		}
 		VMFunction VMTypeInfo::GetMethodByIndex(unsigned int Index, bool GetVirtual) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetMethodByIndex(Index, GetVirtual);
 		}
 		VMFunction VMTypeInfo::GetMethodByName(const char* Name, bool GetVirtual) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetMethodByName(Name, GetVirtual);
 		}
 		VMFunction VMTypeInfo::GetMethodByDecl(const char* Decl, bool GetVirtual) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetMethodByDecl(Decl, GetVirtual);
 		}
 		unsigned int VMTypeInfo::GetPropertiesCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetPropertyCount();
 		}
 		int VMTypeInfo::GetProperty(unsigned int Index, VMFuncProperty* Out) const
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "typeinfo should be valid");
 
 			const char* Name;
 			asDWORD AccessMask;
@@ -391,22 +326,17 @@ namespace Tomahawk
 		}
 		const char* VMTypeInfo::GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetPropertyDeclaration(Index, IncludeNamespace);
 		}
 		unsigned int VMTypeInfo::GetBehaviourCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetBehaviourCount();
 		}
 		VMFunction VMTypeInfo::GetBehaviourByIndex(unsigned int Index, VMBehave* OutBehaviour) const
 		{
-			if (!IsValid())
-				return nullptr;
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 
 			asEBehaviours Out;
 			VMCFunction* Result = Info->GetBehaviourByIndex(Index, &Out);
@@ -417,65 +347,47 @@ namespace Tomahawk
 		}
 		unsigned int VMTypeInfo::GetChildFunctionDefCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetChildFuncdefCount();
 		}
 		VMTypeInfo VMTypeInfo::GetChildFunctionDef(unsigned int Index) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetChildFuncdef(Index);
 		}
 		VMTypeInfo VMTypeInfo::GetParentType() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetParentType();
 		}
 		unsigned int VMTypeInfo::GetEnumValueCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetEnumValueCount();
 		}
 		const char* VMTypeInfo::GetEnumValueByIndex(unsigned int Index, int* OutValue) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetEnumValueByIndex(Index, OutValue);
 		}
 		VMFunction VMTypeInfo::GetFunctionDefSignature() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetFuncdefSignature();
 		}
 		void* VMTypeInfo::SetUserData(void* Data, uint64_t Type)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->SetUserData(Data, Type);
 		}
 		void* VMTypeInfo::GetUserData(uint64_t Type) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetUserData(Type);
 		}
 		bool VMTypeInfo::IsHandle() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "typeinfo should be valid");
 			return IsHandle(Info->GetTypeId());
 		}
 		bool VMTypeInfo::IsValid() const
@@ -505,9 +417,7 @@ namespace Tomahawk
 		}
 		int VMFunction::AddRef() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 			return Function->AddRef();
 		}
 		int VMFunction::Release()
@@ -523,155 +433,112 @@ namespace Tomahawk
 		}
 		int VMFunction::GetId() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 			return Function->GetId();
 		}
 		VMFuncType VMFunction::GetType() const
 		{
-			if (!IsValid())
-				return VMFuncType::DUMMY;
-
+			TH_ASSERT(IsValid(), VMFuncType::DUMMY, "function should be valid");
 			return (VMFuncType)Function->GetFuncType();
 		}
 		const char* VMFunction::GetModuleName() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetModuleName();
 		}
 		VMModule VMFunction::GetModule() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetModule();
 		}
 		const char* VMFunction::GetSectionName() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetScriptSectionName();
 		}
 		const char* VMFunction::GetGroup() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetConfigGroup();
 		}
 		size_t VMFunction::GetAccessMask() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 			return Function->GetAccessMask();
 		}
 		VMTypeInfo VMFunction::GetObjectType() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetObjectType();
 		}
 		const char* VMFunction::GetObjectName() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetObjectName();
 		}
 		const char* VMFunction::GetName() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetName();
 		}
 		const char* VMFunction::GetNamespace() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetNamespace();
 		}
 		const char* VMFunction::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames);
 		}
 		bool VMFunction::IsReadOnly() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsReadOnly();
 		}
 		bool VMFunction::IsPrivate() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsPrivate();
 		}
 		bool VMFunction::IsProtected() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsProtected();
 		}
 		bool VMFunction::IsFinal() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsFinal();
 		}
 		bool VMFunction::IsOverride() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsOverride();
 		}
 		bool VMFunction::IsShared() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsShared();
 		}
 		bool VMFunction::IsExplicit() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsExplicit();
 		}
 		bool VMFunction::IsProperty() const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsProperty();
 		}
 		unsigned int VMFunction::GetArgsCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "function should be valid");
 			return Function->GetParamCount();
 		}
 		int VMFunction::GetArg(unsigned int Index, int* TypeId, size_t* Flags, const char** Name, const char** DefaultArg) const
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 
 			asDWORD asFlags;
 			int R = Function->GetParam(Index, TypeId, &asFlags, Name, DefaultArg);
@@ -682,8 +549,7 @@ namespace Tomahawk
 		}
 		int VMFunction::GetReturnTypeId(size_t* Flags) const
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 
 			asDWORD asFlags;
 			int R = Function->GetReturnTypeId(&asFlags);
@@ -694,79 +560,57 @@ namespace Tomahawk
 		}
 		int VMFunction::GetTypeId() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 			return Function->GetTypeId();
 		}
 		bool VMFunction::IsCompatibleWithTypeId(int TypeId) const
 		{
-			if (!IsValid())
-				return false;
-
+			TH_ASSERT(IsValid(), false, "function should be valid");
 			return Function->IsCompatibleWithTypeId(TypeId);
 		}
 		void* VMFunction::GetDelegateObject() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetDelegateObject();
 		}
 		VMTypeInfo VMFunction::GetDelegateObjectType() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetDelegateObjectType();
 		}
 		VMFunction VMFunction::GetDelegateFunction() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetDelegateFunction();
 		}
 		unsigned int VMFunction::GetPropertiesCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "function should be valid");
 			return Function->GetVarCount();
 		}
 		int VMFunction::GetProperty(unsigned int Index, const char** Name, int* TypeId) const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 			return Function->GetVar(Index, Name, TypeId);
 		}
 		const char* VMFunction::GetPropertyDecl(unsigned int Index, bool IncludeNamespace) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetVarDecl(Index, IncludeNamespace);
 		}
 		int VMFunction::FindNextLineWithCode(int Line) const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "function should be valid");
 			return Function->FindNextLineWithCode(Line);
 		}
 		void* VMFunction::SetUserData(void* UserData, uint64_t Type)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->SetUserData(UserData, Type);
 		}
 		void* VMFunction::GetUserData(uint64_t Type) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetUserData(Type);
 		}
 		bool VMFunction::IsValid() const
@@ -787,15 +631,13 @@ namespace Tomahawk
 		}
 		int VMObject::AddRef() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->AddRef();
 		}
 		int VMObject::Release()
 		{
 			if (!IsValid())
-				return 0;
+				return -1;
 
 			int R = Object->Release();
 			Object = nullptr;
@@ -804,72 +646,52 @@ namespace Tomahawk
 		}
 		VMTypeInfo VMObject::GetObjectType()
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetObjectType();
 		}
 		int VMObject::GetTypeId()
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->GetTypeId();
 		}
 		int VMObject::GetPropertyTypeId(unsigned int Id) const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->GetPropertyTypeId(Id);
 		}
 		unsigned int VMObject::GetPropertiesCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->GetPropertyCount();
 		}
 		const char* VMObject::GetPropertyName(unsigned int Id) const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetPropertyName(Id);
 		}
 		void* VMObject::GetAddressOfProperty(unsigned int Id)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetAddressOfProperty(Id);
 		}
 		VMManager* VMObject::GetManager() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return VMManager::Get(Object->GetEngine());
 		}
 		int VMObject::CopyFrom(const VMObject& Other)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "object should be valid");
 			return Object->CopyFrom(Other.GetObject());
 		}
 		void* VMObject::SetUserData(void* Data, uint64_t Type)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->SetUserData(Data, (asPWORD)Type);
 		}
 		void* VMObject::GetUserData(uint64_t Type) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetUserData((asPWORD)Type);
 		}
 		bool VMObject::IsValid() const
@@ -887,29 +709,22 @@ namespace Tomahawk
 		}
 		void* VMGeneric::GetObjectAddress()
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetObject();
 		}
 		int VMGeneric::GetObjectTypeId() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->GetObjectTypeId();
 		}
 		int VMGeneric::GetArgsCount() const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->GetArgCount();
 		}
 		int VMGeneric::GetArgTypeId(unsigned int Argument, size_t* Flags) const
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 
 			asDWORD asFlags;
 			int R = Generic->GetArgTypeId(Argument, &asFlags);
@@ -920,71 +735,52 @@ namespace Tomahawk
 		}
 		unsigned char VMGeneric::GetArgByte(unsigned int Argument)
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgByte(Argument);
 		}
 		unsigned short VMGeneric::GetArgWord(unsigned int Argument)
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgWord(Argument);
 		}
 		size_t VMGeneric::GetArgDWord(unsigned int Argument)
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgDWord(Argument);
 		}
 		uint64_t VMGeneric::GetArgQWord(unsigned int Argument)
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgQWord(Argument);
 		}
 		float VMGeneric::GetArgFloat(unsigned int Argument)
 		{
-			if (!IsValid())
-				return 0.0f;
-
+			TH_ASSERT(IsValid(), 0.0f, "generic should be valid");
 			return Generic->GetArgFloat(Argument);
 		}
 		double VMGeneric::GetArgDouble(unsigned int Argument)
 		{
-			if (!IsValid())
-				return 0.0;
-
+			TH_ASSERT(IsValid(), 0.0, "generic should be valid");
 			return Generic->GetArgDouble(Argument);
 		}
 		void* VMGeneric::GetArgAddress(unsigned int Argument)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetArgAddress(Argument);
 		}
 		void* VMGeneric::GetArgObjectAddress(unsigned int Argument)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetArgObject(Argument);
 		}
 		void* VMGeneric::GetAddressOfArg(unsigned int Argument)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetAddressOfArg(Argument);
 		}
 		int VMGeneric::GetReturnTypeId(size_t* Flags) const
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 
 			asDWORD asFlags;
 			int R = Generic->GetReturnTypeId(&asFlags);
@@ -995,65 +791,47 @@ namespace Tomahawk
 		}
 		int VMGeneric::SetReturnByte(unsigned char Value)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnByte(Value);
 		}
 		int VMGeneric::SetReturnWord(unsigned short Value)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnWord(Value);
 		}
 		int VMGeneric::SetReturnDWord(size_t Value)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnDWord(Value);
 		}
 		int VMGeneric::SetReturnQWord(uint64_t Value)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnQWord(Value);
 		}
 		int VMGeneric::SetReturnFloat(float Value)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnFloat(Value);
 		}
 		int VMGeneric::SetReturnDouble(double Value)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnDouble(Value);
 		}
 		int VMGeneric::SetReturnAddress(void* Address)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnAddress(Address);
 		}
 		int VMGeneric::SetReturnObjectAddress(void* Object)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnObject(Object);
 		}
 		void* VMGeneric::GetAddressOfReturnLocation()
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetAddressOfReturnLocation();
 		}
 		bool VMGeneric::IsValid() const
@@ -1074,12 +852,11 @@ namespace Tomahawk
 		}
 		int VMClass::SetFunctionDef(const char* Decl)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			VMCTypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
@@ -1093,46 +870,44 @@ namespace Tomahawk
 		}
 		int VMClass::SetOperatorCopyAddress(asSFuncPtr* Value)
 		{
-			if (!IsValid() || !Value)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			Core::Parser Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, asCALL_THISCALL);
 		}
 		int VMClass::SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall Type)
 		{
-			if (!IsValid() || !Decl || !Value)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type);
 		}
 		int VMClass::SetPropertyAddress(const char* Decl, int Offset)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectProperty(Object.c_str(), Decl, Offset);
 		}
 		int VMClass::SetPropertyStaticAddress(const char* Decl, void* Value)
 		{
-			if (!IsValid() || !Decl || !Value)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			VMCTypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
@@ -1150,23 +925,23 @@ namespace Tomahawk
 		}
 		int VMClass::SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl, *Value, (asECallConvTypes)Type);
 		}
 		int VMClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			VMCTypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
@@ -1181,34 +956,34 @@ namespace Tomahawk
 		}
 		int VMClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
 		int VMClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
 		int VMClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "class should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST);
 		}
@@ -1391,12 +1166,11 @@ namespace Tomahawk
 		}
 		int VMInterface::SetMethod(const char* Decl)
 		{
-			if (!IsValid() || !Decl)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "interface should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterInterfaceMethod(Object.c_str(), Decl);
 		}
@@ -1422,12 +1196,11 @@ namespace Tomahawk
 		}
 		int VMEnum::SetValue(const char* Name, int Value)
 		{
-			if (!IsValid() || !Name)
-				return -1;
+			TH_ASSERT(IsValid(), -1, "enum should be valid");
+			TH_ASSERT(Name != nullptr, -1, "name should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterEnumValue(Object.c_str(), Name, Value);
 		}
@@ -1454,37 +1227,31 @@ namespace Tomahawk
 		}
 		void VMModule::SetName(const char* Name)
 		{
-			if (!IsValid())
-				return;
-
+			TH_ASSERT_V(IsValid(), "module should be valid");
+			TH_ASSERT_V(Name != nullptr, "name should be set");
 			return Mod->SetName(Name);
 		}
 		int VMModule::AddSection(const char* Name, const char* Code, size_t CodeLength, int LineOffset)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
+			TH_ASSERT(Name != nullptr, -1, "name should be set");
+			TH_ASSERT(Code != nullptr, -1, "code should be set");
 			return Mod->AddScriptSection(Name, Code, CodeLength, LineOffset);
 		}
 		int VMModule::RemoveFunction(const VMFunction& Function)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->RemoveFunction(Function.GetFunction());
 		}
 		int VMModule::ResetProperties(VMCContext* Context)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Mod->ResetGlobalVars(Context);
 		}
 		int VMModule::Build()
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			Manager->Lock();
 			int R = Mod->Build();
 			Manager->Unlock();
@@ -1493,10 +1260,10 @@ namespace Tomahawk
 		}
 		int VMModule::LoadByteCode(VMByteCode* Info)
 		{
-			int R = -1;
-			if (!Info || !IsValid())
-				return R;
+			TH_ASSERT(IsValid(), -1, "module should be valid");
+			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
 
+			int R = -1;
 			Manager->Lock();
 			{
 				CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
@@ -1509,9 +1276,7 @@ namespace Tomahawk
 		}
 		int VMModule::Discard()
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			Manager->Lock();
 			{
 				Mod->Discard();
@@ -1523,36 +1288,29 @@ namespace Tomahawk
 		}
 		int VMModule::BindImportedFunction(size_t ImportIndex, const VMFunction& Function)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->BindImportedFunction((asUINT)ImportIndex, Function.GetFunction());
 		}
 		int VMModule::UnbindImportedFunction(size_t ImportIndex)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->UnbindImportedFunction((asUINT)ImportIndex);
 		}
 		int VMModule::BindAllImportedFunctions()
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->BindAllImportedFunctions();
 		}
 		int VMModule::UnbindAllImportedFunctions()
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->UnbindAllImportedFunctions();
 		}
 		int VMModule::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, VMFunction* OutFunction)
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "module should be valid");
+			TH_ASSERT(SectionName != nullptr, -1, "section name should be set");
+			TH_ASSERT(Code != nullptr, -1, "code should be set");
 
 			VMCFunction* OutFunc = nullptr;
 			Manager->Lock();
@@ -1566,9 +1324,7 @@ namespace Tomahawk
 		}
 		int VMModule::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			Manager->Lock();
 			int R = Mod->CompileGlobalVar(SectionName, Code, LineOffset);
 			Manager->Unlock();
@@ -1577,80 +1333,60 @@ namespace Tomahawk
 		}
 		int VMModule::SetDefaultNamespace(const char* NameSpace)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->SetDefaultNamespace(NameSpace);
 		}
 		void* VMModule::GetAddressOfProperty(size_t Index)
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetAddressOfGlobalVar(Index);
 		}
 		int VMModule::RemoveProperty(size_t Index)
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->RemoveGlobalVar(Index);
 		}
 		size_t VMModule::SetAccessMask(size_t AccessMask)
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->SetAccessMask((asDWORD)AccessMask);
 		}
 		size_t VMModule::GetFunctionCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetFunctionCount();
 		}
 		VMFunction VMModule::GetFunctionByIndex(size_t Index) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetFunctionByIndex((asUINT)Index);
 		}
 		VMFunction VMModule::GetFunctionByDecl(const char* Decl) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetFunctionByDecl(Decl);
 		}
 		VMFunction VMModule::GetFunctionByName(const char* Name) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetFunctionByName(Name);
 		}
 		int VMModule::GetTypeIdByDecl(const char* Decl) const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->GetTypeIdByDecl(Decl);
 		}
 		int VMModule::GetImportedFunctionIndexByDecl(const char* Decl) const
 		{
-			if (!IsValid())
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->GetImportedFunctionIndexByDecl(Decl);
 		}
 		int VMModule::SaveByteCode(VMByteCode* Info) const
 		{
-			int R = -1;
-			if (!Info || !IsValid())
-				return R;
+			TH_ASSERT(IsValid(), -1, "module should be valid");
+			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
 
+			int R = -1;
 			Manager->Lock();
 			{
 				CByteCodeStream* Stream = TH_NEW(CByteCodeStream);
@@ -1664,23 +1400,21 @@ namespace Tomahawk
 		}
 		int VMModule::GetPropertyIndexByName(const char* Name) const
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "module should be valid");
+			TH_ASSERT(Name != nullptr, -1, "name should be set");
 
 			return Mod->GetGlobalVarIndexByName(Name);
 		}
 		int VMModule::GetPropertyIndexByDecl(const char* Decl) const
 		{
-			if (!IsValid())
-				return -1;
+			TH_ASSERT(IsValid(), -1, "module should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			return Mod->GetGlobalVarIndexByDecl(Decl);
 		}
 		int VMModule::GetProperty(size_t Index, VMProperty* Info) const
 		{
-			if (!Manager)
-				return -1;
-
+			TH_ASSERT(IsValid(), -1, "module should be valid");
 			const char* Name = nullptr;
 			const char* NameSpace = nullptr;
 			bool IsConst = false;
@@ -1702,53 +1436,39 @@ namespace Tomahawk
 		}
 		size_t VMModule::GetAccessMask() const
 		{
-			if (!Mod)
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "module should be valid");
 			asDWORD AccessMask = Mod->SetAccessMask(0);
 			Mod->SetAccessMask(AccessMask);
 			return (size_t)AccessMask;
 		}
 		size_t VMModule::GetObjectsCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetObjectTypeCount();
 		}
 		size_t VMModule::GetPropertiesCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetGlobalVarCount();
 		}
 		size_t VMModule::GetEnumsCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetEnumCount();
 		}
 		size_t VMModule::GetImportedFunctionCount() const
 		{
-			if (!IsValid())
-				return 0;
-
+			TH_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetImportedFunctionCount();
 		}
 		VMTypeInfo VMModule::GetObjectByIndex(size_t Index) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetObjectTypeByIndex(Index);
 		}
 		VMTypeInfo VMModule::GetTypeInfoByName(const char* Name) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			const char* TypeName = Name;
 			const char* Namespace = nullptr;
 			size_t NamespaceSize = 0;
@@ -1764,51 +1484,37 @@ namespace Tomahawk
 		}
 		VMTypeInfo VMModule::GetTypeInfoByDecl(const char* Decl) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetTypeInfoByDecl(Decl);
 		}
 		VMTypeInfo VMModule::GetEnumByIndex(size_t Index) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetEnumByIndex(Index);
 		}
 		const char* VMModule::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetGlobalVarDeclaration(Index, IncludeNamespace);
 		}
 		const char* VMModule::GetDefaultNamespace() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetDefaultNamespace();
 		}
 		const char* VMModule::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetImportedFunctionDeclaration(ImportIndex);
 		}
 		const char* VMModule::GetImportedFunctionModule(size_t ImportIndex) const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetImportedFunctionSourceModule(ImportIndex);
 		}
 		const char* VMModule::GetName() const
 		{
-			if (!IsValid())
-				return nullptr;
-
+			TH_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetName();
 		}
 		bool VMModule::IsValid() const
@@ -1829,56 +1535,53 @@ namespace Tomahawk
 		}
 		int VMGlobal::SetFunctionDef(const char* Decl)
 		{
-			if (!Manager || !Decl)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterFuncdef(Decl);
 		}
 		int VMGlobal::SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
 		{
-			if (!Manager || !Decl || !Value)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
 		}
 		int VMGlobal::SetPropertyAddress(const char* Decl, void* Value)
 		{
-			if (!Manager || !Decl)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			TH_ASSERT(Value != nullptr, -1, "value should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return -1;
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterGlobalProperty(Decl, Value);
 		}
 		VMInterface VMGlobal::SetInterface(const char* Name)
 		{
-			if (!Manager || !Name)
-				return VMInterface(Manager, "", -1);
+			TH_ASSERT(Manager != nullptr, VMInterface(nullptr, "", -1), "global should be valid");
+			TH_ASSERT(Name != nullptr, VMInterface(nullptr, "", -1), "name should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return VMInterface(Manager, Name, -1);
+			TH_ASSERT(Engine != nullptr, VMInterface(nullptr, "", -1), "engine should be set");
 
 			return VMInterface(Manager, Name, Engine->RegisterInterface(Name));
 		}
 		VMTypeClass VMGlobal::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
-			if (!Manager || !Name)
-				return VMTypeClass(Manager, "", -1);
+			TH_ASSERT(Manager != nullptr, VMTypeClass(nullptr, "", -1), "global should be valid");
+			TH_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return VMTypeClass(Manager, Name, -1);
+			TH_ASSERT(Engine != nullptr, VMTypeClass(nullptr, "", -1), "engine should be set");
 
 			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
 		}
@@ -1888,66 +1591,54 @@ namespace Tomahawk
 		}
 		VMRefClass VMGlobal::SetClassAddress(const char* Name, uint64_t Flags)
 		{
-			if (!Manager || !Name)
-				return VMRefClass(Manager, "", -1);
+			TH_ASSERT(Manager != nullptr, VMRefClass(nullptr, "", -1), "global should be valid");
+			TH_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return VMRefClass(Manager, Name, -1);
+			TH_ASSERT(Engine != nullptr, VMRefClass(nullptr, "", -1), "engine should be set");
 
 			return VMRefClass(Manager, Name, Engine->RegisterObjectType(Name, 0, (asDWORD)Flags));
 		}
 		VMEnum VMGlobal::SetEnum(const char* Name)
 		{
-			if (!Manager || !Name)
-				return VMEnum(Manager, "", -1);
+			TH_ASSERT(Manager != nullptr, VMEnum(nullptr, "", -1), "global should be valid");
+			TH_ASSERT(Name != nullptr, VMEnum(nullptr, "", -1), "name should be set");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return VMEnum(Manager, Name, -1);
+			TH_ASSERT(Engine != nullptr, VMEnum(nullptr, "", -1), "engine should be set");
 
 			return VMEnum(Manager, Name, Engine->RegisterEnum(Name));
 		}
 		size_t VMGlobal::GetFunctionsCount() const
 		{
-			if (!Manager)
-				return 0;
-
+			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetGlobalFunctionCount();
 		}
 		VMFunction VMGlobal::GetFunctionById(int Id) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetFunctionById(Id);
 		}
 		VMFunction VMGlobal::GetFunctionByIndex(int Index) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetGlobalFunctionByIndex(Index);
 		}
 		VMFunction VMGlobal::GetFunctionByDecl(const char* Decl) const
 		{
-			if (!Manager || !Decl)
-				return nullptr;
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
+			TH_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
 
 			return Manager->GetEngine()->GetGlobalFunctionByDecl(Decl);
 		}
 		size_t VMGlobal::GetPropertiesCount() const
 		{
-			if (!Manager)
-				return 0;
-
+			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetGlobalPropertyCount();
 		}
 		int VMGlobal::GetPropertyByIndex(int Index, VMProperty* Info) const
 		{
-			if (!Manager)
-				return -1;
-
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
 			const char* Name = nullptr, *NameSpace = nullptr;
 			const char* ConfigGroup = nullptr;
 			void* Pointer = nullptr;
@@ -1971,98 +1662,79 @@ namespace Tomahawk
 		}
 		int VMGlobal::GetPropertyIndexByName(const char* Name) const
 		{
-			if (!Manager || !Name)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
+			TH_ASSERT(Name != nullptr, -1, "name should be set");
 
 			return Manager->GetEngine()->GetGlobalPropertyIndexByName(Name);
 		}
 		int VMGlobal::GetPropertyIndexByDecl(const char* Decl) const
 		{
-			if (!Manager || !Decl)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			return Manager->GetEngine()->GetGlobalPropertyIndexByDecl(Decl);
 		}
 		size_t VMGlobal::GetObjectsCount() const
 		{
-			if (!Manager)
-				return 0;
-
+			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetObjectTypeCount();
 		}
 		VMTypeInfo VMGlobal::GetObjectByTypeId(int TypeId) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetObjectTypeByIndex(TypeId);
 		}
 		size_t VMGlobal::GetEnumCount() const
 		{
-			if (!Manager)
-				return 0;
-
+			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetEnumCount();
 		}
 		VMTypeInfo VMGlobal::GetEnumByTypeId(int TypeId) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetEnumByIndex(TypeId);
 		}
 		size_t VMGlobal::GetFunctionDefsCount() const
 		{
-			if (!Manager)
-				return 0;
-
+			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetFuncdefCount();
 		}
 		VMTypeInfo VMGlobal::GetFunctionDefByIndex(int Index) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetFuncdefByIndex(Index);
 		}
 		size_t VMGlobal::GetModulesCount() const
 		{
-			if (!Manager)
-				return 0;
-
+			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetModuleCount();
 		}
 		VMCModule* VMGlobal::GetModuleById(int Id) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetModuleByIndex(Id);
 		}
 		int VMGlobal::GetTypeIdByDecl(const char* Decl) const
 		{
-			if (!Manager || !Decl)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
+			TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			return Manager->GetEngine()->GetTypeIdByDecl(Decl);
 		}
 		const char* VMGlobal::GetTypeIdDecl(int TypeId, bool IncludeNamespace) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetTypeDeclaration(TypeId, IncludeNamespace);
 		}
 		int VMGlobal::GetSizeOfPrimitiveType(int TypeId) const
 		{
-			if (!Manager)
-				return -1;
-
+			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
 			return Manager->GetEngine()->GetSizeOfPrimitiveType(TypeId);
 		}
 		std::string VMGlobal::GetObjectView(void* Object, int TypeId)
 		{
-			if (!Manager || !Object)
+			TH_ASSERT(Manager != nullptr, "null", "global should be valid");
+			if (!Object)
 				return "null";
 
 			if (TypeId == (int)VMTypeId::INT8)
@@ -2093,15 +1765,13 @@ namespace Tomahawk
 		}
 		VMTypeInfo VMGlobal::GetTypeInfoById(int TypeId) const
 		{
-			if (!Manager)
-				return nullptr;
-
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
 			return Manager->GetEngine()->GetTypeInfoById(TypeId);
 		}
 		VMTypeInfo VMGlobal::GetTypeInfoByName(const char* Name) const
 		{
-			if (!Manager || !Name)
-				return nullptr;
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
+			TH_ASSERT(Name != nullptr, nullptr, "name should be set");
 
 			const char* TypeName = Name;
 			const char* Namespace = nullptr;
@@ -2118,8 +1788,8 @@ namespace Tomahawk
 		}
 		VMTypeInfo VMGlobal::GetTypeInfoByDecl(const char* Decl) const
 		{
-			if (!Manager || !Decl)
-				return nullptr;
+			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
+			TH_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
 
 			return Manager->GetEngine()->GetTypeInfoByDecl(Decl);
 		}
@@ -2130,9 +1800,12 @@ namespace Tomahawk
 
 		VMCompiler::VMCompiler(VMManager* Engine) : Module(nullptr), Manager(Engine), Context(nullptr), BuiltOK(false)
 		{
+			TH_ASSERT_V(Manager != nullptr, "engine should be set");
+
 			Processor = new Compute::Preprocessor();
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
 			{
+				TH_ASSERT(Manager != nullptr, false, "engine should be set");
 				if (Include && Include(C, File, Out))
 					return true;
 
@@ -2153,9 +1826,7 @@ namespace Tomahawk
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Name, const std::vector<std::string>& Args)
 			{
-				if (!Manager)
-					return false;
-
+				TH_ASSERT(Manager != nullptr, false, "engine should be set");
 				if (Pragma && Pragma(C, Name, Args))
 					return true;
 
@@ -2236,7 +1907,7 @@ namespace Tomahawk
 					else if (Key == "WARN")
 						TH_WARN("%s", Args[1].c_str());
 					else if (Key == "ERROR")
-						TH_ERROR("%s", Args[1].c_str());
+						TH_ERR("%s", Args[1].c_str());
 				}
 				else if (Name == "modify" && Args.size() == 2)
 				{
@@ -2273,12 +1944,9 @@ namespace Tomahawk
 				return true;
 			});
 
-			if (Manager != nullptr)
-			{
-				Context = Manager->CreateContext();
-				Context->SetUserData(this, CompilerUD);
-				Manager->SetProcessorOptions(Processor);
-			}
+			Context = Manager->CreateContext();
+			Context->SetUserData(this, CompilerUD);
+			Manager->SetProcessorOptions(Processor);
 		}
 		VMCompiler::~VMCompiler()
 		{
@@ -2303,9 +1971,7 @@ namespace Tomahawk
 		}
 		bool VMCompiler::Clear()
 		{
-			if (!Manager)
-				return false;
-
+			TH_ASSERT(Manager != nullptr, false, "engine should be set");
 			Manager->Lock();
 			{
 				if (Module != nullptr)
@@ -2335,8 +2001,8 @@ namespace Tomahawk
 		}
 		int VMCompiler::Prepare(const std::string& ModuleName, bool Scoped)
 		{
-			if (!Manager || ModuleName.empty())
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(!ModuleName.empty(), -1, "module name should not be empty");
 
 			BuiltOK = false;
 			VCache.Valid = false;
@@ -2361,8 +2027,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::Prepare(const std::string& ModuleName, const std::string& Name, bool Debug, bool Scoped)
 		{
-			if (!Manager)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
 
 			int Result = Prepare(ModuleName, Scoped);
 			if (Result < 0)
@@ -2380,8 +2045,8 @@ namespace Tomahawk
 		}
 		int VMCompiler::Compile(bool Await)
 		{
-			if (!Manager || !Module)
-				return -1;
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
 
 			if (VCache.Valid)
 			{
@@ -2435,45 +2100,38 @@ namespace Tomahawk
 		}
 		int VMCompiler::SaveByteCode(VMByteCode* Info)
 		{
-			Manager->Lock();
-			if (!Info || !Module || !BuiltOK)
-			{
-				Manager->Unlock();
-				TH_ERROR("module was not built");
-				return -1;
-			}
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
+			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
+			TH_ASSERT(BuiltOK, -1, "module should be built");
 
+			Manager->Lock();
 			CByteCodeStream* Stream = TH_NEW(CByteCodeStream);
 			int R = Module->SaveByteCode(Stream, Info->Debug);
 			Info->Data = Stream->GetCode();
 			TH_DELETE(CByteCodeStream, Stream);
-
 			Manager->Unlock();
+
 			return R;
 		}
 		int VMCompiler::LoadByteCode(VMByteCode* Info)
 		{
-			Manager->Lock();
-			if (!Info || !Module)
-			{
-				Manager->Unlock();
-				return -1;
-			}
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
+			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
 
+			Manager->Lock();
 			CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
 			int R = Module->LoadByteCode(Stream, &Info->Debug);
 			TH_DELETE(CByteCodeStream, Stream);
-
 			Manager->Unlock();
+
 			return R;
 		}
 		int VMCompiler::LoadFile(const std::string& Path)
 		{
-			if (!Module || !Manager)
-			{
-				TH_ERROR("module was not created");
-				return -1;
-			}
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
 
 			if (VCache.Valid)
 				return 0;
@@ -2481,7 +2139,7 @@ namespace Tomahawk
 			std::string Source = Core::OS::Path::Resolve(Path.c_str());
 			if (!Core::OS::File::IsExists(Source.c_str()))
 			{
-				TH_ERROR("file not found");
+				TH_ERR("file not found");
 				return -1;
 			}
 
@@ -2493,11 +2151,8 @@ namespace Tomahawk
 		}
 		int VMCompiler::LoadCode(const std::string& Name, const std::string& Data)
 		{
-			if (!Module)
-			{
-				TH_ERROR("module was not created");
-				return -1;
-			}
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
 
 			if (VCache.Valid)
 				return 0;
@@ -2510,11 +2165,8 @@ namespace Tomahawk
 		}
 		int VMCompiler::LoadCode(const std::string& Name, const char* Data, uint64_t Size)
 		{
-			if (!Module)
-			{
-				TH_ERROR("module was not created");
-				return -1;
-			}
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
 
 			if (VCache.Valid)
 				return 0;
@@ -2527,8 +2179,10 @@ namespace Tomahawk
 		}
 		int VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
 		{
-			if (!Name || !ModuleName || !EntryName)
-				return asINVALID_ARG;
+			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
+			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
+			TH_ASSERT(ModuleName != nullptr, asINVALID_ARG, "module name should be set");
+			TH_ASSERT(EntryName != nullptr, asINVALID_ARG, "entry name should be set");
 
 			int R = Prepare(ModuleName, Name);
 			if (R < 0)
@@ -2546,8 +2200,10 @@ namespace Tomahawk
 		}
 		int VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
 		{
-			if (Buffer.empty() || !ModuleName || !EntryName)
-				return asINVALID_ARG;
+			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
+			TH_ASSERT(!Buffer.empty(), asINVALID_ARG, "buffer should not be empty");
+			TH_ASSERT(ModuleName != nullptr, asINVALID_ARG, "module name should be set");
+			TH_ASSERT(EntryName != nullptr, asINVALID_ARG, "entry name should be set");
 
 			int R = Prepare(ModuleName, "anonymous");
 			if (R < 0)
@@ -2569,12 +2225,14 @@ namespace Tomahawk
 		}
 		int VMCompiler::ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, ArgsCallback&& Callback)
 		{
-			if (!BuiltOK || !Manager || !Context || !Name || !Module)
-				return asINVALID_ARG;
+			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
+			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
+			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
+			TH_ASSERT(Module != nullptr, asINVALID_ARG, "module should not be empty");
+			TH_ASSERT(BuiltOK, asINVALID_ARG, "module should be built");
 
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return asINVALID_CONFIGURATION;
+			TH_ASSERT(Engine != nullptr, asINVALID_CONFIGURATION, "engine should be set");
 
 			VMCFunction* Function = Module->GetFunctionByName(Name);
 			if (!Function)
@@ -2605,8 +2263,11 @@ namespace Tomahawk
 		}
 		int VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, void* Return, int ReturnTypeId)
 		{
-			if (!BuiltOK || !Manager || !Context || !Buffer || !Length || !Module)
-				return -1;
+			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
+			TH_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
+			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
+			TH_ASSERT(Module != nullptr, asINVALID_ARG, "module should not be empty");
+			TH_ASSERT(BuiltOK, asINVALID_ARG, "module should be built");
 
 			VMCManager* Engine = Manager->GetEngine();
 			std::string Eval = " __vfbdy(){\n";
@@ -2684,12 +2345,10 @@ namespace Tomahawk
 
 		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr)
 		{
-			if (Context != nullptr)
-			{
-				Manager = VMManager::Get(Base->GetEngine());
-				Context->SetUserData(this, ContextUD);
-				Context->SetExceptionCallback(asFUNCTION(ExceptionLogger), this, asCALL_CDECL);
-			}
+			TH_ASSERT_V(Base != nullptr, "context should be set");
+			Manager = VMManager::Get(Base->GetEngine());
+			Context->SetUserData(this, ContextUD);
+			Context->SetExceptionCallback(asFUNCTION(ExceptionLogger), this, asCALL_CDECL);
 		}
 		VMContext::~VMContext()
 		{
@@ -2716,23 +2375,17 @@ namespace Tomahawk
 		}
 		int VMContext::SetExceptionCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
 		}
 		int VMContext::AddRefVM() const
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->AddRef();
 		}
 		int VMContext::ReleaseVM()
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			int R = Context->Release();
 			if (R <= 0)
 				Context = nullptr;
@@ -2741,22 +2394,18 @@ namespace Tomahawk
 		}
 		int VMContext::Prepare(const VMFunction& Function)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Prepare(Function.GetFunction());
 		}
 		int VMContext::Unprepare()
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Unprepare();
 		}
 		int VMContext::Execute(const VMFunction& Function, ArgsCallback&& Callback, bool Notify)
 		{
-			if (!Context || !Function.IsValid())
-				return asINVALID_ARG;
+			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
+			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
 			asEContextState State = Context->GetState();
 			if (State != asEXECUTION_FINISHED && State != asEXECUTION_ABORTED && State != asEXECUTION_EXCEPTION && State != asEXECUTION_ERROR && State != asEXECUTION_UNINITIALIZED)
@@ -2802,29 +2451,22 @@ namespace Tomahawk
 		}
 		int VMContext::Abort()
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Abort();
 		}
 		int VMContext::Suspend()
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Suspend();
 		}
 		VMExecState VMContext::GetState() const
 		{
-			if (!Context)
-				return VMExecState::UNINITIALIZED;
-
+			TH_ASSERT(Context != nullptr, VMExecState::UNINITIALIZED, "context should be set");
 			return (VMExecState)Context->GetState();
 		}
 		std::string VMContext::GetStackTrace() const
 		{
-			if (!Context)
-				return "";
+			TH_ASSERT(Context != nullptr, "", "context should be set");
 
 			std::stringstream Result;
 			Result << "--- call stack ---\n";
@@ -2854,30 +2496,22 @@ namespace Tomahawk
 		}
 		int VMContext::PushState()
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->PushState();
 		}
 		int VMContext::PopState()
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->PopState();
 		}
 		bool VMContext::IsNested(unsigned int* NestCount) const
 		{
-			if (!Context)
-				return false;
-
+			TH_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->IsNested(NestCount);
 		}
 		bool VMContext::IsThrown() const
 		{
-			if (!Context)
-				return false;
-
+			TH_ASSERT(Context != nullptr, false, "context should be set");
 			const char* Exception = Context->GetExceptionString();
 			if (!Exception)
 				return false;
@@ -2886,303 +2520,219 @@ namespace Tomahawk
 		}
 		int VMContext::SetObject(void* Object)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetObject(Object);
 		}
 		int VMContext::SetArg8(unsigned int Arg, unsigned char Value)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgByte(Arg, Value);
 		}
 		int VMContext::SetArg16(unsigned int Arg, unsigned short Value)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgWord(Arg, Value);
 		}
 		int VMContext::SetArg32(unsigned int Arg, int Value)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgDWord(Arg, Value);
 		}
 		int VMContext::SetArg64(unsigned int Arg, int64_t Value)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgQWord(Arg, Value);
 		}
 		int VMContext::SetArgFloat(unsigned int Arg, float Value)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgFloat(Arg, Value);
 		}
 		int VMContext::SetArgDouble(unsigned int Arg, double Value)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgDouble(Arg, Value);
 		}
 		int VMContext::SetArgAddress(unsigned int Arg, void* Address)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgAddress(Arg, Address);
 		}
 		int VMContext::SetArgObject(unsigned int Arg, void* Object)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgObject(Arg, Object);
 		}
 		int VMContext::SetArgAny(unsigned int Arg, void* Ptr, int TypeId)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgVarType(Arg, Ptr, TypeId);
 		}
 		void* VMContext::GetAddressOfArg(unsigned int Arg)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetAddressOfArg(Arg);
 		}
 		unsigned char VMContext::GetReturnByte()
 		{
-			if (!Context)
-				return 0;
-
+			TH_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnByte();
 		}
 		unsigned short VMContext::GetReturnWord()
 		{
-			if (!Context)
-				return 0;
-
+			TH_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnWord();
 		}
 		size_t VMContext::GetReturnDWord()
 		{
-			if (!Context)
-				return 0;
-
+			TH_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnDWord();
 		}
 		uint64_t VMContext::GetReturnQWord()
 		{
-			if (!Context)
-				return 0;
-
+			TH_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnQWord();
 		}
 		float VMContext::GetReturnFloat()
 		{
-			if (!Context)
-				return 0.0f;
-
+			TH_ASSERT(Context != nullptr, 0.0f, "context should be set");
 			return Context->GetReturnFloat();
 		}
 		double VMContext::GetReturnDouble()
 		{
-			if (!Context)
-				return 0.0;
-
+			TH_ASSERT(Context != nullptr, 0.0, "context should be set");
 			return Context->GetReturnDouble();
 		}
 		void* VMContext::GetReturnAddress()
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetReturnAddress();
 		}
 		void* VMContext::GetReturnObjectAddress()
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetReturnObject();
 		}
 		void* VMContext::GetAddressOfReturnValue()
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetAddressOfReturnValue();
 		}
 		int VMContext::SetException(const char* Info, bool AllowCatch)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetException(Info, AllowCatch);
 		}
 		int VMContext::GetExceptionLineNumber(int* Column, const char** SectionName)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetExceptionLineNumber(Column, SectionName);
 		}
 		VMFunction VMContext::GetExceptionFunction()
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetExceptionFunction();
 		}
 		const char* VMContext::GetExceptionString()
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetExceptionString();
 		}
 		bool VMContext::WillExceptionBeCaught()
 		{
-			if (!Context)
-				return false;
-
+			TH_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->WillExceptionBeCaught();
 		}
 		void VMContext::ClearExceptionCallback()
 		{
-			if (!Context)
-				return;
-
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 			return Context->ClearExceptionCallback();
 		}
 		int VMContext::SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
-			if (!Context || !Callback)
-				return -1;
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
+			TH_ASSERT(Callback != nullptr, -1, "callback should be set");
 
 			return Context->SetLineCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
 		}
 		void VMContext::ClearLineCallback()
 		{
-			if (!Context)
-				return;
-
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 			return Context->ClearLineCallback();
 		}
 		unsigned int VMContext::GetCallstackSize() const
 		{
-			if (!Context)
-				return 0;
-
+			TH_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetCallstackSize();
 		}
 		VMFunction VMContext::GetFunction(unsigned int StackLevel)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetFunction(StackLevel);
 		}
 		int VMContext::GetLineNumber(unsigned int StackLevel, int* Column, const char** SectionName)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetLineNumber(StackLevel, Column, SectionName);
 		}
 		int VMContext::GetPropertiesCount(unsigned int StackLevel)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetVarCount(StackLevel);
 		}
 		const char* VMContext::GetPropertyName(unsigned int Index, unsigned int StackLevel)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetVarName(Index, StackLevel);
 		}
 		const char* VMContext::GetPropertyDecl(unsigned int Index, unsigned int StackLevel, bool IncludeNamespace)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetVarDeclaration(Index, StackLevel, IncludeNamespace);
 		}
 		int VMContext::GetPropertyTypeId(unsigned int Index, unsigned int StackLevel)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetVarTypeId(Index, StackLevel);
 		}
 		void* VMContext::GetAddressOfProperty(unsigned int Index, unsigned int StackLevel)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetAddressOfVar(Index, StackLevel);
 		}
 		bool VMContext::IsPropertyInScope(unsigned int Index, unsigned int StackLevel)
 		{
-			if (!Context)
-				return false;
-
+			TH_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->IsVarInScope(Index, StackLevel);
 		}
 		int VMContext::GetThisTypeId(unsigned int StackLevel)
 		{
-			if (!Context)
-				return -1;
-
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetThisTypeId(StackLevel);
 		}
 		void* VMContext::GetThisPointer(unsigned int StackLevel)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetThisPointer(StackLevel);
 		}
 		VMFunction VMContext::GetSystemFunction()
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetSystemFunction();
 		}
 		bool VMContext::IsSuspended() const
 		{
-			if (!Context)
-				return false;
-
+			TH_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->GetState() == asEXECUTION_SUSPENDED;
 		}
 		void* VMContext::SetUserData(void* Data, uint64_t Type)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->SetUserData(Data, Type);
 		}
 		void* VMContext::GetUserData(uint64_t Type) const
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetUserData(Type);
 		}
 		VMCContext* VMContext::GetContext()
@@ -3195,22 +2745,23 @@ namespace Tomahawk
 		}
 		VMContext* VMContext::Get(VMCContext* Context)
 		{
-			if (!Context)
-				return nullptr;
-
+			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			void* Manager = Context->GetUserData(ContextUD);
 			return (VMContext*)Manager;
 		}
 		VMContext* VMContext::Get()
 		{
-			return Get(asGetActiveContext());
+			VMCContext* Context = asGetActiveContext();
+			if (!Context)
+				return nullptr;
+
+			return Get(Context);
 		}
 		void VMContext::ExceptionLogger(VMCContext* Context, void*)
 		{
 			VMCFunction* Function = Context->GetExceptionFunction();
-			VMContext* Api = VMContext::Get(Context);
-			if (!Api)
-				return;
+			VMContext* Base = VMContext::Get(Context);
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			const char* Message = Context->GetExceptionString();
 			if (!Message || Message[0] == '\0')
@@ -3223,9 +2774,9 @@ namespace Tomahawk
 			const char* Mod = Function->GetModuleName();
 			const char* Source = Function->GetScriptSectionName();
 			int Line = Context->GetExceptionLineNumber();
-			std::string Stack = Api->GetStackTrace();
+			std::string Stack = Base->GetStackTrace();
 
-			TH_ERROR("uncaught exception raised"
+			TH_ERR("uncaught exception raised"
 				"\n\tdescription: %s"
 				"\n\tfunction: %s"
 				"\n\tmodule: %s"
@@ -3255,7 +2806,7 @@ namespace Tomahawk
 			}
 
 			if (Engine->RegisterObjectType("Address", 0, asOBJ_REF | asOBJ_NOCOUNT) < 0)
-				TH_ERROR("could not register Address type for script engine");
+				TH_ERR("could not register Address type for script engine");
 
 			RegisterSubmodules(this);
 		}
@@ -3291,7 +2842,7 @@ namespace Tomahawk
 			JIT = TH_NEW(VMCJITCompiler, JITOpts);
 			Engine->SetJITCompiler((VMCJITCompiler*)JIT);
 #else
-			TH_ERROR("JIT compiler is not supported on this platform");
+			TH_ERR("JIT compiler is not supported on this platform");
 #endif
 		}
 		void VMManager::SetCache(bool Enabled)
@@ -3331,9 +2882,7 @@ namespace Tomahawk
 		}
 		void VMManager::SetProcessorOptions(Compute::Preprocessor* Processor)
 		{
-			if (!Processor)
-				return;
-
+			TH_ASSERT_V(Processor != nullptr, "preprocessor should be set");
 			Safe.lock();
 			Processor->SetIncludeOptions(Include);
 			Processor->SetFeatures(Proc);
@@ -3341,7 +2890,8 @@ namespace Tomahawk
 		}
 		bool VMManager::GetByteCodeCache(VMByteCode* Info)
 		{
-			if (!Info || !Cached)
+			TH_ASSERT(Info != nullptr, false, "bytecode should be set");
+			if (!Cached)
 				return false;
 
 			Safe.lock();
@@ -3361,9 +2911,7 @@ namespace Tomahawk
 		}
 		void VMManager::SetByteCodeCache(VMByteCode* Info)
 		{
-			if (!Info)
-				return;
-
+			TH_ASSERT_V(Info != nullptr, "bytecode should be set");
 			Info->Valid = true;
 			if (!Cached)
 				return;
@@ -3393,8 +2941,8 @@ namespace Tomahawk
 		}
 		VMCModule* VMManager::CreateScopedModule(const std::string& Name, bool AqLock)
 		{
-			if (!Engine || Name.empty())
-				return nullptr;
+			TH_ASSERT(Engine != nullptr, nullptr, "engine should be set");
+			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 
 			if (AqLock)
 				Safe.lock();
@@ -3406,7 +2954,6 @@ namespace Tomahawk
 
 				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 			}
-
 
 			std::string Result;
 			while (Result.size() < 1024)
@@ -3428,8 +2975,8 @@ namespace Tomahawk
 		}
 		VMCModule* VMManager::CreateModule(const std::string& Name, bool AqLock)
 		{
-			if (!Engine || Name.empty())
-				return nullptr;
+			TH_ASSERT(Engine != nullptr, nullptr, "engine should be set");
+			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 
 			if (AqLock)
 				Safe.lock();
@@ -3532,8 +3079,7 @@ namespace Tomahawk
 		}
 		int VMManager::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
 		{
-			if (!TypeName || !*TypeName)
-				return -1;
+			TH_ASSERT(TypeName != nullptr && *TypeName != nullptr, -1, "typename should be set");
 
 			const char* Value = *TypeName;
 			size_t Size = strlen(Value);
@@ -3564,9 +3110,7 @@ namespace Tomahawk
 		}
 		int VMManager::BeginGroup(const char* GroupName)
 		{
-			if (!GroupName)
-				return -1;
-
+			TH_ASSERT(GroupName != nullptr, -1, "group name should be set");
 			return Engine->BeginConfigGroup(GroupName);
 		}
 		int VMManager::EndGroup()
@@ -3575,16 +3119,12 @@ namespace Tomahawk
 		}
 		int VMManager::RemoveGroup(const char* GroupName)
 		{
-			if (!GroupName)
-				return -1;
-
+			TH_ASSERT(GroupName != nullptr, -1, "group name should be set");
 			return Engine->RemoveConfigGroup(GroupName);
 		}
 		int VMManager::BeginNamespace(const char* Namespace)
 		{
-			if (!Namespace)
-				return -1;
-
+			TH_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
 			const char* Prev = Engine->GetDefaultNamespace();
 			Safe.lock();
 			if (Prev != nullptr)
@@ -3597,9 +3137,7 @@ namespace Tomahawk
 		}
 		int VMManager::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
 		{
-			if (!Namespace)
-				return -1;
-
+			TH_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
 			BeginAccessMask(DefaultMask);
 			return BeginNamespace(Namespace);
 		}
@@ -3618,8 +3156,8 @@ namespace Tomahawk
 		}
 		int VMManager::Namespace(const char* Namespace, const std::function<int(VMGlobal*)>& Callback)
 		{
-			if (!Namespace || !Callback)
-				return -1;
+			TH_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
+			TH_ASSERT(Callback, -1, "callback should not be empty");
 
 			int R = BeginNamespace(Namespace);
 			if (R < 0)
@@ -3633,8 +3171,8 @@ namespace Tomahawk
 		}
 		int VMManager::NamespaceIsolated(const char* Namespace, size_t DefaultMask, const std::function<int(VMGlobal*)>& Callback)
 		{
-			if (!Namespace || !Callback)
-				return -1;
+			TH_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
+			TH_ASSERT(Callback, -1, "callback should not be empty");
 
 			int R = BeginNamespaceIsolated(Namespace, DefaultMask);
 			if (R < 0)
@@ -3664,23 +3202,19 @@ namespace Tomahawk
 		}
 		VMModule VMManager::Module(const char* Name)
 		{
-			if (!Engine || !Name)
-				return VMModule(nullptr);
+			TH_ASSERT(Engine != nullptr, VMModule(nullptr), "engine should be set");
+			TH_ASSERT(Name != nullptr, VMModule(nullptr), "name should be set");
 
 			return VMModule(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
 		}
 		int VMManager::AddRefVM() const
 		{
-			if (!Engine)
-				return -1;
-
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 			return Engine->AddRef();
 		}
 		int VMManager::ReleaseVM()
 		{
-			if (!Engine)
-				return -1;
-
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 			int R = Engine->Release();
 			if (R <= 0)
 				Engine = nullptr;
@@ -3689,9 +3223,7 @@ namespace Tomahawk
 		}
 		int VMManager::SetProperty(VMProp Property, size_t Value)
 		{
-			if (!Engine)
-				return -1;
-
+			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 			return Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value);
 		}
 		void VMManager::SetDocumentRoot(const std::string& Value)
@@ -3764,9 +3296,7 @@ namespace Tomahawk
 		}
 		bool VMManager::VerifyModule(const std::string& Path)
 		{
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "engine should be set");
 			std::string Source = Core::OS::File::ReadAsString(Path.c_str());
 			if (Source.empty())
 				return true;
@@ -3822,7 +3352,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::Files))
 			{
-				TH_ERROR("file import is not allowed");
+				TH_ERR("file import is not allowed");
 				return false;
 			}
 
@@ -3860,7 +3390,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::CSymbols))
 			{
-				TH_ERROR("csymbols import is not allowed");
+				TH_ERR("csymbols import is not allowed");
 				return false;
 			}
 
@@ -3885,7 +3415,7 @@ namespace Tomahawk
 				if (Failed || (Core = Kernels.find("")) == Kernels.end())
 				{
 					Safe.unlock();
-					TH_ERROR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
+					TH_ERR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
 					return false;
 				}
 			}
@@ -3900,14 +3430,14 @@ namespace Tomahawk
 			VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Core->second.Handle, Func);
 			if (!Function)
 			{
-				TH_ERROR("cannot load shared object function: %s", Func.c_str());
+				TH_ERR("cannot load shared object function: %s", Func.c_str());
 				Safe.unlock();
 				return false;
 			}
 
 			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
 			{
-				TH_ERROR("cannot register shared object function: %s", Decl.c_str());
+				TH_ERR("cannot register shared object function: %s", Decl.c_str());
 				Safe.unlock();
 				return false;
 			}
@@ -3921,7 +3451,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::CLibraries) && !Path.empty())
 			{
-				TH_ERROR("clibraries import is not allowed");
+				TH_ERR("clibraries import is not allowed");
 				return false;
 			}
 
@@ -3941,7 +3471,7 @@ namespace Tomahawk
 			void* Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
 			{
-				TH_ERROR("cannot load shared object: %s", Path.c_str());
+				TH_ERR("cannot load shared object: %s", Path.c_str());
 				return false;
 			}
 
@@ -3958,7 +3488,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::Submodules))
 			{
-				TH_ERROR("submodules import is not allowed");
+				TH_ERR("submodules import is not allowed");
 				return false;
 			}
 
@@ -3967,7 +3497,7 @@ namespace Tomahawk
 			if (It == Modules.end())
 			{
 				Safe.unlock();
-				TH_ERROR("couldn't find script submodule %s", Name.c_str());
+				TH_ERR("couldn't find script submodule %s", Name.c_str());
 				return false;
 			}
 
@@ -3985,7 +3515,7 @@ namespace Tomahawk
 			{
 				if (!ImportSubmodule(Item))
 				{
-					TH_ERROR("couldn't load submodule %s for %s", Item.c_str(), Name.c_str());
+					TH_ERR("couldn't load submodule %s for %s", Item.c_str(), Name.c_str());
 					return false;
 				}
 			}
@@ -3999,7 +3529,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::JSON))
 			{
-				TH_ERROR("json import is not allowed");
+				TH_ERR("json import is not allowed");
 				return nullptr;
 			}
 
@@ -4009,7 +3539,7 @@ namespace Tomahawk
 				File = Core::OS::Path::Resolve(Path + ".json", Include.Root);
 				if (!Core::OS::File::IsExists(File.c_str()))
                 {
-                    TH_ERROR("%s resource was not found", Path.c_str());
+                    TH_ERR("%s resource was not found", Path.c_str());
 					return nullptr;
                 }
 			}
@@ -4071,9 +3601,7 @@ namespace Tomahawk
 		}
 		size_t VMManager::GetProperty(VMProp Property) const
 		{
-			if (!Engine)
-				return 0;
-
+			TH_ASSERT(Engine != nullptr, 0, "engine should be set");
 			return (size_t)Engine->GetEngineProperty((asEEngineProp)Property);
 		}
 		VMCManager* VMManager::GetEngine() const
@@ -4091,9 +3619,7 @@ namespace Tomahawk
 		}
 		VMManager* VMManager::Get(VMCManager* Engine)
 		{
-			if (!Engine)
-				return nullptr;
-
+			TH_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			void* Manager = Engine->GetUserData(ManagerUD);
 			return (VMManager*)Manager;
 		}
@@ -4147,8 +3673,7 @@ namespace Tomahawk
 		void VMManager::ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data)
 		{
 			VMManager* Manager = VMManager::Get(Engine);
-			if (!Manager)
-				return (void)Context->Release();
+			TH_ASSERT(Manager != nullptr, (void)Context->Release(), "engine should be set");
 
 			Manager->Safe.lock();
 			Manager->Contexts.push_back(Context);
@@ -4162,7 +3687,7 @@ namespace Tomahawk
 			else if (Info->type == asMSGTYPE_INFORMATION)
 				TH_INFO("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
-				TH_ERROR("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_ERR("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 		}
 		void VMManager::RegisterSubmodules(VMManager* Engine)
 		{
@@ -4240,17 +3765,16 @@ namespace Tomahawk
 		}
 		void VMDebugger::RegisterToStringCallback(const VMTypeInfo& Type, ToStringCallback Callback)
 		{
-			if (ToStringCallbacks.find(Type.GetTypeInfo()) == ToStringCallbacks.end())
-				ToStringCallbacks.insert(std::unordered_map<const VMCTypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));
+			TH_ASSERT_V(ToStringCallbacks.find(Type.GetTypeInfo()) == ToStringCallbacks.end(), "callback should not already be set");
+			ToStringCallbacks.insert(std::unordered_map<const VMCTypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));
 		}
 		void VMDebugger::LineCallback(VMContext* Context)
 		{
-			if (!Context)
-				return;
-
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 			VMCContext* Base = Context->GetContext();
-			if (!Base || Base->GetState() != asEXECUTION_ACTIVE)
-				return;
+
+			TH_ASSERT_V(Base != nullptr, "context should be set");
+			TH_ASSERT_V(Base->GetState() == asEXECUTION_ACTIVE, "context should be active");
 
 			if (Action == DebugAction::CONTINUE)
 			{
@@ -4286,12 +3810,10 @@ namespace Tomahawk
 		}
 		void VMDebugger::TakeCommands(VMContext* Context)
 		{
-			if (!Context)
-				return;
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-				return;
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			for (;;)
 			{
@@ -4305,15 +3827,10 @@ namespace Tomahawk
 		}
 		void VMDebugger::PrintValue(const std::string& Expression, VMContext* Context)
 		{
-			if (!Context)
-				return;
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-			{
-				Output("No script is running\n");
-				return;
-			}
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			VMCManager* Engine = Context->GetManager()->GetEngine();
 			std::string Text = Expression, Scope, Name;
@@ -4340,98 +3857,99 @@ namespace Tomahawk
 				T = Engine->ParseToken(Text.c_str(), 0, &Length);
 			}
 
-			if (Name.size())
+			if (Name.empty())
 			{
-				void* Pointer = 0;
-				int TypeId = 0;
+				Output("Invalid expression. Expected identifier\n");
+				return;
+			}
 
-				VMCFunction* Function = Base->GetFunction();
-				if (!Function)
-					return;
+			void* Pointer = 0;
+			int TypeId = 0;
 
-				if (Scope.empty())
+			VMCFunction* Function = Base->GetFunction();
+			if (!Function)
+				return;
+
+			if (Scope.empty())
+			{
+				for (asUINT n = Function->GetVarCount(); n-- > 0;)
 				{
-					for (asUINT n = Function->GetVarCount(); n-- > 0;)
+					if (Base->IsVarInScope(n) && Name == Base->GetVarName(n))
 					{
-						if (Base->IsVarInScope(n) && Name == Base->GetVarName(n))
-						{
-							Pointer = Base->GetAddressOfVar(n);
-							TypeId = Base->GetVarTypeId(n);
-							break;
-						}
-					}
-
-					if (!Pointer && Function->GetObjectType())
-					{
-						if (Name == "this")
-						{
-							Pointer = Base->GetThisPointer();
-							TypeId = Base->GetThisTypeId();
-						}
-						else
-						{
-							VMCTypeInfo* Type = Engine->GetTypeInfoById(Base->GetThisTypeId());
-							for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
-							{
-								const char* PropName = 0;
-								int Offset = 0;
-								bool IsReference = 0;
-								int CompositeOffset = 0;
-								bool IsCompositeIndirect = false;
-
-								Type->GetProperty(n, &PropName, &TypeId, 0, 0, &Offset, &IsReference, 0, &CompositeOffset, &IsCompositeIndirect);
-								if (Name == PropName)
-								{
-									Pointer = (void*)(((asBYTE*)Base->GetThisPointer()) + CompositeOffset);
-									if (IsCompositeIndirect)
-										Pointer = *(void**)Pointer;
-
-									Pointer = (void*)(((asBYTE*)Pointer) + Offset);
-									if (IsReference)
-										Pointer = *(void**)Pointer;
-
-									break;
-								}
-							}
-						}
+						Pointer = Base->GetAddressOfVar(n);
+						TypeId = Base->GetVarTypeId(n);
+						break;
 					}
 				}
 
-				if (!Pointer)
+				if (!Pointer && Function->GetObjectType())
 				{
-					if (Scope.empty())
-						Scope = Function->GetNamespace();
-					else if (Scope == "::")
-						Scope.clear();
-
-					VMCModule* Mod = Function->GetModule();
-					if (Mod != nullptr)
+					if (Name == "this")
 					{
-						for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
+						Pointer = Base->GetThisPointer();
+						TypeId = Base->GetThisTypeId();
+					}
+					else
+					{
+						VMCTypeInfo* Type = Engine->GetTypeInfoById(Base->GetThisTypeId());
+						for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
 						{
-							const char* VarName = 0, *NameSpace = 0;
-							Mod->GetGlobalVar(n, &VarName, &NameSpace, &TypeId);
+							const char* PropName = 0;
+							int Offset = 0;
+							bool IsReference = 0;
+							int CompositeOffset = 0;
+							bool IsCompositeIndirect = false;
 
-							if (Name == VarName && Scope == NameSpace)
+							Type->GetProperty(n, &PropName, &TypeId, 0, 0, &Offset, &IsReference, 0, &CompositeOffset, &IsCompositeIndirect);
+							if (Name == PropName)
 							{
-								Pointer = Mod->GetAddressOfGlobalVar(n);
+								Pointer = (void*)(((asBYTE*)Base->GetThisPointer()) + CompositeOffset);
+								if (IsCompositeIndirect)
+									Pointer = *(void**)Pointer;
+
+								Pointer = (void*)(((asBYTE*)Pointer) + Offset);
+								if (IsReference)
+									Pointer = *(void**)Pointer;
+
 								break;
 							}
 						}
 					}
 				}
+			}
 
-				if (Pointer)
+			if (!Pointer)
+			{
+				if (Scope.empty())
+					Scope = Function->GetNamespace();
+				else if (Scope == "::")
+					Scope.clear();
+
+				VMCModule* Mod = Function->GetModule();
+				if (Mod != nullptr)
 				{
-					std::stringstream Stream;
-					Stream << ToString(Pointer, TypeId, 3, Manager) << std::endl;
-					Output(Stream.str());
+					for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
+					{
+						const char* VarName = 0, *NameSpace = 0;
+						Mod->GetGlobalVar(n, &VarName, &NameSpace, &TypeId);
+
+						if (Name == VarName && Scope == NameSpace)
+						{
+							Pointer = Mod->GetAddressOfGlobalVar(n);
+							break;
+						}
+					}
 				}
-				else
-					Output("Invalid expression. No matching symbol\n");
+			}
+
+			if (Pointer)
+			{
+				std::stringstream Stream;
+				Stream << ToString(Pointer, TypeId, 3, Manager) << std::endl;
+				Output(Stream.str());
 			}
 			else
-				Output("Invalid expression. Expected identifier\n");
+				Output("Invalid expression. No matching symbol\n");
 		}
 		void VMDebugger::ListBreakPoints()
 		{
@@ -4447,15 +3965,10 @@ namespace Tomahawk
 		}
 		void VMDebugger::ListMemberProperties(VMContext* Context)
 		{
-			if (!Context)
-				return;
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-			{
-				Output("No script is running\n");
-				return;
-			}
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			void* Pointer = Base->GetThisPointer();
 			if (Pointer != nullptr)
@@ -4467,15 +3980,10 @@ namespace Tomahawk
 		}
 		void VMDebugger::ListLocalVariables(VMContext* Context)
 		{
-			if (!Context)
-				return;
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-			{
-				Output("No script is running\n");
-				return;
-			}
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			VMCFunction* Function = Base->GetFunction();
 			if (!Function)
@@ -4491,15 +3999,10 @@ namespace Tomahawk
 		}
 		void VMDebugger::ListGlobalVariables(VMContext* Context)
 		{
-			if (!Context)
-				return;
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-			{
-				Output("No script is running\n");
-				return;
-			}
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			VMCFunction* Function = Base->GetFunction();
 			if (!Function)
@@ -4520,15 +4023,10 @@ namespace Tomahawk
 		}
 		void VMDebugger::ListStatistics(VMContext* Context)
 		{
-			if (!Context)
-				return;
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-			{
-				Output("No script is running\n");
-				return;
-			}
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			VMCManager* Engine = Base->GetEngine();
 			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
@@ -4545,15 +4043,10 @@ namespace Tomahawk
 		}
 		void VMDebugger::PrintCallstack(VMContext* Context)
 		{
-			if (!Context)
-				return;
+			TH_ASSERT_V(Context != nullptr, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-			{
-				Output("No script is running\n");
-				return;
-			}
+			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			std::stringstream Stream;
 			const char* File = nullptr;
@@ -4632,12 +4125,10 @@ namespace Tomahawk
 		}
 		bool VMDebugger::CheckBreakPoint(VMContext* Context)
 		{
-			if (!Context)
-				return false;
+			TH_ASSERT(Context != nullptr, false, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-				return false;
+			TH_ASSERT(Base != nullptr, false, "context should be set");
 
 			const char* Temp = 0;
 			int Line = Base->GetLineNumber(0, 0, &Temp);
@@ -4701,12 +4192,10 @@ namespace Tomahawk
 		}
 		bool VMDebugger::InterpretCommand(const std::string& Command, VMContext* Context)
 		{
-			if (!Context)
-				return false;
+			TH_ASSERT(Context != nullptr, false, "context should be set");
 
 			VMCContext* Base = Context->GetContext();
-			if (!Base)
-				return false;
+			TH_ASSERT(Base != nullptr, false, "context should be set");
 
 			if (Command.length() == 0)
 				return true;

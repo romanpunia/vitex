@@ -80,7 +80,7 @@ inline float floorf(float arg)
 {
 	return std::floor(arg);
 }
-inline float modff(float x, float *y)
+inline float modff(float x, float* y)
 {
 	double d;
 	float f = (float)modf((double)x, &d);
@@ -125,10 +125,12 @@ namespace Tomahawk
 			}
 			~StringFactory()
 			{
-				assert(Cache.size() == 0);
+				TH_ASSERT_V(Cache.size() == 0, "some strings are still in use");
 			}
-			const void *GetStringConstant(const char* Buffer, asUINT Length)
+			const void* GetStringConstant(const char* Buffer, asUINT Length)
 			{
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer must not be null");
+
 				asAcquireExclusiveLock();
 				std::string Source(Buffer, Length);
 				auto It = Cache.find(Source);
@@ -143,8 +145,7 @@ namespace Tomahawk
 			}
 			int ReleaseStringConstant(const void* Source)
 			{
-				if (!Source)
-					return asERROR;
+				TH_ASSERT(Source != nullptr, asERROR, "source must not be null");
 
 				asAcquireExclusiveLock();
 				auto It = Cache.find(*reinterpret_cast<const std::string*>(Source));
@@ -163,9 +164,7 @@ namespace Tomahawk
 			}
 			int GetRawStringData(const void* Source, char* Buffer, asUINT* Length) const
 			{
-				if (!Source)
-					return asERROR;
-
+				TH_ASSERT(Source != nullptr, asERROR, "source must not be null");
 				if (Length != nullptr)
 					*Length = (as_size_t)reinterpret_cast<const std::string*>(Source)->length();
 
@@ -191,26 +190,29 @@ namespace Tomahawk
 		};
 		StringFactory* StringFactory::Base = nullptr;
 
-		void VMCString::Construct(std::string *thisPointer)
+		void VMCString::Construct(std::string* Current)
 		{
-			new(thisPointer) std::string();
+			TH_ASSERT_V(Current != nullptr, "current should be set");
+			new(Current) std::string();
 		}
-		void VMCString::CopyConstruct(const std::string &other, std::string *thisPointer)
+		void VMCString::CopyConstruct(const std::string& Other, std::string* Current)
 		{
-			new(thisPointer) std::string(other);
+			TH_ASSERT_V(Current != nullptr, "current should be set");
+			new(Current) std::string(Other);
 		}
-		void VMCString::Destruct(std::string *thisPointer)
+		void VMCString::Destruct(std::string* Current)
 		{
-			thisPointer->~basic_string();
+			TH_ASSERT_V(Current != nullptr, "current should be set");
+			Current->~basic_string();
 		}
-		std::string& VMCString::AddAssignTo(const std::string &str, std::string &dest)
+		std::string& VMCString::AddAssignTo(const std::string& Current, std::string& Dest)
 		{
-			dest += str;
-			return dest;
+			Dest += Current;
+			return Dest;
 		}
-		bool VMCString::IsEmpty(const std::string &str)
+		bool VMCString::IsEmpty(const std::string& Current)
 		{
-			return str.empty();
+			return Current.empty();
 		}
 		void* VMCString::ToPtr(const std::string& Value)
 		{
@@ -222,150 +224,150 @@ namespace Tomahawk
 			Result.Reverse();
 			return Result.R();
 		}
-		std::string& VMCString::AssignUInt64To(as_uint64_t i, std::string &dest)
+		std::string& VMCString::AssignUInt64To(as_uint64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
-			dest = stream.str();
-			return dest;
+			Dest = stream.str();
+			return Dest;
 		}
-		std::string& VMCString::AddAssignUInt64To(as_uint64_t i, std::string &dest)
+		std::string& VMCString::AddAssignUInt64To(as_uint64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
-			dest += stream.str();
-			return dest;
+			Dest += stream.str();
+			return Dest;
 		}
-		std::string VMCString::AddUInt641(const std::string &str, as_uint64_t i)
+		std::string VMCString::AddUInt641(const std::string& Current, as_uint64_t i)
 		{
 			std::ostringstream stream;
 			stream << i;
-			return str + stream.str();
+			return Current + stream.str();
 		}
-		std::string VMCString::AddInt641(as_int64_t i, const std::string &str)
+		std::string VMCString::AddInt641(as_int64_t i, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << i;
-			return stream.str() + str;
+			return stream.str() + Current;
 		}
-		std::string& VMCString::AssignInt64To(as_int64_t i, std::string &dest)
+		std::string& VMCString::AssignInt64To(as_int64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
-			dest = stream.str();
-			return dest;
+			Dest = stream.str();
+			return Dest;
 		}
-		std::string& VMCString::AddAssignInt64To(as_int64_t i, std::string &dest)
+		std::string& VMCString::AddAssignInt64To(as_int64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
-			dest += stream.str();
-			return dest;
+			Dest += stream.str();
+			return Dest;
 		}
-		std::string VMCString::AddInt642(const std::string &str, as_int64_t i)
+		std::string VMCString::AddInt642(const std::string& Current, as_int64_t i)
 		{
 			std::ostringstream stream;
 			stream << i;
-			return str + stream.str();
+			return Current + stream.str();
 		}
-		std::string VMCString::AddUInt642(as_uint64_t i, const std::string &str)
+		std::string VMCString::AddUInt642(as_uint64_t i, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << i;
-			return stream.str() + str;
+			return stream.str() + Current;
 		}
-		std::string& VMCString::AssignDoubleTo(double f, std::string &dest)
+		std::string& VMCString::AssignDoubleTo(double f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
-			dest = stream.str();
-			return dest;
+			Dest = stream.str();
+			return Dest;
 		}
-		std::string& VMCString::AddAssignDoubleTo(double f, std::string &dest)
+		std::string& VMCString::AddAssignDoubleTo(double f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
-			dest += stream.str();
-			return dest;
+			Dest += stream.str();
+			return Dest;
 		}
-		std::string& VMCString::AssignFloatTo(float f, std::string &dest)
+		std::string& VMCString::AssignFloatTo(float f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
-			dest = stream.str();
-			return dest;
+			Dest = stream.str();
+			return Dest;
 		}
-		std::string& VMCString::AddAssignFloatTo(float f, std::string &dest)
+		std::string& VMCString::AddAssignFloatTo(float f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
-			dest += stream.str();
-			return dest;
+			Dest += stream.str();
+			return Dest;
 		}
-		std::string& VMCString::AssignBoolTo(bool b, std::string &dest)
+		std::string& VMCString::AssignBoolTo(bool b, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
-			dest = stream.str();
-			return dest;
+			Dest = stream.str();
+			return Dest;
 		}
-		std::string& VMCString::AddAssignBoolTo(bool b, std::string &dest)
+		std::string& VMCString::AddAssignBoolTo(bool b, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
-			dest += stream.str();
-			return dest;
+			Dest += stream.str();
+			return Dest;
 		}
-		std::string VMCString::AddDouble1(const std::string &str, double f)
+		std::string VMCString::AddDouble1(const std::string& Current, double f)
 		{
 			std::ostringstream stream;
 			stream << f;
-			return str + stream.str();
+			return Current + stream.str();
 		}
-		std::string VMCString::AddDouble2(double f, const std::string &str)
+		std::string VMCString::AddDouble2(double f, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << f;
-			return stream.str() + str;
+			return stream.str() + Current;
 		}
-		std::string VMCString::AddFloat1(const std::string &str, float f)
+		std::string VMCString::AddFloat1(const std::string& Current, float f)
 		{
 			std::ostringstream stream;
 			stream << f;
-			return str + stream.str();
+			return Current + stream.str();
 		}
-		std::string VMCString::AddFloat2(float f, const std::string &str)
+		std::string VMCString::AddFloat2(float f, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << f;
-			return stream.str() + str;
+			return stream.str() + Current;
 		}
-		std::string VMCString::AddBool1(const std::string &str, bool b)
+		std::string VMCString::AddBool1(const std::string& Current, bool b)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
-			return str + stream.str();
+			return Current + stream.str();
 		}
-		std::string VMCString::AddBool2(bool b, const std::string &str)
+		std::string VMCString::AddBool2(bool b, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
-			return stream.str() + str;
+			return stream.str() + Current;
 		}
-		char* VMCString::CharAt(unsigned int i, std::string &str)
+		char* VMCString::CharAt(unsigned int i, std::string& Current)
 		{
-			if (i >= str.size())
+			if (i >= Current.size())
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx != nullptr)
 					ctx->SetException("Out of range");
 
 				return 0;
 			}
 
-			return &str[i];
+			return &Current[i];
 		}
-		int VMCString::Cmp(const std::string &a, const std::string &b)
+		int VMCString::Cmp(const std::string& a, const std::string& b)
 		{
 			int cmp = 0;
 			if (a < b)
@@ -375,61 +377,61 @@ namespace Tomahawk
 
 			return cmp;
 		}
-		int VMCString::FindFirst(const std::string &sub, as_size_t start, const std::string &str)
+		int VMCString::FindFirst(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
-			return (int)str.find(sub, (size_t)start);
+			return (int)Current.find(Substr, (size_t)Start);
 		}
-		int VMCString::FindFirstOf(const std::string &sub, as_size_t start, const std::string &str)
+		int VMCString::FindFirstOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
-			return (int)str.find_first_of(sub, (size_t)start);
+			return (int)Current.find_first_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindLastOf(const std::string &sub, as_size_t start, const std::string &str)
+		int VMCString::FindLastOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
-			return (int)str.find_last_of(sub, (size_t)start);
+			return (int)Current.find_last_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindFirstNotOf(const std::string &sub, as_size_t start, const std::string &str)
+		int VMCString::FindFirstNotOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
-			return (int)str.find_first_not_of(sub, (size_t)start);
+			return (int)Current.find_first_not_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindLastNotOf(const std::string &sub, as_size_t start, const std::string &str)
+		int VMCString::FindLastNotOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
-			return (int)str.find_last_not_of(sub, (size_t)start);
+			return (int)Current.find_last_not_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindLast(const std::string &sub, int start, const std::string &str)
+		int VMCString::FindLast(const std::string& Substr, int Start, const std::string& Current)
 		{
-			return (int)str.rfind(sub, (size_t)start);
+			return (int)Current.rfind(Substr, (size_t)Start);
 		}
-		void VMCString::Insert(unsigned int pos, const std::string &other, std::string &str)
+		void VMCString::Insert(unsigned int Offset, const std::string& Other, std::string& Current)
 		{
-			str.insert(pos, other);
+			Current.insert(Offset, Other);
 		}
-		void VMCString::Erase(unsigned int pos, int count, std::string &str)
+		void VMCString::Erase(unsigned int Offset, int count, std::string& Current)
 		{
-			str.erase(pos, (size_t)(count < 0 ? std::string::npos : count));
+			Current.erase(Offset, (size_t)(count < 0 ? std::string::npos : count));
 		}
-		as_size_t VMCString::Length(const std::string &str)
+		as_size_t VMCString::Length(const std::string& Current)
 		{
-			return (as_size_t)str.length();
+			return (as_size_t)Current.length();
 		}
-		void VMCString::Resize(as_size_t l, std::string &str)
+		void VMCString::Resize(as_size_t l, std::string& Current)
 		{
-			str.resize(l);
+			Current.resize(l);
 		}
-		std::string VMCString::Replace(const std::string& a, const std::string& b, uint64_t o, const std::string& base)
+		std::string VMCString::Replace(const std::string& a, const std::string& b, uint64_t o, const std::string& Base)
 		{
-			return Tomahawk::Core::Parser(base).Replace(a, b, o).R();
+			return Tomahawk::Core::Parser(Base).Replace(a, b, o).R();
 		}
-		as_int64_t VMCString::IntStore(const std::string &val, as_size_t base, as_size_t *byteCount)
+		as_int64_t VMCString::IntStore(const std::string& Value, as_size_t Base, as_size_t* ByteCount)
 		{
-			if (base != 10 && base != 16)
+			if (Base != 10 && Base != 16)
 			{
-				if (byteCount)
-					*byteCount = 0;
+				if (ByteCount)
+					*ByteCount = 0;
 
 				return 0;
 			}
 
-			const char *end = &val[0];
+			const char* end = &Value[0];
 			bool sign = false;
 			if (*end == '-')
 			{
@@ -440,7 +442,7 @@ namespace Tomahawk
 				end++;
 
 			as_int64_t res = 0;
-			if (base == 10)
+			if (Base == 10)
 			{
 				while (*end >= '0' && *end <= '9')
 				{
@@ -462,27 +464,27 @@ namespace Tomahawk
 				}
 			}
 
-			if (byteCount)
-				*byteCount = as_size_t(size_t(end - val.c_str()));
+			if (ByteCount)
+				*ByteCount = as_size_t(size_t(end - Value.c_str()));
 
 			if (sign)
 				res = -res;
 
 			return res;
 		}
-		as_uint64_t VMCString::UIntStore(const std::string &val, as_size_t base, as_size_t *byteCount)
+		as_uint64_t VMCString::UIntStore(const std::string& Value, as_size_t Base, as_size_t* ByteCount)
 		{
-			if (base != 10 && base != 16)
+			if (Base != 10 && Base != 16)
 			{
-				if (byteCount)
-					*byteCount = 0;
+				if (ByteCount)
+					*ByteCount = 0;
 				return 0;
 			}
 
-			const char *end = &val[0];
+			const char* end = &Value[0];
 			as_uint64_t res = 0;
 
-			if (base == 10)
+			if (Base == 10)
 			{
 				while (*end >= '0' && *end <= '9')
 				{
@@ -504,34 +506,34 @@ namespace Tomahawk
 				}
 			}
 
-			if (byteCount)
-				*byteCount = as_size_t(size_t(end - val.c_str()));
+			if (ByteCount)
+				*ByteCount = as_size_t(size_t(end - Value.c_str()));
 
 			return res;
 		}
-		double VMCString::FloatStore(const std::string &val, as_size_t *byteCount)
+		double VMCString::FloatStore(const std::string& Value, as_size_t* ByteCount)
 		{
-			char *end;
+			char* end;
 #if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
-			char *tmp = setlocale(LC_NUMERIC, 0);
+			char* tmp = setlocale(LC_NUMERIC, 0);
 			std::string orig = tmp ? tmp : "C";
 			setlocale(LC_NUMERIC, "C");
 #endif
 
-			double res = strtod(val.c_str(), &end);
+			double res = strtod(Value.c_str(), &end);
 #if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
 			setlocale(LC_NUMERIC, orig.c_str());
 #endif
-			if (byteCount)
-				*byteCount = as_size_t(size_t(end - val.c_str()));
+			if (ByteCount)
+				*ByteCount = as_size_t(size_t(end - Value.c_str()));
 
 			return res;
 		}
-		std::string VMCString::Sub(as_size_t start, int count, const std::string &str)
+		std::string VMCString::Sub(as_size_t Start, int count, const std::string& Current)
 		{
 			std::string ret;
-			if (start < str.length() && count != 0)
-				ret = str.substr(start, (size_t)(count < 0 ? std::string::npos : count));
+			if (Start < Current.length() && count != 0)
+				ret = Current.substr(Start, (size_t)(count < 0 ? std::string::npos : count));
 
 			return ret;
 		}
@@ -587,41 +589,41 @@ namespace Tomahawk
 		{
 			return std::to_string(Value);
 		}
-		VMCArray* VMCString::Split(const std::string &delim, const std::string &str)
+		VMCArray* VMCString::Split(const std::string& delim, const std::string& Current)
 		{
-			VMCContext *ctx = asGetActiveContext();
-			VMCManager *engine = ctx->GetEngine();
-			asITypeInfo *arrayType = engine->GetTypeInfoByDecl("Array<String>");
-			VMCArray *array = VMCArray::Create(arrayType);
+			VMCContext* ctx = asGetActiveContext();
+			VMCManager* engine = ctx->GetEngine();
+			asITypeInfo* arrayType = engine->GetTypeInfoByDecl("Array<String>@");
+			VMCArray* array = VMCArray::Create(arrayType);
 
-			int pos = 0, prev = 0, count = 0;
-			while ((pos = (int)str.find(delim, prev)) != (int)std::string::npos)
+			int Offset = 0, prev = 0, count = 0;
+			while ((Offset = (int)Current.find(delim, prev)) != (int)std::string::npos)
 			{
 				array->Resize(array->GetSize() + 1);
-				((std::string*)array->At(count))->assign(&str[prev], pos - prev);
+				((std::string*)array->At(count))->assign(&Current[prev], Offset - prev);
 				count++;
-				prev = pos + (int)delim.length();
+				prev = Offset + (int)delim.length();
 			}
 
 			array->Resize(array->GetSize() + 1);
-			((std::string*)array->At(count))->assign(&str[prev]);
+			((std::string*)array->At(count))->assign(&Current[prev]);
 			return array;
 		}
-		std::string VMCString::Join(const VMCArray &array, const std::string &delim)
+		std::string VMCString::Join(const VMCArray& array, const std::string& delim)
 		{
-			std::string str = "";
+			std::string Current = "";
 			if (!array.GetSize())
-				return str;
+				return Current;
 
 			int n;
 			for (n = 0; n < (int)array.GetSize() - 1; n++)
 			{
-				str += *(std::string*)array.At(n);
-				str += delim;
+				Current += *(std::string*)array.At(n);
+				Current += delim;
 			}
 
-			str += *(std::string*)array.At(n);
-			return str;
+			Current += *(std::string*)array.At(n);
+			return Current;
 		}
 		char VMCString::ToChar(const std::string& Symbol)
 		{
@@ -780,7 +782,7 @@ namespace Tomahawk
 		{
 			FreeObject();
 		}
-		VMCAny &VMCAny::operator=(const VMCAny& Other)
+		VMCAny& VMCAny::operator=(const VMCAny& Other)
 		{
 			if ((Other.Value.TypeId & asTYPEID_MASK_OBJECT))
 			{
@@ -984,17 +986,17 @@ namespace Tomahawk
 			return *Self = *Other;
 		}
 
-		VMCArray &VMCArray::operator=(const VMCArray &other)
+		VMCArray& VMCArray::operator=(const VMCArray& Other)
 		{
-			if (&other != this && other.GetArrayObjectType() == GetArrayObjectType())
+			if (&Other != this && Other.GetArrayObjectType() == GetArrayObjectType())
 			{
-				Resize(other.Buffer->NumElements);
-				CopyBuffer(Buffer, other.Buffer);
+				Resize(Other.Buffer->NumElements);
+				CopyBuffer(Buffer, Other.Buffer);
 			}
 
 			return *this;
 		}
-		VMCArray::VMCArray(VMCTypeInfo *TI, void *buf)
+		VMCArray::VMCArray(VMCTypeInfo* TI, void* buf)
 		{
 			assert(TI && std::string(TI->GetName()) == "Array");
 			RefCount = 1;
@@ -1004,7 +1006,7 @@ namespace Tomahawk
 			Buffer = 0;
 			Precache();
 
-			VMCManager *engine = TI->GetEngine();
+			VMCManager* engine = TI->GetEngine();
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 				ElementSize = sizeof(asPWORD);
 			else
@@ -1044,8 +1046,8 @@ namespace Tomahawk
 				CreateBuffer(&Buffer, length);
 				for (as_size_t n = 0; n < length; n++)
 				{
-					void *obj = At(n);
-					unsigned char *srcObj = (unsigned char*)buf;
+					void* obj = At(n);
+					unsigned char* srcObj = (unsigned char*)buf;
 					srcObj += 4 + n * TI->GetSubType()->GetSize();
 					engine->AssignScriptObject(obj, srcObj, TI->GetSubType());
 				}
@@ -1054,7 +1056,7 @@ namespace Tomahawk
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 		}
-		VMCArray::VMCArray(as_size_t length, VMCTypeInfo *TI)
+		VMCArray::VMCArray(as_size_t length, VMCTypeInfo* TI)
 		{
 			assert(TI && std::string(TI->GetName()) == "Array");
 			RefCount = 1;
@@ -1076,23 +1078,23 @@ namespace Tomahawk
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 		}
-		VMCArray::VMCArray(const VMCArray &other)
+		VMCArray::VMCArray(const VMCArray& Other)
 		{
 			RefCount = 1;
 			GCFlag = false;
-			ObjType = other.ObjType;
+			ObjType = Other.ObjType;
 			ObjType->AddRef();
 			Buffer = 0;
 			Precache();
 
-			ElementSize = other.ElementSize;
+			ElementSize = Other.ElementSize;
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 
 			CreateBuffer(&Buffer, 0);
-			*this = other;
+			*this = Other;
 		}
-		VMCArray::VMCArray(as_size_t length, void *defVal, VMCTypeInfo *TI)
+		VMCArray::VMCArray(as_size_t length, void* defVal, VMCTypeInfo* TI)
 		{
 			assert(TI && std::string(TI->GetName()) == "Array");
 			RefCount = 1;
@@ -1117,9 +1119,9 @@ namespace Tomahawk
 			for (as_size_t n = 0; n < GetSize(); n++)
 				SetValue(n, defVal);
 		}
-		void VMCArray::SetValue(as_size_t index, void *value)
+		void VMCArray::SetValue(as_size_t index, void* value)
 		{
-			void *ptr = At(index);
+			void* ptr = At(index);
 			if (ptr == 0)
 				return;
 
@@ -1127,7 +1129,7 @@ namespace Tomahawk
 				ObjType->GetEngine()->AssignScriptObject(ptr, value, ObjType->GetSubType());
 			else if (SubTypeId & asTYPEID_OBJHANDLE)
 			{
-				void *tmp = *(void**)ptr;
+				void* tmp = *(void**)ptr;
 				*(void**)ptr = *(void**)value;
 				ObjType->GetEngine()->AddRefScriptObject(*(void**)value, ObjType->GetSubType());
 				if (tmp)
@@ -1184,7 +1186,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 				return;
@@ -1201,24 +1203,24 @@ namespace Tomahawk
 
 			Resize((int)NumElements - (int)Buffer->NumElements, (as_size_t)-1);
 		}
-		void VMCArray::RemoveRange(as_size_t start, as_size_t count)
+		void VMCArray::RemoveRange(as_size_t Start, as_size_t count)
 		{
 			if (count == 0)
 				return;
 
-			if (Buffer == 0 || start > Buffer->NumElements)
+			if (Buffer == 0 || Start > Buffer->NumElements)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 				return;
 			}
 
-			if (start + count > Buffer->NumElements)
-				count = Buffer->NumElements - start;
+			if (Start + count > Buffer->NumElements)
+				count = Buffer->NumElements - Start;
 
-			Destruct(Buffer, start, start + count);
-			memmove(Buffer->Data + start * (as_size_t)ElementSize, Buffer->Data + (start + count) * (as_size_t)ElementSize, (size_t)(Buffer->NumElements - start - count) * (size_t)ElementSize);
+			Destruct(Buffer, Start, Start + count);
+			memmove(Buffer->Data + Start * (as_size_t)ElementSize, Buffer->Data + (Start + count) * (as_size_t)ElementSize, (size_t)(Buffer->NumElements - Start - count) * (size_t)ElementSize);
 			Buffer->NumElements -= count;
 		}
 		void VMCArray::Resize(int delta, as_size_t at)
@@ -1245,7 +1247,7 @@ namespace Tomahawk
 			if (Buffer->MaxElements < Buffer->NumElements + delta)
 			{
 				size_t Count = (size_t)Buffer->NumElements + (size_t)delta, Size = (size_t)ElementSize;
-				SBuffer *newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + Size * Count));
+				SBuffer* newBuffer = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + Size * Count));
 				if (newBuffer)
 				{
 					newBuffer->NumElements = Buffer->NumElements + delta;
@@ -1253,7 +1255,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					VMCContext *ctx = asGetActiveContext();
+					VMCContext* ctx = asGetActiveContext();
 					if (ctx)
 						ctx->SetException("Out of memory");
 					return;
@@ -1288,7 +1290,7 @@ namespace Tomahawk
 
 			if (NumElements > maxSize)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Too large Array size");
 
@@ -1297,7 +1299,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		VMCTypeInfo *VMCArray::GetArrayObjectType() const
+		VMCTypeInfo* VMCArray::GetArrayObjectType() const
 		{
 			return ObjType;
 		}
@@ -1309,11 +1311,11 @@ namespace Tomahawk
 		{
 			return SubTypeId;
 		}
-		void VMCArray::InsertAt(as_size_t index, void *value)
+		void VMCArray::InsertAt(as_size_t index, void* value)
 		{
 			if (index > Buffer->NumElements)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 				return;
@@ -1322,11 +1324,11 @@ namespace Tomahawk
 			Resize(1, index);
 			SetValue(index, value);
 		}
-		void VMCArray::InsertAt(as_size_t index, const VMCArray &arr)
+		void VMCArray::InsertAt(as_size_t index, const VMCArray& arr)
 		{
 			if (index > Buffer->NumElements)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 				return;
@@ -1334,7 +1336,7 @@ namespace Tomahawk
 
 			if (ObjType != arr.ObjType)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Mismatching Array types");
 				return;
@@ -1346,7 +1348,7 @@ namespace Tomahawk
 			{
 				for (as_size_t n = 0; n < arr.GetSize(); n++)
 				{
-					void *value = const_cast<void*>(arr.At(n));
+					void* value = const_cast<void*>(arr.At(n));
 					SetValue(index + n, value);
 				}
 			}
@@ -1354,18 +1356,18 @@ namespace Tomahawk
 			{
 				for (as_size_t n = 0; n < index; n++)
 				{
-					void *value = const_cast<void*>(arr.At(n));
+					void* value = const_cast<void*>(arr.At(n));
 					SetValue(index + n, value);
 				}
 
 				for (as_size_t n = index + elements, m = 0; n < arr.GetSize(); n++, m++)
 				{
-					void *value = const_cast<void*>(arr.At(n));
+					void* value = const_cast<void*>(arr.At(n));
 					SetValue(index + index + m, value);
 				}
 			}
 		}
-		void VMCArray::InsertLast(void *value)
+		void VMCArray::InsertLast(void* value)
 		{
 			InsertAt(Buffer->NumElements, value);
 		}
@@ -1373,7 +1375,7 @@ namespace Tomahawk
 		{
 			if (index >= Buffer->NumElements)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 				return;
@@ -1385,11 +1387,11 @@ namespace Tomahawk
 		{
 			RemoveAt(Buffer->NumElements - 1);
 		}
-		const void *VMCArray::At(as_size_t index) const
+		const void* VMCArray::At(as_size_t index) const
 		{
 			if (Buffer == 0 || index >= Buffer->NumElements)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 				return 0;
@@ -1400,15 +1402,15 @@ namespace Tomahawk
 			else
 				return Buffer->Data + (as_size_t)ElementSize * index;
 		}
-		void *VMCArray::At(as_size_t index)
+		void* VMCArray::At(as_size_t index)
 		{
-			return const_cast<void*>(const_cast<const VMCArray *>(this)->At(index));
+			return const_cast<void*>(const_cast<const VMCArray*>(this)->At(index));
 		}
-		void *VMCArray::GetBuffer()
+		void* VMCArray::GetBuffer()
 		{
 			return Buffer->Data;
 		}
-		void VMCArray::CreateBuffer(SBuffer **buf, as_size_t NumElements)
+		void VMCArray::CreateBuffer(SBuffer** buf, as_size_t NumElements)
 		{
 			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)NumElements));
 			if (*buf)
@@ -1419,49 +1421,49 @@ namespace Tomahawk
 			}
 			else
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 			}
 		}
-		void VMCArray::DeleteBuffer(SBuffer *buf)
+		void VMCArray::DeleteBuffer(SBuffer* buf)
 		{
 			Destruct(buf, 0, buf->NumElements);
 			asFreeMem(buf);
 		}
-		void VMCArray::Construct(SBuffer *buf, as_size_t start, as_size_t end)
+		void VMCArray::Construct(SBuffer* buf, as_size_t Start, as_size_t end)
 		{
 			if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
 			{
-				void **max = (void**)(buf->Data + end * sizeof(void*));
-				void **d = (void**)(buf->Data + start * sizeof(void*));
+				void** max = (void**)(buf->Data + end * sizeof(void*));
+				void** d = (void**)(buf->Data + Start * sizeof(void*));
 
-				VMCManager *engine = ObjType->GetEngine();
-				VMCTypeInfo *subType = ObjType->GetSubType();
+				VMCManager* engine = ObjType->GetEngine();
+				VMCTypeInfo* subType = ObjType->GetSubType();
 
 				for (; d < max; d++)
 				{
 					*d = (void*)engine->CreateScriptObject(subType);
 					if (*d == 0)
 					{
-						memset(d, 0, sizeof(void*)*(max - d));
+						memset(d, 0, sizeof(void*) * (max - d));
 						return;
 					}
 				}
 			}
 			else
 			{
-				void *d = (void*)(buf->Data + start * (as_size_t)ElementSize);
-				memset(d, 0, (size_t)(end - start) * (size_t)ElementSize);
+				void* d = (void*)(buf->Data + Start * (as_size_t)ElementSize);
+				memset(d, 0, (size_t)(end - Start) * (size_t)ElementSize);
 			}
 		}
-		void VMCArray::Destruct(SBuffer *buf, as_size_t start, as_size_t end)
+		void VMCArray::Destruct(SBuffer* buf, as_size_t Start, as_size_t end)
 		{
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 			{
-				VMCManager *engine = ObjType->GetEngine();
-				void **max = (void**)(buf->Data + end * sizeof(void*));
-				void **d = (void**)(buf->Data + start * sizeof(void*));
+				VMCManager* engine = ObjType->GetEngine();
+				void** max = (void**)(buf->Data + end * sizeof(void*));
+				void** d = (void**)(buf->Data + Start * sizeof(void*));
 
 				for (; d < max; d++)
 				{
@@ -1470,11 +1472,11 @@ namespace Tomahawk
 				}
 			}
 		}
-		bool VMCArray::Less(const void *a, const void *b, bool asc, VMCContext *ctx, SCache *cache)
+		bool VMCArray::Less(const void* a, const void* b, bool asc, VMCContext* ctx, SCache* cache)
 		{
 			if (!asc)
 			{
-				const void *TEMP = a;
+				const void* TEMP = a;
 				a = b;
 				b = TEMP;
 			}
@@ -1545,15 +1547,15 @@ namespace Tomahawk
 				}
 			}
 		}
-		bool VMCArray::operator==(const VMCArray &other) const
+		bool VMCArray::operator==(const VMCArray& Other) const
 		{
-			if (ObjType != other.ObjType)
+			if (ObjType != Other.ObjType)
 				return false;
 
-			if (GetSize() != other.GetSize())
+			if (GetSize() != Other.GetSize())
 				return false;
 
-			VMCContext *cmpContext = 0;
+			VMCContext* cmpContext = 0;
 			bool isNested = false;
 
 			if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
@@ -1572,10 +1574,10 @@ namespace Tomahawk
 			}
 
 			bool isEqual = true;
-			SCache *cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+			SCache* cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
 			for (as_size_t n = 0; n < GetSize(); n++)
 			{
-				if (!Equals(At(n), other.At(n), cmpContext, cache))
+				if (!Equals(At(n), Other.At(n), cmpContext, cache))
 				{
 					isEqual = false;
 					break;
@@ -1597,7 +1599,7 @@ namespace Tomahawk
 
 			return isEqual;
 		}
-		bool VMCArray::Equals(const void *a, const void *b, VMCContext *ctx, SCache *cache) const
+		bool VMCArray::Equals(const void* a, const void* b, VMCContext* ctx, SCache* cache) const
 		{
 			if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
 			{
@@ -1672,11 +1674,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		int VMCArray::FindByRef(void *ref) const
+		int VMCArray::FindByRef(void* ref) const
 		{
 			return FindByRef(0, ref);
 		}
-		int VMCArray::FindByRef(as_size_t startAt, void *ref) const
+		int VMCArray::FindByRef(as_size_t startAt, void* ref) const
 		{
 			as_size_t size = GetSize();
 			if (SubTypeId & asTYPEID_OBJHANDLE)
@@ -1699,19 +1701,19 @@ namespace Tomahawk
 
 			return -1;
 		}
-		int VMCArray::Find(void *value) const
+		int VMCArray::Find(void* value) const
 		{
 			return Find(0, value);
 		}
-		int VMCArray::Find(as_size_t startAt, void *value) const
+		int VMCArray::Find(as_size_t startAt, void* value) const
 		{
-			SCache *cache = 0;
+			SCache* cache = 0;
 			if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
 			{
 				cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
 				if (!cache || (cache->CmpFunc == 0 && cache->EqFunc == 0))
 				{
-					VMCContext *ctx = asGetActiveContext();
+					VMCContext* ctx = asGetActiveContext();
 					VMCTypeInfo* subType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
 					if (ctx)
 					{
@@ -1735,7 +1737,7 @@ namespace Tomahawk
 				}
 			}
 
-			VMCContext *cmpContext = 0;
+			VMCContext* cmpContext = 0;
 			bool isNested = false;
 
 			if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
@@ -1779,15 +1781,15 @@ namespace Tomahawk
 
 			return ret;
 		}
-		void VMCArray::Copy(void *dst, void *src)
+		void VMCArray::Copy(void* dst, void* src)
 		{
 			memcpy(dst, src, ElementSize);
 		}
-		void *VMCArray::GetArrayItemPointer(int index)
+		void* VMCArray::GetArrayItemPointer(int index)
 		{
 			return Buffer->Data + index * ElementSize;
 		}
-		void *VMCArray::GetDataPointer(void *buf)
+		void* VMCArray::GetDataPointer(void* buf)
 		{
 			if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
 				return reinterpret_cast<void*>(*(size_t*)buf);
@@ -1812,12 +1814,12 @@ namespace Tomahawk
 		}
 		void VMCArray::Sort(as_size_t startAt, as_size_t count, bool asc)
 		{
-			SCache *cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+			SCache* cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
 			if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
 			{
 				if (!cache || cache->CmpFunc == 0)
 				{
-					VMCContext *ctx = asGetActiveContext();
+					VMCContext* ctx = asGetActiveContext();
 					VMCTypeInfo* subType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
 					if (ctx)
 					{
@@ -1844,12 +1846,12 @@ namespace Tomahawk
 			if (count < 2)
 				return;
 
-			int start = startAt;
+			int Start = startAt;
 			int end = startAt + count;
 
-			if (start >= (int)Buffer->NumElements || end > (int)Buffer->NumElements)
+			if (Start >= (int)Buffer->NumElements || end > (int)Buffer->NumElements)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 
@@ -1857,7 +1859,7 @@ namespace Tomahawk
 			}
 
 			unsigned char tmp[16];
-			VMCContext *cmpContext = 0;
+			VMCContext* cmpContext = 0;
 			bool isNested = false;
 
 			if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
@@ -1875,12 +1877,12 @@ namespace Tomahawk
 					cmpContext = ObjType->GetEngine()->RequestContext();
 			}
 
-			for (int i = start + 1; i < end; i++)
+			for (int i = Start + 1; i < end; i++)
 			{
 				Copy(tmp, GetArrayItemPointer(i));
 				int j = i - 1;
 
-				while (j >= start && Less(GetDataPointer(tmp), At(j), asc, cmpContext, cache))
+				while (j >= Start && Less(GetDataPointer(tmp), At(j), asc, cmpContext, cache))
 				{
 					Copy(GetArrayItemPointer(j + 1), GetArrayItemPointer(j));
 					j--;
@@ -1902,19 +1904,19 @@ namespace Tomahawk
 					ObjType->GetEngine()->ReturnContext(cmpContext);
 			}
 		}
-		void VMCArray::Sort(asIScriptFunction *func, as_size_t startAt, as_size_t count)
+		void VMCArray::Sort(asIScriptFunction* func, as_size_t startAt, as_size_t count)
 		{
 			if (count < 2)
 				return;
 
-			as_size_t start = startAt;
+			as_size_t Start = startAt;
 			as_size_t end = as_uint64_t(startAt) + as_uint64_t(count) >= (as_uint64_t(1) << 32) ? 0xFFFFFFFF : startAt + count;
 			if (end > Buffer->NumElements)
 				end = Buffer->NumElements;
 
-			if (start >= Buffer->NumElements)
+			if (Start >= Buffer->NumElements)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 
@@ -1922,7 +1924,7 @@ namespace Tomahawk
 			}
 
 			unsigned char tmp[16];
-			VMCContext *cmpContext = 0;
+			VMCContext* cmpContext = 0;
 			bool isNested = false;
 
 			cmpContext = asGetActiveContext();
@@ -1940,12 +1942,12 @@ namespace Tomahawk
 			if (!cmpContext)
 				return;
 
-			for (as_size_t i = start + 1; i < end; i++)
+			for (as_size_t i = Start + 1; i < end; i++)
 			{
 				Copy(tmp, GetArrayItemPointer(i));
 				as_size_t j = i - 1;
 
-				while (j != 0xFFFFFFFF && j >= start)
+				while (j != 0xFFFFFFFF && j >= Start)
 				{
 					cmpContext->Prepare(func);
 					cmpContext->SetArgAddress(0, GetDataPointer(tmp));
@@ -1976,21 +1978,21 @@ namespace Tomahawk
 			else
 				ObjType->GetEngine()->ReturnContext(cmpContext);
 		}
-		void VMCArray::CopyBuffer(SBuffer *dst, SBuffer *src)
+		void VMCArray::CopyBuffer(SBuffer* dst, SBuffer* src)
 		{
-			VMCManager *engine = ObjType->GetEngine();
+			VMCManager* engine = ObjType->GetEngine();
 			if (SubTypeId & asTYPEID_OBJHANDLE)
 			{
 				if (dst->NumElements > 0 && src->NumElements > 0)
 				{
 					int count = dst->NumElements > src->NumElements ? src->NumElements : dst->NumElements;
-					void **max = (void**)(dst->Data + count * sizeof(void*));
-					void **d = (void**)dst->Data;
-					void **s = (void**)src->Data;
+					void** max = (void**)(dst->Data + count * sizeof(void*));
+					void** d = (void**)dst->Data;
+					void** s = (void**)src->Data;
 
 					for (; d < max; d++, s++)
 					{
-						void *tmp = *d;
+						void* tmp = *d;
 						*d = *s;
 
 						if (*d)
@@ -2008,11 +2010,11 @@ namespace Tomahawk
 					int count = dst->NumElements > src->NumElements ? src->NumElements : dst->NumElements;
 					if (SubTypeId & asTYPEID_MASK_OBJECT)
 					{
-						void **max = (void**)(dst->Data + count * sizeof(void*));
-						void **d = (void**)dst->Data;
-						void **s = (void**)src->Data;
+						void** max = (void**)(dst->Data + count * sizeof(void*));
+						void** d = (void**)dst->Data;
+						void** s = (void**)src->Data;
 
-						VMCTypeInfo *subType = ObjType->GetSubType();
+						VMCTypeInfo* subType = ObjType->GetSubType();
 						for (; d < max; d++, s++)
 							engine->AssignScriptObject(*d, *s, subType);
 					}
@@ -2027,7 +2029,7 @@ namespace Tomahawk
 			if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
 				return;
 
-			SCache *cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
+			SCache* cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
 			if (cache)
 				return;
 
@@ -2042,7 +2044,7 @@ namespace Tomahawk
 			cache = reinterpret_cast<SCache*>(asAllocMem(sizeof(SCache)));
 			if (!cache)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 
@@ -2053,12 +2055,12 @@ namespace Tomahawk
 			memset(cache, 0, sizeof(SCache));
 			bool mustBeConst = (SubTypeId & asTYPEID_HANDLETOCONST) ? true : false;
 
-			VMCTypeInfo *subType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
+			VMCTypeInfo* subType = ObjType->GetEngine()->GetTypeInfoById(SubTypeId);
 			if (subType)
 			{
 				for (as_size_t i = 0; i < subType->GetMethodCount(); i++)
 				{
-					asIScriptFunction *func = subType->GetMethodByIndex(i);
+					asIScriptFunction* func = subType->GetMethodByIndex(i);
 					if (func->GetParamCount() == 1 && (!mustBeConst || func->IsReadOnly()))
 					{
 						asDWORD flags = 0;
@@ -2078,7 +2080,7 @@ namespace Tomahawk
 						int paramTypeId;
 						func->GetParam(0, &paramTypeId, &flags);
 
-						if ((paramTypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)) != (SubTypeId &  ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)))
+						if ((paramTypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)) != (SubTypeId & ~(asTYPEID_OBJHANDLE | asTYPEID_HANDLETOCONST)))
 							continue;
 
 						if ((flags & asTM_INREF))
@@ -2126,12 +2128,12 @@ namespace Tomahawk
 			ObjType->SetUserData(cache, ARRAY_CACHE);
 			asReleaseExclusiveLock();
 		}
-		void VMCArray::EnumReferences(VMCManager *engine)
+		void VMCArray::EnumReferences(VMCManager* engine)
 		{
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 			{
-				void **d = (void**)Buffer->Data;
-				VMCTypeInfo *subType = engine->GetTypeInfoById(SubTypeId);
+				void** d = (void**)Buffer->Data;
+				VMCTypeInfo* subType = engine->GetTypeInfoById(SubTypeId);
 				if ((subType->GetFlags() & asOBJ_REF))
 				{
 					for (as_size_t n = 0; n < Buffer->NumElements; n++)
@@ -2180,52 +2182,52 @@ namespace Tomahawk
 		{
 			return GCFlag;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo *TI, as_size_t length)
+		VMCArray* VMCArray::Create(VMCTypeInfo* TI, as_size_t length)
 		{
-			void *mem = asAllocMem(sizeof(VMCArray));
+			void* mem = asAllocMem(sizeof(VMCArray));
 			if (mem == 0)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 
 				return 0;
 			}
 
-			VMCArray *a = new(mem) VMCArray(length, TI);
+			VMCArray* a = new(mem) VMCArray(length, TI);
 			return a;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo *TI, void *initList)
+		VMCArray* VMCArray::Create(VMCTypeInfo* TI, void* initList)
 		{
-			void *mem = asAllocMem(sizeof(VMCArray));
+			void* mem = asAllocMem(sizeof(VMCArray));
 			if (mem == 0)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 
 				return 0;
 			}
 
-			VMCArray *a = new(mem) VMCArray(TI, initList);
+			VMCArray* a = new(mem) VMCArray(TI, initList);
 			return a;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo *TI, as_size_t length, void *defVal)
+		VMCArray* VMCArray::Create(VMCTypeInfo* TI, as_size_t length, void* defVal)
 		{
-			void *mem = asAllocMem(sizeof(VMCArray));
+			void* mem = asAllocMem(sizeof(VMCArray));
 			if (mem == 0)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 
 				return 0;
 			}
 
-			VMCArray *a = new(mem) VMCArray(length, defVal, TI);
+			VMCArray* a = new(mem) VMCArray(length, defVal, TI);
 			return a;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo *TI)
+		VMCArray* VMCArray::Create(VMCTypeInfo* TI)
 		{
 			return VMCArray::Create(TI, as_size_t(0));
 		}
@@ -2329,7 +2331,7 @@ namespace Tomahawk
 			ValueObj = 0;
 			TypeId = 0;
 		}
-		VMCMapKey::VMCMapKey(VMCManager *engine, void *value, int typeId)
+		VMCMapKey::VMCMapKey(VMCManager* engine, void* value, int typeId)
 		{
 			ValueObj = 0;
 			TypeId = 0;
@@ -2339,7 +2341,7 @@ namespace Tomahawk
 		{
 			if (ValueObj && TypeId)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (!ctx)
 				{
 					assert((TypeId & asTYPEID_MASK_OBJECT) == 0);
@@ -2348,7 +2350,7 @@ namespace Tomahawk
 					FreeValue(ctx->GetEngine());
 			}
 		}
-		void VMCMapKey::FreeValue(VMCManager *engine)
+		void VMCMapKey::FreeValue(VMCManager* engine)
 		{
 			if (TypeId & asTYPEID_MASK_OBJECT)
 			{
@@ -2357,7 +2359,7 @@ namespace Tomahawk
 				TypeId = 0;
 			}
 		}
-		void VMCMapKey::EnumReferences(VMCManager *inEngine)
+		void VMCMapKey::EnumReferences(VMCManager* inEngine)
 		{
 			if (ValueObj)
 				inEngine->GCEnumCallback(ValueObj);
@@ -2365,7 +2367,7 @@ namespace Tomahawk
 			if (TypeId)
 				inEngine->GCEnumCallback(inEngine->GetTypeInfoById(TypeId));
 		}
-		void VMCMapKey::Set(VMCManager *engine, void *value, int typeId)
+		void VMCMapKey::Set(VMCManager* engine, void* value, int typeId)
 		{
 			FreeValue(engine);
 			TypeId = typeId;
@@ -2380,7 +2382,7 @@ namespace Tomahawk
 				ValueObj = engine->CreateScriptObjectCopy(value, engine->GetTypeInfoById(typeId));
 				if (ValueObj == 0)
 				{
-					VMCContext *ctx = asGetActiveContext();
+					VMCContext* ctx = asGetActiveContext();
 					if (ctx)
 						ctx->SetException("Cannot create copy of object");
 				}
@@ -2391,7 +2393,7 @@ namespace Tomahawk
 				memcpy(&ValueInt, value, size);
 			}
 		}
-		void VMCMapKey::Set(VMCManager *engine, VMCMapKey &value)
+		void VMCMapKey::Set(VMCManager* engine, VMCMapKey& value)
 		{
 			if (value.TypeId & asTYPEID_OBJHANDLE)
 				Set(engine, (void*)&value.ValueObj, value.TypeId);
@@ -2400,7 +2402,7 @@ namespace Tomahawk
 			else
 				Set(engine, (void*)&value.ValueInt, value.TypeId);
 		}
-		bool VMCMapKey::Get(VMCManager *engine, void *value, int typeId) const
+		bool VMCMapKey::Get(VMCManager* engine, void* value, int typeId) const
 		{
 			if (typeId & asTYPEID_OBJHANDLE)
 			{
@@ -2539,7 +2541,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		const void * VMCMapKey::GetAddressOfValue() const
+		const void* VMCMapKey::GetAddressOfValue() const
 		{
 			if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
 				return ValueObj;
@@ -2551,7 +2553,7 @@ namespace Tomahawk
 			return TypeId;
 		}
 
-		VMCMap::Iterator::Iterator(const VMCMap &Dict, Map::const_iterator it) : It(it), Dict(Dict)
+		VMCMap::Iterator::Iterator(const VMCMap& Dict, Map::const_iterator it) : It(it), Dict(Dict)
 		{
 		}
 		void VMCMap::Iterator::operator++()
@@ -2562,19 +2564,19 @@ namespace Tomahawk
 		{
 			++It;
 		}
-		VMCMap::Iterator &VMCMap::Iterator::operator*()
+		VMCMap::Iterator& VMCMap::Iterator::operator*()
 		{
 			return *this;
 		}
-		bool VMCMap::Iterator::operator==(const Iterator &other) const
+		bool VMCMap::Iterator::operator==(const Iterator& Other) const
 		{
-			return It == other.It;
+			return It == Other.It;
 		}
-		bool VMCMap::Iterator::operator!=(const Iterator &other) const
+		bool VMCMap::Iterator::operator!=(const Iterator& Other) const
 		{
-			return It != other.It;
+			return It != Other.It;
 		}
-		const std::string &VMCMap::Iterator::GetKey() const
+		const std::string& VMCMap::Iterator::GetKey() const
 		{
 			return It->first;
 		}
@@ -2582,22 +2584,22 @@ namespace Tomahawk
 		{
 			return It->second.TypeId;
 		}
-		bool VMCMap::Iterator::GetValue(void *value, int typeId) const
+		bool VMCMap::Iterator::GetValue(void* value, int typeId) const
 		{
 			return It->second.Get(Dict.Engine, value, typeId);
 		}
-		const void *VMCMap::Iterator::GetAddressOfValue() const
+		const void* VMCMap::Iterator::GetAddressOfValue() const
 		{
 			return It->second.GetAddressOfValue();
 		}
 
-		VMCMap::VMCMap(VMCManager *engine)
+		VMCMap::VMCMap(VMCManager* engine)
 		{
 			Init(engine);
 		}
-		VMCMap::VMCMap(unsigned char *buffer)
+		VMCMap::VMCMap(unsigned char* buffer)
 		{
-			VMCContext *ctx = asGetActiveContext();
+			VMCContext* ctx = asGetActiveContext();
 			Init(ctx->GetEngine());
 
 			VMCMap::SCache& cache = *reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
@@ -2626,7 +2628,7 @@ namespace Tomahawk
 				int typeId = *(int*)buffer;
 				buffer += sizeof(int);
 
-				void *ref = (void*)buffer;
+				void* ref = (void*)buffer;
 				if (typeId >= asTYPEID_INT8 && typeId <= asTYPEID_DOUBLE)
 				{
 					as_int64_t i64;
@@ -2679,7 +2681,7 @@ namespace Tomahawk
 
 				if (typeId & asTYPEID_MASK_OBJECT)
 				{
-					VMCTypeInfo *TI = Engine->GetTypeInfoById(typeId);
+					VMCTypeInfo* TI = Engine->GetTypeInfoById(typeId);
 					if (TI->GetFlags() & asOBJ_VALUE)
 						buffer += TI->GetSize();
 					else
@@ -2694,12 +2696,12 @@ namespace Tomahawk
 					buffer += Engine->GetSizeOfPrimitiveType(typeId);
 			}
 		}
-		VMCMap::VMCMap(const VMCMap& other)
+		VMCMap::VMCMap(const VMCMap& Other)
 		{
-			Init(other.Engine);
+			Init(Other.Engine);
 
 			Map::const_iterator it;
-			for (it = other.Dict.begin(); it != other.Dict.end(); ++it)
+			for (it = Other.Dict.begin(); it != Other.Dict.end(); ++it)
 			{
 				auto& Key = it->second;
 				if (Key.TypeId & asTYPEID_OBJHANDLE)
@@ -2740,7 +2742,7 @@ namespace Tomahawk
 		{
 			return GCFlag;
 		}
-		void VMCMap::EnumReferences(VMCManager *inEngine)
+		void VMCMap::EnumReferences(VMCManager* inEngine)
 		{
 			Map::iterator it;
 			for (it = Dict.begin(); it != Dict.end(); ++it)
@@ -2748,7 +2750,7 @@ namespace Tomahawk
 				auto& Key = it->second;
 				if (Key.TypeId & asTYPEID_MASK_OBJECT)
 				{
-					VMCTypeInfo *subType = Engine->GetTypeInfoById(Key.TypeId);
+					VMCTypeInfo* subType = Engine->GetTypeInfoById(Key.TypeId);
 					if ((subType->GetFlags() & asOBJ_VALUE) && (subType->GetFlags() & asOBJ_GC))
 						Engine->ForwardGCEnumReferences(Key.ValueObj, subType);
 					else
@@ -2760,12 +2762,12 @@ namespace Tomahawk
 		{
 			DeleteAll();
 		}
-		VMCMap &VMCMap::operator =(const VMCMap &other)
+		VMCMap& VMCMap::operator =(const VMCMap& Other)
 		{
 			DeleteAll();
 
 			Map::const_iterator it;
-			for (it = other.Dict.begin(); it != other.Dict.end(); ++it)
+			for (it = Other.Dict.begin(); it != Other.Dict.end(); ++it)
 			{
 				auto& Key = it->second;
 				if (Key.TypeId & asTYPEID_OBJHANDLE)
@@ -2778,24 +2780,24 @@ namespace Tomahawk
 
 			return *this;
 		}
-		VMCMapKey *VMCMap::operator[](const std::string &key)
+		VMCMapKey* VMCMap::operator[](const std::string& key)
 		{
 			return &Dict[key];
 		}
-		const VMCMapKey *VMCMap::operator[](const std::string &key) const
+		const VMCMapKey* VMCMap::operator[](const std::string& key) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
 			if (it != Dict.end())
 				return &it->second;
 
-			VMCContext *ctx = asGetActiveContext();
+			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
 				ctx->SetException("Invalid access to non-existing value");
 
 			return 0;
 		}
-		void VMCMap::Set(const std::string &key, void *value, int typeId)
+		void VMCMap::Set(const std::string& key, void* value, int typeId)
 		{
 			Map::iterator it;
 			it = Dict.find(key);
@@ -2804,7 +2806,7 @@ namespace Tomahawk
 
 			it->second.Set(Engine, value, typeId);
 		}
-		bool VMCMap::Get(const std::string &key, void *value, int typeId) const
+		bool VMCMap::Get(const std::string& key, void* value, int typeId) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
@@ -2838,7 +2840,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		int VMCMap::GetTypeId(const std::string &key) const
+		int VMCMap::GetTypeId(const std::string& key) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
@@ -2847,7 +2849,7 @@ namespace Tomahawk
 
 			return -1;
 		}
-		bool VMCMap::Exists(const std::string &key) const
+		bool VMCMap::Exists(const std::string& key) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
@@ -2867,7 +2869,7 @@ namespace Tomahawk
 		{
 			return as_size_t(Dict.size());
 		}
-		bool VMCMap::Delete(const std::string &key)
+		bool VMCMap::Delete(const std::string& key)
 		{
 			Map::iterator it;
 			it = Dict.find(key);
@@ -2890,10 +2892,10 @@ namespace Tomahawk
 		}
 		VMCArray* VMCMap::GetKeys() const
 		{
-			VMCMap::SCache *cache = reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
-			VMCTypeInfo *TI = cache->ArrayType;
+			VMCMap::SCache* cache = reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
+			VMCTypeInfo* TI = cache->ArrayType;
 
-			VMCArray *Array = VMCArray::Create(TI, as_size_t(Dict.size()));
+			VMCArray* Array = VMCArray::Create(TI, as_size_t(Dict.size()));
 			Map::const_iterator it;
 			long current = -1;
 
@@ -2913,23 +2915,23 @@ namespace Tomahawk
 		{
 			return Iterator(*this, Dict.end());
 		}
-		VMCMap::Iterator VMCMap::Find(const std::string &key) const
+		VMCMap::Iterator VMCMap::Find(const std::string& key) const
 		{
 			return Iterator(*this, Dict.find(key));
 		}
-		VMCMap *VMCMap::Create(VMCManager *engine)
+		VMCMap* VMCMap::Create(VMCManager* engine)
 		{
-			VMCMap *obj = (VMCMap*)asAllocMem(sizeof(VMCMap));
+			VMCMap* obj = (VMCMap*)asAllocMem(sizeof(VMCMap));
 			new(obj) VMCMap(engine);
 			return obj;
 		}
-		VMCMap *VMCMap::Create(unsigned char *buffer)
+		VMCMap* VMCMap::Create(unsigned char* buffer)
 		{
-			VMCMap *obj = (VMCMap*)asAllocMem(sizeof(VMCMap));
+			VMCMap* obj = (VMCMap*)asAllocMem(sizeof(VMCMap));
 			new(obj) VMCMap(buffer);
 			return obj;
 		}
-		void VMCMap::Init(VMCManager *e)
+		void VMCMap::Init(VMCManager* e)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -2938,12 +2940,12 @@ namespace Tomahawk
 			VMCMap::SCache* Cache = reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
 			Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictType);
 		}
-		void VMCMap::Cleanup(VMCManager *engine)
+		void VMCMap::Cleanup(VMCManager* engine)
 		{
 			VMCMap::SCache* Cache = reinterpret_cast<VMCMap::SCache*>(engine->GetUserData(MAP_CACHE));
 			TH_DELETE(SCache, Cache);
 		}
-		void VMCMap::Setup(VMCManager *engine)
+		void VMCMap::Setup(VMCManager* engine)
 		{
 			VMCMap::SCache* cache = reinterpret_cast<VMCMap::SCache*>(engine->GetUserData(MAP_CACHE));
 			if (cache == 0)
@@ -2957,81 +2959,81 @@ namespace Tomahawk
 				cache->KeyType = engine->GetTypeInfoByDecl("String");
 			}
 		}
-		void VMCMap::Factory(VMCGeneric *gen)
+		void VMCMap::Factory(VMCGeneric* gen)
 		{
 			*(VMCMap**)gen->GetAddressOfReturnLocation() = VMCMap::Create(gen->GetEngine());
 		}
-		void VMCMap::ListFactory(VMCGeneric *gen)
+		void VMCMap::ListFactory(VMCGeneric* gen)
 		{
-			unsigned char *buffer = (unsigned char*)gen->GetArgAddress(0);
+			unsigned char* buffer = (unsigned char*)gen->GetArgAddress(0);
 			*(VMCMap**)gen->GetAddressOfReturnLocation() = VMCMap::Create(buffer);
 		}
-		void VMCMap::KeyConstruct(void *mem)
+		void VMCMap::KeyConstruct(void* mem)
 		{
 			new(mem) VMCMapKey();
 		}
-		void VMCMap::KeyDestruct(VMCMapKey *obj)
+		void VMCMap::KeyDestruct(VMCMapKey* obj)
 		{
-			VMCContext *ctx = asGetActiveContext();
+			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
 			{
-				VMCManager *engine = ctx->GetEngine();
+				VMCManager* engine = ctx->GetEngine();
 				obj->FreeValue(engine);
 			}
 			obj->~VMCMapKey();
 		}
-		VMCMapKey& VMCMap::KeyopAssign(void *ref, int typeId, VMCMapKey *obj)
+		VMCMapKey& VMCMap::KeyopAssign(void* ref, int typeId, VMCMapKey* obj)
 		{
-			VMCContext *ctx = asGetActiveContext();
+			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
 			{
-				VMCManager *engine = ctx->GetEngine();
+				VMCManager* engine = ctx->GetEngine();
 				obj->Set(engine, ref, typeId);
 			}
 			return *obj;
 		}
-		VMCMapKey& VMCMap::KeyopAssign(const VMCMapKey &other, VMCMapKey *obj)
+		VMCMapKey& VMCMap::KeyopAssign(const VMCMapKey& Other, VMCMapKey* obj)
 		{
-			VMCContext *ctx = asGetActiveContext();
+			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
 			{
-				VMCManager *engine = ctx->GetEngine();
-				obj->Set(engine, const_cast<VMCMapKey&>(other));
+				VMCManager* engine = ctx->GetEngine();
+				obj->Set(engine, const_cast<VMCMapKey&>(Other));
 			}
 
 			return *obj;
 		}
-		VMCMapKey& VMCMap::KeyopAssign(double val, VMCMapKey *obj)
+		VMCMapKey& VMCMap::KeyopAssign(double Value, VMCMapKey* obj)
 		{
-			return KeyopAssign(&val, asTYPEID_DOUBLE, obj);
+			return KeyopAssign(&Value, asTYPEID_DOUBLE, obj);
 		}
-		VMCMapKey& VMCMap::KeyopAssign(as_int64_t val, VMCMapKey *obj)
+		VMCMapKey& VMCMap::KeyopAssign(as_int64_t Value, VMCMapKey* obj)
 		{
-			return VMCMap::KeyopAssign(&val, asTYPEID_INT64, obj);
+			return VMCMap::KeyopAssign(&Value, asTYPEID_INT64, obj);
 		}
-		void VMCMap::KeyopCast(void *ref, int typeId, VMCMapKey *obj)
+		void VMCMap::KeyopCast(void* ref, int typeId, VMCMapKey* obj)
 		{
-			VMCContext *ctx = asGetActiveContext();
+			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
 			{
-				VMCManager *engine = ctx->GetEngine();
+				VMCManager* engine = ctx->GetEngine();
 				obj->Get(engine, ref, typeId);
 			}
 		}
-		as_int64_t VMCMap::KeyopConvInt(VMCMapKey *obj)
+		as_int64_t VMCMap::KeyopConvInt(VMCMapKey* obj)
 		{
 			as_int64_t value;
 			KeyopCast(&value, asTYPEID_INT64, obj);
 			return value;
 		}
-		double VMCMap::KeyopConvDouble(VMCMapKey *obj)
+		double VMCMap::KeyopConvDouble(VMCMapKey* obj)
 		{
 			double value;
 			KeyopCast(&value, asTYPEID_DOUBLE, obj);
 			return value;
 		}
 
-		VMCGrid::VMCGrid(VMCTypeInfo *TI, void *buf)
+		VMCGrid::VMCGrid(VMCTypeInfo* TI, void* buf)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -3040,7 +3042,7 @@ namespace Tomahawk
 			Buffer = 0;
 			SubTypeId = ObjType->GetSubTypeId();
 
-			VMCManager *engine = TI->GetEngine();
+			VMCManager* engine = TI->GetEngine();
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 				ElementSize = sizeof(asPWORD);
 			else
@@ -3106,15 +3108,15 @@ namespace Tomahawk
 			{
 				CreateBuffer(&Buffer, Width, Height);
 
-				VMCTypeInfo *subType = TI->GetSubType();
+				VMCTypeInfo* subType = TI->GetSubType();
 				as_size_t subTypeSize = subType->GetSize();
 				for (as_size_t y = 0; y < Height; y++)
 				{
 					buf = (as_size_t*)(buf)+1;
 					for (as_size_t x = 0; x < Width; x++)
 					{
-						void *obj = At(x, y);
-						unsigned char *srcObj = (unsigned char*)(buf)+x * subTypeSize;
+						void* obj = At(x, y);
+						unsigned char* srcObj = (unsigned char*)(buf)+x * subTypeSize;
 						engine->AssignScriptObject(obj, srcObj, subType);
 					}
 
@@ -3127,7 +3129,7 @@ namespace Tomahawk
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 		}
-		VMCGrid::VMCGrid(as_size_t Width, as_size_t Height, VMCTypeInfo *TI)
+		VMCGrid::VMCGrid(as_size_t Width, as_size_t Height, VMCTypeInfo* TI)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -3153,7 +3155,7 @@ namespace Tomahawk
 			if (!CheckMaxSize(Width, Height))
 				return;
 
-			SBuffer *tmpBuffer = 0;
+			SBuffer* tmpBuffer = 0;
 			CreateBuffer(&tmpBuffer, Width, Height);
 			if (tmpBuffer == 0)
 				return;
@@ -3173,7 +3175,7 @@ namespace Tomahawk
 
 			Buffer = tmpBuffer;
 		}
-		VMCGrid::VMCGrid(as_size_t Width, as_size_t Height, void *defVal, VMCTypeInfo *TI)
+		VMCGrid::VMCGrid(as_size_t Width, as_size_t Height, void* defVal, VMCTypeInfo* TI)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -3200,13 +3202,13 @@ namespace Tomahawk
 					SetValue(x, y, defVal);
 			}
 		}
-		void VMCGrid::SetValue(as_size_t x, as_size_t y, void *value)
+		void VMCGrid::SetValue(as_size_t x, as_size_t y, void* value)
 		{
 			SetValue(Buffer, x, y, value);
 		}
-		void VMCGrid::SetValue(SBuffer *buf, as_size_t x, as_size_t y, void *value)
+		void VMCGrid::SetValue(SBuffer* buf, as_size_t x, as_size_t y, void* value)
 		{
-			void *ptr = At(buf, x, y);
+			void* ptr = At(buf, x, y);
 			if (ptr == 0)
 				return;
 
@@ -3214,7 +3216,7 @@ namespace Tomahawk
 				ObjType->GetEngine()->AssignScriptObject(ptr, value, ObjType->GetSubType());
 			else if (SubTypeId & asTYPEID_OBJHANDLE)
 			{
-				void *tmp = *(void**)ptr;
+				void* tmp = *(void**)ptr;
 				*(void**)ptr = *(void**)value;
 				ObjType->GetEngine()->AddRefScriptObject(*(void**)value, ObjType->GetSubType());
 				if (tmp)
@@ -3271,7 +3273,7 @@ namespace Tomahawk
 			as_uint64_t numElements = (as_uint64_t)Width * (as_uint64_t)Height;
 			if ((numElements >> 32) || numElements > (as_uint64_t)maxSize)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Too large grid size");
 
@@ -3279,7 +3281,7 @@ namespace Tomahawk
 			}
 			return true;
 		}
-		VMCTypeInfo *VMCGrid::GetGridObjectType() const
+		VMCTypeInfo* VMCGrid::GetGridObjectType() const
 		{
 			return ObjType;
 		}
@@ -3291,15 +3293,15 @@ namespace Tomahawk
 		{
 			return SubTypeId;
 		}
-		void *VMCGrid::At(as_size_t x, as_size_t y)
+		void* VMCGrid::At(as_size_t x, as_size_t y)
 		{
 			return At(Buffer, x, y);
 		}
-		void *VMCGrid::At(SBuffer *buf, as_size_t x, as_size_t y)
+		void* VMCGrid::At(SBuffer* buf, as_size_t x, as_size_t y)
 		{
 			if (buf == 0 || x >= buf->Width || y >= buf->Height)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Index out of bounds");
 				return 0;
@@ -3311,11 +3313,11 @@ namespace Tomahawk
 			else
 				return buf->Data + (as_size_t)ElementSize * index;
 		}
-		const void *VMCGrid::At(as_size_t x, as_size_t y) const
+		const void* VMCGrid::At(as_size_t x, as_size_t y) const
 		{
 			return const_cast<VMCGrid*>(this)->At(const_cast<SBuffer*>(Buffer), x, y);
 		}
-		void VMCGrid::CreateBuffer(SBuffer **buf, as_size_t w, as_size_t h)
+		void VMCGrid::CreateBuffer(SBuffer** buf, as_size_t w, as_size_t h)
 		{
 			as_size_t numElements = w * h;
 			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)numElements));
@@ -3328,52 +3330,52 @@ namespace Tomahawk
 			}
 			else
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 			}
 		}
-		void VMCGrid::DeleteBuffer(SBuffer *buf)
+		void VMCGrid::DeleteBuffer(SBuffer* buf)
 		{
 			assert(buf);
 			Destruct(buf);
 			asFreeMem(buf);
 		}
-		void VMCGrid::Construct(SBuffer *buf)
+		void VMCGrid::Construct(SBuffer* buf)
 		{
 			assert(buf);
 			if (SubTypeId & asTYPEID_OBJHANDLE)
 			{
-				void *d = (void*)(buf->Data);
-				memset(d, 0, (buf->Width*buf->Height) * sizeof(void*));
+				void* d = (void*)(buf->Data);
+				memset(d, 0, (buf->Width * buf->Height) * sizeof(void*));
 			}
 			else if (SubTypeId & asTYPEID_MASK_OBJECT)
 			{
-				void **max = (void**)(buf->Data + (buf->Width*buf->Height) * sizeof(void*));
-				void **d = (void**)(buf->Data);
+				void** max = (void**)(buf->Data + (buf->Width * buf->Height) * sizeof(void*));
+				void** d = (void**)(buf->Data);
 
-				VMCManager *engine = ObjType->GetEngine();
-				VMCTypeInfo *subType = ObjType->GetSubType();
+				VMCManager* engine = ObjType->GetEngine();
+				VMCTypeInfo* subType = ObjType->GetSubType();
 
 				for (; d < max; d++)
 				{
 					*d = (void*)engine->CreateScriptObject(subType);
 					if (*d == 0)
 					{
-						memset(d, 0, sizeof(void*)*(max - d));
+						memset(d, 0, sizeof(void*) * (max - d));
 						return;
 					}
 				}
 			}
 		}
-		void VMCGrid::Destruct(SBuffer *buf)
+		void VMCGrid::Destruct(SBuffer* buf)
 		{
 			assert(buf);
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 			{
-				VMCManager *engine = ObjType->GetEngine();
-				void **max = (void**)(buf->Data + (buf->Width*buf->Height) * sizeof(void*));
-				void **d = (void**)(buf->Data);
+				VMCManager* engine = ObjType->GetEngine();
+				void** max = (void**)(buf->Data + (buf->Width * buf->Height) * sizeof(void*));
+				void** d = (void**)(buf->Data);
 
 				for (; d < max; d++)
 				{
@@ -3382,7 +3384,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCGrid::EnumReferences(VMCManager *engine)
+		void VMCGrid::EnumReferences(VMCManager* engine)
 		{
 			if (Buffer == 0)
 				return;
@@ -3390,8 +3392,8 @@ namespace Tomahawk
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 			{
 				as_size_t numElements = Buffer->Width * Buffer->Height;
-				void **d = (void**)Buffer->Data;
-				VMCTypeInfo *subType = engine->GetTypeInfoById(SubTypeId);
+				void** d = (void**)Buffer->Data;
+				VMCTypeInfo* subType = engine->GetTypeInfoById(SubTypeId);
 
 				if ((subType->GetFlags() & asOBJ_REF))
 				{
@@ -3445,56 +3447,56 @@ namespace Tomahawk
 		{
 			return GCFlag;
 		}
-		VMCGrid *VMCGrid::Create(VMCTypeInfo *TI)
+		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI)
 		{
 			return VMCGrid::Create(TI, 0, 0);
 		}
-		VMCGrid *VMCGrid::Create(VMCTypeInfo *TI, as_size_t w, as_size_t h)
+		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI, as_size_t w, as_size_t h)
 		{
-			void *mem = asAllocMem(sizeof(VMCGrid));
+			void* mem = asAllocMem(sizeof(VMCGrid));
 			if (mem == 0)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 
 				return 0;
 			}
 
-			VMCGrid *a = new(mem) VMCGrid(w, h, TI);
+			VMCGrid* a = new(mem) VMCGrid(w, h, TI);
 			return a;
 		}
-		VMCGrid *VMCGrid::Create(VMCTypeInfo *TI, void *initList)
+		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI, void* initList)
 		{
-			void *mem = asAllocMem(sizeof(VMCGrid));
+			void* mem = asAllocMem(sizeof(VMCGrid));
 			if (mem == 0)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 
 				return 0;
 			}
 
-			VMCGrid *a = new(mem) VMCGrid(TI, initList);
+			VMCGrid* a = new(mem) VMCGrid(TI, initList);
 			return a;
 		}
-		VMCGrid *VMCGrid::Create(VMCTypeInfo *TI, as_size_t w, as_size_t h, void *defVal)
+		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI, as_size_t w, as_size_t h, void* defVal)
 		{
-			void *mem = asAllocMem(sizeof(VMCGrid));
+			void* mem = asAllocMem(sizeof(VMCGrid));
 			if (mem == 0)
 			{
-				VMCContext *ctx = asGetActiveContext();
+				VMCContext* ctx = asGetActiveContext();
 				if (ctx)
 					ctx->SetException("Out of memory");
 
 				return 0;
 			}
 
-			VMCGrid *a = new(mem) VMCGrid(w, h, defVal, TI);
+			VMCGrid* a = new(mem) VMCGrid(w, h, defVal, TI);
 			return a;
 		}
-		bool VMCGrid::TemplateCallback(VMCTypeInfo *TI, bool &DontGarbageCollect)
+		bool VMCGrid::TemplateCallback(VMCTypeInfo* TI, bool& DontGarbageCollect)
 		{
 			int typeId = TI->GetSubTypeId();
 			if (typeId == asTYPEID_VOID)
@@ -3503,7 +3505,7 @@ namespace Tomahawk
 			VMCManager* Engine = TI->GetEngine();
 			if ((typeId & asTYPEID_MASK_OBJECT) && !(typeId & asTYPEID_OBJHANDLE))
 			{
-				VMCTypeInfo *subtype = Engine->GetTypeInfoById(typeId);
+				VMCTypeInfo* subtype = Engine->GetTypeInfoById(typeId);
 				asDWORD flags = subtype->GetFlags();
 
 				if ((flags & asOBJ_VALUE) && !(flags & asOBJ_POD))
@@ -3512,7 +3514,7 @@ namespace Tomahawk
 					for (as_size_t n = 0; n < subtype->GetBehaviourCount(); n++)
 					{
 						asEBehaviours beh;
-						asIScriptFunction *func = subtype->GetBehaviourByIndex(n, &beh);
+						asIScriptFunction* func = subtype->GetBehaviourByIndex(n, &beh);
 						if (beh != asBEHAVE_CONSTRUCT)
 							continue;
 
@@ -3536,7 +3538,7 @@ namespace Tomahawk
 					{
 						for (as_size_t n = 0; n < subtype->GetFactoryCount(); n++)
 						{
-							asIScriptFunction *func = subtype->GetFactoryByIndex(n);
+							asIScriptFunction* func = subtype->GetFactoryByIndex(n);
 							if (func->GetParamCount() == 0)
 							{
 								found = true;
@@ -3562,7 +3564,7 @@ namespace Tomahawk
 			else
 			{
 				assert(typeId & asTYPEID_OBJHANDLE);
-				VMCTypeInfo *subtype = Engine->GetTypeInfoById(typeId);
+				VMCTypeInfo* subtype = Engine->GetTypeInfoById(typeId);
 				asDWORD flags = subtype->GetFlags();
 
 				if (!(flags & asOBJ_GC))
@@ -3585,21 +3587,21 @@ namespace Tomahawk
 			Ref = 0;
 			Type = 0;
 		}
-		VMCRef::VMCRef(const VMCRef &other)
+		VMCRef::VMCRef(const VMCRef& Other)
 		{
-			Ref = other.Ref;
-			Type = other.Type;
+			Ref = Other.Ref;
+			Type = Other.Type;
 
 			AddRefHandle();
 		}
-		VMCRef::VMCRef(void *ref, VMCTypeInfo *type)
+		VMCRef::VMCRef(void* ref, VMCTypeInfo* type)
 		{
 			Ref = ref;
 			Type = type;
 
 			AddRefHandle();
 		}
-		VMCRef::VMCRef(void *ref, int typeId)
+		VMCRef::VMCRef(void* ref, int typeId)
 		{
 			Ref = 0;
 			Type = 0;
@@ -3614,7 +3616,7 @@ namespace Tomahawk
 		{
 			if (Ref && Type)
 			{
-				VMCManager *engine = Type->GetEngine();
+				VMCManager* engine = Type->GetEngine();
 				engine->ReleaseScriptObject(Ref, Type);
 				engine->Release();
 
@@ -3626,17 +3628,17 @@ namespace Tomahawk
 		{
 			if (Ref && Type)
 			{
-				VMCManager *engine = Type->GetEngine();
+				VMCManager* engine = Type->GetEngine();
 				engine->AddRefScriptObject(Ref, Type);
 				engine->AddRef();
 			}
 		}
-		VMCRef &VMCRef::operator =(const VMCRef &other)
+		VMCRef& VMCRef::operator =(const VMCRef& Other)
 		{
-			Set(other.Ref, other.Type);
+			Set(Other.Ref, Other.Type);
 			return *this;
 		}
-		void VMCRef::Set(void *ref, VMCTypeInfo *type)
+		void VMCRef::Set(void* ref, VMCTypeInfo* type)
 		{
 			if (Ref == ref)
 				return;
@@ -3646,11 +3648,11 @@ namespace Tomahawk
 			Type = type;
 			AddRefHandle();
 		}
-		void *VMCRef::GetRef()
+		void* VMCRef::GetRef()
 		{
 			return Ref;
 		}
-		VMCTypeInfo *VMCRef::GetType() const
+		VMCTypeInfo* VMCRef::GetType() const
 		{
 			return Type;
 		}
@@ -3660,7 +3662,7 @@ namespace Tomahawk
 
 			return Type->GetTypeId() | asTYPEID_OBJHANDLE;
 		}
-		VMCRef &VMCRef::Assign(void *ref, int typeId)
+		VMCRef& VMCRef::Assign(void* ref, int typeId)
 		{
 			if (typeId == 0)
 			{
@@ -3680,7 +3682,7 @@ namespace Tomahawk
 
 			if (type && strcmp(type->GetName(), "ref") == 0)
 			{
-				VMCRef *r = (VMCRef*)ref;
+				VMCRef* r = (VMCRef*)ref;
 				ref = r->Ref;
 				type = r->Type;
 			}
@@ -3688,18 +3690,18 @@ namespace Tomahawk
 			Set(ref, type);
 			return *this;
 		}
-		bool VMCRef::operator==(const VMCRef &o) const
+		bool VMCRef::operator==(const VMCRef& o) const
 		{
 			if (Ref == o.Ref && Type == o.Type)
 				return true;
 
 			return false;
 		}
-		bool VMCRef::operator!=(const VMCRef &o) const
+		bool VMCRef::operator!=(const VMCRef& o) const
 		{
 			return !(*this == o);
 		}
-		bool VMCRef::Equals(void *ref, int typeId) const
+		bool VMCRef::Equals(void* ref, int typeId) const
 		{
 			if (typeId == 0)
 				ref = 0;
@@ -3719,7 +3721,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		void VMCRef::Cast(void **outRef, int typeId)
+		void VMCRef::Cast(void** outRef, int typeId)
 		{
 			if (Type == 0)
 			{
@@ -3736,7 +3738,7 @@ namespace Tomahawk
 
 			engine->RefCastObject(Ref, Type, type, outRef);
 		}
-		void VMCRef::EnumReferences(VMCManager *inEngine)
+		void VMCRef::EnumReferences(VMCManager* inEngine)
 		{
 			if (Ref)
 				inEngine->GCEnumCallback(Ref);
@@ -3744,44 +3746,44 @@ namespace Tomahawk
 			if (Type)
 				inEngine->GCEnumCallback(Type);
 		}
-		void VMCRef::ReleaseReferences(VMCManager *inEngine)
+		void VMCRef::ReleaseReferences(VMCManager* inEngine)
 		{
 			Set(0, 0);
 		}
-		void VMCRef::Construct(VMCRef *self)
+		void VMCRef::Construct(VMCRef* self)
 		{
 			new(self) VMCRef();
 		}
-		void VMCRef::Construct(VMCRef *self, const VMCRef &o)
+		void VMCRef::Construct(VMCRef* self, const VMCRef& o)
 		{
 			new(self) VMCRef(o);
 		}
-		void VMCRef::Construct(VMCRef *self, void *ref, int typeId)
+		void VMCRef::Construct(VMCRef* self, void* ref, int typeId)
 		{
 			new(self) VMCRef(ref, typeId);
 		}
-		void VMCRef::Destruct(VMCRef *self)
+		void VMCRef::Destruct(VMCRef* self)
 		{
 			self->~VMCRef();
 		}
 
-		VMCWeakRef::VMCWeakRef(VMCTypeInfo *type)
+		VMCWeakRef::VMCWeakRef(VMCTypeInfo* type)
 		{
 			Ref = 0;
 			Type = type;
 			Type->AddRef();
 			WeakRefFlag = 0;
 		}
-		VMCWeakRef::VMCWeakRef(const VMCWeakRef &other)
+		VMCWeakRef::VMCWeakRef(const VMCWeakRef& Other)
 		{
-			Ref = other.Ref;
-			Type = other.Type;
+			Ref = Other.Ref;
+			Type = Other.Type;
 			Type->AddRef();
-			WeakRefFlag = other.WeakRefFlag;
+			WeakRefFlag = Other.WeakRefFlag;
 			if (WeakRefFlag)
 				WeakRefFlag->AddRef();
 		}
-		VMCWeakRef::VMCWeakRef(void *ref, VMCTypeInfo *type)
+		VMCWeakRef::VMCWeakRef(void* ref, VMCTypeInfo* type)
 		{
 			Ref = ref;
 			Type = type;
@@ -3802,34 +3804,34 @@ namespace Tomahawk
 			if (WeakRefFlag)
 				WeakRefFlag->Release();
 		}
-		VMCWeakRef &VMCWeakRef::operator =(const VMCWeakRef &other)
+		VMCWeakRef& VMCWeakRef::operator =(const VMCWeakRef& Other)
 		{
-			if (Ref == other.Ref &&
-				WeakRefFlag == other.WeakRefFlag)
+			if (Ref == Other.Ref &&
+				WeakRefFlag == Other.WeakRefFlag)
 				return *this;
 
-			if (Type != other.Type)
+			if (Type != Other.Type)
 			{
 				if (!(strcmp(Type->GetName(), "ConstWeakRef") == 0 &&
-					strcmp(other.Type->GetName(), "WeakRef") == 0 &&
-					Type->GetSubType() == other.Type->GetSubType()))
+					strcmp(Other.Type->GetName(), "WeakRef") == 0 &&
+					Type->GetSubType() == Other.Type->GetSubType()))
 				{
 					assert(false);
 					return *this;
 				}
 			}
 
-			Ref = other.Ref;
+			Ref = Other.Ref;
 			if (WeakRefFlag)
 				WeakRefFlag->Release();
 
-			WeakRefFlag = other.WeakRefFlag;
+			WeakRefFlag = Other.WeakRefFlag;
 			if (WeakRefFlag)
 				WeakRefFlag->AddRef();
 
 			return *this;
 		}
-		VMCWeakRef &VMCWeakRef::Set(void *newRef)
+		VMCWeakRef& VMCWeakRef::Set(void* newRef)
 		{
 			if (WeakRefFlag)
 				WeakRefFlag->Release();
@@ -3846,11 +3848,11 @@ namespace Tomahawk
 			Type->GetEngine()->ReleaseScriptObject(newRef, Type->GetSubType());
 			return *this;
 		}
-		VMCTypeInfo *VMCWeakRef::GetRefType() const
+		VMCTypeInfo* VMCWeakRef::GetRefType() const
 		{
 			return Type->GetSubType();
 		}
-		bool VMCWeakRef::operator==(const VMCWeakRef &o) const
+		bool VMCWeakRef::operator==(const VMCWeakRef& o) const
 		{
 			if (Ref == o.Ref &&
 				WeakRefFlag == o.WeakRefFlag &&
@@ -3859,11 +3861,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool VMCWeakRef::operator!=(const VMCWeakRef &o) const
+		bool VMCWeakRef::operator!=(const VMCWeakRef& o) const
 		{
 			return !(*this == o);
 		}
-		void *VMCWeakRef::Get() const
+		void* VMCWeakRef::Get() const
 		{
 			if (Ref == 0 || WeakRefFlag == 0)
 				return 0;
@@ -3879,35 +3881,35 @@ namespace Tomahawk
 
 			return 0;
 		}
-		bool VMCWeakRef::Equals(void *ref) const
+		bool VMCWeakRef::Equals(void* ref) const
 		{
 			if (Ref != ref)
 				return false;
 
-			asILockableSharedBool *flag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(ref, Type->GetSubType());
+			asILockableSharedBool* flag = Type->GetEngine()->GetWeakRefFlagOfScriptObject(ref, Type->GetSubType());
 			if (WeakRefFlag != flag)
 				return false;
 
 			return true;
 		}
-		void VMCWeakRef::Construct(VMCTypeInfo *type, void *mem)
+		void VMCWeakRef::Construct(VMCTypeInfo* type, void* mem)
 		{
 			new(mem) VMCWeakRef(type);
 		}
-		void VMCWeakRef::Construct2(VMCTypeInfo *type, void *ref, void *mem)
+		void VMCWeakRef::Construct2(VMCTypeInfo* type, void* ref, void* mem)
 		{
 			new(mem) VMCWeakRef(ref, type);
-			VMCContext *ctx = asGetActiveContext();
+			VMCContext* ctx = asGetActiveContext();
 			if (ctx && ctx->GetState() == asEXECUTION_EXCEPTION)
 				reinterpret_cast<VMCWeakRef*>(mem)->~VMCWeakRef();
 		}
-		void VMCWeakRef::Destruct(VMCWeakRef *obj)
+		void VMCWeakRef::Destruct(VMCWeakRef* obj)
 		{
 			obj->~VMCWeakRef();
 		}
-		bool VMCWeakRef::TemplateCallback(VMCTypeInfo *TI, bool&)
+		bool VMCWeakRef::TemplateCallback(VMCTypeInfo* TI, bool&)
 		{
-			VMCTypeInfo *subType = TI->GetSubType();
+			VMCTypeInfo* subType = TI->GetSubType();
 			if (subType == 0)
 				return false;
 
@@ -3935,50 +3937,50 @@ namespace Tomahawk
 			R = 0;
 			I = 0;
 		}
-		VMCComplex::VMCComplex(const VMCComplex &other)
+		VMCComplex::VMCComplex(const VMCComplex& Other)
 		{
-			R = other.R;
-			I = other.I;
+			R = Other.R;
+			I = Other.I;
 		}
 		VMCComplex::VMCComplex(float _r, float _i)
 		{
 			R = _r;
 			I = _i;
 		}
-		bool VMCComplex::operator==(const VMCComplex &o) const
+		bool VMCComplex::operator==(const VMCComplex& o) const
 		{
 			return (R == o.R) && (I == o.I);
 		}
-		bool VMCComplex::operator!=(const VMCComplex &o) const
+		bool VMCComplex::operator!=(const VMCComplex& o) const
 		{
 			return !(*this == o);
 		}
-		VMCComplex &VMCComplex::operator=(const VMCComplex &other)
+		VMCComplex& VMCComplex::operator=(const VMCComplex& Other)
 		{
-			R = other.R;
-			I = other.I;
+			R = Other.R;
+			I = Other.I;
 			return *this;
 		}
-		VMCComplex &VMCComplex::operator+=(const VMCComplex &other)
+		VMCComplex& VMCComplex::operator+=(const VMCComplex& Other)
 		{
-			R += other.R;
-			I += other.I;
+			R += Other.R;
+			I += Other.I;
 			return *this;
 		}
-		VMCComplex &VMCComplex::operator-=(const VMCComplex &other)
+		VMCComplex& VMCComplex::operator-=(const VMCComplex& Other)
 		{
-			R -= other.R;
-			I -= other.I;
+			R -= Other.R;
+			I -= Other.I;
 			return *this;
 		}
-		VMCComplex &VMCComplex::operator*=(const VMCComplex &other)
+		VMCComplex& VMCComplex::operator*=(const VMCComplex& Other)
 		{
-			*this = *this * other;
+			*this = *this * Other;
 			return *this;
 		}
-		VMCComplex &VMCComplex::operator/=(const VMCComplex &other)
+		VMCComplex& VMCComplex::operator/=(const VMCComplex& Other)
 		{
-			*this = *this / other;
+			*this = *this / Other;
 			return *this;
 		}
 		float VMCComplex::SquaredLength() const
@@ -3989,25 +3991,25 @@ namespace Tomahawk
 		{
 			return sqrtf(SquaredLength());
 		}
-		VMCComplex VMCComplex::operator+(const VMCComplex &other) const
+		VMCComplex VMCComplex::operator+(const VMCComplex& Other) const
 		{
-			return VMCComplex(R + other.R, I + other.I);
+			return VMCComplex(R + Other.R, I + Other.I);
 		}
-		VMCComplex VMCComplex::operator-(const VMCComplex &other) const
+		VMCComplex VMCComplex::operator-(const VMCComplex& Other) const
 		{
-			return VMCComplex(R - other.R, I + other.I);
+			return VMCComplex(R - Other.R, I + Other.I);
 		}
-		VMCComplex VMCComplex::operator*(const VMCComplex &other) const
+		VMCComplex VMCComplex::operator*(const VMCComplex& Other) const
 		{
-			return VMCComplex(R*other.R - I * other.I, R*other.I + I * other.R);
+			return VMCComplex(R * Other.R - I * Other.I, R * Other.I + I * Other.R);
 		}
-		VMCComplex VMCComplex::operator/(const VMCComplex &other) const
+		VMCComplex VMCComplex::operator/(const VMCComplex& Other) const
 		{
-			float squaredLen = other.SquaredLength();
+			float squaredLen = Other.SquaredLength();
 			if (squaredLen == 0)
 				return VMCComplex(0, 0);
 
-			return VMCComplex((R*other.R + I * other.I) / squaredLen, (I*other.R - R * other.I) / squaredLen);
+			return VMCComplex((R * Other.R + I * Other.I) / squaredLen, (I * Other.R - R * Other.I) / squaredLen);
 		}
 		VMCComplex VMCComplex::GetRI() const
 		{
@@ -4017,32 +4019,32 @@ namespace Tomahawk
 		{
 			return VMCComplex(R, I);
 		}
-		void VMCComplex::SetRI(const VMCComplex &o)
+		void VMCComplex::SetRI(const VMCComplex& o)
 		{
 			*this = o;
 		}
-		void VMCComplex::SetIR(const VMCComplex &o)
+		void VMCComplex::SetIR(const VMCComplex& o)
 		{
 			R = o.I;
 			I = o.R;
 		}
-		void VMCComplex::DefaultConstructor(VMCComplex *self)
+		void VMCComplex::DefaultConstructor(VMCComplex* self)
 		{
 			new(self) VMCComplex();
 		}
-		void VMCComplex::CopyConstructor(const VMCComplex &other, VMCComplex *self)
+		void VMCComplex::CopyConstructor(const VMCComplex& Other, VMCComplex* self)
 		{
-			new(self) VMCComplex(other);
+			new(self) VMCComplex(Other);
 		}
-		void VMCComplex::ConvConstructor(float r, VMCComplex *self)
+		void VMCComplex::ConvConstructor(float r, VMCComplex* self)
 		{
 			new(self) VMCComplex(r);
 		}
-		void VMCComplex::InitConstructor(float r, float i, VMCComplex *self)
+		void VMCComplex::InitConstructor(float r, float i, VMCComplex* self)
 		{
 			new(self) VMCComplex(r, i);
 		}
-		void VMCComplex::ListConstructor(float *list, VMCComplex *self)
+		void VMCComplex::ListConstructor(float* list, VMCComplex* self)
 		{
 			new(self) VMCComplex(list[0], list[1]);
 		}
@@ -4132,7 +4134,7 @@ namespace Tomahawk
 
 			if (Context == nullptr)
 			{
-				Manager->GetEngine()->WriteMessage("", 0, 0, asMSGTYPE_ERROR, "failed to start a thread: no available context");
+				Manager->GetEngine()->WriteMessage("", 0, 0, asMSGTYPE_ERROR, "failed to Start a thread: no available context");
 				Release();
 
 				return Mutex.unlock();
@@ -4165,6 +4167,13 @@ namespace Tomahawk
 			Mutex.lock();
 			if (Context && Context->GetState() != VMExecState::SUSPENDED)
 				Context->Suspend();
+			Mutex.unlock();
+		}
+		void VMCThread::Resume()
+		{
+			Mutex.lock();
+			if (Context && Context->GetState() == VMExecState::SUSPENDED)
+				Context->Execute();
 			Mutex.unlock();
 		}
 		void VMCThread::Release()
@@ -4340,7 +4349,7 @@ namespace Tomahawk
 		void VMCThread::ReleaseReferences(VMCManager*)
 		{
 			if (Join() >= 0)
-				TH_ERROR("[memerr] thread was forced to join");
+				TH_ERR("[memerr] thread was forced to join");
 
 			for (int i = 0; i < 2; i++)
 			{
@@ -4391,10 +4400,8 @@ namespace Tomahawk
 
 		bool RegisterAnyAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->RegisterObjectType("Any", sizeof(VMCAny), asOBJ_REF | asOBJ_GC);
 			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f()", asFUNCTION(VMCAny::Factory1), asCALL_GENERIC);
 			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f(?&in) explicit", asFUNCTION(VMCAny::Factory2), asCALL_GENERIC);
@@ -4414,28 +4421,26 @@ namespace Tomahawk
 		}
 		bool RegisterArrayAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->SetTypeInfoUserDataCleanupCallback(VMCArray::CleanupTypeInfoCache, ARRAY_CACHE);
 			Engine->RegisterObjectType("Array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
 			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCArray::TemplateCallback), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in)", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*), VMCArray*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in, uint length) explicit", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*, as_size_t), VMCArray*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in, uint length, const T &in value)", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*, as_size_t, void *), VMCArray*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in, uint length, const T &in value)", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*, as_size_t, void*), VMCArray*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_LIST_FACTORY, "Array<T>@ f(int&in type, int&in list) {repeat T}", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*, void*), VMCArray*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCArray, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCArray, Release), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "T &opIndex(uint index)", asMETHODPR(VMCArray, At, (as_size_t), void*), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "const T &opIndex(uint index) const", asMETHODPR(VMCArray, At, (as_size_t) const, const void*), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "Array<T> &opAssign(const Array<T>&in)", asMETHOD(VMCArray, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const T&in value)", asMETHODPR(VMCArray, InsertAt, (as_size_t, void *), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const Array<T>& arr)", asMETHODPR(VMCArray, InsertAt, (as_size_t, const VMCArray &), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const T&in value)", asMETHODPR(VMCArray, InsertAt, (as_size_t, void*), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const Array<T>& arr)", asMETHODPR(VMCArray, InsertAt, (as_size_t, const VMCArray&), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void InsertLast(const T&in value)", asMETHOD(VMCArray, InsertLast), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveAt(uint index)", asMETHOD(VMCArray, RemoveAt), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveLast()", asMETHOD(VMCArray, RemoveLast), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void RemoveRange(uint start, uint count)", asMETHOD(VMCArray, RemoveRange), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void RemoveRange(uint Start, uint count)", asMETHOD(VMCArray, RemoveRange), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "uint Size() const", asMETHOD(VMCArray, GetSize), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void Reserve(uint length)", asMETHOD(VMCArray, Reserve), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void Resize(uint length)", asMETHODPR(VMCArray, Resize, (as_size_t), void), asCALL_THISCALL);
@@ -4462,10 +4467,8 @@ namespace Tomahawk
 		}
 		bool RegisterComplexAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->RegisterObjectType("Complex", sizeof(VMCComplex), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<VMCComplex>() | asOBJ_APP_CLASS_ALLFLOATS);
 			Engine->RegisterObjectProperty("Complex", "float R", asOFFSET(VMCComplex, R));
 			Engine->RegisterObjectProperty("Complex", "float I", asOFFSET(VMCComplex, I));
@@ -4474,15 +4477,15 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(float)", asFUNCTION(VMCComplex::ConvConstructor), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(float, float)", asFUNCTION(VMCComplex::InitConstructor), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_LIST_CONSTRUCT, "void f(const int &in) {float, float}", asFUNCTION(VMCComplex::ListConstructor), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("Complex", "Complex &opAddAssign(const Complex &in)", asMETHODPR(VMCComplex, operator+=, (const VMCComplex &), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex &opSubAssign(const Complex &in)", asMETHODPR(VMCComplex, operator-=, (const VMCComplex &), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex &opMulAssign(const Complex &in)", asMETHODPR(VMCComplex, operator*=, (const VMCComplex &), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex &opDivAssign(const Complex &in)", asMETHODPR(VMCComplex, operator/=, (const VMCComplex &), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "bool opEquals(const Complex &in) const", asMETHODPR(VMCComplex, operator==, (const VMCComplex &) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opAdd(const Complex &in) const", asMETHODPR(VMCComplex, operator+, (const VMCComplex &) const, VMCComplex), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opSub(const Complex &in) const", asMETHODPR(VMCComplex, operator-, (const VMCComplex &) const, VMCComplex), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opMul(const Complex &in) const", asMETHODPR(VMCComplex, operator*, (const VMCComplex &) const, VMCComplex), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opDiv(const Complex &in) const", asMETHODPR(VMCComplex, operator/, (const VMCComplex &) const, VMCComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex &opAddAssign(const Complex &in)", asMETHODPR(VMCComplex, operator+=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex &opSubAssign(const Complex &in)", asMETHODPR(VMCComplex, operator-=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex &opMulAssign(const Complex &in)", asMETHODPR(VMCComplex, operator*=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex &opDivAssign(const Complex &in)", asMETHODPR(VMCComplex, operator/=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "bool opEquals(const Complex &in) const", asMETHODPR(VMCComplex, operator==, (const VMCComplex&) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opAdd(const Complex &in) const", asMETHODPR(VMCComplex, operator+, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opSub(const Complex &in) const", asMETHODPR(VMCComplex, operator-, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opMul(const Complex &in) const", asMETHODPR(VMCComplex, operator*, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opDiv(const Complex &in) const", asMETHODPR(VMCComplex, operator/, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Complex", "float Abs() const", asMETHOD(VMCComplex, Length), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Complex", "Complex get_RI() const property", asMETHOD(VMCComplex, GetRI), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Complex", "Complex get_IR() const property", asMETHOD(VMCComplex, GetIR), asCALL_THISCALL);
@@ -4492,23 +4495,21 @@ namespace Tomahawk
 		}
 		bool RegisterMapAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->RegisterObjectType("MapKey", sizeof(VMCMapKey), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<VMCMapKey>());
 			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(VMCMap::KeyConstruct), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(VMCMap::KeyDestruct), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCMapKey, EnumReferences), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCMapKey, FreeValue), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const MapKey &in)", asFUNCTIONPR(VMCMap::KeyopAssign, (const VMCMapKey &, VMCMapKey *), VMCMapKey &), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const ?&in)", asFUNCTIONPR(VMCMap::KeyopAssign, (void *, int, VMCMapKey*), VMCMapKey &), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const MapKey &in)", asFUNCTIONPR(VMCMap::KeyopAssign, (const VMCMapKey &, VMCMapKey *), VMCMapKey &), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const ?&in)", asFUNCTIONPR(VMCMap::KeyopAssign, (void *, int, VMCMapKey*), VMCMapKey &), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(double)", asFUNCTIONPR(VMCMap::KeyopAssign, (double, VMCMapKey*), VMCMapKey &), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(int64)", asFUNCTIONPR(VMCMap::KeyopAssign, (as_int64_t, VMCMapKey*), VMCMapKey &), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "void opCast(?&out)", asFUNCTIONPR(VMCMap::KeyopCast, (void *, int, VMCMapKey*), void), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "void opConv(?&out)", asFUNCTIONPR(VMCMap::KeyopCast, (void *, int, VMCMapKey*), void), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const MapKey &in)", asFUNCTIONPR(VMCMap::KeyopAssign, (const VMCMapKey&, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const ?&in)", asFUNCTIONPR(VMCMap::KeyopAssign, (void*, int, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const MapKey &in)", asFUNCTIONPR(VMCMap::KeyopAssign, (const VMCMapKey&, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const ?&in)", asFUNCTIONPR(VMCMap::KeyopAssign, (void*, int, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(double)", asFUNCTIONPR(VMCMap::KeyopAssign, (double, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(int64)", asFUNCTIONPR(VMCMap::KeyopAssign, (as_int64_t, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "void opCast(?&out)", asFUNCTIONPR(VMCMap::KeyopCast, (void*, int, VMCMapKey*), void), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "void opConv(?&out)", asFUNCTIONPR(VMCMap::KeyopCast, (void*, int, VMCMapKey*), void), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("MapKey", "int64 opConv()", asFUNCTIONPR(VMCMap::KeyopConvInt, (VMCMapKey*), as_int64_t), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("MapKey", "double opConv()", asFUNCTIONPR(VMCMap::KeyopConvDouble, (VMCMapKey*), double), asCALL_CDECL_OBJLAST);
 
@@ -4517,7 +4518,7 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Map", asBEHAVE_LIST_FACTORY, "Map @f(int &in) {repeat {String, ?}}", asFUNCTION(VMCMap::ListFactory), asCALL_GENERIC);
 			Engine->RegisterObjectBehaviour("Map", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCMap, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Map", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCMap, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "Map &opAssign(const Map &in)", asMETHODPR(VMCMap, operator=, (const VMCMap &), VMCMap&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "Map &opAssign(const Map &in)", asMETHODPR(VMCMap, operator=, (const VMCMap&), VMCMap&), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "void Set(const String &in, const ?&in)", asMETHODPR(VMCMap, Set, (const std::string&, void*, int), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "bool Get(const String &in, ?&out) const", asMETHODPR(VMCMap, Get, (const std::string&, void*, int) const, bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "bool Exists(const String &in) const", asMETHOD(VMCMap, Exists), asCALL_THISCALL);
@@ -4526,8 +4527,8 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Map", "bool Delete(const String &in)", asMETHOD(VMCMap, Delete), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "void DeleteAll()", asMETHOD(VMCMap, DeleteAll), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Map", "Array<String>@ GetKeys() const", asMETHOD(VMCMap, GetKeys), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "MapKey &opIndex(const String &in)", asMETHODPR(VMCMap, operator[], (const std::string &), VMCMapKey*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "const MapKey &opIndex(const String &in) const", asMETHODPR(VMCMap, operator[], (const std::string &) const, const VMCMapKey*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "MapKey &opIndex(const String &in)", asMETHODPR(VMCMap, operator[], (const std::string&), VMCMapKey*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "const MapKey &opIndex(const String &in) const", asMETHODPR(VMCMap, operator[], (const std::string&) const, const VMCMapKey*), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Map", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCMap, GetRefCount), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Map", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCMap, SetGCFlag), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Map", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCMap, GetGCFlag), asCALL_THISCALL);
@@ -4547,7 +4548,7 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCGrid::TemplateCallback), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in)", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*), VMCGrid*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in, uint, uint)", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*, as_size_t, as_size_t), VMCGrid*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in, uint, uint, const T &in)", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*, as_size_t, as_size_t, void *), VMCGrid*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in, uint, uint, const T &in)", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*, as_size_t, as_size_t, void*), VMCGrid*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_LIST_FACTORY, "Grid<T>@ f(int&in type, int&in list) {repeat {repeat_same T}}", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*, void*), VMCGrid*), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCGrid, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCGrid, Release), asCALL_THISCALL);
@@ -4571,16 +4572,16 @@ namespace Tomahawk
 				return false;
 
 			Engine->RegisterObjectType("Ref", sizeof(VMCRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<VMCRef>());
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f()", asFUNCTIONPR(VMCRef::Construct, (VMCRef *), void), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const Ref &in)", asFUNCTIONPR(VMCRef::Construct, (VMCRef *, const VMCRef &), void), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const ?&in)", asFUNCTIONPR(VMCRef::Construct, (VMCRef *, void *, int), void), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_DESTRUCT, "void f()", asFUNCTIONPR(VMCRef::Destruct, (VMCRef *), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f()", asFUNCTIONPR(VMCRef::Construct, (VMCRef*), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const Ref &in)", asFUNCTIONPR(VMCRef::Construct, (VMCRef*, const VMCRef&), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const ?&in)", asFUNCTIONPR(VMCRef::Construct, (VMCRef*, void*, int), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_DESTRUCT, "void f()", asFUNCTIONPR(VMCRef::Destruct, (VMCRef*), void), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCRef, EnumReferences), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCRef, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Ref", "void opCast(?&out)", asMETHODPR(VMCRef, Cast, (void **, int), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Ref", "void opCast(?&out)", asMETHODPR(VMCRef, Cast, (void**, int), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Ref", "Ref &opHndlAssign(const Ref &in)", asMETHOD(VMCRef, operator=), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Ref", "Ref &opHndlAssign(const ?&in)", asMETHOD(VMCRef, Assign), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Ref", "bool opEquals(const Ref &in) const", asMETHODPR(VMCRef, operator==, (const VMCRef &) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Ref", "bool opEquals(const Ref &in) const", asMETHODPR(VMCRef, operator==, (const VMCRef&) const, bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Ref", "bool opEquals(const ?&in) const", asMETHODPR(VMCRef, Equals, (void*, int) const, bool), asCALL_THISCALL);
 			return true;
 		}
@@ -4599,7 +4600,7 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("WeakRef<T>", "T@ Get() const", asMETHODPR(VMCWeakRef, Get, () const, void*), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opHndlAssign(const WeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opAssign(const WeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef &) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef&) const, bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opHndlAssign(T@)", asMETHOD(VMCWeakRef, Set), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("WeakRef<T>", "bool opEquals(const T@+) const", asMETHOD(VMCWeakRef, Equals), asCALL_THISCALL);
 			Engine->RegisterObjectType("ConstWeakRef<class T>", sizeof(VMCWeakRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
@@ -4611,11 +4612,11 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("ConstWeakRef<T>", "const T@ Get() const", asMETHODPR(VMCWeakRef, Get, () const, void*), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const ConstWeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opAssign(const ConstWeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const ConstWeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef &) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const ConstWeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef&) const, bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const T@)", asMETHOD(VMCWeakRef, Set), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const T@+) const", asMETHOD(VMCWeakRef, Equals), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const WeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef &) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef&) const, bool), asCALL_THISCALL);
 			return true;
 		}
 		bool RegisterMathAPI(VMManager* Manager)
@@ -4684,9 +4685,9 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("String", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(VMCString::Destruct), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String &opAssign(const String &in)", asMETHODPR(std::string, operator =, (const std::string&), std::string&), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("String", "String &opAddAssign(const String &in)", asFUNCTION(VMCString::AddAssignTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "bool opEquals(const String &in) const", asFUNCTIONPR(VMCString::Equals, (const std::string &, const std::string &), bool), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "bool opEquals(const String &in) const", asFUNCTIONPR(VMCString::Equals, (const std::string&, const std::string&), bool), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "int opCmp(const String &in) const", asFUNCTION(VMCString::Cmp), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "String opAdd(const String &in) const", asFUNCTIONPR(std::operator +, (const std::string &, const std::string &), std::string), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "String opAdd(const String &in) const", asFUNCTIONPR(std::operator +, (const std::string&, const std::string&), std::string), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "uint Size() const", asFUNCTION(VMCString::Length), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "void Resize(uint)", asFUNCTION(VMCString::Resize), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "bool IsEmpty() const", asFUNCTION(VMCString::IsEmpty), asCALL_CDECL_OBJLAST);
@@ -4712,24 +4713,24 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("String", "String &opAddAssign(bool)", asFUNCTION(VMCString::AddAssignBoolTo), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String opAdd(bool) const", asFUNCTION(VMCString::AddBool1), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "String opAdd_r(bool) const", asFUNCTION(VMCString::AddBool2), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String Substr(uint start = 0, int count = -1) const", asFUNCTION(VMCString::Sub), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindFirst(const String &in, uint start = 0) const", asFUNCTION(VMCString::FindFirst), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindFirstOf(const String &in, uint start = 0) const", asFUNCTION(VMCString::FindFirstOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindFirstNotOf(const String &in, uint start = 0) const", asFUNCTION(VMCString::FindFirstNotOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindLast(const String &in, int start = -1) const", asFUNCTION(VMCString::FindLast), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindLastOf(const String &in, int start = -1) const", asFUNCTION(VMCString::FindLastOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindLastNotOf(const String &in, int start = -1) const", asFUNCTION(VMCString::FindLastNotOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "void Insert(uint pos, const String &in other)", asFUNCTION(VMCString::Insert), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "void Erase(uint pos, int count = -1)", asFUNCTION(VMCString::Erase), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String Substr(uint Start = 0, int count = -1) const", asFUNCTION(VMCString::Sub), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindFirst(const String &in, uint Start = 0) const", asFUNCTION(VMCString::FindFirst), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindFirstOf(const String &in, uint Start = 0) const", asFUNCTION(VMCString::FindFirstOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindFirstNotOf(const String &in, uint Start = 0) const", asFUNCTION(VMCString::FindFirstNotOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindLast(const String &in, int Start = -1) const", asFUNCTION(VMCString::FindLast), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindLastOf(const String &in, int Start = -1) const", asFUNCTION(VMCString::FindLastOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindLastNotOf(const String &in, int Start = -1) const", asFUNCTION(VMCString::FindLastNotOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "void Insert(uint Offset, const String &in Other)", asFUNCTION(VMCString::Insert), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "void Erase(uint Offset, int count = -1)", asFUNCTION(VMCString::Erase), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String Replace(const String &in, const String &in, uint64 o = 0)", asFUNCTION(VMCString::Replace), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "Array<String>@ Split(const String &in) const", asFUNCTION(VMCString::Split), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String ToLower() const", asFUNCTION(VMCString::ToLower), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String ToUpper() const", asFUNCTION(VMCString::ToUpper), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String Reverse() const", asFUNCTION(VMCString::Reverse), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "Address@ GetAddress() const", asFUNCTION(VMCString::ToPtr), asCALL_CDECL_OBJLAST);
-			Engine->RegisterGlobalFunction("int64 ToInt(const String &in, uint base = 10, uint &out byteCount = 0)", asFUNCTION(VMCString::IntStore), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint64 ToUInt(const String &in, uint base = 10, uint &out byteCount = 0)", asFUNCTION(VMCString::UIntStore), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("double ToFloat(const String &in, uint &out byteCount = 0)", asFUNCTION(VMCString::FloatStore), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("int64 ToInt(const String &in, uint Base = 10, uint &out ByteCount = 0)", asFUNCTION(VMCString::IntStore), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint64 ToUInt(const String &in, uint Base = 10, uint &out ByteCount = 0)", asFUNCTION(VMCString::UIntStore), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("double ToFloat(const String &in, uint &out ByteCount = 0)", asFUNCTION(VMCString::FloatStore), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("uint8 ToChar(const String &in)", asFUNCTION(VMCString::ToChar), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("String ToString(const Array<String> &in, const String &in)", asFUNCTION(VMCString::Join), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("String ToString(int8)", asFUNCTION(VMCString::ToInt8), asCALL_CDECL);
@@ -4747,20 +4748,16 @@ namespace Tomahawk
 		}
 		bool RegisterExceptionAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->RegisterGlobalFunction("void Throw(const String &in = \"\")", asFUNCTION(VMCException::Throw), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("String GetException()", asFUNCTION(VMCException::GetException), asCALL_CDECL);
 			return true;
 		}
 		bool RegisterMutexAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->RegisterObjectType("Mutex", sizeof(VMCMutex), asOBJ_REF);
 			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_FACTORY, "Mutex@ f()", asFUNCTION(VMCMutex::Factory), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCMutex, AddRef), asCALL_THISCALL);
@@ -4772,10 +4769,8 @@ namespace Tomahawk
 		}
 		bool RegisterThreadAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->RegisterObjectType("Thread", 0, asOBJ_REF | asOBJ_GC);
 			Engine->RegisterFuncdef("void ThreadEvent(Thread@+)");
 			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_FACTORY, "Thread@ f(ThreadEvent@)", asFUNCTION(VMCThread::Create), asCALL_GENERIC);
@@ -4789,6 +4784,7 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Thread", "bool IsActive()", asMETHOD(VMCThread, IsActive), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Thread", "bool Invoke()", asMETHOD(VMCThread, Start), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Thread", "void Suspend()", asMETHOD(VMCThread, Suspend), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "void Resume()", asMETHOD(VMCThread, Resume), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Thread", "void Push(const ?&in)", asMETHOD(VMCThread, Push), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out)", asMETHODPR(VMCThread, Pop, (void*, int), bool), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out, uint64)", asMETHODPR(VMCThread, Pop, (void*, int, uint64_t), bool), asCALL_THISCALL);
@@ -4801,17 +4797,15 @@ namespace Tomahawk
 		}
 		bool RegisterRandomAPI(VMManager* Manager)
 		{
+			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			if (!Engine)
-				return false;
-
 			Engine->RegisterObjectType("Random", 0, asOBJ_REF);
 			Engine->RegisterObjectBehaviour("Random", asBEHAVE_FACTORY, "Random@ f()", asFUNCTION(VMCRandom::Create), asCALL_CDECL);
 			Engine->RegisterObjectBehaviour("Random", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCRandom, AddRef), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Random", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCRandom, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void opAssign(const Random&)", asMETHODPR(VMCRandom, Assign, (VMCRandom *), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "void opAssign(const Random&)", asMETHODPR(VMCRandom, Assign, (VMCRandom*), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "void Seed(uint)", asMETHODPR(VMCRandom, Seed, (uint32_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void Seed(uint[]&)", asMETHODPR(VMCRandom, Seed, (VMCArray *), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "void Seed(uint[]&)", asMETHODPR(VMCRandom, Seed, (VMCArray*), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "int GetI()", asMETHOD(VMCRandom, GetI), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "uint GetU()", asMETHOD(VMCRandom, GetU), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "double GetD()", asMETHOD(VMCRandom, GetD), asCALL_THISCALL);

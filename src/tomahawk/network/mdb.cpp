@@ -27,33 +27,44 @@ namespace Tomahawk
 			template <typename R, typename T, typename... Args>
 			bool MDB_EXEC(R&& Function, T* Base, Args&&... Data)
 			{
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "context should be set");
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				bool Result = Function(Base, Data..., &Error);
 				if (!Result && Error.code != 0)
-					TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
+					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
 				return Result;
 			}
 			template <typename R, typename T, typename... Args>
 			Cursor MDB_EXEC_CUR(R&& Function, T* Base, Args&&... Data)
 			{
-				if (!Base)
-					return nullptr;
-
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				TCursor* Result = Function(Base, Data...);
 				if (!Result)
-					TH_ERROR("[mongoc] cursor cannot be fetched");
+					TH_ERR("[mongoc] cursor cannot be fetched");
 
 				return Result;
 			}
 #endif
 			Property::Property() : Source(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
 			{
+			}
+			Property::Property(const Property& Other) : Name(Other.Name), String(Other.String), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
+			{
+				if (Mod == Type::ObjectId)
+					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
+				
+				if (Other.Source != nullptr)
+					Source = bson_copy(Other.Source);
+			}
+			Property::Property(Property&& Other) : Name(std::move(Other.Name)), String(std::move(Other.String)), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
+			{
+				if (Mod == Type::ObjectId)
+					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
+
+				Other.Source = nullptr;
 			}
 			Property::~Property()
 			{
@@ -125,17 +136,63 @@ namespace Tomahawk
 			{
 				return Document(Source);
 			}
+			Property& Property::operator= (const Property& Other)
+			{
+				if (&Other == this)
+					return *this;
+
+				Name = std::move(Other.Name);
+				String = std::move(Other.String);
+				Source = Other.Source;
+				Mod = Other.Mod;
+				Integer = Other.Integer;
+				High = Other.High;
+				Low = Other.Low;
+				Number = Other.Number;
+				Boolean = Other.Boolean;
+				IsValid = Other.IsValid;
+
+				if (Mod == Type::ObjectId)
+					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
+
+				if (Other.Source != nullptr)
+					Source = bson_copy(Other.Source);
+
+				return *this;
+			}
+			Property& Property::operator= (Property&& Other)
+			{
+				if (&Other == this)
+					return *this;
+
+				Name = std::move(Other.Name);
+				String = std::move(Other.String);
+				Source = Other.Source;
+				Mod = Other.Mod;
+				Integer = Other.Integer;
+				High = Other.High;
+				Low = Other.Low;
+				Number = Other.Number;
+				Boolean = Other.Boolean;
+				IsValid = Other.IsValid;
+				Other.Source = nullptr;
+
+				if (Mod == Type::ObjectId)
+					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
+
+				return *this;
+			}
 			Property Property::operator [](const char* Name)
 			{
 				Property Result;
-				Get().FindProperty(Name, &Result);
+				Get().GetProperty(Name, &Result);
 
 				return Result;
 			}
 			Property Property::operator [](const char* Name) const
 			{
 				Property Result;
-				Get().FindProperty(Name, &Result);
+				Get().GetProperty(Name, &Result);
 
 				return Result;
 			}
@@ -143,9 +200,7 @@ namespace Tomahawk
 			bool Util::GetId(unsigned char* Id12)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Id12 == nullptr)
-					return false;
-
+				TH_ASSERT(Id12 != nullptr, false, "id should be set");
 				bson_oid_t ObjectId;
 				bson_oid_init(&ObjectId, nullptr);
 
@@ -157,9 +212,9 @@ namespace Tomahawk
 			}
 			bool Util::GetDecimal(const char* Value, int64_t* High, int64_t* Low)
 			{
-				if (!Value || !High || !Low)
-					return false;
-
+				TH_ASSERT(Value != nullptr, false, "value should be set");
+				TH_ASSERT(High != nullptr, false, "high should be set");
+				TH_ASSERT(Low != nullptr, false, "low should be set");
 #ifdef TH_HAS_MONGOC
 				bson_decimal128_t Decimal;
 				if (!bson_decimal128_from_string(Value, &Decimal))
@@ -175,12 +230,10 @@ namespace Tomahawk
 			unsigned int Util::GetHashId(unsigned char* Id12)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Id12 || strlen((const char*)Id12) != 12)
-					return 0;
+				TH_ASSERT(Id12 != nullptr, 0, "id should be set");
 
 				bson_oid_t Id;
 				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
-
 				return bson_oid_hash(&Id);
 #else
 				return 0;
@@ -189,8 +242,7 @@ namespace Tomahawk
 			int64_t Util::GetTimeId(unsigned char* Id12)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Id12 || strlen((const char*)Id12) != 12)
-					return 0;
+				TH_ASSERT(Id12 != nullptr, 0, "id should be set");
 
 				bson_oid_t Id;
 				memcpy((void*)Id.bytes, (void*)Id12, sizeof(char) * 12);
@@ -203,8 +255,7 @@ namespace Tomahawk
 			std::string Util::IdToString(unsigned char* Id12)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Id12)
-					return 0;
+				TH_ASSERT(Id12 != nullptr, std::string(), "id should be set");
 
 				bson_oid_t Id;
 				memcpy(Id.bytes, Id12, sizeof(unsigned char) * 12);
@@ -219,9 +270,7 @@ namespace Tomahawk
 			}
 			std::string Util::StringToId(const std::string& Id24)
 			{
-				if (Id24.size() != 24)
-					return "";
-
+				TH_ASSERT(Id24.size() == 24, std::string(), "id should be 24 chars long");
 #ifdef TH_HAS_MONGOC
 				bson_oid_t Id;
 				bson_oid_init_from_string(&Id, Id24.c_str());
@@ -246,24 +295,32 @@ namespace Tomahawk
 
 				if (!(Base->flags & BSON_FLAG_STATIC) && !(Base->flags & BSON_FLAG_RDONLY) && !(Base->flags & BSON_FLAG_INLINE) && !(Base->flags & BSON_FLAG_NO_FREE))
 					bson_destroy(Base);
-				*((TDocument**)&Base) = nullptr;
+#endif
+			}
+			void Document::Release()
+			{
+#ifdef TH_HAS_MONGOC
+				if (!Base || Store)
+					return;
+
+				if (!(Base->flags & BSON_FLAG_STATIC) && !(Base->flags & BSON_FLAG_RDONLY) && !(Base->flags & BSON_FLAG_INLINE) && !(Base->flags & BSON_FLAG_NO_FREE))
+					bson_destroy(Base);
+				Base = nullptr;
 #endif
 			}
 			void Document::Join(const Document& Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr && Value.Base != nullptr)
-				{
-					bson_concat(Base, Value.Base);
-					Value.Release();
-				}
+				TH_ASSERT_V(Base != nullptr, "document should be set");
+				TH_ASSERT_V(Value.Base != nullptr, "other document should be set");
+				bson_concat(Base, Value.Base);
+				Value.Release();
 #endif
 			}
 			void Document::Loop(const std::function<bool(Property*)>& Callback) const
 			{
-				if (!Callback || !Base)
-					return;
-
+				TH_ASSERT_V(Base != nullptr, "document should be set");
+				TH_ASSERT_V(Callback, "callback should be set");
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It;
 				if (!bson_iter_init(&It, Base))
@@ -284,8 +341,8 @@ namespace Tomahawk
 			bool Document::SetDocument(const char* Key, const Document& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Value.Base || !Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Value.Base != nullptr, false, "other document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -302,8 +359,8 @@ namespace Tomahawk
 			bool Document::SetArray(const char* Key, const Document& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Value.Base || !Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Value.Base != nullptr, false, "other document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -320,8 +377,8 @@ namespace Tomahawk
 			bool Document::SetString(const char* Key, const char* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Value != nullptr, false, "value should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -335,8 +392,8 @@ namespace Tomahawk
 			bool Document::SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Value != nullptr, false, "value should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -350,8 +407,7 @@ namespace Tomahawk
 			bool Document::SetInteger(const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -365,8 +421,7 @@ namespace Tomahawk
 			bool Document::SetNumber(const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -380,8 +435,7 @@ namespace Tomahawk
 			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -399,8 +453,7 @@ namespace Tomahawk
 			bool Document::SetDecimalString(const char* Key, const std::string& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -417,8 +470,7 @@ namespace Tomahawk
 			bool Document::SetDecimalInteger(const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -438,8 +490,7 @@ namespace Tomahawk
 			bool Document::SetDecimalNumber(const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -462,8 +513,7 @@ namespace Tomahawk
 			bool Document::SetBoolean(const char* Key, bool Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -477,8 +527,7 @@ namespace Tomahawk
 			bool Document::SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				bson_oid_t ObjectId;
 				memcpy(ObjectId.bytes, Value, sizeof(unsigned char) * 12);
@@ -495,8 +544,7 @@ namespace Tomahawk
 			bool Document::SetNull(const char* Key, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -510,8 +558,8 @@ namespace Tomahawk
 			bool Document::SetProperty(const char* Key, Property* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base || !Value)
-					return false;
+				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Value != nullptr, false, "property should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -545,9 +593,8 @@ namespace Tomahawk
 			bool Document::HasProperty(const char* Key) const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Key != nullptr, false, "key should be set");
 				return bson_has_field(Base, Key);
 #else
 				return false;
@@ -556,8 +603,12 @@ namespace Tomahawk
 			bool Document::GetProperty(const char* Key, Property* Output) const
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Key != nullptr, false, "key should be set");
+				TH_ASSERT(Output != nullptr, false, "property should be set");
+
 				bson_iter_t It;
-				if (!Base || !bson_iter_init_find(&It, Base, Key))
+				if (!bson_iter_init_find(&It, Base, Key))
 					return false;
 
 				return Clone(&It, Output);
@@ -565,23 +616,14 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::FindProperty(const char* Key, Property* Output) const
-			{
-#ifdef TH_HAS_MONGOC
-				bson_iter_t It, Value;
-				if (!Base || !bson_iter_init(&It, Base) || !bson_iter_find_descendant(&It, Key, &Value))
-					return false;
-
-				return Clone(&Value, Output);
-#else
-				return false;
-#endif
-			}
 			bool Document::Clone(void* It, Property* Output)
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(It != nullptr, false, "iterator should be set");
+				TH_ASSERT(Output != nullptr, false, "property should be set");
+
 				const bson_value_t* Value = bson_iter_value((bson_iter_t*)It);
-				if (!Value || !Output)
+				if (!Value)
 					return false;
 
 				Output->IsValid = false;
@@ -590,13 +632,21 @@ namespace Tomahawk
 				switch (Value->value_type)
 				{
 					case BSON_TYPE_DOCUMENT:
+					{
+						const uint8_t* Buffer; uint32_t Length;
+						bson_iter_document((bson_iter_t*)It, &Length, &Buffer);
 						Output->Mod = Type::Document;
-						Output->Source = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
+						Output->Source = bson_new_from_data(Buffer, Length);
 						break;
+					}
 					case BSON_TYPE_ARRAY:
+					{
+						const uint8_t* Buffer; uint32_t Length;
+						bson_iter_array((bson_iter_t*)It, &Length, &Buffer);
 						Output->Mod = Type::Array;
-						Output->Source = Document::FromBuffer((const unsigned char*)Value->value.v_doc.data, (uint64_t)Value->value.v_doc.data_len).Get();
+						Output->Source = bson_new_from_data(Buffer, Length);
 						break;
+					}
 					case BSON_TYPE_BOOL:
 						Output->Mod = Type::Boolean;
 						Output->Boolean = Value->value.v_bool;
@@ -688,9 +738,7 @@ namespace Tomahawk
 			std::string Document::ToRelaxedJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
 				size_t Length = 0;
 				char* Value = bson_as_relaxed_extended_json(Base, &Length);
 
@@ -706,9 +754,7 @@ namespace Tomahawk
 			std::string Document::ToExtendedJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
 				size_t Length = 0;
 				char* Value = bson_as_canonical_extended_json(Base, &Length);
 
@@ -724,9 +770,7 @@ namespace Tomahawk
 			std::string Document::ToJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
 				size_t Length = 0;
 				char* Value = bson_as_json(Base, &Length);
 
@@ -742,9 +786,7 @@ namespace Tomahawk
 			std::string Document::ToIndices() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return std::string();
-
+				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
 				char* Value = mongoc_collection_keys_to_index_string(Base);
 				if (!Value)
 					return std::string();
@@ -839,9 +881,7 @@ namespace Tomahawk
 			Document Document::FromDocument(Core::Document* Src)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Src || !Src->Value.IsObject())
-					return nullptr;
-
+				TH_ASSERT(Src != nullptr && Src->Value.IsObject(), nullptr, "document should be set");
 				bool Array = (Src->Value.GetType() == Core::VarType::Array);
 				Document Result = bson_new();
 				uint64_t Index = 0;
@@ -917,7 +957,7 @@ namespace Tomahawk
 				if (Result != nullptr)
 					bson_destroy(Result);
 
-				TH_ERROR("[json] %s", Error.message);
+				TH_ERR("[json] %s", Error.message);
 				return nullptr;
 #else
 				return nullptr;
@@ -926,6 +966,7 @@ namespace Tomahawk
 			Document Document::FromBuffer(const unsigned char* Buffer, uint64_t Length)
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
 				return bson_new_from_data(Buffer, (size_t)Length);
 #else
 				return nullptr;
@@ -934,6 +975,7 @@ namespace Tomahawk
 			Document Document::FromSource(TDocument* Src)
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(Src != nullptr, nullptr, "src should be set");
 				TDocument* Dest = bson_new();
 				bson_steal(Dest, Src);
 				return Dest;
@@ -958,64 +1000,83 @@ namespace Tomahawk
 			void Address::SetOption(const char* Name, int64_t Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_option_as_int32(Base, Name, (int32_t)Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Name != nullptr, "name should be set");
+
+				mongoc_uri_set_option_as_int32(Base, Name, (int32_t)Value);
 #endif
 			}
 			void Address::SetOption(const char* Name, bool Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_option_as_bool(Base, Name, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Name != nullptr, "name should be set");
+
+				mongoc_uri_set_option_as_bool(Base, Name, Value);
 #endif
 			}
 			void Address::SetOption(const char* Name, const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_option_as_utf8(Base, Name, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Name != nullptr, "name should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+
+				mongoc_uri_set_option_as_utf8(Base, Name, Value);
 #endif
 			}
 			void Address::SetAuthMechanism(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_auth_mechanism(Base, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+
+				mongoc_uri_set_auth_mechanism(Base, Value);
 #endif
 			}
 			void Address::SetAuthSource(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_auth_source(Base, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+
+				mongoc_uri_set_auth_source(Base, Value);
 #endif
 			}
 			void Address::SetCompressors(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_compressors(Base, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+
+				mongoc_uri_set_compressors(Base, Value);
 #endif
 			}
 			void Address::SetDatabase(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_database(Base, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+
+				mongoc_uri_set_database(Base, Value);
 #endif
 			}
 			void Address::SetUsername(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_username(Base, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+
+				mongoc_uri_set_username(Base, Value);
 #endif
 			}
 			void Address::SetPassword(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_uri_set_password(Base, Value);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				TH_ASSERT_V(Value != nullptr, "value should be set");
+
+				mongoc_uri_set_password(Base, Value);
 #endif
 			}
 			TAddress* Address::Get() const
@@ -1029,7 +1090,12 @@ namespace Tomahawk
 			Address Address::FromURI(const char* Value)
 			{
 #ifdef TH_HAS_MONGOC
-				return mongoc_uri_new(Value);
+				TH_ASSERT(Value != nullptr, nullptr, "value should be set");
+				TAddress* Result = mongoc_uri_new(Value);
+				if (!strstr(Value, MONGOC_URI_SOCKETTIMEOUTMS))
+					mongoc_uri_set_option_as_int32(Result, MONGOC_URI_SOCKETTIMEOUTMS, 10000);
+
+				return Result;
 #else
 				return nullptr;
 #endif
@@ -1155,7 +1221,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
                 if (!Command.Get())
                 {
-                    TH_ERROR("cannot run empty query");
+                    TH_ERR("cannot run empty query");
                     return false;
                 }
                 
@@ -1163,7 +1229,7 @@ namespace Tomahawk
                 if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
                 {
 					Command.Release();
-                    TH_ERROR("cannot run query without query @type");
+                    TH_ERR("cannot run query without query @type");
                     return false;
                 }
                 
@@ -1173,7 +1239,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-one query without @match");
+                        TH_ERR("cannot run update-one query without @match");
                         return false;
                     }
                     
@@ -1181,7 +1247,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-one query without @update");
+                        TH_ERR("cannot run update-one query without @update");
                         return false;
                     }
                     
@@ -1196,7 +1262,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-many query without @match");
+                        TH_ERR("cannot run update-many query without @match");
                         return false;
                     }
                     
@@ -1204,7 +1270,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-many query without @update");
+                        TH_ERR("cannot run update-many query without @update");
                         return false;
                     }
                     
@@ -1219,7 +1285,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run insert-one query without @value");
+                        TH_ERR("cannot run insert-one query without @value");
                         return false;
                     }
                     
@@ -1234,7 +1300,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run replace-one query without @match");
+                        TH_ERR("cannot run replace-one query without @match");
                         return false;
                     }
                     
@@ -1242,7 +1308,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run replace-one query without @value");
+                        TH_ERR("cannot run replace-one query without @value");
                         return false;
                     }
                     
@@ -1257,7 +1323,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run remove-one query without @value");
+                        TH_ERR("cannot run remove-one query without @value");
                         return false;
                     }
                     
@@ -1272,7 +1338,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run remove-many query without @value");
+                        TH_ERR("cannot run remove-many query without @value");
                         return false;
                     }
                     
@@ -1283,7 +1349,7 @@ namespace Tomahawk
                 }
 
 				Command.Release();
-                TH_ERROR("cannot find query of type \"%s\"", Type.String.c_str());
+                TH_ERR("cannot find query of type \"%s\"", Type.String.c_str());
                 return false;
 #else
                 return false;
@@ -1359,9 +1425,7 @@ namespace Tomahawk
 			uint64_t Stream::GetHint() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return 0;
-
+				TH_ASSERT(Base != nullptr, 0, "context should be set");
 				return (uint64_t)mongoc_bulk_operation_get_hint(Base);
 #else
 				return 0;
@@ -1392,7 +1456,7 @@ namespace Tomahawk
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				if (mongoc_cursor_error(Base, &Error))
-					TH_ERROR("[mongoc] %s", Error.message);
+					TH_ERR("[mongoc] %s", Error.message);
 
 				mongoc_cursor_destroy(Base);
 				Base = nullptr;
@@ -1401,23 +1465,21 @@ namespace Tomahawk
 			void Cursor::SetMaxAwaitTime(uint64_t MaxAwaitTime)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_cursor_set_max_await_time_ms(Base, (uint32_t)MaxAwaitTime);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				mongoc_cursor_set_max_await_time_ms(Base, (uint32_t)MaxAwaitTime);
 #endif
 			}
 			void Cursor::SetBatchSize(uint64_t BatchSize)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Base != nullptr)
-					mongoc_cursor_set_batch_size(Base, (uint32_t)BatchSize);
+				TH_ASSERT_V(Base != nullptr, "context should be set");
+				mongoc_cursor_set_batch_size(Base, (uint32_t)BatchSize);
 #endif
 			}
 			bool Cursor::SetLimit(int64_t Limit)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "context should be set");
 				return mongoc_cursor_set_limit(Base, Limit);
 #else
 				return false;
@@ -1426,9 +1488,7 @@ namespace Tomahawk
 			bool Cursor::SetHint(uint64_t Hint)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return false;
-
+				TH_ASSERT(Base != nullptr, false, "context should be set");
 				return mongoc_cursor_set_hint(Base, (uint32_t)Hint);
 #else
 				return false;
@@ -1438,7 +1498,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
-					return false;
+					return true;
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -1446,7 +1506,7 @@ namespace Tomahawk
 				if (!mongoc_cursor_error(Base, &Error))
 					return false;
 
-				TH_ERROR("[mongoc] %s", Error.message);
+				TH_ERR("[mongoc] %s", Error.message);
 				return true;
 #else
 				return false;
@@ -1482,9 +1542,7 @@ namespace Tomahawk
 			int64_t Cursor::GetId() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return 0;
-
+				TH_ASSERT(Base != nullptr, 0, "context should be set");
 				return (int64_t)mongoc_cursor_get_id(Base);
 #else
 				return 0;
@@ -1493,9 +1551,7 @@ namespace Tomahawk
 			int64_t Cursor::GetLimit() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return 0;
-
+				TH_ASSERT(Base != nullptr, 0, "context should be set");
 				return (int64_t)mongoc_cursor_get_limit(Base);
 #else
 				return 0;
@@ -1504,9 +1560,7 @@ namespace Tomahawk
 			uint64_t Cursor::GetMaxAwaitTime() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return 0;
-
+				TH_ASSERT(Base != nullptr, 0, "context should be set");
 				return (uint64_t)mongoc_cursor_get_max_await_time_ms(Base);
 #else
 				return 0;
@@ -1515,9 +1569,7 @@ namespace Tomahawk
 			uint64_t Cursor::GetBatchSize() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return 0;
-
+				TH_ASSERT(Base != nullptr, 0, "context should be set");
 				return (uint64_t)mongoc_cursor_get_batch_size(Base);
 #else
 				return 0;
@@ -1526,9 +1578,7 @@ namespace Tomahawk
 			uint64_t Cursor::GetHint() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return 0;
-
+				TH_ASSERT(Base != nullptr, 0, "context should be set");
 				return (uint64_t)mongoc_cursor_get_hint(Base);
 #else
 				return 0;
@@ -1548,9 +1598,7 @@ namespace Tomahawk
 			Cursor Cursor::Clone()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return nullptr;
-
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				return mongoc_cursor_clone(Base);
 #else
 				return nullptr;
@@ -1622,10 +1670,9 @@ namespace Tomahawk
             }
             Property Response::GetProperty(const char* Name)
             {
-                Property Result;
-                if (!Name)
-                    return Result;
-                
+				TH_ASSERT(Name != nullptr, Property(), "context should be set");
+
+				Property Result;
                 if (IDocument)
                 {
                     IDocument.GetProperty(Name, &Result);
@@ -1838,9 +1885,7 @@ namespace Tomahawk
 			Core::Async<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				if (List.empty())
-					return Core::Async<Document>::Store(nullptr);
-
+				TH_ASSERT(!List.empty(), Core::Async<Document>::Store(nullptr), "insert array should not be empty");
 				std::vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
@@ -2066,7 +2111,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
                 if (!Command.Get())
                 {
-                    TH_ERROR("cannot run empty query");
+                    TH_ERR("cannot run empty query");
                     return Core::Async<Response>::Store(Response());
                 }
                 
@@ -2074,7 +2119,7 @@ namespace Tomahawk
                 if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
                 {
 					Command.Release();
-                    TH_ERROR("cannot run query without query @type");
+                    TH_ERR("cannot run query without query @type");
                     return Core::Async<Response>::Store(Response());
                 }
                 
@@ -2106,7 +2151,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run aggregation query in transaction");
+                        TH_ERR("cannot run aggregation query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2114,7 +2159,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("pipeline", &Pipeline) || Pipeline.Mod != Type::Array)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run aggregation query without @pipeline");
+                        TH_ERR("cannot run aggregation query without @pipeline");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2130,7 +2175,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run find-one query in transaction");
+                        TH_ERR("cannot run find-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2138,7 +2183,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run find-one query without @match");
+                        TH_ERR("cannot run find-one query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2154,7 +2199,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run find-many query in transaction");
+                        TH_ERR("cannot run find-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2162,7 +2207,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run find-many query without @match");
+                        TH_ERR("cannot run find-many query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2178,7 +2223,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-one query in transaction");
+                        TH_ERR("cannot run update-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2186,7 +2231,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-one query without @match");
+                        TH_ERR("cannot run update-one query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2194,7 +2239,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-one query without @update");
+                        TH_ERR("cannot run update-one query without @update");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2210,7 +2255,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-many query in transaction");
+                        TH_ERR("cannot run update-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2218,7 +2263,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-many query without @match");
+                        TH_ERR("cannot run update-many query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2226,7 +2271,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run update-many query without @update");
+                        TH_ERR("cannot run update-many query without @update");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2242,7 +2287,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run insert-one query in transaction");
+                        TH_ERR("cannot run insert-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2250,7 +2295,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run insert-one query without @value");
+                        TH_ERR("cannot run insert-one query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2266,7 +2311,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run insert-many query in transaction");
+                        TH_ERR("cannot run insert-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2274,7 +2319,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("values", &Values) || Values.Mod != Type::Array)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run insert-many query without @values");
+                        TH_ERR("cannot run insert-many query without @values");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2297,7 +2342,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run find-and-modify query without @match");
+                        TH_ERR("cannot run find-and-modify query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2320,7 +2365,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run replace-one query in transaction");
+                        TH_ERR("cannot run replace-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2328,7 +2373,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run replace-one query without @match");
+                        TH_ERR("cannot run replace-one query without @match");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2336,7 +2381,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run replace-one query without @value");
+                        TH_ERR("cannot run replace-one query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2352,7 +2397,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run remove-one query in transaction");
+                        TH_ERR("cannot run remove-one query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2360,7 +2405,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run remove-one query without @value");
+                        TH_ERR("cannot run remove-one query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2376,7 +2421,7 @@ namespace Tomahawk
                     if (Session != nullptr && !Session->Put(&Options.Source))
                     {
 						Command.Release();
-                        TH_ERROR("cannot run remove-many query in transaction");
+                        TH_ERR("cannot run remove-many query in transaction");
                         return Core::Async<Response>::Store(Response());
                     }
                     
@@ -2384,7 +2429,7 @@ namespace Tomahawk
                     if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
                     {
 						Command.Release();
-                        TH_ERROR("cannot run remove-many query without @value");
+                        TH_ERR("cannot run remove-many query without @value");
                         return Core::Async<Response>::Store(Response());
                     }
 
@@ -2396,7 +2441,7 @@ namespace Tomahawk
                 }
 
 				Command.Release();
-                TH_ERROR("cannot find query of type \"%s\"", Type.String.c_str());
+                TH_ERR("cannot find query of type \"%s\"", Type.String.c_str());
                 return Core::Async<Response>::Store(Response());
 #else
                 return Core::Async<Response>::Store(Response());
@@ -2405,9 +2450,7 @@ namespace Tomahawk
             const char* Collection::GetName() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return nullptr;
-
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				return mongoc_collection_get_name(Base);
 #else
 				return nullptr;
@@ -2530,7 +2573,7 @@ namespace Tomahawk
 					memset(&Error, 0, sizeof(bson_error_t));
 					bool Subresult = mongoc_database_has_collection(Context, Name.c_str(), &Error);
 					if (!Subresult && Error.code != 0)
-						TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
+						TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
 					Future.Set(Subresult);
 				});
@@ -2572,7 +2615,7 @@ namespace Tomahawk
 					Options.Release();
 
 					if (Collection == nullptr)
-						TH_ERROR("[mongoc] %s", Error.message);
+						TH_ERR("[mongoc] %s", Error.message);
 
 					Future.Set(Collection);
 				});
@@ -2594,7 +2637,7 @@ namespace Tomahawk
 
 				if (Names == nullptr)
 				{
-					TH_ERROR("[mongoc] %s", Error.message);
+					TH_ERR("[mongoc] %s", Error.message);
 					return std::vector<std::string>();
 				}
 
@@ -2611,9 +2654,7 @@ namespace Tomahawk
 			const char* Database::GetName() const
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return nullptr;
-
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				return mongoc_database_get_name(Base);
 #else
 				return nullptr;
@@ -2622,10 +2663,8 @@ namespace Tomahawk
 			Collection Database::GetCollection(const std::string& Name)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Base)
-					return nullptr;
-
-                return mongoc_database_get_collection(Base, Name.c_str());
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
+				return mongoc_database_get_collection(Base, Name.c_str());
 #else
 				return nullptr;
 #endif
@@ -2762,7 +2801,7 @@ namespace Tomahawk
 				bson_error_t Error;
 				bool Result = mongoc_client_session_append(Base, QueryOptions.Get(), &Error);
 				if (!Result && Error.code != 0)
-					TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
+					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
 				return Result;
 #else
@@ -2772,16 +2811,14 @@ namespace Tomahawk
             bool Transaction::Put(TDocument** QueryOptions) const
             {
 #ifdef TH_HAS_MONGOC
-                if (!QueryOptions)
-                    return false;
-                
+				TH_ASSERT(QueryOptions != nullptr, false, "query options should be set");
                 if (!*QueryOptions)
                     *QueryOptions = bson_new();
 
                 bson_error_t Error;
                 bool Result = mongoc_client_session_append(Base, *QueryOptions, &Error);
                 if (!Result && Error.code != 0)
-                    TH_ERROR("[mongoc:%i] %s", (int)Error.code, Error.message);
+                    TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
                 return Result;
 #else
@@ -3030,15 +3067,14 @@ namespace Tomahawk
 				if (Context != nullptr)
 					mongoc_client_session_destroy(Context);
 #endif
-				Disconnect();
+				if (Connected && Base != nullptr)
+					Disconnect();
 				Driver::Release();
 			}
 			Core::Async<bool> Connection::Connect(const std::string& Address)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Master != nullptr)
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(Master != nullptr, Core::Async<bool>::Store(false), "connection should be created outside of cluster");
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Async<bool>>([this, Address](bool)
@@ -3055,14 +3091,14 @@ namespace Tomahawk
 					TAddress* URI = mongoc_uri_new_with_error(Address.c_str(), &Error);
 					if (!URI)
 					{
-						TH_ERROR("[urierr] %s", Error.message);
+						TH_ERR("[urierr] %s", Error.message);
 						return Future.Set(false);
 					}
 
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
-						TH_ERROR("couldn't connect to requested URI");
+						TH_ERR("couldn't connect to requested URI");
 						return Future.Set(false);
 					}
 
@@ -3076,9 +3112,9 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Connect(Address* URL)
 			{
 #ifdef TH_HAS_MONGOC
-				if (Master != nullptr || !URL || !URL->Get())
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(Master != nullptr, Core::Async<bool>::Store(false), "connection should be created outside of cluster");
+				TH_ASSERT(URL && URL->Get(), Core::Async<bool>::Store(false), "url should be valid");
+				
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Async<bool>>([this, URL](bool)
@@ -3093,7 +3129,7 @@ namespace Tomahawk
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
-						TH_ERROR("couldn't connect to requested URI");
+						TH_ERR("couldn't connect to requested URI");
 						return Future.Set(false);
 					}
 
@@ -3107,9 +3143,7 @@ namespace Tomahawk
 			Core::Async<bool> Connection::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Connected || !Base)
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(Connected && Base, Core::Async<bool>::Store(false), "connection should be established");
 				return Core::Async<bool>::Executor([this](Core::Async<bool>& Future)
 				{
 					Connected = false;
@@ -3138,9 +3172,7 @@ namespace Tomahawk
 			Core::Async<bool> Connection::MakeTransaction(const std::function<Core::Async<bool>(Transaction&)>& Callback)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Callback)
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(Callback, Core::Async<bool>::Store(false), "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]()
 				{
 					Transaction Context = GetSession();
@@ -3185,9 +3217,7 @@ namespace Tomahawk
 			Core::Async<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Callback)
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(Callback, Core::Async<bool>::Store(false), "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]()
 				{
 					Transaction Context = GetSession();
@@ -3258,7 +3288,7 @@ namespace Tomahawk
 				mongoc_server_description_t* Server = mongoc_client_select_server(Base, ForWrites, nullptr, &Error);
 				if (Server == nullptr)
 				{
-					TH_ERROR("command fail: %s", Error.message);
+					TH_ERR("command fail: %s", Error.message);
 					return false;
 				}
 
@@ -3277,7 +3307,7 @@ namespace Tomahawk
 					Session = mongoc_client_start_session(Base, nullptr, &Error);
 					if (!Session.Get())
 					{
-						TH_ERROR("[mongoc] couldn't create transaction\n\t%s", Error.message);
+						TH_ERR("[mongoc] couldn't create transaction\n\t%s", Error.message);
 						return nullptr;
 					}
 				}
@@ -3290,6 +3320,7 @@ namespace Tomahawk
 			Database Connection::GetDatabase(const std::string& Name) const
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				return mongoc_client_get_database(Base, Name.c_str());
 #else
 				return nullptr;
@@ -3298,6 +3329,7 @@ namespace Tomahawk
 			Database Connection::GetDefaultDatabase() const
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				return mongoc_client_get_default_database(Base);
 #else
 				return nullptr;
@@ -3306,6 +3338,7 @@ namespace Tomahawk
 			Collection Connection::GetCollection(const char* DatabaseName, const char* Name) const
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				return mongoc_client_get_collection(Base, DatabaseName, Name);
 #else
 				return nullptr;
@@ -3314,6 +3347,7 @@ namespace Tomahawk
 			Address Connection::GetAddress() const
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				return (TAddress*)mongoc_client_get_uri(Base);
 #else
 				return nullptr;
@@ -3333,12 +3367,13 @@ namespace Tomahawk
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
+				TH_ASSERT(Base != nullptr, std::vector<std::string>(), "context should be set");
 				char** Names = mongoc_client_get_database_names_with_opts(Base, Options.Get(), &Error);
 				Options.Release();
 
 				if (Names == nullptr)
 				{
-					TH_ERROR("[mongoc] %s", Error.message);
+					TH_ERR("[mongoc] %s", Error.message);
 					return std::vector<std::string>();
 				}
 
@@ -3385,14 +3420,14 @@ namespace Tomahawk
 					SrcAddress = mongoc_uri_new_with_error(URI.c_str(), &Error);
 					if (!SrcAddress.Get())
 					{
-						TH_ERROR("[urierr] %s", Error.message);
+						TH_ERR("[urierr] %s", Error.message);
 						return Future.Set(false);
 					}
 
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
-						TH_ERROR("couldn't connect to requested URI");
+						TH_ERR("couldn't connect to requested URI");
 						return Future.Set(false);
 					}
 
@@ -3406,9 +3441,7 @@ namespace Tomahawk
 			Core::Async<bool> Cluster::Connect(Address* URI)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!URI || !URI->Get())
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(URI && URI->Get(), Core::Async<bool>::Store(false), "url should be set");
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
@@ -3426,7 +3459,7 @@ namespace Tomahawk
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
-						TH_ERROR("couldn't connect to requested URI");
+						TH_ERR("couldn't connect to requested URI");
 						return Future.Set(false);
 					}
 
@@ -3440,9 +3473,7 @@ namespace Tomahawk
 			Core::Async<bool> Cluster::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Connected || !Pool)
-					return Core::Async<bool>::Store(false);
-
+				TH_ASSERT(Connected && Pool, Core::Async<bool>::Store(false), "connection should be established");
 				return Core::Async<bool>::Executor([this](Core::Async<bool>& Future)
 				{
 					if (Pool != nullptr)
@@ -3461,15 +3492,15 @@ namespace Tomahawk
 			void Cluster::SetProfile(const char* Name)
 			{
 #ifdef TH_HAS_MONGOC
+				TH_ASSERT_V(Pool != nullptr, "connection should be established");
+				TH_ASSERT_V(Name != nullptr, "name should be set");
 				mongoc_client_pool_set_appname(Pool, Name);
 #endif
 			}
 			void Cluster::Push(Connection** Client)
 			{
 #ifdef TH_HAS_MONGOC
-				if (!Client || !*Client)
-					return;
-
+				TH_ASSERT_V(Client && *Client, "client should be set");
 				mongoc_client_pool_push(Pool, (*Client)->Base);
 				(*Client)->Base = nullptr;
 				(*Client)->Connected = false;
@@ -3521,7 +3552,7 @@ namespace Tomahawk
 						switch (Level)
 						{
 							case MONGOC_LOG_LEVEL_ERROR:
-								TH_ERROR("[mongoc] [%s] %s", Domain, Message);
+								TH_ERR("[mongoc] [%s] %s", Domain, Message);
 								break;
 							case MONGOC_LOG_LEVEL_WARNING:
 								TH_WARN("[mongoc] [%s] %s", Domain, Message);
@@ -3530,7 +3561,7 @@ namespace Tomahawk
 								TH_INFO("[mongoc] [%s] %s", Domain, Message);
 								break;
 							case MONGOC_LOG_LEVEL_CRITICAL:
-								TH_ERROR("[mongocerr] [%s] %s", Domain, Message);
+								TH_ERR("[mongocerr] [%s] %s", Domain, Message);
 								break;
 							case MONGOC_LOG_LEVEL_MESSAGE:
 								TH_LOG("[mongoc] [%s] %s", Domain, Message);
@@ -3579,7 +3610,11 @@ namespace Tomahawk
 			}
 			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{
-				if (!Queries || !Safe || Name.empty() || !Buffer || !Size)
+				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
+				TH_ASSERT(!Name.empty(), false, "name should not be empty");
+				TH_ASSERT(Buffer, false, "buffer should be set");
+
+				if (!Size)
 					return false;
 
 				Sequence Result;
@@ -3717,9 +3752,7 @@ namespace Tomahawk
 			}
 			bool Driver::RemoveQuery(const std::string& Name)
 			{
-				if (!Queries || !Safe)
-					return false;
-
+				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->find(Name);
 				if (It == Queries->end())
@@ -3735,9 +3768,7 @@ namespace Tomahawk
 			}
 			Document Driver::GetQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
 			{
-				if (!Queries || !Safe)
-					return nullptr;
-
+				TH_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
 				Safe->lock();
 				auto It = Queries->find(Name);
 				if (It == Queries->end())
@@ -3811,16 +3842,15 @@ namespace Tomahawk
 
 				Document Data = Document::FromJSON(Origin.Request);
 				if (!Data.Get())
-					TH_ERROR("could not construct query: \"%s\"", Name.c_str());
+					TH_ERR("could not construct query: \"%s\"", Name.c_str());
 
 				return Data;
 			}
 			std::vector<std::string> Driver::GetQueries()
 			{
 				std::vector<std::string> Result;
-				if (!Queries || !Safe)
-					return Result;
-
+				TH_ASSERT(Queries && Safe, Result, "driver should be initialized");
+				
 				Safe->lock();
 				Result.reserve(Queries->size());
 				for (auto& Item : *Queries)
@@ -3831,9 +3861,7 @@ namespace Tomahawk
 			}
 			std::string Driver::GetJSON(Core::Document* Source, bool Escape)
 			{
-				if (!Source)
-					return "";
-
+				TH_ASSERT(Source != nullptr, std::string(), "source should be set");
 				switch (Source->Value.GetType())
 				{
 					case Core::VarType::Object:

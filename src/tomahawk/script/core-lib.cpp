@@ -728,9 +728,7 @@ namespace Tomahawk
 
 		bool RegisterFormatAPI(VMManager* Engine)
 		{
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 
 			VMRefClass VFormat = Register.SetClassUnmanaged<VMCFormat>("Format");
@@ -742,9 +740,7 @@ namespace Tomahawk
 		}
 		bool RegisterConsoleAPI(VMManager* Engine)
 		{
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 
 			VMRefClass VConsole = Register.SetClassUnmanaged<Core::Console>("Console");
@@ -766,9 +762,7 @@ namespace Tomahawk
 		}
 		bool RegisterVariantAPI(VMManager* Engine)
 		{
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 
 			VMEnum VVarType = Register.SetEnum("VarType");
@@ -819,9 +813,7 @@ namespace Tomahawk
 		}
 		bool RegisterDocumentAPI(VMManager* Engine)
 		{
-			if (!Engine)
-				return false;
-
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMRefClass VDocument = Engine->Global().SetClassUnmanaged<Core::Document>("Document");
 			VDocument.SetProperty<Core::Document>("String Key", &Core::Document::Key);
 			VDocument.SetProperty<Core::Document>("Variant Value", &Core::Document::Value);

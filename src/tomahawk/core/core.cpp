@@ -162,7 +162,7 @@ namespace
 				return "42";
 			case Tomahawk::Core::StdColor::LightBlue:
 				return "46";
-			case Tomahawk::Core::StdColor::Dark_red:
+			case Tomahawk::Core::StdColor::DarkRed:
 				return "41";
 			case Tomahawk::Core::StdColor::Magenta:
 				return "45";

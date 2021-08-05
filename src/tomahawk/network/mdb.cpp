@@ -1421,7 +1421,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
-					return nullptr;
+					return Document(nullptr);
 
 				Stream Context = *this; Base = nullptr;
 				return Core::Async<Document>::Execute([Context](Core::Async<Document>& Future) mutable
@@ -1437,7 +1437,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<bool> Stream::Execute()
@@ -1679,7 +1679,7 @@ namespace Tomahawk
 					return IDocument.ToDocument();
 
 				if (!ICursor)
-					return nullptr;
+					return (Core::Document*)nullptr;
 
 				Cursor Context(ICursor);
 				return ICursor.Next().Then<Core::Document*>([Context](bool&& Result)
@@ -1876,7 +1876,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Collection::RemoveOne(const Document& Match, const Document& Options)
@@ -1897,7 +1897,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
@@ -1919,7 +1919,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options)
@@ -1949,7 +1949,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Collection::InsertOne(const Document& Result, const Document& Options)
@@ -1970,7 +1970,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options)
@@ -1992,7 +1992,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options)
@@ -2014,7 +2014,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New)
@@ -2037,7 +2037,7 @@ namespace Tomahawk
 					bson_destroy(&Subresult);
 				});
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<uint64_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
@@ -2083,7 +2083,7 @@ namespace Tomahawk
 					Future = Subresult;
 				});
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Cursor> Collection::FindMany(const Document& Match, const Document& Options) const
@@ -2099,7 +2099,7 @@ namespace Tomahawk
 					Future = Subresult;
 				});
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Cursor> Collection::FindOne(const Document& Match, const Document& Options) const
@@ -2123,7 +2123,7 @@ namespace Tomahawk
 					Future = Subresult;
 				});
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
@@ -2139,7 +2139,7 @@ namespace Tomahawk
 					Future = Subresult;
 				});
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Transaction* Session)
@@ -2636,7 +2636,7 @@ namespace Tomahawk
 					Future = Subresult;
 				});
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Collection> Database::CreateCollection(const std::string& Name, const Document& Options)
@@ -2645,7 +2645,7 @@ namespace Tomahawk
 				if (!Base)
 				{
 					Options.Release();
-					return nullptr;
+					return Collection(nullptr);
 				}
 
 				auto* Context = Base;
@@ -2663,7 +2663,7 @@ namespace Tomahawk
 					Future = Collection;
 				});
 #else
-				return nullptr;
+				return Collection(nullptr);
 #endif
 			}
 			std::vector<std::string> Database::GetCollectionNames(const Document& Options) const
@@ -2900,12 +2900,12 @@ namespace Tomahawk
 				{
 					Match.Release();
 					Options.Release();
-					return nullptr;
+					return Document(nullptr);
 				}
 
 				return Collection(fBase.Get()).RemoveMany(Match, Options);
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Transaction::RemoveOne(const Collection& fBase, const Document& Match, const Document& fOptions)
@@ -2916,12 +2916,12 @@ namespace Tomahawk
 				{
 					Match.Release();
 					Options.Release();
-					return nullptr;
+					return Document(nullptr);
 				}
 
 				return Collection(fBase.Get()).RemoveOne(Match, Options);
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Transaction::ReplaceOne(const Collection& fBase, const Document& Match, const Document& Replacement, const Document& fOptions)
@@ -2933,12 +2933,12 @@ namespace Tomahawk
 					Match.Release();
 					Replacement.Release();
 					Options.Release();
-					return nullptr;
+					return Document(nullptr);
 				}
 
 				return Collection(fBase.Get()).ReplaceOne(Match, Replacement, Options);
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Transaction::InsertMany(const Collection& fBase, std::vector<Document>& List, const Document& fOptions)
@@ -2951,12 +2951,12 @@ namespace Tomahawk
 					for (auto& Item : List)
 						Item.Release();
 
-					return nullptr;
+					return Document(nullptr);
 				}
 
 				return Collection(fBase.Get()).InsertMany(List, Options);
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Transaction::InsertOne(const Collection& fBase, const Document& Result, const Document& fOptions)
@@ -2967,12 +2967,12 @@ namespace Tomahawk
 				{
 					Result.Release();
 					Options.Release();
-					return nullptr;
+					return Document(nullptr);
 				}
 
 				return Collection(fBase.Get()).InsertOne(Result, Options);
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Transaction::UpdateMany(const Collection& fBase, const Document& Match, const Document& Update, const Document& fOptions)
@@ -2984,12 +2984,12 @@ namespace Tomahawk
 					Match.Release();
 					Update.Release();
 					Options.Release();
-					return nullptr;
+					return Document(nullptr);
 				}
 
 				return Collection(fBase.Get()).UpdateMany(Match, Update, Options);
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Document> Transaction::UpdateOne(const Collection& fBase, const Document& Match, const Document& Update, const Document& fOptions)
@@ -3001,12 +3001,12 @@ namespace Tomahawk
 					Match.Release();
 					Update.Release();
 					Options.Release();
-					return nullptr;
+					return Document(nullptr);
 				}
 
 				return Collection(fBase.Get()).UpdateOne(Match, Update, Options);
 #else
-				return nullptr;
+				return Document(nullptr);
 #endif
 			}
 			Core::Async<Cursor> Transaction::FindMany(const Collection& fBase, const Document& Match, const Document& fOptions) const
@@ -3017,12 +3017,12 @@ namespace Tomahawk
 				{
 					Match.Release();
 					Options.Release();
-					return nullptr;
+					return Cursor(nullptr);
 				}
 
 				return Collection(fBase.Get()).FindMany(Match, Options);
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Cursor> Transaction::FindOne(const Collection& fBase, const Document& Match, const Document& fOptions) const
@@ -3033,12 +3033,12 @@ namespace Tomahawk
 				{
 					Match.Release();
 					Options.Release();
-					return nullptr;
+					return Cursor(nullptr);
 				}
 
 				return Collection(fBase.Get()).FindOne(Match, Options);
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Cursor> Transaction::Aggregate(const Collection& fBase, QueryFlags Flags, const Document& Pipeline, const Document& fOptions) const
@@ -3049,12 +3049,12 @@ namespace Tomahawk
 				{
 					Pipeline.Release();
 					Options.Release();
-					return nullptr;
+					return Cursor(nullptr);
 				}
 
 				return Collection(fBase.Get()).Aggregate(Flags, Pipeline, Options);
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			Core::Async<Response> Transaction::TemplateQuery(const Collection& fBase, const std::string& Name, Core::DocumentArgs* Map, bool Once)
@@ -3324,7 +3324,7 @@ namespace Tomahawk
 					Future = Subresult;
 				});
 #else
-				return nullptr;
+				return Cursor(nullptr);
 #endif
 			}
 			void Connection::SetProfile(const std::string& Name)

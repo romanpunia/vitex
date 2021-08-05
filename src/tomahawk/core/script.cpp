@@ -1904,9 +1904,11 @@ namespace Tomahawk
 					const std::string& Key = Args[0];
 					if (Key == "INFO")
 						TH_INFO("%s", Args[1].c_str());
+					else if (Key == "TRACE")
+						TH_TRACE("%s", Args[1].c_str());
 					else if (Key == "WARN")
 						TH_WARN("%s", Args[1].c_str());
-					else if (Key == "ERROR")
+					else if (Key == "ERR")
 						TH_ERR("%s", Args[1].c_str());
 				}
 				else if (Name == "modify" && Args.size() == 2)
@@ -2238,7 +2240,7 @@ namespace Tomahawk
 			if (!Function)
 				return asNO_FUNCTION;
 
-			int Result = Core::Coawait(Context->Coexecute(Function, std::move(Callback)));
+			int Result = TH_AWAIT(Context->Coexecute(Function, std::move(Callback)));
 			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
 				return Result;
 
@@ -2295,7 +2297,7 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			int Result = Core::Coawait(Context->Coexecute(Function, nullptr));
+			int Result = TH_AWAIT(Context->Coexecute(Function, nullptr));
 			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
 			{
 				Function->Release();

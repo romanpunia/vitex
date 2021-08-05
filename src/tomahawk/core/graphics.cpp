@@ -989,8 +989,7 @@ namespace Tomahawk
 		}
 		bool GraphicsDevice::Transpile(std::string* Source, ShaderLang From, ShaderLang To)
 		{
-			TH_ASSERT(From != To, false, "to should not equal from");
-			if (!Source || Source->empty())
+			if (From == To || Source || Source->empty())
 				return true;
 #ifdef TH_HAS_SPIRV
 

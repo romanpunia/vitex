@@ -237,7 +237,10 @@ namespace Tomahawk
 		}
 		int Socket::Open(const char* Host, int Port, SocketType Type, Address* Result)
 		{
+			TH_ASSERT(Host != nullptr, -1, "host should be set");
 			TH_PSTART("sock-open", TH_PERF_NET);
+			TH_TRACE("[net] open fd %s:%i", Host, Port);
+
 			struct addrinfo Hints;
 			memset(&Hints, 0, sizeof(struct addrinfo));
 			Hints.ai_family = AF_UNSPEC;
@@ -307,10 +310,10 @@ namespace Tomahawk
 		}
 		int Socket::Open(addrinfo* Info, Address* Result)
 		{
-			if (!Info)
-				return -1;
-
+			TH_ASSERT(Info != nullptr, -1, "info should be set");
 			TH_PSTART("sock-open", TH_PERF_NET);
+			TH_TRACE("[net] open fd");
+
 			for (auto It = Info; It; It = It->ai_next)
 			{
 				Fd = socket(It->ai_family, It->ai_socktype, It->ai_protocol);
@@ -351,16 +354,19 @@ namespace Tomahawk
 		int Socket::Bind(Address* Address)
 		{
 			TH_ASSERT(Address && Address->Active, -1, "address should be set and active");
+			TH_TRACE("[net] bind fd %i", (int)Fd);
 			return bind(Fd, Address->Active->ai_addr, (int)Address->Active->ai_addrlen);
 		}
 		int Socket::Connect(Address* Address)
 		{
 			TH_ASSERT(Address && Address->Active, -1, "address should be set and active");
 			TH_PSTART("sock-conn", TH_PERF_NET);
+			TH_TRACE("[net] connect fd %i", (int)Fd);
 			TH_PRET(connect(Fd, Address->Active->ai_addr, (int)Address->Active->ai_addrlen));
 		}
 		int Socket::Listen(int Backlog)
 		{
+			TH_TRACE("[net] listen fd %i", (int)Fd);
 			return listen(Fd, Backlog);
 		}
 		int Socket::Accept(Socket* Connection, Address* OutAddr)
@@ -373,6 +379,7 @@ namespace Tomahawk
 			if (Connection->Fd == INVALID_SOCKET)
 				return -1;
 
+			TH_TRACE("[net] accept fd %i on %i fd", (int)Connection->Fd, (int)Fd);
 			if (!OutAddr)
 				return 0;
 
@@ -463,6 +470,7 @@ namespace Tomahawk
 				closesocket(Fd);
 			}
 
+			TH_TRACE("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 			return 0;
 		}
@@ -494,7 +502,9 @@ namespace Tomahawk
 				return CloseSet(Callback, true) ? 0 : -1;
 
 			closesocket(Fd);
+			TH_TRACE("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
+
 			if (Callback)
 				Callback(this);
 
@@ -1083,13 +1093,14 @@ namespace Tomahawk
 		}
 		bool Socket::CloseSet(const SocketAcceptCallback& Callback, bool OK)
 		{
-			TH_PSTART("sock-shut", TH_PERF_NET);
+			TH_PSTART_OP("sock-shut", TH_PERF_HANG, this);
 			char Buffer;
 			while (OK)
 			{
 				int Length = Read(&Buffer, 1);
 				if (Length == -2)
 				{
+					TH_PEND_OP(this);
 					Sync.IO.lock();
 					bool OK = ReadSet([this, Callback](Socket*, const char*, int64_t Size)
 					{
@@ -1100,7 +1111,6 @@ namespace Tomahawk
 					if (!OK)
 						break;
 
-					TH_PEND();
 					return false;
 				}
 				else if (Length == -1)
@@ -1109,11 +1119,12 @@ namespace Tomahawk
 
 			Clear(false);
 			closesocket(Fd);
+			TH_TRACE("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 
 			if (Callback)
 				Callback(this);
-			TH_PEND();
+			TH_PEND_OP(this);
 			return true;
 		}
 		std::string Socket::GetRemoteAddress()
@@ -1375,7 +1386,10 @@ namespace Tomahawk
 			for (auto* Value : Copy)
 			{
 				if (Value->Sync.Timeout > 0 && Time - Value->Sync.Time > Value->Sync.Timeout)
+				{
+					TH_TRACE("[net] sock timeout on fd %i", (int)Value->Fd);
 					Value->Clear(true);
+				}
 			}
 
 			TH_PEND();
@@ -1385,7 +1399,10 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Fd != nullptr || Fd->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
 			if (Events & (uint32_t)SocketEvent::Close)
+			{
+				TH_TRACE("[net] sock reset on fd %i", (int)Fd->Fd);
 				return Fd->Clear(true) ? 0 : 1;
+			}
 
 			Fd->Sync.IO.lock();
 			if (Events & (uint32_t)SocketEvent::Read)
@@ -1835,10 +1852,13 @@ namespace Tomahawk
 				Base->Stream->Clear(true);
 			}
 
+			TH_PSTART("sock-srv-close", TH_PERF_HANG);
 			do
 			{
 				FreeQueued();
+				TH_PSIG();
 			} while (!Bad.empty() || !Good.empty());
+			TH_PEND();
 
 			if (!OnUnlisten())
 				return false;

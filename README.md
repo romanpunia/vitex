@@ -220,6 +220,7 @@ target_link_libraries(app_name PRIVATE tomahawk)
 You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
 
 There are several build options for this project.
++ **TH_MSG_TRACE** to allow verbose logs, defaults to false
 + **TH_MSG_INFO** to allow informational logs, defaults to true
 + **TH_MSG_WARN** to allow warning logs, defaults to true
 + **TH_MSG_ERROR** to allow error logs, defaults to true

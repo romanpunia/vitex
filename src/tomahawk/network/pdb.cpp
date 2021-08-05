@@ -361,7 +361,6 @@ namespace Tomahawk
 				}
 			}
 #endif
-
 			Address::Address()
 			{
 			}
@@ -385,7 +384,7 @@ namespace Tomahawk
 				{
 					if (Message != nullptr)
 					{
-						TH_ERR("[pg] couldn't parse URI string\n\t%s", Message);
+						TH_ERR("[pq] couldn't parse URI string\n\t%s", Message);
 						PQfreemem(Message);
 					}
 				}
@@ -1418,6 +1417,9 @@ namespace Tomahawk
 			}
 			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Connection* Session)
 			{
+#ifdef _DEBUG
+				TH_TRACE("[mongoc] template query on 0x%p\n\t%s", (void*)this, Name.empty() ? "empty query name" : Name.c_str());
+#endif
 				return Query(Driver::GetQuery(this, Name, Map, Once), Session);
 			}
 			Core::Async<Cursor> Cluster::Query(const std::string& Command, Connection* Session)
@@ -1535,6 +1537,9 @@ namespace Tomahawk
 					return false;
 
 				TH_PSTART("postgres-send", TH_PERF_MAX);
+#ifdef _DEBUG
+				TH_TRACE("[pq] execute query on 0x%p\n\t%.64s%s", (void*)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
+#endif
                 if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
                 {
                     Base->State = QueryState::Busy;
@@ -1646,6 +1651,10 @@ namespace Tomahawk
 							PQlogMessage(Source->Base);
 
                             Update.unlock();
+#ifdef _DEBUG
+							if (!Results.IsError())
+								TH_TRACE("[pq] OK execute on 0x%p", (void*)Source);
+#endif
                             Future = std::move(Results);
                             Update.lock();
                             
@@ -1653,7 +1662,7 @@ namespace Tomahawk
                             Consume(Source);
                             Update.unlock();
 							TH_PEND();
-                            
+
                             return Reprocess(Source);
                         }
                         

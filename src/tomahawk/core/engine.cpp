@@ -2118,6 +2118,7 @@ namespace Tomahawk
 		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Transform(new Compute::Transform), Id(-1), Tag(-1), Distance(0)
 		{
 			Transform->UserPointer = this;
+			TH_ASSERT_V(Ref != nullptr, "scene should be set");
 		}
 		Entity::~Entity()
 		{
@@ -3092,7 +3093,7 @@ namespace Tomahawk
 		}
 		void RenderSystem::SetScene(SceneGraph* NewScene)
 		{
-			TH_ASSERT_V(Scene != nullptr, "scene should be set");
+			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
 			Scene = NewScene;
 			SetDepthSize(DepthSize);
 		}
@@ -3273,10 +3274,8 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushGeometryBuffer(Material* Next)
 		{
-			TH_ASSERT(Next != nullptr, false, "material should be set");
 			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
-
-			if (Next == BaseMaterial)
+			if (!Next || Next == BaseMaterial)
 				return false;
 
 			BaseMaterial = Next;
@@ -3296,10 +3295,8 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushVoxelsBuffer(Material* Next)
 		{
-			TH_ASSERT(Next != nullptr, false, "material should be set");
 			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
-
-			if (Next == BaseMaterial)
+			if (!Next || Next == BaseMaterial)
 				return false;
 
 			BaseMaterial = Next;
@@ -3317,10 +3314,8 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushDepthLinearBuffer(Material* Next)
 		{
-			TH_ASSERT(Next != nullptr, false, "material should be set");
 			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
-
-			if (Next == BaseMaterial)
+			if (!Next || Next == BaseMaterial)
 				return false;
 
 			BaseMaterial = Next;
@@ -4006,13 +4001,13 @@ namespace Tomahawk
 		}
 		void SceneGraph::Render(Core::Timer* Time)
 		{
-			TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
 			BeginThread(ThreadId::Render);
 			if (Camera != nullptr)
 			{
 				RestoreViewBuffer(nullptr);
 				FillMaterialBuffers();
 
+				TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
 				SetMRT(TargetType::Main, true);
 				Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 				View.Renderer->CullGeometry(Time, View);
@@ -4218,7 +4213,7 @@ namespace Tomahawk
 		bool SceneGraph::UnregisterEntity(Entity* In)
 		{
 			TH_ASSERT(In != nullptr, false, "entity should be set");
-			TH_ASSERT(In->GetScene() != this, false, "entity should be attached to current scene");
+			TH_ASSERT(In->GetScene() == this, false, "entity should be attached to current scene");
 
 			if (Camera != nullptr && In == Camera->Parent)
 			{
@@ -5807,7 +5802,7 @@ namespace Tomahawk
 			{
 				if (!VM)
 				{
-					TH_ERR("[conf] VM was not found");
+					TH_ERR("[conf] vm was not found");
 					return;
 				}
 				else
@@ -5855,6 +5850,7 @@ namespace Tomahawk
 					Activity->Dispatch();
 					Job->UpdateCore();
 					Publish(Job->Time);
+					TH_PSIG_OP();
 				}
 			}
 			else if (Activity != nullptr && !I->Async)
@@ -5865,6 +5861,7 @@ namespace Tomahawk
 					Activity->Dispatch();
 					Job->UpdateCore();
 					Publish(Job->Time);
+					TH_PSIG_OP();
 				}
 			}
 			else if (!Activity && I->Async)
@@ -5873,6 +5870,7 @@ namespace Tomahawk
 				{
 					Job->UpdateCore();
 					Publish(Job->Time);
+					TH_PSIG_OP();
 				}
 			}
 			else if (!Activity && !I->Async)
@@ -5882,6 +5880,7 @@ namespace Tomahawk
 					Queue->Dispatch();
 					Job->UpdateCore();
 					Publish(Job->Time);
+					TH_PSIG_OP();
 				}
 			}
 

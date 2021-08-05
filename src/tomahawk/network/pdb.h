@@ -387,7 +387,7 @@ namespace Tomahawk
             private:
                 Core::Async<Cursor> Future;
                 std::string Command;
-                Connection* Target;
+                Connection* Target = nullptr;
                 Cursor Result;
                 
             public:

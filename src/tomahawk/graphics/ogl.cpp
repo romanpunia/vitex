@@ -3024,7 +3024,7 @@ namespace Tomahawk
 			}
 			int OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)
 			{
-				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				TH_ASSERT(Buffer != nullptr, 0, "buffer should be set");
 				glGenBuffers(1, Buffer);
 				glBindBuffer(GL_UNIFORM_BUFFER, *Buffer);
 				glBufferData(GL_UNIFORM_BUFFER, Size, nullptr, GL_DYNAMIC_DRAW);

@@ -5117,7 +5117,7 @@ namespace Tomahawk
 						}
 
 						if (Entry->Gateway.Enabled && !Route->Gateway.Files.empty())
-							TH_INFO("(vm) modules are verified for: %s", Route->DocumentRoot.c_str());
+							TH_TRACE("(vm) modules are verified for: %s", Route->DocumentRoot.c_str());
 					}
 
 					qsort((void*)Entry->Routes.data(), (size_t)Entry->Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int
@@ -5419,6 +5419,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Root != nullptr, nullptr, "request should be set");
 				TH_ASSERT(Stream.IsValid(), nullptr, "stream should be opened");
+				TH_TRACE("[http] %s %s", Root->Method, Root->URI.c_str());
 
 				Core::Async<ResponseFrame*> Result;
 				Stage("request delivery");

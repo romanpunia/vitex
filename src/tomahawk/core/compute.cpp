@@ -12607,7 +12607,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(From != nullptr, nullptr, "shape should be set");
-			TH_ASSERT(From->getShapeType() 0= (int)Shape::Convex_Hull, nullptr, "shape type should be convex hull");
+			TH_ASSERT(From->getShapeType() == (int)Shape::Convex_Hull, nullptr, "shape type should be convex hull");
 
 			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;

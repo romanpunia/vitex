@@ -606,27 +606,51 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetShader(Shader* Resource, unsigned int Type)
 			{
-				TH_ASSERT_V(Resource != nullptr, "blend state should be set");
-				D3D11Shader* IResource = Resource->As<D3D11Shader>();
-				if (Type & (uint32_t)ShaderType::Vertex)
-					ImmediateContext->VSSetShader(IResource ? IResource->VertexShader : nullptr, nullptr, 0);
+				D3D11Shader* IResource = (D3D11Shader*)Resource;
+				if (IResource != nullptr)
+				{
+					if (Type & (uint32_t)ShaderType::Vertex)
+						ImmediateContext->VSSetShader(IResource->VertexShader, nullptr, 0);
 
-				if (Type & (uint32_t)ShaderType::Pixel)
-					ImmediateContext->PSSetShader(IResource ? IResource->PixelShader : nullptr, nullptr, 0);
+					if (Type & (uint32_t)ShaderType::Pixel)
+						ImmediateContext->PSSetShader(IResource->PixelShader, nullptr, 0);
 
-				if (Type & (uint32_t)ShaderType::Geometry)
-					ImmediateContext->GSSetShader(IResource ? IResource->GeometryShader : nullptr, nullptr, 0);
+					if (Type & (uint32_t)ShaderType::Geometry)
+						ImmediateContext->GSSetShader(IResource->GeometryShader, nullptr, 0);
 
-				if (Type & (uint32_t)ShaderType::Hull)
-					ImmediateContext->HSSetShader(IResource ? IResource->HullShader : nullptr, nullptr, 0);
+					if (Type & (uint32_t)ShaderType::Hull)
+						ImmediateContext->HSSetShader(IResource->HullShader, nullptr, 0);
 
-				if (Type & (uint32_t)ShaderType::Domain)
-					ImmediateContext->DSSetShader(IResource ? IResource->DomainShader : nullptr, nullptr, 0);
+					if (Type & (uint32_t)ShaderType::Domain)
+						ImmediateContext->DSSetShader(IResource->DomainShader, nullptr, 0);
 
-				if (Type & (uint32_t)ShaderType::Compute)
-					ImmediateContext->CSSetShader(IResource ? IResource->ComputeShader : nullptr, nullptr, 0);
+					if (Type & (uint32_t)ShaderType::Compute)
+						ImmediateContext->CSSetShader(IResource->ComputeShader, nullptr, 0);
 
-				ImmediateContext->IASetInputLayout(GenerateInputLayout(IResource));
+					ImmediateContext->IASetInputLayout(GenerateInputLayout(IResource));
+				}
+				else
+				{
+					if (Type & (uint32_t)ShaderType::Vertex)
+						ImmediateContext->VSSetShader(nullptr, nullptr, 0);
+
+					if (Type & (uint32_t)ShaderType::Pixel)
+						ImmediateContext->PSSetShader(nullptr, nullptr, 0);
+
+					if (Type & (uint32_t)ShaderType::Geometry)
+						ImmediateContext->GSSetShader(nullptr, nullptr, 0);
+
+					if (Type & (uint32_t)ShaderType::Hull)
+						ImmediateContext->HSSetShader(nullptr, nullptr, 0);
+
+					if (Type & (uint32_t)ShaderType::Domain)
+						ImmediateContext->DSSetShader(nullptr, nullptr, 0);
+
+					if (Type & (uint32_t)ShaderType::Compute)
+						ImmediateContext->CSSetShader(nullptr, nullptr, 0);
+
+					ImmediateContext->IASetInputLayout(nullptr);
+				}
 			}
 			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type)
 			{

@@ -99,17 +99,32 @@ typedef int epoll_handle;
 typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
-#if TH_DLEVEL >= 3
+#if TH_DLEVEL >= 4
 #ifndef _DEBUG
+#define TH_TRACE(Format, ...)
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
+#define TH_TRACE(Format, ...) Tomahawk::Core::Debug::Log(4, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#endif
+#elif TH_DLEVEL >= 3
+#ifndef _DEBUG
+#define TH_TRACE(Format, ...)
+#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#else
+#define TH_TRACE(Format, ...)
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 2
+#define TH_TRACE(Format, ...)
 #define TH_INFO(Format, ...)
 #ifndef _DEBUG
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
@@ -119,6 +134,7 @@ typedef socklen_t socket_size_t;
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 1
+#define TH_TRACE(Format, ...)
 #define TH_INFO(Format, ...)
 #define TH_WARN(Format, ...)
 #ifndef _DEBUG
@@ -127,6 +143,7 @@ typedef socklen_t socket_size_t;
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #else
+#define TH_TRACE(Format, ...)
 #define TH_INFO(...)
 #define TH_WARN(...)
 #define TH_ERR(...)
@@ -146,15 +163,28 @@ typedef socklen_t socket_size_t;
 #define TH_PERF_IO (80)
 #define TH_PERF_NET (150)
 #define TH_PERF_MAX (200)
+#define TH_PERF_HANG (5000)
 #define TH_PSTART(Section, Threshold) Tomahawk::Core::Debug::TimeStart(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
+#define TH_PSIG() Tomahawk::Core::Debug::TimeSignal()
 #define TH_PEND() Tomahawk::Core::Debug::TimeEnd()
 #define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::TimeEnd(); return __vfbuf; }
+#define TH_PSTART_OP(Section, Threshold, Id) Tomahawk::Core::Debug::OpStart(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold, (void*)(Id))
+#define TH_PSIG_OP() Tomahawk::Core::Debug::OpSignal()
+#define TH_PEND_OP(Id) Tomahawk::Core::Debug::OpEnd((void*)(Id))
+#define TH_PRET_OP(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::OpEnd((void*)(Id)); return __vfbuf; }
+#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FILE, TH_FUNCTION, "coawait of [ " TH_STRINGIFY(Value) " ]", TH_LINE)
 #else
 #define TH_ASSERT(Condition, Returnable, Format, ...)
 #define TH_ASSERT_V(Condition, Format, ...)
 #define TH_PSTART(Section, Threshold)
+#define TH_PSIG()
 #define TH_PEND()
 #define TH_PRET(Value) return Value
+#define TH_PSTART_OP(Section, Threshold, Id)
+#define TH_PSIG_OP()
+#define TH_PEND_OP(Id)
+#define TH_PRET_OP(Id, Value) return Value
+#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
 #endif
 #define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_STACKSIZE (512 * 1024)
@@ -200,6 +230,26 @@ namespace Tomahawk
 		class Stream;
 
 		class Var;
+
+		enum class StdColor
+		{
+			Black = 0,
+			DarkBlue = 1,
+			DarkGreen = 2,
+			LightBlue = 3,
+			DarkRed = 4,
+			Magenta = 5,
+			Orange = 6,
+			LightGray = 7,
+			Gray = 8,
+			Blue = 9,
+			Green = 10,
+			Cyan = 11,
+			Red = 12,
+			Pink = 13,
+			Yellow = 14,
+			White = 15
+		};
 
 		enum class FileMode
 		{
@@ -896,12 +946,31 @@ namespace Tomahawk
 
 		class TH_OUT Debug
 		{
+		public:
+			struct Context
+			{
+				const char* File = nullptr;
+				const char* Section = nullptr;
+				const char* Function = nullptr;
+				void* Id = nullptr;
+				uint64_t Threshold = 0;
+				uint64_t Time = 0;
+				int Line = 0;
+				bool Ignore = false;
+			};
+
 		private:
+			static std::vector<Context> Contexts;
 			static std::function<void(const char*, int)> Callback;
+			static std::mutex Safe;
 			static bool Enabled;
 
 		public:
+			static void OpStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id);
+			static void OpSignal();
+			static void OpEnd(void* Id);
 			static void TimeStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS);
+			static void TimeSignal();
 			static void TimeEnd();
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
@@ -1001,11 +1070,13 @@ namespace Tomahawk
 		{
 		protected:
 #ifdef TH_MICROSOFT
+			unsigned short Attributes;
 			FILE* Conin;
 			FILE* Conout;
 			FILE* Conerr;
 #endif
 			std::mutex Lock;
+			bool Coloring;
 			bool Handle;
 			double Time;
 
@@ -1020,6 +1091,10 @@ namespace Tomahawk
 			void Flush();
 			void FlushWrite();
 			void CaptureTime();
+			void SetColoring(bool Enabled);
+			void ColorBegin(StdColor Text, StdColor Background);
+			void ColorEnd();
+			void WriteBuffer(const char* Buffer);
 			void WriteLine(const std::string& Line);
 			void Write(const std::string& Line);
 			void fWriteLine(const char* Format, ...);
@@ -1034,6 +1109,7 @@ namespace Tomahawk
 		public:
 			static Console* Get();
 			static bool Reset();
+			static bool IsPresent();
 			static void Trace(const char* Format, ...);
 
 		private:
@@ -1175,6 +1251,7 @@ namespace Tomahawk
 		private:
 			std::string LastValue;
 			uint64_t Offset;
+			int64_t Time;
 
 		public:
 			Stream* Source = nullptr;
@@ -1245,7 +1322,7 @@ namespace Tomahawk
 		public:
 			static Costate* Get();
 			static Coroutine* GetCoroutine();
-			static Coroutine* GetCoroutine(Costate** State);
+			static bool GetState(Costate** State, Coroutine** Routine);
 			static bool IsCoroutine();
 
 		private:
@@ -1524,7 +1601,7 @@ namespace Tomahawk
 			}
 			Iterator Add(const T& Ref)
 			{
-				TH_ASSERT(Count >= Volume, End(), "pool capacity overflow");
+				TH_ASSERT(Count < Volume, End(), "pool capacity overflow");
 				Data[Count++] = Ref;
 				return End() - 1;
 			}
@@ -1678,21 +1755,21 @@ namespace Tomahawk
 			T Result;
 
 		public:
-			Awaitable() : Count(1), Set(-1), Result()
+			Awaitable() noexcept : Count(1), Set(-1), Result()
 			{
 			}
-			Awaitable(const T& Value) : Count(1), Set(1), Result(Value)
+			Awaitable(const T& Value) noexcept : Count(1), Set(1), Result(Value)
 			{
 			}
-			Awaitable(T&& Value) : Count(1), Set(1), Result(std::move(Value))
+			Awaitable(T&& Value) noexcept : Count(1), Set(1), Result(std::move(Value))
 			{
 			}
-			Awaitable* Copy()
+			Awaitable* Copy() noexcept
 			{
 				Count++;
 				return this;
 			}
-			void Put(std::function<void()>&& Callback)
+			void Put(std::function<void()>&& Callback) noexcept
 			{
 				RW.lock();
 				if (Set > 0)
@@ -1704,14 +1781,14 @@ namespace Tomahawk
 				Resolve = std::move(Callback);
 				RW.unlock();
 			}
-			void React()
+			void React() noexcept
 			{
 				RW.lock();
 				if (Resolve)
 					Resolve();
 				RW.unlock();
 			}
-			void React(T&& Value)
+			void React(T&& Value) noexcept
 			{
 				RW.lock();
 				Set = 1;
@@ -1720,7 +1797,7 @@ namespace Tomahawk
 					Resolve();
 				RW.unlock();
 			}
-			void React(const T& Value)
+			void React(const T& Value) noexcept
 			{
 				RW.lock();
 				Set = 1;
@@ -1729,7 +1806,7 @@ namespace Tomahawk
 					Resolve();
 				RW.unlock();
 			}
-			void Free()
+			void Free() noexcept
 			{
 				if (!--Count)
 					TH_DELETE_THIS(Awaitable);
@@ -1797,7 +1874,7 @@ namespace Tomahawk
 				Next->React(Other);
 				return *this;
 			}
-			Async& operator= (T&& Other)
+			Async& operator= (T&& Other) noexcept
 			{
 				TH_ASSERT(Next != nullptr && Next->Set == -1, *this, "async should be pending");
 				Next->React(std::move(Other));
@@ -1821,7 +1898,7 @@ namespace Tomahawk
 				});
 				return *this;
 			}
-			Async& operator= (Async&& Other)
+			Async& operator= (Async&& Other) noexcept
 			{
 				if (&Other == this)
 					return *this;
@@ -1833,7 +1910,7 @@ namespace Tomahawk
 				Other.Next = nullptr;
 				return *this;
 			}
-			void Await(std::function<void(T&&)>&& Callback) const
+			void Await(std::function<void(T&&)>&& Callback) const noexcept
 			{
 				TH_ASSERT_V(Next != nullptr && Callback, "async should be pending");
 
@@ -1848,7 +1925,7 @@ namespace Tomahawk
 					});
 				});
 			}
-			bool IsPending() const
+			bool IsPending() const noexcept
 			{
 				if (!Next)
 					return false;
@@ -1858,7 +1935,7 @@ namespace Tomahawk
 				Next->RW.unlock();
 				return Result;
 			}
-			T&& GetIfAny()
+			T&& GetIfAny() noexcept
 			{
 				if (Next != nullptr)
 					return std::move(Next->Result);
@@ -1869,7 +1946,7 @@ namespace Tomahawk
 				Next->RW.unlock();
 				return std::move(Next->Result);
 			}
-			T&& Get()
+			T&& Get() noexcept
 			{
 				if (!IsPending())
 					return GetIfAny();
@@ -1894,7 +1971,7 @@ namespace Tomahawk
 
 		public:
 			template <typename R>
-			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback) const
+			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback) const noexcept
 			{
 				TH_ASSERT(Next != nullptr && Callback, Async<R>(nullptr), "async should be pending");
 
@@ -1912,7 +1989,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename R>
-			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const
+			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const noexcept
 			{
 				using F = typename Future<R>::type;
 				TH_ASSERT(Next != nullptr && Callback, Async<F>(nullptr), "async should be pending");
@@ -1932,11 +2009,11 @@ namespace Tomahawk
 			}
 
 		public:
-			static Async Move(context_type* Base = nullptr)
+			static Async Move(context_type* Base = nullptr) noexcept
 			{
 				return Async(Base, true);
 			}
-			static Async Execute(std::function<void(Async&)>&& Callback)
+			static Async Execute(std::function<void(Async&)>&& Callback) noexcept
 			{
 				if (!Callback)
 					return Move();
@@ -2025,26 +2102,34 @@ namespace Tomahawk
 		};
 
 		template <typename T>
-		inline T&& Coawait(Async<T>&& Future)
+#ifdef _DEBUG
+		inline T&& Coawait(Async<T>&& Future, const char* File = nullptr, const char* Function = nullptr, const char* Expression = nullptr, int Line = 0) noexcept
+#else
+		inline T&& Coawait(Async<T>&& Future) noexcept
+#endif
 		{
-			Costate* State;
-			Coroutine* Base = Costate::GetCoroutine(&State);
-            if (!Base || !Future.IsPending())
-                return Future.Get();
-            
+			Costate* State; Coroutine* Base;
+			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
+				return Future.Get();
+#ifdef _DEBUG
+			if (File && Function && Expression && Line >= 0)
+				Debug::OpStart(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
+#endif
 			Future.Await([State, Base](T&&)
             {
                 State->Activate(Base);
             });
 			
-            State->Deactivate(Base);
-            while (Future.IsPending())
-                State->Suspend();
-            
+			if (Future.IsPending())
+				State->Deactivate(Base);
+#ifdef _DEBUG
+			if (File && Function && Expression && Line >= 0)
+				Debug::OpEnd((void*)&Future);
+#endif
 			return Future.GetIfAny();
 		}
 		template <typename T>
-		inline Async<T> Coasync(const std::function<T()>& Callback)
+		inline Async<T> Coasync(const std::function<T()>& Callback) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
@@ -2057,7 +2142,7 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		inline Async<T> Coasync(std::function<T()>&& Callback)
+		inline Async<T> Coasync(std::function<T()>&& Callback) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
@@ -2069,22 +2154,22 @@ namespace Tomahawk
 
 			return Result;
 		}
-		inline bool Coasync(const TaskCallback& Callback)
+		inline bool Coasync(const TaskCallback& Callback) noexcept
 		{
 			return Schedule::Get()->SetAsync(Callback);
 		}
-		inline bool Coasync(TaskCallback&& Callback)
+		inline bool Coasync(TaskCallback&& Callback) noexcept
 		{
 			return Schedule::Get()->SetAsync(std::move(Callback));
 		}
-        inline bool Cosuspend()
+        inline bool Cosuspend() noexcept
         {
             Costate* State = Costate::Get();
 			TH_ASSERT(State != nullptr, false, "cannot call suspend outside coroutine");
             
             return State->Suspend();
         }
-		inline bool Cosleep(uint64_t Ms)
+		inline bool Cosleep(uint64_t Ms) noexcept
 		{
 			Async<bool> Result;
 			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
@@ -2092,7 +2177,7 @@ namespace Tomahawk
 				Result = true;
 			});
 
-			return Coawait(std::move(Result));
+			return TH_AWAIT(std::move(Result));
 		}
 		inline Parser Form(const char* Format, ...)
 		{

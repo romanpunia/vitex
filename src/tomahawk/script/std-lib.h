@@ -25,7 +25,7 @@ namespace Tomahawk
 			{
 				static R Function(T* Base, Args... Data)
 				{
-					return Core::Coawait((Base->*F)(Data...));
+					return TH_AWAIT((Base->*F)(Data...));
 				}
 			};
 		};

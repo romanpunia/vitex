@@ -150,6 +150,46 @@ namespace
     {
         return localtime_r(A, B) != nullptr;
     }
+	const char* GetColorId(Tomahawk::Core::StdColor Color, bool Background)
+	{
+		switch (Color)
+		{
+			case Tomahawk::Core::StdColor::Black:
+				return "40";
+			case Tomahawk::Core::StdColor::DarkBlue:
+				return "44";
+			case Tomahawk::Core::StdColor::DarkGreen:
+				return "42";
+			case Tomahawk::Core::StdColor::LightBlue:
+				return "46";
+			case Tomahawk::Core::StdColor::Dark_red:
+				return "41";
+			case Tomahawk::Core::StdColor::Magenta:
+				return "45";
+			case Tomahawk::Core::StdColor::Orange:
+				return "43";
+			case Tomahawk::Core::StdColor::LightGray:
+				return "47";
+			case Tomahawk::Core::StdColor::Gray:
+				return "100";
+			case Tomahawk::Core::StdColor::Blue:
+				return "104";
+			case Tomahawk::Core::StdColor::Green:
+				return "102";
+			case Tomahawk::Core::StdColor::Cyan:
+				return "106";
+			case Tomahawk::Core::StdColor::Red:
+				return "101";
+			case Tomahawk::Core::StdColor::Pink:
+				return "105";
+			case Tomahawk::Core::StdColor::Yellow:
+				return "103";
+			case Tomahawk::Core::StdColor::White:
+				return "107";
+			default:
+				return Background ? "40" : "107";
+		}
+	}
 }
 #endif
 
@@ -160,16 +200,6 @@ namespace Tomahawk
 		typedef moodycamel::ConcurrentQueue<EventBase*> EQueue;
 		typedef moodycamel::ConcurrentQueue<TaskCallback*> TQueue;
 		typedef moodycamel::ConsumerToken CToken;
-
-		struct Dbg
-		{
-			const char* File = nullptr;
-			const char* Section = nullptr;
-			const char* Function = nullptr;
-			uint64_t Threshold = 0;
-			uint64_t Time = 0;
-			int Line = 0;
-		};
 
 		struct Cocontext
 		{
@@ -4208,7 +4238,7 @@ namespace Tomahawk
 		ReallocCallback Mem::OnRealloc;
 		FreeCallback Mem::OnFree;
 
-		static thread_local Dbg DbgPerf;
+		static thread_local Debug::Context DbgPerf;
 		void Debug::AttachCallback(const std::function<void(const char*, int)>& _Callback)
 		{
 			Callback = _Callback;
@@ -4225,12 +4255,71 @@ namespace Tomahawk
 		{
 			Enabled = false;
 		}
+		void Debug::OpStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id)
+		{
+			TH_ASSERT_V(File != nullptr, "file should be set");
+			TH_ASSERT_V(Section != nullptr, "section should be set");
+			TH_ASSERT_V(Function != nullptr, "function should be set");
+			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than zero");
+
+			Context Ctx;
+			Ctx.File = File;
+			Ctx.Section = Section;
+			Ctx.Function = Function;
+			Ctx.Id = Id;
+			Ctx.Threshold = ThresholdMS * 1000;
+			Ctx.Time = DateTime().Microseconds();
+			Ctx.Line = Line;
+
+			Safe.lock();
+			Contexts.emplace_back(std::move(Ctx));
+			Safe.unlock();
+		}
+		void Debug::OpSignal()
+		{
+			if (Contexts.empty())
+				return;
+
+			Safe.lock();
+			for (auto& Ctx : Contexts)
+			{
+				uint64_t Time = DateTime().Microseconds();
+				uint64_t Diff = Time - Ctx.Time;
+				if (Diff > Ctx.Threshold)
+				{
+					TH_WARN("[perf] task @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
+					Ctx.Time = Time;
+				}
+			}
+			Safe.unlock();
+		}
+		void Debug::OpEnd(void* Id)
+		{
+			Safe.lock();
+			for (auto It = Contexts.begin(); It != Contexts.end(); It++)
+			{
+				Context& Ctx = *It;
+				if (Ctx.Id != Id)
+					continue;
+
+				uint64_t Diff = DateTime().Microseconds() - Ctx.Time;
+				if (Diff > Ctx.Threshold)
+					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
+				
+				Contexts.erase(It);
+				break;
+			}
+			Safe.unlock();
+		}
 		void Debug::TimeStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS)
 		{
 			TH_ASSERT_V(File != nullptr, "file should be set");
 			TH_ASSERT_V(Section != nullptr, "section should be set");
 			TH_ASSERT_V(Function != nullptr, "function should be set");
 			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than zero");
+
+			if (DbgPerf.Ignore)
+				return;
 
 			DbgPerf.File = File;
 			DbgPerf.Section = Section;
@@ -4239,11 +4328,31 @@ namespace Tomahawk
 			DbgPerf.Time = DateTime().Microseconds();
 			DbgPerf.Line = Line;
 		}
+		void Debug::TimeSignal()
+		{
+			TH_ASSERT_V(DbgPerf.File != nullptr, "file should be set");
+			TH_ASSERT_V(DbgPerf.Section != nullptr, "section should be set");
+			TH_ASSERT_V(DbgPerf.Function != nullptr, "function should be set");
+
+			if (DbgPerf.Ignore)
+				return;
+
+			uint64_t Time = DateTime().Microseconds();
+			uint64_t Diff = Time - DbgPerf.Time;
+			if (Diff > DbgPerf.Threshold)
+			{
+				TH_WARN("[perf] @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", DbgPerf.Section, Diff / 1000, Diff, DbgPerf.Function, DbgPerf.File, DbgPerf.Line, DbgPerf.Threshold / 1000);
+				DbgPerf.Time = Time;
+			}
+		}
 		void Debug::TimeEnd()
 		{
 			TH_ASSERT_V(DbgPerf.File != nullptr, "file should be set");
 			TH_ASSERT_V(DbgPerf.Section != nullptr, "section should be set");
 			TH_ASSERT_V(DbgPerf.Function != nullptr, "function should be set");
+
+			if (DbgPerf.Ignore)
+				return;
 
 			uint64_t Diff = DateTime().Microseconds() - DbgPerf.Time;
 			if (Diff > DbgPerf.Threshold)
@@ -4260,7 +4369,6 @@ namespace Tomahawk
 
 			if (Line < 0)
 				Line = 0;
-
 #if defined(TH_MICROSOFT)
 			if (gmtime_s(&DateTime, &TimeStamp) != 0)
 #elif defined(TH_UNIX)
@@ -4291,6 +4399,8 @@ namespace Tomahawk
 			}
 			else if (Level == 2)
 				snprintf(Buffer, sizeof(Buffer), "%s [warn] %s\n", Date, Format);
+			else if (Level == 4)
+				snprintf(Buffer, sizeof(Buffer), "%s [sys] %s\n", Date, Format);
 			else
 				snprintf(Buffer, sizeof(Buffer), "%s [info] %s\n", Date, Format);
 #else
@@ -4311,25 +4421,43 @@ namespace Tomahawk
 			}
 			else if (Level == 2)
 				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source ? Source : "log", Line, Format);
+			else if (Level == 4)
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [sys] %s\n", Date, Source ? Source : "log", Line, Format);
 			else
 				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source ? Source : "log", Line, Format);
 #endif
 			char Storage[8192];
-
 			va_list Args;
 			va_start(Args, Format);
 			vsnprintf(Storage, sizeof(Storage), Buffer, Args);
 			va_end(Args);
 
-			if (Callback)
+			if (Callback && !DbgPerf.Ignore)
+			{
+				DbgPerf.Ignore = true;
 				Callback(Storage, Level);
+				DbgPerf.Ignore = false;
+			}
 
 			if (Enabled)
 			{
 #if defined(TH_MICROSOFT) && defined(_DEBUG)
 				OutputDebugStringA(Storage);
 #endif
-				printf("%s", Storage);
+				if (Console::IsPresent() && (Level == 1 || Level == 2 || Level == 4))
+				{
+					Console* Dbg = Console::Get();
+					if (Level == 1)
+						Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
+					else if (Level == 2)
+						Dbg->ColorBegin(StdColor::Yellow, StdColor::Black);
+					else if (Level == 4)
+						Dbg->ColorBegin(StdColor::Gray, StdColor::Black);
+					Dbg->WriteBuffer(Storage);
+					Dbg->ColorEnd();
+				}
+				else
+					printf("%s", Storage);
 			}
 		}
 		void Debug::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
@@ -4372,15 +4500,27 @@ namespace Tomahawk
 			else
 				memcpy(Storage, Buffer, sizeof(Buffer));
 
-			if (Callback)
+			if (Callback && !DbgPerf.Ignore)
+			{
+				DbgPerf.Ignore = true;
 				Callback(Storage, 1);
+				DbgPerf.Ignore = false;
+			}
 
 			if (Enabled)
 			{
 #if defined(TH_MICROSOFT) && defined(_DEBUG)
 				OutputDebugStringA(Storage);
 #endif
-				printf("%s", Storage);
+				if (Console::IsPresent())
+				{
+					Console* Dbg = Console::Get();
+					Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
+					Dbg->WriteBuffer(Storage);
+					Dbg->ColorEnd();
+				}
+				else
+					printf("%s", Storage);
 			}
 
 			if (Fatal)
@@ -4390,7 +4530,9 @@ namespace Tomahawk
 		{
 			OS::Process::Interrupt();
 		}
+		std::vector<Debug::Context> Debug::Contexts;
 		std::function<void(const char*, int)> Debug::Callback;
+		std::mutex Debug::Safe;
 		bool Debug::Enabled = false;
 
 		void Composer::AddRef(Object* Value)
@@ -4488,9 +4630,9 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Console::Console() : Handle(false), Time(0)
+		Console::Console() : Coloring(true), Handle(false), Time(0)
 #ifdef TH_MICROSOFT
-			, Conin(nullptr), Conout(nullptr), Conerr(nullptr)
+			, Conin(nullptr), Conout(nullptr), Conerr(nullptr), Attributes(0)
 #endif
 		{
 		}
@@ -4530,6 +4672,10 @@ namespace Tomahawk
 			Conout = freopen("conout$", "w", stdout);
 			Conerr = freopen("conout$", "w", stderr);
 			SetConsoleCtrlHandler(ConsoleEventHandler, true);
+
+			CONSOLE_SCREEN_BUFFER_INFO ScreenBuffer;
+			if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &ScreenBuffer))
+				Attributes = ScreenBuffer.wAttributes;
 #else
 			if (Handle)
 				return;
@@ -4567,6 +4713,38 @@ namespace Tomahawk
 		void Console::CaptureTime()
 		{
 			Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
+		}
+		void Console::SetColoring(bool Enabled)
+		{
+			Coloring = Enabled;
+		}
+		void Console::ColorBegin(StdColor Text, StdColor Background)
+		{
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			if (!Coloring)
+				return;
+#if defined(_WIN32)
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (int)Background << 4 | (int)Text);
+#else
+			std::cout << "\033[" << GetColorId(Text, false) << ";" << GetColorId(Background, true) << "m";
+#endif
+		}
+		void Console::ColorEnd()
+		{
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			if (!Coloring)
+				return;
+#if defined(_WIN32)
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Attributes);
+#else
+			std::cout << "\033[0m";
+#endif
+		}
+		void Console::WriteBuffer(const char* Buffer)
+		{
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			std::cout << Buffer;
 		}
 		void Console::WriteLine(const std::string& Line)
 		{
@@ -4701,6 +4879,10 @@ namespace Tomahawk
 			TH_FREE(Value);
 
 			return Output;
+		}
+		bool Console::IsPresent()
+		{
+			return Singleton != nullptr && Singleton->Handle;
 		}
 		bool Console::Reset()
 		{
@@ -4941,6 +5123,7 @@ namespace Tomahawk
 		{
 			if (Resource != nullptr)
 			{
+				TH_TRACE("close fs %i", (int)GetFd());
 				fclose(Resource);
 				Resource = nullptr;
 			}
@@ -5065,10 +5248,12 @@ namespace Tomahawk
 				case FileMode::Binary_Read_Only:
 				case FileMode::Read_Only:
 					Resource = gzopen(Path.c_str(), "rb");
+					TH_TRACE("[gz] open rb %s", Path.c_str());
 					break;
 				case FileMode::Binary_Write_Only:
 				case FileMode::Write_Only:
 					Resource = gzopen(Path.c_str(), "wb");
+					TH_TRACE("[gz] open wb %s", Path.c_str());
 					break;
 				case FileMode::Read_Write:
 				case FileMode::Write_Read:
@@ -5078,6 +5263,7 @@ namespace Tomahawk
 				case FileMode::Binary_Read_Write:
 				case FileMode::Binary_Write_Read:
 				case FileMode::Binary_Read_Append_Write:
+					TH_ERR("[gz] compressed stream supports only rb and wb modes");
 					Close();
 					break;
 			}
@@ -5093,6 +5279,7 @@ namespace Tomahawk
 			TH_PSTART("gz-stream-close", TH_PERF_IO);
 			if (Resource != nullptr)
 			{
+				TH_TRACE("[gz] close 0x%p", (void*)Resource);
 				gzclose((gzFile)Resource);
 				Resource = nullptr;
 			}
@@ -5231,7 +5418,7 @@ namespace Tomahawk
 				case FileMode::Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					if (Coawait(Client->Connect(&Address, false)) < 0)
+					if (TH_AWAIT(Client->Connect(&Address, false)) < 0)
 					{
 						TH_RELEASE(Client);
 						break;
@@ -5242,7 +5429,7 @@ namespace Tomahawk
 					for (auto& Item : URL.Query)
 						Request.Query += Item.first + "=" + Item.second;
 
-					Network::HTTP::ResponseFrame* Response = Coawait(Client->Send(&Request));
+					Network::HTTP::ResponseFrame* Response = TH_AWAIT(Client->Send(&Request));
 					if (!Response || Response->StatusCode < 0)
 					{
 						TH_RELEASE(Client);
@@ -5252,7 +5439,7 @@ namespace Tomahawk
 					const char* ContentLength = Response->GetHeader("Content-Length");
 					if (!ContentLength)
 					{
-						if (!Coawait(Client->Consume(1024 * 1024 * 16)) || !Network::HTTP::Util::ContentOK(Client->GetRequest()->ContentState))
+						if (!TH_AWAIT(Client->Consume(1024 * 1024 * 16)) || !Network::HTTP::Util::ContentOK(Client->GetRequest()->ContentState))
 						{
 							TH_RELEASE(Client);
 							break;
@@ -5268,6 +5455,7 @@ namespace Tomahawk
 						Resource = Client;
 					}
 
+					TH_TRACE("[http] open ws %s", File);
 					break;
 				}
 				case FileMode::Binary_Write_Only:
@@ -5280,6 +5468,7 @@ namespace Tomahawk
 				case FileMode::Binary_Read_Write:
 				case FileMode::Binary_Write_Read:
 				case FileMode::Binary_Read_Append_Write:
+					TH_TRACE("[http] web stream supports only rb and r modes");
 					Close();
 					break;
 			}
@@ -5342,7 +5531,7 @@ namespace Tomahawk
 			}
 
 			auto* Client = (Network::HTTP::Client*)Resource;
-			auto* Response = Coawait(Client->Consume(Length));
+			auto* Response = TH_AWAIT(Client->Consume(Length));
 			Result = std::min(Length, (uint64_t)Response->Buffer.size());
 			memcpy(Data, Response->Buffer.data(), Result);
 			Offset += Result;
@@ -5555,6 +5744,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
 			TH_PSTART("os-dir-mk", TH_PERF_IO);
+			TH_TRACE("[io] create dir %s", Path);
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[1024];
 			UnicodePath(Path, Buffer, 1024);
@@ -5606,6 +5796,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
 			TH_PSTART("os-dir-rm", TH_PERF_IO);
+			TH_TRACE("[io] remove dir %s", Path);
 
 #ifdef TH_MICROSOFT
 			WIN32_FIND_DATA FileInformation;
@@ -5874,6 +6065,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
 			TH_PSTART("os-file-mv", TH_PERF_IO);
+			TH_TRACE("[io] move file from %s to %s", From, To);
 #ifdef TH_MICROSOFT
 			TH_PRET(MoveFileA(From, To) != 0);
 #elif defined TH_UNIX
@@ -5887,6 +6079,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
 			TH_PSTART("os-file-rm", TH_PERF_IO);
+			TH_TRACE("[io] remove file %s", Path);
 #ifdef TH_MICROSOFT
 			SetFileAttributesA(Path, 0);
 			TH_PRET(DeleteFileA(Path) != 0);
@@ -5946,11 +6139,15 @@ namespace Tomahawk
 			wchar_t WBuffer[1024], WMode[20];
 			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
 			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
-			TH_PRET((void*)_wfopen(WBuffer, WMode));
+
+			FILE* Stream = _wfopen(WBuffer, WMode);
+			TH_TRACE("[io] open fs %s %s", Mode, Path);
+			TH_PRET((void*)Stream);
 #else
 			FILE* Stream = fopen(Path, Mode);
 			if (Stream != nullptr)
 				fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
+			TH_TRACE("[io] open fs %s %s", Mode, Path);
 			TH_PRET((void*)Stream);
 #endif
 		}
@@ -6280,14 +6477,14 @@ namespace Tomahawk
 			if (IsDebuggerPresent())
 				__debugbreak();
 #endif
-			TH_INFO("[dbg] process paused");
+			TH_TRACE("[dbg] process paused");
 #endif
 		}
 		int OS::Process::Execute(const char* Format, ...)
 		{
 			TH_ASSERT(Format != nullptr, -1, "format should be set");
 
-			char Buffer[16384];
+			char Buffer[8192];
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -6297,6 +6494,7 @@ namespace Tomahawk
 #endif
 			va_end(Args);
 			
+			TH_TRACE("[io] execute command\n\t%s", Buffer);
 			return system(Buffer);
 		}
 		bool OS::Process::Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
@@ -6340,6 +6538,7 @@ namespace Tomahawk
 				return false;
 			}
 
+			TH_TRACE("[io] spawn process %i on %s", (int)GetProcessId(Process.hProcess), Path.c_str());
 			AssignProcessToJobObject(Job, Process.hProcess);
 			if (Child != nullptr && !Child->Valid)
 			{
@@ -6370,6 +6569,7 @@ namespace Tomahawk
 			}
 			else if (Child != nullptr)
 			{
+				TH_TRACE("[io] spawn process %i on %s", (int)ProcessId, Path.c_str());
 				Child->Process = ProcessId;
 				Child->Valid = (ProcessId > 0);
 			}
@@ -6382,6 +6582,8 @@ namespace Tomahawk
 			TH_ASSERT(Process != nullptr && Process->Valid, false, "process should be set and be valid");
 #ifdef TH_MICROSOFT
 			WaitForSingleObject(Process->Process, INFINITE);
+			TH_TRACE("[io] close process %s", (int)GetProcessId(Process->Process));
+
 			if (ExitCode != nullptr)
 			{
 				DWORD Result;
@@ -6392,15 +6594,15 @@ namespace Tomahawk
 				}
 
 				*ExitCode = (int)Result;
-			}
+			}	
 #else
 			int Status;
 			waitpid(Process->Process, &Status, 0);
 
+			TH_TRACE("[io] close process %s", (int)Process->Process);
 			if (ExitCode != nullptr)
 				*ExitCode = WEXITSTATUS(Status);
 #endif
-
 			Free(Process);
 			return true;
 		}
@@ -6440,6 +6642,7 @@ namespace Tomahawk
 			if (!Name.EndsWith(".dll"))
 				Name.Append(".dll");
 
+			TH_TRACE("[dl] load dll library %s", Name.Get());
 			return (void*)LoadLibrary(Name.Get());
 #elif defined(TH_APPLE)
 			if (Path.empty())
@@ -6448,6 +6651,7 @@ namespace Tomahawk
 			if (!Name.EndsWith(".dylib"))
 				Name.Append(".dylib");
 
+			TH_TRACE("[dl] load dylib library %s", Name.Get());
 			return (void*)dlopen(Name.Get(), RTLD_LAZY);
 #elif defined(TH_UNIX)
 			if (Path.empty())
@@ -6456,6 +6660,7 @@ namespace Tomahawk
 			if (!Name.EndsWith(".so"))
 				Name.Append(".so");
 
+			TH_TRACE("[dl] load so library %s", Name.Get());
 			return (void*)dlopen(Name.Get(), RTLD_LAZY);
 #else
 			return nullptr;
@@ -6464,6 +6669,7 @@ namespace Tomahawk
 		void* OS::Symbol::LoadFunction(void* Handle, const std::string& Name)
 		{
 			TH_ASSERT(Handle != nullptr && !Name.empty(), nullptr, "handle should be set and name should not be empty");
+			TH_TRACE("[dl] load function %s", Name.c_str());
 #ifdef TH_MICROSOFT
 			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
 			if (!Result)
@@ -6476,7 +6682,7 @@ namespace Tomahawk
 				LocalFree(Display);
 
 				if (!Text.empty())
-					TH_ERR("dll symload error: %s", Text.c_str());
+					TH_ERR("[dl] symload error: %s", Text.c_str());
 			}
 
 			return Result;
@@ -6486,7 +6692,7 @@ namespace Tomahawk
 			{
 				const char* Text = dlerror();
 				if (Text != nullptr)
-					TH_ERR("so symload error: %s", Text);
+					TH_ERR("[dl] symload error: %s", Text);
 			}
 
 			return Result;
@@ -6621,7 +6827,7 @@ namespace Tomahawk
 #endif
 		}
 
-		ChangeLog::ChangeLog(const std::string& Root) : Offset(-1), Path(Root)
+		ChangeLog::ChangeLog(const std::string& Root) : Offset(-1), Time(0), Path(Root)
 		{
 			Source = new FileStream();
 			auto V = Parser(&Path).Replace("/", "\\").Split('\\');
@@ -6634,8 +6840,13 @@ namespace Tomahawk
 		}
 		void ChangeLog::Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback)
 		{
-			TH_ASSERT_V(Callback, "callback should not be empty");
+			TH_ASSERT_V(Callback, "callback should not be empty");	
+			Resource State;
+			if (Source->GetBuffer() && (!OS::File::State(Path, &State) || State.LastModified == Time))
+				return;
+
 			Source->Open(Path.c_str(), FileMode::Binary_Read_Only);
+			Time = State.LastModified;
 
 			uint64_t Length = Source->GetSize();
 			if (Length <= Offset || Offset <= 0)
@@ -7001,11 +7212,14 @@ namespace Tomahawk
 		{
 			return Cothread ? Cothread->Current : nullptr;
 		}
-		Coroutine* Costate::GetCoroutine(Costate** State)
+		bool Costate::GetState(Costate** State, Coroutine** Routine)
 		{
 			TH_ASSERT(State != nullptr, nullptr, "state should be set");
+			TH_ASSERT(Routine != nullptr, nullptr, "state should be set");
+			*Routine = (Cothread ? Cothread->Current : nullptr);
 			*State = Cothread;
-			return Cothread ? Cothread->Current : nullptr;
+
+			return *Routine != nullptr;
 		}
 		bool Costate::IsCoroutine()
 		{
@@ -7357,8 +7571,8 @@ namespace Tomahawk
 		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize)
 		{
 			TH_ASSERT(!Active, false, "queue should be stopped");
+			Threads = (IsAsync ? ThreadsCount : 0);
 			Coroutines = CoroutinesCount;
-			Threads = ThreadsCount;
 			Stack = StackSize;
 
 			if (!IsAsync)
@@ -7538,7 +7752,7 @@ namespace Tomahawk
 					TH_DELETE(function, Data);
 				}
 
-				if (cAsyncs->size_approx() > 0)
+				if (State->GetCount() < Coroutines && cAsyncs->size_approx() > 0)
 					goto ResolveStateful;
 
 				if (!State->GetCount())
@@ -7583,9 +7797,11 @@ namespace Tomahawk
 				{
 					(*Data)();
 					TH_DELETE(function, Data);
+					if (!Threads)
+						break;
 				}
 
-				if (cAsyncs->size_approx() > 0)
+				if (Threads > 0 && cAsyncs->size_approx() > 0)
 					goto ResolveStateless;
 
 				return Data != nullptr ? 1 : -1;
@@ -7605,10 +7821,12 @@ namespace Tomahawk
 			{
 				(*Data)();
 				TH_DELETE(function, Data);
+				if (!Threads)
+					break;
 			}
 
 			TH_PEND();
-			if (cTasks->size_approx() > 0)
+			if (Threads > 0 && cTasks->size_approx() > 0)
 				goto Resolve;
 
 			return Data != nullptr ? 1 : -1;
@@ -7628,6 +7846,9 @@ namespace Tomahawk
 				{
 					Race.Listeners.unlock();
 					TH_DELETE(EventBase, Data);
+					if (!Threads)
+						break;
+
 					continue;
 				}
 
@@ -7640,9 +7861,12 @@ namespace Tomahawk
 						Callback.second(Data->Args);
 					TH_DELETE(EventBase, Data);
 				});
+
+				if (!Threads)
+					break;
 			}
 
-			if (cEvents->size_approx() > 0)
+			if (Threads > 0 && cEvents->size_approx() > 0)
 				goto Resolve;
 
 			return Data != nullptr ? 1 : -1;

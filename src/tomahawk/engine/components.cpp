@@ -646,7 +646,10 @@ namespace Tomahawk
 			}
 			void SoftBody::Asleep()
 			{
-				Detach();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				if (Parent->GetScene() != nullptr)
+					Detach();
+
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
 			}
@@ -1354,7 +1357,9 @@ namespace Tomahawk
 			}
 			void Model::Asleep()
 			{
-				Detach();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				if (Parent->GetScene() != nullptr)
+					Detach();
 			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
@@ -1496,7 +1501,9 @@ namespace Tomahawk
 			}
 			void Skin::Asleep()
 			{
-				Detach();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				if (Parent->GetScene() != nullptr)
+					Detach();
 			}
 			void Skin::SetDrawable(Graphics::SkinModel* Drawable)
 			{
@@ -1613,7 +1620,7 @@ namespace Tomahawk
 			}
 			void Emitter::Awake(Component* New)
 			{
-				if (Instance)
+				if (Instance != nullptr)
 					return;
 
 				TH_ASSERT_V(Parent != nullptr, "parent should be set");
@@ -1628,7 +1635,9 @@ namespace Tomahawk
 			}
 			void Emitter::Asleep()
 			{
-				Detach();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				if (Parent->GetScene() != nullptr)
+					Detach();
 			}
 			float Emitter::Cull(const Viewer& View)
 			{
@@ -1708,7 +1717,9 @@ namespace Tomahawk
 			}
 			void Decal::Asleep()
 			{
-				Detach();
+				TH_ASSERT_V(Parent != nullptr, "parent should be set");
+				if (Parent->GetScene() != nullptr)
+					Detach();
 			}
 			float Decal::Cull(const Viewer& fView)
 			{
@@ -2399,7 +2410,7 @@ namespace Tomahawk
 			}
 			void FreeLook::Update(Core::Timer* Time)
 			{
-				if (!Activity && !Activity->IsKeyDown(Rotate))
+				if (!Activity || !Activity->IsKeyDown(Rotate))
 					return;
 
 				Compute::Vector2 Cursor = Activity->GetGlobalCursorPosition();
@@ -2674,7 +2685,6 @@ namespace Tomahawk
 			void AudioListener::Asleep()
 			{
 				float LookAt[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
-
 				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Velocity, 0.0f, 0.0f, 0.0f);
 				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Position, 0.0f, 0.0f, 0.0f);
 				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx::Orientation, LookAt);
@@ -3310,11 +3320,14 @@ namespace Tomahawk
 			void Illuminator::Asleep()
 			{
 				TH_ASSERT_V(Parent != nullptr, "parent should be set");
-				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
-				TH_ASSERT_V(Parent->GetScene()->GetRenderer() != nullptr, "render system should be set");
-
 				SceneGraph* Scene = Parent->GetScene();
+				if (!Scene)
+					return;
+
 				RenderSystem* System = (RenderSystem*)Scene->GetRenderer();
+				if (!System)
+					return;
+
 				auto* Lighting = System->GetRenderer<Renderers::Lighting>();
 				if (Lighting != nullptr)
 					Lighting->ClearStorage();
@@ -3413,10 +3426,8 @@ namespace Tomahawk
 			void Camera::Asleep()
 			{
 				TH_ASSERT_V(Parent != nullptr, "parent should be set");
-				TH_ASSERT_V(Parent->GetScene() != nullptr, "scene should be set");
-
 				SceneGraph* Scene = Parent->GetScene();
-				if (Renderer != nullptr && Scene->GetCamera() == this)
+				if (Scene != nullptr && Renderer != nullptr && Scene->GetCamera() == this)
 					Scene->SetCamera(nullptr);
 			}
 			void Camera::Deserialize(ContentManager* Content, Core::Document* Node)

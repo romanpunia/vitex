@@ -489,9 +489,6 @@ namespace Tomahawk
 				}
 				void Attach(Graphics::Activity* NewActivity, Core::Timer* NewTime)
 				{
-					TH_ASSERT_V(NewActivity != nullptr, "activity should be set");
-					TH_ASSERT_V(NewTime != nullptr, "time should be set");
-
 					Activity = NewActivity;
 					Time = NewTime;
 				}

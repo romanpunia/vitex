@@ -14,10 +14,10 @@ namespace Tomahawk
 		typedef Graphics::RenderTargetCube CubicDepthMap;
 		typedef Graphics::RenderTarget2D LinearDepthMap;
 		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
-		typedef void(*JobCallback)(struct Reactor*, class Application*);
+		typedef std::function<void(Core::Timer*)> PacketCallback;
 		typedef std::function<void(Core::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
-		typedef std::function<void(class Event*)> MessageCallback;
+		typedef std::function<void(const std::string&, Core::VariantArgs&)> MessageCallback;
 		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
 
@@ -59,15 +59,6 @@ namespace Tomahawk
 			Staging,
 			Singlethreaded,
 			Multithreaded
-		};
-
-		enum class ThreadId
-		{
-			Update,
-			Render,
-			Simulation,
-			Synchronize,
-			Count
 		};
 
 		enum class CullResult
@@ -117,6 +108,13 @@ namespace Tomahawk
 			Diffuse = 0,
 			Normal = 1,
 			Surface = 2
+		};
+
+		enum class EventTarget
+		{
+			Scene = 0,
+			Entity = 1,
+			Component = 2
 		};
 
 		inline ApplicationSet operator |(ApplicationSet A, ApplicationSet B)
@@ -212,24 +210,6 @@ namespace Tomahawk
 			float NearPlane = 0.0f;
 
 			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far);
-		};
-
-		struct TH_OUT Reactor
-		{
-			friend Application;
-
-		private:
-			Application* App;
-			JobCallback Src;
-
-		public:
-			Core::Timer* Time;
-
-		private:
-			Reactor(Application* Ref, double Limit, JobCallback Callback);
-			~Reactor();
-			void UpdateCore();
-			void UpdateTask();
 		};
 
 		struct TH_OUT Attenuation
@@ -362,32 +342,6 @@ namespace Tomahawk
 			static bool Unpack(Core::Document* V, std::vector<std::string>* O);
 		};
 
-		class TH_OUT Event
-		{
-			friend SceneGraph;
-
-		private:
-			Component * TComponent;
-			Entity* TEntity;
-			SceneGraph* TScene;
-			std::string Id;
-
-		public:
-			Core::VariantArgs Args;
-
-		private:
-			Event(const std::string& NewName, SceneGraph* Target, const Core::VariantArgs& NewArgs);
-			Event(const std::string& NewName, Entity* Target, const Core::VariantArgs& NewArgs);
-			Event(const std::string& NewName, Component* Target, const Core::VariantArgs& NewArgs);
-
-		public:
-			bool Is(const std::string& Name);
-			const std::string& GetName();
-			Component* GetComponent();
-			Entity* GetEntity();
-			SceneGraph* GetScene();
-		};
-
 		class TH_OUT Material : public Core::Object
 		{
 			friend NMake;
@@ -469,7 +423,7 @@ namespace Tomahawk
 			virtual void Asleep();
 			virtual void Synchronize(Core::Timer* Time);
 			virtual void Update(Core::Timer* Time);
-			virtual void Message(Event* Value);
+			virtual void Message(const std::string& Name, Core::VariantArgs& Args);
 			virtual Component* Copy(Entity* New) = 0;
 			virtual Compute::Matrix4x4 GetBoundingBox();
 			Entity* GetEntity();
@@ -488,24 +442,36 @@ namespace Tomahawk
 			std::unordered_map<uint64_t, Component*> Components;
 			SceneGraph* Scene;
 
-		public:
+		private:
 			Compute::Transform* Transform;
 			std::string Name;
+
+		public:
 			int64_t Id, Tag;
 			float Distance;
 
 		public:
 			Entity(SceneGraph* Ref);
 			virtual ~Entity() override;
+			void SetName(const std::string& Value, bool Internal = false);
 			void RemoveComponent(uint64_t Id);
 			void RemoveChilds();
-			void SetScene(SceneGraph* NewScene);
-			std::unordered_map<uint64_t, Component*>::iterator First();
-			std::unordered_map<uint64_t, Component*>::iterator Last();
 			Component* AddComponent(Component* In);
 			Component* GetComponent(uint64_t Id);
-			uint64_t GetComponentCount();
-			SceneGraph* GetScene();
+			uint64_t GetComponentCount() const;
+			SceneGraph* GetScene() const;
+			Compute::Transform* GetTransform() const;
+			const std::string& GetName() const;
+
+		public:
+			std::unordered_map<uint64_t, Component*>::iterator begin()
+			{
+				return Components.begin();
+			}
+			std::unordered_map<uint64_t, Component*>::iterator end()
+			{
+				return Components.end();
+			}
 
 		public:
 			template <typename In>
@@ -523,11 +489,7 @@ namespace Tomahawk
 			template <typename In>
 			In* GetComponent()
 			{
-				auto It = Components.find(In::GetTypeId());
-				if (It != Components.end())
-					return (In*)It->second;
-
-				return nullptr;
+				return (In*)GetComponent(In::GetTypeId());
 			}
 		};
 
@@ -645,12 +607,11 @@ namespace Tomahawk
 			size_t StallFrames;
 
 		public:
-			RenderSystem(Graphics::GraphicsDevice* Device);
+			RenderSystem(SceneGraph* NewScene);
 			virtual ~RenderSystem() override;
 			void SetOcclusionCulling(bool Enabled, bool KeepResults = false);
 			void SetFrustumCulling(bool Enabled, bool KeepResults = false);
 			void SetDepthSize(size_t Size);
-			void SetScene(SceneGraph* NewScene);
 			void Remount(Renderer* Target);
 			void Remount();
 			void Mount();
@@ -776,7 +737,7 @@ namespace Tomahawk
 		public:
 			Drawable(Entity* Ref, uint64_t Hash, bool Complex);
 			virtual ~Drawable();
-			virtual void Message(Event* Value) override;
+			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 			virtual Component* Copy(Entity* New) override = 0;
 			virtual void ClearCull() override;
 			bool SetTransparency(bool Enabled);
@@ -882,10 +843,12 @@ namespace Tomahawk
 			};
 
 		private:
-			struct Thread
+			struct Packet
 			{
-				std::atomic<std::thread::id> Id;
-				std::atomic<int> State;
+				std::atomic<bool> Active;
+				std::atomic<bool> Stall;
+				Core::TaskCallback Callback;
+				Core::Timer* Time = nullptr;
 			};
 
 			struct Geometry
@@ -895,18 +858,6 @@ namespace Tomahawk
 			};
 
 		private:
-			struct
-			{
-				Thread Threads[(size_t)ThreadId::Count];
-				std::condition_variable Callback;
-				std::condition_variable Condition;
-				std::atomic<std::thread::id> Id;
-				std::atomic<int> Count;
-				std::atomic<bool> Locked;
-				std::mutex Await, Safe, Events;
-				std::mutex Global, Listener;
-			} Sync;
-
 			struct
 			{
 				Graphics::MultiRenderTarget2D* MRT[(size_t)TargetType::Count * 2];
@@ -923,20 +874,26 @@ namespace Tomahawk
 			} Display;
 
 		protected:
-			std::unordered_map<std::string, std::pair<std::string, MessageCallback>> Listeners;
+#ifdef _DEBUG
+			std::thread::id ThreadId;
+#endif
 			std::unordered_map<uint64_t, Core::Pool<Component*>> Components;
 			std::unordered_map<uint64_t, Geometry> Drawables;
-			std::vector<Event*> Events;
+			std::unordered_map<std::string, Packet*> Tasks;
+			std::queue<Core::TaskCallback> Queue;
+			std::condition_variable Stabilize;
 			Core::Pool<Material*> Materials;
 			Core::Pool<Component*> Pending;
 			Core::Pool<Entity*> Entities;
 			Compute::Simulator* Simulator;
 			Core::EventId Listener;
-			Component* Camera;
+			std::atomic<Component*> Camera;
+			std::atomic<uint64_t> Surfaces;
+			std::atomic<bool> Acquire;
+			std::atomic<bool> Active;
+			std::atomic<int> Status;
+			std::mutex Race;
 			Desc Conf;
-			uint64_t Surfaces;
-			bool Invoked;
-			bool Active;
 
 		public:
 			Viewer View;
@@ -945,27 +902,25 @@ namespace Tomahawk
 			SceneGraph(const Desc& I);
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
-			void Submit();
-			void Render(Core::Timer* Time);
-			void Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
-			void Update(Core::Timer* Time);
-			void Simulation(Core::Timer* Time);
-			void Synchronize(Core::Timer* Time);
-			void RemoveMaterial(Material* Value);
-			void RemoveEntity(Entity* Entity, bool Release);
-			void SetCamera(Entity* Camera);
-			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
-			void RestoreViewBuffer(Viewer* View);
-			void SortBackToFront(Core::Pool<Drawable*>* Array);
-			void SortFrontToBack(Core::Pool<Drawable*>* Array);
+			void ExclusiveLock();
+			void ExclusiveUnlock();
 			void Actualize();
 			void Redistribute();
 			void Reindex();
 			void ExpandMaterials();
-			void Lock();
-			void Unlock();
 			void ResizeBuffers();
-			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback);
+			void Sleep();
+			void Submit();
+			bool Dispatch();
+			void Publish(Core::Timer* Time);
+			void Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
+			void RemoveMaterial(Material* Value);
+			void RemoveEntity(Entity* Entity, bool Release);
+			void SetCamera(Entity* Camera);
+			void RestoreViewBuffer(Viewer* View);
+			void SortBackToFront(Core::Pool<Drawable*>* Array);
+			void SortFrontToBack(Core::Pool<Drawable*>* Array);
+			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback);
 			void ScriptHook(const std::string& Name = "Main");
 			void SetActive(bool Enabled);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
@@ -976,13 +931,14 @@ namespace Tomahawk
 			void SwapRT(TargetType Type, Graphics::RenderTarget2D* New);
 			void ClearMRT(TargetType Type, bool Color, bool Depth);
 			void ClearRT(TargetType Type, bool Color, bool Depth);
+			void Exclusive(Core::TaskCallback&& Callback);
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
-			bool AddEventListener(const std::string& Name, const std::string& Event, const MessageCallback& Callback);
-			bool RemoveEventListener(const std::string& Name);
-			bool DispatchEvent(const std::string& EventName, const Core::VariantArgs& Args);
-			bool DispatchEvent(Component* Target, const std::string& EventName, const Core::VariantArgs& Args);
-			bool DispatchEvent(Entity* Target, const std::string& EventName, const Core::VariantArgs& Args);
-			void Dispatch();
+			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args);
+			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
+			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target);
+			bool SetParallel(const std::string& Name, PacketCallback&& Callback);
+			Core::EventId SetListener(const std::string& Event, MessageCallback&& Callback);
+			bool ClearListener(Core::EventId Id);
 			Material* AddMaterial(const std::string& Name);
 			Material* CloneMaterial(Material* Base, const std::string& Name);
 			Entity* CloneEntities(Entity* Value);
@@ -1017,6 +973,7 @@ namespace Tomahawk
 			size_t GetVoxelBufferSize();
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
+			bool IsUnstable();
 			Core::Pool<Drawable*>* GetOpaque(uint64_t Section);
 			Core::Pool<Drawable*>* GetTransparent(uint64_t Section);
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
@@ -1029,24 +986,28 @@ namespace Tomahawk
 			PrimitiveCache* GetPrimitives();
 			Desc& GetConf();
 
+		private:
+			void Simulate(Core::Timer* Time);
+			void Synchronize(Core::Timer* Time);
+			void Update(Core::Timer* Time);
+
 		protected:
+			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void FillMaterialBuffers();
 			void ResizeRenderBuffers();
 			void AddDrawable(Drawable* Source, GeoCategory Category);
 			void RemoveDrawable(Drawable* Source, GeoCategory Category);
-			void BeginThread(ThreadId Thread);
-			void EndThread(ThreadId Thread);
 			void Mutate(Entity* Target, bool Added);
 			void RegisterEntity(Entity* In);
 			bool UnregisterEntity(Entity* In);
-			bool DispatchLastEvent();
+			bool ParseEventInfo(Core::VariantArgs& Args, std::string* Name, EventTarget* Bubble, void** Target);
 			Entity* CloneEntity(Entity* Entity);
 
 		public:
 			template <typename T>
-			void RayTest(const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
+			void RayTest(const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
 			{
-				RayTest(T::GetTypeId(), Origin, MaxDistance, Callback);
+				RayTest(T::GetTypeId(), Origin, MaxDistance, std::move(Callback));
 			}
 			template <typename T>
 			uint64_t GetEntityCount()
@@ -1260,7 +1221,6 @@ namespace Tomahawk
 			static Application* Host;
 
 		private:
-			std::vector<Reactor*> Workers;
 			ApplicationState State = ApplicationState::Terminated;
             bool NetworkQueue = false;
 
@@ -1282,6 +1242,7 @@ namespace Tomahawk
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
 			virtual void CloseEvent();
 			virtual bool ComposeEvent();
+			virtual void Dispatch(Core::Timer* Time);
 			virtual void Publish(Core::Timer* Time);
 			virtual void Initialize(Desc* I);
 			virtual void* GetGUI();
@@ -1289,25 +1250,7 @@ namespace Tomahawk
 			void Start(Desc* I);
 			void Stop();
 
-		public:
-			template <typename T, void(T::*Event)(Core::Timer*)>
-			Reactor* Enqueue(double UpdateLimit = 0.0)
-			{
-				static_assert(std::is_base_of<Application, T>::value,
-					"method is not from Application class");
-
-				TH_ASSERT(Event != nullptr, nullptr, "function ptr should be set");
-				Reactor* Result = TH_NEW(Reactor, this, UpdateLimit, [](Reactor* Job, Application* App)
-				{
-					(((T*)App)->*Event)(Job->Time);
-				});
-
-				Workers.push_back(Result);
-				return Result;
-			}
-
 		private:
-			static void Callee(Reactor* Job);
 			static void Compose();
 
 		public:

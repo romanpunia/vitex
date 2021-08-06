@@ -740,7 +740,7 @@ namespace Tomahawk
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Asleep() override;
 				virtual void Update(Core::Timer* Time) override;
-				virtual void Message(Event* Value) override;
+				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Component* Copy(Entity* New) override;
 				int Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& ArgCallback);
 				int Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& ArgCallback);

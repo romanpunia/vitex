@@ -16,7 +16,7 @@ namespace Tomahawk
 		}
 		void Alert::Setup(AlertType Type, const std::string& Title, const std::string& Text)
 		{
-			TH_ASSERT_V(View != AlertType::None, "alert type should not be none");
+			TH_ASSERT_V(Type != AlertType::None, "alert type should not be none");
 			View = Type;
 			Name = Title;
 			Data = Text;

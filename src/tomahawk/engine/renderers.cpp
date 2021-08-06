@@ -91,7 +91,7 @@ namespace Tomahawk
 					}
 					else
 					{
-						Device->Render.World = Base->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Base->GetEntity()->GetTransform()->GetWorld();
 						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
@@ -237,7 +237,9 @@ namespace Tomahawk
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
-					if (!Base->GetBody() || Base->GetEntity()->Transform->Position.Distance(Scene->View.WorldPosition) >= Scene->View.FarPlane + Base->GetEntity()->Transform->Scale.Length())
+					auto* Transform = Base->GetEntity()->GetTransform();
+
+					if (!Base->GetBody() || Transform->Position.Distance(Scene->View.WorldPosition) >= Scene->View.FarPlane + Transform->Scale.Length())
 						continue;
 
 					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
@@ -320,9 +322,10 @@ namespace Tomahawk
 
 					if (Base->Query.GetPassed() > 0)
 					{
+						auto World = Base->GetEntity()->GetTransform()->GetWorld();
 						for (auto&& Mesh : Drawable->Meshes)
 						{
-							Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+							Device->Render.World = Mesh->World * World;
 							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
@@ -367,13 +370,15 @@ namespace Tomahawk
 					if (!Drawable || !System->PassDrawable(Base, Cull, nullptr))
 						continue;
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->Render.TexCoord = Base->TexCoord;
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushGeometryBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * World;
 						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
@@ -402,13 +407,15 @@ namespace Tomahawk
 					if (!Drawable || !Base->IsNear(View))
 						continue;
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->Render.TexCoord = Base->TexCoord;
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushVoxelsBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.WorldViewProj = Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProj = Device->Render.World = Mesh->World * World;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -439,13 +446,15 @@ namespace Tomahawk
 					if (!Drawable || !System->PassDrawable(Base, CullResult::Always, nullptr))
 						continue;
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->Render.TexCoord = Base->TexCoord;
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushDepthLinearBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * World;
 						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
@@ -478,13 +487,15 @@ namespace Tomahawk
 					if (!Drawable || !Base->IsNear(Scene->View))
 						continue;
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->Render.TexCoord = Base->TexCoord;
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushDepthCubicBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * World;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -562,10 +573,12 @@ namespace Tomahawk
 						if (Device->Animation.Animated > 0)
 							memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
+						auto World = Base->GetEntity()->GetTransform()->GetWorld();
 						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+
 						for (auto&& Mesh : Drawable->Meshes)
 						{
-							Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+							Device->Render.World = Mesh->World * World;
 							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
@@ -618,13 +631,15 @@ namespace Tomahawk
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushGeometryBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * World;
 						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
@@ -662,13 +677,15 @@ namespace Tomahawk
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushVoxelsBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.WorldViewProj = Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.WorldViewProj = Device->Render.World = Mesh->World * World;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -705,13 +722,15 @@ namespace Tomahawk
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushDepthLinearBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * World;
 						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
@@ -750,13 +769,15 @@ namespace Tomahawk
 					if (Device->Animation.Animated > 0)
 						memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
 
+					auto World = Base->GetEntity()->GetTransform()->GetWorld();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+
 					for (auto&& Mesh : Drawable->Meshes)
 					{
 						if (!System->PushDepthCubicBuffer(Base->GetMaterial(Mesh)))
 							continue;
 
-						Device->Render.World = Mesh->World * Base->GetEntity()->Transform->GetWorld();
+						Device->Render.World = Mesh->World * World;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -851,7 +872,7 @@ namespace Tomahawk
 					Device->Render.WorldViewProj = (Base->QuadBased ? View.View : View.ViewProjection);
 					Device->Render.TexCoord = Base->TexCoord;
 					if (Base->Connected)
-						Device->Render.WorldViewProj = Base->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProj;
+						Device->Render.WorldViewProj = Base->GetEntity()->GetTransform()->GetWorld() * Device->Render.WorldViewProj;
 
 					Device->UpdateBuffer(Base->GetBuffer());
 					Device->SetBuffer(Base->GetBuffer(), 8, TH_VS | TH_PS);
@@ -899,7 +920,7 @@ namespace Tomahawk
 					Device->Render.WorldViewProj = (Base->QuadBased ? View.View : View.ViewProjection);
 					Device->Render.TexCoord = Base->TexCoord;
 					if (Base->Connected)
-						Device->Render.WorldViewProj = Base->GetEntity()->Transform->GetWorld() * Device->Render.WorldViewProj;
+						Device->Render.WorldViewProj = Base->GetEntity()->GetTransform()->GetWorld() * Device->Render.WorldViewProj;
 
 					Device->SetBuffer(Base->GetBuffer(), 8, TH_VS | TH_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Linear : nullptr, TH_GS);
@@ -946,7 +967,7 @@ namespace Tomahawk
 					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
 						continue;
 
-					Device->Render.World = (Base->Connected ? Base->GetEntity()->Transform->GetWorld() : Compute::Matrix4x4::Identity());
+					Device->Render.World = (Base->Connected ? Base->GetEntity()->GetTransform()->GetWorld() : Compute::Matrix4x4::Identity());
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->SetBuffer(Base->GetBuffer(), 8, TH_VS | TH_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Quad : Shaders.Depth.Point, TH_VS | TH_PS | TH_GS);
@@ -1022,7 +1043,7 @@ namespace Tomahawk
 						continue;
 
 					RenderPass.ViewProjection = Base->View * Base->Projection;
-					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->GetRange()) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->Transform->Position);
+					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->GetRange()) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->GetTransform()->Position);
 					Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
@@ -1241,8 +1262,9 @@ namespace Tomahawk
 					return nullptr;
 
 				Entity* Base = Src->GetEntity();
-				VoxelBuffer.Center = Base->Transform->Position.InvZ();
-				VoxelBuffer.Scale = Base->Transform->Scale;
+				auto* Transform = Base->GetTransform();
+				VoxelBuffer.Center = Transform->Position.InvZ();
+				VoxelBuffer.Scale = Transform->Scale;
 				VoxelBuffer.Mips = (float)Src->GetMipLevels();
 				VoxelBuffer.Size = (float)Src->GetBufferSize();
 				VoxelBuffer.RayStep = Src->RayStep;
@@ -1269,10 +1291,12 @@ namespace Tomahawk
 			bool Lighting::GetSurfaceLight(ISurfaceLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
 			{
 				Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)Src;
+				auto* Transform = Light->GetEntity()->GetTransform();
+
 				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
-				Dest->Position = Light->GetEntity()->Transform->Position.InvZ();
+				Dest->Position = Transform->Position.InvZ();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
-				Dest->Scale = Light->GetEntity()->Transform->Scale;
+				Dest->Scale = Transform->Scale;
 				Dest->Parallax = (Light->Parallax ? 1.0f : 0.0f);
 				Dest->Infinity = Light->Infinity;
 				Dest->Attenuation.X = Light->Size.C1;
@@ -1285,7 +1309,7 @@ namespace Tomahawk
 			{
 				Engine::Components::PointLight* Light = (Engine::Components::PointLight*)Src;
 				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
-				Dest->Position = Light->GetEntity()->Transform->Position.InvZ();
+				Dest->Position = Light->GetEntity()->GetTransform()->Position.InvZ();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
 				Dest->Attenuation.X = Light->Size.C1;
 				Dest->Attenuation.Y = Light->Size.C2;
@@ -1307,10 +1331,12 @@ namespace Tomahawk
 			bool Lighting::GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
 			{
 				Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)Src;
+				auto* Transform = Light->GetEntity()->GetTransform();
+
 				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
 				Dest->ViewProjection = Light->View * Light->Projection;
-				Dest->Direction = Light->GetEntity()->Transform->Rotation.dDirection();
-				Dest->Position = Light->GetEntity()->Transform->Position.InvZ();
+				Dest->Direction = Transform->Rotation.dDirection();
+				Dest->Position = Transform->Position.InvZ();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
 				Dest->Cutoff = Compute::Mathf::Cos(Compute::Mathf::Deg2Rad() * Light->Cutoff * 0.5f);
 				Dest->Attenuation.X = Light->Size.C1;
@@ -1332,7 +1358,7 @@ namespace Tomahawk
 			bool Lighting::GetLineLight(ILineLight* Dest, Component* Src)
 			{
 				Engine::Components::LineLight* Light = (Engine::Components::LineLight*)Src;
-				Dest->Position = Light->GetEntity()->Transform->Position.InvZ().sNormalize();
+				Dest->Position = Light->GetEntity()->GetTransform()->Position.InvZ().sNormalize();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission);
 				Dest->RlhEmission = Light->Sky.RlhEmission;
 				Dest->RlhHeight = Light->Sky.RlhHeight;
@@ -1363,8 +1389,9 @@ namespace Tomahawk
 			}
 			void Lighting::GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale)
 			{
-				*Position = Src->GetEntity()->Transform->Position;
-				*Scale = (Range > 0.0f ? Range : Src->GetEntity()->Transform->Scale);
+				auto* Transform = Src->GetEntity()->GetTransform();
+				*Position = Transform->Position;
+				*Scale = (Range > 0.0f ? Range : Transform->Scale);
 
 				bool Front = Compute::Common::HasPointIntersectedCube(*Position, Scale->Mul(1.01f), State.View);
 				if (!(Front && State.Backcull) && !(!Front && !State.Backcull))
@@ -1432,7 +1459,7 @@ namespace Tomahawk
 					if (Count >= Storage.MaxLights || !Light->IsNear(State.Scene->View))
 						continue;
 
-					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+					Compute::Vector3 Position(Light->GetEntity()->GetTransform()->Position), Scale(Light->GetBoxRange());
 					GetPointLight(&Storage.PArray[Count], Light, Position, Scale); Count++;
 				}
 
@@ -1451,7 +1478,7 @@ namespace Tomahawk
 					if (Count >= Storage.MaxLights || !Light->IsNear(State.Scene->View))
 						continue;
 
-					Compute::Vector3 Position(Light->GetEntity()->Transform->Position), Scale(Light->GetBoxRange());
+					Compute::Vector3 Position(Light->GetEntity()->GetTransform()->Position), Scale(Light->GetBoxRange());
 					GetSpotLight(&Storage.SArray[Count], Light, Position, Scale); Count++;
 				}
 
@@ -1601,7 +1628,7 @@ namespace Tomahawk
 					State.Device->ClearDepth(Target);
 
 					Light->AssembleDepthOrigin();
-					State.Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					State.Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->Position, 0.1f, Light->Shadow.Distance, true);
 					State.Scene->Render(Time, RenderState::Depth_Cubic, RenderOpt::Inner);
 
 					Light->DepthMap = Target;
@@ -1627,7 +1654,7 @@ namespace Tomahawk
 					State.Device->ClearDepth(Target);
 
 					Light->AssembleDepthOrigin();
-					State.Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->Transform->Position, 0.1f, Light->Shadow.Distance, true);
+					State.Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->Position, 0.1f, Light->Shadow.Distance, true);
 					State.Scene->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
 
 					Light->DepthMap = Target;
@@ -1700,7 +1727,7 @@ namespace Tomahawk
 					State.Device->CubemapBegin(Surfaces.Subresource);
 					Light->Locked = true;
 
-					Compute::Vector3 Position = Light->GetEntity()->Transform->Position * Light->Offset;
+					Compute::Vector3 Position = Light->GetEntity()->GetTransform()->Position * Light->Offset;
 					for (unsigned int j = 0; j < 6; j++)
 					{
 						Light->View[j] = Compute::Matrix4x4::CreateCubeMapLookAt(j, Position);

@@ -115,16 +115,19 @@ namespace Tomahawk
 						Entity* Entity = new Engine::Entity(Object);
 						Object->AddEntity(Entity);
 
-						NMake::Unpack(It->Find("name"), &Entity->Name);
+						std::string Name;
+						NMake::Unpack(It->Find("name"), &Name);
 						NMake::Unpack(It->Find("tag"), &Entity->Tag);
+						Entity->SetName(Name, true);
 
 						Core::Document* Transform = It->Find("transform");
 						if (Transform != nullptr)
 						{
-							NMake::Unpack(Transform->Find("position"), &Entity->Transform->Position);
-							NMake::Unpack(Transform->Find("rotation"), &Entity->Transform->Rotation);
-							NMake::Unpack(Transform->Find("scale"), &Entity->Transform->Scale);
-							NMake::Unpack(Transform->Find("constant-scale"), &Entity->Transform->ConstantScale);
+							auto* Offset = Entity->GetTransform();
+							NMake::Unpack(Transform->Find("position"), &Offset->Position);
+							NMake::Unpack(Transform->Find("rotation"), &Offset->Rotation);
+							NMake::Unpack(Transform->Find("scale"), &Offset->Scale);
+							NMake::Unpack(Transform->Find("constant-scale"), &Offset->ConstantScale);
 						}
 
 						Core::Document* Parent = It->Find("parent");
@@ -141,7 +144,7 @@ namespace Tomahawk
 							NMake::Unpack(Parent->Find("scale"), Scale);
 							NMake::Unpack(Parent->Find("world"), World);
 
-							Compute::Common::SetTransformPivot(Entity->Transform, World, Position, Rotation, Scale);
+							Compute::Common::SetTransformPivot(Entity->GetTransform(), World, Position, Rotation, Scale);
 						}
 
 						Core::Document* Components = It->Find("components");
@@ -183,7 +186,7 @@ namespace Tomahawk
 					Entity->Id = i;
 
 					if (Index >= 0 && Index < (int64_t)Object->GetEntityCount() && Index != i)
-						Compute::Common::SetTransformRoot(Entity->Transform, Object->GetEntity(Index)->Transform);
+						Compute::Common::SetTransformRoot(Entity->GetTransform(), Object->GetEntity(Index)->GetTransform());
 				}
 
 				Object->Actualize();
@@ -230,39 +233,40 @@ namespace Tomahawk
 				for (uint64_t i = 0; i < Object->GetEntityCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
+					auto* Offset = Ref->GetTransform();
 
 					Core::Document* Entity = Entities->Set("entity");
-					NMake::Pack(Entity->Set("name"), Ref->Name);
+					NMake::Pack(Entity->Set("name"), Ref->GetName());
 					NMake::Pack(Entity->Set("tag"), Ref->Tag);
 
 					Core::Document* Transform = Entity->Set("transform");
-					NMake::Pack(Transform->Set("position"), Ref->Transform->Position);
-					NMake::Pack(Transform->Set("rotation"), Ref->Transform->Rotation);
-					NMake::Pack(Transform->Set("scale"), Ref->Transform->Scale);
-					NMake::Pack(Transform->Set("constant-scale"), Ref->Transform->ConstantScale);
+					NMake::Pack(Transform->Set("position"), Offset->Position);
+					NMake::Pack(Transform->Set("rotation"), Offset->Rotation);
+					NMake::Pack(Transform->Set("scale"), Offset->Scale);
+					NMake::Pack(Transform->Set("constant-scale"), Offset->ConstantScale);
 
-					if (Ref->Transform->GetRoot() != nullptr)
+					if (Offset->GetRoot() != nullptr)
 					{
 						Core::Document* Parent = Entity->Set("parent");
-						if (Ref->Transform->GetRoot()->UserPointer)
-							NMake::Pack(Parent->Set("id"), ((Engine::Entity*)Ref->Transform->GetRoot()->UserPointer)->Id);
+						if (Offset->GetRoot()->UserPointer)
+							NMake::Pack(Parent->Set("id"), ((Engine::Entity*)Offset->GetRoot()->UserPointer)->Id);
 
-						NMake::Pack(Parent->Set("position"), *Ref->Transform->GetLocalPosition());
-						NMake::Pack(Parent->Set("rotation"), *Ref->Transform->GetLocalRotation());
-						NMake::Pack(Parent->Set("scale"), *Ref->Transform->GetLocalScale());
-						NMake::Pack(Parent->Set("world"), Ref->Transform->GetWorld());
+						NMake::Pack(Parent->Set("position"), *Offset->GetLocalPosition());
+						NMake::Pack(Parent->Set("rotation"), *Offset->GetLocalRotation());
+						NMake::Pack(Parent->Set("scale"), *Offset->GetLocalScale());
+						NMake::Pack(Parent->Set("world"), Offset->GetWorld());
 					}
 
 					if (!Ref->GetComponentCount())
 						continue;
 
                     Core::Document* Components = Entity->Set("components", Core::Var::Array());
-					for (auto It = Ref->First(); It != Ref->Last(); ++It)
+					for (auto& Item : *Ref)
 					{
 						Core::Document* Component = Components->Set("component");
-						NMake::Pack(Component->Set("id"), It->second->GetId());
-						NMake::Pack(Component->Set("active"), It->second->IsActive());
-						It->second->Serialize(Content, Component->Set("metadata"));
+						NMake::Pack(Component->Set("id"), Item.second->GetId());
+						NMake::Pack(Component->Set("active"), Item.second->IsActive());
+						Item.second->Serialize(Content, Component->Set("metadata"));
 					}
 				}
 

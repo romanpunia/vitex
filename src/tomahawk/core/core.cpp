@@ -1723,6 +1723,7 @@ namespace Tomahawk
 				case VarType::Undefined:
 				case VarType::Object:
 				case VarType::Array:
+					return 0;
 				case VarType::Pointer:
 					return sizeof(void*);
 				case VarType::String:
@@ -7257,6 +7258,7 @@ namespace Tomahawk
 				goto Reuse;
 		}
 		
+		static thread_local bool Subroutine = false;
 		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false), Enqueue(true)
 		{
 			Events = (ConcurrentQueue)TH_NEW(EQueue);
@@ -7421,6 +7423,8 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-task", TH_PERF_ATOM);
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, Callback));
+			Subroutine = true;
+
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
@@ -7435,6 +7439,8 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-task", TH_PERF_ATOM);
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+			Subroutine = true;
+
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
@@ -7455,6 +7461,8 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-async", TH_PERF_ATOM);
 			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, Callback));
+			Subroutine = true;
+
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 			
@@ -7475,6 +7483,8 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-async", TH_PERF_ATOM);
 			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+			Subroutine = true;
+
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
@@ -7742,6 +7752,7 @@ namespace Tomahawk
 			CToken* cToken = (CToken*)Token;
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			TaskCallback* Data = nullptr;
+			Subroutine = false;
 
 			if (State != nullptr)
 			{
@@ -7797,7 +7808,7 @@ namespace Tomahawk
 				{
 					(*Data)();
 					TH_DELETE(function, Data);
-					if (!Threads)
+					if (!Threads && Subroutine)
 						break;
 				}
 
@@ -7814,6 +7825,7 @@ namespace Tomahawk
 			CToken* cToken = (CToken*)Token;
 			TQueue* cTasks = (TQueue*)Tasks;
 			TaskCallback* Data = nullptr;
+			Subroutine = false;
 
 		Resolve:
 			TH_PSTART("dispatch-task", TH_PERF_MAX);
@@ -7821,7 +7833,7 @@ namespace Tomahawk
 			{
 				(*Data)();
 				TH_DELETE(function, Data);
-				if (!Threads)
+				if (!Threads && Subroutine)
 					break;
 			}
 
@@ -7836,34 +7848,30 @@ namespace Tomahawk
 			CToken* cToken = (CToken*)Token;
 			EQueue* cEvents = (EQueue*)Events;
 			EventBase* Data = nullptr;
+			uint32_t Count = 0;
 
 		Resolve:
 			while (cToken ? cEvents->try_dequeue(*cToken, Data) : cEvents->try_dequeue(Data))
 			{
 				Race.Listeners.lock();
 				auto Base = Listeners.find(Data->Name);
-				if (Base == Listeners.end())
+				if (Base != Listeners.end())
+				{
+					auto Array = Base->second->Callbacks;
+					Race.Listeners.unlock();
+
+					SetTask([Data, Array]() mutable
+					{
+						for (auto& Callback : Array)
+							Callback.second(Data->Args);
+						TH_DELETE(EventBase, Data);
+					});
+				}
+				else
 				{
 					Race.Listeners.unlock();
 					TH_DELETE(EventBase, Data);
-					if (!Threads)
-						break;
-
-					continue;
 				}
-
-				auto Array = Base->second->Callbacks;
-				Race.Listeners.unlock();
-
-				SetTask([Data, Array]() mutable
-				{
-					for (auto& Callback : Array)
-						Callback.second(Data->Args);
-					TH_DELETE(EventBase, Data);
-				});
-
-				if (!Threads)
-					break;
 			}
 
 			if (Threads > 0 && cEvents->size_approx() > 0)

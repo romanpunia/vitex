@@ -8,10 +8,10 @@ namespace Tomahawk
 {
 	namespace Script
 	{
-		TH_OUT bool RegisterGuiElementAPI(VMManager* Engine);
-		TH_OUT bool RegisterGuiDocumentAPI(VMManager* Engine);
-		TH_OUT bool RegisterGuiEventAPI(VMManager* Engine);
-		TH_OUT bool RegisterGuiContextAPI(VMManager* Engine);
+		TH_OUT bool GUIRegisterElement(VMManager* Engine);
+		TH_OUT bool GUIRegisterDocument(VMManager* Engine);
+		TH_OUT bool GUIRegisterEvent(VMManager* Engine);
+		TH_OUT bool GUIRegisterContext(VMManager* Engine);
 	}
 }
 #endif

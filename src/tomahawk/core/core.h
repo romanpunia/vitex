@@ -556,6 +556,7 @@ namespace Tomahawk
 			bool operator <=(const DateTime& Right);
 			bool operator >(const DateTime& Right);
 			bool operator <(const DateTime& Right);
+			bool operator ==(const DateTime& Right);
 			std::string Format(const std::string& Value);
 			std::string Date(const std::string& Value);
 			DateTime Now();
@@ -569,8 +570,8 @@ namespace Tomahawk
 			DateTime FromWeeks(uint64_t Value);
 			DateTime FromMonths(uint64_t Value);
 			DateTime FromYears(uint64_t Value);
-			DateTime operator +(const DateTime& Right);
-			DateTime operator -(const DateTime& Right);
+			DateTime operator +(const DateTime& Right) const;
+			DateTime operator -(const DateTime& Right) const;
 			DateTime& SetDateSeconds(uint64_t Value, bool NoFlush = false);
 			DateTime& SetDateMinutes(uint64_t Value, bool NoFlush = false);
 			DateTime& SetDateHours(uint64_t Value, bool NoFlush = false);

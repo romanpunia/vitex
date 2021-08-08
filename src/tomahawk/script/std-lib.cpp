@@ -190,171 +190,171 @@ namespace Tomahawk
 		};
 		StringFactory* StringFactory::Base = nullptr;
 
-		void VMCString::Construct(std::string* Current)
+		void STDString::Construct(std::string* Current)
 		{
 			TH_ASSERT_V(Current != nullptr, "current should be set");
 			new(Current) std::string();
 		}
-		void VMCString::CopyConstruct(const std::string& Other, std::string* Current)
+		void STDString::CopyConstruct(const std::string& Other, std::string* Current)
 		{
 			TH_ASSERT_V(Current != nullptr, "current should be set");
 			new(Current) std::string(Other);
 		}
-		void VMCString::Destruct(std::string* Current)
+		void STDString::Destruct(std::string* Current)
 		{
 			TH_ASSERT_V(Current != nullptr, "current should be set");
 			Current->~basic_string();
 		}
-		std::string& VMCString::AddAssignTo(const std::string& Current, std::string& Dest)
+		std::string& STDString::AddAssignTo(const std::string& Current, std::string& Dest)
 		{
 			Dest += Current;
 			return Dest;
 		}
-		bool VMCString::IsEmpty(const std::string& Current)
+		bool STDString::IsEmpty(const std::string& Current)
 		{
 			return Current.empty();
 		}
-		void* VMCString::ToPtr(const std::string& Value)
+		void* STDString::ToPtr(const std::string& Value)
 		{
 			return (void*)Value.c_str();
 		}
-		std::string VMCString::Reverse(const std::string& Value)
+		std::string STDString::Reverse(const std::string& Value)
 		{
 			Core::Parser Result(Value);
 			Result.Reverse();
 			return Result.R();
 		}
-		std::string& VMCString::AssignUInt64To(as_uint64_t i, std::string& Dest)
+		std::string& STDString::AssignUInt64To(as_uint64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
 			Dest = stream.str();
 			return Dest;
 		}
-		std::string& VMCString::AddAssignUInt64To(as_uint64_t i, std::string& Dest)
+		std::string& STDString::AddAssignUInt64To(as_uint64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
 			Dest += stream.str();
 			return Dest;
 		}
-		std::string VMCString::AddUInt641(const std::string& Current, as_uint64_t i)
+		std::string STDString::AddUInt641(const std::string& Current, as_uint64_t i)
 		{
 			std::ostringstream stream;
 			stream << i;
 			return Current + stream.str();
 		}
-		std::string VMCString::AddInt641(as_int64_t i, const std::string& Current)
+		std::string STDString::AddInt641(as_int64_t i, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << i;
 			return stream.str() + Current;
 		}
-		std::string& VMCString::AssignInt64To(as_int64_t i, std::string& Dest)
+		std::string& STDString::AssignInt64To(as_int64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
 			Dest = stream.str();
 			return Dest;
 		}
-		std::string& VMCString::AddAssignInt64To(as_int64_t i, std::string& Dest)
+		std::string& STDString::AddAssignInt64To(as_int64_t i, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << i;
 			Dest += stream.str();
 			return Dest;
 		}
-		std::string VMCString::AddInt642(const std::string& Current, as_int64_t i)
+		std::string STDString::AddInt642(const std::string& Current, as_int64_t i)
 		{
 			std::ostringstream stream;
 			stream << i;
 			return Current + stream.str();
 		}
-		std::string VMCString::AddUInt642(as_uint64_t i, const std::string& Current)
+		std::string STDString::AddUInt642(as_uint64_t i, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << i;
 			return stream.str() + Current;
 		}
-		std::string& VMCString::AssignDoubleTo(double f, std::string& Dest)
+		std::string& STDString::AssignDoubleTo(double f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
 			Dest = stream.str();
 			return Dest;
 		}
-		std::string& VMCString::AddAssignDoubleTo(double f, std::string& Dest)
+		std::string& STDString::AddAssignDoubleTo(double f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
 			Dest += stream.str();
 			return Dest;
 		}
-		std::string& VMCString::AssignFloatTo(float f, std::string& Dest)
+		std::string& STDString::AssignFloatTo(float f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
 			Dest = stream.str();
 			return Dest;
 		}
-		std::string& VMCString::AddAssignFloatTo(float f, std::string& Dest)
+		std::string& STDString::AddAssignFloatTo(float f, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << f;
 			Dest += stream.str();
 			return Dest;
 		}
-		std::string& VMCString::AssignBoolTo(bool b, std::string& Dest)
+		std::string& STDString::AssignBoolTo(bool b, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
 			Dest = stream.str();
 			return Dest;
 		}
-		std::string& VMCString::AddAssignBoolTo(bool b, std::string& Dest)
+		std::string& STDString::AddAssignBoolTo(bool b, std::string& Dest)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
 			Dest += stream.str();
 			return Dest;
 		}
-		std::string VMCString::AddDouble1(const std::string& Current, double f)
+		std::string STDString::AddDouble1(const std::string& Current, double f)
 		{
 			std::ostringstream stream;
 			stream << f;
 			return Current + stream.str();
 		}
-		std::string VMCString::AddDouble2(double f, const std::string& Current)
+		std::string STDString::AddDouble2(double f, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << f;
 			return stream.str() + Current;
 		}
-		std::string VMCString::AddFloat1(const std::string& Current, float f)
+		std::string STDString::AddFloat1(const std::string& Current, float f)
 		{
 			std::ostringstream stream;
 			stream << f;
 			return Current + stream.str();
 		}
-		std::string VMCString::AddFloat2(float f, const std::string& Current)
+		std::string STDString::AddFloat2(float f, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << f;
 			return stream.str() + Current;
 		}
-		std::string VMCString::AddBool1(const std::string& Current, bool b)
+		std::string STDString::AddBool1(const std::string& Current, bool b)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
 			return Current + stream.str();
 		}
-		std::string VMCString::AddBool2(bool b, const std::string& Current)
+		std::string STDString::AddBool2(bool b, const std::string& Current)
 		{
 			std::ostringstream stream;
 			stream << (b ? "true" : "false");
 			return stream.str() + Current;
 		}
-		char* VMCString::CharAt(unsigned int i, std::string& Current)
+		char* STDString::CharAt(unsigned int i, std::string& Current)
 		{
 			if (i >= Current.size())
 			{
@@ -367,7 +367,7 @@ namespace Tomahawk
 
 			return &Current[i];
 		}
-		int VMCString::Cmp(const std::string& a, const std::string& b)
+		int STDString::Cmp(const std::string& a, const std::string& b)
 		{
 			int cmp = 0;
 			if (a < b)
@@ -377,51 +377,51 @@ namespace Tomahawk
 
 			return cmp;
 		}
-		int VMCString::FindFirst(const std::string& Substr, as_size_t Start, const std::string& Current)
+		int STDString::FindFirst(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
 			return (int)Current.find(Substr, (size_t)Start);
 		}
-		int VMCString::FindFirstOf(const std::string& Substr, as_size_t Start, const std::string& Current)
+		int STDString::FindFirstOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
 			return (int)Current.find_first_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindLastOf(const std::string& Substr, as_size_t Start, const std::string& Current)
+		int STDString::FindLastOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
 			return (int)Current.find_last_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindFirstNotOf(const std::string& Substr, as_size_t Start, const std::string& Current)
+		int STDString::FindFirstNotOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
 			return (int)Current.find_first_not_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindLastNotOf(const std::string& Substr, as_size_t Start, const std::string& Current)
+		int STDString::FindLastNotOf(const std::string& Substr, as_size_t Start, const std::string& Current)
 		{
 			return (int)Current.find_last_not_of(Substr, (size_t)Start);
 		}
-		int VMCString::FindLast(const std::string& Substr, int Start, const std::string& Current)
+		int STDString::FindLast(const std::string& Substr, int Start, const std::string& Current)
 		{
 			return (int)Current.rfind(Substr, (size_t)Start);
 		}
-		void VMCString::Insert(unsigned int Offset, const std::string& Other, std::string& Current)
+		void STDString::Insert(unsigned int Offset, const std::string& Other, std::string& Current)
 		{
 			Current.insert(Offset, Other);
 		}
-		void VMCString::Erase(unsigned int Offset, int count, std::string& Current)
+		void STDString::Erase(unsigned int Offset, int count, std::string& Current)
 		{
 			Current.erase(Offset, (size_t)(count < 0 ? std::string::npos : count));
 		}
-		as_size_t VMCString::Length(const std::string& Current)
+		as_size_t STDString::Length(const std::string& Current)
 		{
 			return (as_size_t)Current.length();
 		}
-		void VMCString::Resize(as_size_t l, std::string& Current)
+		void STDString::Resize(as_size_t l, std::string& Current)
 		{
 			Current.resize(l);
 		}
-		std::string VMCString::Replace(const std::string& a, const std::string& b, uint64_t o, const std::string& Base)
+		std::string STDString::Replace(const std::string& a, const std::string& b, uint64_t o, const std::string& Base)
 		{
 			return Tomahawk::Core::Parser(Base).Replace(a, b, o).R();
 		}
-		as_int64_t VMCString::IntStore(const std::string& Value, as_size_t Base, as_size_t* ByteCount)
+		as_int64_t STDString::IntStore(const std::string& Value, as_size_t Base, as_size_t* ByteCount)
 		{
 			if (Base != 10 && Base != 16)
 			{
@@ -472,7 +472,7 @@ namespace Tomahawk
 
 			return res;
 		}
-		as_uint64_t VMCString::UIntStore(const std::string& Value, as_size_t Base, as_size_t* ByteCount)
+		as_uint64_t STDString::UIntStore(const std::string& Value, as_size_t Base, as_size_t* ByteCount)
 		{
 			if (Base != 10 && Base != 16)
 			{
@@ -511,7 +511,7 @@ namespace Tomahawk
 
 			return res;
 		}
-		double VMCString::FloatStore(const std::string& Value, as_size_t* ByteCount)
+		double STDString::FloatStore(const std::string& Value, as_size_t* ByteCount)
 		{
 			char* end;
 #if !defined(_WIN32_WCE) && !defined(ANDROID) && !defined(__psp2__)
@@ -529,7 +529,7 @@ namespace Tomahawk
 
 			return res;
 		}
-		std::string VMCString::Sub(as_size_t Start, int count, const std::string& Current)
+		std::string STDString::Sub(as_size_t Start, int count, const std::string& Current)
 		{
 			std::string ret;
 			if (Start < Current.length() && count != 0)
@@ -537,64 +537,64 @@ namespace Tomahawk
 
 			return ret;
 		}
-		bool VMCString::Equals(const std::string& lhs, const std::string& rhs)
+		bool STDString::Equals(const std::string& lhs, const std::string& rhs)
 		{
 			return lhs == rhs;
 		}
-		std::string VMCString::ToLower(const std::string& Symbol)
+		std::string STDString::ToLower(const std::string& Symbol)
 		{
 			return Tomahawk::Core::Parser(Symbol).ToLower().R();
 		}
-		std::string VMCString::ToUpper(const std::string& Symbol)
+		std::string STDString::ToUpper(const std::string& Symbol)
 		{
 			return Tomahawk::Core::Parser(Symbol).ToUpper().R();
 		}
-		std::string VMCString::ToInt8(char Value)
+		std::string STDString::ToInt8(char Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToInt16(short Value)
+		std::string STDString::ToInt16(short Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToInt(int Value)
+		std::string STDString::ToInt(int Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToInt64(int64_t Value)
+		std::string STDString::ToInt64(int64_t Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToUInt8(unsigned char Value)
+		std::string STDString::ToUInt8(unsigned char Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToUInt16(unsigned short Value)
+		std::string STDString::ToUInt16(unsigned short Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToUInt(unsigned int Value)
+		std::string STDString::ToUInt(unsigned int Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToUInt64(uint64_t Value)
+		std::string STDString::ToUInt64(uint64_t Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToFloat(float Value)
+		std::string STDString::ToFloat(float Value)
 		{
 			return std::to_string(Value);
 		}
-		std::string VMCString::ToDouble(double Value)
+		std::string STDString::ToDouble(double Value)
 		{
 			return std::to_string(Value);
 		}
-		VMCArray* VMCString::Split(const std::string& delim, const std::string& Current)
+		STDArray* STDString::Split(const std::string& delim, const std::string& Current)
 		{
 			VMCContext* ctx = asGetActiveContext();
 			VMCManager* engine = ctx->GetEngine();
 			asITypeInfo* arrayType = engine->GetTypeInfoByDecl("Array<String>@");
-			VMCArray* array = VMCArray::Create(arrayType);
+			STDArray* array = STDArray::Create(arrayType);
 
 			int Offset = 0, prev = 0, count = 0;
 			while ((Offset = (int)Current.find(delim, prev)) != (int)std::string::npos)
@@ -609,7 +609,7 @@ namespace Tomahawk
 			((std::string*)array->At(count))->assign(&Current[prev]);
 			return array;
 		}
-		std::string VMCString::Join(const VMCArray& array, const std::string& delim)
+		std::string STDString::Join(const STDArray& array, const std::string& delim)
 		{
 			std::string Current = "";
 			if (!array.GetSize())
@@ -625,41 +625,41 @@ namespace Tomahawk
 			Current += *(std::string*)array.At(n);
 			return Current;
 		}
-		char VMCString::ToChar(const std::string& Symbol)
+		char STDString::ToChar(const std::string& Symbol)
 		{
 			return Symbol.empty() ? '\0' : Symbol[0];
 		}
 
-		VMCMutex::VMCMutex() : Ref(1)
+		STDMutex::STDMutex() : Ref(1)
 		{
 		}
-		void VMCMutex::Release()
+		void STDMutex::Release()
 		{
 			if (asAtomicDec(Ref) <= 0)
 			{
-				this->~VMCMutex();
+				this->~STDMutex();
 				asFreeMem((void*)this);
 			}
 		}
-		void VMCMutex::AddRef()
+		void STDMutex::AddRef()
 		{
 			asAtomicInc(Ref);
 		}
-		bool VMCMutex::TryLock()
+		bool STDMutex::TryLock()
 		{
 			return Base.try_lock();
 		}
-		void VMCMutex::Lock()
+		void STDMutex::Lock()
 		{
 			Base.lock();
 		}
-		void VMCMutex::Unlock()
+		void STDMutex::Unlock()
 		{
 			Base.unlock();
 		}
-		VMCMutex* VMCMutex::Factory()
+		STDMutex* STDMutex::Factory()
 		{
-			void* Data = asAllocMem(sizeof(VMCMutex));
+			void* Data = asAllocMem(sizeof(STDMutex));
 			if (!Data)
 			{
 				VMCContext* Context = asGetActiveContext();
@@ -669,26 +669,26 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			return new(Data) VMCMutex();
+			return new(Data) STDMutex();
 		}
 
-		float VMCMath::FpFromIEEE(as_size_t raw)
+		float STDMath::FpFromIEEE(as_size_t raw)
 		{
 			return *reinterpret_cast<float*>(&raw);
 		}
-		as_size_t VMCMath::FpToIEEE(float fp)
+		as_size_t STDMath::FpToIEEE(float fp)
 		{
 			return *reinterpret_cast<as_size_t*>(&fp);
 		}
-		double VMCMath::FpFromIEEE(as_uint64_t raw)
+		double STDMath::FpFromIEEE(as_uint64_t raw)
 		{
 			return *reinterpret_cast<double*>(&raw);
 		}
-		as_uint64_t VMCMath::FpToIEEE(double fp)
+		as_uint64_t STDMath::FpToIEEE(double fp)
 		{
 			return *reinterpret_cast<as_uint64_t*>(&fp);
 		}
-		bool VMCMath::CloseTo(float a, float b, float epsilon)
+		bool STDMath::CloseTo(float a, float b, float epsilon)
 		{
 			if (a == b)
 				return true;
@@ -699,7 +699,7 @@ namespace Tomahawk
 
 			return diff / (fabs(a) + fabs(b)) < epsilon;
 		}
-		bool VMCMath::CloseTo(double a, double b, double epsilon)
+		bool STDMath::CloseTo(double a, double b, double epsilon)
 		{
 			if (a == b)
 				return true;
@@ -711,13 +711,13 @@ namespace Tomahawk
 			return diff / (fabs(a) + fabs(b)) < epsilon;
 		}
 
-		void VMCException::Throw(const std::string& In)
+		void STDException::Throw(const std::string& In)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (Context != nullptr)
 				Context->SetException(In.empty() ? "runtime exception" : In.c_str());
 		}
-		std::string VMCException::GetException()
+		std::string STDException::GetException()
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
@@ -730,7 +730,7 @@ namespace Tomahawk
 			return Message;
 		}
 
-		VMCAny::VMCAny(VMCManager* fEngine)
+		STDAny::STDAny(VMCManager* fEngine)
 		{
 			Engine = fEngine;
 			RefCount = 1;
@@ -740,7 +740,7 @@ namespace Tomahawk
 
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Any"));
 		}
-		VMCAny::VMCAny(void* Ref, int RefTypeId, VMCManager* fEngine)
+		STDAny::STDAny(void* Ref, int RefTypeId, VMCManager* fEngine)
 		{
 			Engine = fEngine;
 			RefCount = 1;
@@ -751,7 +751,7 @@ namespace Tomahawk
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Any"));
 			Store(Ref, RefTypeId);
 		}
-		VMCAny::VMCAny(const VMCAny& Other)
+		STDAny::STDAny(const STDAny& Other)
 		{
 			Engine = Other.Engine;
 			RefCount = 1;
@@ -778,11 +778,11 @@ namespace Tomahawk
 			else
 				Value.ValueInt = Other.Value.ValueInt;
 		}
-		VMCAny::~VMCAny()
+		STDAny::~STDAny()
 		{
 			FreeObject();
 		}
-		VMCAny& VMCAny::operator=(const VMCAny& Other)
+		STDAny& STDAny::operator=(const STDAny& Other)
 		{
 			if ((Other.Value.TypeId & asTYPEID_MASK_OBJECT))
 			{
@@ -806,15 +806,15 @@ namespace Tomahawk
 
 			return *this;
 		}
-		int VMCAny::CopyFrom(const VMCAny* Other)
+		int STDAny::CopyFrom(const STDAny* Other)
 		{
 			if (Other == 0)
 				return asINVALID_ARG;
 
-			*this = *(VMCAny*)Other;
+			*this = *(STDAny*)Other;
 			return 0;
 		}
-		void VMCAny::Store(void* Ref, int RefTypeId)
+		void STDAny::Store(void* Ref, int RefTypeId)
 		{
 			if ((RefTypeId & asTYPEID_MASK_OBJECT))
 			{
@@ -843,7 +843,7 @@ namespace Tomahawk
 				memcpy(&Value.ValueInt, Ref, Size);
 			}
 		}
-		bool VMCAny::Retrieve(void* Ref, int RefTypeId) const
+		bool STDAny::Retrieve(void* Ref, int RefTypeId) const
 		{
 			if (RefTypeId & asTYPEID_OBJHANDLE)
 			{
@@ -881,11 +881,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		int VMCAny::GetTypeId() const
+		int STDAny::GetTypeId() const
 		{
 			return Value.TypeId;
 		}
-		void VMCAny::FreeObject()
+		void STDAny::FreeObject()
 		{
 			if (Value.TypeId & asTYPEID_MASK_OBJECT)
 			{
@@ -899,7 +899,7 @@ namespace Tomahawk
 				Value.TypeId = 0;
 			}
 		}
-		void VMCAny::EnumReferences(VMCManager* InEngine)
+		void STDAny::EnumReferences(VMCManager* InEngine)
 		{
 			if (Value.ValueObj && (Value.TypeId & asTYPEID_MASK_OBJECT))
 			{
@@ -914,79 +914,79 @@ namespace Tomahawk
 					InEngine->GCEnumCallback(T);
 			}
 		}
-		void VMCAny::ReleaseAllHandles(VMCManager*)
+		void STDAny::ReleaseAllHandles(VMCManager*)
 		{
 			FreeObject();
 		}
-		int VMCAny::AddRef() const
+		int STDAny::AddRef() const
 		{
 			GCFlag = false;
 			return asAtomicInc(RefCount);
 		}
-		int VMCAny::Release() const
+		int STDAny::Release() const
 		{
 			GCFlag = false;
 			if (asAtomicDec(RefCount) == 0)
 			{
-				this->~VMCAny();
+				this->~STDAny();
 				asFreeMem((void*)this);
 				return 0;
 			}
 
 			return RefCount;
 		}
-		int VMCAny::GetRefCount()
+		int STDAny::GetRefCount()
 		{
 			return RefCount;
 		}
-		void VMCAny::SetFlag()
+		void STDAny::SetFlag()
 		{
 			GCFlag = true;
 		}
-		bool VMCAny::GetFlag()
+		bool STDAny::GetFlag()
 		{
 			return GCFlag;
 		}
-		VMCAny* VMCAny::Create(int TypeId, void* Ref)
+		STDAny* STDAny::Create(int TypeId, void* Ref)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
 				return nullptr;
 
-			void* Data = asAllocMem(sizeof(VMCAny));
-			return new(Data) VMCAny(Ref, TypeId, Context->GetEngine());
+			void* Data = asAllocMem(sizeof(STDAny));
+			return new(Data) STDAny(Ref, TypeId, Context->GetEngine());
 		}
-		VMCAny* VMCAny::Create(const char* Decl, void* Ref)
+		STDAny* STDAny::Create(const char* Decl, void* Ref)
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
 				return nullptr;
 
 			VMCManager* Engine = Context->GetEngine();
-			void* Data = asAllocMem(sizeof(VMCAny));
-			return new(Data) VMCAny(Ref, Engine->GetTypeIdByDecl(Decl), Engine);
+			void* Data = asAllocMem(sizeof(STDAny));
+			return new(Data) STDAny(Ref, Engine->GetTypeIdByDecl(Decl), Engine);
 		}
-		void VMCAny::Factory1(VMCGeneric* G)
+		void STDAny::Factory1(VMCGeneric* G)
 		{
 			VMCManager* Engine = G->GetEngine();
-			void* Mem = asAllocMem(sizeof(VMCAny));
-			*(VMCAny**)G->GetAddressOfReturnLocation() = new(Mem) VMCAny(Engine);
+			void* Mem = asAllocMem(sizeof(STDAny));
+			*(STDAny**)G->GetAddressOfReturnLocation() = new(Mem) STDAny(Engine);
 		}
-		void VMCAny::Factory2(VMCGeneric* G)
+		void STDAny::Factory2(VMCGeneric* G)
 		{
 			VMCManager* Engine = G->GetEngine();
 			void* Ref = (void*)G->GetArgAddress(0);
-			void* Mem = asAllocMem(sizeof(VMCAny));
+			void* Mem = asAllocMem(sizeof(STDAny));
 			int RefType = G->GetArgTypeId(0);
 
-			*(VMCAny**)G->GetAddressOfReturnLocation() = new(Mem) VMCAny(Ref, RefType, Engine);
+			*(STDAny**)G->GetAddressOfReturnLocation() = new(Mem) STDAny(Ref, RefType, Engine);
 		}
-		VMCAny& VMCAny::Assignment(VMCAny* Other, VMCAny* Self)
+		STDAny& STDAny::Assignment(STDAny* Other, STDAny* Self)
 		{
 			return *Self = *Other;
 		}
 
-		VMCArray& VMCArray::operator=(const VMCArray& Other)
+		STDArray& STDArray::operator=(const STDArray& Other)
 		{
 			if (&Other != this && Other.GetArrayObjectType() == GetArrayObjectType())
 			{
@@ -996,7 +996,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		VMCArray::VMCArray(VMCTypeInfo* TI, void* buf)
+		STDArray::STDArray(VMCTypeInfo* TI, void* buf)
 		{
 			assert(TI && std::string(TI->GetName()) == "Array");
 			RefCount = 1;
@@ -1056,7 +1056,7 @@ namespace Tomahawk
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 		}
-		VMCArray::VMCArray(as_size_t length, VMCTypeInfo* TI)
+		STDArray::STDArray(as_size_t length, VMCTypeInfo* TI)
 		{
 			assert(TI && std::string(TI->GetName()) == "Array");
 			RefCount = 1;
@@ -1078,7 +1078,7 @@ namespace Tomahawk
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 		}
-		VMCArray::VMCArray(const VMCArray& Other)
+		STDArray::STDArray(const STDArray& Other)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -1094,7 +1094,7 @@ namespace Tomahawk
 			CreateBuffer(&Buffer, 0);
 			*this = Other;
 		}
-		VMCArray::VMCArray(as_size_t length, void* defVal, VMCTypeInfo* TI)
+		STDArray::STDArray(as_size_t length, void* defVal, VMCTypeInfo* TI)
 		{
 			assert(TI && std::string(TI->GetName()) == "Array");
 			RefCount = 1;
@@ -1119,7 +1119,7 @@ namespace Tomahawk
 			for (as_size_t n = 0; n < GetSize(); n++)
 				SetValue(n, defVal);
 		}
-		void VMCArray::SetValue(as_size_t index, void* value)
+		void STDArray::SetValue(as_size_t index, void* value)
 		{
 			void* ptr = At(index);
 			if (ptr == 0)
@@ -1152,7 +1152,7 @@ namespace Tomahawk
 				SubTypeId == asTYPEID_DOUBLE)
 				*(double*)ptr = *(double*)value;
 		}
-		VMCArray::~VMCArray()
+		STDArray::~STDArray()
 		{
 			if (Buffer)
 			{
@@ -1162,15 +1162,15 @@ namespace Tomahawk
 			if (ObjType)
 				ObjType->Release();
 		}
-		as_size_t VMCArray::GetSize() const
+		as_size_t STDArray::GetSize() const
 		{
 			return Buffer->NumElements;
 		}
-		bool VMCArray::IsEmpty() const
+		bool STDArray::IsEmpty() const
 		{
 			return Buffer->NumElements == 0;
 		}
-		void VMCArray::Reserve(as_size_t MaxElements)
+		void STDArray::Reserve(as_size_t MaxElements)
 		{
 			if (MaxElements <= Buffer->MaxElements)
 				return;
@@ -1196,14 +1196,14 @@ namespace Tomahawk
 			asFreeMem(Buffer);
 			Buffer = newBuffer;
 		}
-		void VMCArray::Resize(as_size_t NumElements)
+		void STDArray::Resize(as_size_t NumElements)
 		{
 			if (!CheckMaxSize(NumElements))
 				return;
 
 			Resize((int)NumElements - (int)Buffer->NumElements, (as_size_t)-1);
 		}
-		void VMCArray::RemoveRange(as_size_t Start, as_size_t count)
+		void STDArray::RemoveRange(as_size_t Start, as_size_t count)
 		{
 			if (count == 0)
 				return;
@@ -1223,7 +1223,7 @@ namespace Tomahawk
 			memmove(Buffer->Data + Start * (as_size_t)ElementSize, Buffer->Data + (Start + count) * (as_size_t)ElementSize, (size_t)(Buffer->NumElements - Start - count) * (size_t)ElementSize);
 			Buffer->NumElements -= count;
 		}
-		void VMCArray::Resize(int delta, as_size_t at)
+		void STDArray::Resize(int delta, as_size_t at)
 		{
 			if (delta < 0)
 			{
@@ -1282,7 +1282,7 @@ namespace Tomahawk
 				Buffer->NumElements += delta;
 			}
 		}
-		bool VMCArray::CheckMaxSize(as_size_t NumElements)
+		bool STDArray::CheckMaxSize(as_size_t NumElements)
 		{
 			as_size_t maxSize = 0xFFFFFFFFul - sizeof(SBuffer) + 1;
 			if (ElementSize > 0)
@@ -1299,19 +1299,19 @@ namespace Tomahawk
 
 			return true;
 		}
-		VMCTypeInfo* VMCArray::GetArrayObjectType() const
+		VMCTypeInfo* STDArray::GetArrayObjectType() const
 		{
 			return ObjType;
 		}
-		int VMCArray::GetArrayTypeId() const
+		int STDArray::GetArrayTypeId() const
 		{
 			return ObjType->GetTypeId();
 		}
-		int VMCArray::GetElementTypeId() const
+		int STDArray::GetElementTypeId() const
 		{
 			return SubTypeId;
 		}
-		void VMCArray::InsertAt(as_size_t index, void* value)
+		void STDArray::InsertAt(as_size_t index, void* value)
 		{
 			if (index > Buffer->NumElements)
 			{
@@ -1324,7 +1324,7 @@ namespace Tomahawk
 			Resize(1, index);
 			SetValue(index, value);
 		}
-		void VMCArray::InsertAt(as_size_t index, const VMCArray& arr)
+		void STDArray::InsertAt(as_size_t index, const STDArray& arr)
 		{
 			if (index > Buffer->NumElements)
 			{
@@ -1367,11 +1367,11 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCArray::InsertLast(void* value)
+		void STDArray::InsertLast(void* value)
 		{
 			InsertAt(Buffer->NumElements, value);
 		}
-		void VMCArray::RemoveAt(as_size_t index)
+		void STDArray::RemoveAt(as_size_t index)
 		{
 			if (index >= Buffer->NumElements)
 			{
@@ -1383,11 +1383,11 @@ namespace Tomahawk
 
 			Resize(-1, index);
 		}
-		void VMCArray::RemoveLast()
+		void STDArray::RemoveLast()
 		{
 			RemoveAt(Buffer->NumElements - 1);
 		}
-		const void* VMCArray::At(as_size_t index) const
+		const void* STDArray::At(as_size_t index) const
 		{
 			if (Buffer == 0 || index >= Buffer->NumElements)
 			{
@@ -1402,15 +1402,15 @@ namespace Tomahawk
 			else
 				return Buffer->Data + (as_size_t)ElementSize * index;
 		}
-		void* VMCArray::At(as_size_t index)
+		void* STDArray::At(as_size_t index)
 		{
-			return const_cast<void*>(const_cast<const VMCArray*>(this)->At(index));
+			return const_cast<void*>(const_cast<const STDArray*>(this)->At(index));
 		}
-		void* VMCArray::GetBuffer()
+		void* STDArray::GetBuffer()
 		{
 			return Buffer->Data;
 		}
-		void VMCArray::CreateBuffer(SBuffer** buf, as_size_t NumElements)
+		void STDArray::CreateBuffer(SBuffer** buf, as_size_t NumElements)
 		{
 			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)NumElements));
 			if (*buf)
@@ -1426,12 +1426,12 @@ namespace Tomahawk
 					ctx->SetException("Out of memory");
 			}
 		}
-		void VMCArray::DeleteBuffer(SBuffer* buf)
+		void STDArray::DeleteBuffer(SBuffer* buf)
 		{
 			Destruct(buf, 0, buf->NumElements);
 			asFreeMem(buf);
 		}
-		void VMCArray::Construct(SBuffer* buf, as_size_t Start, as_size_t end)
+		void STDArray::Construct(SBuffer* buf, as_size_t Start, as_size_t end)
 		{
 			if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
 			{
@@ -1457,7 +1457,7 @@ namespace Tomahawk
 				memset(d, 0, (size_t)(end - Start) * (size_t)ElementSize);
 			}
 		}
-		void VMCArray::Destruct(SBuffer* buf, as_size_t Start, as_size_t end)
+		void STDArray::Destruct(SBuffer* buf, as_size_t Start, as_size_t end)
 		{
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 			{
@@ -1472,7 +1472,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		bool VMCArray::Less(const void* a, const void* b, bool asc, VMCContext* ctx, SCache* cache)
+		bool STDArray::Less(const void* a, const void* b, bool asc, VMCContext* ctx, SCache* cache)
 		{
 			if (!asc)
 			{
@@ -1533,7 +1533,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		void VMCArray::Reverse()
+		void STDArray::Reverse()
 		{
 			as_size_t size = GetSize();
 			if (size >= 2)
@@ -1547,7 +1547,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		bool VMCArray::operator==(const VMCArray& Other) const
+		bool STDArray::operator==(const STDArray& Other) const
 		{
 			if (ObjType != Other.ObjType)
 				return false;
@@ -1599,7 +1599,7 @@ namespace Tomahawk
 
 			return isEqual;
 		}
-		bool VMCArray::Equals(const void* a, const void* b, VMCContext* ctx, SCache* cache) const
+		bool STDArray::Equals(const void* a, const void* b, VMCContext* ctx, SCache* cache) const
 		{
 			if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
 			{
@@ -1674,11 +1674,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		int VMCArray::FindByRef(void* ref) const
+		int STDArray::FindByRef(void* ref) const
 		{
 			return FindByRef(0, ref);
 		}
-		int VMCArray::FindByRef(as_size_t startAt, void* ref) const
+		int STDArray::FindByRef(as_size_t startAt, void* ref) const
 		{
 			as_size_t size = GetSize();
 			if (SubTypeId & asTYPEID_OBJHANDLE)
@@ -1701,11 +1701,11 @@ namespace Tomahawk
 
 			return -1;
 		}
-		int VMCArray::Find(void* value) const
+		int STDArray::Find(void* value) const
 		{
 			return Find(0, value);
 		}
-		int VMCArray::Find(as_size_t startAt, void* value) const
+		int STDArray::Find(as_size_t startAt, void* value) const
 		{
 			SCache* cache = 0;
 			if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
@@ -1781,38 +1781,38 @@ namespace Tomahawk
 
 			return ret;
 		}
-		void VMCArray::Copy(void* dst, void* src)
+		void STDArray::Copy(void* dst, void* src)
 		{
 			memcpy(dst, src, ElementSize);
 		}
-		void* VMCArray::GetArrayItemPointer(int index)
+		void* STDArray::GetArrayItemPointer(int index)
 		{
 			return Buffer->Data + index * ElementSize;
 		}
-		void* VMCArray::GetDataPointer(void* buf)
+		void* STDArray::GetDataPointer(void* buf)
 		{
 			if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
 				return reinterpret_cast<void*>(*(size_t*)buf);
 			else
 				return buf;
 		}
-		void VMCArray::SortAsc()
+		void STDArray::SortAsc()
 		{
 			Sort(0, GetSize(), true);
 		}
-		void VMCArray::SortAsc(as_size_t startAt, as_size_t count)
+		void STDArray::SortAsc(as_size_t startAt, as_size_t count)
 		{
 			Sort(startAt, count, true);
 		}
-		void VMCArray::SortDesc()
+		void STDArray::SortDesc()
 		{
 			Sort(0, GetSize(), false);
 		}
-		void VMCArray::SortDesc(as_size_t startAt, as_size_t count)
+		void STDArray::SortDesc(as_size_t startAt, as_size_t count)
 		{
 			Sort(startAt, count, false);
 		}
-		void VMCArray::Sort(as_size_t startAt, as_size_t count, bool asc)
+		void STDArray::Sort(as_size_t startAt, as_size_t count, bool asc)
 		{
 			SCache* cache = reinterpret_cast<SCache*>(ObjType->GetUserData(ARRAY_CACHE));
 			if (SubTypeId & ~asTYPEID_MASK_SEQNBR)
@@ -1904,7 +1904,7 @@ namespace Tomahawk
 					ObjType->GetEngine()->ReturnContext(cmpContext);
 			}
 		}
-		void VMCArray::Sort(asIScriptFunction* func, as_size_t startAt, as_size_t count)
+		void STDArray::Sort(asIScriptFunction* func, as_size_t startAt, as_size_t count)
 		{
 			if (count < 2)
 				return;
@@ -1978,7 +1978,7 @@ namespace Tomahawk
 			else
 				ObjType->GetEngine()->ReturnContext(cmpContext);
 		}
-		void VMCArray::CopyBuffer(SBuffer* dst, SBuffer* src)
+		void STDArray::CopyBuffer(SBuffer* dst, SBuffer* src)
 		{
 			VMCManager* engine = ObjType->GetEngine();
 			if (SubTypeId & asTYPEID_OBJHANDLE)
@@ -2023,7 +2023,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCArray::Precache()
+		void STDArray::Precache()
 		{
 			SubTypeId = ObjType->GetSubTypeId();
 			if (!(SubTypeId & ~asTYPEID_MASK_SEQNBR))
@@ -2128,7 +2128,7 @@ namespace Tomahawk
 			ObjType->SetUserData(cache, ARRAY_CACHE);
 			asReleaseExclusiveLock();
 		}
-		void VMCArray::EnumReferences(VMCManager* engine)
+		void STDArray::EnumReferences(VMCManager* engine)
 		{
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
 			{
@@ -2152,39 +2152,39 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCArray::ReleaseAllHandles(VMCManager*)
+		void STDArray::ReleaseAllHandles(VMCManager*)
 		{
 			Resize(0);
 		}
-		void VMCArray::AddRef() const
+		void STDArray::AddRef() const
 		{
 			GCFlag = false;
 			asAtomicInc(RefCount);
 		}
-		void VMCArray::Release() const
+		void STDArray::Release() const
 		{
 			GCFlag = false;
 			if (asAtomicDec(RefCount) == 0)
 			{
-				this->~VMCArray();
-				asFreeMem(const_cast<VMCArray*>(this));
+				this->~STDArray();
+				asFreeMem(const_cast<STDArray*>(this));
 			}
 		}
-		int VMCArray::GetRefCount()
+		int STDArray::GetRefCount()
 		{
 			return RefCount;
 		}
-		void VMCArray::SetFlag()
+		void STDArray::SetFlag()
 		{
 			GCFlag = true;
 		}
-		bool VMCArray::GetFlag()
+		bool STDArray::GetFlag()
 		{
 			return GCFlag;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo* TI, as_size_t length)
+		STDArray* STDArray::Create(VMCTypeInfo* TI, as_size_t length)
 		{
-			void* mem = asAllocMem(sizeof(VMCArray));
+			void* mem = asAllocMem(sizeof(STDArray));
 			if (mem == 0)
 			{
 				VMCContext* ctx = asGetActiveContext();
@@ -2194,12 +2194,12 @@ namespace Tomahawk
 				return 0;
 			}
 
-			VMCArray* a = new(mem) VMCArray(length, TI);
+			STDArray* a = new(mem) STDArray(length, TI);
 			return a;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo* TI, void* initList)
+		STDArray* STDArray::Create(VMCTypeInfo* TI, void* initList)
 		{
-			void* mem = asAllocMem(sizeof(VMCArray));
+			void* mem = asAllocMem(sizeof(STDArray));
 			if (mem == 0)
 			{
 				VMCContext* ctx = asGetActiveContext();
@@ -2209,12 +2209,12 @@ namespace Tomahawk
 				return 0;
 			}
 
-			VMCArray* a = new(mem) VMCArray(TI, initList);
+			STDArray* a = new(mem) STDArray(TI, initList);
 			return a;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo* TI, as_size_t length, void* defVal)
+		STDArray* STDArray::Create(VMCTypeInfo* TI, as_size_t length, void* defVal)
 		{
-			void* mem = asAllocMem(sizeof(VMCArray));
+			void* mem = asAllocMem(sizeof(STDArray));
 			if (mem == 0)
 			{
 				VMCContext* ctx = asGetActiveContext();
@@ -2224,23 +2224,23 @@ namespace Tomahawk
 				return 0;
 			}
 
-			VMCArray* a = new(mem) VMCArray(length, defVal, TI);
+			STDArray* a = new(mem) STDArray(length, defVal, TI);
 			return a;
 		}
-		VMCArray* VMCArray::Create(VMCTypeInfo* TI)
+		STDArray* STDArray::Create(VMCTypeInfo* TI)
 		{
-			return VMCArray::Create(TI, as_size_t(0));
+			return STDArray::Create(TI, as_size_t(0));
 		}
-		void VMCArray::CleanupTypeInfoCache(VMCTypeInfo* Type)
+		void STDArray::CleanupTypeInfoCache(VMCTypeInfo* Type)
 		{
-			VMCArray::SCache* Cache = reinterpret_cast<VMCArray::SCache*>(Type->GetUserData(ARRAY_CACHE));
+			STDArray::SCache* Cache = reinterpret_cast<STDArray::SCache*>(Type->GetUserData(ARRAY_CACHE));
 			if (Cache != nullptr)
 			{
 				Cache->~SCache();
 				asFreeMem(Cache);
 			}
 		}
-		bool VMCArray::TemplateCallback(VMCTypeInfo* T, bool& DontGarbageCollect)
+		bool STDArray::TemplateCallback(VMCTypeInfo* T, bool& DontGarbageCollect)
 		{
 			int TypeId = T->GetSubTypeId();
 			if (TypeId == asTYPEID_VOID)
@@ -2326,18 +2326,18 @@ namespace Tomahawk
 			return true;
 		}
 
-		VMCMapKey::VMCMapKey()
+		STDMapKey::STDMapKey()
 		{
 			ValueObj = 0;
 			TypeId = 0;
 		}
-		VMCMapKey::VMCMapKey(VMCManager* engine, void* value, int typeId)
+		STDMapKey::STDMapKey(VMCManager* engine, void* value, int typeId)
 		{
 			ValueObj = 0;
 			TypeId = 0;
 			Set(engine, value, typeId);
 		}
-		VMCMapKey::~VMCMapKey()
+		STDMapKey::~STDMapKey()
 		{
 			if (ValueObj && TypeId)
 			{
@@ -2350,7 +2350,7 @@ namespace Tomahawk
 					FreeValue(ctx->GetEngine());
 			}
 		}
-		void VMCMapKey::FreeValue(VMCManager* engine)
+		void STDMapKey::FreeValue(VMCManager* engine)
 		{
 			if (TypeId & asTYPEID_MASK_OBJECT)
 			{
@@ -2359,7 +2359,7 @@ namespace Tomahawk
 				TypeId = 0;
 			}
 		}
-		void VMCMapKey::EnumReferences(VMCManager* inEngine)
+		void STDMapKey::EnumReferences(VMCManager* inEngine)
 		{
 			if (ValueObj)
 				inEngine->GCEnumCallback(ValueObj);
@@ -2367,7 +2367,7 @@ namespace Tomahawk
 			if (TypeId)
 				inEngine->GCEnumCallback(inEngine->GetTypeInfoById(TypeId));
 		}
-		void VMCMapKey::Set(VMCManager* engine, void* value, int typeId)
+		void STDMapKey::Set(VMCManager* engine, void* value, int typeId)
 		{
 			FreeValue(engine);
 			TypeId = typeId;
@@ -2393,7 +2393,7 @@ namespace Tomahawk
 				memcpy(&ValueInt, value, size);
 			}
 		}
-		void VMCMapKey::Set(VMCManager* engine, VMCMapKey& value)
+		void STDMapKey::Set(VMCManager* engine, STDMapKey& value)
 		{
 			if (value.TypeId & asTYPEID_OBJHANDLE)
 				Set(engine, (void*)&value.ValueObj, value.TypeId);
@@ -2402,7 +2402,7 @@ namespace Tomahawk
 			else
 				Set(engine, (void*)&value.ValueInt, value.TypeId);
 		}
-		bool VMCMapKey::Get(VMCManager* engine, void* value, int typeId) const
+		bool STDMapKey::Get(VMCManager* engine, void* value, int typeId) const
 		{
 			if (typeId & asTYPEID_OBJHANDLE)
 			{
@@ -2541,68 +2541,68 @@ namespace Tomahawk
 
 			return false;
 		}
-		const void* VMCMapKey::GetAddressOfValue() const
+		const void* STDMapKey::GetAddressOfValue() const
 		{
 			if ((TypeId & asTYPEID_MASK_OBJECT) && !(TypeId & asTYPEID_OBJHANDLE))
 				return ValueObj;
 
 			return reinterpret_cast<const void*>(&ValueObj);
 		}
-		int VMCMapKey::GetTypeId() const
+		int STDMapKey::GetTypeId() const
 		{
 			return TypeId;
 		}
 
-		VMCMap::Iterator::Iterator(const VMCMap& Dict, Map::const_iterator it) : It(it), Dict(Dict)
+		STDMap::Iterator::Iterator(const STDMap& Dict, Map::const_iterator it) : It(it), Dict(Dict)
 		{
 		}
-		void VMCMap::Iterator::operator++()
-		{
-			++It;
-		}
-		void VMCMap::Iterator::operator++(int)
+		void STDMap::Iterator::operator++()
 		{
 			++It;
 		}
-		VMCMap::Iterator& VMCMap::Iterator::operator*()
+		void STDMap::Iterator::operator++(int)
+		{
+			++It;
+		}
+		STDMap::Iterator& STDMap::Iterator::operator*()
 		{
 			return *this;
 		}
-		bool VMCMap::Iterator::operator==(const Iterator& Other) const
+		bool STDMap::Iterator::operator==(const Iterator& Other) const
 		{
 			return It == Other.It;
 		}
-		bool VMCMap::Iterator::operator!=(const Iterator& Other) const
+		bool STDMap::Iterator::operator!=(const Iterator& Other) const
 		{
 			return It != Other.It;
 		}
-		const std::string& VMCMap::Iterator::GetKey() const
+		const std::string& STDMap::Iterator::GetKey() const
 		{
 			return It->first;
 		}
-		int VMCMap::Iterator::GetTypeId() const
+		int STDMap::Iterator::GetTypeId() const
 		{
 			return It->second.TypeId;
 		}
-		bool VMCMap::Iterator::GetValue(void* value, int typeId) const
+		bool STDMap::Iterator::GetValue(void* value, int typeId) const
 		{
 			return It->second.Get(Dict.Engine, value, typeId);
 		}
-		const void* VMCMap::Iterator::GetAddressOfValue() const
+		const void* STDMap::Iterator::GetAddressOfValue() const
 		{
 			return It->second.GetAddressOfValue();
 		}
 
-		VMCMap::VMCMap(VMCManager* engine)
+		STDMap::STDMap(VMCManager* engine)
 		{
 			Init(engine);
 		}
-		VMCMap::VMCMap(unsigned char* buffer)
+		STDMap::STDMap(unsigned char* buffer)
 		{
 			VMCContext* ctx = asGetActiveContext();
 			Init(ctx->GetEngine());
 
-			VMCMap::SCache& cache = *reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
+			STDMap::SCache& cache = *reinterpret_cast<STDMap::SCache*>(Engine->GetUserData(MAP_CACHE));
 			bool keyAsRef = cache.KeyType->GetFlags() & asOBJ_REF ? true : false;
 
 			as_size_t length = *(as_size_t*)buffer;
@@ -2696,7 +2696,7 @@ namespace Tomahawk
 					buffer += Engine->GetSizeOfPrimitiveType(typeId);
 			}
 		}
-		VMCMap::VMCMap(const VMCMap& Other)
+		STDMap::STDMap(const STDMap& Other)
 		{
 			Init(Other.Engine);
 
@@ -2712,37 +2712,37 @@ namespace Tomahawk
 					Set(it->first, (void*)&Key.ValueInt, Key.TypeId);
 			}
 		}
-		VMCMap::~VMCMap()
+		STDMap::~STDMap()
 		{
 			DeleteAll();
 		}
-		void VMCMap::AddRef() const
+		void STDMap::AddRef() const
 		{
 			GCFlag = false;
 			asAtomicInc(RefCount);
 		}
-		void VMCMap::Release() const
+		void STDMap::Release() const
 		{
 			GCFlag = false;
 			if (asAtomicDec(RefCount) == 0)
 			{
-				this->~VMCMap();
-				asFreeMem(const_cast<VMCMap*>(this));
+				this->~STDMap();
+				asFreeMem(const_cast<STDMap*>(this));
 			}
 		}
-		int VMCMap::GetRefCount()
+		int STDMap::GetRefCount()
 		{
 			return RefCount;
 		}
-		void VMCMap::SetGCFlag()
+		void STDMap::SetGCFlag()
 		{
 			GCFlag = true;
 		}
-		bool VMCMap::GetGCFlag()
+		bool STDMap::GetGCFlag()
 		{
 			return GCFlag;
 		}
-		void VMCMap::EnumReferences(VMCManager* inEngine)
+		void STDMap::EnumReferences(VMCManager* inEngine)
 		{
 			Map::iterator it;
 			for (it = Dict.begin(); it != Dict.end(); ++it)
@@ -2758,11 +2758,11 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCMap::ReleaseAllReferences(VMCManager*)
+		void STDMap::ReleaseAllReferences(VMCManager*)
 		{
 			DeleteAll();
 		}
-		VMCMap& VMCMap::operator =(const VMCMap& Other)
+		STDMap& STDMap::operator =(const STDMap& Other)
 		{
 			DeleteAll();
 
@@ -2780,11 +2780,11 @@ namespace Tomahawk
 
 			return *this;
 		}
-		VMCMapKey* VMCMap::operator[](const std::string& key)
+		STDMapKey* STDMap::operator[](const std::string& key)
 		{
 			return &Dict[key];
 		}
-		const VMCMapKey* VMCMap::operator[](const std::string& key) const
+		const STDMapKey* STDMap::operator[](const std::string& key) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
@@ -2797,16 +2797,16 @@ namespace Tomahawk
 
 			return 0;
 		}
-		void VMCMap::Set(const std::string& key, void* value, int typeId)
+		void STDMap::Set(const std::string& key, void* value, int typeId)
 		{
 			Map::iterator it;
 			it = Dict.find(key);
 			if (it == Dict.end())
-				it = Dict.insert(Map::value_type(key, VMCMapKey())).first;
+				it = Dict.insert(Map::value_type(key, STDMapKey())).first;
 
 			it->second.Set(Engine, value, typeId);
 		}
-		bool VMCMap::Get(const std::string& key, void* value, int typeId) const
+		bool STDMap::Get(const std::string& key, void* value, int typeId) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
@@ -2815,7 +2815,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool VMCMap::GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const
+		bool STDMap::GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const
 		{
 			if (Index >= Dict.size())
 				return false;
@@ -2840,7 +2840,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		int VMCMap::GetTypeId(const std::string& key) const
+		int STDMap::GetTypeId(const std::string& key) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
@@ -2849,7 +2849,7 @@ namespace Tomahawk
 
 			return -1;
 		}
-		bool VMCMap::Exists(const std::string& key) const
+		bool STDMap::Exists(const std::string& key) const
 		{
 			Map::const_iterator it;
 			it = Dict.find(key);
@@ -2858,18 +2858,18 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool VMCMap::IsEmpty() const
+		bool STDMap::IsEmpty() const
 		{
 			if (Dict.size() == 0)
 				return true;
 
 			return false;
 		}
-		as_size_t VMCMap::GetSize() const
+		as_size_t STDMap::GetSize() const
 		{
 			return as_size_t(Dict.size());
 		}
-		bool VMCMap::Delete(const std::string& key)
+		bool STDMap::Delete(const std::string& key)
 		{
 			Map::iterator it;
 			it = Dict.find(key);
@@ -2882,7 +2882,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		void VMCMap::DeleteAll()
+		void STDMap::DeleteAll()
 		{
 			Map::iterator it;
 			for (it = Dict.begin(); it != Dict.end(); ++it)
@@ -2890,12 +2890,12 @@ namespace Tomahawk
 
 			Dict.clear();
 		}
-		VMCArray* VMCMap::GetKeys() const
+		STDArray* STDMap::GetKeys() const
 		{
-			VMCMap::SCache* cache = reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
+			STDMap::SCache* cache = reinterpret_cast<STDMap::SCache*>(Engine->GetUserData(MAP_CACHE));
 			VMCTypeInfo* TI = cache->ArrayType;
 
-			VMCArray* Array = VMCArray::Create(TI, as_size_t(Dict.size()));
+			STDArray* Array = STDArray::Create(TI, as_size_t(Dict.size()));
 			Map::const_iterator it;
 			long current = -1;
 
@@ -2907,50 +2907,50 @@ namespace Tomahawk
 
 			return Array;
 		}
-		VMCMap::Iterator VMCMap::Begin() const
+		STDMap::Iterator STDMap::Begin() const
 		{
 			return Iterator(*this, Dict.begin());
 		}
-		VMCMap::Iterator VMCMap::End() const
+		STDMap::Iterator STDMap::End() const
 		{
 			return Iterator(*this, Dict.end());
 		}
-		VMCMap::Iterator VMCMap::Find(const std::string& key) const
+		STDMap::Iterator STDMap::Find(const std::string& key) const
 		{
 			return Iterator(*this, Dict.find(key));
 		}
-		VMCMap* VMCMap::Create(VMCManager* engine)
+		STDMap* STDMap::Create(VMCManager* engine)
 		{
-			VMCMap* obj = (VMCMap*)asAllocMem(sizeof(VMCMap));
-			new(obj) VMCMap(engine);
+			STDMap* obj = (STDMap*)asAllocMem(sizeof(STDMap));
+			new(obj) STDMap(engine);
 			return obj;
 		}
-		VMCMap* VMCMap::Create(unsigned char* buffer)
+		STDMap* STDMap::Create(unsigned char* buffer)
 		{
-			VMCMap* obj = (VMCMap*)asAllocMem(sizeof(VMCMap));
-			new(obj) VMCMap(buffer);
+			STDMap* obj = (STDMap*)asAllocMem(sizeof(STDMap));
+			new(obj) STDMap(buffer);
 			return obj;
 		}
-		void VMCMap::Init(VMCManager* e)
+		void STDMap::Init(VMCManager* e)
 		{
 			RefCount = 1;
 			GCFlag = false;
 			Engine = e;
 
-			VMCMap::SCache* Cache = reinterpret_cast<VMCMap::SCache*>(Engine->GetUserData(MAP_CACHE));
+			STDMap::SCache* Cache = reinterpret_cast<STDMap::SCache*>(Engine->GetUserData(MAP_CACHE));
 			Engine->NotifyGarbageCollectorOfNewObject(this, Cache->DictType);
 		}
-		void VMCMap::Cleanup(VMCManager* engine)
+		void STDMap::Cleanup(VMCManager* engine)
 		{
-			VMCMap::SCache* Cache = reinterpret_cast<VMCMap::SCache*>(engine->GetUserData(MAP_CACHE));
+			STDMap::SCache* Cache = reinterpret_cast<STDMap::SCache*>(engine->GetUserData(MAP_CACHE));
 			TH_DELETE(SCache, Cache);
 		}
-		void VMCMap::Setup(VMCManager* engine)
+		void STDMap::Setup(VMCManager* engine)
 		{
-			VMCMap::SCache* cache = reinterpret_cast<VMCMap::SCache*>(engine->GetUserData(MAP_CACHE));
+			STDMap::SCache* cache = reinterpret_cast<STDMap::SCache*>(engine->GetUserData(MAP_CACHE));
 			if (cache == 0)
 			{
-				cache = TH_NEW(VMCMap::SCache);
+				cache = TH_NEW(STDMap::SCache);
 				engine->SetUserData(cache, MAP_CACHE);
 				engine->SetEngineUserDataCleanupCallback(Cleanup, MAP_CACHE);
 
@@ -2959,20 +2959,20 @@ namespace Tomahawk
 				cache->KeyType = engine->GetTypeInfoByDecl("String");
 			}
 		}
-		void VMCMap::Factory(VMCGeneric* gen)
+		void STDMap::Factory(VMCGeneric* gen)
 		{
-			*(VMCMap**)gen->GetAddressOfReturnLocation() = VMCMap::Create(gen->GetEngine());
+			*(STDMap**)gen->GetAddressOfReturnLocation() = STDMap::Create(gen->GetEngine());
 		}
-		void VMCMap::ListFactory(VMCGeneric* gen)
+		void STDMap::ListFactory(VMCGeneric* gen)
 		{
 			unsigned char* buffer = (unsigned char*)gen->GetArgAddress(0);
-			*(VMCMap**)gen->GetAddressOfReturnLocation() = VMCMap::Create(buffer);
+			*(STDMap**)gen->GetAddressOfReturnLocation() = STDMap::Create(buffer);
 		}
-		void VMCMap::KeyConstruct(void* mem)
+		void STDMap::KeyConstruct(void* mem)
 		{
-			new(mem) VMCMapKey();
+			new(mem) STDMapKey();
 		}
-		void VMCMap::KeyDestruct(VMCMapKey* obj)
+		void STDMap::KeyDestruct(STDMapKey* obj)
 		{
 			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
@@ -2980,9 +2980,9 @@ namespace Tomahawk
 				VMCManager* engine = ctx->GetEngine();
 				obj->FreeValue(engine);
 			}
-			obj->~VMCMapKey();
+			obj->~STDMapKey();
 		}
-		VMCMapKey& VMCMap::KeyopAssign(void* ref, int typeId, VMCMapKey* obj)
+		STDMapKey& STDMap::KeyopAssign(void* ref, int typeId, STDMapKey* obj)
 		{
 			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
@@ -2992,26 +2992,26 @@ namespace Tomahawk
 			}
 			return *obj;
 		}
-		VMCMapKey& VMCMap::KeyopAssign(const VMCMapKey& Other, VMCMapKey* obj)
+		STDMapKey& STDMap::KeyopAssign(const STDMapKey& Other, STDMapKey* obj)
 		{
 			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
 			{
 				VMCManager* engine = ctx->GetEngine();
-				obj->Set(engine, const_cast<VMCMapKey&>(Other));
+				obj->Set(engine, const_cast<STDMapKey&>(Other));
 			}
 
 			return *obj;
 		}
-		VMCMapKey& VMCMap::KeyopAssign(double Value, VMCMapKey* obj)
+		STDMapKey& STDMap::KeyopAssign(double Value, STDMapKey* obj)
 		{
 			return KeyopAssign(&Value, asTYPEID_DOUBLE, obj);
 		}
-		VMCMapKey& VMCMap::KeyopAssign(as_int64_t Value, VMCMapKey* obj)
+		STDMapKey& STDMap::KeyopAssign(as_int64_t Value, STDMapKey* obj)
 		{
-			return VMCMap::KeyopAssign(&Value, asTYPEID_INT64, obj);
+			return STDMap::KeyopAssign(&Value, asTYPEID_INT64, obj);
 		}
-		void VMCMap::KeyopCast(void* ref, int typeId, VMCMapKey* obj)
+		void STDMap::KeyopCast(void* ref, int typeId, STDMapKey* obj)
 		{
 			VMCContext* ctx = asGetActiveContext();
 			if (ctx)
@@ -3020,20 +3020,20 @@ namespace Tomahawk
 				obj->Get(engine, ref, typeId);
 			}
 		}
-		as_int64_t VMCMap::KeyopConvInt(VMCMapKey* obj)
+		as_int64_t STDMap::KeyopConvInt(STDMapKey* obj)
 		{
 			as_int64_t value;
 			KeyopCast(&value, asTYPEID_INT64, obj);
 			return value;
 		}
-		double VMCMap::KeyopConvDouble(VMCMapKey* obj)
+		double STDMap::KeyopConvDouble(STDMapKey* obj)
 		{
 			double value;
 			KeyopCast(&value, asTYPEID_DOUBLE, obj);
 			return value;
 		}
 
-		VMCGrid::VMCGrid(VMCTypeInfo* TI, void* buf)
+		STDGrid::STDGrid(VMCTypeInfo* TI, void* buf)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -3129,7 +3129,7 @@ namespace Tomahawk
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 		}
-		VMCGrid::VMCGrid(as_size_t Width, as_size_t Height, VMCTypeInfo* TI)
+		STDGrid::STDGrid(as_size_t Width, as_size_t Height, VMCTypeInfo* TI)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -3150,7 +3150,7 @@ namespace Tomahawk
 			if (ObjType->GetFlags() & asOBJ_GC)
 				ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 		}
-		void VMCGrid::Resize(as_size_t Width, as_size_t Height)
+		void STDGrid::Resize(as_size_t Width, as_size_t Height)
 		{
 			if (!CheckMaxSize(Width, Height))
 				return;
@@ -3175,7 +3175,7 @@ namespace Tomahawk
 
 			Buffer = tmpBuffer;
 		}
-		VMCGrid::VMCGrid(as_size_t Width, as_size_t Height, void* defVal, VMCTypeInfo* TI)
+		STDGrid::STDGrid(as_size_t Width, as_size_t Height, void* defVal, VMCTypeInfo* TI)
 		{
 			RefCount = 1;
 			GCFlag = false;
@@ -3202,11 +3202,11 @@ namespace Tomahawk
 					SetValue(x, y, defVal);
 			}
 		}
-		void VMCGrid::SetValue(as_size_t x, as_size_t y, void* value)
+		void STDGrid::SetValue(as_size_t x, as_size_t y, void* value)
 		{
 			SetValue(Buffer, x, y, value);
 		}
-		void VMCGrid::SetValue(SBuffer* buf, as_size_t x, as_size_t y, void* value)
+		void STDGrid::SetValue(SBuffer* buf, as_size_t x, as_size_t y, void* value)
 		{
 			void* ptr = At(buf, x, y);
 			if (ptr == 0)
@@ -3239,7 +3239,7 @@ namespace Tomahawk
 				SubTypeId == asTYPEID_DOUBLE)
 				*(double*)ptr = *(double*)value;
 		}
-		VMCGrid::~VMCGrid()
+		STDGrid::~STDGrid()
 		{
 			if (Buffer)
 			{
@@ -3250,21 +3250,21 @@ namespace Tomahawk
 			if (ObjType)
 				ObjType->Release();
 		}
-		as_size_t VMCGrid::GetWidth() const
+		as_size_t STDGrid::GetWidth() const
 		{
 			if (Buffer)
 				return Buffer->Width;
 
 			return 0;
 		}
-		as_size_t VMCGrid::GetHeight() const
+		as_size_t STDGrid::GetHeight() const
 		{
 			if (Buffer)
 				return Buffer->Height;
 
 			return 0;
 		}
-		bool VMCGrid::CheckMaxSize(as_size_t Width, as_size_t Height)
+		bool STDGrid::CheckMaxSize(as_size_t Width, as_size_t Height)
 		{
 			as_size_t maxSize = 0xFFFFFFFFul - sizeof(SBuffer) + 1;
 			if (ElementSize > 0)
@@ -3281,23 +3281,23 @@ namespace Tomahawk
 			}
 			return true;
 		}
-		VMCTypeInfo* VMCGrid::GetGridObjectType() const
+		VMCTypeInfo* STDGrid::GetGridObjectType() const
 		{
 			return ObjType;
 		}
-		int VMCGrid::GetGridTypeId() const
+		int STDGrid::GetGridTypeId() const
 		{
 			return ObjType->GetTypeId();
 		}
-		int VMCGrid::GetElementTypeId() const
+		int STDGrid::GetElementTypeId() const
 		{
 			return SubTypeId;
 		}
-		void* VMCGrid::At(as_size_t x, as_size_t y)
+		void* STDGrid::At(as_size_t x, as_size_t y)
 		{
 			return At(Buffer, x, y);
 		}
-		void* VMCGrid::At(SBuffer* buf, as_size_t x, as_size_t y)
+		void* STDGrid::At(SBuffer* buf, as_size_t x, as_size_t y)
 		{
 			if (buf == 0 || x >= buf->Width || y >= buf->Height)
 			{
@@ -3313,11 +3313,11 @@ namespace Tomahawk
 			else
 				return buf->Data + (as_size_t)ElementSize * index;
 		}
-		const void* VMCGrid::At(as_size_t x, as_size_t y) const
+		const void* STDGrid::At(as_size_t x, as_size_t y) const
 		{
-			return const_cast<VMCGrid*>(this)->At(const_cast<SBuffer*>(Buffer), x, y);
+			return const_cast<STDGrid*>(this)->At(const_cast<SBuffer*>(Buffer), x, y);
 		}
-		void VMCGrid::CreateBuffer(SBuffer** buf, as_size_t w, as_size_t h)
+		void STDGrid::CreateBuffer(SBuffer** buf, as_size_t w, as_size_t h)
 		{
 			as_size_t numElements = w * h;
 			*buf = reinterpret_cast<SBuffer*>(asAllocMem(sizeof(SBuffer) - 1 + (size_t)ElementSize * (size_t)numElements));
@@ -3335,13 +3335,13 @@ namespace Tomahawk
 					ctx->SetException("Out of memory");
 			}
 		}
-		void VMCGrid::DeleteBuffer(SBuffer* buf)
+		void STDGrid::DeleteBuffer(SBuffer* buf)
 		{
 			assert(buf);
 			Destruct(buf);
 			asFreeMem(buf);
 		}
-		void VMCGrid::Construct(SBuffer* buf)
+		void STDGrid::Construct(SBuffer* buf)
 		{
 			assert(buf);
 			if (SubTypeId & asTYPEID_OBJHANDLE)
@@ -3368,7 +3368,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCGrid::Destruct(SBuffer* buf)
+		void STDGrid::Destruct(SBuffer* buf)
 		{
 			assert(buf);
 			if (SubTypeId & asTYPEID_MASK_OBJECT)
@@ -3384,7 +3384,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCGrid::EnumReferences(VMCManager* engine)
+		void STDGrid::EnumReferences(VMCManager* engine)
 		{
 			if (Buffer == 0)
 				return;
@@ -3413,7 +3413,7 @@ namespace Tomahawk
 				}
 			}
 		}
-		void VMCGrid::ReleaseAllHandles(VMCManager*)
+		void STDGrid::ReleaseAllHandles(VMCManager*)
 		{
 			if (Buffer == 0)
 				return;
@@ -3421,39 +3421,39 @@ namespace Tomahawk
 			DeleteBuffer(Buffer);
 			Buffer = 0;
 		}
-		void VMCGrid::AddRef() const
+		void STDGrid::AddRef() const
 		{
 			GCFlag = false;
 			asAtomicInc(RefCount);
 		}
-		void VMCGrid::Release() const
+		void STDGrid::Release() const
 		{
 			GCFlag = false;
 			if (asAtomicDec(RefCount) == 0)
 			{
-				this->~VMCGrid();
-				asFreeMem(const_cast<VMCGrid*>(this));
+				this->~STDGrid();
+				asFreeMem(const_cast<STDGrid*>(this));
 			}
 		}
-		int VMCGrid::GetRefCount()
+		int STDGrid::GetRefCount()
 		{
 			return RefCount;
 		}
-		void VMCGrid::SetFlag()
+		void STDGrid::SetFlag()
 		{
 			GCFlag = true;
 		}
-		bool VMCGrid::GetFlag()
+		bool STDGrid::GetFlag()
 		{
 			return GCFlag;
 		}
-		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI)
+		STDGrid* STDGrid::Create(VMCTypeInfo* TI)
 		{
-			return VMCGrid::Create(TI, 0, 0);
+			return STDGrid::Create(TI, 0, 0);
 		}
-		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI, as_size_t w, as_size_t h)
+		STDGrid* STDGrid::Create(VMCTypeInfo* TI, as_size_t w, as_size_t h)
 		{
-			void* mem = asAllocMem(sizeof(VMCGrid));
+			void* mem = asAllocMem(sizeof(STDGrid));
 			if (mem == 0)
 			{
 				VMCContext* ctx = asGetActiveContext();
@@ -3463,12 +3463,12 @@ namespace Tomahawk
 				return 0;
 			}
 
-			VMCGrid* a = new(mem) VMCGrid(w, h, TI);
+			STDGrid* a = new(mem) STDGrid(w, h, TI);
 			return a;
 		}
-		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI, void* initList)
+		STDGrid* STDGrid::Create(VMCTypeInfo* TI, void* initList)
 		{
-			void* mem = asAllocMem(sizeof(VMCGrid));
+			void* mem = asAllocMem(sizeof(STDGrid));
 			if (mem == 0)
 			{
 				VMCContext* ctx = asGetActiveContext();
@@ -3478,12 +3478,12 @@ namespace Tomahawk
 				return 0;
 			}
 
-			VMCGrid* a = new(mem) VMCGrid(TI, initList);
+			STDGrid* a = new(mem) STDGrid(TI, initList);
 			return a;
 		}
-		VMCGrid* VMCGrid::Create(VMCTypeInfo* TI, as_size_t w, as_size_t h, void* defVal)
+		STDGrid* STDGrid::Create(VMCTypeInfo* TI, as_size_t w, as_size_t h, void* defVal)
 		{
-			void* mem = asAllocMem(sizeof(VMCGrid));
+			void* mem = asAllocMem(sizeof(STDGrid));
 			if (mem == 0)
 			{
 				VMCContext* ctx = asGetActiveContext();
@@ -3493,10 +3493,10 @@ namespace Tomahawk
 				return 0;
 			}
 
-			VMCGrid* a = new(mem) VMCGrid(w, h, defVal, TI);
+			STDGrid* a = new(mem) STDGrid(w, h, defVal, TI);
 			return a;
 		}
-		bool VMCGrid::TemplateCallback(VMCTypeInfo* TI, bool& DontGarbageCollect)
+		bool STDGrid::TemplateCallback(VMCTypeInfo* TI, bool& DontGarbageCollect)
 		{
 			int typeId = TI->GetSubTypeId();
 			if (typeId == asTYPEID_VOID)
@@ -3582,37 +3582,37 @@ namespace Tomahawk
 			return true;
 		}
 
-		VMCRef::VMCRef()
+		STDRef::STDRef()
 		{
 			Ref = 0;
 			Type = 0;
 		}
-		VMCRef::VMCRef(const VMCRef& Other)
+		STDRef::STDRef(const STDRef& Other)
 		{
 			Ref = Other.Ref;
 			Type = Other.Type;
 
 			AddRefHandle();
 		}
-		VMCRef::VMCRef(void* ref, VMCTypeInfo* type)
+		STDRef::STDRef(void* ref, VMCTypeInfo* type)
 		{
 			Ref = ref;
 			Type = type;
 
 			AddRefHandle();
 		}
-		VMCRef::VMCRef(void* ref, int typeId)
+		STDRef::STDRef(void* ref, int typeId)
 		{
 			Ref = 0;
 			Type = 0;
 
 			Assign(ref, typeId);
 		}
-		VMCRef::~VMCRef()
+		STDRef::~STDRef()
 		{
 			ReleaseHandle();
 		}
-		void VMCRef::ReleaseHandle()
+		void STDRef::ReleaseHandle()
 		{
 			if (Ref && Type)
 			{
@@ -3624,7 +3624,7 @@ namespace Tomahawk
 				Type = 0;
 			}
 		}
-		void VMCRef::AddRefHandle()
+		void STDRef::AddRefHandle()
 		{
 			if (Ref && Type)
 			{
@@ -3633,12 +3633,12 @@ namespace Tomahawk
 				engine->AddRef();
 			}
 		}
-		VMCRef& VMCRef::operator =(const VMCRef& Other)
+		STDRef& STDRef::operator =(const STDRef& Other)
 		{
 			Set(Other.Ref, Other.Type);
 			return *this;
 		}
-		void VMCRef::Set(void* ref, VMCTypeInfo* type)
+		void STDRef::Set(void* ref, VMCTypeInfo* type)
 		{
 			if (Ref == ref)
 				return;
@@ -3648,21 +3648,21 @@ namespace Tomahawk
 			Type = type;
 			AddRefHandle();
 		}
-		void* VMCRef::GetRef()
+		void* STDRef::GetRef()
 		{
 			return Ref;
 		}
-		VMCTypeInfo* VMCRef::GetType() const
+		VMCTypeInfo* STDRef::GetType() const
 		{
 			return Type;
 		}
-		int VMCRef::GetTypeId() const
+		int STDRef::GetTypeId() const
 		{
 			if (Type == 0) return 0;
 
 			return Type->GetTypeId() | asTYPEID_OBJHANDLE;
 		}
-		VMCRef& VMCRef::Assign(void* ref, int typeId)
+		STDRef& STDRef::Assign(void* ref, int typeId)
 		{
 			if (typeId == 0)
 			{
@@ -3682,7 +3682,7 @@ namespace Tomahawk
 
 			if (type && strcmp(type->GetName(), "ref") == 0)
 			{
-				VMCRef* r = (VMCRef*)ref;
+				STDRef* r = (STDRef*)ref;
 				ref = r->Ref;
 				type = r->Type;
 			}
@@ -3690,18 +3690,18 @@ namespace Tomahawk
 			Set(ref, type);
 			return *this;
 		}
-		bool VMCRef::operator==(const VMCRef& o) const
+		bool STDRef::operator==(const STDRef& o) const
 		{
 			if (Ref == o.Ref && Type == o.Type)
 				return true;
 
 			return false;
 		}
-		bool VMCRef::operator!=(const VMCRef& o) const
+		bool STDRef::operator!=(const STDRef& o) const
 		{
 			return !(*this == o);
 		}
-		bool VMCRef::Equals(void* ref, int typeId) const
+		bool STDRef::Equals(void* ref, int typeId) const
 		{
 			if (typeId == 0)
 				ref = 0;
@@ -3721,7 +3721,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		void VMCRef::Cast(void** outRef, int typeId)
+		void STDRef::Cast(void** outRef, int typeId)
 		{
 			if (Type == 0)
 			{
@@ -3738,7 +3738,7 @@ namespace Tomahawk
 
 			engine->RefCastObject(Ref, Type, type, outRef);
 		}
-		void VMCRef::EnumReferences(VMCManager* inEngine)
+		void STDRef::EnumReferences(VMCManager* inEngine)
 		{
 			if (Ref)
 				inEngine->GCEnumCallback(Ref);
@@ -3746,35 +3746,35 @@ namespace Tomahawk
 			if (Type)
 				inEngine->GCEnumCallback(Type);
 		}
-		void VMCRef::ReleaseReferences(VMCManager* inEngine)
+		void STDRef::ReleaseReferences(VMCManager* inEngine)
 		{
 			Set(0, 0);
 		}
-		void VMCRef::Construct(VMCRef* self)
+		void STDRef::Construct(STDRef* self)
 		{
-			new(self) VMCRef();
+			new(self) STDRef();
 		}
-		void VMCRef::Construct(VMCRef* self, const VMCRef& o)
+		void STDRef::Construct(STDRef* self, const STDRef& o)
 		{
-			new(self) VMCRef(o);
+			new(self) STDRef(o);
 		}
-		void VMCRef::Construct(VMCRef* self, void* ref, int typeId)
+		void STDRef::Construct(STDRef* self, void* ref, int typeId)
 		{
-			new(self) VMCRef(ref, typeId);
+			new(self) STDRef(ref, typeId);
 		}
-		void VMCRef::Destruct(VMCRef* self)
+		void STDRef::Destruct(STDRef* self)
 		{
-			self->~VMCRef();
+			self->~STDRef();
 		}
 
-		VMCWeakRef::VMCWeakRef(VMCTypeInfo* type)
+		STDWeakRef::STDWeakRef(VMCTypeInfo* type)
 		{
 			Ref = 0;
 			Type = type;
 			Type->AddRef();
 			WeakRefFlag = 0;
 		}
-		VMCWeakRef::VMCWeakRef(const VMCWeakRef& Other)
+		STDWeakRef::STDWeakRef(const STDWeakRef& Other)
 		{
 			Ref = Other.Ref;
 			Type = Other.Type;
@@ -3783,7 +3783,7 @@ namespace Tomahawk
 			if (WeakRefFlag)
 				WeakRefFlag->AddRef();
 		}
-		VMCWeakRef::VMCWeakRef(void* ref, VMCTypeInfo* type)
+		STDWeakRef::STDWeakRef(void* ref, VMCTypeInfo* type)
 		{
 			Ref = ref;
 			Type = type;
@@ -3796,7 +3796,7 @@ namespace Tomahawk
 			if (WeakRefFlag)
 				WeakRefFlag->AddRef();
 		}
-		VMCWeakRef::~VMCWeakRef()
+		STDWeakRef::~STDWeakRef()
 		{
 			if (Type)
 				Type->Release();
@@ -3804,7 +3804,7 @@ namespace Tomahawk
 			if (WeakRefFlag)
 				WeakRefFlag->Release();
 		}
-		VMCWeakRef& VMCWeakRef::operator =(const VMCWeakRef& Other)
+		STDWeakRef& STDWeakRef::operator =(const STDWeakRef& Other)
 		{
 			if (Ref == Other.Ref &&
 				WeakRefFlag == Other.WeakRefFlag)
@@ -3831,7 +3831,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		VMCWeakRef& VMCWeakRef::Set(void* newRef)
+		STDWeakRef& STDWeakRef::Set(void* newRef)
 		{
 			if (WeakRefFlag)
 				WeakRefFlag->Release();
@@ -3848,11 +3848,11 @@ namespace Tomahawk
 			Type->GetEngine()->ReleaseScriptObject(newRef, Type->GetSubType());
 			return *this;
 		}
-		VMCTypeInfo* VMCWeakRef::GetRefType() const
+		VMCTypeInfo* STDWeakRef::GetRefType() const
 		{
 			return Type->GetSubType();
 		}
-		bool VMCWeakRef::operator==(const VMCWeakRef& o) const
+		bool STDWeakRef::operator==(const STDWeakRef& o) const
 		{
 			if (Ref == o.Ref &&
 				WeakRefFlag == o.WeakRefFlag &&
@@ -3861,11 +3861,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool VMCWeakRef::operator!=(const VMCWeakRef& o) const
+		bool STDWeakRef::operator!=(const STDWeakRef& o) const
 		{
 			return !(*this == o);
 		}
-		void* VMCWeakRef::Get() const
+		void* STDWeakRef::Get() const
 		{
 			if (Ref == 0 || WeakRefFlag == 0)
 				return 0;
@@ -3881,7 +3881,7 @@ namespace Tomahawk
 
 			return 0;
 		}
-		bool VMCWeakRef::Equals(void* ref) const
+		bool STDWeakRef::Equals(void* ref) const
 		{
 			if (Ref != ref)
 				return false;
@@ -3892,22 +3892,22 @@ namespace Tomahawk
 
 			return true;
 		}
-		void VMCWeakRef::Construct(VMCTypeInfo* type, void* mem)
+		void STDWeakRef::Construct(VMCTypeInfo* type, void* mem)
 		{
-			new(mem) VMCWeakRef(type);
+			new(mem) STDWeakRef(type);
 		}
-		void VMCWeakRef::Construct2(VMCTypeInfo* type, void* ref, void* mem)
+		void STDWeakRef::Construct2(VMCTypeInfo* type, void* ref, void* mem)
 		{
-			new(mem) VMCWeakRef(ref, type);
+			new(mem) STDWeakRef(ref, type);
 			VMCContext* ctx = asGetActiveContext();
 			if (ctx && ctx->GetState() == asEXECUTION_EXCEPTION)
-				reinterpret_cast<VMCWeakRef*>(mem)->~VMCWeakRef();
+				reinterpret_cast<STDWeakRef*>(mem)->~STDWeakRef();
 		}
-		void VMCWeakRef::Destruct(VMCWeakRef* obj)
+		void STDWeakRef::Destruct(STDWeakRef* obj)
 		{
-			obj->~VMCWeakRef();
+			obj->~STDWeakRef();
 		}
-		bool VMCWeakRef::TemplateCallback(VMCTypeInfo* TI, bool&)
+		bool STDWeakRef::TemplateCallback(VMCTypeInfo* TI, bool&)
 		{
 			VMCTypeInfo* subType = TI->GetSubType();
 			if (subType == 0)
@@ -3932,160 +3932,160 @@ namespace Tomahawk
 			return false;
 		}
 
-		VMCComplex::VMCComplex()
+		STDComplex::STDComplex()
 		{
 			R = 0;
 			I = 0;
 		}
-		VMCComplex::VMCComplex(const VMCComplex& Other)
+		STDComplex::STDComplex(const STDComplex& Other)
 		{
 			R = Other.R;
 			I = Other.I;
 		}
-		VMCComplex::VMCComplex(float _r, float _i)
+		STDComplex::STDComplex(float _r, float _i)
 		{
 			R = _r;
 			I = _i;
 		}
-		bool VMCComplex::operator==(const VMCComplex& o) const
+		bool STDComplex::operator==(const STDComplex& o) const
 		{
 			return (R == o.R) && (I == o.I);
 		}
-		bool VMCComplex::operator!=(const VMCComplex& o) const
+		bool STDComplex::operator!=(const STDComplex& o) const
 		{
 			return !(*this == o);
 		}
-		VMCComplex& VMCComplex::operator=(const VMCComplex& Other)
+		STDComplex& STDComplex::operator=(const STDComplex& Other)
 		{
 			R = Other.R;
 			I = Other.I;
 			return *this;
 		}
-		VMCComplex& VMCComplex::operator+=(const VMCComplex& Other)
+		STDComplex& STDComplex::operator+=(const STDComplex& Other)
 		{
 			R += Other.R;
 			I += Other.I;
 			return *this;
 		}
-		VMCComplex& VMCComplex::operator-=(const VMCComplex& Other)
+		STDComplex& STDComplex::operator-=(const STDComplex& Other)
 		{
 			R -= Other.R;
 			I -= Other.I;
 			return *this;
 		}
-		VMCComplex& VMCComplex::operator*=(const VMCComplex& Other)
+		STDComplex& STDComplex::operator*=(const STDComplex& Other)
 		{
 			*this = *this * Other;
 			return *this;
 		}
-		VMCComplex& VMCComplex::operator/=(const VMCComplex& Other)
+		STDComplex& STDComplex::operator/=(const STDComplex& Other)
 		{
 			*this = *this / Other;
 			return *this;
 		}
-		float VMCComplex::SquaredLength() const
+		float STDComplex::SquaredLength() const
 		{
 			return R * R + I * I;
 		}
-		float VMCComplex::Length() const
+		float STDComplex::Length() const
 		{
 			return sqrtf(SquaredLength());
 		}
-		VMCComplex VMCComplex::operator+(const VMCComplex& Other) const
+		STDComplex STDComplex::operator+(const STDComplex& Other) const
 		{
-			return VMCComplex(R + Other.R, I + Other.I);
+			return STDComplex(R + Other.R, I + Other.I);
 		}
-		VMCComplex VMCComplex::operator-(const VMCComplex& Other) const
+		STDComplex STDComplex::operator-(const STDComplex& Other) const
 		{
-			return VMCComplex(R - Other.R, I + Other.I);
+			return STDComplex(R - Other.R, I + Other.I);
 		}
-		VMCComplex VMCComplex::operator*(const VMCComplex& Other) const
+		STDComplex STDComplex::operator*(const STDComplex& Other) const
 		{
-			return VMCComplex(R * Other.R - I * Other.I, R * Other.I + I * Other.R);
+			return STDComplex(R * Other.R - I * Other.I, R * Other.I + I * Other.R);
 		}
-		VMCComplex VMCComplex::operator/(const VMCComplex& Other) const
+		STDComplex STDComplex::operator/(const STDComplex& Other) const
 		{
 			float squaredLen = Other.SquaredLength();
 			if (squaredLen == 0)
-				return VMCComplex(0, 0);
+				return STDComplex(0, 0);
 
-			return VMCComplex((R * Other.R + I * Other.I) / squaredLen, (I * Other.R - R * Other.I) / squaredLen);
+			return STDComplex((R * Other.R + I * Other.I) / squaredLen, (I * Other.R - R * Other.I) / squaredLen);
 		}
-		VMCComplex VMCComplex::GetRI() const
+		STDComplex STDComplex::GetRI() const
 		{
 			return *this;
 		}
-		VMCComplex VMCComplex::GetIR() const
+		STDComplex STDComplex::GetIR() const
 		{
-			return VMCComplex(R, I);
+			return STDComplex(R, I);
 		}
-		void VMCComplex::SetRI(const VMCComplex& o)
+		void STDComplex::SetRI(const STDComplex& o)
 		{
 			*this = o;
 		}
-		void VMCComplex::SetIR(const VMCComplex& o)
+		void STDComplex::SetIR(const STDComplex& o)
 		{
 			R = o.I;
 			I = o.R;
 		}
-		void VMCComplex::DefaultConstructor(VMCComplex* self)
+		void STDComplex::DefaultConstructor(STDComplex* self)
 		{
-			new(self) VMCComplex();
+			new(self) STDComplex();
 		}
-		void VMCComplex::CopyConstructor(const VMCComplex& Other, VMCComplex* self)
+		void STDComplex::CopyConstructor(const STDComplex& Other, STDComplex* self)
 		{
-			new(self) VMCComplex(Other);
+			new(self) STDComplex(Other);
 		}
-		void VMCComplex::ConvConstructor(float r, VMCComplex* self)
+		void STDComplex::ConvConstructor(float r, STDComplex* self)
 		{
-			new(self) VMCComplex(r);
+			new(self) STDComplex(r);
 		}
-		void VMCComplex::InitConstructor(float r, float i, VMCComplex* self)
+		void STDComplex::InitConstructor(float r, float i, STDComplex* self)
 		{
-			new(self) VMCComplex(r, i);
+			new(self) STDComplex(r, i);
 		}
-		void VMCComplex::ListConstructor(float* list, VMCComplex* self)
+		void STDComplex::ListConstructor(float* list, STDComplex* self)
 		{
-			new(self) VMCComplex(list[0], list[1]);
+			new(self) STDComplex(list[0], list[1]);
 		}
 
-		VMCRandom::VMCRandom()
+		STDRandom::STDRandom()
 		{
 			SeedFromTime();
 		}
-		void VMCRandom::AddRef()
+		void STDRandom::AddRef()
 		{
 			asAtomicInc(Ref);
 		}
-		void VMCRandom::Release()
+		void STDRandom::Release()
 		{
 			if (asAtomicDec(Ref) <= 0)
 			{
-				this->~VMCRandom();
+				this->~STDRandom();
 				asFreeMem((void*)this);
 			}
 		}
-		void VMCRandom::SeedFromTime()
+		void STDRandom::SeedFromTime()
 		{
 			Seed(static_cast<uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
 		}
-		uint32_t VMCRandom::GetU()
+		uint32_t STDRandom::GetU()
 		{
 			return Twister();
 		}
-		int32_t VMCRandom::GetI()
+		int32_t STDRandom::GetI()
 		{
 			return Twister();
 		}
-		double VMCRandom::GetD()
+		double STDRandom::GetD()
 		{
 			return DDist(Twister);
 		}
-		void VMCRandom::Seed(uint32_t Seed)
+		void STDRandom::Seed(uint32_t Seed)
 		{
 			Twister.seed(Seed);
 		}
-		void VMCRandom::Seed(VMCArray* Array)
+		void STDRandom::Seed(STDArray* Array)
 		{
 			if (!Array || Array->GetElementTypeId() != asTYPEID_UINT32)
 			{
@@ -4105,22 +4105,22 @@ namespace Tomahawk
 			std::seed_seq Sq(Vector.begin(), Vector.end());
 			Twister.seed(Sq);
 		}
-		void VMCRandom::Assign(VMCRandom* From)
+		void STDRandom::Assign(STDRandom* From)
 		{
 			if (From != nullptr)
 				Twister = From->Twister;
 		}
-		VMCRandom* VMCRandom::Create()
+		STDRandom* STDRandom::Create()
 		{
-			void* Data = asAllocMem(sizeof(VMCRandom));
-			return new(Data) VMCRandom();
+			void* Data = asAllocMem(sizeof(STDRandom));
+			return new(Data) STDRandom();
 		}
 
-		VMCThread::VMCThread(VMCManager* Engine, VMCFunction* Func) : Function(Func), Manager(VMManager::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
+		STDThread::STDThread(VMCManager* Engine, VMCFunction* Func) : Function(Func), Manager(VMManager::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
 		{
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Thread"));
 		}
-		void VMCThread::Routine()
+		void STDThread::Routine()
 		{
 			Mutex.lock();
 			if (!Function)
@@ -4157,26 +4157,26 @@ namespace Tomahawk
 			Release();
 			asThreadCleanup();
 		}
-		void VMCThread::AddRef()
+		void STDThread::AddRef()
 		{
 			GCFlag = false;
 			asAtomicInc(Ref);
 		}
-		void VMCThread::Suspend()
+		void STDThread::Suspend()
 		{
 			Mutex.lock();
 			if (Context && Context->GetState() != VMExecState::SUSPENDED)
 				Context->Suspend();
 			Mutex.unlock();
 		}
-		void VMCThread::Resume()
+		void STDThread::Resume()
 		{
 			Mutex.lock();
 			if (Context && Context->GetState() == VMExecState::SUSPENDED)
 				Context->Execute();
 			Mutex.unlock();
 		}
-		void VMCThread::Release()
+		void STDThread::Release()
 		{
 			GCFlag = false;
 			if (asAtomicDec(Ref) <= 0)
@@ -4185,23 +4185,23 @@ namespace Tomahawk
 					Thread.join();
 
 				ReleaseReferences(nullptr);
-				this->~VMCThread();
+				this->~STDThread();
 				asFreeMem((void*)this);
 			}
 		}
-		void VMCThread::SetGCFlag()
+		void STDThread::SetGCFlag()
 		{
 			GCFlag = true;
 		}
-		bool VMCThread::GetGCFlag()
+		bool STDThread::GetGCFlag()
 		{
 			return GCFlag;
 		}
-		int VMCThread::GetRefCount()
+		int STDThread::GetRefCount()
 		{
 			return Ref;
 		}
-		void VMCThread::EnumReferences(VMCManager* Engine)
+		void STDThread::EnumReferences(VMCManager* Engine)
 		{
 			for (int i = 0; i < 2; i++)
 			{
@@ -4219,7 +4219,7 @@ namespace Tomahawk
 			if (Function != nullptr)
 				Engine->GCEnumCallback(Function);
 		}
-		int VMCThread::Join(uint64_t Timeout)
+		int STDThread::Join(uint64_t Timeout)
 		{
 			{
 				std::lock_guard<std::mutex> Guard(Mutex);
@@ -4243,7 +4243,7 @@ namespace Tomahawk
 
 			return 0;
 		}
-		int VMCThread::Join()
+		int STDThread::Join()
 		{
 			if (std::this_thread::get_id() == Thread.get_id())
 				return -1;
@@ -4257,19 +4257,19 @@ namespace Tomahawk
 
 			return 0;
 		}
-		void VMCThread::Push(void* fRef, int TypeId)
+		void STDThread::Push(void* fRef, int TypeId)
 		{
 			auto* fThread = GetThread();
 			int Id = (fThread == this ? 1 : 0);
 
-			void* Data = asAllocMem(sizeof(VMCAny));
-			VMCAny* Any = new(Data) VMCAny(fRef, TypeId, VMManager::Get()->GetEngine());
+			void* Data = asAllocMem(sizeof(STDAny));
+			STDAny* Any = new(Data) STDAny(fRef, TypeId, VMManager::Get()->GetEngine());
 			Pipe[Id].Mutex.lock();
 			Pipe[Id].Queue.push_back(Any);
 			Pipe[Id].Mutex.unlock();
 			Pipe[Id].CV.notify_one();
 		}
-		bool VMCThread::Pop(void* fRef, int TypeId)
+		bool STDThread::Pop(void* fRef, int TypeId)
 		{
 			bool Resolved = false;
 			while (!Resolved)
@@ -4277,7 +4277,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool VMCThread::Pop(void* fRef, int TypeId, uint64_t Timeout)
+		bool STDThread::Pop(void* fRef, int TypeId, uint64_t Timeout)
 		{
 			auto* fThread = GetThread();
 			int Id = (fThread == this ? 0 : 1);
@@ -4289,7 +4289,7 @@ namespace Tomahawk
 			}))
 				return false;
 
-			VMCAny* Result = Pipe[Id].Queue.front();
+			STDAny* Result = Pipe[Id].Queue.front();
 			if (!Result->Retrieve(fRef, TypeId))
 				return false;
 
@@ -4298,7 +4298,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool VMCThread::IsActive()
+		bool STDThread::IsActive()
 		{
 			Mutex.lock();
 			bool State = (Context && Context->GetState() != VMExecState::SUSPENDED);
@@ -4306,7 +4306,7 @@ namespace Tomahawk
 
 			return State;
 		}
-		bool VMCThread::Start()
+		bool STDThread::Start()
 		{
 			Mutex.lock();
 			if (!Function)
@@ -4341,12 +4341,12 @@ namespace Tomahawk
 			}
 
 			AddRef();
-			Thread = std::thread(&VMCThread::Routine, this);
+			Thread = std::thread(&STDThread::Routine, this);
 			Mutex.unlock();
 
 			return true;
 		}
-		void VMCThread::ReleaseReferences(VMCManager*)
+		void STDThread::ReleaseReferences(VMCManager*)
 		{
 			if (Join() >= 0)
 				TH_ERR("[memerr] thread was forced to join");
@@ -4372,265 +4372,265 @@ namespace Tomahawk
 			Function = nullptr;
 			Mutex.unlock();
 		}
-		void VMCThread::Create(VMCGeneric* Generic)
+		void STDThread::Create(VMCGeneric* Generic)
 		{
 			VMCManager* Engine = Generic->GetEngine();
 			VMCFunction* Function = *(VMCFunction**)Generic->GetAddressOfArg(0);
-			void* Data = asAllocMem(sizeof(VMCThread));
-			*(VMCThread**)Generic->GetAddressOfReturnLocation() = new(Data) VMCThread(Engine, Function);
+			void* Data = asAllocMem(sizeof(STDThread));
+			*(STDThread**)Generic->GetAddressOfReturnLocation() = new(Data) STDThread(Engine, Function);
 		}
-		VMCThread* VMCThread::GetThread()
+		STDThread* STDThread::GetThread()
 		{
 			VMCContext* Context = asGetActiveContext();
 			if (!Context)
 				return nullptr;
 
-			return static_cast<VMCThread*>(Context->GetUserData(ContextUD));
+			return static_cast<STDThread*>(Context->GetUserData(ContextUD));
 		}
-		void VMCThread::ThreadSleep(uint64_t Timeout)
+		void STDThread::ThreadSleep(uint64_t Timeout)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(Timeout));
 		}
-		uint64_t VMCThread::GetThreadId()
+		uint64_t STDThread::GetThreadId()
 		{
 			return (uint64_t)std::hash<std::thread::id>()(std::this_thread::get_id());
 		}
-		int VMCThread::ContextUD = 550;
-		int VMCThread::EngineListUD = 551;
+		int STDThread::ContextUD = 550;
+		int STDThread::EngineListUD = 551;
 
-		bool RegisterAnyAPI(VMManager* Manager)
+		bool STDRegisterAny(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			Engine->RegisterObjectType("Any", sizeof(VMCAny), asOBJ_REF | asOBJ_GC);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f()", asFUNCTION(VMCAny::Factory1), asCALL_GENERIC);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f(?&in) explicit", asFUNCTION(VMCAny::Factory2), asCALL_GENERIC);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f(const int64&in) explicit", asFUNCTION(VMCAny::Factory2), asCALL_GENERIC);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f(const double&in) explicit", asFUNCTION(VMCAny::Factory2), asCALL_GENERIC);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCAny, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCAny, Release), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCAny, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCAny, SetFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCAny, GetFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCAny, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Any", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCAny, ReleaseAllHandles), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Any", "Any &opAssign(Any&in)", asFUNCTION(VMCAny::Assignment), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("Any", "void Store(?&in)", asMETHODPR(VMCAny, Store, (void*, int), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Any", "bool Retrieve(?&out)", asMETHODPR(VMCAny, Retrieve, (void*, int) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectType("Any", sizeof(STDAny), asOBJ_REF | asOBJ_GC);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f()", asFUNCTION(STDAny::Factory1), asCALL_GENERIC);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f(?&in) explicit", asFUNCTION(STDAny::Factory2), asCALL_GENERIC);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f(const int64&in) explicit", asFUNCTION(STDAny::Factory2), asCALL_GENERIC);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_FACTORY, "Any@ f(const double&in) explicit", asFUNCTION(STDAny::Factory2), asCALL_GENERIC);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_ADDREF, "void f()", asMETHOD(STDAny, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_RELEASE, "void f()", asMETHOD(STDAny, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(STDAny, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(STDAny, SetFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(STDAny, GetFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDAny, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Any", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDAny, ReleaseAllHandles), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Any", "Any &opAssign(Any&in)", asFUNCTION(STDAny::Assignment), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("Any", "void Store(?&in)", asMETHODPR(STDAny, Store, (void*, int), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Any", "bool Retrieve(?&out)", asMETHODPR(STDAny, Retrieve, (void*, int) const, bool), asCALL_THISCALL);
 			return true;
 		}
-		bool RegisterArrayAPI(VMManager* Manager)
+		bool STDRegisterArray(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			Engine->SetTypeInfoUserDataCleanupCallback(VMCArray::CleanupTypeInfoCache, ARRAY_CACHE);
+			Engine->SetTypeInfoUserDataCleanupCallback(STDArray::CleanupTypeInfoCache, ARRAY_CACHE);
 			Engine->RegisterObjectType("Array<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCArray::TemplateCallback), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in)", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*), VMCArray*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in, uint length) explicit", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*, as_size_t), VMCArray*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in, uint length, const T &in value)", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*, as_size_t, void*), VMCArray*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_LIST_FACTORY, "Array<T>@ f(int&in type, int&in list) {repeat T}", asFUNCTIONPR(VMCArray::Create, (VMCTypeInfo*, void*), VMCArray*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCArray, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCArray, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "T &opIndex(uint index)", asMETHODPR(VMCArray, At, (as_size_t), void*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "const T &opIndex(uint index) const", asMETHODPR(VMCArray, At, (as_size_t) const, const void*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "Array<T> &opAssign(const Array<T>&in)", asMETHOD(VMCArray, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const T&in value)", asMETHODPR(VMCArray, InsertAt, (as_size_t, void*), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const Array<T>& arr)", asMETHODPR(VMCArray, InsertAt, (as_size_t, const VMCArray&), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void InsertLast(const T&in value)", asMETHOD(VMCArray, InsertLast), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void RemoveAt(uint index)", asMETHOD(VMCArray, RemoveAt), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void RemoveLast()", asMETHOD(VMCArray, RemoveLast), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void RemoveRange(uint Start, uint count)", asMETHOD(VMCArray, RemoveRange), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "uint Size() const", asMETHOD(VMCArray, GetSize), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void Reserve(uint length)", asMETHOD(VMCArray, Reserve), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void Resize(uint length)", asMETHODPR(VMCArray, Resize, (as_size_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void SortAsc()", asMETHODPR(VMCArray, SortAsc, (), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void SortAsc(uint startAt, uint count)", asMETHODPR(VMCArray, SortAsc, (as_size_t, as_size_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void SortDesc()", asMETHODPR(VMCArray, SortDesc, (), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void SortDesc(uint startAt, uint count)", asMETHODPR(VMCArray, SortDesc, (as_size_t, as_size_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "void Reverse()", asMETHOD(VMCArray, Reverse), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "int Find(const T&in if_handle_then_const value) const", asMETHODPR(VMCArray, Find, (void*) const, int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "int Find(uint startAt, const T&in if_handle_then_const value) const", asMETHODPR(VMCArray, Find, (as_size_t, void*) const, int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "int FindByRef(const T&in if_handle_then_const value) const", asMETHODPR(VMCArray, FindByRef, (void*) const, int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "int FindByRef(uint startAt, const T&in if_handle_then_const value) const", asMETHODPR(VMCArray, FindByRef, (as_size_t, void*) const, int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "bool opEquals(const Array<T>&in) const", asMETHOD(VMCArray, operator==), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "bool IsEmpty() const", asMETHOD(VMCArray, IsEmpty), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(STDArray::TemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in)", asFUNCTIONPR(STDArray::Create, (VMCTypeInfo*), STDArray*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in, uint length) explicit", asFUNCTIONPR(STDArray::Create, (VMCTypeInfo*, as_size_t), STDArray*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_FACTORY, "Array<T>@ f(int&in, uint length, const T &in value)", asFUNCTIONPR(STDArray::Create, (VMCTypeInfo*, as_size_t, void*), STDArray*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_LIST_FACTORY, "Array<T>@ f(int&in type, int&in list) {repeat T}", asFUNCTIONPR(STDArray::Create, (VMCTypeInfo*, void*), STDArray*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(STDArray, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(STDArray, Release), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "T &opIndex(uint index)", asMETHODPR(STDArray, At, (as_size_t), void*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "const T &opIndex(uint index) const", asMETHODPR(STDArray, At, (as_size_t) const, const void*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "Array<T> &opAssign(const Array<T>&in)", asMETHOD(STDArray, operator=), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const T&in value)", asMETHODPR(STDArray, InsertAt, (as_size_t, void*), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint index, const Array<T>& arr)", asMETHODPR(STDArray, InsertAt, (as_size_t, const STDArray&), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void InsertLast(const T&in value)", asMETHOD(STDArray, InsertLast), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void RemoveAt(uint index)", asMETHOD(STDArray, RemoveAt), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void RemoveLast()", asMETHOD(STDArray, RemoveLast), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void RemoveRange(uint Start, uint count)", asMETHOD(STDArray, RemoveRange), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "uint Size() const", asMETHOD(STDArray, GetSize), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void Reserve(uint length)", asMETHOD(STDArray, Reserve), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void Resize(uint length)", asMETHODPR(STDArray, Resize, (as_size_t), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void SortAsc()", asMETHODPR(STDArray, SortAsc, (), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void SortAsc(uint startAt, uint count)", asMETHODPR(STDArray, SortAsc, (as_size_t, as_size_t), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void SortDesc()", asMETHODPR(STDArray, SortDesc, (), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void SortDesc(uint startAt, uint count)", asMETHODPR(STDArray, SortDesc, (as_size_t, as_size_t), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void Reverse()", asMETHOD(STDArray, Reverse), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "int Find(const T&in if_handle_then_const value) const", asMETHODPR(STDArray, Find, (void*) const, int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "int Find(uint startAt, const T&in if_handle_then_const value) const", asMETHODPR(STDArray, Find, (as_size_t, void*) const, int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "int FindByRef(const T&in if_handle_then_const value) const", asMETHODPR(STDArray, FindByRef, (void*) const, int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "int FindByRef(uint startAt, const T&in if_handle_then_const value) const", asMETHODPR(STDArray, FindByRef, (as_size_t, void*) const, int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "bool opEquals(const Array<T>&in) const", asMETHOD(STDArray, operator==), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "bool IsEmpty() const", asMETHOD(STDArray, IsEmpty), asCALL_THISCALL);
 			Engine->RegisterFuncdef("bool Array<T>::Less(const T&in if_handle_then_const a, const T&in if_handle_then_const b)");
-			Engine->RegisterObjectMethod("Array<T>", "void Sort(const Less &in, uint startAt = 0, uint count = uint(-1))", asMETHODPR(VMCArray, Sort, (asIScriptFunction*, as_size_t, as_size_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCArray, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCArray, SetFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCArray, GetFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCArray, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCArray, ReleaseAllHandles), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void Sort(const Less &in, uint startAt = 0, uint count = uint(-1))", asMETHODPR(STDArray, Sort, (asIScriptFunction*, as_size_t, as_size_t), void), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(STDArray, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(STDArray, SetFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(STDArray, GetFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDArray, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Array<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDArray, ReleaseAllHandles), asCALL_THISCALL);
 			Engine->RegisterDefaultArrayType("Array<T>");
 			return true;
 		}
-		bool RegisterComplexAPI(VMManager* Manager)
+		bool STDRegisterComplex(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			Engine->RegisterObjectType("Complex", sizeof(VMCComplex), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<VMCComplex>() | asOBJ_APP_CLASS_ALLFLOATS);
-			Engine->RegisterObjectProperty("Complex", "float R", asOFFSET(VMCComplex, R));
-			Engine->RegisterObjectProperty("Complex", "float I", asOFFSET(VMCComplex, I));
-			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(VMCComplex::DefaultConstructor), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(const Complex &in)", asFUNCTION(VMCComplex::CopyConstructor), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(float)", asFUNCTION(VMCComplex::ConvConstructor), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(float, float)", asFUNCTION(VMCComplex::InitConstructor), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_LIST_CONSTRUCT, "void f(const int &in) {float, float}", asFUNCTION(VMCComplex::ListConstructor), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("Complex", "Complex &opAddAssign(const Complex &in)", asMETHODPR(VMCComplex, operator+=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex &opSubAssign(const Complex &in)", asMETHODPR(VMCComplex, operator-=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex &opMulAssign(const Complex &in)", asMETHODPR(VMCComplex, operator*=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex &opDivAssign(const Complex &in)", asMETHODPR(VMCComplex, operator/=, (const VMCComplex&), VMCComplex&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "bool opEquals(const Complex &in) const", asMETHODPR(VMCComplex, operator==, (const VMCComplex&) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opAdd(const Complex &in) const", asMETHODPR(VMCComplex, operator+, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opSub(const Complex &in) const", asMETHODPR(VMCComplex, operator-, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opMul(const Complex &in) const", asMETHODPR(VMCComplex, operator*, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex opDiv(const Complex &in) const", asMETHODPR(VMCComplex, operator/, (const VMCComplex&) const, VMCComplex), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "float Abs() const", asMETHOD(VMCComplex, Length), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex get_RI() const property", asMETHOD(VMCComplex, GetRI), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "Complex get_IR() const property", asMETHOD(VMCComplex, GetIR), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "void set_RI(const Complex &in) property", asMETHOD(VMCComplex, SetRI), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Complex", "void set_IR(const Complex &in) property", asMETHOD(VMCComplex, SetIR), asCALL_THISCALL);
+			Engine->RegisterObjectType("Complex", sizeof(STDComplex), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<STDComplex>() | asOBJ_APP_CLASS_ALLFLOATS);
+			Engine->RegisterObjectProperty("Complex", "float R", asOFFSET(STDComplex, R));
+			Engine->RegisterObjectProperty("Complex", "float I", asOFFSET(STDComplex, I));
+			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(STDComplex::DefaultConstructor), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(const Complex &in)", asFUNCTION(STDComplex::CopyConstructor), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(float)", asFUNCTION(STDComplex::ConvConstructor), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_CONSTRUCT, "void f(float, float)", asFUNCTION(STDComplex::InitConstructor), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("Complex", asBEHAVE_LIST_CONSTRUCT, "void f(const int &in) {float, float}", asFUNCTION(STDComplex::ListConstructor), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("Complex", "Complex &opAddAssign(const Complex &in)", asMETHODPR(STDComplex, operator+=, (const STDComplex&), STDComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex &opSubAssign(const Complex &in)", asMETHODPR(STDComplex, operator-=, (const STDComplex&), STDComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex &opMulAssign(const Complex &in)", asMETHODPR(STDComplex, operator*=, (const STDComplex&), STDComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex &opDivAssign(const Complex &in)", asMETHODPR(STDComplex, operator/=, (const STDComplex&), STDComplex&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "bool opEquals(const Complex &in) const", asMETHODPR(STDComplex, operator==, (const STDComplex&) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opAdd(const Complex &in) const", asMETHODPR(STDComplex, operator+, (const STDComplex&) const, STDComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opSub(const Complex &in) const", asMETHODPR(STDComplex, operator-, (const STDComplex&) const, STDComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opMul(const Complex &in) const", asMETHODPR(STDComplex, operator*, (const STDComplex&) const, STDComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex opDiv(const Complex &in) const", asMETHODPR(STDComplex, operator/, (const STDComplex&) const, STDComplex), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "float Abs() const", asMETHOD(STDComplex, Length), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex get_RI() const property", asMETHOD(STDComplex, GetRI), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "Complex get_IR() const property", asMETHOD(STDComplex, GetIR), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "void set_RI(const Complex &in) property", asMETHOD(STDComplex, SetRI), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Complex", "void set_IR(const Complex &in) property", asMETHOD(STDComplex, SetIR), asCALL_THISCALL);
 			return true;
 		}
-		bool RegisterMapAPI(VMManager* Manager)
+		bool STDRegisterMap(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			Engine->RegisterObjectType("MapKey", sizeof(VMCMapKey), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<VMCMapKey>());
-			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(VMCMap::KeyConstruct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(VMCMap::KeyDestruct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCMapKey, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCMapKey, FreeValue), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const MapKey &in)", asFUNCTIONPR(VMCMap::KeyopAssign, (const VMCMapKey&, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const ?&in)", asFUNCTIONPR(VMCMap::KeyopAssign, (void*, int, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const MapKey &in)", asFUNCTIONPR(VMCMap::KeyopAssign, (const VMCMapKey&, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const ?&in)", asFUNCTIONPR(VMCMap::KeyopAssign, (void*, int, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(double)", asFUNCTIONPR(VMCMap::KeyopAssign, (double, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(int64)", asFUNCTIONPR(VMCMap::KeyopAssign, (as_int64_t, VMCMapKey*), VMCMapKey&), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "void opCast(?&out)", asFUNCTIONPR(VMCMap::KeyopCast, (void*, int, VMCMapKey*), void), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "void opConv(?&out)", asFUNCTIONPR(VMCMap::KeyopCast, (void*, int, VMCMapKey*), void), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "int64 opConv()", asFUNCTIONPR(VMCMap::KeyopConvInt, (VMCMapKey*), as_int64_t), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("MapKey", "double opConv()", asFUNCTIONPR(VMCMap::KeyopConvDouble, (VMCMapKey*), double), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectType("MapKey", sizeof(STDMapKey), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<STDMapKey>());
+			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(STDMap::KeyConstruct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(STDMap::KeyDestruct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDMapKey, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("MapKey", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDMapKey, FreeValue), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const MapKey &in)", asFUNCTIONPR(STDMap::KeyopAssign, (const STDMapKey&, STDMapKey*), STDMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const ?&in)", asFUNCTIONPR(STDMap::KeyopAssign, (void*, int, STDMapKey*), STDMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opHndlAssign(const MapKey &in)", asFUNCTIONPR(STDMap::KeyopAssign, (const STDMapKey&, STDMapKey*), STDMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(const ?&in)", asFUNCTIONPR(STDMap::KeyopAssign, (void*, int, STDMapKey*), STDMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(double)", asFUNCTIONPR(STDMap::KeyopAssign, (double, STDMapKey*), STDMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "MapKey &opAssign(int64)", asFUNCTIONPR(STDMap::KeyopAssign, (as_int64_t, STDMapKey*), STDMapKey&), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "void opCast(?&out)", asFUNCTIONPR(STDMap::KeyopCast, (void*, int, STDMapKey*), void), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "void opConv(?&out)", asFUNCTIONPR(STDMap::KeyopCast, (void*, int, STDMapKey*), void), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "int64 opConv()", asFUNCTIONPR(STDMap::KeyopConvInt, (STDMapKey*), as_int64_t), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("MapKey", "double opConv()", asFUNCTIONPR(STDMap::KeyopConvDouble, (STDMapKey*), double), asCALL_CDECL_OBJLAST);
 
-			Engine->RegisterObjectType("Map", sizeof(VMCMap), asOBJ_REF | asOBJ_GC);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_FACTORY, "Map@ f()", asFUNCTION(VMCMap::Factory), asCALL_GENERIC);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_LIST_FACTORY, "Map @f(int &in) {repeat {String, ?}}", asFUNCTION(VMCMap::ListFactory), asCALL_GENERIC);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCMap, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCMap, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "Map &opAssign(const Map &in)", asMETHODPR(VMCMap, operator=, (const VMCMap&), VMCMap&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "void Set(const String &in, const ?&in)", asMETHODPR(VMCMap, Set, (const std::string&, void*, int), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "bool Get(const String &in, ?&out) const", asMETHODPR(VMCMap, Get, (const std::string&, void*, int) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "bool Exists(const String &in) const", asMETHOD(VMCMap, Exists), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "bool IsEmpty() const", asMETHOD(VMCMap, IsEmpty), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "uint GetSize() const", asMETHOD(VMCMap, GetSize), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "bool Delete(const String &in)", asMETHOD(VMCMap, Delete), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "void DeleteAll()", asMETHOD(VMCMap, DeleteAll), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "Array<String>@ GetKeys() const", asMETHOD(VMCMap, GetKeys), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "MapKey &opIndex(const String &in)", asMETHODPR(VMCMap, operator[], (const std::string&), VMCMapKey*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Map", "const MapKey &opIndex(const String &in) const", asMETHODPR(VMCMap, operator[], (const std::string&) const, const VMCMapKey*), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCMap, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCMap, SetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCMap, GetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCMap, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Map", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCMap, ReleaseAllReferences), asCALL_THISCALL);
+			Engine->RegisterObjectType("Map", sizeof(STDMap), asOBJ_REF | asOBJ_GC);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_FACTORY, "Map@ f()", asFUNCTION(STDMap::Factory), asCALL_GENERIC);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_LIST_FACTORY, "Map @f(int &in) {repeat {String, ?}}", asFUNCTION(STDMap::ListFactory), asCALL_GENERIC);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_ADDREF, "void f()", asMETHOD(STDMap, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_RELEASE, "void f()", asMETHOD(STDMap, Release), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "Map &opAssign(const Map &in)", asMETHODPR(STDMap, operator=, (const STDMap&), STDMap&), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "void Set(const String &in, const ?&in)", asMETHODPR(STDMap, Set, (const std::string&, void*, int), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "bool Get(const String &in, ?&out) const", asMETHODPR(STDMap, Get, (const std::string&, void*, int) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "bool Exists(const String &in) const", asMETHOD(STDMap, Exists), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "bool IsEmpty() const", asMETHOD(STDMap, IsEmpty), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "uint GetSize() const", asMETHOD(STDMap, GetSize), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "bool Delete(const String &in)", asMETHOD(STDMap, Delete), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "void DeleteAll()", asMETHOD(STDMap, DeleteAll), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "Array<String>@ GetKeys() const", asMETHOD(STDMap, GetKeys), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "MapKey &opIndex(const String &in)", asMETHODPR(STDMap, operator[], (const std::string&), STDMapKey*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Map", "const MapKey &opIndex(const String &in) const", asMETHODPR(STDMap, operator[], (const std::string&) const, const STDMapKey*), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(STDMap, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(STDMap, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(STDMap, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDMap, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Map", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDMap, ReleaseAllReferences), asCALL_THISCALL);
 
-			VMCMap::Setup(Engine);
+			STDMap::Setup(Engine);
 			return true;
 		}
-		bool RegisterGridAPI(VMManager* Manager)
+		bool STDRegisterGrid(VMManager* Manager)
 		{
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
 				return false;
 
 			Engine->RegisterObjectType("Grid<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCGrid::TemplateCallback), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in)", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*), VMCGrid*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in, uint, uint)", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*, as_size_t, as_size_t), VMCGrid*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in, uint, uint, const T &in)", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*, as_size_t, as_size_t, void*), VMCGrid*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_LIST_FACTORY, "Grid<T>@ f(int&in type, int&in list) {repeat {repeat_same T}}", asFUNCTIONPR(VMCGrid::Create, (VMCTypeInfo*, void*), VMCGrid*), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCGrid, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCGrid, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Grid<T>", "T &opIndex(uint, uint)", asMETHODPR(VMCGrid, At, (as_size_t, as_size_t), void*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Grid<T>", "const T &opIndex(uint, uint) const", asMETHODPR(VMCGrid, At, (as_size_t, as_size_t) const, const void*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Grid<T>", "void Resize(uint, uint)", asMETHODPR(VMCGrid, Resize, (as_size_t, as_size_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Grid<T>", "uint Width() const", asMETHOD(VMCGrid, GetWidth), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Grid<T>", "uint Height() const", asMETHOD(VMCGrid, GetHeight), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCGrid, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCGrid, SetFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCGrid, GetFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCGrid, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCGrid, ReleaseAllHandles), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(STDGrid::TemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in)", asFUNCTIONPR(STDGrid::Create, (VMCTypeInfo*), STDGrid*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in, uint, uint)", asFUNCTIONPR(STDGrid::Create, (VMCTypeInfo*, as_size_t, as_size_t), STDGrid*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_FACTORY, "Grid<T>@ f(int&in, uint, uint, const T &in)", asFUNCTIONPR(STDGrid::Create, (VMCTypeInfo*, as_size_t, as_size_t, void*), STDGrid*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_LIST_FACTORY, "Grid<T>@ f(int&in type, int&in list) {repeat {repeat_same T}}", asFUNCTIONPR(STDGrid::Create, (VMCTypeInfo*, void*), STDGrid*), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(STDGrid, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(STDGrid, Release), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Grid<T>", "T &opIndex(uint, uint)", asMETHODPR(STDGrid, At, (as_size_t, as_size_t), void*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Grid<T>", "const T &opIndex(uint, uint) const", asMETHODPR(STDGrid, At, (as_size_t, as_size_t) const, const void*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Grid<T>", "void Resize(uint, uint)", asMETHODPR(STDGrid, Resize, (as_size_t, as_size_t), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Grid<T>", "uint Width() const", asMETHOD(STDGrid, GetWidth), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Grid<T>", "uint Height() const", asMETHOD(STDGrid, GetHeight), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(STDGrid, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(STDGrid, SetFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(STDGrid, GetFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDGrid, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Grid<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDGrid, ReleaseAllHandles), asCALL_THISCALL);
 
 			return true;
 		}
-		bool RegisterRefAPI(VMManager* Manager)
+		bool STDRegisterRef(VMManager* Manager)
 		{
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
 				return false;
 
-			Engine->RegisterObjectType("Ref", sizeof(VMCRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<VMCRef>());
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f()", asFUNCTIONPR(VMCRef::Construct, (VMCRef*), void), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const Ref &in)", asFUNCTIONPR(VMCRef::Construct, (VMCRef*, const VMCRef&), void), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const ?&in)", asFUNCTIONPR(VMCRef::Construct, (VMCRef*, void*, int), void), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_DESTRUCT, "void f()", asFUNCTIONPR(VMCRef::Destruct, (VMCRef*), void), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCRef, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCRef, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Ref", "void opCast(?&out)", asMETHODPR(VMCRef, Cast, (void**, int), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Ref", "Ref &opHndlAssign(const Ref &in)", asMETHOD(VMCRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Ref", "Ref &opHndlAssign(const ?&in)", asMETHOD(VMCRef, Assign), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Ref", "bool opEquals(const Ref &in) const", asMETHODPR(VMCRef, operator==, (const VMCRef&) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Ref", "bool opEquals(const ?&in) const", asMETHODPR(VMCRef, Equals, (void*, int) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectType("Ref", sizeof(STDRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<STDRef>());
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f()", asFUNCTIONPR(STDRef::Construct, (STDRef*), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const Ref &in)", asFUNCTIONPR(STDRef::Construct, (STDRef*, const STDRef&), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_CONSTRUCT, "void f(const ?&in)", asFUNCTIONPR(STDRef::Construct, (STDRef*, void*, int), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_DESTRUCT, "void f()", asFUNCTIONPR(STDRef::Destruct, (STDRef*), void), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDRef, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Ref", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDRef, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Ref", "void opCast(?&out)", asMETHODPR(STDRef, Cast, (void**, int), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Ref", "Ref &opHndlAssign(const Ref &in)", asMETHOD(STDRef, operator=), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Ref", "Ref &opHndlAssign(const ?&in)", asMETHOD(STDRef, Assign), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Ref", "bool opEquals(const Ref &in) const", asMETHODPR(STDRef, operator==, (const STDRef&) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Ref", "bool opEquals(const ?&in) const", asMETHODPR(STDRef, Equals, (void*, int) const, bool), asCALL_THISCALL);
 			return true;
 		}
-		bool RegisterWeakRefAPI(VMManager* Manager)
+		bool STDRegisterWeakRef(VMManager* Manager)
 		{
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
 				return false;
 
-			Engine->RegisterObjectType("WeakRef<class T>", sizeof(VMCWeakRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(VMCWeakRef::Construct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in, T@+)", asFUNCTION(VMCWeakRef::Construct2), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(VMCWeakRef::Destruct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCWeakRef::TemplateCallback), asCALL_CDECL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "T@ opImplCast()", asMETHOD(VMCWeakRef, Get), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "T@ Get() const", asMETHODPR(VMCWeakRef, Get, () const, void*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opHndlAssign(const WeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opAssign(const WeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef&) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opHndlAssign(T@)", asMETHOD(VMCWeakRef, Set), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("WeakRef<T>", "bool opEquals(const T@+) const", asMETHOD(VMCWeakRef, Equals), asCALL_THISCALL);
-			Engine->RegisterObjectType("ConstWeakRef<class T>", sizeof(VMCWeakRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
-			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(VMCWeakRef::Construct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in, const T@+)", asFUNCTION(VMCWeakRef::Construct2), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(VMCWeakRef::Destruct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(VMCWeakRef::TemplateCallback), asCALL_CDECL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "const T@ opImplCast() const", asMETHOD(VMCWeakRef, Get), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "const T@ Get() const", asMETHODPR(VMCWeakRef, Get, () const, void*), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const ConstWeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opAssign(const ConstWeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const ConstWeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef&) const, bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const T@)", asMETHOD(VMCWeakRef, Set), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const T@+) const", asMETHOD(VMCWeakRef, Equals), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const WeakRef<T> &in)", asMETHOD(VMCWeakRef, operator=), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(VMCWeakRef, operator==, (const VMCWeakRef&) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectType("WeakRef<class T>", sizeof(STDWeakRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
+			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(STDWeakRef::Construct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in, T@+)", asFUNCTION(STDWeakRef::Construct2), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(STDWeakRef::Destruct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("WeakRef<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(STDWeakRef::TemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "T@ opImplCast()", asMETHOD(STDWeakRef, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "T@ Get() const", asMETHODPR(STDWeakRef, Get, () const, void*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opHndlAssign(const WeakRef<T> &in)", asMETHOD(STDWeakRef, operator=), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opAssign(const WeakRef<T> &in)", asMETHOD(STDWeakRef, operator=), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(STDWeakRef, operator==, (const STDWeakRef&) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "WeakRef<T> &opHndlAssign(T@)", asMETHOD(STDWeakRef, Set), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("WeakRef<T>", "bool opEquals(const T@+) const", asMETHOD(STDWeakRef, Equals), asCALL_THISCALL);
+			Engine->RegisterObjectType("ConstWeakRef<class T>", sizeof(STDWeakRef), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_TEMPLATE | asOBJ_APP_CLASS_DAK);
+			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in)", asFUNCTION(STDWeakRef::Construct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_CONSTRUCT, "void f(int&in, const T@+)", asFUNCTION(STDWeakRef::Construct2), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(STDWeakRef::Destruct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("ConstWeakRef<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(STDWeakRef::TemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "const T@ opImplCast() const", asMETHOD(STDWeakRef, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "const T@ Get() const", asMETHODPR(STDWeakRef, Get, () const, void*), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const ConstWeakRef<T> &in)", asMETHOD(STDWeakRef, operator=), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opAssign(const ConstWeakRef<T> &in)", asMETHOD(STDWeakRef, operator=), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const ConstWeakRef<T> &in) const", asMETHODPR(STDWeakRef, operator==, (const STDWeakRef&) const, bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const T@)", asMETHOD(STDWeakRef, Set), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const T@+) const", asMETHOD(STDWeakRef, Equals), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "ConstWeakRef<T> &opHndlAssign(const WeakRef<T> &in)", asMETHOD(STDWeakRef, operator=), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("ConstWeakRef<T>", "bool opEquals(const WeakRef<T> &in) const", asMETHODPR(STDWeakRef, operator==, (const STDWeakRef&) const, bool), asCALL_THISCALL);
 			return true;
 		}
-		bool RegisterMathAPI(VMManager* Manager)
+		bool STDRegisterMath(VMManager* Manager)
 		{
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
 				return false;
 
-			Engine->RegisterGlobalFunction("float FpFromIEEE(uint)", asFUNCTIONPR(VMCMath::FpFromIEEE, (as_size_t), float), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint FpToIEEE(float)", asFUNCTIONPR(VMCMath::FpToIEEE, (float), as_size_t), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("double FpFromIEEE(uint64)", asFUNCTIONPR(VMCMath::FpFromIEEE, (as_uint64_t), double), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint64 FpToIEEE(double)", asFUNCTIONPR(VMCMath::FpToIEEE, (double), as_uint64_t), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("bool CloseTo(float, float, float = 0.00001f)", asFUNCTIONPR(VMCMath::CloseTo, (float, float, float), bool), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("bool CloseTo(double, double, double = 0.0000000001)", asFUNCTIONPR(VMCMath::CloseTo, (double, double, double), bool), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("float FpFromIEEE(uint)", asFUNCTIONPR(STDMath::FpFromIEEE, (as_size_t), float), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint FpToIEEE(float)", asFUNCTIONPR(STDMath::FpToIEEE, (float), as_size_t), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("double FpFromIEEE(uint64)", asFUNCTIONPR(STDMath::FpFromIEEE, (as_uint64_t), double), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint64 FpToIEEE(double)", asFUNCTIONPR(STDMath::FpToIEEE, (double), as_uint64_t), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("bool CloseTo(float, float, float = 0.00001f)", asFUNCTIONPR(STDMath::CloseTo, (float, float, float), bool), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("bool CloseTo(double, double, double = 0.0000000001)", asFUNCTIONPR(STDMath::CloseTo, (double, double, double), bool), asCALL_CDECL);
 #if !defined(_WIN32_WCE)
 			Engine->RegisterGlobalFunction("float Cos(float)", asFUNCTIONPR(cosf, (float), float), asCALL_CDECL);
 			Engine->RegisterGlobalFunction("float Sin(float)", asFUNCTIONPR(sinf, (float), float), asCALL_CDECL);
@@ -4672,7 +4672,7 @@ namespace Tomahawk
 #endif
 			return true;
 		}
-		bool RegisterStringAPI(VMManager* Manager)
+		bool STDRegisterString(VMManager* Manager)
 		{
 			VMCManager* Engine = Manager->GetEngine();
 			if (!Engine)
@@ -4680,139 +4680,142 @@ namespace Tomahawk
 
 			Engine->RegisterObjectType("String", sizeof(std::string), asOBJ_VALUE | asGetTypeTraits<std::string>());
 			Engine->RegisterStringFactory("String", StringFactory::Get());
-			Engine->RegisterObjectBehaviour("String", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(VMCString::Construct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("String", asBEHAVE_CONSTRUCT, "void f(const String &in)", asFUNCTION(VMCString::CopyConstruct), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectBehaviour("String", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(VMCString::Destruct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("String", asBEHAVE_CONSTRUCT, "void f()", asFUNCTION(STDString::Construct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("String", asBEHAVE_CONSTRUCT, "void f(const String &in)", asFUNCTION(STDString::CopyConstruct), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectBehaviour("String", asBEHAVE_DESTRUCT, "void f()", asFUNCTION(STDString::Destruct), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "String &opAssign(const String &in)", asMETHODPR(std::string, operator =, (const std::string&), std::string&), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("String", "String &opAddAssign(const String &in)", asFUNCTION(VMCString::AddAssignTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "bool opEquals(const String &in) const", asFUNCTIONPR(VMCString::Equals, (const std::string&, const std::string&), bool), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "int opCmp(const String &in) const", asFUNCTION(VMCString::Cmp), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "String &opAddAssign(const String &in)", asFUNCTION(STDString::AddAssignTo), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "bool opEquals(const String &in) const", asFUNCTIONPR(STDString::Equals, (const std::string&, const std::string&), bool), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "int opCmp(const String &in) const", asFUNCTION(STDString::Cmp), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "String opAdd(const String &in) const", asFUNCTIONPR(std::operator +, (const std::string&, const std::string&), std::string), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "uint Size() const", asFUNCTION(VMCString::Length), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "void Resize(uint)", asFUNCTION(VMCString::Resize), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "bool IsEmpty() const", asFUNCTION(VMCString::IsEmpty), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "uint8 &opIndex(uint)", asFUNCTION(VMCString::CharAt), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "const uint8 &opIndex(uint) const", asFUNCTION(VMCString::CharAt), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAssign(double)", asFUNCTION(VMCString::AssignDoubleTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAddAssign(double)", asFUNCTION(VMCString::AddAssignDoubleTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String opAdd(double) const", asFUNCTION(VMCString::AddDouble1), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "String opAdd_r(double) const", asFUNCTION(VMCString::AddDouble2), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAssign(float)", asFUNCTION(VMCString::AssignFloatTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAddAssign(float)", asFUNCTION(VMCString::AddAssignFloatTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String opAdd(float) const", asFUNCTION(VMCString::AddFloat1), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "String opAdd_r(float) const", asFUNCTION(VMCString::AddFloat2), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAssign(int64)", asFUNCTION(VMCString::AssignInt64To), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAddAssign(int64)", asFUNCTION(VMCString::AddAssignInt64To), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String opAdd(int64) const", asFUNCTION(VMCString::AddInt641), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "String opAdd_r(int64) const", asFUNCTION(VMCString::AddInt642), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAssign(uint64)", asFUNCTION(VMCString::AssignUInt64To), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAddAssign(uint64)", asFUNCTION(VMCString::AddAssignUInt64To), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String opAdd(uint64) const", asFUNCTION(VMCString::AddUInt641), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "String opAdd_r(uint64) const", asFUNCTION(VMCString::AddUInt642), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAssign(bool)", asFUNCTION(VMCString::AssignBoolTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String &opAddAssign(bool)", asFUNCTION(VMCString::AddAssignBoolTo), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String opAdd(bool) const", asFUNCTION(VMCString::AddBool1), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "String opAdd_r(bool) const", asFUNCTION(VMCString::AddBool2), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String Substr(uint Start = 0, int count = -1) const", asFUNCTION(VMCString::Sub), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindFirst(const String &in, uint Start = 0) const", asFUNCTION(VMCString::FindFirst), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindFirstOf(const String &in, uint Start = 0) const", asFUNCTION(VMCString::FindFirstOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindFirstNotOf(const String &in, uint Start = 0) const", asFUNCTION(VMCString::FindFirstNotOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindLast(const String &in, int Start = -1) const", asFUNCTION(VMCString::FindLast), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindLastOf(const String &in, int Start = -1) const", asFUNCTION(VMCString::FindLastOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "int FindLastNotOf(const String &in, int Start = -1) const", asFUNCTION(VMCString::FindLastNotOf), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "void Insert(uint Offset, const String &in Other)", asFUNCTION(VMCString::Insert), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "void Erase(uint Offset, int count = -1)", asFUNCTION(VMCString::Erase), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String Replace(const String &in, const String &in, uint64 o = 0)", asFUNCTION(VMCString::Replace), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "Array<String>@ Split(const String &in) const", asFUNCTION(VMCString::Split), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String ToLower() const", asFUNCTION(VMCString::ToLower), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String ToUpper() const", asFUNCTION(VMCString::ToUpper), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "String Reverse() const", asFUNCTION(VMCString::Reverse), asCALL_CDECL_OBJLAST);
-			Engine->RegisterObjectMethod("String", "Address@ GetAddress() const", asFUNCTION(VMCString::ToPtr), asCALL_CDECL_OBJLAST);
-			Engine->RegisterGlobalFunction("int64 ToInt(const String &in, uint Base = 10, uint &out ByteCount = 0)", asFUNCTION(VMCString::IntStore), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint64 ToUInt(const String &in, uint Base = 10, uint &out ByteCount = 0)", asFUNCTION(VMCString::UIntStore), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("double ToFloat(const String &in, uint &out ByteCount = 0)", asFUNCTION(VMCString::FloatStore), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint8 ToChar(const String &in)", asFUNCTION(VMCString::ToChar), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(const Array<String> &in, const String &in)", asFUNCTION(VMCString::Join), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(int8)", asFUNCTION(VMCString::ToInt8), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(int16)", asFUNCTION(VMCString::ToInt16), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(int)", asFUNCTION(VMCString::ToInt), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(int64)", asFUNCTION(VMCString::ToInt64), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(uint8)", asFUNCTION(VMCString::ToUInt8), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(uint16)", asFUNCTION(VMCString::ToUInt16), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(uint)", asFUNCTION(VMCString::ToUInt), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(uint64)", asFUNCTION(VMCString::ToUInt64), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(float)", asFUNCTION(VMCString::ToFloat), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String ToString(double)", asFUNCTION(VMCString::ToDouble), asCALL_CDECL);
+			Engine->RegisterObjectMethod("String", "uint Size() const", asFUNCTION(STDString::Length), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "void Resize(uint)", asFUNCTION(STDString::Resize), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "bool IsEmpty() const", asFUNCTION(STDString::IsEmpty), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "uint8 &opIndex(uint)", asFUNCTION(STDString::CharAt), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "const uint8 &opIndex(uint) const", asFUNCTION(STDString::CharAt), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAssign(double)", asFUNCTION(STDString::AssignDoubleTo), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAddAssign(double)", asFUNCTION(STDString::AddAssignDoubleTo), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String opAdd(double) const", asFUNCTION(STDString::AddDouble1), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "String opAdd_r(double) const", asFUNCTION(STDString::AddDouble2), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAssign(float)", asFUNCTION(STDString::AssignFloatTo), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAddAssign(float)", asFUNCTION(STDString::AddAssignFloatTo), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String opAdd(float) const", asFUNCTION(STDString::AddFloat1), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "String opAdd_r(float) const", asFUNCTION(STDString::AddFloat2), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAssign(int64)", asFUNCTION(STDString::AssignInt64To), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAddAssign(int64)", asFUNCTION(STDString::AddAssignInt64To), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String opAdd(int64) const", asFUNCTION(STDString::AddInt641), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "String opAdd_r(int64) const", asFUNCTION(STDString::AddInt642), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAssign(uint64)", asFUNCTION(STDString::AssignUInt64To), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAddAssign(uint64)", asFUNCTION(STDString::AddAssignUInt64To), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String opAdd(uint64) const", asFUNCTION(STDString::AddUInt641), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "String opAdd_r(uint64) const", asFUNCTION(STDString::AddUInt642), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAssign(bool)", asFUNCTION(STDString::AssignBoolTo), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String &opAddAssign(bool)", asFUNCTION(STDString::AddAssignBoolTo), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String opAdd(bool) const", asFUNCTION(STDString::AddBool1), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "String opAdd_r(bool) const", asFUNCTION(STDString::AddBool2), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String Substr(uint Start = 0, int count = -1) const", asFUNCTION(STDString::Sub), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindFirst(const String &in, uint Start = 0) const", asFUNCTION(STDString::FindFirst), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindFirstOf(const String &in, uint Start = 0) const", asFUNCTION(STDString::FindFirstOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindFirstNotOf(const String &in, uint Start = 0) const", asFUNCTION(STDString::FindFirstNotOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindLast(const String &in, int Start = -1) const", asFUNCTION(STDString::FindLast), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindLastOf(const String &in, int Start = -1) const", asFUNCTION(STDString::FindLastOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "int FindLastNotOf(const String &in, int Start = -1) const", asFUNCTION(STDString::FindLastNotOf), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "void Insert(uint Offset, const String &in Other)", asFUNCTION(STDString::Insert), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "void Erase(uint Offset, int count = -1)", asFUNCTION(STDString::Erase), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String Replace(const String &in, const String &in, uint64 o = 0)", asFUNCTION(STDString::Replace), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "Array<String>@ Split(const String &in) const", asFUNCTION(STDString::Split), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String ToLower() const", asFUNCTION(STDString::ToLower), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String ToUpper() const", asFUNCTION(STDString::ToUpper), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "String Reverse() const", asFUNCTION(STDString::Reverse), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "Address@ GetAddress() const", asFUNCTION(STDString::ToPtr), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "Address@ opImplCast()", asFUNCTION(STDString::ToPtr), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "Address@ opImplConv() const", asFUNCTION(STDString::ToPtr), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterObjectMethod("String", "Address@ opImplCast() const", asFUNCTION(STDString::ToPtr), asCALL_CDECL_OBJFIRST);
+			Engine->RegisterGlobalFunction("int64 ToInt(const String &in, uint Base = 10, uint &out ByteCount = 0)", asFUNCTION(STDString::IntStore), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint64 ToUInt(const String &in, uint Base = 10, uint &out ByteCount = 0)", asFUNCTION(STDString::UIntStore), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("double ToFloat(const String &in, uint &out ByteCount = 0)", asFUNCTION(STDString::FloatStore), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint8 ToChar(const String &in)", asFUNCTION(STDString::ToChar), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(const Array<String> &in, const String &in)", asFUNCTION(STDString::Join), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(int8)", asFUNCTION(STDString::ToInt8), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(int16)", asFUNCTION(STDString::ToInt16), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(int)", asFUNCTION(STDString::ToInt), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(int64)", asFUNCTION(STDString::ToInt64), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(uint8)", asFUNCTION(STDString::ToUInt8), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(uint16)", asFUNCTION(STDString::ToUInt16), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(uint)", asFUNCTION(STDString::ToUInt), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(uint64)", asFUNCTION(STDString::ToUInt64), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(float)", asFUNCTION(STDString::ToFloat), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String ToString(double)", asFUNCTION(STDString::ToDouble), asCALL_CDECL);
 
 			return true;
 		}
-		bool RegisterExceptionAPI(VMManager* Manager)
+		bool STDRegisterException(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			Engine->RegisterGlobalFunction("void Throw(const String &in = \"\")", asFUNCTION(VMCException::Throw), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("String GetException()", asFUNCTION(VMCException::GetException), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("void Throw(const String &in = \"\")", asFUNCTION(STDException::Throw), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("String GetException()", asFUNCTION(STDException::GetException), asCALL_CDECL);
 			return true;
 		}
-		bool RegisterMutexAPI(VMManager* Manager)
+		bool STDRegisterMutex(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
-			Engine->RegisterObjectType("Mutex", sizeof(VMCMutex), asOBJ_REF);
-			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_FACTORY, "Mutex@ f()", asFUNCTION(VMCMutex::Factory), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCMutex, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCMutex, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Mutex", "bool TryLock()", asMETHOD(VMCMutex, TryLock), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Mutex", "void Lock()", asMETHOD(VMCMutex, Lock), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Mutex", "void Unlock()", asMETHOD(VMCMutex, Unlock), asCALL_THISCALL);
+			Engine->RegisterObjectType("Mutex", sizeof(STDMutex), asOBJ_REF);
+			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_FACTORY, "Mutex@ f()", asFUNCTION(STDMutex::Factory), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_ADDREF, "void f()", asMETHOD(STDMutex, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Mutex", asBEHAVE_RELEASE, "void f()", asMETHOD(STDMutex, Release), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Mutex", "bool TryLock()", asMETHOD(STDMutex, TryLock), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Mutex", "void Lock()", asMETHOD(STDMutex, Lock), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Mutex", "void Unlock()", asMETHOD(STDMutex, Unlock), asCALL_THISCALL);
 			return true;
 		}
-		bool RegisterThreadAPI(VMManager* Manager)
+		bool STDRegisterThread(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
 			Engine->RegisterObjectType("Thread", 0, asOBJ_REF | asOBJ_GC);
 			Engine->RegisterFuncdef("void ThreadEvent(Thread@+)");
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_FACTORY, "Thread@ f(ThreadEvent@)", asFUNCTION(VMCThread::Create), asCALL_GENERIC);
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCThread, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCThread, Release), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(VMCThread, SetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(VMCThread, GetGCFlag), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(VMCThread, GetRefCount), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(VMCThread, EnumReferences), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(VMCThread, ReleaseReferences), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "bool IsActive()", asMETHOD(VMCThread, IsActive), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "bool Invoke()", asMETHOD(VMCThread, Start), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "void Suspend()", asMETHOD(VMCThread, Suspend), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "void Resume()", asMETHOD(VMCThread, Resume), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "void Push(const ?&in)", asMETHOD(VMCThread, Push), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out)", asMETHODPR(VMCThread, Pop, (void*, int), bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out, uint64)", asMETHODPR(VMCThread, Pop, (void*, int, uint64_t), bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "int Join(uint64)", asMETHODPR(VMCThread, Join, (uint64_t), int), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Thread", "int Join()", asMETHODPR(VMCThread, Join, (), int), asCALL_THISCALL);
-			Engine->RegisterGlobalFunction("Thread@+ GetThread()", asFUNCTION(VMCThread::GetThread), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("uint64 GetThreadId()", asFUNCTION(VMCThread::GetThreadId), asCALL_CDECL);
-			Engine->RegisterGlobalFunction("void Sleep(uint64)", asFUNCTION(VMCThread::ThreadSleep), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_FACTORY, "Thread@ f(ThreadEvent@)", asFUNCTION(STDThread::Create), asCALL_GENERIC);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_ADDREF, "void f()", asMETHOD(STDThread, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_RELEASE, "void f()", asMETHOD(STDThread, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(STDThread, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(STDThread, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(STDThread, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDThread, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Thread", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDThread, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "bool IsActive()", asMETHOD(STDThread, IsActive), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "bool Invoke()", asMETHOD(STDThread, Start), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "void Suspend()", asMETHOD(STDThread, Suspend), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "void Resume()", asMETHOD(STDThread, Resume), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "void Push(const ?&in)", asMETHOD(STDThread, Push), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out)", asMETHODPR(STDThread, Pop, (void*, int), bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "bool Pop(?&out, uint64)", asMETHODPR(STDThread, Pop, (void*, int, uint64_t), bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "int Join(uint64)", asMETHODPR(STDThread, Join, (uint64_t), int), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Thread", "int Join()", asMETHODPR(STDThread, Join, (), int), asCALL_THISCALL);
+			Engine->RegisterGlobalFunction("Thread@+ GetThread()", asFUNCTION(STDThread::GetThread), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("uint64 GetThreadId()", asFUNCTION(STDThread::GetThreadId), asCALL_CDECL);
+			Engine->RegisterGlobalFunction("void Sleep(uint64)", asFUNCTION(STDThread::ThreadSleep), asCALL_CDECL);
 			return true;
 		}
-		bool RegisterRandomAPI(VMManager* Manager)
+		bool STDRegisterRandom(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 			VMCManager* Engine = Manager->GetEngine();
 			Engine->RegisterObjectType("Random", 0, asOBJ_REF);
-			Engine->RegisterObjectBehaviour("Random", asBEHAVE_FACTORY, "Random@ f()", asFUNCTION(VMCRandom::Create), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Random", asBEHAVE_ADDREF, "void f()", asMETHOD(VMCRandom, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Random", asBEHAVE_RELEASE, "void f()", asMETHOD(VMCRandom, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void opAssign(const Random&)", asMETHODPR(VMCRandom, Assign, (VMCRandom*), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void Seed(uint)", asMETHODPR(VMCRandom, Seed, (uint32_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void Seed(uint[]&)", asMETHODPR(VMCRandom, Seed, (VMCArray*), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "int GetI()", asMETHOD(VMCRandom, GetI), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "uint GetU()", asMETHOD(VMCRandom, GetU), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "double GetD()", asMETHOD(VMCRandom, GetD), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void SeedFromTime()", asMETHOD(VMCRandom, SeedFromTime), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Random", asBEHAVE_FACTORY, "Random@ f()", asFUNCTION(STDRandom::Create), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Random", asBEHAVE_ADDREF, "void f()", asMETHOD(STDRandom, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Random", asBEHAVE_RELEASE, "void f()", asMETHOD(STDRandom, Release), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "void opAssign(const Random&)", asMETHODPR(STDRandom, Assign, (STDRandom*), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "void Seed(uint)", asMETHODPR(STDRandom, Seed, (uint32_t), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "void Seed(uint[]&)", asMETHODPR(STDRandom, Seed, (STDArray*), void), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "int GetI()", asMETHOD(STDRandom, GetI), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "uint GetU()", asMETHOD(STDRandom, GetU), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "double GetD()", asMETHOD(STDRandom, GetD), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Random", "void SeedFromTime()", asMETHOD(STDRandom, SeedFromTime), asCALL_THISCALL);
 			return true;
 		}
-		bool FreeCoreAPI()
+		bool STDFreeCore()
 		{
 			StringFactory::Free();
 			return false;

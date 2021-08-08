@@ -3841,7 +3841,7 @@ namespace Tomahawk
 					if (Invoke == InvokeType_Typeless)
 						return;
 
-					Script::VMCMap* Map = Script::VMCMap::Create(Compiler->GetManager()->GetEngine());
+					Script::STDMap* Map = Script::STDMap::Create(Compiler->GetManager()->GetEngine());
 					if (Map != nullptr)
 					{
 						int TypeId = Compiler->GetManager()->Global().GetTypeIdByDecl("Variant");

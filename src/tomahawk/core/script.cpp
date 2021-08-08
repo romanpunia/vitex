@@ -2487,7 +2487,7 @@ namespace Tomahawk
 					Result << "\t{...engine...}\n";
 			}
 
-			uint64_t Id = VMCThread::GetThreadId();
+			uint64_t Id = STDThread::GetThreadId();
 			if (Id > 0)
 				Result << "\t{...thread-" << Id << "...}\n";
 			else
@@ -3612,7 +3612,7 @@ namespace Tomahawk
 		}
 		void VMManager::FreeProxy()
 		{
-			FreeCoreAPI();
+			STDFreeCore();
 			FreeThread();
 		}
 		void VMManager::FreeThread()
@@ -3693,19 +3693,19 @@ namespace Tomahawk
 		}
 		void VMManager::RegisterSubmodules(VMManager* Engine)
 		{
-			Engine->AddSubmodule("std/any", { }, RegisterAnyAPI);
-			Engine->AddSubmodule("std/array", { }, RegisterArrayAPI);
-			Engine->AddSubmodule("std/complex", { }, RegisterComplexAPI);
-			Engine->AddSubmodule("std/grid", { }, RegisterGridAPI);
-			Engine->AddSubmodule("std/ref", { }, RegisterRefAPI);
-			Engine->AddSubmodule("std/weakref", { }, RegisterWeakRefAPI);
-			Engine->AddSubmodule("std/math", { }, RegisterMathAPI);
-			Engine->AddSubmodule("std/random", { }, RegisterRandomAPI);
-			Engine->AddSubmodule("std/string", { "std/array" }, RegisterStringAPI);
-			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, RegisterMapAPI);
-			Engine->AddSubmodule("std/exception", { "std/string" }, RegisterExceptionAPI);
-			Engine->AddSubmodule("std/mutex", { }, RegisterMutexAPI);
-			Engine->AddSubmodule("std/thread", { "std/any" }, RegisterThreadAPI);
+			Engine->AddSubmodule("std/any", { }, STDRegisterAny);
+			Engine->AddSubmodule("std/array", { }, STDRegisterArray);
+			Engine->AddSubmodule("std/complex", { }, STDRegisterComplex);
+			Engine->AddSubmodule("std/grid", { }, STDRegisterGrid);
+			Engine->AddSubmodule("std/ref", { }, STDRegisterRef);
+			Engine->AddSubmodule("std/weakref", { }, STDRegisterWeakRef);
+			Engine->AddSubmodule("std/math", { }, STDRegisterMath);
+			Engine->AddSubmodule("std/random", { }, STDRegisterRandom);
+			Engine->AddSubmodule("std/string", { "std/array" }, STDRegisterString);
+			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, STDRegisterMap);
+			Engine->AddSubmodule("std/exception", { "std/string" }, STDRegisterException);
+			Engine->AddSubmodule("std/mutex", { }, STDRegisterMutex);
+			Engine->AddSubmodule("std/thread", { "std/any" }, STDRegisterThread);
 			Engine->AddSubmodule("std",
 			{
 				"std/any",
@@ -3723,22 +3723,44 @@ namespace Tomahawk
 				"std/thread",
 			}, nullptr);
 
-			Engine->AddSubmodule("core/format", { "std/string" }, RegisterFormatAPI);
-			Engine->AddSubmodule("core/console", { "core/format" }, RegisterConsoleAPI);
-			Engine->AddSubmodule("core/variant", { }, RegisterVariantAPI);
-			Engine->AddSubmodule("core/document", { "std/array", "std/string", "std/map", "core/variant" }, RegisterDocumentAPI);
-			Engine->AddSubmodule("core",
+			Engine->AddSubmodule("ce/format", { "std/string" }, CERegisterFormat);
+			Engine->AddSubmodule("ce/decimal", { "std/string" }, CERegisterDecimal);
+			Engine->AddSubmodule("ce/variant", { "std/string" }, CERegisterVariant);
+			Engine->AddSubmodule("ce/filestate", { }, CERegisterFileState);
+			Engine->AddSubmodule("ce/resource", { }, CERegisterResource);
+			Engine->AddSubmodule("ce/datetime", { "std/string" }, CERegisterDateTime);
+			Engine->AddSubmodule("ce/ticker", { }, CERegisterTicker);
+			Engine->AddSubmodule("ce/os", { "std/string", "ce/filestate", "ce/resource" }, CERegisterOS);
+			Engine->AddSubmodule("ce/console", { "ce/format" }, CERegisterConsole);
+			Engine->AddSubmodule("ce/timer", { }, CERegisterTimer);
+			Engine->AddSubmodule("ce/filestream", { "std/string"}, CERegisterFileStream);
+			Engine->AddSubmodule("ce/gzstream", { "std/string", "ce/filestream"}, CERegisterGzStream);
+			Engine->AddSubmodule("ce/webstream", { "std/string", "ce/filestream" }, CERegisterWebStream);
+			Engine->AddSubmodule("ce/schedule", { "std/string" }, CERegisterSchedule);
+			Engine->AddSubmodule("ce/document", { "std/array", "std/string", "std/map", "ce/variant" }, CERegisterDocument);
+			Engine->AddSubmodule("ce",
 			{
-				"core/format",
-				"core/console",
-				"core/variant",
-				"core/document"
+				"ce/format",
+				"ce/decimal",
+				"ce/variant",
+				"ce/filestate",
+				"ce/resource",
+				"ce/datetime",
+				"ce/ticker",
+				"ce/os",
+				"ce/console",
+				"ce/timer",
+				"ce/filestream",
+				"ce/gzstream",
+				"ce/webstream",
+				"ce/schedule",
+				"ce/document"
 			}, nullptr);
 
-			Engine->AddSubmodule("gui/element", { }, RegisterGuiElementAPI);
-			Engine->AddSubmodule("gui/document", { }, RegisterGuiDocumentAPI);
-			Engine->AddSubmodule("gui/event", { }, RegisterGuiEventAPI);
-			Engine->AddSubmodule("gui/context", { }, RegisterGuiContextAPI);
+			Engine->AddSubmodule("gui/element", { }, GUIRegisterElement);
+			Engine->AddSubmodule("gui/document", { }, GUIRegisterDocument);
+			Engine->AddSubmodule("gui/event", { }, GUIRegisterEvent);
+			Engine->AddSubmodule("gui/context", { }, GUIRegisterContext);
 			Engine->AddSubmodule("gui",
 			{
 				"gui/element",

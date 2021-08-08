@@ -2043,6 +2043,10 @@ namespace Tomahawk
 		{
 			return Time < Right.Time;
 		}
+		bool DateTime::operator ==(const DateTime& Right)
+		{
+			return Time == Right.Time;
+		}
 		std::string DateTime::Format(const std::string& Value)
 		{
 			return Parser(Value).Replace("{ns}", std::to_string(Nanoseconds())).Replace("{us}", std::to_string(Microseconds())).Replace("{ms}", std::to_string(Milliseconds())).Replace("{s}", std::to_string(Seconds())).Replace("{m}", std::to_string(Minutes())).Replace("{h}", std::to_string(Hours())).Replace("{D}", std::to_string(Days())).Replace("{W}", std::to_string(Weeks())).Replace("{M}", std::to_string(Months())).Replace("{Y}", std::to_string(Years())).R();
@@ -2151,14 +2155,14 @@ namespace Tomahawk
 
 			return New;
 		}
-		DateTime DateTime::operator +(const DateTime& Right)
+		DateTime DateTime::operator +(const DateTime& Right) const
 		{
 			DateTime New;
 			New.Time = Time + Right.Time;
 
 			return New;
 		}
-		DateTime DateTime::operator -(const DateTime& Right)
+		DateTime DateTime::operator -(const DateTime& Right) const
 		{
 			DateTime New;
 			New.Time = Time - Right.Time;

@@ -7,7 +7,7 @@ namespace Tomahawk
 {
 	namespace Script
 	{
-		bool RegisterGuiElementAPI(VMManager* Engine)
+		bool GUIRegisterElement(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -20,7 +20,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool RegisterGuiDocumentAPI(VMManager* Engine)
+		bool GUIRegisterDocument(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -33,7 +33,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool RegisterGuiEventAPI(VMManager* Engine)
+		bool GUIRegisterEvent(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -46,7 +46,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool RegisterGuiContextAPI(VMManager* Engine)
+		bool GUIRegisterContext(VMManager* Engine)
 		{
 #ifdef TH_WITH_RMLUI
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");

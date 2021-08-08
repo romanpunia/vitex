@@ -2,19 +2,19 @@
 #define TH_SCRIPT_STD_API_H
 
 #include "../core/script.h"
-#define TH_PROMISIFY(MemberFunction) Tomahawk::Script::VMCPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Function
-#define TH_ARRAYIFY(MemberFunction, TypeId) Tomahawk::Script::VMCArray::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define TH_ARRAYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::VMCArray::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
-#define TH_ANYIFY(MemberFunction, TypeId) Tomahawk::Script::VMCAny::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define TH_ANYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::VMCAny::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
+#define TH_PROMISIFY(MemberFunction) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Function
+#define TH_ARRAYIFY(MemberFunction, TypeId) Tomahawk::Script::STDArray::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define TH_ARRAYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::STDArray::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
+#define TH_ANYIFY(MemberFunction, TypeId) Tomahawk::Script::STDAny::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define TH_ANYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::STDAny::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
 
 namespace Tomahawk
 {
 	namespace Script
 	{
-		class VMCArray;
+		class STDArray;
 
-		class TH_OUT VMCPromise
+		class TH_OUT STDPromise
 		{
 		public:
 			template <typename T, T>
@@ -30,14 +30,14 @@ namespace Tomahawk
 			};
 		};
 
-		class TH_OUT VMCException
+		class TH_OUT STDException
 		{
 		public:
 			static void Throw(const std::string& In);
 			static std::string GetException();
 		};
 
-		class TH_OUT VMCString
+		class TH_OUT STDString
 		{
 		public:
 			static void Construct(std::string *thisPointer);
@@ -97,19 +97,19 @@ namespace Tomahawk
 			static std::string ToUInt64(uint64_t Value);
 			static std::string ToFloat(float Value);
 			static std::string ToDouble(double Value);
-			static VMCArray* Split(const std::string &delim, const std::string &str);
-			static std::string Join(const VMCArray &array, const std::string &delim);
+			static STDArray* Split(const std::string &delim, const std::string &str);
+			static std::string Join(const STDArray &array, const std::string &delim);
 			static char ToChar(const std::string& Symbol);
 		};
 
-		class TH_OUT VMCMutex
+		class TH_OUT STDMutex
 		{
 		private:
 			std::mutex Base;
 			int Ref;
 
 		public:
-			VMCMutex();
+			STDMutex();
 			void AddRef();
 			void Release();
 			bool TryLock();
@@ -117,10 +117,10 @@ namespace Tomahawk
 			void Unlock();
 			
 		public:
-			static VMCMutex* Factory();
+			static STDMutex* Factory();
 		};
 
-		class TH_OUT VMCMath
+		class TH_OUT STDMath
 		{
 		public:
 			static float FpFromIEEE(as_size_t raw);
@@ -131,7 +131,7 @@ namespace Tomahawk
 			static bool CloseTo(double a, double b, double epsilon);
 		};
 
-		class TH_OUT VMCAny
+		class TH_OUT STDAny
 		{
 		protected:
 			struct ValueStruct
@@ -152,13 +152,13 @@ namespace Tomahawk
 			ValueStruct Value;
 
 		public:
-			VMCAny(VMCManager* Engine);
-			VMCAny(void* Ref, int RefTypeId, VMCManager* Engine);
-			VMCAny(const VMCAny&);
+			STDAny(VMCManager* Engine);
+			STDAny(void* Ref, int RefTypeId, VMCManager* Engine);
+			STDAny(const STDAny&);
 			int AddRef() const;
 			int Release() const;
-			VMCAny& operator= (const VMCAny&);
-			int CopyFrom(const VMCAny* Other);
+			STDAny& operator= (const STDAny&);
+			int CopyFrom(const STDAny* Other);
 			void Store(void* Ref, int RefTypeId);
 			bool Retrieve(void* Ref, int RefTypeId) const;
 			int GetTypeId() const;
@@ -169,15 +169,15 @@ namespace Tomahawk
 			void ReleaseAllHandles(VMCManager* Engine);
 
 		protected:
-			virtual ~VMCAny();
+			virtual ~STDAny();
 			void FreeObject();
 
 		public:
-			static VMCAny* Create(int TypeId, void* Ref);
-			static VMCAny* Create(const char* Decl, void* Ref);
+			static STDAny* Create(int TypeId, void* Ref);
+			static STDAny* Create(const char* Decl, void* Ref);
 			static void Factory1(VMCGeneric* G);
 			static void Factory2(VMCGeneric* G);
-			static VMCAny& Assignment(VMCAny* Other, VMCAny* Self);
+			static STDAny& Assignment(STDAny* Other, STDAny* Self);
 
 		public:
 			template <typename T, T>
@@ -187,21 +187,21 @@ namespace Tomahawk
 			struct Ify<R(T::*)(Args...), F>
 			{
 				template <VMTypeId TypeId>
-				static VMCAny* Id(T* Base, Args... Data)
+				static STDAny* Id(T* Base, Args... Data)
 				{
 					R Subresult((Base->*F)(Data...));
-					return VMCAny::Create((int)TypeId, &Subresult);
+					return STDAny::Create((int)TypeId, &Subresult);
 				}
 				template <const char* TypeName>
-				static VMCAny* Id(T* Base, Args... Data)
+				static STDAny* Id(T* Base, Args... Data)
 				{
 					R Subresult((Base->*F)(Data...));
-					return VMCAny::Create(TypeName, &Subresult);
+					return STDAny::Create(TypeName, &Subresult);
 				}
 			};
 		};
 
-		class TH_OUT VMCArray
+		class TH_OUT STDArray
 		{
 		public:
 			struct SBuffer
@@ -240,10 +240,10 @@ namespace Tomahawk
 			void* At(as_size_t Index);
 			const void* At(as_size_t Index) const;
 			void SetValue(as_size_t Index, void* Value);
-			VMCArray& operator= (const VMCArray&);
-			bool operator== (const VMCArray&) const;
+			STDArray& operator= (const STDArray&);
+			bool operator== (const STDArray&) const;
 			void InsertAt(as_size_t Index, void* Value);
-			void InsertAt(as_size_t Index, const VMCArray& Other);
+			void InsertAt(as_size_t Index, const STDArray& Other);
 			void InsertLast(void* Value);
 			void RemoveAt(as_size_t Index);
 			void RemoveLast();
@@ -267,11 +267,11 @@ namespace Tomahawk
 			void ReleaseAllHandles(VMCManager* Engine);
 
 		protected:
-			VMCArray(VMCTypeInfo* T, void* InitBuf);
-			VMCArray(as_size_t Length, VMCTypeInfo* T);
-			VMCArray(as_size_t Length, void* DefVal, VMCTypeInfo* T);
-			VMCArray(const VMCArray& Other);
-			virtual ~VMCArray();
+			STDArray(VMCTypeInfo* T, void* InitBuf);
+			STDArray(as_size_t Length, VMCTypeInfo* T);
+			STDArray(as_size_t Length, void* DefVal, VMCTypeInfo* T);
+			STDArray(const STDArray& Other);
+			virtual ~STDArray();
 			bool Less(const void* A, const void* B, bool Asc, VMCContext* Ctx, SCache* Cache);
 			void* GetArrayItemPointer(int Index);
 			void* GetDataPointer(void* Buffer);
@@ -287,25 +287,25 @@ namespace Tomahawk
 			bool Equals(const void* A, const void* B, VMCContext* Ctx, SCache* Cache) const;
 
 		public:
-			static VMCArray* Create(VMCTypeInfo* T);
-			static VMCArray* Create(VMCTypeInfo* T, as_size_t Length);
-			static VMCArray* Create(VMCTypeInfo* T, as_size_t Length, void* DefaultValue);
-			static VMCArray* Create(VMCTypeInfo* T, void* ListBuffer);
+			static STDArray* Create(VMCTypeInfo* T);
+			static STDArray* Create(VMCTypeInfo* T, as_size_t Length);
+			static STDArray* Create(VMCTypeInfo* T, as_size_t Length, void* DefaultValue);
+			static STDArray* Create(VMCTypeInfo* T, void* ListBuffer);
 			static void CleanupTypeInfoCache(VMCTypeInfo* Type);
 			static bool TemplateCallback(VMCTypeInfo* T, bool& DontGarbageCollect);
 
 		public:
 			template <typename T>
-			static VMCArray* Compose(VMCTypeInfo* ArrayType, const std::vector<T>& Objects)
+			static STDArray* Compose(VMCTypeInfo* ArrayType, const std::vector<T>& Objects)
 			{
-				VMCArray* Array = Create(ArrayType, (unsigned int)Objects.size());
+				STDArray* Array = Create(ArrayType, (unsigned int)Objects.size());
 				for (size_t i = 0; i < Objects.size(); i++)
 					Array->SetValue((as_size_t)i, (void*)&Objects[i]);
 
 				return Array;
 			}
 			template <typename T>
-			static typename std::enable_if<std::is_pointer<T>::value, std::vector<T>>::type Decompose(VMCArray* Array)
+			static typename std::enable_if<std::is_pointer<T>::value, std::vector<T>>::type Decompose(STDArray* Array)
 			{
 				std::vector<T> Result;
 				if (!Array)
@@ -320,7 +320,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T>
-			static typename std::enable_if<!std::is_pointer<T>::value, std::vector<T>>::type Decompose(VMCArray* Array)
+			static typename std::enable_if<!std::is_pointer<T>::value, std::vector<T>>::type Decompose(STDArray* Array)
 			{
 				std::vector<T> Result;
 				if (!Array)
@@ -343,7 +343,7 @@ namespace Tomahawk
 			struct Ify<std::vector<R>(T::*)(Args...), F>
 			{
 				template <VMTypeId TypeId>
-				static VMCArray* Id(T* Base, Args... Data)
+				static STDArray* Id(T* Base, Args... Data)
 				{
 					VMManager* Manager = VMManager::Get();
 					TH_ASSERT(Manager != nullptr, nullptr, "manager should be present");
@@ -352,10 +352,10 @@ namespace Tomahawk
 					TH_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 					std::vector<R> Source((Base->*F)(Data...));
-					return VMCArray::Compose(Info, Source);
+					return STDArray::Compose(Info, Source);
 				}
 				template <const char* TypeName>
-				static VMCArray* Decl(T* Base, Args... Data)
+				static STDArray* Decl(T* Base, Args... Data)
 				{
 					VMManager* Manager = VMManager::Get();
 					TH_ASSERT(Manager != nullptr, nullptr, "manager should be present");
@@ -364,15 +364,15 @@ namespace Tomahawk
 					TH_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 					std::vector<R> Source((Base->*F)(Data...));
-					return VMCArray::Compose(Info, Source);
+					return STDArray::Compose(Info, Source);
 				}
 			};
 		};
 
-		class TH_OUT VMCMapKey
+		class TH_OUT STDMapKey
 		{
 		protected:
-			friend class VMCMap;
+			friend class STDMap;
 
 		protected:
 			union
@@ -384,11 +384,11 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			VMCMapKey();
-			VMCMapKey(VMCManager* Engine, void* Value, int TypeId);
-			~VMCMapKey();
+			STDMapKey();
+			STDMapKey(VMCManager* Engine, void* Value, int TypeId);
+			~STDMapKey();
 			void Set(VMCManager* Engine, void* Value, int TypeId);
-			void Set(VMCManager* Engine, VMCMapKey& Value);
+			void Set(VMCManager* Engine, STDMapKey& Value);
 			bool Get(VMCManager* Engine, void* Value, int TypeId) const;
 			const void* GetAddressOfValue() const;
 			int GetTypeId() const;
@@ -396,20 +396,20 @@ namespace Tomahawk
 			void EnumReferences(VMCManager* Engine);
 		};
 
-		class TH_OUT VMCMap
+		class TH_OUT STDMap
 		{
 		public:
-			typedef std::unordered_map<std::string, VMCMapKey> Map;
+			typedef std::unordered_map<std::string, STDMapKey> Map;
 
 		public:
 			class Iterator
 			{
 			protected:
-				friend class VMCMap;
+				friend class STDMap;
 
 			protected:
 				Map::const_iterator It;
-				const VMCMap& Dict;
+				const STDMap& Dict;
 
 			public:
 				void operator++();
@@ -424,7 +424,7 @@ namespace Tomahawk
 
 			protected:
 				Iterator();
-				Iterator(const VMCMap& Dict, Map::const_iterator It);
+				Iterator(const STDMap& Dict, Map::const_iterator It);
 				Iterator& operator= (const Iterator&)
 				{
 					return *this;
@@ -447,19 +447,19 @@ namespace Tomahawk
 		public:
 			void AddRef() const;
 			void Release() const;
-			VMCMap& operator= (const VMCMap& Other);
+			STDMap& operator= (const STDMap& Other);
 			void Set(const std::string& Key, void* Value, int TypeId);
 			bool Get(const std::string& Key, void* Value, int TypeId) const;
 			bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
-			VMCMapKey* operator[](const std::string& Key);
-			const VMCMapKey* operator[](const std::string& Key) const;
+			STDMapKey* operator[](const std::string& Key);
+			const STDMapKey* operator[](const std::string& Key) const;
 			int GetTypeId(const std::string& Key) const;
 			bool Exists(const std::string& Key) const;
 			bool IsEmpty() const;
 			as_size_t GetSize() const;
 			bool Delete(const std::string& Key);
 			void DeleteAll();
-			VMCArray* GetKeys() const;
+			STDArray* GetKeys() const;
 			Iterator Begin() const;
 			Iterator End() const;
 			Iterator Find(const std::string& Key) const;
@@ -470,31 +470,31 @@ namespace Tomahawk
 			void ReleaseAllReferences(VMCManager* Engine);
 
 		protected:
-			VMCMap(VMCManager* Engine);
-			VMCMap(unsigned char* Buffer);
-			VMCMap(const VMCMap&);
-			virtual ~VMCMap();
+			STDMap(VMCManager* Engine);
+			STDMap(unsigned char* Buffer);
+			STDMap(const STDMap&);
+			virtual ~STDMap();
 			void Init(VMCManager* Engine);
 
 		public:
-			static VMCMap* Create(VMCManager* Engine);
-			static VMCMap* Create(unsigned char* Buffer);
+			static STDMap* Create(VMCManager* Engine);
+			static STDMap* Create(unsigned char* Buffer);
 			static void Cleanup(VMCManager *engine);
 			static void Setup(VMCManager *engine);
 			static void Factory(VMCGeneric *gen);
 			static void ListFactory(VMCGeneric *gen);
 			static void KeyConstruct(void *mem);
-			static void KeyDestruct(VMCMapKey *obj);
-			static VMCMapKey &KeyopAssign(void *ref, int typeId, VMCMapKey *obj);
-			static VMCMapKey &KeyopAssign(const VMCMapKey &other, VMCMapKey *obj);
-			static VMCMapKey &KeyopAssign(double val, VMCMapKey *obj);
-			static VMCMapKey &KeyopAssign(as_int64_t val, VMCMapKey *obj);
-			static void KeyopCast(void *ref, int typeId, VMCMapKey *obj);
-			static as_int64_t KeyopConvInt(VMCMapKey *obj);
-			static double KeyopConvDouble(VMCMapKey *obj);
+			static void KeyDestruct(STDMapKey *obj);
+			static STDMapKey &KeyopAssign(void *ref, int typeId, STDMapKey *obj);
+			static STDMapKey &KeyopAssign(const STDMapKey &other, STDMapKey *obj);
+			static STDMapKey &KeyopAssign(double val, STDMapKey *obj);
+			static STDMapKey &KeyopAssign(as_int64_t val, STDMapKey *obj);
+			static void KeyopCast(void *ref, int typeId, STDMapKey *obj);
+			static as_int64_t KeyopConvInt(STDMapKey *obj);
+			static double KeyopConvDouble(STDMapKey *obj);
 		};
 
-		class TH_OUT VMCGrid
+		class TH_OUT STDGrid
 		{
 		public:
 			struct SBuffer
@@ -531,10 +531,10 @@ namespace Tomahawk
 			void ReleaseAllHandles(VMCManager* Engine);
 
 		protected:
-			VMCGrid(VMCTypeInfo* T, void* InitBuf);
-			VMCGrid(as_size_t W, as_size_t H, VMCTypeInfo* T);
-			VMCGrid(as_size_t W, as_size_t H, void* DefVal, VMCTypeInfo* T);
-			virtual ~VMCGrid();
+			STDGrid(VMCTypeInfo* T, void* InitBuf);
+			STDGrid(as_size_t W, as_size_t H, VMCTypeInfo* T);
+			STDGrid(as_size_t W, as_size_t H, void* DefVal, VMCTypeInfo* T);
+			virtual ~STDGrid();
 			bool CheckMaxSize(as_size_t X, as_size_t Y);
 			void CreateBuffer(SBuffer** Buf, as_size_t W, as_size_t H);
 			void DeleteBuffer(SBuffer* Buf);
@@ -544,29 +544,29 @@ namespace Tomahawk
 			void* At(SBuffer* Buf, as_size_t X, as_size_t Y);
 
 		public:
-			static VMCGrid* Create(VMCTypeInfo* T);
-			static VMCGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height);
-			static VMCGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height, void* DefaultValue);
-			static VMCGrid* Create(VMCTypeInfo* T, void* ListBuffer);
+			static STDGrid* Create(VMCTypeInfo* T);
+			static STDGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height);
+			static STDGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height, void* DefaultValue);
+			static STDGrid* Create(VMCTypeInfo* T, void* ListBuffer);
 			static bool TemplateCallback(VMCTypeInfo *TI, bool &DontGarbageCollect);
 		};
 
-		class TH_OUT VMCRef
+		class TH_OUT STDRef
 		{
 		protected:
 			VMCTypeInfo* Type;
 			void* Ref;
 
 		public:
-			VMCRef();
-			VMCRef(const VMCRef& Other);
-			VMCRef(void* Ref, VMCTypeInfo* Type);
-			VMCRef(void* Ref, int TypeId);
-			~VMCRef();
-			VMCRef& operator=(const VMCRef& Other);
+			STDRef();
+			STDRef(const STDRef& Other);
+			STDRef(void* Ref, VMCTypeInfo* Type);
+			STDRef(void* Ref, int TypeId);
+			~STDRef();
+			STDRef& operator=(const STDRef& Other);
 			void Set(void* Ref, VMCTypeInfo* Type);
-			bool operator== (const VMCRef& Other) const;
-			bool operator!= (const VMCRef& Other) const;
+			bool operator== (const STDRef& Other) const;
+			bool operator!= (const STDRef& Other) const;
 			bool Equals(void* Ref, int TypeId) const;
 			void Cast(void** OutRef, int TypeId);
 			VMCTypeInfo* GetType() const;
@@ -574,20 +574,20 @@ namespace Tomahawk
 			void* GetRef();
 			void EnumReferences(VMCManager* Engine);
 			void ReleaseReferences(VMCManager* Engine);
-			VMCRef& Assign(void* Ref, int TypeId);
+			STDRef& Assign(void* Ref, int TypeId);
 
 		protected:
 			void ReleaseHandle();
 			void AddRefHandle();
 
 		public:
-			static void Construct(VMCRef *self);
-			static void Construct(VMCRef *self, const VMCRef &o);
-			static void Construct(VMCRef *self, void *ref, int typeId);
-			static void Destruct(VMCRef *self);
+			static void Construct(STDRef *self);
+			static void Construct(STDRef *self, const STDRef &o);
+			static void Construct(STDRef *self, void *ref, int typeId);
+			static void Destruct(STDRef *self);
 		};
 
-		class TH_OUT VMCWeakRef
+		class TH_OUT STDWeakRef
 		{
 		protected:
 			VMCLockableSharedBool* WeakRefFlag;
@@ -595,14 +595,14 @@ namespace Tomahawk
 			void* Ref;
 
 		public:
-			VMCWeakRef(VMCTypeInfo* Type);
-			VMCWeakRef(const VMCWeakRef& Other);
-			VMCWeakRef(void* Ref, VMCTypeInfo* Type);
-			~VMCWeakRef();
-			VMCWeakRef& operator= (const VMCWeakRef& Other);
-			bool operator== (const VMCWeakRef& Other) const;
-			bool operator!= (const VMCWeakRef& Other) const;
-			VMCWeakRef& Set(void* NewRef);
+			STDWeakRef(VMCTypeInfo* Type);
+			STDWeakRef(const STDWeakRef& Other);
+			STDWeakRef(void* Ref, VMCTypeInfo* Type);
+			~STDWeakRef();
+			STDWeakRef& operator= (const STDWeakRef& Other);
+			bool operator== (const STDWeakRef& Other) const;
+			bool operator!= (const STDWeakRef& Other) const;
+			STDWeakRef& Set(void* NewRef);
 			void* Get() const;
 			bool Equals(void* Ref) const;
 			VMCTypeInfo* GetRefType() const;
@@ -610,47 +610,47 @@ namespace Tomahawk
 		public:
 			static void Construct(VMCTypeInfo *type, void *mem);
 			static void Construct2(VMCTypeInfo *type, void *ref, void *mem);
-			static void Destruct(VMCWeakRef *obj);
+			static void Destruct(STDWeakRef *obj);
 			static bool TemplateCallback(VMCTypeInfo *TI, bool&);
 		};
 
-		class TH_OUT VMCComplex
+		class TH_OUT STDComplex
 		{
 		public:
 			float R;
 			float I;
 
 		public:
-			VMCComplex();
-			VMCComplex(const VMCComplex& Other);
-			VMCComplex(float R, float I = 0);
-			VMCComplex& operator= (const VMCComplex& Other);
-			VMCComplex& operator+= (const VMCComplex& Other);
-			VMCComplex& operator-= (const VMCComplex& Other);
-			VMCComplex& operator*= (const VMCComplex& Other);
-			VMCComplex& operator/= (const VMCComplex& Other);
+			STDComplex();
+			STDComplex(const STDComplex& Other);
+			STDComplex(float R, float I = 0);
+			STDComplex& operator= (const STDComplex& Other);
+			STDComplex& operator+= (const STDComplex& Other);
+			STDComplex& operator-= (const STDComplex& Other);
+			STDComplex& operator*= (const STDComplex& Other);
+			STDComplex& operator/= (const STDComplex& Other);
 			float Length() const;
 			float SquaredLength() const;
-			VMCComplex GetRI() const;
-			void SetRI(const VMCComplex& In);
-			VMCComplex GetIR() const;
-			void SetIR(const VMCComplex& In);
-			bool operator== (const VMCComplex& Other) const;
-			bool operator!= (const VMCComplex& Other) const;
-			VMCComplex operator+ (const VMCComplex& Other) const;
-			VMCComplex operator- (const VMCComplex& Other) const;
-			VMCComplex operator* (const VMCComplex& Other) const;
-			VMCComplex operator/ (const VMCComplex& Other) const;
+			STDComplex GetRI() const;
+			void SetRI(const STDComplex& In);
+			STDComplex GetIR() const;
+			void SetIR(const STDComplex& In);
+			bool operator== (const STDComplex& Other) const;
+			bool operator!= (const STDComplex& Other) const;
+			STDComplex operator+ (const STDComplex& Other) const;
+			STDComplex operator- (const STDComplex& Other) const;
+			STDComplex operator* (const STDComplex& Other) const;
+			STDComplex operator/ (const STDComplex& Other) const;
 
 		public:
-			static void DefaultConstructor(VMCComplex *self);
-			static void CopyConstructor(const VMCComplex &other, VMCComplex *self);
-			static void ConvConstructor(float r, VMCComplex *self);
-			static void InitConstructor(float r, float i, VMCComplex *self);
-			static void ListConstructor(float *list, VMCComplex *self);
+			static void DefaultConstructor(STDComplex *self);
+			static void CopyConstructor(const STDComplex &other, STDComplex *self);
+			static void ConvConstructor(float r, STDComplex *self);
+			static void InitConstructor(float r, float i, STDComplex *self);
+			static void ListConstructor(float *list, STDComplex *self);
 		};
 
-		class TH_OUT VMCThread
+		class TH_OUT STDThread
 		{
 		private:
 			static int ContextUD;
@@ -659,7 +659,7 @@ namespace Tomahawk
 		private:
 			struct
 			{
-				std::vector<VMCAny*> Queue;
+				std::vector<STDAny*> Queue;
 				std::condition_variable CV;
 				std::mutex Mutex;
 			} Pipe[2];
@@ -675,7 +675,7 @@ namespace Tomahawk
 			int Ref;
 
 		public:
-			VMCThread(VMCManager* Engine, VMCFunction* Function);
+			STDThread(VMCManager* Engine, VMCFunction* Function);
 			void EnumReferences(VMCManager* Engine);
 			void SetGCFlag();
 			void ReleaseReferences(VMCManager* Engine);
@@ -698,12 +698,12 @@ namespace Tomahawk
 
 		public:
 			static void Create(VMCGeneric* Generic);
-			static VMCThread* GetThread();
+			static STDThread* GetThread();
 			static uint64_t GetThreadId();
 			static void ThreadSleep(uint64_t Timeout);
 		};
 
-		class TH_OUT VMCRandom
+		class TH_OUT STDRandom
 		{
 		private:
 			std::mt19937 Twister;
@@ -711,7 +711,7 @@ namespace Tomahawk
 			int Ref = 1;
 
 		public:
-			VMCRandom();
+			STDRandom();
 			void AddRef();
 			void Release();
 			void SeedFromTime();
@@ -719,27 +719,27 @@ namespace Tomahawk
 			int32_t GetI();
 			double GetD();
 			void Seed(uint32_t Seed);
-			void Seed(VMCArray* Array);
-			void Assign(VMCRandom* From);
+			void Seed(STDArray* Array);
+			void Assign(STDRandom* From);
 
 		public:
-			static VMCRandom* Create();
+			static STDRandom* Create();
 		};
 
-		TH_OUT bool RegisterAnyAPI(VMManager* Manager);
-		TH_OUT bool RegisterArrayAPI(VMManager* Manager);
-		TH_OUT bool RegisterComplexAPI(VMManager* Manager);
-		TH_OUT bool RegisterMapAPI(VMManager* Manager);
-		TH_OUT bool RegisterGridAPI(VMManager* Manager);
-		TH_OUT bool RegisterRefAPI(VMManager* Manager);
-		TH_OUT bool RegisterWeakRefAPI(VMManager* Manager);
-		TH_OUT bool RegisterMathAPI(VMManager* Manager);
-		TH_OUT bool RegisterStringAPI(VMManager* Manager);
-		TH_OUT bool RegisterExceptionAPI(VMManager* Manager);
-		TH_OUT bool RegisterMutexAPI(VMManager* Manager);
-		TH_OUT bool RegisterThreadAPI(VMManager* Manager);
-		TH_OUT bool RegisterRandomAPI(VMManager* Manager);
-		TH_OUT bool FreeCoreAPI();
+		TH_OUT bool STDRegisterAny(VMManager* Manager);
+		TH_OUT bool STDRegisterArray(VMManager* Manager);
+		TH_OUT bool STDRegisterComplex(VMManager* Manager);
+		TH_OUT bool STDRegisterMap(VMManager* Manager);
+		TH_OUT bool STDRegisterGrid(VMManager* Manager);
+		TH_OUT bool STDRegisterRef(VMManager* Manager);
+		TH_OUT bool STDRegisterWeakRef(VMManager* Manager);
+		TH_OUT bool STDRegisterMath(VMManager* Manager);
+		TH_OUT bool STDRegisterString(VMManager* Manager);
+		TH_OUT bool STDRegisterException(VMManager* Manager);
+		TH_OUT bool STDRegisterMutex(VMManager* Manager);
+		TH_OUT bool STDRegisterThread(VMManager* Manager);
+		TH_OUT bool STDRegisterRandom(VMManager* Manager);
+		TH_OUT bool STDFreeCore();
 	}
 }
 #endif

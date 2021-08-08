@@ -1534,7 +1534,7 @@ namespace Tomahawk
 		{
 		public:
 			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
-			static float IsCubeInFrustum(const Matrix4x4& WorldViewProjection, float Radius);
+			static bool IsCubeInFrustum(const Matrix4x4& WorldViewProjection, float Radius);
 			static bool IsBase64URL(unsigned char Value);
 			static bool IsBase64(unsigned char Value);
 			static bool HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1);
@@ -1746,7 +1746,7 @@ namespace Tomahawk
 			friend Common;
 
 		private:
-			std::vector<Transform*>* Childs;
+			std::vector<Transform*> Childs;
 			Matrix4x4* LocalTransform;
 			Vector3* LocalPosition;
 			Vector3* LocalRotation;
@@ -1773,7 +1773,7 @@ namespace Tomahawk
 			void SetTransform(TransformSpace Space, const Vector3& Position, const Vector3& Scale, const Vector3& Rotation);
 			void SetRoot(Transform* Root);
 			void GetRootBasis(Vector3* Position, Vector3* Scale, Vector3* Rotation);
-			std::vector<Transform*>* GetChilds();
+			std::vector<Transform*>& GetChilds();
 			Transform* GetChild(uint64_t Child);
 			Vector3* GetLocalPosition();
 			Vector3* GetLocalRotation();
@@ -1794,7 +1794,7 @@ namespace Tomahawk
 			Transform* GetRoot();
 			bool HasRoot(Transform* Target);
 			bool HasChild(Transform* Target);
-			uint64_t GetChildCount();
+			uint64_t GetChildsCount();
 
 		protected:
 			bool CanRootBeApplied(Transform* Root);
@@ -2223,13 +2223,13 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				bool EnableSoftBody = false;
+				Vector3 WaterNormal;
+				Vector3 Gravity = Vector3(0, -10, 0);
 				float AirDensity = 1.2f;
 				float WaterDensity = 0;
 				float WaterOffset = 0;
 				float MaxDisplacement = 1000;
-				Vector3 WaterNormal;
-				Vector3 Gravity = Vector3(0, -10, 0);
+				bool EnableSoftBody = false;
 			};
 
 		private:

@@ -352,7 +352,7 @@ namespace Tomahawk
 					uint64_t SpotLightLimits = 8;
 					uint64_t LineLightResolution = 1024;
 					uint64_t LineLightLimits = 2;
-					Core::TickTimer Tick;
+					Core::Ticker Tick;
 					float Distance = 0.5f;
 				} Shadows;
 

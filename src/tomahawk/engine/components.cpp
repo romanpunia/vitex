@@ -10,7 +10,7 @@ namespace Tomahawk
 	{
 		namespace Components
 		{
-			RigidBody::RigidBody(Entity* Ref) : Component(Ref)
+			RigidBody::RigidBody(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 			}
 			RigidBody::~RigidBody()
@@ -212,7 +212,7 @@ namespace Tomahawk
 				if (Instance && Manage)
 					Instance->Synchronize(Parent->GetTransform(), Kinematic);
 			}
-			void RigidBody::Asleep()
+			void RigidBody::Deactivate()
 			{
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
@@ -257,12 +257,13 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
+				auto* Transform = Parent->GetTransform();
+				Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
+				Instance->Synchronize(Transform, true);
+
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Exclusive([this, Position, Scale, Rotation]()
+				Scene->Exclusive([this]()
 				{
-					auto* Transform = Parent->GetTransform();
-					Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
-					Instance->Synchronize(Transform, true);
 					Instance->SetActivity(true);
 				});
 			}
@@ -271,10 +272,12 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
+				auto* Transform = Parent->GetTransform();
+				Instance->Synchronize(Transform, Kinematics);
+
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Exclusive([this, Kinematics]()
+				Scene->Exclusive([this]()
 				{
-					Instance->Synchronize(Parent->GetTransform(), Kinematics);
 					Instance->SetActivity(true);
 				});
 			}
@@ -307,7 +310,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, SoftBody::GetTypeId(), false)
+			SoftBody::SoftBody(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, SoftBody::GetTypeId(), false)
 			{
 			}
 			SoftBody::~SoftBody()
@@ -622,12 +625,12 @@ namespace Tomahawk
 				if (Indices.empty())
 					Instance->GetIndices(&Indices);
 			}
-			void SoftBody::Awake(Component* New)
+			void SoftBody::Activate(Component* New)
 			{
 				if (!New)
 					Attach();
 			}
-			void SoftBody::Asleep()
+			void SoftBody::Deactivate()
 			{
 				Detach();
 
@@ -807,10 +810,12 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
+				auto* Transform = Parent->GetTransform();
+				Instance->Synchronize(Transform, Kinematics);
+
 				SceneGraph* Scene = Parent->GetScene();
 				Scene->Exclusive([this, Kinematics]()
 				{
-					Instance->Synchronize(Parent->GetTransform(), Kinematics);
 					Instance->SetActivity(true);
 				});
 			}
@@ -863,7 +868,7 @@ namespace Tomahawk
 				return Indices;
 			}
 
-			SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref), Instance(nullptr), Connection(nullptr)
+			SliderConstraint::SliderConstraint(Entity* Ref) : Component(Ref, ActorSet::None), Instance(nullptr), Connection(nullptr)
 			{
 			}
 			SliderConstraint::~SliderConstraint()
@@ -875,19 +880,27 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "document should be set");
 
-				bool Extended;
+				bool Extended, Ghost, Linear;
 				NMake::Unpack(Node->Find("extended"), &Extended);
+				NMake::Unpack(Node->Find("collision-state"), &Ghost);
+				NMake::Unpack(Node->Find("linear-power-state"), &Linear);
+
 				if (!Extended)
 					return;
 
-				uint64_t Index;
-				if (NMake::Unpack(Node->Find("connection"), &Index))
-					Wanted.Connection = Index;
+				int64_t ConnectionId = -1;
+				if (NMake::Unpack(Node->Find("connection"), &ConnectionId))
+				{
+					IdxSnapshot* Snapshot = Parent->GetScene()->Snapshot;
+					if (Snapshot != nullptr)
+					{
+						auto It = Snapshot->From.find(ConnectionId);
+						if (It != Snapshot->From.end())
+							Connection = It->second;
+					}
+				}
 
-				NMake::Unpack(Node->Find("collision-state"), &Wanted.Ghost);
-				NMake::Unpack(Node->Find("linear-power-state"), &Wanted.Linear);
-				Create(Connection, Wanted.Ghost, Wanted.Linear);
-
+				Create(Connection, Ghost, Linear);
 				if (!Instance)
 					return;
 
@@ -1016,9 +1029,21 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
+				int64_t ConnectionId = -1;
+				if (Connection != nullptr)
+				{
+					IdxSnapshot* Snapshot = Parent->GetScene()->Snapshot;
+					if (Snapshot != nullptr)
+					{
+						auto It = Snapshot->To.find(Connection);
+						if (It != Snapshot->To.end())
+							ConnectionId = (int64_t)It->second;
+					}
+				}
+
 				NMake::Pack(Node->Set("collision-state"), Instance->GetInitialState().UseCollisions);
 				NMake::Pack(Node->Set("linear-power-state"), Instance->GetInitialState().UseLinearPower);
-				NMake::Pack(Node->Set("connection"), (uint64_t)(Connection ? Connection->Id : -1));
+				NMake::Pack(Node->Set("connection"), ConnectionId);
 				NMake::Pack(Node->Set("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
 				NMake::Pack(Node->Set("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
 				NMake::Pack(Node->Set("upper-linear-limit"), Instance->GetUpperLinearLimit());
@@ -1049,16 +1074,6 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("powered-angular-motor"), Instance->GetPoweredAngularMotor());
 				NMake::Pack(Node->Set("powered-linear-motor"), Instance->GetPoweredLinearMotor());
 				NMake::Pack(Node->Set("enabled"), Instance->IsEnabled());
-			}
-			void SliderConstraint::Synchronize(Core::Timer* Time)
-			{
-				if (Wanted.Connection < 0)
-					return;
-
-				if (!Connection)
-					Create(Parent->GetScene()->GetEntity(Wanted.Connection), Wanted.Ghost, Wanted.Linear);
-
-				Wanted.Connection = -1;
 			}
 			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
@@ -1131,7 +1146,7 @@ namespace Tomahawk
 				return Connection;
 			}
 
-			Acceleration::Acceleration(Entity* Ref) : Component(Ref)
+			Acceleration::Acceleration(Entity* Ref) : Component(Ref, ActorSet::Update)
 			{
 			}
 			void Acceleration::Deserialize(ContentManager* Content, Core::Document* Node)
@@ -1158,7 +1173,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("constant-center"), ConstantCenter);
 				NMake::Pack(Node->Set("kinematic"), Kinematic);
 			}
-			void Acceleration::Awake(Component* New)
+			void Acceleration::Activate(Component* New)
 			{
 				if (RigidBody != nullptr)
 					return;
@@ -1234,7 +1249,7 @@ namespace Tomahawk
 				return RigidBody;
 			}
 
-			Model::Model(Entity* Ref) : Drawable(Ref, Model::GetTypeId(), true)
+			Model::Model(Entity* Ref) : Drawable(Ref, ActorSet::None, Model::GetTypeId(), true)
 			{
 			}
 			Model::~Model()
@@ -1298,12 +1313,12 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
 				NMake::Pack(Node->Set("static"), Static);
 			}
-			void Model::Awake(Component* New)
+			void Model::Activate(Component* New)
 			{
 				if (!New)
 					Attach();
 			}
-			void Model::Asleep()
+			void Model::Deactivate()
 			{
 				Detach();
 			}
@@ -1349,7 +1364,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			Skin::Skin(Entity* Ref) : Drawable(Ref, Skin::GetTypeId(), true)
+			Skin::Skin(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Skin::GetTypeId(), true)
 			{
 			}
 			Skin::~Skin()
@@ -1439,12 +1454,12 @@ namespace Tomahawk
 				if (Instance != nullptr)
 					Instance->ComputePose(&Skeleton);
 			}
-			void Skin::Awake(Component* New)
+			void Skin::Activate(Component* New)
 			{
 				if (!New)
 					Attach();
 			}
-			void Skin::Asleep()
+			void Skin::Deactivate()
 			{
 				Detach();
 			}
@@ -1490,7 +1505,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			Emitter::Emitter(Entity* Ref) : Drawable(Ref, Emitter::GetTypeId(), false)
+			Emitter::Emitter(Entity* Ref) : Drawable(Ref, ActorSet::None, Emitter::GetTypeId(), false)
 			{
 			}
 			Emitter::~Emitter()
@@ -1560,7 +1575,7 @@ namespace Tomahawk
 					NMake::Pack(Node->Set("elements"), Vertices);
 				}
 			}
-			void Emitter::Awake(Component* New)
+			void Emitter::Activate(Component* New)
 			{
 				if (Instance != nullptr)
 					return;
@@ -1572,7 +1587,7 @@ namespace Tomahawk
 				Instance = Scene->GetDevice()->CreateInstanceBuffer(I);
 				Attach();
 			}
-			void Emitter::Asleep()
+			void Emitter::Deactivate()
 			{
 				Detach();
 			}
@@ -1582,7 +1597,7 @@ namespace Tomahawk
 				float Result = 1.0f - Transform->Position.Distance(View.WorldPosition) / (View.FarPlane);
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) == -1.0f ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -1603,7 +1618,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			Decal::Decal(Entity* Ref) : Drawable(Ref, Decal::GetTypeId(), false)
+			Decal::Decal(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Decal::GetTypeId(), false)
 			{
 			}
 			void Decal::Deserialize(ContentManager* Content, Core::Document* Node)
@@ -1648,12 +1663,12 @@ namespace Tomahawk
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, Distance);
 				View = Compute::Matrix4x4::CreateTranslation(-Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Transform->Rotation);
 			}
-			void Decal::Awake(Component* New)
+			void Decal::Activate(Component* New)
 			{
 				if (!New)
 					Attach();
 			}
-			void Decal::Asleep()
+			void Decal::Deactivate()
 			{
 				Detach();
 			}
@@ -1663,7 +1678,7 @@ namespace Tomahawk
 				float Result = 1.0f - Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorld() * fView.ViewProjection, GetRange()) == -1.0f ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorld() * fView.ViewProjection, GetRange()) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -1676,7 +1691,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref)
+			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 				Current.Pose.resize(96);
 				Bind.Pose.resize(96);
@@ -1714,7 +1729,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("bind"), Bind);
 				NMake::Pack(Node->Set("current"), Current);
 			}
-			void SkinAnimator::Awake(Component* New)
+			void SkinAnimator::Activate(Component* New)
 			{
 				Components::Skin* Base = Parent->GetComponent<Components::Skin>();
 				if (Base != nullptr && Base->GetDrawable() != nullptr)
@@ -1935,7 +1950,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref)
+			KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 			}
 			KeyAnimator::~KeyAnimator()
@@ -2156,7 +2171,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			EmitterAnimator::EmitterAnimator(Entity* Ref) : Component(Ref)
+			EmitterAnimator::EmitterAnimator(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 				Spawner.Scale.Max = 1;
 				Spawner.Scale.Min = 1;
@@ -2202,7 +2217,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("scale-speed"), ScaleSpeed);
 				NMake::Pack(Node->Set("simulate"), Simulate);
 			}
-			void EmitterAnimator::Awake(Component* New)
+			void EmitterAnimator::Activate(Component* New)
 			{
 				Base = Parent->GetComponent<Emitter>();
 				SetActive(Base != nullptr);
@@ -2327,10 +2342,10 @@ namespace Tomahawk
 				return Base;
 			}
 
-			FreeLook::FreeLook(Entity* Ref) : Component(Ref), Activity(nullptr), Rotate(Graphics::KeyCode::CURSORRIGHT), Sensivity(0.005f)
+			FreeLook::FreeLook(Entity* Ref) : Component(Ref, ActorSet::Update), Activity(nullptr), Rotate(Graphics::KeyCode::CURSORRIGHT), Sensivity(0.005f)
 			{
 			}
-			void FreeLook::Awake(Component* New)
+			void FreeLook::Activate(Component* New)
 			{
 				Application* App = Application::Get();
 				if (App != nullptr)
@@ -2378,10 +2393,10 @@ namespace Tomahawk
 				return Activity;
 			}
 
-			Fly::Fly(Entity* Ref) : Component(Ref), Activity(nullptr)
+			Fly::Fly(Entity* Ref) : Component(Ref, ActorSet::Update), Activity(nullptr)
 			{
 			}
-			void Fly::Awake(Component* New)
+			void Fly::Activate(Component* New)
 			{
 				Application* App = Application::Get();
 				if (App != nullptr)
@@ -2446,7 +2461,7 @@ namespace Tomahawk
 				return Activity;
 			}
 
-			AudioSource::AudioSource(Entity* Ref) : Component(Ref)
+			AudioSource::AudioSource(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 				Source = new Audio::AudioSource();
 			}
@@ -2587,12 +2602,12 @@ namespace Tomahawk
 				return Sync;
 			}
 
-			AudioListener::AudioListener(Entity* Ref) : Component(Ref)
+			AudioListener::AudioListener(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 			}
 			AudioListener::~AudioListener()
 			{
-				Asleep();
+				Deactivate();
 			}
 			void AudioListener::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
@@ -2623,7 +2638,7 @@ namespace Tomahawk
 				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx::Orientation, LookAt);
 				Audio::AudioContext::SetListenerData1F(Audio::SoundEx::Gain, Gain);
 			}
-			void AudioListener::Asleep()
+			void AudioListener::Deactivate()
 			{
 				float LookAt[6] = { 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f };
 				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Velocity, 0.0f, 0.0f, 0.0f);
@@ -2640,7 +2655,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			PointLight::PointLight(Entity* Ref) : Cullable(Ref)
+			PointLight::PointLight(Entity* Ref) : Cullable(Ref, ActorSet::None)
 			{
 			}
 			void PointLight::Deserialize(ContentManager* Content, Core::Document* Node)
@@ -2679,7 +2694,7 @@ namespace Tomahawk
 				float Result = 1.0f - Transform->Position.Distance(Base.WorldPosition) / Base.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * Base.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * Base.ViewProjection, GetBoxRange()) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2689,7 +2704,7 @@ namespace Tomahawk
 				if (Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1.0f;
+				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetWorld()) * fView.ViewProjection, 1.65f);
 			}
 			bool PointLight::IsNear(const Viewer& fView)
 			{
@@ -2718,7 +2733,7 @@ namespace Tomahawk
 				return Size.Range * 1.25;
 			}
 
-			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref)
+			SpotLight::SpotLight(Entity* Ref) : Cullable(Ref, ActorSet::Synchronize)
 			{
 			}
 			void SpotLight::Deserialize(ContentManager* Content, Core::Document* Node)
@@ -2763,7 +2778,7 @@ namespace Tomahawk
 				float Result = 1.0f - Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -2773,7 +2788,7 @@ namespace Tomahawk
 				if (Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetWorld()) * fView.ViewProjection, 1.65f) == -1.0f;
+				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetWorld()) * fView.ViewProjection, 1.65f);
 			}
 			bool SpotLight::IsNear(const Viewer& fView)
 			{
@@ -2803,7 +2818,7 @@ namespace Tomahawk
 				return Size.Range * 1.25;
 			}
 
-			LineLight::LineLight(Entity* Ref) : Component(Ref)
+			LineLight::LineLight(Entity* Ref) : Component(Ref, ActorSet::None)
 			{
 			}
 			void LineLight::Deserialize(ContentManager* Content, Core::Document* Node)
@@ -2882,7 +2897,7 @@ namespace Tomahawk
 			}
 			void LineLight::AssembleDepthOrigin()
 			{
-				auto* Viewer = Parent->GetScene()->GetCamera()->As<Camera>();
+				auto* Viewer = (Components::Camera*)Parent->GetScene()->GetCamera();
 				auto* Transform = Viewer->GetEntity()->GetTransform();
 				Compute::Vector3 Eye = Transform->Position * Compute::Vector3(1.0f, 0.1f, 1.0f);
 				Compute::Vector3 Up = Transform->GetWorld().Right();
@@ -2902,7 +2917,7 @@ namespace Tomahawk
 				}
 			}
 
-			SurfaceLight::SurfaceLight(Entity* Ref) : Cullable(Ref), Projection(Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f))
+			SurfaceLight::SurfaceLight(Entity* Ref) : Cullable(Ref, ActorSet::None), Projection(Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f))
 			{
 			}
 			SurfaceLight::~SurfaceLight()
@@ -3056,7 +3071,7 @@ namespace Tomahawk
 				Result = 1.0f - Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) == -1.0f ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -3187,7 +3202,7 @@ namespace Tomahawk
 				return DiffuseMap;
 			}
 
-			Illuminator::Illuminator(Entity* Ref) : Cullable(Ref), Buffer(nullptr), MipLevels(0), Size(64)
+			Illuminator::Illuminator(Entity* Ref) : Cullable(Ref, ActorSet::None), Buffer(nullptr), MipLevels(0), Size(64)
 			{
 				Tick.Delay = 16.666;
 				RayStep = 1.0f;
@@ -3231,7 +3246,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("shadows"), Shadows);
 				NMake::Pack(Node->Set("bleeding"), Bleeding);
 			}
-			void Illuminator::Asleep()
+			void Illuminator::Deactivate()
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (!Scene)
@@ -3297,30 +3312,24 @@ namespace Tomahawk
 				return MipLevels;
 			}
 
-			Camera::Camera(Entity* Ref) : Component(Ref), Mode(ProjectionMode_Perspective), Renderer(new RenderSystem(Ref->GetScene())), Viewport({ 0, 0, 512, 512, 0, 1 })
+			Camera::Camera(Entity* Ref) : Component(Ref, ActorSet::Synchronize), Mode(ProjectionMode_Perspective), Renderer(new RenderSystem(Ref->GetScene())), Viewport({ 0, 0, 512, 512, 0, 1 })
 			{
 			}
 			Camera::~Camera()
 			{
 				TH_RELEASE(Renderer);
 			}
-			void Camera::Awake(Component* New)
+			void Camera::Activate(Component* New)
 			{
 				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
 				TH_ASSERT_V(Parent->GetScene()->GetDevice()->GetRenderTarget() != nullptr, "render target should be set");
 
 				SceneGraph* Scene = Parent->GetScene();
 				Viewport = Scene->GetDevice()->GetRenderTarget()->GetViewport();
-				if (New && New != this)
-					return;
-
-				Renderer->Remount();
 				if (New == this)
-					Renderer->Unmount();
-				else if (!New)
-					Renderer->Mount();
+					Renderer->Remount();
 			}
-			void Camera::Asleep()
+			void Camera::Deactivate()
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (Scene->GetCamera() == this)
@@ -3537,7 +3546,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			Scriptable::Scriptable(Entity* Ref) : Component(Ref), Compiler(nullptr), Source(SourceType_Resource), Invoke(InvokeType_Typeless)
+			Scriptable::Scriptable(Entity* Ref) : Component(Ref, ActorSet::Synchronize | ActorSet::Update | ActorSet::Message), Compiler(nullptr), Source(SourceType_Resource), Invoke(InvokeType_Typeless)
 			{
 			}
 			Scriptable::~Scriptable()
@@ -3775,7 +3784,7 @@ namespace Tomahawk
 					Context->SetArgObject(2, Node);
 				});
 			}
-			void Scriptable::Awake(Component* New)
+			void Scriptable::Activate(Component* New)
 			{
 				if (!Parent->GetScene()->IsActive())
 					return;
@@ -3802,7 +3811,7 @@ namespace Tomahawk
 					Context->SetArgObject(1, Time);
 				});
 			}
-			void Scriptable::Asleep()
+			void Scriptable::Deactivate()
 			{
 				Call(Entry.Asleep, [this](Script::VMContext* Context)
 				{

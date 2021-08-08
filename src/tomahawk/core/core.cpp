@@ -47,6 +47,7 @@ extern "C"
 #define EPOCH_DIFF (MAKEUQUAD(0xd53e8000, 0x019db1de))
 #define SYS2UNIX_TIME(L, H) ((int64_t)((MAKEUQUAD((L), (H)) - EPOCH_DIFF) / RATE_DIFF))
 #define LEAP_YEAR(X) (((X) % 4 == 0) && (((X) % 100) != 0 || ((X) % 400) == 0))
+#define MAX_TICKS 16
 #ifdef TH_MICROSOFT
 namespace
 {
@@ -197,7 +198,6 @@ namespace Tomahawk
 {
 	namespace Core
 	{
-		typedef moodycamel::ConcurrentQueue<EventBase*> EQueue;
 		typedef moodycamel::ConcurrentQueue<TaskCallback*> TQueue;
 		typedef moodycamel::ConsumerToken CToken;
 
@@ -1767,6 +1767,14 @@ namespace Tomahawk
 		{
 			return !IsEmpty();
 		}
+		bool Variant::IsString(const char* Value) const
+		{
+			const char* Other = GetString();
+			if (Other == Value)
+				return true;
+
+			return strcmp(Other, Value) == 0;
+		}
 		bool Variant::IsObject() const
 		{
 			return Type == VarType::Object || Type == VarType::Array;
@@ -1947,58 +1955,30 @@ namespace Tomahawk
 			}
 		}
 
-		EventBase::EventBase(const std::string& NewName) : Name(NewName)
+		Timeout::Timeout(const TaskCallback& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive) : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		EventBase::EventBase(const std::string& NewName, const VariantArgs& NewArgs) : Name(NewName), Args(NewArgs)
+		Timeout::Timeout(TaskCallback&& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		EventBase::EventBase(const std::string& NewName, VariantArgs&& NewArgs) : Name(NewName), Args(std::move(NewArgs))
+		Timeout::Timeout(const Timeout& Other) : Callback(Other.Callback), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
-		EventBase::EventBase(const EventBase& Other) : Name(Other.Name), Args(Other.Args)
+		Timeout::Timeout(Timeout&& Other) : Callback(std::move(Other.Callback)), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
-		EventBase::EventBase(EventBase&& Other) : Name(std::move(Other.Name)), Args(std::move(Other.Args))
-		{
-		}
-		EventBase& EventBase::operator= (const EventBase& Other)
-		{
-			Name = Other.Name;
-			Args = Other.Args;
-			return *this;
-		}
-		EventBase& EventBase::operator= (EventBase&& Other)
-		{
-			Name = std::move(Other.Name);
-			Args = std::move(Other.Args);
-			return *this;
-		}
-
-		EventTimer::EventTimer(const TaskCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(NewCallback), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
-		{
-		}
-		EventTimer::EventTimer(TaskCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Timeout(NewTimeout), Id(NewId), Alive(NewAlive)
-		{
-		}
-		EventTimer::EventTimer(const EventTimer& Other) : Callback(Other.Callback), Timeout(Other.Timeout), Id(Other.Id), Alive(Other.Alive)
-		{
-		}
-		EventTimer::EventTimer(EventTimer&& Other) : Callback(std::move(Other.Callback)), Timeout(Other.Timeout), Id(Other.Id), Alive(Other.Alive)
-		{
-		}
-		EventTimer& EventTimer::operator= (const EventTimer& Other)
+		Timeout& Timeout::operator= (const Timeout& Other)
 		{
 			Callback = Other.Callback;
-			Timeout = Other.Timeout;
+			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
 			return *this;
 		}
-		EventTimer& EventTimer::operator= (EventTimer&& Other)
+		Timeout& Timeout::operator= (Timeout&& Other)
 		{
 			Callback = std::move(Other.Callback);
-			Timeout = Other.Timeout;
+			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
 			return *this;
@@ -4902,12 +4882,12 @@ namespace Tomahawk
 		}
 		Console* Console::Singleton = nullptr;
 
-		TickTimer::TickTimer()
+		Ticker::Ticker()
 		{
 			Time = 0.0;
 			Delay = 16.0;
 		}
-		bool TickTimer::TickEvent(double ElapsedTime)
+		bool Ticker::TickEvent(double ElapsedTime)
 		{
 			if (ElapsedTime - Time > Delay)
 			{
@@ -4917,7 +4897,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		double TickTimer::GetTime()
+		double Ticker::GetTime()
 		{
 			return Time;
 		}
@@ -6044,6 +6024,7 @@ namespace Tomahawk
 			TH_PSTART("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data, (size_t)Length, 1, Stream);
 			fclose(Stream);
+			TH_TRACE("close fs 0x%p", (void*)Stream);
 			TH_PEND();
 
 			return true;
@@ -6058,6 +6039,7 @@ namespace Tomahawk
 			TH_PSTART("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
 			fclose(Stream);
+			TH_TRACE("close fs 0x%p", (void*)Stream);
 			TH_PEND();
 
 			return true;
@@ -6195,6 +6177,7 @@ namespace Tomahawk
 			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
 			{
 				fclose(Stream);
+				TH_TRACE("close fs 0x%p", (void*)Stream);
 				TH_FREE(Bytes);
 
 				if (Length != nullptr)
@@ -6209,6 +6192,7 @@ namespace Tomahawk
 				*Length = Size;
 
 			fclose(Stream);
+			TH_TRACE("close fs 0x%p", (void*)Stream);
 			TH_PEND();
 
 			return Bytes;
@@ -6263,18 +6247,21 @@ namespace Tomahawk
 			if (!Buffer)
 			{
 				fclose(Stream);
+				TH_TRACE("close fs 0x%p", (void*)Stream);
 				return std::vector<std::string>();
 			}
 
 			if (fread(Buffer, sizeof(char), (size_t)Length, Stream) != (size_t)Length)
 			{
 				fclose(Stream);
+				TH_TRACE("close fs 0x%p", (void*)Stream);
 				TH_FREE(Buffer);
 				return std::vector<std::string>();
 			}
 
 			std::string Result(Buffer, Length);
 			fclose(Stream);
+			TH_TRACE("close fs 0x%p", (void*)Stream);
 			TH_FREE(Buffer);
 
 			return Parser(&Result).Split('\n');
@@ -7258,19 +7245,14 @@ namespace Tomahawk
 				goto Reuse;
 		}
 		
-		static thread_local bool Subroutine = false;
 		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false), Enqueue(true)
 		{
-			Events = (ConcurrentQueue)TH_NEW(EQueue);
 			Asyncs = (ConcurrentQueue)TH_NEW(TQueue);
 			Tasks = (ConcurrentQueue)TH_NEW(TQueue);
 		}
 		Schedule::~Schedule()
 		{
 			Stop();
-
-			EQueue* cEvents = (EQueue*)Events;
-			TH_DELETE(ConcurrentQueue, cEvents);
 
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			TH_DELETE(ConcurrentQueue, cAsyncs);
@@ -7281,72 +7263,18 @@ namespace Tomahawk
 			if (Singleton == this)
 				Singleton = nullptr;
 		}
-		EventId Schedule::SetListener(const std::string& Name, const EventCallback& Callback)
+		TimerId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
-				return std::numeric_limits<uint64_t>::max();
-
-			TH_PSTART("schedule-listen", TH_PERF_ATOM);
-			Race.Listeners.lock();
-			auto It = Listeners.find(Name);
-			if (It != Listeners.end())
-			{
-				uint64_t Id = It->second->Counter++;
-				It->second->Callbacks[Id] = Callback;
-				Race.Listeners.unlock();
-
-				TH_PEND();
-				return Id;
-			}
-
-			EventListener*& Src = Listeners[Name];
-			Src = TH_NEW(EventListener);
-			Src->Callbacks[Src->Counter++] = Callback;
-			Race.Listeners.unlock();
-
-			TH_PEND();
-			return 0;
-		}
-		EventId Schedule::SetListener(const std::string& Name, EventCallback&& Callback)
-		{
-			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
-			if (!Enqueue)
-				return std::numeric_limits<uint64_t>::max();
-
-			TH_PSTART("schedule-listen", TH_PERF_ATOM);
-			Race.Listeners.lock();
-			auto It = Listeners.find(Name);
-			if (It != Listeners.end())
-			{
-				uint64_t Id = It->second->Counter++;
-				It->second->Callbacks[Id] = std::move(Callback);
-				Race.Listeners.unlock();
-
-				TH_PEND();
-				return Id;
-			}
-
-			EventListener*& Src = Listeners[Name];
-			Src = TH_NEW(EventListener);
-			Src->Callbacks[Src->Counter++] = std::move(Callback);
-			Race.Listeners.unlock();
-
-			TH_PEND();
-			return 0;
-		}
-		EventId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
-		{
-			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
-			if (!Enqueue)
-				return std::numeric_limits<uint64_t>::max();
+				return TH_INVALID_EVENT_ID;
 
 			TH_PSTART("schedule-interval", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, true)));
+			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, Timeout(Callback, Milliseconds, Id, true)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7355,18 +7283,18 @@ namespace Tomahawk
 			TH_PEND();
 			return Id;
 		}
-		EventId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
+		TimerId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
-				return std::numeric_limits<uint64_t>::max();
+				return TH_INVALID_EVENT_ID;
 
 			TH_PSTART("schedule-interval", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, true)));
+			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, Timeout(std::move(Callback), Milliseconds, Id, true)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7375,18 +7303,18 @@ namespace Tomahawk
 			TH_PEND();
 			return Id;
 		}
-		EventId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
+		TimerId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
 		{
-			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
-				return std::numeric_limits<uint64_t>::max();
+				return TH_INVALID_EVENT_ID;
 
 			TH_PSTART("schedule-timeout", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(Callback, Milliseconds, Id, false)));
+			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, Timeout(Callback, Milliseconds, Id, false)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7395,18 +7323,18 @@ namespace Tomahawk
 			TH_PEND();
 			return Id;
 		}
-		EventId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
+		TimerId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
 		{
-			TH_ASSERT(Callback, std::numeric_limits<uint64_t>::max(), "callback should not be empty");
+			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
-				return std::numeric_limits<uint64_t>::max();
+				return TH_INVALID_EVENT_ID;
 
 			TH_PSTART("schedule-timeout", TH_PERF_ATOM);
 			int64_t Clock = GetClock();
 			Race.Timers.lock();
 
-			EventId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, EventTimer(std::move(Callback), Milliseconds, Id, false)));
+			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
+			Timers.emplace(std::make_pair(Time, Timeout(std::move(Callback), Milliseconds, Id, false)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7423,8 +7351,6 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-task", TH_PERF_ATOM);
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, Callback));
-			Subroutine = true;
-
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
@@ -7439,8 +7365,6 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-task", TH_PERF_ATOM);
 			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
-			Subroutine = true;
-
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
@@ -7461,8 +7385,6 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-async", TH_PERF_ATOM);
 			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, Callback));
-			Subroutine = true;
-
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 			
@@ -7483,81 +7405,13 @@ namespace Tomahawk
 
 			TH_PSTART("schedule-async", TH_PERF_ATOM);
 			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
-			Subroutine = true;
-
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
 
 			TH_PEND();
 			return true;
 		}
-		bool Schedule::SetEvent(const std::string& Name, const VariantArgs& Args)
-		{
-			TH_ASSERT(!Name.empty(), false, "name should not be empty");
-			if (!Enqueue)
-				return false;
-
-			TH_PSTART("schedule-event", TH_PERF_ATOM);
-			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name, Args));
-			if (!Childs.empty())
-				Queue.Publish.notify_one();
-
-			TH_PEND();
-			return true;
-		}
-		bool Schedule::SetEvent(const std::string& Name, VariantArgs&& Args)
-		{
-			TH_ASSERT(!Name.empty(), false, "name should not be empty");
-			if (!Enqueue)
-				return false;
-
-			TH_PSTART("schedule-event", TH_PERF_ATOM);
-			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name, std::move(Args)));
-			if (!Childs.empty())
-				Queue.Publish.notify_one();
-
-			TH_PEND();
-			return true;
-		}
-		bool Schedule::SetEvent(const std::string& Name)
-		{
-			TH_ASSERT(!Name.empty(), false, "name should not be empty");
-			if (!Enqueue)
-				return false;
-
-			TH_PSTART("schedule-event", TH_PERF_ATOM);
-			((EQueue*)Events)->enqueue(TH_NEW(EventBase, Name));
-			if (!Childs.empty())
-				Queue.Publish.notify_one();
-
-			TH_PEND();
-			return true;
-		}
-		bool Schedule::ClearListener(const std::string& Name, EventId ListenerId)
-		{
-			TH_ASSERT(!Name.empty(), false, "name should not be empty");
-			TH_PSTART("schedule-unlisten", TH_PERF_ATOM);
-
-			Race.Listeners.lock();
-			auto It = Listeners.find(Name);
-			if (It != Listeners.end())
-			{
-				auto Callback = It->second->Callbacks.find(ListenerId);
-				if (Callback != It->second->Callbacks.end())
-				{
-					It->second->Callbacks.erase(Callback);
-					Race.Listeners.unlock();
-
-					TH_PEND();
-					return true;
-				}
-			}
-			Race.Listeners.unlock();
-
-			TH_PEND();
-			return false;
-		}
-		bool Schedule::ClearTimeout(EventId TimerId)
+		bool Schedule::ClearTimeout(TimerId TimerId)
 		{
 			TH_PSTART("schedule-cl-timeout", TH_PERF_ATOM);
 
@@ -7615,6 +7469,7 @@ namespace Tomahawk
 			Queue.Publish.notify_all();
 			Queue.Consume.notify_all();
 
+			TaskCallback* Callback = nullptr;
 			for (auto& Thread : Childs)
 			{
 				if (Thread.get_id() == std::this_thread::get_id())
@@ -7631,35 +7486,19 @@ namespace Tomahawk
 			Childs.clear();
 			while (Dispatch());
 
-			EQueue* cEvents = (EQueue*)Events;
 			TQueue* cAsyncs = (TQueue*)Asyncs;
-			TQueue* cTasks = (TQueue*)Tasks;
-			TaskCallback* Callback = nullptr;
-			EventBase* Event = nullptr;
-
-			while (cEvents->try_dequeue(Event) || cEvents->size_approx() > 0)
-			{
-				TH_DELETE(EventBase, Event);
-				Event = nullptr;
-			}
-
 			while (cAsyncs->try_dequeue(Callback) || cAsyncs->size_approx() > 0)
 			{
 				TH_DELETE(function, Callback);
 				Callback = nullptr;
 			}
 
+			TQueue* cTasks = (TQueue*)Tasks;
 			while (cTasks->try_dequeue(Callback) || cTasks->size_approx() > 0)
 			{
 				TH_DELETE(function, Callback);
 				Callback = nullptr;
 			}
-
-			Race.Listeners.lock();
-			for (auto& Listener : Listeners)
-				TH_DELETE(EventListener, Listener.second);
-			Listeners.clear();
-			Race.Listeners.unlock();
 
 			Race.Timers.lock();
 			Timers.clear();
@@ -7679,17 +7518,14 @@ namespace Tomahawk
 				Comain = new Costate(Stack);
 
 			int fAsyncs = DispatchAsync(nullptr, Comain, true);
-			int fEvents = DispatchEvent(nullptr);
 			int fTimers = DispatchTimer(nullptr);
 			int fTasks = DispatchTask(nullptr);
 
-			return fAsyncs != -1 || fEvents != -1 || fTimers != -1 || fTasks != -1;
+			return fAsyncs != -1 || fTimers != -1 || fTasks != -1;
 		}
 		bool Schedule::Publish()
 		{
-			CToken tEvents(*((EQueue*)Events));
-			ConcurrentToken* vEvents = (ConcurrentToken*)&tEvents;
-            int fEvents = -1, fTimers = -1;
+            int fTimers = -1;
             int64_t When = -1;
             
 			if (!Active)
@@ -7697,16 +7533,13 @@ namespace Tomahawk
 
 			do
 			{
-                fEvents = DispatchEvent(vEvents);
 				fTimers = DispatchTimer(&When);
-
-				if (fEvents == -1 && fTimers == 0)
+				if (fTimers == 0)
                 {
                     std::unique_lock<std::mutex> Lock(Race.Threads);
                     Queue.Publish.wait_for(Lock, std::chrono::milliseconds(When));
                 }
-                
-				if (fEvents != -1 || fTimers != -1)
+				else if (fTimers != -1)
 					continue;
 			Wait:
 				std::unique_lock<std::mutex> Lock(Race.Threads);
@@ -7752,7 +7585,7 @@ namespace Tomahawk
 			CToken* cToken = (CToken*)Token;
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			TaskCallback* Data = nullptr;
-			Subroutine = false;
+			TaskCallback* Queue[MAX_TICKS];
 
 			if (State != nullptr)
 			{
@@ -7778,10 +7611,7 @@ namespace Tomahawk
 						break;
 
 					if (Reconsume)
-					{
-						DispatchEvent(nullptr);
 						DispatchTimer(nullptr);
-					}
 
 					int fTasks = DispatchTask(nullptr);
 					if (fTasks == -1 && Count == 0 && State->IsWaitable())
@@ -7803,19 +7633,15 @@ namespace Tomahawk
 			}
 			else
 			{
-			ResolveStateless:
-				while (cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data))
+				TH_PSTART("dispatch-async", TH_PERF_CORE);
+				size_t Count = (cToken ? cAsyncs->try_dequeue_bulk(*cToken, Queue, MAX_TICKS) : cAsyncs->try_dequeue_bulk(Queue, MAX_TICKS));
+				for (size_t i = 0; i < Count; i++)
 				{
+					Data = Queue[i];
 					(*Data)();
 					TH_DELETE(function, Data);
-					if (!Threads && Subroutine)
-						break;
 				}
-
-				if (Threads > 0 && cAsyncs->size_approx() > 0)
-					goto ResolveStateless;
-
-				return Data != nullptr ? 1 : -1;
+				TH_PEND();
 			}
 
 			return Data != nullptr ? 1 : -1;
@@ -7825,57 +7651,17 @@ namespace Tomahawk
 			CToken* cToken = (CToken*)Token;
 			TQueue* cTasks = (TQueue*)Tasks;
 			TaskCallback* Data = nullptr;
-			Subroutine = false;
+			size_t Count = 0;
 
-		Resolve:
 			TH_PSTART("dispatch-task", TH_PERF_MAX);
 			while (cToken ? cTasks->try_dequeue(*cToken, Data) : cTasks->try_dequeue(Data))
 			{
 				(*Data)();
 				TH_DELETE(function, Data);
-				if (!Threads && Subroutine)
+				if (++Count > MAX_TICKS)
 					break;
 			}
-
 			TH_PEND();
-			if (Threads > 0 && cTasks->size_approx() > 0)
-				goto Resolve;
-
-			return Data != nullptr ? 1 : -1;
-		}
-		int Schedule::DispatchEvent(ConcurrentToken* Token)
-		{
-			CToken* cToken = (CToken*)Token;
-			EQueue* cEvents = (EQueue*)Events;
-			EventBase* Data = nullptr;
-			uint32_t Count = 0;
-
-		Resolve:
-			while (cToken ? cEvents->try_dequeue(*cToken, Data) : cEvents->try_dequeue(Data))
-			{
-				Race.Listeners.lock();
-				auto Base = Listeners.find(Data->Name);
-				if (Base != Listeners.end())
-				{
-					auto Array = Base->second->Callbacks;
-					Race.Listeners.unlock();
-
-					SetTask([Data, Array]() mutable
-					{
-						for (auto& Callback : Array)
-							Callback.second(Data->Args);
-						TH_DELETE(EventBase, Data);
-					});
-				}
-				else
-				{
-					Race.Listeners.unlock();
-					TH_DELETE(EventBase, Data);
-				}
-			}
-
-			if (Threads > 0 && cEvents->size_approx() > 0)
-				goto Resolve;
 
 			return Data != nullptr ? 1 : -1;
 		}
@@ -7910,12 +7696,12 @@ namespace Tomahawk
 				return 1;
 			}
 
-			EventTimer Next(std::move(It->second));
+			Timeout Next(std::move(It->second));
 			Timers.erase(It);
 
 			SetTask((const TaskCallback&)Next.Callback);
 
-			int64_t Time = GetTimeout(Clock + Next.Timeout);
+			int64_t Time = GetTimeout(Clock + Next.Expires);
 			Timers.emplace(std::make_pair(Time, std::move(Next)));
 			Race.Timers.unlock();
 			return 1;
@@ -7930,11 +7716,10 @@ namespace Tomahawk
 		}
 		bool Schedule::IsProcessing()
 		{
-			EQueue* cEvents = (EQueue*)Events;
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			TQueue* cTasks = (TQueue*)Tasks;
 
-			return cAsyncs->size_approx() > 0 || cTasks->size_approx() > 0 || cEvents->size_approx() || !Timers.empty();
+			return cAsyncs->size_approx() > 0 || cTasks->size_approx() > 0 || !Timers.empty();
 		}
 		int64_t Schedule::GetClock()
 		{

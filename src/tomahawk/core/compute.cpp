@@ -6616,7 +6616,7 @@ namespace Tomahawk
 #endif
 		}
 
-		float Common::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
+		bool Common::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
 		{
 			Radius = -Radius;
 #ifdef TH_WITH_SIMD
@@ -6626,40 +6626,40 @@ namespace Tomahawk
 			float F = _r3.extract(3); _r3.cutoff(3);
 			F /= sqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
-				return F;
+				return false;
 
 			_r3 = _r1 - _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
 			F /= sqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
-				return F;
+				return false;
 
 			_r2 = Vec4f(WVP.Row[1], WVP.Row[5], WVP.Row[9], WVP.Row[13]);
 			_r3 = _r1 + _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
 			F /= sqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
-				return F;
+				return false;
 
 			_r3 = _r1 - _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
 			F /= sqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
-				return F;
+				return false;
 
 			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
 			_r3 = _r1 + _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
 			F /= sqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
-				return F;
+				return false;
 
 			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
 			_r3 = _r1 - _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
 			F /= sqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
-				return F;
+				return false;
 #else
 			float Plane[4];
 			Plane[0] = WVP.Row[3] + WVP.Row[0];
@@ -6669,7 +6669,7 @@ namespace Tomahawk
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
-				return Plane[3];
+				return false;
 
 			Plane[0] = WVP.Row[3] - WVP.Row[0];
 			Plane[1] = WVP.Row[7] - WVP.Row[4];
@@ -6678,7 +6678,7 @@ namespace Tomahawk
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
-				return Plane[3];
+				return false;
 
 			Plane[0] = WVP.Row[3] + WVP.Row[1];
 			Plane[1] = WVP.Row[7] + WVP.Row[5];
@@ -6687,7 +6687,7 @@ namespace Tomahawk
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
-				return Plane[3];
+				return false;
 
 			Plane[0] = WVP.Row[3] - WVP.Row[1];
 			Plane[1] = WVP.Row[7] - WVP.Row[5];
@@ -6696,7 +6696,7 @@ namespace Tomahawk
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
-				return Plane[3];
+				return false;
 
 			Plane[0] = WVP.Row[3] + WVP.Row[2];
 			Plane[1] = WVP.Row[7] + WVP.Row[6];
@@ -6705,7 +6705,7 @@ namespace Tomahawk
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
-				return Plane[3];
+				return false;
 
 			Plane[0] = WVP.Row[3] - WVP.Row[2];
 			Plane[1] = WVP.Row[7] - WVP.Row[6];
@@ -6714,9 +6714,9 @@ namespace Tomahawk
 
 			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
-				return Plane[3];
+				return false;
 #endif
-			return -1.0f;
+			return true;
 		}
 		bool Common::IsBase64(unsigned char Value)
 		{
@@ -8881,7 +8881,7 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Transform::Transform() : Childs(nullptr), LocalTransform(nullptr), LocalPosition(nullptr), LocalRotation(nullptr), LocalScale(nullptr), Root(nullptr), Scale(1), ConstantScale(false), UserPointer(nullptr)
+		Transform::Transform() : LocalTransform(nullptr), LocalPosition(nullptr), LocalRotation(nullptr), LocalScale(nullptr), Root(nullptr), Scale(1), ConstantScale(false), UserPointer(nullptr)
 		{
 		}
 		Transform::~Transform()
@@ -8929,12 +8929,7 @@ namespace Tomahawk
 				Root = Target->Root;
 			}
 
-			TH_DELETE(vector, Childs);
-			if (Target->Childs != nullptr)
-				Childs = TH_NEW(std::vector<Transform*>, *Target->Childs);
-			else
-				Childs = nullptr;
-
+			Childs = Target->Childs;
 			UserPointer = Target->UserPointer;
 			Position = Target->Position;
 			Rotation = Target->Rotation;
@@ -8954,48 +8949,24 @@ namespace Tomahawk
 		void Transform::AddChild(Transform* Child)
 		{
 			TH_ASSERT_V(Child != nullptr, "child should be set");
-			if (Childs != nullptr)
-			{
-				for (auto* Item : *Childs)
-				{
-					if (Item == Child)
-						return;
-				}
-			}
-			else
-				Childs = TH_NEW(std::vector<Transform*>);
-
-			Childs->push_back(Child);
+			Childs.push_back(Child);
 		}
 		void Transform::RemoveChild(Transform* Child)
 		{
 			TH_ASSERT_V(Child != nullptr, "child should be set");
-			if (!Childs)
-				return;
-
 			if (Child->Root == this)
 				Child->SetRoot(nullptr);
-
-			if (Childs->empty())
-			{
-				TH_DELETE(vector, Childs);
-				Childs = nullptr;
-			}
 		}
 		void Transform::RemoveChilds()
 		{
-			if (!Childs)
-				return;
+			std::vector<Transform*> Array;
+			Array.swap(Childs);
 
-			std::vector<Transform*> Array = *Childs;
 			for (auto& Child : Array)
 			{
 				if (Child->Root == this)
 					Child->SetRoot(nullptr);
 			}
-
-			TH_DELETE(vector, Childs);
-			Childs = nullptr;
 		}
 		void Transform::Localize(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
 		{
@@ -9066,21 +9037,12 @@ namespace Tomahawk
 				TH_DELETE(Vector3, LocalScale);
 				LocalScale = nullptr;
 
-				if (Root->Childs != nullptr)
+				for (auto It = Root->Childs.begin(); It != Root->Childs.end(); ++It)
 				{
-					for (auto It = Root->Childs->begin(); It != Root->Childs->end(); ++It)
+					if ((*It) == this)
 					{
-						if ((*It) == this)
-						{
-							Root->Childs->erase(It);
-							break;
-						}
-					}
-
-					if (Root->Childs->empty())
-					{
-						TH_DELETE(vector, Childs);
-						Root->Childs = nullptr;
+						Root->Childs.erase(It);
+						break;
 					}
 				}
 			}
@@ -9141,31 +9103,25 @@ namespace Tomahawk
 		bool Transform::HasChild(Transform* Target)
 		{
 			TH_ASSERT(Target != nullptr, false, "target should be set");
-			if (!Childs)
-				return false;
-
-			for (auto It = Childs->begin(); It != Childs->end(); ++It)
+			for (auto& Child : Childs)
 			{
-				if (*It == Target)
+				if (Child == Target)
 					return true;
 
-				if ((*It)->HasChild(Target))
+				if (Child->HasChild(Target))
 					return true;
 			}
 
 			return false;
 		}
-		std::vector<Transform*>* Transform::GetChilds()
+		std::vector<Transform*>& Transform::GetChilds()
 		{
 			return Childs;
 		}
 		Transform* Transform::GetChild(uint64_t Child)
 		{
-			if (!Childs)
-				return nullptr;
-
-			TH_ASSERT(Child < Childs->size(), nullptr, "index outside of range");
-			return (*Childs)[Child];
+			TH_ASSERT(Child < Childs.size(), nullptr, "index outside of range");
+			return Childs[Child];
 		}
 		Vector3* Transform::GetLocalPosition()
 		{
@@ -9325,12 +9281,9 @@ namespace Tomahawk
 
 			return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
 		}
-		uint64_t Transform::GetChildCount()
+		uint64_t Transform::GetChildsCount()
 		{
-			if (!Childs)
-				return 0;
-
-			return Childs->size();
+			return (uint64_t)Childs.size();
 		}
 		bool Transform::CanRootBeApplied(Transform* Parent)
 		{

@@ -1808,6 +1808,7 @@ namespace Tomahawk
 				bool FreePosition = false;
 				bool Focused = false;
 				bool AllowHighDPI = true;
+				bool AllowStalls = true;
 			};
 
 			struct
@@ -1903,7 +1904,7 @@ namespace Tomahawk
 			Compute::Vector2 GetGlobalCursorPosition();
 			Compute::Vector2 GetCursorPosition();
 			Compute::Vector2 GetCursorPosition(float ScreenWidth, float ScreenHeight);
-			Compute::Vector2 GetCursorPosition(Compute::Vector2 ScreenDimensions);
+			Compute::Vector2 GetCursorPosition(const Compute::Vector2& ScreenDimensions);
 			std::string GetClipboardText();
 			SDL_Window* GetHandle();
 			std::string GetError();

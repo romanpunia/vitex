@@ -1513,15 +1513,15 @@ namespace Tomahawk
 					{
 						Core::Pool<Component*>* Lights = Scene->GetComponents<Components::PointLight>();
 						for (auto It = Lights->Begin(); It != Lights->End(); ++It)
-							(*It)->As<Components::PointLight>()->DepthMap = nullptr;
+							((Components::PointLight*)*It)->DepthMap = nullptr;
 
 						Lights = Scene->GetComponents<Components::SpotLight>();
 						for (auto It = Lights->Begin(); It != Lights->End(); ++It)
-							(*It)->As<Components::SpotLight>()->DepthMap = nullptr;
+							((Components::SpotLight*)*It)->DepthMap = nullptr;
 
 						Lights = Scene->GetComponents<Components::LineLight>();
 						for (auto It = Lights->Begin(); It != Lights->End(); ++It)
-							(*It)->As<Components::LineLight>()->DepthMap = nullptr;
+							((Components::LineLight*)*It)->DepthMap = nullptr;
 					}
 				}
 
@@ -2152,7 +2152,7 @@ namespace Tomahawk
 					return;
 
 				SceneGraph* Scene = System->GetScene();
-				if (!Scene->GetTransparentCount())
+				if (!Scene->GetTransparentsCount())
 					return;
 
 				Graphics::MultiRenderTarget2D* MainMRT = System->GetMRT(TargetType::Main);
@@ -2343,7 +2343,7 @@ namespace Tomahawk
 				bool Change = false;
 				Scene->RayTest<Components::Model>(Origin, Distance, [this, &Origin, &Change](Component* Result, const Compute::Vector3& Hit)
 				{
-					float NextRange = Result->As<Components::Model>()->GetRange();
+					float NextRange = ((Components::Model*)Result)->GetRange();
 					float NextDistance = Origin.Origin.Distance(Hit) + NextRange / 2.0f;
 
 					if (NextDistance <= Focus.NearRange || NextDistance + NextRange / 2.0f >= Distance)

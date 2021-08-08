@@ -713,7 +713,10 @@ namespace Tomahawk
 
 				It.Length -= Size;
 				if (!It.Length)
+				{
 					fclose(AttachmentFile);
+					TH_TRACE("close fs 0x%p", (void*)AttachmentFile);
+				}
 
 				bool Sent = (!It.Length);
 				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Sent](Socket*, int64_t State)

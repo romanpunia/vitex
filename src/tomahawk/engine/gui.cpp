@@ -459,6 +459,13 @@ namespace Tomahawk
 						case Rml::Log::LT_ERROR:
 							TH_ERR("[gui] %.*s", Message.size(), Message.c_str());
 							break;
+						case Rml::Log::LT_WARNING:
+							TH_WARN("[gui] %.*s", Message.size(), Message.c_str());
+							break;
+						case Rml::Log::LT_INFO:
+						case Rml::Log::LT_ASSERT:
+							TH_TRACE("[gui] %.*s", Message.size(), Message.c_str());
+							break;
 						default:
 							break;
 					}
@@ -680,82 +687,6 @@ namespace Tomahawk
 
 					IEvent Basis(&Event);
 					Handler(Basis);
-				}
-			};
-
-			class DataSourceSubsystem : public Rml::DataSource
-			{
-				friend GUI::DataSource;
-
-			public:
-				GUI::DataSource* Source;
-
-			public:
-				DataSourceSubsystem(GUI::DataSource* NewSource) : Rml::DataSource(NewSource ? NewSource->Name : ""), Source(NewSource)
-				{
-				}
-				virtual ~DataSourceSubsystem() override
-				{
-				}
-				virtual void GetRow(Rml::StringList& Row, const Rml::String& Table, int RowIndex, const Rml::StringList& Columns) override
-				{
-					TH_ASSERT_V(Source != nullptr, "data source should be set");
-					auto It = Source->Nodes.find(Table);
-					if (It == Source->Nodes.end())
-						return;
-
-					TH_ASSERT_V(RowIndex >= 0 && RowIndex < It->second->Childs.size(), "index outside of range");
-					DataRow* Target = It->second->Childs[RowIndex];
-					std::string Result;
-
-					for (auto& Column : Columns)
-					{
-						if (Column == Rml::DataSource::DEPTH || Column == "depth")
-							Row.emplace_back(std::to_string(Target->Depth));
-						else if (Column == Rml::DataSource::NUM_CHILDREN)
-							Row.emplace_back(std::to_string(Target->Childs.size()));
-						else if (Column == Rml::DataSource::CHILD_SOURCE)
-							Row.push_back(Source->Name + "." + Target->Name);
-						else if (Source->OnColumn)
-						{
-							Source->OnColumn(Target, Column, Result);
-							if (!Result.empty())
-							{
-								Row.push_back(Result);
-								Result.clear();
-							}
-						}
-					}
-				}
-				virtual int GetNumRows(const Rml::String& Table) override
-				{
-					TH_ASSERT(Source != nullptr, 0, "data source should be set");
-
-					auto It = Source->Nodes.find(Table);
-					if (It == Source->Nodes.end())
-						return 0;
-
-					return It->second->Childs.size();
-				}
-			};
-
-			class DataFormatterSubsystem : public Rml::DataFormatter
-			{
-			public:
-				GUI::DataSource* Source;
-
-			public:
-				DataFormatterSubsystem(GUI::DataSource* NewSource) : Rml::DataFormatter(NewSource ? NewSource->Name : ""), Source(NewSource)
-				{
-				}
-				virtual ~DataFormatterSubsystem() override
-				{
-				}
-				virtual void FormatData(Rml::String& FormattedData, const Rml::StringList& RawData) override
-				{
-					TH_ASSERT_V(Source != nullptr, "data source should be set");
-					if (Source->OnFormat)
-						Source->OnFormat(RawData, FormattedData);
 				}
 			};
 
@@ -2159,6 +2090,7 @@ namespace Tomahawk
 				DocumentFactory = TH_NEW(DocumentInstancer);
 				Rml::Factory::RegisterElementInstancer("body", DocumentFactory);
 
+				CreateElements();
 				return Result;
 			}
 			bool Subsystem::Release()
@@ -2194,6 +2126,8 @@ namespace Tomahawk
 
 				TH_DELETE(ContextInstancer, ContextFactory);
 				ContextFactory = nullptr;
+
+				ReleaseElements();
 
 				ScriptInterface = nullptr;
 				return true;
@@ -2292,7 +2226,6 @@ namespace Tomahawk
 			{
 				return Core::Parser(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
 			}
-			std::unordered_map<std::string, DataSource*>* Subsystem::Sources = nullptr;
 			Script::VMManager* Subsystem::ScriptInterface = nullptr;
 			ContextInstancer* Subsystem::ContextFactory = nullptr;
 			DocumentInstancer* Subsystem::DocumentFactory = nullptr;
@@ -2303,342 +2236,6 @@ namespace Tomahawk
 			uint64_t Subsystem::Id = 0;
 			bool Subsystem::HasDecorators = false;
 			int Subsystem::State = 0;
-
-			DataNode::DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial) : Handle(Model), Safe(true)
-			{
-				Ref = TH_NEW(Core::Variant, Initial);
-				if (TopName != nullptr)
-					Name = TH_NEW(std::string, *TopName);
-			}
-			DataNode::DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference) : Ref(Reference), Handle(Model), Safe(false)
-			{
-				if (TopName != nullptr)
-					Name = TH_NEW(std::string, *TopName);
-			}
-			DataNode::DataNode(const DataNode& Other) : Childs(Other.Childs), Handle(Other.Handle), Safe(Other.Safe)
-			{
-				if (Safe)
-					Ref = TH_NEW(Core::Variant, *Other.Ref);
-				else
-					Ref = Other.Ref;
-
-				if (Other.Name != nullptr)
-					Name = TH_NEW(std::string, *Other.Name);
-			}
-			DataNode::~DataNode()
-			{
-				if (Safe)
-					TH_DELETE(Variant, Ref);
-
-				TH_DELETE(basic_string, Name);
-			}
-			DataNode& DataNode::Add(const Core::VariantList& Initial)
-			{
-				Childs.emplace_back(DataNode(Handle, Name, Core::Var::Undefined()));
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
-
-				DataNode& Result = Childs.back();
-				for (auto& Item : Initial)
-					Result.Add(Item);
-
-				return Result;
-			}
-			DataNode& DataNode::Add(const Core::Variant& Initial)
-			{
-				Childs.emplace_back(DataNode(Handle, Name, Initial));
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
-
-				return Childs.back();
-			}
-			DataNode& DataNode::Add(Core::Variant* Reference)
-			{
-				Childs.emplace_back(DataNode(Handle, Name, Reference));
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
-
-				return Childs.back();
-			}
-			DataNode& DataNode::At(size_t Index)
-			{
-				TH_ASSERT(Index < Childs.size(), *this, "index outside of range");
-				return Childs[Index];
-			}
-			size_t DataNode::GetSize()
-			{
-				return Childs.size();
-			}
-			bool DataNode::Remove(size_t Index)
-			{
-				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
-				Childs.erase(Childs.begin() + Index);
-				return true;
-			}
-			bool DataNode::Clear()
-			{
-				Childs.clear();
-				return true;
-			}
-			void DataNode::Set(const Core::Variant& NewValue)
-			{
-				if (*Ref == NewValue)
-					return;
-
-				*Ref = NewValue;
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
-			}
-			void DataNode::Set(Core::Variant* NewReference)
-			{
-				if (!NewReference || NewReference == Ref)
-					return;
-
-				if (Safe)
-					TH_DELETE(Variant, Ref);
-
-				Ref = NewReference;
-				Safe = false;
-
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
-			}
-			void DataNode::SetString(const std::string& Value)
-			{
-				Set(Core::Var::String(Value));
-			}
-			void DataNode::SetVector2(const Compute::Vector2& Value)
-			{
-				Set(Core::Var::String(IVariant::FromVector2(Value)));
-			}
-			void DataNode::SetVector3(const Compute::Vector3& Value)
-			{
-				Set(Core::Var::String(IVariant::FromVector3(Value)));
-			}
-			void DataNode::SetVector4(const Compute::Vector4& Value)
-			{
-				Set(Core::Var::String(IVariant::FromVector4(Value)));
-			}
-			void DataNode::SetInteger(int64_t Value)
-			{
-				Set(Core::Var::Integer(Value));
-			}
-			void DataNode::SetFloat(float Value)
-			{
-				Set(Core::Var::Number(Value));
-			}
-			void DataNode::SetDouble(double Value)
-			{
-				Set(Core::Var::Number(Value));
-			}
-			void DataNode::SetBoolean(bool Value)
-			{
-				Set(Core::Var::Boolean(Value));
-			}
-			void DataNode::SetPointer(void* Value)
-			{
-				Set(Core::Var::Pointer(Value));
-			}
-			const Core::Variant& DataNode::Get()
-			{
-				return *Ref;
-			}
-			std::string DataNode::GetString()
-			{
-				return Ref->GetBlob();
-			}
-			Compute::Vector2 DataNode::GetVector2()
-			{
-				return IVariant::ToVector2(Ref->GetBlob());
-			}
-			Compute::Vector3 DataNode::GetVector3()
-			{
-				return IVariant::ToVector3(Ref->GetBlob());
-			}
-			Compute::Vector4 DataNode::GetVector4()
-			{
-				return IVariant::ToVector4(Ref->GetBlob());
-			}
-			int64_t DataNode::GetInteger()
-			{
-				return Ref->GetInteger();
-			}
-			float DataNode::GetFloat()
-			{
-				return (float)Ref->GetNumber();
-			}
-			double DataNode::GetDouble()
-			{
-				return Ref->GetNumber();
-			}
-			bool DataNode::GetBoolean()
-			{
-				return Ref->GetBoolean();
-			}
-			void* DataNode::GetPointer()
-			{
-				return Ref->GetPointer();
-			}
-			void DataNode::GetValue(Rml::Variant& Result)
-			{
-				IVariant::Revert(Ref, &Result);
-			}
-			void DataNode::SetValue(const Rml::Variant& Result)
-			{
-				IVariant::Convert((Rml::Variant*)&Result, Ref);
-			}
-			int64_t DataNode::GetValueSize()
-			{
-				return (int64_t)GetSize();
-			}
-			DataNode& DataNode::operator= (const DataNode& Other)
-			{
-				if (this == &Other)
-					return *this;
-
-				this->~DataNode();
-				if (Safe)
-					Ref = TH_NEW(Core::Variant, *Other.Ref);
-				else
-					Ref = Other.Ref;
-
-				if (Other.Name != nullptr)
-					Name = TH_NEW(std::string, *Other.Name);
-
-				return *this;
-			}
-
-			DataRow::DataRow(DataSource* NewBase, void* NewTarget) : Name("root"), Base(NewBase), Parent(nullptr), Target(NewTarget), Depth(0)
-			{
-				Base->Nodes[Name] = this;
-			}
-			DataRow::DataRow(DataRow* Parent, void* NewTarget) : Name(Core::Form("%p", (void*)this).R()), Base(Parent->Base), Parent(Parent), Target(NewTarget), Depth(Parent->Depth + 1)
-			{
-				Parent->Childs.push_back(this);
-				Base->Nodes[Name] = this;
-
-				if (Base->OnChange)
-					Base->OnChange(this);
-			}
-			DataRow::~DataRow()
-			{
-				auto T = Base->Nodes.find(Name);
-				if (T != Base->Nodes.end())
-					Base->Nodes.erase(T);
-
-				if (Base->OnDestroy && Target != nullptr)
-					Base->OnDestroy(Target);
-
-				for (auto& It : Childs)
-					TH_DELETE(DataRow, It);
-			}
-			DataRow* DataRow::AddChild(void* fTarget)
-			{
-				DataRow* Result = TH_NEW(DataRow, this, fTarget);
-				Base->RowAdd(Name, Childs.size() - 1, 1);
-
-				return Result;
-			}
-			DataRow* DataRow::GetChild(void* fTarget)
-			{
-				for (auto& Child : Childs)
-				{
-					if (Child->Target == fTarget)
-						return Child;
-				}
-
-				return nullptr;
-			}
-			DataRow* DataRow::GetChildByIndex(size_t Index)
-			{
-				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
-				return Childs[Index];
-			}
-			DataRow* DataRow::GetParent()
-			{
-				return Parent;
-			}
-			DataRow* DataRow::FindChild(void* fTarget)
-			{
-				for (auto& Child : Childs)
-				{
-					if (Child->Target == fTarget)
-						return Child;
-
-					DataRow* Result = Child->FindChild(fTarget);
-					if (Result != nullptr)
-						return Result;
-				}
-
-				return nullptr;
-			}
-			size_t DataRow::GetChildsCount()
-			{
-				return Childs.size();
-			}
-			bool DataRow::RemoveChild(void* fTarget)
-			{
-				for (size_t i = 0; i < Childs.size(); i++)
-				{
-					DataRow* Child = Childs[i];
-					if (Child->Target != fTarget)
-						continue;
-
-					return RemoveChildByIndex(i);
-				}
-
-				return false;
-			}
-			bool DataRow::RemoveChildByIndex(size_t Index)
-			{
-				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
-				DataRow* Child = Childs[Index];
-				Childs.erase(Childs.begin() + Index);
-				TH_DELETE(DataRow, Child);
-
-				Base->RowRemove(Name, Index, 1);
-				return true;
-			}
-			bool DataRow::RemoveChilds()
-			{
-				size_t Size = Childs.size();
-				for (auto& It : Childs)
-					TH_DELETE(DataRow, It);
-				Childs.clear();
-
-				if (Size > 0)
-					Base->RowRemove(Name, 0, Size);
-
-				return Size > 0;
-			}
-			void DataRow::SetTarget(void* New)
-			{
-				if (Base->OnDestroy && Target != nullptr)
-					Base->OnDestroy(Target);
-
-				Target = New;
-				Update();
-			}
-			void DataRow::Update()
-			{
-				RemoveChilds();
-				if (Base->OnChange)
-					Base->OnChange(this);
-
-				if (Parent != nullptr)
-				{
-					for (size_t i = 0; i < Parent->Childs.size(); i++)
-					{
-						if (Parent->Childs[i] == this)
-						{
-							Base->RowChange(Parent->Name, i, 1);
-							break;
-						}
-					}
-				}
-				else
-					Base->RowChange(Name);
-			}
 
 			DataModel::DataModel(Rml::DataModelConstructor* Ref) : Base(nullptr)
 			{
@@ -2663,7 +2260,7 @@ namespace Tomahawk
 				}
 
 				Result = TH_NEW(DataNode, this, (std::string*)&Name, Value);
-				if (Value.GetType() != Core::VarType::Null)
+				if (!Value.IsObject())
 				{
 					if (Base->BindFunc(Name, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
 					{
@@ -2824,74 +2421,379 @@ namespace Tomahawk
 				return Base != nullptr;
 			}
 
-			DataSource::DataSource(const std::string& NewName) : DFS(nullptr), DSS(nullptr), Name(NewName), Root(TH_NEW(DataRow, this, nullptr))
+			DataNode::DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial) : Handle(Model), Order(nullptr), Depth(0), Safe(true)
 			{
-				DSS = TH_NEW(DataSourceSubsystem, this);
-				DFS = TH_NEW(DataFormatterSubsystem, this);
+				Ref = TH_NEW(Core::Variant, Initial);
+				if (TopName != nullptr)
+					Name = TH_NEW(std::string, *TopName);
 			}
-			DataSource::~DataSource()
+			DataNode::DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference) : Ref(Reference), Handle(Model), Order(nullptr), Depth(0), Safe(false)
 			{
-				TH_DELETE(DataSourceSubsystem, DSS);
-				TH_DELETE(DataFormatterSubsystem, DFS);
-				TH_DELETE(DataRow, Root);
+				if (TopName != nullptr)
+					Name = TH_NEW(std::string, *TopName);
 			}
-			void DataSource::SetFormatCallback(const FormatCallback& Callback)
+			DataNode::DataNode(const DataNode& Other) : Childs(Other.Childs), Handle(Other.Handle), Order(Other.Order), Depth(0), Safe(Other.Safe)
 			{
-				OnFormat = Callback;
-			}
-			void DataSource::SetColumnCallback(const ColumnCallback& Callback)
-			{
-				OnColumn = Callback;
-			}
-			void DataSource::SetChangeCallback(const ChangeCallback& Callback)
-			{
-				OnChange = Callback;
-			}
-			void DataSource::SetDestroyCallback(const DestroyCallback& Callback)
-			{
-				OnDestroy = Callback;
-			}
-			void DataSource::RowAdd(const std::string& Table, int FirstRowAdded, int NumRowsAdded)
-			{
-				DSS->NotifyRowAdd(Table, FirstRowAdded, NumRowsAdded);
-			}
-			void DataSource::RowRemove(const std::string& Table, int FirstRowRemoved, int NumRowsRemoved)
-			{
-				DSS->NotifyRowRemove(Table, FirstRowRemoved, NumRowsRemoved);
-			}
-			void DataSource::RowChange(const std::string& Table, int FirstRowChanged, int NumRowsChanged)
-			{
-				DSS->NotifyRowChange(Table, FirstRowChanged, NumRowsChanged);
-			}
-			void DataSource::RowChange(const std::string& Table)
-			{
-				DSS->NotifyRowChange(Table);
-			}
-			void DataSource::SetTarget(void* OldTarget, void* NewTarget)
-			{
-				if (Root->Target != OldTarget)
-				{
-					DataRow* Result = Root->FindChild(OldTarget);
-					if (Result != nullptr)
-						Result->SetTarget(NewTarget);
-				}
+				if (Safe)
+					Ref = TH_NEW(Core::Variant, *Other.Ref);
 				else
-					Root->SetTarget(NewTarget);
+					Ref = Other.Ref;
+
+				if (Other.Name != nullptr)
+					Name = TH_NEW(std::string, *Other.Name);
 			}
-			void DataSource::Update(void* Target)
+			DataNode::DataNode(DataNode&& Other) : Childs(std::move(Other.Childs)), Ref(Other.Ref), Name(Other.Name), Handle(Other.Handle), Order(Other.Order), Depth(Other.Depth), Safe(Other.Safe)
 			{
-				if (Root->Target != Target)
+				Other.Ref = nullptr;
+				Other.Name = nullptr;
+			}
+			DataNode::~DataNode()
+			{
+				if (Safe)
+					TH_DELETE(Variant, Ref);
+
+				TH_DELETE(basic_string, Name);
+			}
+			DataNode& DataNode::Insert(size_t Where, const Core::VariantList& Initial, std::pair<void*, size_t>* Top)
+			{
+				TH_ASSERT(Where <= Childs.size(), *Childs.begin(), "index outside of range");
+				DataNode Result(Handle, Name, Core::Var::Array());
+				if (Top != nullptr)
 				{
-					DataRow* Result = Root->FindChild(Target);
-					if (Result != nullptr)
-						Result->Update();
+					Result.Order = Top->first;
+					Result.Depth = Top->second;
 				}
-				else
-					Root->Update();
+
+				for (auto& Item : Initial)
+					Result.Add(Item);
+
+				Childs.insert(Childs.begin() + Where, std::move(Result));
+				if (Top != nullptr)
+					SortTree();
+				else if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return Childs.back();
 			}
-			DataRow* DataSource::Get()
+			DataNode& DataNode::Insert(size_t Where, const Core::Variant& Initial, std::pair<void*, size_t>* Top)
 			{
-				return Root;
+				TH_ASSERT(Where <= Childs.size(), *Childs.begin(), "index outside of range");
+				DataNode Result(Handle, Name, Initial);
+				if (Top != nullptr)
+				{
+					Result.Order = Top->first;
+					Result.Depth = Top->second;
+				}
+
+				Childs.insert(Childs.begin() + Where, std::move(Result));
+				if (Top != nullptr)
+					SortTree();
+				else if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return Childs.back();
+			}
+			DataNode& DataNode::Insert(size_t Where, Core::Variant* Reference, std::pair<void*, size_t>* Top)
+			{
+				TH_ASSERT(Where <= Childs.size(), *Childs.begin(), "index outside of range");
+				DataNode Result(Handle, Name, Reference);
+				if (Top != nullptr)
+				{
+					Result.Order = Top->first;
+					Result.Depth = Top->second;
+				}
+
+				Childs.insert(Childs.begin() + Where, std::move(Result));
+				if (Top != nullptr)
+					SortTree();
+				else if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return Childs.back();
+			}
+			DataNode& DataNode::Add(const Core::VariantList& Initial, std::pair<void*, size_t>* Top)
+			{
+				DataNode Result(Handle, Name, Core::Var::Array());
+				if (Top != nullptr)
+				{
+					Result.Order = Top->first;
+					Result.Depth = Top->second;
+				}
+
+				for (auto& Item : Initial)
+					Result.Add(Item);
+
+				Childs.emplace_back(std::move(Result));
+				if (Top != nullptr)
+					SortTree();
+				else if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return Childs.back();
+			}
+			DataNode& DataNode::Add(const Core::Variant& Initial, std::pair<void*, size_t>* Top)
+			{
+				DataNode Result(Handle, Name, Initial);
+				if (Top != nullptr)
+				{
+					Result.Order = Top->first;
+					Result.Depth = Top->second;
+				}
+
+				Childs.emplace_back(std::move(Result));
+				if (Top != nullptr)
+					SortTree();
+				else if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return Childs.back();
+			}
+			DataNode& DataNode::Add(Core::Variant* Reference, std::pair<void*, size_t>* Top)
+			{
+				DataNode Result(Handle, Name, Reference);
+				if (Top != nullptr)
+				{
+					Result.Order = Top->first;
+					Result.Depth = Top->second;
+				}
+
+				Childs.emplace_back(std::move(Result));
+				if (Top != nullptr)
+					SortTree();
+				else if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return Childs.back();
+			}
+			DataNode& DataNode::At(size_t Index)
+			{
+				TH_ASSERT(Index < Childs.size(), *this, "index outside of range");
+				return Childs[Index];
+			}
+			bool DataNode::Remove(size_t Index)
+			{
+				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
+				Childs.erase(Childs.begin() + Index);
+
+				if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return true;
+			}
+			bool DataNode::Clear()
+			{
+				Childs.clear();
+				if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+
+				return true;
+			}
+			void DataNode::SortTree()
+			{
+				std::sort(Childs.begin(), Childs.end(), [](const DataNode& A, const DataNode& B)
+				{
+					double D1 = (double)(uintptr_t)A.GetSeqId() + 0.00000001 * (double)A.GetDepth();
+					double D2 = (double)(uintptr_t)B.GetSeqId() + 0.00000001 * (double)B.GetDepth();
+					return D1 < D2;
+				});
+
+				if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+			}
+			void DataNode::SetTop(void* SeqId, size_t Nesting)
+			{
+				Order = SeqId;
+				Depth = Nesting;
+			}
+			void DataNode::Set(const Core::Variant& NewValue)
+			{
+				if (*Ref == NewValue)
+					return;
+
+				*Ref = NewValue;
+				if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+			}
+			void DataNode::Set(Core::Variant* NewReference)
+			{
+				if (!NewReference || NewReference == Ref)
+					return;
+
+				if (Safe)
+					TH_DELETE(Variant, Ref);
+
+				Ref = NewReference;
+				Safe = false;
+
+				if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+			}
+			void DataNode::Replace(const Core::VariantList& Data, std::pair<void*, size_t>* Top)
+			{
+				Childs.clear();
+				for (auto& Item : Data)
+					Childs.emplace_back(DataNode(Handle, Name, Item));
+
+				if (Top != nullptr)
+				{
+					Order = Top->first;
+					Depth = Top->second;
+				}
+
+				if (Handle != nullptr && Name != nullptr)
+					Handle->Change(*Name);
+			}
+			void DataNode::SetString(const std::string& Value)
+			{
+				Set(Core::Var::String(Value));
+			}
+			void DataNode::SetVector2(const Compute::Vector2& Value)
+			{
+				Set(Core::Var::String(IVariant::FromVector2(Value)));
+			}
+			void DataNode::SetVector3(const Compute::Vector3& Value)
+			{
+				Set(Core::Var::String(IVariant::FromVector3(Value)));
+			}
+			void DataNode::SetVector4(const Compute::Vector4& Value)
+			{
+				Set(Core::Var::String(IVariant::FromVector4(Value)));
+			}
+			void DataNode::SetInteger(int64_t Value)
+			{
+				Set(Core::Var::Integer(Value));
+			}
+			void DataNode::SetFloat(float Value)
+			{
+				Set(Core::Var::Number(Value));
+			}
+			void DataNode::SetDouble(double Value)
+			{
+				Set(Core::Var::Number(Value));
+			}
+			void DataNode::SetBoolean(bool Value)
+			{
+				Set(Core::Var::Boolean(Value));
+			}
+			void DataNode::SetPointer(void* Value)
+			{
+				Set(Core::Var::Pointer(Value));
+			}
+			size_t DataNode::GetSize() const
+			{
+				return Childs.size();
+			}
+			size_t DataNode::GetDepth() const
+			{
+				return Depth;
+			}
+			void* DataNode::GetSeqId() const
+			{
+				return Order;
+			}
+			const Core::Variant& DataNode::Get()
+			{
+				return *Ref;
+			}
+			std::string DataNode::GetString()
+			{
+				return Ref->GetBlob();
+			}
+			Compute::Vector2 DataNode::GetVector2()
+			{
+				return IVariant::ToVector2(Ref->GetBlob());
+			}
+			Compute::Vector3 DataNode::GetVector3()
+			{
+				return IVariant::ToVector3(Ref->GetBlob());
+			}
+			Compute::Vector4 DataNode::GetVector4()
+			{
+				return IVariant::ToVector4(Ref->GetBlob());
+			}
+			int64_t DataNode::GetInteger()
+			{
+				return Ref->GetInteger();
+			}
+			float DataNode::GetFloat()
+			{
+				return (float)Ref->GetNumber();
+			}
+			double DataNode::GetDouble()
+			{
+				return Ref->GetNumber();
+			}
+			bool DataNode::GetBoolean()
+			{
+				return Ref->GetBoolean();
+			}
+			void* DataNode::GetPointer()
+			{
+				return Ref->GetPointer();
+			}
+			void DataNode::GetValue(Rml::Variant& Result)
+			{
+				IVariant::Revert(Ref, &Result);
+			}
+			void DataNode::SetValue(const Rml::Variant& Result)
+			{
+				IVariant::Convert((Rml::Variant*)&Result, Ref);
+			}
+			void DataNode::SetValueStr(const std::string& Value)
+			{
+				*Ref = std::move(Core::Var::String(Value));
+			}
+			void DataNode::SetValueNum(double Value)
+			{
+				*Ref = std::move(Core::Var::Number(Value));
+			}
+			void DataNode::SetValueInt(int64_t Value)
+			{
+				*Ref = std::move(Core::Var::Number(Value));
+			}
+			int64_t DataNode::GetValueSize()
+			{
+				return (int64_t)GetSize();
+			}
+			DataNode& DataNode::operator= (const DataNode& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				this->~DataNode();
+				Childs = Other.Childs;
+				Handle = Other.Handle;
+				Order = Other.Order;
+				Depth = Other.Depth;
+				Safe = Other.Safe;
+
+				if (Safe)
+					Ref = TH_NEW(Core::Variant, *Other.Ref);
+				else
+					Ref = Other.Ref;
+
+				if (Other.Name != nullptr)
+					Name = TH_NEW(std::string, *Other.Name);
+
+				return *this;
+			}
+			DataNode& DataNode::operator= (DataNode&& Other)
+			{
+				if (this == &Other)
+					return *this;
+
+				Childs = std::move(Other.Childs);
+				Ref = Other.Ref;
+				Handle = Other.Handle;
+				Name = Other.Name;
+				Order = Other.Order;
+				Depth = Other.Depth;
+				Safe = Other.Safe;
+
+				Other.Ref = nullptr;
+				Other.Name = nullptr;
+
+				return *this;
 			}
 
 			Handler::Handler(const EventCallback& NewCallback)
@@ -2930,24 +2832,6 @@ namespace Tomahawk
 			Context::~Context()
 			{
 				RemoveDataModels();
-				for (auto Item : Sources)
-				{
-					if (Item.second->GetRefCount() <= 1 && Subsystem::Sources != nullptr)
-					{
-						auto It = Subsystem::Sources->find(Item.second->Name);
-						if (It != Subsystem::Sources->end())
-							Subsystem::Sources->erase(It);
-
-						if (Subsystem::Sources->empty())
-						{
-							delete Subsystem::Sources;
-							Subsystem::Sources = nullptr;
-						}
-					}
-
-					TH_RELEASE(Item.second);
-				}
-
 				Rml::RemoveContext(Base->GetName());
 				TH_RELEASE(Compiler);
 			}
@@ -3087,7 +2971,6 @@ namespace Tomahawk
 				Loading = true;
 
 				Elements.clear();
-				RemoveDataModels();
 				Base->UnloadAllDocuments();
 				Loading = State;
 
@@ -3341,7 +3224,11 @@ namespace Tomahawk
 				if (auto Type = Result.RegisterStruct<DataNode>())
 				{
 					Result.RegisterArray<std::vector<DataNode>>();
+					Type.RegisterMember("int", &DataNode::GetInteger, &DataNode::SetValueInt);
+					Type.RegisterMember("num", &DataNode::GetDouble, &DataNode::SetValueNum);
+					Type.RegisterMember("str", &DataNode::GetString, &DataNode::SetValueStr);
 					Type.RegisterMember("at", &DataNode::Childs);
+					Type.RegisterMember("all", &DataNode::Childs);
 					Type.RegisterMember("size", &DataNode::GetValueSize);
 				}
 
@@ -3352,45 +3239,6 @@ namespace Tomahawk
 			{
 				auto It = Models.find(Name);
 				if (It != Models.end())
-					return It->second;
-
-				return nullptr;
-			}
-			DataSource* Context::SetDataSource(const std::string& Name)
-			{
-				auto It = Sources.find(Name);
-				if (It != Sources.end())
-					return It->second;
-
-				if (!Subsystem::Sources)
-				{
-					DataSource* Source = new DataSource(Name);
-					Subsystem::Sources = new std::unordered_map<std::string, DataSource*>();
-					(*Subsystem::Sources)[Name] = Source;
-					Sources[Name] = Source;
-
-					return Source;
-				}
-
-				It = Subsystem::Sources->find(Name);
-				if (It != Subsystem::Sources->end())
-				{
-					Sources[Name] = It->second;
-					It->second->AddRef();
-
-					return It->second;
-				}
-
-				DataSource* Source = new DataSource(Name);
-				(*Subsystem::Sources)[Name] = Source;
-				Sources[Name] = Source;
-
-				return Source;
-			}
-			DataSource* Context::GetDataSource(const std::string& Name)
-			{
-				auto It = Sources.find(Name);
-				if (It != Sources.end())
 					return It->second;
 
 				return nullptr;

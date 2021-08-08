@@ -197,6 +197,7 @@ typedef socklen_t socket_size_t;
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
+#define TH_INVALID_EVENT_ID std::numeric_limits<uint64_t>::max()
 #define TH_PREFIX_CHAR '@'
 #define TH_PREFIX_STR "@"
 #define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
@@ -310,7 +311,6 @@ namespace Tomahawk
 		typedef std::vector<Document*> DocumentList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
 		typedef std::unordered_map<std::string, Document*> DocumentArgs;
-		typedef std::function<void(VariantArgs&)> EventCallback;
 		typedef std::function<void()> TaskCallback;
 		typedef std::function<std::string(const std::string&)> DocNameCallback;
 		typedef std::function<void(VarForm, const char*, int64_t)> DocWriteCallback;
@@ -318,7 +318,7 @@ namespace Tomahawk
 		typedef std::function<void*(size_t)> AllocCallback;
 		typedef std::function<void*(void*, size_t)> ReallocCallback;
 		typedef std::function<void(void*)> FreeCallback;
-		typedef uint64_t EventId;
+		typedef uint64_t TimerId;
         typedef Decimal BigNumber;
 		typedef void* ConcurrentQueue;
 		typedef void* ConcurrentToken;
@@ -456,6 +456,7 @@ namespace Tomahawk
 			bool operator== (const Variant& Other) const;
 			bool operator!= (const Variant& Other) const;
 			operator bool() const;
+			bool IsString(const char* Value) const;
 			bool IsObject() const;
 			bool IsEmpty() const;
 
@@ -482,39 +483,19 @@ namespace Tomahawk
 			bool Exists = false;
 		};
 
-		struct TH_OUT EventBase
-		{
-			std::string Name;
-			VariantArgs Args;
-
-			EventBase(const std::string& NewName);
-			EventBase(const std::string& NewName, const VariantArgs& NewArgs);
-			EventBase(const std::string& NewName, VariantArgs&& NewArgs);
-			EventBase(const EventBase& Other);
-			EventBase(EventBase&& Other);
-			EventBase& operator= (const EventBase& Other);
-			EventBase& operator= (EventBase&& Other);
-		};
-
-		struct TH_OUT EventTimer
+		struct TH_OUT Timeout
 		{
 			TaskCallback Callback;
-			uint64_t Timeout;
-			EventId Id;
+			uint64_t Expires;
+			TimerId Id;
 			bool Alive;
 
-			EventTimer(const TaskCallback& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
-			EventTimer(TaskCallback&& NewCallback, uint64_t NewTimeout, EventId NewId, bool NewAlive);
-			EventTimer(const EventTimer& Other);
-			EventTimer(EventTimer&& Other);
-			EventTimer& operator= (const EventTimer& Other);
-			EventTimer& operator= (EventTimer&& Other);
-		};
-
-		struct TH_OUT EventListener
-		{
-			std::unordered_map<EventId, EventCallback> Callbacks;
-			EventId Counter = 0;
+			Timeout(const TaskCallback& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive);
+			Timeout(TaskCallback&& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive);
+			Timeout(const Timeout& Other);
+			Timeout(Timeout&& Other);
+			Timeout& operator= (const Timeout& Other);
+			Timeout& operator= (Timeout&& Other);
 		};
 
 		struct TH_OUT Resource
@@ -758,7 +739,7 @@ namespace Tomahawk
 			static std::string ToStringAutoPrec(double Number);
 		};
 
-		struct TH_OUT TickTimer
+		struct TH_OUT Ticker
 		{
 		private:
 			double Time;
@@ -767,7 +748,7 @@ namespace Tomahawk
 			double Delay;
 
 		public:
-			TickTimer();
+			Ticker();
 			bool TickEvent(double ElapsedTime);
 			double GetTime();
 		};
@@ -1024,7 +1005,9 @@ namespace Tomahawk
 				if (!Factory)
 					Factory = new std::unordered_map<uint64_t, void*>();
 
-				TH_ASSERT_V(Factory->find(T::GetTypeId()) == Factory->end(), "type \"%s\" already exists in composer's table", T::GetTypeName());
+				if (Factory->find(T::GetTypeId()) != Factory->end())
+					return;
+
 				auto Callable = &Composer::Callee<T, Args...>;
 				void* Result = reinterpret_cast<void*&>(Callable);
 				(*Factory)[T::GetTypeId()] = Result;
@@ -1056,14 +1039,6 @@ namespace Tomahawk
 			int GetRefCount() noexcept;
 			Object* AddRef() noexcept;
 			Object* Release() noexcept;
-
-		public:
-			template <typename T>
-			T* As() noexcept
-			{
-				static_assert(std::is_base_of<Object, T>::value, "type T should be derived from base class");
-				return (T*)this;
-			}
 		};
 
 		class TH_OUT Console : public Object
@@ -1341,23 +1316,20 @@ namespace Tomahawk
 			struct
 			{
 				std::mutex Basement;
-				std::mutex Listeners;
 				std::mutex Threads;
 				std::mutex Timers;
 			} Race;
 
 		private:
-			std::unordered_map<std::string, EventListener*> Listeners;
-			std::map<int64_t, EventTimer> Timers;
+			std::map<int64_t, Timeout> Timers;
 			std::vector<std::thread> Childs;
-			ConcurrentQueue Events;
 			ConcurrentQueue Asyncs;
 			ConcurrentQueue Tasks;
 			Costate* Comain;
 			uint64_t Coroutines;
 			uint64_t Threads;
 			uint64_t Stack;
-			EventId Timer;
+			TimerId Timer;
 			bool Enqueue;
 			bool Terminate;
 			bool Active;
@@ -1367,21 +1339,15 @@ namespace Tomahawk
 
 		public:
 			virtual ~Schedule() override;
-			EventId SetListener(const std::string& Name, const EventCallback& Callback);
-			EventId SetListener(const std::string& Name, EventCallback&& Callback);
-			EventId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback);
-			EventId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
-			EventId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
-			EventId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
+			TimerId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback);
+			TimerId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
+			TimerId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
+			TimerId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
 			bool SetTask(const TaskCallback& Callback);
 			bool SetTask(TaskCallback&& Callback);
 			bool SetAsync(const TaskCallback& Callback);
 			bool SetAsync(TaskCallback&& Callback);
-			bool SetEvent(const std::string& Name, const VariantArgs& Args);
-			bool SetEvent(const std::string& Name, VariantArgs&& Args);
-			bool SetEvent(const std::string& Name);
-			bool ClearListener(const std::string& Name, EventId ListenerId);
-			bool ClearTimeout(EventId TimerId);
+			bool ClearTimeout(TimerId TimerId);
 			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = TH_STACKSIZE);
 			bool Stop();
 			bool Dispatch();
@@ -1394,7 +1360,6 @@ namespace Tomahawk
 			bool Consume();
 			int DispatchAsync(ConcurrentToken* Token, Costate* State, bool Reconsume);
 			int DispatchTask(ConcurrentToken* Token);
-			int DispatchEvent(ConcurrentToken* Token);
 			int DispatchTimer(int64_t* When);
 			int64_t GetTimeout(int64_t Clock);
 			int64_t GetClock();

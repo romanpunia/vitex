@@ -1108,6 +1108,7 @@ namespace Tomahawk
 								Callback(Base, nullptr, Size);
 
 							fclose(File);
+							TH_TRACE("close fs 0x%p", (void*)File);
 							return false;
 						}
 
@@ -1116,6 +1117,7 @@ namespace Tomahawk
 
 						Base->Request.ContentState = Content::Save_Exception;
 						fclose(File);
+						TH_TRACE("close fs 0x%p", (void*)File);
 
 						if (Callback)
 							Callback(Base, nullptr, 0);
@@ -1453,7 +1455,7 @@ namespace Tomahawk
 				{
 					for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 					{
-						Output.append(Label).append((*It)->As<QueryParameter>()->Build());
+						Output.append(Label).append(((QueryParameter*)*It)->Build());
 						if (It + 1 < Nodes.end())
 							Output += '&';
 					}
@@ -1476,7 +1478,7 @@ namespace Tomahawk
 				{
 					for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 					{
-						Output.append(Label).append((*It)->As<QueryParameter>()->Build());
+						Output.append(Label).append(((QueryParameter*)*It)->Build());
 						if (It + 1 < Nodes.end())
 							Output += '&';
 					}
@@ -1689,9 +1691,9 @@ namespace Tomahawk
 				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 				{
 					if (It + 1 < Nodes.end())
-						Output.append((*It)->As<QueryParameter>()->BuildFromBase()).append(1, '&');
+						Output.append(((QueryParameter*)*It)->BuildFromBase()).append(1, '&');
 					else
-						Output.append((*It)->As<QueryParameter>()->BuildFromBase());
+						Output.append(((QueryParameter*)*It)->BuildFromBase());
 				}
 
 				return Output;
@@ -1787,6 +1789,7 @@ namespace Tomahawk
 				});
 
 				fclose(Stream);
+				TH_TRACE("close fs 0x%p", (void*)Stream);
 				return true;
 			}
 			bool Session::Read(Connection* Base)
@@ -1802,6 +1805,7 @@ namespace Tomahawk
 				if (ftell(Stream) == 0)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return false;
 				}
 
@@ -1809,6 +1813,7 @@ namespace Tomahawk
 				if (fread(&SessionExpires, 1, sizeof(int64_t), Stream) != sizeof(int64_t))
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return false;
 				}
 
@@ -1816,6 +1821,7 @@ namespace Tomahawk
 				{
 					SessionId.clear();
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 
 					if (!Core::OS::File::Remove(Document.c_str()))
 						TH_ERR("session file %s cannot be deleted", Document.c_str());
@@ -1839,6 +1845,7 @@ namespace Tomahawk
 				}
 
 				fclose(Stream);
+				TH_TRACE("close fs 0x%p", (void*)Stream);
 				return true;
 			}
 			std::string& Session::FindSessionId(Connection* Base)
@@ -3449,6 +3456,7 @@ namespace Tomahawk
 				if (Segment->Stream != nullptr)
 				{
 					fclose(Segment->Stream);
+					TH_TRACE("close fs 0x%p", (void*)Segment->Stream);
 					return false;
 				}
 
@@ -3478,6 +3486,7 @@ namespace Tomahawk
 				if (!Segment || !Segment->Stream || !Segment->Request)
 					return false;
 
+				TH_TRACE("close fs 0x%p", (void*)Segment->Stream);
 				fclose(Segment->Stream);
 				Segment->Stream = nullptr;
 				Segment->Request->Resources.push_back(Segment->Source);
@@ -4011,6 +4020,7 @@ namespace Tomahawk
 					if (Size < 0)
 					{
 						fclose(Stream);
+						TH_TRACE("close fs 0x%p", (void*)Stream);
 						return Base->Break();
 					}
 					else if (Size > 0)
@@ -4026,6 +4036,7 @@ namespace Tomahawk
 					Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					if (Base->Route->Callbacks.Headers)
 						Base->Route->Callbacks.Headers(Base, nullptr);
 
@@ -4540,18 +4551,21 @@ namespace Tomahawk
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
 				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #else
 				if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #endif
@@ -4568,6 +4582,7 @@ namespace Tomahawk
 				if (Router->State != ServerState::Working)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return Base->Break();
 				}
 
@@ -4575,6 +4590,7 @@ namespace Tomahawk
 					return ProcessFileChunk(Base, Router, Stream, ContentLength);
 
 				fclose(Stream);
+				TH_TRACE("close fs 0x%p", (void*)Stream);
 				return Base->Finish();
 			}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
@@ -4587,6 +4603,7 @@ namespace Tomahawk
 				{
 				Cleanup:
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
@@ -4606,6 +4623,7 @@ namespace Tomahawk
 					if (State < 0)
 					{
 						fclose(Stream);
+						TH_TRACE("close fs 0x%p", (void*)Stream);
 						return (void)Base->Break();
 					}
 
@@ -4666,18 +4684,21 @@ namespace Tomahawk
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
 				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #else
 				if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #endif
@@ -4691,6 +4712,7 @@ namespace Tomahawk
 				if (deflateInit2(ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
 				{
 					fclose(Stream);
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					TH_FREE(ZStream);
 					return Base->Break();
 				}
@@ -4698,6 +4720,7 @@ namespace Tomahawk
 				return ProcessFileCompressChunk(Base, Server, Stream, ZStream, ContentLength);
 #else
 				fclose(Stream);
+				TH_TRACE("close fs 0x%p", (void*)Stream);
 				return Base->Error(500, "Cannot process gzip stream.");
 #endif
 			}
@@ -4714,6 +4737,7 @@ namespace Tomahawk
 				{
 				Cleanup:
 					FREE_STREAMING;
+					TH_TRACE("close fs 0x%p", (void*)Stream);
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
@@ -4767,6 +4791,7 @@ namespace Tomahawk
 					if (State < 0)
 					{
 						FREE_STREAMING;
+						TH_TRACE("close fs 0x%p", (void*)Stream);
 						Base->Break();
 					}
 					else if (ContentLength > 0)
@@ -4779,6 +4804,7 @@ namespace Tomahawk
 					else
 					{
 						FREE_STREAMING;
+						TH_TRACE("close fs 0x%p", (void*)Stream);
 						if (Router->State == ServerState::Working)
 							Base->Finish();
 						else
@@ -4834,12 +4860,14 @@ namespace Tomahawk
 						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
 						{
 							fclose(Stream);
+							TH_TRACE("close fs 0x%p", (void*)Stream);
 							TH_FREE(Buffer);
 							return (void)Base->Error(500, "Gateway resource stream exception.");
 						}
 
 						Buffer[Size] = '\0';
 						fclose(Stream);
+						TH_TRACE("close fs 0x%p", (void*)Stream);
 					}
 
 					Base->Gateway = TH_NEW(GatewayFrame, Buffer, Size);
@@ -5428,7 +5456,7 @@ namespace Tomahawk
 				Request.ContentState = Content::Not_Loaded;
 				Done = [Result](SocketClient* Client, int Code) mutable
 				{
-					HTTP::Client* Base = Client->As<HTTP::Client>();
+					HTTP::Client* Base = (HTTP::Client*)Client;
 					if (Code < 0)
 						Base->GetResponse()->StatusCode = -1;
 

@@ -625,7 +625,7 @@ namespace Tomahawk
 			void OGLDevice::SetShader(Shader* Resource, unsigned int Type)
 			{
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
-				OGLShader* IResource = Resource->As<OGLShader>();
+				OGLShader* IResource = (OGLShader*)Resource;
 
 				TH_ASSERT_V(IResource->IsValid(), "resource should be set");
 				auto It = IResource->Programs.find(Type);
@@ -705,7 +705,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type)
 			{
-				glBindSampler(Slot, (GLuint)(State ? State->As<OGLSamplerState>()->Resource : GL_NONE));
+				glBindSampler(Slot, (GLuint)(State ? ((OGLSamplerState*)State)->Resource : GL_NONE));
 			}
 			void OGLDevice::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
@@ -719,11 +719,11 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, Slot, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_NONE);
+				glBindBufferBase(GL_SHADER_STORAGE_BUFFER, Slot, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
 			{
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Resource ? Resource->As<OGLElementBuffer>()->Resource : GL_NONE);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Resource ? ((OGLElementBuffer*)Resource)->Resource : GL_NONE);
 				if (FormatMode == Format::R32_Uint)
 					IndexType = GL_UNSIGNED_INT;
 				else if (FormatMode == Format::R16_Uint)
@@ -747,17 +747,17 @@ namespace Tomahawk
 			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
 				glActiveTexture(GL_TEXTURE0 + Slot);
-				glBindTexture(GL_TEXTURE_2D, Resource ? Resource->As<OGLTexture2D>()->Resource : GL_NONE);
+				glBindTexture(GL_TEXTURE_2D, Resource ? ((OGLTexture2D*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
 				glActiveTexture(GL_TEXTURE0 + Slot);
-				glBindTexture(GL_TEXTURE_3D, Resource ? Resource->As<OGLTexture3D>()->Resource : GL_NONE);
+				glBindTexture(GL_TEXTURE_3D, Resource ? ((OGLTexture3D*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
 				glActiveTexture(GL_TEXTURE0 + Slot);
-				glBindTexture(GL_TEXTURE_CUBE_MAP, Resource ? Resource->As<OGLTextureCube>()->Resource : GL_NONE);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, Resource ? ((OGLTextureCube*)Resource)->Resource : GL_NONE);
 			}
 			void OGLDevice::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable)
 			{
@@ -1070,7 +1070,7 @@ namespace Tomahawk
 				if (IResource->Array.Size() <= 0 || IResource->Array.Size() > IResource->ElementLimit)
 					return false;
 
-				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
+				OGLElementBuffer* Element = (OGLElementBuffer*)IResource->Elements;
 				glBindBuffer(Element->Flags, Element->Resource);
 				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
 				memcpy(Data, IResource->Array.Get(), (size_t)IResource->Array.Size() * IResource->ElementWidth);
@@ -1124,7 +1124,7 @@ namespace Tomahawk
 				if (!IResource->Sync)
 					return;
 
-				OGLElementBuffer* Element = IResource->Elements->As<OGLElementBuffer>();
+				OGLElementBuffer* Element = (OGLElementBuffer*)IResource->Elements;
 				glBindBuffer(Element->Flags, Element->Resource);
 				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
 				memset(Data, 0, IResource->ElementWidth * IResource->ElementLimit);
@@ -2327,7 +2327,7 @@ namespace Tomahawk
 				TH_ASSERT(Resource[0] && Resource[1] && Resource[2] && Resource[3] && Resource[4] && Resource[5], nullptr, "all 6 faces should be set");
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
-					Resources[i] = (void*)Resource[i]->As<OGLTexture2D>();
+					Resources[i] = (void*)(OGLTexture2D*)Resource[i];
 
 				return CreateTextureCubeInternal(Resources);
 			}
@@ -2476,7 +2476,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
 				Result->Resource = CreateTexture2D();
-				Result->Resource->As<OGLTexture2D>()->Resource = Result->DepthTexture;
+				((OGLTexture2D*)Result->Resource)->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->Resource))
 				{
 					TH_ERR("couldn't create 2d resource");
@@ -2520,7 +2520,7 @@ namespace Tomahawk
 					}
 
 					Result->Resource = CreateTexture2D();
-					Result->Resource->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[0];
+					((OGLTexture2D*)Result->Resource)->Resource = Result->FrameBuffer.Texture[0];
 					if (!GenerateTexture(Result->Resource))
 					{
 						TH_ERR("couldn't create 2d resource");
@@ -2539,7 +2539,7 @@ namespace Tomahawk
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
 					Result->DepthStencil = CreateTexture2D();
-					Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
+					((OGLTexture2D*)Result->DepthStencil)->Resource = Result->DepthTexture;
 					if (!GenerateTexture(Result->DepthStencil))
 					{
 						TH_ERR("couldn't create 2d resource");
@@ -2590,7 +2590,7 @@ namespace Tomahawk
 					}
 
 					Result->Resource[i] = CreateTexture2D();
-					Result->Resource[i]->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[i];
+					((OGLTexture2D*)Result->Resource[i])->Resource = Result->FrameBuffer.Texture[i];
 					if (!GenerateTexture(Result->Resource[i]))
 					{
 						TH_ERR("couldn't create 2d resource");
@@ -2613,7 +2613,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
 				Result->DepthStencil = CreateTexture2D();
-				Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
+				((OGLTexture2D*)Result->DepthStencil)->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->DepthStencil))
 				{
 					TH_ERR("couldn't create 2d resource");
@@ -2661,7 +2661,7 @@ namespace Tomahawk
 				}
 
 				Result->Resource = CreateTexture2D();
-				Result->Resource->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[0];
+				((OGLTexture2D*)Result->Resource)->Resource = Result->FrameBuffer.Texture[0];
 				if (!GenerateTexture(Result->Resource))
 				{
 					TH_ERR("couldn't create 2d resource");
@@ -2685,7 +2685,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
 				Result->DepthStencil = CreateTexture2D();
-				Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
+				((OGLTexture2D*)Result->DepthStencil)->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->DepthStencil))
 				{
 					TH_ERR("couldn't create 2d resource");
@@ -2741,7 +2741,7 @@ namespace Tomahawk
 					}
 
 					Result->Resource[i] = CreateTexture2D();
-					Result->Resource[i]->As<OGLTexture2D>()->Resource = Result->FrameBuffer.Texture[i];
+					((OGLTexture2D*)Result->Resource[i])->Resource = Result->FrameBuffer.Texture[i];
 					if (!GenerateTexture(Result->Resource[i]))
 					{
 						TH_ERR("couldn't create 2d resource");
@@ -2769,7 +2769,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
 				Result->DepthStencil = CreateTexture2D();
-				Result->DepthStencil->As<OGLTexture2D>()->Resource = Result->DepthTexture;
+				((OGLTexture2D*)Result->DepthStencil)->Resource = Result->DepthTexture;
 				if (!GenerateTexture(Result->DepthStencil))
 				{
 					TH_ERR("couldn't create 2d resource");

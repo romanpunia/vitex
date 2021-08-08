@@ -325,7 +325,7 @@ namespace Tomahawk
 			std::vector<Listener*> Listeners;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState::Idle;
-			Core::EventId Timer = -1;
+			Core::TimerId Timer = -1;
 			std::mutex Sync;
 
 		public:

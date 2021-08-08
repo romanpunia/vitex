@@ -27,8 +27,8 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Awake(Component* New) override;
-				virtual void Asleep() override;
+				virtual void Activate(Component* New) override;
+				virtual void Deactivate() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				virtual Compute::Matrix4x4 GetBoundingBox() override;
@@ -66,7 +66,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Asleep() override;
+				virtual void Deactivate() override;
 				virtual Component* Copy(Entity* New) override;
 				void Create(btCollisionShape* Shape, float Mass, float Anticipation);
 				void Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
@@ -83,14 +83,6 @@ namespace Tomahawk
 			class TH_OUT SliderConstraint final : public Component
 			{
 			private:
-				struct
-				{
-					int64_t Connection = -1;
-					bool Ghost = true;
-					bool Linear = true;
-				} Wanted;
-
-			private:
 				Compute::SliderConstraint* Instance;
 				Entity* Connection;
 
@@ -99,7 +91,6 @@ namespace Tomahawk
 				virtual ~SliderConstraint() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
@@ -128,7 +119,7 @@ namespace Tomahawk
 				virtual ~Acceleration() = default;
 				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Awake(Component * New) override;
+				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
 				virtual Component* Copy(Entity * New) override;
 				Compute::RigidBody* GetBody() const;
@@ -150,8 +141,8 @@ namespace Tomahawk
 				virtual ~Model() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Awake(Component* New) override;
-				virtual void Asleep() override;
+				virtual void Activate(Component* New) override;
+				virtual void Deactivate() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				virtual Compute::Matrix4x4 GetBoundingBox() override;
@@ -177,8 +168,8 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Awake(Component* New) override;
-				virtual void Asleep() override;
+				virtual void Activate(Component* New) override;
+				virtual void Deactivate() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				virtual Compute::Matrix4x4 GetBoundingBox() override;
@@ -205,8 +196,8 @@ namespace Tomahawk
 				virtual ~Emitter() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Awake(Component* New) override;
-				virtual void Asleep() override;
+				virtual void Activate(Component* New) override;
+				virtual void Deactivate() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				Graphics::InstanceBuffer* GetBuffer();
@@ -230,8 +221,8 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Awake(Component* New) override;
-				virtual void Asleep() override;
+				virtual void Activate(Component* New) override;
+				virtual void Deactivate() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 
@@ -257,7 +248,7 @@ namespace Tomahawk
 				virtual ~SkinAnimator() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Awake(Component* New) override;
+				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
@@ -334,7 +325,7 @@ namespace Tomahawk
 				virtual ~EmitterAnimator() = default;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Awake(Component* New) override;
+				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				Emitter* GetEmitter() const;
@@ -360,7 +351,7 @@ namespace Tomahawk
 			public:
 				FreeLook(Entity* Ref);
 				virtual ~FreeLook() = default;
-				virtual void Awake(Component* New) override;
+				virtual void Activate(Component* New) override;
 				virtual void Update(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				Graphics::Activity* GetActivity() const;
@@ -391,7 +382,7 @@ namespace Tomahawk
 			public:
 				Fly(Entity* Ref);
 				virtual ~Fly() = default;
-				virtual void Awake(Component* New) override;
+				virtual void Activate(Component* New) override;
 				virtual void Update(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				Graphics::Activity* GetActivity() const;
@@ -436,7 +427,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Asleep() override;
+				virtual void Deactivate() override;
 				virtual Component* Copy(Entity* New) override;
 
 			public:
@@ -579,7 +570,7 @@ namespace Tomahawk
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Offset = Compute::Vector3(1.0f, 1.0f, -1.0f);
 				Compute::Vector3 Diffuse = 1.0f;
-				Core::TickTimer Tick;
+				Core::Ticker Tick;
 				Attenuation Size;
 				float Emission = 1.0f;
 				float Infinity = 0.0f;
@@ -619,7 +610,7 @@ namespace Tomahawk
 				size_t MipLevels, Size;
 
 			public:
-				Core::TickTimer Tick;
+				Core::Ticker Tick;
 				float RayStep;
 				float MaxSteps;
 				float Distance;
@@ -633,7 +624,7 @@ namespace Tomahawk
 				virtual ~Illuminator() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Asleep() override;
+				virtual void Deactivate() override;
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetBufferSize(size_t NewSize);
@@ -672,9 +663,9 @@ namespace Tomahawk
 				virtual ~Camera() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Awake(Component* New) override;
+				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Asleep() override;
+				virtual void Deactivate() override;
 				virtual Component* Copy(Entity* New) override;
 				void GetViewer(Viewer* View);
 				void ResizeBuffers();
@@ -736,9 +727,9 @@ namespace Tomahawk
 				virtual ~Scriptable() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Awake(Component* New) override;
+				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Asleep() override;
+				virtual void Deactivate() override;
 				virtual void Update(Core::Timer* Time) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Component* Copy(Entity* New) override;

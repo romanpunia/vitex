@@ -87,11 +87,16 @@ namespace Tomahawk
 					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
 					NMake::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
 					NMake::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
+					NMake::Unpack(Metadata->Find("frequency-hz"), &I.FrequencyHZ);
+					NMake::Unpack(Metadata->Find("min-frames"), &I.MinFrames);
+					NMake::Unpack(Metadata->Find("max-frames"), &I.MaxFrames);
 				}
 
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
-				auto IsActive = Args.find("active");
+				Engine::IdxSnapshot Snapshot;
+				Object->Snapshot = &Snapshot;
 
+				auto IsActive = Args.find("active");
 				if (IsActive != Args.end())
 					Object->SetActive(IsActive->second.GetBoolean());
 
@@ -114,6 +119,21 @@ namespace Tomahawk
 					{
 						Entity* Entity = new Engine::Entity(Object);
 						Object->AddEntity(Entity);
+
+						int64_t Refer = -1;
+						if (NMake::Unpack(It->Find("refer"), &Refer) && Refer >= 0)
+						{
+							Snapshot.To[Entity] = (uint64_t)Refer;
+							Snapshot.From[(uint64_t)Refer] = Entity;
+						}
+					}
+
+					uint64_t Next = 0;
+					for (auto& It : Collection)
+					{
+						Entity* Entity = Object->GetEntity(Next++);
+						if (!Entity)
+							continue;
 
 						std::string Name;
 						NMake::Unpack(It->Find("name"), &Name);
@@ -138,13 +158,19 @@ namespace Tomahawk
 							Compute::Vector3* Scale = TH_NEW(Compute::Vector3);
 							Compute::Matrix4x4* World = TH_NEW(Compute::Matrix4x4);
 
-							NMake::Unpack(Parent->Find("id"), &Entity->Id);
 							NMake::Unpack(Parent->Find("position"), Position);
 							NMake::Unpack(Parent->Find("rotation"), Rotation);
 							NMake::Unpack(Parent->Find("scale"), Scale);
 							NMake::Unpack(Parent->Find("world"), World);
-
 							Compute::Common::SetTransformPivot(Entity->GetTransform(), World, Position, Rotation, Scale);
+
+							int64_t Where = -1;
+							if (NMake::Unpack(Parent->Find("where"), &Where) && Where >= 0)
+							{
+								auto It = Snapshot.From.find(Where);
+								if (It != Snapshot.From.end() && It->second != Entity)
+									Compute::Common::SetTransformRoot(Entity->GetTransform(), It->second->GetTransform());
+							}
 						}
 
 						Core::Document* Components = It->Find("components");
@@ -179,17 +205,9 @@ namespace Tomahawk
 				}
 
 				TH_RELEASE(Document);
-				for (int64_t i = 0; i < (int64_t)Object->GetEntityCount(); i++)
-				{
-					Entity* Entity = Object->GetEntity(i);
-					int64_t Index = Entity->Id;
-					Entity->Id = i;
-
-					if (Index >= 0 && Index < (int64_t)Object->GetEntityCount() && Index != i)
-						Compute::Common::SetTransformRoot(Entity->GetTransform(), Object->GetEntity(Index)->GetTransform());
-				}
-
+				Object->Snapshot = nullptr;
 				Object->Actualize();
+
 				return Object;
 			}
 			bool SceneGraph::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
@@ -198,7 +216,11 @@ namespace Tomahawk
 				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
 
 				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
-				Object->Actualize();
+				Object->Conform();
+
+				Engine::IdxSnapshot Snapshot;
+				Object->MakeSnapshot(&Snapshot);
+				Object->Snapshot = &Snapshot;
 
 				Core::Document* Document = Core::Var::Set::Object();
 				Document->Key = "scene";
@@ -209,7 +231,10 @@ namespace Tomahawk
 				NMake::Pack(Metadata->Set("entities"), Conf.EntityCount);
 				NMake::Pack(Metadata->Set("components"), Conf.ComponentCount);
 				NMake::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
-				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
+				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR); 
+				NMake::Pack(Metadata->Set("frequency-hz"), Conf.FrequencyHZ);
+				NMake::Pack(Metadata->Set("min-frames"), Conf.MinFrames);
+				NMake::Pack(Metadata->Set("max-frames"), Conf.MaxFrames);
 
 				auto* fSimulator = Object->GetSimulator();
 				Core::Document* Simulator = Metadata->Set("simulator");
@@ -222,7 +247,7 @@ namespace Tomahawk
 				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
                 Core::Document* Materials = Document->Set("materials", Core::Var::Array());
-				for (uint64_t i = 0; i < Object->GetMaterialCount(); i++)
+				for (uint64_t i = 0; i < Object->GetMaterialsCount(); i++)
 				{
 					Engine::Material* Ref = Object->GetMaterial(i);
 					if (Ref != nullptr)
@@ -230,7 +255,7 @@ namespace Tomahawk
 				}
 
                 Core::Document* Entities = Document->Set("entities", Core::Var::Array());
-				for (uint64_t i = 0; i < Object->GetEntityCount(); i++)
+				for (uint64_t i = 0; i < Object->GetEntitiesCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
 					auto* Offset = Ref->GetTransform();
@@ -238,6 +263,7 @@ namespace Tomahawk
 					Core::Document* Entity = Entities->Set("entity");
 					NMake::Pack(Entity->Set("name"), Ref->GetName());
 					NMake::Pack(Entity->Set("tag"), Ref->Tag);
+					NMake::Pack(Entity->Set("refer"), i);
 
 					Core::Document* Transform = Entity->Set("transform");
 					NMake::Pack(Transform->Set("position"), Offset->Position);
@@ -248,8 +274,12 @@ namespace Tomahawk
 					if (Offset->GetRoot() != nullptr)
 					{
 						Core::Document* Parent = Entity->Set("parent");
-						if (Offset->GetRoot()->UserPointer)
-							NMake::Pack(Parent->Set("id"), ((Engine::Entity*)Offset->GetRoot()->UserPointer)->Id);
+						if (Offset->GetRoot()->UserPointer != nullptr)
+						{
+							auto It = Snapshot.To.find(Offset->GetRoot()->Ptr<Engine::Entity>());
+							if (It != Snapshot.To.end())
+								NMake::Pack(Parent->Set("where"), It->second);
+						}
 
 						NMake::Pack(Parent->Set("position"), *Offset->GetLocalPosition());
 						NMake::Pack(Parent->Set("rotation"), *Offset->GetLocalRotation());
@@ -1067,6 +1097,9 @@ namespace Tomahawk
 
 					return Stream->Read(Buffer, Size) == Size;
 				};
+
+				if (!Length)
+					return nullptr;
 
 				auto* Object = Core::Document::ReadJSONB(Callback, false);
 				if (Object != nullptr)

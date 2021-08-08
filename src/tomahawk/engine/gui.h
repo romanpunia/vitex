@@ -51,15 +51,9 @@ namespace Tomahawk
 
 			class EventSubsystem;
 
-			class DataSourceSubsystem;
-
-			class DataFormatterSubsystem;
-
 			class IEvent;
 
 			class DataModel;
-
-			class DataSource;
 
 			class DataRow;
 
@@ -74,10 +68,7 @@ namespace Tomahawk
 			class Context;
 
 			typedef std::function<std::string(const std::string&)> TranslationCallback;
-			typedef std::function<void(DataRow*, const std::string&, std::string&)> ColumnCallback;
-			typedef std::function<void(const std::vector<std::string>&, std::string&)> FormatCallback;
 			typedef std::function<void(void*)> DestroyCallback;
-			typedef std::function<void(DataRow*)> ChangeCallback;
 			typedef std::function<void(IEvent&)> EventCallback;
 			typedef std::function<void(IEvent&, const Core::VariantList&)> DataCallback;
 			typedef std::function<void(Core::Variant&)> GetterCallback;
@@ -383,11 +374,9 @@ namespace Tomahawk
 			{
 				friend DocumentSubsystem;
 				friend ListenerSubsystem;
-				friend DataSource;
 				friend Context;
 
 			private:
-				static std::unordered_map<std::string, DataSource*>* Sources;
 				static Script::VMManager* ScriptInterface;
 				static ContextInstancer* ContextFactory;
 				static DocumentInstancer* DocumentFactory;
@@ -419,102 +408,10 @@ namespace Tomahawk
 				static void ResizeDecorators();
 				static void CreateDecorators(Graphics::GraphicsDevice* Device);
 				static void ReleaseDecorators();
+				static void CreateElements();
+				static void ReleaseElements();
 			};
 
-			class TH_OUT DataNode
-			{
-				friend Context;
-				friend DataModel;
-
-			private:
-				std::vector<DataNode> Childs;
-				Core::Variant* Ref;
-				DataModel* Handle;
-				std::string* Name;
-				bool Safe;
-
-			private:
-				DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial);
-				DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference);
-
-			public:
-				DataNode(const DataNode& Other);
-				~DataNode();
-				DataNode& Add(const Core::VariantList& Initial);
-				DataNode& Add(const Core::Variant& Initial);
-				DataNode& Add(Core::Variant* Reference);
-				DataNode& At(size_t Index);
-				size_t GetSize();
-				bool Remove(size_t Index);
-				bool Clear();
-				void Set(const Core::Variant& NewValue);
-				void Set(Core::Variant* NewReference);
-				void SetString(const std::string& Value);
-				void SetVector2(const Compute::Vector2& Value);
-				void SetVector3(const Compute::Vector3& Value);
-				void SetVector4(const Compute::Vector4& Value);
-				void SetInteger(int64_t Value);
-				void SetFloat(float Value);
-				void SetDouble(double Value);
-				void SetBoolean(bool Value);
-				void SetPointer(void* Value);
-				const Core::Variant& Get();
-				std::string GetString();
-				Compute::Vector2 GetVector2();
-				Compute::Vector3 GetVector3();
-				Compute::Vector4 GetVector4();
-				int64_t GetInteger();
-				float GetFloat();
-				double GetDouble();
-				bool GetBoolean();
-				void* GetPointer();
-				DataNode& operator= (const DataNode& Other);
-
-			private:
-				void GetValue(Rml::Variant& Result);
-				void SetValue(const Rml::Variant& Result);
-				int64_t GetValueSize();
-			};
-
-			class TH_OUT DataRow
-			{
-				friend DataSourceSubsystem;
-				friend DataSource;
-
-			private:
-				std::vector<DataRow*> Childs;
-				std::string Name;
-				DataSource* Base;
-				DataRow* Parent;
-				void* Target;
-				int Depth;
-
-			private:
-				DataRow(DataRow* NewParent, void* NewTarget);
-				DataRow(DataSource* NewBase, void* NewTarget);
-
-			public:
-				~DataRow();
-				DataRow* AddChild(void* Target);
-				DataRow* GetChild(void* Target);
-				DataRow* GetChildByIndex(size_t Index);
-				DataRow* GetParent();
-				DataRow* FindChild(void* Target);
-				size_t GetChildsCount();
-				bool RemoveChild(void* Target);
-				bool RemoveChildByIndex(size_t Index);
-				bool RemoveChilds();
-				void SetTarget(void* NewTarget);
-				void Update();
-
-			public:
-				template <typename T>
-				T* GetTarget()
-				{
-					return (T*)Target;
-				}
-			};
-			
 			class TH_OUT DataModel : public Core::Object
 			{
 				friend Context;
@@ -552,42 +449,74 @@ namespace Tomahawk
 				bool IsValid() const;
 			};
 
-			class TH_OUT DataSource : public Core::Object
+			class TH_OUT DataNode
 			{
-				friend DataSourceSubsystem;
-				friend DataFormatterSubsystem;
-				friend DataRow;
 				friend Context;
+				friend DataModel;
 
 			private:
-				std::unordered_map<std::string, DataRow*> Nodes;
-				DataFormatterSubsystem* DFS;
-				DataSourceSubsystem* DSS;
-				FormatCallback OnFormat;
-				ColumnCallback OnColumn;
-				ChangeCallback OnChange;
-				DestroyCallback OnDestroy;
-				std::string Name;
-				DataRow* Root;
+				std::vector<DataNode> Childs;
+				Core::Variant* Ref;
+				DataModel* Handle;
+				std::string* Name;
+				void* Order;
+				size_t Depth;
+				bool Safe;
 
 			private:
-				DataSource(const std::string& NewName);
+				DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial);
+				DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference);
 
 			public:
-				virtual ~DataSource() override;
-				void SetFormatCallback(const FormatCallback& Callback);
-				void SetColumnCallback(const ColumnCallback& Callback);
-				void SetChangeCallback(const ChangeCallback& Callback);
-				void SetDestroyCallback(const DestroyCallback& Callback);
-				void SetTarget(void* OldTarget, void* NewTarget);
-				void Update(void* Target);
-				DataRow* Get();
+				DataNode(DataNode&& Other);
+				DataNode(const DataNode& Other);
+				~DataNode();
+				DataNode& Insert(size_t Where, const Core::VariantList& Initial, std::pair<void*, size_t>* Top = nullptr);
+				DataNode& Insert(size_t Where, const Core::Variant& Initial, std::pair<void*, size_t>* Top = nullptr);
+				DataNode& Insert(size_t Where, Core::Variant* Reference, std::pair<void*, size_t>* Top = nullptr);
+				DataNode& Add(const Core::VariantList& Initial, std::pair<void*, size_t>* Top = nullptr);
+				DataNode& Add(const Core::Variant& Initial, std::pair<void*, size_t>* Top = nullptr);
+				DataNode& Add(Core::Variant* Reference, std::pair<void*, size_t>* Top = nullptr);
+				DataNode& At(size_t Index);
+				bool Remove(size_t Index);
+				bool Clear();
+				void SortTree();
+				void Replace(const Core::VariantList& Data, std::pair<void*, size_t>* Top = nullptr);
+				void Set(const Core::Variant& NewValue);
+				void Set(Core::Variant* NewReference);
+				void SetTop(void* SeqId, size_t Depth);
+				void SetString(const std::string& Value);
+				void SetVector2(const Compute::Vector2& Value);
+				void SetVector3(const Compute::Vector3& Value);
+				void SetVector4(const Compute::Vector4& Value);
+				void SetInteger(int64_t Value);
+				void SetFloat(float Value);
+				void SetDouble(double Value);
+				void SetBoolean(bool Value);
+				void SetPointer(void* Value);
+				size_t GetSize() const;
+				void* GetSeqId() const;
+				size_t GetDepth() const;
+				const Core::Variant& Get();
+				std::string GetString();
+				Compute::Vector2 GetVector2();
+				Compute::Vector3 GetVector3();
+				Compute::Vector4 GetVector4();
+				int64_t GetInteger();
+				float GetFloat();
+				double GetDouble();
+				bool GetBoolean();
+				void* GetPointer();
+				DataNode& operator= (const DataNode& Other);
+				DataNode& operator= (DataNode&& Other);
 
-			protected:
-				void RowAdd(const std::string& Table, int FirstRowAdded, int NumRowsAdded);
-				void RowRemove(const std::string& Table, int FirstRowRemoved, int NumRowsRemoved);
-				void RowChange(const std::string& Table, int FirstRowChanged, int NumRowsChanged);
-				void RowChange(const std::string& Table);
+			private:
+				void GetValue(Rml::Variant& Result);
+				void SetValue(const Rml::Variant& Result);
+				void SetValueStr(const std::string& Value);
+				void SetValueNum(double Value);
+				void SetValueInt(int64_t Value);
+				int64_t GetValueSize();
 			};
 
 			class TH_OUT Handler : public Core::Object
@@ -620,7 +549,6 @@ namespace Tomahawk
 
 			private:
 				std::unordered_map<int, std::unordered_map<std::string, Rml::Element*>> Elements;
-				std::unordered_map<std::string, DataSource*> Sources;
 				std::unordered_map<std::string, DataModel*> Models;
 				Script::VMCompiler* Compiler;
 				Compute::Vector2 Cursor;
@@ -671,8 +599,6 @@ namespace Tomahawk
 				void SetActiveClipRegion(const Compute::Vector2& Origin, const Compute::Vector2& Dimensions);
 				DataModel* SetDataModel(const std::string& Name);
 				DataModel* GetDataModel(const std::string& Name);
-				DataSource* SetDataSource(const std::string& Name);
-				DataSource* GetDataSource(const std::string& Name);
 				bool RemoveDataModel(const std::string& Name);
 				bool RemoveDataModels();
 				void SetDocumentsBaseTag(const std::string& Tag);

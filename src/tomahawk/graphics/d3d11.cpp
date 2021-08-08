@@ -675,7 +675,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ID3D11Buffer* IBuffer = (Resource ? Resource->As<D3D11Shader>()->ConstantBuffer : nullptr);
+				ID3D11Buffer* IBuffer = (Resource ? ((D3D11Shader*)Resource)->ConstantBuffer : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetConstantBuffers(Slot, 1, &IBuffer);
 
@@ -696,7 +696,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11InstanceBuffer>()->Resource : nullptr);
+				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11InstanceBuffer*)Resource)->Resource : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 
@@ -717,7 +717,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11ElementBuffer>()->Resource : nullptr);
+				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11ElementBuffer*)Resource)->Resource : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 
@@ -738,7 +738,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11Texture2D>()->Resource : nullptr);
+				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture2D*)Resource)->Resource : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 
@@ -759,7 +759,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11Texture3D>()->Resource : nullptr);
+				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture3D*)Resource)->Resource : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 
@@ -780,7 +780,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
-				ID3D11ShaderResourceView* NewState = (Resource ? Resource->As<D3D11TextureCube>()->Resource : nullptr);
+				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11TextureCube*)Resource)->Resource : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 
@@ -801,7 +801,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetIndexBuffer(ElementBuffer* Resource, Format FormatMode)
 			{
-				ImmediateContext->IASetIndexBuffer(Resource ? Resource->As<D3D11ElementBuffer>()->Element : nullptr, (DXGI_FORMAT)FormatMode, 0);
+				ImmediateContext->IASetIndexBuffer(Resource ? ((D3D11ElementBuffer*)Resource)->Element : nullptr, (DXGI_FORMAT)FormatMode, 0);
 			}
 			void D3D11Device::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot)
 			{
@@ -1110,7 +1110,7 @@ namespace Tomahawk
 				if (IResource->Array.Empty() || IResource->Array.Size() > IResource->ElementLimit)
 					return false;
 
-				D3D11ElementBuffer* Element = IResource->Elements->As<D3D11ElementBuffer>();
+				D3D11ElementBuffer* Element = (D3D11ElementBuffer*)IResource->Elements;
 				IResource->Sync = true;
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
@@ -1166,7 +1166,7 @@ namespace Tomahawk
 				SRV.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
 				SRV.Buffer.ElementWidth = (unsigned int)IResource->ElementLimit;
 
-				return D3DDevice->CreateShaderResourceView(IResource->Elements->As<D3D11ElementBuffer>()->Element, &SRV, &IResource->Resource) == S_OK;
+				return D3DDevice->CreateShaderResourceView(((D3D11ElementBuffer*)IResource->Elements)->Element, &SRV, &IResource->Resource) == S_OK;
 			}
 			void D3D11Device::ClearBuffer(InstanceBuffer* Resource)
 			{
@@ -1175,7 +1175,7 @@ namespace Tomahawk
 				if (!IResource->Sync)
 					return;
 
-				D3D11ElementBuffer* Element = IResource->Elements->As<D3D11ElementBuffer>();
+				D3D11ElementBuffer* Element = (D3D11ElementBuffer*)IResource->Elements;
 				IResource->Sync = false;
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
@@ -1614,7 +1614,7 @@ namespace Tomahawk
 				D3D11Cubemap* IResource = (D3D11Cubemap*)Resource;
 
 				TH_ASSERT(IResource->IsValid(), false, "resource should be valid");
-				ID3D11ShaderResourceView** Subresource = &Result->As<D3D11TextureCube>()->Resource;
+				ID3D11ShaderResourceView** Subresource = &((D3D11TextureCube*)Result)->Resource;
 				ReleaseCom((*Subresource));
 
 				if (D3DDevice->CreateShaderResourceView(IResource->Face, &IResource->Resource, Subresource) != S_OK)
@@ -1902,7 +1902,7 @@ namespace Tomahawk
 
 				ID3D11ShaderResourceView* LastTexture, *NullTexture = nullptr;
 				ImmediateContext->PSGetShaderResources(0, 1, &LastTexture);
-				ImmediateContext->PSSetShaderResources(0, 1, ViewResource ? &ViewResource->As<D3D11Texture2D>()->Resource : &NullTexture);
+				ImmediateContext->PSSetShaderResources(0, 1, ViewResource ? &((D3D11Texture2D*)ViewResource)->Resource : &NullTexture);
 
 				D3D11_MAPPED_SUBRESOURCE MappedResource;
 				ImmediateContext->Map(DirectRenderer.VertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
@@ -2306,7 +2306,7 @@ namespace Tomahawk
 				SRV.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
 				SRV.Buffer.ElementWidth = I.ElementLimit;
 
-				if (D3DDevice->CreateShaderResourceView(Result->Elements->As<D3D11ElementBuffer>()->Element, &SRV, &Result->Resource) != S_OK)
+				if (D3DDevice->CreateShaderResourceView(((D3D11ElementBuffer*)Result->Elements)->Element, &SRV, &Result->Resource) != S_OK)
 				{
 					TH_ERR("couldn't create shader resource view");
 					return Result;
@@ -2518,14 +2518,14 @@ namespace Tomahawk
 
 				void* Resources[6];
 				for (unsigned int i = 0; i < 6; i++)
-					Resources[i] = (void*)Resource[i]->As<D3D11Texture2D>()->View;
+					Resources[i] = (void*)((D3D11Texture2D*)Resource[i])->View;
 
 				return CreateTextureCubeInternal(Resources);
 			}
 			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource)
 			{
 				TH_ASSERT(Resource != nullptr, nullptr, "resource should be set");
-				ID3D11Texture2D* Src = (Resource ? Resource->As<D3D11Texture2D>()->View : nullptr);
+				ID3D11Texture2D* Src = (Resource ? ((D3D11Texture2D*)Resource)->View : nullptr);
 
 				TH_ASSERT(Src != nullptr, nullptr, "src should be set");
 				D3D11_TEXTURE2D_DESC Description;
@@ -2671,7 +2671,7 @@ namespace Tomahawk
 				}
 
 				Result->Resource = CreateTexture2D();
-				Result->Resource->As<D3D11Texture2D>()->View = DepthTexture;
+				((D3D11Texture2D*)Result->Resource)->View = DepthTexture;
 
 				if (!CreateTexture2D(Result->Resource, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
@@ -2726,7 +2726,7 @@ namespace Tomahawk
 				}
 
 				Result->DepthStencil = CreateTexture2D();
-				Result->DepthStencil->As<D3D11Texture2D>()->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
@@ -2757,7 +2757,7 @@ namespace Tomahawk
 					}
 
 					Result->Resource = CreateTexture2D();
-					Result->Resource->As<D3D11Texture2D>()->View = Result->Texture;
+					((D3D11Texture2D*)Result->Resource)->View = Result->Texture;
 					Result->Texture->AddRef();
 
 					if (!GenerateTexture(Result->Resource))
@@ -2846,7 +2846,7 @@ namespace Tomahawk
 				}
 
 				Result->DepthStencil = CreateTexture2D();
-				Result->DepthStencil->As<D3D11Texture2D>()->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
@@ -2888,7 +2888,7 @@ namespace Tomahawk
 					}
 
 					Result->Resource[i] = CreateTexture2D();
-					Result->Resource[i]->As<D3D11Texture2D>()->View = Result->Texture[i];
+					((D3D11Texture2D*)Result->Resource[i])->View = Result->Texture[i];
 					Result->Texture[i]->AddRef();
 
 					if (!GenerateTexture(Result->Resource[i]))
@@ -2948,7 +2948,7 @@ namespace Tomahawk
 				}
 
 				Result->DepthStencil = CreateTexture2D();
-				Result->DepthStencil->As<D3D11Texture2D>()->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
@@ -2991,7 +2991,7 @@ namespace Tomahawk
 				}
 
 				Result->Resource = CreateTexture2D();
-				Result->Resource->As<D3D11Texture2D>()->View = Result->Texture;
+				((D3D11Texture2D*)Result->Resource)->View = Result->Texture;
 				Result->Texture->AddRef();
 
 				if (!GenerateTexture(Result->Resource))
@@ -3050,7 +3050,7 @@ namespace Tomahawk
 				}
 
 				Result->DepthStencil = CreateTexture2D();
-				Result->DepthStencil->As<D3D11Texture2D>()->View = DepthTexture;
+				((D3D11Texture2D*)Result->DepthStencil)->View = DepthTexture;
 
 				if (!CreateTexture2D(Result->DepthStencil, DXGI_FORMAT_R24_UNORM_X8_TYPELESS))
 				{
@@ -3108,7 +3108,7 @@ namespace Tomahawk
 				for (unsigned int i = 0; i < (unsigned int)Result->Target; i++)
 				{
 					Result->Resource[i] = CreateTexture2D();
-					Result->Resource[i]->As<D3D11Texture2D>()->View = Result->Texture[i];
+					((D3D11Texture2D*)Result->Resource[i])->View = Result->Texture[i];
 					Result->Texture[i]->AddRef();
 
 					if (!GenerateTexture(Result->Resource[i]))

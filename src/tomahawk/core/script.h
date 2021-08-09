@@ -1591,8 +1591,8 @@ namespace Tomahawk
 			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
 			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
 			int ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, ArgsCallback&& Callback);
-			int ExecuteScoped(const std::string& Code, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
-			int ExecuteScoped(const char* Buffer, uint64_t Length, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
+			int ExecuteScoped(const std::string& Code, const char* Args = nullptr, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF, ArgsCallback&& Callback = nullptr);
+			int ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args = nullptr, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF, ArgsCallback&& Callback = nullptr);
 			VMModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -1608,9 +1608,20 @@ namespace Tomahawk
 			static int ContextUD;
 
 		private:
+			struct Executable
+			{
+				VMFunction Function = nullptr;
+				ArgsCallback Args;
+				bool Notify;
+			};
+
+		private:
+			std::queue<Executable> Queue;
+			std::mutex Exchange;
 			ResumeCallback Resolve;
 			VMCContext* Context;
 			VMManager* Manager;
+			bool Indirect;
 
 		public:
 			VMContext(VMCContext* Base);
@@ -1618,6 +1629,7 @@ namespace Tomahawk
 			Core::Async<int> Coexecute(const VMFunction& Function, ArgsCallback&& ArgsSetup);
 			int SetResumeCallback(ResumeCallback&& Callback);
 			int SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
+			int SetIndirectExecution(bool Enabled);
 			int AddRefVM() const;
 			int ReleaseVM();
 			int Prepare(const VMFunction& Function);
@@ -1684,6 +1696,9 @@ namespace Tomahawk
 			{
 				return (T*)GetReturnObjectAddress();
 			}
+
+		private:
+			void ExecuteNext();
 
 		public:
 			static VMContext* Get(VMCContext* Context);

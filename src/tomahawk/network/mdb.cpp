@@ -39,7 +39,7 @@ namespace Tomahawk
 #endif
 			{
 				TH_ASSERT(Base != nullptr, false, "context should be set");
-				TH_PSTART("mongoc-send", TH_PERF_MAX);
+				TH_PPUSH("mongoc-send", TH_PERF_MAX);
 #ifdef _DEBUG
 				TH_TRACE("[mongoc] execute query document on 0x%p\n\t%s", (void*)Base, Name + 1);
 #endif
@@ -53,7 +53,7 @@ namespace Tomahawk
 				if (Result || Error.code == 0)
 					TH_TRACE("[mongoc] OK execute on 0x%p", (void*)Base);
 #endif
-				TH_PEND();
+				TH_PPOP();
 				return Result;
 			}
 			template <typename R, typename T, typename... Args>
@@ -64,7 +64,7 @@ namespace Tomahawk
 #endif
 			{
 				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
-				TH_PSTART("mongoc-recv", TH_PERF_MAX);
+				TH_PPUSH("mongoc-recv", TH_PERF_MAX);
 #ifdef _DEBUG
 				TH_TRACE("[mongoc] execute query cursor on 0x%p\n\t%s", (void*)Base, Name + 1);
 #endif
@@ -78,7 +78,7 @@ namespace Tomahawk
 				if (Result || Error.code == 0)
 					TH_TRACE("[mongoc] OK execute on 0x%p", (void*)Base);
 #endif
-				TH_PEND();
+				TH_PPOP();
 				return Result;
 			}
 #endif
@@ -1570,10 +1570,10 @@ namespace Tomahawk
 				auto* Context = Base;
 				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future)
 				{
-					TH_PSTART("mongo-recv", TH_PERF_MAX);
+					TH_PPUSH("mongo-recv", TH_PERF_MAX);
 					TDocument* Query = nullptr;
 					Future = mongoc_cursor_next(Context, (const TDocument**)&Query);
-					TH_PEND();
+					TH_PPOP();
 				});
 #else
 				return false;
@@ -3128,7 +3128,7 @@ namespace Tomahawk
 
 				return Core::Async<bool>::Execute([this, Address](Core::Async<bool>& Future)
 				{
-					TH_PSTART("mongo-conn", TH_PERF_MAX);
+					TH_PPUSH("mongo-conn", TH_PERF_MAX);
 
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -3138,7 +3138,7 @@ namespace Tomahawk
 					{
 						Future = false;
 						TH_ERR("[urierr] %s", Error.message);
-						TH_PEND();
+						TH_PPOP();
 						return;
 					}
 
@@ -3147,13 +3147,13 @@ namespace Tomahawk
 					{
 						Future = false;
 						TH_ERR("couldn't connect to requested URI");
-						TH_PEND();
+						TH_PPOP();
 						return;
 					}
 
 					Connected = true;
 					Future = true;
-					TH_PEND();
+					TH_PPOP();
 				});
 #else
 				return false;
@@ -3176,7 +3176,7 @@ namespace Tomahawk
 				TAddress* URI = URL->Get();
 				return Core::Async<bool>::Execute([this, URI](Core::Async<bool>& Future)
 				{
-					TH_PSTART("mongo-conn", TH_PERF_MAX);
+					TH_PPUSH("mongo-conn", TH_PERF_MAX);
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
@@ -3188,7 +3188,7 @@ namespace Tomahawk
 						Future = true;
 						Connected = true;
 					}
-					TH_PEND();
+					TH_PPOP();
 				});
 #else
 				return false;
@@ -3468,7 +3468,7 @@ namespace Tomahawk
 
 				return Core::Async<bool>::Execute([this, URI](Core::Async<bool>& Future)
 				{
-					TH_PSTART("mongo-pconn", TH_PERF_MAX);
+					TH_PPUSH("mongo-pconn", TH_PERF_MAX);
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3477,7 +3477,7 @@ namespace Tomahawk
 					{
 						Future = false;
 						TH_ERR("[urierr] %s", Error.message);
-						TH_PEND();
+						TH_PPOP();
 						return;
 					}
 
@@ -3486,13 +3486,13 @@ namespace Tomahawk
 					{
 						Future = false;
 						TH_ERR("couldn't connect to requested URI");
-						TH_PEND();
+						TH_PPOP();
 						return;
 					}
 
 					Connected = true;
 					Future = true;
-					TH_PEND();
+					TH_PPOP();
 				});
 #else
 				return false;
@@ -3515,7 +3515,7 @@ namespace Tomahawk
 
 				return Core::Async<bool>::Execute([this, Context](Core::Async<bool>& Future)
 				{
-					TH_PSTART("mongo-pconn", TH_PERF_MAX);
+					TH_PPUSH("mongo-pconn", TH_PERF_MAX);
 
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
@@ -3530,7 +3530,7 @@ namespace Tomahawk
 						Connected = true;
 					}
 
-					TH_PEND();
+					TH_PPOP();
 				});
 #else
 				return false;

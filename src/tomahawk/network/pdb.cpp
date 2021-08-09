@@ -1340,7 +1340,7 @@ namespace Tomahawk
 				Update.unlock();
 				return Core::Async<bool>::Execute([this, Connections](Core::Async<bool>& Future)
 				{
-					TH_PSTART("postgres-conn", TH_PERF_MAX);
+					TH_PPUSH("postgres-conn", TH_PERF_MAX);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
 
@@ -1359,7 +1359,7 @@ namespace Tomahawk
                                 PQfinish(Base);
 
 							Future = false;
-							TH_PEND();
+							TH_PPOP();
 							return;
 						}
 						PQsetnonblocking(Base, 1);
@@ -1383,7 +1383,7 @@ namespace Tomahawk
 					Future = true;
 					TH_FREE(Keys);
 					TH_FREE(Values);
-					TH_PEND();
+					TH_PPOP();
 				});
 #else
 				return false;
@@ -1536,14 +1536,14 @@ namespace Tomahawk
                 if (!Base->Current)
 					return false;
 
-				TH_PSTART("postgres-send", TH_PERF_MAX);
+				TH_PPUSH("postgres-send", TH_PERF_MAX);
 #ifdef _DEBUG
 				TH_TRACE("[pq] execute query on 0x%p\n\t%.64s%s", (void*)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
 #endif
                 if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
                 {
                     Base->State = QueryState::Busy;
-					TH_PEND();
+					TH_PPOP();
 
                     return true;
                 }
@@ -1558,7 +1558,7 @@ namespace Tomahawk
                 
                 Item->Result.Release();
                 TH_DELETE(Request, Item);
-				TH_PEND();
+				TH_PPOP();
 
                 return true;
 #else
@@ -1575,13 +1575,13 @@ namespace Tomahawk
             bool Cluster::Dispatch(Socket* Stream, const char*, int64_t)
             {
 #ifdef TH_HAS_POSTGRESQL
-				TH_PSTART("postgres-recv", TH_PERF_MAX);
+				TH_PPUSH("postgres-recv", TH_PERF_MAX);
                 Update.lock();
                 auto It = Pool.find(Stream);
                 if (It == Pool.end())
                 {
                     Update.unlock();
-					TH_PEND();
+					TH_PPOP();
 
                     return false;
                 }
@@ -1592,7 +1592,7 @@ namespace Tomahawk
                     Reestablish(Source);
                     Consume(Source);
                     Update.unlock();
-					TH_PEND();
+					TH_PPOP();
 
                     return Reprocess(Source);
                 }
@@ -1604,7 +1604,7 @@ namespace Tomahawk
                     PQlogMessage(Source->Base);
                     Source->State = QueryState::Lost;
                     Update.unlock();
-					TH_PEND();
+					TH_PPOP();
 
                     return Reprocess(Source);
                 }
@@ -1612,7 +1612,7 @@ namespace Tomahawk
                 if (PQisBusy(Source->Base) == 1)
                 {
                     Update.unlock();
-					TH_PEND();
+					TH_PPOP();
 
                     return Reprocess(Source);
                 }
@@ -1661,7 +1661,7 @@ namespace Tomahawk
                             TH_DELETE(Request, Item);
                             Consume(Source);
                             Update.unlock();
-							TH_PEND();
+							TH_PPOP();
 
                             return Reprocess(Source);
                         }
@@ -1678,7 +1678,7 @@ namespace Tomahawk
                 
                 Consume(Source);
                 Update.unlock();
-				TH_PEND();
+				TH_PPOP();
 
                 return Reprocess(Source);
 #else

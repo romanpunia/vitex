@@ -238,7 +238,7 @@ namespace Tomahawk
 		int Socket::Open(const char* Host, int Port, SocketType Type, Address* Result)
 		{
 			TH_ASSERT(Host != nullptr, -1, "host should be set");
-			TH_PSTART("sock-open", TH_PERF_NET);
+			TH_PPUSH("sock-open", TH_PERF_NET);
 			TH_TRACE("[net] open fd %s:%i", Host, Port);
 
 			struct addrinfo Hints;
@@ -271,7 +271,7 @@ namespace Tomahawk
 			if (getaddrinfo(Host, Core::Parser(Port).Get(), &Hints, &Address))
 			{
 				TH_ERR("cannot connect to %s on port %i", Host, Port);
-				TH_PEND();
+				TH_PPOP();
 				return -1;
 			}
 
@@ -301,7 +301,7 @@ namespace Tomahawk
 			else
 				freeaddrinfo(Address);
 
-			TH_PEND();
+			TH_PPOP();
 			return 0;
 		}
 		int Socket::Open(const char* Host, int Port, Address* Result)
@@ -311,7 +311,7 @@ namespace Tomahawk
 		int Socket::Open(addrinfo* Info, Address* Result)
 		{
 			TH_ASSERT(Info != nullptr, -1, "info should be set");
-			TH_PSTART("sock-open", TH_PERF_NET);
+			TH_PPUSH("sock-open", TH_PERF_NET);
 			TH_TRACE("[net] open fd");
 
 			for (auto It = Info; It; It = It->ai_next)
@@ -323,17 +323,17 @@ namespace Tomahawk
 				if (Result != nullptr)
 					Result->Active = It;
 
-				TH_PEND();
+				TH_PPOP();
 				return 0;
 			}
 
-			TH_PEND();
+			TH_PPOP();
 			return -1;
 		}
 		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
 #ifdef TH_HAS_OPENSSL
-			TH_PSTART("sock-ssl", TH_PERF_NET);
+			TH_PPUSH("sock-ssl", TH_PERF_NET);
 			Sync.Device.lock();
 			if (Device != nullptr)
 				SSL_free(Device);
@@ -344,7 +344,7 @@ namespace Tomahawk
 				SSL_set_tlsext_host_name(Device, Hostname);
 #endif
 			Sync.Device.unlock();
-			TH_PEND();
+			TH_PPOP();
 #endif
 			if (!Device)
 				return -1;
@@ -360,7 +360,7 @@ namespace Tomahawk
 		int Socket::Connect(Address* Address)
 		{
 			TH_ASSERT(Address && Address->Active, -1, "address should be set and active");
-			TH_PSTART("sock-conn", TH_PERF_NET);
+			TH_PPUSH("sock-conn", TH_PERF_NET);
 			TH_TRACE("[net] connect fd %i", (int)Fd);
 			TH_PRET(connect(Fd, Address->Active->ai_addr, (int)Address->Active->ai_addrlen));
 		}
@@ -414,7 +414,7 @@ namespace Tomahawk
 		}
 		int Socket::Clear(bool Gracefully)
 		{
-			TH_PSTART("sock-clr", TH_PERF_NET);
+			TH_PPUSH("sock-clr", TH_PERF_NET);
 			if (!Gracefully)
 			{
 				Sync.IO.lock();
@@ -428,9 +428,10 @@ namespace Tomahawk
 				Sync.IO.lock();
 				Driver::Unlisten(this, true);
 				Sync.IO.unlock();
-				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), -2) == 1);
+				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), -2) == 1)
+					TH_PSIG();
 			}
-			TH_PEND();
+			TH_PPOP();
 
 			return 0;
 		}
@@ -454,15 +455,16 @@ namespace Tomahawk
 
 			if (Gracefully)
 			{
-				TH_PSTART("sock-close", TH_PERF_NET);
+				TH_PPUSH("sock-close", TH_PERF_NET);
 				int Timeout = 100;
 				SetBlocking(true);
 				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
 				shutdown(Fd, SD_SEND);
 
-				while (recv(Fd, (char*)&Error, 1, 0) > 0);
+				while (recv(Fd, (char*)&Error, 1, 0) > 0)
+					TH_PSIG();
 				closesocket(Fd);
-				TH_PEND();
+				TH_PPOP();
 			}
 			else
 			{
@@ -521,7 +523,7 @@ namespace Tomahawk
 		int Socket::Write(const char* Buffer, int Size)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_PSTART("sock-send", TH_PERF_NET);
+			TH_PPUSH("sock-send", TH_PERF_NET);
 
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
@@ -534,7 +536,7 @@ namespace Tomahawk
 					TH_PRET(GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1);
 
 				Outcome += (int64_t)Value;
-				TH_PEND();
+				TH_PPOP();
 
 				return Value;
 			}
@@ -544,7 +546,7 @@ namespace Tomahawk
 				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
 
 			Outcome += (int64_t)Value;
-			TH_PEND();
+			TH_PPOP();
 
 			return Value;
 		}
@@ -648,7 +650,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-			TH_PSTART("sock-recv", TH_PERF_NET);
+			TH_PPUSH("sock-recv", TH_PERF_NET);
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -660,7 +662,7 @@ namespace Tomahawk
 					TH_PRET(GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1);
 
 				Income += (int64_t)Value;
-				TH_PEND();
+				TH_PPOP();
 
 				return Value;
 			}
@@ -670,7 +672,7 @@ namespace Tomahawk
 				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
 
 			Income += (int64_t)Value;
-			TH_PEND();
+			TH_PPOP();
 
 			return Value;
 		}
@@ -1093,14 +1095,14 @@ namespace Tomahawk
 		}
 		bool Socket::CloseSet(const SocketAcceptCallback& Callback, bool OK)
 		{
-			TH_PSTART_OP("sock-shut", TH_PERF_HANG, this);
+			TH_OPUSH("sock-shut", TH_PERF_HANG, this);
 			char Buffer;
 			while (OK)
 			{
 				int Length = Read(&Buffer, 1);
 				if (Length == -2)
 				{
-					TH_PEND_OP(this);
+					TH_OPOP(this);
 					Sync.IO.lock();
 					bool OK = ReadSet([this, Callback](Socket*, const char*, int64_t Size)
 					{
@@ -1124,7 +1126,7 @@ namespace Tomahawk
 
 			if (Callback)
 				Callback(this);
-			TH_PEND_OP(this);
+			TH_OPOP(this);
 			return true;
 		}
 		std::string Socket::GetRemoteAddress()
@@ -1192,12 +1194,12 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_OPENSSL
 			TH_ASSERT(Output != nullptr, false, "certificate should be set");
-			TH_PSTART("sock-ssl", TH_PERF_NET);
+			TH_PPUSH("sock-ssl", TH_PERF_NET);
 
 			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
 			if (!Certificate)
 			{
-				TH_PEND();
+				TH_PPOP();
 				return false;
 			}
 
@@ -1239,7 +1241,7 @@ namespace Tomahawk
 			Output->Finger = FingerBuffer;
 
 			X509_free(Certificate);
-			TH_PEND();
+			TH_PPOP();
 
 			return true;
 #else
@@ -1342,7 +1344,7 @@ namespace Tomahawk
 			epoll_event* Events = (epoll_event*)Array;
 			int Count = epoll_wait(Handle, Events, ArraySize, (int)PipeTimeout);
 #endif
-			TH_PSTART("net-dispatch", TH_PERF_IO);
+			TH_PPUSH("net-dispatch", TH_PERF_IO);
 			int64_t Time = Clock(), Timeouts = 0;
 			for (auto It = Events; It != Events + Count; It++)
 			{
@@ -1374,11 +1376,11 @@ namespace Tomahawk
 					Timeouts++;
 			}
 
-			TH_PEND();
+			TH_PPOP();
 			if (Timeouts > 0 || Sources->empty())
 				return Count;
 
-			TH_PSTART("net-timeout", TH_PERF_IO);
+			TH_PPUSH("net-timeout", TH_PERF_IO);
 			fSources->lock();
 			auto Copy = *Sources;
 			fSources->unlock();
@@ -1392,7 +1394,7 @@ namespace Tomahawk
 				}
 			}
 
-			TH_PEND();
+			TH_PPOP();
 			return Count;
 		}
 		int Driver::Dispatch(Socket* Fd, uint32_t Events, int64_t Time)
@@ -1852,13 +1854,13 @@ namespace Tomahawk
 				Base->Stream->Clear(true);
 			}
 
-			TH_PSTART("sock-srv-close", TH_PERF_HANG);
+			TH_PPUSH("sock-srv-close", TH_PERF_HANG);
 			do
 			{
 				FreeQueued();
 				TH_PSIG();
 			} while (!Bad.empty() || !Good.empty());
-			TH_PEND();
+			TH_PPOP();
 
 			if (!OnUnlisten())
 				return false;
@@ -1920,24 +1922,24 @@ namespace Tomahawk
 			if (Bad.empty())
 				return false;
 
-			TH_PSTART("serv-dequeue", TH_PERF_FRAME);
+			TH_PPUSH("serv-dequeue", TH_PERF_FRAME);
 			Sync.lock();
 			for (auto It = Bad.begin(); It != Bad.end(); It++)
 				OnDeallocate(*It);
 			Bad.clear();
 			Sync.unlock();
 
-			TH_PEND();
+			TH_PPOP();
 			return true;
 		}
 		bool SocketServer::Accept(Listener* Host)
 		{
-			TH_PSTART("sock-accept", TH_PERF_FRAME);
+			TH_PPUSH("sock-accept", TH_PERF_FRAME);
 			auto* Connection = TH_NEW(Socket);
 			if (Host->Base->Accept(Connection, nullptr) == -1)
 			{
 				TH_DELETE(Socket, Connection);
-				TH_PEND();
+				TH_PPOP();
 
 				return false;
 			}
@@ -1950,7 +1952,7 @@ namespace Tomahawk
 					return true;
 				});
 
-				TH_PEND();
+				TH_PPOP();
 				return false;
 			}
 
@@ -1971,7 +1973,7 @@ namespace Tomahawk
 					return true;
 				});
 
-				TH_PEND();
+				TH_PPOP();
 				return false;
 			}
 
@@ -1984,7 +1986,7 @@ namespace Tomahawk
 					return true;
 				});
 
-				TH_PEND();
+				TH_PPOP();
 				return false;
 			}
 
@@ -1997,7 +1999,7 @@ namespace Tomahawk
 			Good.insert(Base);
 			Sync.unlock();
 
-			TH_PEND();
+			TH_PPOP();
 			return Core::Schedule::Get()->SetTask([this, Base]()
 			{
 				OnRequestBegin(Base);
@@ -2015,11 +2017,11 @@ namespace Tomahawk
 				return false;
 
 #ifdef TH_HAS_OPENSSL
-			TH_PSTART("sock-ssl-conn", TH_PERF_NET);
+			TH_PPUSH("sock-ssl-conn", TH_PERF_NET);
 			int Result = SSL_set_fd(Fd->GetDevice(), (int)Fd->GetFd());
 			if (Result != 1)
 			{
-				TH_PEND();
+				TH_PPOP();
 				return false;
 			}
 
@@ -2038,7 +2040,7 @@ namespace Tomahawk
 
 				if (Driver::Clock() - Timeout > (int64_t)Router->SocketTimeout)
 				{
-					TH_PEND();
+					TH_PPOP();
 					return false;
 				}
 
@@ -2057,7 +2059,7 @@ namespace Tomahawk
 				}
 			}
 
-			TH_PEND();
+			TH_PPOP();
 			return Result == 1;
 #else
 			return false;

@@ -55,15 +55,13 @@ namespace Tomahawk
 
 			class DataModel;
 
-			class DataRow;
-
 			class IElement;
 
 			class IElementDocument;
 
 			class DataNode;
 			
-			class Handler;
+			class Listener;
 
 			class Context;
 
@@ -199,10 +197,9 @@ namespace Tomahawk
 			private:
 				Rml::Event* Base;
 
-			private:
-				IEvent(Rml::Event* Ref);
-
 			public:
+				IEvent();
+				IEvent(Rml::Event* Ref);
 				EventPhase GetPhase() const;
 				void SetPhase(EventPhase Phase);
 				void SetCurrentElement(const IElement& Element);
@@ -232,6 +229,7 @@ namespace Tomahawk
 				Rml::Element* Base;
 
 			public:
+				IElement();
 				IElement(Rml::Element* Ref);
                 virtual ~IElement() = default;
 				virtual void Release();
@@ -310,8 +308,8 @@ namespace Tomahawk
 				bool Focus();
 				void Blur();
 				void Click();
-				void AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
-				void RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
+				void AddEventListener(const std::string& Event, Listener* Source, bool InCapturePhase = false);
+				void RemoveEventListener(const std::string& Event, Listener* Source, bool InCapturePhase = false);
 				bool DispatchEvent(const std::string& Type, const Core::VariantArgs& Args);
 				void ScrollIntoView(bool AlignWithTop = true);
 				IElement AppendChild(const IElement& Element, bool DOMElement = true);
@@ -354,6 +352,7 @@ namespace Tomahawk
 			class TH_OUT IElementDocument : public IElement
 			{
 			public:
+				IElementDocument();
 				IElementDocument(Rml::ElementDocument* Ref);
                 virtual ~IElementDocument() = default;
 				virtual void Release() override;
@@ -418,6 +417,7 @@ namespace Tomahawk
 
 			private:
 				std::unordered_map<std::string, DataNode*> Props;
+				std::vector<std::function<void()>> Callbacks;
 				Rml::DataModelConstructor* Base;
 				ModelCallback OnUnmount;
 
@@ -445,7 +445,9 @@ namespace Tomahawk
 				bool SetCallback(const std::string& Name, const DataCallback& Callback);
 				bool SetUnmountCallback(const ModelCallback& Callback);
 				bool HasChanged(const std::string& VariableName) const;
+				void SetDetachCallback(std::function<void()>&& Callback);
 				void Change(const std::string& VariableName);
+				void Detach();
 				bool IsValid() const;
 			};
 
@@ -519,7 +521,7 @@ namespace Tomahawk
 				int64_t GetValueSize();
 			};
 
-			class TH_OUT Handler : public Core::Object
+			class TH_OUT Listener : public Core::Object
 			{
 				friend IElement;
 				friend Context;
@@ -528,9 +530,9 @@ namespace Tomahawk
 				Rml::EventListener* Base;
 
 			public:
-				Handler(const EventCallback& NewCallback);
-				Handler(const std::string& FunctionName);
-				virtual ~Handler() override;
+				Listener(const EventCallback& NewCallback);
+				Listener(const std::string& FunctionName);
+				virtual ~Listener() override;
 			};
 
 			class TH_OUT Context : public Core::Object
@@ -592,8 +594,8 @@ namespace Tomahawk
 				void PullDocumentToFront(const IElementDocument& Document);
 				void PushDocumentToBack(const IElementDocument& Document);
 				void UnfocusDocument(const IElementDocument& Document);
-				void AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
-				void RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase = false);
+				void AddEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase = false);
+				void RemoveEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase = false);
 				bool IsMouseInteracting() const;
 				bool GetActiveClipRegion(Compute::Vector2& Origin, Compute::Vector2& Dimensions) const;
 				void SetActiveClipRegion(const Compute::Vector2& Origin, const Compute::Vector2& Dimensions);

@@ -4,6 +4,7 @@
 #include <RmlUi/Core/Stream.h>
 #include <RmlUi/Core/Elements/DataSource.h>
 #include <Source/Core/StyleSheetFactory.h>
+#include <Source/Core/ElementStyle.h>
 
 namespace Tomahawk
 {
@@ -598,9 +599,10 @@ namespace Tomahawk
 						return;
 
 					Script::VMContext* Context = Compiler->GetContext();
-					Context->Execute(Main, [Scope](Script::VMContext* Context)
+					Context->Execute(Main, [Main, Scope](Script::VMContext* Context)
 					{
-						Context->SetArgObject(0, Scope->Basis);
+						if (Main.GetArgsCount() == 1)
+							Context->SetArgObject(0, Scope->Basis);
 					});
 				}
 			};
@@ -621,32 +623,44 @@ namespace Tomahawk
 			class ListenerSubsystem : public Rml::EventListener
 			{
 			public:
+				Script::VMFunction Function;
 				std::string Memory;
-				bool IsFunction;
 
 			public:
-				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element, bool Body) : Memory(Code), IsFunction(Body)
+				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element) : Memory(Code), Function(nullptr)
 				{
 				}
 				void OnDetach(Rml::Element* Element) override
 				{
+					Function.Release();
 					TH_DELETE_THIS(ListenerSubsystem);
 				}
 				void ProcessEvent(Rml::Event& Event) override
 				{
 					ScopedContext* Scope = (ScopedContext*)Event.GetCurrentElement()->GetContext();
 					TH_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
+					if (!CompileInline(Scope))
+						return;
 
-					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
-					if (!IsFunction)
+					IEvent Basis(&Event);
+					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
+					Context->Execute(Function, [&Basis](Script::VMContext* Context)
 					{
-						Compiler->ExecuteEntry(Memory.c_str(), nullptr, (int)Script::VMTypeId::VOIDF, [&Event](Script::VMContext* Context)
-						{
-							Context->SetArgObject(0, &Event);
-						});
-					}
-					else
-						Compiler->ExecuteScoped(Memory);
+						Context->SetArgObject(0, &Basis);
+					});
+				}
+				bool CompileInline(ScopedContext* Scope)
+				{
+					if (Function.IsValid())
+						return true;
+
+					std::string Name = "__vf" + Compute::Common::MD5Hash(Memory);
+					std::string Eval = "void " + Name + "(GUI::Event &in Event){\n";
+					Eval.append(Memory);
+					Eval += "\n;}";
+
+					Script::VMModule Module = Scope->Basis->Compiler->GetModule();
+					return Module.CompileFunction(Name.c_str(), Eval.c_str(), -1, (size_t)Script::VMCompileFlags::ADD_TO_MODULE, &Function) >= 0;
 				}
 			};
 
@@ -655,7 +669,7 @@ namespace Tomahawk
 			public:
 				Rml::EventListener* InstanceEventListener(const Rml::String& Value, Rml::Element* Element) override
 				{
-					return TH_NEW(ListenerSubsystem, Value, Element, true);
+					return TH_NEW(ListenerSubsystem, Value, Element);
 				}
 			};
 
@@ -664,11 +678,11 @@ namespace Tomahawk
 				friend IEvent;
 
 			private:
-				EventCallback Handler;
+				EventCallback Listener;
 				std::atomic<int> RefCount;
 
 			public:
-				EventSubsystem(const EventCallback& Callback) : Rml::EventListener(), Handler(Callback), RefCount(1)
+				EventSubsystem(const EventCallback& Callback) : Rml::EventListener(), Listener(Callback), RefCount(1)
 				{
 				}
 				virtual void OnAttach(Rml::Element*) override
@@ -682,11 +696,11 @@ namespace Tomahawk
 				}
 				virtual void ProcessEvent(Rml::Event& Event) override
 				{
-					if (!Handler)
+					if (!Listener)
 						return;
 
 					IEvent Basis(&Event);
-					Handler(Basis);
+					Listener(Basis);
 				}
 			};
 
@@ -945,6 +959,9 @@ namespace Tomahawk
 				return Core::Form("v2 %f %f", Base.X, Base.Y).R();
 			}
 
+			IEvent::IEvent() : Base(nullptr)
+			{
+			}
 			IEvent::IEvent(Rml::Event* Ref) : Base(Ref)
 			{
 			}
@@ -1055,6 +1072,9 @@ namespace Tomahawk
 				return Base != nullptr;
 			}
 
+			IElement::IElement() : Base(nullptr)
+			{
+			}
 			IElement::IElement(Rml::Element* Ref) : Base(Ref)
 			{
 			}
@@ -1461,19 +1481,19 @@ namespace Tomahawk
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->Click();
 			}
-			void IElement::AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
+			void IElement::AddEventListener(const std::string& Event, Listener* Source, bool InCapturePhase)
 			{
 				TH_ASSERT_V(IsValid(), "element should be valid");
-				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be set");
+				TH_ASSERT_V(Source != nullptr && Source->Base != nullptr, "listener should be set");
 
-				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
+				Base->AddEventListener(Event, Source->Base, InCapturePhase);
 			}
-			void IElement::RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
+			void IElement::RemoveEventListener(const std::string& Event, Listener* Source, bool InCapturePhase)
 			{
 				TH_ASSERT_V(IsValid(), "element should be valid");
-				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be set");
+				TH_ASSERT_V(Source != nullptr && Source->Base != nullptr, "listener should be set");
 
-				Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
+				Base->RemoveEventListener(Event, Source->Base, InCapturePhase);
 			}
 			bool IElement::DispatchEvent(const std::string& Type, const Core::VariantArgs& Args)
 			{
@@ -1996,6 +2016,9 @@ namespace Tomahawk
 				return (void*)(intptr_t)Buffer.ToInt64();
 			}
 
+			IElementDocument::IElementDocument() : IElement()
+			{
+			}
 			IElementDocument::IElementDocument(Rml::ElementDocument* Ref) : IElement((Rml::Element*)Ref)
 			{
 			}
@@ -2244,10 +2267,16 @@ namespace Tomahawk
 			}
 			DataModel::~DataModel()
 			{
+				Detach();
 				for (auto Item : Props)
 					TH_DELETE(DataNode, Item.second);
 
 				TH_DELETE(DataModelConstructor, Base);
+			}
+			void DataModel::SetDetachCallback(std::function<void()>&& Callback)
+			{
+				if (Callback)
+					Callbacks.emplace_back(std::move(Callback));
 			}
 			DataNode* DataModel::SetProperty(const std::string& Name, const Core::Variant& Value)
 			{
@@ -2415,6 +2444,12 @@ namespace Tomahawk
 			{
 				TH_ASSERT(IsValid(), false, "data node should be valid");
 				return Base->GetModelHandle().IsVariableDirty(VariableName);
+			}
+			void DataModel::Detach()
+			{
+				for (auto& Item : Callbacks)
+					Item();
+				Callbacks.clear();
 			}
 			bool DataModel::IsValid() const
 			{
@@ -2796,15 +2831,15 @@ namespace Tomahawk
 				return *this;
 			}
 
-			Handler::Handler(const EventCallback& NewCallback)
+			Listener::Listener(const EventCallback& NewCallback)
 			{
 				Base = TH_NEW(EventSubsystem, NewCallback);
 			}
-			Handler::Handler(const std::string& FunctionName)
+			Listener::Listener(const std::string& FunctionName)
 			{
-				Base = TH_NEW(ListenerSubsystem, FunctionName, nullptr, false);
+				Base = TH_NEW(ListenerSubsystem, FunctionName, nullptr);
 			}
-			Handler::~Handler()
+			Listener::~Listener()
 			{
 				Base->OnDetach(nullptr);
 			}
@@ -3169,12 +3204,12 @@ namespace Tomahawk
 			{
 				return Base->UnfocusDocument(Document.GetElementDocument());
 			}
-			void Context::AddEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
+			void Context::AddEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase)
 			{
 				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
 				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
 			}
-			void Context::RemoveEventListener(const std::string& Event, Handler* Listener, bool InCapturePhase)
+			void Context::RemoveEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase)
 			{
 				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
 				Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
@@ -3352,10 +3387,7 @@ namespace Tomahawk
 			}
 			void Context::CreateVM()
 			{
-				if (!Subsystem::ScriptInterface)
-					return;
-
-				if (Compiler != nullptr)
+				if (!Subsystem::ScriptInterface || Compiler != nullptr)
 					return;
 
 				Compiler = Subsystem::ScriptInterface->CreateCompiler();

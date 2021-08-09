@@ -241,6 +241,7 @@ namespace Tomahawk
 
 					Script::VMContext* Context = Compiler->GetContext();
 					Context->SetResumeCallback(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1));
+					Context->SetIndirectExecution(false);
 					Context->Execute(Main, nullptr);
 
 					return true;

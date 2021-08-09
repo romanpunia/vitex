@@ -85,9 +85,10 @@ install(FILES
         src/tomahawk/network/smtp.h
         DESTINATION include/tomahawk/network)
 install(FILES
-        src/tomahawk/script/core-lib.h
-        src/tomahawk/script/gui-lib.h
         src/tomahawk/script/std-lib.h
+        src/tomahawk/script/core-lib.h
+        src/tomahawk/script/compute-lib.h
+        src/tomahawk/script/gui-lib.h
         DESTINATION include/tomahawk/script)
 install(FILES
         src/tomahawk/tomahawk.h

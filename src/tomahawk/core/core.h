@@ -164,26 +164,26 @@ typedef socklen_t socket_size_t;
 #define TH_PERF_NET (150)
 #define TH_PERF_MAX (200)
 #define TH_PERF_HANG (5000)
-#define TH_PSTART(Section, Threshold) Tomahawk::Core::Debug::TimeStart(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
-#define TH_PSIG() Tomahawk::Core::Debug::TimeSignal()
-#define TH_PEND() Tomahawk::Core::Debug::TimeEnd()
-#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::TimeEnd(); return __vfbuf; }
-#define TH_PSTART_OP(Section, Threshold, Id) Tomahawk::Core::Debug::OpStart(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold, (void*)(Id))
-#define TH_PSIG_OP() Tomahawk::Core::Debug::OpSignal()
-#define TH_PEND_OP(Id) Tomahawk::Core::Debug::OpEnd((void*)(Id))
-#define TH_PRET_OP(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::OpEnd((void*)(Id)); return __vfbuf; }
+#define TH_PPUSH(Section, Threshold) Tomahawk::Core::Debug::PerfPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
+#define TH_PSIG() Tomahawk::Core::Debug::PerfSignal()
+#define TH_PPOP() Tomahawk::Core::Debug::PerfPop()
+#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::PerfPop(); return __vfbuf; }
+#define TH_OPUSH(Section, Threshold, Id) Tomahawk::Core::Debug::OpPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold, (void*)(Id))
+#define TH_OSIG() Tomahawk::Core::Debug::OpSignal()
+#define TH_OPOP(Id) Tomahawk::Core::Debug::OpPop((void*)(Id))
+#define TH_ORET(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::OpPop((void*)(Id)); return __vfbuf; }
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FILE, TH_FUNCTION, "coawait of [ " TH_STRINGIFY(Value) " ]", TH_LINE)
 #else
 #define TH_ASSERT(Condition, Returnable, Format, ...)
 #define TH_ASSERT_V(Condition, Format, ...)
-#define TH_PSTART(Section, Threshold)
+#define TH_PPUSH(Section, Threshold)
 #define TH_PSIG()
-#define TH_PEND()
+#define TH_PPOP()
 #define TH_PRET(Value) return Value
-#define TH_PSTART_OP(Section, Threshold, Id)
-#define TH_PSIG_OP()
-#define TH_PEND_OP(Id)
-#define TH_PRET_OP(Id, Value) return Value
+#define TH_OPUSH(Section, Threshold, Id)
+#define TH_OSIG()
+#define TH_OPOP(Id)
+#define TH_ORET(Id, Value) return Value
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
 #endif
 #define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
@@ -928,6 +928,7 @@ namespace Tomahawk
 
 		class TH_OUT Debug
 		{
+#ifdef _DEBUG
 		public:
 			struct Context
 			{
@@ -938,8 +939,8 @@ namespace Tomahawk
 				uint64_t Threshold = 0;
 				uint64_t Time = 0;
 				int Line = 0;
-				bool Ignore = false;
 			};
+#endif
 
 		private:
 			static std::vector<Context> Contexts;
@@ -948,14 +949,16 @@ namespace Tomahawk
 			static bool Enabled;
 
 		public:
-			static void OpStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id);
+#ifdef _DEBUG
+			static void OpPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id);
 			static void OpSignal();
-			static void OpEnd(void* Id);
-			static void TimeStart(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS);
-			static void TimeSignal();
-			static void TimeEnd();
-			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
+			static void OpPop(void* Id);
+			static void PerfPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS);
+			static void PerfSignal();
+			static void PerfPop();
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
+#endif
+			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void AttachCallback(const std::function<void(const char*, int)>& Callback);
 			static void AttachStream();
 			static void DetachCallback();
@@ -2079,7 +2082,7 @@ namespace Tomahawk
 				return Future.Get();
 #ifdef _DEBUG
 			if (File && Function && Expression && Line >= 0)
-				Debug::OpStart(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
+				Debug::OpPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
 #endif
 			Future.Await([State, Base](T&&)
             {
@@ -2090,7 +2093,7 @@ namespace Tomahawk
 				State->Deactivate(Base);
 #ifdef _DEBUG
 			if (File && Function && Expression && Line >= 0)
-				Debug::OpEnd((void*)&Future);
+				Debug::OpPop((void*)&Future);
 #endif
 			return Future.GetIfAny();
 		}

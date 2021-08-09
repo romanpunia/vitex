@@ -573,10 +573,6 @@ namespace Tomahawk
 			{
 				return Vector4(0, 0, 0, 0);
 			};
-			static Vector4 UnitW()
-			{
-				return Vector4(0, 0, 0, 1);
-			};
 			static Vector4 Up()
 			{
 				return Vector4(0, 1, 0, 0);
@@ -600,6 +596,10 @@ namespace Tomahawk
 			static Vector4 Backward()
 			{
 				return Vector4(0, 0, -1, 0);
+			};
+			static Vector4 UnitW()
+			{
+				return Vector4(0, 0, 0, 1);
 			};
 		};
 

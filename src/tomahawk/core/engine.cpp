@@ -3130,23 +3130,21 @@ namespace Tomahawk
 		}
 		void RenderSystem::ClearCull()
 		{
-			TH_PSTART("rs-clear-cull", TH_PERF_FRAME);
-
+			TH_PPUSH("rs-clear-cull", TH_PERF_FRAME);
 			for (auto& Base : Cull)
 			{
 				auto* Array = Scene->GetComponents(Base);
 				for (auto It = Array->Begin(); It != Array->End(); ++It)
 					((Cullable*)*It)->ClearCull();
 			}
-
-			TH_PEND();
+			TH_PPOP();
 		}
 		void RenderSystem::Synchronize(Core::Timer* Time, const Viewer& View)
 		{
 			if (!FrustumCulling)
 				return;
 
-			TH_PSTART("rs-sync", TH_PERF_FRAME);
+			TH_PPUSH("rs-sync", TH_PERF_FRAME);
 			for (auto& Base : Cull)
 			{
 				auto* Array = Scene->GetComponents(Base);
@@ -3156,7 +3154,7 @@ namespace Tomahawk
 					Data->Visibility = Data->Cull(View);
 				}
 			}
-			TH_PEND();
+			TH_PPOP();
 		}
 		void RenderSystem::CullGeometry(Core::Timer* Time, const Viewer& View)
 		{
@@ -3541,34 +3539,34 @@ namespace Tomahawk
 				else
 					Geometry = GetOpaque();
 
-				TH_PSTART("render-result", TH_PERF_CORE);
+				TH_PPUSH("render-result", TH_PERF_CORE);
 				if (Geometry != nullptr && Geometry->Size() > 0)
 				{
 					System->ClearMaterials();
 					RenderGeometryResult(TimeStep, Geometry, Options);
 				}
-				TH_PEND();
+				TH_PPOP();
 			}
 			else if (State == RenderState::Geometry_Voxels)
 			{
 				if ((size_t)Options & (size_t)RenderOpt::Transparent)
 					return;
 
-				TH_PSTART("render-voxels", TH_PERF_MIX);
+				TH_PPUSH("render-voxels", TH_PERF_MIX);
 				Core::Pool<Drawable*>* Geometry = GetOpaque();
 				if (Geometry != nullptr && Geometry->Size() > 0)
 				{
 					System->ClearMaterials();
 					RenderGeometryVoxels(TimeStep, Geometry, Options);
 				}
-				TH_PEND();
+				TH_PPOP();
 			}
 			else if (State == RenderState::Depth_Linear)
 			{
 				if (!((size_t)Options & (size_t)RenderOpt::Inner))
 					return;
 
-				TH_PSTART("render-depth-linear", TH_PERF_FRAME);
+				TH_PPUSH("render-depth-linear", TH_PERF_FRAME);
 				System->ClearMaterials();
 
 				Core::Pool<Drawable*>* Opaque = GetOpaque();
@@ -3578,7 +3576,7 @@ namespace Tomahawk
 				Core::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
 					RenderDepthLinear(TimeStep, Transparent);
-				TH_PEND();
+				TH_PPOP();
 			}
 			else if (State == RenderState::Depth_Cubic)
 			{
@@ -3586,7 +3584,7 @@ namespace Tomahawk
 				if (!((size_t)Options & (size_t)RenderOpt::Inner))
 					return;
 
-				TH_PSTART("render-depth-cubic", TH_PERF_FRAME);
+				TH_PPUSH("render-depth-cubic", TH_PERF_FRAME);
 				System->ClearMaterials();
 
 				Core::Pool<Drawable*>* Opaque = GetOpaque();
@@ -3596,7 +3594,7 @@ namespace Tomahawk
 				Core::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
 					RenderDepthCubic(TimeStep, Transparent, View.CubicViewProjection);
-				TH_PEND();
+				TH_PPOP();
 			}
 		}
 		Core::Pool<Drawable*>* GeometryDraw::GetOpaque()
@@ -3744,7 +3742,7 @@ namespace Tomahawk
 			if (!Output)
 				Output = System->GetRT(TargetType::Main);
 
-			TH_PSTART("render-effect", TH_PERF_FRAME);
+			TH_PPUSH("render-effect", TH_PERF_FRAME);
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType::Main);
 			PrimitiveCache* Cache = System->GetPrimitives();
 			Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -3765,7 +3763,7 @@ namespace Tomahawk
 			Device->FlushTexture2D(1, MaxSlot, TH_PS);
 			Device->CopyTarget(Output, 0, Input, 0);
 			System->RestoreOutput();
-			TH_PEND();
+			TH_PPOP();
 		}
 		Graphics::Shader* EffectDraw::GetEffect(const std::string& Name)
 		{
@@ -3864,7 +3862,7 @@ namespace Tomahawk
 		}
 		SceneGraph::~SceneGraph()
 		{
-			TH_PSTART("scene-destroy", TH_PERF_MAX);
+			TH_PPUSH("scene-destroy", TH_PERF_MAX);
 			auto* Queue = Core::Schedule::Get();
 			auto Source = std::move(Listeners);
 			for (auto& Item : Source)
@@ -3885,7 +3883,7 @@ namespace Tomahawk
 
 			Tasks.clear();
 			while (Dispatch(nullptr))
-				TH_PSIG_OP();
+				TH_OSIG();
 
 			auto Begin1 = Entities.Begin(), End1 = Entities.End();
 			for (auto It = Begin1; It != End1; ++It)
@@ -3908,7 +3906,7 @@ namespace Tomahawk
 
 			TH_RELEASE(Display.MaterialBuffer);
 			TH_RELEASE(Simulator);
-			TH_PEND();
+			TH_PPOP();
 		}
 		void SceneGraph::Configure(const Desc& NewConf)
 		{
@@ -4061,7 +4059,7 @@ namespace Tomahawk
 		{
 			Exclusive([this]()
 			{
-				TH_PSTART("scene-redist", TH_PERF_FRAME);
+				TH_PPUSH("scene-redist", TH_PERF_FRAME);
 				for (auto& Component : Components)
 					Component.second.Clear();
 
@@ -4073,19 +4071,19 @@ namespace Tomahawk
 					RegisterEntity(*It);
 
 				GetCamera();
-				TH_PEND();
+				TH_PPOP();
 			});
 		}
 		void SceneGraph::Reindex()
 		{
 			Exclusive([this]()
 			{
-				TH_PSTART("scene-index", TH_PERF_FRAME);
+				TH_PPUSH("scene-index", TH_PERF_FRAME);
 				int64_t Index = -1;
 				auto Begin = Materials.Begin(), End = Materials.End();
 				for (auto It = Begin; It != End; ++It)
 					(*It)->Slot = ++Index;
-				TH_PEND();
+				TH_PPOP();
 			});
 		}
 		void SceneGraph::Sleep()
@@ -4153,7 +4151,7 @@ namespace Tomahawk
 #ifdef _DEBUG
 			ThreadId = std::this_thread::get_id();
 #endif
-			TH_PSTART("scene-dispatch", TH_PERF_FRAME);
+			TH_PPUSH("scene-dispatch", TH_PERF_FRAME);
 			bool Result = false;
 			if (Status != 0)
 			{
@@ -4231,13 +4229,13 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_ASSERT_V(Simulator != nullptr, "simulator should be set");
-			TH_PSTART("scene-sim", TH_PERF_CORE);
+			TH_PPUSH("scene-sim", TH_PERF_CORE);
 			Simulator->Simulate((float)Time->GetTimeStep());
-			TH_PEND();
+			TH_PPOP();
 		}
 		void SceneGraph::Synchronize(Core::Timer* Time)
 		{
-			TH_PSTART("scene-sync", TH_PERF_CORE);
+			TH_PPUSH("scene-sync", TH_PERF_CORE);
 			auto Begin1 = Actors[(size_t)ActorType::Synchronize].Begin();
 			auto End1 = Actors[(size_t)ActorType::Synchronize].End();
 			for (auto It = Begin1; It != End1; ++It)
@@ -4256,31 +4254,31 @@ namespace Tomahawk
 				Base->Transform->Synchronize();
 				Base->Distance = Base->Transform->Position.Distance(Far);
 			}
-			TH_PEND();
+			TH_PPOP();
 		}
 		void SceneGraph::SortBackToFront(Core::Pool<Drawable*>* Array)
 		{
 			TH_ASSERT_V(Array != nullptr, "array should be set");
-			TH_PSTART("sort-btf", TH_PERF_FRAME);
+			TH_PPUSH("sort-btf", TH_PERF_FRAME);
 
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
 				return A->Parent->Distance > B->Parent->Distance;
 			});
 
-			TH_PEND();
+			TH_PPOP();
 		}
 		void SceneGraph::SortFrontToBack(Core::Pool<Drawable*>* Array)
 		{
 			TH_ASSERT_V(Array != nullptr, "array should be set");
-			TH_PSTART("sort-ftb", TH_PERF_FRAME);
+			TH_PPUSH("sort-ftb", TH_PERF_FRAME);
 
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
 				return A->Parent->Distance < B->Parent->Distance;
 			});
 
-			TH_PEND();
+			TH_PPOP();
 		}
 		void SceneGraph::SetCamera(Entity* NewCamera)
 		{
@@ -4463,7 +4461,7 @@ namespace Tomahawk
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
-			TH_PSTART("ray-test", TH_PERF_FRAME);
+			TH_PPUSH("ray-test", TH_PERF_FRAME);
 
 			Core::Pool<Component*>* Array = GetComponents(Section);
 			Compute::Ray Base = Origin;
@@ -4479,7 +4477,7 @@ namespace Tomahawk
 					break;
 			}
 			
-			TH_PEND();
+			TH_PPOP();
 		}
 		void SceneGraph::ScriptHook(const std::string& Name)
 		{
@@ -5087,7 +5085,7 @@ namespace Tomahawk
 		Entity* SceneGraph::CloneEntity(Entity* Entity)
 		{
 			TH_ASSERT(Entity != nullptr, nullptr, "entity should be set");
-			TH_PSTART("clone-entity", TH_PERF_FRAME);
+			TH_PPUSH("clone-entity", TH_PERF_FRAME);
 
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
@@ -5105,7 +5103,7 @@ namespace Tomahawk
 			}
 
 			AddEntity(Instance);
-			TH_PEND();
+			TH_PPOP();
 
 			return Instance;
 		}
@@ -5997,7 +5995,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_PSIG_OP();
+					TH_OSIG();
 				}
 			}
 			else if (Activity != nullptr && !Control.Async)
@@ -6009,7 +6007,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_PSIG_OP();
+					TH_OSIG();
 				}
 			}
 			else if (!Activity && Control.Async)
@@ -6019,7 +6017,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_PSIG_OP();
+					TH_OSIG();
 				}
 			}
 			else if (!Activity && !Control.Async)
@@ -6030,7 +6028,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_PSIG_OP();
+					TH_OSIG();
 				}
 			}
 

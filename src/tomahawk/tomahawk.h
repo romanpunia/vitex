@@ -22,9 +22,6 @@
 #include "engine/processors.h"
 #include "engine/renderers.h"
 #include "engine/gui.h"
-#include "script/std-lib.h"
-#include "script/core-lib.h"
-#include "script/gui-lib.h"
 
 namespace Tomahawk
 {

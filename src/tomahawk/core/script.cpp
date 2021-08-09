@@ -2,6 +2,7 @@
 #include "../script/compiler/compiler.h"
 #include "../script/std-lib.h"
 #include "../script/core-lib.h"
+#include "../script/compute-lib.h"
 #include "../script/gui-lib.h"
 #include <inttypes.h>
 #include <iostream>
@@ -2240,8 +2241,8 @@ namespace Tomahawk
 			if (!Function)
 				return asNO_FUNCTION;
 
-			int Result = TH_AWAIT(Context->Coexecute(Function, std::move(Callback)));
-			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
+			int Result = Context->Execute(Function, std::move(Callback));
+			if (Result == (int)VMExecState::SUSPENDED || Return == 0 || ReturnTypeId == asTYPEID_VOID)
 				return Result;
 
 			if (ReturnTypeId & asTYPEID_OBJHANDLE)
@@ -2259,11 +2260,11 @@ namespace Tomahawk
 
 			return Result;
 		}
-		int VMCompiler::ExecuteScoped(const std::string& Code, void* Return, int ReturnTypeId)
+		int VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, void* Return, int ReturnTypeId, ArgsCallback&& Callback)
 		{
-			return ExecuteScoped(Code.c_str(), Code.size(), Return, ReturnTypeId);
+			return ExecuteScoped(Code.c_str(), (uint64_t)Code.size(), Args, Return, ReturnTypeId, std::move(Callback));
 		}
-		int VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, void* Return, int ReturnTypeId)
+		int VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, void* Return, int ReturnTypeId, ArgsCallback&& Callback)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
@@ -2272,7 +2273,10 @@ namespace Tomahawk
 			TH_ASSERT(BuiltOK, asINVALID_ARG, "module should be built");
 
 			VMCManager* Engine = Manager->GetEngine();
-			std::string Eval = " __vfbdy(){\n";
+			std::string Eval = " __vfbdy(";
+			if (Args != nullptr)
+				Eval.append(Args);
+			Eval.append("){\n");
 			Eval.append(Buffer, Length);
 			Eval += "\n;}";
 			Eval = Engine->GetTypeDeclaration(ReturnTypeId, true) + Eval;
@@ -2297,8 +2301,8 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			int Result = TH_AWAIT(Context->Coexecute(Function, nullptr));
-			if (Return == 0 || ReturnTypeId == asTYPEID_VOID)
+			int Result = Context->Execute(Function, std::move(Callback));
+			if (Result == (int)VMExecState::SUSPENDED || Return == 0 || ReturnTypeId == asTYPEID_VOID)
 			{
 				Function->Release();
 				return Result;
@@ -2345,7 +2349,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr)
+		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr), Indirect(true)
 		{
 			TH_ASSERT_V(Base != nullptr, "context should be set");
 			Manager = VMManager::Get(Base->GetEngine());
@@ -2354,6 +2358,12 @@ namespace Tomahawk
 		}
 		VMContext::~VMContext()
 		{
+			while (!Queue.empty())
+			{
+				Queue.front().Function.Release();
+				Queue.pop();
+			}
+
 			if (Context != nullptr)
 			{
 				if (Manager != nullptr)
@@ -2362,6 +2372,23 @@ namespace Tomahawk
 					Context->Release();
 			}
 			asThreadCleanup();
+		}
+		void VMContext::ExecuteNext()
+		{
+			TH_ASSERT_V(Context != nullptr, "context should be set");
+			if (Queue.empty() || Context->IsNested(nullptr))
+				return;
+
+			Exchange.lock();
+			if (Queue.empty())
+				return Exchange.unlock();
+
+			Executable Next = std::move(Queue.front());
+			Queue.pop();
+			Exchange.unlock();
+
+			Execute(Next.Function, std::move(Next.Args), Next.Notify);
+			Next.Function.Release();
 		}
 		Core::Async<int> VMContext::Coexecute(const VMFunction& Function, ArgsCallback&& ArgsSetup)
 		{
@@ -2379,6 +2406,11 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
+		}
+		int VMContext::SetIndirectExecution(bool Enabled)
+		{
+			Indirect = Enabled;
+			return 0;
 		}
 		int VMContext::AddRefVM() const
 		{
@@ -2409,9 +2441,24 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
+			bool AllowIndirection = Indirect;
 			asEContextState State = Context->GetState();
 			if (State != asEXECUTION_FINISHED && State != asEXECUTION_ABORTED && State != asEXECUTION_EXCEPTION && State != asEXECUTION_ERROR && State != asEXECUTION_UNINITIALIZED)
+			{
+				if (!AllowIndirection)
+					return asCONTEXT_ACTIVE;
+
+				Executable Next;
+				Next.Notify = Notify;
+				Next.Args = std::move(Callback);
+				Next.Function = Function;
+				Next.Function.AddRef();
+
+				Exchange.lock();
+				Queue.push(std::move(Next));
+				Exchange.unlock();
 				return asCONTEXT_ACTIVE;
+			}
 
 			bool Nested = Context->IsNested(nullptr);
 			if (Nested)
@@ -2425,8 +2472,11 @@ namespace Tomahawk
 				Result = Execute(Notify);
 			}
 
-			if (Nested)
+			if (Nested && Result != asEXECUTION_SUSPENDED)
 				Context->PopState();
+
+			if (AllowIndirection)
+				ExecuteNext();
 
 			return Result;
 		}
@@ -2436,7 +2486,14 @@ namespace Tomahawk
 			if (State == asEXECUTION_ACTIVE)
 				return asEXECUTION_ACTIVE;
 
+			bool AllowIndirection = Indirect;
 			State = (asEContextState)Context->Execute();
+			if (Context->IsNested())
+				Context->PopState();
+
+			if (AllowIndirection)
+				ExecuteNext();
+
 			if (!Notify || !Resolve)
 				return State;
 
@@ -3325,26 +3382,59 @@ namespace Tomahawk
 		}
 		bool VMManager::AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback)
 		{
-			Safe.lock();
-			auto It = Modules.find(Name);
-			if (It != Modules.end())
+			TH_ASSERT(!Name.empty(), false, "name should not be empty");
+			if (Dependencies.empty() && !Callback)
 			{
-				if (Callback || !Dependencies.empty())
+				std::string Namespace = Name + '/';
+				std::vector<std::string> Deps;
+
+				Safe.lock();
+				for (auto& Item : Modules)
 				{
-					It->second.Dependencies = Dependencies;
-					It->second.Callback = Callback;
-					It->second.Registered = false;
+					if (Core::Parser(&Item.first).StartsWith(Namespace))
+						Deps.push_back(Item.first);
+				}
+
+				if (Modules.empty())
+					return false;
+
+				auto It = Modules.find(Name);
+				if (It == Modules.end())
+				{
+					Submodule Result;
+					Result.Dependencies = Deps;
+					Result.Registered = false;
+					Modules.insert({ Name, Result });
 				}
 				else
-					Modules.erase(It);
+				{
+					It->second.Dependencies = Deps;
+					It->second.Registered = false;
+				}
 			}
 			else
 			{
-				Submodule Result;
-				Result.Dependencies = Dependencies;
-				Result.Callback = Callback;
-				Result.Registered = false;
-				Modules.insert({ Name, Result });
+				Safe.lock();
+				auto It = Modules.find(Name);
+				if (It != Modules.end())
+				{
+					if (Callback || !Dependencies.empty())
+					{
+						It->second.Dependencies = Dependencies;
+						It->second.Callback = Callback;
+						It->second.Registered = false;
+					}
+					else
+						Modules.erase(It);
+				}
+				else
+				{
+					Submodule Result;
+					Result.Dependencies = Dependencies;
+					Result.Callback = Callback;
+					Result.Registered = false;
+					Modules.insert({ Name, Result });
+				}
 			}
 
 			Safe.unlock();
@@ -3693,6 +3783,7 @@ namespace Tomahawk
 		}
 		void VMManager::RegisterSubmodules(VMManager* Engine)
 		{
+			/* Standard library */
 			Engine->AddSubmodule("std/any", { }, STDRegisterAny);
 			Engine->AddSubmodule("std/array", { }, STDRegisterArray);
 			Engine->AddSubmodule("std/complex", { }, STDRegisterComplex);
@@ -3706,23 +3797,9 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/exception", { "std/string" }, STDRegisterException);
 			Engine->AddSubmodule("std/mutex", { }, STDRegisterMutex);
 			Engine->AddSubmodule("std/thread", { "std/any" }, STDRegisterThread);
-			Engine->AddSubmodule("std",
-			{
-				"std/any",
-				"std/array",
-				"std/complex",
-				"std/grid",
-				"std/ref",
-				"std/weakref",
-				"std/math",
-				"std/random",
-				"std/string",
-				"std/map",
-				"std/exception",
-				"std/mutex",
-				"std/thread",
-			}, nullptr);
+			Engine->AddSubmodule("std", { }, nullptr);
 
+			/* Core library */
 			Engine->AddSubmodule("ce/format", { "std/string" }, CERegisterFormat);
 			Engine->AddSubmodule("ce/decimal", { "std/string" }, CERegisterDecimal);
 			Engine->AddSubmodule("ce/variant", { "std/string" }, CERegisterVariant);
@@ -3738,36 +3815,20 @@ namespace Tomahawk
 			Engine->AddSubmodule("ce/webstream", { "std/string", "ce/filestream" }, CERegisterWebStream);
 			Engine->AddSubmodule("ce/schedule", { "std/string" }, CERegisterSchedule);
 			Engine->AddSubmodule("ce/document", { "std/array", "std/string", "std/map", "ce/variant" }, CERegisterDocument);
-			Engine->AddSubmodule("ce",
-			{
-				"ce/format",
-				"ce/decimal",
-				"ce/variant",
-				"ce/filestate",
-				"ce/resource",
-				"ce/datetime",
-				"ce/ticker",
-				"ce/os",
-				"ce/console",
-				"ce/timer",
-				"ce/filestream",
-				"ce/gzstream",
-				"ce/webstream",
-				"ce/schedule",
-				"ce/document"
-			}, nullptr);
+			Engine->AddSubmodule("ce", { }, nullptr);
 
-			Engine->AddSubmodule("gui/element", { }, GUIRegisterElement);
-			Engine->AddSubmodule("gui/document", { }, GUIRegisterDocument);
-			Engine->AddSubmodule("gui/event", { }, GUIRegisterEvent);
-			Engine->AddSubmodule("gui/context", { }, GUIRegisterContext);
-			Engine->AddSubmodule("gui",
-			{
-				"gui/element",
-				"gui/document",
-				"gui/event",
-				"gui/context"
-			}, nullptr);
+			/* Compute library */
+			Engine->AddSubmodule("cu/vector2", { }, CURegisterVector2);
+			Engine->AddSubmodule("cu/vector3", { "cu/vector2" }, CURegisterVector3);
+			Engine->AddSubmodule("cu/vector4", { "cu/vector3" }, CURegisterVector4);
+			Engine->AddSubmodule("cu", { }, nullptr);
+
+			/* GUI library */
+			Engine->AddSubmodule("gui/variant", { "std/string", "cu/vector2", "cu/vector3", "cu/vector4" }, GUIRegisterVariant);
+			Engine->AddSubmodule("gui/control", { "gui/variant", "ce/document", "std/array" }, GUIRegisterControl);
+			Engine->AddSubmodule("gui/model", { "gui/control", }, GUIRegisterModel);
+			Engine->AddSubmodule("gui/context", { "gui/model" }, GUIRegisterContext);
+			Engine->AddSubmodule("gui", { }, nullptr);
 		}
 		size_t VMManager::GetDefaultAccessMask()
 		{

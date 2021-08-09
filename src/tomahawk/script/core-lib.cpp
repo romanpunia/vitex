@@ -190,24 +190,18 @@ namespace Tomahawk
 			if (!Callback)
 				return TH_INVALID_EVENT_ID;
 
-			VMManager* Manager = VMManager::Get();
-			if (!Manager)
-				return TH_INVALID_EVENT_ID;
-
-			VMContext* Context = Manager->CreateContext();
+			VMContext* Context = VMContext::Get();
 			if (!Context)
 				return TH_INVALID_EVENT_ID;
 
-			VMFunction Function = Callback;
-			Function.AddRef();
+			Callback->AddRef();
+			Context->AddRefVM();
 
-			return Base->SetInterval(MS, [Context, Function]() mutable
+			return Base->SetInterval(MS, [Context, Callback]() mutable
 			{
-				Context->Coexecute(Function, nullptr).Await([Context, Function](int&&) mutable
-				{
-					Function.Release();
-					TH_RELEASE(Context);
-				});
+				int Result = Context->Execute(Callback, nullptr);
+				Callback->Release();
+				Context->ReleaseVM();
 			});
 		}
 		uint64_t ScheduleSetTimeout(Core::Schedule* Base, uint64_t MS, VMCFunction* Callback)
@@ -215,24 +209,18 @@ namespace Tomahawk
 			if (!Callback)
 				return TH_INVALID_EVENT_ID;
 
-			VMManager* Manager = VMManager::Get();
-			if (!Manager)
-				return TH_INVALID_EVENT_ID;
-
-			VMContext* Context = Manager->CreateContext();
+			VMContext* Context = VMContext::Get();
 			if (!Context)
 				return TH_INVALID_EVENT_ID;
 
-			VMFunction Function = Callback;
-			Function.AddRef();
+			Callback->AddRef();
+			Context->AddRefVM();
 
-			return Base->SetTimeout(MS, [Context, Function]() mutable
+			return Base->SetTimeout(MS, [Context, Callback]() mutable
 			{
-				Context->Coexecute(Function, nullptr).Await([Context, Function](int&&) mutable
-				{
-					Function.Release();
-					TH_RELEASE(Context);
-				});
+				int Result = Context->Execute(Callback, nullptr);
+				Callback->Release();
+				Context->ReleaseVM();
 			});
 		}
 		bool ScheduleSetTask(Core::Schedule* Base, VMCFunction* Callback)
@@ -240,24 +228,18 @@ namespace Tomahawk
 			if (!Callback)
 				return TH_INVALID_EVENT_ID;
 
-			VMManager* Manager = VMManager::Get();
-			if (!Manager)
-				return TH_INVALID_EVENT_ID;
-
-			VMContext* Context = Manager->CreateContext();
+			VMContext* Context = VMContext::Get();
 			if (!Context)
 				return TH_INVALID_EVENT_ID;
 
-			VMFunction Function = Callback;
-			Function.AddRef();
+			Callback->AddRef();
+			Context->AddRefVM();
 
-			return Base->SetTask([Context, Function]() mutable
+			return Base->SetAsync([Context, Callback]() mutable
 			{
-				Context->Coexecute(Function, nullptr).Await([Context, Function](int&&) mutable
-				{
-					Function.Release();
-					TH_RELEASE(Context);
-				});
+				int Result = Context->Execute(Callback, nullptr);
+				Callback->Release();
+				Context->ReleaseVM();
 			});
 		}
 
@@ -1048,6 +1030,7 @@ namespace Tomahawk
 			VVarType.SetValue("Boolean", (int)Core::VarType::Boolean);
 
 			VMTypeClass VVariant = Register.SetStructUnmanaged<Core::Variant>("Variant");
+			VVariant.SetConstructor<Core::Variant>("void f()");
 			VVariant.SetConstructor<Core::Variant, const Core::Variant&>("void f(const Variant &in)");
 			VVariant.SetMethod("bool Deserialize(const String &in, bool = false)", &Core::Variant::Deserialize);
 			VVariant.SetMethod("String Serialize() const", &Core::Variant::Serialize);

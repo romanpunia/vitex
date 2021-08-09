@@ -4223,7 +4223,7 @@ namespace Tomahawk
 		ReallocCallback Mem::OnRealloc;
 		FreeCallback Mem::OnFree;
 #ifdef _DEBUG
-		static thread_local std::stack<Debug::Context> DbgFrame;
+		static thread_local std::stack<Debug::Context> PerfFrame;
 		static thread_local bool DbgIgnore = false;
 		void Debug::OpPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id)
 		{
@@ -4242,16 +4242,16 @@ namespace Tomahawk
 			Ctx.Line = Line;
 
 			Safe.lock();
-			Contexts.emplace_back(std::move(Ctx));
+			OpFrame.emplace_back(std::move(Ctx));
 			Safe.unlock();
 		}
 		void Debug::OpSignal()
 		{
-			if (Contexts.empty())
+			if (OpFrame.empty())
 				return;
 
 			Safe.lock();
-			for (auto& Ctx : Contexts)
+			for (auto& Ctx : OpFrame)
 			{
 				uint64_t Time = DateTime().Microseconds();
 				uint64_t Diff = Time - Ctx.Time;
@@ -4266,7 +4266,7 @@ namespace Tomahawk
 		void Debug::OpPop(void* Id)
 		{
 			Safe.lock();
-			for (auto It = Contexts.begin(); It != Contexts.end(); It++)
+			for (auto It = OpFrame.begin(); It != OpFrame.end(); It++)
 			{
 				Context& Ctx = *It;
 				if (Ctx.Id != Id)
@@ -4276,7 +4276,7 @@ namespace Tomahawk
 				if (Diff > Ctx.Threshold)
 					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
 
-				Contexts.erase(It);
+				OpFrame.erase(It);
 				break;
 			}
 			Safe.unlock();
@@ -4298,15 +4298,15 @@ namespace Tomahawk
 			Next.Threshold = ThresholdMS * 1000;
 			Next.Time = DateTime().Microseconds();
 			Next.Line = Line;
-			DbgFrame.emplace(std::move(Next));
+			PerfFrame.emplace(std::move(Next));
 		}
 		void Debug::PerfSignal()
 		{
 			if (DbgIgnore)
 				return;
 
-			TH_ASSERT_V(!DbgFrame.empty(), "debug frame should be set");
-			Debug::Context& Next = DbgFrame.top();
+			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
+			Debug::Context& Next = PerfFrame.top();
 			uint64_t Time = DateTime().Microseconds();
 			uint64_t Diff = Time - Next.Time;
 			if (Diff > Next.Threshold)
@@ -4320,12 +4320,12 @@ namespace Tomahawk
 			if (DbgIgnore)
 				return;
 
-			TH_ASSERT_V(!DbgFrame.empty(), "debug frame should be set");
-			Debug::Context& Next = DbgFrame.top();
+			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
+			Debug::Context& Next = PerfFrame.top();
 			uint64_t Diff = DateTime().Microseconds() - Next.Time;
 			if (Diff > Next.Threshold)
 				TH_WARN("[perf] @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
-			DbgFrame.pop();
+			PerfFrame.pop();
 		}
 		void Debug::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
@@ -4516,7 +4516,9 @@ namespace Tomahawk
 		{
 			OS::Process::Interrupt();
 		}
-		std::vector<Debug::Context> Debug::Contexts;
+#ifdef _DEBUG
+		std::vector<Debug::Context> Debug::OpFrame;
+#endif
 		std::function<void(const char*, int)> Debug::Callback;
 		std::mutex Debug::Safe;
 		bool Debug::Enabled = false;

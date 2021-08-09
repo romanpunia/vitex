@@ -940,10 +940,12 @@ namespace Tomahawk
 				uint64_t Time = 0;
 				int Line = 0;
 			};
+
+		private:
+			static std::vector<Context> OpFrame;
 #endif
 
 		private:
-			static std::vector<Context> Contexts;
 			static std::function<void(const char*, int)> Callback;
 			static std::mutex Safe;
 			static bool Enabled;

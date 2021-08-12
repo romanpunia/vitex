@@ -4398,6 +4398,153 @@ namespace Tomahawk
 		int STDThread::ContextUD = 550;
 		int STDThread::EngineListUD = 551;
 
+		STDPromise::STDPromise(VMCContext* Base) : Context(Base), Future(nullptr), Ref(2), Flag(false)
+		{
+			if (!Context)
+				return;
+
+			VMContext* Next = VMContext::Get(Context);
+			if (Next != nullptr)
+				++Next->Promises;
+
+			VMCManager* Engine = Context->GetEngine();
+			Context->AddRef();
+			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Promise"));
+		}
+		void STDPromise::Release()
+		{
+			Flag = false;
+			if (asAtomicDec(Ref) <= 0)
+			{
+				ReleaseReferences(nullptr);
+				this->~STDPromise();
+				asFreeMem((void*)this);
+			}
+		}
+		void STDPromise::AddRef()
+		{
+			Flag = false;
+			asAtomicInc(Ref);
+		}
+		void STDPromise::EnumReferences(VMCManager* Engine)
+		{
+			if (Context != nullptr)
+				Engine->GCEnumCallback(Context);
+
+			if (Future != nullptr)
+				Engine->GCEnumCallback(Future);
+		}
+		void STDPromise::ReleaseReferences(VMCManager*)
+		{
+			if (Future != nullptr)
+			{
+				Future->Release();
+				Future = nullptr;
+			}
+
+			if (Context != nullptr)
+			{
+				Context->Release();
+				Context = nullptr;
+			}
+		}
+		void STDPromise::SetGCFlag()
+		{
+			Flag = true;
+		}
+		bool STDPromise::GetGCFlag()
+		{
+			return Flag;
+		}
+		int STDPromise::GetRefCount()
+		{
+			return Ref;
+		}
+		int STDPromise::Set(void* fRef, int TypeId)
+		{
+			VMContext* Base = VMContext::Get(Context);
+			if (!Base || Future != nullptr)
+				return -1;
+
+			void* Data = asAllocMem(sizeof(STDAny));
+			STDAny* Result = new(Data) STDAny(fRef, TypeId, Context->GetEngine());
+			Result->Release();
+
+			if (TypeId & asTYPEID_OBJHANDLE)
+			{
+				VMCManager* Manager = Context->GetEngine();
+				Manager->ReleaseScriptObject(*(void**)fRef, Manager->GetTypeInfoById(TypeId));
+			}
+
+			Result->AddRef();
+			if (Future != nullptr)
+				Future->Release();
+			Future = Result;
+			Release();
+
+			return Core::Schedule::Get()->SetTask([this, Base]()
+			{
+				int State = Base->Execute(false);
+				Base->Promises--;
+				Base->ExecuteNotify(State);
+			}) ? 0 : -1;
+		}
+		int STDPromise::Set(void* fRef, const char* TypeName)
+		{
+			if (!Context)
+				return -1;
+
+			return Set(fRef, Context->GetEngine()->GetTypeIdByDecl(TypeName));
+		}
+		bool STDPromise::To(void* fRef, int TypeId)
+		{
+			if (!Future)
+				return false;
+
+			return Future->Retrieve(fRef, TypeId);
+		}
+		void* STDPromise::Get()
+		{
+			if (!Future)
+				return nullptr;
+
+			int TypeId = Future->GetTypeId();
+			if (TypeId & asTYPEID_OBJHANDLE)
+				return &Future->Value.ValueObj;
+			else if (TypeId & asTYPEID_MASK_OBJECT)
+				return Future->Value.ValueObj;
+			else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
+				return &Future->Value.ValueInt;
+
+			Context->SetException("retrieve this object explicitly with To(T& out)");
+			return nullptr;
+		}
+		STDPromise* STDPromise::Create()
+		{
+			VMCContext* Context = asGetActiveContext();
+			if (!Context)
+				return nullptr;
+
+			VMCManager* Engine = Context->GetEngine();
+			if (!Engine)
+				return nullptr;
+
+			return new(asAllocMem(sizeof(STDPromise))) STDPromise(Context);
+		}
+		STDPromise* STDPromise::Jump(STDPromise* Value)
+		{
+			VMContext* Context = VMContext::Get();
+			if (!Context || !Value)
+				return Value;
+
+			if (Value->Future != nullptr)
+				--Context->Promises;
+			else
+				Context->Suspend();
+
+			return Value;
+		}
+		
 		bool STDRegisterAny(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
@@ -4813,6 +4960,25 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Random", "uint GetU()", asMETHOD(STDRandom, GetU), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "double GetD()", asMETHOD(STDRandom, GetD), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Random", "void SeedFromTime()", asMETHOD(STDRandom, SeedFromTime), asCALL_THISCALL);
+			return true;
+		}
+		bool STDRegisterPromise(VMManager* Manager)
+		{
+			VMCManager* Engine = Manager->GetEngine();
+			if (!Engine)
+				return false;
+
+			Engine->RegisterObjectType("Promise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(STDArray::TemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(STDPromise, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(STDPromise, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(STDPromise, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(STDPromise, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(STDPromise, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDPromise, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDPromise, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "bool To(?&out)", asMETHODPR(STDPromise, To, (void*, int), bool), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "T& Get()", asMETHOD(STDPromise, Get), asCALL_THISCALL);
 			return true;
 		}
 		bool STDFreeCore()

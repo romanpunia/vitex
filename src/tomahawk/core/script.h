@@ -1604,6 +1604,8 @@ namespace Tomahawk
 
 		class TH_OUT VMContext : public Core::Object
 		{
+			friend class STDPromise;
+
 		private:
 			static int ContextUD;
 
@@ -1617,19 +1619,18 @@ namespace Tomahawk
 
 		private:
 			std::queue<Executable> Queue;
+			std::atomic<size_t> Promises;
+			std::atomic<size_t> Nests;
 			std::mutex Exchange;
 			ResumeCallback Resolve;
 			VMCContext* Context;
 			VMManager* Manager;
-			bool Indirect;
 
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
-			Core::Async<int> Coexecute(const VMFunction& Function, ArgsCallback&& ArgsSetup);
 			int SetResumeCallback(ResumeCallback&& Callback);
 			int SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
-			int SetIndirectExecution(bool Enabled);
 			int AddRefVM() const;
 			int ReleaseVM();
 			int Prepare(const VMFunction& Function);
@@ -1644,6 +1645,7 @@ namespace Tomahawk
 			int PopState();
 			bool IsNested(unsigned int* NestCount = 0) const;
 			bool IsThrown() const;
+			bool IsPending() const;
 			int SetObject(void* Object);
 			int SetArg8(unsigned int Arg, unsigned char Value);
 			int SetArg16(unsigned int Arg, unsigned short Value);
@@ -1698,6 +1700,7 @@ namespace Tomahawk
 			}
 
 		private:
+			void ExecuteNotify(int State);
 			void ExecuteNext();
 
 		public:
@@ -1820,7 +1823,6 @@ namespace Tomahawk
 			static VMManager* Get();
 			static size_t GetDefaultAccessMask();
 			static void FreeProxy();
-			static void FreeThread();
 
 		private:
 			static std::string GetLibraryName(const std::string& Path);

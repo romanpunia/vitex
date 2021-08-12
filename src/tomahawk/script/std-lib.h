@@ -2,7 +2,9 @@
 #define TH_SCRIPT_STD_API_H
 
 #include "../core/script.h"
-#define TH_PROMISIFY(MemberFunction) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Function
+#define TH_TYPENAME(Name, TypeName) static constexpr const char Name[] = TypeName
+#define TH_PROMISIFY(MemberFunction, TypeId) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define TH_PROMISIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
 #define TH_ARRAYIFY(MemberFunction, TypeId) Tomahawk::Script::STDArray::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define TH_ARRAYIFY_DECL(MemberFunction, TypeName) Tomahawk::Script::STDArray::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeName>
 #define TH_ANYIFY(MemberFunction, TypeId) Tomahawk::Script::STDAny::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
@@ -12,23 +14,9 @@ namespace Tomahawk
 {
 	namespace Script
 	{
+		class STDPromise;
+
 		class STDArray;
-
-		class TH_OUT STDPromise
-		{
-		public:
-			template <typename T, T>
-			struct Ify;
-
-			template <typename T, typename R, typename ...Args, Core::Async<R>(T::* F)(Args...)>
-			struct Ify<Core::Async<R>(T::*)(Args...), F>
-			{
-				static R Function(T* Base, Args... Data)
-				{
-					return TH_AWAIT((Base->*F)(Data...));
-				}
-			};
-		};
 
 		class TH_OUT STDException
 		{
@@ -133,6 +121,8 @@ namespace Tomahawk
 
 		class TH_OUT STDAny
 		{
+			friend STDPromise;
+
 		protected:
 			struct ValueStruct
 			{
@@ -726,6 +716,66 @@ namespace Tomahawk
 			static STDRandom* Create();
 		};
 
+		class TH_OUT STDPromise
+		{
+		private:
+			VMCContext* Context;
+			STDAny* Future;
+			bool Flag;
+			int Ref;
+
+		private:
+			STDPromise(VMCContext* Base);
+
+		public:
+			void EnumReferences(VMCManager* Engine);
+			void ReleaseReferences(VMCManager* Engine);
+			void AddRef();
+			void Release();
+			void SetGCFlag();
+			bool GetGCFlag();
+			int GetRefCount();
+			int Set(void* Ref, int TypeId);
+			int Set(void* Ref, const char* TypeId);
+			bool To(void* fRef, int TypeId);
+			void* Get();
+
+		private:
+			static STDPromise* Create();
+			static STDPromise* Jump(STDPromise* Value);
+
+		public:
+			template <typename T, T>
+			struct Ify;
+
+			template <typename T, typename R, typename ...Args, Core::Async<R>(T::* F)(Args...)>
+			struct Ify<Core::Async<R>(T::*)(Args...), F>
+			{
+				template <VMTypeId TypeId>
+				static STDPromise* Id(T* Base, Args... Data)
+				{
+					STDPromise* Future = STDPromise::Create();
+					((Base->*F)(Data...)).Await([Future](R&& Result)
+					{
+						Future->Set((void*)&Result, (int)TypeId);
+					});
+					
+					return Jump(Future);
+				}
+				template <const char* TypeName>
+				static STDPromise* Decl(T* Base, Args... Data)
+				{
+					STDPromise* Future = STDPromise::Create();
+					((Base->*F)(Data...)).Await([Future](R&& Result)
+					{
+						Future->Set((void*)&Result, TypeName);
+					});
+
+					return Jump(Future);
+				}
+			};
+		};
+
 		TH_OUT bool STDRegisterAny(VMManager* Manager);
 		TH_OUT bool STDRegisterArray(VMManager* Manager);
 		TH_OUT bool STDRegisterComplex(VMManager* Manager);
@@ -739,6 +789,7 @@ namespace Tomahawk
 		TH_OUT bool STDRegisterMutex(VMManager* Manager);
 		TH_OUT bool STDRegisterThread(VMManager* Manager);
 		TH_OUT bool STDRegisterRandom(VMManager* Manager);
+		TH_OUT bool STDRegisterPromise(VMManager* Manager);
 		TH_OUT bool STDFreeCore();
 	}
 }

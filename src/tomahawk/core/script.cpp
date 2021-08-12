@@ -1975,6 +1975,9 @@ namespace Tomahawk
 		bool VMCompiler::Clear()
 		{
 			TH_ASSERT(Manager != nullptr, false, "engine should be set");
+			if (Context != nullptr && Context->IsPending())
+				return false;
+
 			Manager->Lock();
 			{
 				if (Module != nullptr)
@@ -2349,7 +2352,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr), Indirect(true)
+		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr), Promises(0), Nests(0)
 		{
 			TH_ASSERT_V(Base != nullptr, "context should be set");
 			Manager = VMManager::Get(Base->GetEngine());
@@ -2358,6 +2361,7 @@ namespace Tomahawk
 		}
 		VMContext::~VMContext()
 		{
+			TH_ASSERT_V(!IsPending(), "there are %i promises still pending", (int)Promises.load());
 			while (!Queue.empty())
 			{
 				Queue.front().Function.Release();
@@ -2371,7 +2375,24 @@ namespace Tomahawk
 				else
 					Context->Release();
 			}
-			asThreadCleanup();
+		}
+		void VMContext::ExecuteNotify(int fState)
+		{
+			asEContextState State = (asEContextState)fState;
+			if (Promises.load() > 0 || !Queue.empty())
+			{
+				Resolve(VMResume::Continue);
+				if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
+					ExecuteNext();
+			}
+			else if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
+				Resolve(VMResume::Finish);
+			else if (State == asEXECUTION_ERROR)
+				Resolve(VMResume::Finish_With_Error);
+			else if (State == asEXECUTION_EXCEPTION)
+				Resolve(IsThrown() ? VMResume::Finish_With_Error : VMResume::Finish);
+			else
+				Resolve(VMResume::Continue);
 		}
 		void VMContext::ExecuteNext()
 		{
@@ -2390,13 +2411,6 @@ namespace Tomahawk
 			Execute(Next.Function, std::move(Next.Args), Next.Notify);
 			Next.Function.Release();
 		}
-		Core::Async<int> VMContext::Coexecute(const VMFunction& Function, ArgsCallback&& ArgsSetup)
-		{
-			return Core::Coasync<int>([this, Function, ArgsSetup = std::move(ArgsSetup)]() mutable
-			{
-				return Execute(Function, std::move(ArgsSetup));
-			});
-		}
 		int VMContext::SetResumeCallback(ResumeCallback&& Callback)
 		{
 			Resolve = std::move(Callback);
@@ -2406,11 +2420,6 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
-		}
-		int VMContext::SetIndirectExecution(bool Enabled)
-		{
-			Indirect = Enabled;
-			return 0;
 		}
 		int VMContext::AddRefVM() const
 		{
@@ -2441,13 +2450,9 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
-			bool AllowIndirection = Indirect;
 			asEContextState State = Context->GetState();
 			if (State != asEXECUTION_FINISHED && State != asEXECUTION_ABORTED && State != asEXECUTION_EXCEPTION && State != asEXECUTION_ERROR && State != asEXECUTION_UNINITIALIZED)
 			{
-				if (!AllowIndirection)
-					return asCONTEXT_ACTIVE;
-
 				Executable Next;
 				Next.Notify = Notify;
 				Next.Args = std::move(Callback);
@@ -2472,11 +2477,13 @@ namespace Tomahawk
 				Result = Execute(Notify);
 			}
 
-			if (Nested && Result != asEXECUTION_SUSPENDED)
-				Context->PopState();
-
-			if (AllowIndirection)
-				ExecuteNext();
+			if (Nested)
+			{
+				if (Result != asEXECUTION_SUSPENDED)
+					Context->PopState();
+				else
+					Nests++;
+			}
 
 			return Result;
 		}
@@ -2486,25 +2493,22 @@ namespace Tomahawk
 			if (State == asEXECUTION_ACTIVE)
 				return asEXECUTION_ACTIVE;
 
-			bool AllowIndirection = Indirect;
 			State = (asEContextState)Context->Execute();
-			if (Context->IsNested())
+			if (Nests > 0 && State != asEXECUTION_SUSPENDED)
+			{
 				Context->PopState();
-
-			if (AllowIndirection)
-				ExecuteNext();
+				Nests--;
+			}
 
 			if (!Notify || !Resolve)
-				return State;
-
-			if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
-				Resolve(VMResume::Finish);
-			else if (State == asEXECUTION_ERROR)
-				Resolve(VMResume::Finish_With_Error);
-			else if (State == asEXECUTION_EXCEPTION)
-				Resolve(IsThrown() ? VMResume::Finish_With_Error : VMResume::Finish);
+			{
+				if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
+					ExecuteNext();
+				else if (Promises.load() > 0 || !Queue.empty())
+					ExecuteNext();
+			}
 			else
-				Resolve(VMResume::Continue);
+				ExecuteNotify((int)State);
 
 			return State;
 		}
@@ -2576,6 +2580,10 @@ namespace Tomahawk
 				return false;
 
 			return Exception[0] != '\0';
+		}
+		bool VMContext::IsPending() const
+		{
+			return Promises.load() > 0 || !Queue.empty();
 		}
 		int VMContext::SetObject(void* Object)
 		{
@@ -3703,11 +3711,6 @@ namespace Tomahawk
 		void VMManager::FreeProxy()
 		{
 			STDFreeCore();
-			FreeThread();
-		}
-		void VMManager::FreeThread()
-		{
-			asThreadCleanup();
 		}
 		VMManager* VMManager::Get(VMCManager* Engine)
 		{
@@ -3797,6 +3800,7 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/exception", { "std/string" }, STDRegisterException);
 			Engine->AddSubmodule("std/mutex", { }, STDRegisterMutex);
 			Engine->AddSubmodule("std/thread", { "std/any" }, STDRegisterThread);
+			Engine->AddSubmodule("std/promise", { "std/any" }, STDRegisterPromise);
 			Engine->AddSubmodule("std", { }, nullptr);
 
 			/* Core library */

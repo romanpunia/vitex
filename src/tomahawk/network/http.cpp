@@ -191,6 +191,18 @@ namespace Tomahawk
 			}
 			bool GatewayFrame::Finish()
 			{
+				if (!Save)
+				{
+					if (Compiler != nullptr)
+					{
+						if (!Compiler->Clear())
+							return false;
+						TH_CLEAR(Compiler);
+					}
+
+					Save = true;
+				}
+
 				if (Buffer != nullptr)
 				{
 					TH_FREE(Buffer);
@@ -204,15 +216,6 @@ namespace Tomahawk
 					return true;
 				}
 
-				if (Save)
-					return Base->Finish();
-
-				Save = true;
-				if (!Compiler)
-					return Base->Finish();
-
-				Compiler->Clear();
-				TH_CLEAR(Compiler);
 				return Base->Finish();
 			}
 			bool GatewayFrame::Start()
@@ -225,7 +228,8 @@ namespace Tomahawk
 					return Finish();
 				}
 
-				return Core::Coasync([this]()
+				auto* Queue = Core::Schedule::Get();
+				return Queue->SetTask([this]()
 				{
 					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
 					if (Result < 0)
@@ -241,7 +245,6 @@ namespace Tomahawk
 
 					Script::VMContext* Context = Compiler->GetContext();
 					Context->SetResumeCallback(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1));
-					Context->SetIndirectExecution(false);
 					Context->Execute(Main, nullptr);
 
 					return true;

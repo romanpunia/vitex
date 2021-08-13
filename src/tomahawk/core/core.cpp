@@ -1991,14 +1991,24 @@ namespace Tomahawk
 #else
 			memset(&DateValue, 0, sizeof(DateValue));
 #endif
+			time_t Now = (time_t)Seconds();
+			LocalTime(&Now, &DateValue);
+			DateRebuild = true;
 		}
-		DateTime::DateTime(const DateTime& Value) : Time(Value.Time), DateRebuild(false)
+		DateTime::DateTime(uint64_t Seconds) : Time(std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Seconds))), DateRebuild(false)
 		{
 #ifdef TH_MICROSOFT
 			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
 #else
 			memset(&DateValue, 0, sizeof(DateValue));
 #endif
+			time_t Now = Seconds;
+			LocalTime(&Now, &DateValue);
+			DateRebuild = true;
+		}
+		DateTime::DateTime(const DateTime& Value) : Time(Value.Time), DateRebuild(Value.DateRebuild)
+		{
+			memcpy(&DateValue, &Value.DateValue, sizeof(DateValue));
 		}
 		void DateTime::Rebuild()
 		{
@@ -2049,7 +2059,12 @@ namespace Tomahawk
 		}
 		std::string DateTime::Format(const std::string& Value)
 		{
-			return Parser(Value).Replace("{ns}", std::to_string(Nanoseconds())).Replace("{us}", std::to_string(Microseconds())).Replace("{ms}", std::to_string(Milliseconds())).Replace("{s}", std::to_string(Seconds())).Replace("{m}", std::to_string(Minutes())).Replace("{h}", std::to_string(Hours())).Replace("{D}", std::to_string(Days())).Replace("{W}", std::to_string(Weeks())).Replace("{M}", std::to_string(Months())).Replace("{Y}", std::to_string(Years())).R();
+			if (DateRebuild)
+				Rebuild();
+
+			char Buffer[256];
+			strftime(Buffer, sizeof(Buffer), Value.c_str(), &DateValue);
+			return Buffer;
 		}
 		std::string DateTime::Date(const std::string& Value)
 		{
@@ -2065,6 +2080,15 @@ namespace Tomahawk
 			T.tm_year += 1900;
 
 			return Parser(Value).Replace("{s}", T.tm_sec < 10 ? Form("0%i", T.tm_sec).R() : std::to_string(T.tm_sec)).Replace("{m}", T.tm_min < 10 ? Form("0%i", T.tm_min).R() : std::to_string(T.tm_min)).Replace("{h}", std::to_string(T.tm_hour)).Replace("{D}", std::to_string(T.tm_yday)).Replace("{MD}", T.tm_mday < 10 ? Form("0%i", T.tm_mday).R() : std::to_string(T.tm_mday)).Replace("{WD}", std::to_string(T.tm_wday + 1)).Replace("{M}", T.tm_mon < 10 ? Form("0%i", T.tm_mon).R() : std::to_string(T.tm_mon)).Replace("{Y}", std::to_string(T.tm_year)).R();
+		}
+		std::string DateTime::Iso8601()
+		{
+			if (DateRebuild)
+				Rebuild();
+
+			char Buffer[64];
+			strftime(Buffer, sizeof(Buffer), "%FT%TZ", &DateValue);
+			return Buffer;
 		}
 		DateTime DateTime::Now()
 		{
@@ -2326,25 +2350,65 @@ namespace Tomahawk
 			DateValue.tm_year = (int)Value - 1900;
 			return *this;
 		}
-		uint64_t DateTime::Nanoseconds()
+		uint64_t DateTime::DateSecond()
 		{
 			if (DateRebuild)
 				Rebuild();
 
+			return DateValue.tm_sec;
+		}
+		uint64_t DateTime::DateMinute()
+		{
+			if (DateRebuild)
+				Rebuild();
+
+			return DateValue.tm_min + 1;
+		}
+		uint64_t DateTime::DateHour()
+		{
+			if (DateRebuild)
+				Rebuild();
+
+			return DateValue.tm_hour + 1;
+		}
+		uint64_t DateTime::DateDay()
+		{
+			if (DateRebuild)
+				Rebuild();
+
+			return DateValue.tm_mday;
+		}
+		uint64_t DateTime::DateWeek()
+		{
+			if (DateRebuild)
+				Rebuild();
+
+			return DateValue.tm_wday + 1;
+		}
+		uint64_t DateTime::DateMonth()
+		{
+			if (DateRebuild)
+				Rebuild();
+
+			return DateValue.tm_mon + 1;
+		}
+		uint64_t DateTime::DateYear()
+		{
+			if (DateRebuild)
+				Rebuild();
+
+			return DateValue.tm_year + 1900;
+		}
+		uint64_t DateTime::Nanoseconds()
+		{
 			return std::chrono::duration_cast<std::chrono::nanoseconds>(Time).count();
 		}
 		uint64_t DateTime::Microseconds()
 		{
-			if (DateRebuild)
-				Rebuild();
-
 			return std::chrono::duration_cast<std::chrono::microseconds>(Time).count();
 		}
 		uint64_t DateTime::Milliseconds()
 		{
-			if (DateRebuild)
-				Rebuild();
-
 			return std::chrono::duration_cast<std::chrono::milliseconds>(Time).count();
 		}
 		uint64_t DateTime::Seconds()
@@ -4238,7 +4302,7 @@ namespace Tomahawk
 			Ctx.Function = Function;
 			Ctx.Id = Id;
 			Ctx.Threshold = ThresholdMS * 1000;
-			Ctx.Time = DateTime().Microseconds();
+			Ctx.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 			Ctx.Line = Line;
 
 			Safe.lock();
@@ -4253,7 +4317,7 @@ namespace Tomahawk
 			Safe.lock();
 			for (auto& Ctx : OpFrame)
 			{
-				uint64_t Time = DateTime().Microseconds();
+				uint64_t Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 				uint64_t Diff = Time - Ctx.Time;
 				if (Diff > Ctx.Threshold)
 				{
@@ -4272,7 +4336,7 @@ namespace Tomahawk
 				if (Ctx.Id != Id)
 					continue;
 
-				uint64_t Diff = DateTime().Microseconds() - Ctx.Time;
+				uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Ctx.Time;
 				if (Diff > Ctx.Threshold)
 					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
 
@@ -4296,7 +4360,7 @@ namespace Tomahawk
 			Next.Section = Section;
 			Next.Function = Function;
 			Next.Threshold = ThresholdMS * 1000;
-			Next.Time = DateTime().Microseconds();
+			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 			Next.Line = Line;
 			PerfFrame.emplace(std::move(Next));
 		}
@@ -4307,7 +4371,7 @@ namespace Tomahawk
 
 			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
 			Debug::Context& Next = PerfFrame.top();
-			uint64_t Time = DateTime().Microseconds();
+			uint64_t Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 			uint64_t Diff = Time - Next.Time;
 			if (Diff > Next.Threshold)
 			{
@@ -4322,7 +4386,7 @@ namespace Tomahawk
 
 			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
 			Debug::Context& Next = PerfFrame.top();
-			uint64_t Diff = DateTime().Microseconds() - Next.Time;
+			uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Next.Time;
 			if (Diff > Next.Threshold)
 				TH_WARN("[perf] @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
 			PerfFrame.pop();

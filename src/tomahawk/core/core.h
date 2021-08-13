@@ -101,7 +101,7 @@ typedef socklen_t socket_size_t;
 #endif
 #if TH_DLEVEL >= 4
 #ifndef _DEBUG
-#define TH_TRACE(Format, ...)
+#define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
@@ -113,19 +113,19 @@ typedef socklen_t socket_size_t;
 #endif
 #elif TH_DLEVEL >= 3
 #ifndef _DEBUG
-#define TH_TRACE(Format, ...)
+#define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_TRACE(Format, ...)
+#define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 2
-#define TH_TRACE(Format, ...)
-#define TH_INFO(Format, ...)
+#define TH_TRACE(Format, ...) ((void)0)
+#define TH_INFO(Format, ...) ((void)0)
 #ifndef _DEBUG
 #define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
@@ -134,19 +134,19 @@ typedef socklen_t socket_size_t;
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 1
-#define TH_TRACE(Format, ...)
-#define TH_INFO(Format, ...)
-#define TH_WARN(Format, ...)
+#define TH_TRACE(Format, ...) ((void)0)
+#define TH_INFO(Format, ...) ((void)0)
+#define TH_WARN(Format, ...) ((void)0)
 #ifndef _DEBUG
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #else
-#define TH_TRACE(Format, ...)
-#define TH_INFO(...)
-#define TH_WARN(...)
-#define TH_ERR(...)
+#define TH_TRACE(Format, ...) ((void)0)
+#define TH_INFO(...) ((void)0)
+#define TH_WARN(...) ((void)0)
+#define TH_ERR(...) ((void)0)
 #endif
 #ifdef _DEBUG
 #if TH_DLEVEL >= 1
@@ -174,15 +174,15 @@ typedef socklen_t socket_size_t;
 #define TH_ORET(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::OpPop((void*)(Id)); return __vfbuf; }
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FILE, TH_FUNCTION, "coawait of [ " TH_STRINGIFY(Value) " ]", TH_LINE)
 #else
-#define TH_ASSERT(Condition, Returnable, Format, ...)
-#define TH_ASSERT_V(Condition, Format, ...)
-#define TH_PPUSH(Section, Threshold)
-#define TH_PSIG()
-#define TH_PPOP()
+#define TH_ASSERT(Condition, Returnable, Format, ...) ((void)0)
+#define TH_ASSERT_V(Condition, Format, ...) ((void)0)
+#define TH_PPUSH(Section, Threshold) ((void)0)
+#define TH_PSIG() ((void)0)
+#define TH_PPOP() ((void)0)
 #define TH_PRET(Value) return Value
-#define TH_OPUSH(Section, Threshold, Id)
-#define TH_OSIG()
-#define TH_OPOP(Id)
+#define TH_OPUSH(Section, Threshold, Id) ((void)0)
+#define TH_OSIG() ((void)0)
+#define TH_OPOP(Id) ((void)0)
 #define TH_ORET(Id, Value) return Value
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
 #endif
@@ -548,6 +548,7 @@ namespace Tomahawk
 
 		public:
 			DateTime();
+			DateTime(uint64_t Seconds);
 			DateTime(const DateTime& Value);
 			DateTime& operator= (const DateTime& Other);
 			void operator +=(const DateTime& Right);
@@ -559,6 +560,7 @@ namespace Tomahawk
 			bool operator ==(const DateTime& Right);
 			std::string Format(const std::string& Value);
 			std::string Date(const std::string& Value);
+			std::string Iso8601();
 			DateTime Now();
 			DateTime FromNanoseconds(uint64_t Value);
 			DateTime FromMicroseconds(uint64_t Value);
@@ -572,13 +574,20 @@ namespace Tomahawk
 			DateTime FromYears(uint64_t Value);
 			DateTime operator +(const DateTime& Right) const;
 			DateTime operator -(const DateTime& Right) const;
-			DateTime& SetDateSeconds(uint64_t Value, bool NoFlush = false);
-			DateTime& SetDateMinutes(uint64_t Value, bool NoFlush = false);
-			DateTime& SetDateHours(uint64_t Value, bool NoFlush = false);
-			DateTime& SetDateDay(uint64_t Value, bool NoFlush = false);
-			DateTime& SetDateWeek(uint64_t Value, bool NoFlush = false);
-			DateTime& SetDateMonth(uint64_t Value, bool NoFlush = false);
-			DateTime& SetDateYear(uint64_t Value, bool NoFlush = false);
+			DateTime& SetDateSeconds(uint64_t Value, bool NoFlush = true);
+			DateTime& SetDateMinutes(uint64_t Value, bool NoFlush = true);
+			DateTime& SetDateHours(uint64_t Value, bool NoFlush = true);
+			DateTime& SetDateDay(uint64_t Value, bool NoFlush = true);
+			DateTime& SetDateWeek(uint64_t Value, bool NoFlush = true);
+			DateTime& SetDateMonth(uint64_t Value, bool NoFlush = true);
+			DateTime& SetDateYear(uint64_t Value, bool NoFlush = true);
+			uint64_t DateSecond();
+			uint64_t DateMinute();
+			uint64_t DateHour();
+			uint64_t DateDay();
+			uint64_t DateWeek();
+			uint64_t DateMonth();
+			uint64_t DateYear();
 			uint64_t Nanoseconds();
 			uint64_t Microseconds();
 			uint64_t Milliseconds();

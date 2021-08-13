@@ -1358,203 +1358,213 @@ namespace Tomahawk
 					Core::Parser(&Site->Gateway.Session.DocumentRoot).Path(N, D);
 					Core::Parser(&Site->ResourceRoot).Path(N, D);
 
-					std::vector<Core::Document*> Hosts = It->FindCollection("host", true);
-					for (auto&& Host : Hosts)
+					std::vector<Core::Document*> Groups = It->FindCollection("group", true);
+					for (auto&& Subgroup : Groups)
 					{
-						std::string Value;
-						if (NMake::Unpack(Host, &Value))
-							Site->Hosts.insert(Core::Parser(&Value).Path(N, D).R());
+						std::string Match;
+						Core::Document* fMatch = Subgroup->GetAttribute("match");
+						if (fMatch != nullptr && fMatch->Value.GetType() == Core::VarType::String)
+							Match = fMatch->Value.GetBlob();
+
+						Network::HTTP::RouteMode Mode = Network::HTTP::RouteMode::Start;
+						Core::Document* fMode = Subgroup->GetAttribute("mode");
+						if (fMode != nullptr && fMode->Value.GetType() == Core::VarType::String)
+						{
+							if (fMode->Value.IsString("start"))
+								Mode = Network::HTTP::RouteMode::Start;
+							else if (fMode->Value.IsString("sub"))
+								Mode = Network::HTTP::RouteMode::Match;
+							else if (fMode->Value.IsString("end"))
+								Mode = Network::HTTP::RouteMode::End;
+						}
+
+						Network::HTTP::RouteGroup* Group = Site->Group(Match, Mode);
+						std::vector<Core::Document*> Routes = Subgroup->FindCollection("route", true);
+						for (auto&& Base : Routes)
+						{
+							Network::HTTP::RouteEntry* Route = nullptr;
+							std::string SourceURL = "*";
+							NMake::Unpack(Base, &SourceURL);
+
+							Core::Document* From = Base->GetAttribute("from"), *For = Base->GetAttribute("for");;
+							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
+							{
+								auto Subalias = Aliases.find(From->Value.GetBlob());
+								if (Subalias != Aliases.end())
+									Route = Site->Route(SourceURL, Group, Subalias->second);
+								else
+									Route = Site->Route(Match, Mode, SourceURL);
+							}
+							else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceURL.empty())
+								Route = Site->Route(Match, Mode, "..." + For->Value.GetBlob() + "...");
+							else
+								Route = Site->Route(Match, Mode, SourceURL);
+
+							std::vector<Core::Document*> GatewayFiles = Base->FetchCollection("gateway.files.file");
+							if (Base->Fetch("gateway.files.[clear]") != nullptr)
+								Route->Gateway.Files.clear();
+
+							for (auto& File : GatewayFiles)
+							{
+								std::string Pattern;
+								if (NMake::Unpack(File, &Pattern))
+									Route->Gateway.Files.emplace_back(Pattern, true);
+							}
+
+							std::vector<Core::Document*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
+							if (Base->Fetch("gateway.methods.[clear]") != nullptr)
+								Route->Gateway.Methods.clear();
+
+							for (auto& Method : GatewayMethods)
+							{
+								std::string Value;
+								if (NMake::Unpack(Method, &Value))
+									Route->Gateway.Methods.push_back(Value);
+							}
+
+							std::vector<Core::Document*> AuthUsers = Base->FetchCollection("auth.users.user");
+							if (Base->Fetch("auth.users.[clear]") != nullptr)
+								Route->Auth.Users.clear();
+
+							for (auto& User : AuthUsers)
+							{
+								Network::HTTP::Credentials Credentials;
+								NMake::Unpack(User->Find("username"), &Credentials.Username);
+								NMake::Unpack(User->Find("password"), &Credentials.Password);
+								Route->Auth.Users.push_back(Credentials);
+							}
+
+							std::vector<Core::Document*> AuthMethods = Base->FetchCollection("auth.methods.method");
+							if (Base->Fetch("auth.methods.[clear]") != nullptr)
+								Route->Auth.Methods.clear();
+
+							for (auto& Method : AuthMethods)
+							{
+								std::string Value;
+								if (NMake::Unpack(Method, &Value))
+									Route->Auth.Methods.push_back(Value);
+							}
+
+							std::vector<Core::Document*> CompressionFiles = Base->FetchCollection("compression.files.file");
+							if (Base->Fetch("compression.files.[clear]") != nullptr)
+								Route->Compression.Files.clear();
+
+							for (auto& File : CompressionFiles)
+							{
+								std::string Value;
+								if (NMake::Unpack(File, &Value))
+									Route->Compression.Files.emplace_back(Value, true);
+							}
+
+							std::vector<Core::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
+							if (Base->Fetch("hidden-files.[clear]") != nullptr)
+								Route->HiddenFiles.clear();
+
+							for (auto& File : HiddenFiles)
+							{
+								std::string Value;
+								if (NMake::Unpack(File, &Value))
+									Route->HiddenFiles.emplace_back(Value, true);
+							}
+
+							std::vector<Core::Document*> IndexFiles = Base->FetchCollection("index-files.index");
+							if (Base->Fetch("index-files.[clear]") != nullptr)
+								Route->IndexFiles.clear();
+
+							for (auto& File : IndexFiles)
+							{
+								std::string Value;
+								if (NMake::Unpack(File, &Value))
+									Route->IndexFiles.push_back(Value);
+							}
+
+							std::vector<Core::Document*> ErrorFiles = Base->FetchCollection("error-files.error");
+							if (Base->Fetch("error-files.[clear]") != nullptr)
+								Route->ErrorFiles.clear();
+
+							for (auto& File : ErrorFiles)
+							{
+								Network::HTTP::ErrorFile Pattern;
+								NMake::Unpack(File->Find("file"), &Pattern.Pattern);
+								NMake::Unpack(File->Find("status"), &Pattern.StatusCode);
+								Route->ErrorFiles.push_back(Pattern);
+							}
+
+							std::vector<Core::Document*> MimeTypes = Base->FetchCollection("mime-types.file");
+							if (Base->Fetch("mime-types.[clear]") != nullptr)
+								Route->MimeTypes.clear();
+
+							for (auto& Type : MimeTypes)
+							{
+								Network::HTTP::MimeType Pattern;
+								NMake::Unpack(Type->Find("ext"), &Pattern.Extension);
+								NMake::Unpack(Type->Find("type"), &Pattern.Type);
+								Route->MimeTypes.push_back(Pattern);
+							}
+
+							std::vector<Core::Document*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
+							if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
+								Route->DisallowedMethods.clear();
+
+							for (auto& Method : DisallowedMethods)
+							{
+								std::string Value;
+								if (NMake::Unpack(Method, &Value))
+									Route->DisallowedMethods.push_back(Value);
+							}
+
+							std::string Tune;
+							if (NMake::Unpack(Base->Fetch("compression.tune"), &Tune))
+							{
+								if (!strcmp(Tune.c_str(), "Filtered"))
+									Route->Compression.Tune = Network::HTTP::CompressionTune::Filtered;
+								else if (!strcmp(Tune.c_str(), "Huffman"))
+									Route->Compression.Tune = Network::HTTP::CompressionTune::Huffman;
+								else if (!strcmp(Tune.c_str(), "Rle"))
+									Route->Compression.Tune = Network::HTTP::CompressionTune::Rle;
+								else if (!strcmp(Tune.c_str(), "Fixed"))
+									Route->Compression.Tune = Network::HTTP::CompressionTune::Fixed;
+								else
+									Route->Compression.Tune = Network::HTTP::CompressionTune::Default;
+							}
+
+							if (NMake::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
+								Route->Compression.QualityLevel = Compute::Mathi::Clamp(Route->Compression.QualityLevel, 0, 9);
+
+							if (NMake::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
+								Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
+
+							if (NMake::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
+								Core::Parser(&Route->DocumentRoot).Path(N, D);
+
+							NMake::Unpack(Base->Find("override"), &Route->Override);
+							NMake::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
+							NMake::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
+							NMake::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
+							NMake::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
+							NMake::Unpack(Base->Fetch("compression.enabled"), &Route->Compression.Enabled);
+							NMake::Unpack(Base->Find("char-set"), &Route->CharSet);
+							NMake::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
+							NMake::Unpack(Base->Find("redirect"), &Route->Redirect);
+							NMake::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
+							NMake::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
+							NMake::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength);
+							NMake::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
+							NMake::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
+							NMake::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
+							NMake::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
+
+							if (!For || For->Value.GetType() != Core::VarType::String)
+								continue;
+
+							std::string Alias = For->Value.GetBlob();
+							auto Subalias = Aliases.find(Alias);
+							if (Subalias == Aliases.end())
+								Aliases[Alias] = Route;
+						}
 					}
 
-					std::vector<Core::Document*> Routes = It->FindCollection("route", true);
-					for (auto&& Base : Routes)
-					{
-						std::string SourceURL = "*";
-						NMake::Unpack(Base, &SourceURL);
-
-						Network::HTTP::RouteEntry* Route = nullptr;
-						Core::Document* For = Base->GetAttribute("for");
-						Core::Document* From = Base->GetAttribute("from");
-						if (From != nullptr && From->Value.GetType() == Core::VarType::String)
-						{
-							auto Subalias = Aliases.find(From->Value.GetBlob());
-							if (Subalias != Aliases.end())
-								Route = Site->Route(SourceURL, Subalias->second);
-							else
-								Route = Site->Route(SourceURL);
-						}
-						else if (For != nullptr && For->Value.GetType() == Core::VarType::String && SourceURL.empty())
-							Route = Site->Route("..." + For->Value.GetBlob() + "...");
-						else
-							Route = Site->Route(SourceURL);
-
-						if (!Route)
-							continue;
-
-						std::vector<Core::Document*> GatewayFiles = Base->FetchCollection("gateway.files.file");
-						if (Base->Fetch("gateway.files.[clear]") != nullptr)
-							Route->Gateway.Files.clear();
-
-						for (auto& File : GatewayFiles)
-						{
-							std::string Pattern;
-							if (NMake::Unpack(File, &Pattern))
-								Route->Gateway.Files.emplace_back(Pattern, true);
-						}
-
-						std::vector<Core::Document*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
-						if (Base->Fetch("gateway.methods.[clear]") != nullptr)
-							Route->Gateway.Methods.clear();
-
-						for (auto& Method : GatewayMethods)
-						{
-							std::string Value;
-							if (NMake::Unpack(Method, &Value))
-								Route->Gateway.Methods.push_back(Value);
-						}
-
-						std::vector<Core::Document*> AuthUsers = Base->FetchCollection("auth.users.user");
-						if (Base->Fetch("auth.users.[clear]") != nullptr)
-							Route->Auth.Users.clear();
-
-						for (auto& User : AuthUsers)
-						{
-							Network::HTTP::Credentials Credentials;
-							NMake::Unpack(User->Find("username"), &Credentials.Username);
-							NMake::Unpack(User->Find("password"), &Credentials.Password);
-							Route->Auth.Users.push_back(Credentials);
-						}
-
-						std::vector<Core::Document*> AuthMethods = Base->FetchCollection("auth.methods.method");
-						if (Base->Fetch("auth.methods.[clear]") != nullptr)
-							Route->Auth.Methods.clear();
-
-						for (auto& Method : AuthMethods)
-						{
-							std::string Value;
-							if (NMake::Unpack(Method, &Value))
-								Route->Auth.Methods.push_back(Value);
-						}
-
-						std::vector<Core::Document*> CompressionFiles = Base->FetchCollection("compression.files.file");
-						if (Base->Fetch("compression.files.[clear]") != nullptr)
-							Route->Compression.Files.clear();
-
-						for (auto& File : CompressionFiles)
-						{
-							std::string Value;
-							if (NMake::Unpack(File, &Value))
-								Route->Compression.Files.emplace_back(Value, true);
-						}
-
-						std::vector<Core::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
-						if (Base->Fetch("hidden-files.[clear]") != nullptr)
-							Route->HiddenFiles.clear();
-
-						for (auto& File : HiddenFiles)
-						{
-							std::string Value;
-							if (NMake::Unpack(File, &Value))
-								Route->HiddenFiles.emplace_back(Value, true);
-						}
-
-						std::vector<Core::Document*> IndexFiles = Base->FetchCollection("index-files.index");
-						if (Base->Fetch("index-files.[clear]") != nullptr)
-							Route->IndexFiles.clear();
-
-						for (auto& File : IndexFiles)
-						{
-							std::string Value;
-							if (NMake::Unpack(File, &Value))
-								Route->IndexFiles.push_back(Value);
-						}
-
-						std::vector<Core::Document*> ErrorFiles = Base->FetchCollection("error-files.error");
-						if (Base->Fetch("error-files.[clear]") != nullptr)
-							Route->ErrorFiles.clear();
-
-						for (auto& File : ErrorFiles)
-						{
-							Network::HTTP::ErrorFile Pattern;
-							NMake::Unpack(File->Find("file"), &Pattern.Pattern);
-							NMake::Unpack(File->Find("status"), &Pattern.StatusCode);
-							Route->ErrorFiles.push_back(Pattern);
-						}
-
-						std::vector<Core::Document*> MimeTypes = Base->FetchCollection("mime-types.file");
-						if (Base->Fetch("mime-types.[clear]") != nullptr)
-							Route->MimeTypes.clear();
-
-						for (auto& Type : MimeTypes)
-						{
-							Network::HTTP::MimeType Pattern;
-							NMake::Unpack(Type->Find("ext"), &Pattern.Extension);
-							NMake::Unpack(Type->Find("type"), &Pattern.Type);
-							Route->MimeTypes.push_back(Pattern);
-						}
-
-						std::vector<Core::Document*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
-						if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
-							Route->DisallowedMethods.clear();
-
-						for (auto& Method : DisallowedMethods)
-						{
-							std::string Value;
-							if (NMake::Unpack(Method, &Value))
-								Route->DisallowedMethods.push_back(Value);
-						}
-
-						std::string Tune;
-						if (NMake::Unpack(Base->Fetch("compression.tune"), &Tune))
-						{
-							if (!strcmp(Tune.c_str(), "Filtered"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune::Filtered;
-							else if (!strcmp(Tune.c_str(), "Huffman"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune::Huffman;
-							else if (!strcmp(Tune.c_str(), "Rle"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune::Rle;
-							else if (!strcmp(Tune.c_str(), "Fixed"))
-								Route->Compression.Tune = Network::HTTP::CompressionTune::Fixed;
-							else
-								Route->Compression.Tune = Network::HTTP::CompressionTune::Default;
-						}
-
-						if (NMake::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
-							Route->Compression.QualityLevel = Compute::Mathi::Clamp(Route->Compression.QualityLevel, 0, 9);
-
-						if (NMake::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
-							Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
-
-						if (NMake::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
-							Core::Parser(&Route->DocumentRoot).Path(N, D);
-
-						NMake::Unpack(Base->Find("default"), &Route->Default);
-						NMake::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
-						NMake::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
-						NMake::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
-						NMake::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
-						NMake::Unpack(Base->Fetch("compression.enabled"), &Route->Compression.Enabled);
-						NMake::Unpack(Base->Find("char-set"), &Route->CharSet);
-						NMake::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
-						NMake::Unpack(Base->Find("refer"), &Route->Refer);
-						NMake::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
-						NMake::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
-						NMake::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength);
-						NMake::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
-						NMake::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
-						NMake::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
-						NMake::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
-
-						if (!For || For->Value.GetType() != Core::VarType::String)
-							continue;
-
-						std::string Alias = For->Value.GetBlob();
-						auto Subalias = Aliases.find(Alias);
-						if (Subalias == Aliases.end())
-							Aliases[Alias] = Route;
-					}
-
-					for (auto Item : Aliases)
+					for (auto& Item : Aliases)
 						Site->Remove(Item.second);
 				}
 

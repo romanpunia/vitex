@@ -67,6 +67,13 @@ namespace Tomahawk
 				Default = 0
 			};
 
+			enum class RouteMode
+			{
+				Start,
+				Match,
+				End
+			};
+
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
 			typedef std::function<void(struct Connection*, const char*)> MessageCallback;
 			typedef std::function<bool(struct Connection*, const char*, int64_t)> ContentCallback;
@@ -160,6 +167,7 @@ namespace Tomahawk
 				std::string Query;
 				std::string Path;
 				std::string URI;
+				std::string Where;
 				Compute::RegexResult Match;
 				Credentials User;
 				Content ContentState = Content::Not_Loaded;
@@ -334,8 +342,8 @@ namespace Tomahawk
 				std::string CharSet = "utf-8";
 				std::string ProxyIpAddress = "";
 				std::string AccessControlAllowOrigin;
-				std::string Refer;
-				std::string Default;
+				std::string Redirect;
+				std::string Override;
 				uint64_t WebSocketTimeout = 30000;
 				uint64_t StaticFileMaxAge = 604800;
 				uint64_t MaxCacheLength = 16384;
@@ -344,6 +352,13 @@ namespace Tomahawk
 				bool AllowSendFile = false;
 				Compute::RegexSource URI;
 				SiteEntry* Site = nullptr;
+			};
+
+			struct TH_OUT RouteGroup
+			{
+				std::vector<RouteEntry*> Routes;
+				std::string Match;
+				RouteMode Mode;
 			};
 
 			struct TH_OUT SiteEntry
@@ -368,10 +383,8 @@ namespace Tomahawk
 					SuccessCallback OnRewriteURL;
 				} Callbacks;
 
-				std::unordered_set<std::string> Hosts;
-				std::vector<RouteEntry*> Routes;
+				std::vector<RouteGroup> Groups;
 				std::string ResourceRoot = "./files/";
-				std::string SiteName;
 				uint64_t MaxResources = 5;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;
@@ -380,24 +393,36 @@ namespace Tomahawk
 				SiteEntry(const SiteEntry&) = delete;
 				SiteEntry(SiteEntry&&) = delete;
 				~SiteEntry();
-				RouteEntry* Route(const std::string& Pattern);
-				RouteEntry* Route(const std::string& Pattern, RouteEntry* From);
+				void Sort();
+				RouteGroup* Group(const std::string& Match, RouteMode Mode);
+				RouteEntry* Route(const std::string& Match, RouteMode Mode, const std::string& Pattern);
+				RouteEntry* Route(const std::string& Pattern, RouteGroup* Group, RouteEntry* From);
 				bool Remove(RouteEntry* Source);
-				bool Get(const char* Pattern, SuccessCallback Callback);
-				bool Post(const char* Pattern, SuccessCallback Callback);
-				bool Put(const char* Pattern, SuccessCallback Callback);
-				bool Patch(const char* Pattern, SuccessCallback Callback);
-				bool Delete(const char* Pattern, SuccessCallback Callback);
-				bool Options(const char* Pattern, SuccessCallback Callback);
-				bool Access(const char* Pattern, SuccessCallback Callback);
-				bool WebSocketConnect(const char* Pattern, WebSocketCallback Callback);
-				bool WebSocketDisconnect(const char* Pattern, WebSocketCallback Callback);
-				bool WebSocketReceive(const char* Pattern, WebSocketReadCallback Callback);
+				bool Get(const char* Pattern, const SuccessCallback& Callback);
+				bool Get(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Post(const char* Pattern, const SuccessCallback& Callback);
+				bool Post(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Put(const char* Pattern, const SuccessCallback& Callback);
+				bool Put(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Patch(const char* Pattern, const SuccessCallback& Callback);
+				bool Patch(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Delete(const char* Pattern, const SuccessCallback& Callback);
+				bool Delete(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Options(const char* Pattern, const SuccessCallback& Callback);
+				bool Options(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool Access(const char* Pattern, const SuccessCallback& Callback);
+				bool Access(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback);
+				bool WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback);
+				bool WebSocketConnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
+				bool WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback);
+				bool WebSocketDisconnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback);
+				bool WebSocketReceive(const char* Pattern, const WebSocketReadCallback& Callback);
+				bool WebSocketReceive(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback);
 			};
 
 			struct TH_OUT MapRouter final : public SocketRouter
 			{
-				std::vector<SiteEntry*> Sites;
+				std::unordered_map<std::string, SiteEntry*> Sites;
 				std::string ModuleRoot;
 				Script::VMManager* VM;
 

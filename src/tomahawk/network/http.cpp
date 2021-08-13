@@ -296,22 +296,92 @@ namespace Tomahawk
 			}
 			SiteEntry::~SiteEntry()
 			{
-				for (auto* Entry : Routes)
-					TH_DELETE(RouteEntry, Entry);
-				Routes.clear();
+				for (auto& Group : Groups)
+				{
+					for (auto* Entry : Group.Routes)
+						TH_DELETE(RouteEntry, Entry);
+				}
 
 				TH_DELETE(RouteEntry, Base);
 				Base = nullptr;
 			}
-			RouteEntry* SiteEntry::Route(const std::string& Pattern)
+			void SiteEntry::Sort()
+			{
+				for (auto& Group : Groups)
+				{
+					qsort((void*)Group.Routes.data(), (size_t)Group.Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int
+					{
+						HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
+						if (A->URI.GetRegex().empty())
+							return -1;
+
+						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
+						if (B->URI.GetRegex().empty())
+							return 1;
+
+						bool fA = A->URI.IsSimple(), fB = B->URI.IsSimple();
+						if (fA && !fB)
+							return -1;
+						else if (!fA && fB)
+							return 1;
+
+						return (int)A->URI.GetRegex().size() - (int)B->URI.GetRegex().size();
+					});
+				}
+
+				qsort((void*)Groups.data(), (size_t)Groups.size(), sizeof(HTTP::RouteGroup), [](const void* A1, const void* B1) -> int
+				{
+					HTTP::RouteGroup& A = *(HTTP::RouteGroup*)B1;
+					if (A.Match.empty())
+						return -1;
+
+					HTTP::RouteGroup& B = *(HTTP::RouteGroup*)A1;
+					if (B.Match.empty())
+						return 1;
+
+					return (int)A.Match.size() - (int)B.Match.size();
+				});
+			}
+			RouteGroup* SiteEntry::Group(const std::string& Match, RouteMode Mode)
+			{
+				for (auto& Group : Groups)
+				{
+					if (Group.Match == Match && Group.Mode == Mode)
+						return &Group;
+				}
+
+				HTTP::RouteGroup Group;
+				Group.Match = Match;
+				Group.Mode = Mode;
+				Groups.emplace_back(std::move(Group));
+				return &Groups.back();
+			}
+			RouteEntry* SiteEntry::Route(const std::string& Match, RouteMode Mode, const std::string& Pattern)
 			{
 				if (Pattern.empty() || Pattern == "/")
 					return Base;
 
-				for (auto* Entry : Routes)
+				HTTP::RouteGroup* Source = nullptr;
+				for (auto& Group : Groups)
 				{
-					if (Entry->URI.GetRegex() == Pattern)
-						return Entry;
+					if (Group.Match != Match || Group.Mode != Mode)
+						continue;
+
+					Source = &Group;
+					for (auto* Entry : Group.Routes)
+					{
+						if (Entry->URI.GetRegex() == Pattern)
+							return Entry;
+					}
+				}
+
+				if (!Source)
+				{
+					HTTP::RouteGroup Group;
+					Group.Match = Match;
+					Group.Mode = Mode;
+					Groups.emplace_back(std::move(Group));
+					Source = &Groups.back();
 				}
 
 				HTTP::RouteEntry* From = Base;
@@ -319,126 +389,177 @@ namespace Tomahawk
 				Core::Parser Src(Pattern);
 				Src.ToLower();
 
-				for (auto* Entry : Routes)
+				for (auto& Group : Groups)
 				{
-					Core::Parser Dest(Entry->URI.GetRegex());
-					Dest.ToLower();
-
-					if (Dest.StartsWith("...") && Dest.EndsWith("..."))
-						continue;
-
-					if (Src.Find(Dest.R()).Found || Compute::Regex::Match(&Entry->URI, Result, Src.R()))
+					for (auto* Entry : Group.Routes)
 					{
-						From = Entry;
-						break;
+						Core::Parser Dest(Entry->URI.GetRegex());
+						Dest.ToLower();
+
+						if (Dest.StartsWith("...") && Dest.EndsWith("..."))
+							continue;
+
+						if (Src.Find(Dest.R()).Found || Compute::Regex::Match(&Entry->URI, Result, Src.R()))
+						{
+							From = Entry;
+							break;
+						}
 					}
 				}
 
-				return Route(Pattern, From);
+				return Route(Pattern, Source, From);
 			}
-			RouteEntry* SiteEntry::Route(const std::string& Pattern, RouteEntry* From)
+			RouteEntry* SiteEntry::Route(const std::string& Pattern, RouteGroup* Group, RouteEntry* From)
 			{
+				TH_ASSERT(Group != nullptr, nullptr, "group should be set");
+				TH_ASSERT(From != nullptr, nullptr, "from should be set");
+
 				HTTP::RouteEntry* Result = TH_NEW(HTTP::RouteEntry, *From);
 				Result->URI = Compute::RegexSource(Pattern);
-				Routes.push_back(Result);
+				Group->Routes.push_back(Result);
 
 				return Result;
 			}
 			bool SiteEntry::Remove(RouteEntry* Source)
 			{
 				TH_ASSERT(Source != nullptr, false, "source should be set");
-				auto It = std::find(Routes.begin(), Routes.end(), Source);
-				if (It == Routes.end())
-					return false;
+				for (auto& Group : Groups)
+				{
+					auto It = std::find(Group.Routes.begin(), Group.Routes.end(), Source);
+					if (It == Group.Routes.end())
+						continue;
 
-				TH_DELETE(RouteEntry, *It);
-				Routes.erase(It);
-				return true;
+					TH_DELETE(RouteEntry, *It);
+					Group.Routes.erase(It);
+					return true;
+				}
+
+				return false;
 			}
-			bool SiteEntry::Get(const char* Pattern, SuccessCallback Callback)
+			bool SiteEntry::Get(const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return Get("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Get(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Get = Callback;
 				return true;
 			}
-			bool SiteEntry::Post(const char* Pattern, SuccessCallback Callback)
+			bool SiteEntry::Post(const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return Post("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Post(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Post = Callback;
 				return true;
 			}
-			bool SiteEntry::Put(const char* Pattern, SuccessCallback Callback)
+			bool SiteEntry::Put(const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return Put("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Put(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Put = Callback;
 				return true;
 			}
-			bool SiteEntry::Patch(const char* Pattern, SuccessCallback Callback)
+			bool SiteEntry::Patch(const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return Patch("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Patch(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Patch = Callback;
 				return true;
 			}
-			bool SiteEntry::Delete(const char* Pattern, SuccessCallback Callback)
+			bool SiteEntry::Delete(const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return Delete("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Delete(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Delete = Callback;
 				return true;
 			}
-			bool SiteEntry::Options(const char* Pattern, SuccessCallback Callback)
+			bool SiteEntry::Options(const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return Options("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Options(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Options = Callback;
 				return true;
 			}
-			bool SiteEntry::Access(const char* Pattern, SuccessCallback Callback)
+			bool SiteEntry::Access(const char* Pattern, const SuccessCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return Access("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::Access(const std::string& Match, RouteMode Mode, const char* Pattern, const SuccessCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.Access = Callback;
 				return true;
 			}
-			bool SiteEntry::WebSocketConnect(const char* Pattern, WebSocketCallback Callback)
+			bool SiteEntry::WebSocketConnect(const char* Pattern, const WebSocketCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return WebSocketConnect("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::WebSocketConnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.WebSocket.Connect = Callback;
 				return true;
 			}
-			bool SiteEntry::WebSocketDisconnect(const char* Pattern, WebSocketCallback Callback)
+			bool SiteEntry::WebSocketDisconnect(const char* Pattern, const WebSocketCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return WebSocketDisconnect("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::WebSocketDisconnect(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
 				Value->Callbacks.WebSocket.Disconnect = Callback;
 				return true;
 			}
-			bool SiteEntry::WebSocketReceive(const char* Pattern, WebSocketReadCallback Callback)
+			bool SiteEntry::WebSocketReceive(const char* Pattern, const WebSocketReadCallback& Callback)
 			{
-				HTTP::RouteEntry* Value = Route(Pattern);
+				return WebSocketReceive("", RouteMode::Start, Pattern, Callback);
+			}
+			bool SiteEntry::WebSocketReceive(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback)
+			{
+				HTTP::RouteEntry* Value = Route(Match, Mode, Pattern);
 				if (!Value)
 					return false;
 
@@ -451,21 +572,22 @@ namespace Tomahawk
 			}
 			MapRouter::~MapRouter()
 			{
-				for (auto* Entry : Sites)
-					TH_DELETE(SiteEntry, Entry);
+				for (auto& Entry : Sites)
+					TH_DELETE(SiteEntry, Entry.second);
 			}
 			SiteEntry* MapRouter::Site(const char* Pattern)
 			{
 				TH_ASSERT(Pattern != nullptr, false, "pattern should be set");
-				for (auto* Entry : Sites)
-				{
-					if (Entry->SiteName.find(Pattern) != std::string::npos)
-						return Entry;
-				}
+				auto It = Sites.find(Pattern);
+				if (It != Sites.end())
+					return It->second;
+
+				std::string Name = Core::Parser(Pattern).ToLower().R();
+				if (Name.empty())
+					Name = "*";
 
 				HTTP::SiteEntry* Result = TH_NEW(HTTP::SiteEntry);
-				Result->SiteName = Core::Parser(Pattern).ToLower().R();
-				Sites.push_back(Result);
+				Sites[Name] = Result;
 
 				return Result;
 			}
@@ -2877,6 +2999,14 @@ namespace Tomahawk
 			void Util::ConstructPath(Connection* Base)
 			{
 				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				if (!Base->Route->Override.empty())
+				{
+					Base->Request.Path.assign(Base->Route->Override);
+					if (Base->Route->Site->Callbacks.OnRewriteURL)
+						Base->Route->Site->Callbacks.OnRewriteURL(Base);
+					return;
+				}
+
 				for (uint64_t i = 0; i < Base->Request.URI.size(); i++)
 				{
 					if (Base->Request.URI[i] == '%' && i + 1 < Base->Request.URI.size())
@@ -3022,30 +3152,71 @@ namespace Tomahawk
 				if (!Host)
 					return false;
 
-				Core::Parser(Host).ToLower();
-				for (auto* Entry : Router->Sites)
+				auto Listen = Router->Listeners.find(Core::Parser(Host).ToLower().R());
+				if (Listen == Router->Listeners.end())
 				{
-					if (Entry->SiteName != "*" && Entry->SiteName.find(*Host) == std::string::npos)
-						continue;
-
-					auto Hostname = Entry->Hosts.find(Base->Host->Name);
-					if (Hostname == Entry->Hosts.end())
+					Listen = Router->Listeners.find("*");
+					if (Listen == Router->Listeners.end())
 						return false;
-
-					for (auto* Basis : Entry->Routes)
-					{
-						if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
-						{
-							Base->Route = Basis;
-							return true;
-						}
-					}
-
-					Base->Route = Entry->Base;
-					return true;
 				}
 
-				return false;
+				auto It = Router->Sites.find(Listen->first);
+				if (It == Router->Sites.end())
+					return false;
+
+				Base->Request.Where = Base->Request.URI;
+				for (auto& Group : It->second->Groups)
+				{
+					if (!Group.Match.empty())
+					{
+						Core::Parser URI(&Base->Request.URI);
+						if (Group.Mode == RouteMode::Start)
+						{
+							if (!URI.StartsWith(Group.Match))
+								continue;
+							URI.Substring((uint64_t)Group.Match.size(), URI.Size());
+						}
+						else if (Group.Mode == RouteMode::Match)
+						{
+							if (!URI.Find(Group.Match).Found)
+								continue;
+						}
+						else if (Group.Mode == RouteMode::End)
+						{
+							if (!URI.EndsWith(Group.Match))
+								continue;
+							URI.Clip(URI.Size() - (uint64_t)Group.Match.size());
+						}
+
+						if (URI.Empty())
+							URI.Append('/');
+
+						for (auto* Basis : Group.Routes)
+						{
+							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
+							{
+								Base->Route = Basis;
+								return true;
+							}
+						}
+
+						URI.Assign(Base->Request.Where);
+					}
+					else
+					{
+						for (auto* Basis : Group.Routes)
+						{
+							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
+							{
+								Base->Route = Basis;
+								return true;
+							}
+						}
+					}
+				}
+
+				Base->Route = It->second->Base;
+				return true;
 			}
 			bool Util::WebSocketWrite(Connection* Base, const char* Buffer, int64_t Size, WebSocketOp Opcode, const SuccessCallback& Callback)
 			{
@@ -3876,20 +4047,15 @@ namespace Tomahawk
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
+					if (WebSocketUpgradeAllowed(Base))
 					{
-						if (WebSocketUpgradeAllowed(Base))
+						return Core::Schedule::Get()->SetTask([Base]()
 						{
-							return Core::Schedule::Get()->SetTask([Base]()
-							{
-								RouteWEBSOCKET(Base);
-							});
-						}
-
-						return Base->Error(404, "Requested resource was not found.");
+							RouteWEBSOCKET(Base);
+						});
 					}
 
-					Base->Request.Path.assign(Base->Route->Default);
+					return Base->Error(404, "Requested resource was not found.");
 				}
 
 				if (WebSocketUpgradeAllowed(Base))
@@ -3942,12 +4108,7 @@ namespace Tomahawk
 					return Base->Error(404, "Requested resource was not found.");
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
-				{
-					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
-						return Base->Error(404, "Requested resource was not found.");
-
-					Base->Request.Path.assign(Base->Route->Default);
-				}
+					return Base->Error(404, "Requested resource was not found.");
 
 				if (ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
@@ -3981,12 +4142,7 @@ namespace Tomahawk
 					return Base->Error(403, "Resource overwrite denied.");
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
-				{
-					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
-						return Base->Error(403, "Directory overwrite denied.");
-
-					Base->Request.Path.assign(Base->Route->Default);
-				}
+					return Base->Error(403, "Directory overwrite denied.");
 
 				if (ResourceProvided(Base, &Base->Resource))
 					return ProcessGateway(Base);
@@ -4064,12 +4220,7 @@ namespace Tomahawk
 					return Base->Error(403, "Operation denied by server.");
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
-				{
-					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
-						return Base->Error(404, "Requested resource was not found.");
-
-					Base->Request.Path.assign(Base->Route->Default);
-				}
+					return Base->Error(404, "Requested resource was not found.");
 
 				if (ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
@@ -4108,12 +4259,7 @@ namespace Tomahawk
 					return Base->Error(403, "Operation denied by server.");
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
-				{
-					if (Base->Route->Default.empty() || !Core::OS::File::State(Base->Route->Default, &Base->Resource))
-						return Base->Error(404, "Requested resource was not found.");
-
-					Base->Request.Path.assign(Base->Route->Default);
-				}
+					return Base->Error(404, "Requested resource was not found.");
 
 				if (ResourceProvided(Base, &Base->Resource))
 					return ProcessGateway(Base);
@@ -5091,8 +5237,9 @@ namespace Tomahawk
 				auto* Root = (MapRouter*)NewRouter;
 
 				Root->ModuleRoot = Core::OS::Path::ResolveDirectory(Root->ModuleRoot.c_str());
-				for (auto* Entry : Root->Sites)
+				for (auto& Site : Root->Sites)
 				{
+					auto* Entry = Site.second;
 					Entry->Gateway.Session.DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Gateway.Session.DocumentRoot.c_str());
 					Entry->ResourceRoot = Core::OS::Path::ResolveDirectory(Entry->ResourceRoot.c_str());
 					Entry->Base->DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Base->DocumentRoot.c_str());
@@ -5106,73 +5253,53 @@ namespace Tomahawk
 					if (!Entry->ResourceRoot.empty())
 						Core::OS::Directory::Patch(Entry->ResourceRoot);
 
-					if (Entry->Hosts.empty())
-						TH_WARN("site \"%s\" has no hosts", Entry->SiteName.c_str());
-
-					if (!Entry->Base->Default.empty())
-						Entry->Base->Default = Core::OS::Path::ResolveResource(Entry->Base->Default, Entry->Base->DocumentRoot);
+					if (!Entry->Base->Override.empty())
+						Entry->Base->Override = Core::OS::Path::ResolveResource(Entry->Base->Override, Entry->Base->DocumentRoot);
 
 					for (auto& Item : Entry->Base->ErrorFiles)
 						Item.Pattern = Core::OS::Path::Resolve(Item.Pattern.c_str());
 
-					for (auto* Route : Entry->Routes)
+					for (auto& Group : Entry->Groups)
 					{
-						Route->DocumentRoot = Core::OS::Path::ResolveDirectory(Route->DocumentRoot.c_str());
-						Route->Site = Entry;
-
-						if (!Route->Default.empty())
-							Route->Default = Core::OS::Path::ResolveResource(Route->Default, Route->DocumentRoot);
-
-						for (auto& File : Route->ErrorFiles)
-							File.Pattern = Core::OS::Path::Resolve(File.Pattern.c_str());
-
-						if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
-							continue;
-
-						if (Modules.find(Route->DocumentRoot) != Modules.end())
-							continue;
-
-						Modules.insert(Route->DocumentRoot);
-						for (auto& Exp : Route->Gateway.Files)
+						for (auto* Route : Group.Routes)
 						{
-							std::vector<std::string> Result = Root->VM->VerifyModules(Route->DocumentRoot, Exp);
-							if (!Result.empty())
+							Route->DocumentRoot = Core::OS::Path::ResolveDirectory(Route->DocumentRoot.c_str());
+							Route->Site = Entry;
+
+							if (!Route->Override.empty())
+								Route->Override = Core::OS::Path::ResolveResource(Route->Override, Route->DocumentRoot);
+
+							for (auto& File : Route->ErrorFiles)
+								File.Pattern = Core::OS::Path::Resolve(File.Pattern.c_str());
+
+							if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
+								continue;
+
+							if (Modules.find(Route->DocumentRoot) != Modules.end())
+								continue;
+
+							Modules.insert(Route->DocumentRoot);
+							for (auto& Exp : Route->Gateway.Files)
 							{
-								std::string Files;
-								for (auto& Name : Result)
-									Files += "\n\t" + Name;
+								std::vector<std::string> Result = Root->VM->VerifyModules(Route->DocumentRoot, Exp);
+								if (!Result.empty())
+								{
+									std::string Files;
+									for (auto& Name : Result)
+										Files += "\n\t" + Name;
 
-								TH_ERR("(vm) there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
-								Entry->Gateway.Enabled = false;
-								break;
+									TH_ERR("(vm) there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
+									Entry->Gateway.Enabled = false;
+									break;
+								}
 							}
-						}
 
-						if (Entry->Gateway.Enabled && !Route->Gateway.Files.empty())
-							TH_TRACE("(vm) modules are verified for: %s", Route->DocumentRoot.c_str());
+							if (Entry->Gateway.Enabled && !Route->Gateway.Files.empty())
+								TH_TRACE("(vm) modules are verified for: %s", Route->DocumentRoot.c_str());
+						}
 					}
 
-					qsort((void*)Entry->Routes.data(), (size_t)Entry->Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int
-					{
-						HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
-						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
-						A->URI.IgnoreCase = true;
-						B->URI.IgnoreCase = true;
-
-						if (A->URI.GetRegex().empty())
-							return -1;
-
-						if (B->URI.GetRegex().empty())
-							return 1;
-
-						bool fA = A->URI.IsSimple(), fB = B->URI.IsSimple();
-						if (fA && !fB)
-							return -1;
-						else if (!fA && fB)
-							return 1;
-
-						return (int)A->URI.GetRegex().size() - (int)B->URI.GetRegex().size();
-					});
+					Entry->Sort();
 				}
 
 				return true;
@@ -5222,6 +5349,7 @@ namespace Tomahawk
 				Base->Request.Query.clear();
 				Base->Request.Path.clear();
 				Base->Request.URI.clear();
+				Base->Request.Where.clear();
 
 				memset(Base->Request.Method, 0, sizeof(Base->Request.Method));
 				memset(Base->Request.Version, 0, sizeof(Base->Request.Version));
@@ -5276,9 +5404,9 @@ namespace Tomahawk
 					if (!Util::ConstructRoute(Conf, Base) || !Base->Route)
 						return Base->Error(400, "Request cannot be resolved");
 
-					if (!Base->Route->Refer.empty())
+					if (!Base->Route->Redirect.empty())
 					{
-						Base->Request.URI = Base->Route->Refer;
+						Base->Request.URI = Base->Route->Redirect;
 						if (!Util::ConstructRoute(Conf, Base))
 							Base->Route = Base->Route->Site->Base;
 					}
@@ -5374,8 +5502,9 @@ namespace Tomahawk
 				TH_ASSERT(Router != nullptr, false, "router should be set");
 				MapRouter* Root = (MapRouter*)Router;
 
-				for (auto* Entry : Root->Sites)
+				for (auto& Site : Root->Sites)
 				{
+					auto* Entry = Site.second;
 					if (!Entry->ResourceRoot.empty())
 					{
 						if (!Core::OS::Directory::Remove(Entry->ResourceRoot.c_str()))

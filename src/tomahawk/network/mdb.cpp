@@ -1250,7 +1250,7 @@ namespace Tomahawk
 			bool Stream::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
 			{
 #ifdef _DEBUG
-				TH_TRACE("[mongoc] template query on stream 0x%p\n\t%s", (void*)this, Name.empty() ? "empty query name" : Name.c_str());
+				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 #endif
 				return Query(Driver::GetQuery(Name, Map, Once));
 			}
@@ -2145,7 +2145,7 @@ namespace Tomahawk
 			Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Transaction* Session)
 			{
 #ifdef _DEBUG
-				TH_TRACE("[mongoc] template query on collection 0x%p\n\t%s", (void*)this, Name.empty() ? "empty query name" : Name.c_str());
+				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 #endif
 				return Query(Driver::GetQuery(Name, Map, Once), Session);
 			}

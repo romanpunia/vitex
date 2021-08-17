@@ -8262,6 +8262,10 @@ namespace Tomahawk
 				}
 			}
 		}
+		void Document::Reserve(size_t Size)
+		{
+			Nodes.reserve(Size);
+		}
 		void Document::Clear()
 		{
 			for (auto& Document : Nodes)

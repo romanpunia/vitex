@@ -25,6 +25,8 @@ namespace Tomahawk
 
 			class Driver;
 
+			class Connection;
+
 			typedef std::function<void(Notify)> OnNotification;
 			typedef pg_conn TConnection;
 			typedef pg_result TResponse;
@@ -177,6 +179,13 @@ namespace Tomahawk
 				Busy
 			};
 
+			class TH_OUT Util
+			{
+			public:
+				static std::string InlineArray(Cluster* Client, Core::Document* Array);
+				static std::string InlineQuery(Cluster* Client, Core::Document* Where);
+			};
+
 			class TH_OUT Address
 			{
 			private:
@@ -231,9 +240,9 @@ namespace Tomahawk
 			public:
 				int SetValueText(char* Data, size_t Size);
 				std::string GetName() const;
-				Core::Variant GetValue() const;
-				Core::Document* GetValueAuto() const;
-				char* GetValueData() const;
+				Core::Variant Get() const;
+				Core::Document* GetInline() const;
+				char* GetRaw() const;
 				int GetFormatId() const;
 				int GetModId() const;
 				int GetTableIndex() const;
@@ -241,7 +250,7 @@ namespace Tomahawk
 				ObjectId GetTypeId() const;
 				size_t GetIndex() const;
 				size_t GetSize() const;
-				size_t GetValueSize() const;
+				size_t GetRawSize() const;
 				Row GetRow() const;
 				bool IsNull() const;
 				operator bool() const
@@ -263,7 +272,7 @@ namespace Tomahawk
 				Row(TResponse* NewBase, size_t fRowIndex);
 
 			public:
-				Core::Document* GetDocument() const;
+				Core::Document* GetObject() const;
 				size_t GetIndex() const;
 				size_t GetSize() const;
 				Response GetCursor() const;
@@ -293,7 +302,8 @@ namespace Tomahawk
 				Response();
 				Response(TResponse* NewBase);
 				void Release();
-				Core::Document* GetDocument() const;
+				Core::Document* GetArray() const;
+				Core::Document* GetObject(size_t Index = 0) const;
 				std::string GetCommandStatusText() const;
 				std::string GetStatusText() const;
 				std::string GetErrorText() const;
@@ -304,8 +314,8 @@ namespace Tomahawk
 				size_t GetAffectedRows() const;
 				size_t GetSize() const;
 				Row GetRow(size_t Index) const;
-				Row First() const;
-				Row Last() const;
+				Row Front() const;
+				Row Back() const;
 				TResponse* Get() const;
 				bool IsEmpty() const;
 				bool IsError() const;
@@ -347,14 +357,14 @@ namespace Tomahawk
 				size_t Size() const;
 				Response First() const;
 				Response Last() const;
-				Response GetCursor(size_t Index) const;
-				Response operator [](size_t Index)
+				Response GetResponse(size_t Index) const;
+				Column operator [](const char* Name)
 				{
-					return GetCursor(Index);
+					return First().Front().GetColumn(Name);
 				}
-				Response operator [](size_t Index) const
+				Column operator [](const char* Name) const
 				{
-					return GetCursor(Index);
+					return First().Front().GetColumn(Name);
 				}
 				operator bool() const
 				{
@@ -370,6 +380,7 @@ namespace Tomahawk
                 TConnection* Base;
                 Socket* Stream;
                 Request* Current;
+				uint64_t Session;
                 QueryState State;
                 
             public:
@@ -387,13 +398,13 @@ namespace Tomahawk
             private:
                 Core::Async<Cursor> Future;
                 std::string Command;
-                Connection* Target = nullptr;
+				uint64_t Session;
                 Cursor Result;
                 
             public:
-                Connection* GetTarget() const;
                 std::string GetCommand() const;
                 Cursor GetResult() const;
+				uint64_t GetSession() const;
                 bool IsPending() const;
             };
         
@@ -403,6 +414,7 @@ namespace Tomahawk
 				std::unordered_map<std::string, OnNotification> Listeners;
                 std::unordered_map<Socket*, Connection*> Pool;
 				std::vector<Request*> Requests;
+				std::atomic<uint64_t> Session;
 				std::mutex Update;
 				Address Source;
 
@@ -410,21 +422,24 @@ namespace Tomahawk
 				Cluster();
 				virtual ~Cluster() override;
 				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
+				Core::Async<uint64_t> TxBegin(const std::string& Command);
+				Core::Async<bool> TxEnd(const std::string& Command, uint64_t Token);
 				Core::Async<bool> Connect(const Address& URI, size_t Connections);
 				Core::Async<bool> Disconnect();
-				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, Connection* Session = nullptr);
-				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, Connection* Session = nullptr);
-				Core::Async<Cursor> Query(const std::string& Command, Connection* Session = nullptr);
+				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, uint64_t Token = 0);
+				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, uint64_t Token = 0);
+				Core::Async<Cursor> Query(const std::string& Command, uint64_t Token = 0);
 				TConnection* GetConnection(QueryState State);
 				TConnection* GetConnection() const;
-                Connection* GetSession() const;
 				bool IsConnected() const;
 
 			private:
 				void Reestablish(Connection* Base);
+				void Commit(uint64_t Token);
                 bool Consume(Connection* Base);
                 bool Reprocess(Connection* Base);
                 bool Dispatch(Socket* Stream, const char*, int64_t);
+				bool Transact(Connection* Base, Request* Token);
 			};
 
 			class TH_OUT Driver

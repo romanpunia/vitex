@@ -1437,6 +1437,7 @@ namespace Tomahawk
 			size_t Size() const;
 			std::string GetName() const;
 			void Join(Document* Other, bool Copy = true, bool Fast = true);
+			void Reserve(size_t Size);
 			void Clear();
 			void Save();
 
@@ -1953,7 +1954,7 @@ namespace Tomahawk
 			template <typename R>
 			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback) const noexcept
 			{
-				TH_ASSERT(Next != nullptr && Callback, Async<R>(nullptr), "async should be pending");
+				TH_ASSERT(Next != nullptr && Callback, Async<R>::Move(), "async should be pending");
 
 				Async<R> Result; context_type* Subresult = Next->Copy();
 				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
@@ -1972,7 +1973,7 @@ namespace Tomahawk
 			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const noexcept
 			{
 				using F = typename Future<R>::type;
-				TH_ASSERT(Next != nullptr && Callback, Async<F>(nullptr), "async should be pending");
+				TH_ASSERT(Next != nullptr && Callback, Async<F>::Move(), "async should be pending");
 
 				Async<F> Result; context_type* Subresult = Next->Copy();
 				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable

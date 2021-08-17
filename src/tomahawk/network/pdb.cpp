@@ -361,6 +361,84 @@ namespace Tomahawk
 				}
 			}
 #endif
+			std::string Util::InlineArray(Cluster* Client, Core::Document* Array)
+			{
+				TH_ASSERT(Client != nullptr, std::string(), "cluster should be set");
+				TH_ASSERT(Array != nullptr, std::string(), "array should be set");
+
+				Core::DocumentList Map;
+				std::string Def;
+
+				for (auto* Item : Array->GetChilds())
+				{
+					if (Item->Value.IsObject())
+					{
+						if (Item->IsEmpty())
+							continue;
+
+						Def += '(';
+						for (auto* Sub : Item->GetChilds())
+						{
+							Map.push_back(Sub);
+							Def += "?,";
+						}
+						Def.erase(Def.end() - 1);
+						Def += "),";
+					}
+					else
+					{
+						Map.push_back(Item);
+						Def += "?,";
+					}
+				}
+
+				std::string Result = PDB::Driver::Emplace(Client, Def, &Map);
+				if (!Result.empty() && Result.back() == ',')
+					Result.erase(Result.end() - 1);
+
+				TH_RELEASE(Array);
+				return Result;
+			}
+			std::string Util::InlineQuery(Cluster* Client, Core::Document* Where)
+			{
+				TH_ASSERT(Client != nullptr, std::string(), "cluster should be set");
+				TH_ASSERT(Where != nullptr, std::string(), "array should be set");
+
+				Core::DocumentList Map;
+				std::string Def;
+
+				for (auto* Statement : Where->GetChilds())
+				{
+					if (Statement->Value.GetType() != Core::VarType::Array || Statement->Value.GetSize() != 3)
+						continue;
+
+					Core::Document* Left = Statement->Get(0), *Right = Statement->Get(2);
+					if (!Left || Left->Value.IsObject() || !Right || Right->Value.IsObject())
+						continue;
+
+					std::string Op = Statement->GetVar(1).GetBlob();
+					if (Op == "=" || Op == "!=" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=")
+					{
+						Def += '?' + Op + "?,";
+						Map.push_back(Left);
+						Map.push_back(Right);
+					}
+					else if (Op == "&")
+					{
+						Def += '?' + Op + "LIKE %?%,";
+						Map.push_back(Left);
+						Map.push_back(Right);
+					}
+				}
+
+				std::string Result = PDB::Driver::Emplace(Client, Result, &Map);
+				if (!Result.empty() && Result.back() == ',')
+					Result.erase(Result.end() - 1);
+
+				TH_RELEASE(Where);
+				return Result;
+			}
+
 			Address::Address()
 			{
 			}
@@ -614,12 +692,11 @@ namespace Tomahawk
 				return std::string();
 #endif
 			}
-			Core::Variant Column::GetValue() const
+			Core::Variant Column::Get() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_ASSERT(Base != nullptr, Core::Var::Undefined(), "context should be valid");
-				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Core::Var::Undefined(), "row should be valid");
-				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), Core::Var::Undefined(), "column should be valid");
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
+					return Core::Var::Undefined();
 
 				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
 					return Core::Var::Null();
@@ -633,12 +710,11 @@ namespace Tomahawk
 				return Core::Var::Undefined();
 #endif
 			}
-			Core::Document* Column::GetValueAuto() const
+			Core::Document* Column::GetInline() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_ASSERT(Base != nullptr, nullptr, "context should be valid");
-				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), nullptr, "row should be valid");
-				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), nullptr, "column should be valid");
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
+					return nullptr;
 
 				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
 					return nullptr;
@@ -652,7 +728,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			char* Column::GetValueData() const
+			char* Column::GetRaw() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				TH_ASSERT(Base != nullptr, nullptr, "context should be valid");
@@ -743,7 +819,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			size_t Column::GetValueSize() const
+			size_t Column::GetRawSize() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				TH_ASSERT(Base != nullptr, 0, "context should be valid");
@@ -785,7 +861,7 @@ namespace Tomahawk
 			Row::Row(TResponse* NewBase, size_t fRowIndex) : Base(NewBase), RowIndex(fRowIndex)
 			{
 			}
-			Core::Document* Row::GetDocument() const
+			Core::Document* Row::GetObject() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
@@ -843,9 +919,9 @@ namespace Tomahawk
 			Column Row::GetColumn(size_t Index) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_ASSERT(Base != nullptr, Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "context should be valid");
-				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "row should be valid");
-				
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
+					return Column(Base, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
+
 				return Column(Base, RowIndex, Index);
 #else
 				return Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
@@ -855,8 +931,8 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_POSTGRESQL
 				TH_ASSERT(Name != nullptr, Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "name should be set");
-				TH_ASSERT(Base != nullptr, Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "context should be valid");
-				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), Column(nullptr, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max()), "row should be valid");
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
+					return Column(Base, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 
 				int Index = PQfnumber(Base, Name);
 				if (Index < 0)
@@ -900,7 +976,7 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Core::Document* Response::GetDocument() const
+			Core::Document* Response::GetArray() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base)
@@ -951,6 +1027,10 @@ namespace Tomahawk
 #else
 				return nullptr;
 #endif
+			}
+			Core::Document* Response::GetObject(size_t Index) const
+			{
+				return GetRow(Index).GetObject();
 			}
 			std::string Response::GetCommandStatusText() const
 			{
@@ -1131,22 +1211,22 @@ namespace Tomahawk
 			Row Response::GetRow(size_t Index) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_ASSERT(Base != nullptr, Row(nullptr, std::numeric_limits<size_t>::max()), "context should be valid");
-				TH_ASSERT(Index < GetSize(), Row(nullptr, std::numeric_limits<size_t>::max()), "index outside of range");
+				if (!Base)
+					return Row(Base, std::numeric_limits<size_t>::max());
 
 				return Row(Base, Index);
 #else
 				return Row(nullptr, std::numeric_limits<size_t>::max());
 #endif
 			}
-			Row Response::First() const
+			Row Response::Front() const
 			{
 				if (IsEmpty())
 					return Row(nullptr, std::numeric_limits<size_t>::max());
 
 				return GetRow(0);
 			}
-			Row Response::Last() const
+			Row Response::Back() const
 			{
 				if (IsEmpty())
 					return Row(nullptr, std::numeric_limits<size_t>::max());
@@ -1238,7 +1318,7 @@ namespace Tomahawk
 
 				return Base.back();
 			}
-			Response Cursor::GetCursor(size_t Index) const
+			Response Cursor::GetResponse(size_t Index) const
 			{
 				TH_ASSERT(Index < Base.size(), Response(nullptr), "index outside of range");
 				return Base[Index];
@@ -1265,10 +1345,6 @@ namespace Tomahawk
                 return Current != nullptr;
             }
 
-            Connection* Request::GetTarget() const
-            {
-                return Target;
-            }
             std::string Request::GetCommand() const
             {
                 return Command;
@@ -1277,6 +1353,10 @@ namespace Tomahawk
             {
                 return Result;
             }
+			uint64_t Request::GetSession() const
+			{
+				return Session;
+			}
             bool Request::IsPending() const
             {
                 return Future.IsPending();
@@ -1320,6 +1400,29 @@ namespace Tomahawk
 				else
 					Listeners[Name] = NewCallback;
 				Update.unlock();
+			}
+			Core::Async<uint64_t> Cluster::TxBegin(const std::string& Command)
+			{
+				uint64_t Token = Session++;
+				if (!Token)
+					Token = Session++;
+
+				return Query(Command, Token).Then<uint64_t>([this, Token](Cursor&& Result)
+				{
+					if (Result.OK())
+						return Token;
+
+					Commit(Token);
+					return uint64_t(0);
+				});
+			}
+			Core::Async<bool> Cluster::TxEnd(const std::string& Command, uint64_t Token)
+			{
+				return Query(Command, Token).Then<bool>([this, Token](Cursor&& Result)
+				{
+					Commit(Token);
+					return Result.OK();
+				});
 			}
 			Core::Async<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{
@@ -1411,30 +1514,30 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, Connection* Session)
+			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, uint64_t Token)
 			{
-				return Query(Driver::Emplace(this, Command, Map, Once), Session);
+				return Query(Driver::Emplace(this, Command, Map, Once), Token);
 			}
-			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Connection* Session)
+			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, uint64_t Token)
 			{
 #ifdef _DEBUG
-				TH_TRACE("[mongoc] template query on 0x%p\n\t%s", (void*)this, Name.empty() ? "empty query name" : Name.c_str());
+				TH_TRACE("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 #endif
-				return Query(Driver::GetQuery(this, Name, Map, Once), Session);
+				return Query(Driver::GetQuery(this, Name, Map, Once), Token);
 			}
-			Core::Async<Cursor> Cluster::Query(const std::string& Command, Connection* Session)
+			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Token)
 			{
 				if (Command.empty())
 					return Cursor();
 
 				Request* Next = TH_NEW(Request);
 				Next->Command = Command;
-                Next->Target = Session;
+				Next->Session = Token;
 
 				Core::Async<Cursor> Future = Next->Future;
 				Update.lock();
 				Requests.push_back(Next);
-                for (auto Item : Pool)
+                for (auto& Item : Pool)
                 {
                     if (Consume(Item.second))
                         break;
@@ -1466,20 +1569,7 @@ namespace Tomahawk
                 
                 return nullptr;
 			}
-            Connection* Cluster::GetSession() const
-            {
-                for (auto& Item : Pool)
-                {
-                    if (Item.second->State == QueryState::Idle)
-                        return Item.second;
-                }
-                
-                for (auto& Item : Pool)
-                    return Item.second;
-                    
-                return nullptr;
-            }
-			bool Cluster::IsConnected() const
+            bool Cluster::IsConnected() const
 			{
 				return !Pool.empty();
 			}
@@ -1521,14 +1611,28 @@ namespace Tomahawk
 				TH_FREE(Values);
 #endif
 			}
-            bool Cluster::Consume(Connection* Base)
+			void Cluster::Commit(uint64_t Token)
+			{
+				Update.lock();
+				for (auto& Item : Pool)
+				{
+					if (Item.second->Session == Token)
+					{
+						TH_TRACE("[pq] end tx-%llu on 0x%p", Token, (void*)Item.second);
+						Item.second->Session = 0;
+						break;
+					}
+				}
+				Update.unlock();
+			}
+			bool Cluster::Consume(Connection* Base)
             {
 #ifdef TH_HAS_POSTGRESQL
 				if (Base->State != QueryState::Idle || Requests.empty())
 					return false;
 
                 Request* Next = Requests.front();
-                if (Next->Target != nullptr && Next->Target != Base)
+                if (!Transact(Base, Next))
 					return false;
                 
                 Base->Current = Next;
@@ -1538,7 +1642,10 @@ namespace Tomahawk
 
 				TH_PPUSH("postgres-send", TH_PERF_MAX);
 #ifdef _DEBUG
-				TH_TRACE("[pq] execute query on 0x%p\n\t%.64s%s", (void*)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
+				if (Base->Session != 0)
+					TH_TRACE("[pq] execute query on 0x%p tx-%llu\n\t%.64s%s", (void*)Base, Base->Session, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
+				else
+					TH_TRACE("[pq] execute query on 0x%p\n\t%.64s%s", (void*)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
 #endif
                 if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
                 {
@@ -1685,6 +1792,27 @@ namespace Tomahawk
                 return false;
 #endif
             }
+			bool Cluster::Transact(Connection* Base, Request* Next)
+			{
+				if (Base->Session != 0)
+					return Base->Session == Next->Session;
+
+				if (Next->Session == 0)
+					return true;
+
+				for (auto& Item : Pool)
+				{
+					if (Base == Item.second)
+						continue;
+
+					if (Item.second->Session == Next->Session)
+						return false;
+				}
+
+				TH_TRACE("[pq] start tx-%llu on 0x%p", Next->Session, (void*)Base);
+				Base->Session = Next->Session;
+				return true;
+			}
         
 			void Driver::Create()
 			{
@@ -1914,7 +2042,10 @@ namespace Tomahawk
 							continue;
 						}
 						else if (Src[Set.Start - 1] == '$')
+						{
 							Escape = false;
+							Set.Start--;
+						}
 					}
 
 					std::string Value = GetSQL(Remote, (*Map)[Next++], Escape);

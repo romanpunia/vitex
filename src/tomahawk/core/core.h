@@ -485,13 +485,13 @@ namespace Tomahawk
 
 		struct TH_OUT Timeout
 		{
+			std::chrono::microseconds Expires;
 			TaskCallback Callback;
-			uint64_t Expires;
 			TimerId Id;
 			bool Alive;
 
-			Timeout(const TaskCallback& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive);
-			Timeout(TaskCallback&& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive);
+			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive);
+			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive);
 			Timeout(const Timeout& Other);
 			Timeout(Timeout&& Other);
 			Timeout& operator= (const Timeout& Other);
@@ -1336,7 +1336,7 @@ namespace Tomahawk
 			} Race;
 
 		private:
-			std::map<int64_t, Timeout> Timers;
+			std::map<std::chrono::microseconds, Timeout> Timers;
 			std::vector<std::thread> Childs;
 			ConcurrentQueue Asyncs;
 			ConcurrentQueue Tasks;
@@ -1375,9 +1375,9 @@ namespace Tomahawk
 			bool Consume();
 			int DispatchAsync(ConcurrentToken* Token, Costate* State, bool Reconsume);
 			int DispatchTask(ConcurrentToken* Token);
-			int DispatchTimer(int64_t* When);
-			int64_t GetTimeout(int64_t Clock);
-			int64_t GetClock();
+			int DispatchTimer(std::chrono::microseconds* When);
+			TimerId GetTimeout(std::chrono::microseconds& Clock, bool Next);
+			std::chrono::microseconds GetClock();
 
 		public:
 			static Schedule* Get();
@@ -1824,7 +1824,7 @@ namespace Tomahawk
 				if (Next != nullptr)
 					Next->Count++;
 			}
-
+			
 		public:
 			Async() noexcept : Next(TH_NEW(context_type))
 			{
@@ -1851,32 +1851,19 @@ namespace Tomahawk
 			}
 			Async& operator= (const T& Other)
 			{
-				TH_ASSERT(Next != nullptr && Next->Set == -1, *this, "async should be pending");
-				Next->React(Other);
+				Set(Other);
 				return *this;
 			}
 			Async& operator= (T&& Other) noexcept
 			{
-				TH_ASSERT(Next != nullptr && Next->Set == -1, *this, "async should be pending");
-				Next->React(std::move(Other));
+				Set(std::move(Other));
 				return *this;
 			}
 			Async& operator= (const Async& Other)
 			{
-				if (&Other == this)
-					return *this;
+				if (&Other != this)
+					Set(Other);
 
-				TH_ASSERT(Next != nullptr && Next->Set == -1, *this, "async should be pending");
-				context_type* Subresult = Next->Copy();
-				Subresult->RW.lock();
-				Subresult->Set = 0;
-				Subresult->RW.unlock();
-
-				Other.Await([Subresult](T&& Value) mutable
-				{
-					Subresult->React(std::move(Value));
-					Subresult->Free();
-				});
 				return *this;
 			}
 			Async& operator= (Async&& Other) noexcept
@@ -1890,6 +1877,44 @@ namespace Tomahawk
 				Next = Other.Next;
 				Other.Next = nullptr;
 				return *this;
+			}
+			void Set(const T& Other)
+			{
+				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
+				Next->React(Other);
+			}
+			void Set(T&& Other)
+			{
+				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
+				Next->React(std::move(Other));
+			}
+			void Set(const Async& Other)
+			{
+				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
+				context_type* Subresult = Next->Copy();
+				Subresult->RW.lock();
+				Subresult->Set = 0;
+				Subresult->RW.unlock();
+
+				Other.Await([Subresult](T&& Value) mutable
+				{
+					Subresult->React(std::move(Value));
+					Subresult->Free();
+				});
+			}
+			void Set(Async&& Other)
+			{
+				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
+				context_type* Subresult = Next->Copy();
+				Subresult->RW.lock();
+				Subresult->Set = 0;
+				Subresult->RW.unlock();
+
+				Other.Await([Subresult](T&& Value) mutable
+				{
+					Subresult->React(std::move(Value));
+					Subresult->Free();
+				});
 			}
 			void Await(std::function<void(T&&)>&& Callback) const noexcept
 			{
@@ -1981,7 +2006,7 @@ namespace Tomahawk
 					Schedule* Queue = Schedule::Get();
 					Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
 					{
-						Result = std::move(Callback(std::move(Subresult->Result)));
+						Result.Set(std::move(Callback(std::move(Subresult->Result))));
 						Subresult->Free();
 					});
 				});

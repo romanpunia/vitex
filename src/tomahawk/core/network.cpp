@@ -1344,7 +1344,7 @@ namespace Tomahawk
 			epoll_event* Events = (epoll_event*)Array;
 			int Count = epoll_wait(Handle, Events, ArraySize, (int)PipeTimeout);
 #endif
-			TH_PPUSH("net-dispatch", TH_PERF_IO);
+			TH_PPUSH("net-dispatch", (uint64_t)PipeTimeout + TH_PERF_IO);
 			int64_t Time = Clock(), Timeouts = 0;
 			for (auto It = Events; It != Events + Count; It++)
 			{
@@ -1523,7 +1523,7 @@ namespace Tomahawk
 			}
 
 			bool Timeout = (Fd->Sync.Timeout > 0 && Time - Fd->Sync.Time > Fd->Sync.Timeout);
-			if (!Fd->Input && !Fd->Output && !Fd->Listener)
+			if (!Fd->Input && !Fd->Output && !Fd->Listener && Fd->Fd != INVALID_SOCKET)
 				Driver::Unlisten(Fd, false);
 
 			Fd->Sync.IO.unlock();

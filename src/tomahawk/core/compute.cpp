@@ -7549,7 +7549,9 @@ namespace Tomahawk
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+
+			if (!Length)
+				return "";
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -7596,7 +7598,9 @@ namespace Tomahawk
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+
+			if (!Length)
+				return "";
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
@@ -8117,47 +8121,58 @@ namespace Tomahawk
 			TH_RELEASE(Payload);
 			TH_RELEASE(Token);
 		}
+		void WebToken::Unsign()
+		{
+			Signature.clear();
+			Data.clear();
+		}
 		void WebToken::SetAlgorithm(const std::string& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
+
 			Header->Set("alg", Core::Var::String(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetType(const std::string& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
+
 			Header->Set("typ", Core::Var::String(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetContentType(const std::string& Value)
 		{
 			if (!Header)
 				Header = Core::Var::Set::Object();
+
 			Header->Set("cty", Core::Var::String(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetIssuer(const std::string& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
+
 			Payload->Set("iss", Core::Var::String(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetSubject(const std::string& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
+
 			Payload->Set("sub", Core::Var::String(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetId(const std::string& Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
+
 			Payload->Set("jti", Core::Var::String(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetAudience(const std::vector<std::string>& Value)
 		{
@@ -8167,29 +8182,33 @@ namespace Tomahawk
 
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
+
 			Payload->Set("aud", Array);
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetExpiration(int64_t Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
+
 			Payload->Set("exp", Core::Var::Integer(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetNotBefore(int64_t Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
+
 			Payload->Set("nbf", Core::Var::Integer(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetCreated(int64_t Value)
 		{
 			if (!Payload)
 				Payload = Core::Var::Set::Object();
+
 			Payload->Set("iat", Core::Var::Integer(Value));
-			Signature.clear();
+			Unsign();
 		}
 		void WebToken::SetRefreshToken(const std::string& Value, const char* Key, const char* Salt)
 		{
@@ -8203,10 +8222,10 @@ namespace Tomahawk
 			TH_ASSERT(Payload != nullptr, false, "payload should be set");
 			TH_ASSERT(Key != nullptr, false, "key should be set");
 
-			if (!Signature.empty())
-				return true;
+			if (Data.empty())
+				Data = Common::JWTEncode(this, Key);
 
-			return !Common::JWTEncode(this, Key).empty();
+			return !Data.empty();
 		}
 		std::string WebToken::GetRefreshToken(const char* Key, const char* Salt)
 		{

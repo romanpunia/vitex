@@ -103,20 +103,24 @@ namespace Tomahawk
 					});
 				}) || true;
 			}
-			Core::Async<int> Client::Send(RequestFrame* Root)
+			Core::Async<int> Client::Send(RequestFrame&& Root)
 			{
-				TH_ASSERT(Root != nullptr, -1, "request should be set");
-				if (!Staging || !Stream.IsValid())
+				if (!Stream.IsValid())
 					return -1;
 
 				Core::Async<int> Result;
 				if (!Staging)
 				{
-					if (Root != nullptr)
-						Request = *Root;
+					Buffer.clear();
+					if (&Request != &Root)
+						Request = std::move(Root);
 
-					Done = [Result](SocketClient*, int Code) mutable
+					TH_TRACE("[smtp] TO %s", Root.Receiver.c_str());
+					Done = [this, Result](SocketClient*, int Code) mutable
 					{
+						if (!Buffer.empty())
+							TH_TRACE("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
+
 						Result = Code;
 					};
 				}
@@ -126,7 +130,7 @@ namespace Tomahawk
 					Staging = true;
 					Authorize([this, Result]() mutable
 					{
-						Send(nullptr).Await([Result](int Code) mutable
+						Send(std::move(Request)).Await([Result](int Code) mutable
 						{
 							Result = Code;
 						});

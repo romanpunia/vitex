@@ -192,6 +192,11 @@ namespace Tomahawk
 					}
 					case OidType::Bool:
 					{
+						if (Data[0] == 't')
+							return Core::Var::Boolean(true);
+						else if (Data[0] == 'f')
+							return Core::Var::Boolean(false);
+
 						Core::Parser Source(Data, (size_t)Size);
 						Source.ToLower();
 
@@ -275,7 +280,7 @@ namespace Tomahawk
 			Core::Document* ToDocument(const char* Data, int Size, unsigned int Id)
 			{
 				if (!Data)
-					return new Core::Document(Core::Var::Null());
+					return nullptr;
 
 				OidType Type = (OidType)Id;
 				switch (Type)
@@ -869,7 +874,7 @@ namespace Tomahawk
 
 				int Size = PQnfields(Base);
 				if (Size <= 0)
-					return nullptr;
+					return Core::Var::Set::Object();
 
 				Core::Document* Result = Core::Var::Set::Object();
 				Result->GetChilds().reserve((size_t)Size);
@@ -979,16 +984,17 @@ namespace Tomahawk
 			Core::Document* Response::GetArray() const
 			{
 #ifdef TH_HAS_POSTGRESQL
+				Core::Document* Result = Core::Var::Set::Array();
 				if (!Base)
-					return nullptr;
+					return Result;
 
 				int RowsSize = PQntuples(Base);
 				if (RowsSize <= 0)
-					return nullptr;
+					return Result;
 
 				int ColumnsSize = PQnfields(Base);
 				if (ColumnsSize <= 0)
-					return nullptr;
+					return Result;
 
 				std::vector<std::pair<std::string, Oid>> Meta;
 				Meta.reserve((size_t)ColumnsSize);
@@ -999,9 +1005,7 @@ namespace Tomahawk
 					Meta.emplace_back(std::make_pair(Name ? Name : std::to_string(j), PQftype(Base, j)));
 				}
 
-				Core::Document* Result = Core::Var::Set::Array();
-				Result->GetChilds().reserve((size_t)RowsSize);
-
+				Result->Reserve((size_t)RowsSize);
 				for (int i = 0; i < RowsSize; i++)
 				{
 					Core::Document* Subresult = Core::Var::Set::Object();
@@ -1025,7 +1029,7 @@ namespace Tomahawk
 
 				return Result;
 #else
-				return nullptr;
+				return Core::Var::Set::Array();
 #endif
 			}
 			Core::Document* Response::GetObject(size_t Index) const
@@ -2030,8 +2034,14 @@ namespace Tomahawk
 				uint64_t Offset = 0;
 				size_t Next = 0;
 
-				while (Next < Map->size() && (Set = Buffer.Find('?', Offset)).Found)
+				while ((Set = Buffer.Find('?', Offset)).Found)
 				{
+					if (Next >= Map->size())
+					{
+						TH_ERR("[pq] emplace query %.64s\n\texpects: at least %llu args", SQL.c_str(), (uint64_t)(Next + 1));
+						break;
+					}
+
 					bool Escape = true;
 					if (Set.Start > 0)
 					{
@@ -2078,6 +2088,7 @@ namespace Tomahawk
 						Map->clear();
 					}
 
+					TH_ERR("[pq] template query %s does not exist", Name.c_str());
 					return std::string();
 				}
 
@@ -2121,7 +2132,10 @@ namespace Tomahawk
 				{
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
+					{
+						TH_ERR("[pq] template query %s\n\texpects parameter: %s", Name.c_str(), Word.Key.c_str());
 						continue;
+					}
 
 					std::string Value = GetSQL(Remote, It->second, Word.Escape);
 					if (Value.empty())
@@ -2140,7 +2154,7 @@ namespace Tomahawk
 
 				std::string Data = Origin.Request;
 				if (Data.empty())
-					TH_ERR("could not construct query: \"%s\"", Name.c_str());
+					TH_ERR("[pq] could not construct query: \"%s\"", Name.c_str());
 
 				return Data;
 			}

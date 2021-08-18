@@ -1,6 +1,6 @@
 #ifndef TH_NETWORK_HTTP_H
 #define TH_NETWORK_HTTP_H
-
+#define TH_HTTP_PAYLOAD 1024 * 64
 #include "../core/network.h"
 #include "../core/script.h"
 
@@ -53,9 +53,8 @@ namespace Tomahawk
 			{
 				Active = (1 << 0),
 				Handshake = (1 << 1),
-				Reset = (1 << 2),
-				Close = (1 << 3),
-				Free = (1 << 4)
+				Close = (1 << 2),
+				Free = (1 << 3)
 			};
 
 			enum class CompressionTune
@@ -74,6 +73,8 @@ namespace Tomahawk
 				End
 			};
 
+			typedef std::vector<std::string> RangePayload;
+			typedef std::map<std::string, RangePayload, struct HeaderComparator> HeaderMapping;
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
 			typedef std::function<void(struct Connection*, const char*)> MessageCallback;
 			typedef std::function<bool(struct Connection*, const char*, int64_t)> ContentCallback;
@@ -98,6 +99,24 @@ namespace Tomahawk
 			class Server;
 
 			class Query;
+
+			class WebCodec;
+
+			struct TH_OUT HeaderComparator : std::binary_function<std::string, std::string, bool>
+			{
+				struct Insensitive : public std::binary_function<unsigned char, unsigned char, bool>
+				{
+					bool operator() (const unsigned char& c1, const unsigned char& c2) const
+					{
+						return tolower(c1) < tolower(c2);
+					}
+				};
+
+				bool operator() (const std::string& s1, const std::string& s2) const
+				{
+					return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(), Insensitive());
+				}
+			};
 
 			struct TH_OUT ErrorFile
 			{
@@ -126,15 +145,9 @@ namespace Tomahawk
 				Auth Type = Auth::Unverified;
 			};
 
-			struct TH_OUT Header
-			{
-				std::string Key;
-				std::string Value;
-			};
-
 			struct TH_OUT Resource
 			{
-				std::vector<Header> Headers;
+				HeaderMapping Headers;
 				std::string Path;
 				std::string Type;
 				std::string Name;
@@ -142,9 +155,11 @@ namespace Tomahawk
 				uint64_t Length = 0;
 				bool Memory = false;
 
-				void SetHeader(const char* Key, const char* Value);
-				void SetHeader(const char* Key, const std::string& Value);
-				const char* GetHeader(const char* Key);
+				void PutHeader(const std::string& Key, const std::string& Value);
+				void SetHeader(const std::string& Key, const std::string& Value);
+				RangePayload* GetHeaderRanges(const std::string& Key);
+				const std::string* GetHeaderBlob(const std::string& Key) const;
+				const char* GetHeader(const std::string& Key) const;
 			};
 
 			struct TH_OUT Cookie
@@ -160,9 +175,9 @@ namespace Tomahawk
 
 			struct TH_OUT RequestFrame
 			{
+				HeaderMapping Cookies;
+				HeaderMapping Headers;
 				std::vector<Resource> Resources;
-				std::vector<Header> Cookies;
-				std::vector<Header> Headers;
 				std::string Buffer;
 				std::string Query;
 				std::string Path;
@@ -170,7 +185,6 @@ namespace Tomahawk
 				std::string Where;
 				Compute::RegexResult Match;
 				Credentials User;
-				Content ContentState = Content::Not_Loaded;
 				char RemoteAddress[48] = { 0 };
 				char Method[10] = { 'G', 'E', 'T' };
 				char Version[10] = { 'H', 'T', 'T', 'P', '/', '1', '.', '1' };
@@ -178,30 +192,39 @@ namespace Tomahawk
 
 				void SetMethod(const char* Value);
 				void SetVersion(unsigned int Major, unsigned int Minor);
-				void SetHeader(const char* Key, const char* Value);
-				void SetHeader(const char* Key, const std::string& Value);
-				const char* GetCookie(const char* Key);
-				const char* GetHeader(const char* Key);
-				std::vector<std::pair<int64_t, int64_t>> GetRanges();
-				std::pair<uint64_t, uint64_t> GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContentLength);
+				void PutHeader(const std::string& Key, const std::string& Value);
+				void SetHeader(const std::string& Key, const std::string& Value);
+				RangePayload* GetCookieRanges(const std::string& Key);
+				std::string* GetCookieBlob(const std::string& Key) const;
+				const char* GetCookie(const std::string& Key) const;
+				RangePayload* GetHeaderRanges(const std::string& Key);
+				const std::string* GetHeaderBlob(const std::string& Key) const;
+				const char* GetHeader(const std::string& Key) const;
+				std::vector<std::pair<int64_t, int64_t>> GetRanges() const;
+				std::pair<uint64_t, uint64_t> GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContentLength) const;
 			};
 
 			struct TH_OUT ResponseFrame
 			{
+				HeaderMapping Headers;
 				std::vector<Cookie> Cookies;
-				std::vector<Header> Headers;
 				std::vector<char> Buffer;
+				Content Data = Content::Not_Loaded;
 				int StatusCode = -1;
 				bool Error = false;
 
 				void PutBuffer(const std::string& Data);
 				void SetBuffer(const std::string& Data);
-				void SetHeader(const char* Key, const char* Value);
-				void SetHeader(const char* Key, const std::string& Value);
+				void PutHeader(const std::string& Key, const std::string& Value);
+				void SetHeader(const std::string& Key, const std::string& Value);
 				void SetCookie(const char* Key, const char* Value, uint64_t Expires = 0, const char* Domain = nullptr, const char* Path = nullptr, bool Secure = false, bool HTTPOnly = false);
-				const char* GetHeader(const char* Key);
 				Cookie* GetCookie(const char* Key);
-				std::string GetBuffer();
+				RangePayload* GetHeaderRanges(const std::string& Key);
+				const std::string* GetHeaderBlob(const std::string& Key) const;
+				const char* GetHeader(const std::string& Key) const;
+				std::string GetBuffer() const;
+				bool HasBody() const;
+				bool IsOK() const;
 			};
 
 			struct TH_OUT WebSocketFrame
@@ -211,19 +234,12 @@ namespace Tomahawk
 				friend class Util;
 
 			private:
-				Connection* Base;
-				std::string Buffer;
-				unsigned char Mask[4] = { 0 };
-				unsigned char Opcode;
-				uint64_t BodyLength;
-				uint64_t MaskLength;
-				uint64_t HeaderLength;
-				uint64_t DataLength;
 				std::atomic<uint32_t> State;
-				std::atomic<bool> Clear;
+				std::atomic<bool> Notifies;
 				std::atomic<bool> Error;
-				std::atomic<bool> Notified;
 				std::atomic<bool> Save;
+				Connection* Base;
+				WebCodec* Codec;
 
 			public:
 				WebSocketCallback Connect;
@@ -233,6 +249,7 @@ namespace Tomahawk
 
 			public:
 				WebSocketFrame();
+				~WebSocketFrame();
 				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
 				void Finish();
 				void Next();
@@ -589,6 +606,51 @@ namespace Tomahawk
 				const char* ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out);
 			};
 
+			class TH_OUT WebCodec : public Core::Object
+			{
+			private:
+				enum class Bytecode
+				{
+					Begin = 0,
+					Length,
+					Length_16_0,
+					Length_16_1,
+					Length_64_0,
+					Length_64_1,
+					Length_64_2,
+					Length_64_3,
+					Length_64_4,
+					Length_64_5,
+					Length_64_6,
+					Length_64_7,
+					Mask_0,
+					Mask_1,
+					Mask_2,
+					Mask_3,
+					End
+				};
+
+			private:
+				Bytecode State;
+				uint64_t Remains;
+				uint8_t Mask[4];
+				uint8_t Fragment;
+				uint8_t Final;
+				uint8_t Control;
+				uint8_t Masked;
+				uint8_t Masks;
+
+			public:
+				std::vector<char> Payload;
+				std::vector<char> Message;
+				WebSocketOp Opcode;
+
+			public:
+				WebCodec();
+				void Prepare();
+				WebSocketOp ParseFrame(const char* Data, size_t Size);
+			};
+
 			class TH_OUT Util
 			{
 			public:
@@ -607,6 +669,7 @@ namespace Tomahawk
 				static const char* StatusMessage(int StatusCode);
 
 			public:
+				static void ParseCookie(const std::string& Value);
 				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, uint64_t Length);
 				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, uint64_t Length);
 				static bool ParseMultipartContentData(Parser* Parser, const char* Name, uint64_t Length);
@@ -654,7 +717,7 @@ namespace Tomahawk
 				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength);
 				static bool ProcessGateway(Connection* Base);
 				static bool ProcessWebSocket(Connection* Base, const char* Key);
-				static bool ProcessWebSocketPass(Connection* Base);
+				static bool ProcessWebSocketPass(Connection* Base, const char* Buffer = nullptr, size_t Size = 0);
 			};
 
 			class TH_OUT Server final : public SocketServer
@@ -688,11 +751,11 @@ namespace Tomahawk
 			public:
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
-				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame* Root);
-				Core::Async<ResponseFrame*> Consume(int64_t MaxSize = 1024 * 64);
-				Core::Async<ResponseFrame*> Fetch(HTTP::RequestFrame* Root, int64_t MaxSize = 1024 * 64);
-				Core::Async<Core::Document*> JSON(HTTP::RequestFrame* Root, int64_t MaxSize = 1024 * 64);
-				Core::Async<Core::Document*> XML(HTTP::RequestFrame* Root, int64_t MaxSize = 1024 * 64);
+				Core::Async<bool> Consume(int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<bool> Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
+				Core::Async<Core::Document*> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<Core::Document*> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
 

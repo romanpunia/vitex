@@ -3847,6 +3847,7 @@ namespace Tomahawk
 						Map->clear();
 					}
 
+					TH_ERR("[mongoc] template query %s does not exist", Name.c_str());
 					return nullptr;
 				}
 
@@ -3889,7 +3890,10 @@ namespace Tomahawk
 				{
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
+					{
+						TH_ERR("[pq] template query %s\n\texpects parameter: %s", Name.c_str(), Word.Key.c_str());
 						continue;
+					}
 
 					std::string Value = GetJSON(It->second, Word.Escape);
 					if (Value.empty())
@@ -3908,7 +3912,7 @@ namespace Tomahawk
 
 				Document Data = Document::FromJSON(Origin.Request);
 				if (!Data.Get())
-					TH_ERR("could not construct query: \"%s\"", Name.c_str());
+					TH_ERR("[mongoc] could not construct query: \"%s\"", Name.c_str());
 
 				return Data;
 			}

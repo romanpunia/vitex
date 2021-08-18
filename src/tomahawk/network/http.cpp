@@ -70,8 +70,12 @@ namespace Tomahawk
 			{
 			}
 
-			WebSocketFrame::WebSocketFrame() : Base(nullptr), Opcode(0), BodyLength(0), MaskLength(0), HeaderLength(0), DataLength(0), State((uint32_t)WebSocketState::Handshake), Clear(false), Error(false), Notified(false), Save(false)
+			WebSocketFrame::WebSocketFrame() : State((uint32_t)WebSocketState::Handshake), Notifies(false), Error(false), Save(false), Base(nullptr), Codec(new WebCodec())
 			{
+			}
+			WebSocketFrame::~WebSocketFrame()
+			{
+				TH_RELEASE(Codec);
 			}
 			void WebSocketFrame::Write(const char* Data, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback)
 			{
@@ -79,15 +83,10 @@ namespace Tomahawk
 			}
 			void WebSocketFrame::Finish()
 			{
-				if (Error || State == (uint32_t)WebSocketState::Close)
-				{
-					State = (uint32_t)WebSocketState::Free;
+				if (Error || State == (uint32_t)WebSocketState::Free)
 					return Next();
-				}
 
-				if (State != (uint32_t)WebSocketState::Free)
-					State = (uint32_t)WebSocketState::Close;
-
+				State = (uint32_t)WebSocketState::Free;
 				Util::WebSocketWriteMask(Base, Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp::Close, 0, [this](HTTP::Connection*)
 				{
 					Next();
@@ -125,17 +124,15 @@ namespace Tomahawk
 					else
 						Finish();
 				}
-				else if (State & (uint32_t)WebSocketState::Reset)
-				{
-					State = (uint32_t)WebSocketState::Free;
-					Finish();
-				}
 				else
+				{
+					Codec->Prepare();
 					Util::ProcessWebSocketPass(Base);
+				}
 			}
 			void WebSocketFrame::Notify()
 			{
-				Notified = true;
+				Notifies = true;
 				Base->Stream->Skip((uint32_t)SocketEvent::Read, 0);
 			}
 			bool WebSocketFrame::IsFinished()
@@ -592,57 +589,47 @@ namespace Tomahawk
 				return Result;
 			}
 
-			void Resource::SetHeader(const char* fKey, const char* Value)
+			void Resource::PutHeader(const std::string& Key, const std::string& Value)
 			{
-				TH_ASSERT_V(fKey != nullptr, "key should be set");
-				for (auto It = Headers.begin(); It != Headers.end(); ++It)
-				{
-					if (strcmp(It->Key.c_str(), fKey) != 0)
-						continue;
-
-					if (Value != nullptr)
-						It->Value = Value;
-					else
-						Headers.erase(It);
-
-					return;
-				}
-
-				if (!Value)
-					return;
-
-				Header Header;
-				Header.Key = fKey;
-				Header.Value = Value;
-				Headers.push_back(Header);
+				TH_ASSERT_V(!Key.empty(), "key should not be empty");
+				Headers[Key].push_back(Value);
 			}
-			void Resource::SetHeader(const char* fKey, const std::string& Value)
+			void Resource::SetHeader(const std::string& Key, const std::string& Value)
 			{
-				TH_ASSERT_V(fKey != nullptr, "key should be set");
-				for (auto& Head : Headers)
-				{
-					if (Head.Key == fKey)
-					{
-						Head.Value = Value;
-						return;
-					}
-				}
-
-				Header Header;
-				Header.Key = fKey;
-				Header.Value = Value;
-				Headers.push_back(Header);
+				TH_ASSERT_V(!Key.empty(), "key should not be empty");
+				auto& Range = Headers[Key];
+				Range.clear();
+				Range.push_back(Value);
 			}
-			const char* Resource::GetHeader(const char* fKey)
+			RangePayload* Resource::GetHeaderRanges(const std::string& Key)
 			{
-				TH_ASSERT(fKey != nullptr, nullptr, "key should be set");
-				for (auto& Head : Headers)
-				{
-					if (!Core::Parser::CaseCompare(Head.Key.c_str(), fKey))
-						return Head.Value.c_str();
-				}
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				return (RangePayload*)&Headers[Key];
+			}
+			const std::string* Resource::GetHeaderBlob(const std::string& Key) const
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
 
-				return nullptr;
+				if (It->second.empty())
+					return nullptr;
+
+				const std::string& Result = It->second.back();
+				return &Result;
+			}
+			const char* Resource::GetHeader(const std::string& Key) const
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				return It->second.back().c_str();
 			}
 
 			void RequestFrame::SetMethod(const char* Value)
@@ -655,110 +642,66 @@ namespace Tomahawk
 				std::string Value = "HTTP/" + std::to_string(Major) + '.' + std::to_string(Minor);
 				strncpy(Version, Value.c_str(), sizeof(Version));
 			}
-			void RequestFrame::SetHeader(const char* fKey, const char* Value)
+			void RequestFrame::PutHeader(const std::string& Key, const std::string& Value)
 			{
-				TH_ASSERT_V(fKey != nullptr, "key should be set");
-				for (auto It = Headers.begin(); It != Headers.end(); ++It)
-				{
-					if (strcmp(It->Key.c_str(), fKey) != 0)
-						continue;
-
-					if (Value != nullptr)
-						It->Value = Value;
-					else
-						Headers.erase(It);
-
-					return;
-				}
-
-				if (!Value)
-					return;
-
-				Header Header;
-				Header.Key = fKey;
-				Header.Value = Value;
-				Headers.push_back(Header);
+				TH_ASSERT_V(!Key.empty(), "key should not be empty");
+				Headers[Key].push_back(Value);
 			}
-			void RequestFrame::SetHeader(const char* Key, const std::string& Value)
+			void RequestFrame::SetHeader(const std::string& Key, const std::string& Value)
 			{
-				TH_ASSERT_V(Key != nullptr, "key should be set");
-				for (auto& Head : Headers)
-				{
-					if (Head.Key == Key)
-					{
-						Head.Value = Value;
-						return;
-					}
-				}
-
-				Header Header;
-				Header.Key = Key;
-				Header.Value = Value;
-				Headers.push_back(Header);
+				TH_ASSERT_V(!Key.empty(), "key should not be empty");
+				auto& Range = Headers[Key];
+				Range.clear();
+				Range.push_back(Value);
 			}
-			const char* RequestFrame::GetCookie(const char* Key)
+			RangePayload* RequestFrame::GetCookieRanges(const std::string& Key)
 			{
-				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
-				if (!Cookies.empty())
-				{
-					for (auto& Cookie : Cookies)
-					{
-						if (Cookie.Key == Key)
-							return Cookie.Value.c_str();
-					}
-
-					return nullptr;
-				}
-
-				const char* Cookie = GetHeader("Cookie");
-				if (!Cookie)
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				return (RangePayload*)&Cookies[Key];
+			}
+			const char* RequestFrame::GetCookie(const std::string& Key) const
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Cookies.find(Key);
+				if (It == Cookies.end())
 					return nullptr;
 
-				uint64_t Length = strlen(Cookie);
-				const char* Offset = Cookie;
-				Cookies.reserve(2);
-
-				for (uint64_t i = 0; i < Length; i++)
-				{
-					if (Cookie[i] != '=')
-						continue;
-
-					uint64_t NameLength = (uint64_t)((Cookie + i) - Offset), Set = i;
-					std::string Name(Offset, NameLength);
-
-					while (i + 1 < Length && Cookie[i] != ';')
-						i++;
-
-					if (Cookie[i] == ';')
-						i--;
-
-					Cookies.push_back({ Name, std::string(Cookie + Set + 1, i - Set) });
-					Offset = Cookie + (i + 3);
-				}
-
-				if (Cookies.empty())
+				if (It->second.empty())
 					return nullptr;
 
-				for (auto& Cookie : Cookies)
-				{
-					if (Cookie.Key == Key)
-						return Cookie.Value.c_str();
-				}
-
-				return nullptr;
+				return It->second.back().c_str();
 			}
-			const char* RequestFrame::GetHeader(const char* Key)
+			RangePayload* RequestFrame::GetHeaderRanges(const std::string& Key)
 			{
-				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
-				for (auto& Head : Headers)
-				{
-					if (!Core::Parser::CaseCompare(Head.Key.c_str(), Key))
-						return Head.Value.c_str();
-				}
-
-				return nullptr;
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				return (RangePayload*)&Headers[Key];
 			}
-			std::vector<std::pair<int64_t, int64_t>> RequestFrame::GetRanges()
+			const std::string* RequestFrame::GetHeaderBlob(const std::string& Key) const
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				const std::string& Result = It->second.back();
+				return &Result;
+			}
+			const char* RequestFrame::GetHeader(const std::string& Key) const
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				return It->second.back().c_str();
+			}
+			std::vector<std::pair<int64_t, int64_t>> RequestFrame::GetRanges() const
 			{
 				const char* Range = GetHeader("Range");
 				if (Range == nullptr)
@@ -798,7 +741,7 @@ namespace Tomahawk
 
 				return Ranges;
 			}
-			std::pair<uint64_t, uint64_t> RequestFrame::GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContenLength)
+			std::pair<uint64_t, uint64_t> RequestFrame::GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContenLength) const
 			{
 				if (Range->first == -1 && Range->second == -1)
 					return std::make_pair(0, ContenLength);
@@ -823,46 +766,17 @@ namespace Tomahawk
 			{
 				TextAssign(Buffer, Data);
 			}
-			void ResponseFrame::SetHeader(const char* Key, const char* Value)
+			void ResponseFrame::PutHeader(const std::string& Key, const std::string& Value)
 			{
-				TH_ASSERT_V(Key != nullptr, "key should be set");
-				for (auto It = Headers.begin(); It != Headers.end(); ++It)
-				{
-					if (strcmp(It->Key.c_str(), Key) != 0)
-						continue;
-
-					if (Value != nullptr)
-						It->Value = Value;
-					else
-						Headers.erase(It);
-
-					return;
-				}
-
-				if (!Value)
-					return;
-
-				Header Header;
-				Header.Key = Key;
-				Header.Value = Value;
-				Headers.push_back(Header);
+				TH_ASSERT_V(!Key.empty(), "key should not be empty");
+				Headers[Key].push_back(Value);
 			}
-			void ResponseFrame::SetHeader(const char* Key, const std::string& Value)
+			void ResponseFrame::SetHeader(const std::string& Key, const std::string& Value)
 			{
-				TH_ASSERT_V(Key != nullptr, "key should be set");
-				for (auto& Head : Headers)
-				{
-					if (strcmp(Head.Key.c_str(), Key) == 0)
-					{
-						Head.Value = Value;
-						return;
-					}
-				}
-
-				Header Header;
-				Header.Key = Key;
-				Header.Value = Value;
-				Headers.push_back(Header);
+				TH_ASSERT_V(!Key.empty(), "key should not be empty");
+				auto& Range = Headers[Key];
+				Range.clear();
+				Range.push_back(Value);
 			}
 			void ResponseFrame::SetCookie(const char* Key, const char* Value, uint64_t Expires, const char* Domain, const char* Path, bool Secure, bool HTTPOnly)
 			{
@@ -871,20 +785,20 @@ namespace Tomahawk
 
 				for (auto& Cookie : Cookies)
 				{
-					if (strcmp(Cookie.Name.c_str(), Key) == 0)
-					{
-						if (Domain != nullptr)
-							Cookie.Domain = Domain;
+					if (Core::Parser::CaseCompare(Cookie.Name.c_str(), Key) != 0)
+						continue;
 
-						if (Path != nullptr)
-							Cookie.Path = Path;
+					if (Domain != nullptr)
+						Cookie.Domain = Domain;
 
-						Cookie.Value = Value;
-						Cookie.Secure = Secure;
-						Cookie.Expires = Expires;
-						Cookie.HTTPOnly = HTTPOnly;
-						return;
-					}
+					if (Path != nullptr)
+						Cookie.Path = Path;
+
+					Cookie.Value = Value;
+					Cookie.Secure = Secure;
+					Cookie.Expires = Expires;
+					Cookie.HTTPOnly = HTTPOnly;
+					return;
 				}
 
 				Cookie Cookie;
@@ -902,17 +816,6 @@ namespace Tomahawk
 
 				Cookies.emplace_back(std::move(Cookie));
 			}
-			const char* ResponseFrame::GetHeader(const char* Key)
-			{
-				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
-				for (auto& Head : Headers)
-				{
-					if (!Core::Parser::CaseCompare(Head.Key.c_str(), Key))
-						return Head.Value.c_str();
-				}
-
-				return nullptr;
-			}
 			Cookie* ResponseFrame::GetCookie(const char* Key)
 			{
 				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
@@ -925,14 +828,52 @@ namespace Tomahawk
 
 				return nullptr;
 			}
-			std::string ResponseFrame::GetBuffer()
+			RangePayload* ResponseFrame::GetHeaderRanges(const std::string& Key)
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				return (RangePayload*)&Headers[Key];
+			}
+			const std::string* ResponseFrame::GetHeaderBlob(const std::string& Key) const
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				const std::string& Result = It->second.back();
+				return &Result;
+			}
+			const char* ResponseFrame::GetHeader(const std::string& Key) const
+			{
+				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
+				auto It = Headers.find(Key);
+				if (It == Headers.end())
+					return nullptr;
+
+				if (It->second.empty())
+					return nullptr;
+
+				return It->second.back().c_str();
+			}
+			std::string ResponseFrame::GetBuffer() const
 			{
 				return std::string(Buffer.data(), Buffer.size());
+			}
+			bool ResponseFrame::HasBody() const
+			{
+				return Util::ContentOK(Data);
+			}
+			bool ResponseFrame::IsOK() const
+			{
+				return StatusCode >= 200 && StatusCode < 400;
 			}
 
 			bool Connection::Consume(const ContentCallback& Callback)
 			{
-				if (Request.ContentState == Content::Lost || Request.ContentState == Content::Empty || Request.ContentState == Content::Saved || Request.ContentState == Content::Wants_Save)
+				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved || Response.Data == Content::Wants_Save)
 				{
 					if (Callback)
 						Callback(this, nullptr, 0);
@@ -940,7 +881,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				if (Request.ContentState == Content::Corrupted || Request.ContentState == Content::Payload_Exceeded || Request.ContentState == Content::Save_Exception)
+				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
 				{
 					if (Callback)
 						Callback(this, nullptr, -1);
@@ -948,7 +889,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				if (Request.ContentState == Content::Cached)
+				if (Response.Data == Content::Cached)
 				{
 					if (Callback)
 					{
@@ -961,7 +902,7 @@ namespace Tomahawk
 
 				if ((memcmp(Request.Method, "POST", 4) != 0 && memcmp(Request.Method, "PATCH", 5) != 0 && memcmp(Request.Method, "PUT", 3) != 0) && memcmp(Request.Method, "DELETE", 4) != 0)
 				{
-					Request.ContentState = Content::Empty;
+					Response.Data = Content::Empty;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -971,7 +912,7 @@ namespace Tomahawk
 				const char* ContentType = Request.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
-					Request.ContentState = Content::Wants_Save;
+					Response.Data = Content::Wants_Save;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -993,7 +934,7 @@ namespace Tomahawk
 							if (Result == -1)
 							{
 								TH_RELEASE(Parser);
-								Base->Request.ContentState = Content::Corrupted;
+								Base->Response.Data = Content::Corrupted;
 
 								if (Callback)
 									Callback(Base, nullptr, (int)Result);
@@ -1016,12 +957,12 @@ namespace Tomahawk
 						if (Size != -1)
 						{
 							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Request.ContentState = Content::Cached;
+								Base->Response.Data = Content::Cached;
 							else
-								Base->Request.ContentState = Content::Lost;
+								Base->Response.Data = Content::Lost;
 						}
 						else
-							Base->Request.ContentState = Content::Corrupted;
+							Base->Response.Data = Content::Corrupted;
 
 						if (Callback)
 							Callback(Base, nullptr, Size);
@@ -1039,9 +980,9 @@ namespace Tomahawk
 						if (Size <= 0)
 						{
 							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Request.ContentState = Content::Cached;
+								Base->Response.Data = Content::Cached;
 							else
-								Base->Request.ContentState = Content::Lost;
+								Base->Response.Data = Content::Lost;
 
 							if (Callback)
 								Callback(Base, nullptr, Size);
@@ -1061,7 +1002,7 @@ namespace Tomahawk
 
 				if (Request.ContentLength > Root->Router->PayloadMaxLength)
 				{
-					Request.ContentState = Content::Payload_Exceeded;
+					Response.Data = Content::Payload_Exceeded;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -1070,7 +1011,7 @@ namespace Tomahawk
 
 				if (!Route || Request.ContentLength > Route->MaxCacheLength)
 				{
-					Request.ContentState = Content::Wants_Save;
+					Response.Data = Content::Wants_Save;
 					if (Callback)
 						Callback(this, nullptr, 0);
 
@@ -1087,12 +1028,12 @@ namespace Tomahawk
 						if (Size != -1)
 						{
 							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Request.ContentState = Content::Cached;
+								Base->Response.Data = Content::Cached;
 							else
-								Base->Request.ContentState = Content::Lost;
+								Base->Response.Data = Content::Lost;
 						}
 						else
-							Base->Request.ContentState = Content::Corrupted;
+							Base->Response.Data = Content::Corrupted;
 
 						if (Callback)
 							Callback(Base, nullptr, Size);
@@ -1111,7 +1052,7 @@ namespace Tomahawk
 			}
 			bool Connection::Store(const ResourceCallback& Callback)
 			{
-				if (!Route || Request.ContentState == Content::Lost || Request.ContentState == Content::Empty || Request.ContentState == Content::Cached)
+				if (!Route || Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Cached)
 				{
 					if (Callback)
 						Callback(this, nullptr, 0);
@@ -1119,7 +1060,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				if (Request.ContentState == Content::Corrupted || Request.ContentState == Content::Payload_Exceeded || Request.ContentState == Content::Save_Exception)
+				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
 				{
 					if (Callback)
 						Callback(this, nullptr, -1);
@@ -1127,7 +1068,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				if (Request.ContentState == Content::Saved)
+				if (Response.Data == Content::Saved)
 				{
 					if (!Callback || Request.Resources.empty())
 						return true;
@@ -1139,9 +1080,9 @@ namespace Tomahawk
 					return true;
 				}
 
-				const char* ContentType = Request.GetHeader("Content-Type"), *BoundaryName;
+				const char* ContentType = Request.GetHeader("Content-Type"), * BoundaryName;
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
-					Request.ContentState = Content::Wants_Save;
+					Response.Data = Content::Wants_Save;
 
 				if (ContentType != nullptr && (BoundaryName = strstr(ContentType, "boundary=")))
 				{
@@ -1170,9 +1111,9 @@ namespace Tomahawk
 						if (Size <= 0)
 						{
 							if (Size == -1)
-								Base->Request.ContentState = Content::Corrupted;
+								Base->Response.Data = Content::Corrupted;
 							else
-								Base->Request.ContentState = Content::Saved;
+								Base->Response.Data = Content::Saved;
 
 							if (Segment->Callback)
 								Segment->Callback(Base, nullptr, Size);
@@ -1185,7 +1126,7 @@ namespace Tomahawk
 
 						if (Parser->MultipartParse(Boundary.c_str(), Buffer, Size) == -1 || Segment->Close)
 						{
-							Base->Request.ContentState = Content::Saved;
+							Base->Response.Data = Content::Saved;
 							if (Segment->Callback)
 								Segment->Callback(Base, nullptr, 0);
 
@@ -1208,7 +1149,7 @@ namespace Tomahawk
 					FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
 					if (!File)
 					{
-						Request.ContentState = Content::Save_Exception;
+						Response.Data = Content::Save_Exception;
 						return false;
 					}
 
@@ -1221,14 +1162,14 @@ namespace Tomahawk
 						{
 							if (Size != -1)
 							{
-								Base->Request.ContentState = Content::Saved;
+								Base->Response.Data = Content::Saved;
 								Base->Request.Resources.push_back(fResource);
 
 								if (Callback)
 									Callback(Base, &Base->Request.Resources.back(), Size);
 							}
 							else
-								Base->Request.ContentState = Content::Corrupted;
+								Base->Response.Data = Content::Corrupted;
 
 							if (Callback)
 								Callback(Base, nullptr, Size);
@@ -1241,7 +1182,7 @@ namespace Tomahawk
 						if (fwrite(Buffer, 1, (size_t)Size, File) == Size)
 							return true;
 
-						Base->Request.ContentState = Content::Save_Exception;
+						Base->Response.Data = Content::Save_Exception;
 						fclose(File);
 						TH_TRACE("close fs 0x%p", (void*)File);
 
@@ -1480,20 +1421,7 @@ namespace Tomahawk
 				else if (!Response.GetHeader("Content-Length"))
 					Content.Append("Content-Length: 0\r\n", 19);
 
-				for (auto& Item : Response.Headers)
-					Content.fAppend("%s: %s\r\n", Item.Key.c_str(), Item.Value.c_str());
-
-				for (auto& Item : Response.Cookies)
-				{
-					if (!Item.Domain.empty())
-						Item.Domain.insert(0, "; domain=");
-
-					if (!Item.Path.empty())
-						Item.Path.insert(0, "; path=");
-
-					Content.fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s%s\r\n", Item.Name.c_str(), Item.Value.c_str(), Core::DateTime::GetGMTBasedString(Item.Expires).c_str(), Item.Path.c_str(), Item.Domain.c_str(), Item.Secure ? "; secure" : "", Item.HTTPOnly ? "; HTTPOnly" : "");
-				}
-
+				Util::ConstructHeadFull(&Request, &Response, false, &Content);
 				if (Route && Route->Callbacks.Headers)
 					Route->Callbacks.Headers(this, &Content);
 
@@ -2028,7 +1956,7 @@ namespace Tomahawk
 			}
 			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, int64_t Length)
 			{
-				TH_ASSERT(Buffer != nullptr, -1, "buffer should be set");
+				TH_ASSERT(Buffer != nullptr, -1, "Dataer should be set");
 				TH_ASSERT(Boundary != nullptr, -1, "boundary should be set");
 
 				if (!Multipart.Boundary || !Multipart.LookBehind)
@@ -2246,7 +2174,7 @@ namespace Tomahawk
 			}
 			int64_t Parser::ParseRequest(const char* BufferStart, uint64_t Length, uint64_t LastLength)
 			{
-				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
+				TH_ASSERT(BufferStart != nullptr, -1, "Dataer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = BufferStart + Length;
 				int Result;
@@ -2261,7 +2189,7 @@ namespace Tomahawk
 			}
 			int64_t Parser::ParseResponse(const char* BufferStart, uint64_t Length, uint64_t LastLength)
 			{
-				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
+				TH_ASSERT(BufferStart != nullptr, -1, "Dataer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = Buffer + Length;
 				int Result;
@@ -2276,7 +2204,7 @@ namespace Tomahawk
 			}
 			int64_t Parser::ParseDecodeChunked(char* Buffer, int64_t* Length)
 			{
-				TH_ASSERT(Buffer != nullptr && Length != nullptr, -1, "buffer should be set");
+				TH_ASSERT(Buffer != nullptr && Length != nullptr, -1, "Dataer should be set");
 				size_t Dest = 0, Src = 0, Size = *Length;
 				int64_t Result = -2;
 
@@ -2429,8 +2357,8 @@ namespace Tomahawk
 			}
 			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, uint64_t* TokenLength, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
 				TH_ASSERT(Token != nullptr, nullptr, "token should be set");
 				TH_ASSERT(TokenLength != nullptr, nullptr, "token length should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
@@ -2501,8 +2429,8 @@ namespace Tomahawk
 			}
 			const char* Parser::Complete(const char* Buffer, const char* BufferEnd, uint64_t LastLength, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				int Result = 0;
@@ -2551,8 +2479,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				if (BufferEnd - Buffer < 9)
@@ -2621,8 +2549,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				static const char* Mapping =
@@ -2755,8 +2683,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				if (Buffer == BufferEnd)
@@ -2914,8 +2842,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
@@ -2994,6 +2922,238 @@ namespace Tomahawk
 				}
 
 				return ProcessHeaders(Buffer, BufferEnd, Out);
+			}
+
+			WebCodec::WebCodec() : State(Bytecode::Begin), Fragment(0)
+			{
+			}
+			void WebCodec::Prepare()
+			{
+				Opcode = WebSocketOp::Continue;
+				Message.clear();
+			}
+			WebSocketOp WebCodec::ParseFrame(const char* Buffer, size_t Size)
+			{
+				if (!Buffer || !Size)
+					return WebSocketOp::Continue;
+
+				Payload.resize(Size);
+				memcpy(Payload.data(), Buffer, sizeof(char) * Size);
+				char* Data = Payload.data();
+
+				while (Size)
+				{
+					uint8_t Index = *Data;
+					switch (State)
+					{
+						case Bytecode::Begin:
+						{
+							uint8_t Op = Index & 0x0f;
+							if (Index & 0x70)
+								return WebSocketOp::Continue;
+
+							Final = (Index & 0x80) ? 1 : 0;
+							if (Op == 0)
+							{
+								if (!Fragment)
+									return WebSocketOp::Continue;
+
+								Control = 0;
+							}
+							else if (Op & 0x8)
+							{
+								if (Op != (uint8_t)WebSocketOp::Ping && Op != (uint8_t)WebSocketOp::Pong && Op != (uint8_t)WebSocketOp::Close)
+									return WebSocketOp::Continue;
+
+								if (!Final)
+									return WebSocketOp::Continue;
+
+								Control = 1;
+								Opcode = (WebSocketOp)Op;
+							}
+							else
+							{
+								if (Op != (uint8_t)WebSocketOp::Text && Op != (uint8_t)WebSocketOp::Binary)
+									return WebSocketOp::Continue;
+
+								Control = 0;
+								Fragment = !Final;
+								Opcode = (WebSocketOp)Op;
+							}
+
+							State = Bytecode::Length;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length:
+						{
+							uint8_t Length = Index & 0x7f;
+							Masked = (Index & 0x80) ? 1 : 0;
+							Masks = 0;
+
+							if (Control)
+							{
+								if (Length > 125)
+									return WebSocketOp::Continue;
+
+								Remains = Length;
+								State = Masked ? Bytecode::Mask_0 : Bytecode::End;
+							}
+							else if (Length < 126)
+							{
+								Remains = Length;
+								State = Masked ? Bytecode::Mask_0 : Bytecode::End;
+							}
+							else if (Length == 126)
+								State = Bytecode::Length_16_0;
+							else
+								State = Bytecode::Length_64_0;
+
+							Data++; Size--;
+							if (State == Bytecode::End && Remains == 0)
+								goto FetchPayload;
+							break;
+						}
+						case Bytecode::Length_16_0:
+						{
+							Remains = (uint64_t)Index << 8;
+							State = Bytecode::Length_16_1;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_16_1:
+						{
+							Remains |= (uint64_t)Index << 0;
+							State = Masked ? Bytecode::Mask_0 : Bytecode::End;
+							if (Remains < 126)
+								return WebSocketOp::Continue;
+
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_0:
+						{
+							Remains = (uint64_t)Index << 56;
+							State = Bytecode::Length_64_1;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_1:
+						{
+							Remains |= (uint64_t)Index << 48;
+							State = Bytecode::Length_64_2;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_2:
+						{
+							Remains |= (uint64_t)Index << 40;
+							State = Bytecode::Length_64_3;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_3:
+						{
+							Remains |= (uint64_t)Index << 32;
+							State = Bytecode::Length_64_4;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_4:
+						{
+							Remains |= (uint64_t)Index << 24;
+							State = Bytecode::Length_64_5;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_5:
+						{
+							Remains |= (uint64_t)Index << 16;
+							State = Bytecode::Length_64_6;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_6:
+						{
+							Remains |= (uint64_t)Index << 8;
+							State = Bytecode::Length_64_7;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Length_64_7:
+						{
+							Remains |= (uint64_t)Index << 0;
+							State = Masked ? Bytecode::Mask_0 : Bytecode::End;
+							if (Remains < 65536)
+								return WebSocketOp::Continue;
+
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Mask_0:
+						{
+							Mask[0] = Index;
+							State = Bytecode::Mask_1;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Mask_1:
+						{
+							Mask[1] = Index;
+							State = Bytecode::Mask_2;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Mask_2:
+						{
+							Mask[2] = Index;
+							State = Bytecode::Mask_3;
+							Data++; Size--;
+							break;
+						}
+						case Bytecode::Mask_3:
+						{
+							Mask[3] = Index;
+							State = Bytecode::End;
+							Data++; Size--;
+							if (Remains == 0)
+								goto FetchPayload;
+							break;
+						}
+						case Bytecode::End:
+						{
+							size_t Length = Size;
+							if (Length > Remains)
+								Length = Remains;
+
+							if (Masked)
+							{
+								for (size_t i = 0; i < Length; i++)
+									Data[i] ^= Mask[Masks++ % 4];
+							}
+
+							if (Control)
+								TextAppend(Message, Data, Length);
+							else
+								TextAppend(Message, Data, Length);
+
+							Data += Length;
+							Size -= Length;
+							Remains -= Length;
+							if (Remains == 0)
+								goto FetchPayload;
+							break;
+						}
+					}
+				}
+
+				return WebSocketOp::Continue;
+			FetchPayload:
+				if (!Control && !Final)
+					return WebSocketOp::Continue;
+
+				State = Bytecode::Begin;
+				return Opcode;
 			}
 
 			void Util::ConstructPath(Connection* Base)
@@ -3091,11 +3251,14 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Request != nullptr, "connection should be set");
 				TH_ASSERT_V(Response != nullptr, "response should be set");
-				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				TH_ASSERT_V(Buffer != nullptr, "Dataer should be set");
 
-				std::vector<Header>* Headers = (IsRequest ? &Request->Headers : &Response->Headers);
-				for (auto& Item : *Headers)
-					Buffer->fAppend("%s: %s\r\n", Item.Key.c_str(), Item.Value.c_str());
+				HeaderMapping& Headers = (IsRequest ? Request->Headers : Response->Headers);
+				for (auto& Item : Headers)
+				{
+					for (auto& Payload : Item.second)
+						Buffer->fAppend("%s: %s\r\n", Item.first.c_str(), Payload.c_str());
+				}
 
 				if (IsRequest)
 					return;
@@ -3114,7 +3277,7 @@ namespace Tomahawk
 			void Util::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)
 			{
 				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				TH_ASSERT_V(Buffer != nullptr, "Dataer should be set");
 
 				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
@@ -3124,7 +3287,7 @@ namespace Tomahawk
 			void Util::ConstructHeadUncache(Connection* Base, Core::Parser* Buffer)
 			{
 				TH_ASSERT_V(Base != nullptr, "connection should be set");
-				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+				TH_ASSERT_V(Buffer != nullptr, "Dataer should be set");
 
 				Buffer->Append(
 					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
@@ -3139,16 +3302,7 @@ namespace Tomahawk
 				if (Router->Sites.empty())
 					return false;
 
-				std::string* Host = nullptr;
-				for (auto& Header : Base->Request.Headers)
-				{
-					if (Core::Parser::CaseCompare(Header.Key.c_str(), "Host"))
-						continue;
-
-					Host = &Header.Value;
-					break;
-				}
-
+				auto* Host = Base->Request.GetHeaderBlob("Host");
 				if (!Host)
 					return false;
 
@@ -3225,7 +3379,7 @@ namespace Tomahawk
 			bool Util::WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Size, WebSocketOp Opcode, unsigned int Mask, const SuccessCallback& Callback)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				TH_ASSERT(Buffer != nullptr, false, "buffer should be set");
+				TH_ASSERT(Buffer != nullptr, false, "Dataer should be set");
 
 				unsigned char Header[14];
 				size_t HeaderLength = 1;
@@ -3692,15 +3846,46 @@ namespace Tomahawk
 				if (!Segment || Segment->Header.empty())
 					return true;
 
-				Header Value;
-				Value.Key = Segment->Header;
-				Value.Value.assign(Data, Length);
+				if (Core::Parser::CaseCompare(Segment->Header.c_str(), "cookie") == 0)
+				{
+					std::vector<std::pair<std::string, std::string>> Cookies;
+					const char* Offset = Data;
 
-				if (Segment->Request)
-					Segment->Request->Headers.push_back(Value);
+					for (uint64_t i = 0; i < Length; i++)
+					{
+						if (Data[i] != '=')
+							continue;
 
-				if (Segment->Response)
-					Segment->Response->Headers.push_back(Value);
+						std::string Name(Offset, (size_t)((Data + i) - Offset));
+						size_t Set = i;
+
+						while (i + 1 < Length && Data[i] != ';')
+							i++;
+
+						if (Data[i] == ';')
+							i--;
+
+						Cookies.emplace_back(std::make_pair(std::move(Name), std::string(Data + Set + 1, i - Set)));
+						Offset = Data + (i + 3);
+					}
+
+					if (Segment->Request)
+					{
+						for (auto&& Item : Cookies)
+						{
+							auto& Cookie = Segment->Request->Cookies[Item.first];
+							Cookie.emplace_back(std::move(Item.second));
+						}
+					}
+				}
+				else
+				{
+					if (Segment->Request)
+						Segment->Request->Headers[Segment->Header].emplace_back(Data, Length);
+
+					if (Segment->Response)
+						Segment->Response->Headers[Segment->Header].emplace_back(Data, Length);
+				}
 
 				Segment->Header.clear();
 				return true;
@@ -4452,7 +4637,7 @@ namespace Tomahawk
 
 					if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
 						return (void)Base->Finish(200);
-					
+
 					Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t State)
 					{
 						auto* Base = Socket->Context<HTTP::Connection>();
@@ -4501,7 +4686,7 @@ namespace Tomahawk
 				}
 #endif
 				const char* Origin = Base->Request.GetHeader("Origin");
-				const char* CORS1 = "", *CORS2 = "", *CORS3 = "";
+				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
 				if (Origin != nullptr)
 				{
 					CORS1 = "Access-Control-Allow-Origin: ";
@@ -4574,7 +4759,7 @@ namespace Tomahawk
 				int64_t ContentLength = Base->Resource.Size;
 
 				const char* Origin = Base->Request.GetHeader("Origin");
-				const char* CORS1 = "", *CORS2 = "", *CORS3 = "";
+				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
 				if (Origin != nullptr)
 				{
 					CORS1 = "Access-Control-Allow-Origin: ";
@@ -4630,7 +4815,7 @@ namespace Tomahawk
 
 					if (State < 0)
 						return (void)Base->Break();
-					
+
 					Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
 					{
 						Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
@@ -5085,120 +5270,53 @@ namespace Tomahawk
 						ProcessGateway(Base);
 				});
 			}
-			bool Util::ProcessWebSocketPass(Connection* Base)
+			bool Util::ProcessWebSocketPass(Connection* Base, const char* Buffer, size_t Size)
 			{
-				TH_ASSERT(Base != nullptr && Base->WebSocket != nullptr, false, "connection should be set");
-				if (Base->WebSocket->Notified)
+				if (!Base || !Base->WebSocket)
+					return false;
+
+				WebSocketFrame* WebSocket = Base->WebSocket;
+				if (WebSocket->Notifies)
 				{
-					Base->WebSocket->Notified = false;
-					if (Base->WebSocket->Notification)
+					WebSocket->Notifies = false;
+					if (WebSocket->Notification)
 					{
-						Base->WebSocket->Notification(Base->WebSocket);
+						WebSocket->Notification(WebSocket);
 						return true;
 					}
 				}
 
-				if (Base->WebSocket->Clear)
+				WebSocketOp Opcode = WebSocket->Codec->ParseFrame(Buffer, Size);
+				if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
 				{
-					Base->WebSocket->Buffer.clear();
-					Base->Request.Buffer.clear();
-					Base->WebSocket->Clear = false;
-				}
-
-				Base->WebSocket->HeaderLength = 0;
-				if (Base->Request.Buffer.size() >= 2)
-				{
-					Base->WebSocket->BodyLength = Base->Request.Buffer[1] & 127;
-					Base->WebSocket->MaskLength = (Base->Request.Buffer[1] & 128) ? 4 : 0;
-
-					if (Base->WebSocket->BodyLength < 126 && Base->Request.Buffer.size() >= Base->WebSocket->MaskLength)
-					{
-						Base->WebSocket->DataLength = Base->WebSocket->BodyLength;
-						Base->WebSocket->HeaderLength = 2 + Base->WebSocket->MaskLength;
-					}
-					else if (Base->WebSocket->BodyLength == 126 && Base->Request.Buffer.size() >= Base->WebSocket->MaskLength + 4)
-					{
-						Base->WebSocket->HeaderLength = Base->WebSocket->MaskLength + 4;
-						Base->WebSocket->DataLength = (((uint64_t)Base->Request.Buffer[2]) << 8) + Base->Request.Buffer[3];
-					}
-					else if (Base->Request.Buffer.size() >= 10 + Base->WebSocket->MaskLength + 10)
-					{
-						Base->WebSocket->HeaderLength = Base->WebSocket->MaskLength + 10;
-						Base->WebSocket->DataLength = (((uint64_t)ntohl(*(uint32_t*)(void*)&Base->Request.Buffer[2])) << 32) + ntohl(*(uint32_t*)(void*)&Base->Request.Buffer[6]);
-					}
-				}
-
-				if (Base->WebSocket->HeaderLength > 0 && Base->Request.Buffer.size() >= Base->WebSocket->HeaderLength)
-				{
-					if (Base->WebSocket->MaskLength > 0)
-						memcpy(Base->WebSocket->Mask, Base->Request.Buffer.c_str() + Base->WebSocket->HeaderLength - Base->WebSocket->MaskLength, sizeof(Base->WebSocket->Mask));
+#ifdef _DEBUG
+					if (Opcode == WebSocketOp::Binary)
+						TH_TRACE("[websocket] sock %i with %s", (int)Base->Stream->GetFd(), Compute::Common::HexEncode(WebSocket->Codec->Message.data(), WebSocket->Codec->Message.size()).c_str());
 					else
-						memset(Base->WebSocket->Mask, 0, sizeof(Base->WebSocket->Mask));
+						TH_TRACE("[websocket] sock %i with %.*s", (int)Base->Stream->GetFd(), (int)WebSocket->Codec->Message.size(), WebSocket->Codec->Message.data());
+#endif
+					if (WebSocket->Receive)
+						WebSocket->Receive(WebSocket, WebSocket->Codec->Message.data(), (int64_t)WebSocket->Codec->Message.size(), (WebSocketOp)Opcode);
 
-					if (Base->WebSocket->DataLength + Base->WebSocket->HeaderLength > Base->Request.Buffer.size())
+					return false;
+				}
+				else if (Opcode == WebSocketOp::Ping)
+				{
+					WebSocket->Write("", 0, WebSocketOp::Pong, [](Connection* Base)
 					{
-						Base->WebSocket->Opcode = Base->Request.Buffer[0] & 0xF;
-						Base->WebSocket->BodyLength = Base->Request.Buffer.size() - Base->WebSocket->HeaderLength;
-						Base->WebSocket->Buffer.assign(Base->Request.Buffer.c_str() + Base->WebSocket->HeaderLength, Base->WebSocket->BodyLength);
-
-						return Base->Stream->ReadAsync(Base->WebSocket->DataLength - Base->WebSocket->BodyLength, [](Socket* Socket, const char* Buffer, int64_t Size)
-						{
-							auto* Base = Socket->Context<HTTP::Connection>();
-							TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-							if (Size > 0)
-							{
-								Base->Request.Buffer.append(Buffer, Size);
-								Base->WebSocket->BodyLength += Size;
-								return true;
-							}
-							else if (Size < 0)
-							{
-								Base->WebSocket->Finish();
-								return false;
-							}
-
-							return ProcessWebSocketPass(Base);
-						});
-					}
-					else
-					{
-						Base->WebSocket->Opcode = Base->Request.Buffer[0] & 0xF;
-						Base->WebSocket->BodyLength = Base->WebSocket->DataLength + Base->WebSocket->HeaderLength;
-						Base->WebSocket->Buffer.assign(Base->Request.Buffer.c_str() + Base->WebSocket->HeaderLength, Base->WebSocket->DataLength);
-					}
-
-					if (Base->WebSocket->MaskLength > 0)
-					{
-						for (uint64_t i = 0; i < Base->WebSocket->DataLength; i++)
-							Base->WebSocket->Buffer[i] ^= Base->WebSocket->Mask[i % 4];
-					}
-
-					Base->WebSocket->Clear = true;
-					if (Base->WebSocket->Opcode == (unsigned char)WebSocketOp::Close)
-					{
-						if (Base->WebSocket->State != (uint32_t)WebSocketState::Close)
-							Base->WebSocket->State = (uint32_t)WebSocketState::Reset;
-						else
-							Base->WebSocket->State = (uint32_t)WebSocketState::Free;
-
 						Base->WebSocket->Next();
-					}
-					else if (Base->WebSocket->Opcode == (unsigned char)WebSocketOp::Ping)
-					{
-						Base->WebSocket->Write("", 0, WebSocketOp::Pong, [](Connection* Base)
-						{
-							Base->WebSocket->Next();
-							return true;
-						});
-					}
-					else if (Base->WebSocket->Receive)
-						Base->WebSocket->Receive(Base->WebSocket, Base->WebSocket->Buffer.c_str(), (int64_t)Base->WebSocket->Buffer.size(), (WebSocketOp)Base->WebSocket->Opcode);
-					else
-						Base->WebSocket->Finish();
-
-					return true;
+						return true;
+					});
+					return false;
 				}
+				else if (Opcode == WebSocketOp::Close || (Opcode != WebSocketOp::Continue && Opcode != WebSocketOp::Pong))
+				{
+					WebSocket->Finish();
+					return false;
+				}
+
+				if (Buffer != nullptr || Size > 0)
+					return true;
 
 				return !Base->Stream->ReadAsync(8192, [](Socket* Socket, const char* Buffer, int64_t Size)
 				{
@@ -5213,10 +5331,7 @@ namespace Tomahawk
 						return Base->Break();
 					}
 					else if (Size > 0)
-					{
-						Base->Request.Buffer.append(Buffer, Size);
-						return false;
-					}
+						return ProcessWebSocketPass(Base, Buffer, (size_t)Size);
 
 					return ProcessWebSocketPass(Base);
 				});
@@ -5310,7 +5425,7 @@ namespace Tomahawk
 				auto Base = (HTTP::Connection*)Root;
 				if (Check)
 				{
-					if (Base->Request.ContentLength > 0 && Base->Request.ContentState == Content::Not_Loaded)
+					if (Base->Request.ContentLength > 0 && Base->Response.Data == Content::Not_Loaded)
 					{
 						Base->Consume([](Connection* Base, const char*, int64_t Size)
 						{
@@ -5336,12 +5451,16 @@ namespace Tomahawk
 				Base->Stream->Income = 0;
 				Base->Stream->Outcome = 0;
 				Base->Info.Close = (Base->Info.Close || Base->Response.StatusCode < 0);
-				Base->Request.ContentState = Content::Not_Loaded;
+				Base->Response.Data = Content::Not_Loaded;
 				Base->Response.Error = false;
 				Base->Response.StatusCode = -1;
 				Base->Response.Buffer.clear();
 				Base->Response.Cookies.clear();
 				Base->Response.Headers.clear();
+				Base->Request.ContentLength = 0;
+				Base->Request.User.Type = Auth::Unverified;
+				Base->Request.User.Username.clear();
+				Base->Request.User.Password.clear();
 				Base->Request.Resources.clear();
 				Base->Request.Buffer.clear();
 				Base->Request.Headers.clear();
@@ -5419,7 +5538,7 @@ namespace Tomahawk
 					}
 
 					if (!Base->Request.ContentLength)
-						Base->Request.ContentState = Content::Empty;
+						Base->Response.Data = Content::Empty;
 
 					if (!Base->Route->ProxyIpAddress.empty())
 					{
@@ -5541,52 +5660,172 @@ namespace Tomahawk
 			Client::~Client()
 			{
 			}
-			Core::Async<ResponseFrame*> Client::Fetch(HTTP::RequestFrame* Root, int64_t MaxSize)
+			Core::Async<bool> Client::Consume(int64_t MaxSize)
 			{
-				return Send(Root).Then<Core::Async<ResponseFrame*>>([this, MaxSize](HTTP::ResponseFrame*&&)
+				if (Response.HasBody())
+					return true;
+
+				if (Response.Data == Content::Lost || Response.Data == Content::Wants_Save || Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
+					return false;
+
+				Response.Buffer.clear();
+				if (!Stream.IsValid())
+					return false;
+
+				const char* ContentType = Response.GetHeader("Content-Type");
+				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
+				{
+					Response.Data = Content::Wants_Save;
+					return false;
+				}
+
+				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
+				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
+				{
+					Core::Async<bool> Result;
+					Parser* Parser = new HTTP::Parser();
+					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
+					{
+						if (Size > 0)
+						{
+							int64_t Subresult = Parser->ParseDecodeChunked((char*)Buffer, &Size);
+							if (Subresult == -1)
+							{
+								TH_RELEASE(Parser);
+								Response.Data = Content::Corrupted;
+								Result = false;
+
+								return false;
+							}
+							else if (Subresult >= 0 || Subresult == -2)
+							{
+								if (Response.Buffer.size() < MaxSize)
+									TextAppend(Response.Buffer, Buffer, Size);
+							}
+
+							return Subresult == -2;
+						}
+
+						TH_RELEASE(Parser);
+						if (Size != -1)
+						{
+							if (Response.Buffer.size() < MaxSize)
+								Response.Data = Content::Cached;
+							else
+								Response.Data = Content::Lost;
+						}
+						else
+							Response.Data = Content::Corrupted;
+
+						if (!Response.Buffer.empty())
+							TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
+
+						Result = Response.HasBody();
+						return true;
+					});
+
+					return Result;
+				}
+				else if (!Response.GetHeader("Content-Length"))
+				{
+					Core::Async<bool> Result;
+					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
+					{
+						if (Size <= 0)
+						{
+							if (Response.Buffer.size() < MaxSize)
+								Response.Data = Content::Cached;
+							else
+								Response.Data = Content::Lost;
+
+							if (!Response.Buffer.empty())
+								TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
+
+							Result = Response.HasBody();
+							return false;
+						}
+
+						if (Response.Buffer.size() < MaxSize)
+							TextAppend(Response.Buffer, Buffer, Size);
+
+						return true;
+					});
+
+					return Result;
+				}
+
+				const char* HContentLength = Response.GetHeader("Content-Length");
+				if (!HContentLength)
+				{
+					Response.Data = Content::Corrupted;
+					return false;
+				}
+
+				Core::Parser HLength = HContentLength;
+				if (!HLength.HasInteger())
+				{
+					Response.Data = Content::Corrupted;
+					return false;
+				}
+
+				int64_t Length = HLength.ToInt64();
+				if (Length <= 0)
+				{
+					Response.Data = Content::Empty;
+					return true;
+				}
+
+				if (Length > MaxSize)
+				{
+					Response.Data = Content::Wants_Save;
+					return false;
+				}
+
+				Core::Async<bool> Result;
+				Stream.ReadAsync(Length, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
+				{
+					if (Size <= 0)
+					{
+						if (Size != -1)
+						{
+							if (Response.Buffer.size() < MaxSize)
+								Response.Data = Content::Cached;
+							else
+								Response.Data = Content::Lost;
+						}
+						else
+							Response.Data = Content::Corrupted;
+
+						if (!Response.Buffer.empty())
+							TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
+
+						Result = Response.HasBody();
+						return false;
+					}
+
+					if (Response.Buffer.size() < MaxSize)
+						TextAppend(Response.Buffer, Buffer, Size);
+
+					return true;
+				});
+
+				return Result;
+			}
+			Core::Async<bool> Client::Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			{
+				return Send(std::move(Root)).Then<Core::Async<bool>>([this, MaxSize](HTTP::ResponseFrame*&&)
 				{
 					return Consume(MaxSize);
 				});
 			}
-			Core::Async<Core::Document*> Client::JSON(HTTP::RequestFrame* Root, int64_t MaxSize)
+			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
-				return Fetch(Root, MaxSize).Then<Core::Document*>([this](HTTP::ResponseFrame*&& Response)
-				{
-					if (!HTTP::Util::ContentOK(Request.ContentState))
-						return (Core::Document*)nullptr;
-
-					return Core::Document::ReadJSON((int64_t)Response->Buffer.size(), [Response](char* Buffer, int64_t Size)
-					{
-						memcpy(Buffer, Response->Buffer.data(), (size_t)Size);
-						return true;
-					});
-				});
-			}
-			Core::Async<Core::Document*> Client::XML(HTTP::RequestFrame* Root, int64_t MaxSize)
-			{
-				return Fetch(Root, MaxSize).Then<Core::Document*>([this](HTTP::ResponseFrame*&& Response)
-				{
-					if (!HTTP::Util::ContentOK(Request.ContentState))
-						return (Core::Document*)nullptr;
-
-					return Core::Document::ReadXML((int64_t)Response->Buffer.size(), [Response](char* Buffer, int64_t Size)
-					{
-						memcpy(Buffer, Response->Buffer.data(), (size_t)Size);
-						return true;
-					});
-				});
-			}
-			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame* Root)
-			{
-				TH_ASSERT(Root != nullptr, nullptr, "request should be set");
 				TH_ASSERT(Stream.IsValid(), nullptr, "stream should be opened");
-				TH_TRACE("[http] %s %s", Root->Method, Root->URI.c_str());
+				TH_TRACE("[http] %s %s", Root.Method, Root.URI.c_str());
 
 				Core::Async<ResponseFrame*> Result;
-				Stage("request delivery");
-
-				Request = *Root;
-				Request.ContentState = Content::Not_Loaded;
+				Request = std::move(Root);
+				Response.Data = Content::Not_Loaded;
 				Done = [Result](SocketClient* Client, int Code) mutable
 				{
 					HTTP::Client* Base = (HTTP::Client*)Client;
@@ -5595,6 +5834,7 @@ namespace Tomahawk
 
 					Result = Base->GetResponse();
 				};
+				Stage("request delivery");
 
 				Core::Parser Content;
 				if (!Request.GetHeader("Host"))
@@ -5691,149 +5931,33 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Core::Async<ResponseFrame*> Client::Consume(int64_t MaxSize)
+			Core::Async<Core::Document*> Client::JSON(HTTP::RequestFrame&& Root, int64_t MaxSize)
 			{
-				if (Request.ContentState == Content::Lost || Request.ContentState == Content::Empty || Request.ContentState == Content::Saved || Request.ContentState == Content::Wants_Save)
-					return GetResponse();
-
-				if (Request.ContentState == Content::Corrupted || Request.ContentState == Content::Payload_Exceeded || Request.ContentState == Content::Save_Exception)
-					return GetResponse();
-
-				if (Request.ContentState == Content::Cached)
-					return GetResponse();
-
-				Response.Buffer.clear();
-
-				const char* ContentType = Response.GetHeader("Content-Type");
-				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
+				return Fetch(std::move(Root), MaxSize).Then<Core::Document*>([this](bool&& Result)
 				{
-					Request.ContentState = Content::Wants_Save;
-					return GetResponse();
-				}
+					if (!Result)
+						return (Core::Document*)nullptr;
 
-				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
-				{
-					Core::Async<ResponseFrame*> Result;
-					Parser* Parser = new HTTP::Parser();
-
-					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
+					return Core::Document::ReadJSON((int64_t)Response.Buffer.size(), [this](char* Buffer, int64_t Size)
 					{
-						if (Size > 0)
-						{
-							int64_t Subresult = Parser->ParseDecodeChunked((char*)Buffer, &Size);
-							if (Subresult == -1)
-							{
-								TH_RELEASE(Parser);
-								Request.ContentState = Content::Corrupted;
-								Result = GetResponse();
-
-								return false;
-							}
-							else if (Subresult >= 0 || Subresult == -2)
-							{
-								if (Response.Buffer.size() < MaxSize)
-									TextAppend(Response.Buffer, Buffer, Size);
-							}
-
-							return Subresult == -2;
-						}
-
-						TH_RELEASE(Parser);
-						if (Size != -1)
-						{
-							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content::Cached;
-							else
-								Request.ContentState = Content::Lost;
-						}
-						else
-							Request.ContentState = Content::Corrupted;
-
-						Result = GetResponse();
+						memcpy(Buffer, Response.Buffer.data(), (size_t)Size);
 						return true;
 					});
-
-					return Result;
-				}
-				else if (!Response.GetHeader("Content-Length"))
-				{
-					Core::Async<ResponseFrame*> Result;
-					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
-					{
-						if (Size <= 0)
-						{
-							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content::Cached;
-							else
-								Request.ContentState = Content::Lost;
-
-							Result = GetResponse();
-							return false;
-						}
-
-						if (Response.Buffer.size() < MaxSize)
-							TextAppend(Response.Buffer, Buffer, Size);
-
-						return true;
-					});
-
-					return Result;
-				}
-
-				const char* HContentLength = Response.GetHeader("Content-Length");
-				if (!HContentLength)
-				{
-					Request.ContentState = Content::Corrupted;
-					return GetResponse();
-				}
-
-				Core::Parser HLength = HContentLength;
-				if (!HLength.HasInteger())
-				{
-					Request.ContentState = Content::Corrupted;
-					return GetResponse();
-				}
-
-				int64_t Length = HLength.ToInt64();
-				if (Length <= 0)
-				{
-					Request.ContentState = Content::Empty;
-					return GetResponse();
-				}
-
-				if (Length > MaxSize)
-				{
-					Request.ContentState = Content::Wants_Save;
-					return GetResponse();
-				}
-
-				Core::Async<ResponseFrame*> Result;
-				Stream.ReadAsync(Length, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
-				{
-					if (Size <= 0)
-					{
-						if (Size != -1)
-						{
-							if (Response.Buffer.size() < MaxSize)
-								Request.ContentState = Content::Cached;
-							else
-								Request.ContentState = Content::Lost;
-						}
-						else
-							Request.ContentState = Content::Corrupted;
-
-						Result = GetResponse();
-						return false;
-					}
-
-					if (Response.Buffer.size() < MaxSize)
-						TextAppend(Response.Buffer, Buffer, Size);
-
-					return true;
 				});
+			}
+			Core::Async<Core::Document*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			{
+				return Fetch(std::move(Root), MaxSize).Then<Core::Document*>([this](bool&& Result)
+				{
+					if (!Result)
+						return (Core::Document*)nullptr;
 
-				return Result;
+					return Core::Document::ReadXML((int64_t)Response.Buffer.size(), [this](char* Buffer, int64_t Size)
+					{
+						memcpy(Buffer, Response.Buffer.data(), (size_t)Size);
+						return true;
+					});
+				});
 			}
 			bool Client::Receive()
 			{

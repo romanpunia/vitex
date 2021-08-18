@@ -1647,11 +1647,13 @@ namespace Tomahawk
 			Core::Document* Token;
 			std::string Refresher;
 			std::string Signature;
+			std::string Data;
 
 		public:
 			WebToken();
 			WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration);
 			virtual ~WebToken() override;
+			void Unsign();
 			void SetAlgorithm(const std::string& Value);
 			void SetType(const std::string& Value);
 			void SetContentType(const std::string& Value);

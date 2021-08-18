@@ -1955,10 +1955,10 @@ namespace Tomahawk
 			}
 		}
 
-		Timeout::Timeout(const TaskCallback& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive) : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(TaskCallback&& NewCallback, uint64_t NewTimeout, TimerId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
 		Timeout::Timeout(const Timeout& Other) : Callback(Other.Callback), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
@@ -2978,25 +2978,33 @@ namespace Tomahawk
 		Parser& Parser::Substring(uint64_t Start)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Start < L->size(), *this, "start should not be greater than length");
+			if (Start < L->size())
+				L->assign(L->substr(Start));
+			else
+				L->clear();
 
-			L->assign(L->substr(Start));
 			return *this;
 		}
 		Parser& Parser::Substring(uint64_t Start, uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Start < L->size(), *this, "start should not be greater than length");
-			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+			if (Count > 0 && Start < L->size())
+				L->assign(L->substr(Start, Count));
+			else
+				L->clear();
 
-			L->assign(L->substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::Substring(const Parser::Settle& Result)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Result.Found, *this, "result should be found");
-			TH_ASSERT(Result.Start <= (L->size() - 1), *this, "result start should be less or equal than length - 1");
+
+			if (Result.Start >= L->size())
+			{
+				L->clear();
+				return *this;
+			}
 
 			auto Offset = (int64_t)Result.End;
 			if (Result.End > L->size())
@@ -4614,7 +4622,8 @@ namespace Tomahawk
 		}
 		bool Composer::Clear()
 		{
-			TH_ASSERT(Factory != nullptr, false, "composer should be initialized");
+			if (!Factory)
+				return false;
 
 			delete Factory;
 			Factory = nullptr;
@@ -5481,7 +5490,7 @@ namespace Tomahawk
 					for (auto& Item : URL.Query)
 						Request.Query += Item.first + "=" + Item.second;
 
-					Network::HTTP::ResponseFrame* Response = TH_AWAIT(Client->Send(&Request));
+					Network::HTTP::ResponseFrame* Response = TH_AWAIT(Client->Send(std::move(Request)));
 					if (!Response || Response->StatusCode < 0)
 					{
 						TH_RELEASE(Client);
@@ -5491,7 +5500,7 @@ namespace Tomahawk
 					const char* ContentLength = Response->GetHeader("Content-Length");
 					if (!ContentLength)
 					{
-						if (!TH_AWAIT(Client->Consume(1024 * 1024 * 16)) || !Network::HTTP::Util::ContentOK(Client->GetRequest()->ContentState))
+						if (!TH_AWAIT(Client->Consume(1024 * 1024 * 16)))
 						{
 							TH_RELEASE(Client);
 							break;
@@ -5583,7 +5592,10 @@ namespace Tomahawk
 			}
 
 			auto* Client = (Network::HTTP::Client*)Resource;
-			auto* Response = TH_AWAIT(Client->Consume(Length));
+			if (!TH_AWAIT(Client->Consume(Length)))
+				return 0;
+
+			auto* Response = Client->GetResponse();
 			Result = std::min(Length, (uint64_t)Response->Buffer.size());
 			memcpy(Data, Response->Buffer.data(), Result);
 			Offset += Result;
@@ -7157,7 +7169,7 @@ namespace Tomahawk
 			TH_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot resume coroutine outside costate thread");
 			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
 
-			if (Current == Routine)
+			if (Current == Routine || Routine->Dead)
 				return -1;
 			
 			return Swap(Routine);
@@ -7341,11 +7353,12 @@ namespace Tomahawk
 				return TH_INVALID_EVENT_ID;
 
 			TH_PPUSH("schedule-interval", TH_PERF_ATOM);
-			int64_t Clock = GetClock();
+			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
+			auto Expires = GetClock() + Duration;
 			Race.Timers.lock();
 
-			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, Timeout(Callback, Milliseconds, Id, true)));
+			TimerId Id = GetTimeout(Expires, true);
+			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, true)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7361,11 +7374,12 @@ namespace Tomahawk
 				return TH_INVALID_EVENT_ID;
 
 			TH_PPUSH("schedule-interval", TH_PERF_ATOM);
-			int64_t Clock = GetClock();
+			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
+			auto Expires = GetClock() + Duration;
 			Race.Timers.lock();
 
-			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, Timeout(std::move(Callback), Milliseconds, Id, true)));
+			TimerId Id = GetTimeout(Expires, true);
+			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, true)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7381,11 +7395,12 @@ namespace Tomahawk
 				return TH_INVALID_EVENT_ID;
 
 			TH_PPUSH("schedule-timeout", TH_PERF_ATOM);
-			int64_t Clock = GetClock();
+			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
+			auto Expires = GetClock() + Duration;
 			Race.Timers.lock();
 
-			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, Timeout(Callback, Milliseconds, Id, false)));
+			TimerId Id = GetTimeout(Expires, true);
+			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, false)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7401,11 +7416,12 @@ namespace Tomahawk
 				return TH_INVALID_EVENT_ID;
 
 			TH_PPUSH("schedule-timeout", TH_PERF_ATOM);
-			int64_t Clock = GetClock();
+			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
+			auto Expires = GetClock() + Duration;
 			Race.Timers.lock();
 
-			TimerId Id = Timer++; int64_t Time = GetTimeout(Clock + Milliseconds);
-			Timers.emplace(std::make_pair(Time, Timeout(std::move(Callback), Milliseconds, Id, false)));
+			TimerId Id = GetTimeout(Expires, true);
+			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, false)));
 			Race.Timers.unlock();
 
 			if (!Childs.empty())
@@ -7596,9 +7612,8 @@ namespace Tomahawk
 		}
 		bool Schedule::Publish()
 		{
+			std::chrono::microseconds When;
             int fTimers = -1;
-            int64_t When = -1;
-            
 			if (!Active)
 				goto Wait;
 
@@ -7608,13 +7623,14 @@ namespace Tomahawk
 				if (fTimers == 0)
                 {
                     std::unique_lock<std::mutex> Lock(Race.Threads);
-                    Queue.Publish.wait_for(Lock, std::chrono::milliseconds(When));
+                    Queue.Publish.wait_for(Lock, When);
                 }
-				else if (fTimers != -1)
-					continue;
-			Wait:
-				std::unique_lock<std::mutex> Lock(Race.Threads);
-				Queue.Publish.wait(Lock);
+				else if (fTimers == -1)
+				{
+				Wait:
+					std::unique_lock<std::mutex> Lock(Race.Threads);
+					Queue.Publish.wait(Lock);
+				}
 			} while (Active);
 
 			return true;
@@ -7738,12 +7754,12 @@ namespace Tomahawk
 
 			return Data != nullptr ? 1 : -1;
 		}
-		int Schedule::DispatchTimer(int64_t* When)
+		int Schedule::DispatchTimer(std::chrono::microseconds* When)
 		{
 			if (Timers.empty())
 				return -1;
 
-			int64_t Clock = GetClock();
+			auto Clock = GetClock();
 			Race.Timers.lock();
 
 			auto It = Timers.begin();
@@ -7773,9 +7789,8 @@ namespace Tomahawk
 			Timers.erase(It);
 
 			SetTask((const TaskCallback&)Next.Callback);
-
-			int64_t Time = GetTimeout(Clock + Next.Expires);
-			Timers.emplace(std::make_pair(Time, std::move(Next)));
+			Clock += Next.Expires; GetTimeout(Clock, false);
+			Timers.emplace(std::make_pair(Clock, std::move(Next)));
 			Race.Timers.unlock();
 			return 1;
 		}
@@ -7794,16 +7809,16 @@ namespace Tomahawk
 
 			return cAsyncs->size_approx() > 0 || cTasks->size_approx() > 0 || !Timers.empty();
 		}
-		int64_t Schedule::GetClock()
+		std::chrono::microseconds Schedule::GetClock()
 		{
-			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
 		}
-		int64_t Schedule::GetTimeout(int64_t Clock)
+		TimerId Schedule::GetTimeout(std::chrono::microseconds& Clock, bool Next)
 		{
 			while (Timers.find(Clock) != Timers.end())
 				Clock++;
 
-			return Clock;
+			return Next ? Timer++ : 0;
 		}
 		bool Schedule::Reset()
 		{
@@ -8293,7 +8308,10 @@ namespace Tomahawk
 		}
 		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
 		{
-			TH_ASSERT(Value != nullptr && Callback, false, "value should be set and callback should not be empty");
+			TH_ASSERT(Callback, false, "value should be set and callback should not be empty");
+			if (!Value)
+				return false;
+
 			Value->Key = Callback(Value->Key);
 			for (auto* Item : Value->Nodes)
 				Transform(Item, Callback);
@@ -8495,7 +8513,10 @@ namespace Tomahawk
 		}
 		Document* Document::ReadXML(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
-			TH_ASSERT(Size > 0 && Callback, nullptr, "size should be greater than zero and callback should not be empty");
+			TH_ASSERT(Callback, nullptr, "size should be greater than zero and callback should not be empty");
+			if (Size <= 0)
+				return nullptr;
+
 			std::string Buffer;
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
@@ -8569,7 +8590,10 @@ namespace Tomahawk
 		}
 		Document* Document::ReadJSON(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
-			TH_ASSERT(Size > 0 && Callback, nullptr, "size should be greater than zero and callback should not be empty");
+			TH_ASSERT(Callback, nullptr, "size should be greater than zero and callback should not be empty");
+			if (Size <= 0)
+				return nullptr;
+
 			std::string Buffer;
 			Buffer.resize(Size);
 			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))

@@ -745,8 +745,8 @@ namespace Tomahawk
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
 			static int Match(const char* Pattern, uint64_t Length, const char* Text);
-			static std::string ToStringAutoPrec(float Number);
-			static std::string ToStringAutoPrec(double Number);
+			static std::string ToString(float Number);
+			static std::string ToString(double Number);
 		};
 
 		struct TH_OUT Ticker

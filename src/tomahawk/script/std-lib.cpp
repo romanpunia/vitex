@@ -4477,6 +4477,7 @@ namespace Tomahawk
 			}
 
 			Result->AddRef();
+			Base->AddRef();
 			if (Future != nullptr)
 				Future->Release();
 			Future = Result;
@@ -4487,6 +4488,7 @@ namespace Tomahawk
 				int State = Base->Execute(false);
 				Base->Promises--;
 				Base->ExecuteNotify(State);
+				Base->Release();
 			}) ? 0 : -1;
 		}
 		int STDPromise::Set(void* fRef, const char* TypeName)

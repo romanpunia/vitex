@@ -2790,6 +2790,8 @@ namespace Tomahawk
 		Parser& Parser::Reserve(uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+
 			L->reserve(L->capacity() + Count);
 			return *this;
 		}
@@ -2802,6 +2804,8 @@ namespace Tomahawk
 		Parser& Parser::Resize(uint64_t Count, char Char)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+
 			L->resize(Count, Char);
 			return *this;
 		}
@@ -2899,8 +2903,9 @@ namespace Tomahawk
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			for (uint64_t i = Position; i < L->size(); i++)
 			{
-				if (L->at(i) == From)
-					L->at(i) = To;
+				char& C = L->at(i);
+				if (C == From)
+					C = To;
 			}
 
 			return *this;
@@ -2910,10 +2915,12 @@ namespace Tomahawk
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(L->size() >= (Position + Count), *this, "invalid offset");
 
-			for (uint64_t i = Position; i < (Position + Count); i++)
+			uint64_t Size = Position + Count;
+			for (uint64_t i = Position; i < Size; i++)
 			{
-				if (L->at(i) == From)
-					L->at(i) = To;
+				char& C = L->at(i);
+				if (C == From)
+					C = To;
 			}
 
 			return *this;
@@ -2930,10 +2937,13 @@ namespace Tomahawk
 			TH_ASSERT(Start < End, *this, "start should be less than end");
 			TH_ASSERT(Value != nullptr, *this, "replacer should not be empty");
 
-			if (Start == 0 && L->size() == End)
-				L->assign(Value);
-			else if (Start == 0)
-				L->assign(Value + L->substr(End, L->size() - End));
+			if (Start == 0)
+			{
+				if (L->size() != End)
+					L->assign(Value + L->substr(End, L->size() - End));
+				else
+					L->assign(Value);
+			}
 			else if (L->size() == End)
 				L->assign(L->substr(0, Start) + Value);
 			else
@@ -2948,10 +2958,13 @@ namespace Tomahawk
 			TH_ASSERT(End <= L->size(), *this, "invalid end");
 			TH_ASSERT(Start < End, *this, "start should be less than end");
 
-			if (Start == 0 && L->size() == End)
-				L->clear();
-			else if (Start == 0)
-				L->assign(L->substr(End, L->size() - End));
+			if (Start == 0)
+			{
+				if (L->size() != End)
+					L->assign(L->substr(End, L->size() - End));
+				else
+					L->clear();
+			}
 			else if (L->size() == End)
 				L->assign(L->substr(0, Start));
 			else
@@ -2962,6 +2975,9 @@ namespace Tomahawk
 		Parser& Parser::Reverse()
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			if (L->empty())
+				return *this;
+
 			return Reverse(0, L->size() - 1);
 		}
 		Parser& Parser::Reverse(uint64_t Start, uint64_t End)
@@ -3073,7 +3089,8 @@ namespace Tomahawk
 			if (Start + Count > L->size())
 				Count = L->size() - Start;
 
-			for (uint64_t i = Start; i < (Start + Count); i++)
+			uint64_t Size = (Start + Count);
+			for (uint64_t i = Start; i < Size; i++)
 				L->at(i) = Char;
 
 			return *this;
@@ -3107,7 +3124,10 @@ namespace Tomahawk
 		Parser& Parser::Assign(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->assign(Raw.substr(Start, Count));
+			if (Start >= Raw.size() || !Count)
+				L->clear();
+			else
+				L->assign(Raw.substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::Assign(const char* Raw, uint64_t Start, uint64_t Count)
@@ -3157,11 +3177,9 @@ namespace Tomahawk
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
 			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+			TH_ASSERT(strlen(Raw) >= Start + Count, *this, "offset should be less than append string length");
 
-			std::string V(Raw);
-			TH_ASSERT(V.size() >= Start + Count, *this, "offset should be less than append string length");
-
-			L->append(V.substr(Start, Count));
+			L->append(Raw + Start, Count - Start);
 			return *this;
 		}
 		Parser& Parser::Append(const std::string& Raw, uint64_t Start, uint64_t Count)
@@ -3178,7 +3196,7 @@ namespace Tomahawk
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Format != nullptr, *this, "format should be set");
 
-			char Buffer[16384];
+			char Buffer[8192];
 			va_list Args;
 			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -3266,7 +3284,7 @@ namespace Tomahawk
 		Parser::Settle Parser::ReverseFind(const std::string& Needle, uint64_t Offset) const
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty())
+			if (L->empty() || Offset >= L->size())
 				return { L->size() - 1, L->size(), false };
 
 			const char* Ptr = L->c_str() - Offset;
@@ -3288,7 +3306,7 @@ namespace Tomahawk
 		Parser::Settle Parser::ReverseFind(const char* Needle, uint64_t Offset) const
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty())
+			if (L->empty() || Offset >= L->size())
 				return { L->size() - 1, L->size(), false };
 
 			if (!Needle)
@@ -3311,7 +3329,7 @@ namespace Tomahawk
 		Parser::Settle Parser::ReverseFind(const char& Needle, uint64_t Offset) const
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty())
+			if (L->empty() || Offset >= L->size())
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Size = L->size() - 1 - Offset;
@@ -3326,7 +3344,7 @@ namespace Tomahawk
 		Parser::Settle Parser::ReverseFindUnescaped(const char& Needle, uint64_t Offset) const
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty())
+			if (L->empty() || Offset >= L->size())
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Size = L->size() - 1 - Offset;
@@ -3341,7 +3359,7 @@ namespace Tomahawk
 		Parser::Settle Parser::ReverseFindOf(const std::string& Needle, uint64_t Offset) const
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty())
+			if (L->empty() || Offset >= L->size())
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Size = L->size() - 1 - Offset;
@@ -3359,7 +3377,7 @@ namespace Tomahawk
 		Parser::Settle Parser::ReverseFindOf(const char* Needle, uint64_t Offset) const
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty())
+			if (L->empty() || Offset >= L->size())
 				return { L->size() - 1, L->size(), false };
 
 			if (!Needle)
@@ -3381,6 +3399,9 @@ namespace Tomahawk
 		Parser::Settle Parser::Find(const std::string& Needle, uint64_t Offset) const
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
+			if (L->empty() || Offset >= L->size())
+				return { L->size() - 1, L->size(), false };
+
 			const char* It = strstr(L->c_str() + Offset, Needle.c_str());
 			if (It == nullptr)
 				return { L->size() - 1, L->size(), false };
@@ -3392,6 +3413,9 @@ namespace Tomahawk
 		{
 			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
 			TH_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
+
+			if (L->empty() || Offset >= L->size())
+				return { L->size() - 1, L->size(), false };
 
 			const char* It = strstr(L->c_str() + Offset, Needle);
 			if (It == nullptr)
@@ -3503,9 +3527,9 @@ namespace Tomahawk
 			if (L->size() < Value.size())
 				return false;
 
-			for (uint64_t i = 0; i < Value.size(); i++)
+			for (uint64_t i = Offset; i < Value.size(); i++)
 			{
-				if (Value[i] != L->at(i + Offset))
+				if (Value[i] != L->at(i))
 					return false;
 			}
 
@@ -3520,9 +3544,9 @@ namespace Tomahawk
 			if (L->size() < Length)
 				return false;
 
-			for (uint64_t i = 0; i < Length; i++)
+			for (uint64_t i = Offset; i < Length; i++)
 			{
-				if (Value[i] != L->at(i + Offset))
+				if (Value[i] != L->at(i))
 					return false;
 			}
 
@@ -3569,7 +3593,7 @@ namespace Tomahawk
 		bool Parser::EndsWith(const std::string& Value) const
 		{
 			TH_ASSERT(L != nullptr, false, "cannot parse without context");
-			if (L->empty())
+			if (L->empty() || Value.size() > L->size())
 				return false;
 
 			return strcmp(L->c_str() + L->size() - Value.size(), Value.c_str()) == 0;
@@ -3579,10 +3603,11 @@ namespace Tomahawk
 			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
-			if (L->empty() || !Value)
+			size_t Size = strlen(Value);
+			if (L->empty() || Size > L->size())
 				return false;
 
-			return strcmp(L->c_str() + L->size() - strlen(Value), Value) == 0;
+			return strcmp(L->c_str() + L->size() - Size, Value) == 0;
 		}
 		bool Parser::EndsWith(const char& Value) const
 		{
@@ -3593,6 +3618,9 @@ namespace Tomahawk
 		{
 			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
+
+			if (L->empty())
+				return false;
 
 			auto Length = (uint64_t)strlen(Value);
 			for (uint64_t j = 0; j < Length; j++)
@@ -3608,19 +3636,17 @@ namespace Tomahawk
 			TH_ASSERT(L != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
-			auto Length = (uint64_t)strlen(Value);
-			bool Result = true;
+			if (L->empty())
+				return true;
 
+			auto Length = (uint64_t)strlen(Value);
 			for (uint64_t j = 0; j < Length; j++)
 			{
 				if (L->back() == Value[j])
-				{
-					Result = false;
-					break;
-				}
+					return false;
 			}
 
-			return Result;
+			return true;
 		}
 		bool Parser::Empty() const
 		{
@@ -3724,12 +3750,12 @@ namespace Tomahawk
 		}
 		int Parser::Match(const char* Pattern, const char* Text)
 		{
+			TH_ASSERT(Pattern != nullptr && Text != nullptr, -1, "pattern and text should be set");
 			return Match(Pattern, strlen(Pattern), Text);
 		}
 		int Parser::Match(const char* Pattern, uint64_t Length, const char* Text)
 		{
 			TH_ASSERT(Pattern != nullptr && Text != nullptr, -1, "pattern and text should be set");
-
 			const char* Token = (const char*)memchr(Pattern, '|', (size_t)Length);
 			if (Token != nullptr)
 			{
@@ -3914,10 +3940,12 @@ namespace Tomahawk
 		std::vector<std::string> Parser::Split(const std::string& With, uint64_t Start) const
 		{
 			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
-			Parser::Settle Result = Find(With, Start);
-			uint64_t Offset = Start;
-
 			std::vector<std::string> Output;
+			if (Start >= L->size())
+				return Output;
+
+			uint64_t Offset = Start;
+			Parser::Settle Result = Find(With, Offset);
 			while (Result.Found)
 			{
 				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
@@ -3931,11 +3959,13 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::Split(char With, uint64_t Start) const
 		{
-			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
-			Parser::Settle Result = Find(With, Start);
-			uint64_t Offset = Start;
-
+			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");	
 			std::vector<std::string> Output;
+			if (Start >= L->size())
+				return Output;
+
+			uint64_t Offset = Start;
+			Parser::Settle Result = Find(With, Start);
 			while (Result.Found)
 			{
 				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
@@ -3950,10 +3980,12 @@ namespace Tomahawk
 		std::vector<std::string> Parser::SplitMax(char With, uint64_t Count, uint64_t Start) const
 		{
 			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
-			Parser::Settle Result = Find(With, Start);
-			uint64_t Offset = Start;
-
 			std::vector<std::string> Output;
+			if (Start >= L->size())
+				return Output;
+
+			uint64_t Offset = Start;
+			Parser::Settle Result = Find(With, Start);
 			while (Result.Found && Output.size() < Count)
 			{
 				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
@@ -3968,10 +4000,12 @@ namespace Tomahawk
 		std::vector<std::string> Parser::SplitOf(const char* With, uint64_t Start) const
 		{
 			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
-			Parser::Settle Result = FindOf(With, Start);
-			uint64_t Offset = Start;
-
 			std::vector<std::string> Output;
+			if (Start >= L->size())
+				return Output;
+
+			uint64_t Offset = Start;
+			Parser::Settle Result = FindOf(With, Start);
 			while (Result.Found)
 			{
 				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
@@ -3986,10 +4020,12 @@ namespace Tomahawk
 		std::vector<std::string> Parser::SplitNotOf(const char* With, uint64_t Start) const
 		{
 			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
-			Parser::Settle Result = FindNotOf(With, Start);
-			uint64_t Offset = Start;
-
 			std::vector<std::string> Output;
+			if (Start >= L->size())
+				return Output;
+
+			uint64_t Offset = Start;
+			Parser::Settle Result = FindNotOf(With, Start);
 			while (Result.Found)
 			{
 				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
@@ -4015,7 +4051,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		std::string Parser::ToStringAutoPrec(float Number)
+		std::string Parser::ToString(float Number)
 		{
 			std::string Result(std::to_string(Number));
 			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
@@ -4024,7 +4060,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Parser::ToStringAutoPrec(double Number)
+		std::string Parser::ToString(double Number)
 		{
 			std::string Result(std::to_string(Number));
 			Result.erase(Result.find_last_not_of('0') + 1, std::string::npos);
@@ -6504,7 +6540,7 @@ namespace Tomahawk
 			TH_ASSERT(Size > 0, false, "size should be greater than zero");
 			TH_PPUSH("os-net-send", TH_PERF_NET);
 #ifdef TH_MICROSOFT
-			TH_PRET(TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 16384, nullptr, nullptr, 0) > 0);
+			TH_PRET(TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 8192, nullptr, nullptr, 0) > 0);
 #elif defined(TH_APPLE)
 			TH_PRET(sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0));
 #elif defined(TH_UNIX)

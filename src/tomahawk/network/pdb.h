@@ -410,6 +410,8 @@ namespace Tomahawk
         
 			class TH_OUT Cluster : public Core::Object
 			{
+				friend Driver;
+
 			private:
 				std::unordered_map<std::string, OnNotification> Listeners;
                 std::unordered_map<Socket*, Connection*> Pool;

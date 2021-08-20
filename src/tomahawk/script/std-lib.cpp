@@ -4577,7 +4577,7 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveAt(uint Index)", asMETHOD(STDArray, RemoveAt), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveLast()", asMETHOD(STDArray, RemoveLast), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveRange(uint Start, uint Count)", asMETHOD(STDArray, RemoveRange), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Array<T>", "uint size() const", asMETHOD(STDArray, GetSize), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "uint Size() const", asMETHOD(STDArray, GetSize), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void Reserve(uint length)", asMETHOD(STDArray, Reserve), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void Resize(uint length)", asMETHODPR(STDArray, Resize, (as_size_t), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void SortAsc()", asMETHODPR(STDArray, SortAsc, (), void), asCALL_THISCALL);
@@ -4824,7 +4824,7 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("String", "bool opEquals(const String &in) const", asFUNCTIONPR(STDString::Equals, (const std::string&, const std::string&), bool), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "int opCmp(const String &in) const", asFUNCTION(STDString::Cmp), asCALL_CDECL_OBJFIRST);
 			Engine->RegisterObjectMethod("String", "String opAdd(const String &in) const", asFUNCTIONPR(std::operator +, (const std::string&, const std::string&), std::string), asCALL_CDECL_OBJFIRST);
-			Engine->RegisterObjectMethod("String", "uint size() const", asFUNCTION(STDString::Length), asCALL_CDECL_OBJLAST);
+			Engine->RegisterObjectMethod("String", "uint Size() const", asFUNCTION(STDString::Length), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "void Resize(uint)", asFUNCTION(STDString::Resize), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "bool IsEmpty() const", asFUNCTION(STDString::IsEmpty), asCALL_CDECL_OBJLAST);
 			Engine->RegisterObjectMethod("String", "uint8 &opIndex(uint)", asFUNCTION(STDString::CharAt), asCALL_CDECL_OBJLAST);

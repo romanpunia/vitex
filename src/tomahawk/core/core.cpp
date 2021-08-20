@@ -464,14 +464,14 @@ namespace Tomahawk
 			if (Sign == '-')
 				Result += Sign;
 
-			size_t Offset = 0, Size = Length;
+			int Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
 			{
 				Offset++;
 				Size--;
 			}
 
-			for (size_t i = Source.size() - 1; i >= Offset; i--)
+			for (int i = Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)

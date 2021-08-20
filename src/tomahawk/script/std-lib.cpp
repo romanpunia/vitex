@@ -1,16 +1,16 @@
-#include "std-lib.H"
+#include "std-lib.h"
 #include <new>
-#include <assert.H>
-#include <string.H>
-#include <stdio.H>
-#include <stdlib.H>
-#include <math.H>
+#include <assert.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 #include <sstream>
 #ifndef __psp2__
-#include <locale.H>
+#include <locale.h>
 #endif
 #ifndef ANGELSCRIPT_H 
-#include <angelscript.H>
+#include <angelscript.h>
 #endif
 #ifdef __BORLANDC__
 #include <cmath>

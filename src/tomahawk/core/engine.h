@@ -898,7 +898,7 @@ namespace Tomahawk
 		private:
 			struct Packet
 			{
-				std::atomic<bool> Active = false;
+				std::atomic<bool> Active;
 				Core::TaskCallback Callback;
 				Core::Timer* Time = nullptr;
 			};

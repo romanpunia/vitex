@@ -1,7 +1,7 @@
-#include "std/layouts/vertex"
-#include "std/channels/gbuffer"
-#include "std/buffers/object"
-#include "std/buffers/viewer"
+#include "std/layouts/vertex.hlsl"
+#include "std/channels/gbuffer.hlsl"
+#include "std/buffers/object.hlsl"
+#include "std/buffers/viewer.hlsl"
 
 VOutput vs_main(VInput V)
 {

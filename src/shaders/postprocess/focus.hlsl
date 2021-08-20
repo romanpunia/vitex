@@ -1,6 +1,6 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/position"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/position.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

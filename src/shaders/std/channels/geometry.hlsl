@@ -1,5 +1,5 @@
-#include "std/objects/material"
-#include "std/buffers/viewer"
+#include "std/objects/material.hlsl"
+#include "std/buffers/viewer.hlsl"
 #pragma warning(disable: 4000)
 
 StructuredBuffer<Material> Materials : register(t0);

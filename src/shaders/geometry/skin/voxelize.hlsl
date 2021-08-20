@@ -1,7 +1,7 @@
-#include "std/layouts/skin"
-#include "std/channels/gvoxelizer"
-#include "std/buffers/object"
-#include "std/buffers/animation"
+#include "std/layouts/skin.hlsl"
+#include "std/channels/gvoxelizer.hlsl"
+#include "std/buffers/object.hlsl"
+#include "std/buffers/animation.hlsl"
 
 VOutput vs_main(VInput V)
 {

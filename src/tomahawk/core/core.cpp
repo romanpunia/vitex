@@ -126,31 +126,31 @@ namespace
 namespace
 {
 #ifndef TH_64
-    int Pack1_32(void* Value)
-    {
-        return (int)(uintptr_t)Value;
-    }
-    void* Unpack1_32(int Value)
-    {
-        return (void*)(uintptr_t)Value;
-    }
+	int Pack1_32(void* Value)
+	{
+		return (int)(uintptr_t)Value;
+	}
+	void* Unpack1_32(int Value)
+	{
+		return (void*)(uintptr_t)Value;
+	}
 #else
-    void Pack2_64(void* Value, int* X, int* Y)
-    {
-        uint64_t Subvalue = (uint64_t)Value;
-        *X = (int)(uint32_t)((Subvalue & 0xFFFFFFFF00000000LL) >> 32);
-        *Y = (int)(uint32_t)(Subvalue & 0xFFFFFFFFLL);
-    }
-    void* Unpack2_64(int X, int Y)
-    {
-        uint64_t Subvalue = ((uint64_t)(uint32_t)X) << 32 | (uint32_t)Y;
-        return (void*)Subvalue;
-        }
+	void Pack2_64(void* Value, int* X, int* Y)
+	{
+		uint64_t Subvalue = (uint64_t)Value;
+		*X = (int)(uint32_t)((Subvalue & 0xFFFFFFFF00000000LL) >> 32);
+		*Y = (int)(uint32_t)(Subvalue & 0xFFFFFFFFLL);
+	}
+	void* Unpack2_64(int X, int Y)
+	{
+		uint64_t Subvalue = ((uint64_t)(uint32_t)X) << 32 | (uint32_t)Y;
+		return (void*)Subvalue;
+	}
 #endif
-    bool LocalTime(time_t const* const A, struct tm* const B)
-    {
-        return localtime_r(A, B) != nullptr;
-    }
+	bool LocalTime(time_t const* const A, struct tm* const B)
+	{
+		return localtime_r(A, B) != nullptr;
+	}
 	const char* GetColorId(Tomahawk::Core::StdColor Color, bool Background)
 	{
 		switch (Color)
@@ -263,81 +263,81 @@ namespace Tomahawk
 		}
 		Decimal::Decimal(const char* Value) : Length(0), Sign('\0'), Invalid(false)
 		{
-            int Count = 0;
-            if (Value[Count] == '+')
-            {
-                Sign = '+';
-                Count++;
-            }
-            else if (Value[Count] == '-')
-            {
-                Sign = '-';
-                Count++;
-            }
-            else if (isdigit(Value[Count]))
-            {
-                Sign = '+';
-            }
-            else
-            {
-                Invalid = 1;
-                return;
-            }
+			int Count = 0;
+			if (Value[Count] == '+')
+			{
+				Sign = '+';
+				Count++;
+			}
+			else if (Value[Count] == '-')
+			{
+				Sign = '-';
+				Count++;
+			}
+			else if (isdigit(Value[Count]))
+			{
+				Sign = '+';
+			}
+			else
+			{
+				Invalid = 1;
+				return;
+			}
 
-            bool Points = false;
-            while (Value[Count] != '\0')
-            {
-                if (!Points && Value[Count] == '.')
-                {
-                    if (Source.empty())
-                    {
-                        Sign = '\0';
-                        Invalid = 1;
-                        return;
-                    }
+			bool Points = false;
+			while (Value[Count] != '\0')
+			{
+				if (!Points && Value[Count] == '.')
+				{
+					if (Source.empty())
+					{
+						Sign = '\0';
+						Invalid = 1;
+						return;
+					}
 
-                    Points = true;
-                    Count++;
-                }
+					Points = true;
+					Count++;
+				}
 
-                if (isdigit(Value[Count]))
-                {
-                    Source.push_front(Value[Count]);
-                    Count++;
+				if (isdigit(Value[Count]))
+				{
+					Source.push_front(Value[Count]);
+					Count++;
 
-                    if (Points)
-                        Length++;
-                }
-                else
-                {
-                    Sign = '\0';
-                    Source.clear();
-                    Length = 0;
-                    Invalid = 1;
-                    return;
-                }
-            }
+					if (Points)
+						Length++;
+				}
+				else
+				{
+					Sign = '\0';
+					Source.clear();
+					Length = 0;
+					Invalid = 1;
+					return;
+				}
+			}
 
-            Unlead();
+			Unlead();
 		}
-        Decimal::Decimal(const std::string& Value) : Decimal(Value.c_str())
+		Decimal::Decimal(const std::string& Value) : Decimal(Value.c_str())
 		{
 		}
 		Decimal::Decimal(int32_t Value) : Decimal(std::to_string(Value))
 		{
 		}
-        Decimal::Decimal(uint32_t Value) : Decimal(std::to_string(Value))
-        {
-        }
-        Decimal::Decimal(int64_t Value) : Decimal(std::to_string(Value))
-        {
-        }
-        Decimal::Decimal(uint64_t Value) : Decimal(std::to_string(Value))
-        {
-        }
-        Decimal::Decimal(float Value) : Decimal(std::to_string(Value))
-        {
-        }
+		Decimal::Decimal(uint32_t Value) : Decimal(std::to_string(Value))
+		{
+		}
+		Decimal::Decimal(int64_t Value) : Decimal(std::to_string(Value))
+		{
+		}
+		Decimal::Decimal(uint64_t Value) : Decimal(std::to_string(Value))
+		{
+		}
+		Decimal::Decimal(float Value) : Decimal(std::to_string(Value))
+		{
+		}
 		Decimal::Decimal(double Value) : Decimal(std::to_string(Value))
 		{
 		}
@@ -347,35 +347,36 @@ namespace Tomahawk
 		Decimal::Decimal(Decimal&& Value) : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
 		{
 		}
-		Decimal& Decimal::Precise(int prec)
+		Decimal& Decimal::Precise(int Precision)
 		{
-			if (Invalid || prec < 0)
+			if (Invalid || Precision < 0)
 				return *this;
 
-			if (this->Length < prec)
+			if (Length < Precision)
 			{
-				while (this->Length < prec)
+				while (Length < Precision)
 				{
-					this->Length++;
-					this->Source.push_front('0');
+					Length++;
+					Source.push_front('0');
 				}
 			}
-			else if (this->Length > prec)
+			else if (Length > Precision)
 			{
-				char last;
-				while (this->Length > prec)
+				char Last;
+				while (Length > Precision)
 				{
-					last = Source[0];
-					this->Length--;
-					this->Source.pop_front();
+					Last = Source[0];
+					Length--;
+					Source.pop_front();
 				}
 
-				if (CharToInt(last) >= 5)
+				if (CharToInt(Last) >= 5)
 				{
-					if (prec != 0)
+					if (Precision != 0)
 					{
 						std::string Result = "0.";
-						for (int i = 1; i < prec; i++)
+						Result.reserve(3 + (size_t)Precision);
+						for (int i = 1; i < Precision; i++)
 							Result += '0';
 						Result += '1';
 
@@ -427,32 +428,32 @@ namespace Tomahawk
 			if (Invalid)
 				return std::nan("");
 
-			double dec = 1;
+			double Dec = 1;
 			if (Length > 0)
 			{
-				int aus = Length;
-				while (aus != 0)
+				int Aus = Length;
+				while (Aus != 0)
 				{
-					dec /= 10;
-					aus--;
+					Dec /= 10;
+					Aus--;
 				}
 			}
 
-			double var = 0;
-			for (int i = 0; i < Source.size(); i++)
+			double Var = 0;
+			for (auto& Char : Source)
 			{
-				var += CharToInt(Source[i]) * dec;
-				dec *= 10;
+				Var += CharToInt(Char) * Dec;
+				Dec *= 10;
 			}
 
 			if (Sign == '-')
-				var *= -1;
+				Var *= -1;
 
-			return var;
+			return Var;
 		}
 		int64_t Decimal::ToInt64() const
 		{
-            return (int64_t)ToDouble();
+			return (int64_t)ToDouble();
 		}
 		std::string Decimal::ToString() const
 		{
@@ -463,14 +464,14 @@ namespace Tomahawk
 			if (Sign == '-')
 				Result += Sign;
 
-			int Offset = 0, Size = Length;
+			size_t Offset = 0, Size = Length;
 			while ((Source[Offset] == '0') && (Size > 0))
 			{
 				Offset++;
 				Size--;
 			}
 
-			for (int i = Source.size() - 1; i >= Offset; i--)
+			for (size_t i = Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
@@ -509,21 +510,21 @@ namespace Tomahawk
 			}
 			else if (Compare == 2)
 			{
-				int exp = 0, count = Source.size() - 1;
-				while (count > 0 && Source[count] == '0')
+				int Exp = 0, Count = Source.size() - 1;
+				while (Count > 0 && Source[Count] == '0')
 				{
-					count--;
-					exp++;
+					Count--;
+					Exp++;
 				}
 
-				if (count == 0)
+				if (Count == 0)
 				{
-					if (Source[count] != '0')
+					if (Source[Count] != '0')
 					{
 						Result += Sign;
-						Result += Source[count];
+						Result += Source[Count];
 						Result += "e-";
-						Result += std::to_string(exp);
+						Result += std::to_string(Exp);
 					}
 					else
 						Result += "+0";
@@ -531,14 +532,14 @@ namespace Tomahawk
 				else
 				{
 					Result += Sign;
-					Result += Source[count];
+					Result += Source[Count];
 					Result += '.';
 
-					for (int i = count - 1; (i >= (int)count - 5) && (i >= 0); --i)
+					for (int i = Count - 1; (i >= (int)Count - 5) && (i >= 0); --i)
 						Result += Source[i];
 
 					Result += "e-";
-					Result += std::to_string(exp);
+					Result += std::to_string(Exp);
 				}
 			}
 
@@ -556,36 +557,36 @@ namespace Tomahawk
 		{
 			return sizeof(*this) + Source.size() * sizeof(char);
 		}
-        Decimal Decimal::operator -() const
-        {
-            Decimal Result = *this;
-            if (Result.Sign == '+')
-                Result.Sign = '-';
-            else if (Result.Sign == '-')
-                Result.Sign = '+';
-            
-            return Result;
-        }
-        Decimal& Decimal::operator *=(const Decimal& V)
-        {
-            *this = *this * V;
-            return *this;
-        }
-        Decimal& Decimal::operator /=(const Decimal& V)
-        {
-            *this = *this / V;
-            return *this;
-        }
-        Decimal& Decimal::operator +=(const Decimal& V)
-        {
-            *this = *this + V;
-            return *this;
-        }
-        Decimal& Decimal::operator -=(const Decimal& V)
-        {
-            *this = *this - V;
-            return *this;
-        }
+		Decimal Decimal::operator -() const
+		{
+			Decimal Result = *this;
+			if (Result.Sign == '+')
+				Result.Sign = '-';
+			else if (Result.Sign == '-')
+				Result.Sign = '+';
+
+			return Result;
+		}
+		Decimal& Decimal::operator *=(const Decimal& V)
+		{
+			*this = *this * V;
+			return *this;
+		}
+		Decimal& Decimal::operator /=(const Decimal& V)
+		{
+			*this = *this / V;
+			return *this;
+		}
+		Decimal& Decimal::operator +=(const Decimal& V)
+		{
+			*this = *this + V;
+			return *this;
+		}
+		Decimal& Decimal::operator -=(const Decimal& V)
+		{
+			*this = *this - V;
+			return *this;
+		}
 		Decimal& Decimal::operator=(const Decimal& Value)
 		{
 			Source = Value.Source;
@@ -624,369 +625,369 @@ namespace Tomahawk
 			*this = *this - 1;
 			return *this;
 		}
-		bool Decimal::operator==(const Decimal& right) const
+		bool Decimal::operator==(const Decimal& Right) const
 		{
-			if (Invalid || right.Invalid)
+			if (Invalid || Right.Invalid)
 				return false;
 
-			int check = CompareNum(*this, right);
-			if ((check == 0) && (Sign == right.Sign))
+			int Check = CompareNum(*this, Right);
+			if ((Check == 0) && (Sign == Right.Sign))
 				return true;
 
 			return false;
 		}
-		bool Decimal::operator!=(const Decimal& right) const
+		bool Decimal::operator!=(const Decimal& Right) const
 		{
-			if (Invalid || right.Invalid)
+			if (Invalid || Right.Invalid)
 				return false;
 
-			return !(*this == right);
+			return !(*this == Right);
 		}
-		bool Decimal::operator>(const Decimal& right) const
+		bool Decimal::operator>(const Decimal& Right) const
 		{
-			if (Invalid || right.Invalid)
+			if (Invalid || Right.Invalid)
 				return false;
 
-			if (((Sign == '+') && (right.Sign == '+')))
+			if (((Sign == '+') && (Right.Sign == '+')))
 			{
-				int check = CompareNum(*this, right);
-				return check == 1;
+				int Check = CompareNum(*this, Right);
+				return Check == 1;
 			}
 
-			if (((Sign == '-') && (right.Sign == '-')))
+			if (((Sign == '-') && (Right.Sign == '-')))
 			{
-				int check = CompareNum(*this, right);
-				return check == 2;
+				int Check = CompareNum(*this, Right);
+				return Check == 2;
 			}
 
-			if (((Sign == '-') && (right.Sign == '+')))
+			if (((Sign == '-') && (Right.Sign == '+')))
 				return false;
 
-			if (((Sign == '+') && (right.Sign == '-')))
+			if (((Sign == '+') && (Right.Sign == '-')))
 				return true;
 
 			return false;
 		}
-		bool Decimal::operator>=(const Decimal& right) const
+		bool Decimal::operator>=(const Decimal& Right) const
 		{
-			if (Invalid || right.Invalid)
+			if (Invalid || Right.Invalid)
 				return false;
 
-			return !(*this < right);
+			return !(*this < Right);
 		}
-		bool Decimal::operator<(const Decimal& right) const
+		bool Decimal::operator<(const Decimal& Right) const
 		{
-			if (Invalid || right.Invalid)
+			if (Invalid || Right.Invalid)
 				return false;
 
-			if (((Sign == '+') && (right.Sign == '+')))
+			if (((Sign == '+') && (Right.Sign == '+')))
 			{
-				int check = CompareNum(*this, right);
-				return check == 2;
+				int Check = CompareNum(*this, Right);
+				return Check == 2;
 			}
 
-			if (((Sign == '-') && (right.Sign == '-')))
+			if (((Sign == '-') && (Right.Sign == '-')))
 			{
-				int check = CompareNum(*this, right);
-				return check == 1;
+				int Check = CompareNum(*this, Right);
+				return Check == 1;
 			}
 
-			if (((Sign == '-') && (right.Sign == '+')))
+			if (((Sign == '-') && (Right.Sign == '+')))
 				return true;
 
-			if (((Sign == '+') && (right.Sign == '-')))
+			if (((Sign == '+') && (Right.Sign == '-')))
 				return false;
 
 			return false;
 		}
-		bool Decimal::operator<=(const Decimal& right) const
+		bool Decimal::operator<=(const Decimal& Right) const
 		{
-			if (Invalid || right.Invalid)
+			if (Invalid || Right.Invalid)
 				return false;
 
-			return !(*this > right);
+			return !(*this > Right);
 		}
-		Decimal operator+(const Decimal& left_, const Decimal& right_)
+		Decimal operator+(const Decimal& _Left, const Decimal& _Right)
 		{
-			Decimal tmp;
-			if (left_.Invalid || right_.Invalid)
-				return tmp;
+			Decimal Temp;
+			if (_Left.Invalid || _Right.Invalid)
+				return Temp;
 
-			Decimal left, right;
-			left = left_;
-			right = right_;
+			Decimal Left, Right;
+			Left = _Left;
+			Right = _Right;
 
-			if (left.Length > right.Length)
+			if (Left.Length > Right.Length)
 			{
-				while (left.Length > right.Length)
+				while (Left.Length > Right.Length)
 				{
-					right.Length++;
-					right.Source.push_front('0');
+					Right.Length++;
+					Right.Source.push_front('0');
 				}
 			}
-			else if (left.Length < right.Length)
+			else if (Left.Length < Right.Length)
 			{
-				while (left.Length < right.Length)
+				while (Left.Length < Right.Length)
 				{
-					left.Length++;
-					left.Source.push_front('0');
-				}
-			}
-
-			if ((left.Sign == '+') && (right.Sign == '-'))
-			{
-				int check = Decimal::CompareNum(left, right);
-				if (check == 0)
-				{
-					tmp = 0;
-					return tmp;
-				}
-
-				if (check == 1)
-				{
-					tmp = Decimal::Subtract(left, right);
-					tmp.Sign = '+';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
-				}
-
-				if (check == 2)
-				{
-					tmp = Decimal::Subtract(right, left);
-					tmp.Sign = '-';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
+					Left.Length++;
+					Left.Source.push_front('0');
 				}
 			}
 
-			if ((left.Sign == '-') && (right.Sign == '+'))
+			if ((Left.Sign == '+') && (Right.Sign == '-'))
 			{
-				int check = Decimal::CompareNum(left, right);
-				if (check == 0)
+				int Check = Decimal::CompareNum(Left, Right);
+				if (Check == 0)
 				{
-					tmp = 0;
-					return tmp;
+					Temp = 0;
+					return Temp;
 				}
 
-				if (check == 1)
+				if (Check == 1)
 				{
-					tmp = Decimal::Subtract(left, right);
-					tmp.Sign = '-';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
+					Temp = Decimal::Subtract(Left, Right);
+					Temp.Sign = '+';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
 				}
 
-				if (check == 2)
+				if (Check == 2)
 				{
-					tmp = Decimal::Subtract(right, left);
-					tmp.Sign = '+';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
+					Temp = Decimal::Subtract(Right, Left);
+					Temp.Sign = '-';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
 				}
 			}
 
-			if ((left.Sign == '+') && (right.Sign == '+'))
+			if ((Left.Sign == '-') && (Right.Sign == '+'))
 			{
-				tmp = Decimal::Sum(left, right);
-				tmp.Sign = '+';
-				tmp.Length = left.Length;
-				tmp.Invalid = 0;
-				return tmp;
+				int Check = Decimal::CompareNum(Left, Right);
+				if (Check == 0)
+				{
+					Temp = 0;
+					return Temp;
+				}
+
+				if (Check == 1)
+				{
+					Temp = Decimal::Subtract(Left, Right);
+					Temp.Sign = '-';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
+				}
+
+				if (Check == 2)
+				{
+					Temp = Decimal::Subtract(Right, Left);
+					Temp.Sign = '+';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
+				}
 			}
 
-			if ((left.Sign == '-') && (right.Sign == '-'))
+			if ((Left.Sign == '+') && (Right.Sign == '+'))
 			{
-				tmp = Decimal::Sum(left, right);
-				tmp.Sign = '-';
-				tmp.Length = left.Length;
-				tmp.Invalid = 0;
-				return tmp;
+				Temp = Decimal::Sum(Left, Right);
+				Temp.Sign = '+';
+				Temp.Length = Left.Length;
+				Temp.Invalid = 0;
+				return Temp;
 			}
 
-			return tmp;
+			if ((Left.Sign == '-') && (Right.Sign == '-'))
+			{
+				Temp = Decimal::Sum(Left, Right);
+				Temp.Sign = '-';
+				Temp.Length = Left.Length;
+				Temp.Invalid = 0;
+				return Temp;
+			}
+
+			return Temp;
 		}
-		Decimal operator+(const Decimal& left, const int& int_right)
+		Decimal operator+(const Decimal& Left, const int& VRight)
 		{
-			Decimal right;
-			right = int_right;
-			return left + right;
+			Decimal Right;
+			Right = VRight;
+			return Left + Right;
 		}
-		Decimal operator+(const Decimal& left, const double& double_right)
+		Decimal operator+(const Decimal& Left, const double& VRight)
 		{
-			Decimal right;
-			right = double_right;
-			return left + right;
+			Decimal Right;
+			Right = VRight;
+			return Left + Right;
 		}
-		Decimal operator-(const Decimal& left_, const Decimal& right_)
+		Decimal operator-(const Decimal& _Left, const Decimal& _Right)
 		{
-			Decimal tmp;
-			if (left_.Invalid || right_.Invalid)
-				return tmp;
+			Decimal Temp;
+			if (_Left.Invalid || _Right.Invalid)
+				return Temp;
 
-			Decimal left, right;
-			left = left_;
-			right = right_;
+			Decimal Left, Right;
+			Left = _Left;
+			Right = _Right;
 
-			if (left.Length > right.Length)
+			if (Left.Length > Right.Length)
 			{
-				while (left.Length > right.Length)
+				while (Left.Length > Right.Length)
 				{
-					right.Length++;
-					right.Source.push_front('0');
+					Right.Length++;
+					Right.Source.push_front('0');
 				}
 			}
-			else if (left.Length < right.Length)
+			else if (Left.Length < Right.Length)
 			{
-				while (left.Length < right.Length)
+				while (Left.Length < Right.Length)
 				{
-					left.Length++;
-					left.Source.push_front('0');
-				}
-			}
-
-			if ((left.Sign == '+') && (right.Sign == '-'))
-			{
-				tmp = Decimal::Sum(left, right);
-				tmp.Sign = '+';
-				tmp.Length = left.Length;
-				tmp.Invalid = 0;
-				return tmp;
-			}
-			if ((left.Sign == '-') && (right.Sign == '+'))
-			{
-				tmp = Decimal::Sum(left, right);
-				tmp.Sign = '-';
-				tmp.Length = left.Length;
-				tmp.Invalid = 0;
-				return tmp;
-			}
-
-			if ((left.Sign == '+') && (right.Sign == '+'))
-			{
-				int check = Decimal::CompareNum(left, right);
-				if (check == 0)
-				{
-					tmp = 0;
-					return tmp;
-				}
-
-				if (check == 1)
-				{
-					tmp = Decimal::Subtract(left, right);
-					tmp.Sign = '+';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
-				}
-
-				if (check == 2)
-				{
-					tmp = Decimal::Subtract(right, left);
-					tmp.Sign = '-';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
+					Left.Length++;
+					Left.Source.push_front('0');
 				}
 			}
 
-			if ((left.Sign == '-') && (right.Sign == '-'))
+			if ((Left.Sign == '+') && (Right.Sign == '-'))
 			{
-				int check = Decimal::CompareNum(left, right);
-				if (check == 0)
+				Temp = Decimal::Sum(Left, Right);
+				Temp.Sign = '+';
+				Temp.Length = Left.Length;
+				Temp.Invalid = 0;
+				return Temp;
+			}
+			if ((Left.Sign == '-') && (Right.Sign == '+'))
+			{
+				Temp = Decimal::Sum(Left, Right);
+				Temp.Sign = '-';
+				Temp.Length = Left.Length;
+				Temp.Invalid = 0;
+				return Temp;
+			}
+
+			if ((Left.Sign == '+') && (Right.Sign == '+'))
+			{
+				int Check = Decimal::CompareNum(Left, Right);
+				if (Check == 0)
 				{
-					tmp = 0;
-					return tmp;
+					Temp = 0;
+					return Temp;
 				}
 
-				if (check == 1)
+				if (Check == 1)
 				{
-					tmp = Decimal::Subtract(left, right);
-					tmp.Sign = '-';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
+					Temp = Decimal::Subtract(Left, Right);
+					Temp.Sign = '+';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
 				}
 
-				if (check == 2)
+				if (Check == 2)
 				{
-					tmp = Decimal::Subtract(right, left);
-					tmp.Sign = '+';
-					tmp.Length = left.Length;
-					tmp.Unlead();
-					tmp.Invalid = 0;
-					return tmp;
+					Temp = Decimal::Subtract(Right, Left);
+					Temp.Sign = '-';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
 				}
 			}
 
-			return tmp;
+			if ((Left.Sign == '-') && (Right.Sign == '-'))
+			{
+				int Check = Decimal::CompareNum(Left, Right);
+				if (Check == 0)
+				{
+					Temp = 0;
+					return Temp;
+				}
+
+				if (Check == 1)
+				{
+					Temp = Decimal::Subtract(Left, Right);
+					Temp.Sign = '-';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
+				}
+
+				if (Check == 2)
+				{
+					Temp = Decimal::Subtract(Right, Left);
+					Temp.Sign = '+';
+					Temp.Length = Left.Length;
+					Temp.Unlead();
+					Temp.Invalid = 0;
+					return Temp;
+				}
+			}
+
+			return Temp;
 		}
-		Decimal operator-(const Decimal& left, const int& int_right)
+		Decimal operator-(const Decimal& Left, const int& VRight)
 		{
-			Decimal right;
-			right = int_right;
-			return left - right;
+			Decimal Right;
+			Right = VRight;
+			return Left - Right;
 		}
-		Decimal operator-(const Decimal& left, const double& double_right)
+		Decimal operator-(const Decimal& Left, const double& VRight)
 		{
-			Decimal right;
-			right = double_right;
-			return left - right;
+			Decimal Right;
+			Right = VRight;
+			return Left - Right;
 		}
-		Decimal operator*(const Decimal& left, const Decimal& right)
+		Decimal operator*(const Decimal& Left, const Decimal& Right)
 		{
-			Decimal tmp;
-			if (left.Invalid || right.Invalid)
-				return tmp;
+			Decimal Temp;
+			if (Left.Invalid || Right.Invalid)
+				return Temp;
 
-			tmp = Decimal::Multiply(left, right);
-			if (((left.Sign == '-') && (right.Sign == '-')) || ((left.Sign == '+') && (right.Sign == '+')))
-				tmp.Sign = '+';
+			Temp = Decimal::Multiply(Left, Right);
+			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
+				Temp.Sign = '+';
 			else
-				tmp.Sign = '-';
+				Temp.Sign = '-';
 
-			tmp.Length = left.Length + right.Length;
-			tmp.Invalid = 0;
-			tmp.Unlead();
+			Temp.Length = Left.Length + Right.Length;
+			Temp.Invalid = 0;
+			Temp.Unlead();
 
-			return tmp;
+			return Temp;
 		}
-		Decimal operator*(const Decimal& left, const int& int_right)
+		Decimal operator*(const Decimal& Left, const int& VRight)
 		{
-			Decimal right;
-			right = int_right;
-			return left * right;
+			Decimal Right;
+			Right = VRight;
+			return Left * Right;
 		}
-		Decimal operator*(const Decimal& left, const double& double_right)
+		Decimal operator*(const Decimal& Left, const double& VRight)
 		{
-			Decimal right;
-			right = double_right;
-			return left * right;
+			Decimal Right;
+			Right = VRight;
+			return Left * Right;
 		}
-		Decimal operator/(const Decimal& left, const Decimal& right)
+		Decimal operator/(const Decimal& Left, const Decimal& Right)
 		{
-			Decimal tmp;
-			if (left.Invalid || right.Invalid)
-				return tmp;
+			Decimal Temp;
+			if (Left.Invalid || Right.Invalid)
+				return Temp;
 
-			Decimal Q, R, D, N, zero;
-			zero = 0;
+			Decimal Q, R, D, N, Zero;
+			Zero = 0;
 
-			if (right == zero)
-				return tmp;
+			if (Right == Zero)
+				return Temp;
 
-			N = (left > zero) ? (left) : (left * (-1));
-			D = (right > zero) ? (right) : (right * (-1));
+			N = (Left > Zero) ? (Left) : (Left * (-1));
+			D = (Right > Zero) ? (Right) : (Right * (-1));
 			R.Sign = '+';
 			R.Invalid = 0;
 
@@ -1006,214 +1007,213 @@ namespace Tomahawk
 			N.Unlead();
 			D.Unlead();
 
-			int div_precision = (left.Length > right.Length) ? (left.Length) : (right.Length);
-			for (int i = 0; i < div_precision; i++)
+			int DivPrecision = (Left.Length > Right.Length) ? (Left.Length) : (Right.Length);
+			for (int i = 0; i < DivPrecision; i++)
 				N.Source.push_front('0');
 
-			int check = Decimal::CompareNum(N, D);
-			if (check == 0)
-				tmp.Source.push_front('1');
+			int Check = Decimal::CompareNum(N, D);
+			if (Check == 0)
+				Temp.Source.push_front('1');
 
-			if (check == 2)
-				return zero;
+			if (Check == 2)
+				return Zero;
 
 			while (!N.Source.empty())
 			{
 				R.Source.push_front(*(N.Source.rbegin()));
 				N.Source.pop_back();
 
-				bool is_zero = true;
-				std::deque<char>::const_iterator zero_iter = R.Source.begin();
-				for (; zero_iter != R.Source.end(); ++zero_iter)
+				bool IsZero = true;
+				std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+				for (; ZeroIt != R.Source.end(); ++ZeroIt)
 				{
-					if (*zero_iter != '0')
-						is_zero = false;
+					if (*ZeroIt != '0')
+						IsZero = false;
 				}
 
-				if ((R >= D) && (!is_zero))
+				if ((R >= D) && (!IsZero))
 				{
-					int Q_sub = 0;
-					int min = 0;
-					int max = 9;
+					int QSub = 0;
+					int Min = 0;
+					int Max = 9;
 
 					while (R >= D)
 					{
-						int avg = max - min;
-						int mod_avg = avg / 2;
-						avg = (avg - mod_avg * 2) ? (mod_avg + 1) : (mod_avg);
+						int Avg = Max - Min;
+						int ModAvg = Avg / 2;
+						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
 
-						int div_check = Decimal::CompareNum(R, D * avg);
-
-						if (div_check != 2)
+						int DivCheck = Decimal::CompareNum(R, D * Avg);
+						if (DivCheck != 2)
 						{
-							Q_sub = Q_sub + avg;
-							R = R - D * avg;
+							QSub = QSub + Avg;
+							R = R - D * Avg;
 
-							max = 9;
+							Max = 9;
 						}
 						else
-							max = avg;
+							Max = Avg;
 					}
 
-					Q.Source.push_front(Decimal::IntToChar(Q_sub));
+					Q.Source.push_front(Decimal::IntToChar(QSub));
 
-					bool is_zero = true;
-					std::deque<char>::const_iterator zero_iter = R.Source.begin();
-					for (; zero_iter != R.Source.end(); ++zero_iter)
+					bool IsZero = true;
+					std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+					for (; ZeroIt != R.Source.end(); ++ZeroIt)
 					{
-						if (*zero_iter != '0')
-							is_zero = false;
+						if (*ZeroIt != '0')
+							IsZero = false;
 					}
 
-					if (is_zero)
+					if (IsZero)
 						R.Source.clear();
 				}
 				else
 					Q.Source.push_front('0');
 			}
 
-			tmp = Q;
-			if (((left.Sign == '-') && (right.Sign == '-')) || ((left.Sign == '+') && (right.Sign == '+')))
-				tmp.Sign = '+';
+			Temp = Q;
+			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
+				Temp.Sign = '+';
 			else
-				tmp.Sign = '-';
+				Temp.Sign = '-';
 
-			tmp.Length = div_precision;
-			tmp.Invalid = 0;
-			tmp.Unlead();
+			Temp.Length = DivPrecision;
+			Temp.Invalid = 0;
+			Temp.Unlead();
 
-			return tmp;
+			return Temp;
 		}
-		Decimal operator/(const Decimal& left, const int& int_right)
+		Decimal operator/(const Decimal& Left, const int& VRight)
 		{
-			Decimal right;
-			right = int_right;
-			return left / right;
+			Decimal Right;
+			Right = VRight;
+			return Left / Right;
 		}
-		Decimal operator/(const Decimal& left, const double& double_right)
+		Decimal operator/(const Decimal& Left, const double& VRight)
 		{
-			Decimal right;
-			right = double_right;
-			return left / right;
+			Decimal Right;
+			Right = VRight;
+			return Left / Right;
 		}
-		Decimal operator%(const Decimal& left, const Decimal& right)
+		Decimal operator%(const Decimal& Left, const Decimal& Right)
 		{
-			Decimal tmp;
-			if (left.Invalid || right.Invalid)
-				return tmp;
+			Decimal Temp;
+			if (Left.Invalid || Right.Invalid)
+				return Temp;
 
-			if ((left.Length != 0) || (right.Length != 0))
-				return tmp;
+			if ((Left.Length != 0) || (Right.Length != 0))
+				return Temp;
 
-			Decimal Q, R, D, N, zero, ret;
-			zero = 0;
+			Decimal Q, R, D, N, Zero, Result;
+			Zero = 0;
 
-			if (right == zero)
-				return tmp;
+			if (Right == Zero)
+				return Temp;
 
-			N = (left > zero) ? (left) : (left * (-1));
-			D = (right > zero) ? (right) : (right * (-1));
+			N = (Left > Zero) ? (Left) : (Left * (-1));
+			D = (Right > Zero) ? (Right) : (Right * (-1));
 			R.Sign = '+';
 			R.Invalid = 0;
 
-			int check = Decimal::CompareNum(N, D);
+			int Check = Decimal::CompareNum(N, D);
 
-			if (check == 0)
-				return zero;
+			if (Check == 0)
+				return Zero;
 
-			if (check == 2)
-				return left;
+			if (Check == 2)
+				return Left;
 
 			while (!N.Source.empty())
 			{
 				R.Source.push_front(*(N.Source.rbegin()));
 				N.Source.pop_back();
 
-				bool is_zero = true;
-				std::deque<char>::const_iterator zero_iter = R.Source.begin();
-				for (; zero_iter != R.Source.end(); ++zero_iter)
+				bool IsZero = true;
+				std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+				for (; ZeroIt != R.Source.end(); ++ZeroIt)
 				{
-					if (*zero_iter != '0')
-						is_zero = false;
+					if (*ZeroIt != '0')
+						IsZero = false;
 				}
 
-				if ((R >= D) && (!is_zero))
+				if ((R >= D) && (!IsZero))
 				{
-					int Q_sub = 0;
-					int min = 0;
-					int max = 9;
+					int QSub = 0;
+					int Min = 0;
+					int Max = 9;
 
 					while (R >= D)
 					{
-						int avg = max - min;
-						int mod_avg = avg / 2;
-						avg = (avg - mod_avg * 2) ? (mod_avg + 1) : (mod_avg);
+						int Avg = Max - Min;
+						int ModAvg = Avg / 2;
+						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
 
-						int div_check = Decimal::CompareNum(R, D * avg);
-						if (div_check != 2)
+						int DivCheck = Decimal::CompareNum(R, D * Avg);
+						if (DivCheck != 2)
 						{
-							Q_sub = Q_sub + avg;
-							R = R - D * avg;
+							QSub = QSub + Avg;
+							R = R - D * Avg;
 
-							max = 9;
+							Max = 9;
 						}
 						else
-							max = avg;
+							Max = Avg;
 					}
 
-					Q.Source.push_front(Decimal::IntToChar(Q_sub));
-					ret = R;
+					Q.Source.push_front(Decimal::IntToChar(QSub));
+					Result = R;
 
-					bool is_zero = true;
-					std::deque<char>::const_iterator zero_iter = R.Source.begin();
-					for (; zero_iter != R.Source.end(); ++zero_iter)
+					bool IsZero = true;
+					std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+					for (; ZeroIt != R.Source.end(); ++ZeroIt)
 					{
-						if (*zero_iter != '0')
-							is_zero = false;
+						if (*ZeroIt != '0')
+							IsZero = false;
 					}
 
-					if (is_zero)
+					if (IsZero)
 						R.Source.clear();
 				}
 				else
 				{
-					ret = R;
+					Result = R;
 					Q.Source.push_front('0');
 				}
 			}
 
 			Q.Unlead();
-			ret.Unlead();
-			tmp = ret;
+			Result.Unlead();
+			Temp = Result;
 
-			if (((left.Sign == '-') && (right.Sign == '-')) || ((left.Sign == '+') && (right.Sign == '+')))
-				tmp.Sign = '+';
+			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
+				Temp.Sign = '+';
 			else
-				tmp.Sign = '-';
+				Temp.Sign = '-';
 
-			if (!Decimal::CompareNum(tmp, zero))
-				tmp.Sign = '+';
+			if (!Decimal::CompareNum(Temp, Zero))
+				Temp.Sign = '+';
 
-			tmp.Invalid = 0;
-			return tmp;
+			Temp.Invalid = 0;
+			return Temp;
 		}
-		Decimal operator%(const Decimal& left, const int& int_right)
+		Decimal operator%(const Decimal& Left, const int& VRight)
 		{
-			Decimal right;
-			right = int_right;
-			return left % right;
+			Decimal Right;
+			Right = VRight;
+			return Left % Right;
 		}
-		Decimal Decimal::Divide(const Decimal& left, const Decimal& right, int div_precision)
+		Decimal Decimal::Divide(const Decimal& Left, const Decimal& Right, int DivPrecision)
 		{
-			Decimal tmp;
-			Decimal Q, R, D, N, zero;
-			zero = 0;
+			Decimal Temp;
+			Decimal Q, R, D, N, Zero;
+			Zero = 0;
 
-			if (right == zero)
-				return tmp;
+			if (Right == Zero)
+				return Temp;
 
-			N = (left > zero) ? (left) : (left * (-1));
-			D = (right > zero) ? (right) : (right * (-1));
+			N = (Left > Zero) ? (Left) : (Left * (-1));
+			D = (Right > Zero) ? (Right) : (Right * (-1));
 			R.Sign = '+';
 			R.Invalid = 0;
 
@@ -1233,83 +1233,82 @@ namespace Tomahawk
 			N.Unlead();
 			D.Unlead();
 
-			for (int i = 0; i < div_precision; i++)
+			for (int i = 0; i < DivPrecision; i++)
 				N.Source.push_front('0');
 
-			int check = Decimal::CompareNum(N, D);
+			int Check = Decimal::CompareNum(N, D);
+			if (Check == 0)
+				Temp.Source.push_front('1');
 
-			if (check == 0)
-				tmp.Source.push_front('1');
-
-			if (check == 2)
-				return zero;
+			if (Check == 2)
+				return Zero;
 
 			while (!N.Source.empty())
 			{
 				R.Source.push_front(*(N.Source.rbegin()));
 				N.Source.pop_back();
 
-				bool is_zero = true;
-				std::deque<char>::const_iterator zero_iter = R.Source.begin();
-				for (; zero_iter != R.Source.end(); ++zero_iter)
+				bool IsZero = true;
+				std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+				for (; ZeroIt != R.Source.end(); ++ZeroIt)
 				{
-					if (*zero_iter != '0')
-						is_zero = false;
+					if (*ZeroIt != '0')
+						IsZero = false;
 				}
 
-				if ((R >= D) && (!is_zero))
+				if ((R >= D) && (!IsZero))
 				{
-					int Q_sub = 0;
-					int min = 0;
-					int max = 9;
+					int QSub = 0;
+					int Min = 0;
+					int Max = 9;
 
 					while (R >= D)
 					{
-						int avg = max - min;
-						int mod_avg = avg / 2;
-						avg = (avg - mod_avg * 2) ? (mod_avg + 1) : (mod_avg);
+						int Avg = Max - Min;
+						int ModAvg = Avg / 2;
+						Avg = (Avg - ModAvg * 2) ? (ModAvg + 1) : (ModAvg);
 
-						int div_check = Decimal::CompareNum(R, D * avg);
+						int DivCheck = Decimal::CompareNum(R, D * Avg);
 
-						if (div_check != 2)
+						if (DivCheck != 2)
 						{
-							Q_sub = Q_sub + avg;
-							R = R - D * avg;
+							QSub = QSub + Avg;
+							R = R - D * Avg;
 
-							max = 9;
+							Max = 9;
 						}
 						else
-							max = avg;
+							Max = Avg;
 					}
 
-					Q.Source.push_front(Decimal::IntToChar(Q_sub));
+					Q.Source.push_front(Decimal::IntToChar(QSub));
 
-					bool is_zero = true;
-					std::deque<char>::const_iterator zero_iter = R.Source.begin();
-					for (; zero_iter != R.Source.end(); ++zero_iter)
+					bool IsZero = true;
+					std::deque<char>::const_iterator ZeroIt = R.Source.begin();
+					for (; ZeroIt != R.Source.end(); ++ZeroIt)
 					{
-						if (*zero_iter != '0')
-							is_zero = false;
+						if (*ZeroIt != '0')
+							IsZero = false;
 					}
 
-					if (is_zero)
+					if (IsZero)
 						R.Source.clear();
 				}
 				else
 					Q.Source.push_front('0');
 			}
 
-			tmp = Q;
-			if (((left.Sign == '-') && (right.Sign == '-')) || ((left.Sign == '+') && (right.Sign == '+')))
-				tmp.Sign = '+';
+			Temp = Q;
+			if (((Left.Sign == '-') && (Right.Sign == '-')) || ((Left.Sign == '+') && (Right.Sign == '+')))
+				Temp.Sign = '+';
 			else
-				tmp.Sign = '-';
+				Temp.Sign = '-';
 
-			tmp.Length = div_precision;
-			tmp.Invalid = 0;
-			tmp.Unlead();
+			Temp.Length = DivPrecision;
+			Temp.Invalid = 0;
+			Temp.Unlead();
 
-			return tmp;
+			return Temp;
 		}
 		Decimal Decimal::NaN()
 		{
@@ -1318,147 +1317,147 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Decimal Decimal::Sum(const Decimal& left, const Decimal& right)
+		Decimal Decimal::Sum(const Decimal& Left, const Decimal& Right)
 		{
-			Decimal tmp;
-			int carry = 0;
-			int loopsize = (left.Source.size() > right.Source.size()) ? left.Source.size() : right.Source.size();
+			Decimal Temp;
+			int Carry = 0;
+			int LoopSize = (Left.Source.size() > Right.Source.size()) ? Left.Source.size() : Right.Source.size();
 
-			for (int i = 0; i < loopsize; ++i)
+			for (int i = 0; i < LoopSize; ++i)
 			{
-				int val1, val2;
-				val1 = (i > left.Source.size() - 1) ? 0 : CharToInt(left.Source[i]);
-				val2 = (i > right.Source.size() - 1) ? 0 : CharToInt(right.Source[i]);
+				int Val1, Val2;
+				Val1 = (i > Left.Source.size() - 1) ? 0 : CharToInt(Left.Source[i]);
+				Val2 = (i > Right.Source.size() - 1) ? 0 : CharToInt(Right.Source[i]);
 
-				int aus = val1 + val2 + carry;
-				carry = 0;
+				int Aus = Val1 + Val2 + Carry;
+				Carry = 0;
 
-				if (aus > 9)
+				if (Aus > 9)
 				{
-					carry = 1;
-					aus = aus - 10;
+					Carry = 1;
+					Aus = Aus - 10;
 				}
 
-				tmp.Source.push_back(IntToChar(aus));
+				Temp.Source.push_back(IntToChar(Aus));
 			}
 
-			if (carry != 0)
-				tmp.Source.push_back(IntToChar(carry));
+			if (Carry != 0)
+				Temp.Source.push_back(IntToChar(Carry));
 
-			return tmp;
+			return Temp;
 		}
-		Decimal Decimal::Subtract(const Decimal& left, const Decimal& right)
+		Decimal Decimal::Subtract(const Decimal& Left, const Decimal& Right)
 		{
-			Decimal tmp;
-			int carry = 0;
-			int aus;
+			Decimal Temp;
+			int Carry = 0;
+			int Aus;
 
-			for (int i = 0; i < left.Source.size(); ++i)
+			for (int i = 0; i < Left.Source.size(); ++i)
 			{
-				int val1, val2;
-				val1 = CharToInt(left.Source[i]);
-				val2 = (i > right.Source.size() - 1) ? 0 : CharToInt(right.Source[i]);
-				val1 -= carry;
+				int Val1, Val2;
+				Val1 = CharToInt(Left.Source[i]);
+				Val2 = (i > Right.Source.size() - 1) ? 0 : CharToInt(Right.Source[i]);
+				Val1 -= Carry;
 
-				if (val1 < val2)
+				if (Val1 < Val2)
 				{
-					aus = 10 + val1 - val2;
-					carry = 1;
+					Aus = 10 + Val1 - Val2;
+					Carry = 1;
 				}
 				else
 				{
-					aus = val1 - val2;
-					carry = 0;
+					Aus = Val1 - Val2;
+					Carry = 0;
 				}
 
-				tmp.Source.push_back(IntToChar(aus));
+				Temp.Source.push_back(IntToChar(Aus));
 			}
 
-			return tmp;
+			return Temp;
 		}
-		Decimal Decimal::Multiply(const Decimal& left, const Decimal& right)
+		Decimal Decimal::Multiply(const Decimal& Left, const Decimal& Right)
 		{
-			Decimal ris;
-			Decimal tmp;
-			ris.Source.push_back('0');
-			int carry = 0;
+			Decimal Result;
+			Decimal Temp;
+			Result.Source.push_back('0');
+			int Carry = 0;
 
-			for (int i = 0; i < right.Source.size(); ++i)
+			for (int i = 0; i < Right.Source.size(); ++i)
 			{
 				for (int k = 0; k < i; ++k)
-					tmp.Source.push_front('0');
+					Temp.Source.push_front('0');
 
-				for (int j = 0; j < left.Source.size(); ++j)
+				for (int j = 0; j < Left.Source.size(); ++j)
 				{
-					int aus = CharToInt(right.Source[i]) * CharToInt(left.Source[j]) + carry;
-					carry = 0;
-					if (aus > 9)
+					int Aus = CharToInt(Right.Source[i]) * CharToInt(Left.Source[j]) + Carry;
+					Carry = 0;
+					if (Aus > 9)
 					{
-						while (aus > 9)
+						while (Aus > 9)
 						{
-							carry++;
-							aus -= 10;
+							Carry++;
+							Aus -= 10;
 						}
 					}
 
-					tmp.Source.push_back(IntToChar(aus));
+					Temp.Source.push_back(IntToChar(Aus));
 				}
 
-				if (carry != 0)
-					tmp.Source.push_back(IntToChar(carry));
+				if (Carry != 0)
+					Temp.Source.push_back(IntToChar(Carry));
 
-				carry = 0;
-				ris = Sum(ris, tmp);
-				tmp.Source.clear();
+				Carry = 0;
+				Result = Sum(Result, Temp);
+				Temp.Source.clear();
 			}
 
-			return ris;
+			return Result;
 		}
-		int Decimal::CompareNum(const Decimal& left, const Decimal& right)
+		int Decimal::CompareNum(const Decimal& Left, const Decimal& Right)
 		{
-			if ((left.Source.size() - left.Length) > (right.Source.size() - right.Length))
+			if ((Left.Source.size() - Left.Length) > (Right.Source.size() - Right.Length))
 				return 1;
 
-			if ((left.Source.size() - left.Length) < (right.Source.size() - right.Length))
+			if ((Left.Source.size() - Left.Length) < (Right.Source.size() - Right.Length))
 				return 2;
 
-			if (left.Length > right.Length)
+			if (Left.Length > Right.Length)
 			{
-				Decimal tmp;
-				tmp = right;
-				while (left.Length > tmp.Length)
+				Decimal Temp;
+				Temp = Right;
+				while (Left.Length > Temp.Length)
 				{
-					tmp.Length++;
-					tmp.Source.push_front('0');
+					Temp.Length++;
+					Temp.Source.push_front('0');
 				}
 
-				for (int i = left.Source.size() - 1; i >= 0; i--)
+				for (int i = Left.Source.size() - 1; i >= 0; i--)
 				{
-					if (left.Source[i] > tmp.Source[i])
+					if (Left.Source[i] > Temp.Source[i])
 						return 1;
 
-					if (left.Source[i] < tmp.Source[i])
+					if (Left.Source[i] < Temp.Source[i])
 						return 2;
 				}
 
 				return 0;
 			}
-			else if (left.Length < right.Length)
+			else if (Left.Length < Right.Length)
 			{
-				Decimal tmp;
-				tmp = left;
-				while (tmp.Length < right.Length)
+				Decimal Temp;
+				Temp = Left;
+				while (Temp.Length < Right.Length)
 				{
-					tmp.Length++;
-					tmp.Source.push_front('0');
+					Temp.Length++;
+					Temp.Source.push_front('0');
 				}
 
-				for (int i = tmp.Source.size() - 1; i >= 0; i--)
+				for (int i = Temp.Source.size() - 1; i >= 0; i--)
 				{
-					if (tmp.Source[i] > right.Source[i])
+					if (Temp.Source[i] > Right.Source[i])
 						return 1;
 
-					if (tmp.Source[i] < right.Source[i])
+					if (Temp.Source[i] < Right.Source[i])
 						return 2;
 				}
 
@@ -1466,11 +1465,11 @@ namespace Tomahawk
 			}
 			else
 			{
-				for (int i = left.Source.size() - 1; i >= 0; i--)
+				for (int i = Left.Source.size() - 1; i >= 0; i--)
 				{
-					if (left.Source[i] > right.Source[i])
+					if (Left.Source[i] > Right.Source[i])
 						return 1;
-					else if (left.Source[i] < right.Source[i])
+					else if (Left.Source[i] < Right.Source[i])
 						return 2;
 				}
 
@@ -1488,9 +1487,11 @@ namespace Tomahawk
 
 		Variant::Variant() : Type(VarType::Undefined)
 		{
+			Value.Data = nullptr;
 		}
 		Variant::Variant(VarType NewType) : Type(NewType)
 		{
+			Value.Data = nullptr;
 		}
 		Variant::Variant(const Variant& Other)
 		{
@@ -1504,54 +1505,54 @@ namespace Tomahawk
 		{
 			Free();
 		}
-		bool Variant::Deserialize(const std::string& Value, bool Strict)
+		bool Variant::Deserialize(const std::string& Text, bool Strict)
 		{
 			Free();
 			if (!Strict)
 			{
-				if (Value == TH_PREFIX_STR "null")
+				if (Text == TH_PREFIX_STR "null")
 				{
 					Type = VarType::Null;
 					return true;
 				}
 
-				if (Value == TH_PREFIX_STR "undefined")
+				if (Text == TH_PREFIX_STR "undefined")
 				{
 					Type = VarType::Undefined;
 					return true;
 				}
 
-				if (Value == TH_PREFIX_STR "object")
+				if (Text == TH_PREFIX_STR "object")
 				{
 					Type = VarType::Object;
 					return true;
 				}
 
-				if (Value == TH_PREFIX_STR "array")
+				if (Text == TH_PREFIX_STR "array")
 				{
 					Type = VarType::Array;
 					return true;
 				}
 
-				if (Value == TH_PREFIX_STR "pointer")
+				if (Text == TH_PREFIX_STR "pointer")
 				{
 					Type = VarType::Pointer;
 					return true;
 				}
 
-				if (Value == "true")
+				if (Text == "true")
 				{
 					Copy(Var::Boolean(true));
 					return true;
 				}
 
-				if (Value == "false")
+				if (Text == "false")
 				{
 					Copy(Var::Boolean(false));
 					return true;
 				}
 
-				Parser Buffer(&Value);
+				Parser Buffer(&Text);
 				if (Buffer.HasNumber())
 				{
 					if (Buffer.HasDecimal())
@@ -1565,13 +1566,13 @@ namespace Tomahawk
 				}
 			}
 
-			if (Value.size() > 2 && Value.front() == TH_PREFIX_CHAR && Value.back() == TH_PREFIX_CHAR)
+			if (Text.size() > 2 && Text.front() == TH_PREFIX_CHAR && Text.back() == TH_PREFIX_CHAR)
 			{
-				Copy(Var::Base64(Compute::Common::Base64Decode(std::string(Value.substr(1).c_str(), Value.size() - 2))));
+				Copy(Var::Base64(Compute::Common::Base64Decode(std::string(Text.substr(1).c_str(), Text.size() - 2))));
 				return true;
 			}
 
-			Copy(Var::String(Value));
+			Copy(Var::String(Text));
 			return true;
 		}
 		std::string Variant::Serialize() const
@@ -1707,7 +1708,7 @@ namespace Tomahawk
 				return Value.Integer > 0;
 
 			if (Type == VarType::Decimal)
-                return ((Decimal*)Value.Data)->ToDouble() > 0.0;
+				return ((Decimal*)Value.Data)->ToDouble() > 0.0;
 
 			return GetSize() > 0;
 		}
@@ -1767,13 +1768,14 @@ namespace Tomahawk
 		{
 			return !IsEmpty();
 		}
-		bool Variant::IsString(const char* Value) const
+		bool Variant::IsString(const char* Text) const
 		{
+			TH_ASSERT(Text != nullptr, false, "text should be set");
 			const char* Other = GetString();
-			if (Other == Value)
+			if (Other == Text)
 				return true;
 
-			return strcmp(Other, Value) == 0;
+			return strcmp(Other, Text) == 0;
 		}
 		bool Variant::IsObject() const
 		{
@@ -2790,7 +2792,7 @@ namespace Tomahawk
 		Parser& Parser::Reserve(uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 
 			L->reserve(L->capacity() + Count);
 			return *this;
@@ -2804,7 +2806,7 @@ namespace Tomahawk
 		Parser& Parser::Resize(uint64_t Count, char Char)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 
 			L->resize(Count, Char);
 			return *this;
@@ -3065,7 +3067,7 @@ namespace Tomahawk
 		Parser& Parser::Fill(const char& Char)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(!L->empty(), *this, "length should be greater than zero");
+			TH_ASSERT(!L->empty(), *this, "length should be greater than Zero");
 
 			for (char& i : *L)
 				i = Char;
@@ -3075,7 +3077,7 @@ namespace Tomahawk
 		Parser& Parser::Fill(const char& Char, uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(!L->empty(), *this, "length should be greater than zero");
+			TH_ASSERT(!L->empty(), *this, "length should be greater than Zero");
 
 			L->assign(Count, Char);
 			return *this;
@@ -3083,7 +3085,7 @@ namespace Tomahawk
 		Parser& Parser::Fill(const char& Char, uint64_t Start, uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(!L->empty(), *this, "length should be greater than zero");
+			TH_ASSERT(!L->empty(), *this, "length should be greater than Zero");
 			TH_ASSERT(Start <= L->size(), *this, "start should be less or equal than length");
 
 			if (Start + Count > L->size())
@@ -3168,7 +3170,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
-			
+
 			L->append(Raw, Count);
 			return *this;
 		}
@@ -3176,7 +3178,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
-			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 			TH_ASSERT(strlen(Raw) >= Start + Count, *this, "offset should be less than append string length");
 
 			L->append(Raw + Start, Count - Start);
@@ -3185,7 +3187,7 @@ namespace Tomahawk
 		Parser& Parser::Append(const std::string& Raw, uint64_t Start, uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Count > 0, *this, "count should be greater than zero");
+			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 			TH_ASSERT(Raw.size() >= Start + Count, *this, "offset should be less than append string length");
 
 			L->append(Raw.substr(Start, Count));
@@ -3959,7 +3961,7 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::Split(char With, uint64_t Start) const
 		{
-			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");	
+			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
 			if (Start >= L->size())
 				return Output;
@@ -4338,7 +4340,7 @@ namespace Tomahawk
 			TH_ASSERT_V(File != nullptr, "file should be set");
 			TH_ASSERT_V(Section != nullptr, "section should be set");
 			TH_ASSERT_V(Function != nullptr, "function should be set");
-			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than zero");
+			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than Zero");
 
 			Context Ctx;
 			Ctx.File = File;
@@ -4394,7 +4396,7 @@ namespace Tomahawk
 			TH_ASSERT_V(File != nullptr, "file should be set");
 			TH_ASSERT_V(Section != nullptr, "section should be set");
 			TH_ASSERT_V(Function != nullptr, "function should be set");
-			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than zero");
+			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than Zero");
 
 			if (DbgIgnore)
 				return;
@@ -4611,7 +4613,7 @@ namespace Tomahawk
 						Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
 					else if (Level == 2)
 						Dbg->ColorBegin(StdColor::Yellow, StdColor::Black);
-					else if (Level == 4)
+					else
 						Dbg->ColorBegin(StdColor::Gray, StdColor::Black);
 					Dbg->WriteBuffer(Storage);
 					Dbg->ColorEnd();
@@ -4963,13 +4965,13 @@ namespace Tomahawk
 		std::string Console::Read(uint64_t Size)
 		{
 			TH_ASSERT(Handle, std::string(), "console should be shown at least once");
-			TH_ASSERT(Size > 0, std::string(), "read length should be greater than zero");
+			TH_ASSERT(Size > 0, std::string(), "read length should be greater than Zero");
 
 			char* Value = (char*)TH_MALLOC(sizeof(char) * (size_t)(Size + 1));
 			memset(Value, 0, (size_t)Size * sizeof(char));
 			Value[Size] = '\0';
 #ifndef TH_MICROSOFT
-            std::cout.flush();
+			std::cout.flush();
 #endif
 			std::cin.getline(Value, Size);
 			std::string Output = Value;
@@ -5520,7 +5522,7 @@ namespace Tomahawk
 						TH_RELEASE(Client);
 						break;
 					}
-					
+
 					Network::HTTP::RequestFrame Request;
 					Request.URI.assign('/' + URL.Path);
 					for (auto& Item : URL.Query)
@@ -5615,7 +5617,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, 0, "data should be set");
-			TH_ASSERT(Length > 0, 0, "length should be greater than zero");
+			TH_ASSERT(Length > 0, 0, "length should be greater than Zero");
 
 			uint64_t Result = 0;
 			if (!Buffer.empty())
@@ -6142,8 +6144,8 @@ namespace Tomahawk
 
 			TH_PPUSH("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data, (size_t)Length, 1, Stream);
-			fclose(Stream);
 			TH_TRACE("close fs 0x%p", (void*)Stream);
+			fclose(Stream);
 			TH_PPOP();
 
 			return true;
@@ -6157,8 +6159,8 @@ namespace Tomahawk
 
 			TH_PPUSH("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
-			fclose(Stream);
 			TH_TRACE("close fs 0x%p", (void*)Stream);
+			fclose(Stream);
 			TH_PPOP();
 
 			return true;
@@ -6236,7 +6238,7 @@ namespace Tomahawk
 		void* OS::File::Open(const char* Path, const char* Mode)
 		{
 			TH_PPUSH("os-file-open", TH_PERF_IO);
-			TH_ASSERT(Path != nullptr && Mode != nullptr, false, "path and mode should be set");
+			TH_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef TH_MICROSOFT
 			wchar_t WBuffer[1024], WMode[20];
 			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
@@ -6282,7 +6284,7 @@ namespace Tomahawk
 		}
 		unsigned char* OS::File::ReadAll(const char* Path, uint64_t* Length)
 		{
-			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_ASSERT(Path != nullptr, nullptr, "path should be set");
 			FILE* Stream = (FILE*)Open(Path, "rb");
 			if (!Stream)
 				return nullptr;
@@ -6295,8 +6297,8 @@ namespace Tomahawk
 			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
 			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
 			{
-				fclose(Stream);
 				TH_TRACE("close fs 0x%p", (void*)Stream);
+				fclose(Stream);
 				TH_FREE(Bytes);
 
 				if (Length != nullptr)
@@ -6310,15 +6312,15 @@ namespace Tomahawk
 			if (Length != nullptr)
 				*Length = Size;
 
-			fclose(Stream);
 			TH_TRACE("close fs 0x%p", (void*)Stream);
+			fclose(Stream);
 			TH_PPOP();
 
 			return Bytes;
 		}
 		unsigned char* OS::File::ReadAll(Stream* Stream, uint64_t* Length)
 		{
-			TH_ASSERT(Stream != nullptr, false, "stream should be set");
+			TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 			uint64_t Size = Stream->GetSize();
 			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
 			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
@@ -6331,7 +6333,7 @@ namespace Tomahawk
 		}
 		unsigned char* OS::File::ReadChunk(Stream* Stream, uint64_t Length)
 		{
-			TH_ASSERT(Stream != nullptr, false, "stream should be set");
+			TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 			auto* Bytes = (unsigned char*)TH_MALLOC((size_t)(Length + 1));
 			Stream->Read((char*)Bytes, Length);
 			Bytes[Length] = '\0';
@@ -6340,7 +6342,7 @@ namespace Tomahawk
 		}
 		std::string OS::File::ReadAsString(const char* Path)
 		{
-			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_ASSERT(Path != nullptr, std::string(), "path should be set");
 			uint64_t Length = 0;
 			char* Data = (char*)ReadAll(Path, &Length);
 			if (!Data)
@@ -6365,22 +6367,22 @@ namespace Tomahawk
 			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Length);
 			if (!Buffer)
 			{
-				fclose(Stream);
 				TH_TRACE("close fs 0x%p", (void*)Stream);
+				fclose(Stream);
 				return std::vector<std::string>();
 			}
 
 			if (fread(Buffer, sizeof(char), (size_t)Length, Stream) != (size_t)Length)
 			{
-				fclose(Stream);
 				TH_TRACE("close fs 0x%p", (void*)Stream);
+				fclose(Stream);
 				TH_FREE(Buffer);
 				return std::vector<std::string>();
 			}
 
 			std::string Result(Buffer, Length);
-			fclose(Stream);
 			TH_TRACE("close fs 0x%p", (void*)Stream);
+			fclose(Stream);
 			TH_FREE(Buffer);
 
 			return Parser(&Result).Split('\n');
@@ -6393,7 +6395,7 @@ namespace Tomahawk
 		}
 		std::string OS::Path::Resolve(const char* Path)
 		{
-			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_ASSERT(Path != nullptr, std::string(), "path should be set");
 			TH_PPUSH("os-path-resolve", TH_PERF_IO);
 #ifdef TH_MICROSOFT
 			char Buffer[2048] = { 0 };
@@ -6479,7 +6481,7 @@ namespace Tomahawk
 		}
 		std::string OS::Path::GetDirectory(const char* Path, uint32_t Level)
 		{
-			TH_ASSERT(Path != nullptr, false, "path should be set");
+			TH_ASSERT(Path != nullptr, std::string(), "path should be set");
 
 			Parser Buffer(Path);
 			Parser::Settle Result = Buffer.ReverseFindOf("/\\");
@@ -6537,7 +6539,7 @@ namespace Tomahawk
 		bool OS::Net::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
 		{
 			TH_ASSERT(Stream != nullptr, false, "stream should be set");
-			TH_ASSERT(Size > 0, false, "size should be greater than zero");
+			TH_ASSERT(Size > 0, false, "size should be greater than Zero");
 			TH_PPUSH("os-net-send", TH_PERF_NET);
 #ifdef TH_MICROSOFT
 			TH_PRET(TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 8192, nullptr, nullptr, 0) > 0);
@@ -6557,7 +6559,7 @@ namespace Tomahawk
 		}
 		bool OS::Net::GetETag(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength)
 		{
-			TH_ASSERT(Buffer != nullptr && Length > 0, false, "buffer should be set and size should be greater than zero");
+			TH_ASSERT(Buffer != nullptr && Length > 0, false, "buffer should be set and size should be greater than Zero");
 			snprintf(Buffer, (const size_t)Length, "\"%lx.%llu\"", (unsigned long)LastModified, ContentLength);
 			return true;
 		}
@@ -6600,7 +6602,7 @@ namespace Tomahawk
 			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 #endif
 			va_end(Args);
-			
+
 			TH_TRACE("[io] execute command\n\t%s", Buffer);
 			return system(Buffer);
 		}
@@ -6701,7 +6703,7 @@ namespace Tomahawk
 				}
 
 				*ExitCode = (int)Result;
-			}	
+			}
 #else
 			int Status;
 			waitpid(Process->Process, &Status, 0);
@@ -6947,7 +6949,7 @@ namespace Tomahawk
 		}
 		void ChangeLog::Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback)
 		{
-			TH_ASSERT_V(Callback, "callback should not be empty");	
+			TH_ASSERT_V(Callback, "callback should not be empty");
 			Resource State;
 			if (Source->GetBuffer() && (!OS::File::State(Path, &State) || State.LastModified == Time))
 				return;
@@ -7037,7 +7039,7 @@ namespace Tomahawk
 			{
 				Routine = *Cached.begin();
 				Routine->Callback = Procedure;
-                Routine->State = Coactive::Active;
+				Routine->State = Coactive::Active;
 				Cached.erase(Cached.begin());
 			}
 			else
@@ -7056,7 +7058,7 @@ namespace Tomahawk
 			{
 				Routine = *Cached.begin();
 				Routine->Callback = std::move(Procedure);
-                Routine->State = Coactive::Active;
+				Routine->State = Coactive::Active;
 				Cached.erase(Cached.begin());
 			}
 			else
@@ -7074,8 +7076,8 @@ namespace Tomahawk
 			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Routine->Callback = Procedure;
-            Routine->Dead = false;
-            Routine->State = Coactive::Active;
+			Routine->Dead = false;
+			Routine->State = Coactive::Active;
 			return 1;
 		}
 		int Costate::Reuse(Coroutine* Routine, TaskCallback&& Procedure)
@@ -7085,8 +7087,8 @@ namespace Tomahawk
 			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Routine->Callback = std::move(Procedure);
-            Routine->Dead = false;
-            Routine->State = Coactive::Active;
+			Routine->Dead = false;
+			Routine->State = Coactive::Active;
 			return 1;
 		}
 		int Costate::Reuse(Coroutine* Routine)
@@ -7096,9 +7098,9 @@ namespace Tomahawk
 			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Routine->Callback = nullptr;
-            Routine->Dead = false;
-            Routine->State = Coactive::Active;
-            
+			Routine->Dead = false;
+			Routine->State = Coactive::Active;
+
 			Safe.lock();
 			Used.erase(Routine);
 			Cached.emplace(Routine);
@@ -7110,15 +7112,15 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
 			TH_ASSERT(!Routine->Dead, -1, "coroutine should not be dead");
-			
+
 			if (Routine->State == Coactive::Inactive)
 				return 0;
-			
+
 			if (Routine->State == Coactive::Resumable)
-                Routine->State = Coactive::Active;
-            
-            Cocontext* Fiber = Routine->Switch;
-            Current = Routine;
+				Routine->State = Coactive::Active;
+
+			Cocontext* Fiber = Routine->Switch;
+			Current = Routine;
 #ifdef TH_MICROSOFT
 			if (Fiber->Context == nullptr)
 #else
@@ -7130,7 +7132,7 @@ namespace Tomahawk
 				Fiber->Stack = (char*)TH_MALLOC(sizeof(char) * Size);
 				Fiber->Context.uc_stack.ss_sp = Fiber->Stack;
 				Fiber->Context.uc_stack.ss_size = Size;
-                Fiber->Context.uc_stack.ss_flags = 0;
+				Fiber->Context.uc_stack.ss_flags = 0;
 				Fiber->Context.uc_link = &Switch->Context;
 #ifdef TH_64
 				int X, Y;
@@ -7164,30 +7166,30 @@ namespace Tomahawk
 			TH_ASSERT(Routine->Dead, -1, "coroutine should be dead");
 
 			Safe.lock();
-            Cached.erase(Routine);
+			Cached.erase(Routine);
 			Used.erase(Routine);
 			Safe.unlock();
 
 			TH_DELETE(Coroutine, Routine);
 			return 1;
 		}
-        int Costate::Activate(Coroutine* Routine)
-        {
+		int Costate::Activate(Coroutine* Routine)
+		{
 			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
 			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
 			TH_ASSERT(!Routine->Dead, -1, "coroutine should not be dead");
 
 			if (Routine->State != Coactive::Inactive)
 				return -1;
-			
-            Routine->State = Coactive::Resumable;
+
+			Routine->State = Coactive::Resumable;
 			if (Waitable != nullptr)
 				Waitable->notify_all();
 
-            return 1;
-        }
-        int Costate::Deactivate(Coroutine* Routine)
-        {
+			return 1;
+		}
+		int Costate::Deactivate(Coroutine* Routine)
+		{
 			TH_ASSERT(Thread == std::this_thread::get_id(), -1, "cannot deactive coroutine outside costate thread");
 			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
 			TH_ASSERT(Routine->Master == this, -1, "coroutine should be created by this costate");
@@ -7196,9 +7198,9 @@ namespace Tomahawk
 			if (Current != Routine || Routine->State != Coactive::Active)
 				return -1;
 
-            Routine->State = Coactive::Inactive;
-            return Suspend();
-        }
+			Routine->State = Coactive::Inactive;
+			return Suspend();
+		}
 		int Costate::Resume(Coroutine* Routine)
 		{
 			TH_ASSERT(Routine != nullptr, -1, "coroutine should be set");
@@ -7207,7 +7209,7 @@ namespace Tomahawk
 
 			if (Current == Routine || Routine->Dead)
 				return -1;
-			
+
 			return Swap(Routine);
 		}
 		int Costate::Resume(bool Restore)
@@ -7223,7 +7225,7 @@ namespace Tomahawk
 			if (!Routine)
 				return -1;
 
-            int Code = Swap(Routine);
+			int Code = Swap(Routine);
 			if (Code != -1)
 				return Code;
 
@@ -7343,10 +7345,10 @@ namespace Tomahawk
 #else
 			Costate* State = (Costate*)Context;
 #endif
-            Cothread = State;
+			Cothread = State;
 			TH_ASSERT_V(State != nullptr, "costate should be set");
 			Coroutine* Routine = State->Current;
-            if (Routine != nullptr)
+			if (Routine != nullptr)
 			{
 			Reuse:
 				if (Routine->Callback)
@@ -7363,7 +7365,7 @@ namespace Tomahawk
 			if (Routine != nullptr && Routine->Callback)
 				goto Reuse;
 		}
-		
+
 		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false), Enqueue(true)
 		{
 			Asyncs = (ConcurrentQueue)TH_NEW(TQueue);
@@ -7399,7 +7401,7 @@ namespace Tomahawk
 
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
-			
+
 			TH_PPOP();
 			return Id;
 		}
@@ -7510,7 +7512,7 @@ namespace Tomahawk
 			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, Callback));
 			if (!Childs.empty())
 				Queue.Consume.notify_one();
-			
+
 			TH_PPOP();
 			return true;
 		}
@@ -7649,7 +7651,7 @@ namespace Tomahawk
 		bool Schedule::Publish()
 		{
 			std::chrono::microseconds When;
-            int fTimers = -1;
+			int fTimers = -1;
 			if (!Active)
 				goto Wait;
 
@@ -7657,10 +7659,10 @@ namespace Tomahawk
 			{
 				fTimers = DispatchTimer(&When);
 				if (fTimers == 0)
-                {
-                    std::unique_lock<std::mutex> Lock(Race.Threads);
-                    Queue.Publish.wait_for(Lock, When);
-                }
+				{
+					std::unique_lock<std::mutex> Lock(Race.Threads);
+					Queue.Publish.wait_for(Lock, When);
+				}
 				else if (fTimers == -1)
 				{
 				Wait:
@@ -7683,14 +7685,14 @@ namespace Tomahawk
 			CToken tAsyncs(*((TQueue*)Asyncs)), tTasks(*((TQueue*)Tasks));
 			ConcurrentToken* vAsyncs = (ConcurrentToken*)&tAsyncs;
 			ConcurrentToken* vTasks = (ConcurrentToken*)&tTasks;
-            int fAsyncs = -1, fTasks = -1;
+			int fAsyncs = -1, fTasks = -1;
 
-            if (!Active)
+			if (!Active)
 				goto Wait;
 
 			do
 			{
-                fAsyncs = DispatchAsync(vAsyncs, State, false);
+				fAsyncs = DispatchAsync(vAsyncs, State, false);
 				fTasks = DispatchTask(vTasks);
 
 				if (fAsyncs != -1 || fTasks != -1)
@@ -7708,7 +7710,7 @@ namespace Tomahawk
 			CToken* cToken = (CToken*)Token;
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			TaskCallback* Data = nullptr;
-			TaskCallback* Queue[MAX_TICKS];
+			TaskCallback* Next[MAX_TICKS];
 
 			if (State != nullptr)
 			{
@@ -7757,11 +7759,11 @@ namespace Tomahawk
 			}
 			else
 			{
-				size_t Count = (cToken ? cAsyncs->try_dequeue_bulk(*cToken, Queue, MAX_TICKS) : cAsyncs->try_dequeue_bulk(Queue, MAX_TICKS));
+				size_t Count = (cToken ? cAsyncs->try_dequeue_bulk(*cToken, Next, MAX_TICKS) : cAsyncs->try_dequeue_bulk(Next, MAX_TICKS));
 				for (size_t i = 0; i < Count; i++)
 				{
 					TH_PPUSH("dispatch-async", TH_PERF_MAX);
-					Data = Queue[i];
+					Data = Next[i];
 					(*Data)();
 					TH_DELETE(function, Data);
 					TH_PPOP();
@@ -7807,8 +7809,8 @@ namespace Tomahawk
 
 			if (Active && It->first >= Clock)
 			{
-                if (When != nullptr)
-                    *When = It->first - Clock;
+				if (When != nullptr)
+					*When = It->first - Clock;
 				Race.Timers.unlock();
 				return 0;
 			}
@@ -8014,14 +8016,14 @@ namespace Tomahawk
 		{
 			return Get("[" + Name + "]");
 		}
-        Variant Document::FetchVar(const std::string& fKey, bool Deep) const
-        {
-            Document* Result = Fetch(fKey, Deep);
-            if (!Result)
-                return Var::Undefined();
+		Variant Document::FetchVar(const std::string& fKey, bool Deep) const
+		{
+			Document* Result = Fetch(fKey, Deep);
+			if (!Result)
+				return Var::Undefined();
 
-            return Result->Value;
-        }
+			return Result->Value;
+		}
 		Variant Document::GetVar(size_t Index) const
 		{
 			Document* Result = Get(Index);
@@ -8344,7 +8346,7 @@ namespace Tomahawk
 		}
 		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
 		{
-			TH_ASSERT(Callback, false, "value should be set and callback should not be empty");
+			TH_ASSERT(!!Callback, false, "callback should not be empty");
 			if (!Value)
 				return false;
 
@@ -8549,7 +8551,7 @@ namespace Tomahawk
 		}
 		Document* Document::ReadXML(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
-			TH_ASSERT(Callback, nullptr, "size should be greater than zero and callback should not be empty");
+			TH_ASSERT(Callback, nullptr, "size should be greater than Zero and callback should not be empty");
 			if (Size <= 0)
 				return nullptr;
 
@@ -8626,7 +8628,7 @@ namespace Tomahawk
 		}
 		Document* Document::ReadJSON(int64_t Size, const DocReadCallback& Callback, bool Assert)
 		{
-			TH_ASSERT(Callback, nullptr, "size should be greater than zero and callback should not be empty");
+			TH_ASSERT(Callback, nullptr, "size should be greater than Zero and callback should not be empty");
 			if (Size <= 0)
 				return nullptr;
 

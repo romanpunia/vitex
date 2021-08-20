@@ -1,5 +1,5 @@
-#include "std/channels/effect"
-#include "std/core/position"
+#include "std/channels/effect.hlsl"
+#include "std/core/position.hlsl"
 
 float Rayprefix(float3 Eye, float3 Direction)
 {

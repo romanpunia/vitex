@@ -898,7 +898,7 @@ namespace Tomahawk
 		private:
 			struct Packet
 			{
-				std::atomic<bool> Active;
+				std::atomic<bool> Active = false;
 				Core::TaskCallback Callback;
 				Core::Timer* Time = nullptr;
 			};
@@ -976,7 +976,7 @@ namespace Tomahawk
 			void RestoreViewBuffer(Viewer* View);
 			void SortBackToFront(Core::Pool<Drawable*>* Array);
 			void SortFrontToBack(Core::Pool<Drawable*>* Array);
-			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback);
+			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback);
 			void ScriptHook(const std::string& Name = "Main");
 			void SetActive(bool Enabled);
 			void SetTiming(double Min, double Max);

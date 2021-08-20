@@ -1,6 +1,6 @@
-#include "std/layouts/vertex"
-#include "std/channels/gvoxelizer"
-#include "std/buffers/object"
+#include "std/layouts/vertex.hlsl"
+#include "std/channels/gvoxelizer.hlsl"
+#include "std/buffers/object.hlsl"
 
 VOutput vs_main(VInput V)
 {

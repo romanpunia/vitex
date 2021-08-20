@@ -436,7 +436,7 @@ namespace Tomahawk
 					}
 				}
 
-				std::string Result = PDB::Driver::Emplace(Client, Result, &Map, false);
+				std::string Result = PDB::Driver::Emplace(Client, Def, &Map, false);
 				if (!Result.empty() && Result.back() == ',')
 					Result.erase(Result.end() - 1);
 
@@ -1366,7 +1366,7 @@ namespace Tomahawk
                 return Future.IsPending();
             }
             
-			Cluster::Cluster()
+			Cluster::Cluster() : Session(0)
 			{
 				Driver::Create();
 			}
@@ -2027,7 +2027,6 @@ namespace Tomahawk
 				if (!Map || Map->empty())
 					return SQL;
 
-				Base->Update.lock();
 				TConnection* Remote = Base->GetConnection();
 				Core::Parser Buffer(SQL);
 				Core::Parser::Settle Set;
@@ -2039,7 +2038,7 @@ namespace Tomahawk
 				{
 					if (Next >= Map->size())
 					{
-						TH_ERR("[pq] emplace query %.64s\n\texpects: at least %llu args", SQL.c_str(), (uint64_t)(Next + 1));
+						TH_ERR("[pq] emplace query %.64s\n\texpects: at least %llu args", SQL.c_str(), (uint64_t)(Next) + 1);
 						break;
 					}
 
@@ -2065,7 +2064,6 @@ namespace Tomahawk
 					Offset = Set.Start + (uint64_t)Value.size();
 				}
 
-				Base->Update.unlock();
 				if (!Once)
 					return Src;
 
@@ -2124,7 +2122,6 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Base->Update.lock();
 				TConnection* Remote = Base->GetConnection();
 				Sequence Origin = It->second;
 				size_t Offset = 0;
@@ -2144,11 +2141,10 @@ namespace Tomahawk
 					if (Value.empty())
 						continue;
 
-					Result.Insert(Value, (uint64_t)(Word.Offset + Offset));
+					Result.Insert(Value, (uint64_t)Word.Offset + Offset);
 					Offset += Value.size();
 				}
 
-				Base->Update.unlock();
 				if (Once)
 				{
 					for (auto& Item : *Map)

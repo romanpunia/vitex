@@ -1,4 +1,4 @@
-#include "geometry/emitter/common/point"
+#include "geometry/emitter/common/point.hlsl"
 
 float ps_main(VOutputLinear V) : SV_TARGET0
 {

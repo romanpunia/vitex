@@ -1,4 +1,4 @@
-#include "std/channels/geometry"
-#include "std/objects/element"
+#include "std/channels/geometry.hlsl"
+#include "std/objects/element.hlsl"
 
 StructuredBuffer<Element> Elements : register(t8);

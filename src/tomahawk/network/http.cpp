@@ -147,9 +147,12 @@ namespace Tomahawk
 			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Size(DataSize), Compiler(nullptr), Base(nullptr), Buffer(Data), Save(false)
 			{
 			}
-			void GatewayFrame::Execute(Script::VMResume State)
+			void GatewayFrame::Execute(Script::VMContext*, Script::VMPoll State)
 			{
-				if (State == Script::VMResume::Finish_With_Error)
+				if (State == Script::VMPoll::Routine)
+					return;
+
+				if (State == Script::VMPoll::Exception)
 				{
 					if (Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 500;
@@ -168,14 +171,14 @@ namespace Tomahawk
 
 				if (Base->WebSocket != nullptr)
 				{
-					if (State == Script::VMResume::Continue || IsScheduled())
+					if (State == Script::VMPoll::Continue || IsScheduled())
 						Base->WebSocket->Next();
 					else if (Base->WebSocket->State == (uint32_t)WebSocketState::Active || Base->WebSocket->State == (uint32_t)WebSocketState::Handshake)
 						Base->WebSocket->Finish();
 					else
 						Finish();
 				}
-				else if (State != Script::VMResume::Continue)
+				else if (State == Script::VMPoll::Finish || State == Script::VMPoll::Exception)
 					Finish();
 			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)
@@ -241,8 +244,8 @@ namespace Tomahawk
 						return Error(400, "Method is not allowed.");
 
 					Script::VMContext* Context = Compiler->GetContext();
-					Context->SetResumeCallback(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1));
-					Context->Execute(Main, nullptr);
+					Context->SetOnResume(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1, std::placeholders::_2));
+					Context->Execute(Main, nullptr, nullptr);
 
 					return true;
 				});
@@ -574,7 +577,7 @@ namespace Tomahawk
 			}
 			SiteEntry* MapRouter::Site(const char* Pattern)
 			{
-				TH_ASSERT(Pattern != nullptr, false, "pattern should be set");
+				TH_ASSERT(Pattern != nullptr, nullptr, "pattern should be set");
 				auto It = Sites.find(Pattern);
 				if (It != Sites.end())
 					return It->second;
@@ -589,27 +592,27 @@ namespace Tomahawk
 				return Result;
 			}
 
-			void Resource::PutHeader(const std::string& Key, const std::string& Value)
+			void Resource::PutHeader(const std::string& Label, const std::string& Value)
 			{
-				TH_ASSERT_V(!Key.empty(), "key should not be empty");
-				Headers[Key].push_back(Value);
+				TH_ASSERT_V(!Label.empty(), "label should not be empty");
+				Headers[Label].push_back(Value);
 			}
-			void Resource::SetHeader(const std::string& Key, const std::string& Value)
+			void Resource::SetHeader(const std::string& Label, const std::string& Value)
 			{
-				TH_ASSERT_V(!Key.empty(), "key should not be empty");
-				auto& Range = Headers[Key];
+				TH_ASSERT_V(!Label.empty(), "label should not be empty");
+				auto& Range = Headers[Label];
 				Range.clear();
 				Range.push_back(Value);
 			}
-			RangePayload* Resource::GetHeaderRanges(const std::string& Key)
+			RangePayload* Resource::GetHeaderRanges(const std::string& Label)
 			{
-				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
-				return (RangePayload*)&Headers[Key];
+				TH_ASSERT(!Label.empty(), nullptr, "label should not be empty");
+				return (RangePayload*)&Headers[Label];
 			}
-			const std::string* Resource::GetHeaderBlob(const std::string& Key) const
+			const std::string* Resource::GetHeaderBlob(const std::string& Label) const
 			{
-				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
-				auto It = Headers.find(Key);
+				TH_ASSERT(!Label.empty(), nullptr, "label should not be empty");
+				auto It = Headers.find(Label);
 				if (It == Headers.end())
 					return nullptr;
 
@@ -619,10 +622,10 @@ namespace Tomahawk
 				const std::string& Result = It->second.back();
 				return &Result;
 			}
-			const char* Resource::GetHeader(const std::string& Key) const
+			const char* Resource::GetHeader(const std::string& Label) const
 			{
-				TH_ASSERT(!Key.empty(), nullptr, "key should not be empty");
-				auto It = Headers.find(Key);
+				TH_ASSERT(!Label.empty(), nullptr, "label should not be empty");
+				auto It = Headers.find(Label);
 				if (It == Headers.end())
 					return nullptr;
 
@@ -758,13 +761,13 @@ namespace Tomahawk
 				return std::make_pair(Range->first, Range->second - Range->first + 1);
 			}
 
-			void ResponseFrame::PutBuffer(const std::string& Data)
+			void ResponseFrame::PutBuffer(const std::string& Text)
 			{
-				TextAppend(Buffer, Data);
+				TextAppend(Buffer, Text);
 			}
-			void ResponseFrame::SetBuffer(const std::string& Data)
+			void ResponseFrame::SetBuffer(const std::string& Text)
 			{
-				TextAssign(Buffer, Data);
+				TextAssign(Buffer, Text);
 			}
 			void ResponseFrame::PutHeader(const std::string& Key, const std::string& Value)
 			{
@@ -900,7 +903,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				if ((memcmp(Request.Method, "POST", 4) != 0 && memcmp(Request.Method, "PATCH", 5) != 0 && memcmp(Request.Method, "PUT", 3) != 0) && memcmp(Request.Method, "DELETE", 4) != 0)
+				if ((memcmp(Request.Method, "POST", 4) != 0 && memcmp(Request.Method, "PATCH", 5) != 0 && memcmp(Request.Method, "PUT", 3) != 0) && memcmp(Request.Method, "DELETE", 6) != 0)
 				{
 					Response.Data = Content::Empty;
 					if (Callback)
@@ -1174,8 +1177,8 @@ namespace Tomahawk
 							if (Callback)
 								Callback(Base, nullptr, Size);
 
-							fclose(File);
 							TH_TRACE("close fs 0x%p", (void*)File);
+							fclose(File);
 							return false;
 						}
 
@@ -1183,8 +1186,8 @@ namespace Tomahawk
 							return true;
 
 						Base->Response.Data = Content::Save_Exception;
-						fclose(File);
 						TH_TRACE("close fs 0x%p", (void*)File);
+						fclose(File);
 
 						if (Callback)
 							Callback(Base, nullptr, 0);
@@ -1842,8 +1845,8 @@ namespace Tomahawk
 						fwrite(Buffer, Size, 1, Stream);
 				});
 
-				fclose(Stream);
 				TH_TRACE("close fs 0x%p", (void*)Stream);
+				fclose(Stream);
 				return true;
 			}
 			bool Session::Read(Connection* Base)
@@ -1858,24 +1861,24 @@ namespace Tomahawk
 				fseek(Stream, 0, SEEK_END);
 				if (ftell(Stream) == 0)
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					return false;
 				}
 
 				fseek(Stream, 0, SEEK_SET);
 				if (fread(&SessionExpires, 1, sizeof(int64_t), Stream) != sizeof(int64_t))
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					return false;
 				}
 
 				if (SessionExpires <= time(nullptr))
 				{
 					SessionId.clear();
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 
 					if (!Core::OS::File::Remove(Document.c_str()))
 						TH_ERR("session file %s cannot be deleted", Document.c_str());
@@ -1898,8 +1901,8 @@ namespace Tomahawk
 					Query = V;
 				}
 
-				fclose(Stream);
 				TH_TRACE("close fs 0x%p", (void*)Stream);
+				fclose(Stream);
 				return true;
 			}
 			std::string& Session::FindSessionId(Connection* Base)
@@ -3132,10 +3135,7 @@ namespace Tomahawk
 									Data[i] ^= Mask[Masks++ % 4];
 							}
 
-							if (Control)
-								TextAppend(Message, Data, Length);
-							else
-								TextAppend(Message, Data, Length);
+							TextAppend(Message, Data, Length);
 
 							Data += Length;
 							Size -= Length;
@@ -3554,7 +3554,7 @@ namespace Tomahawk
 				if (!Core::Parser::CaseCompare(Ext, MimeTypes[Start].Extension))
 					return MimeTypes[Start].Type;
 
-				if (Types != nullptr && !Types->empty())
+				if (!Types->empty())
 				{
 					for (auto& Item : *Types)
 					{
@@ -3784,8 +3784,8 @@ namespace Tomahawk
 
 				if (Segment->Stream != nullptr)
 				{
-					fclose(Segment->Stream);
 					TH_TRACE("close fs 0x%p", (void*)Segment->Stream);
+					fclose(Segment->Stream);
 					return false;
 				}
 
@@ -4227,9 +4227,6 @@ namespace Tomahawk
 			bool Util::RouteGET(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				if (!Base->Route)
-					return Base->Error(404, "Requested resource was not found.");
-
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
 					if (WebSocketUpgradeAllowed(Base))
@@ -4364,8 +4361,8 @@ namespace Tomahawk
 				{
 					if (Size < 0)
 					{
-						fclose(Stream);
 						TH_TRACE("close fs 0x%p", (void*)Stream);
+						fclose(Stream);
 						return Base->Break();
 					}
 					else if (Size > 0)
@@ -4380,8 +4377,8 @@ namespace Tomahawk
 					Core::Parser Content;
 					Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					if (Base->Route->Callbacks.Headers)
 						Base->Route->Callbacks.Headers(Base, nullptr);
 
@@ -4668,7 +4665,7 @@ namespace Tomahawk
 						ContentLength -= Range1;
 
 					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %lld-%lld/%lld\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
-					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 206));
+					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error ? Base->Response.StatusCode : 206));
 				}
 
 #ifdef TH_HAS_ZLIB
@@ -4885,22 +4882,22 @@ namespace Tomahawk
 #ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
 				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #else
 				if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #endif
@@ -4916,16 +4913,16 @@ namespace Tomahawk
 
 				if (Router->State != ServerState::Working)
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					return Base->Break();
 				}
 
 				if (!Result)
 					return ProcessFileChunk(Base, Router, Stream, ContentLength);
 
-				fclose(Stream);
 				TH_TRACE("close fs 0x%p", (void*)Stream);
+				fclose(Stream);
 				return Base->Finish();
 			}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
@@ -4937,8 +4934,8 @@ namespace Tomahawk
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
@@ -4957,8 +4954,8 @@ namespace Tomahawk
 
 					if (State < 0)
 					{
-						fclose(Stream);
 						TH_TRACE("close fs 0x%p", (void*)Stream);
+						fclose(Stream);
 						return (void)Base->Break();
 					}
 
@@ -5018,8 +5015,8 @@ namespace Tomahawk
 #ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
@@ -5046,8 +5043,8 @@ namespace Tomahawk
 
 				if (deflateInit2(ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
 				{
-					fclose(Stream);
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					fclose(Stream);
 					TH_FREE(ZStream);
 					return Base->Break();
 				}
@@ -5071,8 +5068,8 @@ namespace Tomahawk
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
-					FREE_STREAMING;
 					TH_TRACE("close fs 0x%p", (void*)Stream);
+					FREE_STREAMING;
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
@@ -5194,15 +5191,15 @@ namespace Tomahawk
 
 						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
 						{
-							fclose(Stream);
 							TH_TRACE("close fs 0x%p", (void*)Stream);
+							fclose(Stream);
 							TH_FREE(Buffer);
 							return (void)Base->Error(500, "Gateway resource stream exception.");
 						}
 
 						Buffer[Size] = '\0';
-						fclose(Stream);
 						TH_TRACE("close fs 0x%p", (void*)Stream);
+						fclose(Stream);
 					}
 
 					Base->Gateway = TH_NEW(GatewayFrame, Buffer, Size);

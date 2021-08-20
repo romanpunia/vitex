@@ -1,6 +1,6 @@
-#include "std/layouts/vertex"
-#include "std/channels/depth"
-#include "std/buffers/object"
+#include "std/layouts/vertex.hlsl"
+#include "std/channels/depth.hlsl"
+#include "std/buffers/object.hlsl"
 
 VOutputLinear vs_main(VInput V)
 {

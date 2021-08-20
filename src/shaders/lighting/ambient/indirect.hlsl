@@ -1,7 +1,7 @@
-#include "std/layouts/shape"
-#include "std/channels/raytracer"
-#include "std/core/raytracing"
-#include "std/core/position"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/raytracer.hlsl"
+#include "std/core/raytracing.hlsl"
+#include "std/core/position.hlsl"
 
 VOutput vs_main(VInput V)
 {

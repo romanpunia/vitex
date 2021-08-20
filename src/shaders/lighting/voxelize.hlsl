@@ -1,8 +1,8 @@
-#include "std/channels/rvoxelizer"
-#include "std/core/lighting"
-#include "lighting/point/common/array"
-#include "lighting/spot/common/array"
-#include "lighting/line/common/array"
+#include "std/channels/rvoxelizer.hlsl"
+#include "std/core/lighting.hlsl"
+#include "lighting/point/common/array.hlsl"
+#include "lighting/spot/common/array.hlsl"
+#include "lighting/line/common/array.hlsl"
 
 static const float Alpha = 0.005;
 

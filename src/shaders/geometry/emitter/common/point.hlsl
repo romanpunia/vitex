@@ -1,7 +1,7 @@
-#include "std/layouts/element"
-#include "std/channels/stream"
-#include "std/buffers/object"
-#include "std/buffers/viewer"
+#include "std/layouts/element.hlsl"
+#include "std/channels/stream.hlsl"
+#include "std/buffers/object.hlsl"
+#include "std/buffers/viewer.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

@@ -3915,14 +3915,14 @@ namespace Tomahawk
 				Safe.unlock();
 				return Target;
 			}
-			int Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& ArgCallback)
+			int Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return (int)Script::VMResult::INVALID_CONFIGURATION;
 
-				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(ArgCallback));
+				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
-			int Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& ArgCallback)
+			int Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return (int)Script::VMResult::INVALID_CONFIGURATION;
@@ -3931,7 +3931,16 @@ namespace Tomahawk
 					return (int)Script::VMResult::INVALID_ARG;
 
 				Safe.lock();
-				int Result = Compiler->GetContext()->Execute(Function, std::move(ArgCallback));
+				int Result = Compiler->GetContext()->Execute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				{
+					this->Protect();
+					if (OnArgs)
+						OnArgs(Context);
+				}, [this](Script::VMContext* Context, Script::VMPoll State)
+				{
+					if (State != Script::VMPoll::Continue)
+						this->Unprotect();
+				});
 				Safe.unlock();
 
 				return Result;
@@ -4034,6 +4043,16 @@ namespace Tomahawk
 			void Scriptable::UnsetSource()
 			{
 				SetSource(Source, "");
+			}
+			void Scriptable::Protect()
+			{
+				AddRef();
+				GetEntity()->AddRef();
+			}
+			void Scriptable::Unprotect()
+			{
+				GetEntity()->Release();
+				Release();
 			}
 			Script::VMCompiler* Scriptable::GetCompiler()
 			{

@@ -1,6 +1,6 @@
-#include "std/buffers/viewer"
-#include "std/objects/material"
-#include "std/objects/fragment"
+#include "std/buffers/viewer.hlsl"
+#include "std/objects/material.hlsl"
+#include "std/objects/fragment.hlsl"
 
 StructuredBuffer<Material> Materials : register(t0);
 Texture2D DiffuseBuffer : register(t1);

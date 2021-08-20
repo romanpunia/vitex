@@ -1,6 +1,6 @@
-#include "std/layouts/shape"
-#include "std/channels/immediate"
-#include "std/buffers/object"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/immediate.hlsl"
+#include "std/buffers/object.hlsl"
 
 VOutput vs_main(VInput V)
 {

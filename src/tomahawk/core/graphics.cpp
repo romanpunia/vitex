@@ -989,7 +989,7 @@ namespace Tomahawk
 		}
 		bool GraphicsDevice::Transpile(std::string* Source, ShaderLang From, ShaderLang To)
 		{
-			if (From == To || Source || Source->empty())
+			if (From == To || !Source || Source->empty())
 				return true;
 #ifdef TH_HAS_SPIRV
 
@@ -1917,9 +1917,9 @@ namespace Tomahawk
 				return Keys[0][(size_t)Key.Key] && !Keys[1][(size_t)Key.Key];
 
 			if (Key.Key == KeyCode::None)
-				return Command & (int)Key.Mod && !(Command & (int)Key.Mod);
+				return Command & (int)Key.Mod;
 
-			return Command & (int)Key.Mod && !(Command & (int)Key.Mod) && Keys[0][(size_t)Key.Key] && !Keys[1][(size_t)Key.Key];
+			return (Command & (int)Key.Mod) && Keys[0][(size_t)Key.Key] && !Keys[1][(size_t)Key.Key];
 #else
 			return Keys[0][(size_t)Key.Key] && !Keys[1][(size_t)Key.Key];
 #endif
@@ -1931,9 +1931,9 @@ namespace Tomahawk
 				return !Keys[0][(size_t)Key.Key] && Keys[1][(size_t)Key.Key];
 
 			if (Key.Key == KeyCode::None)
-				return !(Command & (int)Key.Mod) && Command & (int)Key.Mod;
+				return !(Command & (int)Key.Mod);
 
-			return !(Command & (int)Key.Mod) && Command & (int)Key.Mod && !Keys[0][(size_t)Key.Key] && Keys[1][(size_t)Key.Key];
+			return !(Command & (int)Key.Mod) && !Keys[0][(size_t)Key.Key] && Keys[1][(size_t)Key.Key];
 #else
 			return !Keys[0][(size_t)Key.Key] && Keys[1][(size_t)Key.Key];
 #endif

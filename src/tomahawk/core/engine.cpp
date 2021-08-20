@@ -3863,7 +3863,7 @@ namespace Tomahawk
 		SceneGraph::~SceneGraph()
 		{
 			TH_PPUSH("scene-destroy", TH_PERF_MAX);
-			auto* Queue = Core::Schedule::Get();
+			auto* Schedule = Core::Schedule::Get();
 			auto Source = std::move(Listeners);
 			for (auto& Item : Source)
 			{
@@ -3875,7 +3875,7 @@ namespace Tomahawk
 			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
 			{
 				while (It->second->Active)
-					Queue->Dispatch();
+					Schedule->Dispatch();
 
 				TH_RELEASE(It->second->Time);
 				TH_DELETE(Packet, It->second);
@@ -4422,14 +4422,14 @@ namespace Tomahawk
 		}
 		void SceneGraph::ExecuteTasks()
 		{
-			auto* Queue = Core::Schedule::Get();
+			auto* Schedule = Core::Schedule::Get();
 			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
 			{
 				if (It->second->Active)
 					continue;
 
 				It->second->Active = true;
-				if (!Queue->SetTask(It->second->Callback))
+				if (!Schedule->SetTask(It->second->Callback))
 					It->second->Active = false;
 			}
 		}
@@ -4458,7 +4458,7 @@ namespace Tomahawk
 			Conf.Device->View.Near = View.NearPlane;
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::View);
 		}
-		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
+		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
 			TH_PPUSH("ray-test", TH_PERF_FRAME);

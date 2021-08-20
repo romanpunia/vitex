@@ -1,7 +1,7 @@
-#include "std/buffers/viewer"
-#include "std/buffers/voxelizer"
-#include "std/core/material"
-#include "std/core/lighting"
+#include "std/buffers/viewer.hlsl"
+#include "std/buffers/voxelizer.hlsl"
+#include "std/core/material.hlsl"
+#include "std/core/lighting.hlsl"
 
 StructuredBuffer<Material> Materials : register(t0);
 Texture2D DiffuseBuffer : register(t1);

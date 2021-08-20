@@ -2183,7 +2183,7 @@ namespace Tomahawk
 
 			return Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 		}
-		int VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
+		int VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2202,9 +2202,9 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			return ExecuteEntry(EntryName, Return, ReturnTypeId);
+			return ExecuteEntry(EntryName, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return, int ReturnTypeId)
+		int VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(!Buffer.empty(), asINVALID_ARG, "buffer should not be empty");
@@ -2223,13 +2223,9 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			return ExecuteEntry(EntryName, Return, ReturnTypeId);
+			return ExecuteEntry(EntryName, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteEntry(const char* Name, void* Return, int ReturnTypeId)
-		{
-			return ExecuteEntry(Name, Return, ReturnTypeId, nullptr);
-		}
-		int VMCompiler::ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, ArgsCallback&& Callback)
+		int VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2244,30 +2240,13 @@ namespace Tomahawk
 			if (!Function)
 				return asNO_FUNCTION;
 
-			int Result = Context->Execute(Function, std::move(Callback));
-			if (Result == (int)VMExecState::SUSPENDED || Return == 0 || ReturnTypeId == asTYPEID_VOID)
-				return Result;
-
-			if (ReturnTypeId & asTYPEID_OBJHANDLE)
-			{
-				if (*reinterpret_cast<void**>(Return) == nullptr)
-				{
-					*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
-					Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
-				}
-			}
-			else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
-				Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
-			else
-				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
-
-			return Result;
+			return Context->Execute(Function, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, void* Return, int ReturnTypeId, ArgsCallback&& Callback)
+		int VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
-			return ExecuteScoped(Code.c_str(), (uint64_t)Code.size(), Args, Return, ReturnTypeId, std::move(Callback));
+			return ExecuteScoped(Code.c_str(), (uint64_t)Code.size(), Args, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, void* Return, int ReturnTypeId, ArgsCallback&& Callback)
+		int VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
@@ -2276,55 +2255,26 @@ namespace Tomahawk
 			TH_ASSERT(BuiltOK, asINVALID_ARG, "module should be built");
 
 			VMCManager* Engine = Manager->GetEngine();
-			std::string Eval = " __vfbdy(";
+			std::string Eval = "void __vfbdy(";
 			if (Args != nullptr)
 				Eval.append(Args);
 			Eval.append("){\n");
 			Eval.append(Buffer, Length);
 			Eval += "\n;}";
-			Eval = Engine->GetTypeDeclaration(ReturnTypeId, true) + Eval;
 
-			VMCTypeInfo* Type = nullptr;
-			if (ReturnTypeId & asTYPEID_MASK_OBJECT)
-			{
-				Type = Engine->GetTypeInfoById(ReturnTypeId);
-				if (Type)
-					Type->AddRef();
-			}
-
-			VMCModule* fModule = GetModule().GetModule();
-			if (Type)
-				Type->Release();
-
+			VMCModule* Source = GetModule().GetModule();
 			VMCFunction* Function = nullptr;
+
 			Manager->Lock();
-			int R = fModule->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function);
+			int R = Source->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function);
 			Manager->Unlock();
 
 			if (R < 0)
 				return R;
 
-			int Result = Context->Execute(Function, std::move(Callback));
-			if (Result == (int)VMExecState::SUSPENDED || Return == 0 || ReturnTypeId == asTYPEID_VOID)
-			{
-				Function->Release();
-				return Result;
-			}
-
-			if (ReturnTypeId & asTYPEID_OBJHANDLE)
-			{
-				if (*reinterpret_cast<void**>(Return) == nullptr)
-				{
-					*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Context->GetAddressOfReturnValue());
-					Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), Engine->GetTypeInfoById(ReturnTypeId));
-				}
-			}
-			else if (ReturnTypeId & asTYPEID_MASK_OBJECT)
-				Engine->AssignScriptObject(Return, Context->GetAddressOfReturnValue(), Engine->GetTypeInfoById(ReturnTypeId));
-			else
-				memcpy(Return, Context->GetAddressOfReturnValue(), Engine->GetSizeOfPrimitiveType(ReturnTypeId));
-
+			int Result = Context->Execute(Function, std::move(OnArgs), std::move(OnResume));
 			Function->Release();
+
 			return Result;
 		}
 		VMManager* VMCompiler::GetManager() const
@@ -2376,23 +2326,41 @@ namespace Tomahawk
 					Context->Release();
 			}
 		}
-		void VMContext::ExecuteNotify(int fState)
+		bool VMContext::ExecuteNotify(int State)
+		{
+			if (Notify[1])
+			{
+				ExecuteResume(Notify[1], State);
+				return true;
+			}
+			
+			if (Notify[0])
+			{
+				ExecuteResume(Notify[0], State);
+				return true;
+			}
+
+			return false;
+		}
+		void VMContext::ExecuteResume(const ResumeCallback& OnResume, int fState)
 		{
 			asEContextState State = (asEContextState)fState;
-			if (Promises.load() > 0 || !Queue.empty())
+			if (!Promises.load() && !Queue.empty())
 			{
-				Resolve(VMResume::Continue);
+				OnResume(this, VMPoll::Routine);
 				if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
 					ExecuteNext();
 			}
+			else if (Promises.load() > 0)
+				OnResume(this, VMPoll::Continue);
 			else if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
-				Resolve(VMResume::Finish);
+				OnResume(this, VMPoll::Finish);
 			else if (State == asEXECUTION_ERROR)
-				Resolve(VMResume::Finish_With_Error);
+				OnResume(this, VMPoll::Exception);
 			else if (State == asEXECUTION_EXCEPTION)
-				Resolve(IsThrown() ? VMResume::Finish_With_Error : VMResume::Finish);
+				OnResume(this, IsThrown() ? VMPoll::Exception : VMPoll::Finish);
 			else
-				Resolve(VMResume::Continue);
+				OnResume(this, VMPoll::Continue);
 		}
 		void VMContext::ExecuteNext()
 		{
@@ -2408,32 +2376,18 @@ namespace Tomahawk
 			Queue.pop();
 			Exchange.unlock();
 
-			Execute(Next.Function, std::move(Next.Args), Next.Notify);
+			Execute(Next.Function, std::move(Next.Args), std::move(Next.Notify));
 			Next.Function.Release();
 		}
-		int VMContext::SetResumeCallback(ResumeCallback&& Callback)
-		{
-			Resolve = std::move(Callback);
-			return 0;
-		}
-		int VMContext::SetExceptionCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
+		int VMContext::SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
 		}
-		int VMContext::AddRefVM() const
+		int VMContext::SetOnResume(const ResumeCallback& OnResume)
 		{
-			TH_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->AddRef();
-		}
-		int VMContext::ReleaseVM()
-		{
-			TH_ASSERT(Context != nullptr, -1, "context should be set");
-			int R = Context->Release();
-			if (R <= 0)
-				Context = nullptr;
-
-			return R;
+			Notify[0] = OnResume;
+			return 0;
 		}
 		int VMContext::Prepare(const VMFunction& Function)
 		{
@@ -2445,7 +2399,7 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Unprepare();
 		}
-		int VMContext::Execute(const VMFunction& Function, ArgsCallback&& Callback, bool Notify)
+		int VMContext::Execute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
@@ -2454,8 +2408,8 @@ namespace Tomahawk
 			if (State != asEXECUTION_FINISHED && State != asEXECUTION_ABORTED && State != asEXECUTION_EXCEPTION && State != asEXECUTION_ERROR && State != asEXECUTION_UNINITIALIZED)
 			{
 				Executable Next;
-				Next.Notify = Notify;
-				Next.Args = std::move(Callback);
+				Next.Notify = std::move(OnResume);
+				Next.Args = std::move(OnArgs);
 				Next.Function = Function;
 				Next.Function.AddRef();
 
@@ -2472,9 +2426,11 @@ namespace Tomahawk
 			int Result = Context->Prepare(Function.GetFunction());
 			if (Result >= 0)
 			{
-				if (Callback)
-					Callback(this);
-				Result = Execute(Notify);
+				if (OnArgs)
+					OnArgs(this);
+
+				Notify[1] = std::move(OnResume);
+				Result = Execute();
 			}
 
 			if (Nested)
@@ -2487,7 +2443,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		int VMContext::Execute(bool Notify)
+		int VMContext::Execute(bool Resumable)
 		{
 			asEContextState State = Context->GetState();
 			if (State == asEXECUTION_ACTIVE)
@@ -2500,15 +2456,13 @@ namespace Tomahawk
 				Nests--;
 			}
 
-			if (!Notify || !Resolve)
-			{
-				if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
-					ExecuteNext();
-				else if (Promises.load() > 0 || !Queue.empty())
-					ExecuteNext();
-			}
-			else
-				ExecuteNotify((int)State);
+			if (Resumable && ExecuteNotify(State))
+				return State;
+
+			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
+				ExecuteNext();
+			else if (Promises.load() > 0 || !Queue.empty())
+				ExecuteNext();
 
 			return State;
 		}
@@ -2634,6 +2588,50 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgVarType(Arg, Ptr, TypeId);
+		}
+		int VMContext::GetReturnableByType(void* Return, VMCTypeInfo* ReturnTypeInfo)
+		{
+			TH_ASSERT(Context != nullptr, -1, "context should be set");
+			TH_ASSERT(Return != nullptr, -1, "return value should be set");
+			TH_ASSERT(ReturnTypeInfo != nullptr, -1, "return type info should be set");
+			TH_ASSERT(ReturnTypeInfo->GetTypeId() != (int)VMTypeId::VOIDF, -1, "return value type should not be void");
+
+			void* Address = Context->GetAddressOfReturnValue();
+			if (!Address)
+				return -1;
+
+			int TypeId = ReturnTypeInfo->GetTypeId();
+			VMCManager* Engine = Manager->GetEngine();
+			if (TypeId & asTYPEID_OBJHANDLE)
+			{
+				if (*reinterpret_cast<void**>(Return) == nullptr)
+				{
+					*reinterpret_cast<void**>(Return) = *reinterpret_cast<void**>(Address);
+					Engine->AddRefScriptObject(*reinterpret_cast<void**>(Return), ReturnTypeInfo);
+					return 0;
+				}
+			}
+			else if (TypeId & asTYPEID_MASK_OBJECT)
+				return Engine->AssignScriptObject(Return, Address, ReturnTypeInfo);
+
+			size_t Size = Engine->GetSizeOfPrimitiveType(ReturnTypeInfo->GetTypeId());
+			if (!Size)
+				return -1;
+
+			memcpy(Return, Address, Size);
+			return 0;
+		}
+		int VMContext::GetReturnableByDecl(void* Return, const char* ReturnTypeDecl)
+		{
+			TH_ASSERT(ReturnTypeDecl != nullptr, -1, "return type declaration should be set");
+			VMCManager* Engine = Manager->GetEngine();
+			return GetReturnableByType(Return, Engine->GetTypeInfoByDecl(ReturnTypeDecl));
+		}
+		int VMContext::GetReturnableById(void* Return, int ReturnTypeId)
+		{
+			TH_ASSERT(ReturnTypeId != (int)VMTypeId::VOIDF, -1, "return value type should not be void");
+			VMCManager* Engine = Manager->GetEngine();
+			return GetReturnableByType(Return, Engine->GetTypeInfoById(ReturnTypeId));
 		}
 		void* VMContext::GetAddressOfArg(unsigned int Arg)
 		{
@@ -3274,20 +3272,6 @@ namespace Tomahawk
 
 			return VMModule(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
 		}
-		int VMManager::AddRefVM() const
-		{
-			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
-			return Engine->AddRef();
-		}
-		int VMManager::ReleaseVM()
-		{
-			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
-			int R = Engine->Release();
-			if (R <= 0)
-				Engine = nullptr;
-
-			return R;
-		}
 		int VMManager::SetProperty(VMProp Property, size_t Value)
 		{
 			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
@@ -3404,14 +3388,16 @@ namespace Tomahawk
 				}
 
 				if (Modules.empty())
+				{
+					Safe.unlock();
 					return false;
+				}
 
 				auto It = Modules.find(Name);
 				if (It == Modules.end())
 				{
 					Submodule Result;
 					Result.Dependencies = Deps;
-					Result.Registered = false;
 					Modules.insert({ Name, Result });
 				}
 				else
@@ -3440,7 +3426,6 @@ namespace Tomahawk
 					Submodule Result;
 					Result.Dependencies = Dependencies;
 					Result.Callback = Callback;
-					Result.Registered = false;
 					Modules.insert({ Name, Result });
 				}
 			}
@@ -3592,8 +3577,12 @@ namespace Tomahawk
 				return false;
 			}
 
+			std::string Target = Name;
+			if (Core::Parser(&Target).EndsWith(".as"))
+				Target = Target.substr(0, Target.size() - 3);
+
 			Safe.lock();
-			auto It = Modules.find(Name);
+			auto It = Modules.find(Target);
 			if (It == Modules.end())
 			{
 				Safe.unlock();

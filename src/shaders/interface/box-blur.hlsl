@@ -1,6 +1,6 @@
-#include "std/layouts/interface"
-#include "std/channels/immediate"
-#include "std/buffers/object"
+#include "std/layouts/interface.hlsl"
+#include "std/channels/immediate.hlsl"
+#include "std/buffers/object.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

@@ -300,6 +300,7 @@ namespace Tomahawk
 					}
 				}
 
+				Object->Snapshot = nullptr;
 				Content->Save<Core::Document>(Stream->GetSource(), Document, Args);
 				TH_RELEASE(Document);
 

@@ -1,4 +1,4 @@
-#include "std/objects/material"
+#include "std/objects/material.hlsl"
 #pragma warning(disable: 4000)
 
 StructuredBuffer<Material> Materials : register(t0);

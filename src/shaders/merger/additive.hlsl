@@ -1,6 +1,6 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/sampler"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/sampler.hlsl"
 
 Texture2D Image : register(t5);
 

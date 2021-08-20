@@ -1,8 +1,8 @@
-#include "std/layouts/shape"
-#include "std/channels/geometry"
-#include "std/buffers/object"
-#include "std/buffers/viewer"
-#include "std/core/sampler"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/geometry.hlsl"
+#include "std/buffers/object.hlsl"
+#include "std/buffers/viewer.hlsl"
+#include "std/core/sampler.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

@@ -718,8 +718,8 @@ namespace Tomahawk
 				It.Length -= Size;
 				if (!It.Length)
 				{
-					fclose(AttachmentFile);
 					TH_TRACE("close fs 0x%p", (void*)AttachmentFile);
+					fclose(AttachmentFile);
 				}
 
 				bool Sent = (!It.Length);

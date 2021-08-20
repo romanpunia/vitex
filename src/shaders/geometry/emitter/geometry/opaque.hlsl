@@ -1,7 +1,7 @@
-#include "std/layouts/element"
-#include "std/channels/stream"
-#include "std/channels/gbuffer"
-#include "std/buffers/object"
+#include "std/layouts/element.hlsl"
+#include "std/channels/stream.hlsl"
+#include "std/channels/gbuffer.hlsl"
+#include "std/buffers/object.hlsl"
 
 VOutputOpaque Make(VOutputOpaque V, float2 Offset, float2 TexCoord2)
 {

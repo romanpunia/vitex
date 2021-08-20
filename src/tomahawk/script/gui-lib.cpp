@@ -1,4 +1,7 @@
 #include "gui-lib.h"
+#ifdef TH_WITH_RMLUI
+#include <RmlUi/Core.h>
+#endif
 #ifndef ANGELSCRIPT_H 
 #include <angelscript.h>
 #endif
@@ -118,29 +121,35 @@ namespace Tomahawk
 				return false;
 
 			Callback->AddRef();
-			Context->AddRefVM();
+			Context->AddRef();
 
 			VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl("Array<CE::Variant>@");
 			Base->SetDetachCallback([Callback, Context]()
 			{
 				Callback->Release();
-				Context->ReleaseVM();
+				Context->Release();
 			});
 
-			return Base->SetCallback(Name, [Type, Context, Callback](Engine::GUI::IEvent& Event, const Core::VariantList& Args)
+			return Base->SetCallback(Name, [Type, Context, Callback](Engine::GUI::IEvent& Wrapper, const Core::VariantList& Args)
 			{
-				VMExecState State = Context->GetState();
-				while (State == VMExecState::ACTIVE || State == VMExecState::SUSPENDED)
+				Rml::Event& Event = *Wrapper.GetEvent();
+				Rml::Event* Ptr = Rml::Factory::InstanceEvent(Event.GetTargetElement(), Event.GetId(), Event.GetType(), Event.GetParameters(), Event.IsInterruptible()).release();
+				if (Ptr != nullptr)
 				{
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-					State = Context->GetState();
+					Ptr->SetCurrentElement(Event.GetCurrentElement());
+					Ptr->SetPhase(Event.GetPhase());
 				}
 
 				STDArray* Data = STDArray::Compose(Type.GetTypeInfo(), Args);
-				Context->Execute(Callback, [&Event, &Data](VMContext* Context)
+				Context->Execute(Callback, [Ptr, &Data](VMContext* Context)
 				{
+					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);
 					Context->SetArgObject(1, &Data);
+				}, [Ptr](Script::VMContext* Context, Script::VMPoll State)
+				{
+					if (State != Script::VMPoll::Continue)
+						delete Ptr;
 				});
 			});
 		}
@@ -162,7 +171,7 @@ namespace Tomahawk
 			return Base->GetElementAtPoint(Value);
 		}
 
-		GUIListener::GUIListener(VMCFunction* NewCallback) : Engine::GUI::Listener(Bind(NewCallback)), Source(NewCallback)
+		GUIListener::GUIListener(VMCFunction* NewCallback) : Engine::GUI::Listener(Bind(NewCallback)), Source(NewCallback), Context(nullptr)
 		{
 		}
 		GUIListener::GUIListener(const std::string& FunctionName) : Engine::GUI::Listener(FunctionName), Source(nullptr), Context(nullptr)
@@ -174,34 +183,42 @@ namespace Tomahawk
 				Source->Release();
 
 			if (Context != nullptr)
-				Context->ReleaseVM();
+				Context->Release();
 		}
 		Engine::GUI::EventCallback GUIListener::Bind(VMCFunction* Callback)
 		{
-			VMContext* Context = VMContext::Get();
+			if (Context != nullptr)
+				Context->Release();
+			Context = VMContext::Get();
+
+			if (Source != nullptr)
+				Source->Release();
 			Source = Callback;
 
-			if (Context != nullptr && Source != nullptr)
-			{
-				Source->AddRef();
-				Context->AddRefVM();
-			}
+			if (!Context || !Source)
+				return nullptr;
 
-			return [Context, Callback](Engine::GUI::IEvent& Event)
-			{
-				if (!Context || !Callback)
-					return;
+			Source->AddRef();
+			Context->AddRef();
 
-				VMExecState State = Context->GetState();
-				while (State == VMExecState::ACTIVE || State == VMExecState::SUSPENDED)
+			return [this](Engine::GUI::IEvent& Wrapper)
+			{
+				Rml::Event& Event = *Wrapper.GetEvent();
+				Rml::Event* Ptr = Rml::Factory::InstanceEvent(Event.GetTargetElement(), Event.GetId(), Event.GetType(), Event.GetParameters(), Event.IsInterruptible()).release();
+				if (Ptr != nullptr)
 				{
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-					State = Context->GetState();
+					Ptr->SetCurrentElement(Event.GetCurrentElement());
+					Ptr->SetPhase(Event.GetPhase());
 				}
 
-				Context->Execute(Callback, [&Event](VMContext* Context)
+				Context->Execute(Source, [Ptr](VMContext* Context)
 				{
+					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);
+				}, [Ptr](Script::VMContext* Context, Script::VMPoll State)
+				{
+					if (State != Script::VMPoll::Continue)
+						delete Ptr;
 				});
 			};
 		}

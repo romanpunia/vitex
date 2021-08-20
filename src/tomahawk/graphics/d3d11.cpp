@@ -2525,7 +2525,7 @@ namespace Tomahawk
 			TextureCube* D3D11Device::CreateTextureCube(Graphics::Texture2D* Resource)
 			{
 				TH_ASSERT(Resource != nullptr, nullptr, "resource should be set");
-				ID3D11Texture2D* Src = (Resource ? ((D3D11Texture2D*)Resource)->View : nullptr);
+				ID3D11Texture2D* Src = ((D3D11Texture2D*)Resource)->View;
 
 				TH_ASSERT(Src != nullptr, nullptr, "src should be set");
 				D3D11_TEXTURE2D_DESC Description;

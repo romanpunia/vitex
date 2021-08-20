@@ -219,6 +219,8 @@ namespace Tomahawk
 			SourceURL(const std::string& Src) noexcept;
 			SourceURL(const SourceURL& Other) noexcept;
 			SourceURL(SourceURL&& Other) noexcept;
+			SourceURL& operator= (const SourceURL& Other) noexcept;
+			SourceURL& operator= (SourceURL&& Other) noexcept;
 
 		private:
 			void MakePath();

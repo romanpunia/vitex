@@ -201,6 +201,42 @@ namespace Tomahawk
 			Path(std::move(Other.Path)), Filename(std::move(Other.Filename)), Extension(std::move(Other.Extension)), Port(Other.Port)
 		{
 		}
+		SourceURL& SourceURL::operator= (const SourceURL& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			Query = Other.Query;
+			URL = Other.URL;
+			Protocol = Other.Protocol;
+			Login = Other.Login;
+			Password = Other.Password;
+			Host = Other.Host;
+			Path = Other.Path;
+			Filename = Other.Filename;
+			Extension = Other.Extension;
+			Port = Other.Port;
+
+			return *this;
+		}
+		SourceURL& SourceURL::operator= (SourceURL&& Other) noexcept
+		{
+			if (this == &Other)
+				return *this;
+
+			Query = std::move(Other.Query);
+			URL = std::move(Other.URL);
+			Protocol = std::move(Other.Protocol);
+			Login = std::move(Other.Login);
+			Password = std::move(Other.Password);
+			Host = std::move(Other.Host);
+			Path = std::move(Other.Path);
+			Filename = std::move(Other.Filename);
+			Extension = std::move(Other.Extension);
+			Port = Other.Port;
+
+			return *this;
+		}
 		void SourceURL::MakePath()
 		{
 			if (Filename.empty() && Extension.empty())
@@ -559,7 +595,7 @@ namespace Tomahawk
 				if (Length <= 0)
 				{
 					if (Callback)
-						Callback(this, false);
+						Callback(this, -1);
 
 					return -1;
 				}
@@ -569,7 +605,7 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(this, true);
+				Callback(this, (int64_t)Size);
 
 			return Size;
 		}
@@ -1399,7 +1435,7 @@ namespace Tomahawk
 		}
 		int Driver::Dispatch(Socket* Fd, uint32_t Events, int64_t Time)
 		{
-			TH_ASSERT(Fd != nullptr || Fd->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
+			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
 			if (Events & (uint32_t)SocketEvent::Close)
 			{
 				TH_TRACE("[net] sock reset on fd %i", (int)Fd->Fd);

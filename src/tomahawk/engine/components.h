@@ -733,8 +733,8 @@ namespace Tomahawk
 				virtual void Update(Core::Timer* Time) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Component* Copy(Entity* New) override;
-				int Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& ArgCallback);
-				int Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& ArgCallback);
+				int Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs);
+				int Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& OnArgs);
 				int CallEntry(const std::string& Name);
 				int SetSource();
 				int SetSource(SourceType Type, const std::string& Source);
@@ -897,6 +897,10 @@ namespace Tomahawk
 					Safe.unlock();
 					return 0;
 				}
+
+			private:
+				void Protect();
+				void Unprotect();
 
 			public:
 				TH_COMPONENT("scriptable");

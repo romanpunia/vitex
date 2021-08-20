@@ -1,10 +1,10 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/lighting"
-#include "std/core/material"
-#include "std/core/random"
-#include "std/core/position"
-#include "lighting/spot/common/buffer"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/lighting.hlsl"
+#include "std/core/material.hlsl"
+#include "std/core/random.hlsl"
+#include "std/core/position.hlsl"
+#include "lighting/spot/common/buffer.hlsl"
 #pragma warning(disable: 4000)
 
 Texture2D ShadowMap : register(t5);

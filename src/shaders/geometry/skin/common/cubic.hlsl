@@ -1,9 +1,9 @@
-#include "std/layouts/skin"
-#include "std/channels/depth"
-#include "std/buffers/object"
-#include "std/buffers/viewer"
-#include "std/buffers/cubic"
-#include "std/buffers/animation"
+#include "std/layouts/skin.hlsl"
+#include "std/channels/depth.hlsl"
+#include "std/buffers/object.hlsl"
+#include "std/buffers/viewer.hlsl"
+#include "std/buffers/cubic.hlsl"
+#include "std/buffers/animation.hlsl"
 
 [maxvertexcount(18)]
 void gs_main(triangle VOutputLinear V[3], inout TriangleStream<VOutputCubic> Stream)

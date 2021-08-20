@@ -1,8 +1,8 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/random"
-#include "std/core/position"
-#include "std/core/material"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/random.hlsl"
+#include "std/core/position.hlsl"
+#include "std/core/material.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

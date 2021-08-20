@@ -1,10 +1,10 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/lighting"
-#include "std/core/atmosphere"
-#include "std/core/material"
-#include "std/core/position"
-#include "lighting/line/common/buffer"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/lighting.hlsl"
+#include "std/core/atmosphere.hlsl"
+#include "std/core/material.hlsl"
+#include "std/core/position.hlsl"
+#include "lighting/line/common/buffer.hlsl"
 
 VOutput vs_main(VInput V)
 {

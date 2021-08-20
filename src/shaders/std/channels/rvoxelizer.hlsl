@@ -1,6 +1,6 @@
-#include "std/buffers/viewer"
-#include "std/buffers/voxelizer"
-#include "std/core/material"
+#include "std/buffers/viewer.hlsl"
+#include "std/buffers/voxelizer.hlsl"
+#include "std/core/material.hlsl"
 #pragma warning(disable: 4000)
 
 StructuredBuffer<Material> Materials : register(t0);

@@ -330,11 +330,12 @@ namespace Tomahawk
 			All = (CLibraries | CSymbols | Submodules | Files | JSON)
 		};
 
-		enum class VMResume
+		enum class VMPoll
 		{
 			Continue,
+			Routine,
 			Finish,
-			Finish_With_Error
+			Exception
 		};
 
 		inline VMObjType operator |(VMObjType A, VMObjType B)
@@ -364,7 +365,7 @@ namespace Tomahawk
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
 		typedef std::function<void(class VMManager*)> SubmoduleCallback;
 		typedef std::function<void(class VMContext*)> ArgsCallback;
-		typedef std::function<void(VMResume)> ResumeCallback;
+		typedef std::function<void(class VMContext*, VMPoll)> ResumeCallback;
 
         class TH_OUT VMFuncStore
         {
@@ -1587,12 +1588,11 @@ namespace Tomahawk
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
 			int LoadCode(const std::string& Name, const char* Buffer, uint64_t Length);
-			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
-			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
-			int ExecuteEntry(const char* Name, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF);
-			int ExecuteEntry(const char* Name, void* Return, int ReturnTypeId, ArgsCallback&& Callback);
-			int ExecuteScoped(const std::string& Code, const char* Args = nullptr, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF, ArgsCallback&& Callback = nullptr);
-			int ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args = nullptr, void* Return = nullptr, int ReturnTypeId = (int)VMTypeId::VOIDF, ArgsCallback&& Callback = nullptr);
+			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			int ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			int ExecuteScoped(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			int ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
 			VMModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -1613,8 +1613,8 @@ namespace Tomahawk
 			struct Executable
 			{
 				VMFunction Function = nullptr;
+				ResumeCallback Notify;
 				ArgsCallback Args;
-				bool Notify;
 			};
 
 		private:
@@ -1622,20 +1622,18 @@ namespace Tomahawk
 			std::atomic<size_t> Promises;
 			std::atomic<size_t> Nests;
 			std::mutex Exchange;
-			ResumeCallback Resolve;
+			ResumeCallback Notify[2];
 			VMCContext* Context;
 			VMManager* Manager;
 
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
-			int SetResumeCallback(ResumeCallback&& Callback);
-			int SetExceptionCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
-			int AddRefVM() const;
-			int ReleaseVM();
+			int SetOnException(void(* Callback)(VMCContext* Context, void* Object), void* Object);
+			int SetOnResume(const ResumeCallback& OnResume);
 			int Prepare(const VMFunction& Function);
 			int Unprepare();
-			int Execute(const VMFunction& Function, ArgsCallback&& ArgsSetup, bool Notify = true);
+			int Execute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
 			int Execute(bool Notify = true);
 			int Abort();
 			int Suspend();
@@ -1656,6 +1654,9 @@ namespace Tomahawk
 			int SetArgAddress(unsigned int Arg, void* Address);
 			int SetArgObject(unsigned int Arg, void* Object);
 			int SetArgAny(unsigned int Arg, void* Ptr, int TypeId);
+			int GetReturnableByType(void* Return, VMCTypeInfo* ReturnTypeId);
+			int GetReturnableByDecl(void* Return, const char* ReturnTypeDecl);
+			int GetReturnableById(void* Return, int ReturnTypeId);
 			void* GetAddressOfArg(unsigned int Arg);
 			unsigned char GetReturnByte();
 			unsigned short GetReturnWord();
@@ -1700,7 +1701,8 @@ namespace Tomahawk
 			}
 
 		private:
-			void ExecuteNotify(int State);
+			bool ExecuteNotify(int State);
+			void ExecuteResume(const ResumeCallback& OnResume, int State);
 			void ExecuteNext();
 
 		public:
@@ -1799,8 +1801,6 @@ namespace Tomahawk
 			VMModule Module(const char* Name);
 			int SetLogCallback(void(* Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			int Log(const char* Section, int Row, int Column, VMLogType Type, const char* Message);
-			int AddRefVM() const;
-			int ReleaseVM();
 			int SetProperty(VMProp Property, size_t Value);
 			void SetDocumentRoot(const std::string& Root);
 			size_t GetProperty(VMProp Property) const;

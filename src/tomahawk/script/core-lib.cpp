@@ -185,25 +185,6 @@ namespace Tomahawk
 			return L;
 		}
 
-		uint64_t ScheduleSetInterval(Core::Schedule* Base, uint64_t MS, VMCFunction* Callback)
-		{
-			if (!Callback)
-				return TH_INVALID_EVENT_ID;
-
-			VMContext* Context = VMContext::Get();
-			if (!Context)
-				return TH_INVALID_EVENT_ID;
-
-			Callback->AddRef();
-			Context->AddRefVM();
-
-			return Base->SetInterval(MS, [Context, Callback]() mutable
-			{
-				int Result = Context->Execute(Callback, nullptr);
-				Callback->Release();
-				Context->ReleaseVM();
-			});
-		}
 		uint64_t ScheduleSetTimeout(Core::Schedule* Base, uint64_t MS, VMCFunction* Callback)
 		{
 			if (!Callback)
@@ -214,13 +195,18 @@ namespace Tomahawk
 				return TH_INVALID_EVENT_ID;
 
 			Callback->AddRef();
-			Context->AddRefVM();
+			Context->AddRef();
 
 			return Base->SetTimeout(MS, [Context, Callback]() mutable
 			{
-				int Result = Context->Execute(Callback, nullptr);
-				Callback->Release();
-				Context->ReleaseVM();
+				Context->Execute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
+				{
+					if (State == VMPoll::Continue)
+						return;
+
+					Callback->Release();
+					Context->Release();
+				});
 			});
 		}
 		bool ScheduleSetTask(Core::Schedule* Base, VMCFunction* Callback)
@@ -233,13 +219,18 @@ namespace Tomahawk
 				return TH_INVALID_EVENT_ID;
 
 			Callback->AddRef();
-			Context->AddRefVM();
+			Context->AddRef();
 
-			return Base->SetAsync([Context, Callback]() mutable
+			return Base->SetTask([Context, Callback]() mutable
 			{
-				int Result = Context->Execute(Callback, nullptr);
-				Callback->Release();
-				Context->ReleaseVM();
+				Context->Execute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
+				{
+					if (State == VMPoll::Continue)
+						return;
+
+					Callback->Release();
+					Context->Release();
+				});
 			});
 		}
 
@@ -1389,7 +1380,6 @@ namespace Tomahawk
 
 			Engine->BeginNamespace("CE");
 			VMRefClass VSchedule = Register.SetClassUnmanaged<Core::Schedule>("Schedule");
-			VSchedule.SetMethodEx("uint64 SetInterval(uint64, CETaskCallback@)", &ScheduleSetInterval);
 			VSchedule.SetMethodEx("uint64 SetTimeout(uint64, CETaskCallback@)", &ScheduleSetTimeout);
 			VSchedule.SetMethodEx("bool SetTask(CETaskCallback@)", &ScheduleSetTask);
 			VSchedule.SetMethod("bool ClearTimeout(uint64)", &Core::Schedule::ClearTimeout);

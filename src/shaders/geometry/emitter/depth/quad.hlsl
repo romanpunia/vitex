@@ -1,4 +1,4 @@
-#include "geometry/emitter/common/quad"
+#include "geometry/emitter/common/quad.hlsl"
 
 float4 ps_main(VOutputLinear V) : SV_TARGET0
 {

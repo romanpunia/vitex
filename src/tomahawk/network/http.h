@@ -1,6 +1,6 @@
 #ifndef TH_NETWORK_HTTP_H
 #define TH_NETWORK_HTTP_H
-#define TH_HTTP_PAYLOAD 1024 * 64
+#define TH_HTTP_PAYLOAD (1024 * 64)
 #include "../core/network.h"
 #include "../core/script.h"
 
@@ -272,7 +272,7 @@ namespace Tomahawk
 
 			public:
 				GatewayFrame(char* Data, int64_t DataSize);
-				void Execute(Script::VMResume State);
+				void Execute(Script::VMContext*, Script::VMPoll State);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();
 				bool Start();

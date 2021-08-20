@@ -1,4 +1,4 @@
-#include "std/channels/raytracer"
+#include "std/channels/raytracer.hlsl"
 
 static const float3 ConeDirections[] = 
 {

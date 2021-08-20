@@ -558,20 +558,16 @@ namespace Tomahawk
 			TH_ASSERT(Axis >= 0 && Axis <= 1, X, "index out of range");
 			if (Axis == 0)
 				return X;
-			else if (Axis == 1)
-				return Y;
 
-			return X;
+			return Y;
 		}
 		float Vector2::operator [](uint32_t Axis) const
 		{
 			TH_ASSERT(Axis >= 0 && Axis <= 1, X, "index out of range");
 			if (Axis == 0)
 				return X;
-			else if (Axis == 1)
-				return Y;
 
-			return X;
+			return Y;
 		}
 		Vector2 Vector2::Random()
 		{
@@ -1071,10 +1067,8 @@ namespace Tomahawk
 				return X;
 			else if (Axis == 1)
 				return Y;
-			else if (Axis == 2)
-				return Z;
-
-			return X;
+			
+			return Z;
 		}
 		float Vector3::operator [](uint32_t Axis) const
 		{
@@ -1083,10 +1077,8 @@ namespace Tomahawk
 				return X;
 			else if (Axis == 1)
 				return Y;
-			else if (Axis == 2)
-				return Z;
 
-			return X;
+			return Z;
 		}
 		Vector3 Vector3::Random()
 		{
@@ -1601,10 +1593,8 @@ namespace Tomahawk
 				return Y;
 			else if (Axis == 2)
 				return Z;
-			else if (Axis == 3)
-				return W;
-
-			return X;
+			
+			return W;
 		}
 		float Vector4::operator [](uint32_t Axis) const
 		{
@@ -1615,10 +1605,8 @@ namespace Tomahawk
 				return Y;
 			else if (Axis == 2)
 				return Z;
-			else if (Axis == 3)
-				return W;
 
-			return X;
+			return W;
 		}
 		Vector4 Vector4::Random()
 		{
@@ -2467,11 +2455,8 @@ namespace Tomahawk
 
 			if (Face == 4)
 				return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 0, 1), Vector3::Up());
-
-			if (Face == 5)
-				return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 0, 1), Vector3::Up());
-
-			return Matrix4x4::Identity();
+			
+			return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 0, 1), Vector3::Up());
 		}
 
 		Quaternion::Quaternion() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
@@ -7456,7 +7441,7 @@ namespace Tomahawk
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
 #if OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			HMAC_CTX* Context = Context = HMAC_CTX_new();
+			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
 				return "";
 
@@ -7869,7 +7854,7 @@ namespace Tomahawk
 
 			while (i < Length)
 			{
-				if (i < Length - 2 && Text[i] == '%' && isxdigit(*(const unsigned char*)(Text + i + 1)) && isxdigit(*(const unsigned char*)(Text + i + 2)))
+				if (Length >= 2 && i < Length - 2 && Text[i] == '%' && isxdigit(*(const unsigned char*)(Text + i + 1)) && isxdigit(*(const unsigned char*)(Text + i + 2)))
 				{
 					int A = tolower(*(const unsigned char*)(Text + i + 1)), B = tolower(*(const unsigned char*)(Text + i + 2));
 					Value += (char)(((isdigit(A) ? (A - '0') : (A - 'W')) << 4) | (isdigit(B) ? (B - '0') : (B - 'W')));
@@ -8229,8 +8214,8 @@ namespace Tomahawk
 		}
 		std::string WebToken::GetRefreshToken(const char* Key, const char* Salt)
 		{
-			TH_ASSERT(Key != nullptr, false, "key should be set");
-			TH_ASSERT(Salt != nullptr, false, "salt should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
 
 			Refresher = Common::DocEncrypt(Token, Key, Salt);
 			return Refresher;
@@ -8354,9 +8339,6 @@ namespace Tomahawk
 				return true;
 
 			Core::Parser::Settle Result;
-			Result.Start = Result.End = 0;
-			Result.Found = false;
-
 			while (true)
 			{
 				Result = Buffer.Find("#include", Result.End);
@@ -10574,7 +10556,7 @@ namespace Tomahawk
 		Vector3 SoftBody::GetWindVelocity()
 		{
 #ifdef TH_WITH_BULLET3
-			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
+			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
 			btVector3 Value = Instance->getWindVelocity();
 			return BT_TO_V3(Value);
 #else

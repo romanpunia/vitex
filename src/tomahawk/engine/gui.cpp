@@ -2,7 +2,6 @@
 #ifdef TH_WITH_RMLUI
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Stream.h>
-#include <RmlUi/Core/Elements/DataSource.h>
 #include <Source/Core/StyleSheetFactory.h>
 #include <Source/Core/ElementStyle.h>
 
@@ -598,11 +597,16 @@ namespace Tomahawk
 					if (!Main.IsValid())
 						return;
 
+					Scope->Basis->AddRef();
 					Script::VMContext* Context = Compiler->GetContext();
 					Context->Execute(Main, [Main, Scope](Script::VMContext* Context)
 					{
 						if (Main.GetArgsCount() == 1)
 							Context->SetArgObject(0, Scope->Basis);
+					}, [Scope](Script::VMContext*, Script::VMPoll State)
+					{
+						if (State != Script::VMPoll::Continue)
+							Scope->Basis->Release();
 					});
 				}
 			};
@@ -642,11 +646,26 @@ namespace Tomahawk
 					if (!CompileInline(Scope))
 						return;
 
-					IEvent Basis(&Event);
-					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->Execute(Function, [&Basis](Script::VMContext* Context)
+					Rml::Event* Ptr = Rml::Factory::InstanceEvent(Event.GetTargetElement(), Event.GetId(), Event.GetType(), Event.GetParameters(), Event.IsInterruptible()).release();
+					if (Ptr != nullptr)
 					{
-						Context->SetArgObject(0, &Basis);
+						Ptr->SetCurrentElement(Event.GetCurrentElement());
+						Ptr->SetPhase(Event.GetPhase());
+					}
+
+					Scope->Basis->AddRef();
+					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
+					Context->Execute(Function, [Ptr](Script::VMContext* Context)
+					{
+						IEvent Event(Ptr);
+						Context->SetArgObject(0, &Event);
+					}, [Scope, Ptr](Script::VMContext* Context, Script::VMPoll State)
+					{
+						if (State == Script::VMPoll::Continue)
+							return;
+
+						delete Ptr;
+						Scope->Basis->Release();
 					});
 				}
 				bool CompileInline(ScopedContext* Scope)
@@ -1861,7 +1880,7 @@ namespace Tomahawk
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
+					Form->SetValue(Core::Parser::ToString(*Ptr));
 					return false;
 				}
 
@@ -1881,7 +1900,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
+				Form->SetValue(Core::Parser::ToString(*Ptr));
 				return false;
 			}
 			bool IElement::CastFormFloat(float* Ptr, float Mult)
@@ -1907,7 +1926,7 @@ namespace Tomahawk
 					if (Form->IsPseudoClassSet("focus"))
 						return false;
 
-					Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
+					Form->SetValue(Core::Parser::ToString(*Ptr));
 					return false;
 				}
 
@@ -1927,7 +1946,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				Form->SetValue(Core::Parser::ToStringAutoPrec(*Ptr));
+				Form->SetValue(Core::Parser::ToString(*Ptr));
 				return false;
 			}
 			bool IElement::CastFormBoolean(bool* Ptr)
@@ -2454,6 +2473,10 @@ namespace Tomahawk
 			bool DataModel::IsValid() const
 			{
 				return Base != nullptr;
+			}
+			Rml::DataModelConstructor* DataModel::Get()
+			{
+				return Base;
 			}
 
 			DataNode::DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial) : Handle(Model), Order(nullptr), Depth(0), Safe(true)
@@ -3361,7 +3384,6 @@ namespace Tomahawk
 			{
 				Core::Parser::Settle Result, Start, End;
 				Core::Parser Buffer(&Data);
-				Result.End = End.End = 0;
 
 				while (Result.End < Buffer.Size())
 				{

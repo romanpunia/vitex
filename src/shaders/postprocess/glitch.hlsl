@@ -1,6 +1,6 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/random"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/random.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

@@ -1,7 +1,7 @@
-#include "std/layouts/skin"
-#include "std/channels/depth"
-#include "std/buffers/object"
-#include "std/buffers/animation"
+#include "std/layouts/skin.hlsl"
+#include "std/channels/depth.hlsl"
+#include "std/buffers/object.hlsl"
+#include "std/buffers/animation.hlsl"
 
 VOutputLinear vs_main(VInput V)
 {

@@ -1,5 +1,5 @@
-#include "std/channels/geometry"
-#include "std/objects/gbuffer"
+#include "std/channels/geometry.hlsl"
+#include "std/objects/gbuffer.hlsl"
 
 GBuffer Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float Depth, float Mid)
 {

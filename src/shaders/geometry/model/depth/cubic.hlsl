@@ -1,4 +1,4 @@
-#include "geometry/model/common/cubic"
+#include "geometry/model/common/cubic.hlsl"
 
 float ps_main(VOutputLinear V) : SV_TARGET0
 {

@@ -1,4 +1,4 @@
-#include "std/buffers/viewer"
+#include "std/buffers/viewer.hlsl"
 
 float2 GetTexCoord(float4 UV)
 {

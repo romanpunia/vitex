@@ -449,6 +449,7 @@ namespace Tomahawk
 				void Change(const std::string& VariableName);
 				void Detach();
 				bool IsValid() const;
+				Rml::DataModelConstructor* Get();
 			};
 
 			class TH_OUT DataNode

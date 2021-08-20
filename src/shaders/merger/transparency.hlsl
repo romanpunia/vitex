@@ -1,7 +1,7 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/position"
-#include "std/core/sampler"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/position.hlsl"
+#include "std/core/sampler.hlsl"
 #pragma warning(disable: 4000)
 
 cbuffer RenderConstant : register(b3)

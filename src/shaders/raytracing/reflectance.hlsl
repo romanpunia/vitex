@@ -1,9 +1,9 @@
-#include "std/layouts/shape"
-#include "std/channels/effect"
-#include "std/core/lighting"
-#include "std/core/raymarching"
-#include "std/core/material"
-#include "std/core/position"
+#include "std/layouts/shape.hlsl"
+#include "std/channels/effect.hlsl"
+#include "std/core/lighting.hlsl"
+#include "std/core/raymarching.hlsl"
+#include "std/core/material.hlsl"
+#include "std/core/position.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

@@ -1,8 +1,8 @@
-#include "std/layouts/skin"
-#include "std/channels/gbuffer"
-#include "std/buffers/object"
-#include "std/buffers/viewer"
-#include "std/buffers/animation"
+#include "std/layouts/skin.hlsl"
+#include "std/channels/gbuffer.hlsl"
+#include "std/buffers/object.hlsl"
+#include "std/buffers/viewer.hlsl"
+#include "std/buffers/animation.hlsl"
 
 VOutput vs_main(VInput V)
 {

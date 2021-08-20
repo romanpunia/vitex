@@ -217,17 +217,17 @@ namespace Tomahawk
 
 				return *this;
 			}
-			Property Property::operator [](const char* Name)
+			Property Property::operator [](const char* Label)
 			{
 				Property Result;
-				Get().GetProperty(Name, &Result);
+				Get().GetProperty(Label, &Result);
 
 				return Result;
 			}
-			Property Property::operator [](const char* Name) const
+			Property Property::operator [](const char* Label) const
 			{
 				Property Result;
-				Get().GetProperty(Name, &Result);
+				Get().GetProperty(Label, &Result);
 
 				return Result;
 			}

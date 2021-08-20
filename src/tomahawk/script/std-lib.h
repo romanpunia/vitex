@@ -359,7 +359,7 @@ namespace Tomahawk
 			};
 		};
 
-		class TH_OUT STDMapKey
+		class TH_OUT STDIterator
 		{
 		protected:
 			friend class STDMap;
@@ -374,11 +374,11 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			STDMapKey();
-			STDMapKey(VMCManager* Engine, void* Value, int TypeId);
-			~STDMapKey();
+			STDIterator();
+			STDIterator(VMCManager* Engine, void* Value, int TypeId);
+			~STDIterator();
 			void Set(VMCManager* Engine, void* Value, int TypeId);
-			void Set(VMCManager* Engine, STDMapKey& Value);
+			void Set(VMCManager* Engine, STDIterator& Value);
 			bool Get(VMCManager* Engine, void* Value, int TypeId) const;
 			const void* GetAddressOfValue() const;
 			int GetTypeId() const;
@@ -389,7 +389,7 @@ namespace Tomahawk
 		class TH_OUT STDMap
 		{
 		public:
-			typedef std::unordered_map<std::string, STDMapKey> Map;
+			typedef std::unordered_map<std::string, STDIterator> Map;
 
 		public:
 			class Iterator
@@ -441,8 +441,8 @@ namespace Tomahawk
 			void Set(const std::string& Key, void* Value, int TypeId);
 			bool Get(const std::string& Key, void* Value, int TypeId) const;
 			bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
-			STDMapKey* operator[](const std::string& Key);
-			const STDMapKey* operator[](const std::string& Key) const;
+			STDIterator* operator[](const std::string& Key);
+			const STDIterator* operator[](const std::string& Key) const;
 			int GetTypeId(const std::string& Key) const;
 			bool Exists(const std::string& Key) const;
 			bool IsEmpty() const;
@@ -474,14 +474,14 @@ namespace Tomahawk
 			static void Factory(VMCGeneric *gen);
 			static void ListFactory(VMCGeneric *gen);
 			static void KeyConstruct(void *mem);
-			static void KeyDestruct(STDMapKey *obj);
-			static STDMapKey &KeyopAssign(void *ref, int typeId, STDMapKey *obj);
-			static STDMapKey &KeyopAssign(const STDMapKey &other, STDMapKey *obj);
-			static STDMapKey &KeyopAssign(double val, STDMapKey *obj);
-			static STDMapKey &KeyopAssign(as_int64_t val, STDMapKey *obj);
-			static void KeyopCast(void *ref, int typeId, STDMapKey *obj);
-			static as_int64_t KeyopConvInt(STDMapKey *obj);
-			static double KeyopConvDouble(STDMapKey *obj);
+			static void KeyDestruct(STDIterator *obj);
+			static STDIterator &KeyopAssign(void *ref, int typeId, STDIterator *obj);
+			static STDIterator &KeyopAssign(const STDIterator &other, STDIterator *obj);
+			static STDIterator &KeyopAssign(double val, STDIterator *obj);
+			static STDIterator &KeyopAssign(as_int64_t val, STDIterator *obj);
+			static void KeyopCast(void *ref, int typeId, STDIterator *obj);
+			static as_int64_t KeyopConvInt(STDIterator *obj);
+			static double KeyopConvDouble(STDIterator *obj);
 		};
 
 		class TH_OUT STDGrid

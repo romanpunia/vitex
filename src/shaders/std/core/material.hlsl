@@ -1,5 +1,5 @@
-#include "std/objects/fragment"
-#include "std/objects/material"
+#include "std/objects/fragment.hlsl"
+#include "std/objects/material.hlsl"
 
 float GetAperture(float Roughness)
 {

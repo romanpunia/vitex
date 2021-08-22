@@ -111,7 +111,6 @@ namespace Tomahawk
 				Core::Async<int> Result;
 				if (!Staging)
 				{
-					Buffer.clear();
 					if (&Request != &Root)
 						Request = std::move(Root);
 
@@ -121,6 +120,7 @@ namespace Tomahawk
 						if (!Buffer.empty())
 							TH_TRACE("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
 
+						Buffer.clear();
 						Result = Code;
 					};
 				}
@@ -717,10 +717,7 @@ namespace Tomahawk
 
 				It.Length -= Size;
 				if (!It.Length)
-				{
-					TH_TRACE("close fs 0x%p", (void*)AttachmentFile);
-					fclose(AttachmentFile);
-				}
+					TH_CLOSE(AttachmentFile);
 
 				bool Sent = (!It.Length);
 				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Sent](Socket*, int64_t State)

@@ -1025,12 +1025,12 @@ namespace Tomahawk
 			VVariant.SetConstructor<Core::Variant, const Core::Variant&>("void f(const Variant &in)");
 			VVariant.SetMethod("bool Deserialize(const String &in, bool = false)", &Core::Variant::Deserialize);
 			VVariant.SetMethod("String Serialize() const", &Core::Variant::Serialize);
-			VVariant.SetMethod("String GetDecimal() const", &Core::Variant::GetDecimal);
-			VVariant.SetMethod("String GetString() const", &Core::Variant::GetBlob);
-			VVariant.SetMethod("Address@ GetPointer() const", &Core::Variant::GetPointer);
-			VVariant.SetMethod("int64 GetInteger() const", &Core::Variant::GetInteger);
-			VVariant.SetMethod("double GetNumber() const", &Core::Variant::GetNumber);
-			VVariant.SetMethod("bool GetBoolean() const", &Core::Variant::GetBoolean);
+			VVariant.SetMethod("String Dec() const", &Core::Variant::GetDecimal);
+			VVariant.SetMethod("String Str() const", &Core::Variant::GetBlob);
+			VVariant.SetMethod("Address@ Ptr() const", &Core::Variant::GetPointer);
+			VVariant.SetMethod("int64 Int() const", &Core::Variant::GetInteger);
+			VVariant.SetMethod("double Num() const", &Core::Variant::GetNumber);
+			VVariant.SetMethod("bool Bool() const", &Core::Variant::GetBoolean);
 			VVariant.SetMethod("VarType GetType() const", &Core::Variant::GetType);
 			VVariant.SetMethod("bool IsObject() const", &Core::Variant::IsObject);
 			VVariant.SetMethod("bool IsEmpty() const", &Core::Variant::IsEmpty);

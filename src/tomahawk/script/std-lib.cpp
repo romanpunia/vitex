@@ -4385,18 +4385,15 @@ namespace Tomahawk
 		int STDThread::ContextUD = 550;
 		int STDThread::EngineListUD = 551;
 
-		STDPromise::STDPromise(VMCContext* Base) : Context(Base), Future(nullptr), Ref(2), Flag(false)
+		STDPromise::STDPromise(VMCContext* _Base) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(2), Flag(false)
 		{
 			if (!Context)
 				return;
 
-			VMContext* Next = VMContext::Get(Context);
-			if (Next != nullptr)
-				++Next->Promises;
-
-			VMCManager* Engine = Context->GetEngine();
-			Context->AddRef();
+			VMCManager* Engine = Context->GetManager()->GetEngine();
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Promise"));
+			Context->PromiseAwake(this);
+			Context->AddRef();
 		}
 		void STDPromise::Release()
 		{
@@ -4415,9 +4412,6 @@ namespace Tomahawk
 		}
 		void STDPromise::EnumReferences(VMCManager* Engine)
 		{
-			if (Context != nullptr)
-				Engine->GCEnumCallback(Context);
-
 			if (Future != nullptr)
 				Engine->GCEnumCallback(Future);
 		}
@@ -4449,41 +4443,38 @@ namespace Tomahawk
 		}
 		int STDPromise::Set(void* _Ref, int TypeId)
 		{
-			VMContext* Base = VMContext::Get(Context);
-			if (!Base || Future != nullptr)
+			if (Future != nullptr)
 				return -1;
 
+			VMCManager* Engine = Context->GetManager()->GetEngine();
 			void* Data = asAllocMem(sizeof(STDAny));
-			STDAny* Result = new(Data) STDAny(_Ref, TypeId, Context->GetEngine());
+			STDAny* Result = new(Data) STDAny(_Ref, TypeId, Engine);
 			Result->Release();
 
 			if (TypeId & asTYPEID_OBJHANDLE)
 			{
-				VMCManager* Manager = Context->GetEngine();
+				VMCManager* Manager = Engine;
 				Manager->ReleaseScriptObject(*(void**)_Ref, Manager->GetTypeInfoById(TypeId));
 			}
 
+			this->AddRef();
 			Result->AddRef();
-			Base->AddRef();
+			Context->AddRef();
 			if (Future != nullptr)
 				Future->Release();
 			Future = Result;
 			Release();
 
-			return Core::Schedule::Get()->SetTask([this, Base]()
+			return Core::Schedule::Get()->SetTask([this]()
 			{
-				int State = Base->Execute(false);
-				Base->Promises--;
-				Base->ExecuteNotify(State);
-				Base->Release();
+				Context->PromiseResume(this);
+				Context->Release();
+				this->Release();
 			}) ? 0 : -1;
 		}
 		int STDPromise::Set(void* _Ref, const char* TypeName)
 		{
-			if (!Context)
-				return -1;
-
-			return Set(_Ref, Context->GetEngine()->GetTypeIdByDecl(TypeName));
+			return Set(_Ref, Context->GetManager()->GetEngine()->GetTypeIdByDecl(TypeName));
 		}
 		bool STDPromise::To(void* _Ref, int TypeId)
 		{
@@ -4523,13 +4514,8 @@ namespace Tomahawk
 		STDPromise* STDPromise::Jump(STDPromise* Value)
 		{
 			VMContext* Context = VMContext::Get();
-			if (!Context || !Value)
-				return Value;
-
-			if (Value->Future != nullptr)
-				--Context->Promises;
-			else
-				Context->Suspend();
+			if (Context != nullptr)
+				Context->PromiseSuspend(Value);
 
 			return Value;
 		}

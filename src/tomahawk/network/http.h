@@ -51,10 +51,10 @@ namespace Tomahawk
 
 			enum class WebSocketState
 			{
-				Active = (1 << 0),
-				Handshake = (1 << 1),
-				Close = (1 << 2),
-				Free = (1 << 3)
+				Open,
+				Receive,
+				Process,
+				Close
 			};
 
 			enum class CompressionTune
@@ -235,9 +235,9 @@ namespace Tomahawk
 
 			private:
 				std::atomic<uint32_t> State;
-				std::atomic<bool> Notifies;
-				std::atomic<bool> Error;
+				std::atomic<bool> Reset;
 				std::atomic<bool> Save;
+				std::mutex Section;
 				Connection* Base;
 				WebCodec* Codec;
 
@@ -250,10 +250,10 @@ namespace Tomahawk
 			public:
 				WebSocketFrame();
 				~WebSocketFrame();
-				void Write(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
+				void Send(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
+				void Send(unsigned int Mask, const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
 				void Finish();
 				void Next();
-				void Notify();
 				bool IsFinished();
 				Connection* GetBase();
 			};
@@ -608,6 +608,9 @@ namespace Tomahawk
 
 			class TH_OUT WebCodec : public Core::Object
 			{
+			public:
+				typedef std::queue<std::pair<WebSocketOp, std::vector<char>>> MessageQueue;
+
 			private:
 				enum class Bytecode
 				{
@@ -631,6 +634,9 @@ namespace Tomahawk
 				};
 
 			private:
+				std::vector<char> Payload;
+				WebSocketOp Opcode;
+				MessageQueue Queue;
 				Bytecode State;
 				uint64_t Remains;
 				uint8_t Mask[4];
@@ -641,14 +647,12 @@ namespace Tomahawk
 				uint8_t Masks;
 
 			public:
-				std::vector<char> Payload;
-				std::vector<char> Message;
-				WebSocketOp Opcode;
+				std::vector<char> Data;
 
 			public:
 				WebCodec();
-				void Prepare();
-				WebSocketOp ParseFrame(const char* Data, size_t Size);
+				bool ParseFrame(const char* Data, size_t Size);
+				bool GetFrame(WebSocketOp* Op, std::vector<char>* Message);
 			};
 
 			class TH_OUT Util
@@ -659,8 +663,6 @@ namespace Tomahawk
 				static void ConstructHeadCache(Connection* Base, Core::Parser* Buffer);
 				static void ConstructHeadUncache(Connection* Base, Core::Parser* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
-				static bool WebSocketWrite(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, const SuccessCallback& Callback);
-				static bool WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Length, WebSocketOp Type, unsigned int Mask, const SuccessCallback& Callback);
 				static bool ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B);
 				static bool ContentOK(Content State);
 				static std::string ConnectionResolve(Connection* Base);
@@ -717,7 +719,6 @@ namespace Tomahawk
 				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength);
 				static bool ProcessGateway(Connection* Base);
 				static bool ProcessWebSocket(Connection* Base, const char* Key);
-				static bool ProcessWebSocketPass(Connection* Base, const char* Buffer = nullptr, size_t Size = 0);
 			};
 
 			class TH_OUT Server final : public SocketServer

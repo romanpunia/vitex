@@ -1480,10 +1480,7 @@ namespace Tomahawk
 						Next->State = QueryState::Idle;
                         
                         Pool.insert(std::make_pair(Next->Stream, Next));
-                        Next->Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
-                        {
-                            return Dispatch(Stream, Buffer, Size);
-                        });
+						Reprocess(Next);
 					}
 					Update.unlock();
 

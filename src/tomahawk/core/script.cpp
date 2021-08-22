@@ -2311,7 +2311,7 @@ namespace Tomahawk
 		}
 		VMContext::~VMContext()
 		{
-			TH_ASSERT_V(!IsPending(), "there are %i promises still pending", (int)Promises.load());
+			TH_ASSERT_V(!IsPending(), "there are %i promises still pending", (int)Promises.size());
 			while (!Queue.empty())
 			{
 				Queue.front().Function.Release();
@@ -2345,13 +2345,13 @@ namespace Tomahawk
 		void VMContext::ExecuteResume(const ResumeCallback& OnResume, int fState)
 		{
 			asEContextState State = (asEContextState)fState;
-			if (!Promises.load() && !Queue.empty())
+			if (Promises.empty() && !Queue.empty())
 			{
 				OnResume(this, VMPoll::Routine);
 				if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
 					ExecuteNext();
 			}
-			else if (Promises.load() > 0)
+			else if (!Promises.empty())
 				OnResume(this, VMPoll::Continue);
 			else if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
 				OnResume(this, VMPoll::Finish);
@@ -2369,7 +2369,7 @@ namespace Tomahawk
 				return;
 
 			Exchange.lock();
-			if (Queue.empty())
+			if (!Promises.empty() || !Queue.empty())
 				return Exchange.unlock();
 
 			Executable Next = std::move(Queue.front());
@@ -2378,6 +2378,46 @@ namespace Tomahawk
 
 			Execute(Next.Function, std::move(Next.Args), std::move(Next.Notify));
 			Next.Function.Release();
+		}
+		void VMContext::PromiseAwake(STDPromise* Base)
+		{
+			TH_ASSERT_V(Context != nullptr, "context should be set");
+			Exchange.lock();
+			if (Base != nullptr)
+				Promises.insert(Base);
+			Exchange.unlock();
+		}
+		void VMContext::PromiseSuspend(STDPromise* Base)
+		{
+			TH_ASSERT_V(Context != nullptr, "context should be set");
+			Exchange.lock();
+			if (Base != nullptr)
+			{
+				if (!Base->Future)
+				{
+					Promises.insert(Base);
+					if (!IsSuspended())
+						Context->Suspend();
+				}
+				else
+					Promises.erase(Base);
+			}
+			Exchange.unlock();
+		}
+		void VMContext::PromiseResume(STDPromise* Base)
+		{
+			Exchange.lock();
+			if (Base != nullptr && Base->Future != nullptr)
+			{
+				auto It = Promises.find(Base);
+				if (It != Promises.end())
+				{
+					Promises.erase(Base);
+					Exchange.unlock();
+					return (void)Execute();
+				}
+			}
+			Exchange.unlock();
 		}
 		int VMContext::SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
@@ -2405,7 +2445,7 @@ namespace Tomahawk
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
 			asEContextState State = Context->GetState();
-			if (State != asEXECUTION_FINISHED && State != asEXECUTION_ABORTED && State != asEXECUTION_EXCEPTION && State != asEXECUTION_ERROR && State != asEXECUTION_UNINITIALIZED)
+			if (!Promises.empty() || State == asEXECUTION_ACTIVE || State == asEXECUTION_SUSPENDED)
 			{
 				Executable Next;
 				Next.Notify = std::move(OnResume);
@@ -2446,7 +2486,7 @@ namespace Tomahawk
 		int VMContext::Execute(bool Resumable)
 		{
 			asEContextState State = Context->GetState();
-			if (State == asEXECUTION_ACTIVE)
+			if (State != asEXECUTION_SUSPENDED && State != asEXECUTION_PREPARED)
 				return asEXECUTION_ACTIVE;
 
 			State = (asEContextState)Context->Execute();
@@ -2460,8 +2500,6 @@ namespace Tomahawk
 				return State;
 
 			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
-				ExecuteNext();
-			else if (Promises.load() > 0 || !Queue.empty())
 				ExecuteNext();
 
 			return State;
@@ -2537,7 +2575,7 @@ namespace Tomahawk
 		}
 		bool VMContext::IsPending() const
 		{
-			return Promises.load() > 0 || !Queue.empty();
+			return !Promises.empty() || !Queue.empty();
 		}
 		int VMContext::SetObject(void* Object)
 		{
@@ -2916,42 +2954,42 @@ namespace Tomahawk
 		}
 		void VMManager::ClearCache()
 		{
-			Safe.lock();
+			Sync.General.lock();
 			for (auto Data : Datas)
 				TH_RELEASE(Data.second);
 
 			Opcodes.clear();
 			Datas.clear();
 			Files.clear();
-			Safe.unlock();
+			Sync.General.unlock();
 		}
 		void VMManager::Lock()
 		{
-			Safe.lock();
+			Sync.General.lock();
 		}
 		void VMManager::Unlock()
 		{
-			Safe.unlock();
+			Sync.General.unlock();
 		}
 		void VMManager::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
 		{
-			Safe.lock();
+			Sync.General.lock();
 			Include = NewDesc;
-			Safe.unlock();
+			Sync.General.unlock();
 		}
 		void VMManager::SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc)
 		{
-			Safe.lock();
+			Sync.General.lock();
 			Proc = NewDesc;
-			Safe.unlock();
+			Sync.General.unlock();
 		}
 		void VMManager::SetProcessorOptions(Compute::Preprocessor* Processor)
 		{
 			TH_ASSERT_V(Processor != nullptr, "preprocessor should be set");
-			Safe.lock();
+			Sync.General.lock();
 			Processor->SetIncludeOptions(Include);
 			Processor->SetFeatures(Proc);
-			Safe.unlock();
+			Sync.General.unlock();
 		}
 		bool VMManager::GetByteCodeCache(VMByteCode* Info)
 		{
@@ -2959,11 +2997,11 @@ namespace Tomahawk
 			if (!Cached)
 				return false;
 
-			Safe.lock();
+			Sync.General.lock();
 			auto It = Opcodes.find(Info->Name);
 			if (It == Opcodes.end())
 			{
-				Safe.unlock();
+				Sync.General.unlock();
 				return false;
 			}
 
@@ -2971,7 +3009,7 @@ namespace Tomahawk
 			Info->Debug = It->second.Debug;
 			Info->Valid = true;
 
-			Safe.unlock();
+			Sync.General.unlock();
 			return true;
 		}
 		void VMManager::SetByteCodeCache(VMByteCode* Info)
@@ -2981,9 +3019,9 @@ namespace Tomahawk
 			if (!Cached)
 				return;
 
-			Safe.lock();
+			Sync.General.lock();
 			Opcodes[Info->Name] = *Info;
-			Safe.unlock();
+			Sync.General.unlock();
 		}
 		int VMManager::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
 		{
@@ -3010,12 +3048,12 @@ namespace Tomahawk
 			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 
 			if (AqLock)
-				Safe.lock();
+				Sync.General.lock();
 
 			if (!Engine->GetModule(Name.c_str()))
 			{
 				if (AqLock)
-					Safe.unlock();
+					Sync.General.unlock();
 
 				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 			}
@@ -3027,14 +3065,14 @@ namespace Tomahawk
 				if (!Engine->GetModule(Result.c_str()))
 				{
 					if (AqLock)
-						Safe.unlock();
+						Sync.General.unlock();
 
 					return Engine->GetModule(Result.c_str(), asGM_ALWAYS_CREATE);
 				}
 			}
 
 			if (AqLock)
-				Safe.unlock();
+				Sync.General.unlock();
 
 			return nullptr;
 		}
@@ -3044,11 +3082,11 @@ namespace Tomahawk
 			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 
 			if (AqLock)
-				Safe.lock();
+				Sync.General.lock();
 
 			VMCModule* Result = Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 			if (AqLock)
-				Safe.unlock();
+				Sync.General.unlock();
 
 			return Result;
 		}
@@ -3086,9 +3124,9 @@ namespace Tomahawk
 		}
 		int VMManager::Collect(size_t NumIterations)
 		{
-			Safe.lock();
+			Sync.General.lock();
 			int R = Engine->GarbageCollect(asGC_FULL_CYCLE, NumIterations);
-			Safe.unlock();
+			Sync.General.unlock();
 
 			return R;
 		}
@@ -3191,12 +3229,12 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
 			const char* Prev = Engine->GetDefaultNamespace();
-			Safe.lock();
+			Sync.General.lock();
 			if (Prev != nullptr)
 				DefaultNamespace = Prev;
 			else
 				DefaultNamespace.clear();
-			Safe.unlock();
+			Sync.General.unlock();
 
 			return Engine->SetDefaultNamespace(Namespace);
 		}
@@ -3213,9 +3251,9 @@ namespace Tomahawk
 		}
 		int VMManager::EndNamespace()
 		{
-			Safe.lock();
+			Sync.General.lock();
 			int R = Engine->SetDefaultNamespace(DefaultNamespace.c_str());
-			Safe.unlock();
+			Sync.General.unlock();
 
 			return R;
 		}
@@ -3279,10 +3317,10 @@ namespace Tomahawk
 		}
 		void VMManager::SetDocumentRoot(const std::string& Value)
 		{
-			Safe.lock();
+			Sync.General.lock();
 			Include.Root = Value;
 			if (Include.Root.empty())
-				return Safe.unlock();
+				return Sync.General.unlock();
 
 			if (!Core::Parser(&Include.Root).EndsOf("/\\"))
 			{
@@ -3292,7 +3330,7 @@ namespace Tomahawk
 				Include.Root.append(1, '/');
 #endif
 			}
-			Safe.unlock();
+			Sync.General.unlock();
 		}
 		std::string VMManager::GetDocumentRoot() const
 		{
@@ -3352,7 +3390,7 @@ namespace Tomahawk
 			if (Source.empty())
 				return true;
 
-			Safe.lock();
+			Sync.General.lock();
 			asIScriptModule* Module = Engine->GetModule("__vfver", asGM_ALWAYS_CREATE);
 			Module->AddScriptSection(Path.c_str(), Source.c_str(), Source.size());
 
@@ -3364,7 +3402,7 @@ namespace Tomahawk
 			}
 
 			Module->Discard();
-			Safe.unlock();
+			Sync.General.unlock();
 
 			return R >= 0;
 		}
@@ -3380,7 +3418,7 @@ namespace Tomahawk
 				std::string Namespace = Name + '/';
 				std::vector<std::string> Deps;
 
-				Safe.lock();
+				Sync.General.lock();
 				for (auto& Item : Modules)
 				{
 					if (Core::Parser(&Item.first).StartsWith(Namespace))
@@ -3389,7 +3427,7 @@ namespace Tomahawk
 
 				if (Modules.empty())
 				{
-					Safe.unlock();
+					Sync.General.unlock();
 					return false;
 				}
 
@@ -3408,7 +3446,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				Safe.lock();
+				Sync.General.lock();
 				auto It = Modules.find(Name);
 				if (It != Modules.end())
 				{
@@ -3430,7 +3468,7 @@ namespace Tomahawk
 				}
 			}
 
-			Safe.unlock();
+			Sync.General.unlock();
 			return true;
 		}
 		bool VMManager::ImportFile(const std::string& Path, std::string* Out)
@@ -3452,14 +3490,14 @@ namespace Tomahawk
 				return true;
 			}
 
-			Safe.lock();
+			Sync.General.lock();
 			auto It = Files.find(Path);
 			if (It != Files.end())
 			{
 				if (Out != nullptr)
 					Out->assign(It->second);
 
-				Safe.unlock();
+				Sync.General.unlock();
 				return true;
 			}
 
@@ -3468,7 +3506,7 @@ namespace Tomahawk
 			if (Out != nullptr)
 				Out->assign(Result);
 
-			Safe.unlock();
+			Sync.General.unlock();
 			return true;
 		}
 		bool VMManager::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
@@ -3482,7 +3520,7 @@ namespace Tomahawk
 			if (!Engine || Decl.empty() || Func.empty())
 				return false;
 
-			Safe.lock();
+			Sync.General.lock();
 			auto Core = Kernels.end();
 			for (auto& Item : Sources)
 			{
@@ -3493,13 +3531,13 @@ namespace Tomahawk
 
 			if (Core == Kernels.end())
 			{
-				Safe.unlock();
+				Sync.General.unlock();
 				bool Failed = !ImportLibrary("");
-				Safe.lock();
+				Sync.General.lock();
 
 				if (Failed || (Core = Kernels.find("")) == Kernels.end())
 				{
-					Safe.unlock();
+					Sync.General.unlock();
 					TH_ERR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
 					return false;
 				}
@@ -3508,7 +3546,7 @@ namespace Tomahawk
 			auto Handle = Core->second.Functions.find(Func);
 			if (Handle != Core->second.Functions.end())
 			{
-				Safe.unlock();
+				Sync.General.unlock();
 				return true;
 			}
 
@@ -3516,19 +3554,19 @@ namespace Tomahawk
 			if (!Function)
 			{
 				TH_ERR("cannot load shared object function: %s", Func.c_str());
-				Safe.unlock();
+				Sync.General.unlock();
 				return false;
 			}
 
 			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
 			{
 				TH_ERR("cannot register shared object function: %s", Decl.c_str());
-				Safe.unlock();
+				Sync.General.unlock();
 				return false;
 			}
 
 			Core->second.Functions.insert({ Func, (void*)Function });
-			Safe.unlock();
+			Sync.General.unlock();
 
 			return true;
 		}
@@ -3544,14 +3582,14 @@ namespace Tomahawk
 			if (!Engine)
 				return false;
 
-			Safe.lock();
+			Sync.General.lock();
 			auto Core = Kernels.find(Name);
 			if (Core != Kernels.end())
 			{
-				Safe.unlock();
+				Sync.General.unlock();
 				return true;
 			}
-			Safe.unlock();
+			Sync.General.unlock();
 
 			void* Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
@@ -3563,9 +3601,9 @@ namespace Tomahawk
 			Kernel Library;
 			Library.Handle = Handle;
 
-			Safe.lock();
+			Sync.General.lock();
 			Kernels.insert({ Name, Library });
-			Safe.unlock();
+			Sync.General.unlock();
 
 			return true;
 		}
@@ -3581,24 +3619,24 @@ namespace Tomahawk
 			if (Core::Parser(&Target).EndsWith(".as"))
 				Target = Target.substr(0, Target.size() - 3);
 
-			Safe.lock();
+			Sync.General.lock();
 			auto It = Modules.find(Target);
 			if (It == Modules.end())
 			{
-				Safe.unlock();
+				Sync.General.unlock();
 				TH_ERR("couldn't find script submodule %s", Name.c_str());
 				return false;
 			}
 
 			if (It->second.Registered)
 			{
-				Safe.unlock();
+				Sync.General.unlock();
 				return true;
 			}
 
 			Submodule Base = It->second;
 			It->second.Registered = true;
-			Safe.unlock();
+			Sync.General.unlock();
 
 			for (auto& Item : Base.Dependencies)
 			{
@@ -3653,12 +3691,12 @@ namespace Tomahawk
 				});
 			}
 
-			Safe.lock();
+			Sync.General.lock();
 			auto It = Datas.find(File);
 			if (It != Datas.end())
 			{
 				Core::Document* Result = It->second ? It->second->Copy() : nullptr;
-				Safe.unlock();
+				Sync.General.unlock();
 
 				return Result;
 			}
@@ -3685,7 +3723,7 @@ namespace Tomahawk
 			if (Result != nullptr)
 				Copy = Result->Copy();
 
-			Safe.unlock();
+			Sync.General.unlock();
 			return Copy;
 		}
 		size_t VMManager::GetProperty(VMProp Property) const
@@ -3737,16 +3775,16 @@ namespace Tomahawk
 			if (!Manager)
 				return Engine->CreateContext();
 
-			Manager->Safe.lock();
+			Manager->Sync.Pool.lock();
 			if (Manager->Contexts.empty())
 			{
-				Manager->Safe.unlock();
+				Manager->Sync.Pool.unlock();
 				return Engine->CreateContext();
 			}
 
 			VMCContext* Context = *Manager->Contexts.rbegin();
 			Manager->Contexts.pop_back();
-			Manager->Safe.unlock();
+			Manager->Sync.Pool.unlock();
 
 			return Context;
 		}
@@ -3759,10 +3797,10 @@ namespace Tomahawk
 			VMManager* Manager = VMManager::Get(Engine);
 			TH_ASSERT(Manager != nullptr, (void)Context->Release(), "engine should be set");
 
-			Manager->Safe.lock();
+			Manager->Sync.Pool.lock();
 			Manager->Contexts.push_back(Context);
 			Context->Unprepare();
-			Manager->Safe.unlock();
+			Manager->Sync.Pool.unlock();
 		}
 		void VMManager::CompileLogger(asSMessageInfo* Info, void*)
 		{
@@ -3811,6 +3849,8 @@ namespace Tomahawk
 			Engine->AddSubmodule("ce", { }, nullptr);
 
 			/* Compute library */
+			Engine->AddSubmodule("cu/vertices", { }, CURegisterVertices);
+			Engine->AddSubmodule("cu/rectangle", { }, CURegisterRectangle);
 			Engine->AddSubmodule("cu/vector2", { }, CURegisterVector2);
 			Engine->AddSubmodule("cu/vector3", { "cu/vector2" }, CURegisterVector3);
 			Engine->AddSubmodule("cu/vector4", { "cu/vector3" }, CURegisterVector4);

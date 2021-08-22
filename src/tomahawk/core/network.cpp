@@ -592,7 +592,14 @@ namespace Tomahawk
 			while (Size > 0)
 			{
 				int Length = Write(Buffer + Offset, Size);
-				if (Length <= 0)
+				if (Length == -2)
+				{
+					if (Callback)
+						Callback(this, -2);
+
+					return -2;
+				}
+				else if (Length == -1)
 				{
 					if (Callback)
 						Callback(this, -1);
@@ -607,7 +614,7 @@ namespace Tomahawk
 			if (Callback)
 				Callback(this, (int64_t)Size);
 
-			return Size;
+			return Offset;
 		}
 		int Socket::Write(const std::string& Buffer)
 		{
@@ -717,10 +724,18 @@ namespace Tomahawk
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
 
+			int Offset = 0;
 			while (Size > 0)
 			{
-				int Length = Read(Buffer, Size > sizeof(Buffer) ? sizeof(Buffer) : Size);
-				if (Length <= 0)
+				int Length = Read(Buffer + Offset, Size);
+				if (Length == -2)
+				{
+					if (Callback)
+						Callback(this, nullptr, -2);
+
+					return -2;
+				}
+				else if (Length == -1)
 				{
 					if (Callback)
 						Callback(this, nullptr, -1);
@@ -728,15 +743,17 @@ namespace Tomahawk
 					return -1;
 				}
 
-				Size -= Length;
-				if (Callback && !Callback(this, Buffer, Length))
+				if (Callback && !Callback(this, Buffer + Offset, Length))
 					break;
+
+				Size -= Length;
+				Offset += Length;
 			}
 
 			if (Callback)
 				Callback(this, nullptr, 0);
 
-			return Size;
+			return Offset;
 		}
 		int Socket::ReadAsync(int64_t Size, SocketReadCallback&& Callback)
 		{
@@ -892,7 +909,7 @@ namespace Tomahawk
 			Sync.IO.lock();
 			if (IO & (uint32_t)SocketEvent::Read && Input != nullptr)
 			{
-				auto Callback = Input->Callback;
+				auto Callback = std::move(Input->Callback);
 				ReadFlush();
 				Sync.IO.unlock();
 				if (Callback)
@@ -902,7 +919,7 @@ namespace Tomahawk
 
 			if (IO & (uint32_t)SocketEvent::Write && Output != nullptr)
 			{
-				auto Callback = Output->Callback;
+				auto Callback = std::move(Output->Callback);
 				WriteFlush();
 				Sync.IO.unlock();
 				if (Callback)
@@ -921,7 +938,9 @@ namespace Tomahawk
 		}
 		int Socket::SetReadNotify(SocketReadCallback&& Callback)
 		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Callback, -1, "callback should not be empty");
+
 			Sync.IO.lock();
 			bool OK = ReadSet(std::move(Callback), nullptr, -1, 0);
 			Sync.IO.unlock();
@@ -930,7 +949,9 @@ namespace Tomahawk
 		}
 		int Socket::SetWriteNotify(SocketWriteCallback&& Callback)
 		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Callback, -1, "callback should not be empty");
+
 			Sync.IO.lock();
 			bool OK = WriteSet(std::move(Callback), nullptr, -1);
 			Sync.IO.unlock();
@@ -1080,14 +1101,29 @@ namespace Tomahawk
 		}
 		bool Socket::ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index)
 		{
-			TH_ASSERT(!Input, false, "there must be only one async read request at a time");
-			Input = TH_NEW(ReadEvent);
-			Input->Callback = std::move(Callback);
-			Input->Size = Size;
-			Input->Index = Index;
-			Input->Match = (Match ? strdup(Match) : nullptr);
-			Driver::Listen(this, false);
+			ReadEvent* New = TH_NEW(ReadEvent);
+			New->Callback = std::move(Callback);
+			New->Size = Size;
+			New->Index = Index;
+			New->Match = (Match ? strdup(Match) : nullptr);
 
+			if (Input != nullptr)
+			{
+				auto Callback = std::move(Input->Callback);
+				ReadFlush();
+				Input = New;
+				Driver::Listen(this, false);
+				Sync.IO.unlock();
+				if (Callback)
+					Callback(this, nullptr, 0);
+				Sync.IO.lock();
+			}
+			else
+			{
+				Input = New;
+				Driver::Listen(this, false);
+			}
+			
 			return true;
 		}
 		bool Socket::ReadFlush()
@@ -1104,18 +1140,33 @@ namespace Tomahawk
 		}
 		bool Socket::WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size)
 		{
-			TH_ASSERT(!Output, false, "there must be only one async write request at a time");
-			Output = TH_NEW(WriteEvent);
-			Output->Callback = std::move(Callback);
-			Output->Size = Size;
+			WriteEvent* New = TH_NEW(WriteEvent);
+			New->Callback = std::move(Callback);
+			New->Size = Size;
 
 			if (Size > 0)
 			{
-				Output->Buffer = (char*)TH_MALLOC((size_t)Size);
-				memcpy(Output->Buffer, Buffer, (size_t)Size);
+				New->Buffer = (char*)TH_MALLOC((size_t)Size);
+				memcpy(New->Buffer, Buffer, (size_t)Size);
 			}
 
-			Driver::Listen(this, false);
+			if (Output != nullptr)
+			{
+				auto Callback = std::move(Output->Callback);
+				WriteFlush();
+				Output = New;
+				Driver::Listen(this, false);
+				Sync.IO.unlock();
+				if (Callback)
+					Callback(this, 0);
+				Sync.IO.lock();
+			}
+			else
+			{
+				Output = New;
+				Driver::Listen(this, false);
+			}
+
 			return true;
 		}
 		bool Socket::WriteFlush()
@@ -1874,25 +1925,25 @@ namespace Tomahawk
 			if (!Router && State == ServerState::Idle)
 				return false;
 
+			State = ServerState::Stopping;
 			if (Core::Schedule::Get()->ClearTimeout(Timer))
 				Timer = -1;
-
-			Sync.lock();
-			auto Copy = Good;
-			State = ServerState::Stopping;
-			Sync.unlock();
-
-			for (auto It = Copy.begin(); It != Copy.end(); It++)
-			{
-				SocketConnection* Base = *It;
-				Base->Info.KeepAlive = 0;
-				Base->Info.Close = true;
-				Base->Stream->Clear(true);
-			}
 
 			TH_PPUSH("sock-srv-close", TH_PERF_HANG);
 			do
 			{
+				Sync.lock();
+				auto Copy = Good;
+				Sync.unlock();
+
+				for (auto* Base : Copy)
+				{
+					Base->Info.KeepAlive = 0;
+					Base->Info.Close = true;
+					if (Base->Stream->HasPendingData())
+						Base->Stream->Clear(true);
+				}
+
 				FreeQueued();
 				TH_PSIG();
 			} while (!Bad.empty() || !Good.empty());

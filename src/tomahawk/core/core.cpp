@@ -5222,8 +5222,7 @@ namespace Tomahawk
 		{
 			if (Resource != nullptr)
 			{
-				TH_TRACE("close fs %i", (int)GetFd());
-				fclose(Resource);
+				TH_CLOSE(Resource);
 				Resource = nullptr;
 			}
 
@@ -5309,11 +5308,7 @@ namespace Tomahawk
 		int FileStream::GetFd()
 		{
 			TH_ASSERT(Resource != nullptr, -1, "file should be opened");
-#ifdef TH_MICROSOFT
-			return _fileno(Resource);
-#else
-			return fileno(Resource);
-#endif
+			return TH_FILENO(Resource);
 		}
 		void* FileStream::GetBuffer()
 		{
@@ -5332,7 +5327,7 @@ namespace Tomahawk
 			Close();
 			if (!Path.empty())
 			{
-				fclose((FILE*)OS::File::Open(Path.c_str(), "w"));
+				TH_CLOSE((FILE*)OS::File::Open(Path.c_str(), "w"));
 				Open(Path.c_str(), FileMode::Binary_Write_Only);
 			}
 		}
@@ -6144,8 +6139,7 @@ namespace Tomahawk
 
 			TH_PPUSH("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data, (size_t)Length, 1, Stream);
-			TH_TRACE("close fs 0x%p", (void*)Stream);
-			fclose(Stream);
+			TH_CLOSE(Stream);
 			TH_PPOP();
 
 			return true;
@@ -6159,8 +6153,7 @@ namespace Tomahawk
 
 			TH_PPUSH("os-file-cwbuf", TH_PERF_IO);
 			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
-			TH_TRACE("close fs 0x%p", (void*)Stream);
-			fclose(Stream);
+			TH_CLOSE(Stream);
 			TH_PPOP();
 
 			return true;
@@ -6250,7 +6243,7 @@ namespace Tomahawk
 #else
 			FILE* Stream = fopen(Path, Mode);
 			if (Stream != nullptr)
-				fcntl(fileno(Stream), F_SETFD, FD_CLOEXEC);
+				fcntl(TH_FILENO(Stream), F_SETFD, FD_CLOEXEC);
 			TH_TRACE("[io] open fs %s %s", Mode, Path);
 			TH_PRET((void*)Stream);
 #endif
@@ -6297,8 +6290,7 @@ namespace Tomahawk
 			auto* Bytes = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Size + 1));
 			if (fread((char*)Bytes, sizeof(unsigned char), (size_t)Size, Stream) != (size_t)Size)
 			{
-				TH_TRACE("close fs 0x%p", (void*)Stream);
-				fclose(Stream);
+				TH_CLOSE(Stream);
 				TH_FREE(Bytes);
 
 				if (Length != nullptr)
@@ -6312,8 +6304,7 @@ namespace Tomahawk
 			if (Length != nullptr)
 				*Length = Size;
 
-			TH_TRACE("close fs 0x%p", (void*)Stream);
-			fclose(Stream);
+			TH_CLOSE(Stream);
 			TH_PPOP();
 
 			return Bytes;
@@ -6367,22 +6358,19 @@ namespace Tomahawk
 			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Length);
 			if (!Buffer)
 			{
-				TH_TRACE("close fs 0x%p", (void*)Stream);
-				fclose(Stream);
+				TH_CLOSE(Stream);
 				return std::vector<std::string>();
 			}
 
 			if (fread(Buffer, sizeof(char), (size_t)Length, Stream) != (size_t)Length)
 			{
-				TH_TRACE("close fs 0x%p", (void*)Stream);
-				fclose(Stream);
+				TH_CLOSE(Stream);
 				TH_FREE(Buffer);
 				return std::vector<std::string>();
 			}
 
 			std::string Result(Buffer, Length);
-			TH_TRACE("close fs 0x%p", (void*)Stream);
-			fclose(Stream);
+			TH_CLOSE(Stream);
 			TH_FREE(Buffer);
 
 			return Parser(&Result).Split('\n');
@@ -6542,11 +6530,11 @@ namespace Tomahawk
 			TH_ASSERT(Size > 0, false, "size should be greater than Zero");
 			TH_PPUSH("os-net-send", TH_PERF_NET);
 #ifdef TH_MICROSOFT
-			TH_PRET(TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(_fileno(Stream)), (DWORD)Size, 8192, nullptr, nullptr, 0) > 0);
+			TH_PRET(TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(TH_FILENO(Stream)), (DWORD)Size, 8192, nullptr, nullptr, 0) > 0);
 #elif defined(TH_APPLE)
-			TH_PRET(sendfile(fileno(Stream), Socket, 0, (off_t*)&Size, nullptr, 0));
+			TH_PRET(sendfile(TH_FILENO(Stream), Socket, 0, (off_t*)&Size, nullptr, 0));
 #elif defined(TH_UNIX)
-			TH_PRET(sendfile(Socket, fileno(Stream), nullptr, (size_t)Size) > 0);
+			TH_PRET(sendfile(Socket, TH_FILENO(Stream), nullptr, (size_t)Size) > 0);
 #else
 			TH_PPOP();
 			return false;
@@ -6566,11 +6554,7 @@ namespace Tomahawk
 		socket_t OS::Net::GetFd(FILE* Stream)
 		{
 			TH_ASSERT(Stream != nullptr, -1, "stream should be set");
-#ifdef TH_MICROSOFT
-			return _fileno(Stream);
-#else
-			return fileno(Stream);
-#endif
+			return TH_FILENO(Stream);
 		}
 
 		void OS::Process::Interrupt()

@@ -718,8 +718,10 @@ namespace Tomahawk
 
 		class TH_OUT STDPromise
 		{
+			friend VMContext;
+
 		private:
-			VMCContext* Context;
+			VMContext* Context;
 			STDAny* Future;
 			bool Flag;
 			int Ref;

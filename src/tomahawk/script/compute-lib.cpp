@@ -247,6 +247,90 @@ namespace Tomahawk
 			return A > B ? 1 : -1;
 		}
 
+		bool CURegisterVertices(VMManager* Engine)
+		{
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
+			VMGlobal& Register = Engine->Global();
+			Engine->BeginNamespace("CU");
+			VMTypeClass VVertex = Register.SetPod<Compute::Vertex>("Vertex");
+			VVertex.SetProperty<Compute::Vertex>("float PositionX", &Compute::Vertex::PositionX);
+			VVertex.SetProperty<Compute::Vertex>("float PositionY", &Compute::Vertex::PositionY);
+			VVertex.SetProperty<Compute::Vertex>("float PositionZ", &Compute::Vertex::PositionZ);
+			VVertex.SetProperty<Compute::Vertex>("float TexCoordX", &Compute::Vertex::TexCoordX);
+			VVertex.SetProperty<Compute::Vertex>("float TexCoordY", &Compute::Vertex::TexCoordY);
+			VVertex.SetProperty<Compute::Vertex>("float NormalX", &Compute::Vertex::NormalX);
+			VVertex.SetProperty<Compute::Vertex>("float NormalY", &Compute::Vertex::NormalY);
+			VVertex.SetProperty<Compute::Vertex>("float NormalZ", &Compute::Vertex::NormalZ);
+			VVertex.SetProperty<Compute::Vertex>("float TangentX", &Compute::Vertex::TangentX);
+			VVertex.SetProperty<Compute::Vertex>("float TangentY", &Compute::Vertex::TangentY);
+			VVertex.SetProperty<Compute::Vertex>("float TangentZ", &Compute::Vertex::TangentZ);
+			VVertex.SetProperty<Compute::Vertex>("float BitangentX", &Compute::Vertex::BitangentX);
+			VVertex.SetProperty<Compute::Vertex>("float BitangentY", &Compute::Vertex::BitangentY);
+			VVertex.SetProperty<Compute::Vertex>("float BitangentZ", &Compute::Vertex::BitangentZ);
+
+			VMTypeClass VSkinVertex = Register.SetPod<Compute::SkinVertex>("SkinVertex");
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float PositionX", &Compute::SkinVertex::PositionX);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float PositionY", &Compute::SkinVertex::PositionY);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float PositionZ", &Compute::SkinVertex::PositionZ);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float TexCoordX", &Compute::SkinVertex::TexCoordX);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float TexCoordY", &Compute::SkinVertex::TexCoordY);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float NormalX", &Compute::SkinVertex::NormalX);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float NormalY", &Compute::SkinVertex::NormalY);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float NormalZ", &Compute::SkinVertex::NormalZ);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float TangentX", &Compute::SkinVertex::TangentX);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float TangentY", &Compute::SkinVertex::TangentY);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float TangentZ", &Compute::SkinVertex::TangentZ);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float BitangentX", &Compute::SkinVertex::BitangentX);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float BitangentY", &Compute::SkinVertex::BitangentY);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float BitangentZ", &Compute::SkinVertex::BitangentZ);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointIndex0", &Compute::SkinVertex::JointIndex0);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointIndex1", &Compute::SkinVertex::JointIndex1);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointIndex2", &Compute::SkinVertex::JointIndex2);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointIndex3", &Compute::SkinVertex::JointIndex3);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointBias0", &Compute::SkinVertex::JointBias0);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointBias1", &Compute::SkinVertex::JointBias1);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointBias2", &Compute::SkinVertex::JointBias2);
+			VSkinVertex.SetProperty<Compute::SkinVertex>("float JointBias3", &Compute::SkinVertex::JointBias3);
+
+			VMTypeClass VShapeVertex = Register.SetPod<Compute::ShapeVertex>("ShapeVertex");
+			VShapeVertex.SetProperty<Compute::ShapeVertex>("float PositionX", &Compute::ShapeVertex::PositionX);
+			VShapeVertex.SetProperty<Compute::ShapeVertex>("float PositionY", &Compute::ShapeVertex::PositionY);
+			VShapeVertex.SetProperty<Compute::ShapeVertex>("float PositionZ", &Compute::ShapeVertex::PositionZ);
+			VShapeVertex.SetProperty<Compute::ShapeVertex>("float TexCoordX", &Compute::ShapeVertex::TexCoordX);
+			VShapeVertex.SetProperty<Compute::ShapeVertex>("float TexCoordY", &Compute::ShapeVertex::TexCoordY);
+
+			VMTypeClass VElementVertex = Register.SetPod<Compute::ElementVertex>("ElementVertex");
+			VElementVertex.SetProperty<Compute::ElementVertex>("float PositionX", &Compute::ElementVertex::PositionX);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float PositionY", &Compute::ElementVertex::PositionY);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float PositionZ", &Compute::ElementVertex::PositionZ);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float VelocityX", &Compute::ElementVertex::VelocityX);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float VelocityY", &Compute::ElementVertex::VelocityY);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float VelocityZ", &Compute::ElementVertex::VelocityZ);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float ColorX", &Compute::ElementVertex::ColorX);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float ColorY", &Compute::ElementVertex::ColorY);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float ColorZ", &Compute::ElementVertex::ColorZ);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float ColorW", &Compute::ElementVertex::ColorW);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float Scale", &Compute::ElementVertex::Scale);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float Rotation", &Compute::ElementVertex::Rotation);
+			VElementVertex.SetProperty<Compute::ElementVertex>("float Angular", &Compute::ElementVertex::Angular);
+			Engine->EndNamespace();
+
+			return true;
+		}
+		bool CURegisterRectangle(VMManager* Engine)
+		{
+			TH_ASSERT(Engine != nullptr, false, "manager should be set");
+			VMGlobal& Register = Engine->Global();
+			Engine->BeginNamespace("CU");
+			VMTypeClass VRectangle = Register.SetPod<Compute::Rectangle>("Rectangle");
+			VRectangle.SetProperty<Compute::Rectangle>("int64 Left", &Compute::Rectangle::Left);
+			VRectangle.SetProperty<Compute::Rectangle>("int64 Top", &Compute::Rectangle::Top);
+			VRectangle.SetProperty<Compute::Rectangle>("int64 Right", &Compute::Rectangle::Right);
+			VRectangle.SetProperty<Compute::Rectangle>("int64 Bottom", &Compute::Rectangle::Bottom);
+			Engine->EndNamespace();
+
+			return true;
+		}
 		bool CURegisterVector2(VMManager* Engine)
 		{
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");

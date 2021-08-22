@@ -1618,8 +1618,8 @@ namespace Tomahawk
 			};
 
 		private:
+			std::unordered_set<STDPromise*> Promises;
 			std::queue<Executable> Queue;
-			std::atomic<size_t> Promises;
 			std::atomic<size_t> Nests;
 			std::mutex Exchange;
 			ResumeCallback Notify[2];
@@ -1704,6 +1704,9 @@ namespace Tomahawk
 			bool ExecuteNotify(int State);
 			void ExecuteResume(const ResumeCallback& OnResume, int State);
 			void ExecuteNext();
+			void PromiseAwake(STDPromise* Base);
+			void PromiseSuspend(STDPromise* Base);
+			void PromiseResume(STDPromise* Base);
 
 		public:
 			static VMContext* Get(VMCContext* Context);
@@ -1730,6 +1733,13 @@ namespace Tomahawk
 			};
 
 		private:
+			struct
+			{
+				std::mutex General;
+				std::mutex Pool;
+			} Sync;
+
+		private:
 			static int ManagerUD;
 
 		private:
@@ -1742,7 +1752,6 @@ namespace Tomahawk
 			std::string DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
-			std::mutex Safe;
 			uint64_t Scope;
 			VMCManager* Engine;
 			VMGlobal Globals;

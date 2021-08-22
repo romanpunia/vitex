@@ -70,24 +70,98 @@ namespace Tomahawk
 			{
 			}
 
-			WebSocketFrame::WebSocketFrame() : State((uint32_t)WebSocketState::Handshake), Notifies(false), Error(false), Save(false), Base(nullptr), Codec(new WebCodec())
+			WebSocketFrame::WebSocketFrame() : State((uint32_t)WebSocketState::Open), Reset(false), Save(false), Base(nullptr), Codec(new WebCodec())
 			{
 			}
 			WebSocketFrame::~WebSocketFrame()
 			{
 				TH_RELEASE(Codec);
 			}
-			void WebSocketFrame::Write(const char* Data, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback)
+			void WebSocketFrame::Send(const char* Buffer, int64_t Size, WebSocketOp Opcode, const SuccessCallback& Callback)
 			{
-				Util::WebSocketWriteMask(Base, Data, Length, OpCode, 0, Callback);
+				Send(0, Buffer, Size, Opcode, Callback);
+			}
+			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, int64_t Size, WebSocketOp Opcode, const SuccessCallback& Callback)
+			{
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+
+				unsigned char Header[14];
+				size_t HeaderLength = 1;
+				Header[0] = 0x80 + ((size_t)Opcode & 0xF);
+
+				if (Size < 126)
+				{
+					Header[1] = (unsigned char)Size;
+					HeaderLength = 2;
+				}
+				else if (Size <= 65535)
+				{
+					uint16_t Length = htons((uint16_t)Size);
+					Header[1] = 126;
+					HeaderLength = 4;
+					memcpy(Header + 2, &Length, 2);
+				}
+				else
+				{
+					uint32_t Length1 = htonl((uint64_t)Size >> 32);
+					uint32_t Length2 = htonl(Size & 0xFFFFFFFF);
+					Header[1] = 127;
+					HeaderLength = 10;
+					memcpy(Header + 2, &Length1, 4);
+					memcpy(Header + 6, &Length2, 4);
+				}
+
+				if (Mask)
+				{
+					Header[1] |= 0x80;
+					memcpy(Header + HeaderLength, &Mask, 4);
+					HeaderLength += 4;
+				}
+
+				Base->Stream->WriteAsync((const char*)Header, HeaderLength, [Buffer, Size, Callback](Socket* Socket, int64_t State)
+				{
+					auto* Base = Socket->Context<HTTP::Connection>();
+					TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+					if (State < 0)
+					{
+						Base->WebSocket->Reset = true;
+						if (Callback)
+							Callback(Base);
+						Base->Break();
+					}
+					else if (Size <= 0)
+					{
+						if (Callback)
+							Callback(Base);
+					}
+					else
+					{
+						Base->Stream->WriteAsync(Buffer, Size, [Callback](Network::Socket* Socket, int64_t State)
+						{
+							auto* Base = Socket->Context<HTTP::Connection>();
+							TH_ASSERT_V(Base != nullptr, "socket should be set");
+
+							if (State < 0)
+							{
+								Base->WebSocket->Reset = true;
+								if (Callback)
+									Callback(Base);
+								Base->Break();
+							}
+							else if (Callback)
+								Callback(Base);
+						});
+					}
+				});
 			}
 			void WebSocketFrame::Finish()
 			{
-				if (Error || State == (uint32_t)WebSocketState::Free)
+				if (Reset || State == (uint32_t)WebSocketState::Close)
 					return Next();
 
-				State = (uint32_t)WebSocketState::Free;
-				Util::WebSocketWriteMask(Base, Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp::Close, 0, [this](HTTP::Connection*)
+				State = (uint32_t)WebSocketState::Close;
+				Send(Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp::Close, [this](HTTP::Connection*)
 				{
 					Next();
 					return true;
@@ -95,45 +169,123 @@ namespace Tomahawk
 			}
 			void WebSocketFrame::Next()
 			{
-				if (State & (uint32_t)WebSocketState::Free)
+				Section.lock();
+			Retry:
+				if (State == (uint32_t)WebSocketState::Receive)
 				{
-					if (Disconnect)
+					if (Base->Info.Close)
 					{
-						WebSocketCallback Callback = Disconnect;
-						Disconnect = nullptr;
-						return Callback(this);
+						State = (uint32_t)WebSocketState::Close;
+						goto Retry;
 					}
 
-					Save = true;
-					if (Base->Response.StatusCode <= 0)
-						Base->Response.StatusCode = 101;
-
-					Base->Info.KeepAlive = 0;
-					Base->Finish();
-				}
-				else if (State & (uint32_t)WebSocketState::Handshake)
-				{
-					if (Connect || Receive)
+					Base->Stream->SetReadNotify([this](Socket*, const char*, int64_t Size)
 					{
-						State = (uint32_t)WebSocketState::Active;
-						if (Connect)
-							Connect(this);
+						if (Size >= 0)
+							State = (uint32_t)WebSocketState::Process;
 						else
+							State = (uint32_t)WebSocketState::Close;
+
+						return Core::Schedule::Get()->SetTask([this]()
+						{
 							Next();
+						});
+					});
+				}
+				else if (State == (uint32_t)WebSocketState::Process)
+				{
+					char Buffer[8192];
+					while (true)
+					{
+						int Size = Base->Stream->Read(Buffer, sizeof(Buffer), [this](Socket*, const char* Buffer, int64_t Size)
+						{
+							if (Size > 0)
+								Codec->ParseFrame(Buffer, (size_t)Size);
+
+							return true;
+						});
+
+						if (Size == -1)
+						{
+							State = (uint32_t)WebSocketState::Close;
+							goto Retry;
+						}
+						else if (Size == -2)
+							break;
+					}
+
+					WebSocketOp Opcode;
+					State = (uint32_t)WebSocketState::Receive;
+					if (!Codec->GetFrame(&Opcode, &Codec->Data))
+						goto Retry;
+
+					if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
+					{
+						if (Opcode == WebSocketOp::Binary)
+							TH_TRACE("[websocket] sock %i frame binary\n\t%s", (int)Base->Stream->GetFd(), Compute::Common::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
+						else
+							TH_TRACE("[websocket] sock %i frame text\n\t%.*s", (int)Base->Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
+
+						if (Receive)
+						{
+							Section.unlock();
+							return Receive(this, Codec->Data.data(), (int64_t)Codec->Data.size(), (WebSocketOp)Opcode);
+						}
+					}
+					else if (Opcode == WebSocketOp::Ping)
+					{
+						TH_TRACE("[websocket] sock %i frame ping", (int)Base->Stream->GetFd());
+						Section.unlock();
+						return Send("", 0, WebSocketOp::Pong, [this](Connection*)
+						{
+							Next();
+							return true;
+						});
+					}
+					else if (Opcode == WebSocketOp::Close)
+					{
+						TH_TRACE("[websocket] sock %i frame close", (int)Base->Stream->GetFd());
+						Section.unlock();
+						return Finish();
+					}
+				}
+				else if (State == (uint32_t)WebSocketState::Close)
+				{
+					if (!Disconnect)
+					{
+						Save = true;
+						Section.unlock();
+						if (Base->Response.StatusCode <= 0)
+							Base->Response.StatusCode = 101;
+
+						Base->Info.KeepAlive = 0;
+						return (void)Base->Finish();
 					}
 					else
-						Finish();
+					{
+						WebSocketCallback Callback = std::move(Disconnect);
+						Section.unlock();
+						return Callback(this);
+					}
 				}
-				else
+				else if (State == (uint32_t)WebSocketState::Open)
 				{
-					Codec->Prepare();
-					Util::ProcessWebSocketPass(Base);
+					if (Connect || Receive || Disconnect)
+					{
+						State = (uint32_t)WebSocketState::Receive;
+						if (!Connect)
+							goto Retry;
+
+						Section.unlock();
+						return Connect(this);
+					}
+					else
+					{
+						Section.unlock();
+						return Finish();
+					}
 				}
-			}
-			void WebSocketFrame::Notify()
-			{
-				Notifies = true;
-				Base->Stream->Skip((uint32_t)SocketEvent::Read, 0);
+				Section.unlock();
 			}
 			bool WebSocketFrame::IsFinished()
 			{
@@ -147,9 +299,9 @@ namespace Tomahawk
 			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Size(DataSize), Compiler(nullptr), Base(nullptr), Buffer(Data), Save(false)
 			{
 			}
-			void GatewayFrame::Execute(Script::VMContext*, Script::VMPoll State)
+			void GatewayFrame::Execute(Script::VMContext* Ctx, Script::VMPoll State)
 			{
-				if (State == Script::VMPoll::Routine)
+				if (State == Script::VMPoll::Routine || State == Script::VMPoll::Continue)
 					return;
 
 				if (State == Script::VMPoll::Exception)
@@ -171,14 +323,12 @@ namespace Tomahawk
 
 				if (Base->WebSocket != nullptr)
 				{
-					if (State == Script::VMPoll::Continue || IsScheduled())
+					if (IsScheduled())
 						Base->WebSocket->Next();
-					else if (Base->WebSocket->State == (uint32_t)WebSocketState::Active || Base->WebSocket->State == (uint32_t)WebSocketState::Handshake)
-						Base->WebSocket->Finish();
 					else
-						Finish();
+						Base->WebSocket->Finish();
 				}
-				else if (State == Script::VMPoll::Finish || State == Script::VMPoll::Exception)
+				else
 					Finish();
 			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)
@@ -259,7 +409,9 @@ namespace Tomahawk
 				if (!Base->WebSocket)
 					return false;
 
-				if (Base->WebSocket->State != (uint32_t)WebSocketState::Active && Base->WebSocket->State != (uint32_t)WebSocketState::Handshake)
+				if (Base->WebSocket->State != (uint32_t)WebSocketState::Receive &&
+					Base->WebSocket->State != (uint32_t)WebSocketState::Process &&
+					Base->WebSocket->State != (uint32_t)WebSocketState::Open)
 					return false;
 
 				return
@@ -1177,8 +1329,7 @@ namespace Tomahawk
 							if (Callback)
 								Callback(Base, nullptr, Size);
 
-							TH_TRACE("close fs 0x%p", (void*)File);
-							fclose(File);
+							TH_CLOSE(File);
 							return false;
 						}
 
@@ -1186,8 +1337,7 @@ namespace Tomahawk
 							return true;
 
 						Base->Response.Data = Content::Save_Exception;
-						TH_TRACE("close fs 0x%p", (void*)File);
-						fclose(File);
+						TH_CLOSE(File);
 
 						if (Callback)
 							Callback(Base, nullptr, 0);
@@ -1845,8 +1995,7 @@ namespace Tomahawk
 						fwrite(Buffer, Size, 1, Stream);
 				});
 
-				TH_TRACE("close fs 0x%p", (void*)Stream);
-				fclose(Stream);
+				TH_CLOSE(Stream);
 				return true;
 			}
 			bool Session::Read(Connection* Base)
@@ -1861,24 +2010,21 @@ namespace Tomahawk
 				fseek(Stream, 0, SEEK_END);
 				if (ftell(Stream) == 0)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					return false;
 				}
 
 				fseek(Stream, 0, SEEK_SET);
 				if (fread(&SessionExpires, 1, sizeof(int64_t), Stream) != sizeof(int64_t))
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					return false;
 				}
 
 				if (SessionExpires <= time(nullptr))
 				{
 					SessionId.clear();
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 
 					if (!Core::OS::File::Remove(Document.c_str()))
 						TH_ERR("session file %s cannot be deleted", Document.c_str());
@@ -1901,8 +2047,7 @@ namespace Tomahawk
 					Query = V;
 				}
 
-				TH_TRACE("close fs 0x%p", (void*)Stream);
-				fclose(Stream);
+				TH_CLOSE(Stream);
 				return true;
 			}
 			std::string& Session::FindSessionId(Connection* Base)
@@ -2930,17 +3075,14 @@ namespace Tomahawk
 			WebCodec::WebCodec() : State(Bytecode::Begin), Fragment(0)
 			{
 			}
-			void WebCodec::Prepare()
-			{
-				Opcode = WebSocketOp::Continue;
-				Message.clear();
-			}
-			WebSocketOp WebCodec::ParseFrame(const char* Buffer, size_t Size)
+			bool WebCodec::ParseFrame(const char* Buffer, size_t Size)
 			{
 				if (!Buffer || !Size)
-					return WebSocketOp::Continue;
+					return !Queue.empty();
 
-				Payload.resize(Size);
+				if (Payload.capacity() <= Size)
+					Payload.resize(Size);
+
 				memcpy(Payload.data(), Buffer, sizeof(char) * Size);
 				char* Data = Payload.data();
 
@@ -2953,23 +3095,23 @@ namespace Tomahawk
 						{
 							uint8_t Op = Index & 0x0f;
 							if (Index & 0x70)
-								return WebSocketOp::Continue;
+								return !Queue.empty();
 
 							Final = (Index & 0x80) ? 1 : 0;
 							if (Op == 0)
 							{
 								if (!Fragment)
-									return WebSocketOp::Continue;
+									return !Queue.empty();
 
 								Control = 0;
 							}
 							else if (Op & 0x8)
 							{
 								if (Op != (uint8_t)WebSocketOp::Ping && Op != (uint8_t)WebSocketOp::Pong && Op != (uint8_t)WebSocketOp::Close)
-									return WebSocketOp::Continue;
+									return !Queue.empty();
 
 								if (!Final)
-									return WebSocketOp::Continue;
+									return !Queue.empty();
 
 								Control = 1;
 								Opcode = (WebSocketOp)Op;
@@ -2977,7 +3119,7 @@ namespace Tomahawk
 							else
 							{
 								if (Op != (uint8_t)WebSocketOp::Text && Op != (uint8_t)WebSocketOp::Binary)
-									return WebSocketOp::Continue;
+									return !Queue.empty();
 
 								Control = 0;
 								Fragment = !Final;
@@ -2997,7 +3139,7 @@ namespace Tomahawk
 							if (Control)
 							{
 								if (Length > 125)
-									return WebSocketOp::Continue;
+									return !Queue.empty();
 
 								Remains = Length;
 								State = Masked ? Bytecode::Mask_0 : Bytecode::End;
@@ -3014,7 +3156,10 @@ namespace Tomahawk
 
 							Data++; Size--;
 							if (State == Bytecode::End && Remains == 0)
+							{
+								Queue.emplace(std::make_pair(Opcode, std::vector<char>()));
 								goto FetchPayload;
+							}
 							break;
 						}
 						case Bytecode::Length_16_0:
@@ -3029,7 +3174,7 @@ namespace Tomahawk
 							Remains |= (uint64_t)Index << 0;
 							State = Masked ? Bytecode::Mask_0 : Bytecode::End;
 							if (Remains < 126)
-								return WebSocketOp::Continue;
+								return !Queue.empty();
 
 							Data++; Size--;
 							break;
@@ -3088,7 +3233,7 @@ namespace Tomahawk
 							Remains |= (uint64_t)Index << 0;
 							State = Masked ? Bytecode::Mask_0 : Bytecode::End;
 							if (Remains < 65536)
-								return WebSocketOp::Continue;
+								return !Queue.empty();
 
 							Data++; Size--;
 							break;
@@ -3120,7 +3265,10 @@ namespace Tomahawk
 							State = Bytecode::End;
 							Data++; Size--;
 							if (Remains == 0)
+							{
+								Queue.emplace(std::make_pair(Opcode, std::vector<char>()));
 								goto FetchPayload;
+							}
 							break;
 						}
 						case Bytecode::End:
@@ -3135,7 +3283,10 @@ namespace Tomahawk
 									Data[i] ^= Mask[Masks++ % 4];
 							}
 
-							TextAppend(Message, Data, Length);
+							std::vector<char> Message;
+							TextAssign(Message, Data, Length);
+							Queue.emplace(std::make_pair(Opcode, std::move(Message)));
+							Opcode = WebSocketOp::Continue;
 
 							Data += Length;
 							Size -= Length;
@@ -3147,13 +3298,28 @@ namespace Tomahawk
 					}
 				}
 
-				return WebSocketOp::Continue;
+				return !Queue.empty();
 			FetchPayload:
 				if (!Control && !Final)
-					return WebSocketOp::Continue;
+					return !Queue.empty();
 
 				State = Bytecode::Begin;
-				return Opcode;
+				return true;
+			}
+			bool WebCodec::GetFrame(WebSocketOp* Op, std::vector<char>* Message)
+			{
+				TH_ASSERT(Op != nullptr, false, "op should be set");
+				TH_ASSERT(Message != nullptr, false, "message should be set");
+				
+				if (Queue.empty())
+					return false;
+
+				auto& Base = Queue.front();
+				*Message = std::move(Base.second);
+				*Op = Base.first;
+				Queue.pop();
+
+				return true;
 			}
 
 			void Util::ConstructPath(Connection* Base)
@@ -3371,85 +3537,6 @@ namespace Tomahawk
 
 				Base->Route = It->second->Base;
 				return true;
-			}
-			bool Util::WebSocketWrite(Connection* Base, const char* Buffer, int64_t Size, WebSocketOp Opcode, const SuccessCallback& Callback)
-			{
-				return WebSocketWriteMask(Base, Buffer, Size, Opcode, 0, Callback);
-			}
-			bool Util::WebSocketWriteMask(Connection* Base, const char* Buffer, int64_t Size, WebSocketOp Opcode, unsigned int Mask, const SuccessCallback& Callback)
-			{
-				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				TH_ASSERT(Buffer != nullptr, false, "Dataer should be set");
-
-				unsigned char Header[14];
-				size_t HeaderLength = 1;
-				Header[0] = 0x80 + ((size_t)Opcode & 0xF);
-
-				if (Size < 126)
-				{
-					Header[1] = (unsigned char)Size;
-					HeaderLength = 2;
-				}
-				else if (Size <= 65535)
-				{
-					uint16_t Length = htons((uint16_t)Size);
-					Header[1] = 126;
-					HeaderLength = 4;
-					memcpy(Header + 2, &Length, 2);
-				}
-				else
-				{
-					uint32_t Length1 = htonl((uint64_t)Size >> 32);
-					uint32_t Length2 = htonl(Size & 0xFFFFFFFF);
-					Header[1] = 127;
-					HeaderLength = 10;
-					memcpy(Header + 2, &Length1, 4);
-					memcpy(Header + 6, &Length2, 4);
-				}
-
-				if (Mask)
-				{
-					Header[1] |= 0x80;
-					memcpy(Header + HeaderLength, &Mask, 4);
-					HeaderLength += 4;
-				}
-
-				return !Base->Stream->WriteAsync((const char*)Header, HeaderLength, [Buffer, Size, Callback](Socket* Socket, int64_t State)
-				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-					{
-						Base->WebSocket->Error = true;
-						if (Callback)
-							Callback(Base);
-						Base->Break();
-					}
-					else if (Size <= 0)
-					{
-						if (Callback)
-							Callback(Base);
-					}
-					else
-					{
-						Base->Stream->WriteAsync(Buffer, Size, [Callback](Network::Socket* Socket, int64_t State)
-						{
-							auto* Base = Socket->Context<HTTP::Connection>();
-							TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-							if (State < 0)
-							{
-								Base->WebSocket->Error = true;
-								if (Callback)
-									Callback(Base);
-								Base->Break();
-							}
-							else if (Callback)
-								Callback(Base);
-						});
-					}
-				});
 			}
 			bool Util::ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B)
 			{
@@ -3784,8 +3871,7 @@ namespace Tomahawk
 
 				if (Segment->Stream != nullptr)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Segment->Stream);
-					fclose(Segment->Stream);
+					TH_CLOSE(Segment->Stream);
 					return false;
 				}
 
@@ -3815,8 +3901,7 @@ namespace Tomahawk
 				if (!Segment || !Segment->Stream || !Segment->Request)
 					return false;
 
-				TH_TRACE("close fs 0x%p", (void*)Segment->Stream);
-				fclose(Segment->Stream);
+				TH_CLOSE(Segment->Stream);
 				Segment->Stream = nullptr;
 				Segment->Request->Resources.push_back(Segment->Source);
 
@@ -4344,13 +4429,13 @@ namespace Tomahawk
 					if (Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 206;
 #ifdef TH_MICROSOFT
-					if (_lseeki64(_fileno(Stream), Range1, SEEK_SET) != 0)
+					if (_lseeki64(TH_FILENO(Stream), Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #elif defined(TH_APPLE)
 					if (fseek(Stream, Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #else
-					if (lseek64(fileno(Stream), Range1, SEEK_SET) != 0)
+					if (lseek64(TH_FILENO(Stream), Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #endif
 				}
@@ -4361,8 +4446,7 @@ namespace Tomahawk
 				{
 					if (Size < 0)
 					{
-						TH_TRACE("close fs 0x%p", (void*)Stream);
-						fclose(Stream);
+						TH_CLOSE(Stream);
 						return Base->Break();
 					}
 					else if (Size > 0)
@@ -4377,8 +4461,7 @@ namespace Tomahawk
 					Core::Parser Content;
 					Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
 
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					if (Base->Route->Callbacks.Headers)
 						Base->Route->Callbacks.Headers(Base, nullptr);
 
@@ -4880,24 +4963,21 @@ namespace Tomahawk
 					return Base->Error(500, "System denied to open resource stream.");
 
 #ifdef TH_MICROSOFT
-				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
+				if (Range > 0 && _lseeki64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
 				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #else
-				if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
+				if (Range > 0 && lseek64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #endif
@@ -4913,16 +4993,14 @@ namespace Tomahawk
 
 				if (Router->State != ServerState::Working)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					return Base->Break();
 				}
 
 				if (!Result)
 					return ProcessFileChunk(Base, Router, Stream, ContentLength);
 
-				TH_TRACE("close fs 0x%p", (void*)Stream);
-				fclose(Stream);
+				TH_CLOSE(Stream);
 				return Base->Finish();
 			}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
@@ -4934,8 +5012,7 @@ namespace Tomahawk
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
@@ -4954,8 +5031,7 @@ namespace Tomahawk
 
 					if (State < 0)
 					{
-						TH_TRACE("close fs 0x%p", (void*)Stream);
-						fclose(Stream);
+						TH_CLOSE(Stream);
 						return (void)Base->Break();
 					}
 
@@ -5013,24 +5089,21 @@ namespace Tomahawk
 					return Base->Error(500, "System denied to open resource stream.");
 
 #ifdef TH_MICROSOFT
-				if (Range > 0 && _lseeki64(_fileno(Stream), Range, SEEK_SET) == -1)
+				if (Range > 0 && _lseeki64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #elif defined(TH_APPLE)
 				if (Range > 0 && fseek(Stream, Range, SEEK_SET) == -1)
 				{
-					fclose(Stream);
-					TH_TRACE("close fs 0x%p", (void*)Stream);
+					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #else
-				if (Range > 0 && lseek64(fileno(Stream), Range, SEEK_SET) == -1)
+				if (Range > 0 && lseek64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
-					fclose(Stream);
-					TH_TRACE("close fs 0x%p", (void*)Stream);
+					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #endif
@@ -5043,16 +5116,14 @@ namespace Tomahawk
 
 				if (deflateInit2(ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? MAX_WBITS + 16 : MAX_WBITS), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) != Z_OK)
 				{
-					TH_TRACE("close fs 0x%p", (void*)Stream);
-					fclose(Stream);
+					TH_CLOSE(Stream);
 					TH_FREE(ZStream);
 					return Base->Break();
 				}
 
 				return ProcessFileCompressChunk(Base, Server, Stream, ZStream, ContentLength);
 #else
-				fclose(Stream);
-				TH_TRACE("close fs 0x%p", (void*)Stream);
+				TH_CLOSE(Stream);
 				return Base->Error(500, "Cannot process gzip stream.");
 #endif
 			}
@@ -5063,12 +5134,11 @@ namespace Tomahawk
 				TH_ASSERT(Stream != nullptr, false, "stream should be set");
 				TH_ASSERT(CStream != nullptr, false, "cstream should be set");
 #ifdef TH_HAS_ZLIB
-#define FREE_STREAMING { fclose(Stream); deflateEnd(ZStream); TH_FREE(ZStream); }
+#define FREE_STREAMING { TH_CLOSE(Stream); deflateEnd(ZStream); TH_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
-					TH_TRACE("close fs 0x%p", (void*)Stream);
 					FREE_STREAMING;
 					if (Router->State != ServerState::Working)
 						return Base->Break();
@@ -5191,15 +5261,13 @@ namespace Tomahawk
 
 						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
 						{
-							TH_TRACE("close fs 0x%p", (void*)Stream);
-							fclose(Stream);
+							TH_CLOSE(Stream);
 							TH_FREE(Buffer);
 							return (void)Base->Error(500, "Gateway resource stream exception.");
 						}
 
 						Buffer[Size] = '\0';
-						TH_TRACE("close fs 0x%p", (void*)Stream);
-						fclose(Stream);
+						TH_CLOSE(Stream);
 					}
 
 					Base->Gateway = TH_NEW(GatewayFrame, Buffer, Size);
@@ -5267,73 +5335,7 @@ namespace Tomahawk
 						ProcessGateway(Base);
 				});
 			}
-			bool Util::ProcessWebSocketPass(Connection* Base, const char* Buffer, size_t Size)
-			{
-				if (!Base || !Base->WebSocket)
-					return false;
-
-				WebSocketFrame* WebSocket = Base->WebSocket;
-				if (WebSocket->Notifies)
-				{
-					WebSocket->Notifies = false;
-					if (WebSocket->Notification)
-					{
-						WebSocket->Notification(WebSocket);
-						return true;
-					}
-				}
-
-				WebSocketOp Opcode = WebSocket->Codec->ParseFrame(Buffer, Size);
-				if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
-				{
-#ifdef _DEBUG
-					if (Opcode == WebSocketOp::Binary)
-						TH_TRACE("[websocket] sock %i with %s", (int)Base->Stream->GetFd(), Compute::Common::HexEncode(WebSocket->Codec->Message.data(), WebSocket->Codec->Message.size()).c_str());
-					else
-						TH_TRACE("[websocket] sock %i with %.*s", (int)Base->Stream->GetFd(), (int)WebSocket->Codec->Message.size(), WebSocket->Codec->Message.data());
-#endif
-					if (WebSocket->Receive)
-						WebSocket->Receive(WebSocket, WebSocket->Codec->Message.data(), (int64_t)WebSocket->Codec->Message.size(), (WebSocketOp)Opcode);
-
-					return false;
-				}
-				else if (Opcode == WebSocketOp::Ping)
-				{
-					WebSocket->Write("", 0, WebSocketOp::Pong, [](Connection* Base)
-					{
-						Base->WebSocket->Next();
-						return true;
-					});
-					return false;
-				}
-				else if (Opcode == WebSocketOp::Close || (Opcode != WebSocketOp::Continue && Opcode != WebSocketOp::Pong))
-				{
-					WebSocket->Finish();
-					return false;
-				}
-
-				if (Buffer != nullptr || Size > 0)
-					return true;
-
-				return !Base->Stream->ReadAsync(8192, [](Socket* Socket, const char* Buffer, int64_t Size)
-				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-					if (Size < 0)
-					{
-						if (Size != -2)
-							Base->WebSocket->Error = true;
-
-						return Base->Break();
-					}
-					else if (Size > 0)
-						return ProcessWebSocketPass(Base, Buffer, (size_t)Size);
-
-					return ProcessWebSocketPass(Base);
-				});
-			}
-
+	
 			Server::Server() : SocketServer()
 			{
 			}

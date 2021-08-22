@@ -264,10 +264,10 @@ namespace Tomahawk
 
 		struct TH_OUT Rectangle
 		{
-			long Left;
-			long Top;
-			long Right;
-			long Bottom;
+			int64_t Left;
+			int64_t Top;
+			int64_t Right;
+			int64_t Bottom;
 		};
 
 		struct TH_OUT Vector2

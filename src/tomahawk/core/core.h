@@ -19,6 +19,7 @@
 #include <string>
 #include <condition_variable>
 #include <atomic>
+#include <limits>
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef TH_EXPORT
 #define TH_OUT __declspec(dllimport)
@@ -80,6 +81,7 @@
 #ifdef TH_MICROSOFT
 #define TH_COCALL __stdcall
 #define TH_CODATA void* Context
+#define TH_FILENO _fileno
 #ifdef TH_64
 typedef uint64_t socket_t;
 #else
@@ -94,6 +96,7 @@ typedef void* epoll_handle;
 #else
 #define TH_CODATA int X
 #endif
+#define TH_FILENO fileno
 #include <sys/socket.h>
 typedef int epoll_handle;
 typedef int socket_t;
@@ -173,6 +176,7 @@ typedef socklen_t socket_size_t;
 #define TH_OPOP(Id) Tomahawk::Core::Debug::OpPop((void*)(Id))
 #define TH_ORET(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::OpPop((void*)(Id)); return __vfbuf; }
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FILE, TH_FUNCTION, "coawait of [ " TH_STRINGIFY(Value) " ]", TH_LINE)
+#define TH_CLOSE(Stream) { TH_TRACE("close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
 #else
 #define TH_ASSERT(Condition, Returnable, Format, ...) ((void)0)
 #define TH_ASSERT_V(Condition, Format, ...) ((void)0)
@@ -185,6 +189,7 @@ typedef socklen_t socket_size_t;
 #define TH_OPOP(Id) ((void)0)
 #define TH_ORET(Id, Value) return Value
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
+#define TH_CLOSE(Stream) fclose(Stream)
 #endif
 #define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_STACKSIZE (512 * 1024)

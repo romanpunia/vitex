@@ -35,6 +35,8 @@ namespace Tomahawk
 {
 	namespace Script
 	{
+		class STDPromise;
+
 		struct VMModule;
 
 		struct VMFunction;
@@ -1604,7 +1606,7 @@ namespace Tomahawk
 
 		class TH_OUT VMContext : public Core::Object
 		{
-			friend class STDPromise;
+			friend STDPromise;
 
 		private:
 			static int ContextUD;

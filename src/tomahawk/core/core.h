@@ -1446,6 +1446,9 @@ namespace Tomahawk
 			void Clear();
 			void Save();
 
+		private:
+			void Attach(Document* Root);
+
 		public:
 			static bool Transform(Document* Value, const DocNameCallback& Callback);
 			static bool WriteXML(Document* Value, const DocWriteCallback& Callback);

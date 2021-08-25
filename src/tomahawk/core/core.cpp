@@ -453,7 +453,28 @@ namespace Tomahawk
 		}
 		int64_t Decimal::ToInt64() const
 		{
-			return (int64_t)ToDouble();
+			if (Invalid || Source.empty())
+				return 0;
+
+			std::string Result;
+			if (Sign == '-')
+				Result += Sign;
+
+			int Offset = 0, Size = Length;
+			while ((Source[Offset] == '0') && (Size > 0))
+			{
+				Offset++;
+				Size--;
+			}
+
+			for (int i = Source.size() - 1; i >= Offset; i--)
+			{
+				Result += Source[i];
+				if ((i == Length) && (i != 0) && Offset != Length)
+					break;
+			}
+
+			return strtoll(Result.c_str(), nullptr, 10);
 		}
 		std::string Decimal::ToString() const
 		{
@@ -3241,14 +3262,18 @@ namespace Tomahawk
 		Parser& Parser::Insert(const char& Char, uint64_t Position, uint64_t Count)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
+			if (Position >= L->size())
+				Position = L->size();
+
 			L->insert(Position, Count, Char);
 			return *this;
 		}
 		Parser& Parser::Insert(const char& Char, uint64_t Position)
 		{
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
+			if (Position >= L->size())
+				Position = L->size();
+
 			L->insert(L->begin() + Position, Char);
 			return *this;
 		}
@@ -8046,7 +8071,6 @@ namespace Tomahawk
 		}
 		Document* Document::Set(const std::string& Name, const Variant& Base)
 		{
-			Saved = false;
 			if (Value.Type == VarType::Object)
 			{
 				for (auto Node : Nodes)
@@ -8056,6 +8080,7 @@ namespace Tomahawk
 						Node->Value = Base;
 						Node->Saved = false;
 						Node->Nodes.clear();
+						Saved = false;
 
 						return Node;
 					}
@@ -8064,15 +8089,13 @@ namespace Tomahawk
 
 			Document* Result = new Document(Base);
 			Result->Key.assign(Name);
-			Result->Saved = false;
-			Result->Parent = this;
+			Result->Attach(this);
 
 			Nodes.push_back(Result);
 			return Result;
 		}
 		Document* Document::Set(const std::string& Name, Variant&& Base)
 		{
-			Saved = false;
 			if (Value.Type == VarType::Object)
 			{
 				for (auto Node : Nodes)
@@ -8082,6 +8105,7 @@ namespace Tomahawk
 						Node->Value = std::move(Base);
 						Node->Saved = false;
 						Node->Nodes.clear();
+						Saved = false;
 
 						return Node;
 					}
@@ -8090,8 +8114,7 @@ namespace Tomahawk
 
 			Document* Result = new Document(std::move(Base));
 			Result->Key.assign(Name);
-			Result->Saved = false;
-			Result->Parent = this;
+			Result->Attach(this);
 
 			Nodes.push_back(Result);
 			return Result;
@@ -8102,9 +8125,7 @@ namespace Tomahawk
 				return Set(Name, Var::Null());
 
 			Base->Key.assign(Name);
-			Base->Saved = false;
-			Base->Parent = this;
-			Saved = false;
+			Base->Attach(this);
 
 			if (Value.Type == VarType::Object)
 			{
@@ -8138,9 +8159,7 @@ namespace Tomahawk
 		Document* Document::Push(const Variant& Base)
 		{
 			Document* Result = new Document(Base);
-			Result->Saved = false;
-			Result->Parent = this;
-			Saved = false;
+			Result->Attach(this);
 
 			Nodes.push_back(Result);
 			return Result;
@@ -8148,9 +8167,7 @@ namespace Tomahawk
 		Document* Document::Push(Variant&& Base)
 		{
 			Document* Result = new Document(std::move(Base));
-			Result->Saved = false;
-			Result->Parent = this;
-			Saved = false;
+			Result->Attach(this);
 
 			Nodes.push_back(Result);
 			return Result;
@@ -8160,10 +8177,7 @@ namespace Tomahawk
 			if (!Base)
 				return Push(Var::Null());
 
-			Base->Saved = false;
-			Base->Parent = this;
-			Saved = false;
-
+			Base->Attach(this);
 			Nodes.push_back(Base);
 			return Base;
 		}
@@ -8266,10 +8280,9 @@ namespace Tomahawk
 				for (auto& Node : Other->Nodes)
 				{
 					Document* Result = Node->Copy();
-					Result->Saved = false;
-					Result->Parent = this;
-					Saved = false;
+					Result->Attach(this);
 
+					bool Append = true;
 					if (Value.Type == VarType::Array && !Fast)
 					{
 						for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
@@ -8279,11 +8292,13 @@ namespace Tomahawk
 								(*It)->Parent = nullptr;
 								TH_RELEASE(*It);
 								*It = Result;
+								Append = false;
 								break;
 							}
 						}
 					}
-					else
+
+					if (Append)
 						Nodes.push_back(Result);
 				}
 			}
@@ -8327,6 +8342,25 @@ namespace Tomahawk
 			}
 
 			Saved = true;
+		}
+		void Document::Attach(Document* Root)
+		{
+			Saved = false;
+			if (Parent != nullptr)
+			{
+				for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); ++It)
+				{
+					if (*It == this)
+					{
+						Parent->Nodes.erase(It);
+						break;
+					}
+				}
+			}
+
+			Parent = Root;
+			if (Parent != nullptr)
+				Parent->Saved = false;
 		}
 		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
 		{

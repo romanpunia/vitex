@@ -1,5 +1,6 @@
 #include "compute.h"
 #include <cctype>
+#include <random>
 #ifdef TH_WITH_BULLET3
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
@@ -12,6 +13,8 @@
 #endif
 #ifdef TH_MICROSOFT
 #include <Windows.h>
+#else
+#include <time.h>
 #endif
 #ifdef TH_HAS_OPENSSL
 extern "C"
@@ -7054,13 +7057,6 @@ namespace Tomahawk
 			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
 			Bitangent = Bitangent.sNormalize();
 		}
-		void Common::Randomize()
-		{
-			srand((unsigned int)time(nullptr));
-#ifdef TH_HAS_OPENSSL
-			RAND_poll();
-#endif
-		}
 		void Common::SetTransformPivot(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale)
 		{
 			TH_ASSERT_V(In != nullptr, "transform should be set");
@@ -7196,19 +7192,7 @@ namespace Tomahawk
 		unsigned char Common::RandomUC()
 		{
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-			return Alphabet[rand() % (sizeof(Alphabet) - 1)];
-		}
-		uint64_t Common::RandomNumber(uint64_t Min, uint64_t Max)
-		{
-			uint64_t Raw = 0;
-			if (Min > Max)
-				return Raw;
-#ifdef TH_HAS_OPENSSL
-			RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t));
-#else
-			Raw = (int64_t)rand();
-#endif
-			return Raw % (Max - Min + 1) + Min;
+			return Alphabet[(size_t)(Random() % (sizeof(Alphabet) - 1))];
 		}
 		uint64_t Common::Utf8(int code, char* Buffer)
 		{
@@ -8088,7 +8072,27 @@ namespace Tomahawk
 			Cast.F = Cast.F * (1.5f - (X * Cast.F * Cast.F));
 			return Cast.F;
 		}
+		uint64_t Common::Random(uint64_t Min, uint64_t Max)
+		{
+			uint64_t Raw = 0;
+			if (Min > Max)
+				return Raw;
+#ifdef TH_HAS_OPENSSL
+			RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t));
+#else
+			Raw = Random();
+#endif
+			return Raw % (Max - Min + 1) + Min;
+		}
+		uint64_t Common::Random()
+		{
+			static std::random_device Device;
+			static std::mt19937 Engine(Device());
+			static std::uniform_int_distribution<uint64_t> Range;
 
+			return Range(Engine);
+		}
+		
 		WebToken::WebToken() : Header(nullptr), Payload(nullptr), Token(nullptr)
 		{
 		}

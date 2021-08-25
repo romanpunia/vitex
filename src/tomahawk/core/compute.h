@@ -1182,175 +1182,6 @@ namespace Tomahawk
 			}
 		};
 
-		template <typename T>
-		class TH_OUT Math
-		{
-		public:
-			static T Rad2Deg()
-			{
-				return (T)57.2957795130f;
-			}
-			static T Deg2Rad()
-			{
-				return (T)0.01745329251f;
-			}
-			static T Pi()
-			{
-				return (T)3.14159265359f;
-			}
-			static T Sqrt(T Value)
-			{
-				return (T)std::sqrt((double)Value);
-			}
-			static T Abs(T Value)
-			{
-				return Value < 0 ? -Value : Value;
-			}
-			static T Atan(T Angle)
-			{
-				return (T)std::atan((double)Angle);
-			}
-			static T Atan2(T Angle0, T Angle1)
-			{
-				return (T)std::atan2((double)Angle0, (double)Angle1);
-			}
-			static T Acos(T Angle)
-			{
-				return (T)std::acos((double)Angle);
-			}
-			static T Asin(T Angle)
-			{
-				return (T)std::asin((double)Angle);
-			}
-			static T Cos(T Angle)
-			{
-				return (T)std::cos((double)Angle);
-			}
-			static T Sin(T Angle)
-			{
-				return (T)std::sin((double)Angle);
-			}
-			static T Tan(T Angle)
-			{
-				return (T)std::tan((double)Angle);
-			}
-			static T Acotan(T Angle)
-			{
-				return (T)std::atan(1.0 / (double)Angle);
-			}
-			static T Max(T Value1, T Value2)
-			{
-				return Value1 > Value2 ? Value1 : Value2;
-			}
-			static T Min(T Value1, T Value2)
-			{
-				return Value1 < Value2 ? Value1 : Value2;
-			}
-			static T Floor(T Value)
-			{
-				return (T)std::floor((double)Value);
-			}
-			static T Lerp(T A, T B, T DeltaTime)
-			{
-				return A + DeltaTime * (B - A);
-			}
-			static T StrongLerp(T A, T B, T Time)
-			{
-				return ((T)1.0 - Time) * A + Time * B;
-			}
-			static T SaturateAngle(T Angle)
-			{
-				return (T)std::atan2(std::sin((double)Angle), std::cos((double)Angle));
-			}
-			static T AngluarLerp(T A, T B, T DeltaTime)
-			{
-				if (A == B)
-					return A;
-
-				Vector2 ACircle = Vector2(cosf((float)A), sinf((float)A));
-				Vector2 BCircle = Vector2(cosf((float)B), sinf((float)B));
-				Vector2 Interpolation = ACircle.Lerp(BCircle, DeltaTime);
-
-				return (T)std::atan2(Interpolation.Y, Interpolation.X);
-			}
-			static T AngleDistance(T A, T B)
-			{
-				return (T)Vector2(std::cos((float)A), std::sin((float)A)).Distance(Vector2(std::cos((float)B), std::sin((float)B)));
-			}
-			static T Saturate(T Value)
-			{
-				return Min(Max(Value, 0.0), 1.0);
-			}
-			static T Random(T Number0, T Number1)
-			{
-				if (Number0 == Number1)
-					return Number0;
-
-				return (T)((double)Number0 + ((double)Number1 - (double)Number0) / RAND_MAX * rand());
-			}
-			static T Round(T Value)
-			{
-				return (T)std::round((double)Value);
-			}
-			static T Random()
-			{
-				return (T)rand() / ((T)RAND_MAX + 1.0f);
-			}
-			static T RandomMag()
-			{
-				return (T)2.0 / RAND_MAX * rand() - (T)1.0;
-			}
-			static T Pow(T Value0, T Value1)
-			{
-				return (T)std::pow((double)Value0, (double)Value1);
-			}
-			static T Pow2(T Value0)
-			{
-				return Value0 * Value0;
-			}
-			static T Pow3(T Value0)
-			{
-				return Value0 * Value0 * Value0;
-			}
-			static T Pow4(T Value0)
-			{
-				T Value = Value0 * Value0;
-				return Value * Value;
-			}
-			static T Clamp(T Value, T pMin, T pMax)
-			{
-				return Min(Max(Value, pMin), pMax);
-			}
-			static T Select(T A, T B)
-			{
-				if (rand() < RAND_MAX / 2)
-					return B;
-
-				return A;
-			}
-			static T Cotan(T Value)
-			{
-				return (T)(1.0 / std::tan((double)Value));
-			}
-			static bool NearEqual(T A, T B, T Factor = (T)1.0f)
-			{
-				T fMin = A - (A - std::nextafter(A, std::numeric_limits<T>::lowest())) * Factor;
-				T fMax = A + (std::nextafter(A, std::numeric_limits<T>::max()) - A) * Factor;
-
-				return fMin <= B && fMax >= B;
-			}
-			static void Swap(T& Value0, T& Value1)
-			{
-				T Value2 = Value0;
-				Value0 = Value1;
-				Value1 = Value2;
-			}
-		};
-
-		typedef Math<float> Mathf;
-		typedef Math<double> Mathd;
-		typedef Math<int> Mathi;
-
 		class TH_OUT Ciphers
 		{
 		public:
@@ -1561,7 +1392,6 @@ namespace Tomahawk
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
 			static void SetTransformPivot(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale);
 			static void SetTransformRoot(Transform* In, Transform* Root);
-			static void Randomize();
 			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
 			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
 			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
@@ -1605,7 +1435,6 @@ namespace Tomahawk
 			static Hybi10Request Hybi10Decode(const std::string& Data);
 			static unsigned char RandomUC();
 			static uint64_t Utf8(int code, char* Buffer);
-			static uint64_t RandomNumber(uint64_t Begin, uint64_t End);
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
@@ -1613,6 +1442,8 @@ namespace Tomahawk
 			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit = nullptr);
 			static uint64_t CRC32(const std::string& Data);
 			static float FastInvSqrt(float Value);
+			static uint64_t Random(uint64_t Min, uint64_t Max);
+			static uint64_t Random();
 		};
 
 		class TH_OUT Regex
@@ -2318,6 +2149,175 @@ namespace Tomahawk
 			static btCollisionShape* CreateUnmanagedShape(std::vector<Vertex>& Mesh);
 			static btCollisionShape* CreateUnmanagedShape(btCollisionShape* From);
 		};
+
+		template <typename T>
+		class TH_OUT Math
+		{
+		public:
+			static T Rad2Deg()
+			{
+				return (T)57.2957795130f;
+			}
+			static T Deg2Rad()
+			{
+				return (T)0.01745329251f;
+			}
+			static T Pi()
+			{
+				return (T)3.14159265359f;
+			}
+			static T Sqrt(T Value)
+			{
+				return (T)std::sqrt((double)Value);
+			}
+			static T Abs(T Value)
+			{
+				return Value < 0 ? -Value : Value;
+			}
+			static T Atan(T Angle)
+			{
+				return (T)std::atan((double)Angle);
+			}
+			static T Atan2(T Angle0, T Angle1)
+			{
+				return (T)std::atan2((double)Angle0, (double)Angle1);
+			}
+			static T Acos(T Angle)
+			{
+				return (T)std::acos((double)Angle);
+			}
+			static T Asin(T Angle)
+			{
+				return (T)std::asin((double)Angle);
+			}
+			static T Cos(T Angle)
+			{
+				return (T)std::cos((double)Angle);
+			}
+			static T Sin(T Angle)
+			{
+				return (T)std::sin((double)Angle);
+			}
+			static T Tan(T Angle)
+			{
+				return (T)std::tan((double)Angle);
+			}
+			static T Acotan(T Angle)
+			{
+				return (T)std::atan(1.0 / (double)Angle);
+			}
+			static T Max(T Value1, T Value2)
+			{
+				return Value1 > Value2 ? Value1 : Value2;
+			}
+			static T Min(T Value1, T Value2)
+			{
+				return Value1 < Value2 ? Value1 : Value2;
+			}
+			static T Floor(T Value)
+			{
+				return (T)std::floor((double)Value);
+			}
+			static T Lerp(T A, T B, T DeltaTime)
+			{
+				return A + DeltaTime * (B - A);
+			}
+			static T StrongLerp(T A, T B, T Time)
+			{
+				return ((T)1.0 - Time) * A + Time * B;
+			}
+			static T SaturateAngle(T Angle)
+			{
+				return (T)std::atan2(std::sin((double)Angle), std::cos((double)Angle));
+			}
+			static T AngluarLerp(T A, T B, T DeltaTime)
+			{
+				if (A == B)
+					return A;
+
+				Vector2 ACircle = Vector2(cosf((float)A), sinf((float)A));
+				Vector2 BCircle = Vector2(cosf((float)B), sinf((float)B));
+				Vector2 Interpolation = ACircle.Lerp(BCircle, DeltaTime);
+
+				return (T)std::atan2(Interpolation.Y, Interpolation.X);
+			}
+			static T AngleDistance(T A, T B)
+			{
+				return (T)Vector2(std::cos((float)A), std::sin((float)A)).Distance(Vector2(std::cos((float)B), std::sin((float)B)));
+			}
+			static T Saturate(T Value)
+			{
+				return Min(Max(Value, 0.0), 1.0);
+			}
+			static T Random(T Number0, T Number1)
+			{
+				if (Number0 == Number1)
+					return Number0;
+
+				return (T)((double)Number0 + ((double)Number1 - (double)Number0) / std::numeric_limits<uint64_t>::max() * Common::Random());
+			}
+			static T Round(T Value)
+			{
+				return (T)std::round((double)Value);
+			}
+			static T Random()
+			{
+				return ((T)Common::Random() / std::numeric_limits<uint64_t>::max()) + (T)1.0;
+			}
+			static T RandomMag()
+			{
+				return (T)2.0 / std::numeric_limits<uint64_t>::max() * Random() - (T)1.0;
+			}
+			static T Pow(T Value0, T Value1)
+			{
+				return (T)std::pow((double)Value0, (double)Value1);
+			}
+			static T Pow2(T Value0)
+			{
+				return Value0 * Value0;
+			}
+			static T Pow3(T Value0)
+			{
+				return Value0 * Value0 * Value0;
+			}
+			static T Pow4(T Value0)
+			{
+				T Value = Value0 * Value0;
+				return Value * Value;
+			}
+			static T Clamp(T Value, T pMin, T pMax)
+			{
+				return Min(Max(Value, pMin), pMax);
+			}
+			static T Select(T A, T B)
+			{
+				if (Common::Random() < std::numeric_limits<uint64_t>::max() / 2)
+					return B;
+
+				return A;
+			}
+			static T Cotan(T Value)
+			{
+				return (T)(1.0 / std::tan((double)Value));
+			}
+			static bool NearEqual(T A, T B, T Factor = (T)1.0f)
+			{
+				T fMin = A - (A - std::nextafter(A, std::numeric_limits<T>::lowest())) * Factor;
+				T fMax = A + (std::nextafter(A, std::numeric_limits<T>::max()) - A) * Factor;
+
+				return fMin <= B && fMax >= B;
+			}
+			static void Swap(T& Value0, T& Value1)
+			{
+				T Value2 = Value0;
+				Value0 = Value1;
+				Value1 = Value2;
+			}
+		};
+
+		typedef Math<float> Mathf;
+		typedef Math<double> Mathd;
+		typedef Math<int> Mathi;
 	}
 }
 #endif

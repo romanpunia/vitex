@@ -319,6 +319,7 @@ namespace Tomahawk
 			SSL_library_init();
 			SSL_load_error_strings();
 			FIPS_mode_set(1);
+			RAND_poll();
 
 			int Count = CRYPTO_num_locks();
 			CryptoLocks = TH_NEW(std::vector<std::shared_ptr<std::mutex>>);
@@ -432,9 +433,6 @@ namespace Tomahawk
 			glewExperimental = true;
 #endif
 		}
-
-		if (Modes & (uint64_t)Init::Compute)
-			Compute::Common::Randomize();
 
 		if (Modes & (uint64_t)Init::Locale)
 		{

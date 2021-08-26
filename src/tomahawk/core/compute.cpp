@@ -11385,7 +11385,8 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
-			Instance->setAxis(V3_TO_BT(Value));
+			btVector3 Axis = V3_TO_BT(Value);
+			Instance->setAxis(Axis);
 #endif
 		}
 		int HConstraint::GetSolveLimit()

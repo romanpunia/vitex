@@ -1,6 +1,5 @@
 #ifndef TH_GRAPHICS_OPENGL45_H
 #define TH_GRAPHICS_OPENGL45_H
-
 #include "../core/graphics.h"
 #ifdef TH_MICROSOFT
 #include <Windows.h>

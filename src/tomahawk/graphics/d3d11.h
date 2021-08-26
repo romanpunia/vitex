@@ -1,8 +1,6 @@
 #ifndef TH_GRAPHICS_D3D11_H
 #define TH_GRAPHICS_D3D11_H
-
 #include "../core/graphics.h"
-
 #ifdef TH_MICROSOFT
 #include <d3d11.h>
 #include <d3dcompiler.h>

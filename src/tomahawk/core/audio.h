@@ -1,6 +1,5 @@
 #ifndef TH_AUDIO_H
 #define TH_AUDIO_H
-
 #include "compute.h"
 
 namespace Tomahawk

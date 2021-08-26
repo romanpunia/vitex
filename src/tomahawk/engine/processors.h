@@ -1,6 +1,5 @@
 #ifndef TH_ENGINE_PROCESSORS_H
 #define TH_ENGINE_PROCESSORS_H
-
 #include "../core/engine.h"
 
 namespace Tomahawk

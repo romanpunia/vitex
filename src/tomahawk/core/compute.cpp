@@ -26,6 +26,8 @@ extern "C"
 #endif
 #define V3_TO_BT(V) btVector3(V.X, V.Y, V.Z)
 #define BT_TO_V3(V) Vector3(V.getX(), V.getY(), V.getZ())
+#define Q4_TO_BT(V) btQuaternion(V.X, V.Y, V.Z, V.W)
+#define BT_TO_Q4(V) Quaternion(V.getX(), V.getY(), V.getZ(), V.getW())
 #define REGEX_FAIL(A, B) if (A) return (B)
 #define REGEX_FAIL_IN(A, B) if (A) { State = B; return; }
 #define MAKE_ADJ_TRI(x) ((x) & 0x3fffffff)
@@ -105,11 +107,10 @@ namespace
 		}
 	};
 
-	Tomahawk::Compute::Matrix4x4 BT_TO_M16(btTransform* In)
+	Tomahawk::Compute::Matrix4x4 BT_TO_M16(const btTransform& In)
 	{
 		Tomahawk::Compute::Matrix4x4 Result;
-		TH_ASSERT(In != nullptr, Result, "transform should be set");
-		btMatrix3x3 Offset = In->getBasis();
+		const btMatrix3x3& Offset = In.getBasis();
 		Result.Row[0] = Offset[0][0];
 		Result.Row[1] = Offset[1][0];
 		Result.Row[2] = Offset[2][0];
@@ -119,6 +120,32 @@ namespace
 		Result.Row[8] = Offset[0][2];
 		Result.Row[9] = Offset[1][2];
 		Result.Row[10] = Offset[2][2];
+
+		const btVector3& Origin = In.getOrigin();
+		Result.Row[12] = Origin.x();
+		Result.Row[13] = Origin.y();
+		Result.Row[14] = -Origin.z();
+
+		return Result;
+	}
+	btTransform M16_TO_BT(const Tomahawk::Compute::Matrix4x4& In)
+	{
+		btMatrix3x3 Offset;
+		Offset[0][0] = In.Row[0];
+		Offset[1][0] = In.Row[1];
+		Offset[2][0] = In.Row[2];
+		Offset[0][1] = In.Row[4];
+		Offset[1][1] = In.Row[5];
+		Offset[2][1] = In.Row[6];
+		Offset[0][2] = In.Row[8];
+		Offset[1][2] = In.Row[9];
+		Offset[2][2] = In.Row[10];
+
+		btTransform Result;
+		Result.setBasis(Offset);
+
+		Tomahawk::Compute::Vector3 Position = In.Position();
+		Result.setOrigin(V3_TO_BT(Position));
 
 		return Result;
 	}
@@ -9362,10 +9389,10 @@ namespace Tomahawk
 						switch (Type)
 						{
 							case SLIDER_CONSTRAINT_TYPE:
-								if (((SliderConstraint*)Ptr)->First == Instance)
-									((SliderConstraint*)Ptr)->First = nullptr;
-								else if (((SliderConstraint*)Ptr)->Second == Instance)
-									((SliderConstraint*)Ptr)->Second = nullptr;
+								if (((SConstraint*)Ptr)->First == Instance)
+									((SConstraint*)Ptr)->First = nullptr;
+								else if (((SConstraint*)Ptr)->Second == Instance)
+									((SConstraint*)Ptr)->Second = nullptr;
 								break;
 							default:
 								break;
@@ -9481,8 +9508,11 @@ namespace Tomahawk
 			btTransform Offset;
 			Instance->getMotionState()->getWorldTransform(Offset);
 
-			Vector3 Rotation = BT_TO_M16(&Offset).Rotation();
-			Offset.getBasis().setEulerZYX(Rotation.Z + Torque.Z, Rotation.Y + Torque.Y, Rotation.X + Torque.X);
+			btScalar X, Y, Z;
+			Offset.getRotation().getEulerZYX(Z, Y, X);
+
+			Vector3 Rotation(-X, -Y, Z);
+			Offset.getBasis().setEulerZYX(Rotation.X + Torque.X, Rotation.Y + Torque.Y, Rotation.Z + Torque.Z);
 
 			btVector3 Origin = Offset.getOrigin();
 			Origin.setX(Origin.getX() + Velocity.X);
@@ -9878,7 +9908,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btRigidBody* RigidBody::Bullet()
+		btRigidBody* RigidBody::Get()
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -10341,7 +10371,7 @@ namespace Tomahawk
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
 			TH_ASSERT_V(Body != nullptr, "body should be set");
-			Instance->appendAnchor(Node, Body->Bullet(), DisableCollisionBetweenLinkedBodies, Influence);
+			Instance->appendAnchor(Node, Body->Get(), DisableCollisionBetweenLinkedBodies, Influence);
 #endif
 		}
 		void SoftBody::AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies, float Influence)
@@ -10349,7 +10379,7 @@ namespace Tomahawk
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
 			TH_ASSERT_V(Body != nullptr, "body should be set");
-			Instance->appendAnchor(Node, Body->Bullet(), V3_TO_BT(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
+			Instance->appendAnchor(Node, Body->Get(), V3_TO_BT(LocalPivot), DisableCollisionBetweenLinkedBodies, Influence);
 #endif
 		}
 		void SoftBody::AddForce(const Vector3& Force)
@@ -10862,7 +10892,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btSoftBody* SoftBody::Bullet()
+		btSoftBody* SoftBody::Get()
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -11045,38 +11075,503 @@ namespace Tomahawk
 #endif
 		}
 
-		SliderConstraint::SliderConstraint(Simulator* Refer, const Desc& I) : First(nullptr), Second(nullptr), Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
+		Constraint::Constraint(Simulator* Refer) : First(nullptr), Second(nullptr), Engine(Refer), UserPointer(nullptr)
+		{
+		}
+		void Constraint::SetBreakingImpulseThreshold(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(I.Target1 != nullptr && I.Target2 != nullptr, "target rigidbodies should be set");
-			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
-
-			First = I.Target1->Bullet();
-			Second = I.Target2->Bullet();
-			Instance = TH_NEW(btSliderConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.UseLinearPower);
-			Instance->setUserConstraintPtr(this);
-			Instance->setUpperLinLimit(20);
-			Instance->setLowerLinLimit(10);
-
-			Engine->AddSliderConstraint(this);
+			btTypedConstraint* Base = Get();
+			TH_ASSERT_V(Base != nullptr, "typed constraint should be initialized");
+			Base->setBreakingImpulseThreshold(Value);
 #endif
 		}
-		SliderConstraint::~SliderConstraint()
+		void Constraint::SetEnabled(bool Value)
 		{
 #ifdef TH_WITH_BULLET3
-			Engine->RemoveSliderConstraint(this);
+			btTypedConstraint* Base = Get();
+			TH_ASSERT_V(Base != nullptr, "typed constraint should be initialized");
+			Base->setEnabled(Value);
+#endif
+		}
+		btRigidBody* Constraint::GetFirst()
+		{
+#ifdef TH_WITH_BULLET3
+			return First;
+#else
+			return nullptr;
+#endif
+		}
+		btRigidBody* Constraint::GetSecond()
+		{
+#ifdef TH_WITH_BULLET3
+			return Second;
+#else
+			return nullptr;
+#endif
+		}
+		float Constraint::GetBreakingImpulseThreshold()
+		{
+#ifdef TH_WITH_BULLET3
+			btTypedConstraint* Base = Get();
+			TH_ASSERT(Base != nullptr, 0, "typed constraint should be initialized");
+			return Base->getBreakingImpulseThreshold();
+#else
+			return 0;
+#endif
+		}
+		bool Constraint::IsActive()
+		{
+#ifdef TH_WITH_BULLET3
+			btTypedConstraint* Base = Get();
+			if (!Base || !First || !Second)
+				return false;
+
+			if (First != nullptr)
+			{
+				for (int i = 0; i < First->getNumConstraintRefs(); i++)
+				{
+					if (First->getConstraintRef(i) == Base)
+						return true;
+				}
+			}
+
+			if (Second != nullptr)
+			{
+				for (int i = 0; i < Second->getNumConstraintRefs(); i++)
+				{
+					if (Second->getConstraintRef(i) == Base)
+						return true;
+				}
+			}
+
+			return false;
+#else
+			return false;
+#endif
+		}
+		bool Constraint::IsEnabled()
+		{
+#ifdef TH_WITH_BULLET3
+			btTypedConstraint* Base = Get();
+			TH_ASSERT(Base != nullptr, false, "typed constraint should be initialized");
+			return Base->isEnabled();
+#else
+			return false;
+#endif
+		}
+		Simulator* Constraint::GetSimulator()
+		{
+			return Engine;
+		}
+
+		PConstraint::PConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
+			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
+
+			First = I.TargetA->Get();
+			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
+
+			if (Second != nullptr)
+				Instance = TH_NEW(btPoint2PointConstraint, *First, *Second, V3_TO_BT(I.PivotA), V3_TO_BT(I.PivotB));
+			else
+				Instance = TH_NEW(btPoint2PointConstraint, *First, V3_TO_BT(I.PivotA));
+
+			Instance->setUserConstraintPtr(this);
+			Engine->AddConstraint(this);
+#endif
+		}
+		PConstraint::~PConstraint()
+		{
+#ifdef TH_WITH_BULLET3
+			Engine->RemoveConstraint(this);
+			TH_DELETE(btPoint2PointConstraint, Instance);
+#endif
+		}
+		Constraint* PConstraint::Copy()
+		{
+			TH_ASSERT(Instance != nullptr, nullptr, "p2p constraint should be initialized");
+			PConstraint* Target = new PConstraint(Engine, State);
+			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
+			Target->SetEnabled(IsEnabled());
+			Target->SetPivotA(GetPivotA());
+			Target->SetPivotB(GetPivotB());
+
+			return Target;
+		}
+		btTypedConstraint* PConstraint::Get()
+		{
+#ifdef TH_WITH_BULLET3
+			return Instance;
+#else
+			return nullptr;
+#endif
+		}
+		bool PConstraint::HasCollisions()
+		{
+			return State.Collisions;
+		}
+		void PConstraint::SetPivotA(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "p2p constraint should be initialized");
+			Instance->setPivotA(V3_TO_BT(Value));
+			State.PivotA = Value;
+#endif
+		}
+		void PConstraint::SetPivotB(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "p2p constraint should be initialized");
+			Instance->setPivotB(V3_TO_BT(Value));
+			State.PivotB = Value;
+#endif
+		}
+		Vector3 PConstraint::GetPivotA()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "p2p constraint should be initialized");
+			const btVector3& Value = Instance->getPivotInA();
+			return BT_TO_V3(Value);
+#else
+			return 0;
+#endif
+		}
+		Vector3 PConstraint::GetPivotB()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "p2p constraint should be initialized");
+			const btVector3& Value = Instance->getPivotInB();
+			return BT_TO_V3(Value);
+#else
+			return 0;
+#endif
+		}
+		PConstraint::Desc& PConstraint::GetState()
+		{
+			return State;
+		}
+
+		HConstraint::HConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
+			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
+
+			First = I.TargetA->Get();
+			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
+
+			if (Second != nullptr)
+				Instance = TH_NEW(btHingeConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.References);
+			else
+				Instance = TH_NEW(btHingeConstraint, *First, btTransform::getIdentity(), I.References);
+
+			Instance->setUserConstraintPtr(this);
+			Engine->AddConstraint(this);
+#endif
+		}
+		HConstraint::~HConstraint()
+		{
+#ifdef TH_WITH_BULLET3
+			Engine->RemoveConstraint(this);
+			TH_DELETE(btHingeConstraint, Instance);
+#endif
+		}
+		Constraint* HConstraint::Copy()
+		{
+			TH_ASSERT(Instance != nullptr, nullptr, "hinge constraint should be initialized");
+			HConstraint* Target = new HConstraint(Engine, State);
+			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
+			Target->SetEnabled(IsEnabled());
+			Target->EnableAngularMotor(IsAngularMotorEnabled(), GetMotorTargetVelocity(), GetMaxMotorImpulse());
+			Target->SetAngularOnly(IsAngularOnly());
+			Target->SetLimit(GetLowerLimit(), GetUpperLimit(), GetLimitSoftness(), GetLimitBiasFactor(), GetLimitRelaxationFactor());
+			Target->SetOffset(IsOffset());
+
+			return Target;
+		}
+		btTypedConstraint* HConstraint::Get()
+		{
+#ifdef TH_WITH_BULLET3
+			return Instance;
+#else
+			return nullptr;
+#endif
+		}
+		bool HConstraint::HasCollisions()
+		{
+			return State.Collisions;
+		}
+		void HConstraint::EnableAngularMotor(bool Enable, float TargetVelocity, float MaxMotorImpulse)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->enableAngularMotor(Enable, TargetVelocity, MaxMotorImpulse);
+#endif
+		}
+		void HConstraint::EnableMotor(bool Enable)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->enableMotor(Enable);
+#endif
+		}
+		void HConstraint::TestLimit(const Matrix4x4& A, const Matrix4x4& B)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->testLimit(M16_TO_BT(A), M16_TO_BT(B));
+#endif
+		}
+		void HConstraint::SetFrames(const Matrix4x4& A, const Matrix4x4& B)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setFrames(M16_TO_BT(A), M16_TO_BT(B));
+#endif
+		}
+		void HConstraint::SetAngularOnly(bool Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setAngularOnly(Value);
+#endif
+		}
+		void HConstraint::SetMaxMotorImpulse(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setMaxMotorImpulse(Value);
+#endif
+		}
+		void HConstraint::SetMotorTargetVelocity(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setMotorTargetVelocity(Value);
+#endif
+		}
+		void HConstraint::SetMotorTarget(float TargetAngle, float Delta)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setMotorTarget(TargetAngle, Delta);
+#endif
+		}
+		void HConstraint::SetLimit(float Low, float High, float Softness, float BiasFactor, float RelaxationFactor)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setLimit(Low, High, Softness, BiasFactor, RelaxationFactor);
+#endif
+		}
+		void HConstraint::SetOffset(bool Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setUseFrameOffset(Value);
+#endif
+		}
+		void HConstraint::SetReferenceToA(bool Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setUseReferenceFrameA(Value);
+#endif
+		}
+		void HConstraint::SetAxis(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "hinge constraint should be initialized");
+			Instance->setAxis(V3_TO_BT(Value));
+#endif
+		}
+		int HConstraint::GetSolveLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getSolveLimit();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetMotorTargetVelocity()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getMotorTargetVelocity();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetMaxMotorImpulse()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getMaxMotorImpulse();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetLimitSign()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getLimitSign();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetHingeAngle()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getHingeAngle();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetHingeAngle(const Matrix4x4& A, const Matrix4x4& B)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getHingeAngle(M16_TO_BT(A), M16_TO_BT(B));
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetLowerLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getLowerLimit();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetUpperLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getUpperLimit();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetLimitSoftness()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getLimitSoftness();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetLimitBiasFactor()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getLimitBiasFactor();
+#else
+			return 0;
+#endif
+		}
+		float HConstraint::GetLimitRelaxationFactor()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getLimitRelaxationFactor();
+#else
+			return 0;
+#endif
+		}
+		bool HConstraint::HasLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->hasLimit();
+#else
+			return 0;
+#endif
+		}
+		bool HConstraint::IsOffset()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getUseFrameOffset();
+#else
+			return 0;
+#endif
+		}
+		bool HConstraint::IsReferenceToA()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getUseReferenceFrameA();
+#else
+			return 0;
+#endif
+		}
+		bool HConstraint::IsAngularOnly()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getAngularOnly();
+#else
+			return 0;
+#endif
+		}
+		bool HConstraint::IsAngularMotorEnabled()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getEnableAngularMotor();
+#else
+			return 0;
+#endif
+		}
+		HConstraint::Desc& HConstraint::GetState()
+		{
+			return State;
+		}
+
+		SConstraint::SConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
+			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
+
+			First = I.TargetA->Get();
+			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
+
+			if (Second != nullptr)
+				Instance = TH_NEW(btSliderConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity(), I.Linear);
+			else
+				Instance = TH_NEW(btSliderConstraint, *First, btTransform::getIdentity(), I.Linear);
+
+			Instance->setUserConstraintPtr(this);
+			Engine->AddConstraint(this);
+#endif
+		}
+		SConstraint::~SConstraint()
+		{
+#ifdef TH_WITH_BULLET3
+			Engine->RemoveConstraint(this);
 			TH_DELETE(btSliderConstraint, Instance);
 #endif
 		}
-		SliderConstraint* SliderConstraint::Copy()
+		Constraint* SConstraint::Copy()
 		{
 			TH_ASSERT(Instance != nullptr, nullptr, "slider constraint should be initialized");
-			SliderConstraint* Target = new SliderConstraint(Engine, Initial);
+			SConstraint* Target = new SConstraint(Engine, State);
+			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
+			Target->SetEnabled(IsEnabled());
 			Target->SetAngularMotorVelocity(GetAngularMotorVelocity());
 			Target->SetLinearMotorVelocity(GetLinearMotorVelocity());
 			Target->SetUpperLinearLimit(GetUpperLinearLimit());
 			Target->SetLowerLinearLimit(GetLowerLinearLimit());
-			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
 			Target->SetAngularDampingDirection(GetAngularDampingDirection());
 			Target->SetLinearDampingDirection(GetLinearDampingDirection());
 			Target->SetAngularDampingLimit(GetAngularDampingLimit());
@@ -11101,221 +11596,10 @@ namespace Tomahawk
 			Target->SetLinearSoftnessOrtho(GetLinearSoftnessOrtho());
 			Target->SetPoweredAngularMotor(GetPoweredAngularMotor());
 			Target->SetPoweredLinearMotor(GetPoweredLinearMotor());
-			Target->SetEnabled(IsEnabled());
 
 			return Target;
 		}
-		void SliderConstraint::SetAngularMotorVelocity(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setTargetAngMotorVelocity(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearMotorVelocity(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setTargetLinMotorVelocity(Value);
-#endif
-		}
-		void SliderConstraint::SetUpperLinearLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setUpperLinLimit(Value);
-#endif
-		}
-		void SliderConstraint::SetLowerLinearLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setLowerLinLimit(Value);
-#endif
-		}
-		void SliderConstraint::SetBreakingImpulseThreshold(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setBreakingImpulseThreshold(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularDampingDirection(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setDampingDirAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearDampingDirection(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setDampingDirLin(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularDampingLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setDampingLimAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearDampingLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setDampingLimLin(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularDampingOrtho(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setDampingOrthoAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearDampingOrtho(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setDampingOrthoLin(Value);
-#endif
-		}
-		void SliderConstraint::SetUpperAngularLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setUpperAngLimit(Value);
-#endif
-		}
-		void SliderConstraint::SetLowerAngularLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setLowerAngLimit(Value);
-#endif
-		}
-		void SliderConstraint::SetMaxAngularMotorForce(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setMaxAngMotorForce(Value);
-#endif
-		}
-		void SliderConstraint::SetMaxLinearMotorForce(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setMaxLinMotorForce(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularRestitutionDirection(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setRestitutionDirAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearRestitutionDirection(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setRestitutionDirLin(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularRestitutionLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setRestitutionLimAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearRestitutionLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setRestitutionLimLin(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularRestitutionOrtho(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setRestitutionOrthoAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearRestitutionOrtho(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setRestitutionOrthoLin(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularSoftnessDirection(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setSoftnessDirAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearSoftnessDirection(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setSoftnessDirLin(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularSoftnessLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setSoftnessLimAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearSoftnessLimit(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setSoftnessLimLin(Value);
-#endif
-		}
-		void SliderConstraint::SetAngularSoftnessOrtho(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setSoftnessOrthoAng(Value);
-#endif
-		}
-		void SliderConstraint::SetLinearSoftnessOrtho(float Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setSoftnessOrthoLin(Value);
-#endif
-		}
-		void SliderConstraint::SetPoweredAngularMotor(bool Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setPoweredAngMotor(Value);
-#endif
-		}
-		void SliderConstraint::SetPoweredLinearMotor(bool Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setPoweredLinMotor(Value);
-#endif
-		}
-		void SliderConstraint::SetEnabled(bool Value)
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
-			Instance->setEnabled(Value);
-#endif
-		}
-		btSliderConstraint* SliderConstraint::Bullet()
+		btTypedConstraint* SConstraint::Get()
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -11323,23 +11607,207 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btRigidBody* SliderConstraint::GetFirst()
+		bool SConstraint::HasCollisions()
+		{
+			return State.Collisions;
+		}
+		void SConstraint::SetAngularMotorVelocity(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			return First;
-#else
-			return nullptr;
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setTargetAngMotorVelocity(Value);
 #endif
 		}
-		btRigidBody* SliderConstraint::GetSecond()
+		void SConstraint::SetLinearMotorVelocity(float Value)
 		{
 #ifdef TH_WITH_BULLET3
-			return Second;
-#else
-			return nullptr;
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setTargetLinMotorVelocity(Value);
 #endif
 		}
-		float SliderConstraint::GetAngularMotorVelocity()
+		void SConstraint::SetUpperLinearLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setUpperLinLimit(Value);
+#endif
+		}
+		void SConstraint::SetLowerLinearLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setLowerLinLimit(Value);
+#endif
+		}
+		void SConstraint::SetAngularDampingDirection(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingDirAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearDampingDirection(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingDirLin(Value);
+#endif
+		}
+		void SConstraint::SetAngularDampingLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingLimAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearDampingLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingLimLin(Value);
+#endif
+		}
+		void SConstraint::SetAngularDampingOrtho(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingOrthoAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearDampingOrtho(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setDampingOrthoLin(Value);
+#endif
+		}
+		void SConstraint::SetUpperAngularLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setUpperAngLimit(Value);
+#endif
+		}
+		void SConstraint::SetLowerAngularLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setLowerAngLimit(Value);
+#endif
+		}
+		void SConstraint::SetMaxAngularMotorForce(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setMaxAngMotorForce(Value);
+#endif
+		}
+		void SConstraint::SetMaxLinearMotorForce(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setMaxLinMotorForce(Value);
+#endif
+		}
+		void SConstraint::SetAngularRestitutionDirection(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionDirAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearRestitutionDirection(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionDirLin(Value);
+#endif
+		}
+		void SConstraint::SetAngularRestitutionLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionLimAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearRestitutionLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionLimLin(Value);
+#endif
+		}
+		void SConstraint::SetAngularRestitutionOrtho(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionOrthoAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearRestitutionOrtho(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setRestitutionOrthoLin(Value);
+#endif
+		}
+		void SConstraint::SetAngularSoftnessDirection(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessDirAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearSoftnessDirection(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessDirLin(Value);
+#endif
+		}
+		void SConstraint::SetAngularSoftnessLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessLimAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearSoftnessLimit(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessLimLin(Value);
+#endif
+		}
+		void SConstraint::SetAngularSoftnessOrtho(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessOrthoAng(Value);
+#endif
+		}
+		void SConstraint::SetLinearSoftnessOrtho(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setSoftnessOrthoLin(Value);
+#endif
+		}
+		void SConstraint::SetPoweredAngularMotor(bool Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setPoweredAngMotor(Value);
+#endif
+		}
+		void SConstraint::SetPoweredLinearMotor(bool Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "slider constraint should be initialized");
+			Instance->setPoweredLinMotor(Value);
+#endif
+		}
+		float SConstraint::GetAngularMotorVelocity()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11348,7 +11816,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearMotorVelocity()
+		float SConstraint::GetLinearMotorVelocity()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11357,7 +11825,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetUpperLinearLimit()
+		float SConstraint::GetUpperLinearLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11366,7 +11834,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLowerLinearLimit()
+		float SConstraint::GetLowerLinearLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11375,16 +11843,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetBreakingImpulseThreshold()
-		{
-#ifdef TH_WITH_BULLET3
-			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
-			return Instance->getBreakingImpulseThreshold();
-#else
-			return 0;
-#endif
-		}
-		float SliderConstraint::GetAngularDampingDirection()
+		float SConstraint::GetAngularDampingDirection()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11393,7 +11852,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearDampingDirection()
+		float SConstraint::GetLinearDampingDirection()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11402,7 +11861,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularDampingLimit()
+		float SConstraint::GetAngularDampingLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11411,7 +11870,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearDampingLimit()
+		float SConstraint::GetLinearDampingLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11420,7 +11879,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularDampingOrtho()
+		float SConstraint::GetAngularDampingOrtho()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11429,7 +11888,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearDampingOrtho()
+		float SConstraint::GetLinearDampingOrtho()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11438,7 +11897,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetUpperAngularLimit()
+		float SConstraint::GetUpperAngularLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11447,7 +11906,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLowerAngularLimit()
+		float SConstraint::GetLowerAngularLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11456,7 +11915,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetMaxAngularMotorForce()
+		float SConstraint::GetMaxAngularMotorForce()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11465,7 +11924,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetMaxLinearMotorForce()
+		float SConstraint::GetMaxLinearMotorForce()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11474,7 +11933,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularRestitutionDirection()
+		float SConstraint::GetAngularRestitutionDirection()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11483,7 +11942,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearRestitutionDirection()
+		float SConstraint::GetLinearRestitutionDirection()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11492,7 +11951,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularRestitutionLimit()
+		float SConstraint::GetAngularRestitutionLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11501,7 +11960,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearRestitutionLimit()
+		float SConstraint::GetLinearRestitutionLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11510,7 +11969,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularRestitutionOrtho()
+		float SConstraint::GetAngularRestitutionOrtho()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11519,7 +11978,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearRestitutionOrtho()
+		float SConstraint::GetLinearRestitutionOrtho()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11528,7 +11987,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularSoftnessDirection()
+		float SConstraint::GetAngularSoftnessDirection()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11537,7 +11996,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearSoftnessDirection()
+		float SConstraint::GetLinearSoftnessDirection()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11546,7 +12005,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularSoftnessLimit()
+		float SConstraint::GetAngularSoftnessLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11555,7 +12014,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearSoftnessLimit()
+		float SConstraint::GetLinearSoftnessLimit()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11564,7 +12023,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetAngularSoftnessOrtho()
+		float SConstraint::GetAngularSoftnessOrtho()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11573,7 +12032,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SliderConstraint::GetLinearSoftnessOrtho()
+		float SConstraint::GetLinearSoftnessOrtho()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -11582,7 +12041,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool SliderConstraint::GetPoweredAngularMotor()
+		bool SConstraint::GetPoweredAngularMotor()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
@@ -11591,7 +12050,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool SliderConstraint::GetPoweredLinearMotor()
+		bool SConstraint::GetPoweredLinearMotor()
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
@@ -11600,52 +12059,653 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool SliderConstraint::IsConnected()
+		SConstraint::Desc& SConstraint::GetState()
+		{
+			return State;
+		}
+
+		CTConstraint::CTConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef TH_WITH_BULLET3
-			if (!First || !Second)
-				return false;
+			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
+			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
 
-			bool CollisionState = false;
-			for (int i = 0; i < First->getNumConstraintRefs(); i++)
-			{
-				if (First->getConstraintRef(i) == Instance)
-				{
-					CollisionState = true;
-					break;
-				}
-			}
+			First = I.TargetA->Get();
+			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
 
-			if (!CollisionState)
-				return false;
+			if (Second != nullptr)
+				Instance = TH_NEW(btConeTwistConstraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity());
+			else
+				Instance = TH_NEW(btConeTwistConstraint, *First, btTransform::getIdentity());
 
-			for (int i = 0; i < Second->getNumConstraintRefs(); i++)
-			{
-				if (Second->getConstraintRef(i) == Instance)
-					return true;
-			}
-
-			return false;
-#else
-			return false;
+			Instance->setUserConstraintPtr(this);
+			Engine->AddConstraint(this);
 #endif
 		}
-		bool SliderConstraint::IsEnabled()
+		CTConstraint::~CTConstraint()
 		{
 #ifdef TH_WITH_BULLET3
-			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
-			return Instance->isEnabled();
-#else
-			return false;
+			Engine->RemoveConstraint(this);
+			TH_DELETE(btConeTwistConstraint, Instance);
 #endif
 		}
-		SliderConstraint::Desc& SliderConstraint::GetInitialState()
+		Constraint* CTConstraint::Copy()
 		{
-			return Initial;
+			TH_ASSERT(Instance != nullptr, nullptr, "cone-twist constraint should be initialized");
+			CTConstraint* Target = new CTConstraint(Engine, State);
+			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
+			Target->SetEnabled(IsEnabled());
+			Target->EnableMotor(IsMotorEnabled());
+			Target->SetAngularOnly(IsAngularOnly());
+			Target->SetLimit(GetSwingSpan1(), GetSwingSpan2(), GetTwistSpan(), GetLimitSoftness(), GetBiasFactor(), GetRelaxationFactor());
+			Target->SetDamping(GetDamping());
+			Target->SetFixThresh(GetFixThresh());
+			Target->SetMotorTarget(GetMotorTarget());
+
+			if (IsMaxMotorImpulseNormalized())
+				Target->SetMaxMotorImpulseNormalized(GetMaxMotorImpulse());
+			else
+				Target->SetMaxMotorImpulse(GetMaxMotorImpulse());
+
+			return Target;
 		}
-		Simulator* SliderConstraint::GetSimulator()
+		btTypedConstraint* CTConstraint::Get()
 		{
-			return Engine;
+#ifdef TH_WITH_BULLET3
+			return Instance;
+#else
+			return nullptr;
+#endif
+		}
+		bool CTConstraint::HasCollisions()
+		{
+			return State.Collisions;
+		}
+		void CTConstraint::EnableMotor(bool Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->enableMotor(Value);
+#endif
+		}
+		void CTConstraint::SetFrames(const Matrix4x4& A, const Matrix4x4& B)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setFrames(M16_TO_BT(A), M16_TO_BT(B));
+#endif
+		}
+		void CTConstraint::SetAngularOnly(bool Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setAngularOnly(Value);
+#endif
+		}
+		void CTConstraint::SetLimit(int LimitIndex, float LimitValue)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setLimit(LimitIndex, LimitValue);
+#endif
+		}
+		void CTConstraint::SetLimit(float SwingSpan1, float SwingSpan2, float TwistSpan, float Softness, float BiasFactor, float RelaxationFactor)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setLimit(SwingSpan1, SwingSpan2, TwistSpan, Softness, BiasFactor, RelaxationFactor);
+#endif
+		}
+		void CTConstraint::SetDamping(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setDamping(Value);
+#endif
+		}
+		void CTConstraint::SetMaxMotorImpulse(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setMaxMotorImpulse(Value);
+#endif
+		}
+		void CTConstraint::SetMaxMotorImpulseNormalized(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setMaxMotorImpulseNormalized(Value);
+#endif
+		}
+		void CTConstraint::SetFixThresh(float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setFixThresh(Value);
+#endif
+		}
+		void CTConstraint::SetMotorTarget(const Quaternion& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setMotorTarget(Q4_TO_BT(Value));
+#endif
+		}
+		void CTConstraint::SetMotorTargetInConstraintSpace(const Quaternion& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "cone-twist constraint should be initialized");
+			Instance->setMotorTargetInConstraintSpace(Q4_TO_BT(Value));
+#endif
+		}
+		Vector3 CTConstraint::GetPointForAngle(float AngleInRadians, float Length)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "cone-twist constraint should be initialized");
+			btVector3 Value = Instance->GetPointForAngle(AngleInRadians, Length);
+			return BT_TO_V3(Value);
+#else
+			return 0;
+#endif
+		}
+		Quaternion CTConstraint::GetMotorTarget()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, Quaternion(), "hinge constraint should be initialized");
+			btQuaternion Value = Instance->getMotorTarget();
+			return BT_TO_Q4(Value);
+#else
+			return Quaternion();
+#endif
+		}
+		int CTConstraint::GetSolveTwistLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getSolveTwistLimit();
+#else
+			return 0;
+#endif
+		}
+		int CTConstraint::GetSolveSwingLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getSolveSwingLimit();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetTwistLimitSign()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getTwistLimitSign();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetSwingSpan1()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getSwingSpan1();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetSwingSpan2()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getSwingSpan2();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetTwistSpan()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getTwistSpan();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetLimitSoftness()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getLimitSoftness();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetBiasFactor()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getBiasFactor();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetRelaxationFactor()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getRelaxationFactor();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetTwistAngle()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getTwistAngle();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetLimit(int Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getLimit(Value);
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetDamping()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getDamping();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetMaxMotorImpulse()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getMaxMotorImpulse();
+#else
+			return 0;
+#endif
+		}
+		float CTConstraint::GetFixThresh()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getFixThresh();
+#else
+			return 0;
+#endif
+		}
+		bool CTConstraint::IsMotorEnabled()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->isMotorEnabled();
+#else
+			return 0;
+#endif
+		}
+		bool CTConstraint::IsMaxMotorImpulseNormalized()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->isMaxMotorImpulseNormalized();
+#else
+			return 0;
+#endif
+		}
+		bool CTConstraint::IsPastSwingLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->isPastSwingLimit();
+#else
+			return 0;
+#endif
+		}
+		bool CTConstraint::IsAngularOnly()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
+			return Instance->getAngularOnly();
+#else
+			return 0;
+#endif
+		}
+		CTConstraint::Desc& CTConstraint::GetState()
+		{
+			return State;
+		}
+
+		DF6Constraint::DF6Constraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
+			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
+
+			First = I.TargetA->Get();
+			Second = (I.TargetB ? I.TargetB->Get() : nullptr);
+
+			if (Second != nullptr)
+				Instance = TH_NEW(btGeneric6DofSpring2Constraint, *First, *Second, btTransform::getIdentity(), btTransform::getIdentity());
+			else
+				Instance = TH_NEW(btGeneric6DofSpring2Constraint, *First, btTransform::getIdentity());
+
+			Instance->setUserConstraintPtr(this);
+			Engine->AddConstraint(this);
+#endif
+		}
+		DF6Constraint::~DF6Constraint()
+		{
+#ifdef TH_WITH_BULLET3
+			Engine->RemoveConstraint(this);
+			TH_DELETE(btGeneric6DofSpring2Constraint, Instance);
+#endif
+		}
+		Constraint* DF6Constraint::Copy()
+		{
+			TH_ASSERT(Instance != nullptr, nullptr, "6-dof constraint should be initialized");
+			DF6Constraint* Target = new DF6Constraint(Engine, State);
+			Target->SetBreakingImpulseThreshold(GetBreakingImpulseThreshold());
+			Target->SetEnabled(IsEnabled());
+			Target->SetLinearLowerLimit(GetLinearLowerLimit());
+			Target->SetLinearUpperLimit(GetLinearUpperLimit());
+			Target->SetAngularLowerLimit(GetAngularLowerLimit());
+			Target->SetAngularUpperLimit(GetAngularUpperLimit());
+			Target->SetRotationOrder(GetRotationOrder());
+			Target->SetAxis(GetAxis(0), GetAxis(1));
+
+			return Target;
+		}
+		btTypedConstraint* DF6Constraint::Get()
+		{
+#ifdef TH_WITH_BULLET3
+			return Instance;
+#else
+			return nullptr;
+#endif
+		}
+		bool DF6Constraint::HasCollisions()
+		{
+			return State.Collisions;
+		}
+		void DF6Constraint::EnableMotor(int Index, bool OnOff)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->enableMotor(Index, OnOff);
+#endif
+		}
+		void DF6Constraint::EnableSpring(int Index, bool OnOff)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->enableSpring(Index, OnOff);
+#endif
+		}
+		void DF6Constraint::SetFrames(const Matrix4x4& A, const Matrix4x4& B)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setFrames(M16_TO_BT(A), M16_TO_BT(B));
+#endif
+		}
+		void DF6Constraint::SetLinearLowerLimit(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setLinearLowerLimit(V3_TO_BT(Value));
+#endif
+		}
+		void DF6Constraint::SetLinearUpperLimit(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setLinearUpperLimit(V3_TO_BT(Value));
+#endif
+		}
+		void DF6Constraint::SetAngularLowerLimit(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setAngularLowerLimit(V3_TO_BT(Value));
+#endif
+		}
+		void DF6Constraint::SetAngularLowerLimitReversed(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setAngularLowerLimitReversed(V3_TO_BT(Value));
+#endif
+		}
+		void DF6Constraint::SetAngularUpperLimit(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setAngularUpperLimit(V3_TO_BT(Value));
+#endif
+		}
+		void DF6Constraint::SetAngularUpperLimitReversed(const Vector3& Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setAngularUpperLimitReversed(V3_TO_BT(Value));
+#endif
+		}
+		void DF6Constraint::SetLimit(int Axis, float Low, float High)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setLimit(Axis, Low, High);
+#endif
+		}
+		void DF6Constraint::SetLimitReversed(int Axis, float Low, float High)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setLimitReversed(Axis, Low, High);
+#endif
+		}
+		void DF6Constraint::SetRotationOrder(Rotator Order)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setRotationOrder((RotateOrder)Order);
+#endif
+		}
+		void DF6Constraint::SetAxis(const Vector3& A, const Vector3& B)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setAxis(V3_TO_BT(A), V3_TO_BT(B));
+#endif
+		}
+		void DF6Constraint::SetBounce(int Index, float Bounce)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setBounce(Index, Bounce);
+#endif
+		}
+		void DF6Constraint::SetServo(int Index, bool OnOff)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setServo(Index, OnOff);
+#endif
+		}
+		void DF6Constraint::SetTargetVelocity(int Index, float Velocity)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setTargetVelocity(Index, Velocity);
+#endif
+		}
+		void DF6Constraint::SetServoTarget(int Index, float Target)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setServoTarget(Index, Target);
+#endif
+		}
+		void DF6Constraint::SetMaxMotorForce(int Index, float Force)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setMaxMotorForce(Index, Force);
+#endif
+		}
+		void DF6Constraint::SetStiffness(int Index, float Stiffness, bool LimitIfNeeded)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setStiffness(Index, Stiffness, LimitIfNeeded);
+#endif
+		}
+		void DF6Constraint::SetEquilibriumPoint()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setEquilibriumPoint();
+#endif
+		}
+		void DF6Constraint::SetEquilibriumPoint(int Index)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setEquilibriumPoint(Index);
+#endif
+		}
+		void DF6Constraint::SetEquilibriumPoint(int Index, float Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT_V(Instance != nullptr, "6-dof constraint should be initialized");
+			Instance->setEquilibriumPoint(Index, Value);
+#endif
+		}
+		Vector3 DF6Constraint::GetAngularUpperLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			btVector3 Result;
+			Instance->getAngularUpperLimit(Result);
+			return BT_TO_V3(Result);
+#else
+			return 0;
+#endif
+		}
+		Vector3 DF6Constraint::GetAngularUpperLimitReversed()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			btVector3 Result;
+			Instance->getAngularUpperLimitReversed(Result);
+			return BT_TO_V3(Result);
+#else
+			return 0;
+#endif
+		}
+		Vector3 DF6Constraint::GetAngularLowerLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			btVector3 Result;
+			Instance->getAngularLowerLimit(Result);
+			return BT_TO_V3(Result);
+#else
+			return 0;
+#endif
+		}
+		Vector3 DF6Constraint::GetAngularLowerLimitReversed()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			btVector3 Result;
+			Instance->getAngularLowerLimitReversed(Result);
+			return BT_TO_V3(Result);
+#else
+			return 0;
+#endif
+		}
+		Vector3 DF6Constraint::GetLinearUpperLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			btVector3 Result;
+			Instance->getLinearUpperLimit(Result);
+			return BT_TO_V3(Result);
+#else
+			return 0;
+#endif
+		}
+		Vector3 DF6Constraint::GetLinearLowerLimit()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			btVector3 Result;
+			Instance->getLinearLowerLimit(Result);
+			return BT_TO_V3(Result);
+#else
+			return 0;
+#endif
+		}
+		Vector3 DF6Constraint::GetAxis(int Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			btVector3 Result = Instance->getAxis(Value);
+			return BT_TO_V3(Result);
+#else
+			return 0;
+#endif
+		}
+		Rotator DF6Constraint::GetRotationOrder()
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, Rotator::XYZ, "6-dof constraint should be initialized");
+			return (Rotator)Instance->getRotationOrder();
+#else
+			return Rotator::XYZ;
+#endif
+		}
+		float DF6Constraint::GetAngle(int Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			return Instance->getAngle(Value);
+#else
+			return 0;
+#endif
+		}
+		float DF6Constraint::GetRelativePivotPosition(int Value)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			return Instance->getRelativePivotPosition(Value);
+#else
+			return 0;
+#endif
+		}
+		bool DF6Constraint::IsLimited(int LimitIndex)
+		{
+#ifdef TH_WITH_BULLET3
+			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
+			return Instance->isLimited(LimitIndex);
+#else
+			return 0;
+#endif
+		}
+		DF6Constraint::Desc& DF6Constraint::GetState()
+		{
+			return State;
 		}
 
 		Simulator::Simulator(const Desc& I) : SoftSolver(nullptr), TimeSpeed(1), Interpolate(1), Active(true)
@@ -11910,20 +12970,20 @@ namespace Tomahawk
 			World->removeRigidBody(Body->Instance);
 #endif
 		}
-		void Simulator::AddSliderConstraint(SliderConstraint* Constraint)
+		void Simulator::AddConstraint(Constraint* Constraint)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
-			TH_ASSERT_V(Constraint->Instance != nullptr, "slider constraint instance should be set");
-			World->addConstraint(Constraint->Instance, !Constraint->Initial.UseCollisions);
+			TH_ASSERT_V(Constraint->Get() != nullptr, "slider constraint instance should be set");
+			World->addConstraint(Constraint->Get(), !Constraint->HasCollisions());
 #endif
 		}
-		void Simulator::RemoveSliderConstraint(SliderConstraint* Constraint)
+		void Simulator::RemoveConstraint(Constraint* Constraint)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Constraint != nullptr, "slider constraint should be set");
-			TH_ASSERT_V(Constraint->Instance != nullptr, "slider constraint instance should be set");
-			World->removeConstraint(Constraint->Instance);
+			TH_ASSERT_V(Constraint->Get() != nullptr, "slider constraint instance should be set");
+			World->removeConstraint(Constraint->Get());
 #endif
 		}
 		void Simulator::RemoveAll()
@@ -11969,7 +13029,7 @@ namespace Tomahawk
 
 			FindContactsHandler Handler;
 			Handler.Callback = Callback;
-			World->contactTest(Body->Bullet(), Handler);
+			World->contactTest(Body->Get(), Handler);
 			TH_PPOP();
 #endif
 		}
@@ -12039,10 +13099,42 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		SliderConstraint* Simulator::CreateSliderConstraint(const SliderConstraint::Desc& I)
+		PConstraint* Simulator::CreatePoint2PointConstraint(const PConstraint::Desc& I)
 		{
 #ifdef TH_WITH_BULLET3
-			return new SliderConstraint(this, I);
+			return new PConstraint(this, I);
+#else
+			return nullptr;
+#endif
+		}
+		HConstraint* Simulator::CreateHingeConstraint(const HConstraint::Desc& I)
+		{
+#ifdef TH_WITH_BULLET3
+			return new HConstraint(this, I);
+#else
+			return nullptr;
+#endif
+		}
+		SConstraint* Simulator::CreateSliderConstraint(const SConstraint::Desc& I)
+		{
+#ifdef TH_WITH_BULLET3
+			return new SConstraint(this, I);
+#else
+			return nullptr;
+#endif
+		}
+		CTConstraint* Simulator::CreateConeTwistConstraint(const CTConstraint::Desc& I)
+		{
+#ifdef TH_WITH_BULLET3
+			return new CTConstraint(this, I);
+#else
+			return nullptr;
+#endif
+		}
+		DF6Constraint* Simulator::Create6DoFConstraint(const DF6Constraint::Desc& I)
+		{
+#ifdef TH_WITH_BULLET3
+			return new DF6Constraint(this, I);
 #else
 			return nullptr;
 #endif

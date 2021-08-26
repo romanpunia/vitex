@@ -883,7 +883,7 @@ namespace Tomahawk
 				bool Extended, Ghost, Linear;
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("collision-state"), &Ghost);
-				NMake::Unpack(Node->Find("linear-power-state"), &Linear);
+				NMake::Unpack(Node->Find("linear-state"), &Linear);
 
 				if (!Extended)
 					return;
@@ -1041,8 +1041,8 @@ namespace Tomahawk
 					}
 				}
 
-				NMake::Pack(Node->Set("collision-state"), Instance->GetInitialState().UseCollisions);
-				NMake::Pack(Node->Set("linear-power-state"), Instance->GetInitialState().UseLinearPower);
+				NMake::Pack(Node->Set("collision-state"), Instance->GetState().Collisions);
+				NMake::Pack(Node->Set("linear-state"), Instance->GetState().Linear);
 				NMake::Pack(Node->Set("connection"), ConnectionId);
 				NMake::Pack(Node->Set("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
 				NMake::Pack(Node->Set("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
@@ -1090,13 +1090,13 @@ namespace Tomahawk
 					if (!FirstBody || !SecondBody)
 						return;
 
-					Compute::SliderConstraint::Desc I;
-					I.Target1 = FirstBody->GetBody();
-					I.Target2 = SecondBody->GetBody();
-					I.UseCollisions = !IsGhosted;
-					I.UseLinearPower = IsLinear;
+					Compute::SConstraint::Desc I;
+					I.TargetA = FirstBody->GetBody();
+					I.TargetB = SecondBody->GetBody();
+					I.Collisions = !IsGhosted;
+					I.Linear = IsLinear;
 
-					if (I.Target1 && I.Target2)
+					if (I.TargetA && I.TargetB)
 					{
 						TH_RELEASE(Instance);
 						Instance = Scene->GetSimulator()->CreateSliderConstraint(I);
@@ -1130,14 +1130,14 @@ namespace Tomahawk
 				if (!FirstBody)
 					return Target;
 
-				Compute::SliderConstraint::Desc I(Instance->GetInitialState());
-				Instance->GetInitialState().Target1 = FirstBody->GetBody();
-				Target->Instance = Instance->Copy();
-				Instance->GetInitialState() = I;
+				Compute::SConstraint::Desc I(Instance->GetState());
+				Instance->GetState().TargetA = FirstBody->GetBody();
+				Target->Instance = (Compute::SConstraint*)Instance->Copy();
+				Instance->GetState() = I;
 
 				return Target;
 			}
-			Compute::SliderConstraint* SliderConstraint::GetConstraint() const
+			Compute::SConstraint* SliderConstraint::GetConstraint() const
 			{
 				return Instance;
 			}

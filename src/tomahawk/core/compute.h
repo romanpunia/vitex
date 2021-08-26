@@ -1,10 +1,10 @@
 #ifndef TH_COMPUTE_H
 #define TH_COMPUTE_H
-
 #include "core.h"
 #include <cmath>
 #include <map>
 #include <stack>
+
 class btCollisionConfiguration;
 class btBroadphaseInterface;
 class btConstraintSolver;
@@ -13,7 +13,12 @@ class btCollisionDispatcher;
 class btSoftBodySolver;
 class btRigidBody;
 class btSoftBody;
+class btTypedConstraint;
+class btPoint2PointConstraint;
+class btHingeConstraint;
 class btSliderConstraint;
+class btConeTwistConstraint;
+class btGeneric6DofSpring2Constraint;
 class btTransform;
 class btCollisionObject;
 class btBoxShape;
@@ -164,6 +169,16 @@ namespace Tomahawk
 			CL_Self = 0x0040,
 			VF_DD = 0x0050,
 			Default = SDF_RS | CL_SS
+		};
+
+		enum class Rotator
+		{
+			XYZ = 0,
+			XZY,
+			YXZ,
+			YZX,
+			ZXY,
+			ZYX
 		};
 
 		enum class TransformSpace
@@ -1719,7 +1734,7 @@ namespace Tomahawk
 			Vector3 GetRotation();
 			btTransform* GetWorldTransform();
 			btCollisionShape* GetCollisionShape();
-			btRigidBody* Bullet();
+			btRigidBody* Get();
 			bool IsActive();
 			bool IsStatic();
 			bool IsGhost();
@@ -1929,7 +1944,7 @@ namespace Tomahawk
 			Vector3 GetPosition();
 			Vector3 GetRotation();
 			btTransform* GetWorldTransform();
-			btSoftBody* Bullet();
+			btSoftBody* Get();
 			bool IsActive();
 			bool IsStatic();
 			bool IsGhost();
@@ -1954,7 +1969,34 @@ namespace Tomahawk
 			static SoftBody* Get(btSoftBody* From);
 		};
 
-		class TH_OUT SliderConstraint : public Core::Object
+		class TH_OUT Constraint : public Core::Object
+		{
+		protected:
+			btRigidBody* First, *Second;
+			Simulator* Engine;
+
+		public:
+			void* UserPointer;
+
+		protected:
+			Constraint(Simulator* Refer);
+
+		public:
+			virtual ~Constraint() = default;
+			virtual Constraint* Copy() = 0;
+			virtual btTypedConstraint* Get() = 0;
+			virtual bool HasCollisions() = 0;
+			void SetBreakingImpulseThreshold(float Value);
+			void SetEnabled(bool Value);
+			bool IsEnabled();
+			bool IsActive();
+			float GetBreakingImpulseThreshold();
+			btRigidBody* GetFirst();
+			btRigidBody* GetSecond();
+			Simulator* GetSimulator();
+		};
+
+		class TH_OUT PConstraint : public Constraint
 		{
 			friend RigidBody;
 			friend Simulator;
@@ -1962,32 +2004,119 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				RigidBody* Target1 = nullptr;
-				RigidBody* Target2 = nullptr;
-				bool UseCollisions = true;
-				bool UseLinearPower = true;
+				RigidBody* TargetA = nullptr;
+				RigidBody* TargetB = nullptr;
+				Vector3 PivotA;
+				Vector3 PivotB;
+				bool Collisions = true;
 			};
 
 		private:
-			btRigidBody* First, * Second;
-			btSliderConstraint* Instance;
-			Simulator* Engine;
-			Desc Initial;
-
-		public:
-			void* UserPointer;
+			btPoint2PointConstraint* Instance;
+			Desc State;
 
 		private:
-			SliderConstraint(Simulator* Refer, const Desc& I);
+			PConstraint(Simulator* Refer, const Desc& I);
 
 		public:
-			virtual ~SliderConstraint() override;
-			SliderConstraint* Copy();
+			virtual ~PConstraint() override;
+			virtual Constraint* Copy() override;
+			virtual btTypedConstraint* Get() override;
+			virtual bool HasCollisions() override;
+			void SetPivotA(const Vector3& Value);
+			void SetPivotB(const Vector3& Value);
+			Vector3 GetPivotA();
+			Vector3 GetPivotB();
+			Desc& GetState();
+		};
+
+		class TH_OUT HConstraint : public Constraint
+		{
+			friend RigidBody;
+			friend Simulator;
+
+		public:
+			struct Desc
+			{
+				RigidBody* TargetA = nullptr;
+				RigidBody* TargetB = nullptr;
+				bool References = false;
+				bool Collisions = true;
+			};
+
+		private:
+			btHingeConstraint* Instance;
+			Desc State;
+
+		private:
+			HConstraint(Simulator* Refer, const Desc& I);
+
+		public:
+			virtual ~HConstraint() override;
+			virtual Constraint* Copy() override;
+			virtual btTypedConstraint* Get() override;
+			virtual bool HasCollisions() override;
+			void EnableAngularMotor(bool Enable, float TargetVelocity, float MaxMotorImpulse);
+			void EnableMotor(bool Enable);
+			void TestLimit(const Matrix4x4& A, const Matrix4x4& B);
+			void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
+			void SetAngularOnly(bool Value);
+			void SetMaxMotorImpulse(float Value);
+			void SetMotorTargetVelocity(float Value);
+			void SetMotorTarget(float TargetAngle, float Delta);
+			void SetLimit(float Low, float High, float Softness = 0.9f, float BiasFactor = 0.3f, float RelaxationFactor = 1.0f);
+			void SetOffset(bool Value);
+			void SetReferenceToA(bool Value);
+			void SetAxis(const Vector3& Value);
+			int GetSolveLimit();
+			float GetMotorTargetVelocity();
+			float GetMaxMotorImpulse();
+			float GetLimitSign();
+			float GetHingeAngle();
+			float GetHingeAngle(const Matrix4x4& A, const Matrix4x4& B);
+			float GetLowerLimit();
+			float GetUpperLimit();
+			float GetLimitSoftness();
+			float GetLimitBiasFactor();
+			float GetLimitRelaxationFactor();
+			bool HasLimit();
+			bool IsOffset();
+			bool IsReferenceToA();
+			bool IsAngularOnly();
+			bool IsAngularMotorEnabled();
+			Desc& GetState();
+		};
+
+		class TH_OUT SConstraint : public Constraint
+		{
+			friend RigidBody;
+			friend Simulator;
+
+		public:
+			struct Desc
+			{
+				RigidBody* TargetA = nullptr;
+				RigidBody* TargetB = nullptr;
+				bool Collisions = true;
+				bool Linear = true;
+			};
+
+		private:
+			btSliderConstraint* Instance;
+			Desc State;
+
+		private:
+			SConstraint(Simulator* Refer, const Desc& I);
+
+		public:
+			virtual ~SConstraint() override;
+			virtual Constraint* Copy() override;
+			virtual btTypedConstraint* Get() override;
+			virtual bool HasCollisions() override;
 			void SetAngularMotorVelocity(float Value);
 			void SetLinearMotorVelocity(float Value);
 			void SetUpperLinearLimit(float Value);
 			void SetLowerLinearLimit(float Value);
-			void SetBreakingImpulseThreshold(float Value);
 			void SetAngularDampingDirection(float Value);
 			void SetLinearDampingDirection(float Value);
 			void SetAngularDampingLimit(float Value);
@@ -2012,15 +2141,10 @@ namespace Tomahawk
 			void SetLinearSoftnessOrtho(float Value);
 			void SetPoweredAngularMotor(bool Value);
 			void SetPoweredLinearMotor(bool Value);
-			void SetEnabled(bool Value);
-			btSliderConstraint* Bullet();
-			btRigidBody* GetFirst();
-			btRigidBody* GetSecond();
 			float GetAngularMotorVelocity();
 			float GetLinearMotorVelocity();
 			float GetUpperLinearLimit();
 			float GetLowerLinearLimit();
-			float GetBreakingImpulseThreshold();
 			float GetAngularDampingDirection();
 			float GetLinearDampingDirection();
 			float GetAngularDampingLimit();
@@ -2045,10 +2169,127 @@ namespace Tomahawk
 			float GetLinearSoftnessOrtho();
 			bool GetPoweredAngularMotor();
 			bool GetPoweredLinearMotor();
-			bool IsConnected();
-			bool IsEnabled();
-			Desc& GetInitialState();
-			Simulator* GetSimulator();
+			Desc& GetState();
+		};
+
+		class TH_OUT CTConstraint : public Constraint
+		{
+			friend RigidBody;
+			friend Simulator;
+
+		public:
+			struct Desc
+			{
+				RigidBody* TargetA = nullptr;
+				RigidBody* TargetB = nullptr;
+				bool Collisions = true;
+			};
+
+		private:
+			btConeTwistConstraint* Instance;
+			Desc State;
+
+		private:
+			CTConstraint(Simulator* Refer, const Desc& I);
+
+		public:
+			virtual ~CTConstraint() override;
+			virtual Constraint* Copy() override;
+			virtual btTypedConstraint* Get() override;
+			virtual bool HasCollisions() override;
+			void EnableMotor(bool Value);
+			void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
+			void SetAngularOnly(bool Value);
+			void SetLimit(int LimitIndex, float LimitValue);
+			void SetLimit(float SwingSpan1, float SwingSpan2, float TwistSpan, float Softness = 1.f, float BiasFactor = 0.3f, float RelaxationFactor = 1.0f);
+			void SetDamping(float Value);
+			void SetMaxMotorImpulse(float Value);
+			void SetMaxMotorImpulseNormalized(float Value);
+			void SetFixThresh(float Value);
+			void SetMotorTarget(const Quaternion& Value);
+			void SetMotorTargetInConstraintSpace(const Quaternion& Value);
+			Vector3 GetPointForAngle(float AngleInRadians, float Length);
+			Quaternion GetMotorTarget();
+			int GetSolveTwistLimit();
+			int GetSolveSwingLimit();
+			float GetTwistLimitSign();
+			float GetSwingSpan1();
+			float GetSwingSpan2();
+			float GetTwistSpan();
+			float GetLimitSoftness();
+			float GetBiasFactor();
+			float GetRelaxationFactor();
+			float GetTwistAngle();
+			float GetLimit(int Value);
+			float GetDamping();
+			float GetMaxMotorImpulse();
+			float GetFixThresh();
+			bool IsMotorEnabled();
+			bool IsMaxMotorImpulseNormalized();
+			bool IsPastSwingLimit();
+			bool IsAngularOnly();
+			Desc& GetState();
+		};
+
+		class TH_OUT DF6Constraint : public Constraint
+		{
+			friend RigidBody;
+			friend Simulator;
+
+		public:
+			struct Desc
+			{
+				RigidBody* TargetA = nullptr;
+				RigidBody* TargetB = nullptr;
+				bool Collisions = true;
+			};
+
+		private:
+			btGeneric6DofSpring2Constraint* Instance;
+			Desc State;
+
+		private:
+			DF6Constraint(Simulator* Refer, const Desc& I);
+
+		public:
+			virtual ~DF6Constraint() override;
+			virtual Constraint* Copy() override;
+			virtual btTypedConstraint* Get() override;
+			virtual bool HasCollisions() override;
+			void EnableMotor(int Index, bool OnOff);
+			void EnableSpring(int Index, bool OnOff);
+			void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
+			void SetLinearLowerLimit(const Vector3& Value);
+			void SetLinearUpperLimit(const Vector3& Value);
+			void SetAngularLowerLimit(const Vector3& Value);
+			void SetAngularLowerLimitReversed(const Vector3& Value);
+			void SetAngularUpperLimit(const Vector3& Value);
+			void SetAngularUpperLimitReversed(const Vector3& Value);
+			void SetLimit(int Axis, float Low, float High);
+			void SetLimitReversed(int Axis, float Low, float High);
+			void SetRotationOrder(Rotator Order);
+			void SetAxis(const Vector3& A, const Vector3& B);
+			void SetBounce(int Index, float Bounce);
+			void SetServo(int Index, bool OnOff);
+			void SetTargetVelocity(int Index, float Velocity);
+			void SetServoTarget(int Index, float Target);
+			void SetMaxMotorForce(int Index, float Force);
+			void SetStiffness(int Index, float Stiffness, bool LimitIfNeeded = true);
+			void SetEquilibriumPoint();
+			void SetEquilibriumPoint(int Index);
+			void SetEquilibriumPoint(int Index, float Value);
+			Vector3 GetAngularUpperLimit();
+			Vector3 GetAngularUpperLimitReversed();
+			Vector3 GetAngularLowerLimit();
+			Vector3 GetAngularLowerLimitReversed();
+			Vector3 GetLinearUpperLimit();
+			Vector3 GetLinearLowerLimit();
+			Vector3 GetAxis(int Value);
+			Rotator GetRotationOrder();
+			float GetAngle(int Value);
+			float GetRelativePivotPosition(int Value);
+			bool IsLimited(int LimitIndex);
+			Desc& GetState();
 		};
 
 		class TH_OUT Simulator : public Core::Object
@@ -2098,8 +2339,8 @@ namespace Tomahawk
 			void RemoveSoftBody(SoftBody* Body);
 			void AddRigidBody(RigidBody* Body);
 			void RemoveRigidBody(RigidBody* Body);
-			void AddSliderConstraint(SliderConstraint* Constraint);
-			void RemoveSliderConstraint(SliderConstraint* Constraint);
+			void AddConstraint(Constraint* Constraint);
+			void RemoveConstraint(Constraint* Constraint);
 			void RemoveAll();
 			void Simulate(float TimeStep);
 			void FindContacts(RigidBody* Body, int(* Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
@@ -2108,7 +2349,11 @@ namespace Tomahawk
 			RigidBody* CreateRigidBody(const RigidBody::Desc& I, Transform* Transform);
 			SoftBody* CreateSoftBody(const SoftBody::Desc& I);
 			SoftBody* CreateSoftBody(const SoftBody::Desc& I, Transform* Transform);
-			SliderConstraint* CreateSliderConstraint(const SliderConstraint::Desc& I);
+			PConstraint* CreatePoint2PointConstraint(const PConstraint::Desc& I);
+			HConstraint* CreateHingeConstraint(const HConstraint::Desc& I);
+			SConstraint* CreateSliderConstraint(const SConstraint::Desc& I);
+			CTConstraint* CreateConeTwistConstraint(const CTConstraint::Desc& I);
+			DF6Constraint* Create6DoFConstraint(const DF6Constraint::Desc& I);
 			btCollisionShape* CreateShape(Shape Type);
 			btCollisionShape* CreateCube(const Vector3& Scale = Vector3(1, 1, 1));
 			btCollisionShape* CreateSphere(float Radius = 1);

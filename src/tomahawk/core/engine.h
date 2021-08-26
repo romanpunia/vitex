@@ -1,6 +1,5 @@
 #ifndef TH_ENGINE_H
 #define TH_ENGINE_H
-
 #include "graphics.h"
 #include "audio.h"
 #include "script.h"

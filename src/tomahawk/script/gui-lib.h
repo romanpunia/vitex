@@ -1,6 +1,5 @@
 #ifndef TH_SCRIPT_GUI_API_H
 #define TH_SCRIPT_GUI_API_H
-
 #include "std-lib.h"
 #include "../engine/gui.h"
 

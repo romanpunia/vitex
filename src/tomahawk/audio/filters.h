@@ -1,6 +1,5 @@
 #ifndef TH_AUDIO_FILTERS_H
 #define TH_AUDIO_FILTERS_H
-
 #include "../core/audio.h"
 
 namespace Tomahawk

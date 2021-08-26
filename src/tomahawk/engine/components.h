@@ -1,6 +1,5 @@
 #ifndef TH_ENGINE_COMPONENTS_H
 #define TH_ENGINE_COMPONENTS_H
-
 #include "../core/engine.h"
 
 namespace Tomahawk
@@ -83,7 +82,7 @@ namespace Tomahawk
 			class TH_OUT SliderConstraint final : public Component
 			{
 			private:
-				Compute::SliderConstraint* Instance;
+				Compute::SConstraint* Instance;
 				Entity* Connection;
 
 			public:
@@ -94,7 +93,7 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
-				Compute::SliderConstraint* GetConstraint() const;
+				Compute::SConstraint* GetConstraint() const;
 				Entity* GetConnection() const;
 
 			public:

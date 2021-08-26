@@ -1,6 +1,5 @@
 #ifndef TH_NETWORK_MONGODB_H
 #define TH_NETWORK_MONGODB_H
-
 #include "../core/network.h"
 
 struct _bson_t;

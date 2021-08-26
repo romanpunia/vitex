@@ -1,11 +1,9 @@
 #ifndef TH_GRAPHICS_H
 #define TH_GRAPHICS_H
-
 #include "compute.h"
 #include <iostream>
 #include <functional>
 #include <limits>
-
 #define TH_VS (unsigned int)Tomahawk::Graphics::ShaderType::Vertex
 #define TH_PS (unsigned int)Tomahawk::Graphics::ShaderType::Pixel
 #define TH_GS (unsigned int)Tomahawk::Graphics::ShaderType::Geometry

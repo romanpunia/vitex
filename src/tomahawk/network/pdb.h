@@ -1,6 +1,5 @@
 #ifndef TH_NETWORK_POSTGRESQL_H
 #define TH_NETWORK_POSTGRESQL_H
-
 #include "../core/network.h"
 
 struct pg_conn;

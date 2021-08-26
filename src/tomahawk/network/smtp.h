@@ -1,6 +1,5 @@
 #ifndef TH_NETWORK_SMTP_H
 #define TH_NETWORK_SMTP_H
-
 #include "../core/network.h"
 
 namespace Tomahawk

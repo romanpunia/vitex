@@ -1,6 +1,5 @@
 #ifndef TH_SCRIPT_STD_API_H
 #define TH_SCRIPT_STD_API_H
-
 #include "../core/script.h"
 #define TH_TYPENAME(Name, TypeName) static constexpr const char Name[] = TypeName
 #define TH_PROMISIFY(MemberFunction, TypeId) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>

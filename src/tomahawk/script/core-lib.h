@@ -1,6 +1,5 @@
 #ifndef TH_SCRIPT_CORE_API_H
 #define TH_SCRIPT_CORE_API_H
-
 #include "std-lib.h"
 
 namespace Tomahawk

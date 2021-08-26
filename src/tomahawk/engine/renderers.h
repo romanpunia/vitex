@@ -1,6 +1,5 @@
 #ifndef TH_ENGINE_RENDERERS_H
 #define TH_ENGINE_RENDERERS_H
-
 #include "../core/engine.h"
 #include "gui.h"
 

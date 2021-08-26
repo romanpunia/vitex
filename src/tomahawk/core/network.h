@@ -1,18 +1,17 @@
 #ifndef TH_NETWORK_H
 #define TH_NETWORK_H
-
 #include "compute.h"
 #include <atomic>
-
-struct ssl_ctx_st;
-struct ssl_st;
-struct addrinfo;
-struct pollfd;
 #ifdef TH_APPLE
 struct kevent;
 #else
 struct epoll_event;
 #endif
+
+struct ssl_ctx_st;
+struct ssl_st;
+struct addrinfo;
+struct pollfd;
 
 namespace Tomahawk
 {

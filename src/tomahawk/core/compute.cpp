@@ -739,6 +739,10 @@ namespace Tomahawk
 		{
 			return Vector3(-cos(Y), 0, sin(Y));
 		}
+		Vector3 Vector3::Direction() const
+		{
+			return Matrix4x4::CreateLookAt(0, *this, Vector3::Up()).Rotation();
+		}
 		Vector3 Vector3::Inv() const
 		{
 			return Vector3(-X, -Y, -Z);
@@ -6812,58 +6816,64 @@ namespace Tomahawk
 		}
 		bool Common::HasSBIntersected(Transform* R0, Transform* R1)
 		{
-			if (!HasSphereIntersected(R0->Position, R0->Scale.Hypotenuse(), R1->Position, R1->Scale.Hypotenuse()))
+			if (!HasSphereIntersected(R0->GetPosition(), R0->GetScale().Hypotenuse(), R1->GetPosition(), R1->GetScale().Hypotenuse()))
 				return false;
 
 			return true;
 		}
 		bool Common::HasOBBIntersected(Transform* R0, Transform* R1)
 		{
-			if (R1->Rotation + R0->Rotation == 0)
+			const Vector3& Rotation0 = R0->GetRotation();
+			const Vector3& Rotation1 = R1->GetRotation();
+			if (Rotation0 == 0.0f && Rotation1 == 0.0f)
 				return HasAABBIntersected(R0, R1);
 
-			Matrix4x4 Temp0 = Matrix4x4::Create(R0->Position - R1->Position, R0->Scale, R0->Rotation) * Matrix4x4::CreateRotation(R1->Rotation).Inv();
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+			const Vector3& Position0 = R0->GetPosition();
+			const Vector3& Position1 = R1->GetPosition();
+			const Vector3& Scale0 = R0->GetScale();
+			const Vector3& Scale1 = R1->GetScale();
+			Matrix4x4 Temp0 = Matrix4x4::Create(Position0 - Position1, Scale0, Rotation0) * Matrix4x4::CreateRotation(Rotation1).Inv();
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R1->Scale, R1->Scale, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			Temp0 = Matrix4x4::Create(R1->Position - R0->Position, R1->Scale, R1->Rotation) * Matrix4x4::CreateRotation(R0->Rotation).Inv();
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+			Temp0 = Matrix4x4::Create(Position1 - Position0, Scale1, Rotation1) * Matrix4x4::CreateRotation(Rotation0).Inv();
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
-			if (HasLineIntersectedCube(-R0->Scale, R0->Scale, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
 				return true;
 
 			return false;
@@ -6871,7 +6881,17 @@ namespace Tomahawk
 		bool Common::HasAABBIntersected(Transform* R0, Transform* R1)
 		{
 			TH_ASSERT(R0 != nullptr && R1 != nullptr, false, "transforms should be set");
-			return (R0->Position.X - R0->Scale.X) <= (R1->Position.X + R1->Scale.X) && (R1->Position.X - R1->Scale.X) <= (R0->Position.X + R0->Scale.X) && (R0->Position.Y - R0->Scale.Y) <= (R1->Position.Y + R1->Scale.Y) && (R1->Position.Y - R1->Scale.Y) <= (R0->Position.Y + R0->Scale.Y) && (R0->Position.Z - R0->Scale.Z) <= (R1->Position.Z + R1->Scale.Z) && (R1->Position.Z - R1->Scale.Z) <= (R0->Position.Z + R0->Scale.Z);
+			const Vector3& Position0 = R0->GetPosition();
+			const Vector3& Position1 = R1->GetPosition();
+			const Vector3& Scale0 = R0->GetScale();
+			const Vector3& Scale1 = R1->GetScale();
+			return
+				(Position0.X - Scale0.X) <= (Position1.X + Scale1.X) &&
+				(Position1.X - Scale1.X) <= (Position0.X + Scale0.X) &&
+				(Position0.Y - Scale0.Y) <= (Position1.Y + Scale1.Y) &&
+				(Position1.Y - Scale1.Y) <= (Position0.Y + Scale0.Y) &&
+				(Position0.Z - Scale0.Z) <= (Position1.Z + Scale1.Z) &&
+				(Position1.Z - Scale1.Z) <= (Position0.Z + Scale0.Z);
 		}
 		bool Common::Hex(char c, int& v)
 		{
@@ -7083,28 +7103,6 @@ namespace Tomahawk
 			Bitangent.Y = (Coord2.X * Face2.Y - Coord2.Y * Face1.Y) * Ray;
 			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
 			Bitangent = Bitangent.sNormalize();
-		}
-		void Common::SetTransformPivot(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale)
-		{
-			TH_ASSERT_V(In != nullptr, "transform should be set");
-			TH_DELETE(Matrix4x4, In->LocalTransform);
-			In->LocalTransform = LocalTransform;
-
-			TH_DELETE(Vector3, In->LocalPosition);
-			In->LocalPosition = LocalPosition;
-
-			TH_DELETE(Vector3, In->LocalRotation);
-			In->LocalRotation = LocalRotation;
-
-			TH_DELETE(Vector3, In->LocalScale);
-			In->LocalScale = LocalScale;
-		}
-		void Common::SetTransformRoot(Transform* In, Transform* Root)
-		{
-			TH_ASSERT_V(In != nullptr, "transform should be set");
-			In->Root = Root;
-			if (Root != nullptr)
-				Root->AddChild(In);
 		}
 		void Common::Sha1CollapseBufferBlock(unsigned int* Buffer)
 		{
@@ -8914,79 +8912,125 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Transform::Transform() : LocalTransform(nullptr), LocalPosition(nullptr), LocalRotation(nullptr), LocalScale(nullptr), Root(nullptr), Scale(1), ConstantScale(false), UserPointer(nullptr)
+		Transform::Transform() : Local(nullptr), Root(nullptr), Scaling(false), Dirty(true), UserPointer(nullptr)
 		{
 		}
 		Transform::~Transform()
 		{
 			SetRoot(nullptr);
 			RemoveChilds();
+
+			TH_DELETE(Spacing, Local);
 			UserPointer = nullptr;
-
-			TH_DELETE(Matrix4x4, LocalTransform);
-			LocalTransform = nullptr;
-
-			TH_DELETE(Vector3, LocalPosition);
-			LocalPosition = nullptr;
-
-			TH_DELETE(Vector3, LocalRotation);
-			LocalRotation = nullptr;
-
-			TH_DELETE(Vector3, LocalScale);
-			LocalScale = nullptr;
-		}
-		void Transform::Copy(Transform* Target)
-		{
-			TH_ASSERT_V(Target != nullptr, "target should be set");
-			if (!Target->Root)
-			{
-				TH_DELETE(Matrix4x4, LocalTransform);
-				LocalTransform = nullptr;
-
-				TH_DELETE(Vector3, LocalPosition);
-				LocalPosition = nullptr;
-
-				TH_DELETE(Vector3, LocalRotation);
-				LocalRotation = nullptr;
-
-				TH_DELETE(Vector3, LocalScale);
-				LocalScale = nullptr;
-				Root = nullptr;
-			}
-			else
-			{
-				LocalTransform = TH_NEW(Matrix4x4, *Target->LocalTransform);
-				LocalPosition = TH_NEW(Vector3, *Target->LocalPosition);
-				LocalRotation = TH_NEW(Vector3, *Target->LocalRotation);
-				LocalScale = TH_NEW(Vector3, *Target->LocalScale);
-				Root = Target->Root;
-			}
-
-			Childs = Target->Childs;
-			UserPointer = Target->UserPointer;
-			Position = Target->Position;
-			Rotation = Target->Rotation;
-			Scale = Target->Scale;
-			ConstantScale = Target->ConstantScale;
+			Local = nullptr;
 		}
 		void Transform::Synchronize()
 		{
-			if (!Root)
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (!Dirty)
 				return;
 
-			*LocalTransform = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
-			Position = LocalTransform->Position();
-			Rotation = LocalTransform->Rotation();
-			Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
+			Dirty = false;
+			if (Root != nullptr)
+			{
+				Local->Offset = Matrix4x4::Create(Local->Position, Local->Rotation) * Root->GetBiasUnscaled();
+				Global.Position = Local->Offset.Position();
+				Global.Rotation = Local->Offset.Rotation();
+				Global.Scale = (Scaling ? Local->Scale : Local->Scale * Root->Global.Scale);
+				Temporary = Matrix4x4::CreateScale(Global.Scale) * Local->Offset;
+			}
+			else
+			{
+				Global.Offset = Matrix4x4::Create(Global.Position, Global.Scale, Global.Rotation);
+				Temporary = Matrix4x4::CreateRotation(Global.Rotation) * Matrix4x4::CreateTranslation(Global.Position);
+			}	
+		}
+		void Transform::Move(const Vector3& Value)
+		{
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (Root != nullptr)
+				Local->Position += Value;
+			else
+				Global.Position += Value;
+			MakeDirty();
+		}
+		void Transform::Rotate(const Vector3& Value)
+		{
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (Root != nullptr)
+				Local->Rotation += Value;
+			else
+				Global.Rotation += Value;
+			MakeDirty();
+		}
+		void Transform::Rescale(const Vector3& Value)
+		{
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (Root != nullptr)
+				Local->Scale += Value;
+			else
+				Global.Scale += Value;
+			MakeDirty();
+		}
+		void Transform::Localize(Spacing& Where)
+		{
+			if (Root != nullptr)
+			{
+				Where.Offset = Matrix4x4::Create(Where.Position, Where.Rotation) * Root->GetBiasUnscaled().Inv();
+				Where.Position = Where.Offset.Position();
+				Where.Rotation = Where.Offset.Rotation();
+				Where.Scale = (Scaling ? Where.Scale : Where.Scale / Root->Global.Scale);
+			}
+		}
+		void Transform::Globalize(Spacing& Where)
+		{
+			if (Root != nullptr)
+			{
+				Where.Offset = Matrix4x4::Create(Where.Position, Where.Rotation) * Root->GetBiasUnscaled();
+				Where.Position = Where.Offset.Position();
+				Where.Rotation = Where.Offset.Rotation();
+				Where.Scale = (Scaling ? Where.Scale : Where.Scale * Root->Global.Scale);
+			}
+		}
+		void Transform::Specialize(Spacing& Where)
+		{
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (Root != nullptr)
+			{
+				Where.Offset = Matrix4x4::Create(Local->Position, Local->Rotation) * Root->GetBiasUnscaled();
+				Where.Position = Where.Offset.Position();
+				Where.Rotation = Where.Offset.Rotation();
+				Where.Scale = (Scaling ? Local->Scale : Local->Scale * Root->Global.Scale);
+			}
+			else if (&Where != &Global)
+				Where = Global;
+		}
+		void Transform::Copy(Transform* Target)
+		{
+			TH_ASSERT_V(Target != nullptr && Target != this, "target should be set");
+			TH_DELETE(Spacing, Local);
+
+			if (Target->Root != nullptr)
+				Local = TH_NEW(Spacing, *Target->Local);
+			else
+				Local = nullptr;
+
+			UserPointer = Target->UserPointer;
+			Childs = Target->Childs;
+			Global = Target->Global;
+			Scaling = Target->Scaling;
+			Root = Target->Root;
+			Dirty = Target->Dirty;
 		}
 		void Transform::AddChild(Transform* Child)
 		{
-			TH_ASSERT_V(Child != nullptr, "child should be set");
+			TH_ASSERT_V(Child != nullptr && Child != this, "child should be set");
 			Childs.push_back(Child);
+			Child->MakeDirty();
 		}
 		void Transform::RemoveChild(Transform* Child)
 		{
-			TH_ASSERT_V(Child != nullptr, "child should be set");
+			TH_ASSERT_V(Child != nullptr && Child != this, "child should be set");
 			if (Child->Root == this)
 				Child->SetRoot(nullptr);
 		}
@@ -9001,54 +9045,60 @@ namespace Tomahawk
 					Child->SetRoot(nullptr);
 			}
 		}
-		void Transform::Localize(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
+		void Transform::MakeDirty()
 		{
-			if (!Root)
-				return;
-
-			Matrix4x4 Result = Matrix4x4::Create(_Position ? *_Position : 0, _Rotation ? *_Rotation : 0) * Root->GetWorldUnscaled().Inv();
-			if (_Position != nullptr)
-				*_Position = Result.Position();
-
-			if (_Rotation != nullptr)
-				*_Rotation = Result.Rotation();
-
-			if (_Scale != nullptr)
-				*_Scale = (ConstantScale ? *_Scale : *_Scale / Root->Scale);
+			Dirty = true;
+			for (auto& Child : Childs)
+				Child->MakeDirty();
 		}
-		void Transform::Globalize(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
+		void Transform::SetScaling(bool Enabled)
 		{
-			if (!Root)
-				return;
-
-			Matrix4x4 Result = Matrix4x4::Create(_Position ? *_Position : 0, _Rotation ? *_Rotation : 0) * Root->GetWorldUnscaled();
-			if (_Position != nullptr)
-				*_Position = Result.Position();
-
-			if (_Rotation != nullptr)
-				*_Rotation = Result.Rotation();
-
-			if (_Scale != nullptr)
-				*_Scale = (ConstantScale ? *_Scale : *_Scale * Root->Scale);
+			Scaling = Enabled;
+			MakeDirty();
 		}
-		void Transform::SetTransform(TransformSpace Space, const Vector3& _Position, const Vector3& _Scale, const Vector3& _Rotation)
+		void Transform::SetPosition(const Vector3& Value)
 		{
-			if (Root != nullptr && Space == TransformSpace::Global)
-			{
-				Vector3 P = _Position, R = _Rotation, S = _Scale;
-				Localize(&P, &S, &R);
-
-				*GetLocalPosition() = P;
-				*GetLocalRotation() = R;
-				*GetLocalScale() = S;
-				Synchronize();
-			}
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (Root != nullptr)
+				Local->Position = Value;
 			else
-			{
-				*GetLocalPosition() = _Position;
-				*GetLocalRotation() = _Rotation;
-				*GetLocalScale() = _Scale;
-			}
+				Global.Position = Value;
+			MakeDirty();
+		}
+		void Transform::SetRotation(const Vector3& Value)
+		{
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (Root != nullptr)
+				Local->Rotation = Value;
+			else
+				Global.Rotation = Value;
+			MakeDirty();
+		}
+		void Transform::SetScale(const Vector3& Value)
+		{
+			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			if (Root != nullptr)
+				Local->Scale = Value;
+			else
+				Global.Scale = Value;
+			MakeDirty();
+		}
+		void Transform::SetSpacing(Positioning Space, Spacing& Where)
+		{
+			if (Space == Positioning::Global)
+				Localize(Where);
+
+			GetSpacing() = Where;
+			MakeDirty();
+		}
+		void Transform::SetPivot(Transform* Parent, Spacing* Pivot)
+		{
+			TH_DELETE(Spacing, Local);
+			Root = Parent;
+			Local = Pivot;
+
+			if (Parent != nullptr)
+				Parent->AddChild(this);
 		}
 		void Transform::SetRoot(Transform* Parent)
 		{
@@ -9057,18 +9107,12 @@ namespace Tomahawk
 
 			if (Root != nullptr)
 			{
-				GetRootBasis(&Position, &Scale, &Rotation);
-				TH_DELETE(Matrix4x4, LocalTransform);
-				LocalTransform = nullptr;
-
-				TH_DELETE(Vector3, LocalPosition);
-				LocalPosition = nullptr;
-
-				TH_DELETE(Vector3, LocalRotation);
-				LocalRotation = nullptr;
-
-				TH_DELETE(Vector3, LocalScale);
-				LocalScale = nullptr;
+				Specialize(Global);
+				if (Parent != nullptr)
+				{
+					TH_DELETE(Spacing, Local);
+					Local = nullptr;
+				}
 
 				for (auto It = Root->Childs.begin(); It != Root->Childs.end(); ++It)
 				{
@@ -9081,50 +9125,22 @@ namespace Tomahawk
 			}
 
 			Root = Parent;
-			if (!Root)
-				return;
-
-			Root->AddChild(this);
-			LocalTransform = TH_NEW(Matrix4x4, Matrix4x4::Create(Position, Rotation) * Root->GetWorldUnscaled().Inv());
-			LocalPosition = TH_NEW(Vector3, LocalTransform->Position());
-			LocalRotation = TH_NEW(Vector3, LocalTransform->Rotation());
-			LocalScale = TH_NEW(Vector3, ConstantScale ? Scale : Scale / Root->Scale);
-		}
-		void Transform::GetRootBasis(Vector3* _Position, Vector3* _Scale, Vector3* _Rotation)
-		{
 			if (Root != nullptr)
 			{
-				Matrix4x4 Result = Matrix4x4::Create(*LocalPosition, *LocalRotation) * Root->GetWorldUnscaled();
-				if (_Position != nullptr)
-					*_Position = Result.Position();
+				Root->AddChild(this);
+				if (!Local)
+					Local = TH_NEW(Spacing);
 
-				if (_Rotation != nullptr)
-					*_Rotation = Result.Rotation();
-
-				if (_Scale != nullptr)
-					*_Scale = (ConstantScale ? *LocalScale : *LocalScale * Root->Scale);
-			}
-			else
-			{
-				if (_Position != nullptr)
-					*_Position = Position;
-
-				if (_Rotation != nullptr)
-					*_Rotation = Rotation;
-
-				if (_Scale != nullptr)
-					*_Scale = Scale;
+				*Local = Global;
+				Localize(*Local);
 			}
 		}
 		bool Transform::HasRoot(Transform* Target)
 		{
 			TH_ASSERT(Target != nullptr, false, "target should be set");
 			Compute::Transform* UpperRoot = Root;
-			while (true)
+			while (UpperRoot != nullptr)
 			{
-				if (!UpperRoot)
-					return false;
-
 				if (UpperRoot == Target)
 					return true;
 
@@ -9147,176 +9163,9 @@ namespace Tomahawk
 
 			return false;
 		}
-		std::vector<Transform*>& Transform::GetChilds()
+		bool Transform::HasScaling()
 		{
-			return Childs;
-		}
-		Transform* Transform::GetChild(uint64_t Child)
-		{
-			TH_ASSERT(Child < Childs.size(), nullptr, "index outside of range");
-			return Childs[Child];
-		}
-		Vector3* Transform::GetLocalPosition()
-		{
-			if (!Root)
-				return &Position;
-
-			TH_ASSERT(LocalPosition != nullptr, nullptr, "corrupted root transform");
-			return LocalPosition;
-		}
-		Vector3* Transform::GetLocalRotation()
-		{
-			if (!Root)
-				return &Rotation;
-
-			TH_ASSERT(LocalRotation != nullptr, nullptr, "corrupted root transform");
-			return LocalRotation;
-		}
-		Vector3* Transform::GetLocalScale()
-		{
-			if (!Root)
-				return &Scale;
-
-			TH_ASSERT(LocalScale != nullptr, nullptr, "corrupted root transform");
-			return LocalScale;
-		}
-		Vector3 Transform::Up()
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalTransform != nullptr, Vector3::Up(), "corrupted root transform");
-				return LocalTransform->Up();
-			}
-
-			return Matrix4x4::Create(Position, Scale, Rotation).Up();
-		}
-		Vector3 Transform::Right()
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalTransform != nullptr, Vector3::Right(), "corrupted root transform");
-				return LocalTransform->Right();
-			}
-
-			return Matrix4x4::Create(Position, Scale, Rotation).Right();
-		}
-		Vector3 Transform::Forward()
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalTransform != nullptr, Vector3::Forward(), "corrupted root transform");
-				return LocalTransform->Forward();
-			}
-
-			return Matrix4x4::Create(Position, Scale, Rotation).Forward();
-		}
-		Vector3 Transform::Direction(const Vector3& Direction)
-		{
-			return Matrix4x4::CreateLookAt(0, Direction, Vector3::Up()).Rotation();
-		}
-		Transform* Transform::GetRoot()
-		{
-			return Root;
-		}
-		Transform* Transform::GetUpperRoot()
-		{
-			Compute::Transform* UpperRoot = Root;
-			while (true)
-			{
-				if (!UpperRoot)
-					return nullptr;
-
-				if (!UpperRoot->GetRoot())
-					return UpperRoot;
-
-				UpperRoot = UpperRoot->GetRoot();
-			}
-
-			return nullptr;
-		}
-		Matrix4x4 Transform::GetWorld()
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return Matrix4x4::CreateScale(Scale) * *LocalTransform;
-			}
-
-			return Matrix4x4::Create(Position, Scale, Rotation);
-		}
-		Matrix4x4 Transform::GetWorld(const Vector3& Rescale)
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return Matrix4x4::CreateScale(Scale * Rescale) * *LocalTransform;
-			}
-
-			return Matrix4x4::Create(Position, Scale * Rescale, Rotation);
-		}
-		Matrix4x4 Transform::GetWorldUnscaled()
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return *LocalTransform;
-			}
-
-			return Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
-		}
-		Matrix4x4 Transform::GetWorldUnscaled(const Vector3& Rescale)
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalTransform != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return Matrix4x4::CreateScale(Rescale) * *LocalTransform;
-			}
-
-			return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
-		}
-		Matrix4x4 Transform::GetLocal()
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return Matrix4x4::Create(*LocalPosition, Scale, *LocalRotation);
-			}
-
-			return Matrix4x4::Create(Position, Scale, Rotation);
-		}
-		Matrix4x4 Transform::GetLocal(const Vector3& Rescale)
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return Matrix4x4::Create(*LocalPosition, Scale * Rescale, *LocalRotation);
-			}
-
-			return Matrix4x4::Create(Position, Scale * Rescale, Rotation);
-		}
-		Matrix4x4 Transform::GetLocalUnscaled()
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return Matrix4x4::CreateRotation(*LocalRotation) * Matrix4x4::CreateTranslation(*LocalPosition);
-			}
-
-			return Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
-		}
-		Matrix4x4 Transform::GetLocalUnscaled(const Vector3& Rescale)
-		{
-			if (Root)
-			{
-				TH_ASSERT(LocalPosition != nullptr && LocalRotation != nullptr, Matrix4x4::Identity(), "corrupted root transform");
-				return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(*LocalRotation) * Matrix4x4::CreateTranslation(*LocalPosition);
-			}
-
-			return Matrix4x4::CreateScale(Rescale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
-		}
-		uint64_t Transform::GetChildsCount()
-		{
-			return (uint64_t)Childs.size();
+			return Scaling;
 		}
 		bool Transform::CanRootBeApplied(Transform* Parent)
 		{
@@ -9331,13 +9180,109 @@ namespace Tomahawk
 
 			return true;
 		}
+		bool Transform::IsDirty()
+		{
+			return Dirty;
+		}
+		const Matrix4x4& Transform::GetBias()
+		{
+			TH_ASSERT(!Root || Local != nullptr, Global.Offset, "corrupted root transform");
+			if (Root != nullptr)
+				return Temporary;
+
+			return Global.Offset;
+		}
+		const Matrix4x4& Transform::GetBiasUnscaled()
+		{
+			TH_ASSERT(!Root || Local != nullptr, Temporary, "corrupted root transform");
+			if (Root != nullptr)
+				return Local->Offset;
+
+			return Temporary;
+		}
+		const Vector3& Transform::GetPosition()
+		{
+			return Global.Position;
+		}
+		const Vector3& Transform::GetRotation()
+		{
+			return Global.Rotation;
+		}
+		const Vector3& Transform::GetScale()
+		{
+			return Global.Scale;
+		}
+		Vector3 Transform::Forward()
+		{
+			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
+			if (Root != nullptr)
+				return Local->Offset.Forward();
+
+			return Global.Offset.Forward();
+		}
+		Vector3 Transform::Right()
+		{
+			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
+			if (Root != nullptr)
+				return Local->Offset.Right();
+
+			return Global.Offset.Right();
+		}
+		Vector3 Transform::Up()
+		{
+			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
+			if (Root != nullptr)
+				return Local->Offset.Up();
+
+			return Global.Offset.Up();
+		}
+		Transform::Spacing& Transform::GetSpacing()
+		{
+			TH_ASSERT(!Root || Local != nullptr, Global, "corrupted root transform");
+			if (Root != nullptr)
+				return *Local;
+
+			return Global;
+		}
+		Transform::Spacing& Transform::GetSpacing(Positioning Space)
+		{
+			TH_ASSERT(!Root || Local != nullptr, Global, "corrupted root transform");
+			if (Space == Positioning::Local)
+				return *Local;
+
+			return Global;
+		}
+		Transform* Transform::GetRoot()
+		{
+			return Root;
+		}
+		Transform* Transform::GetUpperRoot()
+		{
+			Compute::Transform* UpperRoot = Root;
+			while (UpperRoot != nullptr)
+				UpperRoot = UpperRoot->GetRoot();
+
+			return nullptr;
+		}
+		Transform* Transform::GetChild(size_t Child)
+		{
+			TH_ASSERT(Child < Childs.size(), nullptr, "index outside of range");
+			return Childs[Child];
+		}
+		size_t Transform::GetChildsCount()
+		{
+			return Childs.size();
+		}
+		std::vector<Transform*>& Transform::GetChilds()
+		{
+			return Childs;
+		}
 
 		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 			TH_ASSERT_V(Initial.Shape, "collision shape should be set");
 			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
 #ifdef TH_WITH_BULLET3
-
 			Initial.Shape = Engine->ReuseShape(Initial.Shape);
 			if (!Initial.Shape)
 			{
@@ -9531,18 +9476,23 @@ namespace Tomahawk
 			btTransform& Base = Instance->getWorldTransform();
 			if (!Kinematic)
 			{
-				btVector3 Position = Base.getOrigin();
-				btVector3 Scale = Instance->getCollisionShape()->getLocalScaling();
 				btScalar X, Y, Z;
-
+				const btVector3& Position = Base.getOrigin();
+				const btVector3& Scale = Instance->getCollisionShape()->getLocalScaling();
 				Base.getRotation().getEulerZYX(Z, Y, X);
-				Transform->SetTransform(TransformSpace::Global, BT_TO_V3(Position), BT_TO_V3(Scale), Vector3(-X, -Y, Z));
+
+				Transform::Spacing Space;
+				Space.Position = BT_TO_V3(Position);
+				Space.Rotation = Vector3(-X, -Y, Z);
+				Space.Scale = BT_TO_V3(Scale);
+				Transform->SetSpacing(Positioning::Global, Space);
 			}
 			else
 			{
-				Base.setOrigin(btVector3(Transform->Position.X, Transform->Position.Y, Transform->Position.Z));
-				Base.getBasis().setEulerZYX(Transform->Rotation.X, Transform->Rotation.Y, Transform->Rotation.Z);
-				Instance->getCollisionShape()->setLocalScaling(V3_TO_BT(Transform->Scale));
+				Transform::Spacing& Space = Transform->GetSpacing(Positioning::Global);
+				Base.setOrigin(V3_TO_BT(Space.Position));
+				Base.getBasis().setEulerZYX(Space.Rotation.X, Space.Rotation.Y, Space.Rotation.Z);
+				Instance->getCollisionShape()->setLocalScaling(V3_TO_BT(Space.Scale));
 			}
 #endif
 		}
@@ -10287,11 +10237,15 @@ namespace Tomahawk
 			{
 				btScalar X, Y, Z;
 				Instance->getWorldTransform().getRotation().getEulerZYX(Z, Y, X);
-				Transform->SetTransform(TransformSpace::Global, Center.InvZ(), 1.0f, Vector3(-X, -Y, Z));
+
+				Transform::Spacing Space;
+				Space.Position = Center.InvZ();
+				Space.Rotation = Vector3(-X, -Y, Z);
+				Transform->SetSpacing(Positioning::Global, Space);
 			}
 			else
 			{
-				Vector3 Position = Transform->Position.InvZ() - Center;
+				Vector3 Position = Transform->GetPosition().InvZ() - Center;
 				if (Position.Length() > 0.005f)
 					Instance->translate(V3_TO_BT(Position));
 			}
@@ -13058,9 +13012,9 @@ namespace Tomahawk
 				return CreateRigidBody(I);
 
 			RigidBody::Desc F(I);
-			F.Position = Transform->Position;
-			F.Rotation = Transform->Rotation;
-			F.Scale = Transform->Scale;
+			F.Position = Transform->GetPosition();
+			F.Rotation = Transform->GetRotation();
+			F.Scale = Transform->GetScale();
 			return CreateRigidBody(F);
 #else
 			return nullptr;
@@ -13081,9 +13035,9 @@ namespace Tomahawk
 				return CreateSoftBody(I);
 
 			SoftBody::Desc F(I);
-			F.Position = Transform->Position;
-			F.Rotation = Transform->Rotation;
-			F.Scale = Transform->Scale;
+			F.Position = Transform->GetPosition();
+			F.Rotation = Transform->GetRotation();
+			F.Scale = Transform->GetScale();
 			return CreateSoftBody(F);
 #else
 			return nullptr;

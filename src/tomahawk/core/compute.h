@@ -181,7 +181,7 @@ namespace Tomahawk
 			ZYX
 		};
 
-		enum class TransformSpace
+		enum class Positioning
 		{
 			Local,
 			Global
@@ -408,6 +408,7 @@ namespace Tomahawk
 			Vector3 Transform(const Matrix4x4& V) const;
 			Vector3 hDirection() const;
 			Vector3 dDirection() const;
+			Vector3 Direction() const;
 			Vector3 Inv() const;
 			Vector3 InvX() const;
 			Vector3 InvY() const;
@@ -1405,8 +1406,6 @@ namespace Tomahawk
 			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
-			static void SetTransformPivot(Transform* In, Matrix4x4* LocalTransform, Vector3* LocalPosition, Vector3* LocalRotation, Vector3* LocalScale);
-			static void SetTransformRoot(Transform* In, Transform* Root);
 			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
 			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
 			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
@@ -1593,56 +1592,68 @@ namespace Tomahawk
 		{
 			friend Common;
 
+		public:
+			struct Spacing
+			{
+				Matrix4x4 Offset;
+				Vector3 Position;
+				Vector3 Rotation;
+				Vector3 Scale = 1.0f;
+			};
+
 		private:
 			std::vector<Transform*> Childs;
-			Matrix4x4* LocalTransform;
-			Vector3* LocalPosition;
-			Vector3* LocalRotation;
-			Vector3* LocalScale;
+			Matrix4x4 Temporary;
 			Transform* Root;
+			Spacing* Local;
+			Spacing Global;
+			bool Scaling;
+			bool Dirty;
 
 		public:
-			Vector3 Position;
-			Vector3 Rotation;
-			Vector3 Scale;
-			bool ConstantScale;
 			void* UserPointer;
 
 		public:
 			Transform();
 			virtual ~Transform() override;
+			void Synchronize();
+			void Move(const Vector3& Value);
+			void Rotate(const Vector3& Value);
+			void Rescale(const Vector3& Value);
+			void Localize(Spacing& Where);
+			void Globalize(Spacing& Where);
+			void Specialize(Spacing& Where);
+			void Copy(Transform* Target);
 			void AddChild(Transform* Child);
 			void RemoveChild(Transform* Child);
 			void RemoveChilds();
-			void Synchronize();
-			void Copy(Transform* Target);
-			void Localize(Vector3* Position, Vector3* Scale, Vector3* Rotation);
-			void Globalize(Vector3* Position, Vector3* Scale, Vector3* Rotation);
-			void SetTransform(TransformSpace Space, const Vector3& Position, const Vector3& Scale, const Vector3& Rotation);
+			void MakeDirty();
+			void SetScaling(bool Enabled);
+			void SetPosition(const Vector3& Value);
+			void SetRotation(const Vector3& Value);
+			void SetScale(const Vector3& Value);
+			void SetSpacing(Positioning Space, Spacing& Where);
+			void SetPivot(Transform* Root, Spacing* Pivot);
 			void SetRoot(Transform* Root);
-			void GetRootBasis(Vector3* Position, Vector3* Scale, Vector3* Rotation);
-			std::vector<Transform*>& GetChilds();
-			Transform* GetChild(uint64_t Child);
-			Vector3* GetLocalPosition();
-			Vector3* GetLocalRotation();
-			Vector3* GetLocalScale();
-			Vector3 Up();
-			Vector3 Right();
-			Vector3 Forward();
-			Vector3 Direction(const Vector3& Direction);
-			Matrix4x4 GetWorld();
-			Matrix4x4 GetWorld(const Vector3& Rescale);
-			Matrix4x4 GetWorldUnscaled();
-			Matrix4x4 GetWorldUnscaled(const Vector3& Rescale);
-			Matrix4x4 GetLocal();
-			Matrix4x4 GetLocal(const Vector3& Rescale);
-			Matrix4x4 GetLocalUnscaled();
-			Matrix4x4 GetLocalUnscaled(const Vector3& Rescale);
-			Transform* GetUpperRoot();
-			Transform* GetRoot();
 			bool HasRoot(Transform* Target);
 			bool HasChild(Transform* Target);
-			uint64_t GetChildsCount();
+			bool HasScaling();
+			bool IsDirty();
+			const Matrix4x4& GetBias();
+			const Matrix4x4& GetBiasUnscaled();
+			const Vector3& GetPosition();
+			const Vector3& GetRotation();
+			const Vector3& GetScale();
+			Vector3 Forward();
+			Vector3 Right();
+			Vector3 Up();
+			Spacing& GetSpacing();
+			Spacing& GetSpacing(Positioning Space);
+			Transform* GetRoot();
+			Transform* GetUpperRoot();
+			Transform* GetChild(size_t Child);
+			size_t GetChildsCount();
+			std::vector<Transform*>& GetChilds();
 
 		protected:
 			bool CanRootBeApplied(Transform* Root);

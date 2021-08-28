@@ -143,34 +143,37 @@ namespace Tomahawk
 						Core::Document* Transform = It->Find("transform");
 						if (Transform != nullptr)
 						{
-							auto* Offset = Entity->GetTransform();
-							NMake::Unpack(Transform->Find("position"), &Offset->Position);
-							NMake::Unpack(Transform->Find("rotation"), &Offset->Rotation);
-							NMake::Unpack(Transform->Find("scale"), &Offset->Scale);
-							NMake::Unpack(Transform->Find("constant-scale"), &Offset->ConstantScale);
+							Compute::Transform* Offset = Entity->GetTransform();
+							Compute::Transform::Spacing& Space = Offset->GetSpacing(Compute::Positioning::Global);
+							bool Scaling = Offset->HasScaling();
+							NMake::Unpack(Transform->Find("position"), &Space.Position);
+							NMake::Unpack(Transform->Find("rotation"), &Space.Rotation);
+							NMake::Unpack(Transform->Find("scale"), &Space.Scale);
+							NMake::Unpack(Transform->Find("scaling"), &Scaling);
+							Offset->SetScaling(Scaling);
 						}
 
 						Core::Document* Parent = It->Find("parent");
 						if (Parent != nullptr)
 						{
-							Compute::Vector3* Position = TH_NEW(Compute::Vector3);
-							Compute::Vector3* Rotation = TH_NEW(Compute::Vector3);
-							Compute::Vector3* Scale = TH_NEW(Compute::Vector3);
-							Compute::Matrix4x4* World = TH_NEW(Compute::Matrix4x4);
-
-							NMake::Unpack(Parent->Find("position"), Position);
-							NMake::Unpack(Parent->Find("rotation"), Rotation);
-							NMake::Unpack(Parent->Find("scale"), Scale);
-							NMake::Unpack(Parent->Find("world"), World);
-							Compute::Common::SetTransformPivot(Entity->GetTransform(), World, Position, Rotation, Scale);
+							Compute::Transform* Root = nullptr;
+							Compute::Transform::Spacing* Space = TH_NEW(Compute::Transform::Spacing);
+							NMake::Unpack(Parent->Find("position"), &Space->Position);
+							NMake::Unpack(Parent->Find("rotation"), &Space->Rotation);
+							NMake::Unpack(Parent->Find("scale"), &Space->Scale);
+							NMake::Unpack(Parent->Find("world"), &Space->Offset);
 
 							int64_t Where = -1;
 							if (NMake::Unpack(Parent->Find("where"), &Where) && Where >= 0)
 							{
 								auto It = Snapshot.From.find(Where);
 								if (It != Snapshot.From.end() && It->second != Entity)
-									Compute::Common::SetTransformRoot(Entity->GetTransform(), It->second->GetTransform());
+									Root = It->second->GetTransform();
 							}
+
+							Compute::Transform* Offset = Entity->GetTransform();
+							Offset->SetPivot(Root, Space);
+							Offset->MakeDirty();
 						}
 
 						Core::Document* Components = It->Find("components");
@@ -266,10 +269,10 @@ namespace Tomahawk
 					NMake::Pack(Entity->Set("refer"), i);
 
 					Core::Document* Transform = Entity->Set("transform");
-					NMake::Pack(Transform->Set("position"), Offset->Position);
-					NMake::Pack(Transform->Set("rotation"), Offset->Rotation);
-					NMake::Pack(Transform->Set("scale"), Offset->Scale);
-					NMake::Pack(Transform->Set("constant-scale"), Offset->ConstantScale);
+					NMake::Pack(Transform->Set("position"), Offset->GetPosition());
+					NMake::Pack(Transform->Set("rotation"), Offset->GetRotation());
+					NMake::Pack(Transform->Set("scale"), Offset->GetScale());
+					NMake::Pack(Transform->Set("scaling"), Offset->HasScaling());
 
 					if (Offset->GetRoot() != nullptr)
 					{
@@ -281,10 +284,11 @@ namespace Tomahawk
 								NMake::Pack(Parent->Set("where"), It->second);
 						}
 
-						NMake::Pack(Parent->Set("position"), *Offset->GetLocalPosition());
-						NMake::Pack(Parent->Set("rotation"), *Offset->GetLocalRotation());
-						NMake::Pack(Parent->Set("scale"), *Offset->GetLocalScale());
-						NMake::Pack(Parent->Set("world"), Offset->GetWorld());
+						Compute::Transform::Spacing& Space = Offset->GetSpacing();
+						NMake::Pack(Parent->Set("position"), Space.Position);
+						NMake::Pack(Parent->Set("rotation"), Space.Rotation);
+						NMake::Pack(Parent->Set("scale"), Space.Scale);
+						NMake::Pack(Parent->Set("world"), Space.Offset);
 					}
 
 					if (!Ref->GetComponentCount())

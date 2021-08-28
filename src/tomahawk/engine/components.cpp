@@ -257,8 +257,13 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
+				Compute::Transform::Spacing Space;
+				Space.Position = Position;
+				Space.Rotation = Rotation;
+				Space.Scale = Scale;
+
 				auto* Transform = Parent->GetTransform();
-				Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
+				Transform->SetSpacing(Compute::Positioning::Global, Space);
 				Instance->Synchronize(Transform, true);
 
 				SceneGraph* Scene = Parent->GetScene();
@@ -799,8 +804,13 @@ namespace Tomahawk
 				SceneGraph* Scene = Parent->GetScene();
 				Scene->Exclusive([this, Position, Scale, Rotation]()
 				{
+					Compute::Transform::Spacing Space;
+					Space.Position = Position;
+					Space.Rotation = Rotation;
+					Space.Scale = Scale;
+
 					auto* Transform = Parent->GetTransform();
-					Transform->SetTransform(Compute::TransformSpace::Global, Position, Scale, Rotation);
+					Transform->SetSpacing(Compute::Positioning::Global, Space);
 					Instance->Synchronize(Transform, true);
 					Instance->SetActivity(true);
 				});
@@ -833,13 +843,13 @@ namespace Tomahawk
 			Compute::Matrix4x4 SoftBody::GetBoundingBox()
 			{
 				if (!Instance)
-					return Parent->GetTransform()->GetWorld();
+					return Parent->GetTransform()->GetBias();
 
 				Compute::Vector3 Min, Max;
 				Instance->GetBoundingBox(&Min, &Max);
 
-				auto* Transform = Parent->GetTransform();
-				return Compute::Matrix4x4::Create((Max + Min).Div(2.0f), Transform->Scale * Instance->GetScale(), Transform->Rotation);
+				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
+				return Compute::Matrix4x4::Create((Max + Min).Div(2.0f), Space.Scale * Instance->GetScale(), Space.Rotation);
 			}
 			Component* SoftBody::Copy(Entity* New)
 			{
@@ -1341,10 +1351,10 @@ namespace Tomahawk
 			Compute::Matrix4x4 Model::GetBoundingBox()
 			{
 				if (!Instance)
-					return Parent->GetTransform()->GetWorld();
+					return Parent->GetTransform()->GetBias();
 
-				auto* Transform = Parent->GetTransform();
-				return Compute::Matrix4x4::Create(Transform->Position, Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Transform->Rotation);
+				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
+				return Compute::Matrix4x4::Create(Space.Position, Space.Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Space.Rotation);
 			}
 			Component* Model::Copy(Entity* New)
 			{
@@ -1482,10 +1492,10 @@ namespace Tomahawk
 			Compute::Matrix4x4 Skin::GetBoundingBox()
 			{
 				if (!Instance)
-					return Parent->GetTransform()->GetWorld();
+					return Parent->GetTransform()->GetBias();
 
-				auto* Transform = Parent->GetTransform();
-				return Compute::Matrix4x4::Create(Transform->Position, Transform->Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Transform->Rotation);
+				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
+				return Compute::Matrix4x4::Create(Space.Position, Space.Scale * Compute::Vector3(Instance->Min.W - Instance->Max.W).Div(2.0f).Abs(), Space.Rotation);
 			}
 			Component* Skin::Copy(Entity* New)
 			{
@@ -1594,10 +1604,10 @@ namespace Tomahawk
 			float Emitter::Cull(const Viewer& View)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->Position.Distance(View.WorldPosition) / (View.FarPlane);
+				float Result = 1.0f - Transform->GetPosition().Distance(View.WorldPosition) / (View.FarPlane);
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Transform->GetWorldUnscaled() * View.ViewProjection, 1.5f) ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Transform->GetBiasUnscaled() * View.ViewProjection, 1.5f) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -1660,8 +1670,12 @@ namespace Tomahawk
 			void Decal::Synchronize(Core::Timer* Time)
 			{
 				auto* Transform = Parent->GetTransform();
+				if (Transform->IsDirty())
+				{
+					auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
+					View = Compute::Matrix4x4::CreateTranslation(-Space.Position) * Compute::Matrix4x4::CreateCameraRotation(-Space.Rotation);
+				}
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, Distance);
-				View = Compute::Matrix4x4::CreateTranslation(-Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Transform->Rotation);
 			}
 			void Decal::Activate(Component* New)
 			{
@@ -1675,10 +1689,10 @@ namespace Tomahawk
 			float Decal::Cull(const Viewer& fView)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
+				float Result = 1.0f - Transform->GetPosition().Distance(fView.WorldPosition) / fView.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorld() * fView.ViewProjection, GetRange()) ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetBias() * fView.ViewProjection, GetRange()) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -1991,10 +2005,6 @@ namespace Tomahawk
 					return;
 
 				auto* Transform = Parent->GetTransform();
-				Compute::Vector3& Position = *Transform->GetLocalPosition();
-				Compute::Vector3& Rotation = *Transform->GetLocalRotation();
-				Compute::Vector3& Scale = *Transform->GetLocalScale();
-
 				if (!State.Blended)
 				{
 					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
@@ -2009,9 +2019,9 @@ namespace Tomahawk
 					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
 
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
-					Position = Current.Position = PrevKey.Position.Lerp(NextKey.Position, T);
-					Rotation = Current.Rotation = PrevKey.Rotation.aLerp(NextKey.Rotation, T);
-					Scale = Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T);
+					Transform->SetPosition(Current.Position = PrevKey.Position.Lerp(NextKey.Position, T));
+					Transform->SetRotation(Current.Rotation = PrevKey.Rotation.aLerp(NextKey.Rotation, T));
+					Transform->SetScale(Current.Scale = PrevKey.Scale.Lerp(NextKey.Scale, T));
 
 					if (State.Time >= State.Duration)
 					{
@@ -2040,9 +2050,9 @@ namespace Tomahawk
 					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
-					Position = Current.Position.Lerp(Key->Position, T);
-					Rotation = Current.Rotation.aLerp(Key->Rotation, T);
-					Scale = Current.Scale.Lerp(Key->Scale, T);
+					Transform->SetPosition(Current.Position.Lerp(Key->Position, T));
+					Transform->SetRotation(Current.Rotation.aLerp(Key->Rotation, T));
+					Transform->SetScale(Current.Scale.Lerp(Key->Scale, T));
 				}
 				else
 				{
@@ -2067,10 +2077,10 @@ namespace Tomahawk
 			void KeyAnimator::GetPose(Compute::AnimatorKey* Result)
 			{
 				TH_ASSERT_V(Result != nullptr, "result should be set");
-				auto* Transform = Parent->GetTransform();
-				Result->Position = *Transform->GetLocalPosition();
-				Result->Rotation = *Transform->GetLocalRotation();
-				Result->Scale = *Transform->GetLocalScale();
+				auto& Space = Parent->GetTransform()->GetSpacing();
+				Result->Position = Space.Position;
+				Result->Rotation = Space.Rotation;
+				Result->Scale = Space.Scale;
 			}
 			void KeyAnimator::ClearAnimation()
 			{
@@ -2141,8 +2151,8 @@ namespace Tomahawk
 				if (!Key)
 					Key = &Bind;
 
-				auto* Transform = Parent->GetTransform();
-				return *Transform->GetLocalPosition() == Key->Position && *Transform->GetLocalRotation() == Key->Rotation && *Transform->GetLocalScale() == Key->Scale;
+				auto& Space = Parent->GetTransform()->GetSpacing();
+				return Space.Position == Key->Position && Space.Rotation == Key->Rotation && Space.Scale == Key->Scale;
 			}
 			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
@@ -2232,7 +2242,7 @@ namespace Tomahawk
 					return;
 
 				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
-				Compute::Vector3 Offset = Parent->GetTransform()->Position.InvZ();
+				Compute::Vector3 Offset = Parent->GetTransform()->GetPosition().InvZ();
 
 				for (int i = 0; i < Spawner.Iterations; i++)
 				{
@@ -2369,8 +2379,10 @@ namespace Tomahawk
 				{
 					auto* Transform = Parent->GetTransform();
 					Compute::Vector2 Next = (Cursor - Position) * Sensivity;
-					Transform->Rotation += Compute::Vector3(Next.Y, Next.X);
-					Transform->Rotation.X = Compute::Mathf::Clamp(Transform->Rotation.X, -1.57079632679f, 1.57079632679f);
+					Transform->Rotate(Compute::Vector3(Next.Y, Next.X));
+
+					const Compute::Vector3& Rotation = Transform->GetRotation();
+					Transform->SetRotation(Rotation.SetX(Compute::Mathf::Clamp(Rotation.X, -1.57079632679f, 1.57079632679f)));
 				}
 				else
 					Position = Cursor;
@@ -2420,22 +2432,22 @@ namespace Tomahawk
 					Speed = Axis * DeltaTime * SpeedDown;
 
 				if (Activity->IsKeyDown(Forward))
-					Transform->Position += Transform->Forward() * Speed;
+					Transform->Move(Transform->Forward() * Speed);
 
 				if (Activity->IsKeyDown(Backward))
-					Transform->Position -= Transform->Forward() * Speed;
+					Transform->Move(-Transform->Forward() * Speed);
 
 				if (Activity->IsKeyDown(Right))
-					Transform->Position += Transform->Right() * Speed;
+					Transform->Move(Transform->Right() * Speed);
 
 				if (Activity->IsKeyDown(Left))
-					Transform->Position -= Transform->Right() * Speed;
+					Transform->Move(-Transform->Right() * Speed);
 
 				if (Activity->IsKeyDown(Up))
-					Transform->Position += Transform->Up() * Speed;
+					Transform->Move(Transform->Up() * Speed);
 
 				if (Activity->IsKeyDown(Down))
-					Transform->Position -= Transform->Up() * Speed;
+					Transform->Move(-Transform->Up() * Speed);
 			}
 			Component* Fly::Copy(Entity* New)
 			{
@@ -2565,14 +2577,17 @@ namespace Tomahawk
 			void AudioSource::Synchronize(Core::Timer* Time)
 			{
 				auto* Transform = Parent->GetTransform();
-				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
+				if (Transform->IsDirty())
 				{
-					Sync.Velocity = (Transform->Position - LastPosition) * Time->GetDeltaTime();
-					LastPosition = Transform->Position;
+					const Compute::Vector3& Position = Transform->GetPosition();
+					Sync.Velocity = (Position - LastPosition) * Time->GetDeltaTime();
+					LastPosition = Position;
 				}
+				else
+					Sync.Velocity = 0.0f;
 
 				if (Source->GetClip() != nullptr)
-					Source->Synchronize(&Sync, Transform->Position);
+					Source->Synchronize(&Sync, Transform->GetPosition());
 			}
 			void AudioSource::ApplyPlayingPosition()
 			{
@@ -2622,20 +2637,19 @@ namespace Tomahawk
 			void AudioListener::Synchronize(Core::Timer* Time)
 			{
 				auto* Transform = Parent->GetTransform();
-				Compute::Vector3 Velocity;
-
-				if (Time != nullptr && Time->GetDeltaTime() > 0.0)
+				if (Transform->IsDirty())
 				{
-					Velocity = (Transform->Position - LastPosition) * Time->GetDeltaTime();
-					LastPosition = Transform->Position;
+					const Compute::Vector3& Position = Transform->GetPosition();
+					Compute::Vector3 Velocity = (Position - LastPosition) * Time->GetDeltaTime();
+					Compute::Vector3 Rotation = Transform->GetRotation().dDirection();
+					float LookAt[6] = { Rotation.X, Rotation.Y, Rotation.Z, 0.0f, 1.0f, 0.0f };
+					LastPosition = Position;
+
+					Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Velocity, Velocity.X, Velocity.Y, Velocity.Z);
+					Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Position, -Position.X, -Position.Y, Position.Z);
+					Audio::AudioContext::SetListenerDataVF(Audio::SoundEx::Orientation, LookAt);
 				}
 
-				Compute::Vector3 Rotation = Transform->Rotation.dDirection();
-				float LookAt[6] = { Rotation.X, Rotation.Y, Rotation.Z, 0.0f, 1.0f, 0.0f };
-
-				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Velocity, Velocity.X, Velocity.Y, Velocity.Z);
-				Audio::AudioContext::SetListenerData3F(Audio::SoundEx::Position, -Transform->Position.X, -Transform->Position.Y, Transform->Position.Z);
-				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx::Orientation, LookAt);
 				Audio::AudioContext::SetListenerData1F(Audio::SoundEx::Gain, Gain);
 			}
 			void AudioListener::Deactivate()
@@ -2691,24 +2705,24 @@ namespace Tomahawk
 			float PointLight::Cull(const Viewer& Base)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->Position.Distance(Base.WorldPosition) / Base.FarPlane;
+				float Result = 1.0f - Transform->GetPosition().Distance(Base.WorldPosition) / Base.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * Base.ViewProjection, GetBoxRange()) ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetBiasUnscaled() * Base.ViewProjection, GetBoxRange()) ? Result : 0.0f;
 
 				return Result;
 			}
 			bool PointLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
 				auto* Transform = Parent->GetTransform();
-				if (Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
+				if (Transform->GetPosition().Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetWorld()) * fView.ViewProjection, 1.65f);
+				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetBias()) * fView.ViewProjection, 1.65f);
 			}
 			bool PointLight::IsNear(const Viewer& fView)
 			{
-				return Parent->GetTransform()->Position.Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
+				return Parent->GetTransform()->GetPosition().Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* PointLight::Copy(Entity* New)
 			{
@@ -2725,8 +2739,10 @@ namespace Tomahawk
 			}
 			void PointLight::AssembleDepthOrigin()
 			{
+				auto* Transform = Parent->GetTransform();
+				if (Transform->IsDirty())
+					View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Transform->GetPosition().InvZ());
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
-				View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Parent->GetTransform()->Position.InvZ());
 			}
 			float PointLight::GetBoxRange() const
 			{
@@ -2775,24 +2791,24 @@ namespace Tomahawk
 			float SpotLight::Cull(const Viewer& fView)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
+				float Result = 1.0f - Transform->GetPosition().Distance(fView.WorldPosition) / fView.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetBiasUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
 
 				return Result;
 			}
 			bool SpotLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
 				auto* Transform = Parent->GetTransform();
-				if (Transform->Position.Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
+				if (Transform->GetPosition().Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
 					return false;
 
-				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetWorld()) * fView.ViewProjection, 1.65f);
+				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetBias()) * fView.ViewProjection, 1.65f);
 			}
 			bool SpotLight::IsNear(const Viewer& fView)
 			{
-				return Parent->GetTransform()->Position.Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
+				return Parent->GetTransform()->GetPosition().Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* SpotLight::Copy(Entity* New)
 			{
@@ -2810,8 +2826,12 @@ namespace Tomahawk
 			void SpotLight::AssembleDepthOrigin()
 			{
 				auto* Transform = Parent->GetTransform();
+				if (Transform->IsDirty())
+				{
+					auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
+					View = Compute::Matrix4x4::CreateTranslation(-Space.Position) * Compute::Matrix4x4::CreateCameraRotation(-Space.Rotation);
+				}
 				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
-				View = Compute::Matrix4x4::CreateTranslation(-Transform->Position) * Compute::Matrix4x4::CreateCameraRotation(-Transform->Rotation);
 			}
 			float SpotLight::GetBoxRange() const
 			{
@@ -2899,9 +2919,10 @@ namespace Tomahawk
 			{
 				auto* Viewer = (Components::Camera*)Parent->GetScene()->GetCamera();
 				auto* Transform = Viewer->GetEntity()->GetTransform();
-				Compute::Vector3 Eye = Transform->Position * Compute::Vector3(1.0f, 0.1f, 1.0f);
-				Compute::Vector3 Up = Transform->GetWorld().Right();
-				Compute::Matrix4x4 Look = Compute::Matrix4x4::CreateLockedLookAt(Parent->GetTransform()->Position, Eye, Up);
+				const Compute::Vector3& Position = Transform->GetPosition();
+				Compute::Vector3 Eye = Position * Compute::Vector3(1.0f, 0.1f, 1.0f);
+				Compute::Vector3 Up = Transform->Right();
+				Compute::Matrix4x4 Look = Compute::Matrix4x4::CreateLockedLookAt(Position, Eye, Up);
 				float Near = -Viewer->FarPlane - Viewer->NearPlane;
 				float Far = Viewer->FarPlane;
 
@@ -3068,10 +3089,10 @@ namespace Tomahawk
 					return Result;
 
 				auto* Transform = Parent->GetTransform();
-				Result = 1.0f - Transform->Position.Distance(fView.WorldPosition) / fView.FarPlane;
+				Result = 1.0f - Transform->GetPosition().Distance(fView.WorldPosition) / fView.FarPlane;
 
 				if (Result > 0.0f)
-					Result = Compute::Common::IsCubeInFrustum(Transform->GetWorldUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
+					Result = Compute::Common::IsCubeInFrustum(Transform->GetBiasUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
 
 				return Result;
 			}
@@ -3262,8 +3283,8 @@ namespace Tomahawk
 			}
 			float Illuminator::Cull(const Viewer& View)
 			{
-				Compute::Matrix4x4 Box = Parent->GetTransform()->GetWorld();
-				return IsVisible(View, &Box) ? 1.0f : 0.0f;
+				const Compute::Matrix4x4& Box = Parent->GetTransform()->GetBias();
+				return IsVisible(View, (Compute::Matrix4x4*)&Box) ? 1.0f : 0.0f;
 			}
 			Component* Illuminator::Copy(Entity* New)
 			{
@@ -3442,11 +3463,9 @@ namespace Tomahawk
 			void Camera::GetViewer(Viewer* View)
 			{
 				TH_ASSERT_V(View != nullptr, "viewer should be set");
-				auto* Transform = Parent->GetTransform();
-				Compute::Vector3 Position = Transform->Position.InvX().InvY();
-				Compute::Matrix4x4 World = Compute::Matrix4x4::CreateCamera(Position, -Transform->Rotation);
-				View->Set(World, Projection, Transform->Position, NearPlane, FarPlane);
-				View->WorldRotation = Transform->Rotation;
+				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
+				View->Set(Compute::Matrix4x4::CreateCamera(Space.Position.InvX().InvY(), -Space.Rotation), Projection, Space.Position, NearPlane, FarPlane);
+				View->WorldRotation = Space.Rotation;
 				View->Renderer = Renderer;
 				FieldView = *View;
 			}
@@ -3470,7 +3489,7 @@ namespace Tomahawk
 			Compute::Vector3 Camera::GetViewPosition()
 			{
 				auto* Transform = Parent->GetTransform();
-				return Compute::Vector3(-Transform->Position.X, -Transform->Position.Y, Transform->Position.Z);
+				return Transform->GetPosition().InvX().InvY();
 			}
 			Compute::Matrix4x4 Camera::GetViewProjection()
 			{
@@ -3478,7 +3497,7 @@ namespace Tomahawk
 			}
 			Compute::Matrix4x4 Camera::GetView()
 			{
-				return Compute::Matrix4x4::CreateCamera(GetViewPosition(), -Parent->GetTransform()->Rotation);
+				return Compute::Matrix4x4::CreateCamera(GetViewPosition(), -Parent->GetTransform()->GetRotation());
 			}
 			Compute::Ray Camera::GetScreenRay(const Compute::Vector2& Position)
 			{
@@ -3489,12 +3508,12 @@ namespace Tomahawk
 					W = V.Width; H = V.Height;
 				}
 
-				return Compute::Common::CreateCursorRay(Parent->GetTransform()->Position, Position, Compute::Vector2(W, H), Projection.Inv(), GetView().Inv());
+				return Compute::Common::CreateCursorRay(Parent->GetTransform()->GetPosition(), Position, Compute::Vector2(W, H), Projection.Inv(), GetView().Inv());
 			}
 			float Camera::GetDistance(Entity* Other)
 			{
 				TH_ASSERT(Other != nullptr, -1.0f, "other should be set");
-				return Other->GetTransform()->Position.Distance(FieldView.WorldPosition);
+				return Other->GetTransform()->GetPosition().Distance(FieldView.WorldPosition);
 			}
 			float Camera::GetWidth()
 			{
@@ -3526,7 +3545,7 @@ namespace Tomahawk
 			bool Camera::RayTest(const Compute::Ray& Ray, Entity* Other)
 			{
 				TH_ASSERT(Other != nullptr, false, "other should be set");
-				return Compute::Common::CursorRayTest(Ray, Other->GetTransform()->GetWorld());
+				return Compute::Common::CursorRayTest(Ray, Other->GetTransform()->GetBias());
 			}
 			bool Camera::RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World)
 			{

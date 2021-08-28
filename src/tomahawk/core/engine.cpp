@@ -1922,7 +1922,7 @@ namespace Tomahawk
 		}
 		Compute::Matrix4x4 Component::GetBoundingBox()
 		{
-			return Parent->GetTransform()->GetWorld();
+			return Parent->GetTransform()->GetBias();
 		}
 		void Component::SetActive(bool Enabled)
 		{
@@ -1970,28 +1970,29 @@ namespace Tomahawk
 		}
 		float Cullable::GetRange()
 		{
-			auto* Transform = Parent->GetTransform();
-			float Max = Transform->Scale.X;
-			if (Max < Transform->Scale.Y)
-				Max = Transform->Scale.Y;
+			const Compute::Vector3& Scale = Parent->GetTransform()->GetScale();
+			float Max = Scale.X;
 
-			if (Max < Transform->Scale.Z)
-				return Transform->Scale.Z;
+			if (Max < Scale.Y)
+				Max = Scale.Y;
+
+			if (Max < Scale.Z)
+				return Scale.Z;
 
 			return Max;
 		}
 		bool Cullable::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
 		{
 			auto* Transform = Parent->GetTransform();
-			if (Transform->Position.Distance(View.WorldPosition) > View.FarPlane + Transform->Scale.Length())
+			if (Transform->GetPosition().Distance(View.WorldPosition) > View.FarPlane + Transform->GetScale().Length())
 				return false;
 
-			return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetWorld()) * View.ViewProjection, 1.65f);
+			return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetBias()) * View.ViewProjection, 1.65f);
 		}
 		bool Cullable::IsNear(const Viewer& View)
 		{
 			auto* Transform = Parent->GetTransform();
-			return Transform->Position.Distance(View.WorldPosition) <= View.FarPlane + Transform->Scale.Length();
+			return Transform->GetPosition().Distance(View.WorldPosition) <= View.FarPlane + Transform->GetScale().Length();
 		}
 
 		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) : Cullable(Ref, Rule | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true)
@@ -3049,7 +3050,7 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene) : DepthStencil(nullptr), Blend(nullptr), Sampler(nullptr), Target(nullptr), Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true)
+		RenderSystem::RenderSystem(SceneGraph* NewScene) : DepthStencil(nullptr), Blend(nullptr), Sampler(nullptr), Target(nullptr), Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(false)
 		{
 			Occlusion.Delay = 5;
 			Sorting.Delay = 5;
@@ -4244,15 +4245,18 @@ namespace Tomahawk
 			Compute::Vector3& Far = View.WorldPosition;
 			Component* Viewer = Camera.load();
 			if (Viewer != nullptr)
-				Far = Viewer->Parent->Transform->Position;
+				Far = Viewer->Parent->Transform->GetPosition();
 
 			int64_t Index = -1;
 			auto Begin2 = Entities.Begin(), End2 = Entities.End();
 			for (auto It = Begin2; It != End2; ++It)
 			{
 				Entity* Base = *It;
-				Base->Transform->Synchronize();
-				Base->Distance = Base->Transform->Position.Distance(Far);
+				if (Base->Transform->IsDirty())
+				{
+					Base->Transform->Synchronize();
+					Base->Distance = Base->Transform->GetPosition().Distance(Far);
+				}
 			}
 			TH_PPOP();
 		}
@@ -4906,12 +4910,16 @@ namespace Tomahawk
 
 				Race.lock();
 				auto It = Listeners.find(Source.Name);
-				if (It != Listeners.end() && !It->second.empty())
+				if (It == Listeners.end() || It->second.empty())
 				{
-					for (auto* Callback : It->second)
-						(*Callback)(Source.Name, Source.Args);
+					Race.unlock();
+					continue;
 				}
+				auto Copy = It->second;
 				Race.unlock();
+
+				for (auto* Callback : Copy)
+					(*Callback)(Source.Name, Source.Args);
 			}
 
 			return !Events.empty();
@@ -5065,7 +5073,7 @@ namespace Tomahawk
 			auto Begin = Entities.Begin(), End = Entities.End();
 			for (auto It = Begin; It != End; ++It)
 			{
-				if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
+				if ((*It)->Transform->GetPosition().Distance(Position) <= Radius + (*It)->Transform->GetScale().Length())
 					return *It;
 			}
 
@@ -5225,7 +5233,7 @@ namespace Tomahawk
 			auto Begin = Entities.Begin(), End = Entities.End();
 			for (auto It = Begin; It != End; ++It)
 			{
-				if ((*It)->Transform->Position.Distance(Position) <= Radius + (*It)->Transform->Scale.Length())
+				if ((*It)->Transform->GetPosition().Distance(Position) <= Radius + (*It)->Transform->GetScale().Length())
 					Array.push_back(*It);
 			}
 
@@ -5247,18 +5255,18 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Entity != nullptr, false, "entity should be set");
 			auto* Viewer = Camera.load();
-			if (!Viewer || Entity->Transform->Position.Distance(Viewer->Parent->Transform->Position) > View.FarPlane + Entity->Transform->Scale.Length())
+			if (!Viewer || Entity->Transform->GetPosition().Distance(Viewer->Parent->Transform->GetPosition()) > View.FarPlane + Entity->Transform->GetScale().Length())
 				return false;
 
-			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2);
+			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetBias() * ViewProjection, 2);
 		}
 		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance)
 		{
 			TH_ASSERT(Entity != nullptr, false, "entity should be set");
-			if (Entity->Transform->Position.Distance(ViewPosition) > DrawDistance + Entity->Transform->Scale.Length())
+			if (Entity->Transform->GetPosition().Distance(ViewPosition) > DrawDistance + Entity->Transform->GetScale().Length())
 				return false;
 
-			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetWorld() * ViewProjection, 2);
+			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetBias() * ViewProjection, 2);
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{

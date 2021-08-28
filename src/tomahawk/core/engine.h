@@ -491,8 +491,8 @@ namespace Tomahawk
 			std::string Name;
 
 		public:
-			float Distance;
 			int64_t Tag;
+			float Distance;
 
 		public:
 			Entity(SceneGraph* Ref);
@@ -653,6 +653,7 @@ namespace Tomahawk
 			Core::Ticker Occlusion;
 			Core::Ticker Sorting;
 			size_t StallFrames;
+			bool PreciseCulling;
 
 		public:
 			RenderSystem(SceneGraph* NewScene);

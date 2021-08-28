@@ -987,7 +987,14 @@ namespace Tomahawk
 
 				D3D11_RECT Rects[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 				for (unsigned int i = 0; i < Count; i++)
-					memcpy(&Rects[i], &Value[i], sizeof(Compute::Rectangle));
+				{
+					Compute::Rectangle& From = Value[i];
+					D3D11_RECT& To = Rects[i];
+					To.left = (LONG)From.Left;
+					To.right = (LONG)From.Right;
+					To.bottom = (LONG)From.Bottom;
+					To.top = (LONG)From.Top;
+				}
 
 				ImmediateContext->RSSetScissorRects(Count, Rects);
 			}

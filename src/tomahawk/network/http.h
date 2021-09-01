@@ -81,9 +81,13 @@ namespace Tomahawk
 			typedef std::function<bool(struct Connection*, struct Resource*, int64_t)> ResourceCallback;
 			typedef std::function<bool(struct Connection*, struct Credentials*, const std::string&)> AuthorizeCallback;
 			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
+			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> CompilerCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
 			typedef std::function<void(struct WebSocketFrame*, const char*, int64_t, enum WebSocketOp)> WebSocketReadCallback;
-			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> GatewayCallback;
+			typedef std::function<bool(struct WebSocketFrame*)> WebSocketCheckCallback;
+			typedef std::function<void(struct GatewayFrame*)> GatewayCallback;
+			typedef std::function<void(struct GatewayFrame*, int, const char*)> GatewayStatusCallback;
+			typedef std::function<bool(struct GatewayFrame*)> GatewayCloseCallback;
 			typedef std::function<bool(class Parser*, int64_t)> ParserCodeCallback;
 			typedef std::function<bool(class Parser*, const char*, int64_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
@@ -233,12 +237,20 @@ namespace Tomahawk
 				friend struct Connection;
 				friend class Util;
 
+			public:
+				struct
+				{
+					WebSocketCallback Reset;
+					WebSocketCallback Close;
+					WebSocketCheckCallback Dead;
+				} E;
+
 			private:
 				std::atomic<uint32_t> State;
+				std::atomic<bool> Active;
 				std::atomic<bool> Reset;
-				std::atomic<bool> Save;
 				std::mutex Section;
-				Connection* Base;
+				Socket* Stream;
 				WebCodec* Codec;
 
 			public:
@@ -248,14 +260,13 @@ namespace Tomahawk
 				WebSocketReadCallback Receive;
 
 			public:
-				WebSocketFrame();
+				WebSocketFrame(Socket* NewStream);
 				~WebSocketFrame();
-				void Send(const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
-				void Send(unsigned int Mask, const char* Buffer, int64_t Length, WebSocketOp OpCode, const SuccessCallback& Callback);
+				void Send(const char* Buffer, int64_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				void Send(unsigned int Mask, const char* Buffer, int64_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				void Finish();
 				void Next();
 				bool IsFinished();
-				Connection* GetBase();
 			};
 
 			struct TH_OUT GatewayFrame
@@ -263,27 +274,29 @@ namespace Tomahawk
 				friend WebSocketFrame;
 				friend class Util;
 
+			public:
+				struct
+				{
+					GatewayStatusCallback Status;
+					GatewayCloseCallback Close;
+					GatewayCallback Exception;
+					GatewayCallback Finish;
+				} E;
+
 			private:
 				Script::VMCompiler* Compiler;
-				std::atomic<bool> Save;
-				Connection* Base;
-				char* Buffer;
-				size_t Size;
+				std::atomic<bool> Active;
 
 			public:
-				GatewayFrame(char* Data, int64_t DataSize);
+				GatewayFrame(Script::VMCompiler* NewCompiler);
 				void Execute(Script::VMContext*, Script::VMPoll State);
+				bool Start(const std::string& Path, const char* Method, char* Buffer, int64_t Size);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();
-				bool Start();
 				bool IsFinished();
+				bool GetException(const char** Exception, const char** Function, int* Line, int* Column);
 				Script::VMContext* GetContext();
 				Script::VMCompiler* GetCompiler();
-				Connection* GetBase();
-
-			private:
-				Script::VMFunction GetMain(const Script::VMModule& Mod);
-				bool IsScheduled();
 			};
 
 			struct TH_OUT ParserFrame
@@ -324,7 +337,7 @@ namespace Tomahawk
 					SuccessCallback Access;
 					SuccessCallback Proxy;
 					HeaderCallback Headers;
-					GatewayCallback Gateway;
+					CompilerCallback Compiler;
 					AuthorizeCallback Authorize;
 				} Callbacks;
 				struct
@@ -746,17 +759,22 @@ namespace Tomahawk
 			class TH_OUT Client final : public SocketClient
 			{
 			private:
+				WebSocketFrame* WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
+				Core::Async<bool> Future;
 
 			public:
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
+				bool Downgrade();
 				Core::Async<bool> Consume(int64_t MaxSize = TH_HTTP_PAYLOAD);
 				Core::Async<bool> Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<bool> Upgrade(HTTP::RequestFrame&& Root);
 				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
 				Core::Async<Core::Document*> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
 				Core::Async<Core::Document*> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
 

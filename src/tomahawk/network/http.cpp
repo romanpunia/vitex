@@ -38,6 +38,7 @@ extern "C"
 #include <openssl/dh.h>
 #endif
 }
+#define WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 namespace Tomahawk
 {
@@ -70,18 +71,18 @@ namespace Tomahawk
 			{
 			}
 
-			WebSocketFrame::WebSocketFrame() : State((uint32_t)WebSocketState::Open), Reset(false), Save(false), Base(nullptr), Codec(new WebCodec())
+			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Stream(NewStream), Codec(new WebCodec())
 			{
 			}
 			WebSocketFrame::~WebSocketFrame()
 			{
 				TH_RELEASE(Codec);
 			}
-			void WebSocketFrame::Send(const char* Buffer, int64_t Size, WebSocketOp Opcode, const SuccessCallback& Callback)
+			void WebSocketFrame::Send(const char* Buffer, int64_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				Send(0, Buffer, Size, Opcode, Callback);
 			}
-			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, int64_t Size, WebSocketOp Opcode, const SuccessCallback& Callback)
+			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, int64_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
@@ -118,39 +119,37 @@ namespace Tomahawk
 					HeaderLength += 4;
 				}
 
-				Base->Stream->WriteAsync((const char*)Header, HeaderLength, [Buffer, Size, Callback](Socket* Socket, int64_t State)
+				Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](Socket* Socket, int64_t State)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
 					if (State < 0)
 					{
-						Base->WebSocket->Reset = true;
+						Reset = true;
 						if (Callback)
-							Callback(Base);
-						Base->Break();
+							Callback(this);
+
+						if (E.Reset)
+							E.Reset(this);
 					}
 					else if (Size <= 0)
 					{
 						if (Callback)
-							Callback(Base);
+							Callback(this);
 					}
 					else
 					{
-						Base->Stream->WriteAsync(Buffer, Size, [Callback](Network::Socket* Socket, int64_t State)
+						Stream->WriteAsync(Buffer, Size, [this, Callback](Network::Socket* Socket, int64_t State)
 						{
-							auto* Base = Socket->Context<HTTP::Connection>();
-							TH_ASSERT_V(Base != nullptr, "socket should be set");
-
 							if (State < 0)
 							{
-								Base->WebSocket->Reset = true;
+								Reset = true;
 								if (Callback)
-									Callback(Base);
-								Base->Break();
+									Callback(this);
+
+								if (E.Reset)
+									E.Reset(this);
 							}
 							else if (Callback)
-								Callback(Base);
+								Callback(this);
 						});
 					}
 				});
@@ -161,10 +160,9 @@ namespace Tomahawk
 					return Next();
 
 				State = (uint32_t)WebSocketState::Close;
-				Send(Base->Info.Message.c_str(), Base->Info.Message.size(), WebSocketOp::Close, [this](HTTP::Connection*)
+				Send("", 0, WebSocketOp::Close, [this](WebSocketFrame*)
 				{
 					Next();
-					return true;
 				});
 			}
 			void WebSocketFrame::Next()
@@ -173,13 +171,13 @@ namespace Tomahawk
 			Retry:
 				if (State == (uint32_t)WebSocketState::Receive)
 				{
-					if (Base->Info.Close)
+					if (E.Dead && E.Dead(this))
 					{
 						State = (uint32_t)WebSocketState::Close;
 						goto Retry;
 					}
 
-					Base->Stream->SetReadNotify([this](Socket*, const char*, int64_t Size)
+					Stream->SetReadNotify([this](Socket*, const char*, int64_t Size)
 					{
 						if (Size >= 0)
 							State = (uint32_t)WebSocketState::Process;
@@ -197,7 +195,7 @@ namespace Tomahawk
 					char Buffer[8192];
 					while (true)
 					{
-						int Size = Base->Stream->Read(Buffer, sizeof(Buffer), [this](Socket*, const char* Buffer, int64_t Size)
+						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](Socket*, const char* Buffer, int64_t Size)
 						{
 							if (Size > 0)
 								Codec->ParseFrame(Buffer, (size_t)Size);
@@ -222,9 +220,9 @@ namespace Tomahawk
 					if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
 					{
 						if (Opcode == WebSocketOp::Binary)
-							TH_TRACE("[websocket] sock %i frame binary\n\t%s", (int)Base->Stream->GetFd(), Compute::Common::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
+							TH_TRACE("[websocket] sock %i frame binary\n\t%s", (int)Stream->GetFd(), Compute::Common::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
 						else
-							TH_TRACE("[websocket] sock %i frame text\n\t%.*s", (int)Base->Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
+							TH_TRACE("[websocket] sock %i frame text\n\t%.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
 
 						if (Receive)
 						{
@@ -234,17 +232,16 @@ namespace Tomahawk
 					}
 					else if (Opcode == WebSocketOp::Ping)
 					{
-						TH_TRACE("[websocket] sock %i frame ping", (int)Base->Stream->GetFd());
+						TH_TRACE("[websocket] sock %i frame ping", (int)Stream->GetFd());
 						Section.unlock();
-						return Send("", 0, WebSocketOp::Pong, [this](Connection*)
+						return Send("", 0, WebSocketOp::Pong, [this](WebSocketFrame*)
 						{
 							Next();
-							return true;
 						});
 					}
 					else if (Opcode == WebSocketOp::Close)
 					{
-						TH_TRACE("[websocket] sock %i frame close", (int)Base->Stream->GetFd());
+						TH_TRACE("[websocket] sock %i frame close", (int)Stream->GetFd());
 						Section.unlock();
 						return Finish();
 					}
@@ -253,13 +250,12 @@ namespace Tomahawk
 				{
 					if (!Disconnect)
 					{
-						Save = true;
+						Active = false;
 						Section.unlock();
-						if (Base->Response.StatusCode <= 0)
-							Base->Response.StatusCode = 101;
+						if (E.Close)
+							E.Close(this);
 
-						Base->Info.KeepAlive = 0;
-						return (void)Base->Finish();
+						return;
 					}
 					else
 					{
@@ -289,59 +285,72 @@ namespace Tomahawk
 			}
 			bool WebSocketFrame::IsFinished()
 			{
-				return Save;
-			}
-			Connection* WebSocketFrame::GetBase()
-			{
-				return Base;
+				return !Active;
 			}
 
-			GatewayFrame::GatewayFrame(char* Data, int64_t DataSize) : Size(DataSize), Compiler(nullptr), Base(nullptr), Buffer(Data), Save(false)
+			GatewayFrame::GatewayFrame(Script::VMCompiler* NewCompiler) : Compiler(NewCompiler), Active(true)
 			{
+				TH_ASSERT_V(Compiler != nullptr, "compiler should be set");
 			}
 			void GatewayFrame::Execute(Script::VMContext* Ctx, Script::VMPoll State)
 			{
 				if (State == Script::VMPoll::Routine || State == Script::VMPoll::Continue)
 					return;
 
-				if (State == Script::VMPoll::Exception)
-				{
-					if (Base->Response.StatusCode <= 0)
-						Base->Response.StatusCode = 500;
+				if (State == Script::VMPoll::Exception && E.Exception)
+					E.Exception(this);
 
-					if (Base->Route->Gateway.ReportErrors)
-					{
-						Script::VMContext* Context = Compiler->GetContext();
-						const char* Exception = Context->GetExceptionString();
-						const char* Function = Context->GetExceptionFunction().GetName();
-						int Column = 0; int Line = Context->GetExceptionLineNumber(&Column, nullptr);
-						Base->Info.Message = Core::Form("exception at line %i (col. %i) from %s: %s", Line, Column, Function ? Function : "anonymous", Exception ? Exception : "uncaught empty exception").R();
-					}
-					else
-						Base->Info.Message.assign("Internal processing error occurred.");
-				}
-
-				if (Base->WebSocket != nullptr)
-				{
-					if (IsScheduled())
-						Base->WebSocket->Next();
-					else
-						Base->WebSocket->Finish();
-				}
+				if (E.Finish)
+					E.Finish(this);
 				else
 					Finish();
 			}
+			bool GatewayFrame::Start(const std::string& Path, const char* Method, char* Buffer, int64_t Size)
+			{
+				TH_ASSERT(Buffer != nullptr, false, "buffer should be set");
+				TH_ASSERT(Method != nullptr, false, "method should be set");
+
+				if (!Active)
+				{
+					TH_FREE(Buffer);
+					return Finish();
+				}
+
+				int Result = Compiler->LoadCode(Path, Buffer, Size);
+				TH_FREE(Buffer);
+
+				if (Result < 0)
+					return Error(500, "Module cannot be loaded.");
+
+				Result = Compiler->Compile(true);
+				if (Result < 0)
+					return Error(500, "Module cannot be compiled.");
+
+				Script::VMModule Module = Compiler->GetModule();
+				Script::VMFunction Entry = Module.GetFunctionByName("Main");
+				if (!Entry.IsValid())
+				{
+					Entry = Module.GetFunctionByName(Method);
+					if (!Entry.IsValid())
+						return Error(400, "Method is not allowed.");
+				}
+
+				Script::VMContext* Context = Compiler->GetContext();
+				Context->SetOnResume(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1, std::placeholders::_2));
+				Context->Execute(Entry, nullptr, nullptr);
+
+				return true;
+			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)
 			{
-				Base->Response.StatusCode = StatusCode;
-				if (Text != nullptr)
-					Base->Info.Message.assign(Text);
+				if (E.Status)
+					E.Status(this, StatusCode, Text);
 
 				return Finish();
 			}
 			bool GatewayFrame::Finish()
 			{
-				if (!Save)
+				if (Active)
 				{
 					if (Compiler != nullptr)
 					{
@@ -350,83 +359,33 @@ namespace Tomahawk
 						TH_CLEAR(Compiler);
 					}
 
-					Save = true;
+					Active = false;
 				}
 
-				if (Buffer != nullptr)
-				{
-					TH_FREE(Buffer);
-					Buffer = nullptr;
-					Size = 0;
-				}
+				if (!E.Close)
+					return false;
 
-				if (Base->WebSocket != nullptr)
-				{
-					Base->WebSocket->Finish();
-					return true;
-				}
-
-				return Base->Finish();
-			}
-			bool GatewayFrame::Start()
-			{
-				if (!Base || (Size != -1 && (!Buffer || Size == 0)))
-				{
-					if (!Compiler && Base != nullptr && Base->Response.StatusCode <= 0)
-						Base->Response.StatusCode = 200;
-
-					return Finish();
-				}
-
-				auto* Queue = Core::Schedule::Get();
-				return Queue->SetTask([this]()
-				{
-					int Result = Compiler->LoadCode(Base->Request.Path, Buffer, Size);
-					if (Result < 0)
-						return Error(500, "Module cannot be loaded.");
-
-					Result = Compiler->Compile(true);
-					if (Result < 0)
-						return Error(500, "Module cannot be compiled.");
-
-					Script::VMFunction Main = GetMain(Compiler->GetModule());
-					if (!Main.IsValid())
-						return Error(400, "Method is not allowed.");
-
-					Script::VMContext* Context = Compiler->GetContext();
-					Context->SetOnResume(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1, std::placeholders::_2));
-					Context->Execute(Main, nullptr, nullptr);
-
-					return true;
-				});
+				return E.Close(this);
 			}
 			bool GatewayFrame::IsFinished()
 			{
-				return Save;
+				return !Active;
 			}
-			bool GatewayFrame::IsScheduled()
+			bool GatewayFrame::GetException(const char** Exception, const char** Function, int* Line, int* Column)
 			{
-				if (!Base->WebSocket)
+				TH_ASSERT(Exception != nullptr, false, "exception ptr should be set");
+				TH_ASSERT(Function != nullptr, false, "function ptr should be set");
+				TH_ASSERT(Line != nullptr, false, "line ptr should be set");
+				TH_ASSERT(Column != nullptr, false, "column ptr should be set");
+
+				Script::VMContext* Context = Compiler->GetContext();
+				if (!Context)
 					return false;
 
-				if (Base->WebSocket->State != (uint32_t)WebSocketState::Receive &&
-					Base->WebSocket->State != (uint32_t)WebSocketState::Process &&
-					Base->WebSocket->State != (uint32_t)WebSocketState::Open)
-					return false;
-
-				return
-					Base->WebSocket->Connect ||
-					Base->WebSocket->Disconnect ||
-					Base->WebSocket->Notification ||
-					Base->WebSocket->Receive;
-			}
-			Script::VMFunction GatewayFrame::GetMain(const Script::VMModule& Mod)
-			{
-				Script::VMFunction Result = Mod.GetFunctionByName("Main");
-				if (Result.IsValid())
-					return Result;
-
-				return Mod.GetFunctionByName(Base->Request.Method);
+				*Exception = Context->GetExceptionString();
+				*Function = Context->GetExceptionFunction().GetName();
+				*Line = Context->GetExceptionLineNumber(Column, nullptr);
+				return true;
 			}
 			Script::VMContext* GatewayFrame::GetContext()
 			{
@@ -435,10 +394,6 @@ namespace Tomahawk
 			Script::VMCompiler* GatewayFrame::GetCompiler()
 			{
 				return Compiler;
-			}
-			Connection* GatewayFrame::GetBase()
-			{
-				return Base;
 			}
 
 			SiteEntry::SiteEntry() : Base(TH_NEW(RouteEntry))
@@ -5223,8 +5178,8 @@ namespace Tomahawk
 			bool Util::ProcessGateway(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				if (!Base->Route->Callbacks.Gateway)
-					return false;
+				if (!Base->Route->Callbacks.Compiler)
+					return Base->Error(400, "Gateway cannot be issued.") && false;
 
 				Script::VMManager* VM = ((MapRouter*)Base->Root->GetRouter())->VM;
 				if (!VM)
@@ -5240,9 +5195,9 @@ namespace Tomahawk
 					}
 
 					char* Buffer = nullptr;
-					if (Base->Route->Callbacks.Gateway)
+					if (Base->Route->Callbacks.Compiler)
 					{
-						if (!Base->Route->Callbacks.Gateway(Base, Compiler))
+						if (!Base->Route->Callbacks.Compiler(Base, Compiler))
 						{
 							TH_RELEASE(Compiler);
 							return (void)Base->Error(500, "Gateway creation exception.");
@@ -5270,15 +5225,52 @@ namespace Tomahawk
 						TH_CLOSE(Stream);
 					}
 
-					Base->Gateway = TH_NEW(GatewayFrame, Buffer, Size);
-					Base->Gateway->Compiler = Compiler;
-					Base->Gateway->Base = Base;
-					Base->Gateway->Start();
+					Core::Schedule::Get()->SetTask([Base, Compiler, Buffer, Size]()
+					{
+						Base->Gateway = TH_NEW(GatewayFrame, Compiler);
+						Base->Gateway->E.Exception = [Base](GatewayFrame* Gateway)
+						{
+							if (Base->Response.StatusCode <= 0)
+								Base->Response.StatusCode = 500;
+
+							if (Base->Route->Gateway.ReportErrors)
+							{
+								const char* Exception, *Function; int Line, Column;
+								if (Gateway->GetException(&Exception, &Function, &Line, &Column))
+									Base->Info.Message = Core::Form("Thrown from %s() at %i,%i: %s.", Line, Column, Function ? Function : "anonymous", Exception ? Exception : "empty exception").R();
+							}
+							else
+								Base->Info.Message.assign("Internal processing error occurred.");
+						};
+						Base->Gateway->E.Finish = [Base](GatewayFrame* Gateway)
+						{
+							if (Base->WebSocket != nullptr)
+							{
+								if ((Base->WebSocket->State == (uint32_t)WebSocketState::Receive || Base->WebSocket->State == (uint32_t)WebSocketState::Process || Base->WebSocket->State == (uint32_t)WebSocketState::Open) && (Base->WebSocket->Connect || Base->WebSocket->Disconnect || Base->WebSocket->Notification || Base->WebSocket->Receive))
+									Base->WebSocket->Next();
+								else
+									Base->WebSocket->Finish();
+							}
+							else
+								Gateway->Finish();
+						};
+						Base->Gateway->E.Close = [Base](GatewayFrame*)
+						{
+							if (Base->Response.StatusCode <= 0)
+								Base->Response.StatusCode = 200;
+
+							if (!Base->WebSocket)
+								return Base->Finish();
+
+							Base->WebSocket->Finish();
+							return true;
+						};
+						Base->Gateway->Start(Base->Request.Path, Base->Request.Method, Buffer, Size);
+					});
 				});
 			}
 			bool Util::ProcessWebSocket(Connection* Base, const char* Key)
 			{
-				static const char* Magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				TH_ASSERT(Key != nullptr, false, "key should be set");
 
@@ -5287,7 +5279,7 @@ namespace Tomahawk
 					return Base->Error(426, "Protocol upgrade required. Version \"%s\" is not allowed", Version);
 
 				char Buffer[100];
-				snprintf(Buffer, sizeof(Buffer), "%s%s", Key, Magic);
+				snprintf(Buffer, sizeof(Buffer), "%s%s", Key, WEBSOCKET_KEY);
 				Base->Request.Buffer.clear();
 
 				char Encoded20[20];
@@ -5321,14 +5313,28 @@ namespace Tomahawk
 
 					if (State < 0)
 						return (void)Base->Break();
-
-					Base->WebSocket = TH_NEW(WebSocketFrame);
+					
+					Base->WebSocket = TH_NEW(WebSocketFrame, Socket);
 					Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
 					Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
 					Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
-					Base->WebSocket->Base = Base;
-					Base->Stream->SetAsyncTimeout(Base->Route->WebSocketTimeout);
+					Base->WebSocket->E.Dead = [Base](WebSocketFrame*)
+					{
+						return Base->Info.Close;
+					};
+					Base->WebSocket->E.Reset = [Base](WebSocketFrame*)
+					{
+						Base->Break();
+					};
+					Base->WebSocket->E.Close = [Base](WebSocketFrame*)
+					{
+						Base->Info.KeepAlive = 0;
+						if (Base->Response.StatusCode <= 0)
+							Base->Response.StatusCode = 101;
+						Base->Finish();
+					};
 
+					Socket->SetAsyncTimeout(Base->Route->WebSocketTimeout);
 					if (!ResourceProvided(Base, &Base->Resource))
 						Base->WebSocket->Next();
 					else
@@ -5653,14 +5659,26 @@ namespace Tomahawk
 				return TH_NEW(MapRouter);
 			}
 
-			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout)
+			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), WebSocket(nullptr)
 			{
 			}
 			Client::~Client()
 			{
+				TH_DELETE(WebSocketFrame, WebSocket);
+			}
+			bool Client::Downgrade()
+			{
+				TH_ASSERT(WebSocket != nullptr, false, "websocket should be opened");
+				TH_ASSERT(WebSocket->IsFinished(), false, "websocket connection should be finished");
+
+				TH_DELETE(WebSocketFrame, WebSocket);
+				WebSocket = nullptr;
+
+				return true;
 			}
 			Core::Async<bool> Client::Consume(int64_t MaxSize)
 			{
+				TH_ASSERT(!WebSocket, false, "cannot read http over websocket");
 				if (Response.HasBody())
 					return true;
 
@@ -5817,8 +5835,35 @@ namespace Tomahawk
 					return Consume(MaxSize);
 				});
 			}
+			Core::Async<bool> Client::Upgrade(HTTP::RequestFrame&& Root)
+			{
+				TH_ASSERT(WebSocket != nullptr, false, "websocket should be opened");
+				TH_ASSERT(Stream.IsValid(), false, "stream should be opened");
+
+				std::string Key = Compute::Common::Base64Encode(Compute::Common::RandomBytes(16));
+				Root.SetHeader("Pragma", "no-cache");
+				Root.SetHeader("Upgrade", "WebSocket");
+				Root.SetHeader("Connection", "Upgrade");
+				Root.SetHeader("Sec-WebSocket-Key", Key);
+				Root.SetHeader("Sec-WebSocket-Version", "13");
+
+				return Send(std::move(Root)).Then<Core::Async<bool>>([this](ResponseFrame*&& Response)
+				{
+					TH_TRACE("[ws] handshake %s", Request.URI.c_str());
+					if (Response->StatusCode != 101)
+						return Core::Async<bool>(Error("ws handshake error") && false);
+
+					if (!Response->GetHeader("Sec-WebSocket-Accept"))
+						return Core::Async<bool>(Error("ws handshake was not accepted") && false);
+
+					Future = Core::Async<bool>();
+					WebSocket->Next();
+					return Future;
+				});
+			}
 			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
+				TH_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, nullptr, "cannot send http request over websocket");
 				TH_ASSERT(Stream.IsValid(), nullptr, "stream should be opened");
 				TH_TRACE("[http] %s %s", Root.Method, Root.URI.c_str());
 
@@ -5958,6 +6003,35 @@ namespace Tomahawk
 					});
 				});
 			}
+			WebSocketFrame* Client::GetWebSocket()
+			{
+				if (WebSocket != nullptr)
+					return WebSocket;
+
+				WebSocket = TH_NEW(WebSocketFrame, &Stream);
+				WebSocket->E.Dead = [](WebSocketFrame*)
+				{
+					return false;
+				};
+				WebSocket->E.Reset = [this](WebSocketFrame*)
+				{
+					Stream.Close(false);
+				};
+				WebSocket->E.Close = [this](WebSocketFrame*)
+				{
+					Future = true;
+				};
+
+				return WebSocket;
+			}
+			RequestFrame* Client::GetRequest()
+			{
+				return &Request;
+			}
+			ResponseFrame* Client::GetResponse()
+			{
+				return &Response;
+			}
 			bool Client::Receive()
 			{
 				ParserFrame Segment;
@@ -5983,14 +6057,6 @@ namespace Tomahawk
 
 				TH_RELEASE(Parser);
 				return Success(0);
-			}
-			RequestFrame* Client::GetRequest()
-			{
-				return &Request;
-			}
-			ResponseFrame* Client::GetResponse()
-			{
-				return &Response;
 			}
 		}
 	}

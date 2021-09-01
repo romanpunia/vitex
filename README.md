@@ -80,7 +80,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + PostgreSQL support for database manipulations
 + File transfer compression
 + Async/sync HTTP 1.1 server/client support
-+ Async/sync WebSocket server support
++ Async/sync WebSocket server/client support (RFC 6455, 13)
 + Connection session support
 + Async/sync SMTP client support
 + Polling mechanisms: select, poll, epoll, kqueue, iocp

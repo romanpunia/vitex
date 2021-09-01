@@ -1913,6 +1913,9 @@ namespace Tomahawk
 			void Set(Async&& Other)
 			{
 				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
+				if (!Other.IsPending())
+					return Next->React(std::move(Other.GetIfAny()));
+
 				context_type* Subresult = Next->Copy();
 				Subresult->RW.lock();
 				Subresult->Set = 0;

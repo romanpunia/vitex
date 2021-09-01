@@ -1338,7 +1338,7 @@ namespace Tomahawk
 				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
 					return Root->Manage(this);
 
-				if (Response.StatusCode >= 400 && !Response.Error)
+				if (Response.StatusCode >= 400 && !Response.Error && Response.Buffer.empty())
 				{
 					Response.Error = true;
 					if (Route != nullptr)
@@ -3682,7 +3682,7 @@ namespace Tomahawk
 					case 413:
 						return "Request Entity Too Large";
 					case 414:
-						return "Request-URI Too Large";
+						return "Request URI Too Large";
 					case 415:
 						return "Unsupported Media Type";
 					case 416:
@@ -3757,7 +3757,7 @@ namespace Tomahawk
 						break;
 				}
 
-				return "";
+				return "Stateless";
 			}
 			bool Util::ParseMultipartHeaderField(Parser* Parser, const char* Name, uint64_t Length)
 			{
@@ -4705,7 +4705,6 @@ namespace Tomahawk
 					snprintf(ContentRange, sizeof(ContentRange), "Content-Range: bytes %lld-%lld/%lld\r\n", Range1, Range1 + ContentLength - 1, (int64_t)Base->Resource.Size);
 					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error ? Base->Response.StatusCode : 206));
 				}
-
 #ifdef TH_HAS_ZLIB
 				if (Util::ResourceCompressed(Base, (uint64_t)ContentLength))
 				{

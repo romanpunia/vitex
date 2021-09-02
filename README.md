@@ -235,6 +235,7 @@ These **will not** alter any interfaces
 + **TH_USE_OPENSSL** will enable OpenSSL library if any, defaults to true
 + **TH_USE_SDL2** will enable SDL2 library if any, defaults to true
 + **TH_USE_ZLIB** will enable zlib library if any, defaults to true
++ **TH_USE_RESHADE** will enable SPIRV Cross and Glslang libraries if any, defaults to true
 
 These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
@@ -268,6 +269,8 @@ These are recommended to be installed, but are not required to.
 * [libpq](https://github.com/postgres/postgres/tree/master/src/interfaces/libpq)
 * [freetype](https://github.com/freetype/freetype)
 * [sdl2](https://www.libsdl.org/download-2.0.php)
+* [spirv-cross](https://github.com/KhronosGroup/SPIRV-Cross)
+* [glslang](https://github.com/KhronosGroup/glslang)
 
 ## License
 Tomahawk is licensed under the MIT license

@@ -520,8 +520,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetShaderModel(ShaderModel Model)
 			{
-				ShaderModelType = Model;
-				if (ShaderModelType == ShaderModel::HLSL_1_0)
+				ShaderGen = Model;
+				if (ShaderGen == ShaderModel::HLSL_1_0)
 				{
 					VSP = "vs_1_0";
 					PSP = "ps_1_0";
@@ -530,7 +530,7 @@ namespace Tomahawk
 					DSP = "ds_1_0";
 					HSP = "hs_1_0";
 				}
-				else if (ShaderModelType == ShaderModel::HLSL_2_0)
+				else if (ShaderGen == ShaderModel::HLSL_2_0)
 				{
 					VSP = "vs_2_0";
 					PSP = "ps_2_0";
@@ -539,7 +539,7 @@ namespace Tomahawk
 					DSP = "ds_2_0";
 					HSP = "hs_2_0";
 				}
-				else if (ShaderModelType == ShaderModel::HLSL_3_0)
+				else if (ShaderGen == ShaderModel::HLSL_3_0)
 				{
 					VSP = "vs_3_0";
 					PSP = "ps_3_0";
@@ -548,7 +548,7 @@ namespace Tomahawk
 					DSP = "ds_3_0";
 					HSP = "hs_3_0";
 				}
-				else if (ShaderModelType == ShaderModel::HLSL_4_0)
+				else if (ShaderGen == ShaderModel::HLSL_4_0)
 				{
 					VSP = "vs_4_0";
 					PSP = "ps_4_0";
@@ -557,7 +557,7 @@ namespace Tomahawk
 					DSP = "ds_4_0";
 					HSP = "hs_4_0";
 				}
-				else if (ShaderModelType == ShaderModel::HLSL_4_1)
+				else if (ShaderGen == ShaderModel::HLSL_4_1)
 				{
 					VSP = "vs_4_1";
 					PSP = "ps_4_1";
@@ -566,7 +566,7 @@ namespace Tomahawk
 					DSP = "ds_4_1";
 					HSP = "hs_4_1";
 				}
-				else if (ShaderModelType == ShaderModel::HLSL_5_0)
+				else if (ShaderGen == ShaderModel::HLSL_5_0)
 				{
 					VSP = "vs_5_0";
 					PSP = "ps_5_0";
@@ -576,14 +576,7 @@ namespace Tomahawk
 					HSP = "hs_5_0";
 				}
 				else
-				{
-					VSP = "";
-					PSP = VSP;
-					GSP = VSP;
-					CSP = VSP;
-					DSP = VSP;
-					HSP = VSP;
-				}
+					SetShaderModel(ShaderModel::HLSL_4_0);
 			}
 			void D3D11Device::SetBlendState(BlendState* State)
 			{

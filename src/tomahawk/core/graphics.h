@@ -486,25 +486,25 @@ namespace Tomahawk
 		{
 			Invalid,
 			Auto,
-			HLSL_1_0,
-			HLSL_2_0,
-			HLSL_3_0,
-			HLSL_4_1,
-			HLSL_4_0,
-			HLSL_5_0,
-			GLSL_1_1_0,
-			GLSL_1_2_0,
-			GLSL_1_3_0,
-			GLSL_1_4_0,
-			GLSL_1_5_0,
-			GLSL_3_3_0,
-			GLSL_4_0_0,
-			GLSL_4_1_0,
-			GLSL_4_2_0,
-			GLSL_4_3_0,
-			GLSL_4_4_0,
-			GLSL_4_5_0,
-			GLSL_4_6_0
+			HLSL_1_0 = 100,
+			HLSL_2_0 = 200,
+			HLSL_3_0 = 300,
+			HLSL_4_0 = 400,
+			HLSL_4_1 = 410,
+			HLSL_5_0 = 500,
+			GLSL_1_1_0 = 110,
+			GLSL_1_2_0 = 120,
+			GLSL_1_3_0 = 130,
+			GLSL_1_4_0 = 140,
+			GLSL_1_5_0 = 150,
+			GLSL_3_3_0 = 330,
+			GLSL_4_0_0 = 400,
+			GLSL_4_1_0 = 410,
+			GLSL_4_2_0 = 420,
+			GLSL_4_3_0 = 430,
+			GLSL_4_4_0 = 440,
+			GLSL_4_5_0 = 450,
+			GLSL_4_6_0 = 460
 		};
 
 		enum class ResourceBind
@@ -724,10 +724,11 @@ namespace Tomahawk
 		enum class ShaderLang
 		{
 			None,
+			SPV,
+			MSL,
 			HLSL,
 			GLSL,
-			MSL,
-			SPV
+			GLSL_ES
 		};
 
 		enum class AttributeType
@@ -1084,7 +1085,7 @@ namespace Tomahawk
 				std::vector<std::string> Defines;
 				std::string Filename;
 				std::string Data;
-				ShaderLang Lang = ShaderLang::None;
+				ShaderType Stage = ShaderType::All;
 			};
 
 		protected:
@@ -1586,7 +1587,6 @@ namespace Tomahawk
 			{
 				std::string Name;
 				std::string Code;
-				ShaderLang Lang = ShaderLang::None;
 			};
 
 		protected:
@@ -1597,7 +1597,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, InputLayout*> InputLayouts;
 			std::unordered_map<std::string, Section*> Sections;
 			PrimitiveTopology Primitives;
-			ShaderModel ShaderModelType;
+			ShaderModel ShaderGen;
 			Texture2D* ViewResource = nullptr;
 			RenderTarget2D* RenderTarget = nullptr;
 			Shader* BasicEffect = nullptr;
@@ -1756,7 +1756,7 @@ namespace Tomahawk
 			void Lock();
 			void Unlock();
 			bool Preprocess(Shader::Desc& Subresult);
-			bool Transpile(std::string* Source, ShaderLang From, ShaderLang To);
+			bool Transpile(std::string* HLSL, ShaderType Stage, ShaderLang To);
 			bool AddSection(const std::string& Name, const std::string& Code);
 			bool RemoveSection(const std::string& Name);
 			bool GetSection(const std::string& Name, Section** Result, bool Internal = false);

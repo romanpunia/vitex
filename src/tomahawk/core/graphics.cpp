@@ -6,6 +6,133 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #endif
+#ifdef TH_HAS_RESHADE
+#include <spirv_cross/spirv.hpp>
+#include <spirv_cross/spirv_glsl.hpp>
+#include <spirv_cross/spirv_hlsl.hpp>
+#include <spirv_cross/spirv_msl.hpp>
+#include <SPIRV/GlslangToSpv.h>
+#include <SPIRV/disassemble.h>
+#include <SPIRV/GlslangToSpv.h>
+#include <SPIRV/SPVRemapper.h>
+#include <SPIRV/disassemble.h>
+#include <SPIRV/doc.h>
+#include <glslang/Include/ResourceLimits.h>
+#include <glslang/Public/ShaderLang.h>
+#include <glslang/Public/ShaderLang.h>
+#include <sstream>
+
+namespace
+{
+	const TBuiltInResource DriverLimits =
+	{
+		/* .MaxLights = */ 32,
+		/* .MaxClipPlanes = */ 6,
+		/* .MaxTextureUnits = */ 32,
+		/* .MaxTextureCoords = */ 32,
+		/* .MaxVertexAttribs = */ 64,
+		/* .MaxVertexUniformComponents = */ 4096,
+		/* .MaxVaryingFloats = */ 64,
+		/* .MaxVertexTextureImageUnits = */ 32,
+		/* .MaxCombinedTextureImageUnits = */ 80,
+		/* .MaxTextureImageUnits = */ 32,
+		/* .MaxFragmentUniformComponents = */ 4096,
+		/* .MaxDrawBuffers = */ 32,
+		/* .MaxVertexUniformVectors = */ 128,
+		/* .MaxVaryingVectors = */ 8,
+		/* .MaxFragmentUniformVectors = */ 16,
+		/* .MaxVertexOutputVectors = */ 16,
+		/* .MaxFragmentInputVectors = */ 15,
+		/* .MinProgramTexelOffset = */ -8,
+		/* .MaxProgramTexelOffset = */ 7,
+		/* .MaxClipDistances = */ 8,
+		/* .MaxComputeWorkGroupCountX = */ 65535,
+		/* .MaxComputeWorkGroupCountY = */ 65535,
+		/* .MaxComputeWorkGroupCountZ = */ 65535,
+		/* .MaxComputeWorkGroupSizeX = */ 1024,
+		/* .MaxComputeWorkGroupSizeY = */ 1024,
+		/* .MaxComputeWorkGroupSizeZ = */ 64,
+		/* .MaxComputeUniformComponents = */ 1024,
+		/* .MaxComputeTextureImageUnits = */ 16,
+		/* .MaxComputeImageUniforms = */ 8,
+		/* .MaxComputeAtomicCounters = */ 8,
+		/* .MaxComputeAtomicCounterBuffers = */ 1,
+		/* .MaxVaryingComponents = */ 60,
+		/* .MaxVertexOutputComponents = */ 64,
+		/* .MaxGeometryInputComponents = */ 64,
+		/* .MaxGeometryOutputComponents = */ 128,
+		/* .MaxFragmentInputComponents = */ 128,
+		/* .MaxImageUnits = */ 8,
+		/* .MaxCombinedImageUnitsAndFragmentOutputs = */ 8,
+		/* .MaxCombinedShaderOutputResources = */ 8,
+		/* .MaxImageSamples = */ 0,
+		/* .MaxVertexImageUniforms = */ 0,
+		/* .MaxTessControlImageUniforms = */ 0,
+		/* .MaxTessEvaluationImageUniforms = */ 0,
+		/* .MaxGeometryImageUniforms = */ 0,
+		/* .MaxFragmentImageUniforms = */ 8,
+		/* .MaxCombinedImageUniforms = */ 8,
+		/* .MaxGeometryTextureImageUnits = */ 16,
+		/* .MaxGeometryOutputVertices = */ 256,
+		/* .MaxGeometryTotalOutputComponents = */ 1024,
+		/* .MaxGeometryUniformComponents = */ 1024,
+		/* .MaxGeometryVaryingComponents = */ 64,
+		/* .MaxTessControlInputComponents = */ 128,
+		/* .MaxTessControlOutputComponents = */ 128,
+		/* .MaxTessControlTextureImageUnits = */ 16,
+		/* .MaxTessControlUniformComponents = */ 1024,
+		/* .MaxTessControlTotalOutputComponents = */ 4096,
+		/* .MaxTessEvaluationInputComponents = */ 128,
+		/* .MaxTessEvaluationOutputComponents = */ 128,
+		/* .MaxTessEvaluationTextureImageUnits = */ 16,
+		/* .MaxTessEvaluationUniformComponents = */ 1024,
+		/* .MaxTessPatchComponents = */ 120,
+		/* .MaxPatchVertices = */ 32,
+		/* .MaxTessGenLevel = */ 64,
+		/* .MaxViewports = */ 16,
+		/* .MaxVertexAtomicCounters = */ 0,
+		/* .MaxTessControlAtomicCounters = */ 0,
+		/* .MaxTessEvaluationAtomicCounters = */ 0,
+		/* .MaxGeometryAtomicCounters = */ 0,
+		/* .MaxFragmentAtomicCounters = */ 8,
+		/* .MaxCombinedAtomicCounters = */ 8,
+		/* .MaxAtomicCounterBindings = */ 1,
+		/* .MaxVertexAtomicCounterBuffers = */ 0,
+		/* .MaxTessControlAtomicCounterBuffers = */ 0,
+		/* .MaxTessEvaluationAtomicCounterBuffers = */ 0,
+		/* .MaxGeometryAtomicCounterBuffers = */ 0,
+		/* .MaxFragmentAtomicCounterBuffers = */ 1,
+		/* .MaxCombinedAtomicCounterBuffers = */ 1,
+		/* .MaxAtomicCounterBufferSize = */ 16384,
+		/* .MaxTransformFeedbackBuffers = */ 4,
+		/* .MaxTransformFeedbackInterleavedComponents = */ 64,
+		/* .MaxCullDistances = */ 8,
+		/* .MaxCombinedClipAndCullDistances = */ 8,
+		/* .MaxSamples = */ 4,
+		/* .maxMeshOutputVerticesNV = */ 256,
+		/* .maxMeshOutputPrimitivesNV = */ 512,
+		/* .maxMeshWorkGroupSizeX_NV = */ 32,
+		/* .maxMeshWorkGroupSizeY_NV = */ 1,
+		/* .maxMeshWorkGroupSizeZ_NV = */ 1,
+		/* .maxTaskWorkGroupSizeX_NV = */ 32,
+		/* .maxTaskWorkGroupSizeY_NV = */ 1,
+		/* .maxTaskWorkGroupSizeZ_NV = */ 1,
+		/* .maxMeshViewCountNV = */ 4,
+		/* .limits = */
+		{
+			/* .nonInductiveForLoops = */ 1,
+			/* .whileLoops = */ 1,
+			/* .doWhileLoops = */ 1,
+			/* .generalUniformIndexing = */ 1,
+			/* .generalAttributeMatrixVectorIndexing = */ 1,
+			/* .generalVaryingIndexing = */ 1,
+			/* .generalSamplerIndexing = */ 1,
+			/* .generalVariableIndexing = */ 1,
+			/* .generalConstantMatrixVectorIndexing = */ 1,
+		}
+	};
+}
+#endif
 
 namespace Tomahawk
 {
@@ -146,7 +273,7 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		
+
 		Surface::Surface() : Handle(nullptr)
 		{
 		}
@@ -613,7 +740,7 @@ namespace Tomahawk
 
 		GraphicsDevice::GraphicsDevice(const Desc& I) : Primitives(PrimitiveTopology::Triangle_List), ViewResource(nullptr), MaxElements(1)
 		{
-			ShaderModelType = ShaderModel::Invalid;
+			ShaderGen = ShaderModel::Invalid;
 			VSyncMode = I.VSyncMode;
 			PresentFlags = I.PresentationFlags;
 			CompileFlags = I.CompilationFlags;
@@ -851,7 +978,7 @@ namespace Tomahawk
 #else
 			TH_WARN("default shader resources were not compiled");
 #endif
-		}
+			}
 		void GraphicsDevice::ReleaseProxy()
 		{
 			for (auto It = DepthStencilStates.begin(); It != DepthStencilStates.end(); It++)
@@ -881,28 +1008,11 @@ namespace Tomahawk
 		{
 			Core::Parser Language(Core::OS::Path::GetExtension(Name.c_str()));
 			Language.Substring(1).Trim().ToLower();
-
-			ShaderLang Lang = ShaderLang::None;
-			if (Language.R() == "hlsl")
-				Lang = ShaderLang::HLSL;
-			else if (Language.R() == "glsl")
-				Lang = ShaderLang::GLSL;
-			else if (Language.R() == "msl")
-				Lang = ShaderLang::MSL;
-			else if (Language.R() == "spv")
-				Lang = ShaderLang::SPV;
-
 			RemoveSection(Name);
-			if (Lang == ShaderLang::None)
-			{
-				TH_ERR("shader resource is using unknown %s language:\n\t%s", Language.Get(), Name.c_str());
-				return false;
-			}
 
 			Section* Include = TH_NEW(Section);
 			Include->Code = Code;
 			Include->Name = Name;
-			Include->Lang = Lang;
 			Sections[Name] = Include;
 
 			return true;
@@ -946,12 +1056,6 @@ namespace Tomahawk
 					if (!GetSection(File.Module, &Result, true))
 						return false;
 
-					if (Result->Lang != Subresult.Lang)
-					{
-						TH_ERR("mixed shader languages detected:\n\t%s", File.Module.c_str());
-						return false;
-					}
-
 					Output->assign(Result->Code);
 					return true;
 				}
@@ -974,27 +1078,150 @@ namespace Tomahawk
 			bool Preprocessed = Processor->Process(Subresult.Filename, Subresult.Data);
 			TH_RELEASE(Processor);
 
-			if (!Preprocessed)
-				return false;
+			return Preprocessed;
+		}
+		bool GraphicsDevice::Transpile(std::string* HLSL, ShaderType Type, ShaderLang To)
+		{
+			if (!HLSL || HLSL->empty())
+				return true;
+#ifdef TH_HAS_RESHADE
+			const char* Buffer = HLSL->c_str();
+			int Size = (int)HLSL->size();
 
-			switch (Backend)
+			ShaderModel Model = GetShaderModel();
+			if (Model == ShaderModel::Auto || Model == ShaderModel::Invalid)
 			{
-				case RenderBackend::D3D11:
-					return Transpile(&Subresult.Data, Subresult.Lang, ShaderLang::HLSL);
-				case RenderBackend::OGL:
-					return Transpile(&Subresult.Data, Subresult.Lang, ShaderLang::GLSL);
+				TH_ERR("cannot transpile shader source without explicit shader model version");
+				return false;
+			}
+
+			EShLanguage Stage;
+			switch (Type)
+			{
+				case ShaderType::Vertex:
+					Stage = EShLangVertex;
+					break;
+				case ShaderType::Pixel:
+					Stage = EShLangFragment;
+					break;
+				case ShaderType::Geometry:
+					Stage = EShLangGeometry;
+					break;
+				case ShaderType::Hull:
+					Stage = EShLangTessControl;
+					break;
+				case ShaderType::Domain:
+					Stage = EShLangTessEvaluation;
+					break;
+				case ShaderType::Compute:
+					Stage = EShLangCompute;
+					break;
 				default:
+					TH_ERR("cannot transpile shader source without explicit shader type");
 					return false;
 			}
-		}
-		bool GraphicsDevice::Transpile(std::string* Source, ShaderLang From, ShaderLang To)
-		{
-			if (From == To || !Source || Source->empty())
-				return true;
-#ifdef TH_HAS_SPIRV
 
+			std::string Entry = GetShaderMain(Type);
+			std::vector<uint32_t> Binary;
+			glslang::InitializeProcess();
+
+			glslang::TShader Transpiler(Stage);
+			Transpiler.setStringsWithLengths(&Buffer, &Size, 1);
+			Transpiler.setAutoMapBindings(true);
+			Transpiler.setAutoMapLocations(true);
+			Transpiler.setEnvInput(glslang::EShSourceHlsl, Stage, glslang::EShClientVulkan, 100);
+			Transpiler.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_4);
+			Transpiler.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
+			Transpiler.setEntryPoint(Entry.c_str());
+
+			EShMessages Flags = (EShMessages)(EShMsgSpvRules | EShMsgReadHlsl | EShMsgHlslOffsets | EShMsgHlslLegalization | EShMsgKeepUncalled | EShMsgSuppressWarnings);
+			if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
+			{
+				const char* Output = Transpiler.getInfoLog();
+				TH_ERR("cannot transpile shader source\n\t%s", Output);
+
+				glslang::FinalizeProcess();
+				return false;
+			}
+
+			try
+			{
+				glslang::SpvOptions Options;
+				Options.validate = false;
+				Options.disableOptimizer = false;
+				Options.optimizeSize = false;
+
+				spv::SpvBuildLogger Logger;
+				glslang::TIntermediate* Context = Transpiler.getIntermediate();
+				glslang::GlslangToSpv(*Context, Binary, &Logger, &Options);
+			}
+			catch (...)
+			{
+				TH_ERR("cannot transpile shader source to spirv binary");
+				glslang::FinalizeProcess();
+				return false;
+			}
+
+			glslang::FinalizeProcess();
+			try
+			{
+				if (To == ShaderLang::GLSL || To == ShaderLang::GLSL_ES)
+				{
+					spirv_cross::CompilerGLSL::Options Options;
+					Options.version = (uint32_t)Model;
+					Options.es = (To == ShaderLang::GLSL_ES);
+
+					spirv_cross::CompilerGLSL Compiler(Binary);
+					Compiler.set_common_options(Options);
+					Compiler.build_combined_image_samplers();
+
+					*HLSL = Compiler.compile();
+					return true;
+				}
+				else if (To == ShaderLang::HLSL)
+				{
+					spirv_cross::CompilerHLSL::Options Options;
+					Options.shader_model = (uint32_t)Model;
+
+					spirv_cross::CompilerHLSL Compiler(Binary);
+					Compiler.set_hlsl_options(Options);
+
+					*HLSL = Compiler.compile();
+					return true;
+				}
+				else if (To == ShaderLang::MSL)
+				{
+					spirv_cross::CompilerMSL::Options Options;
+					spirv_cross::CompilerMSL Compiler(Binary);
+					Compiler.set_msl_options(Options);
+
+					*HLSL = Compiler.compile();
+					return true;
+				}
+				else if (To == ShaderLang::SPV)
+				{
+					std::stringstream Stream;
+					std::copy(Binary.begin(), Binary.end(), std::ostream_iterator<uint32_t>(Stream, " "));
+
+					HLSL->assign(Stream.str());
+					return true;
+				}
+			}
+			catch (const spirv_cross::CompilerError& Exception)
+			{
+				TH_ERR("cannot transpile spirv binary to shader binary\n\t%s", Exception.what());
+				return false;
+			}
+			catch (...)
+			{
+				TH_ERR("cannot transpile spirv binary to shader binary");
+				return false;
+			}
+
+			TH_ERR("shader source can be transpiled only to GLSL, GLSL_ES, HLSL, MSL or SPV");
+			return false;
 #else
-			TH_ERR("cannot transpile shader source without spirv-cross");
+			TH_ERR("cannot transpile shader source without reshade libraries");
 			return false;
 #endif
 		}
@@ -1046,7 +1273,6 @@ namespace Tomahawk
 
 			Result->Filename.assign(Subresult->Name);
 			Result->Data.assign(Subresult->Code);
-			Result->Lang = Subresult->Lang;
 
 			return true;
 		}
@@ -1096,7 +1322,7 @@ namespace Tomahawk
 		}
 		ShaderModel GraphicsDevice::GetShaderModel()
 		{
-			return ShaderModelType;
+			return ShaderGen;
 		}
 		DepthStencilState* GraphicsDevice::GetDepthStencilState(const std::string& Name)
 		{
@@ -1786,7 +2012,7 @@ namespace Tomahawk
 						break;
 					case SDL_FINGERMOTION:
 						if (Callbacks.TouchMove && Id == Event.window.windowID)
-							Callbacks.TouchMove((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure);				
+							Callbacks.TouchMove((int)Event.tfinger.touchId, (int)Event.tfinger.fingerId, Event.tfinger.x, Event.tfinger.y, Event.tfinger.dx, Event.tfinger.dy, Event.tfinger.pressure);
 						break;
 					case SDL_FINGERDOWN:
 						if (Callbacks.TouchState && Id == Event.window.windowID)
@@ -1798,7 +2024,7 @@ namespace Tomahawk
 						break;
 					case SDL_DOLLARGESTURE:
 						if (Callbacks.GestureState && Id == Event.window.windowID)
-							Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, false);	
+							Callbacks.GestureState((int)Event.dgesture.touchId, (int)Event.dgesture.gestureId, (int)Event.dgesture.numFingers, Event.dgesture.x, Event.dgesture.y, Event.dgesture.error, false);
 						break;
 					case SDL_DOLLARRECORD:
 						if (Callbacks.GestureState && Id == Event.window.windowID)
@@ -1806,7 +2032,7 @@ namespace Tomahawk
 						break;
 					case SDL_MULTIGESTURE:
 						if (Callbacks.MultiGestureState && Id == Event.window.windowID)
-							Callbacks.MultiGestureState((int)Event.mgesture.touchId, (int)Event.mgesture.numFingers, Event.mgesture.x, Event.mgesture.y, Event.mgesture.dDist, Event.mgesture.dTheta);			
+							Callbacks.MultiGestureState((int)Event.mgesture.touchId, (int)Event.mgesture.numFingers, Event.mgesture.x, Event.mgesture.y, Event.mgesture.dDist, Event.mgesture.dTheta);
 						break;
 #if SDL_VERSION_ATLEAST(2, 0, 5)
 					case SDL_DROPFILE:
@@ -1816,7 +2042,7 @@ namespace Tomahawk
 						if (Callbacks.DropFile)
 							Callbacks.DropFile(Event.drop.file);
 
-						SDL_free(Event.drop.file);		
+						SDL_free(Event.drop.file);
 						break;
 					case SDL_DROPTEXT:
 						if (Id != Event.window.windowID)
@@ -1825,7 +2051,7 @@ namespace Tomahawk
 						if (Callbacks.DropText)
 							Callbacks.DropText(Event.drop.file);
 
-						SDL_free(Event.drop.file);		
+						SDL_free(Event.drop.file);
 						break;
 #endif
 				}
@@ -1875,7 +2101,7 @@ namespace Tomahawk
 		bool Activity::IsFullscreen()
 		{
 #ifdef TH_HAS_SDL2
-			TH_ASSERT(Handle != nullptr, false, "activity should be initialized"); 
+			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
 			Uint32 Flags = SDL_GetWindowFlags(Handle);
 			return Flags & SDL_WINDOW_FULLSCREEN || Flags & SDL_WINDOW_FULLSCREEN_DESKTOP;
 #else
@@ -3062,5 +3288,5 @@ namespace Tomahawk
 
 			return nullptr;
 		}
+		}
 	}
-}

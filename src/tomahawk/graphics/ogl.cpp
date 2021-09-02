@@ -484,32 +484,32 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetShaderModel(ShaderModel Model)
 			{
-				ShaderModelType = Model;
-				if (ShaderModelType == ShaderModel::GLSL_1_1_0)
+				ShaderGen = Model;
+				if (ShaderGen == ShaderModel::GLSL_1_1_0)
 					ShaderVersion = "#version 110 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_1_2_0)
+				else if (ShaderGen == ShaderModel::GLSL_1_2_0)
 					ShaderVersion = "#version 120 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_1_3_0)
+				else if (ShaderGen == ShaderModel::GLSL_1_3_0)
 					ShaderVersion = "#version 130 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_1_4_0)
+				else if (ShaderGen == ShaderModel::GLSL_1_4_0)
 					ShaderVersion = "#version 140 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_1_5_0)
+				else if (ShaderGen == ShaderModel::GLSL_1_5_0)
 					ShaderVersion = "#version 150 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_3_3_0)
+				else if (ShaderGen == ShaderModel::GLSL_3_3_0)
 					ShaderVersion = "#version 330 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_4_0_0)
+				else if (ShaderGen == ShaderModel::GLSL_4_0_0)
 					ShaderVersion = "#version 400 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_4_1_0)
+				else if (ShaderGen == ShaderModel::GLSL_4_1_0)
 					ShaderVersion = "#version 410 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_4_2_0)
+				else if (ShaderGen == ShaderModel::GLSL_4_2_0)
 					ShaderVersion = "#version 420 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_4_3_0)
+				else if (ShaderGen == ShaderModel::GLSL_4_3_0)
 					ShaderVersion = "#version 430 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_4_4_0)
+				else if (ShaderGen == ShaderModel::GLSL_4_4_0)
 					ShaderVersion = "#version 440 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_4_5_0)
+				else if (ShaderGen == ShaderModel::GLSL_4_5_0)
 					ShaderVersion = "#version 450 core\n";
-				else if (ShaderModelType == ShaderModel::GLSL_4_6_0)
+				else if (ShaderGen == ShaderModel::GLSL_4_6_0)
 					ShaderVersion = "#version 460 core\n";
 				else
 					SetShaderModel(ShaderModel::GLSL_1_1_0);
@@ -590,14 +590,14 @@ namespace Tomahawk
 				TH_ASSERT_V(State != nullptr, "depth stencil state should be set");
 				OGLDepthStencilState* V = (OGLDepthStencilState*)State;
 				if (V->State.DepthEnable)
-					glEnable(GL_DEPTH);
+					glEnable(GL_DEPTH_TEST);
 				else
-					glDisable(GL_DEPTH);
+					glDisable(GL_DEPTH_TEST);
 
 				if (V->State.StencilEnable)
-					glEnable(GL_STENCIL);
+					glEnable(GL_STENCIL_TEST);
 				else
-					glDisable(GL_STENCIL);
+					glDisable(GL_STENCIL_TEST);
 
 				glDepthFunc(GetComparison(V->State.DepthFunction));
 				glDepthMask(V->State.DepthWriteMask == DepthWrite::All ? GL_TRUE : GL_FALSE);
@@ -1961,28 +1961,27 @@ namespace Tomahawk
 				GLint StatusCode = 0;
 
 				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
-				if ((Start = Code.Find(VertexEntry)).Found)
+				if (Code.Find(VertexEntry).Found)
 				{
-					Core::Parser::Settle End = Code.Find("#program", Start.End);
-					if (!End.Found)
-						End.Start = Code.Size() - 1;
+					std::string Source = F.Data;
+					if (!Transpile(&Source, ShaderType::Vertex, ShaderLang::GLSL))
+					{
+						TH_ERR("shader transpiling failed");
+						return Result;
+					}
 
-					Core::Parser Sub(F.Data);
-					Sub.Splice(Start.End, End.Start);
-					Sub.Insert(ShaderVersion, 0);
-
-					char* Buffer = Sub.Value();
-					GLint Size = Sub.Size();
+					const char* Data = Source.c_str();
+					GLint Size = (GLint)Source.size();
 
 					Result->VertexShader = glCreateShader(GL_VERTEX_SHADER);
-					glShaderSourceARB(Result->VertexShader, 1, (const char**)&Buffer, &Size);
+					glShaderSourceARB(Result->VertexShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->VertexShader);
 					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
 						TH_ERR("couldn't compile vertex shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
@@ -1990,28 +1989,27 @@ namespace Tomahawk
 				}
 
 				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
-				if ((Start = Code.Find(PixelEntry)).Found)
+				if (Code.Find(PixelEntry).Found)
 				{
-					Core::Parser::Settle End = Code.Find("#program", Start.End);
-					if (!End.Found)
-						End.Start = Code.Size() - 1;
+					std::string Source = F.Data;
+					if (!Transpile(&Source, ShaderType::Pixel, ShaderLang::GLSL))
+					{
+						TH_ERR("shader transpiling failed");
+						return Result;
+					}
 
-					Core::Parser Sub(F.Data);
-					Sub.Splice(Start.End, End.Start);
-					Sub.Insert(ShaderVersion, 0);
-
-					char* Buffer = Sub.Value();
-					GLint Size = Sub.Size();
+					const char* Data = Source.c_str();
+					GLint Size = (GLint)Source.size();
 
 					Result->PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
-					glShaderSourceARB(Result->PixelShader, 1, (const char**)&Buffer, &Size);
+					glShaderSourceARB(Result->PixelShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->PixelShader);
 					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
 						TH_ERR("couldn't compile pixel shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
@@ -2019,28 +2017,27 @@ namespace Tomahawk
 				}
 
 				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
-				if ((Start = Code.Find(GeometryEntry)).Found)
+				if (Code.Find(GeometryEntry).Found)
 				{
-					Core::Parser::Settle End = Code.Find("#program", Start.End);
-					if (!End.Found)
-						End.Start = Code.Size() - 1;
+					std::string Source = F.Data;
+					if (!Transpile(&Source, ShaderType::Geometry, ShaderLang::GLSL))
+					{
+						TH_ERR("shader transpiling failed");
+						return Result;
+					}
 
-					Core::Parser Sub(F.Data);
-					Sub.Splice(Start.End, End.Start);
-					Sub.Insert(ShaderVersion, 0);
-
-					char* Buffer = Sub.Value();
-					GLint Size = Sub.Size();
+					const char* Data = Source.c_str();
+					GLint Size = (GLint)Source.size();
 
 					Result->GeometryShader = glCreateShader(GL_GEOMETRY_SHADER);
-					glShaderSourceARB(Result->GeometryShader, 1, (const char**)&Buffer, &Size);
+					glShaderSourceARB(Result->GeometryShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->GeometryShader);
 					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
 						TH_ERR("couldn't compile geometry shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
@@ -2048,86 +2045,83 @@ namespace Tomahawk
 				}
 
 				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
-				if ((Start = Code.Find(ComputeEntry)).Found)
+				if (Code.Find(ComputeEntry).Found)
 				{
-					Core::Parser::Settle End = Code.Find("#program", Start.End);
-					if (!End.Found)
-						End.Start = Code.Size() - 1;
+					std::string Source = F.Data;
+					if (!Transpile(&Source, ShaderType::Compute, ShaderLang::GLSL))
+					{
+						TH_ERR("shader transpiling failed");
+						return Result;
+					}
 
-					Core::Parser Sub(F.Data);
-					Sub.Splice(Start.End, End.Start);
-					Sub.Insert(ShaderVersion, 0);
-
-					char* Buffer = Sub.Value();
-					GLint Size = Sub.Size();
+					const char* Data = Source.c_str();
+					GLint Size = (GLint)Source.size();
 
 					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
-					glShaderSourceARB(Result->ComputeShader, 1, (const char**)&Buffer, &Size);
+					glShaderSourceARB(Result->ComputeShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->ComputeShader);
 					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
 						TH_ERR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
 
-				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
-				if ((Start = Code.Find(DomainEntry)).Found)
+				std::string HullEntry = GetShaderMain(ShaderType::Hull);
+				if (Code.Find(HullEntry).Found)
 				{
-					Core::Parser::Settle End = Code.Find("#program", Start.End);
-					if (!End.Found)
-						End.Start = Code.Size() - 1;
+					std::string Source = F.Data;
+					if (!Transpile(&Source, ShaderType::Hull, ShaderLang::GLSL))
+					{
+						TH_ERR("shader transpiling failed");
+						return Result;
+					}
 
-					Core::Parser Sub(F.Data);
-					Sub.Splice(Start.End, End.Start);
-					Sub.Insert(ShaderVersion, 0);
-
-					char* Buffer = Sub.Value();
-					GLint Size = Sub.Size();
+					const char* Data = Source.c_str();
+					GLint Size = (GLint)Source.size();
 
 					Result->HullShader = glCreateShader(GL_TESS_CONTROL_SHADER);
-					glShaderSourceARB(Result->HullShader, 1, (const char**)&Buffer, &Size);
+					glShaderSourceARB(Result->HullShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->HullShader);
 					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
 						TH_ERR("couldn't compile hull shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
 
-				std::string HullEntry = GetShaderMain(ShaderType::Hull);
-				if ((Start = Code.Find(HullEntry)).Found)
+				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
+				if (Code.Find(DomainEntry).Found)
 				{
-					Core::Parser::Settle End = Code.Find("#program", Start.End);
-					if (!End.Found)
-						End.Start = Code.Size() - 1;
+					std::string Source = F.Data;
+					if (!Transpile(&Source, ShaderType::Domain, ShaderLang::GLSL))
+					{
+						TH_ERR("shader transpiling failed");
+						return Result;
+					}
 
-					Core::Parser Sub(F.Data);
-					Sub.Splice(Start.End, End.Start);
-					Sub.Insert(ShaderVersion, 0);
-
-					char* Buffer = Sub.Value();
-					GLint Size = Sub.Size();
+					const char* Data = Source.c_str();
+					GLint Size = (GLint)Source.size();
 
 					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
-					glShaderSourceARB(Result->DomainShader, 1, (const char**)&Buffer, &Size);
+					glShaderSourceARB(Result->DomainShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->DomainShader);
 					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &StatusCode);
 
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
-						Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
+						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
 						TH_ERR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);

@@ -82,10 +82,10 @@ namespace Tomahawk
 				return Result;
 			}
 #endif
-			Property::Property() : Source(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
+			Property::Property() noexcept : Source(nullptr), Mod(Type::Unknown), Integer(0), High(0), Low(0), Number(0.0), Boolean(false), IsValid(false)
 			{
 			}
-			Property::Property(const Property& Other) : Name(Other.Name), String(Other.String), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
+			Property::Property(const Property& Other) noexcept : Name(Other.Name), String(Other.String), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
 			{
 				if (Mod == Type::ObjectId)
 					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
@@ -94,7 +94,7 @@ namespace Tomahawk
 					Source = bson_copy(Other.Source);
 #endif
 			}
-			Property::Property(Property&& Other) : Name(std::move(Other.Name)), String(std::move(Other.String)), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
+			Property::Property(Property&& Other) noexcept : Name(std::move(Other.Name)), String(std::move(Other.String)), Source(Other.Source), Mod(Other.Mod), Integer(Other.Integer), High(Other.High), Low(Other.Low), Number(Other.Number), Boolean(Other.Boolean), IsValid(Other.IsValid)
 			{
 				if (Mod == Type::ObjectId)
 					memcpy(ObjectId, Other.ObjectId, sizeof(ObjectId));
@@ -171,7 +171,7 @@ namespace Tomahawk
 			{
 				return Document(Source);
 			}
-			Property& Property::operator= (const Property& Other)
+			Property& Property::operator= (const Property& Other) noexcept
 			{
 				if (&Other == this)
 					return *this;
@@ -195,7 +195,7 @@ namespace Tomahawk
 #endif
 				return *this;
 			}
-			Property& Property::operator= (Property&& Other)
+			Property& Property::operator= (Property&& Other) noexcept
 			{
 				if (&Other == this)
 					return *this;

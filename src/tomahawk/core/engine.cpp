@@ -15,28 +15,28 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		Event::Event(const std::string& NewName) : Name(NewName)
+		Event::Event(const std::string& NewName) noexcept : Name(NewName)
 		{
 		}
-		Event::Event(const std::string& NewName, const Core::VariantArgs& NewArgs) : Name(NewName), Args(NewArgs)
+		Event::Event(const std::string& NewName, const Core::VariantArgs& NewArgs) noexcept : Name(NewName), Args(NewArgs)
 		{
 		}
-		Event::Event(const std::string& NewName, Core::VariantArgs&& NewArgs) : Name(NewName), Args(std::move(NewArgs))
+		Event::Event(const std::string& NewName, Core::VariantArgs&& NewArgs) noexcept : Name(NewName), Args(std::move(NewArgs))
 		{
 		}
-		Event::Event(const Event& Other) : Name(Other.Name), Args(Other.Args)
+		Event::Event(const Event& Other) noexcept : Name(Other.Name), Args(Other.Args)
 		{
 		}
-		Event::Event(Event&& Other) : Name(std::move(Other.Name)), Args(std::move(Other.Args))
+		Event::Event(Event&& Other) noexcept : Name(std::move(Other.Name)), Args(std::move(Other.Args))
 		{
 		}
-		Event& Event::operator= (const Event& Other)
+		Event& Event::operator= (const Event& Other) noexcept
 		{
 			Name = Other.Name;
 			Args = Other.Args;
 			return *this;
 		}
-		Event& Event::operator= (Event&& Other)
+		Event& Event::operator= (Event&& Other) noexcept
 		{
 			Name = std::move(Other.Name);
 			Args = std::move(Other.Args);
@@ -346,7 +346,6 @@ namespace Tomahawk
 			NMake::Pack(V->Set("height"), Value->Surface.Height);
 			NMake::Pack(V->Set("bias"), Value->Surface.Bias);
 			NMake::Pack(V->Set("name"), Value->GetName());
-			NMake::Pack(V->Set("slot"), Value->Slot);
 		}
 		void NMake::Pack(Core::Document* V, const Compute::SkinAnimatorKey& Value)
 		{
@@ -1037,7 +1036,6 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("height"), &O->Surface.Height);
 			NMake::Unpack(V->Get("bias"), &O->Surface.Bias);
 			NMake::Unpack(V->Get("name"), &Path);
-			NMake::Unpack(V->Get("slot"), &O->Slot);
 			O->SetName(Path, true);
 
 			return true;
@@ -1756,9 +1754,32 @@ namespace Tomahawk
 			return true;
 		}
 
-		Material::Material(SceneGraph* Src, const std::string& Alias) : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(Src), Slot(0), Name(Alias)
+		Material::Material(SceneGraph* Src) : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(Src), Slot(0)
 		{
-			TH_ASSERT_V(Src != nullptr, "scene should be set");
+		}
+		Material::Material(const Material& Other) : Material(Other.Scene)
+		{
+			memcpy(&Surface, &Other.Surface, sizeof(Subsurface));
+			if (Other.DiffuseMap != nullptr)
+				DiffuseMap = (Graphics::Texture2D*)Other.DiffuseMap->AddRef();
+
+			if (Other.NormalMap != nullptr)
+				NormalMap = (Graphics::Texture2D*)Other.NormalMap->AddRef();
+
+			if (Other.MetallicMap != nullptr)
+				MetallicMap = (Graphics::Texture2D*)Other.MetallicMap->AddRef();
+
+			if (Other.RoughnessMap != nullptr)
+				RoughnessMap = (Graphics::Texture2D*)Other.RoughnessMap->AddRef();
+
+			if (Other.HeightMap != nullptr)
+				HeightMap = (Graphics::Texture2D*)Other.HeightMap->AddRef();
+
+			if (Other.OcclusionMap != nullptr)
+				OcclusionMap = (Graphics::Texture2D*)Other.OcclusionMap->AddRef();
+
+			if (Other.EmissionMap != nullptr)
+				EmissionMap = (Graphics::Texture2D*)Other.EmissionMap->AddRef();
 		}
 		Material::~Material()
 		{
@@ -1774,6 +1795,7 @@ namespace Tomahawk
 		{
 			if (!Internal)
 			{
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
 				Scene->Exclusive([this, Value]()
 				{
 					if (Name == Value)
@@ -1856,10 +1878,6 @@ namespace Tomahawk
 		SceneGraph* Material::GetScene() const
 		{
 			return Scene;
-		}
-		uint64_t Material::GetSlot() const
-		{
-			return Slot;
 		}
 
 		Processor::Processor(ContentManager* NewContent) : Content(NewContent)
@@ -2066,7 +2084,7 @@ namespace Tomahawk
 		{
 			Material* Base = GetMaterial(Surface);
 			if (Base != nullptr)
-				return (int64_t)Base->GetSlot();
+				return (int64_t)Base->Slot;
 
 			return -1;
 		}
@@ -2074,7 +2092,7 @@ namespace Tomahawk
 		{
 			Material* Base = GetMaterial();
 			if (Base != nullptr)
-				return (int64_t)Base->GetSlot();
+				return (int64_t)Base->Slot;
 
 			return -1;
 		}
@@ -4940,48 +4958,27 @@ namespace Tomahawk
 			else if (Category == GeoCategory::Transparent)
 				GetTransparent(Source->Source)->Remove(Source);
 		}
-		Material* SceneGraph::AddMaterial(const std::string& Name)
+		Material* SceneGraph::AddMaterial(Material* Base, const std::string& Name)
 		{
+			TH_ASSERT(Base != nullptr, nullptr, "base should be set");
 			TH_ASSERT(Materials.Size() < Materials.Capacity(), nullptr, "too many materials");
+
 			if (Materials.Size() > Surfaces)
 				ExpandMaterials();
 
-			Material* Result = new Material(this, Name);
-			Materials.Add(Result);
-			Mutate(Result, "push");
+			Base->Scene = this;
+			if (!Name.empty())
+				Base->Name = Name;
 
-			return Result;
+			Materials.AddIfNotExists(Base);
+			Mutate(Base, "push");
+
+			return Base;
 		}
 		Material* SceneGraph::CloneMaterial(Material* Base, const std::string& Name)
 		{
 			TH_ASSERT(Base != nullptr, nullptr, "material should be set");
-			Material* Copy = AddMaterial(Name);
-			if (!Copy)
-				return nullptr;
-
-			memcpy(&Copy->Surface, &Base->Surface, sizeof(Subsurface));
-			if (Base->DiffuseMap != nullptr)
-				Copy->DiffuseMap = (Graphics::Texture2D*)Base->DiffuseMap->AddRef();
-
-			if (Base->NormalMap != nullptr)
-				Copy->NormalMap = (Graphics::Texture2D*)Base->NormalMap->AddRef();
-
-			if (Base->MetallicMap != nullptr)
-				Copy->MetallicMap = (Graphics::Texture2D*)Base->MetallicMap->AddRef();
-
-			if (Base->RoughnessMap != nullptr)
-				Copy->RoughnessMap = (Graphics::Texture2D*)Base->RoughnessMap->AddRef();
-
-			if (Base->HeightMap != nullptr)
-				Copy->HeightMap = (Graphics::Texture2D*)Base->HeightMap->AddRef();
-
-			if (Base->OcclusionMap != nullptr)
-				Copy->OcclusionMap = (Graphics::Texture2D*)Base->OcclusionMap->AddRef();
-
-			if (Base->EmissionMap != nullptr)
-				Copy->EmissionMap = (Graphics::Texture2D*)Base->EmissionMap->AddRef();
-
-			return Copy;
+			return AddMaterial(new Material(*Base), Name);
 		}
 		Component* SceneGraph::GetCamera()
 		{
@@ -5433,6 +5430,10 @@ namespace Tomahawk
 			Core::OS::Directory::Set(Environment.c_str());
 			Mutex.unlock();
 		}
+		void ContentManager::SetDevice(Graphics::GraphicsDevice* NewDevice)
+		{
+			Device = NewDevice;
+		}
 		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
@@ -5752,11 +5753,27 @@ namespace Tomahawk
 			return Environment;
 		}
 
-		Application::Application(Desc* I)
+		Application::Application(Desc* I) : Control(I ? *I : Desc())
 		{
 			TH_ASSERT_V(I != nullptr, "desc should be set");
-			Control = *I;
 			Host = this;
+
+			if (I->Usage & (size_t)ApplicationSet::ContentSet)
+			{
+				Content = new ContentManager(nullptr);
+				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
+				Content->AddProcessor<Processors::Material, Engine::Material>();
+				Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
+				Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
+				Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
+				Content->AddProcessor<Processors::Shader, Graphics::Shader>();
+				Content->AddProcessor<Processors::Model, Graphics::Model>();
+				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
+				Content->AddProcessor<Processors::Document, Core::Document>();
+				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
+				Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
+				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
+			}
 #ifdef TH_HAS_SDL2
 			if (I->Usage & (size_t)ApplicationSet::ActivitySet)
 			{
@@ -5827,7 +5844,10 @@ namespace Tomahawk
 
 						if (!I->GraphicsDevice.BufferHeight)
 							I->GraphicsDevice.BufferHeight = (unsigned int)Size.Y;
+
 						I->GraphicsDevice.Window = Activity;
+						if (Content != nullptr && !I->GraphicsDevice.CacheDirectory.empty())
+							I->GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(I->GraphicsDevice.CacheDirectory, Content->GetEnvironment());
 
 						Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
 						if (!Renderer || !Renderer->IsValid())
@@ -5835,6 +5855,9 @@ namespace Tomahawk
 							TH_ERR("graphics device cannot be created");
 							return;
 						}
+
+						if (Content != nullptr)
+							Content->SetDevice(Renderer);
 
 						Cache.Shaders = new ShaderCache(Renderer);
 						Cache.Primitives = new PrimitiveCache(Renderer);
@@ -5852,22 +5875,6 @@ namespace Tomahawk
 					TH_ERR("audio device cannot be created");
 					return;
 				}
-			}
-
-			if (I->Usage & (size_t)ApplicationSet::ContentSet)
-			{
-				Content = new ContentManager(Renderer);
-				Content->AddProcessor<Processors::Asset, Engine::AssetFile>();
-				Content->AddProcessor<Processors::SceneGraph, Engine::SceneGraph>();
-				Content->AddProcessor<Processors::AudioClip, Audio::AudioClip>();
-				Content->AddProcessor<Processors::Texture2D, Graphics::Texture2D>();
-				Content->AddProcessor<Processors::Shader, Graphics::Shader>();
-				Content->AddProcessor<Processors::Model, Graphics::Model>();
-				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
-				Content->AddProcessor<Processors::Document, Core::Document>();
-				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
-				Content->AddProcessor<Processors::Shape, Compute::UnmanagedShape>();
-				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
 			}
 
 			if (I->Usage & (size_t)ApplicationSet::ScriptSet)

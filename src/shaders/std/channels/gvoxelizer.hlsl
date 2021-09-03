@@ -1,6 +1,5 @@
 #include "std/buffers/viewer.hlsl"
 #include "std/buffers/voxelizer.hlsl"
-#include "std/objects/lumina.hlsl"
 #include "std/core/material.hlsl"
 #pragma warning(disable: 4000)
 
@@ -53,10 +52,10 @@ float4 GetDiffuse(float2 TexCoord)
 {
     return DiffuseMap.Sample(Sampler, TexCoord);
 }
-Lumina Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, float Mid)
+void Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, float Mid)
 {
     [branch] if (Position.x < -1.0 || Position.x > 1.0 || Position.y < -1.0 || Position.y > 1.0 || Position.z < -1.0 || Position.z > 1.0)
-        return (Lumina)0;
+        return;
     
     uint3 Voxel = (uint3)floor((float3(0.5, -0.5, 0.5) * Position + 0.5) * vxb_Size);
     DiffuseBuffer[Voxel] = Diffuse;
@@ -66,6 +65,4 @@ Lumina Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, 
         MetallicMap.Sample(Sampler, TexCoord).x,
         OcclusionMap.Sample(Sampler, TexCoord).x,
         EmissionMap.Sample(Sampler, TexCoord).x);
-
-    return (Lumina)0;
 }

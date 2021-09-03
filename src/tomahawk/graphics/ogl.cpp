@@ -400,7 +400,7 @@ namespace Tomahawk
 					SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 				else
 					SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
-				
+
 				Context = SDL_GL_CreateContext(Window->GetHandle());
 				if (!Context)
 				{
@@ -844,7 +844,7 @@ namespace Tomahawk
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 					glDrawBuffer(GL_FRONT_AND_BACK);
 				}
-				
+
 				glViewport((GLuint)Viewarea.TopLeftX, (GLuint)Viewarea.TopLeftY, (GLuint)Viewarea.Width, (GLuint)Viewarea.Height);
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
@@ -1557,7 +1557,7 @@ namespace Tomahawk
 				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, IResource->Buffers[1]);
 				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + Face, IResource->Resource, 0);
 				glBlitFramebuffer(0, 0, IResource->Meta.Size, IResource->Meta.Size, 0, 0, IResource->Meta.Size, IResource->Meta.Size, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-				
+
 				return true;
 			}
 			bool OGLDevice::CubemapEnd(Cubemap* Resource, TextureCube* Result)
@@ -1852,7 +1852,7 @@ namespace Tomahawk
 
 				if (Elements.size() > MaxElements && !CreateDirectBuffer(Elements.size()))
 					return false;
-				
+
 				GLint LastVAO = 0;
 				glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &LastVAO);
 
@@ -1891,7 +1891,7 @@ namespace Tomahawk
 					glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, LastTexture);
 				}
-				
+
 				return true;
 			}
 			bool OGLDevice::Submit()
@@ -1948,6 +1948,9 @@ namespace Tomahawk
 			Shader* OGLDevice::CreateShader(const Shader::Desc& I)
 			{
 				OGLShader* Result = new OGLShader(I);
+				const char* Data = nullptr;
+				GLint Size = 0;
+				GLint State = GL_TRUE;
 				Shader::Desc F(I);
 
 				if (!Preprocess(F))
@@ -1956,29 +1959,40 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Core::Parser::Settle Start;
-				Core::Parser Code(&F.Data);
-				GLint StatusCode = 0;
-
+				std::string Name = GetProgramName(F);
 				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
-				if (Code.Find(VertexEntry).Found)
+				if (F.Data.find(VertexEntry) != std::string::npos)
 				{
-					std::string Source = F.Data;
-					if (!Transpile(&Source, ShaderType::Vertex, ShaderLang::GLSL))
+					std::string Stage = Name + ".vtx", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_ERR("shader transpiling failed");
-						return Result;
+						TH_TRACE("transpile %s vertex shader source", Stage.c_str());
+						Bytecode = F.Data;
+
+						if (!Transpile(&Bytecode, ShaderType::Vertex, ShaderLang::GLSL))
+						{
+							TH_ERR("vertex shader transpiling failed");
+							return Result;
+						}
+
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
+						if (!SetProgramCache(Stage, Bytecode))
+							TH_WARN("couldn't cache vertex shader");
+					}
+					else
+					{
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
 					}
 
-					const char* Data = Source.c_str();
-					GLint Size = (GLint)Source.size();
-
+					TH_TRACE("compile %s vertex shader bytecode", Stage.c_str());
 					Result->VertexShader = glCreateShader(GL_VERTEX_SHADER);
 					glShaderSourceARB(Result->VertexShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->VertexShader);
-					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &StatusCode);
+					glGetShaderiv(Result->VertexShader, GL_COMPILE_STATUS, &State);
 
-					if (StatusCode == GL_FALSE)
+					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -1989,24 +2003,38 @@ namespace Tomahawk
 				}
 
 				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
-				if (Code.Find(PixelEntry).Found)
+				if (F.Data.find(PixelEntry) != std::string::npos)
 				{
-					std::string Source = F.Data;
-					if (!Transpile(&Source, ShaderType::Pixel, ShaderLang::GLSL))
+					std::string Stage = Name + ".pxl", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_ERR("shader transpiling failed");
-						return Result;
+						TH_TRACE("transpile %s pixel shader source", Stage.c_str());
+						Bytecode = F.Data;
+
+						if (!Transpile(&Bytecode, ShaderType::Pixel, ShaderLang::GLSL))
+						{
+							TH_ERR("pixel shader transpiling failed");
+							return Result;
+						}
+
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
+						if (!SetProgramCache(Stage, Bytecode))
+							TH_WARN("couldn't cache pixel shader");
+					}
+					else
+					{
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
 					}
 
-					const char* Data = Source.c_str();
-					GLint Size = (GLint)Source.size();
-
+					TH_TRACE("compile %s pixel shader bytecode", Stage.c_str());
 					Result->PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
 					glShaderSourceARB(Result->PixelShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->PixelShader);
-					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &StatusCode);
+					glGetShaderiv(Result->PixelShader, GL_COMPILE_STATUS, &State);
 
-					if (StatusCode == GL_FALSE)
+					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -2017,24 +2045,38 @@ namespace Tomahawk
 				}
 
 				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
-				if (Code.Find(GeometryEntry).Found)
+				if (F.Data.find(GeometryEntry) != std::string::npos)
 				{
-					std::string Source = F.Data;
-					if (!Transpile(&Source, ShaderType::Geometry, ShaderLang::GLSL))
+					std::string Stage = Name + ".geo", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_ERR("shader transpiling failed");
-						return Result;
+						TH_TRACE("transpile %s geometry shader source", Stage.c_str());
+						Bytecode = F.Data;
+
+						if (!Transpile(&Bytecode, ShaderType::Geometry, ShaderLang::GLSL))
+						{
+							TH_ERR("geometry shader transpiling failed");
+							return Result;
+						}
+
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
+						if (!SetProgramCache(Stage, Bytecode))
+							TH_WARN("couldn't cache geometry shader");
+					}
+					else
+					{
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
 					}
 
-					const char* Data = Source.c_str();
-					GLint Size = (GLint)Source.size();
-
+					TH_TRACE("compile %s geometry shader bytecode", Stage.c_str());
 					Result->GeometryShader = glCreateShader(GL_GEOMETRY_SHADER);
 					glShaderSourceARB(Result->GeometryShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->GeometryShader);
-					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &StatusCode);
+					glGetShaderiv(Result->GeometryShader, GL_COMPILE_STATUS, &State);
 
-					if (StatusCode == GL_FALSE)
+					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -2045,24 +2087,38 @@ namespace Tomahawk
 				}
 
 				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
-				if (Code.Find(ComputeEntry).Found)
+				if (F.Data.find(ComputeEntry) != std::string::npos)
 				{
-					std::string Source = F.Data;
-					if (!Transpile(&Source, ShaderType::Compute, ShaderLang::GLSL))
+					std::string Stage = Name + ".cmp", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_ERR("shader transpiling failed");
-						return Result;
+						TH_TRACE("transpile %s compute shader source", Stage.c_str());
+						Bytecode = F.Data;
+
+						if (!Transpile(&Bytecode, ShaderType::Compute, ShaderLang::GLSL))
+						{
+							TH_ERR("compute shader transpiling failed");
+							return Result;
+						}
+
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
+						if (!SetProgramCache(Stage, Bytecode))
+							TH_WARN("couldn't cache compute shader");
+					}
+					else
+					{
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
 					}
 
-					const char* Data = Source.c_str();
-					GLint Size = (GLint)Source.size();
-
+					TH_TRACE("compile %s compute shader bytecode", Stage.c_str());
 					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
 					glShaderSourceARB(Result->ComputeShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->ComputeShader);
-					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &StatusCode);
+					glGetShaderiv(Result->ComputeShader, GL_COMPILE_STATUS, &State);
 
-					if (StatusCode == GL_FALSE)
+					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -2073,24 +2129,38 @@ namespace Tomahawk
 				}
 
 				std::string HullEntry = GetShaderMain(ShaderType::Hull);
-				if (Code.Find(HullEntry).Found)
+				if (F.Data.find(HullEntry) != std::string::npos)
 				{
-					std::string Source = F.Data;
-					if (!Transpile(&Source, ShaderType::Hull, ShaderLang::GLSL))
+					std::string Stage = Name + ".hlc", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_ERR("shader transpiling failed");
-						return Result;
+						TH_TRACE("transpile %s hull shader source", Stage.c_str());
+						Bytecode = F.Data;
+
+						if (!Transpile(&Bytecode, ShaderType::Hull, ShaderLang::GLSL))
+						{
+							TH_ERR("hull shader transpiling failed");
+							return Result;
+						}
+
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
+						if (!SetProgramCache(Stage, Bytecode))
+							TH_WARN("couldn't cache hull shader");
+					}
+					else
+					{
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
 					}
 
-					const char* Data = Source.c_str();
-					GLint Size = (GLint)Source.size();
-
+					TH_TRACE("compile %s hull shader bytecode", Stage.c_str());
 					Result->HullShader = glCreateShader(GL_TESS_CONTROL_SHADER);
 					glShaderSourceARB(Result->HullShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->HullShader);
-					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &StatusCode);
+					glGetShaderiv(Result->HullShader, GL_COMPILE_STATUS, &State);
 
-					if (StatusCode == GL_FALSE)
+					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -2101,24 +2171,38 @@ namespace Tomahawk
 				}
 
 				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
-				if (Code.Find(DomainEntry).Found)
+				if (F.Data.find(DomainEntry) != std::string::npos)
 				{
-					std::string Source = F.Data;
-					if (!Transpile(&Source, ShaderType::Domain, ShaderLang::GLSL))
+					std::string Stage = Name + ".dmn", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_ERR("shader transpiling failed");
-						return Result;
+						TH_TRACE("transpile %s domain shader source", Stage.c_str());
+						Bytecode = F.Data;
+
+						if (!Transpile(&Bytecode, ShaderType::Domain, ShaderLang::GLSL))
+						{
+							TH_ERR("domain shader transpiling failed");
+							return Result;
+						}
+
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
+						if (!SetProgramCache(Stage, Bytecode))
+							TH_WARN("couldn't cache domain shader");
+					}
+					else
+					{
+						Data = Bytecode.c_str();
+						Size = (GLint)Bytecode.size();
 					}
 
-					const char* Data = Source.c_str();
-					GLint Size = (GLint)Source.size();
-
+					TH_TRACE("compile %s domain shader bytecode", Stage.c_str());
 					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
 					glShaderSourceARB(Result->DomainShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->DomainShader);
-					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &StatusCode);
+					glGetShaderiv(Result->DomainShader, GL_COMPILE_STATUS, &State);
 
-					if (StatusCode == GL_FALSE)
+					if (State == GL_FALSE)
 					{
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
@@ -2220,7 +2304,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-				Result->Format = GetFormat(I.FormatMode);
+				Result->Format = GetSizedFormat(I.FormatMode);
 				if (I.MipLevels > 0)
 				{
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2234,7 +2318,8 @@ namespace Tomahawk
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				}
 
-				glTexImage2D(GL_TEXTURE_2D, 0, OGLDevice::GetFormat(Result->FormatMode), Result->Width, Result->Height, 0, OGLDevice::GetFormat(Result->FormatMode), GL_UNSIGNED_BYTE, I.Data);
+				GLint Format = OGLDevice::GetBaseFormat(Result->FormatMode);
+				glTexImage2D(GL_TEXTURE_2D, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, I.Data);
 				if (!GenerateTexture(Result))
 					return Result;
 
@@ -2256,7 +2341,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 				glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 
-				Result->Format = GetFormat(I.FormatMode);
+				Result->Format = GetSizedFormat(I.FormatMode);
 				if (I.MipLevels > 0)
 				{
 					glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2270,7 +2355,8 @@ namespace Tomahawk
 					glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				}
 
-				glTexImage3D(GL_TEXTURE_3D, 0, OGLDevice::GetFormat(Result->FormatMode), Result->Width, Result->Height, Result->Depth, 0, OGLDevice::GetFormat(Result->FormatMode), GL_UNSIGNED_BYTE, nullptr);
+				GLuint Format = OGLDevice::GetBaseFormat(Result->FormatMode);
+				glTexImage3D(GL_TEXTURE_3D, 0, Format, Result->Width, Result->Height, Result->Depth, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 				if (Result->MipLevels != 0)
 					glGenerateMipmap(GL_TEXTURE_3D);
 
@@ -2289,7 +2375,7 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-				Result->Format = GetFormat(I.FormatMode);
+				Result->Format = GetSizedFormat(I.FormatMode);
 				if (I.MipLevels > 0)
 				{
 					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2303,14 +2389,14 @@ namespace Tomahawk
 					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				}
 
-				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
+				GLint Format = OGLDevice::GetBaseFormat(Result->FormatMode);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, Format, Result->Width, Result->Height, 0, Format, GL_UNSIGNED_BYTE, nullptr);
-				
+
 				if (Result->MipLevels != 0)
 					glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
@@ -2362,9 +2448,10 @@ namespace Tomahawk
 					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				}
 
-				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
+				GLint Format = OGLDevice::GetBaseFormat(Result->FormatMode);
 				GLsizei Size = sizeof(GLubyte) * Width * Height;
 				GLubyte* Pixels = (GLubyte*)TH_MALLOC(Size);
+				Result->Format = OGLDevice::GetSizedFormat(Result->FormatMode);
 				Result->FormatMode = IResource->FormatMode;
 				Result->Width = IResource->Width;
 				Result->Height = IResource->Height;
@@ -2433,8 +2520,9 @@ namespace Tomahawk
 					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				}
 
-				GLint Format = OGLDevice::GetFormat(Result->FormatMode);
+				GLint Format = OGLDevice::GetBaseFormat(Result->FormatMode);
 				GLubyte* Pixels = (GLubyte*)TH_MALLOC(sizeof(GLubyte) * Resources[0]->Width * Resources[0]->Height);
+				Result->Format = OGLDevice::GetSizedFormat(Result->FormatMode);
 				Result->FormatMode = Resources[0]->FormatMode;
 				Result->Width = Resources[0]->Width;
 				Result->Height = Resources[0]->Height;
@@ -2496,7 +2584,7 @@ namespace Tomahawk
 				OGLRenderTarget2D* Result = new OGLRenderTarget2D(I);
 				if (!I.RenderSurface)
 				{
-					GLenum Format = OGLDevice::GetFormat(I.FormatMode);
+					GLenum Format = OGLDevice::GetSizedFormat(I.FormatMode);
 					glGenTextures(1, &Result->FrameBuffer.Texture[0]);
 					glBindTexture(GL_TEXTURE_2D, Result->FrameBuffer.Texture[0]);
 					glTexStorage2D(GL_TEXTURE_2D, I.MipLevels, Format, I.Width, I.Height);
@@ -2566,7 +2654,7 @@ namespace Tomahawk
 
 				for (unsigned int i = 0; i < (unsigned int)I.Target; i++)
 				{
-					GLenum Format = OGLDevice::GetFormat(I.FormatMode[i]);
+					GLenum Format = OGLDevice::GetSizedFormat(I.FormatMode[i]);
 					glGenTextures(1, &Result->FrameBuffer.Texture[i]);
 					glBindTexture(GL_TEXTURE_2D, Result->FrameBuffer.Texture[i]);
 					glTexStorage2D(GL_TEXTURE_2D, I.MipLevels, Format, I.Width, I.Height);
@@ -2629,7 +2717,7 @@ namespace Tomahawk
 			RenderTargetCube* OGLDevice::CreateRenderTargetCube(const RenderTargetCube::Desc& I)
 			{
 				OGLRenderTargetCube* Result = new OGLRenderTargetCube(I);
-				GLenum Format = OGLDevice::GetFormat(I.FormatMode);
+				GLenum Format = OGLDevice::GetBaseFormat(I.FormatMode);
 				glGenTextures(1, &Result->FrameBuffer.Texture[0]);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->FrameBuffer.Texture[0]);
 				glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 0, 0, Format, I.Size, I.Size, 0, Format, GL_UNSIGNED_BYTE, 0);
@@ -2643,24 +2731,22 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 				if (I.MipLevels > 0)
 				{
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, I.MipLevels - 1);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_BASE_LEVEL, 0);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAX_LEVEL, I.MipLevels - 1);
 				}
 				else
 				{
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+					glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				}
 
-				Result->Resource = CreateTexture2D();
-				((OGLTexture2D*)Result->Resource)->Resource = Result->FrameBuffer.Texture[0];
-				if (!GenerateTexture(Result->Resource))
-				{
-					TH_ERR("couldn't create 2d resource");
-					return Result;
-				}
+				OGLTexture2D* Base = (OGLTexture2D*)CreateTexture2D();
+				Base->Resource = Result->FrameBuffer.Texture[0];
+				Base->Width = I.Size;
+				Base->Height = I.Size;
+				Result->Resource = Base;
 
 				glGenTextures(1, &Result->DepthTexture);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, Result->DepthTexture);
@@ -2678,13 +2764,11 @@ namespace Tomahawk
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
 				glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_COMPARE_FUNC, GL_GREATER);
 
-				Result->DepthStencil = CreateTexture2D();
-				((OGLTexture2D*)Result->DepthStencil)->Resource = Result->DepthTexture;
-				if (!GenerateTexture(Result->DepthStencil))
-				{
-					TH_ERR("couldn't create 2d resource");
-					return Result;
-				}
+				Base = (OGLTexture2D*)CreateTexture2D();
+				Base->Resource = Result->DepthTexture;
+				Base->Width = I.Size;
+				Base->Height = I.Size;
+				Result->DepthStencil = Base;
 
 				glGenFramebuffers(1, &Result->FrameBuffer.Buffer);
 				glBindFramebuffer(GL_FRAMEBUFFER, Result->FrameBuffer.Buffer);
@@ -2709,7 +2793,7 @@ namespace Tomahawk
 
 				for (unsigned int i = 0; i < (unsigned int)I.Target; i++)
 				{
-					GLenum Format = OGLDevice::GetFormat(I.FormatMode[i]);
+					GLenum Format = OGLDevice::GetBaseFormat(I.FormatMode[i]);
 					glGenTextures(1, &Result->FrameBuffer.Texture[i]);
 					glBindTexture(GL_TEXTURE_CUBE_MAP, Result->FrameBuffer.Texture[i]);
 					glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + 0, 0, Format, I.Size, I.Size, 0, Format, GL_UNSIGNED_BYTE, 0);
@@ -2791,7 +2875,7 @@ namespace Tomahawk
 				OGLQuery* Result = new OGLQuery();
 				Result->Predicate = I.Predicate;
 				glGenQueries(1, &Result->Async);
-				
+
 				return Result;
 			}
 			PrimitiveTopology OGLDevice::GetPrimitiveTopology()
@@ -2888,25 +2972,25 @@ namespace Tomahawk
 				glEnableVertexAttribArray(1);
 				glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), BUFFER_OFFSET(sizeof(float) * 5));
 				glEnableVertexAttribArray(2);
-				
+
 				if (DirectRenderer.VertexShader == GL_NONE)
 				{
 					static const char* VertexShaderCode = GLSL_INLINE(
 						layout(location = 0) uniform mat4 WorldViewProjection;
 
-						layout(location = 0) in vec3 iPosition;
-						layout(location = 1) in vec2 iTexCoord;
-						layout(location = 2) in vec4 iColor;
+					layout(location = 0) in vec3 iPosition;
+					layout(location = 1) in vec2 iTexCoord;
+					layout(location = 2) in vec4 iColor;
 
-						out vec2 oTexCoord;
-						out vec4 oColor;
+					out vec2 oTexCoord;
+					out vec4 oColor;
 
-						void main()
-						{
-							gl_Position = WorldViewProjection * vec4(iPosition.xyz, 1.0);
-							oTexCoord = iTexCoord;
-							oColor = iColor;
-						}
+					void main()
+					{
+						gl_Position = WorldViewProjection * vec4(iPosition.xyz, 1.0);
+						oTexCoord = iTexCoord;
+						oColor = iColor;
+					}
 					);
 
 					std::string Result = ShaderVersion;
@@ -2918,7 +3002,7 @@ namespace Tomahawk
 					glShaderSourceARB(DirectRenderer.VertexShader, 1, &Subbuffer, &BufferSize);
 					glCompileShaderARB(DirectRenderer.VertexShader);
 					glGetShaderiv(DirectRenderer.VertexShader, GL_COMPILE_STATUS, &StatusCode);
-					
+
 					if (StatusCode == GL_FALSE)
 					{
 						glGetShaderiv(DirectRenderer.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
@@ -2935,20 +3019,20 @@ namespace Tomahawk
 				{
 					static const char* PixelShaderCode = GLSL_INLINE(
 						layout(location = 2) uniform sampler2D Diffuse;
-						layout(location = 1) uniform vec4 Padding;
+					layout(location = 1) uniform vec4 Padding;
 
-						in vec2 oTexCoord;
-						in vec4 oColor;
-						
-						out vec4 oResult;
+					in vec2 oTexCoord;
+					in vec4 oColor;
 
-						void main()
-						{
-							if (Padding.z > 0)
-								oResult = oColor * texture2D(Diffuse, oTexCoord + Padding.xy) * Padding.w;
-							else
-								oResult = oColor * Padding.w;
-						}
+					out vec4 oResult;
+
+					void main()
+					{
+						if (Padding.z > 0)
+							oResult = oColor * texture2D(Diffuse, oTexCoord + Padding.xy) * Padding.w;
+						else
+							oResult = oColor * Padding.w;
+					}
 					);
 
 					std::string Result = ShaderVersion;
@@ -3043,28 +3127,84 @@ namespace Tomahawk
 
 				return Result;
 			}
-			GLenum OGLDevice::GetFormat(Format Value)
+			GLenum OGLDevice::GetBaseFormat(Format Value)
 			{
 				switch (Value)
 				{
-					case Format::R32G32B32A32_Typeless:
-						return GL_RGBA32UI;
+					case Format::R32G32B32A32_Float:
+					case Format::R32G32B32A32_Uint:
+					case Format::R32G32B32A32_Sint:
+					case Format::R16G16B16A16_Float:
+					case Format::R16G16B16A16_Unorm:
+					case Format::R16G16B16A16_Uint:
+					case Format::R16G16B16A16_Snorm:
+					case Format::R16G16B16A16_Sint:
+					case Format::R10G10B10A2_Unorm:
+					case Format::R10G10B10A2_Uint:
+					case Format::R8G8B8A8_Unorm:
+					case Format::R8G8B8A8_Unorm_SRGB:
+					case Format::R8G8B8A8_Uint:
+					case Format::R8G8B8A8_Snorm:
+					case Format::R8G8B8A8_Sint:
+					case Format::R9G9B9E5_Share_Dexp:
+					case Format::R8G8_B8G8_Unorm:
+						return GL_RGBA;
+					case Format::R32G32B32_Float:
+					case Format::R32G32B32_Uint:
+					case Format::R32G32B32_Sint:
+					case Format::R11G11B10_Float:
+						return GL_RGB;
+					case Format::R16G16_Float:
+					case Format::R16G16_Unorm:
+					case Format::R16G16_Uint:
+					case Format::R16G16_Snorm:
+					case Format::R16G16_Sint:
+					case Format::R32G32_Float:
+					case Format::R32G32_Uint:
+					case Format::R32G32_Sint:
+					case Format::R8G8_Unorm:
+					case Format::R8G8_Uint:
+					case Format::R8G8_Snorm:
+					case Format::R8G8_Sint:
+					case Format::D24_Unorm_S8_Uint:
+						return GL_RG;
+					case Format::D32_Float:
+					case Format::R32_Float:
+					case Format::R32_Uint:
+					case Format::R32_Sint:
+					case Format::R16_Float:
+					case Format::D16_Unorm:
+					case Format::R16_Unorm:
+					case Format::R16_Uint:
+					case Format::R16_Snorm:
+					case Format::R16_Sint:
+					case Format::R8_Unorm:
+					case Format::R8_Uint:
+					case Format::R8_Snorm:
+					case Format::R8_Sint:
+					case Format::A8_Unorm:
+					case Format::R1_Unorm:
+						return GL_RED;
+					default:
+						return GL_RGBA;
+				}
+			}
+			GLenum OGLDevice::GetSizedFormat(Format Value)
+			{
+				switch (Value)
+				{
 					case Format::R32G32B32A32_Float:
 						return GL_RGBA32F;
 					case Format::R32G32B32A32_Uint:
 						return GL_RGBA32UI;
 					case Format::R32G32B32A32_Sint:
 						return GL_RGBA32I;
-					case Format::R32G32B32_Typeless:
-						return GL_RGB32UI;
 					case Format::R32G32B32_Float:
 						return GL_RGB32F;
 					case Format::R32G32B32_Uint:
 						return GL_RGB32UI;
 					case Format::R32G32B32_Sint:
 						return GL_RGB32I;
-					case Format::R16G16B16A16_Typeless:
-						return GL_RGBA16UI;
 					case Format::R16G16B16A16_Float:
 						return GL_RGBA16F;
 					case Format::R16G16B16A16_Unorm:
@@ -3072,47 +3212,31 @@ namespace Tomahawk
 					case Format::R16G16B16A16_Uint:
 						return GL_RGBA16UI;
 					case Format::R16G16B16A16_Snorm:
-						return GL_RGBA16I;
+						return GL_RGBA16_SNORM;
 					case Format::R16G16B16A16_Sint:
 						return GL_RGBA16I;
-					case Format::R32G32_Typeless:
-						return GL_RG16UI;
 					case Format::R32G32_Float:
-						return GL_RG16F;
+						return GL_RG32F;
 					case Format::R32G32_Uint:
-						return GL_RG16UI;
+						return GL_RG32UI;
 					case Format::R32G32_Sint:
-						return GL_RG16I;
-					case Format::R32G8X24_Typeless:
-						return GL_R32UI;
-					case Format::D32_Float_S8X24_Uint:
-						return GL_R32UI;
-					case Format::R32_Float_X8X24_Typeless:
-						return GL_R32UI;
-					case Format::X32_Typeless_G8X24_Uint:
-						return GL_R32UI;
-					case Format::R10G10B10A2_Typeless:
-						return GL_RGB10_A2;
+						return GL_RG32I;
 					case Format::R10G10B10A2_Unorm:
 						return GL_RGB10_A2;
 					case Format::R10G10B10A2_Uint:
 						return GL_RGB10_A2UI;
 					case Format::R11G11B10_Float:
-						return GL_RGB12;
-					case Format::R8G8B8A8_Typeless:
-						return GL_RGBA8UI;
+						return GL_R11F_G11F_B10F;
 					case Format::R8G8B8A8_Unorm:
-						return GL_RGBA;
+						return GL_RGBA8;
 					case Format::R8G8B8A8_Unorm_SRGB:
-						return GL_RGBA;
+						return GL_SRGB8_ALPHA8;
 					case Format::R8G8B8A8_Uint:
 						return GL_RGBA8UI;
 					case Format::R8G8B8A8_Snorm:
 						return GL_RGBA8I;
 					case Format::R8G8B8A8_Sint:
 						return GL_RGBA8I;
-					case Format::R16G16_Typeless:
-						return GL_RG16UI;
 					case Format::R16G16_Float:
 						return GL_RG16F;
 					case Format::R16G16_Unorm:
@@ -3123,66 +3247,54 @@ namespace Tomahawk
 						return GL_RG16_SNORM;
 					case Format::R16G16_Sint:
 						return GL_RG16I;
-					case Format::R32_Typeless:
-						return GL_R32UI;
 					case Format::D32_Float:
-						return GL_R32F;
 					case Format::R32_Float:
 						return GL_R32F;
 					case Format::R32_Uint:
 						return GL_R32UI;
 					case Format::R32_Sint:
 						return GL_R32I;
-					case Format::R24G8_Typeless:
-						return GL_DEPTH24_STENCIL8;
 					case Format::D24_Unorm_S8_Uint:
-						return GL_DEPTH24_STENCIL8;
-					case Format::R24_Unorm_X8_Typeless:
-						return GL_DEPTH24_STENCIL8;
-					case Format::X24_Typeless_G8_Uint:
-						return GL_DEPTH24_STENCIL8;
-					case Format::R8G8_Typeless:
-						return GL_RG8UI;
+						return GL_DEPTH24_STENCIL8; // ?
 					case Format::R8G8_Unorm:
 						return GL_RG8;
 					case Format::R8G8_Uint:
 						return GL_RG8UI;
 					case Format::R8G8_Snorm:
-						return GL_RG8I;
+						return GL_RG8_SNORM;
 					case Format::R8G8_Sint:
 						return GL_RG8I;
-					case Format::R16_Typeless:
-						return GL_R16UI;
 					case Format::R16_Float:
 						return GL_R16F;
 					case Format::D16_Unorm:
-						return GL_R16;
 					case Format::R16_Unorm:
 						return GL_R16;
 					case Format::R16_Uint:
 						return GL_R16UI;
 					case Format::R16_Snorm:
-						return GL_R16I;
+						return GL_R16_SNORM;
 					case Format::R16_Sint:
 						return GL_R16I;
-					case Format::R8_Typeless:
-						return GL_R8UI;
 					case Format::R8_Unorm:
 						return GL_R8;
 					case Format::R8_Uint:
 						return GL_R8UI;
 					case Format::R8_Snorm:
-						return GL_R8I;
+						return GL_R8_SNORM;
 					case Format::R8_Sint:
 						return GL_R8I;
-					case Format::A8_Unorm:
-						return GL_ALPHA8_EXT;
 					case Format::R1_Unorm:
 						return GL_R8;
 					case Format::R9G9B9E5_Share_Dexp:
 						return GL_RGB9_E5;
 					case Format::R8G8_B8G8_Unorm:
-						return GL_RGB;
+						return GL_RGB8;
+					case Format::A8_Unorm:
+#ifdef GL_ALPHA8_EXT
+						return GL_ALPHA8_EXT;
+#else
+						return GL_R8;
+#endif
 					default:
 						break;
 				}

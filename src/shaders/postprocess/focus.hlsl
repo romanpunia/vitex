@@ -7,12 +7,12 @@ cbuffer RenderConstant : register(b3)
 	float2 Texel;
     float Radius;
     float Bokeh;
+    float3 Padding;
     float Scale;
     float NearDistance;
     float NearRange;
     float FarDistance;
     float FarRange;
-    float3 Padding;
 }
 
 float GetWeight(float2 TexCoord, float NearD, float NearR, float FarD, float FarR)

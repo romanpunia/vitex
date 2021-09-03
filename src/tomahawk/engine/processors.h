@@ -74,6 +74,16 @@ namespace Tomahawk
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 
+			class TH_OUT Material final : public Processor
+			{
+			public:
+				Material(ContentManager * Manager);
+				void Free(AssetCache* Asset) override;
+				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
+				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
+			};
+
 			class TH_OUT SceneGraph final : public Processor
 			{
 			public:
@@ -175,11 +185,11 @@ namespace Tomahawk
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 
-			class TH_OUT Shape final : public Processor
+			class TH_OUT HullShape final : public Processor
 			{
 			public:
-				Shape(ContentManager* Manager);
-				virtual ~Shape() override;
+				HullShape(ContentManager* Manager);
+				virtual ~HullShape() override;
 				void Free(AssetCache* Asset) override;
 				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;

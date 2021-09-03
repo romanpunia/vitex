@@ -459,20 +459,20 @@ namespace Tomahawk
 
 			private:
 				std::vector<DataNode> Childs;
+				std::string Name;
 				Core::Variant* Ref;
 				DataModel* Handle;
-				std::string* Name;
 				void* Order;
 				size_t Depth;
 				bool Safe;
 
 			private:
-				DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial);
-				DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference);
+				DataNode(DataModel* Model, const std::string& TopName, const Core::Variant& Initial) noexcept;
+				DataNode(DataModel* Model, const std::string& TopName, Core::Variant* Reference) noexcept;
 
 			public:
-				DataNode(DataNode&& Other);
-				DataNode(const DataNode& Other);
+				DataNode(DataNode&& Other) noexcept;
+				DataNode(const DataNode& Other) noexcept;
 				~DataNode();
 				DataNode& Insert(size_t Where, const Core::VariantList& Initial, std::pair<void*, size_t>* Top = nullptr);
 				DataNode& Insert(size_t Where, const Core::Variant& Initial, std::pair<void*, size_t>* Top = nullptr);
@@ -510,8 +510,8 @@ namespace Tomahawk
 				double GetDouble();
 				bool GetBoolean();
 				void* GetPointer();
-				DataNode& operator= (const DataNode& Other);
-				DataNode& operator= (DataNode&& Other);
+				DataNode& operator= (const DataNode& Other) noexcept;
+				DataNode& operator= (DataNode&& Other) noexcept;
 
 			private:
 				void GetValue(Rml::Variant& Result);

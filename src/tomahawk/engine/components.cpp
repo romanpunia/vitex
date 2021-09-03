@@ -16,6 +16,7 @@ namespace Tomahawk
 			RigidBody::~RigidBody()
 			{
 				TH_RELEASE(Instance);
+				TH_RELEASE(Hull);
 			}
 			void RigidBody::Deserialize(ContentManager* Content, Core::Document* Node)
 			{
@@ -41,9 +42,12 @@ namespace Tomahawk
 					std::string Path; uint64_t Type;
 					if (NMake::Unpack(Node->Find("path"), &Path))
 					{
-						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
+						auto* Shape = Content->Load<Compute::HullShape>(Path);
 						if (Shape != nullptr)
+						{
 							Create(Shape->Shape, Mass, CcdMotionThreshold);
+							TH_RELEASE(Shape);
+						}
 					}
 					else if (!NMake::Unpack(CV->Find("type"), &Type))
 					{
@@ -170,7 +174,7 @@ namespace Tomahawk
 				Core::Document* CV = Node->Set("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 				{
-					AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Hull);
+					AssetCache* Asset = Content->Find<Compute::HullShape>(Hull);
 					if (!Asset || !Hull)
 					{
 						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
@@ -237,7 +241,8 @@ namespace Tomahawk
 			void RigidBody::Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				Hull = Content->Load<Compute::UnmanagedShape>(Path);
+				TH_RELEASE(Hull);
+				Hull = Content->Load<Compute::HullShape>(Path);
 				if (Hull != nullptr)
 					Create(Hull->Shape, Mass, Anticipation);
 			}
@@ -354,9 +359,12 @@ namespace Tomahawk
 				{
 					if (NMake::Unpack(Node->Find("path"), &Path))
 					{
-						auto* Shape = Content->Load<Compute::UnmanagedShape>(Path);
+						auto* Shape = Content->Load<Compute::HullShape>(Path);
 						if (Shape != nullptr)
+						{
 							Create(Shape, CcdMotionThreshold);
+							TH_RELEASE(Shape);
+						}
 					}
 				}
 				else if ((CV = Node->Find("ellipsoid")) != nullptr)
@@ -505,7 +513,7 @@ namespace Tomahawk
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
-					NMake::Pack(Node->Set("material"), Slot->GetSlot());
+					NMake::Pack(Node->Set("material"), Slot->Slot);
 
 				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
@@ -555,7 +563,7 @@ namespace Tomahawk
 				{
 					if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 					{
-						AssetCache* Asset = Content->Find<Compute::UnmanagedShape>(Desc.Shape.Convex.Hull);
+						AssetCache* Asset = Content->Find<Compute::HullShape>(Desc.Shape.Convex.Hull);
 						if (Asset != nullptr)
 						{
 							Core::Document* Shape = Node->Set("shape");
@@ -642,9 +650,11 @@ namespace Tomahawk
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
 			}
-			void SoftBody::Create(Compute::UnmanagedShape* Shape, float Anticipation)
+			void SoftBody::Create(Compute::HullShape* Shape, float Anticipation)
 			{
 				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
+				Shape->AddRef();
+
 				SceneGraph* Scene = Parent->GetScene();
 				Scene->Exclusive([this, Scene, Shape, Anticipation]()
 				{
@@ -658,6 +668,7 @@ namespace Tomahawk
 					if (!Instance)
 					{
 						TH_ERR("cannot create soft body");
+						TH_RELEASE(Shape);
 						return;
 					}
 
@@ -666,14 +677,18 @@ namespace Tomahawk
 
 					Instance->UserPointer = this;
 					Instance->SetActivity(true);
+					TH_RELEASE(Shape);
 				});
 			}
 			void SoftBody::Create(ContentManager* Content, const std::string& Path, float Anticipation)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				Compute::UnmanagedShape* Hull = Content->Load<Compute::UnmanagedShape>(Path);
+				Compute::HullShape* Hull = Content->Load<Compute::HullShape>(Path);
 				if (Hull != nullptr)
+				{
 					Create(Hull, Anticipation);
+					TH_RELEASE(Hull);
+				}
 			}
 			void SoftBody::CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
@@ -1315,7 +1330,7 @@ namespace Tomahawk
 						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
-							NMake::Pack(Material->Set("slot"), Slot.second->GetSlot());
+							NMake::Pack(Material->Set("slot"), Slot.second->Slot);
 					}
 				}
 
@@ -1442,7 +1457,7 @@ namespace Tomahawk
 						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
-							NMake::Pack(Material->Set("slot"), Slot.second->GetSlot());
+							NMake::Pack(Material->Set("slot"), Slot.second->Slot);
 					}
 				}
 
@@ -1563,7 +1578,7 @@ namespace Tomahawk
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
-					NMake::Pack(Node->Set("material"), Slot->GetSlot());
+					NMake::Pack(Node->Set("material"), Slot->Slot);
 
 				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("transparency"), HasTransparency());
@@ -1657,7 +1672,7 @@ namespace Tomahawk
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
-					NMake::Pack(Node->Set("material"), Slot->GetSlot());
+					NMake::Pack(Node->Set("material"), Slot->Slot);
 
 				NMake::Pack(Node->Set("texcoord"), TexCoord);
 				NMake::Pack(Node->Set("projection"), Projection);

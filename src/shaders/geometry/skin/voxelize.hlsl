@@ -46,7 +46,7 @@ void gs_main(triangle VOutput V[3], inout TriangleStream<VOutput> Stream)
         Stream.Append(V[j]);
 }
 
-Lumina ps_main(VOutput V)
+void ps_main(VOutput V)
 {
 	float4 Color = float4(Materials[ob_Mid].Diffuse, 1.0);
 	[branch] if (ob_Diffuse > 0)
@@ -56,5 +56,5 @@ Lumina ps_main(VOutput V)
 	[branch] if (ob_Normal > 0)
         Normal = GetNormal(V.TexCoord, V.Normal, V.Tangent, V.Bitangent);
     
-    return Compose(V.TexCoord, Color, Normal, V.UV.xyz, ob_Mid);
+    Compose(V.TexCoord, Color, Normal, V.UV.xyz, ob_Mid);
 };

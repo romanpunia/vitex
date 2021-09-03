@@ -2307,7 +2307,7 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result = TH_NEW(DataNode, this, (std::string*)&Name, Value);
+				Result = TH_NEW(DataNode, this, Name, Value);
 				if (!Value.IsObject())
 				{
 					if (Base->BindFunc(Name, std::bind(&DataNode::GetValue, Result, std::placeholders::_1), std::bind(&DataNode::SetValue, Result, std::placeholders::_1)))
@@ -2337,7 +2337,7 @@ namespace Tomahawk
 					return Sub;
 				}
 
-				DataNode* Result = TH_NEW(DataNode, this, (std::string*)&Name, Value);
+				DataNode* Result = TH_NEW(DataNode, this, Name, Value);
 				if (Base->Bind(Name, Result))
 				{
 					Props[Name] = Result;
@@ -2479,38 +2479,28 @@ namespace Tomahawk
 				return Base;
 			}
 
-			DataNode::DataNode(DataModel* Model, std::string* TopName, const Core::Variant& Initial) : Handle(Model), Order(nullptr), Depth(0), Safe(true)
+			DataNode::DataNode(DataModel* Model, const std::string& TopName, const Core::Variant& Initial) noexcept : Name(TopName), Handle(Model), Order(nullptr), Depth(0), Safe(true)
 			{
 				Ref = TH_NEW(Core::Variant, Initial);
-				if (TopName != nullptr)
-					Name = TH_NEW(std::string, *TopName);
 			}
-			DataNode::DataNode(DataModel* Model, std::string* TopName, Core::Variant* Reference) : Ref(Reference), Handle(Model), Order(nullptr), Depth(0), Safe(false)
+			DataNode::DataNode(DataModel* Model, const std::string& TopName, Core::Variant* Reference) noexcept : Name(TopName), Ref(Reference), Handle(Model), Order(nullptr), Depth(0), Safe(false)
 			{
-				if (TopName != nullptr)
-					Name = TH_NEW(std::string, *TopName);
 			}
-			DataNode::DataNode(const DataNode& Other) : Childs(Other.Childs), Handle(Other.Handle), Order(Other.Order), Depth(0), Safe(Other.Safe)
+			DataNode::DataNode(const DataNode& Other) noexcept : Childs(Other.Childs), Name(Other.Name), Handle(Other.Handle), Order(Other.Order), Depth(0), Safe(Other.Safe)
 			{
 				if (Safe)
 					Ref = TH_NEW(Core::Variant, *Other.Ref);
 				else
 					Ref = Other.Ref;
-
-				if (Other.Name != nullptr)
-					Name = TH_NEW(std::string, *Other.Name);
 			}
-			DataNode::DataNode(DataNode&& Other) : Childs(std::move(Other.Childs)), Ref(Other.Ref), Name(Other.Name), Handle(Other.Handle), Order(Other.Order), Depth(Other.Depth), Safe(Other.Safe)
+			DataNode::DataNode(DataNode&& Other) noexcept : Childs(std::move(Other.Childs)), Name(std::move(Other.Name)), Ref(Other.Ref), Handle(Other.Handle), Order(Other.Order), Depth(Other.Depth), Safe(Other.Safe)
 			{
 				Other.Ref = nullptr;
-				Other.Name = nullptr;
 			}
 			DataNode::~DataNode()
 			{
 				if (Safe)
 					TH_DELETE(Variant, Ref);
-
-				TH_DELETE(basic_string, Name);
 			}
 			DataNode& DataNode::Insert(size_t Where, const Core::VariantList& Initial, std::pair<void*, size_t>* Top)
 			{
@@ -2528,8 +2518,8 @@ namespace Tomahawk
 				Childs.insert(Childs.begin() + Where, std::move(Result));
 				if (Top != nullptr)
 					SortTree();
-				else if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				else if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return Childs.back();
 			}
@@ -2546,8 +2536,8 @@ namespace Tomahawk
 				Childs.insert(Childs.begin() + Where, std::move(Result));
 				if (Top != nullptr)
 					SortTree();
-				else if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				else if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return Childs.back();
 			}
@@ -2564,8 +2554,8 @@ namespace Tomahawk
 				Childs.insert(Childs.begin() + Where, std::move(Result));
 				if (Top != nullptr)
 					SortTree();
-				else if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				else if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return Childs.back();
 			}
@@ -2584,8 +2574,8 @@ namespace Tomahawk
 				Childs.emplace_back(std::move(Result));
 				if (Top != nullptr)
 					SortTree();
-				else if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				else if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return Childs.back();
 			}
@@ -2601,8 +2591,8 @@ namespace Tomahawk
 				Childs.emplace_back(std::move(Result));
 				if (Top != nullptr)
 					SortTree();
-				else if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				else if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return Childs.back();
 			}
@@ -2618,8 +2608,8 @@ namespace Tomahawk
 				Childs.emplace_back(std::move(Result));
 				if (Top != nullptr)
 					SortTree();
-				else if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				else if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return Childs.back();
 			}
@@ -2633,16 +2623,16 @@ namespace Tomahawk
 				TH_ASSERT(Index < Childs.size(), false, "index outside of range");
 				Childs.erase(Childs.begin() + Index);
 
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return true;
 			}
 			bool DataNode::Clear()
 			{
 				Childs.clear();
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 
 				return true;
 			}
@@ -2655,8 +2645,8 @@ namespace Tomahawk
 					return D1 < D2;
 				});
 
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 			}
 			void DataNode::SetTop(void* SeqId, size_t Nesting)
 			{
@@ -2669,8 +2659,8 @@ namespace Tomahawk
 					return;
 
 				*Ref = NewValue;
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 			}
 			void DataNode::Set(Core::Variant* NewReference)
 			{
@@ -2683,8 +2673,8 @@ namespace Tomahawk
 				Ref = NewReference;
 				Safe = false;
 
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 			}
 			void DataNode::Replace(const Core::VariantList& Data, std::pair<void*, size_t>* Top)
 			{
@@ -2698,8 +2688,8 @@ namespace Tomahawk
 					Depth = Top->second;
 				}
 
-				if (Handle != nullptr && Name != nullptr)
-					Handle->Change(*Name);
+				if (Handle != nullptr && !Name.empty())
+					Handle->Change(Name);
 			}
 			void DataNode::SetString(const std::string& Value)
 			{
@@ -2813,13 +2803,14 @@ namespace Tomahawk
 			{
 				return (int64_t)GetSize();
 			}
-			DataNode& DataNode::operator= (const DataNode& Other)
+			DataNode& DataNode::operator= (const DataNode& Other) noexcept
 			{
 				if (this == &Other)
 					return *this;
 
 				this->~DataNode();
 				Childs = Other.Childs;
+				Name = Other.Name;
 				Handle = Other.Handle;
 				Order = Other.Order;
 				Depth = Other.Depth;
@@ -2830,17 +2821,16 @@ namespace Tomahawk
 				else
 					Ref = Other.Ref;
 
-				if (Other.Name != nullptr)
-					Name = TH_NEW(std::string, *Other.Name);
-
 				return *this;
 			}
-			DataNode& DataNode::operator= (DataNode&& Other)
+			DataNode& DataNode::operator= (DataNode&& Other) noexcept
 			{
 				if (this == &Other)
 					return *this;
 
+				this->~DataNode();
 				Childs = std::move(Other.Childs);
+				Name = std::move(Other.Name);
 				Ref = Other.Ref;
 				Handle = Other.Handle;
 				Name = Other.Name;
@@ -2849,8 +2839,6 @@ namespace Tomahawk
 				Safe = Other.Safe;
 
 				Other.Ref = nullptr;
-				Other.Name = nullptr;
-
 				return *this;
 			}
 

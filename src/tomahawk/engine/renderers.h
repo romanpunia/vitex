@@ -460,8 +460,8 @@ namespace Tomahawk
 			public:
 				struct RenderConstant
 				{
-					float Mips = 0.0f;
 					Compute::Vector3 Padding;
+					float Mips = 0.0f;
 				} RenderPass;
 
 			public:
@@ -571,12 +571,12 @@ namespace Tomahawk
 					float Texel[2] = { 1.0f / 512.0f };
 					float Radius = 1.0f;
 					float Bokeh = 8.0f;
+					float Padding[3] = { 0.0f };
 					float Scale = 1.0f;
 					float NearDistance = 0.0f;
 					float NearRange = 0.0f;
 					float FarDistance = 32.0f;
 					float FarRange = 2.0f;
-					float Padding[3] = { 0.0f };
 				} Focus;
 
 			public:

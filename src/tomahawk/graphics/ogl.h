@@ -480,7 +480,8 @@ namespace Tomahawk
 				TextureCube* CreateTextureCubeInternal(void* Resources[6]) override;
 
 			public:
-				static GLenum GetFormat(Format Value);
+				static GLenum GetBaseFormat(Format Value);
+				static GLenum GetSizedFormat(Format Value);
 				static GLenum GetTextureAddress(TextureAddress Value);
 				static GLenum GetComparison(Comparison Value);
 				static GLenum GetPixelFilter(PixelFilter Value, bool Mag);

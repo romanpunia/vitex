@@ -102,6 +102,9 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Configurable windowing (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
 + Render backend abstraction over DirectX 11 and OpenGL (WIP)
++ HLSL is a primary shading language
++ Shader cross complier (HLSL to GLSL, MSL or SPV)
++ Shader registry cache (compiles/transpiles only once)
 + Shader materials
 + Structured shading system
 + Standard library for shaders

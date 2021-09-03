@@ -372,7 +372,7 @@ namespace Tomahawk
 					Meta.Source = nullptr;
 					return;
 				}
-				
+
 				Source->View->GetDesc(&Texture);
 				Texture.ArraySize = 1;
 				Texture.CPUAccessFlags = 0;
@@ -877,7 +877,7 @@ namespace Tomahawk
 				D3D11DepthBuffer* IResource = (D3D11DepthBuffer*)Resource;
 				const Viewport& Viewarea = Resource->GetViewport();
 				D3D11_VIEWPORT Viewport = { Viewarea.TopLeftX, Viewarea.TopLeftY, Viewarea.Width, Viewarea.Height, Viewarea.MinDepth, Viewarea.MaxDepth };
-				
+
 				ImmediateContext->OMSetRenderTargets(0, nullptr, IResource->DepthStencilView);
 				ImmediateContext->RSSetViewports(1, &Viewport);
 			}
@@ -1894,13 +1894,13 @@ namespace Tomahawk
 				ImmediateContext->PSGetShader(&LastPixelShader, nullptr, nullptr);
 				ImmediateContext->PSSetShader(DirectRenderer.PixelShader, nullptr, 0);
 
-				ID3D11Buffer* LastBuffer1, *LastBuffer2;
+				ID3D11Buffer* LastBuffer1, * LastBuffer2;
 				ImmediateContext->VSGetConstantBuffers(0, 1, &LastBuffer1);
 				ImmediateContext->VSSetConstantBuffers(0, 1, &DirectRenderer.ConstantBuffer);
 				ImmediateContext->PSGetConstantBuffers(0, 1, &LastBuffer2);
 				ImmediateContext->PSSetConstantBuffers(0, 1, &DirectRenderer.ConstantBuffer);
 
-				ID3D11ShaderResourceView* LastTexture, *NullTexture = nullptr;
+				ID3D11ShaderResourceView* LastTexture, * NullTexture = nullptr;
 				ImmediateContext->PSGetShaderResources(0, 1, &LastTexture);
 				ImmediateContext->PSSetShaderResources(0, 1, ViewResource ? &((D3D11Texture2D*)ViewResource)->Resource : &NullTexture);
 
@@ -2061,6 +2061,9 @@ namespace Tomahawk
 				D3D11Shader* Result = new D3D11Shader(I);
 				ID3DBlob* ShaderBlob = nullptr;
 				ID3DBlob* ErrorBlob = nullptr;
+				void* Data = nullptr;
+				HRESULT State = S_OK;
+				size_t Size = 0;
 				Shader::Desc F(I);
 
 				if (!Preprocess(F))
@@ -2069,113 +2072,251 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Core::Parser Code(&F.Data);
-				uint64_t Length = Code.Size();
-
+				std::string Name = GetProgramName(F);
 				std::string VertexEntry = GetShaderMain(ShaderType::Vertex);
-				if (Code.Find(VertexEntry).Found)
+				if (F.Data.find(VertexEntry) != std::string::npos)
 				{
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, VertexEntry.c_str(), GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
-					if (GetCompileState(ErrorBlob))
+					std::string Stage = Name + ".vtx", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						std::string Message = GetCompileState(ErrorBlob);
-						ReleaseCom(ErrorBlob);
+						TH_TRACE("compile %s vertex shader source", Stage.c_str());
 
-						TH_ERR("couldn't compile vertex shader\n\t%s", Message.c_str());
-						return Result;
+						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, VertexEntry.c_str(), GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
+						if (State != S_OK || GetCompileState(ErrorBlob))
+						{
+							std::string Message = GetCompileState(ErrorBlob);
+							ReleaseCom(ErrorBlob);
+
+							TH_ERR("couldn't compile vertex shader\n\t%s", Message.c_str());
+							return Result;
+						}
+
+						Data = (void*)Result->Signature->GetBufferPointer();
+						Size = (size_t)Result->Signature->GetBufferSize();
+						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+							TH_WARN("couldn't cache vertex shader");
+					}
+					else
+					{
+						Data = (void*)Bytecode.c_str();
+						Size = Bytecode.size();
+						if (D3DCreateBlob(Size, &Result->Signature) != S_OK)
+						{
+							TH_ERR("couldn't load shader signature");
+							return Result;
+						}
+						
+						void* Buffer = Result->Signature->GetBufferPointer();
+						memcpy(Buffer, Data, Size);
 					}
 
-					D3DDevice->CreateVertexShader(Result->Signature->GetBufferPointer(), Result->Signature->GetBufferSize(), nullptr, &Result->VertexShader);
+					TH_TRACE("load %s vertex shader bytecode", Stage.c_str());
+					State = D3DDevice->CreateVertexShader(Data, Size, nullptr, &Result->VertexShader);
+					if (State != S_OK)
+					{
+						TH_ERR("couldn't load vertex shader bytecode");
+						return Result;
+					}
 				}
 
 				std::string PixelEntry = GetShaderMain(ShaderType::Pixel);
-				if (Code.Find(PixelEntry).Found)
+				if (F.Data.find(PixelEntry) != std::string::npos)
 				{
-					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, PixelEntry.c_str(), GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
-					if (GetCompileState(ErrorBlob))
+					std::string Stage = Name + ".pxl", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						std::string Message = GetCompileState(ErrorBlob);
-						ReleaseCom(ErrorBlob);
+						TH_TRACE("compile %s pixel shader source", Stage.c_str());
 
-						TH_ERR("couldn't compile pixel shader\n\t%s", Message.c_str());
-						return Result;
+						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, PixelEntry.c_str(), GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
+						if (State != S_OK || GetCompileState(ErrorBlob))
+						{
+							std::string Message = GetCompileState(ErrorBlob);
+							ReleaseCom(ErrorBlob);
+
+							TH_ERR("couldn't compile pixel shader\n\t%s", Message.c_str());
+							return Result;
+						}
+
+						Data = (void*)ShaderBlob->GetBufferPointer();
+						Size = (size_t)ShaderBlob->GetBufferSize();
+						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+							TH_WARN("couldn't cache pixel shader");
+					}
+					else
+					{
+						Data = (void*)Bytecode.c_str();
+						Size = Bytecode.size();
 					}
 
-					D3DDevice->CreatePixelShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), nullptr, &Result->PixelShader);
+					TH_TRACE("load %s pixel shader bytecode", Stage.c_str());
+					State = D3DDevice->CreatePixelShader(Data, Size, nullptr, &Result->PixelShader);
 					ReleaseCom(ShaderBlob);
+
+					if (State != S_OK)
+					{
+						TH_ERR("couldn't load pixel shader bytecode");
+						return Result;
+					}
 				}
 
 				std::string GeometryEntry = GetShaderMain(ShaderType::Geometry);
-				if (Code.Find(GeometryEntry).Found)
+				if (F.Data.find(GeometryEntry) != std::string::npos)
 				{
-					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, GeometryEntry.c_str(), GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-					if (GetCompileState(ErrorBlob))
+					std::string Stage = Name + ".geo", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						std::string Message = GetCompileState(ErrorBlob);
-						ReleaseCom(ErrorBlob);
+						TH_TRACE("compile %s geometry shader source", Stage.c_str());
 
-						TH_ERR("couldn't compile geometry shader\n\t%s", Message.c_str());
-						return Result;
+						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, GeometryEntry.c_str(), GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (State != S_OK || GetCompileState(ErrorBlob))
+						{
+							std::string Message = GetCompileState(ErrorBlob);
+							ReleaseCom(ErrorBlob);
+
+							TH_ERR("couldn't compile geometry shader\n\t%s", Message.c_str());
+							return Result;
+						}
+
+						Data = (void*)ShaderBlob->GetBufferPointer();
+						Size = (size_t)ShaderBlob->GetBufferSize();
+						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+							TH_WARN("couldn't cache geometry shader");
+					}
+					else
+					{
+						Data = (void*)Bytecode.c_str();
+						Size = Bytecode.size();
 					}
 
-					D3DDevice->CreateGeometryShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), nullptr, &Result->GeometryShader);
+					TH_TRACE("load %s geometry shader bytecode", Stage.c_str());
+					State = D3DDevice->CreateGeometryShader(Data, Size, nullptr, &Result->GeometryShader);
 					ReleaseCom(ShaderBlob);
+
+					if (State != S_OK)
+					{
+						TH_ERR("couldn't load geometry shader bytecode");
+						return Result;
+					}
 				}
 
 				std::string ComputeEntry = GetShaderMain(ShaderType::Compute);
-				if (Code.Find(ComputeEntry).Found)
+				if (F.Data.find(ComputeEntry) != std::string::npos)
 				{
-					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, ComputeEntry.c_str(), GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-					if (GetCompileState(ErrorBlob))
+					std::string Stage = Name + ".cmp", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						std::string Message = GetCompileState(ErrorBlob);
-						ReleaseCom(ErrorBlob);
+						TH_TRACE("compile %s compute shader source", Stage.c_str());
 
-						TH_ERR("couldn't compile compute shader\n\t%s", Message.c_str());
-						return Result;
+						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, ComputeEntry.c_str(), GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (State != S_OK || GetCompileState(ErrorBlob))
+						{
+							std::string Message = GetCompileState(ErrorBlob);
+							ReleaseCom(ErrorBlob);
+
+							TH_ERR("couldn't compile compute shader\n\t%s", Message.c_str());
+							return Result;
+						}
+
+						Data = (void*)ShaderBlob->GetBufferPointer();
+						Size = (size_t)ShaderBlob->GetBufferSize();
+						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+							TH_WARN("couldn't cache compute shader");
+					}
+					else
+					{
+						Data = (void*)Bytecode.c_str();
+						Size = Bytecode.size();
 					}
 
-					D3DDevice->CreateComputeShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), nullptr, &Result->ComputeShader);
+					TH_TRACE("load %s compute shader bytecode", Stage.c_str());
+					State = D3DDevice->CreateComputeShader(Data, Size, nullptr, &Result->ComputeShader);
 					ReleaseCom(ShaderBlob);
+
+					if (State != S_OK)
+					{
+						TH_ERR("couldn't load compute shader bytecode");
+						return Result;
+					}
 				}
 
 				std::string HullEntry = GetShaderMain(ShaderType::Hull);
-				if (Code.Find(HullEntry).Found)
+				if (F.Data.find(HullEntry) != std::string::npos)
 				{
-					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, HullEntry.c_str(), GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-					if (GetCompileState(ErrorBlob))
+					std::string Stage = Name + ".hlc", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						std::string Message = GetCompileState(ErrorBlob);
-						ReleaseCom(ErrorBlob);
+						TH_TRACE("compile %s hull shader source", Stage.c_str());
 
-						TH_ERR("couldn't compile hull shader\n\t%s", Message.c_str());
-						return Result;
+						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, HullEntry.c_str(), GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (State != S_OK || GetCompileState(ErrorBlob))
+						{
+							std::string Message = GetCompileState(ErrorBlob);
+							ReleaseCom(ErrorBlob);
+
+							TH_ERR("couldn't compile hull shader\n\t%s", Message.c_str());
+							return Result;
+						}
+
+						Data = (void*)ShaderBlob->GetBufferPointer();
+						Size = (size_t)ShaderBlob->GetBufferSize();
+						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+							TH_WARN("couldn't cache hull shader");
+					}
+					else
+					{
+						Data = (void*)Bytecode.c_str();
+						Size = Bytecode.size();
 					}
 
-					D3DDevice->CreateHullShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), nullptr, &Result->HullShader);
+					TH_TRACE("load %s hull shader bytecode", Stage.c_str());
+					State = D3DDevice->CreateHullShader(Data, Size, nullptr, &Result->HullShader);
 					ReleaseCom(ShaderBlob);
+
+					if (State != S_OK)
+					{
+						TH_ERR("couldn't load hull shader bytecode");
+						return Result;
+					}
 				}
 
 				std::string DomainEntry = GetShaderMain(ShaderType::Domain);
-				if (Code.Find(DomainEntry).Found)
+				if (F.Data.find(DomainEntry) != std::string::npos)
 				{
-					ShaderBlob = nullptr;
-					D3DCompile(Code.Get(), (SIZE_T)Length * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, DomainEntry.c_str(), GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
-					if (GetCompileState(ErrorBlob))
+					std::string Stage = Name + ".dmn", Bytecode;
+					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						std::string Message = GetCompileState(ErrorBlob);
-						ReleaseCom(ErrorBlob);
+						TH_TRACE("compile %s domain shader source", Stage.c_str());
 
-						TH_ERR("couldn't compile domain shader\n\t%s", Message.c_str());
-						return Result;
+						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, DomainEntry.c_str(), GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
+						if (State != S_OK || GetCompileState(ErrorBlob))
+						{
+							std::string Message = GetCompileState(ErrorBlob);
+							ReleaseCom(ErrorBlob);
+
+							TH_ERR("couldn't compile domain shader\n\t%s", Message.c_str());
+							return Result;
+						}
+
+						Data = (void*)ShaderBlob->GetBufferPointer();
+						Size = (size_t)ShaderBlob->GetBufferSize();
+						if (!SetProgramCache(Stage, std::string((char*)Data, Size)))
+							TH_WARN("couldn't cache domain shader");
+					}
+					else
+					{
+						Data = (void*)Bytecode.c_str();
+						Size = Bytecode.size();
 					}
 
-					D3DDevice->CreateDomainShader(ShaderBlob->GetBufferPointer(), ShaderBlob->GetBufferSize(), nullptr, &Result->DomainShader);
+					TH_TRACE("load %s domain shader bytecode", Stage.c_str());
+					State = D3DDevice->CreateDomainShader(Data, Size, nullptr, &Result->DomainShader);
 					ReleaseCom(ShaderBlob);
+
+					if (State != S_OK)
+					{
+						TH_ERR("couldn't load domain shader bytecode");
+						return Result;
+					}
 				}
 
 				Result->Compiled = true;
@@ -2333,7 +2474,7 @@ namespace Tomahawk
 				Description.BindFlags = (unsigned int)I.BindFlags;
 				Description.CPUAccessFlags = (unsigned int)I.AccessFlags;
 				Description.MiscFlags = (unsigned int)I.MiscFlags;
-		
+
 				if (I.Data != nullptr && I.MipLevels > 0)
 				{
 					Description.BindFlags |= D3D11_BIND_RENDER_TARGET;
@@ -2636,7 +2777,7 @@ namespace Tomahawk
 			DepthBuffer* D3D11Device::CreateDepthBuffer(const DepthBuffer::Desc& I)
 			{
 				D3D11DepthBuffer* Result = new D3D11DepthBuffer(I);
-				
+
 				D3D11_TEXTURE2D_DESC DepthBuffer;
 				ZeroMemory(&DepthBuffer, sizeof(DepthBuffer));
 				DepthBuffer.Width = I.Width;
@@ -3205,37 +3346,37 @@ namespace Tomahawk
 				{
 					static const char* VertexShaderCode = HLSL_INLINE(
 						cbuffer VertexBuffer : register(b0)
-						{
-							matrix WorldViewProjection;
-							float4 Padding;
-						};
+					{
+						matrix WorldViewProjection;
+						float4 Padding;
+					};
 
-						struct VS_INPUT
-						{
-							float4 Position : POSITION0;
-							float2 TexCoord : TEXCOORD0;
-							float4 Color : COLOR0;
-						};
+					struct VS_INPUT
+					{
+						float4 Position : POSITION0;
+						float2 TexCoord : TEXCOORD0;
+						float4 Color : COLOR0;
+					};
 
-						struct PS_INPUT
-						{
-							float4 Position : SV_POSITION;
-							float2 TexCoord : TEXCOORD0;
-							float4 Color : COLOR0;
-						};
+					struct PS_INPUT
+					{
+						float4 Position : SV_POSITION;
+						float2 TexCoord : TEXCOORD0;
+						float4 Color : COLOR0;
+					};
 
-						PS_INPUT vs_main(VS_INPUT Input)
-						{
-							PS_INPUT Output;
-							Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));
-							Output.Color = Input.Color;
-							Output.TexCoord = Input.TexCoord;
+					PS_INPUT vs_main(VS_INPUT Input)
+					{
+						PS_INPUT Output;
+						Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));
+						Output.Color = Input.Color;
+						Output.TexCoord = Input.TexCoord;
 
-							return Output;
-						};
+						return Output;
+					};
 					);
 
-					ID3DBlob* Blob = nullptr, *Error = nullptr;
+					ID3DBlob* Blob = nullptr, * Error = nullptr;
 					D3DCompile(VertexShaderCode, strlen(VertexShaderCode), nullptr, nullptr, nullptr, "vs_main", GetVSProfile(), 0, 0, &Blob, nullptr);
 					if (GetCompileState(Error))
 					{
@@ -3273,31 +3414,31 @@ namespace Tomahawk
 				{
 					static const char* PixelShaderCode = HLSL_INLINE(
 						cbuffer VertexBuffer : register(b0)
-						{
-							matrix WorldViewProjection;
-							float4 Padding;
-						};
+					{
+						matrix WorldViewProjection;
+						float4 Padding;
+					};
 
-						struct PS_INPUT
-						{
-							float4 Position : SV_POSITION;
-							float2 TexCoord : TEXCOORD0;
-							float4 Color : COLOR0;
-						};
+					struct PS_INPUT
+					{
+						float4 Position : SV_POSITION;
+						float2 TexCoord : TEXCOORD0;
+						float4 Color : COLOR0;
+					};
 
-						Texture2D Diffuse : register(t0);
-						SamplerState State : register(s0);
+					Texture2D Diffuse : register(t0);
+					SamplerState State : register(s0);
 
-						float4 ps_main(PS_INPUT Input) : SV_TARGET0
-						{
-						   if (Padding.z > 0)
-							   return Input.Color * Diffuse.Sample(State, Input.TexCoord + Padding.xy) * Padding.w;
+					float4 ps_main(PS_INPUT Input) : SV_TARGET0
+					{
+					   if (Padding.z > 0)
+						   return Input.Color * Diffuse.Sample(State, Input.TexCoord + Padding.xy) * Padding.w;
 
-						   return Input.Color * Padding.w;
-						};
+					   return Input.Color * Padding.w;
+					};
 					);
 
-					ID3DBlob* Blob = nullptr, *Error = nullptr;
+					ID3DBlob* Blob = nullptr, * Error = nullptr;
 					D3DCompile(PixelShaderCode, strlen(PixelShaderCode), nullptr, nullptr, nullptr, "ps_main", GetPSProfile(), 0, 0, &Blob, &Error);
 					if (GetCompileState(Error))
 					{
@@ -3350,7 +3491,7 @@ namespace Tomahawk
 
 				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
 				ZeroMemory(&SRV, sizeof(SRV));
-	
+
 				if (InternalFormat == DXGI_FORMAT_UNKNOWN)
 					SRV.Format = Description.Format;
 				else

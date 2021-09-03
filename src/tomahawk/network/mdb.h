@@ -92,16 +92,16 @@ namespace Tomahawk
 				bool Boolean;
 				bool IsValid;
 
-				Property();
-				Property(const Property& Other);
-				Property(Property&& Other);
+				Property() noexcept;
+				Property(const Property& Other) noexcept;
+				Property(Property&& Other) noexcept;
 				~Property();
 				void Release();
 				std::string& ToString();
                 TDocument* GetOwnership();
 				Document Get() const;
-				Property& operator= (const Property& Other);
-				Property& operator= (Property&& Other);
+				Property& operator= (const Property& Other) noexcept;
+				Property& operator= (Property&& Other) noexcept;
 				Property operator [](const char* Name);
 				Property operator [](const char* Name) const;
 			};

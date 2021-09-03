@@ -996,13 +996,6 @@ namespace Tomahawk
 			unsigned int FaceNb;
 		};
 
-		struct TH_OUT UnmanagedShape
-		{
-			std::vector<Vertex> Vertices;
-			std::vector<int> Indices;
-			btCollisionShape* Shape = nullptr;
-		};
-
 		struct TH_OUT CollisionBody
 		{
 			RigidBody* Rigid = nullptr;
@@ -1666,6 +1659,18 @@ namespace Tomahawk
 			}
 		};
 
+		class TH_OUT HullShape : public Core::Object
+		{
+		public:
+			std::vector<Vertex> Vertices;
+			std::vector<int> Indices;
+			btCollisionShape* Shape;
+
+		public:
+			HullShape();
+			virtual ~HullShape() = default;
+		};
+
 		class TH_OUT RigidBody : public Core::Object
 		{
 			friend Simulator;
@@ -1785,7 +1790,7 @@ namespace Tomahawk
 				{
 					struct SConvex
 					{
-						Compute::UnmanagedShape* Hull = nullptr;
+						Compute::HullShape* Hull = nullptr;
 						bool Enabled = false;
 					} Convex;
 
@@ -2400,10 +2405,10 @@ namespace Tomahawk
 			int GetContactManifoldCount();
 
 		public:
-			static void FreeUnmanagedShape(btCollisionShape* Shape);
+			static void FreeHullShape(btCollisionShape* Shape);
 			static Simulator* Get(btDiscreteDynamicsWorld* From);
-			static btCollisionShape* CreateUnmanagedShape(std::vector<Vertex>& Mesh);
-			static btCollisionShape* CreateUnmanagedShape(btCollisionShape* From);
+			static btCollisionShape* CreateHullShape(std::vector<Vertex>& Mesh);
+			static btCollisionShape* CreateHullShape(btCollisionShape* From);
 		};
 
 		template <typename T>

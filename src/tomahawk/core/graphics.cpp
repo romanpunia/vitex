@@ -738,14 +738,15 @@ namespace Tomahawk
 		{
 		}
 
-		GraphicsDevice::GraphicsDevice(const Desc& I) : Primitives(PrimitiveTopology::Triangle_List), ViewResource(nullptr), MaxElements(1)
+		GraphicsDevice::GraphicsDevice(const Desc& I) : Primitives(PrimitiveTopology::Triangle_List), ShaderGen(ShaderModel::Invalid), ViewResource(nullptr), PresentFlags(I.PresentationFlags), CompileFlags(I.CompilationFlags), VSyncMode(I.VSyncMode), MaxElements(1), Backend(I.Backend), Debug(I.Debug)
 		{
-			ShaderGen = ShaderModel::Invalid;
-			VSyncMode = I.VSyncMode;
-			PresentFlags = I.PresentationFlags;
-			CompileFlags = I.CompilationFlags;
-			Backend = I.Backend;
-			Debug = I.Debug;
+			if (!I.CacheDirectory.empty())
+			{
+				Caches = Core::OS::Path::ResolveDirectory(I.CacheDirectory.c_str());
+				if (!Core::OS::Directory::IsExists(Caches.c_str()))
+					Caches.clear();
+			}
+
 			CreateSections();
 		}
 		GraphicsDevice::~GraphicsDevice()
@@ -978,7 +979,7 @@ namespace Tomahawk
 #else
 			TH_WARN("default shader resources were not compiled");
 #endif
-			}
+		}
 		void GraphicsDevice::ReleaseProxy()
 		{
 			for (auto It = DepthStencilStates.begin(); It != DepthStencilStates.end(); It++)
@@ -1173,6 +1174,7 @@ namespace Tomahawk
 
 					spirv_cross::CompilerGLSL Compiler(Binary);
 					Compiler.set_common_options(Options);
+					Compiler.build_dummy_sampler_for_combined_images();
 					Compiler.build_combined_image_samplers();
 
 					*HLSL = Compiler.compile();
@@ -1194,6 +1196,8 @@ namespace Tomahawk
 					spirv_cross::CompilerMSL::Options Options;
 					spirv_cross::CompilerMSL Compiler(Binary);
 					Compiler.set_msl_options(Options);
+					Compiler.build_dummy_sampler_for_combined_images();
+					Compiler.build_combined_image_samplers();
 
 					*HLSL = Compiler.compile();
 					return true;
@@ -1280,6 +1284,61 @@ namespace Tomahawk
 		{
 			return Debug;
 		}
+		bool GraphicsDevice::GetProgramCache(const std::string& Name, std::string* Data)
+		{
+			TH_ASSERT(Data != nullptr, false, "data should be set");
+			Data->clear();
+
+			if (Caches.empty())
+				return false;
+
+			std::string Path = Caches + Name;
+			if (Path.empty())
+				return false;
+
+			if (!Core::OS::File::IsExists(Path.c_str()))
+				return false;
+
+			Core::GzStream* Stream = new Core::GzStream();
+			if (!Stream->Open(Path.c_str(), Core::FileMode::Binary_Read_Only))
+			{
+				TH_RELEASE(Stream);
+				return false;
+			}
+
+			char Buffer[8192]; size_t Size = 0;
+			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer))) > 0)
+				Data->append(std::string(Buffer, Size));
+
+			TH_TRACE("load %s program cache", Name.c_str());
+			TH_RELEASE(Stream);
+
+			return !Data->empty();
+		}
+		bool GraphicsDevice::SetProgramCache(const std::string& Name, const std::string& Data)
+		{
+			if (Caches.empty())
+				return true;
+
+			std::string Path = Caches + Name;
+			if (Path.empty())
+				return false;
+
+			Core::GzStream* Stream = new Core::GzStream();
+			if (!Stream->Open(Path.c_str(), Core::FileMode::Binary_Write_Only))
+			{
+				TH_RELEASE(Stream);
+				return false;
+			}
+
+			uint64_t Size = (uint64_t)Data.size();
+			bool Result = (Stream->Write(Data.c_str(), Size) == Size);
+
+			TH_TRACE("save %s program cache", Name.c_str());
+			TH_RELEASE(Stream);
+
+			return Result;
+		}
 		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height)
 		{
 			unsigned int MipLevels = 1;
@@ -1299,6 +1358,61 @@ namespace Tomahawk
 		unsigned int GraphicsDevice::GetCompileFlags()
 		{
 			return CompileFlags;
+		}
+		std::string GraphicsDevice::GetProgramName(const Shader::Desc& Desc)
+		{
+			std::string Result = Desc.Filename;
+			for (auto& Item : Desc.Defines)
+				Result += '&' + Item + "=1";
+
+			if (Desc.Features.Pragmas)
+				Result += "&pragmas=on";
+
+			if (Desc.Features.Includes)
+				Result += "&includes=on";
+
+			if (Desc.Features.Defines)
+				Result += "&defines=on";
+
+			if (Desc.Features.Conditions)
+				Result += "&conditions=on";
+
+			switch (Desc.Stage)
+			{
+				case ShaderType::Vertex:
+					Result += "&stage=vertex";
+					break;
+				case ShaderType::Pixel:
+					Result += "&stage=pixel";
+					break;
+				case ShaderType::Geometry:
+					Result += "&stage=geometry";
+					break;
+				case ShaderType::Hull:
+					Result += "&stage=hull";
+					break;
+				case ShaderType::Domain:
+					Result += "&stage=domain";
+					break;
+				case ShaderType::Compute:
+					Result += "&stage=compute";
+					break;
+				default:
+					break;
+			}
+
+			std::string Prefix;
+			switch (Backend)
+			{
+				case Tomahawk::Graphics::RenderBackend::D3D11:
+					Prefix = "hlsl.";
+					break;
+				case Tomahawk::Graphics::RenderBackend::OGL:
+					Prefix = "glsl.";
+					break;
+			}
+
+			return Prefix + Compute::Common::MD5Hash(Result) + ".sasm";
 		}
 		std::string GraphicsDevice::GetShaderMain(ShaderType Type)
 		{
@@ -3288,5 +3402,5 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		}
 	}
+}

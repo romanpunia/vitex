@@ -9278,6 +9278,10 @@ namespace Tomahawk
 			return Childs;
 		}
 
+		HullShape::HullShape() : Shape(nullptr)
+		{
+		}
+
 		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 			TH_ASSERT_V(Initial.Shape, "collision shape should be set");
@@ -10086,7 +10090,7 @@ namespace Tomahawk
 			btTransform BtTransform(Rotation, btVector3(Initial.Position.X, Initial.Position.Y, -Initial.Position.Z));
 			btSoftRigidDynamicsWorld* World = (btSoftRigidDynamicsWorld*)Engine->GetWorld();
 			btSoftBodyWorldInfo& Info = World->getWorldInfo();
-			UnmanagedShape* Hull = Initial.Shape.Convex.Hull;
+			HullShape* Hull = Initial.Shape.Convex.Hull;
 
 			if (Initial.Shape.Convex.Enabled && Hull != nullptr)
 			{
@@ -13576,7 +13580,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		void Simulator::FreeUnmanagedShape(btCollisionShape* Shape)
+		void Simulator::FreeHullShape(btCollisionShape* Shape)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_DELETE(btCollisionShape, Shape);
@@ -13593,7 +13597,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btCollisionShape* Simulator::CreateUnmanagedShape(std::vector<Vertex>& Vertices)
+		btCollisionShape* Simulator::CreateHullShape(std::vector<Vertex>& Vertices)
 		{
 #ifdef TH_WITH_BULLET3
 			btConvexHullShape* Shape = TH_NEW(btConvexHullShape);
@@ -13609,7 +13613,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btCollisionShape* Simulator::CreateUnmanagedShape(btCollisionShape* From)
+		btCollisionShape* Simulator::CreateHullShape(btCollisionShape* From)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(From != nullptr, nullptr, "shape should be set");

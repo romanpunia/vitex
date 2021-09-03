@@ -152,13 +152,13 @@ namespace Tomahawk
 			std::string Name;
 			Core::VariantArgs Args;
 
-			Event(const std::string& NewName);
-			Event(const std::string& NewName, const Core::VariantArgs& NewArgs);
-			Event(const std::string& NewName, Core::VariantArgs&& NewArgs);
-			Event(const Event& Other);
-			Event(Event&& Other);
-			Event& operator= (const Event& Other);
-			Event& operator= (Event&& Other);
+			Event(const std::string& NewName) noexcept;
+			Event(const std::string& NewName, const Core::VariantArgs& NewArgs) noexcept;
+			Event(const std::string& NewName, Core::VariantArgs&& NewArgs) noexcept;
+			Event(const Event& Other) noexcept;
+			Event(Event&& Other) noexcept;
+			Event& operator= (const Event& Other) noexcept;
+			Event& operator= (Event&& Other) noexcept;
 		};
 
 		struct TH_OUT AssetCache
@@ -399,15 +399,14 @@ namespace Tomahawk
 			Graphics::Texture2D* EmissionMap;
 			std::string Name;
 			SceneGraph* Scene;
-			uint64_t Slot;
 
 		public:
 			Subsurface Surface;
-
-		protected:
-			Material(SceneGraph* Src, const std::string& Alias);
+			uint64_t Slot;
 
 		public:
+			Material(SceneGraph* Src);
+			Material(const Material& Other);
 			virtual ~Material() override;
 			void SetName(const std::string& Value, bool Internal = false);
 			const std::string& GetName() const;
@@ -426,7 +425,6 @@ namespace Tomahawk
 			void SetEmissionMap(Graphics::Texture2D* New);
 			Graphics::Texture2D* GetEmissionMap() const;
 			SceneGraph* GetScene() const;
-			uint64_t GetSlot() const;
 		};
 
 		class TH_OUT Processor : public Core::Object
@@ -1002,8 +1000,8 @@ namespace Tomahawk
 			bool SetParallel(const std::string& Name, PacketCallback&& Callback);
 			MessageCallback* SetListener(const std::string& Event, MessageCallback&& Callback);
 			bool ClearListener(const std::string& Event, MessageCallback* Id);
-			Material* AddMaterial(const std::string& Name);
-			Material* CloneMaterial(Material* Base, const std::string& Name);
+			Material* AddMaterial(Material* Base, const std::string& Name = "");
+			Material* CloneMaterial(Material* Base, const std::string& Name = "");
 			Entity* FindNamedEntity(const std::string& Name);
 			Entity* FindEntityAt(const Compute::Vector3& Position, float Radius);
 			Entity* FindTaggedEntity(uint64_t Tag);
@@ -1146,6 +1144,7 @@ namespace Tomahawk
 			void InvalidateCache();
 			void InvalidatePath(const std::string& Path);
 			void SetEnvironment(const std::string& Path);
+			void SetDevice(Graphics::GraphicsDevice* NewDevice);
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
 			bool Cache(Processor* Root, const std::string& Path, void* Resource);

@@ -341,10 +341,10 @@ namespace Tomahawk
 		Decimal::Decimal(double Value) : Decimal(std::to_string(Value))
 		{
 		}
-		Decimal::Decimal(const Decimal& Value) : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
+		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
 		{
 		}
-		Decimal::Decimal(Decimal&& Value) : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
+		Decimal::Decimal(Decimal&& Value) noexcept : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
 		{
 		}
 		Decimal& Decimal::Precise(int Precision)
@@ -608,7 +608,7 @@ namespace Tomahawk
 			*this = *this - V;
 			return *this;
 		}
-		Decimal& Decimal::operator=(const Decimal& Value)
+		Decimal& Decimal::operator=(const Decimal& Value) noexcept
 		{
 			Source = Value.Source;
 			Length = Value.Length;
@@ -617,7 +617,7 @@ namespace Tomahawk
 
 			return *this;
 		}
-		Decimal& Decimal::operator=(Decimal&& Value)
+		Decimal& Decimal::operator=(Decimal&& Value) noexcept
 		{
 			Source = std::move(Value.Source);
 			Length = Value.Length;
@@ -1506,19 +1506,19 @@ namespace Tomahawk
 			return Value + '0';
 		}
 
-		Variant::Variant() : Type(VarType::Undefined)
+		Variant::Variant() noexcept : Type(VarType::Undefined)
 		{
 			Value.Data = nullptr;
 		}
-		Variant::Variant(VarType NewType) : Type(NewType)
+		Variant::Variant(VarType NewType) noexcept : Type(NewType)
 		{
 			Value.Data = nullptr;
 		}
-		Variant::Variant(const Variant& Other)
+		Variant::Variant(const Variant& Other) noexcept
 		{
 			Copy(Other);
 		}
-		Variant::Variant(Variant&& Other)
+		Variant::Variant(Variant&& Other) noexcept
 		{
 			Copy(std::move(Other));
 		}
@@ -1771,14 +1771,14 @@ namespace Tomahawk
 		{
 			return !Is(Other);
 		}
-		Variant& Variant::operator= (const Variant& Other)
+		Variant& Variant::operator= (const Variant& Other) noexcept
 		{
 			Free();
 			Copy(Other);
 
 			return *this;
 		}
-		Variant& Variant::operator= (Variant&& Other)
+		Variant& Variant::operator= (Variant&& Other) noexcept
 		{
 			Free();
 			Copy(std::move(Other));
@@ -1978,19 +1978,19 @@ namespace Tomahawk
 			}
 		}
 
-		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(const Timeout& Other) : Callback(Other.Callback), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
+		Timeout::Timeout(const Timeout& Other) noexcept : Callback(Other.Callback), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
-		Timeout::Timeout(Timeout&& Other) : Callback(std::move(Other.Callback)), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
+		Timeout::Timeout(Timeout&& Other) noexcept : Callback(std::move(Other.Callback)), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
 		{
 		}
-		Timeout& Timeout::operator= (const Timeout& Other)
+		Timeout& Timeout::operator= (const Timeout& Other) noexcept
 		{
 			Callback = Other.Callback;
 			Expires = Other.Expires;
@@ -1998,7 +1998,7 @@ namespace Tomahawk
 			Alive = Other.Alive;
 			return *this;
 		}
-		Timeout& Timeout::operator= (Timeout&& Other)
+		Timeout& Timeout::operator= (Timeout&& Other) noexcept
 		{
 			Callback = std::move(Other.Callback);
 			Expires = Other.Expires;
@@ -7884,10 +7884,10 @@ namespace Tomahawk
 		}
 		Schedule* Schedule::Singleton = nullptr;
 
-		Document::Document(const Variant& Base) : Parent(nullptr), Saved(true), Value(Base)
+		Document::Document(const Variant& Base) noexcept : Parent(nullptr), Saved(true), Value(Base)
 		{
 		}
-		Document::Document(Variant&& Base) : Parent(nullptr), Saved(true), Value(std::move(Base))
+		Document::Document(Variant&& Base) noexcept : Parent(nullptr), Saved(true), Value(std::move(Base))
 		{
 		}
 		Document::~Document()

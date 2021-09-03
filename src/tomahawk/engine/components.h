@@ -31,7 +31,7 @@ namespace Tomahawk
 				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				virtual Compute::Matrix4x4 GetBoundingBox() override;
-				void Create(Compute::UnmanagedShape* Shape, float Anticipation);
+				void Create(Compute::HullShape* Shape, float Anticipation);
 				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
 				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
 				void CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
@@ -52,7 +52,7 @@ namespace Tomahawk
 			class TH_OUT RigidBody final : public Component
 			{
 			private:
-				Compute::UnmanagedShape * Hull = nullptr;
+				Compute::HullShape* Hull = nullptr;
 				Compute::RigidBody* Instance = nullptr;
 
 			public:

@@ -6,8 +6,8 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	float Mips;
 	float3 Padding;
+	float Mips;
 }
 
 Texture2D LDiffuseBuffer : register(t5);

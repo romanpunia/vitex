@@ -54,6 +54,66 @@ namespace Tomahawk
 				return new AssetFile(Binary, (size_t)Length);
 			}
 
+			Material::Material(ContentManager* Manager) : Processor(Manager)
+			{
+			}
+			void Material::Free(AssetCache* Asset)
+			{
+				TH_ASSERT_V(Asset != nullptr, "asset should be set");
+				TH_RELEASE((Engine::Material*)Asset->Resource);
+				Asset->Resource = nullptr;
+			}
+			void* Material::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			{
+				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
+				TH_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
+
+				((Engine::Material*)Asset->Resource)->AddRef();
+				return Asset->Resource;
+			}
+			void* Material::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+
+				Core::Document* Document = Content->Load<Core::Document>(Stream->GetSource());
+				if (!Document)
+					return nullptr;
+
+				Engine::Material* Object = new Engine::Material(nullptr);
+				if (!NMake::Unpack(Document, Object, Content))
+				{
+					TH_RELEASE(Document);
+					TH_RELEASE(Object);
+					return nullptr;
+				}
+
+				TH_RELEASE(Document);
+				Content->Cache(this, Stream->GetSource(), Object);
+				Object->AddRef();
+
+				return Object;
+			}
+			bool Material::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			{
+				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
+
+				Core::Document* Document = Core::Var::Set::Object();
+				Document->Key = "material";
+
+				Engine::Material* Object = (Engine::Material*)Instance;
+				NMake::Pack(Document, Object, Content);
+
+				if (!Content->Save<Core::Document>(Stream->GetSource(), Document, Args))
+				{
+					TH_RELEASE(Document);
+					return false;
+				}
+
+				TH_RELEASE(Document);
+				return true;
+			}
+
 			SceneGraph::SceneGraph(ContentManager* Manager) : Processor(Manager)
 			{
 			}
@@ -106,8 +166,16 @@ namespace Tomahawk
 					std::vector<Core::Document*> Collection = Materials->FindCollection("material");
 					for (auto& It : Collection)
 					{
-						Engine::Material* Value = Object->AddMaterial("");
-						NMake::Unpack(It, Value, Content);
+						std::string Path;
+						if (!NMake::Unpack(It, &Path) || Path.empty())
+							continue;
+
+						Engine::Material* Value = Content->Load<Engine::Material>(Path);
+						if (Value != nullptr)
+						{
+							NMake::Unpack(It, &Value->Slot);
+							Object->AddMaterial(Value);
+						}
 					}
 				}
 
@@ -218,6 +286,20 @@ namespace Tomahawk
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
 
+				const char* Ext = Core::OS::Path::GetExtension(Stream->GetSource().c_str());
+				if (!Ext)
+				{
+					auto Type = Args.find("type");
+					if (Type->second == Core::Var::String("XML"))
+						Ext = ".xml";
+					else if (Type->second == Core::Var::String("JSON"))
+						Ext = ".json";
+					else if (Type->second == Core::Var::String("JSONB"))
+						Ext = ".jsonb";
+					else
+						Ext = ".xml";
+				}
+
 				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
 				Object->Conform();
 
@@ -252,9 +334,26 @@ namespace Tomahawk
                 Core::Document* Materials = Document->Set("materials", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetMaterialsCount(); i++)
 				{
-					Engine::Material* Ref = Object->GetMaterial(i);
-					if (Ref != nullptr)
-						NMake::Pack(Materials->Set("material"), Ref, Content);
+					Engine::Material* Material = Object->GetMaterial(i);
+					if (!Material)
+						continue;
+
+					std::string Path;
+					AssetCache* Asset = Content->Find<Engine::Material>(Material);
+					if (!Asset)
+						Path.assign("./materials/" + Compute::Common::MD5Hash(Material->GetName() + "_" + Compute::Common::HexEncode(Compute::Common::RandomBytes(16))));
+					else
+						Path.assign(Asset->Path);
+
+					if (!Core::Parser(&Path).EndsWith(Ext))
+						Path.append(Ext);
+
+					if (Content->Save<Engine::Material>(Path, Material, Args))
+					{
+						Core::Document* Where = Materials->Set("material");
+						NMake::Pack(Where, Material->Slot);
+						NMake::Pack(Where, Path);
+					}
 				}
 
                 Core::Document* Entities = Document->Set("entities", Core::Var::Array());
@@ -1579,64 +1678,67 @@ namespace Tomahawk
 				return (void*)Object;
 			}
 
-			Shape::Shape(ContentManager* Manager) : Processor(Manager)
+			HullShape::HullShape(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			Shape::~Shape()
+			HullShape::~HullShape()
 			{
 			}
-			void Shape::Free(AssetCache* Asset)
+			void HullShape::Free(AssetCache* Asset)
 			{
 				TH_ASSERT_V(Asset != nullptr, "asset should be set");
 				TH_ASSERT_V(Asset->Resource != nullptr, "instance should be set");
 
-				Compute::UnmanagedShape* Shape = (Compute::UnmanagedShape*)Asset->Resource;
-				Compute::Simulator::FreeUnmanagedShape(Shape->Shape);
-				TH_DELETE(UnmanagedShape, Shape);
+				Compute::HullShape* Shape = (Compute::HullShape*)Asset->Resource;
+				Compute::Simulator::FreeHullShape(Shape->Shape);
+				TH_RELEASE(Shape);
 			}
-			void* Shape::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
+			void* HullShape::Duplicate(AssetCache* Asset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Asset != nullptr, nullptr, "asset should be set");
 				TH_ASSERT(Asset->Resource != nullptr, nullptr, "instance should be set");
 
+				((Compute::HullShape*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Shape::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* HullShape::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
 				if (!Document)
 					return nullptr;
 
-				Compute::UnmanagedShape* Object = TH_NEW(Compute::UnmanagedShape);
+				Compute::HullShape* Object = new Compute::HullShape();
 				std::vector<Core::Document*> Meshes = Document->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					if (!NMake::Unpack(Mesh->Find("indices"), &Object->Indices))
 					{
 						TH_RELEASE(Document);
-						TH_DELETE(UnmanagedShape, Object);
+						TH_RELEASE(Object);
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &Object->Vertices))
 					{
 						TH_RELEASE(Document);
-						TH_DELETE(UnmanagedShape, Object);
+						TH_RELEASE(Object);
 						return nullptr;
 					}
 				}
 
-				Object->Shape = Compute::Simulator::CreateUnmanagedShape(Object->Vertices);
+				Object->Shape = Compute::Simulator::CreateHullShape(Object->Vertices);
 				TH_RELEASE(Document);
 
 				if (!Object->Shape)
 				{
-					TH_DELETE(UnmanagedShape, Object);
+					TH_RELEASE(Object);
 					return nullptr;
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
+				Object->AddRef();
+
 				return (void*)Object;
 			}
 		}

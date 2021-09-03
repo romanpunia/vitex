@@ -305,13 +305,13 @@ namespace Tomahawk
 			Write_Tab,
 		};
 
-        enum class Coactive
-        {
-            Active,
-            Inactive,
-            Resumable
-        };
-    
+		enum class Coactive
+		{
+			Active,
+			Inactive,
+			Resumable
+		};
+
 		typedef std::vector<struct Variant> VariantList;
 		typedef std::vector<Document*> DocumentList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
@@ -320,11 +320,11 @@ namespace Tomahawk
 		typedef std::function<std::string(const std::string&)> DocNameCallback;
 		typedef std::function<void(VarForm, const char*, int64_t)> DocWriteCallback;
 		typedef std::function<bool(char*, int64_t)> DocReadCallback;
-		typedef std::function<void*(size_t)> AllocCallback;
-		typedef std::function<void*(void*, size_t)> ReallocCallback;
+		typedef std::function<void* (size_t)> AllocCallback;
+		typedef std::function<void* (void*, size_t)> ReallocCallback;
 		typedef std::function<void(void*)> FreeCallback;
 		typedef uint64_t TimerId;
-        typedef Decimal BigNumber;
+		typedef Decimal BigNumber;
 		typedef void* ConcurrentQueue;
 		typedef void* ConcurrentToken;
 
@@ -333,7 +333,7 @@ namespace Tomahawk
 			friend Costate;
 
 		private:
-            std::atomic<Coactive> State;
+			std::atomic<Coactive> State;
 			TaskCallback Callback;
 			Cocontext* Switch;
 			Costate* Master;
@@ -345,56 +345,56 @@ namespace Tomahawk
 			~Coroutine();
 		};
 
-        struct TH_OUT Decimal
-        {
-        private:
-            std::deque<char> Source;
-            int Length;
-            char Sign;
-            bool Invalid;
-            
-        public:
-            Decimal();
-            Decimal(const char* Value);
-            Decimal(const std::string& Value);
-            Decimal(int32_t Value);
-            Decimal(uint32_t Value);
-            Decimal(int64_t Value);
-            Decimal(uint64_t Value);
-            Decimal(float Value);
-            Decimal(double Value);
-            Decimal(const Decimal& Value);
-            Decimal(Decimal&& Value);
+		struct TH_OUT Decimal
+		{
+		private:
+			std::deque<char> Source;
+			int Length;
+			char Sign;
+			bool Invalid;
+
+		public:
+			Decimal();
+			Decimal(const char* Value);
+			Decimal(const std::string& Value);
+			Decimal(int32_t Value);
+			Decimal(uint32_t Value);
+			Decimal(int64_t Value);
+			Decimal(uint64_t Value);
+			Decimal(float Value);
+			Decimal(double Value);
+			Decimal(const Decimal& Value) noexcept;
+			Decimal(Decimal&& Value) noexcept;
 			Decimal& Precise(int Value);
 			Decimal& Trim();
 			Decimal& Unlead();
 			Decimal& Untrail();
 			bool IsNaN() const;
-            double ToDouble() const;
-            int64_t ToInt64() const;
-            std::string ToString() const;
-            std::string Exp() const;
-            int Decimals() const;
-            int Ints() const;
-            int Size() const;
-            Decimal operator -() const;
-            Decimal& operator *=(const Decimal& V);
-            Decimal& operator /=(const Decimal& V);
-            Decimal& operator +=(const Decimal& V);
-            Decimal& operator -=(const Decimal& V);
-            Decimal& operator= (const Decimal& Value);
-            Decimal& operator= (Decimal&& Value);
-            Decimal& operator++ (int);
-            Decimal& operator++ ();
-            Decimal& operator-- (int);
-            Decimal& operator-- ();
-            bool operator== (const Decimal& Right) const;
-            bool operator!= (const Decimal& Right) const;
-            bool operator> (const Decimal& Right) const;
-            bool operator>= (const Decimal& Right) const;
-            bool operator< (const Decimal& Right) const;
-            bool operator<= (const Decimal& Right) const;
-        
+			double ToDouble() const;
+			int64_t ToInt64() const;
+			std::string ToString() const;
+			std::string Exp() const;
+			int Decimals() const;
+			int Ints() const;
+			int Size() const;
+			Decimal operator -() const;
+			Decimal& operator *=(const Decimal& V);
+			Decimal& operator /=(const Decimal& V);
+			Decimal& operator +=(const Decimal& V);
+			Decimal& operator -=(const Decimal& V);
+			Decimal& operator= (const Decimal& Value) noexcept;
+			Decimal& operator= (Decimal&& Value) noexcept;
+			Decimal& operator++ (int);
+			Decimal& operator++ ();
+			Decimal& operator-- (int);
+			Decimal& operator-- ();
+			bool operator== (const Decimal& Right) const;
+			bool operator!= (const Decimal& Right) const;
+			bool operator> (const Decimal& Right) const;
+			bool operator>= (const Decimal& Right) const;
+			bool operator< (const Decimal& Right) const;
+			bool operator<= (const Decimal& Right) const;
+
 		public:
 			TH_OUT friend Decimal operator + (const Decimal& Left, const Decimal& Right);
 			TH_OUT friend Decimal operator - (const Decimal& Left, const Decimal& Right);
@@ -402,18 +402,18 @@ namespace Tomahawk
 			TH_OUT friend Decimal operator / (const Decimal& Left, const Decimal& Right);
 			TH_OUT friend Decimal operator % (const Decimal& Left, const Decimal& Right);
 
-        public:
-            static Decimal Divide(const Decimal& Left, const Decimal& Right, int Precision);
-            static Decimal NaN();
-            
-        private:
-            static Decimal Sum(const Decimal& Left, const Decimal& Right);
-            static Decimal Subtract(const Decimal& Left, const Decimal& Right);
-            static Decimal Multiply(const Decimal& Left, const Decimal& Right);
-            static int CompareNum(const Decimal& Left, const Decimal& Right);
-            static int CharToInt(const char& Value);
-            static char IntToChar(const int& Value);
-        };
+		public:
+			static Decimal Divide(const Decimal& Left, const Decimal& Right, int Precision);
+			static Decimal NaN();
+
+		private:
+			static Decimal Sum(const Decimal& Left, const Decimal& Right);
+			static Decimal Subtract(const Decimal& Left, const Decimal& Right);
+			static Decimal Multiply(const Decimal& Left, const Decimal& Right);
+			static int CompareNum(const Decimal& Left, const Decimal& Right);
+			static int CharToInt(const char& Value);
+			static char IntToChar(const int& Value);
+		};
 
 		struct TH_OUT Variant
 		{
@@ -440,14 +440,14 @@ namespace Tomahawk
 			VarType Type;
 
 		public:
-			Variant();
-			Variant(const Variant& Other);
-			Variant(Variant&& Other);
+			Variant() noexcept;
+			Variant(const Variant& Other) noexcept;
+			Variant(Variant&& Other) noexcept;
 			~Variant();
 			bool Deserialize(const std::string& Value, bool Strict = false);
 			std::string Serialize() const;
 			std::string GetBlob() const;
-            Decimal GetDecimal() const;
+			Decimal GetDecimal() const;
 			void* GetPointer() const;
 			const char* GetString() const;
 			unsigned char* GetBase64() const;
@@ -456,8 +456,8 @@ namespace Tomahawk
 			bool GetBoolean() const;
 			VarType GetType() const;
 			size_t GetSize() const;
-			Variant& operator= (const Variant& Other);
-			Variant& operator= (Variant&& Other);
+			Variant& operator= (const Variant& Other) noexcept;
+			Variant& operator= (Variant&& Other) noexcept;
 			bool operator== (const Variant& Other) const;
 			bool operator!= (const Variant& Other) const;
 			operator bool() const;
@@ -466,7 +466,7 @@ namespace Tomahawk
 			bool IsEmpty() const;
 
 		private:
-			Variant(VarType NewType);
+			Variant(VarType NewType) noexcept;
 			bool Is(const Variant& Value) const;
 			void Copy(const Variant& Other);
 			void Copy(Variant&& Other);
@@ -495,12 +495,12 @@ namespace Tomahawk
 			TimerId Id;
 			bool Alive;
 
-			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive);
-			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive);
-			Timeout(const Timeout& Other);
-			Timeout(Timeout&& Other);
-			Timeout& operator= (const Timeout& Other);
-			Timeout& operator= (Timeout&& Other);
+			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept;
+			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept;
+			Timeout(const Timeout& Other) noexcept;
+			Timeout(Timeout&& Other) noexcept;
+			Timeout& operator= (const Timeout& Other) noexcept;
+			Timeout& operator= (Timeout&& Other) noexcept;
 		};
 
 		struct TH_OUT Resource
@@ -821,8 +821,8 @@ namespace Tomahawk
 			static Variant Integer(int64_t Value);
 			static Variant Number(double Value);
 			static Variant Decimal(const BigNumber& Value);
-            static Variant Decimal(BigNumber&& Value);
-            static Variant DecimalString(const std::string& Value);
+			static Variant Decimal(BigNumber&& Value);
+			static Variant DecimalString(const std::string& Value);
 			static Variant Boolean(bool Value);
 		};
 
@@ -1011,7 +1011,7 @@ namespace Tomahawk
 				if (It == Factory->end() || !It->second)
 					return nullptr;
 
-				void*(*Callable)(Args...) = nullptr;
+				void* (*Callable)(Args...) = nullptr;
 				reinterpret_cast<void*&>(Callable) = It->second;
 
 				if (!Callable)
@@ -1298,8 +1298,8 @@ namespace Tomahawk
 			int Reuse(Coroutine* Routine, TaskCallback&& Procedure);
 			int Reuse(Coroutine* Routine);
 			int Push(Coroutine* Routine);
-            int Activate(Coroutine* Routine);
-            int Deactivate(Coroutine* Routine);
+			int Activate(Coroutine* Routine);
+			int Deactivate(Coroutine* Routine);
 			int Resume(Coroutine* Routine);
 			int Resume(bool Restore = true);
 			int Dispatch(bool Restore = true);
@@ -1404,8 +1404,8 @@ namespace Tomahawk
 			Variant Value;
 
 		public:
-			Document(const Variant& Base);
-			Document(Variant&& Base);
+			Document(const Variant& Base) noexcept;
+			Document(Variant&& Base) noexcept;
 			virtual ~Document() override;
 			std::unordered_map<std::string, uint64_t> GetNames() const;
 			std::vector<Document*> FindCollection(const std::string& Name, bool Deep = false) const;
@@ -1414,7 +1414,7 @@ namespace Tomahawk
 			std::vector<Document*>& GetChilds();
 			Document* Find(const std::string& Name, bool Deep = false) const;
 			Document* Fetch(const std::string& Notation, bool Deep = false) const;
-            Variant FetchVar(const std::string& Key, bool Deep = false) const;
+			Variant FetchVar(const std::string& Key, bool Deep = false) const;
 			Variant GetVar(size_t Index) const;
 			Variant GetVar(const std::string& Key) const;
 			Document* GetParent() const;
@@ -1433,7 +1433,7 @@ namespace Tomahawk
 			Document* Pop(size_t Index);
 			Document* Pop(const std::string& Name);
 			Document* Copy() const;
-            bool Rename(const std::string& Name, const std::string& NewName);
+			bool Rename(const std::string& Name, const std::string& NewName);
 			bool Has(const std::string& Name) const;
 			bool Has64(const std::string& Name, size_t Size = 12) const;
 			bool IsEmpty() const;
@@ -1832,7 +1832,7 @@ namespace Tomahawk
 				if (Next != nullptr)
 					Next->Count++;
 			}
-			
+
 		public:
 			Async() noexcept : Next(TH_NEW(context_type))
 			{
@@ -2133,10 +2133,10 @@ namespace Tomahawk
 				Debug::OpPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
 #endif
 			Future.Await([State, Base](T&&)
-            {
-                State->Activate(Base);
-            });
-			
+			{
+				State->Activate(Base);
+			});
+
 			if (Future.IsPending())
 				State->Deactivate(Base);
 #ifdef _DEBUG
@@ -2179,13 +2179,13 @@ namespace Tomahawk
 		{
 			return Schedule::Get()->SetAsync(std::move(Callback));
 		}
-        inline bool Cosuspend() noexcept
-        {
-            Costate* State = Costate::Get();
+		inline bool Cosuspend() noexcept
+		{
+			Costate* State = Costate::Get();
 			TH_ASSERT(State != nullptr, false, "cannot call suspend outside coroutine");
-            
-            return State->Suspend();
-        }
+
+			return State->Suspend();
+		}
 		inline bool Cosleep(uint64_t Ms) noexcept
 		{
 			Async<bool> Result;

@@ -3479,7 +3479,8 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(View != nullptr, "viewer should be set");
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
-				View->Set(Compute::Matrix4x4::CreateCamera(Space.Position.InvX().InvY(), -Space.Rotation), Projection, Space.Position, NearPlane, FarPlane);
+				Compute::Matrix4x4 Offset = Compute::Matrix4x4::CreateCamera(Space.Position.InvX().InvY(), -Space.Rotation);
+				View->Set(Offset, Projection, Space.Position, NearPlane, FarPlane);
 				View->WorldRotation = Space.Rotation;
 				View->Renderer = Renderer;
 				FieldView = *View;

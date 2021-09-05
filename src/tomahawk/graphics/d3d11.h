@@ -315,21 +315,35 @@ namespace Tomahawk
 			private:
 				struct
 				{
-					ID3D11VertexShader* VertexShader;
-					ID3D11PixelShader* PixelShader;
-					ID3D11InputLayout* VertexLayout;
-					ID3D11Buffer* ConstantBuffer;
-					ID3D11Buffer* VertexBuffer;
-				} DirectRenderer;
+					ID3D11VertexShader* VertexShader = nullptr;
+					ID3D11PixelShader* PixelShader = nullptr;
+					ID3D11InputLayout* VertexLayout = nullptr;
+					ID3D11Buffer* ConstantBuffer = nullptr;
+					ID3D11Buffer* VertexBuffer = nullptr;
+				} Immediate;
+
+				struct
+				{
+					std::tuple<ID3D11SamplerState*, unsigned int, unsigned int> Sampler = { nullptr, 0, 0 };
+					std::tuple<ID3D11ShaderResourceView*, unsigned int, unsigned int> Texture2D = { nullptr, 0, 0 };
+					std::tuple<ID3D11ShaderResourceView*, unsigned int, unsigned int> Texture3D = { nullptr, 0, 0 };
+					std::tuple<ID3D11ShaderResourceView*, unsigned int, unsigned int> TextureCube = { nullptr, 0, 0 };
+					std::tuple<D3D11Shader*, unsigned int> Shader = { nullptr, 0 };
+					std::tuple<D3D11ElementBuffer*, unsigned int> VertexBuffer = { nullptr, 0 };
+					std::tuple<D3D11ElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
+					ID3D11BlendState* Blend = nullptr;
+					ID3D11RasterizerState* Rasterizer = nullptr;
+					ID3D11DepthStencilState* DepthStencil = nullptr;
+					D3D11InputLayout* Layout = nullptr;
+					PrimitiveTopology Primitive = PrimitiveTopology::Triangle_List;
+				} Register;
 
 			private:
 				const char* VSP, *PSP, *GSP, *HSP, *DSP, *CSP;
-				D3D11InputLayout* Layout;
-				ID3D11Buffer* Buffer;
 
 			public:
 				ID3D11DeviceContext* ImmediateContext;
-				ID3D11Device* D3DDevice;
+				ID3D11Device* Context;
 				IDXGISwapChain* SwapChain;
 				ID3D11Buffer* ConstantBuffer[3];
 				DXGI_SWAP_CHAIN_DESC SwapChainResource;

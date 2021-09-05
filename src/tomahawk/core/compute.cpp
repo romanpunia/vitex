@@ -167,6 +167,23 @@ namespace Tomahawk
 {
 	namespace Compute
 	{
+		int64_t Rectangle::GetX() const
+		{
+			return Left;
+		}
+		int64_t Rectangle::GetY() const
+		{
+			return Top;
+		}
+		int64_t Rectangle::GetWidth() const
+		{
+			return Right - Left;
+		}
+		int64_t Rectangle::GetHeight() const
+		{
+			return Bottom - Top;
+		}
+
 		Vector2::Vector2() : X(0.0f), Y(0.0f)
 		{
 		}

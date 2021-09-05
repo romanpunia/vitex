@@ -82,8 +82,8 @@ namespace Tomahawk
 				Rml::PropertyId Softness;
 
 			public:
-				Graphics::ElementBuffer* VertexBuffer;
 				Graphics::Texture2D* Background;
+				Graphics::ElementBuffer* VertexBuffer;
 				Graphics::Shader* Shader;
 				Graphics::GraphicsDevice* Device;
 
@@ -307,7 +307,7 @@ namespace Tomahawk
 				return Rml::MakeShared<BoxBlur>(Compute::Vector4(IColor.red, IColor.green, IColor.blue, IColor.alpha), ISoftness);
 			}
 
-			void Subsystem::ResizeDecorators()
+			void Subsystem::ResizeDecorators(int Width, int Height)
 			{
 				if (IBoxBlur != nullptr)
 					TH_CLEAR(IBoxBlur->Background);

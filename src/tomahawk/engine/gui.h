@@ -371,6 +371,7 @@ namespace Tomahawk
 
 			class TH_OUT Subsystem
 			{
+				friend RenderSubsystem;
 				friend DocumentSubsystem;
 				friend ListenerSubsystem;
 				friend Context;
@@ -404,7 +405,7 @@ namespace Tomahawk
 				static std::string EscapeHTML(const std::string& Text);
 
 			private:
-				static void ResizeDecorators();
+				static void ResizeDecorators(int Width, int Height);
 				static void CreateDecorators(Graphics::GraphicsDevice* Device);
 				static void ReleaseDecorators();
 				static void CreateElements();
@@ -568,7 +569,7 @@ namespace Tomahawk
 				void EmitWheel(int X, int Y, bool Normal, Graphics::KeyMod Mod);
 				void EmitResize(int Width, int Height);
 				void UpdateEvents(Graphics::Activity* Activity);
-				void RenderLists(Graphics::Texture2D* RenderTarget);
+				void RenderLists(Graphics::Texture2D* Target);
 				void ClearCache();
 				IElementDocument Construct(const std::string& Path);
 				bool Deconstruct();

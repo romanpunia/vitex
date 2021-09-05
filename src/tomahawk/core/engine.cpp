@@ -4127,9 +4127,9 @@ namespace Tomahawk
 			Conf.Device->SetBlendState(Display.Blend);
 			Conf.Device->SetRasterizerState(Display.Rasterizer);
 			Conf.Device->SetInputLayout(Display.Layout);
+			Conf.Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
 			Conf.Device->SetVertexBuffer(Cache->GetQuad(), 0);
-			Conf.Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 1, TH_PS);

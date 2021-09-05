@@ -283,6 +283,11 @@ namespace Tomahawk
 			int64_t Top;
 			int64_t Right;
 			int64_t Bottom;
+
+			int64_t GetX() const;
+			int64_t GetY() const;
+			int64_t GetWidth() const;
+			int64_t GetHeight() const;
 		};
 
 		struct TH_OUT Vector2

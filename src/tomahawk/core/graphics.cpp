@@ -131,6 +131,15 @@ namespace
 			/* .generalConstantMatrixVectorIndexing = */ 1,
 		}
 	};
+
+	static void PrepareSamplers(spirv_cross::Compiler* Compiler)
+	{
+		for (auto& SamplerId : Compiler->get_combined_image_samplers())
+		{
+			uint32_t BindingId = Compiler->get_decoration(SamplerId.image_id, spv::DecorationBinding);
+			Compiler->set_decoration(SamplerId.combined_id, spv::DecorationBinding, BindingId);
+		}
+	}
 }
 #endif
 
@@ -1176,8 +1185,12 @@ namespace Tomahawk
 					Compiler.set_common_options(Options);
 					Compiler.build_dummy_sampler_for_combined_images();
 					Compiler.build_combined_image_samplers();
+					PrepareSamplers(&Compiler);
 
 					*HLSL = Compiler.compile();
+					if (!HLSL->empty())
+						Core::Parser(HLSL).Replace("layout(row_major) ", "");
+
 					return true;
 				}
 				else if (To == ShaderLang::HLSL)
@@ -1198,6 +1211,7 @@ namespace Tomahawk
 					Compiler.set_msl_options(Options);
 					Compiler.build_dummy_sampler_for_combined_images();
 					Compiler.build_combined_image_samplers();
+					PrepareSamplers(&Compiler);
 
 					*HLSL = Compiler.compile();
 					return true;

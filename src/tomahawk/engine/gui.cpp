@@ -76,6 +76,7 @@ namespace Tomahawk
 
 					Device->Begin();
 					Device->Topology(Graphics::PrimitiveTopology::Triangle_List);
+					Device->Texture((Graphics::Texture2D*)Texture);
 
 					if (HasTransform)
 						Device->Transform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho);
@@ -130,7 +131,7 @@ namespace Tomahawk
 						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
 					else
 						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
-
+					
 					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
 					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(Buffer->VertexBuffer, 0);
@@ -151,9 +152,7 @@ namespace Tomahawk
 						(float)Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
 					Ortho = Subsystem::ToMatrix(&Projection);
 
-					Device->SetInputLayout(Layout);
 					Device->SetBlendState(AlphaBlend);
-
 					if (Enable)
 					{
 						if (HasTransform)
@@ -172,6 +171,7 @@ namespace Tomahawk
 						Device->SetRasterizerState(NoneRasterizer);
 						Device->SetDepthStencilState(NoneDepthStencil);
 					}
+					Device->SetInputLayout(Layout);
 				}
 				virtual void SetScissorRegion(int X, int Y, int Width, int Height) override
 				{
@@ -300,6 +300,10 @@ namespace Tomahawk
 					ScissorDepthStencil = Device->GetDepthStencilState("greater-equal");
 					AlphaBlend = Device->GetBlendState("additive-source");
 					ColorlessBlend = Device->GetBlendState("overwrite-colorless");
+				}
+				void ResizeBuffers(int Width, int Height)
+				{
+					Subsystem::ResizeDecorators(Width, Height);
 				}
 				ContentManager* GetContent()
 				{
@@ -2943,8 +2947,11 @@ namespace Tomahawk
 			}
 			void Context::EmitResize(int Width, int Height)
 			{
+				RenderSubsystem* Renderer = Subsystem::GetRenderInterface();
+				if (Renderer != nullptr)
+					Renderer->ResizeBuffers(Width, Height);
+
 				Base->SetDimensions(Rml::Vector2i(Width, Height));
-				Subsystem::ResizeDecorators();
 			}
 			void Context::UpdateEvents(Graphics::Activity* Activity)
 			{

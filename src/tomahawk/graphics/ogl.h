@@ -117,7 +117,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			private:
-				InputLayout* Layout = nullptr;
+				std::unordered_map<OGLInputLayout*, GLuint> Layouts;
 				GLuint Resource = GL_NONE;
 				GLenum Flags = GL_NONE;
 
@@ -161,6 +161,7 @@ namespace Tomahawk
 			public:
 				GLenum Format = GL_NONE;
 				GLuint Resource = GL_NONE;
+				bool Backbuffer = false;
 
 			public:
 				OGLTexture2D();
@@ -310,25 +311,34 @@ namespace Tomahawk
 			class OGLDevice final : public GraphicsDevice
 			{
 			private:
-				struct ConstantBuffer
+				struct
 				{
-					Compute::Matrix4x4 WorldViewProjection;
-					Compute::Vector4 Padding;
-				};
+					GLuint VertexShader = GL_NONE;
+					GLuint PixelShader = GL_NONE;
+					GLuint Program = GL_NONE;
+					GLuint VertexBuffer = GL_NONE;
+				} Immediate;
 
 				struct
 				{
-					GLuint VertexShader;
-					GLuint PixelShader;
-					GLuint Program;
-					GLuint VertexBuffer;
-				} DirectRenderer;
+					std::tuple<OGLTexture2D*, unsigned int, unsigned int> Texture2D = { nullptr, 0, 0 };
+					std::tuple<OGLTexture3D*, unsigned int, unsigned int> Texture3D = { nullptr, 0, 0 };
+					std::tuple<OGLTextureCube*, unsigned int, unsigned int> TextureCube = { nullptr, 0, 0 };
+					std::tuple<OGLSamplerState*, unsigned int, unsigned int> Sampler = { nullptr, 0, 0 };
+					std::tuple<OGLShader*, unsigned int> Shader = { nullptr, 0 };
+					std::tuple<OGLElementBuffer*, unsigned int> VertexBuffer = { nullptr, 0 };
+					std::tuple<OGLElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
+					OGLBlendState* Blend = nullptr;
+					OGLRasterizerState* Rasterizer = nullptr;
+					OGLDepthStencilState* DepthStencil = nullptr;
+					OGLInputLayout* Layout = nullptr;
+					PrimitiveTopology Primitive = PrimitiveTopology::Triangle_List;
+					GLenum IndexFormat = GL_UNSIGNED_INT;
+					GLenum DrawTopology = GL_TRIANGLES;
+				} Register;
 
 			private:
 				const char* ShaderVersion;
-				OGLInputLayout* Layout;
-				PrimitiveTopology Primitive;
-				GLenum IndexType;
 
 			public:
 				GLuint ConstantBuffer[3];

@@ -2391,7 +2391,7 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreatePerspectiveRad(float FieldOfView, float AspectRatio, float NearZ, float FarZ)
 		{
-			float Height = 1.0f / tan(0.5f * FieldOfView);
+			float Height = 1.0f / std::tan(0.5f * FieldOfView);
 			float Width = Height / AspectRatio;
 			float Depth = 1.0f / (FarZ - NearZ);
 
@@ -8068,8 +8068,8 @@ namespace Tomahawk
 		void Common::CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
 			TH_ASSERT_V(Result8 != nullptr, "8 sized array should be set");
-			float HalfHFov = std::tanf(FieldOfView * 0.5f) * Aspect;
-			float HalfVFov = std::tanf(FieldOfView * 0.5f);
+			float HalfHFov = std::tan(FieldOfView * 0.5f) * Aspect;
+			float HalfVFov = std::tan(FieldOfView * 0.5f);
 			float XN = NearZ * HalfHFov;
 			float XF = FarZ * HalfHFov;
 			float YN = NearZ * HalfVFov;

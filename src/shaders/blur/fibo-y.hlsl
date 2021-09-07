@@ -5,11 +5,11 @@
 
 cbuffer RenderConstant : register(b3)
 {
-    float2 Texel;
-    float Samples;
-    float Blur;
-    float3 Padding;
-    float Power;
+	float2 Texel;
+	float Samples;
+	float Blur;
+	float3 Padding;
+	float Power;
 }
 
 Texture2D Image : register(t5);
@@ -24,14 +24,14 @@ VOutput vs_main(VInput V)
 }
 
 float4 ps_main(VOutput V) : SV_TARGET0
-{    
-    float3 B = float3(0, 0, 0);
+{	
+	float3 B = float3(0, 0, 0);
 	[loop] for (int i = 0; i < Samples; i++)
 	{
-        float2 T = V.TexCoord.xy + float2(0, FiboDisk[i].y) * Texel * Blur;
-        B += GetSampleLevel(Image, T, 0).xyz;
+		float2 T = V.TexCoord.xy + float2(0, FiboDisk[i].y) * Texel * Blur;
+		B += GetSampleLevel(Image, T, 0).xyz;
 	}
 
-    float A = GetAntibleed(-V.TexCoord.y);
-    return float4(B * A * Power / Samples, 1.0);
+	float A = GetAntibleed(-V.TexCoord.y);
+	return float4(B * A * Power / Samples, 1.0);
 };

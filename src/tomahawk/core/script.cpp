@@ -1640,7 +1640,7 @@ namespace Tomahawk
 		int VMGlobal::GetPropertyByIndex(int Index, VMProperty* Info) const
 		{
 			TH_ASSERT(Manager != nullptr, -1, "global should be valid");
-			const char* Name = nullptr, *NameSpace = nullptr;
+			const char* Name = nullptr, * NameSpace = nullptr;
 			const char* ConfigGroup = nullptr;
 			void* Pointer = nullptr;
 			bool IsConst = false;
@@ -1938,7 +1938,7 @@ namespace Tomahawk
 					std::string Path = Args[0];
 					if (!Path.empty())
 						Path = Core::OS::Path::ResolveResource(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
-					
+
 					Manager->ImportLibrary(Path);
 				}
 				else if (Name == "define" && Args.size() == 1)
@@ -2333,7 +2333,7 @@ namespace Tomahawk
 				ExecuteResume(Notify[1], State);
 				return true;
 			}
-			
+
 			if (Notify[0])
 			{
 				ExecuteResume(Notify[0], State);
@@ -2927,7 +2927,7 @@ namespace Tomahawk
 			VMCJITCompiler* CJit = (VMCJITCompiler*)JIT;
 			TH_DELETE(VMCJITCompiler, CJit);
 #endif
-            JIT = nullptr;
+			JIT = nullptr;
 			ClearCache();
 		}
 		void VMManager::SetImports(unsigned int Opts)
@@ -3356,7 +3356,7 @@ namespace Tomahawk
 			std::vector<Core::ResourceEntry> Entries;
 			if (!Core::OS::Directory::Scan(Directory, &Entries))
 				return Result;
-			
+
 			Compute::RegexResult fResult;
 			for (auto& Entry : Entries)
 			{
@@ -3665,10 +3665,10 @@ namespace Tomahawk
 			{
 				File = Core::OS::Path::Resolve(Path + ".json", Include.Root);
 				if (!Core::OS::File::IsExists(File.c_str()))
-                {
-                    TH_ERR("%s resource was not found", Path.c_str());
+				{
+					TH_ERR("%s resource was not found", Path.c_str());
 					return nullptr;
-                }
+				}
 			}
 
 			if (!Cached)
@@ -3788,7 +3788,7 @@ namespace Tomahawk
 
 			return Context;
 		}
-		void VMManager::SetMemoryFunctions(void*(*Alloc)(size_t), void(*Free)(void*))
+		void VMManager::SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*))
 		{
 			asSetGlobalMemoryFunctions(Alloc, Free);
 		}
@@ -3841,8 +3841,8 @@ namespace Tomahawk
 			Engine->AddSubmodule("ce/os", { "std/string", "ce/filestate", "ce/resource" }, CERegisterOS);
 			Engine->AddSubmodule("ce/console", { "ce/format" }, CERegisterConsole);
 			Engine->AddSubmodule("ce/timer", { }, CERegisterTimer);
-			Engine->AddSubmodule("ce/filestream", { "std/string"}, CERegisterFileStream);
-			Engine->AddSubmodule("ce/gzstream", { "std/string", "ce/filestream"}, CERegisterGzStream);
+			Engine->AddSubmodule("ce/filestream", { "std/string" }, CERegisterFileStream);
+			Engine->AddSubmodule("ce/gzstream", { "std/string", "ce/filestream" }, CERegisterGzStream);
 			Engine->AddSubmodule("ce/webstream", { "std/string", "ce/filestream" }, CERegisterWebStream);
 			Engine->AddSubmodule("ce/schedule", { "std/string" }, CERegisterSchedule);
 			Engine->AddSubmodule("ce/document", { "std/array", "std/string", "std/map", "ce/variant" }, CERegisterDocument);
@@ -4048,7 +4048,7 @@ namespace Tomahawk
 				{
 					for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
 					{
-						const char* VarName = 0, *NameSpace = 0;
+						const char* VarName = 0, * NameSpace = 0;
 						Mod->GetGlobalVar(n, &VarName, &NameSpace, &TypeId);
 
 						if (Name == VarName && Scope == NameSpace)

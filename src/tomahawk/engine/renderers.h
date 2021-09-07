@@ -380,7 +380,9 @@ namespace Tomahawk
 				Graphics::BlendState* BlendAdditive = nullptr;
 				Graphics::BlendState* BlendOverwrite = nullptr;
 				Graphics::BlendState* BlendOverload = nullptr;
-				Graphics::SamplerState* ShadowSampler = nullptr;
+				Graphics::SamplerState* DepthSampler = nullptr;
+				Graphics::SamplerState* DepthLessSampler = nullptr;
+				Graphics::SamplerState* DepthGreaterSampler = nullptr;
 				Graphics::SamplerState* WrapSampler = nullptr;
 				Graphics::InputLayout* Layout = nullptr;
 				Graphics::Texture2D* SkyBase = nullptr;
@@ -447,7 +449,7 @@ namespace Tomahawk
 			class TH_OUT Transparency final : public Renderer
 			{
 			private:
-				Graphics::MultiRenderTarget2D* Merger = nullptr;
+				Graphics::MultiRenderTarget2D * Merger = nullptr;
 				Graphics::RenderTarget2D* Input = nullptr;
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* Rasterizer = nullptr;
@@ -503,9 +505,9 @@ namespace Tomahawk
 			public:
 				SSR(RenderSystem* Lab);
 				virtual ~SSR() = default;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
-				void RenderEffect(Core::Timer* Time) override;
+				void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void RenderEffect(Core::Timer * Time) override;
 
 			public:
 				TH_COMPONENT("ssr-renderer");
@@ -546,9 +548,9 @@ namespace Tomahawk
 			public:
 				SSAO(RenderSystem* Lab);
 				virtual ~SSAO() = default;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
-				void RenderEffect(Core::Timer* Time) override;
+				void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void RenderEffect(Core::Timer * Time) override;
 
 			public:
 				TH_COMPONENT("ssao-renderer");
@@ -587,9 +589,9 @@ namespace Tomahawk
 			public:
 				DoF(RenderSystem* Lab);
 				virtual ~DoF() = default;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
-				void RenderEffect(Core::Timer* Time) override;
+				void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void RenderEffect(Core::Timer * Time) override;
 				void FocusAtNearestTarget(float DeltaTime);
 
 			public:
@@ -622,9 +624,9 @@ namespace Tomahawk
 			public:
 				MotionBlur(RenderSystem* Lab);
 				virtual ~MotionBlur() = default;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
-				void RenderEffect(Core::Timer* Time) override;
+				void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void RenderEffect(Core::Timer * Time) override;
 
 			public:
 				TH_COMPONENT("motionblur-renderer");
@@ -660,9 +662,9 @@ namespace Tomahawk
 			public:
 				Bloom(RenderSystem* Lab);
 				virtual ~Bloom() = default;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
-				void RenderEffect(Core::Timer* Time) override;
+				void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void RenderEffect(Core::Timer * Time) override;
 
 			public:
 				TH_COMPONENT("bloom-renderer");
@@ -755,9 +757,9 @@ namespace Tomahawk
 			public:
 				Glitch(RenderSystem* Lab);
 				virtual ~Glitch() = default;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
-				void RenderEffect(Core::Timer* Time) override;
+				void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void RenderEffect(Core::Timer * Time) override;
 
 			public:
 				TH_COMPONENT("glitch-renderer");
@@ -767,7 +769,7 @@ namespace Tomahawk
 			{
 			private:
 #ifdef TH_WITH_RMLUI
-				GUI::Context* Context;
+				GUI::Context * Context;
 #endif
 				Graphics::Activity* Activity;
 

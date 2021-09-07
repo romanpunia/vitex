@@ -290,7 +290,7 @@ namespace Tomahawk
 		}
 		void AudioContext::SetListenerData3I(SoundEx Listener, int F1, int F2, int F3)
 		{
-			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
 			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListener3i((uint32_t)Listener, F1, F2, F3);
@@ -299,7 +299,7 @@ namespace Tomahawk
 		}
 		void AudioContext::GetListenerData3I(SoundEx Listener, int* F1, int* F2, int* F3)
 		{
-			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
 			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListener3i((uint32_t)Listener, F1, F2, F3);
@@ -308,7 +308,7 @@ namespace Tomahawk
 		}
 		void AudioContext::SetListenerDataVI(SoundEx Listener, int* FS)
 		{
-			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
 			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alListeneriv((uint32_t)Listener, FS);
@@ -335,7 +335,7 @@ namespace Tomahawk
 		}
 		void AudioContext::GetListenerData1I(SoundEx Listener, int* F1)
 		{
-			TH_ASSERT_V(Mutex != nullptr, "context should be initialized"); 
+			TH_ASSERT_V(Mutex != nullptr, "context should be initialized");
 			Mutex->lock();
 #ifdef TH_HAS_OPENAL
 			alGetListeneri((uint32_t)Listener, F1);
@@ -469,7 +469,7 @@ namespace Tomahawk
 		{
 			return Source;
 		}
-		
+
 		AudioClip::AudioClip(int BufferCount, int NewFormat) : Format(NewFormat)
 		{
 			if (BufferCount > 0)
@@ -582,7 +582,7 @@ namespace Tomahawk
 					continue;
 
 				Effect->Unbind();
-				Effect->Bind(this, (int)i);	
+				Effect->Bind(this, (int)i);
 			}
 
 			return true;

@@ -361,7 +361,7 @@ namespace Tomahawk
 		typedef asIScriptGeneric VMCGeneric;
 		typedef asIScriptObject VMCObject;
 		typedef asILockableSharedBool VMCLockableSharedBool;
-		typedef void(VMDummy::*VMMethodPtr)();
+		typedef void(VMDummy::* VMMethodPtr)();
 		typedef void(*VMObjectFunction)();
 		typedef std::function<void(struct VMTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
 		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
@@ -369,81 +369,81 @@ namespace Tomahawk
 		typedef std::function<void(class VMContext*)> ArgsCallback;
 		typedef std::function<void(class VMContext*, VMPoll)> ResumeCallback;
 
-        class TH_OUT VMFuncStore
-        {
-        public:
-            static asSFuncPtr* CreateFunctionBase(void(*Base)(), int Type);
-            static asSFuncPtr* CreateMethodBase(const void *Base, size_t Size, int Type);
-            static asSFuncPtr* CreateDummyBase();
-            static void ReleaseFunctor(asSFuncPtr **Ptr);
-            static int AtomicNotifyGC(const char* TypeName, void* Object);
-        };
-        
-        template <int N>
-        struct TH_OUT VMFuncCall
-        {
-            template <class M>
-            static asSFuncPtr* Bind(M Value)
-            {
-                return VMFuncStore::CreateDummyBase();
-            }
-        };
+		class TH_OUT VMFuncStore
+		{
+		public:
+			static asSFuncPtr* CreateFunctionBase(void(*Base)(), int Type);
+			static asSFuncPtr* CreateMethodBase(const void* Base, size_t Size, int Type);
+			static asSFuncPtr* CreateDummyBase();
+			static void ReleaseFunctor(asSFuncPtr** Ptr);
+			static int AtomicNotifyGC(const char* TypeName, void* Object);
+		};
 
-        template <>
-        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr)>
-        {
-            template <class M>
-            static asSFuncPtr* Bind(M Value)
-            {
-                return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr), 3);
-            }
-        };
+		template <int N>
+		struct TH_OUT VMFuncCall
+		{
+			template <class M>
+			static asSFuncPtr* Bind(M Value)
+			{
+				return VMFuncStore::CreateDummyBase();
+			}
+		};
+
+		template <>
+		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr)>
+		{
+			template <class M>
+			static asSFuncPtr* Bind(M Value)
+			{
+				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr), 3);
+			}
+		};
 #if defined(_MSC_VER) && !defined(__MWERKS__)
-        template <>
-        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
-        {
-            template <class M>
-            static asSFuncPtr* Bind(M Value)
-            {
-                return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + sizeof(int), 3);
-            }
-        };
+		template <>
+		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
+		{
+			template <class M>
+			static asSFuncPtr* Bind(M Value)
+			{
+				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + sizeof(int), 3);
+			}
+		};
 
-        template <>
-        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
-        {
-            template <class M>
-            static asSFuncPtr* Bind(M Value)
-            {
-                asSFuncPtr* Ptr = VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 2 * sizeof(int), 3);
+		template <>
+		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
+		{
+			template <class M>
+			static asSFuncPtr* Bind(M Value)
+			{
+				asSFuncPtr* Ptr = VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 2 * sizeof(int), 3);
 #if defined(_MSC_VER) && !defined(TH_64)
-                *(reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
+				* (reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
 #endif
-                return Ptr;
-            }
-        };
+				return Ptr;
+			}
+		};
 
-        template <>
-        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
-        {
-            template <class M>
-            static asSFuncPtr* Bind(M Value)
-            {
-                return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 3 * sizeof(int), 3);
-            }
-        };
+		template <>
+		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
+		{
+			template <class M>
+			static asSFuncPtr* Bind(M Value)
+			{
+				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 3 * sizeof(int), 3);
+			}
+		};
 
-        template <>
-        struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
-        {
-            template <class M>
-            static asSFuncPtr* Bind(M Value)
-            {
-                return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 4 * sizeof(int), 3);
-            }
-        };
+		template <>
+		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
+		{
+			template <class M>
+			static asSFuncPtr* Bind(M Value)
+			{
+				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 4 * sizeof(int), 3);
+			}
+		};
 #endif
-        class TH_OUT VMGeneric
+		class TH_OUT VMGeneric
 		{
 		private:
 			VMManager* Manager;
@@ -500,7 +500,7 @@ namespace Tomahawk
 #ifdef TH_64
 				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
 #else
-				void (* Address)() = reinterpret_cast<void (*)()>(Value);
+				void (*Address)() = reinterpret_cast<void (*)()>(Value);
 #endif
 				return VMFuncStore::CreateFunctionBase(Address, 2);
 			}
@@ -515,22 +515,22 @@ namespace Tomahawk
 				return VMFuncStore::CreateFunctionBase(Address, 1);
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* Method(R(T::*Value)(Args...))
+			static asSFuncPtr* Method(R(T::* Value)(Args...))
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* Method(R(T::*Value)(Args...) const)
+			static asSFuncPtr* Method(R(T::* Value)(Args...) const)
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* MethodOp(R(T::*Value)(Args...))
+			static asSFuncPtr* MethodOp(R(T::* Value)(Args...))
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* MethodOp(R(T::*Value)(Args...) const)
+			static asSFuncPtr* MethodOp(R(T::* Value)(Args...) const)
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
@@ -564,7 +564,7 @@ namespace Tomahawk
 				VMGeneric Args(Generic);
 				T* Result = new T((unsigned char*)Args.GetArgAddress(0));
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = Result;
-                VMFuncStore::AtomicNotifyGC(TypeName, (void*)Result);
+				VMFuncStore::AtomicNotifyGC(TypeName, (void*)Result);
 			}
 			template <typename T, typename... Args>
 			static T* GetUnmanagedCall(Args... Data)
@@ -577,16 +577,16 @@ namespace Tomahawk
 				VMGeneric Args(Generic);
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
 			}
-            template <typename T>
-            static size_t GetTypeTraits()
-            {
+			template <typename T>
+			static size_t GetTypeTraits()
+			{
 #if defined(_MSC_VER) || defined(_LIBCPP_TYPE_TRAITS) || (__GNUC__ >= 5) || defined(__clang__)
-                bool HasConstructor = std::is_default_constructible<T>::value && !std::is_trivially_default_constructible<T>::value;
-                bool HasDestructor = std::is_destructible<T>::value && !std::is_trivially_destructible<T>::value;
-                bool HasAssignmentOperator = std::is_copy_assignable<T>::value && !std::is_trivially_copy_assignable<T>::value;
-                bool HasCopyConstructor = std::is_copy_constructible<T>::value && !std::is_trivially_copy_constructible<T>::value;
+				bool HasConstructor = std::is_default_constructible<T>::value && !std::is_trivially_default_constructible<T>::value;
+				bool HasDestructor = std::is_destructible<T>::value && !std::is_trivially_destructible<T>::value;
+				bool HasAssignmentOperator = std::is_copy_assignable<T>::value && !std::is_trivially_copy_assignable<T>::value;
+				bool HasCopyConstructor = std::is_copy_constructible<T>::value && !std::is_trivially_copy_constructible<T>::value;
 #elif defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8))
-                bool HasConstructor = std::is_default_constructible<T>::value && !std::has_trivial_default_constructor<T>::value;
+				bool HasConstructor = std::is_default_constructible<T>::value && !std::has_trivial_default_constructor<T>::value;
 				bool HasDestructor = std::is_destructible<T>::value && !std::is_trivially_destructible<T>::value;
 				bool HasAssignmentOperator = std::is_copy_assignable<T>::value && !std::has_trivial_copy_assign<T>::value;
 				bool HasCopyConstructor = std::is_copy_constructible<T>::value && !std::has_trivial_copy_constructor<T>::value;
@@ -596,40 +596,40 @@ namespace Tomahawk
 				bool HasAssignmentOperator = std::is_copy_assignable<T>::value && !std::has_trivial_copy_assign<T>::value;
 				bool HasCopyConstructor = std::is_copy_constructible<T>::value && !std::has_trivial_copy_constructor<T>::value;
 #endif
-                bool IsFloat = std::is_floating_point<T>::value;
-                bool IsPrimitive = std::is_integral<T>::value || std::is_pointer<T>::value || std::is_enum<T>::value;
-                bool IsClass = std::is_class<T>::value;
-                bool IsArray = std::is_array<T>::value;
+				bool IsFloat = std::is_floating_point<T>::value;
+				bool IsPrimitive = std::is_integral<T>::value || std::is_pointer<T>::value || std::is_enum<T>::value;
+				bool IsClass = std::is_class<T>::value;
+				bool IsArray = std::is_array<T>::value;
 
-                if (IsFloat)
-                    return (size_t)VMObjType::APP_FLOAT;
+				if (IsFloat)
+					return (size_t)VMObjType::APP_FLOAT;
 
-                if (IsPrimitive)
-                    return (size_t)VMObjType::APP_PRIMITIVE;
+				if (IsPrimitive)
+					return (size_t)VMObjType::APP_PRIMITIVE;
 
-                if (IsClass)
-                {
-                    size_t Flags = (size_t)VMObjType::APP_CLASS;
-                    if (HasConstructor)
-                        Flags |= (size_t)VMObjType::APP_CLASS_CONSTRUCTOR;
+				if (IsClass)
+				{
+					size_t Flags = (size_t)VMObjType::APP_CLASS;
+					if (HasConstructor)
+						Flags |= (size_t)VMObjType::APP_CLASS_CONSTRUCTOR;
 
-                    if (HasDestructor)
-                        Flags |= (size_t)VMObjType::APP_CLASS_DESTRUCTOR;
+					if (HasDestructor)
+						Flags |= (size_t)VMObjType::APP_CLASS_DESTRUCTOR;
 
-                    if (HasAssignmentOperator)
-                        Flags |= (size_t)VMObjType::APP_CLASS_ASSIGNMENT;
+					if (HasAssignmentOperator)
+						Flags |= (size_t)VMObjType::APP_CLASS_ASSIGNMENT;
 
-                    if (HasCopyConstructor)
-                        Flags |= (size_t)VMObjType::APP_CLASS_COPY_CONSTRUCTOR;
+					if (HasCopyConstructor)
+						Flags |= (size_t)VMObjType::APP_CLASS_COPY_CONSTRUCTOR;
 
-                    return Flags;
-                }
+					return Flags;
+				}
 
-                if (IsArray)
-                    return (size_t)VMObjType::APP_ARRAY;
+				if (IsArray)
+					return (size_t)VMObjType::APP_ARRAY;
 
-                return 0;
-            }
+				return 0;
+			}
 		};
 
 		struct TH_OUT VMByteCode
@@ -878,25 +878,25 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			int SetEnumRefs(void(T::*Value)(VMCManager*))
+			int SetEnumRefs(void(T::* Value)(VMCManager*))
 			{
 				asSFuncPtr* EnumRefs = VMBridge::Method<T>(Value);
 				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::ENUMREFS, EnumRefs, VMCall::THISCALL);
-                VMFuncStore::ReleaseFunctor(&EnumRefs);
+				VMFuncStore::ReleaseFunctor(&EnumRefs);
 
 				return Result;
 			}
 			template <typename T>
-			int SetReleaseRefs(void(T::*Value)(VMCManager*))
+			int SetReleaseRefs(void(T::* Value)(VMCManager*))
 			{
 				asSFuncPtr* ReleaseRefs = VMBridge::Method<T>(Value);
 				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::RELEASEREFS, ReleaseRefs, VMCall::THISCALL);
-                VMFuncStore::ReleaseFunctor(&ReleaseRefs);
+				VMFuncStore::ReleaseFunctor(&ReleaseRefs);
 
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetProperty(const char* Decl, R T::*Value)
+			int SetProperty(const char* Decl, R T::* Value)
 			{
 				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				return SetPropertyAddress(Decl, reinterpret_cast<std::size_t>(&(((T*)0)->*Value)));
@@ -908,14 +908,14 @@ namespace Tomahawk
 				return SetPropertyStaticAddress(Decl, (void*)Value);
 			}
 			template <typename T, typename R>
-			int SetGetter(const char* Type, const char* Name, R(T::*Value)())
+			int SetGetter(const char* Type, const char* Name, R(T::* Value)())
 			{
 				TH_ASSERT(Type != nullptr, -1, "type should be set");
 				TH_ASSERT(Name != nullptr, -1, "name should be set");
 
 				asSFuncPtr* Ptr = VMBridge::Method<T, R>(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::THISCALL);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -927,19 +927,19 @@ namespace Tomahawk
 
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetSetter(const char* Type, const char* Name, void(T::*Value)(R))
+			int SetSetter(const char* Type, const char* Name, void(T::* Value)(R))
 			{
 				TH_ASSERT(Type != nullptr, -1, "type should be set");
 				TH_ASSERT(Name != nullptr, -1, "name should be set");
 
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, R>(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -951,19 +951,19 @@ namespace Tomahawk
 
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetArrayGetter(const char* Type, const char* Name, R(T::*Value)(unsigned int))
+			int SetArrayGetter(const char* Type, const char* Name, R(T::* Value)(unsigned int))
 			{
 				TH_ASSERT(Type != nullptr, -1, "type should be set");
 				TH_ASSERT(Name != nullptr, -1, "name should be set");
 
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, unsigned int>(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::THISCALL);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -975,19 +975,19 @@ namespace Tomahawk
 
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename T, typename R>
-			int SetArraySetter(const char* Type, const char* Name, void(T::*Value)(unsigned int, R))
+			int SetArraySetter(const char* Type, const char* Name, void(T::* Value)(unsigned int, R))
 			{
 				TH_ASSERT(Type != nullptr, -1, "type should be set");
 				TH_ASSERT(Name != nullptr, -1, "name should be set");
 
 				asSFuncPtr* Ptr = VMBridge::Method<T, void, unsigned int, R>(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -999,12 +999,12 @@ namespace Tomahawk
 
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename T, typename R, typename... A>
-			int SetOperator(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(T::*Value)(A...))
+			int SetOperator(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
 			{
 				TH_ASSERT(Out != nullptr, -1, "output should be set");
 				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
@@ -1012,7 +1012,7 @@ namespace Tomahawk
 				TH_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, A...>(Value);
 				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::THISCALL);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1021,11 +1021,11 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Out != nullptr, -1, "output should be set");
 				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
-				
+
 				TH_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
 				asSFuncPtr* Ptr = VMBridge::Function(Value);
 				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::CDECL_OBJFIRST);
-                VMFuncStore::ReleaseFunctor(&Ptr);
+				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1039,7 +1039,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T, typename R, typename... Args>
-			int SetMethod(const char* Decl, R(T::*Value)(Args...))
+			int SetMethod(const char* Decl, R(T::* Value)(Args...))
 			{
 				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
@@ -1049,7 +1049,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T, typename R, typename... Args>
-			int SetMethod(const char* Decl, R(T::*Value)(Args...) const)
+			int SetMethod(const char* Decl, R(T::* Value)(Args...) const)
 			{
 				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
@@ -1059,7 +1059,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetMethodEx(const char* Decl, R(* Value)(Args...))
+			int SetMethodEx(const char* Decl, R(*Value)(Args...))
 			{
 				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function<R(*)(Args...)>(Value);
@@ -1204,7 +1204,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T>
-			int SetManaged(void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
+			int SetManaged(void(T::* EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
 			{
 				int R = SetAddRef<T>();
 				if (R < 0)
@@ -1494,7 +1494,7 @@ namespace Tomahawk
 				return Result;
 			}
 			template <void(*)(VMCGeneric*)>
-			int SetFunction(const char* Decl, void(* Value)(VMCGeneric*))
+			int SetFunction(const char* Decl, void(*Value)(VMCGeneric*))
 			{
 				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Ptr = VMBridge::Function<void (*)(VMCGeneric*)>(Value);
@@ -1510,7 +1510,7 @@ namespace Tomahawk
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
-			VMRefClass SetClassManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::*ReleaseRefs)(VMCManager*))
+			VMRefClass SetClassManaged(const char* Name, void(T::* EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
 			{
 				TH_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
 				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF | (size_t)VMObjType::GC);
@@ -1528,7 +1528,7 @@ namespace Tomahawk
 				return Class;
 			}
 			template <typename T>
-			VMTypeClass SetStructManaged(const char* Name, void(T::*EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
+			VMTypeClass SetStructManaged(const char* Name, void(T::* EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
 			{
 				TH_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
 				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | (size_t)VMObjType::GC | VMBridge::GetTypeTraits<T>());
@@ -1631,7 +1631,7 @@ namespace Tomahawk
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
-			int SetOnException(void(* Callback)(VMCContext* Context, void* Object), void* Object);
+			int SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			int SetOnResume(const ResumeCallback& OnResume);
 			int Prepare(const VMFunction& Function);
 			int Unprepare();
@@ -1675,7 +1675,7 @@ namespace Tomahawk
 			const char* GetExceptionString();
 			bool WillExceptionBeCaught();
 			void ClearExceptionCallback();
-			int SetLineCallback(void(* Callback)(VMCContext* Context, void* Object), void* Object);
+			int SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			void ClearLineCallback();
 			unsigned int GetCallstackSize() const;
 			VMFunction GetFunction(unsigned int StackLevel = 0);
@@ -1810,7 +1810,7 @@ namespace Tomahawk
 			const char* GetNamespace() const;
 			VMGlobal& Global();
 			VMModule Module(const char* Name);
-			int SetLogCallback(void(* Callback)(const asSMessageInfo* Message, void* Object), void* Object);
+			int SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
 			int Log(const char* Section, int Row, int Column, VMLogType Type, const char* Message);
 			int SetProperty(VMProp Property, size_t Value);
 			void SetDocumentRoot(const std::string& Root);
@@ -1829,7 +1829,7 @@ namespace Tomahawk
 			Core::Document* ImportJSON(const std::string& Path);
 
 		public:
-			static void SetMemoryFunctions(void*(*Alloc)(size_t), void(*Free)(void*));
+			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
 			static VMManager* Get(VMCManager* Engine);
 			static VMManager* Get();
 			static size_t GetDefaultAccessMask();
@@ -1847,7 +1847,7 @@ namespace Tomahawk
 		class TH_OUT VMDebugger : public Core::Object
 		{
 		public:
-			typedef std::string(* ToStringCallback)(void* Object, int ExpandLevel, VMDebugger* Dbg);
+			typedef std::string(*ToStringCallback)(void* Object, int ExpandLevel, VMDebugger* Dbg);
 
 		protected:
 			enum class DebugAction

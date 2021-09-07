@@ -57,7 +57,7 @@ namespace Tomahawk
 				if (Item->Value.IsObject())
 					DataModelSetRecursive(&Child, Item, Depth + 1);
 			}
-			
+
 			Node->SortTree();
 			return true;
 		}

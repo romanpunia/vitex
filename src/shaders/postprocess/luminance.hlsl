@@ -5,17 +5,17 @@
 
 cbuffer RenderConstant : register(b3)
 {
-    float2 Texel;
-    float Mips;
-    float Time;
+	float2 Texel;
+	float Mips;
+	float Time;
 }
 
 Texture2D LUT : register(t6);
 
 float GetAvg(float2 TexCoord)
 {
-    float3 Color = GetDiffuseSample(TexCoord).xyz;
-    return (Color.x + Color.y + Color.z) / 3.0;
+	float3 Color = GetDiffuseSample(TexCoord).xyz;
+	return (Color.x + Color.y + Color.z) / 3.0;
 }
 
 VOutput vs_main(VInput V)
@@ -29,10 +29,10 @@ VOutput vs_main(VInput V)
 
 float ps_main(VOutput V) : SV_TARGET0
 {
-    float Result = 0.0;
-    [unroll] for (float i = 0; i < 16.0; i++)
-        Result += GetAvg(V.TexCoord.xy + FiboDisk[i] * Texel);
-    
-    float Subresult = GetSample(LUT, V.TexCoord.xy).r;
-    return Subresult + (Result / 4.0 - Subresult) * (1.0 - exp(-Time));
+	float Result = 0.0;
+	[unroll] for (float i = 0; i < 16.0; i++)
+		Result += GetAvg(V.TexCoord.xy + FiboDisk[i] * Texel);
+	
+	float Subresult = GetSample(LUT, V.TexCoord.xy).r;
+	return Subresult + (Result / 4.0 - Subresult) * (1.0 - exp(-Time));
 };

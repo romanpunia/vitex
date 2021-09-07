@@ -922,7 +922,7 @@ namespace Tomahawk
 				Engine::NMake::Pack(Node->Find("mid2-gain"), Mid2Gain);
 				Engine::NMake::Pack(Node->Find("mid2-center"), Mid2Center);
 				Engine::NMake::Pack(Node->Find("mid2-width"), Mid2Width);
-				Engine::NMake::Pack(Node->Find("high-gain"),HighGain);
+				Engine::NMake::Pack(Node->Find("high-gain"), HighGain);
 				Engine::NMake::Pack(Node->Find("high-cut-off"), HighCutOff);
 			}
 			AudioEffect* Equalizer::Copy()

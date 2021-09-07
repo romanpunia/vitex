@@ -759,7 +759,7 @@ namespace Tomahawk
 			class TH_OUT Client final : public SocketClient
 			{
 			private:
-				WebSocketFrame* WebSocket;
+				WebSocketFrame * WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
 				Core::Async<bool> Future;

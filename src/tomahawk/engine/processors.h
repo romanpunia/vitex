@@ -70,7 +70,7 @@ namespace Tomahawk
 			class TH_OUT Asset final : public Processor
 			{
 			public:
-				Asset(ContentManager* Manager);
+				Asset(ContentManager * Manager);
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 			};
 
@@ -87,7 +87,7 @@ namespace Tomahawk
 			class TH_OUT SceneGraph final : public Processor
 			{
 			public:
-				SceneGraph(ContentManager* Manager);
+				SceneGraph(ContentManager * Manager);
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
@@ -95,7 +95,7 @@ namespace Tomahawk
 			class TH_OUT AudioClip final : public Processor
 			{
 			public:
-				AudioClip(ContentManager* Manager);
+				AudioClip(ContentManager * Manager);
 				virtual ~AudioClip() override;
 				void Free(AssetCache* Asset) override;
 				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
@@ -107,7 +107,7 @@ namespace Tomahawk
 			class TH_OUT Texture2D final : public Processor
 			{
 			public:
-				Texture2D(ContentManager* Manager);
+				Texture2D(ContentManager * Manager);
 				virtual ~Texture2D() override;
 				void Free(AssetCache* Asset) override;
 				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
@@ -117,7 +117,7 @@ namespace Tomahawk
 			class TH_OUT Shader final : public Processor
 			{
 			public:
-				Shader(ContentManager* Manager);
+				Shader(ContentManager * Manager);
 				virtual ~Shader() override;
 				void Free(AssetCache* Asset) override;
 				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
@@ -170,7 +170,7 @@ namespace Tomahawk
 			class TH_OUT Document final : public Processor
 			{
 			public:
-				Document(ContentManager* Manager);
+				Document(ContentManager * Manager);
 				void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
@@ -188,7 +188,7 @@ namespace Tomahawk
 			class TH_OUT HullShape final : public Processor
 			{
 			public:
-				HullShape(ContentManager* Manager);
+				HullShape(ContentManager * Manager);
 				virtual ~HullShape() override;
 				void Free(AssetCache* Asset) override;
 				void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;

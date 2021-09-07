@@ -55,7 +55,7 @@ namespace Tomahawk
 			class TH_OUT Client final : public SocketClient
 			{
 			private:
-				FILE* AttachmentFile;
+				FILE * AttachmentFile;
 				std::string Buffer;
 				std::string Command;
 				std::string Boundary;

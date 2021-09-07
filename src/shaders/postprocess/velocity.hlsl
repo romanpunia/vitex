@@ -5,7 +5,7 @@
 
 cbuffer RenderConstant : register(b3)
 {
-    matrix LastViewProjection;
+	matrix LastViewProjection;
 }
 
 VOutput vs_main(VInput V)
@@ -20,9 +20,9 @@ VOutput vs_main(VInput V)
 float4 ps_main(VOutput V) : SV_TARGET0
 {
 	float2 TexCoord = GetTexCoord(V.TexCoord);
-    float3 Origin = GetPosition(TexCoord, GetDepth(TexCoord));
-    float4 Offset = mul(float4(Origin, 1.0), LastViewProjection);
-    float2 Delta = (V.TexCoord.xy - Offset.xy / Offset.w) / 2.0;
+	float3 Origin = GetPosition(TexCoord, GetDepth(TexCoord));
+	float4 Offset = mul(float4(Origin, 1.0), LastViewProjection);
+	float2 Delta = (V.TexCoord.xy - Offset.xy / Offset.w) / 2.0;
 
-    return float4(Delta, 0.0, 1.0);
+	return float4(Delta, 0.0, 1.0);
 };

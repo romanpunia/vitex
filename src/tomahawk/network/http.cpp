@@ -3265,7 +3265,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Op != nullptr, false, "op should be set");
 				TH_ASSERT(Message != nullptr, false, "message should be set");
-				
+
 				if (Queue.empty())
 					return false;
 
@@ -5234,7 +5234,7 @@ namespace Tomahawk
 
 							if (Base->Route->Gateway.ReportErrors)
 							{
-								const char* Exception, *Function; int Line, Column;
+								const char* Exception, * Function; int Line, Column;
 								if (Gateway->GetException(&Exception, &Function, &Line, &Column))
 									Base->Info.Message = Core::Form("Thrown from %s() at %i,%i: %s.", Line, Column, Function ? Function : "anonymous", Exception ? Exception : "empty exception").R();
 							}
@@ -5312,7 +5312,7 @@ namespace Tomahawk
 
 					if (State < 0)
 						return (void)Base->Break();
-					
+
 					Base->WebSocket = TH_NEW(WebSocketFrame, Socket);
 					Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
 					Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
@@ -5340,7 +5340,7 @@ namespace Tomahawk
 						ProcessGateway(Base);
 				});
 			}
-	
+
 			Server::Server() : SocketServer()
 			{
 			}

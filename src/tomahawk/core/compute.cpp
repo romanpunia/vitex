@@ -32,6 +32,7 @@ extern "C"
 #define REGEX_FAIL_IN(A, B) if (A) { State = B; return; }
 #define MAKE_ADJ_TRI(x) ((x) & 0x3fffffff)
 #define IS_BOUNDARY(x) ((x) == 0xff)
+#define RH_TO_LH (Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1))
 
 namespace
 {
@@ -709,9 +710,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, At); _r1 = _r2 - _r1;
-			return atan2f(_r1.extract(0), _r1.extract(2));
+			return atan2f(_r1.extract(0), -_r1.extract(2));
 #else
-			return atan2f(At.X - X, At.Y - Y);
+			return atan2f(At.X - X, Z - At.Z);
 #endif
 		}
 		Vector3 Vector3::Cross(const Vector3& B) const
@@ -1118,7 +1119,7 @@ namespace Tomahawk
 				return X;
 			else if (Axis == 1)
 				return Y;
-			
+
 			return Z;
 		}
 		float Vector3::operator [](uint32_t Axis) const
@@ -1644,7 +1645,7 @@ namespace Tomahawk
 				return Y;
 			else if (Axis == 2)
 				return Z;
-			
+
 			return W;
 		}
 		float Vector4::operator [](uint32_t Axis) const
@@ -1666,6 +1667,53 @@ namespace Tomahawk
 		Vector4 Vector4::RandomAbs()
 		{
 			return Vector4(Mathf::Random(), Mathf::Random(), Mathf::Random(), Mathf::Random());
+		}
+
+		Frustum::Frustum()
+		{
+			Common::CreateFrustum(Corners, 90.0f, 1.0f, 0.1f, 1.0f);
+		}
+		Frustum::Frustum(float FieldOfView, float Aspect, float NearZ, float FarZ)
+		{
+			Common::CreateFrustumRad(Corners, FieldOfView, Aspect, NearZ, FarZ);
+		}
+		void Frustum::Transform(const Matrix4x4& Value)
+		{
+			for (uint32_t i = 0; i < 8; i++)
+			{
+				Vector4& Corner = Corners[i];
+				Corner = Corner * Value;
+			}
+		}
+		void Frustum::GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z)
+		{
+			TH_ASSERT_V(X || Y || Z, "at least one vector of x, y, z should be set");
+			float MinX = std::numeric_limits<float>::max();
+			float MaxX = std::numeric_limits<float>::min();
+			float MinY = std::numeric_limits<float>::max();
+			float MaxY = std::numeric_limits<float>::min();
+			float MinZ = std::numeric_limits<float>::max();
+			float MaxZ = std::numeric_limits<float>::min();
+
+			for (uint32_t i = 0; i < 8; i++)
+			{
+				Vector4& Corner = Corners[i];
+				MinX = std::min(MinX, Corner.X);
+				MaxX = std::max(MaxX, Corner.X);
+				MinY = std::min(MinY, Corner.Y);
+				MaxY = std::max(MaxY, Corner.Y);
+				MinZ = std::min(MinZ, Corner.Z);
+				MaxZ = std::max(MaxZ, Corner.Z);
+			}
+
+			if (X != nullptr)
+				*X = Vector2(MinX, MaxX);
+
+			if (Y != nullptr)
+				*Y = Vector2(MinY, MaxY);
+
+			if (Z != nullptr)
+				*Z = Vector2(MinZ, MaxZ);
 		}
 
 		Ray::Ray() : Direction(0, 0, 1)
@@ -1974,17 +2022,26 @@ namespace Tomahawk
 		{
 			return Vector4(Row[12], Row[13], Row[14], Row[15]);
 		}
-		Vector3 Matrix4x4::Up() const
+		Vector3 Matrix4x4::Up(bool ViewSpace) const
 		{
-			return Vector3(Row[4], Row[5], Row[6]);
+			if (ViewSpace)
+				return Vector3(Row[4], Row[5], -Row[6]);
+			else
+				return Vector3(Row[4], Row[5], Row[6]);
 		}
-		Vector3 Matrix4x4::Right() const
+		Vector3 Matrix4x4::Right(bool ViewSpace) const
 		{
-			return Vector3(Row[0], Row[1], Row[2]);
+			if (ViewSpace)
+				return Vector3(Row[0], -Row[1], -Row[2]);
+			else
+				return Vector3(Row[0], Row[1], Row[2]);
 		}
-		Vector3 Matrix4x4::Forward() const
+		Vector3 Matrix4x4::Forward(bool ViewSpace) const
 		{
-			return Vector3(Row[8], Row[9], Row[10]);
+			if (ViewSpace)
+				return Vector3(Row[8], Row[9], -Row[10]);
+			else
+				return Vector3(Row[8], Row[9], Row[10]);
 		}
 		Matrix4x4 Matrix4x4::Inv() const
 		{
@@ -2110,7 +2167,7 @@ namespace Tomahawk
 		}
 		Vector3 Matrix4x4::Position() const
 		{
-			return Vector3(Row[12], Row[13], -Row[14]);
+			return Vector3(Row[12], Row[13], Row[14]);
 		}
 		Vector3 Matrix4x4::Scale() const
 		{
@@ -2267,7 +2324,7 @@ namespace Tomahawk
 			Matrix4x4 Value;
 			Value.Row[12] = Position.X;
 			Value.Row[13] = Position.Y;
-			Value.Row[14] = -Position.Z;
+			Value.Row[14] = Position.Z;
 			Value.Row[0] = Scale.X;
 			Value.Row[5] = Scale.Y;
 			Value.Row[10] = Scale.Z;
@@ -2314,10 +2371,6 @@ namespace Tomahawk
 		{
 			return Matrix4x4::CreateRotationX(Rotation.X) * Matrix4x4::CreateRotationY(Rotation.Y) * Matrix4x4::CreateRotationZ(Rotation.Z);
 		}
-		Matrix4x4 Matrix4x4::CreateCameraRotation(const Vector3& Rotation)
-		{
-			return Matrix4x4::CreateRotationZ(Rotation.Z) * Matrix4x4::CreateRotationY(Rotation.Y) * Matrix4x4::CreateRotationX(Rotation.X);
-		}
 		Matrix4x4 Matrix4x4::CreateScale(const Vector3& Scale)
 		{
 			Matrix4x4 Result;
@@ -2332,83 +2385,73 @@ namespace Tomahawk
 			Matrix4x4 Result;
 			Result.Row[12] = Position.X;
 			Result.Row[13] = Position.Y;
-			Result.Row[14] = -Position.Z;
+			Result.Row[14] = Position.Z;
 
 			return Result;
 		}
-		Matrix4x4 Matrix4x4::CreatePerspectiveRad(float FieldOfView, float AspectRatio, float NearClip, float FarClip)
+		Matrix4x4 Matrix4x4::CreatePerspectiveRad(float FieldOfView, float AspectRatio, float NearZ, float FarZ)
 		{
-			float Y = Mathf::Cotan(FieldOfView / 2.0f);
-			float X = Y / AspectRatio;
+			float Height = 1.0f / tan(0.5f * FieldOfView);
+			float Width = Height / AspectRatio;
+			float Depth = 1.0f / (FarZ - NearZ);
 
 			return Matrix4x4(
-				Vector4(X, 0, 0, 0),
-				Vector4(0, Y, 0, 0),
-				Vector4(0, 0, FarClip / (FarClip - NearClip), 1),
-				Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
+				Vector4(Width, 0, 0, 0),
+				Vector4(0, Height, 0, 0),
+				Vector4(0, 0, FarZ * Depth, 1),
+				Vector4(0, 0, -NearZ * FarZ * Depth, 0));
 		}
-		Matrix4x4 Matrix4x4::CreatePerspective(float FieldOfView, float AspectRatio, float NearClip, float FarClip)
+		Matrix4x4 Matrix4x4::CreatePerspective(float FieldOfView, float AspectRatio, float NearZ, float FarZ)
 		{
-			float Y = Mathf::Cotan(Mathf::Deg2Rad() * FieldOfView / 2.0f);
-			float X = Y / AspectRatio;
+			return CreatePerspectiveRad(Mathf::Deg2Rad() * FieldOfView, AspectRatio, NearZ, FarZ);
+		}
+		Matrix4x4 Matrix4x4::CreateOrthographic(float Width, float Height, float NearZ, float FarZ)
+		{
+			if (TH_LEFT_HANDED)
+			{
+				float Depth = 1.0f / (FarZ - NearZ);
+				return Matrix4x4(
+					Vector4(2 / Width, 0, 0, 0),
+					Vector4(0, 2 / Height, 0, 0),
+					Vector4(0, 0, Depth, 0),
+					Vector4(0, 0, -Depth * NearZ, 1));
+			}
+			else
+			{
+				float Depth = 1.0f / (NearZ - FarZ);
+				return Matrix4x4(
+					Vector4(2 / Width, 0, 0, 0),
+					Vector4(0, 2 / Height, 0, 0),
+					Vector4(0, 0, Depth, 0),
+					Vector4(0, 0, Depth * NearZ, 1));
+			}
+		}
+		Matrix4x4 Matrix4x4::CreateOrthographicOffCenter(float Left, float Right, float Bottom, float Top, float NearZ, float FarZ)
+		{
+			float Width = 1.0f / (Right - Left);
+			float Height = 1.0f / (Top - Bottom);
+			float Depth = 1.0f / (FarZ - NearZ);
 
 			return Matrix4x4(
-				Vector4(X, 0, 0, 0),
-				Vector4(0, Y, 0, 0),
-				Vector4(0, 0, FarClip / (FarClip - NearClip), 1),
-				Vector4(0, 0, -NearClip * FarClip / (FarClip - NearClip), 0));
-		}
-		Matrix4x4 Matrix4x4::CreateOrthographic(float Width, float Height, float NearClip, float FarClip)
-		{
-			return Matrix4x4(
-				Vector4(2 / Width, 0, 0, 0),
-				Vector4(0, 2 / Height, 0, 0),
-				Vector4(0, 0, 1 / (FarClip - NearClip), 0),
-				Vector4(0, 0, NearClip / (NearClip - FarClip), 1));
-		}
-		Matrix4x4 Matrix4x4::CreateOrthographicBox(float Width, float Height, float NearClip, float FarClip)
-		{
-			return CreateOrthographicBox(0.0f, Width, Height, 0.0f, NearClip, FarClip);
-		}
-		Matrix4x4 Matrix4x4::CreateOrthographicBox(float Left, float Right, float Bottom, float Top, float Near, float Far)
-		{
-			return Matrix4x4(
-				Vector4(2 / (Right - Left), 0, 0, 0),
-				Vector4(0, 2 / (Top - Bottom), 0, 0),
-				Vector4(0, 0, -2 / (Far - Near), 0),
-				Vector4(-(Right + Left) / (Right - Left), -(Top + Bottom) / (Top - Bottom), -(Far + Near) / (Far - Near), 1));
-		}
-		Matrix4x4 Matrix4x4::CreateOrthographic(float Left, float Right, float Bottom, float Top, float NearClip, float FarClip)
-		{
-			float Width = Right - Left;
-			float Height = Top - Bottom;
-			float Depth = FarClip - NearClip;
-
-			return Matrix4x4(Vector4(2 / Width, 0, 0, -(Right + Left) / Width), Vector4(0, 2 / Height, 0, -(Top + Bottom) / Height), Vector4(0, 0, -2 / Depth, -(FarClip + NearClip) / Depth), Vector4(0, 0, 0, 1));
-		}
-		Matrix4x4 Matrix4x4::CreateOrthographicOffCenter(float ViewLeft, float ViewRight, float ViewBottom, float ViewTop, float NearZ, float FarZ)
-		{
-			float ReciprocalWidth = 1.0f / (ViewRight - ViewLeft);
-			float ReciprocalHeight = 1.0f / (ViewTop - ViewBottom);
-			float Range = 1.0f / (FarZ - NearZ);
-
-			return Matrix4x4(
-				Vector4(ReciprocalWidth + ReciprocalWidth, 0, 0, 0),
-				Vector4(0, ReciprocalHeight + ReciprocalHeight, 0, 0),
-				Vector4(0, 0, Range, 0),
-				Vector4(-(ViewLeft + ViewRight) * ReciprocalWidth, -(ViewTop + ViewBottom) * ReciprocalHeight, -Range * NearZ, 1));
+				Vector4(2 * Width, 0, 0, 0),
+				Vector4(0, 2 * Height, 0, 0),
+				Vector4(0, 0, Depth, 0),
+				Vector4(-(Left + Right) * Width, -(Top + Bottom) * Height, -Depth * NearZ, 1));
 		}
 		Matrix4x4 Matrix4x4::Create(const Vector3& Position, const Vector3& Scale, const Vector3& Rotation)
 		{
-			return Matrix4x4::CreateScale(Scale) * Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
+			return Matrix4x4::CreateScale(Scale) * Matrix4x4::Create(Position, Rotation);
 		}
 		Matrix4x4 Matrix4x4::Create(const Vector3& Position, const Vector3& Rotation)
 		{
 			return Matrix4x4::CreateRotation(Rotation) * Matrix4x4::CreateTranslation(Position);
 		}
-		Matrix4x4 Matrix4x4::CreateCamera(const Vector3& Position, const Vector3& Rotation)
+		Matrix4x4 Matrix4x4::CreateOrigin(const Vector3& Position, const Vector3& Rotation)
 		{
-			return Matrix4x4::CreateTranslation(Position.InvZ()) * Matrix4x4::CreateCameraRotation(Rotation);
+			return
+				Matrix4x4::CreateTranslation(-Position) *
+				Matrix4x4::CreateRotationY(-Rotation.Y) *
+				Matrix4x4::CreateRotationX(-Rotation.X);
 		}
 		Matrix4x4 Matrix4x4::CreateLookAt(const Vector3& Position, const Vector3& Target, const Vector3& Up)
 		{
@@ -2435,37 +2478,6 @@ namespace Tomahawk
 			Result.Row[15] = 1;
 
 			return Result;
-		}
-		Matrix4x4 Matrix4x4::CreateLockedLookAt(const Vector3& Position, const Vector3& Camera, const Vector3& Up)
-		{
-			Vector3 APosition = (Position + Camera).InvZ();
-			Vector3 Z = (Position * Vector3(-1, -1, 1)).Normalize();
-			Vector3 X = Up.Cross(Z).Normalize();
-			Vector3 Y = Z.Cross(X);
-
-			Matrix4x4 Result(true);
-			Result.Row[0] = X.X;
-			Result.Row[1] = Y.X;
-			Result.Row[2] = Z.X;
-			Result.Row[3] = 0;
-			Result.Row[4] = X.Y;
-			Result.Row[5] = Y.Y;
-			Result.Row[6] = Z.Y;
-			Result.Row[7] = 0;
-			Result.Row[8] = X.Z;
-			Result.Row[9] = Y.Z;
-			Result.Row[10] = Z.Z;
-			Result.Row[11] = 0;
-			Result.Row[12] = -X.Dot(APosition);
-			Result.Row[13] = -Y.Dot(APosition);
-			Result.Row[14] = -Z.Dot(APosition);
-			Result.Row[15] = 1;
-
-			return Result;
-		}
-		Matrix4x4 Matrix4x4::CreateOrigin(const Vector3& Position, const Vector3& Rotation)
-		{
-			return CreateTranslation(Position) * CreateRotation(Rotation) * CreateTranslation(-Position);
 		}
 		Matrix4x4 Matrix4x4::CreateRotation(const Vector3& Forward, const Vector3& Up, const Vector3& Right)
 		{
@@ -2499,14 +2511,14 @@ namespace Tomahawk
 				return Matrix4x4::CreateLookAt(Position, Position - Vector3(1, 0, 0), Vector3::Up());
 
 			if (Face == 2)
-				return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 1, 0), Vector3::Backward());
+				return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 1, 0), Vector3::Forward());
 
 			if (Face == 3)
 				return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 1, 0), Vector3::Forward());
 
 			if (Face == 4)
 				return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 0, 1), Vector3::Up());
-			
+
 			return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 0, 1), Vector3::Up());
 		}
 
@@ -6763,6 +6775,10 @@ namespace Tomahawk
 		{
 			return (isalnum(Value) || (Value == '-') || (Value == '_'));
 		}
+		bool TH_LEFT_HANDED
+		{
+			return LeftHanded;
+		}
 		bool Common::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
 		{
 			if (PositionR0.Distance(PositionR1) < RadiusR0 + RadiusR1)
@@ -6968,63 +6984,9 @@ namespace Tomahawk
 
 			return true;
 		}
-		void Common::ComputeJointOrientation(Compute::Joint* Value, bool LeftHanded)
-		{
-			TH_ASSERT_V(Value != nullptr, "value should be set");
-			ComputeMatrixOrientation(&Value->BindShape, LeftHanded);
-			ComputeMatrixOrientation(&Value->Transform, LeftHanded);
-			for (auto&& Child : Value->Childs)
-				ComputeJointOrientation(&Child, LeftHanded);
-		}
-		void Common::ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded)
-		{
-			TH_ASSERT_V(Matrix != nullptr, "matrix should be set");
-			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-			if (!LeftHanded)
-				Coord = Coord.Inv();
-			*Matrix = *Matrix * Coord;
-		}
-		void Common::ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded)
-		{
-			TH_ASSERT_V(Position != nullptr, "position should be set");
-			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-			if (!LeftHanded)
-				Coord = Coord.Inv();
-			*Position = (Coord * Compute::Matrix4x4::CreateTranslation(*Position)).Position();
-		}
-		void Common::ComputeIndexWindingOrderFlip(std::vector<int>& Indices)
+		void Common::FlipIndexWindingOrder(std::vector<int>& Indices)
 		{
 			std::reverse(Indices.begin(), Indices.end());
-		}
-		void Common::ComputeVertexOrientation(std::vector<Vertex>& Vertices, bool LeftHanded)
-		{
-			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-			if (!LeftHanded)
-				Coord = Coord.Inv();
-
-			for (auto& Item : Vertices)
-			{
-				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
-				Position = (Coord * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-				Item.PositionX = Position.X;
-				Item.PositionY = Position.Y;
-				Item.PositionZ = Position.Z;
-			}
-		}
-		void Common::ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded)
-		{
-			Compute::Matrix4x4 Coord(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1);
-			if (!LeftHanded)
-				Coord = Coord.Inv();
-
-			for (auto& Item : Vertices)
-			{
-				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
-				Position = (Coord * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-				Item.PositionX = Position.X;
-				Item.PositionY = Position.Y;
-				Item.PositionZ = Position.Z;
-			}
 		}
 		void Common::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
 		{
@@ -7230,6 +7192,50 @@ namespace Tomahawk
 			}
 
 			HexString[40] = 0;
+		}
+		void Common::MatrixRhToLh(Compute::Matrix4x4* Matrix)
+		{
+			TH_ASSERT_V(Matrix != nullptr, "matrix should be set");
+			if (LeftHanded)
+				*Matrix = *Matrix * RH_TO_LH;
+		}
+		void Common::VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices)
+		{
+			if (!LeftHanded)
+				return;
+
+			Matrix4x4 RhToLh = RH_TO_LH;
+			for (auto& Item : Vertices)
+			{
+				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
+				Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
+				Item.PositionX = Position.X;
+				Item.PositionY = Position.Y;
+				Item.PositionZ = Position.Z;
+			}
+
+			FlipIndexWindingOrder(Indices);
+		}
+		void Common::InfluenceRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices)
+		{
+			if (!LeftHanded)
+				return;
+
+			Matrix4x4 RhToLh = RH_TO_LH;
+			for (auto& Item : Vertices)
+			{
+				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
+				Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
+				Item.PositionX = Position.X;
+				Item.PositionY = Position.Y;
+				Item.PositionZ = Position.Z;
+			}
+
+			FlipIndexWindingOrder(Indices);
+		}
+		void Common::SetLeftHanded(bool IsLeftHanded)
+		{
+			LeftHanded = IsLeftHanded;
 		}
 		unsigned char Common::RandomUC()
 		{
@@ -8059,6 +8065,29 @@ namespace Tomahawk
 
 			return Result;
 		}
+		void Common::CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
+		{
+			TH_ASSERT_V(Result8 != nullptr, "8 sized array should be set");
+			float HalfHFov = std::tanf(FieldOfView * 0.5f) * Aspect;
+			float HalfVFov = std::tanf(FieldOfView * 0.5f);
+			float XN = NearZ * HalfHFov;
+			float XF = FarZ * HalfHFov;
+			float YN = NearZ * HalfVFov;
+			float YF = FarZ * HalfVFov;
+
+			Result8[0] = Vector4(XN, YN, NearZ, 1.0);
+			Result8[1] = Vector4(-XN, YN, NearZ, 1.0);
+			Result8[2] = Vector4(XN, -YN, NearZ, 1.0);
+			Result8[3] = Vector4(-XN, -YN, NearZ, 1.0);
+			Result8[4] = Vector4(XF, YF, FarZ, 1.0);
+			Result8[5] = Vector4(-XF, YF, FarZ, 1.0);
+			Result8[6] = Vector4(XF, -YF, FarZ, 1.0);
+			Result8[7] = Vector4(-XF, -YF, FarZ, 1.0);
+		}
+		void Common::CreateFrustum(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
+		{
+			return CreateFrustumRad(Result8, Mathf::Deg2Rad() * FieldOfView, Aspect, NearZ, FarZ);
+		}
 		Ray Common::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
 		{
 			Vector2 Tmp = Cursor * 2.0f;
@@ -8066,11 +8095,11 @@ namespace Tomahawk
 
 			Vector4 Eye = Vector4(Tmp.X - 1.0f, 1.0f - Tmp.Y, 1.0f, 1.0f) * InvProjection;
 			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).sNormalize();
-			return Ray(Origin.InvZ(), Vector3(Eye.X, Eye.Y, Eye.Z));
+			return Ray(Origin, Vector3(Eye.X, Eye.Y, Eye.Z));
 		}
 		bool Common::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit)
 		{
-			return Cursor.IntersectsAABB(Position.InvZ(), Scale, Hit);
+			return Cursor.IntersectsAABB(Position, Scale, Hit);
 		}
 		bool Common::CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit)
 		{
@@ -8134,7 +8163,8 @@ namespace Tomahawk
 
 			return Range(Engine);
 		}
-		
+		bool Common::LeftHanded = true;
+
 		WebToken::WebToken() : Header(nullptr), Payload(nullptr), Token(nullptr)
 		{
 		}
@@ -8960,7 +8990,7 @@ namespace Tomahawk
 			{
 				Global.Offset = Matrix4x4::Create(Global.Position, Global.Scale, Global.Rotation);
 				Temporary = Matrix4x4::CreateRotation(Global.Rotation) * Matrix4x4::CreateTranslation(Global.Position);
-			}	
+			}
 		}
 		void Transform::Move(const Vector3& Value)
 		{
@@ -9229,29 +9259,29 @@ namespace Tomahawk
 		{
 			return Global.Scale;
 		}
-		Vector3 Transform::Forward()
+		Vector3 Transform::Forward(bool ViewSpace)
 		{
 			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
-				return Local->Offset.Forward();
+				return Local->Offset.Forward(ViewSpace);
 
-			return Global.Offset.Forward();
+			return Global.Offset.Forward(ViewSpace);
 		}
-		Vector3 Transform::Right()
+		Vector3 Transform::Right(bool ViewSpace)
 		{
 			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
-				return Local->Offset.Right();
+				return Local->Offset.Right(ViewSpace);
 
-			return Global.Offset.Right();
+			return Global.Offset.Right(ViewSpace);
 		}
-		Vector3 Transform::Up()
+		Vector3 Transform::Up(bool ViewSpace)
 		{
 			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
-				return Local->Offset.Up();
+				return Local->Offset.Up(ViewSpace);
 
-			return Global.Offset.Up();
+			return Global.Offset.Up(ViewSpace);
 		}
 		Transform::Spacing& Transform::GetSpacing()
 		{

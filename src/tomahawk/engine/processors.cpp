@@ -316,7 +316,7 @@ namespace Tomahawk
 				NMake::Pack(Metadata->Set("entities"), Conf.EntityCount);
 				NMake::Pack(Metadata->Set("components"), Conf.ComponentCount);
 				NMake::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
-				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR); 
+				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
 				NMake::Pack(Metadata->Set("frequency-hz"), Conf.FrequencyHZ);
 				NMake::Pack(Metadata->Set("min-frames"), Conf.MinFrames);
 				NMake::Pack(Metadata->Set("max-frames"), Conf.MaxFrames);
@@ -331,7 +331,7 @@ namespace Tomahawk
 				NMake::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
 				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
-                Core::Document* Materials = Document->Set("materials", Core::Var::Array());
+				Core::Document* Materials = Document->Set("materials", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetMaterialsCount(); i++)
 				{
 					Engine::Material* Material = Object->GetMaterial(i);
@@ -356,7 +356,7 @@ namespace Tomahawk
 					}
 				}
 
-                Core::Document* Entities = Document->Set("entities", Core::Var::Array());
+				Core::Document* Entities = Document->Set("entities", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetEntitiesCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
@@ -393,7 +393,7 @@ namespace Tomahawk
 					if (!Ref->GetComponentCount())
 						continue;
 
-                    Core::Document* Components = Entity->Set("components", Core::Var::Array());
+					Core::Document* Components = Entity->Set("components", Core::Var::Array());
 					for (auto& Item : *Ref)
 					{
 						Core::Document* Component = Components->Set("component");
@@ -563,6 +563,11 @@ namespace Tomahawk
 					return nullptr;
 				}
 
+				if (TH_LEFT_HANDED)
+					stbi_set_flip_vertically_on_load(0);
+				else
+					stbi_set_flip_vertically_on_load(1);
+
 				int Width, Height, Channels;
 				unsigned char* Resource = stbi_load_from_memory(Binary, (int)Length, &Width, &Height, &Channels, STBI_rgb_alpha);
 				if (!Resource)
@@ -693,12 +698,8 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					if (Device->GetBackend() == Graphics::RenderBackend::D3D11)
-					{
-						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
-						Compute::Common::ComputeVertexOrientation(F.Elements, true);
-					}
-
+					Compute::Common::VertexRhToLh(F.Elements, F.Indices);
+					
 					Device->Lock();
 					Object->Meshes.push_back(Device->CreateMeshBuffer(F));
 					Device->Unlock();
@@ -706,9 +707,7 @@ namespace Tomahawk
 					auto* Sub = Object->Meshes.back();
 					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
 					NMake::Unpack(Mesh->Find("world"), &Sub->World);
-
-					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend::D3D11)
-						Compute::Common::ComputeMatrixOrientation(&Sub->World, true);
+					Compute::Common::MatrixRhToLh(&Sub->World);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -766,9 +765,9 @@ namespace Tomahawk
 				NMake::Pack(Document->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
 				NMake::Pack(Document->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
 				NMake::Pack(Document->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
-                NMake::Pack(Document->Set("joints", Core::Var::Array()), Joints);
+				NMake::Pack(Document->Set("joints", Core::Var::Array()), Joints);
 
-                Core::Document* Meshes = Document->Set("meshes", Core::Var::Array());
+				Core::Document* Meshes = Document->Set("meshes", Core::Var::Array());
 				for (auto&& It : Info.Meshes)
 				{
 					Core::Document* Mesh = Meshes->Set("mesh");
@@ -892,7 +891,7 @@ namespace Tomahawk
 						Element.Index = Info->Weights;
 						Index = Info->Weights;
 						Info->Weights++;
-                        Info->Joints.emplace_back(std::make_pair(Index, Element));
+						Info->Joints.emplace_back(std::make_pair(Index, Element));
 					}
 					else
 						Index = It->first;
@@ -1013,11 +1012,7 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					if (Device->GetBackend() == Graphics::RenderBackend::D3D11)
-					{
-						Compute::Common::ComputeIndexWindingOrderFlip(F.Indices);
-						Compute::Common::ComputeInfluenceOrientation(F.Elements, true);
-					}
+					Compute::Common::InfluenceRhToLh(F.Elements, F.Indices);
 
 					Device->Lock();
 					Object->Meshes.push_back(Device->CreateSkinMeshBuffer(F));
@@ -1026,9 +1021,7 @@ namespace Tomahawk
 					auto* Sub = Object->Meshes.back();
 					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
 					NMake::Unpack(Mesh->Find("world"), &Sub->World);
-
-					if (Content->GetDevice()->GetBackend() == Graphics::RenderBackend::D3D11)
-						Compute::Common::ComputeMatrixOrientation(&Sub->World, true);
+					Compute::Common::MatrixRhToLh(&Sub->World);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -1409,7 +1402,7 @@ namespace Tomahawk
 					Network::Host* Host = &Router->Listeners[Core::Parser(&Name).Path(N, D).R()];
 					if (!NMake::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = N;
-					
+
 					Core::Parser(&Host->Hostname).Path(N, D).R();
 					if (!NMake::Unpack(It->Find("port"), &Host->Port))
 						Host->Port = 80;
@@ -1490,7 +1483,7 @@ namespace Tomahawk
 							std::string SourceURL = "*";
 							NMake::Unpack(Base, &SourceURL);
 
-							Core::Document* From = Base->GetAttribute("from"), *For = Base->GetAttribute("for");;
+							Core::Document* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");;
 							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
 							{
 								auto Subalias = Aliases.find(From->Value.GetBlob());

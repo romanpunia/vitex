@@ -807,7 +807,7 @@ namespace assembler
 		if (amount == 0) return;
 		if (amount == 1)
 		{
-			++*this;
+			++* this;
 			return;
 		}
 
@@ -832,7 +832,7 @@ namespace assembler
 		if (amount == 0) return;
 		if (amount == 1)
 		{
-			--*this;
+			--* this;
 			return;
 		}
 

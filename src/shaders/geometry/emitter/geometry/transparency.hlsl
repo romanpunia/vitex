@@ -8,7 +8,7 @@ VOutput Make(VOutput V, float2 Offset, float2 TexCoord2)
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);
 	V.Position = mul(V.Position, ob_World);
-	V.TexCoord = TexCoord2 * ob_TexCoord.xy;
+	V.TexCoord = TexCoord2;
 	return V;
 }
 
@@ -29,13 +29,13 @@ VOutput vs_main(VInput V)
 	Result.Rotation = Elements[V.Position].Rotation;
 	Result.Color = Elements[V.Position].Color;
 	Result.Scale = Elements[V.Position].Scale;
-    
+	
 	return Result;
 }
 
 float4 ps_main(VOutput V) : SV_TARGET0
 {
-    float4 Color = float4(Materials[ob_Mid].Diffuse * V.Color.xyz, V.Color.w);
+	float4 Color = float4(Materials[ob_Mid].Diffuse * V.Color.xyz, V.Color.w);
 	[branch] if (ob_Diffuse > 0)
 		Color *= GetDiffuse(V.TexCoord);
 

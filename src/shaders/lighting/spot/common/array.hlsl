@@ -2,9 +2,9 @@ struct SpotLight
 {
 	matrix LightWorldViewProjection;
 	matrix LightViewProjection;
-    float4 Attenuation;
-    float3 Direction;
-    float Cutoff;
+	float4 Attenuation;
+	float3 Direction;
+	float Cutoff;
 	float3 Position;
 	float Range;
 	float3 Lighting;
@@ -12,7 +12,7 @@ struct SpotLight
 	float Bias;
 	float Iterations;
 	float Umbra;
-    float Padding;
+	float Padding;
 };
 
 StructuredBuffer<SpotLight> SpotLights : register(t6);

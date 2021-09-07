@@ -340,13 +340,14 @@ namespace Tomahawk
 				bool Transparent = false;
 				std::string Path;
 
+				uint32_t Category = (uint32_t)GeoCategory::Opaque;
 				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
 				NMake::Unpack(Node->Find("extended"), &Extended);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 				NMake::Unpack(Node->Find("manage"), &Manage);
 				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("transparency"), &Transparent);
-				SetTransparency(Transparent);
+				NMake::Unpack(Node->Find("category"), &Category);
+				SetCategory((GeoCategory)Category);
 
 				if (!Extended)
 					return;
@@ -516,7 +517,7 @@ namespace Tomahawk
 					NMake::Pack(Node->Set("material"), Slot->Slot);
 
 				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("transparency"), HasTransparency());
+				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				NMake::Pack(Node->Set("kinematic"), Kinematic);
 				NMake::Pack(Node->Set("manage"), Manage);
 				NMake::Pack(Node->Set("extended"), Instance != nullptr);
@@ -869,7 +870,7 @@ namespace Tomahawk
 			Component* SoftBody::Copy(Entity* New)
 			{
 				SoftBody* Target = new SoftBody(New);
-				Target->SetTransparency(HasTransparency());
+				Target->SetCategory(GetCategory());
 				Target->Kinematic = Kinematic;
 
 				if (Instance != nullptr)
@@ -1306,11 +1307,11 @@ namespace Tomahawk
 						Materials[Surface] = Scene->GetMaterial(Slot);
 				}
 
-				bool Transparent = false;
+				uint32_t Category = (uint32_t)GeoCategory::Opaque;
 				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("static"), &Static);
-				SetTransparency(Transparent);
+				NMake::Unpack(Node->Find("category"), &Category);
+				SetCategory((GeoCategory)Category);
 			}
 			void Model::Serialize(ContentManager* Content, Core::Document* Node)
 			{
@@ -1335,7 +1336,7 @@ namespace Tomahawk
 				}
 
 				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("transparency"), HasTransparency());
+				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				NMake::Pack(Node->Set("static"), Static);
 			}
 			void Model::Activate(Component* New)
@@ -1374,7 +1375,7 @@ namespace Tomahawk
 			Component* Model::Copy(Entity* New)
 			{
 				Model* Target = new Model(New);
-				Target->SetTransparency(HasTransparency());
+				Target->SetCategory(GetCategory());
 				Target->Visibility = Visibility;
 				Target->Instance = Instance;
 				Target->Materials = Materials;
@@ -1433,11 +1434,11 @@ namespace Tomahawk
 					NMake::Unpack(Pose->Find("rotation"), &Offset.Rotation);
 				}
 
-				bool Transparent = false;
+				uint32_t Category = (uint32_t)GeoCategory::Opaque;
 				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("transparency"), &Transparent);
 				NMake::Unpack(Node->Find("static"), &Static);
-				SetTransparency(Transparent);
+				NMake::Unpack(Node->Find("category"), &Category);
+				SetCategory((GeoCategory)Category);
 			}
 			void Skin::Serialize(ContentManager* Content, Core::Document* Node)
 			{
@@ -1462,7 +1463,7 @@ namespace Tomahawk
 				}
 
 				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("transparency"), HasTransparency());
+				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				NMake::Pack(Node->Set("static"), Static);
 
 				Core::Document* Poses = Node->Set("poses", Core::Var::Array());
@@ -1515,7 +1516,7 @@ namespace Tomahawk
 			Component* Skin::Copy(Entity* New)
 			{
 				Skin* Target = new Skin(New);
-				Target->SetTransparency(HasTransparency());
+				Target->SetCategory(GetCategory());
 				Target->Visibility = Visibility;
 				Target->Instance = Instance;
 				Target->Materials = Materials;
@@ -1546,14 +1547,13 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Scene->GetMaterial((uint64_t)Slot));
 
-				bool Transparent = false;
-				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("transparency"), &Transparent);
+				uint32_t Category = (uint32_t)GeoCategory::Opaque;
+				NMake::Unpack(Node->Find("category"), &Category);
 				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
 				NMake::Unpack(Node->Find("connected"), &Connected);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("volume"), &Volume);
-				SetTransparency(Transparent);
+				SetCategory((GeoCategory)Category);
 
 				uint64_t Limit;
 				if (NMake::Unpack(Node->Find("limit"), &Limit))
@@ -1580,8 +1580,7 @@ namespace Tomahawk
 				if (Slot != nullptr)
 					NMake::Pack(Node->Set("material"), Slot->Slot);
 
-				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("transparency"), HasTransparency());
+				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				NMake::Pack(Node->Set("quad-based"), QuadBased);
 				NMake::Pack(Node->Set("connected"), Connected);
 				NMake::Pack(Node->Set("static"), Static);
@@ -1619,7 +1618,7 @@ namespace Tomahawk
 			float Emitter::Cull(const Viewer& View)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->GetPosition().Distance(View.WorldPosition) / (View.FarPlane);
+				float Result = 1.0f - Transform->GetPosition().Distance(View.Position) / (View.FarPlane);
 
 				if (Result > 0.0f)
 					Result = Compute::Common::IsCubeInFrustum(Compute::Matrix4x4::CreateScale(Volume) * Transform->GetBiasUnscaled() * View.ViewProjection, 1.5f) ? Result : 0.0f;
@@ -1629,7 +1628,7 @@ namespace Tomahawk
 			Component* Emitter::Copy(Entity* New)
 			{
 				Emitter* Target = new Emitter(New);
-				Target->SetTransparency(HasTransparency());
+				Target->SetCategory(GetCategory());
 				Target->Visibility = Visibility;
 				Target->Volume = Volume;
 				Target->Connected = Connected;
@@ -1655,15 +1654,15 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
 
-				bool Transparent = false;
+				uint32_t Category = (uint32_t)GeoCategory::Opaque;
 				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
 				NMake::Unpack(Node->Find("distance"), &Distance);
 				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("transparency"), &Transparent);
-				SetTransparency(Transparent);
+				NMake::Unpack(Node->Find("category"), &Category);
+				SetCategory((GeoCategory)Category);
 			}
 			void Decal::Serialize(ContentManager* Content, Core::Document* Node)
 			{
@@ -1680,7 +1679,7 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("field-of-view"), FieldOfView);
 				NMake::Pack(Node->Set("distance"), Distance);
 				NMake::Pack(Node->Set("static"), Static);
-				NMake::Pack(Node->Set("transparency"), HasTransparency());
+				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
 			}
 			void Decal::Synchronize(Core::Timer* Time)
 			{
@@ -1688,7 +1687,7 @@ namespace Tomahawk
 				if (Transform->IsDirty())
 				{
 					auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
-					View = Compute::Matrix4x4::CreateTranslation(-Space.Position) * Compute::Matrix4x4::CreateCameraRotation(-Space.Rotation);
+					View = Compute::Matrix4x4::CreateOrigin(Space.Position, Space.Rotation);
 				}
 				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, Distance);
 			}
@@ -1704,7 +1703,7 @@ namespace Tomahawk
 			float Decal::Cull(const Viewer& fView)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->GetPosition().Distance(fView.WorldPosition) / fView.FarPlane;
+				float Result = 1.0f - Transform->GetPosition().Distance(fView.Position) / fView.FarPlane;
 
 				if (Result > 0.0f)
 					Result = Compute::Common::IsCubeInFrustum(Transform->GetBias() * fView.ViewProjection, GetRange()) ? Result : 0.0f;
@@ -2249,15 +2248,11 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::Synchronize(Core::Timer* Time)
 			{
-				static size_t PositionX = offsetof(Compute::ElementVertex, PositionX);
-				static size_t VelocityX = offsetof(Compute::ElementVertex, VelocityX);
-				static size_t ColorX = offsetof(Compute::ElementVertex, ColorX);
-
-				if (!Parent->GetScene()->IsActive() || !Base || !Base->GetBuffer())
+				if (!Parent->GetScene()->IsActive() || !Simulate || !Base || !Base->GetBuffer())
 					return;
 
 				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
-				Compute::Vector3 Offset = Parent->GetTransform()->GetPosition().InvZ();
+				Compute::Vector3 Offset = Parent->GetTransform()->GetPosition();
 
 				for (int i = 0; i < Spawner.Iterations; i++)
 				{
@@ -2269,17 +2264,21 @@ namespace Tomahawk
 					Compute::Vector4 FDiffusion = Spawner.Diffusion.Generate();
 
 					Compute::ElementVertex Element;
-					memcpy(&Element + PositionX, &FPosition, sizeof(float) * 3);
-					memcpy(&Element + VelocityX, &FVelocity, sizeof(float) * 3);
-					memcpy(&Element + ColorX, &FDiffusion, sizeof(float) * 4);
+					Element.PositionX = FPosition.X;
+					Element.PositionY = FPosition.Y;
+					Element.PositionZ = FPosition.Z;
+					Element.VelocityX = FVelocity.X;
+					Element.VelocityY = FVelocity.Y;
+					Element.VelocityZ = FVelocity.Z;
+					Element.ColorX = FDiffusion.X;
+					Element.ColorY = FDiffusion.Y;
+					Element.ColorZ = FDiffusion.Z;
+					Element.ColorW = FDiffusion.W;
 					Element.Angular = Spawner.Angular.Generate();
 					Element.Rotation = Spawner.Rotation.Generate();
 					Element.Scale = Spawner.Scale.Generate();
 					Array->Add(Element);
 				}
-
-				if (!Simulate)
-					return;
 
 				float DeltaTime = (float)Time->GetDeltaTime();
 				if (Noise != 0.0f)
@@ -2436,33 +2435,33 @@ namespace Tomahawk
 				if (!Activity)
 					return;
 
-				auto* Transform = Parent->GetTransform();
-				float DeltaTime = (float)Time->GetDeltaTime();
-				Compute::Vector3 Speed = Axis * DeltaTime * SpeedNormal;
-
+				Compute::Vector3 Speed;
 				if (Activity->IsKeyDown(Fast))
-					Speed = Axis * DeltaTime * SpeedUp;
+					Speed = Axis * SpeedUp * (float)Time->GetDeltaTime();
+				else if (Activity->IsKeyDown(Slow))
+					Speed = Axis * SpeedDown * (float)Time->GetDeltaTime();
+				else
+					Speed = Axis * SpeedNormal * (float)Time->GetDeltaTime();
 
-				if (Activity->IsKeyDown(Slow))
-					Speed = Axis * DeltaTime * SpeedDown;
-
+				auto* Transform = Parent->GetTransform();
+				bool ViewSpace = (Parent->GetComponent<Camera>() != nullptr);
 				if (Activity->IsKeyDown(Forward))
-					Transform->Move(Transform->Forward() * Speed);
+					Transform->Move(Transform->Forward(ViewSpace) * Speed);
 
 				if (Activity->IsKeyDown(Backward))
-					Transform->Move(-Transform->Forward() * Speed);
+					Transform->Move(-Transform->Forward(ViewSpace) * Speed);
 
 				if (Activity->IsKeyDown(Right))
-					Transform->Move(Transform->Right() * Speed);
+					Transform->Move(Transform->Right(ViewSpace) * Speed);
 
 				if (Activity->IsKeyDown(Left))
-					Transform->Move(-Transform->Right() * Speed);
+					Transform->Move(-Transform->Right(ViewSpace) * Speed);
 
 				if (Activity->IsKeyDown(Up))
-					Transform->Move(Transform->Up() * Speed);
+					Transform->Move(Transform->Up(ViewSpace) * Speed);
 
 				if (Activity->IsKeyDown(Down))
-					Transform->Move(-Transform->Up() * Speed);
+					Transform->Move(-Transform->Up(ViewSpace) * Speed);
 			}
 			Component* Fly::Copy(Entity* New)
 			{
@@ -2720,7 +2719,7 @@ namespace Tomahawk
 			float PointLight::Cull(const Viewer& Base)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->GetPosition().Distance(Base.WorldPosition) / Base.FarPlane;
+				float Result = 1.0f - Transform->GetPosition().Distance(Base.Position) / Base.FarPlane;
 
 				if (Result > 0.0f)
 					Result = Compute::Common::IsCubeInFrustum(Transform->GetBiasUnscaled() * Base.ViewProjection, GetBoxRange()) ? Result : 0.0f;
@@ -2730,14 +2729,14 @@ namespace Tomahawk
 			bool PointLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
 				auto* Transform = Parent->GetTransform();
-				if (Transform->GetPosition().Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
+				if (Transform->GetPosition().Distance(fView.Position) > fView.FarPlane + GetBoxRange())
 					return false;
 
 				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetBias()) * fView.ViewProjection, 1.65f);
 			}
 			bool PointLight::IsNear(const Viewer& fView)
 			{
-				return Parent->GetTransform()->GetPosition().Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
+				return Parent->GetTransform()->GetPosition().Distance(fView.Position) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* PointLight::Copy(Entity* New)
 			{
@@ -2752,11 +2751,11 @@ namespace Tomahawk
 
 				return Target;
 			}
-			void PointLight::AssembleDepthOrigin()
+			void PointLight::GenerateOrigin()
 			{
 				auto* Transform = Parent->GetTransform();
 				if (Transform->IsDirty())
-					View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Transform->GetPosition().InvZ());
+					View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Transform->GetPosition());
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
 			}
 			float PointLight::GetBoxRange() const
@@ -2806,7 +2805,7 @@ namespace Tomahawk
 			float SpotLight::Cull(const Viewer& fView)
 			{
 				auto* Transform = Parent->GetTransform();
-				float Result = 1.0f - Transform->GetPosition().Distance(fView.WorldPosition) / fView.FarPlane;
+				float Result = 1.0f - Transform->GetPosition().Distance(fView.Position) / fView.FarPlane;
 
 				if (Result > 0.0f)
 					Result = Compute::Common::IsCubeInFrustum(Transform->GetBiasUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
@@ -2816,14 +2815,14 @@ namespace Tomahawk
 			bool SpotLight::IsVisible(const Viewer& fView, Compute::Matrix4x4* World)
 			{
 				auto* Transform = Parent->GetTransform();
-				if (Transform->GetPosition().Distance(fView.WorldPosition) > fView.FarPlane + GetBoxRange())
+				if (Transform->GetPosition().Distance(fView.Position) > fView.FarPlane + GetBoxRange())
 					return false;
 
 				return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetBias()) * fView.ViewProjection, 1.65f);
 			}
 			bool SpotLight::IsNear(const Viewer& fView)
 			{
-				return Parent->GetTransform()->GetPosition().Distance(fView.WorldPosition) <= fView.FarPlane + GetBoxRange();
+				return Parent->GetTransform()->GetPosition().Distance(fView.Position) <= fView.FarPlane + GetBoxRange();
 			}
 			Component* SpotLight::Copy(Entity* New)
 			{
@@ -2838,13 +2837,13 @@ namespace Tomahawk
 
 				return Target;
 			}
-			void SpotLight::AssembleDepthOrigin()
+			void SpotLight::GenerateOrigin()
 			{
 				auto* Transform = Parent->GetTransform();
 				if (Transform->IsDirty())
 				{
 					auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
-					View = Compute::Matrix4x4::CreateTranslation(-Space.Position) * Compute::Matrix4x4::CreateCameraRotation(-Space.Rotation);
+					View = Compute::Matrix4x4::CreateOrigin(Space.Position, Space.Rotation);
 				}
 				Projection = Compute::Matrix4x4::CreatePerspective(Cutoff, 1, 0.1f, Shadow.Distance);
 			}
@@ -2873,8 +2872,9 @@ namespace Tomahawk
 					NMake::Unpack(Node->Find("shadow-distance-" + std::to_string(i)), &Shadow.Distance[i]);
 
 				NMake::Unpack(Node->Find("shadow-cascades"), &Shadow.Cascades);
+				NMake::Unpack(Node->Find("shadow-far"), &Shadow.Far);
+				NMake::Unpack(Node->Find("shadow-near"), &Shadow.Near);
 				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
-				NMake::Unpack(Node->Find("shadow-offset"), &Shadow.Offset);
 				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
@@ -2904,8 +2904,9 @@ namespace Tomahawk
 					NMake::Pack(Node->Set("shadow-distance-" + std::to_string(i)), Shadow.Distance[i]);
 
 				NMake::Pack(Node->Set("shadow-cascades"), Shadow.Cascades);
+				NMake::Pack(Node->Set("shadow-far"), Shadow.Far);
+				NMake::Pack(Node->Set("shadow-near"), Shadow.Near);
 				NMake::Pack(Node->Set("shadow-bias"), Shadow.Bias);
-				NMake::Pack(Node->Set("shadow-offset"), Shadow.Offset);
 				NMake::Pack(Node->Set("shadow-softness"), Shadow.Softness);
 				NMake::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				NMake::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
@@ -2930,30 +2931,39 @@ namespace Tomahawk
 
 				return Target;
 			}
-			void LineLight::AssembleDepthOrigin()
+			void LineLight::GenerateOrigin()
 			{
 				auto* Viewer = (Components::Camera*)Parent->GetScene()->GetCamera();
-				auto* Transform = Viewer->GetEntity()->GetTransform();
-				const Compute::Vector3& Position = Transform->GetPosition();
-				Compute::Vector3 Eye = Position * Compute::Vector3(1.0f, 0.1f, 1.0f);
-				Compute::Vector3 Up = Transform->Right();
-				Compute::Matrix4x4 Look = Compute::Matrix4x4::CreateLockedLookAt(Position, Eye, Up);
-				float Near = -Viewer->FarPlane - Viewer->NearPlane;
-				float Far = Viewer->FarPlane;
+				Compute::Vector3 Direction = Parent->GetTransform()->GetPosition().sNormalize();
+				Compute::Vector3 Position = Viewer->GetEntity()->GetTransform()->GetPosition();
+				Compute::Matrix4x4 LightView = Compute::Matrix4x4::CreateLookAt(Position, Position - Direction, Compute::Vector3::Up());
+				Compute::Matrix4x4 ViewToLight = Viewer->GetView().Inv() * LightView;
+				float FieldOfView = Compute::Mathf::Deg2Rad() * Viewer->FieldOfView;
+				float Aspect = Viewer->GetAspect();
 
 				if (Shadow.Cascades > 6)
 					return;
 
 				for (uint32_t i = 0; i < Shadow.Cascades; i++)
 				{
-					float Distance = Shadow.Distance[i];
-					Projection[i] = Compute::Matrix4x4::CreateOrthographic(Distance, Distance, Near, Far) *
-						Compute::Matrix4x4::CreateTranslation(Compute::Vector3((float)i * Shadow.Offset, 0.0));
-					View[i] = Look;
+					float Near = (i < 1 ? 0.1f : Shadow.Distance[i - 1]), Far = Shadow.Distance[i];
+					Compute::Frustum Frustum(FieldOfView, Aspect, Near, Far);
+					Frustum.Transform(ViewToLight);
+
+					Compute::Vector2 X, Y, Z;
+					Frustum.GetBoundingBox(&X, &Y, &Z);
+
+					if (Z.X > -1.0f)
+						Z.X = -1.0f;
+					if (Z.Y < 1.0f)
+						Z.Y = 1.0f;
+
+					Projection[i] = Compute::Matrix4x4::CreateOrthographicOffCenter(X.X, X.Y, Y.X, Y.Y, Z.X * Shadow.Near, Z.Y * Shadow.Far);
+					View[i] = LightView;
 				}
 			}
 
-			SurfaceLight::SurfaceLight(Entity* Ref) : Cullable(Ref, ActorSet::None), Projection(Compute::Matrix4x4::CreatePerspectiveRad(1.57079632679f, 1, 0.01f, 100.0f))
+			SurfaceLight::SurfaceLight(Entity* Ref) : Cullable(Ref, ActorSet::None), Projection(Compute::Matrix4x4::CreatePerspective(90.0f, 1, 0.01f, 100.0f))
 			{
 			}
 			SurfaceLight::~SurfaceLight()
@@ -3104,7 +3114,7 @@ namespace Tomahawk
 					return Result;
 
 				auto* Transform = Parent->GetTransform();
-				Result = 1.0f - Transform->GetPosition().Distance(fView.WorldPosition) / fView.FarPlane;
+				Result = 1.0f - Transform->GetPosition().Distance(fView.Position) / fView.FarPlane;
 
 				if (Result > 0.0f)
 					Result = Compute::Common::IsCubeInFrustum(Transform->GetBiasUnscaled() * fView.ViewProjection, GetBoxRange()) ? Result : 0.0f;
@@ -3479,9 +3489,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(View != nullptr, "viewer should be set");
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
-				Compute::Matrix4x4 Offset = Compute::Matrix4x4::CreateCamera(Space.Position.InvX().InvY(), -Space.Rotation);
-				View->Set(Offset, Projection, Space.Position, NearPlane, FarPlane);
-				View->WorldRotation = Space.Rotation;
+				View->Set(GetView(), Projection, Space.Position, Space.Rotation, NearPlane, FarPlane);
 				View->Renderer = Renderer;
 				FieldView = *View;
 			}
@@ -3513,7 +3521,12 @@ namespace Tomahawk
 			}
 			Compute::Matrix4x4 Camera::GetView()
 			{
-				return Compute::Matrix4x4::CreateCamera(GetViewPosition(), -Parent->GetTransform()->GetRotation());
+				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
+				return Compute::Matrix4x4::CreateOrigin(Space.Position, Space.Rotation);
+			}
+			Compute::Frustum Camera::GetFrustum()
+			{
+				return Compute::Frustum(Compute::Mathf::Deg2Rad() * FieldOfView, GetAspect(), NearPlane, FarPlane);
 			}
 			Compute::Ray Camera::GetScreenRay(const Compute::Vector2& Position)
 			{
@@ -3529,7 +3542,7 @@ namespace Tomahawk
 			float Camera::GetDistance(Entity* Other)
 			{
 				TH_ASSERT(Other != nullptr, -1.0f, "other should be set");
-				return Other->GetTransform()->GetPosition().Distance(FieldView.WorldPosition);
+				return Other->GetTransform()->GetPosition().Distance(FieldView.Position);
 			}
 			float Camera::GetWidth()
 			{

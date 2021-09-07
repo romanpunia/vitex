@@ -417,7 +417,7 @@ namespace Tomahawk
 					if (Statement->Value.GetType() != Core::VarType::Array || Statement->Value.GetSize() != 3)
 						continue;
 
-					Core::Document* Left = Statement->Get(0), *Right = Statement->Get(2);
+					Core::Document* Left = Statement->Get(0), * Right = Statement->Get(2);
 					if (!Left || Left->Value.IsObject() || !Right || Right->Value.IsObject())
 						continue;
 
@@ -1328,44 +1328,44 @@ namespace Tomahawk
 				return Base[Index];
 			}
 
-            TConnection* Connection::GetBase() const
-            {
-                return Base;
-            }
-            Socket* Connection::GetStream() const
-            {
-                return Stream;
-            }
-            Request* Connection::GetCurrent() const
-            {
-                return Current;
-            }
-            QueryState Connection::GetState() const
-            {
-                return State;
-            }
-            bool Connection::IsBusy() const
-            {
-                return Current != nullptr;
-            }
+			TConnection* Connection::GetBase() const
+			{
+				return Base;
+			}
+			Socket* Connection::GetStream() const
+			{
+				return Stream;
+			}
+			Request* Connection::GetCurrent() const
+			{
+				return Current;
+			}
+			QueryState Connection::GetState() const
+			{
+				return State;
+			}
+			bool Connection::IsBusy() const
+			{
+				return Current != nullptr;
+			}
 
-            std::string Request::GetCommand() const
-            {
-                return Command;
-            }
-            Cursor Request::GetResult() const
-            {
-                return Result;
-            }
+			std::string Request::GetCommand() const
+			{
+				return Command;
+			}
+			Cursor Request::GetResult() const
+			{
+				return Result;
+			}
 			uint64_t Request::GetSession() const
 			{
 				return Session;
 			}
-            bool Request::IsPending() const
-            {
-                return Future.IsPending();
-            }
-            
+			bool Request::IsPending() const
+			{
+				return Future.IsPending();
+			}
+
 			Cluster::Cluster() : Session(0)
 			{
 				Driver::Create();
@@ -1460,10 +1460,10 @@ namespace Tomahawk
 							Update.unlock();
 							TH_FREE(Keys);
 							TH_FREE(Values);
-                            
-                            PQlogMessage(Base);
-                            if (Base != nullptr)
-                                PQfinish(Base);
+
+							PQlogMessage(Base);
+							if (Base != nullptr)
+								PQfinish(Base);
 
 							Future = false;
 							TH_PPOP();
@@ -1474,12 +1474,12 @@ namespace Tomahawk
 						PQlogMessage(Base);
 
 						Connection* Next = TH_NEW(Connection);
-                        Next->Stream = TH_NEW(Socket, (socket_t)PQsocket(Base));
+						Next->Stream = TH_NEW(Socket, (socket_t)PQsocket(Base));
 						Next->Base = Base;
 						Next->Current = nullptr;
 						Next->State = QueryState::Idle;
-                        
-                        Pool.insert(std::make_pair(Next->Stream, Next));
+
+						Pool.insert(std::make_pair(Next->Stream, Next));
 						Reprocess(Next);
 					}
 					Update.unlock();
@@ -1501,13 +1501,13 @@ namespace Tomahawk
 				{
 					Update.lock();
 					for (auto& Item : Pool)
-                    {
-                        Item.first->Clear(false);
-                        PQfinish(Item.second->Base);
-                        TH_DELETE(Connection, Item.second);
-                        TH_DELETE(Socket, Item.first);
-                    }
-                    Pool.clear();
+					{
+						Item.first->Clear(false);
+						PQfinish(Item.second->Base);
+						TH_DELETE(Connection, Item.second);
+						TH_DELETE(Socket, Item.first);
+					}
+					Pool.clear();
 					Update.unlock();
 					Future = true;
 				});
@@ -1538,12 +1538,12 @@ namespace Tomahawk
 				Core::Async<Cursor> Future = Next->Future;
 				Update.lock();
 				Requests.push_back(Next);
-                for (auto& Item : Pool)
-                {
-                    if (Consume(Item.second))
-                        break;
-                }
-                Update.unlock();
+				for (auto& Item : Pool)
+				{
+					if (Consume(Item.second))
+						break;
+				}
+				Update.unlock();
 
 				return Future;
 			}
@@ -1552,9 +1552,9 @@ namespace Tomahawk
 				Update.lock();
 				for (auto& Item : Pool)
 				{
-                    if (Item.second->State == State)
+					if (Item.second->State == State)
 					{
-                        TConnection* Base = Item.second->Base;
+						TConnection* Base = Item.second->Base;
 						Update.unlock();
 						return Base;
 					}
@@ -1565,12 +1565,12 @@ namespace Tomahawk
 			}
 			TConnection* Cluster::GetConnection() const
 			{
-                for (auto& Item : Pool)
-                    return Item.second->Base;
-                
-                return nullptr;
+				for (auto& Item : Pool)
+					return Item.second->Base;
+
+				return nullptr;
 			}
-            bool Cluster::IsConnected() const
+			bool Cluster::IsConnected() const
 			{
 				return !Pool.empty();
 			}
@@ -1582,26 +1582,26 @@ namespace Tomahawk
 
 				if (Target->Current != nullptr)
 				{
-                    Request* Current = Target->Current;
-                    Current->Result.Release();
-                    Target->Current = nullptr;
+					Request* Current = Target->Current;
+					Current->Result.Release();
+					Target->Current = nullptr;
 
-                    Update.unlock();
+					Update.unlock();
 					Current->Future = Cursor();
-                    Update.lock();
-                    
-                    TH_WARN("[pqwarn] query operation will not retry (neterr)");
-                    TH_DELETE(Request, Current);
+					Update.lock();
+
+					TH_WARN("[pqwarn] query operation will not retry (neterr)");
+					TH_DELETE(Request, Current);
 				}
 
-                Target->Stream->Clear(false);
+				Target->Stream->Clear(false);
 				PQfinish(Target->Base);
 				Target->Base = PQconnectdbParams(Keys, Values, 0);
 				if (Target->Base != nullptr)
 				{
 					PQsetnonblocking(Target->Base, 1);
 					PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
-                    Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
+					Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
 					Target->State = QueryState::Idle;
 				}
 				else
@@ -1627,18 +1627,18 @@ namespace Tomahawk
 				Update.unlock();
 			}
 			bool Cluster::Consume(Connection* Base)
-            {
+			{
 #ifdef TH_HAS_POSTGRESQL
 				if (Base->State != QueryState::Idle || Requests.empty())
 					return false;
 
-                Request* Next = Requests.front();
-                if (!Transact(Base, Next))
+				Request* Next = Requests.front();
+				if (!Transact(Base, Next))
 					return false;
-                
-                Base->Current = Next;
-                Requests.erase(Requests.begin());
-                if (!Base->Current)
+
+				Base->Current = Next;
+				Requests.erase(Requests.begin());
+				if (!Base->Current)
 					return false;
 
 				TH_PPUSH("postgres-send", TH_PERF_MAX);
@@ -1648,151 +1648,151 @@ namespace Tomahawk
 				else
 					TH_TRACE("[pq] execute query on 0x%p\n\t%.64s%s", (void*)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
 #endif
-                if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
-                {
-                    Base->State = QueryState::Busy;
+				if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
+				{
+					Base->State = QueryState::Busy;
 					TH_PPOP();
 
-                    return true;
-                }
-                
-                Request* Item = Base->Current;
-                Base->Current = nullptr;
-                PQlogMessage(Base->Base);
-                
-                Update.unlock();
+					return true;
+				}
+
+				Request* Item = Base->Current;
+				Base->Current = nullptr;
+				PQlogMessage(Base->Base);
+
+				Update.unlock();
 				Item->Future = Cursor();
-                Update.lock();
-                
-                Item->Result.Release();
-                TH_DELETE(Request, Item);
+				Update.lock();
+
+				Item->Result.Release();
+				TH_DELETE(Request, Item);
 				TH_PPOP();
 
-                return true;
+				return true;
 #else
-                return false;
+				return false;
 #endif
-            }
-            bool Cluster::Reprocess(Connection* Base)
-            {
-                return Base->Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
-                {
-                    return Dispatch(Stream, Buffer, Size);
-                }) == 1;
-            }
-            bool Cluster::Dispatch(Socket* Stream, const char*, int64_t)
-            {
+			}
+			bool Cluster::Reprocess(Connection* Base)
+			{
+				return Base->Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
+				{
+					return Dispatch(Stream, Buffer, Size);
+				}) == 1;
+			}
+			bool Cluster::Dispatch(Socket* Stream, const char*, int64_t)
+			{
 #ifdef TH_HAS_POSTGRESQL
 				TH_PPUSH("postgres-recv", TH_PERF_MAX);
-                Update.lock();
-                auto It = Pool.find(Stream);
-                if (It == Pool.end())
-                {
-                    Update.unlock();
+				Update.lock();
+				auto It = Pool.find(Stream);
+				if (It == Pool.end())
+				{
+					Update.unlock();
 					TH_PPOP();
 
-                    return false;
-                }
-                
-                Connection* Source = It->second;
-                if (Source->State == QueryState::Lost)
-                {
-                    Reestablish(Source);
-                    Consume(Source);
-                    Update.unlock();
+					return false;
+				}
+
+				Connection* Source = It->second;
+				if (Source->State == QueryState::Lost)
+				{
+					Reestablish(Source);
+					Consume(Source);
+					Update.unlock();
 					TH_PPOP();
 
-                    return Reprocess(Source);
-                }
+					return Reprocess(Source);
+				}
 
-            Retry:
-                Consume(Source);
-                if (PQconsumeInput(Source->Base) != 1)
-                {
-                    PQlogMessage(Source->Base);
-                    Source->State = QueryState::Lost;
-                    Update.unlock();
+			Retry:
+				Consume(Source);
+				if (PQconsumeInput(Source->Base) != 1)
+				{
+					PQlogMessage(Source->Base);
+					Source->State = QueryState::Lost;
+					Update.unlock();
 					TH_PPOP();
 
-                    return Reprocess(Source);
-                }
+					return Reprocess(Source);
+				}
 
-                if (PQisBusy(Source->Base) == 1)
-                {
-                    Update.unlock();
+				if (PQisBusy(Source->Base) == 1)
+				{
+					Update.unlock();
 					TH_PPOP();
 
-                    return Reprocess(Source);
-                }
-                
-                PGnotify* Notification = PQnotifies(Source->Base);
-                if (Notification != nullptr && Notification->relname != nullptr)
-                {
-                    auto It = Listeners.find(Notification->relname);
-                    if (It != Listeners.end() && It->second)
-                    {
-                        OnNotification Callback = It->second;
-                        Core::Schedule::Get()->SetTask([Callback = std::move(Callback), Notification]()
-                        {
-                            Callback(Notify(Notification));
-                        });
-                    }
-                    else
-                    {
-                        TH_WARN("[pqwarn] notification from %s channel was missed", Notification->relname);
-                        PQfreeNotify(Notification);
-                    }
-                }
-				
+					return Reprocess(Source);
+				}
+
+				PGnotify* Notification = PQnotifies(Source->Base);
+				if (Notification != nullptr && Notification->relname != nullptr)
+				{
+					auto It = Listeners.find(Notification->relname);
+					if (It != Listeners.end() && It->second)
+					{
+						OnNotification Callback = It->second;
+						Core::Schedule::Get()->SetTask([Callback = std::move(Callback), Notification]()
+						{
+							Callback(Notify(Notification));
+						});
+					}
+					else
+					{
+						TH_WARN("[pqwarn] notification from %s channel was missed", Notification->relname);
+						PQfreeNotify(Notification);
+					}
+				}
+
 				if (Source->State == QueryState::Busy)
-                {
-                    Response Frame(PQgetResult(Source->Base));
-                    if (Source->Current != nullptr)
-                    {
-                        if (!Frame)
-                        {
-                            Core::Async<Cursor> Future = Source->Current->Future;
-                            Cursor Results(std::move(Source->Current->Result));
-                            Request* Item = Source->Current;
-                            Source->State = QueryState::Idle;
-                            Source->Current = nullptr;
+				{
+					Response Frame(PQgetResult(Source->Base));
+					if (Source->Current != nullptr)
+					{
+						if (!Frame)
+						{
+							Core::Async<Cursor> Future = Source->Current->Future;
+							Cursor Results(std::move(Source->Current->Result));
+							Request* Item = Source->Current;
+							Source->State = QueryState::Idle;
+							Source->Current = nullptr;
 							PQlogMessage(Source->Base);
 
-                            Update.unlock();
+							Update.unlock();
 #ifdef _DEBUG
 							if (!Results.IsError())
 								TH_TRACE("[pq] OK execute on 0x%p", (void*)Source);
 #endif
-                            Future = std::move(Results);
-                            Update.lock();
-                            
-                            TH_DELETE(Request, Item);
-                            Consume(Source);
-                            Update.unlock();
+							Future = std::move(Results);
+							Update.lock();
+
+							TH_DELETE(Request, Item);
+							Consume(Source);
+							Update.unlock();
 							TH_PPOP();
 
-                            return Reprocess(Source);
-                        }
-                        
-                        Source->Current->Result.Base.emplace_back(Frame);
-                        goto Retry;
-                    }
-                    else
-                    {
-                        Source->State = (Frame ? QueryState::Busy : QueryState::Idle);
-                        Frame.Release();
-                    }
-                }
-                
-                Consume(Source);
-                Update.unlock();
+							return Reprocess(Source);
+						}
+
+						Source->Current->Result.Base.emplace_back(Frame);
+						goto Retry;
+					}
+					else
+					{
+						Source->State = (Frame ? QueryState::Busy : QueryState::Idle);
+						Frame.Release();
+					}
+				}
+
+				Consume(Source);
+				Update.unlock();
 				TH_PPOP();
 
-                return Reprocess(Source);
+				return Reprocess(Source);
 #else
-                return false;
+				return false;
 #endif
-            }
+			}
 			bool Cluster::Transact(Connection* Base, Request* Next)
 			{
 				if (Base->Session != 0)
@@ -1814,7 +1814,7 @@ namespace Tomahawk
 				Base->Session = Next->Session;
 				return true;
 			}
-        
+
 			void Driver::Create()
 			{
 #ifdef TH_HAS_POSTGRESQL
@@ -1835,7 +1835,7 @@ namespace Tomahawk
 				{
 					if (Safe != nullptr)
 						Safe->lock();
-					
+
 					State = 0;
 					if (Queries != nullptr)
 					{
@@ -1875,7 +1875,7 @@ namespace Tomahawk
 				int64_t Arg = -1;
 				bool Spec = false;
 				bool Lock = false;
-				
+
 				while (Index < Base.Size())
 				{
 					char V = Base.R()[Index];
@@ -1904,7 +1904,7 @@ namespace Tomahawk
 							{
 								Pose Next;
 								Next.Escape = (Base.R()[Arg] == '$');
-                                Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
+								Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
 								Next.Offset = (size_t)Arg;
 								Result.Positions.push_back(std::move(Next));
 								Base.RemovePart(Arg, Index + 1);
@@ -2035,7 +2035,7 @@ namespace Tomahawk
 				{
 					if (Next >= Map->size())
 					{
-						TH_ERR("[pq] emplace query %.64s\n\texpects: at least %llu args", SQL.c_str(), (uint64_t)(Next) + 1);
+						TH_ERR("[pq] emplace query %.64s\n\texpects: at least %llu args", SQL.c_str(), (uint64_t)(Next)+1);
 						break;
 					}
 

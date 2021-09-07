@@ -27,50 +27,50 @@ namespace Tomahawk
 		class TH_OUT STDString
 		{
 		public:
-			static void Construct(std::string *thisPointer);
-			static void CopyConstruct(const std::string &other, std::string *thisPointer);
-			static void Destruct(std::string *thisPointer);
-			static std::string &AddAssignTo(const std::string &str, std::string &dest);
-			static bool IsEmpty(const std::string &str);
+			static void Construct(std::string* thisPointer);
+			static void CopyConstruct(const std::string& other, std::string* thisPointer);
+			static void Destruct(std::string* thisPointer);
+			static std::string& AddAssignTo(const std::string& str, std::string& dest);
+			static bool IsEmpty(const std::string& str);
 			static void* ToPtr(const std::string& Value);
 			static std::string Reverse(const std::string& Value);
-			static std::string& AssignUInt64To(as_uint64_t i, std::string &dest);
-			static std::string& AddAssignUInt64To(as_uint64_t i, std::string &dest);
-			static std::string AddUInt641(const std::string &str, as_uint64_t i);
-			static std::string AddInt641(as_int64_t i, const std::string &str);
-			static std::string& AssignInt64To(as_int64_t i, std::string &dest);
-			static std::string& AddAssignInt64To(as_int64_t i, std::string &dest);
-			static std::string AddInt642(const std::string &str, as_int64_t i);
-			static std::string AddUInt642(as_uint64_t i, const std::string &str);
-			static std::string& AssignDoubleTo(double f, std::string &dest);
-			static std::string& AddAssignDoubleTo(double f, std::string &dest);
-			static std::string& AssignFloatTo(float f, std::string &dest);
-			static std::string& AddAssignFloatTo(float f, std::string &dest);
-			static std::string& AssignBoolTo(bool b, std::string &dest);
-			static std::string& AddAssignBoolTo(bool b, std::string &dest);
-			static std::string AddDouble1(const std::string &str, double f);
-			static std::string AddDouble2(double f, const std::string &str);
-			static std::string AddFloat1(const std::string &str, float f);
-			static std::string AddFloat2(float f, const std::string &str);
-			static std::string AddBool1(const std::string &str, bool b);
-			static std::string AddBool2(bool b, const std::string &str);
-			static char *CharAt(unsigned int i, std::string &str);
-			static int Cmp(const std::string &a, const std::string &b);
-			static int FindFirst(const std::string &sub, as_size_t start, const std::string &str);
-			static int FindFirstOf(const std::string &sub, as_size_t start, const std::string &str);
-			static int FindLastOf(const std::string &sub, as_size_t start, const std::string &str);
-			static int FindFirstNotOf(const std::string &sub, as_size_t start, const std::string &str);
-			static int FindLastNotOf(const std::string &sub, as_size_t start, const std::string &str);
-			static int FindLast(const std::string &sub, int start, const std::string &str);
-			static void Insert(unsigned int pos, const std::string &other, std::string &str);
-			static void Erase(unsigned int pos, int count, std::string &str);
-			static as_size_t Length(const std::string &str);
-			static void Resize(as_size_t l, std::string &str);
+			static std::string& AssignUInt64To(as_uint64_t i, std::string& dest);
+			static std::string& AddAssignUInt64To(as_uint64_t i, std::string& dest);
+			static std::string AddUInt641(const std::string& str, as_uint64_t i);
+			static std::string AddInt641(as_int64_t i, const std::string& str);
+			static std::string& AssignInt64To(as_int64_t i, std::string& dest);
+			static std::string& AddAssignInt64To(as_int64_t i, std::string& dest);
+			static std::string AddInt642(const std::string& str, as_int64_t i);
+			static std::string AddUInt642(as_uint64_t i, const std::string& str);
+			static std::string& AssignDoubleTo(double f, std::string& dest);
+			static std::string& AddAssignDoubleTo(double f, std::string& dest);
+			static std::string& AssignFloatTo(float f, std::string& dest);
+			static std::string& AddAssignFloatTo(float f, std::string& dest);
+			static std::string& AssignBoolTo(bool b, std::string& dest);
+			static std::string& AddAssignBoolTo(bool b, std::string& dest);
+			static std::string AddDouble1(const std::string& str, double f);
+			static std::string AddDouble2(double f, const std::string& str);
+			static std::string AddFloat1(const std::string& str, float f);
+			static std::string AddFloat2(float f, const std::string& str);
+			static std::string AddBool1(const std::string& str, bool b);
+			static std::string AddBool2(bool b, const std::string& str);
+			static char* CharAt(unsigned int i, std::string& str);
+			static int Cmp(const std::string& a, const std::string& b);
+			static int FindFirst(const std::string& sub, as_size_t start, const std::string& str);
+			static int FindFirstOf(const std::string& sub, as_size_t start, const std::string& str);
+			static int FindLastOf(const std::string& sub, as_size_t start, const std::string& str);
+			static int FindFirstNotOf(const std::string& sub, as_size_t start, const std::string& str);
+			static int FindLastNotOf(const std::string& sub, as_size_t start, const std::string& str);
+			static int FindLast(const std::string& sub, int start, const std::string& str);
+			static void Insert(unsigned int pos, const std::string& other, std::string& str);
+			static void Erase(unsigned int pos, int count, std::string& str);
+			static as_size_t Length(const std::string& str);
+			static void Resize(as_size_t l, std::string& str);
 			static std::string Replace(const std::string& a, const std::string& b, uint64_t o, const std::string& base);
-			static as_int64_t IntStore(const std::string &val, as_size_t base, as_size_t *byteCount);
-			static as_uint64_t UIntStore(const std::string &val, as_size_t base, as_size_t *byteCount);
-			static double FloatStore(const std::string &val, as_size_t *byteCount);
-			static std::string Sub(as_size_t start, int count, const std::string &str);
+			static as_int64_t IntStore(const std::string& val, as_size_t base, as_size_t* byteCount);
+			static as_uint64_t UIntStore(const std::string& val, as_size_t base, as_size_t* byteCount);
+			static double FloatStore(const std::string& val, as_size_t* byteCount);
+			static std::string Sub(as_size_t start, int count, const std::string& str);
 			static bool Equals(const std::string& lhs, const std::string& rhs);
 			static std::string ToLower(const std::string& Symbol);
 			static std::string ToUpper(const std::string& Symbol);
@@ -84,8 +84,8 @@ namespace Tomahawk
 			static std::string ToUInt64(uint64_t Value);
 			static std::string ToFloat(float Value);
 			static std::string ToDouble(double Value);
-			static STDArray* Split(const std::string &delim, const std::string &str);
-			static std::string Join(const STDArray &array, const std::string &delim);
+			static STDArray* Split(const std::string& delim, const std::string& str);
+			static std::string Join(const STDArray& array, const std::string& delim);
 			static char ToChar(const std::string& Symbol);
 		};
 
@@ -102,7 +102,7 @@ namespace Tomahawk
 			bool TryLock();
 			void Lock();
 			void Unlock();
-			
+
 		public:
 			static STDMutex* Factory();
 		};
@@ -468,19 +468,19 @@ namespace Tomahawk
 		public:
 			static STDMap* Create(VMCManager* Engine);
 			static STDMap* Create(unsigned char* Buffer);
-			static void Cleanup(VMCManager *engine);
-			static void Setup(VMCManager *engine);
-			static void Factory(VMCGeneric *gen);
-			static void ListFactory(VMCGeneric *gen);
-			static void KeyConstruct(void *mem);
-			static void KeyDestruct(STDIterator *obj);
-			static STDIterator &KeyopAssign(void *ref, int typeId, STDIterator *obj);
-			static STDIterator &KeyopAssign(const STDIterator &other, STDIterator *obj);
-			static STDIterator &KeyopAssign(double val, STDIterator *obj);
-			static STDIterator &KeyopAssign(as_int64_t val, STDIterator *obj);
-			static void KeyopCast(void *ref, int typeId, STDIterator *obj);
-			static as_int64_t KeyopConvInt(STDIterator *obj);
-			static double KeyopConvDouble(STDIterator *obj);
+			static void Cleanup(VMCManager* engine);
+			static void Setup(VMCManager* engine);
+			static void Factory(VMCGeneric* gen);
+			static void ListFactory(VMCGeneric* gen);
+			static void KeyConstruct(void* mem);
+			static void KeyDestruct(STDIterator* obj);
+			static STDIterator& KeyopAssign(void* ref, int typeId, STDIterator* obj);
+			static STDIterator& KeyopAssign(const STDIterator& other, STDIterator* obj);
+			static STDIterator& KeyopAssign(double val, STDIterator* obj);
+			static STDIterator& KeyopAssign(as_int64_t val, STDIterator* obj);
+			static void KeyopCast(void* ref, int typeId, STDIterator* obj);
+			static as_int64_t KeyopConvInt(STDIterator* obj);
+			static double KeyopConvDouble(STDIterator* obj);
 		};
 
 		class TH_OUT STDGrid
@@ -537,7 +537,7 @@ namespace Tomahawk
 			static STDGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height);
 			static STDGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height, void* DefaultValue);
 			static STDGrid* Create(VMCTypeInfo* T, void* ListBuffer);
-			static bool TemplateCallback(VMCTypeInfo *TI, bool &DontGarbageCollect);
+			static bool TemplateCallback(VMCTypeInfo* TI, bool& DontGarbageCollect);
 		};
 
 		class TH_OUT STDRef
@@ -570,10 +570,10 @@ namespace Tomahawk
 			void AddRefHandle();
 
 		public:
-			static void Construct(STDRef *self);
-			static void Construct(STDRef *self, const STDRef &o);
-			static void Construct(STDRef *self, void *ref, int typeId);
-			static void Destruct(STDRef *self);
+			static void Construct(STDRef* self);
+			static void Construct(STDRef* self, const STDRef& o);
+			static void Construct(STDRef* self, void* ref, int typeId);
+			static void Destruct(STDRef* self);
 		};
 
 		class TH_OUT STDWeakRef
@@ -597,10 +597,10 @@ namespace Tomahawk
 			VMCTypeInfo* GetRefType() const;
 
 		public:
-			static void Construct(VMCTypeInfo *type, void *mem);
-			static void Construct2(VMCTypeInfo *type, void *ref, void *mem);
-			static void Destruct(STDWeakRef *obj);
-			static bool TemplateCallback(VMCTypeInfo *TI, bool&);
+			static void Construct(VMCTypeInfo* type, void* mem);
+			static void Construct2(VMCTypeInfo* type, void* ref, void* mem);
+			static void Destruct(STDWeakRef* obj);
+			static bool TemplateCallback(VMCTypeInfo* TI, bool&);
 		};
 
 		class TH_OUT STDComplex
@@ -632,11 +632,11 @@ namespace Tomahawk
 			STDComplex operator/ (const STDComplex& Other) const;
 
 		public:
-			static void DefaultConstructor(STDComplex *self);
-			static void CopyConstructor(const STDComplex &other, STDComplex *self);
-			static void ConvConstructor(float r, STDComplex *self);
-			static void InitConstructor(float r, float i, STDComplex *self);
-			static void ListConstructor(float *list, STDComplex *self);
+			static void DefaultConstructor(STDComplex* self);
+			static void CopyConstructor(const STDComplex& other, STDComplex* self);
+			static void ConvConstructor(float r, STDComplex* self);
+			static void InitConstructor(float r, float i, STDComplex* self);
+			static void ListConstructor(float* list, STDComplex* self);
 		};
 
 		class TH_OUT STDThread
@@ -760,7 +760,7 @@ namespace Tomahawk
 					{
 						Future->Set((void*)&Result, (int)TypeId);
 					});
-					
+
 					return Jump(Future);
 				}
 				template <const char* TypeName>

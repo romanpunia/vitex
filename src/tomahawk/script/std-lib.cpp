@@ -3299,7 +3299,7 @@ namespace Tomahawk
 			as_size_t Index = x + y * BufferPtr->Width;
 			if ((SubTypeId & asTYPEID_MASK_OBJECT) && !(SubTypeId & asTYPEID_OBJHANDLE))
 				return *(void**)(BufferPtr->Data + (as_size_t)ElementSize * Index);
-			
+
 			return BufferPtr->Data + (as_size_t)ElementSize * Index;
 		}
 		const void* STDGrid::At(as_size_t x, as_size_t y) const

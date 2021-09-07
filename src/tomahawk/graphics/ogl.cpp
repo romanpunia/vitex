@@ -7,6 +7,7 @@
 #define REG_EXCHANGE(Name, Value) { if (Register.Name == Value) return; Register.Name = Value; }
 #define REG_EXCHANGE_T2(Name, Value1, Value2) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2) return; Register.Name = std::make_tuple(Value1, Value2); }
 #define REG_EXCHANGE_T3(Name, Value1, Value2, Value3) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2 && std::get<2>(Register.Name) == Value3) return; Register.Name = std::make_tuple(Value1, Value2, Value3); }
+#define OGL_PROJECTION (Compute::Matrix4x4(1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
 #define OGL_OFFSET(i) (GLvoid*)(i)
 #define OGL_VOFFSET(i) ((char*)nullptr + (i))
 #define OGL_INLINE(Code) #Code
@@ -1910,7 +1911,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::Emit()
 			{
-				Elements.push_back({ 0, 0, 0, 0, 0, 1, 1, 1, 1 });
+				Elements.insert(Elements.begin(), { 0, 0, 0, 0, 0, 1, 1, 1, 1 });
 			}
 			void OGLDevice::Texture(Texture2D* In)
 			{
@@ -1920,7 +1921,7 @@ namespace Tomahawk
 			void OGLDevice::Color(float X, float Y, float Z, float W)
 			{
 				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
-				auto& Element = Elements.back();
+				auto& Element = Elements.front();
 				Element.CX = X;
 				Element.CY = Y;
 				Element.CZ = Z;
@@ -1933,7 +1934,7 @@ namespace Tomahawk
 			void OGLDevice::TexCoord(float X, float Y)
 			{
 				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
-				auto& Element = Elements.back();
+				auto& Element = Elements.front();
 				Element.TX = X;
 				Element.TY = Y;
 			}
@@ -1945,7 +1946,7 @@ namespace Tomahawk
 			void OGLDevice::Position(float X, float Y, float Z)
 			{
 				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
-				auto& Element = Elements.back();
+				auto& Element = Elements.front();
 				Element.PX = X;
 				Element.PY = Y;
 				Element.PZ = Z;
@@ -1986,7 +1987,7 @@ namespace Tomahawk
 				}
 
 				glBindVertexArray(Immediate.VertexBuffer);
-				glDrawArrays(GL_TRIANGLES, 0, (GLsizei)Elements.size());
+				glDrawArrays(GetPrimitiveTopologyDraw(Primitives), 0, (GLsizei)Elements.size());
 				glBindVertexArray(LastVAO);
 				glBindBuffer(GL_ARRAY_BUFFER, LastVBO);
 				glUseProgram(LastProgram);
@@ -3103,7 +3104,7 @@ namespace Tomahawk
 				SetInputLayout(nullptr);
 				SetVertexBuffer(nullptr, 0);
 				SetIndexBuffer(nullptr, Format::Unknown);
-				
+
 				GLint StatusCode;
 				glGenVertexArrays(1, &Immediate.VertexBuffer);
 				glBindVertexArray(Immediate.VertexBuffer);
@@ -3119,7 +3120,7 @@ namespace Tomahawk
 				if (Immediate.VertexShader == GL_NONE)
 				{
 					static const char* VertexShaderCode = OGL_INLINE(
-					layout(location = 0) uniform mat4 WorldViewProjection;
+						layout(location = 0) uniform mat4 WorldViewProjection;
 
 					layout(location = 0) in vec3 iPosition;
 					layout(location = 1) in vec2 iTexCoord;
@@ -3160,7 +3161,7 @@ namespace Tomahawk
 				if (Immediate.PixelShader == GL_NONE)
 				{
 					static const char* PixelShaderCode = OGL_INLINE(
-					layout(binding = 0) uniform sampler2D Diffuse;
+						layout(binding = 0) uniform sampler2D Diffuse;
 					layout(location = 1) uniform vec4 Padding;
 
 					in vec2 oTexCoord;
@@ -3241,9 +3242,8 @@ namespace Tomahawk
 					return;
 
 				glBindBuffer(GL_UNIFORM_BUFFER, Buffer);
-				GLvoid* Subdata = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-				memcpy(Subdata, Data, Size);
-				glUnmapBuffer(GL_UNIFORM_BUFFER);
+				glBufferSubData(GL_UNIFORM_BUFFER, 0, Size, Data);
+				glBindBuffer(GL_UNIFORM_BUFFER, GL_NONE);
 			}
 			int OGLDevice::CreateConstantBuffer(GLuint* Buffer, size_t Size)
 			{

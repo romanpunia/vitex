@@ -6,6 +6,7 @@
 #define REG_EXCHANGE(Name, Value) { if (Register.Name == Value) return; Register.Name = Value; }
 #define REG_EXCHANGE_T2(Name, Value1, Value2) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2) return; Register.Name = std::make_tuple(Value1, Value2); }
 #define REG_EXCHANGE_T3(Name, Value1, Value2, Value3) { if (std::get<0>(Register.Name) == Value1 && std::get<1>(Register.Name) == Value2 && std::get<2>(Register.Name) == Value3) return; Register.Name = std::make_tuple(Value1, Value2, Value3); }
+#define REG_EXCHANGE_RS(Name, Value1, Value2, Value3) { auto& __vregrs = Register.Name[Value2]; if (__vregrs.first == Value1 && __vregrs.second == Value3) return; __vregrs = std::make_pair(Value1, Value3); }
 #define D3D_RELEASE(Value) { if (Value != nullptr) { Value->Release(); Value = nullptr; } }
 #define D3D_INLINE(Code) #Code
 
@@ -418,6 +419,7 @@ namespace Tomahawk
 				ConstantBuffer[0] = nullptr;
 				ConstantBuffer[1] = nullptr;
 				ConstantBuffer[2] = nullptr;
+				Register.Resources.resize(32);
 
 				unsigned int CreationFlags = I.CreationFlags | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
 				if (I.Debug)
@@ -689,7 +691,10 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
+				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11InstanceBuffer*)Resource)->Resource : nullptr);
+				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
+
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 
@@ -710,7 +715,10 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
+				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11ElementBuffer*)Resource)->Resource : nullptr);
+				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
+
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
 
@@ -731,8 +739,9 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
+				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture2D*)Resource)->Resource : nullptr);
-				REG_EXCHANGE_T3(Texture2D, NewState, Slot, Type);
+				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
@@ -754,8 +763,9 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
+				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture3D*)Resource)->Resource : nullptr);
-				REG_EXCHANGE_T3(Texture3D, NewState, Slot, Type);
+				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
@@ -777,8 +787,9 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
+				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11TextureCube*)Resource)->Resource : nullptr);
-				REG_EXCHANGE_T3(TextureCube, NewState, Slot, Type);
+				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, 1, &NewState);
@@ -1027,6 +1038,9 @@ namespace Tomahawk
 
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetShaderResources(Slot, Count, Array);
+
+				for (size_t i = 0; i < Count; i++)
+					Register.Resources[i] = std::make_pair<ID3D11ShaderResourceView*, unsigned int>(nullptr, 0);
 			}
 			void D3D11Device::FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
@@ -2141,7 +2155,7 @@ namespace Tomahawk
 							TH_ERR("couldn't load shader signature");
 							return Result;
 						}
-						
+
 						void* Buffer = Result->Signature->GetBufferPointer();
 						memcpy(Buffer, Data, Size);
 					}

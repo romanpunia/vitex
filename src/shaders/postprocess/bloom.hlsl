@@ -4,9 +4,9 @@
 
 cbuffer RenderConstant : register(b3)
 {
-    float2 Padding;
-    float Intensity;
-    float Threshold;
+	float2 Padding;
+	float Intensity;
+	float Threshold;
 }
 
 VOutput vs_main(VInput V)
@@ -20,6 +20,6 @@ VOutput vs_main(VInput V)
 
 float4 ps_main(VOutput V) : SV_TARGET0
 {
-    float3 Color = GetDiffuse(V.TexCoord.xy, 0).xyz;
+	float3 Color = GetDiffuse(V.TexCoord.xy, 0).xyz;
 	return float4(max(0.0, Color - Threshold) * Intensity, 1.0);
 };

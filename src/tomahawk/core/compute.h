@@ -1,5 +1,6 @@
 #ifndef TH_COMPUTE_H
 #define TH_COMPUTE_H
+#define TH_LEFT_HANDED (Tomahawk::Compute::Common::IsLeftHanded())
 #include "core.h"
 #include <cmath>
 #include <map>
@@ -28,10 +29,10 @@ class btConeShape;
 class btCylinderShape;
 class btCollisionShape;
 class btVector3;
-typedef bool(* ContactDestroyedCallback)(void*);
-typedef bool(* ContactProcessedCallback)(class btManifoldPoint&, void*, void*);
-typedef void(* ContactStartedCallback)(class btPersistentManifold* const&);
-typedef void(* ContactEndedCallback)(class btPersistentManifold* const&);
+typedef bool(*ContactDestroyedCallback)(void*);
+typedef bool(*ContactProcessedCallback)(class btManifoldPoint&, void*, void*);
+typedef void(*ContactStartedCallback)(class btPersistentManifold* const&);
+typedef void(*ContactEndedCallback)(class btPersistentManifold* const&);
 
 namespace Tomahawk
 {
@@ -624,6 +625,16 @@ namespace Tomahawk
 			};
 		};
 
+		struct TH_OUT Frustum
+		{
+			Vector4 Corners[8];
+
+			Frustum();
+			Frustum(float FieldOfView, float Aspect, float NearZ, float FarZ);
+			void Transform(const Matrix4x4& Value);
+			void GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z);
+		};
+
 		struct TH_OUT Ray
 		{
 			Vector3 Origin;
@@ -667,9 +678,9 @@ namespace Tomahawk
 			Vector4 Row22() const;
 			Vector4 Row33() const;
 			Vector4 Row44() const;
-			Vector3 Up() const;
-			Vector3 Right() const;
-			Vector3 Forward() const;
+			Vector3 Up(bool ViewSpace) const;
+			Vector3 Right(bool ViewSpace) const;
+			Vector3 Forward(bool ViewSpace) const;
 			Vector3 Rotation() const;
 			Vector3 Position() const;
 			Vector3 Scale() const;
@@ -690,21 +701,15 @@ namespace Tomahawk
 			static Matrix4x4 CreateScale(const Vector3& Scale);
 			static Matrix4x4 CreateTranslatedScale(const Vector3& Position, const Vector3& Scale);
 			static Matrix4x4 CreateTranslation(const Vector3& Position);
-			static Matrix4x4 CreatePerspective(float FieldOfView, float AspectRatio, float NearClip, float FarClip);
-			static Matrix4x4 CreatePerspectiveRad(float FieldOfView, float AspectRatio, float NearClip, float FarClip);
-			static Matrix4x4 CreateOrthographic(float Width, float Height, float NearClip, float FarClip);
-			static Matrix4x4 CreateOrthographicBox(float Width, float Height, float NearClip, float FarClip);
-			static Matrix4x4 CreateOrthographicBox(float Left, float Right, float Bottom, float Top, float Near, float Far);
-			static Matrix4x4 CreateOrthographicOffCenter(float ViewLeft, float ViewRight, float ViewBottom, float ViewTop, float NearZ, float FarZ);
+			static Matrix4x4 CreatePerspective(float FieldOfView, float AspectRatio, float NearZ, float FarZ);
+			static Matrix4x4 CreatePerspectiveRad(float FieldOfView, float AspectRatio, float NearZ, float FarZ);
+			static Matrix4x4 CreateOrthographic(float Width, float Height, float NearZ, float FarZ);
+			static Matrix4x4 CreateOrthographicOffCenter(float Left, float Right, float Bottom, float Top, float NearZ, float FarZ);
 			static Matrix4x4 Create(const Vector3& Position, const Vector3& Scale, const Vector3& Rotation);
 			static Matrix4x4 Create(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateRotation(const Vector3& Rotation);
-			static Matrix4x4 CreateCameraRotation(const Vector3& Rotation);
-			static Matrix4x4 CreateOrthographic(float Left, float Right, float Bottom, float Top, float NearClip, float FarClip);
-			static Matrix4x4 CreateCamera(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateOrigin(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateCubeMapLookAt(int Face, const Vector3& Position);
-			static Matrix4x4 CreateLockedLookAt(const Vector3& Position, const Vector3& Origin, const Vector3& Up);
 			static Matrix4x4 CreateRotation(const Vector3& Forward, const Vector3& Up, const Vector3& Right);
 			static Matrix4x4 Identity()
 			{
@@ -1377,11 +1382,15 @@ namespace Tomahawk
 
 		class TH_OUT Common
 		{
+		private:
+			static bool LeftHanded;
+
 		public:
 			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
 			static bool IsCubeInFrustum(const Matrix4x4& WorldViewProjection, float Radius);
 			static bool IsBase64URL(unsigned char Value);
 			static bool IsBase64(unsigned char Value);
+			static bool IsLeftHanded();
 			static bool HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1);
 			static bool HasLineIntersected(float DistanceF, float DistanceD, const Vector3& Start, const Vector3& End, Vector3& Hit);
 			static bool HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End);
@@ -1394,12 +1403,7 @@ namespace Tomahawk
 			static bool Hex(char c, int& v);
 			static bool HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength);
 			static bool HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value);
-			static void ComputeJointOrientation(Compute::Joint* Matrix, bool LeftHanded);
-			static void ComputeMatrixOrientation(Compute::Matrix4x4* Matrix, bool LeftHanded);
-			static void ComputePositionOrientation(Compute::Vector3* Position, bool LeftHanded);
-			static void ComputeIndexWindingOrderFlip(std::vector<int>& Indices);
-			static void ComputeVertexOrientation(std::vector<Vertex>& Vertices, bool LeftHanded);
-			static void ComputeInfluenceOrientation(std::vector<SkinVertex>& Vertices, bool LeftHanded);
+			static void FlipIndexWindingOrder(std::vector<int>& Indices);
 			static void ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices);
 			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
@@ -1408,6 +1412,10 @@ namespace Tomahawk
 			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
 			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
 			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
+			static void MatrixRhToLh(Compute::Matrix4x4* Matrix);
+			static void VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices);
+			static void InfluenceRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices);
+			static void SetLeftHanded(bool IsLeftHanded);
 			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
 			static std::string JWTEncode(WebToken* Src, const char* Key);
 			static WebToken* JWTDecode(const std::string& Value, const char* Key);
@@ -1449,6 +1457,8 @@ namespace Tomahawk
 			static uint64_t Utf8(int code, char* Buffer);
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
+			static void CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
+			static void CreateFrustum(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
 			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit = nullptr);
 			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit = nullptr);
@@ -1642,9 +1652,9 @@ namespace Tomahawk
 			const Vector3& GetPosition();
 			const Vector3& GetRotation();
 			const Vector3& GetScale();
-			Vector3 Forward();
-			Vector3 Right();
-			Vector3 Up();
+			Vector3 Forward(bool ViewSpace = false);
+			Vector3 Right(bool ViewSpace = false);
+			Vector3 Up(bool ViewSpace = false);
 			Spacing& GetSpacing();
 			Spacing& GetSpacing(Positioning Space);
 			Transform* GetRoot();
@@ -1993,7 +2003,7 @@ namespace Tomahawk
 		class TH_OUT Constraint : public Core::Object
 		{
 		protected:
-			btRigidBody* First, *Second;
+			btRigidBody* First, * Second;
 			Simulator* Engine;
 
 		public:
@@ -2364,8 +2374,8 @@ namespace Tomahawk
 			void RemoveConstraint(Constraint* Constraint);
 			void RemoveAll();
 			void Simulate(float TimeStep);
-			void FindContacts(RigidBody* Body, int(* Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
-			bool FindRayContacts(const Vector3& Start, const Vector3& End, int(* Callback)(RayContact*, const CollisionBody&));
+			void FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
+			bool FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&));
 			RigidBody* CreateRigidBody(const RigidBody::Desc& I);
 			RigidBody* CreateRigidBody(const RigidBody::Desc& I, Transform* Transform);
 			SoftBody* CreateSoftBody(const SoftBody::Desc& I);

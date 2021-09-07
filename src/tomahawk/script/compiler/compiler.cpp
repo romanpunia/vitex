@@ -258,7 +258,7 @@ struct SystemCall
 {
 	Processor& cpu;
 	FloatingPointUnit& fpu;
-	asDWORD* const & pOp;
+	asDWORD* const& pOp;
 	unsigned flags;
 	bool callIsSafe;
 	bool checkNullObj;
@@ -268,7 +268,7 @@ struct SystemCall
 	std::function<void(JumpType, bool)> returnHandler;
 
 	SystemCall(Processor& CPU, FloatingPointUnit& FPU,
-		std::function<void(JumpType, bool)> ConditionalReturn, asDWORD* const & bytecode, unsigned JitFlags)
+		std::function<void(JumpType, bool)> ConditionalReturn, asDWORD* const& bytecode, unsigned JitFlags)
 		: cpu(CPU), fpu(FPU), returnHandler(ConditionalReturn), pOp(bytecode), flags(0)
 	{
 		if ((JitFlags & JIT_SYSCALL_NO_ERRORS) != 0)
@@ -358,10 +358,10 @@ namespace local
 
 const unsigned functionReserveSpace = 5 * sizeof(void*);
 
-int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *output)
+int VMCJITCompiler::CompileFunction(asIScriptFunction* function, asJITFunction* output)
 {
 	asUINT   length;
-	asDWORD *pOp = function->GetByteCode(&length);
+	asDWORD* pOp = function->GetByteCode(&length);
 
 	//No bytecode for this function, don't bother making any jit for it
 	if (pOp == 0 || length == 0)
@@ -370,7 +370,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 		return 1;
 	}
 
-	asDWORD *end = pOp + length, *start = pOp;
+	asDWORD* end = pOp + length, * start = pOp;
 
 	std::vector<SwitchRegion> switches;
 	SwitchRegion* activeSwitch = 0;
@@ -388,13 +388,13 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 		else
 		{
 			delete[] activeJumpTable;
-			jumpTable = new unsigned char*[length];
+			jumpTable = new unsigned char* [length];
 			activeJumpTable = jumpTable;
 		}
 	}
 	else
 	{
-		jumpTable = new unsigned char*[length];
+		jumpTable = new unsigned char* [length];
 		activeJumpTable = jumpTable;
 	}
 	memset(jumpTable, 0, length * sizeof(void*));
@@ -558,7 +558,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 		auto retBC = pOp;
 		if (nextOp)
 		{
-			asEBCInstr op = (asEBCInstr)*(asBYTE*)pOp;
+			asEBCInstr op = (asEBCInstr) * (asBYTE*)pOp;
 			retBC += toSize(op);
 		}
 
@@ -1438,10 +1438,10 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 				--as<char>(*ebx);
 				break;
 			case asBC_INCi:
-				++*ebx;
+				++* ebx;
 				break;
 			case asBC_DECi:
-				--*ebx;
+				--* ebx;
 				break;
 			case asBC_INCf:
 				fpu.load_const_1();
@@ -1534,7 +1534,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 					pax = as<void*>(*esi);
 				esi += sizeof(void*);
 
-				void* skip_err_return, *test1, *test2;
+				void* skip_err_return, * test1, * test2;
 
 				//Assuming memcpy() with function overhead is faster over 128 bytes
 				if (bytes <= 128)
@@ -1735,7 +1735,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 					SwitchRegion region;
 					region.count = cases;
 					region.remaining = region.count;
-					region.buffer = new unsigned char*[region.count];
+					region.buffer = new unsigned char* [region.count];
 					memset(region.buffer, 0, region.count * sizeof(void*));
 					switches.push_back(region);
 					activeSwitch = &switches.back();
@@ -1846,7 +1846,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 			case asBC_ALLOC:
 			{
 				check_space(512);
-				asCObjectType *objType = (asCObjectType*)(size_t)asBC_PTRARG(pOp);
+				asCObjectType* objType = (asCObjectType*)(size_t)asBC_PTRARG(pOp);
 				int func = asBC_INTARG(pOp + AS_PTR_SIZE);
 
 				if (objType->flags & asOBJ_SCRIPT_OBJECT)
@@ -1900,12 +1900,12 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 			} break;
 			case asBC_FREE:
 			{
-				asCObjectType *objType = (asCObjectType*)(size_t)asBC_PTRARG(pOp);
+				asCObjectType* objType = (asCObjectType*)(size_t)asBC_PTRARG(pOp);
 
 				if (!(objType->flags & asOBJ_REF) || !(objType->flags & asOBJ_NOCOUNT))
 				{ //Only do FREE on non-reference types, or reference types without fake reference counting
 					check_space(128);
-					asSTypeBehaviour *beh = &objType->beh;
+					asSTypeBehaviour* beh = &objType->beh;
 
 #ifdef JIT_64
 					Register arg1 = as<void*>(cpu.intArg64(1, 1));
@@ -2009,7 +2009,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 			case asBC_RefCpyV:
 			case asBC_REFCPY:
 			{
-				asCObjectType *objType = (asCObjectType*)(size_t)asBC_PTRARG(pOp);
+				asCObjectType* objType = (asCObjectType*)(size_t)asBC_PTRARG(pOp);
 
 				if (objType->flags & asOBJ_NOCOUNT)
 				{
@@ -2038,7 +2038,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 					Register arg1 = pcx;
 #endif
 
-					asSTypeBehaviour *beh = &objType->beh;
+					asSTypeBehaviour* beh = &objType->beh;
 
 					if (op == asBC_REFCPY)
 					{
@@ -2187,7 +2187,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 #ifdef JIT_64
 				as<void*>(*edi - offset0) = pbx;
 #else
-				*edi - offset0 = ebx;
+				* edi - offset0 = ebx;
 				eax = *ebp + offsetof(asSVMRegisters, valueRegister) + 4;
 				*edi - offset0 + 4 = eax;
 #endif
@@ -2374,7 +2374,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 				arg1.copy_address(*edi - offset2);
 				cpu.call_stdcall((void*)fmod_wrapper_f, "rr", &arg0, &arg1);
 #ifdef JIT_64
-				*edi - offset0 = cpu.floatReturn64();
+				* edi - offset0 = cpu.floatReturn64();
 #else
 				fpu.store_float(*edi - offset0);
 #endif
@@ -2511,7 +2511,7 @@ int VMCJITCompiler::CompileFunction(asIScriptFunction *function, asJITFunction *
 				arg0 &= arg0;
 				auto toEnd2 = cpu.prep_short_jump(Zero);
 
-				asCObjectType *to = ((asCScriptEngine*)function->GetEngine())->GetObjectTypeFromTypeId(asBC_DWORDARG(pOp));
+				asCObjectType* to = ((asCScriptEngine*)function->GetEngine())->GetObjectTypeFromTypeId(asBC_DWORDARG(pOp));
 				cpu.call_stdcall((void*)castObject, "rp", &arg0, to);
 				pax &= pax;
 				auto toEnd3 = cpu.prep_short_jump(Zero);
@@ -3242,7 +3242,7 @@ unsigned findTotalPushBatchSize(asDWORD* nextOp, asDWORD* endOfBytecode)
 	unsigned bytes = 0;
 	while (nextOp < endOfBytecode)
 	{
-		asEBCInstr op = (asEBCInstr)*(asBYTE*)nextOp;
+		asEBCInstr op = (asEBCInstr) * (asBYTE*)nextOp;
 		switch (op)
 		{
 			case asBC_PshC4:

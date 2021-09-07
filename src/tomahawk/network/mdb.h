@@ -30,8 +30,8 @@ namespace Tomahawk
 			typedef _mongoc_change_stream_t TWatcher;
 			typedef _mongoc_client_session_t TTransaction;
 
-            class Transaction;
-        
+			class Transaction;
+
 			class Connection;
 
 			class Cluster;
@@ -98,7 +98,7 @@ namespace Tomahawk
 				~Property();
 				void Release();
 				std::string& ToString();
-                TDocument* GetOwnership();
+				TDocument* GetOwnership();
 				Document Get() const;
 				Property& operator= (const Property& Other) noexcept;
 				Property& operator= (Property&& Other) noexcept;
@@ -213,13 +213,13 @@ namespace Tomahawk
 			class TH_OUT Stream
 			{
 			private:
-                Document IOptions;
-                TCollection* Source;
+				Document IOptions;
+				TCollection* Source;
 				TStream* Base;
-                size_t Count;
+				size_t Count;
 
 			public:
-                Stream();
+				Stream();
 				Stream(TCollection* NewSource, TStream* NewBase, const Document& NewOptions);
 				void Release();
 				bool RemoveMany(const Document& Match, const Document& Options);
@@ -228,8 +228,8 @@ namespace Tomahawk
 				bool InsertOne(const Document& Result, const Document& Options);
 				bool UpdateOne(const Document& Match, const Document& Result, const Document& Options);
 				bool UpdateMany(const Document& Match, const Document& Result, const Document& Options);
-                bool TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
-                bool Query(const Document& Command);
+				bool TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+				bool Query(const Document& Command);
 				Core::Async<Document> ExecuteWithReply();
 				Core::Async<bool> Execute();
 				uint64_t GetHint() const;
@@ -239,8 +239,8 @@ namespace Tomahawk
 					return Base != nullptr;
 				}
 
-            private:
-                bool NextOperation();
+			private:
+				bool NextOperation();
 			};
 
 			class TH_OUT Cursor
@@ -273,44 +273,44 @@ namespace Tomahawk
 				}
 			};
 
-            class TH_OUT Response
-            {
-            private:
-                Cursor ICursor;
-                Document IDocument;
-                bool ISuccess;
-                
-            public:
-                Response();
-                Response(const Response& Other);
-                Response(const Cursor& _Cursor);
-                Response(const Document& _Document);
-                Response(bool _Success);
-                void Release();
-                Core::Async<Core::Document*> Fetch() const;
-                Core::Async<Core::Document*> FetchAll() const;
-                Property GetProperty(const char* Name);
-                Cursor GetCursor() const;
-                Document GetDocument() const;
-                bool IsOK() const;
-                bool OK();
-                Property operator [](const char* Name)
-                {
-                    return GetProperty(Name);
-                }
-                operator bool() const
-                {
-                    return IsOK();
-                }
-            };
-        
+			class TH_OUT Response
+			{
+			private:
+				Cursor ICursor;
+				Document IDocument;
+				bool ISuccess;
+
+			public:
+				Response();
+				Response(const Response& Other);
+				Response(const Cursor& _Cursor);
+				Response(const Document& _Document);
+				Response(bool _Success);
+				void Release();
+				Core::Async<Core::Document*> Fetch() const;
+				Core::Async<Core::Document*> FetchAll() const;
+				Property GetProperty(const char* Name);
+				Cursor GetCursor() const;
+				Document GetDocument() const;
+				bool IsOK() const;
+				bool OK();
+				Property operator [](const char* Name)
+				{
+					return GetProperty(Name);
+				}
+				operator bool() const
+				{
+					return IsOK();
+				}
+			};
+
 			class TH_OUT Collection
 			{
 			private:
 				TCollection* Base;
 
 			public:
-                Collection();
+				Collection();
 				Collection(TCollection* NewBase);
 				void Release();
 				Core::Async<bool> Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName);
@@ -333,9 +333,9 @@ namespace Tomahawk
 				Core::Async<Cursor> FindMany(const Document& Match, const Document& Options) const;
 				Core::Async<Cursor> FindOne(const Document& Match, const Document& Options) const;
 				Core::Async<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
-                Core::Async<Response> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, Transaction* Session = nullptr);
-                Core::Async<Response> Query(const Document& Command, Transaction* Session = nullptr);
-                const char* GetName() const;
+				Core::Async<Response> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, Transaction* Session = nullptr);
+				Core::Async<Response> Query(const Document& Command, Transaction* Session = nullptr);
+				const char* GetName() const;
 				Stream CreateStream(const Document& Options);
 				TCollection* Get() const;
 				operator bool() const
@@ -373,7 +373,7 @@ namespace Tomahawk
 			class TH_OUT Watcher
 			{
 			private:
-				TWatcher * Base;
+				TWatcher* Base;
 
 			public:
 				Watcher(TWatcher* NewBase);
@@ -399,8 +399,8 @@ namespace Tomahawk
 
 			public:
 				Transaction(TTransaction* NewBase);
-                bool Push(Document& QueryOptions) const;
-                bool Put(TDocument** QueryOptions) const;
+				bool Push(Document& QueryOptions) const;
+				bool Put(TDocument** QueryOptions) const;
 				Core::Async<bool> Start();
 				Core::Async<bool> Abort();
 				Core::Async<Document> RemoveMany(const Collection& Base, const Document& Match, const Document& Options);
@@ -413,8 +413,8 @@ namespace Tomahawk
 				Core::Async<Cursor> FindMany(const Collection& Base, const Document& Match, const Document& Options) const;
 				Core::Async<Cursor> FindOne(const Collection& Base, const Document& Match, const Document& Options) const;
 				Core::Async<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
-                Core::Async<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
-                Core::Async<Response> Query(const Collection& Base, const Document& Command);
+				Core::Async<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+				Core::Async<Response> Query(const Collection& Base, const Document& Command);
 				Core::Async<TransactionState> Commit();
 				TTransaction* Get() const;
 				operator bool() const

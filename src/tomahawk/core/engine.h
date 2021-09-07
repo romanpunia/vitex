@@ -40,7 +40,7 @@ namespace Tomahawk
 		class Processor;
 
 		class RenderSystem;
-		
+
 		class Material;
 
 		enum class ApplicationSet
@@ -50,7 +50,7 @@ namespace Tomahawk
 			AudioSet = 1 << 3,
 			ScriptSet = 1 << 4,
 			ContentSet = 1 << 5,
-            NetworkSet = 1 << 6
+			NetworkSet = 1 << 6
 		};
 
 		enum class ApplicationState
@@ -73,7 +73,8 @@ namespace Tomahawk
 			None = 0,
 			Transparent = 1,
 			Static = 2,
-			Inner = 4
+			Inner = 4,
+			Additive = 8
 		};
 
 		enum class RenderState
@@ -87,7 +88,8 @@ namespace Tomahawk
 		enum class GeoCategory
 		{
 			Opaque,
-			Transparent
+			Transparent,
+			Additive
 		};
 
 		enum class BufferType
@@ -243,14 +245,14 @@ namespace Tomahawk
 			Compute::Matrix4x4 ViewProjection;
 			Compute::Matrix4x4 Projection;
 			Compute::Matrix4x4 View;
-			Compute::Vector3 InvViewPosition;
-			Compute::Vector3 ViewPosition;
-			Compute::Vector3 WorldPosition;
-			Compute::Vector3 WorldRotation;
+			Compute::Vector3 InvPosition;
+			Compute::Vector3 Position;
+			Compute::Vector3 Rotation;
 			float FarPlane = 0.0f;
 			float NearPlane = 0.0f;
 
 			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far);
+			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, const Compute::Vector3& Rotation, float Near, float Far);
 		};
 
 		struct TH_OUT Attenuation
@@ -283,7 +285,7 @@ namespace Tomahawk
 			static void Pack(Core::Document* V, bool Value);
 			static void Pack(Core::Document* V, int Value);
 			static void Pack(Core::Document* V, unsigned int Value);
-            static void Pack(Core::Document* V, unsigned long Value);
+			static void Pack(Core::Document* V, unsigned long Value);
 			static void Pack(Core::Document* V, float Value);
 			static void Pack(Core::Document* V, double Value);
 			static void Pack(Core::Document* V, int64_t Value);
@@ -335,7 +337,7 @@ namespace Tomahawk
 			static bool Unpack(Core::Document* V, int* O);
 			static bool Unpack(Core::Document* V, unsigned int* O);
 			static bool Unpack(Core::Document* V, unsigned long* O);
-            static bool Unpack(Core::Document* V, float* O);
+			static bool Unpack(Core::Document* V, float* O);
 			static bool Unpack(Core::Document* V, double* O);
 			static bool Unpack(Core::Document* V, int64_t* O);
 			static bool Unpack(Core::Document* V, long double* O);
@@ -544,7 +546,7 @@ namespace Tomahawk
 			friend SceneGraph;
 
 		protected:
-			RenderSystem * System;
+			RenderSystem* System;
 
 		public:
 			bool Active;
@@ -787,9 +789,9 @@ namespace Tomahawk
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 			virtual Component* Copy(Entity* New) override = 0;
 			virtual void ClearCull() override;
-			bool SetTransparency(bool Enabled);
+			bool SetCategory(GeoCategory Category);
 			bool SetMaterial(void* Instance, Material* Value);
-			bool HasTransparency();
+			GeoCategory GetCategory();
 			int64_t GetSlot(void* Surface);
 			int64_t GetSlot();
 			Material* GetMaterial(void* Surface);
@@ -821,6 +823,7 @@ namespace Tomahawk
 			void Render(Core::Timer* TimeStep, RenderState State, RenderOpt Options) override;
 			Core::Pool<Drawable*>* GetOpaque();
 			Core::Pool<Drawable*>* GetTransparent();
+			Core::Pool<Drawable*>* GetAdditive();
 
 		public:
 			TH_COMPONENT("geometry-draw");
@@ -905,6 +908,7 @@ namespace Tomahawk
 			{
 				Core::Pool<Drawable*> Opaque;
 				Core::Pool<Drawable*> Transparent;
+				Core::Pool<Drawable*> Additive;
 			};
 
 		private:
@@ -1022,20 +1026,23 @@ namespace Tomahawk
 			std::vector<Entity*> FindEntitiesAt(const Compute::Vector3& Position, float Radius);
 			std::vector<Entity*> FindTaggedEntities(uint64_t Tag);
 			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection);
-			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance);
+			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPos, float DrawDistance);
 			bool AddEntity(Entity* Entity);
 			bool IsActive();
+			bool IsLeftHanded();
 			uint64_t GetMaterialsCount();
 			uint64_t GetEntitiesCount();
 			uint64_t GetComponentsCount(uint64_t Section);
 			uint64_t GetOpaquesCount();
 			uint64_t GetTransparentsCount();
+			uint64_t GetAdditivesCount();
 			size_t GetVoxelBufferSize();
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
 			bool IsUnstable();
 			Core::Pool<Drawable*>* GetOpaque(uint64_t Section);
 			Core::Pool<Drawable*>* GetTransparent(uint64_t Section);
+			Core::Pool<Drawable*>* GetAdditive(uint64_t Section);
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
 			Graphics::RenderTarget2D* GetRT(TargetType Type);
 			Graphics::Texture2D** GetMerger();
@@ -1109,6 +1116,11 @@ namespace Tomahawk
 			Core::Pool<Drawable*>* GetTransparent()
 			{
 				return GetTransparent(T::GetTypeId());
+			}
+			template <typename T>
+			Core::Pool<Drawable*>* GetAdditive()
+			{
+				return GetAdditive(T::GetTypeId());
 			}
 			template <typename T>
 			T* GetComponent()
@@ -1265,7 +1277,7 @@ namespace Tomahawk
 					(size_t)ApplicationSet::AudioSet |
 					(size_t)ApplicationSet::ScriptSet |
 					(size_t)ApplicationSet::ContentSet |
-                    (size_t)ApplicationSet::NetworkSet;
+					(size_t)ApplicationSet::NetworkSet;
 				bool Cursor = true;
 				bool Async = false;
 			};
@@ -1282,7 +1294,7 @@ namespace Tomahawk
 
 		private:
 			ApplicationState State = ApplicationState::Terminated;
-            bool NetworkQueue = false;
+			bool NetworkQueue = false;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;

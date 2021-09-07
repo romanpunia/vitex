@@ -1123,7 +1123,7 @@ namespace Tomahawk
 				Input = New;
 				Driver::Listen(this, false);
 			}
-			
+
 			return true;
 		}
 		bool Socket::ReadFlush()
@@ -2095,7 +2095,7 @@ namespace Tomahawk
 		bool SocketServer::Protect(Socket* Fd, Listener* Host)
 		{
 			TH_ASSERT(Fd != nullptr, false, "socket should be set");
-			
+
 			ssl_ctx_st* Context = nullptr;
 			if (!OnProtect(Fd, Host, &Context) || !Context)
 				return false;

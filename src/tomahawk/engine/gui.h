@@ -60,7 +60,7 @@ namespace Tomahawk
 			class IElementDocument;
 
 			class DataNode;
-			
+
 			class Listener;
 
 			class Context;
@@ -231,7 +231,7 @@ namespace Tomahawk
 			public:
 				IElement();
 				IElement(Rml::Element* Ref);
-                virtual ~IElement() = default;
+				virtual ~IElement() = default;
 				virtual void Release();
 				IElement Clone() const;
 				void SetClass(const std::string& ClassName, bool Activate);
@@ -354,7 +354,7 @@ namespace Tomahawk
 			public:
 				IElementDocument();
 				IElementDocument(Rml::ElementDocument* Ref);
-                virtual ~IElementDocument() = default;
+				virtual ~IElementDocument() = default;
 				virtual void Release() override;
 				void SetTitle(const std::string& Title);
 				void PullToFront();

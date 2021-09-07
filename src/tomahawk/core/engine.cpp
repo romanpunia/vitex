@@ -123,22 +123,25 @@ namespace Tomahawk
 
 		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far)
 		{
+			Set(_View, _Projection, _Position, -_View.Rotation(), _Near, _Far);
+		}
+		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, const Compute::Vector3& _Rotation, float _Near, float _Far)
+		{
 			View = _View;
 			Projection = _Projection;
 			ViewProjection = _View * _Projection;
 			InvViewProjection = ViewProjection.Inv();
-			InvViewPosition = _Position.InvZ();
-			ViewPosition = InvViewPosition.Inv();
-			WorldPosition = _Position;
-			WorldRotation = -_View.Rotation();
+			InvPosition = _Position.Inv();
+			Position = _Position;
+			Rotation = _Rotation;
 			FarPlane = (_Far < _Near ? 999999999 : _Far);
 			NearPlane = _Near;
-			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, InvViewPosition) * Projection;
-			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, InvViewPosition) * Projection;
-			CubicViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, InvViewPosition) * Projection;
-			CubicViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, InvViewPosition) * Projection;
-			CubicViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, InvViewPosition) * Projection;
-			CubicViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, InvViewPosition) * Projection;
+			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, Position) * Projection;
+			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, Position) * Projection;
+			CubicViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, Position) * Projection;
+			CubicViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, Position) * Projection;
+			CubicViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, Position) * Projection;
+			CubicViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, Position) * Projection;
 		}
 
 		void NMake::Pack(Core::Document* V, bool Value)
@@ -2002,7 +2005,7 @@ namespace Tomahawk
 		bool Cullable::IsVisible(const Viewer& View, Compute::Matrix4x4* World)
 		{
 			auto* Transform = Parent->GetTransform();
-			if (Transform->GetPosition().Distance(View.WorldPosition) > View.FarPlane + Transform->GetScale().Length())
+			if (Transform->GetPosition().Distance(View.Position) > View.FarPlane + Transform->GetScale().Length())
 				return false;
 
 			return Compute::Common::IsCubeInFrustum((World ? *World : Transform->GetBias()) * View.ViewProjection, 1.65f);
@@ -2010,7 +2013,7 @@ namespace Tomahawk
 		bool Cullable::IsNear(const Viewer& View)
 		{
 			auto* Transform = Parent->GetTransform();
-			return Transform->GetPosition().Distance(View.WorldPosition) <= View.FarPlane + Transform->GetScale().Length();
+			return Transform->GetPosition().Distance(View.Position) <= View.FarPlane + Transform->GetScale().Length();
 		}
 
 		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) : Cullable(Ref, Rule | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true)
@@ -2043,20 +2046,16 @@ namespace Tomahawk
 		}
 		void Drawable::Attach()
 		{
-			SetTransparency(false);
+			SetCategory(GeoCategory::Opaque);
 		}
 		void Drawable::Detach()
 		{
 			Parent->GetScene()->RemoveDrawable(this, Category);
 		}
-		bool Drawable::SetTransparency(bool Enabled)
+		bool Drawable::SetCategory(GeoCategory Value)
 		{
 			Detach();
-			if (Enabled)
-				Category = GeoCategory::Transparent;
-			else
-				Category = GeoCategory::Opaque;
-
+			Category = Value;
 			Parent->GetScene()->AddDrawable(this, Category);
 			return true;
 		}
@@ -2076,9 +2075,9 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Drawable::HasTransparency()
+		GeoCategory Drawable::GetCategory()
 		{
-			return Category == GeoCategory::Transparent;
+			return Category;
 		}
 		int64_t Drawable::GetSlot(void* Surface)
 		{
@@ -2570,6 +2569,12 @@ namespace Tomahawk
 			Elements[4] = { 1.0f, 1.0f, 0, 0, -1 };
 			Elements[5] = { 1.0f, -1.0f, 0, 0, 0 };
 
+			if (!TH_LEFT_HANDED)
+			{
+				for (size_t i = 0; i < 6; i++)
+					Elements[i].TexCoordY = -Elements[i].TexCoordY;
+			}
+
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess::Invalid;
 			F.Usage = Graphics::ResourceUsage::Default;
@@ -2793,6 +2798,12 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
 
+				if (!TH_LEFT_HANDED)
+				{
+					for (auto& Item : Elements)
+						Item.TexCoordY = -Item.TexCoordY;
+				}
+
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
 				F.Usage = Graphics::ResourceUsage::Default;
@@ -2819,43 +2830,42 @@ namespace Tomahawk
 			if (Type == BufferType::Index)
 			{
 				std::vector<int> Indices;
-				Indices.push_back(0);
-				Indices.push_back(1);
-				Indices.push_back(2);
-				Indices.push_back(0);
-				Indices.push_back(18);
-				Indices.push_back(1);
-				Indices.push_back(3);
-				Indices.push_back(4);
-				Indices.push_back(5);
-				Indices.push_back(3);
-				Indices.push_back(19);
-				Indices.push_back(4);
-				Indices.push_back(6);
-				Indices.push_back(7);
-				Indices.push_back(8);
-				Indices.push_back(6);
-				Indices.push_back(20);
-				Indices.push_back(7);
-				Indices.push_back(9);
-				Indices.push_back(10);
-				Indices.push_back(11);
-				Indices.push_back(9);
-				Indices.push_back(21);
-				Indices.push_back(10);
-				Indices.push_back(12);
-				Indices.push_back(13);
-				Indices.push_back(14);
-				Indices.push_back(12);
-				Indices.push_back(22);
-				Indices.push_back(13);
-				Indices.push_back(15);
-				Indices.push_back(16);
-				Indices.push_back(17);
-				Indices.push_back(15);
-				Indices.push_back(23);
-				Indices.push_back(16);
-				Compute::Common::ComputeIndexWindingOrderFlip(Indices);
+				Indices.insert(Indices.begin(), 0);
+				Indices.insert(Indices.begin(), 1);
+				Indices.insert(Indices.begin(), 2);
+				Indices.insert(Indices.begin(), 0);
+				Indices.insert(Indices.begin(), 18);
+				Indices.insert(Indices.begin(), 1);
+				Indices.insert(Indices.begin(), 3);
+				Indices.insert(Indices.begin(), 4);
+				Indices.insert(Indices.begin(), 5);
+				Indices.insert(Indices.begin(), 3);
+				Indices.insert(Indices.begin(), 19);
+				Indices.insert(Indices.begin(), 4);
+				Indices.insert(Indices.begin(), 6);
+				Indices.insert(Indices.begin(), 7);
+				Indices.insert(Indices.begin(), 8);
+				Indices.insert(Indices.begin(), 6);
+				Indices.insert(Indices.begin(), 20);
+				Indices.insert(Indices.begin(), 7);
+				Indices.insert(Indices.begin(), 9);
+				Indices.insert(Indices.begin(), 10);
+				Indices.insert(Indices.begin(), 11);
+				Indices.insert(Indices.begin(), 9);
+				Indices.insert(Indices.begin(), 21);
+				Indices.insert(Indices.begin(), 10);
+				Indices.insert(Indices.begin(), 12);
+				Indices.insert(Indices.begin(), 13);
+				Indices.insert(Indices.begin(), 14);
+				Indices.insert(Indices.begin(), 12);
+				Indices.insert(Indices.begin(), 22);
+				Indices.insert(Indices.begin(), 13);
+				Indices.insert(Indices.begin(), 15);
+				Indices.insert(Indices.begin(), 16);
+				Indices.insert(Indices.begin(), 17);
+				Indices.insert(Indices.begin(), 15);
+				Indices.insert(Indices.begin(), 23);
+				Indices.insert(Indices.begin(), 16);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -2899,6 +2909,12 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
 
+				if (!TH_LEFT_HANDED)
+				{
+					for (auto& Item : Elements)
+						Item.TexCoordY = -Item.TexCoordY;
+				}
+
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
 				F.Usage = Graphics::ResourceUsage::Default;
@@ -2925,43 +2941,42 @@ namespace Tomahawk
 			if (Type == BufferType::Index)
 			{
 				std::vector<int> Indices;
-				Indices.push_back(0);
-				Indices.push_back(1);
-				Indices.push_back(2);
-				Indices.push_back(0);
-				Indices.push_back(18);
-				Indices.push_back(1);
-				Indices.push_back(3);
-				Indices.push_back(4);
-				Indices.push_back(5);
-				Indices.push_back(3);
-				Indices.push_back(19);
-				Indices.push_back(4);
-				Indices.push_back(6);
-				Indices.push_back(7);
-				Indices.push_back(8);
-				Indices.push_back(6);
-				Indices.push_back(20);
-				Indices.push_back(7);
-				Indices.push_back(9);
-				Indices.push_back(10);
-				Indices.push_back(11);
-				Indices.push_back(9);
-				Indices.push_back(21);
-				Indices.push_back(10);
-				Indices.push_back(12);
-				Indices.push_back(13);
-				Indices.push_back(14);
-				Indices.push_back(12);
-				Indices.push_back(22);
-				Indices.push_back(13);
-				Indices.push_back(15);
-				Indices.push_back(16);
-				Indices.push_back(17);
-				Indices.push_back(15);
-				Indices.push_back(23);
-				Indices.push_back(16);
-				Compute::Common::ComputeIndexWindingOrderFlip(Indices);
+				Indices.insert(Indices.begin(), 0);
+				Indices.insert(Indices.begin(), 1);
+				Indices.insert(Indices.begin(), 2);
+				Indices.insert(Indices.begin(), 0);
+				Indices.insert(Indices.begin(), 18);
+				Indices.insert(Indices.begin(), 1);
+				Indices.insert(Indices.begin(), 3);
+				Indices.insert(Indices.begin(), 4);
+				Indices.insert(Indices.begin(), 5);
+				Indices.insert(Indices.begin(), 3);
+				Indices.insert(Indices.begin(), 19);
+				Indices.insert(Indices.begin(), 4);
+				Indices.insert(Indices.begin(), 6);
+				Indices.insert(Indices.begin(), 7);
+				Indices.insert(Indices.begin(), 8);
+				Indices.insert(Indices.begin(), 6);
+				Indices.insert(Indices.begin(), 20);
+				Indices.insert(Indices.begin(), 7);
+				Indices.insert(Indices.begin(), 9);
+				Indices.insert(Indices.begin(), 10);
+				Indices.insert(Indices.begin(), 11);
+				Indices.insert(Indices.begin(), 9);
+				Indices.insert(Indices.begin(), 21);
+				Indices.insert(Indices.begin(), 10);
+				Indices.insert(Indices.begin(), 12);
+				Indices.insert(Indices.begin(), 13);
+				Indices.insert(Indices.begin(), 14);
+				Indices.insert(Indices.begin(), 12);
+				Indices.insert(Indices.begin(), 22);
+				Indices.insert(Indices.begin(), 13);
+				Indices.insert(Indices.begin(), 15);
+				Indices.insert(Indices.begin(), 16);
+				Indices.insert(Indices.begin(), 17);
+				Indices.insert(Indices.begin(), 15);
+				Indices.insert(Indices.begin(), 23);
+				Indices.insert(Indices.begin(), 16);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3004,6 +3019,12 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+
+				if (!TH_LEFT_HANDED)
+				{
+					for (auto& Item : Elements)
+						Item.TexCoordY = -Item.TexCoordY;
+				}
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3555,6 +3576,8 @@ namespace Tomahawk
 				Core::Pool<Drawable*>* Geometry;
 				if ((size_t)Options & (size_t)RenderOpt::Transparent)
 					Geometry = GetTransparent();
+				else if ((size_t)Options & (size_t)RenderOpt::Additive)
+					Geometry = GetAdditive();
 				else
 					Geometry = GetOpaque();
 
@@ -3568,7 +3591,7 @@ namespace Tomahawk
 			}
 			else if (State == RenderState::Geometry_Voxels)
 			{
-				if ((size_t)Options & (size_t)RenderOpt::Transparent)
+				if ((size_t)Options & (size_t)RenderOpt::Transparent || (size_t)Options & (size_t)RenderOpt::Additive)
 					return;
 
 				TH_PPUSH("render-voxels", TH_PERF_MIX);
@@ -3623,6 +3646,10 @@ namespace Tomahawk
 		Core::Pool<Drawable*>* GeometryDraw::GetTransparent()
 		{
 			return System->GetScene()->GetTransparent(Source);
+		}
+		Core::Pool<Drawable*>* GeometryDraw::GetAdditive()
+		{
+			return System->GetScene()->GetAdditive(Source);
 		}
 
 		EffectDraw::EffectDraw(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Swap(nullptr), MaxSlot(0)
@@ -3873,6 +3900,7 @@ namespace Tomahawk
 			Display.Sampler = nullptr;
 			Display.Layout = nullptr;
 			Display.VoxelSize = 0;
+
 			Configure(I);
 			ExpandMaterials();
 			SetParallel("simulate", std::bind(&SceneGraph::Simulate, this, std::placeholders::_1));
@@ -3932,13 +3960,12 @@ namespace Tomahawk
 			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
 			Exclusive([this, NewConf]()
 			{
+				Conf = NewConf;
 				Display.DepthStencil = Conf.Device->GetDepthStencilState("none");
 				Display.Rasterizer = Conf.Device->GetRasterizerState("cull-back");
 				Display.Blend = Conf.Device->GetBlendState("overwrite");
 				Display.Sampler = Conf.Device->GetSamplerState("trilinear-x16");
 				Display.Layout = Conf.Device->GetInputLayout("shape-vertex");
-
-				Conf = NewConf;
 				Materials.Reserve(Conf.MaterialCount);
 				Entities.Reserve(Conf.EntityCount);
 
@@ -3952,6 +3979,7 @@ namespace Tomahawk
 				{
 					Array.second.Opaque.Reserve(Conf.ComponentCount);
 					Array.second.Transparent.Reserve(Conf.ComponentCount);
+					Array.second.Additive.Reserve(Conf.ComponentCount);
 				}
 
 				SetTiming(Conf.MinFrames, Conf.MaxFrames);
@@ -4249,7 +4277,8 @@ namespace Tomahawk
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_ASSERT_V(Simulator != nullptr, "simulator should be set");
 			TH_PPUSH("scene-sim", TH_PERF_CORE);
-			Simulator->Simulate((float)Time->GetTimeStep());
+			if (Active)
+				Simulator->Simulate((float)Time->GetTimeStep());
 			TH_PPOP();
 		}
 		void SceneGraph::Synchronize(Core::Timer* Time)
@@ -4260,7 +4289,7 @@ namespace Tomahawk
 			for (auto It = Begin1; It != End1; ++It)
 				(*It)->Synchronize(Time);
 
-			Compute::Vector3& Far = View.WorldPosition;
+			Compute::Vector3& Far = View.Position;
 			Component* Viewer = Camera.load();
 			if (Viewer != nullptr)
 				Far = Viewer->Parent->Transform->GetPosition();
@@ -4474,8 +4503,8 @@ namespace Tomahawk
 			Conf.Device->View.ViewProj = View.ViewProjection;
 			Conf.Device->View.Proj = View.Projection;
 			Conf.Device->View.View = View.View;
-			Conf.Device->View.Position = View.InvViewPosition;
-			Conf.Device->View.Direction = View.WorldRotation.dDirection();
+			Conf.Device->View.Position = View.Position;
+			Conf.Device->View.Direction = View.Rotation.dDirection();
 			Conf.Device->View.Far = View.FarPlane;
 			Conf.Device->View.Near = View.NearPlane;
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::View);
@@ -4498,7 +4527,7 @@ namespace Tomahawk
 				if (Compute::Common::CursorRayTest(Base, Current->GetBoundingBox(), &Hit) && !Callback(Current, Hit))
 					break;
 			}
-			
+
 			TH_PPOP();
 		}
 		void SceneGraph::ScriptHook(const std::string& Name)
@@ -4810,6 +4839,10 @@ namespace Tomahawk
 			Race.unlock();
 			return false;
 		}
+		bool SceneGraph::IsLeftHanded()
+		{
+			return Conf.Device->IsLeftHanded();
+		}
 		void SceneGraph::Mutate(Entity* Parent, Entity* Child, const char* Type)
 		{
 			TH_ASSERT_V(Parent != nullptr, "parent should be set");
@@ -4949,6 +4982,8 @@ namespace Tomahawk
 				GetOpaque(Source->Source)->Add(Source);
 			else if (Category == GeoCategory::Transparent)
 				GetTransparent(Source->Source)->Add(Source);
+			else if (Category == GeoCategory::Additive)
+				GetAdditive(Source->Source)->Add(Source);
 		}
 		void SceneGraph::RemoveDrawable(Drawable* Source, GeoCategory Category)
 		{
@@ -4957,6 +4992,8 @@ namespace Tomahawk
 				GetOpaque(Source->Source)->Remove(Source);
 			else if (Category == GeoCategory::Transparent)
 				GetTransparent(Source->Source)->Remove(Source);
+			else if (Category == GeoCategory::Additive)
+				GetAdditive(Source->Source)->Remove(Source);
 		}
 		Material* SceneGraph::AddMaterial(Material* Base, const std::string& Name)
 		{
@@ -5148,6 +5185,18 @@ namespace Tomahawk
 
 			return Array;
 		}
+		Core::Pool<Drawable*>* SceneGraph::GetAdditive(uint64_t Section)
+		{
+			Core::Pool<Drawable*>* Array = &Drawables[Section].Additive;
+			if (Array->Capacity() >= Conf.ComponentCount)
+				return Array;
+
+			ExclusiveLock();
+			Array->Reserve(Conf.ComponentCount);
+			ExclusiveUnlock();
+
+			return Array;
+		}
 		Graphics::RenderTarget2D::Desc SceneGraph::GetDescRT()
 		{
 			TH_ASSERT(Conf.Device != nullptr, Graphics::RenderTarget2D::Desc(), "graphics device should be set");
@@ -5257,10 +5306,10 @@ namespace Tomahawk
 
 			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetBias() * ViewProjection, 2);
 		}
-		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPosition, float DrawDistance)
+		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPos, float DrawDistance)
 		{
 			TH_ASSERT(Entity != nullptr, false, "entity should be set");
-			if (Entity->Transform->GetPosition().Distance(ViewPosition) > DrawDistance + Entity->Transform->GetScale().Length())
+			if (Entity->Transform->GetPosition().Distance(ViewPos) > DrawDistance + Entity->Transform->GetScale().Length())
 				return false;
 
 			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetBias() * ViewProjection, 2);
@@ -5320,6 +5369,14 @@ namespace Tomahawk
 			uint64_t Count = 0;
 			for (auto& Array : Drawables)
 				Count += Array.second.Transparent.Size();
+
+			return Count;
+		}
+		uint64_t SceneGraph::GetAdditivesCount()
+		{
+			uint64_t Count = 0;
+			for (auto& Array : Drawables)
+				Count += Array.second.Additive.Size();
 
 			return Count;
 		}
@@ -5856,6 +5913,7 @@ namespace Tomahawk
 							return;
 						}
 
+						Compute::Common::SetLeftHanded(Renderer->IsLeftHanded());
 						if (Content != nullptr)
 							Content->SetDevice(Renderer);
 

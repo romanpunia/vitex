@@ -673,7 +673,7 @@ namespace Tomahawk
 		}
 		void CEFormat::FormatBuffer(VMGlobal& Global, Core::Parser& Result, std::string& Offset, void* Ref, int TypeId)
 		{
-			if (TypeId < (int)VMTypeId::BOOL || TypeId > (int)VMTypeId::DOUBLE)
+			if (TypeId < (int)VMTypeId::BOOL || TypeId >(int)VMTypeId::DOUBLE)
 			{
 				VMTypeInfo Type = Global.GetTypeInfoById(TypeId);
 				if (!Ref)
@@ -818,7 +818,7 @@ namespace Tomahawk
 		}
 		void CEFormat::FormatJSON(VMGlobal& Global, Core::Parser& Result, void* Ref, int TypeId)
 		{
-			if (TypeId < (int)VMTypeId::BOOL || TypeId > (int)VMTypeId::DOUBLE)
+			if (TypeId < (int)VMTypeId::BOOL || TypeId >(int)VMTypeId::DOUBLE)
 			{
 				VMTypeInfo Type = Global.GetTypeInfoById(TypeId);
 				void* Object = Type.GetInstance<void>(Ref, TypeId);
@@ -954,7 +954,7 @@ namespace Tomahawk
 			VFormat.SetUnmanagedConstructorList<CEFormat>("Format@ f(int &in) {repeat ?}");
 			VFormat.SetMethodStatic("String JSON(const ? &in)", &CEFormat::JSON);
 			Engine->EndNamespace();
-			
+
 			return true;
 		}
 		bool CERegisterDecimal(VMManager* Engine)
@@ -1074,7 +1074,7 @@ namespace Tomahawk
 			VFileState.SetProperty<Core::FileState>("int64 LastModified", &Core::FileState::LastModified);
 			VFileState.SetProperty<Core::FileState>("bool Exists", &Core::FileState::Exists);
 			Engine->EndNamespace();
-			
+
 			return true;
 		}
 		bool CERegisterResource(VMManager* Engine)
@@ -1401,7 +1401,7 @@ namespace Tomahawk
 			VDocument.SetProperty<Core::Document>("String Key", &Core::Document::Key);
 			VDocument.SetProperty<Core::Document>("Variant Value", &Core::Document::Value);
 			VDocument.SetUnmanagedConstructor<Core::Document, const Core::Variant&>("Document@ f(const Variant &in)");
-			VDocument.SetUnmanagedConstructorListEx<Core::Document>("Document@ f(int &in) {repeat {String, ?}}", &DocumentConstruct);	
+			VDocument.SetUnmanagedConstructorListEx<Core::Document>("Document@ f(int &in) {repeat {String, ?}}", &DocumentConstruct);
 			VDocument.SetMethod<Core::Document, Core::Variant, size_t>("Variant GetVar(uint) const", &Core::Document::GetVar);
 			VDocument.SetMethod<Core::Document, Core::Variant, const std::string&>("Variant GetVar(const String &in) const", &Core::Document::GetVar);
 			VDocument.SetMethod("Document@+ GetParent() const", &Core::Document::GetParent);

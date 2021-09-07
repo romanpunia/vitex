@@ -919,10 +919,17 @@ namespace Tomahawk
 			Sampler.ComparisonFunction = Comparison::Never;
 			SamplerStates["point"] = CreateSamplerState(Sampler);
 
-			Sampler.AddressU = TextureAddress::Mirror;
-			Sampler.AddressV = TextureAddress::Mirror;
-			Sampler.AddressW = TextureAddress::Mirror;
-			SamplerStates["shadow"] = CreateSamplerState(Sampler);
+			Sampler.Filter = PixelFilter::Min_Mag_Linear_Mip_Point;
+			Sampler.MaxAnisotropy = 1;
+			SamplerStates["depth"] = CreateSamplerState(Sampler);
+
+			Sampler.Filter = PixelFilter::Compare_Min_Mag_Linear_Mip_Point;
+			Sampler.ComparisonFunction = Comparison::Less;
+			SamplerStates["depth-cmp-less"] = CreateSamplerState(Sampler);
+
+			Sampler.Filter = PixelFilter::Compare_Min_Mag_Linear_Mip_Point;
+			Sampler.ComparisonFunction = Comparison::Greater;
+			SamplerStates["depth-cmp-greater"] = CreateSamplerState(Sampler);
 
 			InputLayout::Desc Layout;
 			Layout.Attributes =
@@ -1352,6 +1359,10 @@ namespace Tomahawk
 			TH_RELEASE(Stream);
 
 			return Result;
+		}
+		bool GraphicsDevice::IsLeftHanded()
+		{
+			return Backend == RenderBackend::D3D11;
 		}
 		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height)
 		{

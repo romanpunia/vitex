@@ -13,19 +13,19 @@ void gs_main(triangle VOutputLinear V[3], inout TriangleStream<VOutputCubic> Str
 		Result.Position = mul(V[0].Position, cb_ViewProjection[Result.RenderTarget]);
 		Result.UV = V[0].UV;
 		Result.TexCoord = V[0].TexCoord;
-        Result.Normal = V[0].Normal;
+		Result.Normal = V[0].Normal;
 		Stream.Append(Result);
 
 		Result.Position = mul(V[1].Position, cb_ViewProjection[Result.RenderTarget]);
 		Result.UV = V[1].UV;
 		Result.TexCoord = V[1].TexCoord;
-        Result.Normal = V[1].Normal;
+		Result.Normal = V[1].Normal;
 		Stream.Append(Result);
 
 		Result.Position = mul(V[2].Position, cb_ViewProjection[Result.RenderTarget]);
 		Result.UV = V[2].UV;
 		Result.TexCoord = V[2].TexCoord;
-        Result.Normal = V[2].Normal;
+		Result.Normal = V[2].Normal;
 		Stream.Append(Result);
 
 		Stream.RestartStrip();

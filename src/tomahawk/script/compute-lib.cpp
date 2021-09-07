@@ -400,7 +400,7 @@ namespace Tomahawk
 			Register.SetFunction("Vector2 Left()", &Compute::Vector2::Left);
 			Register.SetFunction("Vector2 Right()", &Compute::Vector2::Right);
 			Engine->EndNamespace();
-			
+
 			return true;
 		}
 		bool CURegisterVector3(VMManager* Engine)

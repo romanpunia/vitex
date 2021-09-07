@@ -16,8 +16,8 @@ namespace Tomahawk
 
 			class Row;
 
-            class Request;
-        
+			class Request;
+
 			class Response;
 
 			class Cluster;
@@ -370,50 +370,50 @@ namespace Tomahawk
 					return !Base.empty();
 				}
 			};
-        
-            class TH_OUT Connection
-            {
-                friend Cluster;
-                
-            private:
-                TConnection* Base;
-                Socket* Stream;
-                Request* Current;
+
+			class TH_OUT Connection
+			{
+				friend Cluster;
+
+			private:
+				TConnection* Base;
+				Socket* Stream;
+				Request* Current;
 				uint64_t Session;
-                QueryState State;
-                
-            public:
-                TConnection* GetBase() const;
-                Socket* GetStream() const;
-                Request* GetCurrent() const;
-                QueryState GetState() const;
-                bool IsBusy() const;
-            };
-        
-            class TH_OUT Request
-            {
-                friend Cluster;
-                
-            private:
-                Core::Async<Cursor> Future;
-                std::string Command;
+				QueryState State;
+
+			public:
+				TConnection* GetBase() const;
+				Socket* GetStream() const;
+				Request* GetCurrent() const;
+				QueryState GetState() const;
+				bool IsBusy() const;
+			};
+
+			class TH_OUT Request
+			{
+				friend Cluster;
+
+			private:
+				Core::Async<Cursor> Future;
+				std::string Command;
 				uint64_t Session;
-                Cursor Result;
-                
-            public:
-                std::string GetCommand() const;
-                Cursor GetResult() const;
+				Cursor Result;
+
+			public:
+				std::string GetCommand() const;
+				Cursor GetResult() const;
 				uint64_t GetSession() const;
-                bool IsPending() const;
-            };
-        
+				bool IsPending() const;
+			};
+
 			class TH_OUT Cluster : public Core::Object
 			{
 				friend Driver;
 
 			private:
 				std::unordered_map<std::string, OnNotification> Listeners;
-                std::unordered_map<Socket*, Connection*> Pool;
+				std::unordered_map<Socket*, Connection*> Pool;
 				std::vector<Request*> Requests;
 				std::atomic<uint64_t> Session;
 				std::mutex Update;
@@ -437,9 +437,9 @@ namespace Tomahawk
 			private:
 				void Reestablish(Connection* Base);
 				void Commit(uint64_t Token);
-                bool Consume(Connection* Base);
-                bool Reprocess(Connection* Base);
-                bool Dispatch(Socket* Stream, const char*, int64_t);
+				bool Consume(Connection* Base);
+				bool Reprocess(Connection* Base);
+				bool Dispatch(Socket* Stream, const char*, int64_t);
 				bool Transact(Connection* Base, Request* Token);
 			};
 

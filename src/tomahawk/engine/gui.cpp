@@ -131,7 +131,7 @@ namespace Tomahawk
 						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
 					else
 						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
-					
+
 					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
 					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(Buffer->VertexBuffer, 0);
@@ -147,10 +147,9 @@ namespace Tomahawk
 				virtual void EnableScissorRegion(bool Enable) override
 				{
 					TH_ASSERT_V(Device != nullptr, "graphics device should be set");
-					const Rml::Matrix4f Projection = Rml::Matrix4f::ProjectOrtho(0.0f,
-						(float)Device->GetRenderTarget()->GetWidth(),
-						(float)Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
-					Ortho = Subsystem::ToMatrix(&Projection);
+					Ortho = Compute::Matrix4x4::CreateOrthographicOffCenter(0,
+						Device->GetRenderTarget()->GetWidth(),
+						Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
 
 					Device->SetBlendState(AlphaBlend);
 					if (Enable)
@@ -2862,7 +2861,7 @@ namespace Tomahawk
 			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
 				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i(Size.X, Size.Y));
-				
+
 				TH_ASSERT_V(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();
@@ -2874,7 +2873,7 @@ namespace Tomahawk
 
 				Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
 				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Target->GetWidth(), (int)Target->GetHeight()));
-				
+
 				TH_ASSERT_V(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();

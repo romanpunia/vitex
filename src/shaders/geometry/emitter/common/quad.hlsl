@@ -18,12 +18,12 @@ VOutputCubic Make(VOutputLinear V, float2 Offset, float2 TexCoord2, uint i)
 	VOutputCubic Result = (VOutputCubic)0;
 	Result.Position = V.Position;
 	Result.UV = V.UV;
-    Result.Normal = V.Normal;
+	Result.Normal = V.Normal;
 	Result.Rotation = V.Rotation;
 	Result.Scale = V.Scale;
 	Result.Alpha = V.Alpha;
 	Result.RenderTarget = i;
-	Result.TexCoord = TexCoord2 * ob_TexCoord.xy;
+	Result.TexCoord = TexCoord2;
 
 	return Result;
 }
@@ -45,10 +45,10 @@ VOutputLinear vs_main(VInput V)
 {
 	VOutputLinear Result = (VOutputLinear)0;
 	Result.Position = Result.UV = mul(float4(Elements[V.Position].Position, 1), ob_World);
-    Result.Normal = float3(0, 0, 1);
+	Result.Normal = ob_TexCoord.xyz;
 	Result.Rotation = Elements[V.Position].Rotation;
 	Result.Scale = Elements[V.Position].Scale;
 	Result.Alpha = Elements[V.Position].Color.w;
-    
+	
 	return Result;
 }

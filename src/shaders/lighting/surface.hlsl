@@ -14,8 +14,8 @@ cbuffer RenderConstant : register(b3)
 	float Mips;
 	float3 Scale;
 	float Parallax;
-    float3 Attenuation;
-    float Infinity;
+	float3 Attenuation;
+	float Infinity;
 };
 
 TextureCube EnvironmentMap : register(t5);
@@ -32,15 +32,15 @@ VOutput vs_main(VInput V)
 float4 ps_main(VOutput V) : SV_TARGET0
 {
 	Fragment Frag = GetFragment(GetTexCoord(V.TexCoord));
-    [branch] if (Frag.Depth >= 1.0)
-        return float4(0, 0, 0, 0);
+	[branch] if (Frag.Depth >= 1.0)
+		return float4(0, 0, 0, 0);
 
 	Material Mat = Materials[Frag.Material];
-    [branch] if (Mat.Environment <= 0.0)
-        return float4(0.0, 0.0, 0.0, 0.0);
+	[branch] if (Mat.Environment <= 0.0)
+		return float4(0.0, 0.0, 0.0, 0.0);
 
 	float3 D = Position - Frag.Position;
-    float3 E = normalize(Frag.Position - vb_Position);
+	float3 E = normalize(Frag.Position - vb_Position);
 	float3 M = GetMetallic(Frag, Mat);
 	float R = GetRoughness(Frag, Mat);
 	float A = max(Infinity, GetRangeAttenuation(D, Attenuation.x, Attenuation.y, Range)) * Mat.Environment;
@@ -54,10 +54,10 @@ float4 ps_main(VOutput V) : SV_TARGET0
 
 		D = Frag.Position + D * min(min(Plane.x, Plane.y), Plane.z) - Position;
 	}
-    
-    float T = GetRoughnessMip(Frag, Mat, Mips);
-    float3 P = GetSample3Level(EnvironmentMap, D, T).xyz;
-    float3 C = GetSpecularBRDF(Frag.Normal, -E, normalize(D), P, M, R);
+	
+	float T = GetRoughnessMip(Frag, Mat, Mips);
+	float3 P = GetSample3Level(EnvironmentMap, D, T).xyz;
+	float3 C = GetSpecularBRDF(Frag.Normal, -E, normalize(D), P, M, R);
 
-    return float4(Lighting * C * A, A);
+	return float4(Lighting * C * A, A);
 };

@@ -1745,6 +1745,7 @@ namespace Tomahawk
 			bool RemoveSection(const std::string& Name);
 			bool GetSection(const std::string& Name, Section** Result, bool Internal = false);
 			bool GetSection(const std::string& Name, Shader::Desc* Result);
+			bool IsLeftHanded();
 			std::string GetShaderMain(ShaderType Type);
 			DepthStencilState* GetDepthStencilState(const std::string& Name);
 			BlendState* GetBlendState(const std::string& Name);

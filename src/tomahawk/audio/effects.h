@@ -43,7 +43,7 @@ namespace Tomahawk
 				float LFReference = 250.0f;
 				float RoomRolloffFactor = 0.0f;
 				bool IsDecayHFLimited = true;
-				
+
 			public:
 				Reverb();
 				virtual ~Reverb() override;

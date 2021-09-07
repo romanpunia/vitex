@@ -61,7 +61,7 @@ namespace Tomahawk
 				BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice);
 				virtual ~BoxShadowInstancer() override;
 				virtual Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
-			}* IBoxShadow = nullptr;
+			}*IBoxShadow = nullptr;
 
 			class BoxBlurInstancer : public Rml::DecoratorInstancer
 			{
@@ -91,7 +91,7 @@ namespace Tomahawk
 				BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice);
 				virtual ~BoxBlurInstancer() override;
 				virtual Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
-			}* IBoxBlur = nullptr;
+			}*IBoxBlur = nullptr;
 
 			class BoxShadow : public Rml::Decorator
 			{

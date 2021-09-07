@@ -139,9 +139,9 @@ namespace Tomahawk
 			int ReadAsync(int64_t Size, SocketReadCallback&& Callback);
 			int ReadUntil(const char* Match, const SocketReadCallback& Callback);
 			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback);
-            int SetFd(socket_t Fd);
-            int SetReadNotify(SocketReadCallback&& Callback);
-            int SetWriteNotify(SocketWriteCallback&& Callback);
+			int SetFd(socket_t Fd);
+			int SetReadNotify(SocketReadCallback&& Callback);
+			int SetWriteNotify(SocketWriteCallback&& Callback);
 			int SetTimeWait(int Timeout);
 			int SetSocket(int Option, void* Value, int Size);
 			int SetAny(int Level, int Option, void* Value, int Size);
@@ -304,16 +304,16 @@ namespace Tomahawk
 		public:
 			static void Create(int MaxEvents = 256, int64_t Timeout = 100);
 			static void Release();
-            static void Multiplex();
+			static void Multiplex();
 			static int Dispatch();
 			static int Listen(Socket* Value, bool Always);
 			static int Unlisten(Socket* Value, bool Always);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
-            static int64_t Clock();
-            static bool IsActive();
-            
-        private:
-            static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);
+			static int64_t Clock();
+			static bool IsActive();
+
+		private:
+			static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);
 		};
 
 		class TH_OUT SocketServer : public Core::Object

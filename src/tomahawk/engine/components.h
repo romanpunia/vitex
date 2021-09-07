@@ -52,7 +52,7 @@ namespace Tomahawk
 			class TH_OUT RigidBody final : public Component
 			{
 			private:
-				Compute::HullShape* Hull = nullptr;
+				Compute::HullShape * Hull = nullptr;
 				Compute::RigidBody* Instance = nullptr;
 
 			public:
@@ -82,7 +82,7 @@ namespace Tomahawk
 			class TH_OUT SliderConstraint final : public Component
 			{
 			private:
-				Compute::SConstraint* Instance;
+				Compute::SConstraint * Instance;
 				Entity* Connection;
 
 			public:
@@ -130,7 +130,7 @@ namespace Tomahawk
 			class TH_OUT Model final : public Drawable
 			{
 			protected:
-				Graphics::Model* Instance = nullptr;
+				Graphics::Model * Instance = nullptr;
 
 			public:
 				Compute::Vector2 TexCoord = 1.0f;
@@ -155,7 +155,7 @@ namespace Tomahawk
 			class TH_OUT Skin final : public Drawable
 			{
 			protected:
-				Graphics::SkinModel* Instance = nullptr;
+				Graphics::SkinModel * Instance = nullptr;
 
 			public:
 				Compute::Vector2 TexCoord = 1.0f;
@@ -182,11 +182,10 @@ namespace Tomahawk
 			class TH_OUT Emitter final : public Drawable
 			{
 			protected:
-				Graphics::InstanceBuffer* Instance = nullptr;
+				Graphics::InstanceBuffer * Instance = nullptr;
 
 			public:
 				Compute::Vector3 Volume = 1.0f;
-				Compute::Vector2 TexCoord = 1.0f;
 				bool Connected = false;
 				bool QuadBased = false;
 
@@ -217,13 +216,13 @@ namespace Tomahawk
 			public:
 				Decal(Entity* Ref);
 				virtual ~Decal() = default;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Activate(Component* New) override;
+				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Synchronize(Core::Timer * Time) override;
+				virtual void Activate(Component * New) override;
 				virtual void Deactivate() override;
-				virtual float Cull(const Viewer& View) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual float Cull(const Viewer & View) override;
+				virtual Component* Copy(Entity * New) override;
 
 			public:
 				TH_COMPONENT("decal");
@@ -232,7 +231,7 @@ namespace Tomahawk
 			class TH_OUT SkinAnimator final : public Component
 			{
 			private:
-				Skin* Instance = nullptr;
+				Skin * Instance = nullptr;
 				std::string Reference;
 
 			public:
@@ -307,7 +306,7 @@ namespace Tomahawk
 			class TH_OUT EmitterAnimator final : public Component
 			{
 			private:
-				Emitter* Base = nullptr;
+				Emitter * Base = nullptr;
 
 			public:
 				Compute::Vector4 Diffuse;
@@ -322,11 +321,11 @@ namespace Tomahawk
 			public:
 				EmitterAnimator(Entity* Ref);
 				virtual ~EmitterAnimator() = default;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Activate(Component* New) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Activate(Component * New) override;
+				virtual void Synchronize(Core::Timer * Time) override;
+				virtual Component* Copy(Entity * New) override;
 				Emitter* GetEmitter() const;
 
 			protected:
@@ -340,7 +339,7 @@ namespace Tomahawk
 			class TH_OUT FreeLook final : public Component
 			{
 			private:
-				Graphics::Activity* Activity;
+				Graphics::Activity * Activity;
 				Compute::Vector2 Position;
 
 			public:
@@ -350,9 +349,9 @@ namespace Tomahawk
 			public:
 				FreeLook(Entity* Ref);
 				virtual ~FreeLook() = default;
-				virtual void Activate(Component* New) override;
-				virtual void Update(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual void Activate(Component * New) override;
+				virtual void Update(Core::Timer * Time) override;
+				virtual Component* Copy(Entity * New) override;
 				Graphics::Activity* GetActivity() const;
 
 			public:
@@ -362,7 +361,7 @@ namespace Tomahawk
 			class TH_OUT Fly final : public Component
 			{
 			private:
-				Graphics::Activity* Activity;
+				Graphics::Activity * Activity;
 
 			public:
 				Graphics::KeyMap Forward = Graphics::KeyCode::W;
@@ -377,13 +376,13 @@ namespace Tomahawk
 				float SpeedNormal = 1.2f;
 				float SpeedUp = 2.6f;
 				float SpeedDown = 0.25f;
-				
+
 			public:
 				Fly(Entity* Ref);
 				virtual ~Fly() = default;
-				virtual void Activate(Component* New) override;
-				virtual void Update(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual void Activate(Component * New) override;
+				virtual void Update(Core::Timer * Time) override;
+				virtual Component* Copy(Entity * New) override;
 				Graphics::Activity* GetActivity() const;
 
 			public:
@@ -457,14 +456,14 @@ namespace Tomahawk
 			public:
 				PointLight(Entity* Ref);
 				virtual ~PointLight() = default;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual float Cull(const Viewer& View) override;
-				virtual bool IsVisible(const Viewer& View, Compute::Matrix4x4* World) override;
-				virtual bool IsNear(const Viewer& View) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual float Cull(const Viewer & View) override;
+				virtual bool IsVisible(const Viewer & View, Compute::Matrix4x4 * World) override;
+				virtual bool IsNear(const Viewer & View) override;
+				virtual Component* Copy(Entity * New) override;
 				float GetBoxRange() const;
-				void AssembleDepthOrigin();
+				void GenerateOrigin();
 
 			public:
 				TH_COMPONENT("point-light");
@@ -495,15 +494,15 @@ namespace Tomahawk
 			public:
 				SpotLight(Entity* Ref);
 				virtual ~SpotLight() = default;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual float Cull(const Viewer& View) override;
-				virtual bool IsVisible(const Viewer& View, Compute::Matrix4x4* World) override;
-				virtual bool IsNear(const Viewer& View) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Synchronize(Core::Timer * Time) override;
+				virtual float Cull(const Viewer & View) override;
+				virtual bool IsVisible(const Viewer & View, Compute::Matrix4x4 * World) override;
+				virtual bool IsNear(const Viewer & View) override;
+				virtual Component* Copy(Entity * New) override;
 				float GetBoxRange() const;
-				void AssembleDepthOrigin();
+				void GenerateOrigin();
 
 			public:
 				TH_COMPONENT("spot-light");
@@ -529,7 +528,8 @@ namespace Tomahawk
 					float Distance[6] = { 25.0f, 50.0f, 100.0f, 175.0f, 250.0f, 325.0f };
 					float Softness = 1.0f;
 					float Bias = 0.0f;
-					float Offset = 0.225f;
+					float Near = 6.0f;
+					float Far = 9.0f;
 					uint32_t Iterations = 2;
 					uint32_t Cascades = 3;
 					bool Enabled = false;
@@ -546,10 +546,10 @@ namespace Tomahawk
 			public:
 				LineLight(Entity* Ref);
 				virtual ~LineLight() = default;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual Component* Copy(Entity* New) override;
-				void AssembleDepthOrigin();
+				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual Component* Copy(Entity * New) override;
+				void GenerateOrigin();
 
 			public:
 				TH_COMPONENT("line-light");
@@ -558,7 +558,7 @@ namespace Tomahawk
 			class TH_OUT SurfaceLight final : public Cullable
 			{
 			private:
-				Graphics::Texture2D* DiffuseMapX[2] = { nullptr };
+				Graphics::Texture2D * DiffuseMapX[2] = { nullptr };
 				Graphics::Texture2D* DiffuseMapY[2] = { nullptr };
 				Graphics::Texture2D* DiffuseMapZ[2] = { nullptr };
 				Graphics::Texture2D* DiffuseMap = nullptr;
@@ -567,7 +567,7 @@ namespace Tomahawk
 			public:
 				Compute::Matrix4x4 View[6];
 				Compute::Matrix4x4 Projection;
-				Compute::Vector3 Offset = Compute::Vector3(1.0f, 1.0f, -1.0f);
+				Compute::Vector3 Offset = Compute::Vector3(1.0f, 1.0f, 1.0f);
 				Compute::Vector3 Diffuse = 1.0f;
 				Core::Ticker Tick;
 				Attenuation Size;
@@ -605,7 +605,7 @@ namespace Tomahawk
 			class TH_OUT Illuminator final : public Cullable
 			{
 			private:
-				Graphics::Texture3D* Buffer;
+				Graphics::Texture3D * Buffer;
 				size_t MipLevels, Size;
 
 			public:
@@ -674,6 +674,7 @@ namespace Tomahawk
 				Compute::Matrix4x4 GetViewProjection();
 				Compute::Matrix4x4 GetView();
 				Compute::Vector3 GetViewPosition();
+				Compute::Frustum GetFrustum();
 				Compute::Ray GetScreenRay(const Compute::Vector2& Position);
 				float GetDistance(Entity* Other);
 				float GetWidth();

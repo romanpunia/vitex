@@ -8,8 +8,8 @@ VOutputOpaque Make(VOutputOpaque V, float2 Offset, float2 TexCoord2)
 	float Sin = sin(V.Rotation), Cos = cos(V.Rotation);
 	V.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);
 	V.Position = mul(V.Position, ob_World);
-	V.TexCoord = TexCoord2 * ob_TexCoord.xy;
-    V.UV = V.Position;
+	V.TexCoord = TexCoord2;
+	V.UV = V.Position;
 	return V;
 }
 
@@ -30,10 +30,10 @@ VOutputOpaque vs_main(VInput V)
 	Result.Rotation = Elements[V.Position].Rotation;
 	Result.Color = Elements[V.Position].Color;
 	Result.Scale = Elements[V.Position].Scale;
-    Result.UV = Result.Position;
-    Result.Normal = float3(0, 0, 1);
-    Result.Tangent = float3(1, 0, 0);
-    Result.Bitangent = float3(0, -1, 0);
+	Result.Normal = ob_TexCoord.xyz;
+	Result.Tangent = float3(1, 0, 0);
+	Result.Bitangent = float3(0, -1, 0);
+	Result.UV = Result.Position;
 
 	return Result;
 }
@@ -46,7 +46,7 @@ GBuffer ps_main(VOutputOpaque V)
 
 	float3 Normal = V.Normal;
 	[branch] if (ob_Normal > 0)
-        Normal = GetNormal(V.TexCoord, V.Normal, V.Tangent, V.Bitangent);
+		Normal = GetNormal(V.TexCoord, V.Normal, V.Tangent, V.Bitangent);
 
-    return Compose(V.TexCoord, Color, Normal, V.UV.z / V.UV.w, ob_Mid);
+	return Compose(V.TexCoord, Color, Normal, V.UV.z / V.UV.w, ob_Mid);
 };

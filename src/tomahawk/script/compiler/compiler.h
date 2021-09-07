@@ -45,7 +45,7 @@ class VMCJITCompiler : public asIJITCompiler
 public:
 	VMCJITCompiler(unsigned Flags = 0);
 	~VMCJITCompiler();
-	int CompileFunction(asIScriptFunction *function, asJITFunction *output);
+	int CompileFunction(asIScriptFunction* function, asJITFunction* output);
 	void ReleaseJITFunction(asJITFunction func);
 	void finalizePages();
 };

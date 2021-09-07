@@ -416,6 +416,13 @@ namespace Tomahawk
 
 			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), SwapChain(nullptr), Context(nullptr), DriverType(D3D_DRIVER_TYPE_HARDWARE), FeatureLevel(D3D_FEATURE_LEVEL_11_0)
 			{
+				if (I.Window != nullptr && !I.Window->GetHandle())
+				{
+					I.Window->Restore(Backend);
+					if (!I.Window->GetHandle())
+						return;
+				}
+
 				ConstantBuffer[0] = nullptr;
 				ConstantBuffer[1] = nullptr;
 				ConstantBuffer[2] = nullptr;
@@ -433,13 +440,13 @@ namespace Tomahawk
 				SwapChainResource.BufferDesc.Format = (DXGI_FORMAT)I.BufferFormat;
 				SwapChainResource.BufferDesc.RefreshRate.Numerator = 60;
 				SwapChainResource.BufferDesc.RefreshRate.Denominator = 1;
+				SwapChainResource.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+				SwapChainResource.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 				SwapChainResource.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 				SwapChainResource.SampleDesc.Count = 1;
 				SwapChainResource.SampleDesc.Quality = 0;
 				SwapChainResource.Windowed = I.IsWindowed;
 				SwapChainResource.Flags = 0;
-				SwapChainResource.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-				SwapChainResource.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 #if defined(TH_MICROSOFT) && defined(TH_HAS_SDL2)
 				if (I.Window != nullptr)

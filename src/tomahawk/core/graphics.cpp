@@ -1533,7 +1533,7 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Activity::Activity(const Desc& I) : Handle(nullptr), Descriptor(I), Command(0), CX(0), CY(0), Message(this)
+		Activity::Activity(const Desc& I) : Handle(nullptr), Options(I), Command(0), CX(0), CY(0), Message(this)
 		{
 #ifdef TH_HAS_SDL2
 			Cursors[(size_t)DisplayCursor::Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -1551,8 +1551,8 @@ namespace Tomahawk
 #endif
 			memset(Keys[0], 0, 1024 * sizeof(bool));
 			memset(Keys[1], 0, 1024 * sizeof(bool));
-
-			Reset();
+			if (!I.AllowGraphics)
+				Restore(RenderBackend::None);
 		}
 		Activity::~Activity()
 		{
@@ -1671,7 +1671,7 @@ namespace Tomahawk
 				SDL_StopTextInput();
 #endif
 		}
-		void Activity::Reset()
+		void Activity::Restore(RenderBackend Backend)
 		{
 #ifdef TH_HAS_SDL2
 			if (Handle != nullptr)
@@ -1680,43 +1680,52 @@ namespace Tomahawk
 				Handle = nullptr;
 			}
 
-			Uint32 Flags = SDL_WINDOW_OPENGL;
-			if (Descriptor.Fullscreen)
+			Uint32 Flags = 0;
+			if (Options.Fullscreen)
 				Flags |= SDL_WINDOW_FULLSCREEN;
 
-			if (Descriptor.Hidden)
+			if (Options.Hidden)
 				Flags |= SDL_WINDOW_HIDDEN;
 
-			if (Descriptor.Borderless)
+			if (Options.Borderless)
 				Flags |= SDL_WINDOW_BORDERLESS;
 
-			if (Descriptor.Resizable)
+			if (Options.Resizable)
 				Flags |= SDL_WINDOW_RESIZABLE;
 
-			if (Descriptor.Minimized)
+			if (Options.Minimized)
 				Flags |= SDL_WINDOW_MINIMIZED;
 
-			if (Descriptor.Maximized)
+			if (Options.Maximized)
 				Flags |= SDL_WINDOW_MAXIMIZED;
 
-			if (Descriptor.Focused)
+			if (Options.Focused)
 				Flags |= SDL_WINDOW_INPUT_GRABBED;
 
-			if (Descriptor.AllowHighDPI)
+			if (Options.AllowHighDPI)
 				Flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 
-			if (Descriptor.Centered)
+			if (Options.Centered)
 			{
-				Descriptor.X = SDL_WINDOWPOS_CENTERED;
-				Descriptor.Y = SDL_WINDOWPOS_CENTERED;
+				Options.X = SDL_WINDOWPOS_CENTERED;
+				Options.Y = SDL_WINDOWPOS_CENTERED;
 			}
-			else if (Descriptor.FreePosition)
+			else if (Options.FreePosition)
 			{
-				Descriptor.X = SDL_WINDOWPOS_UNDEFINED;
-				Descriptor.Y = SDL_WINDOWPOS_UNDEFINED;
+				Options.X = SDL_WINDOWPOS_UNDEFINED;
+				Options.Y = SDL_WINDOWPOS_UNDEFINED;
 			}
 
-			Handle = SDL_CreateWindow(Descriptor.Title, Descriptor.X, Descriptor.Y, Descriptor.Width, Descriptor.Height, Flags);
+			switch (Backend)
+			{
+				case Tomahawk::Graphics::RenderBackend::OGL:
+					Flags |= SDL_WINDOW_OPENGL;
+					break;
+				default:
+					break;
+			}
+
+			Handle = SDL_CreateWindow(Options.Title, Options.X, Options.Y, Options.Width, Options.Height, Flags);
 #endif
 		}
 		void Activity::Hide()
@@ -2197,7 +2206,7 @@ namespace Tomahawk
 			}
 
 			TH_PPOP();
-			if (!Descriptor.AllowStalls)
+			if (!Options.AllowStalls)
 				return true;
 
 			Uint32 Flags = SDL_GetWindowFlags(Handle);
@@ -2518,6 +2527,10 @@ namespace Tomahawk
 #else
 			return "";
 #endif
+		}
+		Activity::Desc& Activity::GetOptions()
+		{
+			return Options;
 		}
 		bool* Activity::GetInputState()
 		{

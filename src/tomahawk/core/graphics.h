@@ -1795,6 +1795,7 @@ namespace Tomahawk
 				bool Focused = false;
 				bool AllowHighDPI = true;
 				bool AllowStalls = true;
+				bool AllowGraphics = false;
 			};
 
 			struct
@@ -1834,7 +1835,7 @@ namespace Tomahawk
 		private:
 			SDL_Cursor* Cursors[(size_t)DisplayCursor::Count];
 			SDL_Window* Handle;
-			Desc Descriptor;
+			Desc Options;
 			bool Keys[2][1024];
 			int Command, CX, CY;
 
@@ -1859,7 +1860,7 @@ namespace Tomahawk
 			void SetIcon(Surface* Icon);
 			void SetTitle(const char* Value);
 			void SetScreenKeyboard(bool Enabled);
-			void Reset();
+			void Restore(RenderBackend Backend);
 			void Hide();
 			void Show();
 			void Maximize();
@@ -1894,6 +1895,7 @@ namespace Tomahawk
 			std::string GetClipboardText();
 			SDL_Window* GetHandle();
 			std::string GetError();
+			Desc& GetOptions();
 
 		private:
 			bool* GetInputState();

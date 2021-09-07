@@ -5844,8 +5844,35 @@ namespace Tomahawk
 
 				if (I->Activity.Width > 0 && I->Activity.Height > 0)
 				{
+					I->Activity.AllowGraphics = (I->Usage & (size_t)ApplicationSet::GraphicsSet);
 					Activity = new Graphics::Activity(I->Activity);
-					if (!Activity->GetHandle())
+					if (I->Activity.AllowGraphics)
+					{
+						if (!I->GraphicsDevice.BufferWidth)
+							I->GraphicsDevice.BufferWidth = I->Activity.Width;
+
+						if (!I->GraphicsDevice.BufferHeight)
+							I->GraphicsDevice.BufferHeight = I->Activity.Height;
+
+						I->GraphicsDevice.Window = Activity;
+						if (Content != nullptr && !I->GraphicsDevice.CacheDirectory.empty())
+							I->GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(I->GraphicsDevice.CacheDirectory, Content->GetEnvironment());
+
+						Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
+						if (!Renderer || !Renderer->IsValid())
+						{
+							TH_ERR("graphics device cannot be created");
+							return;
+						}
+
+						Compute::Common::SetLeftHanded(Renderer->IsLeftHanded());
+						if (Content != nullptr)
+							Content->SetDevice(Renderer);
+
+						Cache.Shaders = new ShaderCache(Renderer);
+						Cache.Primitives = new PrimitiveCache(Renderer);
+					}
+					else if (!Activity->GetHandle())
 					{
 						TH_ERR("cannot create activity instance");
 						return;
@@ -5893,33 +5920,6 @@ namespace Tomahawk
 						WindowEvent(NewState, X, Y);
 					};
 
-					if (I->Usage & (size_t)ApplicationSet::GraphicsSet)
-					{
-						Compute::Vector2 Size = Activity->GetSize();
-						if (!I->GraphicsDevice.BufferWidth)
-							I->GraphicsDevice.BufferWidth = (unsigned int)Size.X;
-
-						if (!I->GraphicsDevice.BufferHeight)
-							I->GraphicsDevice.BufferHeight = (unsigned int)Size.Y;
-
-						I->GraphicsDevice.Window = Activity;
-						if (Content != nullptr && !I->GraphicsDevice.CacheDirectory.empty())
-							I->GraphicsDevice.CacheDirectory = Core::OS::Path::ResolveDirectory(I->GraphicsDevice.CacheDirectory, Content->GetEnvironment());
-
-						Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
-						if (!Renderer || !Renderer->IsValid())
-						{
-							TH_ERR("graphics device cannot be created");
-							return;
-						}
-
-						Compute::Common::SetLeftHanded(Renderer->IsLeftHanded());
-						if (Content != nullptr)
-							Content->SetDevice(Renderer);
-
-						Cache.Shaders = new ShaderCache(Renderer);
-						Cache.Primitives = new PrimitiveCache(Renderer);
-					}
 				}
 				else
 					TH_ERR("cannot detect display to create activity");

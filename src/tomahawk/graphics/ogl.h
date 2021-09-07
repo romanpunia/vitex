@@ -490,6 +490,7 @@ namespace Tomahawk
 				TextureCube* CreateTextureCubeInternal(void* Resources[6]) override;
 
 			public:
+				static GLenum GetAccessControl(CPUAccess Access, ResourceUsage Usage);
 				static GLenum GetBaseFormat(Format Value);
 				static GLenum GetSizedFormat(Format Value);
 				static GLenum GetTextureAddress(TextureAddress Value);
@@ -502,6 +503,7 @@ namespace Tomahawk
 				static GLenum GetPrimitiveTopologyDraw(PrimitiveTopology Value);
 				static GLenum GetResourceBind(ResourceBind Value);
 				static GLenum GetResourceMap(ResourceMap Value);
+				static void GetBackBufferSize(Format Value, int* X, int* Y, int* Z, int* W);
 				static void APIENTRY DebugMessage(GLenum Source, GLenum Type, GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message, const void* Data);
 			};
 		}

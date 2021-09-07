@@ -267,16 +267,17 @@ namespace Tomahawk
 			Compute::Vector4 Emission = { 0.0f, 0.0f, 0.0f, 0.0f };
 			Compute::Vector4 Metallic = { 0.0f, 0.0f, 0.0f, 0.0f };
 			Compute::Vector3 Diffuse = { 1.0f, 1.0f, 1.0f };
-			Compute::Vector3 Scatter = { 0.1f, 16.0f, 0.0f };
-			Compute::Vector2 Roughness = { 1.0f, 0.0f };
-			Compute::Vector2 Occlusion = { 1.0f, 0.0f };
 			float Fresnel = 0.0f;
-			float Transparency = 0.0f;
+			Compute::Vector3 Scatter = { 0.1f, 16.0f, 0.0f };
+			float Transparency;
+			Compute::Vector3 Padding;
+			float Bias = 0.0f;
+			Compute::Vector2 Roughness = { 1.0f, 0.0f };
 			float Refraction = 0.0f;
 			float Environment = 0.0f;
+			Compute::Vector2 Occlusion = { 1.0f, 0.0f };
 			float Radius = 0.0f;
 			float Height = 0.0f;
-			float Bias = 0.0f;
 		};
 
 		class TH_OUT NMake

@@ -415,15 +415,28 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Window != nullptr, "OpenGL device cannot be created without a window");
 #ifdef TH_HAS_SDL2
-				if (I.Debug)
-					SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
-				else
-					SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
+				int X, Y, Z, W;
+				GetBackBufferSize(I.BufferFormat, &X, &Y, &Z, &W);
+				SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+				SDL_GL_SetAttribute(SDL_GL_RED_SIZE, X);
+				SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, Y);
+				SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, Z);
+				SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, W);
+				SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
+				SDL_GL_SetAttribute(SDL_GL_CONTEXT_NO_ERROR, I.Debug ? 0 : 1);
+				SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, I.Debug ? SDL_GL_CONTEXT_DEBUG_FLAG : 0);
+
+				if (!Window->GetHandle())
+				{
+					Window->Restore(Backend);
+					if (!Window->GetHandle())
+						return;
+				}
 
 				Context = SDL_GL_CreateContext(Window->GetHandle());
 				if (!Context)
 				{
-					TH_ERR("OpenGL creation conflict -> %s", Window->GetError().c_str());
+					TH_ERR("OpenGL creation conflict\n\t%s", Window->GetError().c_str());
 					return;
 				}
 
@@ -2330,7 +2343,7 @@ namespace Tomahawk
 
 				glGenBuffers(1, &Result->Resource);
 				glBindBuffer(Result->Flags, Result->Resource);
-				glBufferData(Result->Flags, I.ElementCount * I.ElementWidth, I.Elements, GL_STATIC_DRAW);
+				glBufferData(Result->Flags, I.ElementCount * I.ElementWidth, I.Elements, GetAccessControl(I.AccessFlags, I.Usage));
 				glBindBuffer(Result->Flags, GL_NONE);
 
 				return Result;
@@ -3109,7 +3122,7 @@ namespace Tomahawk
 				glGenVertexArrays(1, &Immediate.VertexBuffer);
 				glBindVertexArray(Immediate.VertexBuffer);
 				glBindBuffer(GL_ARRAY_BUFFER, Immediate.VertexBuffer);
-				glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * (MaxElements + 1), Elements.empty() ? nullptr : &Elements[0], GL_STREAM_DRAW_ARB);
+				glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * (MaxElements + 1), Elements.empty() ? nullptr : &Elements[0], GL_DYNAMIC_DRAW);
 				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), OGL_OFFSET(0));
 				glEnableVertexAttribArray(0);
 				glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), OGL_OFFSET(sizeof(float) * 3));
@@ -3271,6 +3284,38 @@ namespace Tomahawk
 				TH_FREE(Buffer);
 
 				return Result;
+			}
+			GLenum OGLDevice::GetAccessControl(CPUAccess Access, ResourceUsage Usage)
+			{
+				switch (Usage)
+				{
+					case Tomahawk::Graphics::ResourceUsage::Default:
+						switch (Access)
+						{
+							case Tomahawk::Graphics::CPUAccess::Read:
+								return GL_STATIC_READ;
+							case Tomahawk::Graphics::CPUAccess::Invalid:
+							case Tomahawk::Graphics::CPUAccess::Write:
+							default:
+								return GL_STATIC_DRAW;
+						}
+					case Tomahawk::Graphics::ResourceUsage::Immutable:
+						return GL_STATIC_DRAW;
+					case Tomahawk::Graphics::ResourceUsage::Dynamic:
+						switch (Access)
+						{
+							case Tomahawk::Graphics::CPUAccess::Read:
+								return GL_DYNAMIC_READ;
+							case Tomahawk::Graphics::CPUAccess::Invalid:
+							case Tomahawk::Graphics::CPUAccess::Write:
+							default:
+								return GL_DYNAMIC_DRAW;
+						}
+					case Tomahawk::Graphics::ResourceUsage::Staging:
+						return GL_DYNAMIC_READ;
+					default:
+						return GL_STATIC_DRAW;
+				}
 			}
 			GLenum OGLDevice::GetBaseFormat(Format Value)
 			{
@@ -3698,6 +3743,113 @@ namespace Tomahawk
 				}
 
 				return GL_READ_ONLY;
+			}
+			void OGLDevice::GetBackBufferSize(Format Value, int* X, int* Y, int* Z, int* W)
+			{
+				TH_ASSERT_V(X && Y && Z && W, "xyzw should be set");
+				switch (Value)
+				{
+					case Tomahawk::Graphics::Format::A8_Unorm:
+						*X = *Y = *Z = 0;
+						*W = 8;
+						break;
+					case Tomahawk::Graphics::Format::D24_Unorm_S8_Uint:
+						*Z = *W = 0;
+						*Y = 8;
+						*X = 32;
+						break;
+					case Tomahawk::Graphics::Format::D32_Float:
+						*Y = *Z = *W = 0;
+						*X = 32;
+						break;
+					case Tomahawk::Graphics::Format::R10G10B10A2_Uint:
+					case Tomahawk::Graphics::Format::R10G10B10A2_Unorm:
+						*W = 2;
+						*Z = 10;
+						*X = *Y = 11;
+						break;
+					case Tomahawk::Graphics::Format::R11G11B10_Float:
+						*W = 0;
+						*Z = 10;
+						*X = *Y = 11;
+						break;
+					case Tomahawk::Graphics::Format::R16G16B16A16_Float:
+					case Tomahawk::Graphics::Format::R16G16B16A16_Sint:
+					case Tomahawk::Graphics::Format::R16G16B16A16_Snorm:
+					case Tomahawk::Graphics::Format::R16G16B16A16_Uint:
+					case Tomahawk::Graphics::Format::R16G16B16A16_Unorm:
+						*X = *Y = *Z = *W = 16;
+						break;
+					case Tomahawk::Graphics::Format::R16G16_Float:
+					case Tomahawk::Graphics::Format::R16G16_Sint:
+					case Tomahawk::Graphics::Format::R16G16_Snorm:
+					case Tomahawk::Graphics::Format::R16G16_Uint:
+					case Tomahawk::Graphics::Format::R16G16_Unorm:
+						*Z = *W = 0;
+						*X = *Y = 16;
+						break;
+					case Tomahawk::Graphics::Format::R16_Float:
+					case Tomahawk::Graphics::Format::R16_Sint:
+					case Tomahawk::Graphics::Format::R16_Snorm:
+					case Tomahawk::Graphics::Format::R16_Uint:
+					case Tomahawk::Graphics::Format::R16_Unorm:
+					case Tomahawk::Graphics::Format::D16_Unorm:
+						*Y = *Z = *W = 0;
+						*X = 16;
+						break;
+					case Tomahawk::Graphics::Format::R1_Unorm:
+						*Y = *Z = *W = 0;
+						*X = 1;
+						break;
+					case Tomahawk::Graphics::Format::R32G32B32A32_Float:
+					case Tomahawk::Graphics::Format::R32G32B32A32_Sint:
+					case Tomahawk::Graphics::Format::R32G32B32A32_Uint:
+						*X = *Y = *Z = *W = 32;
+						break;
+					case Tomahawk::Graphics::Format::R32G32B32_Float:
+					case Tomahawk::Graphics::Format::R32G32B32_Sint:
+					case Tomahawk::Graphics::Format::R32G32B32_Uint:
+						*W = 0;
+						*X = *Y = *Z = 32;
+						break;
+					case Tomahawk::Graphics::Format::R32G32_Float:
+					case Tomahawk::Graphics::Format::R32G32_Sint:
+					case Tomahawk::Graphics::Format::R32G32_Uint:
+						*Z = *W = 0;
+						*X = *Y = 32;
+						break;
+					case Tomahawk::Graphics::Format::R32_Float:
+					case Tomahawk::Graphics::Format::R32_Sint:
+					case Tomahawk::Graphics::Format::R32_Uint:
+						*Y = *Z = *W = 0;
+						*X = 32;
+						break;
+					case Tomahawk::Graphics::Format::R8G8_Sint:
+					case Tomahawk::Graphics::Format::R8G8_Snorm:
+					case Tomahawk::Graphics::Format::R8G8_Uint:
+					case Tomahawk::Graphics::Format::R8G8_Unorm:
+						*Z = *W = 0;
+						*X = *Y = 8;
+						break;
+					case Tomahawk::Graphics::Format::R8_Sint:
+					case Tomahawk::Graphics::Format::R8_Snorm:
+					case Tomahawk::Graphics::Format::R8_Uint:
+					case Tomahawk::Graphics::Format::R8_Unorm:
+						*Y = *Z = *W = 0;
+						*X = 8;
+						break;
+					case Tomahawk::Graphics::Format::R9G9B9E5_Share_Dexp:
+						break;
+					case Tomahawk::Graphics::Format::R8G8B8A8_Sint:
+					case Tomahawk::Graphics::Format::R8G8B8A8_Snorm:
+					case Tomahawk::Graphics::Format::R8G8B8A8_Uint:
+					case Tomahawk::Graphics::Format::R8G8B8A8_Unorm:
+					case Tomahawk::Graphics::Format::R8G8B8A8_Unorm_SRGB:
+					case Tomahawk::Graphics::Format::R8G8_B8G8_Unorm:
+					default:
+						*X = *Y = *Z = *W = 8;
+						break;
+				}
 			}
 			void OGLDevice::DebugMessage(GLenum Source, GLenum Type, GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message, const void* Data)
 			{

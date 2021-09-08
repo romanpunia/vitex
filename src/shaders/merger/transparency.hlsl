@@ -63,7 +63,7 @@ float4 ps_main(VOutput V) : SV_TARGET0
 	
 	Material Mat = Materials[Normal.w];
 	float4 Diffuse = GetSample(LDiffuseBuffer, TexCoord);
-	float A = (1.0 - Diffuse.w) * Mat.Transparency;
+	float A = min(1.0, (1.0 - Diffuse.w) + Mat.Transparency);
 	float R = max(0.0, Mat.Roughness.x + GetSample(LSurfaceBuffer, TexCoord).x * Mat.Roughness.y - 0.25) / 0.75;
 
 	Diffuse.x += GetCoverage(GetUV(TexCoord, Mat.Refraction, 0.05), R * Mips).x * A;

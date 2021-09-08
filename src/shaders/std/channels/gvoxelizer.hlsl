@@ -13,7 +13,7 @@ Texture2D MetallicMap : register(t6);
 Texture2D RoughnessMap : register(t7);
 Texture2D OcclusionMap : register(t8);
 Texture2D EmissionMap : register(t9);
-SamplerState Sampler : register(s0);
+SamplerState Sampler : register(s4);
 
 void ConvervativeRasterize(inout float4 P1, inout float4 P2, inout float4 P3)
 {

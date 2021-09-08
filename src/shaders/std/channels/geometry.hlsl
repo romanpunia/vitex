@@ -10,7 +10,7 @@ Texture2D RoughnessMap : register(t4);
 Texture2D HeightMap : register(t5);
 Texture2D OcclusionMap : register(t6);
 Texture2D EmissionMap : register(t7);
-SamplerState Sampler : register(s0);
+SamplerState Sampler : register(s1);
 
 float2 GetParallax(float2 TexCoord, float3 Direction, float Amount, float Bias)
 {

@@ -10,6 +10,7 @@
 #define TH_CS (unsigned int)Tomahawk::Graphics::ShaderType::Compute
 #define TH_HS (unsigned int)Tomahawk::Graphics::ShaderType::Hull
 #define TH_DS (unsigned int)Tomahawk::Graphics::ShaderType::Domain
+#define TH_MAX_UNITS 32
 
 struct SDL_SysWMinfo;
 struct SDL_Cursor;
@@ -1357,7 +1358,8 @@ namespace Tomahawk
 			virtual uint32_t GetWidth() = 0;
 			virtual uint32_t GetHeight() = 0;
 			virtual uint32_t GetTargetCount() = 0;
-			virtual Texture2D* GetTarget(unsigned int Index) = 0;
+			virtual Texture2D* GetTarget2D(unsigned int Index) = 0;
+			virtual TextureCube* GetTargetCube(unsigned int Index) = 0;
 			Texture2D* GetDepthStencil();
 			const Graphics::Viewport& GetViewport();
 		};
@@ -1392,7 +1394,9 @@ namespace Tomahawk
 			virtual uint32_t GetWidth() = 0;
 			virtual uint32_t GetHeight() = 0;
 			uint32_t GetTargetCount();
-			Texture2D* GetTarget(unsigned int Index);
+			Texture2D* GetTarget2D(unsigned int Index);
+			TextureCube* GetTargetCube(unsigned int Index);
+			Texture2D* GetTarget();
 		};
 
 		class TH_OUT MultiRenderTarget2D : public RenderTarget
@@ -1426,6 +1430,8 @@ namespace Tomahawk
 			virtual uint32_t GetWidth() = 0;
 			virtual uint32_t GetHeight() = 0;
 			uint32_t GetTargetCount();
+			Texture2D* GetTarget2D(unsigned int Index);
+			TextureCube* GetTargetCube(unsigned int Index);
 			Texture2D* GetTarget(unsigned int Index);
 		};
 
@@ -1445,7 +1451,7 @@ namespace Tomahawk
 			};
 
 		protected:
-			Texture2D* Resource;
+			TextureCube* Resource;
 
 		protected:
 			RenderTargetCube(const Desc& I);
@@ -1457,7 +1463,9 @@ namespace Tomahawk
 			virtual uint32_t GetWidth() = 0;
 			virtual uint32_t GetHeight() = 0;
 			uint32_t GetTargetCount();
-			Texture2D* GetTarget(unsigned int Index);
+			Texture2D* GetTarget2D(unsigned int Index);
+			TextureCube* GetTargetCube(unsigned int Index);
+			TextureCube* GetTarget();
 		};
 
 		class TH_OUT MultiRenderTargetCube : public RenderTarget
@@ -1478,7 +1486,7 @@ namespace Tomahawk
 
 		protected:
 			SurfaceTarget Target;
-			Texture2D* Resource[8];
+			TextureCube* Resource[8];
 
 		protected:
 			MultiRenderTargetCube(const Desc& I);
@@ -1490,7 +1498,9 @@ namespace Tomahawk
 			virtual uint32_t GetWidth() = 0;
 			virtual uint32_t GetHeight() = 0;
 			uint32_t GetTargetCount();
-			Texture2D* GetTarget(unsigned int Index);
+			Texture2D* GetTarget2D(unsigned int Index);
+			TextureCube* GetTargetCube(unsigned int Index);
+			TextureCube* GetTarget(unsigned int Index);
 		};
 
 		class TH_OUT Cubemap : public Core::Object
@@ -1613,7 +1623,7 @@ namespace Tomahawk
 			virtual void SetDepthStencilState(DepthStencilState* State) = 0;
 			virtual void SetInputLayout(InputLayout* State) = 0;
 			virtual void SetShader(Shader* Resource, unsigned int Type) = 0;
-			virtual void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type) = 0;
+			virtual void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
 			virtual void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) = 0;
@@ -1622,10 +1632,10 @@ namespace Tomahawk
 			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) = 0;
 			virtual void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) = 0;
-			virtual void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
-			virtual void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
-			virtual void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
-			virtual void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable) = 0;
+			virtual void SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
+			virtual void SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
+			virtual void SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
+			virtual void SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
 			virtual void SetTarget(DepthBuffer* Resource) = 0;
@@ -1638,9 +1648,7 @@ namespace Tomahawk
 			virtual void SetViewports(unsigned int Count, Viewport* Viewports) = 0;
 			virtual void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) = 0;
 			virtual void SetPrimitiveTopology(PrimitiveTopology Topology) = 0;
-			virtual void FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
-			virtual void FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
-			virtual void FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
+			virtual void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) = 0;
 			virtual void FlushState() = 0;
 			virtual bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
 			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;

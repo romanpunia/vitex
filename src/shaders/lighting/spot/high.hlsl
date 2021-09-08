@@ -7,10 +7,12 @@
 #include "lighting/spot/common/buffer.hlsl"
 #pragma warning(disable: 4000)
 
-Texture2D ShadowMap : register(t5);
-SamplerState DepthSampler : register(s1);
-SamplerComparisonState DepthLessSampler : register(s2);
-SamplerComparisonState DepthGreaterSampler : register(s3);
+Texture2D DepthMap : register(t5);
+Texture2D DepthMapLess : register(t6);
+Texture2D DepthMapGreater : register(t7);
+SamplerState DepthSampler : register(s5);
+SamplerComparisonState DepthLessSampler : register(s6);
+SamplerComparisonState DepthGreaterSampler : register(s7);
 
 float GetPenumbra(float2 D, float L)
 {
@@ -21,8 +23,8 @@ float GetPenumbra(float2 D, float L)
 	[unroll] for (float i = 0; i < 16; i++)
 	{
         float2 TexCoord = D + SampleDisk[i].xy / Softness;
-		float S1 = ShadowMap.SampleLevel(DepthSampler, TexCoord, 0).x;
-		float S2 = ShadowMap.SampleCmpLevelZero(DepthGreaterSampler, TexCoord, L);
+		float S1 = DepthMap.SampleLevel(DepthSampler, TexCoord, 0).x;
+		float S2 = DepthMapGreater.SampleCmpLevelZero(DepthGreaterSampler, TexCoord, L);
 		Length += S1 * S2;
 		Count += S2;
 	}
@@ -43,7 +45,7 @@ float GetLightness(float2 D, float L)
 	[loop] for (float j = 0; j < Iterations; j++)
 	{
 		float2 Offset = SampleDisk[j % 64].xy * (64.0 / max(64.0, j)) / Softness;
-		Result += ShadowMap.SampleCmpLevelZero(DepthLessSampler, D + Offset, L);
+		Result += DepthMapLess.SampleCmpLevelZero(DepthLessSampler, D + Offset, L);
 	}
 	
 	return lerp(Result / Iterations, 1.0, Penumbra);

@@ -541,7 +541,6 @@ namespace Tomahawk
 				Compute::Matrix4x4 View[6];
 				Compute::Vector3 Diffuse = 1.0f;
 				float Emission = 1.0f;
-				float Disperse = 0.0f;
 
 			public:
 				LineLight(Entity* Ref);

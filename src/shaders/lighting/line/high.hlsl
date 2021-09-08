@@ -8,46 +8,19 @@
 #include "lighting/line/common/buffer.hlsl"
 #pragma warning(disable: 3595)
 
-Texture2D ShadowMap[6] : register(t5);
-SamplerState DepthSampler : register(s1);
-SamplerComparisonState DepthLessSampler : register(s2);
-SamplerComparisonState DepthGreaterSampler : register(s3);
+Texture2D DepthMap[6] : register(t5);
+SamplerComparisonState DepthLessSampler : register(s5);
 
-float GetPenumbra(uniform uint I, float2 D, float L)
-{
-	[branch] if (Umbra <= 0.0)
-		return 0.0;
-	
-	float Length = 0.0, Count = 0.0;
-	[unroll] for (float i = 0; i < 16; i++)
-	{
-        float2 TexCoord = D + SampleDisk[i].xy / Softness;
-		float S1 = ShadowMap[I].SampleLevel(DepthSampler, TexCoord, 0).x;
-		float S2 = ShadowMap[I].SampleCmpLevelZero(DepthGreaterSampler, TexCoord, L);
-		Length += S1 * S2;
-		Count += S2;
-	}
-
-	[branch] if (Count < 2.0)
-		return 1.0;
-	
-	Length /= Count;
-	return saturate(Umbra * vb_Far * (L - Length) / Length);
-}
 float GetLightness(uniform uint I, float2 D, float L)
 {
-	float Penumbra = GetPenumbra(I, D, L);
-	[branch] if (Penumbra < 0.0)
-		return 1.0;
-
 	float Result = 0.0;
 	[loop] for (float j = 0; j < Iterations; j++)
 	{
 		float2 Offset = SampleDisk[j % 64].xy * (64.0 / max(64.0, j)) / Softness;
-		Result += ShadowMap[I].SampleCmpLevelZero(DepthLessSampler, D + Offset, L);
+		Result += DepthMap[I].SampleCmpLevelZero(DepthLessSampler, D + Offset, L);
     }
 
-	return lerp(Result / Iterations, 1.0, Penumbra);
+	return Result / Iterations;
 }
 float GetCascade(float3 Position, uniform uint Index)
 {

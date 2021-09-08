@@ -3211,7 +3211,6 @@ namespace Tomahawk
 			if (!Occlusion.TickEvent(ElapsedTime))
 				return;
 
-			Device->SetSamplerState(Sampler, 0, TH_PS);
 			Device->SetDepthStencilState(DepthStencil);
 			Device->SetBlendState(Blend);
 			Device->SetTarget(Target);
@@ -3725,7 +3724,7 @@ namespace Tomahawk
 			Graphics::Texture2D** Merger = System->GetMerger();
 
 			if (Swap != nullptr && Output != Swap)
-				Device->SetTexture2D(Swap->GetTarget(0), 5, TH_PS);
+				Device->SetTexture2D(Swap->GetTarget(), 5, TH_PS);
 			else if (Merger != nullptr)
 				Device->SetTexture2D(*Merger, 5, TH_PS);
 
@@ -3755,7 +3754,7 @@ namespace Tomahawk
 			Graphics::Texture2D** Merger = System->GetMerger();
 
 			if (Swap != nullptr && Output != Swap)
-				Device->SetTexture2D(Swap->GetTarget(0), 5, TH_PS);
+				Device->SetTexture2D(Swap->GetTarget(), 5, TH_PS);
 			else if (Merger != nullptr)
 				Device->SetTexture2D(*Merger, 5, TH_PS);
 
@@ -3792,12 +3791,12 @@ namespace Tomahawk
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType::Main);
 			PrimitiveCache* Cache = System->GetPrimitives();
 			Graphics::GraphicsDevice* Device = System->GetDevice();
-			Device->SetSamplerState(Sampler, 0, TH_PS);
 			Device->SetDepthStencilState(DepthStencil);
 			Device->SetBlendState(Blend);
 			Device->SetRasterizerState(Rasterizer);
 			Device->SetInputLayout(Layout);
 			Device->SetTarget(Output, 0, 0, 0, 0);
+			Device->SetSamplerState(Sampler, 1, MaxSlot, TH_PS);
 			Device->SetTexture2D(Input->GetTarget(0), 1, TH_PS);
 			Device->SetTexture2D(Input->GetTarget(1), 2, TH_PS);
 			Device->SetTexture2D(Input->GetTarget(2), 3, TH_PS);
@@ -3806,7 +3805,7 @@ namespace Tomahawk
 
 			RenderEffect(Time);
 
-			Device->FlushTexture2D(1, MaxSlot, TH_PS);
+			Device->FlushTexture(1, MaxSlot, TH_PS);
 			Device->CopyTarget(Output, 0, Input, 0);
 			System->RestoreOutput();
 			TH_PPOP();
@@ -4147,14 +4146,14 @@ namespace Tomahawk
 			TH_ASSERT_V(ThreadId == std::this_thread::get_id(), "submit should be called in same thread with publish (after)");
 
 			PrimitiveCache* Cache = View.Renderer->GetPrimitives();
-			Conf.Device->SetTarget();
 			Conf.Device->Render.TexCoord = 1.0f;
 			Conf.Device->Render.WorldViewProj.Identify();
-			Conf.Device->SetSamplerState(Display.Sampler, 0, TH_PS);
+			Conf.Device->SetTarget();
 			Conf.Device->SetDepthStencilState(Display.DepthStencil);
 			Conf.Device->SetBlendState(Display.Blend);
 			Conf.Device->SetRasterizerState(Display.Rasterizer);
 			Conf.Device->SetInputLayout(Display.Layout);
+			Conf.Device->SetSamplerState(Display.Sampler, 1, 1, TH_PS);
 			Conf.Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
 			Conf.Device->SetVertexBuffer(Cache->GetQuad(), 0);

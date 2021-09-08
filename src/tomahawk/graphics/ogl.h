@@ -1,6 +1,7 @@
 #ifndef TH_GRAPHICS_OPENGL45_H
 #define TH_GRAPHICS_OPENGL45_H
 #include "../core/graphics.h"
+#include <array>
 #ifdef TH_MICROSOFT
 #include <Windows.h>
 #endif
@@ -96,7 +97,6 @@ namespace Tomahawk
 				bool Compiled;
 
 			public:
-				std::unordered_map<unsigned int, GLuint> Programs;
 				GLuint VertexShader = GL_NONE;
 				GLuint PixelShader = GL_NONE;
 				GLuint GeometryShader = GL_NONE;
@@ -321,13 +321,12 @@ namespace Tomahawk
 
 				struct
 				{
-					std::tuple<OGLTexture2D*, unsigned int, unsigned int> Texture2D = { nullptr, 0, 0 };
-					std::tuple<OGLTexture3D*, unsigned int, unsigned int> Texture3D = { nullptr, 0, 0 };
-					std::tuple<OGLTextureCube*, unsigned int, unsigned int> TextureCube = { nullptr, 0, 0 };
-					std::tuple<OGLSamplerState*, unsigned int, unsigned int> Sampler = { nullptr, 0, 0 };
-					std::tuple<OGLShader*, unsigned int> Shader = { nullptr, 0 };
 					std::tuple<OGLElementBuffer*, unsigned int> VertexBuffer = { nullptr, 0 };
 					std::tuple<OGLElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
+					std::unordered_map<uint64_t, GLuint> Programs;
+					std::array<GLuint, TH_MAX_UNITS> Textures = { };
+					std::array<GLuint, TH_MAX_UNITS> Samplers = { };
+					std::array<OGLShader*, 6> Shaders = { };
 					OGLBlendState* Blend = nullptr;
 					OGLRasterizerState* Rasterizer = nullptr;
 					OGLDepthStencilState* DepthStencil = nullptr;
@@ -356,7 +355,7 @@ namespace Tomahawk
 				void SetDepthStencilState(DepthStencilState* State) override;
 				void SetInputLayout(InputLayout* State) override;
 				void SetShader(Shader* Resource, unsigned int Type) override;
-				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type) override;
+				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
@@ -365,10 +364,10 @@ namespace Tomahawk
 				void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) override;
-				void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
-				void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
-				void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
-				void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
+				void SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
+				void SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
+				void SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
+				void SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthBuffer* Resource) override;
@@ -381,9 +380,7 @@ namespace Tomahawk
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
 				void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) override;
 				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
-				void FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type) override;
-				void FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type) override;
-				void FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type) override;
+				void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void FlushState() override;
 				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
@@ -485,6 +482,9 @@ namespace Tomahawk
 				int CreateConstantBuffer(GLuint* Buffer, size_t Size);
 				bool CreateDirectBuffer(uint64_t Size);
 				std::string CompileState(GLuint Handle);
+
+			private:
+				uint64_t GetProgramHash();
 
 			protected:
 				TextureCube* CreateTextureCubeInternal(void* Resources[6]) override;

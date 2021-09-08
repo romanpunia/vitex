@@ -37,6 +37,7 @@ namespace Tomahawk
 				Graphics::DepthStencilState* ScissorDepthStencil;
 				Graphics::BlendState* AlphaBlend;
 				Graphics::BlendState* ColorlessBlend;
+				Graphics::SamplerState* Sampler;
 				Graphics::InputLayout* Layout;
 				Graphics::ElementBuffer* VertexBuffer;
 				Graphics::Shader* Shader;
@@ -62,6 +63,7 @@ namespace Tomahawk
 					NoneDepthStencil = nullptr;
 					AlphaBlend = nullptr;
 					ColorlessBlend = nullptr;
+					Sampler = nullptr;
 				}
 				virtual ~RenderSubsystem() override
 				{
@@ -151,6 +153,7 @@ namespace Tomahawk
 						Device->GetRenderTarget()->GetWidth(),
 						Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
 
+					Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 					Device->SetBlendState(AlphaBlend);
 					if (Enable)
 					{
@@ -299,6 +302,7 @@ namespace Tomahawk
 					ScissorDepthStencil = Device->GetDepthStencilState("greater-equal");
 					AlphaBlend = Device->GetBlendState("additive-source");
 					ColorlessBlend = Device->GetBlendState("overwrite-colorless");
+					Sampler = Device->GetSamplerState("trilinear-x16");
 				}
 				void ResizeBuffers(int Width, int Height)
 				{

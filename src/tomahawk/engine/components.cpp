@@ -2860,7 +2860,6 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("disperse"), &Disperse);
 
 				for (uint32_t i = 0; i < 6; i++)
 				{
@@ -2892,7 +2891,6 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "document should be set");
 				NMake::Pack(Node->Set("diffuse"), Diffuse);
 				NMake::Pack(Node->Set("emission"), Emission);
-				NMake::Pack(Node->Set("disperse"), Disperse);
 
 				for (uint32_t i = 0; i < 6; i++)
 				{

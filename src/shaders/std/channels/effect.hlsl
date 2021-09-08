@@ -7,7 +7,7 @@ Texture2D DiffuseBuffer : register(t1);
 Texture2D NormalBuffer : register(t2);
 Texture2D DepthBuffer : register(t3);
 Texture2D SurfaceBuffer : register(t4);
-SamplerState Sampler : register(s0);
+SamplerState Sampler : register(s1);
 
 bool IsInPixelGrid(float2 TexCoord)
 {

@@ -130,7 +130,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -154,8 +154,6 @@ namespace Tomahawk
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 				}
-
-				Device->FlushTexture2D(1, 7, TH_PS);
 			}
 			void SoftBody::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
@@ -164,8 +162,8 @@ namespace Tomahawk
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->SetSamplerState(Sampler, 0, TH_PS);
 				Device->SetInputLayout(Layout);
+				Device->SetSamplerState(Sampler, 4, 6, TH_PS);
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
@@ -193,7 +191,6 @@ namespace Tomahawk
 				}
 
 				Device->SetShader(nullptr, TH_GS);
-				Device->FlushTexture2D(5, 6, TH_PS);
 			}
 			void SoftBody::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
 			{
@@ -206,7 +203,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -244,7 +241,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS | TH_GS);
 				Device->SetBuffer(Shaders.Depth.Cubic, 3, TH_VS | TH_PS | TH_GS);
 				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
@@ -392,7 +389,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -419,8 +416,6 @@ namespace Tomahawk
 						Device->DrawIndexed(Mesh);
 					}
 				}
-
-				Device->FlushTexture2D(1, 7, TH_PS);
 			}
 			void Model::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
@@ -430,7 +425,7 @@ namespace Tomahawk
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 4, 6, TH_PS);
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
@@ -456,7 +451,6 @@ namespace Tomahawk
 					}
 				}
 
-				Device->FlushTexture2D(5, 6, TH_PS);
 				Device->SetShader(nullptr, TH_GS);
 			}
 			void Model::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
@@ -470,7 +464,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -509,7 +503,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Cubic, TH_VS | TH_PS | TH_GS);
 				Device->SetBuffer(Shaders.Depth.Cubic, 3, TH_VS | TH_PS | TH_GS);
 				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
@@ -647,7 +641,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -680,8 +674,6 @@ namespace Tomahawk
 						Device->DrawIndexed(Mesh);
 					}
 				}
-
-				Device->FlushTexture2D(1, 7, TH_PS);
 			}
 			void Skin::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
 			{
@@ -691,7 +683,7 @@ namespace Tomahawk
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 4, 6, TH_PS);
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
@@ -726,7 +718,6 @@ namespace Tomahawk
 					}
 				}
 
-				Device->FlushTexture2D(5, 6, TH_PS);
 				Device->SetShader(nullptr, TH_GS);
 			}
 			void Skin::RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry)
@@ -740,7 +731,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
@@ -785,7 +776,7 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS | TH_GS);
 				Device->SetBuffer(Shaders.Depth.Cubic, 3, TH_VS | TH_PS | TH_GS);
 				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
@@ -887,7 +878,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology::Point_List);
 				Device->SetRasterizerState(BackRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(BaseShader, TH_VS | TH_PS);
 				Device->SetVertexBuffer(nullptr, 0);
 
@@ -916,7 +907,6 @@ namespace Tomahawk
 					Device->Draw((unsigned int)Base->GetBuffer()->GetArray()->Size(), 0);
 				}
 
-				Device->FlushTexture2D(1, 7, TH_PS);
 				Device->SetBuffer((Graphics::InstanceBuffer*)nullptr, 8, TH_VS | TH_PS);
 				Device->SetShader(nullptr, TH_GS);
 				Device->SetPrimitiveTopology(T);
@@ -939,7 +929,7 @@ namespace Tomahawk
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 				Device->SetVertexBuffer(nullptr, 0);
 
@@ -991,7 +981,7 @@ namespace Tomahawk
 				Device->SetRasterizerState(FrontRasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetVertexBuffer(nullptr, 0);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetBuffer(Shaders.Depth.Quad, 3, TH_VS | TH_PS | TH_GS);
 				Device->UpdateBuffer(Shaders.Depth.Quad, &Depth);
 
@@ -1064,7 +1054,7 @@ namespace Tomahawk
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetTargetMap(MRT, Map);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(Shader, TH_VS | TH_PS);
 				Device->SetBuffer(Shader, 3, TH_VS | TH_PS);
 				Device->SetTexture2D(MRT->GetTarget(2), 8, TH_PS);
@@ -1089,7 +1079,7 @@ namespace Tomahawk
 					Device->DrawIndexed((unsigned int)Sphere[(size_t)BufferType::Index]->GetElements(), 0, 0);
 				}
 
-				Device->FlushTexture2D(1, 8, TH_PS);
+				Device->SetTexture2D(nullptr, 8, TH_PS);
 				System->RestoreOutput();
 			}
 			void Decal::RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
@@ -1419,10 +1409,10 @@ namespace Tomahawk
 				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.LineLightResolution / Light->Shadow.Softness;
 				Dest->Iterations = (float)Light->Shadow.Iterations;
 				Dest->Bias = Light->Shadow.Bias;
-				Dest->Cascades = Light->DepthMap->size();
-				Dest->Umbra = Light->Disperse;
+				Dest->Cascades = (float)std::min(Light->Shadow.Cascades, (uint32_t)Light->DepthMap->size());
 
-				for (size_t i = 0; i < Light->DepthMap->size(); i++)
+				size_t Size = (size_t)Dest->Cascades;
+				for (size_t i = 0; i < Size; i++)
 					Dest->ViewProjection[i] = Light->View[i] * Light->Projection[i];
 
 				return true;
@@ -1631,11 +1621,11 @@ namespace Tomahawk
 				State.Device->SetInputLayout(Layout);
 				State.Device->CopyTarget(MRT, 0, RT, 0);
 				State.Device->SetTarget(MRT, 0, 0, 0, 0);
-				State.Device->SetSamplerState(WrapSampler, 0, TH_PS);
-				State.Device->SetSamplerState(DepthSampler, 1, TH_PS);
-				State.Device->SetSamplerState(DepthLessSampler, 2, TH_PS);
-				State.Device->SetSamplerState(DepthGreaterSampler, 3, TH_PS);
-				State.Device->SetTexture2D(RT->GetTarget(0), 1, TH_PS);
+				State.Device->SetSamplerState(WrapSampler, 1, 4, TH_PS);
+				State.Device->SetSamplerState(DepthSampler, 5, 1, TH_PS);
+				State.Device->SetSamplerState(DepthLessSampler, 6, 1, TH_PS);
+				State.Device->SetSamplerState(DepthGreaterSampler, 7, 1, TH_PS);
+				State.Device->SetTexture2D(RT->GetTarget(), 1, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(1), 2, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(2), 3, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(3), 4, TH_PS);
@@ -1649,7 +1639,7 @@ namespace Tomahawk
 				RenderIllumination();
 				RenderAmbient();
 
-				State.Device->FlushTexture2D(1, 10, TH_PS);
+				State.Device->FlushTexture(1, 11, TH_PS);
 			}
 			void Lighting::RenderShadowMaps(Core::Timer* Time)
 			{
@@ -1742,7 +1732,6 @@ namespace Tomahawk
 					Counter++;
 				}
 
-				State.Device->FlushTexture2D(1, 8, TH_PS);
 				State.Scene->RestoreViewBuffer(nullptr);
 			}
 			void Lighting::RenderSurfaceMaps(Core::Timer* Time)
@@ -1814,7 +1803,7 @@ namespace Tomahawk
 				State.Device->SetDepthStencilState(DepthStencilNone);
 				State.Device->SetBlendState(BlendOverwrite);
 				State.Device->SetRasterizerState(NoneRasterizer);
-				State.Device->SetWriteable(In, 3, 1, false);
+				State.Device->SetWriteable(In, 1, 3, false);
 
 				if (Inside)
 				{
@@ -1825,7 +1814,7 @@ namespace Tomahawk
 				else
 					State.Scene->Render(Time, RenderState::Geometry_Voxels, RenderOpt::Inner);
 
-				State.Device->SetWriteable(Out, 3, 1, false);
+				State.Device->SetWriteable(Out, 1, 3, false);
 				State.Device->GenerateMips(LightBuffer);
 				Storage.Inside = Inside;
 				Storage.Area = Area;
@@ -1842,7 +1831,7 @@ namespace Tomahawk
 
 				State.Distance = 1.0;
 				State.Device->ClearWritable(LightBuffer);
-				State.Device->SetWriteable(Out, 3, 1, false);
+				State.Device->SetWriteable(Out, 1, 3, false);
 				State.Device->SetWriteable(&LightBuffer, 1, 1, true);
 				State.Device->SetTexture3D(In[(size_t)VoxelType::Diffuse], 2, TH_CS);
 				State.Device->SetTexture3D(In[(size_t)VoxelType::Normal], 3, TH_CS);
@@ -1873,13 +1862,13 @@ namespace Tomahawk
 				State.Device->SetBuffer(Shaders.Voxelize, 3, TH_CS);
 				State.Device->SetShader(Shaders.Voxelize, TH_CS);
 				State.Device->Dispatch(X, Y, Z);
-				State.Device->FlushTexture3D(2, 3, TH_CS);
+				State.Device->FlushTexture(2, 3, TH_CS);
 				State.Device->SetShader(nullptr, TH_CS);
 				State.Device->SetStructureBuffer(nullptr, 5, TH_CS);
 				State.Device->SetStructureBuffer(nullptr, 6, TH_CS);
 				State.Device->SetStructureBuffer(nullptr, 7, TH_CS);
 				State.Device->SetWriteable(Out, 1, 1, true);
-				State.Device->SetWriteable(In, 3, 1, false);
+				State.Device->SetWriteable(In, 1, 3, false);
 			}
 			void Lighting::RenderSurfaceLights()
 			{
@@ -1932,7 +1921,7 @@ namespace Tomahawk
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				Graphics::Shader* fActive = nullptr;
+				Graphics::Shader* BaseShader = nullptr;
 				State.Device->SetShader(Shaders.Point[0], TH_VS);
 				State.Device->SetBuffer(Shaders.Point[0], 3, TH_VS | TH_PS);
 
@@ -1946,13 +1935,16 @@ namespace Tomahawk
 					GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
 					if (GetPointLight(&PointLight, Light, Position, Scale))
 					{
-						fActive = Shaders.Point[1];
-						State.Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5, TH_PS);
+						Graphics::TextureCube* DepthMap = Light->DepthMap->GetTarget();
+						State.Device->SetTextureCube(DepthMap, 5, TH_PS);
+						State.Device->SetTextureCube(DepthMap, 6, TH_PS);
+						State.Device->SetTextureCube(DepthMap, 7, TH_PS);
+						BaseShader = Shaders.Point[1];
 					}
 					else
-						fActive = Shaders.Point[0];
+						BaseShader = Shaders.Point[0];
 
-					State.Device->SetShader(fActive, TH_PS);
+					State.Device->SetShader(BaseShader, TH_PS);
 					State.Device->UpdateBuffer(Shaders.Point[0], &PointLight);
 					State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
 				}
@@ -1962,7 +1954,7 @@ namespace Tomahawk
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				Graphics::Shader* fActive = nullptr;
+				Graphics::Shader* BaseShader = nullptr;
 				State.Device->SetShader(Shaders.Spot[0], TH_VS);
 				State.Device->SetBuffer(Shaders.Spot[0], 3, TH_VS | TH_PS);
 
@@ -1976,20 +1968,23 @@ namespace Tomahawk
 					GetLightCulling(Light, Light->GetBoxRange(), &Position, &Scale);
 					if (GetSpotLight(&SpotLight, Light, Position, Scale))
 					{
-						fActive = Shaders.Spot[1];
-						State.Device->SetTexture2D(Light->DepthMap->GetTarget(0), 5, TH_PS);
+						Graphics::Texture2D* DepthMap = Light->DepthMap->GetTarget();
+						State.Device->SetTexture2D(DepthMap, 5, TH_PS);
+						State.Device->SetTexture2D(DepthMap, 6, TH_PS);
+						State.Device->SetTexture2D(DepthMap, 7, TH_PS);
+						BaseShader = Shaders.Spot[1];
 					}
 					else
-						fActive = Shaders.Spot[0];
+						BaseShader = Shaders.Spot[0];
 
-					State.Device->SetShader(fActive, TH_PS);
+					State.Device->SetShader(BaseShader, TH_PS);
 					State.Device->UpdateBuffer(Shaders.Spot[0], &SpotLight);
 					State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
 				}
 			}
 			void Lighting::RenderLineLights()
 			{
-				Graphics::Shader* fActive = nullptr;
+				Graphics::Shader* BaseShader = nullptr;
 				if (!State.Backcull)
 				{
 					State.Device->SetRasterizerState(BackRasterizer);
@@ -1997,6 +1992,7 @@ namespace Tomahawk
 				}
 
 				State.Device->SetDepthStencilState(DepthStencilNone);
+				State.Device->SetSamplerState(DepthLessSampler, 5, 6, TH_PS);
 				State.Device->SetShader(Shaders.Line[0], TH_VS);
 				State.Device->SetBuffer(Shaders.Line[0], 3, TH_VS | TH_PS);
 				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
@@ -2006,14 +2002,15 @@ namespace Tomahawk
 					Engine::Components::LineLight* Light = (Engine::Components::LineLight*)*It;
 					if (GetLineLight(&LineLight, Light))
 					{
-						fActive = Shaders.Line[1];
-						for (size_t i = 0; i < Light->DepthMap->size(); i++)
-							State.Device->SetTexture2D((*Light->DepthMap)[i]->GetTarget(0), 5 + i, TH_PS);
+						uint32_t Size = (uint32_t)LineLight.Cascades;
+						for (uint32_t i = 0; i < Size; i++)
+							State.Device->SetTexture2D((*Light->DepthMap)[i]->GetTarget(), 5 + i, TH_PS);
+						BaseShader = Shaders.Line[1];
 					}
 					else
-						fActive = Shaders.Line[0];
+						BaseShader = Shaders.Line[0];
 
-					State.Device->SetShader(fActive, TH_PS);
+					State.Device->SetShader(BaseShader, TH_PS);
 					State.Device->UpdateBuffer(Shaders.Line[0], &LineLight);
 					State.Device->Draw(6, 0);
 				}
@@ -2039,14 +2036,14 @@ namespace Tomahawk
 				Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Secondary);
 				State.Device->CopyTarget(MRT, 0, RT, 0);
 				State.Device->SetDepthStencilState(DepthStencilNone);
-				State.Device->SetTexture2D(RT->GetTarget(0), 1, TH_PS);
+				State.Device->SetTexture2D(RT->GetTarget(), 1, TH_PS);
 				State.Device->SetTexture3D(LightBuffer, 5, TH_PS);
 				State.Device->SetShader(Shaders.Ambient[1], TH_VS | TH_PS);
 				State.Device->SetBuffer(Shaders.Ambient[1], 3, TH_VS | TH_PS);
 				State.Device->SetVertexBuffer(Cube[(size_t)BufferType::Vertex], 0);
 				State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
 				State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
-				State.Device->SetTexture2D(System->GetRT(TargetType::Main)->GetTarget(0), 1, TH_PS);
+				State.Device->SetTexture2D(System->GetRT(TargetType::Main)->GetTarget(), 1, TH_PS);
 				State.Device->SetTexture3D(nullptr, 5, TH_PS);
 				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
 
@@ -2058,7 +2055,8 @@ namespace Tomahawk
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::RenderTarget2D* RT = (State.Inner ? Surfaces.Output : System->GetRT(TargetType::Secondary));
 				State.Device->CopyTarget(MRT, 0, RT, 0);
-				State.Device->SetTexture2D(RT->GetTarget(0), 5, TH_PS);
+				State.Device->SetSamplerState(WrapSampler, 1, 6, TH_PS);
+				State.Device->SetTexture2D(RT->GetTarget(), 5, TH_PS);
 				State.Device->SetTextureCube(SkyMap, 6, TH_PS);
 				State.Device->SetShader(Shaders.Ambient[0], TH_VS | TH_PS);
 				State.Device->SetBuffer(Shaders.Ambient[0], 3, TH_VS | TH_PS);
@@ -2218,7 +2216,7 @@ namespace Tomahawk
 				Scene->SwapMRT(TargetType::Main, nullptr);
 
 				Device->CopyTarget(MainMRT, 0, RT, 0);
-				Device->GenerateMips(RT->GetTarget(0));
+				Device->GenerateMips(RT->GetTarget());
 				Device->SetTarget(MainMRT, 0);
 				Device->Clear(MainMRT, 0, 0, 0, 0);
 				Device->UpdateBuffer(Shader, &RenderPass);
@@ -2226,8 +2224,8 @@ namespace Tomahawk
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetSamplerState(Sampler, 0, TH_PS);
-				Device->SetTexture2D(RT->GetTarget(0), 1, TH_PS);
+				Device->SetSamplerState(Sampler, 1, 8, TH_PS);
+				Device->SetTexture2D(RT->GetTarget(), 1, TH_PS);
 				Device->SetTexture2D(MainMRT->GetTarget(1), 2, TH_PS);
 				Device->SetTexture2D(MainMRT->GetTarget(2), 3, TH_PS);
 				Device->SetTexture2D(MainMRT->GetTarget(3), 4, TH_PS);
@@ -2240,7 +2238,7 @@ namespace Tomahawk
 				Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
 				Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 				Device->Draw(6, 0);
-				Device->FlushTexture2D(1, 8, TH_PS);
+				Device->FlushTexture(1, 8, TH_PS);
 				System->RestoreOutput();
 			}
 

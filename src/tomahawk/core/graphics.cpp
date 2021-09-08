@@ -666,7 +666,15 @@ namespace Tomahawk
 		{
 			return 1;
 		}
-		Texture2D* RenderTarget2D::GetTarget(unsigned int Index)
+		Texture2D* RenderTarget2D::GetTarget2D(unsigned int Index)
+		{
+			return GetTarget();
+		}
+		TextureCube* RenderTarget2D::GetTargetCube(unsigned int Index)
+		{
+			return nullptr;
+		}
+		Texture2D* RenderTarget2D::GetTarget()
 		{
 			return Resource;
 		}
@@ -689,6 +697,14 @@ namespace Tomahawk
 		{
 			return (uint32_t)Target;
 		}
+		Texture2D* MultiRenderTarget2D::GetTarget2D(unsigned int Index)
+		{
+			return GetTarget(Index);
+		}
+		TextureCube* MultiRenderTarget2D::GetTargetCube(unsigned int Index)
+		{
+			return nullptr;
+		}
 		Texture2D* MultiRenderTarget2D::GetTarget(unsigned int Slot)
 		{
 			TH_ASSERT(Slot < (uint32_t)Target, nullptr, "slot should be less than targets count");
@@ -706,7 +722,15 @@ namespace Tomahawk
 		{
 			return 1;
 		}
-		Texture2D* RenderTargetCube::GetTarget(unsigned int Index)
+		Texture2D* RenderTargetCube::GetTarget2D(unsigned int Index)
+		{
+			return nullptr;
+		}
+		TextureCube* RenderTargetCube::GetTargetCube(unsigned int Index)
+		{
+			return GetTarget();
+		}
+		TextureCube* RenderTargetCube::GetTarget()
 		{
 			return Resource;
 		}
@@ -729,7 +753,15 @@ namespace Tomahawk
 		{
 			return (uint32_t)Target;
 		}
-		Texture2D* MultiRenderTargetCube::GetTarget(unsigned int Slot)
+		Texture2D* MultiRenderTargetCube::GetTarget2D(unsigned int Index)
+		{
+			return nullptr;
+		}
+		TextureCube* MultiRenderTargetCube::GetTargetCube(unsigned int Index)
+		{
+			return GetTarget(Index);
+		}
+		TextureCube* MultiRenderTargetCube::GetTarget(unsigned int Slot)
 		{
 			TH_ASSERT(Slot < (uint32_t)Target, nullptr, "slot should be less than targets count");
 			return Resource[Slot];
@@ -981,7 +1013,6 @@ namespace Tomahawk
 			SetDepthStencilState(GetDepthStencilState("less"));
 			SetRasterizerState(GetRasterizerState("cull-back"));
 			SetBlendState(GetBlendState("overwrite"));
-			SetSamplerState(GetSamplerState("trilinear-x16"), 0, TH_PS);
 		}
 		void GraphicsDevice::CreateSections()
 		{

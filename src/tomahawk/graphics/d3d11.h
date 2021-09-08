@@ -1,6 +1,7 @@
 #ifndef TH_GRAPHICS_D3D11_H
 #define TH_GRAPHICS_D3D11_H
 #include "../core/graphics.h"
+#include <array>
 #ifdef TH_MICROSOFT
 #include <d3d11.h>
 #include <d3dcompiler.h>
@@ -320,13 +321,14 @@ namespace Tomahawk
 					ID3D11InputLayout* VertexLayout = nullptr;
 					ID3D11Buffer* ConstantBuffer = nullptr;
 					ID3D11Buffer* VertexBuffer = nullptr;
+					ID3D11SamplerState* Sampler = nullptr;
 				} Immediate;
 
 				struct
 				{
-					std::vector<std::pair<ID3D11ShaderResourceView*, unsigned int>> Resources;
+					std::array<D3D11Shader*, 6> Shaders = { };
+					std::array<std::pair<ID3D11ShaderResourceView*, unsigned int>, TH_MAX_UNITS> Resources = { };
 					std::tuple<ID3D11SamplerState*, unsigned int, unsigned int> Sampler = { nullptr, 0, 0 };
-					std::tuple<D3D11Shader*, unsigned int> Shader = { nullptr, 0 };
 					std::tuple<D3D11ElementBuffer*, unsigned int> VertexBuffer = { nullptr, 0 };
 					std::tuple<D3D11ElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
 					ID3D11BlendState* Blend = nullptr;
@@ -358,7 +360,7 @@ namespace Tomahawk
 				void SetDepthStencilState(DepthStencilState* State) override;
 				void SetInputLayout(InputLayout* State) override;
 				void SetShader(Shader* Resource, unsigned int Type) override;
-				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type) override;
+				void SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
@@ -367,10 +369,10 @@ namespace Tomahawk
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
 				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) override;
-				void SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
-				void SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
-				void SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
-				void SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable) override;
+				void SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
+				void SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
+				void SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
+				void SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
 				void SetTarget(DepthBuffer* Resource) override;
@@ -383,9 +385,7 @@ namespace Tomahawk
 				void SetViewports(unsigned int Count, Viewport* Viewports) override;
 				void SetScissorRects(unsigned int Count, Compute::Rectangle* Value) override;
 				void SetPrimitiveTopology(PrimitiveTopology Topology) override;
-				void FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type) override;
-				void FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type) override;
-				void FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type) override;
+				void FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type) override;
 				void FlushState() override;
 				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;

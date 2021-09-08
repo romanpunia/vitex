@@ -369,7 +369,7 @@ namespace Tomahawk
 				TH_ASSERT_V(I.Source != nullptr, "source should be set");
 				TH_ASSERT_V(I.Target < I.Source->GetTargetCount(), "targets count should be less than %i", (int)I.Source->GetTargetCount());
 
-				D3D11Texture2D* Source = (D3D11Texture2D*)I.Source->GetTarget(I.Target);
+				D3D11Texture2D* Source = (D3D11Texture2D*)I.Source->GetTarget2D(I.Target);
 				if (!Source || !Source->View)
 				{
 					TH_ERR("render target configuration error");
@@ -426,7 +426,6 @@ namespace Tomahawk
 				ConstantBuffer[0] = nullptr;
 				ConstantBuffer[1] = nullptr;
 				ConstantBuffer[2] = nullptr;
-				Register.Resources.resize(32);
 
 				unsigned int CreationFlags = I.CreationFlags | D3D11_CREATE_DEVICE_DISABLE_GPU_TIMEOUT;
 				if (I.Debug)
@@ -473,10 +472,9 @@ namespace Tomahawk
 
 				SetConstantBuffers();
 				SetShaderModel(I.ShaderMode == ShaderModel::Auto ? GetSupportedShaderModel() : I.ShaderMode);
+				SetPrimitiveTopology(PrimitiveTopology::Triangle_List);
 				ResizeBuffers(I.BufferWidth, I.BufferHeight);
 				CreateStates();
-
-				ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 				Shader::Desc F = Shader::Desc();
 				if (GetSection("geometry/basic/geometry", &F))
@@ -605,55 +603,82 @@ namespace Tomahawk
 			void D3D11Device::SetShader(Shader* Resource, unsigned int Type)
 			{
 				D3D11Shader* IResource = (D3D11Shader*)Resource;
-				REG_EXCHANGE_T2(Shader, IResource, Type);
+				bool Flush = (!IResource), Update = false;
 
-				if (IResource != nullptr)
+				if (Type & (uint32_t)ShaderType::Vertex)
 				{
-					if (Type & (uint32_t)ShaderType::Vertex)
-						ImmediateContext->VSSetShader(IResource->VertexShader, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Pixel)
-						ImmediateContext->PSSetShader(IResource->PixelShader, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Geometry)
-						ImmediateContext->GSSetShader(IResource->GeometryShader, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Hull)
-						ImmediateContext->HSSetShader(IResource->HullShader, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Domain)
-						ImmediateContext->DSSetShader(IResource->DomainShader, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Compute)
-						ImmediateContext->CSSetShader(IResource->ComputeShader, nullptr, 0);
-
-					ImmediateContext->IASetInputLayout(GenerateInputLayout(IResource));
+					auto& Item = Register.Shaders[0];
+					if (Item != IResource)
+					{
+						ImmediateContext->VSSetShader(Flush ? nullptr : IResource->VertexShader, nullptr, 0);
+						Item = IResource;
+						Update = true;
+					}
 				}
-				else
+
+				if (Type & (uint32_t)ShaderType::Pixel)
 				{
-					if (Type & (uint32_t)ShaderType::Vertex)
-						ImmediateContext->VSSetShader(nullptr, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Pixel)
-						ImmediateContext->PSSetShader(nullptr, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Geometry)
-						ImmediateContext->GSSetShader(nullptr, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Hull)
-						ImmediateContext->HSSetShader(nullptr, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Domain)
-						ImmediateContext->DSSetShader(nullptr, nullptr, 0);
-
-					if (Type & (uint32_t)ShaderType::Compute)
-						ImmediateContext->CSSetShader(nullptr, nullptr, 0);
-
-					ImmediateContext->IASetInputLayout(nullptr);
+					auto& Item = Register.Shaders[1];
+					if (Item != IResource)
+					{
+						ImmediateContext->PSSetShader(Flush ? nullptr : IResource->PixelShader, nullptr, 0);
+						Item = IResource;
+						Update = true;
+					}
 				}
+
+				if (Type & (uint32_t)ShaderType::Geometry)
+				{
+					auto& Item = Register.Shaders[2];
+					if (Item != IResource)
+					{
+						ImmediateContext->GSSetShader(Flush ? nullptr : IResource->GeometryShader, nullptr, 0);
+						Item = IResource;
+						Update = true;
+					}
+				}
+
+				if (Type & (uint32_t)ShaderType::Hull)
+				{
+					auto& Item = Register.Shaders[3];
+					if (Item != IResource)
+					{
+						ImmediateContext->HSSetShader(Flush ? nullptr : IResource->HullShader, nullptr, 0);
+						Item = IResource;
+						Update = true;
+					}
+				}
+
+				if (Type & (uint32_t)ShaderType::Domain)
+				{
+					auto& Item = Register.Shaders[4];
+					if (Item != IResource)
+					{
+						ImmediateContext->DSSetShader(Flush ? nullptr : IResource->DomainShader, nullptr, 0);
+						Item = IResource;
+						Update = true;
+					}
+				}
+
+				if (Type & (uint32_t)ShaderType::Compute)
+				{
+					auto& Item = Register.Shaders[5];
+					if (Item != IResource)
+					{
+						ImmediateContext->CSSetShader(Flush ? nullptr : IResource->ComputeShader, nullptr, 0);
+						Item = IResource;
+						Update = true;
+					}
+				}
+				
+				if (Update)
+					ImmediateContext->IASetInputLayout(Flush ? nullptr : GenerateInputLayout(IResource));
 			}
-			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Type)
+			void D3D11Device::SetSamplerState(SamplerState* State, unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+				TH_ASSERT_V(Count <= TH_MAX_UNITS && Slot + Count <= TH_MAX_UNITS, "count should be less than or equal %i", (int)TH_MAX_UNITS);
+
 				ID3D11SamplerState* NewState = (ID3D11SamplerState*)(State ? State->GetResource() : nullptr);
 				REG_EXCHANGE_T3(Sampler, NewState, Slot, Type);
 
@@ -677,6 +702,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetBuffer(Shader* Resource, unsigned int Slot, unsigned int Type)
 			{
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+
 				ID3D11Buffer* IBuffer = (Resource ? ((D3D11Shader*)Resource)->ConstantBuffer : nullptr);
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetConstantBuffers(Slot, 1, &IBuffer);
@@ -698,7 +725,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11InstanceBuffer*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
@@ -722,7 +750,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type)
 			{
-				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11ElementBuffer*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
@@ -746,7 +775,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture2D*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
@@ -770,7 +800,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type)
 			{
-				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11Texture3D*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
@@ -794,7 +825,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type)
 			{
-				TH_ASSERT_V(Slot < 32, "slot should be less than 32");
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+
 				ID3D11ShaderResourceView* NewState = (Resource ? ((D3D11TextureCube*)Resource)->Resource : nullptr);
 				REG_EXCHANGE_RS(Resources, NewState, Slot, Type);
 
@@ -824,6 +856,8 @@ namespace Tomahawk
 			}
 			void D3D11Device::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot)
 			{
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+
 				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
 				REG_EXCHANGE_T2(VertexBuffer, IResource, Slot);
 
@@ -831,10 +865,11 @@ namespace Tomahawk
 				unsigned int Stride = (IResource ? IResource->Stride : 0), Offset = 0;
 				ImmediateContext->IASetVertexBuffers(Slot, 1, &IBuffer, &Stride, &Offset);
 			}
-			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Count, unsigned int Slot, bool Computable)
+			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
+				TH_ASSERT_V(Slot < 8, "slot should be less than 8");
+				TH_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				TH_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
-				TH_ASSERT_V(Count <= 8, "count should be less than 9");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -846,10 +881,11 @@ namespace Tomahawk
 				else
 					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture2D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
+			void D3D11Device::SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
+				TH_ASSERT_V(Slot < 8, "slot should be less than 8");
+				TH_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				TH_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
-				TH_ASSERT_V(Count <= 8, "count should be less than 9");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -861,10 +897,11 @@ namespace Tomahawk
 				else
 					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(Texture3D** Resource, unsigned int Count, unsigned int Slot, bool Computable)
+			void D3D11Device::SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
+				TH_ASSERT_V(Slot < 8, "slot should be less than 8");
+				TH_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				TH_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
-				TH_ASSERT_V(Count <= 8, "count should be less than 9");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -876,10 +913,11 @@ namespace Tomahawk
 				else
 					ImmediateContext->CSSetUnorderedAccessViews(Slot, Count, Array, &Offset);
 			}
-			void D3D11Device::SetWriteable(TextureCube** Resource, unsigned int Count, unsigned int Slot, bool Computable)
+			void D3D11Device::SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
+				TH_ASSERT_V(Slot < 8, "slot should be less than 8");
+				TH_ASSERT_V(Count <= 8 && Slot + Count <= 8, "count should be less than or equal 8");
 				TH_ASSERT_V(Resource != nullptr, "buffers ptr should be set");
-				TH_ASSERT_V(Count <= 8, "count should be less than 9");
 
 				ID3D11UnorderedAccessView* Array[8] = { nullptr };
 				for (unsigned int i = 0; i < Count; i++)
@@ -1023,11 +1061,12 @@ namespace Tomahawk
 			{
 				ImmediateContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)Topology);
 			}
-			void D3D11Device::FlushTexture2D(unsigned int Slot, unsigned int Count, unsigned int Type)
+			void D3D11Device::FlushTexture(unsigned int Slot, unsigned int Count, unsigned int Type)
 			{
-				TH_ASSERT_V(Count <= 32, "count should be less than 32");
+				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+				TH_ASSERT_V(Count <= TH_MAX_UNITS && Slot + Count <= TH_MAX_UNITS, "count should be less than or equal %i", (int)TH_MAX_UNITS);
 
-				static ID3D11ShaderResourceView* Array[32] = { nullptr };
+				static ID3D11ShaderResourceView* Array[TH_MAX_UNITS] = { nullptr };
 				if (Type & (uint32_t)ShaderType::Vertex)
 					ImmediateContext->VSSetShaderResources(Slot, Count, Array);
 
@@ -1046,16 +1085,9 @@ namespace Tomahawk
 				if (Type & (uint32_t)ShaderType::Compute)
 					ImmediateContext->CSSetShaderResources(Slot, Count, Array);
 
-				for (size_t i = 0; i < Count; i++)
+				size_t Offset = Slot + Count;
+				for (size_t i = Slot; i < Offset; i++)
 					Register.Resources[i] = std::make_pair<ID3D11ShaderResourceView*, unsigned int>(nullptr, 0);
-			}
-			void D3D11Device::FlushTexture3D(unsigned int Slot, unsigned int Count, unsigned int Type)
-			{
-				FlushTexture2D(Slot, Count, Type);
-			}
-			void D3D11Device::FlushTextureCube(unsigned int Slot, unsigned int Count, unsigned int Type)
-			{
-				FlushTexture2D(Slot, Count, Type);
 			}
 			void D3D11Device::FlushState()
 			{
@@ -1380,8 +1412,7 @@ namespace Tomahawk
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				TH_ASSERT(Result != nullptr, false, "result should be set");
 
-				D3D11Texture2D* Source = (D3D11Texture2D*)Resource->GetTarget(Target);
-
+				D3D11Texture2D* Source = (D3D11Texture2D*)Resource->GetTarget2D(Target);
 				TH_ASSERT(Source != nullptr, false, "source should be set");
 				TH_ASSERT(Source->View != nullptr, false, "source should be valid");
 
@@ -1528,13 +1559,17 @@ namespace Tomahawk
 				TH_ASSERT(From != nullptr, false, "from should be set");
 				TH_ASSERT(To != nullptr, false, "to should be set");
 
-				D3D11Texture2D* Source = (D3D11Texture2D*)From->GetTarget(FromTarget);
-				D3D11Texture2D* Dest = (D3D11Texture2D*)To->GetTarget(ToTarget);
+				D3D11Texture2D* Source2D = (D3D11Texture2D*)From->GetTarget2D(FromTarget);
+				D3D11TextureCube* SourceCube = (D3D11TextureCube*)From->GetTargetCube(FromTarget);
+				D3D11Texture2D* Dest2D = (D3D11Texture2D*)To->GetTarget2D(ToTarget);
+				D3D11TextureCube* DestCube = (D3D11TextureCube*)To->GetTargetCube(ToTarget);
+				ID3D11Texture2D* Source = (Source2D ? Source2D->View : (SourceCube ? SourceCube->View : nullptr));
+				ID3D11Texture2D* Dest = (Dest2D ? Dest2D->View : (DestCube ? DestCube->View : nullptr));
 
-				TH_ASSERT(Source != nullptr && Source->View != nullptr, false, "src should be valid");
-				TH_ASSERT(Dest != nullptr && Dest->View != nullptr, false, "dest should be valid");
+				TH_ASSERT(Source != nullptr, false, "from should be set");
+				TH_ASSERT(Dest != nullptr, false, "to should be set");
 
-				ImmediateContext->CopyResource(Dest->View, Source->View);
+				ImmediateContext->CopyResource(Dest, Source);
 				return true;
 			}
 			bool D3D11Device::CopyBackBuffer(Texture2D** Result)
@@ -1650,9 +1685,11 @@ namespace Tomahawk
 				TH_ASSERT(Face < 6, false, "face index should be less than 6");
 
 				D3D11Cubemap* IResource = (D3D11Cubemap*)Resource;
-
 				TH_ASSERT(IResource->IsValid(), false, "resource should be valid");
-				D3D11Texture2D* Source = (D3D11Texture2D*)IResource->Meta.Source->GetTarget(Target);
+
+				D3D11Texture2D* Source = (D3D11Texture2D*)IResource->Meta.Source->GetTarget2D(Target);
+				TH_ASSERT(Source != nullptr, false, "source should be valid");
+
 				ImmediateContext->CopyResource(IResource->Subresource, Source->View);
 				ImmediateContext->CopySubresourceRegion(IResource->Face, Face * IResource->Cube.MipLevels, 0, 0, 0, IResource->Subresource, 0, &IResource->Region);
 				return true;
@@ -1962,9 +1999,13 @@ namespace Tomahawk
 				ImmediateContext->PSGetConstantBuffers(0, 1, &LastBuffer2);
 				ImmediateContext->PSSetConstantBuffers(0, 1, &Immediate.ConstantBuffer);
 
+				ID3D11SamplerState* LastSampler;
+				ImmediateContext->PSGetSamplers(1, 1, &LastSampler);
+				ImmediateContext->PSSetSamplers(1, 1, &Immediate.Sampler);
+
 				ID3D11ShaderResourceView* LastTexture, * NullTexture = nullptr;
-				ImmediateContext->PSGetShaderResources(0, 1, &LastTexture);
-				ImmediateContext->PSSetShaderResources(0, 1, ViewResource ? &((D3D11Texture2D*)ViewResource)->Resource : &NullTexture);
+				ImmediateContext->PSGetShaderResources(1, 1, &LastTexture);
+				ImmediateContext->PSSetShaderResources(1, 1, ViewResource ? &((D3D11Texture2D*)ViewResource)->Resource : &NullTexture);
 
 				ImmediateContext->UpdateSubresource(Immediate.ConstantBuffer, 0, nullptr, &Direct, 0, 0);
 				ImmediateContext->Draw((unsigned int)Elements.size(), 0);
@@ -1974,7 +2015,8 @@ namespace Tomahawk
 				ImmediateContext->VSSetConstantBuffers(0, 1, &LastBuffer1);
 				ImmediateContext->PSSetShader(LastPixelShader, nullptr, 0);
 				ImmediateContext->PSSetConstantBuffers(0, 1, &LastBuffer2);
-				ImmediateContext->PSSetShaderResources(0, 1, &LastTexture);
+				ImmediateContext->PSSetSamplers(1, 1, &LastSampler);
+				ImmediateContext->PSSetShaderResources(1, 1, &LastTexture);
 				ImmediateContext->IASetVertexBuffers(0, 1, &LastVertexBuffer, &LastStride, &LastOffset);
 				D3D_RELEASE(LastLayout);
 				D3D_RELEASE(LastVertexShader);
@@ -3188,8 +3230,8 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result->Resource = CreateTexture2D();
-				((D3D11Texture2D*)Result->Resource)->View = Result->Texture;
+				Result->Resource = CreateTextureCube();
+				((D3D11TextureCube*)Result->Resource)->View = Result->Texture;
 				Result->Texture->AddRef();
 
 				if (!GenerateTexture(Result->Resource))
@@ -3296,17 +3338,10 @@ namespace Tomahawk
 					}
 				}
 
-				D3D11_SHADER_RESOURCE_VIEW_DESC SRV;
-				ZeroMemory(&SRV, sizeof(SRV));
-				SRV.Format = Description.Format;
-				SRV.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-				SRV.TextureCube.MostDetailedMip = 0;
-				SRV.TextureCube.MipLevels = MipLevels;
-
 				for (unsigned int i = 0; i < (unsigned int)Result->Target; i++)
 				{
-					Result->Resource[i] = CreateTexture2D();
-					((D3D11Texture2D*)Result->Resource[i])->View = Result->Texture[i];
+					Result->Resource[i] = CreateTextureCube();
+					((D3D11TextureCube*)Result->Resource[i])->View = Result->Texture[i];
 					Result->Texture[i]->AddRef();
 
 					if (!GenerateTexture(Result->Resource[i]))
@@ -3399,6 +3434,13 @@ namespace Tomahawk
 					return false;
 				}
 
+				if (!Immediate.Sampler)
+				{
+					D3D11SamplerState* State = (D3D11SamplerState*)GetSamplerState("trilinear-x16");
+					if (State != nullptr)
+						Immediate.Sampler = State->Resource;
+				}
+
 				if (!Immediate.VertexShader)
 				{
 					static const char* VertexShaderCode = D3D_INLINE(
@@ -3483,8 +3525,8 @@ namespace Tomahawk
 						float4 Color : COLOR0;
 					};
 
-					Texture2D Diffuse : register(t0);
-					SamplerState State : register(s0);
+					Texture2D Diffuse : register(t1);
+					SamplerState State : register(s1);
 
 					float4 ps_main(PS_INPUT Input) : SV_TARGET0
 					{

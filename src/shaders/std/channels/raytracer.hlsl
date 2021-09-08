@@ -9,7 +9,7 @@ Texture2D NormalBuffer : register(t2);
 Texture2D DepthBuffer : register(t3);
 Texture2D SurfaceBuffer : register(t4);
 Texture3D<unorm float4> LightBuffer : register(t5);
-SamplerState Sampler : register(s0);
+SamplerState Sampler : register(s1);
 
 bool IsInVoxelGrid(float3 Voxel)
 {

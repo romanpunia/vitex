@@ -10,14 +10,13 @@ struct LineLight
 	float Softness;
 	float3 Position;
 	float Cascades;
+    float2 Padding;
 	float Bias;
 	float Iterations;
 	float ScatterIntensity;
 	float PlanetRadius;
 	float AtmosphereRadius;
 	float MieDirection;
-	float Umbra;
-	float Padding;
 };
 
 StructuredBuffer<LineLight> LineLights : register(t7);

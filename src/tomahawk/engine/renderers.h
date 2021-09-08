@@ -261,14 +261,13 @@ namespace Tomahawk
 					float Softness = 0.0f;
 					Compute::Vector3 Position;
 					float Cascades = 0.0f;
+					Compute::Vector2 Padding;
 					float Bias = 0.0f;
 					float Iterations = 0.0f;
 					float ScatterIntensity = 0.0f;
 					float PlanetRadius = 0.0f;
 					float AtmosphereRadius = 0.0f;
 					float MieDirection = 0.0f;
-					float Umbra = 0.0f;
-					float Padding = 0.0f;
 				};
 
 				struct IAmbientLight

@@ -1,6 +1,5 @@
 #include "std/layouts/shape.hlsl"
 #include "std/channels/effect.hlsl"
-#include "std/core/sampler.hlsl"
 #include "std/core/random.hlsl"
 #include "std/core/material.hlsl"
 
@@ -38,7 +37,7 @@ float4 ps_main(VOutput V) : SV_TARGET0
 		[branch] if (dot(GetNormal(T), N) < 0.0)
 			continue;
 
-		B += GetSampleLevel(Image, T, 0).xyz; I++;
+		B += Image.SampleLevel(Sampler, T, 0).xyz; I++;
 	}
 
 	return float4(B / max(1.0, I), 1.0);

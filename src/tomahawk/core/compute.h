@@ -188,6 +188,16 @@ namespace Tomahawk
 			Global
 		};
 
+		enum class CubeFace
+		{
+			PositiveX,
+			NegativeX,
+			PositiveY,
+			NegativeY,
+			PositiveZ,
+			NegativeZ
+		};
+
 		inline SoftCollision operator |(SoftCollision A, SoftCollision B)
 		{
 			return static_cast<SoftCollision>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
@@ -709,7 +719,7 @@ namespace Tomahawk
 			static Matrix4x4 Create(const Vector3& Position, const Vector3& Rotation);
 			static Matrix4x4 CreateRotation(const Vector3& Rotation);
 			static Matrix4x4 CreateOrigin(const Vector3& Position, const Vector3& Rotation);
-			static Matrix4x4 CreateCubeMapLookAt(int Face, const Vector3& Position);
+			static Matrix4x4 CreateLookAt(CubeFace Face, const Vector3& Position);
 			static Matrix4x4 CreateRotation(const Vector3& Forward, const Vector3& Up, const Vector3& Right);
 			static Matrix4x4 Identity()
 			{
@@ -1489,6 +1499,7 @@ namespace Tomahawk
 		public:
 			static bool Match(RegexSource* Value, RegexResult& Result, const std::string& Buffer);
 			static bool Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length);
+			static bool Replace(std::string& Source, const std::string& FromExpression, const std::string& ToExpression);
 			static const char* Syntax();
 		};
 

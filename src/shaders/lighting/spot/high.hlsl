@@ -22,7 +22,7 @@ float GetPenumbra(float2 D, float L)
 	float Length = 0.0, Count = 0.0;
 	[unroll] for (float i = 0; i < 16; i++)
 	{
-        float2 TexCoord = D + SampleDisk[i].xy / Softness;
+		float2 TexCoord = D + SampleDisk[i].xy / Softness;
 		float S1 = DepthMap.SampleLevel(DepthSampler, TexCoord, 0).x;
 		float S2 = DepthMapGreater.SampleCmpLevelZero(DepthGreaterSampler, TexCoord, L);
 		Length += S1 * S2;
@@ -81,7 +81,11 @@ float4 ps_main(VOutput V) : SV_TARGET0
 	float3 S = GetSubsurface(Frag.Normal, D, L, Mat.Scatter) * E;
 
 	float4 H = mul(float4(Frag.Position, 1), LightViewProjection);
+#ifdef TARGET_D3D
 	float2 T = float2(H.x / H.w / 2.0 + 0.5f, 1 - (H.y / H.w / 2.0 + 0.5f));
+#else
+	float2 T = float2(H.x / H.w / 2.0 + 0.5f, H.y / H.w / 2.0 + 0.5f);
+#endif
 	[branch] if (H.z > 0.0 && saturate(T.x) == T.x && saturate(T.y) == T.y)
 		A *= GetLightness(T, H.z / H.w - Bias) + length(S) / 3.0;
 	

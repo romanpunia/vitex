@@ -20,7 +20,7 @@ float GetAvg(float3 Value)
 float3 GetVoxel(float3 Position)
 {
 	float3 Voxel = clamp(Position - vxb_Center, -vxb_Scale, vxb_Scale) / vxb_Scale;
-	return (float3(0.5, -0.5, 0.5) * Voxel + 0.5) * vxb_Size;
+	return (float3(0.5, -0.5, 0.5) * Voxel + 0.5) * vxb_Size;// ?
 }
 float3 GetVoxelToWorld(uint3 Position)
 {

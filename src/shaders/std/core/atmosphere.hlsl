@@ -26,7 +26,11 @@ float2 GetRSI(float3 O, float3 D, float L)
 }
 float3 GetAtmosphere(float2 TexCoord, matrix InvOffset, float3 O, float3 P, Scatter A)
 {
+#ifdef TARGET_D3D
 	float4 V = float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, 1.0, 1.0);
+#else
+	float4 V = float4(TexCoord.xy * 2.0 - 1.0, 1.0, 1.0);
+#endif
 	V = mul(V, InvOffset);
 	V = normalize(V / V.w);
 

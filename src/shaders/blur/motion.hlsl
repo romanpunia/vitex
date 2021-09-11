@@ -1,6 +1,5 @@
 #include "std/layouts/shape.hlsl"
 #include "std/channels/effect.hlsl"
-#include "std/core/sampler.hlsl"
 #include "std/core/random.hlsl"
 
 cbuffer RenderConstant : register(b3)
@@ -25,7 +24,7 @@ VOutput vs_main(VInput V)
 float4 ps_main(VOutput V) : SV_TARGET0
 {
 	float2 TexCoord = V.TexCoord.xy;
-	float2 Velocity = GetSample(Image, TexCoord).xy * Motion;
+	float2 Velocity = Image.Sample(Sampler, TexCoord).xy * Motion;
 	float3 Result = GetDiffuse(TexCoord, 0).xyz;
 	TexCoord += Velocity;
 

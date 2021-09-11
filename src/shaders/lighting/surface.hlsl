@@ -2,7 +2,6 @@
 #include "std/channels/effect.hlsl"
 #include "std/core/lighting.hlsl"
 #include "std/core/material.hlsl"
-#include "std/core/sampler.hlsl"
 #include "std/core/position.hlsl"
 
 cbuffer RenderConstant : register(b3)
@@ -56,7 +55,11 @@ float4 ps_main(VOutput V) : SV_TARGET0
 	}
 	
 	float T = GetRoughnessMip(Frag, Mat, Mips);
-	float3 P = GetSample3Level(EnvironmentMap, D, T).xyz;
+#ifdef TARGET_D3D
+	float3 P = EnvironmentMap.SampleLevel(Sampler, D, T).xyz;
+#else
+	float3 P = EnvironmentMap.SampleLevel(Sampler, float3(D.x, -D.y, D.z), T).xyz;
+#endif
 	float3 C = GetSpecularBRDF(Frag.Normal, -E, normalize(D), P, M, R);
 
 	return float4(Lighting * C * A, A);

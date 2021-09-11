@@ -2755,7 +2755,7 @@ namespace Tomahawk
 			{
 				auto* Transform = Parent->GetTransform();
 				if (Transform->IsDirty())
-					View = Compute::Matrix4x4::CreateCubeMapLookAt(0, Transform->GetPosition());
+					View = Compute::Matrix4x4::CreateTranslation(Transform->GetPosition());
 				Projection = Compute::Matrix4x4::CreatePerspective(90.0f, 1.0f, 0.1f, Shadow.Distance);
 			}
 			float PointLight::GetBoxRange() const

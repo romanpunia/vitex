@@ -2,7 +2,6 @@
 #include "std/channels/geometry.hlsl"
 #include "std/buffers/object.hlsl"
 #include "std/buffers/viewer.hlsl"
-#include "std/core/sampler.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {
@@ -23,7 +22,7 @@ VOutput vs_main(VInput V)
 float4 ps_main(VOutput V) : SV_TARGET0
 {
 	float2 Coord = float2(0.5 + 0.5 * V.TexCoord.x / V.TexCoord.w, 0.5 - 0.5 * V.TexCoord.y / V.TexCoord.w);
-	float4 Position = mul(float4(Coord.x * 2.0 - 1.0, 1.0 - Coord.y * 2.0, GetSampleLevel(LDepthBuffer, Coord, 0).x, 1.0), vb_InvViewProj);
+	float4 Position = mul(float4(Coord.x * 2.0 - 1.0, 1.0 - Coord.y * 2.0, LDepthBuffer.SampleLevel(Sampler, Coord, 0).x, 1.0), vb_InvViewProj);
 	float4 Projected = mul(Position / Position.w, DecalViewProjection);
 
 	Coord = float2(Projected.x / Projected.w / 2.0 + 0.5, 1 - (Projected.y / Projected.w / 2.0 + 0.5));

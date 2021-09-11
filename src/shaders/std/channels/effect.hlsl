@@ -1,6 +1,7 @@
 #include "std/buffers/viewer.hlsl"
 #include "std/objects/material.hlsl"
 #include "std/objects/fragment.hlsl"
+#include "std/core/position.hlsl"
 
 StructuredBuffer<Material> Materials : register(t0);
 Texture2D DiffuseBuffer : register(t1);
@@ -39,10 +40,10 @@ Fragment GetFragment(float2 TexCoord)
 	float4 C1 = NormalBuffer.SampleLevel(Sampler, TexCoord, 0);
 	float4 C2 = DepthBuffer.SampleLevel(Sampler, TexCoord, 0);
 	float4 C3 = SurfaceBuffer.SampleLevel(Sampler, TexCoord, 0);
-	float4 Position = mul(float4(TexCoord.x * 2.0 - 1.0, 1.0 - TexCoord.y * 2.0, C2.x, 1.0), vb_InvViewProj);
+	float3 Position = GetPosition(TexCoord, C2.x);
 
 	Fragment Result;
-	Result.Position = Position.xyz / Position.w;
+	Result.Position = Position;
 	Result.Diffuse = C0.xyz;
 	Result.Alpha = C0.w;
 	Result.Normal = C1.xyz;

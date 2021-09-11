@@ -2501,25 +2501,31 @@ namespace Tomahawk
 
 			return Rotation;
 		}
-		Matrix4x4 Matrix4x4::CreateCubeMapLookAt(int Face, const Vector3& Position)
+		Matrix4x4 Matrix4x4::CreateLookAt(CubeFace Face, const Vector3& Position)
 		{
-			TH_ASSERT(Face >= 0 && Face <= 5, Matrix4x4::Identity(), "index outside of range");
-			if (Face == 0)
-				return Matrix4x4::CreateLookAt(Position, Position + Vector3(1, 0, 0), Vector3::Up());
-
-			if (Face == 1)
-				return Matrix4x4::CreateLookAt(Position, Position - Vector3(1, 0, 0), Vector3::Up());
-
-			if (Face == 2)
-				return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 1, 0), Vector3::Forward());
-
-			if (Face == 3)
-				return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 1, 0), Vector3::Forward());
-
-			if (Face == 4)
-				return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 0, 1), Vector3::Up());
-
-			return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 0, 1), Vector3::Up());
+			switch (Face)
+			{
+				case CubeFace::PositiveX:
+					return Matrix4x4::CreateLookAt(Position, Position + Vector3(1, 0, 0), Vector3::Up());
+				case CubeFace::NegativeX:
+					return Matrix4x4::CreateLookAt(Position, Position - Vector3(1, 0, 0), Vector3::Up());
+				case CubeFace::PositiveY:
+					if (TH_LEFT_HANDED)
+						return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 1, 0), Vector3::Backward());
+					else
+						return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 1, 0), Vector3::Forward());
+				case CubeFace::NegativeY:
+					if (TH_LEFT_HANDED)
+						return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 1, 0), Vector3::Forward());
+					else
+						return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 1, 0), Vector3::Backward());
+				case CubeFace::PositiveZ:
+					return Matrix4x4::CreateLookAt(Position, Position + Vector3(0, 0, 1), Vector3::Up());
+				case CubeFace::NegativeZ:
+					return Matrix4x4::CreateLookAt(Position, Position - Vector3(0, 0, 1), Vector3::Up());
+				default:
+					return Matrix4x4::Identity();
+			}
 		}
 
 		Quaternion::Quaternion() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
@@ -3423,6 +3429,41 @@ namespace Tomahawk
 
 			Result.State = RegexState::Match_Found;
 			return true;
+		}
+		bool Regex::Replace(std::string& Source, const std::string& From, const std::string& To)
+		{
+			Core::Parser Parser(&Source), Emplace;
+			RegexSource Base('(' + From + ')');
+			RegexResult Result;
+			size_t Matches = 0;
+
+			bool Expression = (!To.empty() && To.find('$') != std::string::npos);
+			if (!Expression)
+				Emplace.Assign(To);
+
+			size_t Start = 0;
+			while (Match(&Base, Result, Source.c_str() + Start, Source.size() - Start))
+			{
+				Matches++;
+				if (Result.Matches.empty())
+					continue;
+
+				if (Expression)
+				{
+					Emplace.Assign(To);
+					for (size_t i = 1; i < Result.Matches.size(); i++)
+					{
+						auto& Item = Result.Matches[i];
+						Emplace.Replace("$" + std::to_string(i), std::string(Item.Pointer, (size_t)Item.Length));
+					}
+				}
+
+				auto& Where = Result.Matches.front();
+				Parser.ReplacePart(Where.Start + Start, Where.End + Start, Emplace.R());
+				Start += (size_t)Where.Start + (size_t)Emplace.Size() - (Emplace.Empty() ? 0 : 1);
+			}
+
+			return Matches > 0;
 		}
 		int64_t Regex::Meta(const unsigned char* Buffer)
 		{
@@ -6775,7 +6816,7 @@ namespace Tomahawk
 		{
 			return (isalnum(Value) || (Value == '-') || (Value == '_'));
 		}
-		bool TH_LEFT_HANDED
+		bool Common::IsLeftHanded()
 		{
 			return LeftHanded;
 		}
@@ -8602,10 +8643,10 @@ namespace Tomahawk
 			uint64_t B2Start = 0, B2End = 0;
 			uint64_t Start, End, Base, Size;
 			uint64_t BaseOffset = Offset;
-			bool Resolved = false;
+			bool Resolved = false, Negate = false;
 
 			int R = FindDirective(Buffer, "#ifdef", &Offset, nullptr, &Start, &End);
-			if (R < 0)
+			if (R <= 0)
 			{
 				R = FindDirective(Buffer, "#ifndef", &Offset, nullptr, &Start, &End);
 				if (R < 0)
@@ -8615,9 +8656,9 @@ namespace Tomahawk
 				}
 				else if (R == 0)
 					return 0;
+
+				Negate = true;
 			}
-			else if (R == 0)
-				return 0;
 
 			Base = Offset;
 			ProcessDefineDirective(Buffer, BaseOffset, Base, false);
@@ -8630,6 +8671,9 @@ namespace Tomahawk
 			Name.Trim().Replace("  ", " ");
 			Resolved = IsDefined(Name.Get());
 			Start = Offset - 1;
+
+			if (Negate)
+				Resolved = !Resolved;
 
 			if (Name.Get()[0] == '!')
 			{

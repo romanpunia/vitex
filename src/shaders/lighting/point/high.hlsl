@@ -22,7 +22,7 @@ float GetPenumbra(float3 D, float L)
 	float Length = 0.0, Count = 0.0;
 	[unroll] for (float i = 0; i < 16; i++)
 	{
-        float3 TexCoord = D + SampleDisk[i] / Softness;
+		float3 TexCoord = D + SampleDisk[i] / Softness;
 		float S1 = DepthMap.SampleLevel(DepthSampler, TexCoord, 0).x;
 		float S2 = DepthMapGreater.SampleCmpLevelZero(DepthGreaterSampler, TexCoord, L);
 		Length += S1 * S2;
@@ -76,7 +76,10 @@ float4 ps_main(VOutput V) : SV_TARGET0
 	float3 R = GetCookTorranceBRDF(Frag.Normal, D, L, Frag.Diffuse, M, G);
 	float3 S = GetSubsurface(Frag.Normal, D, L, Mat.Scatter) * E;
 	float A = GetRangeAttenuation(K, Attenuation.x, Attenuation.y, Range);
+#ifndef TARGET_D3D
+	L.y = -L.y;
+#endif
 	A *= GetLightness(-L, length(K) / Distance - Bias) + length(S) / 3.0;
-
+	
 	return float4(Lighting * (R + S) * A, A);
 };

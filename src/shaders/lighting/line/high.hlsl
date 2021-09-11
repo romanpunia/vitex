@@ -11,13 +11,13 @@
 Texture2D DepthMap[6] : register(t5);
 SamplerComparisonState DepthLessSampler : register(s5);
 
-float GetLightness(uniform uint I, float2 D, float L)
+float GetLightness(uniform uint Index, float2 D, float L)
 {
 	float Result = 0.0;
 	[loop] for (float j = 0; j < Iterations; j++)
 	{
 		float2 Offset = SampleDisk[j % 64].xy * (64.0 / max(64.0, j)) / Softness;
-		Result += DepthMap[I].SampleCmpLevelZero(DepthLessSampler, D + Offset, L);
+		Result += DepthMap[Index].SampleCmpLevelZero(DepthLessSampler, D + Offset, L);
     }
 
 	return Result / Iterations;
@@ -28,7 +28,11 @@ float GetCascade(float3 Position, uniform uint Index)
 		return 1.0;
 
 	float4 L = mul(float4(Position, 1), LightViewProjection[Index]);
+#ifdef TARGET_D3D
 	float2 T = float2(L.x / L.w / 2.0 + 0.5f, 1 - (L.y / L.w / 2.0 + 0.5f));
+#else
+	float2 T = float2(L.x / L.w / 2.0 + 0.5f, L.y / L.w / 2.0 + 0.5f);
+#endif
 	[branch] if (saturate(T.x) != T.x || saturate(T.y) != T.y)
 		return -1.0;
 	

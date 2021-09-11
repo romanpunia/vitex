@@ -341,8 +341,8 @@ namespace Tomahawk
 			public:
 				struct
 				{
-					std::vector<Graphics::RenderTargetCube*> PointLight;
-					std::vector<Graphics::RenderTarget2D*> SpotLight;
+					std::vector<CubicDepthMap*> PointLight;
+					std::vector<LinearDepthMap*> SpotLight;
 					std::vector<CascadedDepthMap*> LineLight;
 					uint64_t PointLightResolution = 256;
 					uint64_t PointLightLimits = 4;

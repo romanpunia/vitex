@@ -623,18 +623,34 @@ namespace Tomahawk
 			return MipLevels;
 		}
 
-		DepthBuffer::DepthBuffer(const Desc& I) : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		DepthTarget2D::DepthTarget2D(const Desc& I) : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
 		{
 		}
-		DepthBuffer::~DepthBuffer()
+		DepthTarget2D::~DepthTarget2D()
 		{
 			TH_RELEASE(Resource);
 		}
-		Texture2D* DepthBuffer::GetTarget()
+		Texture2D* DepthTarget2D::GetTarget()
 		{
 			return Resource;
 		}
-		const Viewport& DepthBuffer::GetViewport()
+		const Viewport& DepthTarget2D::GetViewport()
+		{
+			return Viewarea;
+		}
+
+		DepthTargetCube::DepthTargetCube(const Desc& I) : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		{
+		}
+		DepthTargetCube::~DepthTargetCube()
+		{
+			TH_RELEASE(Resource);
+		}
+		TextureCube* DepthTargetCube::GetTarget()
+		{
+			return Resource;
+		}
+		const Viewport& DepthTargetCube::GetViewport()
 		{
 			return Viewarea;
 		}
@@ -767,7 +783,7 @@ namespace Tomahawk
 			return Resource[Slot];
 		}
 
-		Cubemap::Cubemap(const Desc& I) : Meta(I)
+		Cubemap::Cubemap(const Desc& I) : Meta(I), Dest(nullptr)
 		{
 		}
 		bool Cubemap::IsValid()
@@ -1081,6 +1097,19 @@ namespace Tomahawk
 			if (Subresult.Data.empty())
 				return true;
 
+			switch (Backend)
+			{
+				case Tomahawk::Graphics::RenderBackend::D3D11:
+					Subresult.Defines.push_back("TARGET_D3D");
+					break;
+				case Tomahawk::Graphics::RenderBackend::OGL:
+					Subresult.Defines.push_back("TARGET_OGL");
+					break;
+				case Tomahawk::Graphics::RenderBackend::None:
+					Subresult.Defines.push_back("TARGET_ANY");
+					break;
+			}
+
 			Compute::IncludeDesc Desc = Compute::IncludeDesc();
 			Desc.Exts.push_back(".hlsl");
 			Desc.Exts.push_back(".glsl");
@@ -1226,8 +1255,12 @@ namespace Tomahawk
 					PrepareSamplers(&Compiler);
 
 					*HLSL = Compiler.compile();
-					if (!HLSL->empty())
-						Core::Parser(HLSL).Replace("layout(row_major) ", "");
+					if (HLSL->empty())
+						return true;
+
+					Core::Parser Parser(HLSL);
+					Parser.ReplaceGroups("layout\\(row_major\\)\\s+", "");
+					Parser.ReplaceGroups("invocations\\s+=\\s+\\d+,\\s+", "");
 
 					return true;
 				}

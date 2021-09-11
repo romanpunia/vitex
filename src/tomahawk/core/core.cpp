@@ -2904,6 +2904,11 @@ namespace Tomahawk
 
 			return *this;
 		}
+		Parser& Parser::ReplaceGroups(const std::string& FromRegex, const std::string& To)
+		{
+			Compute::Regex::Replace(*L, FromRegex, To);
+			return *this;
+		}
 		Parser& Parser::Replace(const char* From, const char* To, uint64_t Start)
 		{
 			TH_ASSERT(From != nullptr && To != nullptr, *this, "from and to should not be empty");

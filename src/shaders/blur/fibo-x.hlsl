@@ -1,6 +1,5 @@
 #include "std/layouts/shape.hlsl"
 #include "std/channels/effect.hlsl"
-#include "std/core/sampler.hlsl"
 #include "std/core/random.hlsl"
 
 cbuffer RenderConstant : register(b3)
@@ -29,7 +28,7 @@ float4 ps_main(VOutput V) : SV_TARGET0
 	[loop] for (int i = 0; i < Samples; i++)
 	{
 		float2 T = V.TexCoord.xy + float2(FiboDisk[i].x, 0) * Texel * Blur;
-		B += GetSampleLevel(Image, T, 0).xyz;
+		B += Image.SampleLevel(Sampler, T, 0).xyz;
 	}
 
 	return float4(B * Power / Samples, 1.0);

@@ -2,7 +2,6 @@
 #include "std/channels/effect.hlsl"
 #include "std/core/lighting.hlsl"
 #include "std/core/material.hlsl"
-#include "std/core/sampler.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {
@@ -57,7 +56,7 @@ AmbientVertexResult vs_main(VInput V)
 float4 ps_main(AmbientVertexResult V) : SV_TARGET0
 {
 	Fragment Frag = GetFragment(V.TexCoord.xy);
-	float4 R = GetSample(LightMap, V.TexCoord.xy) * LightEmission;
+	float4 R = LightMap.Sample(Sampler, V.TexCoord.xy) * LightEmission;
 	float L = distance(Frag.Position, vb_Position);
 
 	[branch] if (Frag.Depth >= 1.0)

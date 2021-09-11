@@ -10,7 +10,7 @@ cbuffer RenderConstant : register(b3)
 	float Softness;
 	float3 Position;
 	float Cascades;
-    float2 Padding;
+	float2 Padding;
 	float Bias;
 	float Iterations;
 	float ScatterIntensity;

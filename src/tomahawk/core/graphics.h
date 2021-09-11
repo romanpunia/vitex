@@ -1315,13 +1315,14 @@ namespace Tomahawk
 			unsigned int GetMipLevels();
 		};
 
-		class TH_OUT DepthBuffer : public Core::Object
+		class TH_OUT DepthTarget2D : public Core::Object
 		{
 		public:
 			struct Desc
 			{
 				CPUAccess AccessFlags = CPUAccess::Invalid;
 				ResourceUsage Usage = ResourceUsage::Default;
+				Format FormatMode = Format::D24_Unorm_S8_Uint;
 				unsigned int Width = 512;
 				unsigned int Height = 512;
 			};
@@ -1331,14 +1332,41 @@ namespace Tomahawk
 			Viewport Viewarea;
 
 		protected:
-			DepthBuffer(const Desc& I);
+			DepthTarget2D(const Desc& I);
 
 		public:
-			virtual ~DepthBuffer();
+			virtual ~DepthTarget2D();
 			virtual void* GetResource() = 0;
 			virtual uint32_t GetWidth() = 0;
 			virtual uint32_t GetHeight() = 0;
 			Texture2D* GetTarget();
+			const Graphics::Viewport& GetViewport();
+		};
+
+		class TH_OUT DepthTargetCube : public Core::Object
+		{
+		public:
+			struct Desc
+			{
+				CPUAccess AccessFlags = CPUAccess::Invalid;
+				ResourceUsage Usage = ResourceUsage::Default;
+				Format FormatMode = Format::D24_Unorm_S8_Uint;
+				unsigned int Size = 512;
+			};
+
+		protected:
+			TextureCube* Resource;
+			Viewport Viewarea;
+
+		protected:
+			DepthTargetCube(const Desc& I);
+
+		public:
+			virtual ~DepthTargetCube();
+			virtual void* GetResource() = 0;
+			virtual uint32_t GetWidth() = 0;
+			virtual uint32_t GetHeight() = 0;
+			TextureCube* GetTarget();
 			const Graphics::Viewport& GetViewport();
 		};
 
@@ -1515,6 +1543,7 @@ namespace Tomahawk
 			};
 
 		protected:
+			TextureCube* Dest;
 			Desc Meta;
 
 		protected:
@@ -1638,7 +1667,8 @@ namespace Tomahawk
 			virtual void SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
 			virtual void SetTarget(float R, float G, float B) = 0;
 			virtual void SetTarget() = 0;
-			virtual void SetTarget(DepthBuffer* Resource) = 0;
+			virtual void SetTarget(DepthTarget2D* Resource) = 0;
+			virtual void SetTarget(DepthTargetCube* Resource) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target) = 0;
 			virtual void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) = 0;
@@ -1670,7 +1700,8 @@ namespace Tomahawk
 			virtual void Clear(float R, float G, float B) = 0;
 			virtual void Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) = 0;
 			virtual void ClearDepth() = 0;
-			virtual void ClearDepth(DepthBuffer* Resource) = 0;
+			virtual void ClearDepth(DepthTarget2D* Resource) = 0;
+			virtual void ClearDepth(DepthTargetCube* Resource) = 0;
 			virtual void ClearDepth(Graphics::RenderTarget* Resource) = 0;
 			virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
 			virtual void DrawIndexed(MeshBuffer* Resource) = 0;
@@ -1679,17 +1710,17 @@ namespace Tomahawk
 			virtual void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) = 0;
 			virtual bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) = 0;
 			virtual bool CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result) = 0;
-			virtual bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) = 0;
-			virtual bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) = 0;
+			virtual bool CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result) = 0;
+			virtual bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result) = 0;
 			virtual bool CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) = 0;
 			virtual bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) = 0;
 			virtual bool CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget) = 0;
 			virtual bool CopyBackBuffer(Texture2D** Result) = 0;
 			virtual bool CopyBackBufferMSAA(Texture2D** Result) = 0;
 			virtual bool CopyBackBufferNoAA(Texture2D** Result) = 0;
-			virtual bool CubemapBegin(Cubemap* Resource) = 0;
-			virtual bool CubemapFace(Cubemap* Resource, unsigned int Target, unsigned int Face) = 0;
-			virtual bool CubemapEnd(Cubemap* Resource, TextureCube* Result) = 0;
+			virtual bool CubemapPush(Cubemap* Resource, TextureCube* Result) = 0;
+			virtual bool CubemapFace(Cubemap* Resource, Compute::CubeFace Face) = 0;
+			virtual bool CubemapPop(Cubemap* Resource) = 0;
 			virtual void GetViewports(unsigned int* Count, Viewport* Out) = 0;
 			virtual void GetScissorRects(unsigned int* Count, Compute::Rectangle* Out) = 0;
 			virtual bool ResizeBuffers(unsigned int Width, unsigned int Height) = 0;
@@ -1733,7 +1764,8 @@ namespace Tomahawk
 			virtual TextureCube* CreateTextureCube(const TextureCube::Desc& I) = 0;
 			virtual TextureCube* CreateTextureCube(Texture2D* Resource[6]) = 0;
 			virtual TextureCube* CreateTextureCube(Texture2D* Resource) = 0;
-			virtual DepthBuffer* CreateDepthBuffer(const DepthBuffer::Desc& I) = 0;
+			virtual DepthTarget2D* CreateDepthTarget2D(const DepthTarget2D::Desc& I) = 0;
+			virtual DepthTargetCube* CreateDepthTargetCube(const DepthTargetCube::Desc& I) = 0;
 			virtual RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) = 0;
 			virtual MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) = 0;
 			virtual RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) = 0;

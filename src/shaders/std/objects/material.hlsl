@@ -6,7 +6,7 @@ struct Material
 	float Fresnel;
 	float3 Scatter;
 	float Transparency;
-    float3 Padding;
+	float3 Padding;
 	float Bias;
 	float2 Roughness;
 	float Refraction;

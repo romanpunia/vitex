@@ -136,12 +136,12 @@ namespace Tomahawk
 			Rotation = _Rotation;
 			FarPlane = (_Far < _Near ? 999999999 : _Far);
 			NearPlane = _Near;
-			CubicViewProjection[0] = Compute::Matrix4x4::CreateCubeMapLookAt(0, Position) * Projection;
-			CubicViewProjection[1] = Compute::Matrix4x4::CreateCubeMapLookAt(1, Position) * Projection;
-			CubicViewProjection[2] = Compute::Matrix4x4::CreateCubeMapLookAt(2, Position) * Projection;
-			CubicViewProjection[3] = Compute::Matrix4x4::CreateCubeMapLookAt(3, Position) * Projection;
-			CubicViewProjection[4] = Compute::Matrix4x4::CreateCubeMapLookAt(4, Position) * Projection;
-			CubicViewProjection[5] = Compute::Matrix4x4::CreateCubeMapLookAt(5, Position) * Projection;
+			CubicViewProjection[0] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveX, Position) * Projection;
+			CubicViewProjection[1] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeX, Position) * Projection;
+			CubicViewProjection[2] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveY, Position) * Projection;
+			CubicViewProjection[3] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeY, Position) * Projection;
+			CubicViewProjection[4] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveZ, Position) * Projection;
+			CubicViewProjection[5] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeZ, Position) * Projection;
 		}
 
 		void NMake::Pack(Core::Document* V, bool Value)
@@ -3137,12 +3137,12 @@ namespace Tomahawk
 			Graphics::MultiRenderTarget2D* MRT = Scene->GetMRT(TargetType::Main);
 			float Aspect = (float)MRT->GetWidth() / MRT->GetHeight();
 
-			Graphics::DepthBuffer::Desc I;
+			Graphics::DepthTarget2D::Desc I;
 			I.Width = (size_t)((float)Size * Aspect);
 			I.Height = Size;
 
 			TH_RELEASE(Target);
-			Target = Device->CreateDepthBuffer(I);
+			Target = Device->CreateDepthTarget2D(I);
 		}
 		void RenderSystem::Remount(Renderer* fTarget)
 		{

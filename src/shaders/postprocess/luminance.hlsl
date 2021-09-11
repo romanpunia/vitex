@@ -1,6 +1,5 @@
 #include "std/layouts/shape.hlsl"
 #include "std/channels/effect.hlsl"
-#include "std/core/sampler.hlsl"
 #include "std/core/random.hlsl"
 
 cbuffer RenderConstant : register(b3)
@@ -33,6 +32,6 @@ float ps_main(VOutput V) : SV_TARGET0
 	[unroll] for (float i = 0; i < 16.0; i++)
 		Result += GetAvg(V.TexCoord.xy + FiboDisk[i] * Texel);
 	
-	float Subresult = GetSample(LUT, V.TexCoord.xy).r;
+	float Subresult = LUT.Sample(Sampler, V.TexCoord.xy).r;
 	return Subresult + (Result / 4.0 - Subresult) * (1.0 - exp(-Time));
 };

@@ -1,6 +1,5 @@
 #include "std/layouts/shape.hlsl"
 #include "std/channels/effect.hlsl"
-#include "std/core/sampler.hlsl"
 
 cbuffer RenderConstant : register(b3)
 {

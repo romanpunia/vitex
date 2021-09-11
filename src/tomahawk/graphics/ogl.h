@@ -199,7 +199,7 @@ namespace Tomahawk
 				void* GetResource() override;
 			};
 
-			class OGLDepthBuffer final : public DepthBuffer
+			class OGLDepthTarget2D final : public DepthTarget2D
 			{
 				friend OGLDevice;
 
@@ -208,8 +208,24 @@ namespace Tomahawk
 				GLuint DepthTexture = GL_NONE;
 
 			public:
-				OGLDepthBuffer(const Desc& I);
-				virtual ~OGLDepthBuffer() override;
+				OGLDepthTarget2D(const Desc& I);
+				virtual ~OGLDepthTarget2D() override;
+				void* GetResource() override;
+				uint32_t GetWidth() override;
+				uint32_t GetHeight() override;
+			};
+
+			class OGLDepthTargetCube final : public DepthTargetCube
+			{
+				friend OGLDevice;
+
+			public:
+				GLuint FrameBuffer = GL_NONE;
+				GLuint DepthTexture = GL_NONE;
+
+			public:
+				OGLDepthTargetCube(const Desc& I);
+				virtual ~OGLDepthTargetCube() override;
 				void* GetResource() override;
 				uint32_t GetWidth() override;
 				uint32_t GetHeight() override;
@@ -288,8 +304,15 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
-				GLuint Buffers[2] = { GL_NONE };
-				GLuint Resource = GL_NONE;
+				struct
+				{
+					Format FormatMode;
+					GLenum SizeFormat;
+				} Options;
+
+			public:
+				GLuint FrameBuffer = GL_NONE;
+				GLuint Source = GL_NONE;
 
 			public:
 				OGLCubemap(const Desc& I);
@@ -317,6 +340,7 @@ namespace Tomahawk
 					GLuint PixelShader = GL_NONE;
 					GLuint Program = GL_NONE;
 					GLuint VertexBuffer = GL_NONE;
+					GLuint VertexArray = GL_NONE;
 				} Immediate;
 
 				struct
@@ -370,7 +394,8 @@ namespace Tomahawk
 				void SetWriteable(TextureCube** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
 				void SetTarget(float R, float G, float B) override;
 				void SetTarget() override;
-				void SetTarget(DepthBuffer* Resource) override;
+				void SetTarget(DepthTarget2D* Resource) override;
+				void SetTarget(DepthTargetCube* Resource) override;
 				void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) override;
 				void SetTarget(Graphics::RenderTarget* Resource, unsigned int Target) override;
 				void SetTarget(Graphics::RenderTarget* Resource, float R, float G, float B) override;
@@ -402,7 +427,8 @@ namespace Tomahawk
 				void Clear(float R, float G, float B) override;
 				void Clear(Graphics::RenderTarget* Resource, unsigned int Target, float R, float G, float B) override;
 				void ClearDepth() override;
-				void ClearDepth(DepthBuffer* Resource) override;
+				void ClearDepth(DepthTarget2D* Resource) override;
+				void ClearDepth(DepthTargetCube* Resource) override;
 				void ClearDepth(Graphics::RenderTarget* Resource) override;
 				void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
 				void DrawIndexed(MeshBuffer* Resource) override;
@@ -411,14 +437,14 @@ namespace Tomahawk
 				void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) override;
 				bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) override;
 				bool CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result) override;
-				bool CopyTexture2D(RenderTargetCube* Resource, unsigned int Face, Texture2D** Result) override;
-				bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, unsigned int Face, Texture2D** Result) override;
+				bool CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result) override;
+				bool CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result) override;
 				bool CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result) override;
 				bool CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result) override;
 				bool CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned ToTarget) override;
-				bool CubemapBegin(Cubemap* Resource) override;
-				bool CubemapFace(Cubemap* Resource, unsigned int Target, unsigned int Face) override;
-				bool CubemapEnd(Cubemap* Resource, TextureCube* Result) override;
+				bool CubemapPush(Cubemap* Resource, TextureCube* Result) override;
+				bool CubemapFace(Cubemap* Resource, Compute::CubeFace Face) override;
+				bool CubemapPop(Cubemap* Resource) override;
 				bool CopyBackBuffer(Texture2D** Result) override;
 				bool CopyBackBufferMSAA(Texture2D** Result) override;
 				bool CopyBackBufferNoAA(Texture2D** Result) override;
@@ -465,7 +491,8 @@ namespace Tomahawk
 				TextureCube* CreateTextureCube(const TextureCube::Desc& I) override;
 				TextureCube* CreateTextureCube(Texture2D* Resource[6]) override;
 				TextureCube* CreateTextureCube(Texture2D* Resource) override;
-				DepthBuffer* CreateDepthBuffer(const DepthBuffer::Desc& I) override;
+				DepthTarget2D* CreateDepthTarget2D(const DepthTarget2D::Desc& I) override;
+				DepthTargetCube* CreateDepthTargetCube(const DepthTargetCube::Desc& I) override;
 				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
 				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
 				RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
@@ -490,6 +517,7 @@ namespace Tomahawk
 				TextureCube* CreateTextureCubeInternal(void* Resources[6]) override;
 
 			public:
+				static bool IsComparator(PixelFilter Value);
 				static GLenum GetAccessControl(CPUAccess Access, ResourceUsage Usage);
 				static GLenum GetBaseFormat(Format Value);
 				static GLenum GetSizedFormat(Format Value);

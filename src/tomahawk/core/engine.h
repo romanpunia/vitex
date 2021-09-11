@@ -10,8 +10,8 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		typedef Graphics::RenderTargetCube CubicDepthMap;
-		typedef Graphics::RenderTarget2D LinearDepthMap;
+		typedef Graphics::DepthTarget2D LinearDepthMap;
+		typedef Graphics::DepthTargetCube CubicDepthMap;
 		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
 		typedef std::function<void(Core::Timer*)> PacketCallback;
 		typedef std::function<void(Core::Timer*, struct Viewer*)> RenderCallback;
@@ -641,7 +641,7 @@ namespace Tomahawk
 			Graphics::DepthStencilState* DepthStencil;
 			Graphics::BlendState* Blend;
 			Graphics::SamplerState* Sampler;
-			Graphics::DepthBuffer* Target;
+			Graphics::DepthTarget2D* Target;
 			Graphics::GraphicsDevice* Device;
 			Material* BaseMaterial;
 			SceneGraph* Scene;

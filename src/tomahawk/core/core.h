@@ -656,6 +656,7 @@ namespace Tomahawk
 			Parser& Clip(uint64_t Length);
 			Parser& ReplaceOf(const char* Chars, const char* To, uint64_t Start = 0U);
 			Parser& ReplaceNotOf(const char* Chars, const char* To, uint64_t Start = 0U);
+			Parser& ReplaceGroups(const std::string& FromRegex, const std::string& To);
 			Parser& Replace(const std::string& From, const std::string& To, uint64_t Start = 0U);
 			Parser& Replace(const char* From, const char* To, uint64_t Start = 0U);
 			Parser& Replace(const char& From, const char& To, uint64_t Position = 0U);

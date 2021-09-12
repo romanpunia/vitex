@@ -190,6 +190,32 @@ namespace Tomahawk
 		};
 		StringFactory* StringFactory::Base = nullptr;
 
+		std::unordered_map<uint64_t, std::pair<std::string, int>>* Names = nullptr;
+		uint64_t STDRegistry::Set(uint64_t Id, const std::string& Name)
+		{
+			TH_ASSERT(Id > 0 && !Name.empty(), 0, "id should be greater than zero and name should not be empty");
+			if (!Names)
+				Names = new std::unordered_map<uint64_t, std::pair<std::string, int>>();
+
+			(*Names)[Id] = std::make_pair(Name, (int)-1);
+			return Id;
+		}
+		int STDRegistry::GetTypeId(uint64_t Id)
+		{
+			auto It = Names->find(Id);
+			if (It == Names->end())
+				return -1;
+
+			if (It->second.second < 0)
+			{
+				VMManager* Engine = VMManager::Get();
+				TH_ASSERT(Engine != nullptr, -1, "engine should be set");
+				It->second.second = Engine->Global().GetTypeIdByDecl(It->second.first.c_str());
+			}
+
+			return It->second.second;
+		}
+
 		void STDString::Construct(std::string* Current)
 		{
 			TH_ASSERT_V(Current != nullptr, "Current should be set");
@@ -4959,6 +4985,8 @@ namespace Tomahawk
 		bool STDFreeCore()
 		{
 			StringFactory::Free();
+			delete Names;
+			Names = nullptr;
 			return false;
 		}
 	}

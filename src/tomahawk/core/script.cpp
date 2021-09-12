@@ -2573,9 +2573,13 @@ namespace Tomahawk
 
 			return Exception[0] != '\0';
 		}
-		bool VMContext::IsPending() const
+		bool VMContext::IsPending()
 		{
-			return !Promises.empty() || !Queue.empty();
+			Exchange.lock();
+			bool Result = (!Promises.empty() || !Queue.empty());
+			Exchange.unlock();
+
+			return Result;
 		}
 		int VMContext::SetObject(void* Object)
 		{

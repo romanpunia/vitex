@@ -1645,7 +1645,7 @@ namespace Tomahawk
 			int PopState();
 			bool IsNested(unsigned int* NestCount = 0) const;
 			bool IsThrown() const;
-			bool IsPending() const;
+			bool IsPending();
 			int SetObject(void* Object);
 			int SetArg8(unsigned int Arg, unsigned char Value);
 			int SetArg16(unsigned int Arg, unsigned short Value);

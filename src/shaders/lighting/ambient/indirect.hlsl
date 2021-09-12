@@ -20,13 +20,19 @@ float4 ps_main(VOutput V) : SV_TARGET0
 
 	Material Mat = Materials[Frag.Material];
 	float R = GetRoughness(Frag, Mat), Shadow;
+	float L = distance(Frag.Position, -1.0) * vxb_Length;
 	float3 M = GetMetallic(Frag, Mat);
 	float3 E = GetEmission(Frag, Mat);
 	float3 D = normalize(Frag.Position - vb_Position);
-	float4 Radiance = GetRadiance(Frag.Position, Frag.Normal, M, Shadow);
-	float4 Reflectance = GetSpecular(Frag.Position, Frag.Normal, D, M, R);
-	float4 Result = vxb_Intensity * float4(E + Radiance.xyz, Radiance.w) + Reflectance;
-	Result.xyz = Frag.Diffuse + Result.xyz * Result.w;
+	float3 Radiance = GetRadiance(Frag.Position, Frag.Normal, M, Shadow);
+	float3 Reflectance = GetSpecular(Frag.Position, Frag.Normal, D, L, M, R);
+	float3 Result = (Frag.Diffuse + vxb_Radiance * (E + Radiance) + vxb_Specular * Reflectance) * (1.0 - Mat.Transparency);
 
-	return float4(Result.xyz * Shadow, Shadow);
+	[branch] if (Mat.Transparency > 0)
+	{
+		float3 Refraction = GetRefraction(Frag.Position, Frag.Normal, D, L, M, R, Mat.Refraction, Mat.Transparency);
+		Result += vxb_Specular * Refraction;
+	}
+
+	return float4(Result * Shadow, Shadow);
 };

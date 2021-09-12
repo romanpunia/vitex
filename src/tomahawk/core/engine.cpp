@@ -3333,7 +3333,7 @@ namespace Tomahawk
 		}
 		bool RenderSystem::PushVoxelsBuffer(Material* Next)
 		{
-			if (!Next)
+			if (!Next || Next->Surface.Transparency > 0.0f)
 				return false;
 
 			if (Next == BaseMaterial)

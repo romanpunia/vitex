@@ -1,10 +1,6 @@
 #include "std/objects/fragment.hlsl"
 #include "std/objects/material.hlsl"
 
-float GetAperture(float Roughness)
-{
-	return max(0.01, tan(Roughness * 3.141596 * 0.05));
-}
 float GetRoughnessMip(Fragment Frag, Material Mat, in float MaxLevels)
 {
 	return MaxLevels * (Mat.Roughness.x + Frag.Roughness * Mat.Roughness.y);

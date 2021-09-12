@@ -8,9 +8,11 @@ cbuffer Voxelizer : register(b3)
 	float3 vxb_Scale;
 	float vxb_MaxSteps;
 	float3 vxb_Lights;
-	float vxb_Intensity;
+	float vxb_Radiance;
+	float3 vxb_Padding;
+	float vxb_Length;
 	float vxb_Distance;
 	float vxb_Occlusion;
-	float vxb_Shadows;
+	float vxb_Specular;
 	float vxb_Bleeding;
 };

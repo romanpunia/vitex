@@ -426,7 +426,10 @@ namespace Tomahawk
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, TH_PS);
-				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
+				if (Application::Get()->Activity->IsKeyDown(Graphics::KeyCode::E))
+					Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS);
+				else
+					Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
 				Viewer& View = Scene->View;
@@ -1300,9 +1303,10 @@ namespace Tomahawk
 				VoxelBuffer.RayStep = Src->RayStep;
 				VoxelBuffer.MaxSteps = Src->MaxSteps;
 				VoxelBuffer.Distance = Src->Distance;
-				VoxelBuffer.Intensity = Src->Intensity;
+				VoxelBuffer.Radiance = Src->Radiance;
+				VoxelBuffer.Length = Src->Length;
 				VoxelBuffer.Occlusion = Src->Occlusion;
-				VoxelBuffer.Shadows = Src->Shadows;
+				VoxelBuffer.Specular = Src->Specular;
 				VoxelBuffer.Bleeding = Src->Bleeding;
 
 				return Src;

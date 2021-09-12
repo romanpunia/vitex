@@ -15,29 +15,26 @@ Texture2D OcclusionMap : register(t8);
 Texture2D EmissionMap : register(t9);
 SamplerState Sampler : register(s4);
 
-void ConvervativeRasterize(inout float4 P1, inout float4 P2, inout float4 P3)
+uint GetVoxelDominant(float3 N1, float3 N2, float3 N3)
 {
-	float2 Side0 = normalize(P2.xy - P1.xy);
-	float2 Side1 = normalize(P3.xy - P2.xy);
-	float2 Side2 = normalize(P1.xy - P3.xy);
-	P1.xy += normalize(Side2 - Side0) / vxb_Size.xy;
-	P2.xy += normalize(Side0 - Side1) / vxb_Size.xy;
-	P3.xy += normalize(Side1 - Side2) / vxb_Size.xy;
+	const float3 Pivot = abs(cross(N2.xyz - N1.xyz, N3.xyz - N1.xyz));
+	uint Dominant = 2;
+
+	[branch] if (Pivot.z > Pivot.x && Pivot.z > Pivot.y)
+		Dominant = 0;
+	else if (Pivot.x > Pivot.y && Pivot.x > Pivot.z)
+		Dominant = 1;
+	
+	return Dominant;
 }
-uint GetDominant(float3 N1, float3 N2, float3 N3)
-{
-	float3 Face = abs(N1 + N2 + N3);
-	uint Dominant = Face[1] > Face[0] ? 1 : 0;
-	return Face[2] > Face[Dominant] ? 2 : Dominant;
-}
-float4 GetVoxelSpace(float4 Position, uint Dominant)
+float4 GetVoxelPosition(float4 Position, uint Dominant)
 {
 	[branch] if (Dominant == 0)
-		return float4(Position.zy, 1.0, 1.0);
+		return float4(Position.xy, 0, 1);
 	else if (Dominant == 1)
-		return float4(Position.xz, 1.0, 1.0);
+		return float4(Position.yz, 0, 1);
 	
-	return float4(Position.xy, 1.0, 1.0);
+	return float4(Position.xz, 1.0, 1.0);
 }
 float4 GetVoxel(float4 Position)
 {
@@ -57,7 +54,7 @@ void Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, fl
 	[branch] if (Position.x < -1.0 || Position.x > 1.0 || Position.y < -1.0 || Position.y > 1.0 || Position.z < -1.0 || Position.z > 1.0)
 		return;
 	
-	uint3 Voxel = (uint3)floor((float3(0.5, -0.5, 0.5) * Position + 0.5) * vxb_Size);// ?
+	uint3 Voxel = (uint3)floor((float3(0.5, -0.5, 0.5) * Position + 0.5) * vxb_Size);
 	DiffuseBuffer[Voxel] = Diffuse;
 	NormalBuffer[Voxel] = float4(Normal, Mid);
 	SurfaceBuffer[Voxel] = float4(

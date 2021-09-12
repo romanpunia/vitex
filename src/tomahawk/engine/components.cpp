@@ -3249,13 +3249,14 @@ namespace Tomahawk
 			Illuminator::Illuminator(Entity* Ref) : Cullable(Ref, ActorSet::None), Buffer(nullptr), MipLevels(0), Size(64)
 			{
 				Tick.Delay = 16.666;
-				RayStep = 1.0f;
-				MaxSteps = 32.0f;
-				Distance = 1.0f;
-				Intensity = 1.0f;
-				Occlusion = 0.9f;
-				Shadows = 0.25f;
-				Bleeding = 1.0f;
+				RayStep = 0.5f;
+				MaxSteps = 256.0f;
+				Distance = 12.0f;
+				Radiance = 1.0f;
+				Occlusion = 0.33f;
+				Specular = 2.0f;
+				Length = 1.0f;
+				Bleeding = 0.33f;
 			}
 			Illuminator::~Illuminator()
 			{
@@ -3270,9 +3271,10 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("ray-step"), &RayStep);
 				NMake::Unpack(Node->Find("max-steps"), &MaxSteps);
 				NMake::Unpack(Node->Find("distance"), &Distance);
-				NMake::Unpack(Node->Find("intensity"), &Intensity);
+				NMake::Unpack(Node->Find("radiance"), &Radiance);
+				NMake::Unpack(Node->Find("length"), &Length);
 				NMake::Unpack(Node->Find("occlusion"), &Occlusion);
-				NMake::Unpack(Node->Find("shadows"), &Shadows);
+				NMake::Unpack(Node->Find("specular"), &Specular);
 				NMake::Unpack(Node->Find("bleeding"), &Bleeding);
 				SetBufferSize(Size);
 			}
@@ -3285,9 +3287,10 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("ray-step"), RayStep);
 				NMake::Pack(Node->Set("max-steps"), MaxSteps);
 				NMake::Pack(Node->Set("distance"), Distance);
-				NMake::Pack(Node->Set("intensity"), Intensity);
+				NMake::Pack(Node->Set("radiance"), Radiance);
+				NMake::Pack(Node->Set("length"), Length);
 				NMake::Pack(Node->Set("occlusion"), Occlusion);
-				NMake::Pack(Node->Set("shadows"), Shadows);
+				NMake::Pack(Node->Set("specular"), Specular);
 				NMake::Pack(Node->Set("bleeding"), Bleeding);
 			}
 			void Illuminator::Deactivate()
@@ -3315,9 +3318,10 @@ namespace Tomahawk
 				Target->Tick = Tick;
 				Target->RayStep = RayStep;
 				Target->MaxSteps = MaxSteps;
-				Target->Intensity = Intensity;
+				Target->Radiance = Radiance;
+				Target->Length = Length;
 				Target->Occlusion = Occlusion;
-				Target->Shadows = Shadows;
+				Target->Specular = Specular;
 
 				if (Buffer != nullptr)
 					Target->SetBufferSize(Size);

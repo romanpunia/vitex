@@ -14,16 +14,23 @@ VOutput vs_main(VInput V)
 	return Result;
 }
 
+float GetAvg(float3 Value)
+{
+	return (Value.x + Value.y + Value.z) / 3.0;
+}
+
 [maxvertexcount(3)]
 void gs_main(triangle VOutput V[3], inout TriangleStream<VOutput> Stream)
 {
-	uint Dominant = GetDominant(V[0].Normal, V[1].Normal, V[2].Normal);
+	uint Dominant = GetVoxelDominant(V[0].Position.xyz, V[1].Position.xyz, V[2].Position.xyz); 
 	[unroll] for (uint i = 0; i < 3; ++i)
-		V[i].Position = GetVoxelSpace(V[i].Position, Dominant);
+	{
+		VOutput Next = V[i];
+		Next.Position = GetVoxelPosition(Next.Position, Dominant);
+		Stream.Append(Next);
+	}
 	
-	ConvervativeRasterize(V[0].Position, V[1].Position, V[2].Position);
-	[unroll] for (uint j = 0; j < 3; ++j)
-		Stream.Append(V[j]);
+    Stream.RestartStrip();
 }
 
 void ps_main(VOutput V)

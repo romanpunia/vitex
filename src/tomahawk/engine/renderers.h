@@ -297,10 +297,12 @@ namespace Tomahawk
 					Compute::Vector3 Scale;
 					float MaxSteps = 32.0f;
 					Compute::Vector3 Lights;
-					float Intensity = 8.0f;
+					float Radiance = 1.0f;
+					Compute::Vector3 Padding;
+					float Length = 1.0f;
 					float Distance = 1.0f;
 					float Occlusion = 0.9f;
-					float Shadows = 0.25f;
+					float Specular = 2.0f;
 					float Bleeding = 1.0f;
 				};
 

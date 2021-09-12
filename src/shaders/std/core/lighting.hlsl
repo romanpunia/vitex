@@ -60,25 +60,17 @@ float3 GetCookTorranceBRDF(float3 N, float3 V, float3 L, float3 Albedo, float3 M
 }
 float3 GetSpecularBRDF(float3 N, float3 V, float3 L, float3 Albedo, float3 Metallic, float Roughness)
 {
+	float3 H = normalize(V + L);
 	float NdotV = max(dot(N, V), 0.00001);
 	float NdotL = max(dot(N, L), 0.00001);
-	float HdotV = max(dot(normalize(V + L), V), 0.0);
+	float HdotV = max(dot(H, V), 0.0);
+	float NdotH = max(dot(N, H), 0.0);
+	float D = GetDistributionGGX(NdotH, Roughness);
 	float G = GetGeometrySmith(NdotV, NdotL, Roughness);
-	float3 M = GetBaseReflectivity(Albedo, Metallic);
+	float3 M = GetBaseReflectivity(0.0, Metallic * Albedo);
 	float3 F = GetFresnelSchlick(HdotV, M);
-	float3 A = length(Albedo);
+	float3 R = D * G * F;
 	
-	return G * F * A;
-}
-float3 GetReflectanceBRDF(float3 N, float3 V, float3 L, float3 Albedo, float3 Metallic, float Roughness)
-{
-	float NdotV = max(dot(N, V), 0.00001);
-	float NdotL = max(dot(N, L), 0.00001);
-	float HdotV = max(dot(normalize(V + L), V), 0.0);
-	float G = GetGeometrySmith(NdotV, NdotL, Roughness);
-	float3 M = GetBaseReflectivity(Albedo, Metallic);
-	float3 F = GetFresnelSchlick(HdotV, M);
-	float3 A = length(Albedo);
-	
-	return G * F * A * Metallic;
+	R /= 4.0 * NdotV * NdotL;
+	return R * NdotL;
 }

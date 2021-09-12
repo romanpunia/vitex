@@ -612,9 +612,10 @@ namespace Tomahawk
 				float RayStep;
 				float MaxSteps;
 				float Distance;
-				float Intensity;
+				float Radiance;
+				float Length;
 				float Occlusion;
-				float Shadows;
+				float Specular;
 				float Bleeding;
 
 			public:

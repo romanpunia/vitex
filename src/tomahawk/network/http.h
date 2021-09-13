@@ -388,7 +388,7 @@ namespace Tomahawk
 			{
 				std::vector<RouteEntry*> Routes;
 				std::string Match;
-				RouteMode Mode;
+				RouteMode Mode = RouteMode::Start;
 			};
 
 			struct TH_OUT SiteEntry

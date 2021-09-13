@@ -269,7 +269,7 @@ namespace Tomahawk
 			Compute::Vector3 Diffuse = { 1.0f, 1.0f, 1.0f };
 			float Fresnel = 0.0f;
 			Compute::Vector3 Scatter = { 0.1f, 16.0f, 0.0f };
-			float Transparency;
+			float Transparency = 0.0f;
 			Compute::Vector3 Padding;
 			float Bias = 0.0f;
 			Compute::Vector2 Roughness = { 1.0f, 0.0f };

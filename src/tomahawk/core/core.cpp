@@ -3909,10 +3909,7 @@ namespace Tomahawk
 		std::wstring Parser::ToWide() const
 		{
 			TH_ASSERT(L != nullptr, std::wstring(), "cannot parse without context");
-#pragma warning(push)
-#pragma warning(disable: 4333)
-			std::wstring Output;
-			wchar_t W;
+			std::wstring Output; wchar_t W;
 			for (uint64_t i = 0; i < L->size();)
 			{
 				char C = L->at(i);
@@ -3966,7 +3963,7 @@ namespace Tomahawk
 
 				Output += W;
 			}
-#pragma warning(pop)
+
 			return Output;
 		}
 		std::vector<std::string> Parser::Split(const std::string& With, uint64_t Start) const
@@ -6859,15 +6856,13 @@ namespace Tomahawk
 		}
 		bool OS::Input::Save(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, std::string* Result)
 		{
+			std::vector<std::string> Sources = Parser(&Filter).Split(',');
 			std::vector<char*> Patterns;
-			for (auto& It : Parser(&Filter).Split(','))
-				Patterns.push_back(strdup(It.c_str()));
+			for (auto& It : Sources)
+				Patterns.push_back((char*)It.c_str());
 
 			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str());
-
-			for (auto& It : Patterns)
-				free(It);
 
 			if (!Data)
 				return false;
@@ -6879,15 +6874,13 @@ namespace Tomahawk
 		}
 		bool OS::Input::Open(const std::string& Title, const std::string& DefaultPath, const std::string& Filter, const std::string& FilterDescription, bool Multiple, std::string* Result)
 		{
+			std::vector<std::string> Sources = Parser(&Filter).Split(',');
 			std::vector<char*> Patterns;
-			for (auto& It : Parser(&Filter).Split(','))
-				Patterns.push_back(strdup(It.c_str()));
+			for (auto& It : Sources)
+				Patterns.push_back((char*)It.c_str());
 
 			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str(), Multiple);
-
-			for (auto& It : Patterns)
-				free(It);
 
 			if (!Data)
 				return false;

@@ -555,9 +555,14 @@ namespace Tomahawk
 						if (!getpeername(Stream.GetFd(), (struct sockaddr*)&Storage, &Length))
 							return (void)Error("cannot detect peer name");
 
+						char InetAddress[INET_ADDRSTRLEN];
 						struct sockaddr_in* Address = (struct sockaddr_in*)&Storage;
 						std::string URI = "smtp/";
-						URI += inet_ntoa(Address->sin_addr);
+
+						if (inet_ntop(AF_INET, &(Address->sin_addr), InetAddress, INET_ADDRSTRLEN) != nullptr)
+							URI += InetAddress;
+						else
+							URI += "127.0.0.1";
 
 						unsigned char* UserRealm = Unicode(Realm.c_str());
 						unsigned char* UserUsername = Unicode(Request.Login.c_str());

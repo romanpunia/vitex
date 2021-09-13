@@ -1105,8 +1105,11 @@ namespace Tomahawk
 			New->Callback = std::move(Callback);
 			New->Size = Size;
 			New->Index = Index;
+#ifdef TH_MICROSOFT
+			New->Match = (Match ? _strdup(Match) : nullptr);
+#else
 			New->Match = (Match ? strdup(Match) : nullptr);
-
+#endif
 			if (Input != nullptr)
 			{
 				auto Callback = std::move(Input->Callback);
@@ -1234,17 +1237,33 @@ namespace Tomahawk
 		{
 			char Buffer[1024];
 			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
-				return std::string();
+				return "127.0.0.1";
 
-			struct hostent* Host = gethostbyname(Buffer);
-			if (Host == nullptr)
-				return std::string();
+			struct addrinfo Hints = { };
+			Hints.ai_family = AF_INET;
+			Hints.ai_socktype = SOCK_STREAM;
 
-#ifdef TH_MICROSOFT
-			return Core::Form("%i.%i.%i.%i", (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b1, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b2, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b3, (int)((struct in_addr*)(Host->h_addr))->S_un.S_un_b.s_b4).R();
-#else
-			return inet_ntoa(*(struct in_addr*)Host->h_addr_list[0]);
-#endif
+			struct sockaddr_in Address = { };
+			struct addrinfo* Results = nullptr;
+
+			bool Success = (getaddrinfo(Buffer, nullptr, &Hints, &Results) == 0);
+			if (Success)
+			{
+				if (Results != nullptr)
+					memcpy(&Address, Results->ai_addr, sizeof(Address));
+			}
+
+			if (Results != nullptr)
+				freeaddrinfo(Results);
+
+			if (!Success)
+				return "127.0.0.1";
+
+			char Result[INET_ADDRSTRLEN];
+			if (!inet_ntop(AF_INET, &(Address.sin_addr), Result, INET_ADDRSTRLEN))
+				return "127.0.0.1";
+
+			return Result;
 		}
 		int64_t Socket::GetAsyncTimeout()
 		{

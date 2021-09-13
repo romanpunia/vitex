@@ -397,7 +397,7 @@ namespace Tomahawk
 			private:
 				Core::Async<Cursor> Future;
 				std::string Command;
-				uint64_t Session;
+				uint64_t Session = 0;
 				Cursor Result;
 
 			public:

@@ -4,7 +4,6 @@
 #define _XOPEN_SOURCE
 #endif
 #pragma warning(disable: 4251)
-#pragma warning(disable: 4996)
 #include <thread>
 #include <algorithm>
 #include <map>
@@ -205,6 +204,7 @@ typedef socklen_t socket_size_t;
 #define TH_INVALID_EVENT_ID std::numeric_limits<uint64_t>::max()
 #define TH_PREFIX_CHAR '@'
 #define TH_PREFIX_STR "@"
+#define TH_SHUFFLE(Name) Tomahawk::Core::Shuffle<sizeof(Name)>(Name)
 #define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
 #define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
 #define TH_COMPONENT_ROOT(Name) \
@@ -2209,6 +2209,18 @@ namespace Tomahawk
 			va_end(Args);
 
 			return Parser(Buffer, Size > 16384 ? 16384 : (size_t)Size);
+		}
+		template <size_t Size>
+		constexpr uint64_t Shuffle(const char Source[Size])
+		{
+			uint64_t Result = 0xcbf29ce484222325;
+			for (size_t i = 0; i < Size; i++)
+			{
+				Result ^= Source[i];
+				Result *= 1099511628211;
+			}
+
+			return Result;
 		}
 	}
 }

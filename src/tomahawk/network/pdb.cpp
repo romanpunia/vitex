@@ -883,12 +883,12 @@ namespace Tomahawk
 				{
 					char* Name = PQfname(Base, j);
 					char* Data = PQgetvalue(Base, RowIndex, j);
-					int Size = PQgetlength(Base, RowIndex, j);
+					int Count = PQgetlength(Base, RowIndex, j);
 					bool Null = PQgetisnull(Base, RowIndex, j) == 1;
 					Oid Type = PQftype(Base, j);
 
 					if (!Null)
-						Result->Set(Name ? Name : std::to_string(j), ToDocument(Data, Size, Type));
+						Result->Set(Name ? Name : std::to_string(j), ToDocument(Data, Count, Type));
 					else
 						Result->Set(Name ? Name : std::to_string(j), Core::Var::Null());
 				}
@@ -924,7 +924,7 @@ namespace Tomahawk
 			Column Row::GetColumn(size_t Index) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || (int)Index >= PQnfields(Base))
 					return Column(Base, std::numeric_limits<size_t>::max(), std::numeric_limits<size_t>::max());
 
 				return Column(Base, RowIndex, Index);
@@ -1215,7 +1215,7 @@ namespace Tomahawk
 			Row Response::GetRow(size_t Index) const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
+				if (!Base || (int)Index >= PQntuples(Base))
 					return Row(Base, std::numeric_limits<size_t>::max());
 
 				return Row(Base, Index);

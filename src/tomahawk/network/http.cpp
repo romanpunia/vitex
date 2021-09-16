@@ -426,6 +426,11 @@ namespace Tomahawk
 						if (B->URI.GetRegex().empty())
 							return 1;
 
+						if (A->Level > B->Level)
+							return 1;
+						else if (A->Level < B->Level)
+							return -1;
+
 						bool fA = A->URI.IsSimple(), fB = B->URI.IsSimple();
 						if (fA && !fB)
 							return -1;

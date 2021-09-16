@@ -1497,6 +1497,10 @@ namespace Tomahawk
 							else
 								Route = Site->Route(Match, Mode, SourceURL);
 
+							Core::Document* Level = Base->GetAttribute("level");
+							if (Level != nullptr)
+								Route->Level = (uint64_t)Level->Value.GetInteger();
+
 							std::vector<Core::Document*> GatewayFiles = Base->FetchCollection("gateway.files.file");
 							if (Base->Fetch("gateway.files.[clear]") != nullptr)
 								Route->Gateway.Files.clear();

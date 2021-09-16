@@ -377,6 +377,7 @@ namespace Tomahawk
 				uint64_t WebSocketTimeout = 30000;
 				uint64_t StaticFileMaxAge = 604800;
 				uint64_t MaxCacheLength = 16384;
+				uint64_t Level = 0;
 				bool AllowDirectoryListing = true;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = false;

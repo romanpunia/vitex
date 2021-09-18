@@ -1012,7 +1012,7 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Common::InfluenceRhToLh(F.Elements, F.Indices);
+					Compute::Common::VertexRhToLh(F.Elements, F.Indices);
 
 					Device->Lock();
 					Object->Meshes.push_back(Device->CreateSkinMeshBuffer(F));

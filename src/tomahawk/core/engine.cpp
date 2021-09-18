@@ -2561,19 +2561,14 @@ namespace Tomahawk
 			if (Quad != nullptr)
 				return Quad;
 
-			Compute::ShapeVertex Elements[6];
-			Elements[0] = { -1.0f, -1.0f, 0, -1, 0 };
-			Elements[1] = { -1.0f, 1.0f, 0, -1, -1 };
-			Elements[2] = { 1.0f, 1.0f, 0, 0, -1 };
-			Elements[3] = { -1.0f, -1.0f, 0, -1, 0 };
-			Elements[4] = { 1.0f, 1.0f, 0, 0, -1 };
-			Elements[5] = { 1.0f, -1.0f, 0, 0, 0 };
-
-			if (!TH_LEFT_HANDED)
-			{
-				for (size_t i = 0; i < 6; i++)
-					Elements[i].TexCoordY = -Elements[i].TexCoordY;
-			}
+			std::vector<Compute::ShapeVertex> Elements;
+			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
+			Elements.push_back({ -1.0f, 1.0f, 0, -1, -1 });
+			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
+			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
+			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
+			Elements.push_back({ 1.0f, -1.0f, 0, 0, 0 });
+			Compute::Common::TexCoordRhToLh(Elements);
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -2797,12 +2792,7 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
-
-				if (!TH_LEFT_HANDED)
-				{
-					for (auto& Item : Elements)
-						Item.TexCoordY = -Item.TexCoordY;
-				}
+				Compute::Common::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -2908,12 +2898,7 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-
-				if (!TH_LEFT_HANDED)
-				{
-					for (auto& Item : Elements)
-						Item.TexCoordY = -Item.TexCoordY;
-				}
+				Compute::Common::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3019,12 +3004,7 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-
-				if (!TH_LEFT_HANDED)
-				{
-					for (auto& Item : Elements)
-						Item.TexCoordY = -Item.TexCoordY;
-				}
+				Compute::Common::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;

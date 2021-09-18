@@ -71,25 +71,23 @@ float3 GetRefraction(float3 Position, float3 Normal, float3 Eye, float MaxDistan
 }
 float3 GetRadiance(float3 Position, float3 Normal, float3 Metallic, out float Shadow)
 {
-	const float3 Origin = Position + Normal * 3.828424 / vxb_Scale;
+	const float3 Origin = Position + Normal * vxb_Margin / vxb_Scale;
 	const float3 Ortho1 = normalize(Rayproject(Normal));
 	const float3 Ortho2 = normalize(cross(Ortho1, Normal));
 	const float3 Corner1 = 0.5f * (Ortho1 + Ortho2);
 	const float3 Corner2 = 0.5f * (Ortho1 - Ortho2);
-	const float Offset = -0.01;
-	const float Angle = 0.5f;
 	float Occlusion = 0.0;
 	float3 Result = 0.0;
 
-	Result += RaymarchRadiance(Origin + Offset * Normal, Normal, Occlusion);
-	Result += RaymarchRadiance(Origin + Offset * Ortho1, lerp(Normal, Ortho1, Angle), Occlusion);
-	Result += RaymarchRadiance(Origin - Offset * Ortho1, lerp(Normal, -Ortho1, Angle), Occlusion);
-	Result += RaymarchRadiance(Origin + Offset * Ortho2, lerp(Normal, Ortho2, Angle), Occlusion);
-	Result += RaymarchRadiance(Origin - Offset * Ortho2, lerp(Normal, -Ortho2, Angle), Occlusion);
-	Result += RaymarchRadiance(Origin + Offset * Corner1, lerp(Normal, Corner1, Angle), Occlusion);
-	Result += RaymarchRadiance(Origin - Offset * Corner1, lerp(Normal, -Corner1, Angle), Occlusion);
-	Result += RaymarchRadiance(Origin + Offset * Corner2, lerp(Normal, Corner2, Angle), Occlusion);
-	Result += RaymarchRadiance(Origin - Offset * Corner2, lerp(Normal, -Corner2, Angle), Occlusion);
+	Result += RaymarchRadiance(Origin + vxb_Offset * Normal, Normal, Occlusion);
+	Result += RaymarchRadiance(Origin + vxb_Offset * Ortho1, lerp(Normal, Ortho1, vxb_Angle), Occlusion);
+	Result += RaymarchRadiance(Origin - vxb_Offset * Ortho1, lerp(Normal, -Ortho1, vxb_Angle), Occlusion);
+	Result += RaymarchRadiance(Origin + vxb_Offset * Ortho2, lerp(Normal, Ortho2, vxb_Angle), Occlusion);
+	Result += RaymarchRadiance(Origin - vxb_Offset * Ortho2, lerp(Normal, -Ortho2, vxb_Angle), Occlusion);
+	Result += RaymarchRadiance(Origin + vxb_Offset * Corner1, lerp(Normal, Corner1, vxb_Angle), Occlusion);
+	Result += RaymarchRadiance(Origin - vxb_Offset * Corner1, lerp(Normal, -Corner1, vxb_Angle), Occlusion);
+	Result += RaymarchRadiance(Origin + vxb_Offset * Corner2, lerp(Normal, Corner2, vxb_Angle), Occlusion);
+	Result += RaymarchRadiance(Origin - vxb_Offset * Corner2, lerp(Normal, -Corner2, vxb_Angle), Occlusion);
 	Shadow = saturate(1.0 - Occlusion * vxb_Occlusion);
 
 	return Result;

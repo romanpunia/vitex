@@ -614,6 +614,9 @@ namespace Tomahawk
 				float Distance;
 				float Radiance;
 				float Length;
+				float Margin;
+				float Offset;
+				float Angle;
 				float Occlusion;
 				float Specular;
 				float Bleeding;

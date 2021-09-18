@@ -618,21 +618,28 @@ namespace Tomahawk
 				OGLBlendState* OldState = Register.Blend;
 				REG_EXCHANGE(Blend, NewState);
 
-				if (NewState->State.AlphaToCoverageEnable)
+				if (!OldState || OldState->State.AlphaToCoverageEnable != NewState->State.AlphaToCoverageEnable)
 				{
-					glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-					glSampleCoverage(1.0f, GL_FALSE);
-				}
-				else
-				{
-					glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-					glSampleCoverage(0.0f, GL_FALSE);
+					if (NewState->State.AlphaToCoverageEnable)
+					{
+						glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+						glSampleCoverage(1.0f, GL_FALSE);
+					}
+					else
+					{
+						glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+						glSampleCoverage(0.0f, GL_FALSE);
+					}
 				}
 
 				if (NewState->State.IndependentBlendEnable)
 				{
-					for (int i = 0; i < 8; i++)
+					for (unsigned int i = 0; i < 8; i++)
 					{
+						auto& Base = NewState->State.RenderTarget[i];
+						if (OldState && memcmp(&OldState->State.RenderTarget[i], &Base, sizeof(RenderTargetBlendState)) == 0)
+							continue;
+						
 						if (NewState->State.RenderTarget[i].BlendEnable)
 							glEnablei(GL_BLEND, i);
 						else
@@ -644,10 +651,16 @@ namespace Tomahawk
 				}
 				else
 				{
-					if (OldState != nullptr && OldState->State.IndependentBlendEnable)
+					if (OldState != nullptr)
 					{
-						for (int i = 0; i < 8; i++)
-							glDisablei(GL_BLEND, i);
+						if (OldState->State.IndependentBlendEnable)
+						{
+							for (unsigned int i = 0; i < 8; i++)
+								glDisablei(GL_BLEND, i);
+						}
+
+						if (memcmp(&OldState->State.RenderTarget[0], &NewState->State.RenderTarget[0], sizeof(RenderTargetBlendState)) == 0)
+							return;
 					}
 
 					if (NewState->State.RenderTarget[0].BlendEnable)
@@ -663,64 +676,115 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(State != nullptr, "rasterizer state should be set");
 				OGLRasterizerState* NewState = (OGLRasterizerState*)State;
+				OGLRasterizerState* OldState = Register.Rasterizer;
 				REG_EXCHANGE(Rasterizer, NewState);
 
-				if (NewState->State.AntialiasedLineEnable || NewState->State.MultisampleEnable)
-					glEnable(GL_MULTISAMPLE);
-				else
-					glDisable(GL_MULTISAMPLE);
-
-				if (NewState->State.CullMode == VertexCull::Back)
+				bool WasMultisampled = OldState ? (OldState->State.AntialiasedLineEnable || OldState->State.MultisampleEnable) : false;
+				bool Multisampled = (NewState->State.AntialiasedLineEnable || NewState->State.MultisampleEnable);
+				if (!OldState || WasMultisampled != Multisampled)
 				{
-					glCullFace(GL_FRONT);
-					glEnable(GL_CULL_FACE);
+					if (Multisampled)
+						glEnable(GL_MULTISAMPLE);
+					else
+						glDisable(GL_MULTISAMPLE);
 				}
-				else if (NewState->State.CullMode == VertexCull::Front)
+
+				if (!OldState || OldState->State.CullMode != NewState->State.CullMode)
 				{
-					glCullFace(GL_BACK);
-					glEnable(GL_CULL_FACE);
+					if (NewState->State.CullMode == VertexCull::Back)
+					{
+						glCullFace(GL_FRONT);
+						glEnable(GL_CULL_FACE);
+					}
+					else if (NewState->State.CullMode == VertexCull::Front)
+					{
+						glCullFace(GL_BACK);
+						glEnable(GL_CULL_FACE);
+					}
+					else
+						glDisable(GL_CULL_FACE);
 				}
-				else
-					glDisable(GL_CULL_FACE);
-			
-				if (NewState->State.ScissorEnable)
-					glEnable(GL_SCISSOR_TEST);
-				else
-					glDisable(GL_SCISSOR_TEST);
 
-				if (NewState->State.FillMode == SurfaceFill::Solid)
-					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-				else
-					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				if (!OldState || OldState->State.ScissorEnable != NewState->State.ScissorEnable)
+				{
+					if (NewState->State.ScissorEnable)
+						glEnable(GL_SCISSOR_TEST);
+					else
+						glDisable(GL_SCISSOR_TEST);
+				}
 
-				if (NewState->State.FrontCounterClockwise)
-					glFrontFace(GL_CW);
-				else
-					glFrontFace(GL_CCW);
+				if (!OldState || OldState->State.FillMode != NewState->State.FillMode)
+				{
+					if (NewState->State.FillMode == SurfaceFill::Solid)
+						glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+					else
+						glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+				}
+
+				if (!OldState || OldState->State.FrontCounterClockwise != NewState->State.FrontCounterClockwise)
+				{
+					if (NewState->State.FrontCounterClockwise)
+						glFrontFace(GL_CW);
+					else
+						glFrontFace(GL_CCW);
+				}
 			}
 			void OGLDevice::SetDepthStencilState(DepthStencilState* State)
 			{
 				TH_ASSERT_V(State != nullptr, "depth stencil state should be set");
 				OGLDepthStencilState* NewState = (OGLDepthStencilState*)State;
+				OGLDepthStencilState* OldState = Register.DepthStencil;
 				REG_EXCHANGE(DepthStencil, NewState);
 
-				if (NewState->State.DepthEnable)
-					glEnable(GL_DEPTH_TEST);
-				else
-					glDisable(GL_DEPTH_TEST);
+				if (!OldState || OldState->State.DepthEnable != NewState->State.DepthEnable)
+				{
+					if (NewState->State.DepthEnable)
+						glEnable(GL_DEPTH_TEST);
+					else
+						glDisable(GL_DEPTH_TEST);
+				}
 
-				if (NewState->State.StencilEnable)
-					glEnable(GL_STENCIL_TEST);
-				else
-					glDisable(GL_STENCIL_TEST);
+				if (!OldState || OldState->State.StencilEnable != NewState->State.StencilEnable)
+				{
+					if (NewState->State.StencilEnable)
+						glEnable(GL_STENCIL_TEST);
+					else
+						glDisable(GL_STENCIL_TEST);
+				}
 
-				glDepthFunc(GetComparison(NewState->State.DepthFunction));
-				glDepthMask(NewState->State.DepthWriteMask == DepthWrite::All ? GL_TRUE : GL_FALSE);
-				glStencilMask((GLuint)NewState->State.StencilWriteMask);
-				glStencilFuncSeparate(GL_FRONT, GetComparison(NewState->State.FrontFaceStencilFunction), 0, 1);
-				glStencilOpSeparate(GL_FRONT, GetStencilOperation(NewState->State.FrontFaceStencilFailOperation), GetStencilOperation(NewState->State.FrontFaceStencilDepthFailOperation), GetStencilOperation(NewState->State.FrontFaceStencilPassOperation));
-				glStencilFuncSeparate(GL_BACK, GetComparison(NewState->State.BackFaceStencilFunction), 0, 1);
-				glStencilOpSeparate(GL_BACK, GetStencilOperation(NewState->State.BackFaceStencilFailOperation), GetStencilOperation(NewState->State.BackFaceStencilDepthFailOperation), GetStencilOperation(NewState->State.BackFaceStencilPassOperation));
+				if (OldState != nullptr)
+				{
+					if (OldState->State.DepthFunction != NewState->State.DepthFunction)
+						glDepthFunc(GetComparison(NewState->State.DepthFunction));
+
+					if (OldState->State.DepthWriteMask != NewState->State.DepthWriteMask)
+						glDepthMask(NewState->State.DepthWriteMask == DepthWrite::All ? GL_TRUE : GL_FALSE);
+
+					if (OldState->State.StencilWriteMask != NewState->State.StencilWriteMask)
+						glStencilMask((GLuint)NewState->State.StencilWriteMask);
+
+					if (OldState->State.FrontFaceStencilFunction != NewState->State.FrontFaceStencilFunction)
+						glStencilFuncSeparate(GL_FRONT, GetComparison(NewState->State.FrontFaceStencilFunction), 0, 1);
+
+					if (OldState->State.FrontFaceStencilFailOperation != NewState->State.FrontFaceStencilFailOperation || OldState->State.FrontFaceStencilDepthFailOperation != NewState->State.FrontFaceStencilDepthFailOperation || OldState->State.FrontFaceStencilPassOperation != NewState->State.FrontFaceStencilPassOperation)
+						glStencilOpSeparate(GL_FRONT, GetStencilOperation(NewState->State.FrontFaceStencilFailOperation), GetStencilOperation(NewState->State.FrontFaceStencilDepthFailOperation), GetStencilOperation(NewState->State.FrontFaceStencilPassOperation));
+
+					if (OldState->State.BackFaceStencilFunction != NewState->State.BackFaceStencilFunction)
+						glStencilFuncSeparate(GL_BACK, GetComparison(NewState->State.BackFaceStencilFunction), 0, 1);
+
+					if (OldState->State.BackFaceStencilFailOperation != NewState->State.BackFaceStencilFailOperation || OldState->State.BackFaceStencilDepthFailOperation != NewState->State.BackFaceStencilDepthFailOperation || OldState->State.BackFaceStencilPassOperation != NewState->State.BackFaceStencilPassOperation)
+						glStencilOpSeparate(GL_BACK, GetStencilOperation(NewState->State.BackFaceStencilFailOperation), GetStencilOperation(NewState->State.BackFaceStencilDepthFailOperation), GetStencilOperation(NewState->State.BackFaceStencilPassOperation));
+				}
+				else
+				{
+					glDepthFunc(GetComparison(NewState->State.DepthFunction));
+					glDepthMask(NewState->State.DepthWriteMask == DepthWrite::All ? GL_TRUE : GL_FALSE);
+					glStencilMask((GLuint)NewState->State.StencilWriteMask);
+					glStencilFuncSeparate(GL_FRONT, GetComparison(NewState->State.FrontFaceStencilFunction), 0, 1);
+					glStencilOpSeparate(GL_FRONT, GetStencilOperation(NewState->State.FrontFaceStencilFailOperation), GetStencilOperation(NewState->State.FrontFaceStencilDepthFailOperation), GetStencilOperation(NewState->State.FrontFaceStencilPassOperation));
+					glStencilFuncSeparate(GL_BACK, GetComparison(NewState->State.BackFaceStencilFunction), 0, 1);
+					glStencilOpSeparate(GL_BACK, GetStencilOperation(NewState->State.BackFaceStencilFailOperation), GetStencilOperation(NewState->State.BackFaceStencilDepthFailOperation), GetStencilOperation(NewState->State.BackFaceStencilPassOperation));
+				}
 			}
 			void OGLDevice::SetInputLayout(InputLayout* State)
 			{
@@ -962,6 +1026,7 @@ namespace Tomahawk
 				if (Register.Textures[Slot] == NewResource)
 					return;
 
+				Register.Bindings[Slot] = GL_TEXTURE_2D;
 				Register.Textures[Slot] = NewResource;
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_2D, NewResource);
@@ -975,6 +1040,7 @@ namespace Tomahawk
 				if (Register.Textures[Slot] == NewResource)
 					return;
 
+				Register.Bindings[Slot] = GL_TEXTURE_3D;
 				Register.Textures[Slot] = NewResource;
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_3D, NewResource);
@@ -988,6 +1054,7 @@ namespace Tomahawk
 				if (Register.Textures[Slot] == NewResource)
 					return;
 
+				Register.Bindings[Slot] = GL_TEXTURE_CUBE_MAP;
 				Register.Textures[Slot] = NewResource;
 				glActiveTexture(GL_TEXTURE0 + Slot);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, NewResource);
@@ -1220,7 +1287,6 @@ namespace Tomahawk
 			void OGLDevice::SetPrimitiveTopology(PrimitiveTopology _Topology)
 			{
 				REG_EXCHANGE(Primitive, _Topology);
-				glPolygonMode(GL_FRONT_AND_BACK, GetPrimitiveTopology(_Topology));
 				Register.DrawTopology = GetPrimitiveTopologyDraw(_Topology);
 				Register.Primitive = _Topology;
 			}
@@ -1231,11 +1297,13 @@ namespace Tomahawk
 
 				for (unsigned int i = 0; i < Count; i++)
 				{
+					auto& Texture = Register.Textures[i];
+					if (Texture == GL_NONE)
+						continue;
+
 					glActiveTexture(GL_TEXTURE0 + Slot + i);
-					glBindTexture(GL_TEXTURE_2D, GL_NONE);
-					glBindTexture(GL_TEXTURE_3D, GL_NONE);
-					glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
-					Register.Textures[i] = GL_NONE;
+					glBindTexture(Register.Bindings[i], GL_NONE);
+					Texture = GL_NONE;
 				}
 			}
 			void OGLDevice::FlushState()
@@ -3771,34 +3839,33 @@ namespace Tomahawk
 				{
 					case PixelFilter::Min_Mag_Mip_Point:
 					case PixelFilter::Compare_Min_Mag_Mip_Point:
-						return GL_NEAREST;
+						return (Mag ? GL_NEAREST : GL_NEAREST);
 					case PixelFilter::Min_Mag_Point_Mip_Linear:
 					case PixelFilter::Compare_Min_Mag_Point_Mip_Linear:
 						return (Mag ? GL_NEAREST : GL_NEAREST_MIPMAP_LINEAR);
 					case PixelFilter::Min_Point_Mag_Linear_Mip_Point:
 					case PixelFilter::Compare_Min_Point_Mag_Linear_Mip_Point:
-						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_NEAREST);
+						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_NEAREST);
 					case PixelFilter::Min_Point_Mag_Mip_Linear:
 					case PixelFilter::Compare_Min_Point_Mag_Mip_Linear:
-						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_LINEAR);
+						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_LINEAR);
 					case PixelFilter::Min_Linear_Mag_Mip_Point:
 					case PixelFilter::Compare_Min_Linear_Mag_Mip_Point:
-						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_NEAREST);
+						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_NEAREST);
 					case PixelFilter::Min_Linear_Mag_Point_Mip_Linear:
 					case PixelFilter::Compare_Min_Linear_Mag_Point_Mip_Linear:
-						return (Mag ? GL_NEAREST : GL_LINEAR_MIPMAP_LINEAR);
+						return (Mag ? GL_LINEAR : GL_NEAREST_MIPMAP_LINEAR);
 					case PixelFilter::Min_Mag_Linear_Mip_Point:
 					case PixelFilter::Compare_Min_Mag_Linear_Mip_Point:
 						return (Mag ? GL_LINEAR : GL_LINEAR_MIPMAP_NEAREST);
+					case PixelFilter::Anistropic:
+					case PixelFilter::Compare_Anistropic:
 					case PixelFilter::Min_Mag_Mip_Linear:
 					case PixelFilter::Compare_Min_Mag_Mip_Linear:
 						return (Mag ? GL_LINEAR : GL_LINEAR_MIPMAP_LINEAR);
-					case PixelFilter::Anistropic:
-					case PixelFilter::Compare_Anistropic:
-						return GL_LINEAR;
 				}
 
-				return GL_LINEAR;
+				return GL_NEAREST;
 			}
 			GLenum OGLDevice::GetBlendOperation(BlendOperation Value)
 			{

@@ -1305,6 +1305,9 @@ namespace Tomahawk
 				VoxelBuffer.Distance = Src->Distance;
 				VoxelBuffer.Radiance = Src->Radiance;
 				VoxelBuffer.Length = Src->Length;
+				VoxelBuffer.Margin = Src->Margin;
+				VoxelBuffer.Offset = Src->Offset;
+				VoxelBuffer.Angle = Src->Angle;
 				VoxelBuffer.Occlusion = Src->Occlusion;
 				VoxelBuffer.Specular = Src->Specular;
 				VoxelBuffer.Bleeding = Src->Bleeding;
@@ -1836,6 +1839,7 @@ namespace Tomahawk
 
 				State.Distance = 1.0;
 				State.Device->ClearWritable(LightBuffer);
+				State.Device->SetSamplerState(nullptr, 1, 6, TH_CS);
 				State.Device->SetWriteable(Out, 1, 3, false);
 				State.Device->SetWriteable(&LightBuffer, 1, 1, true);
 				State.Device->SetTexture3D(In[(size_t)VoxelType::Diffuse], 2, TH_CS);

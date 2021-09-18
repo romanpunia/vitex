@@ -9,7 +9,9 @@ cbuffer Voxelizer : register(b3)
 	float vxb_MaxSteps;
 	float3 vxb_Lights;
 	float vxb_Radiance;
-	float3 vxb_Padding;
+	float vxb_Margin;
+	float vxb_Offset;
+	float vxb_Angle;
 	float vxb_Length;
 	float vxb_Distance;
 	float vxb_Occlusion;

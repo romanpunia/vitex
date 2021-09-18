@@ -3256,6 +3256,9 @@ namespace Tomahawk
 				Occlusion = 0.33f;
 				Specular = 2.0f;
 				Length = 1.0f;
+				Margin = 3.828424;
+				Offset = -0.01;
+				Angle = 0.5;
 				Bleeding = 0.33f;
 			}
 			Illuminator::~Illuminator()
@@ -3273,6 +3276,9 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("distance"), &Distance);
 				NMake::Unpack(Node->Find("radiance"), &Radiance);
 				NMake::Unpack(Node->Find("length"), &Length);
+				NMake::Unpack(Node->Find("margin"), &Margin);
+				NMake::Unpack(Node->Find("offset"), &Offset);
+				NMake::Unpack(Node->Find("angle"), &Angle);
 				NMake::Unpack(Node->Find("occlusion"), &Occlusion);
 				NMake::Unpack(Node->Find("specular"), &Specular);
 				NMake::Unpack(Node->Find("bleeding"), &Bleeding);
@@ -3289,6 +3295,9 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("distance"), Distance);
 				NMake::Pack(Node->Set("radiance"), Radiance);
 				NMake::Pack(Node->Set("length"), Length);
+				NMake::Pack(Node->Set("margin"), Margin);
+				NMake::Pack(Node->Set("offset"), Offset);
+				NMake::Pack(Node->Set("angle"), Angle);
 				NMake::Pack(Node->Set("occlusion"), Occlusion);
 				NMake::Pack(Node->Set("specular"), Specular);
 				NMake::Pack(Node->Set("bleeding"), Bleeding);

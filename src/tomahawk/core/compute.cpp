@@ -2448,10 +2448,15 @@ namespace Tomahawk
 		}
 		Matrix4x4 Matrix4x4::CreateOrigin(const Vector3& Position, const Vector3& Rotation)
 		{
-			return
+			Matrix4x4 Result =
 				Matrix4x4::CreateTranslation(-Position) *
 				Matrix4x4::CreateRotationY(-Rotation.Y) *
 				Matrix4x4::CreateRotationX(-Rotation.X);
+
+			if (TH_LEFT_HANDED)
+				return Result;
+
+			return Result;
 		}
 		Matrix4x4 Matrix4x4::CreateLookAt(const Vector3& Position, const Vector3& Target, const Vector3& Up)
 		{
@@ -7242,8 +7247,34 @@ namespace Tomahawk
 		}
 		void Common::VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices)
 		{
+			if (LeftHanded)
+			{
+				Matrix4x4 RhToLh = RH_TO_LH;
+				for (auto& Item : Vertices)
+				{
+					Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
+					Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
+					Item.PositionX = Position.X;
+					Item.PositionY = Position.Y;
+					Item.PositionZ = Position.Z;
+				}
+			}
+			else
+			{
+				for (auto& Item : Vertices)
+				{
+					Item.PositionY = -Item.PositionY;
+					Item.NormalY = -Item.NormalY;
+					Item.TexCoordY = 1.0f - Item.TexCoordY;
+				}
+			}
+
+			FlipIndexWindingOrder(Indices);
+		}
+		void Common::VertexRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices)
+		{
 			if (!LeftHanded)
-				return;
+				return TexCoordRhToLh(Vertices);
 
 			Matrix4x4 RhToLh = RH_TO_LH;
 			for (auto& Item : Vertices)
@@ -7257,22 +7288,29 @@ namespace Tomahawk
 
 			FlipIndexWindingOrder(Indices);
 		}
-		void Common::InfluenceRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices)
+		void Common::TexCoordRhToLh(std::vector<Vertex>& Vertices)
 		{
-			if (!LeftHanded)
+			if (LeftHanded)
 				return;
 
-			Matrix4x4 RhToLh = RH_TO_LH;
 			for (auto& Item : Vertices)
-			{
-				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
-				Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-				Item.PositionX = Position.X;
-				Item.PositionY = Position.Y;
-				Item.PositionZ = Position.Z;
-			}
+				Item.TexCoordY = 1.0f - Item.TexCoordY;
+		}
+		void Common::TexCoordRhToLh(std::vector<SkinVertex>& Vertices)
+		{
+			if (LeftHanded)
+				return;
 
-			FlipIndexWindingOrder(Indices);
+			for (auto& Item : Vertices)
+				Item.TexCoordY = 1.0f - Item.TexCoordY;
+		}
+		void Common::TexCoordRhToLh(std::vector<ShapeVertex>& Vertices)
+		{
+			if (LeftHanded)
+				return;
+
+			for (auto& Item : Vertices)
+				Item.TexCoordY = 1.0f - Item.TexCoordY;
 		}
 		void Common::SetLeftHanded(bool IsLeftHanded)
 		{

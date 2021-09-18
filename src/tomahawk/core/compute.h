@@ -276,16 +276,19 @@ namespace Tomahawk
 			float PositionX;
 			float PositionY;
 			float PositionZ;
+			float Scale;
 			float VelocityX;
 			float VelocityY;
 			float VelocityZ;
+			float Rotation;
+			float Padding1;
+			float Padding2;
+			float Padding3;
+			float Angular;
 			float ColorX;
 			float ColorY;
 			float ColorZ;
 			float ColorW;
-			float Scale;
-			float Rotation;
-			float Angular;
 		};
 
 		struct TH_OUT Rectangle
@@ -1424,7 +1427,10 @@ namespace Tomahawk
 			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
 			static void MatrixRhToLh(Compute::Matrix4x4* Matrix);
 			static void VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices);
-			static void InfluenceRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices);
+			static void VertexRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices);
+			static void TexCoordRhToLh(std::vector<Vertex>& Vertices);
+			static void TexCoordRhToLh(std::vector<SkinVertex>& Vertices);
+			static void TexCoordRhToLh(std::vector<ShapeVertex>& Vertices);
 			static void SetLeftHanded(bool IsLeftHanded);
 			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
 			static std::string JWTEncode(WebToken* Src, const char* Key);

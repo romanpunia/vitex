@@ -298,7 +298,9 @@ namespace Tomahawk
 					float MaxSteps = 32.0f;
 					Compute::Vector3 Lights;
 					float Radiance = 1.0f;
-					Compute::Vector3 Padding;
+					float Margin = 3.828424f;
+					float Offset = -0.01f;
+					float Angle = 0.5f;
 					float Length = 1.0f;
 					float Distance = 1.0f;
 					float Occlusion = 0.9f;

@@ -348,6 +348,7 @@ namespace Tomahawk
 					std::tuple<OGLElementBuffer*, unsigned int> VertexBuffer = { nullptr, 0 };
 					std::tuple<OGLElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
 					std::unordered_map<uint64_t, GLuint> Programs;
+					std::array<GLuint, TH_MAX_UNITS> Bindings = { };
 					std::array<GLuint, TH_MAX_UNITS> Textures = { };
 					std::array<GLuint, TH_MAX_UNITS> Samplers = { };
 					std::array<OGLShader*, 6> Shaders = { };

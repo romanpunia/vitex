@@ -19,20 +19,16 @@ float GetPenumbra(float2 D, float L)
 	[branch] if (Umbra <= 0.0)
 		return 0.0;
 	
-	float Length = 0.0, Count = 0.0;
+	float Length = 0.0;
 	[unroll] for (float i = 0; i < 16; i++)
 	{
 		float2 TexCoord = D + SampleDisk[i].xy / Softness;
 		float S1 = DepthMap.SampleLevel(DepthSampler, TexCoord, 0).x;
 		float S2 = DepthMapGreater.SampleCmpLevelZero(DepthGreaterSampler, TexCoord, L);
 		Length += S1 * S2;
-		Count += S2;
 	}
-
-	[branch] if (Count < 2.0)
-		return 1.0;
 	
-	Length /= Count;
+	Length /= 16.0;
 	return saturate(Umbra * vb_Far * (L - Length) / Length);
 }
 float GetLightness(float2 D, float L)

@@ -1,9 +1,10 @@
 struct Element
 {
 	float3 Position;
-	float3 Velocity;
-	float4 Color;
 	float Scale;
+	float3 Velocity;
 	float Rotation;
+	float3 Padding;
 	float Angular;
+	float4 Color;
 };

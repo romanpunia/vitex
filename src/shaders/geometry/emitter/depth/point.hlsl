@@ -35,8 +35,7 @@ void gs_main(point VOutputLinear V[1], inout PointStream<VOutputCubic> Stream)
 
 VOutputLinear vs_main(VInput V)
 {
-	Element Base = Elements[V.Position];
-	
+	Element Base = Elements[V.Position];	
 	VOutputLinear Result = (VOutputLinear)0;
 	Result.Position = Result.UV = mul(float4(Base.Position, 1), ob_World);
 	Result.Alpha = Base.Color.w;

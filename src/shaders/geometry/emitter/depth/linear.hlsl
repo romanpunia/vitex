@@ -8,6 +8,7 @@ VOutputLinear Make(VOutputLinear V, float2 Offset, float2 Coord)
 	V.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);
 	V.Position = mul(V.Position, ob_World);
 	V.TexCoord = Coord;
+	V.UV = V.Position;
 	
 	return V;
 }
@@ -26,13 +27,12 @@ void gs_main(point VOutputLinear V[1], inout TriangleStream<VOutputLinear> Strea
 VOutputLinear vs_main(VInput V)
 {
 	Element Base = Elements[V.Position];
-
 	VOutputLinear Result = (VOutputLinear)0;
 	Result.Position = mul(float4(Base.Position, 1), ob_WorldViewProj);
-	Result.UV = mul(Result.Position, ob_World);
 	Result.Rotation = Base.Rotation;
 	Result.Scale = Base.Scale;
 	Result.Alpha = Base.Color.w;
+	Result.UV = Result.Position;
 
 	return Result;
 }

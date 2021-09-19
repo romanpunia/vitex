@@ -960,23 +960,22 @@ namespace Tomahawk
 			Sampler.AddressU = TextureAddress::Clamp;
 			Sampler.AddressV = TextureAddress::Clamp;
 			Sampler.AddressW = TextureAddress::Clamp;
-			Sampler.ComparisonFunction = Comparison::Always;
 			SamplerStates["linear"] = CreateSamplerState(Sampler);
 
 			Sampler.Filter = PixelFilter::Min_Mag_Mip_Point;
 			Sampler.ComparisonFunction = Comparison::Never;
 			SamplerStates["point"] = CreateSamplerState(Sampler);
 
-			Sampler.Filter = PixelFilter::Min_Mag_Linear_Mip_Point;
+			Sampler.Filter = PixelFilter::Min_Mag_Mip_Linear;
 			Sampler.MaxAnisotropy = 1;
 			SamplerStates["depth"] = CreateSamplerState(Sampler);
 
-			Sampler.Filter = PixelFilter::Compare_Min_Mag_Linear_Mip_Point;
+			Sampler.Filter = PixelFilter::Compare_Min_Mag_Mip_Linear;
 			Sampler.ComparisonFunction = Comparison::Less;
 			SamplerStates["depth-cmp-less"] = CreateSamplerState(Sampler);
 
-			Sampler.Filter = PixelFilter::Compare_Min_Mag_Linear_Mip_Point;
-			Sampler.ComparisonFunction = Comparison::Greater;
+			Sampler.Filter = PixelFilter::Compare_Min_Mag_Mip_Linear;
+			Sampler.ComparisonFunction = Comparison::Greater_Equal;
 			SamplerStates["depth-cmp-greater"] = CreateSamplerState(Sampler);
 
 			InputLayout::Desc Layout;

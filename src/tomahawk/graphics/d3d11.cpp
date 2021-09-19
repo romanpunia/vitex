@@ -1103,18 +1103,20 @@ namespace Tomahawk
 			void D3D11Device::SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8])
 			{
 				TH_ASSERT_V(Resource != nullptr, "render target should be set");
+				TH_ASSERT_V(Resource->GetTargetCount() > 1, "render target should have more than one targets");
 
 				const Viewport& Viewarea = Resource->GetViewport();
-				ID3D11RenderTargetView** TargetBuffer = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
+				ID3D11RenderTargetView** TargetBuffers = (ID3D11RenderTargetView**)Resource->GetTargetBuffer();
 				ID3D11DepthStencilView* DepthBuffer = (ID3D11DepthStencilView*)Resource->GetDepthBuffer();
 				D3D11_VIEWPORT Viewport = { Viewarea.TopLeftX, Viewarea.TopLeftY, Viewarea.Width, Viewarea.Height, Viewarea.MinDepth, Viewarea.MaxDepth };
 				uint32_t Count = Resource->GetTargetCount();
 
+				ID3D11RenderTargetView* Targets[8] = { };
 				for (uint32_t i = 0; i < Count; i++)
-					TargetBuffer[i] = (Enabled[i] ? TargetBuffer[i] : nullptr);
+					Targets[i] = (Enabled[i] ? TargetBuffers[i] : nullptr);
 
 				ImmediateContext->RSSetViewports(1, &Viewport);
-				ImmediateContext->OMSetRenderTargets(Count, TargetBuffer, DepthBuffer);
+				ImmediateContext->OMSetRenderTargets(Count, Targets, DepthBuffer);
 			}
 			void D3D11Device::SetTargetRect(unsigned int Width, unsigned int Height)
 			{

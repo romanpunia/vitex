@@ -1656,10 +1656,6 @@ namespace Tomahawk
 
 				uint32_t Category = (uint32_t)GeoCategory::Opaque;
 				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("view"), &View);
-				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
-				NMake::Unpack(Node->Find("distance"), &Distance);
 				NMake::Unpack(Node->Find("static"), &Static);
 				NMake::Unpack(Node->Find("category"), &Category);
 				SetCategory((GeoCategory)Category);
@@ -1674,22 +1670,8 @@ namespace Tomahawk
 					NMake::Pack(Node->Set("material"), Slot->Slot);
 
 				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("projection"), Projection);
-				NMake::Pack(Node->Set("view"), View);
-				NMake::Pack(Node->Set("field-of-view"), FieldOfView);
-				NMake::Pack(Node->Set("distance"), Distance);
 				NMake::Pack(Node->Set("static"), Static);
 				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
-			}
-			void Decal::Synchronize(Core::Timer* Time)
-			{
-				auto* Transform = Parent->GetTransform();
-				if (Transform->IsDirty())
-				{
-					auto& Space = Transform->GetSpacing(Compute::Positioning::Global);
-					View = Compute::Matrix4x4::CreateOrigin(Space.Position, Space.Rotation);
-				}
-				Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, 1, 0.1f, Distance);
 			}
 			void Decal::Activate(Component* New)
 			{
@@ -1819,7 +1801,7 @@ namespace Tomahawk
 				}
 				else if (State.Time < State.Duration)
 				{
-					Compute::SkinAnimatorKey* Key = GetFrame(State.Clip, State.Frame);
+					Compute::SkinAnimatorKey* Key = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
 					if (!Key)
 						Key = &Bind;
 
@@ -1917,6 +1899,9 @@ namespace Tomahawk
 				State.Frame = (Frame_ == -1 ? 0 : Frame_);
 				State.Clip = (Clip == -1 ? 0 : Clip);
 
+				if (!IsExists(State.Clip, State.Frame))
+					return;
+
 				if (State.Clip >= 0 && State.Clip < Clips.size())
 				{
 					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
@@ -1934,7 +1919,7 @@ namespace Tomahawk
 			}
 			bool SkinAnimator::IsPosed(int64_t Clip, int64_t Frame_)
 			{
-				Compute::SkinAnimatorKey* Key = GetFrame(Clip, Frame_);
+				Compute::SkinAnimatorKey* Key = (IsExists(Clip, Frame_) ? GetFrame(Clip, Frame_) : nullptr);
 				if (!Key)
 					Key = &Bind;
 
@@ -1947,10 +1932,21 @@ namespace Tomahawk
 
 				return true;
 			}
+			bool SkinAnimator::IsExists(int64_t Clip)
+			{
+				return Clip >= 0 && Clip < Clips.size();
+			}
+			bool SkinAnimator::IsExists(int64_t Clip, int64_t Frame)
+			{
+				if (!IsExists(Clip))
+					return false;
+
+				return Frame >= 0 && Frame < Clips[Clip].Keys.size();
+			}
 			Compute::SkinAnimatorKey* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
 				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
-				TH_ASSERT(Frame >= 0 || Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
+				TH_ASSERT(Frame >= 0 && Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
 
 				return &Clips[Clip].Keys[Frame];
 			}
@@ -2054,7 +2050,7 @@ namespace Tomahawk
 				}
 				else if (State.Time < State.Duration)
 				{
-					Compute::AnimatorKey* Key = GetFrame(State.Clip, State.Frame);
+					Compute::AnimatorKey* Key = (IsExists(State.Clip, State.Frame) ? GetFrame(State.Clip, State.Frame) : nullptr);
 					if (!Key)
 						Key = &Bind;
 
@@ -2138,6 +2134,9 @@ namespace Tomahawk
 				State.Frame = (Frame_ == -1 ? 0 : Frame_);
 				State.Clip = (Clip == -1 ? 0 : Clip);
 
+				if (!IsExists(State.Clip, State.Frame))
+					return;
+
 				if (State.Clip >= 0 && State.Clip < Clips.size())
 				{
 					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
@@ -2161,17 +2160,28 @@ namespace Tomahawk
 			}
 			bool KeyAnimator::IsPosed(int64_t Clip, int64_t Frame_)
 			{
-				Compute::AnimatorKey* Key = GetFrame(Clip, Frame_);
+				Compute::AnimatorKey* Key = (IsExists(Clip, Frame_) ? GetFrame(Clip, Frame_) : nullptr);
 				if (!Key)
 					Key = &Bind;
 
 				auto& Space = Parent->GetTransform()->GetSpacing();
 				return Space.Position == Key->Position && Space.Rotation == Key->Rotation && Space.Scale == Key->Scale;
 			}
+			bool KeyAnimator::IsExists(int64_t Clip)
+			{
+				return Clip >= 0 && Clip < Clips.size();
+			}
+			bool KeyAnimator::IsExists(int64_t Clip, int64_t Frame)
+			{
+				if (!IsExists(Clip))
+					return false;
+
+				return Frame >= 0 && Frame < Clips[Clip].Keys.size();
+			}
 			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
 				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
-				TH_ASSERT(Frame >= 0 || Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
+				TH_ASSERT(Frame >= 0 && Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
 
 				return &Clips[Clip].Keys[Frame];
 			}
@@ -2289,6 +2299,9 @@ namespace Tomahawk
 			void EmitterAnimator::AccurateSynchronization(float DeltaTime)
 			{
 				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				float MinX = 0.0f, MaxX = 0.0f;
+				float MinY = 0.0f, MaxY = 0.0f;
+				float MinZ = 0.0f, MaxZ = 0.0f;
 				float L = Velocity.Length();
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
@@ -2314,12 +2327,35 @@ namespace Tomahawk
 					{
 						Array->RemoveAt(It);
 						It--;
+						continue;
 					}
+
+					if (It->PositionX < MinX)
+						MinX = It->PositionX;
+					else if (It->PositionX > MaxX)
+						MaxX = It->PositionX;
+
+					if (It->PositionY < MinY)
+						MinY = It->PositionY;
+					else if (It->PositionY > MaxY)
+						MaxY = It->PositionY;
+
+					if (It->PositionZ < MinZ)
+						MinZ = It->PositionZ;
+					else if (It->PositionZ > MaxZ)
+						MaxZ = It->PositionZ;
 				}
+
+				Base->Volume.X = abs(MinX - MaxX) * 0.5f;
+				Base->Volume.Y = abs(MinY - MaxY) * 0.5f;
+				Base->Volume.Z = abs(MinZ - MaxZ) * 0.5f;
 			}
 			void EmitterAnimator::FastSynchronization(float DeltaTime)
 			{
 				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				float MinX = 0.0f, MaxX = 0.0f;
+				float MinY = 0.0f, MaxY = 0.0f;
+				float MinZ = 0.0f, MaxZ = 0.0f;
 				float L = Velocity.Length();
 
 				for (auto It = Array->Begin(); It != Array->End(); It++)
@@ -2344,8 +2380,28 @@ namespace Tomahawk
 					{
 						Array->RemoveAt(It);
 						It--;
+						continue;
 					}
+
+					if (It->PositionX < MinX)
+						MinX = It->PositionX;
+					else if (It->PositionX > MaxX)
+						MaxX = It->PositionX;
+
+					if (It->PositionY < MinY)
+						MinY = It->PositionY;
+					else if (It->PositionY > MaxY)
+						MaxY = It->PositionY;
+
+					if (It->PositionZ < MinZ)
+						MinZ = It->PositionZ;
+					else if (It->PositionZ > MaxZ)
+						MaxZ = It->PositionZ;
 				}
+
+				Base->Volume.X = abs(MinX - MaxX) * 0.5f;
+				Base->Volume.Y = abs(MinY - MaxY) * 0.5f;
+				Base->Volume.Z = abs(MinZ - MaxZ) * 0.5f;
 			}
 			Component* EmitterAnimator::Copy(Entity* New)
 			{

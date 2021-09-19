@@ -101,7 +101,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 #### Graphics
 + Configurable windowing (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
-+ Render backend abstraction over DirectX 11 and OpenGL (WIP)
++ Render backend abstraction over DirectX 11 and OpenGL 4.5
 + HLSL is a primary shading language
 + Shader cross complier (HLSL to GLSL, MSL or SPV)
 + Shader registry cache (compiles/transpiles only once)
@@ -279,4 +279,4 @@ These are recommended to be installed, but are not required to.
 Tomahawk is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing, thx to PVS-Studio, they became less often. OpenGL is not working properly, sooner or later it will be fully implemented, SPIRV-Cross will help with that. Script interface covers less than 5% of Tomahawk's abilities, bindings are wasting too much time to write, sorry :)
+This project is under development, bugs aren't the rare thing. Script interface covers limited part of Tomahawk.

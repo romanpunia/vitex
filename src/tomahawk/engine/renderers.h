@@ -150,9 +150,8 @@ namespace Tomahawk
 
 			private:
 				Graphics::DepthStencilState* DepthStencilOpaque = nullptr;
-				Graphics::DepthStencilState* DepthStencilLimpid = nullptr;
-				Graphics::RasterizerState* BackRasterizer = nullptr;
-				Graphics::RasterizerState* FrontRasterizer = nullptr;
+				Graphics::DepthStencilState* DepthStencilAdditive = nullptr;
+				Graphics::RasterizerState* Rasterizer = nullptr;
 				Graphics::BlendState* AdditiveBlend = nullptr;
 				Graphics::BlendState* OverwriteBlend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
@@ -174,12 +173,6 @@ namespace Tomahawk
 
 			class TH_OUT Decal final : public GeometryDraw
 			{
-			public:
-				struct RenderConstant
-				{
-					Compute::Matrix4x4 ViewProjection;
-				} RenderPass;
-
 			private:
 				Graphics::DepthStencilState* DepthStencil = nullptr;
 				Graphics::RasterizerState* Rasterizer = nullptr;
@@ -541,11 +534,11 @@ namespace Tomahawk
 
 				struct FiboBuffer
 				{
-					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 8.000f;
-					float Blur = 4.000f;
 					float Padding[3] = { 0.0f };
 					float Power = 1.000f;
+					float Texel[2] = { 1.0f, 1.0f };
+					float Samples = 14.000f;
+					float Blur = 64.000f;
 				} Fibo;
 
 			public:
@@ -655,11 +648,11 @@ namespace Tomahawk
 
 				struct FiboBuffer
 				{
+					float Padding[3] = { 0.0f };
+					float Power = 1.000f;
 					float Texel[2] = { 1.0f, 1.0f };
 					float Samples = 14.000f;
 					float Blur = 64.000f;
-					float Padding[3] = { 0.0f };
-					float Power = 1.000f;
 				} Fibo;
 
 			public:

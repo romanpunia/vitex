@@ -7242,8 +7242,7 @@ namespace Tomahawk
 		void Common::MatrixRhToLh(Compute::Matrix4x4* Matrix)
 		{
 			TH_ASSERT_V(Matrix != nullptr, "matrix should be set");
-			if (LeftHanded)
-				*Matrix = *Matrix * RH_TO_LH;
+			*Matrix = *Matrix * RH_TO_LH;
 		}
 		void Common::VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices)
 		{

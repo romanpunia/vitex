@@ -1243,6 +1243,8 @@ namespace Tomahawk
 			void OGLDevice::SetTargetMap(Graphics::RenderTarget* Resource, bool Enabled[8])
 			{
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+				TH_ASSERT_V(Resource->GetTargetCount() > 1, "render target should have more than one targets");
+
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 				const Viewport& Viewarea = Resource->GetViewport();
 
@@ -1554,7 +1556,8 @@ namespace Tomahawk
 
 				TH_ASSERT(IResource->Resource != GL_NONE, false, "resource should be valid");
 
-				int Width, Height;
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
 				glBindTexture(GL_TEXTURE_2D, IResource->Resource);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
@@ -1567,18 +1570,15 @@ namespace Tomahawk
 					F.RowPitch = (Width * 32 + 7) / 8;
 					F.DepthPitch = F.RowPitch * Height;
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					F.Data = (void*)TH_MALLOC(sizeof(char) * F.Width * F.Height);
-
-					glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, F.Data);
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
-					TH_FREE(F.Data);
 				}
-				else if (!GLEW_VERSION_4_3)
+				
+				if (GLEW_VERSION_4_3)
 					OGL_CopyTexture_4_3(GL_TEXTURE_2D, IResource->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
 				else
 					OGL_CopyTexture_3_0(IResource->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
 
-				glBindTexture(GL_TEXTURE_2D, GL_NONE);
+				glBindTexture(GL_TEXTURE_2D, LastTexture);
 				return true;
 			}
 			bool OGLDevice::CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Texture2D** Result)
@@ -1586,6 +1586,8 @@ namespace Tomahawk
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				TH_ASSERT(Result != nullptr, false, "result should be set");
 
+				int LastTexture = GL_NONE;
+				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
 				OGLFrameBuffer* TargetBuffer = (OGLFrameBuffer*)Resource->GetTargetBuffer();
 
 				TH_ASSERT(TargetBuffer != nullptr, false, "target buffer should be set");
@@ -1601,7 +1603,7 @@ namespace Tomahawk
 					glGetIntegerv(GL_VIEWPORT, Viewport);
 					glBindTexture(GL_TEXTURE_2D, ((OGLTexture2D*)(*Result))->Resource);
 					glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, (GLsizei)Viewport[2], (GLsizei)Viewport[3]);
-					glBindTexture(GL_TEXTURE_2D, GL_NONE);
+					glBindTexture(GL_TEXTURE_2D, LastTexture);
 					return true;
 				}
 
@@ -1622,18 +1624,15 @@ namespace Tomahawk
 					F.RowPitch = (Width * 32 + 7) / 8;
 					F.DepthPitch = F.RowPitch * Height;
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					F.Data = (void*)TH_MALLOC(sizeof(char) * F.Width * F.Height);
-
-					glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, F.Data);
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
-					TH_FREE(F.Data);
 				}
-				else if (!GLEW_VERSION_4_3)
+				
+				if (GLEW_VERSION_4_3)
 					OGL_CopyTexture_4_3(GL_TEXTURE_2D, Source->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
 				else
 					OGL_CopyTexture_3_0(Source->Resource, ((OGLTexture2D*)(*Result))->Resource, Width, Height);
 
-				glBindTexture(GL_TEXTURE_2D, GL_NONE);
+				glBindTexture(GL_TEXTURE_2D, LastTexture);
 				return true;
 			}
 			bool OGLDevice::CopyTexture2D(RenderTargetCube* Resource, Compute::CubeFace Face, Texture2D** Result)
@@ -1642,7 +1641,8 @@ namespace Tomahawk
 				TH_ASSERT(Result != nullptr, false, "result should be set");
 
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
-				int Width, Height;
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
@@ -1655,16 +1655,11 @@ namespace Tomahawk
 					F.RowPitch = (Width * 32 + 7) / 8;
 					F.DepthPitch = F.RowPitch * Height;
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					F.Data = (void*)TH_MALLOC(sizeof(char) * F.Width * F.Height);
-
-					glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + (unsigned int)Face, 0, GL_RGBA, GL_UNSIGNED_BYTE, F.Data);
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
-					TH_FREE(F.Data);
 				}
-				else
-					OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[0], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-
-				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+				
+				OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[0], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
 				return true;
 			}
 			bool OGLDevice::CopyTexture2D(MultiRenderTargetCube* Resource, unsigned int Cube, Compute::CubeFace Face, Texture2D** Result)
@@ -1675,7 +1670,9 @@ namespace Tomahawk
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 
 				TH_ASSERT(Cube < (uint32_t)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
-				int Width, Height;
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &Width);
 				glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &Height);
 
@@ -1687,18 +1684,11 @@ namespace Tomahawk
 					F.RowPitch = (Width * 32 + 7) / 8;
 					F.DepthPitch = F.RowPitch * Height;
 					F.MipLevels = GetMipLevel(F.Width, F.Height);
-					F.Data = (void*)TH_MALLOC(sizeof(char) * F.Width * F.Height);
-
-					glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
-					glGetTexImage(GL_TEXTURE_CUBE_MAP_POSITIVE_X + (unsigned int)Face, 0, GL_RGBA, GL_UNSIGNED_BYTE, F.Data);
-
 					*Result = (OGLTexture2D*)CreateTexture2D(F);
-					TH_FREE(F.Data);
 				}
-				else
-					OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[Cube], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
-
-				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+				
+				OGL_CopyTextureFace2D_3_0(Face, IResource->FrameBuffer.Texture[Cube], ((OGLTexture2D*)(*Result))->Resource, Width, Height);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
 				return true;
 			}
 			bool OGLDevice::CopyTextureCube(RenderTargetCube* Resource, TextureCube** Result)
@@ -1707,7 +1697,8 @@ namespace Tomahawk
 				TH_ASSERT(Result != nullptr, false, "result should be set");
 
 				OGLRenderTargetCube* IResource = (OGLRenderTargetCube*)Resource;
-				int Width, Height;
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[0]);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
@@ -1727,7 +1718,7 @@ namespace Tomahawk
 				else
 					OGL_CopyTexture_3_0(IResource->FrameBuffer.Texture[0], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
 
-				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
 				return true;
 			}
 			bool OGLDevice::CopyTextureCube(MultiRenderTargetCube* Resource, unsigned int Cube, TextureCube** Result)
@@ -1738,7 +1729,8 @@ namespace Tomahawk
 				OGLMultiRenderTargetCube* IResource = (OGLMultiRenderTargetCube*)Resource;
 
 				TH_ASSERT(Cube < (uint32_t)IResource->Target, false, "cube index should be less than %i", (int)IResource->Target);
-				int Width, Height;
+				int LastTexture = GL_NONE, Width, Height;
+				glGetIntegerv(GL_TEXTURE_BINDING_CUBE_MAP, &LastTexture);
 				glBindTexture(GL_TEXTURE_CUBE_MAP, IResource->FrameBuffer.Texture[Cube]);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_WIDTH, &Width);
 				glGetTexLevelParameteriv(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_TEXTURE_HEIGHT, &Height);
@@ -1758,7 +1750,7 @@ namespace Tomahawk
 				else
 					OGL_CopyTexture_3_0(IResource->FrameBuffer.Texture[Cube], ((OGLTextureCube*)(*Result))->Resource, Width, Height);
 
-				glBindTexture(GL_TEXTURE_CUBE_MAP, GL_NONE);
+				glBindTexture(GL_TEXTURE_CUBE_MAP, LastTexture);
 				return true;
 			}
 			bool OGLDevice::CopyTarget(Graphics::RenderTarget* From, unsigned int FromTarget, Graphics::RenderTarget* To, unsigned int ToTarget)
@@ -1774,8 +1766,10 @@ namespace Tomahawk
 				TH_ASSERT(Source != GL_NONE, false, "from should be set");
 				TH_ASSERT(Dest != GL_NONE, false, "to should be set");
 
+				int LastTexture = GL_NONE;
 				uint32_t Width = From->GetWidth();
 				uint32_t Height = From->GetHeight();
+				glGetIntegerv(SourceCube ? GL_TEXTURE_BINDING_CUBE_MAP : GL_TEXTURE_BINDING_2D, &LastTexture);
 
 				if (GLEW_VERSION_4_3)
 				{
@@ -1787,6 +1781,7 @@ namespace Tomahawk
 				else
 					OGL_CopyTexture_3_0(Source, Dest, Width, Height);
 
+				glBindTexture(SourceCube ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, LastTexture);
 				return true;
 			}
 			bool OGLDevice::CubemapPush(Cubemap* Resource, TextureCube* Result)

@@ -9,6 +9,7 @@ VOutput Make(VOutput V, float2 Offset, float2 Coord)
 	V.Position.xy += float2(Offset.x * Cos - Offset.y * Sin, Offset.x * Sin + Offset.y * Cos);
 	V.Position = mul(V.Position, ob_World);
 	V.TexCoord = Coord;
+
 	return V;
 }
 
@@ -26,7 +27,6 @@ void gs_main(point VOutput V[1], inout TriangleStream<VOutput> Stream)
 VOutput vs_main(VInput V)
 {
 	Element Base = Elements[V.Position];
-	
 	VOutput Result = (VOutput)0;
 	Result.Position = mul(float4(Base.Position, 1), ob_WorldViewProj);
 	Result.Rotation = Base.Rotation;

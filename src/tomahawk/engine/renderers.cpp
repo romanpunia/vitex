@@ -426,10 +426,7 @@ namespace Tomahawk
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, TH_PS);
-				if (Application::Get()->Activity->IsKeyDown(Graphics::KeyCode::E))
-					Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS);
-				else
-					Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
+				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
 				Viewer& View = Scene->View;
@@ -823,9 +820,8 @@ namespace Tomahawk
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencilOpaque = Device->GetDepthStencilState("less");
-				DepthStencilLimpid = Device->GetDepthStencilState("less-none");
-				BackRasterizer = Device->GetRasterizerState("cull-back");
-				FrontRasterizer = Device->GetRasterizerState("cull-front");
+				DepthStencilAdditive = Device->GetDepthStencilState("less-none");
+				Rasterizer = Device->GetRasterizerState("cull-back");
 				AdditiveBlend = Device->GetBlendState("additive-alpha");
 				OverwriteBlend = Device->GetBlendState("overwrite");
 				Sampler = Device->GetSamplerState("trilinear-x16");
@@ -868,7 +864,7 @@ namespace Tomahawk
 				if ((size_t)Options & (size_t)RenderOpt::Additive)
 				{
 					BaseShader = Shaders.Transparency;
-					Device->SetDepthStencilState(DepthStencilLimpid);
+					Device->SetDepthStencilState(DepthStencilAdditive);
 					Device->SetBlendState(AdditiveBlend);
 				}
 				else
@@ -879,7 +875,7 @@ namespace Tomahawk
 				}
 
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology::Point_List);
-				Device->SetRasterizerState(BackRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(BaseShader, TH_VS | TH_PS);
@@ -928,9 +924,9 @@ namespace Tomahawk
 				Viewer& View = Scene->View;
 
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology::Point_List);
-				Device->SetDepthStencilState(DepthStencilLimpid);
+				Device->SetDepthStencilState(DepthStencilOpaque);
 				Device->SetBlendState(OverwriteBlend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
@@ -939,15 +935,11 @@ namespace Tomahawk
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Emitter* Base = (Engine::Components::Emitter*)*It;
-					if (!Base->GetBuffer())
+					if (!Base->GetBuffer() || !System->PushDepthLinearBuffer(Base->GetMaterial()))
 						continue;
 
-					if (!System->PushDepthLinearBuffer(Base->GetMaterial()))
-						continue;
-
-					Device->Render.World = Base->QuadBased ? View.Projection : Compute::Matrix4x4::Identity();
+					Device->Render.World = View.Projection;
 					Device->Render.WorldViewProj = (Base->QuadBased ? View.View : View.ViewProjection);
-					Device->Render.TexCoord = Base->GetEntity()->GetTransform()->Forward();
 					if (Base->Connected)
 						Device->Render.WorldViewProj = Base->GetEntity()->GetTransform()->GetBias() * Device->Render.WorldViewProj;
 
@@ -979,9 +971,9 @@ namespace Tomahawk
 
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology::Point_List);
-				Device->SetDepthStencilState(DepthStencilLimpid);
+				Device->SetDepthStencilState(DepthStencilOpaque);
 				Device->SetBlendState(OverwriteBlend);
-				Device->SetRasterizerState(FrontRasterizer);
+				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
 				Device->SetVertexBuffer(nullptr, 0);
 				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
@@ -991,14 +983,10 @@ namespace Tomahawk
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Emitter* Base = (Engine::Components::Emitter*)*It;
-					if (!Base->GetBuffer())
-						continue;
-
-					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
+					if (!Base->GetBuffer() || !System->PushDepthCubicBuffer(Base->GetMaterial()))
 						continue;
 
 					Device->Render.World = (Base->Connected ? Base->GetEntity()->GetTransform()->GetBias() : Compute::Matrix4x4::Identity());
-					Device->Render.TexCoord = Base->GetEntity()->GetTransform()->Forward();
 					Device->SetBuffer(Base->GetBuffer(), 8, TH_VS | TH_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Quad : Shaders.Depth.Point, TH_VS | TH_PS | TH_GS);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
@@ -1023,7 +1011,7 @@ namespace Tomahawk
 				Sampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("shape-vertex");
 
-				Shader = System->CompileShader("geometry/decal/geometry", sizeof(RenderPass));
+				Shader = System->CompileShader("geometry/decal/geometry");
 			}
 			Decal::~Decal()
 			{
@@ -1046,23 +1034,21 @@ namespace Tomahawk
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				SceneGraph* Scene = System->GetScene();
 				CullResult Cull = ((size_t)Options & (size_t)RenderOpt::Inner ? CullResult::Always : CullResult::Last);
-				bool Map[8] = { true, true, false, true, false, false, false, false };
 				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
 
-				Graphics::ElementBuffer* Sphere[2];
-				System->GetPrimitives()->GetSphereBuffers(Sphere);
+				Graphics::ElementBuffer* Box[2];
+				System->GetPrimitives()->GetBoxBuffers(Box);
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetTargetMap(MRT, Map);
-				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
+				Device->SetTarget(MRT, 0);
+				Device->SetSamplerState(Sampler, 1, 8, TH_PS);
 				Device->SetShader(Shader, TH_VS | TH_PS);
-				Device->SetBuffer(Shader, 3, TH_VS | TH_PS);
 				Device->SetTexture2D(MRT->GetTarget(2), 8, TH_PS);
-				Device->SetVertexBuffer(Sphere[(size_t)BufferType::Vertex], 0);
-				Device->SetIndexBuffer(Sphere[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
+				Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
+				Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
@@ -1073,13 +1059,11 @@ namespace Tomahawk
 					if (!System->PushGeometryBuffer(Base->GetMaterial()))
 						continue;
 
-					RenderPass.ViewProjection = Base->View * Base->Projection;
-					Device->Render.World = Compute::Matrix4x4::CreateScale(Base->GetRange()) * Compute::Matrix4x4::CreateTranslation(Base->GetEntity()->GetTransform()->GetPosition());
-					Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
+					Device->Render.WorldViewProj = Base->GetEntity()->GetTransform()->GetBias() * Scene->View.ViewProjection;
+					Device->Render.World = Device->Render.WorldViewProj.Inv();
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-					Device->UpdateBuffer(Shader, &RenderPass);
-					Device->DrawIndexed((unsigned int)Sphere[(size_t)BufferType::Index]->GetElements(), 0, 0);
+					Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 				}
 
 				Device->SetTexture2D(nullptr, 8, TH_PS);

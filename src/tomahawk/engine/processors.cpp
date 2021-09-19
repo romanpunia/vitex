@@ -341,7 +341,7 @@ namespace Tomahawk
 					std::string Path;
 					AssetCache* Asset = Content->Find<Engine::Material>(Material);
 					if (!Asset)
-						Path.assign("./materials/" + Compute::Common::MD5Hash(Material->GetName() + "_" + Compute::Common::HexEncode(Compute::Common::RandomBytes(16))));
+						Path.assign("./materials/" + Material->GetName() + "_" + Compute::Common::HexEncode(Compute::Common::RandomBytes(6)));
 					else
 						Path.assign(Asset->Path);
 
@@ -698,8 +698,8 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Common::VertexRhToLh(F.Elements, F.Indices);
-					
+					Compute::Common::TexCoordRhToLh(F.Elements);
+
 					Device->Lock();
 					Object->Meshes.push_back(Device->CreateMeshBuffer(F));
 					Device->Unlock();
@@ -707,7 +707,6 @@ namespace Tomahawk
 					auto* Sub = Object->Meshes.back();
 					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
 					NMake::Unpack(Mesh->Find("world"), &Sub->World);
-					Compute::Common::MatrixRhToLh(&Sub->World);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -1012,7 +1011,7 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Common::VertexRhToLh(F.Elements, F.Indices);
+					Compute::Common::TexCoordRhToLh(F.Elements);
 
 					Device->Lock();
 					Object->Meshes.push_back(Device->CreateSkinMeshBuffer(F));
@@ -1021,7 +1020,6 @@ namespace Tomahawk
 					auto* Sub = Object->Meshes.back();
 					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
 					NMake::Unpack(Mesh->Find("world"), &Sub->World);
-					Compute::Common::MatrixRhToLh(&Sub->World);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);

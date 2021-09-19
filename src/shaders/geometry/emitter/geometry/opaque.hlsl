@@ -10,6 +10,7 @@ VOutputOpaque Make(VOutputOpaque V, float2 Offset, float2 Coord)
 	V.Position = mul(V.Position, ob_World);
 	V.TexCoord = Coord;
 	V.UV = V.Position;
+	
 	return V;
 }
 
@@ -27,7 +28,6 @@ void gs_main(point VOutputOpaque V[1], inout TriangleStream<VOutputOpaque> Strea
 VOutputOpaque vs_main(VInput V)
 {
 	Element Base = Elements[V.Position];
-	
 	VOutputOpaque Result = (VOutputOpaque)0;
 	Result.Position = mul(float4(Base.Position, 1), ob_WorldViewProj);
 	Result.Rotation = Base.Rotation;

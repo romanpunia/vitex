@@ -40,7 +40,7 @@ float GetLightness(float3 D, float L)
 	float Result = 0.0;
 	[loop] for (float j = 0; j < Iterations; j++)
 	{
-		float3 Offset = SampleDisk[j % 64] * (64.0 / max(64.0, j)) / Softness;
+		float3 Offset = SampleDisk[j % 64] * (j / 64.0) / Softness;
 		Result += DepthMapLess.SampleCmpLevelZero(DepthLessSampler, D + Offset, L);
 	}
 

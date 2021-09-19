@@ -207,18 +207,13 @@ namespace Tomahawk
 			class TH_OUT Decal final : public Drawable
 			{
 			public:
-				Compute::Matrix4x4 Projection;
-				Compute::Matrix4x4 View;
 				Compute::Vector2 TexCoord = 1.0f;
-				float FieldOfView = 90.0f;
-				float Distance = 15.0f;
 
 			public:
 				Decal(Entity* Ref);
 				virtual ~Decal() = default;
 				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Synchronize(Core::Timer * Time) override;
 				virtual void Activate(Component * New) override;
 				virtual void Deactivate() override;
 				virtual float Cull(const Viewer & View) override;
@@ -255,6 +250,8 @@ namespace Tomahawk
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
+				bool IsExists(int64_t Clip);
+				bool IsExists(int64_t Clip, int64_t Frame);
 				Compute::SkinAnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
 				std::vector<Compute::SkinAnimatorKey>* GetClip(int64_t Clip);
 				Skin* GetSkin() const;
@@ -291,6 +288,8 @@ namespace Tomahawk
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
 				void Pause();
 				void Stop();
+				bool IsExists(int64_t Clip);
+				bool IsExists(int64_t Clip, int64_t Frame);
 				Compute::AnimatorKey* GetFrame(int64_t Clip, int64_t Frame);
 				std::vector<Compute::AnimatorKey>* GetClip(int64_t Clip);
 				std::string GetPath();

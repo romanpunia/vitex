@@ -4,11 +4,11 @@
 
 cbuffer RenderConstant : register(b3)
 {
+	float3 Padding;
+	float Power;
 	float2 Texel;
 	float Samples;
 	float Blur;
-	float3 Padding;
-	float Power;
 }
 
 Texture2D Image : register(t5);

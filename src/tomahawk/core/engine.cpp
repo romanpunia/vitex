@@ -4725,7 +4725,7 @@ namespace Tomahawk
 				Packet* Task = (It == Tasks.end() ? TH_NEW(Packet) : It->second);
 				Task->Time = (Task->Time ? Task->Time : new Core::Timer());
 				Task->Time->SetStepLimitation(Conf.MinFrames, Conf.MaxFrames);
-				Task->Time->FrameLimit = Conf.FrequencyHZ;
+				Task->Time->FrameLimit = (Core::Schedule::Get()->IsBlockable() ? Conf.FrequencyHZ : 0.0);
 				Task->Active = false;
 
 				if (It == Tasks.end())

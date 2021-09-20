@@ -869,6 +869,7 @@ namespace Tomahawk
 				static bool Move(const char* From, const char* To);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
+				static int Compare(const std::string& FirstPath, const std::string& SecondPath);
 				static uint64_t GetCheckSum(const std::string& Data);
 				static FileState GetState(const char* Path);
 				static Stream* Open(const std::string& Path, FileMode Mode);

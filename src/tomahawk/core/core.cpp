@@ -6222,6 +6222,56 @@ namespace Tomahawk
 			struct stat Buffer;
 			TH_PRET(stat(Path::Resolve(Path).c_str(), &Buffer) == 0);
 		}
+		int OS::File::Compare(const std::string& FirstPath, const std::string& SecondPath)
+		{
+			TH_ASSERT(!FirstPath.empty(), -1, "first path should not be empty");
+			TH_ASSERT(!SecondPath.empty(), 1, "second path should not be empty");
+
+			uint64_t Size1 = GetState(FirstPath.c_str()).Size;
+			uint64_t Size2 = GetState(SecondPath.c_str()).Size;
+
+			if (Size1 > Size2)
+				return 1;
+			else if (Size1 < Size2)
+				return -1;
+
+			FILE* First = (FILE*)Open(FirstPath.c_str(), "rb");
+			if (!First)
+				return -1;
+
+			FILE* Second = (FILE*)Open(SecondPath.c_str(), "rb");
+			if (!Second)
+			{
+				TH_CLOSE(First);
+				return -1;
+			}
+
+			const size_t Size = 4096;
+			char Buffer1[Size];
+			char Buffer2[Size];
+			int Diff = 0;
+
+			do
+			{
+				size_t S1 = fread(Buffer1, sizeof(char), Size, First);
+				size_t S2 = fread(Buffer2, sizeof(char), Size, Second);
+				if (S1 == S2)
+				{
+					if (S1 == 0)
+						break;
+
+					Diff = memcmp(Buffer1, Buffer2, S1);
+				}
+				else if (S1 > S2)
+					Diff = 1;
+				else if (S1 < S2)
+					Diff = -1;
+			} while (Diff == 0);
+
+			TH_CLOSE(First);
+			TH_CLOSE(Second);
+			return Diff;
+		}
 		uint64_t OS::File::GetCheckSum(const std::string& Data)
 		{
 			return Compute::Common::CRC32(Data);

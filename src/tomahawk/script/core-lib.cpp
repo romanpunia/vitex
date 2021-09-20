@@ -434,6 +434,10 @@ namespace Tomahawk
 
 			return Map;
 		}
+		uint64_t DocumentGetSize(Core::Document* Base)
+		{
+			return (uint64_t)Base->Size();
+		}
 		std::string DocumentToJSON(Core::Document* Base)
 		{
 			std::string Stream;
@@ -1182,6 +1186,7 @@ namespace Tomahawk
 			Register.SetFunction("bool Move(Address@, Address@)", &Core::OS::File::Move);
 			Register.SetFunction("bool Remove(Address@)", &Core::OS::File::Remove);
 			Register.SetFunction("bool IsExists(Address@)", &Core::OS::File::IsExists);
+			Register.SetFunction("int Compare(const String &in, const String &in)", &Core::OS::File::Compare);
 			Register.SetFunction("uint64 GetCheckSum(const String &in)", &Core::OS::File::GetCheckSum);
 			Register.SetFunction("FileState GetState(Address@)", &Core::OS::File::GetState);
 			Register.SetFunction("String ReadAsString(Address@)", &Core::OS::File::ReadAsString);
@@ -1420,7 +1425,6 @@ namespace Tomahawk
 			VDocument.SetMethod("bool IsEmpty() const", &Core::Document::IsEmpty);
 			VDocument.SetMethod("bool IsAttribute() const", &Core::Document::IsAttribute);
 			VDocument.SetMethod("bool IsSaved() const", &Core::Document::IsAttribute);
-			VDocument.SetMethod("uint64 Size() const", &Core::Document::Size);
 			VDocument.SetMethod("String GetName() const", &Core::Document::GetName);
 			VDocument.SetMethod("void Join(Document@+)", &Core::Document::Join);
 			VDocument.SetMethod("void Clear()", &Core::Document::Clear);
@@ -1431,6 +1435,7 @@ namespace Tomahawk
 			VDocument.SetMethodEx("Array<Document@>@ GetAttributes() const", &DocumentGetAttributes);
 			VDocument.SetMethodEx("Array<Document@>@ GetChilds() const", &DocumentGetChilds);
 			VDocument.SetMethodEx("Map@ GetNames() const", &DocumentGetNames);
+			VDocument.SetMethodEx("uint64 Size() const", &DocumentGetSize);
 			VDocument.SetMethodEx("String JSON() const", &DocumentToJSON);
 			VDocument.SetMethodEx("String XML() const", &DocumentToXML);
 			VDocument.SetMethodEx("String Str() const", &DocumentToString);

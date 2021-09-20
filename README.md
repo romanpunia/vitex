@@ -15,14 +15,13 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Separate any-value serializator
 + Key-value storage documents
 + XML/JSON serialization (plus custom JSONB format)
-+ Switchable logging system
-+ Adaptable dependency system
++ Adjustable logging system
++ Dynamic libraries importer
 + Ref. counting (opt. with new/delete) for ownership management
 + Coroutines via native fibers
 + Async/await promise-like object to handle chains of async data
 + Coasync/Coawait primitives to handle async functions like in JS
 + BigNumber for accuracy sensitive operations of any precision
-+ Modular dependencies, can be disabled if not needed
 #### Math
 + Vertices
 + Vectors
@@ -34,7 +33,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Soft body physics
 + Constraint physics
 + Physics simulator
-+ Regular expressions (custom, 4x faster than STL regex)
++ Regular expressions (custom, lightweight)
 + Cryptography and hashes (MD5, SHA1, AES256 and 166 more)
 + Encoding (HYBI10, Base64, Base64URL, URI)
 + Templated math utils
@@ -42,7 +41,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Strong random functions
 + Collision detection
 + Mesh evaluation
-+ File preprocessor (include, pragma, define, ifdef/else/endif)
++ File preprocessor (include, pragma, define, ifdef/ifndef/else/endif)
 + Transform hierarchy system
 + SIMD optimisations included
 #### Audio
@@ -53,7 +52,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Lowpass filter
 + Bandpass filter
 + Highpass filter
-+ Effects system is available
 + Reverb effect
 + Chorus effect
 + Distortion effect
@@ -68,7 +66,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Compressor
 #### Network
 + Socket abstraction
-+ Async/sync sockets with IO queue
 + SSL/TLS support
 + Socket server and connection abstraction
 + Configurable server router
@@ -78,9 +75,11 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + MongoDB support for database manipulations
 + PostgreSQL support for database manipulations
 + File transfer compression
++ Connection session support
++ Server router
++ Async/sync sockets with IO queue
 + Async/sync HTTP 1.1 server/client support
 + Async/sync WebSocket server/client support (RFC 6455, 13)
-+ Connection session support
 + Async/sync SMTP client support
 + Polling mechanisms: select, poll, epoll, kqueue, iocp
 #### Scripting
@@ -88,7 +87,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Template abstraction over virtual machine
 + Support for real threads
 + Compiler with preprocessor from Compute module
-+ Built-in switchable default interfaces
 + Async functions are managed outside script context (looks and feels fully synchronous)
 + JIT compiler support for non-ARM platforms
 + Module system to add bindings as include files
@@ -99,7 +97,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Standard library
 + Tomahawk bindings (WIP)
 #### Graphics
-+ Configurable windowing (activity) system
++ Window (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
 + Render backend abstraction over DirectX 11 and OpenGL 4.5
 + HLSL is a primary shading language
@@ -110,9 +108,8 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Standard library for shaders
 + Default and skinned meshes
 + Element instancing for big particle systems
-+ Renderer without shaders
 + Shader preprocessor from Compute module
-+ Switchable render backend
++ Immediate renderer (OpenGL legacy like, to draw tools)
 #### GUI
 + Serializable GUI system
 + CSS paradigm-based styling system with overriding support
@@ -123,7 +120,6 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Layouting system
 + Font system
 + Dynamic trees (and recursive)
-+ Based on RmlUi
 #### Engine
 + Thread-safe scene graph
 + Async/sync content management with processors
@@ -131,10 +127,10 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Component system
 + Render system to handle any type of visualisation per camera
 + Data serialization
-+ Built-in processors for many types of data
-+ Built-in components for different simulations
-+ Built-in renderers for different visualisations
-+ Built-in shader code for every renderer
++ Built-in processors (file loader/saver)
++ Built-in components (entity behaviours)
++ Built-in renderers (behaviour visualisations)
++ Built-in shaders (for renderers)
 #### Built-in renderers
 + Skinned, default and soft-body models
 + Particle systems
@@ -143,16 +139,16 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + PBR surfaces (aka env. mapping, incremental recursive reflections included)
 + PBR global illumination volumes (radiance, reflections and ambient occlusion)
 + Bloom for emissive materials
++ Motion blur
 + Screen-space reflections
 + Screen-space ambient occlusion
-+ Screen-space GI (simplified)
 + Depth of field
 + Tone mapping
 + Glitch effect
 + UI rendering
 #### Built-in components
 + Rigid body
-+ Acceleration (force applier for rigid bodies)
++ Acceleration (force application for rigid bodies)
 + Slider constraint (constraints for rigid bodies)
 + Audio source
 + Audio listener
@@ -171,6 +167,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Camera (with rendering system that holds renderers)
 #### Built-in processors
 + Scene graph processor
++ Material processor
 + Audio clip processor (WAVE, OGG)
 + Texture 2d processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
 + Shader processor (render backend dependent, code preprocessor included)

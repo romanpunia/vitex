@@ -3547,10 +3547,6 @@ namespace Tomahawk
 					Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, W / H, NearPlane, FarPlane);
 				else if (Mode == ProjectionMode_Orthographic)
 					Projection = Compute::Matrix4x4::CreateOrthographic(W, H, NearPlane, FarPlane);
-
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene->GetCamera() == this)
-					Renderer->Synchronize(Time);
 			}
 			void Camera::GetViewer(Viewer* Output)
 			{

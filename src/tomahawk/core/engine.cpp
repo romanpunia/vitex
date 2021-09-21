@@ -1959,13 +1959,26 @@ namespace Tomahawk
 			auto Components = Scene->GetComponents(GetId());
 			if (Active)
 			{
-				Components->AddIfNotExists(this);
-				if (Set & (size_t)ActorSet::Update)
-					Scene->Actors[(size_t)ActorType::Update].AddIfNotExists(this);
-				if (Set & (size_t)ActorSet::Synchronize)
-					Scene->Actors[(size_t)ActorType::Synchronize].AddIfNotExists(this);
-				if (Set & (size_t)ActorSet::Message)
-					Scene->Actors[(size_t)ActorType::Message].AddIfNotExists(this);
+				if (Parent->IsActive())
+				{
+					Components->AddIfNotExists(this);
+					if (Set & (size_t)ActorSet::Update)
+						Scene->Actors[(size_t)ActorType::Update].AddIfNotExists(this);
+					if (Set & (size_t)ActorSet::Synchronize)
+						Scene->Actors[(size_t)ActorType::Synchronize].AddIfNotExists(this);
+					if (Set & (size_t)ActorSet::Message)
+						Scene->Actors[(size_t)ActorType::Message].AddIfNotExists(this);
+				}
+				else
+				{
+					Components->Add(this);
+					if (Set & (size_t)ActorSet::Update)
+						Scene->Actors[(size_t)ActorType::Update].Add(this);
+					if (Set & (size_t)ActorSet::Synchronize)
+						Scene->Actors[(size_t)ActorType::Synchronize].Add(this);
+					if (Set & (size_t)ActorSet::Message)
+						Scene->Actors[(size_t)ActorType::Message].Add(this);
+				}
 			}
 			else
 			{
@@ -2118,7 +2131,7 @@ namespace Tomahawk
 			return Materials;
 		}
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Transform(new Compute::Transform), Tag(-1), Distance(0)
+		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Transform(new Compute::Transform), Active(false), Dirty(true), Tag(-1), Distance(0)
 		{
 			Transform->UserPointer = this;
 			TH_ASSERT_V(Ref != nullptr, "scene should be set");
@@ -2270,6 +2283,10 @@ namespace Tomahawk
 			Dirty = false;
 
 			return Result;
+		}
+		bool Entity::IsActive() const
+		{
+			return Active;
 		}
 
 		Renderer::Renderer(RenderSystem* Lab) : System(Lab), Active(true)
@@ -3209,8 +3226,11 @@ namespace Tomahawk
 			}
 			TH_PPOP();
 		}
-		void RenderSystem::Synchronize(Core::Timer* Time)
+		void RenderSystem::Synchronize(Core::Timer* Time, double Begin, double End, bool WasDirty)
 		{
+			TH_ASSERT_V(Begin >= 0.0 && Begin <= End, "invalid begin range");
+			TH_ASSERT_V(End >= 0.0 && End >= Begin && End <= 1.0, "invalid end range");
+
 			if (!FrustumCulling)
 				return;
 
@@ -3218,10 +3238,16 @@ namespace Tomahawk
 			for (auto& Base : Cull)
 			{
 				auto* Array = Scene->GetComponents(Base);
-				for (auto It = Array->Begin(); It != Array->End(); ++It)
+				double Size = (double)Array->Size();
+				uint64_t IdxBegin = (uint64_t)std::min(Size, std::ceil(Size * Begin));
+				uint64_t IdxEnd = (uint64_t)std::min(Size, std::ceil(Size * (1.0 - End)));
+				auto* First = Array->Begin() + IdxBegin;
+				auto* Last = Array->End() - IdxEnd;
+				for (auto It = First; It != Last; ++It)
 				{
 					Cullable* Data = (Cullable*)*It;
-					Data->Visibility = Data->Cull(View);
+					if (WasDirty || Data->GetEntity()->GetTransform()->IsDirty())
+						Data->Visibility = Data->Cull(View);
 				}
 			}
 			TH_PPOP();
@@ -3940,6 +3966,8 @@ namespace Tomahawk
 			ExpandMaterials();
 			SetParallel("simulate", std::bind(&SceneGraph::Simulate, this, std::placeholders::_1));
 			SetParallel("synchronize", std::bind(&SceneGraph::Synchronize, this, std::placeholders::_1));
+			for (uint32_t i = 0; i < I.CullingChunks; i++)
+				SetParallel("cull-" + std::to_string(i), std::bind(&SceneGraph::Cullout, this, std::placeholders::_1, i));
 			Status = 0;
 		}
 		SceneGraph::~SceneGraph()
@@ -4037,8 +4065,11 @@ namespace Tomahawk
 		}
 		void SceneGraph::ExclusiveLock()
 		{
-			if (Status != 1 || !Conf.Async)
+			if (!Conf.Async)
 				return;
+
+			if (Status != 1)
+				return Emulation.lock();
 
 			TH_ASSERT_V(Status == 0 || ThreadId == std::this_thread::get_id(), "exclusive lock should be called in same thread with dispatch");
 			TH_ASSERT_V(!Acquire, "exclusive lock should not be acquired");
@@ -4052,8 +4083,11 @@ namespace Tomahawk
 		}
 		void SceneGraph::ExclusiveUnlock()
 		{
-			if (Status != 1 || !Conf.Async)
+			if (!Conf.Async)
 				return;
+
+			if (Status != 1)
+				return Emulation.unlock();
 
 			TH_ASSERT_V(Status == 0 || ThreadId == std::this_thread::get_id(), "exclusive unlock should be called in same thread with dispatch");
 			TH_ASSERT_V(Acquire, "exclusive lock should be acquired");
@@ -4335,6 +4369,21 @@ namespace Tomahawk
 			}
 			TH_PPOP();
 		}
+		void SceneGraph::Cullout(Core::Timer* Time, uint32_t Chunk)
+		{
+			TH_PPUSH("scene-cull", TH_PERF_CORE);
+			auto* Base = (Components::Camera*)Camera.load();
+			if (Base != nullptr)
+			{
+				auto* Renderer = Base->GetRenderer();
+				if (Renderer != nullptr)
+				{
+					double Where = (double)Chunk, Count = (double)Conf.CullingChunks;
+					Renderer->Synchronize(Time, Where / Count, (Where + 1.0) / Count, Base->Parent->GetTransform()->IsDirty());
+				}
+			}
+			TH_PPOP();
+		}
 		void SceneGraph::SortBackToFront(Core::Pool<Drawable*>* Array)
 		{
 			TH_ASSERT_V(Array != nullptr, "array should be set");
@@ -4419,13 +4468,26 @@ namespace Tomahawk
 				auto* Storage = GetComponents(Component.second->GetId());
 				if (Component.second->Active)
 				{
-					Storage->AddIfNotExists(Component.second);
-					if (Component.second->Set & (size_t)ActorSet::Update)
-						Actors[(size_t)ActorType::Update].AddIfNotExists(Component.second);
-					if (Component.second->Set & (size_t)ActorSet::Synchronize)
-						Actors[(size_t)ActorType::Synchronize].AddIfNotExists(Component.second);
-					if (Component.second->Set & (size_t)ActorSet::Message)
-						Actors[(size_t)ActorType::Message].AddIfNotExists(Component.second);
+					if (In->Active)
+					{
+						Storage->AddIfNotExists(Component.second);
+						if (Component.second->Set & (size_t)ActorSet::Update)
+							Actors[(size_t)ActorType::Update].AddIfNotExists(Component.second);
+						if (Component.second->Set & (size_t)ActorSet::Synchronize)
+							Actors[(size_t)ActorType::Synchronize].AddIfNotExists(Component.second);
+						if (Component.second->Set & (size_t)ActorSet::Message)
+							Actors[(size_t)ActorType::Message].AddIfNotExists(Component.second);
+					}
+					else
+					{
+						Storage->Add(Component.second);
+						if (Component.second->Set & (size_t)ActorSet::Update)
+							Actors[(size_t)ActorType::Update].Add(Component.second);
+						if (Component.second->Set & (size_t)ActorSet::Synchronize)
+							Actors[(size_t)ActorType::Synchronize].Add(Component.second);
+						if (Component.second->Set & (size_t)ActorSet::Message)
+							Actors[(size_t)ActorType::Message].Add(Component.second);
+					}
 					Mutate(Component.second, "push");
 				}
 				else
@@ -4441,6 +4503,7 @@ namespace Tomahawk
 				}
 			}
 
+			In->Active = true;
 			Mutate(In, "push");
 		}
 		bool SceneGraph::UnregisterEntity(Entity* In)
@@ -4466,6 +4529,7 @@ namespace Tomahawk
 				Mutate(Component.second, "pop");
 			}
 
+			In->Active = false;
 			Entities.Remove(In);
 			Mutate(In, "pop");
 			return true;
@@ -4845,6 +4909,8 @@ namespace Tomahawk
 			TH_ASSERT_V(Parent != nullptr, "parent should be set");
 			TH_ASSERT_V(Child != nullptr, "child should be set");
 			TH_ASSERT_V(Type != nullptr, "type should be set");
+			if (!Conf.Mutations)
+				return;
 
 			Core::VariantArgs Args;
 			Args["parent"] = Core::Var::Pointer((void*)Parent);
@@ -4857,6 +4923,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Target != nullptr, "target should be set");
 			TH_ASSERT_V(Type != nullptr, "type should be set");
+			if (!Conf.Mutations)
+				return;
 
 			Core::VariantArgs Args;
 			Args["entity"] = Core::Var::Pointer((void*)Target);
@@ -4868,6 +4936,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Target != nullptr, "target should be set");
 			TH_ASSERT_V(Type != nullptr, "type should be set");
+			if (!Conf.Mutations)
+				return;
 
 			Core::VariantArgs Args;
 			Args["component"] = Core::Var::Pointer((void*)Target);
@@ -4879,6 +4949,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Target != nullptr, "target should be set");
 			TH_ASSERT_V(Type != nullptr, "type should be set");
+			if (!Conf.Mutations)
+				return;
 
 			Core::VariantArgs Args;
 			Args["material"] = Core::Var::Pointer((void*)Target);
@@ -4975,16 +5047,31 @@ namespace Tomahawk
 		void SceneGraph::AddDrawable(Drawable* Source, GeoCategory Category)
 		{
 			TH_ASSERT_V(Source != nullptr, "drawable should be set");
-			if (Category == GeoCategory::Opaque)
-				GetOpaque(Source->Source)->Add(Source);
-			else if (Category == GeoCategory::Transparent)
-				GetTransparent(Source->Source)->Add(Source);
-			else if (Category == GeoCategory::Additive)
-				GetAdditive(Source->Source)->Add(Source);
+			if (Source->Parent->Active)
+			{
+				if (Category == GeoCategory::Opaque)
+					GetOpaque(Source->Source)->AddIfNotExists(Source);
+				else if (Category == GeoCategory::Transparent)
+					GetTransparent(Source->Source)->AddIfNotExists(Source);
+				else if (Category == GeoCategory::Additive)
+					GetAdditive(Source->Source)->AddIfNotExists(Source);
+			}
+			else
+			{
+				if (Category == GeoCategory::Opaque)
+					GetOpaque(Source->Source)->Add(Source);
+				else if (Category == GeoCategory::Transparent)
+					GetTransparent(Source->Source)->Add(Source);
+				else if (Category == GeoCategory::Additive)
+					GetAdditive(Source->Source)->Add(Source);
+			}
 		}
 		void SceneGraph::RemoveDrawable(Drawable* Source, GeoCategory Category)
 		{
 			TH_ASSERT_V(Source != nullptr, "drawable should be set");
+			if (!Source->Parent->Active)
+				return;
+
 			if (Category == GeoCategory::Opaque)
 				GetOpaque(Source->Source)->Remove(Source);
 			else if (Category == GeoCategory::Transparent)

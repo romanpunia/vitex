@@ -490,6 +490,7 @@ namespace Tomahawk
 		private:
 			Compute::Transform* Transform;
 			std::string Name;
+			bool Active;
 			bool Dirty;
 
 		public:
@@ -513,6 +514,7 @@ namespace Tomahawk
 			const std::string& GetName() const;
 			size_t GetChildsCount() const;
 			bool IsDirty(bool Reset = false);
+			bool IsActive() const;
 
 		public:
 			std::unordered_map<uint64_t, Component*>::iterator begin()
@@ -675,7 +677,7 @@ namespace Tomahawk
 			void Unmount();
 			void ClearCull();
 			void CullGeometry(Core::Timer* Time);
-			void Synchronize(Core::Timer* Time);
+			void Synchronize(Core::Timer* Time, double Begin, double End, bool WasDirty);
 			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void RestoreOutput();
@@ -896,12 +898,14 @@ namespace Tomahawk
 				uint64_t MaterialCount = 1ll << 14;
 				uint64_t EntityCount = 1ll << 15;
 				uint64_t ComponentCount = 1ll << 16;
+				uint32_t CullingChunks = 1;
 				double MaxFrames = 60.0;
 				double MinFrames = 10.0;
 				double FrequencyHZ = 480.0;
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
 				bool Async = true;
+				bool Mutations = true;
 
 				static Desc Get(Application* Base);
 			};
@@ -958,6 +962,7 @@ namespace Tomahawk
 			std::atomic<bool> Acquire;
 			std::atomic<bool> Active;
 			std::atomic<bool> Resolve;
+			std::mutex Emulation;
 			std::mutex Race;
 			Desc Conf;
 
@@ -1062,6 +1067,7 @@ namespace Tomahawk
 		private:
 			void Simulate(Core::Timer* Time);
 			void Synchronize(Core::Timer* Time);
+			void Cullout(Core::Timer* Time, uint32_t Chunk);
 
 		protected:
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);

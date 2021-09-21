@@ -490,6 +490,7 @@ namespace Tomahawk
 		private:
 			Compute::Transform* Transform;
 			std::string Name;
+			bool Dirty;
 
 		public:
 			int64_t Tag;
@@ -511,6 +512,7 @@ namespace Tomahawk
 			Compute::Transform* GetTransform() const;
 			const std::string& GetName() const;
 			size_t GetChildsCount() const;
+			bool IsDirty(bool Reset = false);
 
 		public:
 			std::unordered_map<uint64_t, Component*>::iterator begin()
@@ -649,12 +651,14 @@ namespace Tomahawk
 			bool OcclusionCulling;
 			bool FrustumCulling;
 			bool Satisfied;
+			bool Dirty;
 
 		public:
 			Core::Ticker Occlusion;
 			Core::Ticker Sorting;
 			size_t StallFrames;
 			bool PreciseCulling;
+			Viewer View;
 
 		public:
 			RenderSystem(SceneGraph* NewScene);
@@ -662,13 +666,16 @@ namespace Tomahawk
 			void SetOcclusionCulling(bool Enabled, bool KeepResults = false);
 			void SetFrustumCulling(bool Enabled, bool KeepResults = false);
 			void SetDepthSize(size_t Size);
+			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
+			void RestoreViewBuffer(Viewer* View);
 			void Remount(Renderer* Target);
+			void Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
 			void Remount();
 			void Mount();
 			void Unmount();
 			void ClearCull();
-			void CullGeometry(Core::Timer* Time, const Viewer& View);
-			void Synchronize(Core::Timer* Time, const Viewer& View);
+			void CullGeometry(Core::Timer* Time);
+			void Synchronize(Core::Timer* Time);
 			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void RestoreOutput();
@@ -683,6 +690,7 @@ namespace Tomahawk
 			bool PushDepthCubicBuffer(Material* Next);
 			bool PassCullable(Cullable* Base, CullResult Mode, float* Result);
 			bool PassDrawable(Drawable* Base, CullResult Mode, float* Result);
+			bool PassOcclusion(Drawable* Base);
 			bool HasOcclusionCulling();
 			bool HasFrustumCulling();
 			int64_t GetOffset(uint64_t Id);
@@ -871,6 +879,7 @@ namespace Tomahawk
 
 		class TH_OUT SceneGraph : public Core::Object
 		{
+			friend RenderSystem;
 			friend Renderer;
 			friend Component;
 			friend Entity;
@@ -954,7 +963,6 @@ namespace Tomahawk
 
 		public:
 			IdxSnapshot* Snapshot;
-			Viewer View;
 
 		public:
 			SceneGraph(const Desc& I);
@@ -972,18 +980,15 @@ namespace Tomahawk
 			void Conform();
 			bool Dispatch(Core::Timer* Time);
 			void Publish(Core::Timer* Time);
-			void Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
 			void RemoveMaterial(Material* Value);
 			void RemoveEntity(Entity* Entity, bool Release);
 			void SetCamera(Entity* Camera);
-			void RestoreViewBuffer(Viewer* View);
 			void SortBackToFront(Core::Pool<Drawable*>* Array);
 			void SortFrontToBack(Core::Pool<Drawable*>* Array);
 			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback);
 			void ScriptHook(const std::string& Name = "Main");
 			void SetActive(bool Enabled);
 			void SetTiming(double Min, double Max);
-			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
 			void SetVoxelBufferSize(size_t Size);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
@@ -1026,7 +1031,7 @@ namespace Tomahawk
 			std::vector<Entity*> FindNamedEntities(const std::string& Name);
 			std::vector<Entity*> FindEntitiesAt(const Compute::Vector3& Position, float Radius);
 			std::vector<Entity*> FindTaggedEntities(uint64_t Tag);
-			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection);
+			bool IsEntityVisible(Entity* Entity, RenderSystem* Renderer);
 			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPos, float DrawDistance);
 			bool AddEntity(Entity* Entity);
 			bool IsActive();

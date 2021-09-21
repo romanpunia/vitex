@@ -2261,6 +2261,16 @@ namespace Tomahawk
 		{
 			return Transform->GetChildsCount();
 		}
+		bool Entity::IsDirty(bool Reset)
+		{
+			if (!Reset)
+				return Dirty;
+
+			bool Result = Dirty;
+			Dirty = false;
+
+			return Result;
+		}
 
 		Renderer::Renderer(RenderSystem* Lab) : System(Lab), Active(true)
 		{
@@ -3074,7 +3084,7 @@ namespace Tomahawk
 			Occlusion.Delay = 5;
 			Sorting.Delay = 5;
 			StallFrames = 1;
-			DepthSize = 256;
+			DepthSize = 128;
 			Satisfied = true;
 
 			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
@@ -3124,6 +3134,46 @@ namespace Tomahawk
 			TH_RELEASE(Target);
 			Target = Device->CreateDepthTarget2D(I);
 		}
+		void RenderSystem::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far, bool Upload)
+		{
+			View.Set(_View, _Projection, _Position, _Near, _Far);
+			if (Upload)
+				RestoreViewBuffer(&View);
+		}
+		void RenderSystem::RestoreViewBuffer(Viewer* Buffer)
+		{
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+			if (&View != Buffer)
+			{
+				if (Buffer == nullptr)
+				{
+					auto* Viewer = (Components::Camera*)Scene->Camera.load();
+					if (Viewer != nullptr)
+						Viewer->GetViewer(&View);
+				}
+				else
+					View = *Buffer;
+			}
+
+			Device->View.InvViewProj = View.InvViewProjection;
+			Device->View.ViewProj = View.ViewProjection;
+			Device->View.Proj = View.Projection;
+			Device->View.View = View.View;
+			Device->View.Position = View.Position;
+			Device->View.Direction = View.Rotation.dDirection();
+			Device->View.Far = View.FarPlane;
+			Device->View.Near = View.NearPlane;
+			Device->UpdateBuffer(Graphics::RenderBufferType::View);
+		}
+		void RenderSystem::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
+		{
+			TH_ASSERT_V(Time != nullptr, "timer should be set");
+			for (auto& Next : Renderers)
+			{
+				if (Next->Active)
+					Next->Render(Time, Stage, Options);
+			}
+		}
 		void RenderSystem::Remount(Renderer* fTarget)
 		{
 			TH_ASSERT_V(fTarget != nullptr, "renderer should be set");
@@ -3159,7 +3209,7 @@ namespace Tomahawk
 			}
 			TH_PPOP();
 		}
-		void RenderSystem::Synchronize(Core::Timer* Time, const Viewer& View)
+		void RenderSystem::Synchronize(Core::Timer* Time)
 		{
 			if (!FrustumCulling)
 				return;
@@ -3176,7 +3226,7 @@ namespace Tomahawk
 			}
 			TH_PPOP();
 		}
-		void RenderSystem::CullGeometry(Core::Timer* Time, const Viewer& View)
+		void RenderSystem::CullGeometry(Core::Timer* Time)
 		{
 			if (!OcclusionCulling || !Target)
 				return;
@@ -3191,6 +3241,7 @@ namespace Tomahawk
 			if (!Occlusion.TickEvent(ElapsedTime))
 				return;
 
+			Dirty = Scene->GetCamera()->GetEntity()->IsDirty(true);
 			Device->SetDepthStencilState(DepthStencil);
 			Device->SetBlendState(Blend);
 			Device->SetTarget(Target);
@@ -3357,7 +3408,7 @@ namespace Tomahawk
 			if (Mode == CullResult::Last)
 				return Base->Visibility;
 
-			float D = Base->Cull(Scene->View);
+			float D = Base->Cull(View);
 			if (Mode == CullResult::Cache)
 				Base->Visibility = D;
 
@@ -3383,6 +3434,11 @@ namespace Tomahawk
 			}
 
 			return PassCullable(Base, Mode, Result);
+		}
+		bool RenderSystem::PassOcclusion(Drawable* Base)
+		{
+			TH_ASSERT(Base != nullptr, false, "drawable should be set");
+			return Dirty || Base->Parent->IsDirty(true) || Base->Query.GetPassed() > 0;
 		}
 		bool RenderSystem::HasOcclusionCulling()
 		{
@@ -3601,7 +3657,6 @@ namespace Tomahawk
 			}
 			else if (State == RenderState::Depth_Cubic)
 			{
-				Viewer& View = System->GetScene()->View;
 				if (!((size_t)Options & (size_t)RenderOpt::Inner))
 					return;
 
@@ -3610,11 +3665,11 @@ namespace Tomahawk
 
 				Core::Pool<Drawable*>* Opaque = GetOpaque();
 				if (Opaque != nullptr && Opaque->Size() > 0)
-					RenderDepthCubic(TimeStep, Opaque, View.CubicViewProjection);
+					RenderDepthCubic(TimeStep, Opaque, System->View.CubicViewProjection);
 
 				Core::Pool<Drawable*>* Transparent = GetTransparent();
 				if (Transparent != nullptr && Transparent->Size() > 0)
-					RenderDepthCubic(TimeStep, Transparent, View.CubicViewProjection);
+					RenderDepthCubic(TimeStep, Transparent, System->View.CubicViewProjection);
 				TH_PPOP();
 			}
 		}
@@ -3881,6 +3936,7 @@ namespace Tomahawk
 			Display.VoxelSize = 0;
 
 			Configure(I);
+			ScriptHook();
 			ExpandMaterials();
 			SetParallel("simulate", std::bind(&SceneGraph::Simulate, this, std::placeholders::_1));
 			SetParallel("synchronize", std::bind(&SceneGraph::Synchronize, this, std::placeholders::_1));
@@ -4121,11 +4177,9 @@ namespace Tomahawk
 		void SceneGraph::Submit()
 		{
 			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
-			TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
-			TH_ASSERT_V(View.Renderer->GetPrimitives() != nullptr, "primitive cache should be set");
+			TH_ASSERT_V(Conf.Primitives != nullptr, "graphics device should be set");
 			TH_ASSERT_V(ThreadId == std::this_thread::get_id(), "submit should be called in same thread with publish (after)");
 
-			PrimitiveCache* Cache = View.Renderer->GetPrimitives();
 			Conf.Device->Render.TexCoord = 1.0f;
 			Conf.Device->Render.WorldViewProj.Identify();
 			Conf.Device->SetTarget();
@@ -4136,7 +4190,7 @@ namespace Tomahawk
 			Conf.Device->SetSamplerState(Display.Sampler, 1, 1, TH_PS);
 			Conf.Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
-			Conf.Device->SetVertexBuffer(Cache->GetQuad(), 0);
+			Conf.Device->SetVertexBuffer(Conf.Primitives->GetQuad(), 0);
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 1, TH_PS);
@@ -4228,28 +4282,19 @@ namespace Tomahawk
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_ASSERT_V(ThreadId == std::this_thread::get_id(), "publish should be called in same thread with dispatch (after)");
 
-			if (!Camera.load())
+			auto* Base = (Components::Camera*)Camera.load();
+			if (!Base)
 				return;
 
-			RestoreViewBuffer(nullptr);
+			auto* Renderer = Base->GetRenderer();
+			TH_ASSERT_V(Renderer != nullptr, "render system should be set");
+
 			FillMaterialBuffers();
+			Renderer->RestoreViewBuffer(nullptr);
+			Renderer->CullGeometry(Time);
 
-			TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
 			SetMRT(TargetType::Main, true);
-			Render(Time, RenderState::Geometry_Result, RenderOpt::None);
-			View.Renderer->CullGeometry(Time, View);
-		}
-		void SceneGraph::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
-		{
-			TH_ASSERT_V(Time != nullptr, "timer should be set");
-			TH_ASSERT_V(View.Renderer != nullptr, "render system should be set");
-			TH_ASSERT_V(ThreadId == std::this_thread::get_id(), "render should be called in same thread with publish (after)");
-
-			for (auto& Renderer : *View.Renderer->GetRenderers())
-			{
-				if (Renderer->Active)
-					Renderer->Render(Time, Stage, Options);
-			}
+			Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 		}
 		void SceneGraph::Simulate(Core::Timer* Time)
 		{
@@ -4268,19 +4313,23 @@ namespace Tomahawk
 			for (auto It = Begin1; It != End1; ++It)
 				(*It)->Synchronize(Time);
 
-			Compute::Vector3& Far = View.Position;
-			Component* Viewer = Camera.load();
-			if (Viewer != nullptr)
-				Far = Viewer->Parent->Transform->GetPosition();
-
-			int64_t Index = -1;
-			auto Begin2 = Entities.Begin(), End2 = Entities.End();
-			for (auto It = Begin2; It != End2; ++It)
+			Component* Base = Camera.load();
+			if (Base != nullptr)
 			{
-				Entity* Base = *It;
-				if (Base->Transform->IsDirty())
+				int64_t Index = -1; bool Dirty = Base->Parent->Transform->IsDirty();
+				Compute::Vector3 Far = Base->Parent->Transform->GetPosition();
+				auto Begin2 = Entities.Begin(), End2 = Entities.End();
+				for (auto It = Begin2; It != End2; ++It)
 				{
-					Base->Transform->Synchronize();
+					Entity* Base = *It;
+					if (Base->Transform->IsDirty())
+					{
+						Base->Transform->Synchronize();
+						Base->Dirty = true;
+					}
+					else if (!Dirty)
+						continue;
+
 					Base->Distance = Base->Transform->GetPosition().Distance(Far);
 				}
 			}
@@ -4463,31 +4512,6 @@ namespace Tomahawk
 					It->second->Active = false;
 			}
 		}
-		void SceneGraph::RestoreViewBuffer(Viewer* Buffer)
-		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
-			if (&View != Buffer)
-			{
-				if (Buffer == nullptr)
-				{
-					auto* Viewer = (Components::Camera*)Camera.load();
-					if (Viewer != nullptr)
-						Viewer->GetViewer(&View);
-				}
-				else
-					View = *Buffer;
-			}
-
-			Conf.Device->View.InvViewProj = View.InvViewProjection;
-			Conf.Device->View.ViewProj = View.ViewProjection;
-			Conf.Device->View.Proj = View.Projection;
-			Conf.Device->View.View = View.View;
-			Conf.Device->View.Position = View.Position;
-			Conf.Device->View.Direction = View.Rotation.dDirection();
-			Conf.Device->View.Far = View.FarPlane;
-			Conf.Device->View.Near = View.NearPlane;
-			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::View);
-		}
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
@@ -4541,12 +4565,6 @@ namespace Tomahawk
 			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
 				It->second->Time->SetStepLimitation(Min, Max);
 			Race.unlock();
-		}
-		void SceneGraph::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far, bool Upload)
-		{
-			View.Set(_View, _Projection, _Position, _Near, _Far);
-			if (Upload)
-				RestoreViewBuffer(&View);
 		}
 		void SceneGraph::SetVoxelBufferSize(size_t Size)
 		{
@@ -5276,14 +5294,15 @@ namespace Tomahawk
 
 			return Array;
 		}
-		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection)
+		bool SceneGraph::IsEntityVisible(Entity* Entity, RenderSystem* Renderer)
 		{
 			TH_ASSERT(Entity != nullptr, false, "entity should be set");
-			auto* Viewer = Camera.load();
-			if (!Viewer || Entity->Transform->GetPosition().Distance(Viewer->Parent->Transform->GetPosition()) > View.FarPlane + Entity->Transform->GetScale().Length())
+			TH_ASSERT(Renderer != nullptr, false, "renderer should be set");
+
+			if (Entity->Transform->GetPosition().Distance(Renderer->View.Position) > Renderer->View.FarPlane + Entity->Transform->GetScale().Length())
 				return false;
 
-			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetBias() * ViewProjection, 2);
+			return Compute::Common::IsCubeInFrustum(Entity->Transform->GetBias() * Renderer->View.ViewProjection, 2);
 		}
 		bool SceneGraph::IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPos, float DrawDistance)
 		{

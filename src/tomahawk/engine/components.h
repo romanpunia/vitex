@@ -650,7 +650,7 @@ namespace Tomahawk
 				RenderSystem* Renderer = nullptr;
 				Compute::Matrix4x4 Projection;
 				Graphics::Viewport Viewport;
-				Viewer FieldView;
+				Viewer View;
 
 			public:
 				float NearPlane = 0.1f;
@@ -670,7 +670,7 @@ namespace Tomahawk
 				virtual Component* Copy(Entity* New) override;
 				void GetViewer(Viewer* View);
 				void ResizeBuffers();
-				Viewer GetViewer();
+				Viewer& GetViewer();
 				RenderSystem* GetRenderer();
 				Compute::Matrix4x4 GetProjection();
 				Compute::Matrix4x4 GetViewProjection();

@@ -72,7 +72,7 @@ namespace Tomahawk
 					for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 					{
 						Components::SoftBody* Base = (Components::SoftBody*)*It;
-						if (!System->PassCullable(Base, CullResult::Last, nullptr) || Base->GetIndices().empty() || !Base->Query.Begin(Device))
+						if (!System->PassCullable(Base, CullResult::Last, nullptr) || !System->PassOcclusion(Base) || Base->GetIndices().empty() || !Base->Query.Begin(Device))
 							continue;
 
 						if (Base->Query.GetPassed() > 0)
@@ -105,7 +105,7 @@ namespace Tomahawk
 					for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 					{
 						Components::SoftBody* Base = (Components::SoftBody*)*It;
-						if (!System->PassCullable(Base, CullResult::Last, nullptr) || Base->GetIndices().empty() || !Base->Query.Begin(Device))
+						if (!System->PassCullable(Base, CullResult::Last, nullptr) || !System->PassOcclusion(Base) || Base->GetIndices().empty() || !Base->Query.Begin(Device))
 							continue;
 
 						Device->Render.World = Base->GetEntity()->GetTransform()->GetBias();
@@ -147,7 +147,7 @@ namespace Tomahawk
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = Scene->View.ViewProjection;
+					Device->Render.WorldViewProj = System->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->SetVertexBuffer(VertexBuffer, 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
@@ -167,7 +167,7 @@ namespace Tomahawk
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = Scene->View;
+				Viewer& View = System->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
@@ -220,7 +220,7 @@ namespace Tomahawk
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = Scene->View.ViewProjection;
+					Device->Render.WorldViewProj = System->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer, 0);
@@ -250,7 +250,7 @@ namespace Tomahawk
 				{
 					Engine::Components::SoftBody* Base = (Engine::Components::SoftBody*)*It;
 					auto* Transform = Base->GetEntity()->GetTransform();
-					if (!Base->GetBody() || Base->GetEntity()->Distance >= Scene->View.FarPlane + Transform->GetScale().Length())
+					if (!Base->GetBody() || Base->GetEntity()->Distance >= System->View.FarPlane + Transform->GetScale().Length())
 						continue;
 
 					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
@@ -323,7 +323,7 @@ namespace Tomahawk
 					for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 					{
 						Components::Model* Base = (Components::Model*)*It;
-						if (!System->PassCullable(Base, CullResult::Last, nullptr))
+						if (!System->PassCullable(Base, CullResult::Last, nullptr) || !System->PassOcclusion(Base))
 							continue;
 
 						auto* Drawable = Base->GetDrawable();
@@ -360,7 +360,7 @@ namespace Tomahawk
 					for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 					{
 						Components::Model* Base = (Components::Model*)*It;
-						if (!System->PassCullable(Base, CullResult::Last, nullptr))
+						if (!System->PassCullable(Base, CullResult::Last, nullptr) || !System->PassOcclusion(Base))
 							continue;
 
 						auto* Drawable = Base->GetDrawable();
@@ -411,7 +411,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -429,7 +429,7 @@ namespace Tomahawk
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = Scene->View;
+				Viewer& View = System->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Model* Base = (Engine::Components::Model*)*It;
@@ -484,7 +484,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -513,7 +513,7 @@ namespace Tomahawk
 					Engine::Components::Model* Base = (Engine::Components::Model*)*It;
 					auto* Drawable = Base->GetDrawable();
 
-					if (!Drawable || !Base->IsNear(Scene->View))
+					if (!Drawable)// || !Base->IsNear(System->View))
 						continue;
 
 					auto& World = Base->GetEntity()->GetTransform()->GetBias();
@@ -583,48 +583,77 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_PS);
 				Device->SetShader(Shaders.Occlusion, TH_VS);
 
-				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
+				if (System->PreciseCulling)
 				{
-					Components::Skin* Base = (Components::Skin*)*It;
-					if (!System->PassCullable(Base, CullResult::Last, nullptr))
-						continue;
-
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable || Drawable->Meshes.empty())
-						continue;
-
-					if (!Base->Query.Begin(Device))
-						continue;
-
-					if (Base->Query.GetPassed() > 0)
+					for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 					{
-						Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
-						if (Device->Animation.Animated > 0)
-							memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+						Components::Skin* Base = (Components::Skin*)*It;
+						if (!System->PassCullable(Base, CullResult::Last, nullptr) || !System->PassOcclusion(Base))
+							continue;
 
-						auto& World = Base->GetEntity()->GetTransform()->GetBias();
-						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+						auto* Drawable = Base->GetDrawable();
+						if (!Drawable || Drawable->Meshes.empty())
+							continue;
 
-						for (auto&& Mesh : Drawable->Meshes)
+						if (!Base->Query.Begin(Device))
+							continue;
+
+						if (Base->Query.GetPassed() > 0)
 						{
-							Device->Render.World = Mesh->World * World;
-							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-							Device->DrawIndexed(Mesh);
+							Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
+							if (Device->Animation.Animated > 0)
+								memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+
+							auto& World = Base->GetEntity()->GetTransform()->GetBias();
+							Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+
+							for (auto&& Mesh : Drawable->Meshes)
+							{
+								Device->Render.World = Mesh->World * World;
+								Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+								Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+								Device->DrawIndexed(Mesh);
+							}
 						}
+						else
+						{
+							Device->Animation.Animated = (float)false;
+							Device->Render.World = Base->GetBoundingBox();
+							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+							Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+							Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
+							Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
+							Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						}
+						Base->Query.End(Device);
 					}
-					else
+				}
+				else
+				{
+					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
+					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
+					for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 					{
+						Components::Skin* Base = (Components::Skin*)*It;
+						if (!System->PassCullable(Base, CullResult::Last, nullptr) || !System->PassOcclusion(Base))
+							continue;
+
+						auto* Drawable = Base->GetDrawable();
+						if (!Drawable || Drawable->Meshes.empty())
+							continue;
+
+						if (!Base->Query.Begin(Device))
+							continue;
+
 						Device->Animation.Animated = (float)false;
 						Device->Render.World = Base->GetBoundingBox();
 						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
-						Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						Base->Query.End(Device);
 					}
-					Base->Query.End(Device);
 				}
 			}
 			void Skin::RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options)
@@ -669,7 +698,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -687,7 +716,7 @@ namespace Tomahawk
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = Scene->View;
+				Viewer& View = System->View;
 				for (auto It = Geometry->Begin(); It != Geometry->End(); ++It)
 				{
 					Engine::Components::Skin* Base = (Engine::Components::Skin*)*It;
@@ -757,7 +786,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * Scene->View.ViewProjection;
+						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -786,7 +815,7 @@ namespace Tomahawk
 					Engine::Components::Skin* Base = (Engine::Components::Skin*)*It;
 					auto* Drawable = Base->GetDrawable();
 
-					if (!Drawable || !Base->IsNear(Scene->View))
+					if (!Drawable || !Base->IsNear(System->View))
 						continue;
 
 					Device->Render.TexCoord = Base->TexCoord;
@@ -852,12 +881,12 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Geometry != nullptr, "geometry list should be set");
 				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
-				
+
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::Shader* BaseShader = nullptr;
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
-				Viewer& View = Scene->View;
+				Viewer& View = System->View;
 				CullResult Cull = ((size_t)Options & (size_t)RenderOpt::Inner ? CullResult::Always : CullResult::Last);
 				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
 
@@ -921,7 +950,7 @@ namespace Tomahawk
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
-				Viewer& View = Scene->View;
+				Viewer& View = System->View;
 
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology::Point_List);
 				Device->SetDepthStencilState(DepthStencilOpaque);
@@ -961,7 +990,7 @@ namespace Tomahawk
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				SceneGraph* Scene = System->GetScene();
-				auto& Source = Scene->View;
+				auto& Source = System->View;
 				Depth.FaceView[0] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveX, Source.Position);
 				Depth.FaceView[1] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeX, Source.Position);
 				Depth.FaceView[2] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveY, Source.Position);
@@ -1059,7 +1088,7 @@ namespace Tomahawk
 					if (!System->PushGeometryBuffer(Base->GetMaterial()))
 						continue;
 
-					Device->Render.WorldViewProj = Base->GetEntity()->GetTransform()->GetBias() * Scene->View.ViewProjection;
+					Device->Render.WorldViewProj = Base->GetEntity()->GetTransform()->GetBias() * System->View.ViewProjection;
 					Device->Render.World = Device->Render.WorldViewProj.Inv();
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
@@ -1314,7 +1343,7 @@ namespace Tomahawk
 				Engine::Components::SurfaceLight* Light = (Engine::Components::SurfaceLight*)Src;
 				auto* Transform = Light->GetEntity()->GetTransform();
 
-				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
+				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 				Dest->Position = Transform->GetPosition();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
 				Dest->Scale = Transform->GetScale();
@@ -1329,7 +1358,7 @@ namespace Tomahawk
 			bool Lighting::GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
 			{
 				Engine::Components::PointLight* Light = (Engine::Components::PointLight*)Src;
-				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
+				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 				Dest->Position = Light->GetEntity()->GetTransform()->GetPosition();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission * State.Distance);
 				Dest->Attenuation.X = Light->Size.C1;
@@ -1354,7 +1383,7 @@ namespace Tomahawk
 				Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)Src;
 				auto* Transform = Light->GetEntity()->GetTransform();
 
-				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
+				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 				Dest->ViewProjection = Light->View * Light->Projection;
 				Dest->Direction = Transform->GetRotation().dDirection();
 				Dest->Position = Transform->GetPosition();
@@ -1477,7 +1506,7 @@ namespace Tomahawk
 				for (auto It = PointLights->Begin(); It != PointLights->End(); ++It)
 				{
 					Engine::Components::PointLight* Light = (Engine::Components::PointLight*)*It;
-					if (Count >= Storage.MaxLights || !Light->IsNear(State.Scene->View))
+					if (Count >= Storage.MaxLights || !Light->IsNear(System->View))
 						continue;
 
 					Compute::Vector3 Position(Light->GetEntity()->GetTransform()->GetPosition()), Scale(Light->GetBoxRange());
@@ -1496,7 +1525,7 @@ namespace Tomahawk
 				for (auto It = SpotLights->Begin(); It != SpotLights->End(); ++It)
 				{
 					Engine::Components::SpotLight* Light = (Engine::Components::SpotLight*)*It;
-					if (Count >= Storage.MaxLights || !Light->IsNear(State.Scene->View))
+					if (Count >= Storage.MaxLights || !Light->IsNear(System->View))
 						continue;
 
 					Compute::Vector3 Position(Light->GetEntity()->GetTransform()->GetPosition()), Scale(Light->GetBoxRange());
@@ -1568,7 +1597,7 @@ namespace Tomahawk
 				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
 				if ((size_t)Options & (size_t)RenderOpt::Additive)
 					return;
-				
+
 				State.Device = System->GetDevice();
 				State.Scene = System->GetScene();
 
@@ -1576,13 +1605,13 @@ namespace Tomahawk
 					return RenderLuminance();
 				else if (Status != RenderState::Geometry_Result)
 					return;
-				
+
 				if (!((size_t)Options & (size_t)RenderOpt::Inner || (size_t)Options & (size_t)RenderOpt::Transparent))
 				{
 					double ElapsedTime = Time->GetElapsedTime();
 					if (Shadows.Tick.TickEvent(ElapsedTime))
 						RenderShadowMaps(Time);
-					
+
 					RenderSurfaceMaps(Time);
 					if (EnableGI && !Illuminators->Empty())
 						RenderVoxelMap(Time);
@@ -1593,7 +1622,7 @@ namespace Tomahawk
 			}
 			void Lighting::RenderResultBuffers(RenderOpt Options)
 			{
-				State.View = State.Scene->View.Position;
+				State.View = System->View.Position;
 				State.Distance = 0.0f;
 				State.Inner = ((size_t)Options & (size_t)RenderOpt::Inner);
 				State.Backcull = true;
@@ -1605,7 +1634,7 @@ namespace Tomahawk
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				AmbientLight.SkyOffset = Scene->View.Projection.Inv() * Compute::Matrix4x4::CreateRotation(Scene->View.Rotation);
+				AmbientLight.SkyOffset = System->View.Projection.Inv() * Compute::Matrix4x4::CreateRotation(System->View.Rotation);
 				State.Device->SetDepthStencilState(DepthStencilLess);
 				State.Device->SetBlendState(BlendAdditive);
 				State.Device->SetRasterizerState(BackRasterizer);
@@ -1634,7 +1663,7 @@ namespace Tomahawk
 			}
 			void Lighting::RenderShadowMaps(Core::Timer* Time)
 			{
-				float Far = State.Scene->View.FarPlane;
+				float Far = System->View.FarPlane;
 				float Distance = 0.0f;
 
 				uint64_t Counter = 0;
@@ -1657,8 +1686,8 @@ namespace Tomahawk
 
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
-					State.Scene->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 0.1f, Light->Shadow.Distance, true);
-					State.Scene->Render(Time, RenderState::Depth_Cubic, RenderOpt::Inner);
+					System->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 0.1f, Light->Shadow.Distance, true);
+					System->Render(Time, RenderState::Depth_Cubic, RenderOpt::Inner);
 
 					Counter++;
 				}
@@ -1683,8 +1712,8 @@ namespace Tomahawk
 
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
-					State.Scene->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 0.1f, Light->Shadow.Distance, true);
-					State.Scene->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
+					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 0.1f, Light->Shadow.Distance, true);
+					System->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
 
 					Counter++;
 				}
@@ -1717,14 +1746,14 @@ namespace Tomahawk
 						State.Device->ClearDepth(Cascade);
 
 						float Distance = Light->Shadow.Distance[i];
-						State.Scene->SetView(Light->View[i], Light->Projection[i], 0.0f, -Far, Far, true);
-						State.Scene->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
+						System->SetView(Light->View[i], Light->Projection[i], 0.0f, -Far, Far, true);
+						System->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
 					}
 
 					Counter++;
 				}
 
-				State.Scene->RestoreViewBuffer(nullptr);
+				System->RestoreViewBuffer(nullptr);
 			}
 			void Lighting::RenderSurfaceMaps(Core::Timer* Time)
 			{
@@ -1760,9 +1789,9 @@ namespace Tomahawk
 					for (unsigned int j = 0; j < 6; j++)
 					{
 						Compute::CubeFace Face = (Compute::CubeFace)j;
-						State.Scene->SetView(Light->View[j] = Compute::Matrix4x4::CreateLookAt(Face, Position), Light->Projection, Position, 0.1f, Light->Size.Range, true);
 						State.Scene->ClearMRT(TargetType::Main, true, true);
-						State.Scene->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Inner | RenderOpt::Static : RenderOpt::Inner);
+						System->SetView(Light->View[j] = Compute::Matrix4x4::CreateLookAt(Face, Position), Light->Projection, Position, 0.1f, Light->Size.Range, true);
+						System->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Inner | RenderOpt::Static : RenderOpt::Inner);
 						State.Device->CubemapFace(Surfaces.Subresource, Face);
 					}
 
@@ -1771,7 +1800,7 @@ namespace Tomahawk
 				}
 
 				State.Scene->SwapMRT(TargetType::Main, nullptr);
-				State.Scene->RestoreViewBuffer(nullptr);
+				System->RestoreViewBuffer(nullptr);
 			}
 			void Lighting::RenderVoxelMap(Core::Timer* Time)
 			{
@@ -1779,7 +1808,7 @@ namespace Tomahawk
 				if (!Area || !LightBuffer)
 					return;
 
-				bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, State.Scene->View.Position);
+				bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
 				if (!Inside && Storage.Area == Area && Storage.Inside == Inside)
 					return;
 
@@ -1799,12 +1828,12 @@ namespace Tomahawk
 
 				if (Inside)
 				{
-					State.Scene->View.FarPlane = GetDominant(VoxelBuffer.Scale) * 2.0f;
-					State.Scene->Render(Time, RenderState::Geometry_Voxels, RenderOpt::Inner);
-					State.Scene->RestoreViewBuffer(nullptr);
+					System->View.FarPlane = GetDominant(VoxelBuffer.Scale) * 2.0f;
+					System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::Inner);
+					System->RestoreViewBuffer(nullptr);
 				}
 				else
-					State.Scene->Render(Time, RenderState::Geometry_Voxels, RenderOpt::Inner);
+					System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::Inner);
 
 				State.Device->SetWriteable(Out, 1, 3, false);
 				State.Device->GenerateMips(LightBuffer);
@@ -1996,7 +2025,7 @@ namespace Tomahawk
 						for (uint32_t i = 0; i < Size; i++)
 							State.Device->SetTexture2D((*Light->DepthMap)[i]->GetTarget(), 5 + i, TH_PS);
 						BaseShader = Shaders.Line[1];
-						
+
 						if (Size < 6)
 						{
 							auto* Target = (*Light->DepthMap)[Size - 1]->GetTarget();
@@ -2024,7 +2053,7 @@ namespace Tomahawk
 
 				Compute::Vector3 Position, Scale;
 				GetLightCulling(Storage.Area, 0.0f, &Position, &Scale);
-				VoxelBuffer.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * State.Scene->View.ViewProjection;
+				VoxelBuffer.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Secondary);
@@ -2195,7 +2224,7 @@ namespace Tomahawk
 
 				SceneGraph* Scene = System->GetScene();
 				if (Scene->GetAdditivesCount() > 0)
-					Scene->Render(Time, RenderState::Geometry_Result, Options | RenderOpt::Additive);
+					System->Render(Time, RenderState::Geometry_Result, Options | RenderOpt::Additive);
 
 				if (!Scene->GetTransparentsCount())
 					return;
@@ -2208,7 +2237,7 @@ namespace Tomahawk
 
 				Scene->SwapMRT(TargetType::Main, MRT);
 				Scene->SetMRT(TargetType::Main, true);
-				Scene->Render(Time, RenderState::Geometry_Result, Options | RenderOpt::Transparent);
+				System->Render(Time, RenderState::Geometry_Result, Options | RenderOpt::Transparent);
 				Scene->SwapMRT(TargetType::Main, nullptr);
 
 				Device->CopyTarget(MainMRT, 0, RT, 0);
@@ -2382,8 +2411,8 @@ namespace Tomahawk
 
 				SceneGraph* Scene = System->GetScene();
 				Compute::Ray Origin;
-				Origin.Origin = Scene->View.Position;
-				Origin.Direction = Scene->View.Rotation.dDirection();
+				Origin.Origin = System->View.Position;
+				Origin.Direction = System->View.Rotation.dDirection();
 
 				bool Change = false;
 				Scene->RayTest<Components::Model>(Origin, Distance, [this, &Origin, &Change](Component* Result, const Compute::Vector3& Hit)
@@ -2463,7 +2492,7 @@ namespace Tomahawk
 				RenderResult(Shaders.Motion, &Motion);
 
 				SceneGraph* Scene = System->GetScene();
-				Velocity.LastViewProjection = Scene->View.ViewProjection;
+				Velocity.LastViewProjection = System->View.ViewProjection;
 			}
 
 			Bloom::Bloom(RenderSystem* Lab) : EffectDraw(Lab)

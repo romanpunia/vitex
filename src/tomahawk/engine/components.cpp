@@ -3550,24 +3550,24 @@ namespace Tomahawk
 
 				SceneGraph* Scene = Parent->GetScene();
 				if (Scene->GetCamera() == this)
-					Renderer->Synchronize(Time, FieldView);
+					Renderer->Synchronize(Time);
 			}
-			void Camera::GetViewer(Viewer* View)
+			void Camera::GetViewer(Viewer* Output)
 			{
-				TH_ASSERT_V(View != nullptr, "viewer should be set");
+				TH_ASSERT_V(Output != nullptr, "viewer should be set");
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
-				View->Set(GetView(), Projection, Space.Position, Space.Rotation, NearPlane, FarPlane);
-				View->Renderer = Renderer;
-				FieldView = *View;
+				Output->Set(GetView(), Projection, Space.Position, Space.Rotation, NearPlane, FarPlane);
+				Output->Renderer = Renderer;
+				View = *Output;
 			}
 			void Camera::ResizeBuffers()
 			{
 				for (auto* Item : *Renderer->GetRenderers())
 					Item->ResizeBuffers();
 			}
-			Viewer Camera::GetViewer()
+			Viewer& Camera::GetViewer()
 			{
-				return FieldView;
+				return View;
 			}
 			RenderSystem* Camera::GetRenderer()
 			{
@@ -3609,7 +3609,7 @@ namespace Tomahawk
 			float Camera::GetDistance(Entity* Other)
 			{
 				TH_ASSERT(Other != nullptr, -1.0f, "other should be set");
-				return Other->GetTransform()->GetPosition().Distance(FieldView.Position);
+				return Other->GetTransform()->GetPosition().Distance(View.Position);
 			}
 			float Camera::GetWidth()
 			{

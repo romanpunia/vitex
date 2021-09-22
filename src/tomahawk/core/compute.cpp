@@ -1952,7 +1952,7 @@ namespace Tomahawk
 			return false;
 		}
 
-		Matrix4x4::Matrix4x4() : Row{ 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
+		Matrix4x4::Matrix4x4() : Row { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
 		{
 		}
 		Matrix4x4::Matrix4x4(float Array[16])
@@ -1967,7 +1967,7 @@ namespace Tomahawk
 			memcpy(Row + 12, &row3, sizeof(Vector4));
 		}
 		Matrix4x4::Matrix4x4(float row00, float row01, float row02, float row03, float row10, float row11, float row12, float row13, float row20, float row21, float row22, float row23, float row30, float row31, float row32, float row33) :
-			Row{ row00, row01, row02, row03, row10, row11, row12, row13, row20, row21, row22, row23, row30, row31, row32, row33 }
+			Row { row00, row01, row02, row03, row10, row11, row12, row13, row20, row21, row22, row23, row30, row31, row32, row33 }
 		{
 		}
 		Matrix4x4::Matrix4x4(bool)
@@ -9175,9 +9175,12 @@ namespace Tomahawk
 		}
 		void Transform::MakeDirty()
 		{
-			Dirty = true;
-			for (auto& Child : Childs)
-				Child->MakeDirty();
+			if (!Dirty)
+			{
+				Dirty = true;
+				for (auto& Child : Childs)
+					Child->MakeDirty();
+			}
 		}
 		void Transform::SetScaling(bool Enabled)
 		{
@@ -9612,12 +9615,9 @@ namespace Tomahawk
 				const btVector3& Position = Base.getOrigin();
 				const btVector3& Scale = Instance->getCollisionShape()->getLocalScaling();
 				Base.getRotation().getEulerZYX(Z, Y, X);
-
-				Transform::Spacing Space;
-				Space.Position = BT_TO_V3(Position);
-				Space.Rotation = Vector3(-X, -Y, Z);
-				Space.Scale = BT_TO_V3(Scale);
-				Transform->SetSpacing(Positioning::Global, Space);
+				Transform->SetPosition(BT_TO_V3(Position));
+				Transform->SetRotation(Vector3(-X, -Y, Z));
+				Transform->SetScale(BT_TO_V3(Scale));
 			}
 			else
 			{
@@ -9997,7 +9997,7 @@ namespace Tomahawk
 #else
 			return nullptr;
 #endif
-		}
+	}
 		bool RigidBody::IsGhost()
 		{
 #ifdef TH_WITH_BULLET3
@@ -10362,18 +10362,15 @@ namespace Tomahawk
 				Center.X += Node.m_x.x();
 				Center.Y += Node.m_x.y();
 				Center.Z += Node.m_x.z();
-			}
+		}
 			Center /= (float)Instance->m_nodes.size();
 #endif
 			if (!Kinematic)
 			{
 				btScalar X, Y, Z;
 				Instance->getWorldTransform().getRotation().getEulerZYX(Z, Y, X);
-
-				Transform::Spacing Space;
-				Space.Position = Center.InvZ();
-				Space.Rotation = Vector3(-X, -Y, Z);
-				Transform->SetSpacing(Positioning::Global, Space);
+				Transform->SetPosition(Center.InvZ());
+				Transform->SetRotation(Vector3(-X, -Y, Z));
 			}
 			else
 			{
@@ -10382,7 +10379,7 @@ namespace Tomahawk
 					Instance->translate(V3_TO_BT(Position));
 			}
 #endif
-		}
+}
 		void SoftBody::GetIndices(std::vector<int>* Result)
 		{
 #ifdef TH_WITH_BULLET3
@@ -11235,7 +11232,7 @@ namespace Tomahawk
 #else
 			return false;
 #endif
-		}
+			}
 		bool Constraint::IsEnabled()
 		{
 #ifdef TH_WITH_BULLET3
@@ -13542,7 +13539,7 @@ namespace Tomahawk
 #else
 			return std::vector<Vector3>();
 #endif
-		}
+			}
 		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value)
 		{
 #ifdef TH_WITH_BULLET3

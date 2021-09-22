@@ -677,7 +677,7 @@ namespace Tomahawk
 			void Unmount();
 			void ClearCull();
 			void CullGeometry(Core::Timer* Time);
-			void Synchronize(Core::Timer* Time, double Begin, double End, bool WasDirty);
+			void Synchronize(Core::Timer* Time, double Begin, double End);
 			void MoveRenderer(uint64_t Id, int64_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void RestoreOutput();

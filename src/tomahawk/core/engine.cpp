@@ -3226,7 +3226,7 @@ namespace Tomahawk
 			}
 			TH_PPOP();
 		}
-		void RenderSystem::Synchronize(Core::Timer* Time, double Begin, double End, bool WasDirty)
+		void RenderSystem::Synchronize(Core::Timer* Time, double Begin, double End)
 		{
 			TH_ASSERT_V(Begin >= 0.0 && Begin <= End, "invalid begin range");
 			TH_ASSERT_V(End >= 0.0 && End >= Begin && End <= 1.0, "invalid end range");
@@ -3234,7 +3234,13 @@ namespace Tomahawk
 			if (!FrustumCulling)
 				return;
 
+			auto* Camera = (Components::Camera*)Scene->Camera.load();
+			if (!Camera)
+				return;
+
 			TH_PPUSH("rs-sync", TH_PERF_FRAME);
+			Viewer& Where = Camera->GetViewer();
+			bool Change = Camera->GetEntity()->GetTransform()->IsDirty();
 			for (auto& Base : Cull)
 			{
 				auto* Array = Scene->GetComponents(Base);
@@ -3246,8 +3252,8 @@ namespace Tomahawk
 				for (auto It = First; It != Last; ++It)
 				{
 					Cullable* Data = (Cullable*)*It;
-					if (WasDirty || Data->GetEntity()->GetTransform()->IsDirty())
-						Data->Visibility = Data->Cull(View);
+					if (Change || Data->GetEntity()->GetTransform()->IsDirty())
+						Data->Visibility = Data->Cull(Where);
 				}
 			}
 			TH_PPOP();
@@ -4379,7 +4385,7 @@ namespace Tomahawk
 				if (Renderer != nullptr)
 				{
 					double Where = (double)Chunk, Count = (double)Conf.CullingChunks;
-					Renderer->Synchronize(Time, Where / Count, (Where + 1.0) / Count, Base->Parent->GetTransform()->IsDirty());
+					Renderer->Synchronize(Time, Where / Count, (Where + 1.0) / Count);
 				}
 			}
 			TH_PPOP();

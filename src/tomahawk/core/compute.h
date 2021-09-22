@@ -2555,11 +2555,11 @@ namespace Tomahawk
 			}
 			static T Random()
 			{
-				return ((T)Common::Random() / std::numeric_limits<uint64_t>::max()) + (T)1.0;
+				return ((T)Common::Random() / (T)std::numeric_limits<uint64_t>::max()) + (T)1.0;
 			}
 			static T RandomMag()
 			{
-				return (T)2.0 / std::numeric_limits<uint64_t>::max() * Random() - (T)1.0;
+				return (T)2.0 * Random() - (T)1.0;
 			}
 			static T Pow(T Value0, T Value1)
 			{

@@ -6736,7 +6736,6 @@ namespace Tomahawk
 			return Buffer ? Buffer : "";
 #endif
 		}
-
 #ifdef _DEBUG
 		static thread_local std::stack<OS::DbgContext> PerfFrame;
 		static thread_local bool DbgIgnore = false;
@@ -6882,6 +6881,7 @@ namespace Tomahawk
 
 			std::string Stack = OS::GetStackTrace(2, 64);
 			std::string Trace = Form("%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Stack.c_str()).R();
+#ifdef _DEBUG
 			if (Callback && !DbgIgnore)
 			{
 				DbgIgnore = true;
@@ -6889,7 +6889,13 @@ namespace Tomahawk
 				Callback(Storage, 1);
 				DbgIgnore = false;
 			}
-
+#else
+			if (Callback)
+			{
+				Callback(Trace.c_str(), 1);
+				Callback(Storage, 1);
+			}
+#endif
 			if (Active)
 			{
 #if defined(TH_MICROSOFT) && defined(_DEBUG)

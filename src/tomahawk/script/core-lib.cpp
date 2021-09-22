@@ -108,6 +108,16 @@ namespace Tomahawk
 			return Left - Right;
 		}
 
+		void ConsoleTrace(Core::Console* Base, uint32_t Frames)
+		{
+			std::string Trace = Core::OS::GetStackTrace(2, Frames);
+			VMContext* Context = VMContext::Get();
+			if (Context != nullptr)
+				Trace.append("\n").append(Context->GetStackTrace());
+
+			Base->WriteLine(Trace);
+		}
+
 		uint64_t VariantGetSize(Core::Variant& Base)
 		{
 			return (uint64_t)Base.GetSize();
@@ -1261,6 +1271,7 @@ namespace Tomahawk
 			VConsole.SetMethod("double GetCapturedTime()", &Core::Console::GetCapturedTime);
 			VConsole.SetMethod("String Read(uint64)", &Core::Console::Read);
 			VConsole.SetMethodStatic("Console@+ Get()", &Core::Console::Get);
+			VConsole.SetMethodEx("void Trace(uint32 = 32)", &ConsoleTrace);
 			VConsole.SetMethodEx("void WriteLine(const String &in, Format@+)", &CEFormat::WriteLine);
 			VConsole.SetMethodEx("void Write(const String &in, Format@+)", &CEFormat::Write);
 			Engine->EndNamespace();

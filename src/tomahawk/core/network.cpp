@@ -1185,14 +1185,14 @@ namespace Tomahawk
 		}
 		bool Socket::CloseSet(const SocketAcceptCallback& Callback, bool OK)
 		{
-			TH_OPUSH("sock-shut", TH_PERF_HANG, this);
+			TH_SPUSH("sock-shut", TH_PERF_HANG, this);
 			char Buffer;
 			while (OK)
 			{
 				int Length = Read(&Buffer, 1);
 				if (Length == -2)
 				{
-					TH_OPOP(this);
+					TH_SPOP(this);
 					Sync.IO.lock();
 					bool OK = ReadSet([this, Callback](Socket*, const char*, int64_t Size)
 					{
@@ -1216,7 +1216,7 @@ namespace Tomahawk
 
 			if (Callback)
 				Callback(this);
-			TH_OPOP(this);
+			TH_SPOP(this);
 			return true;
 		}
 		std::string Socket::GetRemoteAddress()

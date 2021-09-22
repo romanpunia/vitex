@@ -104,45 +104,45 @@ typedef socklen_t socket_size_t;
 #if TH_DLEVEL >= 4
 #ifndef _DEBUG
 #define TH_TRACE(Format, ...) ((void)0)
-#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_TRACE(Format, ...) Tomahawk::Core::Debug::Log(4, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_TRACE(Format, ...) Tomahawk::Core::OS::Log(4, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 3
 #ifndef _DEBUG
 #define TH_TRACE(Format, ...) ((void)0)
-#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define TH_TRACE(Format, ...) ((void)0)
-#define TH_INFO(Format, ...) Tomahawk::Core::Debug::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 2
 #define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) ((void)0)
 #ifndef _DEBUG
-#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_WARN(Format, ...) Tomahawk::Core::Debug::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 1
 #define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) ((void)0)
 #define TH_WARN(Format, ...) ((void)0)
 #ifndef _DEBUG
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_ERR(Format, ...) Tomahawk::Core::Debug::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #else
 #define TH_TRACE(Format, ...) ((void)0)
@@ -152,8 +152,8 @@ typedef socklen_t socket_size_t;
 #endif
 #ifdef _DEBUG
 #if TH_DLEVEL >= 1
-#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::Debug::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return Returnable; }
-#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::Debug::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return; }
+#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return Returnable; }
+#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return; }
 #else
 #define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return Returnable; }
 #define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return; }
@@ -166,14 +166,14 @@ typedef socklen_t socket_size_t;
 #define TH_PERF_NET (150)
 #define TH_PERF_MAX (200)
 #define TH_PERF_HANG (5000)
-#define TH_PPUSH(Section, Threshold) Tomahawk::Core::Debug::PerfPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
-#define TH_PSIG() Tomahawk::Core::Debug::PerfSignal()
-#define TH_PPOP() Tomahawk::Core::Debug::PerfPop()
-#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::PerfPop(); return __vfbuf; }
-#define TH_OPUSH(Section, Threshold, Id) Tomahawk::Core::Debug::OpPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold, (void*)(Id))
-#define TH_OSIG() Tomahawk::Core::Debug::OpSignal()
-#define TH_OPOP(Id) Tomahawk::Core::Debug::OpPop((void*)(Id))
-#define TH_ORET(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::Debug::OpPop((void*)(Id)); return __vfbuf; }
+#define TH_PPUSH(Section, Threshold) Tomahawk::Core::OS::PerfPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
+#define TH_PSIG() Tomahawk::Core::OS::PerfSignal()
+#define TH_PPOP() Tomahawk::Core::OS::PerfPop()
+#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::PerfPop(); return __vfbuf; }
+#define TH_SPUSH(Section, Threshold, Id) Tomahawk::Core::OS::SpecPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold, (void*)(Id))
+#define TH_SSIG() Tomahawk::Core::OS::SpecSignal()
+#define TH_SPOP(Id) Tomahawk::Core::OS::SpecPop((void*)(Id))
+#define TH_ORET(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::SpecPop((void*)(Id)); return __vfbuf; }
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FILE, TH_FUNCTION, "coawait of [ " TH_STRINGIFY(Value) " ]", TH_LINE)
 #define TH_CLOSE(Stream) { TH_TRACE("close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
 #else
@@ -183,14 +183,14 @@ typedef socklen_t socket_size_t;
 #define TH_PSIG() ((void)0)
 #define TH_PPOP() ((void)0)
 #define TH_PRET(Value) return Value
-#define TH_OPUSH(Section, Threshold, Id) ((void)0)
-#define TH_OSIG() ((void)0)
-#define TH_OPOP(Id) ((void)0)
+#define TH_SPUSH(Section, Threshold, Id) ((void)0)
+#define TH_SSIG() ((void)0)
+#define TH_SPOP(Id) ((void)0)
 #define TH_ORET(Id, Value) return Value
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
 #define TH_CLOSE(Stream) fclose(Stream)
 #endif
-#define TH_LOG(Format, ...) Tomahawk::Core::Debug::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_LOG(Format, ...) Tomahawk::Core::OS::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_STACKSIZE (512 * 1024)
 #define TH_COUT extern "C" TH_OUT
 #define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
@@ -940,13 +940,9 @@ namespace Tomahawk
 				static int Get();
 				static std::string GetName(int Code);
 			};
-		};
-
-		class TH_OUT Debug
-		{
 #ifdef _DEBUG
 		public:
-			struct Context
+			struct DbgContext
 			{
 				const char* File = nullptr;
 				const char* Section = nullptr;
@@ -958,30 +954,29 @@ namespace Tomahawk
 			};
 
 		private:
-			static std::vector<Context> OpFrame;
+			static std::vector<DbgContext> SpecFrame;
 #endif
-
 		private:
 			static std::function<void(const char*, int)> Callback;
-			static std::mutex Safe;
-			static bool Enabled;
+			static std::mutex Buffer;
+			static bool Active;
 
 		public:
 #ifdef _DEBUG
-			static void OpPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id);
-			static void OpSignal();
-			static void OpPop(void* Id);
+			static void SpecPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id);
+			static void SpecSignal();
+			static void SpecPop(void* Id);
 			static void PerfPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS);
 			static void PerfSignal();
 			static void PerfPop();
-			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 #endif
+			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
-			static void AttachCallback(const std::function<void(const char*, int)>& Callback);
-			static void AttachStream();
-			static void DetachCallback();
-			static void DetachStream();
 			static void Pause();
+			static void SetLogCallback(const std::function<void(const char*, int)>& Callback);
+			static void SetLogActive(bool Enabled);
+			static bool SetCrashDumps();
+			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 		};
 
 		class TH_OUT Composer
@@ -1087,6 +1082,7 @@ namespace Tomahawk
 			void Clear();
 			void Flush();
 			void FlushWrite();
+			void Trace(uint32_t MaxFrames = 32);
 			void CaptureTime();
 			void SetColoring(bool Enabled);
 			void ColorBegin(StdColor Text, StdColor Background);
@@ -1107,7 +1103,6 @@ namespace Tomahawk
 			static Console* Get();
 			static bool Reset();
 			static bool IsPresent();
-			static void Trace(const char* Format, ...);
 
 		private:
 			static Console* Singleton;
@@ -2132,7 +2127,7 @@ namespace Tomahawk
 				return Future.Get();
 #ifdef _DEBUG
 			if (File && Function && Expression && Line >= 0)
-				Debug::OpPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
+				OS::SpecPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
 #endif
 			Future.Await([State, Base](T&&)
 			{
@@ -2143,7 +2138,7 @@ namespace Tomahawk
 				State->Deactivate(Base);
 #ifdef _DEBUG
 			if (File && Function && Expression && Line >= 0)
-				Debug::OpPop((void*)&Future);
+				OS::SpecPop((void*)&Future);
 #endif
 			return Future.GetIfAny();
 		}

@@ -3993,7 +3993,7 @@ namespace Tomahawk
 
 			Tasks.clear();
 			while (Dispatch(nullptr))
-				TH_OSIG();
+				TH_SSIG();
 
 			auto Begin1 = Entities.Begin(), End1 = Entities.End();
 			for (auto It = Begin1; It != End1; ++It)
@@ -6153,7 +6153,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_OSIG();
+					TH_SSIG();
 				}
 			}
 			else if (Activity != nullptr && !Control.Async)
@@ -6165,7 +6165,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_OSIG();
+					TH_SSIG();
 				}
 			}
 			else if (!Activity && Control.Async)
@@ -6175,7 +6175,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_OSIG();
+					TH_SSIG();
 				}
 			}
 			else if (!Activity && !Control.Async)
@@ -6186,7 +6186,7 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_OSIG();
+					TH_SSIG();
 				}
 			}
 

@@ -86,3 +86,6 @@ target_include_directories(tomahawk PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/t
 
 #Resolve headers for CQueue
 target_include_directories(tomahawk PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/cqueue)
+
+#Resolve headers for BackwardCpp
+target_include_directories(tomahawk PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/backward)

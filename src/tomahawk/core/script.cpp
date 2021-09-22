@@ -2523,30 +2523,36 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Context != nullptr, "", "context should be set");
 
-			std::stringstream Result;
-			Result << "--- call stack ---\n";
+			uint64_t ThreadId = STDThread::GetThreadId();
+			std::stringstream Stream;
+			Stream << "vm stack trace (most recent call last)" << (ThreadId ? " in thread " : ":\n");
+			if (ThreadId)
+				Stream << ThreadId << ":\n";
 
-			for (asUINT n = 0; n < Context->GetCallstackSize(); n++)
+			for (asUINT TraceIdx = Context->GetCallstackSize(); TraceIdx-- > 0;)
 			{
-				VMCFunction* Function = Context->GetFunction(n);
+				VMCFunction* Function = Context->GetFunction(TraceIdx);
 				if (Function != nullptr)
 				{
+					void* Address = (void*)(uintptr_t)Function->GetId();
+					Stream << "#" << TraceIdx << "   ";
+
 					if (Function->GetFuncType() == asFUNC_SCRIPT)
-						Result << "\t" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << " (" << Context->GetLineNumber(n) << "): " << Function->GetDeclaration() << "\n";
+						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber(TraceIdx) << ", in " << Function->GetDeclaration();
 					else
-						Result << "\t" << "{...native...}: " << Function->GetDeclaration() << "\n";
+						Stream << "source {...native_call...}, in " << Function->GetDeclaration() << " [nullptr]";
+
+					if (Address != nullptr)
+						Stream << " [0x" << Address << "]";
+					else
+						Stream << " [nullptr]";
 				}
 				else
-					Result << "\t{...engine...}\n";
+					Stream << "source {...native_call...} [nullptr]";
+				Stream << "\n";
 			}
 
-			uint64_t Id = STDThread::GetThreadId();
-			if (Id > 0)
-				Result << "\t{...thread-" << Id << "...}\n";
-			else
-				Result << "\t{...thread-main...}\n";
-
-			std::string Out(Result.str());
+			std::string Out(Stream.str());
 			return Out.substr(0, Out.size() - 1);
 		}
 		int VMContext::PushState()

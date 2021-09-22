@@ -12,6 +12,7 @@
 #include <json/document.h>
 #include <tinyfiledialogs.h>
 #include <concurrentqueue.h>
+#include <backward.hpp>
 #ifdef TH_MICROSOFT
 #include <Windows.h>
 #include <io.h>
@@ -193,6 +194,63 @@ namespace
 	}
 }
 #endif
+namespace
+{
+	void GetLocation(std::stringstream& Stream, const char* Indent, const backward::ResolvedTrace::SourceLoc& Location, void* Address = nullptr)
+	{
+		Stream << Indent << "source \"" << Location.filename << "\", line " << Location.line << ", in " << Location.function;
+		if (Address != nullptr)
+			Stream << " [0x" << Address << "]";
+		else
+			Stream << " [nullptr]";
+		Stream << "\n";
+	}
+	std::string GetStack(backward::StackTrace& Source)
+	{
+		size_t ThreadId = Source.thread_id();
+		backward::TraceResolver Resolver;
+		Resolver.load_stacktrace(Source);
+
+		std::stringstream Stream;
+		Stream << "stack trace (most recent call last)" << (ThreadId ? " in thread " : ":\n");
+		if (ThreadId)
+			Stream << ThreadId << ":\n";
+
+		for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
+		{
+			backward::ResolvedTrace Trace = Resolver.resolve(Source[TraceIdx - 1]);
+			Stream << "#" << Trace.idx;
+
+			bool Indentation = true;
+			if (Trace.source.filename.empty())
+			{
+				Stream << "   object \"" << Trace.object_filename << "\", at " << Trace.addr << ", in " << Trace.object_function << "\n";
+				Indentation = false;
+			}
+
+			for (size_t InlineIdx = Trace.inliners.size(); InlineIdx > 0; --InlineIdx)
+			{
+				if (!Indentation)
+					Stream << "   ";
+
+				const backward::ResolvedTrace::SourceLoc& Location = Trace.inliners[InlineIdx - 1];
+				GetLocation(Stream, " | ", Location);
+				Indentation = false;
+			}
+
+			if (Trace.source.filename.empty())
+				continue;
+
+			if (!Indentation)
+				Stream << "   ";
+
+			GetLocation(Stream, "   ", Trace.source, Trace.addr);
+		}
+
+		std::string Out(Stream.str());
+		return Out.substr(0, Out.size() - 1);
+	}
+}
 
 namespace Tomahawk
 {
@@ -2862,7 +2920,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
 
-			Parser::Settle Result{ };
+			Parser::Settle Result { };
 			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
 			while ((Result = FindOf(Chars, Offset)).Found)
 			{
@@ -2877,7 +2935,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Chars != nullptr && Chars[0] != '\0' && To != nullptr, *this, "match list and replacer should not be empty");
 
-			Parser::Settle Result{};
+			Parser::Settle Result {};
 			uint64_t Offset = Start, ToSize = (uint64_t)strlen(To);
 			while ((Result = FindNotOf(Chars, Offset)).Found)
 			{
@@ -2893,7 +2951,7 @@ namespace Tomahawk
 			TH_ASSERT(!From.empty(), *this, "match should not be empty");
 
 			uint64_t Offset = Start;
-			Parser::Settle Result{ };
+			Parser::Settle Result { };
 
 			while ((Result = Find(From, Offset)).Found)
 			{
@@ -2915,7 +2973,7 @@ namespace Tomahawk
 
 			uint64_t Offset = Start;
 			auto Size = (uint64_t)strlen(To);
-			Parser::Settle Result{ };
+			Parser::Settle Result { };
 
 			while ((Result = Find(From, Offset)).Found)
 			{
@@ -3365,7 +3423,7 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Size = L->size() - 1 - Offset;
-			for (int64_t i = Size; i > -1; i--)
+			for (int64_t i = Size; i-- > 0;)
 			{
 				if (L->at(i) == Needle)
 					return { (uint64_t)i, (uint64_t)i + 1, true };
@@ -3380,7 +3438,7 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Size = L->size() - 1 - Offset;
-			for (int64_t i = Size; i > -1; i--)
+			for (int64_t i = Size; i-- > 0;)
 			{
 				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
 					return { (uint64_t)i, (uint64_t)i + 1, true };
@@ -3395,7 +3453,7 @@ namespace Tomahawk
 				return { L->size() - 1, L->size(), false };
 
 			uint64_t Size = L->size() - 1 - Offset;
-			for (int64_t i = Size; i > -1; i--)
+			for (int64_t i = Size; i-- > 0;)
 			{
 				for (char k : Needle)
 				{
@@ -3417,7 +3475,7 @@ namespace Tomahawk
 
 			uint64_t Length = strlen(Needle);
 			uint64_t Size = L->size() - 1 - Offset;
-			for (int64_t i = Size; i > -1; i--)
+			for (int64_t i = Size; i-- > 0;)
 			{
 				for (uint64_t k = 0; k < Length; k++)
 				{
@@ -4359,306 +4417,6 @@ namespace Tomahawk
 		AllocCallback Mem::OnAlloc;
 		ReallocCallback Mem::OnRealloc;
 		FreeCallback Mem::OnFree;
-#ifdef _DEBUG
-		static thread_local std::stack<Debug::Context> PerfFrame;
-		static thread_local bool DbgIgnore = false;
-		void Debug::OpPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id)
-		{
-			TH_ASSERT_V(File != nullptr, "file should be set");
-			TH_ASSERT_V(Section != nullptr, "section should be set");
-			TH_ASSERT_V(Function != nullptr, "function should be set");
-			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than Zero");
-
-			Context Ctx;
-			Ctx.File = File;
-			Ctx.Section = Section;
-			Ctx.Function = Function;
-			Ctx.Id = Id;
-			Ctx.Threshold = ThresholdMS * 1000;
-			Ctx.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			Ctx.Line = Line;
-
-			Safe.lock();
-			OpFrame.emplace_back(std::move(Ctx));
-			Safe.unlock();
-		}
-		void Debug::OpSignal()
-		{
-			if (OpFrame.empty())
-				return;
-
-			Safe.lock();
-			for (auto& Ctx : OpFrame)
-			{
-				uint64_t Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-				uint64_t Diff = Time - Ctx.Time;
-				if (Diff > Ctx.Threshold)
-				{
-					TH_WARN("[perf] task @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
-					Ctx.Time = Time;
-				}
-			}
-			Safe.unlock();
-		}
-		void Debug::OpPop(void* Id)
-		{
-			Safe.lock();
-			for (auto It = OpFrame.begin(); It != OpFrame.end(); It++)
-			{
-				Context& Ctx = *It;
-				if (Ctx.Id != Id)
-					continue;
-
-				uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Ctx.Time;
-				if (Diff > Ctx.Threshold)
-					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
-
-				OpFrame.erase(It);
-				break;
-			}
-			Safe.unlock();
-		}
-		void Debug::PerfPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS)
-		{
-			TH_ASSERT_V(File != nullptr, "file should be set");
-			TH_ASSERT_V(Section != nullptr, "section should be set");
-			TH_ASSERT_V(Function != nullptr, "function should be set");
-			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than Zero");
-
-			if (DbgIgnore)
-				return;
-
-			Debug::Context Next;
-			Next.File = File;
-			Next.Section = Section;
-			Next.Function = Function;
-			Next.Threshold = ThresholdMS * 1000;
-			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			Next.Line = Line;
-			PerfFrame.emplace(std::move(Next));
-		}
-		void Debug::PerfSignal()
-		{
-			if (DbgIgnore)
-				return;
-
-			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
-			Debug::Context& Next = PerfFrame.top();
-			uint64_t Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			uint64_t Diff = Time - Next.Time;
-			if (Diff > Next.Threshold)
-			{
-				TH_WARN("[perf] @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
-				Next.Time = Time;
-			}
-		}
-		void Debug::PerfPop()
-		{
-			if (DbgIgnore)
-				return;
-
-			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
-			Debug::Context& Next = PerfFrame.top();
-			uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Next.Time;
-			if (Diff > Next.Threshold)
-				TH_WARN("[perf] @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
-			PerfFrame.pop();
-		}
-		void Debug::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
-		{
-			if (!Function || !Condition || (!Enabled && !Callback))
-				return;
-
-			auto TimeStamp = (time_t)time(nullptr);
-			tm DateTime{ };
-			char Date[64];
-
-			if (Line < 0)
-				Line = 0;
-
-#if defined(TH_MICROSOFT)
-			if (gmtime_s(&DateTime, &TimeStamp) != 0)
-#elif defined(TH_UNIX)
-			if (gmtime_r(&TimeStamp, &DateTime) == 0)
-#else
-			if (true)
-#endif
-				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
-			else
-				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
-
-			char Buffer[8192];
-			snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s%s():\n\tassertion: %s\n\texception: %s\n", Date, Source ? Source : "log", Line, Fatal ? "[fatal] " : "", Function, Condition, Format ? Format : "none");
-
-			char Storage[8192];
-			if (Format != nullptr)
-			{
-				va_list Args;
-				va_start(Args, Format);
-				vsnprintf(Storage, sizeof(Storage), Buffer, Args);
-				va_end(Args);
-			}
-			else
-				memcpy(Storage, Buffer, sizeof(Buffer));
-
-			if (Callback && !DbgIgnore)
-			{
-				DbgIgnore = true;
-				Callback(Storage, 1);
-				DbgIgnore = false;
-			}
-
-			if (Enabled)
-			{
-#if defined(TH_MICROSOFT) && defined(_DEBUG)
-				OutputDebugStringA(Storage);
-#endif
-				if (Console::IsPresent())
-				{
-					Console* Dbg = Console::Get();
-					Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
-					Dbg->WriteBuffer(Storage);
-					Dbg->ColorEnd();
-				}
-				else
-					printf("%s", Storage);
-			}
-
-			if (Fatal)
-				Pause();
-		}
-#endif
-		void Debug::AttachCallback(const std::function<void(const char*, int)>& _Callback)
-		{
-			Callback = _Callback;
-		}
-		void Debug::AttachStream()
-		{
-			Enabled = true;
-		}
-		void Debug::DetachCallback()
-		{
-			Callback = nullptr;
-		}
-		void Debug::DetachStream()
-		{
-			Enabled = false;
-		}
-		void Debug::Log(int Level, int Line, const char* Source, const char* Format, ...)
-		{
-			if (!Format || (!Enabled && !Callback))
-				return;
-
-			auto TimeStamp = (time_t)time(nullptr);
-			tm DateTime{ };
-			char Date[64];
-
-			if (Line < 0)
-				Line = 0;
-#if defined(TH_MICROSOFT)
-			if (gmtime_s(&DateTime, &TimeStamp) != 0)
-#elif defined(TH_UNIX)
-			if (gmtime_r(&TimeStamp, &DateTime) == 0)
-#else
-			if (true)
-#endif
-				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
-			else
-				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
-
-			char Buffer[8192];
-#ifndef _DEBUG
-			if (Level == 1)
-			{
-				int ErrorCode = OS::Error::Get();
-#ifdef TH_MICROSOFT
-				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
-#else
-				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
-#endif
-			}
-			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s [warn] %s\n", Date, Format);
-			else if (Level == 4)
-				snprintf(Buffer, sizeof(Buffer), "%s [sys] %s\n", Date, Format);
-			else
-				snprintf(Buffer, sizeof(Buffer), "%s [info] %s\n", Date, Format);
-#else
-			if (Level == 1)
-			{
-				int ErrorCode = OS::Error::Get();
-#ifdef TH_MICROSOFT
-				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
-#else
-				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
-#endif
-			}
-			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source ? Source : "log", Line, Format);
-			else if (Level == 4)
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [sys] %s\n", Date, Source ? Source : "log", Line, Format);
-			else
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source ? Source : "log", Line, Format);
-#endif
-			char Storage[8192];
-			va_list Args;
-			va_start(Args, Format);
-			vsnprintf(Storage, sizeof(Storage), Buffer, Args);
-			va_end(Args);
-#ifdef _DEBUG
-			if (Callback && !DbgIgnore)
-			{
-				DbgIgnore = true;
-				Callback(Storage, Level);
-				DbgIgnore = false;
-			}
-#else
-			if (Callback)
-				Callback(Storage, Level);
-#endif
-			if (Enabled)
-			{
-#if defined(TH_MICROSOFT) && defined(_DEBUG)
-				OutputDebugStringA(Storage);
-#endif
-				if (Console::IsPresent() && (Level == 1 || Level == 2 || Level == 4))
-				{
-					Console* Dbg = Console::Get();
-					if (Level == 1)
-						Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
-					else if (Level == 2)
-						Dbg->ColorBegin(StdColor::Yellow, StdColor::Black);
-					else
-						Dbg->ColorBegin(StdColor::Gray, StdColor::Black);
-					Dbg->WriteBuffer(Storage);
-					Dbg->ColorEnd();
-				}
-				else
-					printf("%s", Storage);
-			}
-		}
-		void Debug::Pause()
-		{
-			OS::Process::Interrupt();
-		}
-#ifdef _DEBUG
-		std::vector<Debug::Context> Debug::OpFrame;
-#endif
-		std::function<void(const char*, int)> Debug::Callback;
-		std::mutex Debug::Safe;
-		bool Debug::Enabled = false;
 
 		void Composer::AddRef(Object* Value)
 		{
@@ -4836,6 +4594,11 @@ namespace Tomahawk
 			TH_ASSERT_V(Handle, "console should be shown at least once");
 			std::cout << std::flush;
 		}
+		void Console::Trace(uint32_t MaxFrames)
+		{
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			std::cout << OS::GetStackTrace(2, MaxFrames) << '\n';
+		}
 		void Console::CaptureTime()
 		{
 			Time = (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0;
@@ -4965,25 +4728,6 @@ namespace Tomahawk
 			Lock.lock();
 			std::cout << Buffer;
 			Lock.unlock();
-		}
-		void Console::Trace(const char* Format, ...)
-		{
-			TH_ASSERT_V(Format != nullptr, "format should be set");
-
-			char Buffer[2048];
-			va_list Args;
-			va_start(Args, Format);
-#ifdef TH_MICROSOFT
-			_vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			OutputDebugString(Buffer);
-#elif defined TH_UNIX
-			vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			std::cout << Buffer;
-#endif
 		}
 		double Console::GetCapturedTime()
 		{
@@ -6992,6 +6736,321 @@ namespace Tomahawk
 			return Buffer ? Buffer : "";
 #endif
 		}
+
+#ifdef _DEBUG
+		static thread_local std::stack<OS::DbgContext> PerfFrame;
+		static thread_local bool DbgIgnore = false;
+		void OS::SpecPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id)
+		{
+			TH_ASSERT_V(File != nullptr, "file should be set");
+			TH_ASSERT_V(Section != nullptr, "section should be set");
+			TH_ASSERT_V(Function != nullptr, "function should be set");
+			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than Zero");
+
+			DbgContext Ctx;
+			Ctx.File = File;
+			Ctx.Section = Section;
+			Ctx.Function = Function;
+			Ctx.Id = Id;
+			Ctx.Threshold = ThresholdMS * 1000;
+			Ctx.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			Ctx.Line = Line;
+
+			Buffer.lock();
+			SpecFrame.emplace_back(std::move(Ctx));
+			Buffer.unlock();
+		}
+		void OS::SpecSignal()
+		{
+			if (SpecFrame.empty())
+				return;
+
+			Buffer.lock();
+			for (auto& Ctx : SpecFrame)
+			{
+				uint64_t Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+				uint64_t Diff = Time - Ctx.Time;
+				if (Diff > Ctx.Threshold)
+				{
+					TH_WARN("[perf] task @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
+					Ctx.Time = Time;
+				}
+			}
+			Buffer.unlock();
+		}
+		void OS::SpecPop(void* Id)
+		{
+			Buffer.lock();
+			for (auto It = SpecFrame.begin(); It != SpecFrame.end(); It++)
+			{
+				DbgContext& Ctx = *It;
+				if (Ctx.Id != Id)
+					continue;
+
+				uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Ctx.Time;
+				if (Diff > Ctx.Threshold)
+					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
+
+				SpecFrame.erase(It);
+				break;
+			}
+			Buffer.unlock();
+		}
+		void OS::PerfPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS)
+		{
+			TH_ASSERT_V(File != nullptr, "file should be set");
+			TH_ASSERT_V(Section != nullptr, "section should be set");
+			TH_ASSERT_V(Function != nullptr, "function should be set");
+			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than Zero");
+
+			if (DbgIgnore)
+				return;
+
+			OS::DbgContext Next;
+			Next.File = File;
+			Next.Section = Section;
+			Next.Function = Function;
+			Next.Threshold = ThresholdMS * 1000;
+			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			Next.Line = Line;
+			PerfFrame.emplace(std::move(Next));
+		}
+		void OS::PerfSignal()
+		{
+			if (DbgIgnore)
+				return;
+
+			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
+			OS::DbgContext& Next = PerfFrame.top();
+			uint64_t Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			uint64_t Diff = Time - Next.Time;
+			if (Diff > Next.Threshold)
+			{
+				TH_WARN("[perf] @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
+				Next.Time = Time;
+			}
+		}
+		void OS::PerfPop()
+		{
+			if (DbgIgnore)
+				return;
+
+			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
+			OS::DbgContext& Next = PerfFrame.top();
+			uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Next.Time;
+			if (Diff > Next.Threshold)
+				TH_WARN("[perf] @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
+			PerfFrame.pop();
+		}
+#endif
+		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
+		{
+			if (!Function || !Condition || (!Active && !Callback))
+				return;
+
+			auto TimeStamp = (time_t)time(nullptr);
+			tm DateTime { };
+			char Date[64];
+
+			if (Line < 0)
+				Line = 0;
+
+#if defined(TH_MICROSOFT)
+			if (gmtime_s(&DateTime, &TimeStamp) != 0)
+#elif defined(TH_UNIX)
+			if (gmtime_r(&TimeStamp, &DateTime) == 0)
+#else
+			if (true)
+#endif
+				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
+			else
+				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
+
+			char Buffer[8192];
+			snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s%s():\n\tassertion: %s\n\texception: %s\n", Date, Source ? Source : "log", Line, Fatal ? "[fatal] " : "", Function, Condition, Format ? Format : "none");
+
+			char Storage[8192];
+			if (Format != nullptr)
+			{
+				va_list Args;
+				va_start(Args, Format);
+				vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+				va_end(Args);
+			}
+			else
+				memcpy(Storage, Buffer, sizeof(Buffer));
+
+			std::string Stack = OS::GetStackTrace(2, 64);
+			std::string Trace = Form("%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Stack.c_str()).R();
+			if (Callback && !DbgIgnore)
+			{
+				DbgIgnore = true;
+				Callback(Trace.c_str(), 1);
+				Callback(Storage, 1);
+				DbgIgnore = false;
+			}
+
+			if (Active)
+			{
+#if defined(TH_MICROSOFT) && defined(_DEBUG)
+				OutputDebugStringA(Trace.c_str());
+				OutputDebugStringA(Storage);
+#endif
+				if (Console::IsPresent())
+				{
+					Console* Dbg = Console::Get();
+					Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
+					Dbg->WriteBuffer(Trace.c_str());
+					Dbg->WriteBuffer(Storage);
+					Dbg->ColorEnd();
+				}
+				else
+					printf("%s%s", Trace.c_str(), Storage);
+			}
+
+			if (Fatal)
+				Pause();
+		}
+		void OS::Log(int Level, int Line, const char* Source, const char* Format, ...)
+		{
+			if (!Format || (!Active && !Callback))
+				return;
+
+			auto TimeStamp = (time_t)time(nullptr);
+			tm DateTime { };
+			char Date[64];
+
+			if (Line < 0)
+				Line = 0;
+#if defined(TH_MICROSOFT)
+			if (gmtime_s(&DateTime, &TimeStamp) != 0)
+#elif defined(TH_UNIX)
+			if (gmtime_r(&TimeStamp, &DateTime) == 0)
+#else
+			if (true)
+#endif
+				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
+			else
+				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
+
+			char Buffer[8192];
+#ifndef _DEBUG
+			if (Level == 1)
+			{
+				int ErrorCode = OS::Error::Get();
+#ifdef TH_MICROSOFT
+				if (ErrorCode != ERROR_SUCCESS)
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
+				else
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
+#else
+				if (ErrorCode > 0)
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
+				else
+					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
+#endif
+			}
+			else if (Level == 2)
+				snprintf(Buffer, sizeof(Buffer), "%s [warn] %s\n", Date, Format);
+			else if (Level == 4)
+				snprintf(Buffer, sizeof(Buffer), "%s [sys] %s\n", Date, Format);
+			else
+				snprintf(Buffer, sizeof(Buffer), "%s [info] %s\n", Date, Format);
+#else
+			if (Level == 1)
+			{
+				int ErrorCode = OS::Error::Get();
+#ifdef TH_MICROSOFT
+				if (ErrorCode != ERROR_SUCCESS)
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
+				else
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
+#else
+				if (ErrorCode > 0)
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
+				else
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
+#endif
+			}
+			else if (Level == 2)
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source ? Source : "log", Line, Format);
+			else if (Level == 4)
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [sys] %s\n", Date, Source ? Source : "log", Line, Format);
+			else
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source ? Source : "log", Line, Format);
+#endif
+			char Storage[8192];
+			va_list Args;
+			va_start(Args, Format);
+			vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+			va_end(Args);
+#ifdef _DEBUG
+			if (Callback && !DbgIgnore)
+			{
+				DbgIgnore = true;
+				Callback(Storage, Level);
+				DbgIgnore = false;
+			}
+#else
+			if (Callback)
+				Callback(Storage, Level);
+#endif
+			if (Active)
+			{
+#if defined(TH_MICROSOFT) && defined(_DEBUG)
+				OutputDebugStringA(Storage);
+#endif
+				if (Console::IsPresent() && (Level == 1 || Level == 2 || Level == 4))
+				{
+					Console* Dbg = Console::Get();
+					if (Level == 1)
+						Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
+					else if (Level == 2)
+						Dbg->ColorBegin(StdColor::Yellow, StdColor::Black);
+					else
+						Dbg->ColorBegin(StdColor::Gray, StdColor::Black);
+					Dbg->WriteBuffer(Storage);
+					Dbg->ColorEnd();
+				}
+				else
+					printf("%s", Storage);
+			}
+		}
+		void OS::Pause()
+		{
+			OS::Process::Interrupt();
+		}
+		void OS::SetLogCallback(const std::function<void(const char*, int)>& _Callback)
+		{
+			Callback = _Callback;
+		}
+		void OS::SetLogActive(bool Enabled)
+		{
+			Active = Enabled;
+		}
+		bool OS::SetCrashDumps()
+		{
+#ifdef _DEBUG
+			static backward::SignalHandling Handle;
+			return Handle.loaded();
+#else
+			return false;
+#endif
+		}
+		std::string OS::GetStackTrace(size_t Skips, size_t MaxFrames)
+		{
+			backward::StackTrace Stack;
+			Stack.load_here(MaxFrames + Skips);
+			Stack.skip_n_firsts(Skips);
+
+			return GetStack(Stack);
+		}
+#ifdef _DEBUG
+		std::vector<OS::DbgContext> OS::SpecFrame;
+#endif
+		std::function<void(const char*, int)> OS::Callback;
+		std::mutex OS::Buffer;
+		bool OS::Active = false;
 
 		ChangeLog::ChangeLog(const std::string& Root) : Offset(-1), Time(0), Path(Root)
 		{

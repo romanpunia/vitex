@@ -255,6 +255,7 @@ These are used widely and presents useful features
 * [stb](https://github.com/nothings/stb)
 * [vectorclass](https://github.com/vectorclass/version1)
 * [concurrentqueue](https://github.com/cameron314/concurrentqueue)
+* [backward-cpp](https://github.com/bombela/backward-cpp)
 
 ## Optional dependencies from **/lib**
 These are recommended to be installed, but are not required to.

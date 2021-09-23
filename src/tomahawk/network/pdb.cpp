@@ -1673,125 +1673,113 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Cluster::Reprocess(Connection* Base)
+			bool Cluster::Reprocess(Connection* Source)
 			{
-				return Base->Stream->SetReadNotify([this](Socket* Stream, const char* Buffer, int64_t Size)
+				return Source->Stream->SetReadNotify([this, Source](NetEvent Event, const char*, size_t)
 				{
-					return Dispatch(Stream, Buffer, Size);
-				}) == 1;
-			}
-			bool Cluster::Dispatch(Socket* Stream, const char*, int64_t)
-			{
+					if (Packet::IsSkip(Event))
+						return true;
 #ifdef TH_HAS_POSTGRESQL
-				TH_PPUSH("postgres-recv", TH_PERF_MAX);
-				Update.lock();
-				auto It = Pool.find(Stream);
-				if (It == Pool.end())
-				{
-					Update.unlock();
-					TH_PPOP();
+					TH_PPUSH("postgres-recv", TH_PERF_MAX);
+					Update.lock();
+					if (Source->State == QueryState::Lost)
+					{
+						Reestablish(Source);
+						Consume(Source);
+						Update.unlock();
+						TH_PPOP();
 
-					return false;
-				}
+						return Reprocess(Source);
+					}
 
-				Connection* Source = It->second;
-				if (Source->State == QueryState::Lost)
-				{
-					Reestablish(Source);
+				Retry:
+					Consume(Source);
+					if (PQconsumeInput(Source->Base) != 1)
+					{
+						PQlogMessage(Source->Base);
+						Source->State = QueryState::Lost;
+						Update.unlock();
+						TH_PPOP();
+
+						return Reprocess(Source);
+					}
+
+					if (PQisBusy(Source->Base) == 1)
+					{
+						Update.unlock();
+						TH_PPOP();
+
+						return Reprocess(Source);
+					}
+
+					PGnotify* Notification = PQnotifies(Source->Base);
+					if (Notification != nullptr && Notification->relname != nullptr)
+					{
+						auto It = Listeners.find(Notification->relname);
+						if (It != Listeners.end() && It->second)
+						{
+							OnNotification Callback = It->second;
+							Core::Schedule::Get()->SetTask([Callback = std::move(Callback), Notification]()
+							{
+								Callback(Notify(Notification));
+							});
+						}
+						else
+						{
+							TH_WARN("[pqwarn] notification from %s channel was missed", Notification->relname);
+							PQfreeNotify(Notification);
+						}
+					}
+
+					if (Source->State == QueryState::Busy)
+					{
+						Response Frame(PQgetResult(Source->Base));
+						if (Source->Current != nullptr)
+						{
+							if (!Frame)
+							{
+								Core::Async<Cursor> Future = Source->Current->Future;
+								Cursor Results(std::move(Source->Current->Result));
+								Request* Item = Source->Current;
+								Source->State = QueryState::Idle;
+								Source->Current = nullptr;
+								PQlogMessage(Source->Base);
+
+								Update.unlock();
+#ifdef _DEBUG
+								if (!Results.IsError())
+									TH_TRACE("[pq] OK execute on 0x%p", (void*)Source);
+#endif
+								Future = std::move(Results);
+								Update.lock();
+
+								TH_DELETE(Request, Item);
+								Consume(Source);
+								Update.unlock();
+								TH_PPOP();
+
+								return Reprocess(Source);
+							}
+
+							Source->Current->Result.Base.emplace_back(Frame);
+							goto Retry;
+						}
+						else
+						{
+							Source->State = (Frame ? QueryState::Busy : QueryState::Idle);
+							Frame.Release();
+						}
+					}
+
 					Consume(Source);
 					Update.unlock();
 					TH_PPOP();
 
 					return Reprocess(Source);
-				}
-
-			Retry:
-				Consume(Source);
-				if (PQconsumeInput(Source->Base) != 1)
-				{
-					PQlogMessage(Source->Base);
-					Source->State = QueryState::Lost;
-					Update.unlock();
-					TH_PPOP();
-
-					return Reprocess(Source);
-				}
-
-				if (PQisBusy(Source->Base) == 1)
-				{
-					Update.unlock();
-					TH_PPOP();
-
-					return Reprocess(Source);
-				}
-
-				PGnotify* Notification = PQnotifies(Source->Base);
-				if (Notification != nullptr && Notification->relname != nullptr)
-				{
-					auto It = Listeners.find(Notification->relname);
-					if (It != Listeners.end() && It->second)
-					{
-						OnNotification Callback = It->second;
-						Core::Schedule::Get()->SetTask([Callback = std::move(Callback), Notification]()
-						{
-							Callback(Notify(Notification));
-						});
-					}
-					else
-					{
-						TH_WARN("[pqwarn] notification from %s channel was missed", Notification->relname);
-						PQfreeNotify(Notification);
-					}
-				}
-
-				if (Source->State == QueryState::Busy)
-				{
-					Response Frame(PQgetResult(Source->Base));
-					if (Source->Current != nullptr)
-					{
-						if (!Frame)
-						{
-							Core::Async<Cursor> Future = Source->Current->Future;
-							Cursor Results(std::move(Source->Current->Result));
-							Request* Item = Source->Current;
-							Source->State = QueryState::Idle;
-							Source->Current = nullptr;
-							PQlogMessage(Source->Base);
-
-							Update.unlock();
-#ifdef _DEBUG
-							if (!Results.IsError())
-								TH_TRACE("[pq] OK execute on 0x%p", (void*)Source);
-#endif
-							Future = std::move(Results);
-							Update.lock();
-
-							TH_DELETE(Request, Item);
-							Consume(Source);
-							Update.unlock();
-							TH_PPOP();
-
-							return Reprocess(Source);
-						}
-
-						Source->Current->Result.Base.emplace_back(Frame);
-						goto Retry;
-					}
-					else
-					{
-						Source->State = (Frame ? QueryState::Busy : QueryState::Idle);
-						Frame.Release();
-					}
-				}
-
-				Consume(Source);
-				Update.unlock();
-				TH_PPOP();
-
-				return Reprocess(Source);
 #else
-				return false;
+					return false;
 #endif
+				}) == 1;
 			}
 			bool Cluster::Transact(Connection* Base, Request* Next)
 			{

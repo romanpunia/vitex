@@ -76,15 +76,27 @@ namespace Tomahawk
 			}
 			WebSocketFrame::~WebSocketFrame()
 			{
+				while (!Messages.empty())
+				{
+					auto& Next = Messages.front();
+					TH_FREE(Next.Buffer);
+					Messages.pop();
+				}
+
 				TH_RELEASE(Codec);
 			}
-			void WebSocketFrame::Send(const char* Buffer, int64_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			void WebSocketFrame::Send(const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				Send(0, Buffer, Size, Opcode, Callback);
 			}
-			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, int64_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			void WebSocketFrame::Send(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+
+				Section.lock();
+				if (EnqueueNext(Mask, Buffer, Size, Opcode, Callback))
+					return Section.unlock();
+				Section.unlock();
 
 				unsigned char Header[14];
 				size_t HeaderLength = 1;
@@ -119,9 +131,45 @@ namespace Tomahawk
 					HeaderLength += 4;
 				}
 
-				Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](Socket* Socket, int64_t State)
+				Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](NetEvent Event, size_t Sent)
 				{
-					if (State < 0)
+					if (Packet::IsDone(Event))
+					{
+						if (Size > 0)
+						{
+							Stream->WriteAsync(Buffer, Size, [this, Callback](NetEvent Event, size_t Sent)
+							{
+								if (Packet::IsDone(Event))
+								{
+									if (Callback)
+										Callback(this);
+									SendNext();
+								}
+								else if (Packet::IsError(Event))
+								{
+									Reset = true;
+									if (Callback)
+										Callback(this);
+
+									if (E.Reset)
+										E.Reset(this);
+								}
+								else if (Packet::IsSkip(Event))
+								{
+									if (Callback)
+										Callback(this);
+									SendNext();
+								}
+							});
+						}
+						else
+						{
+							if (Callback)
+								Callback(this);
+							SendNext();
+						}
+					}
+					else if (Packet::IsError(Event))
 					{
 						Reset = true;
 						if (Callback)
@@ -130,29 +178,26 @@ namespace Tomahawk
 						if (E.Reset)
 							E.Reset(this);
 					}
-					else if (Size <= 0)
+					else if (Packet::IsSkip(Event))
 					{
 						if (Callback)
 							Callback(this);
-					}
-					else
-					{
-						Stream->WriteAsync(Buffer, Size, [this, Callback](Network::Socket* Socket, int64_t State)
-						{
-							if (State < 0)
-							{
-								Reset = true;
-								if (Callback)
-									Callback(this);
-
-								if (E.Reset)
-									E.Reset(this);
-							}
-							else if (Callback)
-								Callback(this);
-						});
+						SendNext();
 					}
 				});
+			}
+			void WebSocketFrame::SendNext()
+			{
+				Section.lock();
+				if (Stream->HasOutcomingData() || Messages.empty())
+					return Section.unlock();
+
+				Message Next = std::move(Messages.front());
+				Messages.pop();
+				Section.unlock();
+
+				Send(Next.Mask, Next.Buffer, Next.Size, Next.Opcode, Next.Callback);
+				TH_FREE(Next.Buffer);
 			}
 			void WebSocketFrame::Finish()
 			{
@@ -177,13 +222,13 @@ namespace Tomahawk
 						goto Retry;
 					}
 
-					Stream->SetReadNotify([this](Socket*, const char*, int64_t Size)
+					Stream->SetReadNotify([this](NetEvent Event, const char*, size_t Recv)
 					{
-						if (Size >= 0)
-							State = (uint32_t)WebSocketState::Process;
-						else
-							State = (uint32_t)WebSocketState::Close;
+						bool IsDone = Packet::IsDone(Event);
+						if (!IsDone && !Packet::IsError(Event))
+							return true;
 
+						State = (uint32_t)(IsDone ? WebSocketState::Process : WebSocketState::Close);
 						return Core::Schedule::Get()->SetTask([this]()
 						{
 							Next();
@@ -195,10 +240,10 @@ namespace Tomahawk
 					char Buffer[8192];
 					while (true)
 					{
-						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](Socket*, const char* Buffer, int64_t Size)
+						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](NetEvent Event, const char* Buffer, size_t Recv)
 						{
-							if (Size > 0)
-								Codec->ParseFrame(Buffer, (size_t)Size);
+							if (Packet::IsData(Event))
+								Codec->ParseFrame(Buffer, Recv);
 
 							return true;
 						});
@@ -227,7 +272,7 @@ namespace Tomahawk
 						if (Receive)
 						{
 							Section.unlock();
-							return Receive(this, Codec->Data.data(), (int64_t)Codec->Data.size(), (WebSocketOp)Opcode);
+							return Receive(this, (WebSocketOp)Opcode, Codec->Data.data(), (int64_t)Codec->Data.size());
 						}
 					}
 					else if (Opcode == WebSocketOp::Ping)
@@ -287,6 +332,24 @@ namespace Tomahawk
 			{
 				return !Active;
 			}
+			bool WebSocketFrame::EnqueueNext(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			{
+				if (!Stream->HasOutcomingData())
+					return false;
+
+				Message Next;
+				Next.Mask = Mask;
+				Next.Buffer = (Size > 0 ? (char*)TH_MALLOC(sizeof(char) * Size) : nullptr);
+				Next.Size = Size;
+				Next.Opcode = Opcode;
+				Next.Callback = Callback;
+
+				if (Next.Buffer != nullptr)
+					memcpy(Next.Buffer, Buffer, sizeof(char) * Size);
+
+				Messages.emplace(std::move(Next));
+				return true;
+			}
 
 			GatewayFrame::GatewayFrame(Script::VMCompiler* NewCompiler) : Compiler(NewCompiler), Active(true)
 			{
@@ -305,7 +368,7 @@ namespace Tomahawk
 				else
 					Finish();
 			}
-			bool GatewayFrame::Start(const std::string& Path, const char* Method, char* Buffer, int64_t Size)
+			bool GatewayFrame::Start(const std::string& Path, const char* Method, char* Buffer, size_t Size)
 			{
 				TH_ASSERT(Buffer != nullptr, false, "buffer should be set");
 				TH_ASSERT(Method != nullptr, false, "method should be set");
@@ -991,7 +1054,7 @@ namespace Tomahawk
 				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved || Response.Data == Content::Wants_Save)
 				{
 					if (Callback)
-						Callback(this, nullptr, 0);
+						Callback(this, NetEvent::Finished, nullptr, 0);
 
 					return true;
 				}
@@ -999,7 +1062,7 @@ namespace Tomahawk
 				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
 				{
 					if (Callback)
-						Callback(this, nullptr, -1);
+						Callback(this, NetEvent::Timeout, nullptr, 0);
 
 					return true;
 				}
@@ -1008,8 +1071,8 @@ namespace Tomahawk
 				{
 					if (Callback)
 					{
-						Callback(this, Request.Buffer.c_str(), (int)Request.Buffer.size());
-						Callback(this, nullptr, 0);
+						Callback(this, NetEvent::Packet, Request.Buffer.c_str(), (int)Request.Buffer.size());
+						Callback(this, NetEvent::Finished, nullptr, 0);
 					}
 
 					return true;
@@ -1019,7 +1082,7 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Empty;
 					if (Callback)
-						Callback(this, nullptr, 0);
+						Callback(this, NetEvent::Finished, nullptr, 0);
 
 					return false;
 				}
@@ -1029,7 +1092,7 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Wants_Save;
 					if (Callback)
-						Callback(this, nullptr, 0);
+						Callback(this, NetEvent::Finished, nullptr, 0);
 
 					return true;
 				}
@@ -1038,78 +1101,77 @@ namespace Tomahawk
 				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [Parser, Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Parser, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-						if (Size > 0)
+						if (Packet::IsData(Event))
 						{
-							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Size);
+							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Recv);
 							if (Result == -1)
 							{
 								TH_RELEASE(Parser);
-								Base->Response.Data = Content::Corrupted;
+								Response.Data = Content::Corrupted;
 
 								if (Callback)
-									Callback(Base, nullptr, (int)Result);
+									Callback(this, NetEvent::Timeout, nullptr, 0);
 
 								return false;
 							}
 							else if (Result >= 0 || Result == -2)
 							{
 								if (Callback)
-									Callback(Base, Buffer, (int)Size);
+									Callback(this, NetEvent::Packet, Buffer, Recv);
 
-								if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-									Base->Request.Buffer.append(Buffer, Size);
+								if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+									Request.Buffer.append(Buffer, Recv);
 							}
 
 							return Result == -2;
 						}
+						else if (Packet::IsDone(Event))
+						{
+							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+								Response.Data = Content::Cached;
+							else
+								Response.Data = Content::Lost;
+
+							if (Callback)
+								Callback(this, NetEvent::Finished, nullptr, 0);
+						}
+						else if (Packet::IsErrorOrSkip(Event))
+						{
+							Response.Data = Content::Corrupted;
+							if (Callback)
+								Callback(this, Event, nullptr, 0);
+						}
 
 						TH_RELEASE(Parser);
-						if (Size != -1)
-						{
-							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Response.Data = Content::Cached;
-							else
-								Base->Response.Data = Content::Lost;
-						}
-						else
-							Base->Response.Data = Content::Corrupted;
-
-						if (Callback)
-							Callback(Base, nullptr, Size);
-
 						return true;
 					}) > 0;
 				}
 				else if (!Request.GetHeader("Content-Length"))
 				{
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-						if (Size <= 0)
+						if (Packet::IsData(Event))
 						{
-							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Response.Data = Content::Cached;
+							if (Callback)
+								Callback(this, NetEvent::Packet, Buffer, Recv);
+
+							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+								Request.Buffer.append(Buffer, Recv);
+						}
+						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						{
+							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+								Response.Data = Content::Cached;
 							else
-								Base->Response.Data = Content::Lost;
+								Response.Data = Content::Lost;
 
 							if (Callback)
-								Callback(Base, nullptr, Size);
+								Callback(this, Event, nullptr, 0);
 
 							return false;
 						}
-
-						if (Callback)
-							Callback(Base, Buffer, Size);
-
-						if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-							Base->Request.Buffer.append(Buffer, Size);
 
 						return true;
 					}) > 0;
@@ -1119,7 +1181,7 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Payload_Exceeded;
 					if (Callback)
-						Callback(this, nullptr, 0);
+						Callback(this, NetEvent::Timeout, nullptr, 0);
 
 					return false;
 				}
@@ -1128,57 +1190,43 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Wants_Save;
 					if (Callback)
-						Callback(this, nullptr, 0);
+						Callback(this, NetEvent::Timeout, nullptr, 0);
 
 					return true;
 				}
 
-				return Stream->ReadAsync((int64_t)Request.ContentLength, [Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
+				return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-					if (Size <= 0)
+					if (Packet::IsData(Event))
 					{
-						if (Size != -1)
-						{
-							if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-								Base->Response.Data = Content::Cached;
-							else
-								Base->Response.Data = Content::Lost;
-						}
+						if (Callback)
+							Callback(this, NetEvent::Packet, Buffer, Recv);
+
+						if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+							Request.Buffer.append(Buffer, Recv);
+					}
+					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+					{
+						if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+							Response.Data = Content::Cached;
 						else
-							Base->Response.Data = Content::Corrupted;
+							Response.Data = Content::Lost;
 
 						if (Callback)
-							Callback(Base, nullptr, Size);
+							Callback(this, Event, nullptr, 0);
 
 						return false;
 					}
-
-					if (Callback)
-						Callback(Base, Buffer, Size);
-
-					if (!Base->Route || Base->Request.Buffer.size() < Base->Route->MaxCacheLength)
-						Base->Request.Buffer.append(Buffer, Size);
 
 					return true;
 				}) > 0;
 			}
 			bool Connection::Store(const ResourceCallback& Callback)
 			{
-				if (!Route || Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Cached)
+				if (!Route || Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Cached || Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
 				{
 					if (Callback)
-						Callback(this, nullptr, 0);
-
-					return false;
-				}
-
-				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
-				{
-					if (Callback)
-						Callback(this, nullptr, -1);
+						Callback(this, nullptr);
 
 					return false;
 				}
@@ -1189,9 +1237,9 @@ namespace Tomahawk
 						return true;
 
 					for (auto& Item : Request.Resources)
-						Callback(this, &Item, (int64_t)Item.Length);
+						Callback(this, &Item);
 
-					Callback(this, nullptr, 0);
+					Callback(this, nullptr);
 					return true;
 				}
 
@@ -1218,37 +1266,34 @@ namespace Tomahawk
 					Parser->OnResourceEnd = Util::ParseMultipartResourceEnd;
 					Parser->UserPointer = Segment;
 
-					return Stream->ReadAsync((int64_t)Request.ContentLength, [Parser, Segment, Boundary](Network::Socket* Socket, const char* Buffer, int64_t Size)
+					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Parser, Segment, Boundary](NetEvent Event, const char* Buffer, size_t Recv)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-						if (Size <= 0)
+						if (Packet::IsData(Event))
 						{
-							if (Size == -1)
-								Base->Response.Data = Content::Corrupted;
-							else
-								Base->Response.Data = Content::Saved;
+							if (Parser->MultipartParse(Boundary.c_str(), Buffer, Recv) != -1 && !Segment->Close)
+								return true;
 
+							Response.Data = Content::Saved;
 							if (Segment->Callback)
-								Segment->Callback(Base, nullptr, Size);
-
-							TH_RELEASE(Parser);
-							TH_DELETE(ParserFrame, Segment);
-
-							return true;
-						}
-
-						if (Parser->MultipartParse(Boundary.c_str(), Buffer, Size) == -1 || Segment->Close)
-						{
-							Base->Response.Data = Content::Saved;
-							if (Segment->Callback)
-								Segment->Callback(Base, nullptr, 0);
+								Segment->Callback(this, nullptr);
 
 							TH_RELEASE(Parser);
 							TH_DELETE(ParserFrame, Segment);
 
 							return false;
+						}
+						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						{
+							if (Packet::IsError(Event))
+								Response.Data = Content::Corrupted;
+							else
+								Response.Data = Content::Saved;
+
+							if (Segment->Callback)
+								Segment->Callback(this, nullptr);
+
+							TH_RELEASE(Parser);
+							TH_DELETE(ParserFrame, Segment);
 						}
 
 						return true;
@@ -1268,45 +1313,46 @@ namespace Tomahawk
 						return false;
 					}
 
-					return Stream->ReadAsync((int64_t)Request.ContentLength, [File, fResource, Callback](Network::Socket* Socket, const char* Buffer, int64_t Size)
+					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, File, fResource, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-						if (Size <= 0)
+						if (Packet::IsData(Event))
 						{
-							if (Size != -1)
-							{
-								Base->Response.Data = Content::Saved;
-								Base->Request.Resources.push_back(fResource);
+							if (fwrite(Buffer, 1, Recv, File) == Recv)
+								return true;
 
-								if (Callback)
-									Callback(Base, &Base->Request.Resources.back(), Size);
-							}
-							else
-								Base->Response.Data = Content::Corrupted;
+							Response.Data = Content::Save_Exception;
+							TH_CLOSE(File);
 
 							if (Callback)
-								Callback(Base, nullptr, Size);
+								Callback(this, nullptr);
+
+							return false;
+						}
+						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+						{
+							if (Packet::IsDone(Event))
+							{
+								Response.Data = Content::Saved;
+								Request.Resources.push_back(fResource);
+
+								if (Callback)
+									Callback(this, &Request.Resources.back());
+							}
+							else
+								Response.Data = Content::Corrupted;
+
+							if (Callback)
+								Callback(this, nullptr);
 
 							TH_CLOSE(File);
 							return false;
 						}
 
-						if (fwrite(Buffer, 1, (size_t)Size, File) == Size)
-							return true;
-
-						Base->Response.Data = Content::Save_Exception;
-						TH_CLOSE(File);
-
-						if (Callback)
-							Callback(Base, nullptr, 0);
-
-						return false;
+						return true;
 					}) > 0;
 				}
 				else if (Callback)
-					Callback(this, nullptr, 0);
+					Callback(this, nullptr);
 
 				return true;
 			}
@@ -1393,11 +1439,10 @@ namespace Tomahawk
 						Content.fAppend("Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Util::ConnectionResolve(this).c_str(), Auth.c_str());
 					}
 
-					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](NetEvent Event, size_t Sent)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT_V(Base != nullptr, "socket should be set");
-						Base->Root->Manage(Base);
+						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+							Root->Manage(this);
 					});
 				}
 
@@ -1539,20 +1584,23 @@ namespace Tomahawk
 					Route->Callbacks.Headers(this, &Content);
 
 				Content.Append("\r\n", 2);
-				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0 || memcmp(Base->Request.Method, "HEAD", 4) == 0 || Base->Response.Buffer.empty())
-						return (void)Base->Root->Manage(Base);
-
-					Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t State)
+					if (Packet::IsDone(Event))
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT(Base != nullptr, false, "socket should be set");
-						return Base->Root->Manage(Base);
-					});
+						if (memcmp(Request.Method, "HEAD", 4) != 0 && !Response.Buffer.empty())
+						{
+							Stream->WriteAsync(Response.Buffer.data(), (int64_t)Response.Buffer.size(), [this](NetEvent Event, size_t Sent)
+							{
+								if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+									Root->Manage(this);
+							});
+						}
+						else
+							Root->Manage(this);
+					}
+					else if (Packet::IsErrorOrSkip(Event))
+						Root->Manage(this);
 				});
 			}
 			bool Connection::Finish(int StatusCode)
@@ -2062,9 +2110,9 @@ namespace Tomahawk
 			{
 				TH_FREE(Multipart.Boundary);
 			}
-			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, int64_t Length)
+			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, size_t Length)
 			{
-				TH_ASSERT(Buffer != nullptr, -1, "Dataer should be set");
+				TH_ASSERT(Buffer != nullptr, -1, "buffer should be set");
 				TH_ASSERT(Boundary != nullptr, -1, "boundary should be set");
 
 				if (!Multipart.Boundary || !Multipart.LookBehind)
@@ -2083,7 +2131,7 @@ namespace Tomahawk
 
 				char Value, Lower;
 				char LF = 10, CR = 13;
-				int64_t i = 0, Mark = 0;
+				size_t i = 0, Mark = 0;
 				int Last = 0;
 
 				while (i < Length)
@@ -2280,9 +2328,9 @@ namespace Tomahawk
 
 				return Length;
 			}
-			int64_t Parser::ParseRequest(const char* BufferStart, uint64_t Length, uint64_t LastLength)
+			int64_t Parser::ParseRequest(const char* BufferStart, size_t Length, size_t LastLength)
 			{
-				TH_ASSERT(BufferStart != nullptr, -1, "Dataer start should be set");
+				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = BufferStart + Length;
 				int Result;
@@ -2295,9 +2343,9 @@ namespace Tomahawk
 
 				return (int64_t)(Buffer - BufferStart);
 			}
-			int64_t Parser::ParseResponse(const char* BufferStart, uint64_t Length, uint64_t LastLength)
+			int64_t Parser::ParseResponse(const char* BufferStart, size_t Length, size_t LastLength)
 			{
-				TH_ASSERT(BufferStart != nullptr, -1, "Dataer start should be set");
+				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = Buffer + Length;
 				int Result;
@@ -2310,9 +2358,9 @@ namespace Tomahawk
 
 				return (int64_t)(Buffer - BufferStart);
 			}
-			int64_t Parser::ParseDecodeChunked(char* Buffer, int64_t* Length)
+			int64_t Parser::ParseDecodeChunked(char* Buffer, size_t* Length)
 			{
-				TH_ASSERT(Buffer != nullptr && Length != nullptr, -1, "Dataer should be set");
+				TH_ASSERT(Buffer != nullptr && Length != nullptr, -1, "buffer should be set");
 				size_t Dest = 0, Src = 0, Size = *Length;
 				int64_t Result = -2;
 
@@ -2463,10 +2511,10 @@ namespace Tomahawk
 				*Length = Dest;
 				return Result;
 			}
-			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, uint64_t* TokenLength, int* Out)
+			const char* Parser::Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, size_t* TokenLength, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
 				TH_ASSERT(Token != nullptr, nullptr, "token should be set");
 				TH_ASSERT(TokenLength != nullptr, nullptr, "token length should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
@@ -2535,10 +2583,10 @@ namespace Tomahawk
 				*Token = TokenStart;
 				return Buffer;
 			}
-			const char* Parser::Complete(const char* Buffer, const char* BufferEnd, uint64_t LastLength, int* Out)
+			const char* Parser::Complete(const char* Buffer, const char* BufferEnd, size_t LastLength, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				int Result = 0;
@@ -2587,8 +2635,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				if (BufferEnd - Buffer < 9)
@@ -2657,8 +2705,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				static const char* Mapping =
@@ -2762,8 +2810,7 @@ namespace Tomahawk
 						return nullptr;
 					}
 
-					const char* Value;
-					uint64_t ValueLength;
+					const char* Value; size_t ValueLength;
 					if ((Buffer = Tokenize(Buffer, BufferEnd, &Value, &ValueLength, Out)) == nullptr)
 					{
 						if (OnHeaderValue)
@@ -2791,8 +2838,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				if (Buffer == BufferEnd)
@@ -2950,8 +2997,8 @@ namespace Tomahawk
 			}
 			const char* Parser::ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out)
 			{
-				TH_ASSERT(Buffer != nullptr, nullptr, "Dataer should be set");
-				TH_ASSERT(BufferEnd != nullptr, nullptr, "Dataer end should be set");
+				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
+				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				if ((Buffer = ProcessVersion(Buffer, BufferEnd, Out)) == nullptr)
@@ -3004,8 +3051,7 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				const char* Message;
-				uint64_t MessageLength;
+				const char* Message; size_t MessageLength;
 				if ((Buffer = Tokenize(Buffer, BufferEnd, &Message, &MessageLength, Out)) == nullptr)
 					return nullptr;
 
@@ -3377,7 +3423,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Request != nullptr, "connection should be set");
 				TH_ASSERT_V(Response != nullptr, "response should be set");
-				TH_ASSERT_V(Buffer != nullptr, "Dataer should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				HeaderMapping& Headers = (IsRequest ? Request->Headers : Response->Headers);
 				for (auto& Item : Headers)
@@ -3403,7 +3449,7 @@ namespace Tomahawk
 			void Util::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)
 			{
 				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				TH_ASSERT_V(Buffer != nullptr, "Dataer should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				if (!Base->Route->StaticFileMaxAge)
 					return ConstructHeadUncache(Base, Buffer);
@@ -3413,7 +3459,7 @@ namespace Tomahawk
 			void Util::ConstructHeadUncache(Connection* Base, Core::Parser* Buffer)
 			{
 				TH_ASSERT_V(Base != nullptr, "connection should be set");
-				TH_ASSERT_V(Buffer != nullptr, "Dataer should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				Buffer->Append(
 					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
@@ -3764,11 +3810,11 @@ namespace Tomahawk
 
 				return "Stateless";
 			}
-			bool Util::ParseMultipartHeaderField(Parser* Parser, const char* Name, uint64_t Length)
+			bool Util::ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length)
 			{
 				return ParseHeaderField(Parser, Name, Length);
 			}
-			bool Util::ParseMultipartHeaderValue(Parser* Parser, const char* Data, uint64_t Length)
+			bool Util::ParseMultipartHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
@@ -3807,7 +3853,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Util::ParseMultipartContentData(Parser* Parser, const char* Data, uint64_t Length)
+			bool Util::ParseMultipartContentData(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
@@ -3866,11 +3912,11 @@ namespace Tomahawk
 				Segment->Request->Resources.push_back(Segment->Source);
 
 				if (Segment->Callback)
-					Segment->Callback(nullptr, &Segment->Request->Resources.back(), Segment->Source.Length);
+					Segment->Callback(nullptr, &Segment->Request->Resources.back());
 
 				return true;
 			}
-			bool Util::ParseHeaderField(Parser* Parser, const char* Name, uint64_t Length)
+			bool Util::ParseHeaderField(Parser* Parser, const char* Name, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Name != nullptr && Length > 0, false, "name should be set");
@@ -3882,7 +3928,7 @@ namespace Tomahawk
 				Segment->Header.assign(Name, Length);
 				return true;
 			}
-			bool Util::ParseHeaderValue(Parser* Parser, const char* Data, uint64_t Length)
+			bool Util::ParseHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
@@ -3935,7 +3981,7 @@ namespace Tomahawk
 				Segment->Header.clear();
 				return true;
 			}
-			bool Util::ParseVersion(Parser* Parser, const char* Data, uint64_t Length)
+			bool Util::ParseVersion(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
@@ -3947,7 +3993,7 @@ namespace Tomahawk
 				memcpy((void*)Segment->Request->Version, (void*)Data, (size_t)Length);
 				return true;
 			}
-			bool Util::ParseStatusCode(Parser* Parser, uint64_t Value)
+			bool Util::ParseStatusCode(Parser* Parser, size_t Value)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
@@ -3957,7 +4003,7 @@ namespace Tomahawk
 				Segment->Response->StatusCode = (int)Value;
 				return true;
 			}
-			bool Util::ParseMethodValue(Parser* Parser, const char* Data, uint64_t Length)
+			bool Util::ParseMethodValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
@@ -3969,7 +4015,7 @@ namespace Tomahawk
 				memcpy((void*)Segment->Request->Method, (void*)Data, (size_t)Length);
 				return true;
 			}
-			bool Util::ParsePathValue(Parser* Parser, const char* Data, uint64_t Length)
+			bool Util::ParsePathValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
@@ -3981,7 +4027,7 @@ namespace Tomahawk
 				Segment->Request->URI.assign(Data, Length);
 				return true;
 			}
-			bool Util::ParseQueryValue(Parser* Parser, const char* Data, uint64_t Length)
+			bool Util::ParseQueryValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, false, "parser should be set");
 				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
@@ -4253,20 +4299,16 @@ namespace Tomahawk
 				if (!WebSocketKey2)
 					return Base->Error(400, "Malformed websocket request. Provide second key.");
 
-				return Base->Stream->ReadAsync(8, [](Socket* Socket, const char* Buffer, int64_t Size)
+				return Base->Stream->ReadAsync(8, [Base](NetEvent Event, const char* Buffer, size_t Recv)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT(Base != nullptr, false, "socket should be set");
+					if (Packet::IsData(Event))
+						Base->Request.Buffer.append(Buffer, Recv);
+					else if (Packet::IsDone(Event))
+						Util::ProcessWebSocket(Base, Base->Request.Buffer.c_str());
+					else if (Packet::IsError(Event))
+						Base->Break();
 
-					if (Size > 0)
-					{
-						Base->Request.Buffer.append(Buffer, Size);
-						return true;
-					}
-					else if (Size < 0)
-						return Base->Break();
-
-					return Util::ProcessWebSocket(Base, Base->Request.Buffer.c_str());
+					return true;
 				});
 			}
 			bool Util::RouteGET(Connection* Base)
@@ -4402,40 +4444,43 @@ namespace Tomahawk
 				else
 					Base->Response.StatusCode = 204;
 
-				return Base->Consume([=](Connection* Base, const char* Buffer, int64_t Size)
+				return Base->Consume([=](Connection* Base, NetEvent Event, const char* Buffer, size_t Size)
 				{
-					if (Size < 0)
-					{
-						TH_CLOSE(Stream);
-						return Base->Break();
-					}
-					else if (Size > 0)
+					if (Packet::IsData(Event))
 					{
 						fwrite(Buffer, sizeof(char) * (size_t)Size, 1, Stream);
 						return true;
 					}
-
-					char Date[64];
-					Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
-
-					Core::Parser Content;
-					Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
-
-					TH_CLOSE(Stream);
-					if (Base->Route->Callbacks.Headers)
-						Base->Route->Callbacks.Headers(Base, nullptr);
-
-					Content.Append("\r\n", 2);
-					return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+					else if (Packet::IsDone(Event))
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT_V(Base != nullptr, "socket should be set");
+						char Date[64];
+						Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
-						if (State < 0)
-							Base->Break();
-						else
-							Base->Finish();
-					});
+						Core::Parser Content;
+						Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
+
+						TH_CLOSE(Stream);
+						if (Base->Route->Callbacks.Headers)
+							Base->Route->Callbacks.Headers(Base, nullptr);
+
+						Content.Append("\r\n", 2);
+						return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+						{
+							if (Packet::IsDone(Event))
+								Base->Finish();
+							else if (Packet::IsError(Event))
+								Base->Break();
+						});
+					}
+					else if (Packet::IsError(Event))
+					{
+						TH_CLOSE(Stream);
+						return Base->Break();
+					}
+					else if (Packet::IsSkip(Event))
+						TH_CLOSE(Stream);
+
+					return true;
 				});
 			}
 			bool Util::RoutePATCH(Connection* Base)
@@ -4466,15 +4511,12 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						Base->Break();
-					else
+					if (Packet::IsDone(Event))
 						Base->Finish(204);
+					else if (Packet::IsError(Event))
+						Base->Break();
 				});
 			}
 			bool Util::RouteDELETE(Connection* Base)
@@ -4507,15 +4549,12 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						Base->Break();
-					else
+					if (Packet::IsDone(Event))
 						Base->Finish(204);
+					else if (Packet::IsError(Event))
+						Base->Break();
 				});
 			}
 			bool Util::RouteOPTIONS(Connection* Base)
@@ -4531,15 +4570,12 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						Base->Break();
-					else
+					if (Packet::IsDone(Event))
 						Base->Finish(204);
+					else if (Packet::IsError(Event))
+						Base->Break();
 				});
 			}
 			bool Util::ProcessDirectory(Connection* Base)
@@ -4667,27 +4703,23 @@ namespace Tomahawk
 				}
 #endif
 				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Buffer.size());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						return (void)Base->Break();
-
-					if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
-						return (void)Base->Finish(200);
-
-					Socket->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [](Network::Socket* Socket, int64_t State)
+					if (Packet::IsDone(Event))
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT_V(Base != nullptr, "socket should be set");
+						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
+							return (void)Base->Finish(200);
 
-						if (State < 0)
-							Base->Break();
-						else
-							Base->Finish(200);
-					});
+						Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [Base](NetEvent Event, size_t Sent)
+						{
+							if (Packet::IsDone(Event))
+								Base->Finish(200);
+							else if (Packet::IsError(Event))
+								Base->Break();
+						});
+					}
+					else if (Packet::IsError(Event))
+						Base->Break();
 				});
 			}
 			bool Util::ProcessResource(Connection* Base)
@@ -4761,30 +4793,26 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-						if (State < 0)
+						if (Packet::IsDone(Event))
+							Base->Finish(200);
+						else if (Packet::IsError(Event))
 							Base->Break();
-						else
-							Base->Finish();
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [ContentLength, Range1](Network::Socket* Socket, int64_t State)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, ContentLength, Range1](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						return (void)Base->Break();
-
-					Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
+					if (Packet::IsDone(Event))
 					{
-						Util::ProcessFile(Base, ContentLength, Range1);
-					});
+						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
+						{
+							Util::ProcessFile(Base, ContentLength, Range1);
+						});
+					}
+					else if (Packet::IsError(Event))
+						Base->Break();
 				});
 			}
 			bool Util::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range)
@@ -4835,30 +4863,26 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-						if (State < 0)
-							Base->Break();
-						else
+						if (Packet::IsDone(Event))
 							Base->Finish();
+						else if (Packet::IsError(Event))
+							Base->Break();
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Range, ContentLength, Gzip](Network::Socket* Socket, int64_t State)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, Range, ContentLength, Gzip](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						return (void)Base->Break();
-
-					Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
+					if (Packet::IsDone(Event))
 					{
-						Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
-					});
+						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
+						{
+							Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
+						});
+					}
+					else if (Packet::IsError(Event))
+						Base->Break();
 				});
 			}
 			bool Util::ProcessResourceCache(Connection* Base)
@@ -4881,15 +4905,12 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.fAppend("Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Util::ConnectionResolve(Base).c_str());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						Base->Break();
-					else
+					if (Packet::IsDone(Event))
 						Base->Finish(304);
+					else if (Packet::IsError(Event))
+						Base->Break();
 				});
 			}
 			bool Util::ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range)
@@ -4904,15 +4925,12 @@ namespace Tomahawk
 
 					if (Base->Response.Buffer.size() >= ContentLength)
 					{
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [](Network::Socket* Socket, int64_t State)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [Base](NetEvent Event, size_t Sent)
 						{
-							auto* Base = Socket->Context<HTTP::Connection>();
-							TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-							if (State < 0)
-								Base->Break();
-							else
+							if (Packet::IsDone(Event))
 								Base->Finish();
+							else if (Packet::IsError(Event))
+								Base->Break();
 						});
 					}
 				}
@@ -4983,21 +5001,22 @@ namespace Tomahawk
 					goto Cleanup;
 
 				ContentLength -= (int64_t)Read;
-				Base->Stream->WriteAsync(Buffer, Read, [Router, Stream, ContentLength](Network::Socket* Socket, int64_t State)
+				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
+					if (Packet::IsDone(Event))
+					{
+						Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
+						{
+							ProcessFileChunk(Base, Router, Stream, ContentLength);
+						});
+					}
+					else if (Packet::IsError(Event))
 					{
 						TH_CLOSE(Stream);
-						return (void)Base->Break();
+						Base->Break();
 					}
-
-					Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
-					{
-						ProcessFileChunk(Base, Router, Stream, ContentLength);
-					});
+					else if (Packet::IsSkip(Event))
+						TH_CLOSE(Stream);
 				});
 
 				return false;
@@ -5030,15 +5049,12 @@ namespace Tomahawk
 								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)ZStream.total_out);
 						}
 #endif
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [](Network::Socket* Socket, int64_t State)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [Base](NetEvent Event, size_t Sent)
 						{
-							auto* Base = Socket->Context<HTTP::Connection>();
-							TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-							if (State < 0)
-								Base->Break();
-							else
+							if (Packet::IsDone(Event))
 								Base->Finish();
+							else if (Packet::IsError(Event))
+								Base->Break();
 						});
 					}
 				}
@@ -5102,15 +5118,12 @@ namespace Tomahawk
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
-					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [](Network::Socket* Socket, int64_t State)
+					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](NetEvent Event, size_t Sent)
 					{
-						auto* Base = Socket->Context<HTTP::Connection>();
-						TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-						if (State < 0)
-							Base->Break();
-						else
+						if (Packet::IsDone(Event))
 							Base->Finish();
+						else if (Packet::IsError(Event))
+							Base->Break();
 					}) || true;
 				}
 
@@ -5144,33 +5157,30 @@ namespace Tomahawk
 					Read += sizeof(char) * 2;
 				}
 
-				Base->Stream->WriteAsync(Buffer, Read, [Router, Stream, ZStream, ContentLength](Network::Socket* Socket, int64_t State)
+				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
+					if (Packet::IsDone(Event))
+					{
+						if (ContentLength > 0)
+						{
+							Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
+							{
+								ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
+							});
+						}
+						else
+						{
+							FREE_STREAMING;
+							Base->Finish();
+						}
+					}
+					else if (Packet::IsError(Event))
 					{
 						FREE_STREAMING;
-						TH_TRACE("close fs 0x%p", (void*)Stream);
 						Base->Break();
 					}
-					else if (ContentLength > 0)
-					{
-						return (void)Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
-						{
-							ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
-						});
-					}
-					else
-					{
+					else if (Packet::IsSkip(Event))
 						FREE_STREAMING;
-						TH_TRACE("close fs 0x%p", (void*)Stream);
-						if (Router->State == ServerState::Working)
-							Base->Finish();
-						else
-							Base->Break();
-					}
 				});
 
 				return false;
@@ -5208,7 +5218,7 @@ namespace Tomahawk
 						}
 					}
 
-					int64_t Size = -1;
+					size_t Size = 0;
 					if (!Compiler->IsCached())
 					{
 						FILE* Stream = (FILE*)Core::OS::File::Open(Base->Request.Path.c_str(), "rb");
@@ -5310,39 +5320,38 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [](Network::Socket* Socket, int64_t State)
+				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT_V(Base != nullptr, "socket should be set");
-
-					if (State < 0)
-						return (void)Base->Break();
-
-					Base->WebSocket = TH_NEW(WebSocketFrame, Socket);
-					Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
-					Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
-					Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
-					Base->WebSocket->E.Dead = [Base](WebSocketFrame*)
+					if (Packet::IsDone(Event))
 					{
-						return Base->Info.Close;
-					};
-					Base->WebSocket->E.Reset = [Base](WebSocketFrame*)
-					{
+						Base->WebSocket = TH_NEW(WebSocketFrame, Base->Stream);
+						Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
+						Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
+						Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
+						Base->WebSocket->E.Dead = [Base](WebSocketFrame*)
+						{
+							return Base->Info.Close;
+						};
+						Base->WebSocket->E.Reset = [Base](WebSocketFrame*)
+						{
+							Base->Break();
+						};
+						Base->WebSocket->E.Close = [Base](WebSocketFrame*)
+						{
+							Base->Info.KeepAlive = 0;
+							if (Base->Response.StatusCode <= 0)
+								Base->Response.StatusCode = 101;
+							Base->Finish();
+						};
+
+						Base->Stream->SetAsyncTimeout(Base->Route->WebSocketTimeout);
+						if (!ResourceProvided(Base, &Base->Resource))
+							Base->WebSocket->Next();
+						else
+							ProcessGateway(Base);
+					}
+					else if (Packet::IsError(Event))
 						Base->Break();
-					};
-					Base->WebSocket->E.Close = [Base](WebSocketFrame*)
-					{
-						Base->Info.KeepAlive = 0;
-						if (Base->Response.StatusCode <= 0)
-							Base->Response.StatusCode = 101;
-						Base->Finish();
-					};
-
-					Socket->SetAsyncTimeout(Base->Route->WebSocketTimeout);
-					if (!ResourceProvided(Base, &Base->Resource))
-						Base->WebSocket->Next();
-					else
-						ProcessGateway(Base);
 				});
 			}
 
@@ -5431,22 +5440,10 @@ namespace Tomahawk
 			bool Server::OnRequestEnded(SocketConnection* Root, bool Check)
 			{
 				TH_ASSERT(Root != nullptr, false, "connection should be set");
-				auto Base = (HTTP::Connection*)Root;
 				if (Check)
-				{
-					if (Base->Request.ContentLength > 0 && Base->Response.Data == Content::Not_Loaded)
-					{
-						Base->Consume([](Connection* Base, const char*, int64_t Size)
-						{
-							return (Size <= 0 ? Base->Root->Manage(Base) : true);
-						});
-
-						return false;
-					}
-
 					return true;
-				}
 
+				auto Base = (HTTP::Connection*)Root;
 				for (auto& Item : Base->Request.Resources)
 				{
 					if (!Item.Memory)
@@ -5485,128 +5482,130 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Server::OnRequestBegin(SocketConnection* Base)
+			bool Server::OnRequestBegin(SocketConnection* Source)
 			{
-				TH_ASSERT(Base != nullptr, false, "connection should be set");
+				TH_ASSERT(Source != nullptr, false, "connection should be set");
 				auto* Conf = (MapRouter*)Router;
+				auto* Base = (Connection*)Source;
 
-				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Conf](Network::Socket* Socket, const char* Buffer, int64_t Size)
+				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](NetEvent Event, const char* Buffer, size_t Recv)
 				{
-					auto* Base = Socket->Context<HTTP::Connection>();
-					TH_ASSERT(Base != nullptr, false, "socket should be set");
-
-					if (Size > 0)
+					if (Packet::IsData(Event))
 					{
-						Base->Request.Buffer.append(Buffer, Size);
+						Base->Request.Buffer.append(Buffer, Recv);
 						return true;
 					}
-					else if (Size < 0)
-						return Base->Break();
-
-					ParserFrame Segment;
-					Segment.Request = &Base->Request;
-
-					HTTP::Parser* Parser = new HTTP::Parser();
-					Parser->OnMethodValue = Util::ParseMethodValue;
-					Parser->OnPathValue = Util::ParsePathValue;
-					Parser->OnQueryValue = Util::ParseQueryValue;
-					Parser->OnVersion = Util::ParseVersion;
-					Parser->OnHeaderField = Util::ParseHeaderField;
-					Parser->OnHeaderValue = Util::ParseHeaderValue;
-					Parser->UserPointer = &Segment;
-
-					strcpy(Base->Request.RemoteAddress, Base->Stream->GetRemoteAddress().c_str());
-					Base->Info.Start = Driver::Clock();
-
-					if (Parser->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
+					else if (Packet::IsDone(Event))
 					{
+						ParserFrame Segment;
+						Segment.Request = &Base->Request;
+
+						HTTP::Parser* Parser = new HTTP::Parser();
+						Parser->OnMethodValue = Util::ParseMethodValue;
+						Parser->OnPathValue = Util::ParsePathValue;
+						Parser->OnQueryValue = Util::ParseQueryValue;
+						Parser->OnVersion = Util::ParseVersion;
+						Parser->OnHeaderField = Util::ParseHeaderField;
+						Parser->OnHeaderValue = Util::ParseHeaderValue;
+						Parser->UserPointer = &Segment;
+
+						strcpy(Base->Request.RemoteAddress, Base->Stream->GetRemoteAddress().c_str());
+						Base->Info.Start = Driver::Clock();
+
+						if (Parser->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
+						{
+							Base->Request.Buffer.clear();
+							TH_RELEASE(Parser);
+
+							return Base->Error(400, "Invalid request was provided by client");
+						}
+
 						Base->Request.Buffer.clear();
 						TH_RELEASE(Parser);
 
-						return Base->Error(400, "Invalid request was provided by client");
+						if (!Util::ConstructRoute(Conf, Base) || !Base->Route)
+							return Base->Error(400, "Request cannot be resolved");
+
+						if (!Base->Route->Redirect.empty())
+						{
+							Base->Request.URI = Base->Route->Redirect;
+							if (!Util::ConstructRoute(Conf, Base))
+								Base->Route = Base->Route->Site->Base;
+						}
+
+						const char* ContentLength = Base->Request.GetHeader("Content-Length");
+						if (ContentLength != nullptr)
+						{
+							int64_t Len = std::atoll(ContentLength);
+							Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
+						}
+
+						if (!Base->Request.ContentLength)
+							Base->Response.Data = Content::Empty;
+
+						if (!Base->Route->ProxyIpAddress.empty())
+						{
+							const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
+							if (Address != nullptr)
+								strcpy(Base->Request.RemoteAddress, Address);
+						}
+
+						Util::ConstructPath(Base);
+						if (!Util::MethodAllowed(Base))
+							return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
+
+						if (!Util::Authorize(Base))
+							return false;
+
+						if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
+						{
+							if (Base->Route->Callbacks.Get)
+								return Base->Route->Callbacks.Get(Base);
+
+							return Util::RouteGET(Base);
+						}
+						else if (!memcmp(Base->Request.Method, "POST", 4))
+						{
+							if (Base->Route->Callbacks.Post)
+								return Base->Route->Callbacks.Post(Base);
+
+							return Util::RoutePOST(Base);
+						}
+						else if (!memcmp(Base->Request.Method, "PUT", 3))
+						{
+							if (Base->Route->Callbacks.Put)
+								return Base->Route->Callbacks.Put(Base);
+
+							return Util::RoutePUT(Base);
+						}
+						else if (!memcmp(Base->Request.Method, "PATCH", 5))
+						{
+							if (Base->Route->Callbacks.Patch)
+								return Base->Route->Callbacks.Patch(Base);
+
+							return Util::RoutePATCH(Base);
+						}
+						else if (!memcmp(Base->Request.Method, "DELETE", 6))
+						{
+							if (Base->Route->Callbacks.Delete)
+								return Base->Route->Callbacks.Delete(Base);
+
+							return Util::RouteDELETE(Base);
+						}
+						else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
+						{
+							if (Base->Route->Callbacks.Options)
+								return Base->Route->Callbacks.Options(Base);
+
+							return Util::RouteOPTIONS(Base);
+						}
+
+						return Base->Error(405, "Request method \"%s\" is not allowed", Base->Request.Method);
 					}
+					else if (Packet::IsError(Event))
+						Base->Break();
 
-					Base->Request.Buffer.clear();
-					TH_RELEASE(Parser);
-
-					if (!Util::ConstructRoute(Conf, Base) || !Base->Route)
-						return Base->Error(400, "Request cannot be resolved");
-
-					if (!Base->Route->Redirect.empty())
-					{
-						Base->Request.URI = Base->Route->Redirect;
-						if (!Util::ConstructRoute(Conf, Base))
-							Base->Route = Base->Route->Site->Base;
-					}
-
-					const char* ContentLength = Base->Request.GetHeader("Content-Length");
-					if (ContentLength != nullptr)
-					{
-						int64_t Len = std::atoll(ContentLength);
-						Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
-					}
-
-					if (!Base->Request.ContentLength)
-						Base->Response.Data = Content::Empty;
-
-					if (!Base->Route->ProxyIpAddress.empty())
-					{
-						const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
-						if (Address != nullptr)
-							strcpy(Base->Request.RemoteAddress, Address);
-					}
-
-					Util::ConstructPath(Base);
-					if (!Util::MethodAllowed(Base))
-						return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
-
-					if (!Util::Authorize(Base))
-						return false;
-
-					if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
-					{
-						if (Base->Route->Callbacks.Get)
-							return Base->Route->Callbacks.Get(Base);
-
-						return Util::RouteGET(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "POST", 4))
-					{
-						if (Base->Route->Callbacks.Post)
-							return Base->Route->Callbacks.Post(Base);
-
-						return Util::RoutePOST(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "PUT", 3))
-					{
-						if (Base->Route->Callbacks.Put)
-							return Base->Route->Callbacks.Put(Base);
-
-						return Util::RoutePUT(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "PATCH", 5))
-					{
-						if (Base->Route->Callbacks.Patch)
-							return Base->Route->Callbacks.Patch(Base);
-
-						return Util::RoutePATCH(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "DELETE", 6))
-					{
-						if (Base->Route->Callbacks.Delete)
-							return Base->Route->Callbacks.Delete(Base);
-
-						return Util::RouteDELETE(Base);
-					}
-					else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
-					{
-						if (Base->Route->Callbacks.Options)
-							return Base->Route->Callbacks.Options(Base);
-
-						return Util::RouteOPTIONS(Base);
-					}
-
-					return Base->Error(405, "Request method \"%s\" is not allowed", Base->Request.Method);
+					return true;
 				});
 			}
 			bool Server::OnDeallocate(SocketConnection* Base)
@@ -5705,11 +5704,11 @@ namespace Tomahawk
 				{
 					Core::Async<bool> Result;
 					Parser* Parser = new HTTP::Parser();
-					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
+					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](NetEvent Event, const char* Buffer, size_t Recv) mutable
 					{
-						if (Size > 0)
+						if (Packet::IsData(Event))
 						{
-							int64_t Subresult = Parser->ParseDecodeChunked((char*)Buffer, &Size);
+							int64_t Subresult = Parser->ParseDecodeChunked((char*)Buffer, &Recv);
 							if (Subresult == -1)
 							{
 								TH_RELEASE(Parser);
@@ -5721,26 +5720,24 @@ namespace Tomahawk
 							else if (Subresult >= 0 || Subresult == -2)
 							{
 								if (Response.Buffer.size() < MaxSize)
-									TextAppend(Response.Buffer, Buffer, Size);
+									TextAppend(Response.Buffer, Buffer, Recv);
 							}
 
 							return Subresult == -2;
 						}
-
-						TH_RELEASE(Parser);
-						if (Size != -1)
+						else if (Packet::IsDone(Event))
 						{
 							if (Response.Buffer.size() < MaxSize)
 								Response.Data = Content::Cached;
 							else
 								Response.Data = Content::Lost;
 						}
-						else
+						else if (Packet::IsErrorOrSkip(Event))
 							Response.Data = Content::Corrupted;
 
+						TH_RELEASE(Parser);
 						if (!Response.Buffer.empty())
 							TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
-
 						Result = Response.HasBody();
 						return true;
 					});
@@ -5750,26 +5747,28 @@ namespace Tomahawk
 				else if (!Response.GetHeader("Content-Length"))
 				{
 					Core::Async<bool> Result;
-					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
+					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](NetEvent Event, const char* Buffer, size_t Recv) mutable
 					{
-						if (Size <= 0)
+						if (Packet::IsData(Event))
+						{
+							if (Response.Buffer.size() < MaxSize)
+								TextAppend(Response.Buffer, Buffer, Recv);
+
+							return true;
+						}
+						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
 							if (Response.Buffer.size() < MaxSize)
 								Response.Data = Content::Cached;
 							else
 								Response.Data = Content::Lost;
-
-							if (!Response.Buffer.empty())
-								TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
-
-							Result = Response.HasBody();
-							return false;
 						}
 
-						if (Response.Buffer.size() < MaxSize)
-							TextAppend(Response.Buffer, Buffer, Size);
+						if (!Response.Buffer.empty())
+							TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
 
-						return true;
+						Result = Response.HasBody();
+						return false;
 					});
 
 					return Result;
@@ -5803,31 +5802,28 @@ namespace Tomahawk
 				}
 
 				Core::Async<bool> Result;
-				Stream.ReadAsync(Length, [this, Result, MaxSize](Network::Socket* Socket, const char* Buffer, int64_t Size) mutable
+				Stream.ReadAsync(Length, [this, Result, MaxSize](NetEvent Event, const char* Buffer, size_t Recv) mutable
 				{
-					if (Size <= 0)
+					if (Packet::IsData(Event))
 					{
-						if (Size != -1)
-						{
-							if (Response.Buffer.size() < MaxSize)
-								Response.Data = Content::Cached;
-							else
-								Response.Data = Content::Lost;
-						}
+						if (Response.Buffer.size() < MaxSize)
+							TextAppend(Response.Buffer, Buffer, Recv);
+
+						return true;
+					}
+					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+					{
+						if (Response.Buffer.size() < MaxSize)
+							Response.Data = Content::Cached;
 						else
-							Response.Data = Content::Corrupted;
-
-						if (!Response.Buffer.empty())
-							TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
-
-						Result = Response.HasBody();
-						return false;
+							Response.Data = Content::Lost;
 					}
 
-					if (Response.Buffer.size() < MaxSize)
-						TextAppend(Response.Buffer, Buffer, Size);
+					if (!Response.Buffer.empty())
+						TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
 
-					return true;
+					Result = Response.HasBody();
+					return false;
 				});
 
 				return Result;
@@ -5938,43 +5934,49 @@ namespace Tomahawk
 				Content.Append("\r\n");
 
 				Response.Buffer.clear();
-				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](Socket*, int64_t State)
+				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](NetEvent Event, size_t Sent)
 				{
-					if (State < 0)
-						return (void)Error("http socket write %s", (State == -2 ? "timeout" : "error"));
-
-					if (!this->Request.Buffer.empty())
+					if (Packet::IsDone(Event))
 					{
-						Stream.WriteAsync(this->Request.Buffer.c_str(), (int64_t)this->Request.Buffer.size(), [this](Socket*, int64_t State)
+						if (!Request.Buffer.empty())
 						{
-							if (State < 0)
-								return (void)Error("http socket write %s", (State == -2 ? "timeout" : "error"));
-
-							Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
+							Stream.WriteAsync(Request.Buffer.c_str(), (int64_t)Request.Buffer.size(), [this](NetEvent Event, size_t Sent)
 							{
-								if (Size < 0)
-									return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
-								else if (Size == 0)
-									return Receive();
+								if (Packet::IsDone(Event))
+								{
+									Stream.ReadUntilAsync("\r\n\r\n", [this](NetEvent Event, const char* Buffer, size_t Recv)
+									{
+										if (Packet::IsData(Event))
+											TextAppend(Response.Buffer, Buffer, Recv);
+										else if (Packet::IsDone(Event))
+											Receive();
+										else if (Packet::IsErrorOrSkip(Event))
+											Error("http socket read %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
 
-								TextAppend(this->Response.Buffer, Buffer, Size);
+										return true;
+									});
+								}
+								else if (Packet::IsErrorOrSkip(Event))
+									Error("http socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+							});
+						}
+						else
+						{
+							Stream.ReadUntilAsync("\r\n\r\n", [this](NetEvent Event, const char* Buffer, size_t Recv)
+							{
+								if (Packet::IsData(Event))
+									TextAppend(Response.Buffer, Buffer, Recv);
+								else if (Packet::IsDone(Event))
+									Receive();
+								else if (Packet::IsErrorOrSkip(Event))
+									Error("http socket read %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+
 								return true;
 							});
-						});
+						}
 					}
-					else
-					{
-						Stream.ReadUntilAsync("\r\n\r\n", [this](Socket*, const char* Buffer, int64_t Size)
-						{
-							if (Size < 0)
-								return Error("http socket read %s", (Size == -2 ? "timeout" : "error"));
-							else if (Size == 0)
-								return Receive();
-
-							TextAppend(this->Response.Buffer, Buffer, Size);
-							return true;
-						});
-					}
+					else if (Packet::IsErrorOrSkip(Event))
+						Error("http socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
 				});
 
 				return Result;

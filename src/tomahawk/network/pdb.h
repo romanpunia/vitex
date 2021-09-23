@@ -439,7 +439,6 @@ namespace Tomahawk
 				void Commit(uint64_t Token);
 				bool Consume(Connection* Base);
 				bool Reprocess(Connection* Base);
-				bool Dispatch(Socket* Stream, const char*, int64_t);
 				bool Transact(Connection* Base, Request* Token);
 			};
 

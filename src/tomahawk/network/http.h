@@ -76,20 +76,19 @@ namespace Tomahawk
 			typedef std::vector<std::string> RangePayload;
 			typedef std::map<std::string, RangePayload, struct HeaderComparator> HeaderMapping;
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
-			typedef std::function<void(struct Connection*, const char*)> MessageCallback;
-			typedef std::function<bool(struct Connection*, const char*, int64_t)> ContentCallback;
-			typedef std::function<bool(struct Connection*, struct Resource*, int64_t)> ResourceCallback;
+			typedef std::function<bool(struct Connection*, NetEvent, const char*, size_t)> ContentCallback;
+			typedef std::function<bool(struct Connection*, struct Resource*)> ResourceCallback;
 			typedef std::function<bool(struct Connection*, struct Credentials*, const std::string&)> AuthorizeCallback;
 			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
 			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> CompilerCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
-			typedef std::function<void(struct WebSocketFrame*, const char*, int64_t, enum WebSocketOp)> WebSocketReadCallback;
+			typedef std::function<void(struct WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
 			typedef std::function<bool(struct WebSocketFrame*)> WebSocketCheckCallback;
 			typedef std::function<void(struct GatewayFrame*)> GatewayCallback;
 			typedef std::function<void(struct GatewayFrame*, int, const char*)> GatewayStatusCallback;
 			typedef std::function<bool(struct GatewayFrame*)> GatewayCloseCallback;
-			typedef std::function<bool(class Parser*, int64_t)> ParserCodeCallback;
-			typedef std::function<bool(class Parser*, const char*, int64_t)> ParserDataCallback;
+			typedef std::function<bool(class Parser*, size_t)> ParserCodeCallback;
+			typedef std::function<bool(class Parser*, const char*, size_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
 
 			struct Connection;
@@ -237,6 +236,16 @@ namespace Tomahawk
 				friend struct Connection;
 				friend class Util;
 
+			private:
+				struct Message
+				{
+					unsigned int Mask;
+					char* Buffer;
+					size_t Size;
+					WebSocketOp Opcode;
+					WebSocketCallback Callback;
+				};
+
 			public:
 				struct
 				{
@@ -246,6 +255,7 @@ namespace Tomahawk
 				} E;
 
 			private:
+				std::queue<Message> Messages;
 				std::atomic<uint32_t> State;
 				std::atomic<bool> Active;
 				std::atomic<bool> Reset;
@@ -262,11 +272,15 @@ namespace Tomahawk
 			public:
 				WebSocketFrame(Socket* NewStream);
 				~WebSocketFrame();
-				void Send(const char* Buffer, int64_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
-				void Send(unsigned int Mask, const char* Buffer, int64_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				void Send(const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				void Send(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				void Finish();
 				void Next();
 				bool IsFinished();
+
+			private:
+				void SendNext();
+				bool EnqueueNext(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 			};
 
 			struct TH_OUT GatewayFrame
@@ -290,7 +304,7 @@ namespace Tomahawk
 			public:
 				GatewayFrame(Script::VMCompiler* NewCompiler);
 				void Execute(Script::VMContext*, Script::VMPoll State);
-				bool Start(const std::string& Path, const char* Method, char* Buffer, int64_t Size);
+				bool Start(const std::string& Path, const char* Method, char* Buffer, size_t Size);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();
 				bool IsFinished();
@@ -314,7 +328,7 @@ namespace Tomahawk
 			struct TH_OUT QueryToken
 			{
 				char* Value = nullptr;
-				uint64_t Length = 0;
+				size_t Length = 0;
 			};
 
 			struct TH_OUT RouteEntry
@@ -606,14 +620,14 @@ namespace Tomahawk
 			public:
 				Parser();
 				virtual ~Parser() override;
-				int64_t MultipartParse(const char* Boundary, const char* Buffer, int64_t Length);
-				int64_t ParseRequest(const char* BufferStart, uint64_t Length, uint64_t LastLength);
-				int64_t ParseResponse(const char* BufferStart, uint64_t Length, uint64_t LastLength);
-				int64_t ParseDecodeChunked(char* Buffer, int64_t* BufferLength);
+				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
+				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LastLength);
+				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LastLength);
+				int64_t ParseDecodeChunked(char* Buffer, size_t* BufferLength);
 
 			private:
-				const char* Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, uint64_t* TokenLength, int* Out);
-				const char* Complete(const char* Buffer, const char* BufferEnd, uint64_t LastLength, int* Out);
+				const char* Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, size_t* TokenLength, int* Out);
+				const char* Complete(const char* Buffer, const char* BufferEnd, size_t LastLength, int* Out);
 				const char* ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out);
 				const char* ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out);
 				const char* ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out);
@@ -680,24 +694,24 @@ namespace Tomahawk
 				static bool ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B);
 				static bool ContentOK(Content State);
 				static std::string ConnectionResolve(Connection* Base);
-				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContenLength);
+				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength);
 				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
 				static const char* StatusMessage(int StatusCode);
 
 			public:
 				static void ParseCookie(const std::string& Value);
-				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, uint64_t Length);
-				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, uint64_t Length);
-				static bool ParseMultipartContentData(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length);
+				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, size_t Length);
+				static bool ParseMultipartContentData(Parser* Parser, const char* Name, size_t Length);
 				static bool ParseMultipartResourceBegin(Parser* Parser);
 				static bool ParseMultipartResourceEnd(Parser* Parser);
-				static bool ParseHeaderField(Parser* Parser, const char* Name, uint64_t Length);
-				static bool ParseHeaderValue(Parser* Parser, const char* Name, uint64_t Length);
-				static bool ParseVersion(Parser* Parser, const char* Name, uint64_t Length);
-				static bool ParseStatusCode(Parser* Parser, uint64_t Length);
-				static bool ParseMethodValue(Parser* Parser, const char* Name, uint64_t Length);
-				static bool ParsePathValue(Parser* Parser, const char* Name, uint64_t Length);
-				static bool ParseQueryValue(Parser* Parser, const char* Name, uint64_t Length);
+				static bool ParseHeaderField(Parser* Parser, const char* Name, size_t Length);
+				static bool ParseHeaderValue(Parser* Parser, const char* Name, size_t Length);
+				static bool ParseVersion(Parser* Parser, const char* Name, size_t Length);
+				static bool ParseStatusCode(Parser* Parser, size_t Length);
+				static bool ParseMethodValue(Parser* Parser, const char* Name, size_t Length);
+				static bool ParsePathValue(Parser* Parser, const char* Name, size_t Length);
+				static bool ParseQueryValue(Parser* Parser, const char* Name, size_t Length);
 				static int ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2);
 				static std::string ParseMultipartDataBoundary();
 

@@ -464,7 +464,7 @@ namespace Tomahawk
 				Sync.IO.lock();
 				Driver::Unlisten(this, true);
 				Sync.IO.unlock();
-				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), -2) == 1)
+				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), NetEvent::Timeout) == 1)
 					TH_PSIG();
 			}
 			TH_PPOP();
@@ -586,7 +586,7 @@ namespace Tomahawk
 
 			return Value;
 		}
-		int Socket::Write(const char* Buffer, int Size, const SocketWriteCallback& Callback)
+		int Socket::Write(const char* Buffer, int Size, const NetWriteCallback& Callback)
 		{
 			int Offset = 0;
 			while (Size > 0)
@@ -595,14 +595,14 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					if (Callback)
-						Callback(this, -2);
+						Callback(NetEvent::Timeout, 0);
 
 					return -2;
 				}
 				else if (Length == -1)
 				{
 					if (Callback)
-						Callback(this, -1);
+						Callback(NetEvent::Closed, 0);
 
 					return -1;
 				}
@@ -612,7 +612,7 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(this, (int64_t)Size);
+				Callback(NetEvent::Packet, (size_t)Size);
 
 			return Offset;
 		}
@@ -620,18 +620,10 @@ namespace Tomahawk
 		{
 			return Write(Buffer.c_str(), (int)Buffer.size());
 		}
-		int Socket::WriteAsync(const char* Buffer, int64_t Size, SocketWriteCallback&& Callback)
+		int Socket::WriteAsync(const char* Buffer, size_t Size, NetWriteCallback&& Callback)
 		{
 			TH_ASSERT(!Listener, -1, "socket should not be listener");
 			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-
-			if (Output != nullptr)
-			{
-				if (Callback)
-					Callback(this, -1);
-
-				return -1;
-			}
 
 			int64_t Offset = 0;
 			while (Size > 0)
@@ -640,18 +632,15 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					bool OK = WriteSet(std::move(Callback), Buffer + Offset, Size);
+					WriteSet(std::move(Callback), Buffer + Offset, Size);
 					Sync.IO.unlock();
-
-					if (!OK && Callback)
-						Callback(this, -1);
 
 					return -2;
 				}
 				else if (Length == -1)
 				{
 					if (Callback)
-						Callback(this, -1);
+						Callback(NetEvent::Closed, 0);
 
 					return -1;
 				}
@@ -661,7 +650,7 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(this, 0);
+				Callback(NetEvent::Finished, 0);
 
 			return (int)Size;
 		}
@@ -677,7 +666,7 @@ namespace Tomahawk
 
 			return Write(Buffer, (uint64_t)Count);
 		}
-		int Socket::fWriteAsync(SocketWriteCallback&& Callback, const char* Format, ...)
+		int Socket::fWriteAsync(NetWriteCallback&& Callback, const char* Format, ...)
 		{
 			TH_ASSERT(Format != nullptr, -1, "format should be set");
 
@@ -719,7 +708,7 @@ namespace Tomahawk
 
 			return Value;
 		}
-		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
+		int Socket::Read(char* Buffer, int Size, const NetReadCallback& Callback)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
@@ -731,19 +720,19 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					if (Callback)
-						Callback(this, nullptr, -2);
+						Callback(NetEvent::Timeout, nullptr, 0);
 
 					return -2;
 				}
 				else if (Length == -1)
 				{
 					if (Callback)
-						Callback(this, nullptr, -1);
+						Callback(NetEvent::Closed, nullptr, 0);
 
 					return -1;
 				}
 
-				if (Callback && !Callback(this, Buffer + Offset, Length))
+				if (Callback && !Callback(NetEvent::Packet, Buffer + Offset, (size_t)Length))
 					break;
 
 				Size -= Length;
@@ -751,22 +740,14 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(this, nullptr, 0);
+				Callback(NetEvent::Finished, nullptr, 0);
 
 			return Offset;
 		}
-		int Socket::ReadAsync(int64_t Size, SocketReadCallback&& Callback)
+		int Socket::ReadAsync(size_t Size, NetReadCallback&& Callback)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Size > 0, -1, "size should be greater than zero");
-
-			if (Input != nullptr)
-			{
-				if (!Callback)
-					Callback(this, nullptr, -1);
-
-				return -1;
-			}
 
 			char Buffer[8192];
 			while (Size > 0)
@@ -775,33 +756,30 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					bool OK = ReadSet(std::move(Callback), nullptr, Size, 0);
+					ReadSet(std::move(Callback), nullptr, Size, 0);
 					Sync.IO.unlock();
-
-					if (!OK && Callback)
-						Callback(this, nullptr, -1);
 
 					return -2;
 				}
 				else if (Length == -1)
 				{
 					if (Callback)
-						Callback(this, nullptr, -1);
+						Callback(NetEvent::Closed, nullptr, 0);
 
 					return -1;
 				}
 
-				Size -= (int64_t)Length;
-				if (Callback && !Callback(this, Buffer, (int64_t)Length))
+				Size -= (size_t)Length;
+				if (Callback && !Callback(NetEvent::Packet, Buffer, (size_t)Length))
 					break;
 			}
 
 			if (Callback)
-				Callback(this, nullptr, 0);
+				Callback(NetEvent::Finished, nullptr, 0);
 
 			return (int)Size;
 		}
-		int Socket::ReadUntil(const char* Match, const SocketReadCallback& Callback)
+		int Socket::ReadUntil(const char* Match, const NetReadCallback& Callback)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Match != nullptr, -1, "match should be set");
@@ -817,12 +795,12 @@ namespace Tomahawk
 				if (Length <= 0)
 				{
 					if (Callback)
-						Callback(this, nullptr, -1);
+						Callback(NetEvent::Closed, nullptr, 0);
 
 					return -1;
 				}
 
-				if (Callback && !Callback(this, &Buffer, 1))
+				if (Callback && !Callback(NetEvent::Packet, &Buffer, 1))
 					break;
 
 				if (Match[Index] == Buffer)
@@ -838,25 +816,17 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(this, nullptr, 0);
+				Callback(NetEvent::Finished, nullptr, 0);
 
 			return 0;
 		}
-		int Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback)
+		int Socket::ReadUntilAsync(const char* Match, NetReadCallback&& Callback)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Match != nullptr, -1, "match should be set");
 
 			int64_t Size = (int64_t)strlen(Match);
 			TH_ASSERT(Size > 0, -1, "match should not be empty");
-
-			if (Input != nullptr)
-			{
-				if (!Callback)
-					Callback(this, nullptr, -1);
-
-				return -1;
-			}
 
 			char Buffer = 0;
 			int64_t Index = 0;
@@ -866,23 +836,19 @@ namespace Tomahawk
 				if (Length == -2)
 				{
 					Sync.IO.lock();
-					bool OK = ReadSet(std::move(Callback), Match, Size, Index);
+					ReadSet(std::move(Callback), Match, Size, Index);
 					Sync.IO.unlock();
-
-					if (!OK && Callback)
-						Callback(this, nullptr, -1);
-
 					return -2;
 				}
 				else if (Length == -1)
 				{
 					if (Callback)
-						Callback(this, nullptr, -1);
+						Callback(NetEvent::Closed, nullptr, 0);
 
 					return -1;
 				}
 
-				if (Callback && !Callback(this, &Buffer, 1))
+				if (Callback && !Callback(NetEvent::Packet, &Buffer, 1))
 					break;
 
 				if (Match[Index] == Buffer)
@@ -898,14 +864,12 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(this, nullptr, 0);
+				Callback(NetEvent::Finished, nullptr, 0);
 
 			return 0;
 		}
-		int Socket::Skip(unsigned int IO, int Code)
+		int Socket::Skip(unsigned int IO, NetEvent Reason)
 		{
-			TH_ASSERT(Code <= 0, -1, "code should be less than 1");
-
 			Sync.IO.lock();
 			if (IO & (uint32_t)SocketEvent::Read && Input != nullptr)
 			{
@@ -913,7 +877,7 @@ namespace Tomahawk
 				ReadFlush();
 				Sync.IO.unlock();
 				if (Callback)
-					Callback(this, nullptr, Code);
+					Callback(Reason, nullptr, 0);
 				Sync.IO.lock();
 			}
 
@@ -923,7 +887,7 @@ namespace Tomahawk
 				WriteFlush();
 				Sync.IO.unlock();
 				if (Callback)
-					Callback(this, Code);
+					Callback(Reason, 0);
 				Sync.IO.lock();
 			}
 
@@ -936,27 +900,27 @@ namespace Tomahawk
 			Fd = NewFd;
 			return Result;
 		}
-		int Socket::SetReadNotify(SocketReadCallback&& Callback)
+		int Socket::SetReadNotify(NetReadCallback&& Callback)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Callback, -1, "callback should not be empty");
 
 			Sync.IO.lock();
-			bool OK = ReadSet(std::move(Callback), nullptr, -1, 0);
+			ReadSet(std::move(Callback), nullptr, 0, 0);
 			Sync.IO.unlock();
 
-			return OK ? 0 : -1;
+			return 0;
 		}
-		int Socket::SetWriteNotify(SocketWriteCallback&& Callback)
+		int Socket::SetWriteNotify(NetWriteCallback&& Callback)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Callback, -1, "callback should not be empty");
 
 			Sync.IO.lock();
-			bool OK = WriteSet(std::move(Callback), nullptr, -1);
+			WriteSet(std::move(Callback), nullptr, 0);
 			Sync.IO.unlock();
 
-			return OK ? 0 : -1;
+			return 0;
 		}
 		int Socket::SetTimeWait(int Timeout)
 		{
@@ -1099,7 +1063,7 @@ namespace Tomahawk
 		{
 			return Output || Input;
 		}
-		bool Socket::ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index)
+		bool Socket::ReadSet(NetReadCallback&& Callback, const char* Match, size_t Size, size_t Index)
 		{
 			ReadEvent* New = TH_NEW(ReadEvent);
 			New->Callback = std::move(Callback);
@@ -1118,7 +1082,7 @@ namespace Tomahawk
 				Driver::Listen(this, false);
 				Sync.IO.unlock();
 				if (Callback)
-					Callback(this, nullptr, 0);
+					Callback(NetEvent::Cancelled, nullptr, 0);
 				Sync.IO.lock();
 			}
 			else
@@ -1141,7 +1105,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Socket::WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size)
+		bool Socket::WriteSet(NetWriteCallback&& Callback, const char* Buffer, size_t Size)
 		{
 			WriteEvent* New = TH_NEW(WriteEvent);
 			New->Callback = std::move(Callback);
@@ -1161,7 +1125,7 @@ namespace Tomahawk
 				Driver::Listen(this, false);
 				Sync.IO.unlock();
 				if (Callback)
-					Callback(this, 0);
+					Callback(NetEvent::Cancelled, 0);
 				Sync.IO.lock();
 			}
 			else
@@ -1194,14 +1158,16 @@ namespace Tomahawk
 				{
 					TH_SPOP(this);
 					Sync.IO.lock();
-					bool OK = ReadSet([this, Callback](Socket*, const char*, int64_t Size)
+					ReadSet([this, Callback](NetEvent Event, const char*, size_t)
 					{
-						return (Size <= 0 ? CloseSet(Callback, Size != -2) : true);
+						if (Packet::IsDone(Event) || Packet::IsError(Event))
+							return CloseSet(Callback, Event != NetEvent::Timeout);
+						else if (Packet::IsSkip(Event) && Callback)
+							Callback(this);
+
+						return true;
 					}, nullptr, 1, 0);
 					Sync.IO.unlock();
-
-					if (!OK)
-						break;
 
 					return false;
 				}
@@ -1523,13 +1489,13 @@ namespace Tomahawk
 
 					while (Event->Size > 0)
 					{
-						int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, (int64_t)sizeof(Buffer)));
+						int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, sizeof(Buffer)));
 						if (Size == -1)
 						{
 							Fd->ReadFlush();
 							Fd->Sync.IO.unlock();
 							if (Callback)
-								Callback(Fd, nullptr, -1);
+								Callback(NetEvent::Closed, nullptr, 0);
 							Fd->Sync.IO.lock();
 							goto ReadEOF;
 						}
@@ -1540,7 +1506,7 @@ namespace Tomahawk
 						}
 
 						Fd->Sync.IO.unlock();
-						bool Done = (Callback && !Callback(Fd, Buffer, (int64_t)Size));
+						bool Done = (Callback && !Callback(NetEvent::Packet, Buffer, (size_t)Size));
 						Fd->Sync.IO.lock();
 
 						if (!Fd->Input || Fd->Input != Event)
@@ -1569,7 +1535,7 @@ namespace Tomahawk
 					Fd->ReadFlush();
 					Fd->Sync.IO.unlock();
 					if (Callback)
-						Callback(Fd, nullptr, 0);
+						Callback(NetEvent::Finished, nullptr, 0);
 					Fd->Sync.IO.lock();
 				ReadEOF:
 					Event = nullptr;
@@ -1603,7 +1569,7 @@ namespace Tomahawk
 						Fd->WriteFlush();
 						Fd->Sync.IO.unlock();
 						if (Callback)
-							Callback(Fd, -1);
+							Callback(NetEvent::Closed, 0);
 						Fd->Sync.IO.lock();
 						goto WriteEOF;
 					}
@@ -1622,7 +1588,7 @@ namespace Tomahawk
 				Fd->WriteFlush();
 				Fd->Sync.IO.unlock();
 				if (Callback)
-					Callback(Fd, 0);
+					Callback(NetEvent::Finished, 0);
 				Fd->Sync.IO.lock();
 			WriteEOF:
 				Event = nullptr;
@@ -1946,7 +1912,7 @@ namespace Tomahawk
 
 			State = ServerState::Stopping;
 			if (Core::Schedule::Get()->ClearTimeout(Timer))
-				Timer = -1;
+				Timer = TH_INVALID_EVENT_ID;
 
 			TH_PPUSH("sock-srv-close", TH_PERF_HANG);
 			do

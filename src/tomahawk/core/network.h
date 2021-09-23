@@ -17,11 +17,6 @@ namespace Tomahawk
 {
 	namespace Network
 	{
-		typedef std::function<bool(struct Socket*, const char*, int64_t)> SocketReadCallback;
-		typedef std::function<void(struct Socket*, int64_t)> SocketWriteCallback;
-		typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
-		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
-
 		class Driver;
 
 		enum class Secure
@@ -58,6 +53,20 @@ namespace Tomahawk
 			Sequence_Packet_Stream
 		};
 
+		enum class NetEvent
+		{
+			Packet,
+			Timeout,
+			Finished,
+			Cancelled,
+			Closed
+		};
+
+		typedef std::function<bool(NetEvent, const char*, size_t)> NetReadCallback;
+		typedef std::function<void(NetEvent, size_t)> NetWriteCallback;
+		typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
+		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
+
 		inline SocketEvent operator |(SocketEvent A, SocketEvent B)
 		{
 			return static_cast<SocketEvent>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
@@ -75,15 +84,15 @@ namespace Tomahawk
 		struct TH_OUT WriteEvent
 		{
 			char* Buffer = nullptr;
-			int64_t Size = 0;
-			SocketWriteCallback Callback;
+			size_t Size = 0;
+			NetWriteCallback Callback;
 		};
 
 		struct TH_OUT ReadEvent
 		{
 			const char* Match = nullptr;
-			int64_t Size = 0, Index = 0;
-			SocketReadCallback Callback;
+			size_t Size = 0, Index = 0;
+			NetReadCallback Callback;
 		};
 
 		struct TH_OUT Socket
@@ -126,22 +135,22 @@ namespace Tomahawk
 			int Close(bool Gracefully = true);
 			int CloseAsync(bool Gracefully, const SocketAcceptCallback& Callback);
 			int CloseOnExec();
-			int Skip(unsigned int IO, int Code);
+			int Skip(unsigned int IO, NetEvent Reason);
 			int Clear(bool Gracefully);
 			int Write(const char* Buffer, int Size);
-			int Write(const char* Buffer, int Size, const SocketWriteCallback& Callback);
+			int Write(const char* Buffer, int Size, const NetWriteCallback& Callback);
 			int Write(const std::string& Buffer);
-			int WriteAsync(const char* Buffer, int64_t Size, SocketWriteCallback&& Callback);
+			int WriteAsync(const char* Buffer, size_t Size, NetWriteCallback&& Callback);
 			int fWrite(const char* Format, ...);
-			int fWriteAsync(SocketWriteCallback&& Callback, const char* Format, ...);
+			int fWriteAsync(NetWriteCallback&& Callback, const char* Format, ...);
 			int Read(char* Buffer, int Size);
-			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
-			int ReadAsync(int64_t Size, SocketReadCallback&& Callback);
-			int ReadUntil(const char* Match, const SocketReadCallback& Callback);
-			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback);
+			int Read(char* Buffer, int Size, const NetReadCallback& Callback);
+			int ReadAsync(size_t Size, NetReadCallback&& Callback);
+			int ReadUntil(const char* Match, const NetReadCallback& Callback);
+			int ReadUntilAsync(const char* Match, NetReadCallback&& Callback);
 			int SetFd(socket_t Fd);
-			int SetReadNotify(SocketReadCallback&& Callback);
-			int SetWriteNotify(SocketWriteCallback&& Callback);
+			int SetReadNotify(NetReadCallback&& Callback);
+			int SetWriteNotify(NetWriteCallback&& Callback);
 			int SetTimeWait(int Timeout);
 			int SetSocket(int Option, void* Value, int Size);
 			int SetAny(int Level, int Option, void* Value, int Size);
@@ -169,9 +178,9 @@ namespace Tomahawk
 
 		private:
 			bool CloseSet(const SocketAcceptCallback& Callback, bool OK);
-			bool ReadSet(SocketReadCallback&& Callback, const char* Match, int64_t Size, int64_t Index);
+			bool ReadSet(NetReadCallback&& Callback, const char* Match, size_t Size, size_t Index);
 			bool ReadFlush();
-			bool WriteSet(SocketWriteCallback&& Callback, const char* Buffer, int64_t Size);
+			bool WriteSet(NetWriteCallback&& Callback, const char* Buffer, size_t Size);
 			bool WriteFlush();
 
 		public:
@@ -283,6 +292,31 @@ namespace Tomahawk
 			bool EnableNoDelay = false;
 
 			virtual ~SocketRouter();
+		};
+
+		class TH_OUT Packet
+		{
+		public:
+			static bool IsData(NetEvent Event)
+			{
+				return Event == NetEvent::Packet;
+			}
+			static bool IsSkip(NetEvent Event)
+			{
+				return Event == NetEvent::Cancelled;
+			}
+			static bool IsDone(NetEvent Event)
+			{
+				return Event == NetEvent::Finished;
+			}
+			static bool IsError(NetEvent Event)
+			{
+				return Event == NetEvent::Closed || Event == NetEvent::Timeout;
+			}
+			static bool IsErrorOrSkip(NetEvent Event)
+			{
+				return Event == NetEvent::Closed || Event == NetEvent::Timeout || Event == NetEvent::Cancelled;
+			}
 		};
 
 		class TH_OUT Driver

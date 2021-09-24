@@ -272,13 +272,19 @@ namespace Tomahawk
 						if (Receive)
 						{
 							Section.unlock();
-							return Receive(this, (WebSocketOp)Opcode, Codec->Data.data(), (int64_t)Codec->Data.size());
+							if (Receive(this, Opcode, Codec->Data.data(), (int64_t)Codec->Data.size()))
+								return;
+
+							return Next();
 						}
 					}
 					else if (Opcode == WebSocketOp::Ping)
 					{
 						TH_TRACE("[websocket] sock %i frame ping", (int)Stream->GetFd());
 						Section.unlock();
+						if (Receive && Receive(this, Opcode, "", 0))
+							return;
+
 						return Send("", 0, WebSocketOp::Pong, [this](WebSocketFrame*)
 						{
 							Next();
@@ -288,8 +294,21 @@ namespace Tomahawk
 					{
 						TH_TRACE("[websocket] sock %i frame close", (int)Stream->GetFd());
 						Section.unlock();
+						if (Receive && Receive(this, Opcode, "", 0))
+							return;
+
 						return Finish();
 					}
+					else if (Receive)
+					{
+						Section.unlock();
+						if (Receive(this, Opcode, "", 0))
+							return;
+
+						return Next();
+					}
+					else
+						goto Retry;
 				}
 				else if (State == (uint32_t)WebSocketState::Close)
 				{

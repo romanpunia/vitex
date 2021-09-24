@@ -82,7 +82,7 @@ namespace Tomahawk
 			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
 			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> CompilerCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
-			typedef std::function<void(struct WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
+			typedef std::function<bool(struct WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
 			typedef std::function<bool(struct WebSocketFrame*)> WebSocketCheckCallback;
 			typedef std::function<void(struct GatewayFrame*)> GatewayCallback;
 			typedef std::function<void(struct GatewayFrame*, int, const char*)> GatewayStatusCallback;

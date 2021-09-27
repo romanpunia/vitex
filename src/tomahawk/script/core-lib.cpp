@@ -1391,12 +1391,11 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
-			Register.SetFunctionDef("void CETaskCallback()");
-
 			Engine->BeginNamespace("CE");
 			VMRefClass VSchedule = Register.SetClassUnmanaged<Core::Schedule>("Schedule");
-			VSchedule.SetMethodEx("uint64 SetTimeout(uint64, CETaskCallback@)", &ScheduleSetTimeout);
-			VSchedule.SetMethodEx("bool SetTask(CETaskCallback@)", &ScheduleSetTask);
+			VSchedule.SetFunctionDef("void CE::Schedule::TaskCallback()");
+			VSchedule.SetMethodEx("uint64 SetTimeout(uint64, TaskCallback@)", &ScheduleSetTimeout);
+			VSchedule.SetMethodEx("bool SetTask(TaskCallback@)", &ScheduleSetTask);
 			VSchedule.SetMethod("bool ClearTimeout(uint64)", &Core::Schedule::ClearTimeout);
 			VSchedule.SetMethod("bool Start(bool, uint64, uint64 = 16, uint64 = 524288)", &Core::Schedule::ClearTimeout);
 			VSchedule.SetMethod("bool Stop()", &Core::Schedule::Stop);

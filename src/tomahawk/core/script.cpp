@@ -50,6 +50,136 @@ namespace
 		}
 	};
 
+	struct DEnum
+	{
+		std::vector<std::string> Values;
+	};
+
+	struct DClass
+	{
+		std::vector<std::string> Props;
+		std::vector<std::string> Interfaces;
+		std::vector<std::string> Types;
+		std::vector<std::string> Funcdefs;
+		std::vector<std::string> Methods;
+		std::vector<std::string> Functions;
+	};
+
+	struct DNamespace
+	{
+		std::unordered_map<std::string, DEnum> Enums;
+		std::unordered_map<std::string, DClass> Classes;
+		std::vector<std::string> Funcdefs;
+		std::vector<std::string> Functions;
+	};
+
+	std::string GetCombination(const std::vector<std::string>& Names, const std::string& By)
+	{
+		std::string Result;
+		for (size_t i = 0; i < Names.size(); i++)
+		{
+			Result.append(Names[i]);
+			if (i + 1 < Names.size())
+				Result.append(By);
+		}
+
+		return Result;
+	}
+	std::string GetCombinationAll(const std::vector<std::string>& Names, const std::string& By, const std::string& EndBy)
+	{
+		std::string Result;
+		for (size_t i = 0; i < Names.size(); i++)
+		{
+			Result.append(Names[i]);
+			if (i + 1 < Names.size())
+				Result.append(By);
+			else
+				Result.append(EndBy);
+		}
+
+		return Result;
+	}
+	std::string GetTypeNaming(asITypeInfo* Type)
+	{
+		const char* Namespace = Type->GetNamespace();
+		return (Namespace ? Namespace + std::string("::") : std::string("")) + Type->GetName();
+	}
+	asITypeInfo* GetTypeNamespacing(asIScriptEngine* Engine, const std::string& Name)
+	{
+		asITypeInfo* Result = Engine->GetTypeInfoByName(Name.c_str());
+		if (Result != nullptr)
+			return Result;
+
+		return Engine->GetTypeInfoByName((Name + "@").c_str());
+	}
+	void DumpNamespace(Tomahawk::Core::FileStream* Stream, const std::string& Naming, DNamespace& Namespace, std::string& Offset)
+	{
+		if (!Naming.empty())
+		{
+			Offset.append("\t");
+			Stream->WriteAny("namespace %s\n{\n", Naming.c_str());
+		}
+
+		for (auto It = Namespace.Enums.begin(); It != Namespace.Enums.end(); It++)
+		{
+			auto Copy = It;
+			Stream->WriteAny("%senum %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
+			Stream->WriteAny("%s", GetCombination(It->second.Values, ",\n\t" + Offset).c_str());
+			Stream->WriteAny("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Enums.end() ? "\n" : "");
+		}
+
+		if (!Namespace.Enums.empty() && (!Namespace.Classes.empty() || !Namespace.Funcdefs.empty() || !Namespace.Functions.empty()))
+			Stream->WriteAny("\n");
+
+		for (auto It = Namespace.Classes.begin(); It != Namespace.Classes.end(); It++)
+		{
+			auto Copy = It;
+			Stream->WriteAny("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
+				Offset.c_str(),
+				It->first.c_str(),
+				It->second.Types.empty() ? "" : "<",
+				It->second.Types.empty() ? "" : GetCombination(It->second.Types, ", ").c_str(),
+				It->second.Types.empty() ? "" : ">",
+				It->second.Interfaces.empty() ? "" : " : ",
+				It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
+				Offset.c_str(), Offset.c_str());
+			Stream->WriteAny("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
+			Stream->WriteAny("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
+			Stream->WriteAny("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str());
+			Stream->WriteAny("\n%s}\n%s", Offset.c_str(), !It->second.Functions.empty() || ++Copy != Namespace.Classes.end() ? "\n" : "");
+
+			if (It->second.Functions.empty())
+				continue;
+
+			Stream->WriteAny("%snamespace %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
+			Stream->WriteAny("%s", GetCombination(It->second.Functions, ";\n\t" + Offset).c_str());
+			Stream->WriteAny("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Classes.end() ? "\n" : "");
+		}
+
+		if (!Namespace.Funcdefs.empty())
+		{
+			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
+				Stream->WriteAny("\n%s", Offset.c_str());
+			else
+				Stream->WriteAny("%s", Offset.c_str());
+		}
+
+		Stream->WriteAny("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";" : "\n\n" + Offset).c_str());
+		if (!Namespace.Functions.empty() && Namespace.Funcdefs.empty())
+		{
+			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
+				Stream->WriteAny("\n");
+			else
+				Stream->WriteAny("%s", Offset.c_str());
+		}
+
+		Stream->WriteAny("%s", GetCombinationAll(Namespace.Functions, ";\n" + Offset, ";\n").c_str());
+		if (!Naming.empty())
+		{
+			Stream->WriteAny("}");
+			Offset.erase(Offset.begin());
+		}
+	}
 }
 
 namespace Tomahawk
@@ -859,15 +989,7 @@ namespace Tomahawk
 			VMCManager* Engine = Manager->GetEngine();
 			TH_ASSERT(Engine != nullptr, -1, "engine should be set");
 
-			VMCTypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
-			const char* Namespace = Engine->GetDefaultNamespace();
-			const char* Scope = Info->GetNamespace();
-
-			Engine->SetDefaultNamespace(std::string(Scope).append("::").append(Object).c_str());
-			int R = Engine->RegisterFuncdef(Decl);
-			Engine->SetDefaultNamespace(Namespace);
-
-			return R;
+			return Engine->RegisterFuncdef(Decl);;
 		}
 		int VMClass::SetOperatorCopyAddress(asSFuncPtr* Value)
 		{
@@ -2909,7 +3031,7 @@ namespace Tomahawk
 				"\n\tmodule: %s"
 				"\n\tsource: %s"
 				"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Trace.size(), Trace.c_str());
-			
+
 			Base->Except.lock();
 			Base->Stack = Trace;
 			Base->Except.unlock();
@@ -3207,6 +3329,191 @@ namespace Tomahawk
 		void VMManager::GCEnumCallback(void* Reference)
 		{
 			Engine->GCEnumCallback(Reference);
+		}
+		bool VMManager::DumpRegisteredInterfaces(const std::string& Where)
+		{
+			std::unordered_map<std::string, DNamespace> Namespaces;
+			std::string Path = Core::OS::Path::ResolveDirectory(Where.c_str());
+			Core::OS::Directory::Patch(Path);
+
+			if (Path.empty())
+				return false;
+
+			asUINT EnumsCount = Engine->GetEnumCount();
+			for (asUINT i = 0; i < EnumsCount; i++)
+			{
+				asITypeInfo* EType = Engine->GetEnumByIndex(i);
+				const char* ENamespace = EType->GetNamespace();
+				DNamespace& Namespace = Namespaces[ENamespace ? ENamespace : ""];
+				DEnum& Enum = Namespace.Enums[EType->GetName()];
+				asUINT ValuesCount = EType->GetEnumValueCount();
+
+				for (asUINT j = 0; j < ValuesCount; j++)
+				{
+					int EValue;
+					const char* EName = EType->GetEnumValueByIndex(j, &EValue);
+					Enum.Values.push_back(Core::Form("%s = %i", EName ? EName : std::to_string(j).c_str(), EValue).R());
+				}
+			}
+
+			asUINT ObjectsCount = Engine->GetObjectTypeCount();
+			for (asUINT i = 0; i < ObjectsCount; i++)
+			{
+				asITypeInfo* EType = Engine->GetObjectTypeByIndex(i);
+				asITypeInfo* EBase = EType->GetBaseType();
+				const char* CNamespace = EType->GetNamespace();
+				const char* CName = EType->GetName();
+				DNamespace& Namespace = Namespaces[CNamespace ? CNamespace : ""];
+				DClass& Class = Namespace.Classes[CName];
+				asUINT TypesCount = EType->GetSubTypeCount();
+				asUINT InterfacesCount = EType->GetInterfaceCount();
+				asUINT FuncdefsCount = EType->GetChildFuncdefCount();
+				asUINT PropsCount = EType->GetPropertyCount();
+				asUINT FactoriesCount = EType->GetFactoryCount();
+				asUINT MethodsCount = EType->GetMethodCount();
+
+				if (EBase != nullptr)
+					Class.Interfaces.push_back(GetTypeNaming(EBase));
+
+				for (asUINT j = 0; j < InterfacesCount; j++)
+				{
+					asITypeInfo* IType = EType->GetInterface(j);
+					Class.Interfaces.push_back(GetTypeNaming(IType));
+				}
+
+				for (asUINT j = 0; j < TypesCount; j++)
+				{
+					int STypeId = EType->GetSubTypeId(j);
+					const char* SDecl = Engine->GetTypeDeclaration(STypeId, true);
+					Class.Types.push_back(std::string("class ") + (SDecl ? SDecl : "__type__"));
+				}
+
+				for (asUINT j = 0; j < FuncdefsCount; j++)
+				{
+					asITypeInfo* FType = EType->GetChildFuncdef(j);
+					asIScriptFunction* FFunction = FType->GetFuncdefSignature();
+					const char* FNamespace = FType->GetNamespace();
+					const char* FDecl = FFunction->GetDeclaration(false, false, true);
+					Class.Funcdefs.push_back(std::string("funcdef ") + (FDecl ? FDecl : "void __unnamed" + std::to_string(j) + "__()"));
+				}
+
+				for (asUINT j = 0; j < PropsCount; j++)
+				{
+					const char* PName; int PTypeId; bool PPrivate, PProtected;
+					if (EType->GetProperty(j, &PName, &PTypeId, &PPrivate, &PProtected) != 0)
+						continue;
+
+					const char* PDecl = Engine->GetTypeDeclaration(PTypeId, true);
+					const char* PMod = (PPrivate ? "private " : (PProtected ? "protected " : nullptr));
+					Class.Props.push_back(Core::Form("%s%s %s", PMod ? PMod : "", PDecl ? PDecl : "__type__", PName ? PName : ("__unnamed" + std::to_string(j) + "__").c_str()).R());
+				}
+
+				for (asUINT j = 0; j < FactoriesCount; j++)
+				{
+					asIScriptFunction* FFunction = EType->GetFactoryByIndex(j);
+					const char* FDecl = FFunction->GetDeclaration(false, false, true);
+					Class.Methods.push_back(FDecl ? std::string(FDecl) : "void " + std::string(CName) + "()");
+				}
+
+				for (asUINT j = 0; j < MethodsCount; j++)
+				{
+					asIScriptFunction* FFunction = EType->GetMethodByIndex(j);
+					const char* FDecl = FFunction->GetDeclaration(false, false, true);
+					Class.Methods.push_back(FDecl ? FDecl : "void __unnamed" + std::to_string(j) + "__()");
+				}
+			}
+
+			asUINT FunctionsCount = Engine->GetGlobalFunctionCount();
+			for (asUINT i = 0; i < FunctionsCount; i++)
+			{
+				asIScriptFunction* FFunction = Engine->GetGlobalFunctionByIndex(i);
+				const char* FNamespace = FFunction->GetNamespace();
+				const char* FDecl = FFunction->GetDeclaration(false, false, true);
+
+				if (FNamespace != nullptr && *FNamespace != '\0')
+				{
+					asITypeInfo* FType = GetTypeNamespacing(Engine, FNamespace);
+					if (FType != nullptr)
+					{
+						const char* CNamespace = FType->GetNamespace();
+						const char* CName = FType->GetName();
+						DNamespace& Namespace = Namespaces[CNamespace ? CNamespace : ""];
+						DClass& Class = Namespace.Classes[CName];
+						const char* FDecl = FFunction->GetDeclaration(false, false, true);
+						Class.Functions.push_back(FDecl ? FDecl : "void __unnamed" + std::to_string(i) + "__()");
+						continue;
+					}
+				}
+
+				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
+				Namespace.Functions.push_back(FDecl ? FDecl : "void __unnamed" + std::to_string(i) + "__()");
+			}
+
+			asUINT FuncdefsCount = Engine->GetFuncdefCount();
+			for (asUINT i = 0; i < FuncdefsCount; i++)
+			{
+				asITypeInfo* FType = Engine->GetFuncdefByIndex(i);
+				if (FType->GetParentType() != nullptr)
+					continue;
+
+				asIScriptFunction* FFunction = FType->GetFuncdefSignature();
+				const char* FNamespace = FType->GetNamespace();
+				DNamespace& Namespace = Namespaces[FNamespace ? FNamespace : ""];
+				const char* FDecl = FFunction->GetDeclaration(false, false, true);
+				Namespace.Funcdefs.push_back(std::string("funcdef ") + (FDecl ? FDecl : "void __unnamed" + std::to_string(i) + "__()"));
+			}
+
+			typedef std::pair<std::string, DNamespace*> GroupKey;
+			std::unordered_map<std::string, std::pair<std::string, std::vector<GroupKey>>> Groups;
+			for (auto& Namespace : Namespaces)
+			{
+				std::string Name = (Namespace.first.empty() ? "STD" : Namespace.first);
+				std::string Subname = (Namespace.first.empty() ? "" : Name);
+				auto Offset = Core::Parser(&Name).Find("::");
+
+				if (Offset.Found)
+				{
+					Name = Name.substr(0, (size_t)Offset.Start);
+					if (Groups.find(Name) != Groups.end())
+					{
+						Groups[Name].second.push_back(std::make_pair(Subname, &Namespace.second));
+						continue;
+					}
+				}
+
+				std::string File = Core::OS::Path::Resolve((Path + Core::Parser(Name).Replace("::", "/").ToLower().R() + ".as").c_str());
+				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
+
+				auto& Source = Groups[Name];
+				Source.first = File;
+				Source.second.push_back(std::make_pair(Subname, &Namespace.second));
+			}
+
+			Core::FileStream* Stream;
+			for (auto& Group : Groups)
+			{
+				Stream = (Core::FileStream*)Core::OS::File::Open(Group.second.first, Core::FileMode::Write_Only);
+				if (!Stream)
+					return false;
+
+				std::string Offset;
+				std::sort(Group.second.second.begin(), Group.second.second.end(), [](const GroupKey& A, const GroupKey& B)
+				{
+					return A.first.size() < B.first.size();
+				});
+
+				auto& List = Group.second.second;
+				for (auto It = List.begin(); It != List.end(); It++)
+				{
+					auto Copy = It;
+					DumpNamespace(Stream, It->first, *It->second, Offset);
+					if (++Copy != List.end())
+						Stream->WriteAny("\n\n");
+				}
+				TH_RELEASE(Stream);
+			}
+
+			return true;
 		}
 		int VMManager::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
 		{
@@ -4610,5 +4917,5 @@ namespace Tomahawk
 		{
 			return Manager;
 		}
+		}
 	}
-}

@@ -83,7 +83,7 @@ namespace
 
 		return Difference;
 	}
-	void UnicodePath(const char* Path, wchar_t* Input, size_t InputSize)
+	void UnicodePath(const char* Path, wchar_t* Input, size_t InputSize, bool Exists)
 	{
 		char Buffer1[1024];
 		strncpy(Buffer1, Path, sizeof(Buffer1));
@@ -109,6 +109,9 @@ namespace
 		memset(WBuffer, 0, (sizeof(WBuffer) / sizeof(WBuffer[0])) * sizeof(wchar_t));
 
 		DWORD Length = GetLongPathNameW(Input, WBuffer, (sizeof(WBuffer) / sizeof(WBuffer[0])) - 1);
+		if (!Exists)
+			return;
+
 		if (Length == 0)
 		{
 			if (GetLastError() == ERROR_FILE_NOT_FOUND)
@@ -5803,7 +5806,7 @@ namespace Tomahawk
 			};
 
 			wchar_t WPath[1024];
-			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]));
+			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]), true);
 
 			auto* Value = (Directory*)TH_MALLOC(sizeof(Directory));
 			DWORD Attributes = GetFileAttributesW(WPath);
@@ -5896,7 +5899,7 @@ namespace Tomahawk
 			TH_TRACE("[io] create dir %s", Path);
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[1024];
-			UnicodePath(Path, Buffer, 1024);
+			UnicodePath(Path, Buffer, 1024, false);
 			size_t Length = wcslen(Buffer);
 			if (!Length)
 			{
@@ -6123,7 +6126,7 @@ namespace Tomahawk
 			memset(Resource, 0, sizeof(*Resource));
 #if defined(TH_MICROSOFT)
 			wchar_t WBuffer[1024];
-			UnicodePath(Path.c_str(), WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
+			UnicodePath(Path.c_str(), WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]), true);
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(WBuffer, GetFileExInfoStandard, &Info) == 0)
@@ -6336,7 +6339,7 @@ namespace Tomahawk
 			TH_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef TH_MICROSOFT
 			wchar_t WBuffer[1024], WMode[20];
-			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]));
+			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]), true);
 			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
 
 			FILE* Stream = _wfopen(WBuffer, WMode);

@@ -1784,6 +1784,7 @@ namespace Tomahawk
 			void ForwardEnumReferences(void* Reference, const VMTypeInfo& Type);
 			void ForwardReleaseReferences(void* Reference, const VMTypeInfo& Type);
 			void GCEnumCallback(void* Reference);
+			bool DumpRegisteredInterfaces(const std::string& Path);
 			bool GetByteCodeCache(VMByteCode* Info);
 			void SetByteCodeCache(VMByteCode* Info);
 			VMContext* CreateContext();

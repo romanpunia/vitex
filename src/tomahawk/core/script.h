@@ -1623,7 +1623,9 @@ namespace Tomahawk
 			std::unordered_set<STDPromise*> Promises;
 			std::queue<Executable> Queue;
 			std::atomic<size_t> Nests;
+			std::string Stack;
 			std::mutex Exchange;
+			std::mutex Except;
 			ResumeCallback Notify[2];
 			VMCContext* Context;
 			VMManager* Manager;
@@ -1640,7 +1642,7 @@ namespace Tomahawk
 			int Abort();
 			int Suspend();
 			VMExecState GetState() const;
-			std::string GetStackTrace() const;
+			std::string GetStackTrace(size_t Skips, size_t MaxFrames) const;
 			int PushState();
 			int PopState();
 			bool IsNested(unsigned int* NestCount = 0) const;
@@ -1678,6 +1680,7 @@ namespace Tomahawk
 			int SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			void ClearLineCallback();
 			unsigned int GetCallstackSize() const;
+			std::string GetErrorStackTrace();
 			VMFunction GetFunction(unsigned int StackLevel = 0);
 			int GetLineNumber(unsigned int StackLevel = 0, int* Column = 0, const char** SectionName = 0);
 			int GetPropertiesCount(unsigned int StackLevel = 0);

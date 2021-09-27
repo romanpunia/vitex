@@ -66,6 +66,13 @@ namespace Tomahawk
 			{
 				return std::string(Array.data() + Offset, Size);
 			}
+			static std::string TextHTML(const std::string& Result)
+			{
+				if (Result.empty())
+					return Result;
+
+				return Core::Parser(Result).Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\n", "<br>").R();
+			}
 
 			MimeStatic::MimeStatic(const char* Ext, const char* T) : Extension(Ext), Type(T)
 			{
@@ -1442,8 +1449,9 @@ namespace Tomahawk
 					int HasContents = (Response.StatusCode > 199 && Response.StatusCode != 204 && Response.StatusCode != 304);
 					if (HasContents)
 					{
-						char Buffer[2048];
-						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;}body{display:flex;align-items:center;justify-content:center;height:100%%;}div{text-align:center;}</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Response.StatusCode, Info.Message.empty() ? StatusText : Info.Message.c_str());
+						char Buffer[8192];
+						std::string Reason = TextHTML(Info.Message);
+						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;}body{display:flex;align-items:center;justify-content:center;height:100%%;}%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? "div{text-align:center;}" : "h1{font-size:16px;font-weight:normal;}", Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
 
 						if (Route && Route->Callbacks.Headers)
 							Route->Callbacks.Headers(this, &Content);
@@ -3614,7 +3622,10 @@ namespace Tomahawk
 
 				const char* Connection = Base->Request.GetHeader("Connection");
 				if (Connection != nullptr && Core::Parser::CaseCompare(Connection, "keep-alive"))
+				{
+					Base->Info.KeepAlive = 0;
 					return "Connection: Close\r\n";
+				}
 
 				if (!Connection && strcmp(Base->Request.Version, "1.1") != 0)
 					return "Connection: Close\r\n";
@@ -5263,14 +5274,23 @@ namespace Tomahawk
 						Base->Gateway = TH_NEW(GatewayFrame, Compiler);
 						Base->Gateway->E.Exception = [Base](GatewayFrame* Gateway)
 						{
-							if (Base->Response.StatusCode <= 0)
-								Base->Response.StatusCode = 500;
-
+							Base->Response.StatusCode = 500;
 							if (Base->Route->Gateway.ReportErrors)
 							{
-								const char* Exception, * Function; int Line, Column;
+								const char* Exception, *Function; int Line, Column;
 								if (Gateway->GetException(&Exception, &Function, &Line, &Column))
-									Base->Info.Message = Core::Form("Thrown from %s() at %i,%i: %s.", Line, Column, Function ? Function : "anonymous", Exception ? Exception : "empty exception").R();
+									Base->Info.Message = Core::Form("%s() at line %i\n%s.", Function ? Function : "anonymous", Line, Exception ? Exception : "empty exception").R();
+								
+								if (Base->Route->Gateway.ReportStack)
+								{
+									Script::VMContext* Context = Gateway->GetContext();
+									if (Context != nullptr)
+									{
+										std::string Stack = Context->GetErrorStackTrace();
+										if (!Stack.empty())
+											Base->Info.Message += "\n\n" + Stack;
+									}
+								}
 							}
 							else
 								Base->Info.Message.assign("Internal processing error occurred.");

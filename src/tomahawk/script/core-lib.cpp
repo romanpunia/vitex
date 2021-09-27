@@ -110,12 +110,11 @@ namespace Tomahawk
 
 		void ConsoleTrace(Core::Console* Base, uint32_t Frames)
 		{
-			std::string Trace = Core::OS::GetStackTrace(2, Frames);
 			VMContext* Context = VMContext::Get();
 			if (Context != nullptr)
-				Trace.append("\n").append(Context->GetStackTrace());
+				return Base->WriteLine(Context->GetStackTrace(3, (size_t)Frames));
 
-			Base->WriteLine(Trace);
+			TH_ERR("[vm] no active context for stack tracing");
 		}
 
 		uint64_t VariantGetSize(Core::Variant& Base)

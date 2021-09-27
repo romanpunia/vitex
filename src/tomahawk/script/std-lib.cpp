@@ -4416,7 +4416,7 @@ namespace Tomahawk
 			if (!Context)
 				return;
 
-			VMCManager* Engine = Context->GetManager()->GetEngine();
+			Engine = Context->GetManager()->GetEngine();
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Promise"));
 			Context->PromiseAwake(this);
 			Context->AddRef();
@@ -4472,24 +4472,15 @@ namespace Tomahawk
 			if (Future != nullptr)
 				return -1;
 
-			VMCManager* Engine = Context->GetManager()->GetEngine();
-			void* Data = asAllocMem(sizeof(STDAny));
-			STDAny* Result = new(Data) STDAny(_Ref, TypeId, Engine);
-			Result->Release();
-
-			if (TypeId & asTYPEID_OBJHANDLE)
-			{
-				VMCManager* Manager = Engine;
-				Manager->ReleaseScriptObject(*(void**)_Ref, Manager->GetTypeInfoById(TypeId));
-			}
-
-			this->AddRef();
-			Result->AddRef();
+			AddRef();
 			Context->AddRef();
 			if (Future != nullptr)
 				Future->Release();
-			Future = Result;
+			Future = new(asAllocMem(sizeof(STDAny))) STDAny(_Ref, TypeId, Engine);
 			Release();
+
+			if (TypeId & asTYPEID_OBJHANDLE)
+				Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
 
 			return Core::Schedule::Get()->SetTask([this]()
 			{
@@ -4500,7 +4491,7 @@ namespace Tomahawk
 		}
 		int STDPromise::Set(void* _Ref, const char* TypeName)
 		{
-			return Set(_Ref, Context->GetManager()->GetEngine()->GetTypeIdByDecl(TypeName));
+			return Set(_Ref, Engine->GetTypeIdByDecl(TypeName));
 		}
 		bool STDPromise::To(void* _Ref, int TypeId)
 		{
@@ -4509,20 +4500,34 @@ namespace Tomahawk
 
 			return Future->Retrieve(_Ref, TypeId);
 		}
-		void* STDPromise::Get()
+		void* STDPromise::GetHandle()
 		{
 			if (!Future)
 				return nullptr;
 
 			int TypeId = Future->GetTypeId();
 			if (TypeId & asTYPEID_OBJHANDLE)
-				return &Future->Value.ValueObj;
-			else if (TypeId & asTYPEID_MASK_OBJECT)
+				return Future->Value.ValueObj;
+
+			Context->SetException("object cannot be safely retrieved by reference type promise");
+			return nullptr;
+		}
+		void* STDPromise::GetValue()
+		{
+			if (!Future)
+				return nullptr;
+
+			int TypeId = Future->GetTypeId();
+			if (TypeId & asTYPEID_MASK_OBJECT)
 				return Future->Value.ValueObj;
 			else if (TypeId <= asTYPEID_DOUBLE || TypeId & asTYPEID_MASK_SEQNBR)
 				return &Future->Value.ValueInt;
 
-			Context->SetException("retrieve this object explicitly with To(T& out)");
+			if (TypeId & asTYPEID_OBJHANDLE)
+				Context->SetException("object cannot be safely retrieved by value type promise");
+			else
+				Context->SetException("retrieve this object explicitly with To(T& out)");
+
 			return nullptr;
 		}
 		STDPromise* STDPromise::Create()
@@ -4979,7 +4984,19 @@ namespace Tomahawk
 			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDPromise, EnumReferences), asCALL_THISCALL);
 			Engine->RegisterObjectBehaviour("Promise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDPromise, ReleaseReferences), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Promise<T>", "bool To(?&out)", asMETHODPR(STDPromise, To, (void*, int), bool), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Promise<T>", "T& Get()", asMETHOD(STDPromise, Get), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Promise<T>", "T& Get()", asMETHOD(STDPromise, GetValue), asCALL_THISCALL);
+
+			Engine->RegisterObjectType("RefPromise<class T>", 0, asOBJ_REF | asOBJ_GC | asOBJ_TEMPLATE);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_TEMPLATE_CALLBACK, "bool f(int&in, bool&out)", asFUNCTION(STDArray::TemplateCallback), asCALL_CDECL);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_ADDREF, "void f()", asMETHOD(STDPromise, AddRef), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_RELEASE, "void f()", asMETHOD(STDPromise, Release), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_SETGCFLAG, "void f()", asMETHOD(STDPromise, SetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_GETGCFLAG, "bool f()", asMETHOD(STDPromise, GetGCFlag), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_GETREFCOUNT, "int f()", asMETHOD(STDPromise, GetRefCount), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_ENUMREFS, "void f(int&in)", asMETHOD(STDPromise, EnumReferences), asCALL_THISCALL);
+			Engine->RegisterObjectBehaviour("RefPromise<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(STDPromise, ReleaseReferences), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("RefPromise<T>", "T@+ Get()", asMETHOD(STDPromise, GetHandle), asCALL_THISCALL);
+
 			return true;
 		}
 		bool STDFreeCore()

@@ -1638,6 +1638,7 @@ namespace Tomahawk
 
 							NMake::Unpack(Base->Find("override"), &Route->Override);
 							NMake::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
+							NMake::Unpack(Base->Fetch("gateway.report-stack"), &Route->Gateway.ReportStack);
 							NMake::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
 							NMake::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
 							NMake::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);

@@ -727,6 +727,7 @@ namespace Tomahawk
 			friend VMContext;
 
 		private:
+			VMCManager* Engine;
 			VMContext* Context;
 			STDAny* Future;
 			bool Flag;
@@ -746,7 +747,8 @@ namespace Tomahawk
 			int Set(void* Ref, int TypeId);
 			int Set(void* Ref, const char* TypeId);
 			bool To(void* fRef, int TypeId);
-			void* Get();
+			void* GetHandle();
+			void* GetValue();
 
 		private:
 			static STDPromise* Create();

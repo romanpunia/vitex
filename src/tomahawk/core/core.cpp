@@ -224,7 +224,7 @@ namespace
 			bool Indentation = true;
 			if (Trace.source.filename.empty())
 			{
-				Stream << "   object \"" << Trace.object_filename << "\", at " << Trace.addr << ", in " << Trace.object_function << "\n";
+				Stream << "   object \"" << Trace.object_filename << "\", at 0x" << Trace.addr << ", in " << Trace.object_function << "\n";
 				Indentation = false;
 			}
 
@@ -310,9 +310,9 @@ namespace
 		{
 			ucontext_t* uctx = static_cast<ucontext_t*>(_ctx);
 			void* error_addr = nullptr;
-#ifdef REG_RIP // x86_64
+#ifdef REG_RIP
 			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_RIP]);
-#elif defined(REG_EIP) // x86_32
+#elif defined(REG_EIP)
 			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_EIP]);
 #elif defined(__arm__)
 			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.arm_pc);

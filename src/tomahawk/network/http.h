@@ -358,6 +358,7 @@ namespace Tomahawk
 				{
 					std::vector<Compute::RegexSource> Files;
 					std::vector<std::string> Methods;
+					bool ReportStack = false;
 					bool ReportErrors = false;
 				} Gateway;
 				struct

@@ -1980,6 +1980,9 @@ namespace Tomahawk
 
 			Manager->Lock();
 			{
+				if (Context != nullptr)
+					Context->SetOnResume(nullptr);
+
 				if (Module != nullptr)
 					Module->Discard();
 
@@ -2396,7 +2399,7 @@ namespace Tomahawk
 				if (!Base->Future)
 				{
 					Promises.insert(Base);
-					if (!IsSuspended())
+					if (Context->GetState() == asEXECUTION_ACTIVE)
 						Context->Suspend();
 				}
 				else
@@ -2487,7 +2490,12 @@ namespace Tomahawk
 		{
 			asEContextState State = Context->GetState();
 			if (State != asEXECUTION_SUSPENDED && State != asEXECUTION_PREPARED)
+			{
+				if (State != asEXECUTION_ACTIVE && Resumable && ExecuteNotify(State))
+					return State;
+
 				return asEXECUTION_ACTIVE;
+			}
 
 			State = (asEContextState)Context->Execute();
 			if (Nests > 0 && State != asEXECUTION_SUSPENDED)
@@ -2519,9 +2527,10 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, VMExecState::UNINITIALIZED, "context should be set");
 			return (VMExecState)Context->GetState();
 		}
-		std::string VMContext::GetStackTrace() const
+		std::string VMContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
 		{
-			TH_ASSERT(Context != nullptr, "", "context should be set");
+			std::string Trace = Core::OS::GetStackTrace(Skips, MaxFrames).append("\n");
+			TH_ASSERT(Context != nullptr, Trace, "context should be set");
 
 			uint64_t ThreadId = STDThread::GetThreadId();
 			std::stringstream Stream;
@@ -2553,7 +2562,7 @@ namespace Tomahawk
 			}
 
 			std::string Out(Stream.str());
-			return Out.substr(0, Out.size() - 1);
+			return Trace + Out.substr(0, Out.size() - 1);
 		}
 		int VMContext::PushState()
 		{
@@ -2828,6 +2837,14 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetThisPointer(StackLevel);
 		}
+		std::string VMContext::GetErrorStackTrace()
+		{
+			Except.lock();
+			std::string Result = Stack;
+			Except.unlock();
+
+			return Result;
+		}
 		VMFunction VMContext::GetSystemFunction()
 		{
 			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
@@ -2877,24 +2894,25 @@ namespace Tomahawk
 			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			const char* Message = Context->GetExceptionString();
-			if (!Message || Message[0] == '\0')
+			if (!Message || Message[0] == '\0' || Context->WillExceptionBeCaught())
 				return;
-
-			if (Context->WillExceptionBeCaught())
-				return TH_WARN("exception raised");
 
 			const char* Decl = Function->GetDeclaration();
 			const char* Mod = Function->GetModuleName();
 			const char* Source = Function->GetScriptSectionName();
 			int Line = Context->GetExceptionLineNumber();
-			std::string Stack = Base->GetStackTrace();
+			std::string Trace = Base->GetStackTrace(3, 64);
 
-			TH_ERR("uncaught exception raised"
+			TH_ERR("uncaught exception"
 				"\n\tdescription: %s"
 				"\n\tfunction: %s"
 				"\n\tmodule: %s"
 				"\n\tsource: %s"
-				"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Stack.size(), Stack.c_str());
+				"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Trace.size(), Trace.c_str());
+			
+			Base->Except.lock();
+			Base->Stack = Trace;
+			Base->Except.unlock();
 		}
 		int VMContext::ContextUD = 152;
 
@@ -3135,7 +3153,7 @@ namespace Tomahawk
 		int VMManager::Collect(size_t NumIterations)
 		{
 			Sync.General.lock();
-			int R = Engine->GarbageCollect(asGC_FULL_CYCLE, NumIterations);
+			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, NumIterations);
 			Sync.General.unlock();
 
 			return R;

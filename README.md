@@ -94,8 +94,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Pointer wrapper to work directly with raw pointers
 + Strings with pointer conversion support to work with C char arrays
 + Debugger interface
-+ Standard library
-+ Tomahawk bindings (WIP)
++ Standard library + bindings (WIP)
 #### Graphics
 + Window (activity) system
 + Input detection (keyboard, cursor, controller, joystick, multi-touch)
@@ -177,6 +176,9 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Server processor (for HTTP server to load router config)
 
 *Note: some functionality might be stripped without needed dependencies. Also exceptions were not used, it's more C-like with return codes.*
+## Scripting
+At this moment all scripting interfaces that can be imported are located at **/src/scripts**. Files there present all available scripting interfaces, they are not intentended to be actually compiled because some classes can only be registered from application. From there you can view what functions can be used right now.
+
 ## Cross platform
 + Windows 7/8/8.1/10+ x64/x86
 + Raspberian 3+ ARM
@@ -244,7 +246,6 @@ These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_RMLUI** will enable RmlUi library and gui interfaces, defaults to true
 
 ## Core built-in dependencies from **/src/supplies**
-These are used widely and presents useful features
 * [bullet3](https://github.com/bulletphysics/bullet3)
 * [angelscript](https://sourceforge.net/projects/angelscript/)
 * [wepoll](https://github.com/piscisaureus/wepoll)

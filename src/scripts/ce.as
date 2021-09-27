@@ -140,7 +140,7 @@ namespace CE
 	namespace Decimal
 	{
 		CE::Decimal Size(const CE::Decimal&in, const CE::Decimal&in, int);
-		CE::Decimal Size()
+		CE::Decimal Size();
 	}
 
 	class FileState
@@ -190,7 +190,7 @@ namespace CE
 
 	namespace Format
 	{
-		String JSON(const ?&in)
+		String JSON(const ?&in);
 	}
 
 	class Variant
@@ -290,7 +290,7 @@ namespace CE
 
 	namespace Console
 	{
-		CE::Console@ Get()
+		CE::Console@ Get();
 	}
 
 	class WebStream
@@ -363,7 +363,7 @@ namespace CE
 	{
 		CE::Document@ FromJSON(const String&in);
 		CE::Document@ FromXML(const String&in);
-		CE::Document@ Import(const String&in)
+		CE::Document@ Import(const String&in);
 	}
 }
 

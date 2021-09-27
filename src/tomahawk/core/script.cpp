@@ -152,7 +152,7 @@ namespace
 				continue;
 
 			Stream->WriteAny("%snamespace %s\n%s{\n\t%s", Offset.c_str(), It->first.c_str(), Offset.c_str(), Offset.c_str());
-			Stream->WriteAny("%s", GetCombination(It->second.Functions, ";\n\t" + Offset).c_str());
+			Stream->WriteAny("%s", GetCombinationAll(It->second.Functions, ";\n\t" + Offset, ";").c_str());
 			Stream->WriteAny("\n%s}\n%s", Offset.c_str(), ++Copy != Namespace.Classes.end() ? "\n" : "");
 		}
 

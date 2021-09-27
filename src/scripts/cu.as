@@ -141,7 +141,7 @@ namespace CU
 		CU::Vector2 Up();
 		CU::Vector2 Down();
 		CU::Vector2 Left();
-		CU::Vector2 Right()
+		CU::Vector2 Right();
 	}
 
 	class Vector3
@@ -215,7 +215,7 @@ namespace CU
 		CU::Vector3 Left();
 		CU::Vector3 Right();
 		CU::Vector3 Forward();
-		CU::Vector3 Backward()
+		CU::Vector3 Backward();
 	}
 
 	class Vector4
@@ -290,6 +290,6 @@ namespace CU
 		CU::Vector4 Right();
 		CU::Vector4 Forward();
 		CU::Vector4 Backward();
-		CU::Vector4 UnitW()
+		CU::Vector4 UnitW();
 	}
 }

@@ -177,7 +177,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 
 *Note: some functionality might be stripped without needed dependencies. Also exceptions were not used, it's more C-like with return codes.*
 ## Scripting
-At this moment all scripting interfaces that can be imported are located at **/src/scripts**. Files there present all available scripting interfaces, they are not intentended to be actually compiled because some classes can only be registered from application. From there you can view what functions can be used right now.
+At this moment all scripting interfaces that can be imported are located at **/src/scripts**, they are all machine generated. Files there present all available scripting interfaces, they are not intended to be actually compiled because some classes can only be registered from application. From there you can view what functions can be used right now.
 
 ## Cross platform
 + Windows 7/8/8.1/10+ x64/x86

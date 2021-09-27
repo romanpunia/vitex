@@ -245,7 +245,8 @@ class Mutex
 	void Unlock();
 }
 
-funcdef void ThreadEvent(Thread@)
+funcdef void ThreadEvent(Thread@);
+funcdef void GUIDataCallback(GUI::Event&in, CE::Variant[]@)
 
 Nullable@ get_nullptr();
 float FpFromIEEE(uint);

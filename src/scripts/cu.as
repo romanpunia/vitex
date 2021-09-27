@@ -1,83 +1,5 @@
 namespace CU
 {
-	class Vertex
-	{
-		float PositionX;
-		float PositionY;
-		float PositionZ;
-		float TexCoordX;
-		float TexCoordY;
-		float NormalX;
-		float NormalY;
-		float NormalZ;
-		float TangentX;
-		float TangentY;
-		float TangentZ;
-		float BitangentX;
-		float BitangentY;
-		float BitangentZ;
-	}
-
-	class Rectangle
-	{
-		int64 Left;
-		int64 Top;
-		int64 Right;
-		int64 Bottom;
-	}
-
-	class SkinVertex
-	{
-		float PositionX;
-		float PositionY;
-		float PositionZ;
-		float TexCoordX;
-		float TexCoordY;
-		float NormalX;
-		float NormalY;
-		float NormalZ;
-		float TangentX;
-		float TangentY;
-		float TangentZ;
-		float BitangentX;
-		float BitangentY;
-		float BitangentZ;
-		float JointIndex0;
-		float JointIndex1;
-		float JointIndex2;
-		float JointIndex3;
-		float JointBias0;
-		float JointBias1;
-		float JointBias2;
-		float JointBias3;
-	}
-
-	class ShapeVertex
-	{
-		float PositionX;
-		float PositionY;
-		float PositionZ;
-		float TexCoordX;
-		float TexCoordY;
-	}
-
-	class ElementVertex
-	{
-		float PositionX;
-		float PositionY;
-		float PositionZ;
-		float VelocityX;
-		float VelocityY;
-		float VelocityZ;
-		float ColorX;
-		float ColorY;
-		float ColorZ;
-		float ColorW;
-		float Scale;
-		float Rotation;
-		float Angular;
-	}
-
 	class Vector2
 	{
 		float X;
@@ -291,5 +213,83 @@ namespace CU
 		CU::Vector4 Forward();
 		CU::Vector4 Backward();
 		CU::Vector4 UnitW();
+	}
+
+	class Vertex
+	{
+		float PositionX;
+		float PositionY;
+		float PositionZ;
+		float TexCoordX;
+		float TexCoordY;
+		float NormalX;
+		float NormalY;
+		float NormalZ;
+		float TangentX;
+		float TangentY;
+		float TangentZ;
+		float BitangentX;
+		float BitangentY;
+		float BitangentZ;
+	}
+
+	class Rectangle
+	{
+		int64 Left;
+		int64 Top;
+		int64 Right;
+		int64 Bottom;
+	}
+
+	class SkinVertex
+	{
+		float PositionX;
+		float PositionY;
+		float PositionZ;
+		float TexCoordX;
+		float TexCoordY;
+		float NormalX;
+		float NormalY;
+		float NormalZ;
+		float TangentX;
+		float TangentY;
+		float TangentZ;
+		float BitangentX;
+		float BitangentY;
+		float BitangentZ;
+		float JointIndex0;
+		float JointIndex1;
+		float JointIndex2;
+		float JointIndex3;
+		float JointBias0;
+		float JointBias1;
+		float JointBias2;
+		float JointBias3;
+	}
+
+	class ShapeVertex
+	{
+		float PositionX;
+		float PositionY;
+		float PositionZ;
+		float TexCoordX;
+		float TexCoordY;
+	}
+
+	class ElementVertex
+	{
+		float PositionX;
+		float PositionY;
+		float PositionZ;
+		float VelocityX;
+		float VelocityY;
+		float VelocityZ;
+		float ColorX;
+		float ColorY;
+		float ColorZ;
+		float ColorW;
+		float Scale;
+		float Rotation;
+		float Angular;
 	}
 }

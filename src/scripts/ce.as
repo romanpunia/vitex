@@ -384,6 +384,17 @@ namespace CE::Var
 	CE::Document@ Init(CE::Document@);
 }
 
+namespace CE::OS::Path
+{
+	String Resolve(Address@);
+	String Resolve(const String&in, const String&in);
+	String ResolveDirectory(Address@);
+	String ResolveDirectory(const String&in, const String&in);
+	String ResolveResource(Address@);
+	String ResolveResource(const String&in, const String&in);
+	String GetDirectory(Address@, uint = 0);
+}
+
 namespace CE::OS::File
 {
 	bool Write(Address@, const String&in);
@@ -395,17 +406,6 @@ namespace CE::OS::File
 	uint64 GetCheckSum(const String&in);
 	CE::FileState GetState(Address@);
 	String ReadAsString(Address@);
-}
-
-namespace CE::OS::Path
-{
-	String Resolve(Address@);
-	String Resolve(const String&in, const String&in);
-	String ResolveDirectory(Address@);
-	String ResolveDirectory(const String&in, const String&in);
-	String ResolveResource(Address@);
-	String ResolveResource(const String&in, const String&in);
-	String GetDirectory(Address@, uint = 0);
 }
 
 namespace CE::Var::Set

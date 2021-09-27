@@ -164,7 +164,7 @@ namespace
 				Stream->WriteAny("%s", Offset.c_str());
 		}
 
-		Stream->WriteAny("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";" : "\n\n" + Offset).c_str());
+		Stream->WriteAny("%s", GetCombinationAll(Namespace.Funcdefs, ";\n" + Offset, Namespace.Functions.empty() ? ";\n" : "\n\n" + Offset).c_str());
 		if (!Namespace.Functions.empty() && Namespace.Funcdefs.empty())
 		{
 			if (!Namespace.Enums.empty() || !Namespace.Classes.empty())
@@ -3515,6 +3515,16 @@ namespace Tomahawk
 
 			return true;
 		}
+		bool VMManager::DumpAllInterfaces(const std::string& Where)
+		{
+			for (auto& Item : Modules)
+			{
+				if (!ImportSubmodule(Item.first))
+					return false;
+			}
+
+			return DumpRegisteredInterfaces(Where);
+		}
 		int VMManager::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
 		{
 			TH_ASSERT(TypeName != nullptr && *TypeName != nullptr, -1, "typename should be set");
@@ -4917,5 +4927,5 @@ namespace Tomahawk
 		{
 			return Manager;
 		}
-		}
 	}
+}

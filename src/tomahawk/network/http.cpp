@@ -3846,8 +3846,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Data != nullptr, true, "data should be set");
+
+				if (!Length)
+					return true;
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment)
@@ -3885,8 +3888,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartContentData(Parser* Parser, const char* Data, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Data != nullptr, true, "data should be set");
+
+				if (!Length)
+					return true;
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Stream)
@@ -3900,7 +3906,8 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartResourceBegin(Parser* Parser)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Request)
 					return true;
@@ -3932,10 +3939,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseMultipartResourceEnd(Parser* Parser)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Stream || !Segment->Request)
-					return false;
+					return true;
 
 				TH_CLOSE(Segment->Stream);
 				Segment->Stream = nullptr;
@@ -3948,11 +3956,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseHeaderField(Parser* Parser, const char* Name, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Name != nullptr && Length > 0, false, "name should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Name != nullptr, true, "name should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
-				if (!Segment)
+				if (!Length || !Segment)
 					return true;
 
 				Segment->Header.assign(Name, Length);
@@ -3960,11 +3968,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Data != nullptr, true, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
-				if (!Segment || Segment->Header.empty())
+				if (!Length || !Segment || Segment->Header.empty())
 					return true;
 
 				if (Core::Parser::CaseCompare(Segment->Header.c_str(), "cookie") == 0)
@@ -4013,11 +4021,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseVersion(Parser* Parser, const char* Data, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Data != nullptr, true, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
-				if (!Segment || !Segment->Request)
+				if (!Length || !Segment || !Segment->Request)
 					return true;
 
 				memcpy((void*)Segment->Request->Version, (void*)Data, (size_t)Length);
@@ -4025,7 +4033,7 @@ namespace Tomahawk
 			}
 			bool Util::ParseStatusCode(Parser* Parser, size_t Value)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
 				if (!Segment || !Segment->Response)
 					return true;
@@ -4035,11 +4043,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseMethodValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Data != nullptr, true, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
-				if (!Segment || !Segment->Request)
+				if (!Length || !Segment || !Segment->Request)
 					return true;
 
 				memcpy((void*)Segment->Request->Method, (void*)Data, (size_t)Length);
@@ -4047,11 +4055,11 @@ namespace Tomahawk
 			}
 			bool Util::ParsePathValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Data != nullptr, true, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
-				if (!Segment || !Segment->Request)
+				if (!Length || !Segment || !Segment->Request)
 					return true;
 
 				Segment->Request->URI.assign(Data, Length);
@@ -4059,11 +4067,11 @@ namespace Tomahawk
 			}
 			bool Util::ParseQueryValue(Parser* Parser, const char* Data, size_t Length)
 			{
-				TH_ASSERT(Parser != nullptr, false, "parser should be set");
-				TH_ASSERT(Data != nullptr && Length > 0, false, "data should be set");
+				TH_ASSERT(Parser != nullptr, true, "parser should be set");
+				TH_ASSERT(Data != nullptr, true, "data should be set");
 
 				ParserFrame* Segment = (ParserFrame*)Parser->UserPointer;
-				if (!Segment || !Segment->Request)
+				if (!Length || !Segment || !Segment->Request)
 					return true;
 
 				Segment->Request->Query.assign(Data, Length);

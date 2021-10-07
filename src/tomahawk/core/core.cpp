@@ -3098,7 +3098,12 @@ namespace Tomahawk
 			for (size_t i = 0; i < L->size(); i++)
 			{
 				char& V = L->at(i);
-				if (V == '\n')
+				if (V == '\"')
+				{
+					if (i > 0 && L->at(i - 1) == '\\')
+						continue;
+				}
+				else if (V == '\n')
 					V = 'n';
 				else if (V == '\t')
 					V = 't';

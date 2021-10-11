@@ -1677,8 +1677,21 @@ namespace Tomahawk
 			{
 				return Source->Stream->SetReadNotify([this, Source](NetEvent Event, const char*, size_t)
 				{
-					if (Packet::IsSkip(Event))
+					if (Packet::IsErrorOrSkip(Event))
+					{
+						if (!Packet::IsSkip(Event))
+						{
+							TH_PPUSH("postgres-reset", TH_PERF_MAX);
+							Update.lock();
+							Reestablish(Source);
+							Consume(Source);
+							Update.unlock();
+							TH_PPOP();
+						}
+
 						return true;
+					}
+
 #ifdef TH_HAS_POSTGRESQL
 					TH_PPUSH("postgres-recv", TH_PERF_MAX);
 					Update.lock();

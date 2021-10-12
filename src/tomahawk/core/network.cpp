@@ -1927,6 +1927,8 @@ namespace Tomahawk
 					Base->Info.Close = true;
 					if (Base->Stream->HasPendingData())
 						Base->Stream->Clear(true);
+					else
+						Manage(Base);
 				}
 
 				FreeQueued();

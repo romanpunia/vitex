@@ -4591,6 +4591,8 @@ namespace Tomahawk
 			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint Index, const T&in Value)", asMETHODPR(STDArray, InsertAt, (as_size_t, void*), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void InsertAt(uint Index, const Array<T>& Array)", asMETHODPR(STDArray, InsertAt, (as_size_t, const STDArray&), void), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void InsertLast(const T&in Value)", asMETHOD(STDArray, InsertLast), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void Push(const T&in Value)", asMETHOD(STDArray, InsertLast), asCALL_THISCALL);
+			Engine->RegisterObjectMethod("Array<T>", "void Pop()", asMETHOD(STDArray, RemoveLast), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveAt(uint Index)", asMETHOD(STDArray, RemoveAt), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveLast()", asMETHOD(STDArray, RemoveLast), asCALL_THISCALL);
 			Engine->RegisterObjectMethod("Array<T>", "void RemoveRange(uint Start, uint Count)", asMETHOD(STDArray, RemoveRange), asCALL_THISCALL);

@@ -1737,12 +1737,6 @@ namespace Tomahawk
 		SocketServer::~SocketServer()
 		{
 			Unlisten();
-
-			do
-			{
-				FreeQueued();
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			} while (!Bad.empty() || !Good.empty());
 		}
 		void SocketServer::Lock()
 		{
@@ -1914,9 +1908,16 @@ namespace Tomahawk
 			if (Core::Schedule::Get()->ClearTimeout(Timer))
 				Timer = TH_INVALID_EVENT_ID;
 
+			int64_t Timeout = time(nullptr);
 			TH_PPUSH("sock-srv-close", TH_PERF_HANG);
 			do
 			{
+				if (time(nullptr) - Timeout > 5)
+				{
+					TH_ERR("server has stalled connections: %i", (int)Good.size());
+					break;
+				}
+
 				Sync.lock();
 				auto Copy = Good;
 				Sync.unlock();

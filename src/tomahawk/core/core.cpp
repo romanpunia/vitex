@@ -2693,7 +2693,7 @@ namespace Tomahawk
 			else if (Value > 12)
 				Value = 12;
 
-			DateValue.tm_mday = (int)Value - 1;
+			DateValue.tm_mon = (int)Value - 1;
 			return *this;
 		}
 		DateTime& DateTime::SetDateYear(uint64_t Value, bool NoFlush)

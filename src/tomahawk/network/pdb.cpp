@@ -410,38 +410,52 @@ namespace Tomahawk
 				TH_ASSERT(Where != nullptr, std::string(), "array should be set");
 
 				Core::DocumentList Map;
-				std::string Def;
-
+				std::string Whitelist = "abcdefghijklmnopqrstuvwxyz.", Def;
 				for (auto* Statement : Where->GetChilds())
 				{
-					if (Statement->Value.GetType() != Core::VarType::Array || Statement->Size() != 3)
-						continue;
-
-					Core::Document* Left = Statement->Get(0), * Right = Statement->Get(2);
-					if (!Left || Left->Value.IsObject() || !Right || Right->Value.IsObject())
-						continue;
-
-					std::string Name = Left->Value.GetBlob();
-					if (Name.find_first_not_of("abcdefghijklmnopqrstuvwxyz") != std::string::npos)
-						continue;
-
-					std::string Op = Statement->GetVar(1).GetBlob();
-					if (Op == "=" || Op == "!=" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=")
+					if (Statement->Value.GetType() == Core::VarType::Array && Statement->Size() == 3)
 					{
-						Def += Name + Op + "? AND";
-						Map.push_back(Right);
+						Core::Document* Left = Statement->Get(0), * Right = Statement->Get(2);
+						if (!Left || Left->Value.IsObject() || !Right || Right->Value.IsObject())
+							continue;
+
+						std::string Name = Left->Value.GetBlob();
+						if (Name.find_first_not_of(Whitelist) != std::string::npos)
+							continue;
+
+						std::string Op = Statement->GetVar(1).GetBlob();
+						if (Op == "=" || Op == "!=" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=")
+						{
+							Def += Name + Op + "?";
+							Map.push_back(Right);
+						}
+						else if (Op == "~==")
+						{
+							Def += Name + " LIKE ?";
+							Map.push_back(Right);
+						}
+						else if (Op == "~=")
+						{
+							Def += Name + " ILIKE ?";
+							Map.push_back(Right);
+						}
 					}
-					else if (Op == "&")
+					else if (Statement->Value.GetType() == Core::VarType::String)
 					{
-						Def += Name + " LIKE ? AND";
-						Map.push_back(Right);
+						std::string Op = Statement->Value.GetBlob();
+						if (Op == "&")
+							Def += " AND ";
+						else if (Op == "|")
+							Def += " OR ";
+						else if (Op == "(")
+							Def += '(';
+						else if (Op == ")")
+							Def += ')';
 					}
 				}
 
 				std::string Result = PDB::Driver::Emplace(Client, Def, &Map, false);
-				if (!Result.empty())
-					Result.erase(Result.end() - 4, Result.end());
-				else
+				if (Result.empty())
 					Result = "TRUE";
 
 				TH_RELEASE(Where);

@@ -404,59 +404,47 @@ namespace Tomahawk
 				TH_RELEASE(Array);
 				return Result;
 			}
-			std::string Util::InlineQuery(Cluster* Client, Core::Document* Where)
+			std::string Util::InlineQuery(Cluster* Client, Core::Document* Where, const std::string& Default)
 			{
 				TH_ASSERT(Client != nullptr, std::string(), "cluster should be set");
 				TH_ASSERT(Where != nullptr, std::string(), "array should be set");
 
 				Core::DocumentList Map;
-				std::string Whitelist = "abcdefghijklmnopqrstuvwxyz.", Def;
+				std::string Whitelist = "abcdefghijklmnopqrstuvwxyz._", Def;
 				for (auto* Statement : Where->GetChilds())
 				{
-					if (Statement->Value.GetType() == Core::VarType::Array && Statement->Size() == 3)
+					std::string Op = Statement->Value.GetBlob();
+					if (Op == "=" || Op == "<>" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=" || Op == "+" || Op == "-" || Op == "*" || Op == "/" || Op == "(" || Op == ")" || Op == "TRUE" || Op == "FALSE")
+						Def += Op;
+					else if (Op == "~==")
+						Def += " LIKE ";
+					else if (Op == "~=")
+						Def += " ILIKE ";
+					else if (Op == "&")
+						Def += " AND ";
+					else if (Op == "|")
+						Def += " OR ";
+					else if (!Op.empty())
 					{
-						Core::Document* Left = Statement->Get(0), * Right = Statement->Get(2);
-						if (!Left || Left->Value.IsObject() || !Right || Right->Value.IsObject())
-							continue;
-
-						std::string Name = Left->Value.GetBlob();
-						if (Name.find_first_not_of(Whitelist) != std::string::npos)
-							continue;
-
-						std::string Op = Statement->GetVar(1).GetBlob();
-						if (Op == "=" || Op == "!=" || Op == "<=" || Op == "<" || Op == ">" || Op == ">=")
+						if (Op.front() == '@')
 						{
-							Def += Name + Op + "?";
-							Map.push_back(Right);
+							Op = Op.substr(1);
+							if (Op.find_first_not_of(Whitelist) == std::string::npos)
+								Def += Op;
 						}
-						else if (Op == "~==")
+						else if (!Core::Parser(&Op).HasNumber())
 						{
-							Def += Name + " LIKE ?";
-							Map.push_back(Right);
+							Def += "?";
+							Map.push_back(Statement);
 						}
-						else if (Op == "~=")
-						{
-							Def += Name + " ILIKE ?";
-							Map.push_back(Right);
-						}
-					}
-					else if (Statement->Value.GetType() == Core::VarType::String)
-					{
-						std::string Op = Statement->Value.GetBlob();
-						if (Op == "&")
-							Def += " AND ";
-						else if (Op == "|")
-							Def += " OR ";
-						else if (Op == "(")
-							Def += '(';
-						else if (Op == ")")
-							Def += ')';
+						else
+							Def += Op;
 					}
 				}
 
 				std::string Result = PDB::Driver::Emplace(Client, Def, &Map, false);
 				if (Result.empty())
-					Result = "TRUE";
+					Result = Default;
 
 				TH_RELEASE(Where);
 				return Result;

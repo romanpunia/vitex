@@ -182,7 +182,7 @@ namespace Tomahawk
 			{
 			public:
 				static std::string InlineArray(Cluster* Client, Core::Document* Array);
-				static std::string InlineQuery(Cluster* Client, Core::Document* Where);
+				static std::string InlineQuery(Cluster* Client, Core::Document* Where, const std::string& Default = "TRUE");
 			};
 
 			class TH_OUT Address

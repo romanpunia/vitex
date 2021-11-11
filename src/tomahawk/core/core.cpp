@@ -4054,6 +4054,9 @@ namespace Tomahawk
 				return false;
 			}
 
+			if (HadSign && L->size() < 2)
+				return false;
+
 			return true;
 		}
 		bool Parser::HasNumber() const
@@ -4083,6 +4086,11 @@ namespace Tomahawk
 
 				return false;
 			}
+
+			if (HadSign && HadPoint && L->size() < 3)
+				return false;
+			else if ((HadSign || HadPoint) && L->size() < 2)
+				return false;
 
 			return true;
 		}

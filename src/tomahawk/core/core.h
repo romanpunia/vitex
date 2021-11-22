@@ -846,6 +846,54 @@ namespace Tomahawk
 		class TH_OUT OS
 		{
 		public:
+			class TH_OUT CPU
+			{
+			public:
+				enum class Arch
+				{
+					X64,
+					ARM,
+					Itanium,
+					X86,
+					Unknown,
+				};
+
+				enum class Endian
+				{
+					Little,
+					Big,
+				};
+
+				enum class Cache
+				{
+					Unified,
+					Instruction,
+					Data,
+					Trace,
+				};
+
+				struct QuantityInfo
+				{
+					uint32_t Logical;
+					uint32_t Physical;
+					uint32_t Packages;
+				};
+
+				struct CacheInfo
+				{
+					size_t Size;
+					size_t LineSize;
+					uint8_t Associativity;
+					Cache Type;
+				};
+
+				static QuantityInfo GetQuantityInfo();
+				static CacheInfo GetCacheInfo(unsigned int level);
+				static Arch GetArch() noexcept;
+				static Endian GetEndianness() noexcept;
+				static uint64_t GetFrequency() noexcept;
+			};
+
 			class TH_OUT Directory
 			{
 			public:

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <csignal>
 #include <sstream>
+#include <bitset>
 #include <sys/stat.h>
 #include <rapidxml.hpp>
 #include <json/document.h>
@@ -16,12 +17,13 @@
 #ifdef TH_MICROSOFT
 #include <Windows.h>
 #include <io.h>
-#elif defined TH_UNIX
+#else
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/utsname.h>
 #ifndef TH_APPLE
 #include <sys/sendfile.h>
 #else
@@ -533,6 +535,64 @@ namespace
 			Tomahawk::Core::OS::Pause();
 		}
 	};
+#endif
+#ifdef TH_APPLE
+#define SYSCTL(fname, ...) std::size_t Size{};if(fname(__VA_ARGS__,nullptr,&Size,nullptr,0))return{};std::vector<char> Result(Size);if(fname(__VA_ARGS__,Result.data(),&Size,nullptr,0))return{};return Result
+	template <class T>
+	static std::pair<bool, T> SysDecompose(const std::vector<char>& Data)
+	{
+		std::pair<bool, T> Out { true, {} };
+		std::memcpy(&Out.second, Data.data(), sizeof(Out.second));
+		return Out;
+	}
+	std::vector<char> SysControl(const char* Name)
+	{
+		SYSCTL(::sysctlbyname, Name);
+	}
+	std::vector<char> SysControl(int M1, int M2)
+	{
+		int Name[2] { M1, M2 };
+		SYSCTL(::sysctl, Name, sizeof(Name) / sizeof(*Name));
+	}
+	std::pair<bool, uint64_t> SysExtract(const std::vector<char>& Data)
+	{
+		switch (Data.size())
+		{
+			case sizeof(uint16_t):
+				return SysDecompose<uint16_t>(Data);
+			case sizeof(uint32_t):
+				return SysDecompose<uint32_t>(Data);
+			case sizeof(uint64_t):
+				return SysDecompose<uint64_t>(Data);
+			default:
+				return {};
+		}
+	}
+#else
+	std::vector<char> SysControl(const char* Name)
+	{
+		return {};
+	}
+	std::vector<char> SysControl(int M1, int M2)
+	{
+		return {};
+	}
+	std::pair<bool, uint64_t> SysExtract(const std::vector<char>& Data)
+	{
+		return {};
+	}
+#endif
+#ifdef TH_MICROSOFT
+	static std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> CPUInfoBuffer()
+	{
+		DWORD ByteCount = 0;
+		std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> Buffer;
+		GetLogicalProcessorInformation(nullptr, &ByteCount);
+		Buffer.resize(ByteCount / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+		GetLogicalProcessorInformation(Buffer.data(), &ByteCount);
+
+		return Buffer;
+	}
 #endif
 }
 
@@ -5781,6 +5841,271 @@ namespace Tomahawk
 				Count += Directory->GetFiles();
 
 			return Count;
+		}
+
+		OS::CPU::QuantityInfo OS::CPU::GetQuantityInfo()
+		{
+			QuantityInfo Result {};
+#ifdef TH_MICROSOFT
+			for (auto&& Info : CPUInfoBuffer())
+			{
+				switch (Info.Relationship)
+				{
+					case RelationProcessorCore:
+						++Result.Physical;
+						Result.Logical += static_cast<std::uint32_t>(std::bitset<sizeof(ULONG_PTR) * 8>(static_cast<std::uintptr_t>(Info.ProcessorMask)).count());
+						break;
+					case RelationProcessorPackage:
+						++Result.Packages;
+						break;
+					default:
+						break;
+				}
+			}
+#elif TH_APPLE
+			const auto CtlThreadData = SysControl("machdep.cpu.thread_count");
+			if (!CtlThreadData.empty())
+			{
+				const auto ThreadData = SysExtract(CtlThreadData);
+				if (ThreadData.first)
+					Result.Logical = ThreadData.second;
+			}
+
+			const auto CtlCoreData = SysControl("machdep.cpu.core_count");
+			if (!CtlCoreData.empty())
+			{
+				const auto CoreData = SysExtract(CtlCoreData);
+				if (CoreData.first)
+					Result.Physical = CoreData.second;
+			}
+
+			const auto CtlPackagesData = SysControl("hw.packages");
+			if (!CtlPackagesData.empty())
+			{
+				const auto PackagesData = SysExtract(CtlPackagesData);
+				if (PackagesData.first)
+					Result.Packages = PackagesData.second;
+			}
+#else
+			Result.Logical = sysconf(_SC_NPROCESSORS_ONLN);
+			std::ifstream Info("/proc/cpuinfo");
+
+			if (!Info.is_open() || !Info)
+				return Result;
+
+			std::vector<unsigned int> Packages;
+			for (std::string Line; std::getline(Info, Line);)
+			{
+				if (Line.find("physical id") == 0)
+				{
+					const auto PhysicalId = std::strtoul(Line.c_str() + Line.find_first_of("1234567890"), nullptr, 10);
+					if (std::find(Packages.begin(), Packages.end(), PhysicalId) == Packages.end())
+						Packages.emplace_back(PhysicalId);
+				}
+			}
+
+			Result.Packages = Packages.size();
+			Result.Physical = Result.Logical / Result.Packages;
+#endif
+			return Result;
+		}
+		OS::CPU::CacheInfo OS::CPU::GetCacheInfo(unsigned int level)
+		{
+#ifdef TH_MICROSOFT
+			for (auto&& Info : CPUInfoBuffer())
+			{
+				if (Info.Relationship != RelationCache || Info.Cache.Level != level)
+					continue;
+
+				Cache Type {};
+				switch (Info.Cache.Type)
+				{
+					case CacheUnified:
+						Type = Cache::Unified;
+						break;
+					case CacheInstruction:
+						Type = Cache::Instruction;
+						break;
+					case CacheData:
+						Type = Cache::Data;
+						break;
+					case CacheTrace:
+						Type = Cache::Trace;
+						break;
+				}
+
+				return { Info.Cache.Size, Info.Cache.LineSize, Info.Cache.Associativity, Type };
+			}
+
+			return {};
+#elif TH_APPLE
+			static const char* SizeKeys[][3] { {}, {"hw.l1icachesize", "hw.l1dcachesize", "hw.l1cachesize"}, {"hw.l2cachesize"}, {"hw.l3cachesize"} };
+			CacheInfo Result {};
+
+			const auto CtlCacheLineSize = SysControl("hw.cachelinesize");
+			if (!CtlCacheLineSize.empty())
+			{
+				const auto CacheLineSize = SysExtract(CtlCacheLineSize);
+				if (CacheLineSize.first)
+					Result.LineSize = CacheLineSize.second;
+			}
+
+			if (level < sizeof(SizeKeys) / sizeof(*SizeKeys))
+			{
+				for (auto Key : SizeKeys[level])
+				{
+					if (!Key)
+						break;
+
+					const auto CtlCacheSizeData = SysControl(Key);
+					if (!CtlCacheSizeData.empty())
+					{
+						const auto CacheSizeData = SysExtract(CtlCacheSizeData);
+						if (CacheSizeData.first)
+							Result.Size += CacheSizeData.second;
+					}
+				}
+			}
+
+			return Result;
+#else
+			std::string Prefix("/sys/devices/system/cpu/cpu0/cache/index" + std::to_string(Level) + '/');
+			std::ifstream Size(Prefix + "size");
+			std::ifstream LineSize(Prefix + "coherency_line_size");
+			std::ifstream Associativity(Prefix + "associativity");
+			std::ifstream Type(Prefix + "type");
+			CacheInfo Result {};
+
+			if (Size.is_open() && Size)
+			{
+				char Suffix;
+				Size >> Result.Size >> Suffix;
+				switch (Suffix)
+				{
+					case 'G':
+						Result.Size *= 1024;
+						[[fallthrough]];
+					case 'M':
+						Result.Size *= 1024;
+						[[fallthrough]];
+					case 'K':
+						Result.Size *= 1024;
+				}
+			}
+
+			if (LineSize.is_open() && LineSize)
+				LineSize >> Result.LineSize;
+
+			if (Associativity.is_open() && Associativity)
+			{
+				unsigned int Temp;
+				Associativity >> Temp;
+				Result.Associativity = Temp;
+			}
+
+			if (Type.is_open() && Type)
+			{
+				std::string Temp;
+				Type >> Temp;
+				if (Temp.find("nified") == 1)
+					Result.Type = Cache::Unified;
+				else if (Temp.find("nstruction") == 1)
+					Result.Type = Cache::Instruction;
+				else if (Temp.find("ata") == 1)
+					Result.Type = Cache::Data;
+				else if (Temp.find("race") == 1)
+					Result.Type = Cache::Trace;
+			}
+
+			return Result;
+#endif
+		}
+		OS::CPU::Arch OS::CPU::GetArch() noexcept
+		{
+#ifndef TH_MICROSOFT
+			utsname Buffer;
+			if (uname(&Buffer) == -1)
+				return Arch::Unknown;
+
+			if (!strcmp(Buffer.machine, "x86_64"))
+				return Arch::X64;
+			else if (strstr(Buffer.machine, "arm") == Buffer.machine)
+				return Arch::ARM;
+			else if (!strcmp(Buffer.machine, "ia64") || !strcmp(Buffer.machine, "IA64"))
+				return Arch::Itanium;
+			else if (!strcmp(Buffer.machine, "i686"))
+				return Arch::X86;
+
+			return Arch::Unknown;
+#else
+			SYSTEM_INFO Buffer;
+			GetNativeSystemInfo(&Buffer);
+
+			switch (Buffer.wProcessorArchitecture)
+			{
+				case PROCESSOR_ARCHITECTURE_AMD64:
+					return Arch::X64;
+				case PROCESSOR_ARCHITECTURE_ARM:
+				case PROCESSOR_ARCHITECTURE_ARM64:
+					return Arch::ARM;
+				case PROCESSOR_ARCHITECTURE_IA64:
+					return Arch::Itanium;
+				case PROCESSOR_ARCHITECTURE_INTEL:
+					return Arch::X86;
+				default:
+					return Arch::Unknown;
+			}
+#endif
+		}
+		OS::CPU::Endian OS::CPU::GetEndianness() noexcept
+		{
+			const uint16_t Value = 0xFF00;
+			const uint8_t Result = *static_cast<const uint8_t*>(static_cast<const void*>(&Value));
+			
+			return Result == 0xFF ? Endian::Big : Endian::Little;
+		}
+		uint64_t OS::CPU::GetFrequency() noexcept
+		{
+#ifdef TH_MICROSOFT
+			HKEY Key;
+			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, R"(HARDWARE\DESCRIPTION\System\CentralProcessor\0)", 0, KEY_READ, &Key))
+			{
+				LARGE_INTEGER Frequency;
+				QueryPerformanceFrequency(&Frequency);
+				return Frequency.QuadPart * 1000;
+			}
+
+			DWORD FrequencyMHZ, Size = sizeof(DWORD);
+			if (RegQueryValueExA(Key, "~MHz", nullptr, nullptr, static_cast<LPBYTE>(static_cast<void*>(&FrequencyMHZ)), &Size))
+				return 0;
+
+			return (uint64_t)FrequencyMHZ * 1000000;
+#elif TH_APPLE
+			const auto Frequency = SysControl("hw.cpufrequency");
+			if (Frequency.empty())
+				return 0;
+
+			const auto Data = SysExtract(Frequency);
+			if (!Data.first)
+				return 0;
+
+			return Data.second;
+#else
+			std::ifstream Info("/proc/cpuinfo");
+			if (!Info.is_open() || !Info)
+				return 0;
+
+			for (std::string Line; std::getline(Info, Line);)
+			{
+				if (Line.find("cpu MHz") == 0)
+				{
+					const auto ColonId = Line.find_first_of(':');
+					return static_cast<uint64_t>(std::strtod(Line.c_str() + ColonId + 1, nullptr)) * 1000000;
+				}
+			}
+
+			return 0;
+#endif
 		}
 
 		void OS::Directory::Set(const char* Path)

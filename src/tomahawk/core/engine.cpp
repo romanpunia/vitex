@@ -6146,7 +6146,14 @@ namespace Tomahawk
 #endif
 			ApplicationState OK;
 			if (Control.Async)
+			{
 				OK = State = ApplicationState::Multithreaded;
+				if (!Control.Threads)
+				{
+					auto Quantity = Core::OS::CPU::GetQuantityInfo();
+					Control.Threads = std::max<uint32_t>(2, Quantity.Physical) - 1;
+				}
+			}
 			else
 				OK = State = ApplicationState::Singlethreaded;
 

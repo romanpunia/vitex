@@ -5909,12 +5909,12 @@ namespace Tomahawk
 #endif
 			return Result;
 		}
-		OS::CPU::CacheInfo OS::CPU::GetCacheInfo(unsigned int level)
+		OS::CPU::CacheInfo OS::CPU::GetCacheInfo(unsigned int Level)
 		{
 #ifdef TH_MICROSOFT
 			for (auto&& Info : CPUInfoBuffer())
 			{
-				if (Info.Relationship != RelationCache || Info.Cache.Level != level)
+				if (Info.Relationship != RelationCache || Info.Cache.Level != Level)
 					continue;
 
 				Cache Type {};
@@ -5950,9 +5950,9 @@ namespace Tomahawk
 					Result.LineSize = CacheLineSize.second;
 			}
 
-			if (level < sizeof(SizeKeys) / sizeof(*SizeKeys))
+			if (Level < sizeof(SizeKeys) / sizeof(*SizeKeys))
 			{
-				for (auto Key : SizeKeys[level])
+				for (auto Key : SizeKeys[Level])
 				{
 					if (!Key)
 						break;

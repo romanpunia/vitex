@@ -4028,7 +4028,7 @@ namespace Tomahawk
 				if (!Length || !Segment || !Segment->Request)
 					return true;
 
-				memcpy((void*)Segment->Request->Version, (void*)Data, (size_t)Length);
+				memcpy((void*)Segment->Request->Version, (void*)Data, std::min<size_t>(Length, sizeof(Segment->Request->Version)));
 				return true;
 			}
 			bool Util::ParseStatusCode(Parser* Parser, size_t Value)
@@ -4050,7 +4050,7 @@ namespace Tomahawk
 				if (!Length || !Segment || !Segment->Request)
 					return true;
 
-				memcpy((void*)Segment->Request->Method, (void*)Data, (size_t)Length);
+				memcpy((void*)Segment->Request->Method, (void*)Data, std::min<size_t>(Length, sizeof(Segment->Request->Method)));
 				return true;
 			}
 			bool Util::ParsePathValue(Parser* Parser, const char* Data, size_t Length)

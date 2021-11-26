@@ -2494,7 +2494,7 @@ namespace Tomahawk
 				return;
 
 			Exchange.lock();
-			if (!Promises.empty() || !Queue.empty())
+			if (Queue.empty())
 				return Exchange.unlock();
 
 			Executable Next = std::move(Queue.front());

@@ -1717,17 +1717,16 @@ namespace Tomahawk
 		{
 			return Array != nullptr || Handle != INVALID_EPOLL;
 		}
-#ifdef TH_APPLE
-		struct kevent* Driver::Array = nullptr;
-#else
-		epoll_event* Driver::Array = nullptr;
-#endif
 		epoll_handle Driver::Handle = INVALID_EPOLL;
 		std::unordered_set<Socket*>* Driver::Sources = nullptr;
 		std::mutex* Driver::fSources = nullptr;
 		int64_t Driver::PipeTimeout = 100;
 		int Driver::ArraySize = 0;
-
+#ifdef TH_APPLE
+		struct kevent* Driver::Array = nullptr;
+#else
+		epoll_event* Driver::Array = nullptr;
+#endif
 		SocketServer::SocketServer()
 		{
 #ifndef TH_MICROSOFT
@@ -1915,6 +1914,9 @@ namespace Tomahawk
 				if (time(nullptr) - Timeout > 5)
 				{
 					TH_ERR("server has stalled connections: %i", (int)Good.size());
+					Sync.lock();
+					OnStall(Good);
+					Sync.unlock();
 					break;
 				}
 
@@ -2203,6 +2205,10 @@ namespace Tomahawk
 				return false;
 
 			TH_DELETE(SocketRouter, Base);
+			return true;
+		}
+		bool SocketServer::OnStall(std::unordered_set<SocketConnection*>& Base)
+		{
 			return true;
 		}
 		bool SocketServer::OnListen()

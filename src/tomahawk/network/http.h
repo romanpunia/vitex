@@ -266,7 +266,6 @@ namespace Tomahawk
 			public:
 				WebSocketCallback Connect;
 				WebSocketCallback Disconnect;
-				WebSocketCallback Notification;
 				WebSocketReadCallback Receive;
 
 			public:
@@ -766,6 +765,7 @@ namespace Tomahawk
 				bool OnRequestBegin(SocketConnection* Base) override;
 				bool OnDeallocate(SocketConnection* Base) override;
 				bool OnDeallocateRouter(SocketRouter* Base) override;
+				bool OnStall(std::unordered_set<SocketConnection*>& Data) override;
 				bool OnListen() override;
 				bool OnUnlisten() override;
 				SocketConnection* OnAllocate(Listener* Host, Socket* Stream) override;

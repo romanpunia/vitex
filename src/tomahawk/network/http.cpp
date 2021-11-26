@@ -146,7 +146,7 @@ namespace Tomahawk
 						{
 							Stream->WriteAsync(Buffer, Size, [this, Callback](NetEvent Event, size_t Sent)
 							{
-								if (Packet::IsDone(Event))
+								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
 									if (Callback)
 										Callback(this);
@@ -160,12 +160,6 @@ namespace Tomahawk
 
 									if (E.Reset)
 										E.Reset(this);
-								}
-								else if (Packet::IsSkip(Event))
-								{
-									if (Callback)
-										Callback(this);
-									SendNext();
 								}
 							});
 						}
@@ -331,6 +325,7 @@ namespace Tomahawk
 					else
 					{
 						WebSocketCallback Callback = std::move(Disconnect);
+						Receive = nullptr;
 						Section.unlock();
 						return Callback(this);
 					}
@@ -343,8 +338,9 @@ namespace Tomahawk
 						if (!Connect)
 							goto Retry;
 
+						WebSocketCallback Callback = std::move(Connect);
 						Section.unlock();
-						return Connect(this);
+						return Callback(this);
 					}
 					else
 					{
@@ -5305,13 +5301,8 @@ namespace Tomahawk
 						};
 						Base->Gateway->E.Finish = [Base](GatewayFrame* Gateway)
 						{
-							if (Base->WebSocket != nullptr)
-							{
-								if ((Base->WebSocket->State == (uint32_t)WebSocketState::Receive || Base->WebSocket->State == (uint32_t)WebSocketState::Process || Base->WebSocket->State == (uint32_t)WebSocketState::Open) && (Base->WebSocket->Connect || Base->WebSocket->Disconnect || Base->WebSocket->Notification || Base->WebSocket->Receive))
-									Base->WebSocket->Next();
-								else
-									Base->WebSocket->Finish();
-							}
+							if (Base->WebSocket != nullptr && (Base->WebSocket->Connect || Base->WebSocket->Disconnect || Base->WebSocket->Receive))
+								Base->WebSocket->Next();
 							else
 								Gateway->Finish();
 						};
@@ -5665,6 +5656,18 @@ namespace Tomahawk
 			{
 				HTTP::MapRouter* sBase = (HTTP::MapRouter*)Base;
 				TH_DELETE(MapRouter, sBase);
+				return true;
+			}
+			bool Server::OnStall(std::unordered_set<SocketConnection*>& Data)
+			{
+				for (auto* Item : Data)
+				{
+					HTTP::Connection* Base = (HTTP::Connection*)Item;
+					const char* WebSocket = (Base->WebSocket != nullptr ? "\n\twith websocket" : "");
+					const char* Gateway = (Base->Gateway != nullptr ? "\n\twith gateway" : "");
+					TH_TRACE("[stall] connection on socket %i\n\twith url %s%s%s", (int)Base->Stream->GetFd(), Base->Request.URI.c_str(), WebSocket, Gateway);
+				}
+
 				return true;
 			}
 			bool Server::OnListen()

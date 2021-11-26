@@ -381,6 +381,7 @@ namespace Tomahawk
 			virtual bool OnRequestBegin(SocketConnection* Base);
 			virtual bool OnDeallocate(SocketConnection* Base);
 			virtual bool OnDeallocateRouter(SocketRouter* Base);
+			virtual bool OnStall(std::unordered_set<SocketConnection*>& Base);
 			virtual bool OnListen();
 			virtual bool OnUnlisten();
 			virtual bool OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context);

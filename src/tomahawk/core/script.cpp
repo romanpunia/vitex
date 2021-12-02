@@ -546,6 +546,9 @@ namespace Tomahawk
 		{
 			Manager = (Base ? VMManager::Get(Base->GetEngine()) : nullptr);
 		}
+		VMFunction::VMFunction(const VMFunction& Base) : Function(Base.Function), Manager(Base.Manager)
+		{
+		}
 		int VMFunction::AddRef() const
 		{
 			TH_ASSERT(IsValid(), -1, "function should be valid");

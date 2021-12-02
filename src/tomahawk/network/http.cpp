@@ -255,14 +255,17 @@ namespace Tomahawk
 							goto Retry;
 						}
 						else if (Size == -2)
+						{
+							State = (uint32_t)WebSocketState::Receive;
 							break;
+						}
 					}
 
 					WebSocketOp Opcode;
-					State = (uint32_t)WebSocketState::Receive;
 					if (!Codec->GetFrame(&Opcode, &Codec->Data))
 						goto Retry;
 
+					State = (uint32_t)WebSocketState::Process;
 					if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
 					{
 						if (Opcode == WebSocketOp::Binary)
@@ -3114,7 +3117,8 @@ namespace Tomahawk
 
 				memcpy(Payload.data(), Buffer, sizeof(char) * Size);
 				char* Data = Payload.data();
-
+				bool HasPayload = false;
+			ParsePayload:
 				while (Size)
 				{
 					uint8_t Index = *Data;
@@ -3329,10 +3333,14 @@ namespace Tomahawk
 
 				return !Queue.empty();
 			FetchPayload:
+				HasPayload = true;
 				if (!Control && !Final)
 					return !Queue.empty();
 
 				State = Bytecode::Begin;
+				if (Size > 0)
+					goto ParsePayload;
+
 				return true;
 			}
 			bool WebCodec::GetFrame(WebSocketOp* Op, std::vector<char>* Message)

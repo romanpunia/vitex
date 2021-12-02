@@ -784,6 +784,7 @@ namespace Tomahawk
 
 		public:
 			VMFunction(VMCFunction* Base);
+			VMFunction(const VMFunction& Base);
 			int AddRef() const;
 			int Release();
 			int GetId() const;

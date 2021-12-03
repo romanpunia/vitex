@@ -904,6 +904,33 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
+			Core::Document* Row::GetArray() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
+					return nullptr;
+
+				int Size = PQnfields(Base);
+				if (Size <= 0)
+					return Core::Var::Set::Object();
+
+				Core::Document* Result = Core::Var::Set::Array();
+				Result->GetChilds().reserve((size_t)Size);
+
+				for (int j = 0; j < Size; j++)
+				{
+					char* Data = PQgetvalue(Base, RowIndex, j);
+					int Count = PQgetlength(Base, RowIndex, j);
+					bool Null = PQgetisnull(Base, RowIndex, j) == 1;
+					Oid Type = PQftype(Base, j);
+					Result->Push(Null ? Core::Var::Set::Null() : ToDocument(Data, Count, Type));
+				}
+
+				return Result;
+#else
+				return nullptr;
+#endif
+			}
 			size_t Row::GetIndex() const
 			{
 				return RowIndex;
@@ -987,7 +1014,7 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Core::Document* Response::GetArray() const
+			Core::Document* Response::GetArrayOfObjects() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				Core::Document* Result = Core::Var::Set::Array();
@@ -1038,9 +1065,56 @@ namespace Tomahawk
 				return Core::Var::Set::Array();
 #endif
 			}
+			Core::Document* Response::GetArrayOfArrays() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				Core::Document* Result = Core::Var::Set::Array();
+				if (!Base)
+					return Result;
+
+				int RowsSize = PQntuples(Base);
+				if (RowsSize <= 0)
+					return Result;
+
+				int ColumnsSize = PQnfields(Base);
+				if (ColumnsSize <= 0)
+					return Result;
+
+				std::vector<Oid> Meta;
+				Meta.reserve((size_t)ColumnsSize);
+
+				for (int j = 0; j < ColumnsSize; j++)
+					Meta.emplace_back(PQftype(Base, j));
+
+				Result->Reserve((size_t)RowsSize);
+				for (int i = 0; i < RowsSize; i++)
+				{
+					Core::Document* Subresult = Core::Var::Set::Array();
+					Subresult->GetChilds().reserve((size_t)ColumnsSize);
+
+					for (int j = 0; j < ColumnsSize; j++)
+					{
+						char* Data = PQgetvalue(Base, i, j);
+						int Size = PQgetlength(Base, i, j);
+						bool Null = PQgetisnull(Base, i, j) == 1;
+						Subresult->Push(Null ? Core::Var::Set::Null() : ToDocument(Data, Size, Meta[j]));
+					}
+
+					Result->Push(Subresult);
+				}
+
+				return Result;
+#else
+				return Core::Var::Set::Array();
+#endif
+			}
 			Core::Document* Response::GetObject(size_t Index) const
 			{
 				return GetRow(Index).GetObject();
+			}
+			Core::Document* Response::GetArray(size_t Index) const
+			{
+				return GetRow(Index).GetArray();
 			}
 			std::string Response::GetCommandStatusText() const
 			{

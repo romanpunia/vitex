@@ -78,6 +78,15 @@ namespace Tomahawk
 			{
 			}
 
+			void Cookie::SetExpires(int64_t Time)
+			{
+				Expires = Core::DateTime::GetGMTBasedString(Time);
+			}
+			void Cookie::SetExpired()
+			{
+				SetExpires(0);
+			}
+
 			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Stream(NewStream), Codec(new WebCodec())
 			{
 			}
@@ -981,43 +990,31 @@ namespace Tomahawk
 				Range.clear();
 				Range.push_back(Value);
 			}
-			void ResponseFrame::SetCookie(const char* Key, const char* Value, uint64_t Expires, const char* Domain, const char* Path, bool Secure, bool HTTPOnly)
+			void ResponseFrame::SetCookie(const Cookie& Value)
 			{
-				TH_ASSERT_V(Key != nullptr, "key should be set");
-				TH_ASSERT_V(Value != nullptr, "value should be set");
-
 				for (auto& Cookie : Cookies)
 				{
-					if (Core::Parser::CaseCompare(Cookie.Name.c_str(), Key) != 0)
-						continue;
-
-					if (Domain != nullptr)
-						Cookie.Domain = Domain;
-
-					if (Path != nullptr)
-						Cookie.Path = Path;
-
-					Cookie.Value = Value;
-					Cookie.Secure = Secure;
-					Cookie.Expires = Expires;
-					Cookie.HTTPOnly = HTTPOnly;
-					return;
+					if (Core::Parser::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
+					{
+						Cookie = Value;
+						return;
+					}
 				}
 
-				Cookie Cookie;
-				Cookie.Name = Key;
-				Cookie.Value = Value;
-				Cookie.Secure = Secure;
-				Cookie.Expires = Expires;
-				Cookie.HTTPOnly = HTTPOnly;
+				Cookies.push_back(Value);
+			}
+			void ResponseFrame::SetCookie(Cookie&& Value)
+			{
+				for (auto& Cookie : Cookies)
+				{
+					if (Core::Parser::CaseCompare(Cookie.Name.c_str(), Value.Name.c_str()) == 0)
+					{
+						Cookie = std::move(Value);
+						return;
+					}
+				}
 
-				if (Domain != nullptr)
-					Cookie.Domain = Domain;
-
-				if (Path != nullptr)
-					Cookie.Path = Path;
-
-				Cookies.emplace_back(std::move(Cookie));
+				Cookies.emplace_back(std::move(Value));
 			}
 			Cookie* ResponseFrame::GetCookie(const char* Key)
 			{
@@ -2090,7 +2087,7 @@ namespace Tomahawk
 					return SessionId;
 
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
-				const char* Value = Base->Request.GetCookie(Base->Route->Site->Gateway.Session.Name.c_str());
+				const char* Value = Base->Request.GetCookie(Base->Route->Site->Gateway.Session.Cookie.Name.c_str());
 				if (!Value)
 					return GenerateSessionId(Base);
 
@@ -2106,7 +2103,17 @@ namespace Tomahawk
 				if (SessionExpires == 0)
 					SessionExpires = Time + Base->Route->Site->Gateway.Session.Expires;
 
-				Base->Response.SetCookie(Base->Route->Site->Gateway.Session.Name.c_str(), SessionId.c_str(), Time + (int64_t)Base->Route->Site->Gateway.Session.CookieExpires, Base->Route->Site->Gateway.Session.Domain.c_str(), Base->Route->Site->Gateway.Session.Path.c_str(), false);
+				Cookie Result;
+				Result.Value = SessionId;
+				Result.Name = Base->Route->Site->Gateway.Session.Cookie.Name;
+				Result.Domain = Base->Route->Site->Gateway.Session.Cookie.Domain;
+				Result.Path = Base->Route->Site->Gateway.Session.Cookie.Path;
+				Result.SameSite = Base->Route->Site->Gateway.Session.Cookie.SameSite;
+				Result.Secure = Base->Route->Site->Gateway.Session.Cookie.Secure;
+				Result.HttpOnly = Base->Route->Site->Gateway.Session.Cookie.HttpOnly;
+				Result.SetExpires(Time + (int64_t)Base->Route->Site->Gateway.Session.Cookie.Expires);
+				Base->Response.SetCookie(std::move(Result));
+
 				return SessionId;
 			}
 			bool Session::InvalidateCache(const std::string& Path)
@@ -3468,13 +3475,24 @@ namespace Tomahawk
 
 				for (auto& Item : Response->Cookies)
 				{
-					if (!Item.Domain.empty())
-						Item.Domain.insert(0, "; domain=");
+					if (Item.Name.empty())
+						continue;
 
-					if (!Item.Path.empty())
-						Item.Path.insert(0, "; path=");
-
-					Buffer->fAppend("Set-Cookie: %s=%s; expires=%s%s%s%s%s\r\n", Item.Name.c_str(), Item.Value.c_str(), Core::DateTime::GetGMTBasedString(Item.Expires).c_str(), Item.Path.c_str(), Item.Domain.c_str(), Item.Secure ? "; secure" : "", Item.HTTPOnly ? "; HTTPOnly" : "");
+					std::string Expires = (Item.Expires.empty() ? "" : "; Expires=" + Item.Expires);
+					std::string Domain = (Item.Domain.empty() ? "" : "; Domain=" + Item.Domain);
+					std::string Path = (Item.Path.empty() ? "" : "; Path=" + Item.Path);
+					std::string SameSite = (Item.SameSite.empty() ? "" : "; SameSite=" + Item.SameSite);
+					const char* Secure = (!Item.Secure ? "" : "; Secure");
+					const char* HttpOnly = (!Item.HttpOnly ? "" : "; HttpOnly");
+					Buffer->fAppend("Set-Cookie: %s=%s%s%s%s%s%s%s\r\n",
+						Item.Name.c_str(),
+						Item.Value.c_str(),
+						Expires.c_str(),
+						Domain.c_str(),
+						Path.c_str(),
+						SameSite.c_str(),
+						Secure,
+						HttpOnly);
 				}
 			}
 			void Util::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)

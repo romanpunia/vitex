@@ -1419,23 +1419,32 @@ namespace Tomahawk
 					if (Site == nullptr)
 						continue;
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.name"), &Site->Gateway.Session.Name))
-						Site->Gateway.Session.Name = "SessionId";
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.name"), &Site->Gateway.Session.Cookie.Name))
+						Site->Gateway.Session.Cookie.Name = "sid";
+
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.domain"), &Site->Gateway.Session.Cookie.Domain))
+						Site->Gateway.Session.Cookie.Domain.clear();
+
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.path"), &Site->Gateway.Session.Cookie.Path))
+						Site->Gateway.Session.Cookie.Path = "/";
+
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.same-site"), &Site->Gateway.Session.Cookie.SameSite))
+						Site->Gateway.Session.Cookie.SameSite = "Strict";
+
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.expires"), &Site->Gateway.Session.Cookie.Expires))
+						Site->Gateway.Session.Cookie.Expires = 31536000;
+
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.secure"), &Site->Gateway.Session.Cookie.Secure))
+						Site->Gateway.Session.Cookie.Secure = false;
+
+					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.http-only"), &Site->Gateway.Session.Cookie.HttpOnly))
+						Site->Gateway.Session.Cookie.HttpOnly = true;
 
 					if (!NMake::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
 						Site->Gateway.Session.DocumentRoot.clear();
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.domain"), &Site->Gateway.Session.Domain))
-						Site->Gateway.Session.Domain.clear();
-
-					if (!NMake::Unpack(It->Fetch("gateway.session.path"), &Site->Gateway.Session.Path))
-						Site->Gateway.Session.Path = "/";
-
-					if (!NMake::Unpack(It->Fetch("gateway.session.path"), &Site->Gateway.Session.Expires))
+					if (!NMake::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
 						Site->Gateway.Session.Expires = 604800;
-
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie-expires"), &Site->Gateway.Session.CookieExpires))
-						Site->Gateway.Session.CookieExpires = 31536000;
 
 					if (!NMake::Unpack(It->Fetch("gateway.verify"), &Site->Gateway.Verify))
 						Site->Gateway.Verify = false;

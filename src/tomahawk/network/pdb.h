@@ -272,6 +272,7 @@ namespace Tomahawk
 
 			public:
 				Core::Document* GetObject() const;
+				Core::Document* GetArray() const;
 				size_t GetIndex() const;
 				size_t GetSize() const;
 				Response GetCursor() const;
@@ -301,8 +302,10 @@ namespace Tomahawk
 				Response();
 				Response(TResponse* NewBase);
 				void Release();
-				Core::Document* GetArray() const;
+				Core::Document* GetArrayOfObjects() const;
+				Core::Document* GetArrayOfArrays() const;
 				Core::Document* GetObject(size_t Index = 0) const;
+				Core::Document* GetArray(size_t Index = 0) const;
 				std::string GetCommandStatusText() const;
 				std::string GetStatusText() const;
 				std::string GetErrorText() const;

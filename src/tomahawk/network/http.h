@@ -170,10 +170,14 @@ namespace Tomahawk
 				std::string Name;
 				std::string Value;
 				std::string Domain;
-				std::string Path;
-				uint64_t Expires = 0;
+				std::string Path = "/";
+				std::string SameSite;
+				std::string Expires;
 				bool Secure = false;
-				bool HTTPOnly = false;
+				bool HttpOnly = false;
+
+				void SetExpires(int64_t Time);
+				void SetExpired();
 			};
 
 			struct TH_OUT RequestFrame
@@ -220,7 +224,8 @@ namespace Tomahawk
 				void SetBuffer(const std::string& Data);
 				void PutHeader(const std::string& Key, const std::string& Value);
 				void SetHeader(const std::string& Key, const std::string& Value);
-				void SetCookie(const char* Key, const char* Value, uint64_t Expires = 0, const char* Domain = nullptr, const char* Path = nullptr, bool Secure = false, bool HTTPOnly = false);
+				void SetCookie(const Cookie& Value);
+				void SetCookie(Cookie&& Value);
 				Cookie* GetCookie(const char* Key);
 				RangePayload* GetHeaderRanges(const std::string& Key);
 				const std::string* GetHeaderBlob(const std::string& Key) const;
@@ -412,12 +417,19 @@ namespace Tomahawk
 				{
 					struct
 					{
+						struct
+						{
+							std::string Name = "sid";
+							std::string Domain;
+							std::string Path = "/";
+							std::string SameSite = "Strict";
+							uint64_t Expires = 31536000;
+							bool Secure = false;
+							bool HttpOnly = true;
+						} Cookie;
+
 						std::string DocumentRoot = "./sessions/";
-						std::string Name = "Sid";
-						std::string Domain;
-						std::string Path = "/";
 						uint64_t Expires = 604800;
-						uint64_t CookieExpires = 31536000;
 					} Session;
 
 					bool Verify = false;

@@ -300,10 +300,7 @@ namespace Tomahawk
 		if (Modes & (uint64_t)Init::Core)
 		{
 			if (Modes & (uint64_t)Init::Debug)
-			{
 				Core::OS::SetLogActive(true);
-				Core::OS::SetCrashDumps();
-			}
 		}
 
 		if (Modes & (uint64_t)Init::Network)

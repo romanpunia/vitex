@@ -1023,7 +1023,6 @@ namespace Tomahawk
 			static void Pause();
 			static void SetLogCallback(const std::function<void(const char*, int)>& Callback);
 			static void SetLogActive(bool Enabled);
-			static bool SetCrashDumps();
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 		};
 
@@ -1349,9 +1348,9 @@ namespace Tomahawk
 			int Resume(bool Restore = true);
 			int Dispatch(bool Restore = true);
 			int Suspend();
-			void Notify(std::condition_variable* Var);
+			void SetWaitable(std::condition_variable* Var);
 			void Clear();
-			bool IsWaitable() const;
+			bool HasWaitable() const;
 			std::condition_variable* GetWaitable();
 			Coroutine* GetCurrent() const;
 			uint64_t GetCount() const;
@@ -1380,9 +1379,10 @@ namespace Tomahawk
 
 			struct
 			{
-				std::mutex Basement;
-				std::mutex Threads;
-				std::mutex Timers;
+				std::mutex Exclusive;
+				std::mutex Consume;
+				std::mutex Publish;
+				std::mutex Timing;
 			} Race;
 
 		private:

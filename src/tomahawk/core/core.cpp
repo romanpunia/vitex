@@ -255,287 +255,6 @@ namespace
 		std::string Out(Stream.str());
 		return Out.substr(0, Out.size() - 1);
 	}
-#if defined(BACKWARD_SYSTEM_LINUX) || defined(BACKWARD_SYSTEM_DARWIN)
-#ifdef __GNUC__
-#define NORETURN __attribute__((noreturn))
-#else
-#define NORETURN
-#endif
-	class SignalHandling
-	{
-	private:
-		backward::details::handle<char*> _stack_content;
-		bool _loaded;
-
-	public:
-		SignalHandling(const std::vector<int>& posix_signals = make_default_signals()) : _loaded(false)
-		{
-			bool success = true;
-			const size_t stack_size = 1024 * 1024 * 8;
-			_stack_content.reset(static_cast<char*>(malloc(stack_size)));
-			if (_stack_content)
-			{
-				stack_t ss;
-				ss.ss_sp = _stack_content.get();
-				ss.ss_size = stack_size;
-				ss.ss_flags = 0;
-				if (sigaltstack(&ss, nullptr) < 0)
-					success = false;
-			}
-			else
-				success = false;
-
-			for (size_t i = 0; i < posix_signals.size(); ++i)
-			{
-				struct sigaction action;
-				memset(&action, 0, sizeof action);
-				action.sa_flags = static_cast<int>(SA_SIGINFO | SA_ONSTACK | SA_NODEFER | SA_RESETHAND);
-				sigfillset(&action.sa_mask);
-				sigdelset(&action.sa_mask, posix_signals[i]);
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdisabled-macro-expansion"
-#endif
-				action.sa_sigaction = &sig_handler;
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
-				int r = sigaction(posix_signals[i], &action, nullptr);
-				if (r < 0)
-					success = false;
-			}
-
-			_loaded = success;
-		}
-		bool loaded() const
-		{
-			return _loaded;
-		}
-		static void handleSignal(int, siginfo_t* info, void* _ctx)
-		{
-			ucontext_t* uctx = static_cast<ucontext_t*>(_ctx);
-			void* error_addr = nullptr;
-#ifdef REG_RIP
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_RIP]);
-#elif defined(REG_EIP)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.gregs[REG_EIP]);
-#elif defined(__arm__)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.arm_pc);
-#elif defined(__aarch64__)
-#if defined(__APPLE__)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext->__ss.__pc);
-#else
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.pc);
-#endif
-#elif defined(__mips__)
-			error_addr = reinterpret_cast<void*>(
-				reinterpret_cast<struct sigcontext*>(&uctx->uc_mcontext)->sc_pc);
-#elif defined(__ppc__) || defined(__powerpc) || defined(__powerpc__) ||        \
-    defined(__POWERPC__)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.regs->nip);
-#elif defined(__riscv)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.__gregs[REG_PC]);
-#elif defined(__s390x__)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext.psw.addr);
-#elif defined(__APPLE__) && defined(__x86_64__)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext->__ss.__rip);
-#elif defined(__APPLE__)
-			error_addr = reinterpret_cast<void*>(uctx->uc_mcontext->__ss.__eip);
-#else
-			#warning ":/ sorry, ain't know no nothing none not of your architecture!"
-#endif
-			backward::StackTrace Stack;
-			if (error_addr)
-				Stack.load_from(error_addr, 32, reinterpret_cast<void*>(uctx), info->si_addr);
-			else
-				Stack.load_here(32, reinterpret_cast<void*>(uctx), info->si_addr);
-
-			std::string Text = GetStack(Stack);
-			printf("[err] fatal error exception\n%s\n", Text.c_str());
-#if _XOPEN_SOURCE >= 700 || _POSIX_C_SOURCE >= 200809L
-			psiginfo(info, nullptr);
-#else
-			(void)info;
-#endif
-			Tomahawk::Core::OS::Pause();
-		}
-		NORETURN static void sig_handler(int signo, siginfo_t* info, void* _ctx)
-		{
-			handleSignal(signo, info, _ctx);
-			raise(info->si_signo);
-			_exit(EXIT_FAILURE);
-		}
-		static std::vector<int> make_default_signals()
-		{
-			const int posix_signals[] =
-			{
-				SIGABRT,
-				SIGBUS,
-				SIGFPE,
-				SIGILL,
-				SIGIOT,
-				SIGQUIT,
-				SIGSEGV,
-				SIGSYS,
-				SIGTRAP,
-				SIGXCPU,
-				SIGXFSZ,
-		  #if defined(BACKWARD_SYSTEM_DARWIN)
-				SIGEMT
-		  #endif
-			};
-			return std::vector<int>(posix_signals, posix_signals + sizeof posix_signals / sizeof posix_signals[0]);
-		}
-	};
-
-#endif
-#ifdef BACKWARD_SYSTEM_WINDOWS
-	class SignalHandling
-	{
-	private:
-		enum class crash_status
-		{
-			running,
-			crashed,
-			normal_exit,
-			ending
-		};
-
-	private:
-#ifdef __clang__
-		static const constexpr int signal_skip_recs = 4;
-#else
-		static const constexpr int signal_skip_recs = 3;
-#endif
-		std::thread reporter_thread_;
-
-	public:
-		SignalHandling(const std::vector<int> & = std::vector<int>()) : reporter_thread_([]()
-		{
-			{
-				std::unique_lock<std::mutex> lk(mtx());
-				cv().wait(lk, [] { return crashed() != crash_status::running; });
-			}
-			if (crashed() == crash_status::crashed)
-				handle_stacktrace(skip_recs());
-
-			{
-				std::unique_lock<std::mutex> lk(mtx());
-				crashed() = crash_status::ending;
-			}
-			cv().notify_one();
-		})
-		{
-			SetUnhandledExceptionFilter(crash_handler);
-			signal(SIGABRT, signal_handler);
-			_set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-			std::set_terminate(&terminator);
-#ifndef BACKWARD_ATLEAST_CXX17
-			std::set_unexpected(&terminator);
-#endif
-			_set_purecall_handler(&terminator);
-			_set_invalid_parameter_handler(&invalid_parameter_handler);
-		}
-		~SignalHandling()
-		{
-			{
-				std::unique_lock<std::mutex> lk(mtx());
-				crashed() = crash_status::normal_exit;
-			}
-
-			cv().notify_one();
-			reporter_thread_.join();
-		}
-		bool loaded() const
-		{
-			return true;
-		}
-
-	private:
-		static CONTEXT* ctx()
-		{
-			static CONTEXT data;
-			return &data;
-		}
-		static crash_status& crashed()
-		{
-			static crash_status data;
-			return data;
-		}
-		static std::mutex& mtx()
-		{
-			static std::mutex data;
-			return data;
-		}
-		static std::condition_variable& cv()
-		{
-			static std::condition_variable data;
-			return data;
-		}
-		static HANDLE& thread_handle()
-		{
-			static HANDLE handle;
-			return handle;
-		}
-		static int& skip_recs()
-		{
-			static int data;
-			return data;
-		}
-		static inline void terminator()
-		{
-			crash_handler(signal_skip_recs);
-			abort();
-		}
-		static inline void signal_handler(int)
-		{
-			crash_handler(signal_skip_recs);
-			abort();
-		}
-		static inline void __cdecl invalid_parameter_handler(const wchar_t*, const wchar_t*, const wchar_t*, unsigned int, uintptr_t)
-		{
-			crash_handler(signal_skip_recs);
-			abort();
-		}
-		NOINLINE static LONG WINAPI crash_handler(EXCEPTION_POINTERS* info)
-		{
-			crash_handler(0, info->ContextRecord);
-			return EXCEPTION_CONTINUE_SEARCH;
-		}
-		NOINLINE static void crash_handler(int skip, CONTEXT* ct = nullptr)
-		{
-			if (ct == nullptr)
-				RtlCaptureContext(ctx());
-			else
-				memcpy(ctx(), ct, sizeof(CONTEXT));
-
-			DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &thread_handle(), 0, FALSE, DUPLICATE_SAME_ACCESS);
-			skip_recs() = skip;
-			{
-				std::unique_lock<std::mutex> lk(mtx());
-				crashed() = crash_status::crashed;
-			}
-
-			cv().notify_one();
-			{
-				std::unique_lock<std::mutex> lk(mtx());
-				cv().wait(lk, [] { return crashed() != crash_status::crashed; });
-			}
-		}
-		static void handle_stacktrace(int skip_frames = 0)
-		{
-			backward::StackTrace Stack;
-			Stack.set_thread_handle(thread_handle());
-			Stack.load_here(32 + skip_frames, ctx());
-			Stack.skip_n_firsts(skip_frames);
-
-			std::string Text = "[err] fatal error exception\n" + GetStack(Stack);
-			OutputDebugStringA(Text.c_str());
-			printf("%s\n", Text.c_str());
-			Tomahawk::Core::OS::Pause();
-		}
-	};
-#endif
 #ifdef TH_APPLE
 #define SYSCTL(fname, ...) std::size_t Size{};if(fname(__VA_ARGS__,nullptr,&Size,nullptr,0))return{};std::vector<char> Result(Size);if(fname(__VA_ARGS__,Result.data(),&Size,nullptr,0))return{};return Result
 	template <class T>
@@ -7656,19 +7375,6 @@ namespace Tomahawk
 		{
 			Active = Enabled;
 		}
-		bool OS::SetCrashDumps()
-		{
-#ifdef _DEBUG
-#ifndef BACKWARD_SYSTEM_UNKNOWN
-			static SignalHandling Handle;
-			return Handle.loaded();
-#else
-			return false;
-#endif
-#else
-			return false;
-#endif
-		}
 		std::string OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
 			backward::StackTrace Stack;
@@ -8039,13 +7745,13 @@ namespace Tomahawk
 			Cached.clear();
 			Safe.unlock();
 		}
-		void Costate::Notify(std::condition_variable* Var)
+		void Costate::SetWaitable(std::condition_variable* Var)
 		{
 			Safe.lock();
 			Waitable = Var;
 			Safe.unlock();
 		}
-		bool Costate::IsWaitable() const
+		bool Costate::HasWaitable() const
 		{
 			return Waitable != nullptr;
 		}
@@ -8141,11 +7847,11 @@ namespace Tomahawk
 			TH_PPUSH("schedule-interval", TH_PERF_ATOM);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
-			Race.Timers.lock();
+			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
 			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, true)));
-			Race.Timers.unlock();
+			Race.Timing.unlock();
 
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
@@ -8162,11 +7868,11 @@ namespace Tomahawk
 			TH_PPUSH("schedule-interval", TH_PERF_ATOM);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
-			Race.Timers.lock();
+			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
 			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, true)));
-			Race.Timers.unlock();
+			Race.Timing.unlock();
 
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
@@ -8183,11 +7889,11 @@ namespace Tomahawk
 			TH_PPUSH("schedule-timeout", TH_PERF_ATOM);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
-			Race.Timers.lock();
+			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
 			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, false)));
-			Race.Timers.unlock();
+			Race.Timing.unlock();
 
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
@@ -8204,11 +7910,11 @@ namespace Tomahawk
 			TH_PPUSH("schedule-timeout", TH_PERF_ATOM);
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
-			Race.Timers.lock();
+			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
 			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, false)));
-			Race.Timers.unlock();
+			Race.Timing.unlock();
 
 			if (!Childs.empty())
 				Queue.Publish.notify_one();
@@ -8288,19 +7994,19 @@ namespace Tomahawk
 		{
 			TH_PPUSH("schedule-cl-timeout", TH_PERF_ATOM);
 
-			Race.Timers.lock();
+			Race.Timing.lock();
 			for (auto It = Timers.begin(); It != Timers.end(); ++It)
 			{
 				if (It->second.Id != TimerId)
 					continue;
 
 				Timers.erase(It);
-				Race.Timers.unlock();
+				Race.Timing.unlock();
 
 				TH_PPOP();
 				return true;
 			}
-			Race.Timers.unlock();
+			Race.Timing.unlock();
 
 			TH_PPOP();
 			return false;
@@ -8331,10 +8037,10 @@ namespace Tomahawk
 		}
 		bool Schedule::Stop()
 		{
-			Race.Basement.lock();
+			Race.Exclusive.lock();
 			if (!Active && !Terminate)
 			{
-				Race.Basement.unlock();
+				Race.Exclusive.unlock();
 				return false;
 			}
 
@@ -8348,7 +8054,7 @@ namespace Tomahawk
 				if (Thread.get_id() == std::this_thread::get_id())
 				{
 					Terminate = true;
-					Race.Basement.unlock();
+					Race.Exclusive.unlock();
 					return false;
 				}
 
@@ -8373,15 +8079,15 @@ namespace Tomahawk
 				Callback = nullptr;
 			}
 
-			Race.Timers.lock();
+			Race.Timing.lock();
 			Timers.clear();
-			Race.Timers.unlock();
+			Race.Timing.unlock();
 
 			TH_CLEAR(Comain);
 			Terminate = false;
 			Enqueue = true;
 			Threads = Stack = Timer = 0;
-			Race.Basement.unlock();
+			Race.Exclusive.unlock();
 
 			return true;
 		}
@@ -8408,13 +8114,13 @@ namespace Tomahawk
 				fTimers = DispatchTimer(&When);
 				if (fTimers == 0)
 				{
-					std::unique_lock<std::mutex> Lock(Race.Threads);
+					std::unique_lock<std::mutex> Lock(Race.Publish);
 					Queue.Publish.wait_for(Lock, When);
 				}
 				else if (fTimers == -1)
 				{
 				Wait:
-					std::unique_lock<std::mutex> Lock(Race.Threads);
+					std::unique_lock<std::mutex> Lock(Race.Publish);
 					Queue.Publish.wait(Lock);
 				}
 			} while (Active);
@@ -8427,7 +8133,7 @@ namespace Tomahawk
 			if (Stack > 0 && Coroutines > 0)
 			{
 				State = new Costate(Stack);
-				State->Notify(&Queue.Consume);
+				State->SetWaitable(&Queue.Consume);
 			}
 
 			CToken tAsyncs(*((TQueue*)Asyncs)), tTasks(*((TQueue*)Tasks));
@@ -8446,7 +8152,7 @@ namespace Tomahawk
 				if (fAsyncs != -1 || fTasks != -1)
 					continue;
 			Wait:
-				std::unique_lock<std::mutex> Lock(Race.Threads);
+				std::unique_lock<std::mutex> Lock(Race.Consume);
 				Queue.Consume.wait(Lock);
 			} while (Active);
 
@@ -8488,12 +8194,11 @@ namespace Tomahawk
 						DispatchTimer(nullptr);
 
 					int fTasks = DispatchTask(nullptr);
-					if (fTasks == -1 && Count == 0 && State->IsWaitable())
+					if (fTasks == -1 && Count == 0 && State->HasWaitable())
 					{
-						std::unique_lock<std::mutex> Lock(Race.Threads);
+						std::unique_lock<std::mutex> Lock(Race.Consume);
 						State->GetWaitable()->wait(Lock);
 					}
-
 				ResolveNext:
 					while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)
 					{
@@ -8546,12 +8251,12 @@ namespace Tomahawk
 				return -1;
 
 			auto Clock = GetClock();
-			Race.Timers.lock();
+			Race.Timing.lock();
 
 			auto It = Timers.begin();
 			if (It == Timers.end())
 			{
-				Race.Timers.unlock();
+				Race.Timing.unlock();
 				return -1;
 			}
 
@@ -8559,7 +8264,7 @@ namespace Tomahawk
 			{
 				if (When != nullptr)
 					*When = It->first - Clock;
-				Race.Timers.unlock();
+				Race.Timing.unlock();
 				return 0;
 			}
 
@@ -8567,7 +8272,7 @@ namespace Tomahawk
 			{
 				SetTask(std::move(It->second.Callback));
 				Timers.erase(It);
-				Race.Timers.unlock();
+				Race.Timing.unlock();
 				return 1;
 			}
 
@@ -8577,7 +8282,7 @@ namespace Tomahawk
 			SetTask((const TaskCallback&)Next.Callback);
 			Clock += Next.Expires; GetTimeout(Clock, false);
 			Timers.emplace(std::make_pair(Clock, std::move(Next)));
-			Race.Timers.unlock();
+			Race.Timing.unlock();
 			return 1;
 		}
 		bool Schedule::IsBlockable()

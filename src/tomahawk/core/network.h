@@ -44,6 +44,22 @@ namespace Tomahawk
 			None = (1 << 4)
 		};
 
+		enum class DNSType
+		{
+			Connect,
+			Listen
+		};
+
+		enum class SocketProtocol
+		{
+			IP,
+			ICMP,
+			TCP,
+			UDP,
+			RAW,
+			Auto
+		};
+
 		enum class SocketType
 		{
 			Stream,
@@ -74,11 +90,8 @@ namespace Tomahawk
 
 		struct TH_OUT Address
 		{
-			addrinfo* Host = nullptr;
-			addrinfo* Active = nullptr;
-			bool Resolved = false;
-
-			static bool Free(Network::Address* Address);
+			addrinfo* Addresses = nullptr;
+			addrinfo* Good = nullptr;
 		};
 
 		struct TH_OUT WriteEvent
@@ -123,12 +136,12 @@ namespace Tomahawk
 			Socket();
 			Socket(socket_t FromFd);
 			~Socket();
-			int Open(const char* Host, int Port, SocketType Type, Address* Result);
-			int Open(const char* Host, int Port, Address* Result);
-			int Open(addrinfo* Info, Address* Result);
+			int Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Result);
+			int Open(const std::string& Host, const std::string& Port, DNSType DNS, Address** Result);
+			int Open(addrinfo* Good);
 			int Secure(ssl_ctx_st* Context, const char* Hostname);
 			int Bind(Address* Address);
-			int Connect(Address* Address);
+			int Connect(Address* Address, uint64_t Timeout);
 			int Listen(int Backlog);
 			int Accept(Socket* Connection, Address* Output);
 			int AcceptAsync(SocketAcceptCallback&& Callback);
@@ -203,7 +216,7 @@ namespace Tomahawk
 
 		struct TH_OUT Listener
 		{
-			Address Source;
+			Address* Source;
 			std::string Name;
 			Host* Hostname = nullptr;
 			Socket* Base = nullptr;
@@ -330,7 +343,8 @@ namespace Tomahawk
 			static epoll_event* Array;
 #endif
 			static std::unordered_set<Socket*>* Sources;
-			static std::mutex* fSources;
+			static std::unordered_map<std::string, std::pair<int64_t, Address*>> Names;
+			static std::mutex Exclusive;
 			static epoll_handle Handle;
 			static int64_t PipeTimeout;
 			static int ArraySize;
@@ -345,6 +359,7 @@ namespace Tomahawk
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
 			static bool IsActive();
+			static Address* ResolveDNS(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS);
 
 		private:
 			static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);

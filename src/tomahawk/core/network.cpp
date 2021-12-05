@@ -39,6 +39,8 @@
 #define epoll_close close
 #define SD_SEND SHUT_WR
 #endif
+#define DNS_TIMEOUT 21600
+#define CONNECT_TIMEOUT 2000
 
 extern "C"
 {
@@ -58,6 +60,74 @@ namespace Tomahawk
 {
 	namespace Network
 	{
+		static int TryConnect(socket_t Base, const sockaddr* Address, int Length, uint64_t Timeout, bool IsBlocking)
+		{
+			Socket Stream(Base);
+			if (IsBlocking)
+				Stream.SetBlocking(false);
+
+			int Status = connect(Base, Address, Length);
+			if (Status != 0 && Stream.GetError(Status) != ERRWOULDBLOCK)
+			{
+				if (IsBlocking)
+					Stream.SetBlocking(true);
+
+				return Status;
+			}
+
+			if (IsBlocking)
+				Stream.SetBlocking(true);
+
+			pollfd Fd;
+			Fd.fd = Base;
+			Fd.events = POLLOUT;
+
+			return Driver::Poll(&Fd, 1, (int)Timeout) > 0;
+		}
+		static addrinfo* TryConnectDNS(const std::unordered_map<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
+		{
+			TH_PPUSH("dns-resolve-multi", TH_PERF_NET);
+
+			std::vector<pollfd> Sockets;
+			for (auto& Host : Hosts)
+			{
+				Socket Stream(Host.first);
+				Stream.SetBlocking(false);
+
+				TH_TRACE("[net] resolve dns on fd %i", (int)Host.first);
+				int Status = connect(Host.first, Host.second->ai_addr, Host.second->ai_addrlen);
+				if (Status != 0 && Stream.GetError(Status) != ERRWOULDBLOCK)
+					continue;
+
+				pollfd Fd;
+				Fd.fd = Host.first;
+				Fd.events = POLLOUT;
+				Sockets.push_back(Fd);
+			}
+
+			if (Sockets.empty() || Driver::Poll(Sockets.data(), (int)Sockets.size(), (int)Timeout) <= 0)
+			{
+				TH_PPOP();
+				return nullptr;
+			}
+
+			for (auto& Fd : Sockets)
+			{
+				if (Fd.revents & POLLOUT)
+				{
+					auto It = Hosts.find(Fd.fd);
+					if (It != Hosts.end())
+					{
+						TH_PPOP();
+						return It->second;
+					}
+				}
+			}
+
+			TH_PPOP();
+			return nullptr;
+		}
+
 		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(0)
 		{
 			TH_ASSERT_V(!URL.empty(), "url should not be empty");
@@ -245,18 +315,6 @@ namespace Tomahawk
 			Path += Filename + (Extension.empty() ? "" : '.' + Extension);
 		}
 
-		bool Address::Free(Network::Address* Address)
-		{
-			if (!Address)
-				return false;
-
-			if (Address->Host != nullptr)
-				freeaddrinfo(Address->Host);
-
-			Address->Host = nullptr;
-			return true;
-		}
-
 		Socket::Socket() : Listener(nullptr), Input(nullptr), Output(nullptr), Device(nullptr), Fd(INVALID_SOCKET), Income(0), Outcome(0), UserData(nullptr)
 		{
 			Sync.Poll = false;
@@ -271,100 +329,44 @@ namespace Tomahawk
 		{
 			TH_DELETE(SocketAcceptCallback, Listener);
 		}
-		int Socket::Open(const char* Host, int Port, SocketType Type, Address* Result)
+		int Socket::Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Subresult)
 		{
-			TH_ASSERT(Host != nullptr, -1, "host should be set");
 			TH_PPUSH("sock-open", TH_PERF_NET);
-			TH_TRACE("[net] open fd %s:%i", Host, Port);
+			TH_TRACE("[net] open fd %s:%s", Host.c_str(), Port.c_str());
 
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(struct addrinfo));
-			Hints.ai_family = AF_UNSPEC;
-
-			switch (Type)
+			Address* Result = Driver::ResolveDNS(Host, Port, Proto, Type, DNS);
+			if (!Result)
 			{
-				case SocketType::Stream:
-					Hints.ai_socktype = SOCK_STREAM;
-					break;
-				case SocketType::Datagram:
-					Hints.ai_socktype = SOCK_DGRAM;
-					break;
-				case SocketType::Raw:
-					Hints.ai_socktype = SOCK_RAW;
-					break;
-				case SocketType::Reliably_Delivered_Message:
-					Hints.ai_socktype = SOCK_RDM;
-					break;
-				case SocketType::Sequence_Packet_Stream:
-					Hints.ai_socktype = SOCK_SEQPACKET;
-					break;
-				default:
-					Hints.ai_socktype = SOCK_STREAM;
-					break;
-			}
-
-			struct addrinfo* Address;
-			if (getaddrinfo(Host, Core::Parser(Port).Get(), &Hints, &Address))
-			{
-				TH_ERR("cannot connect to %s on port %i", Host, Port);
 				TH_PPOP();
 				return -1;
 			}
 
-			for (auto It = Address; It; It = It->ai_next)
+			if (Subresult != nullptr)
+				*Subresult = Result;
+
+			TH_PRET(Open(Result->Good));
+		}
+		int Socket::Open(const std::string& Host, const std::string& Port, DNSType DNS, Address** Result)
+		{
+			return Open(Host, Port, SocketProtocol::Auto, SocketType::Stream, DNS, Result);
+		}
+		int Socket::Open(addrinfo* Good)
+		{
+			TH_ASSERT(Good != nullptr, -1, "addrinfo should be set");
+			TH_PPUSH("sock-open-specific", TH_PERF_NET);
+			TH_TRACE("[net] assign fd");
+
+			Fd = socket(Good->ai_family, Good->ai_socktype, Good->ai_protocol);
+			if (Fd == INVALID_SOCKET)
 			{
-				Fd = socket(It->ai_family, It->ai_socktype, It->ai_protocol);
-				if (Fd == INVALID_SOCKET)
-					continue;
-
-				int Option = 1;
-				setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
-				if (Result != nullptr)
-					Result->Active = It;
-
-				break;
+				TH_PPOP();
+				return -1;
 			}
 
-			if (Result != nullptr)
-			{
-				sockaddr_in IpAddress;
-				Result->Resolved = (inet_pton(AF_INET, Host, &IpAddress.sin_addr) != 1);
-				Result->Host = Address;
-
-				if (!Result->Resolved)
-					Result->Resolved = (inet_pton(AF_INET6, Host, &IpAddress.sin_addr) != 1);
-			}
-			else
-				freeaddrinfo(Address);
-
+			int Option = 1;
+			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
 			TH_PPOP();
 			return 0;
-		}
-		int Socket::Open(const char* Host, int Port, Address* Result)
-		{
-			return Open(Host, Port, SocketType::Stream, Result);
-		}
-		int Socket::Open(addrinfo* Info, Address* Result)
-		{
-			TH_ASSERT(Info != nullptr, -1, "info should be set");
-			TH_PPUSH("sock-open", TH_PERF_NET);
-			TH_TRACE("[net] open fd");
-
-			for (auto It = Info; It; It = It->ai_next)
-			{
-				Fd = socket(It->ai_family, It->ai_socktype, It->ai_protocol);
-				if (Fd == INVALID_SOCKET)
-					continue;
-
-				if (Result != nullptr)
-					Result->Active = It;
-
-				TH_PPOP();
-				return 0;
-			}
-
-			TH_PPOP();
-			return -1;
 		}
 		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
@@ -389,16 +391,16 @@ namespace Tomahawk
 		}
 		int Socket::Bind(Address* Address)
 		{
-			TH_ASSERT(Address && Address->Active, -1, "address should be set and active");
+			TH_ASSERT(Address && Address->Good, -1, "address should be set and good");
 			TH_TRACE("[net] bind fd %i", (int)Fd);
-			return bind(Fd, Address->Active->ai_addr, (int)Address->Active->ai_addrlen);
+			return bind(Fd, Address->Good->ai_addr, (int)Address->Good->ai_addrlen);
 		}
-		int Socket::Connect(Address* Address)
+		int Socket::Connect(Address* Address, uint64_t Timeout)
 		{
-			TH_ASSERT(Address && Address->Active, -1, "address should be set and active");
+			TH_ASSERT(Address && Address->Good, -1, "address should be set and good");
 			TH_PPUSH("sock-conn", TH_PERF_NET);
 			TH_TRACE("[net] connect fd %i", (int)Fd);
-			TH_PRET(connect(Fd, Address->Active->ai_addr, (int)Address->Active->ai_addrlen));
+			TH_PRET(TryConnect(Fd, Address->Good->ai_addr, (int)Address->Good->ai_addrlen, Timeout, true));
 		}
 		int Socket::Listen(int Backlog)
 		{
@@ -424,10 +426,11 @@ namespace Tomahawk
 			Hints.ai_family = AF_UNSPEC;
 			Hints.ai_socktype = SOCK_STREAM;
 
-			if (getaddrinfo(Address.sa_data, Core::Parser((((struct sockaddr_in*)&Address)->sin_port)).Get(), &Hints, &OutAddr->Host))
+			int Port = ((struct sockaddr_in*)&Address)->sin_port;
+			if (getaddrinfo(Address.sa_data, std::to_string(Port).c_str(), &Hints, &OutAddr->Addresses))
 				return -1;
 
-			OutAddr->Active = OutAddr->Host;
+			OutAddr->Good = OutAddr->Addresses;
 			return 0;
 		}
 		int Socket::AcceptAsync(SocketAcceptCallback&& Callback)
@@ -1354,10 +1357,7 @@ namespace Tomahawk
 					TH_FREE(Array);
 			}
 			else
-			{
 				Sources = new std::unordered_set<Socket*>();
-				fSources = new std::mutex();
-			}
 
 			ArraySize = Length;
 #ifdef TH_APPLE
@@ -1388,11 +1388,14 @@ namespace Tomahawk
 				Sources = nullptr;
 			}
 
-			if (fSources != nullptr)
+			Exclusive.lock();
+			for (auto& Item : Names)
 			{
-				delete fSources;
-				fSources = nullptr;
+				freeaddrinfo(Item.second.second->Addresses);
+				TH_DELETE(Address, Item.second.second);
 			}
+			Names.clear();
+			Exclusive.unlock();
 		}
 		void Driver::Multiplex()
 		{
@@ -1453,9 +1456,9 @@ namespace Tomahawk
 				return Count;
 
 			TH_PPUSH("net-timeout", TH_PERF_IO);
-			fSources->lock();
+			Exclusive.lock();
 			auto Copy = *Sources;
-			fSources->unlock();
+			Exclusive.unlock();
 
 			for (auto* Value : Copy)
 			{
@@ -1611,9 +1614,9 @@ namespace Tomahawk
 
 			if (Value->Sync.Timeout > 0)
 			{
-				fSources->lock();
+				Exclusive.lock();
 				Sources->insert(Value);
-				fSources->unlock();
+				Exclusive.unlock();
 			}
 #ifdef TH_APPLE
 			struct kevent Event;
@@ -1657,9 +1660,9 @@ namespace Tomahawk
 			TH_ASSERT(Handle != nullptr, -1, "driver should be initialized");
 			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
 
-			fSources->lock();
+			Exclusive.lock();
 			Sources->erase(Value);
-			fSources->unlock();
+			Exclusive.unlock();
 #ifdef TH_APPLE
 			struct kevent Event;
 			int Result1 = 1, Result2 = 1;
@@ -1717,9 +1720,159 @@ namespace Tomahawk
 		{
 			return Array != nullptr || Handle != INVALID_EPOLL;
 		}
+		Address* Driver::ResolveDNS(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS)
+		{
+			TH_ASSERT(!Host.empty(), nullptr, "host should not be empty");
+			TH_ASSERT(!Service.empty(), nullptr, "service should not be empty");
+			TH_PPUSH("dns-resolve", TH_PERF_NET * 3);
+
+			int64_t Time = time(nullptr);
+			struct addrinfo Hints;
+			memset(&Hints, 0, sizeof(struct addrinfo));
+			Hints.ai_family = AF_UNSPEC;
+
+			std::string XProto;
+			switch (Proto)
+			{
+				case SocketProtocol::IP:
+					Hints.ai_protocol = IPPROTO_IP;
+					XProto = "ip";
+					break;
+				case SocketProtocol::ICMP:
+					Hints.ai_protocol = IPPROTO_ICMP;
+					XProto = "icmp";
+					break;
+				case SocketProtocol::TCP:
+					Hints.ai_protocol = IPPROTO_TCP;
+					XProto = "tcp";
+					break;
+				case SocketProtocol::UDP:
+					Hints.ai_protocol = IPPROTO_UDP;
+					XProto = "udp";
+					break;
+				case SocketProtocol::RAW:
+					Hints.ai_protocol = IPPROTO_RAW;
+					XProto = "raw";
+					break;
+				case SocketProtocol::Auto:
+				default:
+					Hints.ai_protocol = 0;
+					XProto = "auto";
+					break;
+			}
+
+			std::string XType;
+			switch (Type)
+			{
+				case SocketType::Datagram:
+					Hints.ai_socktype = SOCK_DGRAM;
+					XType = "dgram";
+					break;
+				case SocketType::Raw:
+					Hints.ai_socktype = SOCK_RAW;
+					XType = "raw";
+					break;
+				case SocketType::Reliably_Delivered_Message:
+					Hints.ai_socktype = SOCK_RDM;
+					XType = "rdm";
+					break;
+				case SocketType::Sequence_Packet_Stream:
+					Hints.ai_socktype = SOCK_SEQPACKET;
+					XType = "seqpacket";
+					break;
+				case SocketType::Stream:
+				default:
+					Hints.ai_socktype = SOCK_STREAM;
+					XType = "stream";
+					break;
+			}
+
+			std::string Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
+			Exclusive.lock();
+			{
+				auto It = Names.find(Identity);
+				if (It != Names.end() && It->second.first > Time)
+				{
+					Address* Result = It->second.second;
+					Exclusive.unlock();
+					TH_PRET(Result);
+				}
+			}
+			Exclusive.unlock();
+
+			struct addrinfo* Addresses = nullptr;
+			if (getaddrinfo(Host.c_str(), Service.c_str(), &Hints, &Addresses) != 0)
+			{
+				TH_ERR("cannot resolve dns for identity %s", Identity.c_str());
+				TH_PPOP();
+				return nullptr;
+			}
+
+			struct addrinfo* Good = nullptr;
+			std::unordered_map<socket_t, addrinfo*> Hosts;
+			for (auto It = Addresses; It != nullptr; It = It->ai_next)
+			{
+				socket_t Connection = socket(It->ai_family, It->ai_socktype, It->ai_protocol);
+				if (Connection == INVALID_SOCKET)
+					continue;
+
+				TH_TRACE("[net] open dns fd %i", (int)Connection);
+				if (DNS == DNSType::Connect)
+				{
+					Hosts[Connection] = It;
+					continue;
+				}
+
+				Good = It;
+				closesocket(Connection);
+				TH_TRACE("[net] close dns fd %i", (int)Connection);
+				break;
+			}
+
+			if (DNS == DNSType::Connect)
+				Good = TryConnectDNS(Hosts, CONNECT_TIMEOUT);
+
+			for (auto& Host : Hosts)
+			{
+				closesocket(Host.first);
+				TH_TRACE("[net] close dns fd %i", (int)Host.first);
+			}
+
+			if (!Good)
+			{
+				freeaddrinfo(Addresses);
+				TH_ERR("cannot resolve dns for identity %s", Identity.c_str());
+				TH_PPOP();
+				return nullptr;
+			}
+
+			Address* Result = TH_NEW(Address);
+			Result->Addresses = Addresses;
+			Result->Good = Good;
+
+			TH_TRACE("[net] dns resolved for identity %s", Identity.c_str());
+			Exclusive.lock();
+			{
+				auto It = Names.find(Identity);
+				if (It != Names.end())
+				{
+					freeaddrinfo(It->second.second->Addresses);
+					TH_DELETE(Address, It->second.second);
+					It->second.first = Time + DNS_TIMEOUT;
+					It->second.second = Result;
+				}
+				else
+					Names[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
+			}
+			Exclusive.unlock();
+
+			TH_PPOP();
+			return Result;
+		}
 		epoll_handle Driver::Handle = INVALID_EPOLL;
 		std::unordered_set<Socket*>* Driver::Sources = nullptr;
-		std::mutex* Driver::fSources = nullptr;
+		std::unordered_map<std::string, std::pair<int64_t, Address*>> Driver::Names;
+		std::mutex Driver::Exclusive;
 		int64_t Driver::PipeTimeout = 100;
 		int Driver::ArraySize = 0;
 #ifdef TH_APPLE
@@ -1779,13 +1932,13 @@ namespace Tomahawk
 				Value->Base = TH_NEW(Socket);
 				Value->Base->UserData = this;
 
-				if (Value->Base->Open(It.second.Hostname.c_str(), It.second.Port, &Value->Source))
+				if (Value->Base->Open(It.second.Hostname.c_str(), std::to_string(It.second.Port), DNSType::Listen, &Value->Source))
 				{
 					TH_ERR("cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
-				if (Value->Base->Bind(&Value->Source))
+				if (Value->Base->Bind(Value->Source))
 				{
 					TH_ERR("cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
@@ -1947,8 +2100,6 @@ namespace Tomahawk
 					It->Base->Close();
 					TH_DELETE(Socket, It->Base);
 				}
-
-				Address::Free(&It->Source);
 				TH_DELETE(Listener, It);
 			}
 
@@ -2297,22 +2448,20 @@ namespace Tomahawk
 			Hostname = *Address;
 			Stage("socket open");
 
-			Tomahawk::Network::Address Host;
-			if (Stream.Open(Hostname.Hostname.c_str(), Hostname.Port, &Host) == -1)
+			Tomahawk::Network::Address* Host;
+			if (Stream.Open(Hostname.Hostname.c_str(), std::to_string(Hostname.Port), DNSType::Connect, &Host) == -1)
 			{
 				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
 				return Result;
 			}
 
 			Stage("socket connect");
-			if (Stream.Connect(&Host) == -1)
+			if (Stream.Connect(Host, Timeout) == -1)
 			{
-				Address::Free(&Host);
 				Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
 				return Result;
 			}
 
-			Address::Free(&Host);
 			Stream.CloseOnExec();
 			Stream.SetBlocking(!Async);
 			Stream.SetAsyncTimeout(Timeout);

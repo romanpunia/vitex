@@ -26,6 +26,7 @@ namespace Tomahawk
 
 			class Connection;
 
+			typedef std::function<void(const std::string&)> OnQueryLog;
 			typedef std::function<void(Notify)> OnNotification;
 			typedef pg_conn TConnection;
 			typedef pg_result TResponse;
@@ -467,10 +468,13 @@ namespace Tomahawk
 				static std::mutex* Safe;
 				static std::atomic<bool> Active;
 				static std::atomic<int> State;
+				static OnQueryLog Logger;
 
 			public:
 				static void Create();
 				static void Release();
+				static void SetQueryLog(const OnQueryLog& Callback);
+				static void LogQuery(const std::string& Command);
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);

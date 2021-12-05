@@ -29,6 +29,7 @@ namespace Tomahawk
 			typedef _mongoc_client_t TConnection;
 			typedef _mongoc_change_stream_t TWatcher;
 			typedef _mongoc_client_session_t TTransaction;
+			typedef std::function<void(const std::string&)> OnQueryLog;
 
 			class Transaction;
 
@@ -37,6 +38,11 @@ namespace Tomahawk
 			class Cluster;
 
 			class Document;
+
+			enum class QueryType
+			{
+
+			};
 
 			enum class QueryFlags
 			{
@@ -499,10 +505,15 @@ namespace Tomahawk
 				static std::unordered_map<std::string, Sequence>* Queries;
 				static std::mutex* Safe;
 				static std::atomic<int> State;
+				static OnQueryLog Logger;
+				static void* APM;
 
 			public:
 				static void Create();
 				static void Release();
+				static void SetQueryLog(const OnQueryLog& Callback);
+				static void AttachQueryLog(TConnection* Connection);
+				static void AttachQueryLog(TConnectionPool* Connection);
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);

@@ -3151,6 +3151,7 @@ namespace Tomahawk
 						return;
 					}
 
+					Driver::AttachQueryLog(Base);
 					Connected = true;
 					Future = true;
 					TH_PPOP();
@@ -3178,15 +3179,16 @@ namespace Tomahawk
 				{
 					TH_PPUSH("mongo-conn", TH_PERF_MAX);
 					Base = mongoc_client_new_from_uri(URI);
-					if (!Base)
+					if (Base != nullptr)
 					{
-						Future = false;
-						TH_ERR("couldn't connect to requested URI");
+						Driver::AttachQueryLog(Base);
+						Future = true;
+						Connected = true;
 					}
 					else
 					{
-						Future = true;
-						Connected = true;
+						Future = false;
+						TH_ERR("couldn't connect to requested URI");
 					}
 					TH_PPOP();
 				});
@@ -3490,6 +3492,7 @@ namespace Tomahawk
 						return;
 					}
 
+					Driver::AttachQueryLog(Pool);
 					Connected = true;
 					Future = true;
 					TH_PPOP();
@@ -3519,15 +3522,16 @@ namespace Tomahawk
 
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
-					if (!Pool)
+					if (Pool != nullptr)
 					{
+						Driver::AttachQueryLog(Pool);
 						Future = true;
-						TH_ERR("couldn't connect to requested URI");
+						Connected = true;
 					}
 					else
 					{
-						Future = true;
-						Connected = true;
+						Future = false;
+						TH_ERR("couldn't connect to requested URI");
 					}
 
 					TH_PPOP();
@@ -3651,6 +3655,12 @@ namespace Tomahawk
 					if (Safe != nullptr)
 						Safe->lock();
 
+					if (APM != nullptr)
+					{
+						mongoc_apm_callbacks_destroy((mongoc_apm_callbacks_t*)APM);
+						APM = nullptr;
+					}
+
 					State = 0;
 					if (Queries != nullptr)
 					{
@@ -3673,6 +3683,35 @@ namespace Tomahawk
 				else if (State > 0)
 					State--;
 #endif
+			}
+			void Driver::SetQueryLog(const OnQueryLog& Callback)
+			{
+				Logger = Callback;
+				if (!Logger || APM)
+					return;
+
+				mongoc_apm_callbacks_t* Callbacks = mongoc_apm_callbacks_new();
+				mongoc_apm_set_command_started_cb(Callbacks, [](const mongoc_apm_command_started_t* Event)
+				{
+					const char* Name = mongoc_apm_command_started_get_command_name(Event);
+					char* Command = bson_as_relaxed_extended_json(mongoc_apm_command_started_get_command(Event), nullptr);
+					std::string Buffer = Core::Form("%s:\n%s\n", Name, Command).R();
+					bson_free(Command);
+
+					if (Logger)
+						Logger(Buffer);
+				});
+				APM = (void*)Callbacks;
+			}
+			void Driver::AttachQueryLog(TConnection* Connection)
+			{
+				TH_ASSERT_V(Connection != nullptr, "connection should be set");
+				mongoc_client_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
+			}
+			void Driver::AttachQueryLog(TConnectionPool* Connection)
+			{
+				TH_ASSERT_V(Connection != nullptr, "connection pool should be set");
+				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 			}
 			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{
@@ -3999,6 +4038,8 @@ namespace Tomahawk
 			std::unordered_map<std::string, Driver::Sequence>* Driver::Queries = nullptr;
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<int> Driver::State(0);
+			OnQueryLog Driver::Logger = nullptr;
+			void* Driver::APM = nullptr;
 		}
 	}
 }

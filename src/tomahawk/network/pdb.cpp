@@ -1625,6 +1625,7 @@ namespace Tomahawk
 				}
 				Update.unlock();
 
+				Driver::LogQuery(Command);
 				return Future;
 			}
 			TConnection* Cluster::GetConnection(QueryState State)
@@ -1934,6 +1935,15 @@ namespace Tomahawk
 				else if (State > 0)
 					State--;
 #endif
+			}
+			void Driver::SetQueryLog(const OnQueryLog& Callback)
+			{
+				Logger = Callback;
+			}
+			void Driver::LogQuery(const std::string& Command)
+			{
+				if (Logger)
+					Logger(Command + '\n');
 			}
 			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{
@@ -2361,6 +2371,7 @@ namespace Tomahawk
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<bool> Driver::Active(false);
 			std::atomic<int> Driver::State(0);
+			OnQueryLog Driver::Logger = nullptr;
 		}
 	}
 }

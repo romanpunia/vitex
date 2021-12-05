@@ -3689,7 +3689,7 @@ namespace Tomahawk
 				Logger = Callback;
 				if (!Logger || APM)
 					return;
-
+#ifdef TH_HAS_MONGOC
 				mongoc_apm_callbacks_t* Callbacks = mongoc_apm_callbacks_new();
 				mongoc_apm_set_command_started_cb(Callbacks, [](const mongoc_apm_command_started_t* Event)
 				{
@@ -3702,16 +3702,21 @@ namespace Tomahawk
 						Logger(Buffer);
 				});
 				APM = (void*)Callbacks;
+#endif
 			}
 			void Driver::AttachQueryLog(TConnection* Connection)
 			{
+#ifdef TH_HAS_MONGOC
 				TH_ASSERT_V(Connection != nullptr, "connection should be set");
 				mongoc_client_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
+#endif
 			}
 			void Driver::AttachQueryLog(TConnectionPool* Connection)
 			{
+#ifdef TH_HAS_MONGOC
 				TH_ASSERT_V(Connection != nullptr, "connection pool should be set");
 				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
+#endif
 			}
 			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{

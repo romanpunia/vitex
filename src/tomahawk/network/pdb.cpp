@@ -1485,6 +1485,10 @@ namespace Tomahawk
 					Listeners[Name] = NewCallback;
 				Update.unlock();
 			}
+			Core::Async<uint64_t> Cluster::TxBegin()
+			{
+				return TxBegin("BEGIN");
+			}
 			Core::Async<uint64_t> Cluster::TxBegin(const std::string& Command)
 			{
 				uint64_t Token = Session++;
@@ -1507,6 +1511,14 @@ namespace Tomahawk
 					Commit(Token);
 					return Result.OK();
 				});
+			}
+			Core::Async<bool> Cluster::TxCommit(uint64_t Token)
+			{
+				return TxEnd("COMMIT", Token);
+			}
+			Core::Async<bool> Cluster::TxRollback(uint64_t Token)
+			{
+				return TxEnd("ROLLBACK", Token);
 			}
 			Core::Async<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{

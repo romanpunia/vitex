@@ -427,8 +427,11 @@ namespace Tomahawk
 				Cluster();
 				virtual ~Cluster() override;
 				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
+				Core::Async<uint64_t> TxBegin();
 				Core::Async<uint64_t> TxBegin(const std::string& Command);
 				Core::Async<bool> TxEnd(const std::string& Command, uint64_t Token);
+				Core::Async<bool> TxCommit(uint64_t Token);
+				Core::Async<bool> TxRollback(uint64_t Token);
 				Core::Async<bool> Connect(const Address& URI, size_t Connections);
 				Core::Async<bool> Disconnect();
 				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, uint64_t Token = 0);

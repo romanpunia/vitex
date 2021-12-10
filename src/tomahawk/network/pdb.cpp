@@ -2101,7 +2101,10 @@ namespace Tomahawk
 						continue;
 
 					Base.Replace(Origin.empty() ? Directory : Origin, "").Replace("\\", "/").Replace(".sql", "");
-					AddQuery(Base.Substring(1).R(), Buffer, Size);
+					if (Base.StartsOf("\\/"))
+						Base.Substring(1);
+
+					AddQuery(Base.R(), Buffer, Size);
 					TH_FREE(Buffer);
 				}
 

@@ -1458,6 +1458,7 @@ namespace Tomahawk
 			static std::string Base64URLEncode(const std::string& Value);
 			static std::string Base64URLDecode(const unsigned char* Value, uint64_t Length);
 			static std::string Base64URLDecode(const std::string& Value);
+			static std::string Shuffle(const char* Value, size_t Size, uint64_t Mask);
 			static std::string HexEncode(const char* Value, size_t Size);
 			static std::string HexEncode(const std::string& Value);
 			static std::string HexDecode(const char* Value, size_t Size);

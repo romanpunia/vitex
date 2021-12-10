@@ -7877,6 +7877,23 @@ namespace Tomahawk
 		{
 			return Base64URLDecode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
 		}
+		std::string Common::Shuffle(const char* Value, size_t Size, uint64_t Mask)
+		{
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+
+			std::string Result;
+			Result.resize(Size);
+
+			int64_t Hash = Mask;
+			for (size_t i = 0; i < Size; i++)
+			{
+				Hash = ((Hash << 5) - Hash) + Value[i];
+				Hash = Hash & Hash;
+				Result[i] = (char)(Hash % 255);
+			}
+
+			return Result;
+		}
 		std::string Common::HexEncode(const char* Value, size_t Size)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");

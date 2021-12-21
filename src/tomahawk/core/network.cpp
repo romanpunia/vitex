@@ -88,7 +88,7 @@ namespace Tomahawk
 		{
 			TH_PPUSH("dns-resolve-multi", TH_PERF_NET);
 
-			std::vector<pollfd> Sockets;
+			std::vector<pollfd> Sockets4, Sockets6;
 			for (auto& Host : Hosts)
 			{
 				Socket Stream(Host.first);
@@ -102,30 +102,53 @@ namespace Tomahawk
 				pollfd Fd;
 				Fd.fd = Host.first;
 				Fd.events = POLLOUT;
-				Sockets.push_back(Fd);
+				if (Host.second->ai_family == AF_INET6)
+					Sockets6.push_back(Fd);
+				else
+					Sockets4.push_back(Fd);
 			}
 
-			if (Sockets.empty() || Driver::Poll(Sockets.data(), (int)Sockets.size(), (int)Timeout) <= 0)
+			if (!Sockets4.empty() && Driver::Poll(Sockets4.data(), (int)Sockets4.size(), (int)Timeout) > 0)
 			{
-				TH_PPOP();
-				return nullptr;
-			}
-
-			for (auto& Fd : Sockets)
-			{
-				if (Fd.revents & POLLOUT)
+				for (auto& Fd : Sockets4)
 				{
-					auto It = Hosts.find(Fd.fd);
-					if (It != Hosts.end())
+					if (Fd.revents & POLLOUT)
 					{
-						TH_PPOP();
-						return It->second;
+						auto It = Hosts.find(Fd.fd);
+						if (It != Hosts.end())
+						{
+							TH_PPOP();
+							return It->second;
+						}
+					}
+				}
+			}
+
+			if (!Sockets6.empty() && Driver::Poll(Sockets6.data(), (int)Sockets6.size(), (int)Timeout) > 0)
+			{
+				for (auto& Fd : Sockets6)
+				{
+					if (Fd.revents & POLLOUT)
+					{
+						auto It = Hosts.find(Fd.fd);
+						if (It != Hosts.end())
+						{
+							TH_PPOP();
+							return It->second;
+						}
 					}
 				}
 			}
 
 			TH_PPOP();
 			return nullptr;
+		}
+		static void* GetAddressStorage(struct sockaddr* Info)
+		{
+			if (Info->sa_family == AF_INET)
+				return &(((struct sockaddr_in*)Info)->sin_addr);
+
+			return &(((struct sockaddr_in6*)Info)->sin6_addr);
 		}
 
 		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(0)
@@ -348,7 +371,7 @@ namespace Tomahawk
 		}
 		int Socket::Open(const std::string& Host, const std::string& Port, DNSType DNS, Address** Result)
 		{
-			return Open(Host, Port, SocketProtocol::Auto, SocketType::Stream, DNS, Result);
+			return Open(Host, Port, SocketProtocol::TCP, SocketType::Stream, DNS, Result);
 		}
 		int Socket::Open(addrinfo* Good)
 		{
@@ -1202,7 +1225,7 @@ namespace Tomahawk
 
 			return std::string();
 		}
-		std::string Socket::LocalIpAddress()
+		std::string Socket::GetLocalAddress()
 		{
 			char Buffer[1024];
 			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
@@ -1233,6 +1256,18 @@ namespace Tomahawk
 				return "127.0.0.1";
 
 			return Result;
+		}
+		std::string Socket::GetAddress(addrinfo* Info)
+		{
+			char Buffer[INET6_ADDRSTRLEN];
+			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
+			return Buffer;
+		}
+		std::string Socket::GetAddress(sockaddr* Info)
+		{
+			char Buffer[INET6_ADDRSTRLEN];
+			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
+			return Buffer;
 		}
 		int64_t Socket::GetAsyncTimeout()
 		{
@@ -1754,10 +1789,8 @@ namespace Tomahawk
 					Hints.ai_protocol = IPPROTO_RAW;
 					XProto = "raw";
 					break;
-				case SocketProtocol::Auto:
 				default:
-					Hints.ai_protocol = 0;
-					XProto = "auto";
+					XProto = "none";
 					break;
 			}
 
@@ -1850,7 +1883,7 @@ namespace Tomahawk
 			Result->Addresses = Addresses;
 			Result->Good = Good;
 
-			TH_TRACE("[net] dns resolved for identity %s", Identity.c_str());
+			TH_TRACE("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Socket::GetAddress(Good).c_str());
 			Exclusive.lock();
 			{
 				auto It = Names.find(Identity);

@@ -1299,7 +1299,7 @@ namespace Tomahawk
 			void* Server::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::string N = Network::Socket::LocalIpAddress();
+				std::string N = Network::Socket::GetLocalAddress();
 				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
 				auto* Router = TH_NEW(Network::HTTP::MapRouter);

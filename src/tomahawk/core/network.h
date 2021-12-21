@@ -11,6 +11,7 @@ struct epoll_event;
 struct ssl_ctx_st;
 struct ssl_st;
 struct addrinfo;
+struct sockaddr;
 struct pollfd;
 
 namespace Tomahawk
@@ -56,8 +57,7 @@ namespace Tomahawk
 			ICMP,
 			TCP,
 			UDP,
-			RAW,
-			Auto
+			RAW
 		};
 
 		enum class SocketType
@@ -204,7 +204,9 @@ namespace Tomahawk
 			}
 
 		public:
-			static std::string LocalIpAddress();
+			static std::string GetLocalAddress();
+			static std::string GetAddress(addrinfo* Info);
+			static std::string GetAddress(sockaddr* Info);
 		};
 
 		struct TH_OUT Host

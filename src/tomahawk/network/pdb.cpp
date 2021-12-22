@@ -1485,6 +1485,11 @@ namespace Tomahawk
 					Listeners[Name] = NewCallback;
 				Update.unlock();
 			}
+			void Cluster::SetChannels(const std::vector<std::string>& Names, const OnNotification& NewCallback)
+			{
+				for (auto& Item : Names)
+					SetChannel(Item, NewCallback);
+			}
 			Core::Async<uint64_t> Cluster::TxBegin()
 			{
 				return TxBegin("BEGIN");

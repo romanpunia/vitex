@@ -427,6 +427,7 @@ namespace Tomahawk
 				Cluster();
 				virtual ~Cluster() override;
 				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
+				void SetChannels(const std::vector<std::string>& Names, const OnNotification& NewCallback);
 				Core::Async<uint64_t> TxBegin();
 				Core::Async<uint64_t> TxBegin(const std::string& Command);
 				Core::Async<bool> TxEnd(const std::string& Command, uint64_t Token);

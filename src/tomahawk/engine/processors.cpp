@@ -1347,7 +1347,7 @@ namespace Tomahawk
 					if (!NMake::Unpack(Config->Find("enable-no-delay"), &Router->EnableNoDelay))
 						Router->EnableNoDelay = false;
 				}
-				Core::Parser(&Router->ModuleRoot).Path(N, D);
+				Core::Parser(&Router->ModuleRoot).Eval(N, D);
 
 				std::vector<Core::Document*> Certificates = Document->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
@@ -1356,7 +1356,7 @@ namespace Tomahawk
 					if (!NMake::Unpack(It, &Name))
 						Name = "*";
 
-					Network::SocketCertificate* Cert = &Router->Certificates[Core::Parser(&Name).Path(N, D).R()];
+					Network::SocketCertificate* Cert = &Router->Certificates[Core::Parser(&Name).Eval(N, D).R()];
 					if (NMake::Unpack(It->Find("protocol"), &Name))
 					{
 						if (!strcmp(Name.c_str(), "SSL_V2"))
@@ -1386,8 +1386,8 @@ namespace Tomahawk
 					if (!NMake::Unpack(It->Find("chain"), &Cert->Chain))
 						Cert->Chain.clear();
 
-					Core::Parser(&Cert->Key).Path(N, D).R();
-					Core::Parser(&Cert->Chain).Path(N, D).R();
+					Core::Parser(&Cert->Key).Eval(N, D).R();
+					Core::Parser(&Cert->Chain).Eval(N, D).R();
 				}
 
 				std::vector<Core::Document*> Listeners = Document->FindCollection("listen", true);
@@ -1397,11 +1397,11 @@ namespace Tomahawk
 					if (!NMake::Unpack(It, &Name))
 						Name = "*";
 
-					Network::Host* Host = &Router->Listeners[Core::Parser(&Name).Path(N, D).R()];
+					Network::Host* Host = &Router->Listeners[Core::Parser(&Name).Eval(N, D).R()];
 					if (!NMake::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = N;
 
-					Core::Parser(&Host->Hostname).Path(N, D).R();
+					Core::Parser(&Host->Hostname).Eval(N, D).R();
 					if (!NMake::Unpack(It->Find("port"), &Host->Port))
 						Host->Port = 80;
 
@@ -1415,7 +1415,7 @@ namespace Tomahawk
 					std::string Name = "*";
 					NMake::Unpack(It, &Name);
 
-					Network::HTTP::SiteEntry* Site = Router->Site(Core::Parser(&Name).Path(N, D).Get());
+					Network::HTTP::SiteEntry* Site = Router->Site(Core::Parser(&Name).Eval(N, D).Get());
 					if (Site == nullptr)
 						continue;
 
@@ -1459,8 +1459,8 @@ namespace Tomahawk
 						Site->MaxResources = 5;
 
 					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
-					Core::Parser(&Site->Gateway.Session.DocumentRoot).Path(N, D);
-					Core::Parser(&Site->ResourceRoot).Path(N, D);
+					Core::Parser(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
+					Core::Parser(&Site->ResourceRoot).Eval(N, D);
 
 					std::vector<Core::Document*> Groups = It->FindCollection("group", true);
 					for (auto&& Subgroup : Groups)
@@ -1643,7 +1643,7 @@ namespace Tomahawk
 								Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
 							if (NMake::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
-								Core::Parser(&Route->DocumentRoot).Path(N, D);
+								Core::Parser(&Route->DocumentRoot).Eval(N, D);
 
 							NMake::Unpack(Base->Find("override"), &Route->Override);
 							NMake::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);

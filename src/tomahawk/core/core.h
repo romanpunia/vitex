@@ -695,7 +695,7 @@ namespace Tomahawk
 			Parser& Erase(uint64_t Position);
 			Parser& Erase(uint64_t Position, uint64_t Count);
 			Parser& EraseOffsets(uint64_t Start, uint64_t End);
-			Parser& Path(const std::string& Net, const std::string& Dir);
+			Parser& Eval(const std::string& Net, const std::string& Dir);
 			Parser::Settle ReverseFind(const std::string& Needle, uint64_t Offset = 0U) const;
 			Parser::Settle ReverseFind(const char* Needle, uint64_t Offset = 0U) const;
 			Parser::Settle ReverseFind(const char& Needle, uint64_t Offset = 0U) const;

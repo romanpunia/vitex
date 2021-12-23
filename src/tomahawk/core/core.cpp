@@ -3426,13 +3426,27 @@ namespace Tomahawk
 		{
 			return Erase(Start, End - Start);
 		}
-		Parser& Parser::Path(const std::string& Net, const std::string& Dir)
+		Parser& Parser::Eval(const std::string& Net, const std::string& Dir)
 		{
+			if (L->empty())
+				return *this;
+
 			if (StartsOf("./\\"))
 			{
 				std::string Result = Core::OS::Path::Resolve(L->c_str(), Dir);
 				if (!Result.empty())
 					Assign(Result);
+			}
+			else if (L->front() == '$' && L->size() > 1)
+			{
+				const char* Env = std::getenv(L->c_str() + 1);
+				if (!Env)
+				{
+					TH_WARN("[env] cannot resolve environmental variable\n\t%s", L->c_str() + 1);
+					L->clear();
+				}
+				else
+					L->assign(Env);
 			}
 			else
 				Replace("[subnet]", Net);

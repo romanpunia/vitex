@@ -2162,34 +2162,38 @@ namespace Tomahawk
 				return State->Get();
 			}
 		};
-
-		template <typename T>
 #ifdef _DEBUG
+		template <typename T>
 		inline T&& Coawait(Async<T>&& Future, const char* File = nullptr, const char* Function = nullptr, const char* Expression = nullptr, int Line = 0) noexcept
-#else
-		inline T&& Coawait(Async<T>&& Future) noexcept
-#endif
 		{
 			Costate* State; Coroutine* Base;
 			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
 				return Future.Get();
-#ifdef _DEBUG
-			if (File && Function && Expression && Line >= 0)
-				OS::SpecPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
-#endif
-			Future.Await([State, Base](T&&)
-			{
-				State->Activate(Base);
-			});
 
+			Future.Await([State, Base](T&&) { State->Activate(Base); });
 			if (Future.IsPending())
 				State->Deactivate(Base);
-#ifdef _DEBUG
+
 			if (File && Function && Expression && Line >= 0)
 				OS::SpecPop((void*)&Future);
-#endif
+
 			return Future.GetIfAny();
 		}
+#else
+		template <typename T>
+		inline T&& Coawait(Async<T>&& Future) noexcept
+		{
+			Costate* State; Coroutine* Base;
+			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
+				return Future.Get();
+
+			Future.Await([State, Base](T&&) { State->Activate(Base); });
+			if (Future.IsPending())
+				State->Deactivate(Base);
+
+			return Future.GetIfAny();
+		}
+#endif
 		template <typename T>
 		inline Async<T> Coasync(const std::function<T()>& Callback) noexcept
 		{

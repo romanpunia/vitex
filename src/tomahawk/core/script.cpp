@@ -1,5 +1,4 @@
 #include "script.h"
-#include "../script/compiler/compiler.h"
 #include "../script/std-lib.h"
 #include "../script/core-lib.h"
 #include "../script/compute-lib.h"
@@ -7,6 +6,9 @@
 #include <inttypes.h>
 #include <iostream>
 #include <sstream>
+#ifndef ANGELSCRIPT_H 
+#include <angelscript.h>
+#endif
 
 namespace
 {
@@ -2368,7 +2370,7 @@ namespace Tomahawk
 			if (!Function)
 				return asNO_FUNCTION;
 
-			return Context->Execute(Function, std::move(OnArgs), std::move(OnResume));
+			return Context->TryExecute(Function, std::move(OnArgs), std::move(OnResume));
 		}
 		int VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
@@ -2400,7 +2402,7 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			int Result = Context->Execute(Function, std::move(OnArgs), std::move(OnResume));
+			int Result = Context->TryExecute(Function, std::move(OnArgs), std::move(OnResume));
 			Function->Release();
 
 			return Result;
@@ -2454,32 +2456,36 @@ namespace Tomahawk
 					Context->Release();
 			}
 		}
-		bool VMContext::ExecuteNotify(int State)
+		bool VMContext::Dequeue(bool Unroll, int Status)
 		{
-			if (Notify[1])
+			auto& OnResume = Notify[1] ? Notify[1] : Notify[0];
+			asEContextState State = (asEContextState)Status;
+			if ((!Unroll && Promises.empty() && !Queue.empty()) || (Unroll && !Queue.empty() && !Context->IsNested(nullptr)))
 			{
-				ExecuteResume(Notify[1], State);
-				return true;
-			}
-
-			if (Notify[0])
-			{
-				ExecuteResume(Notify[0], State);
-				return true;
-			}
-
-			return false;
-		}
-		void VMContext::ExecuteResume(const ResumeCallback& OnResume, int fState)
-		{
-			asEContextState State = (asEContextState)fState;
-			if (Promises.empty() && !Queue.empty())
-			{
-				OnResume(this, VMPoll::Routine);
+				if (OnResume)
+					OnResume(this, VMPoll::Routine);
+				
 				if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
-					ExecuteNext();
+				{
+					Exchange.lock();
+					if (!Queue.empty())
+					{
+						Executable Next = std::move(Queue.front());
+						Queue.pop();
+						Exchange.unlock();
+
+						TryExecute(Next.Function, std::move(Next.Args), std::move(Next.Notify));
+						Next.Function.Release();
+					}
+					else
+						Exchange.unlock();
+				}
 			}
-			else if (!Promises.empty())
+			
+			if (!OnResume)
+				return Unroll;
+
+			if (!Promises.empty())
 				OnResume(this, VMPoll::Continue);
 			else if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
 				OnResume(this, VMPoll::Finish);
@@ -2489,23 +2495,25 @@ namespace Tomahawk
 				OnResume(this, IsThrown() ? VMPoll::Exception : VMPoll::Finish);
 			else
 				OnResume(this, VMPoll::Continue);
+
+			return true;
 		}
-		void VMContext::ExecuteNext()
+		bool VMContext::Enqueue(int Status, const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
-			TH_ASSERT_V(Context != nullptr, "context should be set");
-			if (Queue.empty() || Context->IsNested(nullptr))
-				return;
+			asEContextState State = (asEContextState)Status;
+			if (Promises.empty() && State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
+				return false;
+			
+			Executable Next;
+			Next.Notify = std::move(OnResume);
+			Next.Args = std::move(OnArgs);
+			Next.Function = Function;
+			Next.Function.AddRef();
 
 			Exchange.lock();
-			if (Queue.empty())
-				return Exchange.unlock();
-
-			Executable Next = std::move(Queue.front());
-			Queue.pop();
+			Queue.push(std::move(Next));
 			Exchange.unlock();
-
-			Execute(Next.Function, std::move(Next.Args), std::move(Next.Notify));
-			Next.Function.Release();
+			return true;
 		}
 		void VMContext::PromiseAwake(STDPromise* Base)
 		{
@@ -2567,25 +2575,14 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Unprepare();
 		}
-		int VMContext::Execute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		int VMContext::TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
 			asEContextState State = Context->GetState();
-			if (!Promises.empty() || State == asEXECUTION_ACTIVE || State == asEXECUTION_SUSPENDED)
-			{
-				Executable Next;
-				Next.Notify = std::move(OnResume);
-				Next.Args = std::move(OnArgs);
-				Next.Function = Function;
-				Next.Function.AddRef();
-
-				Exchange.lock();
-				Queue.push(std::move(Next));
-				Exchange.unlock();
+			if (Enqueue((int)State, Function, std::move(OnArgs), std::move(OnResume)))
 				return asCONTEXT_ACTIVE;
-			}
 
 			bool Nested = Context->IsNested(nullptr);
 			if (Nested)
@@ -2616,7 +2613,7 @@ namespace Tomahawk
 			asEContextState State = Context->GetState();
 			if (State != asEXECUTION_SUSPENDED && State != asEXECUTION_PREPARED)
 			{
-				if (State != asEXECUTION_ACTIVE && Resumable && ExecuteNotify(State))
+				if (State != asEXECUTION_ACTIVE && Resumable && Dequeue(false, State))
 					return State;
 
 				return asEXECUTION_ACTIVE;
@@ -2629,11 +2626,10 @@ namespace Tomahawk
 				Nests--;
 			}
 
-			if (Resumable && ExecuteNotify(State))
+			if (Resumable && Dequeue(false, State))
 				return State;
-
-			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
-				ExecuteNext();
+			else
+				Dequeue(false, State);
 
 			return State;
 		}
@@ -3041,7 +3037,7 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports((uint32_t)VMImport::All), Nullable(0), JIT(nullptr), Cached(true)
+		VMManager::VMManager() : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports((uint32_t)VMImport::All), Cached(true)
 		{
 			asSetGlobalMemoryFunctions(Tomahawk::Core::Mem::Malloc, Tomahawk::Core::Mem::Free);
 			Include.Exts.push_back(".as");
@@ -3054,12 +3050,6 @@ namespace Tomahawk
 			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
-
-			if (Engine->RegisterObjectType("Nullable", 0, asOBJ_REF | asOBJ_NOCOUNT) >= 0)
-			{
-				Engine->RegisterGlobalFunction("Nullable@ get_nullptr() property", asFUNCTION(VMManager::GetNullable), asCALL_CDECL);
-				Nullable = Engine->GetTypeIdByDecl("Nullable@");
-			}
 
 			if (Engine->RegisterObjectType("Address", 0, asOBJ_REF | asOBJ_NOCOUNT) < 0)
 				TH_ERR("could not register Address type for script engine");
@@ -3076,30 +3066,11 @@ namespace Tomahawk
 
 			if (Engine != nullptr)
 				Engine->ShutDownAndRelease();
-#ifdef HAS_AS_JIT
-			VMCJITCompiler* CJit = (VMCJITCompiler*)JIT;
-			TH_DELETE(VMCJITCompiler, CJit);
-#endif
-			JIT = nullptr;
 			ClearCache();
 		}
 		void VMManager::SetImports(unsigned int Opts)
 		{
 			Imports = Opts;
-		}
-		void VMManager::SetJIT(unsigned int JITOpts)
-		{
-#ifdef HAS_AS_JIT
-			if (!JIT)
-				Engine->SetEngineProperty(asEP_INCLUDE_JIT_INSTRUCTIONS, 1);
-
-			VMCJITCompiler* CJit = (VMCJITCompiler*)JIT;
-			TH_DELETE(VMCJITCompiler, CJit);
-			JIT = TH_NEW(VMCJITCompiler, JITOpts);
-			Engine->SetJITCompiler((VMCJITCompiler*)JIT);
-#else
-			TH_ERR("JIT compiler is not supported on this platform");
-#endif
 		}
 		void VMManager::SetCache(bool Enabled)
 		{
@@ -3756,7 +3727,7 @@ namespace Tomahawk
 		}
 		bool VMManager::IsNullable(int TypeId)
 		{
-			return TypeId == 0 || TypeId == Nullable;
+			return TypeId == 0;
 		}
 		bool VMManager::AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback)
 		{

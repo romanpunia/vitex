@@ -4042,7 +4042,7 @@ namespace Tomahawk
 					return (int)Script::VMResult::INVALID_ARG;
 
 				Safe.lock();
-				int Result = Compiler->GetContext()->Execute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				int Result = Compiler->GetContext()->TryExecute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
 				{
 					this->Protect();
 					if (OnArgs)

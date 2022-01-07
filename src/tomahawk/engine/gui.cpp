@@ -606,7 +606,7 @@ namespace Tomahawk
 
 					Scope->Basis->AddRef();
 					Script::VMContext* Context = Compiler->GetContext();
-					Context->Execute(Main, [Main, Scope](Script::VMContext* Context)
+					Context->TryExecute(Main, [Main, Scope](Script::VMContext* Context)
 					{
 						if (Main.GetArgsCount() == 1)
 							Context->SetArgObject(0, Scope->Basis);
@@ -662,7 +662,7 @@ namespace Tomahawk
 
 					Scope->Basis->AddRef();
 					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->Execute(Function, [Ptr](Script::VMContext* Context)
+					Context->TryExecute(Function, [Ptr](Script::VMContext* Context)
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);

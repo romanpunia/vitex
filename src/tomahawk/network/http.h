@@ -283,8 +283,10 @@ namespace Tomahawk
 				bool IsFinished();
 
 			private:
-				void SendNext();
-				bool EnqueueNext(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				void Finalize();
+				void Dequeue();
+				bool Enqueue(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				bool IsIgnore();
 			};
 
 			struct TH_OUT GatewayFrame

@@ -110,7 +110,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				Section.lock();
-				if (EnqueueNext(Mask, Buffer, Size, Opcode, Callback))
+				if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
 					return Section.unlock();
 				Section.unlock();
 
@@ -157,9 +157,12 @@ namespace Tomahawk
 							{
 								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
+									bool Ignore = IsIgnore();
 									if (Callback)
 										Callback(this);
-									SendNext();
+
+									if (!Ignore)
+										Dequeue();
 								}
 								else if (Packet::IsError(Event))
 								{
@@ -174,9 +177,12 @@ namespace Tomahawk
 						}
 						else
 						{
+							bool Ignore = IsIgnore();
 							if (Callback)
 								Callback(this);
-							SendNext();
+
+							if (!Ignore)
+								Dequeue();
 						}
 					}
 					else if (Packet::IsError(Event))
@@ -190,13 +196,16 @@ namespace Tomahawk
 					}
 					else if (Packet::IsSkip(Event))
 					{
+						bool Ignore = IsIgnore();
 						if (Callback)
 							Callback(this);
-						SendNext();
+
+						if (!Ignore)
+							Dequeue();
 					}
 				});
 			}
-			void WebSocketFrame::SendNext()
+			void WebSocketFrame::Dequeue()
 			{
 				Section.lock();
 				if (Stream->HasOutcomingData() || Messages.empty())
@@ -214,11 +223,16 @@ namespace Tomahawk
 				if (Reset || State == (uint32_t)WebSocketState::Close)
 					return Next();
 
-				State = (uint32_t)WebSocketState::Close;
+				Finalize();
 				Send("", 0, WebSocketOp::Close, [this](WebSocketFrame*)
 				{
 					Next();
 				});
+			}
+			void WebSocketFrame::Finalize()
+			{
+				if (!Reset)
+					State = (uint32_t)WebSocketState::Close;
 			}
 			void WebSocketFrame::Next()
 			{
@@ -228,7 +242,7 @@ namespace Tomahawk
 				{
 					if (E.Dead && E.Dead(this))
 					{
-						State = (uint32_t)WebSocketState::Close;
+						Finalize();
 						goto Retry;
 					}
 
@@ -260,7 +274,7 @@ namespace Tomahawk
 
 						if (Size == -1)
 						{
-							State = (uint32_t)WebSocketState::Close;
+							Finalize();
 							goto Retry;
 						}
 						else if (Size == -2)
@@ -325,6 +339,7 @@ namespace Tomahawk
 				}
 				else if (State == (uint32_t)WebSocketState::Close)
 				{
+					Reset = true;
 					if (!Disconnect)
 					{
 						Active = false;
@@ -366,7 +381,11 @@ namespace Tomahawk
 			{
 				return !Active;
 			}
-			bool WebSocketFrame::EnqueueNext(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
+			bool WebSocketFrame::IsIgnore()
+			{
+				return Reset || State == (uint32_t)WebSocketState::Close;
+			}
+			bool WebSocketFrame::Enqueue(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
 				if (!Stream->HasOutcomingData())
 					return false;
@@ -434,7 +453,7 @@ namespace Tomahawk
 
 				Script::VMContext* Context = Compiler->GetContext();
 				Context->SetOnResume(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1, std::placeholders::_2));
-				Context->Execute(Entry, nullptr, nullptr);
+				Context->TryExecute(Entry, nullptr, nullptr);
 
 				return true;
 			}

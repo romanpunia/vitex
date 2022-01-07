@@ -141,7 +141,7 @@ namespace Tomahawk
 				}
 
 				STDArray* Data = STDArray::Compose(Type.GetTypeInfo(), Args);
-				Context->Execute(Callback, [Ptr, &Data](VMContext* Context)
+				Context->TryExecute(Callback, [Ptr, &Data](VMContext* Context)
 				{
 					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);
@@ -211,7 +211,7 @@ namespace Tomahawk
 					Ptr->SetPhase(Event.GetPhase());
 				}
 
-				Context->Execute(Source, [Ptr](VMContext* Context)
+				Context->TryExecute(Source, [Ptr](VMContext* Context)
 				{
 					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);

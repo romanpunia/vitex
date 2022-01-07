@@ -208,7 +208,7 @@ namespace Tomahawk
 
 			return Base->SetTimeout(MS, [Context, Callback]() mutable
 			{
-				Context->Execute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
+				Context->TryExecute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
 				{
 					if (State == VMPoll::Continue)
 						return;
@@ -232,7 +232,7 @@ namespace Tomahawk
 
 			return Base->SetTask([Context, Callback]() mutable
 			{
-				Context->Execute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
+				Context->TryExecute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
 				{
 					if (State == VMPoll::Continue)
 						return;

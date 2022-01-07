@@ -1638,7 +1638,7 @@ namespace Tomahawk
 			int SetOnResume(const ResumeCallback& OnResume);
 			int Prepare(const VMFunction& Function);
 			int Unprepare();
-			int Execute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
+			int TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
 			int Execute(bool Notify = true);
 			int Abort();
 			int Suspend();
@@ -1707,9 +1707,8 @@ namespace Tomahawk
 			}
 
 		private:
-			bool ExecuteNotify(int State);
-			void ExecuteResume(const ResumeCallback& OnResume, int State);
-			void ExecuteNext();
+			bool Dequeue(bool Unroll, int Status);
+			bool Enqueue(int Status, const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
 			void PromiseAwake(STDPromise* Base);
 			void PromiseSuspend(STDPromise* Base);
 			void PromiseResume(STDPromise* Base);
@@ -1762,15 +1761,12 @@ namespace Tomahawk
 			VMCManager* Engine;
 			VMGlobal Globals;
 			unsigned int Imports;
-			int Nullable;
-			void* JIT;
 			bool Cached;
 
 		public:
 			VMManager();
 			~VMManager();
 			void SetImports(unsigned int Opts);
-			void SetJIT(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void ClearCache();
 			void Lock();

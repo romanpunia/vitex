@@ -4149,7 +4149,7 @@ namespace Tomahawk
 			}
 
 			Mutex.unlock();
-			Context->Execute(Function, [this](Script::VMContext* Context)
+			Context->TryExecute(Function, [this](Script::VMContext* Context)
 			{
 				Context->SetArgObject(0, this);
 				Context->SetUserData(this, ContextUD);

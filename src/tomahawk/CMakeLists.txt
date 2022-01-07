@@ -63,6 +63,21 @@ if (WIN32)
 			-DTH_WITH_WEPOLL)
 endif()
 
+#Resolve headers for FContext
+target_include_directories(tomahawk PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/fcontext)
+if (TH_WITH_FCTX)
+	target_compile_definitions(tomahawk PRIVATE
+			-DBOOST_CONTEXT_EXPORT
+			-DTH_WITH_FCTX)
+	if (MSVC)
+		set_source_files_properties(
+			${FCTX_SOURCE_ASSEMBLY}
+			PROPERTIES
+			COMPILE_FLAGS "/safeseh")
+	endif()
+	unset(FCTX_SOURCE_ASSEMBLY)
+endif()
+
 #Resolve headers and compile options for AngelScript
 target_include_directories(tomahawk PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/angelscript/include)
 target_include_directories(tomahawk PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/angelscript/source)

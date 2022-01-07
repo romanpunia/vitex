@@ -25,12 +25,12 @@
 #else
 #define TH_OUT __declspec(dllexport)
 #endif
-#define TH_MICROSOFT
+#define TH_MICROSOFT 1
 #define TH_FUNCTION __FUNCTION__
 #ifdef _WIN64
-#define TH_64
+#define TH_64 1
 #else
-#define TH_32
+#define TH_32 1
 #endif
 #define TH_MAX_PATH MAX_PATH
 #define TH_STRINGIFY(X) #X
@@ -41,7 +41,7 @@
 #undef TH_UNIX
 #elif defined __linux__ && defined __GNUC__
 #define TH_OUT
-#define TH_UNIX
+#define TH_UNIX 1
 #define TH_MAX_PATH _POSIX_PATH_MAX
 #define TH_STRINGIFY(X) #X
 #define TH_FUNCTION __FUNCTION__
@@ -50,25 +50,25 @@
 #define TH_LINE __LINE__
 #undef TH_MICROSOFT
 #if __x86_64__ || __ppc64__
-#define TH_64
+#define TH_64 1
 #else
-#define TH_32
+#define TH_32 1
 #endif
 #elif __APPLE__
 #define TH_OUT
-#define TH_UNIX
+#define TH_UNIX 1
 #define TH_MAX_PATH _POSIX_PATH_MAX
 #define TH_STRINGIFY(X) #X
 #define TH_FUNCTION __FUNCTION__
 #define TH_CDECL
 #define TH_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #define TH_LINE __LINE__
-#define TH_APPLE
+#define TH_APPLE 1
 #undef TH_MICROSOFT
 #if __x86_64__ || __ppc64__
-#define TH_64
+#define TH_64 1
 #else
-#define TH_32
+#define TH_32 1
 #endif
 #endif
 #ifndef TH_MICROSOFT
@@ -78,8 +78,13 @@
 #undef max
 #endif
 #ifdef TH_MICROSOFT
+#ifdef TH_WITH_FCTX
+#define TH_COCALL
+#define TH_CODATA void* Context
+#else
 #define TH_COCALL __stdcall
 #define TH_CODATA void* Context
+#endif
 #define TH_FILENO _fileno
 #ifdef TH_64
 typedef uint64_t socket_t;
@@ -89,11 +94,16 @@ typedef int socket_t;
 typedef int socket_size_t;
 typedef void* epoll_handle;
 #else
+#ifdef TH_WITH_FCTX
+#define TH_COCALL
+#define TH_CODATA void* Context
+#else
 #define TH_COCALL
 #ifdef TH_64
 #define TH_CODATA int X, int Y
 #else
 #define TH_CODATA int X
+#endif
 #endif
 #define TH_FILENO fileno
 #include <sys/socket.h>
@@ -335,7 +345,7 @@ namespace Tomahawk
 		private:
 			std::atomic<Coactive> State;
 			TaskCallback Callback;
-			Cocontext* Switch;
+			Cocontext* Slave;
 			Costate* Master;
 			bool Dead;
 
@@ -1325,7 +1335,7 @@ namespace Tomahawk
 			std::condition_variable* Waitable;
 			std::thread::id Thread;
 			Coroutine* Current;
-			Cocontext* Switch;
+			Cocontext* Master;
 			std::mutex Safe;
 			size_t Size;
 
@@ -1364,8 +1374,8 @@ namespace Tomahawk
 			static bool GetState(Costate** State, Coroutine** Routine);
 			static bool IsCoroutine();
 
-		private:
-			static void TH_COCALL Execute(TH_CODATA);
+		public:
+			static void TH_COCALL ExecutionEntry(TH_CODATA);
 		};
 
 		class TH_OUT Schedule : public Object

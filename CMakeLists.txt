@@ -39,6 +39,7 @@ include(src/supplies/wepoll/CMakeLists.txt)
 include(src/supplies/vcl/CMakeLists.txt)
 include(src/supplies/backward/CMakeLists.txt)
 include(src/supplies/cqueue/CMakeLists.txt)
+include(src/supplies/fcontext/CMakeLists.txt)
 
 #Group sources from previous stage
 foreach(ITEM IN ITEMS ${SOURCE})

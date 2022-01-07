@@ -46,15 +46,15 @@ if (WIN32)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	target_link_libraries(tomahawk PUBLIC
 		${CMAKE_DL_LIBS}
-		pthread)
+                pthread)
 endif()
 
 #ASM support for script compiler
-if (NOT MSVC)
-	enable_language(ASM)
-	set(CMAKE_ASM_FLAGS "${CFLAGS} -x assembler-with-cpp")
-elseif (CMAKE_SIZEOF_VOID_P EQUAL 8)
-	enable_language(ASM_MASM)
+if (MSVC)
+        enable_language(ASM_MASM)
+else()
+        enable_language(ASM)
+        set(CMAKE_ASM_FLAGS "${CFLAGS} -x assembler-with-cpp")
 endif()
 
 #Installation target

@@ -14,6 +14,9 @@
 #include <tinyfiledialogs.h>
 #include <concurrentqueue.h>
 #include <backward.hpp>
+#ifdef TH_WITH_FCTX
+#include <fcontext.h>
+#endif
 #ifdef TH_MICROSOFT
 #include <Windows.h>
 #include <io.h>
@@ -34,7 +37,9 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#ifndef TH_WITH_FCTX
 #include <ucontext.h>
+#endif
 #endif
 #ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
@@ -277,14 +282,14 @@ namespace
 	{
 		switch (Data.size())
 		{
-			case sizeof(uint16_t):
+			case sizeof(uint16_t) :
 				return SysDecompose<uint16_t>(Data);
-			case sizeof(uint32_t):
-				return SysDecompose<uint32_t>(Data);
-			case sizeof(uint64_t):
-				return SysDecompose<uint64_t>(Data);
-			default:
-				return {};
+				case sizeof(uint32_t) :
+					return SysDecompose<uint32_t>(Data);
+					case sizeof(uint64_t) :
+						return SysDecompose<uint64_t>(Data);
+					default:
+						return {};
 		}
 	}
 #else
@@ -321,62 +326,63 @@ namespace Tomahawk
 	{
 		typedef moodycamel::ConcurrentQueue<TaskCallback*> TQueue;
 		typedef moodycamel::ConsumerToken CToken;
-
+#ifdef TH_WITH_FCTX
 		struct Cocontext
 		{
-#ifndef TH_MICROSOFT
-			ucontext_t Context;
+			fcontext_t Context;
 			char* Stack = nullptr;
-#else
-			LPVOID Context = nullptr;
-#endif
-			bool Swapchain;
 
-			Cocontext(bool Swap) :
-#ifdef TH_MICROSOFT
-				Context(nullptr), Swapchain(Swap)
-#else
-				Stack(nullptr), Swapchain(Swap)
-#endif
+			Cocontext() : Stack(nullptr)
 			{
-#ifdef TH_MICROSOFT
-				if (Swapchain)
-					Context = ConvertThreadToFiber(nullptr);
-#endif
 			}
 			~Cocontext()
 			{
-#ifdef TH_MICROSOFT
-				if (Swapchain)
-				{
-					ConvertFiberToThread();
-					return;
-				}
+				TH_FREE(Stack);
+				Stack = nullptr;
+			}
+		};
+#elif TH_MICROSOFT
+		struct Cocontext
+		{
+			LPVOID Context = nullptr;
 
+			Cocontext() : Context(nullptr)
+			{
+			}
+			~Cocontext()
+			{
 				if (Context != nullptr)
 				{
 					DeleteFiber(Context);
 					Context = nullptr;
 				}
-#else
-				if (Swapchain)
-					return;
-
-				TH_FREE(Stack);
-				Stack = nullptr;
-#endif
 			}
 		};
+#else
+		struct Cocontext
+		{
+			ucontext_t Context;
+			char* Stack = nullptr;
 
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : State(Coactive::Active), Callback(Procedure), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
+			Cocontext() : Stack(nullptr)
+			{
+			}
+			~Cocontext()
+			{
+				TH_FREE(Stack);
+				Stack = nullptr;
+			}
+		};
+#endif
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : State(Coactive::Active), Callback(Procedure), Slave(TH_NEW(Cocontext)), Master(Base), Dead(false)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : State(Coactive::Active), Callback(std::move(Procedure)), Switch(TH_NEW(Cocontext, false)), Master(Base), Dead(false)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : State(Coactive::Active), Callback(std::move(Procedure)), Slave(TH_NEW(Cocontext)), Master(Base), Dead(false)
 		{
 		}
 		Coroutine::~Coroutine()
 		{
-			TH_DELETE(Cocontext, Switch);
+			TH_DELETE(Cocontext, Slave);
 		}
 
 		Decimal::Decimal() : Length(0), Sign('\0'), Invalid(true)
@@ -5794,7 +5800,7 @@ namespace Tomahawk
 		{
 			const uint16_t Value = 0xFF00;
 			const uint8_t Result = *static_cast<const uint8_t*>(static_cast<const void*>(&Value));
-			
+
 			return Result == 0xFF ? Endian::Big : Endian::Little;
 		}
 		uint64_t OS::CPU::GetFrequency() noexcept
@@ -7481,8 +7487,13 @@ namespace Tomahawk
 		}
 
 		static thread_local Costate* Cothread = nullptr;
-		Costate::Costate(size_t StackSize) : Waitable(nullptr), Thread(std::this_thread::get_id()), Current(nullptr), Switch(TH_NEW(Cocontext, true)), Size(StackSize)
+		Costate::Costate(size_t StackSize) : Waitable(nullptr), Thread(std::this_thread::get_id()), Current(nullptr), Master(TH_NEW(Cocontext)), Size(StackSize)
 		{
+#ifndef TH_WITH_FCTX
+#ifdef TH_MICROSOFT
+			Master->Context = ConvertThreadToFiber(nullptr);
+#endif
+#endif
 		}
 		Costate::~Costate()
 		{
@@ -7495,8 +7506,13 @@ namespace Tomahawk
 
 			for (auto& Routine : Used)
 				TH_DELETE(Coroutine, Routine);
-
-			TH_DELETE(Cocontext, Switch);
+#ifndef TH_WITH_FCTX
+#ifdef TH_MICROSOFT
+			Master->Context = nullptr;
+			ConvertFiberToThread();
+#endif
+#endif
+			TH_DELETE(Cocontext, Master);
 			Safe.unlock();
 		}
 		Coroutine* Costate::Pop(const TaskCallback& Procedure)
@@ -7587,44 +7603,42 @@ namespace Tomahawk
 			if (Routine->State == Coactive::Resumable)
 				Routine->State = Coactive::Active;
 
-			Cocontext* Fiber = Routine->Switch;
+			Cocontext* Fiber = Routine->Slave;
 			Current = Routine;
-#ifdef TH_MICROSOFT
+#ifdef TH_WITH_FCTX
+			if (Fiber->Stack == nullptr)
+			{
+				Fiber->Stack = (char*)TH_MALLOC(sizeof(char) * Size);
+				Fiber->Context = make_fcontext(Fiber->Stack + Size, Size, [](transfer_t Transfer)
+				{
+					Costate::ExecutionEntry(&Transfer);
+				});
+			}
+			Fiber->Context = jump_fcontext(Fiber->Context, (void*)this).fctx;
+#elif TH_MICROSOFT
 			if (Fiber->Context == nullptr)
+				Fiber->Context = CreateFiber(Size, ExecutionEntry, (LPVOID)this);
+			SwitchToFiber(Fiber->Context);
 #else
 			if (Fiber->Stack == nullptr)
-#endif
 			{
-#ifndef TH_MICROSOFT
 				getcontext(&Fiber->Context);
 				Fiber->Stack = (char*)TH_MALLOC(sizeof(char) * Size);
 				Fiber->Context.uc_stack.ss_sp = Fiber->Stack;
 				Fiber->Context.uc_stack.ss_size = Size;
 				Fiber->Context.uc_stack.ss_flags = 0;
-				Fiber->Context.uc_link = &Switch->Context;
+				Fiber->Context.uc_link = &Master->Context;
 #ifdef TH_64
 				int X, Y;
 				Pack2_64((void*)this, &X, &Y);
-				makecontext(&Fiber->Context, (void(*)())Execute, 2, X, Y);
+				makecontext(&Fiber->Context, (void(*)())ExecutionEntry, 2, X, Y);
 #else
 				int X = Pack1_32((void*)this);
-				makecontext(&Fiber->Context, (void(*)())Execute, 1, X);
-#endif
-				swapcontext(&Switch->Context, &Fiber->Context);
-#else
-				Fiber->Context = CreateFiber(Size, Execute, (LPVOID)this);
-				SwitchToFiber(Fiber->Context);
+				makecontext(&Fiber->Context, (void(*)())ExecutionEntry, 1, X);
 #endif
 			}
-			else
-			{
-#ifndef TH_MICROSOFT
-				swapcontext(&Switch->Context, &Fiber->Context);
-#else
-				SwitchToFiber(Fiber->Context);
+			swapcontext(&Master->Context, &Fiber->Context);
 #endif
-			}
-
 			return Routine->Dead ? -1 : 1;
 		}
 		int Costate::Push(Coroutine* Routine)
@@ -7737,17 +7751,20 @@ namespace Tomahawk
 			Coroutine* Routine = Current;
 			if (!Routine || Routine->Master != this)
 				return -1;
-#ifndef TH_MICROSOFT
+#ifdef TH_WITH_FCTX
+			Current = nullptr;
+			jump_fcontext(Master->Context, (void*)this);
+#elif TH_MICROSOFT
+			Current = nullptr;
+			SwitchToFiber(Master->Context);
+#else
 			char Bottom = 0;
-			char* Top = Routine->Switch->Stack + Size;
+			char* Top = Routine->Slave->Stack + Size;
 			if (size_t(Top - &Bottom) > Size)
 				return -1;
 
 			Current = nullptr;
-			swapcontext(&Routine->Switch->Context, &Switch->Context);
-#else
-			Current = nullptr;
-			SwitchToFiber(Switch->Context);
+			swapcontext(&Routine->Slave->Context, &Master->Context);
 #endif
 			return 1;
 		}
@@ -7802,16 +7819,20 @@ namespace Tomahawk
 		{
 			return Cothread ? Cothread->Current != nullptr : false;
 		}
-		void TH_COCALL Costate::Execute(TH_CODATA)
+		void TH_COCALL Costate::ExecutionEntry(TH_CODATA)
 		{
-#ifndef TH_MICROSOFT
+#ifdef TH_WITH_FCTX
+			transfer_t* Transfer = (transfer_t*)Context;
+			Costate* State = (Costate*)Transfer->data;
+			State->Master->Context = Transfer->fctx;
+#elif TH_MICROSOFT
+			Costate* State = (Costate*)Context;
+#else
 #ifdef TH_64
 			Costate* State = (Costate*)Unpack2_64(X, Y);
 #else
 			Costate* State = (Costate*)Unpack1_32(X);
 #endif
-#else
-			Costate* State = (Costate*)Context;
 #endif
 			Cothread = State;
 			TH_ASSERT_V(State != nullptr, "costate should be set");
@@ -7825,10 +7846,12 @@ namespace Tomahawk
 			}
 
 			State->Current = nullptr;
-#ifndef TH_MICROSOFT
-			swapcontext(&Routine->Switch->Context, &State->Switch->Context);
+#ifdef TH_WITH_FCTX
+			jump_fcontext(State->Master->Context, Context);
+#elif TH_MICROSOFT
+			SwitchToFiber(State->Master->Context);
 #else
-			SwitchToFiber(State->Switch->Context);
+			swapcontext(&Routine->Slave->Context, &State->Master->Context);
 #endif
 			if (Routine != nullptr && Routine->Callback)
 				goto Reuse;
@@ -9636,5 +9659,5 @@ namespace Tomahawk
 
 			return true;
 		}
-	}
+}
 }

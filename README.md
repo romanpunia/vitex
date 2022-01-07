@@ -18,7 +18,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Adjustable logging system
 + Dynamic libraries importer
 + Ref. counting (opt. with new/delete) for ownership management
-+ Coroutines via native fibers
++ Coroutines via native fibers (WinAPI/ucontext_t/fcontext_t)
 + Async/await promise-like object to handle chains of async data
 + Coasync/Coawait primitives to handle async functions like in JS
 + BigNumber for accuracy sensitive operations of any precision
@@ -241,6 +241,7 @@ These **will not** alter any interfaces
 These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
 + **TH_WITH_SIMD** will enable simd optimisations (processor-specific), defaults to false
++ **TH_WITH_FCTX** will enable fcontext library for coroutines, defaults to true if supported
 + **TH_WITH_BULLET3** will enable Bullet3 library and physics interfaces, defaults to true
 + **TH_WITH_RMLUI** will enable RmlUi library and gui interfaces, defaults to true
 
@@ -256,6 +257,7 @@ These **will** alter some interfaces like GUI and Compute
 * [vectorclass](https://github.com/vectorclass/version1)
 * [concurrentqueue](https://github.com/cameron314/concurrentqueue)
 * [backward-cpp](https://github.com/bombela/backward-cpp)
+* [fcontext](https://github.com/lichao2014/fcontext)
 
 ## Optional dependencies from **/lib**
 These are recommended to be installed, but are not required to.

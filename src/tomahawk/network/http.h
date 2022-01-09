@@ -443,7 +443,7 @@ namespace Tomahawk
 				} Callbacks;
 
 				std::vector<RouteGroup> Groups;
-				std::string ResourceRoot = "./files/";
+				std::string ResourceRoot;
 				uint64_t MaxResources = 5;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;

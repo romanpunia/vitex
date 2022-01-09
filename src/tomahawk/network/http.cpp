@@ -1307,6 +1307,12 @@ namespace Tomahawk
 					Parser->OnResourceEnd = Util::ParseMultipartResourceEnd;
 					Parser->UserPointer = Segment;
 
+					if (Route->Site->ResourceRoot.empty())
+					{
+						Response.Data = Content::Payload_Exceeded;
+						return false;
+					}
+
 					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Parser, Segment, Boundary](NetEvent Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
@@ -5448,17 +5454,12 @@ namespace Tomahawk
 			bool Server::OnConfigure(SocketRouter* NewRouter)
 			{
 				TH_ASSERT(NewRouter != nullptr, false, "router should be set");
-				std::unordered_set<std::string> Modules;
-				std::string Directory = Core::OS::Directory::Get();
-				auto* Root = (MapRouter*)NewRouter;
 
-				Root->ModuleRoot = Core::OS::Path::ResolveDirectory(Root->ModuleRoot.c_str());
+				auto* Root = (MapRouter*)NewRouter;
+				std::unordered_set<std::string> Modules;
 				for (auto& Site : Root->Sites)
 				{
 					auto* Entry = Site.second;
-					Entry->Gateway.Session.DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Gateway.Session.DocumentRoot.c_str());
-					Entry->ResourceRoot = Core::OS::Path::ResolveDirectory(Entry->ResourceRoot.c_str());
-					Entry->Base->DocumentRoot = Core::OS::Path::ResolveDirectory(Entry->Base->DocumentRoot.c_str());
 					Entry->Base->URI = Compute::RegexSource("/");
 					Entry->Base->Site = Entry;
 					Entry->Router = Root;
@@ -5472,21 +5473,13 @@ namespace Tomahawk
 					if (!Entry->Base->Override.empty())
 						Entry->Base->Override = Core::OS::Path::ResolveResource(Entry->Base->Override, Entry->Base->DocumentRoot);
 
-					for (auto& Item : Entry->Base->ErrorFiles)
-						Item.Pattern = Core::OS::Path::Resolve(Item.Pattern.c_str());
-
 					for (auto& Group : Entry->Groups)
 					{
 						for (auto* Route : Group.Routes)
 						{
-							Route->DocumentRoot = Core::OS::Path::ResolveDirectory(Route->DocumentRoot.c_str());
 							Route->Site = Entry;
-
 							if (!Route->Override.empty())
 								Route->Override = Core::OS::Path::ResolveResource(Route->Override, Route->DocumentRoot);
-
-							for (auto& File : Route->ErrorFiles)
-								File.Pattern = Core::OS::Path::Resolve(File.Pattern.c_str());
 
 							if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
 								continue;

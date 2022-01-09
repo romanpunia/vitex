@@ -1320,8 +1320,8 @@ namespace Tomahawk
 				Core::Document* Config = Document->Find("netstat");
 				if (Config != nullptr)
 				{
-					if (!NMake::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
-						Router->ModuleRoot.clear();
+					if (NMake::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
+						Core::Parser(&Router->ModuleRoot).Eval(N, D);
 
 					if (!NMake::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
 						Router->KeepAliveMaxCount = 10;
@@ -1347,7 +1347,6 @@ namespace Tomahawk
 					if (!NMake::Unpack(Config->Find("enable-no-delay"), &Router->EnableNoDelay))
 						Router->EnableNoDelay = false;
 				}
-				Core::Parser(&Router->ModuleRoot).Eval(N, D);
 
 				std::vector<Core::Document*> Certificates = Document->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
@@ -1440,8 +1439,8 @@ namespace Tomahawk
 					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.http-only"), &Site->Gateway.Session.Cookie.HttpOnly))
 						Site->Gateway.Session.Cookie.HttpOnly = true;
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
-						Site->Gateway.Session.DocumentRoot.clear();
+					if (NMake::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
+						Core::Parser(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
 
 					if (!NMake::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
 						Site->Gateway.Session.Expires = 604800;
@@ -1452,16 +1451,13 @@ namespace Tomahawk
 					if (!NMake::Unpack(It->Fetch("gateway.enabled"), &Site->Gateway.Enabled))
 						Site->Gateway.Enabled = false;
 
-					if (!NMake::Unpack(It->Find("resource-root"), &Site->ResourceRoot))
-						Site->ResourceRoot = "./files/";
+					if (NMake::Unpack(It->Find("resource-root"), &Site->ResourceRoot))
+						Core::Parser(&Site->ResourceRoot).Eval(N, D);
 
 					if (!NMake::Unpack(It->Find("max-resources"), &Site->MaxResources))
 						Site->MaxResources = 5;
 
 					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
-					Core::Parser(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
-					Core::Parser(&Site->ResourceRoot).Eval(N, D);
-
 					std::vector<Core::Document*> Groups = It->FindCollection("group", true);
 					for (auto&& Subgroup : Groups)
 					{
@@ -1559,9 +1555,9 @@ namespace Tomahawk
 
 							for (auto& File : CompressionFiles)
 							{
-								std::string Value;
-								if (NMake::Unpack(File, &Value))
-									Route->Compression.Files.emplace_back(Value, true);
+								std::string Pattern;
+								if (NMake::Unpack(File, &Pattern))
+									Route->Compression.Files.emplace_back(Pattern, true);
 							}
 
 							std::vector<Core::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
@@ -1570,9 +1566,9 @@ namespace Tomahawk
 
 							for (auto& File : HiddenFiles)
 							{
-								std::string Value;
-								if (NMake::Unpack(File, &Value))
-									Route->HiddenFiles.emplace_back(Value, true);
+								std::string Pattern;
+								if (NMake::Unpack(File, &Pattern))
+									Route->HiddenFiles.emplace_back(Pattern, true);
 							}
 
 							std::vector<Core::Document*> IndexFiles = Base->FetchCollection("index-files.index");
@@ -1581,9 +1577,9 @@ namespace Tomahawk
 
 							for (auto& File : IndexFiles)
 							{
-								std::string Value;
-								if (NMake::Unpack(File, &Value))
-									Route->IndexFiles.push_back(Value);
+								std::string Pattern;
+								if (NMake::Unpack(File, &Pattern))
+									Route->IndexFiles.push_back(Pattern);
 							}
 
 							std::vector<Core::Document*> ErrorFiles = Base->FetchCollection("error-files.error");
@@ -1592,10 +1588,12 @@ namespace Tomahawk
 
 							for (auto& File : ErrorFiles)
 							{
-								Network::HTTP::ErrorFile Pattern;
-								NMake::Unpack(File->Find("file"), &Pattern.Pattern);
-								NMake::Unpack(File->Find("status"), &Pattern.StatusCode);
-								Route->ErrorFiles.push_back(Pattern);
+								Network::HTTP::ErrorFile Source;
+								if (NMake::Unpack(File->Find("file"), &Source.Pattern))
+									Core::Parser(&Source.Pattern).Eval(N, D);
+
+								NMake::Unpack(File->Find("status"), &Source.StatusCode);
+								Route->ErrorFiles.push_back(Source);
 							}
 
 							std::vector<Core::Document*> MimeTypes = Base->FetchCollection("mime-types.file");

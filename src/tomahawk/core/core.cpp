@@ -8974,6 +8974,9 @@ namespace Tomahawk
 
 			for (auto&& Document : Base->Nodes)
 			{
+				if (Document->Value.GetType() == VarType::Undefined)
+					continue;
+
 				if (!Array)
 				{
 					Callback(VarForm::Write_Line, "", 0);

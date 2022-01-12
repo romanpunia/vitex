@@ -430,7 +430,7 @@ namespace Tomahawk
 							bool HttpOnly = true;
 						} Cookie;
 
-						std::string DocumentRoot = "./sessions/";
+						std::string DocumentRoot;
 						uint64_t Expires = 604800;
 					} Session;
 

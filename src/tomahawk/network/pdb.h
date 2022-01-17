@@ -183,7 +183,7 @@ namespace Tomahawk
 			{
 			public:
 				static std::string InlineArray(Cluster* Client, Core::Document* Array);
-				static std::string InlineQuery(Cluster* Client, Core::Document* Where, const std::string& Default = "TRUE");
+				static std::string InlineQuery(Cluster* Client, Core::Document* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default = "TRUE");
 			};
 
 			class TH_OUT Address
@@ -458,6 +458,7 @@ namespace Tomahawk
 					std::string Key;
 					size_t Offset = 0;
 					bool Escape = false;
+					bool Negate = false;
 				};
 
 				struct Sequence
@@ -489,7 +490,7 @@ namespace Tomahawk
 			private:
 				static std::string GetCharArray(TConnection* Base, const std::string& Src);
 				static std::string GetByteArray(TConnection* Base, const char* Src, size_t Size);
-				static std::string GetSQL(TConnection* Base, Core::Document* Source, bool Escape);
+				static std::string GetSQL(TConnection* Base, Core::Document* Source, bool Escape, bool Negate);
 			};
 		}
 	}

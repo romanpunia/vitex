@@ -3900,18 +3900,18 @@ namespace Tomahawk
 			auto F = Find('.');
 			if (F.Found)
 			{
-				auto D1 = Parser(L->c_str(), F.End);
+				auto D1 = Parser(L->c_str(), F.End - 1);
 				if (D1.Empty() || !D1.HasInteger())
 					return false;
 
-				auto D2 = Parser(L->c_str() + F.End + 1, L->size() - F.End);
+				auto D2 = Parser(L->c_str() + F.End + 1, L->size() - F.End - 1);
 				if (D2.Empty() || !D2.HasInteger())
 					return false;
 
-				return D1.Size() > 19 || D2.Size() > 15;
+				return D1.Size() >= 19 || D2.Size() > 6;
 			}
 
-			return HasInteger() && L->size() > 19;
+			return HasInteger() && L->size() >= 19;
 		}
 		bool Parser::ToBoolean() const
 		{
@@ -8962,7 +8962,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			size_t Size = Base->Nodes.size(), Offset = 0;
+			size_t Size = Base->Nodes.size();
 			bool Array = (Base->Value.Type == VarType::Array);
 
 			if (Base->Parent != nullptr)
@@ -8972,11 +8972,9 @@ namespace Tomahawk
 			Callback(VarForm::Dummy, Array ? "[" : "{", 1);
 			Callback(VarForm::Tab_Increase, "", 0);
 
-			for (auto&& Document : Base->Nodes)
+			for (size_t i = 0; i < Size; i++)
 			{
-				if (Document->Value.GetType() == VarType::Undefined)
-					continue;
-
+				auto* Document = Base->Nodes[i];
 				if (!Array)
 				{
 					Callback(VarForm::Write_Line, "", 0);
@@ -8988,7 +8986,7 @@ namespace Tomahawk
 
 				if (!Document->Value.IsObject())
 				{
-					std::string Value = Document->Value.Serialize();
+					std::string Value = (Document->Value.GetType() == VarType::Undefined ? "null" : Document->Value.Serialize());
 					Core::Parser Safe(&Value);
 					Safe.Escape();
 
@@ -9015,8 +9013,7 @@ namespace Tomahawk
 				else
 					WriteJSON(Document, Callback);
 
-				Offset++;
-				if (Offset < Size)
+				if (i + 1 < Size)
 					Callback(VarForm::Dummy, ",", 1);
 			}
 

@@ -404,13 +404,13 @@ namespace Tomahawk
 				TH_RELEASE(Array);
 				return Result;
 			}
-			std::string Util::InlineQuery(Cluster* Client, Core::Document* Where, const std::string& Default)
+			std::string Util::InlineQuery(Cluster* Client, Core::Document* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default)
 			{
 				TH_ASSERT(Client != nullptr, std::string(), "cluster should be set");
 				TH_ASSERT(Where != nullptr, std::string(), "array should be set");
 
 				Core::DocumentList Map;
-				std::string Whitelist = "abcdefghijklmnopqrstuvwxyz._", Def;
+				std::string Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
 				for (auto* Statement : Where->GetChilds())
 				{
 					std::string Op = Statement->Value.GetBlob();
@@ -429,8 +429,11 @@ namespace Tomahawk
 						if (Op.front() == '@')
 						{
 							Op = Op.substr(1);
-							if (Op.find_first_not_of(Whitelist) == std::string::npos)
-								Def += Op;
+							if (Whitelist.empty() || Whitelist.find(Op) != Whitelist.end())
+							{
+								if (Op.find_first_not_of(Allow) == std::string::npos)
+									Def += Op;
+							}
 						}
 						else if (!Core::Parser(&Op).HasNumber())
 						{
@@ -2012,7 +2015,12 @@ namespace Tomahawk
 							{
 								Pose Next;
 								Next.Escape = (Base.R()[Arg] == '$');
+								Next.Negate = (Arg >= 1 ? Base.R()[Arg - 1] == '-' : false);
 								Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
+
+								if (Next.Negate)
+									Arg--;
+
 								Next.Offset = (size_t)Arg;
 								Result.Positions.push_back(std::move(Next));
 								Base.RemovePart(Arg, Index + 1);
@@ -2150,7 +2158,7 @@ namespace Tomahawk
 						break;
 					}
 
-					bool Escape = true;
+					bool Escape = true, Negate = false;
 					if (Set.Start > 0)
 					{
 						if (Src[Set.Start - 1] == '\\')
@@ -2161,12 +2169,22 @@ namespace Tomahawk
 						}
 						else if (Src[Set.Start - 1] == '$')
 						{
+							if (Set.Start > 1 && Src[Set.Start - 2] == '-')
+							{
+								Negate = true;
+								Set.Start--;
+							}
+
 							Escape = false;
 							Set.Start--;
 						}
+						else if (Src[Set.Start - 1] == '-')
+						{
+							Negate = true;
+							Set.Start--;
+						}
 					}
-
-					std::string Value = GetSQL(Remote, (*Map)[Next++], Escape);
+					std::string Value = GetSQL(Remote, (*Map)[Next++], Escape, Negate);
 					Buffer.Erase(Set.Start, (Escape ? 1 : 2));
 					Buffer.Insert(Value, Set.Start);
 					Offset = Set.Start + (uint64_t)Value.size();
@@ -2245,7 +2263,7 @@ namespace Tomahawk
 						continue;
 					}
 
-					std::string Value = GetSQL(Remote, It->second, Word.Escape);
+					std::string Value = GetSQL(Remote, It->second, Word.Escape, Word.Negate);
 					if (Value.empty())
 						continue;
 
@@ -2321,7 +2339,7 @@ namespace Tomahawk
 				return "'\\x" + Compute::Common::HexEncode(Src, Size) + "'::bytea";
 #endif
 			}
-			std::string Driver::GetSQL(TConnection* Base, Core::Document* Source, bool Escape)
+			std::string Driver::GetSQL(TConnection* Base, Core::Document* Source, bool Escape, bool Negate)
 			{
 				if (!Source)
 					return "NULL";
@@ -2349,7 +2367,7 @@ namespace Tomahawk
 					{
 						std::string Result = (Array ? "[" : "ARRAY[");
 						for (auto* Node : Source->GetChilds())
-							Result.append(GetSQL(Base, Node, true)).append(1, ',');
+							Result.append(GetSQL(Base, Node, true, Negate)).append(1, ',');
 
 						if (!Source->IsEmpty())
 							Result = Result.substr(0, Result.size() - 1);
@@ -2364,17 +2382,17 @@ namespace Tomahawk
 						return Source->Value.GetBlob();
 					}
 					case Core::VarType::Integer:
-						return std::to_string(Source->Value.GetInteger());
+						return std::to_string(Negate ? -Source->Value.GetInteger() : Source->Value.GetInteger());
 					case Core::VarType::Number:
-						return std::to_string(Source->Value.GetNumber());
+						return std::to_string(Negate ? -Source->Value.GetNumber() : Source->Value.GetNumber());
 					case Core::VarType::Boolean:
-						return Source->Value.GetBoolean() ? "TRUE" : "FALSE";
+						return (Negate ? !Source->Value.GetBoolean() : Source->Value.GetBoolean()) ? "TRUE" : "FALSE";
 					case Core::VarType::Decimal:
 					{
 						if (!Escape)
-							return Source->Value.GetDecimal().ToString();
+							return (Negate ? -Source->Value.GetDecimal() : Source->Value.GetDecimal()).ToString();
 
-						return GetCharArray(Base, Source->Value.GetDecimal().ToString());
+						return GetCharArray(Base, (Negate ? -Source->Value.GetDecimal() : Source->Value.GetDecimal()).ToString());
 					}
 					case Core::VarType::Base64:
 						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());

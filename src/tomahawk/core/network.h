@@ -297,7 +297,7 @@ namespace Tomahawk
 		{
 			std::unordered_map<std::string, SocketCertificate> Certificates;
 			std::unordered_map<std::string, Host> Listeners;
-			uint64_t PayloadMaxLength = std::numeric_limits<uint64_t>::max();
+			uint64_t PayloadMaxLength = 32768;
 			uint64_t BacklogQueue = 20;
 			uint64_t SocketTimeout = 5000;
 			uint64_t CloseTimeout = 500;

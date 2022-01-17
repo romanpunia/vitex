@@ -223,6 +223,12 @@ namespace Tomahawk
 				if (Reset || State == (uint32_t)WebSocketState::Close)
 					return Next();
 
+				if (!Active)
+				{
+					TH_ERR("[websocket] sock %i already closing", (int)Stream->GetFd());
+					return;
+				}
+
 				Finalize();
 				Send("", 0, WebSocketOp::Close, [this](WebSocketFrame*)
 				{
@@ -404,8 +410,9 @@ namespace Tomahawk
 				return true;
 			}
 
-			GatewayFrame::GatewayFrame(Script::VMCompiler* NewCompiler) : Compiler(NewCompiler), Active(true)
+			GatewayFrame::GatewayFrame(HTTP::Connection* NewBase, Script::VMCompiler* NewCompiler) : Base(NewBase), Compiler(NewCompiler), Active(true)
 			{
+				TH_ASSERT_V(Base != nullptr, "connection should be set");
 				TH_ASSERT_V(Compiler != nullptr, "compiler should be set");
 			}
 			void GatewayFrame::Execute(Script::VMContext* Ctx, Script::VMPoll State)
@@ -468,13 +475,18 @@ namespace Tomahawk
 			{
 				if (Active)
 				{
+					Base->Info.Sync.lock();
 					if (Compiler != nullptr)
 					{
 						if (!Compiler->Clear())
+						{
+							Base->Info.Sync.unlock();
 							return false;
+						}
 						TH_CLEAR(Compiler);
 					}
 
+					Base->Info.Sync.unlock();
 					Active = false;
 				}
 
@@ -494,13 +506,24 @@ namespace Tomahawk
 				TH_ASSERT(Line != nullptr, false, "line ptr should be set");
 				TH_ASSERT(Column != nullptr, false, "column ptr should be set");
 
+				Base->Info.Sync.lock();
+				if (!Compiler)
+				{
+					Base->Info.Sync.unlock();
+					return false;
+				}
+
 				Script::VMContext* Context = Compiler->GetContext();
 				if (!Context)
+				{
+					Base->Info.Sync.unlock();
 					return false;
+				}
 
 				*Exception = Context->GetExceptionString();
 				*Function = Context->GetExceptionFunction().GetName();
 				*Line = Context->GetExceptionLineNumber(Column, nullptr);
+				Base->Info.Sync.unlock();
 				return true;
 			}
 			Script::VMContext* GatewayFrame::GetContext()
@@ -510,6 +533,10 @@ namespace Tomahawk
 			Script::VMCompiler* GatewayFrame::GetCompiler()
 			{
 				return Compiler;
+			}
+			HTTP::Connection* GatewayFrame::GetBase()
+			{
+				return Base;
 			}
 
 			SiteEntry::SiteEntry() : Base(TH_NEW(RouteEntry))
@@ -1090,7 +1117,7 @@ namespace Tomahawk
 				return StatusCode >= 200 && StatusCode < 400;
 			}
 
-			bool Connection::Consume(const ContentCallback& Callback)
+			bool Connection::Consume(const ContentCallback& Callback, bool Eat)
 			{
 				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved || Response.Data == Content::Wants_Save)
 				{
@@ -1112,7 +1139,9 @@ namespace Tomahawk
 				{
 					if (Callback)
 					{
-						Callback(this, NetEvent::Packet, Request.Buffer.c_str(), (int)Request.Buffer.size());
+						if (!Eat)
+							Callback(this, NetEvent::Packet, Request.Buffer.c_str(), (int)Request.Buffer.size());
+
 						Callback(this, NetEvent::Finished, nullptr, 0);
 					}
 
@@ -1142,7 +1171,7 @@ namespace Tomahawk
 				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Parser, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1157,7 +1186,7 @@ namespace Tomahawk
 
 								return false;
 							}
-							else if (Result >= 0 || Result == -2)
+							else if (!Eat && (Result >= 0 || Result == -2))
 							{
 								if (Callback)
 									Callback(this, NetEvent::Packet, Buffer, Recv);
@@ -1191,10 +1220,13 @@ namespace Tomahawk
 				}
 				else if (!Request.GetHeader("Content-Length"))
 				{
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Eat, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
+							if (Eat)
+								return true;
+
 							if (Callback)
 								Callback(this, NetEvent::Packet, Buffer, Recv);
 
@@ -1221,13 +1253,9 @@ namespace Tomahawk
 				if (Request.ContentLength > Root->Router->PayloadMaxLength)
 				{
 					Response.Data = Content::Payload_Exceeded;
-					if (Callback)
-						Callback(this, NetEvent::Timeout, nullptr, 0);
-
-					return false;
+					Eat = true;
 				}
-
-				if (!Route || Request.ContentLength > Route->MaxCacheLength)
+				else if (!Route || Request.ContentLength > Route->MaxCacheLength)
 				{
 					Response.Data = Content::Wants_Save;
 					if (Callback)
@@ -1236,10 +1264,13 @@ namespace Tomahawk
 					return true;
 				}
 
-				return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+				return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Eat, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
+						if (Eat)
+							return true;
+
 						if (Callback)
 							Callback(this, NetEvent::Packet, Buffer, Recv);
 
@@ -1262,7 +1293,7 @@ namespace Tomahawk
 					return true;
 				}) > 0;
 			}
-			bool Connection::Store(const ResourceCallback& Callback)
+			bool Connection::Store(const ResourceCallback& Callback, bool Eat)
 			{
 				if (!Route || Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Cached || Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
 				{
@@ -1274,11 +1305,14 @@ namespace Tomahawk
 
 				if (Response.Data == Content::Saved)
 				{
-					if (!Callback || Request.Resources.empty())
+					if (!Callback)
 						return true;
 
-					for (auto& Item : Request.Resources)
-						Callback(this, &Item);
+					if (!Eat)
+					{
+						for (auto& Item : Request.Resources)
+							Callback(this, &Item);
+					}
 
 					Callback(this, nullptr);
 					return true;
@@ -1290,6 +1324,12 @@ namespace Tomahawk
 
 				if (ContentType != nullptr && (BoundaryName = strstr(ContentType, "boundary=")))
 				{
+					if (Route->Site->ResourceRoot.empty())
+					{
+						Response.Data = Content::Payload_Exceeded;
+						Eat = true;
+					}
+
 					std::string Boundary("--");
 					Boundary.append(BoundaryName + 9);
 
@@ -1305,13 +1345,7 @@ namespace Tomahawk
 					Parser->OnHeaderValue = Util::ParseMultipartHeaderValue;
 					Parser->OnResourceBegin = Util::ParseMultipartResourceBegin;
 					Parser->OnResourceEnd = Util::ParseMultipartResourceEnd;
-					Parser->UserPointer = Segment;
-
-					if (Route->Site->ResourceRoot.empty())
-					{
-						Response.Data = Content::Payload_Exceeded;
-						return false;
-					}
+					Parser->UserPointer = (Eat ? nullptr : Segment);
 
 					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Parser, Segment, Boundary](NetEvent Event, const char* Buffer, size_t Recv)
 					{
@@ -1348,60 +1382,117 @@ namespace Tomahawk
 				}
 				else if (Request.ContentLength > 0)
 				{
-					HTTP::Resource fResource;
-					fResource.Length = Request.ContentLength;
-					fResource.Type = (ContentType ? ContentType : "application/octet-stream");
-					fResource.Path = Core::OS::Directory::Get() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
-
-					FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
-					if (!File)
+					if (!Eat)
 					{
-						Response.Data = Content::Save_Exception;
-						return false;
-					}
+						HTTP::Resource fResource;
+						fResource.Length = Request.ContentLength;
+						fResource.Type = (ContentType ? ContentType : "application/octet-stream");
+						fResource.Path = Core::OS::Directory::Get() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
 
-					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, File, fResource, Callback](NetEvent Event, const char* Buffer, size_t Recv)
-					{
-						if (Packet::IsData(Event))
+						FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
+						if (!File)
 						{
-							if (fwrite(Buffer, 1, Recv, File) == Recv)
-								return true;
-
 							Response.Data = Content::Save_Exception;
-							TH_CLOSE(File);
-
-							if (Callback)
-								Callback(this, nullptr);
-
 							return false;
 						}
-						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+
+						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, File, fResource, Callback](NetEvent Event, const char* Buffer, size_t Recv)
 						{
-							if (Packet::IsDone(Event))
+							if (Packet::IsData(Event))
 							{
-								Response.Data = Content::Saved;
-								Request.Resources.push_back(fResource);
+								if (fwrite(Buffer, 1, Recv, File) == Recv)
+									return true;
+
+								Response.Data = Content::Save_Exception;
+								TH_CLOSE(File);
 
 								if (Callback)
-									Callback(this, &Request.Resources.back());
+									Callback(this, nullptr);
+
+								return false;
 							}
+							else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+							{
+								if (Packet::IsDone(Event))
+								{
+									Response.Data = Content::Saved;
+									Request.Resources.push_back(fResource);
+
+									if (Callback)
+										Callback(this, &Request.Resources.back());
+								}
+								else
+									Response.Data = Content::Corrupted;
+
+								if (Callback)
+									Callback(this, nullptr);
+
+								TH_CLOSE(File);
+								return false;
+							}
+
+							return true;
+						}) > 0;
+					}
+					else
+					{
+						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+						{
+							if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
+								return true;
+
+							if (Packet::IsDone(Event))
+								Response.Data = Content::Saved;
 							else
 								Response.Data = Content::Corrupted;
 
 							if (Callback)
 								Callback(this, nullptr);
 
-							TH_CLOSE(File);
-							return false;
-						}
-
-						return true;
-					}) > 0;
+							return true;
+						}) > 0;
+					}
 				}
 				else if (Callback)
 					Callback(this, nullptr);
 
 				return true;
+			}
+			bool Connection::Skip(const SuccessCallback& Callback)
+			{
+				TH_ASSERT(Callback != nullptr, false, "callback should be set");
+				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved)
+					return true;
+
+				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
+					return true;
+
+				if (Response.Data == Content::Cached)
+					return true;
+
+				Consume([Callback](HTTP::Connection* Base, NetEvent Event, const char*, size_t)
+				{
+					if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
+						return true;
+
+					if (Base->Response.Data == Content::Wants_Save)
+					{
+						Base->Store([Callback](HTTP::Connection* Base, HTTP::Resource* Resource)
+						{
+							if (Resource != nullptr)
+								return true;
+
+							Callback(Base);
+							return true;
+						}, true);
+					}
+					else
+						Callback(Base);
+
+					return true;
+				}, true);
+
+				return false;
 			}
 			bool Connection::Finish()
 			{
@@ -3764,7 +3855,9 @@ namespace Tomahawk
 					case 208:
 						return "Already Reported";
 					case 226:
-						return "IM used";
+						return "IM Used";
+					case 218:
+						return "This is fine";
 					case 300:
 						return "Multiple Choices";
 					case 301:
@@ -3814,11 +3907,11 @@ namespace Tomahawk
 					case 415:
 						return "Unsupported Media Type";
 					case 416:
-						return "Requested range not satisfiable";
+						return "Requested Range Not Satisfiable";
 					case 417:
 						return "Expectation Failed";
 					case 418:
-						return "I am a teapot";
+						return "I'm a teapot";
 					case 419:
 						return "Authentication Timeout";
 					case 420:
@@ -3852,9 +3945,9 @@ namespace Tomahawk
 					case 503:
 						return "Service Unavailable";
 					case 504:
-						return "Gateway Time-out";
+						return "Gateway Timeout";
 					case 505:
-						return "Version not supported";
+						return "Version Not Supported";
 					case 506:
 						return "Variant Also Negotiates";
 					case 507:
@@ -3869,7 +3962,7 @@ namespace Tomahawk
 						return "Network Authentication Required";
 					default:
 						if (StatusCode >= 100 && StatusCode < 200)
-							return "Information";
+							return "Informational";
 
 						if (StatusCode >= 200 && StatusCode < 300)
 							return "Success";
@@ -4447,9 +4540,6 @@ namespace Tomahawk
 					});
 				}
 
-				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
-					return Base->Error(413, "Entity payload is too big to process.");
-
 				return Core::Schedule::Get()->SetTask([Base]()
 				{
 					ProcessResource(Base);
@@ -4480,9 +4570,6 @@ namespace Tomahawk
 						ProcessResourceCache(Base);
 					});
 				}
-
-				if (Base->Resource.Size > Base->Root->Router->PayloadMaxLength)
-					return Base->Error(413, "Entity payload is too big to process.");
 
 				return Core::Schedule::Get()->SetTask([Base]()
 				{
@@ -4525,7 +4612,7 @@ namespace Tomahawk
 					if (lseek64(TH_FILENO(Stream), Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #endif
-				}
+			}
 				else
 					Base->Response.StatusCode = 204;
 
@@ -4567,7 +4654,7 @@ namespace Tomahawk
 
 					return true;
 				});
-			}
+		}
 			bool Util::RoutePATCH(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
@@ -5035,7 +5122,7 @@ namespace Tomahawk
 				{
 					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-				}
+			}
 #else
 				if (Range > 0 && lseek64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
@@ -5064,7 +5151,7 @@ namespace Tomahawk
 
 				TH_CLOSE(Stream);
 				return Base->Finish();
-			}
+	}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
@@ -5159,7 +5246,7 @@ namespace Tomahawk
 				{
 					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-				}
+			}
 #else
 				if (Range > 0 && lseek64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
@@ -5179,7 +5266,7 @@ namespace Tomahawk
 					TH_CLOSE(Stream);
 					TH_FREE(ZStream);
 					return Base->Break();
-				}
+}
 
 				return ProcessFileCompressChunk(Base, Server, Stream, ZStream, ContentLength);
 #else
@@ -5326,16 +5413,18 @@ namespace Tomahawk
 
 					Core::Schedule::Get()->SetTask([Base, Compiler, Buffer, Size]()
 					{
-						Base->Gateway = TH_NEW(GatewayFrame, Compiler);
-						Base->Gateway->E.Exception = [Base](GatewayFrame* Gateway)
+						Base->Gateway = TH_NEW(GatewayFrame, Base, Compiler);
+						Base->Gateway->E.Exception = [](GatewayFrame* Gateway)
 						{
+							HTTP::Connection* Base = Gateway->GetBase();
 							Base->Response.StatusCode = 500;
+
 							if (Base->Route->Gateway.ReportErrors)
 							{
-								const char* Exception, *Function; int Line, Column;
+								const char* Exception, * Function; int Line, Column;
 								if (Gateway->GetException(&Exception, &Function, &Line, &Column))
 									Base->Info.Message = Core::Form("%s() at line %i\n%s.", Function ? Function : "anonymous", Line, Exception ? Exception : "empty exception").R();
-								
+
 								if (Base->Route->Gateway.ReportStack)
 								{
 									Script::VMContext* Context = Gateway->GetContext();
@@ -5350,15 +5439,17 @@ namespace Tomahawk
 							else
 								Base->Info.Message.assign("Internal processing error occurred.");
 						};
-						Base->Gateway->E.Finish = [Base](GatewayFrame* Gateway)
+						Base->Gateway->E.Finish = [](GatewayFrame* Gateway)
 						{
+							HTTP::Connection* Base = Gateway->GetBase();
 							if (Base->WebSocket != nullptr && (Base->WebSocket->Connect || Base->WebSocket->Disconnect || Base->WebSocket->Receive))
 								Base->WebSocket->Next();
 							else
 								Gateway->Finish();
 						};
-						Base->Gateway->E.Close = [Base](GatewayFrame*)
+						Base->Gateway->E.Close = [](GatewayFrame* Gateway)
 						{
+							HTTP::Connection* Base = Gateway->GetBase();
 							if (Base->Response.StatusCode <= 0)
 								Base->Response.StatusCode = 200;
 
@@ -5516,10 +5607,17 @@ namespace Tomahawk
 			bool Server::OnRequestEnded(SocketConnection* Root, bool Check)
 			{
 				TH_ASSERT(Root != nullptr, false, "connection should be set");
-				if (Check)
-					return true;
-
 				auto Base = (HTTP::Connection*)Root;
+
+				if (Check)
+				{
+					return Base->Skip([](HTTP::Connection* Base)
+					{
+						Base->Root->Manage(Base);
+						return true;
+					});
+				}
+
 				for (auto& Item : Base->Request.Resources)
 				{
 					if (!Item.Memory)

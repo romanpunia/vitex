@@ -304,11 +304,12 @@ namespace Tomahawk
 				} E;
 
 			private:
+				HTTP::Connection* Base;
 				Script::VMCompiler* Compiler;
 				std::atomic<bool> Active;
 
 			public:
-				GatewayFrame(Script::VMCompiler* NewCompiler);
+				GatewayFrame(HTTP::Connection* NewBase, Script::VMCompiler* NewCompiler);
 				void Execute(Script::VMContext*, Script::VMPoll State);
 				bool Start(const std::string& Path, const char* Method, char* Buffer, size_t Size);
 				bool Error(int StatusCode, const char* Text);
@@ -317,6 +318,7 @@ namespace Tomahawk
 				bool GetException(const char** Exception, const char** Function, int* Line, int* Column);
 				Script::VMContext* GetContext();
 				Script::VMCompiler* GetCompiler();
+				HTTP::Connection* GetBase();
 			};
 
 			struct TH_OUT ParserFrame
@@ -504,8 +506,9 @@ namespace Tomahawk
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
 				bool Certify(Certificate* Output) override;
-				bool Consume(const ContentCallback& Callback = nullptr);
-				bool Store(const ResourceCallback& Callback = nullptr);
+				bool Consume(const ContentCallback& Callback = nullptr, bool Eat = false);
+				bool Store(const ResourceCallback& Callback = nullptr, bool Eat = false);
+				bool Skip(const SuccessCallback& Callback);
 			};
 
 			class TH_OUT QueryParameter final : public Core::Document
@@ -713,7 +716,6 @@ namespace Tomahawk
 				static const char* StatusMessage(int StatusCode);
 
 			public:
-				static void ParseCookie(const std::string& Value);
 				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length);
 				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, size_t Length);
 				static bool ParseMultipartContentData(Parser* Parser, const char* Name, size_t Length);
@@ -728,6 +730,7 @@ namespace Tomahawk
 				static bool ParseQueryValue(Parser* Parser, const char* Name, size_t Length);
 				static int ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2);
 				static std::string ParseMultipartDataBoundary();
+				static void ParseCookie(const std::string& Value);
 
 			public:
 				static bool Authorize(Connection* Base);

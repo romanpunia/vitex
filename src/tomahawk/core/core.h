@@ -382,6 +382,7 @@ namespace Tomahawk
 			bool IsNaN() const;
 			double ToDouble() const;
 			int64_t ToInt64() const;
+			uint64_t ToUInt64() const;
 			std::string ToString() const;
 			std::string Exp() const;
 			int Decimals() const;

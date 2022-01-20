@@ -27,7 +27,7 @@ namespace Tomahawk
 			class Connection;
 
 			typedef std::function<void(const std::string&)> OnQueryLog;
-			typedef std::function<void(Notify)> OnNotification;
+			typedef std::function<void(const Notify&)> OnNotification;
 			typedef pg_conn TConnection;
 			typedef pg_result TResponse;
 			typedef pgNotify TNotify;
@@ -209,20 +209,16 @@ namespace Tomahawk
 			class TH_OUT Notify
 			{
 			private:
-				TNotify* Base;
+				std::string Name;
+				std::string Data;
+				int Pid;
 
 			public:
 				Notify(TNotify* NewBase);
-				void Release();
 				Core::Document* GetDocument() const;
 				std::string GetName() const;
 				std::string GetData() const;
 				int GetPid() const;
-				TNotify* Get() const;
-				operator bool() const
-				{
-					return Base != nullptr;
-				}
 			};
 
 			class TH_OUT Column
@@ -416,18 +412,19 @@ namespace Tomahawk
 				friend Driver;
 
 			private:
-				std::unordered_map<std::string, OnNotification> Listeners;
+				std::unordered_map<std::string, std::unordered_map<uint64_t, OnNotification>> Listeners;
 				std::unordered_map<Socket*, Connection*> Pool;
 				std::vector<Request*> Requests;
 				std::atomic<uint64_t> Session;
+				std::atomic<uint64_t> Channel;
 				std::mutex Update;
 				Address Source;
 
 			public:
 				Cluster();
 				virtual ~Cluster() override;
-				void SetChannel(const std::string& Name, const OnNotification& NewCallback);
-				void SetChannels(const std::vector<std::string>& Names, const OnNotification& NewCallback);
+				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);
+				bool RemoveChannel(const std::string& Name, uint64_t Id);
 				Core::Async<uint64_t> TxBegin();
 				Core::Async<uint64_t> TxBegin(const std::string& Command);
 				Core::Async<bool> TxEnd(const std::string& Command, uint64_t Token);

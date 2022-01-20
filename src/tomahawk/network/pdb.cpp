@@ -598,32 +598,30 @@ namespace Tomahawk
 				return Result;
 			}
 
-			Notify::Notify(TNotify* NewBase) : Base(NewBase)
-			{
-			}
-			void Notify::Release()
+			Notify::Notify(TNotify* Base) : Pid(0)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base)
 					return;
 
-				PQfreeNotify(Base);
-				Base = nullptr;
+				if (Base->relname != nullptr)
+					Name = Base->relname;
+
+				if (Base->extra != nullptr)
+					Data = Base->extra;
+
+				Pid = Base->be_pid;
 #endif
 			}
 			Core::Document* Notify::GetDocument() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base || !Base->extra)
+				if (Data.empty())
 					return nullptr;
 
-				size_t Size = strlen(Base->extra);
-				if (!Size)
-					return nullptr;
-
-				return Core::Document::ReadJSON((int64_t)Size, [this](char* Buffer, int64_t Size)
+				return Core::Document::ReadJSON((int64_t)Data.size(), [this](char* Buffer, int64_t Size)
 				{
-					memcpy(Buffer, Base->extra, (size_t)Size);
+					memcpy(Buffer, Data.c_str(), (size_t)Size);
 					return true;
 				});
 #else
@@ -632,46 +630,15 @@ namespace Tomahawk
 			}
 			std::string Notify::GetName() const
 			{
-#ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return std::string();
-
-				if (!Base->relname)
-					return std::string();
-
-				return Base->relname;
-#else
-				return std::string();
-#endif
+				return Name;
 			}
 			std::string Notify::GetData() const
 			{
-#ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return std::string();
-
-				if (!Base->extra)
-					return std::string();
-
-				return Base->extra;
-#else
-				return std::string();
-#endif
+				return Data;
 			}
 			int Notify::GetPid() const
 			{
-#ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return -1;
-
-				return Base->be_pid;
-#else
-				return -1;
-#endif
-			}
-			TNotify* Notify::Get() const
-			{
-				return Base;
+				return Pid;
 			}
 
 			Column::Column(TResponse* NewBase, size_t fRowIndex, size_t fColumnIndex) : Base(NewBase), RowIndex(fRowIndex), ColumnIndex(fColumnIndex)
@@ -1475,23 +1442,31 @@ namespace Tomahawk
 				Update.unlock();
 				Driver::Release();
 			}
-			void Cluster::SetChannel(const std::string& Name, const OnNotification& NewCallback)
+			uint64_t Cluster::AddChannel(const std::string& Name, const OnNotification& NewCallback)
+			{
+				TH_ASSERT(NewCallback != nullptr, 0, "callback should be set");
+
+				uint64_t Id = Channel++;
+				Update.lock();
+				Listeners[Name][Id] = NewCallback;
+				Update.unlock();
+
+				return Id;
+			}
+			bool Cluster::RemoveChannel(const std::string& Name, uint64_t Id)
 			{
 				Update.lock();
-				if (!NewCallback)
+				auto& Base = Listeners[Name];
+				auto It = Base.find(Id);
+				if (It == Base.end())
 				{
-					auto It = Listeners.find(Name);
-					if (It != Listeners.end())
-						Listeners.erase(It);
+					Update.unlock();
+					return false;
 				}
-				else
-					Listeners[Name] = NewCallback;
+
+				Base.erase(It);
 				Update.unlock();
-			}
-			void Cluster::SetChannels(const std::vector<std::string>& Names, const OnNotification& NewCallback)
-			{
-				for (auto& Item : Names)
-					SetChannel(Item, NewCallback);
+				return true;
 			}
 			Core::Async<uint64_t> Cluster::TxBegin()
 			{
@@ -1830,19 +1805,20 @@ namespace Tomahawk
 					if (Notification != nullptr && Notification->relname != nullptr)
 					{
 						auto It = Listeners.find(Notification->relname);
-						if (It != Listeners.end() && It->second)
+						if (It != Listeners.end() && !It->second.empty())
 						{
-							OnNotification Callback = It->second;
-							Core::Schedule::Get()->SetTask([Callback = std::move(Callback), Notification]()
+							Notify Event(Notification);
+							for (auto& Item : It->second)
 							{
-								Callback(Notify(Notification));
-							});
+								OnNotification Callback = Item.second;
+								Core::Schedule::Get()->SetTask([Event, Callback = std::move(Callback)]()
+								{
+									Callback(Event);
+								});
+							}
 						}
-						else
-						{
-							TH_WARN("[pqwarn] notification from %s channel was missed", Notification->relname);
-							PQfreeNotify(Notification);
-						}
+						TH_TRACE("[pq] notification on channel @%s:\n\t%s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
+						PQfreeNotify(Notification);
 					}
 
 					if (Source->State == QueryState::Busy)
@@ -2388,12 +2364,7 @@ namespace Tomahawk
 					case Core::VarType::Boolean:
 						return (Negate ? !Source->Value.GetBoolean() : Source->Value.GetBoolean()) ? "TRUE" : "FALSE";
 					case Core::VarType::Decimal:
-					{
-						if (!Escape)
-							return (Negate ? -Source->Value.GetDecimal() : Source->Value.GetDecimal()).ToString();
-
-						return GetCharArray(Base, (Negate ? -Source->Value.GetDecimal() : Source->Value.GetDecimal()).ToString());
-					}
+						return (Negate ? '-' + Source->Value.GetDecimal().ToString() : Source->Value.GetDecimal().ToString());
 					case Core::VarType::Base64:
 						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());
 					case Core::VarType::Null:

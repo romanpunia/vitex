@@ -603,6 +603,28 @@ namespace Tomahawk
 
 			return strtoll(Result.c_str(), nullptr, 10);
 		}
+		uint64_t Decimal::ToUInt64() const
+		{
+			if (Invalid || Source.empty())
+				return 0;
+
+			std::string Result;
+			int Offset = 0, Size = Length;
+			while ((Source[Offset] == '0') && (Size > 0))
+			{
+				Offset++;
+				Size--;
+			}
+
+			for (int i = Source.size() - 1; i >= Offset; i--)
+			{
+				Result += Source[i];
+				if ((i == Length) && (i != 0) && Offset != Length)
+					break;
+			}
+
+			return strtoull(Result.c_str(), nullptr, 10);
+		}
 		std::string Decimal::ToString() const
 		{
 			if (Invalid || Source.empty())

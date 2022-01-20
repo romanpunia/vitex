@@ -585,8 +585,12 @@ namespace Tomahawk
 					ScopedContext* Scope = (ScopedContext*)GetContext();
 					TH_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
+					Scope->Basis->AddRef();
 					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
-					Compiler->ExecuteScoped(Content.c_str(), Content.size());
+					Compiler->ExecuteScopedAsync(Content.c_str(), Content.size()).Await([Scope](int&&)
+					{
+						Scope->Basis->Release();
+					});
 				}
 				void LoadExternalScript(const Rml::String& Path) override
 				{

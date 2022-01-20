@@ -208,11 +208,8 @@ namespace Tomahawk
 
 			return Base->SetTimeout(MS, [Context, Callback]() mutable
 			{
-				Context->TryExecute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
+				Context->TryExecuteAsync(Callback, nullptr, nullptr).Await([Context, Callback](int&&)
 				{
-					if (State == VMPoll::Continue)
-						return;
-
 					Callback->Release();
 					Context->Release();
 				});
@@ -232,11 +229,8 @@ namespace Tomahawk
 
 			return Base->SetTask([Context, Callback]() mutable
 			{
-				Context->TryExecute(Callback, nullptr, [Callback](VMContext* Context, VMPoll State)
+				Context->TryExecuteAsync(Callback, nullptr, nullptr).Await([Context, Callback](int&&)
 				{
-					if (State == VMPoll::Continue)
-						return;
-
 					Callback->Release();
 					Context->Release();
 				});
@@ -976,6 +970,7 @@ namespace Tomahawk
 			VMGlobal& Register = Engine->Global();
 			Engine->BeginNamespace("CE");
 			VMTypeClass VDecimal = Register.SetStructUnmanaged<Core::Decimal>("Decimal");
+			VDecimal.SetConstructor<Core::Decimal>("void f()");
 			VDecimal.SetConstructor<Core::Decimal, int32_t>("void f(int)");
 			VDecimal.SetConstructor<Core::Decimal, int32_t>("void f(uint)");
 			VDecimal.SetConstructor<Core::Decimal, int64_t>("void f(int64)");
@@ -1011,7 +1006,7 @@ namespace Tomahawk
 			VDecimal.SetOperatorEx(VMOpFunc::Div, (uint32_t)VMOp::Const, "Decimal", "const Decimal &in", &DecimalDiv);
 			VDecimal.SetOperatorEx(VMOpFunc::Mod, (uint32_t)VMOp::Const, "Decimal", "const Decimal &in", &DecimalPer);
 			VDecimal.SetMethodStatic("CE::Decimal Size(const CE::Decimal &in, const CE::Decimal &in, int)", &Core::Decimal::Divide);
-			VDecimal.SetMethodStatic("CE::Decimal Size()", &Core::Decimal::NaN);
+			VDecimal.SetMethodStatic("CE::Decimal NaN()", &Core::Decimal::NaN);
 			Engine->EndNamespace();
 
 			return true;

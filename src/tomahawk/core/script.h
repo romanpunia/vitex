@@ -1591,11 +1591,11 @@ namespace Tomahawk
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
 			int LoadCode(const std::string& Name, const char* Buffer, uint64_t Length);
-			int ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
-			int ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
-			int ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
-			int ExecuteScoped(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
-			int ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			Core::Async<int> ExecuteFileAsync(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			Core::Async<int> ExecuteMemoryAsync(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			Core::Async<int> ExecuteEntryAsync(const char* Name, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			Core::Async<int> ExecuteScopedAsync(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
+			Core::Async<int> ExecuteScopedAsync(const char* Buffer, uint64_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr, ResumeCallback&& OnResume = nullptr);
 			VMModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -1634,6 +1634,7 @@ namespace Tomahawk
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
+			Core::Async<int> TryExecuteAsync(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
 			int SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			int SetOnResume(const ResumeCallback& OnResume);
 			int Prepare(const VMFunction& Function);

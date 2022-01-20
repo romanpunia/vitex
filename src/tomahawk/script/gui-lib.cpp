@@ -141,15 +141,14 @@ namespace Tomahawk
 				}
 
 				STDArray* Data = STDArray::Compose(Type.GetTypeInfo(), Args);
-				Context->TryExecute(Callback, [Ptr, &Data](VMContext* Context)
+				Context->TryExecuteAsync(Callback, [Ptr, &Data](VMContext* Context)
 				{
 					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);
 					Context->SetArgObject(1, &Data);
-				}, [Ptr](Script::VMContext* Context, Script::VMPoll State)
+				}, nullptr).Await([Ptr](int&&)
 				{
-					if (State != Script::VMPoll::Continue)
-						delete Ptr;
+					delete Ptr;
 				});
 			});
 		}
@@ -211,14 +210,13 @@ namespace Tomahawk
 					Ptr->SetPhase(Event.GetPhase());
 				}
 
-				Context->TryExecute(Source, [Ptr](VMContext* Context)
+				Context->TryExecuteAsync(Source, [Ptr](VMContext* Context)
 				{
 					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);
-				}, [Ptr](Script::VMContext* Context, Script::VMPoll State)
+				}, nullptr).Await([Ptr](int&&)
 				{
-					if (State != Script::VMPoll::Continue)
-						delete Ptr;
+					delete Ptr;
 				});
 			};
 		}

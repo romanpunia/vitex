@@ -606,14 +606,13 @@ namespace Tomahawk
 
 					Scope->Basis->AddRef();
 					Script::VMContext* Context = Compiler->GetContext();
-					Context->TryExecute(Main, [Main, Scope](Script::VMContext* Context)
+					Context->TryExecuteAsync(Main, [Main, Scope](Script::VMContext* Context)
 					{
 						if (Main.GetArgsCount() == 1)
 							Context->SetArgObject(0, Scope->Basis);
-					}, [Scope](Script::VMContext*, Script::VMPoll State)
+					}, nullptr).Await([Scope](int&&)
 					{
-						if (State != Script::VMPoll::Continue)
-							Scope->Basis->Release();
+						Scope->Basis->Release();
 					});
 				}
 			};
@@ -662,15 +661,12 @@ namespace Tomahawk
 
 					Scope->Basis->AddRef();
 					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->TryExecute(Function, [Ptr](Script::VMContext* Context)
+					Context->TryExecuteAsync(Function, [Ptr](Script::VMContext* Context)
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);
-					}, [Scope, Ptr](Script::VMContext* Context, Script::VMPoll State)
+					}, nullptr).Await([Scope, Ptr](int&&)
 					{
-						if (State == Script::VMPoll::Continue)
-							return;
-
 						delete Ptr;
 						Scope->Basis->Release();
 					});

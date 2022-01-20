@@ -4026,14 +4026,14 @@ namespace Tomahawk
 				Safe.unlock();
 				return Target;
 			}
-			int Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)
+			Core::Async<int> Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return (int)Script::VMResult::INVALID_CONFIGURATION;
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
-			int Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& OnArgs)
+			Core::Async<int> Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return (int)Script::VMResult::INVALID_CONFIGURATION;
@@ -4042,21 +4042,21 @@ namespace Tomahawk
 					return (int)Script::VMResult::INVALID_ARG;
 
 				Safe.lock();
-				int Result = Compiler->GetContext()->TryExecute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				Core::Async<int> Result = Compiler->GetContext()->TryExecuteAsync(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
 				{
 					this->Protect();
 					if (OnArgs)
 						OnArgs(Context);
-				}, [this](Script::VMContext* Context, Script::VMPoll State)
-				{
-					if (State != Script::VMPoll::Continue)
-						this->Unprotect();
-				});
+				}, nullptr);
 				Safe.unlock();
 
-				return Result;
+				return Result.Then<int>([this](int&& Result)
+				{
+					this->Unprotect();
+					return Result;
+				});;
 			}
-			int Scriptable::CallEntry(const std::string& Name)
+			Core::Async<int> Scriptable::CallEntry(const std::string& Name)
 			{
 				return Call(GetFunctionByName(Name, Invoke == InvokeType_Typeless ? 0 : 1).GetFunction(), [this](Script::VMContext* Context)
 				{

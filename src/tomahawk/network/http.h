@@ -310,7 +310,6 @@ namespace Tomahawk
 
 			public:
 				GatewayFrame(HTTP::Connection* NewBase, Script::VMCompiler* NewCompiler);
-				void Execute(Script::VMContext*, Script::VMPoll State);
 				bool Start(const std::string& Path, const char* Method, char* Buffer, size_t Size);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();

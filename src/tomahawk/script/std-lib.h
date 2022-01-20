@@ -701,25 +701,15 @@ namespace Tomahawk
 
 		class TH_OUT STDRandom
 		{
-		private:
-			std::mt19937 Twister;
-			std::uniform_real_distribution<double> DDist = std::uniform_real_distribution<double>(0.0, 1.0);
-			int Ref = 1;
-
 		public:
-			STDRandom();
-			void AddRef();
-			void Release();
-			void SeedFromTime();
-			uint32_t GetU();
-			int32_t GetI();
-			double GetD();
-			void Seed(uint32_t Seed);
-			void Seed(STDArray* Array);
-			void Assign(STDRandom* From);
-
-		public:
-			static STDRandom* Create();
+			static std::string Getb(uint64_t Size);
+			static double Betweend(double Min, double Max);
+			static double Magd();
+			static double Getd();
+			static float Betweenf(float Min, float Max);
+			static float Magf();
+			static float Getf();
+			static uint64_t Betweeni(uint64_t Min, uint64_t Max);
 		};
 
 		class TH_OUT STDPromise

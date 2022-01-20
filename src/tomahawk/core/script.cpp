@@ -2313,7 +2313,7 @@ namespace Tomahawk
 
 			return Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 		}
-		int VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteFileAsync(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2332,9 +2332,9 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			return ExecuteEntry(EntryName, std::move(OnArgs), std::move(OnResume));
+			return ExecuteEntryAsync(EntryName, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteMemoryAsync(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(!Buffer.empty(), asINVALID_ARG, "buffer should not be empty");
@@ -2353,9 +2353,9 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			return ExecuteEntry(EntryName, std::move(OnArgs), std::move(OnResume));
+			return ExecuteEntryAsync(EntryName, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteEntryAsync(const char* Name, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2370,13 +2370,13 @@ namespace Tomahawk
 			if (!Function)
 				return asNO_FUNCTION;
 
-			return Context->TryExecute(Function, std::move(OnArgs), std::move(OnResume));
+			return Context->TryExecuteAsync(Function, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteScopedAsync(const std::string& Code, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
-			return ExecuteScoped(Code.c_str(), (uint64_t)Code.size(), Args, std::move(OnArgs), std::move(OnResume));
+			return ExecuteScopedAsync(Code.c_str(), (uint64_t)Code.size(), Args, std::move(OnArgs), std::move(OnResume));
 		}
-		int VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteScopedAsync(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
@@ -2402,7 +2402,7 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			int Result = Context->TryExecute(Function, std::move(OnArgs), std::move(OnResume));
+			Core::Async<int> Result = Context->TryExecuteAsync(Function, std::move(OnArgs), std::move(OnResume));
 			Function->Release();
 
 			return Result;
@@ -2455,6 +2455,29 @@ namespace Tomahawk
 				else
 					Context->Release();
 			}
+		}
+		Core::Async<int> VMContext::TryExecuteAsync(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		{
+			Core::Async<int> Result;
+			TryExecute(Function, std::move(OnArgs), [Result, OnResume = std::move(OnResume)](VMContext* Context, VMPoll State) mutable
+			{
+				if (OnResume)
+					OnResume(Context, State);
+
+				switch (State)
+				{
+					case VMPoll::Exception:
+						Result = (int)VMExecState::EXCEPTION;
+						break;
+					case VMPoll::Finish:
+						Result = (int)VMExecState::FINISHED;
+						break;
+					default:
+						break;
+				}
+			});
+
+			return Result;
 		}
 		bool VMContext::Dequeue(bool Unroll, int Status)
 		{
@@ -4140,8 +4163,8 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/ref", { }, STDRegisterRef);
 			Engine->AddSubmodule("std/weakref", { }, STDRegisterWeakRef);
 			Engine->AddSubmodule("std/math", { }, STDRegisterMath);
-			Engine->AddSubmodule("std/random", { }, STDRegisterRandom);
 			Engine->AddSubmodule("std/string", { "std/array" }, STDRegisterString);
+			Engine->AddSubmodule("std/random", { "std/string" }, STDRegisterRandom);
 			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, STDRegisterMap);
 			Engine->AddSubmodule("std/exception", { "std/string" }, STDRegisterException);
 			Engine->AddSubmodule("std/mutex", { }, STDRegisterMutex);

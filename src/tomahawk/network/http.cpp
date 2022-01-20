@@ -415,19 +415,6 @@ namespace Tomahawk
 				TH_ASSERT_V(Base != nullptr, "connection should be set");
 				TH_ASSERT_V(Compiler != nullptr, "compiler should be set");
 			}
-			void GatewayFrame::Execute(Script::VMContext* Ctx, Script::VMPoll State)
-			{
-				if (State == Script::VMPoll::Routine || State == Script::VMPoll::Continue)
-					return;
-
-				if (State == Script::VMPoll::Exception && E.Exception)
-					E.Exception(this);
-
-				if (E.Finish)
-					E.Finish(this);
-				else
-					Finish();
-			}
 			bool GatewayFrame::Start(const std::string& Path, const char* Method, char* Buffer, size_t Size)
 			{
 				TH_ASSERT(Buffer != nullptr, false, "buffer should be set");
@@ -459,10 +446,21 @@ namespace Tomahawk
 				}
 
 				Script::VMContext* Context = Compiler->GetContext();
-				Context->SetOnResume(std::bind(&GatewayFrame::Execute, this, std::placeholders::_1, std::placeholders::_2));
-				Context->TryExecute(Entry, nullptr, nullptr);
+				Context->SetOnResume([this](Script::VMContext*, Script::VMPoll State)
+				{
+					if (State == Script::VMPoll::Routine || State == Script::VMPoll::Continue)
+						return;
 
-				return true;
+					if (State == Script::VMPoll::Exception && E.Exception)
+						E.Exception(this);
+
+					if (E.Finish)
+						E.Finish(this);
+					else
+						Finish();
+				});
+
+				return Context->TryExecute(Entry, nullptr, nullptr) >= 0;
 			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)
 			{

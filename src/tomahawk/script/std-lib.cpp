@@ -4057,71 +4057,37 @@ namespace Tomahawk
 			new(Base) STDComplex(InitList[0], InitList[1]);
 		}
 
-		STDRandom::STDRandom()
+		std::string STDRandom::Getb(uint64_t Size)
 		{
-			SeedFromTime();
+			return Compute::Common::HexEncode(Compute::Common::RandomBytes(Size)).substr(0, Size);
 		}
-		void STDRandom::AddRef()
+		double STDRandom::Betweend(double Min, double Max)
 		{
-			asAtomicInc(Ref);
+			return Compute::Mathd::Random(Min, Max);
 		}
-		void STDRandom::Release()
+		double STDRandom::Magd()
 		{
-			if (asAtomicDec(Ref) <= 0)
-			{
-				this->~STDRandom();
-				asFreeMem((void*)this);
-			}
+			return Compute::Mathd::RandomMag();
 		}
-		void STDRandom::SeedFromTime()
+		double STDRandom::Getd()
 		{
-			Seed(static_cast<uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+			return Compute::Mathd::Random();
 		}
-		uint32_t STDRandom::GetU()
+		float STDRandom::Betweenf(float Min, float Max)
 		{
-			return Twister();
+			return Compute::Mathf::Random(Min, Max);
 		}
-		int32_t STDRandom::GetI()
+		float STDRandom::Magf()
 		{
-			return Twister();
+			return Compute::Mathf::RandomMag();
 		}
-		double STDRandom::GetD()
+		float STDRandom::Getf()
 		{
-			return DDist(Twister);
+			return Compute::Mathf::Random();
 		}
-		void STDRandom::Seed(uint32_t Seed)
+		uint64_t STDRandom::Betweeni(uint64_t Min, uint64_t Max)
 		{
-			Twister.seed(Seed);
-		}
-		void STDRandom::Seed(STDArray* Array)
-		{
-			if (!Array || Array->GetElementTypeId() != asTYPEID_UINT32)
-			{
-				VMCContext* Context = asGetActiveContext();
-				if (Context != nullptr)
-					Context->SetException("random::seed Array element Type not uint32");
-
-				return;
-			}
-
-			std::vector<uint32_t> Vector;
-			Vector.reserve(Array->GetSize());
-
-			for (unsigned int i = 0; i < Array->GetSize(); i++)
-				Vector.push_back(static_cast<uint32_t*>(Array->GetBuffer())[i]);
-
-			std::seed_seq Sq(Vector.begin(), Vector.end());
-			Twister.seed(Sq);
-		}
-		void STDRandom::Assign(STDRandom* From)
-		{
-			if (From != nullptr)
-				Twister = From->Twister;
-		}
-		STDRandom* STDRandom::Create()
-		{
-			void* Data = asAllocMem(sizeof(STDRandom));
-			return new(Data) STDRandom();
+			return Compute::Math<uint64_t>::Random(Min, Max);
 		}
 
 		STDThread::STDThread(VMCManager* Engine, VMCFunction* Func) : Function(Func), Manager(VMManager::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
@@ -4149,15 +4115,12 @@ namespace Tomahawk
 			}
 
 			Mutex.unlock();
-			Context->TryExecute(Function, [this](Script::VMContext* Context)
+			Context->TryExecuteAsync(Function, [this](Script::VMContext* Context)
 			{
 				Context->SetArgObject(0, this);
 				Context->SetUserData(this, ContextUD);
-			}, [this](Script::VMContext*, VMPoll State)
+			}, nullptr).Await([this](int&&)
 			{
-				if (State == VMPoll::Continue)
-					return;
-
 				Context->SetUserData(nullptr, ContextUD);
 				Mutex.lock();
 
@@ -4956,18 +4919,18 @@ namespace Tomahawk
 		bool STDRegisterRandom(VMManager* Manager)
 		{
 			TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
-			VMCManager* Engine = Manager->GetEngine();
-			Engine->RegisterObjectType("Random", 0, asOBJ_REF);
-			Engine->RegisterObjectBehaviour("Random", asBEHAVE_FACTORY, "Random@ f()", asFUNCTION(STDRandom::Create), asCALL_CDECL);
-			Engine->RegisterObjectBehaviour("Random", asBEHAVE_ADDREF, "void f()", asMETHOD(STDRandom, AddRef), asCALL_THISCALL);
-			Engine->RegisterObjectBehaviour("Random", asBEHAVE_RELEASE, "void f()", asMETHOD(STDRandom, Release), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void opAssign(const Random&)", asMETHODPR(STDRandom, Assign, (STDRandom*), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void Seed(uint)", asMETHODPR(STDRandom, Seed, (uint32_t), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void Seed(uint[]&)", asMETHODPR(STDRandom, Seed, (STDArray*), void), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "int GetI()", asMETHOD(STDRandom, GetI), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "uint GetU()", asMETHOD(STDRandom, GetU), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "double GetD()", asMETHOD(STDRandom, GetD), asCALL_THISCALL);
-			Engine->RegisterObjectMethod("Random", "void SeedFromTime()", asMETHOD(STDRandom, SeedFromTime), asCALL_THISCALL);
+			VMGlobal& Register = Manager->Global();
+
+			VMRefClass VRandom = Register.SetClassUnmanaged<STDRandom>("Random");
+			VRandom.SetMethodStatic("String Getb(uint64)", &STDRandom::Getb);
+			VRandom.SetMethodStatic("double Betweend(double, double)", &STDRandom::Betweend);
+			VRandom.SetMethodStatic("double Magd()", &STDRandom::Magd);
+			VRandom.SetMethodStatic("double Getd()", &STDRandom::Getd);
+			VRandom.SetMethodStatic("float Betweenf(float, float)", &STDRandom::Betweenf);
+			VRandom.SetMethodStatic("float Magf()", &STDRandom::Magf);
+			VRandom.SetMethodStatic("float Getf()", &STDRandom::Getf);
+			VRandom.SetMethodStatic("uint64 Betweeni(uint64, uint64)", &STDRandom::Betweeni);
+
 			return true;
 		}
 		bool STDRegisterPromise(VMManager* Manager)

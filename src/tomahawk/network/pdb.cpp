@@ -2,6 +2,7 @@
 #ifdef TH_HAS_POSTGRESQL
 #include <libpq-fe.h>
 #endif
+#define CACHE_MAGIC "92343fa9e7e09897cbf6a0e7095c8abc"
 
 namespace Tomahawk
 {
@@ -968,10 +969,10 @@ namespace Tomahawk
 #endif
 			}
 
-			Response::Response() : Base(nullptr)
+			Response::Response() : Base(nullptr), Error(false)
 			{
 			}
-			Response::Response(TResponse* NewBase) : Base(NewBase)
+			Response::Response(TResponse* NewBase) : Base(NewBase), Error(false)
 			{
 			}
 			void Response::Release()
@@ -1287,6 +1288,21 @@ namespace Tomahawk
 
 				return GetRow(GetSize() - 1);
 			}
+			Response Response::Copy() const
+			{
+#ifdef TH_HAS_POSTGRESQL
+				Response Result;
+				if (!Base)
+					return Result;
+
+				Result.Error = IsError();
+				Result.Base = PQcopyResult(Base, PG_COPYRES_ATTRS | PG_COPYRES_TUPLES | PG_COPYRES_EVENTS | PG_COPYRES_NOTICEHOOKS);
+
+				return Result;
+#else
+				return Response();
+#endif
+			}
 			TResponse* Response::Get() const
 			{
 				return Base;
@@ -1304,6 +1320,8 @@ namespace Tomahawk
 			}
 			bool Response::IsError() const
 			{
+				if (Error)
+					return true;
 #ifdef TH_HAS_POSTGRESQL
 				QueryExec State = (Base ? GetStatus() : QueryExec::Non_Fatal_Error);
 				return State == QueryExec::Fatal_Error || State == QueryExec::Non_Fatal_Error || State == QueryExec::Bad_Response;
@@ -1358,6 +1376,18 @@ namespace Tomahawk
 			{
 				return Base.size();
 			}
+			Cursor Cursor::Copy() const
+			{
+				Cursor Result;
+				if (Base.empty())
+					return Result;
+
+				Result.Base = Base;
+				for (auto& Item : Result.Base)
+					Item = Item.Copy();
+
+				return Result;
+			}
 			Response Cursor::First() const
 			{
 				if (Base.empty())
@@ -1399,6 +1429,11 @@ namespace Tomahawk
 				return Current != nullptr;
 			}
 
+			void Request::Finalize(Cursor& Subresult)
+			{
+				if (Callback)
+					Callback(Subresult);
+			}
 			std::string Request::GetCommand() const
 			{
 				return Command;
@@ -1439,8 +1474,33 @@ namespace Tomahawk
 					TH_DELETE(Request, Item);
 				}
 
+				for (auto& Item : Cache.Objects)
+					Item.second.second.Release();
+
 				Update.unlock();
 				Driver::Release();
+			}
+			void Cluster::SetCacheCleanup(uint64_t Interval)
+			{
+				Cache.CleanupDuration = Interval;
+			}
+			void Cluster::SetCacheDuration(QueryOp CacheId, uint64_t Duration)
+			{
+				switch (CacheId)
+				{
+					case QueryOp::CacheShort:
+						Cache.ShortDuration = Duration;
+						break;
+					case QueryOp::CacheMid:
+						Cache.MidDuration = Duration;
+						break;
+					case QueryOp::CacheLong:
+						Cache.LongDuration = Duration;
+						break;
+					default:
+						TH_ASSERT_V(false, "cache id should be valid cache category");
+						break;
+				}
 			}
 			uint64_t Cluster::AddChannel(const std::string& Name, const OnNotification& NewCallback)
 			{
@@ -1478,7 +1538,7 @@ namespace Tomahawk
 				if (!Token)
 					Token = Session++;
 
-				return Query(Command, Token).Then<uint64_t>([this, Token](Cursor&& Result)
+				return Query(Command, 0, Token).Then<uint64_t>([this, Token](Cursor&& Result)
 				{
 					if (Result.OK())
 						return Token;
@@ -1489,7 +1549,7 @@ namespace Tomahawk
 			}
 			Core::Async<bool> Cluster::TxEnd(const std::string& Command, uint64_t Token)
 			{
-				return Query(Command, Token).Then<bool>([this, Token](Cursor&& Result)
+				return Query(Command, 0, Token).Then<bool>([this, Token](Cursor&& Result)
 				{
 					Commit(Token);
 					return Result.OK();
@@ -1590,25 +1650,50 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once, uint64_t Token)
+			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, uint64_t Opts, uint64_t Token)
 			{
-				return Query(Driver::Emplace(this, Command, Map, Once), Token);
+				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
+				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Token);
 			}
-			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, uint64_t Token)
+			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, uint64_t Opts, uint64_t Token)
 			{
 #ifdef _DEBUG
 				TH_TRACE("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 #endif
-				return Query(Driver::GetQuery(this, Name, Map, Once), Token);
+				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
+				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Token);
 			}
-			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Token)
+			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, uint64_t Token)
 			{
-				if (Command.empty())
-					return Cursor();
+				TH_ASSERT(!Command.empty(), Cursor(), "command should not be empty");
+
+				std::string Reference;
+				if (Opts & (uint64_t)QueryOp::CacheShort || Opts & (uint64_t)QueryOp::CacheMid || Opts & (uint64_t)QueryOp::CacheLong)
+				{
+					Cursor Result;
+					Reference = GetCacheOid(Command, Opts);
+
+					if (GetCache(Reference, &Result))
+					{
+						Driver::LogQuery(Command);
+#ifdef _DEBUG
+						TH_TRACE("[pq] OK execute on NULL (memory-cache)");
+#endif
+						return Result;
+					}
+				}
 
 				Request* Next = TH_NEW(Request);
 				Next->Command = Command;
 				Next->Session = Token;
+
+				if (!Reference.empty())
+				{
+					Next->Callback = [this, Reference, Opts](Cursor& Data)
+					{
+						SetCache(Reference, &Data, Opts);
+					};
+				}
 
 				Core::Async<Cursor> Future = Next->Future;
 				Update.lock();
@@ -1646,9 +1731,87 @@ namespace Tomahawk
 
 				return nullptr;
 			}
+			std::string Cluster::GetCacheOid(const std::string& Payload, uint64_t Opts)
+			{
+				std::string Reference = Compute::Common::HexEncode(Compute::Common::HMAC(Compute::Digests::SHA256(), Payload, CACHE_MAGIC));
+				if (Opts & (uint64_t)QueryOp::CacheShort)
+					Reference.append(".s");
+				else if (Opts & (uint64_t)QueryOp::CacheMid)
+					Reference.append(".m");
+				else if (Opts & (uint64_t)QueryOp::CacheLong)
+					Reference.append(".l");
+
+				return Reference;
+			}
 			bool Cluster::IsConnected() const
 			{
 				return !Pool.empty();
+			}
+			bool Cluster::GetCache(const std::string& CacheOid, Cursor* Data)
+			{
+				TH_ASSERT(!CacheOid.empty(), false, "cache oid should not be empty");
+				TH_ASSERT(Data != nullptr, false, "cursor should be set");
+
+				Cache.Context.lock();
+				auto It = Cache.Objects.find(CacheOid);
+				if (It != Cache.Objects.end())
+				{
+					int64_t Time = time(nullptr);
+					if (It->second.first < Time)
+					{
+						*Data = std::move(It->second.second);
+						Cache.Objects.erase(It);
+					}
+					else
+						*Data = It->second.second.Copy();
+
+					Cache.Context.unlock();
+					return true;
+				}
+
+				Cache.Context.unlock();
+				return false;
+			}
+			void Cluster::SetCache(const std::string& CacheOid, Cursor* Data, uint64_t Opts)
+			{
+				TH_ASSERT_V(!CacheOid.empty(), "cache oid should not be empty");
+				TH_ASSERT_V(Data != nullptr, "cursor should be set");
+
+				int64_t Time = time(nullptr);
+				int64_t Timeout = Time;
+				if (Opts & (uint64_t)QueryOp::CacheShort)
+					Timeout += Cache.ShortDuration;
+				else if (Opts & (uint64_t)QueryOp::CacheMid)
+					Timeout += Cache.MidDuration;
+				else if (Opts & (uint64_t)QueryOp::CacheLong)
+					Timeout += Cache.LongDuration;
+
+				Cache.Context.lock();
+				if (Cache.NextCleanup < Time)
+				{
+					Cache.NextCleanup = Time + Cache.CleanupDuration;
+					for (auto It = Cache.Objects.begin(); It != Cache.Objects.end();)
+					{
+						if (It->second.first < Time)
+						{
+							It->second.second.Release();
+							It = Cache.Objects.erase(It);
+						}
+						else
+							++It;
+					}
+				}
+
+				auto It = Cache.Objects.find(CacheOid);
+				if (It != Cache.Objects.end())
+				{
+					It->second.second.Release();
+					It->second.second = Data->Copy();
+					It->second.first = Timeout;
+				}
+				else
+					Cache.Objects[CacheOid] = std::make_pair(Timeout, Data->Copy());
+				Cache.Context.unlock();
 			}
 			void Cluster::Reestablish(Connection* Target)
 			{
@@ -1767,7 +1930,6 @@ namespace Tomahawk
 
 						return true;
 					}
-
 #ifdef TH_HAS_POSTGRESQL
 					TH_PPUSH("postgres-recv", TH_PERF_MAX);
 					Update.lock();
@@ -1840,6 +2002,7 @@ namespace Tomahawk
 								if (!Results.IsError())
 									TH_TRACE("[pq] OK execute on 0x%p", (void*)Source);
 #endif
+								Item->Finalize(Results);
 								Future = std::move(Results);
 								Update.lock();
 
@@ -2321,15 +2484,11 @@ namespace Tomahawk
 					return "NULL";
 
 				Core::Document* Parent = Source->GetParent();
-				bool Array = (Parent && Parent->Value.GetType() == Core::VarType::Array);
-
 				switch (Source->Value.GetType())
 				{
 					case Core::VarType::Object:
+					case Core::VarType::Array:
 					{
-						if (Array)
-							return "";
-
 						std::string Result;
 						Core::Document::WriteJSON(Source, [&Result](Core::VarForm, const char* Buffer, int64_t Length)
 						{
@@ -2338,17 +2497,6 @@ namespace Tomahawk
 						});
 
 						return Escape ? GetCharArray(Base, Result) : Result;
-					}
-					case Core::VarType::Array:
-					{
-						std::string Result = (Array ? "[" : "ARRAY[");
-						for (auto* Node : Source->GetChilds())
-							Result.append(GetSQL(Base, Node, true, Negate)).append(1, ',');
-
-						if (!Source->IsEmpty())
-							Result = Result.substr(0, Result.size() - 1);
-
-						return Result + "]";
 					}
 					case Core::VarType::String:
 					{

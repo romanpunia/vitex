@@ -417,7 +417,6 @@ namespace Tomahawk
 			}
 			bool GatewayFrame::Start(const std::string& Path, const char* Method, char* Buffer, size_t Size)
 			{
-				TH_ASSERT(Buffer != nullptr, false, "buffer should be set");
 				TH_ASSERT(Method != nullptr, false, "method should be set");
 
 				if (!Active)

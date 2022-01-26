@@ -20,6 +20,8 @@ namespace Tomahawk
 
 			class Response;
 
+			class Cursor;
+
 			class Cluster;
 
 			class Driver;
@@ -28,10 +30,20 @@ namespace Tomahawk
 
 			typedef std::function<void(const std::string&)> OnQueryLog;
 			typedef std::function<void(const Notify&)> OnNotification;
+			typedef std::function<void(Cursor&)> OnResult;
 			typedef pg_conn TConnection;
 			typedef pg_result TResponse;
 			typedef pgNotify TNotify;
 			typedef uint64_t ObjectId;
+
+			enum class QueryOp
+			{
+				DeleteArgs = 0,
+				ReuseArgs = (1 << 0),
+				CacheShort = (1 << 1),
+				CacheMid = (1 << 2),
+				CacheLong = (1 << 3)
+			};
 
 			enum class AddressOp
 			{
@@ -179,6 +191,11 @@ namespace Tomahawk
 				Busy
 			};
 
+			inline uint64_t operator |(QueryOp A, QueryOp B)
+			{
+				return static_cast<uint64_t>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			}
+
 			class TH_OUT Util
 			{
 			public:
@@ -294,6 +311,7 @@ namespace Tomahawk
 			{
 			private:
 				TResponse* Base;
+				bool Error;
 
 			public:
 				Response();
@@ -315,6 +333,7 @@ namespace Tomahawk
 				Row GetRow(size_t Index) const;
 				Row Front() const;
 				Row Back() const;
+				Response Copy() const;
 				TResponse* Get() const;
 				bool IsEmpty() const;
 				bool IsError() const;
@@ -354,6 +373,7 @@ namespace Tomahawk
 					return IsError() || IsEmpty();
 				}
 				size_t Size() const;
+				Cursor Copy() const;
 				Response First() const;
 				Response Last() const;
 				Response GetResponse(size_t Index) const;
@@ -397,10 +417,12 @@ namespace Tomahawk
 			private:
 				Core::Async<Cursor> Future;
 				std::string Command;
-				uint64_t Session = 0;
+				uint64_t Session;
+				OnResult Callback;
 				Cursor Result;
 
 			public:
+				void Finalize(Cursor& Subresult);
 				std::string GetCommand() const;
 				Cursor GetResult() const;
 				uint64_t GetSession() const;
@@ -410,6 +432,18 @@ namespace Tomahawk
 			class TH_OUT Cluster : public Core::Object
 			{
 				friend Driver;
+
+			private:
+				struct
+				{
+					std::unordered_map<std::string, std::pair<int64_t, Cursor>> Objects;
+					std::mutex Context;
+					uint64_t ShortDuration = 10;
+					uint64_t MidDuration = 30;
+					uint64_t LongDuration = 60;
+					uint64_t CleanupDuration = 300;
+					int64_t NextCleanup = 0;
+				} Cache;
 
 			private:
 				std::unordered_map<std::string, std::unordered_map<uint64_t, OnNotification>> Listeners;
@@ -423,6 +457,8 @@ namespace Tomahawk
 			public:
 				Cluster();
 				virtual ~Cluster() override;
+				void SetCacheCleanup(uint64_t Interval);
+				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
 				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);
 				bool RemoveChannel(const std::string& Name, uint64_t Id);
 				Core::Async<uint64_t> TxBegin();
@@ -432,14 +468,17 @@ namespace Tomahawk
 				Core::Async<bool> TxRollback(uint64_t Token);
 				Core::Async<bool> Connect(const Address& URI, size_t Connections);
 				Core::Async<bool> Disconnect();
-				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, bool Once = true, uint64_t Token = 0);
-				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, uint64_t Token = 0);
-				Core::Async<Cursor> Query(const std::string& Command, uint64_t Token = 0);
+				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
+				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
+				Core::Async<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, uint64_t Token = 0);
 				TConnection* GetConnection(QueryState State);
 				TConnection* GetConnection() const;
 				bool IsConnected() const;
 
 			private:
+				std::string GetCacheOid(const std::string& Payload, uint64_t QueryOpts);
+				bool GetCache(const std::string& CacheOid, Cursor* Data);
+				void SetCache(const std::string& CacheOid, Cursor* Data, uint64_t QueryOpts);
 				void Reestablish(Connection* Base);
 				void Commit(uint64_t Token);
 				bool Consume(Connection* Base);

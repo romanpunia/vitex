@@ -348,14 +348,13 @@ namespace Tomahawk
 			static std::unordered_map<std::string, std::pair<int64_t, Address*>> Names;
 			static std::mutex Exclusive;
 			static epoll_handle Handle;
-			static int64_t PipeTimeout;
 			static int ArraySize;
 
 		public:
-			static void Create(int MaxEvents = 256, int64_t Timeout = 100);
+			static void Create(int MaxEvents = 256);
 			static void Release();
 			static void Multiplex();
-			static int Dispatch();
+			static int Dispatch(int64_t Timeout);
 			static int Listen(Socket* Value, bool Always);
 			static int Unlisten(Socket* Value, bool Always);
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);

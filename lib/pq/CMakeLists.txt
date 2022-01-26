@@ -1,7 +1,7 @@
 #Resolve headers, refs and linkage
 set(TH_USE_POSTGRESQL ON CACHE BOOL "Enable PostgreSQL library")
 if (TH_USE_POSTGRESQL)
-	find_path(POSTGRESQL_LOCATION libpq-fe.h PATH_SUFFIXES "libpq" PATHS "/usr/local/opt/libpq/include")
+	find_path(POSTGRESQL_LOCATION libpq-fe.h PATH_SUFFIXES "libpq" PATHS "/usr/include/postgresql" "/usr/local/opt/libpq/include")
 	if (POSTGRESQL_LOCATION)
 		target_include_directories(tomahawk PRIVATE ${POSTGRESQL_LOCATION})
 		find_package(PostgreSQL CONFIG QUIET)

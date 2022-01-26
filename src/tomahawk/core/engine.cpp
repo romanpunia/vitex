@@ -6037,7 +6037,7 @@ namespace Tomahawk
 #endif
 			NetworkQueue = (I->Usage & (size_t)ApplicationSet::NetworkSet);
 			if (NetworkQueue)
-				Network::Driver::Create(256, I->Async ? 100 : 0);
+				Network::Driver::Create(256);
 
 			State = ApplicationState::Staging;
 		}
@@ -6133,17 +6133,6 @@ namespace Tomahawk
 			if (State == ApplicationState::Terminated)
 				return;
 
-			Core::Timer* Time = new Core::Timer();
-			Time->FrameLimit = Control.Framerate;
-			Time->SetStepLimitation(Control.MinFrames, Control.MaxFrames);
-
-			Core::Schedule* Queue = Core::Schedule::Get();
-			if (NetworkQueue)
-				Queue->SetTask(Network::Driver::Multiplex);
-#ifdef TH_WITH_RMLUI
-			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
-				GUI::Subsystem::SetMetadata(Activity, Content, Time);
-#endif
 			ApplicationState OK;
 			if (Control.Async)
 			{
@@ -6157,6 +6146,17 @@ namespace Tomahawk
 			else
 				OK = State = ApplicationState::Singlethreaded;
 
+			Core::Timer* Time = new Core::Timer();
+			Time->FrameLimit = Control.Framerate;
+			Time->SetStepLimitation(Control.MinFrames, Control.MaxFrames);
+
+			Core::Schedule* Queue = Core::Schedule::Get();
+			if (NetworkQueue)
+				Queue->SetTask(Network::Driver::Multiplex);
+#ifdef TH_WITH_RMLUI
+			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
+				GUI::Subsystem::SetMetadata(Activity, Content, Time);
+#endif
 			Queue->Start(Control.Async, Control.Threads, Control.Coroutines, Control.Stack);
 			if (Activity != nullptr && Control.Async)
 			{

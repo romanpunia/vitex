@@ -1377,9 +1377,8 @@ namespace Tomahawk
 #endif
 		}
 
-		void Driver::Create(int Length, int64_t Timeout)
+		void Driver::Create(int Length)
 		{
-			PipeTimeout = Timeout;
 			if (Array != nullptr || Handle != INVALID_EPOLL)
 			{
 				if (ArraySize == Length)
@@ -1434,27 +1433,27 @@ namespace Tomahawk
 		}
 		void Driver::Multiplex()
 		{
-			Dispatch();
-
 			Core::Schedule* Queue = Core::Schedule::Get();
+			Dispatch(Queue->IsBlockable() && Queue->GetThreads() > 1 ? 100 : (Queue->HasTasks() ? 1 : 0));
+
 			if (Queue->IsActive())
 				Queue->SetTask(&Driver::Multiplex);
 		}
-		int Driver::Dispatch()
+		int Driver::Dispatch(int64_t EventTimeout)
 		{
 			TH_ASSERT(Array != nullptr, -1, "driver should be initialized");
 #ifdef TH_APPLE
 			struct timespec Wait;
-			Wait.tv_sec = (int)PipeTimeout / 1000;
-			Wait.tv_nsec = ((int)PipeTimeout % 1000) * 1000000;
+			Wait.tv_sec = (int)EventTimeout / 1000;
+			Wait.tv_nsec = ((int)EventTimeout % 1000) * 1000000;
 
 			struct kevent* Events = (struct kevent*)Array;
 			int Count = kevent(Handle, nullptr, 0, Events, ArraySize, &Wait);
 #else
 			epoll_event* Events = (epoll_event*)Array;
-			int Count = epoll_wait(Handle, Events, ArraySize, (int)PipeTimeout);
+			int Count = epoll_wait(Handle, Events, ArraySize, (int)EventTimeout);
 #endif
-			TH_PPUSH("net-dispatch", (uint64_t)PipeTimeout + TH_PERF_IO);
+			TH_PPUSH("net-dispatch", (uint64_t)EventTimeout + TH_PERF_IO);
 			int64_t Time = Clock(), Timeouts = 0;
 			for (auto It = Events; It != Events + Count; It++)
 			{
@@ -1906,7 +1905,6 @@ namespace Tomahawk
 		std::unordered_set<Socket*>* Driver::Sources = nullptr;
 		std::unordered_map<std::string, std::pair<int64_t, Address*>> Driver::Names;
 		std::mutex Driver::Exclusive;
-		int64_t Driver::PipeTimeout = 100;
 		int Driver::ArraySize = 0;
 #ifdef TH_APPLE
 		struct kevent* Driver::Array = nullptr;
@@ -2130,7 +2128,7 @@ namespace Tomahawk
 			{
 				if (It->Base != nullptr)
 				{
-					It->Base->Close();
+					It->Base->Close(false);
 					TH_DELETE(Socket, It->Base);
 				}
 				TH_DELETE(Listener, It);

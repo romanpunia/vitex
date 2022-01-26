@@ -136,16 +136,6 @@ namespace
 #else
 namespace
 {
-#ifndef TH_64
-	int Pack1_32(void* Value)
-	{
-		return (int)(uintptr_t)Value;
-	}
-	void* Unpack1_32(int Value)
-	{
-		return (void*)(uintptr_t)Value;
-	}
-#else
 	void Pack2_64(void* Value, int* X, int* Y)
 	{
 		uint64_t Subvalue = (uint64_t)Value;
@@ -157,7 +147,6 @@ namespace
 		uint64_t Subvalue = ((uint64_t)(uint32_t)X) << 32 | (uint32_t)Y;
 		return (void*)Subvalue;
 	}
-#endif
 	bool LocalTime(time_t const* const A, struct tm* const B)
 	{
 		return localtime_r(A, B) != nullptr;
@@ -7650,14 +7639,10 @@ namespace Tomahawk
 				Fiber->Context.uc_stack.ss_size = Size;
 				Fiber->Context.uc_stack.ss_flags = 0;
 				Fiber->Context.uc_link = &Master->Context;
-#ifdef TH_64
+
 				int X, Y;
 				Pack2_64((void*)this, &X, &Y);
 				makecontext(&Fiber->Context, (void(*)())ExecutionEntry, 2, X, Y);
-#else
-				int X = Pack1_32((void*)this);
-				makecontext(&Fiber->Context, (void(*)())ExecutionEntry, 1, X);
-#endif
 			}
 			swapcontext(&Master->Context, &Fiber->Context);
 #endif
@@ -7850,11 +7835,7 @@ namespace Tomahawk
 #elif TH_MICROSOFT
 			Costate* State = (Costate*)Context;
 #else
-#ifdef TH_64
 			Costate* State = (Costate*)Unpack2_64(X, Y);
-#else
-			Costate* State = (Costate*)Unpack1_32(X);
-#endif
 #endif
 			Cothread = State;
 			TH_ASSERT_V(State != nullptr, "costate should be set");
@@ -8085,17 +8066,22 @@ namespace Tomahawk
 
 			Childs.reserve(Threads + 1);
 			Childs.emplace_back(std::thread(&Schedule::Publish, this));
+			TH_TRACE("[schedule] spawn thread (publish)");
+
 			for (uint64_t i = 0; i < Threads; i++)
+			{
 				Childs.emplace_back(std::thread(&Schedule::Consume, this));
+				TH_TRACE("[schedule] spawn thread (consume)");
+			}
 
 			Active = true;
-
 			Queue.Publish.notify_one();
 			Queue.Consume.notify_one();
 			return true;
 		}
 		bool Schedule::Stop()
 		{
+			TH_TRACE("[schedule] try stop");
 			Race.Exclusive.lock();
 			if (!Active && !Terminate)
 			{
@@ -8108,8 +8094,9 @@ namespace Tomahawk
 			Queue.Consume.notify_all();
 
 			TaskCallback* Callback = nullptr;
-			for (auto& Thread : Childs)
+			for (auto It = Childs.begin(); It != Childs.end(); It++)
 			{
+				auto& Thread = *It;
 				if (Thread.get_id() == std::this_thread::get_id())
 				{
 					Terminate = true;
@@ -8117,13 +8104,16 @@ namespace Tomahawk
 					return false;
 				}
 
+				TH_TRACE("[schedule] join thread (%s)", It == Childs.begin() ? "publish" : "consume");
 				if (Thread.joinable())
 					Thread.join();
 			}
 
+			TH_TRACE("[schedule] cleanup workers");
 			Childs.clear();
 			while (Dispatch());
 
+			TH_TRACE("[schedule] cleanup asyncs");
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			while (cAsyncs->try_dequeue(Callback) || cAsyncs->size_approx() > 0)
 			{
@@ -8131,6 +8121,7 @@ namespace Tomahawk
 				Callback = nullptr;
 			}
 
+			TH_TRACE("[schedule] cleanup tasks");
 			TQueue* cTasks = (TQueue*)Tasks;
 			while (cTasks->try_dequeue(Callback) || cTasks->size_approx() > 0)
 			{
@@ -8138,6 +8129,7 @@ namespace Tomahawk
 				Callback = nullptr;
 			}
 
+			TH_TRACE("[schedule] cleanup timers");
 			Race.Timing.lock();
 			Timers.clear();
 			Race.Timing.unlock();
@@ -8352,12 +8344,20 @@ namespace Tomahawk
 		{
 			return Active;
 		}
-		bool Schedule::IsProcessing()
+		bool Schedule::HasTasks()
 		{
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			TQueue* cTasks = (TQueue*)Tasks;
 
-			return cAsyncs->size_approx() > 0 || cTasks->size_approx() > 0 || !Timers.empty();
+			return cAsyncs->size_approx() > 0 || cTasks->size_approx() > 0;
+		}
+		bool Schedule::HasTimers()
+		{
+			return !Timers.empty();
+		}
+		uint64_t Schedule::GetThreads()
+		{
+			return Threads;
 		}
 		std::chrono::microseconds Schedule::GetClock()
 		{

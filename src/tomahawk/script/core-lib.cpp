@@ -1397,7 +1397,9 @@ namespace Tomahawk
 			VSchedule.SetMethod("bool Dispatch()", &Core::Schedule::Dispatch);
 			VSchedule.SetMethod("bool IsBlockable()", &Core::Schedule::IsBlockable);
 			VSchedule.SetMethod("bool IsActive()", &Core::Schedule::IsActive);
-			VSchedule.SetMethod("bool IsProcessing()", &Core::Schedule::IsProcessing);
+			VSchedule.SetMethod("bool HasTasks()", &Core::Schedule::HasTasks);
+			VSchedule.SetMethod("bool HasTimers()", &Core::Schedule::HasTimers);
+			VSchedule.SetMethod("uint64 GetThreads()", &Core::Schedule::GetThreads);
 			Engine->EndNamespace();
 
 			return true;

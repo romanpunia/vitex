@@ -99,11 +99,7 @@ typedef void* epoll_handle;
 #define TH_CODATA void* Context
 #else
 #define TH_COCALL
-#ifdef TH_64
 #define TH_CODATA int X, int Y
-#else
-#define TH_CODATA int X
-#endif
 #endif
 #define TH_FILENO fileno
 #include <sys/socket.h>
@@ -113,7 +109,7 @@ typedef socklen_t socket_size_t;
 #endif
 #if TH_DLEVEL >= 4
 #ifndef _DEBUG
-#define TH_TRACE(Format, ...) ((void)0)
+#define TH_TRACE(Format, ...) Tomahawk::Core::OS::Log(4, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
@@ -1429,7 +1425,9 @@ namespace Tomahawk
 			bool Dispatch();
 			bool IsBlockable();
 			bool IsActive();
-			bool IsProcessing();
+			bool HasTasks();
+			bool HasTimers();
+			uint64_t GetThreads();
 
 		private:
 			bool Publish();

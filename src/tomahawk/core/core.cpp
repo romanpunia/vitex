@@ -156,37 +156,39 @@ namespace
 		switch (Color)
 		{
 			case Tomahawk::Core::StdColor::Black:
-				return "40";
+				return Background ? "40" : "30";
 			case Tomahawk::Core::StdColor::DarkBlue:
-				return "44";
+				return Background ? "44" : "34";
 			case Tomahawk::Core::StdColor::DarkGreen:
-				return "42";
-			case Tomahawk::Core::StdColor::LightBlue:
-				return "46";
+				return Background ? "42" : "32";
 			case Tomahawk::Core::StdColor::DarkRed:
-				return "41";
+				return Background ? "41" : "31";
 			case Tomahawk::Core::StdColor::Magenta:
-				return "45";
+				return Background ? "45" : "35";
 			case Tomahawk::Core::StdColor::Orange:
-				return "43";
+				return Background ? "43" : "93";
 			case Tomahawk::Core::StdColor::LightGray:
-				return "47";
+				return Background ? "47" : "97";
+			case Tomahawk::Core::StdColor::LightBlue:
+				return Background ? "46" : "94";
 			case Tomahawk::Core::StdColor::Gray:
-				return "100";
+				return Background ? "100" : "90";
 			case Tomahawk::Core::StdColor::Blue:
-				return "104";
+				return Background ? "104" : "94";
 			case Tomahawk::Core::StdColor::Green:
-				return "102";
+				return Background ? "102" : "92";
 			case Tomahawk::Core::StdColor::Cyan:
-				return "106";
+				return Background ? "106" : "36";
 			case Tomahawk::Core::StdColor::Red:
-				return "101";
+				return Background ? "101" : "91";
 			case Tomahawk::Core::StdColor::Pink:
-				return "105";
+				return Background ? "105" : "95";
 			case Tomahawk::Core::StdColor::Yellow:
-				return "103";
+				return Background ? "103" : "33";
 			case Tomahawk::Core::StdColor::White:
-				return "107";
+				return Background ? "107" : "37";
+			case Tomahawk::Core::StdColor::Zero:
+				return "0";
 			default:
 				return Background ? "40" : "107";
 		}
@@ -4720,6 +4722,12 @@ namespace Tomahawk
 			if (!Coloring)
 				return;
 #if defined(_WIN32)
+			if (Background == StdColor::Zero)
+				Background = StdColor::Black;
+			
+			if (Text == StdColor::Zero)
+				Text = StdColor::White;
+
 			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), (int)Background << 4 | (int)Text);
 #else
 			std::cout << "\033[" << GetColorId(Text, false) << ";" << GetColorId(Background, true) << "m";
@@ -6917,6 +6925,13 @@ namespace Tomahawk
 			Child->Valid = false;
 			return true;
 		}
+        std::string OS::Process::GetThreadId(const std::thread::id& Id)
+        {
+            std::stringstream Stream;
+            Stream << Id;
+            
+            return Stream.str();
+        }
 
 		void* OS::Symbol::Load(const std::string& Path)
 		{
@@ -7378,15 +7393,17 @@ namespace Tomahawk
 #if defined(TH_MICROSOFT) && defined(_DEBUG)
 				OutputDebugStringA(Storage);
 #endif
-				if (Console::IsPresent() && (Level == 1 || Level == 2 || Level == 4))
+				if (Console::IsPresent())
 				{
 					Console* Dbg = Console::Get();
 					if (Level == 1)
 						Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
 					else if (Level == 2)
 						Dbg->ColorBegin(StdColor::Yellow, StdColor::Black);
-					else
+					else if (Level == 4)
 						Dbg->ColorBegin(StdColor::Gray, StdColor::Black);
+					else
+						Dbg->ColorBegin(StdColor::White, StdColor::Black);
 					Dbg->WriteBuffer(Storage);
 					Dbg->ColorEnd();
 				}
@@ -8066,12 +8083,12 @@ namespace Tomahawk
 
 			Childs.reserve(Threads + 1);
 			Childs.emplace_back(std::thread(&Schedule::Publish, this));
-			TH_TRACE("[schedule] spawn thread (publish)");
+			TH_TRACE("spawn thread %s", OS::Process::GetThreadId(Childs.back().get_id()).c_str());
 
 			for (uint64_t i = 0; i < Threads; i++)
 			{
 				Childs.emplace_back(std::thread(&Schedule::Consume, this));
-				TH_TRACE("[schedule] spawn thread (consume)");
+				TH_TRACE("spawn thread %s", OS::Process::GetThreadId(Childs.back().get_id()).c_str());
 			}
 
 			Active = true;
@@ -8081,7 +8098,6 @@ namespace Tomahawk
 		}
 		bool Schedule::Stop()
 		{
-			TH_TRACE("[schedule] try stop");
 			Race.Exclusive.lock();
 			if (!Active && !Terminate)
 			{
@@ -8104,16 +8120,14 @@ namespace Tomahawk
 					return false;
 				}
 
-				TH_TRACE("[schedule] join thread (%s)", It == Childs.begin() ? "publish" : "consume");
+				TH_TRACE("join thread %s", OS::Process::GetThreadId(Thread.get_id()).c_str());
 				if (Thread.joinable())
 					Thread.join();
 			}
 
-			TH_TRACE("[schedule] cleanup workers");
 			Childs.clear();
 			while (Dispatch());
 
-			TH_TRACE("[schedule] cleanup asyncs");
 			TQueue* cAsyncs = (TQueue*)Asyncs;
 			while (cAsyncs->try_dequeue(Callback) || cAsyncs->size_approx() > 0)
 			{
@@ -8121,7 +8135,6 @@ namespace Tomahawk
 				Callback = nullptr;
 			}
 
-			TH_TRACE("[schedule] cleanup tasks");
 			TQueue* cTasks = (TQueue*)Tasks;
 			while (cTasks->try_dequeue(Callback) || cTasks->size_approx() > 0)
 			{
@@ -8129,7 +8142,6 @@ namespace Tomahawk
 				Callback = nullptr;
 			}
 
-			TH_TRACE("[schedule] cleanup timers");
 			Race.Timing.lock();
 			Timers.clear();
 			Race.Timing.unlock();

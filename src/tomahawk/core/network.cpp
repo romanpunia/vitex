@@ -67,6 +67,10 @@ namespace Tomahawk
 				Stream.SetBlocking(false);
 
 			int Status = connect(Base, Address, Length);
+#ifndef TH_MICROSOFT
+				if (Status != 0 && errno == EINPROGRESS)
+					Status = 0;
+#endif
 			if (Status != 0 && Stream.GetError(Status) != ERRWOULDBLOCK)
 			{
 				if (IsBlocking)
@@ -96,6 +100,10 @@ namespace Tomahawk
 
 				TH_TRACE("[net] resolve dns on fd %i", (int)Host.first);
 				int Status = connect(Host.first, Host.second->ai_addr, Host.second->ai_addrlen);
+#ifndef TH_MICROSOFT
+				if (Status != 0 && errno == EINPROGRESS)
+					Status = 0;
+#endif
 				if (Status != 0 && Stream.GetError(Status) != ERRWOULDBLOCK)
 					continue;
 
@@ -1760,7 +1768,6 @@ namespace Tomahawk
 			TH_ASSERT(!Service.empty(), nullptr, "service should not be empty");
 			TH_PPUSH("dns-resolve", TH_PERF_NET * 3);
 
-			int64_t Time = time(nullptr);
 			struct addrinfo Hints;
 			memset(&Hints, 0, sizeof(struct addrinfo));
 			Hints.ai_family = AF_UNSPEC;
@@ -1819,6 +1826,7 @@ namespace Tomahawk
 					break;
 			}
 
+			int64_t Time = time(nullptr);
 			std::string Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
 			Exclusive.lock();
 			{
@@ -2128,12 +2136,12 @@ namespace Tomahawk
 			{
 				if (It->Base != nullptr)
 				{
-					It->Base->Close(false);
+					It->Base->Close();
 					TH_DELETE(Socket, It->Base);
 				}
 				TH_DELETE(Listener, It);
 			}
-
+			
 			OnDeallocateRouter(Router);
 			State = ServerState::Idle;
 			Router = nullptr;

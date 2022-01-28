@@ -554,45 +554,35 @@ namespace Tomahawk
 			}
 			void SiteEntry::Sort()
 			{
+				std::sort(Groups.begin(), Groups.end(), [](const RouteGroup& A, const RouteGroup& B)
+				{
+					return A.Match.size() > B.Match.size();
+				});
+
 				for (auto& Group : Groups)
 				{
-					qsort((void*)Group.Routes.data(), (size_t)Group.Routes.size(), sizeof(HTTP::RouteEntry*), [](const void* A1, const void* B1) -> int
+					std::sort(Group.Routes.begin(), Group.Routes.end(), [](const RouteEntry* A, const RouteEntry* B)
 					{
-						HTTP::RouteEntry* A = *(HTTP::RouteEntry**)B1;
 						if (A->URI.GetRegex().empty())
-							return -1;
+							return false;
 
-						HTTP::RouteEntry* B = *(HTTP::RouteEntry**)A1;
 						if (B->URI.GetRegex().empty())
-							return 1;
+							return true;
 
 						if (A->Level > B->Level)
-							return 1;
+							return true;
 						else if (A->Level < B->Level)
-							return -1;
+							return false;
 
 						bool fA = A->URI.IsSimple(), fB = B->URI.IsSimple();
 						if (fA && !fB)
-							return -1;
+							return false;
 						else if (!fA && fB)
-							return 1;
+							return true;
 
-						return (int)A->URI.GetRegex().size() - (int)B->URI.GetRegex().size();
+						return A->URI.GetRegex().size() > B->URI.GetRegex().size();
 					});
 				}
-
-				qsort((void*)Groups.data(), (size_t)Groups.size(), sizeof(HTTP::RouteGroup), [](const void* A1, const void* B1) -> int
-				{
-					HTTP::RouteGroup& A = *(HTTP::RouteGroup*)B1;
-					if (A.Match.empty())
-						return -1;
-
-					HTTP::RouteGroup& B = *(HTTP::RouteGroup*)A1;
-					if (B.Match.empty())
-						return 1;
-
-					return (int)A.Match.size() - (int)B.Match.size();
-				});
 			}
 			RouteGroup* SiteEntry::Group(const std::string& Match, RouteMode Mode)
 			{
@@ -4146,11 +4136,23 @@ namespace Tomahawk
 				}
 				else
 				{
+					std::vector<std::string> Keys = Core::Parser(Data, Length).Split(',');
+					for (auto& Item : Keys)
+						Core::Parser(&Item).Trim();
+					
 					if (Segment->Request)
-						Segment->Request->Headers[Segment->Header].emplace_back(Data, Length);
+					{
+						auto& Source = Segment->Request->Headers[Segment->Header];
+						for (auto& Item : Keys)
+							Source.push_back(Item);
+					}
 
 					if (Segment->Response)
-						Segment->Response->Headers[Segment->Header].emplace_back(Data, Length);
+					{
+						auto& Source = Segment->Response->Headers[Segment->Header];
+						for (auto& Item : Keys)
+							Source.push_back(Item);
+					}
 				}
 
 				Segment->Header.clear();

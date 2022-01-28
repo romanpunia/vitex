@@ -5,13 +5,8 @@ extern "C"
 #include <mongoc.h>
 #endif
 }
-#ifdef _DEBUG
 #define MongoExecuteQuery(Function, Context, ...) ExecuteQuery(TH_STRINGIFY(Function), Function, Context, ##__VA_ARGS__)
 #define MongoExecuteCursor(Function, Context, ...) ExecuteCursor(TH_STRINGIFY(Function), Function, Context, ##__VA_ARGS__)
-#else
-#define MongoExecuteQuery(Function, Context, ...) ExecuteQuery(Function, Context, ##__VA_ARGS__)
-#define MongoExecuteCursor(Function, Context, ...) ExecuteCursor(Function, Context, ##__VA_ARGS__)
-#endif
 
 namespace Tomahawk
 {
@@ -32,52 +27,42 @@ namespace Tomahawk
 			} BSON_FLAG;
 
 			template <typename R, typename T, typename... Args>
-#ifdef _DEBUG
 			bool ExecuteQuery(const char* Name, R&& Function, T* Base, Args&&... Data)
-#else
-			bool ExecuteQuery(R&& Function, T* Base, Args&&... Data)
-#endif
 			{
 				TH_ASSERT(Base != nullptr, false, "context should be set");
 				TH_PPUSH("mongoc-send", TH_PERF_MAX);
-#ifdef _DEBUG
 				TH_TRACE("[mongoc] execute query document on 0x%p\n\t%s", (void*)Base, Name + 1);
-#endif
+
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				bool Result = Function(Base, Data..., &Error);
 				if (!Result && Error.code != 0)
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
-#ifdef _DEBUG
+
 				if (Result || Error.code == 0)
 					TH_TRACE("[mongoc] OK execute on 0x%p", (void*)Base);
-#endif
+
 				TH_PPOP();
 				return Result;
 			}
 			template <typename R, typename T, typename... Args>
-#ifdef _DEBUG
 			Cursor ExecuteCursor(const char* Name, R&& Function, T* Base, Args&&... Data)
-#else
-			Cursor ExecuteCursor(R&& Function, T* Base, Args&&... Data)
-#endif
 			{
 				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				TH_PPUSH("mongoc-recv", TH_PERF_MAX);
-#ifdef _DEBUG
 				TH_TRACE("[mongoc] execute query cursor on 0x%p\n\t%s", (void*)Base, Name + 1);
-#endif
+
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
 
 				TCursor* Result = Function(Base, Data...);
 				if (!Result || mongoc_cursor_error(Result, &Error))
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
-#ifdef _DEBUG
+					
 				if (Result || Error.code == 0)
 					TH_TRACE("[mongoc] OK execute on 0x%p", (void*)Base);
-#endif
+				
 				TH_PPOP();
 				return Result;
 			}
@@ -1249,9 +1234,7 @@ namespace Tomahawk
 			}
 			bool Stream::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
 			{
-#ifdef _DEBUG
 				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-#endif
 				return Query(Driver::GetQuery(Name, Map, Once));
 			}
 			bool Stream::Query(const Document& Command)
@@ -2144,9 +2127,7 @@ namespace Tomahawk
 			}
 			Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Transaction* Session)
 			{
-#ifdef _DEBUG
 				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-#endif
 				return Query(Driver::GetQuery(Name, Map, Once), Session);
 			}
 			Core::Async<Response> Collection::Query(const Document& Command, Transaction* Session)

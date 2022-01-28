@@ -260,7 +260,8 @@ namespace Tomahawk
 			Red = 12,
 			Pink = 13,
 			Yellow = 14,
-			White = 15
+			White = 15,
+			Zero = 16
 		};
 
 		enum class FileMode
@@ -968,6 +969,7 @@ namespace Tomahawk
 				static bool Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Result);
 				static bool Await(ChildProcess* Process, int* ExitCode);
 				static bool Free(ChildProcess* Process);
+                static std::string GetThreadId(const std::thread::id& Id);
 			};
 
 			class TH_OUT Symbol

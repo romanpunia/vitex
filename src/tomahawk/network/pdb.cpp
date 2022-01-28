@@ -1657,9 +1657,8 @@ namespace Tomahawk
 			}
 			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, uint64_t Opts, uint64_t Token)
 			{
-#ifdef _DEBUG
 				TH_TRACE("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
-#endif
+
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
 				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Token);
 			}
@@ -1676,9 +1675,8 @@ namespace Tomahawk
 					if (GetCache(Reference, &Result))
 					{
 						Driver::LogQuery(Command);
-#ifdef _DEBUG
 						TH_TRACE("[pq] OK execute on NULL (memory-cache)");
-#endif
+
 						return Result;
 					}
 				}
@@ -1881,12 +1879,11 @@ namespace Tomahawk
 					return false;
 
 				TH_PPUSH("postgres-send", TH_PERF_MAX);
-#ifdef _DEBUG
 				if (Base->Session != 0)
 					TH_TRACE("[pq] execute query on 0x%p tx-%llu\n\t%.64s%s", (void*)Base, Base->Session, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
 				else
 					TH_TRACE("[pq] execute query on 0x%p\n\t%.64s%s", (void*)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
-#endif
+				
 				if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
 				{
 					Base->State = QueryState::Busy;
@@ -1998,10 +1995,9 @@ namespace Tomahawk
 								PQlogMessage(Source->Base);
 
 								Update.unlock();
-#ifdef _DEBUG
 								if (!Results.IsError())
 									TH_TRACE("[pq] OK execute on 0x%p", (void*)Source);
-#endif
+								
 								Item->Finalize(Results);
 								Future = std::move(Results);
 								Update.lock();

@@ -330,6 +330,7 @@ namespace Tomahawk
 		typedef std::function<void* (size_t)> AllocCallback;
 		typedef std::function<void* (void*, size_t)> ReallocCallback;
 		typedef std::function<void(void*)> FreeCallback;
+		typedef std::function<bool()> ActivityCallback;
 		typedef uint64_t TimerId;
 		typedef Decimal BigNumber;
 		typedef void* ConcurrentQueue;
@@ -1397,6 +1398,7 @@ namespace Tomahawk
 		private:
 			std::map<std::chrono::microseconds, Timeout> Timers;
 			std::vector<std::thread> Childs;
+			ActivityCallback IsRunning;
 			ConcurrentQueue Asyncs;
 			ConcurrentQueue Tasks;
 			Costate* Comain;
@@ -1422,7 +1424,7 @@ namespace Tomahawk
 			bool SetAsync(const TaskCallback& Callback);
 			bool SetAsync(TaskCallback&& Callback);
 			bool ClearTimeout(TimerId TimerId);
-			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = TH_STACKSIZE);
+			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = TH_STACKSIZE, const ActivityCallback& Callback = nullptr);
 			bool Stop();
 			bool Dispatch();
 			bool IsBlockable();

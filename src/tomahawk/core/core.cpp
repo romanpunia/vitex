@@ -8068,12 +8068,13 @@ namespace Tomahawk
 			TH_PPOP();
 			return false;
 		}
-		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize)
+		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize, const ActivityCallback& Callback)
 		{
 			TH_ASSERT(!Active, false, "queue should be stopped");
 			Threads = (IsAsync ? ThreadsCount : 0);
 			Coroutines = CoroutinesCount;
 			Stack = StackSize;
+			IsRunning = Callback;
 
 			if (!IsAsync)
 			{
@@ -8082,8 +8083,11 @@ namespace Tomahawk
 			}
 
 			Childs.reserve(Threads + 1);
-			Childs.emplace_back(std::thread(&Schedule::Publish, this));
-			TH_TRACE("spawn thread %s", OS::Process::GetThreadId(Childs.back().get_id()).c_str());
+			if (!IsRunning)
+			{
+				Childs.emplace_back(std::thread(&Schedule::Publish, this));
+				TH_TRACE("spawn thread %s", OS::Process::GetThreadId(Childs.back().get_id()).c_str());
+			}
 
 			for (uint64_t i = 0; i < Threads; i++)
 			{
@@ -8094,6 +8098,10 @@ namespace Tomahawk
 			Active = true;
 			Queue.Publish.notify_one();
 			Queue.Consume.notify_one();
+
+			if (IsRunning)
+				return Publish();
+
 			return true;
 		}
 		bool Schedule::Stop()
@@ -8186,7 +8194,7 @@ namespace Tomahawk
 					std::unique_lock<std::mutex> Lock(Race.Publish);
 					Queue.Publish.wait(Lock);
 				}
-			} while (Active);
+			} while (Active && (IsRunning ? IsRunning() : true));
 
 			return true;
 		}

@@ -6157,7 +6157,9 @@ namespace Tomahawk
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Content, Time);
 #endif
-			Queue->Start(Control.Async, Control.Threads, Control.Coroutines, Control.Stack);
+			Core::ActivityCallback Callback = (Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr);
+			Queue->Start(Control.Async, Control.Threads, Control.Coroutines, Control.Stack, Callback);
+
 			if (Activity != nullptr && Control.Async)
 			{
 				while (State == OK)
@@ -6231,8 +6233,17 @@ namespace Tomahawk
 		{
 			return State;
 		}
+		bool Application::Status(Application* App)
+		{
+			return App->State == ApplicationState::Singlethreaded || App->State == ApplicationState::Multithreaded;
+		}
 		void Application::Compose()
 		{
+			static bool WasComposed = false;
+			if (WasComposed)
+				return;
+
+			WasComposed = true;
 			Core::Composer::Push<Components::RigidBody, Entity*>();
 			Core::Composer::Push<Components::SoftBody, Entity*>();
 			Core::Composer::Push<Components::Acceleration, Entity*>();

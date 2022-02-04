@@ -1290,6 +1290,7 @@ namespace Tomahawk
 					(size_t)ApplicationSet::ScriptSet |
 					(size_t)ApplicationSet::ContentSet |
 					(size_t)ApplicationSet::NetworkSet;
+				bool Daemon = false;
 				bool Cursor = true;
 				bool Async = false;
 			};
@@ -1336,6 +1337,7 @@ namespace Tomahawk
 			void Stop();
 
 		private:
+			static bool Status(Application* App);
 			static void Compose();
 
 		public:

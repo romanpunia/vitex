@@ -846,6 +846,22 @@ namespace Tomahawk
 				Range.clear();
 				Range.push_back(Value);
 			}
+			std::string Resource::ComposeHeader(const std::string& Label) const
+			{
+				TH_ASSERT(!Label.empty(), std::string(), "label should not be empty");
+				auto It = Headers.find(Label);
+				if (It == Headers.end())
+					return std::string();
+
+				std::string Result;
+				for (auto& Item : It->second)
+				{
+					Result.append(Item);
+					Result.append(1, ',');
+				}
+
+				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
+			}
 			RangePayload* Resource::GetHeaderRanges(const std::string& Label)
 			{
 				TH_ASSERT(!Label.empty(), nullptr, "label should not be empty");
@@ -898,6 +914,22 @@ namespace Tomahawk
 				auto& Range = Headers[Key];
 				Range.clear();
 				Range.push_back(Value);
+			}
+			std::string RequestFrame::ComposeHeader(const std::string& Label) const
+			{
+				TH_ASSERT(!Label.empty(), std::string(), "label should not be empty");
+				auto It = Headers.find(Label);
+				if (It == Headers.end())
+					return std::string();
+
+				std::string Result;
+				for (auto& Item : It->second)
+				{
+					Result.append(Item);
+					Result.append(1, ',');
+				}
+
+				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
 			RangePayload* RequestFrame::GetCookieRanges(const std::string& Key)
 			{
@@ -1048,6 +1080,22 @@ namespace Tomahawk
 				}
 
 				Cookies.emplace_back(std::move(Value));
+			}
+			std::string ResponseFrame::ComposeHeader(const std::string& Label) const
+			{
+				TH_ASSERT(!Label.empty(), std::string(), "label should not be empty");
+				auto It = Headers.find(Label);
+				if (It == Headers.end())
+					return std::string();
+
+				std::string Result;
+				for (auto& Item : It->second)
+				{
+					Result.append(Item);
+					Result.append(1, ',');
+				}
+
+				return (Result.empty() ? Result : Result.substr(0, Result.size() - 1));
 			}
 			Cookie* ResponseFrame::GetCookie(const char* Key)
 			{

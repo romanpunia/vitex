@@ -160,6 +160,7 @@ namespace Tomahawk
 
 				void PutHeader(const std::string& Key, const std::string& Value);
 				void SetHeader(const std::string& Key, const std::string& Value);
+				std::string ComposeHeader(const std::string& Key) const;
 				RangePayload* GetHeaderRanges(const std::string& Key);
 				const std::string* GetHeaderBlob(const std::string& Key) const;
 				const char* GetHeader(const std::string& Key) const;
@@ -201,6 +202,7 @@ namespace Tomahawk
 				void SetVersion(unsigned int Major, unsigned int Minor);
 				void PutHeader(const std::string& Key, const std::string& Value);
 				void SetHeader(const std::string& Key, const std::string& Value);
+				std::string ComposeHeader(const std::string& Key) const;
 				RangePayload* GetCookieRanges(const std::string& Key);
 				std::string* GetCookieBlob(const std::string& Key) const;
 				const char* GetCookie(const std::string& Key) const;
@@ -226,6 +228,7 @@ namespace Tomahawk
 				void SetHeader(const std::string& Key, const std::string& Value);
 				void SetCookie(const Cookie& Value);
 				void SetCookie(Cookie&& Value);
+				std::string ComposeHeader(const std::string& Key) const;
 				Cookie* GetCookie(const char* Key);
 				RangePayload* GetHeaderRanges(const std::string& Key);
 				const std::string* GetHeaderBlob(const std::string& Key) const;

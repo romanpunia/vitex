@@ -6211,7 +6211,9 @@ namespace Tomahawk
 		}
 		void Application::Stop()
 		{
+			Core::Schedule* Queue = Core::Schedule::Get();
 			State = ApplicationState::Terminated;
+			Queue->Wakeup();
 		}
 		void* Application::GetGUI()
 		{

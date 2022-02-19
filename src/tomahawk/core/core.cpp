@@ -8068,6 +8068,15 @@ namespace Tomahawk
 			TH_PPOP();
 			return false;
 		}
+		bool Schedule::Wakeup()
+		{
+			if (!Active)
+				return false;
+
+			Queue.Publish.notify_all();
+			Queue.Consume.notify_all();
+			return true;
+		}
 		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize, const ActivityCallback& Callback)
 		{
 			TH_ASSERT(!Active, false, "queue should be stopped");

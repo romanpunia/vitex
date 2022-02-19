@@ -1424,6 +1424,7 @@ namespace Tomahawk
 			bool SetAsync(const TaskCallback& Callback);
 			bool SetAsync(TaskCallback&& Callback);
 			bool ClearTimeout(TimerId TimerId);
+			bool Wakeup();
 			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = TH_STACKSIZE, const ActivityCallback& Callback = nullptr);
 			bool Stop();
 			bool Dispatch();

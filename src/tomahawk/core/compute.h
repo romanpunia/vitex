@@ -1692,6 +1692,99 @@ namespace Tomahawk
 			}
 		};
 
+		class TH_OUT Area
+		{
+		public:
+			std::vector<float> Lower;
+			std::vector<float> Upper;
+			std::vector<float> Center;
+			float Volume;
+
+		public:
+			Area();
+			Area(uint64_t);
+			Area(const std::vector<float>&, const std::vector<float>&);
+			void SetDimension(uint64_t);
+			void Merge(const Area&, const Area&);
+			bool Contains(const Area&) const;
+			bool Overlaps(const Area&, bool TouchIsOverlap) const;
+			float ComputeVolume() const;
+			std::vector<float> ComputeCenter();
+		};
+
+		class TH_OUT Cosmos
+		{
+		public:
+			enum
+			{
+				NULL_NODE = std::numeric_limits<uint64_t>::max()
+			};
+
+		private:
+			struct Node
+			{
+				Area Box;
+				uint64_t Parent;
+				uint64_t Next;
+				uint64_t Left;
+				uint64_t Right;
+				uint64_t Item;
+				int Height;
+
+				Node();
+				bool IsLeaf() const;
+			};
+
+		private:
+			uint64_t Root;
+			std::vector<Node> Nodes;
+			uint64_t NodeCount;
+			uint64_t NodeCapacity;
+			uint64_t FreeList;
+			uint64_t Dimension;
+			bool IsPeriodic;
+			float SkinThickness;
+			std::vector<bool> Periodicity;
+			std::vector<float> BoxSize;
+			std::vector<float> NegMinImage;
+			std::vector<float> PosMinImage;
+			std::unordered_map<uint64_t, uint64_t> ItemMap;
+			bool TouchIsOverlap;
+
+		public:
+			Cosmos(uint64_t dimension_ = 3, float skinThickness_ = 0.05, uint64_t nItems = 16, bool TouchIsOverlap = true);
+			Cosmos(uint64_t, float, const std::vector<bool>&, const std::vector<float>&, uint64_t nItems = 16, bool TouchIsOverlap = true);
+			void SetPeriodicity(const std::vector<bool>&);
+			void SetBoxSize(const std::vector<float>&);
+			void Clear();
+			void InsertItem(uint64_t, std::vector<float>&, float);
+			void InsertItem(uint64_t, std::vector<float>&, std::vector<float>&);
+			void RemoveItem(uint64_t);
+			bool UpdateItem(uint64_t, std::vector<float>&, float, bool alwaysReinsert = false);
+			bool UpdateItem(uint64_t, std::vector<float>&, std::vector<float>&, bool alwaysReinsert = false);
+			std::vector<uint64_t> Query(uint64_t);
+			std::vector<uint64_t> Query(uint64_t, const Area&);
+			std::vector<uint64_t> Query(const Area&);
+			const Area& GetArea(uint64_t);
+			uint64_t GetItemsCount();
+			uint64_t GetNodesCount() const;
+			uint64_t GetHeight() const;
+			uint64_t ComputeMaxBalance() const;
+			float ComputeVolumeRatio() const;
+			void Deploy();
+
+		private:
+			uint64_t AllocateNode();
+			void FreeNode(uint64_t);
+			void InsertLeaf(uint64_t);
+			void RemoveLeaf(uint64_t);
+			uint64_t Balance(uint64_t);
+			uint64_t ComputeHeight() const;
+			uint64_t ComputeHeight(uint64_t) const;
+			void PeriodicBoundaries(std::vector<float>&);
+			bool MinImage(std::vector<float>&, std::vector<float>&);
+		};
+
 		class TH_OUT HullShape : public Core::Object
 		{
 		public:

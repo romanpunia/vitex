@@ -354,6 +354,7 @@ namespace Tomahawk
 		enum class RenderBackend
 		{
 			None,
+			Automatic,
 			D3D11,
 			OGL
 		};
@@ -1590,7 +1591,7 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				RenderBackend Backend = RenderBackend::None;
+				RenderBackend Backend = RenderBackend::Automatic;
 				ShaderModel ShaderMode = ShaderModel::Auto;
 				Format BufferFormat = Format::R8G8B8A8_Unorm;
 				VSync VSyncMode = VSync::Frequency_X1;
@@ -1812,7 +1813,7 @@ namespace Tomahawk
 			void ReleaseProxy();
 
 		public:
-			static GraphicsDevice* Create(const Desc& I);
+			static GraphicsDevice* Create(Desc& I);
 		};
 
 		class TH_OUT Activity : public Core::Object

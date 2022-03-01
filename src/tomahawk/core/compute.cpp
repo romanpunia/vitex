@@ -9426,6 +9426,864 @@ namespace Tomahawk
 			return Childs;
 		}
 
+		Area::Area()
+		{
+		}
+		Area::Area(uint64_t Dimension)
+		{
+			TH_ASSERT_V(Dimension >= 2, "Dimension must be greater than 1");
+			Lower.resize(Dimension);
+			Upper.resize(Dimension);
+		}
+		Area::Area(const std::vector<float>& LowerBound, const std::vector<float>& UpperBound) : Lower(LowerBound), Upper(UpperBound)
+		{
+			TH_ASSERT_V(Lower.size() == Upper.size(), "dimensions must be equal");
+			for (uint64_t i = 0; i < Lower.size(); i++)
+				TH_ASSERT_V(Lower[i] <= Upper[i], "lower[%i] must be smaller than upper[%i]", (int)i, (int)i);
+
+			Volume = ComputeVolume();
+			Center = ComputeCenter();
+		}
+		float Area::ComputeVolume() const
+		{
+			float sum = 0;
+			for (uint64_t d1 = 0; d1 < Lower.size(); d1++)
+			{
+				float product = 1;
+				for (uint64_t d2 = 0; d2 < Lower.size(); d2++)
+				{
+					if (d1 == d2)
+						continue;
+
+					float dx = Upper[d2] - Lower[d2];
+					product *= dx;
+				}
+
+				sum += product;
+			}
+
+			return 2.0 * sum;
+		}
+		void Area::Merge(const Area& A, const Area& B)
+		{
+			TH_ASSERT_V(A.Lower.size() == B.Lower.size(), "lower bounds must be equal dim");
+			TH_ASSERT_V(A.Upper.size() == B.Upper.size(), "upper bounds must be equal dim");
+
+			Lower.resize(A.Lower.size());
+			Upper.resize(A.Lower.size());
+
+			for (uint64_t i = 0; i < Lower.size(); i++)
+			{
+				Lower[i] = std::min(A.Lower[i], B.Lower[i]);
+				Upper[i] = std::max(A.Upper[i], B.Upper[i]);
+			}
+
+			Volume = ComputeVolume();
+			Center = ComputeCenter();
+		}
+		bool Area::Contains(const Area& Box) const
+		{
+			TH_ASSERT(Box.Lower.size() == Lower.size(), false, "lower bounds must be equal dim");
+			for (uint64_t i = 0; i < Lower.size(); i++)
+			{
+				if (Box.Lower[i] < Lower[i])
+					return false;
+
+				if (Box.Upper[i] > Upper[i])
+					return false;
+			}
+
+			return true;
+		}
+		bool Area::Overlaps(const Area& Box, bool TouchIsOverlap) const
+		{
+			TH_ASSERT(Box.Lower.size() == Lower.size(), false, "lower bounds must be equal dim");
+
+			bool rv = true;
+			if (TouchIsOverlap)
+			{
+				for (uint64_t i = 0; i < Lower.size(); ++i)
+				{
+					if (Box.Upper[i] < Lower[i] || Box.Lower[i] > Upper[i])
+					{
+						rv = false;
+						break;
+					}
+				}
+			}
+			else
+			{
+				for (uint64_t i = 0; i < Lower.size(); ++i)
+				{
+					if (Box.Upper[i] <= Lower[i] || Box.Lower[i] >= Upper[i])
+					{
+						rv = false;
+						break;
+					}
+				}
+			}
+
+			return rv;
+		}
+		std::vector<float> Area::ComputeCenter()
+		{
+			std::vector<float> position(Lower.size());
+			for (uint64_t i = 0; i < position.size(); i++)
+				position[i] = 0.5 * (Lower[i] + Upper[i]);
+
+			return position;
+		}
+		void Area::SetDimension(uint64_t Dimension)
+		{
+			TH_ASSERT_V(Dimension >= 2, "dimension must be greater than 1");
+			Lower.resize(Dimension);
+			Upper.resize(Dimension);
+		}
+
+		Cosmos::Node::Node()
+		{
+		}
+		bool Cosmos::Node::IsLeaf() const
+		{
+			return (Left == NULL_NODE);
+		}
+
+		Cosmos::Cosmos(uint64_t dimension_, float skinThickness_, uint64_t nItems, bool touchIsOverlap_) : Dimension(dimension_), IsPeriodic(false), SkinThickness(skinThickness_), TouchIsOverlap(touchIsOverlap_)
+		{
+			TH_ASSERT_V(Dimension >= 2, "invalid dimension");
+
+			Periodicity.resize(Dimension);
+			std::fill(Periodicity.begin(), Periodicity.end(), false);
+
+			Root = NULL_NODE;
+			NodeCount = 0;
+			NodeCapacity = nItems;
+			Nodes.resize(NodeCapacity);
+
+			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
+			{
+				Nodes[i].Next = i + 1;
+				Nodes[i].Height = -1;
+			}
+
+			Nodes[NodeCapacity - 1].Next = NULL_NODE;
+			Nodes[NodeCapacity - 1].Height = -1;
+			FreeList = 0;
+		}
+		Cosmos::Cosmos(uint64_t dimension_, float skinThickness_, const std::vector<bool>& periodicity_, const std::vector<float>& boxSize_, uint64_t nItems, bool touchIsOverlap_) : Dimension(dimension_), SkinThickness(skinThickness_), Periodicity(periodicity_), BoxSize(boxSize_), TouchIsOverlap(touchIsOverlap_)
+		{
+			TH_ASSERT_V(Dimension >= 2, "invalid dimension");
+			TH_ASSERT_V(Periodicity.size() == Dimension && BoxSize.size() == Dimension, "dimension mismatch");
+
+			Root = NULL_NODE;
+			NodeCount = 0;
+			NodeCapacity = nItems;
+			Nodes.resize(NodeCapacity);
+
+			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
+			{
+				Nodes[i].Next = i + 1;
+				Nodes[i].Height = -1;
+			}
+
+			Nodes[NodeCapacity - 1].Next = NULL_NODE;
+			Nodes[NodeCapacity - 1].Height = -1;
+			FreeList = 0;
+			IsPeriodic = false;
+			PosMinImage.resize(Dimension);
+			NegMinImage.resize(Dimension);
+
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				PosMinImage[i] = 0.5 * BoxSize[i];
+				NegMinImage[i] = -0.5 * BoxSize[i];
+				if (Periodicity[i])
+					IsPeriodic = true;
+			}
+		}
+		void Cosmos::SetPeriodicity(const std::vector<bool>& periodicity_)
+		{
+			Periodicity = periodicity_;
+		}
+		void Cosmos::SetBoxSize(const std::vector<float>& boxSize_)
+		{
+			BoxSize = boxSize_;
+		}
+		void Cosmos::FreeNode(uint64_t node)
+		{
+			TH_ASSERT_V(node < NodeCapacity, "outside of borders");
+			TH_ASSERT_V(0 < NodeCount, "there must be at least one node");
+
+			Nodes[node].Next = FreeList;
+			Nodes[node].Height = -1;
+			FreeList = node;
+			NodeCount--;
+		}
+		void Cosmos::InsertItem(uint64_t Item, std::vector<float>& position, float radius)
+		{
+			TH_ASSERT_V(ItemMap.count(Item) == 0, "Item already exists");
+			TH_ASSERT_V(position.size() == Dimension, "dimension mismatch");
+
+			uint64_t node = AllocateNode();
+			std::vector<float> size(Dimension);
+
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				Nodes[node].Box.Lower[i] = position[i] - radius;
+				Nodes[node].Box.Upper[i] = position[i] + radius;
+				size[i] = Nodes[node].Box.Upper[i] - Nodes[node].Box.Lower[i];
+			}
+
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				Nodes[node].Box.Lower[i] -= SkinThickness * size[i];
+				Nodes[node].Box.Upper[i] += SkinThickness * size[i];
+			}
+
+			Nodes[node].Box.Volume = Nodes[node].Box.ComputeVolume();
+			Nodes[node].Box.Center = Nodes[node].Box.ComputeCenter();
+			Nodes[node].Height = 0;
+			InsertLeaf(node);
+
+			ItemMap.insert(std::unordered_map<uint64_t, uint64_t>::value_type(Item, node));
+			Nodes[node].Item = Item;
+		}
+		void Cosmos::InsertItem(uint64_t Item, std::vector<float>& Lower, std::vector<float>& Upper)
+		{
+			TH_ASSERT_V(ItemMap.count(Item) == 0, "Item already exists");
+			TH_ASSERT_V(Lower.size() == Dimension && Upper.size() == Dimension, "dimension mismatch");
+
+			uint64_t node = AllocateNode();
+			std::vector<float> size(Dimension);
+
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				TH_ASSERT_V(Lower[i] <= Upper[i], "area lower bound is greater than the upper bound");
+				Nodes[node].Box.Lower[i] = Lower[i];
+				Nodes[node].Box.Upper[i] = Upper[i];
+				size[i] = Upper[i] - Lower[i];
+			}
+
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				Nodes[node].Box.Lower[i] -= SkinThickness * size[i];
+				Nodes[node].Box.Upper[i] += SkinThickness * size[i];
+			}
+
+			Nodes[node].Box.Volume = Nodes[node].Box.ComputeVolume();
+			Nodes[node].Box.Center = Nodes[node].Box.ComputeCenter();
+			Nodes[node].Height = 0;
+			InsertLeaf(node);
+
+			ItemMap.insert(std::unordered_map<uint64_t, uint64_t>::value_type(Item, node));
+			Nodes[node].Item = Item;
+		}
+		void Cosmos::RemoveItem(uint64_t Item)
+		{
+			auto it = ItemMap.find(Item);
+			TH_ASSERT_V(it == ItemMap.end(), "invalid Item index");
+
+			uint64_t node = it->second;
+			ItemMap.erase(it);
+
+			TH_ASSERT_V(node < NodeCapacity, "outside of borders");
+			TH_ASSERT_V(Nodes[node].IsLeaf(), "cannot remove root node");
+
+			RemoveLeaf(node);
+			FreeNode(node);
+		}
+		void Cosmos::InsertLeaf(uint64_t leaf)
+		{
+			if (Root == NULL_NODE)
+			{
+				Root = leaf;
+				Nodes[Root].Parent = NULL_NODE;
+				return;
+			}
+
+			Area leafAABB = Nodes[leaf].Box;
+			uint64_t index = Root;
+
+			while (!Nodes[index].IsLeaf())
+			{
+				uint64_t Left = Nodes[index].Left;
+				uint64_t Right = Nodes[index].Right;
+				float Volume = Nodes[index].Box.Volume;
+
+				Area combinedAABB;
+				combinedAABB.Merge(Nodes[index].Box, leafAABB);
+				float combinedSurfaceArea = combinedAABB.Volume;
+				float cost = 2.0 * combinedSurfaceArea;
+				float inheritanceCost = 2.0 * (combinedSurfaceArea - Volume);
+
+				float costLeft;
+				if (Nodes[Left].IsLeaf())
+				{
+					Area Box;
+					Box.Merge(leafAABB, Nodes[Left].Box);
+					costLeft = Box.Volume + inheritanceCost;
+				}
+				else
+				{
+					Area Box;
+					Box.Merge(leafAABB, Nodes[Left].Box);
+					float oldArea = Nodes[Left].Box.Volume;
+					float newArea = Box.Volume;
+					costLeft = (newArea - oldArea) + inheritanceCost;
+				}
+
+				float costRight;
+				if (Nodes[Right].IsLeaf())
+				{
+					Area Box;
+					Box.Merge(leafAABB, Nodes[Right].Box);
+					costRight = Box.Volume + inheritanceCost;
+				}
+				else
+				{
+					Area Box;
+					Box.Merge(leafAABB, Nodes[Right].Box);
+					float oldArea = Nodes[Right].Box.Volume;
+					float newArea = Box.Volume;
+					costRight = (newArea - oldArea) + inheritanceCost;
+				}
+
+				if ((cost < costLeft) && (cost < costRight))
+					break;
+
+				if (costLeft < costRight)
+					index = Left;
+				else
+					index = Right;
+			}
+
+			uint64_t sibling = index;
+			uint64_t oldParent = Nodes[sibling].Parent;
+			uint64_t newParent = AllocateNode();
+			Nodes[newParent].Parent = oldParent;
+			Nodes[newParent].Box.Merge(leafAABB, Nodes[sibling].Box);
+			Nodes[newParent].Height = Nodes[sibling].Height + 1;
+
+			if (oldParent != NULL_NODE)
+			{
+				if (Nodes[oldParent].Left == sibling)
+					Nodes[oldParent].Left = newParent;
+				else
+					Nodes[oldParent].Right = newParent;
+
+				Nodes[newParent].Left = sibling;
+				Nodes[newParent].Right = leaf;
+				Nodes[sibling].Parent = newParent;
+				Nodes[leaf].Parent = newParent;
+			}
+			else
+			{
+				Nodes[newParent].Left = sibling;
+				Nodes[newParent].Right = leaf;
+				Nodes[sibling].Parent = newParent;
+				Nodes[leaf].Parent = newParent;
+				Root = newParent;
+			}
+
+			index = Nodes[leaf].Parent;
+			while (index != NULL_NODE)
+			{
+				index = Balance(index);
+				uint64_t Left = Nodes[index].Left;
+				uint64_t Right = Nodes[index].Right;
+
+				TH_ASSERT_V(Left != NULL_NODE, "cannot occupy left node");
+				TH_ASSERT_V(Right != NULL_NODE, "cannot occupy left node");
+
+				Nodes[index].Height = 1 + std::max(Nodes[Left].Height, Nodes[Right].Height);
+				Nodes[index].Box.Merge(Nodes[Left].Box, Nodes[Right].Box);
+				index = Nodes[index].Parent;
+			}
+		}
+		void Cosmos::RemoveLeaf(uint64_t leaf)
+		{
+			if (leaf == Root)
+			{
+				Root = NULL_NODE;
+				return;
+			}
+
+			uint64_t Parent = Nodes[leaf].Parent;
+			uint64_t grandParent = Nodes[Parent].Parent;
+			uint64_t sibling;
+
+			if (Nodes[Parent].Left == leaf)
+				sibling = Nodes[Parent].Right;
+			else
+				sibling = Nodes[Parent].Left;
+
+			if (grandParent != NULL_NODE)
+			{
+				if (Nodes[grandParent].Left == Parent)
+					Nodes[grandParent].Left = sibling;
+				else
+					Nodes[grandParent].Right = sibling;
+
+				Nodes[sibling].Parent = grandParent;
+				FreeNode(Parent);
+
+				uint64_t index = grandParent;
+				while (index != NULL_NODE)
+				{
+					index = Balance(index);
+					uint64_t Left = Nodes[index].Left;
+					uint64_t Right = Nodes[index].Right;
+
+					Nodes[index].Box.Merge(Nodes[Left].Box, Nodes[Right].Box);
+					Nodes[index].Height = 1 + std::max(Nodes[Left].Height, Nodes[Right].Height);
+					index = Nodes[index].Parent;
+				}
+			}
+			else
+			{
+				Root = sibling;
+				Nodes[sibling].Parent = NULL_NODE;
+				FreeNode(Parent);
+			}
+		}
+		void Cosmos::Clear()
+		{
+			auto it = ItemMap.begin();
+			while (it != ItemMap.end())
+			{
+				uint64_t node = it->second;
+				TH_ASSERT_V(node < NodeCapacity, "outside of borders");
+				TH_ASSERT_V(Nodes[node].IsLeaf(), "cannot remove root node");
+
+				RemoveLeaf(node);
+				FreeNode(node);
+				it++;
+			}
+
+			ItemMap.clear();
+		}
+		bool Cosmos::UpdateItem(uint64_t Item, std::vector<float>& position, float radius, bool alwaysReinsert)
+		{
+			TH_ASSERT(position.size() == Dimension, false, "dimension mismatch");
+
+			std::vector<float> Lower(Dimension), Upper(Dimension);
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				Lower[i] = position[i] - radius;
+				Upper[i] = position[i] + radius;
+			}
+
+			return UpdateItem(Item, Lower, Upper, alwaysReinsert);
+		}
+		bool Cosmos::UpdateItem(uint64_t Item, std::vector<float>& Lower, std::vector<float>& Upper, bool alwaysReinsert)
+		{
+			TH_ASSERT(Lower.size() == Dimension && Upper.size() == Dimension, false, "dimension mismatch");
+
+			auto it = ItemMap.find(Item);
+			if (it == ItemMap.end())
+				return false;
+
+			uint64_t node = it->second;
+			TH_ASSERT(node < NodeCapacity, false, "outside of borders");
+			TH_ASSERT(Nodes[node].IsLeaf(), false, "cannot remove root node");
+
+			std::vector<float> size(Dimension);
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				TH_ASSERT(Lower[i] <= Upper[i], false, "area lower bound is greater than the upper bound");
+				size[i] = Upper[i] - Lower[i];
+			}
+
+			Area Box(Lower, Upper);
+			if (!alwaysReinsert && Nodes[node].Box.Contains(Box))
+				return false;
+
+			RemoveLeaf(node);
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				Box.Lower[i] -= SkinThickness * size[i];
+				Box.Upper[i] += SkinThickness * size[i];
+			}
+
+			Nodes[node].Box = Box;
+			Nodes[node].Box.Volume = Nodes[node].Box.ComputeVolume();
+			Nodes[node].Box.Center = Nodes[node].Box.ComputeCenter();
+			InsertLeaf(node);
+
+			return true;
+		}
+		std::vector<uint64_t> Cosmos::Query(uint64_t Item)
+		{
+			if (ItemMap.count(Item) == 0)
+				return std::vector<uint64_t>();
+
+			return Query(Item, Nodes[ItemMap.find(Item)->second].Box);
+		}
+		std::vector<uint64_t> Cosmos::Query(uint64_t Item, const Area& Box)
+		{
+			std::vector<uint64_t> stack;
+			stack.reserve(256);
+			stack.push_back(Root);
+
+			std::vector<uint64_t> Items;
+			while (stack.size() > 0)
+			{
+				uint64_t node = stack.back();
+				stack.pop_back();
+
+				Area nodeAABB = Nodes[node].Box;
+				if (node == NULL_NODE)
+					continue;
+
+				if (IsPeriodic)
+				{
+					std::vector<float> separation(Dimension);
+					std::vector<float> shift(Dimension);
+					for (uint64_t i = 0; i < Dimension; i++)
+						separation[i] = nodeAABB.Center[i] - Box.Center[i];
+
+					if (MinImage(separation, shift))
+					{
+						for (uint64_t i = 0; i < Dimension; i++)
+						{
+							nodeAABB.Lower[i] += shift[i];
+							nodeAABB.Upper[i] += shift[i];
+						}
+					}
+				}
+
+				if (Box.Overlaps(nodeAABB, TouchIsOverlap))
+				{
+					if (Nodes[node].IsLeaf())
+					{
+						if (Nodes[node].Item != Item)
+							Items.push_back(Nodes[node].Item);
+					}
+					else
+					{
+						stack.push_back(Nodes[node].Left);
+						stack.push_back(Nodes[node].Right);
+					}
+				}
+			}
+
+			return Items;
+		}
+		std::vector<uint64_t> Cosmos::Query(const Area& Box)
+		{
+			if (ItemMap.size() == 0)
+				return std::vector<uint64_t>();
+
+			return Query(std::numeric_limits<uint64_t>::max(), Box);
+		}
+		const Area& Cosmos::GetArea(uint64_t Item)
+		{
+			return Nodes[ItemMap[Item]].Box;
+		}
+		uint64_t Cosmos::AllocateNode()
+		{
+			if (FreeList == NULL_NODE)
+			{
+				TH_ASSERT(NodeCount == NodeCapacity, 0, "invalid capacity");
+
+				NodeCapacity *= 2;
+				Nodes.resize(NodeCapacity);
+
+				for (uint64_t i = NodeCount; i < NodeCapacity - 1; i++)
+				{
+					Nodes[i].Next = i + 1;
+					Nodes[i].Height = -1;
+				}
+
+				Nodes[NodeCapacity - 1].Next = NULL_NODE;
+				Nodes[NodeCapacity - 1].Height = -1;
+				FreeList = NodeCount;
+			}
+
+			uint64_t node = FreeList;
+			FreeList = Nodes[node].Next;
+			Nodes[node].Parent = NULL_NODE;
+			Nodes[node].Left = NULL_NODE;
+			Nodes[node].Right = NULL_NODE;
+			Nodes[node].Height = 0;
+			Nodes[node].Box.SetDimension(Dimension);
+			NodeCount++;
+
+			return node;
+		}
+		uint64_t Cosmos::Balance(uint64_t node)
+		{
+			TH_ASSERT(node != NULL_NODE, NULL_NODE, "node should not be null");
+			if (Nodes[node].IsLeaf() || (Nodes[node].Height < 2))
+				return node;
+
+			uint64_t Left = Nodes[node].Left;
+			uint64_t Right = Nodes[node].Right;
+
+			TH_ASSERT(Left < NodeCapacity, NULL_NODE, "left outside of borders");
+			TH_ASSERT(Right < NodeCapacity, NULL_NODE, "right outside of borders");
+
+			int currentBalance = Nodes[Right].Height - Nodes[Left].Height;
+			if (currentBalance > 1)
+			{
+				uint64_t rightLeft = Nodes[Right].Left;
+				uint64_t rightRight = Nodes[Right].Right;
+
+				TH_ASSERT(rightLeft < NodeCapacity, NULL_NODE, "subleft outside of borders");
+				TH_ASSERT(rightRight < NodeCapacity, NULL_NODE, "subright outside of borders");
+
+				Nodes[Right].Left = node;
+				Nodes[Right].Parent = Nodes[node].Parent;
+				Nodes[node].Parent = Right;
+
+				if (Nodes[Right].Parent != NULL_NODE)
+				{
+					if (Nodes[Nodes[Right].Parent].Left != node)
+					{
+						TH_ASSERT(Nodes[Nodes[Right].Parent].Right == node, NULL_NODE, "invalid right spacing");
+						Nodes[Nodes[Right].Parent].Right = Right;
+					}
+					else
+						Nodes[Nodes[Right].Parent].Left = Right;
+				}
+				else
+					Root = Right;
+
+				if (Nodes[rightLeft].Height > Nodes[rightRight].Height)
+				{
+					Nodes[Right].Right = rightLeft;
+					Nodes[node].Right = rightRight;
+					Nodes[rightRight].Parent = node;
+					Nodes[node].Box.Merge(Nodes[Left].Box, Nodes[rightRight].Box);
+					Nodes[Right].Box.Merge(Nodes[node].Box, Nodes[rightLeft].Box);
+
+					Nodes[node].Height = 1 + std::max(Nodes[Left].Height, Nodes[rightRight].Height);
+					Nodes[Right].Height = 1 + std::max(Nodes[node].Height, Nodes[rightLeft].Height);
+				}
+				else
+				{
+					Nodes[Right].Right = rightRight;
+					Nodes[node].Right = rightLeft;
+					Nodes[rightLeft].Parent = node;
+					Nodes[node].Box.Merge(Nodes[Left].Box, Nodes[rightLeft].Box);
+					Nodes[Right].Box.Merge(Nodes[node].Box, Nodes[rightRight].Box);
+
+					Nodes[node].Height = 1 + std::max(Nodes[Left].Height, Nodes[rightLeft].Height);
+					Nodes[Right].Height = 1 + std::max(Nodes[node].Height, Nodes[rightRight].Height);
+				}
+
+				return Right;
+			}
+
+			if (currentBalance < -1)
+			{
+				uint64_t leftLeft = Nodes[Left].Left;
+				uint64_t leftRight = Nodes[Left].Right;
+
+				TH_ASSERT(leftLeft < NodeCapacity, NULL_NODE, "subleft outside of borders");
+				TH_ASSERT(leftRight < NodeCapacity, NULL_NODE, "subright outside of borders");
+
+				Nodes[Left].Left = node;
+				Nodes[Left].Parent = Nodes[node].Parent;
+				Nodes[node].Parent = Left;
+
+				if (Nodes[Left].Parent != NULL_NODE)
+				{
+					if (Nodes[Nodes[Left].Parent].Left != node)
+					{
+						TH_ASSERT(Nodes[Nodes[Left].Parent].Right == node, NULL_NODE, "invalid left spacing");
+						Nodes[Nodes[Left].Parent].Right = Left;
+					}
+					else
+						Nodes[Nodes[Left].Parent].Left = Left;
+				}
+				else
+					Root = Left;
+
+				if (Nodes[leftLeft].Height > Nodes[leftRight].Height)
+				{
+					Nodes[Left].Right = leftLeft;
+					Nodes[node].Left = leftRight;
+					Nodes[leftRight].Parent = node;
+					Nodes[node].Box.Merge(Nodes[Right].Box, Nodes[leftRight].Box);
+					Nodes[Left].Box.Merge(Nodes[node].Box, Nodes[leftLeft].Box);
+					Nodes[node].Height = 1 + std::max(Nodes[Right].Height, Nodes[leftRight].Height);
+					Nodes[Left].Height = 1 + std::max(Nodes[node].Height, Nodes[leftLeft].Height);
+				}
+				else
+				{
+					Nodes[Left].Right = leftRight;
+					Nodes[node].Left = leftLeft;
+					Nodes[leftLeft].Parent = node;
+					Nodes[node].Box.Merge(Nodes[Right].Box, Nodes[leftLeft].Box);
+					Nodes[Left].Box.Merge(Nodes[node].Box, Nodes[leftRight].Box);
+					Nodes[node].Height = 1 + std::max(Nodes[Right].Height, Nodes[leftLeft].Height);
+					Nodes[Left].Height = 1 + std::max(Nodes[node].Height, Nodes[leftRight].Height);
+				}
+
+				return Left;
+			}
+
+			return node;
+		}
+		uint64_t Cosmos::ComputeHeight() const
+		{
+			return ComputeHeight(Root);
+		}
+		uint64_t Cosmos::ComputeHeight(uint64_t node) const
+		{
+			TH_ASSERT(node < NodeCapacity, 0, "outside of borders");
+			if (Nodes[node].IsLeaf())
+				return 0;
+
+			uint64_t height1 = ComputeHeight(Nodes[node].Left);
+			uint64_t height2 = ComputeHeight(Nodes[node].Right);
+
+			return 1 + std::max(height1, height2);
+		}
+		uint64_t Cosmos::GetItemsCount()
+		{
+			return ItemMap.size();
+		}
+		uint64_t Cosmos::GetNodesCount() const
+		{
+			return NodeCount;
+		}
+		uint64_t Cosmos::GetHeight() const
+		{
+			if (Root == NULL_NODE) return 0;
+			return Nodes[Root].Height;
+		}
+		uint64_t Cosmos::ComputeMaxBalance() const
+		{
+			uint64_t maxBalance = 0;
+			for (uint64_t i = 0; i < NodeCapacity; i++)
+			{
+				if (Nodes[i].Height <= 1)
+					continue;
+
+				TH_ASSERT(!Nodes[i].IsLeaf(), 0, "node should be leaf");
+				uint64_t Balance = std::abs(Nodes[Nodes[i].Left].Height - Nodes[Nodes[i].Right].Height);
+				maxBalance = std::max(maxBalance, Balance);
+			}
+
+			return maxBalance;
+		}
+		float Cosmos::ComputeVolumeRatio() const
+		{
+			if (Root == NULL_NODE)
+				return 0.0;
+
+			float rootArea = Nodes[Root].Box.ComputeVolume();
+			float totalArea = 0.0;
+
+			for (uint64_t i = 0; i < NodeCapacity; i++)
+			{
+				if (Nodes[i].Height < 0)
+					continue;
+
+				totalArea += Nodes[i].Box.ComputeVolume();
+			}
+
+			return totalArea / rootArea;
+		}
+		void Cosmos::Deploy()
+		{
+			std::vector<uint64_t> nodeIndices(NodeCount);
+			uint64_t count = 0;
+
+			for (uint64_t i = 0; i < NodeCapacity; i++)
+			{
+				if (Nodes[i].Height < 0)
+					continue;
+
+				if (Nodes[i].IsLeaf())
+				{
+					Nodes[i].Parent = NULL_NODE;
+					nodeIndices[count] = i;
+					count++;
+				}
+				else
+					FreeNode(i);
+			}
+
+			while (count > 1)
+			{
+				float minCost = std::numeric_limits<float>::max();
+				int iMin = -1, jMin = -1;
+
+				for (uint64_t i = 0; i < count; i++)
+				{
+					Area aabbi = Nodes[nodeIndices[i]].Box;
+					for (uint64_t j = i + 1; j < count; j++)
+					{
+						Area aabbj = Nodes[nodeIndices[j]].Box;
+						Area Box;
+						Box.Merge(aabbi, aabbj);
+						float cost = Box.Volume;
+
+						if (cost < minCost)
+						{
+							iMin = i;
+							jMin = j;
+							minCost = cost;
+						}
+					}
+				}
+
+				uint64_t index1 = nodeIndices[iMin];
+				uint64_t index2 = nodeIndices[jMin];
+				uint64_t Parent = AllocateNode();
+
+				Nodes[Parent].Left = index1;
+				Nodes[Parent].Right = index2;
+				Nodes[Parent].Height = 1 + std::max(Nodes[index1].Height, Nodes[index2].Height);
+				Nodes[Parent].Box.Merge(Nodes[index1].Box, Nodes[index2].Box);
+				Nodes[Parent].Parent = NULL_NODE;
+				Nodes[index1].Parent = Parent;
+				Nodes[index2].Parent = Parent;
+
+				nodeIndices[jMin] = nodeIndices[count - 1];
+				nodeIndices[iMin] = Parent;
+				count--;
+			}
+
+			Root = nodeIndices[0];
+		}
+		void Cosmos::PeriodicBoundaries(std::vector<float>& position)
+		{
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				if (position[i] < 0)
+					position[i] += BoxSize[i];
+				else if (position[i] >= BoxSize[i])
+					position[i] -= BoxSize[i];
+			}
+		}
+		bool Cosmos::MinImage(std::vector<float>& separation, std::vector<float>& shift)
+		{
+			bool isShifted = false;
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				if (separation[i] < NegMinImage[i])
+				{
+					float Direction = (float)Periodicity[i];
+					separation[i] += Direction * BoxSize[i];
+					shift[i] = Direction * BoxSize[i];
+					isShifted = true;
+				}
+				else if (separation[i] >= PosMinImage[i])
+				{
+					float Direction = (float)Periodicity[i];
+					separation[i] -= Direction * BoxSize[i];
+					shift[i] = -Direction * BoxSize[i];
+					isShifted = true;
+				}
+			}
+
+			return isShifted;
+		}
+
 		HullShape::HullShape() : Shape(nullptr)
 		{
 		}

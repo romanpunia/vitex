@@ -140,6 +140,18 @@ namespace
 			Compiler->set_decoration(SamplerId.combined_id, spv::DecorationBinding, BindingId);
 		}
 	}
+	static Tomahawk::Graphics::RenderBackend GetSupportedBackend(Tomahawk::Graphics::RenderBackend Type)
+	{
+		if (Type != Tomahawk::Graphics::RenderBackend::Automatic)
+			return Type;
+#ifdef TH_MICROSOFT
+		return Tomahawk::Graphics::RenderBackend::D3D11;
+#endif
+#ifdef TH_HAS_GL
+		return Tomahawk::Graphics::RenderBackend::OGL;
+#endif
+		return Tomahawk::Graphics::RenderBackend::None;
+	}
 }
 #endif
 
@@ -1582,8 +1594,9 @@ namespace Tomahawk
 		{
 			return VSyncMode;
 		}
-		GraphicsDevice* GraphicsDevice::Create(const Desc& I)
+		GraphicsDevice* GraphicsDevice::Create(Desc& I)
 		{
+			I.Backend = GetSupportedBackend(I.Backend);
 #ifdef TH_MICROSOFT
 			if (I.Backend == RenderBackend::D3D11)
 				return new D3D11::D3D11Device(I);

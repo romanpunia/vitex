@@ -140,6 +140,10 @@ namespace
 			Compiler->set_decoration(SamplerId.combined_id, spv::DecorationBinding, BindingId);
 		}
 	}
+}
+#endif
+namespace
+{
 	static Tomahawk::Graphics::RenderBackend GetSupportedBackend(Tomahawk::Graphics::RenderBackend Type)
 	{
 		if (Type != Tomahawk::Graphics::RenderBackend::Automatic)
@@ -153,7 +157,6 @@ namespace
 		return Tomahawk::Graphics::RenderBackend::None;
 	}
 }
-#endif
 
 namespace Tomahawk
 {

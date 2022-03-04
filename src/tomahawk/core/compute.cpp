@@ -922,6 +922,10 @@ namespace Tomahawk
 		{
 			return Vector3(X, Y, Zf);
 		}
+		Vector3 Vector3::Rotate(const Vector3& Origin, const Vector3& Rotation)
+		{
+			return Transform(Matrix4x4::Create(Origin, Rotation));
+		}
 		void Vector3::Set(const Vector3& Value)
 		{
 			X = Value.X;
@@ -1997,9 +2001,10 @@ namespace Tomahawk
 		{
 			return this->Mul(V);
 		}
-		Matrix4x4 Matrix4x4::operator *(const Vector4& V) const
+		Vector4 Matrix4x4::operator *(const Vector4& V) const
 		{
-			return this->Mul(V);
+			Matrix4x4 Result = this->Mul(V);
+			return Vector4(Row[0], Row[4], Row[8], Row[12]);
 		}
 		Matrix4x4& Matrix4x4::operator =(const Matrix4x4& V)
 		{
@@ -2453,9 +2458,6 @@ namespace Tomahawk
 				Matrix4x4::CreateRotationY(-Rotation.Y) *
 				Matrix4x4::CreateRotationX(-Rotation.X);
 
-			if (TH_LEFT_HANDED)
-				return Result;
-
 			return Result;
 		}
 		Matrix4x4 Matrix4x4::CreateLookAt(const Vector3& Position, const Vector3& Target, const Vector3& Up)
@@ -2723,7 +2725,7 @@ namespace Tomahawk
 		{
 			return Mul(R);
 		}
-		Quaternion Quaternion::operator *(const Vector3& R) const
+		Vector3 Quaternion::operator *(const Vector3& R) const
 		{
 			return Mul(R);
 		}
@@ -2821,28 +2823,15 @@ namespace Tomahawk
 #endif
 			return Quaternion(X1, Y1, Z1, W1);
 		}
-		Quaternion Quaternion::Mul(const Vector3& R) const
+		Vector3 Quaternion::Mul(const Vector3& R) const
 		{
-#ifdef TH_WITH_SIMD
-			LOD_AV3(_r1, -X, -Y, -Z);
-			LOD_AV3(_r2, W, Y, Z);
-			LOD_AV3(_r3, W, Z, -X);
-			LOD_AV3(_r4, W, X, -Y);
-			LOD_AV3(_r5, R.X, R.Y, R.Z);
-			LOD_AV3(_r6, R.X, R.Z, R.Y);
-			LOD_AV3(_r7, R.Y, R.X, R.Z);
-			LOD_AV3(_r8, R.Z, R.Y, R.X);
-			float W1 = horizontal_add(_r1 * _r5);
-			float X1 = horizontal_add(_r2 * _r6);
-			float Y1 = horizontal_add(_r3 * _r7);
-			float Z1 = horizontal_add(_r4 * _r8);
-#else
-			float W1 = -X * R.X - Y * R.Y - Z * R.Z;
-			float X1 = W * R.X + Y * R.Z - Z * R.Y;
-			float Y1 = W * R.Y + Z * R.X - X * R.Z;
-			float Z1 = W * R.Z + X * R.Y - Y * R.X;
-#endif
-			return Quaternion(X1, Y1, Z1, W1);
+			Vector3 UV0(X, Y, Z), UV1, UV2;
+			UV1 = UV0.Cross(R);
+			UV2 = UV0.Cross(UV1);
+			UV1 *= (2.0f * W);
+			UV2 *= 2.0f;
+
+			return R + UV1 + UV2;
 		}
 		Quaternion Quaternion::Sub(const Quaternion& R) const
 		{
@@ -4916,7 +4905,7 @@ namespace Tomahawk
 #else
 			return nullptr;
 #endif
-		}
+	}
 		Cipher Ciphers::DES_EDE_ECB()
 		{
 #ifdef TH_HAS_OPENSSL
@@ -4928,7 +4917,7 @@ namespace Tomahawk
 #else
 			return nullptr;
 #endif
-		}
+}
 		Cipher Ciphers::DES_EDE3_ECB()
 		{
 #ifdef TH_HAS_OPENSSL
@@ -7611,7 +7600,7 @@ namespace Tomahawk
 #else
 			return (const char*)Value;
 #endif
-		}
+			}
 		std::string Common::Sign(Digest Type, const std::string& Value, const char* Key)
 		{
 			return Sign(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
@@ -7683,7 +7672,7 @@ namespace Tomahawk
 #else
 			return (const char*)Value;
 #endif
-		}
+			}
 		std::string Common::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
 		{
 			return Encrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
@@ -7732,7 +7721,7 @@ namespace Tomahawk
 #else
 			return (const char*)Value;
 #endif
-		}
+			}
 		std::string Common::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
 		{
 			return Decrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
@@ -9192,12 +9181,12 @@ namespace Tomahawk
 		}
 		void Transform::MakeDirty()
 		{
-			if (!Dirty)
-			{
-				Dirty = true;
-				for (auto& Child : Childs)
-					Child->MakeDirty();
-			}
+			if (Dirty)
+				return;
+
+			Dirty = true;
+			for (auto& Child : Childs)
+				Child->MakeDirty();
 		}
 		void Transform::SetScaling(bool Enabled)
 		{
@@ -9282,6 +9271,45 @@ namespace Tomahawk
 				*Local = Global;
 				Localize(*Local);
 			}
+		}
+		void Transform::GetBounds(Matrix4x4& World, Vector3& Min, Vector3& Max)
+		{
+			Transform::Spacing& Space = GetSpacing();
+			Vector3 Scale = (Max - Min).Abs();
+			Vector3 Radius = Scale * Space.Scale * 0.5f;
+			Vector3 Top = Radius.Rotate(0, Space.Rotation);
+			Vector3 Left = Radius.InvX().Rotate(0, Space.Rotation);
+			Vector3 Right = Radius.InvY().Rotate(0, Space.Rotation);
+			Vector3 Bottom = Radius.InvZ().Rotate(0, Space.Rotation);
+			Vector3 Points[8] =
+			{
+				-Top, Top, -Left, Left,
+				-Right, Right, -Bottom, Bottom
+			};
+			Vector3 Lower = Points[0];
+			Vector3 Upper = Points[1];
+
+			for (size_t i = 0; i < 8; ++i)
+			{
+				auto& Point = Points[i];
+				if (Point.X > Upper.X)
+					Upper.X = Point.X;
+				if (Point.Y > Upper.Y)
+					Upper.Y = Point.Y;
+				if (Point.Z > Upper.Z)
+					Upper.Z = Point.Z;
+
+				if (Point.X < Lower.X)
+					Lower.X = Point.X;
+				if (Point.Y < Lower.Y)
+					Lower.Y = Point.Y;
+				if (Point.Z < Lower.Z)
+					Lower.Z = Point.Z;
+			}
+
+			Min = Space.Position + Lower;
+			Max = Space.Position + Upper;
+			World = GetBias();
 		}
 		bool Transform::HasRoot(Transform* Target)
 		{
@@ -9440,7 +9468,10 @@ namespace Tomahawk
 			TH_ASSERT_V(Lower.size() == Upper.size(), "dimensions must be equal");
 			for (uint64_t i = 0; i < Lower.size(); i++)
 				TH_ASSERT_V(Lower[i] <= Upper[i], "lower[%i] must be smaller than upper[%i]", (int)i, (int)i);
-
+			Recompute();
+		}
+		void Area::Recompute()
+		{
 			Volume = ComputeVolume();
 			Center = ComputeCenter();
 		}
@@ -9495,35 +9526,17 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Area::Overlaps(const Area& Box, bool TouchIsOverlap) const
+		bool Area::Overlaps(const Area& Box) const
 		{
 			TH_ASSERT(Box.Lower.size() == Lower.size(), false, "lower bounds must be equal dim");
 
-			bool rv = true;
-			if (TouchIsOverlap)
+			for (size_t i = 0; i < Lower.size(); ++i)
 			{
-				for (uint64_t i = 0; i < Lower.size(); ++i)
-				{
-					if (Box.Upper[i] < Lower[i] || Box.Lower[i] > Upper[i])
-					{
-						rv = false;
-						break;
-					}
-				}
-			}
-			else
-			{
-				for (uint64_t i = 0; i < Lower.size(); ++i)
-				{
-					if (Box.Upper[i] <= Lower[i] || Box.Lower[i] >= Upper[i])
-					{
-						rv = false;
-						break;
-					}
-				}
+				if (Box.Upper[i] < Lower[i] || Box.Lower[i] > Upper[i])
+					return false;
 			}
 
-			return rv;
+			return true;
 		}
 		std::vector<float> Area::ComputeCenter()
 		{
@@ -9540,7 +9553,7 @@ namespace Tomahawk
 			Upper.resize(Dimension);
 		}
 
-		Cosmos::Node::Node()
+		Cosmos::Node::Node() : Item(nullptr)
 		{
 		}
 		bool Cosmos::Node::IsLeaf() const
@@ -9548,62 +9561,50 @@ namespace Tomahawk
 			return (Left == NULL_NODE);
 		}
 
-		Cosmos::Cosmos(uint64_t dimension_, float skinThickness_, uint64_t nItems, bool touchIsOverlap_) : Dimension(dimension_), IsPeriodic(false), SkinThickness(skinThickness_), TouchIsOverlap(touchIsOverlap_)
+		Cosmos::Cosmos(uint64_t Dimension_, float SkinThickness_, uint64_t DefaultSize) : Dimension(Dimension_), SkinThickness(SkinThickness_)
 		{
 			TH_ASSERT_V(Dimension >= 2, "invalid dimension");
 
-			Periodicity.resize(Dimension);
-			std::fill(Periodicity.begin(), Periodicity.end(), false);
-
 			Root = NULL_NODE;
 			NodeCount = 0;
-			NodeCapacity = nItems;
+			NodeCapacity = DefaultSize;
 			Nodes.resize(NodeCapacity);
+			Stack.reserve(256);
 
 			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
 			{
-				Nodes[i].Next = i + 1;
-				Nodes[i].Height = -1;
+				auto& Node = Nodes[i];
+				Node.Next = i + 1;
+				Node.Height = -1;
 			}
 
-			Nodes[NodeCapacity - 1].Next = NULL_NODE;
-			Nodes[NodeCapacity - 1].Height = -1;
+			auto& Node = Nodes[NodeCapacity - 1];
+			Node.Next = NULL_NODE;
+			Node.Height = -1;
 			FreeList = 0;
 		}
-		Cosmos::Cosmos(uint64_t dimension_, float skinThickness_, const std::vector<bool>& periodicity_, const std::vector<float>& boxSize_, uint64_t nItems, bool touchIsOverlap_) : Dimension(dimension_), SkinThickness(skinThickness_), Periodicity(periodicity_), BoxSize(boxSize_), TouchIsOverlap(touchIsOverlap_)
+		Cosmos::Cosmos(uint64_t Dimension_, float SkinThickness_, const std::vector<float>& BoxSize_, uint64_t DefaultSize) : Dimension(Dimension_), SkinThickness(SkinThickness_), BoxSize(BoxSize_)
 		{
 			TH_ASSERT_V(Dimension >= 2, "invalid dimension");
-			TH_ASSERT_V(Periodicity.size() == Dimension && BoxSize.size() == Dimension, "dimension mismatch");
+			TH_ASSERT_V(BoxSize.size() == Dimension, "dimension mismatch");
 
 			Root = NULL_NODE;
 			NodeCount = 0;
-			NodeCapacity = nItems;
+			NodeCapacity = DefaultSize;
 			Nodes.resize(NodeCapacity);
+			Stack.reserve(256);
 
 			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
 			{
-				Nodes[i].Next = i + 1;
-				Nodes[i].Height = -1;
+				auto& Node = Nodes[i];
+				Node.Next = i + 1;
+				Node.Height = -1;
 			}
 
-			Nodes[NodeCapacity - 1].Next = NULL_NODE;
-			Nodes[NodeCapacity - 1].Height = -1;
+			auto& Node = Nodes[NodeCapacity - 1];
+			Node.Next = NULL_NODE;
+			Node.Height = -1;
 			FreeList = 0;
-			IsPeriodic = false;
-			PosMinImage.resize(Dimension);
-			NegMinImage.resize(Dimension);
-
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				PosMinImage[i] = 0.5 * BoxSize[i];
-				NegMinImage[i] = -0.5 * BoxSize[i];
-				if (Periodicity[i])
-					IsPeriodic = true;
-			}
-		}
-		void Cosmos::SetPeriodicity(const std::vector<bool>& periodicity_)
-		{
-			Periodicity = periodicity_;
 		}
 		void Cosmos::SetBoxSize(const std::vector<float>& boxSize_)
 		{
@@ -9614,77 +9615,99 @@ namespace Tomahawk
 			TH_ASSERT_V(node < NodeCapacity, "outside of borders");
 			TH_ASSERT_V(0 < NodeCount, "there must be at least one node");
 
-			Nodes[node].Next = FreeList;
-			Nodes[node].Height = -1;
+			auto& Node = Nodes[node];
+			Node.Next = FreeList;
+			Node.Height = -1;
 			FreeList = node;
 			NodeCount--;
 		}
-		void Cosmos::InsertItem(uint64_t Item, std::vector<float>& position, float radius)
+		void Cosmos::InsertItem(void* Item, std::vector<float>& position, float radius)
 		{
-			TH_ASSERT_V(ItemMap.count(Item) == 0, "Item already exists");
+			TH_ASSERT_V(Items.count(Item) == 0, "Item already exists");
 			TH_ASSERT_V(position.size() == Dimension, "dimension mismatch");
 
 			uint64_t node = AllocateNode();
-			std::vector<float> size(Dimension);
+			auto& Node = Nodes[node];
 
 			for (uint64_t i = 0; i < Dimension; i++)
 			{
-				Nodes[node].Box.Lower[i] = position[i] - radius;
-				Nodes[node].Box.Upper[i] = position[i] + radius;
-				size[i] = Nodes[node].Box.Upper[i] - Nodes[node].Box.Lower[i];
+				Node.Box.Lower[i] = position[i] - radius;
+				Node.Box.Upper[i] = position[i] + radius;
+
+				float Size = Node.Box.Upper[i] - Node.Box.Lower[i];
+				Node.Box.Lower[i] -= SkinThickness * Size;
+				Node.Box.Upper[i] += SkinThickness * Size;
 			}
 
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				Nodes[node].Box.Lower[i] -= SkinThickness * size[i];
-				Nodes[node].Box.Upper[i] += SkinThickness * size[i];
-			}
-
-			Nodes[node].Box.Volume = Nodes[node].Box.ComputeVolume();
-			Nodes[node].Box.Center = Nodes[node].Box.ComputeCenter();
-			Nodes[node].Height = 0;
+			Node.Box.Volume = Node.Box.ComputeVolume();
+			Node.Box.Center = Node.Box.ComputeCenter();
+			Node.Height = 0;
 			InsertLeaf(node);
 
-			ItemMap.insert(std::unordered_map<uint64_t, uint64_t>::value_type(Item, node));
-			Nodes[node].Item = Item;
+			Items.insert(std::unordered_map<void*, uint64_t>::value_type(Item, node));
+			Node.Item = Item;
 		}
-		void Cosmos::InsertItem(uint64_t Item, std::vector<float>& Lower, std::vector<float>& Upper)
+		void Cosmos::InsertItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper)
 		{
-			TH_ASSERT_V(ItemMap.count(Item) == 0, "Item already exists");
+			TH_ASSERT_V(Items.count(Item) == 0, "Item already exists");
 			TH_ASSERT_V(Lower.size() == Dimension && Upper.size() == Dimension, "dimension mismatch");
 
 			uint64_t node = AllocateNode();
-			std::vector<float> size(Dimension);
+			auto& Node = Nodes[node];
 
 			for (uint64_t i = 0; i < Dimension; i++)
 			{
 				TH_ASSERT_V(Lower[i] <= Upper[i], "area lower bound is greater than the upper bound");
-				Nodes[node].Box.Lower[i] = Lower[i];
-				Nodes[node].Box.Upper[i] = Upper[i];
-				size[i] = Upper[i] - Lower[i];
+				Node.Box.Lower[i] = Lower[i];
+				Node.Box.Upper[i] = Upper[i];
+
+				float Size = Upper[i] - Lower[i];
+				Node.Box.Lower[i] -= SkinThickness * Size;
+				Node.Box.Upper[i] += SkinThickness * Size;
 			}
 
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				Nodes[node].Box.Lower[i] -= SkinThickness * size[i];
-				Nodes[node].Box.Upper[i] += SkinThickness * size[i];
-			}
-
-			Nodes[node].Box.Volume = Nodes[node].Box.ComputeVolume();
-			Nodes[node].Box.Center = Nodes[node].Box.ComputeCenter();
-			Nodes[node].Height = 0;
+			Node.Box.Volume = Node.Box.ComputeVolume();
+			Node.Box.Center = Node.Box.ComputeCenter();
+			Node.Height = 0;
+			Node.Item = Item;
 			InsertLeaf(node);
 
-			ItemMap.insert(std::unordered_map<uint64_t, uint64_t>::value_type(Item, node));
-			Nodes[node].Item = Item;
+			Items.insert(std::unordered_map<void*, uint64_t>::value_type(Item, node));
 		}
-		void Cosmos::RemoveItem(uint64_t Item)
+		bool Cosmos::UpsertItem(void* Item, std::vector<float>& Position, float Radius, bool AlwaysReinsert)
 		{
-			auto it = ItemMap.find(Item);
-			TH_ASSERT_V(it == ItemMap.end(), "invalid Item index");
+			TH_ASSERT(Position.size() == Dimension, false, "dimension mismatch");
+
+			std::vector<float> Lower(Dimension), Upper(Dimension);
+			for (uint64_t i = 0; i < Dimension; i++)
+			{
+				Lower[i] = Position[i] - Radius;
+				Upper[i] = Position[i] + Radius;
+			}
+
+			return UpsertItem(Item, Lower, Upper, AlwaysReinsert);
+		}
+		bool Cosmos::UpsertItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper, bool AlwaysReinsert)
+		{
+			TH_ASSERT(Lower.size() == Dimension && Upper.size() == Dimension, false, "dimension mismatch");
+
+			auto it = Items.find(Item);
+			if (it == Items.end())
+			{
+				InsertItem(Item, Lower, Upper);
+				return true;
+			}
+
+			return UpdateItem(it->second, Item, Lower, Upper, AlwaysReinsert);
+		}
+		void Cosmos::RemoveItem(void* Item)
+		{
+			auto it = Items.find(Item);
+			if (it == Items.end())
+				return;
 
 			uint64_t node = it->second;
-			ItemMap.erase(it);
+			Items.erase(it);
 
 			TH_ASSERT_V(node < NodeCapacity, "outside of borders");
 			TH_ASSERT_V(Nodes[node].IsLeaf(), "cannot remove root node");
@@ -9808,24 +9831,26 @@ namespace Tomahawk
 				return;
 			}
 
-			uint64_t Parent = Nodes[leaf].Parent;
-			uint64_t grandParent = Nodes[Parent].Parent;
+			uint64_t IParent = Nodes[leaf].Parent;
+			auto& Parent = Nodes[IParent];
+
+			uint64_t grandParent = Parent.Parent;
 			uint64_t sibling;
 
-			if (Nodes[Parent].Left == leaf)
-				sibling = Nodes[Parent].Right;
+			if (Parent.Left == leaf)
+				sibling = Parent.Right;
 			else
-				sibling = Nodes[Parent].Left;
+				sibling = Parent.Left;
 
 			if (grandParent != NULL_NODE)
 			{
-				if (Nodes[grandParent].Left == Parent)
+				if (Nodes[grandParent].Left == IParent)
 					Nodes[grandParent].Left = sibling;
 				else
 					Nodes[grandParent].Right = sibling;
 
 				Nodes[sibling].Parent = grandParent;
-				FreeNode(Parent);
+				FreeNode(IParent);
 
 				uint64_t index = grandParent;
 				while (index != NULL_NODE)
@@ -9843,13 +9868,21 @@ namespace Tomahawk
 			{
 				Root = sibling;
 				Nodes[sibling].Parent = NULL_NODE;
-				FreeNode(Parent);
+				FreeNode(IParent);
 			}
+		}
+		void Cosmos::Reserve(size_t Size)
+		{
+			if (Size < Nodes.capacity())
+				return;
+
+			Items.reserve(Size);
+			Nodes.reserve(Size);
 		}
 		void Cosmos::Clear()
 		{
-			auto it = ItemMap.begin();
-			while (it != ItemMap.end())
+			auto it = Items.begin();
+			while (it != Items.end())
 			{
 				uint64_t node = it->second;
 				TH_ASSERT_V(node < NodeCapacity, "outside of borders");
@@ -9860,32 +9893,35 @@ namespace Tomahawk
 				it++;
 			}
 
-			ItemMap.clear();
+			Items.clear();
 		}
-		bool Cosmos::UpdateItem(uint64_t Item, std::vector<float>& position, float radius, bool alwaysReinsert)
+		bool Cosmos::UpdateItem(void* Item, std::vector<float>& Position, float radius, bool AlwaysReinsert)
 		{
-			TH_ASSERT(position.size() == Dimension, false, "dimension mismatch");
+			TH_ASSERT(Position.size() == Dimension, false, "dimension mismatch");
 
 			std::vector<float> Lower(Dimension), Upper(Dimension);
 			for (uint64_t i = 0; i < Dimension; i++)
 			{
-				Lower[i] = position[i] - radius;
-				Upper[i] = position[i] + radius;
+				Lower[i] = Position[i] - radius;
+				Upper[i] = Position[i] + radius;
 			}
 
-			return UpdateItem(Item, Lower, Upper, alwaysReinsert);
+			return UpdateItem(Item, Lower, Upper, AlwaysReinsert);
 		}
-		bool Cosmos::UpdateItem(uint64_t Item, std::vector<float>& Lower, std::vector<float>& Upper, bool alwaysReinsert)
+		bool Cosmos::UpdateItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper, bool AlwaysReinsert)
 		{
 			TH_ASSERT(Lower.size() == Dimension && Upper.size() == Dimension, false, "dimension mismatch");
 
-			auto it = ItemMap.find(Item);
-			if (it == ItemMap.end())
+			auto it = Items.find(Item);
+			if (it == Items.end())
 				return false;
 
-			uint64_t node = it->second;
-			TH_ASSERT(node < NodeCapacity, false, "outside of borders");
-			TH_ASSERT(Nodes[node].IsLeaf(), false, "cannot remove root node");
+			return UpdateItem(it->second, Item, Lower, Upper, AlwaysReinsert);
+		}
+		bool Cosmos::UpdateItem(uint64_t Node, void* Item, std::vector<float>& Lower, std::vector<float>& Upper, bool AlwaysReinsert)
+		{
+			TH_ASSERT(Node < NodeCapacity, false, "outside of borders");
+			TH_ASSERT(Nodes[Node].IsLeaf(), false, "cannot remove root node");
 
 			std::vector<float> size(Dimension);
 			for (uint64_t i = 0; i < Dimension; i++)
@@ -9895,90 +9931,100 @@ namespace Tomahawk
 			}
 
 			Area Box(Lower, Upper);
-			if (!alwaysReinsert && Nodes[node].Box.Contains(Box))
+			if (!AlwaysReinsert && Nodes[Node].Box.Contains(Box))
 				return false;
 
-			RemoveLeaf(node);
+			RemoveLeaf(Node);
 			for (uint64_t i = 0; i < Dimension; i++)
 			{
 				Box.Lower[i] -= SkinThickness * size[i];
 				Box.Upper[i] += SkinThickness * size[i];
 			}
 
-			Nodes[node].Box = Box;
-			Nodes[node].Box.Volume = Nodes[node].Box.ComputeVolume();
-			Nodes[node].Box.Center = Nodes[node].Box.ComputeCenter();
-			InsertLeaf(node);
+			Nodes[Node].Box = Box;
+			Nodes[Node].Box.Volume = Nodes[Node].Box.ComputeVolume();
+			Nodes[Node].Box.Center = Nodes[Node].Box.ComputeCenter();
+			InsertLeaf(Node);
 
 			return true;
 		}
-		std::vector<uint64_t> Cosmos::Query(uint64_t Item)
+		bool Cosmos::Query(void* Item, const CosmosCallback& Callback)
 		{
-			if (ItemMap.count(Item) == 0)
-				return std::vector<uint64_t>();
+			auto It = Items.find(Item);
+			if (It == Items.end())
+				return false;
 
-			return Query(Item, Nodes[ItemMap.find(Item)->second].Box);
+			return Query(Item, Nodes[It->second].Box, Callback);
 		}
-		std::vector<uint64_t> Cosmos::Query(uint64_t Item, const Area& Box)
+		bool Cosmos::Query(void* Item, const Area& Box, const CosmosCallback& Callback)
 		{
-			std::vector<uint64_t> stack;
-			stack.reserve(256);
-			stack.push_back(Root);
+			TH_ASSERT(Callback, false, "callback should not be empty");
 
-			std::vector<uint64_t> Items;
-			while (stack.size() > 0)
+			bool Found = false;
+			Stack.clear();
+			Stack.push_back(Root);
+
+			while (!Stack.empty())
 			{
-				uint64_t node = stack.back();
-				stack.pop_back();
+				uint64_t Index = Stack.back();
+				auto& Node = Nodes[Index];
+				Stack.pop_back();
 
-				Area nodeAABB = Nodes[node].Box;
-				if (node == NULL_NODE)
+				if (Index == NULL_NODE || !Box.Overlaps(Node.Box))
 					continue;
 
-				if (IsPeriodic)
+				if (!Node.IsLeaf())
 				{
-					std::vector<float> separation(Dimension);
-					std::vector<float> shift(Dimension);
-					for (uint64_t i = 0; i < Dimension; i++)
-						separation[i] = nodeAABB.Center[i] - Box.Center[i];
-
-					if (MinImage(separation, shift))
-					{
-						for (uint64_t i = 0; i < Dimension; i++)
-						{
-							nodeAABB.Lower[i] += shift[i];
-							nodeAABB.Upper[i] += shift[i];
-						}
-					}
+					Stack.push_back(Node.Left);
+					Stack.push_back(Node.Right);
 				}
-
-				if (Box.Overlaps(nodeAABB, TouchIsOverlap))
+				else if (Node.Item != nullptr)
 				{
-					if (Nodes[node].IsLeaf())
-					{
-						if (Nodes[node].Item != Item)
-							Items.push_back(Nodes[node].Item);
-					}
-					else
-					{
-						stack.push_back(Nodes[node].Left);
-						stack.push_back(Nodes[node].Right);
-					}
+					Callback(Node.Item);
+					Found = true;
 				}
 			}
 
-			return Items;
+			return Found;
 		}
-		std::vector<uint64_t> Cosmos::Query(const Area& Box)
+		bool Cosmos::Query(const Area& Box, const CosmosCallback& Callback)
 		{
-			if (ItemMap.size() == 0)
-				return std::vector<uint64_t>();
+			if (Items.empty())
+				return false;
 
-			return Query(std::numeric_limits<uint64_t>::max(), Box);
+			return Query(nullptr, Box, Callback);
 		}
-		const Area& Cosmos::GetArea(uint64_t Item)
+		void Cosmos::PushQuery()
 		{
-			return Nodes[ItemMap[Item]].Box;
+			Stack.clear();
+			if (!Items.empty())
+				Stack.push_back(Root);
+		}
+		void* Cosmos::NextQuery(const Area& Box)
+		{
+			while (!Stack.empty())
+			{
+				uint64_t Index = Stack.back();
+				auto& Node = Nodes[Index];
+				Stack.pop_back();
+
+				if (Index == NULL_NODE || !Box.Overlaps(Node.Box))
+					continue;
+
+				if (!Node.IsLeaf())
+				{
+					Stack.push_back(Node.Left);
+					Stack.push_back(Node.Right);
+				}
+				else if (Node.Item != nullptr)
+					return Node.Item;
+			}
+
+			return nullptr;
+		}
+		const Area& Cosmos::GetArea(void* Item)
+		{
+			return Nodes[Items[Item]].Box;
 		}
 		uint64_t Cosmos::AllocateNode()
 		{
@@ -10141,14 +10187,6 @@ namespace Tomahawk
 
 			return 1 + std::max(height1, height2);
 		}
-		uint64_t Cosmos::GetItemsCount()
-		{
-			return ItemMap.size();
-		}
-		uint64_t Cosmos::GetNodesCount() const
-		{
-			return NodeCount;
-		}
 		uint64_t Cosmos::GetHeight() const
 		{
 			if (Root == NULL_NODE) return 0;
@@ -10168,6 +10206,14 @@ namespace Tomahawk
 			}
 
 			return maxBalance;
+		}
+		const std::unordered_map<void*, uint64_t>& Cosmos::GetItems() const
+		{
+			return Items;
+		}
+		const std::vector<Cosmos::Node>& Cosmos::GetNodes() const
+		{
+			return Nodes;
 		}
 		float Cosmos::ComputeVolumeRatio() const
 		{
@@ -10249,39 +10295,6 @@ namespace Tomahawk
 			}
 
 			Root = nodeIndices[0];
-		}
-		void Cosmos::PeriodicBoundaries(std::vector<float>& position)
-		{
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				if (position[i] < 0)
-					position[i] += BoxSize[i];
-				else if (position[i] >= BoxSize[i])
-					position[i] -= BoxSize[i];
-			}
-		}
-		bool Cosmos::MinImage(std::vector<float>& separation, std::vector<float>& shift)
-		{
-			bool isShifted = false;
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				if (separation[i] < NegMinImage[i])
-				{
-					float Direction = (float)Periodicity[i];
-					separation[i] += Direction * BoxSize[i];
-					shift[i] = Direction * BoxSize[i];
-					isShifted = true;
-				}
-				else if (separation[i] >= PosMinImage[i])
-				{
-					float Direction = (float)Periodicity[i];
-					separation[i] -= Direction * BoxSize[i];
-					shift[i] = -Direction * BoxSize[i];
-					isShifted = true;
-				}
-			}
-
-			return isShifted;
 		}
 
 		HullShape::HullShape() : Shape(nullptr)
@@ -10872,7 +10885,7 @@ namespace Tomahawk
 #else
 			return nullptr;
 #endif
-	}
+		}
 		bool RigidBody::IsGhost()
 		{
 #ifdef TH_WITH_BULLET3
@@ -11237,7 +11250,7 @@ namespace Tomahawk
 				Center.X += Node.m_x.x();
 				Center.Y += Node.m_x.y();
 				Center.Z += Node.m_x.z();
-		}
+			}
 			Center /= (float)Instance->m_nodes.size();
 #endif
 			if (!Kinematic)
@@ -11254,7 +11267,7 @@ namespace Tomahawk
 					Instance->translate(V3_TO_BT(Position));
 			}
 #endif
-}
+		}
 		void SoftBody::GetIndices(std::vector<int>* Result)
 		{
 #ifdef TH_WITH_BULLET3
@@ -12100,14 +12113,14 @@ namespace Tomahawk
 				{
 					if (Second->getConstraintRef(i) == Base)
 						return true;
-				}
 			}
+		}
 
 			return false;
 #else
 			return false;
 #endif
-			}
+		}
 		bool Constraint::IsEnabled()
 		{
 #ifdef TH_WITH_BULLET3
@@ -14360,7 +14373,7 @@ namespace Tomahawk
 			{
 				Safe.unlock();
 				return nullptr;
-			}
+		}
 
 			It->second++;
 			Safe.unlock();
@@ -14414,7 +14427,7 @@ namespace Tomahawk
 #else
 			return std::vector<Vector3>();
 #endif
-			}
+		}
 		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value)
 		{
 #ifdef TH_WITH_BULLET3
@@ -14634,5 +14647,5 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-	}
-}
+		}
+		}

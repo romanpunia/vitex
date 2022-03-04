@@ -1,6 +1,7 @@
 #ifndef TH_ENGINE_RENDERERS_H
 #define TH_ENGINE_RENDERERS_H
 #include "../core/engine.h"
+#include "components.h"
 #include "gui.h"
 
 namespace Tomahawk
@@ -9,7 +10,7 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-			class TH_OUT SoftBody final : public GeometryDraw
+			class TH_OUT SoftBody final : public GeometryRenderer<Components::SoftBody>
 			{
 			private:
 				struct
@@ -37,19 +38,17 @@ namespace Tomahawk
 			public:
 				SoftBody(RenderSystem* Lab);
 				virtual ~SoftBody();
-				void Activate() override;
-				void Deactivate() override;
-				void CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry) override;
-				void RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry) override;
-				void RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t CullGeometry(const Viewer& View, const std::vector<Components::SoftBody*>& Geometry, bool Rebake) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, RenderOpt Options) override;
+				size_t RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, RenderOpt Options) override;
+				size_t RenderDepthLinear(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry) override;
+				size_t RenderDepthCubic(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("soft-body-renderer");
 			};
 
-			class TH_OUT Model final : public GeometryDraw
+			class TH_OUT Model final : public GeometryRenderer<Components::Model>
 			{
 			private:
 				struct
@@ -76,19 +75,17 @@ namespace Tomahawk
 			public:
 				Model(RenderSystem* Lab);
 				virtual ~Model() override;
-				void Activate() override;
-				void Deactivate() override;
-				void CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry) override;
-				void RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry) override;
-				void RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t CullGeometry(const Viewer& View, const std::vector<Components::Model*>& Geometry, bool Rebake) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, RenderOpt Options) override;
+				size_t RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, RenderOpt Options) override;
+				size_t RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Model*>& Geometry) override;
+				size_t RenderDepthCubic(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("model-renderer");
 			};
 
-			class TH_OUT Skin final : public GeometryDraw
+			class TH_OUT Skin final : public GeometryRenderer<Components::Skin>
 			{
 			private:
 				struct
@@ -115,19 +112,17 @@ namespace Tomahawk
 			public:
 				Skin(RenderSystem* Lab);
 				virtual ~Skin();
-				void Activate() override;
-				void Deactivate() override;
-				void CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry) override;
-				void RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry) override;
-				void RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t CullGeometry(const Viewer& View, const std::vector<Components::Skin*>& Geometry, bool Rebake) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, RenderOpt Options) override;
+				size_t RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, RenderOpt Options) override;
+				size_t RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry) override;
+				size_t RenderDepthCubic(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("skin-renderer");
 			};
 
-			class TH_OUT Emitter final : public GeometryDraw
+			class TH_OUT Emitter final : public GeometryRenderer<Components::Emitter>
 			{
 			private:
 				struct
@@ -160,18 +155,15 @@ namespace Tomahawk
 			public:
 				Emitter(RenderSystem* Lab);
 				virtual ~Emitter() override;
-				void Activate() override;
-				void Deactivate() override;
-				void RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry) override;
-				void RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry, RenderOpt Options) override;
+				size_t RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry) override;
+				size_t RenderDepthCubic(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("emitter-renderer");
 			};
 
-			class TH_OUT Decal final : public GeometryDraw
+			class TH_OUT Decal final : public GeometryRenderer<Components::Decal>
 			{
 			private:
 				Graphics::DepthStencilState* DepthStencil = nullptr;
@@ -184,12 +176,7 @@ namespace Tomahawk
 			public:
 				Decal(RenderSystem* Lab);
 				virtual ~Decal() override;
-				void Activate() override;
-				void Deactivate() override;
-				void RenderGeometryResult(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderGeometryVoxels(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, RenderOpt Options) override;
-				void RenderDepthLinear(Core::Timer* Time, Core::Pool<Drawable*>* Geometry) override;
-				void RenderDepthCubic(Core::Timer* Time, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Decal*>& Geometry, RenderOpt Options) override;
 
 			public:
 				TH_COMPONENT("decal-renderer");
@@ -321,7 +308,9 @@ namespace Tomahawk
 					std::vector<ISpotLight> SArray;
 					std::vector<ILineLight> LArray;
 					const size_t MaxLights = 64;
-					Component* Area = nullptr;
+					Component* Target = nullptr;
+					Component* Reference = nullptr;
+					uint64_t Process = 0;
 					bool Inside = false;
 				} Storage;
 
@@ -329,11 +318,18 @@ namespace Tomahawk
 				{
 					Graphics::GraphicsDevice* Device = nullptr;
 					SceneGraph* Scene = nullptr;
-					Compute::Vector3 View;
-					float Distance = 0.0f;
 					bool Backcull = true;
 					bool Inner = false;
 				} State;
+
+				struct
+				{
+					RendererProxy<Components::Illuminator> Illuminators;
+					RendererProxy<Components::SurfaceLight> Surfaces;
+					RendererProxy<Components::PointLight> Points;
+					RendererProxy<Components::SpotLight> Spots;
+					Core::Pool<Component*>* Lines;
+				} Lights;
 
 			public:
 				struct
@@ -362,11 +358,6 @@ namespace Tomahawk
 				} Surfaces;
 
 			private:
-				Core::Pool<Engine::Component*>* Illuminators = nullptr;
-				Core::Pool<Engine::Component*>* SurfaceLights = nullptr;
-				Core::Pool<Engine::Component*>* PointLights = nullptr;
-				Core::Pool<Engine::Component*>* SpotLights = nullptr;
-				Core::Pool<Engine::Component*>* LineLights = nullptr;
 				Graphics::DepthStencilState* DepthStencilNone = nullptr;
 				Graphics::DepthStencilState* DepthStencilGreater = nullptr;
 				Graphics::DepthStencilState* DepthStencilLess = nullptr;
@@ -397,20 +388,18 @@ namespace Tomahawk
 			public:
 				Lighting(RenderSystem* Lab);
 				virtual ~Lighting();
+				size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override;
 				void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				void Serialize(ContentManager* Content, Core::Document* Node) override;
-				void Activate() override;
-				void Deactivate() override;
 				void ResizeBuffers() override;
-				void Render(Core::Timer* Time, RenderState State, RenderOpt Options) override;
-				void ClearStorage();
+				void BeginPass() override;
+				void EndPass() override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
 				void SetSurfaceBufferSize(size_t Size);
 				Graphics::TextureCube* GetSkyMap();
 				Graphics::Texture2D* GetSkyBase();
 
 			private:
-				Component* GetIlluminator(Core::Timer* Time);
 				float GetDominant(const Compute::Vector3& Axis);
 				bool GetSurfaceLight(ISurfaceLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
 				bool GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
@@ -424,14 +413,16 @@ namespace Tomahawk
 				size_t GenerateLineLights();
 				void FlushDepthBuffersAndCache();
 				void RenderResultBuffers(RenderOpt Options);
-				void RenderShadowMaps(Core::Timer* Time);
-				void RenderSurfaceMaps(Core::Timer* Time);
 				void RenderVoxelMap(Core::Timer* Time);
-				void RenderLuminance();
+				void RenderSurfaceMaps(Core::Timer* Time);
+				void RenderPointShadowMaps(Core::Timer* Time);
+				void RenderSpotShadowMaps(Core::Timer* Time);
+				void RenderLineShadowMaps(Core::Timer* Time);
 				void RenderSurfaceLights();
 				void RenderPointLights();
 				void RenderSpotLights();
 				void RenderLineLights();
+				void RenderLuminance();
 				void RenderIllumination();
 				void RenderAmbient();
 
@@ -460,19 +451,19 @@ namespace Tomahawk
 				{
 					Compute::Vector3 Padding;
 					float Mips = 0.0f;
-				} RenderPass;
+				} RenderData;
 
 			public:
 				Transparency(RenderSystem* Lab);
 				virtual ~Transparency();
 				void ResizeBuffers() override;
-				void Render(Core::Timer* Time, RenderState State, RenderOpt Options) override;
+				size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override;
 
 			public:
 				TH_COMPONENT("transparency-renderer");
 			};
 
-			class TH_OUT SSR final : public EffectDraw
+			class TH_OUT SSR final : public EffectRenderer
 			{
 			private:
 				struct
@@ -509,7 +500,7 @@ namespace Tomahawk
 				TH_COMPONENT("ssr-renderer");
 			};
 
-			class TH_OUT SSAO final : public EffectDraw
+			class TH_OUT SSAO final : public EffectRenderer
 			{
 			private:
 				struct
@@ -552,7 +543,7 @@ namespace Tomahawk
 				TH_COMPONENT("ssao-renderer");
 			};
 
-			class TH_OUT DoF final : public EffectDraw
+			class TH_OUT DoF final : public EffectRenderer
 			{
 			private:
 				struct
@@ -594,7 +585,7 @@ namespace Tomahawk
 				TH_COMPONENT("dof-renderer");
 			};
 
-			class TH_OUT MotionBlur final : public EffectDraw
+			class TH_OUT MotionBlur final : public EffectRenderer
 			{
 			private:
 				struct
@@ -628,7 +619,7 @@ namespace Tomahawk
 				TH_COMPONENT("motionblur-renderer");
 			};
 
-			class TH_OUT Bloom final : public EffectDraw
+			class TH_OUT Bloom final : public EffectRenderer
 			{
 			private:
 				struct
@@ -666,7 +657,7 @@ namespace Tomahawk
 				TH_COMPONENT("bloom-renderer");
 			};
 
-			class TH_OUT Tone final : public EffectDraw
+			class TH_OUT Tone final : public EffectRenderer
 			{
 			private:
 				struct
@@ -729,7 +720,7 @@ namespace Tomahawk
 				TH_COMPONENT("tone-renderer");
 			};
 
-			class TH_OUT Glitch final : public EffectDraw
+			class TH_OUT Glitch final : public EffectRenderer
 			{
 			public:
 				struct DistortionBuffer
@@ -773,7 +764,7 @@ namespace Tomahawk
 				UserInterface(RenderSystem* Lab);
 				UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity);
 				virtual ~UserInterface() override;
-				void Render(Core::Timer* Time, RenderState State, RenderOpt Options) override;
+				size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override;
 #ifdef TH_WITH_RMLUI
 				GUI::Context* GetContext();
 #endif

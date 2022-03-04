@@ -35,13 +35,18 @@ namespace Tomahawk
 
 		class Drawable;
 
-		class Cullable;
-
 		class Processor;
+
+		class PrimitiveCache;
 
 		class RenderSystem;
 
 		class Material;
+
+		enum
+		{
+			MAX_STACK_DEPTH = 8
+		};
 
 		enum class ApplicationSet
 		{
@@ -61,13 +66,6 @@ namespace Tomahawk
 			Multithreaded
 		};
 
-		enum class CullResult
-		{
-			Always,
-			Cache,
-			Last
-		};
-
 		enum class RenderOpt
 		{
 			None = 0,
@@ -75,6 +73,13 @@ namespace Tomahawk
 			Static = 2,
 			Inner = 4,
 			Additive = 8
+		};
+
+		enum class RenderCulling
+		{
+			Spot,
+			Point,
+			Line
 		};
 
 		enum class RenderState
@@ -89,7 +94,8 @@ namespace Tomahawk
 		{
 			Opaque,
 			Transparent,
-			Additive
+			Additive,
+			Count
 		};
 
 		enum class BufferType
@@ -125,7 +131,9 @@ namespace Tomahawk
 			None = 0,
 			Update = 1 << 0,
 			Synchronize = 1 << 1,
-			Message = 1 << 2
+			Message = 1 << 2,
+			Cullable = 1 << 3,
+			Drawable = 1 << 4
 		};
 
 		enum class ActorType
@@ -134,6 +142,14 @@ namespace Tomahawk
 			Synchronize,
 			Message,
 			Count
+		};
+
+		enum class ComposerTag
+		{
+			Component,
+			Renderer,
+			Effect,
+			Filter
 		};
 
 		inline ActorSet operator |(ActorSet A, ActorSet B)
@@ -240,6 +256,7 @@ namespace Tomahawk
 		struct TH_OUT Viewer
 		{
 			RenderSystem* Renderer = nullptr;
+			RenderCulling Culling = RenderCulling::Spot;
 			Compute::Matrix4x4 CubicViewProjection[6];
 			Compute::Matrix4x4 InvViewProjection;
 			Compute::Matrix4x4 ViewProjection;
@@ -251,13 +268,13 @@ namespace Tomahawk
 			float FarPlane = 0.0f;
 			float NearPlane = 0.0f;
 
-			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far);
-			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, const Compute::Vector3& Rotation, float Near, float Far);
+			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, RenderCulling Type);
+			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, const Compute::Vector3& Rotation, float Near, float Far, RenderCulling Type);
 		};
 
 		struct TH_OUT Attenuation
 		{
-			float Range = 10.0f;
+			float Radius = 10.0f;
 			float C1 = 0.6f;
 			float C2 = 0.6f;
 		};
@@ -450,6 +467,7 @@ namespace Tomahawk
 		class TH_OUT Component : public Core::Object
 		{
 			friend SceneGraph;
+			friend RenderSystem;
 			friend Entity;
 
 		protected:
@@ -469,10 +487,13 @@ namespace Tomahawk
 			virtual void Synchronize(Core::Timer* Time);
 			virtual void Update(Core::Timer* Time);
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args);
+			virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max);
+			virtual float GetVisibility(const Viewer& View, float Distance);
 			virtual Component* Copy(Entity* New) = 0;
-			virtual Compute::Matrix4x4 GetBoundingBox();
 			Entity* GetEntity();
 			void SetActive(bool Enabled);
+			bool IsDrawable();
+			bool IsCullable();
 			bool IsActive();
 
 		public:
@@ -482,6 +503,7 @@ namespace Tomahawk
 		class TH_OUT Entity : public Core::Object
 		{
 			friend SceneGraph;
+			friend RenderSystem;
 
 		protected:
 			std::unordered_map<uint64_t, Component*> Components;
@@ -489,32 +511,47 @@ namespace Tomahawk
 
 		private:
 			Compute::Transform* Transform;
+			Compute::Matrix4x4 Box;
+			Compute::Vector3 Min;
+			Compute::Vector3 Max;
 			std::string Name;
+			uint64_t Generation;
+			float Visibility;
+			float Distance;
 			bool Active;
 			bool Dirty;
 
 		public:
-			int64_t Tag;
-			float Distance;
+			uint64_t Tag;
 
 		public:
 			Entity(SceneGraph* Ref);
 			virtual ~Entity() override;
 			void SetName(const std::string& Value, bool Internal = false);
 			void SetRoot(Entity* Parent);
+			void UpdateBounds();
 			void RemoveComponent(uint64_t Id);
 			void RemoveChilds();
 			Component* AddComponent(Component* In);
 			Component* GetComponent(uint64_t Id);
-			uint64_t GetComponentCount() const;
+			uint64_t GetComponentsCount() const;
 			SceneGraph* GetScene() const;
 			Entity* GetParent() const;
 			Entity* GetChild(size_t Index) const;
 			Compute::Transform* GetTransform() const;
+			const Compute::Matrix4x4& GetBox() const;
+			const Compute::Vector3& GetMin() const;
+			const Compute::Vector3& GetMax() const;
 			const std::string& GetName() const;
+			std::string GetSystemName() const;
 			size_t GetChildsCount() const;
+			float GetVisibility(const Viewer& Base) const;
+			float GetLastDistance() const;
+			float GetLastVisibility() const;
 			bool IsDirty(bool Reset = false);
 			bool IsActive() const;
+			Compute::Vector3 GetRadius3() const;
+			float GetRadius() const;
 
 		public:
 			std::unordered_map<uint64_t, Component*>::iterator begin()
@@ -544,6 +581,49 @@ namespace Tomahawk
 			{
 				return (In*)GetComponent(In::GetTypeId());
 			}
+
+		public:
+			template <typename T>
+			static bool Sortout(T* A, T* B)
+			{
+				return A->Parent->Distance < B->Parent->Distance;
+			}
+		};
+
+		class TH_OUT Drawable : public Component
+		{
+			friend SceneGraph;
+
+		protected:
+			std::unordered_map<void*, Material*> Materials;
+
+		private:
+			GeoCategory Category;
+			uint64_t Source;
+			bool Complex;
+
+		public:
+			FragmentQuery Query;
+			bool Static;
+
+		public:
+			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool Complex);
+			virtual ~Drawable();
+			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
+			virtual Component* Copy(Entity* New) override = 0;
+			bool SetCategory(GeoCategory NewCategory);
+			bool SetMaterial(void* Instance, Material* Value);
+			bool WasVisible(bool Rebake);
+			float GetOverlapping(RenderSystem* System);
+			GeoCategory GetCategory();
+			int64_t GetSlot(void* Surface);
+			int64_t GetSlot();
+			Material* GetMaterial(void* Surface);
+			Material* GetMaterial();
+			const std::unordered_map<void*, Material*>& GetMaterials();
+
+		public:
+			TH_COMPONENT("drawable");
 		};
 
 		class TH_OUT Renderer : public Core::Object
@@ -561,16 +641,125 @@ namespace Tomahawk
 			virtual ~Renderer() override;
 			virtual void Serialize(ContentManager* Content, Core::Document* Node);
 			virtual void Deserialize(ContentManager* Content, Core::Document* Node);
-			virtual void CullGeometry(const Viewer& View);
 			virtual void ResizeBuffers();
 			virtual void Activate();
 			virtual void Deactivate();
-			virtual void Render(Core::Timer* TimeStep, RenderState State, RenderOpt Options);
+			virtual void BeginPass();
+			virtual void EndPass();
+			virtual bool HasCategory(GeoCategory Category);
+			virtual size_t CullingPass(const Viewer& View, bool Rebake);
+			virtual size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options);
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer();
 
 		public:
 			TH_COMPONENT_ROOT("renderer");
+		};
+
+		class TH_OUT RenderSystem : public Core::Object
+		{
+		private:
+			struct
+			{
+				Core::Pool<Component*>* Data = nullptr;
+				Compute::Cosmos* Index = nullptr;
+				Compute::Area Box = Compute::Area(3);
+				size_t Offset = 0;
+			} Query;
+
+		protected:
+			std::vector<Renderer*> Renderers;
+			Graphics::DepthStencilState* DepthStencil;
+			Graphics::BlendState* Blend;
+			Graphics::SamplerState* Sampler;
+			Graphics::DepthTarget2D* Target;
+			Graphics::GraphicsDevice* Device;
+			Material* BaseMaterial;
+			SceneGraph* Scene;
+			uint64_t Generation;
+			size_t DepthSize;
+			size_t StackTop;
+			bool Satisfied;
+
+		public:
+			Viewer View;
+			Core::Ticker Occlusion;
+			size_t StallFrames;
+			float Threshold;
+			bool OcclusionCulling;
+			bool FrustumCulling;
+			bool PreciseCulling;
+
+		public:
+			RenderSystem(SceneGraph* NewScene);
+			virtual ~RenderSystem() override;
+			void SetDepthSize(size_t Size);
+			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, RenderCulling Type);
+			void RestoreViewBuffer(Viewer* View);
+			void Remount(Renderer* Target);
+			void Remount();
+			void Mount();
+			void Unmount();
+			void MoveRenderer(uint64_t Id, int64_t Offset);
+			void RemoveRenderer(uint64_t Id);
+			void RestoreOutput();
+			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
+			void FreeShader(Graphics::Shader* Shader);
+			void FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers);
+			void FreeBuffers(Graphics::ElementBuffer** Buffers);
+			void ClearMaterials();
+			size_t Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
+			void QueryBegin(uint64_t Section);
+			void QueryEnd();
+			void* QueryNext();
+			bool PushCullable(Component* Base);
+			bool PushDrawable(Drawable* Base);
+			bool PushGeometryBuffer(Material* Next);
+			bool PushVoxelsBuffer(Material* Next);
+			bool PushDepthLinearBuffer(Material* Next);
+			bool PushDepthCubicBuffer(Material* Next);
+			bool HasCategory(GeoCategory Category);
+			bool IsTopLevel();
+			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
+			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
+			Renderer* AddRenderer(Renderer* In);
+			Renderer* GetRenderer(uint64_t Id);
+			size_t GetDepthSize();
+			int64_t GetOffset(uint64_t Id);
+			std::vector<Renderer*>& GetRenderers();
+			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
+			Graphics::RenderTarget2D* GetRT(TargetType Type);
+			Graphics::Texture2D** GetMerger();
+			Graphics::GraphicsDevice* GetDevice();
+			Graphics::DepthTarget2D* GetDepthTarget();
+			PrimitiveCache* GetPrimitives();
+			SceneGraph* GetScene();
+
+		private:
+			size_t RenderOverlapping(Core::Timer* Time, bool Rebake);
+
+		public:
+			template <typename T>
+			void RemoveRenderer()
+			{
+				RemoveRenderer(T::GetTypeId());
+			}
+			template <typename T, typename... Args>
+			T* AddRenderer(Args&& ... Data)
+			{
+				return (T*)AddRenderer(new T(this, Data...));
+			}
+			template <typename T>
+			T* GetRenderer()
+			{
+				return (T*)GetRenderer(T::GetTypeId());
+			}
+			template <typename In>
+			int64_t GetOffset()
+			{
+				return GetOffset(In::GetTypeId());
+			}
 		};
 
 		class TH_OUT ShaderCache : public Core::Object
@@ -637,248 +826,6 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
-		class TH_OUT RenderSystem : public Core::Object
-		{
-		protected:
-			std::vector<Renderer*> Renderers;
-			std::unordered_set<uint64_t> Cull;
-			Graphics::DepthStencilState* DepthStencil;
-			Graphics::BlendState* Blend;
-			Graphics::SamplerState* Sampler;
-			Graphics::DepthTarget2D* Target;
-			Graphics::GraphicsDevice* Device;
-			Material* BaseMaterial;
-			SceneGraph* Scene;
-			size_t DepthSize;
-			bool OcclusionCulling;
-			bool FrustumCulling;
-			bool Satisfied;
-			bool Dirty;
-
-		public:
-			Core::Ticker Occlusion;
-			Core::Ticker Sorting;
-			size_t StallFrames;
-			bool PreciseCulling;
-			Viewer View;
-
-		public:
-			RenderSystem(SceneGraph* NewScene);
-			virtual ~RenderSystem() override;
-			void SetOcclusionCulling(bool Enabled, bool KeepResults = false);
-			void SetFrustumCulling(bool Enabled, bool KeepResults = false);
-			void SetDepthSize(size_t Size);
-			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, bool Upload);
-			void RestoreViewBuffer(Viewer* View);
-			void Remount(Renderer* Target);
-			void Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
-			void Remount();
-			void Mount();
-			void Unmount();
-			void ClearCull();
-			void CullGeometry(Core::Timer* Time);
-			void Synchronize(Core::Timer* Time, double Begin, double End);
-			void MoveRenderer(uint64_t Id, int64_t Offset);
-			void RemoveRenderer(uint64_t Id);
-			void RestoreOutput();
-			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
-			void FreeShader(Graphics::Shader* Shader);
-			void FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers);
-			void FreeBuffers(Graphics::ElementBuffer** Buffers);
-			void ClearMaterials();
-			bool PushGeometryBuffer(Material* Next);
-			bool PushVoxelsBuffer(Material* Next);
-			bool PushDepthLinearBuffer(Material* Next);
-			bool PushDepthCubicBuffer(Material* Next);
-			bool PassCullable(Cullable* Base, CullResult Mode, float* Result);
-			bool PassDrawable(Drawable* Base, CullResult Mode, float* Result);
-			bool PassOcclusion(Drawable* Base);
-			bool HasOcclusionCulling();
-			bool HasFrustumCulling();
-			int64_t GetOffset(uint64_t Id);
-			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
-			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
-			Renderer* AddRenderer(Renderer* In);
-			Renderer* GetRenderer(uint64_t Id);
-			size_t GetDepthSize();
-			std::vector<Renderer*>* GetRenderers();
-			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
-			Graphics::RenderTarget2D* GetRT(TargetType Type);
-			Graphics::Texture2D** GetMerger();
-			Graphics::GraphicsDevice* GetDevice();
-			PrimitiveCache* GetPrimitives();
-			SceneGraph* GetScene();
-
-		private:
-			Core::Pool<Component*>* GetSceneComponents(uint64_t Section);
-
-		public:
-			template <typename In>
-			void RemoveRenderer()
-			{
-				RemoveRenderer(In::GetTypeId());
-			}
-			template <typename In>
-			int64_t GetOffset()
-			{
-				return GetOffset(In::GetTypeId());
-			}
-			template <typename In, typename... Args>
-			In* AddRenderer(Args&& ... Data)
-			{
-				return (In*)AddRenderer(new In(this, Data...));
-			}
-			template <typename In>
-			In* GetRenderer()
-			{
-				return (In*)GetRenderer(In::GetTypeId());
-			}
-			template <typename T>
-			Core::Pool<Component*>* AddCull()
-			{
-				static_assert(std::is_base_of<Cullable, T>::value,
-					"component is not cullable");
-
-				Cull.insert(T::GetTypeId());
-				return GetSceneComponents(T::GetTypeId());
-			}
-			template <typename T>
-			Core::Pool<Component*>* RemoveCull()
-			{
-				static_assert(std::is_base_of<Cullable, T>::value,
-					"component is not cullable");
-
-				auto It = Cull.find(T::GetTypeId());
-				if (It != Cull.end())
-					Cull.erase(*It);
-
-				return nullptr;
-			}
-		};
-
-		class TH_OUT Cullable : public Component
-		{
-			friend RenderSystem;
-
-		protected:
-			float Visibility;
-
-		public:
-			Cullable(Entity* Ref, ActorSet Rule);
-			virtual ~Cullable() = default;
-			virtual bool IsVisible(const Viewer& View, Compute::Matrix4x4* World);
-			virtual bool IsNear(const Viewer& View);
-			virtual float Cull(const Viewer& View) = 0;
-			virtual Component* Copy(Entity* New) override = 0;
-			virtual void ClearCull();
-			float GetRange();
-
-		public:
-			TH_COMPONENT("cullable");
-		};
-
-		class TH_OUT Drawable : public Cullable
-		{
-			friend SceneGraph;
-
-		protected:
-			std::unordered_map<void*, Material*> Materials;
-
-		private:
-			GeoCategory Category;
-			uint64_t Source;
-			bool Complex;
-
-		public:
-			FragmentQuery Query;
-			bool Static;
-
-		public:
-			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool Complex);
-			virtual ~Drawable();
-			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-			virtual Component* Copy(Entity* New) override = 0;
-			virtual void ClearCull() override;
-			bool SetCategory(GeoCategory Category);
-			bool SetMaterial(void* Instance, Material* Value);
-			GeoCategory GetCategory();
-			int64_t GetSlot(void* Surface);
-			int64_t GetSlot();
-			Material* GetMaterial(void* Surface);
-			Material* GetMaterial();
-			const std::unordered_map<void*, Material*>& GetMaterials();
-
-		protected:
-			void Attach();
-			void Detach();
-
-		public:
-			TH_COMPONENT("drawable");
-		};
-
-		class TH_OUT GeometryDraw : public Renderer
-		{
-		private:
-			uint64_t Source;
-
-		public:
-			GeometryDraw(RenderSystem* Lab, uint64_t Hash);
-			virtual ~GeometryDraw() override;
-			virtual void CullGeometry(const Viewer& View, Core::Pool<Drawable*>* Geometry);
-			virtual void RenderGeometryResult(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderGeometryVoxels(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry, RenderOpt Options) = 0;
-			virtual void RenderDepthLinear(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry) = 0;
-			virtual void RenderDepthCubic(Core::Timer* TimeStep, Core::Pool<Drawable*>* Geometry, Compute::Matrix4x4* ViewProjection) = 0;
-			void CullGeometry(const Viewer& View) override;
-			void Render(Core::Timer* TimeStep, RenderState State, RenderOpt Options) override;
-			Core::Pool<Drawable*>* GetOpaque();
-			Core::Pool<Drawable*>* GetTransparent();
-			Core::Pool<Drawable*>* GetAdditive();
-
-		public:
-			TH_COMPONENT("geometry-draw");
-		};
-
-		class TH_OUT EffectDraw : public Renderer
-		{
-		protected:
-			std::unordered_map<std::string, Graphics::Shader*> Effects;
-			Graphics::DepthStencilState* DepthStencil;
-			Graphics::RasterizerState* Rasterizer;
-			Graphics::BlendState* Blend;
-			Graphics::SamplerState* Sampler;
-			Graphics::InputLayout* Layout;
-			Graphics::RenderTarget2D* Output;
-			Graphics::RenderTarget2D* Swap;
-			unsigned int MaxSlot;
-
-		public:
-			EffectDraw(RenderSystem* Lab);
-			virtual ~EffectDraw() override;
-			virtual void ResizeEffect();
-			virtual void RenderEffect(Core::Timer* Time);
-			void Render(Core::Timer* Time, RenderState State, RenderOpt Options) override;
-			void ResizeBuffers() override;
-			unsigned int GetMipLevels();
-			unsigned int GetWidth();
-			unsigned int GetHeight();
-
-		protected:
-			void RenderOutput(Graphics::RenderTarget2D* Resource = nullptr);
-			void RenderTexture(uint32_t Slot6, Graphics::Texture2D* Resource = nullptr);
-			void RenderTexture(uint32_t Slot6, Graphics::Texture3D* Resource = nullptr);
-			void RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource = nullptr);
-			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
-			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
-			Graphics::Shader* GetEffect(const std::string& Name);
-			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
-			Graphics::Shader* CompileEffect(const std::string& SectionName, size_t BufferSize = 0);
-
-		public:
-			TH_COMPONENT("effect-draw");
-		};
-
 		class TH_OUT SceneGraph : public Core::Object
 		{
 			friend RenderSystem;
@@ -895,13 +842,14 @@ namespace Tomahawk
 				Script::VMManager* Manager = nullptr;
 				PrimitiveCache* Primitives = nullptr;
 				ShaderCache* Shaders = nullptr;
-				uint64_t MaterialCount = 1ll << 14;
-				uint64_t EntityCount = 1ll << 15;
-				uint64_t ComponentCount = 1ll << 16;
-				uint32_t CullingChunks = 1;
+				uint64_t StartMaterials = 1ll << 8;
+				uint64_t StartEntities = 1ll << 12;
+				uint64_t StartComponents = 1ll << 13;
+				uint64_t GrowMargin = 128;
 				double MaxFrames = 60.0;
 				double MinFrames = 10.0;
 				double FrequencyHZ = 480.0;
+				double GrowRate = 0.25f;
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
 				bool Async = true;
@@ -910,19 +858,19 @@ namespace Tomahawk
 				static Desc Get(Application* Base);
 			};
 
+		public:
+			struct Table
+			{
+				Core::Pool<Component*> Data;
+				Compute::Cosmos Index;
+			};
+
 		private:
 			struct Packet
 			{
 				std::atomic<bool> Active;
 				Core::TaskCallback Callback;
 				Core::Timer* Time = nullptr;
-			};
-
-			struct Geometry
-			{
-				Core::Pool<Drawable*> Opaque;
-				Core::Pool<Drawable*> Transparent;
-				Core::Pool<Drawable*> Additive;
 			};
 
 		private:
@@ -941,13 +889,19 @@ namespace Tomahawk
 				size_t VoxelSize;
 			} Display;
 
+			struct
+			{
+				std::unordered_set<Component*> Changes;
+				std::vector<Entity*> Heap;
+				std::mutex Transaction;
+			} Indexer;
+
 		protected:
 #ifdef _DEBUG
 			std::thread::id ThreadId;
 #endif
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
-			std::unordered_map<uint64_t, Core::Pool<Component*>> Components;
-			std::unordered_map<uint64_t, Geometry> Drawables;
+			std::unordered_map<uint64_t, Table*> Registry;
 			std::unordered_map<std::string, Packet*> Tasks;
 			std::queue<Core::TaskCallback> Queue;
 			std::queue<Event> Events;
@@ -957,7 +911,6 @@ namespace Tomahawk
 			Compute::Simulator* Simulator;
 			std::condition_variable Stabilize;
 			std::atomic<Component*> Camera;
-			std::atomic<uint64_t> Surfaces;
 			std::atomic<int> Status;
 			std::atomic<bool> Acquire;
 			std::atomic<bool> Active;
@@ -973,12 +926,9 @@ namespace Tomahawk
 			SceneGraph(const Desc& I);
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
-			void ExclusiveLock();
-			void ExclusiveUnlock();
 			void Actualize();
 			void Redistribute();
 			void Reindex();
-			void ExpandMaterials();
 			void ResizeBuffers();
 			void Sleep();
 			void Submit();
@@ -986,7 +936,7 @@ namespace Tomahawk
 			bool Dispatch(Core::Timer* Time);
 			void Publish(Core::Timer* Time);
 			void RemoveMaterial(Material* Value);
-			void RemoveEntity(Entity* Entity, bool Release);
+			void RemoveEntity(Entity* Entity, bool Destroy = true);
 			void SetCamera(Entity* Camera);
 			void SortBackToFront(Core::Pool<Drawable*>* Array);
 			void SortFrontToBack(Core::Pool<Drawable*>* Array);
@@ -1001,13 +951,14 @@ namespace Tomahawk
 			void SwapRT(TargetType Type, Graphics::RenderTarget2D* New);
 			void ClearMRT(TargetType Type, bool Color, bool Depth);
 			void ClearRT(TargetType Type, bool Color, bool Depth);
-			void Exclusive(Core::TaskCallback&& Callback);
+			void Transaction(Core::TaskCallback&& Callback);
 			void Mutate(Entity* Parent, Entity* Child, const char* Type);
 			void Mutate(Entity* Target, const char* Type);
 			void Mutate(Component* Target, const char* Type);
 			void Mutate(Material* Target, const char* Type);
 			void CloneEntity(Entity* Value, CloneCallback&& Callback);
 			void MakeSnapshot(IdxSnapshot* Result);
+			void ClearCulling();
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
@@ -1017,9 +968,6 @@ namespace Tomahawk
 			bool ClearListener(const std::string& Event, MessageCallback* Id);
 			Material* AddMaterial(Material* Base, const std::string& Name = "");
 			Material* CloneMaterial(Material* Base, const std::string& Name = "");
-			Entity* FindNamedEntity(const std::string& Name);
-			Entity* FindEntityAt(const Compute::Vector3& Position, float Radius);
-			Entity* FindTaggedEntity(uint64_t Tag);
 			Entity* GetEntity(uint64_t Entity);
 			Entity* GetLastEntity();
 			Component* GetComponent(uint64_t Component, uint64_t Section);
@@ -1028,32 +976,26 @@ namespace Tomahawk
 			Viewer GetCameraViewer();
 			Material* GetMaterial(const std::string& Material);
 			Material* GetMaterial(uint64_t Material);
-			Core::Pool<Component*>* GetComponents(uint64_t Section);
+			Table& GetStorage(uint64_t Section);
+			Core::Pool<Component*>& GetComponents(uint64_t Section);
+			Core::Pool<Component*>& GetActors(ActorType Type);
 			Graphics::RenderTarget2D::Desc GetDescRT();
 			Graphics::MultiRenderTarget2D::Desc GetDescMRT();
 			Graphics::Format GetFormatMRT(unsigned int Target);
-			std::vector<Entity*> FindParentFreeEntities(Entity* Entity);
-			std::vector<Entity*> FindNamedEntities(const std::string& Name);
-			std::vector<Entity*> FindEntitiesAt(const Compute::Vector3& Position, float Radius);
-			std::vector<Entity*> FindTaggedEntities(uint64_t Tag);
-			bool IsEntityVisible(Entity* Entity, RenderSystem* Renderer);
-			bool IsEntityVisible(Entity* Entity, const Compute::Matrix4x4& ViewProjection, const Compute::Vector3& ViewPos, float DrawDistance);
+			std::vector<Entity*> QueryByParent(Entity* Parent);
+			std::vector<Entity*> QueryByTag(uint64_t Tag);
+			std::vector<Entity*> QueryByName(const std::string& Name);
+			bool QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, const Compute::CosmosCallback& Callback);
 			bool AddEntity(Entity* Entity);
 			bool IsActive();
 			bool IsLeftHanded();
 			uint64_t GetMaterialsCount();
 			uint64_t GetEntitiesCount();
 			uint64_t GetComponentsCount(uint64_t Section);
-			uint64_t GetOpaquesCount();
-			uint64_t GetTransparentsCount();
-			uint64_t GetAdditivesCount();
 			size_t GetVoxelBufferSize();
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
 			bool IsUnstable();
-			Core::Pool<Drawable*>* GetOpaque(uint64_t Section);
-			Core::Pool<Drawable*>* GetTransparent(uint64_t Section);
-			Core::Pool<Drawable*>* GetAdditive(uint64_t Section);
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
 			Graphics::RenderTarget2D* GetRT(TargetType Type);
 			Graphics::Texture2D** GetMerger();
@@ -1067,16 +1009,21 @@ namespace Tomahawk
 		private:
 			void Simulate(Core::Timer* Time);
 			void Synchronize(Core::Timer* Time);
-			void Cullout(Core::Timer* Time, uint32_t Chunk);
 
 		protected:
+			void ReindexComponent(Component* Base, bool Activation, bool Check, bool Notify);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
+			void GenerateMaterialBuffer();
+			void NotifyCosmos(Component* Base);
+			void NotifyCosmosBulk();
+			void UpdateCosmos(Component* Base);
+			void UpdateCosmos();
 			void ExecuteTasks();
 			void FillMaterialBuffers();
 			void ResizeRenderBuffers();
-			void AddDrawable(Drawable* Source, GeoCategory Category);
-			void RemoveDrawable(Drawable* Source, GeoCategory Category);
 			void RegisterEntity(Entity* In);
+			void ExclusiveLock();
+			void ExclusiveUnlock();
 			bool UnregisterEntity(Entity* In);
 			bool ResolveEvents();
 			Entity* CloneEntity(Entity* Entity);
@@ -1086,6 +1033,11 @@ namespace Tomahawk
 			void RayTest(const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
 			{
 				RayTest(T::GetTypeId(), Origin, MaxDistance, std::move(Callback));
+			}
+			template <typename T>
+			bool QueryByArea(const Compute::Vector3& Min, const Compute::Vector3& Max, const Compute::CosmosCallback& Callback)
+			{
+				return QueryByArea(T::GetTypeId(), Min, Max, Callback);
 			}
 			template <typename T>
 			uint64_t GetEntitisCount()
@@ -1115,24 +1067,14 @@ namespace Tomahawk
 				return nullptr;
 			}
 			template <typename T>
-			Core::Pool<Component*>* GetComponents()
+			Table& GetStorage()
+			{
+				return GetStorage(T::GetTypeId());
+			}
+			template <typename T>
+			Core::Pool<Component*>& GetComponents()
 			{
 				return GetComponents(T::GetTypeId());
-			}
-			template <typename T>
-			Core::Pool<Drawable*>* GetOpaque()
-			{
-				return GetOpaque(T::GetTypeId());
-			}
-			template <typename T>
-			Core::Pool<Drawable*>* GetTransparent()
-			{
-				return GetTransparent(T::GetTypeId());
-			}
-			template <typename T>
-			Core::Pool<Drawable*>* GetAdditive()
-			{
-				return GetAdditive(T::GetTypeId());
 			}
 			template <typename T>
 			T* GetComponent()
@@ -1343,6 +1285,252 @@ namespace Tomahawk
 		public:
 			static Core::Schedule* Queue();
 			static Application* Get();
+		};
+
+		template <typename T, size_t Max = 8>
+		class RendererProxy
+		{
+			static_assert(std::is_base_of<Component, T>::value, "parameter must be derived from a component");
+
+		public:
+			typedef std::vector<T*> Storage;
+
+		public:
+			static const size_t Depth = Max;
+
+		private:
+			Storage Data[Max][(size_t)GeoCategory::Count];
+			size_t Offset;
+
+		public:
+			RendererProxy() : Offset(0)
+			{
+			}
+			Storage& Top(GeoCategory Category = GeoCategory::Opaque)
+			{
+				return Data[Offset > 0 ? Offset - 1 : 0][(size_t)Category];
+			}
+			Storage& Push(RenderSystem* Base, GeoCategory Category = GeoCategory::Opaque)
+			{
+				TH_ASSERT(Base != nullptr, Data[0][(size_t)Category], "render system should be present");
+				TH_ASSERT(Offset < Max - 1, Data[0][(size_t)Category], "storage heap stack overflow");
+
+				Storage* Frame = Data[Offset++];
+				Prepare(Base, Frame);
+				return Frame[(size_t)Category];
+			}
+			void Pop()
+			{
+				TH_ASSERT_V(Offset > 0, "storage heap stack underflow");
+				Offset--;
+			}
+
+		private:
+			template<class Q = T>
+			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Prepare(RenderSystem* System, Storage* Frame)
+			{
+				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					Frame[i].clear();
+
+				size_t Count = 0; T* Base = nullptr;
+				System->QueryBegin(T::GetTypeId());
+				while (Base = (T*)System->QueryNext())
+				{
+					if (System->PushDrawable(Base))
+						Frame[(size_t)Base->GetCategory()].push_back(Base);
+					++Count;
+				}
+				System->QueryEnd();
+
+				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					std::sort(Frame[i].begin(), Frame[i].end(), Entity::Sortout<T>);
+			}
+			template<class Q = T>
+			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Prepare(RenderSystem* System, Storage* Frame)
+			{
+				auto& Subframe = Frame[(size_t)GeoCategory::Opaque];
+				Subframe.clear();
+
+				T* Base = nullptr;
+				System->QueryBegin(T::GetTypeId());
+				while (Base = (T*)System->QueryNext())
+				{
+					if (System->PushCullable(Base))
+						Subframe.push_back(Base);
+				}
+				System->QueryEnd();
+
+				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
+			}
+		};
+
+		template <typename T>
+		class TH_OUT GeometryRenderer : public Renderer
+		{
+			static_assert(std::is_base_of<Drawable, T>::value, "component must be drawable to work within geometry renderer");
+
+		private:
+			RendererProxy<T> Proxy;
+
+		public:
+			GeometryRenderer(RenderSystem* Lab) : Renderer(Lab)
+			{
+			}
+			~GeometryRenderer()
+			{
+			}
+			size_t CullingPass(const Viewer& View, bool Rebake) override
+			{
+				TH_PPUSH("geo-renderer-culling", TH_PERF_FRAME);
+				auto& Frame = Proxy.Top(GeoCategory::Opaque);
+				size_t Count = 0;
+
+				if (!Frame.empty())
+					Count += CullGeometry(View, Frame, Rebake);
+
+				TH_PPOP();
+				return Count;
+			}
+			size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override
+			{
+				size_t Count = 0;
+				if (State == RenderState::Geometry_Result)
+				{
+					TH_PPUSH("geo-renderer-result", TH_PERF_CORE);
+					GeoCategory Category = GeoCategory::Opaque;
+					if ((size_t)Options & (size_t)RenderOpt::Transparent)
+						Category = GeoCategory::Transparent;
+					else if ((size_t)Options & (size_t)RenderOpt::Additive)
+						Category = GeoCategory::Additive;
+
+					auto& Frame = Proxy.Top(Category);
+					if (!Frame.empty())
+					{
+						System->ClearMaterials();
+						Count += RenderGeometryResult(Time, Frame, Options);
+					}
+					TH_PPOP();
+				}
+				else if (State == RenderState::Geometry_Voxels)
+				{
+					if ((size_t)Options & (size_t)RenderOpt::Transparent || (size_t)Options & (size_t)RenderOpt::Additive)
+						return 0;
+
+					TH_PPUSH("geo-renderer-voxels", TH_PERF_MIX);
+					auto& Frame = Proxy.Top(GeoCategory::Opaque);
+					if (!Frame.empty())
+					{
+						System->ClearMaterials();
+						Count += RenderGeometryVoxels(Time, Frame, Options);
+					}
+					TH_PPOP();
+				}
+				else if (State == RenderState::Depth_Linear)
+				{
+					if (!((size_t)Options & (size_t)RenderOpt::Inner))
+						return 0;
+
+					TH_PPUSH("geo-renderer-depth-linear", TH_PERF_FRAME);
+					System->ClearMaterials();
+					auto& Frame = Proxy.Top(GeoCategory::Opaque);
+					if (!Frame.empty())
+						Count += RenderDepthLinear(Time, Frame);
+
+					Frame = Proxy.Top(GeoCategory::Transparent);
+					if (!Frame.empty())
+						Count += RenderDepthLinear(Time, Frame);
+					TH_PPOP();
+				}
+				else if (State == RenderState::Depth_Cubic)
+				{
+					if (!((size_t)Options & (size_t)RenderOpt::Inner))
+						return 0;
+
+					TH_PPUSH("geo-renderer-depth-cubic", TH_PERF_FRAME);
+					System->ClearMaterials();
+					auto& Frame = Proxy.Top(GeoCategory::Opaque);
+					if (!Frame.empty())
+						Count += RenderDepthCubic(Time, Frame, System->View.CubicViewProjection);
+
+					Frame = Proxy.Top(GeoCategory::Transparent);
+					if (!Frame.empty())
+						Count += RenderDepthCubic(Time, Frame, System->View.CubicViewProjection);
+					TH_PPOP();
+				}
+
+				return Count;
+			}
+			virtual void BeginPass() override
+			{
+				Proxy.Push(System);
+			}
+			virtual void EndPass() override
+			{
+				Proxy.Pop();
+			}
+			virtual bool HasCategory(GeoCategory Category) override
+			{
+				return !Proxy.Top(Category).empty();
+			}
+			virtual size_t CullGeometry(const Viewer& View, const std::vector<T*>& Geometry, bool Rebake)
+			{
+				return 0;
+			}
+			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const std::vector<T*>& Geometry)
+			{
+				return 0;
+			}
+			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const std::vector<T*>& Geometry, Compute::Matrix4x4* ViewProjection)
+			{
+				return 0;
+			}
+			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options)
+			{
+				return 0;
+			}
+			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options) = 0;
+
+		public:
+			TH_COMPONENT("geometry-renderer");
+		};
+
+		class TH_OUT EffectRenderer : public Renderer
+		{
+		protected:
+			std::unordered_map<std::string, Graphics::Shader*> Effects;
+			Graphics::DepthStencilState* DepthStencil;
+			Graphics::RasterizerState* Rasterizer;
+			Graphics::BlendState* Blend;
+			Graphics::SamplerState* Sampler;
+			Graphics::InputLayout* Layout;
+			Graphics::RenderTarget2D* Output;
+			Graphics::RenderTarget2D* Swap;
+			unsigned int MaxSlot;
+
+		public:
+			EffectRenderer(RenderSystem* Lab);
+			virtual ~EffectRenderer() override;
+			virtual void ResizeEffect();
+			virtual void RenderEffect(Core::Timer* Time) = 0;
+			size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override;
+			void ResizeBuffers() override;
+			unsigned int GetMipLevels();
+			unsigned int GetWidth();
+			unsigned int GetHeight();
+
+		protected:
+			void RenderOutput(Graphics::RenderTarget2D* Resource = nullptr);
+			void RenderTexture(uint32_t Slot6, Graphics::Texture2D* Resource = nullptr);
+			void RenderTexture(uint32_t Slot6, Graphics::Texture3D* Resource = nullptr);
+			void RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource = nullptr);
+			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
+			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
+			Graphics::Shader* GetEffect(const std::string& Name);
+			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
+			Graphics::Shader* CompileEffect(const std::string& SectionName, size_t BufferSize = 0);
+
+		public:
+			TH_COMPONENT("effect-renderer");
 		};
 	}
 }

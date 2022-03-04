@@ -142,14 +142,16 @@ namespace Tomahawk
 						NMake::Unpack(Simulator->Find("gravity"), &I.Simulator.Gravity);
 					}
 
-					NMake::Unpack(Metadata->Find("materials"), &I.MaterialCount);
-					NMake::Unpack(Metadata->Find("entities"), &I.EntityCount);
-					NMake::Unpack(Metadata->Find("components"), &I.ComponentCount);
+					NMake::Unpack(Metadata->Find("materials"), &I.StartMaterials);
+					NMake::Unpack(Metadata->Find("entities"), &I.StartEntities);
+					NMake::Unpack(Metadata->Find("components"), &I.StartComponents);
 					NMake::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
 					NMake::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
 					NMake::Unpack(Metadata->Find("frequency-hz"), &I.FrequencyHZ);
 					NMake::Unpack(Metadata->Find("min-frames"), &I.MinFrames);
 					NMake::Unpack(Metadata->Find("max-frames"), &I.MaxFrames);
+					NMake::Unpack(Metadata->Find("grow-margin"), &I.GrowMargin);
+					NMake::Unpack(Metadata->Find("grow-rate"), &I.GrowRate);
 				}
 
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
@@ -312,14 +314,16 @@ namespace Tomahawk
 
 				auto& Conf = Object->GetConf();
 				Core::Document* Metadata = Document->Set("metadata");
-				NMake::Pack(Metadata->Set("materials"), Conf.MaterialCount);
-				NMake::Pack(Metadata->Set("entities"), Conf.EntityCount);
-				NMake::Pack(Metadata->Set("components"), Conf.ComponentCount);
+				NMake::Pack(Metadata->Set("materials"), Conf.StartMaterials);
+				NMake::Pack(Metadata->Set("entities"), Conf.StartEntities);
+				NMake::Pack(Metadata->Set("components"), Conf.StartComponents);
 				NMake::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
 				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
 				NMake::Pack(Metadata->Set("frequency-hz"), Conf.FrequencyHZ);
 				NMake::Pack(Metadata->Set("min-frames"), Conf.MinFrames);
 				NMake::Pack(Metadata->Set("max-frames"), Conf.MaxFrames);
+				NMake::Pack(Metadata->Set("grow-margin"), Conf.GrowMargin);
+				NMake::Pack(Metadata->Set("grow-rate"), Conf.GrowRate);
 
 				auto* fSimulator = Object->GetSimulator();
 				Core::Document* Simulator = Metadata->Set("simulator");
@@ -390,7 +394,7 @@ namespace Tomahawk
 						NMake::Pack(Parent->Set("world"), Space.Offset);
 					}
 
-					if (!Ref->GetComponentCount())
+					if (!Ref->GetComponentsCount())
 						continue;
 
 					Core::Document* Components = Entity->Set("components", Core::Var::Array());

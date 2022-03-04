@@ -5,6 +5,7 @@
 #include <cmath>
 #include <map>
 #include <stack>
+#include <limits>
 
 class btCollisionConfiguration;
 class btBroadphaseInterface;
@@ -60,6 +61,7 @@ namespace Tomahawk
 		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
 		typedef std::function<bool(class Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)> ProcPragmaCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
+		typedef std::function<void(void*)> CosmosCallback;
 		typedef void* Cipher;
 		typedef void* Digest;
 
@@ -452,6 +454,7 @@ namespace Tomahawk
 			Vector3 SetX(float X) const;
 			Vector3 SetY(float Y) const;
 			Vector3 SetZ(float Z) const;
+			Vector3 Rotate(const Vector3& Origin, const Vector3& Rotation);
 			void Set(const Vector3& Value);
 			void Get2(float* In) const;
 			void Get3(float* In) const;
@@ -680,7 +683,7 @@ namespace Tomahawk
 			bool operator ==(const Matrix4x4& Index) const;
 			bool operator !=(const Matrix4x4& Index) const;
 			Matrix4x4 operator *(const Matrix4x4& V) const;
-			Matrix4x4 operator *(const Vector4& V) const;
+			Vector4 operator *(const Vector4& V) const;
 			Matrix4x4& operator =(const Matrix4x4& V);
 			Matrix4x4 Mul(const Matrix4x4& Right) const;
 			Matrix4x4 Mul(const Vector4& Right) const;
@@ -700,6 +703,7 @@ namespace Tomahawk
 			Vector2 XY() const;
 			Vector3 XYZ() const;
 			Vector4 XYZW() const;
+			Vector4 ToVector4() const;
 			void Identify();
 			void Set(const Matrix4x4& Value);
 
@@ -745,7 +749,7 @@ namespace Tomahawk
 			void SetMatrix(const Matrix4x4& Value);
 			void Set(const Quaternion& Value);
 			Quaternion operator *(float r) const;
-			Quaternion operator *(const Vector3& r) const;
+			Vector3 operator *(const Vector3& r) const;
 			Quaternion operator *(const Quaternion& r) const;
 			Quaternion operator -(const Quaternion& r) const;
 			Quaternion operator +(const Quaternion& r) const;
@@ -755,7 +759,7 @@ namespace Tomahawk
 			Quaternion Conjugate() const;
 			Quaternion Mul(float r) const;
 			Quaternion Mul(const Quaternion& r) const;
-			Quaternion Mul(const Vector3& r) const;
+			Vector3 Mul(const Vector3& r) const;
 			Quaternion Sub(const Quaternion& r) const;
 			Quaternion Add(const Quaternion& r) const;
 			Quaternion Lerp(const Quaternion& B, float DeltaTime) const;
@@ -1661,6 +1665,7 @@ namespace Tomahawk
 			void SetSpacing(Positioning Space, Spacing& Where);
 			void SetPivot(Transform* Root, Spacing* Pivot);
 			void SetRoot(Transform* Root);
+			void GetBounds(Matrix4x4& World, Vector3& Min, Vector3& Max);
 			bool HasRoot(Transform* Target);
 			bool HasChild(Transform* Target);
 			bool HasScaling();
@@ -1706,8 +1711,9 @@ namespace Tomahawk
 			Area(const std::vector<float>&, const std::vector<float>&);
 			void SetDimension(uint64_t);
 			void Merge(const Area&, const Area&);
+			void Recompute();
 			bool Contains(const Area&) const;
-			bool Overlaps(const Area&, bool TouchIsOverlap) const;
+			bool Overlaps(const Area&) const;
 			float ComputeVolume() const;
 			std::vector<float> ComputeCenter();
 		};
@@ -1720,7 +1726,7 @@ namespace Tomahawk
 				NULL_NODE = std::numeric_limits<uint64_t>::max()
 			};
 
-		private:
+		public:
 			struct Node
 			{
 				Area Box;
@@ -1728,7 +1734,7 @@ namespace Tomahawk
 				uint64_t Next;
 				uint64_t Left;
 				uint64_t Right;
-				uint64_t Item;
+				void* Item;
 				int Height;
 
 				Node();
@@ -1736,44 +1742,45 @@ namespace Tomahawk
 			};
 
 		private:
-			uint64_t Root;
+			std::unordered_map<void*, uint64_t> Items;
 			std::vector<Node> Nodes;
+			std::vector<uint64_t> Stack;
+			std::vector<float> BoxSize;
+			uint64_t Root;
 			uint64_t NodeCount;
 			uint64_t NodeCapacity;
 			uint64_t FreeList;
 			uint64_t Dimension;
-			bool IsPeriodic;
 			float SkinThickness;
-			std::vector<bool> Periodicity;
-			std::vector<float> BoxSize;
-			std::vector<float> NegMinImage;
-			std::vector<float> PosMinImage;
-			std::unordered_map<uint64_t, uint64_t> ItemMap;
-			bool TouchIsOverlap;
 
 		public:
-			Cosmos(uint64_t dimension_ = 3, float skinThickness_ = 0.05, uint64_t nItems = 16, bool TouchIsOverlap = true);
-			Cosmos(uint64_t, float, const std::vector<bool>&, const std::vector<float>&, uint64_t nItems = 16, bool TouchIsOverlap = true);
-			void SetPeriodicity(const std::vector<bool>&);
-			void SetBoxSize(const std::vector<float>&);
+			Cosmos(uint64_t Dimension = 3, float SkinThickness = 0.05, uint64_t DefaultSize = 16);
+			Cosmos(uint64_t Dimension, float SkinThickness, const std::vector<float>& BoxSize, uint64_t DefaultSize = 16);
+			void SetBoxSize(const std::vector<float>& Box);
+			void Reserve(size_t Size);
 			void Clear();
-			void InsertItem(uint64_t, std::vector<float>&, float);
-			void InsertItem(uint64_t, std::vector<float>&, std::vector<float>&);
-			void RemoveItem(uint64_t);
-			bool UpdateItem(uint64_t, std::vector<float>&, float, bool alwaysReinsert = false);
-			bool UpdateItem(uint64_t, std::vector<float>&, std::vector<float>&, bool alwaysReinsert = false);
-			std::vector<uint64_t> Query(uint64_t);
-			std::vector<uint64_t> Query(uint64_t, const Area&);
-			std::vector<uint64_t> Query(const Area&);
-			const Area& GetArea(uint64_t);
-			uint64_t GetItemsCount();
-			uint64_t GetNodesCount() const;
+			void InsertItem(void* Item, std::vector<float>& Position, float Radius);
+			void InsertItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound);
+			void RemoveItem(void* Item);
+			bool UpdateItem(void* Item, std::vector<float>& Position, float Radius, bool AlwaysReinsert = false);
+			bool UpdateItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool AlwaysReinsert = false);
+			bool UpsertItem(void* Item, std::vector<float>& Position, float Radius, bool AlwaysReinsert = false);
+			bool UpsertItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool AlwaysReinsert = false);
+			bool Query(void* Item, const CosmosCallback& Callback);
+			bool Query(void* Item, const Area& Box, const CosmosCallback& Callback);
+			bool Query(const Area& Box, const CosmosCallback& Callback);
+			void PushQuery();
+			void* NextQuery(const Area& Box);
+			const Area& GetArea(void* Item);
+			const std::unordered_map<void*, uint64_t>& GetItems() const;
+			const std::vector<Node>& GetNodes() const;
 			uint64_t GetHeight() const;
 			uint64_t ComputeMaxBalance() const;
 			float ComputeVolumeRatio() const;
 			void Deploy();
 
 		private:
+			bool UpdateItem(uint64_t Node, void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool AlwaysReinsert);
 			uint64_t AllocateNode();
 			void FreeNode(uint64_t);
 			void InsertLeaf(uint64_t);
@@ -1781,8 +1788,6 @@ namespace Tomahawk
 			uint64_t Balance(uint64_t);
 			uint64_t ComputeHeight() const;
 			uint64_t ComputeHeight(uint64_t) const;
-			void PeriodicBoundaries(std::vector<float>&);
-			bool MinImage(std::vector<float>&, std::vector<float>&);
 		};
 
 		class TH_OUT HullShape : public Core::Object

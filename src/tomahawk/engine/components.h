@@ -26,11 +26,10 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Activate(Component* New) override;
 				virtual void Deactivate() override;
-				virtual float Cull(const Viewer& View) override;
+				virtual float GetVisibility(const Viewer& View, float Distance) override;
+				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual Component* Copy(Entity* New) override;
-				virtual Compute::Matrix4x4 GetBoundingBox() override;
 				void Create(Compute::HullShape* Shape, float Anticipation);
 				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
 				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
@@ -140,11 +139,9 @@ namespace Tomahawk
 				virtual ~Model() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Activate(Component* New) override;
-				virtual void Deactivate() override;
-				virtual float Cull(const Viewer& View) override;
+				virtual float GetVisibility(const Viewer& View, float Distance) override;
+				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual Component* Copy(Entity* New) override;
-				virtual Compute::Matrix4x4 GetBoundingBox() override;
 				void SetDrawable(Graphics::Model* Drawable);
 				Graphics::Model* GetDrawable();
 
@@ -167,11 +164,9 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Activate(Component* New) override;
-				virtual void Deactivate() override;
-				virtual float Cull(const Viewer& View) override;
+				virtual float GetVisibility(const Viewer& View, float Distance) override;
+				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual Component* Copy(Entity* New) override;
-				virtual Compute::Matrix4x4 GetBoundingBox() override;
 				void SetDrawable(Graphics::SkinModel* Drawable);
 				Graphics::SkinModel* GetDrawable();
 
@@ -185,7 +180,8 @@ namespace Tomahawk
 				Graphics::InstanceBuffer * Instance = nullptr;
 
 			public:
-				Compute::Vector3 Volume = 1.0f;
+				Compute::Vector3 Min = 0.0f;
+				Compute::Vector3 Max = 1.0f;
 				bool Connected = false;
 				bool QuadBased = false;
 
@@ -195,8 +191,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Activate(Component* New) override;
-				virtual void Deactivate() override;
-				virtual float Cull(const Viewer& View) override;
+				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual Component* Copy(Entity* New) override;
 				Graphics::InstanceBuffer* GetBuffer();
 
@@ -214,9 +209,7 @@ namespace Tomahawk
 				virtual ~Decal() = default;
 				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Activate(Component * New) override;
-				virtual void Deactivate() override;
-				virtual float Cull(const Viewer & View) override;
+				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity * New) override;
 
 			public:
@@ -431,7 +424,7 @@ namespace Tomahawk
 				TH_COMPONENT("audio-listener");
 			};
 
-			class TH_OUT PointLight final : public Cullable
+			class TH_OUT PointLight final : public Component
 			{
 			public:
 				struct
@@ -443,12 +436,14 @@ namespace Tomahawk
 					bool Enabled = false;
 				} Shadow;
 
+			private:
+				Attenuation Size;
+
 			public:
 				CubicDepthMap* DepthMap = nullptr;
 				Compute::Matrix4x4 View;
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Diffuse = 1.0f;
-				Attenuation Size;
 				float Emission = 1.0f;
 				float Disperse = 0.0f;
 
@@ -457,18 +452,18 @@ namespace Tomahawk
 				virtual ~PointLight() = default;
 				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
-				virtual float Cull(const Viewer & View) override;
-				virtual bool IsVisible(const Viewer & View, Compute::Matrix4x4 * World) override;
-				virtual bool IsNear(const Viewer & View) override;
+				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
+				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity * New) override;
-				float GetBoxRange() const;
 				void GenerateOrigin();
+				void SetSize(const Attenuation& Value);
+				const Attenuation& GetSize();
 
 			public:
 				TH_COMPONENT("point-light");
 			};
 
-			class TH_OUT SpotLight final : public Cullable
+			class TH_OUT SpotLight final : public Component
 			{
 			public:
 				struct
@@ -480,12 +475,14 @@ namespace Tomahawk
 					bool Enabled = false;
 				} Shadow;
 
+			private:
+				Attenuation Size;
+
 			public:
 				LinearDepthMap* DepthMap = nullptr;
 				Compute::Matrix4x4 Projection;
 				Compute::Matrix4x4 View;
 				Compute::Vector3 Diffuse = 1.0f;
-				Attenuation Size;
 				float Emission = 1.0f;
 				float Cutoff = 60.0f;
 				float Disperse = 0.0f;
@@ -496,12 +493,12 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
 				virtual void Synchronize(Core::Timer * Time) override;
-				virtual float Cull(const Viewer & View) override;
-				virtual bool IsVisible(const Viewer & View, Compute::Matrix4x4 * World) override;
-				virtual bool IsNear(const Viewer & View) override;
+				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
+				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity * New) override;
-				float GetBoxRange() const;
 				void GenerateOrigin();
+				void SetSize(const Attenuation& Value);
+				const Attenuation& GetSize();
 
 			public:
 				TH_COMPONENT("spot-light");
@@ -553,7 +550,7 @@ namespace Tomahawk
 				TH_COMPONENT("line-light");
 			};
 
-			class TH_OUT SurfaceLight final : public Cullable
+			class TH_OUT SurfaceLight final : public Component
 			{
 			private:
 				Graphics::Texture2D * DiffuseMapX[2] = { nullptr };
@@ -562,13 +559,15 @@ namespace Tomahawk
 				Graphics::Texture2D* DiffuseMap = nullptr;
 				Graphics::TextureCube* Probe = nullptr;
 
+			private:
+				Attenuation Size;
+
 			public:
 				Compute::Matrix4x4 View[6];
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Offset = Compute::Vector3(1.0f, 1.0f, 1.0f);
 				Compute::Vector3 Diffuse = 1.0f;
 				Core::Ticker Tick;
-				Attenuation Size;
 				float Emission = 1.0f;
 				float Infinity = 0.0f;
 				bool Parallax = false;
@@ -580,13 +579,15 @@ namespace Tomahawk
 				virtual ~SurfaceLight() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual float Cull(const Viewer& View) override;
+				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
+				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetProbeCache(Graphics::TextureCube* NewCache);
+				void SetSize(const Attenuation& Value);
 				bool SetDiffuseMap(Graphics::Texture2D* Map);
 				bool SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2]);
 				bool IsImageBased() const;
-				float GetBoxRange() const;
+				const Attenuation& GetSize();
 				Graphics::TextureCube* GetProbeCache() const;
 				Graphics::Texture2D* GetDiffuseMapXP();
 				Graphics::Texture2D* GetDiffuseMapXN();
@@ -600,7 +601,7 @@ namespace Tomahawk
 				TH_COMPONENT("surface-light");
 			};
 
-			class TH_OUT Illuminator final : public Cullable
+			class TH_OUT Illuminator final : public Component
 			{
 			private:
 				Graphics::Texture3D * Buffer;
@@ -625,8 +626,6 @@ namespace Tomahawk
 				virtual ~Illuminator() override;
 				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Deactivate() override;
-				virtual float Cull(const Viewer& View) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetBufferSize(size_t NewSize);
 				Graphics::Texture3D* GetBuffer();
@@ -654,7 +653,7 @@ namespace Tomahawk
 
 			public:
 				float NearPlane = 0.1f;
-				float FarPlane = 1000.0f;
+				float FarPlane = 250.0f;
 				float Width = -1;
 				float Height = -1;
 				float FieldOfView = 75.0f;

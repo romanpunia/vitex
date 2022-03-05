@@ -8237,13 +8237,14 @@ namespace Tomahawk
 		}
 		bool Schedule::Publish()
 		{
+			int CTimers = -1;
 			std::chrono::microseconds When;
 			if (!Active)
 				goto Wait;
 
 			do
 			{
-				int CTimers = DispatchTimer(&When);
+				CTimers = DispatchTimer(&When);
 				if (CTimers == 0)
 				{
 					std::unique_lock<std::mutex> Lock(Race.Publish);
@@ -8263,6 +8264,7 @@ namespace Tomahawk
 		{
 			if (Type == Difficulty::Light)
 			{
+				int CPipes = -1, CTasks = -1;
 				CToken PToken(*((TQueue*)Pipes));
 				void* PContext = (void*)&PToken;
 				CToken TToken(*((TQueue*)Tasks[(size_t)Type]));
@@ -8274,8 +8276,8 @@ namespace Tomahawk
 
 				do
 				{
-					int CPipes = DispatchPipe(Type, State, PContext);
-					int CTasks = DispatchTask(Type, TContext);
+					CPipes = DispatchPipe(Type, State, PContext);
+					CTasks = DispatchTask(Type, TContext);
 					if (CPipes != -1 || CTasks != -1)
 						continue;
 				LWait:

@@ -2495,7 +2495,6 @@ namespace Tomahawk
 				switch (Source->Value.GetType())
 				{
 					case Core::VarType::Object:
-					case Core::VarType::Array:
 					{
 						std::string Result;
 						Core::Document::WriteJSON(Source, [&Result](Core::VarForm, const char* Buffer, int64_t Length)
@@ -2505,6 +2504,17 @@ namespace Tomahawk
 						});
 
 						return Escape ? GetCharArray(Base, Result) : Result;
+					}
+					case Core::VarType::Array:
+					{
+						std::string Result = (Parent && Parent->Value.GetType() == Core::VarType::Array ? "[" : "ARRAY[");
+						for (auto* Node : Source->GetChilds())
+							Result.append(GetSQL(Base, Node, Escape, Negate)).append(1, ',');
+
+						if (!Source->IsEmpty())
+							Result = Result.substr(0, Result.size() - 1);
+
+						return Result + "]";
 					}
 					case Core::VarType::String:
 					{

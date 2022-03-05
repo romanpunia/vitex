@@ -2231,6 +2231,32 @@ namespace Tomahawk
 		}
 #endif
 		template <typename T>
+		inline Async<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Varies) noexcept
+		{
+			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+
+			Async<T> Result;
+			Schedule::Get()->SetTask([Result, Callback]() mutable
+			{
+				Result = std::move(Callback());
+			}, Type);
+
+			return Result;
+		}
+		template <typename T>
+		inline Async<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Varies) noexcept
+		{
+			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+
+			Async<T> Result;
+			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
+			{
+				Result = std::move(Callback());
+			}, Type);
+
+			return Result;
+		}
+		template <typename T>
 		inline Async<T> Coasync(const std::function<T()>& Callback) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");

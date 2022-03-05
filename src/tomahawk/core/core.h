@@ -319,6 +319,14 @@ namespace Tomahawk
 			Resumable
 		};
 
+		enum class Difficulty
+		{
+			Varies = -1,
+			Light,
+			Heavy,
+			Count
+		};
+
 		typedef std::vector<struct Variant> VariantList;
 		typedef std::vector<Document*> DocumentList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
@@ -333,8 +341,6 @@ namespace Tomahawk
 		typedef std::function<bool()> ActivityCallback;
 		typedef uint64_t TimerId;
 		typedef Decimal BigNumber;
-		typedef void* ConcurrentQueue;
-		typedef void* ConcurrentToken;
 
 		struct TH_OUT Coroutine
 		{
@@ -501,11 +507,12 @@ namespace Tomahawk
 		{
 			std::chrono::microseconds Expires;
 			TaskCallback Callback;
+			Difficulty Type;
 			TimerId Id;
 			bool Alive;
 
-			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept;
-			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept;
+			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive, Difficulty NewType) noexcept;
 			Timeout(const Timeout& Other) noexcept;
 			Timeout(Timeout&& Other) noexcept;
 			Timeout& operator= (const Timeout& Other) noexcept;
@@ -1381,32 +1388,42 @@ namespace Tomahawk
 
 		class TH_OUT Schedule : public Object
 		{
+		public:
+			struct Desc
+			{
+				ActivityCallback Ping = nullptr;
+				uint64_t Threads[(size_t)Difficulty::Count] = { 0 };
+				uint64_t Coroutines = 16;
+				uint64_t Memory = TH_STACKSIZE;
+				bool Async;
+
+				void SetThreads(uint64_t Cores);
+			};
+
 		private:
 			struct
 			{
+				std::condition_variable Consume[(size_t)Difficulty::Count];
 				std::condition_variable Publish;
-				std::condition_variable Consume;
 			} Queue;
 
 			struct
 			{
-				std::mutex Exclusive;
-				std::mutex Consume;
+				std::mutex Consume[(size_t)Difficulty::Count];
 				std::mutex Publish;
+				std::mutex Exclusive;
 				std::mutex Timing;
 			} Race;
 
 		private:
 			std::map<std::chrono::microseconds, Timeout> Timers;
 			std::vector<std::thread> Childs;
-			ActivityCallback IsRunning;
-			ConcurrentQueue Asyncs;
-			ConcurrentQueue Tasks;
-			Costate* Comain;
-			uint64_t Coroutines;
-			uint64_t Threads;
-			uint64_t Stack;
+			void* Tasks[(size_t)Difficulty::Count];
+			void* Pipes;
+			Desc Policy;
 			TimerId Timer;
+			uint64_t Generation;
+			Costate* Comain;
 			bool Enqueue;
 			bool Terminate;
 			bool Active;
@@ -1416,31 +1433,35 @@ namespace Tomahawk
 
 		public:
 			virtual ~Schedule() override;
-			TimerId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback);
-			TimerId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback);
-			TimerId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback);
-			TimerId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback);
-			bool SetTask(const TaskCallback& Callback);
-			bool SetTask(TaskCallback&& Callback);
-			bool SetAsync(const TaskCallback& Callback);
-			bool SetAsync(TaskCallback&& Callback);
+			TimerId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Varies);
+			TimerId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Varies);
+			TimerId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Varies);
+			TimerId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Varies);
+			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Varies);
+			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Varies);
+			bool SetPipe(const TaskCallback& Callback);
+			bool SetPipe(TaskCallback&& Callback);
 			bool ClearTimeout(TimerId TimerId);
 			bool Wakeup();
-			bool Start(bool IsAsync, uint64_t Threads, uint64_t Coroutines = 16, uint64_t StackSize = TH_STACKSIZE, const ActivityCallback& Callback = nullptr);
+			bool Start(const Desc& NewPolicy);
 			bool Stop();
 			bool Dispatch();
-			bool IsBlockable();
 			bool IsActive();
-			bool HasTasks();
 			bool HasTimers();
-			uint64_t GetThreads();
+			bool HasPipes();
+			bool HasTasks(Difficulty Type);
+			uint64_t GetTotalThreads();
+			uint64_t GetThreads(Difficulty Type);
+			const Desc& GetPolicy();
 
 		private:
 			bool Publish();
-			bool Consume();
-			int DispatchAsync(ConcurrentToken* Token, Costate* State, bool Reconsume);
-			int DispatchTask(ConcurrentToken* Token);
+			bool Consume(Difficulty Type);
+			int DispatchPipe(Difficulty Type, Costate* State);
+			int DispatchPipe(Difficulty Type, Costate* State, void* Token);
+			int DispatchTask(Difficulty Type, void* Token);
 			int DispatchTimer(std::chrono::microseconds* When);
+			size_t GetSubindex(Difficulty Type);
 			TimerId GetTimeout(std::chrono::microseconds& Clock, bool Next);
 			std::chrono::microseconds GetClock();
 
@@ -1999,7 +2020,7 @@ namespace Tomahawk
 					{
 						Callback(std::move(Subresult->Result));
 						Subresult->Free();
-					});
+					}, Difficulty::Light);
 				});
 			}
 			bool IsPending() const noexcept
@@ -2060,7 +2081,7 @@ namespace Tomahawk
 					{
 						Callback(Result, std::move(Subresult->Result));
 						Subresult->Free();
-					});
+					}, Difficulty::Light);
 				});
 
 				return Result;
@@ -2079,7 +2100,7 @@ namespace Tomahawk
 					{
 						Result.Set(std::move(Callback(std::move(Subresult->Result))));
 						Subresult->Free();
-					});
+					}, Difficulty::Light);
 				});
 
 				return Result;
@@ -2099,7 +2120,7 @@ namespace Tomahawk
 				Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
 				{
 					Callback(Result);
-				});
+				}, Difficulty::Heavy);
 
 				return Result;
 			}
@@ -2215,7 +2236,7 @@ namespace Tomahawk
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
 			Async<T> Result;
-			Schedule::Get()->SetAsync([Result, Callback]() mutable
+			Schedule::Get()->SetPipe([Result, Callback]() mutable
 			{
 				Result = std::move(Callback());
 			});
@@ -2228,7 +2249,7 @@ namespace Tomahawk
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
 			Async<T> Result;
-			Schedule::Get()->SetAsync([Result, Callback = std::move(Callback)]() mutable
+			Schedule::Get()->SetPipe([Result, Callback = std::move(Callback)]() mutable
 			{
 				Result = std::move(Callback());
 			});
@@ -2237,11 +2258,11 @@ namespace Tomahawk
 		}
 		inline bool Coasync(const TaskCallback& Callback) noexcept
 		{
-			return Schedule::Get()->SetAsync(Callback);
+			return Schedule::Get()->SetPipe(Callback);
 		}
 		inline bool Coasync(TaskCallback&& Callback) noexcept
 		{
-			return Schedule::Get()->SetAsync(std::move(Callback));
+			return Schedule::Get()->SetPipe(std::move(Callback));
 		}
 		inline bool Cosuspend() noexcept
 		{
@@ -2256,7 +2277,7 @@ namespace Tomahawk
 			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
 			{
 				Result = true;
-			});
+			}, Difficulty::Light);
 
 			return TH_AWAIT(std::move(Result));
 		}

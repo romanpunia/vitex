@@ -1442,10 +1442,13 @@ namespace Tomahawk
 		void Driver::Multiplex()
 		{
 			Core::Schedule* Queue = Core::Schedule::Get();
-			Dispatch(Queue->IsBlockable() && Queue->GetThreads() > 1 ? 100 : (Queue->HasTasks() ? 1 : 0));
+			if (Queue->GetThreads(Core::Difficulty::Heavy) < 2)
+				Dispatch(Queue->HasTasks(Core::Difficulty::Heavy) ? 0 : 10);
+			else
+				Dispatch(100);
 
 			if (Queue->IsActive())
-				Queue->SetTask(&Driver::Multiplex);
+				Queue->SetTask(&Driver::Multiplex, Core::Difficulty::Heavy);
 		}
 		int Driver::Dispatch(int64_t EventTimeout)
 		{
@@ -2166,7 +2169,7 @@ namespace Tomahawk
 					State = ServerState::Idle;
 					Sync.unlock();
 				}
-			});
+			}, Core::Difficulty::Light);
 
 			for (auto&& It : Listeners)
 			{
@@ -2268,7 +2271,7 @@ namespace Tomahawk
 			return Core::Schedule::Get()->SetTask([this, Base]()
 			{
 				OnRequestBegin(Base);
-			});
+			}, Core::Difficulty::Light);
 		}
 		bool SocketServer::Protect(Socket* Fd, Listener* Host)
 		{

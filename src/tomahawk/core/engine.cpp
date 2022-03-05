@@ -4317,7 +4317,7 @@ namespace Tomahawk
 					continue;
 
 				It->second->Active = true;
-				if (!Schedule->SetTask(It->second->Callback))
+				if (!Schedule->SetTask(It->second->Callback, Core::Difficulty::Heavy))
 					It->second->Active = false;
 			}
 		}
@@ -4564,7 +4564,7 @@ namespace Tomahawk
 					{
 						Callback(Task->Time);
 						Task->Time->Synchronize();
-						if (Core::Schedule::Get()->SetTask(Task->Callback))
+						if (Core::Schedule::Get()->SetTask(Task->Callback, Core::Difficulty::Heavy))
 							return;
 					}
 
@@ -5895,13 +5895,18 @@ namespace Tomahawk
 
 			Core::Schedule* Queue = Core::Schedule::Get();
 			if (NetworkQueue)
-				Queue->SetTask(Network::Driver::Multiplex);
+				Queue->SetTask(Network::Driver::Multiplex, Core::Difficulty::Heavy);
 #ifdef TH_WITH_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Content, Time);
 #endif
-			Core::ActivityCallback Callback = (Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr);
-			Queue->Start(Control.Async, Control.Threads, Control.Coroutines, Control.Stack, Callback);
+			Core::Schedule::Desc Policy;
+			Policy.Async = Control.Async;
+			Policy.Coroutines = Control.Coroutines;
+			Policy.Memory = Control.Stack;
+			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
+			Policy.SetThreads(Control.Threads);
+			Queue->Start(Policy);
 
 			if (Activity != nullptr && Control.Async)
 			{

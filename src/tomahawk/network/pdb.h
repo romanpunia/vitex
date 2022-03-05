@@ -479,8 +479,8 @@ namespace Tomahawk
 				std::string GetCacheOid(const std::string& Payload, uint64_t QueryOpts);
 				bool GetCache(const std::string& CacheOid, Cursor* Data);
 				void SetCache(const std::string& CacheOid, Cursor* Data, uint64_t QueryOpts);
-				void Reestablish(Connection* Base);
 				void Commit(uint64_t Token);
+				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base);
 				bool Reprocess(Connection* Base);
 				bool Transact(Connection* Base, Request* Token);

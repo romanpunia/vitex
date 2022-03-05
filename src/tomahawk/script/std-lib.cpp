@@ -4456,7 +4456,7 @@ namespace Tomahawk
 				Context->PromiseResume(this);
 				Context->Release();
 				this->Release();
-			}) ? 0 : -1;
+			}, Core::Difficulty::Light) ? 0 : -1;
 		}
 		int STDPromise::Set(void* _Ref, const char* TypeName)
 		{

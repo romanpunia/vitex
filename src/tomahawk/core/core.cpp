@@ -2118,16 +2118,16 @@ namespace Tomahawk
 			}
 		}
 
-		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive), Type(NewType)
 		{
 		}
-		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive) noexcept : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive)
+		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive), Type(NewType)
 		{
 		}
-		Timeout::Timeout(const Timeout& Other) noexcept : Callback(Other.Callback), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
+		Timeout::Timeout(const Timeout& Other) noexcept : Callback(Other.Callback), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive), Type(Other.Type)
 		{
 		}
-		Timeout::Timeout(Timeout&& Other) noexcept : Callback(std::move(Other.Callback)), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive)
+		Timeout::Timeout(Timeout&& Other) noexcept : Callback(std::move(Other.Callback)), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive), Type(Other.Type)
 		{
 		}
 		Timeout& Timeout::operator= (const Timeout& Other) noexcept
@@ -2136,6 +2136,7 @@ namespace Tomahawk
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
+			Type = Other.Type;
 			return *this;
 		}
 		Timeout& Timeout::operator= (Timeout&& Other) noexcept
@@ -2144,6 +2145,7 @@ namespace Tomahawk
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
+			Type = Other.Type;
 			return *this;
 		}
 
@@ -7890,25 +7892,40 @@ namespace Tomahawk
 				goto Reuse;
 		}
 
-		Schedule::Schedule() : Comain(nullptr), Coroutines(0), Threads(0), Stack(0), Timer(0), Terminate(false), Active(false), Enqueue(true)
+		void Schedule::Desc::SetThreads(uint64_t Cores)
 		{
-			Asyncs = (ConcurrentQueue)TH_NEW(TQueue);
-			Tasks = (ConcurrentQueue)TH_NEW(TQueue);
+			uint64_t Total = (uint64_t)Difficulty::Count;
+			uint64_t Falloff = Cores % Total;
+			uint64_t Group = (Cores - Falloff) / Total;
+			for (uint64_t i = 0; i < Total; i++)
+				Threads[i] = Group;
+
+			Threads[Total - 1] += Falloff;
+		}
+
+		Schedule::Schedule() : Comain(nullptr), Timer(0), Generation(0), Terminate(false), Active(false), Enqueue(true)
+		{
+			Pipes = (void*)TH_NEW(TQueue);
+			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
+				Tasks[i] = (void*)TH_NEW(TQueue);
 		}
 		Schedule::~Schedule()
 		{
 			Stop();
 
-			TQueue* cAsyncs = (TQueue*)Asyncs;
-			TH_DELETE(ConcurrentQueue, cAsyncs);
+			TQueue* Context = (TQueue*)Pipes;
+			TH_DELETE(ConcurrentQueue, Context);
 
-			TQueue* cTasks = (TQueue*)Tasks;
-			TH_DELETE(ConcurrentQueue, cTasks);
+			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
+			{
+				Context = (TQueue*)Tasks[i];
+				TH_DELETE(ConcurrentQueue, Context);
+			}
 
 			if (Singleton == this)
 				Singleton = nullptr;
 		}
-		TimerId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback)
+		TimerId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
 			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
@@ -7920,7 +7937,7 @@ namespace Tomahawk
 			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
-			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, true)));
+			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, true, Type)));
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
@@ -7929,7 +7946,7 @@ namespace Tomahawk
 			TH_PPOP();
 			return Id;
 		}
-		TimerId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback)
+		TimerId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
 			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
@@ -7941,7 +7958,7 @@ namespace Tomahawk
 			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
-			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, true)));
+			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, true, Type)));
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
@@ -7950,7 +7967,7 @@ namespace Tomahawk
 			TH_PPOP();
 			return Id;
 		}
-		TimerId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback)
+		TimerId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
 			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
@@ -7962,7 +7979,7 @@ namespace Tomahawk
 			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
-			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, false)));
+			Timers.emplace(std::make_pair(Expires, Timeout(Callback, Duration, Id, false, Type)));
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
@@ -7971,7 +7988,7 @@ namespace Tomahawk
 			TH_PPOP();
 			return Id;
 		}
-		TimerId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback)
+		TimerId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
 			TH_ASSERT(Callback, TH_INVALID_EVENT_ID, "callback should not be empty");
 			if (!Enqueue)
@@ -7983,7 +8000,7 @@ namespace Tomahawk
 			Race.Timing.lock();
 
 			TimerId Id = GetTimeout(Expires, true);
-			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, false)));
+			Timers.emplace(std::make_pair(Expires, Timeout(std::move(Callback), Duration, Id, false, Type)));
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
@@ -7992,35 +8009,41 @@ namespace Tomahawk
 			TH_PPOP();
 			return Id;
 		}
-		bool Schedule::SetTask(const TaskCallback& Callback)
+		bool Schedule::SetTask(const TaskCallback& Callback, Difficulty Type)
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
 				return false;
 
 			TH_PPUSH("schedule-task", TH_PERF_ATOM);
-			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, Callback));
+			size_t Index = GetSubindex(Type);
+			auto* Subqueue = (TQueue*)Tasks[Index];
+			Subqueue->enqueue(TH_NEW(TaskCallback, Callback));
+
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Consume[Index].notify_one();
 
 			TH_PPOP();
 			return true;
 		}
-		bool Schedule::SetTask(TaskCallback&& Callback)
+		bool Schedule::SetTask(TaskCallback&& Callback, Difficulty Type)
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
 				return false;
 
 			TH_PPUSH("schedule-task", TH_PERF_ATOM);
-			((TQueue*)Tasks)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+			size_t Index = GetSubindex(Type);
+			auto* Subqueue = (TQueue*)Tasks[Index];
+			Subqueue->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Consume[Index].notify_one();
 
 			TH_PPOP();
 			return true;
 		}
-		bool Schedule::SetAsync(const TaskCallback& Callback)
+		bool Schedule::SetPipe(const TaskCallback& Callback)
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
@@ -8033,14 +8056,16 @@ namespace Tomahawk
 			}
 
 			TH_PPUSH("schedule-async", TH_PERF_ATOM);
-			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, Callback));
+			auto* Subqueue = (TQueue*)Pipes;
+			Subqueue->enqueue(TH_NEW(TaskCallback, Callback));
+
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Consume[(size_t)Difficulty::Light].notify_one();
 
 			TH_PPOP();
 			return true;
 		}
-		bool Schedule::SetAsync(TaskCallback&& Callback)
+		bool Schedule::SetPipe(TaskCallback&& Callback)
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
@@ -8053,9 +8078,11 @@ namespace Tomahawk
 			}
 
 			TH_PPUSH("schedule-async", TH_PERF_ATOM);
-			((TQueue*)Asyncs)->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+			auto* Subqueue = (TQueue*)Pipes;
+			Subqueue->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+
 			if (!Childs.empty())
-				Queue.Consume.notify_one();
+				Queue.Consume[(size_t)Difficulty::Light].notify_one();
 
 			TH_PPOP();
 			return true;
@@ -8083,45 +8110,49 @@ namespace Tomahawk
 		}
 		bool Schedule::Wakeup()
 		{
-			if (!Active)
-				return false;
-
 			Queue.Publish.notify_all();
-			Queue.Consume.notify_all();
+			for (size_t i = 0; i < (size_t)Difficulty::Count; ++i)
+				Queue.Consume[i].notify_all();
+
 			return true;
 		}
-		bool Schedule::Start(bool IsAsync, uint64_t ThreadsCount, uint64_t CoroutinesCount, uint64_t StackSize, const ActivityCallback& Callback)
+		bool Schedule::Start(const Desc& NewPolicy)
 		{
 			TH_ASSERT(!Active, false, "queue should be stopped");
-			Threads = (IsAsync ? ThreadsCount : 0);
-			Coroutines = CoroutinesCount;
-			Stack = StackSize;
-			IsRunning = Callback;
+			TH_ASSERT(NewPolicy.Memory > 0, false, "stack memory should not be zero");
+			TH_ASSERT(NewPolicy.Coroutines > 0, false, "there must be at least one coroutine");
 
-			if (!IsAsync)
+			Policy = NewPolicy;
+			if (!Policy.Async)
 			{
 				Active = true;
 				return true;
 			}
 
-			Childs.reserve(Threads + 1);
-			if (!IsRunning)
+			if (!Policy.Ping)
 			{
 				Childs.emplace_back(std::thread(&Schedule::Publish, this));
 				TH_TRACE("spawn thread %s", OS::Process::GetThreadId(Childs.back().get_id()).c_str());
 			}
 
-			for (uint64_t i = 0; i < Threads; i++)
+			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
-				Childs.emplace_back(std::thread(&Schedule::Consume, this));
-				TH_TRACE("spawn thread %s", OS::Process::GetThreadId(Childs.back().get_id()).c_str());
+				Difficulty Type = (Difficulty)i;
+				size_t Threads = std::max<uint64_t>(1, Policy.Threads[i]);
+				for (uint64_t j = 0; j < Threads; j++)
+				{
+					Childs.emplace_back(std::thread(&Schedule::Consume, this, Type));
+					TH_TRACE("spawn thread %s", OS::Process::GetThreadId(Childs.back().get_id()).c_str());
+				}
 			}
 
 			Active = true;
 			Queue.Publish.notify_one();
-			Queue.Consume.notify_one();
 
-			if (IsRunning)
+			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
+				Queue.Consume[i].notify_one();
+
+			if (Policy.Ping)
 				return Publish();
 
 			return true;
@@ -8135,11 +8166,10 @@ namespace Tomahawk
 				return false;
 			}
 
-			Active = Enqueue = false;
-			Queue.Publish.notify_all();
-			Queue.Consume.notify_all();
+			Active = false;
+			Enqueue = false;
+			Wakeup();
 
-			TaskCallback* Callback = nullptr;
 			for (auto It = Childs.begin(); It != Childs.end(); It++)
 			{
 				auto& Thread = *It;
@@ -8158,18 +8188,22 @@ namespace Tomahawk
 			Childs.clear();
 			while (Dispatch());
 
-			TQueue* cAsyncs = (TQueue*)Asyncs;
-			while (cAsyncs->try_dequeue(Callback) || cAsyncs->size_approx() > 0)
+			TaskCallback* Callback = nullptr;
+			TQueue* Context = (TQueue*)Pipes;
+			while (Context->try_dequeue(Callback) || Context->size_approx() > 0)
 			{
 				TH_DELETE(function, Callback);
 				Callback = nullptr;
 			}
 
-			TQueue* cTasks = (TQueue*)Tasks;
-			while (cTasks->try_dequeue(Callback) || cTasks->size_approx() > 0)
+			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
-				TH_DELETE(function, Callback);
-				Callback = nullptr;
+				Context = (TQueue*)Tasks[i];
+				while (Context->try_dequeue(Callback) || Context->size_approx() > 0)
+				{
+					TH_DELETE(function, Callback);
+					Callback = nullptr;
+				}
 			}
 
 			Race.Timing.lock();
@@ -8179,153 +8213,170 @@ namespace Tomahawk
 			TH_CLEAR(Comain);
 			Terminate = false;
 			Enqueue = true;
-			Threads = Stack = Timer = 0;
 			Race.Exclusive.unlock();
 
 			return true;
 		}
 		bool Schedule::Dispatch()
 		{
-			if (!Comain && Stack > 0 && Coroutines > 0)
-				Comain = new Costate(Stack);
+			if (!Comain)
+				Comain = new Costate(Policy.Memory);
 
-			int fAsyncs = DispatchAsync(nullptr, Comain, true);
-			int fTimers = DispatchTimer(nullptr);
-			int fTasks = DispatchTask(nullptr);
+			bool Fill = false;
+			for (size_t i = 0; i < (size_t)Difficulty::Count; ++i)
+			{
+				Difficulty Type = (Difficulty)i;
+				int CPipes = DispatchPipe(Type, Comain);
+				int CTasks = DispatchTask(Type, nullptr);
+				if (CPipes != -1 || CTasks != -1)
+					Fill = true;
+			}
 
-			return fAsyncs != -1 || fTimers != -1 || fTasks != -1;
+			int CTimers = DispatchTimer(nullptr);
+			return Fill || CTimers != -1;
 		}
 		bool Schedule::Publish()
 		{
 			std::chrono::microseconds When;
-			int fTimers = -1;
 			if (!Active)
 				goto Wait;
 
 			do
 			{
-				fTimers = DispatchTimer(&When);
-				if (fTimers == 0)
+				int CTimers = DispatchTimer(&When);
+				if (CTimers == 0)
 				{
 					std::unique_lock<std::mutex> Lock(Race.Publish);
 					Queue.Publish.wait_for(Lock, When);
 				}
-				else if (fTimers == -1)
+				else if (CTimers == -1)
 				{
 				Wait:
 					std::unique_lock<std::mutex> Lock(Race.Publish);
 					Queue.Publish.wait(Lock);
 				}
-			} while (Active && (IsRunning ? IsRunning() : true));
+			} while (Active && (Policy.Ping ? Policy.Ping() : true));
 
 			return true;
 		}
-		bool Schedule::Consume()
+		bool Schedule::Consume(Difficulty Type)
 		{
-			Costate* State = nullptr;
-			if (Stack > 0 && Coroutines > 0)
+			if (Type == Difficulty::Light)
 			{
-				State = new Costate(Stack);
-				State->SetWaitable(&Queue.Consume);
+				CToken PToken(*((TQueue*)Pipes));
+				void* PContext = (void*)&PToken;
+				CToken TToken(*((TQueue*)Tasks[(size_t)Type]));
+				void* TContext = (void*)&TToken;
+				Costate* State = State = new Costate(Policy.Memory);
+				State->SetWaitable(&Queue.Consume[(size_t)Type]);
+				if (!Active)
+					goto LWait;
+
+				do
+				{
+					int CPipes = DispatchPipe(Type, State, PContext);
+					int CTasks = DispatchTask(Type, TContext);
+					if (CPipes != -1 || CTasks != -1)
+						continue;
+				LWait:
+					std::unique_lock<std::mutex> Lock(Race.Consume[(size_t)Type]);
+					Queue.Consume[(size_t)Type].wait(Lock);
+				} while (Active);
+				TH_RELEASE(State);
+			}
+			else if (Type == Difficulty::Heavy)
+			{
+				CToken TToken(*((TQueue*)Tasks[(size_t)Type]));
+				void* TContext = (void*)&TToken;
+				if (!Active)
+					goto HWait;
+
+				do
+				{
+					if (DispatchTask(Type, TContext) != -1)
+						continue;
+				HWait:
+					std::unique_lock<std::mutex> Lock(Race.Consume[(size_t)Type]);
+					Queue.Consume[(size_t)Type].wait(Lock);
+				} while (Active);
 			}
 
-			CToken tAsyncs(*((TQueue*)Asyncs)), tTasks(*((TQueue*)Tasks));
-			ConcurrentToken* vAsyncs = (ConcurrentToken*)&tAsyncs;
-			ConcurrentToken* vTasks = (ConcurrentToken*)&tTasks;
-			int fAsyncs = -1, fTasks = -1;
-
-			if (!Active)
-				goto Wait;
-
-			do
-			{
-				fAsyncs = DispatchAsync(vAsyncs, State, false);
-				fTasks = DispatchTask(vTasks);
-
-				if (fAsyncs != -1 || fTasks != -1)
-					continue;
-			Wait:
-				std::unique_lock<std::mutex> Lock(Race.Consume);
-				Queue.Consume.wait(Lock);
-			} while (Active);
-
-			TH_RELEASE(State);
 			return true;
 		}
-		int Schedule::DispatchAsync(ConcurrentToken* Token, Costate* State, bool Reconsume)
+		int Schedule::DispatchPipe(Difficulty Type, Costate* State)
 		{
-			CToken* cToken = (CToken*)Token;
-			TQueue* cAsyncs = (TQueue*)Asyncs;
+			TQueue* SQueue = (TQueue*)Pipes;
 			TaskCallback* Data = nullptr;
-			TaskCallback* Next[MAX_TICKS];
+			int Count = -1;
 
-			if (State != nullptr)
+			goto ResolveNext;
+			while (State->GetCount() > 0)
 			{
-			ResolveStateful:
-				while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)
+				TH_PPUSH("dispatch-pipe", TH_PERF_CORE);
+				Count = State->Dispatch();
+				TH_PPOP();
+
+				if (Count == -1)
+					break;
+
+				DispatchTimer(nullptr);
+				DispatchTask(Type, nullptr);
+			ResolveNext:
+				while (SQueue->try_dequeue(Data) && State->GetCount() < Policy.Coroutines)
 				{
 					State->Pop(std::move(*Data));
 					TH_DELETE(function, Data);
 				}
 
-				if (State->GetCount() < Coroutines && cAsyncs->size_approx() > 0)
-					goto ResolveStateful;
-
-				if (!State->GetCount())
-					return Data != nullptr ? 1 : -1;
-
-				while (true)
-				{
-					TH_PPUSH("dispatch-async", TH_PERF_CORE);
-					int Count = State->Dispatch();
-					TH_PPOP();
-
-					if (Count == -1)
-						break;
-
-					if (Reconsume)
-						DispatchTimer(nullptr);
-
-					int fTasks = DispatchTask(nullptr);
-					if (fTasks == -1 && Count == 0 && State->HasWaitable())
-					{
-						std::unique_lock<std::mutex> Lock(Race.Consume);
-						State->GetWaitable()->wait(Lock);
-					}
-				ResolveNext:
-					while ((cToken ? cAsyncs->try_dequeue(*cToken, Data) : cAsyncs->try_dequeue(Data)) && State->GetCount() < Coroutines)
-					{
-						State->Pop(std::move(*Data));
-						TH_DELETE(function, Data);
-					}
-
-					if (cAsyncs->size_approx() > 0)
-						goto ResolveNext;
-				}
-			}
-			else
-			{
-				size_t Count = (cToken ? cAsyncs->try_dequeue_bulk(*cToken, Next, MAX_TICKS) : cAsyncs->try_dequeue_bulk(Next, MAX_TICKS));
-				for (size_t i = 0; i < Count; i++)
-				{
-					TH_PPUSH("dispatch-async", TH_PERF_MAX);
-					Data = Next[i];
-					(*Data)();
-					TH_DELETE(function, Data);
-					TH_PPOP();
-				}
+				if (SQueue->size_approx() > 0 && State->GetCount() < Policy.Coroutines)
+					goto ResolveNext;
 			}
 
 			return Data != nullptr ? 1 : -1;
 		}
-		int Schedule::DispatchTask(ConcurrentToken* Token)
+		int Schedule::DispatchPipe(Difficulty Type, Costate* State, void* Token)
 		{
-			CToken* cToken = (CToken*)Token;
-			TQueue* cTasks = (TQueue*)Tasks;
+			CToken* SToken = (CToken*)Token;
+			TQueue* SQueue = (TQueue*)Pipes;
+			TaskCallback* Data = nullptr;
+			int Count = -1;
+
+			goto ResolveNext;
+			while (State->GetCount() > 0)
+			{
+				TH_PPUSH("dispatch-pipe", TH_PERF_CORE);
+				Count = State->Dispatch();
+				TH_PPOP();
+
+				if (Count == -1)
+					break;
+
+				if (DispatchTask(Type, nullptr) == -1 && Count == 0 && State->HasWaitable())
+				{
+					std::unique_lock<std::mutex> Lock(Race.Consume[(size_t)Type]);
+					State->GetWaitable()->wait(Lock);
+				}
+			ResolveNext:
+				while ((SToken ? SQueue->try_dequeue(*SToken, Data) : SQueue->try_dequeue(Data)) && State->GetCount() < Policy.Coroutines)
+				{
+					State->Pop(std::move(*Data));
+					TH_DELETE(function, Data);
+				}
+
+				if (SQueue->size_approx() > 0 && State->GetCount() < Policy.Coroutines)
+					goto ResolveNext;
+			}
+
+			return Data != nullptr ? 1 : -1;
+		}
+		int Schedule::DispatchTask(Difficulty Type, void* Token)
+		{
+			CToken* SToken = (CToken*)Token;
+			TQueue* SQueue = (TQueue*)Tasks[(size_t)Type];
 			TaskCallback* Data = nullptr;
 			size_t Count = 0;
 
-			while (cToken ? cTasks->try_dequeue(*cToken, Data) : cTasks->try_dequeue(Data))
+			while (SToken ? SQueue->try_dequeue(*SToken, Data) : SQueue->try_dequeue(Data))
 			{
 				TH_PPUSH("dispatch-task", TH_PERF_MAX);
 				(*Data)();
@@ -8363,7 +8414,7 @@ namespace Tomahawk
 
 			if (!It->second.Alive || !Active)
 			{
-				SetTask(std::move(It->second.Callback));
+				SetTask(std::move(It->second.Callback), It->second.Type);
 				Timers.erase(It);
 				Race.Timing.unlock();
 				return 1;
@@ -8372,34 +8423,45 @@ namespace Tomahawk
 			Timeout Next(std::move(It->second));
 			Timers.erase(It);
 
-			SetTask((const TaskCallback&)Next.Callback);
+			SetTask((const TaskCallback&)Next.Callback, Next.Type);
 			Clock += Next.Expires; GetTimeout(Clock, false);
 			Timers.emplace(std::make_pair(Clock, std::move(Next)));
 			Race.Timing.unlock();
 			return 1;
 		}
-		bool Schedule::IsBlockable()
-		{
-			return Active && Threads > 0;
-		}
 		bool Schedule::IsActive()
 		{
 			return Active;
-		}
-		bool Schedule::HasTasks()
-		{
-			TQueue* cAsyncs = (TQueue*)Asyncs;
-			TQueue* cTasks = (TQueue*)Tasks;
-
-			return cAsyncs->size_approx() > 0 || cTasks->size_approx() > 0;
 		}
 		bool Schedule::HasTimers()
 		{
 			return !Timers.empty();
 		}
-		uint64_t Schedule::GetThreads()
+		bool Schedule::HasPipes()
 		{
-			return Threads;
+			TQueue* Context = (TQueue*)Pipes;
+			return Context->size_approx() > 0;
+		}
+		bool Schedule::HasTasks(Difficulty Type)
+		{
+			TQueue* Context = (TQueue*)Tasks[(size_t)Type];
+			return Context->size_approx() > 0;
+		}
+		size_t Schedule::GetSubindex(Difficulty Type)
+		{
+			return Type == Difficulty::Varies ? ++Generation % (size_t)Difficulty::Count : (size_t)Type;
+		}
+		uint64_t Schedule::GetTotalThreads()
+		{
+			return Childs.size();
+		}
+		uint64_t Schedule::GetThreads(Difficulty Type)
+		{
+			return Policy.Threads[(size_t)Type];
+		}
+		const Schedule::Desc& Schedule::GetPolicy()
+		{
+			return Policy;
 		}
 		std::chrono::microseconds Schedule::GetClock()
 		{

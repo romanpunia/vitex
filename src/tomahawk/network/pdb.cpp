@@ -1589,6 +1589,7 @@ namespace Tomahawk
 					Update.lock();
 					for (size_t i = 0; i < Connections; i++)
 					{
+						TH_TRACE("[pq] try connect on group %i/%i", (int)i, (int)Connections);
 						TConnection* Base = PQconnectdbParams(Keys, Values, 0);
 						if (!Base || PQstatus(Base) != ConnStatusType::CONNECTION_OK)
 						{
@@ -1596,14 +1597,18 @@ namespace Tomahawk
 							TH_FREE(Keys);
 							TH_FREE(Values);
 
-							PQlogMessage(Base);
 							if (Base != nullptr)
+							{
+								PQlogMessage(Base);
 								PQfinish(Base);
+							}
 
 							Future = false;
 							TH_PPOP();
 							return;
 						}
+
+						TH_TRACE("[pq] OK connect on group %i as 0x%p", (int)i, (void*)Base);
 						PQsetnonblocking(Base, 1);
 						PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
 						PQlogMessage(Base);
@@ -1811,44 +1816,6 @@ namespace Tomahawk
 					Cache.Objects[CacheOid] = std::make_pair(Timeout, Data->Copy());
 				Cache.Context.unlock();
 			}
-			void Cluster::Reestablish(Connection* Target)
-			{
-#ifdef TH_HAS_POSTGRESQL
-				const char** Keys = Source.CreateKeys();
-				const char** Values = Source.CreateValues();
-
-				if (Target->Current != nullptr)
-				{
-					Request* Current = Target->Current;
-					Current->Result.Release();
-					Target->Current = nullptr;
-
-					Update.unlock();
-					Current->Future = Cursor();
-					Update.lock();
-
-					TH_WARN("[pqwarn] query operation will not retry (neterr)");
-					TH_DELETE(Request, Current);
-				}
-
-				Target->Stream->Clear(false);
-				PQfinish(Target->Base);
-				Target->Base = PQconnectdbParams(Keys, Values, 0);
-				if (Target->Base != nullptr)
-				{
-					PQsetnonblocking(Target->Base, 1);
-					PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
-					Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
-					Target->State = QueryState::Idle;
-				}
-				else
-					Target->State = QueryState::Lost;
-
-				PQlogMessage(Target->Base);
-				TH_FREE(Keys);
-				TH_FREE(Values);
-#endif
-			}
 			void Cluster::Commit(uint64_t Token)
 			{
 				Update.lock();
@@ -1862,6 +1829,59 @@ namespace Tomahawk
 					}
 				}
 				Update.unlock();
+			}
+			bool Cluster::Reestablish(Connection* Target)
+			{
+#ifdef TH_HAS_POSTGRESQL
+				const char** Keys = Source.CreateKeys();
+				const char** Values = Source.CreateValues();
+
+				Update.lock();
+				if (Target->Current != nullptr)
+				{
+					Request* Current = Target->Current;
+					Current->Result.Release();
+					Target->Current = nullptr;
+
+					Update.unlock();
+					Current->Future = Cursor();
+					Update.lock();
+
+					TH_ERR("[pqerr] query reset on 0x%p\n\tconnection lost", (void*)Target->Base);
+					TH_DELETE(Request, Current);
+				}
+
+				Target->Stream->Clear(false);
+				PQfinish(Target->Base);
+
+				TH_TRACE("[pq] try reconnect on 0x%p", (void*)Target->Base);
+				Target->Base = PQconnectdbParams(Keys, Values, 0);
+				TH_FREE(Keys);
+				TH_FREE(Values);
+
+				if (!Target->Base || PQstatus(Target->Base) != ConnStatusType::CONNECTION_OK)
+				{
+					Update.unlock();
+					if (Target != nullptr)
+						PQlogMessage(Target->Base);
+		
+					Core::Schedule::Get()->SetTask([this, Target]()
+					{
+						Reestablish(Target);
+					}, Core::Difficulty::Heavy);
+					return false;
+				}
+
+				TH_TRACE("[pq] OK reconnect on 0x%p", (void*)Target->Base);
+				Target->State = QueryState::Idle;
+				Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
+				PQsetnonblocking(Target->Base, 1);
+				PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
+				Consume(Target);
+				Update.unlock();
+				
+				return Reprocess(Target);
+#endif
 			}
 			bool Cluster::Consume(Connection* Base)
 			{
@@ -1913,31 +1933,23 @@ namespace Tomahawk
 			{
 				return Source->Stream->SetReadNotify([this, Source](NetEvent Event, const char*, size_t)
 				{
-					if (Packet::IsErrorOrSkip(Event))
-					{
-						if (!Packet::IsSkip(Event))
-						{
-							TH_PPUSH("postgres-reset", TH_PERF_MAX);
-							Update.lock();
-							Reestablish(Source);
-							Consume(Source);
-							Update.unlock();
-							TH_PPOP();
-						}
-
+					if (Packet::IsSkip(Event))
 						return true;
-					}
 #ifdef TH_HAS_POSTGRESQL
 					TH_PPUSH("postgres-recv", TH_PERF_MAX);
 					Update.lock();
+					if (Packet::IsError(Event))
+						Source->State = QueryState::Lost;
+
 					if (Source->State == QueryState::Lost)
 					{
-						Reestablish(Source);
-						Consume(Source);
 						Update.unlock();
 						TH_PPOP();
 
-						return Reprocess(Source);
+						return Core::Schedule::Get()->SetTask([this, Source]()
+						{
+							Reestablish(Source);
+						}, Core::Difficulty::Heavy);
 					}
 
 				Retry:
@@ -1973,7 +1985,7 @@ namespace Tomahawk
 								Core::Schedule::Get()->SetTask([Event, Callback = std::move(Callback)]()
 								{
 									Callback(Event);
-								});
+								}, Core::Difficulty::Light);
 							}
 						}
 						TH_TRACE("[pq] notification on channel @%s:\n\t%s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");

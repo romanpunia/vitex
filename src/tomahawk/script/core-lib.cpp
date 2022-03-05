@@ -213,7 +213,7 @@ namespace Tomahawk
 					Callback->Release();
 					Context->Release();
 				});
-			});
+			}, Core::Difficulty::Light);
 		}
 		bool ScheduleSetTask(Core::Schedule* Base, VMCFunction* Callback)
 		{
@@ -234,7 +234,7 @@ namespace Tomahawk
 					Callback->Release();
 					Context->Release();
 				});
-			});
+			}, Core::Difficulty::Heavy);
 		}
 
 		Core::Document* DocumentInit(Core::Document* Base)
@@ -1395,7 +1395,6 @@ namespace Tomahawk
 			VSchedule.SetMethod("bool Start(bool, uint64, uint64 = 16, uint64 = 524288)", &Core::Schedule::ClearTimeout);
 			VSchedule.SetMethod("bool Stop()", &Core::Schedule::Stop);
 			VSchedule.SetMethod("bool Dispatch()", &Core::Schedule::Dispatch);
-			VSchedule.SetMethod("bool IsBlockable()", &Core::Schedule::IsBlockable);
 			VSchedule.SetMethod("bool IsActive()", &Core::Schedule::IsActive);
 			VSchedule.SetMethod("bool HasTasks()", &Core::Schedule::HasTasks);
 			VSchedule.SetMethod("bool HasTimers()", &Core::Schedule::HasTimers);

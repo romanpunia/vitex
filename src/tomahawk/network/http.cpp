@@ -262,7 +262,7 @@ namespace Tomahawk
 						return Core::Schedule::Get()->SetTask([this]()
 						{
 							Next();
-						});
+						}, Core::Difficulty::Light);
 					});
 				}
 				else if (State == (uint32_t)WebSocketState::Process)
@@ -4187,7 +4187,7 @@ namespace Tomahawk
 					std::vector<std::string> Keys = Core::Parser(Data, Length).Split(',');
 					for (auto& Item : Keys)
 						Core::Parser(&Item).Trim();
-					
+
 					if (Segment->Request)
 					{
 						auto& Source = Segment->Request->Headers[Segment->Header];
@@ -4546,7 +4546,7 @@ namespace Tomahawk
 						return Core::Schedule::Get()->SetTask([Base]()
 						{
 							RouteWEBSOCKET(Base);
-						});
+						}, Core::Difficulty::Light);
 					}
 
 					return Base->Error(404, "Requested resource was not found.");
@@ -4557,7 +4557,7 @@ namespace Tomahawk
 					return Core::Schedule::Get()->SetTask([Base]()
 					{
 						RouteWEBSOCKET(Base);
-					});
+					}, Core::Difficulty::Light);
 				}
 
 				if (ResourceHidden(Base, nullptr))
@@ -4570,7 +4570,7 @@ namespace Tomahawk
 						return Core::Schedule::Get()->SetTask([Base]()
 						{
 							ProcessDirectory(Base);
-						});
+						}, Core::Difficulty::Heavy);
 					}
 
 					return Base->Error(403, "Directory listing denied.");
@@ -4584,13 +4584,13 @@ namespace Tomahawk
 					return Core::Schedule::Get()->SetTask([Base]()
 					{
 						ProcessResourceCache(Base);
-					});
+					}, Core::Difficulty::Light);
 				}
 
 				return Core::Schedule::Get()->SetTask([Base]()
 				{
 					ProcessResource(Base);
-				});
+				}, Core::Difficulty::Light);
 			}
 			bool Util::RoutePOST(Connection* Base)
 			{
@@ -4615,13 +4615,13 @@ namespace Tomahawk
 					return Core::Schedule::Get()->SetTask([Base]()
 					{
 						ProcessResourceCache(Base);
-					});
+					}, Core::Difficulty::Light);
 				}
 
 				return Core::Schedule::Get()->SetTask([Base]()
 				{
 					ProcessResource(Base);
-				});
+				}, Core::Difficulty::Light);
 			}
 			bool Util::RoutePUT(Connection* Base)
 			{
@@ -4659,7 +4659,7 @@ namespace Tomahawk
 					if (lseek64(TH_FILENO(Stream), Range1, SEEK_SET) != 0)
 						return Base->Error(416, "Invalid content range offset (%lld) was specified.", Range1);
 #endif
-			}
+				}
 				else
 					Base->Response.StatusCode = 204;
 
@@ -4701,7 +4701,7 @@ namespace Tomahawk
 
 					return true;
 				});
-		}
+			}
 			bool Util::RoutePATCH(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
@@ -5028,7 +5028,7 @@ namespace Tomahawk
 						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
 						{
 							Util::ProcessFile(Base, ContentLength, Range1);
-						});
+						}, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
 						Base->Break();
@@ -5098,7 +5098,7 @@ namespace Tomahawk
 						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
 						{
 							Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
-						});
+						}, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
 						Base->Break();
@@ -5169,7 +5169,7 @@ namespace Tomahawk
 				{
 					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-			}
+				}
 #else
 				if (Range > 0 && lseek64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
@@ -5198,7 +5198,7 @@ namespace Tomahawk
 
 				TH_CLOSE(Stream);
 				return Base->Finish();
-	}
+			}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
@@ -5227,7 +5227,7 @@ namespace Tomahawk
 						Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
 						{
 							ProcessFileChunk(Base, Router, Stream, ContentLength);
-						});
+						}, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
 					{
@@ -5293,7 +5293,7 @@ namespace Tomahawk
 				{
 					TH_CLOSE(Stream);
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
-			}
+				}
 #else
 				if (Range > 0 && lseek64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
@@ -5313,7 +5313,7 @@ namespace Tomahawk
 					TH_CLOSE(Stream);
 					TH_FREE(ZStream);
 					return Base->Break();
-}
+				}
 
 				return ProcessFileCompressChunk(Base, Server, Stream, ZStream, ContentLength);
 #else
@@ -5385,7 +5385,7 @@ namespace Tomahawk
 							Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
 							{
 								ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
-							});
+							}, Core::Difficulty::Heavy);
 						}
 						else
 						{
@@ -5507,8 +5507,8 @@ namespace Tomahawk
 							return true;
 						};
 						Base->Gateway->Start(Base->Request.Path, Base->Request.Method, Buffer, Size);
-					});
-				});
+					}, Core::Difficulty::Heavy);
+				}, Core::Difficulty::Heavy);
 			}
 			bool Util::ProcessWebSocket(Connection* Base, const char* Key)
 			{

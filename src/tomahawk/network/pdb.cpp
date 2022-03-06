@@ -1881,6 +1881,8 @@ namespace Tomahawk
 				Update.unlock();
 				
 				return Reprocess(Target);
+#else
+				return false;
 #endif
 			}
 			bool Cluster::Consume(Connection* Base)

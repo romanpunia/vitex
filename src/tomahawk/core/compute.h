@@ -1745,29 +1745,19 @@ namespace Tomahawk
 			std::unordered_map<void*, uint64_t> Items;
 			std::vector<Node> Nodes;
 			std::vector<uint64_t> Stack;
-			std::vector<float> BoxSize;
 			uint64_t Root;
 			uint64_t NodeCount;
 			uint64_t NodeCapacity;
 			uint64_t FreeList;
 			uint64_t Dimension;
-			float SkinThickness;
 
 		public:
-			Cosmos(uint64_t Dimension = 3, float SkinThickness = 0.05, uint64_t DefaultSize = 16);
-			Cosmos(uint64_t Dimension, float SkinThickness, const std::vector<float>& BoxSize, uint64_t DefaultSize = 16);
-			void SetBoxSize(const std::vector<float>& Box);
+			Cosmos(uint64_t Dimension = 3, uint64_t DefaultSize = 16);
 			void Reserve(size_t Size);
 			void Clear();
-			void InsertItem(void* Item, std::vector<float>& Position, float Radius);
-			void InsertItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound);
 			void RemoveItem(void* Item);
-			bool UpdateItem(void* Item, std::vector<float>& Position, float Radius, bool AlwaysReinsert = false);
-			bool UpdateItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool AlwaysReinsert = false);
-			bool UpsertItem(void* Item, std::vector<float>& Position, float Radius, bool AlwaysReinsert = false);
-			bool UpsertItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool AlwaysReinsert = false);
-			bool Query(void* Item, const CosmosCallback& Callback);
-			bool Query(void* Item, const Area& Box, const CosmosCallback& Callback);
+			void InsertItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound);
+			bool UpdateItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound);
 			bool Query(const Area& Box, const CosmosCallback& Callback);
 			void PushQuery();
 			void* NextQuery(const Area& Box);
@@ -1780,7 +1770,6 @@ namespace Tomahawk
 			void Deploy();
 
 		private:
-			bool UpdateItem(uint64_t Node, void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool AlwaysReinsert);
 			uint64_t AllocateNode();
 			void FreeNode(uint64_t);
 			void InsertLeaf(uint64_t);

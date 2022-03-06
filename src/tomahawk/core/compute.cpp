@@ -9561,7 +9561,7 @@ namespace Tomahawk
 			return (Left == NULL_NODE);
 		}
 
-		Cosmos::Cosmos(uint64_t Dimension_, float SkinThickness_, uint64_t DefaultSize) : Dimension(Dimension_), SkinThickness(SkinThickness_)
+		Cosmos::Cosmos(uint64_t Dimension_, uint64_t DefaultSize) : Dimension(Dimension_)
 		{
 			TH_ASSERT_V(Dimension >= 2, "invalid dimension");
 
@@ -9582,33 +9582,6 @@ namespace Tomahawk
 			Node.Next = NULL_NODE;
 			Node.Height = -1;
 			FreeList = 0;
-		}
-		Cosmos::Cosmos(uint64_t Dimension_, float SkinThickness_, const std::vector<float>& BoxSize_, uint64_t DefaultSize) : Dimension(Dimension_), SkinThickness(SkinThickness_), BoxSize(BoxSize_)
-		{
-			TH_ASSERT_V(Dimension >= 2, "invalid dimension");
-			TH_ASSERT_V(BoxSize.size() == Dimension, "dimension mismatch");
-
-			Root = NULL_NODE;
-			NodeCount = 0;
-			NodeCapacity = DefaultSize;
-			Nodes.resize(NodeCapacity);
-			Stack.reserve(256);
-
-			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
-			{
-				auto& Node = Nodes[i];
-				Node.Next = i + 1;
-				Node.Height = -1;
-			}
-
-			auto& Node = Nodes[NodeCapacity - 1];
-			Node.Next = NULL_NODE;
-			Node.Height = -1;
-			FreeList = 0;
-		}
-		void Cosmos::SetBoxSize(const std::vector<float>& boxSize_)
-		{
-			BoxSize = boxSize_;
 		}
 		void Cosmos::FreeNode(uint64_t node)
 		{
@@ -9621,51 +9594,14 @@ namespace Tomahawk
 			FreeList = node;
 			NodeCount--;
 		}
-		void Cosmos::InsertItem(void* Item, std::vector<float>& position, float radius)
-		{
-			TH_ASSERT_V(Items.count(Item) == 0, "Item already exists");
-			TH_ASSERT_V(position.size() == Dimension, "dimension mismatch");
-
-			uint64_t node = AllocateNode();
-			auto& Node = Nodes[node];
-
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				Node.Box.Lower[i] = position[i] - radius;
-				Node.Box.Upper[i] = position[i] + radius;
-
-				float Size = Node.Box.Upper[i] - Node.Box.Lower[i];
-				Node.Box.Lower[i] -= SkinThickness * Size;
-				Node.Box.Upper[i] += SkinThickness * Size;
-			}
-
-			Node.Box.Volume = Node.Box.ComputeVolume();
-			Node.Box.Center = Node.Box.ComputeCenter();
-			Node.Height = 0;
-			InsertLeaf(node);
-
-			Items.insert(std::unordered_map<void*, uint64_t>::value_type(Item, node));
-			Node.Item = Item;
-		}
 		void Cosmos::InsertItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper)
 		{
-			TH_ASSERT_V(Items.count(Item) == 0, "Item already exists");
 			TH_ASSERT_V(Lower.size() == Dimension && Upper.size() == Dimension, "dimension mismatch");
 
 			uint64_t node = AllocateNode();
 			auto& Node = Nodes[node];
-
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				TH_ASSERT_V(Lower[i] <= Upper[i], "area lower bound is greater than the upper bound");
-				Node.Box.Lower[i] = Lower[i];
-				Node.Box.Upper[i] = Upper[i];
-
-				float Size = Upper[i] - Lower[i];
-				Node.Box.Lower[i] -= SkinThickness * Size;
-				Node.Box.Upper[i] += SkinThickness * Size;
-			}
-
+			Node.Box.Lower = Lower;
+			Node.Box.Upper = Upper;
 			Node.Box.Volume = Node.Box.ComputeVolume();
 			Node.Box.Center = Node.Box.ComputeCenter();
 			Node.Height = 0;
@@ -9673,32 +9609,6 @@ namespace Tomahawk
 			InsertLeaf(node);
 
 			Items.insert(std::unordered_map<void*, uint64_t>::value_type(Item, node));
-		}
-		bool Cosmos::UpsertItem(void* Item, std::vector<float>& Position, float Radius, bool AlwaysReinsert)
-		{
-			TH_ASSERT(Position.size() == Dimension, false, "dimension mismatch");
-
-			std::vector<float> Lower(Dimension), Upper(Dimension);
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				Lower[i] = Position[i] - Radius;
-				Upper[i] = Position[i] + Radius;
-			}
-
-			return UpsertItem(Item, Lower, Upper, AlwaysReinsert);
-		}
-		bool Cosmos::UpsertItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper, bool AlwaysReinsert)
-		{
-			TH_ASSERT(Lower.size() == Dimension && Upper.size() == Dimension, false, "dimension mismatch");
-
-			auto it = Items.find(Item);
-			if (it == Items.end())
-			{
-				InsertItem(Item, Lower, Upper);
-				return true;
-			}
-
-			return UpdateItem(it->second, Item, Lower, Upper, AlwaysReinsert);
 		}
 		void Cosmos::RemoveItem(void* Item)
 		{
@@ -9892,23 +9802,9 @@ namespace Tomahawk
 				FreeNode(node);
 				it++;
 			}
-
 			Items.clear();
 		}
-		bool Cosmos::UpdateItem(void* Item, std::vector<float>& Position, float radius, bool AlwaysReinsert)
-		{
-			TH_ASSERT(Position.size() == Dimension, false, "dimension mismatch");
-
-			std::vector<float> Lower(Dimension), Upper(Dimension);
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				Lower[i] = Position[i] - radius;
-				Upper[i] = Position[i] + radius;
-			}
-
-			return UpdateItem(Item, Lower, Upper, AlwaysReinsert);
-		}
-		bool Cosmos::UpdateItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper, bool AlwaysReinsert)
+		bool Cosmos::UpdateItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper)
 		{
 			TH_ASSERT(Lower.size() == Dimension && Upper.size() == Dimension, false, "dimension mismatch");
 
@@ -9916,49 +9812,20 @@ namespace Tomahawk
 			if (it == Items.end())
 				return false;
 
-			return UpdateItem(it->second, Item, Lower, Upper, AlwaysReinsert);
-		}
-		bool Cosmos::UpdateItem(uint64_t Node, void* Item, std::vector<float>& Lower, std::vector<float>& Upper, bool AlwaysReinsert)
-		{
-			TH_ASSERT(Node < NodeCapacity, false, "outside of borders");
-			TH_ASSERT(Nodes[Node].IsLeaf(), false, "cannot remove root node");
-
-			std::vector<float> size(Dimension);
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				TH_ASSERT(Lower[i] <= Upper[i], false, "area lower bound is greater than the upper bound");
-				size[i] = Upper[i] - Lower[i];
-			}
-
-			Area Box(Lower, Upper);
-			if (!AlwaysReinsert && Nodes[Node].Box.Contains(Box))
-				return false;
-
-			RemoveLeaf(Node);
-			for (uint64_t i = 0; i < Dimension; i++)
-			{
-				Box.Lower[i] -= SkinThickness * size[i];
-				Box.Upper[i] += SkinThickness * size[i];
-			}
-
-			Nodes[Node].Box = Box;
-			Nodes[Node].Box.Volume = Nodes[Node].Box.ComputeVolume();
-			Nodes[Node].Box.Center = Nodes[Node].Box.ComputeCenter();
-			InsertLeaf(Node);
+			auto& Source = Nodes[it->second];
+			RemoveLeaf(it->second);
+			Source.Box = Area(Lower, Upper);
+			Source.Box.Volume = Source.Box.ComputeVolume();
+			Source.Box.Center = Source.Box.ComputeCenter();
+			InsertLeaf(it->second);
 
 			return true;
 		}
-		bool Cosmos::Query(void* Item, const CosmosCallback& Callback)
-		{
-			auto It = Items.find(Item);
-			if (It == Items.end())
-				return false;
-
-			return Query(Item, Nodes[It->second].Box, Callback);
-		}
-		bool Cosmos::Query(void* Item, const Area& Box, const CosmosCallback& Callback)
+		bool Cosmos::Query(const Area& Box, const CosmosCallback& Callback)
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
+			if (Items.empty())
+				return false;
 
 			bool Found = false;
 			Stack.clear();
@@ -9986,13 +9853,6 @@ namespace Tomahawk
 			}
 
 			return Found;
-		}
-		bool Cosmos::Query(const Area& Box, const CosmosCallback& Callback)
-		{
-			if (Items.empty())
-				return false;
-
-			return Query(nullptr, Box, Callback);
 		}
 		void Cosmos::PushQuery()
 		{

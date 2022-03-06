@@ -45,7 +45,7 @@ namespace Tomahawk
 
 		enum
 		{
-			MAX_STACK_DEPTH = 8
+			MAX_STACK_DEPTH = 4
 		};
 
 		enum class ApplicationSet
@@ -475,6 +475,7 @@ namespace Tomahawk
 
 		private:
 			size_t Set;
+			bool Indexed;
 			bool Active;
 
 		public:
@@ -512,12 +513,10 @@ namespace Tomahawk
 		private:
 			Compute::Transform* Transform;
 			Compute::Matrix4x4 Box;
-			Compute::Vector3 Min;
-			Compute::Vector3 Max;
+			Compute::Vector3 Min, Max;
 			std::string Name;
-			uint64_t Generation;
-			float Visibility;
 			float Distance;
+			float Visibility;
 			bool Active;
 			bool Dirty;
 
@@ -546,8 +545,6 @@ namespace Tomahawk
 			std::string GetSystemName() const;
 			size_t GetChildsCount() const;
 			float GetVisibility(const Viewer& Base) const;
-			float GetLastDistance() const;
-			float GetLastVisibility() const;
 			bool IsDirty(bool Reset = false);
 			bool IsActive() const;
 			Compute::Vector3 GetRadius3() const;
@@ -586,7 +583,7 @@ namespace Tomahawk
 			template <typename T>
 			static bool Sortout(T* A, T* B)
 			{
-				return A->Parent->Distance < B->Parent->Distance;
+				return A->Parent->Distance - B->Parent->Distance < 0;
 			}
 		};
 
@@ -676,7 +673,6 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* Device;
 			Material* BaseMaterial;
 			SceneGraph* Scene;
-			uint64_t Generation;
 			size_t DepthSize;
 			size_t StackTop;
 			bool Satisfied;
@@ -712,8 +708,10 @@ namespace Tomahawk
 			void QueryBegin(uint64_t Section);
 			void QueryEnd();
 			void* QueryNext();
-			bool PushCullable(Component* Base);
-			bool PushDrawable(Drawable* Base);
+			float EnqueueCullable(Component* Base);
+			float EnqueueDrawable(Drawable* Base);
+			bool PushCullable(Entity* Target, const Viewer& Source, Component* Base);
+			bool PushDrawable(Entity* Target, const Viewer& Source, Drawable* Base);
 			bool PushGeometryBuffer(Material* Next);
 			bool PushVoxelsBuffer(Material* Next);
 			bool PushDepthLinearBuffer(Material* Next);
@@ -846,9 +844,10 @@ namespace Tomahawk
 				uint64_t StartEntities = 1ll << 12;
 				uint64_t StartComponents = 1ll << 13;
 				uint64_t GrowMargin = 128;
+				uint64_t MaxUpdates = 256;
 				double MaxFrames = 60.0;
 				double MinFrames = 10.0;
-				double FrequencyHZ = 480.0;
+				double FrequencyHZ = 900.0;
 				double GrowRate = 0.25f;
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
@@ -891,7 +890,8 @@ namespace Tomahawk
 
 			struct
 			{
-				std::unordered_set<Component*> Changes;
+				Core::Pool<Component*> Components;
+				std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
 				std::vector<Entity*> Heap;
 				std::mutex Transaction;
 			} Indexer;
@@ -1009,10 +1009,12 @@ namespace Tomahawk
 		private:
 			void Simulate(Core::Timer* Time);
 			void Synchronize(Core::Timer* Time);
+			void Culling(Core::Timer* Time);
 
 		protected:
 			void ReindexComponent(Component* Base, bool Activation, bool Check, bool Notify);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
+			void ProcessCullable(Component* Base);
 			void GenerateMaterialBuffer();
 			void NotifyCosmos(Component* Base);
 			void NotifyCosmosBulk();
@@ -1287,7 +1289,7 @@ namespace Tomahawk
 			static Application* Get();
 		};
 
-		template <typename T, size_t Max = 8>
+		template <typename T, size_t Max = (size_t)MAX_STACK_DEPTH>
 		class RendererProxy
 		{
 			static_assert(std::is_base_of<Component, T>::value, "parameter must be derived from a component");
@@ -1316,7 +1318,11 @@ namespace Tomahawk
 				TH_ASSERT(Offset < Max - 1, Data[0][(size_t)Category], "storage heap stack overflow");
 
 				Storage* Frame = Data[Offset++];
-				Prepare(Base, Frame);
+				if (Offset > 1)
+					Subcull(Base, Frame);
+				else
+					Cullout(Base, Frame);
+
 				return Frame[(size_t)Category];
 			}
 			void Pop()
@@ -1327,35 +1333,69 @@ namespace Tomahawk
 
 		private:
 			template<class Q = T>
-			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Prepare(RenderSystem* System, Storage* Frame)
+			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
 			{
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
-					Frame[i].clear();
+					Top[i].clear();
 
-				size_t Count = 0; T* Base = nullptr;
+				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
 				while (Base = (T*)System->QueryNext())
 				{
-					if (System->PushDrawable(Base))
-						Frame[(size_t)Base->GetCategory()].push_back(Base);
-					++Count;
+					if (System->EnqueueDrawable(Base) >= System->Threshold)
+						Top[(size_t)Base->GetCategory()].push_back(Base);
 				}
 				System->QueryEnd();
 
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
-					std::sort(Frame[i].begin(), Frame[i].end(), Entity::Sortout<T>);
+					std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
 			}
 			template<class Q = T>
-			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Prepare(RenderSystem* System, Storage* Frame)
+			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
 			{
-				auto& Subframe = Frame[(size_t)GeoCategory::Opaque];
+				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
 				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
 				while (Base = (T*)System->QueryNext())
 				{
-					if (System->PushCullable(Base))
+					if (System->EnqueueCullable(Base) >= System->Threshold)
+						Subframe.push_back(Base);
+				}
+				System->QueryEnd();
+
+				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
+			}
+			template<class Q = T>
+			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
+			{
+				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					Top[i].clear();
+
+				T* Base = nullptr;
+				System->QueryBegin(T::GetTypeId());
+				while (Base = (T*)System->QueryNext())
+				{
+					if (System->PushCullable(nullptr, System->View, Base))
+						Top[(size_t)Base->GetCategory()].push_back(Base);
+				}
+				System->QueryEnd();
+
+				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
+			}
+			template<class Q = T>
+			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
+			{
+				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
+				Subframe.clear();
+
+				T* Base = nullptr;
+				System->QueryBegin(T::GetTypeId());
+				while (Base = (T*)System->QueryNext())
+				{
+					if (System->PushCullable(nullptr, System->View, Base))
 						Subframe.push_back(Base);
 				}
 				System->QueryEnd();

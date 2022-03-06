@@ -152,6 +152,7 @@ namespace Tomahawk
 					NMake::Unpack(Metadata->Find("max-frames"), &I.MaxFrames);
 					NMake::Unpack(Metadata->Find("grow-margin"), &I.GrowMargin);
 					NMake::Unpack(Metadata->Find("grow-rate"), &I.GrowRate);
+					NMake::Unpack(Metadata->Find("max-updates"), &I.MaxUpdates);
 				}
 
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
@@ -324,6 +325,7 @@ namespace Tomahawk
 				NMake::Pack(Metadata->Set("max-frames"), Conf.MaxFrames);
 				NMake::Pack(Metadata->Set("grow-margin"), Conf.GrowMargin);
 				NMake::Pack(Metadata->Set("grow-rate"), Conf.GrowRate);
+				NMake::Pack(Metadata->Set("max-updates"), Conf.MaxUpdates);
 
 				auto* fSimulator = Object->GetSimulator();
 				Core::Document* Simulator = Metadata->Set("simulator");

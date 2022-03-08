@@ -4016,21 +4016,7 @@ namespace Tomahawk
 			if (!Cached)
 			{
 				std::string Data = Core::OS::File::ReadAsString(File.c_str());
-				uint64_t Offset = 0;
-
-				return Core::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)
-				{
-					if (!Buffer || !Size)
-						return true;
-
-					if (Offset + Size > Data.size())
-						return false;
-
-					memcpy(Buffer, Data.c_str() + Offset, Size);
-					Offset += Size;
-
-					return true;
-				});
+				return Core::Document::ReadJSON(Data.c_str(), Data.size());
 			}
 
 			Sync.General.lock();
@@ -4045,21 +4031,7 @@ namespace Tomahawk
 
 			Core::Document*& Result = Datas[File];
 			std::string Data = Core::OS::File::ReadAsString(File.c_str());
-			uint64_t Offset = 0;
-
-			Result = Core::Document::ReadJSON(Data.size(), [&Data, &Offset](char* Buffer, int64_t Size)
-			{
-				if (!Buffer || !Size)
-					return true;
-
-				if (Offset + Size > Data.size())
-					return false;
-
-				memcpy(Buffer, Data.c_str() + Offset, Size);
-				Offset += Size;
-
-				return true;
-			});
+			Result = Core::Document::ReadJSON(Data.c_str(), Data.size());
 
 			Core::Document* Copy = nullptr;
 			if (Result != nullptr)

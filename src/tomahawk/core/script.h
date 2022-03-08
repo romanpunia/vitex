@@ -1187,53 +1187,6 @@ namespace Tomahawk
 				return Result;
 			}
 			template <typename T>
-			int SetSetGCFlag()
-			{
-				asSFuncPtr* SetGCFlag = VMBridge::Function(&Core::Composer::SetFlag);
-				int Result = SetBehaviourAddress("void f()", VMBehave::SETGCFLAG, SetGCFlag, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&SetGCFlag);
-
-				return Result;
-			}
-			template <typename T>
-			int SetGetGCFlag()
-			{
-				asSFuncPtr* GetGCFlag = VMBridge::Function(&Core::Composer::GetFlag);
-				int Result = SetBehaviourAddress("bool f()", VMBehave::GETGCFLAG, GetGCFlag, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&GetGCFlag);
-
-				return Result;
-			}
-			template <typename T>
-			int SetManaged(void(T::* EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
-			{
-				int R = SetAddRef<T>();
-				if (R < 0)
-					return R;
-
-				R = SetRelease<T>();
-				if (R < 0)
-					return R;
-
-				R = SetGetRefCount<T>();
-				if (R < 0)
-					return R;
-
-				R = SetSetGCFlag<T>();
-				if (R < 0)
-					return R;
-
-				R = SetGetGCFlag<T>();
-				if (R < 0)
-					return R;
-
-				R = SetEnumRefs<T>(EnumRefs);
-				if (R < 0)
-					return R;
-
-				return SetReleaseRefs<T>(ReleaseRefs);
-			}
-			template <typename T>
 			int SetUnmanaged()
 			{
 				int R = SetAddRef<T>();
@@ -1509,15 +1462,6 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				return SetPropertyAddress(Decl, (void*)Value);
-			}
-			template <typename T>
-			VMRefClass SetClassManaged(const char* Name, void(T::* EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
-			{
-				TH_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
-				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF | (size_t)VMObjType::GC);
-				Class.SetManaged<T>(EnumRefs, ReleaseRefs);
-
-				return Class;
 			}
 			template <typename T>
 			VMRefClass SetClassUnmanaged(const char* Name)

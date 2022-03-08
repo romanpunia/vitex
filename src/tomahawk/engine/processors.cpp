@@ -1191,32 +1191,27 @@ namespace Tomahawk
 			void* Document::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				Core::DocReadCallback Callback = [Stream](char* Buffer, int64_t Size)
-				{
-					if (!Buffer || !Size)
-						return true;
-
-					return Stream->Read(Buffer, Size) == Size;
-				};
-
 				if (!Length)
 					return nullptr;
 
-				auto* Object = Core::Document::ReadJSONB(Callback, false);
+				auto* Object = Core::Document::ReadJSONB([Stream](char* Buffer, int64_t Size)
+				{
+					return Size > 0 ? Stream->Read(Buffer, Size) == Size : true;
+				}, false);
+
 				if (Object != nullptr)
 					return Object;
 
+				char* Buffer = (char*)TH_MALLOC(sizeof(char) * (size_t)(Length + 1));
 				Stream->Seek(Core::FileSeek::Begin, Offset);
-				Object = Core::Document::ReadJSON(Length, Callback, false);
-				if (Object != nullptr)
-					return Object;
+				Stream->Read(Buffer, Length);
+				Buffer[(size_t)Length] = '\0';
 
-				Stream->Seek(Core::FileSeek::Begin, Offset);
-				Object = Core::Document::ReadXML(Length, Callback, false);
-
+				Object = Core::Document::ReadJSON(Buffer, (size_t)Length, false);
 				if (!Object)
-					TH_ERR("[doc] file is not in JSON, JSONB or XML format");
+					Object = Core::Document::ReadXML(Buffer, false);
 
+				TH_FREE(Buffer);
 				return Object;
 			}
 			bool Document::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)

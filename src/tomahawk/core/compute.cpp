@@ -7401,21 +7401,13 @@ namespace Tomahawk
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
 			Source[0] = Base64URLDecode(Source[0]);
-			Core::Document* Header = Core::Document::ReadJSON((int64_t)Source[0].size(), [&Source](char* Buffer, int64_t Size)
-			{
-				memcpy(Buffer, Source[0].c_str(), Size);
-				return true;
-			});
+			Core::Document* Header = Core::Document::ReadJSON(Source[0].c_str(), Source[0].size());
 
 			if (!Header)
 				return nullptr;
 
 			Source[1] = Base64URLDecode(Source[1]);
-			Core::Document* Payload = Core::Document::ReadJSON((int64_t)Source[1].size(), [&Source](char* Buffer, int64_t Size)
-			{
-				memcpy(Buffer, Source[1].c_str(), Size);
-				return true;
-			});
+			Core::Document* Payload = Core::Document::ReadJSON(Source[1].c_str(), Source[1].size());
 
 			if (!Payload)
 			{
@@ -7459,11 +7451,7 @@ namespace Tomahawk
 			TH_ASSERT(Salt != nullptr, nullptr, "salt should be set");
 
 			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt);
-			return Core::Document::ReadJSON((int64_t)Source.size(), [&Source](char* Buffer, int64_t Size)
-			{
-				memcpy(Buffer, Source.c_str(), Size);
-				return true;
-			});
+			return Core::Document::ReadJSON(Source.c_str(), Source.size());
 		}
 		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{

@@ -510,43 +510,11 @@ namespace Tomahawk
 		}
 		Core::Document* DocumentFromJSON(const std::string& Value)
 		{
-			size_t Offset = 0;
-			return Core::Document::ReadJSON(Value.size(), [&Value, &Offset](char* Buffer, int64_t Size)
-			{
-				if (!Buffer || !Size)
-					return true;
-
-				size_t Length = Value.size() - Offset;
-				if (Size < Length)
-					Length = Size;
-
-				if (!Length)
-					return false;
-
-				memcpy(Buffer, Value.c_str() + Offset, Length);
-				Offset += Length;
-				return true;
-			});
+			return Core::Document::ReadJSON(Value.c_str(), Value.size());
 		}
 		Core::Document* DocumentFromXML(const std::string& Value)
 		{
-			size_t Offset = 0;
-			return Core::Document::ReadXML(Value.size(), [&Value, &Offset](char* Buffer, int64_t Size)
-			{
-				if (!Buffer || !Size)
-					return true;
-
-				size_t Length = Value.size() - Offset;
-				if (Size < Length)
-					Length = Size;
-
-				if (!Length)
-					return false;
-
-				memcpy(Buffer, Value.c_str() + Offset, Length);
-				Offset += Length;
-				return true;
-			});
+			return Core::Document::ReadXML(Value.c_str());
 		}
 		Core::Document* DocumentImport(const std::string& Value)
 		{

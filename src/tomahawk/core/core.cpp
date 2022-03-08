@@ -1769,7 +1769,7 @@ namespace Tomahawk
 		std::string Variant::GetBlob() const
 		{
 			if (Type == VarType::String || Type == VarType::Base64)
-				return std::string(((String*)Value.Data)->Buffer, ((String*)Value.Data)->Size);
+				return std::string(((String*)Value.Data)->Buffer, (size_t)((String*)Value.Data)->Size);
 
 			if (Type == VarType::Decimal)
 				return ((Decimal*)Value.Data)->ToString();
@@ -1890,7 +1890,7 @@ namespace Tomahawk
 					return sizeof(void*);
 				case VarType::String:
 				case VarType::Base64:
-					return ((String*)Value.Data)->Size;
+					return (size_t)((String*)Value.Data)->Size;
 				case VarType::Decimal:
 					return ((Decimal*)Value.Data)->Size();
 				case VarType::Integer:
@@ -1984,7 +1984,8 @@ namespace Tomahawk
 				case VarType::String:
 				case VarType::Base64:
 				{
-					if (GetSize() != Other.GetSize())
+					size_t Size = GetSize();
+					if (Size != Other.GetSize())
 						return false;
 
 					const char* Src1 = GetString();
@@ -1992,7 +1993,7 @@ namespace Tomahawk
 					if (!Src1 || !Src2)
 						return false;
 
-					return strncmp(Src1, Src2, sizeof(char) * GetSize()) == 0;
+					return strncmp(Src1, Src2, sizeof(char) * Size) == 0;
 				}
 				case VarType::Decimal:
 					return (*(Decimal*)Value.Data) == (*(Decimal*)Other.Value.Data);
@@ -2025,10 +2026,10 @@ namespace Tomahawk
 				{
 					String* From = (String*)Other.Value.Data;
 					String* Buffer = (String*)TH_MALLOC(sizeof(String));
-					Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (From->Size + 1));
+					Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * ((size_t)From->Size + 1));
 					Buffer->Size = From->Size;
 
-					memcpy(Buffer->Buffer, From->Buffer, sizeof(char) * From->Size);
+					memcpy(Buffer->Buffer, From->Buffer, sizeof(char) * (size_t)From->Size);
 					Buffer->Buffer[Buffer->Size] = '\0';
 					Value.Data = (char*)Buffer;
 					break;
@@ -4393,11 +4394,11 @@ namespace Tomahawk
 		Variant Var::String(const std::string& Value)
 		{
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
-			Buffer->Size = Value.size();
-			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+			Buffer->Size = (uint32_t)Value.size();
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (size_t)(Buffer->Size + 1));
 
-			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
-			Buffer->Buffer[Buffer->Size] = '\0';
+			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * (size_t)Buffer->Size);
+			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
 
 			Variant Result(VarType::String);
 			Result.Value.Data = (char*)Buffer;
@@ -4407,11 +4408,11 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Value != nullptr, Null(), "value should be set");
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
-			Buffer->Size = Size;
-			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+			Buffer->Size = (uint32_t)Size;
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (size_t)(Buffer->Size + 1));
 
-			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
-			Buffer->Buffer[Buffer->Size] = '\0';
+			memcpy(Buffer->Buffer, Value, sizeof(char) * (size_t)Buffer->Size);
+			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
 
 			Variant Result(VarType::String);
 			Result.Value.Data = (char*)Buffer;
@@ -4420,11 +4421,11 @@ namespace Tomahawk
 		Variant Var::Base64(const std::string& Value)
 		{
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
-			Buffer->Size = Value.size();
-			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+			Buffer->Size = (uint32_t)Value.size();
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (size_t)(Buffer->Size + 1));
 
-			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * Buffer->Size);
-			Buffer->Buffer[Buffer->Size] = '\0';
+			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * (size_t)Buffer->Size);
+			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
 
 			Variant Result(VarType::Base64);
 			Result.Value.Data = (char*)Buffer;
@@ -4438,11 +4439,11 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Value != nullptr, Null(), "value should be set");
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
-			Buffer->Size = Size;
-			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (Buffer->Size + 1));
+			Buffer->Size = (uint32_t)Size;
+			Buffer->Buffer = (char*)TH_MALLOC(sizeof(char) * (size_t)(Buffer->Size + 1));
 
-			memcpy(Buffer->Buffer, Value, sizeof(char) * Buffer->Size);
-			Buffer->Buffer[Buffer->Size] = '\0';
+			memcpy(Buffer->Buffer, Value, sizeof(char) * (size_t)Buffer->Size);
+			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
 
 			Variant Result(VarType::Base64);
 			Result.Value.Data = (char*)Buffer;
@@ -4534,16 +4535,6 @@ namespace Tomahawk
 			TH_ASSERT_V(Value != nullptr, "object should be set");
 			Value->AddRef();
 		}
-		void Composer::SetFlag(Object* Value)
-		{
-			TH_ASSERT_V(Value != nullptr, "object should be set");
-			Value->SetFlag();
-		}
-		bool Composer::GetFlag(Object* Value)
-		{
-			TH_ASSERT(Value != nullptr, false, "object should be set");
-			return Value->GetFlag();
-		}
 		int Composer::GetRefCount(Object* Value)
 		{
 			TH_ASSERT(Value != nullptr, 1, "object should be set");
@@ -4594,7 +4585,7 @@ namespace Tomahawk
 		}
 		std::unordered_map<uint64_t, std::pair<uint64_t, void*>>* Composer::Factory = nullptr;
 
-		Object::Object() noexcept : __vcnt(1), __vflg(false)
+		Object::Object() noexcept : __vcnt(1)
 		{
 		}
 		Object::~Object() noexcept
@@ -4610,27 +4601,17 @@ namespace Tomahawk
 		{
 			return Mem::Malloc((size_t)Size);
 		}
-		void Object::SetFlag() noexcept
-		{
-			__vflg = true;
-		}
-		bool Object::GetFlag() noexcept
-		{
-			return __vflg.load();
-		}
 		int Object::GetRefCount() noexcept
 		{
 			return __vcnt.load();
 		}
 		Object* Object::AddRef() noexcept
 		{
-			__vcnt++;
-			__vflg = false;
+			++__vcnt;
 			return this;
 		}
 		Object* Object::Release() noexcept
 		{
-			__vflg = false;
 			if (--__vcnt)
 				return this;
 
@@ -8493,25 +8474,24 @@ namespace Tomahawk
 		}
 		Schedule* Schedule::Singleton = nullptr;
 
-		Document::Document(const Variant& Base) noexcept : Parent(nullptr), Saved(true), Value(Base)
+		Document::Document(const Variant& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(Base)
 		{
 		}
-		Document::Document(Variant&& Base) noexcept : Parent(nullptr), Saved(true), Value(std::move(Base))
+		Document::Document(Variant&& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(std::move(Base))
 		{
 		}
 		Document::~Document()
 		{
-			if (Parent != nullptr)
+			if (Parent != nullptr && Parent->Nodes != nullptr)
 			{
-				for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); ++It)
+				for (auto It = Parent->Nodes->begin(); It != Parent->Nodes->end(); ++It)
 				{
 					if (*It == this)
 					{
-						Parent->Nodes.erase(It);
+						Parent->Nodes->erase(It);
 						break;
 					}
 				}
-				Parent = nullptr;
 			}
 
 			Clear();
@@ -8527,7 +8507,10 @@ namespace Tomahawk
 		std::vector<Document*> Document::FindCollection(const std::string& Name, bool Deep) const
 		{
 			std::vector<Document*> Result;
-			for (auto Value : Nodes)
+			if (!Nodes)
+				return Result;
+
+			for (auto Value : *Nodes)
 			{
 				if (Value->Key == Name)
 					Result.push_back(Value);
@@ -8567,7 +8550,10 @@ namespace Tomahawk
 		std::vector<Document*> Document::GetAttributes() const
 		{
 			std::vector<Document*> Attributes;
-			for (auto It : Nodes)
+			if (!Nodes)
+				return Attributes;
+
+			for (auto It : *Nodes)
 			{
 				if (It->IsAttribute())
 					Attributes.push_back(It);
@@ -8577,22 +8563,26 @@ namespace Tomahawk
 		}
 		std::vector<Document*>& Document::GetChilds()
 		{
-			return Nodes;
+			Allocate();
+			return *Nodes;
 		}
 		Document* Document::Find(const std::string& Name, bool Deep) const
 		{
+			if (!Nodes)
+				return nullptr;
+
 			if (Value.Type == VarType::Array)
 			{
 				Core::Parser Number(&Name);
 				if (Number.HasInteger())
 				{
 					int64_t Index = Number.ToInt64();
-					if (Index >= 0 && Index < Nodes.size())
-						return Nodes[Index];
+					if (Index >= 0 && Index < Nodes->size())
+						return (*Nodes)[Index];
 				}
 			}
 
-			for (auto K : Nodes)
+			for (auto K : *Nodes)
 			{
 				if (K->Key == Name)
 					return K;
@@ -8660,13 +8650,18 @@ namespace Tomahawk
 		}
 		Document* Document::Get(size_t Index) const
 		{
-			TH_ASSERT(Index < Nodes.size(), nullptr, "index outside of range");
-			return Nodes[Index];
+			TH_ASSERT(Nodes != nullptr, nullptr, "there must be at least one node");
+			TH_ASSERT(Index < Nodes->size(), nullptr, "index outside of range");
+
+			return (*Nodes)[Index];
 		}
 		Document* Document::Get(const std::string& Name) const
 		{
 			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
-			for (auto Document : Nodes)
+			if (!Nodes)
+				return nullptr;
+
+			for (auto Document : *Nodes)
 			{
 				if (Document->Key == Name)
 					return Document;
@@ -8680,15 +8675,15 @@ namespace Tomahawk
 		}
 		Document* Document::Set(const std::string& Name, const Variant& Base)
 		{
-			if (Value.Type == VarType::Object)
+			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
-				for (auto Node : Nodes)
+				for (auto Node : *Nodes)
 				{
 					if (Node->Key == Name)
 					{
 						Node->Value = Base;
 						Node->Saved = false;
-						Node->Nodes.clear();
+						Node->Clear();
 						Saved = false;
 
 						return Node;
@@ -8700,20 +8695,21 @@ namespace Tomahawk
 			Result->Key.assign(Name);
 			Result->Attach(this);
 
-			Nodes.push_back(Result);
+			Allocate();
+			Nodes->push_back(Result);
 			return Result;
 		}
 		Document* Document::Set(const std::string& Name, Variant&& Base)
 		{
-			if (Value.Type == VarType::Object)
+			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
-				for (auto Node : Nodes)
+				for (auto Node : *Nodes)
 				{
 					if (Node->Key == Name)
 					{
 						Node->Value = std::move(Base);
 						Node->Saved = false;
-						Node->Nodes.clear();
+						Node->Clear();
 						Saved = false;
 
 						return Node;
@@ -8725,7 +8721,8 @@ namespace Tomahawk
 			Result->Key.assign(Name);
 			Result->Attach(this);
 
-			Nodes.push_back(Result);
+			Allocate();
+			Nodes->push_back(Result);
 			return Result;
 		}
 		Document* Document::Set(const std::string& Name, Document* Base)
@@ -8736,9 +8733,9 @@ namespace Tomahawk
 			Base->Key.assign(Name);
 			Base->Attach(this);
 
-			if (Value.Type == VarType::Object)
+			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
-				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+				for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
 				{
 					if ((*It)->Key != Name)
 						continue;
@@ -8754,7 +8751,8 @@ namespace Tomahawk
 				}
 			}
 
-			Nodes.push_back(Base);
+			Allocate();
+			Nodes->push_back(Base);
 			return Base;
 		}
 		Document* Document::SetAttribute(const std::string& Name, const Variant& fValue)
@@ -8770,7 +8768,8 @@ namespace Tomahawk
 			Document* Result = new Document(Base);
 			Result->Attach(this);
 
-			Nodes.push_back(Result);
+			Allocate();
+			Nodes->push_back(Result);
 			return Result;
 		}
 		Document* Document::Push(Variant&& Base)
@@ -8778,7 +8777,8 @@ namespace Tomahawk
 			Document* Result = new Document(std::move(Base));
 			Result->Attach(this);
 
-			Nodes.push_back(Result);
+			Allocate();
+			Nodes->push_back(Result);
 			return Result;
 		}
 		Document* Document::Push(Document* Base)
@@ -8787,30 +8787,37 @@ namespace Tomahawk
 				return Push(Var::Null());
 
 			Base->Attach(this);
-			Nodes.push_back(Base);
+
+			Allocate();
+			Nodes->push_back(Base);
 			return Base;
 		}
 		Document* Document::Pop(size_t Index)
 		{
-			TH_ASSERT(Index < Nodes.size(), nullptr, "index outside of range");
+			TH_ASSERT(Nodes != nullptr, nullptr, "there must be at least one node");
+			TH_ASSERT(Index < Nodes->size(), nullptr, "index outside of range");
 
-			Document* Base = Nodes[Index];
+			auto It = Nodes->begin() + Index;
+			Document* Base = *It;
 			Base->Parent = nullptr;
 			TH_RELEASE(Base);
-			Nodes.erase(Nodes.begin() + Index);
+			Nodes->erase(It);
 
 			return this;
 		}
 		Document* Document::Pop(const std::string& Name)
 		{
-			for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+			if (!Nodes)
+				return this;
+
+			for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
 			{
 				if (!*It || (*It)->Key != Name)
 					continue;
 
 				(*It)->Parent = nullptr;
 				TH_RELEASE(*It);
-				Nodes.erase(It);
+				Nodes->erase(It);
 				break;
 			}
 
@@ -8819,15 +8826,17 @@ namespace Tomahawk
 		Document* Document::Copy() const
 		{
 			Document* New = new Document(Value);
-			New->Parent = nullptr;
 			New->Key.assign(Key);
 			New->Saved = Saved;
-			New->Nodes = Nodes;
 
-			for (auto It = New->Nodes.begin(); It != New->Nodes.end(); ++It)
+			if (!Nodes)
+				return New;
+
+			New->Allocate(*Nodes);
+			for (auto*& Item : *New->Nodes)
 			{
-				if (*It != nullptr)
-					*It = (*It)->Copy();
+				if (Item != nullptr)
+					Item = Item->Copy();
 			}
 
 			return New;
@@ -8857,7 +8866,7 @@ namespace Tomahawk
 		}
 		bool Document::IsEmpty() const
 		{
-			return Nodes.empty();
+			return !Nodes || Nodes->empty();
 		}
 		bool Document::IsAttribute() const
 		{
@@ -8872,7 +8881,7 @@ namespace Tomahawk
 		}
 		size_t Document::Size() const
 		{
-			return Nodes.size();
+			return Nodes ? Nodes->size() : 0;
 		}
 		std::string Document::GetName() const
 		{
@@ -8882,11 +8891,14 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Other != nullptr && Value.IsObject(), "other should be object and not empty");
 
+			Allocate();
+			Other->Allocate();
+			Nodes->reserve(Nodes->size() + Other->Nodes->size());
 			Saved = false;
-			Nodes.reserve(Nodes.size() + Other->Nodes.size());
+
 			if (Copy)
 			{
-				for (auto& Node : Other->Nodes)
+				for (auto& Node : *Other->Nodes)
 				{
 					Document* Result = Node->Copy();
 					Result->Attach(this);
@@ -8894,7 +8906,7 @@ namespace Tomahawk
 					bool Append = true;
 					if (Value.Type == VarType::Array && !Fast)
 					{
-						for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+						for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
 						{
 							if ((*It)->Key == Result->Key)
 							{
@@ -8908,15 +8920,15 @@ namespace Tomahawk
 					}
 
 					if (Append)
-						Nodes.push_back(Result);
+						Nodes->push_back(Result);
 				}
 			}
 			else
 			{
-				Nodes.insert(Nodes.end(), Other->Nodes.begin(), Other->Nodes.end());
-				Other->Nodes.clear();
+				Nodes->insert(Nodes->end(), Other->Nodes->begin(), Other->Nodes->end());
+				Other->Nodes->clear();
 
-				for (auto& Node : Nodes)
+				for (auto& Node : *Nodes)
 				{
 					Node->Saved = false;
 					Node->Parent = this;
@@ -8925,11 +8937,15 @@ namespace Tomahawk
 		}
 		void Document::Reserve(size_t Size)
 		{
-			Nodes.reserve(Size);
+			Allocate();
+			Nodes->reserve(Size);
 		}
 		void Document::Clear()
 		{
-			for (auto& Document : Nodes)
+			if (!Nodes)
+				return;
+
+			for (auto& Document : *Nodes)
 			{
 				if (Document != nullptr)
 				{
@@ -8938,16 +8954,20 @@ namespace Tomahawk
 				}
 			}
 
-			Nodes.clear();
+			delete Nodes;
+			Nodes = nullptr;
 		}
 		void Document::Save()
 		{
-			for (auto& It : Nodes)
+			if (Nodes != nullptr)
 			{
-				if (It->Value.IsObject())
-					It->Save();
-				else
-					It->Saved = true;
+				for (auto& It : *Nodes)
+				{
+					if (It->Value.IsObject())
+						It->Save();
+					else
+						It->Saved = true;
+				}
 			}
 
 			Saved = true;
@@ -8955,13 +8975,13 @@ namespace Tomahawk
 		void Document::Attach(Document* Root)
 		{
 			Saved = false;
-			if (Parent != nullptr)
+			if (Parent != nullptr && Parent->Nodes != nullptr)
 			{
-				for (auto It = Parent->Nodes.begin(); It != Parent->Nodes.end(); ++It)
+				for (auto It = Parent->Nodes->begin(); It != Parent->Nodes->end(); ++It)
 				{
 					if (*It == this)
 					{
-						Parent->Nodes.erase(It);
+						Parent->Nodes->erase(It);
 						break;
 					}
 				}
@@ -8971,6 +8991,18 @@ namespace Tomahawk
 			if (Parent != nullptr)
 				Parent->Saved = false;
 		}
+		void Document::Allocate()
+		{
+			if (!Nodes)
+				Nodes = new std::vector<Document*>();
+		}
+		void Document::Allocate(const std::vector<Document*>& Other)
+		{
+			if (!Nodes)
+				Nodes = new std::vector<Document*>(Other);
+			else
+				*Nodes = Other;
+		}
 		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
 		{
 			TH_ASSERT(!!Callback, false, "callback should not be empty");
@@ -8978,7 +9010,10 @@ namespace Tomahawk
 				return false;
 
 			Value->Key = Callback(Value->Key);
-			for (auto* Item : Value->Nodes)
+			if (!Value->Nodes)
+				return true;
+
+			for (auto* Item : *Value->Nodes)
 				Transform(Item, Callback);
 
 			return true;
@@ -8987,7 +9022,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			std::vector<Document*> Attributes = Base->GetAttributes();
-			bool Scalable = (Base->Value.GetSize() || ((int64_t)Base->Nodes.size() - (int64_t)Attributes.size()) > 0);
+			bool Scalable = (Base->Value.GetSize() > 0 || ((int64_t)(Base->Nodes ? Base->Nodes->size() : 0) - (int64_t)Attributes.size()) > 0);
 			Callback(VarForm::Write_Tab, "", 0);
 			Callback(VarForm::Dummy, "<", 1);
 			Callback(VarForm::Dummy, Base->Key.c_str(), (int64_t)Base->Key.size());
@@ -9032,7 +9067,7 @@ namespace Tomahawk
 			if (Base->Value.GetSize() > 0)
 			{
 				std::string Text = Base->Value.Serialize();
-				if (!Base->Nodes.empty())
+				if (Base->Nodes != nullptr && !Base->Nodes->empty())
 				{
 					Callback(VarForm::Write_Line, "", 0);
 					Callback(VarForm::Write_Tab, "", 0);
@@ -9045,17 +9080,20 @@ namespace Tomahawk
 			else
 				Callback(VarForm::Write_Line, "", 0);
 
-			for (auto&& It : Base->Nodes)
+			if (Base->Nodes != nullptr)
 			{
-				if (!It->IsAttribute())
-					WriteXML(It, Callback);
+				for (auto&& It : *Base->Nodes)
+				{
+					if (!It->IsAttribute())
+						WriteXML(It, Callback);
+				}
 			}
 
 			Callback(VarForm::Tab_Decrease, "", 0);
 			if (!Scalable)
 				return true;
 
-			if (!Base->Nodes.empty())
+			if (Base->Nodes != nullptr && !Base->Nodes->empty())
 				Callback(VarForm::Write_Tab, "", 0);
 
 			Callback(VarForm::Dummy, "</", 2);
@@ -9090,7 +9128,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			size_t Size = Base->Nodes.size();
+			size_t Size = (Base->Nodes ? Base->Nodes->size() : 0);
 			bool Array = (Base->Value.Type == VarType::Array);
 
 			if (Base->Parent != nullptr)
@@ -9102,19 +9140,19 @@ namespace Tomahawk
 
 			for (size_t i = 0; i < Size; i++)
 			{
-				auto* Document = Base->Nodes[i];
+				auto* Next = (*Base->Nodes)[i];
 				if (!Array)
 				{
 					Callback(VarForm::Write_Line, "", 0);
 					Callback(VarForm::Write_Tab, "", 0);
 					Callback(VarForm::Dummy, "\"", 1);
-					Callback(VarForm::Dummy, Document->Key.c_str(), (int64_t)Document->Key.size());
+					Callback(VarForm::Dummy, Next->Key.c_str(), (int64_t)Next->Key.size());
 					Callback(VarForm::Write_Space, "\":", 2);
 				}
 
-				if (!Document->Value.IsObject())
+				if (!Next->Value.IsObject())
 				{
-					std::string Value = (Document->Value.GetType() == VarType::Undefined ? "null" : Document->Value.Serialize());
+					std::string Value = (Next->Value.GetType() == VarType::Undefined ? "null" : Next->Value.Serialize());
 					Core::Parser Safe(&Value);
 					Safe.Escape();
 
@@ -9124,7 +9162,7 @@ namespace Tomahawk
 						Callback(VarForm::Write_Tab, "", 0);
 					}
 
-					if (!Document->Value.IsObject() && Document->Value.Type != VarType::String && Document->Value.Type != VarType::Base64)
+					if (!Next->Value.IsObject() && Next->Value.Type != VarType::String && Next->Value.Type != VarType::Base64)
 					{
 						if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
 							Callback(VarForm::Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
@@ -9139,7 +9177,7 @@ namespace Tomahawk
 					}
 				}
 				else
-					WriteJSON(Document, Callback);
+					WriteJSON(Next, Callback);
 
 				if (i + 1 < Size)
 					Callback(VarForm::Dummy, ",", 1);
@@ -9158,39 +9196,31 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			std::unordered_map<std::string, uint64_t> Mapping = Base->GetNames();
-			uint64_t Set = (uint64_t)Mapping.size();
+			uint32_t Set = (uint32_t)Mapping.size();
 
 			Callback(VarForm::Dummy, "\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16);
-			Callback(VarForm::Dummy, (const char*)&Set, sizeof(uint64_t));
+			Callback(VarForm::Dummy, (const char*)&Set, sizeof(uint32_t));
 
 			for (auto It = Mapping.begin(); It != Mapping.end(); ++It)
 			{
-				uint64_t Size = (uint64_t)It->first.size();
-				Callback(VarForm::Dummy, (const char*)&It->second, sizeof(uint64_t));
-				Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint64_t));
+				uint32_t Id = (uint32_t)It->second;
+				Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
+
+				uint16_t Size = (uint16_t)It->first.size();
+				Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
 
 				if (Size > 0)
-					Callback(VarForm::Dummy, It->first.c_str(), sizeof(char) * Size);
+					Callback(VarForm::Dummy, It->first.c_str(), sizeof(char) * (uint64_t)Size);
 			}
 
 			ProcessJSONBWrite(Base, &Mapping, Callback);
 			return true;
 		}
-		Document* Document::ReadXML(int64_t Size, const DocReadCallback& Callback, bool Assert)
+		Document* Document::ReadXML(const char* Buffer, bool Assert)
 		{
-			TH_ASSERT(Callback, nullptr, "size should be greater than Zero and callback should not be empty");
-			if (Size <= 0)
+			TH_ASSERT(Buffer != nullptr, nullptr, "buffer should not be null");
+			if (*Buffer == '\0')
 				return nullptr;
-
-			std::string Buffer;
-			Buffer.resize(Size);
-			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
-			{
-				if (Assert)
-					TH_ERR("cannot read xml document");
-
-				return nullptr;
-			}
 
 			rapidxml::xml_document<>* iDocument = TH_NEW(rapidxml::xml_document<>);
 			if (!iDocument)
@@ -9198,7 +9228,7 @@ namespace Tomahawk
 
 			try
 			{
-				iDocument->parse<rapidxml::parse_trim_whitespace>((char*)Buffer.c_str());
+				iDocument->parse<rapidxml::parse_trim_whitespace>((char*)Buffer);
 			}
 			catch (const std::runtime_error& e)
 			{
@@ -9253,24 +9283,14 @@ namespace Tomahawk
 
 			return Result;
 		}
-		Document* Document::ReadJSON(int64_t Size, const DocReadCallback& Callback, bool Assert)
+		Document* Document::ReadJSON(const char* Buffer, size_t Size, bool Assert)
 		{
-			TH_ASSERT(Callback, nullptr, "size should be greater than Zero and callback should not be empty");
-			if (Size <= 0)
+			TH_ASSERT(Buffer != nullptr, nullptr, "buffer should not be null");
+			if (!Size)
 				return nullptr;
-
-			std::string Buffer;
-			Buffer.resize(Size);
-			if (!Callback((char*)Buffer.c_str(), sizeof(char) * Size))
-			{
-				if (Assert)
-					TH_ERR("cannot read json document");
-
-				return nullptr;
-			}
 
 			rapidjson::Document Base;
-			Base.Parse(Buffer.c_str(), Buffer.size());
+			Base.Parse(Buffer, Size);
 
 			Core::Document* Result = nullptr;
 			if (Base.HasParseError())
@@ -9362,8 +9382,14 @@ namespace Tomahawk
 						TH_CLEAR(Result);
 					break;
 				case rapidjson::kStringType:
-					Result = new Document(Var::Auto(std::string(Base.GetString(), Base.GetStringLength()), true));
+				{
+					const char* Buffer = Base.GetString(); size_t Size = Base.GetStringLength();
+					if (Size > 2 && *Buffer == TH_PREFIX_CHAR && Buffer[Size - 1] == TH_PREFIX_CHAR)
+						Result = new Document(Var::Base64(Buffer + 1, Size - 2));
+					else
+						Result = new Document(Var::String(Buffer, Size));
 					break;
+				}
 				case rapidjson::kNumberType:
 					if (Base.IsInt())
 						Result = new Document(Var::Integer(Base.GetInt64()));
@@ -9397,8 +9423,8 @@ namespace Tomahawk
 				return nullptr;
 			}
 
-			uint64_t Set = 0;
-			if (!Callback((char*)&Set, sizeof(uint64_t)))
+			uint32_t Set = 0;
+			if (!Callback((char*)&Set, sizeof(uint32_t)))
 			{
 				if (Assert)
 					TH_ERR("name map is undefined");
@@ -9407,10 +9433,10 @@ namespace Tomahawk
 			}
 
 			std::unordered_map<uint64_t, std::string> Map;
-			for (uint64_t i = 0; i < Set; i++)
+			for (uint32_t i = 0; i < Set; ++i)
 			{
-				uint64_t Index = 0;
-				if (!Callback((char*)&Index, sizeof(uint64_t)))
+				uint32_t Index = 0;
+				if (!Callback((char*)&Index, sizeof(uint32_t)))
 				{
 					if (Assert)
 						TH_ERR("name index is undefined");
@@ -9418,8 +9444,8 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				uint64_t Size = 0;
-				if (!Callback((char*)&Size, sizeof(uint64_t)))
+				uint16_t Size = 0;
+				if (!Callback((char*)&Size, sizeof(uint16_t)))
 				{
 					if (Assert)
 						TH_ERR("name size is undefined");
@@ -9431,8 +9457,8 @@ namespace Tomahawk
 					continue;
 
 				std::string Name;
-				Name.resize(Size);
-				if (!Callback((char*)Name.c_str(), sizeof(char) * Size))
+				Name.resize((size_t)Size);
+				if (!Callback((char*)Name.c_str(), sizeof(char) * (uint64_t)Size))
 				{
 					if (Assert)
 						TH_ERR("name data is undefined");
@@ -9458,20 +9484,14 @@ namespace Tomahawk
 
 			auto Ref = (rapidxml::xml_node<>*)Base;
 			for (rapidxml::xml_attribute<>* It = Ref->first_attribute(); It; It = It->next_attribute())
-			{
-				if (It->name()[0] != '\0')
-					Current->SetAttribute(It->name(), Var::Auto(It->value()));
-			}
+				Current->SetAttribute(It->name(), Var::Auto(It->value()));
 
 			for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
 			{
-				if (It->name()[0] == '\0')
-					continue;
-
 				Document* Subresult = Current->Set(It->name(), Var::Set::Array());
 				ProcessXMLRead((void*)It, Subresult);
 
-				if (Subresult->Nodes.empty() && It->value_size() > 0)
+				if ((!Subresult->Nodes || Subresult->Nodes->empty()) && It->value_size() > 0)
 					Subresult->Value.Deserialize(std::string(It->value(), It->value_size()));
 			}
 
@@ -9482,14 +9502,14 @@ namespace Tomahawk
 			TH_ASSERT(Base != nullptr && Current != nullptr, false, "base and current should be set");
 
 			auto Ref = (rapidjson::Value*)Base;
-			std::string Value;
-
 			if (!Ref->IsArray())
 			{
+				std::string Name;
+				Current->Reserve((size_t)Ref->MemberCount());
+
 				VarType Type = Current->Value.Type;
 				Current->Value.Type = VarType::Array;
 
-				std::string Name;
 				for (auto It = Ref->MemberBegin(); It != Ref->MemberEnd(); ++It)
 				{
 					if (!It->name.IsString())
@@ -9514,9 +9534,14 @@ namespace Tomahawk
 							ProcessJSONRead((void*)&It->value, Current->Set(Name, Var::Array()));
 							break;
 						case rapidjson::kStringType:
-							Value.assign(It->value.GetString(), It->value.GetStringLength());
-							Current->Set(Name, Var::Auto(Value, true));
+						{
+							const char* Buffer = It->value.GetString(); size_t Size = It->value.GetStringLength();
+							if (Size > 2 && *Buffer == TH_PREFIX_CHAR && Buffer[Size - 1] == TH_PREFIX_CHAR)
+								Current->Set(Name, Var::Base64(Buffer + 1, Size - 2));
+							else
+								Current->Set(Name, Var::String(Buffer, Size));
 							break;
+						}
 						case rapidjson::kNumberType:
 							if (It->value.IsInt())
 								Current->Set(Name, Var::Integer(It->value.GetInt64()));
@@ -9532,6 +9557,9 @@ namespace Tomahawk
 			}
 			else
 			{
+				std::string Value;
+				Current->Reserve((size_t)Ref->Size());
+
 				for (auto It = Ref->Begin(); It != Ref->End(); ++It)
 				{
 					switch (It->GetType())
@@ -9552,9 +9580,14 @@ namespace Tomahawk
 							ProcessJSONRead((void*)It, Current->Push(Var::Array()));
 							break;
 						case rapidjson::kStringType:
-							Value.assign(It->GetString(), It->GetStringLength());
-							Current->Push(Var::Auto(Value, true));
+						{
+							const char* Buffer = It->GetString(); size_t Size = It->GetStringLength();
+							if (Size > 2 && *Buffer == TH_PREFIX_CHAR && Buffer[Size - 1] == TH_PREFIX_CHAR)
+								Current->Push(Var::Base64(Buffer + 1, Size - 2));
+							else
+								Current->Push(Var::String(Buffer, Size));
 							break;
+						}
 						case rapidjson::kNumberType:
 							if (It->IsInt())
 								Current->Push(Var::Integer(It->GetInt64()));
@@ -9571,8 +9604,8 @@ namespace Tomahawk
 		}
 		bool Document::ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const DocWriteCallback& Callback)
 		{
-			uint64_t Id = Map->at(Current->Key);
-			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint64_t));
+			uint32_t Id = (uint32_t)Map->at(Current->Key);
+			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
 			Callback(VarForm::Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
 
 			switch (Current->Value.Type)
@@ -9580,44 +9613,44 @@ namespace Tomahawk
 				case VarType::Object:
 				case VarType::Array:
 				{
-					uint64_t Count = Current->Nodes.size();
-					Callback(VarForm::Dummy, (const char*)&Count, sizeof(uint64_t));
-					for (auto& Document : Current->Nodes)
-						ProcessJSONBWrite(Document, Map, Callback);
+					uint32_t Count = (uint32_t)(Current->Nodes ? Current->Nodes->size() : 0);
+					Callback(VarForm::Dummy, (const char*)&Count, sizeof(uint32_t));
+					if (Count > 0)
+					{
+						for (auto& Document : *Current->Nodes)
+							ProcessJSONBWrite(Document, Map, Callback);
+					}
 					break;
 				}
 				case VarType::String:
 				case VarType::Base64:
 				{
-					uint64_t Size = Current->Value.GetSize();
-					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint64_t));
-					Callback(VarForm::Dummy, Current->Value.GetString(), Size * sizeof(char));
+					uint32_t Size = (uint32_t)Current->Value.GetSize();
+					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint32_t));
+					Callback(VarForm::Dummy, Current->Value.GetString(), (uint64_t)Size * sizeof(char));
 					break;
 				}
 				case VarType::Decimal:
 				{
 					std::string Number = ((Decimal*)Current->Value.Value.Data)->ToString();
-					uint64_t Size = (uint64_t)Number.size();
-					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint64_t));
-					Callback(VarForm::Dummy, Number.c_str(), Size * sizeof(char));
+					uint16_t Size = (uint16_t)Number.size();
+					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
+					Callback(VarForm::Dummy, Number.c_str(), (uint64_t)Size * sizeof(char));
 					break;
 				}
 				case VarType::Integer:
 				{
-					int64_t Copy = Current->Value.GetInteger();
-					Callback(VarForm::Dummy, (const char*)&Copy, sizeof(int64_t));
+					Callback(VarForm::Dummy, (const char*)&Current->Value.Value.Integer, sizeof(int64_t));
 					break;
 				}
 				case VarType::Number:
 				{
-					double Copy = Current->Value.GetNumber();
-					Callback(VarForm::Dummy, (const char*)&Copy, sizeof(double));
+					Callback(VarForm::Dummy, (const char*)&Current->Value.Value.Number, sizeof(double));
 					break;
 				}
 				case VarType::Boolean:
 				{
-					bool Copy = Current->Value.GetBoolean();
-					Callback(VarForm::Dummy, (const char*)&Copy, sizeof(bool));
+					Callback(VarForm::Dummy, (const char*)&Current->Value.Value.Boolean, sizeof(bool));
 					break;
 				}
 				default:
@@ -9628,14 +9661,14 @@ namespace Tomahawk
 		}
 		bool Document::ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const DocReadCallback& Callback)
 		{
-			uint64_t Id = 0;
-			if (!Callback((char*)&Id, sizeof(uint64_t)))
+			uint32_t Id = 0;
+			if (!Callback((char*)&Id, sizeof(uint32_t)))
 			{
 				TH_ERR("key name index is undefined");
 				return false;
 			}
 
-			auto It = Map->find(Id);
+			auto It = Map->find((uint64_t)Id);
 			if (It != Map->end())
 				Current->Key = It->second;
 
@@ -9650,8 +9683,8 @@ namespace Tomahawk
 				case VarType::Object:
 				case VarType::Array:
 				{
-					uint64_t Count = 0;
-					if (!Callback((char*)&Count, sizeof(uint64_t)))
+					uint32_t Count = 0;
+					if (!Callback((char*)&Count, sizeof(uint32_t)))
 					{
 						TH_ERR("key value size is undefined");
 						return false;
@@ -9660,8 +9693,10 @@ namespace Tomahawk
 					if (!Count)
 						break;
 
-					Current->Nodes.resize(Count);
-					for (auto&& Item : Current->Nodes)
+					Current->Allocate();
+					Current->Nodes->resize((size_t)Count);
+
+					for (auto*& Item : *Current->Nodes)
 					{
 						Item = Var::Set::Object();
 						Item->Parent = Current;
@@ -9673,17 +9708,17 @@ namespace Tomahawk
 				}
 				case VarType::String:
 				{
-					uint64_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint64_t)))
+					uint32_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint32_t)))
 					{
 						TH_ERR("key value size is undefined");
 						return false;
 					}
 
 					std::string Buffer;
-					Buffer.resize(Size);
+					Buffer.resize((size_t)Size);
 
-					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
+					if (!Callback((char*)Buffer.c_str(), (uint64_t)Size * sizeof(char)))
 					{
 						TH_ERR("key value data is undefined");
 						return false;
@@ -9694,8 +9729,8 @@ namespace Tomahawk
 				}
 				case VarType::Base64:
 				{
-					uint64_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint64_t)))
+					uint32_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint32_t)))
 					{
 						TH_ERR("key value size is undefined");
 						return false;
@@ -9704,7 +9739,7 @@ namespace Tomahawk
 					std::string Buffer;
 					Buffer.resize(Size);
 
-					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
+					if (!Callback((char*)Buffer.c_str(), (uint64_t)Size * sizeof(char)))
 					{
 						TH_ERR("key value data is undefined");
 						return false;
@@ -9739,17 +9774,17 @@ namespace Tomahawk
 				}
 				case VarType::Decimal:
 				{
-					uint64_t Size = 0;
-					if (!Callback((char*)&Size, sizeof(uint64_t)))
+					uint16_t Size = 0;
+					if (!Callback((char*)&Size, sizeof(uint16_t)))
 					{
 						TH_ERR("key value size is undefined");
 						return false;
 					}
 
 					std::string Buffer;
-					Buffer.resize(Size);
+					Buffer.resize((size_t)Size);
 
-					if (!Callback((char*)Buffer.c_str(), Size * sizeof(char)))
+					if (!Callback((char*)Buffer.c_str(), (uint64_t)Size * sizeof(char)))
 					{
 						TH_ERR("key value data is undefined");
 						return false;
@@ -9782,7 +9817,10 @@ namespace Tomahawk
 			if (M == Map->end())
 				Map->insert({ Current->Key, Index++ });
 
-			for (auto Document : Current->Nodes)
+			if (!Current->Nodes)
+				return true;
+
+			for (auto Document : *Current->Nodes)
 				ProcessNames(Document, Map, Index);
 
 			return true;

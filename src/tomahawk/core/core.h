@@ -208,8 +208,8 @@ typedef socklen_t socket_size_t;
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define TH_INVALID_EVENT_ID std::numeric_limits<uint64_t>::max()
-#define TH_PREFIX_CHAR '@'
-#define TH_PREFIX_STR "@"
+#define TH_PREFIX_CHAR '`'
+#define TH_PREFIX_STR "`"
 #define TH_SHUFFLE(Name) Tomahawk::Core::Shuffle<sizeof(Name)>(Name)
 #define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
 #define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
@@ -287,7 +287,7 @@ namespace Tomahawk
 			End
 		};
 
-		enum class VarType
+		enum class VarType : uint8_t
 		{
 			Null,
 			Undefined,
@@ -439,7 +439,7 @@ namespace Tomahawk
 			struct String
 			{
 				char* Buffer;
-				size_t Size;
+				uint32_t Size;
 			};
 
 		private:
@@ -1050,10 +1050,8 @@ namespace Tomahawk
 
 		public:
 			static void AddRef(Object* Value);
-			static void SetFlag(Object* Value);
 			static void Release(Object* Value);
 			static int GetRefCount(Object* Value);
-			static bool GetFlag(Object* Value);
 			static bool Clear();
 			static bool Pop(const std::string& Hash);
 			static std::unordered_set<uint64_t> Fetch(uint64_t Id);
@@ -1109,15 +1107,12 @@ namespace Tomahawk
 
 		private:
 			std::atomic<int> __vcnt;
-			std::atomic<bool> __vflg;
 
 		public:
 			Object() noexcept;
 			virtual ~Object() noexcept;
 			void operator delete(void* Data) noexcept;
 			void* operator new(size_t Size) noexcept;
-			void SetFlag() noexcept;
-			bool GetFlag() noexcept;
 			int GetRefCount() noexcept;
 			Object* AddRef() noexcept;
 			Object* Release() noexcept;
@@ -1476,7 +1471,7 @@ namespace Tomahawk
 		class TH_OUT Document : public Object
 		{
 		protected:
-			std::vector<Document*> Nodes;
+			std::vector<Document*>* Nodes;
 			Document* Parent;
 			bool Saved;
 
@@ -1527,6 +1522,10 @@ namespace Tomahawk
 			void Clear();
 			void Save();
 
+		protected:
+			void Allocate();
+			void Allocate(const std::vector<Document*>& Other);
+
 		private:
 			void Attach(Document* Root);
 
@@ -1535,8 +1534,8 @@ namespace Tomahawk
 			static bool WriteXML(Document* Value, const DocWriteCallback& Callback);
 			static bool WriteJSON(Document* Value, const DocWriteCallback& Callback);
 			static bool WriteJSONB(Document* Value, const DocWriteCallback& Callback);
-			static Document* ReadXML(int64_t Size, const DocReadCallback& Callback, bool Assert = true);
-			static Document* ReadJSON(int64_t Size, const DocReadCallback& Callback, bool Assert = true);
+			static Document* ReadXML(const char* Buffer, bool Assert = true);
+			static Document* ReadJSON(const char* Buffer, size_t Size, bool Assert = true);
 			static Document* ReadJSONB(const DocReadCallback& Callback, bool Assert = true);
 
 		private:
@@ -1554,7 +1553,7 @@ namespace Tomahawk
 			typedef T* Iterator;
 
 		protected:
-			uint64_t Count, Volume;
+			size_t Count, Volume;
 			T* Data;
 
 		public:
@@ -1562,14 +1561,14 @@ namespace Tomahawk
 			{
 				Reserve(1);
 			}
-			Pool(uint64_t _Size, uint64_t _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
+			Pool(size_t _Size, size_t _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
 			{
 				if (!Data && Volume > 0)
 					Reserve(Volume);
 				else if (!Data || !Volume)
 					Reserve(1);
 			}
-			Pool(uint64_t _Capacity) : Count(0), Volume(0), Data(nullptr)
+			Pool(size_t _Capacity) : Count(0), Volume(0), Data(nullptr)
 			{
 				if (_Capacity > 0)
 					Reserve(_Capacity);
@@ -1589,11 +1588,11 @@ namespace Tomahawk
 			}
 			void Swap(const Pool<T>& Raw)
 			{
-				uint64_t _Size = Raw.Count;
+				size_t _Size = Raw.Count;
 				Raw.Count = Count;
 				Count = _Size;
 
-				uint64_t _Capacity = Raw.Volume;
+				size_t _Capacity = Raw.Volume;
 				Raw.Volume = Volume;
 				Volume = _Capacity;
 
@@ -1606,7 +1605,7 @@ namespace Tomahawk
 				Raw.Data = Data;
 				Data = _Data;
 			}
-			void Reserve(uint64_t NewCount)
+			void Reserve(size_t NewCount)
 			{
 				if (NewCount <= Volume)
 					return;
@@ -1643,7 +1642,7 @@ namespace Tomahawk
 
 				Count = Volume = 0;
 			}
-			void Resize(uint64_t NewSize)
+			void Resize(size_t NewSize)
 			{
 				if (NewSize > Volume)
 					Reserve(IncreaseCapacity(NewSize));
@@ -1701,7 +1700,7 @@ namespace Tomahawk
 
 				return It;
 			}
-			Iterator At(uint64_t Index) const
+			Iterator At(size_t Index) const
 			{
 				TH_ASSERT(Index < Count, End(), "index ranges out of pool");
 				return Data + Index;
@@ -1738,7 +1737,7 @@ namespace Tomahawk
 			{
 				return *(End() - 1);
 			}
-			T& operator [](uint64_t Index) const
+			T& operator [](size_t Index) const
 			{
 				return *(Data + Index);
 			}
@@ -1773,11 +1772,11 @@ namespace Tomahawk
 			}
 
 		public:
-			uint64_t Size() const
+			size_t Size() const
 			{
 				return Count;
 			}
-			uint64_t Capacity() const
+			size_t Capacity() const
 			{
 				return Volume;
 			}
@@ -1800,16 +1799,16 @@ namespace Tomahawk
 				if (!std::is_pointer<T>::value)
 					It->~T();
 			}
-			uint64_t SizeOf(Iterator A)
+			size_t SizeOf(Iterator A)
 			{
 				if (!std::is_pointer<T>::value)
 					return sizeof(T);
 
-				return sizeof(uint64_t);
+				return sizeof(size_t);
 			}
-			uint64_t IncreaseCapacity(uint64_t NewSize)
+			size_t IncreaseCapacity(size_t NewSize)
 			{
-				uint64_t Alpha = Volume ? (Volume + Volume / 2) : 8;
+				size_t Alpha = Volume ? (Volume + Volume / 2) : 8;
 				return Alpha > NewSize ? Alpha : NewSize;
 			}
 		};

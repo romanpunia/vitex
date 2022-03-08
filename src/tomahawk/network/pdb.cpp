@@ -289,12 +289,7 @@ namespace Tomahawk
 					case OidType::JSON:
 					case OidType::JSONB:
 					{
-						Core::Document* Result = Core::Document::ReadJSON((int64_t)Size, [Data](char* Dest, int64_t Size)
-						{
-							memcpy(Dest, Data, Size);
-							return true;
-						});
-
+						Core::Document* Result = Core::Document::ReadJSON(Data, (size_t)Size);
 						if (Result != nullptr)
 							return Result;
 
@@ -620,11 +615,7 @@ namespace Tomahawk
 				if (Data.empty())
 					return nullptr;
 
-				return Core::Document::ReadJSON((int64_t)Data.size(), [this](char* Buffer, int64_t Size)
-				{
-					memcpy(Buffer, Data.c_str(), (size_t)Size);
-					return true;
-				});
+				return Core::Document::ReadJSON(Data.c_str(), Data.size());
 #else
 				return nullptr;
 #endif

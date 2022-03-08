@@ -1842,11 +1842,15 @@ namespace Tomahawk
 				std::string Output, Label = Compute::Common::URIEncode(Parent != nullptr ? ('[' + Key + ']') : Key);
 				if (Value.IsObject())
 				{
-					for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+					if (Nodes != nullptr)
 					{
-						Output.append(Label).append(((QueryParameter*)*It)->Build());
-						if (It + 1 < Nodes.end())
-							Output += '&';
+						for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
+						{
+							auto* Item = (QueryParameter*)*It;
+							Output.append(Label).append(Item->Build());
+							if (It + 1 < Nodes->end())
+								Output += '&';
+						}
 					}
 				}
 				else
@@ -1865,11 +1869,15 @@ namespace Tomahawk
 				std::string Output, Label = Compute::Common::URIEncode(Key);
 				if (Value.IsObject())
 				{
-					for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
+					if (Nodes != nullptr)
 					{
-						Output.append(Label).append(((QueryParameter*)*It)->Build());
-						if (It + 1 < Nodes.end())
-							Output += '&';
+						for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
+						{
+							auto* Item = (QueryParameter*)*It;
+							Output.append(Label).append(Item->Build());
+							if (It + 1 < Nodes->end())
+								Output += '&';
+						}
 					}
 				}
 				else
@@ -1886,9 +1894,9 @@ namespace Tomahawk
 			QueryParameter* QueryParameter::Find(QueryToken* Name)
 			{
 				TH_ASSERT(Name != nullptr, nullptr, "token should be set");
-				if (Name->Value && Name->Length > 0)
+				if (Nodes != nullptr && Name->Value && Name->Length > 0)
 				{
-					for (auto* Item : Nodes)
+					for (auto* Item : *Nodes)
 					{
 						if (!strncmp(Item->Key.c_str(), Name->Value, (size_t)Name->Length))
 							return (QueryParameter*)Item;
@@ -1896,6 +1904,8 @@ namespace Tomahawk
 				}
 
 				QueryParameter* New = new QueryParameter();
+				Allocate();
+
 				if (Name->Value && Name->Length > 0)
 				{
 					New->Key.assign(Name->Value, (size_t)Name->Length);
@@ -1906,13 +1916,13 @@ namespace Tomahawk
 				}
 				else
 				{
-					New->Key.assign(std::to_string(Nodes.size()));
+					New->Key.assign(std::to_string(Nodes->size()));
 					Value = Core::Var::Array();
 				}
 
 				New->Value = Core::Var::String("", 0);
 				New->Parent = this;
-				Nodes.push_back(New);
+				Nodes->push_back(New);
 
 				return New;
 			}
@@ -2041,25 +2051,8 @@ namespace Tomahawk
 			}
 			void Query::DecodeAJSON(const std::string& URI)
 			{
-				size_t Offset = 0;
 				TH_CLEAR(Object);
-
-				Object = (QueryParameter*)Core::Document::ReadJSON(URI.size(), [&URI, &Offset](char* Buffer, int64_t Size)
-				{
-					if (!Buffer || !Size)
-						return true;
-
-					size_t Length = URI.size() - Offset;
-					if (Size < Length)
-						Length = Size;
-
-					if (!Length)
-						return false;
-
-					memcpy(Buffer, URI.c_str() + Offset, Length);
-					Offset += Length;
-					return true;
-				});
+				Object = (QueryParameter*)Core::Document::ReadJSON(URI.c_str(), URI.size());
 			}
 			std::string Query::Encode(const char* Type)
 			{
@@ -6221,11 +6214,7 @@ namespace Tomahawk
 					if (!Result)
 						return (Core::Document*)nullptr;
 
-					return Core::Document::ReadJSON((int64_t)Response.Buffer.size(), [this](char* Buffer, int64_t Size)
-					{
-						memcpy(Buffer, Response.Buffer.data(), (size_t)Size);
-						return true;
-					});
+					return Core::Document::ReadJSON(Response.Buffer.data(), Response.Buffer.size());
 				});
 			}
 			Core::Async<Core::Document*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
@@ -6235,11 +6224,7 @@ namespace Tomahawk
 					if (!Result)
 						return (Core::Document*)nullptr;
 
-					return Core::Document::ReadXML((int64_t)Response.Buffer.size(), [this](char* Buffer, int64_t Size)
-					{
-						memcpy(Buffer, Response.Buffer.data(), (size_t)Size);
-						return true;
-					});
+					return Core::Document::ReadXML(Response.Buffer.data());
 				});
 			}
 			WebSocketFrame* Client::GetWebSocket()

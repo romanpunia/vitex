@@ -382,6 +382,7 @@ namespace Tomahawk
 		public:
 			SocketServer();
 			virtual ~SocketServer() override;
+			void SetRouter(SocketRouter* New);
 			void Lock();
 			void Unlock();
 			bool Configure(SocketRouter* New);

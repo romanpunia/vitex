@@ -1932,6 +1932,11 @@ namespace Tomahawk
 		{
 			Unlisten();
 		}
+		void SocketServer::SetRouter(SocketRouter* New)
+		{
+			OnDeallocateRouter(Router);
+			Router = New;
+		}
 		void SocketServer::Lock()
 		{
 			Sync.lock();
@@ -1948,7 +1953,7 @@ namespace Tomahawk
 				OnDeallocateRouter(Router);
 				Router = NewRouter;
 			}
-			else if (!(Router = OnAllocateRouter()))
+			else if (!Router && !(Router = OnAllocateRouter()))
 			{
 				TH_ERR("cannot allocate router");
 				return false;

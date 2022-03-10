@@ -78,7 +78,7 @@ namespace Tomahawk
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
 			typedef std::function<bool(struct Connection*, NetEvent, const char*, size_t)> ContentCallback;
 			typedef std::function<bool(struct Connection*, struct Resource*)> ResourceCallback;
-			typedef std::function<bool(struct Connection*, struct Credentials*, const std::string&)> AuthorizeCallback;
+			typedef std::function<bool(struct Connection*, struct Credentials*)> AuthorizeCallback;
 			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
 			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> CompilerCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
@@ -143,8 +143,7 @@ namespace Tomahawk
 
 			struct TH_OUT Credentials
 			{
-				std::string Username;
-				std::string Password;
+				std::string Token;
 				Auth Type = Auth::Unverified;
 			};
 
@@ -373,7 +372,6 @@ namespace Tomahawk
 				} Gateway;
 				struct
 				{
-					std::vector<Credentials> Users;
 					std::vector<std::string> Methods;
 					std::string Type;
 					std::string Realm;
@@ -777,6 +775,7 @@ namespace Tomahawk
 			public:
 				Server();
 				virtual ~Server() override;
+				bool Update();
 
 			private:
 				bool OnConfigure(SocketRouter* New) override;

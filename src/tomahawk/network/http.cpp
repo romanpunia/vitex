@@ -4281,7 +4281,7 @@ namespace Tomahawk
 			bool Util::Authorize(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				if (Base->Route->Auth.Type.empty())
+				if (!Base->Route->Callbacks.Authorize || Base->Route->Auth.Type.empty())
 					return true;
 
 				bool IsSupported = false;
@@ -4313,21 +4313,7 @@ namespace Tomahawk
 				while (Authorization[Index] != ' ' && Authorization[Index] != '\0')
 					Index++;
 
-				std::string Type = std::string(Authorization, Index);
-				std::string Credentials = Compute::Common::Base64Decode(Authorization + Index + 1);
-				Index = 0;
-
-				while (Credentials[Index] != ':' && Credentials[Index] != '\0')
-					Index++;
-
-				Base->Request.User.Username = std::string(Credentials.c_str(), Index);
-				Base->Request.User.Password = std::string(Credentials.c_str() + Index + 1);
-				if (Base->Route->Callbacks.Authorize && Base->Route->Callbacks.Authorize(Base, &Base->Request.User, Type))
-				{
-					Base->Request.User.Type = Auth::Granted;
-					return true;
-				}
-
+				std::string Type(Authorization, Index);
 				if (Type != Base->Route->Auth.Type)
 				{
 					Base->Request.User.Type = Auth::Denied;
@@ -4335,11 +4321,9 @@ namespace Tomahawk
 					return false;
 				}
 
-				for (auto& Item : Base->Route->Auth.Users)
+				Base->Request.User.Token = Authorization + Index + 1;
+				if (Base->Route->Callbacks.Authorize(Base, &Base->Request.User))
 				{
-					if (Item.Password != Base->Request.User.Password || Item.Username != Base->Request.User.Username)
-						continue;
-
 					Base->Request.User.Type = Auth::Granted;
 					return true;
 				}
@@ -5582,12 +5566,12 @@ namespace Tomahawk
 			{
 				Unlisten();
 			}
-			bool Server::OnConfigure(SocketRouter* NewRouter)
+			bool Server::Update()
 			{
-				TH_ASSERT(NewRouter != nullptr, false, "router should be set");
-
-				auto* Root = (MapRouter*)NewRouter;
 				std::unordered_set<std::string> Modules;
+				auto* Root = (MapRouter*)Router;
+				bool Success = true;
+
 				for (auto& Site : Root->Sites)
 				{
 					auto* Entry = Site.second;
@@ -5629,7 +5613,7 @@ namespace Tomahawk
 										Files += "\n\t" + Name;
 
 									TH_ERR("(vm) there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
-									Entry->Gateway.Enabled = false;
+									Entry->Gateway.Enabled = Success = false;
 									break;
 								}
 							}
@@ -5642,7 +5626,12 @@ namespace Tomahawk
 					Entry->Sort();
 				}
 
-				return true;
+				return Success;
+			}
+			bool Server::OnConfigure(SocketRouter* NewRouter)
+			{
+				TH_ASSERT(NewRouter != nullptr, false, "router should be set");
+				return Update();
 			}
 			bool Server::OnRequestEnded(SocketConnection* Root, bool Check)
 			{
@@ -5679,8 +5668,7 @@ namespace Tomahawk
 				Base->Response.Headers.clear();
 				Base->Request.ContentLength = 0;
 				Base->Request.User.Type = Auth::Unverified;
-				Base->Request.User.Username.clear();
-				Base->Request.User.Password.clear();
+				Base->Request.User.Token.clear();
 				Base->Request.Resources.clear();
 				Base->Request.Buffer.clear();
 				Base->Request.Headers.clear();

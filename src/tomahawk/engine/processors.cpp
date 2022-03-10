@@ -1487,7 +1487,7 @@ namespace Tomahawk
 							std::string SourceURL = "*";
 							NMake::Unpack(Base, &SourceURL);
 
-							Core::Document* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");;
+							Core::Document* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");
 							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
 							{
 								auto Subalias = Aliases.find(From->Value.GetBlob());
@@ -1525,18 +1525,6 @@ namespace Tomahawk
 								std::string Value;
 								if (NMake::Unpack(Method, &Value))
 									Route->Gateway.Methods.push_back(Value);
-							}
-
-							std::vector<Core::Document*> AuthUsers = Base->FetchCollection("auth.users.user");
-							if (Base->Fetch("auth.users.[clear]") != nullptr)
-								Route->Auth.Users.clear();
-
-							for (auto& User : AuthUsers)
-							{
-								Network::HTTP::Credentials Credentials;
-								NMake::Unpack(User->Find("username"), &Credentials.Username);
-								NMake::Unpack(User->Find("password"), &Credentials.Password);
-								Route->Auth.Users.push_back(Credentials);
 							}
 
 							std::vector<Core::Document*> AuthMethods = Base->FetchCollection("auth.methods.method");
@@ -1676,9 +1664,13 @@ namespace Tomahawk
 						Site->Remove(Item.second);
 				}
 
-				Object->Configure(Router);
-				TH_RELEASE(Document);
+				auto Configure = Args.find("configure");
+				if (Configure == Args.end() || Configure->second.GetBoolean())
+					Object->Configure(Router);
+				else
+					Object->SetRouter(Router);
 
+				TH_RELEASE(Document);
 				return (void*)Object;
 			}
 

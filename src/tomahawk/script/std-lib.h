@@ -1,7 +1,7 @@
 #ifndef TH_SCRIPT_STD_API_H
 #define TH_SCRIPT_STD_API_H
 #include "../core/script.h"
-#define TH_TYPEREF(Name, TypeName) static const uint64_t Name = TH_SHUFFLE(TypeName); STDRegistry::Set(Name, TypeName)
+#define TH_TYPEREF(Name, TypeName) static const uint64_t Name = TH_SHUFFLE(TypeName); Tomahawk::Script::STDRegistry::Set(Name, TypeName)
 #define TH_PROMISIFY(MemberFunction, TypeId) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define TH_PROMISIFY_REF(MemberFunction, TypeRef) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
 #define TH_ARRAYIFY(MemberFunction, TypeId) Tomahawk::Script::STDArray::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>

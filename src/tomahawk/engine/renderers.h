@@ -389,8 +389,8 @@ namespace Tomahawk
 				Lighting(RenderSystem* Lab);
 				virtual ~Lighting();
 				size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
+				void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				void ResizeBuffers() override;
 				void BeginPass() override;
 				void EndPass() override;
@@ -492,8 +492,8 @@ namespace Tomahawk
 			public:
 				SSR(RenderSystem* Lab);
 				virtual ~SSR() = default;
-				void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
@@ -535,8 +535,8 @@ namespace Tomahawk
 			public:
 				SSAO(RenderSystem* Lab);
 				virtual ~SSAO() = default;
-				void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
@@ -576,8 +576,8 @@ namespace Tomahawk
 			public:
 				DoF(RenderSystem* Lab);
 				virtual ~DoF() = default;
-				void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
 				void FocusAtNearestTarget(float DeltaTime);
 
@@ -611,8 +611,8 @@ namespace Tomahawk
 			public:
 				MotionBlur(RenderSystem* Lab);
 				virtual ~MotionBlur() = default;
-				void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
@@ -649,8 +649,8 @@ namespace Tomahawk
 			public:
 				Bloom(RenderSystem* Lab);
 				virtual ~Bloom() = default;
-				void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:
@@ -708,8 +708,8 @@ namespace Tomahawk
 			public:
 				Tone(RenderSystem* Lab);
 				virtual ~Tone() override;
-				void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				void Serialize(ContentManager* Content, Core::Document* Node) override;
+				void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				void RenderEffect(Core::Timer* Time) override;
 
 			private:
@@ -744,8 +744,8 @@ namespace Tomahawk
 			public:
 				Glitch(RenderSystem* Lab);
 				virtual ~Glitch() = default;
-				void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				void Serialize(ContentManager * Content, Core::Document * Node) override;
+				void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
 
 			public:

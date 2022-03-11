@@ -83,7 +83,7 @@ namespace Tomahawk
 			enum class FocusFlag
 			{
 				None,
-				Document,
+				Schema,
 				Keep,
 				Auto
 			};
@@ -593,9 +593,9 @@ namespace Tomahawk
 				IElement GetFocusElement();
 				IElement GetRootElement();
 				IElement GetElementAtPoint(const Compute::Vector2& Point, const IElement& IgnoreElement = nullptr, const IElement& Element = nullptr) const;
-				void PullDocumentToFront(const IElementDocument& Document);
-				void PushDocumentToBack(const IElementDocument& Document);
-				void UnfocusDocument(const IElementDocument& Document);
+				void PullDocumentToFront(const IElementDocument& Schema);
+				void PushDocumentToBack(const IElementDocument& Schema);
+				void UnfocusDocument(const IElementDocument& Schema);
 				void AddEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase = false);
 				void RemoveEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase = false);
 				bool IsMouseInteracting() const;
@@ -610,7 +610,7 @@ namespace Tomahawk
 				const std::string& GetDocumentsBaseTag();
 
 			private:
-				bool Inject(Core::Document* Conf, const std::string& Relative);
+				bool Inject(Core::Schema* Conf, const std::string& Relative);
 				bool Preprocess(const std::string& Path, std::string& Buffer);
 				void Decompose(std::string& Buffer);
 				void CreateVM();

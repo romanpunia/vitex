@@ -1834,7 +1834,7 @@ namespace Tomahawk
 #endif
 			}
 
-			QueryParameter::QueryParameter() : Core::Document(Core::Var::Object())
+			QueryParameter::QueryParameter() : Core::Schema(Core::Var::Object())
 			{
 			}
 			std::string QueryParameter::Build()
@@ -1939,7 +1939,7 @@ namespace Tomahawk
 				if (Object != nullptr)
 					Object->Clear();
 			}
-			void Query::Steal(Core::Document** Output)
+			void Query::Steal(Core::Schema** Output)
 			{
 				if (!Output)
 					return;
@@ -2052,7 +2052,7 @@ namespace Tomahawk
 			void Query::DecodeAJSON(const std::string& URI)
 			{
 				TH_CLEAR(Object);
-				Object = (QueryParameter*)Core::Document::ReadJSON(URI.c_str(), URI.size());
+				Object = (QueryParameter*)Core::Schema::ReadJSON(URI.c_str(), URI.size());
 			}
 			std::string Query::Encode(const char* Type)
 			{
@@ -2083,7 +2083,7 @@ namespace Tomahawk
 			std::string Query::EncodeAJSON()
 			{
 				std::string Stream;
-				Core::Document::WriteJSON(Object, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+				Core::Schema::WriteJSON(Object, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 				{
 					if (Buffer != nullptr && Length > 0)
 						Stream.append(Buffer, Length);
@@ -2155,9 +2155,9 @@ namespace Tomahawk
 			bool Session::Write(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
+				std::string Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
-				FILE* Stream = (FILE*)Core::OS::File::Open(Document.c_str(), "wb");
+				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "wb");
 				if (!Stream)
 					return false;
 
@@ -2176,9 +2176,9 @@ namespace Tomahawk
 			bool Session::Read(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				std::string Document = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
+				std::string Schema = Base->Route->Site->Gateway.Session.DocumentRoot + FindSessionId(Base);
 
-				FILE* Stream = (FILE*)Core::OS::File::Open(Document.c_str(), "rb");
+				FILE* Stream = (FILE*)Core::OS::File::Open(Schema.c_str(), "rb");
 				if (!Stream)
 					return false;
 
@@ -2201,14 +2201,14 @@ namespace Tomahawk
 					SessionId.clear();
 					TH_CLOSE(Stream);
 
-					if (!Core::OS::File::Remove(Document.c_str()))
-						TH_ERR("session file %s cannot be deleted", Document.c_str());
+					if (!Core::OS::File::Remove(Schema.c_str()))
+						TH_ERR("session file %s cannot be deleted", Schema.c_str());
 
 					return false;
 				}
 
 
-				Core::Document* V = Core::Document::ReadJSONB([Stream](char* Buffer, int64_t Size)
+				Core::Schema* V = Core::Schema::ReadJSONB([Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -6195,24 +6195,24 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Core::Async<Core::Document*> Client::JSON(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Async<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, int64_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::Document*>([this](bool&& Result)
+				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
 				{
 					if (!Result)
-						return (Core::Document*)nullptr;
+						return (Core::Schema*)nullptr;
 
-					return Core::Document::ReadJSON(Response.Buffer.data(), Response.Buffer.size());
+					return Core::Schema::ReadJSON(Response.Buffer.data(), Response.Buffer.size());
 				});
 			}
-			Core::Async<Core::Document*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Async<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
 			{
-				return Fetch(std::move(Root), MaxSize).Then<Core::Document*>([this](bool&& Result)
+				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
 				{
 					if (!Result)
-						return (Core::Document*)nullptr;
+						return (Core::Schema*)nullptr;
 
-					return Core::Document::ReadXML(Response.Buffer.data());
+					return Core::Schema::ReadXML(Response.Buffer.data());
 				});
 			}
 			WebSocketFrame* Client::GetWebSocket()

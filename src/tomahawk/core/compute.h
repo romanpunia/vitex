@@ -1439,8 +1439,8 @@ namespace Tomahawk
 			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
 			static std::string JWTEncode(WebToken* Src, const char* Key);
 			static WebToken* JWTDecode(const std::string& Value, const char* Key);
-			static std::string DocEncrypt(Core::Document* Src, const char* Key, const char* Salt);
-			static Core::Document* DocDecrypt(const std::string& Value, const char* Key, const char* Salt);
+			static std::string DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt);
+			static Core::Schema* DocDecrypt(const std::string& Value, const char* Key, const char* Salt);
 			static std::string RandomBytes(uint64_t Length);
 			static std::string MD5Hash(const std::string& Value);
 			static std::string Move(const std::string& Text, int Offset);
@@ -1517,9 +1517,9 @@ namespace Tomahawk
 		class TH_OUT WebToken : public Core::Object
 		{
 		public:
-			Core::Document* Header;
-			Core::Document* Payload;
-			Core::Document* Token;
+			Core::Schema* Header;
+			Core::Schema* Payload;
+			Core::Schema* Token;
 			std::string Refresher;
 			std::string Signature;
 			std::string Data;

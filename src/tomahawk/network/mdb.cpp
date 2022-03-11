@@ -31,7 +31,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr, false, "context should be set");
 				TH_PPUSH("mongoc-send", TH_PERF_MAX);
-				TH_TRACE("[mongoc] execute query document on 0x%p\n\t%s", (void*)Base, Name + 1);
+				TH_TRACE("[mongoc] execute query schema on 0x%p\n\t%s", (void*)Base, Name + 1);
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -92,7 +92,7 @@ namespace Tomahawk
 			}
 			void Property::Release()
 			{
-				Document(Source).Release();
+				Schema(Source).Release();
 				Source = nullptr;
 				Name.clear();
 				String.clear();
@@ -106,7 +106,7 @@ namespace Tomahawk
 			{
 				switch (Mod)
 				{
-					case Type::Document:
+					case Type::Schema:
 						return String.assign("{}");
 					case Type::Array:
 						return String.assign("[]");
@@ -152,9 +152,9 @@ namespace Tomahawk
 				Source = nullptr;
 				return Result;
 			}
-			Document Property::Get() const
+			Schema Property::Get() const
 			{
-				return Document(Source);
+				return Schema(Source);
 			}
 			Property& Property::operator= (const Property& Other) noexcept
 			{
@@ -301,13 +301,13 @@ namespace Tomahawk
 #endif
 			}
 
-			Document::Document() : Base(nullptr), Store(false)
+			Schema::Schema() : Base(nullptr), Store(false)
 			{
 			}
-			Document::Document(TDocument* NewBase) : Base(NewBase), Store(false)
+			Schema::Schema(TDocument* NewBase) : Base(NewBase), Store(false)
 			{
 			}
-			void Document::Release() const
+			void Schema::Release() const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || Store)
@@ -317,7 +317,7 @@ namespace Tomahawk
 					bson_destroy(Base);
 #endif
 			}
-			void Document::Release()
+			void Schema::Release()
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || Store)
@@ -328,18 +328,18 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			void Document::Join(const Document& Value)
+			void Schema::Join(const Schema& Value)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT_V(Base != nullptr, "document should be set");
-				TH_ASSERT_V(Value.Base != nullptr, "other document should be set");
+				TH_ASSERT_V(Base != nullptr, "schema should be set");
+				TH_ASSERT_V(Value.Base != nullptr, "other schema should be set");
 				bson_concat(Base, Value.Base);
 				Value.Release();
 #endif
 			}
-			void Document::Loop(const std::function<bool(Property*)>& Callback) const
+			void Schema::Loop(const std::function<bool(Property*)>& Callback) const
 			{
-				TH_ASSERT_V(Base != nullptr, "document should be set");
+				TH_ASSERT_V(Base != nullptr, "schema should be set");
 				TH_ASSERT_V(Callback, "callback should be set");
 #ifdef TH_HAS_MONGOC
 				bson_iter_t It;
@@ -358,11 +358,11 @@ namespace Tomahawk
 				}
 #endif
 			}
-			bool Document::SetDocument(const char* Key, const Document& Value, uint64_t ArrayId)
+			bool Schema::SetSchema(const char* Key, const Schema& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
-				TH_ASSERT(Value.Base != nullptr, false, "other document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
+				TH_ASSERT(Value.Base != nullptr, false, "other schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -376,11 +376,11 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetArray(const char* Key, const Document& Value, uint64_t ArrayId)
+			bool Schema::SetArray(const char* Key, const Schema& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
-				TH_ASSERT(Value.Base != nullptr, false, "other document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
+				TH_ASSERT(Value.Base != nullptr, false, "other schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -394,10 +394,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetString(const char* Key, const char* Value, uint64_t ArrayId)
+			bool Schema::SetString(const char* Key, const char* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 				TH_ASSERT(Value != nullptr, false, "value should be set");
 
 				char Index[16];
@@ -409,10 +409,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
+			bool Schema::SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 				TH_ASSERT(Value != nullptr, false, "value should be set");
 
 				char Index[16];
@@ -424,10 +424,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetInteger(const char* Key, int64_t Value, uint64_t ArrayId)
+			bool Schema::SetInteger(const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -438,10 +438,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetNumber(const char* Key, double Value, uint64_t ArrayId)
+			bool Schema::SetNumber(const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -452,10 +452,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
+			bool Schema::SetDecimal(const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -470,10 +470,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimalString(const char* Key, const std::string& Value, uint64_t ArrayId)
+			bool Schema::SetDecimalString(const char* Key, const std::string& Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -487,10 +487,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimalInteger(const char* Key, int64_t Value, uint64_t ArrayId)
+			bool Schema::SetDecimalInteger(const char* Key, int64_t Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -507,10 +507,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimalNumber(const char* Key, double Value, uint64_t ArrayId)
+			bool Schema::SetDecimalNumber(const char* Key, double Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -530,10 +530,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetBoolean(const char* Key, bool Value, uint64_t ArrayId)
+			bool Schema::SetBoolean(const char* Key, bool Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -544,10 +544,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId)
+			bool Schema::SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				bson_oid_t ObjectId;
 				memcpy(ObjectId.bytes, Value, sizeof(unsigned char) * 12);
@@ -561,10 +561,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetNull(const char* Key, uint64_t ArrayId)
+			bool Schema::SetNull(const char* Key, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 
 				char Index[16];
 				if (Key == nullptr)
@@ -575,10 +575,10 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetProperty(const char* Key, Property* Value, uint64_t ArrayId)
+			bool Schema::SetProperty(const char* Key, Property* Value, uint64_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 				TH_ASSERT(Value != nullptr, false, "property should be set");
 
 				char Index[16];
@@ -587,8 +587,8 @@ namespace Tomahawk
 
 				switch (Value->Mod)
 				{
-					case Type::Document:
-						return SetDocument(Key, Value->Get().Copy());
+					case Type::Schema:
+						return SetSchema(Key, Value->Get().Copy());
 					case Type::Array:
 						return SetArray(Key, Value->Get().Copy());
 					case Type::String:
@@ -610,20 +610,20 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::HasProperty(const char* Key) const
+			bool Schema::HasProperty(const char* Key) const
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 				TH_ASSERT(Key != nullptr, false, "key should be set");
 				return bson_has_field(Base, Key);
 #else
 				return false;
 #endif
 			}
-			bool Document::GetProperty(const char* Key, Property* Output) const
+			bool Schema::GetProperty(const char* Key, Property* Output) const
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, false, "document should be set");
+				TH_ASSERT(Base != nullptr, false, "schema should be set");
 				TH_ASSERT(Key != nullptr, false, "key should be set");
 				TH_ASSERT(Output != nullptr, false, "property should be set");
 
@@ -636,7 +636,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::Clone(void* It, Property* Output)
+			bool Schema::Clone(void* It, Property* Output)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(It != nullptr, false, "iterator should be set");
@@ -655,7 +655,7 @@ namespace Tomahawk
 					{
 						const uint8_t* Buffer; uint32_t Length;
 						bson_iter_document((bson_iter_t*)It, &Length, &Buffer);
-						Output->Mod = Type::Document;
+						Output->Mod = Type::Schema;
 						Output->Source = bson_new_from_data(Buffer, Length);
 						break;
 					}
@@ -744,7 +744,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			uint64_t Document::Count() const
+			uint64_t Schema::Count() const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -755,10 +755,10 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			std::string Document::ToRelaxedJSON() const
+			std::string Schema::ToRelaxedJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
+				TH_ASSERT(Base != nullptr, std::string(), "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_relaxed_extended_json(Base, &Length);
 
@@ -771,10 +771,10 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			std::string Document::ToExtendedJSON() const
+			std::string Schema::ToExtendedJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
+				TH_ASSERT(Base != nullptr, std::string(), "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_canonical_extended_json(Base, &Length);
 
@@ -787,10 +787,10 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			std::string Document::ToJSON() const
+			std::string Schema::ToJSON() const
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
+				TH_ASSERT(Base != nullptr, std::string(), "schema should be set");
 				size_t Length = 0;
 				char* Value = bson_as_json(Base, &Length);
 
@@ -803,10 +803,10 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			std::string Document::ToIndices() const
+			std::string Schema::ToIndices() const
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Base != nullptr, std::string(), "document should be set");
+				TH_ASSERT(Base != nullptr, std::string(), "schema should be set");
 				char* Value = mongoc_collection_keys_to_index_string(Base);
 				if (!Value)
 					return std::string();
@@ -819,19 +819,19 @@ namespace Tomahawk
 				return "";
 #endif
 			}
-			Core::Document* Document::ToDocument(bool IsArray) const
+			Core::Schema* Schema::ToSchema(bool IsArray) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
 					return nullptr;
 
-				Core::Document* Node = (IsArray ? Core::Var::Set::Array() : Core::Var::Set::Object());
+				Core::Schema* Node = (IsArray ? Core::Var::Set::Array() : Core::Var::Set::Object());
 				Loop([Node](Property* Key) -> bool
 				{
 					std::string Name = (Node->Value.GetType() == Core::VarType::Array ? "" : Key->Name);
 					switch (Key->Mod)
 					{
-						case Type::Document:
+						case Type::Schema:
 						{
 							Node->Set(Name, Key->Get().ToDocument(false));
 							break;
@@ -874,7 +874,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			TDocument* Document::Get() const
+			TDocument* Schema::Get() const
 			{
 #ifdef TH_HAS_MONGOC
 				return Base;
@@ -882,28 +882,28 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::Copy() const
+			Schema Schema::Copy() const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
 					return nullptr;
 
-				return Document(bson_copy(Base));
+				return Schema(bson_copy(Base));
 #else
 				return nullptr;
 #endif
 			}
-			Document& Document::Persist(bool Keep)
+			Schema& Schema::Persist(bool Keep)
 			{
 				Store = Keep;
 				return *this;
 			}
-			Document Document::FromDocument(Core::Document* Src)
+			Schema Schema::FromDocument(Core::Schema* Src)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(Src != nullptr && Src->Value.IsObject(), nullptr, "document should be set");
+				TH_ASSERT(Src != nullptr && Src->Value.IsObject(), nullptr, "schema should be set");
 				bool Array = (Src->Value.GetType() == Core::VarType::Array);
-				Document Result = bson_new();
+				Schema Result = bson_new();
 				uint64_t Index = 0;
 
 				for (auto&& Node : Src->GetChilds())
@@ -911,10 +911,10 @@ namespace Tomahawk
 					switch (Node->Value.GetType())
 					{
 						case Core::VarType::Object:
-							Result.SetDocument(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
+							Result.SetSchema(Array ? nullptr : Node->Key.c_str(), Schema::FromDocument(Node), Index);
 							break;
 						case Core::VarType::Array:
-							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Document::FromDocument(Node), Index);
+							Result.SetArray(Array ? nullptr : Node->Key.c_str(), Schema::FromDocument(Node), Index);
 							break;
 						case Core::VarType::String:
 							Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Node->Value.GetString(), Node->Value.GetSize(), Index);
@@ -956,7 +956,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::FromEmpty()
+			Schema Schema::FromEmpty()
 			{
 #ifdef TH_HAS_MONGOC
 				return bson_new();
@@ -964,7 +964,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::FromJSON(const std::string& JSON)
+			Schema Schema::FromJSON(const std::string& JSON)
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -983,7 +983,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::FromBuffer(const unsigned char* Buffer, uint64_t Length)
+			Schema Schema::FromBuffer(const unsigned char* Buffer, uint64_t Length)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
@@ -992,7 +992,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::FromSource(TDocument* Src)
+			Schema Schema::FromSource(TDocument* Src)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Src != nullptr, nullptr, "src should be set");
@@ -1124,7 +1124,7 @@ namespace Tomahawk
 			Stream::Stream() : IOptions(nullptr), Source(nullptr), Base(nullptr), Count(0)
 			{
 			}
-			Stream::Stream(TCollection* NewSource, TStream* NewBase, const Document& NewOptions) : IOptions(NewOptions), Source(NewSource), Base(NewBase), Count(0)
+			Stream::Stream(TCollection* NewSource, TStream* NewBase, const Schema& NewOptions) : IOptions(NewOptions), Source(NewSource), Base(NewBase), Count(0)
 			{
 			}
 			void Stream::Release()
@@ -1139,7 +1139,7 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			bool Stream::RemoveMany(const Document& Match, const Document& Options)
+			bool Stream::RemoveMany(const Schema& Match, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!NextOperation())
@@ -1154,7 +1154,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::RemoveOne(const Document& Match, const Document& Options)
+			bool Stream::RemoveOne(const Schema& Match, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!NextOperation())
@@ -1169,7 +1169,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
+			bool Stream::ReplaceOne(const Schema& Match, const Schema& Replacement, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!NextOperation())
@@ -1185,7 +1185,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::InsertOne(const Document& Result, const Document& Options)
+			bool Stream::InsertOne(const Schema& Result, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!NextOperation())
@@ -1200,7 +1200,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::UpdateOne(const Document& Match, const Document& Result, const Document& Options)
+			bool Stream::UpdateOne(const Schema& Match, const Schema& Result, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!NextOperation())
@@ -1216,7 +1216,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::UpdateMany(const Document& Match, const Document& Result, const Document& Options)
+			bool Stream::UpdateMany(const Schema& Match, const Schema& Result, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!NextOperation())
@@ -1232,12 +1232,12 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Stream::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
+			bool Stream::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::GetQuery(Name, Map, Once));
 			}
-			bool Stream::Query(const Document& Command)
+			bool Stream::Query(const Schema& Command)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Command.Get())
@@ -1257,7 +1257,7 @@ namespace Tomahawk
 				if (Type.String == "update")
 				{
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-one query without @match");
@@ -1265,7 +1265,7 @@ namespace Tomahawk
 					}
 
 					Property Update;
-					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
+					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-one query without @update");
@@ -1280,7 +1280,7 @@ namespace Tomahawk
 				else if (Type.String == "update-many")
 				{
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-many query without @match");
@@ -1288,7 +1288,7 @@ namespace Tomahawk
 					}
 
 					Property Update;
-					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
+					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-many query without @update");
@@ -1303,7 +1303,7 @@ namespace Tomahawk
 				else if (Type.String == "insert")
 				{
 					Property Value;
-					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
+					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run insert-one query without @value");
@@ -1318,7 +1318,7 @@ namespace Tomahawk
 				else if (Type.String == "replace")
 				{
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run replace-one query without @match");
@@ -1326,7 +1326,7 @@ namespace Tomahawk
 					}
 
 					Property Value;
-					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
+					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run replace-one query without @value");
@@ -1341,7 +1341,7 @@ namespace Tomahawk
 				else if (Type.String == "remove")
 				{
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run remove-one query without @value");
@@ -1356,7 +1356,7 @@ namespace Tomahawk
 				else if (Type.String == "remove-many")
 				{
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run remove-many query without @value");
@@ -1400,27 +1400,27 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Document> Stream::ExecuteWithReply()
+			Core::Async<Schema> Stream::ExecuteWithReply()
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
-					return Document(nullptr);
+					return Schema(nullptr);
 
 				Stream Context = *this; Base = nullptr;
-				return Core::Async<Document>::Execute([Context](Core::Async<Document>& Future) mutable
+				return Core::Async<Schema>::Execute([Context](Core::Async<Schema>& Future) mutable
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_bulk_operation_execute, Context.Get(), &Subresult);
 					Context.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
 			Core::Async<bool> Stream::Execute()
@@ -1607,7 +1607,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Document Cursor::GetCurrent() const
+			Schema Cursor::GetCurrent() const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -1645,7 +1645,7 @@ namespace Tomahawk
 			Response::Response(const Cursor& _Cursor) : ICursor(_Cursor), ISuccess(_Cursor && !_Cursor.HasError() && _Cursor.HasMoreData())
 			{
 			}
-			Response::Response(const Document& _Document) : IDocument(_Document), ISuccess(_Document.Get() != nullptr)
+			Response::Response(const Schema& _Document) : IDocument(_Document), ISuccess(_Document.Get() != nullptr)
 			{
 			}
 			Response::Response(bool _Success) : ISuccess(_Success)
@@ -1656,25 +1656,25 @@ namespace Tomahawk
 				ICursor.Release();
 				IDocument.Release();
 			}
-			Core::Async<Core::Document*> Response::Fetch() const
+			Core::Async<Core::Schema*> Response::Fetch() const
 			{
 				if (IDocument)
-					return IDocument.ToDocument();
+					return IDocument.ToSchema();
 
 				if (!ICursor)
-					return (Core::Document*)nullptr;
+					return (Core::Schema*)nullptr;
 
 				Cursor Context(ICursor);
-				return ICursor.Next().Then<Core::Document*>([Context](bool&& Result)
+				return ICursor.Next().Then<Core::Schema*>([Context](bool&& Result)
 				{
-					return Context.GetCurrent().ToDocument();
+					return Context.GetCurrent().ToSchema();
 				});
 			}
-			Core::Async<Core::Document*> Response::FetchAll() const
+			Core::Async<Core::Schema*> Response::FetchAll() const
 			{
 				if (IDocument)
 				{
-					Core::Document* Result = IDocument.ToDocument();
+					Core::Schema* Result = IDocument.ToSchema();
 					return Result ? Result : Core::Var::Set::Array();
 				}
 
@@ -1682,11 +1682,11 @@ namespace Tomahawk
 					return Core::Var::Set::Array();
 
 				Cursor Context(ICursor);
-				return Core::Coasync<Core::Document*>([Context]()
+				return Core::Coasync<Core::Schema*>([Context]()
 				{
-					Core::Document* Result = Core::Var::Set::Array();
+					Core::Schema* Result = Core::Var::Set::Array();
 					while (TH_AWAIT(Context.Next()))
-						Result->Push(Context.GetCurrent().ToDocument());
+						Result->Push(Context.GetCurrent().ToSchema());
 
 					return Result;
 				});
@@ -1705,7 +1705,7 @@ namespace Tomahawk
 				if (!ICursor)
 					return Result;
 
-				Document Source = ICursor.GetCurrent();
+				Schema Source = ICursor.GetCurrent();
 				if (Source)
 				{
 					Source.GetProperty(Name, &Result);
@@ -1725,7 +1725,7 @@ namespace Tomahawk
 			{
 				return ICursor;
 			}
-			Document Response::GetDocument() const
+			Schema Response::GetDocument() const
 			{
 				return IDocument;
 			}
@@ -1769,7 +1769,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options)
+			Core::Async<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1796,7 +1796,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options)
+			Core::Async<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1811,7 +1811,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::Remove(const Document& Options)
+			Core::Async<bool> Collection::Remove(const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1826,7 +1826,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::RemoveIndex(const std::string& Name, const Document& Options)
+			Core::Async<bool> Collection::RemoveIndex(const std::string& Name, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1841,11 +1841,11 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Document> Collection::RemoveMany(const Document& Match, const Document& Options)
+			Core::Async<Schema> Collection::RemoveMany(const Schema& Match, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, Match, Options](Core::Async<Document>& Future)
+				return Core::Async<Schema>::Execute([Context, Match, Options](Core::Async<Schema>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_collection_delete_many, Context, Match.Get(), Options.Get(), &Subresult);
@@ -1853,20 +1853,20 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::RemoveOne(const Document& Match, const Document& Options)
+			Core::Async<Schema> Collection::RemoveOne(const Schema& Match, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, Match, Options](Core::Async<Document>& Future)
+				return Core::Async<Schema>::Execute([Context, Match, Options](Core::Async<Schema>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_collection_delete_one, Context, Match.Get(), Options.Get(), &Subresult);
@@ -1874,20 +1874,20 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options)
+			Core::Async<Schema> Collection::ReplaceOne(const Schema& Match, const Schema& Replacement, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, Match, Replacement, Options](Core::Async<Document>& Future)
+				return Core::Async<Schema>::Execute([Context, Match, Replacement, Options](Core::Async<Schema>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_collection_replace_one, Context, Match.Get(), Replacement.Get(), Options.Get(), &Subresult);
@@ -1896,23 +1896,23 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options)
+			Core::Async<Schema> Collection::InsertMany(std::vector<Schema>& List, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(!List.empty(), nullptr, "insert array should not be empty");
-				std::vector<Document> Array(std::move(List));
+				std::vector<Schema> Array(std::move(List));
 				auto* Context = Base;
 
-				return Core::Async<Document>::Execute([Context, Array = std::move(Array), Options](Core::Async<Document>& Future) mutable
+				return Core::Async<Schema>::Execute([Context, Array = std::move(Array), Options](Core::Async<Schema>& Future) mutable
 				{
 					TDocument** Subarray = (TDocument**)TH_MALLOC(sizeof(TDocument*) * Array.size());
 					for (size_t i = 0; i < Array.size(); i++)
@@ -1926,20 +1926,20 @@ namespace Tomahawk
 					TH_FREE(Subarray);
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::InsertOne(const Document& Result, const Document& Options)
+			Core::Async<Schema> Collection::InsertOne(const Schema& Result, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, Result, Options](Core::Async<Document>& Future)
+				return Core::Async<Schema>::Execute([Context, Result, Options](Core::Async<Schema>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult);
@@ -1947,20 +1947,20 @@ namespace Tomahawk
 					Result.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options)
+			Core::Async<Schema> Collection::UpdateMany(const Schema& Match, const Schema& Update, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, Match, Update, Options](Core::Async<Document>& Future)
+				return Core::Async<Schema>::Execute([Context, Match, Update, Options](Core::Async<Schema>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_collection_update_many, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult);
@@ -1969,20 +1969,20 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options)
+			Core::Async<Schema> Collection::UpdateOne(const Schema& Match, const Schema& Update, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, Match, Update, Options](Core::Async<Document>& Future)
+				return Core::Async<Schema>::Execute([Context, Match, Update, Options](Core::Async<Schema>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_collection_update_one, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult);
@@ -1991,20 +1991,20 @@ namespace Tomahawk
 					Options.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New)
+			Core::Async<Schema> Collection::FindAndModify(const Schema& Query, const Schema& Sort, const Schema& Update, const Schema& Fields, bool RemoveAt, bool Upsert, bool New)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
+				return Core::Async<Schema>::Execute([Context, Query, Sort, Update, Fields, RemoveAt, Upsert, New](Core::Async<Schema>& Future)
 				{
 					TDocument Subresult;
 					bool fResult = MongoExecuteQuery(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult);
@@ -2014,16 +2014,16 @@ namespace Tomahawk
 					Fields.Release();
 
 					if (!fResult)
-						Future = Document(nullptr);
+						Future = Schema(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Future = Schema::FromSource(&Subresult);
 					bson_destroy(&Subresult);
 				});
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<uint64_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
+			Core::Async<uint64_t> Collection::CountDocuments(const Schema& Match, const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2039,7 +2039,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Core::Async<uint64_t> Collection::CountDocumentsEstimated(const Document& Options) const
+			Core::Async<uint64_t> Collection::CountDocumentsEstimated(const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2054,7 +2054,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Core::Async<Cursor> Collection::FindIndexes(const Document& Options) const
+			Core::Async<Cursor> Collection::FindIndexes(const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2069,7 +2069,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Collection::FindMany(const Document& Match, const Document& Options) const
+			Core::Async<Cursor> Collection::FindMany(const Schema& Match, const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2085,17 +2085,17 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Collection::FindOne(const Document& Match, const Document& Options) const
+			Core::Async<Cursor> Collection::FindOne(const Schema& Match, const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
 				return Core::Async<Cursor>::Execute([Context, Match, Options](Core::Async<Cursor>& Future)
 				{
-					Document Settings = Options;
+					Schema Settings = Options;
 					if (Settings.Get() != nullptr)
 						Settings.SetInteger("limit", 1);
 					else
-						Settings = Document(BCON_NEW("limit", BCON_INT32(1)));
+						Settings = Schema(BCON_NEW("limit", BCON_INT32(1)));
 
 					Cursor Subresult = MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Settings.Get(), nullptr);
 					if (!Options.Get() && Settings.Get())
@@ -2109,7 +2109,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
+			Core::Async<Cursor> Collection::Aggregate(QueryFlags Flags, const Schema& Pipeline, const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2125,12 +2125,12 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once, Transaction* Session)
+			Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session)
 			{
 				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::GetQuery(Name, Map, Once), Session);
 			}
-			Core::Async<Response> Collection::Query(const Document& Command, Transaction* Session)
+			Core::Async<Response> Collection::Query(const Schema& Command, Transaction* Session)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Command.Get())
@@ -2204,7 +2204,7 @@ namespace Tomahawk
 					}
 
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run find-one query without @match");
@@ -2228,7 +2228,7 @@ namespace Tomahawk
 					}
 
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run find-many query without @match");
@@ -2252,7 +2252,7 @@ namespace Tomahawk
 					}
 
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-one query without @match");
@@ -2260,7 +2260,7 @@ namespace Tomahawk
 					}
 
 					Property Update;
-					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
+					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-one query without @update");
@@ -2268,7 +2268,7 @@ namespace Tomahawk
 					}
 
 					Command.Release();
-					return UpdateOne(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+					return UpdateOne(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2284,7 +2284,7 @@ namespace Tomahawk
 					}
 
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-many query without @match");
@@ -2292,7 +2292,7 @@ namespace Tomahawk
 					}
 
 					Property Update;
-					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
+					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run update-many query without @update");
@@ -2300,7 +2300,7 @@ namespace Tomahawk
 					}
 
 					Command.Release();
-					return UpdateMany(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+					return UpdateMany(Match.GetOwnership(), Update.GetOwnership(), Options.GetOwnership()).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2316,7 +2316,7 @@ namespace Tomahawk
 					}
 
 					Property Value;
-					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
+					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run insert-one query without @value");
@@ -2324,7 +2324,7 @@ namespace Tomahawk
 					}
 
 					Command.Release();
-					return InsertOne(Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+					return InsertOne(Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2347,7 +2347,7 @@ namespace Tomahawk
 						return Response();
 					}
 
-					std::vector<Document> Data;
+					std::vector<Schema> Data;
 					Values.Get().Loop([&Data](Property* Value)
 					{
 						Data.push_back(Value->GetOwnership());
@@ -2355,7 +2355,7 @@ namespace Tomahawk
 					});
 
 					Command.Release();
-					return InsertMany(Data, Options.GetOwnership()).Then<Response>([](Document&& Result)
+					return InsertMany(Data, Options.GetOwnership()).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2363,7 +2363,7 @@ namespace Tomahawk
 				else if (Type.String == "find-update")
 				{
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run find-and-modify query without @match");
@@ -2378,7 +2378,7 @@ namespace Tomahawk
 					Property New = Command["new"];
 
 					Command.Release();
-					return FindAndModify(Match.GetOwnership(), Sort.GetOwnership(), Update.GetOwnership(), Fields.GetOwnership(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<Response>([](Document&& Result)
+					return FindAndModify(Match.GetOwnership(), Sort.GetOwnership(), Update.GetOwnership(), Fields.GetOwnership(), Remove.Boolean, Upsert.Boolean, New.Boolean).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2394,7 +2394,7 @@ namespace Tomahawk
 					}
 
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run replace-one query without @match");
@@ -2402,7 +2402,7 @@ namespace Tomahawk
 					}
 
 					Property Value;
-					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
+					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run replace-one query without @value");
@@ -2410,7 +2410,7 @@ namespace Tomahawk
 					}
 
 					Command.Release();
-					return ReplaceOne(Match.GetOwnership(), Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+					return ReplaceOne(Match.GetOwnership(), Value.GetOwnership(), Options.GetOwnership()).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2426,7 +2426,7 @@ namespace Tomahawk
 					}
 
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run remove-one query without @value");
@@ -2434,7 +2434,7 @@ namespace Tomahawk
 					}
 
 					Command.Release();
-					return RemoveOne(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+					return RemoveOne(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2450,7 +2450,7 @@ namespace Tomahawk
 					}
 
 					Property Match;
-					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
+					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
 						TH_ERR("cannot run remove-many query without @value");
@@ -2458,7 +2458,7 @@ namespace Tomahawk
 					}
 
 					Command.Release();
-					return RemoveMany(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Document&& Result)
+					return RemoveMany(Match.GetOwnership(), Options.GetOwnership()).Then<Response>([](Schema&& Result)
 					{
 						return Response(Result);
 					});
@@ -2480,7 +2480,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Stream Collection::CreateStream(const Document& Options)
+			Stream Collection::CreateStream(const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -2553,7 +2553,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Database::RemoveWithOptions(const Document& Options)
+			Core::Async<bool> Database::RemoveWithOptions(const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Options.Get())
@@ -2571,7 +2571,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Database::AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom)
+			Core::Async<bool> Database::AddUser(const std::string& Username, const std::string& Password, const Schema& Roles, const Schema& Custom)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2605,7 +2605,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Database::FindCollections(const Document& Options) const
+			Core::Async<Cursor> Database::FindCollections(const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2620,7 +2620,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Collection> Database::CreateCollection(const std::string& Name, const Document& Options)
+			Core::Async<Collection> Database::CreateCollection(const std::string& Name, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -2647,7 +2647,7 @@ namespace Tomahawk
 				return Collection(nullptr);
 #endif
 			}
-			std::vector<std::string> Database::GetCollectionNames(const Document& Options) const
+			std::vector<std::string> Database::GetCollectionNames(const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -2715,7 +2715,7 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Core::Async<bool> Watcher::Next(const Document& Result) const
+			Core::Async<bool> Watcher::Next(const Schema& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())
@@ -2731,7 +2731,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Watcher::Error(const Document& Result) const
+			Core::Async<bool> Watcher::Error(const Schema& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())
@@ -2755,7 +2755,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options)
+			Watcher Watcher::FromConnection(Connection* Connection, const Schema& Pipeline, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Connection)
@@ -2774,7 +2774,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromDatabase(const Database& Database, const Document& Pipeline, const Document& Options)
+			Watcher Watcher::FromDatabase(const Database& Database, const Schema& Pipeline, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Database.Get())
@@ -2793,7 +2793,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Watcher Watcher::FromCollection(const Collection& Collection, const Document& Pipeline, const Document& Options)
+			Watcher Watcher::FromCollection(const Collection& Collection, const Schema& Pipeline, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Collection.Get())
@@ -2816,7 +2816,7 @@ namespace Tomahawk
 			Transaction::Transaction(TTransaction* NewBase) : Base(NewBase)
 			{
 			}
-			bool Transaction::Push(Document& QueryOptions) const
+			bool Transaction::Push(Schema& QueryOptions) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!QueryOptions.Get())
@@ -2873,127 +2873,127 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Document> Transaction::RemoveMany(const Collection& fBase, const Document& Match, const Document& fOptions)
+			Core::Async<Schema> Transaction::RemoveMany(const Collection& fBase, const Schema& Match, const Schema& fOptions)
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Match.Release();
 					Options.Release();
-					return Document(nullptr);
+					return Schema(nullptr);
 				}
 
 				return Collection(fBase.Get()).RemoveMany(Match, Options);
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::RemoveOne(const Collection& fBase, const Document& Match, const Document& fOptions)
+			Core::Async<Schema> Transaction::RemoveOne(const Collection& fBase, const Schema& Match, const Schema& fOptions)
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Match.Release();
 					Options.Release();
-					return Document(nullptr);
+					return Schema(nullptr);
 				}
 
 				return Collection(fBase.Get()).RemoveOne(Match, Options);
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::ReplaceOne(const Collection& fBase, const Document& Match, const Document& Replacement, const Document& fOptions)
+			Core::Async<Schema> Transaction::ReplaceOne(const Collection& fBase, const Schema& Match, const Schema& Replacement, const Schema& fOptions)
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Match.Release();
 					Replacement.Release();
 					Options.Release();
-					return Document(nullptr);
+					return Schema(nullptr);
 				}
 
 				return Collection(fBase.Get()).ReplaceOne(Match, Replacement, Options);
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::InsertMany(const Collection& fBase, std::vector<Document>& List, const Document& fOptions)
+			Core::Async<Schema> Transaction::InsertMany(const Collection& fBase, std::vector<Schema>& List, const Schema& fOptions)
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Options.Release();
 					for (auto& Item : List)
 						Item.Release();
 
-					return Document(nullptr);
+					return Schema(nullptr);
 				}
 
 				return Collection(fBase.Get()).InsertMany(List, Options);
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::InsertOne(const Collection& fBase, const Document& Result, const Document& fOptions)
+			Core::Async<Schema> Transaction::InsertOne(const Collection& fBase, const Schema& Result, const Schema& fOptions)
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Result.Release();
 					Options.Release();
-					return Document(nullptr);
+					return Schema(nullptr);
 				}
 
 				return Collection(fBase.Get()).InsertOne(Result, Options);
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::UpdateMany(const Collection& fBase, const Document& Match, const Document& Update, const Document& fOptions)
+			Core::Async<Schema> Transaction::UpdateMany(const Collection& fBase, const Schema& Match, const Schema& Update, const Schema& fOptions)
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Match.Release();
 					Update.Release();
 					Options.Release();
-					return Document(nullptr);
+					return Schema(nullptr);
 				}
 
 				return Collection(fBase.Get()).UpdateMany(Match, Update, Options);
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::UpdateOne(const Collection& fBase, const Document& Match, const Document& Update, const Document& fOptions)
+			Core::Async<Schema> Transaction::UpdateOne(const Collection& fBase, const Schema& Match, const Schema& Update, const Schema& fOptions)
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Match.Release();
 					Update.Release();
 					Options.Release();
-					return Document(nullptr);
+					return Schema(nullptr);
 				}
 
 				return Collection(fBase.Get()).UpdateOne(Match, Update, Options);
 #else
-				return Document(nullptr);
+				return Schema(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Transaction::FindMany(const Collection& fBase, const Document& Match, const Document& fOptions) const
+			Core::Async<Cursor> Transaction::FindMany(const Collection& fBase, const Schema& Match, const Schema& fOptions) const
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Match.Release();
@@ -3006,10 +3006,10 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Transaction::FindOne(const Collection& fBase, const Document& Match, const Document& fOptions) const
+			Core::Async<Cursor> Transaction::FindOne(const Collection& fBase, const Schema& Match, const Schema& fOptions) const
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Match.Release();
@@ -3022,10 +3022,10 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Transaction::Aggregate(const Collection& fBase, QueryFlags Flags, const Document& Pipeline, const Document& fOptions) const
+			Core::Async<Cursor> Transaction::Aggregate(const Collection& fBase, QueryFlags Flags, const Schema& Pipeline, const Schema& fOptions) const
 			{
 #ifdef TH_HAS_MONGOC
-				Document Options = fOptions;
+				Schema Options = fOptions;
 				if (!Push(Options))
 				{
 					Pipeline.Release();
@@ -3038,11 +3038,11 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Response> Transaction::TemplateQuery(const Collection& fBase, const std::string& Name, Core::DocumentArgs* Map, bool Once)
+			Core::Async<Response> Transaction::TemplateQuery(const Collection& fBase, const std::string& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				return Query(fBase, Driver::GetQuery(Name, Map, Once));
 			}
-			Core::Async<Response> Transaction::Query(const Collection& fBase, const Document& Command)
+			Core::Async<Response> Transaction::Query(const Collection& fBase, const Schema& Command)
 			{
 #ifdef TH_HAS_MONGOC
 				return Collection(fBase.Get()).Query(Command, this);
@@ -3296,7 +3296,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Connection::FindDatabases(const Document& Options) const
+			Core::Async<Cursor> Connection::FindDatabases(const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				return Core::Async<Cursor>::Execute([this, Options](Core::Async<Cursor>& Future)
@@ -3398,7 +3398,7 @@ namespace Tomahawk
 			{
 				return Base;
 			}
-			std::vector<std::string> Connection::GetDatabaseNames(const Document& Options) const
+			std::vector<std::string> Connection::GetDatabaseNames(const Schema& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				bson_error_t Error;
@@ -3799,7 +3799,7 @@ namespace Tomahawk
 				}
 
 				if (Args < 1)
-					Result.Cache = Document::FromJSON(Result.Request);
+					Result.Cache = Schema::FromJSON(Result.Request);
 
 				Safe->lock();
 				(*Queries)[Name] = Result;
@@ -3857,7 +3857,7 @@ namespace Tomahawk
 				Safe->unlock();
 				return true;
 			}
-			Document Driver::GetQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once)
+			Schema Driver::GetQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				TH_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
 				Safe->lock();
@@ -3878,7 +3878,7 @@ namespace Tomahawk
 
 				if (It->second.Cache.Get() != nullptr)
 				{
-					Document Result = It->second.Cache.Copy();
+					Schema Result = It->second.Cache.Copy();
 					Safe->unlock();
 
 					if (Once && Map != nullptr)
@@ -3893,7 +3893,7 @@ namespace Tomahawk
 
 				if (!Map || Map->empty())
 				{
-					Document Result = Document::FromJSON(It->second.Request);
+					Schema Result = Schema::FromJSON(It->second.Request);
 					Safe->unlock();
 
 					if (Once && Map != nullptr)
@@ -3935,7 +3935,7 @@ namespace Tomahawk
 					Map->clear();
 				}
 
-				Document Data = Document::FromJSON(Origin.Request);
+				Schema Data = Schema::FromJSON(Origin.Request);
 				if (!Data.Get())
 					TH_ERR("[mongoc] could not construct query: \"%s\"", Name.c_str());
 
@@ -3954,7 +3954,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			std::string Driver::GetJSON(Core::Document* Source, bool Escape)
+			std::string Driver::GetJSON(Core::Schema* Source, bool Escape)
 			{
 				TH_ASSERT(Source != nullptr, std::string(), "source should be set");
 				switch (Source->Value.GetType())

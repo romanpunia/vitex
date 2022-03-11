@@ -40,7 +40,7 @@ namespace Tomahawk
 		TH_OUT bool CERegisterGzStream(VMManager* Engine);
 		TH_OUT bool CERegisterWebStream(VMManager* Engine);
 		TH_OUT bool CERegisterSchedule(VMManager* Engine);
-		TH_OUT bool CERegisterDocument(VMManager* Engine);
+		TH_OUT bool CERegisterSchema(VMManager* Engine);
 	}
 }
 #endif

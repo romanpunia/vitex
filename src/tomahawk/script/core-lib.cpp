@@ -237,16 +237,16 @@ namespace Tomahawk
 			}, Core::Difficulty::Heavy);
 		}
 
-		Core::Document* DocumentInit(Core::Document* Base)
+		Core::Schema* SchemaInit(Core::Schema* Base)
 		{
 			return Base;
 		}
-		Core::Document* DocumentConstructBuffer(unsigned char* Buffer)
+		Core::Schema* SchemaConstructBuffer(unsigned char* Buffer)
 		{
 			if (!Buffer)
 				return nullptr;
 
-			Core::Document* Result = Core::Var::Set::Object();
+			Core::Schema* Result = Core::Var::Set::Object();
 			VMCContext* Context = asGetActiveContext();
 			VMCManager* Manager = Context->GetEngine();
 			asUINT Length = *(asUINT*)Buffer;
@@ -314,9 +314,9 @@ namespace Tomahawk
 					{
 						Result->Set(Name, Core::Var::Null());
 					}
-					else if (Type && !strcmp("Document", Type->GetName()))
+					else if (Type && !strcmp("Schema", Type->GetName()))
 					{
-						Core::Document* Base = (Core::Document*)Ref;
+						Core::Schema* Base = (Core::Schema*)Ref;
 						if (Base->GetParent() != Result)
 							Base->AddRef();
 
@@ -345,38 +345,38 @@ namespace Tomahawk
 
 			return Result;
 		}
-		void DocumentConstruct(VMCGeneric* Generic)
+		void SchemaConstruct(VMCGeneric* Generic)
 		{
 			unsigned char* Buffer = (unsigned char*)Generic->GetArgAddress(0);
-			*(Core::Document**)Generic->GetAddressOfReturnLocation() = DocumentConstructBuffer(Buffer);
+			*(Core::Schema**)Generic->GetAddressOfReturnLocation() = SchemaConstructBuffer(Buffer);
 		}
-		Core::Document* DocumentGetIndex(Core::Document* Base, const std::string& Name)
+		Core::Schema* SchemaGetIndex(Core::Schema* Base, const std::string& Name)
 		{
-			Core::Document* Result = Base->Fetch(Name);
+			Core::Schema* Result = Base->Fetch(Name);
 			if (Result != nullptr)
 				return Result;
 
 			return Base->Set(Name, Core::Var::Undefined());
 		}
-		Core::Document* DocumentGetIndexOffset(Core::Document* Base, uint64_t Offset)
+		Core::Schema* SchemaGetIndexOffset(Core::Schema* Base, uint64_t Offset)
 		{
 			return Base->Get(Offset);
 		}
-		Core::Document* DocumentSet(Core::Document* Base, const std::string& Name, Core::Document* Value)
+		Core::Schema* SchemaSet(Core::Schema* Base, const std::string& Name, Core::Schema* Value)
 		{
 			if (Value != nullptr && Value->GetParent() != Base)
 				Value->AddRef();
 
 			return Base->Set(Name, Value);
 		}
-		Core::Document* DocumentPush(Core::Document* Base, Core::Document* Value)
+		Core::Schema* SchemaPush(Core::Schema* Base, Core::Schema* Value)
 		{
 			if (Value != nullptr)
 				Value->AddRef();
 
 			return Base->Push(Value);
 		}
-		STDArray* DocumentGetCollection(Core::Document* Base, const std::string& Name, bool Deep)
+		STDArray* SchemaGetCollection(Core::Schema* Base, const std::string& Name, bool Deep)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -386,14 +386,14 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			std::vector<Core::Document*> Nodes = Base->FetchCollection(Name, Deep);
+			std::vector<Core::Schema*> Nodes = Base->FetchCollection(Name, Deep);
 			for (auto& Node : Nodes)
 				Node->AddRef();
 
-			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
+			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Schema@>@");
 			return STDArray::Compose(Type.GetTypeInfo(), Nodes);
 		}
-		STDArray* DocumentGetChilds(Core::Document* Base)
+		STDArray* SchemaGetChilds(Core::Schema* Base)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -403,10 +403,10 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
+			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Schema@>@");
 			return STDArray::Compose(Type.GetTypeInfo(), Base->GetChilds());
 		}
-		STDArray* DocumentGetAttributes(Core::Document* Base)
+		STDArray* SchemaGetAttributes(Core::Schema* Base)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -416,10 +416,10 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Document@>@");
+			VMTypeInfo Type = Manager->Global().GetTypeInfoByDecl("Array<Schema@>@");
 			return STDArray::Compose(Type.GetTypeInfo(), Base->GetAttributes());
 		}
-		STDMap* DocumentGetNames(Core::Document* Base)
+		STDMap* SchemaGetNames(Core::Schema* Base)
 		{
 			VMContext* Context = VMContext::Get();
 			if (!Context)
@@ -437,14 +437,14 @@ namespace Tomahawk
 
 			return Map;
 		}
-		uint64_t DocumentGetSize(Core::Document* Base)
+		uint64_t SchemaGetSize(Core::Schema* Base)
 		{
 			return (uint64_t)Base->Size();
 		}
-		std::string DocumentToJSON(Core::Document* Base)
+		std::string SchemaToJSON(Core::Schema* Base)
 		{
 			std::string Stream;
-			Core::Document::WriteJSON(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+			Core::Schema::WriteJSON(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -452,10 +452,10 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		std::string DocumentToXML(Core::Document* Base)
+		std::string SchemaToXML(Core::Schema* Base)
 		{
 			std::string Stream;
-			Core::Document::WriteXML(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+			Core::Schema::WriteXML(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -463,7 +463,7 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		std::string DocumentToString(Core::Document* Base)
+		std::string SchemaToString(Core::Schema* Base)
 		{
 			switch (Base->Value.GetType())
 			{
@@ -488,35 +488,35 @@ namespace Tomahawk
 
 			return "";
 		}
-		std::string DocumentToBase64(Core::Document* Base)
+		std::string SchemaToBase64(Core::Schema* Base)
 		{
 			return Base->Value.GetBlob();
 		}
-		int64_t DocumentToInteger(Core::Document* Base)
+		int64_t SchemaToInteger(Core::Schema* Base)
 		{
 			return Base->Value.GetInteger();
 		}
-		double DocumentToNumber(Core::Document* Base)
+		double SchemaToNumber(Core::Schema* Base)
 		{
 			return Base->Value.GetNumber();
 		}
-		std::string DocumentToDecimal(Core::Document* Base)
+		std::string SchemaToDecimal(Core::Schema* Base)
 		{
 			return Base->Value.GetDecimal().ToString();
 		}
-		bool DocumentToBoolean(Core::Document* Base)
+		bool SchemaToBoolean(Core::Schema* Base)
 		{
 			return Base->Value.GetBoolean();
 		}
-		Core::Document* DocumentFromJSON(const std::string& Value)
+		Core::Schema* SchemaFromJSON(const std::string& Value)
 		{
-			return Core::Document::ReadJSON(Value.c_str(), Value.size());
+			return Core::Schema::ReadJSON(Value.c_str(), Value.size());
 		}
-		Core::Document* DocumentFromXML(const std::string& Value)
+		Core::Schema* SchemaFromXML(const std::string& Value)
 		{
-			return Core::Document::ReadXML(Value.c_str());
+			return Core::Schema::ReadXML(Value.c_str());
 		}
-		Core::Document* DocumentImport(const std::string& Value)
+		Core::Schema* SchemaImport(const std::string& Value)
 		{
 			VMManager* Manager = VMManager::Get();
 			if (!Manager)
@@ -524,12 +524,12 @@ namespace Tomahawk
 
 			return Manager->ImportJSON(Value);
 		}
-		Core::Document* DocumentCopyAssign(Core::Document* Base, const Core::Variant& Other)
+		Core::Schema* SchemaCopyAssign(Core::Schema* Base, const Core::Variant& Other)
 		{
 			Base->Value = Other;
 			return Base;
 		}
-		bool DocumentEquals(Core::Document* Base, Core::Document* Other)
+		bool SchemaEquals(Core::Schema* Base, Core::Schema* Other)
 		{
 			if (Other != nullptr)
 				return Base->Value == Other->Value;
@@ -1371,78 +1371,78 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool CERegisterDocument(VMManager* Engine)
+		bool CERegisterSchema(VMManager* Engine)
 		{
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			Engine->BeginNamespace("CE");
-			VMRefClass VDocument = Engine->Global().SetClassUnmanaged<Core::Document>("Document");
-			VDocument.SetProperty<Core::Document>("String Key", &Core::Document::Key);
-			VDocument.SetProperty<Core::Document>("Variant Value", &Core::Document::Value);
-			VDocument.SetUnmanagedConstructor<Core::Document, const Core::Variant&>("Document@ f(const Variant &in)");
-			VDocument.SetUnmanagedConstructorListEx<Core::Document>("Document@ f(int &in) {repeat {String, ?}}", &DocumentConstruct);
-			VDocument.SetMethod<Core::Document, Core::Variant, size_t>("Variant GetVar(uint) const", &Core::Document::GetVar);
-			VDocument.SetMethod<Core::Document, Core::Variant, const std::string&>("Variant GetVar(const String &in) const", &Core::Document::GetVar);
-			VDocument.SetMethod("Document@+ GetParent() const", &Core::Document::GetParent);
-			VDocument.SetMethod("Document@+ GetAttribute(const String &in) const", &Core::Document::GetAttribute);
-			VDocument.SetMethod<Core::Document, Core::Document*, size_t>("Document@+ Get(uint) const", &Core::Document::Get);
-			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&, bool>("Document@+ Get(const String &in, bool = false) const", &Core::Document::Fetch);
-			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&>("Document@+ Set(const String &in)", &Core::Document::Set);
-			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&, const Core::Variant&>("Document@+ Set(const String &in, const Variant &in)", &Core::Document::Set);
-			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&, const Core::Variant&>("Document@+ SetAttribute(const String& in, const Variant &in)", &Core::Document::SetAttribute);
-			VDocument.SetMethod<Core::Document, Core::Document*, const Core::Variant&>("Document@+ Push(const Variant &in)", &Core::Document::Push);
-			VDocument.SetMethod<Core::Document, Core::Document*, size_t>("Document@+ Pop(uint)", &Core::Document::Pop);
-			VDocument.SetMethod<Core::Document, Core::Document*, const std::string&>("Document@+ Pop(const String &in)", &Core::Document::Pop);
-			VDocument.SetMethod("Document@ Copy() const", &Core::Document::Copy);
-			VDocument.SetMethod("bool Has(const String &in) const", &Core::Document::Has);
-			VDocument.SetMethod("bool Has64(const String &in, uint = 12) const", &Core::Document::Has64);
-			VDocument.SetMethod("bool IsEmpty() const", &Core::Document::IsEmpty);
-			VDocument.SetMethod("bool IsAttribute() const", &Core::Document::IsAttribute);
-			VDocument.SetMethod("bool IsSaved() const", &Core::Document::IsAttribute);
-			VDocument.SetMethod("String GetName() const", &Core::Document::GetName);
-			VDocument.SetMethod("void Join(Document@+)", &Core::Document::Join);
-			VDocument.SetMethod("void Clear()", &Core::Document::Clear);
-			VDocument.SetMethod("void Save()", &Core::Document::Save);
-			VDocument.SetMethodEx("Document@+ Set(const String &in, Document@+)", &DocumentSet);
-			VDocument.SetMethodEx("Document@+ Push(Document@+)", &DocumentPush);
-			VDocument.SetMethodEx("Array<Document@>@ GetCollection(const String &in, bool = false) const", &DocumentGetCollection);
-			VDocument.SetMethodEx("Array<Document@>@ GetAttributes() const", &DocumentGetAttributes);
-			VDocument.SetMethodEx("Array<Document@>@ GetChilds() const", &DocumentGetChilds);
-			VDocument.SetMethodEx("Map@ GetNames() const", &DocumentGetNames);
-			VDocument.SetMethodEx("uint64 Size() const", &DocumentGetSize);
-			VDocument.SetMethodEx("String JSON() const", &DocumentToJSON);
-			VDocument.SetMethodEx("String XML() const", &DocumentToXML);
-			VDocument.SetMethodEx("String Str() const", &DocumentToString);
-			VDocument.SetMethodEx("String B64() const", &DocumentToBase64);
-			VDocument.SetMethodEx("int64 Int() const", &DocumentToInteger);
-			VDocument.SetMethodEx("double Num() const", &DocumentToNumber);
-			VDocument.SetMethodEx("String Dec() const", &DocumentToDecimal);
-			VDocument.SetMethodEx("bool Bool() const", &DocumentToBoolean);
-			VDocument.SetMethodStatic("CE::Document@ FromJSON(const String &in)", &DocumentFromJSON);
-			VDocument.SetMethodStatic("CE::Document@ FromXML(const String &in)", &DocumentFromXML);
-			VDocument.SetMethodStatic("CE::Document@ Import(const String &in)", &DocumentImport);
-			VDocument.SetOperatorEx(VMOpFunc::Assign, (uint32_t)VMOp::Left, "Document@+", "const Variant &in", &DocumentCopyAssign);
-			VDocument.SetOperatorEx(VMOpFunc::Equals, (uint32_t)(VMOp::Left | VMOp::Const), "bool", "Document@+", &DocumentEquals);
-			VDocument.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Document@+", "const String &in", &DocumentGetIndex);
-			VDocument.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Document@+", "uint64", &DocumentGetIndexOffset);
+			VMRefClass VSchema = Engine->Global().SetClassUnmanaged<Core::Schema>("Schema");
+			VSchema.SetProperty<Core::Schema>("String Key", &Core::Schema::Key);
+			VSchema.SetProperty<Core::Schema>("Variant Value", &Core::Schema::Value);
+			VSchema.SetUnmanagedConstructor<Core::Schema, const Core::Variant&>("Schema@ f(const Variant &in)");
+			VSchema.SetUnmanagedConstructorListEx<Core::Schema>("Schema@ f(int &in) {repeat {String, ?}}", &SchemaConstruct);
+			VSchema.SetMethod<Core::Schema, Core::Variant, size_t>("Variant GetVar(uint) const", &Core::Schema::GetVar);
+			VSchema.SetMethod<Core::Schema, Core::Variant, const std::string&>("Variant GetVar(const String &in) const", &Core::Schema::GetVar);
+			VSchema.SetMethod("Schema@+ GetParent() const", &Core::Schema::GetParent);
+			VSchema.SetMethod("Schema@+ GetAttribute(const String &in) const", &Core::Schema::GetAttribute);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, size_t>("Schema@+ Get(uint) const", &Core::Schema::Get);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&, bool>("Schema@+ Get(const String &in, bool = false) const", &Core::Schema::Fetch);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&>("Schema@+ Set(const String &in)", &Core::Schema::Set);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&, const Core::Variant&>("Schema@+ Set(const String &in, const Variant &in)", &Core::Schema::Set);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&, const Core::Variant&>("Schema@+ SetAttribute(const String& in, const Variant &in)", &Core::Schema::SetAttribute);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, const Core::Variant&>("Schema@+ Push(const Variant &in)", &Core::Schema::Push);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, size_t>("Schema@+ Pop(uint)", &Core::Schema::Pop);
+			VSchema.SetMethod<Core::Schema, Core::Schema*, const std::string&>("Schema@+ Pop(const String &in)", &Core::Schema::Pop);
+			VSchema.SetMethod("Schema@ Copy() const", &Core::Schema::Copy);
+			VSchema.SetMethod("bool Has(const String &in) const", &Core::Schema::Has);
+			VSchema.SetMethod("bool Has64(const String &in, uint = 12) const", &Core::Schema::Has64);
+			VSchema.SetMethod("bool IsEmpty() const", &Core::Schema::IsEmpty);
+			VSchema.SetMethod("bool IsAttribute() const", &Core::Schema::IsAttribute);
+			VSchema.SetMethod("bool IsSaved() const", &Core::Schema::IsAttribute);
+			VSchema.SetMethod("String GetName() const", &Core::Schema::GetName);
+			VSchema.SetMethod("void Join(Schema@+)", &Core::Schema::Join);
+			VSchema.SetMethod("void Clear()", &Core::Schema::Clear);
+			VSchema.SetMethod("void Save()", &Core::Schema::Save);
+			VSchema.SetMethodEx("Schema@+ Set(const String &in, Schema@+)", &SchemaSet);
+			VSchema.SetMethodEx("Schema@+ Push(Schema@+)", &SchemaPush);
+			VSchema.SetMethodEx("Array<Schema@>@ GetCollection(const String &in, bool = false) const", &SchemaGetCollection);
+			VSchema.SetMethodEx("Array<Schema@>@ GetAttributes() const", &SchemaGetAttributes);
+			VSchema.SetMethodEx("Array<Schema@>@ GetChilds() const", &SchemaGetChilds);
+			VSchema.SetMethodEx("Map@ GetNames() const", &SchemaGetNames);
+			VSchema.SetMethodEx("uint64 Size() const", &SchemaGetSize);
+			VSchema.SetMethodEx("String JSON() const", &SchemaToJSON);
+			VSchema.SetMethodEx("String XML() const", &SchemaToXML);
+			VSchema.SetMethodEx("String Str() const", &SchemaToString);
+			VSchema.SetMethodEx("String B64() const", &SchemaToBase64);
+			VSchema.SetMethodEx("int64 Int() const", &SchemaToInteger);
+			VSchema.SetMethodEx("double Num() const", &SchemaToNumber);
+			VSchema.SetMethodEx("String Dec() const", &SchemaToDecimal);
+			VSchema.SetMethodEx("bool Bool() const", &SchemaToBoolean);
+			VSchema.SetMethodStatic("CE::Schema@ FromJSON(const String &in)", &SchemaFromJSON);
+			VSchema.SetMethodStatic("CE::Schema@ FromXML(const String &in)", &SchemaFromXML);
+			VSchema.SetMethodStatic("CE::Schema@ Import(const String &in)", &SchemaImport);
+			VSchema.SetOperatorEx(VMOpFunc::Assign, (uint32_t)VMOp::Left, "Schema@+", "const Variant &in", &SchemaCopyAssign);
+			VSchema.SetOperatorEx(VMOpFunc::Equals, (uint32_t)(VMOp::Left | VMOp::Const), "bool", "Schema@+", &SchemaEquals);
+			VSchema.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Schema@+", "const String &in", &SchemaGetIndex);
+			VSchema.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "Schema@+", "uint64", &SchemaGetIndexOffset);
 			Engine->EndNamespace();
 
 			VMGlobal& Register = Engine->Global();
 			Engine->BeginNamespace("CE::Var::Set");
-			Register.SetFunction("CE::Document@ Auto(const String &in, bool = false)", &Core::Var::Auto);
-			Register.SetFunction("CE::Document@ Null()", &Core::Var::Set::Null);
-			Register.SetFunction("CE::Document@ Undefined()", &Core::Var::Set::Undefined);
-			Register.SetFunction("CE::Document@ Object()", &Core::Var::Set::Object);
-			Register.SetFunction("CE::Document@ Array()", &Core::Var::Set::Array);
-			Register.SetFunction("CE::Document@ Pointer(Address@)", &Core::Var::Set::Pointer);
-			Register.SetFunction("CE::Document@ Integer(int64)", &Core::Var::Set::Integer);
-			Register.SetFunction("CE::Document@ Number(double)", &Core::Var::Set::Number);
-			Register.SetFunction("CE::Document@ Boolean(bool)", &Core::Var::Set::Boolean);
-			Register.SetFunction<Core::Document* (const std::string&)>("CE::Document@ String(const String &in)", &Core::Var::Set::String);
-			Register.SetFunction<Core::Document* (const std::string&)>("CE::Document@ Base64(const String &in)", &Core::Var::Set::Base64);
-			Register.SetFunction<Core::Document* (const std::string&)>("CE::Document@ Decimal(const String &in)", &Core::Var::Set::DecimalString);
+			Register.SetFunction("CE::Schema@ Auto(const String &in, bool = false)", &Core::Var::Auto);
+			Register.SetFunction("CE::Schema@ Null()", &Core::Var::Set::Null);
+			Register.SetFunction("CE::Schema@ Undefined()", &Core::Var::Set::Undefined);
+			Register.SetFunction("CE::Schema@ Object()", &Core::Var::Set::Object);
+			Register.SetFunction("CE::Schema@ Array()", &Core::Var::Set::Array);
+			Register.SetFunction("CE::Schema@ Pointer(Address@)", &Core::Var::Set::Pointer);
+			Register.SetFunction("CE::Schema@ Integer(int64)", &Core::Var::Set::Integer);
+			Register.SetFunction("CE::Schema@ Number(double)", &Core::Var::Set::Number);
+			Register.SetFunction("CE::Schema@ Boolean(bool)", &Core::Var::Set::Boolean);
+			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ String(const String &in)", &Core::Var::Set::String);
+			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ Base64(const String &in)", &Core::Var::Set::Base64);
+			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ Decimal(const String &in)", &Core::Var::Set::DecimalString);
 			Engine->EndNamespace();
 			Engine->BeginNamespace("CE::Var");
-			Register.SetFunction("CE::Document@+ Init(Document@+)", &DocumentInit);
+			Register.SetFunction("CE::Schema@+ Init(Schema@+)", &SchemaInit);
 			Engine->EndNamespace();
 
 			return true;

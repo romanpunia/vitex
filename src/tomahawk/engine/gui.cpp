@@ -3032,7 +3032,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Context::Inject(Core::Document* Conf, const std::string& Relative)
+			bool Context::Inject(Core::Schema* Conf, const std::string& Relative)
 			{
 				TH_ASSERT(Conf != nullptr, false, "conf should be set");
 				bool State = Loading;
@@ -3041,7 +3041,7 @@ namespace Tomahawk
 				auto FontFaces = Conf->FindCollection("font-face", true);
 				for (auto* Face : FontFaces)
 				{
-					Core::Document* IPath = Face->GetAttribute("path");
+					Core::Schema* IPath = Face->GetAttribute("path");
 					if (!IPath)
 					{
 						TH_ERR("path is required for font face");
@@ -3059,9 +3059,9 @@ namespace Tomahawk
 				}
 
 				auto Documents = Conf->FindCollection("document", true);
-				for (auto* Document : Documents)
+				for (auto* Schema : Documents)
 				{
-					Core::Document* IPath = Document->GetAttribute("path");
+					Core::Schema* IPath = Schema->GetAttribute("path");
 					if (!IPath)
 					{
 						TH_ERR("path is required for document");
@@ -3078,7 +3078,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					if (Document->GetAttribute("show") != nullptr)
+					if (Schema->GetAttribute("show") != nullptr)
 						Result.Show();
 				}
 
@@ -3093,7 +3093,7 @@ namespace Tomahawk
 				bool State = Loading;
 				Loading = true;
 
-				Core::Document* Sheet = Subsystem::RenderInterface->GetContent()->Load<Core::Document>(ConfPath);
+				Core::Schema* Sheet = Subsystem::RenderInterface->GetContent()->Load<Core::Schema>(ConfPath);
 				if (!Sheet)
 				{
 					Loading = State;
@@ -3213,17 +3213,17 @@ namespace Tomahawk
 			{
 				return Base->GetElementAtPoint(Rml::Vector2f(Point.X, Point.Y), IgnoreElement.GetElement(), Element.GetElement());
 			}
-			void Context::PullDocumentToFront(const IElementDocument& Document)
+			void Context::PullDocumentToFront(const IElementDocument& Schema)
 			{
-				return Base->PullDocumentToFront(Document.GetElementDocument());
+				return Base->PullDocumentToFront(Schema.GetElementDocument());
 			}
-			void Context::PushDocumentToBack(const IElementDocument& Document)
+			void Context::PushDocumentToBack(const IElementDocument& Schema)
 			{
-				return Base->PushDocumentToBack(Document.GetElementDocument());
+				return Base->PushDocumentToBack(Schema.GetElementDocument());
 			}
-			void Context::UnfocusDocument(const IElementDocument& Document)
+			void Context::UnfocusDocument(const IElementDocument& Schema)
 			{
-				return Base->UnfocusDocument(Document.GetElementDocument());
+				return Base->UnfocusDocument(Schema.GetElementDocument());
 			}
 			void Context::AddEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase)
 			{

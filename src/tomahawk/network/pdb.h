@@ -199,8 +199,8 @@ namespace Tomahawk
 			class TH_OUT Util
 			{
 			public:
-				static std::string InlineArray(Cluster* Client, Core::Document* Array);
-				static std::string InlineQuery(Cluster* Client, Core::Document* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default = "TRUE");
+				static std::string InlineArray(Cluster* Client, Core::Schema* Array);
+				static std::string InlineQuery(Cluster* Client, Core::Schema* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default = "TRUE");
 			};
 
 			class TH_OUT Address
@@ -232,7 +232,7 @@ namespace Tomahawk
 
 			public:
 				Notify(TNotify* NewBase);
-				Core::Document* GetDocument() const;
+				Core::Schema* GetSchema() const;
 				std::string GetName() const;
 				std::string GetData() const;
 				int GetPid() const;
@@ -254,7 +254,7 @@ namespace Tomahawk
 				int SetValueText(char* Data, size_t Size);
 				std::string GetName() const;
 				Core::Variant Get() const;
-				Core::Document* GetInline() const;
+				Core::Schema* GetInline() const;
 				char* GetRaw() const;
 				int GetFormatId() const;
 				int GetModId() const;
@@ -285,8 +285,8 @@ namespace Tomahawk
 				Row(TResponse* NewBase, size_t fRowIndex);
 
 			public:
-				Core::Document* GetObject() const;
-				Core::Document* GetArray() const;
+				Core::Schema* GetObject() const;
+				Core::Schema* GetArray() const;
 				size_t GetIndex() const;
 				size_t GetSize() const;
 				Response GetCursor() const;
@@ -317,10 +317,10 @@ namespace Tomahawk
 				Response();
 				Response(TResponse* NewBase);
 				void Release();
-				Core::Document* GetArrayOfObjects() const;
-				Core::Document* GetArrayOfArrays() const;
-				Core::Document* GetObject(size_t Index = 0) const;
-				Core::Document* GetArray(size_t Index = 0) const;
+				Core::Schema* GetArrayOfObjects() const;
+				Core::Schema* GetArrayOfArrays() const;
+				Core::Schema* GetObject(size_t Index = 0) const;
+				Core::Schema* GetArray(size_t Index = 0) const;
 				std::string GetCommandStatusText() const;
 				std::string GetStatusText() const;
 				std::string GetErrorText() const;
@@ -468,8 +468,8 @@ namespace Tomahawk
 				Core::Async<bool> TxRollback(uint64_t Token);
 				Core::Async<bool> Connect(const Address& URI, size_t Connections);
 				Core::Async<bool> Disconnect();
-				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::DocumentList* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
-				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
+				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
+				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
 				Core::Async<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, uint64_t Token = 0);
 				TConnection* GetConnection(QueryState State);
 				TConnection* GetConnection() const;
@@ -519,14 +519,14 @@ namespace Tomahawk
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
-				static std::string Emplace(Cluster* Base, const std::string& SQL, Core::DocumentList* Map, bool Once = true);
-				static std::string GetQuery(Cluster* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+				static std::string Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once = true);
+				static std::string GetQuery(Cluster* Base, const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:
 				static std::string GetCharArray(TConnection* Base, const std::string& Src);
 				static std::string GetByteArray(TConnection* Base, const char* Src, size_t Size);
-				static std::string GetSQL(TConnection* Base, Core::Document* Source, bool Escape, bool Negate);
+				static std::string GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate);
 			};
 		}
 	}

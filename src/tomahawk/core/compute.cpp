@@ -7376,13 +7376,13 @@ namespace Tomahawk
 				return "";
 
 			std::string Header;
-			Core::Document::WriteJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
+			Core::Schema::WriteJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
 			{
 				Header.append(Buffer, Size);
 			});
 
 			std::string Payload;
-			Core::Document::WriteJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
+			Core::Schema::WriteJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
 			{
 				Payload.append(Buffer, Size);
 			});
@@ -7401,13 +7401,13 @@ namespace Tomahawk
 
 			size_t Offset = Source[0].size() + Source[1].size() + 1;
 			Source[0] = Base64URLDecode(Source[0]);
-			Core::Document* Header = Core::Document::ReadJSON(Source[0].c_str(), Source[0].size());
+			Core::Schema* Header = Core::Schema::ReadJSON(Source[0].c_str(), Source[0].size());
 
 			if (!Header)
 				return nullptr;
 
 			Source[1] = Base64URLDecode(Source[1]);
-			Core::Document* Payload = Core::Document::ReadJSON(Source[1].c_str(), Source[1].size());
+			Core::Schema* Payload = Core::Schema::ReadJSON(Source[1].c_str(), Source[1].size());
 
 			if (!Payload)
 			{
@@ -7429,14 +7429,14 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Common::DocEncrypt(Core::Document* Src, const char* Key, const char* Salt)
+		std::string Common::DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt)
 		{
-			TH_ASSERT(Src != nullptr, std::string(), "document should be set");
+			TH_ASSERT(Src != nullptr, std::string(), "schema should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
 
 			std::string Result;
-			Core::Document::WriteJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
+			Core::Schema::WriteJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
 			{
 				Result.append(Buffer, Size);
 			});
@@ -7444,14 +7444,14 @@ namespace Tomahawk
 			Result = Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
 			return Result;
 		}
-		Core::Document* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
+		Core::Schema* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
 		{
 			TH_ASSERT(!Value.empty(), nullptr, "value should not be empty");
 			TH_ASSERT(Key != nullptr, nullptr, "key should be set");
 			TH_ASSERT(Salt != nullptr, nullptr, "salt should be set");
 
 			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt);
-			return Core::Document::ReadJSON(Source.c_str(), Source.size());
+			return Core::Schema::ReadJSON(Source.c_str(), Source.size());
 		}
 		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
@@ -8309,7 +8309,7 @@ namespace Tomahawk
 		}
 		void WebToken::SetAudience(const std::vector<std::string>& Value)
 		{
-			Core::Document* Array = Core::Var::Set::Array();
+			Core::Schema* Array = Core::Var::Set::Array();
 			for (auto& Item : Value)
 				Array->Push(Core::Var::String(Item));
 

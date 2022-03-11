@@ -4282,81 +4282,81 @@ namespace Tomahawk
 			Atom.clear(std::memory_order_release);
 		}
 
-		Document* Var::Set::Auto(Variant&& Value)
+		Schema* Var::Set::Auto(Variant&& Value)
 		{
-			return new Document(std::move(Value));
+			return new Schema(std::move(Value));
 		}
-		Document* Var::Set::Auto(const Variant& Value)
+		Schema* Var::Set::Auto(const Variant& Value)
 		{
-			return new Document(Value);
+			return new Schema(Value);
 		}
-		Document* Var::Set::Auto(const std::string& Value, bool Strict)
+		Schema* Var::Set::Auto(const std::string& Value, bool Strict)
 		{
-			return new Document(Var::Auto(Value, Strict));
+			return new Schema(Var::Auto(Value, Strict));
 		}
-		Document* Var::Set::Null()
+		Schema* Var::Set::Null()
 		{
-			return new Document(Var::Null());
+			return new Schema(Var::Null());
 		}
-		Document* Var::Set::Undefined()
+		Schema* Var::Set::Undefined()
 		{
-			return new Document(Var::Undefined());
+			return new Schema(Var::Undefined());
 		}
-		Document* Var::Set::Object()
+		Schema* Var::Set::Object()
 		{
-			return new Document(Var::Object());
+			return new Schema(Var::Object());
 		}
-		Document* Var::Set::Array()
+		Schema* Var::Set::Array()
 		{
-			return new Document(Var::Array());
+			return new Schema(Var::Array());
 		}
-		Document* Var::Set::Pointer(void* Value)
+		Schema* Var::Set::Pointer(void* Value)
 		{
-			return new Document(Var::Pointer(Value));
+			return new Schema(Var::Pointer(Value));
 		}
-		Document* Var::Set::String(const std::string& Value)
+		Schema* Var::Set::String(const std::string& Value)
 		{
-			return new Document(Var::String(Value));
+			return new Schema(Var::String(Value));
 		}
-		Document* Var::Set::String(const char* Value, size_t Size)
+		Schema* Var::Set::String(const char* Value, size_t Size)
 		{
-			return new Document(Var::String(Value, Size));
+			return new Schema(Var::String(Value, Size));
 		}
-		Document* Var::Set::Base64(const std::string& Value)
+		Schema* Var::Set::Base64(const std::string& Value)
 		{
-			return new Document(Var::Base64(Value));
+			return new Schema(Var::Base64(Value));
 		}
-		Document* Var::Set::Base64(const unsigned char* Value, size_t Size)
+		Schema* Var::Set::Base64(const unsigned char* Value, size_t Size)
 		{
-			return new Document(Var::Base64(Value, Size));
+			return new Schema(Var::Base64(Value, Size));
 		}
-		Document* Var::Set::Base64(const char* Value, size_t Size)
+		Schema* Var::Set::Base64(const char* Value, size_t Size)
 		{
-			return new Document(Var::Base64(Value, Size));
+			return new Schema(Var::Base64(Value, Size));
 		}
-		Document* Var::Set::Integer(int64_t Value)
+		Schema* Var::Set::Integer(int64_t Value)
 		{
-			return new Document(Var::Integer(Value));
+			return new Schema(Var::Integer(Value));
 		}
-		Document* Var::Set::Number(double Value)
+		Schema* Var::Set::Number(double Value)
 		{
-			return new Document(Var::Number(Value));
+			return new Schema(Var::Number(Value));
 		}
-		Document* Var::Set::Decimal(const BigNumber& Value)
+		Schema* Var::Set::Decimal(const BigNumber& Value)
 		{
-			return new Document(Var::Decimal(Value));
+			return new Schema(Var::Decimal(Value));
 		}
-		Document* Var::Set::Decimal(BigNumber&& Value)
+		Schema* Var::Set::Decimal(BigNumber&& Value)
 		{
-			return new Document(Var::Decimal(std::move(Value)));
+			return new Schema(Var::Decimal(std::move(Value)));
 		}
-		Document* Var::Set::DecimalString(const std::string& Value)
+		Schema* Var::Set::DecimalString(const std::string& Value)
 		{
-			return new Document(Var::DecimalString(Value));
+			return new Schema(Var::DecimalString(Value));
 		}
-		Document* Var::Set::Boolean(bool Value)
+		Schema* Var::Set::Boolean(bool Value)
 		{
-			return new Document(Var::Boolean(Value));
+			return new Schema(Var::Boolean(Value));
 		}
 
 		Variant Var::Auto(const std::string& Value, bool Strict)
@@ -8474,13 +8474,13 @@ namespace Tomahawk
 		}
 		Schedule* Schedule::Singleton = nullptr;
 
-		Document::Document(const Variant& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(Base)
+		Schema::Schema(const Variant& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(Base)
 		{
 		}
-		Document::Document(Variant&& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(std::move(Base))
+		Schema::Schema(Variant&& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(std::move(Base))
 		{
 		}
-		Document::~Document()
+		Schema::~Schema()
 		{
 			if (Parent != nullptr && Parent->Nodes != nullptr)
 			{
@@ -8496,7 +8496,7 @@ namespace Tomahawk
 
 			Clear();
 		}
-		std::unordered_map<std::string, uint64_t> Document::GetNames() const
+		std::unordered_map<std::string, uint64_t> Schema::GetNames() const
 		{
 			std::unordered_map<std::string, uint64_t> Mapping;
 			uint64_t Index = 0;
@@ -8504,9 +8504,9 @@ namespace Tomahawk
 			ProcessNames(this, &Mapping, Index);
 			return Mapping;
 		}
-		std::vector<Document*> Document::FindCollection(const std::string& Name, bool Deep) const
+		std::vector<Schema*> Schema::FindCollection(const std::string& Name, bool Deep) const
 		{
-			std::vector<Document*> Result;
+			std::vector<Schema*> Result;
 			if (!Nodes)
 				return Result;
 
@@ -8518,38 +8518,38 @@ namespace Tomahawk
 				if (!Deep)
 					continue;
 
-				std::vector<Document*> New = Value->FindCollection(Name);
+				std::vector<Schema*> New = Value->FindCollection(Name);
 				for (auto& Subvalue : New)
 					Result.push_back(Subvalue);
 			}
 
 			return Result;
 		}
-		std::vector<Document*> Document::FetchCollection(const std::string& Notation, bool Deep) const
+		std::vector<Schema*> Schema::FetchCollection(const std::string& Notation, bool Deep) const
 		{
 			std::vector<std::string> Names = Parser(Notation).Split('.');
 			if (Names.empty())
-				return std::vector<Document*>();
+				return std::vector<Schema*>();
 
 			if (Names.size() == 1)
 				return FindCollection(*Names.begin());
 
-			Document* Current = Find(*Names.begin(), Deep);
+			Schema* Current = Find(*Names.begin(), Deep);
 			if (!Current)
-				return std::vector<Document*>();
+				return std::vector<Schema*>();
 
 			for (auto It = Names.begin() + 1; It != Names.end() - 1; ++It)
 			{
 				Current = Current->Find(*It, Deep);
 				if (!Current)
-					return std::vector<Document*>();
+					return std::vector<Schema*>();
 			}
 
 			return Current->FindCollection(*(Names.end() - 1), Deep);
 		}
-		std::vector<Document*> Document::GetAttributes() const
+		std::vector<Schema*> Schema::GetAttributes() const
 		{
-			std::vector<Document*> Attributes;
+			std::vector<Schema*> Attributes;
 			if (!Nodes)
 				return Attributes;
 
@@ -8561,12 +8561,12 @@ namespace Tomahawk
 
 			return Attributes;
 		}
-		std::vector<Document*>& Document::GetChilds()
+		std::vector<Schema*>& Schema::GetChilds()
 		{
 			Allocate();
 			return *Nodes;
 		}
-		Document* Document::Find(const std::string& Name, bool Deep) const
+		Schema* Schema::Find(const std::string& Name, bool Deep) const
 		{
 			if (!Nodes)
 				return nullptr;
@@ -8590,20 +8590,20 @@ namespace Tomahawk
 				if (!Deep)
 					continue;
 
-				Document* V = K->Find(Name);
+				Schema* V = K->Find(Name);
 				if (V != nullptr)
 					return V;
 			}
 
 			return nullptr;
 		}
-		Document* Document::Fetch(const std::string& Notation, bool Deep) const
+		Schema* Schema::Fetch(const std::string& Notation, bool Deep) const
 		{
 			std::vector<std::string> Names = Parser(Notation).Split('.');
 			if (Names.empty())
 				return nullptr;
 
-			Document* Current = Find(*Names.begin(), Deep);
+			Schema* Current = Find(*Names.begin(), Deep);
 			if (!Current)
 				return nullptr;
 
@@ -8616,64 +8616,64 @@ namespace Tomahawk
 
 			return Current;
 		}
-		Document* Document::GetParent() const
+		Schema* Schema::GetParent() const
 		{
 			return Parent;
 		}
-		Document* Document::GetAttribute(const std::string& Name) const
+		Schema* Schema::GetAttribute(const std::string& Name) const
 		{
 			return Get("[" + Name + "]");
 		}
-		Variant Document::FetchVar(const std::string& fKey, bool Deep) const
+		Variant Schema::FetchVar(const std::string& fKey, bool Deep) const
 		{
-			Document* Result = Fetch(fKey, Deep);
+			Schema* Result = Fetch(fKey, Deep);
 			if (!Result)
 				return Var::Undefined();
 
 			return Result->Value;
 		}
-		Variant Document::GetVar(size_t Index) const
+		Variant Schema::GetVar(size_t Index) const
 		{
-			Document* Result = Get(Index);
+			Schema* Result = Get(Index);
 			if (!Result)
 				return Var::Undefined();
 
 			return Result->Value;
 		}
-		Variant Document::GetVar(const std::string& fKey) const
+		Variant Schema::GetVar(const std::string& fKey) const
 		{
-			Document* Result = Get(fKey);
+			Schema* Result = Get(fKey);
 			if (!Result)
 				return Var::Undefined();
 
 			return Result->Value;
 		}
-		Document* Document::Get(size_t Index) const
+		Schema* Schema::Get(size_t Index) const
 		{
 			TH_ASSERT(Nodes != nullptr, nullptr, "there must be at least one node");
 			TH_ASSERT(Index < Nodes->size(), nullptr, "index outside of range");
 
 			return (*Nodes)[Index];
 		}
-		Document* Document::Get(const std::string& Name) const
+		Schema* Schema::Get(const std::string& Name) const
 		{
 			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 			if (!Nodes)
 				return nullptr;
 
-			for (auto Document : *Nodes)
+			for (auto Schema : *Nodes)
 			{
-				if (Document->Key == Name)
-					return Document;
+				if (Schema->Key == Name)
+					return Schema;
 			}
 
 			return nullptr;
 		}
-		Document* Document::Set(const std::string& Name)
+		Schema* Schema::Set(const std::string& Name)
 		{
 			return Set(Name, Var::Object());
 		}
-		Document* Document::Set(const std::string& Name, const Variant& Base)
+		Schema* Schema::Set(const std::string& Name, const Variant& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -8691,7 +8691,7 @@ namespace Tomahawk
 				}
 			}
 
-			Document* Result = new Document(Base);
+			Schema* Result = new Schema(Base);
 			Result->Key.assign(Name);
 			Result->Attach(this);
 
@@ -8699,7 +8699,7 @@ namespace Tomahawk
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Document* Document::Set(const std::string& Name, Variant&& Base)
+		Schema* Schema::Set(const std::string& Name, Variant&& Base)
 		{
 			if (Value.Type == VarType::Object && Nodes != nullptr)
 			{
@@ -8717,7 +8717,7 @@ namespace Tomahawk
 				}
 			}
 
-			Document* Result = new Document(std::move(Base));
+			Schema* Result = new Schema(std::move(Base));
 			Result->Key.assign(Name);
 			Result->Attach(this);
 
@@ -8725,7 +8725,7 @@ namespace Tomahawk
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Document* Document::Set(const std::string& Name, Document* Base)
+		Schema* Schema::Set(const std::string& Name, Schema* Base)
 		{
 			if (!Base)
 				return Set(Name, Var::Null());
@@ -8755,33 +8755,33 @@ namespace Tomahawk
 			Nodes->push_back(Base);
 			return Base;
 		}
-		Document* Document::SetAttribute(const std::string& Name, const Variant& fValue)
+		Schema* Schema::SetAttribute(const std::string& Name, const Variant& fValue)
 		{
 			return Set("[" + Name + "]", fValue);
 		}
-		Document* Document::SetAttribute(const std::string& Name, Variant&& fValue)
+		Schema* Schema::SetAttribute(const std::string& Name, Variant&& fValue)
 		{
 			return Set("[" + Name + "]", std::move(fValue));
 		}
-		Document* Document::Push(const Variant& Base)
+		Schema* Schema::Push(const Variant& Base)
 		{
-			Document* Result = new Document(Base);
+			Schema* Result = new Schema(Base);
 			Result->Attach(this);
 
 			Allocate();
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Document* Document::Push(Variant&& Base)
+		Schema* Schema::Push(Variant&& Base)
 		{
-			Document* Result = new Document(std::move(Base));
+			Schema* Result = new Schema(std::move(Base));
 			Result->Attach(this);
 
 			Allocate();
 			Nodes->push_back(Result);
 			return Result;
 		}
-		Document* Document::Push(Document* Base)
+		Schema* Schema::Push(Schema* Base)
 		{
 			if (!Base)
 				return Push(Var::Null());
@@ -8792,20 +8792,20 @@ namespace Tomahawk
 			Nodes->push_back(Base);
 			return Base;
 		}
-		Document* Document::Pop(size_t Index)
+		Schema* Schema::Pop(size_t Index)
 		{
 			TH_ASSERT(Nodes != nullptr, nullptr, "there must be at least one node");
 			TH_ASSERT(Index < Nodes->size(), nullptr, "index outside of range");
 
 			auto It = Nodes->begin() + Index;
-			Document* Base = *It;
+			Schema* Base = *It;
 			Base->Parent = nullptr;
 			TH_RELEASE(Base);
 			Nodes->erase(It);
 
 			return this;
 		}
-		Document* Document::Pop(const std::string& Name)
+		Schema* Schema::Pop(const std::string& Name)
 		{
 			if (!Nodes)
 				return this;
@@ -8823,9 +8823,9 @@ namespace Tomahawk
 
 			return this;
 		}
-		Document* Document::Copy() const
+		Schema* Schema::Copy() const
 		{
-			Document* New = new Document(Value);
+			Schema* New = new Schema(Value);
 			New->Key.assign(Key);
 			New->Saved = Saved;
 
@@ -8841,53 +8841,53 @@ namespace Tomahawk
 
 			return New;
 		}
-		bool Document::Rename(const std::string& Name, const std::string& NewName)
+		bool Schema::Rename(const std::string& Name, const std::string& NewName)
 		{
 			TH_ASSERT(!Name.empty() && !NewName.empty(), false, "name and new name should not be empty");
 
-			Document* Result = Get(Name);
+			Schema* Result = Get(Name);
 			if (!Result)
 				return false;
 
 			Result->Key = NewName;
 			return true;
 		}
-		bool Document::Has(const std::string& Name) const
+		bool Schema::Has(const std::string& Name) const
 		{
 			return Fetch(Name) != nullptr;
 		}
-		bool Document::Has64(const std::string& Name, size_t Size) const
+		bool Schema::Has64(const std::string& Name, size_t Size) const
 		{
-			Document* Base = Fetch(Name);
+			Schema* Base = Fetch(Name);
 			if (!Base || Base->Value.GetType() != VarType::Base64)
 				return false;
 
 			return Base->Value.GetSize() == Size;
 		}
-		bool Document::IsEmpty() const
+		bool Schema::IsEmpty() const
 		{
 			return !Nodes || Nodes->empty();
 		}
-		bool Document::IsAttribute() const
+		bool Schema::IsAttribute() const
 		{
 			if (Key.size() < 2)
 				return false;
 
 			return (Key.front() == '[' && Key.back() == ']');
 		}
-		bool Document::IsSaved() const
+		bool Schema::IsSaved() const
 		{
 			return Saved;
 		}
-		size_t Document::Size() const
+		size_t Schema::Size() const
 		{
 			return Nodes ? Nodes->size() : 0;
 		}
-		std::string Document::GetName() const
+		std::string Schema::GetName() const
 		{
 			return IsAttribute() ? Key.substr(1, Key.size() - 2) : Key;
 		}
-		void Document::Join(Document* Other, bool Copy, bool Fast)
+		void Schema::Join(Schema* Other, bool Copy, bool Fast)
 		{
 			TH_ASSERT_V(Other != nullptr && Value.IsObject(), "other should be object and not empty");
 
@@ -8900,7 +8900,7 @@ namespace Tomahawk
 			{
 				for (auto& Node : *Other->Nodes)
 				{
-					Document* Result = Node->Copy();
+					Schema* Result = Node->Copy();
 					Result->Attach(this);
 
 					bool Append = true;
@@ -8935,29 +8935,29 @@ namespace Tomahawk
 				}
 			}
 		}
-		void Document::Reserve(size_t Size)
+		void Schema::Reserve(size_t Size)
 		{
 			Allocate();
 			Nodes->reserve(Size);
 		}
-		void Document::Clear()
+		void Schema::Clear()
 		{
 			if (!Nodes)
 				return;
 
-			for (auto& Document : *Nodes)
+			for (auto& Schema : *Nodes)
 			{
-				if (Document != nullptr)
+				if (Schema != nullptr)
 				{
-					Document->Parent = nullptr;
-					TH_RELEASE(Document);
+					Schema->Parent = nullptr;
+					TH_RELEASE(Schema);
 				}
 			}
 
 			delete Nodes;
 			Nodes = nullptr;
 		}
-		void Document::Save()
+		void Schema::Save()
 		{
 			if (Nodes != nullptr)
 			{
@@ -8972,7 +8972,7 @@ namespace Tomahawk
 
 			Saved = true;
 		}
-		void Document::Attach(Document* Root)
+		void Schema::Attach(Schema* Root)
 		{
 			Saved = false;
 			if (Parent != nullptr && Parent->Nodes != nullptr)
@@ -8991,19 +8991,19 @@ namespace Tomahawk
 			if (Parent != nullptr)
 				Parent->Saved = false;
 		}
-		void Document::Allocate()
+		void Schema::Allocate()
 		{
 			if (!Nodes)
-				Nodes = new std::vector<Document*>();
+				Nodes = new std::vector<Schema*>();
 		}
-		void Document::Allocate(const std::vector<Document*>& Other)
+		void Schema::Allocate(const std::vector<Schema*>& Other)
 		{
 			if (!Nodes)
-				Nodes = new std::vector<Document*>(Other);
+				Nodes = new std::vector<Schema*>(Other);
 			else
 				*Nodes = Other;
 		}
-		bool Document::Transform(Document* Value, const DocNameCallback& Callback)
+		bool Schema::Transform(Schema* Value, const SchemaNameCallback& Callback)
 		{
 			TH_ASSERT(!!Callback, false, "callback should not be empty");
 			if (!Value)
@@ -9018,10 +9018,10 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::WriteXML(Document* Base, const DocWriteCallback& Callback)
+		bool Schema::WriteXML(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
-			std::vector<Document*> Attributes = Base->GetAttributes();
+			std::vector<Schema*> Attributes = Base->GetAttributes();
 			bool Scalable = (Base->Value.GetSize() > 0 || ((int64_t)(Base->Nodes ? Base->Nodes->size() : 0) - (int64_t)Attributes.size()) > 0);
 			Callback(VarForm::Write_Tab, "", 0);
 			Callback(VarForm::Dummy, "<", 1);
@@ -9102,7 +9102,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::WriteJSON(Document* Base, const DocWriteCallback& Callback)
+		bool Schema::WriteJSON(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			if (!Base->Parent && !Base->Value.IsObject())
@@ -9192,7 +9192,7 @@ namespace Tomahawk
 			Callback(VarForm::Dummy, Array ? "]" : "}", 1);
 			return true;
 		}
-		bool Document::WriteJSONB(Document* Base, const DocWriteCallback& Callback)
+		bool Schema::WriteJSONB(Schema* Base, const SchemaWriteCallback& Callback)
 		{
 			TH_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			std::unordered_map<std::string, uint64_t> Mapping = Base->GetNames();
@@ -9216,23 +9216,23 @@ namespace Tomahawk
 			ProcessJSONBWrite(Base, &Mapping, Callback);
 			return true;
 		}
-		Document* Document::ReadXML(const char* Buffer, bool Assert)
+		Schema* Schema::ReadXML(const char* Buffer, bool Assert)
 		{
 			TH_ASSERT(Buffer != nullptr, nullptr, "buffer should not be null");
 			if (*Buffer == '\0')
 				return nullptr;
 
-			rapidxml::xml_document<>* iDocument = TH_NEW(rapidxml::xml_document<>);
-			if (!iDocument)
+			rapidxml::xml_document<>* Data = TH_NEW(rapidxml::xml_document<>);
+			if (!Data)
 				return nullptr;
 
 			try
 			{
-				iDocument->parse<rapidxml::parse_trim_whitespace>((char*)Buffer);
+				Data->parse<rapidxml::parse_trim_whitespace>((char*)Buffer);
 			}
 			catch (const std::runtime_error& e)
 			{
-				TH_DELETE(xml_document, iDocument);
+				TH_DELETE(xml_document, Data);
 				if (Assert)
 					TH_ERR("[xml] %s", e.what());
 
@@ -9240,7 +9240,7 @@ namespace Tomahawk
 			}
 			catch (const rapidxml::parse_error& e)
 			{
-				TH_DELETE(xml_document, iDocument);
+				TH_DELETE(xml_document, Data);
 				if (Assert)
 					TH_ERR("[xml] %s", e.what());
 
@@ -9248,7 +9248,7 @@ namespace Tomahawk
 			}
 			catch (const std::exception& e)
 			{
-				TH_DELETE(xml_document, iDocument);
+				TH_DELETE(xml_document, Data);
 				if (Assert)
 					TH_ERR("[xml] %s", e.what());
 
@@ -9256,34 +9256,34 @@ namespace Tomahawk
 			}
 			catch (...)
 			{
-				TH_DELETE(xml_document, iDocument);
+				TH_DELETE(xml_document, Data);
 				if (Assert)
-					TH_ERR("[xml] parse error");
+					TH_ERR("[xml] parsing error");
 
 				return nullptr;
 			}
 
-			rapidxml::xml_node<>* Base = iDocument->first_node();
+			rapidxml::xml_node<>* Base = Data->first_node();
 			if (!Base)
 			{
-				iDocument->clear();
-				TH_DELETE(xml_document, iDocument);
+				Data->clear();
+				TH_DELETE(xml_document, Data);
 
 				return nullptr;
 			}
 
-			Document* Result = Var::Set::Array();
+			Schema* Result = Var::Set::Array();
 			Result->Key = Base->name();
 
 			if (!ProcessXMLRead((void*)Base, Result))
 				TH_CLEAR(Result);
 
-			iDocument->clear();
-			TH_DELETE(xml_document, iDocument);
+			Data->clear();
+			TH_DELETE(xml_document, Data);
 
 			return Result;
 		}
-		Document* Document::ReadJSON(const char* Buffer, size_t Size, bool Assert)
+		Schema* Schema::ReadJSON(const char* Buffer, size_t Size, bool Assert)
 		{
 			TH_ASSERT(Buffer != nullptr, nullptr, "buffer should not be null");
 			if (!Size)
@@ -9292,7 +9292,7 @@ namespace Tomahawk
 			rapidjson::Document Base;
 			Base.Parse(Buffer, Size);
 
-			Core::Document* Result = nullptr;
+			Core::Schema* Result = nullptr;
 			if (Base.HasParseError())
 			{
 				if (!Assert)
@@ -9363,13 +9363,13 @@ namespace Tomahawk
 			switch (Type)
 			{
 				case rapidjson::kNullType:
-					Result = new Document(Var::Null());
+					Result = new Schema(Var::Null());
 					break;
 				case rapidjson::kFalseType:
-					Result = new Document(Var::Boolean(false));
+					Result = new Schema(Var::Boolean(false));
 					break;
 				case rapidjson::kTrueType:
-					Result = new Document(Var::Boolean(true));
+					Result = new Schema(Var::Boolean(true));
 					break;
 				case rapidjson::kObjectType:
 					Result = Var::Set::Object();
@@ -9385,25 +9385,25 @@ namespace Tomahawk
 				{
 					const char* Buffer = Base.GetString(); size_t Size = Base.GetStringLength();
 					if (Size > 2 && *Buffer == TH_PREFIX_CHAR && Buffer[Size - 1] == TH_PREFIX_CHAR)
-						Result = new Document(Var::Base64(Buffer + 1, Size - 2));
+						Result = new Schema(Var::Base64(Buffer + 1, Size - 2));
 					else
-						Result = new Document(Var::String(Buffer, Size));
+						Result = new Schema(Var::String(Buffer, Size));
 					break;
 				}
 				case rapidjson::kNumberType:
 					if (Base.IsInt())
-						Result = new Document(Var::Integer(Base.GetInt64()));
+						Result = new Schema(Var::Integer(Base.GetInt64()));
 					else
-						Result = new Document(Var::Number(Base.GetDouble()));
+						Result = new Schema(Var::Number(Base.GetDouble()));
 					break;
 				default:
-					Result = new Document(Var::Undefined());
+					Result = new Schema(Var::Undefined());
 					break;
 			}
 
 			return Result;
 		}
-		Document* Document::ReadJSONB(const DocReadCallback& Callback, bool Assert)
+		Schema* Schema::ReadJSONB(const SchemaReadCallback& Callback, bool Assert)
 		{
 			TH_ASSERT(Callback, nullptr, "callback should not be empty");
 			char Hello[18];
@@ -9469,7 +9469,7 @@ namespace Tomahawk
 				Map.insert({ Index, Name });
 			}
 
-			Document* Current = Var::Set::Object();
+			Schema* Current = Var::Set::Object();
 			if (!ProcessJSONBRead(Current, &Map, Callback))
 			{
 				TH_RELEASE(Current);
@@ -9478,7 +9478,7 @@ namespace Tomahawk
 
 			return Current;
 		}
-		bool Document::ProcessXMLRead(void* Base, Document* Current)
+		bool Schema::ProcessXMLRead(void* Base, Schema* Current)
 		{
 			TH_ASSERT(Base != nullptr && Current != nullptr, false, "base and current should be set");
 
@@ -9488,7 +9488,7 @@ namespace Tomahawk
 
 			for (rapidxml::xml_node<>* It = Ref->first_node(); It; It = It->next_sibling())
 			{
-				Document* Subresult = Current->Set(It->name(), Var::Set::Array());
+				Schema* Subresult = Current->Set(It->name(), Var::Set::Array());
 				ProcessXMLRead((void*)It, Subresult);
 
 				if ((!Subresult->Nodes || Subresult->Nodes->empty()) && It->value_size() > 0)
@@ -9497,7 +9497,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::ProcessJSONRead(void* Base, Document* Current)
+		bool Schema::ProcessJSONRead(void* Base, Schema* Current)
 		{
 			TH_ASSERT(Base != nullptr && Current != nullptr, false, "base and current should be set");
 
@@ -9602,7 +9602,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const DocWriteCallback& Callback)
+		bool Schema::ProcessJSONBWrite(Schema* Current, std::unordered_map<std::string, uint64_t>* Map, const SchemaWriteCallback& Callback)
 		{
 			uint32_t Id = (uint32_t)Map->at(Current->Key);
 			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
@@ -9617,8 +9617,8 @@ namespace Tomahawk
 					Callback(VarForm::Dummy, (const char*)&Count, sizeof(uint32_t));
 					if (Count > 0)
 					{
-						for (auto& Document : *Current->Nodes)
-							ProcessJSONBWrite(Document, Map, Callback);
+						for (auto& Schema : *Current->Nodes)
+							ProcessJSONBWrite(Schema, Map, Callback);
 					}
 					break;
 				}
@@ -9659,7 +9659,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const DocReadCallback& Callback)
+		bool Schema::ProcessJSONBRead(Schema* Current, std::unordered_map<uint64_t, std::string>* Map, const SchemaReadCallback& Callback)
 		{
 			uint32_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint32_t)))
@@ -9811,7 +9811,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Document::ProcessNames(const Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index)
+		bool Schema::ProcessNames(const Schema* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index)
 		{
 			auto M = Map->find(Current->Key);
 			if (M == Map->end())
@@ -9820,8 +9820,8 @@ namespace Tomahawk
 			if (!Current->Nodes)
 				return true;
 
-			for (auto Document : *Current->Nodes)
-				ProcessNames(Document, Map, Index);
+			for (auto Schema : *Current->Nodes)
+				ProcessNames(Schema, Map, Index);
 
 			return true;
 		}

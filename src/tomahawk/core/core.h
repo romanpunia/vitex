@@ -235,7 +235,7 @@ namespace Tomahawk
 
 		class Costate;
 
-		class Document;
+		class Schema;
 
 		class Object;
 
@@ -328,13 +328,13 @@ namespace Tomahawk
 		};
 
 		typedef std::vector<struct Variant> VariantList;
-		typedef std::vector<Document*> DocumentList;
+		typedef std::vector<Schema*> SchemaList;
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
-		typedef std::unordered_map<std::string, Document*> DocumentArgs;
+		typedef std::unordered_map<std::string, Schema*> SchemaArgs;
 		typedef std::function<void()> TaskCallback;
-		typedef std::function<std::string(const std::string&)> DocNameCallback;
-		typedef std::function<void(VarForm, const char*, int64_t)> DocWriteCallback;
-		typedef std::function<bool(char*, int64_t)> DocReadCallback;
+		typedef std::function<std::string(const std::string&)> SchemaNameCallback;
+		typedef std::function<void(VarForm, const char*, int64_t)> SchemaWriteCallback;
+		typedef std::function<bool(char*, int64_t)> SchemaReadCallback;
 		typedef std::function<void* (size_t)> AllocCallback;
 		typedef std::function<void* (void*, size_t)> ReallocCallback;
 		typedef std::function<void(void*)> FreeCallback;
@@ -432,7 +432,7 @@ namespace Tomahawk
 
 		struct TH_OUT Variant
 		{
-			friend Document;
+			friend Schema;
 			friend Var;
 
 		private:
@@ -802,25 +802,25 @@ namespace Tomahawk
 			class TH_OUT Set
 			{
 			public:
-				static Document* Auto(Variant&& Value);
-				static Document* Auto(const Variant& Value);
-				static Document* Auto(const std::string& Value, bool Strict = false);
-				static Document* Null();
-				static Document* Undefined();
-				static Document* Object();
-				static Document* Array();
-				static Document* Pointer(void* Value);
-				static Document* String(const std::string& Value);
-				static Document* String(const char* Value, size_t Size);
-				static Document* Base64(const std::string& Value);
-				static Document* Base64(const unsigned char* Value, size_t Size);
-				static Document* Base64(const char* Value, size_t Size);
-				static Document* Integer(int64_t Value);
-				static Document* Number(double Value);
-				static Document* Decimal(const BigNumber& Value);
-				static Document* Decimal(BigNumber&& Value);
-				static Document* DecimalString(const std::string& Value);
-				static Document* Boolean(bool Value);
+				static Schema* Auto(Variant&& Value);
+				static Schema* Auto(const Variant& Value);
+				static Schema* Auto(const std::string& Value, bool Strict = false);
+				static Schema* Null();
+				static Schema* Undefined();
+				static Schema* Object();
+				static Schema* Array();
+				static Schema* Pointer(void* Value);
+				static Schema* String(const std::string& Value);
+				static Schema* String(const char* Value, size_t Size);
+				static Schema* Base64(const std::string& Value);
+				static Schema* Base64(const unsigned char* Value, size_t Size);
+				static Schema* Base64(const char* Value, size_t Size);
+				static Schema* Integer(int64_t Value);
+				static Schema* Number(double Value);
+				static Schema* Decimal(const BigNumber& Value);
+				static Schema* Decimal(BigNumber&& Value);
+				static Schema* DecimalString(const std::string& Value);
+				static Schema* Boolean(bool Value);
 			};
 
 		public:
@@ -1468,11 +1468,11 @@ namespace Tomahawk
 			static Schedule* Singleton;
 		};
 
-		class TH_OUT Document : public Object
+		class TH_OUT Schema : public Object
 		{
 		protected:
-			std::vector<Document*>* Nodes;
-			Document* Parent;
+			std::vector<Schema*>* Nodes;
+			Schema* Parent;
 			bool Saved;
 
 		public:
@@ -1480,35 +1480,35 @@ namespace Tomahawk
 			Variant Value;
 
 		public:
-			Document(const Variant& Base) noexcept;
-			Document(Variant&& Base) noexcept;
-			virtual ~Document() override;
+			Schema(const Variant& Base) noexcept;
+			Schema(Variant&& Base) noexcept;
+			virtual ~Schema() override;
 			std::unordered_map<std::string, uint64_t> GetNames() const;
-			std::vector<Document*> FindCollection(const std::string& Name, bool Deep = false) const;
-			std::vector<Document*> FetchCollection(const std::string& Notation, bool Deep = false) const;
-			std::vector<Document*> GetAttributes() const;
-			std::vector<Document*>& GetChilds();
-			Document* Find(const std::string& Name, bool Deep = false) const;
-			Document* Fetch(const std::string& Notation, bool Deep = false) const;
+			std::vector<Schema*> FindCollection(const std::string& Name, bool Deep = false) const;
+			std::vector<Schema*> FetchCollection(const std::string& Notation, bool Deep = false) const;
+			std::vector<Schema*> GetAttributes() const;
+			std::vector<Schema*>& GetChilds();
+			Schema* Find(const std::string& Name, bool Deep = false) const;
+			Schema* Fetch(const std::string& Notation, bool Deep = false) const;
 			Variant FetchVar(const std::string& Key, bool Deep = false) const;
 			Variant GetVar(size_t Index) const;
 			Variant GetVar(const std::string& Key) const;
-			Document* GetParent() const;
-			Document* GetAttribute(const std::string& Key) const;
-			Document* Get(size_t Index) const;
-			Document* Get(const std::string& Key) const;
-			Document* Set(const std::string& Key);
-			Document* Set(const std::string& Key, const Variant& Value);
-			Document* Set(const std::string& Key, Variant&& Value);
-			Document* Set(const std::string& Key, Document* Value);
-			Document* SetAttribute(const std::string& Key, const Variant& Value);
-			Document* SetAttribute(const std::string& Key, Variant&& Value);
-			Document* Push(const Variant& Value);
-			Document* Push(Variant&& Value);
-			Document* Push(Document* Value);
-			Document* Pop(size_t Index);
-			Document* Pop(const std::string& Name);
-			Document* Copy() const;
+			Schema* GetParent() const;
+			Schema* GetAttribute(const std::string& Key) const;
+			Schema* Get(size_t Index) const;
+			Schema* Get(const std::string& Key) const;
+			Schema* Set(const std::string& Key);
+			Schema* Set(const std::string& Key, const Variant& Value);
+			Schema* Set(const std::string& Key, Variant&& Value);
+			Schema* Set(const std::string& Key, Schema* Value);
+			Schema* SetAttribute(const std::string& Key, const Variant& Value);
+			Schema* SetAttribute(const std::string& Key, Variant&& Value);
+			Schema* Push(const Variant& Value);
+			Schema* Push(Variant&& Value);
+			Schema* Push(Schema* Value);
+			Schema* Pop(size_t Index);
+			Schema* Pop(const std::string& Name);
+			Schema* Copy() const;
 			bool Rename(const std::string& Name, const std::string& NewName);
 			bool Has(const std::string& Name) const;
 			bool Has64(const std::string& Name, size_t Size = 12) const;
@@ -1517,33 +1517,33 @@ namespace Tomahawk
 			bool IsSaved() const;
 			size_t Size() const;
 			std::string GetName() const;
-			void Join(Document* Other, bool Copy = true, bool Fast = true);
+			void Join(Schema* Other, bool Copy = true, bool Fast = true);
 			void Reserve(size_t Size);
 			void Clear();
 			void Save();
 
 		protected:
 			void Allocate();
-			void Allocate(const std::vector<Document*>& Other);
+			void Allocate(const std::vector<Schema*>& Other);
 
 		private:
-			void Attach(Document* Root);
+			void Attach(Schema* Root);
 
 		public:
-			static bool Transform(Document* Value, const DocNameCallback& Callback);
-			static bool WriteXML(Document* Value, const DocWriteCallback& Callback);
-			static bool WriteJSON(Document* Value, const DocWriteCallback& Callback);
-			static bool WriteJSONB(Document* Value, const DocWriteCallback& Callback);
-			static Document* ReadXML(const char* Buffer, bool Assert = true);
-			static Document* ReadJSON(const char* Buffer, size_t Size, bool Assert = true);
-			static Document* ReadJSONB(const DocReadCallback& Callback, bool Assert = true);
+			static bool Transform(Schema* Value, const SchemaNameCallback& Callback);
+			static bool WriteXML(Schema* Value, const SchemaWriteCallback& Callback);
+			static bool WriteJSON(Schema* Value, const SchemaWriteCallback& Callback);
+			static bool WriteJSONB(Schema* Value, const SchemaWriteCallback& Callback);
+			static Schema* ReadXML(const char* Buffer, bool Assert = true);
+			static Schema* ReadJSON(const char* Buffer, size_t Size, bool Assert = true);
+			static Schema* ReadJSONB(const SchemaReadCallback& Callback, bool Assert = true);
 
 		private:
-			static bool ProcessXMLRead(void* Base, Document* Current);
-			static bool ProcessJSONRead(void* Base, Document* Current);
-			static bool ProcessJSONBWrite(Document* Current, std::unordered_map<std::string, uint64_t>* Map, const DocWriteCallback& Callback);
-			static bool ProcessJSONBRead(Document* Current, std::unordered_map<uint64_t, std::string>* Map, const DocReadCallback& Callback);
-			static bool ProcessNames(const Document* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
+			static bool ProcessXMLRead(void* Base, Schema* Current);
+			static bool ProcessJSONRead(void* Base, Schema* Current);
+			static bool ProcessJSONBWrite(Schema* Current, std::unordered_map<std::string, uint64_t>* Map, const SchemaWriteCallback& Callback);
+			static bool ProcessJSONBRead(Schema* Current, std::unordered_map<uint64_t, std::string>* Map, const SchemaReadCallback& Callback);
+			static bool ProcessNames(const Schema* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
 		};
 
 		template <typename T>

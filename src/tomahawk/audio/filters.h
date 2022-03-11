@@ -24,8 +24,8 @@ namespace Tomahawk
 				Lowpass();
 				virtual ~Lowpass() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioFilter* Copy() override;
 
 			public:
@@ -42,8 +42,8 @@ namespace Tomahawk
 				Highpass();
 				virtual ~Highpass() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioFilter* Copy() override;
 
 			public:
@@ -61,8 +61,8 @@ namespace Tomahawk
 				Bandpass();
 				virtual ~Bandpass() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioFilter* Copy() override;
 
 			public:

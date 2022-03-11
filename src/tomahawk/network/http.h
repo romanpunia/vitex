@@ -511,7 +511,7 @@ namespace Tomahawk
 				bool Skip(const SuccessCallback& Callback);
 			};
 
-			class TH_OUT QueryParameter final : public Core::Document
+			class TH_OUT QueryParameter final : public Core::Schema
 			{
 			public:
 				QueryParameter();
@@ -530,7 +530,7 @@ namespace Tomahawk
 				Query();
 				virtual ~Query() override;
 				void Clear();
-				void Steal(Core::Document** Output);
+				void Steal(Core::Schema** Output);
 				void Decode(const char* ContentType, const std::string& URI);
 				std::string Encode(const char* ContentType);
 				QueryParameter* Get(const char* Name);
@@ -549,7 +549,7 @@ namespace Tomahawk
 			class TH_OUT Session : public Core::Object
 			{
 			public:
-				Core::Document* Query = nullptr;
+				Core::Schema* Query = nullptr;
 				std::string SessionId;
 				int64_t SessionExpires = 0;
 				bool IsNewSession = false;
@@ -806,8 +806,8 @@ namespace Tomahawk
 				Core::Async<bool> Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
 				Core::Async<bool> Upgrade(HTTP::RequestFrame&& Root);
 				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::Async<Core::Document*> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
-				Core::Async<Core::Document*> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<Core::Schema*> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<Core::Schema*> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();

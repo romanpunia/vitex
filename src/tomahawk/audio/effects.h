@@ -48,8 +48,8 @@ namespace Tomahawk
 				Reverb();
 				virtual ~Reverb() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -70,8 +70,8 @@ namespace Tomahawk
 				Chorus();
 				virtual ~Chorus() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -91,8 +91,8 @@ namespace Tomahawk
 				Distortion();
 				virtual ~Distortion() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -112,8 +112,8 @@ namespace Tomahawk
 				Echo();
 				virtual ~Echo() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -134,8 +134,8 @@ namespace Tomahawk
 				Flanger();
 				virtual ~Flanger() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -153,8 +153,8 @@ namespace Tomahawk
 				FrequencyShifter();
 				virtual ~FrequencyShifter() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -175,8 +175,8 @@ namespace Tomahawk
 				VocalMorpher();
 				virtual ~VocalMorpher() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -193,8 +193,8 @@ namespace Tomahawk
 				PitchShifter();
 				virtual ~PitchShifter() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -212,8 +212,8 @@ namespace Tomahawk
 				RingModulator();
 				virtual ~RingModulator() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -232,8 +232,8 @@ namespace Tomahawk
 				Autowah();
 				virtual ~Autowah() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -246,8 +246,8 @@ namespace Tomahawk
 				Compressor();
 				virtual ~Compressor() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:
@@ -272,8 +272,8 @@ namespace Tomahawk
 				Equalizer();
 				virtual ~Equalizer() override;
 				void Synchronize() override;
-				void Deserialize(Core::Document* Node) override;
-				void Serialize(Core::Document* Node) override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
 				AudioEffect* Copy() override;
 
 			public:

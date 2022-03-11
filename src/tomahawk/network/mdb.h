@@ -37,7 +37,7 @@ namespace Tomahawk
 
 			class Cluster;
 
-			class Document;
+			class Schema;
 
 			enum class QueryType
 			{
@@ -61,7 +61,7 @@ namespace Tomahawk
 				Unknown,
 				Uncastable,
 				Null,
-				Document,
+				Schema,
 				Array,
 				String,
 				Integer,
@@ -105,7 +105,7 @@ namespace Tomahawk
 				void Release();
 				std::string& ToString();
 				TDocument* GetOwnership();
-				Document Get() const;
+				Schema Get() const;
 				Property& operator= (const Property& Other) noexcept;
 				Property& operator= (Property&& Other) noexcept;
 				Property operator [](const char* Name);
@@ -123,21 +123,21 @@ namespace Tomahawk
 				static std::string StringToId(const std::string& Id24);
 			};
 
-			class TH_OUT Document
+			class TH_OUT Schema
 			{
 			private:
 				TDocument* Base;
 				bool Store;
 
 			public:
-				Document();
-				Document(TDocument* NewBase);
+				Schema();
+				Schema(TDocument* NewBase);
 				void Release() const;
 				void Release();
-				void Join(const Document& Value);
+				void Join(const Schema& Value);
 				void Loop(const std::function<bool(Property*)>& Callback) const;
-				bool SetDocument(const char* Key, const Document& Value, uint64_t ArrayId = 0);
-				bool SetArray(const char* Key, const Document& Array, uint64_t ArrayId = 0);
+				bool SetSchema(const char* Key, const Schema& Value, uint64_t ArrayId = 0);
+				bool SetArray(const char* Key, const Schema& Array, uint64_t ArrayId = 0);
 				bool SetString(const char* Key, const char* Value, uint64_t ArrayId = 0);
 				bool SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId = 0);
 				bool SetInteger(const char* Key, int64_t Value, uint64_t ArrayId = 0);
@@ -157,10 +157,10 @@ namespace Tomahawk
 				std::string ToExtendedJSON() const;
 				std::string ToJSON() const;
 				std::string ToIndices() const;
-				Core::Document* ToDocument(bool IsArray = false) const;
+				Core::Schema* ToSchema(bool IsArray = false) const;
 				TDocument* Get() const;
-				Document Copy() const;
-				Document& Persist(bool Keep = true);
+				Schema Copy() const;
+				Schema& Persist(bool Keep = true);
 				operator bool() const
 				{
 					return Base != nullptr;
@@ -179,11 +179,11 @@ namespace Tomahawk
 				}
 
 			public:
-				static Document FromEmpty();
-				static Document FromDocument(Core::Document* Document);
-				static Document FromJSON(const std::string& JSON);
-				static Document FromBuffer(const unsigned char* Buffer, uint64_t Length);
-				static Document FromSource(TDocument* Src);
+				static Schema FromEmpty();
+				static Schema FromDocument(Core::Schema* Schema);
+				static Schema FromJSON(const std::string& JSON);
+				static Schema FromBuffer(const unsigned char* Buffer, uint64_t Length);
+				static Schema FromSource(TDocument* Src);
 
 			private:
 				static bool Clone(void* It, Property* Output);
@@ -219,24 +219,24 @@ namespace Tomahawk
 			class TH_OUT Stream
 			{
 			private:
-				Document IOptions;
+				Schema IOptions;
 				TCollection* Source;
 				TStream* Base;
 				size_t Count;
 
 			public:
 				Stream();
-				Stream(TCollection* NewSource, TStream* NewBase, const Document& NewOptions);
+				Stream(TCollection* NewSource, TStream* NewBase, const Schema& NewOptions);
 				void Release();
-				bool RemoveMany(const Document& Match, const Document& Options);
-				bool RemoveOne(const Document& Match, const Document& Options);
-				bool ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
-				bool InsertOne(const Document& Result, const Document& Options);
-				bool UpdateOne(const Document& Match, const Document& Result, const Document& Options);
-				bool UpdateMany(const Document& Match, const Document& Result, const Document& Options);
-				bool TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
-				bool Query(const Document& Command);
-				Core::Async<Document> ExecuteWithReply();
+				bool RemoveMany(const Schema& Match, const Schema& Options);
+				bool RemoveOne(const Schema& Match, const Schema& Options);
+				bool ReplaceOne(const Schema& Match, const Schema& Replacement, const Schema& Options);
+				bool InsertOne(const Schema& Result, const Schema& Options);
+				bool UpdateOne(const Schema& Match, const Schema& Result, const Schema& Options);
+				bool UpdateMany(const Schema& Match, const Schema& Result, const Schema& Options);
+				bool TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
+				bool Query(const Schema& Command);
+				Core::Async<Schema> ExecuteWithReply();
 				Core::Async<bool> Execute();
 				uint64_t GetHint() const;
 				TStream* Get() const;
@@ -270,7 +270,7 @@ namespace Tomahawk
 				uint64_t GetMaxAwaitTime() const;
 				uint64_t GetBatchSize() const;
 				uint64_t GetHint() const;
-				Document GetCurrent() const;
+				Schema GetCurrent() const;
 				Cursor Clone();
 				TCursor* Get() const;
 				operator bool() const
@@ -283,21 +283,21 @@ namespace Tomahawk
 			{
 			private:
 				Cursor ICursor;
-				Document IDocument;
+				Schema IDocument;
 				bool ISuccess;
 
 			public:
 				Response();
 				Response(const Response& Other);
 				Response(const Cursor& _Cursor);
-				Response(const Document& _Document);
+				Response(const Schema& _Document);
 				Response(bool _Success);
 				void Release();
-				Core::Async<Core::Document*> Fetch() const;
-				Core::Async<Core::Document*> FetchAll() const;
+				Core::Async<Core::Schema*> Fetch() const;
+				Core::Async<Core::Schema*> FetchAll() const;
 				Property GetProperty(const char* Name);
 				Cursor GetCursor() const;
-				Document GetDocument() const;
+				Schema GetDocument() const;
 				bool IsOK() const;
 				bool OK();
 				Property operator [](const char* Name)
@@ -320,29 +320,29 @@ namespace Tomahawk
 				Collection(TCollection* NewBase);
 				void Release();
 				Core::Async<bool> Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName);
-				Core::Async<bool> RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options);
+				Core::Async<bool> RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Schema& Options);
 				Core::Async<bool> RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName);
-				Core::Async<bool> RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options);
-				Core::Async<bool> Remove(const Document& Options);
-				Core::Async<bool> RemoveIndex(const std::string& Name, const Document& Options);
-				Core::Async<Document> RemoveMany(const Document& Match, const Document& Options);
-				Core::Async<Document> RemoveOne(const Document& Match, const Document& Options);
-				Core::Async<Document> ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options);
-				Core::Async<Document> InsertMany(std::vector<Document>& List, const Document& Options);
-				Core::Async<Document> InsertOne(const Document& Result, const Document& Options);
-				Core::Async<Document> UpdateMany(const Document& Match, const Document& Update, const Document& Options);
-				Core::Async<Document> UpdateOne(const Document& Match, const Document& Update, const Document& Options);
-				Core::Async<Document> FindAndModify(const Document& Match, const Document& Sort, const Document& Update, const Document& Fields, bool Remove, bool Upsert, bool New);
-				Core::Async<uint64_t> CountDocuments(const Document& Match, const Document& Options) const;
-				Core::Async<uint64_t> CountDocumentsEstimated(const Document& Options) const;
-				Core::Async<Cursor> FindIndexes(const Document& Options) const;
-				Core::Async<Cursor> FindMany(const Document& Match, const Document& Options) const;
-				Core::Async<Cursor> FindOne(const Document& Match, const Document& Options) const;
-				Core::Async<Cursor> Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
-				Core::Async<Response> TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true, Transaction* Session = nullptr);
-				Core::Async<Response> Query(const Document& Command, Transaction* Session = nullptr);
+				Core::Async<bool> RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Schema& Options);
+				Core::Async<bool> Remove(const Schema& Options);
+				Core::Async<bool> RemoveIndex(const std::string& Name, const Schema& Options);
+				Core::Async<Schema> RemoveMany(const Schema& Match, const Schema& Options);
+				Core::Async<Schema> RemoveOne(const Schema& Match, const Schema& Options);
+				Core::Async<Schema> ReplaceOne(const Schema& Match, const Schema& Replacement, const Schema& Options);
+				Core::Async<Schema> InsertMany(std::vector<Schema>& List, const Schema& Options);
+				Core::Async<Schema> InsertOne(const Schema& Result, const Schema& Options);
+				Core::Async<Schema> UpdateMany(const Schema& Match, const Schema& Update, const Schema& Options);
+				Core::Async<Schema> UpdateOne(const Schema& Match, const Schema& Update, const Schema& Options);
+				Core::Async<Schema> FindAndModify(const Schema& Match, const Schema& Sort, const Schema& Update, const Schema& Fields, bool Remove, bool Upsert, bool New);
+				Core::Async<uint64_t> CountDocuments(const Schema& Match, const Schema& Options) const;
+				Core::Async<uint64_t> CountDocumentsEstimated(const Schema& Options) const;
+				Core::Async<Cursor> FindIndexes(const Schema& Options) const;
+				Core::Async<Cursor> FindMany(const Schema& Match, const Schema& Options) const;
+				Core::Async<Cursor> FindOne(const Schema& Match, const Schema& Options) const;
+				Core::Async<Cursor> Aggregate(QueryFlags Flags, const Schema& Pipeline, const Schema& Options) const;
+				Core::Async<Response> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once = true, Transaction* Session = nullptr);
+				Core::Async<Response> Query(const Schema& Command, Transaction* Session = nullptr);
 				const char* GetName() const;
-				Stream CreateStream(const Document& Options);
+				Stream CreateStream(const Schema& Options);
 				TCollection* Get() const;
 				operator bool() const
 				{
@@ -361,12 +361,12 @@ namespace Tomahawk
 				Core::Async<bool> RemoveAllUsers();
 				Core::Async<bool> RemoveUser(const std::string& Name);
 				Core::Async<bool> Remove();
-				Core::Async<bool> RemoveWithOptions(const Document& Options);
-				Core::Async<bool> AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom);
+				Core::Async<bool> RemoveWithOptions(const Schema& Options);
+				Core::Async<bool> AddUser(const std::string& Username, const std::string& Password, const Schema& Roles, const Schema& Custom);
 				Core::Async<bool> HasCollection(const std::string& Name) const;
-				Core::Async<Collection> CreateCollection(const std::string& Name, const Document& Options);
-				Core::Async<Cursor> FindCollections(const Document& Options) const;
-				std::vector<std::string> GetCollectionNames(const Document& Options) const;
+				Core::Async<Collection> CreateCollection(const std::string& Name, const Schema& Options);
+				Core::Async<Cursor> FindCollections(const Schema& Options) const;
+				std::vector<std::string> GetCollectionNames(const Schema& Options) const;
 				const char* GetName() const;
 				Collection GetCollection(const std::string& Name);
 				TDatabase* Get() const;
@@ -384,8 +384,8 @@ namespace Tomahawk
 			public:
 				Watcher(TWatcher* NewBase);
 				void Release();
-				Core::Async<bool> Next(const Document& Result) const;
-				Core::Async<bool> Error(const Document& Result) const;
+				Core::Async<bool> Next(const Schema& Result) const;
+				Core::Async<bool> Error(const Schema& Result) const;
 				TWatcher* Get() const;
 				operator bool() const
 				{
@@ -393,9 +393,9 @@ namespace Tomahawk
 				}
 
 			public:
-				static Watcher FromConnection(Connection* Connection, const Document& Pipeline, const Document& Options);
-				static Watcher FromDatabase(const Database& Src, const Document& Pipeline, const Document& Options);
-				static Watcher FromCollection(const Collection& Src, const Document& Pipeline, const Document& Options);
+				static Watcher FromConnection(Connection* Connection, const Schema& Pipeline, const Schema& Options);
+				static Watcher FromDatabase(const Database& Src, const Schema& Pipeline, const Schema& Options);
+				static Watcher FromCollection(const Collection& Src, const Schema& Pipeline, const Schema& Options);
 			};
 
 			class TH_OUT Transaction
@@ -405,22 +405,22 @@ namespace Tomahawk
 
 			public:
 				Transaction(TTransaction* NewBase);
-				bool Push(Document& QueryOptions) const;
+				bool Push(Schema& QueryOptions) const;
 				bool Put(TDocument** QueryOptions) const;
 				Core::Async<bool> Start();
 				Core::Async<bool> Abort();
-				Core::Async<Document> RemoveMany(const Collection& Base, const Document& Match, const Document& Options);
-				Core::Async<Document> RemoveOne(const Collection& Base, const Document& Match, const Document& Options);
-				Core::Async<Document> ReplaceOne(const Collection& Base, const Document& Match, const Document& Replacement, const Document& Options);
-				Core::Async<Document> InsertMany(const Collection& Base, std::vector<Document>& List, const Document& Options);
-				Core::Async<Document> InsertOne(const Collection& Base, const Document& Result, const Document& Options);
-				Core::Async<Document> UpdateMany(const Collection& Base, const Document& Match, const Document& Update, const Document& Options);
-				Core::Async<Document> UpdateOne(const Collection& Base, const Document& Match, const Document& Update, const Document& Options);
-				Core::Async<Cursor> FindMany(const Collection& Base, const Document& Match, const Document& Options) const;
-				Core::Async<Cursor> FindOne(const Collection& Base, const Document& Match, const Document& Options) const;
-				Core::Async<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Document& Pipeline, const Document& Options) const;
-				Core::Async<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
-				Core::Async<Response> Query(const Collection& Base, const Document& Command);
+				Core::Async<Schema> RemoveMany(const Collection& Base, const Schema& Match, const Schema& Options);
+				Core::Async<Schema> RemoveOne(const Collection& Base, const Schema& Match, const Schema& Options);
+				Core::Async<Schema> ReplaceOne(const Collection& Base, const Schema& Match, const Schema& Replacement, const Schema& Options);
+				Core::Async<Schema> InsertMany(const Collection& Base, std::vector<Schema>& List, const Schema& Options);
+				Core::Async<Schema> InsertOne(const Collection& Base, const Schema& Result, const Schema& Options);
+				Core::Async<Schema> UpdateMany(const Collection& Base, const Schema& Match, const Schema& Update, const Schema& Options);
+				Core::Async<Schema> UpdateOne(const Collection& Base, const Schema& Match, const Schema& Update, const Schema& Options);
+				Core::Async<Cursor> FindMany(const Collection& Base, const Schema& Match, const Schema& Options) const;
+				Core::Async<Cursor> FindOne(const Collection& Base, const Schema& Match, const Schema& Options) const;
+				Core::Async<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Schema& Pipeline, const Schema& Options) const;
+				Core::Async<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
+				Core::Async<Response> Query(const Collection& Base, const Schema& Command);
 				Core::Async<TransactionState> Commit();
 				TTransaction* Get() const;
 				operator bool() const
@@ -448,7 +448,7 @@ namespace Tomahawk
 				Core::Async<bool> Disconnect();
 				Core::Async<bool> MakeTransaction(const std::function<Core::Async<bool>(Transaction&)>& Callback);
 				Core::Async<bool> MakeCotransaction(const std::function<bool(Transaction&)>& Callback);
-				Core::Async<Cursor> FindDatabases(const Document& Options) const;
+				Core::Async<Cursor> FindDatabases(const Schema& Options) const;
 				void SetProfile(const std::string& Name);
 				bool SetServer(bool Writeable);
 				Transaction GetSession();
@@ -458,7 +458,7 @@ namespace Tomahawk
 				Address GetAddress() const;
 				Cluster* GetMaster() const;
 				TConnection* Get() const;
-				std::vector<std::string> GetDatabaseNames(const Document& Options) const;
+				std::vector<std::string> GetDatabaseNames(const Schema& Options) const;
 				bool IsConnected() const;
 			};
 
@@ -496,7 +496,7 @@ namespace Tomahawk
 				{
 					std::vector<Pose> Positions;
 					std::string Request;
-					Document Cache;
+					Schema Cache;
 
 					Sequence();
 				};
@@ -517,11 +517,11 @@ namespace Tomahawk
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
-				static Document GetQuery(const std::string& Name, Core::DocumentArgs* Map, bool Once = true);
+				static Schema GetQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:
-				static std::string GetJSON(Core::Document* Source, bool Escape);
+				static std::string GetJSON(Core::Schema* Source, bool Escape);
 			};
 		}
 	}

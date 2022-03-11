@@ -1694,7 +1694,7 @@ namespace Tomahawk
 
 		private:
 			std::unordered_map<std::string, std::string> Files;
-			std::unordered_map<std::string, Core::Document*> Datas;
+			std::unordered_map<std::string, Core::Schema*> Datas;
 			std::unordered_map<std::string, VMByteCode> Opcodes;
 			std::unordered_map<std::string, Kernel> Kernels;
 			std::unordered_map<std::string, Submodule> Modules;
@@ -1773,7 +1773,7 @@ namespace Tomahawk
 			bool ImportSymbol(const std::vector<std::string>& Sources, const std::string& Name, const std::string& Decl);
 			bool ImportLibrary(const std::string& Path);
 			bool ImportSubmodule(const std::string& Name);
-			Core::Document* ImportJSON(const std::string& Path);
+			Core::Schema* ImportJSON(const std::string& Path);
 
 		public:
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));

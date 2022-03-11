@@ -90,9 +90,9 @@ namespace Tomahawk
 #endif
 			}
 
-			AudioFilter* GetFilterDeserialized(Core::Document* Node)
+			AudioFilter* GetFilterDeserialized(Core::Schema* Node)
 			{
-				Core::Document* Filter = Node->Find("filter");
+				Core::Schema* Filter = Node->Find("filter");
 				if (!Filter)
 					return nullptr;
 
@@ -107,7 +107,7 @@ namespace Tomahawk
 					return nullptr;
 				}
 
-				Core::Document* Meta = Filter->Find("metadata");
+				Core::Schema* Meta = Filter->Find("metadata");
 				if (!Meta)
 					Meta = Filter->Set("metadata");
 
@@ -187,9 +187,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Reverb::Deserialize(Core::Document* Node)
+			void Reverb::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -218,9 +218,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("room-rolloff-factor"), &RoomRolloffFactor);
 				Engine::NMake::Unpack(Node->Find("decay-hf-limited"), &IsDecayHFLimited);
 			}
-			void Reverb::Serialize(Core::Document* Node)
+			void Reverb::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -305,9 +305,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Chorus::Deserialize(Core::Document* Node)
+			void Chorus::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -319,9 +319,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 				Engine::NMake::Unpack(Node->Find("phase"), &Phase);
 			}
-			void Chorus::Serialize(Core::Document* Node)
+			void Chorus::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -371,9 +371,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Distortion::Deserialize(Core::Document* Node)
+			void Distortion::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -384,9 +384,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("eq-center"), &EQCenter);
 				Engine::NMake::Unpack(Node->Find("eq-bandwidth"), &EQBandwidth);
 			}
-			void Distortion::Serialize(Core::Document* Node)
+			void Distortion::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -434,9 +434,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Echo::Deserialize(Core::Document* Node)
+			void Echo::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -447,9 +447,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("feedback"), &Feedback);
 				Engine::NMake::Unpack(Node->Find("spread"), &Spread);
 			}
-			void Echo::Serialize(Core::Document* Node)
+			void Echo::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -498,9 +498,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Flanger::Deserialize(Core::Document* Node)
+			void Flanger::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -512,9 +512,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 				Engine::NMake::Unpack(Node->Find("phase"), &Phase);
 			}
-			void Flanger::Serialize(Core::Document* Node)
+			void Flanger::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -562,9 +562,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void FrequencyShifter::Deserialize(Core::Document* Node)
+			void FrequencyShifter::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -573,9 +573,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("left-direction"), &LeftDirection);
 				Engine::NMake::Unpack(Node->Find("right-direction"), &RightDirection);
 			}
-			void FrequencyShifter::Serialize(Core::Document* Node)
+			void FrequencyShifter::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -620,9 +620,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void VocalMorpher::Deserialize(Core::Document* Node)
+			void VocalMorpher::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -634,9 +634,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("phonemeb-coarse-tuning"), &PhonemebCoarseTuning);
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 			}
-			void VocalMorpher::Serialize(Core::Document* Node)
+			void VocalMorpher::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -683,9 +683,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void PitchShifter::Deserialize(Core::Document* Node)
+			void PitchShifter::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -693,9 +693,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("coarse-tune"), &CoarseTune);
 				Engine::NMake::Unpack(Node->Find("fine-tune"), &FineTune);
 			}
-			void PitchShifter::Serialize(Core::Document* Node)
+			void PitchShifter::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -735,9 +735,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void RingModulator::Deserialize(Core::Document* Node)
+			void RingModulator::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -746,9 +746,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("highpass-cut-off"), &HighpassCutOff);
 				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
 			}
-			void RingModulator::Serialize(Core::Document* Node)
+			void RingModulator::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -791,9 +791,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Autowah::Deserialize(Core::Document* Node)
+			void Autowah::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -803,9 +803,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("resonance"), &Resonance);
 				Engine::NMake::Unpack(Node->Find("peak-gain"), &PeakGain);
 			}
-			void Autowah::Serialize(Core::Document* Node)
+			void Autowah::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
@@ -842,16 +842,16 @@ namespace Tomahawk
 			void Compressor::Synchronize()
 			{
 			}
-			void Compressor::Deserialize(Core::Document* Node)
+			void Compressor::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 			}
-			void Compressor::Serialize(Core::Document* Node)
+			void Compressor::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 			}
@@ -890,9 +890,9 @@ namespace Tomahawk
 				AudioContext::Unlock();
 #endif
 			}
-			void Equalizer::Deserialize(Core::Document* Node)
+			void Equalizer::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				AudioFilter* NewFilter = GetFilterDeserialized(Node);
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
@@ -908,9 +908,9 @@ namespace Tomahawk
 				Engine::NMake::Unpack(Node->Find("high-gain"), &HighGain);
 				Engine::NMake::Unpack(Node->Find("high-cut-off"), &HighCutOff);
 			}
-			void Equalizer::Serialize(Core::Document* Node)
+			void Equalizer::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 

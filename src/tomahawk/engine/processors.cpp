@@ -75,19 +75,19 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
-				Core::Document* Document = Content->Load<Core::Document>(Stream->GetSource());
-				if (!Document)
+				Core::Schema* Schema = Content->Load<Core::Schema>(Stream->GetSource());
+				if (!Schema)
 					return nullptr;
 
 				Engine::Material* Object = new Engine::Material(nullptr);
-				if (!NMake::Unpack(Document, Object, Content))
+				if (!NMake::Unpack(Schema, Object, Content))
 				{
-					TH_RELEASE(Document);
+					TH_RELEASE(Schema);
 					TH_RELEASE(Object);
 					return nullptr;
 				}
 
-				TH_RELEASE(Document);
+				TH_RELEASE(Schema);
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
@@ -98,19 +98,19 @@ namespace Tomahawk
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
 
-				Core::Document* Document = Core::Var::Set::Object();
-				Document->Key = "material";
+				Core::Schema* Schema = Core::Var::Set::Object();
+				Schema->Key = "material";
 
 				Engine::Material* Object = (Engine::Material*)Instance;
-				NMake::Pack(Document, Object, Content);
+				NMake::Pack(Schema, Object, Content);
 
-				if (!Content->Save<Core::Document>(Stream->GetSource(), Document, Args))
+				if (!Content->Save<Core::Schema>(Stream->GetSource(), Schema, Args))
 				{
-					TH_RELEASE(Document);
+					TH_RELEASE(Schema);
 					return false;
 				}
 
-				TH_RELEASE(Document);
+				TH_RELEASE(Schema);
 				return true;
 			}
 
@@ -123,14 +123,14 @@ namespace Tomahawk
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				TH_ASSERT(I.Device != nullptr, nullptr, "graphics device should be set");
 
-				Core::Document* Document = Content->Load<Core::Document>(Stream->GetSource());
-				if (!Document)
+				Core::Schema* Schema = Content->Load<Core::Schema>(Stream->GetSource());
+				if (!Schema)
 					return nullptr;
 
-				Core::Document* Metadata = Document->Find("metadata");
+				Core::Schema* Metadata = Schema->Find("metadata");
 				if (Metadata != nullptr)
 				{
-					Core::Document* Simulator = Metadata->Find("simulator");
+					Core::Schema* Simulator = Metadata->Find("simulator");
 					if (Simulator != nullptr)
 					{
 						NMake::Unpack(Simulator->Find("enable-soft-body"), &I.Simulator.EnableSoftBody);
@@ -163,10 +163,10 @@ namespace Tomahawk
 				if (IsActive != Args.end())
 					Object->SetActive(IsActive->second.GetBoolean());
 
-				Core::Document* Materials = Document->Find("materials");
+				Core::Schema* Materials = Schema->Find("materials");
 				if (Materials != nullptr)
 				{
-					std::vector<Core::Document*> Collection = Materials->FindCollection("material");
+					std::vector<Core::Schema*> Collection = Materials->FindCollection("material");
 					for (auto& It : Collection)
 					{
 						std::string Path;
@@ -182,10 +182,10 @@ namespace Tomahawk
 					}
 				}
 
-				Core::Document* Entities = Document->Find("entities");
+				Core::Schema* Entities = Schema->Find("entities");
 				if (Entities != nullptr)
 				{
-					std::vector<Core::Document*> Collection = Entities->FindCollection("entity");
+					std::vector<Core::Schema*> Collection = Entities->FindCollection("entity");
 					for (auto& It : Collection)
 					{
 						Entity* Entity = new Engine::Entity(Object);
@@ -211,7 +211,7 @@ namespace Tomahawk
 						NMake::Unpack(It->Find("tag"), &Entity->Tag);
 						Entity->SetName(Name, true);
 
-						Core::Document* Transform = It->Find("transform");
+						Core::Schema* Transform = It->Find("transform");
 						if (Transform != nullptr)
 						{
 							Compute::Transform* Offset = Entity->GetTransform();
@@ -224,7 +224,7 @@ namespace Tomahawk
 							Offset->SetScaling(Scaling);
 						}
 
-						Core::Document* Parent = It->Find("parent");
+						Core::Schema* Parent = It->Find("parent");
 						if (Parent != nullptr)
 						{
 							Compute::Transform* Root = nullptr;
@@ -247,10 +247,10 @@ namespace Tomahawk
 							Offset->MakeDirty();
 						}
 
-						Core::Document* Components = It->Find("components");
+						Core::Schema* Components = It->Find("components");
 						if (Components != nullptr)
 						{
-							std::vector<Core::Document*> Elements = Components->FindCollection("component");
+							std::vector<Core::Schema*> Elements = Components->FindCollection("component");
 							for (auto& Element : Elements)
 							{
 								uint64_t Id;
@@ -268,7 +268,7 @@ namespace Tomahawk
 								if (NMake::Unpack(Element->Find("active"), &Active))
 									Target->SetActive(Active);
 
-								Core::Document* Meta = Element->Find("metadata");
+								Core::Schema* Meta = Element->Find("metadata");
 								if (!Meta)
 									Meta = Element->Set("metadata");
 
@@ -278,7 +278,7 @@ namespace Tomahawk
 					}
 				}
 
-				TH_RELEASE(Document);
+				TH_RELEASE(Schema);
 				Object->Snapshot = nullptr;
 				Object->Actualize();
 
@@ -310,11 +310,11 @@ namespace Tomahawk
 				Object->MakeSnapshot(&Snapshot);
 				Object->Snapshot = &Snapshot;
 
-				Core::Document* Document = Core::Var::Set::Object();
-				Document->Key = "scene";
+				Core::Schema* Schema = Core::Var::Set::Object();
+				Schema->Key = "scene";
 
 				auto& Conf = Object->GetConf();
-				Core::Document* Metadata = Document->Set("metadata");
+				Core::Schema* Metadata = Schema->Set("metadata");
 				NMake::Pack(Metadata->Set("materials"), Conf.StartMaterials);
 				NMake::Pack(Metadata->Set("entities"), Conf.StartEntities);
 				NMake::Pack(Metadata->Set("components"), Conf.StartComponents);
@@ -328,7 +328,7 @@ namespace Tomahawk
 				NMake::Pack(Metadata->Set("max-updates"), Conf.MaxUpdates);
 
 				auto* fSimulator = Object->GetSimulator();
-				Core::Document* Simulator = Metadata->Set("simulator");
+				Core::Schema* Simulator = Metadata->Set("simulator");
 				NMake::Pack(Simulator->Set("enable-soft-body"), fSimulator->HasSoftBodySupport());
 				NMake::Pack(Simulator->Set("max-displacement"), fSimulator->GetMaxDisplacement());
 				NMake::Pack(Simulator->Set("air-density"), fSimulator->GetAirDensity());
@@ -337,7 +337,7 @@ namespace Tomahawk
 				NMake::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
 				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
-				Core::Document* Materials = Document->Set("materials", Core::Var::Array());
+				Core::Schema* Materials = Schema->Set("materials", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetMaterialsCount(); i++)
 				{
 					Engine::Material* Material = Object->GetMaterial(i);
@@ -356,24 +356,24 @@ namespace Tomahawk
 
 					if (Content->Save<Engine::Material>(Path, Material, Args))
 					{
-						Core::Document* Where = Materials->Set("material");
+						Core::Schema* Where = Materials->Set("material");
 						NMake::Pack(Where, Material->Slot);
 						NMake::Pack(Where, Path);
 					}
 				}
 
-				Core::Document* Entities = Document->Set("entities", Core::Var::Array());
+				Core::Schema* Entities = Schema->Set("entities", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetEntitiesCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
 					auto* Offset = Ref->GetTransform();
 
-					Core::Document* Entity = Entities->Set("entity");
+					Core::Schema* Entity = Entities->Set("entity");
 					NMake::Pack(Entity->Set("name"), Ref->GetName());
 					NMake::Pack(Entity->Set("tag"), Ref->Tag);
 					NMake::Pack(Entity->Set("refer"), i);
 
-					Core::Document* Transform = Entity->Set("transform");
+					Core::Schema* Transform = Entity->Set("transform");
 					NMake::Pack(Transform->Set("position"), Offset->GetPosition());
 					NMake::Pack(Transform->Set("rotation"), Offset->GetRotation());
 					NMake::Pack(Transform->Set("scale"), Offset->GetScale());
@@ -381,7 +381,7 @@ namespace Tomahawk
 
 					if (Offset->GetRoot() != nullptr)
 					{
-						Core::Document* Parent = Entity->Set("parent");
+						Core::Schema* Parent = Entity->Set("parent");
 						if (Offset->GetRoot()->UserPointer != nullptr)
 						{
 							auto It = Snapshot.To.find(Offset->GetRoot()->Ptr<Engine::Entity>());
@@ -399,10 +399,10 @@ namespace Tomahawk
 					if (!Ref->GetComponentsCount())
 						continue;
 
-					Core::Document* Components = Entity->Set("components", Core::Var::Array());
+					Core::Schema* Components = Entity->Set("components", Core::Var::Array());
 					for (auto& Item : *Ref)
 					{
-						Core::Document* Component = Components->Set("component");
+						Core::Schema* Component = Components->Set("component");
 						NMake::Pack(Component->Set("id"), Item.second->GetId());
 						NMake::Pack(Component->Set("active"), Item.second->IsActive());
 						Item.second->Serialize(Content, Component->Set("metadata"));
@@ -410,8 +410,8 @@ namespace Tomahawk
 				}
 
 				Object->Snapshot = nullptr;
-				Content->Save<Core::Document>(Stream->GetSource(), Document, Args);
-				TH_RELEASE(Document);
+				Content->Save<Core::Schema>(Stream->GetSource(), Schema, Args);
+				TH_RELEASE(Schema);
 
 				return true;
 			}
@@ -675,16 +675,16 @@ namespace Tomahawk
 			void* Model::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
-				if (!Document)
+				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
+				if (!Schema)
 					return nullptr;
 
 				auto Object = new Graphics::Model();
-				NMake::Unpack(Document->Find("root"), &Object->Root);
-				NMake::Unpack(Document->Find("max"), &Object->Max);
-				NMake::Unpack(Document->Find("min"), &Object->Min);
+				NMake::Unpack(Schema->Find("root"), &Object->Root);
+				NMake::Unpack(Schema->Find("max"), &Object->Max);
+				NMake::Unpack(Schema->Find("min"), &Object->Min);
 
-				std::vector<Core::Document*> Meshes = Document->FetchCollection("meshes.mesh");
+				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					Graphics::MeshBuffer::Desc F;
@@ -693,13 +693,13 @@ namespace Tomahawk
 
 					if (!NMake::Unpack(Mesh->Find("indices"), &F.Indices))
 					{
-						TH_RELEASE(Document);
+						TH_RELEASE(Schema);
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &F.Elements))
 					{
-						TH_RELEASE(Document);
+						TH_RELEASE(Schema);
 						return nullptr;
 					}
 
@@ -717,11 +717,11 @@ namespace Tomahawk
 
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
-				TH_RELEASE(Document);
+				TH_RELEASE(Schema);
 
 				return (void*)Object;
 			}
-			Core::Document* Model::Import(const std::string& Path, unsigned int Opts)
+			Core::Schema* Model::Import(const std::string& Path, unsigned int Opts)
 			{
 #ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
@@ -744,8 +744,8 @@ namespace Tomahawk
 						Joints.push_back(It.second);
 				}
 
-				auto* Document = Core::Var::Set::Object();
-				Document->Key = "model";
+				auto* Schema = Core::Var::Set::Object();
+				Schema->Key = "model";
 
 				float Min = 0, Max = 0;
 				if (Info.NX < Min)
@@ -766,23 +766,23 @@ namespace Tomahawk
 				if (Info.PZ > Max)
 					Max = Info.PZ;
 
-				NMake::Pack(Document->Set("options"), Opts);
-				NMake::Pack(Document->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
-				NMake::Pack(Document->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
-				NMake::Pack(Document->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
-				NMake::Pack(Document->Set("joints", Core::Var::Array()), Joints);
+				NMake::Pack(Schema->Set("options"), Opts);
+				NMake::Pack(Schema->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
+				NMake::Pack(Schema->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
+				NMake::Pack(Schema->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
+				NMake::Pack(Schema->Set("joints", Core::Var::Array()), Joints);
 
-				Core::Document* Meshes = Document->Set("meshes", Core::Var::Array());
+				Core::Schema* Meshes = Schema->Set("meshes", Core::Var::Array());
 				for (auto&& It : Info.Meshes)
 				{
-					Core::Document* Mesh = Meshes->Set("mesh");
+					Core::Schema* Mesh = Meshes->Set("mesh");
 					NMake::Pack(Mesh->Set("name"), It.Name);
 					NMake::Pack(Mesh->Set("world"), It.World);
 					NMake::Pack(Mesh->Set("vertices"), It.Vertices);
 					NMake::Pack(Mesh->Set("indices"), It.Indices);
 				}
 
-				return Document;
+				return Schema;
 #else
 				return nullptr;
 #endif
@@ -987,17 +987,17 @@ namespace Tomahawk
 			void* SkinModel::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
-				if (!Document)
+				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
+				if (!Schema)
 					return nullptr;
 
 				auto Object = new Graphics::SkinModel();
-				NMake::Unpack(Document->Find("root"), &Object->Root);
-				NMake::Unpack(Document->Find("max"), &Object->Max);
-				NMake::Unpack(Document->Find("min"), &Object->Min);
-				NMake::Unpack(Document->Find("joints"), &Object->Joints);
+				NMake::Unpack(Schema->Find("root"), &Object->Root);
+				NMake::Unpack(Schema->Find("max"), &Object->Max);
+				NMake::Unpack(Schema->Find("min"), &Object->Min);
+				NMake::Unpack(Schema->Find("joints"), &Object->Joints);
 
-				std::vector<Core::Document*> Meshes = Document->FetchCollection("meshes.mesh");
+				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					Graphics::SkinMeshBuffer::Desc F;
@@ -1006,13 +1006,13 @@ namespace Tomahawk
 
 					if (!NMake::Unpack(Mesh->Find("indices"), &F.Indices))
 					{
-						TH_RELEASE(Document);
+						TH_RELEASE(Schema);
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &F.Elements))
 					{
-						TH_RELEASE(Document);
+						TH_RELEASE(Schema);
 						return nullptr;
 					}
 
@@ -1031,10 +1031,10 @@ namespace Tomahawk
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
-				TH_RELEASE(Document);
+				TH_RELEASE(Schema);
 				return (void*)Object;
 			}
-			Core::Document* SkinModel::ImportAnimation(const std::string& Path, unsigned int Opts)
+			Core::Schema* SkinModel::ImportAnimation(const std::string& Path, unsigned int Opts)
 			{
 #ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
@@ -1115,11 +1115,11 @@ namespace Tomahawk
 					}
 				}
 
-				auto* Document = Core::Var::Set::Object();
-				Document->Key = "animation";
+				auto* Schema = Core::Var::Set::Object();
+				Schema->Key = "animation";
 
-				NMake::Pack(Document, Clips);
-				return Document;
+				NMake::Pack(Schema, Clips);
+				return Schema;
 #else
 				return nullptr;
 #endif
@@ -1185,16 +1185,16 @@ namespace Tomahawk
 				}
 			}
 
-			Document::Document(ContentManager* Manager) : Processor(Manager)
+			Schema::Schema(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Document::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Schema::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				if (!Length)
 					return nullptr;
 
-				auto* Object = Core::Document::ReadJSONB([Stream](char* Buffer, int64_t Size)
+				auto* Object = Core::Schema::ReadJSONB([Stream](char* Buffer, int64_t Size)
 				{
 					return Size > 0 ? Stream->Read(Buffer, Size) == Size : true;
 				}, false);
@@ -1207,26 +1207,26 @@ namespace Tomahawk
 				Stream->Read(Buffer, Length);
 				Buffer[(size_t)Length] = '\0';
 
-				Object = Core::Document::ReadJSON(Buffer, (size_t)Length, false);
+				Object = Core::Schema::ReadJSON(Buffer, (size_t)Length, false);
 				if (!Object)
-					Object = Core::Document::ReadXML(Buffer, false);
+					Object = Core::Schema::ReadXML(Buffer, false);
 
 				TH_FREE(Buffer);
 				return Object;
 			}
-			bool Document::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
+			bool Schema::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				auto Type = Args.find("type");
 				TH_ASSERT(Type != Args.end(), nullptr, "type argument should be set");
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
 
-				auto Document = (Core::Document*)Instance;
+				auto Schema = (Core::Schema*)Instance;
 				std::string Offset;
 
 				if (Type->second == Core::Var::String("XML"))
 				{
-					Core::Document::WriteXML(Document, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
+					Core::Schema::WriteXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1255,7 +1255,7 @@ namespace Tomahawk
 				}
 				else if (Type->second == Core::Var::String("JSON"))
 				{
-					Core::Document::WriteJSON(Document, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
+					Core::Schema::WriteJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1284,7 +1284,7 @@ namespace Tomahawk
 				}
 				else if (Type->second == Core::Var::String("JSONB"))
 				{
-					Core::Document::WriteJSONB(Document, [Stream](Core::VarForm, const char* Buffer, int64_t Length)
+					Core::Schema::WriteJSONB(Schema, [Stream](Core::VarForm, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1302,7 +1302,7 @@ namespace Tomahawk
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::string N = Network::Socket::GetLocalAddress();
 				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
-				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
+				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
 				auto* Router = TH_NEW(Network::HTTP::MapRouter);
 				auto* Object = new Network::HTTP::Server();
 
@@ -1310,15 +1310,15 @@ namespace Tomahawk
 				if (App != nullptr)
 					Router->VM = App->VM;
 
-				if (Document == nullptr)
+				if (Schema == nullptr)
 				{
 					TH_DELETE(MapRouter, Router);
 					return (void*)Object;
 				}
 				else if (Callback)
-					Callback((void*)Object, Document);
+					Callback((void*)Object, Schema);
 
-				Core::Document* Config = Document->Find("netstat");
+				Core::Schema* Config = Schema->Find("netstat");
 				if (Config != nullptr)
 				{
 					if (NMake::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
@@ -1349,7 +1349,7 @@ namespace Tomahawk
 						Router->EnableNoDelay = false;
 				}
 
-				std::vector<Core::Document*> Certificates = Document->FindCollection("certificate", true);
+				std::vector<Core::Schema*> Certificates = Schema->FindCollection("certificate", true);
 				for (auto&& It : Certificates)
 				{
 					std::string Name;
@@ -1390,7 +1390,7 @@ namespace Tomahawk
 					Core::Parser(&Cert->Chain).Eval(N, D).R();
 				}
 
-				std::vector<Core::Document*> Listeners = Document->FindCollection("listen", true);
+				std::vector<Core::Schema*> Listeners = Schema->FindCollection("listen", true);
 				for (auto&& It : Listeners)
 				{
 					std::string Name;
@@ -1409,7 +1409,7 @@ namespace Tomahawk
 						Host->Secure = false;
 				}
 
-				std::vector<Core::Document*> Sites = Document->FindCollection("site", true);
+				std::vector<Core::Schema*> Sites = Schema->FindCollection("site", true);
 				for (auto&& It : Sites)
 				{
 					std::string Name = "*";
@@ -1459,16 +1459,16 @@ namespace Tomahawk
 						Site->MaxResources = 5;
 
 					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
-					std::vector<Core::Document*> Groups = It->FindCollection("group", true);
+					std::vector<Core::Schema*> Groups = It->FindCollection("group", true);
 					for (auto&& Subgroup : Groups)
 					{
 						std::string Match;
-						Core::Document* fMatch = Subgroup->GetAttribute("match");
+						Core::Schema* fMatch = Subgroup->GetAttribute("match");
 						if (fMatch != nullptr && fMatch->Value.GetType() == Core::VarType::String)
 							Match = fMatch->Value.GetBlob();
 
 						Network::HTTP::RouteMode Mode = Network::HTTP::RouteMode::Start;
-						Core::Document* fMode = Subgroup->GetAttribute("mode");
+						Core::Schema* fMode = Subgroup->GetAttribute("mode");
 						if (fMode != nullptr && fMode->Value.GetType() == Core::VarType::String)
 						{
 							if (fMode->Value.IsString("start"))
@@ -1480,14 +1480,14 @@ namespace Tomahawk
 						}
 
 						Network::HTTP::RouteGroup* Group = Site->Group(Match, Mode);
-						std::vector<Core::Document*> Routes = Subgroup->FindCollection("route", true);
+						std::vector<Core::Schema*> Routes = Subgroup->FindCollection("route", true);
 						for (auto&& Base : Routes)
 						{
 							Network::HTTP::RouteEntry* Route = nullptr;
 							std::string SourceURL = "*";
 							NMake::Unpack(Base, &SourceURL);
 
-							Core::Document* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");
+							Core::Schema* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");
 							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
 							{
 								auto Subalias = Aliases.find(From->Value.GetBlob());
@@ -1501,11 +1501,11 @@ namespace Tomahawk
 							else
 								Route = Site->Route(Match, Mode, SourceURL);
 
-							Core::Document* Level = Base->GetAttribute("level");
+							Core::Schema* Level = Base->GetAttribute("level");
 							if (Level != nullptr)
 								Route->Level = (uint64_t)Level->Value.GetInteger();
 
-							std::vector<Core::Document*> GatewayFiles = Base->FetchCollection("gateway.files.file");
+							std::vector<Core::Schema*> GatewayFiles = Base->FetchCollection("gateway.files.file");
 							if (Base->Fetch("gateway.files.[clear]") != nullptr)
 								Route->Gateway.Files.clear();
 
@@ -1516,7 +1516,7 @@ namespace Tomahawk
 									Route->Gateway.Files.emplace_back(Pattern, true);
 							}
 
-							std::vector<Core::Document*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
+							std::vector<Core::Schema*> GatewayMethods = Base->FetchCollection("gateway.methods.method");
 							if (Base->Fetch("gateway.methods.[clear]") != nullptr)
 								Route->Gateway.Methods.clear();
 
@@ -1527,7 +1527,7 @@ namespace Tomahawk
 									Route->Gateway.Methods.push_back(Value);
 							}
 
-							std::vector<Core::Document*> AuthMethods = Base->FetchCollection("auth.methods.method");
+							std::vector<Core::Schema*> AuthMethods = Base->FetchCollection("auth.methods.method");
 							if (Base->Fetch("auth.methods.[clear]") != nullptr)
 								Route->Auth.Methods.clear();
 
@@ -1538,7 +1538,7 @@ namespace Tomahawk
 									Route->Auth.Methods.push_back(Value);
 							}
 
-							std::vector<Core::Document*> CompressionFiles = Base->FetchCollection("compression.files.file");
+							std::vector<Core::Schema*> CompressionFiles = Base->FetchCollection("compression.files.file");
 							if (Base->Fetch("compression.files.[clear]") != nullptr)
 								Route->Compression.Files.clear();
 
@@ -1549,7 +1549,7 @@ namespace Tomahawk
 									Route->Compression.Files.emplace_back(Pattern, true);
 							}
 
-							std::vector<Core::Document*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
+							std::vector<Core::Schema*> HiddenFiles = Base->FetchCollection("hidden-files.hide");
 							if (Base->Fetch("hidden-files.[clear]") != nullptr)
 								Route->HiddenFiles.clear();
 
@@ -1560,7 +1560,7 @@ namespace Tomahawk
 									Route->HiddenFiles.emplace_back(Pattern, true);
 							}
 
-							std::vector<Core::Document*> IndexFiles = Base->FetchCollection("index-files.index");
+							std::vector<Core::Schema*> IndexFiles = Base->FetchCollection("index-files.index");
 							if (Base->Fetch("index-files.[clear]") != nullptr)
 								Route->IndexFiles.clear();
 
@@ -1571,7 +1571,7 @@ namespace Tomahawk
 									Route->IndexFiles.push_back(Pattern);
 							}
 
-							std::vector<Core::Document*> ErrorFiles = Base->FetchCollection("error-files.error");
+							std::vector<Core::Schema*> ErrorFiles = Base->FetchCollection("error-files.error");
 							if (Base->Fetch("error-files.[clear]") != nullptr)
 								Route->ErrorFiles.clear();
 
@@ -1585,7 +1585,7 @@ namespace Tomahawk
 								Route->ErrorFiles.push_back(Source);
 							}
 
-							std::vector<Core::Document*> MimeTypes = Base->FetchCollection("mime-types.file");
+							std::vector<Core::Schema*> MimeTypes = Base->FetchCollection("mime-types.file");
 							if (Base->Fetch("mime-types.[clear]") != nullptr)
 								Route->MimeTypes.clear();
 
@@ -1597,7 +1597,7 @@ namespace Tomahawk
 								Route->MimeTypes.push_back(Pattern);
 							}
 
-							std::vector<Core::Document*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
+							std::vector<Core::Schema*> DisallowedMethods = Base->FetchCollection("disallowed-methods.method");
 							if (Base->Fetch("disallowed-methods.[clear]") != nullptr)
 								Route->DisallowedMethods.clear();
 
@@ -1670,7 +1670,7 @@ namespace Tomahawk
 				else
 					Object->SetRouter(Router);
 
-				TH_RELEASE(Document);
+				TH_RELEASE(Schema);
 				return (void*)Object;
 			}
 
@@ -1700,31 +1700,31 @@ namespace Tomahawk
 			void* HullShape::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				auto* Document = Content->Load<Core::Document>(Stream->GetSource());
-				if (!Document)
+				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
+				if (!Schema)
 					return nullptr;
 
 				Compute::HullShape* Object = new Compute::HullShape();
-				std::vector<Core::Document*> Meshes = Document->FetchCollection("meshes.mesh");
+				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
 					if (!NMake::Unpack(Mesh->Find("indices"), &Object->Indices))
 					{
-						TH_RELEASE(Document);
+						TH_RELEASE(Schema);
 						TH_RELEASE(Object);
 						return nullptr;
 					}
 
 					if (!NMake::Unpack(Mesh->Find("vertices"), &Object->Vertices))
 					{
-						TH_RELEASE(Document);
+						TH_RELEASE(Schema);
 						TH_RELEASE(Object);
 						return nullptr;
 					}
 				}
 
 				Object->Shape = Compute::Simulator::CreateHullShape(Object->Vertices);
-				TH_RELEASE(Document);
+				TH_RELEASE(Schema);
 
 				if (!Object->Shape)
 				{

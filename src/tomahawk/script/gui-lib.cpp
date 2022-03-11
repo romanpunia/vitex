@@ -11,7 +11,7 @@ namespace Tomahawk
 	namespace Script
 	{
 #ifdef TH_WITH_RMLUI
-		bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Document* Args)
+		bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
 		{
 			Core::VariantArgs Data;
 			if (Args != nullptr)
@@ -29,7 +29,7 @@ namespace Tomahawk
 			return STDArray::Compose(Type.GetTypeInfo(), Base.QuerySelectorAll(Value));
 		}
 
-		bool IElementDocumentDispatchEvent(Engine::GUI::IElementDocument& Base, const std::string& Name, Core::Document* Args)
+		bool IElementDocumentDispatchEvent(Engine::GUI::IElementDocument& Base, const std::string& Name, Core::Schema* Args)
 		{
 			Core::VariantArgs Data;
 			if (Args != nullptr)
@@ -47,7 +47,7 @@ namespace Tomahawk
 			return STDArray::Compose(Type.GetTypeInfo(), Base.QuerySelectorAll(Value));
 		}
 
-		bool DataModelSetRecursive(Engine::GUI::DataNode* Node, Core::Document* Data, size_t Depth)
+		bool DataModelSetRecursive(Engine::GUI::DataNode* Node, Core::Schema* Data, size_t Depth)
 		{
 			size_t Index = 0;
 			for (auto& Item : Data->GetChilds())
@@ -61,7 +61,7 @@ namespace Tomahawk
 			Node->SortTree();
 			return true;
 		}
-		bool DataModelGetRecursive(Engine::GUI::DataNode* Node, Core::Document* Data)
+		bool DataModelGetRecursive(Engine::GUI::DataNode* Node, Core::Schema* Data)
 		{
 			size_t Size = Node->GetSize();
 			for (size_t i = 0; i < Size; i++)
@@ -72,7 +72,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool DataModelSet(Engine::GUI::DataModel* Base, const std::string& Name, Core::Document* Data)
+		bool DataModelSet(Engine::GUI::DataModel* Base, const std::string& Name, Core::Schema* Data)
 		{
 			if (!Data->Value.IsObject())
 				return Base->SetProperty(Name, Data->Value) != nullptr;
@@ -152,13 +152,13 @@ namespace Tomahawk
 				});
 			});
 		}
-		Core::Document* DataModelGet(Engine::GUI::DataModel* Base, const std::string& Name)
+		Core::Schema* DataModelGet(Engine::GUI::DataModel* Base, const std::string& Name)
 		{
 			Engine::GUI::DataNode* Node = Base->GetProperty(Name);
 			if (!Node)
 				return nullptr;
 
-			Core::Document* Result = new Core::Document(Node->Get());
+			Core::Schema* Result = new Core::Schema(Node->Get());
 			if (Result->Value.IsObject())
 				DataModelGetRecursive(Node, Result);
 
@@ -262,7 +262,7 @@ namespace Tomahawk
 			VMEnum VFocusFlag = Register.SetEnum("FocusFlag");
 			VMEnum VModalFlag = Register.SetEnum("ModalFlag");
 			VMTypeClass VElement = Register.SetStructUnmanaged<Engine::GUI::IElement>("Element");
-			VMTypeClass VDocument = Register.SetStructUnmanaged<Engine::GUI::IElementDocument>("Document");
+			VMTypeClass VDocument = Register.SetStructUnmanaged<Engine::GUI::IElementDocument>("Schema");
 			VMTypeClass VEvent = Register.SetStructUnmanaged<Engine::GUI::IEvent>("Event");
 			VMRefClass VListener = Register.SetClassUnmanaged<GUIListener>("Listener");
 			Register.SetFunctionDef("void GUIListenerCallback(GUI::Event &in)");
@@ -272,7 +272,7 @@ namespace Tomahawk
 			VModalFlag.SetValue("Keep", (int)Engine::GUI::ModalFlag::Keep);
 
 			VFocusFlag.SetValue("None", (int)Engine::GUI::FocusFlag::None);
-			VFocusFlag.SetValue("Document", (int)Engine::GUI::FocusFlag::Document);
+			VFocusFlag.SetValue("Schema", (int)Engine::GUI::FocusFlag::Schema);
 			VFocusFlag.SetValue("Keep", (int)Engine::GUI::FocusFlag::Keep);
 			VFocusFlag.SetValue("Auto", (int)Engine::GUI::FocusFlag::Auto);
 
@@ -408,7 +408,7 @@ namespace Tomahawk
 			VElement.SetMethod("void SetScrollTop(float)", &Engine::GUI::IElement::SetScrollTop);
 			VElement.SetMethod("float GetScrollWidth()", &Engine::GUI::IElement::GetScrollWidth);
 			VElement.SetMethod("float GetScrollHeight()", &Engine::GUI::IElement::GetScrollHeight);
-			VElement.SetMethod("Document GetOwnerDocument() const", &Engine::GUI::IElement::GetOwnerDocument);
+			VElement.SetMethod("Schema GetOwnerDocument() const", &Engine::GUI::IElement::GetOwnerDocument);
 			VElement.SetMethod("Element GetParentNode() const", &Engine::GUI::IElement::GetParentNode);
 			VElement.SetMethod("Element GetNextSibling() const", &Engine::GUI::IElement::GetNextSibling);
 			VElement.SetMethod("Element GetPreviousSibling() const", &Engine::GUI::IElement::GetPreviousSibling);
@@ -428,7 +428,7 @@ namespace Tomahawk
 			VElement.SetMethod("void Click()", &Engine::GUI::IElement::Click);
 			VElement.SetMethod("void AddEventListener(const String &in, Listener@+, bool = false)", &Engine::GUI::IElement::AddEventListener);
 			VElement.SetMethod("void RemoveEventListener(const String &in, Listener@+, bool = false)", &Engine::GUI::IElement::RemoveEventListener);
-			VElement.SetMethodEx("bool DispatchEvent(const String &in, CE::Document@+)", &IElementDispatchEvent);
+			VElement.SetMethodEx("bool DispatchEvent(const String &in, CE::Schema@+)", &IElementDispatchEvent);
 			VElement.SetMethod("void ScrollIntoView(bool = true)", &Engine::GUI::IElement::ScrollIntoView);
 			VElement.SetMethod("Element AppendChild(const Element &in, bool = true)", &Engine::GUI::IElement::AppendChild);
 			VElement.SetMethod("Element InsertBefore(const Element &in, const Element &in)", &Engine::GUI::IElement::InsertBefore);
@@ -519,7 +519,7 @@ namespace Tomahawk
 			VDocument.SetMethod("void SetScrollTop(float)", &Engine::GUI::IElementDocument::SetScrollTop);
 			VDocument.SetMethod("float GetScrollWidth()", &Engine::GUI::IElementDocument::GetScrollWidth);
 			VDocument.SetMethod("float GetScrollHeight()", &Engine::GUI::IElementDocument::GetScrollHeight);
-			VDocument.SetMethod("Document GetOwnerDocument() const", &Engine::GUI::IElementDocument::GetOwnerDocument);
+			VDocument.SetMethod("Schema GetOwnerDocument() const", &Engine::GUI::IElementDocument::GetOwnerDocument);
 			VDocument.SetMethod("Element GetParentNode() const", &Engine::GUI::IElementDocument::GetParentNode);
 			VDocument.SetMethod("Element GetNextSibling() const", &Engine::GUI::IElementDocument::GetNextSibling);
 			VDocument.SetMethod("Element GetPreviousSibling() const", &Engine::GUI::IElementDocument::GetPreviousSibling);
@@ -539,7 +539,7 @@ namespace Tomahawk
 			VDocument.SetMethod("void Click()", &Engine::GUI::IElementDocument::Click);
 			VDocument.SetMethod("void AddEventListener(const String &in, Listener@+, bool = false)", &Engine::GUI::IElementDocument::AddEventListener);
 			VDocument.SetMethod("void RemoveEventListener(const String &in, Listener@+, bool = false)", &Engine::GUI::IElementDocument::RemoveEventListener);
-			VDocument.SetMethodEx("bool DispatchEvent(const String &in, CE::Document@+)", &IElementDocumentDispatchEvent);
+			VDocument.SetMethodEx("bool DispatchEvent(const String &in, CE::Schema@+)", &IElementDocumentDispatchEvent);
 			VDocument.SetMethod("void ScrollIntoView(bool = true)", &Engine::GUI::IElementDocument::ScrollIntoView);
 			VDocument.SetMethod("Element AppendChild(const Element &in, bool = true)", &Engine::GUI::IElementDocument::AppendChild);
 			VDocument.SetMethod("Element InsertBefore(const Element &in, const Element &in)", &Engine::GUI::IElementDocument::InsertBefore);
@@ -598,7 +598,7 @@ namespace Tomahawk
 
 			Engine->BeginNamespace("GUI");
 			VMRefClass VModel = Register.SetClassUnmanaged<Engine::GUI::DataModel>("Model");
-			VModel.SetMethodEx("bool Set(const String &in, CE::Document@+)", &DataModelSet);
+			VModel.SetMethodEx("bool Set(const String &in, CE::Schema@+)", &DataModelSet);
 			VModel.SetMethodEx("bool SetVar(const String &in, const CE::Variant &in)", &DataModelSetVar);
 			VModel.SetMethodEx("bool SetString(const String &in, const String &in)", &DataModelSetString);
 			VModel.SetMethodEx("bool SetInteger(const String &in, int64)", &DataModelSetInteger);
@@ -607,7 +607,7 @@ namespace Tomahawk
 			VModel.SetMethodEx("bool SetBoolean(const String &in, bool)", &DataModelSetBoolean);
 			VModel.SetMethodEx("bool SetPointer(const String &in, Address@)", &DataModelSetPointer);
 			VModel.SetMethodEx("bool SetCallback(const String &in, GUIDataCallback@)", &DataModelSetCallback);
-			VModel.SetMethodEx("CE::Document@+ Get(const String &in)", &DataModelGet);
+			VModel.SetMethodEx("CE::Schema@+ Get(const String &in)", &DataModelGet);
 			VModel.SetMethod("String GetString(const String &in)", &Engine::GUI::DataModel::GetString);
 			VModel.SetMethod("int64 GetInteger(const String &in)", &Engine::GUI::DataModel::GetInteger);
 			VModel.SetMethod("float GetFloat(const String &in)", &Engine::GUI::DataModel::GetFloat);
@@ -637,17 +637,17 @@ namespace Tomahawk
 			VContext.SetMethod("void SetDensityIndependentPixelRatio(float)", &Engine::GUI::Context::GetDensityIndependentPixelRatio);
 			VContext.SetMethod("float GetDensityIndependentPixelRatio() const", &Engine::GUI::Context::GetDensityIndependentPixelRatio);
 			VContext.SetMethod("void EnableMouseCursor(bool)", &Engine::GUI::Context::EnableMouseCursor);
-			VContext.SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const std::string&>("Document GetDocument(const String &in)", &Engine::GUI::Context::GetDocument);
-			VContext.SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, int>("Document GetDocument(int)", &Engine::GUI::Context::GetDocument);
+			VContext.SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, const std::string&>("Schema GetDocument(const String &in)", &Engine::GUI::Context::GetDocument);
+			VContext.SetMethod<Engine::GUI::Context, Engine::GUI::IElementDocument, int>("Schema GetDocument(int)", &Engine::GUI::Context::GetDocument);
 			VContext.SetMethod("int GetNumDocuments() const", &Engine::GUI::Context::GetNumDocuments);
 			VContext.SetMethod("Element GetElementById(int, const String &in)", &Engine::GUI::Context::GetElementById);
 			VContext.SetMethod("Element GetHoverElement()", &Engine::GUI::Context::GetHoverElement);
 			VContext.SetMethod("Element GetFocusElement()", &Engine::GUI::Context::GetFocusElement);
 			VContext.SetMethod("Element GetRootElement()", &Engine::GUI::Context::GetRootElement);
 			VContext.SetMethodEx("Element GetElementAtPoint(const CU::Vector2 &in)", &ContextGetFocusElement);
-			VContext.SetMethod("void PullDocumentToFront(const Document &in)", &Engine::GUI::Context::PullDocumentToFront);
-			VContext.SetMethod("void PushDocumentToBack(const Document &in)", &Engine::GUI::Context::PushDocumentToBack);
-			VContext.SetMethod("void UnfocusDocument(const Document &in)", &Engine::GUI::Context::UnfocusDocument);
+			VContext.SetMethod("void PullDocumentToFront(const Schema &in)", &Engine::GUI::Context::PullDocumentToFront);
+			VContext.SetMethod("void PushDocumentToBack(const Schema &in)", &Engine::GUI::Context::PushDocumentToBack);
+			VContext.SetMethod("void UnfocusDocument(const Schema &in)", &Engine::GUI::Context::UnfocusDocument);
 			VContext.SetMethod("void AddEventListener(const String &in, Listener@+, bool = false)", &Engine::GUI::Context::AddEventListener);
 			VContext.SetMethod("void RemoveEventListener(const String &in, Listener@+, bool = false)", &Engine::GUI::Context::RemoveEventListener);
 			VContext.SetMethod("bool IsMouseInteracting()", &Engine::GUI::Context::IsMouseInteracting);

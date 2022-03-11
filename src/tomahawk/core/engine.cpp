@@ -145,80 +145,80 @@ namespace Tomahawk
 			CubicViewProjection[5] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeZ, Position) * Projection;
 		}
 
-		void NMake::Pack(Core::Document* V, bool Value)
+		void NMake::Pack(Core::Schema* V, bool Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("b", Core::Var::Boolean(Value));
 		}
-		void NMake::Pack(Core::Document* V, int Value)
+		void NMake::Pack(Core::Schema* V, int Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Document* V, unsigned int Value)
+		void NMake::Pack(Core::Schema* V, unsigned int Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Document* V, unsigned long Value)
+		void NMake::Pack(Core::Schema* V, unsigned long Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Document* V, float Value)
+		void NMake::Pack(Core::Schema* V, float Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void NMake::Pack(Core::Document* V, double Value)
+		void NMake::Pack(Core::Schema* V, double Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void NMake::Pack(Core::Document* V, int64_t Value)
+		void NMake::Pack(Core::Schema* V, int64_t Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Document* V, long double Value)
+		void NMake::Pack(Core::Schema* V, long double Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void NMake::Pack(Core::Document* V, unsigned long long Value)
+		void NMake::Pack(Core::Schema* V, unsigned long long Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Document* V, const char* Value)
+		void NMake::Pack(Core::Schema* V, const char* Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("s", Core::Var::String(Value ? Value : ""));
 		}
-		void NMake::Pack(Core::Document* V, const Compute::Vector2& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::Vector2& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 		}
-		void NMake::Pack(Core::Document* V, const Compute::Vector3& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::Vector3& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
 		}
-		void NMake::Pack(Core::Document* V, const Compute::Vector4& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::Vector4& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
 			V->SetAttribute("w", Core::Var::Number(Value.W));
 		}
-		void NMake::Pack(Core::Document* V, const Compute::Matrix4x4& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::Matrix4x4& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("m11", Core::Var::Number(Value.Row[0]));
 			V->SetAttribute("m12", Core::Var::Number(Value.Row[1]));
 			V->SetAttribute("m13", Core::Var::Number(Value.Row[2]));
@@ -236,16 +236,16 @@ namespace Tomahawk
 			V->SetAttribute("m43", Core::Var::Number(Value.Row[14]));
 			V->SetAttribute("m44", Core::Var::Number(Value.Row[15]));
 		}
-		void NMake::Pack(Core::Document* V, const Attenuation& Value)
+		void NMake::Pack(Core::Schema* V, const Attenuation& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("radius"), Value.Radius);
 			NMake::Pack(V->Set("c1"), Value.C1);
 			NMake::Pack(V->Set("c2"), Value.C2);
 		}
-		void NMake::Pack(Core::Document* V, const AnimatorState& Value)
+		void NMake::Pack(Core::Schema* V, const AnimatorState& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("looped"), Value.Looped);
 			NMake::Pack(V->Set("paused"), Value.Paused);
 			NMake::Pack(V->Set("blended"), Value.Blended);
@@ -255,56 +255,56 @@ namespace Tomahawk
 			NMake::Pack(V->Set("duration"), Value.Duration);
 			NMake::Pack(V->Set("time"), Value.Time);
 		}
-		void NMake::Pack(Core::Document* V, const SpawnerProperties& Value)
+		void NMake::Pack(Core::Schema* V, const SpawnerProperties& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("iterations"), Value.Iterations);
 
-			Core::Document* Angular = V->Set("angular");
+			Core::Schema* Angular = V->Set("angular");
 			NMake::Pack(Angular->Set("intensity"), Value.Angular.Intensity);
 			NMake::Pack(Angular->Set("accuracy"), Value.Angular.Accuracy);
 			NMake::Pack(Angular->Set("min"), Value.Angular.Min);
 			NMake::Pack(Angular->Set("max"), Value.Angular.Max);
 
-			Core::Document* Diffusion = V->Set("diffusion");
+			Core::Schema* Diffusion = V->Set("diffusion");
 			NMake::Pack(Diffusion->Set("intensity"), Value.Diffusion.Intensity);
 			NMake::Pack(Diffusion->Set("accuracy"), Value.Diffusion.Accuracy);
 			NMake::Pack(Diffusion->Set("min"), Value.Diffusion.Min);
 			NMake::Pack(Diffusion->Set("max"), Value.Diffusion.Max);
 
-			Core::Document* Noise = V->Set("noise");
+			Core::Schema* Noise = V->Set("noise");
 			NMake::Pack(Noise->Set("intensity"), Value.Noise.Intensity);
 			NMake::Pack(Noise->Set("accuracy"), Value.Noise.Accuracy);
 			NMake::Pack(Noise->Set("min"), Value.Noise.Min);
 			NMake::Pack(Noise->Set("max"), Value.Noise.Max);
 
-			Core::Document* Position = V->Set("position");
+			Core::Schema* Position = V->Set("position");
 			NMake::Pack(Position->Set("intensity"), Value.Position.Intensity);
 			NMake::Pack(Position->Set("accuracy"), Value.Position.Accuracy);
 			NMake::Pack(Position->Set("min"), Value.Position.Min);
 			NMake::Pack(Position->Set("max"), Value.Position.Max);
 
-			Core::Document* Rotation = V->Set("rotation");
+			Core::Schema* Rotation = V->Set("rotation");
 			NMake::Pack(Rotation->Set("intensity"), Value.Rotation.Intensity);
 			NMake::Pack(Rotation->Set("accuracy"), Value.Rotation.Accuracy);
 			NMake::Pack(Rotation->Set("min"), Value.Rotation.Min);
 			NMake::Pack(Rotation->Set("max"), Value.Rotation.Max);
 
-			Core::Document* Scale = V->Set("scale");
+			Core::Schema* Scale = V->Set("scale");
 			NMake::Pack(Scale->Set("intensity"), Value.Scale.Intensity);
 			NMake::Pack(Scale->Set("accuracy"), Value.Scale.Accuracy);
 			NMake::Pack(Scale->Set("min"), Value.Scale.Min);
 			NMake::Pack(Scale->Set("max"), Value.Scale.Max);
 
-			Core::Document* Velocity = V->Set("velocity");
+			Core::Schema* Velocity = V->Set("velocity");
 			NMake::Pack(Velocity->Set("intensity"), Value.Velocity.Intensity);
 			NMake::Pack(Velocity->Set("accuracy"), Value.Velocity.Accuracy);
 			NMake::Pack(Velocity->Set("min"), Value.Velocity.Min);
 			NMake::Pack(Velocity->Set("max"), Value.Velocity.Max);
 		}
-		void NMake::Pack(Core::Document* V, Material* Value, ContentManager* Content)
+		void NMake::Pack(Core::Schema* V, Material* Value, ContentManager* Content)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			TH_ASSERT_V(Content != nullptr, "content manager should be set");
 			TH_ASSERT_V(Value != nullptr, "value should be set");
 
@@ -351,42 +351,42 @@ namespace Tomahawk
 			NMake::Pack(V->Set("bias"), Value->Surface.Bias);
 			NMake::Pack(V->Set("name"), Value->GetName());
 		}
-		void NMake::Pack(Core::Document* V, const Compute::SkinAnimatorKey& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("pose"), Value.Pose);
 			NMake::Pack(V->Set("time"), Value.Time);
 		}
-		void NMake::Pack(Core::Document* V, const Compute::SkinAnimatorClip& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::SkinAnimatorClip& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("name"), Value.Name);
 			NMake::Pack(V->Set("duration"), Value.Duration);
 			NMake::Pack(V->Set("rate"), Value.Rate);
 
-			Core::Document* Array = V->Set("frames", Core::Var::Array());
+			Core::Schema* Array = V->Set("frames", Core::Var::Array());
 			for (auto&& It : Value.Keys)
 				NMake::Pack(Array->Set("frame"), It);
 		}
-		void NMake::Pack(Core::Document* V, const Compute::KeyAnimatorClip& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::KeyAnimatorClip& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("name"), Value.Name);
 			NMake::Pack(V->Set("rate"), Value.Rate);
 			NMake::Pack(V->Set("duration"), Value.Duration);
 			NMake::Pack(V->Set("frames"), Value.Keys);
 		}
-		void NMake::Pack(Core::Document* V, const Compute::AnimatorKey& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::AnimatorKey& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("position"), Value.Position);
 			NMake::Pack(V->Set("rotation"), Value.Rotation);
 			NMake::Pack(V->Set("scale"), Value.Scale);
 			NMake::Pack(V->Set("time"), Value.Time);
 		}
-		void NMake::Pack(Core::Document* V, const Compute::ElementVertex& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::ElementVertex& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -401,9 +401,9 @@ namespace Tomahawk
 			V->SetAttribute("s", Core::Var::Number(Value.Scale));
 			V->SetAttribute("r", Core::Var::Number(Value.Rotation));
 		}
-		void NMake::Pack(Core::Document* V, const Compute::Vertex& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::Vertex& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -419,9 +419,9 @@ namespace Tomahawk
 			V->SetAttribute("bty", Core::Var::Number(Value.BitangentY));
 			V->SetAttribute("btz", Core::Var::Number(Value.BitangentZ));
 		}
-		void NMake::Pack(Core::Document* V, const Compute::SkinVertex& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::SkinVertex& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
 			V->SetAttribute("py", Core::Var::Number(Value.PositionY));
 			V->SetAttribute("pz", Core::Var::Number(Value.PositionZ));
@@ -445,31 +445,31 @@ namespace Tomahawk
 			V->SetAttribute("jb2", Core::Var::Number(Value.JointBias2));
 			V->SetAttribute("jb3", Core::Var::Number(Value.JointBias3));
 		}
-		void NMake::Pack(Core::Document* V, const Compute::Joint& Value)
+		void NMake::Pack(Core::Schema* V, const Compute::Joint& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			NMake::Pack(V->Set("index"), Value.Index);
 			NMake::Pack(V->Set("name"), Value.Name);
 			NMake::Pack(V->Set("transform"), Value.Transform);
 			NMake::Pack(V->Set("bind-shape"), Value.BindShape);
 
-			Core::Document* Joints = V->Set("childs", Core::Var::Array());
+			Core::Schema* Joints = V->Set("childs", Core::Var::Array());
 			for (auto& It : Value.Childs)
 				NMake::Pack(Joints->Set("joint"), It);
 		}
-		void NMake::Pack(Core::Document* V, const Core::Ticker& Value)
+		void NMake::Pack(Core::Schema* V, const Core::Ticker& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("delay", Core::Var::Number(Value.Delay));
 		}
-		void NMake::Pack(Core::Document* V, const std::string& Value)
+		void NMake::Pack(Core::Schema* V, const std::string& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("s", Core::Var::String(Value));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<bool>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<bool>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -477,9 +477,9 @@ namespace Tomahawk
 			V->Set("b-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<int>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<int>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -487,9 +487,9 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<unsigned int>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<unsigned int>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -497,9 +497,9 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<float>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<float>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -507,9 +507,9 @@ namespace Tomahawk
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<double>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<double>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -517,9 +517,9 @@ namespace Tomahawk
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<int64_t>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<int64_t>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -527,9 +527,9 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<long double>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<long double>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -537,9 +537,9 @@ namespace Tomahawk
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<uint64_t>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<uint64_t>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It << " ";
@@ -547,9 +547,9 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vector2>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vector2>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " ";
@@ -557,9 +557,9 @@ namespace Tomahawk
 			V->Set("v2-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vector3>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vector3>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " ";
@@ -567,9 +567,9 @@ namespace Tomahawk
 			V->Set("v3-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vector4>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vector4>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.X << " " << It.Y << " " << It.Z << " " << It.W << " ";
@@ -577,9 +577,9 @@ namespace Tomahawk
 			V->Set("v4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::Matrix4x4>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Matrix4x4>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -590,9 +590,9 @@ namespace Tomahawk
 			V->Set("m4x4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<AnimatorState>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<AnimatorState>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -609,9 +609,9 @@ namespace Tomahawk
 			V->Set("as-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<SpawnerProperties>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<SpawnerProperties>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -636,23 +636,23 @@ namespace Tomahawk
 			V->Set("sp-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::SkinAnimatorClip>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::SkinAnimatorClip>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
-			Core::Document* Array = V->Set("clips", Core::Var::Array());
+			TH_ASSERT_V(V != nullptr, "schema should be set");
+			Core::Schema* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
 				NMake::Pack(Array->Set("clip"), It);
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::KeyAnimatorClip>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::KeyAnimatorClip>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
-			Core::Document* Array = V->Set("clips", Core::Var::Array());
+			TH_ASSERT_V(V != nullptr, "schema should be set");
+			Core::Schema* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
 				NMake::Pack(Array->Set("clip"), It);
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::AnimatorKey>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::AnimatorKey>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -671,9 +671,9 @@ namespace Tomahawk
 			V->Set("ak-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::ElementVertex>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::ElementVertex>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -695,15 +695,15 @@ namespace Tomahawk
 			V->Set("ev-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::Joint>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Joint>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			for (auto&& It : Value)
 				NMake::Pack(V->Set("joint"), It);
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::Vertex>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vertex>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -727,9 +727,9 @@ namespace Tomahawk
 			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Compute::SkinVertex>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Compute::SkinVertex>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 			{
@@ -760,9 +760,9 @@ namespace Tomahawk
 			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<Core::Ticker>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Core::Ticker>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
+			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
 			for (auto&& It : Value)
 				Stream << It.Delay << " ";
@@ -770,16 +770,16 @@ namespace Tomahawk
 			V->Set("tt-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Document* V, const std::vector<std::string>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<std::string>& Value)
 		{
-			TH_ASSERT_V(V != nullptr, "document should be set");
-			Core::Document* Array = V->Set("s-array", Core::Var::Array());
+			TH_ASSERT_V(V != nullptr, "schema should be set");
+			Core::Schema* Array = V->Set("s-array", Core::Var::Array());
 			for (auto&& It : Value)
 				Array->Set("s", Core::Var::String(It));
 
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		bool NMake::Unpack(Core::Document* V, bool* O)
+		bool NMake::Unpack(Core::Schema* V, bool* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -788,7 +788,7 @@ namespace Tomahawk
 			*O = V->GetVar("[b]").GetBoolean();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, int* O)
+		bool NMake::Unpack(Core::Schema* V, int* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -797,7 +797,7 @@ namespace Tomahawk
 			*O = (int)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, unsigned int* O)
+		bool NMake::Unpack(Core::Schema* V, unsigned int* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -806,7 +806,7 @@ namespace Tomahawk
 			*O = (unsigned int)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, unsigned long* O)
+		bool NMake::Unpack(Core::Schema* V, unsigned long* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -815,7 +815,7 @@ namespace Tomahawk
 			*O = (unsigned long)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, float* O)
+		bool NMake::Unpack(Core::Schema* V, float* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -824,7 +824,7 @@ namespace Tomahawk
 			*O = (float)V->GetVar("[n]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, double* O)
+		bool NMake::Unpack(Core::Schema* V, double* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -833,7 +833,7 @@ namespace Tomahawk
 			*O = (int)V->GetVar("[n]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, long double* O)
+		bool NMake::Unpack(Core::Schema* V, long double* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -842,7 +842,7 @@ namespace Tomahawk
 			*O = V->GetVar("[n]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, int64_t* O)
+		bool NMake::Unpack(Core::Schema* V, int64_t* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -851,7 +851,7 @@ namespace Tomahawk
 			*O = V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, unsigned long long* O)
+		bool NMake::Unpack(Core::Schema* V, unsigned long long* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -860,7 +860,7 @@ namespace Tomahawk
 			*O = (unsigned long long)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::Vector2* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::Vector2* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -870,7 +870,7 @@ namespace Tomahawk
 			O->Y = (float)V->GetVar("[y]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::Vector3* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::Vector3* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -881,7 +881,7 @@ namespace Tomahawk
 			O->Z = (float)V->GetVar("[z]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::Vector4* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::Vector4* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -893,7 +893,7 @@ namespace Tomahawk
 			O->W = (float)V->GetVar("[w]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::Matrix4x4* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::Matrix4x4* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -917,7 +917,7 @@ namespace Tomahawk
 			O->Row[15] = (float)V->GetVar("[m44]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Attenuation* O)
+		bool NMake::Unpack(Core::Schema* V, Attenuation* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -928,7 +928,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("c2"), &O->C2);
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, AnimatorState* O)
+		bool NMake::Unpack(Core::Schema* V, AnimatorState* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -944,7 +944,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("time"), &O->Time);
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, SpawnerProperties* O)
+		bool NMake::Unpack(Core::Schema* V, SpawnerProperties* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -952,43 +952,43 @@ namespace Tomahawk
 
 			NMake::Unpack(V->Get("iterations"), &O->Iterations);
 
-			Core::Document* Angular = V->Get("angular");
+			Core::Schema* Angular = V->Get("angular");
 			NMake::Unpack(Angular->Get("intensity"), &O->Angular.Intensity);
 			NMake::Unpack(Angular->Get("accuracy"), &O->Angular.Accuracy);
 			NMake::Unpack(Angular->Get("min"), &O->Angular.Min);
 			NMake::Unpack(Angular->Get("max"), &O->Angular.Max);
 
-			Core::Document* Diffusion = V->Get("diffusion");
+			Core::Schema* Diffusion = V->Get("diffusion");
 			NMake::Unpack(Diffusion->Get("intensity"), &O->Diffusion.Intensity);
 			NMake::Unpack(Diffusion->Get("accuracy"), &O->Diffusion.Accuracy);
 			NMake::Unpack(Diffusion->Get("min"), &O->Diffusion.Min);
 			NMake::Unpack(Diffusion->Get("max"), &O->Diffusion.Max);
 
-			Core::Document* Noise = V->Get("noise");
+			Core::Schema* Noise = V->Get("noise");
 			NMake::Unpack(Noise->Get("intensity"), &O->Noise.Intensity);
 			NMake::Unpack(Noise->Get("accuracy"), &O->Noise.Accuracy);
 			NMake::Unpack(Noise->Get("min"), &O->Noise.Min);
 			NMake::Unpack(Noise->Get("max"), &O->Noise.Max);
 
-			Core::Document* Position = V->Get("position");
+			Core::Schema* Position = V->Get("position");
 			NMake::Unpack(Position->Get("intensity"), &O->Position.Intensity);
 			NMake::Unpack(Position->Get("accuracy"), &O->Position.Accuracy);
 			NMake::Unpack(Position->Get("min"), &O->Position.Min);
 			NMake::Unpack(Position->Get("max"), &O->Position.Max);
 
-			Core::Document* Rotation = V->Get("rotation");
+			Core::Schema* Rotation = V->Get("rotation");
 			NMake::Unpack(Rotation->Get("intensity"), &O->Rotation.Intensity);
 			NMake::Unpack(Rotation->Get("accuracy"), &O->Rotation.Accuracy);
 			NMake::Unpack(Rotation->Get("min"), &O->Rotation.Min);
 			NMake::Unpack(Rotation->Get("max"), &O->Rotation.Max);
 
-			Core::Document* Scale = V->Get("scale");
+			Core::Schema* Scale = V->Get("scale");
 			NMake::Unpack(Scale->Get("intensity"), &O->Scale.Intensity);
 			NMake::Unpack(Scale->Get("accuracy"), &O->Scale.Accuracy);
 			NMake::Unpack(Scale->Get("min"), &O->Scale.Min);
 			NMake::Unpack(Scale->Get("max"), &O->Scale.Max);
 
-			Core::Document* Velocity = V->Get("velocity");
+			Core::Schema* Velocity = V->Get("velocity");
 			NMake::Unpack(Velocity->Get("intensity"), &O->Velocity.Intensity);
 			NMake::Unpack(Velocity->Get("accuracy"), &O->Velocity.Accuracy);
 			NMake::Unpack(Velocity->Get("min"), &O->Velocity.Min);
@@ -996,7 +996,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Material* O, ContentManager* Content)
+		bool NMake::Unpack(Core::Schema* V, Material* O, ContentManager* Content)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			TH_ASSERT(Content != nullptr, false, "content manager should be set");
@@ -1044,7 +1044,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::SkinAnimatorKey* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1055,7 +1055,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::SkinAnimatorClip* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::SkinAnimatorClip* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1065,7 +1065,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("duration"), &O->Duration);
 			NMake::Unpack(V->Get("rate"), &O->Rate);
 
-			std::vector<Core::Document*> Frames = V->FetchCollection("frames.frame", false);
+			std::vector<Core::Schema*> Frames = V->FetchCollection("frames.frame", false);
 			for (auto&& It : Frames)
 			{
 				O->Keys.emplace_back();
@@ -1074,7 +1074,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::KeyAnimatorClip* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::KeyAnimatorClip* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1086,7 +1086,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("frames"), &O->Keys);
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::AnimatorKey* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::AnimatorKey* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1098,7 +1098,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("time"), &O->Time);
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::Joint* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::Joint* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1109,7 +1109,7 @@ namespace Tomahawk
 			NMake::Unpack(V->Get("transform"), &O->Transform);
 			NMake::Unpack(V->Get("bind-shape"), &O->BindShape);
 
-			std::vector<Core::Document*> Joints = V->FetchCollection("childs.joint", false);
+			std::vector<Core::Schema*> Joints = V->FetchCollection("childs.joint", false);
 			for (auto& It : Joints)
 			{
 				O->Childs.emplace_back();
@@ -1118,7 +1118,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::ElementVertex* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::ElementVertex* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1139,7 +1139,7 @@ namespace Tomahawk
 			O->Rotation = (float)V->GetVar("[r]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::Vertex* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::Vertex* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1161,7 +1161,7 @@ namespace Tomahawk
 			O->BitangentZ = (float)V->GetVar("[btz]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Compute::SkinVertex* O)
+		bool NMake::Unpack(Core::Schema* V, Compute::SkinVertex* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1191,7 +1191,7 @@ namespace Tomahawk
 			O->JointBias3 = (float)V->GetVar("[jb3]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, Core::Ticker* O)
+		bool NMake::Unpack(Core::Schema* V, Core::Ticker* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1200,7 +1200,7 @@ namespace Tomahawk
 			O->Delay = (float)V->GetVar("[delay]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::string* O)
+		bool NMake::Unpack(Core::Schema* V, std::string* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1209,7 +1209,7 @@ namespace Tomahawk
 			*O = V->GetVar("[s]").GetBlob();
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<bool>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<bool>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1232,7 +1232,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<int>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<int>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1255,7 +1255,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<unsigned int>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<unsigned int>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1278,7 +1278,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<float>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<float>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1301,7 +1301,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<double>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<double>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1324,7 +1324,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<int64_t>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<int64_t>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1347,7 +1347,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<long double>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<long double>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1370,7 +1370,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<uint64_t>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<uint64_t>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1393,7 +1393,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Vector2>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vector2>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1412,7 +1412,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Vector3>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vector3>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1431,7 +1431,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Vector4>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vector4>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1450,7 +1450,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Matrix4x4>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Matrix4x4>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1472,7 +1472,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<AnimatorState>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<AnimatorState>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1500,7 +1500,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<SpawnerProperties>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<SpawnerProperties>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1536,13 +1536,13 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::SkinAnimatorClip>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::SkinAnimatorClip>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::vector<Core::Document*> Frames = V->FetchCollection("clips.clip", false);
+			std::vector<Core::Schema*> Frames = V->FetchCollection("clips.clip", false);
 			for (auto&& It : Frames)
 			{
 				O->push_back(Compute::SkinAnimatorClip());
@@ -1551,13 +1551,13 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::KeyAnimatorClip>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::KeyAnimatorClip>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			std::vector<Core::Document*> Frames = V->FetchCollection("clips.clip", false);
+			std::vector<Core::Schema*> Frames = V->FetchCollection("clips.clip", false);
 			for (auto&& It : Frames)
 			{
 				O->push_back(Compute::KeyAnimatorClip());
@@ -1566,7 +1566,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::AnimatorKey>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::AnimatorKey>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1588,7 +1588,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::ElementVertex>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::ElementVertex>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1621,7 +1621,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Joint>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Joint>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1636,7 +1636,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::Vertex>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vertex>* O)
 		{
 			if (!V || !O)
 				return false;
@@ -1678,7 +1678,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Compute::SkinVertex>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::SkinVertex>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1720,7 +1720,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<Core::Ticker>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Core::Ticker>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1739,13 +1739,13 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Document* V, std::vector<std::string>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<std::string>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			Core::Document* Array = V->Get("s-array");
+			Core::Schema* Array = V->Get("s-array");
 			if (!Array)
 				return false;
 
@@ -1917,10 +1917,10 @@ namespace Tomahawk
 		Component::~Component()
 		{
 		}
-		void Component::Deserialize(ContentManager* Content, Core::Document* Node)
+		void Component::Deserialize(ContentManager* Content, Core::Schema* Node)
 		{
 		}
-		void Component::Serialize(ContentManager* Content, Core::Document* Node)
+		void Component::Serialize(ContentManager* Content, Core::Schema* Node)
 		{
 		}
 		void Component::Activate(Component* New)
@@ -2334,10 +2334,10 @@ namespace Tomahawk
 			TH_ASSERT_V(NewSystem != nullptr, "render system should be set");
 			System = NewSystem;
 		}
-		void Renderer::Deserialize(ContentManager* Content, Core::Document* Node)
+		void Renderer::Deserialize(ContentManager* Content, Core::Schema* Node)
 		{
 		}
-		void Renderer::Serialize(ContentManager* Content, Core::Document* Node)
+		void Renderer::Serialize(ContentManager* Content, Core::Schema* Node)
 		{
 		}
 		void Renderer::ResizeBuffers()
@@ -5749,7 +5749,7 @@ namespace Tomahawk
 				Content->AddProcessor<Processors::Shader, Graphics::Shader>();
 				Content->AddProcessor<Processors::Model, Graphics::Model>();
 				Content->AddProcessor<Processors::SkinModel, Graphics::SkinModel>();
-				Content->AddProcessor<Processors::Document, Core::Document>();
+				Content->AddProcessor<Processors::Schema, Core::Schema>();
 				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
 				Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
 				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);

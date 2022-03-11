@@ -139,20 +139,20 @@ namespace Tomahawk
 
 				TH_WARN("[pqnotice] %s", Errors.size() > 1 ? Result.c_str() : Result.c_str() + 2);
 			}
-			static Core::Document* ToDocument(const char* Data, int Size, unsigned int Id);
+			static Core::Schema* ToSchema(const char* Data, int Size, unsigned int Id);
 			static void ToArrayField(void* Context, ArrayFilter* Subdata, char* Data, size_t Size)
 			{
 				TH_ASSERT_V(Context != nullptr, "context should be set");
-				std::pair<Core::Document*, Oid>* Base = (std::pair<Core::Document*, Oid>*)Context;
+				std::pair<Core::Schema*, Oid>* Base = (std::pair<Core::Schema*, Oid>*)Context;
 				if (Subdata != nullptr)
 				{
-					std::pair<Core::Document*, Oid> Next;
+					std::pair<Core::Schema*, Oid> Next;
 					Next.first = Core::Var::Set::Array();
 					Next.second = Base->second;
 
 					if (!Subdata->Parse(&Next, ToArrayField))
 					{
-						Base->first->Push(new Core::Document(Core::Var::Null()));
+						Base->first->Push(new Core::Schema(Core::Var::Null()));
 						TH_RELEASE(Next.first);
 					}
 					else
@@ -167,9 +167,9 @@ namespace Tomahawk
 						return;
 
 					if (Result.R() != "NULL")
-						Base->first->Push(ToDocument(Result.Get(), (int)Result.Size(), Base->second));
+						Base->first->Push(ToSchema(Result.Get(), (int)Result.Size(), Base->second));
 					else
-						Base->first->Push(new Core::Document(Core::Var::Null()));
+						Base->first->Push(new Core::Schema(Core::Var::Null()));
 				}
 			}
 			static Core::Variant ToVariant(const char* Data, int Size, unsigned int Id)
@@ -263,9 +263,9 @@ namespace Tomahawk
 						return Core::Var::String(Data, (size_t)Size);
 				}
 			}
-			static Core::Document* ToArray(const char* Data, int Size, unsigned int Id)
+			static Core::Schema* ToArray(const char* Data, int Size, unsigned int Id)
 			{
-				std::pair<Core::Document*, Oid> Context;
+				std::pair<Core::Schema*, Oid> Context;
 				Context.first = Core::Var::Set::Array();
 				Context.second = Id;
 
@@ -273,12 +273,12 @@ namespace Tomahawk
 				if (!Filter.Parse(&Context, ToArrayField))
 				{
 					TH_RELEASE(Context.first);
-					return new Core::Document(Core::Var::String(Data, (size_t)Size));
+					return new Core::Schema(Core::Var::String(Data, (size_t)Size));
 				}
 
 				return Context.first;
 			}
-			Core::Document* ToDocument(const char* Data, int Size, unsigned int Id)
+			Core::Schema* ToSchema(const char* Data, int Size, unsigned int Id)
 			{
 				if (!Data)
 					return nullptr;
@@ -289,11 +289,11 @@ namespace Tomahawk
 					case OidType::JSON:
 					case OidType::JSONB:
 					{
-						Core::Document* Result = Core::Document::ReadJSON(Data, (size_t)Size);
+						Core::Schema* Result = Core::Schema::ReadJSON(Data, (size_t)Size);
 						if (Result != nullptr)
 							return Result;
 
-						return new Core::Document(Core::Var::String(Data, (size_t)Size));
+						return new Core::Schema(Core::Var::String(Data, (size_t)Size));
 					}
 					case OidType::Any_Array:
 						return ToArray(Data, Size, (Oid)OidType::Any);
@@ -358,16 +358,16 @@ namespace Tomahawk
 						return ToArray(Data, Size, (Oid)OidType::Bytea);
 						break;
 					default:
-						return new Core::Document(ToVariant(Data, Size, Id));
+						return new Core::Schema(ToVariant(Data, Size, Id));
 				}
 			}
 #endif
-			std::string Util::InlineArray(Cluster* Client, Core::Document* Array)
+			std::string Util::InlineArray(Cluster* Client, Core::Schema* Array)
 			{
 				TH_ASSERT(Client != nullptr, std::string(), "cluster should be set");
 				TH_ASSERT(Array != nullptr, std::string(), "array should be set");
 
-				Core::DocumentList Map;
+				Core::SchemaList Map;
 				std::string Def;
 
 				for (auto* Item : Array->GetChilds())
@@ -400,12 +400,12 @@ namespace Tomahawk
 				TH_RELEASE(Array);
 				return Result;
 			}
-			std::string Util::InlineQuery(Cluster* Client, Core::Document* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default)
+			std::string Util::InlineQuery(Cluster* Client, Core::Schema* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default)
 			{
 				TH_ASSERT(Client != nullptr, std::string(), "cluster should be set");
 				TH_ASSERT(Where != nullptr, std::string(), "array should be set");
 
-				Core::DocumentList Map;
+				Core::SchemaList Map;
 				std::string Allow = "abcdefghijklmnopqrstuvwxyz._", Def;
 				for (auto* Statement : Where->GetChilds())
 				{
@@ -609,13 +609,13 @@ namespace Tomahawk
 				Pid = Base->be_pid;
 #endif
 			}
-			Core::Document* Notify::GetDocument() const
+			Core::Schema* Notify::GetSchema() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (Data.empty())
 					return nullptr;
 
-				return Core::Document::ReadJSON(Data.c_str(), Data.size());
+				return Core::Schema::ReadJSON(Data.c_str(), Data.size());
 #else
 				return nullptr;
 #endif
@@ -683,7 +683,7 @@ namespace Tomahawk
 				return Core::Var::Undefined();
 #endif
 			}
-			Core::Document* Column::GetInline() const
+			Core::Schema* Column::GetInline() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
@@ -696,7 +696,7 @@ namespace Tomahawk
 				int Size = PQgetlength(Base, RowIndex, ColumnIndex);
 				Oid Type = PQftype(Base, ColumnIndex);
 
-				return ToDocument(Data, Size, Type);
+				return ToSchema(Data, Size, Type);
 #else
 				return nullptr;
 #endif
@@ -834,7 +834,7 @@ namespace Tomahawk
 			Row::Row(TResponse* NewBase, size_t fRowIndex) : Base(NewBase), RowIndex(fRowIndex)
 			{
 			}
-			Core::Document* Row::GetObject() const
+			Core::Schema* Row::GetObject() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
@@ -844,7 +844,7 @@ namespace Tomahawk
 				if (Size <= 0)
 					return Core::Var::Set::Object();
 
-				Core::Document* Result = Core::Var::Set::Object();
+				Core::Schema* Result = Core::Var::Set::Object();
 				Result->GetChilds().reserve((size_t)Size);
 
 				for (int j = 0; j < Size; j++)
@@ -856,7 +856,7 @@ namespace Tomahawk
 					Oid Type = PQftype(Base, j);
 
 					if (!Null)
-						Result->Set(Name ? Name : std::to_string(j), ToDocument(Data, Count, Type));
+						Result->Set(Name ? Name : std::to_string(j), ToSchema(Data, Count, Type));
 					else
 						Result->Set(Name ? Name : std::to_string(j), Core::Var::Null());
 				}
@@ -866,7 +866,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Core::Document* Row::GetArray() const
+			Core::Schema* Row::GetArray() const
 			{
 #ifdef TH_HAS_POSTGRESQL
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max())
@@ -876,7 +876,7 @@ namespace Tomahawk
 				if (Size <= 0)
 					return Core::Var::Set::Object();
 
-				Core::Document* Result = Core::Var::Set::Array();
+				Core::Schema* Result = Core::Var::Set::Array();
 				Result->GetChilds().reserve((size_t)Size);
 
 				for (int j = 0; j < Size; j++)
@@ -885,7 +885,7 @@ namespace Tomahawk
 					int Count = PQgetlength(Base, RowIndex, j);
 					bool Null = PQgetisnull(Base, RowIndex, j) == 1;
 					Oid Type = PQftype(Base, j);
-					Result->Push(Null ? Core::Var::Set::Null() : ToDocument(Data, Count, Type));
+					Result->Push(Null ? Core::Var::Set::Null() : ToSchema(Data, Count, Type));
 				}
 
 				return Result;
@@ -976,10 +976,10 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			Core::Document* Response::GetArrayOfObjects() const
+			Core::Schema* Response::GetArrayOfObjects() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				Core::Document* Result = Core::Var::Set::Array();
+				Core::Schema* Result = Core::Var::Set::Array();
 				if (!Base)
 					return Result;
 
@@ -1003,7 +1003,7 @@ namespace Tomahawk
 				Result->Reserve((size_t)RowsSize);
 				for (int i = 0; i < RowsSize; i++)
 				{
-					Core::Document* Subresult = Core::Var::Set::Object();
+					Core::Schema* Subresult = Core::Var::Set::Object();
 					Subresult->GetChilds().reserve((size_t)ColumnsSize);
 
 					for (int j = 0; j < ColumnsSize; j++)
@@ -1014,7 +1014,7 @@ namespace Tomahawk
 						auto& Field = Meta[j];
 
 						if (!Null)
-							Subresult->Set(Field.first, ToDocument(Data, Size, Field.second));
+							Subresult->Set(Field.first, ToSchema(Data, Size, Field.second));
 						else
 							Subresult->Set(Field.first, Core::Var::Null());
 					}
@@ -1027,10 +1027,10 @@ namespace Tomahawk
 				return Core::Var::Set::Array();
 #endif
 			}
-			Core::Document* Response::GetArrayOfArrays() const
+			Core::Schema* Response::GetArrayOfArrays() const
 			{
 #ifdef TH_HAS_POSTGRESQL
-				Core::Document* Result = Core::Var::Set::Array();
+				Core::Schema* Result = Core::Var::Set::Array();
 				if (!Base)
 					return Result;
 
@@ -1051,7 +1051,7 @@ namespace Tomahawk
 				Result->Reserve((size_t)RowsSize);
 				for (int i = 0; i < RowsSize; i++)
 				{
-					Core::Document* Subresult = Core::Var::Set::Array();
+					Core::Schema* Subresult = Core::Var::Set::Array();
 					Subresult->GetChilds().reserve((size_t)ColumnsSize);
 
 					for (int j = 0; j < ColumnsSize; j++)
@@ -1059,7 +1059,7 @@ namespace Tomahawk
 						char* Data = PQgetvalue(Base, i, j);
 						int Size = PQgetlength(Base, i, j);
 						bool Null = PQgetisnull(Base, i, j) == 1;
-						Subresult->Push(Null ? Core::Var::Set::Null() : ToDocument(Data, Size, Meta[j]));
+						Subresult->Push(Null ? Core::Var::Set::Null() : ToSchema(Data, Size, Meta[j]));
 					}
 
 					Result->Push(Subresult);
@@ -1070,11 +1070,11 @@ namespace Tomahawk
 				return Core::Var::Set::Array();
 #endif
 			}
-			Core::Document* Response::GetObject(size_t Index) const
+			Core::Schema* Response::GetObject(size_t Index) const
 			{
 				return GetRow(Index).GetObject();
 			}
-			Core::Document* Response::GetArray(size_t Index) const
+			Core::Schema* Response::GetArray(size_t Index) const
 			{
 				return GetRow(Index).GetArray();
 			}
@@ -1646,12 +1646,12 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::DocumentList* Map, uint64_t Opts, uint64_t Token)
+			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t Opts, uint64_t Token)
 			{
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
 				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Token);
 			}
-			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::DocumentArgs* Map, uint64_t Opts, uint64_t Token)
+			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t Opts, uint64_t Token)
 			{
 				TH_TRACE("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 
@@ -2278,7 +2278,7 @@ namespace Tomahawk
 				Safe->unlock();
 				return true;
 			}
-			std::string Driver::Emplace(Cluster* Base, const std::string& SQL, Core::DocumentList* Map, bool Once)
+			std::string Driver::Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once)
 			{
 				if (!Map || Map->empty())
 					return SQL;
@@ -2339,7 +2339,7 @@ namespace Tomahawk
 
 				return Src;
 			}
-			std::string Driver::GetQuery(Cluster* Base, const std::string& Name, Core::DocumentArgs* Map, bool Once)
+			std::string Driver::GetQuery(Cluster* Base, const std::string& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				TH_ASSERT(Queries && Safe, std::string(), "driver should be initialized");
 				Safe->lock();
@@ -2479,18 +2479,18 @@ namespace Tomahawk
 				return "'\\x" + Compute::Common::HexEncode(Src, Size) + "'::bytea";
 #endif
 			}
-			std::string Driver::GetSQL(TConnection* Base, Core::Document* Source, bool Escape, bool Negate)
+			std::string Driver::GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate)
 			{
 				if (!Source)
 					return "NULL";
 
-				Core::Document* Parent = Source->GetParent();
+				Core::Schema* Parent = Source->GetParent();
 				switch (Source->Value.GetType())
 				{
 					case Core::VarType::Object:
 					{
 						std::string Result;
-						Core::Document::WriteJSON(Source, [&Result](Core::VarForm, const char* Buffer, int64_t Length)
+						Core::Schema::WriteJSON(Source, [&Result](Core::VarForm, const char* Buffer, int64_t Length)
 						{
 							if (Buffer != nullptr && Length > 0)
 								Result.append(Buffer, Length);

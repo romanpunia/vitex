@@ -3994,7 +3994,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		Core::Document* VMManager::ImportJSON(const std::string& Path)
+		Core::Schema* VMManager::ImportJSON(const std::string& Path)
 		{
 			if (!(Imports & (uint32_t)VMImport::JSON))
 			{
@@ -4016,24 +4016,24 @@ namespace Tomahawk
 			if (!Cached)
 			{
 				std::string Data = Core::OS::File::ReadAsString(File.c_str());
-				return Core::Document::ReadJSON(Data.c_str(), Data.size());
+				return Core::Schema::ReadJSON(Data.c_str(), Data.size());
 			}
 
 			Sync.General.lock();
 			auto It = Datas.find(File);
 			if (It != Datas.end())
 			{
-				Core::Document* Result = It->second ? It->second->Copy() : nullptr;
+				Core::Schema* Result = It->second ? It->second->Copy() : nullptr;
 				Sync.General.unlock();
 
 				return Result;
 			}
 
-			Core::Document*& Result = Datas[File];
+			Core::Schema*& Result = Datas[File];
 			std::string Data = Core::OS::File::ReadAsString(File.c_str());
-			Result = Core::Document::ReadJSON(Data.c_str(), Data.size());
+			Result = Core::Schema::ReadJSON(Data.c_str(), Data.size());
 
-			Core::Document* Copy = nullptr;
+			Core::Schema* Copy = nullptr;
 			if (Result != nullptr)
 				Copy = Result->Copy();
 
@@ -4159,7 +4159,7 @@ namespace Tomahawk
 			Engine->AddSubmodule("ce/gzstream", { "std/string", "ce/filestream" }, CERegisterGzStream);
 			Engine->AddSubmodule("ce/webstream", { "std/string", "ce/filestream" }, CERegisterWebStream);
 			Engine->AddSubmodule("ce/schedule", { "std/string" }, CERegisterSchedule);
-			Engine->AddSubmodule("ce/document", { "std/array", "std/string", "std/map", "ce/variant" }, CERegisterDocument);
+			Engine->AddSubmodule("ce/schema", { "std/array", "std/string", "std/map", "ce/variant" }, CERegisterSchema);
 			Engine->AddSubmodule("ce", { }, nullptr);
 
 			/* Compute library */
@@ -4172,7 +4172,7 @@ namespace Tomahawk
 
 			/* GUI library */
 			Engine->AddSubmodule("gui/variant", { "std/string", "cu/vector2", "cu/vector3", "cu/vector4" }, GUIRegisterVariant);
-			Engine->AddSubmodule("gui/control", { "gui/variant", "ce/document", "std/array" }, GUIRegisterControl);
+			Engine->AddSubmodule("gui/control", { "gui/variant", "ce/schema", "std/array" }, GUIRegisterControl);
 			Engine->AddSubmodule("gui/model", { "gui/control", }, GUIRegisterModel);
 			Engine->AddSubmodule("gui/context", { "gui/model" }, GUIRegisterContext);
 			Engine->AddSubmodule("gui", { }, nullptr);

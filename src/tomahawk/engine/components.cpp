@@ -40,10 +40,10 @@ namespace Tomahawk
 				TH_RELEASE(Instance);
 				TH_RELEASE(Hull);
 			}
-			void RigidBody::Deserialize(ContentManager* Content, Core::Document* Node)
+			void RigidBody::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				bool Extended = false;
 				NMake::Unpack(Node->Find("extended"), &Extended);
@@ -58,7 +58,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
 				SceneGraph* Scene = Parent->GetScene();
-				Core::Document* CV = nullptr;
+				Core::Schema* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
 					std::string Path; uint64_t Type;
@@ -180,10 +180,10 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
 					Instance->SetCollisionFlags(CollisionFlags);
 			}
-			void RigidBody::Serialize(ContentManager* Content, Core::Document* Node)
+			void RigidBody::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Pack(Node->Set("kinematic"), Kinematic);
 				NMake::Pack(Node->Set("manage"), Manage);
@@ -193,7 +193,7 @@ namespace Tomahawk
 					return;
 
 				SceneGraph* Scene = Parent->GetScene();
-				Core::Document* CV = Node->Set("shape");
+				Core::Schema* CV = Node->Set("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 				{
 					AssetCache* Asset = Content->Find<Compute::HullShape>(Hull);
@@ -349,10 +349,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void SoftBody::Deserialize(ContentManager* Content, Core::Document* Node)
+			void SoftBody::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
@@ -377,7 +377,7 @@ namespace Tomahawk
 				float CcdMotionThreshold = 0;
 				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
-				Core::Document* CV = nullptr;
+				Core::Schema* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
 					if (NMake::Unpack(Node->Find("path"), &Path))
@@ -428,7 +428,7 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
-				Core::Document* Conf = Node->Get("config");
+				Core::Schema* Conf = Node->Get("config");
 				if (Conf != nullptr)
 				{
 					Compute::SoftBody::Desc::SConfig I;
@@ -529,10 +529,10 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("core-length-scale"), &RestLengthScale))
 					Instance->SetRestLengthScale(RestLengthScale);
 			}
-			void SoftBody::Serialize(ContentManager* Content, Core::Document* Node)
+			void SoftBody::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -549,7 +549,7 @@ namespace Tomahawk
 					return;
 
 				Compute::SoftBody::Desc& I = Instance->GetInitialState();
-				Core::Document* Conf = Node->Set("config");
+				Core::Schema* Conf = Node->Set("config");
 				NMake::Pack(Conf->Set("aero-model"), (uint64_t)I.Config.AeroModel);
 				NMake::Pack(Conf->Set("vcf"), I.Config.VCF);
 				NMake::Pack(Conf->Set("dp"), I.Config.DP);
@@ -589,21 +589,21 @@ namespace Tomahawk
 						AssetCache* Asset = Content->Find<Compute::HullShape>(Desc.Shape.Convex.Hull);
 						if (Asset != nullptr)
 						{
-							Core::Document* Shape = Node->Set("shape");
+							Core::Schema* Shape = Node->Set("shape");
 							NMake::Pack(Shape->Set("path"), Asset->Path);
 						}
 					}
 				}
 				else if (Desc.Shape.Ellipsoid.Enabled)
 				{
-					Core::Document* Shape = Node->Set("ellipsoid");
+					Core::Schema* Shape = Node->Set("ellipsoid");
 					NMake::Pack(Shape->Set("center"), Desc.Shape.Ellipsoid.Center);
 					NMake::Pack(Shape->Set("radius"), Desc.Shape.Ellipsoid.Radius);
 					NMake::Pack(Shape->Set("count"), Desc.Shape.Ellipsoid.Count);
 				}
 				else if (Desc.Shape.Patch.Enabled)
 				{
-					Core::Document* Shape = Node->Set("patch");
+					Core::Schema* Shape = Node->Set("patch");
 					NMake::Pack(Shape->Set("corner-00"), Desc.Shape.Patch.Corner00);
 					NMake::Pack(Shape->Set("corner-00-fixed"), Desc.Shape.Patch.Corner00Fixed);
 					NMake::Pack(Shape->Set("corner-01"), Desc.Shape.Patch.Corner01);
@@ -618,7 +618,7 @@ namespace Tomahawk
 				}
 				else if (Desc.Shape.Rope.Enabled)
 				{
-					Core::Document* Shape = Node->Set("rope");
+					Core::Schema* Shape = Node->Set("rope");
 					NMake::Pack(Shape->Set("start"), Desc.Shape.Rope.Start);
 					NMake::Pack(Shape->Set("start-fixed"), Desc.Shape.Rope.StartFixed);
 					NMake::Pack(Shape->Set("end"), Desc.Shape.Rope.End);
@@ -912,10 +912,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void SliderConstraint::Deserialize(ContentManager* Content, Core::Document* Node)
+			void SliderConstraint::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				bool Extended, Ghost, Linear;
 				NMake::Unpack(Node->Find("extended"), &Extended);
@@ -1057,10 +1057,10 @@ namespace Tomahawk
 				if (NMake::Unpack(Node->Find("enabled"), &Enabled))
 					Instance->SetEnabled(Enabled);
 			}
-			void SliderConstraint::Serialize(ContentManager* Content, Core::Document* Node)
+			void SliderConstraint::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Pack(Node->Set("extended"), Instance != nullptr);
 				if (!Instance)
@@ -1186,10 +1186,10 @@ namespace Tomahawk
 			Acceleration::Acceleration(Entity* Ref) : Component(Ref, ActorSet::Update)
 			{
 			}
-			void Acceleration::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Acceleration::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
 				NMake::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
@@ -1198,10 +1198,10 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
 				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
 			}
-			void Acceleration::Serialize(ContentManager* Content, Core::Document* Node)
+			void Acceleration::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
 				NMake::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
@@ -1293,10 +1293,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Model::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Model::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
 				if (NMake::Unpack(Node->Find("model"), &Path))
@@ -1306,7 +1306,7 @@ namespace Tomahawk
 				}
 
 				SceneGraph* Scene = Parent->GetScene();
-				std::vector<Core::Document*> Slots = Node->FetchCollection("materials.material");
+				std::vector<Core::Schema*> Slots = Node->FetchCollection("materials.material");
 				for (auto&& Material : Slots)
 				{
 					uint64_t Slot = 0;
@@ -1324,21 +1324,21 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 			}
-			void Model::Serialize(ContentManager* Content, Core::Document* Node)
+			void Model::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				AssetCache* Asset = Content->Find<Graphics::Model>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("model"), Asset->Path);
 
-				Core::Document* Slots = Node->Set("materials", Core::Var::Array());
+				Core::Schema* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
 					{
-						Core::Document* Material = Slots->Set("material");
+						Core::Schema* Material = Slots->Set("material");
 						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
@@ -1392,10 +1392,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Skin::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Skin::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
 				if (NMake::Unpack(Node->Find("skin-model"), &Path))
@@ -1405,7 +1405,7 @@ namespace Tomahawk
 				}
 
 				SceneGraph* Scene = Parent->GetScene();
-				std::vector<Core::Document*> Slots = Node->FetchCollection("materials.material");
+				std::vector<Core::Schema*> Slots = Node->FetchCollection("materials.material");
 				for (auto&& Material : Slots)
 				{
 					uint64_t Slot = 0;
@@ -1418,7 +1418,7 @@ namespace Tomahawk
 				}
 
 
-				std::vector<Core::Document*> Poses = Node->FetchCollection("poses.pose");
+				std::vector<Core::Schema*> Poses = Node->FetchCollection("poses.pose");
 				for (auto&& Pose : Poses)
 				{
 					int64_t Index;
@@ -1435,21 +1435,21 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 			}
-			void Skin::Serialize(ContentManager* Content, Core::Document* Node)
+			void Skin::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				AssetCache* Asset = Content->Find<Graphics::SkinModel>(Instance);
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("skin-model"), Asset->Path);
 
-				Core::Document* Slots = Node->Set("materials", Core::Var::Array());
+				Core::Schema* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
 				{
 					if (Slot.first != nullptr)
 					{
-						Core::Document* Material = Slots->Set("material");
+						Core::Schema* Material = Slots->Set("material");
 						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
@@ -1461,10 +1461,10 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
 				NMake::Pack(Node->Set("static"), Static);
 
-				Core::Document* Poses = Node->Set("poses", Core::Var::Array());
+				Core::Schema* Poses = Node->Set("poses", Core::Var::Array());
 				for (auto&& Pose : Skeleton.Pose)
 				{
-					Core::Document* Value = Poses->Set("pose");
+					Core::Schema* Value = Poses->Set("pose");
 					NMake::Pack(Value->Set("index"), Pose.first);
 					NMake::Pack(Value->Set("position"), Pose.second.Position);
 					NMake::Pack(Value->Set("rotation"), Pose.second.Rotation);
@@ -1517,10 +1517,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Emitter::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Emitter::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				SceneGraph* Scene = Parent->GetScene(); uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
@@ -1551,10 +1551,10 @@ namespace Tomahawk
 					}
 				}
 			}
-			void Emitter::Serialize(ContentManager* Content, Core::Document* Node)
+			void Emitter::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -1620,10 +1620,10 @@ namespace Tomahawk
 			Decal::Decal(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Decal::GetTypeId(), false)
 			{
 			}
-			void Decal::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Decal::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				uint64_t Slot = -1;
 				if (NMake::Unpack(Node->Find("material"), &Slot))
@@ -1635,10 +1635,10 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 			}
-			void Decal::Serialize(ContentManager* Content, Core::Document* Node)
+			void Decal::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
@@ -1669,10 +1669,10 @@ namespace Tomahawk
 			SkinAnimator::~SkinAnimator()
 			{
 			}
-			void SkinAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
+			void SkinAnimator::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("path"), &Path))
@@ -1684,10 +1684,10 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("bind"), &Bind);
 				NMake::Unpack(Node->Find("current"), &Current);
 			}
-			void SkinAnimator::Serialize(ContentManager* Content, Core::Document* Node)
+			void SkinAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				if (!Reference.empty())
 					NMake::Pack(Node->Set("path"), Reference);
@@ -1807,7 +1807,7 @@ namespace Tomahawk
 			bool SkinAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
 			{
 				TH_ASSERT(Content != nullptr, false, "content manager should be set");
-				Core::Document* Result = Content->Load<Core::Document>(Path);
+				Core::Schema* Result = Content->Load<Core::Schema>(Path);
 				if (!Result)
 					return false;
 
@@ -1939,10 +1939,10 @@ namespace Tomahawk
 			KeyAnimator::~KeyAnimator()
 			{
 			}
-			void KeyAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
+			void KeyAnimator::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("path"), &Path))
@@ -1954,10 +1954,10 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("bind"), &Bind);
 				NMake::Unpack(Node->Find("current"), &Current);
 			}
-			void KeyAnimator::Serialize(ContentManager* Content, Core::Document* Node)
+			void KeyAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				if (Reference.empty())
 					NMake::Pack(Node->Set("animation"), Clips);
@@ -2032,7 +2032,7 @@ namespace Tomahawk
 			bool KeyAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
 			{
 				TH_ASSERT(Content != nullptr, false, "content manager should be set");
-				Core::Document* Result = Content->Load<Core::Document>(Path);
+				Core::Schema* Result = Content->Load<Core::Schema>(Path);
 				if (!Result)
 					return false;
 
@@ -2182,10 +2182,10 @@ namespace Tomahawk
 				Spawner.Noise.Max = 1;
 				Spawner.Iterations = 1;
 			}
-			void EmitterAnimator::Deserialize(ContentManager* Content, Core::Document* Node)
+			void EmitterAnimator::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("position"), &Position);
@@ -2196,10 +2196,10 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
 				NMake::Unpack(Node->Find("simulate"), &Simulate);
 			}
-			void EmitterAnimator::Serialize(ContentManager* Content, Core::Document* Node)
+			void EmitterAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Pack(Node->Set("diffuse"), Diffuse);
 				NMake::Pack(Node->Set("position"), Position);
@@ -2510,10 +2510,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Source);
 			}
-			void AudioSource::Deserialize(ContentManager* Content, Core::Document* Node)
+			void AudioSource::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
 				if (NMake::Unpack(Node->Find("audio-clip"), &Path))
@@ -2536,7 +2536,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("air-absorption"), &Sync.AirAbsorption);
 				NMake::Unpack(Node->Find("room-roll-off"), &Sync.RoomRollOff);
 
-				std::vector<Core::Document*> Effects = Node->FetchCollection("effects.effect");
+				std::vector<Core::Schema*> Effects = Node->FetchCollection("effects.effect");
 				for (auto& Effect : Effects)
 				{
 					uint64_t Id;
@@ -2550,7 +2550,7 @@ namespace Tomahawk
 						continue;
 					}
 
-					Core::Document* Meta = Effect->Find("metadata");
+					Core::Schema* Meta = Effect->Find("metadata");
 					if (!Meta)
 						Meta = Effect->Set("metadata");
 
@@ -2565,22 +2565,22 @@ namespace Tomahawk
 				ApplyPlayingPosition();
 				Synchronize(nullptr);
 			}
-			void AudioSource::Serialize(ContentManager* Content, Core::Document* Node)
+			void AudioSource::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				AssetCache* Asset = Content->Find<Audio::AudioClip>(Source->GetClip());
 				if (Asset != nullptr)
 					NMake::Pack(Node->Set("audio-clip"), Asset->Path);
 
-				Core::Document* Effects = Node->Set("effects", Core::Var::Array());
+				Core::Schema* Effects = Node->Set("effects", Core::Var::Array());
 				for (auto* Effect : *Source->GetEffects())
 				{
 					if (!Effect)
 						continue;
 
-					Core::Document* Element = Effects->Set("effect");
+					Core::Schema* Element = Effects->Set("effect");
 					NMake::Pack(Element->Set("id"), Effect->GetId());
 					Effect->Serialize(Element->Set("metadata"));
 				}
@@ -2653,14 +2653,14 @@ namespace Tomahawk
 			{
 				Deactivate();
 			}
-			void AudioListener::Deserialize(ContentManager* Content, Core::Document* Node)
+			void AudioListener::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Unpack(Node->Find("gain"), &Gain);
 			}
-			void AudioListener::Serialize(ContentManager* Content, Core::Document* Node)
+			void AudioListener::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Pack(Node->Set("gain"), Gain);
 			}
 			void AudioListener::Synchronize(Core::Timer* Time)
@@ -2701,9 +2701,9 @@ namespace Tomahawk
 			PointLight::PointLight(Entity* Ref) : Component(Ref, ActorSet::Cullable)
 			{
 			}
-			void PointLight::Deserialize(ContentManager* Content, Core::Document* Node)
+			void PointLight::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("size"), &Size);
@@ -2716,9 +2716,9 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
-			void PointLight::Serialize(ContentManager* Content, Core::Document* Node)
+			void PointLight::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("view"), View);
 				NMake::Pack(Node->Set("size"), Size);
@@ -2773,9 +2773,9 @@ namespace Tomahawk
 			SpotLight::SpotLight(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 			}
-			void SpotLight::Deserialize(ContentManager* Content, Core::Document* Node)
+			void SpotLight::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Unpack(Node->Find("projection"), &Projection);
 				NMake::Unpack(Node->Find("view"), &View);
 				NMake::Unpack(Node->Find("size"), &Size);
@@ -2789,9 +2789,9 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
-			void SpotLight::Serialize(ContentManager* Content, Core::Document* Node)
+			void SpotLight::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Pack(Node->Set("projection"), Projection);
 				NMake::Pack(Node->Set("view"), View);
 				NMake::Pack(Node->Set("size"), Size);
@@ -2855,9 +2855,9 @@ namespace Tomahawk
 			LineLight::LineLight(Entity* Ref) : Component(Ref, ActorSet::Cullable)
 			{
 			}
-			void LineLight::Deserialize(ContentManager* Content, Core::Document* Node)
+			void LineLight::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
 				NMake::Unpack(Node->Find("emission"), &Emission);
 
@@ -2886,9 +2886,9 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("outer-radius"), &Sky.OuterRadius);
 				NMake::Unpack(Node->Find("sky-intensity"), &Sky.Intensity);
 			}
-			void LineLight::Serialize(ContentManager* Content, Core::Document* Node)
+			void LineLight::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				NMake::Pack(Node->Set("diffuse"), Diffuse);
 				NMake::Pack(Node->Set("emission"), Emission);
 
@@ -2975,10 +2975,10 @@ namespace Tomahawk
 				TH_RELEASE(DiffuseMap);
 				TH_RELEASE(Probe);
 			}
-			void SurfaceLight::Deserialize(ContentManager* Content, Core::Document* Node)
+			void SurfaceLight::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
 				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
@@ -3052,10 +3052,10 @@ namespace Tomahawk
 				else
 					SetDiffuseMap(DiffuseMap);
 			}
-			void SurfaceLight::Serialize(ContentManager* Content, Core::Document* Node)
+			void SurfaceLight::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				AssetCache* Asset = nullptr;
 				if (!DiffuseMap)
@@ -3268,10 +3268,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Buffer);
 			}
-			void Illuminator::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Illuminator::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Unpack(Node->Find("size"), &Size);
 				NMake::Unpack(Node->Find("ray-step"), &RayStep);
@@ -3287,10 +3287,10 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("bleeding"), &Bleeding);
 				SetBufferSize(Size);
 			}
-			void Illuminator::Serialize(ContentManager* Content, Core::Document* Node)
+			void Illuminator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Pack(Node->Set("size"), Size);
 				NMake::Pack(Node->Set("ray-step"), RayStep);
@@ -3376,10 +3376,10 @@ namespace Tomahawk
 				if (Scene->GetCamera() == this)
 					Scene->SetCamera(nullptr);
 			}
-			void Camera::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Camera::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
 
 				int _Mode = 0;
@@ -3401,7 +3401,7 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("frustum-cull"), &Renderer->FrustumCulling);
 				NMake::Unpack(Node->Find("occlusion-cull"), &Renderer->OcclusionCulling);
 
-				std::vector<Core::Document*> Renderers = Node->FetchCollection("renderers.renderer");
+				std::vector<Core::Schema*> Renderers = Node->FetchCollection("renderers.renderer");
 				Renderer->SetDepthSize(Size);
 
 				for (auto& Render : Renderers)
@@ -3417,7 +3417,7 @@ namespace Tomahawk
 						continue;
 					}
 
-					Core::Document* Meta = Render->Find("metadata");
+					Core::Schema* Meta = Render->Find("metadata");
 					if (!Meta)
 						Meta = Render->Set("metadata");
 
@@ -3428,10 +3428,10 @@ namespace Tomahawk
 					NMake::Unpack(Render->Find("active"), &Target->Active);
 				}
 			}
-			void Camera::Serialize(ContentManager* Content, Core::Document* Node)
+			void Camera::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				NMake::Pack(Node->Set("mode"), (int)Mode);
 				NMake::Pack(Node->Set("projection"), Projection);
@@ -3446,10 +3446,10 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("frustum-cull"), Renderer->FrustumCulling);
 				NMake::Pack(Node->Set("occlusion-cull"), Renderer->OcclusionCulling);
 
-				Core::Document* Renderers = Node->Set("renderers", Core::Var::Array());
+				Core::Schema* Renderers = Node->Set("renderers", Core::Var::Array());
 				for (auto* Next : Renderer->GetRenderers())
 				{
-					Core::Document* Render = Renderers->Set("renderer");
+					Core::Schema* Render = Renderers->Set("renderer");
 					NMake::Pack(Render->Set("id"), Next->GetId());
 					NMake::Pack(Render->Set("active"), Next->Active);
 					Next->Serialize(Content, Render->Set("metadata"));
@@ -3588,10 +3588,10 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Compiler);
 			}
-			void Scriptable::Deserialize(ContentManager* Content, Core::Document* Node)
+			void Scriptable::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Type;
 				if (NMake::Unpack(Node->Find("source"), &Type))
@@ -3620,7 +3620,7 @@ namespace Tomahawk
 				if (SetSource() < 0)
 					return;
 
-				Core::Document* Cache = Node->Find("cache");
+				Core::Schema* Cache = Node->Find("cache");
 				if (Cache != nullptr)
 				{
 					for (auto& Var : Cache->GetChilds())
@@ -3730,10 +3730,10 @@ namespace Tomahawk
 					Context->SetArgObject(2, Node);
 				});
 			}
-			void Scriptable::Serialize(ContentManager* Content, Core::Document* Node)
+			void Scriptable::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "document should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				if (Source == SourceType_Memory)
 					NMake::Pack(Node->Set("source"), "memory");
@@ -3748,14 +3748,14 @@ namespace Tomahawk
 				int Count = GetPropertiesCount();
 				NMake::Pack(Node->Set("resource"), Core::Parser(Resource).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R());
 
-				Core::Document* Cache = Node->Set("cache");
+				Core::Schema* Cache = Node->Set("cache");
 				for (int i = 0; i < Count; i++)
 				{
 					Script::VMProperty Result;
 					if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
 						continue;
 
-					Core::Document* Var = Core::Var::Set::Object();
+					Core::Schema* Var = Core::Var::Set::Object();
 					NMake::Pack(Var->Set("type"), Result.TypeId);
 
 					switch ((Script::VMTypeId)Result.TypeId)

@@ -23,8 +23,8 @@ namespace Tomahawk
 			public:
 				SoftBody(Entity* Ref);
 				virtual ~SoftBody() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
@@ -61,8 +61,8 @@ namespace Tomahawk
 			public:
 				RigidBody(Entity* Ref);
 				virtual ~RigidBody() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual Component* Copy(Entity* New) override;
@@ -87,8 +87,8 @@ namespace Tomahawk
 			public:
 				SliderConstraint(Entity* Ref);
 				virtual ~SliderConstraint() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual Component* Copy(Entity* New) override;
 				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
@@ -115,8 +115,8 @@ namespace Tomahawk
 			public:
 				Acceleration(Entity* Ref);
 				virtual ~Acceleration() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
 				virtual Component* Copy(Entity * New) override;
@@ -137,8 +137,8 @@ namespace Tomahawk
 			public:
 				Model(Entity* Ref);
 				virtual ~Model() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual Component* Copy(Entity* New) override;
@@ -161,8 +161,8 @@ namespace Tomahawk
 			public:
 				Skin(Entity* Ref);
 				virtual ~Skin() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
@@ -188,8 +188,8 @@ namespace Tomahawk
 			public:
 				Emitter(Entity* Ref);
 				virtual ~Emitter() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual Component* Copy(Entity* New) override;
@@ -207,8 +207,8 @@ namespace Tomahawk
 			public:
 				Decal(Entity* Ref);
 				virtual ~Decal() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity * New) override;
 
@@ -232,8 +232,8 @@ namespace Tomahawk
 			public:
 				SkinAnimator(Entity* Ref);
 				virtual ~SkinAnimator() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
@@ -271,8 +271,8 @@ namespace Tomahawk
 			public:
 				KeyAnimator(Entity* Ref);
 				virtual ~KeyAnimator() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
@@ -313,8 +313,8 @@ namespace Tomahawk
 			public:
 				EmitterAnimator(Entity* Ref);
 				virtual ~EmitterAnimator() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Activate(Component * New) override;
 				virtual void Synchronize(Core::Timer * Time) override;
 				virtual Component* Copy(Entity * New) override;
@@ -391,8 +391,8 @@ namespace Tomahawk
 			public:
 				AudioSource(Entity* Ref);
 				virtual ~AudioSource() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Component* Copy(Entity* New) override;
 				void ApplyPlayingPosition();
@@ -414,8 +414,8 @@ namespace Tomahawk
 			public:
 				AudioListener(Entity* Ref);
 				virtual ~AudioListener() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual Component* Copy(Entity* New) override;
@@ -450,8 +450,8 @@ namespace Tomahawk
 			public:
 				PointLight(Entity* Ref);
 				virtual ~PointLight() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity * New) override;
@@ -490,8 +490,8 @@ namespace Tomahawk
 			public:
 				SpotLight(Entity* Ref);
 				virtual ~SpotLight() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Synchronize(Core::Timer * Time) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
@@ -541,8 +541,8 @@ namespace Tomahawk
 			public:
 				LineLight(Entity* Ref);
 				virtual ~LineLight() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Document * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Document * Node) override;
+				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual Component* Copy(Entity * New) override;
 				void GenerateOrigin();
 
@@ -577,8 +577,8 @@ namespace Tomahawk
 			public:
 				SurfaceLight(Entity* Ref);
 				virtual ~SurfaceLight() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity* New) override;
@@ -624,8 +624,8 @@ namespace Tomahawk
 			public:
 				Illuminator(Entity* Ref);
 				virtual ~Illuminator() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual Component* Copy(Entity* New) override;
 				void SetBufferSize(size_t NewSize);
 				Graphics::Texture3D* GetBuffer();
@@ -661,8 +661,8 @@ namespace Tomahawk
 			public:
 				Camera(Entity* Ref);
 				virtual ~Camera() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
@@ -726,8 +726,8 @@ namespace Tomahawk
 			public:
 				Scriptable(Entity* Ref);
 				virtual ~Scriptable() override;
-				virtual void Deserialize(ContentManager* Content, Core::Document* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Document* Node) override;
+				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;

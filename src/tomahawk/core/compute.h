@@ -1757,7 +1757,7 @@ namespace Tomahawk
 			void Clear();
 			void RemoveItem(void* Item);
 			void InsertItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound);
-			bool UpdateItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound);
+			bool UpdateItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool Always = false);
 			bool Query(const Area& Box, const CosmosCallback& Callback);
 			void PushQuery();
 			void* NextQuery(const Area& Box);

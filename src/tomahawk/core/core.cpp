@@ -9491,7 +9491,7 @@ namespace Tomahawk
 				Schema* Subresult = Current->Set(It->name(), Var::Set::Array());
 				ProcessXMLRead((void*)It, Subresult);
 
-				if ((!Subresult->Nodes || Subresult->Nodes->empty()) && It->value_size() > 0)
+				if (It->value_size() > 0)
 					Subresult->Value.Deserialize(std::string(It->value(), It->value_size()));
 			}
 

@@ -9792,7 +9792,7 @@ namespace Tomahawk
 			}
 			Items.clear();
 		}
-		bool Cosmos::UpdateItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper)
+		bool Cosmos::UpdateItem(void* Item, std::vector<float>& Lower, std::vector<float>& Upper, bool Always)
 		{
 			TH_ASSERT(Lower.size() == Dimension && Upper.size() == Dimension, false, "dimension mismatch");
 
@@ -9801,10 +9801,13 @@ namespace Tomahawk
 				return false;
 
 			auto& Source = Nodes[it->second];
+			Area Box(Lower, Upper);
+
+			if (!Always && !Source.Box.Contains(Box))
+				return true;
+
 			RemoveLeaf(it->second);
-			Source.Box = Area(Lower, Upper);
-			Source.Box.Volume = Source.Box.ComputeVolume();
-			Source.Box.Center = Source.Box.ComputeCenter();
+			Source.Box = Box;
 			InsertLeaf(it->second);
 
 			return true;

@@ -4685,6 +4685,16 @@ namespace Tomahawk
 		{
 			return Conf.Device->IsLeftHanded();
 		}
+		bool SceneGraph::IsIndexed()
+		{
+			for (auto& Item : Indexer.Changes)
+			{
+				if (!Item.second.empty())
+					return false;
+			}
+
+			return true;
+		}
 		void SceneGraph::Mutate(Entity* Parent, Entity* Child, const char* Type)
 		{
 			TH_ASSERT_V(Parent != nullptr, "parent should be set");

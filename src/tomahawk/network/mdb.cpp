@@ -833,12 +833,12 @@ namespace Tomahawk
 					{
 						case Type::Schema:
 						{
-							Node->Set(Name, Key->Get().ToDocument(false));
+							Node->Set(Name, Key->Get().ToSchema(false));
 							break;
 						}
 						case Type::Array:
 						{
-							Node->Set(Name, Key->Get().ToDocument(true));
+							Node->Set(Name, Key->Get().ToSchema(true));
 							break;
 						}
 						case Type::String:

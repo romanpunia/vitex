@@ -989,6 +989,7 @@ namespace Tomahawk
 			bool AddEntity(Entity* Entity);
 			bool IsActive();
 			bool IsLeftHanded();
+			bool IsIndexed();
 			uint64_t GetMaterialsCount();
 			uint64_t GetEntitiesCount();
 			uint64_t GetComponentsCount(uint64_t Section);

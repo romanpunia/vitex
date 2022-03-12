@@ -503,6 +503,7 @@ namespace Tomahawk
 				ResponseFrame Response;
 
 				virtual ~Connection() = default;
+				void Reset(bool Fully) override;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
 				bool Certify(Certificate* Output) override;
@@ -786,7 +787,7 @@ namespace Tomahawk
 				bool OnStall(std::unordered_set<SocketConnection*>& Data) override;
 				bool OnListen() override;
 				bool OnUnlisten() override;
-				SocketConnection* OnAllocate(Listener* Host, Socket* Stream) override;
+				SocketConnection* OnAllocate(Listener* Host) override;
 				SocketRouter* OnAllocateRouter() override;
 			};
 

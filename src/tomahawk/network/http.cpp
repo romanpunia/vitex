@@ -1152,6 +1152,41 @@ namespace Tomahawk
 				return StatusCode >= 200 && StatusCode < 400;
 			}
 
+			void Connection::Reset(bool Fully)
+			{
+				for (auto& Item : Request.Resources)
+				{
+					if (!Item.Memory)
+						Core::OS::File::Remove(Item.Path.c_str());
+				}
+
+				if (!Fully)
+					Info.Close = (Info.Close || Response.StatusCode < 0);
+
+				Route = nullptr;
+				Response.Data = Content::Not_Loaded;
+				Response.Error = false;
+				Response.StatusCode = -1;
+				Response.Buffer.clear();
+				Response.Cookies.clear();
+				Response.Headers.clear();
+				Request.ContentLength = 0;
+				Request.User.Type = Auth::Unverified;
+				Request.User.Token.clear();
+				Request.Resources.clear();
+				Request.Buffer.clear();
+				Request.Headers.clear();
+				Request.Cookies.clear();
+				Request.Query.clear();
+				Request.Path.clear();
+				Request.URI.clear();
+				Request.Where.clear();
+
+				memset(Request.Method, 0, sizeof(Request.Method));
+				memset(Request.Version, 0, sizeof(Request.Version));
+				memset(Request.RemoteAddress, 0, sizeof(Request.RemoteAddress));
+				SocketConnection::Reset(Fully);
+			}
 			bool Connection::Consume(const ContentCallback& Callback, bool Eat)
 			{
 				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved || Response.Data == Content::Wants_Save)
@@ -5646,42 +5681,10 @@ namespace Tomahawk
 						return true;
 					});
 				}
-
-				for (auto& Item : Base->Request.Resources)
-				{
-					if (!Item.Memory)
-						Core::OS::File::Remove(Item.Path.c_str());
-				}
-
-				if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
+				else if (Base->Info.KeepAlive >= -1 && Base->Response.StatusCode >= 0 && Base->Route && Base->Route->Callbacks.Access)
 					Base->Route->Callbacks.Access(Base);
 
-				Base->Route = nullptr;
-				Base->Stream->Income = 0;
-				Base->Stream->Outcome = 0;
-				Base->Info.Close = (Base->Info.Close || Base->Response.StatusCode < 0);
-				Base->Response.Data = Content::Not_Loaded;
-				Base->Response.Error = false;
-				Base->Response.StatusCode = -1;
-				Base->Response.Buffer.clear();
-				Base->Response.Cookies.clear();
-				Base->Response.Headers.clear();
-				Base->Request.ContentLength = 0;
-				Base->Request.User.Type = Auth::Unverified;
-				Base->Request.User.Token.clear();
-				Base->Request.Resources.clear();
-				Base->Request.Buffer.clear();
-				Base->Request.Headers.clear();
-				Base->Request.Cookies.clear();
-				Base->Request.Query.clear();
-				Base->Request.Path.clear();
-				Base->Request.URI.clear();
-				Base->Request.Where.clear();
-
-				memset(Base->Request.Method, 0, sizeof(Base->Request.Method));
-				memset(Base->Request.Version, 0, sizeof(Base->Request.Version));
-				memset(Base->Request.RemoteAddress, 0, sizeof(Base->Request.RemoteAddress));
-
+				Base->Reset(false);
 				return true;
 			}
 			bool Server::OnRequestBegin(SocketConnection* Source)
@@ -5861,10 +5864,9 @@ namespace Tomahawk
 
 				return true;
 			}
-			SocketConnection* Server::OnAllocate(Listener* Host, Socket* Stream)
+			SocketConnection* Server::OnAllocate(Listener* Host)
 			{
 				TH_ASSERT(Host != nullptr, nullptr, "host should be set");
-				TH_ASSERT(Stream != nullptr, nullptr, "host should be set");
 
 				auto Base = TH_NEW(HTTP::Connection);
 				Base->Root = this;

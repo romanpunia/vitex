@@ -286,6 +286,7 @@ namespace Tomahawk
 			DataFrame Info;
 
 			virtual ~SocketConnection();
+			virtual void Reset(bool Fully);
 			virtual bool Finish();
 			virtual bool Finish(int);
 			virtual bool Error(int, const char* ErrorMessage, ...);
@@ -371,23 +372,26 @@ namespace Tomahawk
 			friend SocketConnection;
 
 		protected:
-			std::unordered_set<SocketConnection*> Good;
-			std::unordered_set<SocketConnection*> Bad;
+			std::unordered_set<SocketConnection*> Active;
+			std::unordered_set<SocketConnection*> Inactive;
 			std::vector<Listener*> Listeners;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState::Idle;
 			Core::TimerId Timer = -1;
 			std::mutex Sync;
-
+			size_t Backlog;
+			
 		public:
 			SocketServer();
 			virtual ~SocketServer() override;
 			void SetRouter(SocketRouter* New);
+			void SetBacklog(size_t Value);
 			void Lock();
 			void Unlock();
 			bool Configure(SocketRouter* New);
 			bool Unlisten();
 			bool Listen();
+			size_t GetBacklog();
 			ServerState GetState();
 			SocketRouter* GetRouter();
 			std::unordered_set<SocketConnection*>* GetClients();
@@ -402,14 +406,17 @@ namespace Tomahawk
 			virtual bool OnListen();
 			virtual bool OnUnlisten();
 			virtual bool OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context);
-			virtual SocketConnection* OnAllocate(Listener* Host, Socket* Stream);
+			virtual SocketConnection* OnAllocate(Listener* Host);
 			virtual SocketRouter* OnAllocateRouter();
 
 		protected:
-			bool FreeQueued();
+			bool FreeAll();
+			bool FreePartition();
 			bool Accept(Listener* Host);
 			bool Protect(Socket* Fd, Listener* Host);
 			bool Manage(SocketConnection* Base);
+			void Push(SocketConnection* Base);
+			SocketConnection* Pop(Listener* Host);
 		};
 
 		class TH_OUT SocketClient : public Core::Object

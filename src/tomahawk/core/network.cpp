@@ -359,6 +359,7 @@ namespace Tomahawk
 		Socket::~Socket()
 		{
 			TH_DELETE(SocketAcceptCallback, Listener);
+			Listener = nullptr;
 		}
 		int Socket::Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Subresult)
 		{
@@ -1370,6 +1371,24 @@ namespace Tomahawk
 		{
 			return Finish(-1);
 		}
+		void SocketConnection::Reset(bool Fully)
+		{
+			if (Fully)
+			{
+				Info.Message.clear();
+				Info.Start = 0;
+				Info.Finish = 0;
+				Info.Timeout = 0;
+				Info.KeepAlive = 1;
+				Info.Close = false;
+			}
+
+			if (Stream != nullptr)
+			{
+				Stream->Income = 0;
+				Stream->Outcome = 0;
+			}
+		}
 
 		SocketRouter::~SocketRouter()
 		{
@@ -1443,7 +1462,7 @@ namespace Tomahawk
 		{
 			Core::Schedule* Queue = Core::Schedule::Get();
 			if (Queue->GetThreads(Core::Difficulty::Heavy) < 2)
-				Dispatch(Queue->HasTasks(Core::Difficulty::Heavy) ? 0 : 10);
+				Dispatch(Queue->HasTasks(Core::Difficulty::Heavy) ? 0 : 20);
 			else
 				Dispatch(100);
 
@@ -1922,7 +1941,7 @@ namespace Tomahawk
 #else
 		epoll_event* Driver::Array = nullptr;
 #endif
-		SocketServer::SocketServer()
+		SocketServer::SocketServer() : Backlog(1024)
 		{
 #ifndef TH_MICROSOFT
 			signal(SIGPIPE, SIG_IGN);
@@ -1936,6 +1955,11 @@ namespace Tomahawk
 		{
 			OnDeallocateRouter(Router);
 			Router = New;
+		}
+		void SocketServer::SetBacklog(size_t Value)
+		{
+			TH_ASSERT_V(Value > 0, "backlog must be greater than zero");
+			Backlog = Value;
 		}
 		void SocketServer::Lock()
 		{
@@ -2113,28 +2137,28 @@ namespace Tomahawk
 			{
 				if (time(nullptr) - Timeout > 5)
 				{
-					TH_ERR("server has stalled connections: %i", (int)Good.size());
+					TH_ERR("server has stalled connections: %i", (int)Active.size());
 					Sync.lock();
-					OnStall(Good);
+					OnStall(Active);
 					Sync.unlock();
 					break;
 				}
 
 				Sync.lock();
-				auto Copy = Good;
+				auto Copy = Active;
 				Sync.unlock();
 
 				for (auto* Base : Copy)
 				{
-					Base->Info.KeepAlive = 0;
 					Base->Info.Close = true;
+					Base->Info.KeepAlive = 0;
 					if (Base->Stream->HasPendingData())
 						Base->Stream->Clear(true);
 				}
 
-				FreeQueued();
+				FreeAll();
 				TH_PSIG();
-			} while (!Bad.empty() || !Good.empty());
+			} while (!Inactive.empty() || !Active.empty());
 			TH_PPOP();
 
 			if (!OnUnlisten())
@@ -2167,7 +2191,7 @@ namespace Tomahawk
 
 			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
 			{
-				FreeQueued();
+				FreePartition();
 				if (State == ServerState::Stopping)
 				{
 					Sync.lock();
@@ -2190,16 +2214,40 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool SocketServer::FreeQueued()
+		bool SocketServer::FreePartition()
 		{
-			if (Bad.empty())
+			if (Inactive.size() <= Backlog)
 				return false;
 
-			TH_PPUSH("serv-dequeue", TH_PERF_FRAME);
+			TH_PPUSH("serv-free-partition", TH_PERF_FRAME);
 			Sync.lock();
-			for (auto It = Bad.begin(); It != Bad.end(); It++)
-				OnDeallocate(*It);
-			Bad.clear();
+			if (Inactive.size() > Backlog)
+			{
+				size_t Count = Inactive.size() - Backlog;
+				for (auto It = Inactive.begin(); It != Inactive.end(); ++It)
+				{
+					OnDeallocate(*It);
+					--It;
+
+					if (!--Count)
+						break;
+				}
+			}
+			Sync.unlock();
+
+			TH_PPOP();
+			return true;
+		}
+		bool SocketServer::FreeAll()
+		{
+			if (Inactive.empty())
+				return false;
+
+			TH_PPUSH("serv-free-all", TH_PERF_FRAME);
+			Sync.lock();
+			for (auto* Item : Inactive)
+				OnDeallocate(Item);
+			Inactive.clear();
 			Sync.unlock();
 
 			TH_PPOP();
@@ -2208,20 +2256,20 @@ namespace Tomahawk
 		bool SocketServer::Accept(Listener* Host)
 		{
 			TH_PPUSH("sock-accept", TH_PERF_FRAME);
-			auto* Connection = TH_NEW(Socket);
-			if (Host->Base->Accept(Connection, nullptr) == -1)
+			auto* Base = Pop(Host);
+			if (!Base || Host->Base->Accept(Base->Stream, nullptr) == -1)
 			{
-				TH_DELETE(Socket, Connection);
+				Push(Base);
 				TH_PPOP();
 
 				return false;
 			}
 
-			if (Router->MaxConnections > 0 && Good.size() >= Router->MaxConnections)
+			if (Router->MaxConnections > 0 && Active.size() >= Router->MaxConnections)
 			{
-				Connection->CloseAsync(false, [](Socket* Base)
+				Base->Stream->CloseAsync(false, [this, Base](Socket*)
 				{
-					TH_DELETE(Socket, Base);
+					Push(Base);
 					return true;
 				});
 
@@ -2230,47 +2278,25 @@ namespace Tomahawk
 			}
 
 			if (Router->GracefulTimeWait >= 0)
-				Connection->SetTimeWait((int)Router->GracefulTimeWait);
+				Base->Stream->SetTimeWait((int)Router->GracefulTimeWait);
 
-			Connection->CloseOnExec();
-			Connection->SetAsyncTimeout(Router->SocketTimeout);
-			Connection->SetNodelay(Router->EnableNoDelay);
-			Connection->SetKeepAlive(true);
-			Connection->SetBlocking(false);
+			Base->Stream->CloseOnExec();
+			Base->Stream->SetAsyncTimeout(Router->SocketTimeout);
+			Base->Stream->SetNodelay(Router->EnableNoDelay);
+			Base->Stream->SetKeepAlive(true);
+			Base->Stream->SetBlocking(false);
 
-			if (Host->Hostname->Secure && !Protect(Connection, Host))
+			if (Host->Hostname->Secure && !Protect(Base->Stream, Host))
 			{
-				Connection->CloseAsync(false, [](Socket* Base)
+				Base->Stream->CloseAsync(false, [this, Base](Socket*)
 				{
-					TH_DELETE(Socket, Base);
+					Push(Base);
 					return true;
 				});
 
 				TH_PPOP();
 				return false;
 			}
-
-			auto Base = OnAllocate(Host, Connection);
-			if (!Base)
-			{
-				Connection->CloseAsync(false, [](Socket* Base)
-				{
-					TH_DELETE(Socket, Base);
-					return true;
-				});
-
-				TH_PPOP();
-				return false;
-			}
-
-			Base->Info.KeepAlive = (Router->KeepAliveMaxCount > 0 ? Router->KeepAliveMaxCount - 1 : 0);
-			Base->Host = Host;
-			Base->Stream = Connection;
-			Base->Stream->UserData = Base;
-
-			Sync.lock();
-			Good.insert(Base);
-			Sync.unlock();
 
 			TH_PPOP();
 			return Core::Schedule::Get()->SetTask([this, Base]()
@@ -2365,13 +2391,7 @@ namespace Tomahawk
 			Base->Info.KeepAlive = -2;
 			Base->Stream->CloseAsync(true, [this, Base](Socket*)
 			{
-				Sync.lock();
-				auto It = Good.find(Base);
-				if (It != Good.end())
-					Good.erase(It);
-
-				Bad.insert(Base);
-				Sync.unlock();
+				Push(Base);
 				return true;
 			});
 
@@ -2433,7 +2453,53 @@ namespace Tomahawk
 			*Context = It->second.Context;
 			return true;
 		}
-		SocketConnection* SocketServer::OnAllocate(Listener*, Socket*)
+		void SocketServer::Push(SocketConnection* Base)
+		{
+			Sync.lock();
+			auto It = Active.find(Base);
+			if (It != Active.end())
+				Active.erase(It);
+
+			Base->Reset(true);
+			Inactive.insert(Base);
+			Sync.unlock();
+		}
+		SocketConnection* SocketServer::Pop(Listener* Host)
+		{
+			SocketConnection* Result = nullptr;
+			if (!Inactive.empty())
+			{
+				Sync.lock();
+				if (!Inactive.empty())
+				{
+					auto It = Inactive.begin();
+					Result = *It;
+					Inactive.erase(It);
+				}
+				Sync.unlock();
+			}
+
+			if (!Result)
+			{
+				Result = OnAllocate(Host);
+				if (!Result)
+					return nullptr;
+
+				Socket* Base = TH_NEW(Socket);
+				Result->Stream = Base;
+				Result->Stream->UserData = Result;
+			}
+
+			Result->Host = Host;
+			Result->Info.KeepAlive = (Router->KeepAliveMaxCount > 0 ? Router->KeepAliveMaxCount - 1 : 0);
+
+			Sync.lock();
+			Active.insert(Result);
+			Sync.unlock();
+
+			return Result;
+		}
+		SocketConnection* SocketServer::OnAllocate(Listener*)
 		{
 			return TH_NEW(SocketConnection);
 		}
@@ -2443,7 +2509,7 @@ namespace Tomahawk
 		}
 		std::unordered_set<SocketConnection*>* SocketServer::GetClients()
 		{
-			return &Good;
+			return &Active;
 		}
 		ServerState SocketServer::GetState()
 		{
@@ -2452,6 +2518,10 @@ namespace Tomahawk
 		SocketRouter* SocketServer::GetRouter()
 		{
 			return Router;
+		}
+		size_t SocketServer::GetBacklog()
+		{
+			return Backlog;
 		}
 
 		SocketClient::SocketClient(int64_t RequestTimeout) : Context(nullptr), Timeout(RequestTimeout), AutoCertify(true)

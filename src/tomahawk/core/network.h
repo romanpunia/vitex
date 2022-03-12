@@ -301,7 +301,6 @@ namespace Tomahawk
 			uint64_t PayloadMaxLength = 32768;
 			uint64_t BacklogQueue = 20;
 			uint64_t SocketTimeout = 5000;
-			uint64_t CloseTimeout = 500;
 			uint64_t MaxConnections = 0;
 			int64_t KeepAliveMaxCount = 10;
 			int64_t GracefulTimeWait = -1;
@@ -377,7 +376,6 @@ namespace Tomahawk
 			std::vector<Listener*> Listeners;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState::Idle;
-			Core::TimerId Timer = -1;
 			std::mutex Sync;
 			size_t Backlog;
 			
@@ -411,7 +409,6 @@ namespace Tomahawk
 
 		protected:
 			bool FreeAll();
-			bool FreePartition();
 			bool Accept(Listener* Host);
 			bool Protect(Socket* Fd, Listener* Host);
 			bool Manage(SocketConnection* Base);

@@ -1941,7 +1941,7 @@ namespace Tomahawk
 #else
 		epoll_event* Driver::Array = nullptr;
 #endif
-		SocketServer::SocketServer() : Backlog(1024)
+		SocketServer::SocketServer() : Backlog(2)
 		{
 #ifndef TH_MICROSOFT
 			signal(SIGPIPE, SIG_IGN);
@@ -2128,9 +2128,6 @@ namespace Tomahawk
 				return false;
 
 			State = ServerState::Stopping;
-			if (Core::Schedule::Get()->ClearTimeout(Timer))
-				Timer = TH_INVALID_EVENT_ID;
-
 			int64_t Timeout = time(nullptr);
 			TH_PPUSH("sock-srv-close", TH_PERF_HANG);
 			do
@@ -2189,17 +2186,6 @@ namespace Tomahawk
 			if (!OnListen())
 				return false;
 
-			Timer = Core::Schedule::Get()->SetInterval(Router->CloseTimeout, [this]()
-			{
-				FreePartition();
-				if (State == ServerState::Stopping)
-				{
-					Sync.lock();
-					State = ServerState::Idle;
-					Sync.unlock();
-				}
-			}, Core::Difficulty::Light);
-
 			for (auto&& It : Listeners)
 			{
 				It->Base->AcceptAsync([this, It](Socket*)
@@ -2212,28 +2198,6 @@ namespace Tomahawk
 				});
 			}
 
-			return true;
-		}
-		bool SocketServer::FreePartition()
-		{
-			if (Inactive.size() <= Backlog)
-				return false;
-
-			TH_PPUSH("serv-free-partition", TH_PERF_FRAME);
-			Sync.lock();
-			if (Inactive.size() > Backlog)
-			{
-				size_t Count = Inactive.size() - Backlog;
-				while (Count-- > 0)
-				{
-					auto It = Inactive.begin();
-					OnDeallocate(*It);
-					Inactive.erase(It);
-				}
-			}
-			Sync.unlock();
-
-			TH_PPOP();
 			return true;
 		}
 		bool SocketServer::FreeAll()
@@ -2453,14 +2417,19 @@ namespace Tomahawk
 		}
 		void SocketServer::Push(SocketConnection* Base)
 		{
+			TH_PPUSH("serv-push-conn", TH_PERF_FRAME);
 			Sync.lock();
 			auto It = Active.find(Base);
 			if (It != Active.end())
 				Active.erase(It);
 
 			Base->Reset(true);
-			Inactive.insert(Base);
+			if (Inactive.size() < Backlog)
+				Inactive.insert(Base);
+			else
+				OnDeallocate(Base);
 			Sync.unlock();
+			TH_PPOP();
 		}
 		SocketConnection* SocketServer::Pop(Listener* Host)
 		{

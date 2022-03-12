@@ -1336,9 +1336,6 @@ namespace Tomahawk
 					if (!NMake::Unpack(Config->Find("socket-timeout"), &Router->SocketTimeout))
 						Router->SocketTimeout = 5000;
 
-					if (!NMake::Unpack(Config->Find("close-timeout"), &Router->CloseTimeout))
-						Router->CloseTimeout = 500;
-
 					if (!NMake::Unpack(Config->Find("graceful-time-wait"), &Router->GracefulTimeWait))
 						Router->GracefulTimeWait = -1;
 

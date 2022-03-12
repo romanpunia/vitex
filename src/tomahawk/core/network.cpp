@@ -1941,7 +1941,7 @@ namespace Tomahawk
 #else
 		epoll_event* Driver::Array = nullptr;
 #endif
-		SocketServer::SocketServer() : Backlog(2)
+		SocketServer::SocketServer() : Backlog(1024)
 		{
 #ifndef TH_MICROSOFT
 			signal(SIGPIPE, SIG_IGN);

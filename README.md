@@ -1,5 +1,20 @@
 ## About
-Tomahawk is a cross-platform C++14 framework to create any type of application from a unified interface. It provides a set of common tools, so that users can focus on making apps without having to reinvent the wheel.
+Tomahawk is a cross-platform C++14 framework to create any type of application from a unified interface. In it's core, Tomahawk is based on same concepts as Node.js but made to it's extreme. As in Node, Tomahawk has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
+
+Using concept of tasks and queues, in Tomahawk there are two rules for optimal performace and proper CPU loading:
+1. Split work in to small pieces.
+2. Use scheduler to process those small pieces.
+
+There are two type of thread workers in a thread pool: light and heavy. Light threads processes non-blocking tasks such as event dispatching, non-blocking IO and coroutines. Heavy threads are in charge of everything else such as CPU bound tasks and blocking IO. Tomahawk is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
+
+Originally, Tomahawk was only a game engine but now it isn't. All the features for game development are there but it can be easily stripped out to reduce size of executable and use only needed functionality. There are cases when Tomahawk is used as a framework for building a high performance backend server or a daemon, most of the time all we need in that case is OpenSSL and maybe Zlib with PostgreSQL or MongoDB, so we strip out everything else that way reducing compile time, executable size and runtime memory usage to minimum. Turns out, Tomahawk can easily run in a very limited machines that were slow even in 2006.
+
+If your goal is to make a game, Tomahawk is not really a consumer ready product to build AAA games as it is very low level. I tried to make it so that if you need some functionality such as a new entity component, advanced rendering techinque such as Ray-Tracing, a new rendering backend or even a motion capture system to create cutscenes, you can make it in a relatively short time without hurting performance. Why isn't it already contained in this engine? I'm the only developer, physically impossible.
+
+For games, Tomahawk is a 3D optimized engine, there is a posibility to render efficient 2D graphics with batching but that is not a priority. Main shading language is HLSL, it is transpiled or directly compiled and saved to cache when needed. Rendering is based on stacking, that way you specify renderers for a camera (order matters), when rendering is initiated we process each renderer step by step, renderer can initiate sub-pass to render another part of scene for shadows, reflections, transparency and others. Before rendering begins, render lists are prepared for geometry rendering based on culling results, for sub-passes we use frustum and indexed culling, for main passes we also use occlusion culling. Culling, physics, audio and rendering are done multhreaded if possible. In best case, we don't have any synchronization between threads but when we need to write to shared data,
+for example, destroy a rigid body owned by physics engine, we use scene transactions that are just callbacks that are guaranteed to be executed thread safe (in scope of scene) which in turn makes scene eventual consistent as transactions are fired later when all parallel tasks are finished.
+
+Another important aspect of Tomahawk is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
 
 ![CMake](https://github.com/romanpunia/tomahawk/workflows/CMake/badge.svg)
 
@@ -12,9 +27,9 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Memory management
 + OS functionality
 + String utils
-+ Separate any-value serializator
++ Variants
 + Key-value storage documents
-+ XML/JSON serialization (plus custom JSONB format)
++ XML/JSON/JSONB serialization/deserialization
 + Adjustable logging system
 + Dynamic libraries importer
 + Ref. counting (opt. with new/delete) for ownership management
@@ -22,6 +37,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Async/await promise-like object to handle chains of async data
 + Coasync/Coawait primitives to handle async functions like in JS
 + BigNumber for accuracy sensitive operations of any precision
++ Category-based tasking for event queue to process blocking and non-blocking tasks
 #### Math
 + Vertices
 + Vectors
@@ -44,6 +60,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + File preprocessor (include, pragma, define, ifdef/ifndef/else/endif)
 + Transform hierarchy system
 + SIMD optimisations included
++ Cosmos to index arbitrary amount of AABBs (BVH, like an octree)
 #### Audio
 + Configurable audio playback
 + Positional sound with optional velocity
@@ -72,8 +89,8 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + IO multiplexer
 + Socket client abstraction
 + BSON type support for data transfer
-+ MongoDB support for database manipulations
-+ PostgreSQL support for database manipulations
++ MongoDB support for database manipulations (async emulation)
++ PostgreSQL support for database manipulations (fully async)
 + File transfer compression
 + Connection session support
 + Server router
@@ -82,6 +99,7 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Async/sync WebSocket server/client support (RFC 6455, 13)
 + Async/sync SMTP client support
 + Polling mechanisms: select, poll, epoll, kqueue, iocp
++ Connection pooling for server with backlog
 #### Scripting
 + Angel Script packed into library
 + Template abstraction over virtual machine
@@ -119,10 +137,15 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Font system
 + Dynamic trees (and recursive)
 #### Engine
-+ Thread-safe scene graph
++ Thread-safe scene graph based on eventual consistency
 + Async/sync content management with processors
 + Entity system
 + Component system
++ Event system
++ Multithreaded scene management with db-like transactions for shared data writing and proper CPU load distribution
++ Physics, culling, indexing/synchronization, audio and rendering are processed multithreaded
++ Stack-based rendering system with frustum/indexed/occlusion culling
++ Mostly constant time search for drawable components in some area
 + Render system to handle any type of visualisation per camera
 + Data serialization
 + Built-in processors (file loader/saver)
@@ -164,14 +187,14 @@ Tomahawk is a cross-platform C++14 framework to create any type of application f
 + Probe light (can cast reflections to entities)
 + Camera (with rendering system that holds renderers)
 #### Built-in processors
-+ Scene graph processor
++ Scene processor
 + Material processor
-+ Audio clip processor (WAVE, OGG)
-+ Texture 2d processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
++ Audio processor (WAVE, OGG)
++ Texture processor (JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC)
 + Shader processor (render backend dependent, code preprocessor included)
 + Model processor (with Assimp's import options, if supported)
 + Skinned model processor (with Assimp's import options, if supported)
-+ Document processor (XML, JSON, binary)
++ Schema processor (XML, JSON, JSONB)
 + Server processor (for HTTP server to load router config)
 
 *Note: some functionality might be stripped without needed dependencies. Also exceptions were not used, it's more C-like with return codes.*

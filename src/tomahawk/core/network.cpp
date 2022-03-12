@@ -2224,13 +2224,11 @@ namespace Tomahawk
 			if (Inactive.size() > Backlog)
 			{
 				size_t Count = Inactive.size() - Backlog;
-				for (auto It = Inactive.begin(); It != Inactive.end(); ++It)
+				while (Count-- > 0)
 				{
+					auto It = Inactive.begin();
 					OnDeallocate(*It);
-					It--;
-
-					if (!--Count)
-						break;
+					Inactive.erase(It);
 				}
 			}
 			Sync.unlock();

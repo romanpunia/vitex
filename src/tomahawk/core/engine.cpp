@@ -4838,23 +4838,13 @@ namespace Tomahawk
 			Indexer.Transaction.lock();
 			if (Base->Active)
 			{
-				std::vector<float> Lower(3);
-				Lower[0] = Base->Parent->Min.X;
-				Lower[1] = Base->Parent->Min.Y;
-				Lower[2] = Base->Parent->Min.Z;
-
-				std::vector<float> Upper(3);
-				Upper[0] = Base->Parent->Max.X;
-				Upper[1] = Base->Parent->Max.Y;
-				Upper[2] = Base->Parent->Max.Z;
-
 				if (!Base->Indexed)
 				{
-					Storage.Index.InsertItem((void*)Base, Lower, Upper);
+					Storage.Index.InsertItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
 					Base->Indexed = true;
 				}
 				else
-					Storage.Index.UpdateItem((void*)Base, Lower, Upper);
+					Storage.Index.UpdateItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
 			}
 			else
 			{
@@ -4865,9 +4855,6 @@ namespace Tomahawk
 		}
 		void SceneGraph::UpdateCosmos()
 		{
-			std::vector<float> Lower(3);
-			std::vector<float> Upper(3);
-
 			Indexer.Transaction.lock();
 			for (auto& Item : Indexer.Changes)
 			{
@@ -4883,20 +4870,13 @@ namespace Tomahawk
 					auto* Base = *It;
 					if (Base->Active)
 					{
-						Lower[0] = Base->Parent->Min.X;
-						Lower[1] = Base->Parent->Min.Y;
-						Lower[2] = Base->Parent->Min.Z;
-						Upper[0] = Base->Parent->Max.X;
-						Upper[1] = Base->Parent->Max.Y;
-						Upper[2] = Base->Parent->Max.Z;
-
 						if (!Base->Indexed)
 						{
-							Storage.Index.InsertItem((void*)Base, Lower, Upper);
+							Storage.Index.InsertItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
 							Base->Indexed = true;
 						}
 						else
-							Storage.Index.UpdateItem((void*)Base, Lower, Upper);
+							Storage.Index.UpdateItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
 					}
 					else
 					{
@@ -5245,15 +5225,7 @@ namespace Tomahawk
 		}
 		bool SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, const Compute::CosmosCallback& Callback)
 		{
-			Compute::Area Box(3);
-			Box.Lower[0] = Min.X;
-			Box.Lower[1] = Min.Y;
-			Box.Lower[2] = Min.Z;
-			Box.Upper[0] = Max.X;
-			Box.Upper[1] = Max.Y;
-			Box.Upper[2] = Max.Z;
-			Box.Recompute();
-
+			Compute::Area Box(Min, Max);
 			auto& Storage = GetStorage(Section);
 			Indexer.Transaction.lock();
 			bool Match = Storage.Index.Query(Box, Callback);

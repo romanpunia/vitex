@@ -1700,22 +1700,18 @@ namespace Tomahawk
 		class TH_OUT Area
 		{
 		public:
-			std::vector<float> Lower;
-			std::vector<float> Upper;
-			std::vector<float> Center;
+			Vector3 Lower;
+			Vector3 Upper;
+			Vector3 Center;
 			float Volume;
 
 		public:
 			Area();
-			Area(uint64_t);
-			Area(const std::vector<float>&, const std::vector<float>&);
-			void SetDimension(uint64_t);
+			Area(const Vector3&, const Vector3&);
 			void Merge(const Area&, const Area&);
 			void Recompute();
 			bool Contains(const Area&) const;
 			bool Overlaps(const Area&) const;
-			float ComputeVolume() const;
-			std::vector<float> ComputeCenter();
 		};
 
 		class TH_OUT Cosmos
@@ -1749,15 +1745,14 @@ namespace Tomahawk
 			uint64_t NodeCount;
 			uint64_t NodeCapacity;
 			uint64_t FreeList;
-			uint64_t Dimension;
 
 		public:
-			Cosmos(uint64_t Dimension = 3, uint64_t DefaultSize = 16);
+			Cosmos(uint64_t DefaultSize = 16);
 			void Reserve(size_t Size);
 			void Clear();
 			void RemoveItem(void* Item);
-			void InsertItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound);
-			bool UpdateItem(void* Item, std::vector<float>& LowerBound, std::vector<float>& UpperBound, bool Always = false);
+			void InsertItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound);
+			bool UpdateItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound, bool Always = false);
 			bool Query(const Area& Box, const CosmosCallback& Callback);
 			void PushQuery();
 			void* NextQuery(const Area& Box);
@@ -1765,9 +1760,8 @@ namespace Tomahawk
 			const std::unordered_map<void*, uint64_t>& GetItems() const;
 			const std::vector<Node>& GetNodes() const;
 			uint64_t GetHeight() const;
-			uint64_t ComputeMaxBalance() const;
-			float ComputeVolumeRatio() const;
-			void Deploy();
+			uint64_t GetMaxBalance() const;
+			float GetVolumeRatio() const;
 
 		private:
 			uint64_t AllocateNode();

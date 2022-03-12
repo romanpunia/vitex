@@ -660,7 +660,7 @@ namespace Tomahawk
 			{
 				Core::Pool<Component*>* Data = nullptr;
 				Compute::Cosmos* Index = nullptr;
-				Compute::Area Box = Compute::Area(3);
+				Compute::Area Box;
 				size_t Offset = 0;
 			} Query;
 

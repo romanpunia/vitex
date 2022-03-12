@@ -1,8 +1,3 @@
-class Nullable
-{
-	
-}
-
 class RefPromise<class T>
 {
 	T@ Get();
@@ -37,6 +32,8 @@ class Array<class T>
 	void InsertAt(uint Index, const T&in Value);
 	void InsertAt(uint Index, const T[]&inout Array);
 	void InsertLast(const T&in Value);
+	void Push(const T&in Value);
+	void Pop();
 	void RemoveAt(uint Index);
 	void RemoveLast();
 	void RemoveRange(uint Start, uint Count);
@@ -147,30 +144,6 @@ class Complex
 	void set_IR(const Complex&in);
 }
 
-class Grid<class T>
-{
-	Grid<T>@ Grid(int&in);
-	Grid<T>@ Grid(int&in, uint, uint);
-	Grid<T>@ Grid(int&in, uint, uint, const T&in);
-	T& opIndex(uint, uint);
-	const T& opIndex(uint, uint) const;
-	void Resize(uint, uint);
-	uint Width() const;
-	uint Height() const;
-}
-
-class Random
-{
-	Random@ Random();
-	void opAssign(const Random&inout);
-	void Seed(uint);
-	void Seed(uint[]&inout);
-	int GetI();
-	uint GetU();
-	double GetD();
-	void SeedFromTime();
-}
-
 class String
 {
 	String& opAssign(const String&in);
@@ -223,6 +196,18 @@ class String
 	Address@ opImplCast() const;
 }
 
+class Grid<class T>
+{
+	Grid<T>@ Grid(int&in);
+	Grid<T>@ Grid(int&in, uint, uint);
+	Grid<T>@ Grid(int&in, uint, uint, const T&in);
+	T& opIndex(uint, uint);
+	const T& opIndex(uint, uint) const;
+	void Resize(uint, uint);
+	uint Width() const;
+	uint Height() const;
+}
+
 class MapKey
 {
 	MapKey& opAssign(const MapKey&in);
@@ -237,6 +222,23 @@ class MapKey
 	double opConv();
 }
 
+class Random
+{
+	
+}
+
+namespace Random
+{
+	String Getb(uint64);
+	double Betweend(double, double);
+	double Magd();
+	double Getd();
+	float Betweenf(float, float);
+	float Magf();
+	float Getf();
+	uint64 Betweeni(uint64, uint64);
+}
+
 class Mutex
 {
 	Mutex@ Mutex();
@@ -245,10 +247,24 @@ class Mutex
 	void Unlock();
 }
 
-funcdef void ThreadEvent(Thread@);
-funcdef void GUIDataCallback(GUI::Event&in, CE::Variant[]@)
+funcdef void GUIDataCallback(GUI::Event&in, CE::Variant[]@);
+funcdef void ThreadEvent(Thread@)
 
-Nullable@ get_nullptr();
+int64 ToInt(const String&in, uint Base = 10, uint&out ByteCount = 0);
+uint64 ToUInt(const String&in, uint Base = 10, uint&out ByteCount = 0);
+double ToFloat(const String&in, uint&out ByteCount = 0);
+uint8 ToChar(const String&in);
+String ToString(const String[]&in, const String&in);
+String ToString(int8);
+String ToString(int16);
+String ToString(int);
+String ToString(int64);
+String ToString(uint8);
+String ToString(uint16);
+String ToString(uint);
+String ToString(uint64);
+String ToString(float);
+String ToString(double);
 float FpFromIEEE(uint);
 uint FpToIEEE(float);
 double FpFromIEEE(uint64);
@@ -273,21 +289,6 @@ float Ceil(float);
 float Abs(float);
 float Floor(float);
 float Fraction(float);
-int64 ToInt(const String&in, uint Base = 10, uint&out ByteCount = 0);
-uint64 ToUInt(const String&in, uint Base = 10, uint&out ByteCount = 0);
-double ToFloat(const String&in, uint&out ByteCount = 0);
-uint8 ToChar(const String&in);
-String ToString(const String[]&in, const String&in);
-String ToString(int8);
-String ToString(int16);
-String ToString(int);
-String ToString(int64);
-String ToString(uint8);
-String ToString(uint16);
-String ToString(uint);
-String ToString(uint64);
-String ToString(float);
-String ToString(double);
 void Throw(const String&in = "");
 String GetException();
 Thread@ GetThread();

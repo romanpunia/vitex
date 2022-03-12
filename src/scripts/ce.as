@@ -84,9 +84,10 @@ namespace CE
 		bool Start(bool, uint64, uint64 = 16, uint64 = 524288);
 		bool Stop();
 		bool Dispatch();
-		bool IsBlockable();
 		bool IsActive();
-		bool IsProcessing();
+		bool HasTasks();
+		bool HasTimers();
+		uint64 GetThreads();
 	}
 
 	class GzStream
@@ -140,7 +141,7 @@ namespace CE
 	namespace Decimal
 	{
 		CE::Decimal Size(const CE::Decimal&in, const CE::Decimal&in, int);
-		CE::Decimal Size();
+		CE::Decimal NaN();
 	}
 
 	class FileState
@@ -158,39 +159,60 @@ namespace CE
 		bool Exists;
 	}
 
-	class Resource
+	class Schema
 	{
-		uint64 Key;
-		int64 LastModified;
-		int64 CreationTime;
-		bool IsReferenced;
-		bool IsDirectory;
+		String Key;
+		CE::Variant Value;
+
+		CE::Schema@ Schema(const CE::Variant&in);
+		CE::Variant GetVar(uint) const;
+		CE::Variant GetVar(const String&in) const;
+		CE::Schema@ GetParent() const;
+		CE::Schema@ GetAttribute(const String&in) const;
+		CE::Schema@ Get(uint) const;
+		CE::Schema@ Get(const String&in, bool = false) const;
+		CE::Schema@ Set(const String&in);
+		CE::Schema@ Set(const String&in, const CE::Variant&in);
+		CE::Schema@ SetAttribute(const String&in, const CE::Variant&in);
+		CE::Schema@ Push(const CE::Variant&in);
+		CE::Schema@ Pop(uint);
+		CE::Schema@ Pop(const String&in);
+		CE::Schema@ Copy() const;
+		bool Has(const String&in) const;
+		bool Has64(const String&in, uint = 12) const;
+		bool IsEmpty() const;
+		bool IsAttribute() const;
+		bool IsSaved() const;
+		String GetName() const;
+		void Join(CE::Schema@);
+		void Clear();
+		void Save();
+		CE::Schema@ Set(const String&in, CE::Schema@);
+		CE::Schema@ Push(CE::Schema@);
+		CE::Schema@[]@ GetCollection(const String&in, bool = false) const;
+		CE::Schema@[]@ GetAttributes() const;
+		CE::Schema@[]@ GetChilds() const;
+		Map@ GetNames() const;
+		uint64 Size() const;
+		String JSON() const;
+		String XML() const;
+		String Str() const;
+		String B64() const;
+		int64 Int() const;
+		double Num() const;
+		String Dec() const;
+		bool Bool() const;
+		CE::Schema@ opAssign(const CE::Variant&in);
+		bool opEquals(CE::Schema@) const;
+		CE::Schema@ opIndex(const String&in);
+		CE::Schema@ opIndex(uint64);
 	}
 
-	class Timer
+	namespace Schema
 	{
-		CE::Timer@ Timer();
-		void SetStepLimitation(double, double);
-		void Synchronize();
-		void CaptureTime();
-		void Sleep(uint64);
-		double GetTimeIncrement() const;
-		double GetTickCounter() const;
-		double GetFrameCount() const;
-		double GetElapsedTime() const;
-		double GetCapturedTime() const;
-		double GetDeltaTime() const;
-		double GetTimeStep() const;
-	}
-
-	class Format
-	{
-		CE::Format@ Format();
-	}
-
-	namespace Format
-	{
-		String JSON(const ?&in);
+		CE::Schema@ FromJSON(const String&in);
+		CE::Schema@ FromXML(const String&in);
+		CE::Schema@ Import(const String&in);
 	}
 
 	class Variant
@@ -210,6 +232,41 @@ namespace CE
 		uint64 GetSize() const;
 		bool opEquals(const CE::Variant&in) const;
 		bool opImplCast() const;
+	}
+
+	class Resource
+	{
+		uint64 Key;
+		int64 LastModified;
+		int64 CreationTime;
+		bool IsReferenced;
+		bool IsDirectory;
+	}
+
+	class Format
+	{
+		CE::Format@ Format();
+	}
+
+	namespace Format
+	{
+		String JSON(const ?&in);
+	}
+
+	class Timer
+	{
+		CE::Timer@ Timer();
+		void SetStepLimitation(double, double);
+		void Synchronize();
+		void CaptureTime();
+		void Sleep(uint64);
+		double GetTimeIncrement() const;
+		double GetTickCounter() const;
+		double GetFrameCount() const;
+		double GetElapsedTime() const;
+		double GetCapturedTime() const;
+		double GetDeltaTime() const;
+		double GetTimeStep() const;
 	}
 
 	class DateTime
@@ -309,62 +366,6 @@ namespace CE
 		uint64 GetSize();
 		String GetSource();
 	}
-
-	class Document
-	{
-		String Key;
-		CE::Variant Value;
-
-		CE::Document@ Document(const CE::Variant&in);
-		CE::Variant GetVar(uint) const;
-		CE::Variant GetVar(const String&in) const;
-		CE::Document@ GetParent() const;
-		CE::Document@ GetAttribute(const String&in) const;
-		CE::Document@ Get(uint) const;
-		CE::Document@ Get(const String&in, bool = false) const;
-		CE::Document@ Set(const String&in);
-		CE::Document@ Set(const String&in, const CE::Variant&in);
-		CE::Document@ SetAttribute(const String&in, const CE::Variant&in);
-		CE::Document@ Push(const CE::Variant&in);
-		CE::Document@ Pop(uint);
-		CE::Document@ Pop(const String&in);
-		CE::Document@ Copy() const;
-		bool Has(const String&in) const;
-		bool Has64(const String&in, uint = 12) const;
-		bool IsEmpty() const;
-		bool IsAttribute() const;
-		bool IsSaved() const;
-		String GetName() const;
-		void Join(CE::Document@);
-		void Clear();
-		void Save();
-		CE::Document@ Set(const String&in, CE::Document@);
-		CE::Document@ Push(CE::Document@);
-		CE::Document@[]@ GetCollection(const String&in, bool = false) const;
-		CE::Document@[]@ GetAttributes() const;
-		CE::Document@[]@ GetChilds() const;
-		Map@ GetNames() const;
-		uint64 Size() const;
-		String JSON() const;
-		String XML() const;
-		String Str() const;
-		String B64() const;
-		int64 Int() const;
-		double Num() const;
-		String Dec() const;
-		bool Bool() const;
-		CE::Document@ opAssign(const CE::Variant&in);
-		bool opEquals(CE::Document@) const;
-		CE::Document@ opIndex(const String&in);
-		CE::Document@ opIndex(uint64);
-	}
-
-	namespace Document
-	{
-		CE::Document@ FromJSON(const String&in);
-		CE::Document@ FromXML(const String&in);
-		CE::Document@ Import(const String&in);
-	}
 }
 
 namespace CE::Var
@@ -381,18 +382,23 @@ namespace CE::Var
 	CE::Variant String(const String&in);
 	CE::Variant Base64(const String&in);
 	CE::Variant Decimal(const String&in);
-	CE::Document@ Init(CE::Document@);
+	CE::Schema@ Init(CE::Schema@);
 }
 
-namespace CE::OS::Path
+namespace CE::Var::Set
 {
-	String Resolve(Address@);
-	String Resolve(const String&in, const String&in);
-	String ResolveDirectory(Address@);
-	String ResolveDirectory(const String&in, const String&in);
-	String ResolveResource(Address@);
-	String ResolveResource(const String&in, const String&in);
-	String GetDirectory(Address@, uint = 0);
+	CE::Schema@ Auto(const String&in, bool = false);
+	CE::Schema@ Null();
+	CE::Schema@ Undefined();
+	CE::Schema@ Object();
+	CE::Schema@ Array();
+	CE::Schema@ Pointer(Address@);
+	CE::Schema@ Integer(int64);
+	CE::Schema@ Number(double);
+	CE::Schema@ Boolean(bool);
+	CE::Schema@ String(const String&in);
+	CE::Schema@ Base64(const String&in);
+	CE::Schema@ Decimal(const String&in);
 }
 
 namespace CE::OS::File
@@ -408,20 +414,15 @@ namespace CE::OS::File
 	String ReadAsString(Address@);
 }
 
-namespace CE::Var::Set
+namespace CE::OS::Path
 {
-	CE::Document@ Auto(const String&in, bool = false);
-	CE::Document@ Null();
-	CE::Document@ Undefined();
-	CE::Document@ Object();
-	CE::Document@ Array();
-	CE::Document@ Pointer(Address@);
-	CE::Document@ Integer(int64);
-	CE::Document@ Number(double);
-	CE::Document@ Boolean(bool);
-	CE::Document@ String(const String&in);
-	CE::Document@ Base64(const String&in);
-	CE::Document@ Decimal(const String&in);
+	String Resolve(Address@);
+	String Resolve(const String&in, const String&in);
+	String ResolveDirectory(Address@);
+	String ResolveDirectory(const String&in, const String&in);
+	String ResolveResource(Address@);
+	String ResolveResource(const String&in, const String&in);
+	String GetDirectory(Address@, uint = 0);
 }
 
 namespace CE::OS::Input

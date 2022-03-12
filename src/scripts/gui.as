@@ -27,7 +27,7 @@ namespace GUI
 	enum FocusFlag
 	{
 		None = 0,
-		Document = 1,
+		Schema = 1,
 		Keep = 2,
 		Auto = 3
 	}
@@ -168,7 +168,7 @@ namespace GUI
 		void SetScrollTop(float);
 		float GetScrollWidth();
 		float GetScrollHeight();
-		GUI::Document GetOwnerDocument() const;
+		GUI::Schema GetOwnerDocument() const;
 		GUI::Element GetParentNode() const;
 		GUI::Element GetNextSibling() const;
 		GUI::Element GetPreviousSibling() const;
@@ -188,7 +188,7 @@ namespace GUI
 		void Click();
 		void AddEventListener(const String&in, GUI::Listener@, bool = false);
 		void RemoveEventListener(const String&in, GUI::Listener@, bool = false);
-		bool DispatchEvent(const String&in, CE::Document@);
+		bool DispatchEvent(const String&in, CE::Schema@);
 		void ScrollIntoView(bool = true);
 		GUI::Element AppendChild(const GUI::Element&in, bool = true);
 		GUI::Element InsertBefore(const GUI::Element&in, const GUI::Element&in);
@@ -222,37 +222,9 @@ namespace GUI
 		bool IsValid() const;
 	}
 
-	class Context
+	class Schema
 	{
-		bool IsInputFocused();
-		Address@ GetContext();
-		CU::Vector2 GetDimensions() const;
-		void SetDensityIndependentPixelRatio(float);
-		float GetDensityIndependentPixelRatio() const;
-		void EnableMouseCursor(bool);
-		GUI::Document GetDocument(const String&in);
-		GUI::Document GetDocument(int);
-		int GetNumDocuments() const;
-		GUI::Element GetElementById(int, const String&in);
-		GUI::Element GetHoverElement();
-		GUI::Element GetFocusElement();
-		GUI::Element GetRootElement();
-		GUI::Element GetElementAtPoint(const CU::Vector2&in);
-		void PullDocumentToFront(const GUI::Document&in);
-		void PushDocumentToBack(const GUI::Document&in);
-		void UnfocusDocument(const GUI::Document&in);
-		void AddEventListener(const String&in, GUI::Listener@, bool = false);
-		void RemoveEventListener(const String&in, GUI::Listener@, bool = false);
-		bool IsMouseInteracting();
-		bool GetActiveClipRegion(CU::Vector2&out, CU::Vector2&out);
-		void SetActiveClipRegion(const CU::Vector2&in, const CU::Vector2&in);
-		GUI::Model@ SetModel(const String&in);
-		GUI::Model@ GetModel(const String&in);
-	}
-
-	class Document
-	{
-		GUI::Document& opAssign(const GUI::Document&in);
+		GUI::Schema& opAssign(const GUI::Schema&in);
 		GUI::Element Clone() const;
 		void SetClass(const String&in, bool);
 		bool IsClassSet(const String&in) const;
@@ -309,7 +281,7 @@ namespace GUI
 		void SetScrollTop(float);
 		float GetScrollWidth();
 		float GetScrollHeight();
-		GUI::Document GetOwnerDocument() const;
+		GUI::Schema GetOwnerDocument() const;
 		GUI::Element GetParentNode() const;
 		GUI::Element GetNextSibling() const;
 		GUI::Element GetPreviousSibling() const;
@@ -329,7 +301,7 @@ namespace GUI
 		void Click();
 		void AddEventListener(const String&in, GUI::Listener@, bool = false);
 		void RemoveEventListener(const String&in, GUI::Listener@, bool = false);
-		bool DispatchEvent(const String&in, CE::Document@);
+		bool DispatchEvent(const String&in, CE::Schema@);
 		void ScrollIntoView(bool = true);
 		GUI::Element AppendChild(const GUI::Element&in, bool = true);
 		GUI::Element InsertBefore(const GUI::Element&in, const GUI::Element&in);
@@ -382,7 +354,7 @@ namespace GUI
 
 	class Model
 	{
-		bool Set(const String&in, CE::Document@);
+		bool Set(const String&in, CE::Schema@);
 		bool SetVar(const String&in, const CE::Variant&in);
 		bool SetString(const String&in, const String&in);
 		bool SetInteger(const String&in, int64);
@@ -391,7 +363,7 @@ namespace GUI
 		bool SetBoolean(const String&in, bool);
 		bool SetPointer(const String&in, Address@);
 		bool SetCallback(const String&in, GUIDataCallback@);
-		CE::Document@ Get(const String&in);
+		CE::Schema@ Get(const String&in);
 		String GetString(const String&in);
 		int64 GetInteger(const String&in);
 		float GetFloat(const String&in);
@@ -401,6 +373,34 @@ namespace GUI
 		bool HasChanged(const String&in);
 		void Change(const String&in);
 		bool IsValid() const;
+	}
+
+	class Context
+	{
+		bool IsInputFocused();
+		Address@ GetContext();
+		CU::Vector2 GetDimensions() const;
+		void SetDensityIndependentPixelRatio(float);
+		float GetDensityIndependentPixelRatio() const;
+		void EnableMouseCursor(bool);
+		GUI::Schema GetDocument(const String&in);
+		GUI::Schema GetDocument(int);
+		int GetNumDocuments() const;
+		GUI::Element GetElementById(int, const String&in);
+		GUI::Element GetHoverElement();
+		GUI::Element GetFocusElement();
+		GUI::Element GetRootElement();
+		GUI::Element GetElementAtPoint(const CU::Vector2&in);
+		void PullDocumentToFront(const GUI::Schema&in);
+		void PushDocumentToBack(const GUI::Schema&in);
+		void UnfocusDocument(const GUI::Schema&in);
+		void AddEventListener(const String&in, GUI::Listener@, bool = false);
+		void RemoveEventListener(const String&in, GUI::Listener@, bool = false);
+		bool IsMouseInteracting();
+		bool GetActiveClipRegion(CU::Vector2&out, CU::Vector2&out);
+		void SetActiveClipRegion(const CU::Vector2&in, const CU::Vector2&in);
+		GUI::Model@ SetModel(const String&in);
+		GUI::Model@ GetModel(const String&in);
 	}
 
 	funcdef void GUIListenerCallback(Event&in);

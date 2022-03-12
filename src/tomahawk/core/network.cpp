@@ -2227,7 +2227,7 @@ namespace Tomahawk
 				for (auto It = Inactive.begin(); It != Inactive.end(); ++It)
 				{
 					OnDeallocate(*It);
-					--It;
+					It--;
 
 					if (!--Count)
 						break;

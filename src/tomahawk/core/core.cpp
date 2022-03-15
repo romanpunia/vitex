@@ -1755,7 +1755,13 @@ namespace Tomahawk
 				case VarType::Base64:
 					return TH_PREFIX_STR + Compute::Common::Base64Encode(GetBase64(), GetSize()) + TH_PREFIX_STR;
 				case VarType::Decimal:
-					return ((Decimal*)Value.Data)->ToString();
+				{
+					auto* Data = ((Decimal*)Value.Data);
+					if (Data->IsNaN())
+						return TH_PREFIX_STR "null";
+
+					return Data->ToString();
+				}
 				case VarType::Integer:
 					return std::to_string(Value.Integer);
 				case VarType::Number:

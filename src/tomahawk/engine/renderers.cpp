@@ -1429,7 +1429,7 @@ namespace Tomahawk
 					{
 						Compute::CubeFace Face = (Compute::CubeFace)j;
 						State.Scene->ClearMRT(TargetType::Main, true, true);
-						System->SetView(Light->View[j] = Compute::Matrix4x4::CreateLookAt(Face, Position), Light->Projection, Position, 0.1f, Light->GetSize().Radius, RenderCulling::Spot);
+						System->SetView(Light->View[j] = Compute::Matrix4x4::CreateLookAt(Face, Position), Light->Projection, Position, 90.0f, 1.0f, 0.1f, Light->GetSize().Radius, RenderCulling::Spot);
 						System->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Inner | RenderOpt::Static : RenderOpt::Inner);
 						State.Device->CubemapFace(Surfaces.Subresource, Face);
 					}
@@ -1459,7 +1459,7 @@ namespace Tomahawk
 
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
-					System->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 0.1f, Light->Shadow.Distance, RenderCulling::Point);
+					System->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 90.0f, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Point);
 					System->Render(Time, RenderState::Depth_Cubic, RenderOpt::Inner);
 					Counter++;
 				}
@@ -1482,7 +1482,7 @@ namespace Tomahawk
 
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
-					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 0.1f, Light->Shadow.Distance, RenderCulling::Spot);
+					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), Light->Cutoff, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Spot);
 					System->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
 					Counter++;
 				}
@@ -1517,7 +1517,7 @@ namespace Tomahawk
 						State.Device->ClearDepth(Cascade);
 
 						float Distance = Light->Shadow.Distance[i];
-						System->SetView(Light->View[i], Light->Projection[i], 0.0f, -System->View.FarPlane, System->View.FarPlane, RenderCulling::Line);
+						System->SetView(Light->View[i], Light->Projection[i], 0.0f, 90.0f, 1.0f, -System->View.FarPlane, System->View.FarPlane, RenderCulling::Line);
 						System->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
 					}
 

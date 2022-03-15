@@ -1110,7 +1110,7 @@ namespace Tomahawk
 		}
 		bool Vector3::operator <(const Vector3& R) const
 		{
-			return X < R.X && Y < R.Y && Z < R.Z;
+			return X < R.X&& Y < R.Y&& Z < R.Z;
 		}
 		bool Vector3::operator >(const Vector3& R) const
 		{
@@ -4905,7 +4905,7 @@ namespace Tomahawk
 #else
 			return nullptr;
 #endif
-	}
+		}
 		Cipher Ciphers::DES_EDE_ECB()
 		{
 #ifdef TH_HAS_OPENSSL
@@ -4917,7 +4917,7 @@ namespace Tomahawk
 #else
 			return nullptr;
 #endif
-}
+		}
 		Cipher Ciphers::DES_EDE3_ECB()
 		{
 #ifdef TH_HAS_OPENSSL
@@ -7588,7 +7588,7 @@ namespace Tomahawk
 #else
 			return (const char*)Value;
 #endif
-			}
+		}
 		std::string Common::Sign(Digest Type, const std::string& Value, const char* Key)
 		{
 			return Sign(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
@@ -7660,7 +7660,7 @@ namespace Tomahawk
 #else
 			return (const char*)Value;
 #endif
-			}
+		}
 		std::string Common::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
 		{
 			return Encrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
@@ -7709,7 +7709,7 @@ namespace Tomahawk
 #else
 			return (const char*)Value;
 #endif
-			}
+		}
 		std::string Common::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
 		{
 			return Decrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
@@ -9732,39 +9732,6 @@ namespace Tomahawk
 			InsertLeaf(It->second);
 			return true;
 		}
-		bool Cosmos::Query(const Area& Box, const CosmosCallback& Callback)
-		{
-			TH_ASSERT(Callback, false, "callback should not be empty");
-			if (Items.empty())
-				return false;
-
-			bool Found = false;
-			Stack.clear();
-			Stack.push_back(Root);
-
-			while (!Stack.empty())
-			{
-				uint64_t Index = Stack.back();
-				auto& Node = Nodes[Index];
-				Stack.pop_back();
-
-				if (!Box.Overlaps(Node.Box))
-					continue;
-
-				if (!Node.IsLeaf())
-				{
-					Stack.push_back(Node.Left);
-					Stack.push_back(Node.Right);
-				}
-				else if (Node.Item != nullptr)
-				{
-					Callback(Node.Item);
-					Found = true;
-				}
-			}
-
-			return Found;
-		}
 		void Cosmos::PushQuery()
 		{
 			Stack.clear();
@@ -9775,20 +9742,19 @@ namespace Tomahawk
 		{
 			while (!Stack.empty())
 			{
-				uint64_t Index = Stack.back();
-				auto& Node = Nodes[Index];
+				auto& Next = Nodes[Stack.back()];
 				Stack.pop_back();
 
-				if (!Box.Overlaps(Node.Box))
+				if (!Box.Overlaps(Next.Box))
 					continue;
 
-				if (!Node.IsLeaf())
+				if (!Next.IsLeaf())
 				{
-					Stack.push_back(Node.Left);
-					Stack.push_back(Node.Right);
+					Stack.push_back(Next.Left);
+					Stack.push_back(Next.Right);
 				}
-				else if (Node.Item != nullptr)
-					return Node.Item;
+				else if (Next.Item != nullptr)
+					return Next.Item;
 			}
 
 			return nullptr;
@@ -11833,8 +11799,8 @@ namespace Tomahawk
 				{
 					if (Second->getConstraintRef(i) == Base)
 						return true;
+				}
 			}
-		}
 
 			return false;
 #else
@@ -14093,7 +14059,7 @@ namespace Tomahawk
 			{
 				Safe.unlock();
 				return nullptr;
-		}
+			}
 
 			It->second++;
 			Safe.unlock();
@@ -14367,5 +14333,5 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		}
-		}
+	}
+}

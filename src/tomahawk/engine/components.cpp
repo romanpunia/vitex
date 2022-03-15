@@ -3476,7 +3476,7 @@ namespace Tomahawk
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
 				RenderCulling Culling = (Mode == ProjectionMode_Perspective ? RenderCulling::Spot : RenderCulling::Line);
 
-				Output->Set(GetView(), Projection, Space.Position, Space.Rotation, NearPlane, FarPlane, Culling);
+				Output->Set(GetView(), Projection, Space.Position, Space.Rotation, FieldOfView, GetAspect(), NearPlane, FarPlane, Culling);
 				Output->Renderer = Renderer;
 				View = *Output;
 			}
@@ -3513,7 +3513,9 @@ namespace Tomahawk
 			}
 			Compute::Frustum Camera::GetFrustum()
 			{
-				return Compute::Frustum(Compute::Mathf::Deg2Rad() * FieldOfView, GetAspect(), NearPlane, FarPlane);
+				Compute::Frustum Result(Compute::Mathf::Deg2Rad() * FieldOfView, GetAspect(), NearPlane, FarPlane * 0.25f);
+				Result.Transform(GetView().Inv());
+				return Result;
 			}
 			Compute::Ray Camera::GetScreenRay(const Compute::Vector2& Position)
 			{

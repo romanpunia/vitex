@@ -267,9 +267,11 @@ namespace Tomahawk
 			Compute::Vector3 Rotation;
 			float FarPlane = 0.0f;
 			float NearPlane = 0.0f;
+			float Ratio = 0.0f;
+			float Fov = 0.0f;
 
-			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, RenderCulling Type);
-			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, const Compute::Vector3& Rotation, float Near, float Far, RenderCulling Type);
+			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
+			void Set(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, const Compute::Vector3& Rotation, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
 		};
 
 		struct TH_OUT Attenuation
@@ -678,8 +680,8 @@ namespace Tomahawk
 			bool Satisfied;
 
 		public:
-			Viewer View;
 			Core::Ticker Occlusion;
+			Viewer View;
 			size_t StallFrames;
 			float Threshold;
 			bool OcclusionCulling;
@@ -690,7 +692,7 @@ namespace Tomahawk
 			RenderSystem(SceneGraph* NewScene);
 			virtual ~RenderSystem() override;
 			void SetDepthSize(size_t Size);
-			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Near, float Far, RenderCulling Type);
+			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
 			void RestoreViewBuffer(Viewer* View);
 			void Remount(Renderer* Target);
 			void Remount();
@@ -985,7 +987,6 @@ namespace Tomahawk
 			std::vector<Entity*> QueryByParent(Entity* Parent);
 			std::vector<Entity*> QueryByTag(uint64_t Tag);
 			std::vector<Entity*> QueryByName(const std::string& Name);
-			bool QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, const Compute::CosmosCallback& Callback);
 			bool AddEntity(Entity* Entity);
 			bool IsActive();
 			bool IsLeftHanded();
@@ -1036,11 +1037,6 @@ namespace Tomahawk
 			void RayTest(const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
 			{
 				RayTest(T::GetTypeId(), Origin, MaxDistance, std::move(Callback));
-			}
-			template <typename T>
-			bool QueryByArea(const Compute::Vector3& Min, const Compute::Vector3& Max, const Compute::CosmosCallback& Callback)
-			{
-				return QueryByArea(T::GetTypeId(), Min, Max, Callback);
 			}
 			template <typename T>
 			uint64_t GetEntitisCount()

@@ -121,11 +121,11 @@ namespace Tomahawk
 			return Fragments;
 		}
 
-		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far, RenderCulling _Type)
+		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
-			Set(_View, _Projection, _Position, -_View.Rotation(), _Near, _Far, _Type);
+			Set(_View, _Projection, _Position, -_View.Rotation(), _Fov, _Ratio, _Near, _Far, _Type);
 		}
-		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, const Compute::Vector3& _Rotation, float _Near, float _Far, RenderCulling _Type)
+		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, const Compute::Vector3& _Rotation, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
 			View = _View;
 			Projection = _Projection;
@@ -136,6 +136,8 @@ namespace Tomahawk
 			Rotation = _Rotation;
 			FarPlane = (_Far < _Near ? 999999999 : _Far);
 			NearPlane = _Near;
+			Ratio = _Ratio;
+			Fov = _Fov;
 			Culling = _Type;
 			CubicViewProjection[0] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveX, Position) * Projection;
 			CubicViewProjection[1] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeX, Position) * Projection;
@@ -2273,7 +2275,7 @@ namespace Tomahawk
 		float Drawable::GetOverlapping(RenderSystem* System)
 		{
 			int Result = Query.Fetch(System);
-			if (Result != -1)
+			if (Result == -1)
 				return 1.0f;
 
 			uint64_t Fragments = Query.GetPassed();
@@ -2414,9 +2416,9 @@ namespace Tomahawk
 			TH_RELEASE(Target);
 			Target = Device->CreateDepthTarget2D(I);
 		}
-		void RenderSystem::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Near, float _Far, RenderCulling _Type)
+		void RenderSystem::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
-			View.Set(_View, _Projection, _Position, _Near, _Far, _Type);
+			View.Set(_View, _Projection, _Position, _Fov, _Ratio, _Near, _Far, _Type);
 			RestoreViewBuffer(&View);
 		}
 		void RenderSystem::RestoreViewBuffer(Viewer* Buffer)
@@ -2432,6 +2434,18 @@ namespace Tomahawk
 				}
 				else
 					View = *Buffer;
+			}
+
+			if (View.Culling == RenderCulling::Spot)
+			{
+				float Radius = View.FarPlane;
+				Compute::Vector3 Pivot = View.Position;
+				if (View.Culling == RenderCulling::Spot)
+					Pivot += View.Rotation.dDirection() * Radius * 0.5f;
+
+				Query.Box.Lower = Pivot - Radius;
+				Query.Box.Upper = Pivot + Radius;
+				Query.Box.Recompute();
 			}
 
 			Device->View.InvViewProj = View.InvViewProjection;
@@ -2559,7 +2573,7 @@ namespace Tomahawk
 				return 0;
 
 			double ElapsedTime = Time->GetElapsedTime();
-			if (Occlusion.TickEvent(ElapsedTime))
+			if (!Occlusion.TickEvent(ElapsedTime))
 				return 0;
 
 			TH_PPUSH("rs-occlusion-culling", TH_PERF_FRAME);
@@ -2596,6 +2610,8 @@ namespace Tomahawk
 				}
 
 				Count = RenderOverlapping(Time, Rebake);
+				Scene->SetMRT(TargetType::Main, true);
+
 				for (auto& Next : Renderers)
 				{
 					if (Next->Active)
@@ -2630,21 +2646,6 @@ namespace Tomahawk
 
 			if (View.Culling == RenderCulling::Line)
 				return;
-
-			float Radius = View.FarPlane;
-			Compute::Vector3 Pivot = View.Position;
-			if (View.Culling == RenderCulling::Spot)
-				Pivot += View.Rotation.dDirection() * Radius * 0.5f;
-
-			Compute::Vector3 Min = Pivot - Radius;
-			Compute::Vector3 Max = Pivot + Radius;
-			Query.Box.Lower[0] = Min.X;
-			Query.Box.Lower[1] = Min.Y;
-			Query.Box.Lower[2] = Min.Z;
-			Query.Box.Upper[0] = Max.X;
-			Query.Box.Upper[1] = Max.Y;
-			Query.Box.Upper[2] = Max.Z;
-			Query.Box.Recompute();
 
 			Scene->Indexer.Transaction.lock();
 			Query.Index->PushQuery();
@@ -4089,8 +4090,6 @@ namespace Tomahawk
 
 			FillMaterialBuffers();
 			Renderer->RestoreViewBuffer(nullptr);
-
-			SetMRT(TargetType::Main, true);
 			Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 		}
 		void SceneGraph::Simulate(Core::Timer* Time)
@@ -5222,16 +5221,6 @@ namespace Tomahawk
 			}
 
 			return Array;
-		}
-		bool SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, const Compute::CosmosCallback& Callback)
-		{
-			Compute::Area Box(Min, Max);
-			auto& Storage = GetStorage(Section);
-			Indexer.Transaction.lock();
-			bool Match = Storage.Index.Query(Box, Callback);
-			Indexer.Transaction.unlock();
-
-			return Match;
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{

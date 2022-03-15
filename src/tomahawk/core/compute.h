@@ -61,7 +61,6 @@ namespace Tomahawk
 		typedef std::function<bool(class Preprocessor*, const struct IncludeResult& File, std::string* Out)> ProcIncludeCallback;
 		typedef std::function<bool(class Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)> ProcPragmaCallback;
 		typedef std::function<void(const struct CollisionBody&)> CollisionCallback;
-		typedef std::function<void(void*)> CosmosCallback;
 		typedef void* Cipher;
 		typedef void* Digest;
 
@@ -1753,7 +1752,6 @@ namespace Tomahawk
 			void RemoveItem(void* Item);
 			void InsertItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound);
 			bool UpdateItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound, bool Always = false);
-			bool Query(const Area& Box, const CosmosCallback& Callback);
 			void PushQuery();
 			void* NextQuery(const Area& Box);
 			const Area& GetArea(void* Item);

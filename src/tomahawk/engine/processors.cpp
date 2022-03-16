@@ -1334,7 +1334,7 @@ namespace Tomahawk
 						Router->BacklogQueue = 20;
 
 					if (!NMake::Unpack(Config->Find("socket-timeout"), &Router->SocketTimeout))
-						Router->SocketTimeout = 5000;
+						Router->SocketTimeout = 10000;
 
 					if (!NMake::Unpack(Config->Find("graceful-time-wait"), &Router->GracefulTimeWait))
 						Router->GracefulTimeWait = -1;

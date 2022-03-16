@@ -18,6 +18,8 @@ namespace Tomahawk
 {
 	namespace Network
 	{
+		struct SocketConnection;
+
 		class Driver;
 
 		enum class Secure
@@ -111,6 +113,7 @@ namespace Tomahawk
 		struct TH_OUT Socket
 		{
 			friend Driver;
+			friend SocketConnection;
 
 		private:
 			struct

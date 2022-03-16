@@ -1387,6 +1387,9 @@ namespace Tomahawk
 			{
 				Stream->Income = 0;
 				Stream->Outcome = 0;
+				Stream->Sync.Poll = false;
+				Stream->Sync.Timeout = 0;
+				Stream->Sync.Time = 0;
 			}
 		}
 
@@ -2353,8 +2356,10 @@ namespace Tomahawk
 			Base->Info.KeepAlive = -2;
 			Base->Stream->CloseAsync(true, [this, Base](Socket*)
 			{
-				Push(Base);
-				return true;
+				return Core::Schedule::Get()->SetTask([this, Base]()
+				{
+					Push(Base);
+				}, Core::Difficulty::Light);
 			});
 
 			return true;

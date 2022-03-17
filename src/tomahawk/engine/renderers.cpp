@@ -45,7 +45,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t SoftBody::CullGeometry(const Viewer& View, const std::vector<Components::SoftBody*>& Geometry, bool Dirty)
+			size_t SoftBody::CullGeometry(const Viewer& View, const std::vector<Components::SoftBody*>& Geometry)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitives cache should be set");
 
@@ -63,30 +63,17 @@ namespace Tomahawk
 				{
 					for (auto* Base : Geometry)
 					{
-						if (!Base->WasVisible(Dirty) || Base->GetIndices().empty() || !Base->Query.Begin(Device))
+						if (Base->GetIndices().empty() || !CullingBegin(Base))
 							continue;
 
-						if (Base->Query.GetPassed() > 0)
-						{
-							Base->Fill(Device, IndexBuffer, VertexBuffer);
-							Device->Render.World.Identify();
-							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-							Device->SetVertexBuffer(VertexBuffer, 0);
-							Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
-							Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
-						}
-						else
-						{
-							Device->Render.World = Base->GetEntity()->GetBox();
-							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-							Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
-							Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
-							Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
-						}
-
-						Base->Query.End(Device);
+						Base->Fill(Device, IndexBuffer, VertexBuffer);
+						Device->Render.World.Identify();
+						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+						Device->SetVertexBuffer(VertexBuffer, 0);
+						Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
+						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
+						CullingEnd();
 						Count++;
 					}
 				}
@@ -97,14 +84,14 @@ namespace Tomahawk
 
 					for (auto* Base : Geometry)
 					{
-						if (Base->GetIndices().empty() || !Base->Query.Begin(Device))
+						if (Base->GetIndices().empty() || !CullingBegin(Base))
 							continue;
 
 						Device->Render.World = Base->GetEntity()->GetBox();
 						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
-						Base->Query.End(Device);
+						CullingEnd();
 
 						Count++;
 					}
@@ -291,7 +278,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t Model::CullGeometry(const Viewer& View, const std::vector<Components::Model*>& Geometry, bool Dirty)
+			size_t Model::CullGeometry(const Viewer& View, const std::vector<Components::Model*>& Geometry)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 
@@ -309,35 +296,19 @@ namespace Tomahawk
 				{
 					for (auto* Base : Geometry)
 					{
-						if (!Base->WasVisible(Dirty))
-							continue;
-
 						auto* Drawable = Base->GetDrawable();
-						if (!Drawable || Drawable->Meshes.empty() || !Base->Query.Begin(Device))
+						if (!Drawable || Drawable->Meshes.empty() || !CullingBegin(Base))
 							continue;
 
 						auto& World = Base->GetEntity()->GetBox();
-						if (Base->Query.GetPassed() > 0)
+						for (auto&& Mesh : Drawable->Meshes)
 						{
-							for (auto&& Mesh : Drawable->Meshes)
-							{
-								Device->Render.World = Mesh->World * World;
-								Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-								Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-								Device->DrawIndexed(Mesh);
-							}
-						}
-						else
-						{
-							Device->Render.World = World;
+							Device->Render.World = Mesh->World * World;
 							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-							Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
-							Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-							Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+							Device->DrawIndexed(Mesh);
 						}
-						Base->Query.End(Device);
-
+						CullingEnd();
 						Count++;
 					}
 				}
@@ -348,15 +319,14 @@ namespace Tomahawk
 					for (auto* Base : Geometry)
 					{
 						auto* Drawable = Base->GetDrawable();
-						if (!Drawable || Drawable->Meshes.empty() || !Base->Query.Begin(Device))
+						if (!Drawable || Drawable->Meshes.empty() || !CullingBegin(Base))
 							continue;
 
 						Device->Render.World = Base->GetEntity()->GetBox();
 						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
-						Base->Query.End(Device);
-
+						CullingEnd();
 						Count++;
 					}
 				}
@@ -553,7 +523,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t Skin::CullGeometry(const Viewer& View, const std::vector<Components::Skin*>& Geometry, bool Dirty)
+			size_t Skin::CullGeometry(const Viewer& View, const std::vector<Components::Skin*>& Geometry)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 
@@ -571,45 +541,28 @@ namespace Tomahawk
 				{
 					for (auto* Base : Geometry)
 					{
-						if (!Base->WasVisible(Dirty))
-							continue;
-
 						auto* Drawable = Base->GetDrawable();
 						if (!Drawable || Drawable->Meshes.empty())
 							continue;
 
-						if (!Base->Query.Begin(Device))
+						if (!CullingBegin(Base))
 							continue;
 
+						Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
+						if (Device->Animation.Animated > 0)
+							memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
+						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
+
 						auto& World = Base->GetEntity()->GetBox();
-						if (Base->Query.GetPassed() > 0)
+						for (auto&& Mesh : Drawable->Meshes)
 						{
-							Device->Animation.Animated = (float)!Base->GetDrawable()->Joints.empty();
-							if (Device->Animation.Animated > 0)
-								memcpy(Device->Animation.Offsets, Base->Skeleton.Transform, 96 * sizeof(Compute::Matrix4x4));
-							Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
-
-							for (auto&& Mesh : Drawable->Meshes)
-							{
-								Device->Render.World = Mesh->World * World;
-								Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-								Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-								Device->DrawIndexed(Mesh);
-							}
-						}
-						else
-						{
-							Device->Animation.Animated = (float)false;
-							Device->Render.World = World;
+							Device->Render.World = Mesh->World * World;
 							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
-							Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-							Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
-							Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
-							Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+							Device->DrawIndexed(Mesh);
 						}
-						Base->Query.End(Device);
 
+						CullingEnd();
 						Count++;
 					}
 				}
@@ -623,7 +576,7 @@ namespace Tomahawk
 						if (!Drawable || Drawable->Meshes.empty())
 							continue;
 
-						if (!Base->Query.Begin(Device))
+						if (!CullingBegin(Base))
 							continue;
 
 						Device->Animation.Animated = (float)false;
@@ -632,7 +585,7 @@ namespace Tomahawk
 						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
-						Base->Query.End(Device);
+						CullingEnd();
 
 						Count++;
 					}

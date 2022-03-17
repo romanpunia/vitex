@@ -880,6 +880,10 @@ namespace Tomahawk
 			DepthStencil.StencilEnable = false;
 			DepthStencilStates["less-no-stencil"] = CreateDepthStencilState(DepthStencil);
 
+			DepthStencil.DepthWriteMask = DepthWrite::Zero;
+			DepthStencil.StencilEnable = false;
+			DepthStencilStates["less-no-stencil-none"] = CreateDepthStencilState(DepthStencil);
+
 			RasterizerState::Desc Rasterizer;
 			Rasterizer.AntialiasedLineEnable = false;
 			Rasterizer.CullMode = VertexCull::Back;

@@ -212,23 +212,6 @@ namespace Tomahawk
 			std::unordered_map<uint64_t, Entity*> From;
 		};
 
-		struct TH_OUT FragmentQuery
-		{
-		private:
-			uint64_t Fragments;
-			Graphics::Query* Query;
-			int Satisfied;
-
-		public:
-			FragmentQuery();
-			~FragmentQuery();
-			bool Begin(Graphics::GraphicsDevice* Device);
-			void End(Graphics::GraphicsDevice* Device);
-			void Clear();
-			int Fetch(RenderSystem* System);
-			uint64_t GetPassed();
-		};
-
 		struct TH_OUT AnimatorState
 		{
 			bool Paused = false;
@@ -490,6 +473,7 @@ namespace Tomahawk
 			virtual void Synchronize(Core::Timer* Time);
 			virtual void Update(Core::Timer* Time);
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args);
+			virtual void Movement();
 			virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max);
 			virtual float GetVisibility(const Viewer& View, float Distance);
 			virtual Component* Copy(Entity* New) = 0;
@@ -520,7 +504,6 @@ namespace Tomahawk
 			float Distance;
 			float Visibility;
 			bool Active;
-			bool Dirty;
 
 		public:
 			uint64_t Tag;
@@ -547,7 +530,6 @@ namespace Tomahawk
 			std::string GetSystemName() const;
 			size_t GetChildsCount() const;
 			float GetVisibility(const Viewer& Base) const;
-			bool IsDirty(bool Reset = false);
 			bool IsActive() const;
 			Compute::Vector3 GetRadius3() const;
 			float GetRadius() const;
@@ -602,18 +584,17 @@ namespace Tomahawk
 			bool Complex;
 
 		public:
-			FragmentQuery Query;
+			float Overlapping;
 			bool Static;
 
 		public:
 			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool Complex);
 			virtual ~Drawable();
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
+			virtual void Movement() override;
 			virtual Component* Copy(Entity* New) override = 0;
 			bool SetCategory(GeoCategory NewCategory);
 			bool SetMaterial(void* Instance, Material* Value);
-			bool WasVisible(bool Rebake);
-			float GetOverlapping(RenderSystem* System);
 			GeoCategory GetCategory();
 			int64_t GetSlot(void* Surface);
 			int64_t GetSlot();
@@ -640,13 +621,14 @@ namespace Tomahawk
 			virtual ~Renderer() override;
 			virtual void Serialize(ContentManager* Content, Core::Schema* Node);
 			virtual void Deserialize(ContentManager* Content, Core::Schema* Node);
+			virtual void ClearCulling();
 			virtual void ResizeBuffers();
 			virtual void Activate();
 			virtual void Deactivate();
 			virtual void BeginPass();
 			virtual void EndPass();
 			virtual bool HasCategory(GeoCategory Category);
-			virtual size_t CullingPass(const Viewer& View, bool Rebake);
+			virtual size_t CullingPass(const Viewer& View);
 			virtual size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options);
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer();
@@ -680,9 +662,11 @@ namespace Tomahawk
 			bool Satisfied;
 
 		public:
-			Core::Ticker Occlusion;
 			Viewer View;
-			size_t StallFrames;
+			uint64_t MaxQueries;
+			uint64_t OcclusionSkips;
+			uint64_t OccluderSkips;
+			uint64_t OccludeeSkips;
 			float Threshold;
 			bool OcclusionCulling;
 			bool FrustumCulling;
@@ -693,6 +677,7 @@ namespace Tomahawk
 			virtual ~RenderSystem() override;
 			void SetDepthSize(size_t Size);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
+			void ClearCulling();
 			void RestoreViewBuffer(Viewer* View);
 			void Remount(Renderer* Target);
 			void Remount();
@@ -711,7 +696,7 @@ namespace Tomahawk
 			void QueryEnd();
 			void* QueryNext();
 			float EnqueueCullable(Component* Base);
-			float EnqueueDrawable(Drawable* Base);
+			float EnqueueDrawable(Drawable* Base, bool& Cullable);
 			bool PushCullable(Entity* Target, const Viewer& Source, Component* Base);
 			bool PushDrawable(Entity* Target, const Viewer& Source, Drawable* Base);
 			bool PushGeometryBuffer(Material* Next);
@@ -737,7 +722,7 @@ namespace Tomahawk
 			SceneGraph* GetScene();
 
 		private:
-			size_t RenderOverlapping(Core::Timer* Time, bool Rebake);
+			size_t RenderOverlapping(Core::Timer* Time);
 
 		public:
 			template <typename T>
@@ -1302,6 +1287,9 @@ namespace Tomahawk
 			size_t Offset;
 
 		public:
+			Storage Culling;
+
+		public:
 			RendererProxy() : Offset(0)
 			{
 			}
@@ -1332,20 +1320,25 @@ namespace Tomahawk
 			template<class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
 			{
+				Culling.clear();
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
-				T* Base = nullptr;
+				T* Base = nullptr; bool Cullable;
 				System->QueryBegin(T::GetTypeId());
 				while (Base = (T*)System->QueryNext())
 				{
-					if (System->EnqueueDrawable(Base) >= System->Threshold)
+					if (System->EnqueueDrawable(Base, Cullable) >= System->Threshold)
 						Top[(size_t)Base->GetCategory()].push_back(Base);
+
+					if (Cullable && Base->GetCategory() == GeoCategory::Opaque)
+						Culling.push_back(Base);
 				}
 				System->QueryEnd();
 
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
+				std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
@@ -1407,23 +1400,101 @@ namespace Tomahawk
 			static_assert(std::is_base_of<Drawable, T>::value, "component must be drawable to work within geometry renderer");
 
 		private:
+			std::unordered_map<T*, Graphics::Query*> Active;
+			std::queue<Graphics::Query*> Inactive;
 			RendererProxy<T> Proxy;
+			Graphics::Query* Current;
+			uint64_t FrameTop[3];
+			bool Skippable[2];
 
 		public:
-			GeometryRenderer(RenderSystem* Lab) : Renderer(Lab)
+			GeometryRenderer(RenderSystem* Lab) : Renderer(Lab), Current(nullptr)
 			{
+				FrameTop[0] = 0;
+				Skippable[0] = false;
+				FrameTop[1] = 0;
+				Skippable[1] = false;
+				FrameTop[3] = 0;
 			}
 			~GeometryRenderer()
 			{
+				for (auto& Item : Active)
+					TH_RELEASE(Item.second);
+				
+				while (!Inactive.empty())
+				{
+					auto* Item = Inactive.front();
+					Inactive.pop();
+					TH_RELEASE(Item);
+				}
 			}
-			size_t CullingPass(const Viewer& View, bool Rebake) override
+			virtual void ClearCulling() override
+			{
+				for (auto& Item : Active)
+					Inactive.push(Item.second);
+				Active.clear();
+			}
+			virtual void BeginPass() override
+			{
+				Proxy.Push(System);
+			}
+			virtual void EndPass() override
+			{
+				Proxy.Pop();
+			}
+			virtual bool HasCategory(GeoCategory Category) override
+			{
+				return !Proxy.Top(Category).empty();
+			}
+			virtual size_t CullGeometry(const Viewer& View, const std::vector<T*>& Geometry)
+			{
+				return 0;
+			}
+			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const std::vector<T*>& Geometry)
+			{
+				return 0;
+			}
+			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const std::vector<T*>& Geometry, Compute::Matrix4x4* ViewProjection)
+			{
+				return 0;
+			}
+			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options)
+			{
+				return 0;
+			}
+			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options) = 0;
+			size_t CullingPass(const Viewer& View) override
 			{
 				TH_PPUSH("geo-renderer-culling", TH_PERF_FRAME);
-				auto& Frame = Proxy.Top(GeoCategory::Opaque);
-				size_t Count = 0;
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				size_t Count = 0; uint64_t Fragments = 0;
 
-				if (!Frame.empty())
-					Count += CullGeometry(View, Frame, Rebake);
+				for (auto It = Active.begin(); It != Active.end();)
+				{
+					auto* Query = It->second;
+					if (Device->GetQueryData(Query, &Fragments))
+					{
+						It->first->Overlapping = (Fragments > 0 ? 1.0f : 0.0f);
+						It = Active.erase(It);
+						Inactive.push(Query);
+					}
+					else
+						++It;
+				}
+
+				Skippable[0] = (FrameTop[0]++ < System->OccluderSkips);
+				if (!Skippable[0])
+					FrameTop[0] = 0;
+
+				Skippable[1] = (FrameTop[1]++ < System->OccludeeSkips);
+				if (!Skippable[1])
+					FrameTop[1] = 0;
+
+				if (FrameTop[2]++ >= System->OcclusionSkips)
+				{
+					if (!Proxy.Culling.empty())
+						Count += CullGeometry(View, Proxy.Culling);
+				}
 
 				TH_PPOP();
 				return Count;
@@ -1497,35 +1568,54 @@ namespace Tomahawk
 
 				return Count;
 			}
-			virtual void BeginPass() override
+			bool CullingBegin(T* Reference)
 			{
-				Proxy.Push(System);
+				TH_ASSERT(Reference != nullptr, false, "reference should be set");
+				if (Skippable[1] && Reference->Overlapping < System->Threshold)
+					return false;
+				else if (Skippable[0] && Reference->Overlapping >= System->Threshold)
+					return true;
+
+				if (Inactive.empty() && Active.size() >= System->MaxQueries)
+				{
+					Reference->Overlapping = 0.0f;
+					return false;
+				}
+
+				if (Active.find(Reference) != Active.end())
+					return false;
+
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				if (Inactive.empty())
+				{
+					Graphics::Query::Desc I;
+					I.Predicate = false;
+
+					Current = Device->CreateQuery(I);	
+					if (!Current)
+						return false;
+				}
+				else
+				{
+					Current = Inactive.front();
+					Inactive.pop();
+				}
+
+				Active[Reference] = Current;
+				Device->QueryBegin(Current);
+				return true;
 			}
-			virtual void EndPass() override
+			bool CullingEnd()
 			{
-				Proxy.Pop();
+				TH_ASSERT(Skippable || Current != nullptr, false, "culling query must be started");
+				if (!Current)
+					return false;
+
+				System->GetDevice()->QueryEnd(Current);
+				Current = nullptr;
+
+				return true;
 			}
-			virtual bool HasCategory(GeoCategory Category) override
-			{
-				return !Proxy.Top(Category).empty();
-			}
-			virtual size_t CullGeometry(const Viewer& View, const std::vector<T*>& Geometry, bool Rebake)
-			{
-				return 0;
-			}
-			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const std::vector<T*>& Geometry)
-			{
-				return 0;
-			}
-			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const std::vector<T*>& Geometry, Compute::Matrix4x4* ViewProjection)
-			{
-				return 0;
-			}
-			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options)
-			{
-				return 0;
-			}
-			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options) = 0;
 
 		public:
 			TH_COMPONENT("geometry-renderer");

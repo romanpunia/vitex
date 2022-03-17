@@ -38,7 +38,7 @@ namespace Tomahawk
 			public:
 				SoftBody(RenderSystem* Lab);
 				virtual ~SoftBody();
-				size_t CullGeometry(const Viewer& View, const std::vector<Components::SoftBody*>& Geometry, bool Rebake) override;
+				size_t CullGeometry(const Viewer& View, const std::vector<Components::SoftBody*>& Geometry) override;
 				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, RenderOpt Options) override;
 				size_t RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, RenderOpt Options) override;
 				size_t RenderDepthLinear(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry) override;
@@ -75,7 +75,7 @@ namespace Tomahawk
 			public:
 				Model(RenderSystem* Lab);
 				virtual ~Model() override;
-				size_t CullGeometry(const Viewer& View, const std::vector<Components::Model*>& Geometry, bool Rebake) override;
+				size_t CullGeometry(const Viewer& View, const std::vector<Components::Model*>& Geometry) override;
 				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, RenderOpt Options) override;
 				size_t RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, RenderOpt Options) override;
 				size_t RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Model*>& Geometry) override;
@@ -112,7 +112,7 @@ namespace Tomahawk
 			public:
 				Skin(RenderSystem* Lab);
 				virtual ~Skin();
-				size_t CullGeometry(const Viewer& View, const std::vector<Components::Skin*>& Geometry, bool Rebake) override;
+				size_t CullGeometry(const Viewer& View, const std::vector<Components::Skin*>& Geometry) override;
 				size_t RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, RenderOpt Options) override;
 				size_t RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, RenderOpt Options) override;
 				size_t RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry) override;

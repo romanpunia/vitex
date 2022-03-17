@@ -60,67 +60,6 @@ namespace Tomahawk
 			return Size;
 		}
 
-		FragmentQuery::FragmentQuery() : Fragments(1), Query(nullptr), Satisfied(1)
-		{
-
-		}
-		FragmentQuery::~FragmentQuery()
-		{
-			TH_RELEASE(Query);
-		}
-		bool FragmentQuery::Begin(Graphics::GraphicsDevice* Device)
-		{
-			TH_ASSERT(Device != nullptr, false, "graphics device should be set");
-			if (!Query)
-			{
-				Graphics::Query::Desc I;
-				I.Predicate = false;
-
-				Query = Device->CreateQuery(I);
-			}
-
-			if (Satisfied == 1)
-			{
-				Satisfied = 0;
-				Device->QueryBegin(Query);
-				return true;
-			}
-
-			if (Satisfied > 1)
-				Satisfied--;
-
-			return Fragments > 0;
-		}
-		void FragmentQuery::End(Graphics::GraphicsDevice* Device)
-		{
-			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
-			if (Satisfied == 0)
-			{
-				Satisfied = -1;
-				Device->QueryEnd(Query);
-			}
-		}
-		void FragmentQuery::Clear()
-		{
-			Fragments = 1;
-		}
-		int FragmentQuery::Fetch(RenderSystem* System)
-		{
-			TH_ASSERT(System != nullptr, -1, "render system should be set");
-			if (!Query || Satisfied != -1)
-				return -1;
-
-			if (!System->GetDevice()->GetQueryData(Query, &Fragments))
-				return -1;
-
-			Satisfied = 1 + System->StallFrames;
-			return Fragments > 0;
-		}
-		uint64_t FragmentQuery::GetPassed()
-		{
-			return Fragments;
-		}
-
 		void Viewer::Set(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
 			Set(_View, _Projection, _Position, -_View.Rotation(), _Fov, _Ratio, _Near, _Far, _Type);
@@ -1940,6 +1879,9 @@ namespace Tomahawk
 		void Component::Message(const std::string& Name, Core::VariantArgs& Args)
 		{
 		}
+		void Component::Movement()
+		{
+		}
 		float Component::GetVisibility(const Viewer& View, float Distance)
 		{
 			float Visibility = 1.0f - Distance / View.FarPlane;
@@ -1984,7 +1926,7 @@ namespace Tomahawk
 			return Parent;
 		}
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Transform(new Compute::Transform), Active(false), Dirty(true), Tag(0), Distance(0)
+		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Transform(new Compute::Transform), Active(false), Tag(0), Distance(0)
 		{
 			Transform->UserPointer = (void*)this;
 			TH_ASSERT_V(Ref != nullptr, "scene should be set");
@@ -2041,6 +1983,8 @@ namespace Tomahawk
 			{
 				Compute::Vector3 SMin, SMax;
 				size_t SIndex = Item.second->GetUnitBounds(SMin, SMax);
+				Item.second->Movement();
+
 				if (SIndex > Index)
 				{
 					Index = SIndex;
@@ -2198,16 +2142,6 @@ namespace Tomahawk
 		{
 			return Transform->GetChildsCount();
 		}
-		bool Entity::IsDirty(bool Reset)
-		{
-			if (!Reset)
-				return Dirty;
-
-			bool Result = Dirty;
-			Dirty = false;
-
-			return Result;
-		}
 		bool Entity::IsActive() const
 		{
 			return Active;
@@ -2224,7 +2158,7 @@ namespace Tomahawk
 			return (Max > Radius.Z ? Radius.Z : Max);
 		}
 
-		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true)
+		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true), Overlapping(1.0f)
 		{
 			if (!Complex)
 				Materials[nullptr] = nullptr;
@@ -2247,6 +2181,10 @@ namespace Tomahawk
 					Surface.second = nullptr;
 			}
 		}
+		void Drawable::Movement()
+		{
+			Overlapping = 1.0f;
+		}
 		bool Drawable::SetCategory(GeoCategory NewCategory)
 		{
 			Category = NewCategory;
@@ -2267,19 +2205,6 @@ namespace Tomahawk
 				It->second = Value;
 
 			return true;
-		}
-		bool Drawable::WasVisible(bool Rebake)
-		{
-			return Rebake || Parent->IsDirty(true) || Query.GetPassed() > 0;
-		}
-		float Drawable::GetOverlapping(RenderSystem* System)
-		{
-			int Result = Query.Fetch(System);
-			if (Result == -1)
-				return 1.0f;
-
-			uint64_t Fragments = Query.GetPassed();
-			return Fragments > 0 ? 1.0f : 0.0f;
 		}
 		GeoCategory Drawable::GetCategory()
 		{
@@ -2342,6 +2267,9 @@ namespace Tomahawk
 		void Renderer::Serialize(ContentManager* Content, Core::Schema* Node)
 		{
 		}
+		void Renderer::ClearCulling()
+		{
+		}
 		void Renderer::ResizeBuffers()
 		{
 		}
@@ -2361,7 +2289,7 @@ namespace Tomahawk
 		{
 			return false;
 		}
-		size_t Renderer::CullingPass(const Viewer& View, bool Dirty)
+		size_t Renderer::CullingPass(const Viewer& View)
 		{
 			return 0;
 		}
@@ -2374,11 +2302,12 @@ namespace Tomahawk
 			return System;
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene) : DepthStencil(nullptr), Blend(nullptr), Sampler(nullptr), Target(nullptr), Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(false), StackTop(0), Threshold(0.1f)
+		RenderSystem::RenderSystem(SceneGraph* NewScene) : DepthStencil(nullptr), Blend(nullptr), Sampler(nullptr), Target(nullptr), Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), MaxQueries(4096), StackTop(0), Threshold(0.1f)
 		{
-			Occlusion.Delay = 5;
-			StallFrames = 1;
-			DepthSize = 128;
+			OcclusionSkips = 2;
+			OccluderSkips = 8;
+			OccludeeSkips = 3;
+			DepthSize = 768;
 			Satisfied = true;
 
 			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
@@ -2410,8 +2339,8 @@ namespace Tomahawk
 			float Aspect = (float)MRT->GetWidth() / MRT->GetHeight();
 
 			Graphics::DepthTarget2D::Desc I;
-			I.Width = (size_t)((float)Size * Aspect);
-			I.Height = Size;
+			I.Height = (size_t)((float)Size / Aspect);
+			I.Width = Size;
 
 			TH_RELEASE(Target);
 			Target = Device->CreateDepthTarget2D(I);
@@ -2420,6 +2349,12 @@ namespace Tomahawk
 		{
 			View.Set(_View, _Projection, _Position, _Fov, _Ratio, _Near, _Far, _Type);
 			RestoreViewBuffer(&View);
+		}
+		void RenderSystem::ClearCulling()
+		{
+			for (auto& Next : Renderers)
+				Next->ClearCulling();
+			Scene->ClearCulling();
 		}
 		void RenderSystem::RestoreViewBuffer(Viewer* Buffer)
 		{
@@ -2468,11 +2403,13 @@ namespace Tomahawk
 		}
 		void RenderSystem::Remount()
 		{
+			ClearCulling();
 			for (auto& Next : Renderers)
 				Remount(Next);
 		}
 		void RenderSystem::Mount()
 		{
+			ClearCulling();
 			for (auto& Next : Renderers)
 				Next->Activate();
 		}
@@ -2567,13 +2504,9 @@ namespace Tomahawk
 		{
 			BaseMaterial = nullptr;
 		}
-		size_t RenderSystem::RenderOverlapping(Core::Timer* Time, bool Rebake)
+		size_t RenderSystem::RenderOverlapping(Core::Timer* Time)
 		{
 			if (!OcclusionCulling || !Target)
-				return 0;
-
-			double ElapsedTime = Time->GetElapsedTime();
-			if (!Occlusion.TickEvent(ElapsedTime))
 				return 0;
 
 			TH_PPUSH("rs-occlusion-culling", TH_PERF_FRAME);
@@ -2586,7 +2519,7 @@ namespace Tomahawk
 			for (auto& Next : Renderers)
 			{
 				if (Next->Active)
-					Count += Next->CullingPass(View, Rebake);
+					Count += Next->CullingPass(View);
 			}
 
 			TH_PPOP();
@@ -2600,16 +2533,14 @@ namespace Tomahawk
 			size_t Count = 0;
 			if (IsTopLevel())
 			{
-				bool Rebake = (IsTopLevel() ? Scene->GetCamera()->GetEntity()->IsDirty(true) : true);
 				Scene->Indexer.Components.Clear();
-
 				for (auto& Next : Renderers)
 				{
 					if (Next->Active)
 						Next->BeginPass();
 				}
 
-				Count = RenderOverlapping(Time, Rebake);
+				Count = RenderOverlapping(Time);
 				Scene->SetMRT(TargetType::Main, true);
 
 				for (auto& Next : Renderers)
@@ -2676,12 +2607,11 @@ namespace Tomahawk
 			Scene->ProcessCullable(Base);
 			return Base->Parent->Visibility;
 		}
-		float RenderSystem::EnqueueDrawable(Drawable* Base)
+		float RenderSystem::EnqueueDrawable(Drawable* Base, bool& Cullable)
 		{
-			if (OcclusionCulling && Base->GetOverlapping(this) < Threshold)
-				return 0.0f;
-
-			return EnqueueCullable(Base);
+			float Visibility = EnqueueCullable(Base);
+			Cullable = (OcclusionCulling && Visibility >= Threshold);
+			return Cullable ? Base->Overlapping : Visibility;
 		}
 		bool RenderSystem::PushCullable(Entity* Target, const Viewer& Source, Component* Base)
 		{
@@ -2707,7 +2637,7 @@ namespace Tomahawk
 			
 			float Visibility = Threshold;
 			if (OcclusionCulling && IsTopLevel())
-				Visibility = Base->GetOverlapping(this);
+				Visibility = Base->Overlapping;
 
 			if (Target != nullptr)
 				Target->Visibility = Visibility;
@@ -4782,15 +4712,14 @@ namespace Tomahawk
 			{
 				auto Begin = Sparse.second->Data.Begin();
 				auto End = Sparse.second->Data.End();
-
 				for (auto* It = Begin; It != End; ++It)
 				{
 					Component* Target = *It;
-					if (!Target->IsDrawable())
-						continue;
-
-					Drawable* Base = (Drawable*)Target;
-					Base->Query.Clear();
+					if (Target->IsDrawable())
+					{
+						Drawable* Base = (Drawable*)Target;
+						Base->Overlapping = 1.0f;
+					}
 				}
 			}
 		}

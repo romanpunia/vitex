@@ -71,8 +71,7 @@ namespace Tomahawk
 			None = 0,
 			Transparent = 1,
 			Static = 2,
-			Inner = 4,
-			Additive = 8
+			Additive = 4
 		};
 
 		enum class RenderCulling
@@ -628,7 +627,7 @@ namespace Tomahawk
 			virtual void BeginPass();
 			virtual void EndPass();
 			virtual bool HasCategory(GeoCategory Category);
-			virtual size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options);
+			virtual size_t RenderPass(Core::Timer* Time);
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer();
 
@@ -647,13 +646,48 @@ namespace Tomahawk
 				size_t Offset = 0;
 			} Query;
 
+		public:
+			struct
+			{
+				friend RenderSystem;
+
+			private:
+				RenderState Target = RenderState::Geometry_Result;
+				RenderOpt Options = RenderOpt::None;
+				size_t Top = 0;
+
+			public:
+				bool Is(RenderState State) const
+				{
+					return Target == State;
+				}
+				bool IsSet(RenderOpt Option) const
+				{
+					return (size_t)Options & (size_t)Option;
+				}
+				bool IsTop() const
+				{
+					return Top <= 1;
+				}
+				bool IsSubpass() const
+				{
+					return !IsTop();
+				}
+				RenderOpt GetOpts() const
+				{
+					return Options;
+				}
+				RenderState Get() const
+				{
+					return Target;
+				}
+			} State;
+
 		protected:
 			std::vector<Renderer*> Renderers;
 			Graphics::GraphicsDevice* Device;
 			Material* BaseMaterial;
 			SceneGraph* Scene;
-			size_t StackTop;
-			bool Satisfied;
 
 		public:
 			Viewer View;
@@ -698,7 +732,6 @@ namespace Tomahawk
 			bool PushDepthLinearBuffer(Material* Next);
 			bool PushDepthCubicBuffer(Material* Next);
 			bool HasCategory(GeoCategory Category);
-			bool IsTopLevel();
 			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
 			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
@@ -1452,37 +1485,37 @@ namespace Tomahawk
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options)
+			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const std::vector<T*>& Geometry)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options) = 0;
-			size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override
+			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const std::vector<T*>& Geometry) = 0;
+			size_t RenderPass(Core::Timer* Time) override
 			{
 				size_t Count = 0;
-				if (State == RenderState::Geometry_Result)
+				if (System->State.Is(RenderState::Geometry_Result))
 				{
 					TH_PPUSH("geo-renderer-result", TH_PERF_CORE);
 					GeoCategory Category = GeoCategory::Opaque;
-					if ((size_t)Options & (size_t)RenderOpt::Transparent)
+					if (System->State.IsSet(RenderOpt::Transparent))
 						Category = GeoCategory::Transparent;
-					else if ((size_t)Options & (size_t)RenderOpt::Additive)
+					else if (System->State.IsSet(RenderOpt::Additive))
 						Category = GeoCategory::Additive;
 
 					auto& Frame = Proxy.Top(Category);
 					if (!Frame.empty())
 					{
 						System->ClearMaterials();
-						Count += RenderGeometryResult(Time, Frame, Options);
+						Count += RenderGeometryResult(Time, Frame);
 					}
 					TH_PPOP();
 
-					if (System->IsTopLevel())
+					if (System->State.IsTop())
 						Count += CullingPass();
 				}
-				else if (State == RenderState::Geometry_Voxels)
+				else if (System->State.Is(RenderState::Geometry_Voxels))
 				{
-					if ((size_t)Options & (size_t)RenderOpt::Transparent || (size_t)Options & (size_t)RenderOpt::Additive)
+					if (System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 						return 0;
 
 					TH_PPUSH("geo-renderer-voxels", TH_PERF_MIX);
@@ -1490,13 +1523,13 @@ namespace Tomahawk
 					if (!Frame.empty())
 					{
 						System->ClearMaterials();
-						Count += RenderGeometryVoxels(Time, Frame, Options);
+						Count += RenderGeometryVoxels(Time, Frame);
 					}
 					TH_PPOP();
 				}
-				else if (State == RenderState::Depth_Linear)
+				else if (System->State.Is(RenderState::Depth_Linear))
 				{
-					if (!((size_t)Options & (size_t)RenderOpt::Inner))
+					if (!System->State.IsSubpass())
 						return 0;
 
 					TH_PPUSH("geo-renderer-depth-linear", TH_PERF_FRAME);
@@ -1510,9 +1543,9 @@ namespace Tomahawk
 						Count += RenderDepthLinear(Time, Frame);
 					TH_PPOP();
 				}
-				else if (State == RenderState::Depth_Cubic)
+				else if (System->State.Is(RenderState::Depth_Cubic))
 				{
-					if (!((size_t)Options & (size_t)RenderOpt::Inner))
+					if (!System->State.IsSubpass())
 						return 0;
 
 					TH_PPUSH("geo-renderer-depth-cubic", TH_PERF_FRAME);
@@ -1643,7 +1676,7 @@ namespace Tomahawk
 			virtual ~EffectRenderer() override;
 			virtual void ResizeEffect();
 			virtual void RenderEffect(Core::Timer* Time) = 0;
-			size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override;
+			size_t RenderPass(Core::Timer* Time) override;
 			void ResizeBuffers() override;
 			unsigned int GetMipLevels();
 			unsigned int GetWidth();

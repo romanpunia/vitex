@@ -2289,7 +2289,7 @@ namespace Tomahawk
 		{
 			return false;
 		}
-		size_t Renderer::RenderPass(Core::Timer* TimeStep, RenderState State, RenderOpt Options)
+		size_t Renderer::RenderPass(Core::Timer* TimeStep)
 		{
 			return 0;
 		}
@@ -2298,7 +2298,7 @@ namespace Tomahawk
 			return System;
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), Satisfied(true), MaxQueries(16384), StackTop(0), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
+		RenderSystem::RenderSystem(SceneGraph* NewScene) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
 		{
 			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
 			TH_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");
@@ -2478,23 +2478,29 @@ namespace Tomahawk
 		size_t RenderSystem::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
 		{
 			TH_ASSERT(Time != nullptr, 0, "timer should be set");
-			StackTop++;
+
+			RenderOpt LastOptions = State.Options;
+			RenderState LastTarget = State.Target;
+
+			State.Top++;
+			State.Options = Options;
+			State.Target = Stage;
 
 			size_t Count = 0;
-			if (IsTopLevel())
-				Scene->Indexer.Components.Clear();
-
 			for (auto& Next : Renderers)
 			{
 				if (Next->Active)
 				{
 					Next->BeginPass();
-					Count += Next->RenderPass(Time, Stage, Options);
+					Count += Next->RenderPass(Time);
 					Next->EndPass();
 				}
 			}
 
-			StackTop--;
+			State.Target = LastTarget;
+			State.Options = LastOptions;
+			State.Top--;
+
 			return Count;
 		}
 		void RenderSystem::QueryBegin(uint64_t Section)
@@ -2565,7 +2571,7 @@ namespace Tomahawk
 				return false;
 			
 			float Visibility = Threshold;
-			if (OcclusionCulling && IsTopLevel())
+			if (OcclusionCulling && State.IsTop())
 				Visibility = Base->Overlapping;
 
 			if (Target != nullptr)
@@ -2645,10 +2651,6 @@ namespace Tomahawk
 			}
 
 			return false;
-		}
-		bool RenderSystem::IsTopLevel()
-		{
-			return StackTop <= 1;
 		}
 		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount)
 		{
@@ -3942,7 +3944,8 @@ namespace Tomahawk
 
 			auto* Renderer = Base->GetRenderer();
 			TH_ASSERT_V(Renderer != nullptr, "render system should be set");
-
+			
+			Indexer.Components.Clear();
 			FillMaterialBuffers();
 			SetMRT(TargetType::Main, true);
 			Renderer->RestoreViewBuffer(nullptr);
@@ -6103,12 +6106,12 @@ namespace Tomahawk
 		void EffectRenderer::RenderEffect(Core::Timer* Time)
 		{
 		}
-		size_t EffectRenderer::RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options)
+		size_t EffectRenderer::RenderPass(Core::Timer* Time)
 		{
 			TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 			TH_ASSERT(System->GetMRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 
-			if (State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Inner)
+			if (!System->State.Is(RenderState::Geometry_Result) || System->State.IsSubpass())
 				return 0;
 
 			MaxSlot = 5;

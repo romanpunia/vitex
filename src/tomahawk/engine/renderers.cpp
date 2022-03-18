@@ -20,7 +20,7 @@ namespace Tomahawk
 				Layout = Device->GetInputLayout("vertex");
 
 				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
-				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::VoxelBuffer));
+				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::IVoxelBuffer));
 				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
 				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
 				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
@@ -99,13 +99,13 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, RenderOpt Options)
+			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
+				bool Static = System->State.IsSet(RenderOpt::Static);
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -136,7 +136,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, RenderOpt Options)
+			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -265,7 +265,7 @@ namespace Tomahawk
 				Layout = Device->GetInputLayout("vertex");
 
 				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
-				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::VoxelBuffer));
+				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::IVoxelBuffer));
 				Shaders.Occlusion = System->CompileShader("geometry/model/occlusion");
 				Shaders.Depth.Linear = System->CompileShader("geometry/model/depth/linear");
 				Shaders.Depth.Cubic = System->CompileShader("geometry/model/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
@@ -333,13 +333,13 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Model::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, RenderOpt Options)
+			size_t Model::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Model*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
+				bool Static = System->State.IsSet(RenderOpt::Static);
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -374,7 +374,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Model::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, RenderOpt Options)
+			size_t Model::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Model*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -510,7 +510,7 @@ namespace Tomahawk
 				Layout = Device->GetInputLayout("skin-vertex");
 
 				Shaders.Geometry = System->CompileShader("geometry/skin/geometry");
-				Shaders.Voxelize = System->CompileShader("geometry/skin/voxelize", sizeof(Lighting::VoxelBuffer));
+				Shaders.Voxelize = System->CompileShader("geometry/skin/voxelize", sizeof(Lighting::IVoxelBuffer));
 				Shaders.Occlusion = System->CompileShader("geometry/skin/occlusion");
 				Shaders.Depth.Linear = System->CompileShader("geometry/skin/depth/linear");
 				Shaders.Depth.Cubic = System->CompileShader("geometry/skin/depth/cubic", sizeof(Compute::Matrix4x4) * 6);
@@ -593,13 +593,13 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, RenderOpt Options)
+			size_t Skin::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
+				bool Static = System->State.IsSet(RenderOpt::Static);
 
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -640,7 +640,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, RenderOpt Options)
+			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -807,7 +807,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Point);
 				System->FreeShader(Shaders.Depth.Quad);
 			}
-			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry, RenderOpt Options)
+			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -816,9 +816,9 @@ namespace Tomahawk
 				Graphics::Shader* BaseShader = nullptr;
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Viewer& View = System->View;
-				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
+				bool Static = System->State.IsSet(RenderOpt::Static);
 
-				if ((size_t)Options & (size_t)RenderOpt::Additive)
+				if (System->State.IsSet(RenderOpt::Additive))
 				{
 					BaseShader = Shaders.Transparency;
 					Device->SetDepthStencilState(DepthStencilAdditive);
@@ -975,14 +975,14 @@ namespace Tomahawk
 			{
 				System->FreeShader(Shader);
 			}
-			size_t Decal::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Decal*>& Geometry, RenderOpt Options)
+			size_t Decal::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Decal*>& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				SceneGraph* Scene = System->GetScene();
-				bool Static = ((size_t)Options & (size_t)RenderOpt::Static);
+				bool Static = System->State.IsSet(RenderOpt::Static);
 
 				Graphics::ElementBuffer* Box[2];
 				System->GetPrimitives()->GetBoxBuffers(Box);
@@ -1169,7 +1169,7 @@ namespace Tomahawk
 			}
 			void Lighting::BeginPass()
 			{
-				if (Lights.Shadowing)
+				if (System->State.Is(RenderState::Depth_Linear) || System->State.Is(RenderState::Depth_Cubic))
 					return;
 
 				auto& Lines = System->GetScene()->GetComponents<Components::LineLight>();
@@ -1180,7 +1180,7 @@ namespace Tomahawk
 				Lights.Lines = &Lines;
 
 				float Distance = std::numeric_limits<float>::max();
-				if (!EnableGI || !System->IsTopLevel())
+				if (!EnableGI || !System->State.IsTop())
 					return;
 
 				Components::Illuminator* Base = nullptr;
@@ -1196,43 +1196,25 @@ namespace Tomahawk
 
 				Storage.Target = Base;
 				Storage.Process = 0;
+				if (Base != nullptr)
+				{
+					if (!GetIlluminator(&VoxelBuffer, Base))
+						Base->SetBufferSize(Base->GetBufferSize());
 
-				if (!Base)
-					return;
-
-				if (!Base->GetBuffer())
-					Base->SetBufferSize(Base->GetBufferSize());
-
-				auto* Transform = Base->GetEntity()->GetTransform();
-				VoxelBuffer.Center = Transform->GetPosition();
-				VoxelBuffer.Scale = Transform->GetScale();
-				VoxelBuffer.Mips = (float)Base->GetMipLevels();
-				VoxelBuffer.Size = (float)Base->GetBufferSize();
-				VoxelBuffer.RayStep = Base->RayStep;
-				VoxelBuffer.MaxSteps = Base->MaxSteps;
-				VoxelBuffer.Distance = Base->Distance;
-				VoxelBuffer.Radiance = Base->Radiance;
-				VoxelBuffer.Length = Base->Length;
-				VoxelBuffer.Margin = Base->Margin;
-				VoxelBuffer.Offset = Base->Offset;
-				VoxelBuffer.Angle = Base->Angle;
-				VoxelBuffer.Occlusion = Base->Occlusion;
-				VoxelBuffer.Specular = Base->Specular;
-				VoxelBuffer.Bleeding = Base->Bleeding;
-
-				LightBuffer = Base->GetBuffer();
-				if (!LightBuffer)
-					return;
-
-				bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
-				if (!Inside && Storage.Reference == Base && Storage.Inside == Inside)
-					Storage.Process = 1;
-				else
-					Storage.Process = 2;
+					Storage.LightBuffer = Base->GetBuffer();
+					if (Storage.LightBuffer != nullptr)
+					{
+						bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
+						if (!Inside && Storage.Reference == Base && Storage.Inside == Inside)
+							Storage.Process = 1;
+						else
+							Storage.Process = 2;
+					}
+				}
 			}
 			void Lighting::EndPass()
 			{
-				if (Lights.Shadowing)
+				if (System->State.Is(RenderState::Depth_Linear) || System->State.Is(RenderState::Depth_Cubic))
 					return;
 
 				Lights.Spots.Pop();
@@ -1278,14 +1260,12 @@ namespace Tomahawk
 					TH_DELETE(vector, *It);
 				}
 			}
-			void Lighting::RenderResultBuffers(RenderOpt Options)
+			void Lighting::RenderResultBuffers()
 			{
-				State.Inner = ((size_t)Options & (size_t)RenderOpt::Inner);
-				State.Backcull = true;
-
 				SceneGraph* Scene = System->GetScene();
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
-				Graphics::RenderTarget2D* RT = (State.Inner ? Surfaces.Input : System->GetRT(TargetType::Main));
+				Graphics::RenderTarget2D* RT = (System->State.IsSubpass() ? Surfaces.Input : System->GetRT(TargetType::Main));
+				State.Backcull = true;
 
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
@@ -1343,14 +1323,14 @@ namespace Tomahawk
 				if (Storage.Inside)
 				{
 					System->View.FarPlane = GetDominant(VoxelBuffer.Scale) * 2.0f;
-					System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::Inner);
+					System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::None);
 					System->RestoreViewBuffer(nullptr);
 				}
 				else
-					System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::Inner);
+					System->Render(Time, RenderState::Geometry_Voxels, RenderOpt::None);
 
 				State.Device->SetWriteable(Out, 1, 3, false);
-				State.Device->GenerateMips(LightBuffer);
+				State.Device->GenerateMips(Storage.LightBuffer);
 				Storage.Reference = Target;
 			}
 			void Lighting::RenderSurfaceMaps(Core::Timer* Time)
@@ -1389,7 +1369,7 @@ namespace Tomahawk
 						Compute::CubeFace Face = (Compute::CubeFace)j;
 						State.Scene->ClearMRT(TargetType::Main, true, true);
 						System->SetView(Light->View[j] = Compute::Matrix4x4::CreateLookAt(Face, Position), Light->Projection, Position, 90.0f, 1.0f, 0.1f, Light->GetSize().Radius, RenderCulling::Spot);
-						System->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Inner | RenderOpt::Static : RenderOpt::Inner);
+						System->Render(Time, RenderState::Geometry_Result, Light->StaticMask ? RenderOpt::Static : RenderOpt::None);
 						State.Device->CubemapFace(Surfaces.Subresource, Face);
 					}
 
@@ -1419,7 +1399,7 @@ namespace Tomahawk
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
 					System->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 90.0f, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Point);
-					System->Render(Time, RenderState::Depth_Cubic, RenderOpt::Inner);
+					System->Render(Time, RenderState::Depth_Cubic, RenderOpt::None);
 					Counter++;
 				}
 			}
@@ -1442,7 +1422,7 @@ namespace Tomahawk
 					State.Device->SetTarget(Target);
 					State.Device->ClearDepth(Target);
 					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), Light->Cutoff, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Spot);
-					System->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
+					System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
 					Counter++;
 				}
 			}
@@ -1477,7 +1457,7 @@ namespace Tomahawk
 
 						float Distance = Light->Shadow.Distance[i];
 						System->SetView(Light->View[i], Light->Projection[i], 0.0f, 90.0f, 1.0f, -System->View.FarPlane, System->View.FarPlane, RenderCulling::Line);
-						System->Render(Time, RenderState::Depth_Linear, RenderOpt::Inner);
+						System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
 					}
 
 					Counter++;
@@ -1490,7 +1470,7 @@ namespace Tomahawk
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
 
-				if (!State.Inner)
+				if (!System->State.IsSubpass())
 				{
 					State.Device->SetShader(Shaders.Surface, TH_VS | TH_PS);
 					State.Device->SetBuffer(Shaders.Surface, 3, TH_VS | TH_PS);
@@ -1646,10 +1626,10 @@ namespace Tomahawk
 				uint32_t Y = (uint32_t)(VoxelBuffer.Size.Y / 8.0f);
 				uint32_t Z = (uint32_t)(VoxelBuffer.Size.Z / 8.0f);
 
-				State.Device->ClearWritable(LightBuffer);
+				State.Device->ClearWritable(Storage.LightBuffer);
 				State.Device->SetSamplerState(nullptr, 1, 6, TH_CS);
 				State.Device->SetWriteable(Out, 1, 3, false);
-				State.Device->SetWriteable(&LightBuffer, 1, 1, true);
+				State.Device->SetWriteable(&Storage.LightBuffer, 1, 1, true);
 				State.Device->SetTexture3D(In[(size_t)VoxelType::Diffuse], 2, TH_CS);
 				State.Device->SetTexture3D(In[(size_t)VoxelType::Normal], 3, TH_CS);
 				State.Device->SetTexture3D(In[(size_t)VoxelType::Surface], 4, TH_CS);
@@ -1689,15 +1669,11 @@ namespace Tomahawk
 			}
 			void Lighting::RenderIllumination()
 			{
-				if (!EnableGI || State.Inner || Storage.Process < 1)
+				if (!EnableGI || System->State.IsSubpass() || Lights.Illuminators.Top().empty())
 					return;
 
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
-
-				Compute::Vector3 Position, Scale;
-				GetLightCulling(Storage.Target, 0.0f, &Position, &Scale);
-				VoxelBuffer.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Secondary);
@@ -1705,13 +1681,25 @@ namespace Tomahawk
 				State.Device->SetDepthStencilState(DepthStencilNone);
 				State.Device->SetSamplerState(WrapSampler, 1, 6, TH_PS);
 				State.Device->SetTexture2D(RT->GetTarget(), 1, TH_PS);
-				State.Device->SetTexture3D(LightBuffer, 5, TH_PS);
 				State.Device->SetShader(Shaders.Ambient[1], TH_VS | TH_PS);
 				State.Device->SetBuffer(Shaders.Ambient[1], 3, TH_VS | TH_PS);
 				State.Device->SetVertexBuffer(Cube[(size_t)BufferType::Vertex], 0);
 				State.Device->SetIndexBuffer(Cube[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
-				State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
-				State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
+
+				Compute::Vector3 Position, Scale;
+				for (auto* Light : Lights.Illuminators.Top())
+				{
+					if (!GetIlluminator(&VoxelBuffer, Light))
+						continue;
+
+					GetLightCulling(Storage.Target, 0.0f, &Position, &Scale);
+					VoxelBuffer.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
+
+					State.Device->SetTexture3D(Light->GetBuffer(), 5, TH_PS);
+					State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
+					State.Device->DrawIndexed((unsigned int)Cube[(size_t)BufferType::Index]->GetElements(), 0, 0);
+				}
+
 				State.Device->SetTexture2D(System->GetRT(TargetType::Main)->GetTarget(), 1, TH_PS);
 				State.Device->SetTexture3D(nullptr, 5, TH_PS);
 				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
@@ -1722,7 +1710,7 @@ namespace Tomahawk
 			void Lighting::RenderAmbient()
 			{
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
-				Graphics::RenderTarget2D* RT = (State.Inner ? Surfaces.Output : System->GetRT(TargetType::Secondary));
+				Graphics::RenderTarget2D* RT = (System->State.IsSubpass() ? Surfaces.Output : System->GetRT(TargetType::Secondary));
 				State.Device->CopyTarget(MRT, 0, RT, 0);
 				State.Device->SetSamplerState(WrapSampler, 1, 6, TH_PS);
 				State.Device->SetTexture2D(RT->GetTarget(), 5, TH_PS);
@@ -1845,34 +1833,32 @@ namespace Tomahawk
 				VoxelBuffer.Lights.Z = (float)Count;
 				return Count;
 			}
-			size_t Lighting::RenderPass(Core::Timer* Time, RenderState Status, RenderOpt Options)
+			size_t Lighting::RenderPass(Core::Timer* Time)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-				if ((size_t)Options & (size_t)RenderOpt::Additive)
+				if (System->State.IsSet(RenderOpt::Additive))
 					return 0;
 
 				State.Device = System->GetDevice();
 				State.Scene = System->GetScene();
 
-				if (Status == RenderState::Geometry_Voxels)
+				if (System->State.Is(RenderState::Geometry_Voxels))
 				{
 					RenderLuminance();
 					return 1;
 				}
-				else if (Status != RenderState::Geometry_Result)
+				else if (!System->State.Is(RenderState::Geometry_Result))
 					return 0;
 
-				if (!((size_t)Options & (size_t)RenderOpt::Inner || (size_t)Options & (size_t)RenderOpt::Transparent))
+				if (!System->State.IsSubpass() && !System->State.IsSet(RenderOpt::Transparent))
 				{
 					double ElapsedTime = Time->GetElapsedTime();
 					if (Shadows.Tick.TickEvent(ElapsedTime))
 					{
-						Lights.Shadowing = true;
 						RenderPointShadowMaps(Time);
 						RenderSpotShadowMaps(Time);
 						RenderLineShadowMaps(Time);
 						System->RestoreViewBuffer(nullptr);
-						Lights.Shadowing = false;
 					}
 
 					RenderSurfaceMaps(Time);
@@ -1880,7 +1866,7 @@ namespace Tomahawk
 						RenderVoxelMap(Time);
 				}
 
-				RenderResultBuffers(Options);
+				RenderResultBuffers();
 				System->RestoreOutput();
 				return 1;
 			}
@@ -2001,6 +1987,27 @@ namespace Tomahawk
 					Dest->ViewProjection[i] = Light->View[i] * Light->Projection[i];
 
 				return Size > 0;
+			}
+			bool Lighting::GetIlluminator(IVoxelBuffer* Dest, Component* Src)
+			{
+				auto* Light = (Components::Illuminator*)Src;
+				auto* Transform = Light->GetEntity()->GetTransform();
+				VoxelBuffer.Center = Transform->GetPosition();
+				VoxelBuffer.Scale = Transform->GetScale();
+				VoxelBuffer.Mips = (float)Light->GetMipLevels();
+				VoxelBuffer.Size = (float)Light->GetBufferSize();
+				VoxelBuffer.RayStep = Light->RayStep;
+				VoxelBuffer.MaxSteps = Light->MaxSteps;
+				VoxelBuffer.Distance = Light->Distance;
+				VoxelBuffer.Radiance = Light->Radiance;
+				VoxelBuffer.Length = Light->Length;
+				VoxelBuffer.Margin = Light->Margin;
+				VoxelBuffer.Offset = Light->Offset;
+				VoxelBuffer.Angle = Light->Angle;
+				VoxelBuffer.Occlusion = Light->Occlusion;
+				VoxelBuffer.Specular = Light->Specular;
+				VoxelBuffer.Bleeding = Light->Bleeding;
+				return Light->GetBuffer() != nullptr;
 			}
 			void Lighting::GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale)
 			{
@@ -2125,30 +2132,28 @@ namespace Tomahawk
 				TH_RELEASE(Input);
 				Input = Device->CreateRenderTarget2D(F2);
 			}
-			size_t Transparency::RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options)
+			size_t Transparency::RenderPass(Core::Timer* Time)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				bool Inner = ((size_t)Options & (size_t)RenderOpt::Inner);
-				if (State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Transparent || (size_t)Options & (size_t)RenderOpt::Additive)
+				if (!System->State.Is(RenderState::Geometry_Result) || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 					return 0;
 
 				SceneGraph* Scene = System->GetScene();
 				if (System->HasCategory(GeoCategory::Additive))
-					System->Render(Time, RenderState::Geometry_Result, Options | RenderOpt::Additive);
+					System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Additive);
 
 				if (!System->HasCategory(GeoCategory::Transparent))
 					return 0;
 
 				Graphics::MultiRenderTarget2D* MainMRT = System->GetMRT(TargetType::Main);
-				Graphics::MultiRenderTarget2D* MRT = (Inner ? Merger : System->GetMRT(TargetType::Secondary));
-				Graphics::RenderTarget2D* RT = (Inner ? Input : System->GetRT(TargetType::Main));
+				Graphics::MultiRenderTarget2D* MRT = (System->State.IsSubpass() ? Merger : System->GetMRT(TargetType::Secondary));
+				Graphics::RenderTarget2D* RT = (System->State.IsSubpass() ? Input : System->GetRT(TargetType::Main));
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				RenderData.Mips = (Inner ? MipLevels[(size_t)TargetType::Secondary] : MipLevels[(size_t)TargetType::Main]);
+				RenderData.Mips = (System->State.IsSubpass() ? MipLevels[(size_t)TargetType::Secondary] : MipLevels[(size_t)TargetType::Main]);
 
 				Scene->SwapMRT(TargetType::Main, MRT);
 				Scene->SetMRT(TargetType::Main, true);
-				System->Render(Time, RenderState::Geometry_Result, Options | RenderOpt::Transparent);
+				System->Render(Time, RenderState::Geometry_Result, System->State.GetOpts() | RenderOpt::Transparent);
 				Scene->SwapMRT(TargetType::Main, nullptr);
 
 				Device->CopyTarget(MainMRT, 0, RT, 0);
@@ -2625,11 +2630,11 @@ namespace Tomahawk
 				TH_RELEASE(Context);
 #endif
 			}
-			size_t UserInterface::RenderPass(Core::Timer* Timer, RenderState State, RenderOpt Options)
+			size_t UserInterface::RenderPass(Core::Timer* Timer)
 			{
 #ifdef TH_WITH_RMLUI
 				TH_ASSERT(Context != nullptr, 0, "context should be set");
-				if (State != RenderState::Geometry_Result || (size_t)Options & (size_t)RenderOpt::Inner || (size_t)Options & (size_t)RenderOpt::Transparent || (size_t)Options & (size_t)RenderOpt::Additive)
+				if (!System->State.Is(RenderState::Geometry_Result) || System->State.IsSubpass() || System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 					return 0;
 
 				Context->UpdateEvents(Activity);

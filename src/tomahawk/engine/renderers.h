@@ -329,6 +329,7 @@ namespace Tomahawk
 					RendererProxy<Components::PointLight> Points;
 					RendererProxy<Components::SpotLight> Spots;
 					Core::Pool<Component*>* Lines;
+					bool Shadowing = false;
 				} Lights;
 
 			public:

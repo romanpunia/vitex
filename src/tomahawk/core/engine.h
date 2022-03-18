@@ -628,7 +628,6 @@ namespace Tomahawk
 			virtual void BeginPass();
 			virtual void EndPass();
 			virtual bool HasCategory(GeoCategory Category);
-			virtual size_t CullingPass(const Viewer& View);
 			virtual size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options);
 			void SetRenderer(RenderSystem* NewSystem);
 			RenderSystem* GetRenderer();
@@ -650,14 +649,9 @@ namespace Tomahawk
 
 		protected:
 			std::vector<Renderer*> Renderers;
-			Graphics::DepthStencilState* DepthStencil;
-			Graphics::BlendState* Blend;
-			Graphics::SamplerState* Sampler;
-			Graphics::DepthTarget2D* Target;
 			Graphics::GraphicsDevice* Device;
 			Material* BaseMaterial;
 			SceneGraph* Scene;
-			size_t DepthSize;
 			size_t StackTop;
 			bool Satisfied;
 
@@ -667,6 +661,7 @@ namespace Tomahawk
 			uint64_t OcclusionSkips;
 			uint64_t OccluderSkips;
 			uint64_t OccludeeSkips;
+			float OverflowVisibility;
 			float Threshold;
 			bool OcclusionCulling;
 			bool FrustumCulling;
@@ -675,7 +670,6 @@ namespace Tomahawk
 		public:
 			RenderSystem(SceneGraph* NewScene);
 			virtual ~RenderSystem() override;
-			void SetDepthSize(size_t Size);
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
 			void ClearCulling();
 			void RestoreViewBuffer(Viewer* View);
@@ -710,19 +704,14 @@ namespace Tomahawk
 			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Renderer* In);
 			Renderer* GetRenderer(uint64_t Id);
-			size_t GetDepthSize();
 			int64_t GetOffset(uint64_t Id);
 			std::vector<Renderer*>& GetRenderers();
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
 			Graphics::RenderTarget2D* GetRT(TargetType Type);
 			Graphics::Texture2D** GetMerger();
 			Graphics::GraphicsDevice* GetDevice();
-			Graphics::DepthTarget2D* GetDepthTarget();
 			PrimitiveCache* GetPrimitives();
 			SceneGraph* GetScene();
-
-		private:
-			size_t RenderOverlapping(Core::Timer* Time);
 
 		public:
 			template <typename T>
@@ -1326,7 +1315,7 @@ namespace Tomahawk
 
 				T* Base = nullptr; bool Cullable;
 				System->QueryBegin(T::GetTypeId());
-				while (Base = (T*)System->QueryNext())
+				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
 					if (System->EnqueueDrawable(Base, Cullable) >= System->Threshold)
 						Top[(size_t)Base->GetCategory()].push_back(Base);
@@ -1348,7 +1337,7 @@ namespace Tomahawk
 
 				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
-				while (Base = (T*)System->QueryNext())
+				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
 					if (System->EnqueueCullable(Base) >= System->Threshold)
 						Subframe.push_back(Base);
@@ -1365,7 +1354,7 @@ namespace Tomahawk
 
 				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
-				while (Base = (T*)System->QueryNext())
+				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
 					if (System->PushCullable(nullptr, System->View, Base))
 						Top[(size_t)Base->GetCategory()].push_back(Base);
@@ -1383,7 +1372,7 @@ namespace Tomahawk
 
 				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
-				while (Base = (T*)System->QueryNext())
+				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
 					if (System->PushCullable(nullptr, System->View, Base))
 						Subframe.push_back(Base);
@@ -1400,9 +1389,11 @@ namespace Tomahawk
 			static_assert(std::is_base_of<Drawable, T>::value, "component must be drawable to work within geometry renderer");
 
 		private:
+			RendererProxy<T> Proxy;
 			std::unordered_map<T*, Graphics::Query*> Active;
 			std::queue<Graphics::Query*> Inactive;
-			RendererProxy<T> Proxy;
+			Graphics::DepthStencilState* DepthStencil;
+			Graphics::BlendState* Blend;
 			Graphics::Query* Current;
 			uint64_t FrameTop[3];
 			bool Skippable[2];
@@ -1410,6 +1401,9 @@ namespace Tomahawk
 		public:
 			GeometryRenderer(RenderSystem* Lab) : Renderer(Lab), Current(nullptr)
 			{
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				DepthStencil = Device->GetDepthStencilState("less-no-stencil-none");
+				Blend = Device->GetBlendState("overwrite-colorless");
 				FrameTop[0] = 0;
 				Skippable[0] = false;
 				FrameTop[1] = 0;
@@ -1463,42 +1457,6 @@ namespace Tomahawk
 				return 0;
 			}
 			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const std::vector<T*>& Geometry, RenderOpt Options) = 0;
-			size_t CullingPass(const Viewer& View) override
-			{
-				TH_PPUSH("geo-renderer-culling", TH_PERF_FRAME);
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				size_t Count = 0; uint64_t Fragments = 0;
-
-				for (auto It = Active.begin(); It != Active.end();)
-				{
-					auto* Query = It->second;
-					if (Device->GetQueryData(Query, &Fragments))
-					{
-						It->first->Overlapping = (Fragments > 0 ? 1.0f : 0.0f);
-						It = Active.erase(It);
-						Inactive.push(Query);
-					}
-					else
-						++It;
-				}
-
-				Skippable[0] = (FrameTop[0]++ < System->OccluderSkips);
-				if (!Skippable[0])
-					FrameTop[0] = 0;
-
-				Skippable[1] = (FrameTop[1]++ < System->OccludeeSkips);
-				if (!Skippable[1])
-					FrameTop[1] = 0;
-
-				if (FrameTop[2]++ >= System->OcclusionSkips)
-				{
-					if (!Proxy.Culling.empty())
-						Count += CullGeometry(View, Proxy.Culling);
-				}
-
-				TH_PPOP();
-				return Count;
-			}
 			size_t RenderPass(Core::Timer* Time, RenderState State, RenderOpt Options) override
 			{
 				size_t Count = 0;
@@ -1518,6 +1476,9 @@ namespace Tomahawk
 						Count += RenderGeometryResult(Time, Frame, Options);
 					}
 					TH_PPOP();
+
+					if (System->IsTopLevel())
+						Count += CullingPass();
 				}
 				else if (State == RenderState::Geometry_Voxels)
 				{
@@ -1568,6 +1529,49 @@ namespace Tomahawk
 
 				return Count;
 			}
+			size_t CullingPass()
+			{
+				if (Application::Get()->Activity->IsKeyDown(Graphics::KeyCode::F))
+					return 0;
+
+				if (!System->OcclusionCulling)
+					return 0;
+
+				TH_PPUSH("geo-renderer-culling", TH_PERF_FRAME);
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				size_t Count = 0; uint64_t Fragments = 0;
+
+				for (auto It = Active.begin(); It != Active.end();)
+				{
+					auto* Query = It->second;
+					if (Device->GetQueryData(Query, &Fragments))
+					{
+						It->first->Overlapping = (Fragments > 0 ? 1.0f : 0.0f);
+						It = Active.erase(It);
+						Inactive.push(Query);
+					}
+					else
+						++It;
+				}
+
+				Skippable[0] = (FrameTop[0]++ < System->OccluderSkips);
+				if (!Skippable[0])
+					FrameTop[0] = 0;
+
+				Skippable[1] = (FrameTop[1]++ < System->OccludeeSkips);
+				if (!Skippable[1])
+					FrameTop[1] = 0;
+
+				if (FrameTop[2]++ >= System->OcclusionSkips && !Proxy.Culling.empty())
+				{
+					Device->SetDepthStencilState(DepthStencil);
+					Device->SetBlendState(Blend);
+					Count += CullGeometry(System->View, Proxy.Culling);
+				}
+
+				TH_PPOP();
+				return Count;
+			}
 			bool CullingBegin(T* Reference)
 			{
 				TH_ASSERT(Reference != nullptr, false, "reference should be set");
@@ -1578,7 +1582,7 @@ namespace Tomahawk
 
 				if (Inactive.empty() && Active.size() >= System->MaxQueries)
 				{
-					Reference->Overlapping = 0.0f;
+					Reference->Overlapping = System->OverflowVisibility;
 					return false;
 				}
 

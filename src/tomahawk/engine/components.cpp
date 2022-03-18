@@ -3394,18 +3394,14 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("height"), &Height);
 
 				SceneGraph* Scene = Parent->GetScene();
-				size_t Size = Renderer->GetDepthSize();
 				NMake::Unpack(Node->Find("occluder-skips"), &Renderer->OccluderSkips);
 				NMake::Unpack(Node->Find("occludee-skips"), &Renderer->OccludeeSkips);
 				NMake::Unpack(Node->Find("occlusion-skips"), &Renderer->OcclusionSkips);
-				NMake::Unpack(Node->Find("occlusion-size"), &Size);
 				NMake::Unpack(Node->Find("frustum-cull"), &Renderer->FrustumCulling);
 				NMake::Unpack(Node->Find("occlusion-cull"), &Renderer->OcclusionCulling);
 				NMake::Unpack(Node->Find("max-queries"), &Renderer->MaxQueries);
 
 				std::vector<Core::Schema*> Renderers = Node->FetchCollection("renderers.renderer");
-				Renderer->SetDepthSize(Size);
-
 				for (auto& Render : Renderers)
 				{
 					uint64_t Id;
@@ -3445,7 +3441,6 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("occluder-skips"), Renderer->OccluderSkips);
 				NMake::Pack(Node->Set("occludee-skips"), Renderer->OccludeeSkips);
 				NMake::Pack(Node->Set("occlusion-skips"), Renderer->OcclusionSkips);
-				NMake::Pack(Node->Set("occlusion-size"), Renderer->GetDepthSize());
 				NMake::Pack(Node->Set("frustum-cull"), Renderer->FrustumCulling);
 				NMake::Pack(Node->Set("occlusion-cull"), Renderer->OcclusionCulling);
 				NMake::Pack(Node->Set("max-queries"), Renderer->MaxQueries);

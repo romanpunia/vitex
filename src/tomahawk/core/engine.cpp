@@ -2289,10 +2289,6 @@ namespace Tomahawk
 		{
 			return false;
 		}
-		size_t Renderer::CullingPass(const Viewer& View)
-		{
-			return 0;
-		}
 		size_t Renderer::RenderPass(Core::Timer* TimeStep, RenderState State, RenderOpt Options)
 		{
 			return 0;
@@ -2302,18 +2298,12 @@ namespace Tomahawk
 			return System;
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene) : DepthStencil(nullptr), Blend(nullptr), Sampler(nullptr), Target(nullptr), Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), MaxQueries(4096), StackTop(0), Threshold(0.1f)
+		RenderSystem::RenderSystem(SceneGraph* NewScene) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), Satisfied(true), MaxQueries(16384), StackTop(0), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
 		{
-			OcclusionSkips = 2;
-			OccluderSkips = 8;
-			OccludeeSkips = 3;
-			DepthSize = 768;
-			Satisfied = true;
-
 			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
 			TH_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");
+			
 			Device = NewScene->GetDevice();
-			SetDepthSize(DepthSize);
 		}
 		RenderSystem::~RenderSystem()
 		{
@@ -2325,25 +2315,6 @@ namespace Tomahawk
 				Next->Deactivate();
 				TH_RELEASE(Next);
 			}
-
-			TH_RELEASE(Target);
-		}
-		void RenderSystem::SetDepthSize(size_t Size)
-		{
-			DepthStencil = Device->GetDepthStencilState("less-no-stencil");
-			Blend = Device->GetBlendState("overwrite-colorless");
-			Sampler = Device->GetSamplerState("point");
-			DepthSize = Size;
-
-			Graphics::MultiRenderTarget2D* MRT = Scene->GetMRT(TargetType::Main);
-			float Aspect = (float)MRT->GetWidth() / MRT->GetHeight();
-
-			Graphics::DepthTarget2D::Desc I;
-			I.Height = (size_t)((float)Size / Aspect);
-			I.Width = Size;
-
-			TH_RELEASE(Target);
-			Target = Device->CreateDepthTarget2D(I);
 		}
 		void RenderSystem::SetView(const Compute::Matrix4x4& _View, const Compute::Matrix4x4& _Projection, const Compute::Vector3& _Position, float _Fov, float _Ratio, float _Near, float _Far, RenderCulling _Type)
 		{
@@ -2504,27 +2475,6 @@ namespace Tomahawk
 		{
 			BaseMaterial = nullptr;
 		}
-		size_t RenderSystem::RenderOverlapping(Core::Timer* Time)
-		{
-			if (!OcclusionCulling || !Target)
-				return 0;
-
-			TH_PPUSH("rs-occlusion-culling", TH_PERF_FRAME);
-			Device->SetDepthStencilState(DepthStencil);
-			Device->SetBlendState(Blend);
-			Device->SetTarget(Target);
-			Device->ClearDepth(Target);
-
-			size_t Count = 0;
-			for (auto& Next : Renderers)
-			{
-				if (Next->Active)
-					Count += Next->CullingPass(View);
-			}
-
-			TH_PPOP();
-			return Count;
-		}
 		size_t RenderSystem::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
 		{
 			TH_ASSERT(Time != nullptr, 0, "timer should be set");
@@ -2532,36 +2482,15 @@ namespace Tomahawk
 
 			size_t Count = 0;
 			if (IsTopLevel())
-			{
 				Scene->Indexer.Components.Clear();
-				for (auto& Next : Renderers)
-				{
-					if (Next->Active)
-						Next->BeginPass();
-				}
 
-				Count = RenderOverlapping(Time);
-				Scene->SetMRT(TargetType::Main, true);
-
-				for (auto& Next : Renderers)
-				{
-					if (Next->Active)
-					{
-						Count += Next->RenderPass(Time, Stage, Options);
-						Next->EndPass();
-					}
-				}
-			}
-			else
+			for (auto& Next : Renderers)
 			{
-				for (auto& Next : Renderers)
+				if (Next->Active)
 				{
-					if (Next->Active)
-					{
-						Next->BeginPass();
-						Count += Next->RenderPass(Time, Stage, Options);
-						Next->EndPass();
-					}
+					Next->BeginPass();
+					Count += Next->RenderPass(Time, Stage, Options);
+					Next->EndPass();
 				}
 			}
 
@@ -2814,10 +2743,6 @@ namespace Tomahawk
 			}
 
 			return nullptr;
-		}
-		size_t RenderSystem::GetDepthSize()
-		{
-			return DepthSize;
 		}
 		int64_t RenderSystem::GetOffset(uint64_t Id)
 		{
@@ -4019,6 +3944,7 @@ namespace Tomahawk
 			TH_ASSERT_V(Renderer != nullptr, "render system should be set");
 
 			FillMaterialBuffers();
+			SetMRT(TargetType::Main, true);
 			Renderer->RestoreViewBuffer(nullptr);
 			Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 		}
@@ -4826,15 +4752,18 @@ namespace Tomahawk
 		}
 		void SceneGraph::ProcessCullable(Component* Base)
 		{
-			Indexer.Components.Add(Base);
-			if (Indexer.Components.Size() + Conf.GrowMargin <= Indexer.Components.Capacity())
-				return;
-
-			Transaction([this]()
+			if (Indexer.Components.Size() + Conf.GrowMargin > Indexer.Components.Capacity())
 			{
-				if (Indexer.Components.Size() + Conf.GrowMargin > Indexer.Components.Capacity())
-					UpgradeBuffer(Indexer.Components, Conf.GrowRate);
-			});
+				Transaction([this, Base]()
+				{
+					if (Indexer.Components.Size() + Conf.GrowMargin > Indexer.Components.Capacity())
+						UpgradeBuffer(Indexer.Components, Conf.GrowRate);
+
+					Indexer.Components.Add(Base);
+				});
+			}
+			else
+				Indexer.Components.Add(Base);
 		}
 		bool SceneGraph::ResolveEvents()
 		{
@@ -5162,7 +5091,7 @@ namespace Tomahawk
 				RegisterEntity(Entity);
 				return true;
 			}
-
+			
 			Transaction([this, Entity]()
 			{
 				if (Entities.Size() + Conf.GrowMargin > Entities.Capacity())

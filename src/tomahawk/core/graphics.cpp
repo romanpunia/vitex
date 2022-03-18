@@ -880,6 +880,7 @@ namespace Tomahawk
 			DepthStencil.StencilEnable = false;
 			DepthStencilStates["less-no-stencil"] = CreateDepthStencilState(DepthStencil);
 
+			DepthStencil.DepthFunction = Comparison::Less_Equal;
 			DepthStencil.DepthWriteMask = DepthWrite::Zero;
 			DepthStencil.StencilEnable = false;
 			DepthStencilStates["less-no-stencil-none"] = CreateDepthStencilState(DepthStencil);

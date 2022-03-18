@@ -1169,6 +1169,9 @@ namespace Tomahawk
 			}
 			void Lighting::BeginPass()
 			{
+				if (Lights.Shadowing)
+					return;
+
 				auto& Lines = System->GetScene()->GetComponents<Components::LineLight>();
 				Lights.Illuminators.Push(System);
 				Lights.Surfaces.Push(System);
@@ -1229,6 +1232,9 @@ namespace Tomahawk
 			}
 			void Lighting::EndPass()
 			{
+				if (Lights.Shadowing)
+					return;
+
 				Lights.Spots.Pop();
 				Lights.Points.Pop();
 				Lights.Surfaces.Pop();
@@ -1861,10 +1867,12 @@ namespace Tomahawk
 					double ElapsedTime = Time->GetElapsedTime();
 					if (Shadows.Tick.TickEvent(ElapsedTime))
 					{
+						Lights.Shadowing = true;
 						RenderPointShadowMaps(Time);
 						RenderSpotShadowMaps(Time);
 						RenderLineShadowMaps(Time);
 						System->RestoreViewBuffer(nullptr);
+						Lights.Shadowing = false;
 					}
 
 					RenderSurfaceMaps(Time);

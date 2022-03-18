@@ -603,12 +603,10 @@ namespace Tomahawk
 
 			class TH_OUT Illuminator final : public Component
 			{
-			private:
-				Graphics::Texture3D * Buffer;
-				size_t MipLevels, Size;
-
 			public:
-				Core::Ticker Tick;
+				Graphics::Texture3D* VoxelMap;
+				Core::Ticker Inside;
+				Core::Ticker Outside;
 				float RayStep;
 				float MaxSteps;
 				float Distance;
@@ -620,17 +618,15 @@ namespace Tomahawk
 				float Occlusion;
 				float Specular;
 				float Bleeding;
+				bool Regenerate;
 
 			public:
 				Illuminator(Entity* Ref);
-				virtual ~Illuminator() override;
+				virtual ~Illuminator() = default;
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual Component* Copy(Entity* New) override;
-				void SetBufferSize(size_t NewSize);
-				Graphics::Texture3D* GetBuffer();
-				size_t GetBufferSize();
-				size_t GetMipLevels();
+				void Reset();
 
 			public:
 				TH_COMPONENT("illuminator");

@@ -3249,9 +3249,10 @@ namespace Tomahawk
 				return DiffuseMap;
 			}
 
-			Illuminator::Illuminator(Entity* Ref) : Component(Ref, ActorSet::Cullable), Buffer(nullptr), MipLevels(0), Size(64)
+			Illuminator::Illuminator(Entity* Ref) : Component(Ref, ActorSet::Cullable), VoxelMap(nullptr), Regenerate(true)
 			{
-				Tick.Delay = 16.666;
+				Inside.Delay = 30.0;
+				Outside.Delay = 10000.0;
 				RayStep = 0.5f;
 				MaxSteps = 256.0f;
 				Distance = 12.0f;
@@ -3264,16 +3265,13 @@ namespace Tomahawk
 				Angle = 0.5;
 				Bleeding = 0.33f;
 			}
-			Illuminator::~Illuminator()
-			{
-				TH_RELEASE(Buffer);
-			}
 			void Illuminator::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("size"), &Size);
+				NMake::Unpack(Node->Find("inside-delay"), &Inside.Delay);
+				NMake::Unpack(Node->Find("outside-delay"), &Outside.Delay);
 				NMake::Unpack(Node->Find("ray-step"), &RayStep);
 				NMake::Unpack(Node->Find("max-steps"), &MaxSteps);
 				NMake::Unpack(Node->Find("distance"), &Distance);
@@ -3285,14 +3283,14 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("occlusion"), &Occlusion);
 				NMake::Unpack(Node->Find("specular"), &Specular);
 				NMake::Unpack(Node->Find("bleeding"), &Bleeding);
-				SetBufferSize(Size);
 			}
 			void Illuminator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("size"), Size);
+				NMake::Pack(Node->Set("inside-delay"), Inside.Delay);
+				NMake::Pack(Node->Set("outside-delay"), Outside.Delay);
 				NMake::Pack(Node->Set("ray-step"), RayStep);
 				NMake::Pack(Node->Set("max-steps"), MaxSteps);
 				NMake::Pack(Node->Set("distance"), Distance);
@@ -3308,7 +3306,8 @@ namespace Tomahawk
 			Component* Illuminator::Copy(Entity* New)
 			{
 				Illuminator* Target = new Illuminator(New);
-				Target->Tick = Tick;
+				Target->Inside = Inside;
+				Target->Outside = Outside;
 				Target->RayStep = RayStep;
 				Target->MaxSteps = MaxSteps;
 				Target->Radiance = Radiance;
@@ -3316,41 +3315,12 @@ namespace Tomahawk
 				Target->Occlusion = Occlusion;
 				Target->Specular = Specular;
 
-				if (Buffer != nullptr)
-					Target->SetBufferSize(Size);
-
 				return Target;
 			}
-			void Illuminator::SetBufferSize(size_t NewSize)
+			void Illuminator::Reset()
 			{
-				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
-				if (NewSize % 8 != 0)
-					NewSize = Size;
-
-				SceneGraph* Scene = Parent->GetScene();
-				Graphics::GraphicsDevice* Device = Scene->GetDevice();
-				Graphics::Texture3D::Desc I;
-				I.Width = I.Height = I.Depth = Size = NewSize;
-				I.MipLevels = MipLevels = Device->GetMipLevel(Size, Size);
-				I.Writable = true;
-
-				TH_RELEASE(Buffer);
-				Buffer = Device->CreateTexture3D(I);
-
-				if (Size >= Scene->GetVoxelBufferSize())
-					Scene->SetVoxelBufferSize(Size);
-			}
-			Graphics::Texture3D* Illuminator::GetBuffer()
-			{
-				return Buffer;
-			}
-			size_t Illuminator::GetBufferSize()
-			{
-				return Size;
-			}
-			size_t Illuminator::GetMipLevels()
-			{
-				return MipLevels;
+				VoxelMap = nullptr;
+				Regenerate = true;
 			}
 
 			Camera::Camera(Entity* Ref) : Component(Ref, ActorSet::Synchronize), Mode(ProjectionMode_Perspective), Renderer(new RenderSystem(Ref->GetScene())), Viewport({ 0, 0, 512, 512, 0, 1 })

@@ -1325,7 +1325,7 @@ namespace Tomahawk
 				TH_ASSERT(Offset < Max - 1, Data[0][(size_t)Category], "storage heap stack overflow");
 
 				Storage* Frame = Data[Offset++];
-				if (Offset > 1)
+				if (Base->State.IsSubpass())
 					Subcull(Base, Frame);
 				else
 					Cullout(Base, Frame);

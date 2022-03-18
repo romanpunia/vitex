@@ -301,22 +301,6 @@ namespace Tomahawk
 
 				struct
 				{
-					Graphics::ElementBuffer* PBuffer = nullptr;
-					Graphics::ElementBuffer* SBuffer = nullptr;
-					Graphics::ElementBuffer* LBuffer = nullptr;
-					Graphics::Texture3D* LightBuffer = nullptr;
-					std::vector<IPointLight> PArray;
-					std::vector<ISpotLight> SArray;
-					std::vector<ILineLight> LArray;
-					const size_t MaxLights = 64;
-					Component* Target = nullptr;
-					Component* Reference = nullptr;
-					uint64_t Process = 0;
-					bool Inside = false;
-				} Storage;
-
-				struct
-				{
 					Graphics::GraphicsDevice* Device = nullptr;
 					SceneGraph* Scene = nullptr;
 					bool Backcull = true;
@@ -346,6 +330,22 @@ namespace Tomahawk
 					Core::Ticker Tick;
 					float Distance = 0.5f;
 				} Shadows;
+
+				struct
+				{
+					Graphics::ElementBuffer* PBuffer = nullptr;
+					Graphics::ElementBuffer* SBuffer = nullptr;
+					Graphics::ElementBuffer* LBuffer = nullptr;
+					Graphics::Texture3D* LightBuffer = nullptr;
+					std::vector<std::pair<Graphics::Texture3D*, Component*>> Buffers;
+					std::vector<IPointLight> PArray;
+					std::vector<ISpotLight> SArray;
+					std::vector<ILineLight> LArray;
+					const size_t MaxLights = 64;
+					uint64_t BufferResolution = 128;
+					uint64_t BufferLimits = 16;
+					uint64_t BufferMips = 0;
+				} Voxels;
 
 				struct
 				{
@@ -391,6 +391,8 @@ namespace Tomahawk
 				void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				void ResizeBuffers() override;
+				void Activate() override;
+				void Deactivate() override;
 				void BeginPass() override;
 				void EndPass() override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
@@ -411,7 +413,7 @@ namespace Tomahawk
 				size_t GeneratePointLights();
 				size_t GenerateSpotLights();
 				size_t GenerateLineLights();
-				void FlushDepthBuffersAndCache();
+				void FlushBuffersAndCache();
 				void RenderResultBuffers();
 				void RenderVoxelMap(Core::Timer* Time);
 				void RenderSurfaceMaps(Core::Timer* Time);

@@ -9142,7 +9142,7 @@ namespace Tomahawk
 			Global = Target->Global;
 			Scaling = Target->Scaling;
 			Root = Target->Root;
-			Dirty = Target->Dirty;
+			Dirty = true;
 		}
 		void Transform::AddChild(Transform* Child)
 		{
@@ -9447,7 +9447,7 @@ namespace Tomahawk
 		}
 		Area::Area(const Vector3& LowerBound, const Vector3& UpperBound) : Lower(LowerBound), Upper(UpperBound)
 		{
-			TH_ASSERT_V(Lower < Upper, "lower should be smaller than upper");
+			TH_ASSERT_V(Lower <= Upper, "lower should be smaller than upper");
 			Recompute();
 		}
 		void Area::Recompute()

@@ -2342,7 +2342,7 @@ namespace Tomahawk
 					View = *Buffer;
 			}
 
-			if (View.Culling == RenderCulling::Spot)
+			if (View.Culling != RenderCulling::Line)
 			{
 				float Radius = View.FarPlane;
 				Compute::Vector3 Pivot = View.Position;
@@ -4272,8 +4272,7 @@ namespace Tomahawk
 		void SceneGraph::SetVoxelBufferSize(size_t Size)
 		{
 			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
-			if (Size % 8 != 0)
-				Size = Display.VoxelSize;
+			Size = Size - Size % 8;
 
 			Graphics::Texture3D::Desc I;
 			I.Width = I.Height = I.Depth = Display.VoxelSize = Size;

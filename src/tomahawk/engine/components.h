@@ -452,6 +452,7 @@ namespace Tomahawk
 				virtual ~PointLight() = default;
 				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual Component* Copy(Entity * New) override;
@@ -492,6 +493,7 @@ namespace Tomahawk
 				virtual ~SpotLight() = default;
 				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual void Synchronize(Core::Timer * Time) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
@@ -543,6 +545,7 @@ namespace Tomahawk
 				virtual ~LineLight() = default;
 				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Component* Copy(Entity * New) override;
 				void GenerateOrigin();
 
@@ -625,8 +628,8 @@ namespace Tomahawk
 				virtual ~Illuminator() = default;
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Component* Copy(Entity* New) override;
-				void Reset();
 
 			public:
 				TH_COMPONENT("illuminator");

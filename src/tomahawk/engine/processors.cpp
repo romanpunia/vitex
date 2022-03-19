@@ -153,6 +153,14 @@ namespace Tomahawk
 					NMake::Unpack(Metadata->Find("grow-margin"), &I.GrowMargin);
 					NMake::Unpack(Metadata->Find("grow-rate"), &I.GrowRate);
 					NMake::Unpack(Metadata->Find("max-updates"), &I.MaxUpdates);
+					NMake::Unpack(Metadata->Find("voxels-size"), &I.VoxelsSize);
+					NMake::Unpack(Metadata->Find("voxels-max"), &I.VoxelsMax);
+					NMake::Unpack(Metadata->Find("points-size"), &I.PointsSize);
+					NMake::Unpack(Metadata->Find("points-max"), &I.PointsMax);
+					NMake::Unpack(Metadata->Find("spots-size"), &I.SpotsSize);
+					NMake::Unpack(Metadata->Find("spots-max"), &I.SpotsMax);
+					NMake::Unpack(Metadata->Find("line-size"), &I.LinesSize);
+					NMake::Unpack(Metadata->Find("lines-max"), &I.LinesMax);
 				}
 
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
@@ -326,6 +334,14 @@ namespace Tomahawk
 				NMake::Pack(Metadata->Set("grow-margin"), Conf.GrowMargin);
 				NMake::Pack(Metadata->Set("grow-rate"), Conf.GrowRate);
 				NMake::Pack(Metadata->Set("max-updates"), Conf.MaxUpdates);
+				NMake::Pack(Metadata->Set("voxels-size"), Conf.VoxelsSize);
+				NMake::Pack(Metadata->Set("voxels-max"), Conf.VoxelsMax);
+				NMake::Pack(Metadata->Set("points-size"), Conf.PointsSize);
+				NMake::Pack(Metadata->Set("points-max"), Conf.PointsMax);
+				NMake::Pack(Metadata->Set("spots-size"), Conf.SpotsSize);
+				NMake::Pack(Metadata->Set("spots-max"), Conf.SpotsMax);
+				NMake::Pack(Metadata->Set("line-size"), Conf.LinesSize);
+				NMake::Pack(Metadata->Set("lines-max"), Conf.LinesMax);
 
 				auto* fSimulator = Object->GetSimulator();
 				Core::Schema* Simulator = Metadata->Set("simulator");

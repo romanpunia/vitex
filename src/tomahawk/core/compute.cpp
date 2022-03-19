@@ -9715,7 +9715,7 @@ namespace Tomahawk
 			if (!Always)
 			{
 				Area Box(Lower, Upper);
-				if (!Next.Box.Contains(Box))
+				if (Next.Box.Contains(Box))
 					return true;
 
 				RemoveLeaf(It->second);

@@ -1054,7 +1054,6 @@ namespace Tomahawk
 			}
 			Lighting::~Lighting()
 			{
-				FlushBuffersAndCache();
 				System->FreeShader(Shaders.Voxelize);
 				System->FreeShader(Shaders.Surface);
 
@@ -1097,14 +1096,6 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("fog-near-off"), &AmbientLight.FogNearOff);
 				NMake::Unpack(Node->Find("fog-near"), &AmbientLight.FogNear);
 				NMake::Unpack(Node->Find("recursive"), &AmbientLight.Recursive);
-				NMake::Unpack(Node->Find("vx-resolution"), &Voxels.BufferResolution);
-				NMake::Unpack(Node->Find("vx-limits"), &Voxels.BufferLimits);
-				NMake::Unpack(Node->Find("point-light-resolution"), &Shadows.PointLightResolution);
-				NMake::Unpack(Node->Find("point-light-limits"), &Shadows.PointLightLimits);
-				NMake::Unpack(Node->Find("spot-light-resolution"), &Shadows.SpotLightResolution);
-				NMake::Unpack(Node->Find("spot-light-limits"), &Shadows.SpotLightLimits);
-				NMake::Unpack(Node->Find("line-light-resolution"), &Shadows.LineLightResolution);
-				NMake::Unpack(Node->Find("line-light-limits"), &Shadows.LineLightLimits);
 				NMake::Unpack(Node->Find("shadow-distance"), &Shadows.Distance);
 				NMake::Unpack(Node->Find("sf-size"), &Surfaces.Size);
 				NMake::Unpack(Node->Find("gi"), &EnableGI);
@@ -1130,82 +1121,9 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("fog-near-off"), AmbientLight.FogNearOff);
 				NMake::Pack(Node->Set("fog-near"), AmbientLight.FogNear);
 				NMake::Pack(Node->Set("recursive"), AmbientLight.Recursive);
-				NMake::Pack(Node->Set("vx-resolution"), Voxels.BufferResolution);
-				NMake::Pack(Node->Set("vx-limits"), Voxels.BufferLimits);
-				NMake::Pack(Node->Set("point-light-resolution"), Shadows.PointLightResolution);
-				NMake::Pack(Node->Set("point-light-limits"), Shadows.PointLightLimits);
-				NMake::Pack(Node->Set("spot-light-resolution"), Shadows.SpotLightResolution);
-				NMake::Pack(Node->Set("spot-light-limits"), Shadows.SpotLightLimits);
-				NMake::Pack(Node->Set("line-light-resolution"), Shadows.LineLightResolution);
-				NMake::Pack(Node->Set("line-light-limits"), Shadows.LineLightLimits);
 				NMake::Pack(Node->Set("shadow-distance"), Shadows.Distance);
 				NMake::Pack(Node->Set("sf-size"), Surfaces.Size);
 				NMake::Pack(Node->Set("gi"), EnableGI);
-			}
-			void Lighting::ResizeBuffers()
-			{
-				auto* Scene = System->GetScene();
-				Voxels.BufferResolution = Voxels.BufferResolution - Voxels.BufferResolution % 8;
-				Voxels.BufferMips = System->GetDevice()->GetMipLevel(Voxels.BufferResolution, Voxels.BufferResolution);
-				if (Voxels.BufferResolution >= Scene->GetVoxelBufferSize())
-					Scene->SetVoxelBufferSize(Voxels.BufferResolution);
-				FlushBuffersAndCache();
-
-				Voxels.Buffers.resize(Voxels.BufferLimits);
-				for (auto It = Voxels.Buffers.begin(); It != Voxels.Buffers.end(); ++It)
-				{
-					Graphics::Texture3D::Desc F;
-					F.Width = F.Height = F.Depth = Voxels.BufferResolution;
-					F.MipLevels = Voxels.BufferMips;
-					F.Writable = true;
-
-					*It = std::make_pair(System->GetDevice()->CreateTexture3D(F), (Component*)nullptr);
-				}
-
-				Shadows.PointLight.resize(Shadows.PointLightLimits);
-				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); ++It)
-				{
-					Graphics::DepthTargetCube::Desc F = Graphics::DepthTargetCube::Desc();
-					F.Size = (unsigned int)Shadows.PointLightResolution;
-					F.FormatMode = Graphics::Format::D32_Float;
-
-					*It = System->GetDevice()->CreateDepthTargetCube(F);
-				}
-
-				Shadows.SpotLight.resize(Shadows.SpotLightLimits);
-				for (auto It = Shadows.SpotLight.begin(); It != Shadows.SpotLight.end(); ++It)
-				{
-					Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
-					F.Width = (unsigned int)Shadows.SpotLightResolution;
-					F.Height = (unsigned int)Shadows.SpotLightResolution;
-					F.FormatMode = Graphics::Format::D32_Float;
-
-					*It = System->GetDevice()->CreateDepthTarget2D(F);
-				}
-
-				Shadows.LineLight.resize(Shadows.LineLightLimits);
-				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); ++It)
-					*It = nullptr;
-			}
-			void Lighting::Activate()
-			{
-				SceneGraph* Scene = System->GetScene();
-				if (!Scene)
-					return;
-
-				auto& Lights = Scene->GetComponents<Components::Illuminator>();
-				for (auto It = Lights.Begin(); It != Lights.End(); ++It)
-					((Components::Illuminator*)*It)->Reset();
-			}
-			void Lighting::Deactivate()
-			{
-				SceneGraph* Scene = System->GetScene();
-				if (!Scene)
-					return;
-
-				auto& Lights = Scene->GetComponents<Components::Illuminator>();
-				for (auto It = Lights.Begin(); It != Lights.End(); ++It)
-					((Components::Illuminator*)*It)->Reset();
 			}
 			void Lighting::BeginPass()
 			{
@@ -1228,47 +1146,6 @@ namespace Tomahawk
 				Lights.Points.Pop();
 				Lights.Surfaces.Pop();
 				Lights.Illuminators.Pop();
-			}
-			void Lighting::FlushBuffersAndCache()
-			{
-				if (System != nullptr)
-				{
-					SceneGraph* Scene = System->GetScene();
-					if (Scene != nullptr)
-					{
-						auto& Lights = Scene->GetComponents<Components::PointLight>();
-						for (auto It = Lights.Begin(); It != Lights.End(); ++It)
-							((Components::PointLight*)*It)->DepthMap = nullptr;
-
-						Lights = Scene->GetComponents<Components::SpotLight>();
-						for (auto It = Lights.Begin(); It != Lights.End(); ++It)
-							((Components::SpotLight*)*It)->DepthMap = nullptr;
-
-						Lights = Scene->GetComponents<Components::LineLight>();
-						for (auto It = Lights.Begin(); It != Lights.End(); ++It)
-							((Components::LineLight*)*It)->DepthMap = nullptr;
-					}
-				}
-
-				for (auto It = Voxels.Buffers.begin(); It != Voxels.Buffers.end(); ++It)
-					TH_RELEASE(It->first);
-
-				for (auto It = Shadows.PointLight.begin(); It != Shadows.PointLight.end(); ++It)
-					TH_RELEASE(*It);
-
-				for (auto It = Shadows.SpotLight.begin(); It != Shadows.SpotLight.end(); ++It)
-					TH_RELEASE(*It);
-
-				for (auto It = Shadows.LineLight.begin(); It != Shadows.LineLight.end(); ++It)
-				{
-					if (*It != nullptr)
-					{
-						for (auto* Target : *(*It))
-							TH_RELEASE(Target);
-					}
-
-					TH_DELETE(vector, *It);
-				}
 			}
 			void Lighting::RenderResultBuffers()
 			{
@@ -1316,36 +1193,33 @@ namespace Tomahawk
 				if (!State.Scene->GetVoxelBuffer(In, Out))
 					return;
 
-				uint64_t Counter = 0;
+				auto& Buffers = State.Scene->GetVoxelsMapping(); uint64_t Counter = 0;
 				for (auto* Light : Lights.Illuminators.Top())
 				{
-					if (Counter >= Voxels.Buffers.size())
+					if (Counter >= Buffers.size())
 						break;
 
-					auto& Buffer = Voxels.Buffers[Counter];
+					auto& Buffer = Buffers[Counter++];
+					auto* Last = ((Components::Illuminator*)Buffer.second);
+
 					if (!Light->Regenerate)
-						Light->Regenerate = (Buffer.second != Light);
-	
-					if (Buffer.second != nullptr && Buffer.second != Light)
-						((Components::Illuminator*)Buffer.second)->Reset();
+						Light->Regenerate = (Last != Light);
+
+					if (Last != nullptr)
+						Last->VoxelMap = nullptr;
 
 					Light->VoxelMap = Buffer.first;
 					Buffer.second = Light;
-					Counter++;
-				}
 
-				double ElapsedTime = Time->GetElapsedTime();
-				for (auto* Light : Lights.Illuminators.Top())
-				{
 					if (!GetIlluminator(&VoxelBuffer, Light))
 						break;
 
 					bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
 					auto& Delay = (Inside ? Light->Inside : Light->Outside);
-					if (!Light->Regenerate && !Delay.TickEvent(ElapsedTime))
+					if (!Light->Regenerate && !Delay.TickEvent(Time->GetElapsedTime()))
 						continue;
 
-					size_t Size = State.Scene->GetVoxelBufferSize();
+					size_t Size = State.Scene->GetConf().VoxelsSize;
 					State.Device->ClearWritable(In[(size_t)VoxelType::Diffuse]);
 					State.Device->ClearWritable(In[(size_t)VoxelType::Normal]);
 					State.Device->ClearWritable(In[(size_t)VoxelType::Surface]);
@@ -1416,17 +1290,17 @@ namespace Tomahawk
 			}
 			void Lighting::RenderPointShadowMaps(Core::Timer* Time)
 			{
-				uint64_t Counter = 0;
+				auto& Buffers = State.Scene->GetPointsMapping(); uint64_t Counter = 0;
 				for (auto* Light : Lights.Points.Top())
 				{
-					if (Counter >= Shadows.PointLight.size())
+					if (Counter >= Buffers.size())
 						break;
 
 					Light->DepthMap = nullptr;
 					if (!Light->Shadow.Enabled)
 						continue;
 
-					CubicDepthMap* Target = Shadows.PointLight[Counter];
+					CubicDepthMap* Target = Buffers[Counter++];
 					Light->GenerateOrigin();
 					Light->DepthMap = Target;
 
@@ -1434,22 +1308,21 @@ namespace Tomahawk
 					State.Device->ClearDepth(Target);
 					System->SetView(Compute::Matrix4x4::Identity(), Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), 90.0f, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Point);
 					System->Render(Time, RenderState::Depth_Cubic, RenderOpt::None);
-					Counter++;
 				}
 			}
 			void Lighting::RenderSpotShadowMaps(Core::Timer* Time)
 			{
-				uint64_t Counter = 0;
+				auto& Buffers = State.Scene->GetSpotsMapping(); uint64_t Counter = 0;
 				for (auto* Light : Lights.Spots.Top())
 				{
-					if (Counter >= Shadows.SpotLight.size())
+					if (Counter >= Buffers.size())
 						break;
 
 					Light->DepthMap = nullptr;
 					if (!Light->Shadow.Enabled)
 						continue;
 
-					LinearDepthMap* Target = Shadows.SpotLight[Counter];
+					LinearDepthMap* Target = Buffers[Counter++];
 					Light->GenerateOrigin();
 					Light->DepthMap = Target;
 
@@ -1457,28 +1330,24 @@ namespace Tomahawk
 					State.Device->ClearDepth(Target);
 					System->SetView(Light->View, Light->Projection, Light->GetEntity()->GetTransform()->GetPosition(), Light->Cutoff, 1.0f, 0.1f, Light->Shadow.Distance, RenderCulling::Spot);
 					System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
-					Counter++;
 				}
 			}
 			void Lighting::RenderLineShadowMaps(Core::Timer* Time)
 			{
-				uint64_t Counter = 0;
+				auto& Buffers = State.Scene->GetLinesMapping(); uint64_t Counter = 0;
 				for (auto It = Lights.Lines->Begin(); It != Lights.Lines->End(); ++It)
 				{
 					auto* Light = (Components::LineLight*)*It;
-					if (Counter >= Shadows.LineLight.size())
+					if (Counter >= Buffers.size())
 						break;
 
 					Light->DepthMap = nullptr;
-					if (!Light->Shadow.Enabled)
+					if (!Light->Shadow.Enabled || Light->Shadow.Cascades < 1 || Light->Shadow.Cascades > 6)
 						continue;
 
-					CascadedDepthMap*& Target = Shadows.LineLight[Counter];
-					if (Light->Shadow.Cascades < 1 || Light->Shadow.Cascades > 6)
-						continue;
-
+					CascadedDepthMap*& Target = Buffers[Counter++];
 					if (!Target || Target->size() < Light->Shadow.Cascades)
-						GenerateCascadeMap(&Target, Light->Shadow.Cascades);
+						State.Scene->GenerateDepthCascades(&Target, Light->Shadow.Cascades);
 
 					Light->GenerateOrigin();
 					Light->DepthMap = Target;
@@ -1493,8 +1362,6 @@ namespace Tomahawk
 						System->SetView(Light->View[i], Light->Projection[i], 0.0f, 90.0f, 1.0f, -System->View.FarPlane, System->View.FarPlane, RenderCulling::Line);
 						System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
 					}
-
-					Counter++;
 				}
 
 				System->RestoreViewBuffer(nullptr);
@@ -1561,7 +1428,7 @@ namespace Tomahawk
 					Entity* Base = Light->GetEntity();
 					GetLightCulling(Light, Base->GetRadius(), &Position, &Scale);
 
-					if (GetPointLight(&PointLight, Light, Position, Scale))
+					if (GetPointLight(&PointLight, Light, Position, Scale, false))
 					{
 						Graphics::TextureCube* DepthMap = Light->DepthMap->GetTarget();
 						State.Device->SetTextureCube(DepthMap, 5, TH_PS);
@@ -1592,7 +1459,7 @@ namespace Tomahawk
 					Entity* Base = Light->GetEntity();
 					GetLightCulling(Light, Base->GetRadius(), &Position, &Scale);
 
-					if (GetSpotLight(&SpotLight, Light, Position, Scale))
+					if (GetSpotLight(&SpotLight, Light, Position, Scale, false))
 					{
 						Graphics::Texture2D* DepthMap = Light->DepthMap->GetTarget();
 						State.Device->SetTexture2D(DepthMap, 5, TH_PS);
@@ -1817,14 +1684,23 @@ namespace Tomahawk
 				if (!Voxels.PBuffer)
 					GenerateLightBuffers();
 
+				Compute::Vector3 Offset = 1.0f;
+				Offset.X = (VoxelBuffer.Center.X > 0.0f ? 1.0f : -1.0f);
+				Offset.Y = (VoxelBuffer.Center.Y > 0.0f ? 1.0f : -1.0f);
+				Offset.Z = (VoxelBuffer.Center.Z > 0.0f ? 1.0f : -1.0f);
+
 				size_t Count = 0;
 				for (auto* Light : Lights.Points.Top())
 				{
 					if (Count >= Voxels.MaxLights)
-						continue;
+						break;
 
-					Compute::Vector3 Position(Light->GetEntity()->GetTransform()->GetPosition()), Scale(Light->GetEntity()->GetRadius());
-					GetPointLight(&Voxels.PArray[Count], Light, Position, Scale); Count++;
+					auto* Base = Light->GetEntity();
+					Compute::Vector3 Position(Base->GetTransform()->GetPosition());
+					Compute::Vector3 Scale(Base->GetRadius());
+					Position *= Offset;
+
+					GetPointLight(&Voxels.PArray[Count++], Light, Position, Scale, true);
 				}
 
 				VoxelBuffer.Lights.X = (float)Count;
@@ -1835,14 +1711,23 @@ namespace Tomahawk
 				if (!Voxels.SBuffer)
 					GenerateLightBuffers();
 
+				Compute::Vector3 Offset = 1.0f;
+				Offset.X = (VoxelBuffer.Center.X > 0.0f ? 1.0f : -1.0f);
+				Offset.Y = (VoxelBuffer.Center.Y > 0.0f ? 1.0f : -1.0f);
+				Offset.Z = (VoxelBuffer.Center.Z > 0.0f ? 1.0f : -1.0f);
+
 				size_t Count = 0;
 				for (auto* Light : Lights.Spots.Top())
 				{
 					if (Count >= Voxels.MaxLights)
-						continue;
+						break;
 
-					Compute::Vector3 Position(Light->GetEntity()->GetTransform()->GetPosition()), Scale(Light->GetEntity()->GetRadius());
-					GetSpotLight(&Voxels.SArray[Count], Light, Position, Scale); Count++;
+					auto* Base = Light->GetEntity();
+					Compute::Vector3 Position(Base->GetTransform()->GetPosition());
+					Compute::Vector3 Scale(Base->GetRadius());
+					Position *= Offset;
+
+					GetSpotLight(&Voxels.SArray[Count++], Light, Position, Scale, true);
 				}
 
 				VoxelBuffer.Lights.Y = (float)Count;
@@ -1858,10 +1743,9 @@ namespace Tomahawk
 				{
 					auto* Light = (Components::LineLight*)*It;
 					if (Count >= Voxels.MaxLights)
-						continue;
+						break;
 
-					GetLineLight(&Voxels.LArray[Count], Light);
-					Count++;
+					GetLineLight(&Voxels.LArray[Count++], Light);
 				}
 
 				VoxelBuffer.Lights.Z = (float)Count;
@@ -1931,7 +1815,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Lighting::GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
+			bool Lighting::GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale, bool Reposition)
 			{
 				Components::PointLight* Light = (Components::PointLight*)Src;
 				auto* Entity = Light->GetEntity();
@@ -1939,7 +1823,7 @@ namespace Tomahawk
 				auto& Size = Light->GetSize();
 
 				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
-				Dest->Position = Transform->GetPosition();
+				Dest->Position = (Reposition ? Position : Transform->GetPosition());
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission);
 				Dest->Attenuation.X = Size.C1;
 				Dest->Attenuation.Y = Size.C2;
@@ -1951,14 +1835,14 @@ namespace Tomahawk
 					return false;
 				}
 
-				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.PointLightResolution / Light->Shadow.Softness;
+				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)State.Scene->GetConf().PointsSize / Light->Shadow.Softness;
 				Dest->Bias = Light->Shadow.Bias;
 				Dest->Distance = Light->Shadow.Distance;
 				Dest->Iterations = (float)Light->Shadow.Iterations;
 				Dest->Umbra = Light->Disperse;
 				return true;
 			}
-			bool Lighting::GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale)
+			bool Lighting::GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale, bool Reposition)
 			{
 				Components::SpotLight* Light = (Components::SpotLight*)Src;
 				auto* Entity = Light->GetEntity();
@@ -1968,7 +1852,7 @@ namespace Tomahawk
 				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 				Dest->ViewProjection = Light->View * Light->Projection;
 				Dest->Direction = Transform->GetRotation().dDirection();
-				Dest->Position = Transform->GetPosition();
+				Dest->Position = (Reposition ? Position : Transform->GetPosition());
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission);
 				Dest->Cutoff = Compute::Mathf::Cos(Compute::Mathf::Deg2Rad() * Light->Cutoff * 0.5f);
 				Dest->Attenuation.X = Size.C1;
@@ -1981,7 +1865,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.SpotLightResolution / Light->Shadow.Softness;
+				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)State.Scene->GetConf().SpotsSize / Light->Shadow.Softness;
 				Dest->Bias = Light->Shadow.Bias;
 				Dest->Iterations = (float)Light->Shadow.Iterations;
 				Dest->Umbra = Light->Disperse;
@@ -2008,7 +1892,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)Shadows.LineLightResolution / Light->Shadow.Softness;
+				Dest->Softness = Light->Shadow.Softness <= 0 ? 0 : (float)State.Scene->GetConf().LinesSize / Light->Shadow.Softness;
 				Dest->Iterations = (float)Light->Shadow.Iterations;
 				Dest->Bias = Light->Shadow.Bias;
 				Dest->Cascades = (float)std::min(Light->Shadow.Cascades, (uint32_t)Light->DepthMap->size());
@@ -2025,11 +1909,12 @@ namespace Tomahawk
 				if (!Light->VoxelMap)
 					return false;
 
+				auto& Conf = State.Scene->GetConf();
 				auto* Transform = Light->GetEntity()->GetTransform();
 				VoxelBuffer.Center = Transform->GetPosition();
 				VoxelBuffer.Scale = Transform->GetScale();
-				VoxelBuffer.Mips = (float)Voxels.BufferMips;
-				VoxelBuffer.Size = (float)Voxels.BufferResolution;
+				VoxelBuffer.Mips = (float)Conf.VoxelsMips;
+				VoxelBuffer.Size = (float)Conf.VoxelsSize;
 				VoxelBuffer.RayStep = Light->RayStep;
 				VoxelBuffer.MaxSteps = Light->MaxSteps;
 				VoxelBuffer.Distance = Light->Distance;
@@ -2084,25 +1969,6 @@ namespace Tomahawk
 				TH_RELEASE(Voxels.LBuffer);
 				Voxels.LBuffer = State.Device->CreateElementBuffer(F);
 				Voxels.LArray.resize(Voxels.MaxLights);
-			}
-			void Lighting::GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size)
-			{
-				CascadedDepthMap* Target = (*Result ? *Result : TH_NEW(CascadedDepthMap));
-				for (auto It = Target->begin(); It != Target->end(); ++It)
-					TH_RELEASE(*It);
-
-				Target->resize(Size);
-				for (auto It = Target->begin(); It != Target->end(); ++It)
-				{
-					Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
-					F.Width = (unsigned int)Shadows.LineLightResolution;
-					F.Height = (unsigned int)Shadows.LineLightResolution;
-					F.FormatMode = Graphics::Format::D32_Float;
-
-					*It = System->GetDevice()->CreateDepthTarget2D(F);
-				}
-
-				*Result = Target;
 			}
 			Graphics::TextureCube* Lighting::GetSkyMap()
 			{

@@ -318,15 +318,6 @@ namespace Tomahawk
 			public:
 				struct
 				{
-					std::vector<CubicDepthMap*> PointLight;
-					std::vector<LinearDepthMap*> SpotLight;
-					std::vector<CascadedDepthMap*> LineLight;
-					uint64_t PointLightResolution = 256;
-					uint64_t PointLightLimits = 4;
-					uint64_t SpotLightResolution = 512;
-					uint64_t SpotLightLimits = 8;
-					uint64_t LineLightResolution = 1024;
-					uint64_t LineLightLimits = 2;
 					Core::Ticker Tick;
 					float Distance = 0.5f;
 				} Shadows;
@@ -337,14 +328,10 @@ namespace Tomahawk
 					Graphics::ElementBuffer* SBuffer = nullptr;
 					Graphics::ElementBuffer* LBuffer = nullptr;
 					Graphics::Texture3D* LightBuffer = nullptr;
-					std::vector<std::pair<Graphics::Texture3D*, Component*>> Buffers;
 					std::vector<IPointLight> PArray;
 					std::vector<ISpotLight> SArray;
 					std::vector<ILineLight> LArray;
 					const size_t MaxLights = 64;
-					uint64_t BufferResolution = 128;
-					uint64_t BufferLimits = 16;
-					uint64_t BufferMips = 0;
 				} Voxels;
 
 				struct
@@ -390,9 +377,6 @@ namespace Tomahawk
 				size_t RenderPass(Core::Timer* Time) override;
 				void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				void Serialize(ContentManager* Content, Core::Schema* Node) override;
-				void ResizeBuffers() override;
-				void Activate() override;
-				void Deactivate() override;
 				void BeginPass() override;
 				void EndPass() override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
@@ -403,17 +387,15 @@ namespace Tomahawk
 			private:
 				float GetDominant(const Compute::Vector3& Axis);
 				bool GetSurfaceLight(ISurfaceLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
-				bool GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
-				bool GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale);
+				bool GetPointLight(IPointLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale, bool Reposition);
+				bool GetSpotLight(ISpotLight* Dest, Component* Src, Compute::Vector3& Position, Compute::Vector3& Scale, bool Reposition);
 				bool GetLineLight(ILineLight* Dest, Component* Src);
 				bool GetIlluminator(IVoxelBuffer* Dest, Component* Src);
 				void GetLightCulling(Component* Src, float Range, Compute::Vector3* Position, Compute::Vector3* Scale);
 				void GenerateLightBuffers();
-				void GenerateCascadeMap(CascadedDepthMap** Result, uint32_t Size);
 				size_t GeneratePointLights();
 				size_t GenerateSpotLights();
 				size_t GenerateLineLights();
-				void FlushBuffersAndCache();
 				void RenderResultBuffers();
 				void RenderVoxelMap(Core::Timer* Time);
 				void RenderSurfaceMaps(Core::Timer* Time);

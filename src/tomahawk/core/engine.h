@@ -10,6 +10,7 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
+		typedef std::pair<Graphics::Texture3D*, class Component*> VoxelMapping;
 		typedef Graphics::DepthTarget2D LinearDepthMap;
 		typedef Graphics::DepthTargetCube CubicDepthMap;
 		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
@@ -854,6 +855,15 @@ namespace Tomahawk
 				uint64_t StartComponents = 1ll << 13;
 				uint64_t GrowMargin = 128;
 				uint64_t MaxUpdates = 256;
+				uint64_t PointsSize = 256;
+				uint64_t PointsMax = 4;
+				uint64_t SpotsSize = 512;
+				uint64_t SpotsMax = 8;
+				uint64_t LinesSize = 1024;
+				uint64_t LinesMax = 2;
+				uint64_t VoxelsSize = 128;
+				uint64_t VoxelsMax = 4;
+				uint64_t VoxelsMips = 0;
 				double MaxFrames = 60.0;
 				double MinFrames = 10.0;
 				double FrequencyHZ = 900.0;
@@ -894,7 +904,10 @@ namespace Tomahawk
 				Graphics::SamplerState* Sampler;
 				Graphics::InputLayout* Layout;
 				Graphics::Texture2D* Merger;
-				size_t VoxelSize;
+				std::vector<CubicDepthMap*> Points;
+				std::vector<LinearDepthMap*> Spots;
+				std::vector<CascadedDepthMap*> Lines;
+				std::vector<VoxelMapping> Voxels;
 			} Display;
 
 			struct
@@ -953,7 +966,6 @@ namespace Tomahawk
 			void ScriptHook(const std::string& Name = "Main");
 			void SetActive(bool Enabled);
 			void SetTiming(double Min, double Max);
-			void SetVoxelBufferSize(size_t Size);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
 			void SwapMRT(TargetType Type, Graphics::MultiRenderTarget2D* New);
@@ -968,6 +980,7 @@ namespace Tomahawk
 			void CloneEntity(Entity* Value, CloneCallback&& Callback);
 			void MakeSnapshot(IdxSnapshot* Result);
 			void ClearCulling();
+			void GenerateDepthCascades(CascadedDepthMap** Result, uint32_t Size);
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
@@ -994,6 +1007,10 @@ namespace Tomahawk
 			std::vector<Entity*> QueryByParent(Entity* Parent);
 			std::vector<Entity*> QueryByTag(uint64_t Tag);
 			std::vector<Entity*> QueryByName(const std::string& Name);
+			std::vector<CubicDepthMap*>& GetPointsMapping();
+			std::vector<LinearDepthMap*>& GetSpotsMapping();
+			std::vector<CascadedDepthMap*>& GetLinesMapping();
+			std::vector<VoxelMapping>& GetVoxelsMapping();
 			bool AddEntity(Entity* Entity);
 			bool IsActive();
 			bool IsLeftHanded();
@@ -1001,7 +1018,6 @@ namespace Tomahawk
 			uint64_t GetMaterialsCount();
 			uint64_t GetEntitiesCount();
 			uint64_t GetComponentsCount(uint64_t Section);
-			size_t GetVoxelBufferSize();
 			bool HasEntity(Entity* Entity);
 			bool HasEntity(uint64_t Entity);
 			bool IsUnstable();
@@ -1025,6 +1041,8 @@ namespace Tomahawk
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void ProcessCullable(Component* Base);
 			void GenerateMaterialBuffer();
+			void GenerateVoxelBuffers();
+			void GenerateDepthBuffers();
 			void NotifyCosmos(Component* Base);
 			void NotifyCosmosBulk();
 			void UpdateCosmos(Component* Base);

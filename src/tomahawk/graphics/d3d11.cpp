@@ -532,7 +532,7 @@ namespace Tomahawk
 				SwapChainResource.SampleDesc.Quality = 0;
 				SwapChainResource.Windowed = I.IsWindowed;
 				SwapChainResource.Flags = 0;
-				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+				SwapChainResource.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 #if defined(TH_MICROSOFT) && defined(TH_HAS_SDL2)
 				if (I.Window != nullptr)
 				{

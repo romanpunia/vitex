@@ -2481,20 +2481,28 @@ namespace Tomahawk
 
 			RenderOpt LastOptions = State.Options;
 			RenderState LastTarget = State.Target;
+			size_t Count = 0;
 
 			State.Top++;
 			State.Options = Options;
 			State.Target = Stage;
 
-			size_t Count = 0;
 			for (auto& Next : Renderers)
 			{
 				if (Next->Active)
-				{
 					Next->BeginPass();
+			}
+
+			for (auto& Next : Renderers)
+			{
+				if (Next->Active)
 					Count += Next->RenderPass(Time);
+			}
+
+			for (auto& Next : Renderers)
+			{
+				if (Next->Active)
 					Next->EndPass();
-				}
 			}
 
 			State.Target = LastTarget;
@@ -3605,7 +3613,6 @@ namespace Tomahawk
 			Display.Blend = nullptr;
 			Display.Sampler = nullptr;
 			Display.Layout = nullptr;
-			Display.VoxelSize = 0;
 
 			Configure(I);
 			ScriptHook();
@@ -3655,6 +3662,25 @@ namespace Tomahawk
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
 			TH_RELEASE(Display.Merger);
 
+			for (auto& Item : Display.Voxels)
+				TH_RELEASE(Item.first);
+
+			for (auto* Item : Display.Points)
+				TH_RELEASE(Item);
+
+			for (auto* Item : Display.Spots)
+				TH_RELEASE(Item);
+
+			for (auto& Item : Display.Lines)
+			{
+				if (Item != nullptr)
+				{
+					for (auto* Target : *Item)
+						TH_RELEASE(Target);
+					TH_DELETE(vector, Item);
+				}
+			}
+
 			for (size_t i = 0; i < (size_t)TargetType::Count; i++)
 			{
 				TH_RELEASE(Display.MRT[i]);
@@ -3687,8 +3713,10 @@ namespace Tomahawk
 					Actors[i].Reserve(Conf.StartComponents);
 
 				SetTiming(Conf.MinFrames, Conf.MaxFrames);
-				ResizeBuffers();
 				GenerateMaterialBuffer();
+				GenerateVoxelBuffers();
+				GenerateDepthBuffers();
+				ResizeBuffers();
 
 				auto* Viewer = Camera.load();
 				if (Viewer != nullptr)
@@ -3789,6 +3817,7 @@ namespace Tomahawk
 		{
 			Redistribute();
 			Reindex();
+			Conform();
 		}
 		void SceneGraph::Redistribute()
 		{
@@ -4269,27 +4298,6 @@ namespace Tomahawk
 				It->second->Time->SetStepLimitation(Min, Max);
 			Race.unlock();
 		}
-		void SceneGraph::SetVoxelBufferSize(size_t Size)
-		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
-			Size = Size - Size % 8;
-
-			Graphics::Texture3D::Desc I;
-			I.Width = I.Height = I.Depth = Display.VoxelSize = Size;
-			I.MipLevels = 0;
-			I.Writable = true;
-
-			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
-			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = Conf.Device->CreateTexture3D(I);
-
-			I.FormatMode = Graphics::Format::R16G16B16A16_Float;
-			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
-			Display.VoxelBuffers[(size_t)VoxelType::Normal] = Conf.Device->CreateTexture3D(I);
-
-			I.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
-			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
-			Display.VoxelBuffers[(size_t)VoxelType::Surface] = Conf.Device->CreateTexture3D(I);
-		}
 		void SceneGraph::SetMRT(TargetType Type, bool Clear)
 		{
 			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
@@ -4664,6 +4672,100 @@ namespace Tomahawk
 
 			TH_RELEASE(Display.MaterialBuffer);
 			Display.MaterialBuffer = Conf.Device->CreateElementBuffer(F);
+		}
+		void SceneGraph::GenerateVoxelBuffers()
+		{
+			Conf.VoxelsSize = Conf.VoxelsSize - Conf.VoxelsSize % 8;
+			Conf.VoxelsMips = Conf.Device->GetMipLevel(Conf.VoxelsSize, Conf.VoxelsSize);
+
+			Graphics::Texture3D::Desc I;
+			I.Width = I.Height = I.Depth = Conf.VoxelsSize;
+			I.MipLevels = 0;
+			I.Writable = true;
+
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
+			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = Conf.Device->CreateTexture3D(I);
+
+			I.FormatMode = Graphics::Format::R16G16B16A16_Float;
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
+			Display.VoxelBuffers[(size_t)VoxelType::Normal] = Conf.Device->CreateTexture3D(I);
+
+			I.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
+			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
+			Display.VoxelBuffers[(size_t)VoxelType::Surface] = Conf.Device->CreateTexture3D(I);
+
+			I.MipLevels = Conf.VoxelsMips;
+			Display.Voxels.resize(Conf.VoxelsMax);
+			for (auto& Item : Display.Voxels)
+			{
+				TH_RELEASE(Item.first);
+				Item.first = Conf.Device->CreateTexture3D(I);
+				Item.second = nullptr;
+			}
+
+			Core::VariantArgs Args;
+			SetEvent("voxel-flush", std::move(Args), true);
+		}
+		void SceneGraph::GenerateDepthBuffers()
+		{
+			for (auto& Item : Display.Points)
+				TH_CLEAR(Item);
+
+			for (auto& Item : Display.Spots)
+				TH_CLEAR(Item);
+
+			for (auto& Item : Display.Lines)
+			{
+				if (Item != nullptr)
+				{
+					for (auto* Target : *Item)
+						TH_CLEAR(Target);
+					TH_DELETE(vector, Item);
+					Item = nullptr;
+				}
+			}
+
+			Display.Points.resize(Conf.PointsMax);
+			for (auto& Item : Display.Points)
+			{
+				Graphics::DepthTargetCube::Desc F = Graphics::DepthTargetCube::Desc();
+				F.Size = (unsigned int)Conf.PointsSize;
+				F.FormatMode = Graphics::Format::D32_Float;
+				Item = Conf.Device->CreateDepthTargetCube(F);
+			}
+
+			Display.Spots.resize(Conf.SpotsMax);
+			for (auto& Item : Display.Spots)
+			{
+				Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
+				F.Width = F.Height = (unsigned int)Conf.SpotsSize;
+				F.FormatMode = Graphics::Format::D32_Float;
+				Item = Conf.Device->CreateDepthTarget2D(F);
+			}
+
+			Display.Lines.resize(Conf.LinesMax);
+			for (auto& Item : Display.Lines)
+				Item = nullptr;
+
+			Core::VariantArgs Args;
+			SetEvent("depth-flush", std::move(Args), true);
+		}
+		void SceneGraph::GenerateDepthCascades(CascadedDepthMap** Result, uint32_t Size)
+		{
+			CascadedDepthMap* Target = (*Result ? *Result : TH_NEW(CascadedDepthMap));
+			for (auto& Item : *Target)
+				TH_RELEASE(Item);
+
+			Target->resize(Size);
+			for (auto& Item : *Target)
+			{
+				Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
+				F.Width = F.Height = (unsigned int)Conf.LinesSize;
+				F.FormatMode = Graphics::Format::D32_Float;
+				Item = Conf.Device->CreateDepthTarget2D(F);
+			}
+
+			*Result = Target;
 		}
 		void SceneGraph::NotifyCosmos(Component* Base)
 		{
@@ -5082,6 +5184,22 @@ namespace Tomahawk
 
 			return Array;
 		}
+		std::vector<CubicDepthMap*>& SceneGraph::GetPointsMapping()
+		{
+			return Display.Points;
+		}
+		std::vector<LinearDepthMap*>& SceneGraph::GetSpotsMapping()
+		{
+			return Display.Spots;
+		}
+		std::vector<CascadedDepthMap*>& SceneGraph::GetLinesMapping()
+		{
+			return Display.Lines;
+		}
+		std::vector<VoxelMapping>& SceneGraph::GetVoxelsMapping()
+		{
+			return Display.Voxels;
+		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{
 			TH_ASSERT(Entity != nullptr, false, "entity should be set");
@@ -5133,10 +5251,6 @@ namespace Tomahawk
 		uint64_t SceneGraph::GetMaterialsCount()
 		{
 			return Materials.Size();
-		}
-		size_t SceneGraph::GetVoxelBufferSize()
-		{
-			return Display.VoxelSize;
 		}
 		Graphics::MultiRenderTarget2D* SceneGraph::GetMRT(TargetType Type)
 		{

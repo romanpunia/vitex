@@ -2731,6 +2731,11 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				NMake::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
+			void PointLight::Message(const std::string& Name, Core::VariantArgs& Args)
+			{
+				if (Name == "depth-flush")
+					DepthMap = nullptr;
+			}
 			size_t PointLight::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
 			{
 				Min = Size.Radius * -1.25f;
@@ -2804,6 +2809,11 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("shadow-softness"), Shadow.Softness);
 				NMake::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
 				NMake::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
+			}
+			void SpotLight::Message(const std::string& Name, Core::VariantArgs& Args)
+			{
+				if (Name == "depth-flush")
+					DepthMap = nullptr;
 			}
 			void SpotLight::Synchronize(Core::Timer* Time)
 			{
@@ -2916,6 +2926,11 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("inner-radius"), Sky.InnerRadius);
 				NMake::Pack(Node->Set("outer-radius"), Sky.OuterRadius);
 				NMake::Pack(Node->Set("sky-intensity"), Sky.Intensity);
+			}
+			void LineLight::Message(const std::string& Name, Core::VariantArgs& Args)
+			{
+				if (Name == "depth-flush")
+					DepthMap = nullptr;
 			}
 			Component* LineLight::Copy(Entity* New)
 			{
@@ -3303,6 +3318,14 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("specular"), Specular);
 				NMake::Pack(Node->Set("bleeding"), Bleeding);
 			}
+			void Illuminator::Message(const std::string& Name, Core::VariantArgs& Args)
+			{
+				if (Name == "depth-flush")
+				{
+					VoxelMap = nullptr;
+					Regenerate = true;
+				}
+			}
 			Component* Illuminator::Copy(Entity* New)
 			{
 				Illuminator* Target = new Illuminator(New);
@@ -3316,11 +3339,6 @@ namespace Tomahawk
 				Target->Specular = Specular;
 
 				return Target;
-			}
-			void Illuminator::Reset()
-			{
-				VoxelMap = nullptr;
-				Regenerate = true;
 			}
 
 			Camera::Camera(Entity* Ref) : Component(Ref, ActorSet::Synchronize), Mode(ProjectionMode_Perspective), Renderer(new RenderSystem(Ref->GetScene())), Viewport({ 0, 0, 512, 512, 0, 1 })

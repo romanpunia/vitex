@@ -2432,7 +2432,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr), Promises(0), Nests(0)
+		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr), Nests(0)
 		{
 			TH_ASSERT_V(Base != nullptr, "context should be set");
 			Manager = VMManager::Get(Base->GetEngine());
@@ -2441,7 +2441,6 @@ namespace Tomahawk
 		}
 		VMContext::~VMContext()
 		{
-			TH_ASSERT_V(!IsPending(), "there are %i promises still pending", (int)Promises.size());
 			while (!Queue.empty())
 			{
 				Queue.front().Function.Release();
@@ -2483,7 +2482,7 @@ namespace Tomahawk
 		{
 			auto& OnResume = Notify[1] ? Notify[1] : Notify[0];
 			asEContextState State = (asEContextState)Status;
-			if ((!Unroll && Promises.empty() && !Queue.empty()) || (Unroll && !Queue.empty() && !Context->IsNested(nullptr)))
+			if ((!Unroll && !Queue.empty()) || (Unroll && !Queue.empty() && !Context->IsNested(nullptr)))
 			{
 				if (OnResume)
 					OnResume(this, VMPoll::Routine);
@@ -2507,10 +2506,8 @@ namespace Tomahawk
 			
 			if (!OnResume)
 				return Unroll;
-
-			if (!Promises.empty())
-				OnResume(this, VMPoll::Continue);
-			else if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
+			
+			if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
 				OnResume(this, VMPoll::Finish);
 			else if (State == asEXECUTION_ERROR)
 				OnResume(this, VMPoll::Exception);
@@ -2524,7 +2521,7 @@ namespace Tomahawk
 		bool VMContext::Enqueue(int Status, const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{
 			asEContextState State = (asEContextState)Status;
-			if (Promises.empty() && State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
+			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
 				return false;
 			
 			Executable Next;
@@ -2537,46 +2534,6 @@ namespace Tomahawk
 			Queue.push(std::move(Next));
 			Exchange.unlock();
 			return true;
-		}
-		void VMContext::PromiseAwake(STDPromise* Base)
-		{
-			TH_ASSERT_V(Context != nullptr, "context should be set");
-			Exchange.lock();
-			if (Base != nullptr)
-				Promises.insert(Base);
-			Exchange.unlock();
-		}
-		void VMContext::PromiseSuspend(STDPromise* Base)
-		{
-			TH_ASSERT_V(Context != nullptr, "context should be set");
-			Exchange.lock();
-			if (Base != nullptr)
-			{
-				if (!Base->Future)
-				{
-					Promises.insert(Base);
-					if (Context->GetState() == asEXECUTION_ACTIVE)
-						Context->Suspend();
-				}
-				else
-					Promises.erase(Base);
-			}
-			Exchange.unlock();
-		}
-		void VMContext::PromiseResume(STDPromise* Base)
-		{
-			Exchange.lock();
-			if (Base != nullptr && Base->Future != nullptr)
-			{
-				auto It = Promises.find(Base);
-				if (It != Promises.end())
-				{
-					Promises.erase(Base);
-					Exchange.unlock();
-					return (void)Execute();
-				}
-			}
-			Exchange.unlock();
 		}
 		int VMContext::SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
@@ -2735,7 +2692,7 @@ namespace Tomahawk
 		bool VMContext::IsPending()
 		{
 			Exchange.lock();
-			bool Result = (!Promises.empty() || !Queue.empty());
+			bool Result = (!Queue.empty());
 			Exchange.unlock();
 
 			return Result;

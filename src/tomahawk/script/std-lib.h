@@ -720,6 +720,7 @@ namespace Tomahawk
 			VMCManager* Engine;
 			VMContext* Context;
 			STDAny* Future;
+			bool Pending;
 			bool Flag;
 			int Ref;
 
@@ -742,7 +743,7 @@ namespace Tomahawk
 
 		private:
 			static STDPromise* Create();
-			static STDPromise* Jump(STDPromise* Value);
+			static STDPromise* JumpIf(STDPromise* Base);
 
 		public:
 			template <typename T, T>
@@ -760,7 +761,7 @@ namespace Tomahawk
 						Future->Set((void*)&Result, (int)TypeId);
 					});
 
-					return Jump(Future);
+					return JumpIf(Future);
 				}
 				template <uint64_t TypeRef>
 				static STDPromise* Decl(T* Base, Args... Data)
@@ -772,7 +773,7 @@ namespace Tomahawk
 						Future->Set((void*)&Result, TypeId);
 					});
 
-					return Jump(Future);
+					return JumpIf(Future);
 				}
 			};
 		};

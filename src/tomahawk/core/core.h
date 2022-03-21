@@ -1819,7 +1819,7 @@ namespace Tomahawk
 		public:
 			std::atomic<uint32_t> Count;
 			std::atomic<short> Set;
-			std::function<void()> Resolve;
+			std::function<void(bool)> Resolve;
 			std::mutex RW;
 			T Result;
 
@@ -1838,13 +1838,13 @@ namespace Tomahawk
 				Count++;
 				return this;
 			}
-			void Put(std::function<void()>&& Callback) noexcept
+			void Put(std::function<void(bool)>&& Callback) noexcept
 			{
 				RW.lock();
 				if (Set > 0)
 				{
 					RW.unlock();
-					return Callback();
+					return Callback(false);
 				}
 
 				Resolve = std::move(Callback);
@@ -1854,7 +1854,7 @@ namespace Tomahawk
 			{
 				RW.lock();
 				if (Resolve)
-					Resolve();
+					Resolve(true);
 				RW.unlock();
 			}
 			void React(T&& Value) noexcept
@@ -1863,7 +1863,7 @@ namespace Tomahawk
 				Set = 1;
 				Result = std::move(Value);
 				if (Resolve)
-					Resolve();
+					Resolve(true);
 				RW.unlock();
 			}
 			void React(const T& Value) noexcept
@@ -1872,7 +1872,7 @@ namespace Tomahawk
 				Set = 1;
 				Result = Value;
 				if (Resolve)
-					Resolve();
+					Resolve(true);
 				RW.unlock();
 			}
 			void Free() noexcept
@@ -2012,14 +2012,22 @@ namespace Tomahawk
 				TH_ASSERT_V(Next != nullptr && Callback, "async should be pending");
 
 				context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Callback = std::move(Callback)]()
+				Next->Put([Subresult, Callback = std::move(Callback)](bool Deferred)
 				{
-					Schedule* Queue = Schedule::Get();
-					Queue->SetTask([Subresult, Callback = std::move(Callback)]()
+					if (Deferred)
+					{
+						Schedule* Queue = Schedule::Get();
+						Queue->SetTask([Subresult, Callback = std::move(Callback)]()
+						{
+							Callback(std::move(Subresult->Result));
+							Subresult->Free();
+						}, Difficulty::Light);
+					}
+					else
 					{
 						Callback(std::move(Subresult->Result));
 						Subresult->Free();
-					}, Difficulty::Light);
+					}
 				});
 			}
 			bool IsPending() const noexcept
@@ -2073,14 +2081,22 @@ namespace Tomahawk
 				TH_ASSERT(Next != nullptr && Callback, Async<R>::Move(), "async should be pending");
 
 				Async<R> Result; context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
+				Next->Put([Subresult, Result, Callback = std::move(Callback)](bool Deferred) mutable
 				{
-					Schedule* Queue = Schedule::Get();
-					Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
+					if (Deferred)
+					{
+						Schedule* Queue = Schedule::Get();
+						Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
+						{
+							Callback(Result, std::move(Subresult->Result));
+							Subresult->Free();
+						}, Difficulty::Light);
+					}
+					else
 					{
 						Callback(Result, std::move(Subresult->Result));
 						Subresult->Free();
-					}, Difficulty::Light);
+					}
 				});
 
 				return Result;
@@ -2092,14 +2108,22 @@ namespace Tomahawk
 				TH_ASSERT(Next != nullptr && Callback, Async<F>::Move(), "async should be pending");
 
 				Async<F> Result; context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
+				Next->Put([Subresult, Result, Callback = std::move(Callback)](bool Deferred) mutable
 				{
-					Schedule* Queue = Schedule::Get();
-					Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
+					if (Deferred)
+					{
+						Schedule* Queue = Schedule::Get();
+						Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
+						{
+							Result.Set(std::move(Callback(std::move(Subresult->Result))));
+							Subresult->Free();
+						}, Difficulty::Light);
+					}
+					else
 					{
 						Result.Set(std::move(Callback(std::move(Subresult->Result))));
 						Subresult->Free();
-					}, Difficulty::Light);
+					}
 				});
 
 				return Result;

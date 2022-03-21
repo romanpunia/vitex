@@ -35,8 +35,6 @@ namespace Tomahawk
 {
 	namespace Script
 	{
-		class STDPromise;
-
 		struct VMModule;
 
 		struct VMFunction;
@@ -1551,8 +1549,6 @@ namespace Tomahawk
 
 		class TH_OUT VMContext : public Core::Object
 		{
-			friend STDPromise;
-
 		private:
 			static int ContextUD;
 
@@ -1565,7 +1561,6 @@ namespace Tomahawk
 			};
 
 		private:
-			std::unordered_set<STDPromise*> Promises;
 			std::queue<Executable> Queue;
 			std::atomic<size_t> Nests;
 			std::string Stack;
@@ -1654,9 +1649,6 @@ namespace Tomahawk
 		private:
 			bool Dequeue(bool Unroll, int Status);
 			bool Enqueue(int Status, const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
-			void PromiseAwake(STDPromise* Base);
-			void PromiseSuspend(STDPromise* Base);
-			void PromiseResume(STDPromise* Base);
 
 		public:
 			static VMContext* Get(VMCContext* Context);

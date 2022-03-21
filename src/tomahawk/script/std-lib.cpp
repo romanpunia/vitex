@@ -4380,15 +4380,14 @@ namespace Tomahawk
 		int STDThread::ContextUD = 550;
 		int STDThread::EngineListUD = 551;
 
-		STDPromise::STDPromise(VMCContext* _Base) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(2), Flag(false)
+		STDPromise::STDPromise(VMCContext* _Base) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Flag(false), Pending(false)
 		{
 			if (!Context)
 				return;
 
+			Context->AddRef();
 			Engine = Context->GetManager()->GetEngine();
 			Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName("Promise"));
-			Context->PromiseAwake(this);
-			Context->AddRef();
 		}
 		void STDPromise::Release()
 		{
@@ -4441,22 +4440,20 @@ namespace Tomahawk
 			if (Future != nullptr)
 				return -1;
 
-			AddRef();
-			Context->AddRef();
 			if (Future != nullptr)
 				Future->Release();
-			Future = new(asAllocMem(sizeof(STDAny))) STDAny(_Ref, TypeId, Engine);
-			Release();
 
+			Future = new(asAllocMem(sizeof(STDAny))) STDAny(_Ref, TypeId, Engine);
 			if (TypeId & asTYPEID_OBJHANDLE)
 				Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
 
-			return Core::Schedule::Get()->SetTask([this]()
-			{
-				Context->PromiseResume(this);
-				Context->Release();
-				this->Release();
-			}, Core::Difficulty::Light) ? 0 : -1;
+			bool WasPending = Pending;
+			Context->Execute();
+
+			if (WasPending)
+				Release();
+
+			return 0;
 		}
 		int STDPromise::Set(void* _Ref, const char* TypeName)
 		{
@@ -4501,23 +4498,18 @@ namespace Tomahawk
 		}
 		STDPromise* STDPromise::Create()
 		{
-			VMCContext* Context = asGetActiveContext();
-			if (!Context)
-				return nullptr;
-
-			VMCManager* Engine = Context->GetEngine();
-			if (!Engine)
-				return nullptr;
-
-			return new(asAllocMem(sizeof(STDPromise))) STDPromise(Context);
+			return new(asAllocMem(sizeof(STDPromise))) STDPromise(asGetActiveContext());
 		}
-		STDPromise* STDPromise::Jump(STDPromise* Value)
+		STDPromise* STDPromise::JumpIf(STDPromise* Base)
 		{
-			VMContext* Context = VMContext::Get();
-			if (Context != nullptr)
-				Context->PromiseSuspend(Value);
+			if (!Base->Future && Base->Context != nullptr)
+			{
+				Base->AddRef();
+				Base->Pending = true;
+				Base->Context->Suspend();
+			}
 
-			return Value;
+			return Base;
 		}
 
 		bool STDRegisterAny(VMManager* Manager)

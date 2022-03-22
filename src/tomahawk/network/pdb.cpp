@@ -2519,11 +2519,19 @@ namespace Tomahawk
 					case Core::VarType::Integer:
 						return std::to_string(Negate ? -Source->Value.GetInteger() : Source->Value.GetInteger());
 					case Core::VarType::Number:
-						return std::to_string(Negate ? -Source->Value.GetNumber() : Source->Value.GetNumber());
+					{
+						bool Trailing = (Source->Value.GetNumber() != (double)Source->Value.GetInteger());
+						std::string Result = std::to_string(Negate ? -Source->Value.GetNumber() : Source->Value.GetNumber());
+						return Trailing ? Result : Result + ".0";
+					}
 					case Core::VarType::Boolean:
 						return (Negate ? !Source->Value.GetBoolean() : Source->Value.GetBoolean()) ? "TRUE" : "FALSE";
 					case Core::VarType::Decimal:
-						return (Negate ? '-' + Source->Value.GetDecimal().ToString() : Source->Value.GetDecimal().ToString());
+					{
+						Core::Decimal Value = Source->Value.GetDecimal();
+						std::string Result = (Negate ? '-' + Value.ToString() : Value.ToString());
+						return Result.find('.') != std::string::npos ? Result : Result + ".0";
+					}
 					case Core::VarType::Base64:
 						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());
 					case Core::VarType::Null:

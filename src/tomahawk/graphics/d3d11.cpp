@@ -1881,7 +1881,7 @@ namespace Tomahawk
 				F.RenderSurface = (void*)BackBuffer;
 
 				RenderTarget = CreateRenderTarget2D(F);
-				SetTarget(RenderTarget);
+				SetTarget(RenderTarget, 0);
 				D3D_RELEASE(BackBuffer);
 
 				return true;

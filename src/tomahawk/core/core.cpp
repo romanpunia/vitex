@@ -7885,12 +7885,16 @@ namespace Tomahawk
 		void Schedule::Desc::SetThreads(uint64_t Cores)
 		{
 			uint64_t Total = (uint64_t)Difficulty::Count;
+			if (Cores < Total)
+				Cores = Total;
+
 			uint64_t Falloff = Cores % Total;
 			uint64_t Group = (Cores - Falloff) / Total;
 			for (uint64_t i = 0; i < Total; i++)
 				Threads[i] = Group;
 
 			Threads[Total - 1] += Falloff;
+			Async = true;
 		}
 
 		Schedule::Schedule() : Comain(nullptr), Timer(0), Generation(0), Terminate(false), Active(false), Enqueue(true)
@@ -8170,9 +8174,11 @@ namespace Tomahawk
 					return false;
 				}
 
-				TH_TRACE("join thread %s", OS::Process::GetThreadId(Thread.get_id()).c_str());
 				if (Thread.joinable())
+				{
+					TH_TRACE("join thread %s", OS::Process::GetThreadId(Thread.get_id()).c_str());
 					Thread.join();
+				}
 			}
 
 			Childs.clear();
@@ -8212,18 +8218,11 @@ namespace Tomahawk
 			if (!Comain)
 				Comain = new Costate(Policy.Memory);
 
-			bool Fill = false;
-			for (size_t i = 0; i < (size_t)Difficulty::Count; ++i)
-			{
-				Difficulty Type = (Difficulty)i;
-				int CPipes = DispatchPipe(Type, Comain);
-				int CTasks = DispatchTask(Type, nullptr);
-				if (CPipes != -1 || CTasks != -1)
-					Fill = true;
-			}
-
+			int CPipes = DispatchPipe(Comain);
 			int CTimers = DispatchTimer(nullptr);
-			return Fill || CTimers != -1;
+			int CTasks = DispatchTask();
+
+			return CPipes != -1 || CTasks != -1 || CTimers != -1;
 		}
 		bool Schedule::Publish()
 		{
@@ -8295,37 +8294,6 @@ namespace Tomahawk
 
 			return true;
 		}
-		int Schedule::DispatchPipe(Difficulty Type, Costate* State)
-		{
-			TQueue* SQueue = (TQueue*)Pipes;
-			TaskCallback* Data = nullptr;
-			int Count = -1;
-
-			goto ResolveNext;
-			while (State->GetCount() > 0)
-			{
-				TH_PPUSH("dispatch-pipe", TH_PERF_CORE);
-				Count = State->Dispatch();
-				TH_PPOP();
-
-				if (Count == -1)
-					break;
-
-				DispatchTimer(nullptr);
-				DispatchTask(Type, nullptr);
-			ResolveNext:
-				while (SQueue->try_dequeue(Data) && State->GetCount() < Policy.Coroutines)
-				{
-					State->Pop(std::move(*Data));
-					TH_DELETE(function, Data);
-				}
-
-				if (SQueue->size_approx() > 0 && State->GetCount() < Policy.Coroutines)
-					goto ResolveNext;
-			}
-
-			return Data != nullptr ? 1 : -1;
-		}
 		int Schedule::DispatchPipe(Difficulty Type, Costate* State, void* Token)
 		{
 			CToken* SToken = (CToken*)Token;
@@ -8361,6 +8329,37 @@ namespace Tomahawk
 
 			return Data != nullptr ? 1 : -1;
 		}
+		int Schedule::DispatchPipe(Costate* State)
+		{
+			TQueue* SQueue = (TQueue*)Pipes;
+			TaskCallback* Data = nullptr;
+			int Count = -1;
+
+			goto ResolveNext;
+			while (State->GetCount() > 0)
+			{
+				TH_PPUSH("dispatch-pipe", TH_PERF_CORE);
+				Count = State->Dispatch();
+				TH_PPOP();
+
+				if (Count == -1)
+					break;
+
+				DispatchTimer(nullptr);
+				DispatchTask();
+			ResolveNext:
+				while (SQueue->try_dequeue(Data) && State->GetCount() < Policy.Coroutines)
+				{
+					State->Pop(std::move(*Data));
+					TH_DELETE(function, Data);
+				}
+
+				if (SQueue->size_approx() > 0 && State->GetCount() < Policy.Coroutines)
+					goto ResolveNext;
+			}
+
+			return Data != nullptr ? 1 : -1;
+		}
 		int Schedule::DispatchTask(Difficulty Type, void* Token)
 		{
 			CToken* SToken = (CToken*)Token;
@@ -8380,6 +8379,15 @@ namespace Tomahawk
 			}
 
 			return Data != nullptr ? 1 : -1;
+		}
+		int Schedule::DispatchTask()
+		{
+			int Result1 = DispatchTask(Difficulty::Light, nullptr);
+			int Result2 = DispatchTask(Difficulty::Heavy, nullptr);
+			if (Result1 == -1 && Result2 == -1)
+				return -1;
+
+			return (Result1 == -1 ? 0 : Result1) + (Result2 == -1 ? 0 : Result2);
 		}
 		int Schedule::DispatchTimer(std::chrono::microseconds* When)
 		{

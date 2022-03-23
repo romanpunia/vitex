@@ -1384,7 +1384,7 @@ namespace Tomahawk
 		class TH_OUT Schedule : public Object
 		{
 		public:
-			struct Desc
+			struct TH_OUT Desc
 			{
 				ActivityCallback Ping = nullptr;
 				uint64_t Threads[(size_t)Difficulty::Count] = { 0 };
@@ -1452,9 +1452,10 @@ namespace Tomahawk
 		private:
 			bool Publish();
 			bool Consume(Difficulty Type);
-			int DispatchPipe(Difficulty Type, Costate* State);
 			int DispatchPipe(Difficulty Type, Costate* State, void* Token);
+			int DispatchPipe(Costate* State);
 			int DispatchTask(Difficulty Type, void* Token);
+			int DispatchTask();
 			int DispatchTimer(std::chrono::microseconds* When);
 			size_t GetSubindex(Difficulty Type);
 			TimerId GetTimeout(std::chrono::microseconds& Clock, bool Next);

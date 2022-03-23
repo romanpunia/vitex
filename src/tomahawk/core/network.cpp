@@ -595,7 +595,6 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_PPUSH("sock-send", TH_PERF_NET);
-
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -2504,8 +2503,8 @@ namespace Tomahawk
 		{
 			if (Stream.IsValid())
 			{
-				Stream.SetBlocking(true);
-				OnClose();
+				int Result = TH_AWAIT(Close());
+				TH_WARN("[net:%i] socket client leaking\n\tconsider manual termination", Result);
 			}
 
 #ifdef TH_HAS_OPENSSL

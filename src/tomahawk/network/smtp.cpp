@@ -43,7 +43,7 @@ namespace Tomahawk
 	{
 		namespace SMTP
 		{
-			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Pending(false), Staging(false), Authorized(false)
+			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), Hoster(Domain), AttachmentFile(nullptr), Pending(false), Staging(false), Authorized(false)
 			{
 				AutoCertify = false;
 			}
@@ -69,7 +69,7 @@ namespace Tomahawk
 				Authorized = Staging = false;
 				return ReadResponse(220, [this]()
 				{
-					SendRequest(250, Core::Form("EHLO %s\r\n", Request.Hostname.empty() ? "domain" : Request.Hostname.c_str()).R(), [this]()
+					SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()
 					{
 						if (this->Hostname.Secure)
 						{
@@ -81,7 +81,7 @@ namespace Tomahawk
 								if (!Certify())
 									return;
 
-								SendRequest(250, Core::Form("EHLO %s\r\n", Request.Hostname.empty() ? "domain" : Request.Hostname.c_str()).R(), [this]()
+								SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()
 								{
 									Success(0);
 								});
@@ -684,7 +684,12 @@ namespace Tomahawk
 					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](NetEvent Event, size_t Sent)
 					{
 						if (Packet::IsDone(Event))
-							Success(0);
+						{
+							ReadResponses(250, [this]()
+							{
+								Success(0);
+							});
+						}
 						else if (Packet::IsErrorOrSkip(Event))
 							Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
 					});

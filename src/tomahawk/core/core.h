@@ -181,7 +181,7 @@ typedef socklen_t socket_size_t;
 #define TH_SPOP(Id) Tomahawk::Core::OS::SpecPop((void*)(Id))
 #define TH_ORET(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::SpecPop((void*)(Id)); return __vfbuf; }
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FILE, TH_FUNCTION, "coawait of [ " TH_STRINGIFY(Value) " ]", TH_LINE)
-#define TH_CLOSE(Stream) { TH_TRACE("close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
+#define TH_CLOSE(Stream) { TH_TRACE("[io] close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
 #else
 #define TH_ASSERT(Condition, Returnable, Format, ...) ((void)0)
 #define TH_ASSERT_V(Condition, Format, ...) ((void)0)

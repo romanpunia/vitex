@@ -5460,11 +5460,14 @@ namespace Tomahawk
 		bool WebStream::Close()
 		{
 			auto* Client = (Network::HTTP::Client*)Resource;
+			if (Client != nullptr)
+				TH_AWAIT(Client->Close());
+
 			TH_RELEASE(Client);
 			Resource = nullptr;
 			Offset = Size = 0;
-			std::string().swap(Buffer);
 
+			std::string().swap(Buffer);
 			return true;
 		}
 		bool WebStream::Seek(FileSeek Mode, int64_t NewOffset)

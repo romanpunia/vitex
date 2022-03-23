@@ -44,7 +44,6 @@ namespace Tomahawk
 				std::string Receiver;
 				std::string Login;
 				std::string Password;
-				std::string Hostname;
 				Priority Prior = Priority::Normal;
 				bool Authenticate = true;
 				bool NoNotification = false;
@@ -59,13 +58,14 @@ namespace Tomahawk
 				std::string Buffer;
 				std::string Command;
 				std::string Boundary;
+				std::string Hoster;
 				RequestFrame Request;
 				int64_t Pending;
 				bool Staging;
 				bool Authorized;
 
 			public:
-				Client(int64_t ReadTimeout);
+				Client(const std::string& Domain, int64_t ReadTimeout);
 				virtual ~Client() override;
 				Core::Async<int> Send(RequestFrame&& Root);
 				RequestFrame* GetRequest();

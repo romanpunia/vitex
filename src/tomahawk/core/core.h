@@ -1400,13 +1400,13 @@ namespace Tomahawk
 		private:
 			struct
 			{
-				std::condition_variable Consume[(size_t)Difficulty::Count];
+				std::condition_variable Consume;
 				std::condition_variable Publish;
 			} Queue;
 
 			struct
 			{
-				std::mutex Consume[(size_t)Difficulty::Count];
+				std::mutex Consume;
 				std::mutex Publish;
 				std::mutex Exclusive;
 				std::mutex Timing;

@@ -7949,7 +7949,7 @@ namespace Tomahawk
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Publish.notify_all();
 
 			TH_PPOP();
 			return Id;
@@ -7970,7 +7970,7 @@ namespace Tomahawk
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Publish.notify_all();
 
 			TH_PPOP();
 			return Id;
@@ -7991,7 +7991,7 @@ namespace Tomahawk
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Publish.notify_all();
 
 			TH_PPOP();
 			return Id;
@@ -8012,7 +8012,7 @@ namespace Tomahawk
 			Race.Timing.unlock();
 
 			if (!Childs.empty())
-				Queue.Publish.notify_one();
+				Queue.Publish.notify_all();
 
 			TH_PPOP();
 			return Id;
@@ -8024,12 +8024,11 @@ namespace Tomahawk
 				return false;
 
 			TH_PPUSH("schedule-task", TH_PERF_ATOM);
-			size_t Index = GetSubindex(Type);
-			auto* Subqueue = (TQueue*)Tasks[Index];
+			auto* Subqueue = (TQueue*)Tasks[GetSubindex(Type)];
 			Subqueue->enqueue(TH_NEW(TaskCallback, Callback));
 
 			if (!Childs.empty())
-				Queue.Consume[Index].notify_one();
+				Queue.Consume.notify_all();
 
 			TH_PPOP();
 			return true;
@@ -8041,12 +8040,11 @@ namespace Tomahawk
 				return false;
 
 			TH_PPUSH("schedule-task", TH_PERF_ATOM);
-			size_t Index = GetSubindex(Type);
-			auto* Subqueue = (TQueue*)Tasks[Index];
+			auto* Subqueue = (TQueue*)Tasks[GetSubindex(Type)];
 			Subqueue->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
 
 			if (!Childs.empty())
-				Queue.Consume[Index].notify_one();
+				Queue.Consume.notify_all();
 
 			TH_PPOP();
 			return true;
@@ -8068,7 +8066,7 @@ namespace Tomahawk
 			Subqueue->enqueue(TH_NEW(TaskCallback, Callback));
 
 			if (!Childs.empty())
-				Queue.Consume[(size_t)Difficulty::Light].notify_one();
+				Queue.Consume.notify_all();
 
 			TH_PPOP();
 			return true;
@@ -8090,7 +8088,7 @@ namespace Tomahawk
 			Subqueue->enqueue(TH_NEW(TaskCallback, std::move(Callback)));
 
 			if (!Childs.empty())
-				Queue.Consume[(size_t)Difficulty::Light].notify_one();
+				Queue.Consume.notify_all();
 
 			TH_PPOP();
 			return true;
@@ -8119,8 +8117,7 @@ namespace Tomahawk
 		bool Schedule::Wakeup()
 		{
 			Queue.Publish.notify_all();
-			for (size_t i = 0; i < (size_t)Difficulty::Count; ++i)
-				Queue.Consume[i].notify_all();
+			Queue.Consume.notify_all();
 
 			return true;
 		}
@@ -8155,10 +8152,8 @@ namespace Tomahawk
 			}
 
 			Active = true;
-			Queue.Publish.notify_one();
-
-			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
-				Queue.Consume[i].notify_one();
+			Queue.Publish.notify_all();
+			Queue.Consume.notify_all();
 
 			if (Policy.Ping)
 				return Publish();
@@ -8273,7 +8268,7 @@ namespace Tomahawk
 				CToken TToken(*((TQueue*)Tasks[(size_t)Type]));
 				void* TContext = (void*)&TToken;
 				Costate* State = State = new Costate(Policy.Memory);
-				State->SetWaitable(&Queue.Consume[(size_t)Type]);
+				State->SetWaitable(&Queue.Consume);
 				if (!Active)
 					goto LWait;
 
@@ -8284,8 +8279,8 @@ namespace Tomahawk
 					if (CPipes != -1 || CTasks != -1)
 						continue;
 				LWait:
-					std::unique_lock<std::mutex> Lock(Race.Consume[(size_t)Type]);
-					Queue.Consume[(size_t)Type].wait(Lock);
+					std::unique_lock<std::mutex> Lock(Race.Consume);
+					Queue.Consume.wait(Lock);
 				} while (Active);
 				TH_RELEASE(State);
 			}
@@ -8301,8 +8296,8 @@ namespace Tomahawk
 					if (DispatchTask(Type, TContext) != -1)
 						continue;
 				HWait:
-					std::unique_lock<std::mutex> Lock(Race.Consume[(size_t)Type]);
-					Queue.Consume[(size_t)Type].wait(Lock);
+					std::unique_lock<std::mutex> Lock(Race.Consume);
+					Queue.Consume.wait(Lock);
 				} while (Active);
 			}
 
@@ -8327,7 +8322,7 @@ namespace Tomahawk
 
 				if (DispatchTask(Type, nullptr) == -1 && Count == 0 && State->HasWaitable())
 				{
-					std::unique_lock<std::mutex> Lock(Race.Consume[(size_t)Type]);
+					std::unique_lock<std::mutex> Lock(Race.Consume);
 					State->GetWaitable()->wait(Lock);
 				}
 			ResolveNext:

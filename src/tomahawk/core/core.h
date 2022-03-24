@@ -384,6 +384,8 @@ namespace Tomahawk
 			Decimal& Unlead();
 			Decimal& Untrail();
 			bool IsNaN() const;
+			bool IsZero() const;
+			bool IsZeroOrNaN() const;
 			double ToDouble() const;
 			int64_t ToInt64() const;
 			uint64_t ToUInt64() const;

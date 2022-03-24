@@ -541,6 +541,20 @@ namespace Tomahawk
 		{
 			return Invalid;
 		}
+		bool Decimal::IsZero() const
+		{
+			for (auto& Item : Source)
+			{
+				if (Item != '0')
+					return false;
+			}
+
+			return true;
+		}
+		bool Decimal::IsZeroOrNaN() const
+		{
+			return Invalid || IsZero();
+		}
 		double Decimal::ToDouble() const
 		{
 			if (Invalid)

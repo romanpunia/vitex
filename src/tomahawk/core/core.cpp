@@ -5275,7 +5275,7 @@ namespace Tomahawk
 			TH_PPUSH("gz-stream-close", TH_PERF_IO);
 			if (Resource != nullptr)
 			{
-				TH_TRACE("[gz] close 0x%p", (void*)Resource);
+				TH_TRACE("[gz] close 0x%" PRIXPTR, (uintptr_t)Resource);
 				gzclose((gzFile)Resource);
 				Resource = nullptr;
 			}
@@ -7177,7 +7177,7 @@ namespace Tomahawk
 				uint64_t Diff = Time - Ctx.Time;
 				if (Diff > Ctx.Threshold)
 				{
-					TH_WARN("[perf] task @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
+					TH_WARN("[perf] task @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%" PRIXPTR "\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, (uintptr_t)Ctx.Id, Ctx.Threshold / 1000);
 					Ctx.Time = Time;
 				}
 			}
@@ -7194,7 +7194,7 @@ namespace Tomahawk
 
 				uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Ctx.Time;
 				if (Diff > Ctx.Threshold)
-					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%p\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, Ctx.Id, Ctx.Threshold / 1000);
+					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%" PRIXPTR "\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, (uintptr_t)Ctx.Id, Ctx.Threshold / 1000);
 
 				SpecFrame.erase(It);
 				break;

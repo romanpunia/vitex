@@ -1,4 +1,5 @@
 #include "mdb.h"
+#include <inttypes.h>
 extern "C"
 {
 #ifdef TH_HAS_MONGOC
@@ -31,7 +32,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr, false, "context should be set");
 				TH_PPUSH("mongoc-send", TH_PERF_MAX);
-				TH_TRACE("[mongoc] execute query schema on %p\n\t%s", (void*)Base, Name + 1);
+				TH_TRACE("[mongoc] execute query schema on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -41,7 +42,7 @@ namespace Tomahawk
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
 				if (Result || Error.code == 0)
-					TH_TRACE("[mongoc] OK execute on %p", (void*)Base);
+					TH_TRACE("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
 
 				TH_PPOP();
 				return Result;
@@ -51,7 +52,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
 				TH_PPUSH("mongoc-recv", TH_PERF_MAX);
-				TH_TRACE("[mongoc] execute query cursor on %p\n\t%s", (void*)Base, Name + 1);
+				TH_TRACE("[mongoc] execute query cursor on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -61,7 +62,7 @@ namespace Tomahawk
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 					
 				if (Result || Error.code == 0)
-					TH_TRACE("[mongoc] OK execute on %p", (void*)Base);
+					TH_TRACE("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
 				
 				TH_PPOP();
 				return Result;

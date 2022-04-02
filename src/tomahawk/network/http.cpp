@@ -1,5 +1,6 @@
 #include "http.h"
 #include "../script/std-lib.h"
+#include <inttypes.h>
 #ifdef TH_MICROSOFT
 #include <WS2tcpip.h>
 #include <io.h>
@@ -459,6 +460,7 @@ namespace Tomahawk
 						Finish();
 				});
 
+				TH_TRACE("[http] enter gateway on 0x%" PRIXPTR, (uintptr_t)Compiler);
 				return Context->TryExecute(Entry, nullptr, nullptr) >= 0;
 			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)
@@ -472,6 +474,7 @@ namespace Tomahawk
 			{
 				if (Active)
 				{
+					void* Where = (void*)Compiler;
 					Base->Info.Sync.lock();
 					if (Compiler != nullptr)
 					{
@@ -485,6 +488,8 @@ namespace Tomahawk
 
 					Base->Info.Sync.unlock();
 					Active = false;
+
+					TH_TRACE("[http] exit gateway on 0x%" PRIXPTR, (uintptr_t)Where);
 				}
 
 				if (!E.Close)

@@ -2139,6 +2139,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
 			TH_ASSERT(!ModuleName.empty(), -1, "module name should not be empty");
+			TH_TRACE("[vm] prepare %s on 0x%" PRIXPTR, ModuleName.c_str(), (uintptr_t)this);
 
 			BuiltOK = false;
 			VCache.Valid = false;
@@ -2195,7 +2196,10 @@ namespace Tomahawk
 
 				BuiltOK = (R >= 0);
 				if (BuiltOK)
+				{
 					Module->ResetGlobalVars(Context->GetContext());
+					TH_TRACE("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
+				}
 
 				return R;
 			}
@@ -2217,6 +2221,7 @@ namespace Tomahawk
 			if (!BuiltOK)
 				return R;
 
+			TH_TRACE("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
 			if (VCache.Name.empty())
 			{
 				Module->ResetGlobalVars(Context->GetContext());
@@ -2248,6 +2253,9 @@ namespace Tomahawk
 			TH_DELETE(CByteCodeStream, Stream);
 			Manager->Unlock();
 
+			if (R >= 0)
+				TH_TRACE("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+
 			return R;
 		}
 		int VMCompiler::LoadByteCode(VMByteCode* Info)
@@ -2262,6 +2270,9 @@ namespace Tomahawk
 			TH_DELETE(CByteCodeStream, Stream);
 			Manager->Unlock();
 
+			if (R >= 0)
+				TH_TRACE("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+
 			return R;
 		}
 		int VMCompiler::LoadFile(const std::string& Path)
@@ -2275,7 +2286,7 @@ namespace Tomahawk
 			std::string Source = Core::OS::Path::Resolve(Path.c_str());
 			if (!Core::OS::File::IsExists(Source.c_str()))
 			{
-				TH_ERR("file not found");
+				TH_ERR("[vm] file %s not found", Source.c_str());
 				return -1;
 			}
 
@@ -2283,7 +2294,11 @@ namespace Tomahawk
 			if (!Processor->Process(Source, Buffer))
 				return asINVALID_DECLARATION;
 
-			return Module->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
+			int R = Module->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
+			if (R >= 0)
+				TH_TRACE("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
+	
+			return R;
 		}
 		int VMCompiler::LoadCode(const std::string& Name, const std::string& Data)
 		{
@@ -2297,7 +2312,11 @@ namespace Tomahawk
 			if (!Processor->Process("", Buffer))
 				return asINVALID_DECLARATION;
 
-			return Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			if (R >= 0)
+				TH_TRACE("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
+
+			return R;
 		}
 		int VMCompiler::LoadCode(const std::string& Name, const char* Data, uint64_t Size)
 		{
@@ -2311,7 +2330,11 @@ namespace Tomahawk
 			if (!Processor->Process("", Buffer))
 				return asINVALID_DECLARATION;
 
-			return Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			if (R >= 0)
+				TH_TRACE("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
+
+			return R;
 		}
 		Core::Async<int> VMCompiler::ExecuteFileAsync(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
 		{

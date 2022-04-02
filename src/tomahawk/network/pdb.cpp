@@ -1,4 +1,5 @@
 #include "pdb.h"
+#include <inttypes.h>
 #ifdef TH_HAS_POSTGRESQL
 #include <libpq-fe.h>
 #endif
@@ -1599,7 +1600,7 @@ namespace Tomahawk
 							return;
 						}
 
-						TH_TRACE("[pq] OK connect on group %i as %p", (int)i, (void*)Base);
+						TH_TRACE("[pq] OK connect on group %i as 0x%" PRIXPTR, (int)i, (uintptr_t)Base);
 						PQsetnonblocking(Base, 1);
 						PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
 						PQlogMessage(Base);
@@ -1814,7 +1815,7 @@ namespace Tomahawk
 				{
 					if (Item.second->Session == Token)
 					{
-						TH_TRACE("[pq] end tx-%llu on %p", Token, (void*)Item.second);
+						TH_TRACE("[pq] end tx-%llu on 0x%" PRIXPTR, Token, (uintptr_t)Item.second);
 						Item.second->Session = 0;
 						break;
 					}
@@ -1838,14 +1839,14 @@ namespace Tomahawk
 					Current->Future = Cursor();
 					Update.lock();
 
-					TH_ERR("[pqerr] query reset on %p\n\tconnection lost", (void*)Target->Base);
+					TH_ERR("[pqerr] query reset on 0x%" PRIXPTR "\n\tconnection lost", (uintptr_t)Target->Base);
 					TH_DELETE(Request, Current);
 				}
 
 				Target->Stream->Clear(false);
 				PQfinish(Target->Base);
 
-				TH_TRACE("[pq] try reconnect on %p", (void*)Target->Base);
+				TH_TRACE("[pq] try reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
 				Target->Base = PQconnectdbParams(Keys, Values, 0);
 				TH_FREE(Keys);
 				TH_FREE(Values);
@@ -1863,7 +1864,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				TH_TRACE("[pq] OK reconnect on %p", (void*)Target->Base);
+				TH_TRACE("[pq] OK reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
 				Target->State = QueryState::Idle;
 				Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
 				PQsetnonblocking(Target->Base, 1);
@@ -1893,9 +1894,9 @@ namespace Tomahawk
 
 				TH_PPUSH("postgres-send", TH_PERF_MAX);
 				if (Base->Session != 0)
-					TH_TRACE("[pq] execute query on %p tx-%llu\n\t%.64s%s", (void*)Base, Base->Session, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
+					TH_TRACE("[pq] execute query on 0x%" PRIXPTR " tx-%llu\n\t%.64s%s", (uintptr_t)Base, Base->Session, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
 				else
-					TH_TRACE("[pq] execute query on %p\n\t%.64s%s", (void*)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
+					TH_TRACE("[pq] execute query on 0x%" PRIXPTR "\n\t%.64s%s", (uintptr_t)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
 				if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
 				{
@@ -2001,7 +2002,7 @@ namespace Tomahawk
 
 								Update.unlock();
 								if (!Results.IsError())
-									TH_TRACE("[pq] OK execute on %p", (void*)Source);
+									TH_TRACE("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
 								
 								Item->Finalize(Results);
 								Future = std::move(Results);
@@ -2052,7 +2053,7 @@ namespace Tomahawk
 						return false;
 				}
 
-				TH_TRACE("[pq] start tx-%llu on %p", Next->Session, (void*)Base);
+				TH_TRACE("[pq] start tx-%llu on 0x%" PRIXPTR, Next->Session, (uintptr_t)Base);
 				Base->Session = Next->Session;
 				return true;
 			}

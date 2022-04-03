@@ -1581,7 +1581,12 @@ namespace Tomahawk
 							{
 								std::string Pattern;
 								if (NMake::Unpack(File, &Pattern))
+								{
+									if (File->GetAttribute("abs") != nullptr)
+										Core::Parser(&Pattern).Eval(N, D);
+
 									Route->IndexFiles.push_back(Pattern);
+								}
 							}
 
 							std::vector<Core::Schema*> ErrorFiles = Base->FetchCollection("error-files.error");

@@ -4439,11 +4439,16 @@ namespace Tomahawk
 
 				for (auto& Item : Base->Route->IndexFiles)
 				{
-					if (!Core::OS::File::State(Path + Item, Resource))
-						continue;
-
-					Base->Request.Path.assign(Path.append(Item));
-					return true;
+					if (Core::OS::File::State(Item, Resource))
+					{
+						Base->Request.Path.assign(Item);
+						return true;
+					}
+					else if (Core::OS::File::State(Path + Item, Resource))
+					{
+						Base->Request.Path.assign(Path.append(Item));
+						return true;
+					}
 				}
 
 				return false;

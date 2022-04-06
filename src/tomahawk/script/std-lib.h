@@ -717,11 +717,15 @@ namespace Tomahawk
 			friend VMContext;
 
 		private:
+			static int PromiseUD;
+
+		private:
 			VMCManager* Engine;
 			VMContext* Context;
 			STDAny* Future;
 			bool Pending;
 			bool Flag;
+			int Signal;
 			int Ref;
 
 		private:
@@ -740,6 +744,9 @@ namespace Tomahawk
 			bool To(void* fRef, int TypeId);
 			void* GetHandle();
 			void* GetValue();
+
+		public:
+			static std::string GetStatus(VMContext* Context);
 
 		private:
 			static STDPromise* Create();

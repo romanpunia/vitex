@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <sstream>
+#include <inttypes.h>
 #ifndef __psp2__
 #include <locale.h>
 #endif
@@ -4380,7 +4381,7 @@ namespace Tomahawk
 		int STDThread::ContextUD = 550;
 		int STDThread::EngineListUD = 551;
 
-		STDPromise::STDPromise(VMCContext* _Base) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Flag(false), Pending(false)
+		STDPromise::STDPromise(VMCContext* _Base) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Signal(-1), Flag(false), Pending(false)
 		{
 			if (!Context)
 				return;
@@ -4438,8 +4439,12 @@ namespace Tomahawk
 		int STDPromise::Set(void* _Ref, int TypeId)
 		{
 			if (Future != nullptr)
+			{
+				Signal = 0;
 				return -1;
+			}
 
+			Signal = 1;
 			if (Future != nullptr)
 				Future->Release();
 
@@ -4448,6 +4453,10 @@ namespace Tomahawk
 				Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
 
 			bool WasPending = Pending;
+			if (WasPending && Context->GetUserData(PromiseUD) == (void*)this)
+				Context->SetUserData(nullptr, PromiseUD);
+
+			Pending = false;
 			Context->Execute();
 
 			if (WasPending)
@@ -4506,11 +4515,60 @@ namespace Tomahawk
 			{
 				Base->AddRef();
 				Base->Pending = true;
+				Base->Context->SetUserData(Base, PromiseUD);
 				Base->Context->Suspend();
 			}
 
 			return Base;
 		}
+		std::string STDPromise::GetStatus(VMContext* Context)
+		{
+			TH_ASSERT(Context != nullptr, std::string(), "context should be set");
+
+			std::string Result;
+			switch (Context->GetState())
+			{
+				case Tomahawk::Script::VMExecState::FINISHED:
+					Result = "FIN";
+					break;
+				case Tomahawk::Script::VMExecState::SUSPENDED:
+					Result = "SUSP";
+					break;
+				case Tomahawk::Script::VMExecState::ABORTED:
+					Result = "ABRT";
+					break;
+				case Tomahawk::Script::VMExecState::EXCEPTION:
+					Result = "EXCE";
+					break;
+				case Tomahawk::Script::VMExecState::PREPARED:
+					Result = "PREP";
+					break;
+				case Tomahawk::Script::VMExecState::ACTIVE:
+					Result = "ACTV";
+					break;
+				case Tomahawk::Script::VMExecState::ERR:
+					Result = "ERR";
+					break;
+				default:
+					Result = "INIT";
+					break;
+			}
+
+			STDPromise* Base = (STDPromise*)Context->GetUserData(PromiseUD);
+			if (Base != nullptr)
+			{
+				const char* Format = " in pending promise on 0x%" PRIXPTR " %s";
+				if (Base->Signal == -1)
+					Result += Core::Form(Format, (uintptr_t)Base, "that was not fulfilled").R();
+				else if (Base->Signal == 0)
+					Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled multiple times").R();
+				else if (Base->Signal == 1)
+					Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled once").R();
+			}
+
+			return Result;
+		}
+		int STDPromise::PromiseUD = 559;
 
 		bool STDRegisterAny(VMManager* Manager)
 		{

@@ -2232,11 +2232,15 @@ namespace Tomahawk
 			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
 				return Future.Get();
 
+			bool Tracking = (File && Function && Expression && Line >= 0);
+			if (Tracking)
+				OS::SpecPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
+
 			Future.Await([State, Base](T&&) { State->Activate(Base); });
 			if (Future.IsPending())
 				State->Deactivate(Base);
 
-			if (File && Function && Expression && Line >= 0)
+			if (Tracking)
 				OS::SpecPop((void*)&Future);
 
 			return Future.GetIfAny();

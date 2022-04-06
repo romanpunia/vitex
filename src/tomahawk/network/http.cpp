@@ -5840,9 +5840,27 @@ namespace Tomahawk
 				for (auto* Item : Data)
 				{
 					HTTP::Connection* Base = (HTTP::Connection*)Item;
-					const char* WebSocket = (Base->WebSocket != nullptr ? "\n\twith websocket" : "");
-					const char* Gateway = (Base->Gateway != nullptr ? "\n\twith gateway" : "");
-					TH_TRACE("[stall] connection on socket %i\n\twith url %s%s%s", (int)Base->Stream->GetFd(), Base->Request.URI.c_str(), WebSocket, Gateway);
+					std::string Status = "pathname: " + Base->Request.URI;
+
+					if (Base->WebSocket != nullptr)
+						Status += "\nwebsocket: " + std::string(Base->WebSocket->IsFinished() ? "alive" : "dead");
+
+					if (Base->Gateway != nullptr)
+					{
+						Script::VMContext* Context = Base->Gateway->GetContext();
+						if (Context != nullptr)
+						{
+							Status += "\nvcontext: " + Script::STDPromise::GetStatus(Context);
+							Status += "\ngateway " + Context->GetStackTrace(0, 64);
+						}
+						else
+						{
+							Status += "\nvcontext: FIN";
+							Status += "\ngateway: dead";
+						}
+					}
+
+					TH_TRACE("[stall] connection on fd %i\n%s", (int)Base->Stream->GetFd(),  Status.c_str());
 				}
 
 				return true;

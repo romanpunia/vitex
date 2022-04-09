@@ -333,7 +333,6 @@ namespace Tomahawk
 		enum class VMPoll
 		{
 			Continue,
-			Routine,
 			Finish,
 			Exception
 		};
@@ -1556,17 +1555,15 @@ namespace Tomahawk
 			struct Executable
 			{
 				VMFunction Function = nullptr;
-				ResumeCallback Notify;
+				ResumeCallback Callback;
 				ArgsCallback Args;
 			};
 
 		private:
-			std::queue<Executable> Queue;
-			std::atomic<size_t> Nests;
-			std::string Stack;
+			std::queue<Executable> Tasks;
 			std::mutex Exchange;
-			std::mutex Except;
-			ResumeCallback Notify[2];
+			std::string Stacktrace;
+			ResumeCallback Trigger;
 			VMCContext* Context;
 			VMManager* Manager;
 
@@ -1579,7 +1576,7 @@ namespace Tomahawk
 			int Prepare(const VMFunction& Function);
 			int Unprepare();
 			int TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
-			int Execute(bool Notify = true);
+			int Execute(ResumeCallback&& OnResume = nullptr);
 			int Abort();
 			int Suspend();
 			VMExecState GetState() const;
@@ -1645,10 +1642,6 @@ namespace Tomahawk
 			{
 				return (T*)GetReturnObjectAddress();
 			}
-
-		private:
-			bool Dequeue(bool Unroll, int Status);
-			bool Enqueue(int Status, const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume);
 
 		public:
 			static VMContext* Get(VMCContext* Context);

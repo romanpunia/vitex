@@ -448,7 +448,7 @@ namespace Tomahawk
 				Script::VMContext* Context = Compiler->GetContext();
 				Context->SetOnResume([this](Script::VMContext*, Script::VMPoll State)
 				{
-					if (State == Script::VMPoll::Routine || State == Script::VMPoll::Continue)
+					if (State == Script::VMPoll::Continue)
 						return;
 
 					if (State == Script::VMPoll::Exception && E.Exception)

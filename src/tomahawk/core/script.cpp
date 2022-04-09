@@ -2455,7 +2455,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr), Nests(0)
+		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr)
 		{
 			TH_ASSERT_V(Base != nullptr, "context should be set");
 			Manager = VMManager::Get(Base->GetEngine());
@@ -2464,10 +2464,10 @@ namespace Tomahawk
 		}
 		VMContext::~VMContext()
 		{
-			while (!Queue.empty())
+			while (!Tasks.empty())
 			{
-				Queue.front().Function.Release();
-				Queue.pop();
+				Tasks.front().Function.Release();
+				Tasks.pop();
 			}
 
 			if (Context != nullptr)
@@ -2501,63 +2501,6 @@ namespace Tomahawk
 
 			return Result;
 		}
-		bool VMContext::Dequeue(bool Unroll, int Status)
-		{
-			auto& OnResume = Notify[1] ? Notify[1] : Notify[0];
-			asEContextState State = (asEContextState)Status;
-			if ((!Unroll && !Queue.empty()) || (Unroll && !Queue.empty() && !Context->IsNested(nullptr)))
-			{
-				if (OnResume)
-					OnResume(this, VMPoll::Routine);
-				
-				if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
-				{
-					Exchange.lock();
-					if (!Queue.empty())
-					{
-						Executable Next = std::move(Queue.front());
-						Queue.pop();
-						Exchange.unlock();
-
-						TryExecute(Next.Function, std::move(Next.Args), std::move(Next.Notify));
-						Next.Function.Release();
-					}
-					else
-						Exchange.unlock();
-				}
-			}
-			
-			if (!OnResume)
-				return Unroll;
-			
-			if (State == asEXECUTION_FINISHED || State == asEXECUTION_ABORTED)
-				OnResume(this, VMPoll::Finish);
-			else if (State == asEXECUTION_ERROR)
-				OnResume(this, VMPoll::Exception);
-			else if (State == asEXECUTION_EXCEPTION)
-				OnResume(this, IsThrown() ? VMPoll::Exception : VMPoll::Finish);
-			else
-				OnResume(this, VMPoll::Continue);
-
-			return true;
-		}
-		bool VMContext::Enqueue(int Status, const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
-		{
-			asEContextState State = (asEContextState)Status;
-			if (State != asEXECUTION_ACTIVE && State != asEXECUTION_SUSPENDED)
-				return false;
-			
-			Executable Next;
-			Next.Notify = std::move(OnResume);
-			Next.Args = std::move(OnArgs);
-			Next.Function = Function;
-			Next.Function.AddRef();
-
-			Exchange.lock();
-			Queue.push(std::move(Next));
-			Exchange.unlock();
-			return true;
-		}
 		int VMContext::SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
@@ -2565,7 +2508,7 @@ namespace Tomahawk
 		}
 		int VMContext::SetOnResume(const ResumeCallback& OnResume)
 		{
-			Notify[0] = OnResume;
+			Trigger = OnResume;
 			return 0;
 		}
 		int VMContext::Prepare(const VMFunction& Function)
@@ -2584,57 +2527,70 @@ namespace Tomahawk
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
 			asEContextState State = Context->GetState();
-			if (Enqueue((int)State, Function, std::move(OnArgs), std::move(OnResume)))
-				return asCONTEXT_ACTIVE;
-
-			bool Nested = Context->IsNested(nullptr);
-			if (Nested)
-				Context->PushState();
-
-			int Result = Context->Prepare(Function.GetFunction());
-			if (Result >= 0)
+			if (State == asEXECUTION_ACTIVE || State == asEXECUTION_SUSPENDED)
 			{
+				Executable Next;
+				Next.Callback = std::move(OnResume);
+				Next.Args = std::move(OnArgs);
+				Next.Function = Function;
+				Next.Function.AddRef();
+
+				Exchange.lock();
+				Tasks.push(std::move(Next));
+				Exchange.unlock();
+			}
+			else
+			{
+				int Result = Context->Prepare(Function.GetFunction());
+				if (Result < 0)
+					return Result;
+
 				if (OnArgs)
 					OnArgs(this);
 
-				Notify[1] = std::move(OnResume);
-				Result = Execute();
+				return Execute(std::move(OnResume)) >= 0;
 			}
 
-			if (Nested)
-			{
-				if (Result != asEXECUTION_SUSPENDED)
-					Context->PopState();
-				else
-					Nests++;
-			}
-
-			return Result;
+			return true;
 		}
-		int VMContext::Execute(bool Resumable)
+		int VMContext::Execute(ResumeCallback&& OnResume)
 		{
-			asEContextState State = Context->GetState();
-			if (State != asEXECUTION_SUSPENDED && State != asEXECUTION_PREPARED)
-			{
-				if (State != asEXECUTION_ACTIVE && Resumable && Dequeue(false, State))
-					return State;
-
+			asEContextState Status = Context->GetState();
+			if (Status == asEXECUTION_ACTIVE)
 				return asEXECUTION_ACTIVE;
-			}
 
-			State = (asEContextState)Context->Execute();
-			if (Nests > 0 && State != asEXECUTION_SUSPENDED)
+			Status = (asEContextState)Context->Execute();
+			if (Status != asEXECUTION_ACTIVE && Status != asEXECUTION_SUSPENDED)
 			{
-				Context->PopState();
-				Nests--;
+				Exchange.lock();
+				if (!Tasks.empty())
+				{
+					Executable Next = std::move(Tasks.front());
+					Tasks.pop();
+					Exchange.unlock();
+
+					TryExecute(Next.Function, std::move(Next.Args), std::move(Next.Callback));
+					Next.Function.Release();
+				}
+				else
+					Exchange.unlock();
 			}
 
-			if (Resumable && Dequeue(false, State))
-				return State;
-			else
-				Dequeue(false, State);
+			VMPoll State = VMPoll::Continue;
+			if (Status == asEXECUTION_FINISHED || Status == asEXECUTION_ABORTED)
+				State = VMPoll::Finish;
+			else if (Status == asEXECUTION_ERROR)
+				State = VMPoll::Exception;
+			else if (Status == asEXECUTION_EXCEPTION)
+				State = IsThrown() ? VMPoll::Exception : VMPoll::Finish;
 
-			return State;
+			if (Trigger)
+				Trigger(this, State);
+
+			if (OnResume)
+				OnResume(this, State);
+
+			return Status;
 		}
 		int VMContext::Abort()
 		{
@@ -2715,7 +2671,7 @@ namespace Tomahawk
 		bool VMContext::IsPending()
 		{
 			Exchange.lock();
-			bool Result = (!Queue.empty());
+			bool Result = (!Tasks.empty());
 			Exchange.unlock();
 
 			return Result;
@@ -2963,9 +2919,9 @@ namespace Tomahawk
 		}
 		std::string VMContext::GetErrorStackTrace()
 		{
-			Except.lock();
-			std::string Result = Stack;
-			Except.unlock();
+			Exchange.lock();
+			std::string Result = Stacktrace;
+			Exchange.unlock();
 
 			return Result;
 		}
@@ -3034,9 +2990,9 @@ namespace Tomahawk
 				"\n\tsource: %s"
 				"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Trace.size(), Trace.c_str());
 
-			Base->Except.lock();
-			Base->Stack = Trace;
-			Base->Except.unlock();
+			Base->Exchange.lock();
+			Base->Stacktrace = Trace;
+			Base->Exchange.unlock();
 		}
 		int VMContext::ContextUD = 152;
 

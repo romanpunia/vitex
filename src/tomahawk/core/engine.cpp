@@ -5987,9 +5987,9 @@ namespace Tomahawk
 				}
 			}
 
+			TH_RELEASE(Time);
 			CloseEvent();
 			Queue->Stop();
-			TH_RELEASE(Time);
 		}
 		void Application::Stop()
 		{

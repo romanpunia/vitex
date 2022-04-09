@@ -2000,10 +2000,10 @@ namespace Tomahawk
 								Source->Current = nullptr;
 								PQlogMessage(Source->Base);
 
-								Update.unlock();
 								if (!Results.IsError())
 									TH_TRACE("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
-								
+
+								Update.unlock();
 								Item->Finalize(Results);
 								Future = std::move(Results);
 								Update.lock();

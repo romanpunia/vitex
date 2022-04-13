@@ -8177,7 +8177,7 @@ namespace Tomahawk
 					do
 					{
 						std::unique_lock<std::mutex> Lock(Queue->Update);
-						Thread->Notify.wait_for(Lock, When, [this, &When, Queue, Thread]()
+						Queue->Notify.wait_for(Lock, When, [this, &When, Queue, Thread]()
 						{
 							if (!ThreadActive(Thread))
 								return true;
@@ -8190,12 +8190,6 @@ namespace Tomahawk
 
 							auto Clock = GetClock();
 							auto It = Queue->Timers.begin();
-							if (It == Queue->Timers.end())
-							{
-								When = Policy.Timeout;
-								return false;
-							}
-
 							if (Active && It->first >= Clock)
 							{
 								When = It->first - Clock;

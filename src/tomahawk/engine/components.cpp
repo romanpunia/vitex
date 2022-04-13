@@ -3890,10 +3890,10 @@ namespace Tomahawk
 				if (!Compiler || !Target->Compiler)
 					return Target;
 
-				if (Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+				if (Compiler->GetContext()->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return Target;
 
-				if (Target->Compiler->GetContext()->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+				if (Target->Compiler->GetContext()->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return Target;
 
 				Script::VMModule From = Compiler->GetModule();
@@ -3955,12 +3955,12 @@ namespace Tomahawk
 					return (int)Script::VMResult::INVALID_ARG;
 
 				Safe.lock();
-				Core::Async<int> Result = Compiler->GetContext()->TryExecuteAsync(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				Core::Async<int> Result = Compiler->GetContext()->TryExecute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
 				{
 					this->Protect();
 					if (OnArgs)
 						OnArgs(Context);
-				}, nullptr);
+				});
 				Safe.unlock();
 
 				return Result.Then<int>([this](int&& Result)
@@ -3990,7 +3990,7 @@ namespace Tomahawk
 				if (Compiler != nullptr)
 				{
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Script::VMExecState::ACTIVE)
+					if (VM->GetState() == Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 				}
 				else
@@ -4089,7 +4089,7 @@ namespace Tomahawk
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Script::VMExecState::ACTIVE)
+				if (VM->GetState() == Script::VMRuntime::ACTIVE)
 					return nullptr;
 
 				Safe.lock();
@@ -4110,7 +4110,7 @@ namespace Tomahawk
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Script::VMExecState::ACTIVE)
+				if (VM->GetState() == Script::VMRuntime::ACTIVE)
 					return nullptr;
 
 				Safe.lock();
@@ -4131,7 +4131,7 @@ namespace Tomahawk
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return false;
 
 				Safe.lock();
@@ -4165,7 +4165,7 @@ namespace Tomahawk
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return false;
 
 				Safe.lock();
@@ -4199,7 +4199,7 @@ namespace Tomahawk
 					return (int)Script::VMResult::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 				Safe.lock();
@@ -4221,7 +4221,7 @@ namespace Tomahawk
 					return (int)Script::VMResult::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 				Safe.lock();

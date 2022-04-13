@@ -760,7 +760,7 @@ namespace Tomahawk
 					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();
@@ -797,7 +797,7 @@ namespace Tomahawk
 					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();
@@ -839,7 +839,7 @@ namespace Tomahawk
 					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();
@@ -869,7 +869,7 @@ namespace Tomahawk
 					TH_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Tomahawk::Script::VMExecState::ACTIVE)
+					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
 					Safe.lock();

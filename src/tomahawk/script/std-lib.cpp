@@ -4116,11 +4116,11 @@ namespace Tomahawk
 			}
 
 			Mutex.unlock();
-			Context->TryExecuteAsync(Function, [this](Script::VMContext* Context)
+			Context->TryExecute(Function, [this](Script::VMContext* Context)
 			{
 				Context->SetArgObject(0, this);
 				Context->SetUserData(this, ContextUD);
-			}, nullptr).Await([this](int&&)
+			}).Await([this](int&&)
 			{
 				Context->SetUserData(nullptr, ContextUD);
 				Mutex.lock();
@@ -4141,14 +4141,14 @@ namespace Tomahawk
 		void STDThread::Suspend()
 		{
 			Mutex.lock();
-			if (Context && Context->GetState() != VMExecState::SUSPENDED)
+			if (Context && Context->GetState() != VMRuntime::SUSPENDED)
 				Context->Suspend();
 			Mutex.unlock();
 		}
 		void STDThread::Resume()
 		{
 			Mutex.lock();
-			if (Context && Context->GetState() == VMExecState::SUSPENDED)
+			if (Context && Context->GetState() == VMRuntime::SUSPENDED)
 				Context->Execute();
 			Mutex.unlock();
 		}
@@ -4214,7 +4214,7 @@ namespace Tomahawk
 			std::unique_lock<std::mutex> Guard(Mutex);
 			if (CV.wait_for(Guard, std::chrono::milliseconds(Timeout), [&]
 			{
-				return !((Context && Context->GetState() != VMExecState::SUSPENDED));
+				return !((Context && Context->GetState() != VMRuntime::SUSPENDED));
 			}))
 			{
 				TH_TRACE("join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
@@ -4282,7 +4282,7 @@ namespace Tomahawk
 		bool STDThread::IsActive()
 		{
 			Mutex.lock();
-			bool State = (Context && Context->GetState() != VMExecState::SUSPENDED);
+			bool State = (Context && Context->GetState() != VMRuntime::SUSPENDED);
 			Mutex.unlock();
 
 			return State;
@@ -4298,7 +4298,7 @@ namespace Tomahawk
 
 			if (Context != nullptr)
 			{
-				if (Context->GetState() != VMExecState::SUSPENDED)
+				if (Context->GetState() != VMRuntime::SUSPENDED)
 				{
 					Mutex.unlock();
 					return false;
@@ -4381,7 +4381,7 @@ namespace Tomahawk
 		int STDThread::ContextUD = 550;
 		int STDThread::EngineListUD = 551;
 
-		STDPromise::STDPromise(VMCContext* _Base) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Signal(-1), Flag(false), Pending(false)
+		STDPromise::STDPromise(VMCContext* _Base) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Flag(false), Pending(false)
 		{
 			if (!Context)
 				return;
@@ -4436,15 +4436,24 @@ namespace Tomahawk
 		{
 			return Ref;
 		}
-		int STDPromise::Set(void* _Ref, int TypeId)
+		int STDPromise::Notify()
 		{
-			if (Future != nullptr)
+			Update.lock();
+			if (Context->GetState() == VMRuntime::ACTIVE)
 			{
-				Signal = 0;
-				return -1;
+				Update.unlock();
+				return Core::Schedule::Get()->SetTask(std::bind(&STDPromise::Notify, this), Core::Difficulty::Light);
 			}
 
-			Signal = 1;
+			Update.unlock();
+			Context->Execute();
+			Release();
+
+			return 0;
+		}
+		int STDPromise::Set(void* _Ref, int TypeId)
+		{
+			Update.lock();
 			if (Future != nullptr)
 				Future->Release();
 
@@ -4452,15 +4461,25 @@ namespace Tomahawk
 			if (TypeId & asTYPEID_OBJHANDLE)
 				Engine->ReleaseScriptObject(*(void**)_Ref, Engine->GetTypeInfoById(TypeId));
 
-			bool WasPending = Pending;
-			if (WasPending && Context->GetUserData(PromiseUD) == (void*)this)
-				Context->SetUserData(nullptr, PromiseUD);
+			if (!Pending)
+			{
+				Update.unlock();
+				return 0;
+			}
 
 			Pending = false;
-			Context->Execute();
+			if (Context->GetUserData(PromiseUD) == (void*)this)
+				Context->SetUserData(nullptr, PromiseUD);
 
-			if (WasPending)
-				Release();
+			if (Context->GetState() == VMRuntime::ACTIVE)
+			{
+				Update.unlock();
+				return Core::Schedule::Get()->SetTask(std::bind(&STDPromise::Notify, this), Core::Difficulty::Light);
+			}
+
+			Update.unlock();
+			Context->Execute();
+			Release();
 
 			return 0;
 		}
@@ -4511,6 +4530,7 @@ namespace Tomahawk
 		}
 		STDPromise* STDPromise::JumpIf(STDPromise* Base)
 		{
+			Base->Update.lock();
 			if (!Base->Future && Base->Context != nullptr)
 			{
 				Base->AddRef();
@@ -4518,7 +4538,7 @@ namespace Tomahawk
 				Base->Context->SetUserData(Base, PromiseUD);
 				Base->Context->Suspend();
 			}
-
+			Base->Update.unlock();
 			return Base;
 		}
 		std::string STDPromise::GetStatus(VMContext* Context)
@@ -4528,25 +4548,25 @@ namespace Tomahawk
 			std::string Result;
 			switch (Context->GetState())
 			{
-				case Tomahawk::Script::VMExecState::FINISHED:
+				case Tomahawk::Script::VMRuntime::FINISHED:
 					Result = "FIN";
 					break;
-				case Tomahawk::Script::VMExecState::SUSPENDED:
+				case Tomahawk::Script::VMRuntime::SUSPENDED:
 					Result = "SUSP";
 					break;
-				case Tomahawk::Script::VMExecState::ABORTED:
+				case Tomahawk::Script::VMRuntime::ABORTED:
 					Result = "ABRT";
 					break;
-				case Tomahawk::Script::VMExecState::EXCEPTION:
+				case Tomahawk::Script::VMRuntime::EXCEPTION:
 					Result = "EXCE";
 					break;
-				case Tomahawk::Script::VMExecState::PREPARED:
+				case Tomahawk::Script::VMRuntime::PREPARED:
 					Result = "PREP";
 					break;
-				case Tomahawk::Script::VMExecState::ACTIVE:
+				case Tomahawk::Script::VMRuntime::ACTIVE:
 					Result = "ACTV";
 					break;
-				case Tomahawk::Script::VMExecState::ERR:
+				case Tomahawk::Script::VMRuntime::ERR:
 					Result = "ERR";
 					break;
 				default:
@@ -4558,12 +4578,10 @@ namespace Tomahawk
 			if (Base != nullptr)
 			{
 				const char* Format = " in pending promise on 0x%" PRIXPTR " %s";
-				if (Base->Signal == -1)
+				if (Base->Future != nullptr)
+					Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled").R();
+				else 
 					Result += Core::Form(Format, (uintptr_t)Base, "that was not fulfilled").R();
-				else if (Base->Signal == 0)
-					Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled multiple times").R();
-				else if (Base->Signal == 1)
-					Result += Core::Form(Format, (uintptr_t)Base, "that was fulfilled once").R();
 			}
 
 			return Result;

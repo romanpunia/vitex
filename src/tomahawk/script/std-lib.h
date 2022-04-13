@@ -4,10 +4,16 @@
 #define TH_TYPEREF(Name, TypeName) static const uint64_t Name = TH_SHUFFLE(TypeName); Tomahawk::Script::STDRegistry::Set(Name, TypeName)
 #define TH_PROMISIFY(MemberFunction, TypeId) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define TH_PROMISIFY_REF(MemberFunction, TypeRef) Tomahawk::Script::STDPromise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
+#define TH_SPROMISIFY(Function, TypeId) Tomahawk::Script::STDPromise::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
+#define TH_SPROMISIFY_REF(Function, TypeRef) Tomahawk::Script::STDPromise::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
 #define TH_ARRAYIFY(MemberFunction, TypeId) Tomahawk::Script::STDArray::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define TH_ARRAYIFY_REF(MemberFunction, TypeRef) Tomahawk::Script::STDArray::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
+#define TH_SARRAYIFY(Function, TypeId) Tomahawk::Script::STDArray::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
+#define TH_SARRAYIFY_REF(Function, TypeRef) Tomahawk::Script::STDArray::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
 #define TH_ANYIFY(MemberFunction, TypeId) Tomahawk::Script::STDAny::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define TH_ANYIFY_REF(MemberFunction, TypeRef) Tomahawk::Script::STDAny::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
+#define TH_SANYIFY(Function, TypeId) Tomahawk::Script::STDAny::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
+#define TH_SANYIFY_REF(Function, TypeRef) Tomahawk::Script::STDAny::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
 
 namespace Tomahawk
 {
@@ -179,6 +185,9 @@ namespace Tomahawk
 			template <typename T, T>
 			struct Ify;
 
+			template <typename T, T>
+			struct IfyStatic;
+
 			template <typename T, typename R, typename ...Args, R(T::* F)(Args...)>
 			struct Ify<R(T::*)(Args...), F>
 			{
@@ -192,6 +201,23 @@ namespace Tomahawk
 				static STDAny* Decl(T* Base, Args... Data)
 				{
 					R Subresult((Base->*F)(Data...));
+					return STDAny::Create(STDRegistry::GetTypeId(TypeRef), &Subresult);
+				}
+			};
+
+			template <typename R, typename ...Args, R(*F)(Args...)>
+			struct IfyStatic<R(*)(Args...), F>
+			{
+				template <VMTypeId TypeId>
+				static STDAny* Id(Args... Data)
+				{
+					R Subresult((*F)(Data...));
+					return STDAny::Create((int)TypeId, &Subresult);
+				}
+				template <uint64_t TypeRef>
+				static STDAny* Decl(Args... Data)
+				{
+					R Subresult((*F)(Data...));
 					return STDAny::Create(STDRegistry::GetTypeId(TypeRef), &Subresult);
 				}
 			};
@@ -335,6 +361,9 @@ namespace Tomahawk
 			template <typename T, T>
 			struct Ify;
 
+			template <typename T, T>
+			struct IfyStatic;
+
 			template <typename T, typename R, typename ...Args, std::vector<R>(T::* F)(Args...)>
 			struct Ify<std::vector<R>(T::*)(Args...), F>
 			{
@@ -360,6 +389,35 @@ namespace Tomahawk
 					TH_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 					std::vector<R> Source((Base->*F)(Data...));
+					return STDArray::Compose(Info, Source);
+				}
+			};
+
+			template <typename R, typename ...Args, std::vector<R>(*F)(Args...)>
+			struct IfyStatic<std::vector<R>(*)(Args...), F>
+			{
+				template <VMTypeId TypeId>
+				static STDArray* Id(Args... Data)
+				{
+					VMManager* Manager = VMManager::Get();
+					TH_ASSERT(Manager != nullptr, nullptr, "manager should be present");
+
+					VMCTypeInfo* Info = Manager->Global().GetTypeInfoById((int)TypeId).GetTypeInfo();
+					TH_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
+
+					std::vector<R> Source((*F)(Data...));
+					return STDArray::Compose(Info, Source);
+				}
+				template <uint64_t TypeRef>
+				static STDArray* Decl(Args... Data)
+				{
+					VMManager* Manager = VMManager::Get();
+					TH_ASSERT(Manager != nullptr, nullptr, "manager should be present");
+
+					VMCTypeInfo* Info = Manager->Global().GetTypeInfoById(STDRegistry::GetTypeId(TypeRef)).GetTypeInfo();
+					TH_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
+
+					std::vector<R> Source((*F)(Data...));
 					return STDArray::Compose(Info, Source);
 				}
 			};
@@ -723,9 +781,9 @@ namespace Tomahawk
 			VMCManager* Engine;
 			VMContext* Context;
 			STDAny* Future;
+			std::mutex Update;
 			bool Pending;
 			bool Flag;
-			int Signal;
 			int Ref;
 
 		private:
@@ -745,6 +803,9 @@ namespace Tomahawk
 			void* GetHandle();
 			void* GetValue();
 
+		private:
+			int Notify();
+
 		public:
 			static std::string GetStatus(VMContext* Context);
 
@@ -755,6 +816,9 @@ namespace Tomahawk
 		public:
 			template <typename T, T>
 			struct Ify;
+
+			template <typename T, T>
+			struct IfyStatic;
 
 			template <typename T, typename R, typename ...Args, Core::Async<R>(T::* F)(Args...)>
 			struct Ify<Core::Async<R>(T::*)(Args...), F>
@@ -776,6 +840,34 @@ namespace Tomahawk
 					STDPromise* Future = STDPromise::Create();
 					int TypeId = STDRegistry::GetTypeId(TypeRef);
 					((Base->*F)(Data...)).Await([Future, TypeId](R&& Result)
+					{
+						Future->Set((void*)&Result, TypeId);
+					});
+
+					return JumpIf(Future);
+				}
+			};
+
+			template <typename R, typename ...Args, Core::Async<R>(*F)(Args...)>
+			struct IfyStatic<Core::Async<R>(*)(Args...), F>
+			{
+				template <VMTypeId TypeId>
+				static STDPromise* Id(Args... Data)
+				{
+					STDPromise* Future = STDPromise::Create();
+					((*F)(Data...)).Await([Future](R&& Result)
+					{
+						Future->Set((void*)&Result, (int)TypeId);
+					});
+
+					return JumpIf(Future);
+				}
+				template <uint64_t TypeRef>
+				static STDPromise* Decl(Args... Data)
+				{
+					STDPromise* Future = STDPromise::Create();
+					int TypeId = STDRegistry::GetTypeId(TypeRef);
+					((*F)(Data...)).Await([Future, TypeId](R&& Result)
 					{
 						Future->Set((void*)&Result, TypeId);
 					});

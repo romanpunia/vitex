@@ -263,7 +263,7 @@ namespace Tomahawk
 						return Core::Schedule::Get()->SetTask([this]()
 						{
 							Next();
-						}, Core::Difficulty::Light);
+						}, Core::Difficulty::Light) != TH_INVALID_TASK_ID;
 					});
 				}
 				else if (State == (uint32_t)WebSocketState::Process)
@@ -445,13 +445,25 @@ namespace Tomahawk
 						return Error(400, "Method is not allowed.");
 				}
 
-				Script::VMContext* Context = Compiler->GetContext();
-				Context->SetOnResume([this](Script::VMContext*, Script::VMPoll State)
-				{
-					if (State == Script::VMPoll::Continue)
-						return;
+				TH_TRACE("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
 
-					if (State == Script::VMPoll::Exception && E.Exception)
+				Script::VMContext* Context = Compiler->GetContext();
+				Context->TryExecute(Entry, nullptr).Await([this, Context](int Result)
+				{
+					int Response = -1;
+					if (Result >= 0)
+					{
+						Script::VMRuntime Status = (Script::VMRuntime)Result;
+						if (Status == Script::VMRuntime::FINISHED)
+							Response = 0;
+						else if (Status == Script::VMRuntime::ERR || Status == Script::VMRuntime::ABORTED)
+							Response = 1;
+						else if (Status == Script::VMRuntime::EXCEPTION)
+							Response = Context->IsThrown() ? 1 : 0;
+					}
+
+					TH_TRACE("[http] %s exit context on 0x%" PRIXPTR, Response == -1 ? "INT" : Response > 0 ? "ERR" : "OK", (uintptr_t)Compiler);
+					if (Response > 0)
 						E.Exception(this);
 
 					if (E.Finish)
@@ -460,8 +472,7 @@ namespace Tomahawk
 						Finish();
 				});
 
-				TH_TRACE("[http] enter gateway on 0x%" PRIXPTR, (uintptr_t)Compiler);
-				return Context->TryExecute(Entry, nullptr, nullptr) >= 0;
+				return true;
 			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)
 			{
@@ -488,8 +499,6 @@ namespace Tomahawk
 
 					Base->Info.Sync.unlock();
 					Active = false;
-
-					TH_TRACE("[http] exit gateway on 0x%" PRIXPTR, (uintptr_t)Where);
 				}
 
 				if (!E.Close)

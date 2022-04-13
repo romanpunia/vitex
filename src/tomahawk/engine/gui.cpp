@@ -610,11 +610,11 @@ namespace Tomahawk
 
 					Scope->Basis->AddRef();
 					Script::VMContext* Context = Compiler->GetContext();
-					Context->TryExecuteAsync(Main, [Main, Scope](Script::VMContext* Context)
+					Context->TryExecute(Main, [Main, Scope](Script::VMContext* Context)
 					{
 						if (Main.GetArgsCount() == 1)
 							Context->SetArgObject(0, Scope->Basis);
-					}, nullptr).Await([Scope](int&&)
+					}).Await([Scope](int&&)
 					{
 						Scope->Basis->Release();
 					});
@@ -665,11 +665,11 @@ namespace Tomahawk
 
 					Scope->Basis->AddRef();
 					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->TryExecuteAsync(Function, [Ptr](Script::VMContext* Context)
+					Context->TryExecute(Function, [Ptr](Script::VMContext* Context)
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);
-					}, nullptr).Await([Scope, Ptr](int&&)
+					}).Await([Scope, Ptr](int&&)
 					{
 						delete Ptr;
 						Scope->Basis->Release();

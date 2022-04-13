@@ -207,7 +207,7 @@ typedef socklen_t socket_size_t;
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
-#define TH_INVALID_EVENT_ID std::numeric_limits<uint64_t>::max()
+#define TH_INVALID_TASK_ID 0
 #define TH_PREFIX_CHAR '`'
 #define TH_PREFIX_STR "`"
 #define TH_SHUFFLE(Name) Tomahawk::Core::Shuffle<sizeof(Name)>(Name)
@@ -229,6 +229,8 @@ namespace Tomahawk
 {
 	namespace Core
 	{
+		struct ConcurrentQueuePtr;
+
 		struct Decimal;
 
 		struct Cocontext;
@@ -321,9 +323,10 @@ namespace Tomahawk
 
 		enum class Difficulty
 		{
-			Varies = -1,
+			Chain,
 			Light,
 			Heavy,
+			Clock,
 			Count
 		};
 
@@ -339,7 +342,7 @@ namespace Tomahawk
 		typedef std::function<void* (void*, size_t)> ReallocCallback;
 		typedef std::function<void(void*)> FreeCallback;
 		typedef std::function<bool()> ActivityCallback;
-		typedef uint64_t TimerId;
+		typedef uint64_t TaskId;
 		typedef Decimal BigNumber;
 
 		struct TH_OUT Coroutine
@@ -348,10 +351,13 @@ namespace Tomahawk
 
 		private:
 			std::atomic<Coactive> State;
+			std::atomic<int> Dead;
 			TaskCallback Callback;
 			Cocontext* Slave;
 			Costate* Master;
-			bool Dead;
+
+		public:
+			TaskCallback Return;
 
 		private:
 			Coroutine(Costate* Base, const TaskCallback& Procedure);
@@ -510,11 +516,11 @@ namespace Tomahawk
 			std::chrono::microseconds Expires;
 			TaskCallback Callback;
 			Difficulty Type;
-			TimerId Id;
+			TaskId Id;
 			bool Alive;
 
-			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive, Difficulty NewType) noexcept;
-			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TimerId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
 			Timeout(const Timeout& Other) noexcept;
 			Timeout(Timeout&& Other) noexcept;
 			Timeout& operator= (const Timeout& Other) noexcept;
@@ -1337,12 +1343,14 @@ namespace Tomahawk
 		private:
 			std::unordered_set<Coroutine*> Cached;
 			std::unordered_set<Coroutine*> Used;
-			std::condition_variable* Waitable;
 			std::thread::id Thread;
 			Coroutine* Current;
 			Cocontext* Master;
-			std::mutex Safe;
 			size_t Size;
+
+		public:
+			std::function<void()> NotifyLock;
+			std::function<void()> NotifyUnlock;
 
 		public:
 			Costate(size_t StackSize = TH_STACKSIZE);
@@ -1359,14 +1367,13 @@ namespace Tomahawk
 			int Push(Coroutine* Routine);
 			int Activate(Coroutine* Routine);
 			int Deactivate(Coroutine* Routine);
+			int Deactivate(Coroutine* Routine, const TaskCallback& AfterSuspend);
+			int Deactivate(Coroutine* Routine, TaskCallback&& AfterSuspend);
 			int Resume(Coroutine* Routine);
-			int Resume(bool Restore = true);
-			int Dispatch(bool Restore = true);
+			int Dispatch();
 			int Suspend();
-			void SetWaitable(std::condition_variable* Var);
 			void Clear();
-			bool HasWaitable() const;
-			std::condition_variable* GetWaitable();
+			bool HasActive();
 			Coroutine* GetCurrent() const;
 			uint64_t GetCount() const;
 
@@ -1381,94 +1388,6 @@ namespace Tomahawk
 
 		public:
 			static void TH_COCALL ExecutionEntry(TH_CODATA);
-		};
-
-		class TH_OUT Schedule : public Object
-		{
-		public:
-			struct TH_OUT Desc
-			{
-				ActivityCallback Ping = nullptr;
-				uint64_t Threads[(size_t)Difficulty::Count] = { 0 };
-				uint64_t Coroutines = 16;
-				uint64_t Memory = TH_STACKSIZE;
-				bool Async;
-
-				void SetThreads(uint64_t Cores);
-			};
-
-		private:
-			struct
-			{
-				std::condition_variable Consume;
-				std::condition_variable Publish;
-			} Queue;
-
-			struct
-			{
-				std::mutex Consume;
-				std::mutex Publish;
-				std::mutex Exclusive;
-				std::mutex Timing;
-			} Race;
-
-		private:
-			std::map<std::chrono::microseconds, Timeout> Timers;
-			std::vector<std::thread> Childs;
-			void* Tasks[(size_t)Difficulty::Count];
-			void* Pipes;
-			Desc Policy;
-			TimerId Timer;
-			uint64_t Generation;
-			Costate* Comain;
-			bool Enqueue;
-			bool Terminate;
-			bool Active;
-
-		private:
-			Schedule();
-
-		public:
-			virtual ~Schedule() override;
-			TimerId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Varies);
-			TimerId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Varies);
-			TimerId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Varies);
-			TimerId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Varies);
-			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Varies);
-			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Varies);
-			bool SetPipe(const TaskCallback& Callback);
-			bool SetPipe(TaskCallback&& Callback);
-			bool ClearTimeout(TimerId TimerId);
-			bool Wakeup();
-			bool Start(const Desc& NewPolicy);
-			bool Stop();
-			bool Dispatch();
-			bool IsActive();
-			bool HasTimers();
-			bool HasPipes();
-			bool HasTasks(Difficulty Type);
-			uint64_t GetTotalThreads();
-			uint64_t GetThreads(Difficulty Type);
-			const Desc& GetPolicy();
-
-		private:
-			bool Publish();
-			bool Consume(Difficulty Type);
-			int DispatchPipe(Difficulty Type, Costate* State, void* Token);
-			int DispatchPipe(Costate* State);
-			int DispatchTask(Difficulty Type, void* Token);
-			int DispatchTask();
-			int DispatchTimer(std::chrono::microseconds* When);
-			size_t GetSubindex(Difficulty Type);
-			TimerId GetTimeout(std::chrono::microseconds& Clock, bool Next);
-			std::chrono::microseconds GetClock();
-
-		public:
-			static Schedule* Get();
-			static bool Reset();
-
-		private:
-			static Schedule* Singleton;
 		};
 
 		class TH_OUT Schema : public Object
@@ -1589,7 +1508,7 @@ namespace Tomahawk
 			{
 				Release();
 			}
-			void Swap(const Pool<T>& Raw)
+			void Swap(Pool<T>& Raw)
 			{
 				size_t _Size = Raw.Count;
 				Raw.Count = Count;
@@ -1600,11 +1519,6 @@ namespace Tomahawk
 				Volume = _Capacity;
 
 				T* _Data = Raw.Data;
-				if (!Raw.Data)
-					Release();
-				else if (!Data)
-					Raw.Release();
-
 				Raw.Data = Data;
 				Data = _Data;
 			}
@@ -1671,9 +1585,32 @@ namespace Tomahawk
 			{
 				Count = 0;
 			}
+			void PopFront()
+			{
+				TH_ASSERT_V(Count > 0, "pool is empty");
+
+				Count--;
+				Data[0] = Data[Count];
+				Dispose(Data);
+			}
+			void PopBack()
+			{
+				TH_ASSERT_V(Count > 0, "pool is empty");
+
+				Count--;
+				Dispose(Data + Count);
+			}
 			Iterator Add(const T& Ref)
 			{
 				TH_ASSERT(Count < Volume, End(), "pool capacity overflow");
+				Data[Count++] = Ref;
+				return End() - 1;
+			}
+			Iterator AddUnbounded(const T& Ref)
+			{
+				if (Count >= Volume)
+					Reserve(IncreaseCapacity(Count + 1));
+
 				Data[Count++] = Ref;
 				return End() - 1;
 			}
@@ -1816,14 +1753,89 @@ namespace Tomahawk
 			}
 		};
 
+		class TH_OUT Schedule : public Object
+		{
+		public:
+			struct TH_OUT Desc
+			{
+				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
+				uint64_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
+				uint64_t Memory = TH_STACKSIZE;
+				uint64_t Coroutines = 16;
+				ActivityCallback Ping = nullptr;
+
+				void SetThreads(uint64_t Cores);
+			};
+
+		private:
+			struct ThreadPtr
+			{
+				std::condition_variable Notify;
+				std::mutex Update;
+				std::thread Handle;
+				std::thread::id Id;
+				bool Daemon = false;
+			};
+
+		private:
+			ConcurrentQueuePtr* Queues[(size_t)Difficulty::Count];
+			std::vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
+			std::atomic<TaskId> Generation;
+			std::mutex Exclusive;
+			Desc Policy;
+			bool Enqueue;
+			bool Terminate;
+			bool Active;
+
+		private:
+			Schedule();
+
+		public:
+			virtual ~Schedule() override;
+			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
+			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Heavy);
+			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
+			bool SetChain(const TaskCallback& Callback);
+			bool SetChain(TaskCallback&& Callback);
+			bool ClearTimeout(TaskId WorkId);
+			bool Start(const Desc& NewPolicy);
+			bool Stop();
+			bool Wakeup();
+			bool IsActive();
+			bool HasTasks(Difficulty Type);
+			uint64_t GetTotalThreads();
+			uint64_t GetThreads(Difficulty Type);
+			const Desc& GetPolicy();
+
+		private:
+			bool Dispatch(Difficulty Type, ThreadPtr* Thread);
+			bool ThreadActive(ThreadPtr* Thread);
+			bool ChunkCleanup();
+			bool PushThread(Difficulty Type, bool IsDaemon);
+			bool PopThread(ThreadPtr* Thread);
+			std::chrono::microseconds GetTimeout(std::chrono::microseconds Clock);
+			TaskId GetTaskId();
+
+		public:
+			static std::chrono::microseconds GetClock();
+			static Schedule* Get();
+			static bool Reset();
+
+		private:
+			static Schedule* Singleton;
+		};
+
 		template <typename T>
 		class Awaitable
 		{
 		public:
+			std::function<void()> Event;
 			std::atomic<uint32_t> Count;
 			std::atomic<short> Set;
-			std::function<void(bool)> Resolve;
-			std::mutex RW;
+			std::mutex Update;
 			T Result;
 
 		public:
@@ -1841,47 +1853,51 @@ namespace Tomahawk
 				Count++;
 				return this;
 			}
-			void Put(std::function<void(bool)>&& Callback) noexcept
+			void Put(std::function<void()>&& Callback) noexcept
 			{
-				RW.lock();
+				Update.lock();
 				if (Set > 0)
 				{
-					RW.unlock();
-					return Callback(false);
+					Update.unlock();
+					return Callback();
 				}
 
-				Resolve = std::move(Callback);
-				RW.unlock();
+				Event = std::move(Callback);
+				Update.unlock();
 			}
 			void React() noexcept
 			{
-				RW.lock();
-				if (Resolve)
-					Resolve(true);
-				RW.unlock();
+				Update.lock();
+				Notify();
+				Update.unlock();
 			}
 			void React(T&& Value) noexcept
 			{
-				RW.lock();
+				Update.lock();
 				Set = 1;
 				Result = std::move(Value);
-				if (Resolve)
-					Resolve(true);
-				RW.unlock();
+				Notify();
+				Update.unlock();
 			}
 			void React(const T& Value) noexcept
 			{
-				RW.lock();
+				Update.lock();
 				Set = 1;
 				Result = Value;
-				if (Resolve)
-					Resolve(true);
-				RW.unlock();
+				Notify();
+				Update.unlock();
 			}
 			void Free() noexcept
 			{
 				if (!--Count)
 					TH_DELETE_THIS(Awaitable);
+			}
+
+		private:
+			void Notify()
+			{
+				if (Event)
+					Event();
 			}
 		};
 
@@ -1983,9 +1999,9 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
 				context_type* Subresult = Next->Copy();
-				Subresult->RW.lock();
+				Subresult->Update.lock();
 				Subresult->Set = 0;
-				Subresult->RW.unlock();
+				Subresult->Update.unlock();
 
 				Other.Await([Subresult](T&& Value) mutable
 				{
@@ -2000,9 +2016,9 @@ namespace Tomahawk
 					return Next->React(std::move(Other.GetIfAny()));
 
 				context_type* Subresult = Next->Copy();
-				Subresult->RW.lock();
+				Subresult->Update.lock();
 				Subresult->Set = 0;
-				Subresult->RW.unlock();
+				Subresult->Update.unlock();
 
 				Other.Await([Subresult](T&& Value) mutable
 				{
@@ -2015,22 +2031,13 @@ namespace Tomahawk
 				TH_ASSERT_V(Next != nullptr && Callback, "async should be pending");
 
 				context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Callback = std::move(Callback)](bool Deferred)
+				Next->Put([Subresult, Callback = std::move(Callback)]()
 				{
-					if (Deferred)
-					{
-						Schedule* Queue = Schedule::Get();
-						Queue->SetTask([Subresult, Callback = std::move(Callback)]()
-						{
-							Callback(std::move(Subresult->Result));
-							Subresult->Free();
-						}, Difficulty::Light);
-					}
-					else
+					Schedule::Get()->SetTask([Subresult, Callback = std::move(Callback)]()
 					{
 						Callback(std::move(Subresult->Result));
 						Subresult->Free();
-					}
+					}, Difficulty::Light);
 				});
 			}
 			bool IsPending() const noexcept
@@ -2038,9 +2045,9 @@ namespace Tomahawk
 				if (!Next)
 					return false;
 
-				Next->RW.lock();
+				Next->Update.lock();
 				bool Result = (Next->Set != 1);
-				Next->RW.unlock();
+				Next->Update.unlock();
 				return Result;
 			}
 			T&& GetIfAny() noexcept
@@ -2049,9 +2056,9 @@ namespace Tomahawk
 					return std::move(Next->Result);
 
 				Next = TH_NEW(context_type);
-				Next->RW.lock();
+				Next->Update.lock();
 				Next->Set = 1;
-				Next->RW.unlock();
+				Next->Update.unlock();
 				return std::move(Next->Result);
 			}
 			T&& Get() noexcept
@@ -2084,22 +2091,13 @@ namespace Tomahawk
 				TH_ASSERT(Next != nullptr && Callback, Async<R>::Move(), "async should be pending");
 
 				Async<R> Result; context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Result, Callback = std::move(Callback)](bool Deferred) mutable
+				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
-					if (Deferred)
-					{
-						Schedule* Queue = Schedule::Get();
-						Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
-						{
-							Callback(Result, std::move(Subresult->Result));
-							Subresult->Free();
-						}, Difficulty::Light);
-					}
-					else
+					Schedule::Get()->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
 					{
 						Callback(Result, std::move(Subresult->Result));
 						Subresult->Free();
-					}
+					}, Difficulty::Light);
 				});
 
 				return Result;
@@ -2111,22 +2109,13 @@ namespace Tomahawk
 				TH_ASSERT(Next != nullptr && Callback, Async<F>::Move(), "async should be pending");
 
 				Async<F> Result; context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Result, Callback = std::move(Callback)](bool Deferred) mutable
+				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
-					if (Deferred)
-					{
-						Schedule* Queue = Schedule::Get();
-						Queue->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
-						{
-							Result.Set(std::move(Callback(std::move(Subresult->Result))));
-							Subresult->Free();
-						}, Difficulty::Light);
-					}
-					else
+					Schedule::Get()->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
 					{
 						Result.Set(std::move(Callback(std::move(Subresult->Result))));
 						Subresult->Free();
-					}
+					}, Difficulty::Light);
 				});
 
 				return Result;
@@ -2236,9 +2225,13 @@ namespace Tomahawk
 			if (Tracking)
 				OS::SpecPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
 
-			Future.Await([State, Base](T&&) { State->Activate(Base); });
-			if (Future.IsPending())
-				State->Deactivate(Base);
+			State->Deactivate(Base, [&Future, &State, &Base]()
+			{
+				Future.Await([&State, &Base](T&&)
+				{
+					State->Activate(Base);
+				});
+			});
 
 			if (Tracking)
 				OS::SpecPop((void*)&Future);
@@ -2253,15 +2246,19 @@ namespace Tomahawk
 			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
 				return Future.Get();
 
-			Future.Await([State, Base](T&&) { State->Activate(Base); });
-			if (Future.IsPending())
-				State->Deactivate(Base);
+			State->Deactivate(Base, [&Future, &State, &Base]()
+			{
+				Future.Await([&State, &Base](T&&)
+				{
+					State->Activate(Base);
+				});
+			});
 
 			return Future.GetIfAny();
 		}
 #endif
 		template <typename T>
-		inline Async<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Varies) noexcept
+		inline Async<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
@@ -2274,7 +2271,7 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		inline Async<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Varies) noexcept
+		inline Async<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
@@ -2292,7 +2289,7 @@ namespace Tomahawk
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
 			Async<T> Result;
-			Schedule::Get()->SetPipe([Result, Callback]() mutable
+			Schedule::Get()->SetChain([Result, Callback]() mutable
 			{
 				Result = std::move(Callback());
 			});
@@ -2305,29 +2302,14 @@ namespace Tomahawk
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
 			Async<T> Result;
-			Schedule::Get()->SetPipe([Result, Callback = std::move(Callback)]() mutable
+			Schedule::Get()->SetChain([Result, Callback = std::move(Callback)]() mutable
 			{
 				Result = std::move(Callback());
 			});
 
 			return Result;
 		}
-		inline bool Coasync(const TaskCallback& Callback) noexcept
-		{
-			return Schedule::Get()->SetPipe(Callback);
-		}
-		inline bool Coasync(TaskCallback&& Callback) noexcept
-		{
-			return Schedule::Get()->SetPipe(std::move(Callback));
-		}
-		inline bool Cosuspend() noexcept
-		{
-			Costate* State = Costate::Get();
-			TH_ASSERT(State != nullptr, false, "cannot call suspend outside coroutine");
-
-			return State->Suspend();
-		}
-		inline bool Cosleep(uint64_t Ms) noexcept
+		inline Async<bool> Cosleep(uint64_t Ms) noexcept
 		{
 			Async<bool> Result;
 			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
@@ -2335,7 +2317,22 @@ namespace Tomahawk
 				Result = true;
 			}, Difficulty::Light);
 
-			return TH_AWAIT(std::move(Result));
+			return Result;
+		}
+		inline bool Coasync(const TaskCallback& Callback) noexcept
+		{
+			return Schedule::Get()->SetChain(Callback);
+		}
+		inline bool Coasync(TaskCallback&& Callback) noexcept
+		{
+			return Schedule::Get()->SetChain(std::move(Callback));
+		}
+		inline bool Cosuspend() noexcept
+		{
+			Costate* State = Costate::Get();
+			TH_ASSERT(State != nullptr, false, "cannot call suspend outside coroutine");
+
+			return State->Suspend();
 		}
 		inline Parser Form(const char* Format, ...)
 		{

@@ -197,18 +197,18 @@ namespace Tomahawk
 		uint64_t ScheduleSetTimeout(Core::Schedule* Base, uint64_t MS, VMCFunction* Callback)
 		{
 			if (!Callback)
-				return TH_INVALID_EVENT_ID;
+				return TH_INVALID_TASK_ID;
 
 			VMContext* Context = VMContext::Get();
 			if (!Context)
-				return TH_INVALID_EVENT_ID;
+				return TH_INVALID_TASK_ID;
 
 			Callback->AddRef();
 			Context->AddRef();
 
 			return Base->SetTimeout(MS, [Context, Callback]() mutable
 			{
-				Context->TryExecuteAsync(Callback, nullptr, nullptr).Await([Context, Callback](int&&)
+				Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
 				{
 					Callback->Release();
 					Context->Release();
@@ -218,23 +218,30 @@ namespace Tomahawk
 		bool ScheduleSetTask(Core::Schedule* Base, VMCFunction* Callback)
 		{
 			if (!Callback)
-				return TH_INVALID_EVENT_ID;
+				return TH_INVALID_TASK_ID;
 
 			VMContext* Context = VMContext::Get();
 			if (!Context)
-				return TH_INVALID_EVENT_ID;
+				return TH_INVALID_TASK_ID;
 
 			Callback->AddRef();
 			Context->AddRef();
 
 			return Base->SetTask([Context, Callback]() mutable
 			{
-				Context->TryExecuteAsync(Callback, nullptr, nullptr).Await([Context, Callback](int&&)
+				Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
 				{
 					Callback->Release();
 					Context->Release();
 				});
 			}, Core::Difficulty::Heavy);
+		}
+		bool ScheduleStart(uint64_t Threads)
+		{
+			Core::Schedule::Desc Policy;
+			Policy.SetThreads(Threads);
+
+			return Core::Schedule::Get()->Start(Policy);
 		}
 
 		Core::Schema* SchemaInit(Core::Schema* Base)
@@ -1355,18 +1362,24 @@ namespace Tomahawk
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");
 			VMGlobal& Register = Engine->Global();
 			Engine->BeginNamespace("CE");
+			VMEnum VDifficulty = Register.SetEnum("Difficulty");
+			VDifficulty.SetValue("Chain", (int)Core::Difficulty::Chain);
+			VDifficulty.SetValue("Clock", (int)Core::Difficulty::Clock);
+			VDifficulty.SetValue("Light", (int)Core::Difficulty::Light);
+			VDifficulty.SetValue("Heavy", (int)Core::Difficulty::Heavy);
+			VDifficulty.SetValue("Count", (int)Core::Difficulty::Count);
+
+			void SetThreads(uint64_t Cores);
 			VMRefClass VSchedule = Register.SetClassUnmanaged<Core::Schedule>("Schedule");
 			VSchedule.SetFunctionDef("void CE::Schedule::TaskCallback()");
 			VSchedule.SetMethodEx("uint64 SetTimeout(uint64, TaskCallback@)", &ScheduleSetTimeout);
 			VSchedule.SetMethodEx("bool SetTask(TaskCallback@)", &ScheduleSetTask);
+			VSchedule.SetMethodEx("bool Start(uint64)", &ScheduleStart);
 			VSchedule.SetMethod("bool ClearTimeout(uint64)", &Core::Schedule::ClearTimeout);
-			VSchedule.SetMethod("bool Start(bool, uint64, uint64 = 16, uint64 = 524288)", &Core::Schedule::ClearTimeout);
 			VSchedule.SetMethod("bool Stop()", &Core::Schedule::Stop);
-			VSchedule.SetMethod("bool Dispatch()", &Core::Schedule::Dispatch);
 			VSchedule.SetMethod("bool IsActive()", &Core::Schedule::IsActive);
-			VSchedule.SetMethod("bool HasTasks()", &Core::Schedule::HasTasks);
-			VSchedule.SetMethod("bool HasTimers()", &Core::Schedule::HasTimers);
-			VSchedule.SetMethod("uint64 GetThreads()", &Core::Schedule::GetThreads);
+			VSchedule.SetMethod("bool HasTasks(Difficulty)", &Core::Schedule::HasTasks);
+			VSchedule.SetMethod("uint64 GetThreads(Difficulty)", &Core::Schedule::GetThreads);
 			Engine->EndNamespace();
 
 			return true;

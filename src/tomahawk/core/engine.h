@@ -63,8 +63,7 @@ namespace Tomahawk
 		{
 			Terminated,
 			Staging,
-			Singlethreaded,
-			Multithreaded
+			Active
 		};
 
 		enum class RenderOpt
@@ -870,7 +869,6 @@ namespace Tomahawk
 				double GrowRate = 0.25f;
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
-				bool Async = true;
 				bool Mutations = true;
 
 				static Desc Get(Application* Base);
@@ -1258,7 +1256,6 @@ namespace Tomahawk
 					(size_t)ApplicationSet::NetworkSet;
 				bool Daemon = false;
 				bool Cursor = true;
-				bool Async = false;
 			};
 
 		public:

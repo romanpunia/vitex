@@ -141,12 +141,12 @@ namespace Tomahawk
 				}
 
 				STDArray* Data = STDArray::Compose(Type.GetTypeInfo(), Args);
-				Context->TryExecuteAsync(Callback, [Ptr, &Data](VMContext* Context)
+				Context->TryExecute(Callback, [Ptr, &Data](VMContext* Context)
 				{
 					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);
 					Context->SetArgObject(1, &Data);
-				}, nullptr).Await([Ptr](int&&)
+				}).Await([Ptr](int&&)
 				{
 					delete Ptr;
 				});
@@ -210,11 +210,11 @@ namespace Tomahawk
 					Ptr->SetPhase(Event.GetPhase());
 				}
 
-				Context->TryExecuteAsync(Source, [Ptr](VMContext* Context)
+				Context->TryExecute(Source, [Ptr](VMContext* Context)
 				{
 					Engine::GUI::IEvent Event(Ptr);
 					Context->SetArgObject(0, &Event);
-				}, nullptr).Await([Ptr](int&&)
+				}).Await([Ptr](int&&)
 				{
 					delete Ptr;
 				});

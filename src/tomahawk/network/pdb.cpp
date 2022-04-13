@@ -1943,7 +1943,7 @@ namespace Tomahawk
 						return Core::Schedule::Get()->SetTask([this, Source]()
 						{
 							Reestablish(Source);
-						}, Core::Difficulty::Heavy);
+						}, Core::Difficulty::Heavy) != TH_INVALID_TASK_ID;
 					}
 
 				Retry:

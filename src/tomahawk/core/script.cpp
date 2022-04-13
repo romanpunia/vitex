@@ -2107,9 +2107,6 @@ namespace Tomahawk
 
 			Manager->Lock();
 			{
-				if (Context != nullptr)
-					Context->SetOnResume(nullptr);
-
 				if (Module != nullptr)
 					Module->Discard();
 
@@ -2336,7 +2333,7 @@ namespace Tomahawk
 
 			return R;
 		}
-		Core::Async<int> VMCompiler::ExecuteFileAsync(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2355,9 +2352,9 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			return ExecuteEntryAsync(EntryName, std::move(OnArgs), std::move(OnResume));
+			return ExecuteEntry(EntryName, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteMemoryAsync(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(!Buffer.empty(), asINVALID_ARG, "buffer should not be empty");
@@ -2376,9 +2373,9 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			return ExecuteEntryAsync(EntryName, std::move(OnArgs), std::move(OnResume));
+			return ExecuteEntry(EntryName, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteEntryAsync(const char* Name, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2393,13 +2390,13 @@ namespace Tomahawk
 			if (!Function)
 				return asNO_FUNCTION;
 
-			return Context->TryExecuteAsync(Function, std::move(OnArgs), std::move(OnResume));
+			return Context->TryExecute(Function, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteScopedAsync(const std::string& Code, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
 		{
-			return ExecuteScopedAsync(Code.c_str(), (uint64_t)Code.size(), Args, std::move(OnArgs), std::move(OnResume));
+			return ExecuteScoped(Code.c_str(), (uint64_t)Code.size(), Args, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteScopedAsync(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
@@ -2425,7 +2422,7 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			Core::Async<int> Result = Context->TryExecuteAsync(Function, std::move(OnArgs), std::move(OnResume));
+			Core::Async<int> Result = Context->TryExecute(Function, std::move(OnArgs));
 			Function->Release();
 
 			return Result;
@@ -2466,7 +2463,9 @@ namespace Tomahawk
 		{
 			while (!Tasks.empty())
 			{
-				Tasks.front().Function.Release();
+				auto& Next = Tasks.front();
+				Next.Callback.Release();
+				Next.Future = asCONTEXT_NOT_PREPARED;
 				Tasks.pop();
 			}
 
@@ -2478,38 +2477,50 @@ namespace Tomahawk
 					Context->Release();
 			}
 		}
-		Core::Async<int> VMContext::TryExecuteAsync(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		Core::Async<int> VMContext::TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs)
 		{
-			Core::Async<int> Result;
-			TryExecute(Function, std::move(OnArgs), [Result, OnResume = std::move(OnResume)](VMContext* Context, VMPoll State) mutable
+			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
+			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
+
+			Exchange.lock();
+			if (Tasks.empty())
 			{
-				if (OnResume)
-					OnResume(Context, State);
-
-				switch (State)
+				int Result = Context->Prepare(Function.GetFunction());
+				if (Result < 0)
 				{
-					case VMPoll::Exception:
-						Result = (int)VMExecState::EXCEPTION;
-						break;
-					case VMPoll::Finish:
-						Result = (int)VMExecState::FINISHED;
-						break;
-					default:
-						break;
+					Exchange.unlock();
+					return Core::Async<int>(Result);
 				}
-			});
+				else
+					Tasks.emplace();
+	
+				auto Future = Tasks.front().Future;
+				Exchange.unlock();
 
-			return Result;
+				if (OnArgs)
+					OnArgs(this);
+
+				Execute();
+				return Future;
+			}
+			else
+			{
+				Task Next;
+				Next.Args = std::move(OnArgs);
+				Next.Callback = Function;
+				Next.Callback.AddRef();
+
+				Core::Async<int> Future = Next.Future;
+				Tasks.emplace(std::move(Next));
+				Exchange.unlock();
+
+				return Future;
+			}
 		}
 		int VMContext::SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
-		}
-		int VMContext::SetOnResume(const ResumeCallback& OnResume)
-		{
-			Trigger = OnResume;
-			return 0;
 		}
 		int VMContext::Prepare(const VMFunction& Function)
 		{
@@ -2521,76 +2532,52 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Unprepare();
 		}
-		int VMContext::TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs, ResumeCallback&& OnResume)
+		int VMContext::Execute()
 		{
-			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
-			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
-
-			asEContextState State = Context->GetState();
-			if (State == asEXECUTION_ACTIVE || State == asEXECUTION_SUSPENDED)
-			{
-				Executable Next;
-				Next.Callback = std::move(OnResume);
-				Next.Args = std::move(OnArgs);
-				Next.Function = Function;
-				Next.Function.AddRef();
-
-				Exchange.lock();
-				Tasks.push(std::move(Next));
-				Exchange.unlock();
-			}
-			else
-			{
-				int Result = Context->Prepare(Function.GetFunction());
-				if (Result < 0)
-					return Result;
-
-				if (OnArgs)
-					OnArgs(this);
-
-				return Execute(std::move(OnResume)) >= 0;
-			}
-
-			return true;
-		}
-		int VMContext::Execute(ResumeCallback&& OnResume)
-		{
-			asEContextState Status = Context->GetState();
-			if (Status == asEXECUTION_ACTIVE)
-				return asEXECUTION_ACTIVE;
-
-			Status = (asEContextState)Context->Execute();
-			if (Status != asEXECUTION_ACTIVE && Status != asEXECUTION_SUSPENDED)
+			int Result = Context->Execute();
+			if (Result != asEXECUTION_SUSPENDED)
 			{
 				Exchange.lock();
 				if (!Tasks.empty())
 				{
-					Executable Next = std::move(Tasks.front());
-					Tasks.pop();
-					Exchange.unlock();
+					int Subresult = 0;
+					{
+						auto Current = Tasks.front();
+						Current.Callback.Release();
+						Tasks.pop();
 
-					TryExecute(Next.Function, std::move(Next.Args), std::move(Next.Callback));
-					Next.Function.Release();
+						Exchange.unlock();
+						Current.Future = Result;
+						Exchange.lock();
+					}
+
+					while (!Tasks.empty())
+					{
+						auto Next = Tasks.front();
+						Subresult = Context->Prepare(Next.Callback.GetFunction());
+						Exchange.unlock();
+
+						if (Subresult >= 0)
+						{
+							if (Next.Args)
+								Next.Args(this);
+
+							Subresult = Context->Execute();
+							if (Subresult == asEXECUTION_SUSPENDED)
+								return Result;
+						}
+
+						Exchange.lock();
+						Tasks.pop();
+						Exchange.unlock();
+
+						Next.Future = Subresult;
+					}
 				}
-				else
-					Exchange.unlock();
+				Exchange.unlock();
 			}
 
-			VMPoll State = VMPoll::Continue;
-			if (Status == asEXECUTION_FINISHED || Status == asEXECUTION_ABORTED)
-				State = VMPoll::Finish;
-			else if (Status == asEXECUTION_ERROR)
-				State = VMPoll::Exception;
-			else if (Status == asEXECUTION_EXCEPTION)
-				State = IsThrown() ? VMPoll::Exception : VMPoll::Finish;
-
-			if (Trigger)
-				Trigger(this, State);
-
-			if (OnResume)
-				OnResume(this, State);
-
-			return Status;
+			return Result;
 		}
 		int VMContext::Abort()
 		{
@@ -2602,10 +2589,10 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Suspend();
 		}
-		VMExecState VMContext::GetState() const
+		VMRuntime VMContext::GetState() const
 		{
-			TH_ASSERT(Context != nullptr, VMExecState::UNINITIALIZED, "context should be set");
-			return (VMExecState)Context->GetState();
+			TH_ASSERT(Context != nullptr, VMRuntime::UNINITIALIZED, "context should be set");
+			return (VMRuntime)Context->GetState();
 		}
 		std::string VMContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
 		{
@@ -2671,10 +2658,10 @@ namespace Tomahawk
 		bool VMContext::IsPending()
 		{
 			Exchange.lock();
-			bool Result = (!Tasks.empty());
+			bool Pending = !Tasks.empty();
 			Exchange.unlock();
 
-			return Result;
+			return Pending;
 		}
 		int VMContext::SetObject(void* Object)
 		{

@@ -3578,7 +3578,6 @@ namespace Tomahawk
 			{
 				I.MinFrames = Base->Control.MinFrames;
 				I.MaxFrames = Base->Control.MaxFrames;
-				I.Async = Base->Control.Async;
 				I.Shaders = Base->Cache.Shaders;
 				I.Primitives = Base->Cache.Primitives;
 				I.Device = Base->Renderer;
@@ -3635,8 +3634,11 @@ namespace Tomahawk
 			Status = -1;
 			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
 			{
-				while (It->second->Active)
-					Schedule->Dispatch();
+				while (Schedule->IsActive() && It->second->Active)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					TH_PSIG();
+				}
 
 				TH_RELEASE(It->second->Time);
 				TH_DELETE(Packet, It->second);
@@ -3732,9 +3734,6 @@ namespace Tomahawk
 		}
 		void SceneGraph::ExclusiveLock()
 		{
-			if (!Conf.Async)
-				return;
-
 			if (Status != 1)
 				return Emulation.lock();
 
@@ -3750,9 +3749,6 @@ namespace Tomahawk
 		}
 		void SceneGraph::ExclusiveUnlock()
 		{
-			if (!Conf.Async)
-				return;
-
 			if (Status != 1)
 				return Emulation.unlock();
 
@@ -4231,12 +4227,8 @@ namespace Tomahawk
 			auto* Schedule = Core::Schedule::Get();
 			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
 			{
-				if (It->second->Active)
-					continue;
-
-				It->second->Active = true;
-				if (!Schedule->SetTask(It->second->Callback, Core::Difficulty::Heavy))
-					It->second->Active = false;
+				if (!It->second->Active)
+					It->second->Active = Schedule->SetTask(It->second->Callback, Core::Difficulty::Heavy);
 			}
 		}
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
@@ -4453,7 +4445,7 @@ namespace Tomahawk
 				Packet* Task = (It == Tasks.end() ? TH_NEW(Packet) : It->second);
 				Task->Time = (Task->Time ? Task->Time : new Core::Timer());
 				Task->Time->SetStepLimitation(Conf.MinFrames, Conf.MaxFrames);
-				Task->Time->FrameLimit = (Conf.Async ? Conf.FrequencyHZ : 0.0);
+				Task->Time->FrameLimit = Conf.FrequencyHZ;
 				Task->Active = false;
 
 				if (It == Tasks.end())
@@ -4465,7 +4457,8 @@ namespace Tomahawk
 					{
 						Callback(Task->Time);
 						Task->Time->Synchronize();
-						if (Core::Schedule::Get()->SetTask(Task->Callback, Core::Difficulty::Heavy))
+						Task->Active = Core::Schedule::Get()->SetTask(Task->Callback, Core::Difficulty::Heavy);
+						if (Task->Active)
 							return;
 					}
 
@@ -5910,19 +5903,13 @@ namespace Tomahawk
 			if (State == ApplicationState::Terminated)
 				return;
 
-			ApplicationState OK;
-			if (Control.Async)
+			State = ApplicationState::Active;
+			if (!Control.Threads)
 			{
-				OK = State = ApplicationState::Multithreaded;
-				if (!Control.Threads)
-				{
-					auto Quantity = Core::OS::CPU::GetQuantityInfo();
-					Control.Threads = std::max<uint32_t>(2, Quantity.Physical) - 1;
-				}
+				auto Quantity = Core::OS::CPU::GetQuantityInfo();
+				Control.Threads = std::max<uint32_t>(2, Quantity.Physical) - 1;
 			}
-			else
-				OK = State = ApplicationState::Singlethreaded;
-
+		
 			Core::Timer* Time = new Core::Timer();
 			Time->FrameLimit = Control.Framerate;
 			Time->SetStepLimitation(Control.MinFrames, Control.MaxFrames);
@@ -5935,16 +5922,15 @@ namespace Tomahawk
 				GUI::Subsystem::SetMetadata(Activity, Content, Time);
 #endif
 			Core::Schedule::Desc Policy;
-			Policy.Async = Control.Async;
 			Policy.Coroutines = Control.Coroutines;
 			Policy.Memory = Control.Stack;
 			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
 			Policy.SetThreads(Control.Threads);
 			Queue->Start(Policy);
 
-			if (Activity != nullptr && Control.Async)
+			if (Activity != nullptr)
 			{
-				while (State == OK)
+				while (State == ApplicationState::Active)
 				{
 					Activity->Dispatch();
 					Time->Synchronize();
@@ -5953,21 +5939,9 @@ namespace Tomahawk
 					TH_SSIG();
 				}
 			}
-			else if (Activity != nullptr && !Control.Async)
+			else
 			{
-				while (State == OK)
-				{
-					Queue->Dispatch();
-					Activity->Dispatch();
-					Time->Synchronize();
-					Dispatch(Time);
-					Publish(Time);
-					TH_SSIG();
-				}
-			}
-			else if (!Activity && Control.Async)
-			{
-				while (State == OK)
+				while (State == ApplicationState::Active)
 				{
 					Time->Synchronize();
 					Dispatch(Time);
@@ -5975,18 +5949,7 @@ namespace Tomahawk
 					TH_SSIG();
 				}
 			}
-			else if (!Activity && !Control.Async)
-			{
-				while (State == OK)
-				{
-					Queue->Dispatch();
-					Time->Synchronize();
-					Dispatch(Time);
-					Publish(Time);
-					TH_SSIG();
-				}
-			}
-
+			
 			TH_RELEASE(Time);
 			CloseEvent();
 			Queue->Stop();
@@ -6019,7 +5982,7 @@ namespace Tomahawk
 		}
 		bool Application::Status(Application* App)
 		{
-			return App->State == ApplicationState::Singlethreaded || App->State == ApplicationState::Multithreaded;
+			return App->State == ApplicationState::Active;
 		}
 		void Application::Compose()
 		{

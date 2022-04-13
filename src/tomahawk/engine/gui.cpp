@@ -587,7 +587,7 @@ namespace Tomahawk
 
 					Scope->Basis->AddRef();
 					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
-					Compiler->ExecuteScopedAsync(Content.c_str(), Content.size()).Await([Scope](int&&)
+					Compiler->ExecuteScoped(Content.c_str(), Content.size()).Await([Scope](int&&)
 					{
 						Scope->Basis->Release();
 					});

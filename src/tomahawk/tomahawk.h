@@ -1,8 +1,8 @@
 #ifndef TOMAHAWK_H
 #define TOMAHAWK_H
-#define TH_MAJOR_VERSION 5
-#define TH_MINOR_VERSION 4
-#define TH_PATCH_LEVEL 21
+#define TH_MAJOR_VERSION 6
+#define TH_MINOR_VERSION 5
+#define TH_PATCH_LEVEL 22
 #define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/core.h"

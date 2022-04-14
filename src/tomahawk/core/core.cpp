@@ -8527,15 +8527,12 @@ namespace Tomahawk
 			if (!Nodes)
 				return nullptr;
 
-			if (Value.Type == VarType::Array)
+			Core::Parser Number(&Name);
+			if (Number.HasInteger())
 			{
-				Core::Parser Number(&Name);
-				if (Number.HasInteger())
-				{
-					int64_t Index = Number.ToInt64();
-					if (Index >= 0 && Index < Nodes->size())
-						return (*Nodes)[Index];
-				}
+				int64_t Index = Number.ToInt64();
+				if (Index >= 0 && Index < Nodes->size())
+					return (*Nodes)[Index];
 			}
 
 			for (auto K : *Nodes)

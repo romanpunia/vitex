@@ -2587,7 +2587,7 @@ namespace Tomahawk
 
 			return Visibility >= Threshold;
 		}
-		bool RenderSystem::PushGeometryBuffer(Material* Next)
+		bool RenderSystem::PushGeometryBuffer(Material* Next, bool Textures)
 		{
 			if (!Next)
 				return false;
@@ -2596,13 +2596,16 @@ namespace Tomahawk
 				return true;
 
 			BaseMaterial = Next;
-			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
-			Device->SetTexture2D(Next->NormalMap, 2, TH_PS);
-			Device->SetTexture2D(Next->MetallicMap, 3, TH_PS);
-			Device->SetTexture2D(Next->RoughnessMap, 4, TH_PS);
-			Device->SetTexture2D(Next->HeightMap, 5, TH_PS);
-			Device->SetTexture2D(Next->OcclusionMap, 6, TH_PS);
-			Device->SetTexture2D(Next->EmissionMap, 7, TH_PS);
+			if (Textures)
+			{
+				Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
+				Device->SetTexture2D(Next->NormalMap, 2, TH_PS);
+				Device->SetTexture2D(Next->MetallicMap, 3, TH_PS);
+				Device->SetTexture2D(Next->RoughnessMap, 4, TH_PS);
+				Device->SetTexture2D(Next->HeightMap, 5, TH_PS);
+				Device->SetTexture2D(Next->OcclusionMap, 6, TH_PS);
+				Device->SetTexture2D(Next->EmissionMap, 7, TH_PS);
+			}
 			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
 			Device->Render.Normal = (float)(Next->NormalMap != nullptr);
 			Device->Render.Height = (float)(Next->HeightMap != nullptr);
@@ -2610,7 +2613,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool RenderSystem::PushVoxelsBuffer(Material* Next)
+		bool RenderSystem::PushVoxelsBuffer(Material* Next, bool Textures)
 		{
 			if (!Next || Next->Surface.Transparency > 0.0f)
 				return false;
@@ -2619,19 +2622,22 @@ namespace Tomahawk
 				return true;
 
 			BaseMaterial = Next;
-			Device->SetTexture2D(Next->DiffuseMap, 4, TH_PS);
-			Device->SetTexture2D(Next->NormalMap, 5, TH_PS);
-			Device->SetTexture2D(Next->MetallicMap, 6, TH_PS);
-			Device->SetTexture2D(Next->RoughnessMap, 7, TH_PS);
-			Device->SetTexture2D(Next->OcclusionMap, 8, TH_PS);
-			Device->SetTexture2D(Next->EmissionMap, 9, TH_PS);
+			if (Textures)
+			{
+				Device->SetTexture2D(Next->DiffuseMap, 4, TH_PS);
+				Device->SetTexture2D(Next->NormalMap, 5, TH_PS);
+				Device->SetTexture2D(Next->MetallicMap, 6, TH_PS);
+				Device->SetTexture2D(Next->RoughnessMap, 7, TH_PS);
+				Device->SetTexture2D(Next->OcclusionMap, 8, TH_PS);
+				Device->SetTexture2D(Next->EmissionMap, 9, TH_PS);
+			}
 			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
 			Device->Render.Normal = (float)(Next->NormalMap != nullptr);
 			Device->Render.Mid = (float)Next->Slot;
 
 			return true;
 		}
-		bool RenderSystem::PushDepthLinearBuffer(Material* Next)
+		bool RenderSystem::PushDepthLinearBuffer(Material* Next, bool Textures)
 		{
 			if (!Next)
 				return false;
@@ -2640,15 +2646,16 @@ namespace Tomahawk
 				return true;
 
 			BaseMaterial = Next;
-			Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
+			if (Textures)
+				Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
 			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
 			Device->Render.Mid = (float)Next->Slot;
 
 			return true;
 		}
-		bool RenderSystem::PushDepthCubicBuffer(Material* Next)
+		bool RenderSystem::PushDepthCubicBuffer(Material* Next, bool Textures)
 		{
-			return PushDepthLinearBuffer(Next);
+			return PushDepthLinearBuffer(Next, Textures);
 		}
 		bool RenderSystem::HasCategory(GeoCategory Category)
 		{

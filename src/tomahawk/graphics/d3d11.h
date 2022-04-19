@@ -433,6 +433,9 @@ namespace Tomahawk
 				void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) override;
 				void DrawIndexed(MeshBuffer* Resource) override;
 				void DrawIndexed(SkinMeshBuffer* Resource) override;
+				void DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation) override;
+				void DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount) override;
+				void DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount) override;
 				void Draw(unsigned int Count, unsigned int Location) override;
 				void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ);
 				bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) override;

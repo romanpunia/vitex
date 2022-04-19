@@ -178,6 +178,14 @@ namespace Tomahawk
 			Event& operator= (Event&& Other) noexcept;
 		};
 
+		struct TH_OUT BatchData
+		{
+			Graphics::ElementBuffer* InstanceBuffer;
+			void* GeometryBuffer;
+			Material* BatchMaterial;
+			size_t InstancesCount;
+		};
+
 		struct TH_OUT AssetCache
 		{
 			std::string Path;
@@ -727,10 +735,10 @@ namespace Tomahawk
 			float EnqueueDrawable(Drawable* Base, bool& Cullable);
 			bool PushCullable(Entity* Target, const Viewer& Source, Component* Base);
 			bool PushDrawable(Entity* Target, const Viewer& Source, Drawable* Base);
-			bool PushGeometryBuffer(Material* Next);
-			bool PushVoxelsBuffer(Material* Next);
-			bool PushDepthLinearBuffer(Material* Next);
-			bool PushDepthCubicBuffer(Material* Next);
+			bool PushGeometryBuffer(Material* Next, bool Textures = true);
+			bool PushVoxelsBuffer(Material* Next, bool Textures = true);
+			bool PushDepthLinearBuffer(Material* Next, bool Textures = true);
+			bool PushDepthCubicBuffer(Material* Next, bool Textures = true);
 			bool HasCategory(GeoCategory Category);
 			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
@@ -1373,9 +1381,9 @@ namespace Tomahawk
 				}
 				System->QueryEnd();
 
+				std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
-				std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
@@ -1436,6 +1444,9 @@ namespace Tomahawk
 		{
 			static_assert(std::is_base_of<Drawable, T>::value, "component must be drawable to work within geometry renderer");
 
+		public:
+			typedef std::vector<T*> Objects;
+
 		private:
 			RendererProxy<T> Proxy;
 			std::unordered_map<T*, Graphics::Query*> Active;
@@ -1458,7 +1469,7 @@ namespace Tomahawk
 				Skippable[1] = false;
 				FrameTop[3] = 0;
 			}
-			~GeometryRenderer()
+			virtual ~GeometryRenderer()
 			{
 				for (auto& Item : Active)
 					TH_RELEASE(Item.second);
@@ -1488,23 +1499,26 @@ namespace Tomahawk
 			{
 				return !Proxy.Top(Category).empty();
 			}
-			virtual size_t CullGeometry(const Viewer& View, const std::vector<T*>& Geometry)
+			virtual size_t CullGeometry(const Viewer& View, const Objects& Geometry)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const std::vector<T*>& Geometry)
+			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const Objects& Geometry)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const std::vector<T*>& Geometry, Compute::Matrix4x4* ViewProjection)
+			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const Objects& Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const std::vector<T*>& Geometry)
+			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const Objects& Geometry)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const std::vector<T*>& Geometry) = 0;
+			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const Objects& Geometry)
+			{
+				return 0;
+			}
 			size_t RenderPass(Core::Timer* Time) override
 			{
 				size_t Count = 0;

@@ -723,6 +723,7 @@ namespace Tomahawk
 			Float,
 			Int,
 			Uint,
+			Matrix
 		};
 
 		inline ColorWriteEnable operator |(ColorWriteEnable A, ColorWriteEnable B)
@@ -1038,6 +1039,8 @@ namespace Tomahawk
 				AttributeType Format;
 				unsigned int Components;
 				unsigned int AlignedByteOffset;
+				unsigned int Slot = 0;
+				bool PerVertex = true;
 			};
 
 		public:
@@ -1707,6 +1710,9 @@ namespace Tomahawk
 			virtual void DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation) = 0;
 			virtual void DrawIndexed(MeshBuffer* Resource) = 0;
 			virtual void DrawIndexed(SkinMeshBuffer* Resource) = 0;
+			virtual void DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation) = 0;
+			virtual void DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount) = 0;
+			virtual void DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount) = 0;
 			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
 			virtual void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) = 0;
 			virtual bool CopyTexture2D(Texture2D* Resource, Texture2D** Result) = 0;

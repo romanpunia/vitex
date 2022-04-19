@@ -1032,6 +1032,20 @@ namespace Tomahawk
 				{ "NORMAL", 0, AttributeType::Float, 3, 5 * sizeof(float) },
 				{ "TANGENT", 0, AttributeType::Float, 3, 8 * sizeof(float) },
 				{ "BINORMAL", 0, AttributeType::Float, 3, 11 * sizeof(float) },
+				{ "OB_TRANSFORM", 0, AttributeType::Matrix, 16, 0, 1, false },
+				{ "OB_WORLD", 0, AttributeType::Matrix, 16, sizeof(Compute::Matrix4x4), 1, false },
+				{ "OB_TEXCOORD_DIF_NOR", 0, AttributeType::Float, 4, sizeof(Compute::Matrix4x4) * 2, 1, false },
+				{ "OB_HEI_MID", 0, AttributeType::Float, 2, sizeof(Compute::Matrix4x4) * 2 + 4 * sizeof(float), 1, false },
+			};
+			InputLayouts["vertex-instance"] = CreateInputLayout(Layout);
+
+			Layout.Attributes =
+			{
+				{ "POSITION", 0, AttributeType::Float, 3, 0 },
+				{ "TEXCOORD", 0, AttributeType::Float, 2, 3 * sizeof(float) },
+				{ "NORMAL", 0, AttributeType::Float, 3, 5 * sizeof(float) },
+				{ "TANGENT", 0, AttributeType::Float, 3, 8 * sizeof(float) },
+				{ "BINORMAL", 0, AttributeType::Float, 3, 11 * sizeof(float) },
 				{ "JOINTBIAS", 0, AttributeType::Float, 4, 14 * sizeof(float) },
 				{ "JOINTBIAS", 1, AttributeType::Float, 4, 18 * sizeof(float) }
 			};

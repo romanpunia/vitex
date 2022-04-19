@@ -7,7 +7,7 @@ namespace Tomahawk
 	{
 		namespace Renderers
 		{
-			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryRenderer<Components::SoftBody>(Lab), VertexBuffer(nullptr), IndexBuffer(nullptr)
+			SoftBody::SoftBody(Engine::RenderSystem* Lab) : GeometryRenderer(Lab), VertexBuffer(nullptr), IndexBuffer(nullptr)
 			{
 				TH_ASSERT_V(System != nullptr, "render system should be set");
 				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
@@ -45,7 +45,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t SoftBody::CullGeometry(const Viewer& View, const std::vector<Components::SoftBody*>& Geometry)
+			size_t SoftBody::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitives cache should be set");
 
@@ -99,7 +99,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry)
+			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -136,7 +136,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry)
+			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -173,7 +173,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_GS);
 				return Count;
 			}
-			size_t SoftBody::RenderDepthLinear(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry)
+			size_t SoftBody::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -210,7 +210,7 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				return Count;
 			}
-			size_t SoftBody::RenderDepthCubic(Core::Timer* Time, const std::vector<Components::SoftBody*>& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t SoftBody::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -251,7 +251,7 @@ namespace Tomahawk
 				return Count;
 			}
 
-			Model::Model(Engine::RenderSystem* Lab) : GeometryRenderer<Components::Model>(Lab)
+			Model::Model(Engine::RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
 				TH_ASSERT_V(System != nullptr, "render system should be set");
 				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
@@ -278,7 +278,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t Model::CullGeometry(const Viewer& View, const std::vector<Components::Model*>& Geometry)
+			size_t Model::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 
@@ -333,7 +333,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Model::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Model*>& Geometry)
+			size_t Model::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -374,7 +374,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Model::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Model*>& Geometry)
+			size_t Model::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -413,7 +413,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_GS);
 				return Count;
 			}
-			size_t Model::RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Model*>& Geometry)
+			size_t Model::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -453,7 +453,7 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				return Count;
 			}
-			size_t Model::RenderDepthCubic(Core::Timer* Time, const std::vector<Components::Model*>& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t Model::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -496,7 +496,7 @@ namespace Tomahawk
 				return Count;
 			}
 
-			Skin::Skin(Engine::RenderSystem* Lab) : GeometryRenderer<Components::Skin>(Lab)
+			Skin::Skin(Engine::RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
 				TH_ASSERT_V(System != nullptr, "render system should be set");
 				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
@@ -523,7 +523,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t Skin::CullGeometry(const Viewer& View, const std::vector<Components::Skin*>& Geometry)
+			size_t Skin::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 
@@ -593,7 +593,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry)
+			size_t Skin::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -640,7 +640,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry)
+			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -685,7 +685,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_GS);
 				return Count;
 			}
-			size_t Skin::RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry)
+			size_t Skin::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -731,7 +731,7 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				return Count;
 			}
-			size_t Skin::RenderDepthCubic(Core::Timer* Time, const std::vector<Components::Skin*>& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t Skin::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -780,7 +780,7 @@ namespace Tomahawk
 				return Count;
 			}
 
-			Emitter::Emitter(RenderSystem* Lab) : GeometryRenderer<Components::Emitter>(Lab)
+			Emitter::Emitter(RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
 				TH_ASSERT_V(System != nullptr, "render system should be set");
 				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
@@ -807,7 +807,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Point);
 				System->FreeShader(Shaders.Depth.Quad);
 			}
-			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry)
+			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -867,7 +867,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				return Count;
 			}
-			size_t Emitter::RenderDepthLinear(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry)
+			size_t Emitter::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -910,7 +910,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				return Count;
 			}
-			size_t Emitter::RenderDepthCubic(Core::Timer* Time, const std::vector<Components::Emitter*>& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t Emitter::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -957,7 +957,7 @@ namespace Tomahawk
 				return Count;
 			}
 
-			Decal::Decal(RenderSystem* Lab) : GeometryRenderer<Components::Decal>(Lab)
+			Decal::Decal(RenderSystem* Lab) : GeometryRenderer(Lab)
 			{
 				TH_ASSERT_V(System != nullptr, "render system should be set");
 				TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
@@ -975,7 +975,7 @@ namespace Tomahawk
 			{
 				System->FreeShader(Shader);
 			}
-			size_t Decal::RenderGeometryResult(Core::Timer* Time, const std::vector<Components::Decal*>& Geometry)
+			size_t Decal::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 

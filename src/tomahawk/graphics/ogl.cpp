@@ -139,6 +139,8 @@ namespace Tomahawk
 					size_t Stride = It.AlignedByteOffset;
 					GLint Size = It.Components;
 					GLint Normalize = GL_FALSE;
+					size_t BufferSlot = (size_t)It.Slot;
+					bool PerVertex = It.PerVertex;
 
 					switch (It.Format)
 					{
@@ -154,7 +156,9 @@ namespace Tomahawk
 							Format = GL_HALF_FLOAT;
 							break;
 						case Tomahawk::Graphics::AttributeType::Float:
+						case Tomahawk::Graphics::AttributeType::Matrix:
 							Format = GL_FLOAT;
+							Size = sizeof(Compute::Matrix4x4);
 							break;
 						case Tomahawk::Graphics::AttributeType::Int:
 							Format = GL_INT;
@@ -166,10 +170,13 @@ namespace Tomahawk
 							break;
 					}
 
-					VertexLayout.emplace_back([i, Format, Normalize, Stride, Size](uint64_t Width)
+					auto& Layout = VertexLayout[BufferSlot];
+					size_t Offset = Layout.size();
+					Layout.emplace_back([Offset, Format, Normalize, Stride, Size, PerVertex](uint64_t Width)
 					{
-						glEnableVertexAttribArray(i);
-						glVertexAttribPointer(i, Size, Format, Normalize, Width, OGL_VOFFSET(Stride));
+						glEnableVertexAttribArray(Offset);
+						glVertexAttribPointer(Offset, Size, Format, Normalize, Width, OGL_VOFFSET(Stride));
+						glVertexAttribDivisor(Offset, PerVertex ? 0 : 1);
 					});
 				}
 			}
@@ -1009,7 +1016,7 @@ namespace Tomahawk
 					glGenVertexArrays(1, &Buffer);
 					glBindVertexArray(Buffer);
 					glBindBuffer(GL_ARRAY_BUFFER, IResource->Resource);
-					for (auto& Attribute : Register.Layout->VertexLayout)
+					for (auto& Attribute : Register.Layout->VertexLayout[Slot])
 						Attribute(IResource->Stride);
 					IResource->Layouts[Register.Layout] = Buffer;
 				}
@@ -1535,6 +1542,34 @@ namespace Tomahawk
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
 				glDrawElements(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
+			}
+			void OGLDevice::DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation)
+			{
+				glDrawElementsInstanced(Register.DrawTopology, IndexCountPerInstance, GL_UNSIGNED_INT, nullptr, InstanceCount);
+			}
+			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount)
+			{
+				TH_ASSERT_V(Instances != nullptr, "instances should be set");
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+
+				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
+				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
+				SetVertexBuffer(Instances, 1);
+				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
+
+				glDrawElementsInstanced(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, InstanceCount);
+			}
+			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount)
+			{
+				TH_ASSERT_V(Instances != nullptr, "instances should be set");
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+
+				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
+				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
+				SetVertexBuffer(Instances, 1);
+				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
+
+				glDrawElementsInstanced(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, InstanceCount);
 			}
 			void OGLDevice::Draw(unsigned int Count, unsigned int Location)
 			{

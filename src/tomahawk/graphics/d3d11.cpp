@@ -1480,6 +1480,62 @@ namespace Tomahawk
 
 				ImmediateContext->DrawIndexed((unsigned int)IndexBuffer->GetElements(), 0, 0);
 			}
+			void D3D11Device::DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation)
+			{
+				ImmediateContext->DrawIndexedInstanced(IndexCountPerInstance, InstanceCount, IndexLocation, VertexLocation, InstanceLocation);
+			}
+			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount)
+			{
+				TH_ASSERT_V(Instances != nullptr, "instances should be set");
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+
+				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
+				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
+				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
+				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
+
+				if (std::get<0>(Register.VertexBuffer) != VertexBuffer || std::get<1>(Register.VertexBuffer) != 0)
+				{
+					Register.VertexBuffer = std::make_tuple(VertexBuffer, 0);
+					ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
+				}
+
+				if (std::get<0>(Register.IndexBuffer) != IndexBuffer || std::get<1>(Register.IndexBuffer) != Format::R32_Uint)
+				{
+					Register.IndexBuffer = std::make_tuple(IndexBuffer, Format::R32_Uint);
+					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
+				}
+
+				Stride = InstanceBuffer->Stride;
+				ImmediateContext->IASetVertexBuffers(1, 1, &InstanceBuffer->Element, &Stride, &Offset);
+				ImmediateContext->DrawIndexedInstanced((unsigned int)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
+			}
+			void D3D11Device::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount)
+			{
+				TH_ASSERT_V(Instances != nullptr, "instances should be set");
+				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+
+				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
+				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
+				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
+				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
+
+				if (std::get<0>(Register.VertexBuffer) != VertexBuffer || std::get<1>(Register.VertexBuffer) != 0)
+				{
+					Register.VertexBuffer = std::make_tuple(VertexBuffer, 0);
+					ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
+				}
+
+				if (std::get<0>(Register.IndexBuffer) != IndexBuffer || std::get<1>(Register.IndexBuffer) != Format::R32_Uint)
+				{
+					Register.IndexBuffer = std::make_tuple(IndexBuffer, Format::R32_Uint);
+					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
+				}
+
+				Stride = InstanceBuffer->Stride;
+				ImmediateContext->IASetVertexBuffers(1, 1, &InstanceBuffer->Element, &Stride, &Offset);
+				ImmediateContext->DrawIndexedInstanced((unsigned int)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
+			}
 			void D3D11Device::Draw(unsigned int Count, unsigned int Location)
 			{
 				ImmediateContext->Draw(Count, Location);
@@ -3887,17 +3943,31 @@ namespace Tomahawk
 				if (!Shader->Signature || !Register.Layout || Register.Layout->Layout.empty())
 					return nullptr;
 
-				D3D11_INPUT_ELEMENT_DESC* Result = (D3D11_INPUT_ELEMENT_DESC*)TH_MALLOC(sizeof(D3D11_INPUT_ELEMENT_DESC) * Register.Layout->Layout.size());
+				std::vector<D3D11_INPUT_ELEMENT_DESC> Result;
 				for (size_t i = 0; i < Register.Layout->Layout.size(); i++)
 				{
 					const InputLayout::Attribute& It = Register.Layout->Layout[i];
-					D3D11_INPUT_ELEMENT_DESC& At = Result[i];
+					D3D11_INPUT_CLASSIFICATION Class = It.PerVertex ? D3D11_INPUT_PER_VERTEX_DATA : D3D11_INPUT_PER_INSTANCE_DATA;
+					UINT Step = It.PerVertex ? 0 : 1;
+
+					if (It.Format == AttributeType::Matrix)
+					{
+						DXGI_FORMAT Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+						Result.push_back({ It.SemanticName, It.SemanticIndex + 0, Format, It.Slot, It.AlignedByteOffset + 0, Class, Step });
+						Result.push_back({ It.SemanticName, It.SemanticIndex + 1, Format, It.Slot, It.AlignedByteOffset + 16, Class, Step });
+						Result.push_back({ It.SemanticName, It.SemanticIndex + 2, Format, It.Slot, It.AlignedByteOffset + 32, Class, Step });
+						Result.push_back({ It.SemanticName, It.SemanticIndex + 3, Format, It.Slot, It.AlignedByteOffset + 48, Class, Step });
+						continue;
+					}
+
+					D3D11_INPUT_ELEMENT_DESC At;
 					At.SemanticName = It.SemanticName;
 					At.AlignedByteOffset = It.AlignedByteOffset;
 					At.Format = DXGI_FORMAT_R32_FLOAT;
 					At.SemanticIndex = It.SemanticIndex;
-					At.InputSlot = At.InstanceDataStepRate = 0;
-					At.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+					At.InputSlot = It.Slot;
+					At.InstanceDataStepRate = Step;
+					At.InputSlotClass = Class;
 
 					switch (It.Format)
 					{
@@ -3905,7 +3975,6 @@ namespace Tomahawk
 							if (It.Components == 3)
 							{
 								TH_ERR("D3D11 does not support 24bit format for this type");
-								TH_FREE(Result);
 								return nullptr;
 							}
 							else if (It.Components == 1)
@@ -3919,7 +3988,6 @@ namespace Tomahawk
 							if (It.Components == 3)
 							{
 								TH_ERR("D3D11 does not support 24bit format for this type");
-								TH_FREE(Result);
 								return nullptr;
 							}
 							else if (It.Components == 1)
@@ -3972,12 +4040,13 @@ namespace Tomahawk
 						default:
 							break;
 					}
+
+					Result.push_back(std::move(At));
 				}
 
-				if (Context->CreateInputLayout(Result, Register.Layout->Layout.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
+				if (Context->CreateInputLayout(Result.data(), Result.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
 					TH_ERR("couldn't generate input layout for specified shader");
 
-				TH_FREE(Result);
 				return Shader->VertexLayout;
 			}
 			int D3D11Device::CreateConstantBuffer(ID3D11Buffer** fBuffer, size_t Size)

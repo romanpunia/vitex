@@ -6,7 +6,7 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	matrix LightWorldViewProjection;
+	matrix LightTransform;
 	float3 Position;
 	float Range;
 	float3 Lighting;
@@ -22,7 +22,7 @@ TextureCube EnvironmentMap : register(t5);
 VOutput vs_main(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = mul(float4(V.Position, 1.0), LightWorldViewProjection);
+	Result.Position = mul(float4(V.Position, 1.0), LightTransform);
 	Result.TexCoord = Result.Position;
 
 	return Result;

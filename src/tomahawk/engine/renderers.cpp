@@ -68,7 +68,7 @@ namespace Tomahawk
 
 						Base->Fill(Device, IndexBuffer, VertexBuffer);
 						Device->Render.World.Identify();
-						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->SetVertexBuffer(VertexBuffer, 0);
 						Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
@@ -88,7 +88,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Base->GetEntity()->GetBox();
-						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
@@ -120,12 +120,12 @@ namespace Tomahawk
 					if ((Static && !Base->Static) || Base->GetIndices().empty())
 						continue;
 
-					if (!System->PushGeometryBuffer(Base->GetMaterial()))
+					if (!System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = System->View.ViewProjection;
+					Device->Render.Transform = System->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->SetVertexBuffer(VertexBuffer, 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
@@ -155,12 +155,12 @@ namespace Tomahawk
 					if (!Base->Static || Base->GetIndices().empty())
 						continue;
 
-					if (!System->PushVoxelsBuffer(Base->GetMaterial()))
+					if (!System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProj.Identify();
+					Device->Render.Transform.Identify();
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->SetVertexBuffer(VertexBuffer, 0);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
@@ -192,12 +192,12 @@ namespace Tomahawk
 					if (Base->GetIndices().empty())
 						continue;
 
-					if (!System->PushDepthLinearBuffer(Base->GetMaterial()))
+					if (!System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
 					Device->Render.World.Identify();
-					Device->Render.WorldViewProj = System->View.ViewProjection;
+					Device->Render.Transform = System->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->SetVertexBuffer(VertexBuffer, 0);
@@ -232,7 +232,7 @@ namespace Tomahawk
 					if (!Base->GetBody())
 						continue;
 
-					if (!System->PushDepthCubicBuffer(Base->GetMaterial()))
+					if (!System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -262,7 +262,8 @@ namespace Tomahawk
 				FrontRasterizer = Device->GetRasterizerState("cull-front");
 				Blend = Device->GetBlendState("overwrite");
 				Sampler = Device->GetSamplerState("trilinear-x16");
-				Layout = Device->GetInputLayout("vertex");
+				Layout[0] = Device->GetInputLayout("vertex");
+				Layout[1] = Device->GetInputLayout("vertex-instance");
 
 				Shaders.Geometry = System->CompileShader("geometry/model/geometry");
 				Shaders.Voxelize = System->CompileShader("geometry/model/voxelize", sizeof(Lighting::IVoxelBuffer));
@@ -278,6 +279,26 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
+			void Model::BatchGeometry(Components::Model* Base, Graphics::RenderBuffer::Instance& Data, GeometryRenderer::Batching& Batch)
+			{
+				auto* Drawable = Base->GetDrawable();
+				if (!Drawable || (!Base->Static && !System->State.IsSet(RenderOpt::Static)))
+					return;
+
+				auto& World = Base->GetEntity()->GetBox();
+				Data.TexCoord = Base->TexCoord;
+
+				for (auto* Mesh : Drawable->Meshes)
+				{
+					Material* Source = Base->GetMaterial(Mesh);
+					if (System->PostInstance(Source, Data))
+					{
+						Data.World = Mesh->World * World;
+						Data.Transform = Data.World * System->View.ViewProjection;
+						Batch.Emplace(Mesh, Source, Data);
+					}
+				}
+			}
 			size_t Model::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
@@ -287,7 +308,7 @@ namespace Tomahawk
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetInputLayout(Layout);
+				Device->SetInputLayout(Layout[0]);
 				Device->SetShader(nullptr, TH_PS);
 				Device->SetShader(Shaders.Occlusion, TH_VS);
 
@@ -301,10 +322,10 @@ namespace Tomahawk
 							continue;
 
 						auto& World = Base->GetEntity()->GetBox();
-						for (auto&& Mesh : Drawable->Meshes)
+						for (auto* Mesh : Drawable->Meshes)
 						{
 							Device->Render.World = Mesh->World * World;
-							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+							Device->Render.Transform = Device->Render.World * View.ViewProjection;
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
 						}
@@ -323,7 +344,7 @@ namespace Tomahawk
 							continue;
 
 						Device->Render.World = Base->GetEntity()->GetBox();
-						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
@@ -333,7 +354,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Model::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Model::RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -344,76 +365,44 @@ namespace Tomahawk
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
-				Device->SetInputLayout(Layout);
+				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
 
-				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto& Group : Geometry)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable || (Static && !Base->Static))
-						continue;
-
-					auto& World = Base->GetEntity()->GetBox();
-					Device->Render.TexCoord = Base->TexCoord;
-
-					for (auto&& Mesh : Drawable->Meshes)
-					{
-						if (!System->PushGeometryBuffer(Base->GetMaterial(Mesh)))
-							continue;
-
-						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->DrawIndexed(Mesh);
-					}
-
-					Count++;
+					auto* Data = Group.second;
+					System->PostGeometry(Data->MaterialData, true);
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
 				}
 
-				return Count;
+				Device->SetVertexBuffer(nullptr, 1);
+				return Geometry.size();
 			}
-			size_t Model::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Model::RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				Device->SetInputLayout(Layout);
+				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 4, 6, TH_PS);
 				Device->SetShader(Shaders.Voxelize, TH_VS | TH_PS | TH_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
 				Viewer& View = System->View;
-				size_t Count = 0;
-
-				for (auto* Base : Geometry)
+				for (auto& Group : Geometry)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable)
-						continue;
-
-					auto& World = Base->GetEntity()->GetBox();
-					Device->Render.TexCoord = Base->TexCoord;
-
-					for (auto&& Mesh : Drawable->Meshes)
-					{
-						if (!System->PushVoxelsBuffer(Base->GetMaterial(Mesh)))
-							continue;
-
-						Device->Render.WorldViewProj = Device->Render.World = Mesh->World * World;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->DrawIndexed(Mesh);
-					}
-
-					Count++;
+					auto* Data = Group.second;
+					System->PostGeometry(Data->MaterialData, true);
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
 				}
 
+				Device->SetVertexBuffer(nullptr, 1);
 				Device->SetShader(nullptr, TH_GS);
-				return Count;
+				return Geometry.size();
 			}
-			size_t Model::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Model::RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -422,38 +411,22 @@ namespace Tomahawk
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetInputLayout(Layout);
+				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 
-				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto& Group : Geometry)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable)
-						continue;
-
-					auto& World = Base->GetEntity()->GetBox();
-					Device->Render.TexCoord = Base->TexCoord;
-
-					for (auto&& Mesh : Drawable->Meshes)
-					{
-						if (!System->PushDepthLinearBuffer(Base->GetMaterial(Mesh)))
-							continue;
-
-						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->DrawIndexed(Mesh);
-					}
-
-					Count++;
+					auto* Data = Group.second;
+					System->PostGeometry(Data->MaterialData, true);
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
 				}
 
+				Device->SetVertexBuffer(nullptr, 1);
 				Device->SetTexture2D(nullptr, 1, TH_PS);
-				return Count;
+				return Geometry.size();
 			}
-			size_t Model::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t Model::RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -462,38 +435,23 @@ namespace Tomahawk
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(FrontRasterizer);
-				Device->SetInputLayout(Layout);
+				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Cubic, TH_VS | TH_PS | TH_GS);
 				Device->SetBuffer(Shaders.Depth.Cubic, 3, TH_VS | TH_PS | TH_GS);
 				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
 
-				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto& Group : Geometry)
 				{
-					auto* Drawable = Base->GetDrawable();
-					if (!Drawable)
-						continue;
-
-					auto& World = Base->GetEntity()->GetBox();
-					Device->Render.TexCoord = Base->TexCoord;
-
-					for (auto&& Mesh : Drawable->Meshes)
-					{
-						if (!System->PushDepthCubicBuffer(Base->GetMaterial(Mesh)))
-							continue;
-
-						Device->Render.World = Mesh->World * World;
-						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->DrawIndexed(Mesh);
-					}
-
-					Count++;
+					auto* Data = Group.second;
+					System->PostGeometry(Data->MaterialData, true);
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
 				}
 
+				Device->SetVertexBuffer(nullptr, 1);
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				Device->SetShader(nullptr, TH_GS);
-				return Count;
+				return Geometry.size();
 			}
 
 			Skin::Skin(Engine::RenderSystem* Lab) : GeometryRenderer(Lab)
@@ -554,10 +512,10 @@ namespace Tomahawk
 						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 
 						auto& World = Base->GetEntity()->GetBox();
-						for (auto&& Mesh : Drawable->Meshes)
+						for (auto* Mesh : Drawable->Meshes)
 						{
 							Device->Render.World = Mesh->World * World;
-							Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+							Device->Render.Transform = Device->Render.World * View.ViewProjection;
 							Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 							Device->DrawIndexed(Mesh);
 						}
@@ -581,7 +539,7 @@ namespace Tomahawk
 
 						Device->Animation.Animated = (float)false;
 						Device->Render.World = Base->GetEntity()->GetBox();
-						Device->Render.WorldViewProj = Device->Render.World * View.ViewProjection;
+						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
@@ -624,13 +582,13 @@ namespace Tomahawk
 					auto& World = Base->GetEntity()->GetBox();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 
-					for (auto&& Mesh : Drawable->Meshes)
+					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PushGeometryBuffer(Base->GetMaterial(Mesh)))
+						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
 						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
+						Device->Render.Transform = Device->Render.World * System->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -669,12 +627,12 @@ namespace Tomahawk
 					auto& World = Base->GetEntity()->GetBox();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 
-					for (auto&& Mesh : Drawable->Meshes)
+					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PushVoxelsBuffer(Base->GetMaterial(Mesh)))
+						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
-						Device->Render.WorldViewProj = Device->Render.World = Mesh->World * World;
+						Device->Render.Transform = Device->Render.World = Mesh->World * World;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -714,13 +672,13 @@ namespace Tomahawk
 					auto& World = Base->GetEntity()->GetBox();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 
-					for (auto&& Mesh : Drawable->Meshes)
+					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PushDepthLinearBuffer(Base->GetMaterial(Mesh)))
+						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
 						Device->Render.World = Mesh->World * World;
-						Device->Render.WorldViewProj = Device->Render.World * System->View.ViewProjection;
+						Device->Render.Transform = Device->Render.World * System->View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 						Device->DrawIndexed(Mesh);
 					}
@@ -762,9 +720,9 @@ namespace Tomahawk
 					auto& World = Base->GetEntity()->GetBox();
 					Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 
-					for (auto&& Mesh : Drawable->Meshes)
+					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PushDepthCubicBuffer(Base->GetMaterial(Mesh)))
+						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
 						Device->Render.World = Mesh->World * World;
@@ -844,14 +802,14 @@ namespace Tomahawk
 					if ((Static && !Base->Static) || !Base->GetBuffer())
 						continue;
 
-					if (!System->PushGeometryBuffer(Base->GetMaterial()))
+					if (!System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Device->Render.World = View.Projection;
-					Device->Render.WorldViewProj = (Base->QuadBased ? View.View : View.ViewProjection);
+					Device->Render.Transform = (Base->QuadBased ? View.View : View.ViewProjection);
 					Device->Render.TexCoord = Base->GetEntity()->GetTransform()->Forward();
 					if (Base->Connected)
-						Device->Render.WorldViewProj = Base->GetEntity()->GetBox() * Device->Render.WorldViewProj;
+						Device->Render.Transform = Base->GetEntity()->GetBox() * Device->Render.Transform;
 
 					Device->SetBuffer(Base->GetBuffer(), 8, TH_VS | TH_PS);
 					Device->SetShader(Base->QuadBased ? BaseShader : nullptr, TH_GS);
@@ -888,13 +846,13 @@ namespace Tomahawk
 				size_t Count = 0;
 				for (auto* Base : Geometry)
 				{
-					if (!Base->GetBuffer() || !System->PushDepthLinearBuffer(Base->GetMaterial()))
+					if (!Base->GetBuffer() || !System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Device->Render.World = View.Projection;
-					Device->Render.WorldViewProj = (Base->QuadBased ? View.View : View.ViewProjection);
+					Device->Render.Transform = (Base->QuadBased ? View.View : View.ViewProjection);
 					if (Base->Connected)
-						Device->Render.WorldViewProj = Base->GetEntity()->GetBox() * Device->Render.WorldViewProj;
+						Device->Render.Transform = Base->GetEntity()->GetBox() * Device->Render.Transform;
 
 					Device->SetBuffer(Base->GetBuffer(), 8, TH_VS | TH_PS);
 					Device->SetShader(Base->QuadBased ? Shaders.Depth.Linear : nullptr, TH_GS);
@@ -938,7 +896,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				for (auto* Base : Geometry)
 				{
-					if (!Base->GetBuffer() || !System->PushDepthCubicBuffer(Base->GetMaterial()))
+					if (!Base->GetBuffer() || !System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Device->Render.World = (Base->Connected ? Base->GetEntity()->GetBox() : Compute::Matrix4x4::Identity());
@@ -1001,11 +959,11 @@ namespace Tomahawk
 				size_t Count = 0;
 				for (auto* Base : Geometry)
 				{
-					if ((Static && !Base->Static) || !System->PushGeometryBuffer(Base->GetMaterial()))
+					if ((Static && !Base->Static) || !System->PostGeometry(Base->GetMaterial(), true))
 						continue;
 
-					Device->Render.WorldViewProj = Base->GetEntity()->GetBox() * System->View.ViewProjection;
-					Device->Render.World = Device->Render.WorldViewProj.Inv();
+					Device->Render.Transform = Base->GetEntity()->GetBox() * System->View.ViewProjection;
+					Device->Render.World = Device->Render.Transform.Inv();
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
@@ -1594,7 +1552,7 @@ namespace Tomahawk
 						continue;
 
 					GetLightCulling(Light, 0.0f, &Position, &Scale);
-					VoxelBuffer.WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
+					VoxelBuffer.Transform = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 
 					State.Device->SetTexture3D(Light->VoxelMap, 5, TH_PS);
 					State.Device->UpdateBuffer(Shaders.Ambient[1], &VoxelBuffer);
@@ -1803,7 +1761,7 @@ namespace Tomahawk
 				auto* Transform = Entity->GetTransform();
 				auto& Size = Light->GetSize();
 
-				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
+				Dest->Transform = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 				Dest->Position = Transform->GetPosition();
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission);
 				Dest->Scale = Transform->GetScale();
@@ -1822,7 +1780,7 @@ namespace Tomahawk
 				auto* Transform = Entity->GetTransform();
 				auto& Size = Light->GetSize();
 
-				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
+				Dest->Transform = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 				Dest->Position = (Reposition ? Position : Transform->GetPosition());
 				Dest->Lighting = Light->Diffuse.Mul(Light->Emission);
 				Dest->Attenuation.X = Size.C1;
@@ -1849,7 +1807,7 @@ namespace Tomahawk
 				auto* Transform = Entity->GetTransform();
 				auto& Size = Light->GetSize();
 
-				Dest->WorldViewProjection = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
+				Dest->Transform = Compute::Matrix4x4::CreateTranslatedScale(Position, Scale) * System->View.ViewProjection;
 				Dest->ViewProjection = Light->View * Light->Projection;
 				Dest->Direction = Transform->GetRotation().dDirection();
 				Dest->Position = (Reposition ? Position : Transform->GetPosition());

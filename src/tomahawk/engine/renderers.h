@@ -48,7 +48,7 @@ namespace Tomahawk
 				TH_COMPONENT("soft-body-renderer");
 			};
 
-			class TH_OUT Model final : public GeometryRenderer<Components::Model>
+			class TH_OUT Model final : public GeometryRenderer<Components::Model, Graphics::MeshBuffer, Graphics::RenderBuffer::Instance>
 			{
 			private:
 				struct
@@ -70,16 +70,17 @@ namespace Tomahawk
 				Graphics::RasterizerState* FrontRasterizer = nullptr;
 				Graphics::BlendState* Blend = nullptr;
 				Graphics::SamplerState* Sampler = nullptr;
-				Graphics::InputLayout* Layout;
+				Graphics::InputLayout* Layout[2];
 
 			public:
 				Model(RenderSystem* Lab);
 				virtual ~Model() override;
+				void BatchGeometry(Components::Model* Base, Graphics::RenderBuffer::Instance& Data, Batching& Batch) override;
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry) override;
+				size_t RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry) override;
+				size_t RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry) override;
+				size_t RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("model-renderer");
@@ -187,7 +188,7 @@ namespace Tomahawk
 			public:
 				struct ISurfaceLight
 				{
-					Compute::Matrix4x4 WorldViewProjection;
+					Compute::Matrix4x4 Transform;
 					Compute::Vector3 Position;
 					float Range = 0.0f;
 					Compute::Vector3 Lighting;
@@ -200,7 +201,7 @@ namespace Tomahawk
 
 				struct IPointLight
 				{
-					Compute::Matrix4x4 WorldViewProjection;
+					Compute::Matrix4x4 Transform;
 					Compute::Vector4 Attenuation;
 					Compute::Vector3 Position;
 					float Range = 0.0f;
@@ -214,7 +215,7 @@ namespace Tomahawk
 
 				struct ISpotLight
 				{
-					Compute::Matrix4x4 WorldViewProjection;
+					Compute::Matrix4x4 Transform;
 					Compute::Matrix4x4 ViewProjection;
 					Compute::Vector4 Attenuation;
 					Compute::Vector3 Direction;
@@ -269,7 +270,7 @@ namespace Tomahawk
 
 				struct IVoxelBuffer
 				{
-					Compute::Matrix4x4 WorldViewProjection;
+					Compute::Matrix4x4 Transform;
 					Compute::Vector3 Center;
 					float RayStep = 1.0f;
 					Compute::Vector3 Size;

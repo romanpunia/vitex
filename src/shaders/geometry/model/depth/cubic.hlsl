@@ -1,4 +1,4 @@
-#include "std/layouts/vertex.hlsl"
+#include "std/layouts/vertex-instance.hlsl"
 #include "std/channels/depth.hlsl"
 #include "std/buffers/object.hlsl"
 #include "std/buffers/viewer.hlsl"
@@ -28,15 +28,17 @@ void gs_main(triangle VOutputLinear V[3], inout TriangleStream<VOutputCubic> Str
 VOutputLinear vs_main(VInput V)
 {
 	VOutputLinear Result = (VOutputLinear)0;
-	Result.Position = Result.UV = mul(float4(V.Position, 1.0), ob_World);
-	Result.TexCoord = V.TexCoord * ob_TexCoord.xy;
+	Result.Position = Result.UV = mul(float4(V.Position, 1.0), V.OB_World);
+	Result.TexCoord = V.TexCoord * V.OB_TexCoord.xy;
+    Result.OB_Diffuse = V.OB_Diffuse;
+    Result.OB_MaterialId = V.OB_MaterialId;
 
 	return Result;
 }
 
 float ps_main(VOutputLinear V) : SV_DEPTH
 {
-	float Threshold = (ob_Diffuse ? 1.0 - GetDiffuse(V.TexCoord).w : 1.0) * Materials[ob_Mid].Transparency;
+	float Threshold = (V.OB_Diffuse ? 1.0 - GetDiffuse(V.TexCoord).w : 1.0) * Materials[V.OB_MaterialId].Transparency;
 	[branch] if (Threshold > 0.5)
 		discard;
 	

@@ -1,6 +1,6 @@
 struct SpotLight
 {
-	matrix LightWorldViewProjection;
+	matrix LightTransform;
 	matrix LightViewProjection;
 	float4 Attenuation;
 	float3 Direction;

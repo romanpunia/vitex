@@ -2070,7 +2070,7 @@ namespace Tomahawk
 					return false;
 
 				Primitives = PrimitiveTopology::Triangle_List;
-				Direct.WorldViewProjection = Compute::Matrix4x4::Identity();
+				Direct.Transform = Compute::Matrix4x4::Identity();
 				Direct.Padding = { 0, 0, 0, 1 };
 				ViewResource = nullptr;
 
@@ -2079,7 +2079,7 @@ namespace Tomahawk
 			}
 			void D3D11Device::Transform(const Compute::Matrix4x4& Transform)
 			{
-				Direct.WorldViewProjection = Direct.WorldViewProjection * Transform;
+				Direct.Transform = Direct.Transform * Transform;
 			}
 			void D3D11Device::Topology(PrimitiveTopology Topology)
 			{
@@ -3678,9 +3678,9 @@ namespace Tomahawk
 				if (!Immediate.VertexShader)
 				{
 					static const char* VertexShaderCode = D3D_INLINE(
-						cbuffer VertexBuffer : register(b0)
+					cbuffer VertexBuffer : register(b0)
 					{
-						matrix WorldViewProjection;
+						matrix Transform;
 						float4 Padding;
 					};
 
@@ -3701,7 +3701,7 @@ namespace Tomahawk
 					PS_INPUT vs_main(VS_INPUT Input)
 					{
 						PS_INPUT Output;
-						Output.Position = mul(WorldViewProjection, float4(Input.Position.xyz, 1));
+						Output.Position = mul(Transform, float4(Input.Position.xyz, 1));
 						Output.Color = Input.Color;
 						Output.TexCoord = Input.TexCoord;
 
@@ -3746,9 +3746,9 @@ namespace Tomahawk
 				if (!Immediate.PixelShader)
 				{
 					static const char* PixelShaderCode = D3D_INLINE(
-						cbuffer VertexBuffer : register(b0)
+					cbuffer VertexBuffer : register(b0)
 					{
-						matrix WorldViewProjection;
+						matrix Transform;
 						float4 Padding;
 					};
 

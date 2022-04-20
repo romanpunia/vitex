@@ -130,9 +130,9 @@ namespace Tomahawk
 
 					Device->Render.Diffuse = (Buffer->Texture != nullptr ? 1.0f : 0.0f);
 					if (HasTransform)
-						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
+						Device->Render.Transform = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho;
 					else
-						Device->Render.WorldViewProj = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
+						Device->Render.Transform = Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho;
 
 					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
 					Device->SetShader(Shader, TH_VS | TH_PS);
@@ -213,7 +213,7 @@ namespace Tomahawk
 						Device->Unmap(VertexBuffer, &Subresource);
 					}
 
-					Device->Render.WorldViewProj = Transform * Ortho;
+					Device->Render.Transform = Transform * Ortho;
 					Device->ClearDepth();
 					Device->SetBlendState(ColorlessBlend);
 					Device->SetShader(Shader, TH_VS | TH_PS);

@@ -13,10 +13,10 @@ VOutput vs_main(VInput V)
 			mul(ab_Offsets[(int)V.Index.z], V.Bias.z) +
 			mul(ab_Offsets[(int)V.Index.w], V.Bias.w);
 
-		Result.Position = mul(mul(float4(V.Position, 1.0), Offset), ob_WorldViewProj);
+		Result.Position = mul(mul(float4(V.Position, 1.0), Offset), ob_Transform);
 	}
 	else
-		Result.Position = mul(float4(V.Position, 1.0), ob_WorldViewProj);
+		Result.Position = mul(float4(V.Position, 1.0), ob_Transform);
 
 	return Result;
 }

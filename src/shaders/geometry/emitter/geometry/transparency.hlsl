@@ -28,7 +28,7 @@ VOutput vs_main(VInput V)
 {
 	Element Base = Elements[V.Position];
 	VOutput Result = (VOutput)0;
-	Result.Position = mul(float4(Base.Position, 1), ob_WorldViewProj);
+	Result.Position = mul(float4(Base.Position, 1), ob_Transform);
 	Result.Rotation = Base.Rotation;
 	Result.Color = Base.Color;
 	Result.Scale = Base.Scale;
@@ -38,7 +38,7 @@ VOutput vs_main(VInput V)
 
 float4 ps_main(VOutput V) : SV_TARGET0
 {
-	float4 Color = float4(Materials[ob_Mid].Diffuse * V.Color.xyz, V.Color.w);
+	float4 Color = float4(Materials[ob_MaterialId].Diffuse * V.Color.xyz, V.Color.w);
 	[branch] if (ob_Diffuse > 0)
 		Color *= GetDiffuse(V.TexCoord);
 

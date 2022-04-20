@@ -1034,8 +1034,11 @@ namespace Tomahawk
 				{ "BINORMAL", 0, AttributeType::Float, 3, 11 * sizeof(float) },
 				{ "OB_TRANSFORM", 0, AttributeType::Matrix, 16, 0, 1, false },
 				{ "OB_WORLD", 0, AttributeType::Matrix, 16, sizeof(Compute::Matrix4x4), 1, false },
-				{ "OB_TEXCOORD_DIF_NOR", 0, AttributeType::Float, 4, sizeof(Compute::Matrix4x4) * 2, 1, false },
-				{ "OB_HEI_MID", 0, AttributeType::Float, 2, sizeof(Compute::Matrix4x4) * 2 + 4 * sizeof(float), 1, false },
+				{ "OB_TEXCOORD", 0, AttributeType::Float, 2, sizeof(Compute::Matrix4x4) * 2, 1, false },
+				{ "OB_DIFFUSE", 0, AttributeType::Float, 1, sizeof(Compute::Matrix4x4) * 2 + 2 * sizeof(float), 1, false },
+				{ "OB_NORMAL", 0, AttributeType::Float, 1, sizeof(Compute::Matrix4x4) * 2 + 3 * sizeof(float), 1, false },
+				{ "OB_HEIGHT", 0, AttributeType::Float, 1, sizeof(Compute::Matrix4x4) * 2 + 4 * sizeof(float), 1, false },
+				{ "OB_MATERIALID", 0, AttributeType::Float, 1, sizeof(Compute::Matrix4x4) * 2 + 5 * sizeof(float), 1, false }
 			};
 			InputLayouts["vertex-instance"] = CreateInputLayout(Layout);
 

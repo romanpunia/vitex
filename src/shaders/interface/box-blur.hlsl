@@ -23,7 +23,7 @@ float Rectangle(float2 Position, float2 Size, float4 Radius)
 VOutput vs_main(VInput V)
 {
 	VOutput Result;
-	Result.Position = mul(float4(V.Position.xy, 0.0, 1.0), ob_WorldViewProj);
+	Result.Position = mul(float4(V.Position.xy, 0.0, 1.0), ob_Transform);
 	Result.UV = mul(Result.Position, ob_World);
 	Result.Color = float4(0.0, 0.0, 0.0, 0.0);
 	Result.TexCoord = V.TexCoord;

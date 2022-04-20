@@ -49,14 +49,14 @@ float4 GetDiffuse(float2 TexCoord)
 {
 	return DiffuseMap.Sample(Sampler, TexCoord);
 }
-void Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, float Mid)
+void Compose(float2 TexCoord, float4 Diffuse, float3 Normal, float3 Position, float MaterialId)
 {
 	[branch] if (Position.x < -1.0 || Position.x > 1.0 || Position.y < -1.0 || Position.y > 1.0 || Position.z < -1.0 || Position.z > 1.0)
 		return;
 	
 	uint3 Voxel = (uint3)floor((float3(0.5, -0.5, 0.5) * Position + 0.5) * vxb_Size);
 	DiffuseBuffer[Voxel] = Diffuse;
-	NormalBuffer[Voxel] = float4(Normal, Mid);
+	NormalBuffer[Voxel] = float4(Normal, MaterialId);
 	SurfaceBuffer[Voxel] = float4(
 		RoughnessMap.Sample(Sampler, TexCoord).x,
 		MetallicMap.Sample(Sampler, TexCoord).x,

@@ -1,6 +1,6 @@
 cbuffer RenderConstant : register(b3)
 {
-	matrix LightWorldViewProjection;
+	matrix LightTransform;
 	float4 Attenuation;
 	float3 Position;
 	float Range;

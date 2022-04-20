@@ -19,14 +19,14 @@ VOutput vs_main(VInput V)
 			mul(ab_Offsets[(int)V.Index.w], V.Bias.w);
 
 		Position = mul(float4(V.Position, 1.0), Offset);
-		Result.Position = Result.UV = mul(Position, ob_WorldViewProj);
+		Result.Position = Result.UV = mul(Position, ob_Transform);
 		Result.Normal = normalize(mul(mul(float4(V.Normal, 0), Offset).xyz, (float3x3)ob_World));
 		Result.Tangent = normalize(mul(mul(float4(V.Tangent, 0), Offset).xyz, (float3x3)ob_World));
 		Result.Bitangent = normalize(mul(mul(float4(V.Bitangent, 0), Offset).xyz, (float3x3)ob_World));   
 	}
 	else
 	{
-		Result.Position = Result.UV = mul(Position, ob_WorldViewProj);
+		Result.Position = Result.UV = mul(Position, ob_Transform);
 		Result.Normal = normalize(mul(V.Normal, (float3x3)ob_World));
 		Result.Tangent = normalize(mul(V.Tangent, (float3x3)ob_World));
 		Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)ob_World));
@@ -40,7 +40,7 @@ VOutput vs_main(VInput V)
 
 GBuffer ps_main(VOutput V)
 {
-	Material Mat = Materials[ob_Mid];
+	Material Mat = Materials[ob_MaterialId];
 	float2 Coord = V.TexCoord;
 
 	[branch] if (ob_Height > 0)
@@ -54,5 +54,5 @@ GBuffer ps_main(VOutput V)
 	[branch] if (ob_Normal > 0)
 		Normal = GetNormal(Coord, V.Normal, V.Tangent, V.Bitangent);
 
-	return Compose(Coord, Color, Normal, V.UV.z / V.UV.w, ob_Mid);
+	return Compose(Coord, Color, Normal, V.UV.z / V.UV.w, ob_MaterialId);
 };

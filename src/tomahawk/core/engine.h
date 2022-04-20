@@ -735,10 +735,8 @@ namespace Tomahawk
 			float EnqueueDrawable(Drawable* Base, bool& Cullable);
 			bool PushCullable(Entity* Target, const Viewer& Source, Component* Base);
 			bool PushDrawable(Entity* Target, const Viewer& Source, Drawable* Base);
-			bool PushGeometryBuffer(Material* Next, bool Textures = true);
-			bool PushVoxelsBuffer(Material* Next, bool Textures = true);
-			bool PushDepthLinearBuffer(Material* Next, bool Textures = true);
-			bool PushDepthCubicBuffer(Material* Next, bool Textures = true);
+			bool PostInstance(Material* Next, Graphics::RenderBuffer::Instance& Target);
+			bool PostGeometry(Material* Next, bool WithTextures);
 			bool HasCategory(GeoCategory Category);
 			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
@@ -937,7 +935,6 @@ namespace Tomahawk
 			Core::Pool<Material*> Materials;
 			Core::Pool<Entity*> Entities;
 			Compute::Simulator* Simulator;
-			std::condition_variable Stabilize;
 			std::atomic<Component*> Camera;
 			std::atomic<int> Status;
 			std::atomic<bool> Acquire;
@@ -1043,7 +1040,8 @@ namespace Tomahawk
 			void Culling(Core::Timer* Time);
 
 		protected:
-			void ReindexComponent(Component* Base, bool Activation, bool Check, bool Notify);
+			void RegisterComponent(Component* Base, bool Check, bool Notify);
+			void UnregisterComponent(Component* Base, bool Notify);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void ProcessCullable(Component* Base);
 			void GenerateMaterialBuffer();
@@ -1298,7 +1296,7 @@ namespace Tomahawk
 			virtual void WheelEvent(int X, int Y, bool Normal);
 			virtual void WindowEvent(Graphics::WindowState NewState, int X, int Y);
 			virtual void CloseEvent();
-			virtual bool ComposeEvent();
+			virtual void ComposeEvent();
 			virtual void Dispatch(Core::Timer* Time);
 			virtual void Publish(Core::Timer* Time);
 			virtual void Initialize();
@@ -1316,19 +1314,114 @@ namespace Tomahawk
 			static Application* Get();
 		};
 
-		template <typename T, size_t Max = (size_t)MAX_STACK_DEPTH>
+		template <typename Geometry, typename Instance>
+		struct BatchingGroup
+		{
+			std::vector<Instance> Instances;
+			Graphics::ElementBuffer* DataBuffer = nullptr;
+			Geometry* GeometryBuffer = nullptr;
+			Material* MaterialData = nullptr;
+		};
+
+		template <typename Geometry, typename Instance>
+		class BatchingProxy
+		{
+		public:
+			typedef BatchingGroup<Geometry, Instance> DataGroup;
+
+		public:
+			std::unordered_map<size_t, DataGroup*> Groups;
+			std::queue<DataGroup*>* Cache = nullptr;
+
+		public:
+			void Clear()
+			{
+				for (auto& Base : Groups)
+				{
+					auto* Group = Base.second;
+					Group->Instances.clear();
+					Cache->push(Group);
+				}
+				Groups.clear();
+			}
+			void Emplace(Geometry* Data, Material* Surface, const Instance& Params)
+			{
+				size_t Id = GetKeyId(Data, Surface);
+				auto It = Groups.find(Id);
+				if (It == Groups.end())
+				{
+					auto* Group = GetGroup();
+					Group->GeometryBuffer = Data;
+					Group->MaterialData = Surface;
+					Group->Instances.emplace_back(Params);
+					Groups.insert(std::make_pair(Id, Group));
+				}
+				else
+					It->second->Instances.emplace_back(Params);
+			}
+			void Compile(Graphics::GraphicsDevice* Device)
+			{
+				TH_ASSERT_V(Device != nullptr, "device should be set");
+				for (auto& Base : Groups)
+				{
+					auto* Group = Base.second;
+					if (!Group->DataBuffer || Group->Instances.size() > (size_t)Group->DataBuffer->GetElements())
+					{
+						Graphics::ElementBuffer::Desc Desc = Graphics::ElementBuffer::Desc();
+						Desc.AccessFlags = Graphics::CPUAccess::Write;
+						Desc.Usage = Graphics::ResourceUsage::Dynamic;
+						Desc.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
+						Desc.ElementCount = (unsigned int)Group->Instances.size();
+						Desc.Elements = (void*)Group->Instances.data();
+						Desc.ElementWidth = sizeof(Instance);
+
+						TH_RELEASE(Group->DataBuffer);
+						Group->DataBuffer = Device->CreateElementBuffer(Desc);
+						if (!Group->DataBuffer)
+							Group->Instances.clear();
+					}
+					else
+						Device->UpdateBuffer(Group->DataBuffer, (void*)Group->Instances.data(), (uint64_t)(sizeof(Instance) * Group->Instances.size()));
+				}
+			}
+
+		private:
+			DataGroup* GetGroup()
+			{
+				if (Cache->empty())
+					return TH_NEW(DataGroup);
+
+				DataGroup* Result = Cache->front();
+				Cache->pop();
+				return Result;
+			}
+			size_t GetKeyId(Geometry* Data, Material* Surface)
+			{
+				std::hash<void*> Hash;
+				size_t Seed = Hash((void*)Data);
+				Seed ^= Hash((void*)Surface) + 0x9e3779b9 + (Seed << 6) + (Seed >> 2);
+				return Seed;
+			}
+		};
+
+		template <typename T, typename Geometry = char, typename Instance = char, size_t Max = (size_t)MAX_STACK_DEPTH>
 		class RendererProxy
 		{
 			static_assert(std::is_base_of<Component, T>::value, "parameter must be derived from a component");
 
 		public:
+			typedef BatchingGroup<Geometry, Instance> BatchGroup;
+			typedef BatchingProxy<Geometry, Instance> Batching;
+			typedef std::unordered_map<size_t, BatchGroup*> Groups;
 			typedef std::vector<T*> Storage;
 
 		public:
 			static const size_t Depth = Max;
 
 		private:
+			Batching Batchers[Max][(size_t)GeoCategory::Count];
 			Storage Data[Max][(size_t)GeoCategory::Count];
+			std::queue<BatchGroup*> Cache;
 			size_t Offset;
 
 		public:
@@ -1337,6 +1430,35 @@ namespace Tomahawk
 		public:
 			RendererProxy() : Offset(0)
 			{
+				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+				{
+					for (size_t j = 0; j < Depth; ++j)
+						Batchers[j][i].Cache = &Cache;
+				}
+			}
+			~RendererProxy()
+			{
+				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+				{
+					for (size_t j = 0; j < Depth; ++j)
+						Batchers[j][i].Clear();
+				}
+
+				while (!Cache.empty())
+				{
+					auto* Next = Cache.front();
+					TH_RELEASE(Next->DataBuffer);
+					TH_DELETE(BatchingGroup, Next);
+					Cache.pop();
+				}
+			}
+			Batching& Batcher(GeoCategory Category = GeoCategory::Opaque)
+			{
+				return Batchers[Offset > 0 ? Offset - 1 : 0][(size_t)Category];
+			}
+			Groups& Batches(GeoCategory Category = GeoCategory::Opaque)
+			{
+				return Batchers[Offset > 0 ? Offset - 1 : 0][(size_t)Category].Groups;
 			}
 			Storage& Top(GeoCategory Category = GeoCategory::Opaque)
 			{
@@ -1359,6 +1481,10 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Offset > 0, "storage heap stack underflow");
 				Offset--;
+			}
+			bool HasBatching()
+			{
+				return !std::is_same<Geometry, char>::value && !std::is_same<Instance, char>::value;
 			}
 
 		private:
@@ -1439,16 +1565,20 @@ namespace Tomahawk
 			}
 		};
 
-		template <typename T>
+		template <typename T, typename Geometry = char, typename Instance = char>
 		class TH_OUT GeometryRenderer : public Renderer
 		{
 			static_assert(std::is_base_of<Drawable, T>::value, "component must be drawable to work within geometry renderer");
 
 		public:
+			typedef BatchingGroup<Geometry, Instance> BatchGroup;
+			typedef BatchingProxy<Geometry, Instance> Batching;
+			typedef std::unordered_map<size_t, BatchGroup*> Groups;
 			typedef std::vector<T*> Objects;
 
 		private:
-			RendererProxy<T> Proxy;
+			RendererProxy<T, Geometry, Instance> Proxy;
+			std::function<void(T*, Instance&, Batching&)> Upsert;
 			std::unordered_map<T*, Graphics::Query*> Active;
 			std::queue<Graphics::Query*> Inactive;
 			Graphics::DepthStencilState* DepthStencil;
@@ -1490,6 +1620,22 @@ namespace Tomahawk
 			virtual void BeginPass() override
 			{
 				Proxy.Push(System);
+				if (Proxy.HasBatching())
+				{
+					Graphics::GraphicsDevice* Device = System->GetDevice();
+					Instance Intermediate;
+
+					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					{
+						auto& Batcher = Proxy.Batcher((GeoCategory)i);
+						auto& Frame = Proxy.Top((GeoCategory)i);
+
+						Batcher.Clear();
+						for (auto* Item : Frame)
+							BatchGeometry(Item, Intermediate, Batcher);
+						Batcher.Compile(Device);
+					}
+				}
 			}
 			virtual void EndPass() override
 			{
@@ -1499,6 +1645,9 @@ namespace Tomahawk
 			{
 				return !Proxy.Top(Category).empty();
 			}
+			virtual void BatchGeometry(T* Base, Instance& Data, Batching& Batch)
+			{
+			}
 			virtual size_t CullGeometry(const Viewer& View, const Objects& Geometry)
 			{
 				return 0;
@@ -1507,7 +1656,15 @@ namespace Tomahawk
 			{
 				return 0;
 			}
+			virtual size_t RenderDepthLinearBatched(Core::Timer* TimeStep, const Groups& Geometry)
+			{
+				return 0;
+			}
 			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const Objects& Geometry, Compute::Matrix4x4* ViewProjection)
+			{
+				return 0;
+			}
+			virtual size_t RenderDepthCubicBatched(Core::Timer* TimeStep, const Groups& Geometry, Compute::Matrix4x4* ViewProjection)
 			{
 				return 0;
 			}
@@ -1515,7 +1672,15 @@ namespace Tomahawk
 			{
 				return 0;
 			}
+			virtual size_t RenderGeometryVoxelsBatched(Core::Timer* TimeStep, const Groups& Geometry)
+			{
+				return 0;
+			}
 			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const Objects& Geometry)
+			{
+				return 0;
+			}
+			virtual size_t RenderGeometryResultBatched(Core::Timer* TimeStep, const Groups& Geometry)
 			{
 				return 0;
 			}
@@ -1531,11 +1696,23 @@ namespace Tomahawk
 					else if (System->State.IsSet(RenderOpt::Additive))
 						Category = GeoCategory::Additive;
 
-					auto& Frame = Proxy.Top(Category);
-					if (!Frame.empty())
+					if (Proxy.HasBatching())
 					{
-						System->ClearMaterials();
-						Count += RenderGeometryResult(Time, Frame);
+						auto& Frame = Proxy.Batches(Category);
+						if (!Frame.empty())
+						{
+							System->ClearMaterials();
+							Count += RenderGeometryResultBatched(Time, Frame);
+						}
+					}
+					else
+					{
+						auto& Frame = Proxy.Top(Category);
+						if (!Frame.empty())
+						{
+							System->ClearMaterials();
+							Count += RenderGeometryResult(Time, Frame);
+						}
 					}
 					TH_PPOP();
 
@@ -1548,11 +1725,23 @@ namespace Tomahawk
 						return 0;
 
 					TH_PPUSH("geo-renderer-voxels", TH_PERF_MIX);
-					auto& Frame = Proxy.Top(GeoCategory::Opaque);
-					if (!Frame.empty())
+					if (Proxy.HasBatching())
 					{
-						System->ClearMaterials();
-						Count += RenderGeometryVoxels(Time, Frame);
+						auto& Frame = Proxy.Batches(GeoCategory::Opaque);
+						if (!Frame.empty())
+						{
+							System->ClearMaterials();
+							Count += RenderGeometryVoxelsBatched(Time, Frame);
+						}
+					}
+					else
+					{
+						auto& Frame = Proxy.Top(GeoCategory::Opaque);
+						if (!Frame.empty())
+						{
+							System->ClearMaterials();
+							Count += RenderGeometryVoxels(Time, Frame);
+						}
 					}
 					TH_PPOP();
 				}
@@ -1562,14 +1751,32 @@ namespace Tomahawk
 						return 0;
 
 					TH_PPUSH("geo-renderer-depth-linear", TH_PERF_FRAME);
-					System->ClearMaterials();
-					auto& Frame = Proxy.Top(GeoCategory::Opaque);
-					if (!Frame.empty())
-						Count += RenderDepthLinear(Time, Frame);
+					if (Proxy.HasBatching())
+					{
+						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
+						auto& Frame2 = Proxy.Batches(GeoCategory::Transparent);
+						if (!Frame1.empty() || !Frame2.empty())
+							System->ClearMaterials();
 
-					Frame = Proxy.Top(GeoCategory::Transparent);
-					if (!Frame.empty())
-						Count += RenderDepthLinear(Time, Frame);
+						if (!Frame1.empty())
+							Count += RenderDepthLinearBatched(Time, Frame1);
+
+						if (!Frame2.empty())
+							Count += RenderDepthLinearBatched(Time, Frame2);
+					}
+					else
+					{
+						auto& Frame1 = Proxy.Top(GeoCategory::Opaque);
+						auto& Frame2 = Proxy.Top(GeoCategory::Transparent);
+						if (!Frame1.empty() || !Frame2.empty())
+							System->ClearMaterials();
+
+						if (!Frame1.empty())
+							Count += RenderDepthLinear(Time, Frame1);
+
+						if (!Frame2.empty())
+							Count += RenderDepthLinear(Time, Frame2);
+					}
 					TH_PPOP();
 				}
 				else if (System->State.Is(RenderState::Depth_Cubic))
@@ -1578,14 +1785,32 @@ namespace Tomahawk
 						return 0;
 
 					TH_PPUSH("geo-renderer-depth-cubic", TH_PERF_FRAME);
-					System->ClearMaterials();
-					auto& Frame = Proxy.Top(GeoCategory::Opaque);
-					if (!Frame.empty())
-						Count += RenderDepthCubic(Time, Frame, System->View.CubicViewProjection);
+					if (Proxy.HasBatching())
+					{
+						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
+						auto& Frame2 = Proxy.Batches(GeoCategory::Transparent);
+						if (!Frame1.empty() || !Frame2.empty())
+							System->ClearMaterials();
 
-					Frame = Proxy.Top(GeoCategory::Transparent);
-					if (!Frame.empty())
-						Count += RenderDepthCubic(Time, Frame, System->View.CubicViewProjection);
+						if (!Frame1.empty())
+							Count += RenderDepthCubicBatched(Time, Frame1, System->View.CubicViewProjection);
+
+						if (!Frame2.empty())
+							Count += RenderDepthCubicBatched(Time, Frame2, System->View.CubicViewProjection);
+					}
+					else
+					{
+						auto& Frame1 = Proxy.Top(GeoCategory::Opaque);
+						auto& Frame2 = Proxy.Top(GeoCategory::Transparent);
+						if (!Frame1.empty() || !Frame2.empty())
+							System->ClearMaterials();
+
+						if (!Frame1.empty())
+							Count += RenderDepthCubic(Time, Frame1, System->View.CubicViewProjection);
+
+						if (!Frame2.empty())
+							Count += RenderDepthCubic(Time, Frame2, System->View.CubicViewProjection);
+					}
 					TH_PPOP();
 				}
 
@@ -1634,21 +1859,21 @@ namespace Tomahawk
 				TH_PPOP();
 				return Count;
 			}
-			bool CullingBegin(T* Reference)
+			bool CullingBegin(T* Base)
 			{
-				TH_ASSERT(Reference != nullptr, false, "reference should be set");
-				if (Skippable[1] && Reference->Overlapping < System->Threshold)
+				TH_ASSERT(Base != nullptr, false, "base should be set");
+				if (Skippable[1] && Base->Overlapping < System->Threshold)
 					return false;
-				else if (Skippable[0] && Reference->Overlapping >= System->Threshold)
+				else if (Skippable[0] && Base->Overlapping >= System->Threshold)
 					return true;
 
 				if (Inactive.empty() && Active.size() >= System->MaxQueries)
 				{
-					Reference->Overlapping = System->OverflowVisibility;
+					Base->Overlapping = System->OverflowVisibility;
 					return false;
 				}
 
-				if (Active.find(Reference) != Active.end())
+				if (Active.find(Base) != Active.end())
 					return false;
 
 				Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -1667,7 +1892,7 @@ namespace Tomahawk
 					Inactive.pop();
 				}
 
-				Active[Reference] = Current;
+				Active[Base] = Current;
 				Device->QueryBegin(Current);
 				return true;
 			}

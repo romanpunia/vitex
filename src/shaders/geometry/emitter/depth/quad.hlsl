@@ -55,7 +55,7 @@ VOutputLinear vs_main(VInput V)
 
 float ps_main(VOutputLinear V) : SV_DEPTH
 {
-	float Threshold = (1.0 - V.Alpha) * (ob_Diffuse ? 1.0 - GetDiffuse(V.TexCoord).w : 1.0) * Materials[ob_Mid].Transparency;
+	float Threshold = (1.0 - V.Alpha) * (ob_Diffuse ? 1.0 - GetDiffuse(V.TexCoord).w : 1.0) * Materials[ob_MaterialId].Transparency;
 	[branch] if (Threshold > 0.5)
 		discard;
 	

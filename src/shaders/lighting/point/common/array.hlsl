@@ -1,6 +1,6 @@
 struct PointLight
 {
-	matrix LightWorldViewProjection;
+	matrix LightTransform;
 	float4 Attenuation;
 	float3 Position;
 	float Range;

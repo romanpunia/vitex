@@ -5,7 +5,7 @@
 VOutput vs_main(VInput V)
 {
 	VOutput Result;
-	Result.Position = mul(float4(V.Position.xy, 0.0, 1.0), ob_WorldViewProj);
+	Result.Position = mul(float4(V.Position.xy, 0.0, 1.0), ob_Transform);
 	Result.Color = V.Color;
 	Result.TexCoord = V.TexCoord;
 	Result.UV = Result.Position;

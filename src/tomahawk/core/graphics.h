@@ -861,13 +861,24 @@ namespace Tomahawk
 
 		struct TH_OUT RenderBuffer
 		{
-			Compute::Matrix4x4 WorldViewProj;
+			struct Instance
+			{
+				Compute::Matrix4x4 Transform;
+				Compute::Matrix4x4 World;
+				Compute::Vector2 TexCoord;
+				float Diffuse = 0.0f;
+				float Normal = 0.0f;
+				float Height = 0.0f;
+				float MaterialId = 0.0f;
+			};
+
+			Compute::Matrix4x4 Transform;
 			Compute::Matrix4x4 World;
 			Compute::Vector4 TexCoord;
 			float Diffuse = 0.0f;
 			float Normal = 0.0f;
 			float Height = 0.0f;
-			float Mid = 0.0f;
+			float MaterialId = 0.0f;
 		};
 
 		struct TH_OUT ViewBuffer
@@ -1580,7 +1591,7 @@ namespace Tomahawk
 		protected:
 			struct DirectBuffer
 			{
-				Compute::Matrix4x4 WorldViewProjection;
+				Compute::Matrix4x4 Transform;
 				Compute::Vector4 Padding;
 			};
 

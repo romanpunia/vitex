@@ -1064,6 +1064,10 @@ namespace Tomahawk
 			static bool Pop(const std::string& Hash);
 			static std::unordered_set<uint64_t> Fetch(uint64_t Id);
 
+		private:
+			static void Push(uint64_t TypeId, uint64_t Tag, void* Callback);
+			static void* Find(uint64_t TypeId);
+
 		public:
 			template <typename T, typename... Args>
 			static T* Create(const std::string& Hash, Args... Data)
@@ -1073,14 +1077,8 @@ namespace Tomahawk
 			template <typename T, typename... Args>
 			static T* Create(uint64_t Id, Args... Data)
 			{
-				TH_ASSERT(Factory != nullptr, nullptr, "composer should be initialized");
-
-				auto It = Factory->find(Id);
-				if (It == Factory->end() || !It->second.second)
-					return nullptr;
-
 				void* (*Callable)(Args...) = nullptr;
-				reinterpret_cast<void*&>(Callable) = It->second.second;
+				reinterpret_cast<void*&>(Callable) = Find(Id);
 
 				if (!Callable)
 					return nullptr;
@@ -1090,15 +1088,9 @@ namespace Tomahawk
 			template <typename T, typename... Args>
 			static void Push(uint64_t Tag)
 			{
-				if (!Factory)
-					Factory = new std::unordered_map<uint64_t, std::pair<uint64_t, void*>>();
-
-				if (Factory->find(T::GetTypeId()) != Factory->end())
-					return;
-
 				auto Callable = &Composer::Callee<T, Args...>;
 				void* Result = reinterpret_cast<void*&>(Callable);
-				(*Factory)[T::GetTypeId()] = std::make_pair(Tag, Result);
+				Push(T::GetTypeId(), Tag, Result);
 			}
 
 		private:
@@ -1647,13 +1639,14 @@ namespace Tomahawk
 			}
 			Iterator Find(const T& Ref)
 			{
-				for (auto It = Data; It != Data + Count; It++)
+				auto End = Data + Count;
+				for (auto It = Data; It != End; ++It)
 				{
 					if (*It == Ref)
 						return It;
 				}
 
-				return Data + Count;
+				return End;
 			}
 
 		public:

@@ -4598,6 +4598,23 @@ namespace Tomahawk
 			Factory = nullptr;
 			return true;
 		}
+		void Composer::Push(uint64_t TypeId, uint64_t Tag, void* Callback)
+		{
+			if (!Factory)
+				Factory = new std::unordered_map<uint64_t, std::pair<uint64_t, void*>>();
+
+			if (Factory->find(TypeId) == Factory->end())
+				(*Factory)[TypeId] = std::make_pair(Tag, Callback);
+		}
+		void* Composer::Find(uint64_t TypeId)
+		{
+			TH_ASSERT(Factory != nullptr, nullptr, "composer should be initialized");
+			auto It = Factory->find(TypeId);
+			if (It != Factory->end())
+				return It->second.second;
+
+			return nullptr;
+		}
 		std::unordered_set<uint64_t> Composer::Fetch(uint64_t Id)
 		{
 			TH_ASSERT(Factory != nullptr, std::unordered_set<uint64_t>(), "composer should be initialized");

@@ -1903,7 +1903,16 @@ namespace Tomahawk
 				return;
 
 			auto* Scene = Parent->GetScene();
-			Scene->ReindexComponent(this, Active = Status, true, false);
+			Active = Status;
+
+			if (Parent->IsActive())
+			{
+				if (Active)
+					Scene->RegisterComponent(this, false, false);
+				else
+					Scene->UnregisterComponent(this, false);
+			}
+
 			if (Active)
 				Scene->NotifyCosmos(this);
 			else
@@ -2587,7 +2596,19 @@ namespace Tomahawk
 
 			return Visibility >= Threshold;
 		}
-		bool RenderSystem::PushGeometryBuffer(Material* Next, bool Textures)
+		bool RenderSystem::PostInstance(Material* Next, Graphics::RenderBuffer::Instance& Target)
+		{
+			if (!Next)
+				return false;
+
+			Target.Diffuse = (float)(Next->DiffuseMap != nullptr);
+			Target.Normal = (float)(Next->NormalMap != nullptr);
+			Target.Height = (float)(Next->HeightMap != nullptr);
+			Target.MaterialId = (float)Next->Slot;
+
+			return true;
+		}
+		bool RenderSystem::PostGeometry(Material* Next, bool WithTextures)
 		{
 			if (!Next)
 				return false;
@@ -2596,66 +2617,36 @@ namespace Tomahawk
 				return true;
 
 			BaseMaterial = Next;
-			if (Textures)
-			{
-				Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
-				Device->SetTexture2D(Next->NormalMap, 2, TH_PS);
-				Device->SetTexture2D(Next->MetallicMap, 3, TH_PS);
-				Device->SetTexture2D(Next->RoughnessMap, 4, TH_PS);
-				Device->SetTexture2D(Next->HeightMap, 5, TH_PS);
-				Device->SetTexture2D(Next->OcclusionMap, 6, TH_PS);
-				Device->SetTexture2D(Next->EmissionMap, 7, TH_PS);
-			}
 			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
 			Device->Render.Normal = (float)(Next->NormalMap != nullptr);
 			Device->Render.Height = (float)(Next->HeightMap != nullptr);
-			Device->Render.Mid = (float)Next->Slot;
+			Device->Render.MaterialId = (float)Next->Slot;
 
-			return true;
-		}
-		bool RenderSystem::PushVoxelsBuffer(Material* Next, bool Textures)
-		{
-			if (!Next || Next->Surface.Transparency > 0.0f)
-				return false;
-
-			if (Next == BaseMaterial)
-				return true;
-
-			BaseMaterial = Next;
-			if (Textures)
+			if (WithTextures)
 			{
-				Device->SetTexture2D(Next->DiffuseMap, 4, TH_PS);
-				Device->SetTexture2D(Next->NormalMap, 5, TH_PS);
-				Device->SetTexture2D(Next->MetallicMap, 6, TH_PS);
-				Device->SetTexture2D(Next->RoughnessMap, 7, TH_PS);
-				Device->SetTexture2D(Next->OcclusionMap, 8, TH_PS);
-				Device->SetTexture2D(Next->EmissionMap, 9, TH_PS);
+				if (Next->DiffuseMap != nullptr)
+					Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
+
+				if (Next->NormalMap != nullptr)
+					Device->SetTexture2D(Next->NormalMap, 2, TH_PS);
+
+				if (Next->MetallicMap != nullptr)
+					Device->SetTexture2D(Next->MetallicMap, 3, TH_PS);
+
+				if (Next->RoughnessMap != nullptr)
+					Device->SetTexture2D(Next->RoughnessMap, 4, TH_PS);
+
+				if (Next->HeightMap != nullptr)
+					Device->SetTexture2D(Next->HeightMap, 5, TH_PS);
+
+				if (Next->OcclusionMap != nullptr)
+					Device->SetTexture2D(Next->OcclusionMap, 6, TH_PS);
+
+				if (Next->EmissionMap != nullptr)
+					Device->SetTexture2D(Next->EmissionMap, 7, TH_PS);
 			}
-			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
-			Device->Render.Normal = (float)(Next->NormalMap != nullptr);
-			Device->Render.Mid = (float)Next->Slot;
 
 			return true;
-		}
-		bool RenderSystem::PushDepthLinearBuffer(Material* Next, bool Textures)
-		{
-			if (!Next)
-				return false;
-
-			if (Next == BaseMaterial)
-				return true;
-
-			BaseMaterial = Next;
-			if (Textures)
-				Device->SetTexture2D(Next->DiffuseMap, 1, TH_PS);
-			Device->Render.Diffuse = (float)(Next->DiffuseMap != nullptr);
-			Device->Render.Mid = (float)Next->Slot;
-
-			return true;
-		}
-		bool RenderSystem::PushDepthCubicBuffer(Material* Next, bool Textures)
-		{
-			return PushDepthLinearBuffer(Next, Textures);
 		}
 		bool RenderSystem::HasCategory(GeoCategory Category)
 		{
@@ -3749,10 +3740,7 @@ namespace Tomahawk
 
 			Acquire = true;
 			while (IsUnstable())
-			{
-				std::unique_lock<std::mutex> Lock(Race);
-				Stabilize.wait(Lock);
-			}
+				std::this_thread::sleep_for(std::chrono::microseconds(300));
 		}
 		void SceneGraph::ExclusiveUnlock()
 		{
@@ -3859,7 +3847,8 @@ namespace Tomahawk
 		void SceneGraph::Sleep()
 		{
 			Status = 0;
-			while (IsUnstable());
+			while (IsUnstable())
+				std::this_thread::sleep_for(std::chrono::microseconds(300));
 			Status = 1;
 		}
 		void SceneGraph::Submit()
@@ -3869,7 +3858,7 @@ namespace Tomahawk
 			TH_ASSERT_V(ThreadId == std::this_thread::get_id(), "submit should be called in same thread with publish (after)");
 
 			Conf.Device->Render.TexCoord = 1.0f;
-			Conf.Device->Render.WorldViewProj.Identify();
+			Conf.Device->Render.Transform.Identify();
 			Conf.Device->SetTarget();
 			Conf.Device->SetDepthStencilState(Display.DepthStencil);
 			Conf.Device->SetBlendState(Display.Blend);
@@ -4128,7 +4117,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Target != nullptr, "entity should be set");
 			for (auto& Base : Target->Components)
-				ReindexComponent(Base.second, true, false, true);
+				RegisterComponent(Base.second, Target->Active, true);
 
 			Target->Active = true;
 			Mutate(Target, "push");
@@ -4143,7 +4132,7 @@ namespace Tomahawk
 				Camera = nullptr;
 
 			for (auto& Base : Target->Components)
-				ReindexComponent(Base.second, false, false, true);
+				UnregisterComponent(Base.second, true);
 
 			Target->Active = false;
 			Entities.Remove(Target);
@@ -4151,54 +4140,52 @@ namespace Tomahawk
 
 			return true;
 		}
-		void SceneGraph::ReindexComponent(Component* Base, bool Activation, bool Check, bool Notify)
+		void SceneGraph::RegisterComponent(Component* Base, bool Check, bool Notify)
 		{
 			auto& Storage = GetComponents(Base->GetId());
-			if (Activation)
+			if (!Base->Active)
+				Base->Activate(nullptr);
+
+			if (Check)
 			{
-				if (!Base->Active)
-					Base->Activate(nullptr);
-
-				if (Check && Base->Parent->Active)
-				{
-					Storage.AddIfNotExists(Base);
-					if (Base->Set & (size_t)ActorSet::Update)
-						GetActors(ActorType::Update).AddIfNotExists(Base);
-					if (Base->Set & (size_t)ActorSet::Synchronize)
-						GetActors(ActorType::Synchronize).AddIfNotExists(Base);
-					if (Base->Set & (size_t)ActorSet::Message)
-						GetActors(ActorType::Message).AddIfNotExists(Base);
-				}
-				else
-				{
-					Storage.Add(Base);
-					if (Base->Set & (size_t)ActorSet::Update)
-						GetActors(ActorType::Update).Add(Base);
-					if (Base->Set & (size_t)ActorSet::Synchronize)
-						GetActors(ActorType::Synchronize).Add(Base);
-					if (Base->Set & (size_t)ActorSet::Message)
-						GetActors(ActorType::Message).Add(Base);
-				}
-
-				if (Notify)
-					Mutate(Base, "push");
+				Storage.AddIfNotExists(Base);
+				if (Base->Set & (size_t)ActorSet::Update)
+					GetActors(ActorType::Update).AddIfNotExists(Base);
+				if (Base->Set & (size_t)ActorSet::Synchronize)
+					GetActors(ActorType::Synchronize).AddIfNotExists(Base);
+				if (Base->Set & (size_t)ActorSet::Message)
+					GetActors(ActorType::Message).AddIfNotExists(Base);
 			}
 			else
 			{
-				if (Base->Active)
-					Base->Deactivate();
-
-				Storage.Remove(Base);
+				Storage.Add(Base);
 				if (Base->Set & (size_t)ActorSet::Update)
-					GetActors(ActorType::Update).Remove(Base);
+					GetActors(ActorType::Update).Add(Base);
 				if (Base->Set & (size_t)ActorSet::Synchronize)
-					GetActors(ActorType::Synchronize).Remove(Base);
+					GetActors(ActorType::Synchronize).Add(Base);
 				if (Base->Set & (size_t)ActorSet::Message)
-					GetActors(ActorType::Message).Remove(Base);
-
-				if (Notify)
-					Mutate(Base, "pop");
+					GetActors(ActorType::Message).Add(Base);
 			}
+
+			if (Notify)
+				Mutate(Base, "push");
+		}
+		void SceneGraph::UnregisterComponent(Component* Base, bool Notify)
+		{
+			auto& Storage = GetComponents(Base->GetId());
+			if (Base->Active)
+				Base->Deactivate();
+
+			Storage.Remove(Base);
+			if (Base->Set & (size_t)ActorSet::Update)
+				GetActors(ActorType::Update).Remove(Base);
+			if (Base->Set & (size_t)ActorSet::Synchronize)
+				GetActors(ActorType::Synchronize).Remove(Base);
+			if (Base->Set & (size_t)ActorSet::Message)
+				GetActors(ActorType::Message).Remove(Base);
+
+			if (Notify)
+				Mutate(Base, "pop");
 		}
 		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
 		{
@@ -4470,7 +4457,6 @@ namespace Tomahawk
 					}
 
 					Task->Active = false;
-					Stabilize.notify_one();
 				};
 			}
 			else
@@ -4542,7 +4528,6 @@ namespace Tomahawk
 					return true;
 				}
 			}
-
 			Race.unlock();
 			return false;
 		}
@@ -5011,6 +4996,8 @@ namespace Tomahawk
 		SceneGraph::Table& SceneGraph::GetStorage(uint64_t Section)
 		{
 			Table* Storage = Registry[Section];
+			TH_ASSERT(Storage != nullptr, *Registry.begin()->second, "component should be registered by composer");
+
 			if (Storage->Data.Size() + Conf.GrowMargin <= Storage->Data.Capacity())
 				return *Storage;
 
@@ -5859,9 +5846,8 @@ namespace Tomahawk
 		void Application::CloseEvent()
 		{
 		}
-		bool Application::ComposeEvent()
+		void Application::ComposeEvent()
 		{
-			return false;
 		}
 		void Application::Dispatch(Core::Timer* Time)
 		{
@@ -5874,8 +5860,8 @@ namespace Tomahawk
 		}
 		void Application::Start()
 		{
-			if (!ComposeEvent())
-				Compose();
+			ComposeEvent();
+			Compose();
 
 			if (Control.Usage & (size_t)ApplicationSet::ActivitySet && !Activity)
 			{

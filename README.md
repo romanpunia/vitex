@@ -144,7 +144,7 @@ Another important aspect of Tomahawk is schemas, they are used to serialize and 
 + Event system
 + Multithreaded scene management with db-like transactions for shared data writing and proper CPU load distribution
 + Physics, culling, indexing/synchronization, audio and rendering are processed multithreaded
-+ Stack-based rendering system with frustum/indexed/occlusion culling
++ Stack-based rendering system with frustum/indexed/occlusion culling and instanced batching
 + Mostly constant time search for drawable components in some area
 + Render system to handle any type of visualisation per camera
 + Data serialization
@@ -153,7 +153,8 @@ Another important aspect of Tomahawk is schemas, they are used to serialize and 
 + Built-in renderers (behaviour visualisations)
 + Built-in shaders (for renderers)
 #### Built-in renderers
-+ Skinned, default and soft-body models
++ Skinned and soft-body models
++ Static models with instanced batching
 + Particle systems
 + Deferred decals
 + PBR lighting with shadows

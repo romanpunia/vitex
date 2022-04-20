@@ -29,7 +29,7 @@ VOutputOpaque vs_main(VInput V)
 {
 	Element Base = Elements[V.Position];
 	VOutputOpaque Result = (VOutputOpaque)0;
-	Result.Position = mul(float4(Base.Position, 1), ob_WorldViewProj);
+	Result.Position = mul(float4(Base.Position, 1), ob_Transform);
 	Result.Rotation = Base.Rotation;
 	Result.Color = Base.Color;
 	Result.Scale = Base.Scale;
@@ -43,7 +43,7 @@ VOutputOpaque vs_main(VInput V)
 
 GBuffer ps_main(VOutputOpaque V)
 {
-	float4 Color = float4(Materials[ob_Mid].Diffuse * V.Color.xyz, V.Color.w);
+	float4 Color = float4(Materials[ob_MaterialId].Diffuse * V.Color.xyz, V.Color.w);
 	[branch] if (ob_Diffuse > 0)
 		Color *= GetDiffuse(V.TexCoord);
 
@@ -51,5 +51,5 @@ GBuffer ps_main(VOutputOpaque V)
 	[branch] if (ob_Normal > 0)
 		Normal = GetNormal(V.TexCoord, V.Normal, V.Tangent, V.Bitangent);
 
-	return Compose(V.TexCoord, Color, Normal, V.UV.z / V.UV.w, ob_Mid);
+	return Compose(V.TexCoord, Color, Normal, V.UV.z / V.UV.w, ob_MaterialId);
 };

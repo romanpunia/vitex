@@ -1,6 +1,6 @@
 cbuffer Voxelizer : register(b3)
 {
-	matrix vxb_WorldViewProj;
+	matrix vxb_Transform;
 	float3 vxb_Center;
 	float vxb_Step;
 	float3 vxb_Size;

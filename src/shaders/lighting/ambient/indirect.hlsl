@@ -6,7 +6,7 @@
 VOutput vs_main(VInput V)
 {
 	VOutput Result = (VOutput)0;
-	Result.Position = mul(float4(V.Position, 1.0), vxb_WorldViewProj);
+	Result.Position = mul(float4(V.Position, 1.0), vxb_Transform);
 	Result.TexCoord = Result.Position;
 
 	return Result;

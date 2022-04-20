@@ -2124,7 +2124,7 @@ namespace Tomahawk
 					return false;
 
 				Primitives = PrimitiveTopology::Triangle_List;
-				Direct.WorldViewProjection = Compute::Matrix4x4::Identity();
+				Direct.Transform = Compute::Matrix4x4::Identity();
 				Direct.Padding = { 0, 0, 0, 1 };
 				ViewResource = nullptr;
 
@@ -2133,7 +2133,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::Transform(const Compute::Matrix4x4& Transform)
 			{
-				Direct.WorldViewProjection = Direct.WorldViewProjection * Transform;
+				Direct.Transform = Direct.Transform * Transform;
 			}
 			void OGLDevice::Topology(PrimitiveTopology Topology)
 			{
@@ -2204,7 +2204,7 @@ namespace Tomahawk
 
 				glBindBuffer(GL_ARRAY_BUFFER, LastVBO);
 				glUseProgram(Immediate.Program);
-				glUniformMatrix4fv(0, 1, GL_FALSE, (const GLfloat*)&Direct.WorldViewProjection.Row);
+				glUniformMatrix4fv(0, 1, GL_FALSE, (const GLfloat*)&Direct.Transform.Row);
 				glUniform4fARB(1, Direct.Padding.X, Direct.Padding.Y, Direct.Padding.Z, Direct.Padding.W);
 				glActiveTexture(GL_TEXTURE1);
 				glGetIntegerv(GL_TEXTURE_BINDING_2D, &LastTexture);
@@ -3410,7 +3410,7 @@ namespace Tomahawk
 				if (Immediate.VertexShader == GL_NONE)
 				{
 					static const char* VertexShaderCode = OGL_INLINE(
-						layout(location = 0) uniform mat4 WorldViewProjection;
+						layout(location = 0) uniform mat4 Transform;
 
 					layout(location = 0) in vec3 iPosition;
 					layout(location = 1) in vec2 iTexCoord;
@@ -3421,7 +3421,7 @@ namespace Tomahawk
 
 					void main()
 					{
-						gl_Position = WorldViewProjection * vec4(iPosition.xyz, 1.0);
+						gl_Position = Transform * vec4(iPosition.xyz, 1.0);
 						oTexCoord = iTexCoord;
 						oColor = iColor;
 					});

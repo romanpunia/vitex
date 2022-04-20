@@ -45,7 +45,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t SoftBody::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry)
+			size_t SoftBody::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitives cache should be set");
 
@@ -61,7 +61,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				if (System->PreciseCulling)
 				{
-					for (auto* Base : Geometry)
+					for (auto* Base : Chunk)
 					{
 						if (Base->GetIndices().empty() || !CullingBegin(Base))
 							continue;
@@ -82,7 +82,7 @@ namespace Tomahawk
 					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 
-					for (auto* Base : Geometry)
+					for (auto* Base : Chunk)
 					{
 						if (Base->GetIndices().empty() || !CullingBegin(Base))
 							continue;
@@ -99,7 +99,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -115,7 +115,7 @@ namespace Tomahawk
 				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					if ((Static && !Base->Static) || Base->GetIndices().empty())
 						continue;
@@ -136,7 +136,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -150,7 +150,7 @@ namespace Tomahawk
 				Viewer& View = System->View;
 				size_t Count = 0;
 
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					if (!Base->Static || Base->GetIndices().empty())
 						continue;
@@ -173,7 +173,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_GS);
 				return Count;
 			}
-			size_t SoftBody::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t SoftBody::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -187,7 +187,7 @@ namespace Tomahawk
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					if (Base->GetIndices().empty())
 						continue;
@@ -210,7 +210,7 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				return Count;
 			}
-			size_t SoftBody::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t SoftBody::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -226,7 +226,7 @@ namespace Tomahawk
 				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					auto* Transform = Base->GetEntity()->GetTransform();
 					if (!Base->GetBody())
@@ -299,7 +299,7 @@ namespace Tomahawk
 					}
 				}
 			}
-			size_t Model::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry)
+			size_t Model::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 
@@ -315,7 +315,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				if (System->PreciseCulling)
 				{
-					for (auto* Base : Geometry)
+					for (auto* Base : Chunk)
 					{
 						auto* Drawable = Base->GetDrawable();
 						if (!Drawable || Drawable->Meshes.empty() || !CullingBegin(Base))
@@ -337,7 +337,7 @@ namespace Tomahawk
 				{
 					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
-					for (auto* Base : Geometry)
+					for (auto* Base : Chunk)
 					{
 						auto* Drawable = Base->GetDrawable();
 						if (!Drawable || Drawable->Meshes.empty() || !CullingBegin(Base))
@@ -354,7 +354,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Model::RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry)
+			size_t Model::RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -369,7 +369,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
 
-				for (auto& Group : Geometry)
+				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
@@ -377,9 +377,9 @@ namespace Tomahawk
 				}
 
 				Device->SetVertexBuffer(nullptr, 1);
-				return Geometry.size();
+				return Chunk.size();
 			}
-			size_t Model::RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry)
+			size_t Model::RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -391,7 +391,7 @@ namespace Tomahawk
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
 				Viewer& View = System->View;
-				for (auto& Group : Geometry)
+				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
@@ -400,9 +400,9 @@ namespace Tomahawk
 
 				Device->SetVertexBuffer(nullptr, 1);
 				Device->SetShader(nullptr, TH_GS);
-				return Geometry.size();
+				return Chunk.size();
 			}
-			size_t Model::RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry)
+			size_t Model::RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -415,7 +415,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 
-				for (auto& Group : Geometry)
+				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
@@ -424,9 +424,9 @@ namespace Tomahawk
 
 				Device->SetVertexBuffer(nullptr, 1);
 				Device->SetTexture2D(nullptr, 1, TH_PS);
-				return Geometry.size();
+				return Chunk.size();
 			}
-			size_t Model::RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t Model::RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -441,7 +441,7 @@ namespace Tomahawk
 				Device->SetBuffer(Shaders.Depth.Cubic, 3, TH_VS | TH_PS | TH_GS);
 				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
 
-				for (auto& Group : Geometry)
+				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
@@ -451,7 +451,7 @@ namespace Tomahawk
 				Device->SetVertexBuffer(nullptr, 1);
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				Device->SetShader(nullptr, TH_GS);
-				return Geometry.size();
+				return Chunk.size();
 			}
 
 			Skin::Skin(Engine::RenderSystem* Lab) : GeometryRenderer(Lab)
@@ -481,7 +481,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			size_t Skin::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry)
+			size_t Skin::CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 
@@ -497,7 +497,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				if (System->PreciseCulling)
 				{
-					for (auto* Base : Geometry)
+					for (auto* Base : Chunk)
 					{
 						auto* Drawable = Base->GetDrawable();
 						if (!Drawable || Drawable->Meshes.empty())
@@ -528,7 +528,7 @@ namespace Tomahawk
 				{
 					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
-					for (auto* Base : Geometry)
+					for (auto* Base : Chunk)
 					{
 						auto* Drawable = Base->GetDrawable();
 						if (!Drawable || Drawable->Meshes.empty())
@@ -551,7 +551,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Skin::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -567,7 +567,7 @@ namespace Tomahawk
 				Device->SetShader(Shaders.Geometry, TH_VS | TH_PS);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					auto* Drawable = Base->GetDrawable();
 					if (!Drawable || (Static && !Base->Static))
@@ -598,7 +598,7 @@ namespace Tomahawk
 
 				return Count;
 			}
-			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -612,7 +612,7 @@ namespace Tomahawk
 				Viewer& View = System->View;
 				size_t Count = 0;
 
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					auto* Drawable = Base->GetDrawable();
 					if (!Base->Static || !Drawable)
@@ -643,7 +643,7 @@ namespace Tomahawk
 				Device->SetShader(nullptr, TH_GS);
 				return Count;
 			}
-			size_t Skin::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Skin::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -657,7 +657,7 @@ namespace Tomahawk
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					auto* Drawable = Base->GetDrawable();
 					if (!Drawable)
@@ -689,7 +689,7 @@ namespace Tomahawk
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				return Count;
 			}
-			size_t Skin::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t Skin::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -705,7 +705,7 @@ namespace Tomahawk
 				Device->UpdateBuffer(Shaders.Depth.Cubic, ViewProjection);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					auto* Drawable = Base->GetDrawable();
 					if (!Drawable)
@@ -765,7 +765,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Point);
 				System->FreeShader(Shaders.Depth.Quad);
 			}
-			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -797,7 +797,7 @@ namespace Tomahawk
 				Device->SetVertexBuffer(nullptr, 0);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					if ((Static && !Base->Static) || !Base->GetBuffer())
 						continue;
@@ -825,7 +825,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				return Count;
 			}
-			size_t Emitter::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Emitter::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -844,7 +844,7 @@ namespace Tomahawk
 				Device->SetVertexBuffer(nullptr, 0);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					if (!Base->GetBuffer() || !System->PostGeometry(Base->GetMaterial(), true))
 						continue;
@@ -868,7 +868,7 @@ namespace Tomahawk
 				Device->SetPrimitiveTopology(T);
 				return Count;
 			}
-			size_t Emitter::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection)
+			size_t Emitter::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -894,7 +894,7 @@ namespace Tomahawk
 				Device->UpdateBuffer(Shaders.Depth.Quad, &Depth);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					if (!Base->GetBuffer() || !System->PostGeometry(Base->GetMaterial(), true))
 						continue;
@@ -933,7 +933,7 @@ namespace Tomahawk
 			{
 				System->FreeShader(Shader);
 			}
-			size_t Decal::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry)
+			size_t Decal::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				TH_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
 
@@ -957,7 +957,7 @@ namespace Tomahawk
 				Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 
 				size_t Count = 0;
-				for (auto* Base : Geometry)
+				for (auto* Base : Chunk)
 				{
 					if ((Static && !Base->Static) || !System->PostGeometry(Base->GetMaterial(), true))
 						continue;

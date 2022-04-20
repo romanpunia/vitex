@@ -38,11 +38,11 @@ namespace Tomahawk
 			public:
 				SoftBody(RenderSystem* Lab);
 				virtual ~SoftBody();
-				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("soft-body-renderer");
@@ -76,11 +76,11 @@ namespace Tomahawk
 				Model(RenderSystem* Lab);
 				virtual ~Model() override;
 				void BatchGeometry(Components::Model* Base, Graphics::RenderBuffer::Instance& Data, Batching& Batch) override;
-				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry) override;
-				size_t RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry) override;
-				size_t RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry) override;
-				size_t RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
+				size_t RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
+				size_t RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
+				size_t RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("model-renderer");
@@ -113,11 +113,11 @@ namespace Tomahawk
 			public:
 				Skin(RenderSystem* Lab);
 				virtual ~Skin();
-				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("skin-renderer");
@@ -156,9 +156,9 @@ namespace Tomahawk
 			public:
 				Emitter(RenderSystem* Lab);
 				virtual ~Emitter() override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
-				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Geometry, Compute::Matrix4x4* ViewProjection) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
+				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
 
 			public:
 				TH_COMPONENT("emitter-renderer");
@@ -177,7 +177,7 @@ namespace Tomahawk
 			public:
 				Decal(RenderSystem* Lab);
 				virtual ~Decal() override;
-				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Geometry) override;
+				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 
 			public:
 				TH_COMPONENT("decal-renderer");

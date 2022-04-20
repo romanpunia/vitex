@@ -1648,39 +1648,39 @@ namespace Tomahawk
 			virtual void BatchGeometry(T* Base, Instance& Data, Batching& Batch)
 			{
 			}
-			virtual size_t CullGeometry(const Viewer& View, const Objects& Geometry)
+			virtual size_t CullGeometry(const Viewer& View, const Objects& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const Objects& Geometry)
+			virtual size_t RenderDepthLinear(Core::Timer* TimeStep, const Objects& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthLinearBatched(Core::Timer* TimeStep, const Groups& Geometry)
+			virtual size_t RenderDepthLinearBatched(Core::Timer* TimeStep, const Groups& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const Objects& Geometry, Compute::Matrix4x4* ViewProjection)
+			virtual size_t RenderDepthCubic(Core::Timer* TimeStep, const Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				return 0;
 			}
-			virtual size_t RenderDepthCubicBatched(Core::Timer* TimeStep, const Groups& Geometry, Compute::Matrix4x4* ViewProjection)
+			virtual size_t RenderDepthCubicBatched(Core::Timer* TimeStep, const Groups& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const Objects& Geometry)
+			virtual size_t RenderGeometryVoxels(Core::Timer* TimeStep, const Objects& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryVoxelsBatched(Core::Timer* TimeStep, const Groups& Geometry)
+			virtual size_t RenderGeometryVoxelsBatched(Core::Timer* TimeStep, const Groups& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const Objects& Geometry)
+			virtual size_t RenderGeometryResult(Core::Timer* TimeStep, const Objects& Chunk)
 			{
 				return 0;
 			}
-			virtual size_t RenderGeometryResultBatched(Core::Timer* TimeStep, const Groups& Geometry)
+			virtual size_t RenderGeometryResultBatched(Core::Timer* TimeStep, const Groups& Chunk)
 			{
 				return 0;
 			}

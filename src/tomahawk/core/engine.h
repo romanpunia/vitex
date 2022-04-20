@@ -876,6 +876,7 @@ namespace Tomahawk
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
 				bool Mutations = true;
+				bool Async = true;
 
 				static Desc Get(Application* Base);
 			};
@@ -1243,6 +1244,12 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
+				struct
+				{
+					uint64_t FastTimeout = 20;
+					uint64_t SlowTimeout = 200;
+				} Networking;
+
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
 				std::string Environment;
@@ -1261,6 +1268,7 @@ namespace Tomahawk
 					(size_t)ApplicationSet::ContentSet |
 					(size_t)ApplicationSet::NetworkSet;
 				bool Daemon = false;
+				bool Async = true;
 				bool Cursor = true;
 			};
 
@@ -1276,7 +1284,6 @@ namespace Tomahawk
 
 		private:
 			ApplicationState State = ApplicationState::Terminated;
-			bool NetworkQueue = false;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;
@@ -1304,6 +1311,9 @@ namespace Tomahawk
 			ApplicationState GetState();
 			void Start();
 			void Stop();
+
+		private:
+			void Networking();
 
 		private:
 			static bool Status(Application* App);

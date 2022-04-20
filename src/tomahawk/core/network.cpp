@@ -1460,17 +1460,6 @@ namespace Tomahawk
 			Names.clear();
 			Exclusive.unlock();
 		}
-		void Driver::Multiplex()
-		{
-			Core::Schedule* Queue = Core::Schedule::Get();
-			if (Queue->GetThreads(Core::Difficulty::Heavy) < 2)
-				Dispatch(Queue->HasTasks(Core::Difficulty::Heavy) ? 0 : 20);
-			else
-				Dispatch(100);
-
-			if (Queue->IsActive())
-				Queue->SetTask(&Driver::Multiplex, Core::Difficulty::Heavy);
-		}
 		int Driver::Dispatch(int64_t EventTimeout)
 		{
 			TH_ASSERT(Array != nullptr, -1, "driver should be initialized");

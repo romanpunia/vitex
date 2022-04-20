@@ -170,7 +170,7 @@ typedef socklen_t socket_size_t;
 #define TH_PERF_MIX (50)
 #define TH_PERF_IO (80)
 #define TH_PERF_NET (150)
-#define TH_PERF_MAX (200)
+#define TH_PERF_MAX (350)
 #define TH_PERF_HANG (5000)
 #define TH_PPUSH(Section, Threshold) Tomahawk::Core::OS::PerfPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
 #define TH_PSIG() Tomahawk::Core::OS::PerfSignal()
@@ -208,6 +208,7 @@ typedef socklen_t socket_size_t;
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
 #define TH_INVALID_TASK_ID 0
+#define TH_MAX_EVENTS 32
 #define TH_PREFIX_CHAR '`'
 #define TH_PREFIX_STR "`"
 #define TH_SHUFFLE(Name) Tomahawk::Core::Shuffle<sizeof(Name)>(Name)
@@ -1756,6 +1757,7 @@ namespace Tomahawk
 				uint64_t Memory = TH_STACKSIZE;
 				uint64_t Coroutines = 16;
 				ActivityCallback Ping = nullptr;
+				bool Async = true;
 
 				void SetThreads(uint64_t Cores);
 			};
@@ -1769,6 +1771,14 @@ namespace Tomahawk
 				std::thread::id Id;
 				bool Daemon = false;
 			};
+
+		private:
+			struct
+			{
+				std::vector<TaskCallback*> Events;
+				TaskCallback* Tasks[TH_MAX_EVENTS];
+				Costate* State = nullptr;
+			} Dispatcher;
 
 		private:
 			ConcurrentQueuePtr* Queues[(size_t)Difficulty::Count];
@@ -1797,6 +1807,7 @@ namespace Tomahawk
 			bool Start(const Desc& NewPolicy);
 			bool Stop();
 			bool Wakeup();
+			bool Dispatch();
 			bool IsActive();
 			bool HasTasks(Difficulty Type);
 			uint64_t GetTotalThreads();
@@ -1804,7 +1815,8 @@ namespace Tomahawk
 			const Desc& GetPolicy();
 
 		private:
-			bool Dispatch(Difficulty Type, ThreadPtr* Thread);
+			bool ProcessTick(Difficulty Type);
+			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);
 			bool ChunkCleanup();
 			bool PushThread(Difficulty Type, bool IsDaemon);

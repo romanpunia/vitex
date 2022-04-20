@@ -3574,6 +3574,7 @@ namespace Tomahawk
 			SceneGraph::Desc I;
 			if (Base != nullptr)
 			{
+				I.Async = Base->Control.Async;
 				I.MinFrames = Base->Control.MinFrames;
 				I.MaxFrames = Base->Control.MaxFrames;
 				I.Shaders = Base->Cache.Shaders;
@@ -4439,8 +4440,10 @@ namespace Tomahawk
 				Packet* Task = (It == Tasks.end() ? TH_NEW(Packet) : It->second);
 				Task->Time = (Task->Time ? Task->Time : new Core::Timer());
 				Task->Time->SetStepLimitation(Conf.MinFrames, Conf.MaxFrames);
-				Task->Time->FrameLimit = Conf.FrequencyHZ;
 				Task->Active = false;
+
+				if (Conf.Async)
+					Task->Time->FrameLimit = Conf.FrequencyHZ;
 
 				if (It == Tasks.end())
 					Tasks[Name] = Task;
@@ -5799,8 +5802,7 @@ namespace Tomahawk
 				GUI::Subsystem::SetManager(VM);
 			}
 #endif
-			NetworkQueue = (I->Usage & (size_t)ApplicationSet::NetworkSet);
-			if (NetworkQueue)
+			if (I->Usage & (size_t)ApplicationSet::NetworkSet)
 				Network::Driver::Create(256);
 
 			State = ApplicationState::Staging;
@@ -5823,7 +5825,7 @@ namespace Tomahawk
 			TH_RELEASE(Renderer);
 			TH_RELEASE(Activity);
 
-			if (NetworkQueue)
+			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
 				Network::Driver::Release();
 
 			Host = nullptr;
@@ -5907,9 +5909,6 @@ namespace Tomahawk
 			Time->FrameLimit = Control.Framerate;
 			Time->SetStepLimitation(Control.MinFrames, Control.MaxFrames);
 
-			Core::Schedule* Queue = Core::Schedule::Get();
-			if (NetworkQueue)
-				Queue->SetTask(Network::Driver::Multiplex, Core::Difficulty::Heavy);
 #ifdef TH_WITH_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Content, Time);
@@ -5917,11 +5916,16 @@ namespace Tomahawk
 			Core::Schedule::Desc Policy;
 			Policy.Coroutines = Control.Coroutines;
 			Policy.Memory = Control.Stack;
+			Policy.Async = Control.Async;
 			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
 			Policy.SetThreads(Control.Threads);
-			Queue->Start(Policy);
 
-			if (Activity != nullptr)
+			Core::Schedule* Queue = Core::Schedule::Get();
+			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
+				Queue->SetTask(std::bind(&Application::Networking, this), Core::Difficulty::Heavy);
+
+			Queue->Start(Policy);
+			if (Activity != nullptr && Control.Async)
 			{
 				while (State == ApplicationState::Active)
 				{
@@ -5932,7 +5936,19 @@ namespace Tomahawk
 					TH_SSIG();
 				}
 			}
-			else
+			else if (Activity != nullptr && !Control.Async)
+			{
+				while (State == ApplicationState::Active)
+				{
+					Queue->Dispatch();
+					Activity->Dispatch();
+					Time->Synchronize();
+					Dispatch(Time);
+					Publish(Time);
+					TH_SSIG();
+				}
+			}
+			else if (!Activity && Control.Async)
 			{
 				while (State == ApplicationState::Active)
 				{
@@ -5942,7 +5958,18 @@ namespace Tomahawk
 					TH_SSIG();
 				}
 			}
-			
+			else if (!Activity && !Control.Async)
+			{
+				while (State == ApplicationState::Active)
+				{
+					Queue->Dispatch();
+					Time->Synchronize();
+					Dispatch(Time);
+					Publish(Time);
+					TH_SSIG();
+				}
+			}
+
 			TH_RELEASE(Time);
 			CloseEvent();
 			Queue->Stop();
@@ -5952,6 +5979,25 @@ namespace Tomahawk
 			Core::Schedule* Queue = Core::Schedule::Get();
 			State = ApplicationState::Terminated;
 			Queue->Wakeup();
+		}
+		void Application::Networking()
+		{
+			Core::Schedule* Queue = Core::Schedule::Get();
+			uint64_t Timeout = 0;
+			if (Control.Async)
+			{
+				if (Queue->GetThreads(Core::Difficulty::Heavy) < 2)
+				{
+					if (Queue->HasTasks(Core::Difficulty::Heavy))
+						Timeout = Control.Networking.FastTimeout;
+				}
+				else
+					Timeout = Control.Networking.SlowTimeout;
+			}
+
+			Network::Driver::Dispatch(Timeout);
+			if (Queue->IsActive())
+				Queue->SetTask(std::bind(&Application::Networking, this), Core::Difficulty::Heavy);
 		}
 		void* Application::GetGUI()
 		{

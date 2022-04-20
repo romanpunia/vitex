@@ -356,7 +356,6 @@ namespace Tomahawk
 		public:
 			static void Create(int MaxEvents = 256);
 			static void Release();
-			static void Multiplex();
 			static int Dispatch(int64_t Timeout);
 			static int Listen(Socket* Value, bool Always);
 			static int Unlisten(Socket* Value, bool Always);

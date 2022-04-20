@@ -1151,20 +1151,22 @@ namespace Tomahawk
 				if (!State.Scene->GetVoxelBuffer(In, Out))
 					return;
 
-				auto& Buffers = State.Scene->GetVoxelsMapping(); uint64_t Counter = 0;
-				for (auto* Light : Lights.Illuminators.Top())
+				auto& Buffers = State.Scene->GetVoxelsMapping();
+				auto& Top = Lights.Illuminators.Top();
+				bool MustRedeploy = true;
+				uint64_t Counter = 0;
+
+				for (auto It = Top.begin(); It != Top.end(); ++It)
 				{
 					if (Counter >= Buffers.size())
 						break;
 
 					auto& Buffer = Buffers[Counter++];
-					auto* Last = ((Components::Illuminator*)Buffer.second);
+					auto* Last = (Components::Illuminator*)Buffer.second;
+					auto* Light = *It;
 
 					if (!Light->Regenerate)
 						Light->Regenerate = (Last != Light);
-
-					if (Last != nullptr)
-						Last->VoxelMap = nullptr;
 
 					Light->VoxelMap = Buffer.first;
 					Buffer.second = Light;
@@ -1533,11 +1535,13 @@ namespace Tomahawk
 
 				Graphics::ElementBuffer* Cube[2];
 				System->GetPrimitives()->GetCubeBuffers(Cube);
+				State.Backcull = true;
 
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Secondary);
 				State.Device->CopyTarget(MRT, 0, RT, 0);
-				State.Device->SetDepthStencilState(DepthStencilNone);
+				State.Device->SetDepthStencilState(DepthStencilLess);
+				State.Device->SetRasterizerState(BackRasterizer);
 				State.Device->SetSamplerState(WrapSampler, 1, 6, TH_PS);
 				State.Device->SetTexture2D(RT->GetTarget(), 1, TH_PS);
 				State.Device->SetShader(Shaders.Ambient[1], TH_VS | TH_PS);

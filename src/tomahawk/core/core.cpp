@@ -50,7 +50,6 @@ extern "C"
 #include <zlib.h>
 }
 #endif
-#define MAX_EVENTS 32
 #define MAKEUQUAD(L, H) ((uint64_t)(((uint32_t)(L)) | ((uint64_t)((uint32_t)(H))) << 32))
 #define RATE_DIFF (10000000)
 #define EPOCH_DIFF (MAKEUQUAD(0xd53e8000, 0x019db1de))
@@ -7932,6 +7931,7 @@ namespace Tomahawk
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				TH_DELETE(ConcurrentQueuePtr, Queues[i]);
 
+			TH_RELEASE(Dispatcher.State);
 			if (Singleton == this)
 				Singleton = nullptr;
 		}
@@ -8101,6 +8101,9 @@ namespace Tomahawk
 			Policy = NewPolicy;
 			Active = true;
 
+			if (!Policy.Async)
+				return true;
+
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				Policy.Threads[i] = std::max<uint64_t>(Policy.Threads[i], 1);
 
@@ -8160,7 +8163,7 @@ namespace Tomahawk
 		}
 		bool Schedule::Wakeup()
 		{
-			TaskCallback* Dummy[MAX_EVENTS * 2] = { nullptr };
+			TaskCallback* Dummy[TH_MAX_EVENTS * 2] = { nullptr };
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
@@ -8169,13 +8172,110 @@ namespace Tomahawk
 				for (auto* Thread : Threads[i])
 				{
 					Thread->Notify.notify_all();
-					Queue->Tasks.enqueue_bulk(Dummy, MAX_EVENTS);
+					Queue->Tasks.enqueue_bulk(Dummy, TH_MAX_EVENTS);
 				}
 			}
 
 			return true;
 		}
-		bool Schedule::Dispatch(Difficulty Type, ThreadPtr* Thread)
+		bool Schedule::Dispatch()
+		{
+			size_t Passes = 0;
+			TH_PPUSH("dispatch-sync", TH_PERF_MAX);
+			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
+			{
+				if (ProcessTick((Difficulty)i))
+					++Passes;
+			}
+			TH_PPOP();
+			return Passes > 0;
+		}
+		bool Schedule::ProcessTick(Difficulty Type)
+		{
+			auto* Queue = Queues[(size_t)Type];
+			switch (Type)
+			{
+				case Difficulty::Clock:
+				{
+					if (Queue->Timers.empty())
+						return false;
+
+					auto Clock = GetClock();
+					auto It = Queue->Timers.begin();
+					if (Active && It->first >= Clock)
+						return false;
+
+					if (It->second.Alive && Active)
+					{
+						Timeout Next(std::move(It->second));
+						Queue->Timers.erase(It);
+
+						SetTask((const TaskCallback&)Next.Callback, Next.Type);
+						Queue->Timers.emplace(std::make_pair(GetTimeout(Clock + Next.Expires), std::move(Next)));
+					}
+					else
+					{
+						SetTask(std::move(It->second.Callback), It->second.Type);
+						Queue->Timers.erase(It);
+					}
+
+					return true;
+				}
+				case Difficulty::Chain:
+				{
+					Dispatcher.Events.resize(Policy.Coroutines);
+					if (!Dispatcher.State)
+						Dispatcher.State = new Costate(Policy.Memory);
+
+					uint64_t Left = Policy.Coroutines - Dispatcher.State->GetCount();
+					size_t Count = Left, Passes = 0;
+
+					while (Left > 0 && Count > 0)
+					{
+						memset(Dispatcher.Events.data(), 0, sizeof(TaskCallback*) * Dispatcher.Events.size());
+						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
+						Left -= Count;
+
+						for (size_t i = 0; i < Count; ++i)
+						{
+							TaskCallback* Data = Dispatcher.Events[i];
+							if (Data != nullptr)
+							{
+								Dispatcher.State->Pop(std::move(*Data));
+								TH_DELETE(function, Data);
+							}
+						}
+					}
+
+					while (Dispatcher.State->Dispatch() > 0)
+						++Passes;
+
+					return Passes > 0;
+				}
+				case Difficulty::Light:
+				case Difficulty::Heavy:
+				{
+					memset(Dispatcher.Tasks, 0, sizeof(Dispatcher.Tasks));
+					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, TH_MAX_EVENTS);
+					for (size_t i = 0; i < Count; ++i)
+					{
+						TH_PPUSH("dispatch-task", Type == Difficulty::Heavy ? TH_PERF_MAX : TH_PERF_IO);
+						TaskCallback* Data = Dispatcher.Tasks[i];
+						if (Data != nullptr)
+						{
+							(*Data)();
+							TH_DELETE(function, Data);
+						}
+						TH_PPOP();
+					}
+
+					return Count > 0;
+				}
+			}
+
+			return false;
+		}
+		bool Schedule::ProcessLoop(Difficulty Type, ThreadPtr* Thread)
 		{
 			auto* Queue = Queues[(size_t)Type];
 			std::string ThreadId = OS::Process::GetThreadId(Thread->Id);
@@ -8295,7 +8395,7 @@ namespace Tomahawk
 				case Difficulty::Heavy:
 				{
 					ReceiveToken Token(Queue->Tasks);
-					TaskCallback* Events[MAX_EVENTS];
+					TaskCallback* Events[TH_MAX_EVENTS];
 
 					do
 					{
@@ -8303,7 +8403,7 @@ namespace Tomahawk
 						do
 						{
 							memset(Events, 0, sizeof(Events));
-							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, MAX_EVENTS);
+							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, TH_MAX_EVENTS);
 							for (size_t i = 0; i < Count; ++i)
 							{
 								TH_PPUSH("dispatch-task", TH_PERF_MAX);
@@ -8360,14 +8460,14 @@ namespace Tomahawk
 
 			if (!Thread->Daemon)
 			{
-				Thread->Handle = std::move(std::thread(&Schedule::Dispatch, this, Type, Thread));
+				Thread->Handle = std::move(std::thread(&Schedule::ProcessLoop, this, Type, Thread));
 				Thread->Id = Thread->Handle.get_id();
 			}
 			else
 				Thread->Id = std::this_thread::get_id();
 
 			Threads[(size_t)Type].emplace_back(Thread);
-			return Thread->Daemon ? Dispatch(Type, Thread) : Thread->Handle.joinable();
+			return Thread->Daemon ? ProcessLoop(Type, Thread) : Thread->Handle.joinable();
 		}
 		bool Schedule::PopThread(ThreadPtr* Thread)
 		{

@@ -1421,12 +1421,16 @@ namespace Tomahawk
 				return Current != nullptr;
 			}
 
+			Request::Request(const std::string& Commands) : Command(Commands.begin(), Commands.end())
+			{
+				Command.emplace_back('\0');
+			}
 			void Request::Finalize(Cursor& Subresult)
 			{
 				if (Callback)
 					Callback(Subresult);
 			}
-			std::string Request::GetCommand() const
+			const std::vector<char>& Request::GetCommand() const
 			{
 				return Command;
 			}
@@ -1678,8 +1682,7 @@ namespace Tomahawk
 					}
 				}
 
-				Request* Next = TH_NEW(Request);
-				Next->Command = Command;
+				Request* Next = TH_NEW(Request, Command);
 				Next->Session = Token;
 
 				if (!Reference.empty())
@@ -1894,17 +1897,12 @@ namespace Tomahawk
 
 				TH_PPUSH("postgres-send", TH_PERF_MAX);
 				if (Base->Session != 0)
-					TH_TRACE("[pq] execute query on 0x%" PRIXPTR " tx-%llu\n\t%.64s%s", (uintptr_t)Base, Base->Session, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
+					TH_TRACE("[pq] execute query on 0x%" PRIXPTR " tx-%llu\n\t%.64s%s", (uintptr_t)Base, Base->Session, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				else
-					TH_TRACE("[pq] execute query on 0x%" PRIXPTR "\n\t%.64s%s", (uintptr_t)Base, Base->Current->Command.c_str(), Base->Current->Command.size() > 64 ? " ..." : "");
+					TH_TRACE("[pq] execute query on 0x%" PRIXPTR "\n\t%.64s%s", (uintptr_t)Base, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
-				if (PQsendQuery(Base->Base, Base->Current->Command.c_str()) == 1)
-				{
-					Base->State = QueryState::Busy;
-					TH_PPOP();
-
-					return true;
-				}
+				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
+					TH_PRET(Flush(Base, false));
 
 				Request* Item = Base->Current;
 				Base->Current = nullptr;
@@ -1929,43 +1927,58 @@ namespace Tomahawk
 				{
 					if (Packet::IsSkip(Event))
 						return true;
+
+					return Dispatch(Source, !Packet::IsError(Event));
+				}) == 1;
+			}
+			bool Cluster::Flush(Connection* Base, bool Blocked)
+			{
+				Base->State = QueryState::Busy;
+				if (PQflush(Base->Base) == 1)
+				{
+					Base->Stream->Skip((uint32_t)Network::SocketEvent::Read | (uint32_t)Network::SocketEvent::Write, Network::NetEvent::Cancelled);
+					return Base->Stream->SetWriteNotify([this, Base](NetEvent Event, size_t)
+					{
+						if (Packet::IsSkip(Event))
+							return true;
+
+						return Flush(Base, true);
+					}) == 1;
+				}
+
+				if (Blocked)
+					return Reprocess(Base);
+
+				return true;
+			}
+			bool Cluster::Dispatch(Connection* Source, bool Connected)
+			{
 #ifdef TH_HAS_POSTGRESQL
-					TH_PPUSH("postgres-recv", TH_PERF_MAX);
-					Update.lock();
-					if (Packet::IsError(Event))
-						Source->State = QueryState::Lost;
+				TH_PPUSH("postgres-recv", TH_PERF_MAX);
+				Update.lock();
+				if (!Connected)
+				{
+					Source->State = QueryState::Lost;
+					Update.unlock();
+					TH_PPOP();
 
-					if (Source->State == QueryState::Lost)
+					return Core::Schedule::Get()->SetTask([this, Source]()
 					{
-						Update.unlock();
-						TH_PPOP();
+						Reestablish(Source);
+					}, Core::Difficulty::Heavy) != TH_INVALID_TASK_ID;
+				}
+			Retry:
+				Consume(Source);
 
-						return Core::Schedule::Get()->SetTask([this, Source]()
-						{
-							Reestablish(Source);
-						}, Core::Difficulty::Heavy) != TH_INVALID_TASK_ID;
-					}
+				if (PQconsumeInput(Source->Base) != 1)
+				{
+					PQlogMessage(Source->Base);
+					Source->State = QueryState::Lost;
+					goto Finalize;
+				}
 
-				Retry:
-					Consume(Source);
-					if (PQconsumeInput(Source->Base) != 1)
-					{
-						PQlogMessage(Source->Base);
-						Source->State = QueryState::Lost;
-						Update.unlock();
-						TH_PPOP();
-
-						return Reprocess(Source);
-					}
-
-					if (PQisBusy(Source->Base) == 1)
-					{
-						Update.unlock();
-						TH_PPOP();
-
-						return Reprocess(Source);
-					}
-
+				if (PQisBusy(Source->Base) == 0)
+				{
 					PGnotify* Notification = PQnotifies(Source->Base);
 					if (Notification != nullptr && Notification->relname != nullptr)
 					{
@@ -2007,17 +2020,13 @@ namespace Tomahawk
 								Item->Finalize(Results);
 								Future = std::move(Results);
 								Update.lock();
-
 								TH_DELETE(Request, Item);
-								Consume(Source);
-								Update.unlock();
-								TH_PPOP();
-
-								return Reprocess(Source);
 							}
-
-							Source->Current->Result.Base.emplace_back(Frame);
-							goto Retry;
+							else
+							{
+								Source->Current->Result.Base.emplace_back(Frame);
+								goto Retry;
+							}
 						}
 						else
 						{
@@ -2025,16 +2034,17 @@ namespace Tomahawk
 							Frame.Release();
 						}
 					}
+				}
 
-					Consume(Source);
-					Update.unlock();
-					TH_PPOP();
+				Consume(Source);
+			Finalize:
+				Update.unlock();
+				TH_PPOP();
 
-					return Reprocess(Source);
+				return Reprocess(Source);
 #else
-					return false;
+				return false;
 #endif
-				}) == 1;
 			}
 			bool Cluster::Transact(Connection* Base, Request* Next)
 			{

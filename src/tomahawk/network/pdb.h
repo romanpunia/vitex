@@ -416,14 +416,15 @@ namespace Tomahawk
 
 			private:
 				Core::Async<Cursor> Future;
-				std::string Command;
+				std::vector<char> Command;
 				uint64_t Session;
 				OnResult Callback;
 				Cursor Result;
 
 			public:
+				Request(const std::string& Commands);
 				void Finalize(Cursor& Subresult);
-				std::string GetCommand() const;
+				const std::vector<char>& GetCommand() const;
 				Cursor GetResult() const;
 				uint64_t GetSession() const;
 				bool IsPending() const;
@@ -483,6 +484,8 @@ namespace Tomahawk
 				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base);
 				bool Reprocess(Connection* Base);
+				bool Flush(Connection* Base, bool Blocked);
+				bool Dispatch(Connection* Base, bool Connected);
 				bool Transact(Connection* Base, Request* Token);
 			};
 

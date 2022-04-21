@@ -1181,14 +1181,16 @@ namespace Tomahawk
 				Response.Data = Content::Not_Loaded;
 				Response.Error = false;
 				Response.StatusCode = -1;
+				Response.Buffer.shrink_to_fit();
 				Response.Buffer.clear();
 				Response.Cookies.clear();
 				Response.Headers.clear();
 				Request.ContentLength = 0;
 				Request.User.Type = Auth::Unverified;
 				Request.User.Token.clear();
-				Request.Resources.clear();
+				Request.Buffer.shrink_to_fit();
 				Request.Buffer.clear();
+				Request.Resources.clear();
 				Request.Headers.clear();
 				Request.Cookies.clear();
 				Request.Query.clear();
@@ -1363,10 +1365,13 @@ namespace Tomahawk
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 					{
-						if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-							Response.Data = Content::Cached;
-						else
-							Response.Data = Content::Lost;
+						if (!Eat)
+						{
+							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+								Response.Data = Content::Cached;
+							else
+								Response.Data = Content::Lost;
+						}
 
 						if (Callback)
 							Callback(this, Event, nullptr, 0);

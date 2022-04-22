@@ -1933,6 +1933,7 @@ namespace Tomahawk
 			}
 			bool Cluster::Flush(Connection* Base, bool Blocked)
 			{
+#ifdef TH_HAS_POSTGRESQL
 				Base->State = QueryState::Busy;
 				if (PQflush(Base->Base) == 1)
 				{
@@ -1950,6 +1951,9 @@ namespace Tomahawk
 					return Reprocess(Base);
 
 				return true;
+#else
+				return Reprocess(Base);
+#endif
 			}
 			bool Cluster::Dispatch(Connection* Source, bool Connected)
 			{

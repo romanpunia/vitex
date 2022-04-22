@@ -956,7 +956,6 @@ namespace Tomahawk
 			void Redistribute();
 			void Reindex();
 			void ResizeBuffers();
-			void Sleep();
 			void Submit();
 			void Conform();
 			bool Dispatch(Core::Timer* Time);
@@ -1059,6 +1058,7 @@ namespace Tomahawk
 			void ExclusiveLock();
 			void ExclusiveUnlock();
 			bool UnregisterEntity(Entity* In);
+			bool ResolveEvent(Event& Data);
 			bool ResolveEvents();
 			Entity* CloneEntity(Entity* Entity);
 

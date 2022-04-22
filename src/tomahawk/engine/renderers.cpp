@@ -1168,16 +1168,22 @@ namespace Tomahawk
 					if (!Light->Regenerate)
 						Light->Regenerate = (Last != Light);
 
+					if (Last != nullptr && Light->Regenerate)
+						Last->Regenerate = true;
+
 					Light->VoxelMap = Buffer.first;
 					Buffer.second = Light;
 
 					if (!GetIlluminator(&VoxelBuffer, Light))
-						break;
+						continue;
 
 					bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
 					auto& Delay = (Inside ? Light->Inside : Light->Outside);
 					if (!Light->Regenerate && !Delay.TickEvent(Time->GetElapsedTime()))
 						continue;
+
+					Voxels.LightBuffer = Light->VoxelMap;
+					Light->Regenerate = false;
 
 					size_t Size = State.Scene->GetConf().VoxelsSize;
 					State.Device->ClearWritable(In[(size_t)VoxelType::Diffuse]);
@@ -1188,8 +1194,6 @@ namespace Tomahawk
 					State.Device->SetBlendState(BlendOverwrite);
 					State.Device->SetRasterizerState(NoneRasterizer);
 					State.Device->SetWriteable(In, 1, 3, false);
-					Voxels.LightBuffer = Light->VoxelMap;
-					Light->Regenerate = false;
 
 					Compute::Matrix4x4 Offset = Compute::Matrix4x4::CreateTranslatedScale(VoxelBuffer.Center, VoxelBuffer.Scale);
 					System->SetView(Offset, System->View.Projection, VoxelBuffer.Center, 90.0f, 1.0f, 0.1f, GetDominant(VoxelBuffer.Scale) * 2.0f, RenderCulling::Point);
@@ -1198,7 +1202,6 @@ namespace Tomahawk
 
 					State.Device->SetWriteable(Out, 1, 3, false);
 					State.Device->GenerateMips(Voxels.LightBuffer);
-					break;
 				}
 			}
 			void Lighting::RenderSurfaceMaps(Core::Timer* Time)

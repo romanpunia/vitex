@@ -3733,6 +3733,9 @@ namespace Tomahawk
 		}
 		void SceneGraph::ExclusiveLock()
 		{
+			if (!Conf.Async)
+				return;
+
 			if (Status != 1)
 				return Emulation.lock();
 
@@ -3745,6 +3748,9 @@ namespace Tomahawk
 		}
 		void SceneGraph::ExclusiveUnlock()
 		{
+			if (!Conf.Async)
+				return;
+
 			if (Status != 1)
 				return Emulation.unlock();
 
@@ -3845,13 +3851,6 @@ namespace Tomahawk
 				TH_PPOP();
 			});
 		}
-		void SceneGraph::Sleep()
-		{
-			Status = 0;
-			while (IsUnstable())
-				std::this_thread::sleep_for(std::chrono::microseconds(300));
-			Status = 1;
-		}
 		void SceneGraph::Submit()
 		{
 			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
@@ -3885,6 +3884,9 @@ namespace Tomahawk
 			std::queue<Core::TaskCallback> Next;
 			ExclusiveLock();
 		Iterate:
+			while (!Events.empty())
+				ResolveEvents();
+
 			Race.lock();
 			Next.swap(Queue);
 			Race.unlock();
@@ -3895,13 +3897,8 @@ namespace Tomahawk
 				Next.pop();
 			}
 
-			bool Process = !Events.empty();
-			while (!Events.empty())
-				ResolveEvents();
-
-			if (Process)
+			if (!Events.empty())
 				goto Iterate;
-
 			ExclusiveUnlock();
 		}
 		bool SceneGraph::Dispatch(Core::Timer* Time)
@@ -4522,6 +4519,9 @@ namespace Tomahawk
 		}
 		bool SceneGraph::IsUnstable()
 		{
+			if (!Conf.Async)
+				return false;
+
 			Race.lock();
 			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
 			{
@@ -4857,6 +4857,49 @@ namespace Tomahawk
 			else
 				Indexer.Components.Add(Base);
 		}
+		bool SceneGraph::ResolveEvent(Event& Source)
+		{
+			auto _Bubble = Source.Args.find("__vb"), _Target = Source.Args.find("__vt");
+			if (_Bubble == Source.Args.end() || _Target == Source.Args.end())
+				return false;
+
+			EventTarget Bubble = (EventTarget)_Bubble->second.GetInteger();
+			void* Target = _Target->second.GetPointer();
+
+			if (Bubble == EventTarget::Scene)
+			{
+				auto Begin = Actors[(size_t)ActorType::Message].Begin();
+				auto End = Actors[(size_t)ActorType::Message].End();
+				for (auto It = Begin; It != End; ++It)
+					(*It)->Message(Source.Name, Source.Args);
+			}
+			else if (Bubble == EventTarget::Entity)
+			{
+				Entity* Base = (Entity*)Target;
+				for (auto& Item : Base->Components)
+					Item.second->Message(Source.Name, Source.Args);
+			}
+			else if (Bubble == EventTarget::Component)
+			{
+				Component* Base = (Component*)Target;
+				Base->Message(Source.Name, Source.Args);
+			}
+
+			Race.lock();
+			auto It = Listeners.find(Source.Name);
+			if (It == Listeners.end() || It->second.empty())
+			{
+				Race.unlock();
+				return false;
+			}
+			auto Copy = It->second;
+			Race.unlock();
+
+			for (auto* Callback : Copy)
+				(*Callback)(Source.Name, Source.Args);
+
+			return true;
+		}
 		bool SceneGraph::ResolveEvents()
 		{
 			if (Events.empty())
@@ -4872,47 +4915,9 @@ namespace Tomahawk
 
 			while (!Next.empty())
 			{
-				Event Source = std::move(Next.front());
+				auto& Source = Next.front();
+				ResolveEvent(Source);
 				Next.pop();
-
-				auto _Bubble = Source.Args.find("__vb"), _Target = Source.Args.find("__vt");
-				if (_Bubble == Source.Args.end() || _Target == Source.Args.end())
-					continue;
-
-				EventTarget Bubble = (EventTarget)_Bubble->second.GetInteger();
-				void* Target = _Target->second.GetPointer();
-
-				if (Bubble == EventTarget::Scene)
-				{
-					auto Begin = Actors[(size_t)ActorType::Message].Begin();
-					auto End = Actors[(size_t)ActorType::Message].End();
-					for (auto It = Begin; It != End; ++It)
-						(*It)->Message(Source.Name, Source.Args);
-				}
-				else if (Bubble == EventTarget::Entity)
-				{
-					Entity* Base = (Entity*)Target;
-					for (auto& Item : Base->Components)
-						Item.second->Message(Source.Name, Source.Args);
-				}
-				else if (Bubble == EventTarget::Component)
-				{
-					Component* Base = (Component*)Target;
-					Base->Message(Source.Name, Source.Args);
-				}
-
-				Race.lock();
-				auto It = Listeners.find(Source.Name);
-				if (It == Listeners.end() || It->second.empty())
-				{
-					Race.unlock();
-					continue;
-				}
-				auto Copy = It->second;
-				Race.unlock();
-
-				for (auto* Callback : Copy)
-					(*Callback)(Source.Name, Source.Args);
 			}
 
 			return !Events.empty();

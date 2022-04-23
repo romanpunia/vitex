@@ -2237,8 +2237,11 @@ namespace Tomahawk
 		}
 		Material* Drawable::GetMaterial(void* Instance)
 		{
-			if (!Complex)
+			if (!Complex || Materials.empty())
 				return nullptr;
+
+			if (Materials.size() == 1)
+				return Materials.begin()->second;
 
 			auto It = Materials.find(Instance);
 			if (It == Materials.end())

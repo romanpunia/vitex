@@ -1523,7 +1523,7 @@ namespace Tomahawk
 			}
 			void OGLDevice::DrawIndexed(unsigned int Count, unsigned int IndexLocation, unsigned int BaseLocation)
 			{
-				glDrawElements(Register.DrawTopology, Count, Register.IndexFormat, OGL_OFFSET(IndexLocation));
+				glDrawElements(Register.DrawTopology, Count, Register.IndexFormat, OGL_OFFSET((size_t)IndexLocation));
 			}
 			void OGLDevice::DrawIndexed(MeshBuffer* Resource)
 			{

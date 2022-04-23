@@ -2460,8 +2460,16 @@ namespace Tomahawk
 				DateRebuild = true;
 			}
 
-			if (Value > 31)
-				Value = 31;
+			uint64_t Month = DateMonth(), Days = 31;
+			if (Month == 1 || Month == 3 || Month == 5 || Month == 7 || Month == 8 || Month == 10 || Month == 12)
+				Days = 31;
+			else if (Month != 2)
+				Days = 30;
+			else
+				Days = 28;
+
+			if (Value > Days)
+				Value = Days;
 			else if (Value < 1)
 				Value = 1;
 

@@ -1482,8 +1482,9 @@ namespace Tomahawk
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
 			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit = nullptr);
 			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit = nullptr);
-			static uint64_t CRC32(const std::string& Data);
 			static float FastInvSqrt(float Value);
+			static float FastSqrt(float Value);
+			static uint64_t CRC32(const std::string& Data);
 			static uint64_t Random(uint64_t Min, uint64_t Max);
 			static uint64_t Random();
 		};
@@ -1739,7 +1740,7 @@ namespace Tomahawk
 		private:
 			std::unordered_map<void*, uint64_t> Items;
 			std::vector<Node> Nodes;
-			std::vector<uint64_t> Stack;
+			Core::Pool<uint64_t> Stack;
 			uint64_t Root;
 			uint64_t NodeCount;
 			uint64_t NodeCapacity;

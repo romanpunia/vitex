@@ -1521,8 +1521,8 @@ namespace Tomahawk
 					return;
 
 				Volume = NewCount;
-				T* Raw = (T*)TH_MALLOC((size_t)(Volume * SizeOf(Data)));
-				memset(Raw, 0, (size_t)(Volume * SizeOf(Data)));
+				T* Raw = (T*)TH_MALLOC((size_t)(Volume * SizeOf()));
+				memset(Raw, 0, (size_t)(Volume * SizeOf()));
 
 				if (!Data)
 				{
@@ -1531,7 +1531,7 @@ namespace Tomahawk
 				}
 
 				if (!Assign(Begin(), End(), Raw))
-					memcpy(Raw, Data, (size_t)(Count * SizeOf(Data)));
+					memcpy(Raw, Data, (size_t)(Count * SizeOf()));
 
 				for (auto It = Begin(); It != End(); It++)
 					Dispose(It);
@@ -1563,16 +1563,16 @@ namespace Tomahawk
 			{
 				if (Data == nullptr || Volume >= Raw.Volume)
 				{
-					Data = (T*)TH_MALLOC((size_t)(Raw.Count * SizeOf(Data)));
-					memset(Data, 0, (size_t)(Raw.Count * SizeOf(Data)));
+					Data = (T*)TH_MALLOC((size_t)(Raw.Count * SizeOf()));
+					memset(Data, 0, (size_t)(Raw.Count * SizeOf()));
 				}
 				else
-					Data = (T*)TH_REALLOC(Data, (size_t)(Raw.Volume * SizeOf(Data)));
+					Data = (T*)TH_REALLOC(Data, (size_t)(Raw.Volume * SizeOf()));
 
 				Count = Raw.Count;
 				Volume = Raw.Volume;
 				if (!Assign(Raw.Begin(), Raw.End(), Data))
-					memcpy(Data, Raw.Data, (size_t)(Count * SizeOf(Data)));
+					memcpy(Data, Raw.Data, (size_t)(Count * SizeOf()));
 			}
 			void Clear()
 			{
@@ -1719,27 +1719,39 @@ namespace Tomahawk
 				return !Count;
 			}
 
-		protected:
-			bool Assign(Iterator A, Iterator B, Iterator C)
+		private:
+			template<class Q = T>
+			typename std::enable_if<std::is_trivially_destructible<Q>::value>::type Dispose(Iterator It)
 			{
-				if (std::is_pointer<T>::value)
-					return false;
-
+			}
+			template<class Q = T>
+			typename std::enable_if<!std::is_trivially_destructible<Q>::value>::type Dispose(Iterator It)
+			{
+				It->~T();
+			}
+			template<class Q = T>
+			typename std::enable_if<std::is_pointer<Q>::value, size_t>::type SizeOf()
+			{
+				return sizeof(T);
+			}
+			template<class Q = T>
+			typename std::enable_if<!std::is_pointer<Q>::value, size_t>::type SizeOf()
+			{
+				return sizeof(size_t);
+			}
+			template<class Q = T>
+			typename std::enable_if<std::is_trivially_copyable<Q>::value, bool>::type Assign(Iterator A, Iterator B, Iterator C)
+			{
+				return false;
+			}
+			template<class Q = T>
+			typename std::enable_if<!std::is_trivially_copyable<Q>::value, bool>::type Assign(Iterator A, Iterator B, Iterator C)
+			{
 				std::copy(A, B, C);
 				return true;
 			}
-			void Dispose(Iterator It)
-			{
-				if (!std::is_pointer<T>::value)
-					It->~T();
-			}
-			size_t SizeOf(Iterator A)
-			{
-				if (!std::is_pointer<T>::value)
-					return sizeof(T);
 
-				return sizeof(size_t);
-			}
+		private:
 			size_t IncreaseCapacity(size_t NewSize)
 			{
 				size_t Alpha = Volume ? (Volume + Volume / 2) : 8;

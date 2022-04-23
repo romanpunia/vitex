@@ -207,9 +207,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
-			return sqrt(horizontal_add(square(_r1)));
+			return Common::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return sqrt(X * X + Y * Y);
+			return Common::FastSqrt(X * X + Y * Y);
 #endif
 		}
 		float Vector2::Sum() const
@@ -234,10 +234,10 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, Point);
-			return sqrt(horizontal_add(square(_r1 - _r2)));
+			return Common::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y;
-			return sqrt(X1 * X1 + Y1 * Y1);
+			return Common::FastSqrt(X1 * X1 + Y1 * Y1);
 #endif
 		}
 		float Vector2::Hypotenuse() const
@@ -309,7 +309,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
-			float F = sqrt(horizontal_add(square(_r1)));
+			float F = Common::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector2();
 
@@ -651,9 +651,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
-			return sqrt(horizontal_add(square(_r1)));
+			return Common::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return sqrt(X * X + Y * Y + Z * Z);
+			return Common::FastSqrt(X * X + Y * Y + Z * Z);
 #endif
 		}
 		float Vector3::Sum() const
@@ -678,23 +678,23 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, Point);
-			return sqrt(horizontal_add(square(_r1 - _r2)));
+			return Common::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z;
-			return sqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1);
+			return Common::FastSqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1);
 #endif
 		}
 		float Vector3::Hypotenuse() const
 		{
 #ifdef TH_WITH_SIMD
 			LOD_AV2(_r1, X, Z);
-			float R = sqrt(horizontal_add(square(_r1)));
+			float R = Common::FastSqrt(horizontal_add(square(_r1)));
 
 			LOD_AV2(_r2, R, Y);
-			return sqrt(horizontal_add(square(_r2)));
+			return Common::FastSqrt(horizontal_add(square(_r2)));
 #else
-			float R = sqrt(X * X + Z * Z);
-			return sqrt(R * R + Y * Y);
+			float R = Common::FastSqrt(X * X + Z * Z);
+			return Common::FastSqrt(R * R + Y * Y);
 #endif
 		}
 		float Vector3::LookAtXY(const Vector3& At) const
@@ -792,7 +792,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
-			float F = sqrt(horizontal_add(square(_r1)));
+			float F = Common::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector3();
 
@@ -1173,9 +1173,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			return sqrt(horizontal_add(square(_r1)));
+			return Common::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return sqrt(X * X + Y * Y + Z * Z + W * W);
+			return Common::FastSqrt(X * X + Y * Y + Z * Z + W * W);
 #endif
 		}
 		float Vector4::Sum() const
@@ -1200,10 +1200,10 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, Point);
-			return sqrt(horizontal_add(square(_r1 - _r2)));
+			return Common::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z, W1 = W - Point.W;
-			return sqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1 + W1 * W1);
+			return Common::FastSqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1 + W1 * W1);
 #endif
 		}
 		Vector4 Vector4::Cross(const Vector4& B) const
@@ -1277,7 +1277,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			float F = sqrt(horizontal_add(square(_r1)));
+			float F = Common::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector4();
 
@@ -2160,13 +2160,13 @@ namespace Tomahawk
 			LOD_AV2(_r4, cX, sX);
 
 			return Vector3(X,
-				-atan2(Row[2], sqrt(horizontal_add(square(_r1)))),
+				-atan2(Row[2], Common::FastSqrt(horizontal_add(square(_r1)))),
 				-atan2(horizontal_add(_r4 * _r2), horizontal_add(_r4 * _r3)));
 #else
 			float X = -atan2(-Row[6], Row[10]);
 			float sX = sin(X), cX = cos(X);
 			return Vector3(X,
-				-atan2(Row[2], sqrt(Row[0] * Row[0] + Row[1] * Row[1])),
+				-atan2(Row[2], Common::FastSqrt(Row[0] * Row[0] + Row[1] * Row[1])),
 				-atan2(cX * Row[4] + sX * Row[8], cX * Row[5] + sX * Row[9]));
 #endif
 		}
@@ -2626,7 +2626,7 @@ namespace Tomahawk
 					LOD_AV4(_r2, 1.0f, Value[0], -Value[5], -Value[9]);
 					LOD_AV4(_r3, 0.25f, Value[4], Value[7], Value[6]);
 					LOD_AV4(_r4, 0.0f, Value[1], Value[2], -Value[8]);
-					float F = 0.5f / sqrt(horizontal_add(_r2));
+					float F = 0.5f / Common::FastSqrt(horizontal_add(_r2));
 					_r3 += _r4;
 					_r3 *= F;
 					_r3.store((float*)this);
@@ -2637,7 +2637,7 @@ namespace Tomahawk
 					LOD_AV4(_r2, 1.0f, Value[5], -Value[0], -Value[9]);
 					LOD_AV4(_r3, Value[4], 0.25f, Value[8], Value[7]);
 					LOD_AV4(_r4, Value[1], 0.0f, Value[6], -Value[2]);
-					float F = 0.5f / sqrt(horizontal_add(_r2));
+					float F = 0.5f / Common::FastSqrt(horizontal_add(_r2));
 					_r3 += _r4;
 					_r3 *= F;
 					_r3.store((float*)this);
@@ -2648,7 +2648,7 @@ namespace Tomahawk
 					LOD_AV4(_r2, 1.0f, Value[9], -Value[0], -Value[5]);
 					LOD_AV4(_r3, Value[7], Value[6], 0.25f, Value[1]);
 					LOD_AV4(_r4, Value[2], Value[8], 0.0f, -Value[4]);
-					float F = 0.5f / sqrt(horizontal_add(_r2));
+					float F = 0.5f / Common::FastSqrt(horizontal_add(_r2));
 					_r3 += _r4;
 					_r3 *= F;
 					_r3.store((float*)this);
@@ -2659,7 +2659,7 @@ namespace Tomahawk
 			{
 				LOD_AV4(_r2, 0.0f, Value[8], Value[2], Value[4]);
 				LOD_AV4(_r3, 0.0f, Value[6], Value[7], Value[1]);
-				float F = 0.5f / sqrt(T + 1.0f);
+				float F = 0.5f / Common::FastSqrt(T + 1.0f);
 				_r3 -= _r2;
 				_r3 *= F;
 				_r3.store((float*)this);
@@ -2667,7 +2667,7 @@ namespace Tomahawk
 			}
 
 			LOD_FV4(_r4);
-			_r4 /= sqrt(horizontal_add(square(_r4)));
+			_r4 /= Common::FastSqrt(horizontal_add(square(_r4)));
 			_r4.store((float*)this);
 #else
 			float T = Value[0] + Value[5] + Value[9];
@@ -2675,7 +2675,7 @@ namespace Tomahawk
 			{
 				if (Value[0] > Value[5] && Value[0] > Value[9])
 				{
-					float F = 2.0f * std::sqrt(1.0f + Value[0] - Value[5] - Value[9]);
+					float F = 2.0f * Common::FastSqrt(1.0f + Value[0] - Value[5] - Value[9]);
 					X = 0.25f * F;
 					Y = (Value[4] + Value[1]) / F;
 					Z = (Value[7] + Value[2]) / F;
@@ -2683,7 +2683,7 @@ namespace Tomahawk
 				}
 				else if (Value[5] > Value[9])
 				{
-					float F = 2.0f * std::sqrt(1.0f + Value[5] - Value[0] - Value[9]);
+					float F = 2.0f * Common::FastSqrt(1.0f + Value[5] - Value[0] - Value[9]);
 					X = (Value[4] + Value[1]) / F;
 					Y = 0.25f * F;
 					Z = (Value[8] + Value[6]) / F;
@@ -2691,7 +2691,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					float F = 2.0f * std::sqrt(1.0f + Value[9] - Value[0] - Value[5]);
+					float F = 2.0f * Common::FastSqrt(1.0f + Value[9] - Value[0] - Value[5]);
 					X = (Value[7] + Value[2]) / F;
 					Y = (Value[6] + Value[8]) / F;
 					Z = 0.25f * F;
@@ -2700,14 +2700,14 @@ namespace Tomahawk
 			}
 			else
 			{
-				float F = 0.5f / std::sqrt(T + 1.0f);
+				float F = 0.5f / Common::FastSqrt(T + 1.0f);
 				X = 0.25f / F;
 				Y = (Value[6] - Value[8]) * F;
 				Z = (Value[7] - Value[2]) * F;
 				W = (Value[1] - Value[4]) * F;
 			}
 
-			float F = std::sqrt(X * X + Y * Y + Z * Z + W * W);
+			float F = Common::FastSqrt(X * X + Y * Y + Z * Z + W * W);
 			X /= F;
 			Y /= F;
 			Z /= F;
@@ -2753,7 +2753,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			_r1 /= sqrt(horizontal_add(square(_r1)));
+			_r1 /= Common::FastSqrt(horizontal_add(square(_r1)));
 
 			Quaternion Result;
 			_r1.store((float*)&Result);
@@ -2767,7 +2767,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			float F = sqrt(horizontal_add(square(_r1)));
+			float F = Common::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Quaternion();
 
@@ -2883,7 +2883,7 @@ namespace Tomahawk
 			if (std::abs(Cos) >= 1.0f - 1e3f)
 				return Lerp(Correction, DeltaTime);
 
-			float Sin = std::sqrt(1.0f - Cos * Cos);
+			float Sin = Common::FastSqrt(1.0f - Cos * Cos);
 			float Angle = std::atan2(Sin, Cos);
 			float InvedSin = 1.0f / Sin;
 			float Source = std::sin(Angle - DeltaTime * Angle) * InvedSin;
@@ -3036,9 +3036,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			return sqrt(horizontal_add(square(_r1)));
+			return Common::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return std::sqrt(X * X + Y * Y + Z * Z + W * W);
+			return Common::FastSqrt(X * X + Y * Y + Z * Z + W * W);
 #endif
 		}
 
@@ -6708,40 +6708,40 @@ namespace Tomahawk
 			LOD_AV4(_r2, WVP.Row[0], WVP.Row[4], WVP.Row[8], WVP.Row[12]);
 			LOD_VAL(_r3, _r1 + _r2);
 			float F = _r3.extract(3); _r3.cutoff(3);
-			F /= sqrt(horizontal_add(square(_r3)));
+			F /= Common::FastSqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
 				return false;
 
 			_r3 = _r1 - _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
-			F /= sqrt(horizontal_add(square(_r3)));
+			F /= Common::FastSqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
 				return false;
 
 			_r2 = Vec4f(WVP.Row[1], WVP.Row[5], WVP.Row[9], WVP.Row[13]);
 			_r3 = _r1 + _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
-			F /= sqrt(horizontal_add(square(_r3)));
+			F /= Common::FastSqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
 				return false;
 
 			_r3 = _r1 - _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
-			F /= sqrt(horizontal_add(square(_r3)));
+			F /= Common::FastSqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
 				return false;
 
 			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
 			_r3 = _r1 + _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
-			F /= sqrt(horizontal_add(square(_r3)));
+			F /= Common::FastSqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
 				return false;
 
 			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
 			_r3 = _r1 - _r2;
 			F = _r3.extract(3); _r3.cutoff(3);
-			F /= sqrt(horizontal_add(square(_r3)));
+			F /= Common::FastSqrt(horizontal_add(square(_r3)));
 			if (F <= Radius)
 				return false;
 #else
@@ -6751,7 +6751,7 @@ namespace Tomahawk
 			Plane[2] = WVP.Row[11] + WVP.Row[8];
 			Plane[3] = WVP.Row[15] + WVP.Row[12];
 
-			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
 				return false;
 
@@ -6760,7 +6760,7 @@ namespace Tomahawk
 			Plane[2] = WVP.Row[11] - WVP.Row[8];
 			Plane[3] = WVP.Row[15] - WVP.Row[12];
 
-			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
 				return false;
 
@@ -6769,7 +6769,7 @@ namespace Tomahawk
 			Plane[2] = WVP.Row[11] + WVP.Row[9];
 			Plane[3] = WVP.Row[15] + WVP.Row[13];
 
-			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
 				return false;
 
@@ -6778,7 +6778,7 @@ namespace Tomahawk
 			Plane[2] = WVP.Row[11] - WVP.Row[9];
 			Plane[3] = WVP.Row[15] - WVP.Row[13];
 
-			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
 				return false;
 
@@ -6787,7 +6787,7 @@ namespace Tomahawk
 			Plane[2] = WVP.Row[11] + WVP.Row[10];
 			Plane[3] = WVP.Row[15] + WVP.Row[14];
 
-			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
 				return false;
 
@@ -6796,7 +6796,7 @@ namespace Tomahawk
 			Plane[2] = WVP.Row[11] - WVP.Row[10];
 			Plane[3] = WVP.Row[15] - WVP.Row[14];
 
-			Plane[3] /= sqrtf(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
 			if (Plane[3] <= Radius)
 				return false;
 #endif
@@ -8203,17 +8203,17 @@ namespace Tomahawk
 		}
 		float Common::FastInvSqrt(float Value)
 		{
-			union
-			{
-				float F;
-				uint32_t I;
-			} Cast;
+			float F = Value;
+			long I = *(long*)&F;
+			I = 0x5f3759df - (I >> 1);
+			F = *(float*)&I;
+			F = F * (1.5f - ((Value * 0.5f) * F * F));
 
-			float X = Value * 0.5f;
-			Cast.F = Value;
-			Cast.I = 0x5f3759df - (Cast.I >> 1);
-			Cast.F = Cast.F * (1.5f - (X * Cast.F * Cast.F));
-			return Cast.F;
+			return F;
+		}
+		float Common::FastSqrt(float Value)
+		{
+			return 1.0f / FastInvSqrt(Value);
 		}
 		uint64_t Common::Random(uint64_t Min, uint64_t Max)
 		{
@@ -9500,7 +9500,7 @@ namespace Tomahawk
 			NodeCount = 0;
 			NodeCapacity = DefaultSize;
 			Nodes.resize(NodeCapacity);
-			Stack.reserve(256);
+			Stack.Reserve(256);
 
 			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
 			{
@@ -9734,24 +9734,24 @@ namespace Tomahawk
 		}
 		void Cosmos::PushQuery()
 		{
-			Stack.clear();
+			Stack.Clear();
 			if (!Items.empty())
-				Stack.push_back(Root);
+				Stack.Add(Root);
 		}
 		void* Cosmos::NextQuery(const Area& Box)
 		{
-			while (!Stack.empty())
+			while (!Stack.Empty())
 			{
-				auto& Next = Nodes[Stack.back()];
-				Stack.pop_back();
+				auto& Next = Nodes[Stack.Back()];
+				Stack.PopBack();
 
 				if (!Box.Overlaps(Next.Box))
 					continue;
 
 				if (!Next.IsLeaf())
 				{
-					Stack.push_back(Next.Left);
-					Stack.push_back(Next.Right);
+					Stack.AddUnbounded(Next.Left);
+					Stack.AddUnbounded(Next.Right);
 				}
 				else if (Next.Item != nullptr)
 					return Next.Item;

@@ -88,7 +88,7 @@ namespace Tomahawk
 				SetExpires(0);
 			}
 
-			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Stream(NewStream), Codec(new WebCodec())
+			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Deadly(false), Stream(NewStream), Codec(new WebCodec())
 			{
 			}
 			WebSocketFrame::~WebSocketFrame()
@@ -227,10 +227,10 @@ namespace Tomahawk
 			}
 			void WebSocketFrame::Finish()
 			{
-				if (Reset)
+				if (Deadly)
 					return;
 
-				if (State == (uint32_t)WebSocketState::Close)
+				if (Reset || State == (uint32_t)WebSocketState::Close)
 					return Next();
 
 				if (!Active)
@@ -399,7 +399,7 @@ namespace Tomahawk
 			}
 			bool WebSocketFrame::IsIgnore()
 			{
-				return Reset || State == (uint32_t)WebSocketState::Close;
+				return Deadly || Reset || State == (uint32_t)WebSocketState::Close;
 			}
 			bool WebSocketFrame::Enqueue(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{

@@ -266,6 +266,7 @@ namespace Tomahawk
 				std::atomic<uint32_t> State;
 				std::atomic<bool> Active;
 				std::atomic<bool> Reset;
+				std::atomic<bool> Deadly;
 				std::mutex Section;
 				Socket* Stream;
 				WebCodec* Codec;

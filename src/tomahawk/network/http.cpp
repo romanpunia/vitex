@@ -167,12 +167,15 @@ namespace Tomahawk
 								}
 								else if (Packet::IsError(Event))
 								{
-									Reset = true;
 									if (Callback)
 										Callback(this);
 
-									if (E.Reset)
-										E.Reset(this);
+									if (!Reset)
+									{
+										Reset = true;
+										if (E.Reset)
+											E.Reset(this);
+									}
 								}
 							});
 						}
@@ -188,12 +191,15 @@ namespace Tomahawk
 					}
 					else if (Packet::IsError(Event))
 					{
-						Reset = true;
 						if (Callback)
 							Callback(this);
 
-						if (E.Reset)
-							E.Reset(this);
+						if (!Reset)
+						{
+							Reset = true;
+							if (E.Reset)
+								E.Reset(this);
+						}
 					}
 					else if (Packet::IsSkip(Event))
 					{
@@ -221,7 +227,10 @@ namespace Tomahawk
 			}
 			void WebSocketFrame::Finish()
 			{
-				if (Reset || State == (uint32_t)WebSocketState::Close)
+				if (Reset)
+					return;
+
+				if (State == (uint32_t)WebSocketState::Close)
 					return Next();
 
 				if (!Active)

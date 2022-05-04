@@ -2046,6 +2046,8 @@ namespace Tomahawk
 			void Await(std::function<void(T&&)>&& Callback) const noexcept
 			{
 				TH_ASSERT_V(Next != nullptr && Callback, "async should be pending");
+				if (!IsPending())
+					return Callback(std::move(Next->Result));
 
 				context_type* Subresult = Next->Copy();
 				Next->Put([Subresult, Callback = std::move(Callback)]()
@@ -2301,9 +2303,11 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		inline Async<T> Coasync(const std::function<T()>& Callback) noexcept
+		inline Async<T> Coasync(const std::function<T()>& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+			if (!AlwaysEnqueue && Costate::IsCoroutine())
+				return Async<T>(Callback());
 
 			Async<T> Result;
 			Schedule::Get()->SetChain([Result, Callback]() mutable
@@ -2314,9 +2318,11 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		inline Async<T> Coasync(std::function<T()>&& Callback) noexcept
+		inline Async<T> Coasync(std::function<T()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+			if (!AlwaysEnqueue && Costate::IsCoroutine())
+				return Async<T>(Callback());
 
 			Async<T> Result;
 			Schedule::Get()->SetChain([Result, Callback = std::move(Callback)]() mutable

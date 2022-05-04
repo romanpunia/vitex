@@ -549,7 +549,6 @@ namespace Tomahawk
 		}
 		int Socket::CloseAsync(bool Gracefully, const SocketAcceptCallback& Callback)
 		{
-			Clear(false);
 			if (Fd == INVALID_SOCKET)
 			{
 				if (Callback)
@@ -557,6 +556,8 @@ namespace Tomahawk
 
 				return -1;
 			}
+
+			Clear(false);
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
@@ -2509,56 +2510,61 @@ namespace Tomahawk
 			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), -2, "address should be set");
 			TH_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
 
-			Core::Async<int> Result;
-			Done = [Result](SocketClient*, int Code) mutable
-			{
-				Result = Code;
-			};
-
-			Stage("socket dns resolve");
+			Stage("dns resolve");
 			if (!OnResolveHost(Address))
 			{
 				Error("cannot resolve host %s:%i", Address->Hostname.c_str(), (int)Address->Port);
-				return Result;
+				return Core::Async<int>(-2);
 			}
 
-			Hostname = *Address;
 			Stage("socket open");
+			Hostname = *Address;
 
-			Tomahawk::Network::Address* Host;
-			if (Stream.Open(Hostname.Hostname.c_str(), std::to_string(Hostname.Port), DNSType::Connect, &Host) == -1)
+			return Core::Coasync<int>([this, Async]()
 			{
-				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-				return Result;
-			}
-
-			Stage("socket connect");
-			if (Stream.Connect(Host, Timeout) == -1)
-			{
-				Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-				return Result;
-			}
-
-			Stream.CloseOnExec();
-			Stream.SetBlocking(!Async);
-			Stream.SetAsyncTimeout(Timeout);
-
-#ifdef TH_HAS_OPENSSL
-			if (Hostname.Secure)
-			{
-				Stage("socket ssl handshake");
-				if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
+				Tomahawk::Network::Address* Host;
+				if (TH_AWAIT(Core::Cotask<int>([this, &Host]()
 				{
-					Error("cannot create ssl context");
-					return Result;
+					return Stream.Open(Hostname.Hostname.c_str(), std::to_string(Hostname.Port), DNSType::Connect, &Host);
+				})) == -1)
+				{
+					Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+					return -2;
 				}
 
-				if (AutoCertify && !Certify())
-					return Result;
-			}
+				Stage("socket connect");
+				if (TH_AWAIT(Core::Cotask<int>([this, Host]()
+				{
+					return Stream.Connect(Host, Timeout);
+				})) == -1)
+				{
+					Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+					return -1;
+				}
+
+				Stream.CloseOnExec();
+				Stream.SetBlocking(!Async);
+				Stream.SetAsyncTimeout(Timeout);
+#ifdef TH_HAS_OPENSSL
+				if (Hostname.Secure)
+				{
+					Stage("socket ssl handshake");
+					if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
+					{
+						Error("cannot create ssl context");
+						return -1;
+					}
+
+					if (AutoCertify && !TH_AWAIT(Core::Cotask<bool>([this]()
+					{
+						return Certify();
+					})))
+						return -1;
+				}
 #endif
-			OnConnect();
-			return Result;
+				OnConnect();
+				return 0;
+			});
 		}
 		Core::Async<int> SocketClient::Close()
 		{
@@ -2605,31 +2611,32 @@ namespace Tomahawk
 
 			pollfd Fd;
 			Fd.fd = Stream.GetFd();
-			Fd.events = POLLIN | POLLOUT;
 
-			bool OK = true;
-			while (OK)
+			auto Time = std::chrono::system_clock::now();
+			auto Max = std::chrono::milliseconds(Timeout);
+
+			while ((Result = SSL_connect(Stream.GetDevice())) == -1)
 			{
-				Result = SSL_connect(Stream.GetDevice());
-				if (Result >= 0)
-					break;
+				auto Diff = std::chrono::system_clock::now() - Time;
+				if (std::chrono::duration_cast<std::chrono::milliseconds>(Diff) > Max)
+					return Error("ssl connection timeout\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
 
-				int Code = SSL_get_error(Stream.GetDevice(), Result);
-				switch (Code)
+				switch (SSL_get_error(Stream.GetDevice(), Result))
 				{
-					case SSL_ERROR_WANT_CONNECT:
-					case SSL_ERROR_WANT_ACCEPT:
-					case SSL_ERROR_WANT_WRITE:
 					case SSL_ERROR_WANT_READ:
-						Driver::Poll(&Fd, 1, Timeout);
+						Fd.events = POLLIN;
+						Driver::Poll(&Fd, 1, 5);
+						break;
+					case SSL_ERROR_WANT_WRITE:
+						Fd.events = POLLOUT;
+						Driver::Poll(&Fd, 1, 5);
 						break;
 					default:
-						OK = false;
-						break;
+						return Error("%s", ERR_error_string(ERR_get_error(), nullptr));
 				}
 			}
 
-			return Result != 1 ? Error("%s", ERR_error_string(ERR_get_error(), nullptr)) : true;
+			return true;
 #else
 			return Error("ssl is not supported for clients");
 #endif

@@ -1294,8 +1294,13 @@ namespace Tomahawk
 						}
 						else if (Packet::IsDone(Event))
 						{
-							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-								Response.Data = Content::Cached;
+							if (!Eat)
+							{
+								if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+									Response.Data = Content::Cached;
+								else
+									Response.Data = Content::Lost;
+							}
 							else
 								Response.Data = Content::Lost;
 
@@ -1330,8 +1335,13 @@ namespace Tomahawk
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-								Response.Data = Content::Cached;
+							if (!Eat)
+							{
+								if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
+									Response.Data = Content::Cached;
+								else
+									Response.Data = Content::Lost;
+							}
 							else
 								Response.Data = Content::Lost;
 
@@ -1381,6 +1391,8 @@ namespace Tomahawk
 							else
 								Response.Data = Content::Lost;
 						}
+						else
+							Response.Data = Content::Lost;
 
 						if (Callback)
 							Callback(this, Event, nullptr, 0);

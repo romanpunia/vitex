@@ -2482,6 +2482,17 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
+			if (Core::Costate::IsCoroutine())
+			{
+				Core::Async<int> Result;
+				Core::Schedule::Get()->SetTask([this, Result, Function, OnArgs = std::move(OnArgs)]() mutable
+				{
+					auto Subresult = TryExecute(Function, std::move(OnArgs));
+					Result = Subresult;
+				}, Core::Difficulty::Heavy);
+				return Result;
+			}
+
 			Exchange.lock();
 			if (Tasks.empty())
 			{

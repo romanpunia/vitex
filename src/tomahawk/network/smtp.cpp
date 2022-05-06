@@ -78,12 +78,18 @@ namespace Tomahawk
 
 							SendRequest(220, "STARTTLS\r\n", [this]()
 							{
-								if (!Certify())
-									return;
-
-								SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()
+								Core::Cotask<bool>([this]()
 								{
-									Success(0);
+									return Certify();
+								}).Await([this](bool&& Result)
+								{
+									if (!Result)
+										return;
+
+									SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()
+									{
+										Success(0);
+									});
 								});
 							});
 						}

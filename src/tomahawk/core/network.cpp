@@ -1214,10 +1214,10 @@ namespace Tomahawk
 			closesocket(Fd);
 			TH_TRACE("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
+			TH_SPOP(this);
 
 			if (Callback)
 				Callback(this);
-			TH_SPOP(this);
 			return true;
 		}
 		std::string Socket::GetRemoteAddress()
@@ -2562,8 +2562,14 @@ namespace Tomahawk
 						return -1;
 				}
 #endif
+				Core::Async<int> Result;
+				Done = [Result](SocketClient*, int Code) mutable
+				{
+					Result = Code;
+				};
+
 				OnConnect();
-				return 0;
+				return TH_AWAIT(std::move(Result));
 			});
 		}
 		Core::Async<int> SocketClient::Close()

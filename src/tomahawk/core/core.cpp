@@ -8297,46 +8297,40 @@ namespace Tomahawk
 			{
 				case Difficulty::Clock:
 				{
-					std::chrono::microseconds When = std::chrono::microseconds(0);
-
 					do
 					{
+						std::chrono::microseconds When = std::chrono::microseconds(0);
 						std::unique_lock<std::mutex> Lock(Queue->Update);
-						Queue->Notify.wait_for(Lock, When, [this, &When, Queue, Thread]()
+					Retry:
+						if (!Queue->Timers.empty())
 						{
-							if (!ThreadActive(Thread))
-								return true;
-
-							if (Queue->Timers.empty())
-							{
-								When = Policy.Timeout;
-								return false;
-							}
-
 							auto Clock = GetClock();
 							auto It = Queue->Timers.begin();
-							if (Active && It->first >= Clock)
+							if (It->first <= Clock)
 							{
-								When = It->first - Clock;
-								return false;
-							}
+								if (It->second.Alive)
+								{
+									Timeout Next(std::move(It->second));
+									Queue->Timers.erase(It);
 
-							if (It->second.Alive && Active)
-							{
-								Timeout Next(std::move(It->second));
-								Queue->Timers.erase(It);
+									SetTask((const TaskCallback&)Next.Callback, Next.Type);
+									Queue->Timers.emplace(std::make_pair(GetTimeout(Clock + Next.Expires), std::move(Next)));
+								}
+								else
+								{
+									SetTask(std::move(It->second.Callback), It->second.Type);
+									Queue->Timers.erase(It);
+								}
 
-								SetTask((const TaskCallback&)Next.Callback, Next.Type);
-								Queue->Timers.emplace(std::make_pair(GetTimeout(Clock + Next.Expires), std::move(Next)));
+								goto Retry;
 							}
 							else
-							{
-								SetTask(std::move(It->second.Callback), It->second.Type);
-								Queue->Timers.erase(It);
-							}
+								When = It->first - Clock;
+						}
+						else
+							When = Policy.Timeout;
 
-							return true;
-						});
+						Queue->Notify.wait_for(Lock, When);
 					} while (ThreadActive(Thread));
 					break;
 				}

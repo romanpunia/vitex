@@ -712,6 +712,7 @@ namespace Tomahawk
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
 				static bool ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B);
 				static bool ContentOK(Content State);
+				static std::string BasicAuth(const std::string& Username, const std::string& Password);
 				static std::string ConnectionResolve(Connection* Base);
 				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength);
 				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);

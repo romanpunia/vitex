@@ -3849,6 +3849,10 @@ namespace Tomahawk
 			{
 				return State == Content::Cached || State == Content::Empty || State == Content::Saved;
 			}
+			std::string Util::BasicAuth(const std::string& Username, const std::string& Password)
+			{
+				return "Basic " + Compute::Common::Base64Encode(Username + ':' + Password);
+			}
 			std::string Util::ConnectionResolve(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Root != nullptr && Base->Root->Router != nullptr, "Connection: Close\r\n", "connection should be set");

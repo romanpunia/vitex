@@ -2342,12 +2342,26 @@ namespace Tomahawk
 
 			return Result;
 		}
-		inline bool Coasync(const TaskCallback& Callback) noexcept
+		inline bool Coasync(const TaskCallback& Callback, bool AlwaysEnqueue = false) noexcept
 		{
+			TH_ASSERT(Callback, false, "callback should not be empty");
+			if (!AlwaysEnqueue && Costate::IsCoroutine())
+			{
+				Callback();
+				return true;
+			}
+
 			return Schedule::Get()->SetChain(Callback);
 		}
-		inline bool Coasync(TaskCallback&& Callback) noexcept
+		inline bool Coasync(TaskCallback&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
+			TH_ASSERT(Callback, false, "callback should not be empty");
+			if (!AlwaysEnqueue && Costate::IsCoroutine())
+			{
+				Callback();
+				return true;
+			}
+
 			return Schedule::Get()->SetChain(std::move(Callback));
 		}
 		inline bool Cosuspend() noexcept

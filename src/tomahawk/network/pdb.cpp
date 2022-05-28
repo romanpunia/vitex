@@ -417,6 +417,10 @@ namespace Tomahawk
 						Def += " LIKE ";
 					else if (Op == "~=")
 						Def += " ILIKE ";
+					else if (Op == "[")
+						Def += " ANY(";
+					else if (Op == "]")
+						Def += ")";
 					else if (Op == "&")
 						Def += " AND ";
 					else if (Op == "|")

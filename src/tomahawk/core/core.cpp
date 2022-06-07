@@ -7968,6 +7968,7 @@ namespace Tomahawk
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, true, Type)));
 				Queue->Notify.notify_all();
 			}
+			Queue->Notify.notify_all();
 			TH_PRET(Id);
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
@@ -7988,6 +7989,7 @@ namespace Tomahawk
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, true, Type)));
 				Queue->Notify.notify_all();
 			}
+			Queue->Notify.notify_all();
 			TH_PRET(Id);
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
@@ -8008,6 +8010,7 @@ namespace Tomahawk
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(Callback, Duration, Id, false, Type)));
 				Queue->Notify.notify_all();
 			}
+			Queue->Notify.notify_all();
 			TH_PRET(Id);
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
@@ -8028,6 +8031,7 @@ namespace Tomahawk
 				Queue->Timers.emplace(std::make_pair(GetTimeout(Expires), Timeout(std::move(Callback), Duration, Id, false, Type)));
 				Queue->Notify.notify_all();
 			}
+			Queue->Notify.notify_all();
 			TH_PRET(Id);
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback, Difficulty Type)
@@ -8095,6 +8099,7 @@ namespace Tomahawk
 				if (It->second.Id == Target)
 				{
 					Queue->Timers.erase(It);
+					Queue->Notify.notify_all();
 					TH_PRET(true);
 				}
 			}
@@ -8299,9 +8304,9 @@ namespace Tomahawk
 				{
 					do
 					{
-						std::chrono::microseconds When = std::chrono::microseconds(0);
 						std::unique_lock<std::mutex> Lock(Queue->Update);
 					Retry:
+						std::chrono::microseconds When = std::chrono::microseconds(0);
 						if (!Queue->Timers.empty())
 						{
 							auto Clock = GetClock();
@@ -8325,7 +8330,11 @@ namespace Tomahawk
 								goto Retry;
 							}
 							else
+							{
 								When = It->first - Clock;
+								if (When > Policy.Timeout)
+									When = Policy.Timeout;
+							}
 						}
 						else
 							When = Policy.Timeout;

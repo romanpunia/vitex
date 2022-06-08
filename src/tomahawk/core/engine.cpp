@@ -5676,7 +5676,6 @@ namespace Tomahawk
 			return Environment;
 		}
 
-
 		AppData::AppData(ContentManager* Manager, const std::string& NewPath) : Content(Manager), Data(nullptr)
 		{
 			TH_ASSERT_V(Manager != nullptr, "content manager should be set");
@@ -5752,7 +5751,7 @@ namespace Tomahawk
 			if (!ReadAppData(Path))
 			{
 				Safe.unlock();
-				return nullptr;
+				return false;
 			}
 
 			bool Result = Data->Has(Name);

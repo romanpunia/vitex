@@ -5676,6 +5676,121 @@ namespace Tomahawk
 			return Environment;
 		}
 
+
+		AppData::AppData(ContentManager* Manager, const std::string& NewPath) : Content(Manager), Data(nullptr)
+		{
+			TH_ASSERT_V(Manager != nullptr, "content manager should be set");
+			Migrate(NewPath);
+		}
+		AppData::~AppData()
+		{
+			TH_RELEASE(Data);
+		}
+		void AppData::Migrate(const std::string& Next)
+		{
+			TH_ASSERT_V(!Next.empty(), "path should not be empty");
+
+			Safe.lock();
+			if (Data != nullptr)
+			{
+				if (!Path.empty())
+					Core::OS::File::Remove(Path.c_str());
+
+				WriteAppData(Next);
+			}
+			else
+				ReadAppData(Next);
+			Path = Next;
+			Safe.unlock();
+		}
+		void AppData::SetKey(const std::string& Name, Core::Schema* Value)
+		{
+			Safe.lock();
+			if (!Data)
+				Data = Core::Var::Set::Object();
+
+			Data->Set(Name, Value);
+			WriteAppData(Path);
+			Safe.unlock();
+		}
+		void AppData::SetText(const std::string& Name, const std::string& Value)
+		{
+			SetKey(Name, Core::Var::Set::String(Value));
+		}
+		Core::Schema* AppData::GetKey(const std::string& Name)
+		{
+			Safe.lock();
+			if (!ReadAppData(Path))
+			{
+				Safe.unlock();
+				return nullptr;
+			}
+
+			Core::Schema* Result = Data->Get(Name);
+			if (Result != nullptr)
+				Result = Result->Copy();
+
+			Safe.unlock();
+			return Result;
+		}
+		std::string AppData::GetText(const std::string& Name)
+		{
+			Safe.lock();
+			if (!ReadAppData(Path))
+			{
+				Safe.unlock();
+				return nullptr;
+			}
+
+			Core::Variant Result = Data->GetVar(Name);
+			Safe.unlock();
+			return Result.GetBlob();
+		}
+		bool AppData::Has(const std::string& Name)
+		{
+			Safe.lock();
+			if (!ReadAppData(Path))
+			{
+				Safe.unlock();
+				return nullptr;
+			}
+
+			bool Result = Data->Has(Name);
+			Safe.unlock();
+			return Result;
+		}
+		bool AppData::ReadAppData(const std::string& Next)
+		{
+			if (Data != nullptr)
+				return true;
+
+			if (Next.empty())
+				return false;
+
+			Data = Content->Load<Core::Schema>(Next);
+			return Data != nullptr;
+		}
+		bool AppData::WriteAppData(const std::string& Next)
+		{
+			if (Next.empty() || !Data)
+				return false;
+
+			const char* TypeId = Core::OS::Path::GetExtension(Next.c_str());
+			std::string Type = "JSONB";
+
+			if (TypeId != nullptr)
+			{
+				Type = Core::Parser(TypeId).ToUpper().R();
+				if (Type != "JSON" && Type != "JSONB" && Type != "XML")
+					Type = "JSONB";
+			}
+
+			Core::VariantArgs Args;
+			Args["type"] = Core::Var::String(Type);
+
+			return Content->Save<Core::Schema>(Next, Data, Args);
+		}
+
 		Application::Application(Desc* I) : Control(I ? *I : Desc())
 		{
 			TH_ASSERT_V(I != nullptr, "desc should be set");
@@ -5696,6 +5811,12 @@ namespace Tomahawk
 				Content->AddProcessor<Processors::Server, Network::HTTP::Server>();
 				Content->AddProcessor<Processors::HullShape, Compute::HullShape>();
 				Content->SetEnvironment(I->Environment.empty() ? Core::OS::Directory::Get() + I->Directory : I->Environment + I->Directory);
+
+				if (!I->Preferences.empty())
+				{
+					std::string Path = Core::OS::Path::Resolve(I->Preferences, Content->GetEnvironment());
+					Database = new AppData(Content, Path);
+				}
 			}
 #ifdef TH_HAS_SDL2
 			if (I->Usage & (size_t)ApplicationSet::ActivitySet)

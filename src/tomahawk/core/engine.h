@@ -1239,6 +1239,29 @@ namespace Tomahawk
 			AssetCache* Find(Processor* Target, void* Resource);
 		};
 
+		class TH_OUT AppData : public Core::Object
+		{
+		private:
+			ContentManager* Content;
+			Core::Schema* Data;
+			std::string Path;
+			std::mutex Safe;
+
+		public:
+			AppData(ContentManager* Manager, const std::string& Path);
+			~AppData();
+			void Migrate(const std::string& Path);
+			void SetKey(const std::string& Name, Core::Schema* Value);
+			void SetText(const std::string& Name, const std::string& Value);
+			Core::Schema* GetKey(const std::string& Name);
+			std::string GetText(const std::string& Name);
+			bool Has(const std::string& Name);
+
+		private:
+			bool ReadAppData(const std::string& Path);
+			bool WriteAppData(const std::string& Path);
+		};
+
 		class TH_OUT Application : public Core::Object
 		{
 		public:
@@ -1252,6 +1275,7 @@ namespace Tomahawk
 
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
+				std::string Preferences = "./app.jsonb";
 				std::string Environment;
 				std::string Directory;
 				uint64_t Stack = TH_STACKSIZE;
@@ -1291,6 +1315,7 @@ namespace Tomahawk
 			Graphics::Activity* Activity = nullptr;
 			Script::VMManager* VM = nullptr;
 			ContentManager* Content = nullptr;
+			AppData* Database = nullptr;
 			SceneGraph* Scene = nullptr;
 			Desc Control;
 

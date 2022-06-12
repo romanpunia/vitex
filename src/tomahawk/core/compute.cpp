@@ -22,6 +22,7 @@ extern "C"
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/hmac.h>
+#include <openssl/sha.h>
 }
 #endif
 #define V3_TO_BT(V) btVector3(V.X, V.Y, V.Z)
@@ -7519,6 +7520,29 @@ namespace Tomahawk
 			Hasher.Finalize();
 
 			return Hasher.ToHex();
+		}
+		std::string Common::SHA256Hash(const std::string& Value)
+		{
+#ifdef TH_HAS_OPENSSL
+			static const char Alphabet[] = "0123456789abcdef";
+			unsigned char Hash[SHA256_DIGEST_LENGTH];
+
+			SHA256_CTX Context;
+			SHA256_Init(&Context);
+			SHA256_Update(&Context, Value.c_str(), Value.size());
+			SHA256_Final(Hash, &Context);
+
+			std::string Result(SHA256_DIGEST_LENGTH * 2, ' ');
+			for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+			{
+				Result[2 * i] = Alphabet[(unsigned int)Hash[i] >> 4];
+				Result[2 * i + 1] = Alphabet[(unsigned int)Hash[i] & 0x0F];
+			}
+
+			return Result;
+#else
+			return Value;
+#endif
 		}
 		std::string Common::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
 		{

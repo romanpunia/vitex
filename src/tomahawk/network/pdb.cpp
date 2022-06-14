@@ -1528,9 +1528,20 @@ namespace Tomahawk
 				Update.unlock();
 				return true;
 			}
-			Core::Async<uint64_t> Cluster::TxBegin()
+			Core::Async<uint64_t> Cluster::TxBegin(Isolation Type)
 			{
-				return TxBegin("BEGIN");
+				switch (Type)
+				{
+					case Isolation::Serializable:
+						return TxBegin("BEGIN ISOLATION LEVEL SERIALIZABLE");
+					case Isolation::RepeatableRead:
+						return TxBegin("BEGIN ISOLATION LEVEL REPEATABLE READ");
+					case Isolation::ReadUncommited:
+						return TxBegin("BEGIN ISOLATION LEVEL READ UNCOMMITTED");
+					case Isolation::ReadCommited:
+					default:
+						return TxBegin("BEGIN");
+				}
 			}
 			Core::Async<uint64_t> Cluster::TxBegin(const std::string& Command)
 			{

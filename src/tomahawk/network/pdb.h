@@ -36,6 +36,15 @@ namespace Tomahawk
 			typedef pgNotify TNotify;
 			typedef uint64_t ObjectId;
 
+			enum class Isolation
+			{
+				Serializable,
+				RepeatableRead,
+				ReadCommited,
+				ReadUncommited,
+				Default = ReadCommited
+			};
+
 			enum class QueryOp
 			{
 				DeleteArgs = 0,
@@ -396,11 +405,11 @@ namespace Tomahawk
 				friend Cluster;
 
 			private:
-				TConnection* Base;
-				Socket* Stream;
-				Request* Current;
-				uint64_t Session;
-				QueryState State;
+				TConnection* Base = nullptr;
+				Socket* Stream = nullptr;
+				Request* Current = nullptr;
+				uint64_t Session = 0;
+				QueryState State = QueryState::Lost;
 
 			public:
 				TConnection* GetBase() const;
@@ -462,7 +471,7 @@ namespace Tomahawk
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
 				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);
 				bool RemoveChannel(const std::string& Name, uint64_t Id);
-				Core::Async<uint64_t> TxBegin();
+				Core::Async<uint64_t> TxBegin(Isolation Type);
 				Core::Async<uint64_t> TxBegin(const std::string& Command);
 				Core::Async<bool> TxEnd(const std::string& Command, uint64_t Token);
 				Core::Async<bool> TxCommit(uint64_t Token);

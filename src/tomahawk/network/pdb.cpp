@@ -1987,24 +1987,27 @@ namespace Tomahawk
 
 				if (PQisBusy(Source->Base) == 0)
 				{
-					PGnotify* Notification = PQnotifies(Source->Base);
-					if (Notification != nullptr && Notification->relname != nullptr)
+					PGnotify* Notification = nullptr;
+					while ((Notification = PQnotifies(Source->Base)) != nullptr)
 					{
-						auto It = Listeners.find(Notification->relname);
-						if (It != Listeners.end() && !It->second.empty())
+						if (Notification != nullptr && Notification->relname != nullptr)
 						{
-							Notify Event(Notification);
-							for (auto& Item : It->second)
+							auto It = Listeners.find(Notification->relname);
+							if (It != Listeners.end() && !It->second.empty())
 							{
-								OnNotification Callback = Item.second;
-								Core::Schedule::Get()->SetTask([Event, Callback = std::move(Callback)]()
+								Notify Event(Notification);
+								for (auto& Item : It->second)
 								{
-									Callback(Event);
-								}, Core::Difficulty::Light);
+									OnNotification Callback = Item.second;
+									Core::Schedule::Get()->SetTask([Event, Callback = std::move(Callback)]()
+									{
+										Callback(Event);
+									}, Core::Difficulty::Light);
+								}
 							}
+							TH_TRACE("[pq] notification on channel @%s:\n\t%s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
+							PQfreeNotify(Notification);
 						}
-						TH_TRACE("[pq] notification on channel @%s:\n\t%s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
-						PQfreeNotify(Notification);
 					}
 
 					if (Source->State == QueryState::Busy)

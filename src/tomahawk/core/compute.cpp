@@ -7521,10 +7521,9 @@ namespace Tomahawk
 
 			return Hasher.ToHex();
 		}
-		std::string Common::SHA256Hash(const std::string& Value)
+		std::string Common::SHA256HashBinary(const std::string& Value)
 		{
 #ifdef TH_HAS_OPENSSL
-			static const char Alphabet[] = "0123456789abcdef";
 			unsigned char Hash[SHA256_DIGEST_LENGTH];
 
 			SHA256_CTX Context;
@@ -7532,12 +7531,9 @@ namespace Tomahawk
 			SHA256_Update(&Context, Value.c_str(), Value.size());
 			SHA256_Final(Hash, &Context);
 
-			std::string Result(SHA256_DIGEST_LENGTH * 2, ' ');
+			std::string Result(SHA256_DIGEST_LENGTH, ' ');
 			for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
-			{
-				Result[2 * i] = Alphabet[(unsigned int)Hash[i] >> 4];
-				Result[2 * i + 1] = Alphabet[(unsigned int)Hash[i] & 0x0F];
-			}
+				Result[i] = Hash[i];
 
 			return Result;
 #else
@@ -7835,6 +7831,91 @@ namespace Tomahawk
 				Result += Row3[Step];
 
 			return Result;
+		}
+		std::string Common::Base45Encode(const std::string& Data)
+		{
+			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+			std::string Result;
+			size_t Size = Data.size();
+			Result.reserve(Size);
+
+			for (size_t i = 0; i < Size; i += 2)
+			{
+				if (Size - i > 1)
+				{
+					int x = ((uint8_t)(Data[i]) << 8) + (uint8_t)Data[i + 1];
+					unsigned char e = x / (45 * 45);
+					x %= 45 * 45;
+
+					unsigned char d = x / 45;
+					unsigned char c = x % 45;
+					Result += Alphabet[c];
+					Result += Alphabet[d];
+					Result += Alphabet[e];
+				}
+				else
+				{
+					int x = (uint8_t)Data[i];
+					unsigned char d = x / 45;
+					unsigned char c = x % 45;
+
+					Result += Alphabet[c];
+					Result += Alphabet[d];
+				}
+			}
+
+			return Result;
+		}
+		std::string Common::Base45Decode(const std::string& Data)
+		{
+			static unsigned char CharToInt[256] =
+			{
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				36, 255,255,255,  37, 38,255,255, 255,255, 39, 40, 255, 41, 42, 43,
+				0,   1,  2,  3,   4,  5,  6,  7,   8,  9, 44,255, 255,255,255,255,
+				255, 10, 11, 12,  13, 14, 15, 16,  17, 18, 19, 20,  21, 22, 23, 24,
+				25, 26, 27, 28,  29, 30, 31, 32,  33, 34, 35, 35, 255,255,255,255,
+				255, 10, 11, 12,  13, 14, 15, 16,  17, 18, 19, 20,  21, 22, 23, 24,
+				25, 26, 27, 28,  29, 30, 31, 32,  33, 34, 35, 35, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
+				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255
+			};
+
+			size_t Size = Data.size();
+			std::string Result(Size, ' ');
+			size_t Offset = 0;
+
+			for (size_t i = 0; i < Size; i += 3)
+			{
+				int x, a, b;
+				if (Size - i < 2)
+					break;
+
+				if ((255 == (a = (char)CharToInt[Data[i]])) || (255 == (b = (char)CharToInt[Data[i + 1]])))
+					break;
+
+				x = a + 45 * b;
+				if (Size - i >= 3)
+				{
+					if (255 == (a = (char)CharToInt[Data[i + 2]]))
+						break;
+
+					x += a * 45 * 45;
+					Result[Offset++] = x / 256;
+					x %= 256;
+				}
+
+				Result[Offset++] = x;
+			}
+
+			return std::string(Result.c_str(), Offset);
 		}
 		std::string Common::Base64Encode(const unsigned char* Value, uint64_t Length)
 		{

@@ -1443,7 +1443,7 @@ namespace Tomahawk
 			static std::string RandomBytes(uint64_t Length);
 			static std::string Move(const std::string& Text, int Offset);
 			static std::string MD5Hash(const std::string& Value);
-			static std::string SHA256Hash(const std::string& Value);
+			static std::string SHA256HashBinary(const std::string& Value);
 			static std::string Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
 			static std::string Sign(Digest Type, const std::string& Value, const char* Key);
 			static std::string HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
@@ -1454,6 +1454,8 @@ namespace Tomahawk
 			static std::string Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt);
 			static std::string Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding);
 			static std::string Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char));
+			static std::string Base45Encode(const std::string& Value);
+			static std::string Base45Decode(const std::string& Value);
 			static std::string Base64Encode(const unsigned char* Value, uint64_t Length);
 			static std::string Base64Encode(const std::string& Value);
 			static std::string Base64Decode(const unsigned char* Value, uint64_t Length);

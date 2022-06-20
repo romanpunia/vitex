@@ -221,7 +221,7 @@ namespace Tomahawk
 					{
 						size_t Length = 0;
 						unsigned char* Buffer = PQunescapeBytea((const unsigned char*)Data, &Length);
-						Core::Variant Result = Core::Var::Base64(Buffer, Length);
+						Core::Variant Result = Core::Var::Binary(Buffer, Length);
 
 						PQfreemem(Buffer);
 						return Result;
@@ -2565,7 +2565,7 @@ namespace Tomahawk
 						std::string Result = (Negate ? '-' + Value.ToString() : Value.ToString());
 						return Result.find('.') != std::string::npos ? Result : Result + ".0";
 					}
-					case Core::VarType::Base64:
+					case Core::VarType::Binary:
 						return GetByteArray(Base, Source->Value.GetString(), Source->Value.GetSize());
 					case Core::VarType::Null:
 					case Core::VarType::Undefined:

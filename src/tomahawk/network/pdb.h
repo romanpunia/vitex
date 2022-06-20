@@ -533,12 +533,10 @@ namespace Tomahawk
 				static bool RemoveQuery(const std::string& Name);
 				static std::string Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once = true);
 				static std::string GetQuery(Cluster* Base, const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
-				static std::vector<std::string> GetQueries();
-
-			private:
 				static std::string GetCharArray(TConnection* Base, const std::string& Src);
 				static std::string GetByteArray(TConnection* Base, const char* Src, size_t Size);
 				static std::string GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate);
+				static std::vector<std::string> GetQueries();
 			};
 		}
 	}

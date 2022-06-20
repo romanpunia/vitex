@@ -7442,7 +7442,7 @@ namespace Tomahawk
 				Result.append(Buffer, Size);
 			});
 
-			Result = Base64Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
+			Result = Bep45Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
 			return Result;
 		}
 		Core::Schema* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
@@ -7451,7 +7451,7 @@ namespace Tomahawk
 			TH_ASSERT(Key != nullptr, nullptr, "key should be set");
 			TH_ASSERT(Salt != nullptr, nullptr, "salt should be set");
 
-			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Base64Decode(Value), Key, Salt);
+			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Bep45Decode(Value), Key, Salt);
 			return Core::Schema::ReadJSON(Source.c_str(), Source.size());
 		}
 		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
@@ -7520,6 +7520,18 @@ namespace Tomahawk
 			Hasher.Finalize();
 
 			return Hasher.ToHex();
+		}
+		std::string Common::MD5HashBinary(const std::string& Value)
+		{
+			MD5Hasher Hasher;
+			Hasher.Update(Value);
+			Hasher.Finalize();
+
+			return Hasher.ToRaw();
+		}
+		std::string Common::SHA256Hash(const std::string& Value)
+		{
+			return Common::HexEncode(Common::SHA256HashBinary(Value));
 		}
 		std::string Common::SHA256HashBinary(const std::string& Value)
 		{
@@ -7831,6 +7843,28 @@ namespace Tomahawk
 				Result += Row3[Step];
 
 			return Result;
+		}
+		std::string Common::Bep45Encode(const std::string& Data)
+		{
+			static const char From[] = " $%*+-./:";
+			static const char To[] = "abcdefghi";
+
+			Core::Parser Result(Base45Encode(Data));
+			for (size_t i = 0; i < sizeof(From) - 1; i++)
+				Result.Replace(From[i], To[i]);
+
+			return Result.R();
+		}
+		std::string Common::Bep45Decode(const std::string& Data)
+		{
+			static const char From[] = "abcdefghi";
+			static const char To[] = " $%*+-./:";
+
+			Core::Parser Result(Data);
+			for (size_t i = 0; i < sizeof(From) - 1; i++)
+				Result.Replace(From[i], To[i]);
+
+			return Base45Decode(Result.R());
 		}
 		std::string Common::Base45Encode(const std::string& Data)
 		{

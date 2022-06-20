@@ -1750,7 +1750,7 @@ namespace Tomahawk
 
 			if (Text.size() > 2 && Text.front() == TH_PREFIX_CHAR && Text.back() == TH_PREFIX_CHAR)
 			{
-				Copy(Var::Base64(Compute::Common::Base64Decode(std::string(Text.substr(1).c_str(), Text.size() - 2))));
+				Copy(Var::Binary(Compute::Common::Bep45Decode(std::string(Text.substr(1).c_str(), Text.size() - 2))));
 				return true;
 			}
 
@@ -1773,8 +1773,8 @@ namespace Tomahawk
 					return TH_PREFIX_STR "pointer";
 				case VarType::String:
 					return std::string(GetString(), GetSize());
-				case VarType::Base64:
-					return TH_PREFIX_STR + Compute::Common::Base64Encode(GetBase64(), GetSize()) + TH_PREFIX_STR;
+				case VarType::Binary:
+					return TH_PREFIX_STR + Compute::Common::Bep45Encode(std::string(GetString(), GetSize())) + TH_PREFIX_STR;
 				case VarType::Decimal:
 				{
 					auto* Data = ((Decimal*)Value.Data);
@@ -1795,7 +1795,7 @@ namespace Tomahawk
 		}
 		std::string Variant::GetBlob() const
 		{
-			if (Type == VarType::String || Type == VarType::Base64)
+			if (Type == VarType::String || Type == VarType::Binary)
 				return std::string(((String*)Value.Data)->Buffer, (size_t)((String*)Value.Data)->Size);
 
 			if (Type == VarType::Decimal)
@@ -1840,14 +1840,14 @@ namespace Tomahawk
 		}
 		const char* Variant::GetString() const
 		{
-			if (Type != VarType::String && Type != VarType::Base64)
+			if (Type != VarType::String && Type != VarType::Binary)
 				return nullptr;
 
 			return (const char*)((String*)Value.Data)->Buffer;
 		}
-		unsigned char* Variant::GetBase64() const
+		unsigned char* Variant::GetBinary() const
 		{
-			if (Type != VarType::String && Type != VarType::Base64)
+			if (Type != VarType::String && Type != VarType::Binary)
 				return nullptr;
 
 			return (unsigned char*)((String*)Value.Data)->Buffer;
@@ -1916,7 +1916,7 @@ namespace Tomahawk
 				case VarType::Pointer:
 					return sizeof(void*);
 				case VarType::String:
-				case VarType::Base64:
+				case VarType::Binary:
 					return (size_t)((String*)Value.Data)->Size;
 				case VarType::Decimal:
 					return ((Decimal*)Value.Data)->Size();
@@ -1982,7 +1982,7 @@ namespace Tomahawk
 				case VarType::Pointer:
 					return Value.Data == nullptr;
 				case VarType::String:
-				case VarType::Base64:
+				case VarType::Binary:
 					return ((String*)Value.Data)->Size == 0;
 				case VarType::Decimal:
 					return ((Decimal*)Value.Data)->ToDouble() == 0.0;
@@ -2009,7 +2009,7 @@ namespace Tomahawk
 				case VarType::Pointer:
 					return GetPointer() == Other.GetPointer();
 				case VarType::String:
-				case VarType::Base64:
+				case VarType::Binary:
 				{
 					size_t Size = GetSize();
 					if (Size != Other.GetSize())
@@ -2049,7 +2049,7 @@ namespace Tomahawk
 					Value.Data = Other.Value.Data;
 					break;
 				case VarType::String:
-				case VarType::Base64:
+				case VarType::Binary:
 				{
 					String* From = (String*)Other.Value.Data;
 					String* Buffer = (String*)TH_MALLOC(sizeof(String));
@@ -2094,7 +2094,7 @@ namespace Tomahawk
 				case VarType::Array:
 				case VarType::Pointer:
 				case VarType::String:
-				case VarType::Base64:
+				case VarType::Binary:
 				case VarType::Decimal:
 					Value.Data = Other.Value.Data;
 					Other.Value.Data = nullptr;
@@ -2120,7 +2120,7 @@ namespace Tomahawk
 					Value.Data = nullptr;
 					break;
 				case VarType::String:
-				case VarType::Base64:
+				case VarType::Binary:
 				{
 					if (!Value.Data)
 						break;
@@ -4357,17 +4357,17 @@ namespace Tomahawk
 		{
 			return new Schema(Var::String(Value, Size));
 		}
-		Schema* Var::Set::Base64(const std::string& Value)
+		Schema* Var::Set::Binary(const std::string& Value)
 		{
-			return new Schema(Var::Base64(Value));
+			return new Schema(Var::Binary(Value));
 		}
-		Schema* Var::Set::Base64(const unsigned char* Value, size_t Size)
+		Schema* Var::Set::Binary(const unsigned char* Value, size_t Size)
 		{
-			return new Schema(Var::Base64(Value, Size));
+			return new Schema(Var::Binary(Value, Size));
 		}
-		Schema* Var::Set::Base64(const char* Value, size_t Size)
+		Schema* Var::Set::Binary(const char* Value, size_t Size)
 		{
-			return new Schema(Var::Base64(Value, Size));
+			return new Schema(Var::Binary(Value, Size));
 		}
 		Schema* Var::Set::Integer(int64_t Value)
 		{
@@ -4453,7 +4453,7 @@ namespace Tomahawk
 			Result.Value.Data = (char*)Buffer;
 			return Result;
 		}
-		Variant Var::Base64(const std::string& Value)
+		Variant Var::Binary(const std::string& Value)
 		{
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
 			Buffer->Size = (uint32_t)Value.size();
@@ -4462,15 +4462,15 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value.c_str(), sizeof(char) * (size_t)Buffer->Size);
 			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
 
-			Variant Result(VarType::Base64);
+			Variant Result(VarType::Binary);
 			Result.Value.Data = (char*)Buffer;
 			return Result;
 		}
-		Variant Var::Base64(const unsigned char* Value, size_t Size)
+		Variant Var::Binary(const unsigned char* Value, size_t Size)
 		{
-			return Base64((const char*)Value, Size);
+			return Binary((const char*)Value, Size);
 		}
-		Variant Var::Base64(const char* Value, size_t Size)
+		Variant Var::Binary(const char* Value, size_t Size)
 		{
 			TH_ASSERT(Value != nullptr, Null(), "value should be set");
 			Variant::String* Buffer = (Variant::String*)TH_MALLOC(sizeof(Variant::String));
@@ -4480,7 +4480,7 @@ namespace Tomahawk
 			memcpy(Buffer->Buffer, Value, sizeof(char) * (size_t)Buffer->Size);
 			Buffer->Buffer[(size_t)Buffer->Size] = '\0';
 
-			Variant Result(VarType::Base64);
+			Variant Result(VarType::Binary);
 			Result.Value.Data = (char*)Buffer;
 			return Result;
 		}
@@ -8940,7 +8940,7 @@ namespace Tomahawk
 		bool Schema::Has64(const std::string& Name, size_t Size) const
 		{
 			Schema* Base = Fetch(Name);
-			if (!Base || Base->Value.GetType() != VarType::Base64)
+			if (!Base || Base->Value.GetType() != VarType::Binary)
 				return false;
 
 			return Base->Value.GetSize() == Size;
@@ -9192,7 +9192,7 @@ namespace Tomahawk
 				Core::Parser Safe(&Value);
 				Safe.Escape();
 
-				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Base64)
+				if (Base->Value.Type != VarType::String && Base->Value.Type != VarType::Binary)
 				{
 					if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
 						Callback(VarForm::Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
@@ -9243,7 +9243,7 @@ namespace Tomahawk
 						Callback(VarForm::Write_Tab, "", 0);
 					}
 
-					if (!Next->Value.IsObject() && Next->Value.Type != VarType::String && Next->Value.Type != VarType::Base64)
+					if (!Next->Value.IsObject() && Next->Value.Type != VarType::String && Next->Value.Type != VarType::Binary)
 					{
 						if (!Value.empty() && Value.front() == TH_PREFIX_CHAR)
 							Callback(VarForm::Dummy, Value.c_str() + 1, (int64_t)Value.size() - 1);
@@ -9466,7 +9466,7 @@ namespace Tomahawk
 				{
 					const char* Buffer = Base.GetString(); size_t Size = Base.GetStringLength();
 					if (Size > 2 && *Buffer == TH_PREFIX_CHAR && Buffer[Size - 1] == TH_PREFIX_CHAR)
-						Result = new Schema(Var::Base64(Buffer + 1, Size - 2));
+						Result = new Schema(Var::Binary(Buffer + 1, Size - 2));
 					else
 						Result = new Schema(Var::String(Buffer, Size));
 					break;
@@ -9618,7 +9618,7 @@ namespace Tomahawk
 						{
 							const char* Buffer = It->value.GetString(); size_t Size = It->value.GetStringLength();
 							if (Size > 2 && *Buffer == TH_PREFIX_CHAR && Buffer[Size - 1] == TH_PREFIX_CHAR)
-								Current->Set(Name, Var::Base64(Buffer + 1, Size - 2));
+								Current->Set(Name, Var::Binary(Buffer + 1, Size - 2));
 							else
 								Current->Set(Name, Var::String(Buffer, Size));
 							break;
@@ -9664,7 +9664,7 @@ namespace Tomahawk
 						{
 							const char* Buffer = It->GetString(); size_t Size = It->GetStringLength();
 							if (Size > 2 && *Buffer == TH_PREFIX_CHAR && Buffer[Size - 1] == TH_PREFIX_CHAR)
-								Current->Push(Var::Base64(Buffer + 1, Size - 2));
+								Current->Push(Var::Binary(Buffer + 1, Size - 2));
 							else
 								Current->Push(Var::String(Buffer, Size));
 							break;
@@ -9704,7 +9704,7 @@ namespace Tomahawk
 					break;
 				}
 				case VarType::String:
-				case VarType::Base64:
+				case VarType::Binary:
 				{
 					uint32_t Size = (uint32_t)Current->Value.GetSize();
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint32_t));
@@ -9808,7 +9808,7 @@ namespace Tomahawk
 					Current->Value = Var::String(Buffer);
 					break;
 				}
-				case VarType::Base64:
+				case VarType::Binary:
 				{
 					uint32_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint32_t)))
@@ -9826,7 +9826,7 @@ namespace Tomahawk
 						return false;
 					}
 
-					Current->Value = Var::Base64(Buffer);
+					Current->Value = Var::Binary(Buffer);
 					break;
 				}
 				case VarType::Integer:

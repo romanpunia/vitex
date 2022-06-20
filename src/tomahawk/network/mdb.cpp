@@ -120,7 +120,7 @@ namespace Tomahawk
 					case Type::Integer:
 						return String.assign(std::to_string(Integer));
 					case Type::ObjectId:
-						return String.assign(Compute::Common::Base64Encode((const char*)ObjectId));
+						return String.assign(Compute::Common::Bep45Encode((const char*)ObjectId));
 					case Type::Null:
 						return String.assign("null");
 					case Type::Unknown:
@@ -858,7 +858,7 @@ namespace Tomahawk
 							Node->Set(Name, Core::Var::Integer(Key->Integer));
 							break;
 						case Type::ObjectId:
-							Node->Set(Name, Core::Var::Base64(Key->ObjectId, 12));
+							Node->Set(Name, Core::Var::Binary(Key->ObjectId, 12));
 							break;
 						case Type::Null:
 							Node->Set(Name, Core::Var::Null());
@@ -935,15 +935,15 @@ namespace Tomahawk
 						case Core::VarType::Null:
 							Result.SetNull(Array ? nullptr : Node->Key.c_str(), Index);
 							break;
-						case Core::VarType::Base64:
+						case Core::VarType::Binary:
 						{
 							if (Node->Value.GetSize() != 12)
 							{
-								std::string Base = Compute::Common::Base64Encode(Node->Value.GetBlob());
+								std::string Base = Compute::Common::Bep45Encode(Node->Value.GetBlob());
 								Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
 							}
 							else
-								Result.SetObjectId(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBase64(), Index);
+								Result.SetObjectId(Array ? nullptr : Node->Key.c_str(), Node->Value.GetBinary(), Index);
 							break;
 						}
 						default:
@@ -4003,15 +4003,15 @@ namespace Tomahawk
 						return Source->Value.GetBoolean() ? "true" : "false";
 					case Core::VarType::Decimal:
 						return "{\"$numberDouble\":\"" + Source->Value.GetDecimal().ToString() + "\"}";
-					case Core::VarType::Base64:
+					case Core::VarType::Binary:
 					{
 						if (Source->Value.GetSize() != 12)
 						{
-							std::string Base = Compute::Common::Base64Encode(Source->Value.GetBlob());
+							std::string Base = Compute::Common::Bep45Encode(Source->Value.GetBlob());
 							return "\"" + Base + "\"";
 						}
 
-						return "{\"$oid\":\"" + Util::IdToString(Source->Value.GetBase64()) + "\"}";
+						return "{\"$oid\":\"" + Util::IdToString(Source->Value.GetBinary()) + "\"}";
 					}
 					case Core::VarType::Null:
 					case Core::VarType::Undefined:

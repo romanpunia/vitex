@@ -481,7 +481,7 @@ namespace Tomahawk
 				case Core::VarType::Pointer:
 					break;
 				case Core::VarType::String:
-				case Core::VarType::Base64:
+				case Core::VarType::Binary:
 					return Base->Value.GetBlob();
 				case Core::VarType::Integer:
 					return std::to_string(Base->Value.GetInteger());
@@ -495,7 +495,7 @@ namespace Tomahawk
 
 			return "";
 		}
-		std::string SchemaToBase64(Core::Schema* Base)
+		std::string SchemaToBinary(Core::Schema* Base)
 		{
 			return Base->Value.GetBlob();
 		}
@@ -997,7 +997,7 @@ namespace Tomahawk
 			VVarType.SetValue("Object", (int)Core::VarType::Object);
 			VVarType.SetValue("Array", (int)Core::VarType::Array);
 			VVarType.SetValue("String", (int)Core::VarType::String);
-			VVarType.SetValue("Base64", (int)Core::VarType::Base64);
+			VVarType.SetValue("Binary", (int)Core::VarType::Binary);
 			VVarType.SetValue("Integer", (int)Core::VarType::Integer);
 			VVarType.SetValue("Number", (int)Core::VarType::Number);
 			VVarType.SetValue("Decimal", (int)Core::VarType::Decimal);
@@ -1033,7 +1033,7 @@ namespace Tomahawk
 			Register.SetFunction("Variant Number(double)", &Core::Var::Number);
 			Register.SetFunction("Variant Boolean(bool)", &Core::Var::Boolean);
 			Register.SetFunction<Core::Variant(const std::string&)>("Variant String(const String &in)", &Core::Var::String);
-			Register.SetFunction<Core::Variant(const std::string&)>("Variant Base64(const String &in)", &Core::Var::Base64);
+			Register.SetFunction<Core::Variant(const std::string&)>("Variant Binary(const String &in)", &Core::Var::Binary);
 			Register.SetFunction<Core::Variant(const std::string&)>("Variant Decimal(const String &in)", &Core::Var::DecimalString);
 			Engine->EndNamespace();
 
@@ -1425,7 +1425,7 @@ namespace Tomahawk
 			VSchema.SetMethodEx("String JSON() const", &SchemaToJSON);
 			VSchema.SetMethodEx("String XML() const", &SchemaToXML);
 			VSchema.SetMethodEx("String Str() const", &SchemaToString);
-			VSchema.SetMethodEx("String B64() const", &SchemaToBase64);
+			VSchema.SetMethodEx("String Bin() const", &SchemaToBinary);
 			VSchema.SetMethodEx("int64 Int() const", &SchemaToInteger);
 			VSchema.SetMethodEx("double Num() const", &SchemaToNumber);
 			VSchema.SetMethodEx("String Dec() const", &SchemaToDecimal);
@@ -1451,7 +1451,7 @@ namespace Tomahawk
 			Register.SetFunction("CE::Schema@ Number(double)", &Core::Var::Set::Number);
 			Register.SetFunction("CE::Schema@ Boolean(bool)", &Core::Var::Set::Boolean);
 			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ String(const String &in)", &Core::Var::Set::String);
-			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ Base64(const String &in)", &Core::Var::Set::Base64);
+			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ Binary(const String &in)", &Core::Var::Set::Binary);
 			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ Decimal(const String &in)", &Core::Var::Set::DecimalString);
 			Engine->EndNamespace();
 			Engine->BeginNamespace("CE::Var");

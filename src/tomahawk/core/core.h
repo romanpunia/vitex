@@ -298,7 +298,7 @@ namespace Tomahawk
 			Array,
 			Pointer,
 			String,
-			Base64,
+			Binary,
 			Integer,
 			Number,
 			Decimal,
@@ -474,7 +474,7 @@ namespace Tomahawk
 			Decimal GetDecimal() const;
 			void* GetPointer() const;
 			const char* GetString() const;
-			unsigned char* GetBase64() const;
+			unsigned char* GetBinary() const;
 			int64_t GetInteger() const;
 			double GetNumber() const;
 			bool GetBoolean() const;
@@ -821,9 +821,9 @@ namespace Tomahawk
 				static Schema* Pointer(void* Value);
 				static Schema* String(const std::string& Value);
 				static Schema* String(const char* Value, size_t Size);
-				static Schema* Base64(const std::string& Value);
-				static Schema* Base64(const unsigned char* Value, size_t Size);
-				static Schema* Base64(const char* Value, size_t Size);
+				static Schema* Binary(const std::string& Value);
+				static Schema* Binary(const unsigned char* Value, size_t Size);
+				static Schema* Binary(const char* Value, size_t Size);
 				static Schema* Integer(int64_t Value);
 				static Schema* Number(double Value);
 				static Schema* Decimal(const BigNumber& Value);
@@ -841,9 +841,9 @@ namespace Tomahawk
 			static Variant Pointer(void* Value);
 			static Variant String(const std::string& Value);
 			static Variant String(const char* Value, size_t Size);
-			static Variant Base64(const std::string& Value);
-			static Variant Base64(const unsigned char* Value, size_t Size);
-			static Variant Base64(const char* Value, size_t Size);
+			static Variant Binary(const std::string& Value);
+			static Variant Binary(const unsigned char* Value, size_t Size);
+			static Variant Binary(const char* Value, size_t Size);
 			static Variant Integer(int64_t Value);
 			static Variant Number(double Value);
 			static Variant Decimal(const BigNumber& Value);

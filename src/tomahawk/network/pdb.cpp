@@ -425,6 +425,10 @@ namespace Tomahawk
 						Def += " AND ";
 					else if (Op == "|")
 						Def += " OR ";
+					else if (Op == "TRUE")
+						Def += " TRUE ";
+					else if (Op == "FALSE")
+						Def += " FALSE ";
 					else if (!Op.empty())
 					{
 						if (Op.front() == '@')

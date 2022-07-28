@@ -2661,10 +2661,12 @@ namespace Tomahawk
 			va_end(Args);
 
 			TH_ERR("%.*s (at %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
-			return Stream.CloseAsync(true, [this](Socket*)
+			Stream.CloseAsync(true, [this](Socket*)
 			{
 				return Success(-1);
-			}) == 0;
+			});
+
+			return false;
 		}
 		bool SocketClient::Success(int Code)
 		{

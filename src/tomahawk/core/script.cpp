@@ -2565,9 +2565,10 @@ namespace Tomahawk
 					while (!Tasks.empty())
 					{
 						auto Next = Tasks.front();
-						Subresult = Context->Prepare(Next.Callback.GetFunction());
+						Tasks.pop();
 						Exchange.unlock();
 
+						Subresult = Context->Prepare(Next.Callback.GetFunction());
 						if (Subresult >= 0)
 						{
 							if (Next.Args)
@@ -2578,11 +2579,8 @@ namespace Tomahawk
 								return Result;
 						}
 
-						Exchange.lock();
-						Tasks.pop();
-						Exchange.unlock();
-
 						Next.Future = Subresult;
+						Exchange.lock();
 					}
 				}
 				Exchange.unlock();

@@ -2031,13 +2031,13 @@ namespace Tomahawk
 				{
 					const std::string& Key = Args[0];
 					if (Key == "INFO")
-						TH_INFO("%s", Args[1].c_str());
+						TH_INFO("[compiler] %s", Args[1].c_str());
 					else if (Key == "TRACE")
-						TH_TRACE("%s", Args[1].c_str());
+						TH_TRACE("[compiler] %s", Args[1].c_str());
 					else if (Key == "WARN")
-						TH_WARN("%s", Args[1].c_str());
+						TH_WARN("[compiler] %s", Args[1].c_str());
 					else if (Key == "ERR")
-						TH_ERR("%s", Args[1].c_str());
+						TH_ERR("[compiler] %s", Args[1].c_str());
 				}
 				else if (Name == "modify" && Args.size() == 2)
 				{
@@ -2979,7 +2979,7 @@ namespace Tomahawk
 			int Line = Context->GetExceptionLineNumber();
 			std::string Trace = Base->GetStackTrace(3, 64);
 
-			TH_ERR("uncaught exception"
+			TH_ERR("[vm] uncaught exception"
 				"\n\tdescription: %s"
 				"\n\tfunction: %s"
 				"\n\tmodule: %s"
@@ -3007,7 +3007,7 @@ namespace Tomahawk
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
 
 			if (Engine->RegisterObjectType("Address", 0, asOBJ_REF | asOBJ_NOCOUNT) < 0)
-				TH_ERR("could not register Address type for script engine");
+				TH_ERR("[vm] could not register Address type for script engine");
 
 			RegisterSubmodules(this);
 		}
@@ -3749,7 +3749,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::Files))
 			{
-				TH_ERR("file import is not allowed");
+				TH_ERR("[vm] file import is not allowed");
 				return false;
 			}
 
@@ -3787,7 +3787,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::CSymbols))
 			{
-				TH_ERR("csymbols import is not allowed");
+				TH_ERR("[vm] csymbols import is not allowed");
 				return false;
 			}
 
@@ -3812,7 +3812,7 @@ namespace Tomahawk
 				if (Failed || (Core = Kernels.find("")) == Kernels.end())
 				{
 					Sync.General.unlock();
-					TH_ERR("cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
+					TH_ERR("[vm] cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
 					return false;
 				}
 			}
@@ -3827,14 +3827,14 @@ namespace Tomahawk
 			VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Core->second.Handle, Func);
 			if (!Function)
 			{
-				TH_ERR("cannot load shared object function: %s", Func.c_str());
+				TH_ERR("[vm] cannot load shared object function: %s", Func.c_str());
 				Sync.General.unlock();
 				return false;
 			}
 
 			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
 			{
-				TH_ERR("cannot register shared object function: %s", Decl.c_str());
+				TH_ERR("[vm] cannot register shared object function: %s", Decl.c_str());
 				Sync.General.unlock();
 				return false;
 			}
@@ -3848,7 +3848,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::CLibraries) && !Path.empty())
 			{
-				TH_ERR("clibraries import is not allowed");
+				TH_ERR("[vm] clibraries import is not allowed");
 				return false;
 			}
 
@@ -3868,7 +3868,7 @@ namespace Tomahawk
 			void* Handle = Core::OS::Symbol::Load(Path);
 			if (!Handle)
 			{
-				TH_ERR("cannot load shared object: %s", Path.c_str());
+				TH_ERR("[vm] cannot load shared object: %s", Path.c_str());
 				return false;
 			}
 
@@ -3885,7 +3885,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::Submodules))
 			{
-				TH_ERR("submodules import is not allowed");
+				TH_ERR("[vm] submodules import is not allowed");
 				return false;
 			}
 
@@ -3898,7 +3898,7 @@ namespace Tomahawk
 			if (It == Modules.end())
 			{
 				Sync.General.unlock();
-				TH_ERR("couldn't find script submodule %s", Name.c_str());
+				TH_ERR("[vm] couldn't find script submodule %s", Name.c_str());
 				return false;
 			}
 
@@ -3916,7 +3916,7 @@ namespace Tomahawk
 			{
 				if (!ImportSubmodule(Item))
 				{
-					TH_ERR("couldn't load submodule %s for %s", Item.c_str(), Name.c_str());
+					TH_ERR("[vm] couldn't load submodule %s for %s", Item.c_str(), Name.c_str());
 					return false;
 				}
 			}
@@ -3930,7 +3930,7 @@ namespace Tomahawk
 		{
 			if (!(Imports & (uint32_t)VMImport::JSON))
 			{
-				TH_ERR("json import is not allowed");
+				TH_ERR("[vm] json import is not allowed");
 				return nullptr;
 			}
 
@@ -3940,7 +3940,7 @@ namespace Tomahawk
 				File = Core::OS::Path::Resolve(Path + ".json", Include.Root);
 				if (!Core::OS::File::IsExists(File.c_str()))
 				{
-					TH_ERR("%s resource was not found", Path.c_str());
+					TH_ERR("[vm] %s resource was not found", Path.c_str());
 					return nullptr;
 				}
 			}
@@ -4051,11 +4051,11 @@ namespace Tomahawk
 		void VMManager::CompileLogger(asSMessageInfo* Info, void*)
 		{
 			if (Info->type == asMSGTYPE_WARNING)
-				TH_WARN("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_WARN("[compiler]\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_INFORMATION)
-				TH_INFO("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_INFO("[compiler]\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
-				TH_ERR("\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_ERR("[compiler]\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
 		}
 		void VMManager::RegisterSubmodules(VMManager* Engine)
 		{

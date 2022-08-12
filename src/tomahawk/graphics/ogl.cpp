@@ -502,7 +502,7 @@ namespace Tomahawk
 				Context = SDL_GL_CreateContext(Window->GetHandle());
 				if (!Context)
 				{
-					TH_ERR("OpenGL creation conflict\n\t%s", Window->GetError().c_str());
+					TH_ERR("[ogl] creation conflict\n\t%s", Window->GetError().c_str());
 					return;
 				}
 
@@ -937,7 +937,7 @@ namespace Tomahawk
 
 					char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 					glGetProgramInfoLog(Program, Size, &Size, Buffer);
-					TH_ERR("couldn't link shaders\n\t%.*s", Size, Buffer);
+					TH_ERR("[ogl] couldn't link shaders\n\t%.*s", Size, Buffer);
 					TH_FREE(Buffer);
 
 					glUseProgramObjectARB(GL_NONE);
@@ -2273,7 +2273,7 @@ namespace Tomahawk
 
 				if (!Preprocess(F))
 				{
-					TH_ERR("shader preprocessing failed");
+					TH_ERR("[ogl] shader preprocessing failed");
 					return Result;
 				}
 
@@ -2284,19 +2284,19 @@ namespace Tomahawk
 					std::string Stage = Name + ".vtx", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("transpile %s vertex shader source", Stage.c_str());
+						TH_TRACE("[ogl] transpile %s vertex shader source", Stage.c_str());
 						Bytecode = F.Data;
 
 						if (!Transpile(&Bytecode, ShaderType::Vertex, ShaderLang::GLSL))
 						{
-							TH_ERR("vertex shader transpiling failed");
+							TH_ERR("[ogl] vertex shader transpiling failed");
 							return Result;
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							TH_WARN("couldn't cache vertex shader");
+							TH_WARN("[ogl] couldn't cache vertex shader");
 					}
 					else
 					{
@@ -2304,7 +2304,7 @@ namespace Tomahawk
 						Size = (GLint)Bytecode.size();
 					}
 
-					TH_TRACE("compile %s vertex shader bytecode", Stage.c_str());
+					TH_TRACE("[ogl] compile %s vertex shader bytecode", Stage.c_str());
 					Result->VertexShader = glCreateShader(GL_VERTEX_SHADER);
 					glShaderSourceARB(Result->VertexShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->VertexShader);
@@ -2315,7 +2315,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->VertexShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->VertexShader, Size, &Size, Buffer);
-						TH_ERR("couldn't compile vertex shader\n\t%.*s", Size, Buffer);
+						TH_ERR("[ogl] couldn't compile vertex shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2326,19 +2326,19 @@ namespace Tomahawk
 					std::string Stage = Name + ".pxl", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("transpile %s pixel shader source", Stage.c_str());
+						TH_TRACE("[ogl] transpile %s pixel shader source", Stage.c_str());
 						Bytecode = F.Data;
 
 						if (!Transpile(&Bytecode, ShaderType::Pixel, ShaderLang::GLSL))
 						{
-							TH_ERR("pixel shader transpiling failed");
+							TH_ERR("[ogl] pixel shader transpiling failed");
 							return Result;
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							TH_WARN("couldn't cache pixel shader");
+							TH_WARN("[ogl] couldn't cache pixel shader");
 					}
 					else
 					{
@@ -2346,7 +2346,7 @@ namespace Tomahawk
 						Size = (GLint)Bytecode.size();
 					}
 
-					TH_TRACE("compile %s pixel shader bytecode", Stage.c_str());
+					TH_TRACE("[ogl] compile %s pixel shader bytecode", Stage.c_str());
 					Result->PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
 					glShaderSourceARB(Result->PixelShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->PixelShader);
@@ -2357,7 +2357,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->PixelShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->PixelShader, Size, &Size, Buffer);
-						TH_ERR("couldn't compile pixel shader\n\t%.*s", Size, Buffer);
+						TH_ERR("[ogl] couldn't compile pixel shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2368,19 +2368,19 @@ namespace Tomahawk
 					std::string Stage = Name + ".geo", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("transpile %s geometry shader source", Stage.c_str());
+						TH_TRACE("[ogl] transpile %s geometry shader source", Stage.c_str());
 						Bytecode = F.Data;
 
 						if (!Transpile(&Bytecode, ShaderType::Geometry, ShaderLang::GLSL))
 						{
-							TH_ERR("geometry shader transpiling failed");
+							TH_ERR("[ogl] geometry shader transpiling failed");
 							return Result;
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							TH_WARN("couldn't cache geometry shader");
+							TH_WARN("[ogl] couldn't cache geometry shader");
 					}
 					else
 					{
@@ -2388,7 +2388,7 @@ namespace Tomahawk
 						Size = (GLint)Bytecode.size();
 					}
 
-					TH_TRACE("compile %s geometry shader bytecode", Stage.c_str());
+					TH_TRACE("[ogl] compile %s geometry shader bytecode", Stage.c_str());
 					Result->GeometryShader = glCreateShader(GL_GEOMETRY_SHADER);
 					glShaderSourceARB(Result->GeometryShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->GeometryShader);
@@ -2399,7 +2399,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->GeometryShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->GeometryShader, Size, &Size, Buffer);
-						TH_ERR("couldn't compile geometry shader\n\t%.*s", Size, Buffer);
+						TH_ERR("[ogl] couldn't compile geometry shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2410,19 +2410,19 @@ namespace Tomahawk
 					std::string Stage = Name + ".cmp", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("transpile %s compute shader source", Stage.c_str());
+						TH_TRACE("[ogl] transpile %s compute shader source", Stage.c_str());
 						Bytecode = F.Data;
 
 						if (!Transpile(&Bytecode, ShaderType::Compute, ShaderLang::GLSL))
 						{
-							TH_ERR("compute shader transpiling failed");
+							TH_ERR("[ogl] compute shader transpiling failed");
 							return Result;
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							TH_WARN("couldn't cache compute shader");
+							TH_WARN("[ogl] couldn't cache compute shader");
 					}
 					else
 					{
@@ -2430,7 +2430,7 @@ namespace Tomahawk
 						Size = (GLint)Bytecode.size();
 					}
 
-					TH_TRACE("compile %s compute shader bytecode", Stage.c_str());
+					TH_TRACE("[ogl] compile %s compute shader bytecode", Stage.c_str());
 					Result->ComputeShader = glCreateShader(GL_COMPUTE_SHADER);
 					glShaderSourceARB(Result->ComputeShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->ComputeShader);
@@ -2441,7 +2441,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->ComputeShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->ComputeShader, Size, &Size, Buffer);
-						TH_ERR("couldn't compile compute shader\n\t%.*s", Size, Buffer);
+						TH_ERR("[ogl] couldn't compile compute shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2452,19 +2452,19 @@ namespace Tomahawk
 					std::string Stage = Name + ".hlc", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("transpile %s hull shader source", Stage.c_str());
+						TH_TRACE("[ogl] transpile %s hull shader source", Stage.c_str());
 						Bytecode = F.Data;
 
 						if (!Transpile(&Bytecode, ShaderType::Hull, ShaderLang::GLSL))
 						{
-							TH_ERR("hull shader transpiling failed");
+							TH_ERR("[ogl] hull shader transpiling failed");
 							return Result;
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							TH_WARN("couldn't cache hull shader");
+							TH_WARN("[ogl] couldn't cache hull shader");
 					}
 					else
 					{
@@ -2472,7 +2472,7 @@ namespace Tomahawk
 						Size = (GLint)Bytecode.size();
 					}
 
-					TH_TRACE("compile %s hull shader bytecode", Stage.c_str());
+					TH_TRACE("[ogl] compile %s hull shader bytecode", Stage.c_str());
 					Result->HullShader = glCreateShader(GL_TESS_CONTROL_SHADER);
 					glShaderSourceARB(Result->HullShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->HullShader);
@@ -2483,7 +2483,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->HullShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->HullShader, Size, &Size, Buffer);
-						TH_ERR("couldn't compile hull shader\n\t%.*s", Size, Buffer);
+						TH_ERR("[ogl] couldn't compile hull shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2494,19 +2494,19 @@ namespace Tomahawk
 					std::string Stage = Name + ".dmn", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("transpile %s domain shader source", Stage.c_str());
+						TH_TRACE("[ogl] transpile %s domain shader source", Stage.c_str());
 						Bytecode = F.Data;
 
 						if (!Transpile(&Bytecode, ShaderType::Domain, ShaderLang::GLSL))
 						{
-							TH_ERR("domain shader transpiling failed");
+							TH_ERR("[ogl] domain shader transpiling failed");
 							return Result;
 						}
 
 						Data = Bytecode.c_str();
 						Size = (GLint)Bytecode.size();
 						if (!SetProgramCache(Stage, Bytecode))
-							TH_WARN("couldn't cache domain shader");
+							TH_WARN("[ogl] couldn't cache domain shader");
 					}
 					else
 					{
@@ -2514,7 +2514,7 @@ namespace Tomahawk
 						Size = (GLint)Bytecode.size();
 					}
 
-					TH_TRACE("compile %s domain shader bytecode", Stage.c_str());
+					TH_TRACE("[ogl] compile %s domain shader bytecode", Stage.c_str());
 					Result->DomainShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
 					glShaderSourceARB(Result->DomainShader, 1, &Data, &Size);
 					glCompileShaderARB(Result->DomainShader);
@@ -2525,7 +2525,7 @@ namespace Tomahawk
 						glGetShaderiv(Result->DomainShader, GL_INFO_LOG_LENGTH, &Size);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetShaderInfoLog(Result->DomainShader, Size, &Size, Buffer);
-						TH_ERR("couldn't compile domain shader\n\t%.*s", Size, Buffer);
+						TH_ERR("[ogl] couldn't compile domain shader\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 					}
 				}
@@ -2757,7 +2757,7 @@ namespace Tomahawk
 
 				if (IResource->Width % 4 != 0 || IResource->Height % 3 != 0)
 				{
-					TH_ERR("couldn't create texture cube because width or height cannot be not divided");
+					TH_ERR("[ogl] couldn't create texture cube because width or height cannot be not divided");
 					return nullptr;
 				}
 
@@ -3441,7 +3441,7 @@ namespace Tomahawk
 						glGetShaderiv(Immediate.VertexShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.VertexShader, BufferSize, &BufferSize, Buffer);
-						TH_ERR("couldn't compile vertex shader\n\t%.*s", BufferSize, Buffer);
+						TH_ERR("[ogl] couldn't compile vertex shader\n\t%.*s", BufferSize, Buffer);
 						TH_FREE(Buffer);
 
 						return false;
@@ -3482,7 +3482,7 @@ namespace Tomahawk
 						glGetShaderiv(Immediate.PixelShader, GL_INFO_LOG_LENGTH, &BufferSize);
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (BufferSize + 1));
 						glGetShaderInfoLog(Immediate.PixelShader, BufferSize, &BufferSize, Buffer);
-						TH_ERR("couldn't compile pixel shader\n\t%.*s", BufferSize, Buffer);
+						TH_ERR("[ogl] couldn't compile pixel shader\n\t%.*s", BufferSize, Buffer);
 						TH_FREE(Buffer);
 
 						return false;
@@ -3504,7 +3504,7 @@ namespace Tomahawk
 
 						char* Buffer = (char*)TH_MALLOC(sizeof(char) * (Size + 1));
 						glGetProgramInfoLog(Immediate.Program, Size, &Size, Buffer);
-						TH_ERR("couldn't link shaders\n\t%.*s", Size, Buffer);
+						TH_ERR("[ogl] couldn't link shaders\n\t%.*s", Size, Buffer);
 						TH_FREE(Buffer);
 
 						glDeleteProgram(Immediate.Program);
@@ -4239,13 +4239,13 @@ namespace Tomahawk
 				switch (Severity)
 				{
 					case GL_DEBUG_SEVERITY_HIGH:
-						TH_ERR("%s (%s:%d): %s", _Source, _Type, Id, Message);
+						TH_ERR("[ogl] %s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 					case GL_DEBUG_SEVERITY_MEDIUM:
-						TH_WARN("%s (%s:%d): %s", _Source, _Type, Id, Message);
+						TH_WARN("[ogl] %s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 					case GL_DEBUG_SEVERITY_LOW:
-						TH_TRACE("%s (%s:%d): %s", _Source, _Type, Id, Message);
+						TH_TRACE("[ogl] %s (%s:%d): %s", _Source, _Type, Id, Message);
 						break;
 				}
 			}

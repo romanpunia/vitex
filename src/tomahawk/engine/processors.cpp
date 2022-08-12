@@ -46,7 +46,7 @@ namespace Tomahawk
 				char* Binary = (char*)TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
 				{
-					TH_ERR("cannot read %llu bytes from audio clip file", Length);
+					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -268,7 +268,7 @@ namespace Tomahawk
 								Component* Target = Core::Composer::Create<Component>(Id, Entity);
 								if (!Entity->AddComponent(Target))
 								{
-									TH_WARN("component with id %llu cannot be created", Id);
+									TH_WARN("[engine] component with id %llu cannot be created", Id);
 									continue;
 								}
 
@@ -468,7 +468,7 @@ namespace Tomahawk
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					TH_ERR("cannot read %llu bytes from audio clip file", Length);
+					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -521,7 +521,7 @@ namespace Tomahawk
 				void* Binary = TH_MALLOC(sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					TH_ERR("cannot read %llu bytes from audio clip file", Length);
+					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -531,7 +531,7 @@ namespace Tomahawk
 				int Samples = stb_vorbis_decode_memory((const unsigned char*)Binary, (int)Length, &Channels, &SampleRate, &Buffer);
 				if (Samples <= 0)
 				{
-					TH_ERR("cannot interpret OGG stream");
+					TH_ERR("[engine] cannot interpret OGG stream");
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -580,7 +580,7 @@ namespace Tomahawk
 				unsigned char* Binary = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
-					TH_ERR("cannot read %llu bytes from texture 2d file", Length);
+					TH_ERR("[engine] cannot read %llu bytes from texture 2d file", Length);
 					TH_FREE(Binary);
 					return nullptr;
 				}
@@ -745,7 +745,7 @@ namespace Tomahawk
 				auto* Scene = Importer.ReadFile(Path, Opts);
 				if (!Scene)
 				{
-					TH_ERR("cannot import mesh\n\t%s", Importer.GetErrorString());
+					TH_ERR("[engine] cannot import mesh\n\t%s", Importer.GetErrorString());
 					return nullptr;
 				}
 
@@ -1058,7 +1058,7 @@ namespace Tomahawk
 				auto* Scene = Importer.ReadFile(Path, Opts);
 				if (!Scene)
 				{
-					TH_ERR("cannot import mesh animation because %s", Importer.GetErrorString());
+					TH_ERR("[engine] cannot import mesh animation because %s", Importer.GetErrorString());
 					return nullptr;
 				}
 

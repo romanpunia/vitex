@@ -1076,7 +1076,7 @@ namespace Tomahawk
 					Base->AddSection(Name, std::string((const char*)Buffer, Size));
 			});
 #else
-			TH_WARN("default shader resources were not compiled");
+			TH_WARN("[graphics] default shader resources were not compiled");
 #endif
 		}
 		void GraphicsDevice::ReleaseProxy()
@@ -1204,7 +1204,7 @@ namespace Tomahawk
 			ShaderModel Model = GetShaderModel();
 			if (Model == ShaderModel::Auto || Model == ShaderModel::Invalid)
 			{
-				TH_ERR("cannot transpile shader source without explicit shader model version");
+				TH_ERR("[graphics] cannot transpile shader source without explicit shader model version");
 				return false;
 			}
 
@@ -1230,7 +1230,7 @@ namespace Tomahawk
 					Stage = EShLangCompute;
 					break;
 				default:
-					TH_ERR("cannot transpile shader source without explicit shader type");
+					TH_ERR("[graphics] cannot transpile shader source without explicit shader type");
 					return false;
 			}
 
@@ -1251,7 +1251,7 @@ namespace Tomahawk
 			if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
 			{
 				const char* Output = Transpiler.getInfoLog();
-				TH_ERR("cannot transpile shader source\n\t%s", Output);
+				TH_ERR("[graphics] cannot transpile shader source\n\t%s", Output);
 
 				glslang::FinalizeProcess();
 				return false;
@@ -1270,7 +1270,7 @@ namespace Tomahawk
 			}
 			catch (...)
 			{
-				TH_ERR("cannot transpile shader source to spirv binary");
+				TH_ERR("[graphics] cannot transpile shader source to spirv binary");
 				glslang::FinalizeProcess();
 				return false;
 			}
@@ -1334,19 +1334,19 @@ namespace Tomahawk
 			}
 			catch (const spirv_cross::CompilerError& Exception)
 			{
-				TH_ERR("cannot transpile spirv binary to shader binary\n\t%s", Exception.what());
+				TH_ERR("[graphics] cannot transpile spirv binary to shader binary\n\t%s", Exception.what());
 				return false;
 			}
 			catch (...)
 			{
-				TH_ERR("cannot transpile spirv binary to shader binary");
+				TH_ERR("[graphics] cannot transpile spirv binary to shader binary");
 				return false;
 			}
 
-			TH_ERR("shader source can be transpiled only to GLSL, GLSL_ES, HLSL, MSL or SPV");
+			TH_ERR("[graphics] shader source can be transpiled only to GLSL, GLSL_ES, HLSL, MSL or SPV");
 			return false;
 #else
-			TH_ERR("cannot transpile shader source without reshade libraries");
+			TH_ERR("[graphics] cannot transpile shader source without reshade libraries");
 			return false;
 #endif
 		}
@@ -1355,7 +1355,7 @@ namespace Tomahawk
 			if (Name.empty() || Sections.empty())
 			{
 				if (!Internal)
-					TH_ERR("\n\tcould not find shader: \"%s\"");
+					TH_ERR("[graphics] could not find shader: \"%s\"");
 
 				return false;
 			}
@@ -1383,7 +1383,7 @@ namespace Tomahawk
 				*Result = nullptr;
 
 			if (!Internal)
-				TH_ERR("\n\tcould not find shader: \"%s\"", Name.c_str());
+				TH_ERR("[graphics] could not find shader: \"%s\"", Name.c_str());
 
 			return false;
 		}
@@ -1431,7 +1431,7 @@ namespace Tomahawk
 			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer))) > 0)
 				Data->append(std::string(Buffer, Size));
 
-			TH_TRACE("load %s program cache", Name.c_str());
+			TH_TRACE("[graphics] load %s program cache", Name.c_str());
 			TH_RELEASE(Stream);
 
 			return !Data->empty();
@@ -1455,7 +1455,7 @@ namespace Tomahawk
 			uint64_t Size = (uint64_t)Data.size();
 			bool Result = (Stream->Write(Data.c_str(), Size) == Size);
 
-			TH_TRACE("save %s program cache", Name.c_str());
+			TH_TRACE("[graphics] save %s program cache", Name.c_str());
 			TH_RELEASE(Stream);
 
 			return Result;
@@ -1630,7 +1630,7 @@ namespace Tomahawk
 			if (I.Backend == RenderBackend::OGL)
 				return new OGL::OGLDevice(I);
 #endif
-			TH_ERR("backend was not found");
+			TH_ERR("[graphics] backend was not found");
 			return nullptr;
 		}
 

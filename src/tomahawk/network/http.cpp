@@ -2277,7 +2277,7 @@ namespace Tomahawk
 					TH_CLOSE(Stream);
 
 					if (!Core::OS::File::Remove(Schema.c_str()))
-						TH_ERR("session file %s cannot be deleted", Schema.c_str());
+						TH_ERR("[http] session file %s cannot be deleted", Schema.c_str());
 
 					return false;
 				}
@@ -2349,7 +2349,7 @@ namespace Tomahawk
 
 					std::string Filename = (Split ? Path + '/' : Path) + Item.Path;
 					if (!Core::OS::File::Remove(Filename.c_str()))
-						TH_ERR("couldn't invalidate session\n\t%s", Item.Path.c_str());
+						TH_ERR("[http] couldn't invalidate session\n\t%s", Item.Path.c_str());
 				}
 
 				return true;
@@ -5696,14 +5696,14 @@ namespace Tomahawk
 									for (auto& Name : Result)
 										Files += "\n\t" + Name;
 
-									TH_ERR("(vm) there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
+									TH_ERR("[vm] there are errors in %i module(s)%s", (int)Result.size(), Files.c_str());
 									Entry->Gateway.Enabled = Success = false;
 									break;
 								}
 							}
 
 							if (Entry->Gateway.Enabled && !Route->Gateway.Files.empty())
-								TH_TRACE("(vm) modules are verified for: %s", Route->DocumentRoot.c_str());
+								TH_TRACE("[vm] modules are verified for: %s", Route->DocumentRoot.c_str());
 						}
 					}
 
@@ -5919,10 +5919,10 @@ namespace Tomahawk
 					if (!Entry->ResourceRoot.empty())
 					{
 						if (!Core::OS::Directory::Remove(Entry->ResourceRoot.c_str()))
-							TH_ERR("resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
+							TH_ERR("[http] resource directory %s cannot be deleted", Entry->ResourceRoot.c_str());
 
 						if (!Core::OS::Directory::Create(Entry->ResourceRoot.c_str()))
-							TH_ERR("resource directory %s cannot be created", Entry->ResourceRoot.c_str());
+							TH_ERR("[http] resource directory %s cannot be created", Entry->ResourceRoot.c_str());
 					}
 
 					if (!Entry->Gateway.Session.DocumentRoot.empty())

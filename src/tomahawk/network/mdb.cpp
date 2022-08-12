@@ -1243,7 +1243,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (!Command.Get())
 				{
-					TH_ERR("cannot run empty query");
+					TH_ERR("[mongoc] cannot run empty query");
 					return false;
 				}
 
@@ -1251,7 +1251,7 @@ namespace Tomahawk
 				if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
 				{
 					Command.Release();
-					TH_ERR("cannot run query without query @type");
+					TH_ERR("[mongoc] cannot run query without query @type");
 					return false;
 				}
 
@@ -1261,7 +1261,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-one query without @match");
+						TH_ERR("[mongoc] cannot run update-one query without @match");
 						return false;
 					}
 
@@ -1269,7 +1269,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-one query without @update");
+						TH_ERR("[mongoc] cannot run update-one query without @update");
 						return false;
 					}
 
@@ -1284,7 +1284,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-many query without @match");
+						TH_ERR("[mongoc] cannot run update-many query without @match");
 						return false;
 					}
 
@@ -1292,7 +1292,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-many query without @update");
+						TH_ERR("[mongoc] cannot run update-many query without @update");
 						return false;
 					}
 
@@ -1307,7 +1307,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run insert-one query without @value");
+						TH_ERR("[mongoc] cannot run insert-one query without @value");
 						return false;
 					}
 
@@ -1322,7 +1322,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run replace-one query without @match");
+						TH_ERR("[mongoc] cannot run replace-one query without @match");
 						return false;
 					}
 
@@ -1330,7 +1330,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run replace-one query without @value");
+						TH_ERR("[mongoc] cannot run replace-one query without @value");
 						return false;
 					}
 
@@ -1345,7 +1345,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run remove-one query without @value");
+						TH_ERR("[mongoc] cannot run remove-one query without @value");
 						return false;
 					}
 
@@ -1360,7 +1360,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run remove-many query without @value");
+						TH_ERR("[mongoc] cannot run remove-many query without @value");
 						return false;
 					}
 
@@ -1371,7 +1371,7 @@ namespace Tomahawk
 				}
 
 				Command.Release();
-				TH_ERR("cannot find query of type \"%s\"", Type.String.c_str());
+				TH_ERR("[mongoc] cannot find query of type \"%s\"", Type.String.c_str());
 				return false;
 #else
 				return false;
@@ -2136,7 +2136,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (!Command.Get())
 				{
-					TH_ERR("cannot run empty query");
+					TH_ERR("[mongoc] cannot run empty query");
 					return Response();
 				}
 
@@ -2144,7 +2144,7 @@ namespace Tomahawk
 				if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
 				{
 					Command.Release();
-					TH_ERR("cannot run query without query @type");
+					TH_ERR("[mongoc] cannot run query without query @type");
 					return Response();
 				}
 
@@ -2176,7 +2176,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run aggregation query in transaction");
+						TH_ERR("[mongoc] cannot run aggregation query in transaction");
 						return Response();
 					}
 
@@ -2184,7 +2184,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("pipeline", &Pipeline) || Pipeline.Mod != Type::Array)
 					{
 						Command.Release();
-						TH_ERR("cannot run aggregation query without @pipeline");
+						TH_ERR("[mongoc] cannot run aggregation query without @pipeline");
 						return Response();
 					}
 
@@ -2200,7 +2200,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run find-one query in transaction");
+						TH_ERR("[mongoc] cannot run find-one query in transaction");
 						return Response();
 					}
 
@@ -2208,7 +2208,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run find-one query without @match");
+						TH_ERR("[mongoc] cannot run find-one query without @match");
 						return Response();
 					}
 
@@ -2224,7 +2224,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run find-many query in transaction");
+						TH_ERR("[mongoc] cannot run find-many query in transaction");
 						return Response();
 					}
 
@@ -2232,7 +2232,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run find-many query without @match");
+						TH_ERR("[mongoc] cannot run find-many query without @match");
 						return Response();
 					}
 
@@ -2248,7 +2248,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run update-one query in transaction");
+						TH_ERR("[mongoc] cannot run update-one query in transaction");
 						return Response();
 					}
 
@@ -2256,7 +2256,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-one query without @match");
+						TH_ERR("[mongoc] cannot run update-one query without @match");
 						return Response();
 					}
 
@@ -2264,7 +2264,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-one query without @update");
+						TH_ERR("[mongoc] cannot run update-one query without @update");
 						return Response();
 					}
 
@@ -2280,7 +2280,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run update-many query in transaction");
+						TH_ERR("[mongoc] cannot run update-many query in transaction");
 						return Response();
 					}
 
@@ -2288,7 +2288,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-many query without @match");
+						TH_ERR("[mongoc] cannot run update-many query without @match");
 						return Response();
 					}
 
@@ -2296,7 +2296,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run update-many query without @update");
+						TH_ERR("[mongoc] cannot run update-many query without @update");
 						return Response();
 					}
 
@@ -2312,7 +2312,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run insert-one query in transaction");
+						TH_ERR("[mongoc] cannot run insert-one query in transaction");
 						return Response();
 					}
 
@@ -2320,7 +2320,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run insert-one query without @value");
+						TH_ERR("[mongoc] cannot run insert-one query without @value");
 						return Response();
 					}
 
@@ -2336,7 +2336,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run insert-many query in transaction");
+						TH_ERR("[mongoc] cannot run insert-many query in transaction");
 						return Response();
 					}
 
@@ -2344,7 +2344,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("values", &Values) || Values.Mod != Type::Array)
 					{
 						Command.Release();
-						TH_ERR("cannot run insert-many query without @values");
+						TH_ERR("[mongoc] cannot run insert-many query without @values");
 						return Response();
 					}
 
@@ -2367,7 +2367,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run find-and-modify query without @match");
+						TH_ERR("[mongoc] cannot run find-and-modify query without @match");
 						return Response();
 					}
 
@@ -2390,7 +2390,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run replace-one query in transaction");
+						TH_ERR("[mongoc] cannot run replace-one query in transaction");
 						return Response();
 					}
 
@@ -2398,7 +2398,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run replace-one query without @match");
+						TH_ERR("[mongoc] cannot run replace-one query without @match");
 						return Response();
 					}
 
@@ -2406,7 +2406,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run replace-one query without @value");
+						TH_ERR("[mongoc] cannot run replace-one query without @value");
 						return Response();
 					}
 
@@ -2422,7 +2422,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run remove-one query in transaction");
+						TH_ERR("[mongoc] cannot run remove-one query in transaction");
 						return Response();
 					}
 
@@ -2430,7 +2430,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run remove-one query without @value");
+						TH_ERR("[mongoc] cannot run remove-one query without @value");
 						return Response();
 					}
 
@@ -2446,7 +2446,7 @@ namespace Tomahawk
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						Command.Release();
-						TH_ERR("cannot run remove-many query in transaction");
+						TH_ERR("[mongoc] cannot run remove-many query in transaction");
 						return Response();
 					}
 
@@ -2454,7 +2454,7 @@ namespace Tomahawk
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Schema)
 					{
 						Command.Release();
-						TH_ERR("cannot run remove-many query without @value");
+						TH_ERR("[mongoc] cannot run remove-many query without @value");
 						return Response();
 					}
 
@@ -2466,7 +2466,7 @@ namespace Tomahawk
 				}
 
 				Command.Release();
-				TH_ERR("cannot find query of type \"%s\"", Type.String.c_str());
+				TH_ERR("[mongoc] cannot find query of type \"%s\"", Type.String.c_str());
 				return Response();
 #else
 				return Response();
@@ -3128,7 +3128,7 @@ namespace Tomahawk
 					if (!Base)
 					{
 						Future = false;
-						TH_ERR("couldn't connect to requested URI");
+						TH_ERR("[mongoc] couldn't connect to requested URI");
 						TH_PPOP();
 						return;
 					}
@@ -3170,7 +3170,7 @@ namespace Tomahawk
 					else
 					{
 						Future = false;
-						TH_ERR("couldn't connect to requested URI");
+						TH_ERR("[mongoc] couldn't connect to requested URI");
 					}
 					TH_PPOP();
 				});
@@ -3233,13 +3233,13 @@ namespace Tomahawk
 
 							if (State == TransactionState::Retry_Commit)
 							{
-								TH_WARN("[mdb] retrying transaction commit");
+								TH_WARN("[mongoc] retrying transaction commit");
 								continue;
 							}
 
 							if (State == TransactionState::Retry)
 							{
-								TH_WARN("[mdb] retrying full transaction");
+								TH_WARN("[mongoc] retrying full transaction");
 								break;
 							}
 						}
@@ -3278,13 +3278,13 @@ namespace Tomahawk
 
 							if (State == TransactionState::Retry_Commit)
 							{
-								TH_WARN("[mdb] retrying transaction commit");
+								TH_WARN("[mongoc] retrying transaction commit");
 								continue;
 							}
 
 							if (State == TransactionState::Retry)
 							{
-								TH_WARN("[mdb] retrying full transaction");
+								TH_WARN("[mongoc] retrying full transaction");
 								break;
 							}
 						}
@@ -3326,7 +3326,7 @@ namespace Tomahawk
 				mongoc_server_description_t* Server = mongoc_client_select_server(Base, ForWrites, nullptr, &Error);
 				if (Server == nullptr)
 				{
-					TH_ERR("command fail: %s", Error.message);
+					TH_ERR("[mongoc] command fail: %s", Error.message);
 					return false;
 				}
 
@@ -3469,7 +3469,7 @@ namespace Tomahawk
 					if (!Pool)
 					{
 						Future = false;
-						TH_ERR("couldn't connect to requested URI");
+						TH_ERR("[mongoc] couldn't connect to requested URI");
 						TH_PPOP();
 						return;
 					}
@@ -3513,7 +3513,7 @@ namespace Tomahawk
 					else
 					{
 						Future = false;
-						TH_ERR("couldn't connect to requested URI");
+						TH_ERR("[mongoc] couldn't connect to requested URI");
 					}
 
 					TH_PPOP();
@@ -3917,7 +3917,7 @@ namespace Tomahawk
 					auto It = Map->find(Word.Key);
 					if (It == Map->end())
 					{
-						TH_ERR("[pq] template query %s\n\texpects parameter: %s", Name.c_str(), Word.Key.c_str());
+						TH_ERR("[mongoc] template query %s\n\texpects parameter: %s", Name.c_str(), Word.Key.c_str());
 						continue;
 					}
 

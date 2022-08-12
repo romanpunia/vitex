@@ -103,7 +103,7 @@ namespace Tomahawk
 				AudioFilter* Target = Core::Composer::Create<AudioFilter>(Id);
 				if (!Target)
 				{
-					TH_WARN("audio filter with id %llu cannot be created", Id);
+					TH_WARN("[audio] filter with id %llu cannot be created", Id);
 					return nullptr;
 				}
 

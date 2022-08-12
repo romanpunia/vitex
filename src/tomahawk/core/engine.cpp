@@ -5364,7 +5364,7 @@ namespace Tomahawk
 
 			if (!Processor)
 			{
-				TH_ERR("file processor for \"%s\" wasn't found", Path.c_str());
+				TH_ERR("[engine] file processor for \"%s\" wasn't found", Path.c_str());
 				return nullptr;
 			}
 
@@ -5381,7 +5381,7 @@ namespace Tomahawk
 
 				if (File.empty())
 				{
-					TH_ERR("file \"%s\" wasn't found", Path.c_str());
+					TH_ERR("[engine] file \"%s\" wasn't found", Path.c_str());
 					return nullptr;
 				}
 			}
@@ -5418,7 +5418,7 @@ namespace Tomahawk
 			auto It = Streams.find(Docker->second->Stream);
 			if (It == Streams.end())
 			{
-				TH_ERR("cannot resolve stream offset for \"%s\"", Path.c_str());
+				TH_ERR("[engine] cannot resolve stream offset for \"%s\"", Path.c_str());
 				return nullptr;
 			}
 
@@ -5436,7 +5436,7 @@ namespace Tomahawk
 
 			if (!Processor)
 			{
-				TH_ERR("file processor for \"%s\" wasn't found", Path.c_str());
+				TH_ERR("[engine] file processor for \"%s\" wasn't found", Path.c_str());
 				return false;
 			}
 
@@ -5452,7 +5452,7 @@ namespace Tomahawk
 				Stream = Core::OS::File::Open(Path, Core::FileMode::Binary_Write_Only);
 				if (!Stream)
 				{
-					TH_ERR("cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
+					TH_ERR("[engine] cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
 					TH_RELEASE(Stream);
 					return false;
 				}
@@ -5471,14 +5471,14 @@ namespace Tomahawk
 
 			if (File.empty())
 			{
-				TH_ERR("file \"%s\" wasn't found", Path.c_str());
+				TH_ERR("[engine] file \"%s\" wasn't found", Path.c_str());
 				return false;
 			}
 
 			auto* Stream = new Core::GzStream();
 			if (!Stream->Open(File.c_str(), Core::FileMode::Binary_Read_Only))
 			{
-				TH_ERR("cannot open \"%s\" for reading", File.c_str());
+				TH_ERR("[engine] cannot open \"%s\" for reading", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5487,7 +5487,7 @@ namespace Tomahawk
 			char Buffer[16];
 			if (Stream->Read(Buffer, 16) != 16)
 			{
-				TH_ERR("file \"%s\" has corrupted header", File.c_str());
+				TH_ERR("[engine] file \"%s\" has corrupted header", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5495,7 +5495,7 @@ namespace Tomahawk
 
 			if (memcmp(Buffer, "\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16) != 0)
 			{
-				TH_ERR("file \"%s\" header version is corrupted", File.c_str());
+				TH_ERR("[engine] file \"%s\" header version is corrupted", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5504,7 +5504,7 @@ namespace Tomahawk
 			uint64_t Size = 0;
 			if (Stream->Read((char*)&Size, sizeof(uint64_t)) != sizeof(uint64_t))
 			{
-				TH_ERR("file \"%s\" has corrupted dock size", File.c_str());
+				TH_ERR("[engine] file \"%s\" has corrupted dock size", File.c_str());
 				TH_RELEASE(Stream);
 
 				return false;
@@ -5543,7 +5543,7 @@ namespace Tomahawk
 			auto* Stream = new Core::GzStream();
 			if (!Stream->Open(Core::OS::Path::Resolve(Path, Environment).c_str(), Core::FileMode::Write_Only))
 			{
-				TH_ERR("cannot open \"%s\" for writing", Path.c_str());
+				TH_ERR("[engine] cannot open \"%s\" for writing", Path.c_str());
 				TH_RELEASE(Stream);
 				return false;
 			}
@@ -5847,7 +5847,7 @@ namespace Tomahawk
 						Renderer = Graphics::GraphicsDevice::Create(I->GraphicsDevice);
 						if (!Renderer || !Renderer->IsValid())
 						{
-							TH_ERR("graphics device cannot be created");
+							TH_ERR("[engine] graphics device cannot be created");
 							return;
 						}
 
@@ -5860,7 +5860,7 @@ namespace Tomahawk
 					}
 					else if (!Activity->GetHandle())
 					{
-						TH_ERR("cannot create activity instance");
+						TH_ERR("[engine] cannot create activity instance");
 						return;
 					}
 
@@ -5908,7 +5908,7 @@ namespace Tomahawk
 
 				}
 				else
-					TH_ERR("cannot detect display to create activity");
+					TH_ERR("[engine] cannot detect display to create activity");
 			}
 #endif
 			if (I->Usage & (size_t)ApplicationSet::AudioSet)
@@ -5916,7 +5916,7 @@ namespace Tomahawk
 				Audio = new Audio::AudioDevice();
 				if (!Audio->IsValid())
 				{
-					TH_ERR("audio device cannot be created");
+					TH_ERR("[engine] audio device cannot be created");
 					return;
 				}
 			}
@@ -5995,19 +5995,19 @@ namespace Tomahawk
 
 			if (Control.Usage & (size_t)ApplicationSet::ActivitySet && !Activity)
 			{
-				TH_ERR("[conf] activity was not found");
+				TH_ERR("[engine] activity was not found");
 				return;
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::GraphicsSet && !Renderer)
 			{
-				TH_ERR("[conf] graphics device was not found");
+				TH_ERR("[engine] graphics device was not found");
 				return;
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::AudioSet && !Audio)
 			{
-				TH_ERR("[conf] audio device was not found");
+				TH_ERR("[engine] audio device was not found");
 				return;
 			}
 
@@ -6015,7 +6015,7 @@ namespace Tomahawk
 			{
 				if (!VM)
 				{
-					TH_ERR("[conf] vm was not found");
+					TH_ERR("[engine] vm was not found");
 					return;
 				}
 				else

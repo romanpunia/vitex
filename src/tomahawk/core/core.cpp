@@ -2563,14 +2563,14 @@ namespace Tomahawk
 			if (DateRebuild)
 				Rebuild();
 
-			return DateValue.tm_min + 1;
+			return DateValue.tm_min;
 		}
 		uint64_t DateTime::DateHour()
 		{
 			if (DateRebuild)
 				Rebuild();
 
-			return DateValue.tm_hour + 1;
+			return DateValue.tm_hour;
 		}
 		uint64_t DateTime::DateDay()
 		{
@@ -5922,10 +5922,10 @@ namespace Tomahawk
 			TH_ASSERT_V(Path != nullptr, "path should be set");
 #ifdef TH_MICROSOFT
 			if (!SetCurrentDirectoryA(Path))
-				TH_ERR("[dir] couldn't set current directory");
+				TH_ERR("[io] couldn't set current directory");
 #elif defined(TH_UNIX)
 			if (chdir(Path) != 0)
-				TH_ERR("[dir] couldn't set current directory");
+				TH_ERR("[io] couldn't set current directory");
 #endif
 		}
 		void OS::Directory::Patch(const std::string& Path)
@@ -6848,7 +6848,7 @@ namespace Tomahawk
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
 			{
-				TH_ERR("cannot create job object for process");
+				TH_ERR("[io] cannot create job object for process");
 				return false;
 			}
 
@@ -6856,7 +6856,7 @@ namespace Tomahawk
 			Info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 			if (SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Info, sizeof(Info)) == 0)
 			{
-				TH_ERR("cannot set job object for process");
+				TH_ERR("[io] cannot set job object for process");
 				return false;
 			}
 
@@ -6879,7 +6879,7 @@ namespace Tomahawk
 
 			if (!CreateProcessA(Exe.Get(), Args.Value(), nullptr, nullptr, TRUE, CREATE_BREAKAWAY_FROM_JOB | HIGH_PRIORITY_CLASS, nullptr, nullptr, &StartupInfo, &Process))
 			{
-				TH_ERR("cannot spawn process %s", Exe.Get());
+				TH_ERR("[io] cannot spawn process %s", Exe.Get());
 				return false;
 			}
 
@@ -6897,7 +6897,7 @@ namespace Tomahawk
 #else
 			if (!File::IsExists(Path.c_str()))
 			{
-				TH_ERR("cannot spawn process %s (file does not exists)", Path.c_str());
+				TH_ERR("[io] cannot spawn process %s (file does not exists)", Path.c_str());
 				return false;
 			}
 
@@ -7034,7 +7034,7 @@ namespace Tomahawk
 				LocalFree(Display);
 
 				if (!Text.empty())
-					TH_ERR("[dl] symload error: %s", Text.c_str());
+					TH_ERR("[io] symload error: %s", Text.c_str());
 			}
 
 			return Result;
@@ -7044,7 +7044,7 @@ namespace Tomahawk
 			{
 				const char* Text = dlerror();
 				if (Text != nullptr)
-					TH_ERR("[dl] symload error: %s", Text);
+					TH_ERR("[io] symload error: %s", Text);
 			}
 
 			return Result;
@@ -7384,44 +7384,44 @@ namespace Tomahawk
 				int ErrorCode = OS::Error::Get();
 #ifdef TH_MICROSOFT
 				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
+					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n", Date, Format);
 #else
 				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s [err] %s\n", Date, Format);
+					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n", Date, Format);
 #endif
 			}
 			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s [warn] %s\n", Date, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s WARN %s\n", Date, Format);
 			else if (Level == 4)
-				snprintf(Buffer, sizeof(Buffer), "%s [sys] %s\n", Date, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s DEBUG %s\n", Date, Format);
 			else
-				snprintf(Buffer, sizeof(Buffer), "%s [info] %s\n", Date, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s INFO %s\n", Date, Format);
 #else
 			if (Level == 1)
 			{
 				int ErrorCode = OS::Error::Get();
 #ifdef TH_MICROSOFT
 				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n", Date, Source ? Source : "log", Line, Format);
 #else
 				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Format);
+					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n", Date, Source ? Source : "log", Line, Format);
 #endif
 			}
 			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [warn] %s\n", Date, Source ? Source : "log", Line, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d WARN %s\n", Date, Source ? Source : "log", Line, Format);
 			else if (Level == 4)
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [sys] %s\n", Date, Source ? Source : "log", Line, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d DEBUG %s\n", Date, Source ? Source : "log", Line, Format);
 			else
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d [info] %s\n", Date, Source ? Source : "log", Line, Format);
+				snprintf(Buffer, sizeof(Buffer), "%s %s:%d INFO %s\n", Date, Source ? Source : "log", Line, Format);
 #endif
 			char Storage[8192];
 			va_list Args;
@@ -8294,9 +8294,9 @@ namespace Tomahawk
 			std::string ThreadId = OS::Process::GetThreadId(Thread->Id);
 
 			if (Thread->Daemon)
-				TH_TRACE("acquire thread %s", ThreadId.c_str());
+				TH_TRACE("[schedule] acquire thread %s", ThreadId.c_str());
 			else
-				TH_TRACE("spawn thread %s", ThreadId.c_str());
+				TH_TRACE("[schedule] spawn thread %s", ThreadId.c_str());
 
 			switch (Type)
 			{
@@ -8439,9 +8439,9 @@ namespace Tomahawk
 			}
 
 			if (Thread->Daemon)
-				TH_TRACE("release thread %s", ThreadId.c_str());
+				TH_TRACE("[schedule] release thread %s", ThreadId.c_str());
 			else
-				TH_TRACE("join thread %s", ThreadId.c_str());
+				TH_TRACE("[schedule] join thread %s", ThreadId.c_str());
 
 			return true;
 		}
@@ -9491,7 +9491,7 @@ namespace Tomahawk
 			if (!Callback((char*)Hello, sizeof(char) * 16))
 			{
 				if (Assert)
-					TH_ERR("form cannot be defined");
+					TH_ERR("[jsonb] form cannot be defined");
 
 				return nullptr;
 			}
@@ -9499,7 +9499,7 @@ namespace Tomahawk
 			if (memcmp((void*)Hello, (void*)"\0b\0i\0n\0h\0e\0a\0d\r\n", sizeof(char) * 16) != 0)
 			{
 				if (Assert)
-					TH_ERR("version is undefined");
+					TH_ERR("[jsonb] version is undefined");
 
 				return nullptr;
 			}
@@ -9508,7 +9508,7 @@ namespace Tomahawk
 			if (!Callback((char*)&Set, sizeof(uint32_t)))
 			{
 				if (Assert)
-					TH_ERR("name map is undefined");
+					TH_ERR("[jsonb] name map is undefined");
 
 				return nullptr;
 			}
@@ -9520,7 +9520,7 @@ namespace Tomahawk
 				if (!Callback((char*)&Index, sizeof(uint32_t)))
 				{
 					if (Assert)
-						TH_ERR("name index is undefined");
+						TH_ERR("[jsonb] name index is undefined");
 
 					return nullptr;
 				}
@@ -9529,7 +9529,7 @@ namespace Tomahawk
 				if (!Callback((char*)&Size, sizeof(uint16_t)))
 				{
 					if (Assert)
-						TH_ERR("name size is undefined");
+						TH_ERR("[jsonb] name size is undefined");
 
 					return nullptr;
 				}
@@ -9542,7 +9542,7 @@ namespace Tomahawk
 				if (!Callback((char*)Name.c_str(), sizeof(char) * (uint64_t)Size))
 				{
 					if (Assert)
-						TH_ERR("name data is undefined");
+						TH_ERR("[jsonb] name data is undefined");
 
 					return nullptr;
 				}
@@ -9745,7 +9745,7 @@ namespace Tomahawk
 			uint32_t Id = 0;
 			if (!Callback((char*)&Id, sizeof(uint32_t)))
 			{
-				TH_ERR("key name index is undefined");
+				TH_ERR("[jsonb] key name index is undefined");
 				return false;
 			}
 
@@ -9755,7 +9755,7 @@ namespace Tomahawk
 
 			if (!Callback((char*)&Current->Value.Type, sizeof(VarType)))
 			{
-				TH_ERR("key type is undefined");
+				TH_ERR("[jsonb] key type is undefined");
 				return false;
 			}
 
@@ -9767,7 +9767,7 @@ namespace Tomahawk
 					uint32_t Count = 0;
 					if (!Callback((char*)&Count, sizeof(uint32_t)))
 					{
-						TH_ERR("key value size is undefined");
+						TH_ERR("[jsonb] key value size is undefined");
 						return false;
 					}
 
@@ -9792,7 +9792,7 @@ namespace Tomahawk
 					uint32_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint32_t)))
 					{
-						TH_ERR("key value size is undefined");
+						TH_ERR("[jsonb] key value size is undefined");
 						return false;
 					}
 
@@ -9801,7 +9801,7 @@ namespace Tomahawk
 
 					if (!Callback((char*)Buffer.c_str(), (uint64_t)Size * sizeof(char)))
 					{
-						TH_ERR("key value data is undefined");
+						TH_ERR("[jsonb] key value data is undefined");
 						return false;
 					}
 
@@ -9813,7 +9813,7 @@ namespace Tomahawk
 					uint32_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint32_t)))
 					{
-						TH_ERR("key value size is undefined");
+						TH_ERR("[jsonb] key value size is undefined");
 						return false;
 					}
 
@@ -9822,7 +9822,7 @@ namespace Tomahawk
 
 					if (!Callback((char*)Buffer.c_str(), (uint64_t)Size * sizeof(char)))
 					{
-						TH_ERR("key value data is undefined");
+						TH_ERR("[jsonb] key value data is undefined");
 						return false;
 					}
 
@@ -9834,7 +9834,7 @@ namespace Tomahawk
 					int64_t Integer = 0;
 					if (!Callback((char*)&Integer, sizeof(int64_t)))
 					{
-						TH_ERR("key value is undefined");
+						TH_ERR("[jsonb] key value is undefined");
 						return false;
 					}
 
@@ -9846,7 +9846,7 @@ namespace Tomahawk
 					double Number = 0.0;
 					if (!Callback((char*)&Number, sizeof(double)))
 					{
-						TH_ERR("key value is undefined");
+						TH_ERR("[jsonb] key value is undefined");
 						return false;
 					}
 
@@ -9858,7 +9858,7 @@ namespace Tomahawk
 					uint16_t Size = 0;
 					if (!Callback((char*)&Size, sizeof(uint16_t)))
 					{
-						TH_ERR("key value size is undefined");
+						TH_ERR("[jsonb] key value size is undefined");
 						return false;
 					}
 
@@ -9867,7 +9867,7 @@ namespace Tomahawk
 
 					if (!Callback((char*)Buffer.c_str(), (uint64_t)Size * sizeof(char)))
 					{
-						TH_ERR("key value data is undefined");
+						TH_ERR("[jsonb] key value data is undefined");
 						return false;
 					}
 
@@ -9879,7 +9879,7 @@ namespace Tomahawk
 					bool Boolean = false;
 					if (!Callback((char*)&Boolean, sizeof(bool)))
 					{
-						TH_ERR("key value is undefined");
+						TH_ERR("[jsonb] key value is undefined");
 						return false;
 					}
 

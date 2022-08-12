@@ -744,11 +744,11 @@ namespace Tomahawk
 			if (!Device)
 			{
 				AudioContext::Unlock();
-				TH_ERR("couldn't create alc device");
+				TH_ERR("[audio] couldn't create alc device");
 
 				int Code = alGetError();
 				if (Code != AL_NO_ERROR)
-					TH_ERR(alGetString(Code));
+					TH_ERR("[audio] %s", alGetString(Code));
 
 				return;
 			}
@@ -757,11 +757,11 @@ namespace Tomahawk
 			if (!Context)
 			{
 				AudioContext::Unlock();
-				TH_ERR("couldn't create alc device context");
+				TH_ERR("[audio] couldn't create alc device context");
 
 				int Code = alcGetError((ALCdevice*)Device);
 				if (Code != AL_NO_ERROR)
-					TH_ERR(alcGetString((ALCdevice*)Device, Code));
+					TH_ERR("[audio] %s", alcGetString((ALCdevice*)Device, Code));
 
 				return;
 			}
@@ -965,14 +965,14 @@ namespace Tomahawk
 			if ((ALCCode = alcGetError((ALCdevice*)Device)) != ALC_NO_ERROR)
 			{
 				AudioContext::Unlock();
-				TH_ERR(alcGetString((ALCdevice*)Device, ALCCode));
+				TH_ERR("[audio] %s", alcGetString((ALCdevice*)Device, ALCCode));
 				AudioContext::Lock();
 			}
 
 			if ((ALCode = alGetError()) != AL_NO_ERROR)
 			{
 				AudioContext::Unlock();
-				TH_ERR(alGetString(ALCode));
+				TH_ERR("[audio] %s", alGetString(ALCode));
 				AudioContext::Lock();
 			}
 			AudioContext::Unlock();

@@ -685,7 +685,7 @@ namespace Tomahawk
 					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 					if (!Instance)
 					{
-						TH_ERR("cannot create soft body");
+						TH_ERR("[engine] cannot create soft body");
 						TH_RELEASE(Shape);
 						return;
 					}
@@ -722,7 +722,7 @@ namespace Tomahawk
 					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 					if (!Instance)
 					{
-						TH_ERR("cannot create soft body");
+						TH_ERR("[engine] cannot create soft body");
 						return;
 					}
 
@@ -748,7 +748,7 @@ namespace Tomahawk
 					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 					if (!Instance)
 					{
-						TH_ERR("cannot create soft body");
+						TH_ERR("[engine] cannot create soft body");
 						return;
 					}
 
@@ -774,7 +774,7 @@ namespace Tomahawk
 					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 					if (!Instance)
 					{
-						TH_ERR("cannot create soft body");
+						TH_ERR("[engine] cannot create soft body");
 						return;
 					}
 
@@ -815,7 +815,7 @@ namespace Tomahawk
 
 					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
 					if (!Instance)
-						TH_ERR("cannot regenerate soft body");
+						TH_ERR("[engine] cannot regenerate soft body");
 				});
 			}
 			void SoftBody::Clear()
@@ -2546,7 +2546,7 @@ namespace Tomahawk
 					Audio::AudioEffect* Target = Core::Composer::Create<Audio::AudioEffect>(Id);
 					if (!Target)
 					{
-						TH_WARN("audio effect with id %llu cannot be created", Id);
+						TH_WARN("[engine] audio effect with id %llu cannot be created", Id);
 						continue;
 					}
 
@@ -3399,7 +3399,7 @@ namespace Tomahawk
 					Engine::Renderer* Target = Core::Composer::Create<Engine::Renderer>(Id, Renderer);
 					if (!Renderer->AddRenderer(Target))
 					{
-						TH_WARN("cannot create renderer with id %llu", Id);
+						TH_WARN("[engine] cannot create renderer with id %llu", Id);
 						continue;
 					}
 

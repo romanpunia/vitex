@@ -51,7 +51,7 @@ namespace Tomahawk
 
 	void Library::Describe()
 	{
-		TH_INFO("tomahawk %i.%i.%i on %s (%s)"
+		TH_INFO("[tomahawk] %i.%i.%i on %s (%s)"
 			"\n\tfeature options"
 			"\n\t\tDirectX: %s"
 			"\n\t\tOpenGL: %s"
@@ -309,7 +309,7 @@ namespace Tomahawk
 			WSADATA WSAData;
 			WORD VersionRequested = MAKEWORD(2, 2);
 			if (WSAStartup(VersionRequested, &WSAData) != 0)
-				TH_ERR("windows socket refs cannot be initialized");
+				TH_ERR("[tomahawk] windows socket refs cannot be initialized");
 #endif
 		}
 
@@ -343,7 +343,7 @@ namespace Tomahawk
 					CryptoLocks->at(Id)->unlock();
 			});
 #else
-			TH_WARN("openssl ssl cannot be initialized");
+			TH_WARN("[tomahawk] openssl ssl cannot be initialized");
 #endif
 		}
 
@@ -421,9 +421,9 @@ namespace Tomahawk
 					SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 			}
 			else
-				TH_ERR("[sdl2-err] %s", SDL_GetError());
+				TH_ERR("[tomahawk] %s", SDL_GetError());
 #else
-			TH_WARN("sdl2 cannot be initialized");
+			TH_WARN("[tomahawk] sdl2 cannot be initialized");
 #endif
 		}
 
@@ -437,7 +437,7 @@ namespace Tomahawk
 		if (Modes & (uint64_t)Init::Locale)
 		{
 			if (!setlocale(LC_TIME, "C"))
-				TH_WARN("en-US locale cannot be initialized");
+				TH_WARN("[tomahawk] en-US locale cannot be initialized");
 		}
 
 		if (Modes & (uint64_t)Init::Audio)
@@ -500,7 +500,7 @@ namespace Tomahawk
 				CryptoLocks = nullptr;
 			}
 #else
-			TH_WARN("openssl ssl cannot be uninitialized");
+			TH_WARN("[tomahawk] openssl ssl cannot be uninitialized");
 #endif
 		}
 
@@ -509,7 +509,7 @@ namespace Tomahawk
 #ifdef TH_HAS_SDL2
 			SDL_Quit();
 #else
-			TH_WARN("sdl2 cannot be uninitialized");
+			TH_WARN("[tomahawk] sdl2 cannot be uninitialized");
 #endif
 		}
 

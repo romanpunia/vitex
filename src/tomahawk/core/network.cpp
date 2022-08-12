@@ -1857,7 +1857,7 @@ namespace Tomahawk
 			struct addrinfo* Addresses = nullptr;
 			if (getaddrinfo(Host.c_str(), Service.c_str(), &Hints, &Addresses) != 0)
 			{
-				TH_ERR("cannot resolve dns for identity %s", Identity.c_str());
+				TH_ERR("[dns] cannot resolve dns for identity %s", Identity.c_str());
 				TH_PPOP();
 				return nullptr;
 			}
@@ -1895,7 +1895,7 @@ namespace Tomahawk
 			if (!Good)
 			{
 				freeaddrinfo(Addresses);
-				TH_ERR("cannot resolve dns for identity %s", Identity.c_str());
+				TH_ERR("[dns] cannot resolve dns for identity %s", Identity.c_str());
 				TH_PPOP();
 				return nullptr;
 			}
@@ -1971,7 +1971,7 @@ namespace Tomahawk
 			}
 			else if (!Router && !(Router = OnAllocateRouter()))
 			{
-				TH_ERR("cannot allocate router");
+				TH_ERR("[net] cannot allocate router");
 				return false;
 			}
 
@@ -1980,7 +1980,7 @@ namespace Tomahawk
 
 			if (Router->Listeners.empty())
 			{
-				TH_ERR("there are no listeners provided");
+				TH_ERR("[net] there are no listeners provided");
 				return false;
 			}
 
@@ -1997,18 +1997,18 @@ namespace Tomahawk
 
 				if (Value->Base->Open(It.second.Hostname.c_str(), std::to_string(It.second.Port), DNSType::Listen, &Value->Source))
 				{
-					TH_ERR("cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERR("[net] cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
 				if (Value->Base->Bind(Value->Source))
 				{
-					TH_ERR("cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERR("[net] cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 				if (Value->Base->Listen((int)Router->BacklogQueue))
 				{
-					TH_ERR("cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					TH_ERR("[net] cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
@@ -2018,7 +2018,7 @@ namespace Tomahawk
 
 				if (It.second.Port <= 0 && (It.second.Port = Value->Base->GetPort()) < 0)
 				{
-					TH_ERR("cannot determine listener's port number");
+					TH_ERR("[net] cannot determine listener's port number");
 					return false;
 				}
 			}
@@ -2049,7 +2049,7 @@ namespace Tomahawk
 
 				if (!(It.second.Context = SSL_CTX_new(SSLv23_server_method())))
 				{
-					TH_ERR("cannot create server's SSL context");
+					TH_ERR("[net] cannot create server's SSL context");
 					return false;
 				}
 
@@ -2067,31 +2067,31 @@ namespace Tomahawk
 				{
 					if (SSL_CTX_load_verify_locations(It.second.Context, It.second.Chain.c_str(), It.second.Key.c_str()) != 1)
 					{
-						TH_ERR("SSL_CTX_load_verify_locations(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("[net] cannot load verification locations:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_set_default_verify_paths(It.second.Context) != 1)
 					{
-						TH_ERR("SSL_CTX_set_default_verify_paths(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("[net] cannot set default verification paths:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_certificate_file(It.second.Context, It.second.Chain.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						TH_ERR("SSL_CTX_use_certificate_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("[net] cannot use this certificate file:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (SSL_CTX_use_PrivateKey_file(It.second.Context, It.second.Key.c_str(), SSL_FILETYPE_PEM) <= 0)
 					{
-						TH_ERR("SSL_CTX_use_PrivateKey_file(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("[net] cannot use this private key:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
 					if (!SSL_CTX_check_private_key(It.second.Context))
 					{
-						TH_ERR("SSL_CTX_check_private_key(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("[net] cannot verify this private key:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 
@@ -2106,7 +2106,7 @@ namespace Tomahawk
 				{
 					if (SSL_CTX_set_cipher_list(It.second.Context, It.second.Ciphers.c_str()) != 1)
 					{
-						TH_ERR("SSL_CTX_set_cipher_list(): %s", ERR_error_string(ERR_get_error(), nullptr));
+						TH_ERR("[net] cannot set ciphers list:\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
 						return false;
 					}
 				}
@@ -2126,7 +2126,7 @@ namespace Tomahawk
 			{
 				if (time(nullptr) - Timeout > 5)
 				{
-					TH_ERR("server has stalled connections: %i", (int)Active.size());
+					TH_ERR("[stall] server has stalled connections: %i", (int)Active.size());
 					Sync.lock();
 					OnStall(Active);
 					Sync.unlock();
@@ -2660,7 +2660,7 @@ namespace Tomahawk
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			TH_ERR("%.*s (at %s)", Size, Buffer, Action.empty() ? "request" : Action.c_str());
+			TH_ERR("[net] %.*s\n\tat %s", Size, Buffer, Action.empty() ? "request" : Action.c_str());
 			Stream.CloseAsync(true, [this](Socket*)
 			{
 				return Success(-1);

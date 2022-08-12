@@ -8650,7 +8650,7 @@ namespace Tomahawk
 				Start++;
 				if (Start == End)
 				{
-					TH_ERR("%s: cannot process include directive", Path.c_str());
+					TH_ERR("[preproc] %s: cannot process include directive", Path.c_str());
 					return false;
 				}
 
@@ -8668,7 +8668,7 @@ namespace Tomahawk
 				{
 					if (!Include || !Include(this, File, &Output))
 					{
-						TH_ERR("%s: cannot find \"%s\"", Path.c_str(), Section.Get());
+						TH_ERR("[preproc] %s: cannot find \"%s\"", Path.c_str(), Section.Get());
 						return false;
 					}
 
@@ -8697,7 +8697,7 @@ namespace Tomahawk
 				int R = FindDirective(Buffer, "#pragma", &Offset, &Base, &Start, &End);
 				if (R < 0)
 				{
-					TH_ERR("cannot process pragma directive");
+					TH_ERR("[preproc] cannot process pragma directive");
 					return false;
 				}
 				else if (R == 0)
@@ -8738,7 +8738,7 @@ namespace Tomahawk
 				Value.Substring(0, fStart.Start);
 				if (Pragma && !Pragma(this, Value.R(), Args))
 				{
-					TH_ERR("cannot process pragma \"%s\" directive", Value.Get());
+					TH_ERR("[preproc] cannot process pragma \"%s\" directive", Value.Get());
 					return false;
 				}
 
@@ -8756,7 +8756,7 @@ namespace Tomahawk
 				int R = FindBlockDirective(Buffer, Offset, false);
 				if (R < 0)
 				{
-					TH_ERR("cannot process ifdef/endif directive");
+					TH_ERR("[preproc] cannot process ifdef/endif directive");
 					return false;
 				}
 				else if (R == 0)
@@ -8774,7 +8774,7 @@ namespace Tomahawk
 				int R = FindDefineDirective(Buffer, Base, &Size);
 				if (R < 0)
 				{
-					TH_ERR("cannot process define directive");
+					TH_ERR("[preproc] cannot process define directive");
 					return false;
 				}
 				else if (R == 0)
@@ -8792,7 +8792,7 @@ namespace Tomahawk
 			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
 			if (R < 0)
 			{
-				TH_ERR("cannot process define directive");
+				TH_ERR("[preproc] cannot process define directive");
 				return -1;
 			}
 			else if (R == 0)
@@ -8821,7 +8821,7 @@ namespace Tomahawk
 				R = FindDirective(Buffer, "#ifndef", &Offset, nullptr, &Start, &End);
 				if (R < 0)
 				{
-					TH_ERR("cannot parse ifdef block directive");
+					TH_ERR("[preproc] cannot parse ifdef block directive");
 					return -1;
 				}
 				else if (R == 0)
@@ -8856,7 +8856,7 @@ namespace Tomahawk
 			R = FindBlockNesting(Buffer, Cond, Offset, B1Start + B1End == 0 ? Resolved : !Resolved);
 			if (R < 0)
 			{
-				TH_ERR("cannot find endif directive of %s", Name.Get());
+				TH_ERR("[preproc] cannot find endif directive of %s", Name.Get());
 				return -1;
 			}
 			else if (R == 1)
@@ -8864,7 +8864,7 @@ namespace Tomahawk
 				int C = FindBlockDirective(Buffer, Offset, true);
 				if (C == 0)
 				{
-					TH_ERR("cannot process nested ifdef/endif directive of %s", Name.Get());
+					TH_ERR("[preproc] cannot process nested ifdef/endif directive of %s", Name.Get());
 					return -1;
 				}
 				else if (C < 0)

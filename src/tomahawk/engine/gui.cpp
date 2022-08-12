@@ -3044,7 +3044,7 @@ namespace Tomahawk
 					Core::Schema* IPath = Face->GetAttribute("path");
 					if (!IPath)
 					{
-						TH_ERR("path is required for font face");
+						TH_ERR("[gui] path is required for font face");
 						return false;
 					}
 
@@ -3064,7 +3064,7 @@ namespace Tomahawk
 					Core::Schema* IPath = Schema->GetAttribute("path");
 					if (!IPath)
 					{
-						TH_ERR("path is required for document");
+						TH_ERR("[gui] path is required for document");
 						return false;
 					}
 

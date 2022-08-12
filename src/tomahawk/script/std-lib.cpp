@@ -4159,7 +4159,7 @@ namespace Tomahawk
 			{
 				if (Thread.joinable())
 				{
-					TH_TRACE("join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+					TH_TRACE("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 					Thread.join();
 				}
 
@@ -4217,7 +4217,7 @@ namespace Tomahawk
 				return !((Context && Context->GetState() != VMRuntime::SUSPENDED));
 			}))
 			{
-				TH_TRACE("join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+				TH_TRACE("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 				Thread.join();
 				return 1;
 			}
@@ -4318,13 +4318,13 @@ namespace Tomahawk
 					return false;
 				}
 
-				TH_TRACE("join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+				TH_TRACE("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 				Thread.join();
 			}
 
 			AddRef();
 			Thread = std::thread(&STDThread::Routine, this);
-			TH_TRACE("spawn thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+			TH_TRACE("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 			Mutex.unlock();
 
 			return true;

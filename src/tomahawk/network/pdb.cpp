@@ -1484,6 +1484,14 @@ namespace Tomahawk
 				Update.unlock();
 				Driver::Release();
 			}
+			void Cluster::ClearCache()
+			{
+				Cache.Context.lock();
+				for (auto Item : Cache.Objects)
+					Item.second.second.Release();
+				Cache.Objects.clear();
+				Cache.Context.unlock();
+			}
 			void Cluster::SetCacheCleanup(uint64_t Interval)
 			{
 				Cache.CleanupDuration = Interval;

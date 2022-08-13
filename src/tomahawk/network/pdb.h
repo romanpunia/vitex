@@ -467,6 +467,7 @@ namespace Tomahawk
 			public:
 				Cluster();
 				virtual ~Cluster() override;
+				void ClearCache();
 				void SetCacheCleanup(uint64_t Interval);
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
 				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);

@@ -1866,6 +1866,9 @@ namespace Tomahawk
 			if (Type == VarType::Boolean)
 				return Value.Boolean ? 1 : 0;
 
+			if (Type == VarType::String)
+				return Parser(GetString(), GetSize()).ToInt64();
+
 			return 0;
 		}
 		double Variant::GetNumber() const
@@ -1881,6 +1884,9 @@ namespace Tomahawk
 
 			if (Type == VarType::Boolean)
 				return Value.Boolean ? 1.0 : 0.0;
+
+			if (Type == VarType::String)
+				return Parser(GetString(), GetSize()).ToDouble();
 
 			return 0.0;
 		}

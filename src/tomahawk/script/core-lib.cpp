@@ -507,9 +507,9 @@ namespace Tomahawk
 		{
 			return Base->Value.GetNumber();
 		}
-		std::string SchemaToDecimal(Core::Schema* Base)
+		Core::Decimal SchemaToDecimal(Core::Schema* Base)
 		{
-			return Base->Value.GetDecimal().ToString();
+			return Base->Value.GetDecimal();
 		}
 		bool SchemaToBoolean(Core::Schema* Base)
 		{
@@ -1008,7 +1008,7 @@ namespace Tomahawk
 			VVariant.SetConstructor<Core::Variant, const Core::Variant&>("void f(const Variant &in)");
 			VVariant.SetMethod("bool Deserialize(const String &in, bool = false)", &Core::Variant::Deserialize);
 			VVariant.SetMethod("String Serialize() const", &Core::Variant::Serialize);
-			VVariant.SetMethod("String Dec() const", &Core::Variant::GetDecimal);
+			VVariant.SetMethod("Decimal Dec() const", &Core::Variant::GetDecimal);
 			VVariant.SetMethod("String Str() const", &Core::Variant::GetBlob);
 			VVariant.SetMethod("Address@ Ptr() const", &Core::Variant::GetPointer);
 			VVariant.SetMethod("int64 Int() const", &Core::Variant::GetInteger);
@@ -1128,6 +1128,7 @@ namespace Tomahawk
 			VDateTime.SetOperatorEx(VMOpFunc::Cmp, (uint32_t)VMOp::Const, "int", "const DateTime &in", &DateTimeCmp);
 			VDateTime.SetOperatorEx(VMOpFunc::Add, (uint32_t)VMOp::Const, "DateTime", "const DateTime &in", &DateTimeAdd);
 			VDateTime.SetOperatorEx(VMOpFunc::Sub, (uint32_t)VMOp::Const, "DateTime", "const DateTime &in", &DateTimeSub);
+			VDateTime.SetMethodStatic("String GetGMT(int64)", &Core::DateTime::GetGMTBasedString);
 			Engine->EndNamespace();
 
 			return true;
@@ -1428,7 +1429,7 @@ namespace Tomahawk
 			VSchema.SetMethodEx("String Bin() const", &SchemaToBinary);
 			VSchema.SetMethodEx("int64 Int() const", &SchemaToInteger);
 			VSchema.SetMethodEx("double Num() const", &SchemaToNumber);
-			VSchema.SetMethodEx("String Dec() const", &SchemaToDecimal);
+			VSchema.SetMethodEx("Decimal Dec() const", &SchemaToDecimal);
 			VSchema.SetMethodEx("bool Bool() const", &SchemaToBoolean);
 			VSchema.SetMethodStatic("CE::Schema@ FromJSON(const String &in)", &SchemaFromJSON);
 			VSchema.SetMethodStatic("CE::Schema@ FromXML(const String &in)", &SchemaFromXML);

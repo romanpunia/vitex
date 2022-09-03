@@ -2132,6 +2132,21 @@ namespace Tomahawk
 		{
 			return VCache.Valid;
 		}
+		int VMCompiler::Prepare(VMByteCode* Info)
+		{
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
+
+			if (!Info->Valid || Info->Data.empty())
+				return -1;
+
+			int Result = Prepare(Info->Name, true);
+			if (Result < 0)
+				return Result;
+
+			VCache = *Info;
+			return Result;
+		}
 		int VMCompiler::Prepare(const std::string& ModuleName, bool Scoped)
 		{
 			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
@@ -2841,11 +2856,6 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->WillExceptionBeCaught();
 		}
-		void VMContext::ClearExceptionCallback()
-		{
-			TH_ASSERT_V(Context != nullptr, "context should be set");
-			return Context->ClearExceptionCallback();
-		}
 		int VMContext::SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
@@ -2853,10 +2863,25 @@ namespace Tomahawk
 
 			return Context->SetLineCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
 		}
+		int VMContext::SetLineCallback(const std::function<void(VMContext*)>& Callback)
+		{
+			LineCallback = Callback;
+			return SetLineCallback(&VMContext::LineLogger, this);
+		}
+		int VMContext::SetExceptionCallback(const std::function<void(VMContext*)>& Callback)
+		{
+			ExceptionCallback = Callback;
+			return 0;
+		}
 		void VMContext::ClearLineCallback()
 		{
 			TH_ASSERT_V(Context != nullptr, "context should be set");
-			return Context->ClearLineCallback();
+			Context->ClearLineCallback();
+			LineCallback = nullptr;
+		}
+		void VMContext::ClearExceptionCallback()
+		{
+			ExceptionCallback = nullptr;
 		}
 		unsigned int VMContext::GetCallstackSize() const
 		{
@@ -2963,6 +2988,14 @@ namespace Tomahawk
 
 			return Get(Context);
 		}
+		void VMContext::LineLogger(VMCContext* Context, void*)
+		{
+			VMContext* Base = VMContext::Get(Context);
+			TH_ASSERT_V(Base != nullptr, "context should be set");
+			TH_ASSERT_V(Base->LineCallback, "context should be set");
+
+			Base->LineCallback(Base);
+		}
 		void VMContext::ExceptionLogger(VMCContext* Context, void*)
 		{
 			VMCFunction* Function = Context->GetExceptionFunction();
@@ -2970,25 +3003,30 @@ namespace Tomahawk
 			TH_ASSERT_V(Base != nullptr, "context should be set");
 
 			const char* Message = Context->GetExceptionString();
-			if (!Message || Message[0] == '\0' || Context->WillExceptionBeCaught())
-				return;
+			if (Message && Message[0] != '\0' && !Context->WillExceptionBeCaught())
+			{
+				const char* Decl = Function->GetDeclaration();
+				const char* Mod = Function->GetModuleName();
+				const char* Source = Function->GetScriptSectionName();
+				int Line = Context->GetExceptionLineNumber();
+				std::string Trace = Base->GetStackTrace(3, 64);
 
-			const char* Decl = Function->GetDeclaration();
-			const char* Mod = Function->GetModuleName();
-			const char* Source = Function->GetScriptSectionName();
-			int Line = Context->GetExceptionLineNumber();
-			std::string Trace = Base->GetStackTrace(3, 64);
+				TH_ERR("[vm] uncaught exception"
+					"\n\tdescription: %s"
+					"\n\tfunction: %s"
+					"\n\tmodule: %s"
+					"\n\tsource: %s"
+					"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Trace.size(), Trace.c_str());
 
-			TH_ERR("[vm] uncaught exception"
-				"\n\tdescription: %s"
-				"\n\tfunction: %s"
-				"\n\tmodule: %s"
-				"\n\tsource: %s"
-				"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Trace.size(), Trace.c_str());
+				Base->Exchange.lock();
+				Base->Stacktrace = Trace;
+				Base->Exchange.unlock();
 
-			Base->Exchange.lock();
-			Base->Stacktrace = Trace;
-			Base->Exchange.unlock();
+				if (Base->ExceptionCallback)
+					Base->ExceptionCallback(Base);
+			}
+			else if (Base->ExceptionCallback)
+				Base->ExceptionCallback(Base);
 		}
 		int VMContext::ContextUD = 152;
 
@@ -4079,7 +4117,7 @@ namespace Tomahawk
 			/* Core library */
 			Engine->AddSubmodule("ce/format", { "std/string" }, CERegisterFormat);
 			Engine->AddSubmodule("ce/decimal", { "std/string" }, CERegisterDecimal);
-			Engine->AddSubmodule("ce/variant", { "std/string" }, CERegisterVariant);
+			Engine->AddSubmodule("ce/variant", { "std/string", "ce/decimal" }, CERegisterVariant);
 			Engine->AddSubmodule("ce/filestate", { }, CERegisterFileState);
 			Engine->AddSubmodule("ce/resource", { }, CERegisterResource);
 			Engine->AddSubmodule("ce/datetime", { "std/string" }, CERegisterDateTime);

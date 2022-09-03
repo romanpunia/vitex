@@ -1516,6 +1516,7 @@ namespace Tomahawk
 			bool IsDefined(const std::string& Word);
 			bool IsBuilt();
 			bool IsCached();
+			int Prepare(VMByteCode* Info);
 			int Prepare(const std::string& ModuleName, bool Scoped = false);
 			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true, bool Scoped = false);
 			int Compile(bool Await);
@@ -1552,6 +1553,8 @@ namespace Tomahawk
 			};
 
 		private:
+			std::function<void(VMContext*)> LineCallback;
+			std::function<void(VMContext*)> ExceptionCallback;
 			std::queue<Task> Tasks;
 			std::mutex Exchange;
 			std::string Stacktrace;
@@ -1605,6 +1608,8 @@ namespace Tomahawk
 			bool WillExceptionBeCaught();
 			void ClearExceptionCallback();
 			int SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object);
+			int SetLineCallback(const std::function<void(VMContext*)>& Callback);
+			int SetExceptionCallback(const std::function<void(VMContext*)>& Callback);
 			void ClearLineCallback();
 			unsigned int GetCallstackSize() const;
 			std::string GetErrorStackTrace();
@@ -1637,6 +1642,7 @@ namespace Tomahawk
 			static VMContext* Get();
 
 		private:
+			static void LineLogger(VMCContext* Context, void* Object);
 			static void ExceptionLogger(VMCContext* Context, void* Object);
 		};
 

@@ -2209,7 +2209,7 @@ namespace Tomahawk
 								Next.Offset = (size_t)Arg;
 								Result.Positions.push_back(std::move(Next));
 								Base.RemovePart(Arg, Index + 1);
-								Index -= Index - Arg - 1; Args++;
+								Index -= Index - Arg; Args++;
 							}
 							else
 								Index++;
@@ -2259,6 +2259,20 @@ namespace Tomahawk
 					{
 						Spec = false;
 						Index++;
+					}
+				}
+
+				uint64_t Offset = 0;
+				for (auto& Item : Result.Positions)
+				{
+					Item.Offset += Offset;
+					char V = Result.Request[Item.Offset];
+					char N = (Item.Offset + 1 < Result.Request.size() ? Result.Request[Item.Offset + 1] : V);
+
+					if (!Tokens.Find(V).Found && !Tokens.Find(N).Found)
+					{
+						Base.Insert(' ', Item.Offset);
+						Offset++;
 					}
 				}
 

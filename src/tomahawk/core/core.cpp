@@ -7441,7 +7441,7 @@ namespace Tomahawk
 					DbgIgnore = false;
 				}
 #else
-				Callback(Storage, Level);
+				Callback(Buffer, Level);
 #endif
 			}
 

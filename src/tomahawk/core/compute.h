@@ -2535,83 +2535,104 @@ namespace Tomahawk
 		class TH_OUT Math
 		{
 		public:
+			template <typename F, bool = std::is_fundamental<F>::value>
+			struct TypeTraits
+			{
+			};
+
+			template <typename F>
+			struct TypeTraits<F, true>
+			{
+				typedef F type;
+			};
+
+			template <typename F>
+			struct TypeTraits<F, false>
+			{
+				typedef const F& type;
+			};
+
+		public:
+			typedef typename TypeTraits<T>::type I;
+
+		public:
 			static T Rad2Deg()
 			{
-				return (T)57.2957795130f;
+				return T(57.2957795130);
 			}
 			static T Deg2Rad()
 			{
-				return (T)0.01745329251f;
+				return T(0.01745329251);
 			}
 			static T Pi()
 			{
-				return (T)3.14159265359f;
+				return T(3.14159265359);
 			}
-			static T Sqrt(T Value)
+			static T Sqrt(I Value)
 			{
-				return (T)std::sqrt((double)Value);
+				return T(std::sqrt((double)Value));
 			}
-			static T Abs(T Value)
+			static T Abs(I Value)
 			{
 				return Value < 0 ? -Value : Value;
 			}
-			static T Atan(T Angle)
+			static T Atan(I Angle)
 			{
-				return (T)std::atan((double)Angle);
+				return T(std::atan((double)Angle));
 			}
-			static T Atan2(T Angle0, T Angle1)
+			static T Atan2(I Angle0, I Angle1)
 			{
-				return (T)std::atan2((double)Angle0, (double)Angle1);
+				return T(std::atan2((double)Angle0, (double)Angle1));
 			}
-			static T Acos(T Angle)
+			static T Acos(I Angle)
 			{
-				return (T)std::acos((double)Angle);
+				return T(std::acos((double)Angle));
 			}
-			static T Asin(T Angle)
+			static T Asin(I Angle)
 			{
-				return (T)std::asin((double)Angle);
+				return T(std::asin((double)Angle));
 			}
-			static T Cos(T Angle)
+			static T Cos(I Angle)
 			{
-				return (T)std::cos((double)Angle);
+				return T(std::cos((double)Angle));
 			}
-			static T Sin(T Angle)
+			static T Sin(I Angle)
 			{
-				return (T)std::sin((double)Angle);
+				return T(std::sin((double)Angle));
 			}
-			static T Tan(T Angle)
+			static T Tan(I Angle)
 			{
-				return (T)std::tan((double)Angle);
+				return T(std::tan((double)Angle));
 			}
-			static T Acotan(T Angle)
+			static T Acotan(I Angle)
 			{
-				return (T)std::atan(1.0 / (double)Angle);
+				return T(std::atan(1.0 / (double)Angle));
 			}
-			static T Max(T Value1, T Value2)
+			static T Max(I Value1, I Value2)
 			{
 				return Value1 > Value2 ? Value1 : Value2;
 			}
-			static T Min(T Value1, T Value2)
+			static T Min(I Value1, I Value2)
 			{
 				return Value1 < Value2 ? Value1 : Value2;
 			}
-			static T Floor(T Value)
+			static T Floor(I Value)
 			{
-				return (T)std::floor((double)Value);
+				return T(std::floor((double)Value));
 			}
-			static T Lerp(T A, T B, T DeltaTime)
+			static T Lerp(I A, I B, I DeltaTime)
 			{
 				return A + DeltaTime * (B - A);
 			}
-			static T StrongLerp(T A, T B, T Time)
+			static T StrongLerp(I A, I B, I Time)
 			{
-				return ((T)1.0 - Time) * A + Time * B;
+				return (T(1.0) - Time) * A + Time * B;
 			}
-			static T SaturateAngle(T Angle)
+			static T SaturateAngle(I Angle)
 			{
-				return (T)std::atan2(std::sin((double)Angle), std::cos((double)Angle));
+				return T(std::atan2(std::sin((double)Angle), std::cos((double)Angle)));
 			}
-			static T AngluarLerp(T A, T B, T DeltaTime)
+			static T AngluarLerp(I A, I B, I DeltaTime)
 			{
 				if (A == B)
 					return A;
@@ -2620,73 +2641,63 @@ namespace Tomahawk
 				Vector2 BCircle = Vector2(cosf((float)B), sinf((float)B));
 				Vector2 Interpolation = ACircle.Lerp(BCircle, DeltaTime);
 
-				return (T)std::atan2(Interpolation.Y, Interpolation.X);
+				return T(std::atan2(Interpolation.Y, Interpolation.X));
 			}
-			static T AngleDistance(T A, T B)
+			static T AngleDistance(I A, I B)
 			{
-				return (T)Vector2(std::cos((float)A), std::sin((float)A)).Distance(Vector2(std::cos((float)B), std::sin((float)B)));
+				return T(Vector2(std::cos((float)A), std::sin((float)A)).Distance(Vector2(std::cos((float)B), std::sin((float)B))));
 			}
-			static T Saturate(T Value)
+			static T Saturate(I Value)
 			{
-				return Min(Max(Value, 0.0), 1.0);
+				return Min(Max(Value, T(0.0)), T(1.0));
 			}
-			static T Random(T Number0, T Number1)
+			static T Random(I Number0, I Number1)
 			{
 				if (Number0 == Number1)
 					return Number0;
 
-				return (T)((double)Number0 + ((double)Number1 - (double)Number0) / std::numeric_limits<uint64_t>::max() * Common::Random());
+				return T((double)Number0 + ((double)Number1 - (double)Number0) / std::numeric_limits<uint64_t>::max() * Common::Random());
 			}
-			static T Round(T Value)
+			static T Round(I Value)
 			{
-				return (T)std::round((double)Value);
+				return T(std::round((double)Value));
 			}
 			static T Random()
 			{
-				return ((T)Common::Random() / (T)std::numeric_limits<uint64_t>::max());
+				return T(Common::Random()) / T(std::numeric_limits<uint64_t>::max());
 			}
 			static T RandomMag()
 			{
-				return (T)2.0 * Random() - (T)1.0;
+				return T(2.0) * Random() - T(1.0);
 			}
-			static T Pow(T Value0, T Value1)
+			static T Pow(I Value0, I Value1)
 			{
-				return (T)std::pow((double)Value0, (double)Value1);
+				return T(std::pow((double)Value0, (double)Value1));
 			}
-			static T Pow2(T Value0)
+			static T Pow2(I Value0)
 			{
 				return Value0 * Value0;
 			}
-			static T Pow3(T Value0)
+			static T Pow3(I Value0)
 			{
 				return Value0 * Value0 * Value0;
 			}
-			static T Pow4(T Value0)
+			static T Pow4(I Value0)
 			{
 				T Value = Value0 * Value0;
 				return Value * Value;
 			}
-			static T Clamp(T Value, T pMin, T pMax)
+			static T Clamp(I Value, I pMin, I pMax)
 			{
 				return Min(Max(Value, pMin), pMax);
 			}
-			static T Select(T A, T B)
+			static T Select(I A, I B)
 			{
-				if (Common::Random() < std::numeric_limits<uint64_t>::max() / 2)
-					return B;
-
-				return A;
+				return Common::Random() < std::numeric_limits<uint64_t>::max() / 2 ? B : A;
 			}
-			static T Cotan(T Value)
+			static T Cotan(I Value)
 			{
-				return (T)(1.0 / std::tan((double)Value));
-			}
-			static bool NearEqual(T A, T B, T Factor = (T)1.0f)
-			{
-				T fMin = A - (A - std::nextafter(A, std::numeric_limits<T>::lowest())) * Factor;
-				T fMax = A + (std::nextafter(A, std::numeric_limits<T>::max()) - A) * Factor;
-
-				return fMin <= B && fMax >= B;
+				return T(1.0 / std::tan((double)Value));
 			}
 			static void Swap(T& Value0, T& Value1)
 			{
@@ -2696,6 +2707,7 @@ namespace Tomahawk
 			}
 		};
 
+		typedef Math<Core::Decimal> Mathb;
 		typedef Math<float> Mathf;
 		typedef Math<double> Mathd;
 		typedef Math<int> Mathi;

@@ -2640,12 +2640,12 @@ namespace Tomahawk
 					if (Function->GetFuncType() == asFUNC_SCRIPT)
 						Stream << "source \"" << (Function->GetScriptSectionName() ? Function->GetScriptSectionName() : "") << "\", line " << Context->GetLineNumber(TraceIdx) << ", in " << Function->GetDeclaration();
 					else
-						Stream << "source {...native_call...}, in " << Function->GetDeclaration() << " [nullptr]";
+						Stream << "source {...native_call...}, in " << Function->GetDeclaration() << " nullptr";
 
 					if (Address != nullptr)
-						Stream << " [0x" << Address << "]";
+						Stream << " 0x" << Address;
 					else
-						Stream << " [nullptr]";
+						Stream << " nullptr";
 				}
 				else
 					Stream << "source {...native_call...} [nullptr]";
@@ -3005,18 +3005,16 @@ namespace Tomahawk
 			const char* Message = Context->GetExceptionString();
 			if (Message && Message[0] != '\0' && !Context->WillExceptionBeCaught())
 			{
-				const char* Decl = Function->GetDeclaration();
-				const char* Mod = Function->GetModuleName();
-				const char* Source = Function->GetScriptSectionName();
+				const char* Name = Function->GetName();
+				const char* Source = Function->GetModuleName();
 				int Line = Context->GetExceptionLineNumber();
 				std::string Trace = Base->GetStackTrace(3, 64);
-
-				TH_ERR("[vm] uncaught exception"
-					"\n\tdescription: %s"
-					"\n\tfunction: %s"
-					"\n\tmodule: %s"
-					"\n\tsource: %s"
-					"\n\tline: %i\n%.*s", Message ? Message : "undefined", Decl ? Decl : "undefined", Mod ? Mod : "undefined", Source ? Source : "undefined", Line, (int)Trace.size(), Trace.c_str());
+				
+				TH_ERR("[vm] %s:%d %s(): runtime exception thrown\n\t%s\nDUMP %.*s\n",
+					Source ? Source : "log", Line,
+					Name ? Name : "anonymous",
+					Message ? Message : "no additional data",
+					(int)Trace.size(), Trace.c_str());
 
 				Base->Exchange.lock();
 				Base->Stacktrace = Trace;

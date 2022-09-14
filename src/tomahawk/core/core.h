@@ -394,6 +394,7 @@ namespace Tomahawk
 			bool IsZero() const;
 			bool IsZeroOrNaN() const;
 			double ToDouble() const;
+			float ToFloat() const;
 			int64_t ToInt64() const;
 			uint64_t ToUInt64() const;
 			std::string ToString() const;
@@ -418,6 +419,26 @@ namespace Tomahawk
 			bool operator>= (const Decimal& Right) const;
 			bool operator< (const Decimal& Right) const;
 			bool operator<= (const Decimal& Right) const;
+			explicit operator double () const
+			{
+				return ToDouble();
+			}
+			explicit operator float() const
+			{
+				return ToFloat();
+			}
+			explicit operator int64_t() const
+			{
+				return ToInt64();
+			}
+			explicit operator uint64_t() const
+			{
+				return ToUInt64();
+			}
+			explicit operator std::string() const
+			{
+				return ToString();
+			}
 
 		public:
 			TH_OUT friend Decimal operator + (const Decimal& Left, const Decimal& Right);
@@ -1050,6 +1071,10 @@ namespace Tomahawk
 			static void SetLogCallback(const std::function<void(const char*, int)>& Callback);
 			static void SetLogActive(bool Enabled);
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
+
+		private:
+			static void EnqueueLog(int Level, const char* Buffer, size_t Size);
+			static void DispatchLog(int Level, const char* Buffer);
 		};
 
 		class TH_OUT Composer
@@ -1128,6 +1153,7 @@ namespace Tomahawk
 			FILE* Conout;
 			FILE* Conerr;
 #endif
+			std::mutex Session;
 			std::mutex Lock;
 			bool Coloring;
 			bool Handle;
@@ -1138,6 +1164,8 @@ namespace Tomahawk
 
 		public:
 			virtual ~Console() override;
+			void Begin();
+			void End();
 			void Hide();
 			void Show();
 			void Clear();
@@ -1839,6 +1867,7 @@ namespace Tomahawk
 		public:
 			static std::chrono::microseconds GetClock();
 			static Schedule* Get();
+			static bool IsPresentAndActive();
 			static bool Reset();
 
 		private:

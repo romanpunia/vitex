@@ -1275,7 +1275,7 @@ namespace Tomahawk
 
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
-				std::string Preferences = "./app.jsonb";
+				std::string Preferences;
 				std::string Environment;
 				std::string Directory;
 				uint64_t Stack = TH_STACKSIZE;

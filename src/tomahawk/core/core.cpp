@@ -196,13 +196,33 @@ namespace
 #endif
 namespace
 {
+	void GetDateTime(char* Date, size_t Size)
+	{
+		time_t Time = (time_t)time(nullptr);
+		tm DateTime { };
+
+#if defined(TH_MICROSOFT)
+		if (gmtime_s(&DateTime, &Time) != 0)
+#elif defined(TH_UNIX)
+		if (gmtime_r(&Time, &DateTime) == 0)
+#else
+		if (true)
+#endif
+			strncpy(Date, "??-??-???? ??:??:??", Size);
+		else
+			strftime(Date, Size, "%Y-%m-%d %H:%M:%S", &DateTime);
+	}
 	void GetLocation(std::stringstream& Stream, const char* Indent, const backward::ResolvedTrace::SourceLoc& Location, void* Address = nullptr)
 	{
-		Stream << Indent << "source \"" << Location.filename << "\", line " << Location.line << ", in " << Location.function;
-		if (Address != nullptr)
-			Stream << " [0x" << Address << "]";
+		if (!Location.filename.empty())
+			Stream << Indent << "source \"" << Location.filename << "\", line " << Location.line << ", in " << Location.function;
 		else
-			Stream << " [nullptr]";
+			Stream << Indent << "source ?, line " << Location.line << ", in " << Location.function;
+
+		if (Address != nullptr)
+			Stream << " 0x" << Address << "";
+		else
+			Stream << " nullptr";
 		Stream << "\n";
 	}
 	std::string GetStack(backward::StackTrace& Source)
@@ -224,7 +244,10 @@ namespace
 			bool Indentation = true;
 			if (Trace.source.filename.empty())
 			{
-				Stream << "   object \"" << Trace.object_filename << "\", at 0x" << Trace.addr << ", in " << Trace.object_function << "\n";
+				if (!Trace.object_filename.empty())
+					Stream << "   object \"" << Trace.object_filename << "\", at 0x" << Trace.addr << ", in " << Trace.object_function << "\n";
+				else
+					Stream << "   object ?, at 0x" << Trace.addr << ", in " << Trace.object_function << "\n";
 				Indentation = false;
 			}
 
@@ -589,6 +612,10 @@ namespace Tomahawk
 				Var *= -1;
 
 			return Var;
+		}
+		float Decimal::ToFloat() const
+		{
+			return (float)ToDouble();
 		}
 		int64_t Decimal::ToInt64() const
 		{
@@ -4696,6 +4723,14 @@ namespace Tomahawk
 			FreeConsole();
 #endif
 		}
+		void Console::Begin()
+		{
+			Session.lock();
+		}
+		void Console::End()
+		{
+			Session.unlock();
+		}
 		void Console::Hide()
 		{
 #ifdef TH_MICROSOFT
@@ -6818,6 +6853,7 @@ namespace Tomahawk
 		void OS::Process::Interrupt()
 		{
 #ifndef NDEBUG
+			TH_TRACE("[os] process paused on thread %s", GetThreadId(std::this_thread::get_id()).c_str());
 #ifndef TH_MICROSOFT
 #ifndef SIGTRAP
 			__debugbreak();
@@ -6828,7 +6864,6 @@ namespace Tomahawk
 			if (IsDebuggerPresent())
 				__debugbreak();
 #endif
-			TH_TRACE("[dbg] process paused");
 #endif
 		}
 		int OS::Process::Execute(const char* Format, ...)
@@ -7288,76 +7323,33 @@ namespace Tomahawk
 #endif
 		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
-			if (!Function || !Condition || (!Active && !Callback))
+			if (!Active && !Callback)
 				return;
 
-			auto TimeStamp = (time_t)time(nullptr);
-			tm DateTime { };
 			char Date[64];
+			GetDateTime(Date, sizeof(Date));
 
-			if (Line < 0)
-				Line = 0;
+			char Buffer[4096];
+			int Size = snprintf(Buffer, sizeof(Buffer),
+				"%s %s:%d %s %s(): \"%s\" assertion failed\n\t%s\n"
+				"%s %s:%d DUMP %s\n",
+				Date, Source ? Source : "log", Line, Fatal ? "FATAL" : "ERROR", Function ? Function : "anonymous", Condition ? Condition : "unknown assertion", Format ? Format : "no additional data",
+				Date, Source ? Source : "log", Line, OS::GetStackTrace(2, 64).c_str());
 
-#if defined(TH_MICROSOFT)
-			if (gmtime_s(&DateTime, &TimeStamp) != 0)
-#elif defined(TH_UNIX)
-			if (gmtime_r(&TimeStamp, &DateTime) == 0)
-#else
-			if (true)
-#endif
-				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
-			else
-				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
-
-			char Buffer[8192];
-			snprintf(Buffer, sizeof(Buffer), "%s %s:%d [err] %s%s():\n\tassertion: %s\n\texception: %s\n", Date, Source ? Source : "log", Line, Fatal ? "[fatal] " : "", Function, Condition, Format ? Format : "none");
-
-			char Storage[8192];
+			char Storage[16384];
 			if (Format != nullptr)
 			{
 				va_list Args;
 				va_start(Args, Format);
-				vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+				Size = vsnprintf(Storage, sizeof(Storage), Buffer, Args);
 				va_end(Args);
 			}
 			else
 				memcpy(Storage, Buffer, sizeof(Buffer));
 
-			std::string Stack = OS::GetStackTrace(2, 64);
-			std::string Trace = Form("%s %s:%d [err] %s\n", Date, Source ? Source : "log", Line, Stack.c_str()).R();
-#ifdef _DEBUG
-			if (Callback && !DbgIgnore)
-			{
-				DbgIgnore = true;
-				Callback(Trace.c_str(), 1);
-				Callback(Storage, 1);
-				DbgIgnore = false;
-			}
-#else
-			if (Callback)
-			{
-				Callback(Trace.c_str(), 1);
-				Callback(Storage, 1);
-			}
-#endif
-			if (Active)
-			{
-#if defined(TH_MICROSOFT) && defined(_DEBUG)
-				OutputDebugStringA(Trace.c_str());
-				OutputDebugStringA(Storage);
-#endif
-				if (Console::IsPresent())
-				{
-					Console* Dbg = Console::Get();
-					Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
-					Dbg->WriteBuffer(Trace.c_str());
-					Dbg->WriteBuffer(Storage);
-					Dbg->ColorEnd();
-				}
-				else
-					printf("%s%s", Trace.c_str(), Storage);
-			}
-
+			if (Size > 0)
+				EnqueueLog(1, Storage, (size_t)Size);
+	
 			if (Fatal)
 				Pause();
 		}
@@ -7366,24 +7358,10 @@ namespace Tomahawk
 			if (!Format || (!Active && !Callback))
 				return;
 
-			auto TimeStamp = (time_t)time(nullptr);
-			tm DateTime { };
 			char Date[64];
+			GetDateTime(Date, sizeof(Date));
 
-			if (Line < 0)
-				Line = 0;
-#if defined(TH_MICROSOFT)
-			if (gmtime_s(&DateTime, &TimeStamp) != 0)
-#elif defined(TH_UNIX)
-			if (gmtime_r(&TimeStamp, &DateTime) == 0)
-#else
-			if (true)
-#endif
-				strncpy(Date, "01-01-1970 00:00:00", sizeof(Date));
-			else
-				strftime(Date, sizeof(Date), "%Y-%m-%d %H:%M:%S", &DateTime);
-
-			char Buffer[8192];
+			char Buffer[2048];
 #ifndef _DEBUG
 			if (Level == 1)
 			{
@@ -7432,40 +7410,64 @@ namespace Tomahawk
 			char Storage[8192];
 			va_list Args;
 			va_start(Args, Format);
-			vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+			int Size = vsnprintf(Storage, sizeof(Storage), Buffer, Args);
 			va_end(Args);
-#ifdef _DEBUG
-			if (Callback && !DbgIgnore)
+
+			if (Size > 0)
+				EnqueueLog(Level, Storage, (size_t)Size);
+		}
+		void OS::EnqueueLog(int Level, const char* Buffer, size_t Size)
+		{
+			if (Schedule::IsPresentAndActive())
 			{
-				DbgIgnore = true;
-				Callback(Storage, Level);
-				DbgIgnore = false;
+				std::string Copy(Buffer, Size);
+				Schedule::Get()->SetTask([Level, Copy = std::move(Copy)]() mutable
+				{
+					DispatchLog(Level, Copy.c_str());
+				});
 			}
-#else
+			else
+				DispatchLog(Level, Buffer);
+		}
+		void OS::DispatchLog(int Level, const char* Buffer)
+		{
 			if (Callback)
+			{
+#ifdef _DEBUG
+				if (!DbgIgnore)
+				{
+					DbgIgnore = true;
+					Callback(Buffer, Level);
+					DbgIgnore = false;
+				}
+#else
 				Callback(Storage, Level);
 #endif
+			}
+
 			if (Active)
 			{
 #if defined(TH_MICROSOFT) && defined(_DEBUG)
-				OutputDebugStringA(Storage);
+				OutputDebugStringA(Buffer);
 #endif
 				if (Console::IsPresent())
 				{
-					Console* Dbg = Console::Get();
+					Console* Log = Console::Get();
+					Log->Begin();
 					if (Level == 1)
-						Dbg->ColorBegin(StdColor::DarkRed, StdColor::Black);
+						Log->ColorBegin(StdColor::DarkRed, StdColor::Black);
 					else if (Level == 2)
-						Dbg->ColorBegin(StdColor::Yellow, StdColor::Black);
+						Log->ColorBegin(StdColor::Yellow, StdColor::Black);
 					else if (Level == 4)
-						Dbg->ColorBegin(StdColor::Gray, StdColor::Black);
+						Log->ColorBegin(StdColor::Gray, StdColor::Black);
 					else
-						Dbg->ColorBegin(StdColor::White, StdColor::Black);
-					Dbg->WriteBuffer(Storage);
-					Dbg->ColorEnd();
+						Log->ColorBegin(StdColor::White, StdColor::Black);
+					Log->WriteBuffer(Buffer);
+					Log->ColorEnd();
+					Log->End();
 				}
 				else
-					printf("%s", Storage);
+					std::cout << Buffer;
 			}
 		}
 		void OS::Pause()
@@ -8546,6 +8548,10 @@ namespace Tomahawk
 		std::chrono::microseconds Schedule::GetClock()
 		{
 			return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
+		}
+		bool Schedule::IsPresentAndActive()
+		{
+			return Singleton != nullptr && Singleton->Active;
 		}
 		bool Schedule::Reset()
 		{

@@ -3010,7 +3010,7 @@ namespace Tomahawk
 				int Line = Context->GetExceptionLineNumber();
 				std::string Trace = Base->GetStackTrace(3, 64);
 				
-				TH_ERR("[vm] %s:%d %s(): runtime exception thrown\n\t%s\nDUMP %.*s\n",
+				TH_ERR("[vm] %s:%d %s(): runtime exception thrown\n\tdetails: %s\n\texecution flow dump: %.*s\n",
 					Source ? Source : "log", Line,
 					Name ? Name : "anonymous",
 					Message ? Message : "no additional data",

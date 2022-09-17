@@ -1034,6 +1034,24 @@ namespace Tomahawk
 			public:
 				static int Get();
 				static std::string GetName(int Code);
+				static bool IsError(int Code);
+			};
+
+		public:
+			struct TH_OUT Message
+			{
+				char Buffer[8192] = { '\0' };
+				char Date[64] = { '\0' };
+				std::string Temp;
+				const char* Source;
+				int Level;
+				int Line;
+				int Size;
+				bool Fatal;
+
+				const char* GetLevelName() const;
+				StdColor GetLevelColor() const;
+				std::string& GetText();
 			};
 #ifdef _DEBUG
 		public:
@@ -1052,7 +1070,7 @@ namespace Tomahawk
 			static std::vector<DbgContext> SpecFrame;
 #endif
 		private:
-			static std::function<void(const char*, int)> Callback;
+			static std::function<void(Message&)> Callback;
 			static std::mutex Buffer;
 			static bool Active;
 
@@ -1068,13 +1086,13 @@ namespace Tomahawk
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void Pause();
-			static void SetLogCallback(const std::function<void(const char*, int)>& Callback);
+			static void SetLogCallback(const std::function<void(Message&)>& Callback);
 			static void SetLogActive(bool Enabled);
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:
-			static void EnqueueLog(int Level, const char* Buffer, size_t Size);
-			static void DispatchLog(int Level, const char* Buffer);
+			static void EnqueueLog(Message&& Data);
+			static void DispatchLog(Message& Data);
 		};
 
 		class TH_OUT Composer
@@ -1174,7 +1192,7 @@ namespace Tomahawk
 			void Trace(uint32_t MaxFrames = 32);
 			void CaptureTime();
 			void SetColoring(bool Enabled);
-			void ColorBegin(StdColor Text, StdColor Background);
+			void ColorBegin(StdColor Text, StdColor Background = StdColor::Black);
 			void ColorEnd();
 			void WriteBuffer(const char* Buffer);
 			void WriteLine(const std::string& Line);

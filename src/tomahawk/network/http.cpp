@@ -4179,7 +4179,12 @@ namespace Tomahawk
 				Segment->Source.Length = 0;
 
 				if (Segment->Route)
-					Segment->Source.Path = Segment->Route->Site->ResourceRoot + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
+				{
+					Segment->Source.Path = Segment->Route->Site->ResourceRoot;
+					if (Segment->Source.Path.back() != '/' && Segment->Source.Path.back() != '\\')
+						Segment->Source.Path.append(1, '/');
+					Segment->Source.Path.append(Compute::Common::MD5Hash(Compute::Common::RandomBytes(16)));
+				}
 
 				Segment->Stream = (FILE*)Core::OS::File::Open(Segment->Source.Path.c_str(), "wb");
 				return Segment->Stream != nullptr;

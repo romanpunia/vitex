@@ -339,7 +339,7 @@ namespace Tomahawk
 	{
 		typedef moodycamel::ConcurrentQueue<TaskCallback*> FastQueue;
 		typedef moodycamel::ConsumerToken ReceiveToken;
-		
+
 		struct ConcurrentQueuePtr
 		{
 			std::map<std::chrono::microseconds, Timeout> Timers;
@@ -7215,6 +7215,14 @@ namespace Tomahawk
 			return Buffer ? Buffer : "";
 #endif
 		}
+		bool OS::Error::IsError(int Code)
+		{
+#ifdef TH_MICROSOFT
+			return Code != ERROR_SUCCESS;
+#else
+			return Code > 0;
+#endif
+		}
 #ifdef _DEBUG
 		static thread_local std::stack<OS::DbgContext> PerfFrame;
 		static thread_local bool DbgIgnore = false;
@@ -7321,34 +7329,87 @@ namespace Tomahawk
 			PerfFrame.pop();
 		}
 #endif
+		const char* OS::Message::GetLevelName() const
+		{
+			switch (Level)
+			{
+				case 1:
+					return "ERROR";
+				case 2:
+					return "WARN";
+				case 3:
+					return "INFO";
+				case 4:
+					return "DEBUG";
+				default:
+					return "INT";
+			}
+		}
+		StdColor OS::Message::GetLevelColor() const
+		{
+			switch (Level)
+			{
+				case 1:
+					return StdColor::DarkRed;
+				case 2:
+					return StdColor::Orange;
+				case 3:
+					return StdColor::LightBlue;
+				case 4:
+					return StdColor::Gray;
+				default:
+					return StdColor::LightGray;
+			}
+		}
+		std::string& OS::Message::GetText()
+		{
+			if (!Temp.empty())
+				return Temp;
+
+			std::stringstream Stream;
+			Stream << Date;
+#ifdef _DEBUG
+			Stream << ' ' << Source << ':' << Line;
+#endif
+			Stream << ' ' << GetLevelName() << ' ';
+			Stream << Buffer << '\n';
+
+			Temp = Stream.str();
+			return Temp;
+		}
+
 		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
 			if (!Active && !Callback)
 				return;
 
-			char Date[64];
-			GetDateTime(Date, sizeof(Date));
+			Message Data;
+			Data.Fatal = Fatal;
+			Data.Level = 1;
+			Data.Line = Line;
+			Data.Source = Source;
+			GetDateTime(Data.Date, sizeof(Data.Date));
 
-			char Buffer[4096];
-			int Size = snprintf(Buffer, sizeof(Buffer),
-				"%s %s:%d %s %s(): \"%s\" assertion failed\n\t%s\n"
-				"%s %s:%d DUMP %s\n",
-				Date, Source ? Source : "log", Line, Fatal ? "FATAL" : "ERROR", Function ? Function : "anonymous", Condition ? Condition : "unknown assertion", Format ? Format : "no additional data",
-				Date, Source ? Source : "log", Line, OS::GetStackTrace(2, 64).c_str());
+			char Buffer[8192] = { '\0' };
+			Data.Size = snprintf(Buffer, sizeof(Buffer),
+				"%s(): \"%s\" assertion failed\n\tdetails: %s\n\texecution flow dump: %s",
+				Function ? Function : "anonymous",
+				Condition ? Condition : "unknown assertion",
+				Format ? Format : "no additional data",
+				OS::GetStackTrace(2, 64).c_str());
 
-			char Storage[16384];
 			if (Format != nullptr)
 			{
 				va_list Args;
 				va_start(Args, Format);
-				Size = vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+				Data.Size = vsnprintf(Data.Buffer, sizeof(Data.Buffer), Buffer, Args);
 				va_end(Args);
 			}
 			else
-				memcpy(Storage, Buffer, sizeof(Buffer));
+				memcpy(Data.Buffer, Buffer, sizeof(Buffer));
 
-			if (Size > 0)
-				EnqueueLog(1, Storage, (size_t)Size);
+			if (Data.Size > 0)
+				EnqueueLog(std::move(Data));
 	
 			if (Fatal)
 				Pause();
@@ -7358,78 +7419,46 @@ namespace Tomahawk
 			if (!Format || (!Active && !Callback))
 				return;
 
-			char Date[64];
-			GetDateTime(Date, sizeof(Date));
+			Message Data;
+			Data.Fatal = false;
+			Data.Level = Level;
+			Data.Line = Line;
+			Data.Source = Source;
+			GetDateTime(Data.Date, sizeof(Data.Date));
 
-			char Buffer[2048];
-#ifndef _DEBUG
+			char Buffer[512] = { '\0' };
 			if (Level == 1)
 			{
 				int ErrorCode = OS::Error::Get();
-#ifdef TH_MICROSOFT
-				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
+				if (OS::Error::IsError(ErrorCode))
+					snprintf(Buffer, sizeof(Buffer), "%s\n\tsystem: %s\n", Format, OS::Error::GetName(ErrorCode).c_str());
 				else
-					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n", Date, Format);
-#else
-				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n\tsystem: %s\n", Date, Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					snprintf(Buffer, sizeof(Buffer), "%s ERROR %s\n", Date, Format);
-#endif
+					memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
 			}
-			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s WARN %s\n", Date, Format);
-			else if (Level == 4)
-				snprintf(Buffer, sizeof(Buffer), "%s DEBUG %s\n", Date, Format);
 			else
-				snprintf(Buffer, sizeof(Buffer), "%s INFO %s\n", Date, Format);
-#else
-			if (Level == 1)
-			{
-				int ErrorCode = OS::Error::Get();
-#ifdef TH_MICROSOFT
-				if (ErrorCode != ERROR_SUCCESS)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n", Date, Source ? Source : "log", Line, Format);
-#else
-				if (ErrorCode > 0)
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n\tsystem: %s\n", Date, Source ? Source : "log", Line, Format, OS::Error::GetName(ErrorCode).c_str());
-				else
-					snprintf(Buffer, sizeof(Buffer), "%s %s:%d ERROR %s\n", Date, Source ? Source : "log", Line, Format);
-#endif
-			}
-			else if (Level == 2)
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d WARN %s\n", Date, Source ? Source : "log", Line, Format);
-			else if (Level == 4)
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d DEBUG %s\n", Date, Source ? Source : "log", Line, Format);
-			else
-				snprintf(Buffer, sizeof(Buffer), "%s %s:%d INFO %s\n", Date, Source ? Source : "log", Line, Format);
-#endif
-			char Storage[8192];
+				memcpy(Buffer, Format, std::min(sizeof(Buffer), strlen(Format)));
+
 			va_list Args;
 			va_start(Args, Format);
-			int Size = vsnprintf(Storage, sizeof(Storage), Buffer, Args);
+			Data.Size = vsnprintf(Data.Buffer, sizeof(Data.Buffer), Buffer, Args);
 			va_end(Args);
 
-			if (Size > 0)
-				EnqueueLog(Level, Storage, (size_t)Size);
+			if (Data.Size > 0)
+				EnqueueLog(std::move(Data));
 		}
-		void OS::EnqueueLog(int Level, const char* Buffer, size_t Size)
+		void OS::EnqueueLog(Message&& Data)
 		{
 			if (Schedule::IsPresentAndActive())
 			{
-				std::string Copy(Buffer, Size);
-				Schedule::Get()->SetTask([Level, Copy = std::move(Copy)]() mutable
+				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable
 				{
-					DispatchLog(Level, Copy.c_str());
+					DispatchLog(Data);
 				});
 			}
 			else
-				DispatchLog(Level, Buffer);
+				DispatchLog(Data);
 		}
-		void OS::DispatchLog(int Level, const char* Buffer)
+		void OS::DispatchLog(Message& Data)
 		{
 			if (Callback)
 			{
@@ -7437,7 +7466,7 @@ namespace Tomahawk
 				if (!DbgIgnore)
 				{
 					DbgIgnore = true;
-					Callback(Buffer, Level);
+					Callback(Data);
 					DbgIgnore = false;
 				}
 #else
@@ -7448,33 +7477,55 @@ namespace Tomahawk
 			if (Active)
 			{
 #if defined(TH_MICROSOFT) && defined(_DEBUG)
-				OutputDebugStringA(Buffer);
+				OutputDebugStringA(Data.GetText().c_str());
 #endif
 				if (Console::IsPresent())
 				{
 					Console* Log = Console::Get();
 					Log->Begin();
-					if (Level == 1)
-						Log->ColorBegin(StdColor::DarkRed, StdColor::Black);
-					else if (Level == 2)
-						Log->ColorBegin(StdColor::Yellow, StdColor::Black);
-					else if (Level == 4)
-						Log->ColorBegin(StdColor::Gray, StdColor::Black);
-					else
-						Log->ColorBegin(StdColor::White, StdColor::Black);
-					Log->WriteBuffer(Buffer);
+					{
+						Log->ColorBegin(Data.Level == 4 ? StdColor::Gray : StdColor::Cyan);
+						Log->WriteBuffer(Data.Date);
+						Log->WriteBuffer(" ");
+#ifdef _DEBUG
+						Log->WriteBuffer(Data.Source);
+						Log->WriteBuffer(":");
+						Log->Write(std::to_string(Data.Line));
+						Log->WriteBuffer(" ");
+#endif
+						Log->ColorBegin(Data.GetLevelColor());
+						Log->WriteBuffer(Data.GetLevelName());
+						Log->WriteBuffer(" ");
+						Log->ColorBegin(Data.Level == 4 ? StdColor::Gray : StdColor::LightGray);
+						if (Data.Level != 4 && Data.Buffer[0] == '[')
+						{
+							const char* Text = strstr(Data.Buffer, "]");
+							if (Text != nullptr)
+							{
+								Log->ColorBegin(StdColor::Magenta);
+								Log->Write(std::string(Data.Buffer, 1 + Text - Data.Buffer));
+								Log->ColorBegin(Data.Level == 4 ? StdColor::Gray : StdColor::LightGray);
+								Log->WriteBuffer(Text + 1);
+							}
+							else
+								Log->WriteBuffer(Data.Buffer);
+						}
+						else
+							Log->WriteBuffer(Data.Buffer);
+						Log->WriteBuffer("\n");
+					}
 					Log->ColorEnd();
 					Log->End();
 				}
 				else
-					std::cout << Buffer;
+					std::cout << Data.GetText();
 			}
 		}
 		void OS::Pause()
 		{
 			OS::Process::Interrupt();
 		}
-		void OS::SetLogCallback(const std::function<void(const char*, int)>& _Callback)
+		void OS::SetLogCallback(const std::function<void(Message&)>& _Callback)
 		{
 			Callback = _Callback;
 		}
@@ -7493,7 +7544,7 @@ namespace Tomahawk
 #ifdef _DEBUG
 		std::vector<OS::DbgContext> OS::SpecFrame;
 #endif
-		std::function<void(const char*, int)> OS::Callback;
+		std::function<void(OS::Message&)> OS::Callback;
 		std::mutex OS::Buffer;
 		bool OS::Active = false;
 

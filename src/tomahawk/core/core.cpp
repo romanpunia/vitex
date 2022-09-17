@@ -7470,7 +7470,7 @@ namespace Tomahawk
 					DbgIgnore = false;
 				}
 #else
-				Callback(Buffer, Level);
+				Callback(Data);
 #endif
 			}
 

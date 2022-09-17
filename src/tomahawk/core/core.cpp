@@ -196,6 +196,18 @@ namespace
 #endif
 namespace
 {
+	struct PrettyToken
+	{
+		Tomahawk::Core::StdColor Color;
+		const char* Token;
+		char First;
+		size_t Size;
+
+		PrettyToken(Tomahawk::Core::StdColor BaseColor, const char* Name) : Color(BaseColor), Token(Name), First(*Token), Size(strlen(Name))
+		{
+		}
+	};
+
 	void GetDateTime(char* Date, size_t Size)
 	{
 		time_t Time = (time_t)time(nullptr);
@@ -4006,6 +4018,10 @@ namespace Tomahawk
 		{
 			return Char == '0' || Char == '1' || Char == '2' || Char == '3' || Char == '4' || Char == '5' || Char == '6' || Char == '7' || Char == '8' || Char == '9';
 		}
+		bool Parser::IsAlphabetic(char Char)
+		{
+			return std::isalpha(Char) != 0;
+		}
 		int Parser::CaseCompare(const char* Value1, const char* Value2)
 		{
 			TH_ASSERT(Value1 != nullptr && Value2 != nullptr, 0, "both values should be set");
@@ -4843,6 +4859,11 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Handle, "console should be shown at least once");
 			std::cout << Line << '\n';
+		}
+		void Console::WriteChar(char Value)
+		{
+			TH_ASSERT_V(Handle, "console should be shown at least once");
+			std::cout << Value;
 		}
 		void Console::Write(const std::string& Line)
 		{
@@ -7258,7 +7279,7 @@ namespace Tomahawk
 				uint64_t Diff = Time - Ctx.Time;
 				if (Diff > Ctx.Threshold)
 				{
-					TH_WARN("[perf] task @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%" PRIXPTR "\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, (uintptr_t)Ctx.Id, Ctx.Threshold / 1000);
+					TH_WARN("[stall] task @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%" PRIXPTR "\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, (uintptr_t)Ctx.Id, Ctx.Threshold / 1000);
 					Ctx.Time = Time;
 				}
 			}
@@ -7275,7 +7296,7 @@ namespace Tomahawk
 
 				uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Ctx.Time;
 				if (Diff > Ctx.Threshold)
-					TH_WARN("[perf] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%" PRIXPTR "\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, (uintptr_t)Ctx.Id, Ctx.Threshold / 1000);
+					TH_WARN("[stall] task @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\tcontext: 0x%" PRIXPTR "\n\texpected: %llu ms at most", Ctx.Section, Diff / 1000, Diff, Ctx.Function, Ctx.File, Ctx.Line, (uintptr_t)Ctx.Id, Ctx.Threshold / 1000);
 
 				SpecFrame.erase(It);
 				break;
@@ -7312,7 +7333,7 @@ namespace Tomahawk
 			uint64_t Diff = Time - Next.Time;
 			if (Diff > Next.Threshold)
 			{
-				TH_WARN("[perf] @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
+				TH_WARN("[stall] @%s takes %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
 				Next.Time = Time;
 			}
 		}
@@ -7325,7 +7346,7 @@ namespace Tomahawk
 			OS::DbgContext& Next = PerfFrame.top();
 			uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Next.Time;
 			if (Diff > Next.Threshold)
-				TH_WARN("[perf] @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
+				TH_WARN("[stall] @%s took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Next.Section, Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
 			PerfFrame.pop();
 		}
 #endif
@@ -7496,20 +7517,8 @@ namespace Tomahawk
 						Log->ColorBegin(Data.GetLevelColor());
 						Log->WriteBuffer(Data.GetLevelName());
 						Log->WriteBuffer(" ");
-						Log->ColorBegin(Data.Level == 4 ? StdColor::Gray : StdColor::LightGray);
-						if (Data.Level != 4 && Data.Buffer[0] == '[')
-						{
-							const char* Text = strstr(Data.Buffer, "]");
-							if (Text != nullptr)
-							{
-								Log->ColorBegin(StdColor::Magenta);
-								Log->Write(std::string(Data.Buffer, 1 + Text - Data.Buffer));
-								Log->ColorBegin(Data.Level == 4 ? StdColor::Gray : StdColor::LightGray);
-								Log->WriteBuffer(Text + 1);
-							}
-							else
-								Log->WriteBuffer(Data.Buffer);
-						}
+						if (Data.Level != 4)
+							PrettyPrintLog(Log, Data.Buffer, StdColor::LightGray);
 						else
 							Log->WriteBuffer(Data.Buffer);
 						Log->WriteBuffer("\n");
@@ -7519,6 +7528,177 @@ namespace Tomahawk
 				}
 				else
 					std::cout << Data.GetText();
+			}
+		}
+		void OS::PrettyPrintLog(Console* Log, const char* Buffer, StdColor BaseColor)
+		{
+			static PrettyToken Tokens[] =
+			{
+				PrettyToken(StdColor::DarkGreen, "OK"),
+				PrettyToken(StdColor::Yellow, "execute"),
+				PrettyToken(StdColor::Yellow, "spawn"),
+				PrettyToken(StdColor::Yellow, "acquire"),
+				PrettyToken(StdColor::Yellow, "release"),
+				PrettyToken(StdColor::Yellow, "join"),
+				PrettyToken(StdColor::Yellow, "bind"),
+				PrettyToken(StdColor::Yellow, "assign"),
+				PrettyToken(StdColor::Yellow, "resolve"),
+				PrettyToken(StdColor::Yellow, "prepare"),
+				PrettyToken(StdColor::Yellow, "listen"),
+				PrettyToken(StdColor::Yellow, "unlisten"),
+				PrettyToken(StdColor::Yellow, "accept"),
+				PrettyToken(StdColor::Yellow, "load"),
+				PrettyToken(StdColor::Yellow, "save"),
+				PrettyToken(StdColor::Yellow, "open"),
+				PrettyToken(StdColor::Yellow, "close"),
+				PrettyToken(StdColor::Yellow, "create"),
+				PrettyToken(StdColor::Yellow, "remove"),
+				PrettyToken(StdColor::Yellow, "compile"),
+				PrettyToken(StdColor::Yellow, "transpile"),
+				PrettyToken(StdColor::Yellow, "enter"),
+				PrettyToken(StdColor::Yellow, "exit"),
+				PrettyToken(StdColor::Yellow, "connect"),
+				PrettyToken(StdColor::Yellow, "reconnect"),
+				PrettyToken(StdColor::DarkRed, "ERR"),
+				PrettyToken(StdColor::DarkRed, "leak"),
+				PrettyToken(StdColor::DarkRed, "leaking"),
+				PrettyToken(StdColor::DarkRed, "fail"),
+				PrettyToken(StdColor::DarkRed, "failure"),
+				PrettyToken(StdColor::DarkRed, "failed"),
+				PrettyToken(StdColor::DarkRed, "error"),
+				PrettyToken(StdColor::DarkRed, "errors"),
+				PrettyToken(StdColor::DarkRed, "not"),
+				PrettyToken(StdColor::DarkRed, "cannot"),
+				PrettyToken(StdColor::DarkRed, "could"),
+				PrettyToken(StdColor::DarkRed, "couldn't"),
+				PrettyToken(StdColor::DarkRed, "wasn't"),
+				PrettyToken(StdColor::DarkRed, "took"),
+				PrettyToken(StdColor::DarkRed, "missing"),
+				PrettyToken(StdColor::DarkRed, "invalid"),
+				PrettyToken(StdColor::DarkRed, "required"),
+				PrettyToken(StdColor::DarkRed, "already"),
+				PrettyToken(StdColor::Cyan, "undefined"),
+				PrettyToken(StdColor::Cyan, "nullptr"),
+				PrettyToken(StdColor::Cyan, "null"),
+				PrettyToken(StdColor::Cyan, "this"),
+				PrettyToken(StdColor::Cyan, "ms"),
+				PrettyToken(StdColor::Cyan, "us"),
+				PrettyToken(StdColor::Cyan, "ns"),
+				PrettyToken(StdColor::Cyan, "on"),
+				PrettyToken(StdColor::Cyan, "from"),
+				PrettyToken(StdColor::Cyan, "to"),
+				PrettyToken(StdColor::Cyan, "for"),
+				PrettyToken(StdColor::Cyan, "and"),
+				PrettyToken(StdColor::Cyan, "or"),
+				PrettyToken(StdColor::Cyan, "at"),
+				PrettyToken(StdColor::Cyan, "in"),
+				PrettyToken(StdColor::Cyan, "of")
+			};
+
+			const char* Text = Buffer;
+			size_t Size = strlen(Buffer);
+			size_t Offset = 0;
+
+			Log->ColorBegin(BaseColor);
+			while (Text[Offset] != '\0')
+			{
+				auto& V = Text[Offset];
+				if (Parser::IsDigit(V))
+				{
+					Log->ColorBegin(StdColor::Yellow);
+					while (Offset < Size)
+					{
+						auto N = std::tolower(Text[Offset]);
+						if (!Parser::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f')
+							break;
+
+						Log->WriteChar(Text[Offset++]);
+					}
+
+					Log->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '@')
+				{
+					Log->ColorBegin(StdColor::LightBlue);
+					Log->WriteChar(V);
+
+					while (Offset < Size && (Parser::IsDigit(Text[++Offset]) || Parser::IsAlphabetic(Text[Offset]) || Text[Offset] == '-' || Text[Offset] == '_'))
+						Log->WriteChar(Text[Offset]);
+
+					Log->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '[' && strstr(Text + Offset, "]") != nullptr)
+				{
+					size_t Iterations = 0, Skips = 0;
+					Log->ColorBegin(StdColor::Pink);
+					do
+					{
+						Log->WriteChar(Text[Offset]);
+						if (Iterations++ > 0 && Text[Offset] == '[')
+							Skips++;
+					} while (Offset < Size && (Text[Offset++] != ']' || Skips > 0));
+
+					Log->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '\"' && strstr(Text + Offset, "\"") != nullptr)
+				{
+					Log->ColorBegin(StdColor::Gray);
+					do
+					{
+						Log->WriteChar(Text[Offset]);
+					} while (Offset < Size && Text[++Offset] != '\"');
+
+					if (Offset < Size)
+						Log->WriteChar(Text[Offset++]);
+					Log->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (V == '\'' && strstr(Text + Offset, "\'") != nullptr)
+				{
+					Log->ColorBegin(StdColor::Gray);
+					do
+					{
+						Log->WriteChar(Text[Offset]);
+					} while (Offset < Size && Text[++Offset] != '\'');
+
+					if (Offset < Size)
+						Log->WriteChar(Text[Offset++]);
+					Log->ColorBegin(BaseColor);
+					continue;
+				}
+				else if (Parser::IsAlphabetic(V) && (!Offset || !Parser::IsAlphabetic(Text[Offset - 1])))
+				{
+					bool IsMatched = false;
+					for (size_t i = 0; i < sizeof(Tokens) / sizeof(PrettyToken); i++)
+					{
+						auto& Token = Tokens[i];
+						if (V != Token.First || Size - Offset < Token.Size)
+							continue;
+
+						if (Offset + Token.Size < Size && Parser::IsAlphabetic(Text[Offset + Token.Size]))
+							continue;
+
+						if (memcmp(Text + Offset, Token.Token, Token.Size) == 0)
+						{
+							Log->ColorBegin(Token.Color);
+							for (size_t j = 0; j < Token.Size; j++)
+								Log->WriteChar(Text[Offset++]);
+
+							Log->ColorBegin(BaseColor);
+							IsMatched = true;
+							break;
+						}
+					}
+
+					if (IsMatched)
+						continue;
+				}
+
+				Log->WriteChar(V);
+				++Offset;
 			}
 		}
 		void OS::Pause()

@@ -236,6 +236,8 @@ namespace Tomahawk
 
 		struct Cocontext;
 
+		class Console;
+
 		class Costate;
 
 		class Schema;
@@ -794,6 +796,7 @@ namespace Tomahawk
 
 		public:
 			static bool IsDigit(char Char);
+			static bool IsAlphabetic(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
 			static int Match(const char* Pattern, uint64_t Length, const char* Text);
@@ -1093,6 +1096,7 @@ namespace Tomahawk
 		private:
 			static void EnqueueLog(Message&& Data);
 			static void DispatchLog(Message& Data);
+			static void PrettyPrintLog(Console* Log, const char* Buffer, StdColor BaseColor);
 		};
 
 		class TH_OUT Composer
@@ -1196,6 +1200,7 @@ namespace Tomahawk
 			void ColorEnd();
 			void WriteBuffer(const char* Buffer);
 			void WriteLine(const std::string& Line);
+			void WriteChar(char Value);
 			void Write(const std::string& Line);
 			void fWriteLine(const char* Format, ...);
 			void fWrite(const char* Format, ...);

@@ -120,7 +120,7 @@ namespace Tomahawk
 					if (&Request != &Root)
 						Request = std::move(Root);
 
-					TH_TRACE("[smtp] TO %s", Root.Receiver.c_str());
+					TH_TRACE("[smtp] message to %s", Root.Receiver.c_str());
 					Done = [this, Result](SocketClient*, int Code) mutable
 					{
 						if (!Buffer.empty())

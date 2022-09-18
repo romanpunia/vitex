@@ -1075,6 +1075,7 @@ namespace Tomahawk
 		private:
 			static std::function<void(Message&)> Callback;
 			static std::mutex Buffer;
+			static bool Deferred;
 			static bool Active;
 
 		public:
@@ -1091,6 +1092,7 @@ namespace Tomahawk
 			static void Pause();
 			static void SetLogCallback(const std::function<void(Message&)>& Callback);
 			static void SetLogActive(bool Enabled);
+			static void SetLogDeferred(bool Enabled);
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:

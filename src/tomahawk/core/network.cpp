@@ -1,6 +1,7 @@
 #include "network.h"
 #include "../network/http.h"
 #ifdef TH_MICROSOFT
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
@@ -1278,6 +1279,25 @@ namespace Tomahawk
 			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
 			return Buffer;
 		}
+		int Socket::GetAddressFamily(const char* Address)
+		{
+			TH_ASSERT(Address != nullptr, AF_UNSPEC, "address should be set");
+
+			struct addrinfo Hints;
+			memset(&Hints, 0, sizeof(Hints));
+			Hints.ai_family = AF_UNSPEC;
+			Hints.ai_socktype = SOCK_STREAM;
+			Hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+
+			struct addrinfo* Result;
+			if (getaddrinfo(Address, 0, &Hints, &Result) != 0)
+				return AF_UNSPEC;
+
+			int Family = Result->ai_family;
+			freeaddrinfo(Result);
+
+			return Family;
+		}
 		int64_t Socket::GetAsyncTimeout()
 		{
 			return Sync.Timeout;
@@ -1775,6 +1795,51 @@ namespace Tomahawk
 		bool Driver::IsActive()
 		{
 			return Array != nullptr || Handle != INVALID_EPOLL;
+		}
+		std::string Driver::ResolveDNSReverse(const std::string& IpAddress, uint32_t Port)
+		{
+			TH_ASSERT(!IpAddress.empty(), std::string(), "ip address should not be empty");
+			TH_ASSERT(Port > 0, std::string(), "port should be greater than zero");
+			TH_PPUSH("dns-resolve-reverse", TH_PERF_NET * 3);
+
+			struct sockaddr_storage Storage;
+			int Family = Socket::GetAddressFamily(IpAddress.c_str());
+			int Result = -1;
+
+			if (Family == AF_INET)
+			{
+				auto* Base = reinterpret_cast<struct sockaddr_in*>(&Storage);
+				Result = inet_pton(Family, IpAddress.c_str(), &Base->sin_addr.s_addr);
+				Base->sin_family = Family;
+				Base->sin_port = htons(Port);
+			}
+			else if (Family == AF_INET6)
+			{
+				auto* Base = reinterpret_cast<struct sockaddr_in6*>(&Storage);
+				Result = inet_pton(Family, IpAddress.c_str(), &Base->sin6_addr);
+				Base->sin6_family = Family;
+				Base->sin6_port = htons(Port);		
+			}
+
+			if (Result == -1)
+			{
+				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i\n\tinvalid address", IpAddress.c_str(), Port);
+				TH_PPOP();
+				return std::string();
+			}
+
+			char Host[NI_MAXHOST], Service[NI_MAXSERV];
+			if (getnameinfo((struct sockaddr*)&Storage, sizeof(struct sockaddr), Host, NI_MAXHOST, Service, NI_MAXSERV, NI_NUMERICSERV) != 0)
+			{
+				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i", IpAddress.c_str(), Port);
+				TH_PPOP();
+				return std::string();
+			}
+
+			TH_TRACE("[net] dns reverse resolved for identity %s:%i\n\thost %s:%s is used", IpAddress.c_str(), Port, Host, Service);
+			TH_PPOP();
+
+			return Host;
 		}
 		Address* Driver::ResolveDNS(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS)
 		{

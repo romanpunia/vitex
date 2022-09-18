@@ -7469,7 +7469,7 @@ namespace Tomahawk
 		}
 		void OS::EnqueueLog(Message&& Data)
 		{
-			if (Schedule::IsPresentAndActive())
+			if (Deferred && Schedule::IsPresentAndActive())
 			{
 				Schedule::Get()->SetTask([Data = std::move(Data)]() mutable
 				{
@@ -7713,6 +7713,10 @@ namespace Tomahawk
 		{
 			Active = Enabled;
 		}
+		void OS::SetLogDeferred(bool Enabled)
+		{
+			Deferred = Enabled;
+		}
 		std::string OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
 			backward::StackTrace Stack;
@@ -7727,6 +7731,7 @@ namespace Tomahawk
 		std::function<void(OS::Message&)> OS::Callback;
 		std::mutex OS::Buffer;
 		bool OS::Active = false;
+		bool OS::Deferred = true;
 
 		ChangeLog::ChangeLog(const std::string& Root) : Offset(-1), Time(0), Path(Root)
 		{

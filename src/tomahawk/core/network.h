@@ -210,6 +210,7 @@ namespace Tomahawk
 			static std::string GetLocalAddress();
 			static std::string GetAddress(addrinfo* Info);
 			static std::string GetAddress(sockaddr* Info);
+			static int GetAddressFamily(const char* Address);
 		};
 
 		struct TH_OUT Host
@@ -362,6 +363,7 @@ namespace Tomahawk
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
 			static bool IsActive();
+			static std::string ResolveDNSReverse(const std::string& IpAddress, uint32_t Port);
 			static Address* ResolveDNS(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS);
 
 		private:

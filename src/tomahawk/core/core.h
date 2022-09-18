@@ -1050,6 +1050,7 @@ namespace Tomahawk
 				int Level;
 				int Line;
 				int Size;
+				bool Pretty;
 				bool Fatal;
 
 				const char* GetLevelName() const;

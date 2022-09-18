@@ -7409,6 +7409,7 @@ namespace Tomahawk
 			Data.Level = 1;
 			Data.Line = Line;
 			Data.Source = Source;
+			Data.Pretty = true;
 			GetDateTime(Data.Date, sizeof(Data.Date));
 
 			char Buffer[8192] = { '\0' };
@@ -7445,6 +7446,7 @@ namespace Tomahawk
 			Data.Level = Level;
 			Data.Line = Line;
 			Data.Source = Source;
+			Data.Pretty = Level != 4;
 			GetDateTime(Data.Date, sizeof(Data.Date));
 
 			char Buffer[512] = { '\0' };
@@ -7505,10 +7507,11 @@ namespace Tomahawk
 					Console* Log = Console::Get();
 					Log->Begin();
 					{
-						Log->ColorBegin(Data.Level == 4 ? StdColor::Gray : StdColor::Cyan);
+						Log->ColorBegin(Data.Pretty ? StdColor::Cyan : StdColor::Gray);
 						Log->WriteBuffer(Data.Date);
 						Log->WriteBuffer(" ");
 #ifdef _DEBUG
+						Log->ColorBegin(StdColor::Gray);
 						Log->WriteBuffer(Data.Source);
 						Log->WriteBuffer(":");
 						Log->Write(std::to_string(Data.Line));
@@ -7517,7 +7520,7 @@ namespace Tomahawk
 						Log->ColorBegin(Data.GetLevelColor());
 						Log->WriteBuffer(Data.GetLevelName());
 						Log->WriteBuffer(" ");
-						if (Data.Level != 4)
+						if (Data.Pretty)
 							PrettyPrintLog(Log, Data.Buffer, StdColor::LightGray);
 						else
 							Log->WriteBuffer(Data.Buffer);
@@ -7609,7 +7612,7 @@ namespace Tomahawk
 					while (Offset < Size)
 					{
 						auto N = std::tolower(Text[Offset]);
-						if (!Parser::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f')
+						if (!Parser::IsDigit(N) && N != '.' && N != 'a' && N != 'b' && N != 'c' && N != 'd' && N != 'e' && N != 'f' && N != 'x')
 							break;
 
 						Log->WriteChar(Text[Offset++]);
@@ -7632,7 +7635,7 @@ namespace Tomahawk
 				else if (V == '[' && strstr(Text + Offset, "]") != nullptr)
 				{
 					size_t Iterations = 0, Skips = 0;
-					Log->ColorBegin(StdColor::Pink);
+					Log->ColorBegin(StdColor::Cyan);
 					do
 					{
 						Log->WriteChar(Text[Offset]);

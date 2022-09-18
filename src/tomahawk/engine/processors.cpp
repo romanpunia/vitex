@@ -1341,10 +1341,10 @@ namespace Tomahawk
 						Core::Parser(&Router->ModuleRoot).Eval(N, D);
 
 					if (!NMake::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
-						Router->KeepAliveMaxCount = 10;
+						Router->KeepAliveMaxCount = 50;
 
 					if (!NMake::Unpack(Config->Find("payload-max-length"), &Router->PayloadMaxLength))
-						Router->PayloadMaxLength = std::numeric_limits<uint64_t>::max();
+						Router->PayloadMaxLength = 12582912;
 
 					if (!NMake::Unpack(Config->Find("backlog-queue"), &Router->BacklogQueue))
 						Router->BacklogQueue = 20;
@@ -1412,7 +1412,7 @@ namespace Tomahawk
 
 					Network::Host* Host = &Router->Listeners[Core::Parser(&Name).Eval(N, D).R()];
 					if (!NMake::Unpack(It->Find("hostname"), &Host->Hostname))
-						Host->Hostname = N;
+						Host->Hostname = "127.0.0.1";
 
 					Core::Parser(&Host->Hostname).Eval(N, D).R();
 					if (!NMake::Unpack(It->Find("port"), &Host->Port))

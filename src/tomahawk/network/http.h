@@ -446,7 +446,7 @@ namespace Tomahawk
 				} Callbacks;
 
 				std::vector<RouteGroup> Groups;
-				std::string ResourceRoot;
+				std::string ResourceRoot = "./temp";
 				uint64_t MaxResources = 5;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;

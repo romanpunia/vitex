@@ -302,11 +302,11 @@ namespace Tomahawk
 		{
 			std::unordered_map<std::string, SocketCertificate> Certificates;
 			std::unordered_map<std::string, Host> Listeners;
-			uint64_t PayloadMaxLength = 32768;
+			uint64_t PayloadMaxLength = 12582912;
 			uint64_t BacklogQueue = 20;
 			uint64_t SocketTimeout = 10000;
 			uint64_t MaxConnections = 0;
-			int64_t KeepAliveMaxCount = 10;
+			int64_t KeepAliveMaxCount = 50;
 			int64_t GracefulTimeWait = -1;
 			bool EnableNoDelay = false;
 

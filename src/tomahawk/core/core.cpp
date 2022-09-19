@@ -7648,7 +7648,7 @@ namespace Tomahawk
 				}
 				else if (V == '\"' && strstr(Text + Offset, "\"") != nullptr)
 				{
-					Log->ColorBegin(StdColor::Gray);
+					Log->ColorBegin(StdColor::LightBlue);
 					do
 					{
 						Log->WriteChar(Text[Offset]);
@@ -7661,7 +7661,7 @@ namespace Tomahawk
 				}
 				else if (V == '\'' && strstr(Text + Offset, "\'") != nullptr)
 				{
-					Log->ColorBegin(StdColor::Gray);
+					Log->ColorBegin(StdColor::LightBlue);
 					do
 					{
 						Log->WriteChar(Text[Offset]);

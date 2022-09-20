@@ -2038,7 +2038,7 @@ namespace Tomahawk
 						Response Frame(PQgetResult(Source->Base));
 						if (Source->Current != nullptr)
 						{
-							if (!Frame)
+							if (!Frame.IsExists())
 							{
 								Core::Async<Cursor> Future = Source->Current->Future;
 								Cursor Results(std::move(Source->Current->Result));
@@ -2064,7 +2064,7 @@ namespace Tomahawk
 						}
 						else
 						{
-							Source->State = (Frame ? QueryState::Busy : QueryState::Idle);
+							Source->State = (Frame.IsExists() ? QueryState::Busy : QueryState::Idle);
 							Frame.Release();
 						}
 					}

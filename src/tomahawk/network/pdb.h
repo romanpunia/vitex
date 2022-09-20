@@ -275,7 +275,7 @@ namespace Tomahawk
 				size_t GetRawSize() const;
 				Row GetRow() const;
 				bool IsNull() const;
-				operator bool() const
+				bool IsExists() const
 				{
 					return Base != nullptr;
 				}
@@ -302,7 +302,7 @@ namespace Tomahawk
 				Column GetColumn(size_t Index) const;
 				Column GetColumn(const char* Name) const;
 				bool GetColumns(Column* Output, size_t Size) const;
-				operator bool() const
+				bool IsExists() const
 				{
 					return Base != nullptr;
 				}
@@ -350,7 +350,7 @@ namespace Tomahawk
 				{
 					return IsError() || IsEmpty();
 				}
-				operator bool() const
+				bool IsExists() const
 				{
 					return Base != nullptr;
 				}
@@ -393,10 +393,6 @@ namespace Tomahawk
 				Column operator [](const char* Name) const
 				{
 					return First().Front().GetColumn(Name);
-				}
-				operator bool() const
-				{
-					return !Base.empty();
 				}
 			};
 

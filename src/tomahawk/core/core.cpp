@@ -8457,13 +8457,13 @@ namespace Tomahawk
 			{
 				case Difficulty::Clock:
 				{
-					if (Queue->Timers.empty())
+					if (!Active || Queue->Timers.empty())
 						return false;
 
 					auto Clock = GetClock();
 					auto It = Queue->Timers.begin();
-					if (Active && It->first >= Clock)
-						return false;
+					if (It->first >= Clock)
+						return true;
 
 					if (It->second.Alive && Active)
 					{
@@ -8487,14 +8487,16 @@ namespace Tomahawk
 					if (!Dispatcher.State)
 						Dispatcher.State = new Costate(Policy.Memory);
 
-					uint64_t Left = Policy.Coroutines - Dispatcher.State->GetCount();
-					size_t Count = Left, Passes = 0;
+					uint64_t Pending = Dispatcher.State->GetCount();
+					uint64_t Left = Policy.Coroutines - Pending;
+					size_t Count = Left, Passes = Pending;
 
 					while (Left > 0 && Count > 0)
 					{
 						memset(Dispatcher.Events.data(), 0, sizeof(TaskCallback*) * Dispatcher.Events.size());
 						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
 						Left -= Count;
+						Passes += Count;
 
 						for (size_t i = 0; i < Count; ++i)
 						{

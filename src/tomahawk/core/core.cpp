@@ -9562,28 +9562,31 @@ namespace Tomahawk
 			{
 				Data->parse<rapidxml::parse_trim_whitespace>((char*)Buffer);
 			}
-			catch (const std::runtime_error& e)
+			catch (const std::runtime_error& Exception)
 			{
 				TH_DELETE(xml_document, Data);
 				if (Assert)
-					TH_ERR("[xml] %s", e.what());
-
+					TH_ERR("[xml] %s", Exception.what());
+				
+				((void)Exception);
 				return nullptr;
 			}
-			catch (const rapidxml::parse_error& e)
+			catch (const rapidxml::parse_error& Exception)
 			{
 				TH_DELETE(xml_document, Data);
 				if (Assert)
-					TH_ERR("[xml] %s", e.what());
+					TH_ERR("[xml] %s", Exception.what());
 
+				((void)Exception);
 				return nullptr;
 			}
-			catch (const std::exception& e)
+			catch (const std::exception& Exception)
 			{
 				TH_DELETE(xml_document, Data);
 				if (Assert)
-					TH_ERR("[xml] %s", e.what());
+					TH_ERR("[xml] %s", Exception.what());
 
+				((void)Exception);
 				return nullptr;
 			}
 			catch (...)

@@ -1465,7 +1465,7 @@ namespace Tomahawk
 #ifdef TH_HAS_POSTGRESQL
 				for (auto& Item : Pool)
 				{
-					Item.first->Clear(false);
+					Item.first->ClearEvents(false);
 					PQfinish(Item.second->Base);
 					TH_DELETE(Connection, Item.second);
 					TH_DELETE(Socket, Item.first);
@@ -1665,7 +1665,7 @@ namespace Tomahawk
 					Update.lock();
 					for (auto& Item : Pool)
 					{
-						Item.first->Clear(false);
+						Item.first->ClearEvents(false);
 						PQfinish(Item.second->Base);
 						TH_DELETE(Connection, Item.second);
 						TH_DELETE(Socket, Item.first);
@@ -1873,7 +1873,7 @@ namespace Tomahawk
 					TH_DELETE(Request, Current);
 				}
 
-				Target->Stream->Clear(false);
+				Target->Stream->ClearEvents(false);
 				PQfinish(Target->Base);
 
 				TH_TRACE("[pq] try reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
@@ -1950,13 +1950,11 @@ namespace Tomahawk
 			}
 			bool Cluster::Reprocess(Connection* Source)
 			{
-				return Source->Stream->SetReadNotify([this, Source](NetEvent Event, const char*, size_t)
+				return Tomahawk::Network::Driver::WhenReadable(Source->Stream, [this, Source](SocketPoll Event)
 				{
-					if (Packet::IsSkip(Event))
-						return true;
-
-					return Dispatch(Source, !Packet::IsError(Event));
-				}) == 1;
+					if (!Packet::IsSkip(Event))
+						Dispatch(Source, !Packet::IsError(Event));
+				});
 			}
 			bool Cluster::Flush(Connection* Base, bool Blocked)
 			{
@@ -1964,14 +1962,12 @@ namespace Tomahawk
 				Base->State = QueryState::Busy;
 				if (PQflush(Base->Base) == 1)
 				{
-					Base->Stream->Skip((uint32_t)Network::SocketEvent::Read | (uint32_t)Network::SocketEvent::Write, Network::NetEvent::Cancelled);
-					return Base->Stream->SetWriteNotify([this, Base](NetEvent Event, size_t)
+					Tomahawk::Network::Driver::CancelEvents(Base->Stream);
+					return Tomahawk::Network::Driver::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
 					{
-						if (Packet::IsSkip(Event))
-							return true;
-
-						return Flush(Base, true);
-					}) == 1;
+						if (!Packet::IsSkip(Event))
+							Flush(Base, true);
+					});
 				}
 
 				if (Blocked)

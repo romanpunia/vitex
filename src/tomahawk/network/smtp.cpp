@@ -103,9 +103,9 @@ namespace Tomahawk
 				return SendRequest(221, "QUIT\r\n", [this]()
 				{
 					Authorized = false;
-					Stream.CloseAsync(true, [this](Socket*)
+					Stream.CloseAsync(true, [this]
 					{
-						return Success(0);
+						Success(0);
 					});
 				}) || true;
 			}
@@ -174,7 +174,7 @@ namespace Tomahawk
 				for (auto& Item : Request.BCCRecipients)
 					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
 
-				Stream.WriteAsync(Content.Get(), Content.Size(), [this](NetEvent Event, size_t Sent)
+				Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -291,7 +291,7 @@ namespace Tomahawk
 									Content.fAppend("Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
 
 								Content.Append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-								Stream.WriteAsync(Content.Get(), Content.Size(), [this](NetEvent Event, size_t Sent)
+								Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
 								{
 									if (Packet::IsDone(Event))
 									{
@@ -302,7 +302,7 @@ namespace Tomahawk
 										if (Request.Messages.empty())
 											Content.Assign(" \r\n");
 
-										Stream.WriteAsync(Content.Get(), Content.Size(), [this](NetEvent Event, size_t Sent)
+										Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
 										{
 											if (Packet::IsDone(Event))
 											{
@@ -310,17 +310,17 @@ namespace Tomahawk
 												SendAttachment();
 											}
 											else if (Packet::IsErrorOrSkip(Event))
-												Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+												Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
 										});
 									}
 									else if (Packet::IsErrorOrSkip(Event))
-										Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+										Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
 								});
 							});
 						});
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
 				});
 
 				return Result;
@@ -343,7 +343,7 @@ namespace Tomahawk
 			bool Client::ReadResponse(int Code, const ReplyCallback& Callback)
 			{
 				Command.clear();
-				return Stream.ReadUntilAsync("\r\n", [this, Callback, Code](NetEvent Event, const char* Data, size_t Recv)
+				return Stream.ReadUntilAsync("\r\n", [this, Callback, Code](SocketPoll Event, const char* Data, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -374,12 +374,12 @@ namespace Tomahawk
 			}
 			bool Client::SendRequest(int Code, const std::string& Content, const ReplyCallback& Callback)
 			{
-				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](NetEvent Event, size_t Sent)
+				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, Callback, Code](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						ReadResponse(Code, Callback);
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
 				}) || true;
 			}
 			bool Client::CanRequest(const char* Keyword)
@@ -687,7 +687,7 @@ namespace Tomahawk
 						Content.fAppend("\r\n--%s--\r\n", Boundary.c_str());
 
 					Content.Append("\r\n.\r\n");
-					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](NetEvent Event, size_t Sent)
+					return !Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 						{
@@ -697,7 +697,7 @@ namespace Tomahawk
 							});
 						}
 						else if (Packet::IsErrorOrSkip(Event))
-							Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+							Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
 					});
 				}
 
@@ -715,7 +715,7 @@ namespace Tomahawk
 				Content.fAppend("Content-Transfer-Encoding: base64\r\n");
 				Content.fAppend("Content-Disposition: attachment; filename=\"%s\"\r\n\r\n", Hash.c_str());
 
-				return Stream.WriteAsync(Content.Get(), Content.Size(), [this, Name](NetEvent Event, size_t Sent)
+				return Stream.WriteAsync(Content.Get(), Content.Size(), [this, Name](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -726,7 +726,7 @@ namespace Tomahawk
 							ProcessAttachment();
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
 				}) || true;
 			}
 			bool Client::ProcessAttachment()
@@ -746,7 +746,7 @@ namespace Tomahawk
 					TH_CLOSE(AttachmentFile);
 
 				bool SendNext = (!It.Length);
-				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, SendNext](NetEvent Event, size_t Sent)
+				return Stream.WriteAsync(Content.c_str(), Content.size(), [this, SendNext](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -756,7 +756,7 @@ namespace Tomahawk
 							ProcessAttachment();
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
 				}) || true;
 			}
 			unsigned char* Client::Unicode(const char* String)

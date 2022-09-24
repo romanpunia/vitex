@@ -148,13 +148,13 @@ namespace Tomahawk
 					HeaderLength += 4;
 				}
 
-				Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](NetEvent Event, size_t Sent)
+				Stream->WriteAsync((const char*)Header, HeaderLength, [this, Buffer, Size, Callback](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (Size > 0)
 						{
-							Stream->WriteAsync(Buffer, Size, [this, Callback](NetEvent Event, size_t Sent)
+							Stream->WriteAsync(Buffer, Size, [this, Callback](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
@@ -215,7 +215,7 @@ namespace Tomahawk
 			void WebSocketFrame::Dequeue()
 			{
 				Section.lock();
-				if (Stream->HasOutcomingData() || Messages.empty())
+				if (Stream->IsPendingForWrite() || Messages.empty())
 					return Section.unlock();
 
 				Message Next = std::move(Messages.front());
@@ -262,7 +262,7 @@ namespace Tomahawk
 						goto Retry;
 					}
 
-					Stream->SetReadNotify([this](NetEvent Event, const char*, size_t Recv)
+					Driver::WhenReadable(Stream, [this](SocketPoll Event)
 					{
 						bool IsDone = Packet::IsDone(Event);
 						if (!IsDone && !Packet::IsError(Event))
@@ -280,7 +280,7 @@ namespace Tomahawk
 					char Buffer[8192];
 					while (true)
 					{
-						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](NetEvent Event, const char* Buffer, size_t Recv)
+						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const char* Buffer, size_t Recv)
 						{
 							if (Packet::IsData(Event))
 								Codec->ParseFrame(Buffer, Recv);
@@ -403,7 +403,7 @@ namespace Tomahawk
 			}
 			bool WebSocketFrame::Enqueue(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
-				if (!Stream->HasOutcomingData())
+				if (!Stream->IsPendingForWrite())
 					return false;
 
 				Message Next;
@@ -840,6 +840,10 @@ namespace Tomahawk
 				for (auto& Entry : Sites)
 					TH_DELETE(SiteEntry, Entry.second);
 			}
+			SiteEntry* MapRouter::Site()
+			{
+				return Site("*");
+			}
 			SiteEntry* MapRouter::Site(const char* Pattern)
 			{
 				TH_ASSERT(Pattern != nullptr, nullptr, "pattern should be set");
@@ -1217,7 +1221,7 @@ namespace Tomahawk
 				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved || Response.Data == Content::Wants_Save)
 				{
 					if (Callback)
-						Callback(this, NetEvent::Finished, nullptr, 0);
+						Callback(this, SocketPoll::Finish, nullptr, 0);
 
 					return true;
 				}
@@ -1225,7 +1229,7 @@ namespace Tomahawk
 				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
 				{
 					if (Callback)
-						Callback(this, NetEvent::Timeout, nullptr, 0);
+						Callback(this, SocketPoll::Timeout, nullptr, 0);
 
 					return true;
 				}
@@ -1235,9 +1239,9 @@ namespace Tomahawk
 					if (Callback)
 					{
 						if (!Eat)
-							Callback(this, NetEvent::Packet, Request.Buffer.c_str(), (int)Request.Buffer.size());
+							Callback(this, SocketPoll::Next, Request.Buffer.c_str(), (int)Request.Buffer.size());
 
-						Callback(this, NetEvent::Finished, nullptr, 0);
+						Callback(this, SocketPoll::Finish, nullptr, 0);
 					}
 
 					return true;
@@ -1247,7 +1251,7 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Empty;
 					if (Callback)
-						Callback(this, NetEvent::Finished, nullptr, 0);
+						Callback(this, SocketPoll::Finish, nullptr, 0);
 
 					return false;
 				}
@@ -1257,7 +1261,7 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Wants_Save;
 					if (Callback)
-						Callback(this, NetEvent::Finished, nullptr, 0);
+						Callback(this, SocketPoll::Finish, nullptr, 0);
 
 					return true;
 				}
@@ -1266,7 +1270,7 @@ namespace Tomahawk
 				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1277,14 +1281,14 @@ namespace Tomahawk
 								Response.Data = Content::Corrupted;
 
 								if (Callback)
-									Callback(this, NetEvent::Timeout, nullptr, 0);
+									Callback(this, SocketPoll::Timeout, nullptr, 0);
 
 								return false;
 							}
 							else if (!Eat && (Result >= 0 || Result == -2))
 							{
 								if (Callback)
-									Callback(this, NetEvent::Packet, Buffer, Recv);
+									Callback(this, SocketPoll::Next, Buffer, Recv);
 
 								if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
 									Request.Buffer.append(Buffer, Recv);
@@ -1305,7 +1309,7 @@ namespace Tomahawk
 								Response.Data = Content::Lost;
 
 							if (Callback)
-								Callback(this, NetEvent::Finished, nullptr, 0);
+								Callback(this, SocketPoll::Finish, nullptr, 0);
 						}
 						else if (Packet::IsErrorOrSkip(Event))
 						{
@@ -1320,7 +1324,7 @@ namespace Tomahawk
 				}
 				else if (!Request.GetHeader("Content-Length"))
 				{
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Eat, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1328,7 +1332,7 @@ namespace Tomahawk
 								return true;
 
 							if (Callback)
-								Callback(this, NetEvent::Packet, Buffer, Recv);
+								Callback(this, SocketPoll::Next, Buffer, Recv);
 
 							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
 								Request.Buffer.append(Buffer, Recv);
@@ -1364,12 +1368,12 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Wants_Save;
 					if (Callback)
-						Callback(this, NetEvent::Timeout, nullptr, 0);
+						Callback(this, SocketPoll::Timeout, nullptr, 0);
 
 					return true;
 				}
 
-				return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Eat, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+				return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -1377,7 +1381,7 @@ namespace Tomahawk
 							return true;
 
 						if (Callback)
-							Callback(this, NetEvent::Packet, Buffer, Recv);
+							Callback(this, SocketPoll::Next, Buffer, Recv);
 
 						if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
 							Request.Buffer.append(Buffer, Recv);
@@ -1457,7 +1461,7 @@ namespace Tomahawk
 					Parser->OnResourceEnd = Util::ParseMultipartResourceEnd;
 					Parser->UserPointer = (Eat ? nullptr : Segment);
 
-					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Parser, Segment, Boundary](NetEvent Event, const char* Buffer, size_t Recv)
+					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Parser, Segment, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
@@ -1506,7 +1510,7 @@ namespace Tomahawk
 							return false;
 						}
 
-						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, File, fResource, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, File, fResource, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 						{
 							if (Packet::IsData(Event))
 							{
@@ -1546,7 +1550,7 @@ namespace Tomahawk
 					}
 					else
 					{
-						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Callback](NetEvent Event, const char* Buffer, size_t Recv)
+						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 						{
 							if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
 								return true;
@@ -1580,7 +1584,7 @@ namespace Tomahawk
 				if (Response.Data == Content::Cached)
 					return true;
 
-				Consume([Callback](HTTP::Connection* Base, NetEvent Event, const char*, size_t)
+				Consume([Callback](HTTP::Connection* Base, SocketPoll Event, const char*, size_t)
 				{
 					if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
 						return true;
@@ -1688,7 +1692,7 @@ namespace Tomahawk
 						Content.fAppend("Date: %s\r\nAccept-Ranges: bytes\r\n%s%s\r\n", Date, Util::ConnectionResolve(this).c_str(), Auth.c_str());
 					}
 
-					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](NetEvent Event, size_t Sent)
+					return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 							Root->Manage(this);
@@ -1833,13 +1837,13 @@ namespace Tomahawk
 					Route->Callbacks.Headers(this, &Content);
 
 				Content.Append("\r\n", 2);
-				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](NetEvent Event, size_t Sent)
+				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (memcmp(Request.Method, "HEAD", 4) != 0 && !Response.Buffer.empty())
 						{
-							Stream->WriteAsync(Response.Buffer.data(), (int64_t)Response.Buffer.size(), [this](NetEvent Event, size_t Sent)
+							Stream->WriteAsync(Response.Buffer.data(), (int64_t)Response.Buffer.size(), [this](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 									Root->Manage(this);
@@ -4590,7 +4594,7 @@ namespace Tomahawk
 				if (!WebSocketKey2)
 					return Base->Error(400, "Malformed websocket request. Provide second key.");
 
-				return Base->Stream->ReadAsync(8, [Base](NetEvent Event, const char* Buffer, size_t Recv)
+				return Base->Stream->ReadAsync(8, [Base](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 						Base->Request.Buffer.append(Buffer, Recv);
@@ -4729,7 +4733,7 @@ namespace Tomahawk
 				else
 					Base->Response.StatusCode = 204;
 
-				return Base->Consume([=](Connection* Base, NetEvent Event, const char* Buffer, size_t Size)
+				return Base->Consume([=](Connection* Base, SocketPoll Event, const char* Buffer, size_t Size)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -4749,7 +4753,7 @@ namespace Tomahawk
 							Base->Route->Callbacks.Headers(Base, nullptr);
 
 						Content.Append("\r\n", 2);
-						return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+						return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -4796,7 +4800,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4834,7 +4838,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, nullptr);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4855,7 +4859,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(204);
@@ -4988,14 +4992,14 @@ namespace Tomahawk
 				}
 #endif
 				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Buffer.size());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
 							return (void)Base->Finish(200);
 
-						Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [Base](NetEvent Event, size_t Sent)
+						Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish(200);
@@ -5078,7 +5082,7 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish(200);
@@ -5087,7 +5091,7 @@ namespace Tomahawk
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, ContentLength, Range1](NetEvent Event, size_t Sent)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, ContentLength, Range1](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5148,7 +5152,7 @@ namespace Tomahawk
 
 				if (!ContentLength || !strcmp(Base->Request.Method, "HEAD"))
 				{
-					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+					return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish();
@@ -5157,7 +5161,7 @@ namespace Tomahawk
 					});
 				}
 
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, Range, ContentLength, Gzip](NetEvent Event, size_t Sent)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base, Range, ContentLength, Gzip](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5190,7 +5194,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.fAppend("Accept-Ranges: bytes\r\nLast-Modified: %s\r\nEtag: %s\r\n%s\r\n", LastModified, ETag, Util::ConnectionResolve(Base).c_str());
-				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 						Base->Finish(304);
@@ -5210,7 +5214,7 @@ namespace Tomahawk
 
 					if (Base->Response.Buffer.size() >= ContentLength)
 					{
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [Base](NetEvent Event, size_t Sent)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5286,7 +5290,7 @@ namespace Tomahawk
 					goto Cleanup;
 
 				ContentLength -= (int64_t)Read;
-				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](NetEvent Event, size_t Sent)
+				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5334,7 +5338,7 @@ namespace Tomahawk
 								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)ZStream.total_out);
 						}
 #endif
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [Base](NetEvent Event, size_t Sent)
+						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5403,7 +5407,7 @@ namespace Tomahawk
 					if (Router->State != ServerState::Working)
 						return Base->Break();
 
-					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](NetEvent Event, size_t Sent)
+					return Base->Stream->WriteAsync("0\r\n\r\n", 5, [Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							Base->Finish();
@@ -5442,7 +5446,7 @@ namespace Tomahawk
 					Read += sizeof(char) * 2;
 				}
 
-				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](NetEvent Event, size_t Sent)
+				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5613,7 +5617,7 @@ namespace Tomahawk
 					Base->Route->Callbacks.Headers(Base, &Content);
 
 				Content.Append("\r\n", 2);
-				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](NetEvent Event, size_t Sent)
+				return !Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
@@ -5637,7 +5641,7 @@ namespace Tomahawk
 							Base->Finish();
 						};
 
-						Base->Stream->SetAsyncTimeout(Base->Route->WebSocketTimeout);
+						Base->Stream->Timeout = Base->Route->WebSocketTimeout;
 						if (!ResourceProvided(Base, &Base->Resource))
 							Base->WebSocket->Next();
 						else
@@ -5747,7 +5751,7 @@ namespace Tomahawk
 				auto* Conf = (MapRouter*)Router;
 				auto* Base = (Connection*)Source;
 
-				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](NetEvent Event, const char* Buffer, size_t Recv)
+				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
@@ -5769,7 +5773,7 @@ namespace Tomahawk
 						Parser->UserPointer = &Segment;
 
 						strcpy(Base->Request.RemoteAddress, Base->Stream->GetRemoteAddress().c_str());
-						Base->Info.Start = Driver::Clock();
+						Base->Info.Start = Utils::Clock();
 
 						if (Parser->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
 						{
@@ -5992,7 +5996,7 @@ namespace Tomahawk
 				{
 					Core::Async<bool> Result;
 					Parser* Parser = new HTTP::Parser();
-					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](NetEvent Event, const char* Buffer, size_t Recv) mutable
+					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -6035,7 +6039,7 @@ namespace Tomahawk
 				else if (!Response.GetHeader("Content-Length"))
 				{
 					Core::Async<bool> Result;
-					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](NetEvent Event, const char* Buffer, size_t Recv) mutable
+					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
@@ -6090,7 +6094,7 @@ namespace Tomahawk
 				}
 
 				Core::Async<bool> Result;
-				Stream.ReadAsync(Length, [this, Result, MaxSize](NetEvent Event, const char* Buffer, size_t Recv) mutable
+				Stream.ReadAsync(Length, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
@@ -6222,49 +6226,49 @@ namespace Tomahawk
 				Content.Append("\r\n");
 
 				Response.Buffer.clear();
-				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](NetEvent Event, size_t Sent)
+				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
 						if (!Request.Buffer.empty())
 						{
-							Stream.WriteAsync(Request.Buffer.c_str(), (int64_t)Request.Buffer.size(), [this](NetEvent Event, size_t Sent)
+							Stream.WriteAsync(Request.Buffer.c_str(), (int64_t)Request.Buffer.size(), [this](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event))
 								{
-									Stream.ReadUntilAsync("\r\n\r\n", [this](NetEvent Event, const char* Buffer, size_t Recv)
+									Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 									{
 										if (Packet::IsData(Event))
 											TextAppend(Response.Buffer, Buffer, Recv);
 										else if (Packet::IsDone(Event))
 											Receive();
 										else if (Packet::IsErrorOrSkip(Event))
-											Error("http socket read %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+											Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
 
 										return true;
 									});
 								}
 								else if (Packet::IsErrorOrSkip(Event))
-									Error("http socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+									Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
 							});
 						}
 						else
 						{
-							Stream.ReadUntilAsync("\r\n\r\n", [this](NetEvent Event, const char* Buffer, size_t Recv)
+							Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 							{
 								if (Packet::IsData(Event))
 									TextAppend(Response.Buffer, Buffer, Recv);
 								else if (Packet::IsDone(Event))
 									Receive();
 								else if (Packet::IsErrorOrSkip(Event))
-									Error("http socket read %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+									Error("http socket read %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
 
 								return true;
 							});
 						}
 					}
 					else if (Packet::IsErrorOrSkip(Event))
-						Error("http socket write %s", (Event == NetEvent::Timeout ? "timeout" : "error"));
+						Error("http socket write %s", (Event == SocketPoll::Timeout ? "timeout" : "error"));
 				});
 
 				return Result;

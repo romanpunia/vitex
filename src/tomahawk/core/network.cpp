@@ -69,8 +69,8 @@ namespace Tomahawk
 
 			int Status = connect(Base, Address, Length);
 #ifndef TH_MICROSOFT
-				if (Status != 0 && errno == EINPROGRESS)
-					Status = 0;
+			if (Status != 0 && errno == EINPROGRESS)
+				Status = 0;
 #endif
 			if (Status != 0 && Stream.GetError(Status) != ERRWOULDBLOCK)
 			{
@@ -87,7 +87,7 @@ namespace Tomahawk
 			Fd.fd = Base;
 			Fd.events = POLLOUT;
 
-			return Driver::Poll(&Fd, 1, (int)Timeout) > 0;
+			return Utils::Poll(&Fd, 1, (int)Timeout) > 0;
 		}
 		static addrinfo* TryConnectDNS(const std::unordered_map<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
@@ -117,7 +117,7 @@ namespace Tomahawk
 					Sockets4.push_back(Fd);
 			}
 
-			if (!Sockets4.empty() && Driver::Poll(Sockets4.data(), (int)Sockets4.size(), (int)Timeout) > 0)
+			if (!Sockets4.empty() && Utils::Poll(Sockets4.data(), (int)Sockets4.size(), (int)Timeout) > 0)
 			{
 				for (auto& Fd : Sockets4)
 				{
@@ -133,7 +133,7 @@ namespace Tomahawk
 				}
 			}
 
-			if (!Sockets6.empty() && Driver::Poll(Sockets6.data(), (int)Sockets6.size(), (int)Timeout) > 0)
+			if (!Sockets6.empty() && Utils::Poll(Sockets6.data(), (int)Sockets6.size(), (int)Timeout) > 0)
 			{
 				for (auto& Fd : Sockets6)
 				{
@@ -347,27 +347,474 @@ namespace Tomahawk
 			Path += Filename + (Extension.empty() ? "" : '.' + Extension);
 		}
 
-		Socket::Socket() : Listener(nullptr), Input(nullptr), Output(nullptr), Device(nullptr), Fd(INVALID_SOCKET), Income(0), Outcome(0), UserData(nullptr)
+		Socket::Socket() : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
 		{
-			Sync.Poll = false;
-			Sync.Timeout = 0;
-			Sync.Time = 0;
 		}
 		Socket::Socket(socket_t FromFd) : Socket()
 		{
 			Fd = FromFd;
 		}
-		Socket::~Socket()
+		int Socket::Accept(Socket* Connection, Address* OutAddr)
 		{
-			TH_DELETE(SocketAcceptCallback, Listener);
-			Listener = nullptr;
+			TH_ASSERT(Connection != nullptr, -1, "socket should be set");
+
+			sockaddr Address;
+			socket_size_t Length = sizeof(sockaddr);
+			Connection->Fd = accept(Fd, &Address, &Length);
+			if (Connection->Fd == INVALID_SOCKET)
+				return -1;
+
+			TH_TRACE("[net] accept fd %i on %i fd", (int)Connection->Fd, (int)Fd);
+			if (!OutAddr)
+				return 0;
+
+			struct addrinfo Hints;
+			memset(&Hints, 0, sizeof(struct addrinfo));
+			Hints.ai_family = AF_UNSPEC;
+			Hints.ai_socktype = SOCK_STREAM;
+
+			int Port = ((struct sockaddr_in*)&Address)->sin_port;
+			if (getaddrinfo(Address.sa_data, std::to_string(Port).c_str(), &Hints, &OutAddr->Addresses))
+				return -1;
+
+			OutAddr->Good = OutAddr->Addresses;
+			return 0;
+		}
+		int Socket::Accept(socket_t* NewFd)
+		{
+			TH_ASSERT(NewFd != nullptr, -1, "socket should be set");
+
+			*NewFd = accept(Fd, nullptr, nullptr);
+			if (*NewFd == INVALID_SOCKET)
+				return -1;
+
+			TH_TRACE("[net] accept fd %i on %i fd", (int)*NewFd, (int)Fd);
+			return 0;
+		}
+		int Socket::AcceptAsync(SocketAcceptedCallback&& Callback)
+		{
+			TH_ASSERT(Callback != nullptr, -1, "callback should be set");
+
+			bool Success = Driver::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+			{
+				if (!Packet::IsDone(Event))
+					return;
+
+				socket_t NewFd = INVALID_SOCKET;
+				while (Accept(&NewFd) == 0)
+				{
+					if (!Callback(NewFd))
+						break;
+				}
+
+				AcceptAsync(std::move(Callback));
+			});
+
+			return Success ? 0 : -1;
+		}
+		int Socket::Close(bool Gracefully)
+		{
+			ClearEvents(false);
+			if (Fd == INVALID_SOCKET)
+				return -1;
+#ifdef TH_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				SSL_free(Device);
+				Device = nullptr;
+			}
+#endif
+			int Error = 1;
+			socklen_t Size = sizeof(Error);
+			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
+
+			if (Gracefully)
+			{
+				TH_PPUSH("sock-close", TH_PERF_NET);
+				int Timeout = 100;
+				SetBlocking(true);
+				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
+				shutdown(Fd, SD_SEND);
+
+				while (recv(Fd, (char*)&Error, 1, 0) > 0)
+					TH_PSIG();
+
+				closesocket(Fd);
+				TH_PPOP();
+			}
+			else
+			{
+				shutdown(Fd, SD_SEND);
+				closesocket(Fd);
+			}
+
+			TH_TRACE("[net] sock fd %i closed", (int)Fd);
+			Fd = INVALID_SOCKET;
+			return 0;
+		}
+		int Socket::CloseAsync(bool Gracefully, SocketClosedCallback&& Callback)
+		{
+			if (Fd == INVALID_SOCKET)
+			{
+				if (Callback)
+					Callback();
+
+				return -1;
+			}
+
+			ClearEvents(false);
+#ifdef TH_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				SSL_free(Device);
+				Device = nullptr;
+			}
+#endif
+			int Error = 1;
+			socklen_t Size = sizeof(Error);
+			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
+			shutdown(Fd, SD_SEND);
+
+			if (Gracefully)
+				return TryCloseAsync(std::move(Callback), true);
+
+			closesocket(Fd);
+			TH_TRACE("[net] sock fd %i closed", (int)Fd);
+			Fd = INVALID_SOCKET;
+
+			if (Callback)
+				Callback();
+
+			return 0;
+		}
+		int Socket::TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying)
+		{
+			TH_SPUSH("sock-shut", TH_PERF_HANG, this);
+			while (KeepTrying)
+			{
+				char Buffer;
+				int Length = Read(&Buffer, 1);
+				if (Length == -2)
+				{
+					TH_SPOP(this);
+					Timeout = 500;
+					Driver::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsSkip(Event))
+							TryCloseAsync(std::move(Callback), Packet::IsDone(Event));
+						else if (Callback)
+							Callback();
+					});
+
+					return 1;
+				}
+				else if (Length == -1)
+					break;
+			}
+
+			ClearEvents(false);
+			closesocket(Fd);
+			TH_TRACE("[net] sock fd %i closed", (int)Fd);
+			Fd = INVALID_SOCKET;
+			TH_SPOP(this);
+
+			if (Callback)
+				Callback();
+			return 0;
+		}
+		int Socket::Write(const char* Buffer, int Size)
+		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_PPUSH("sock-send", TH_PERF_NET);
+#ifdef TH_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				int Value = SSL_write(Device, Buffer, Size);
+				if (Value <= 0)
+					TH_PRET(GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1);
+
+				Outcome += (int64_t)Value;
+				TH_PPOP();
+
+				return Value;
+			}
+#endif
+			int Value = send(Fd, Buffer, Size, 0);
+			if (Value <= 0)
+				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
+
+			Outcome += (int64_t)Value;
+			TH_PPOP();
+
+			return Value;
+		}
+		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer)
+		{
+			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+
+			int64_t Offset = 0;
+			while (Size > 0)
+			{
+				int Length = Write(Buffer + Offset, (int)Size);
+				if (Length == -2)
+				{
+					Buffer = Buffer + Offset;
+					if (!TempBuffer)
+					{
+						TempBuffer = (char*)TH_MALLOC((size_t)Size);
+						memcpy(TempBuffer, Buffer, (size_t)Size);
+					}
+
+					Driver::WhenWriteable(this, [this, TempBuffer, Buffer, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsDone(Event))
+						{
+							TH_FREE(TempBuffer);
+							if (Callback)
+								Callback(Event);
+						}
+						else
+							WriteAsync(TempBuffer, Size, std::move(Callback), TempBuffer);
+					});
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (TempBuffer != nullptr)
+						TH_FREE(TempBuffer);
+
+					if (Callback)
+						Callback(SocketPoll::Reset);
+
+					return -1;
+				}
+
+				Size -= (int64_t)Length;
+				Offset += (int64_t)Length;
+			}
+
+			if (TempBuffer != nullptr)
+				TH_FREE(TempBuffer);
+
+			if (Callback)
+				Callback(SocketPoll::Finish);
+
+			return (int)Size;
+		}
+		int Socket::Read(char* Buffer, int Size)
+		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+			TH_PPUSH("sock-recv", TH_PERF_NET);
+#ifdef TH_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				int Value = SSL_read(Device, Buffer, Size);
+				if (Value <= 0)
+					TH_PRET(GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1);
+
+				Income += (int64_t)Value;
+				TH_PPOP();
+
+				return Value;
+			}
+#endif
+			int Value = recv(Fd, Buffer, Size, 0);
+			if (Value <= 0)
+				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
+
+			Income += (int64_t)Value;
+			TH_PPOP();
+
+			return Value;
+		}
+		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
+		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+
+			int Offset = 0;
+			while (Size > 0)
+			{
+				int Length = Read(Buffer + Offset, Size);
+				if (Length == -2)
+				{
+					if (Callback)
+						Callback(SocketPoll::Timeout, nullptr, 0);
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				if (Callback && !Callback(SocketPoll::Next, Buffer + Offset, (size_t)Length))
+					break;
+
+				Size -= Length;
+				Offset += Length;
+			}
+
+			if (Callback)
+				Callback(SocketPoll::Finish, nullptr, 0);
+
+			return Offset;
+		}
+		int Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback)
+		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Size > 0, -1, "size should be greater than zero");
+
+			char Buffer[8192];
+			while (Size > 0)
+			{
+				int Length = Read(Buffer, (int)(Size > sizeof(Buffer) ? sizeof(Buffer) : Size));
+				if (Length == -2)
+				{
+					TH_TRACE("[net] sock fd %i would block on read", (int)Fd);
+					Driver::WhenReadable(this, [this, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (Packet::IsDone(Event))
+							ReadAsync(Size, std::move(Callback));
+						else if (Callback)
+							Callback(Event, nullptr, 0);
+					});
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				Size -= (size_t)Length;
+				if (Callback && !Callback(SocketPoll::Next, Buffer, (size_t)Length))
+					break;
+			}
+
+			if (Callback)
+				Callback(SocketPoll::Finish, nullptr, 0);
+
+			return (int)Size;
+		}
+		int Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
+		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Match != nullptr, -1, "match should be set");
+
+			char Buffer = 0;
+			int Size = (int)strlen(Match);
+			int Index = 0;
+
+			TH_ASSERT(Size > 0, -1, "match should not be empty");
+			while (true)
+			{
+				int Length = Read(&Buffer, 1);
+				if (Length <= 0)
+				{
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				if (Callback && !Callback(SocketPoll::Next, &Buffer, 1))
+					break;
+
+				if (Match[Index] == Buffer)
+				{
+					if (++Index >= Size)
+						break;
+				}
+				else
+					Index = 0;
+			}
+
+			if (Callback)
+				Callback(SocketPoll::Finish, nullptr, 0);
+
+			return 0;
+		}
+		int Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer, size_t TempIndex)
+		{
+			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			TH_ASSERT(Match != nullptr, -1, "match should be set");
+
+			int64_t Size = (int64_t)strlen(Match);
+			TH_ASSERT(Size > 0, -1, "match should not be empty");
+
+			char Buffer = 0;
+			while (true)
+			{
+				int Length = Read(&Buffer, 1);
+				if (Length == -2)
+				{
+					if (!TempBuffer)
+					{
+						TempBuffer = (char*)TH_MALLOC((size_t)Size + 1);
+						memcpy(TempBuffer, Match, (size_t)Size);
+						TempBuffer[Size] = '\0';
+					}
+
+					Driver::WhenReadable(this, [this, TempBuffer, TempIndex, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsDone(Event))
+						{
+							TH_FREE(TempBuffer);
+							if (Callback)
+								Callback(Event, nullptr, 0);
+						}
+						else
+							ReadUntilAsync(TempBuffer, std::move(Callback), TempBuffer, TempIndex);
+					});
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (TempBuffer != nullptr)
+						TH_FREE(TempBuffer);
+
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				if (Callback && !Callback(SocketPoll::Next, &Buffer, 1))
+					break;
+
+				if (Match[TempIndex] == Buffer)
+				{
+					if (++TempIndex >= Size)
+						break;
+				}
+				else
+					TempIndex = 0;
+			}
+
+			if (TempBuffer != nullptr)
+				TH_FREE(TempBuffer);
+
+			if (Callback)
+				Callback(SocketPoll::Finish, nullptr, 0);
+
+			return 0;
 		}
 		int Socket::Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Subresult)
 		{
 			TH_PPUSH("sock-open", TH_PERF_NET);
 			TH_TRACE("[net] open fd %s:%s", Host.c_str(), Port.c_str());
 
-			Address* Result = Driver::ResolveDNS(Host, Port, Proto, Type, DNS);
+			Address* Result = DNS::FindAddressFromName(Host, Port, Proto, Type, DNS);
 			if (!Result)
 			{
 				TH_PPOP();
@@ -405,7 +852,6 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_OPENSSL
 			TH_PPUSH("sock-ssl", TH_PERF_NET);
-			Sync.Device.lock();
 			if (Device != nullptr)
 				SSL_free(Device);
 
@@ -414,7 +860,6 @@ namespace Tomahawk
 			if (Device != nullptr && Hostname != nullptr)
 				SSL_set_tlsext_host_name(Device, Hostname);
 #endif
-			Sync.Device.unlock();
 			TH_PPOP();
 #endif
 			if (!Device)
@@ -440,523 +885,29 @@ namespace Tomahawk
 			TH_TRACE("[net] listen fd %i", (int)Fd);
 			return listen(Fd, Backlog);
 		}
-		int Socket::Accept(Socket* Connection, Address* OutAddr)
-		{
-			TH_ASSERT(Connection != nullptr, -1, "socket should be set");
-
-			sockaddr Address;
-			socket_size_t Length = sizeof(sockaddr);
-			Connection->Fd = accept(Fd, &Address, &Length);
-			if (Connection->Fd == INVALID_SOCKET)
-				return -1;
-
-			TH_TRACE("[net] accept fd %i on %i fd", (int)Connection->Fd, (int)Fd);
-			if (!OutAddr)
-				return 0;
-
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(struct addrinfo));
-			Hints.ai_family = AF_UNSPEC;
-			Hints.ai_socktype = SOCK_STREAM;
-
-			int Port = ((struct sockaddr_in*)&Address)->sin_port;
-			if (getaddrinfo(Address.sa_data, std::to_string(Port).c_str(), &Hints, &OutAddr->Addresses))
-				return -1;
-
-			OutAddr->Good = OutAddr->Addresses;
-			return 0;
-		}
-		int Socket::AcceptAsync(SocketAcceptCallback&& Callback)
-		{
-			Sync.IO.lock();
-			TH_DELETE(SocketAcceptCallback, Listener);
-			if (Callback)
-			{
-				Listener = TH_NEW(SocketAcceptCallback, std::move(Callback));
-				Driver::Listen(this, false);
-			}
-			else
-			{
-				Listener = nullptr;
-				Driver::Unlisten(this, true);
-			}
-			Sync.IO.unlock();
-
-			return 0;
-		}
-		int Socket::Clear(bool Gracefully)
+		int Socket::ClearEvents(bool Gracefully)
 		{
 			TH_PPUSH("sock-clr", TH_PERF_NET);
-			if (!Gracefully)
-			{
-				Sync.IO.lock();
-				ReadFlush();
-				WriteFlush();
-				Driver::Unlisten(this, true);
-				Sync.IO.unlock();
-			}
+			if (Gracefully)
+				Driver::CancelEvents(this, SocketPoll::Reset);
 			else
-			{
-				Sync.IO.lock();
-				Driver::Unlisten(this, true);
-				Sync.IO.unlock();
-				while (Skip((uint32_t)(SocketEvent::Read | SocketEvent::Write), NetEvent::Timeout) == 1)
-					TH_PSIG();
-			}
+				Driver::ClearEvents(this);
 			TH_PPOP();
-
 			return 0;
 		}
-		int Socket::Close(bool Gracefully)
+		int Socket::SetFd(socket_t NewFd, bool Gracefully)
 		{
-			Clear(false);
-			if (Fd == INVALID_SOCKET)
-				return -1;
-#ifdef TH_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				Sync.Device.lock();
-				SSL_free(Device);
-				Device = nullptr;
-				Sync.Device.unlock();
-			}
-#endif
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-
-			if (Gracefully)
-			{
-				TH_PPUSH("sock-close", TH_PERF_NET);
-				int Timeout = 100;
-				SetBlocking(true);
-				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
-				shutdown(Fd, SD_SEND);
-
-				while (recv(Fd, (char*)&Error, 1, 0) > 0)
-					TH_PSIG();
-				closesocket(Fd);
-				TH_PPOP();
-			}
-			else
-			{
-				shutdown(Fd, SD_SEND);
-				closesocket(Fd);
-			}
-
-			TH_TRACE("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-			return 0;
+			int Result = Gracefully ? ClearEvents(false) : 0;
+			Fd = NewFd;
+			return Result;
 		}
-		int Socket::CloseAsync(bool Gracefully, const SocketAcceptCallback& Callback)
-		{
-			if (Fd == INVALID_SOCKET)
-			{
-				if (Callback)
-					Callback(this);
-
-				return -1;
-			}
-
-			Clear(false);
-#ifdef TH_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				Sync.Device.lock();
-				SSL_free(Device);
-				Device = nullptr;
-				Sync.Device.unlock();
-			}
-#endif
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-			shutdown(Fd, SD_SEND);
-
-			if (Gracefully)
-				return CloseSet(Callback, true) ? 0 : -1;
-
-			closesocket(Fd);
-			TH_TRACE("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-
-			if (Callback)
-				Callback(this);
-
-			return 0;
-		}
-		int Socket::CloseOnExec()
+		int Socket::SetCloseOnExec()
 		{
 #if defined(_WIN32)
 			return 0;
 #else
 			return fcntl(Fd, F_SETFD, FD_CLOEXEC);
 #endif
-		}
-		int Socket::Write(const char* Buffer, int Size)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_PPUSH("sock-send", TH_PERF_NET);
-#ifdef TH_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				Sync.Device.lock();
-				int Value = SSL_write(Device, Buffer, Size);
-				Sync.Device.unlock();
-
-				if (Value <= 0)
-					TH_PRET(GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1);
-
-				Outcome += (int64_t)Value;
-				TH_PPOP();
-
-				return Value;
-			}
-#endif
-			int Value = send(Fd, Buffer, Size, 0);
-			if (Value <= 0)
-				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
-
-			Outcome += (int64_t)Value;
-			TH_PPOP();
-
-			return Value;
-		}
-		int Socket::Write(const char* Buffer, int Size, const NetWriteCallback& Callback)
-		{
-			int Offset = 0;
-			while (Size > 0)
-			{
-				int Length = Write(Buffer + Offset, Size);
-				if (Length == -2)
-				{
-					if (Callback)
-						Callback(NetEvent::Timeout, 0);
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (Callback)
-						Callback(NetEvent::Closed, 0);
-
-					return -1;
-				}
-
-				Size -= Length;
-				Offset += Length;
-			}
-
-			if (Callback)
-				Callback(NetEvent::Packet, (size_t)Size);
-
-			return Offset;
-		}
-		int Socket::Write(const std::string& Buffer)
-		{
-			return Write(Buffer.c_str(), (int)Buffer.size());
-		}
-		int Socket::WriteAsync(const char* Buffer, size_t Size, NetWriteCallback&& Callback)
-		{
-			TH_ASSERT(!Listener, -1, "socket should not be listener");
-			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-
-			int64_t Offset = 0;
-			while (Size > 0)
-			{
-				int Length = Write(Buffer + Offset, (int)Size);
-				if (Length == -2)
-				{
-					Sync.IO.lock();
-					WriteSet(std::move(Callback), Buffer + Offset, Size);
-					Sync.IO.unlock();
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (Callback)
-						Callback(NetEvent::Closed, 0);
-
-					return -1;
-				}
-
-				Size -= (int64_t)Length;
-				Offset += (int64_t)Length;
-			}
-
-			if (Callback)
-				Callback(NetEvent::Finished, 0);
-
-			return (int)Size;
-		}
-		int Socket::fWrite(const char* Format, ...)
-		{
-			TH_ASSERT(Format != nullptr, -1, "format should be set");
-
-			char Buffer[8192];
-			va_list Args;
-			va_start(Args, Format);
-			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			return Write(Buffer, (uint64_t)Count);
-		}
-		int Socket::fWriteAsync(NetWriteCallback&& Callback, const char* Format, ...)
-		{
-			TH_ASSERT(Format != nullptr, -1, "format should be set");
-
-			char Buffer[8192];
-			va_list Args;
-			va_start(Args, Format);
-			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
-			va_end(Args);
-
-			return WriteAsync(Buffer, (int64_t)Count, std::move(Callback));
-		}
-		int Socket::Read(char* Buffer, int Size)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-			TH_PPUSH("sock-recv", TH_PERF_NET);
-#ifdef TH_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				Sync.Device.lock();
-				int Value = SSL_read(Device, Buffer, Size);
-				Sync.Device.unlock();
-
-				if (Value <= 0)
-					TH_PRET(GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1);
-
-				Income += (int64_t)Value;
-				TH_PPOP();
-
-				return Value;
-			}
-#endif
-			int Value = recv(Fd, Buffer, Size, 0);
-			if (Value <= 0)
-				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
-
-			Income += (int64_t)Value;
-			TH_PPOP();
-
-			return Value;
-		}
-		int Socket::Read(char* Buffer, int Size, const NetReadCallback& Callback)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-
-			int Offset = 0;
-			while (Size > 0)
-			{
-				int Length = Read(Buffer + Offset, Size);
-				if (Length == -2)
-				{
-					if (Callback)
-						Callback(NetEvent::Timeout, nullptr, 0);
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (Callback)
-						Callback(NetEvent::Closed, nullptr, 0);
-
-					return -1;
-				}
-
-				if (Callback && !Callback(NetEvent::Packet, Buffer + Offset, (size_t)Length))
-					break;
-
-				Size -= Length;
-				Offset += Length;
-			}
-
-			if (Callback)
-				Callback(NetEvent::Finished, nullptr, 0);
-
-			return Offset;
-		}
-		int Socket::ReadAsync(size_t Size, NetReadCallback&& Callback)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_ASSERT(Size > 0, -1, "size should be greater than zero");
-
-			char Buffer[8192];
-			while (Size > 0)
-			{
-				int Length = Read(Buffer, (int)(Size > sizeof(Buffer) ? sizeof(Buffer) : Size));
-				if (Length == -2)
-				{
-					Sync.IO.lock();
-					ReadSet(std::move(Callback), nullptr, Size, 0);
-					Sync.IO.unlock();
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (Callback)
-						Callback(NetEvent::Closed, nullptr, 0);
-
-					return -1;
-				}
-
-				Size -= (size_t)Length;
-				if (Callback && !Callback(NetEvent::Packet, Buffer, (size_t)Length))
-					break;
-			}
-
-			if (Callback)
-				Callback(NetEvent::Finished, nullptr, 0);
-
-			return (int)Size;
-		}
-		int Socket::ReadUntil(const char* Match, const NetReadCallback& Callback)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_ASSERT(Match != nullptr, -1, "match should be set");
-
-			char Buffer = 0;
-			int Size = (int)strlen(Match);
-			int Index = 0;
-
-			TH_ASSERT(Size > 0, -1, "match should not be empty");
-			while (true)
-			{
-				int Length = Read(&Buffer, 1);
-				if (Length <= 0)
-				{
-					if (Callback)
-						Callback(NetEvent::Closed, nullptr, 0);
-
-					return -1;
-				}
-
-				if (Callback && !Callback(NetEvent::Packet, &Buffer, 1))
-					break;
-
-				if (Match[Index] == Buffer)
-				{
-					Index++;
-					if (Index < Size)
-						continue;
-
-					break;
-				}
-				else
-					Index = 0;
-			}
-
-			if (Callback)
-				Callback(NetEvent::Finished, nullptr, 0);
-
-			return 0;
-		}
-		int Socket::ReadUntilAsync(const char* Match, NetReadCallback&& Callback)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_ASSERT(Match != nullptr, -1, "match should be set");
-
-			int64_t Size = (int64_t)strlen(Match);
-			TH_ASSERT(Size > 0, -1, "match should not be empty");
-
-			char Buffer = 0;
-			int64_t Index = 0;
-			while (true)
-			{
-				int Length = Read(&Buffer, 1);
-				if (Length == -2)
-				{
-					Sync.IO.lock();
-					ReadSet(std::move(Callback), Match, Size, Index);
-					Sync.IO.unlock();
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (Callback)
-						Callback(NetEvent::Closed, nullptr, 0);
-
-					return -1;
-				}
-
-				if (Callback && !Callback(NetEvent::Packet, &Buffer, 1))
-					break;
-
-				if (Match[Index] == Buffer)
-				{
-					Index++;
-					if (Index < Size)
-						continue;
-
-					break;
-				}
-				else
-					Index = 0;
-			}
-
-			if (Callback)
-				Callback(NetEvent::Finished, nullptr, 0);
-
-			return 0;
-		}
-		int Socket::Skip(unsigned int IO, NetEvent Reason)
-		{
-			Sync.IO.lock();
-			if (IO & (uint32_t)SocketEvent::Read && Input != nullptr)
-			{
-				auto Callback = std::move(Input->Callback);
-				ReadFlush();
-				Sync.IO.unlock();
-				if (Callback)
-					Callback(Reason, nullptr, 0);
-				Sync.IO.lock();
-			}
-
-			if (IO & (uint32_t)SocketEvent::Write && Output != nullptr)
-			{
-				auto Callback = std::move(Output->Callback);
-				WriteFlush();
-				Sync.IO.unlock();
-				if (Callback)
-					Callback(Reason, 0);
-				Sync.IO.lock();
-			}
-
-			Sync.IO.unlock();
-			return ((IO & (uint32_t)SocketEvent::Write && Output) || (IO & (size_t)SocketEvent::Read && Input) ? 1 : 0);
-		}
-		int Socket::SetFd(socket_t NewFd)
-		{
-			int Result = Clear(false);
-			Fd = NewFd;
-			return Result;
-		}
-		int Socket::SetReadNotify(NetReadCallback&& Callback)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_ASSERT(Callback, -1, "callback should not be empty");
-
-			Sync.IO.lock();
-			ReadSet(std::move(Callback), nullptr, 0, 0);
-			Sync.IO.unlock();
-
-			return 0;
-		}
-		int Socket::SetWriteNotify(NetWriteCallback&& Callback)
-		{
-			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_ASSERT(Callback, -1, "callback should not be empty");
-
-			Sync.IO.lock();
-			WriteSet(std::move(Callback), nullptr, 0);
-			Sync.IO.unlock();
-
-			return 0;
 		}
 		int Socket::SetTimeWait(int Timeout)
 		{
@@ -1018,22 +969,13 @@ namespace Tomahawk
 			int Range2 = setsockopt(Fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Time, sizeof(Time));
 			return (Range1 || Range2);
 		}
-		int Socket::SetAsyncTimeout(int64_t Timeout)
-		{
-			Sync.Timeout = Timeout;
-			return 0;
-		}
 		int Socket::GetError(int Result)
 		{
 #ifdef TH_HAS_OPENSSL
 			if (!Device)
 				return ERRNO;
 
-			Sync.Device.lock();
-			int Value = SSL_get_error(Device, Result);
-			Sync.Device.unlock();
-
-			return Value;
+			return SSL_get_error(Device, Result);
 #else
 			return ERRNO;
 #endif
@@ -1087,139 +1029,17 @@ namespace Tomahawk
 		{
 			return Fd != INVALID_SOCKET;
 		}
-		bool Socket::HasIncomingData()
+		bool Socket::IsPendingForRead()
 		{
-			return Input != nullptr;
+			return Driver::IsAwaitingReadable(this);
 		}
-		bool Socket::HasOutcomingData()
+		bool Socket::IsPendingForWrite()
 		{
-			return Output != nullptr;
+			return Driver::IsAwaitingWriteable(this);
 		}
-		bool Socket::HasPendingData()
+		bool Socket::IsPending()
 		{
-			return Output || Input;
-		}
-		bool Socket::ReadSet(NetReadCallback&& Callback, const char* Match, size_t Size, size_t Index)
-		{
-			ReadEvent* New = TH_NEW(ReadEvent);
-			New->Callback = std::move(Callback);
-			New->Size = Size;
-			New->Index = Index;
-#ifdef TH_MICROSOFT
-			New->Match = (Match ? _strdup(Match) : nullptr);
-#else
-			New->Match = (Match ? strdup(Match) : nullptr);
-#endif
-			if (Input != nullptr)
-			{
-				auto Callback = std::move(Input->Callback);
-				ReadFlush();
-				Input = New;
-				Driver::Listen(this, false);
-				Sync.IO.unlock();
-				if (Callback)
-					Callback(NetEvent::Cancelled, nullptr, 0);
-				Sync.IO.lock();
-			}
-			else
-			{
-				Input = New;
-				Driver::Listen(this, false);
-			}
-
-			return true;
-		}
-		bool Socket::ReadFlush()
-		{
-			if (!Input)
-				return false;
-
-			if (Input->Match != nullptr)
-				free((void*)Input->Match);
-			TH_DELETE(ReadEvent, Input);
-			Input = nullptr;
-
-			return true;
-		}
-		bool Socket::WriteSet(NetWriteCallback&& Callback, const char* Buffer, size_t Size)
-		{
-			WriteEvent* New = TH_NEW(WriteEvent);
-			New->Callback = std::move(Callback);
-			New->Size = Size;
-
-			if (Size > 0)
-			{
-				New->Buffer = (char*)TH_MALLOC((size_t)Size);
-				memcpy(New->Buffer, Buffer, (size_t)Size);
-			}
-
-			if (Output != nullptr)
-			{
-				auto Callback = std::move(Output->Callback);
-				WriteFlush();
-				Output = New;
-				Driver::Listen(this, false);
-				Sync.IO.unlock();
-				if (Callback)
-					Callback(NetEvent::Cancelled, 0);
-				Sync.IO.lock();
-			}
-			else
-			{
-				Output = New;
-				Driver::Listen(this, false);
-			}
-
-			return true;
-		}
-		bool Socket::WriteFlush()
-		{
-			if (!Output)
-				return false;
-
-			TH_FREE((void*)Output->Buffer);
-			TH_DELETE(WriteEvent, Output);
-			Output = nullptr;
-
-			return true;
-		}
-		bool Socket::CloseSet(const SocketAcceptCallback& Callback, bool OK)
-		{
-			TH_SPUSH("sock-shut", TH_PERF_HANG, this);
-			char Buffer;
-			while (OK)
-			{
-				int Length = Read(&Buffer, 1);
-				if (Length == -2)
-				{
-					TH_SPOP(this);
-					Sync.IO.lock();
-					ReadSet([this, Callback](NetEvent Event, const char*, size_t)
-					{
-						if (Packet::IsDone(Event) || Packet::IsError(Event))
-							return CloseSet(Callback, Event != NetEvent::Timeout);
-						else if (Packet::IsSkip(Event) && Callback)
-							Callback(this);
-
-						return true;
-					}, nullptr, 1, 0);
-					Sync.IO.unlock();
-
-					return false;
-				}
-				else if (Length == -1)
-					break;
-			}
-
-			Clear(false);
-			closesocket(Fd);
-			TH_TRACE("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-			TH_SPOP(this);
-
-			if (Callback)
-				Callback(this);
-			return true;
+			return Driver::IsAwaitingEvents(this);
 		}
 		std::string Socket::GetRemoteAddress()
 		{
@@ -1297,10 +1117,6 @@ namespace Tomahawk
 			freeaddrinfo(Result);
 
 			return Family;
-		}
-		int64_t Socket::GetAsyncTimeout()
-		{
-			return Sync.Timeout;
 		}
 
 		SocketConnection::~SocketConnection()
@@ -1407,12 +1223,21 @@ namespace Tomahawk
 			{
 				Stream->Income = 0;
 				Stream->Outcome = 0;
-				Stream->Sync.Poll = false;
-				Stream->Sync.Timeout = 0;
-				Stream->Sync.Time = 0;
 			}
 		}
 
+		Host& SocketRouter::Listen(const std::string& Hostname, int Port, bool Secure)
+		{
+			return Listen("*", Hostname, Port, Secure);
+		}
+		Host& SocketRouter::Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure)
+		{
+			Host& Listener = Listeners[Pattern.empty() ? "*" : Pattern];
+			Listener.Hostname = Hostname;
+			Listener.Port = Port;
+			Listener.Secure = Secure;
+			return Listener;
+		}
 		SocketRouter::~SocketRouter()
 		{
 #ifdef TH_HAS_OPENSSL
@@ -1427,23 +1252,9 @@ namespace Tomahawk
 #endif
 		}
 
-		void Driver::Create(int Length)
+		EpollHandle::EpollHandle(int _ArraySize) : ArraySize(_ArraySize)
 		{
-			if (Array != nullptr || Handle != INVALID_EPOLL)
-			{
-				if (ArraySize == Length)
-					return;
-
-				if (Handle != INVALID_EPOLL)
-					epoll_close(Handle);
-
-				if (Array != nullptr)
-					TH_FREE(Array);
-			}
-			else
-				Sources = new std::unordered_set<Socket*>();
-
-			ArraySize = Length;
+			TH_ASSERT_V(ArraySize > 0, "array size should be greater than zero");
 #ifdef TH_APPLE
 			Handle = kqueue();
 			Array = (struct kevent*)TH_MALLOC(sizeof(struct kevent) * ArraySize);
@@ -1452,26 +1263,161 @@ namespace Tomahawk
 			Array = (epoll_event*)TH_MALLOC(sizeof(epoll_event) * ArraySize);
 #endif
 		}
-		void Driver::Release()
+		EpollHandle::~EpollHandle()
 		{
 			if (Handle != INVALID_EPOLL)
-			{
 				epoll_close(Handle);
-				Handle = INVALID_EPOLL;
-			}
 
 			if (Array != nullptr)
-			{
 				TH_FREE(Array);
-				Array = nullptr;
-			}
+		}
+		bool EpollHandle::Add(Socket* Fd, bool Readable, bool Writeable)
+		{
+			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
 
-			if (Sources != nullptr)
+#ifdef TH_APPLE
+			struct kevent Event;
+			int Result1 = 1;
+			if (Readable)
 			{
-				delete Sources;
-				Sources = nullptr;
+				EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
+				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 			}
 
+			int Result2 = 1;
+			if (Writeable)
+			{
+				EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
+				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			return Result1 == 1 && Result2 == 1;
+#else
+			epoll_event Event;
+			Event.data.ptr = (void*)Fd;
+			Event.events = EPOLLRDHUP;
+
+			if (Readable)
+				Event.events |= EPOLLIN;
+
+			if (Writeable)
+				Event.events |= EPOLLOUT;
+
+			return epoll_ctl(Handle, EPOLL_CTL_ADD, Fd->Fd, &Event) == 0;
+#endif
+		}
+		bool EpollHandle::Update(Socket* Fd, bool Readable, bool Writeable)
+		{
+			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+
+#ifdef TH_APPLE
+			struct kevent Event;
+			int Result1 = 1;
+			if (Readable)
+			{
+				EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Fd);
+				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			int Result2 = 1;
+			if (Writeable)
+			{
+				EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Fd);
+				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			return Result1 == 1 && Result2 == 1;
+#else
+			epoll_event Event;
+			Event.data.ptr = (void*)Fd;
+			Event.events = EPOLLRDHUP;
+
+			if (Readable)
+				Event.events |= EPOLLIN;
+
+			if (Writeable)
+				Event.events |= EPOLLOUT;
+
+			return epoll_ctl(Handle, EPOLL_CTL_MOD, Fd->Fd, &Event) == 0;
+#endif
+		}
+		bool EpollHandle::Remove(Socket* Fd, bool Readable, bool Writeable)
+		{
+			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+
+#ifdef TH_APPLE
+			struct kevent Event;
+			int Result1 = 1;
+			if (Readable)
+			{
+				EV_SET(&Event, Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			int Result2 = 1;
+			if (Writeable)
+			{
+				EV_SET(&Event, Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
+			}
+
+			return Result1 == 1 && Result2 == 1;
+#else
+			epoll_event Event;
+			Event.data.ptr = (void*)Fd;
+			Event.events = EPOLLRDHUP;
+
+			if (Readable)
+				Event.events |= EPOLLIN;
+
+			if (Writeable)
+				Event.events |= EPOLLOUT;
+
+			return epoll_ctl(Handle, EPOLL_CTL_DEL, Fd->Fd, &Event) == 0;
+#endif
+		}
+		int EpollHandle::Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout)
+		{
+			TH_ASSERT(ArraySize <= DataSize, -1, "epollfd array should be less than or equal to internal events buffer");
+#ifdef TH_APPLE
+			struct timespec Wait;
+			Wait.tv_sec = (int)Timeout / 1000;
+			Wait.tv_nsec = ((int)Timeout % 1000) * 1000000;
+
+			struct kevent* Events = (struct kevent*)Array;
+			int Count = kevent(Handle, nullptr, 0, Events, DataSize, &Wait);
+#else
+			epoll_event* Events = (epoll_event*)Array;
+			int Count = epoll_wait(Handle, Events, DataSize, (int)Timeout);
+#endif
+			if (Count <= 0)
+				return Count;
+
+			size_t Offset = 0;
+			for (auto It = Events; It != Events + Count; It++)
+			{
+				auto& Fd = Data[Offset++];
+#ifdef TH_APPLE
+				Fd.Base = (Socket*)It->udata;
+				Fd.Readable = (It->filter == EVFILT_READ);
+				Fd.Writeable = (It->filter == EVFILT_WRITE);
+				Fd.Closed = (It->flags & EV_EOF);
+#else
+				Fd.Base = (Socket*)It->data.ptr;
+				Fd.Readable = (It->events & EPOLLIN);
+				Fd.Writeable = (It->events & EPOLLOUT);
+				Fd.Closed = (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR);
+#endif
+			}
+
+			return Count;
+		}
+
+		void DNS::Release()
+		{
 			Exclusive.lock();
 			for (auto& Item : Names)
 			{
@@ -1481,322 +1427,7 @@ namespace Tomahawk
 			Names.clear();
 			Exclusive.unlock();
 		}
-		int Driver::Dispatch(int64_t EventTimeout)
-		{
-			TH_ASSERT(Array != nullptr, -1, "driver should be initialized");
-#ifdef TH_APPLE
-			struct timespec Wait;
-			Wait.tv_sec = (int)EventTimeout / 1000;
-			Wait.tv_nsec = ((int)EventTimeout % 1000) * 1000000;
-
-			struct kevent* Events = (struct kevent*)Array;
-			int Count = kevent(Handle, nullptr, 0, Events, ArraySize, &Wait);
-#else
-			epoll_event* Events = (epoll_event*)Array;
-			int Count = epoll_wait(Handle, Events, ArraySize, (int)EventTimeout);
-#endif
-			TH_PPUSH("net-dispatch", (uint64_t)EventTimeout + TH_PERF_IO);
-			int64_t Time = Clock(), Timeouts = 0;
-			for (auto It = Events; It != Events + Count; It++)
-			{
-				uint32_t Flags = 0;
-#ifdef TH_APPLE
-				if (It->filter == EVFILT_READ)
-					Flags |= (uint32_t)SocketEvent::Read;
-
-				if (It->filter == EVFILT_WRITE)
-					Flags |= (uint32_t)SocketEvent::Write;
-
-				if (It->flags & EV_EOF)
-					Flags |= (uint32_t)SocketEvent::Close;
-
-				Socket* Value = (Socket*)It->udata;
-#else
-				if (It->events & EPOLLIN)
-					Flags |= (uint32_t)SocketEvent::Read;
-
-				if (It->events & EPOLLOUT)
-					Flags |= (uint32_t)SocketEvent::Write;
-
-				if (It->events & EPOLLHUP || It->events & EPOLLRDHUP || It->events & EPOLLERR)
-					Flags |= (uint32_t)SocketEvent::Close;
-
-				Socket* Value = (Socket*)It->data.ptr;
-#endif
-				if (Driver::Dispatch(Value, Flags, Time) == 0)
-					Timeouts++;
-			}
-
-			TH_PPOP();
-			if (Timeouts > 0 || Sources->empty())
-				return Count;
-
-			TH_PPUSH("net-timeout", TH_PERF_IO);
-			Exclusive.lock();
-			auto Copy = *Sources;
-			Exclusive.unlock();
-
-			for (auto* Value : Copy)
-			{
-				if (Value->Sync.Timeout > 0 && Time - Value->Sync.Time > Value->Sync.Timeout)
-				{
-					TH_TRACE("[net] sock timeout on fd %i", (int)Value->Fd);
-					Value->Clear(true);
-				}
-			}
-
-			TH_PPOP();
-			return Count;
-		}
-		int Driver::Dispatch(Socket* Fd, uint32_t Events, int64_t Time)
-		{
-			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
-			if (Events & (uint32_t)SocketEvent::Close)
-			{
-				TH_TRACE("[net] sock reset on fd %i", (int)Fd->Fd);
-				return Fd->Clear(true) ? 0 : 1;
-			}
-
-			Fd->Sync.IO.lock();
-			if (Events & (uint32_t)SocketEvent::Read)
-			{
-				if (Fd->Input != nullptr)
-				{
-					ReadEvent* Event = Fd->Input;
-					auto Callback = std::move(Event->Callback);
-					char Buffer[8192];
-
-					while (Event->Size > 0)
-					{
-						int Size = Fd->Read(Buffer, Event->Match ? 1 : (int)std::min(Event->Size, sizeof(Buffer)));
-						if (Size == -1)
-						{
-							Fd->ReadFlush();
-							Fd->Sync.IO.unlock();
-							if (Callback)
-								Callback(NetEvent::Closed, nullptr, 0);
-							Fd->Sync.IO.lock();
-							goto ReadEOF;
-						}
-						else if (Size == -2)
-						{
-							Event->Callback = std::move(Callback);
-							goto ReadEOF;
-						}
-
-						Fd->Sync.IO.unlock();
-						bool Done = (Callback && !Callback(NetEvent::Packet, Buffer, (size_t)Size));
-						Fd->Sync.IO.lock();
-
-						if (!Fd->Input || Fd->Input != Event)
-							goto ReadEOF;
-
-						if (Done)
-							break;
-
-						if (!Event->Match)
-						{
-							Event->Size -= (int64_t)Size;
-							continue;
-						}
-
-						if (Event->Match[Event->Index] != Buffer[0])
-						{
-							Event->Index = 0;
-							continue;
-						}
-
-						Event->Index++;
-						if (Event->Index >= Event->Size)
-							break;
-					}
-
-					Fd->ReadFlush();
-					Fd->Sync.IO.unlock();
-					if (Callback)
-						Callback(NetEvent::Finished, nullptr, 0);
-					Fd->Sync.IO.lock();
-				ReadEOF:
-					Event = nullptr;
-				}
-				else if (Fd->Listener != nullptr)
-				{
-					SocketAcceptCallback Callback = *Fd->Listener;
-					Fd->Sync.IO.unlock();
-					bool Stop = !Callback(Fd);
-					Fd->Sync.IO.lock();
-
-					if (Stop)
-					{
-						TH_DELETE(SocketAcceptCallback, Fd->Listener);
-						Fd->Listener = nullptr;
-						Driver::Unlisten(Fd, true);
-					}
-				}
-			}
-			else if (Events & (uint32_t)SocketEvent::Write && Fd->Output != nullptr)
-			{
-				WriteEvent* Event = Fd->Output;
-				auto Callback = std::move(Event->Callback);
-				int64_t Offset = 0;
-
-				while (Event->Buffer && Event->Size > 0)
-				{
-					int Size = Fd->Write(Event->Buffer + Offset, (int)Event->Size);
-					if (Size == -1)
-					{
-						Fd->WriteFlush();
-						Fd->Sync.IO.unlock();
-						if (Callback)
-							Callback(NetEvent::Closed, 0);
-						Fd->Sync.IO.lock();
-						goto WriteEOF;
-					}
-					else if (Size == -2)
-					{
-						Event->Callback = std::move(Callback);
-						goto WriteEOF;
-					}
-
-					if (!Fd->Output || Fd->Output != Event)
-						goto WriteEOF;
-
-					Event->Size -= (int64_t)Size;
-				}
-
-				Fd->WriteFlush();
-				Fd->Sync.IO.unlock();
-				if (Callback)
-					Callback(NetEvent::Finished, 0);
-				Fd->Sync.IO.lock();
-			WriteEOF:
-				Event = nullptr;
-			}
-
-			bool Timeout = (Fd->Sync.Timeout > 0 && Time - Fd->Sync.Time > Fd->Sync.Timeout);
-			if (!Fd->Input && !Fd->Output && !Fd->Listener && Fd->Fd != INVALID_SOCKET)
-				Driver::Unlisten(Fd, false);
-
-			Fd->Sync.IO.unlock();
-			if (Timeout)
-				Fd->Clear(true);
-
-			return Timeout ? 0 : 1;
-		}
-		int Driver::Listen(Socket* Value, bool Always)
-		{
-			TH_ASSERT(Handle != nullptr, -1, "driver should be initialized");
-			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
-
-			if (Value->Sync.Timeout > 0)
-			{
-				Exclusive.lock();
-				Sources->insert(Value);
-				Exclusive.unlock();
-			}
-#ifdef TH_APPLE
-			struct kevent Event;
-			int Result1 = 1, Result2 = 1;
-			Value->Sync.Time = Clock();
-			Value->Sync.Poll = true;
-
-			if (Always || Value->Input != nullptr || Value->Listener)
-			{
-				EV_SET(&Event, Value->Fd, EVFILT_READ, EV_ADD, 0, 0, (void*)Value);
-				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
-
-			if (Always || Value->Output != nullptr)
-			{
-				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_ADD, 0, 0, (void*)Value);
-				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
-
-			return Result1 == 1 && Result2 == 1 ? 0 : -1;
-#else
-			bool Set = Value->Sync.Poll;
-			Value->Sync.Time = Clock();
-			Value->Sync.Poll = true;
-
-			epoll_event Event;
-			Event.data.ptr = (void*)Value;
-			Event.events = EPOLLRDHUP;
-
-			if (Always || Value->Input != nullptr || Value->Listener)
-				Event.events |= EPOLLIN;
-
-			if (Always || Value->Output != nullptr)
-				Event.events |= EPOLLOUT;
-
-			return epoll_ctl(Handle, Set ? EPOLL_CTL_MOD : EPOLL_CTL_ADD, Value->Fd, &Event);
-#endif
-		}
-		int Driver::Unlisten(Socket* Value, bool Always)
-		{
-			TH_ASSERT(Handle != nullptr, -1, "driver should be initialized");
-			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, -1, "socket should be set and valid");
-
-			Exclusive.lock();
-			Sources->erase(Value);
-			Exclusive.unlock();
-#ifdef TH_APPLE
-			struct kevent Event;
-			int Result1 = 1, Result2 = 1;
-
-			if (Always || Value->Input != nullptr || Value->Listener)
-			{
-				EV_SET(&Event, Value->Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
-				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
-
-			if (Always || Value->Output != nullptr)
-			{
-				EV_SET(&Event, Value->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
-				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
-			}
-
-			if (Always || (!Value->Input && !Value->Output))
-				Value->Sync.Poll = false;
-
-			return Result1 == 1 && Result2 == 1 ? 0 : -1;
-#else
-			epoll_event Event;
-			Event.data.ptr = (void*)Value;
-			Event.events = EPOLLRDHUP;
-
-			if (Always || (!Value->Input && !Value->Output))
-			{
-				Value->Sync.Poll = false;
-				return epoll_ctl(Handle, EPOLL_CTL_DEL, Value->Fd, &Event);
-			}
-
-			if (Value->Input != nullptr || Value->Listener)
-				Event.events |= EPOLLIN;
-
-			if (Value->Output != nullptr)
-				Event.events |= EPOLLOUT;
-
-			return epoll_ctl(Handle, EPOLL_CTL_MOD, Value->Fd, &Event);
-#endif
-		}
-		int Driver::Poll(pollfd* Fd, int FdCount, int Timeout)
-		{
-			TH_ASSERT(Fd != nullptr, -1, "poll should be set");
-#if defined(TH_MICROSOFT)
-			return WSAPoll(Fd, FdCount, Timeout);
-#else
-			return poll(Fd, FdCount, Timeout);
-#endif
-		}
-		int64_t Driver::Clock()
-		{
-			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		}
-		bool Driver::IsActive()
-		{
-			return Array != nullptr || Handle != INVALID_EPOLL;
-		}
-		std::string Driver::ResolveDNSReverse(const std::string& IpAddress, uint32_t Port)
+		std::string DNS::FindNameFromAddress(const std::string& IpAddress, uint32_t Port)
 		{
 			TH_ASSERT(!IpAddress.empty(), std::string(), "ip address should not be empty");
 			TH_ASSERT(Port > 0, std::string(), "port should be greater than zero");
@@ -1818,7 +1449,7 @@ namespace Tomahawk
 				auto* Base = reinterpret_cast<struct sockaddr_in6*>(&Storage);
 				Result = inet_pton(Family, IpAddress.c_str(), &Base->sin6_addr);
 				Base->sin6_family = Family;
-				Base->sin6_port = htons(Port);		
+				Base->sin6_port = htons(Port);
 			}
 
 			if (Result == -1)
@@ -1841,7 +1472,7 @@ namespace Tomahawk
 
 			return Host;
 		}
-		Address* Driver::ResolveDNS(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS)
+		Address* DNS::FindAddressFromName(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS)
 		{
 			TH_ASSERT(!Host.empty(), nullptr, "host should not be empty");
 			TH_ASSERT(!Service.empty(), nullptr, "service should not be empty");
@@ -1988,16 +1619,343 @@ namespace Tomahawk
 			TH_PPOP();
 			return Result;
 		}
-		epoll_handle Driver::Handle = INVALID_EPOLL;
-		std::unordered_set<Socket*>* Driver::Sources = nullptr;
-		std::unordered_map<std::string, std::pair<int64_t, Address*>> Driver::Names;
-		std::mutex Driver::Exclusive;
-		int Driver::ArraySize = 0;
-#ifdef TH_APPLE
-		struct kevent* Driver::Array = nullptr;
+		std::unordered_map<std::string, std::pair<int64_t, Address*>> DNS::Names;
+		std::mutex DNS::Exclusive;
+
+		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout)
+		{
+			TH_ASSERT(Fd != nullptr, -1, "poll should be set");
+#if defined(TH_MICROSOFT)
+			return WSAPoll(Fd, FdCount, Timeout);
 #else
-		epoll_event* Driver::Array = nullptr;
+			return poll(Fd, FdCount, Timeout);
 #endif
+		}
+		int64_t Utils::Clock()
+		{
+			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		}
+
+		void Driver::Create(size_t MaxEvents)
+		{
+			TH_ASSERT_V(MaxEvents > 0, "array size should be greater than zero");
+			if (Handle != nullptr)
+				delete Handle;
+
+			if (!Timeouts)
+				Timeouts = new std::map<std::chrono::microseconds, Socket*>();
+
+			if (!Fds)
+				Fds = new std::vector<EpollFd>();
+
+			Handle = new EpollHandle((int)MaxEvents);
+			Fds->resize(MaxEvents);
+		}
+		void Driver::Release()
+		{
+			if (Handle != nullptr)
+			{
+				delete Handle;
+				Handle = nullptr;
+			}
+
+			if (Timeouts != nullptr)
+			{
+				delete Timeouts;
+				Timeouts = nullptr;
+			}
+
+			if (Fds != nullptr)
+			{
+				delete Fds;
+				Fds = nullptr;
+			}
+
+			DNS::Release();
+		}
+		int Driver::Dispatch(uint64_t EventTimeout)
+		{
+			TH_ASSERT(Handle != nullptr && Timeouts != nullptr, -1, "driver should be initialized");
+
+			int Count = Handle->Wait(Fds->data(), Fds->size(), EventTimeout);
+			if (Count < 0)
+				return Count;
+
+			TH_PPUSH("net-dispatch", EventTimeout + TH_PERF_IO);
+			size_t Size = (size_t)Count, Cleanups = 0;
+			auto Time = Core::Schedule::GetClock();
+
+			for (size_t i = 0; i < Size; i++)
+			{
+				if (!DispatchEvents(Fds->at(i), Time))
+					++Cleanups;
+			}
+
+			TH_PPOP();
+			if (Timeouts->empty())
+				return Count;
+
+			TH_PPUSH("net-timeout", TH_PERF_IO);
+			Exclusive.lock();
+			while (!Timeouts->empty())
+			{
+				auto It = Timeouts->begin();
+				if (It->first > Time)
+					break;
+
+				TH_TRACE("[net] sock timeout on fd %i", (int)It->second->Fd);
+				CancelEvents(It->second, SocketPoll::Timeout, false);
+				Timeouts->erase(It);
+			}
+			Exclusive.unlock();
+
+			TH_PPOP();
+			return Count;
+		}
+		bool Driver::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time)
+		{
+			TH_ASSERT(Fd.Base != nullptr, false, "no socket is connected to epoll fd");
+			if (Fd.Closed)
+			{
+				TH_TRACE("[net] sock reset on fd %i", (int)Fd.Base->Fd);
+				CancelEvents(Fd.Base, SocketPoll::Reset);
+				return false;
+			}
+
+			if (!Fd.Readable && !Fd.Writeable)
+			{
+				ClearEvents(Fd.Base);
+				return false;
+			}
+
+			Exclusive.lock();
+			bool Exists = ((!Fd.Readable && Fd.Base->Events.Readable) || (!Fd.Writeable && Fd.Base->Events.Writeable));
+			auto WhenReadable = std::move(Fd.Base->Events.ReadCallback);
+			auto WhenWriteable = std::move(Fd.Base->Events.WriteCallback);
+
+			if (Exists)
+			{
+				if (Fd.Base->Timeout > 0)
+					UpdateTimeout(Fd.Base, Time + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Fd.Base->Timeout)));
+
+				if (!Fd.Readable)
+					Fd.Base->Events.ReadCallback = std::move(WhenReadable);
+				else if (!Fd.Writeable)
+					Fd.Base->Events.WriteCallback = std::move(WhenWriteable);
+			}
+			else
+			{
+				if (Fd.Base->Timeout > 0)
+					RemoveTimeout(Fd.Base);
+
+				CancelEvents(Fd.Base, SocketPoll::Finish, false);
+			}
+			Exclusive.unlock();
+
+			if (Fd.Readable && Fd.Writeable)
+			{
+				Core::Schedule::Get()->SetTask([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
+				{
+					if (WhenWriteable)
+						WhenWriteable(SocketPoll::Finish);
+
+					if (WhenReadable)
+						WhenReadable(SocketPoll::Finish);
+				}, Core::Difficulty::Light);
+			}
+			else if (Fd.Readable)
+			{
+				Core::Schedule::Get()->SetTask([WhenReadable = std::move(WhenReadable)]() mutable
+				{
+					if (WhenReadable)
+						WhenReadable(SocketPoll::Finish);
+				}, Core::Difficulty::Light);
+			}
+			else if (Fd.Writeable)
+			{
+				Core::Schedule::Get()->SetTask([WhenWriteable = std::move(WhenWriteable)]() mutable
+				{
+					if (WhenWriteable)
+						WhenWriteable(SocketPoll::Finish);
+				}, Core::Difficulty::Light);
+			}
+
+			return Exists;
+		}
+		bool Driver::WhenReadable(Socket* Value, PollEventCallback&& WhenReady)
+		{
+			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+
+			return WhenEvents(Value, true, false, std::move(WhenReady), nullptr);
+		}
+		bool Driver::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady)
+		{
+			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+
+			return WhenEvents(Value, false, true, nullptr, std::move(WhenReady));
+		}
+		bool Driver::CancelEvents(Socket* Value, SocketPoll Event, bool Safely)
+		{
+			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
+
+			if (Safely)
+				Exclusive.lock();
+
+			auto WhenReadable = std::move(Value->Events.ReadCallback);
+			auto WhenWriteable = std::move(Value->Events.WriteCallback);
+			bool Success = Handle->Remove(Value, true, true);
+			Value->Events.Readable = false;
+			Value->Events.Writeable = false;
+			
+			if (Safely)
+			{
+				RemoveTimeout(Value);
+				Exclusive.unlock();
+			}
+
+			if (!Packet::IsDone(Event) && (WhenWriteable || WhenReadable))
+			{
+				Core::Schedule::Get()->SetTask([Event, WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
+				{
+					if (WhenWriteable)
+						WhenWriteable(Event);
+
+					if (WhenReadable)
+						WhenReadable(Event);
+				}, Core::Difficulty::Light);
+			}
+
+			return Success;
+		}
+		bool Driver::ClearEvents(Socket* Value)
+		{
+			return CancelEvents(Value, SocketPoll::Finish);
+		}
+		bool Driver::IsAwaitingEvents(Socket* Value)
+		{
+			TH_ASSERT(Value != nullptr, false, "socket should be set");
+
+			Exclusive.lock();
+			bool Awaits = Value->Events.Readable || Value->Events.Writeable;
+			Exclusive.unlock();
+			return Awaits;
+		}
+		bool Driver::IsAwaitingReadable(Socket* Value)
+		{
+			TH_ASSERT(Value != nullptr, false, "socket should be set");
+
+			Exclusive.lock();
+			bool Awaits = Value->Events.Readable;
+			Exclusive.unlock();
+			return Awaits;
+		}
+		bool Driver::IsAwaitingWriteable(Socket* Value)
+		{
+			TH_ASSERT(Value != nullptr, false, "socket should be set");
+
+			Exclusive.lock();
+			bool Awaits = Value->Events.Writeable;
+			Exclusive.unlock();
+			return Awaits;
+		}
+		bool Driver::IsActive()
+		{
+			return Handle != nullptr;
+		}
+		bool Driver::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable)
+		{
+			bool Success = false;
+			Exclusive.lock();
+			{
+				bool Update = false;
+				if (Readable)
+				{
+					if (!Value->Events.Readable)
+					{
+						Value->Events.ReadCallback = std::move(WhenReadable);
+						Value->Events.Readable = true;
+					}
+					else
+					{
+						Value->Events.ReadCallback.swap(WhenReadable);
+						Update = true;
+					}
+				}
+
+				if (Writeable)
+				{
+					if (!Value->Events.Writeable)
+					{
+						Value->Events.WriteCallback = std::move(WhenWriteable);
+						Value->Events.Writeable = true;
+					}
+					else
+					{
+						Value->Events.WriteCallback.swap(WhenWriteable);
+						Update = true;
+					}
+				}
+
+				if (Value->Timeout > 0)
+					AddTimeout(Value, Core::Schedule::GetClock() + std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::milliseconds(Value->Timeout)));
+
+				if (Update)
+					Success = Handle->Update(Value, Value->Events.Readable, Value->Events.Writeable);
+				else
+					Success = Handle->Add(Value, Value->Events.Readable, Value->Events.Writeable);
+			}
+			Exclusive.unlock();
+
+			if (WhenWriteable || WhenReadable)
+			{
+				Core::Schedule::Get()->SetTask([WhenReadable = std::move(WhenReadable), WhenWriteable = std::move(WhenWriteable)]() mutable
+				{
+					if (WhenWriteable)
+						WhenWriteable(SocketPoll::Cancel);
+
+					if (WhenReadable)
+						WhenReadable(SocketPoll::Cancel);
+				}, Core::Difficulty::Light);
+			}
+
+			return Success;
+		}
+		void Driver::AddTimeout(Socket* Value, const std::chrono::microseconds& Time)
+		{
+			Value->Events.ExpiresAt = Time;
+			Timeouts->insert(std::make_pair(Time, Value));
+		}
+		void Driver::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time)
+		{
+			RemoveTimeout(Value);
+			AddTimeout(Value, Time);
+		}
+		void Driver::RemoveTimeout(Socket* Value)
+		{
+			auto It = Timeouts->find(Value->Events.ExpiresAt);
+			if (It == Timeouts->end())
+			{
+				for (auto I = Timeouts->begin(); I != Timeouts->end(); ++I)
+				{
+					if (I->second == Value)
+					{
+						It = I;
+						break;
+					}
+				}
+			}
+
+			if (It != Timeouts->end())
+				Timeouts->erase(It);
+		}
+		EpollHandle* Driver::Handle = nullptr;
+		std::map<std::chrono::microseconds, Socket*>* Driver::Timeouts = nullptr;
+		std::vector<EpollFd>* Driver::Fds = nullptr;
+		std::mutex Driver::Exclusive;
+
 		SocketServer::SocketServer() : Backlog(1024)
 		{
 #ifndef TH_MICROSOFT
@@ -2077,7 +2035,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				Value->Base->CloseOnExec();
+				Value->Base->SetCloseOnExec();
 				Value->Base->SetBlocking(false);
 				Listeners.push_back(Value);
 
@@ -2206,8 +2164,8 @@ namespace Tomahawk
 				{
 					Base->Info.Close = true;
 					Base->Info.KeepAlive = 0;
-					if (Base->Stream->HasPendingData())
-						Base->Stream->Clear(true);
+					if (Base->Stream->IsPending())
+						Base->Stream->ClearEvents(true);
 				}
 
 				FreeAll();
@@ -2227,7 +2185,7 @@ namespace Tomahawk
 				}
 				TH_DELETE(Listener, It);
 			}
-			
+
 			OnDeallocateRouter(Router);
 			State = ServerState::Idle;
 			Router = nullptr;
@@ -2245,13 +2203,13 @@ namespace Tomahawk
 
 			for (auto&& It : Listeners)
 			{
-				It->Base->AcceptAsync([this, It](Socket*)
+				It->Base->AcceptAsync([this, It](socket_t Fd)
 				{
 					if (State != ServerState::Working)
 						return false;
 
-					Accept(It);
-					return true;
+					Accept(It, Fd);
+					return State == ServerState::Working;
 				});
 			}
 
@@ -2272,56 +2230,45 @@ namespace Tomahawk
 			TH_PPOP();
 			return true;
 		}
-		bool SocketServer::Accept(Listener* Host)
+		bool SocketServer::Accept(Listener* Host, socket_t Fd)
 		{
 			TH_PPUSH("sock-accept", TH_PERF_FRAME);
 			auto* Base = Pop(Host);
-			if (!Base || Host->Base->Accept(Base->Stream, nullptr) == -1)
+			if (!Base)
 			{
-				Push(Base);
-				TH_PPOP();
-
-				return false;
-			}
-
-			if (Router->MaxConnections > 0 && Active.size() >= Router->MaxConnections)
-			{
-				Base->Stream->CloseAsync(false, [this, Base](Socket*)
-				{
-					Push(Base);
-					return true;
-				});
-
 				TH_PPOP();
 				return false;
 			}
 
-			if (Router->GracefulTimeWait >= 0)
-				Base->Stream->SetTimeWait((int)Router->GracefulTimeWait);
-
-			Base->Stream->CloseOnExec();
-			Base->Stream->SetAsyncTimeout(Router->SocketTimeout);
+			Base->Stream->Timeout = Router->SocketTimeout;
+			Base->Stream->SetFd(Fd, false);
+			Base->Stream->SetCloseOnExec();
 			Base->Stream->SetNodelay(Router->EnableNoDelay);
 			Base->Stream->SetKeepAlive(true);
 			Base->Stream->SetBlocking(false);
 
-			if (Host->Hostname->Secure && !Protect(Base->Stream, Host))
-			{
-				Base->Stream->CloseAsync(false, [this, Base](Socket*)
-				{
-					Push(Base);
-					return true;
-				});
+			if (Router->GracefulTimeWait >= 0)
+				Base->Stream->SetTimeWait((int)Router->GracefulTimeWait);
 
-				TH_PPOP();
-				return false;
-			}
+			if (Router->MaxConnections > 0 && Active.size() >= Router->MaxConnections)
+				goto Refuse;
+
+			if (Host->Hostname->Secure && !Protect(Base->Stream, Host))
+				goto Refuse;
 
 			TH_PPOP();
 			return Core::Schedule::Get()->SetTask([this, Base]()
 			{
 				OnRequestBegin(Base);
 			}, Core::Difficulty::Light);
+		Refuse:
+			Base->Stream->CloseAsync(false, [this, Base]()
+			{
+				Push(Base);
+			});
+
+			TH_PPOP();
+			return false;
 		}
 		bool SocketServer::Protect(Socket* Fd, Listener* Host)
 		{
@@ -2343,11 +2290,11 @@ namespace Tomahawk
 				return false;
 			}
 
-			pollfd SFd{ };
+			pollfd SFd { };
 			SFd.fd = Fd->GetFd();
 			SFd.events = POLLIN | POLLOUT;
 
-			int64_t Timeout = Driver::Clock();
+			int64_t Timeout = Utils::Clock();
 			bool OK = true;
 
 			while (OK)
@@ -2356,7 +2303,7 @@ namespace Tomahawk
 				if (Result >= 0)
 					break;
 
-				if (Driver::Clock() - Timeout > (int64_t)Router->SocketTimeout)
+				if (Utils::Clock() - Timeout > (int64_t)Router->SocketTimeout)
 				{
 					TH_PPOP();
 					return false;
@@ -2369,7 +2316,7 @@ namespace Tomahawk
 					case SSL_ERROR_WANT_ACCEPT:
 					case SSL_ERROR_WANT_WRITE:
 					case SSL_ERROR_WANT_READ:
-						Driver::Poll(&SFd, 1, Router->SocketTimeout);
+						Utils::Poll(&SFd, 1, Router->SocketTimeout);
 						break;
 					default:
 						OK = false;
@@ -2396,11 +2343,12 @@ namespace Tomahawk
 				Base->Info.KeepAlive--;
 
 			if (Base->Info.KeepAlive >= -1)
-				Base->Info.Finish = Driver::Clock();
+				Base->Info.Finish = Utils::Clock();
 
 			if (!OnRequestEnded(Base, false))
 				return false;
 
+			Base->Stream->Timeout = Router->SocketTimeout;
 			Base->Stream->Income = 0;
 			Base->Stream->Outcome = 0;
 
@@ -2408,12 +2356,9 @@ namespace Tomahawk
 				return OnRequestBegin(Base);
 
 			Base->Info.KeepAlive = -2;
-			Base->Stream->CloseAsync(true, [this, Base](Socket*)
+			Base->Stream->CloseAsync(true, [this, Base]
 			{
-				return Core::Schedule::Get()->SetTask([this, Base]()
-				{
-					Push(Base);
-				}, Core::Difficulty::Light);
+				Push(Base);
 			});
 
 			return true;
@@ -2607,9 +2552,9 @@ namespace Tomahawk
 					return -1;
 				}
 
-				Stream.CloseOnExec();
+				Stream.Timeout = Timeout;
+				Stream.SetCloseOnExec();
 				Stream.SetBlocking(!Async);
-				Stream.SetAsyncTimeout(Timeout);
 #ifdef TH_HAS_OPENSSL
 				if (Hostname.Secure)
 				{
@@ -2661,9 +2606,9 @@ namespace Tomahawk
 		}
 		bool SocketClient::OnClose()
 		{
-			return Stream.CloseAsync(true, [this](Socket*)
+			return Stream.CloseAsync(true, [this]()
 			{
-				return Success(0);
+				Success(0);
 			}) == 0;
 		}
 		bool SocketClient::Certify()
@@ -2696,11 +2641,11 @@ namespace Tomahawk
 				{
 					case SSL_ERROR_WANT_READ:
 						Fd.events = POLLIN;
-						Driver::Poll(&Fd, 1, 5);
+						Utils::Poll(&Fd, 1, 5);
 						break;
 					case SSL_ERROR_WANT_WRITE:
 						Fd.events = POLLOUT;
-						Driver::Poll(&Fd, 1, 5);
+						Utils::Poll(&Fd, 1, 5);
 						break;
 					default:
 						return Error("%s", ERR_error_string(ERR_get_error(), nullptr));
@@ -2726,13 +2671,13 @@ namespace Tomahawk
 			va_end(Args);
 
 			TH_ERR("[net] %.*s\n\tat %s", Size, Buffer, Action.empty() ? "request" : Action.c_str());
-			Stream.CloseAsync(true, [this](Socket*)
+			Stream.CloseAsync(true, [this]()
 			{
-				return Success(-1);
+				Success(-1);
 			});
 
 			return false;
-		}
+	}
 		bool SocketClient::Success(int Code)
 		{
 			SocketClientCallback Callback(std::move(Done));
@@ -2745,5 +2690,5 @@ namespace Tomahawk
 		{
 			return &Stream;
 		}
-	}
+}
 }

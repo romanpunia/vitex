@@ -20,6 +20,8 @@ namespace Tomahawk
 	{
 		struct SocketConnection;
 
+		struct EpollHandle;
+
 		class Driver;
 
 		enum class Secure
@@ -38,19 +40,13 @@ namespace Tomahawk
 			Idle
 		};
 
-		enum class SocketEvent
+		enum class SocketPoll
 		{
-			Read = (1 << 0),
-			Write = (1 << 1),
-			Close = (1 << 2),
-			Timeout = (1 << 3),
-			None = (1 << 4)
-		};
-
-		enum class DNSType
-		{
-			Connect,
-			Listen
+			Next = 0,
+			Reset = 1,
+			Timeout = 2,
+			Cancel = 3,
+			Finish = 4
 		};
 
 		enum class SocketProtocol
@@ -71,24 +67,18 @@ namespace Tomahawk
 			Sequence_Packet_Stream
 		};
 
-		enum class NetEvent
+		enum class DNSType
 		{
-			Packet,
-			Timeout,
-			Finished,
-			Cancelled,
-			Closed
+			Connect,
+			Listen
 		};
 
-		typedef std::function<bool(NetEvent, const char*, size_t)> NetReadCallback;
-		typedef std::function<void(NetEvent, size_t)> NetWriteCallback;
-		typedef std::function<bool(struct Socket*)> SocketAcceptCallback;
 		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
-
-		inline SocketEvent operator |(SocketEvent A, SocketEvent B)
-		{
-			return static_cast<SocketEvent>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
-		}
+		typedef std::function<void(SocketPoll)> PollEventCallback;
+		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
+		typedef std::function<void()> SocketClosedCallback;
+		typedef std::function<bool(SocketPoll, const char*, size_t)> SocketReadCallback;
+		typedef std::function<bool(socket_t)> SocketAcceptedCallback;
 
 		struct TH_OUT Address
 		{
@@ -96,49 +86,46 @@ namespace Tomahawk
 			addrinfo* Good = nullptr;
 		};
 
-		struct TH_OUT WriteEvent
-		{
-			char* Buffer = nullptr;
-			size_t Size = 0;
-			NetWriteCallback Callback;
-		};
-
-		struct TH_OUT ReadEvent
-		{
-			const char* Match = nullptr;
-			size_t Size = 0, Index = 0;
-			NetReadCallback Callback;
-		};
-
 		struct TH_OUT Socket
 		{
+			friend EpollHandle;
 			friend Driver;
-			friend SocketConnection;
-
+			
 		private:
 			struct
 			{
-				std::mutex IO;
-				std::mutex Device;
-				std::atomic<bool> Poll;
-				int64_t Time, Timeout;
-			} Sync;
+				PollEventCallback ReadCallback = nullptr;
+				PollEventCallback WriteCallback = nullptr;
+				std::chrono::microseconds ExpiresAt;
+				bool Readable = false;
+				bool Writeable = false;
+			} Events;
 
 		private:
-			SocketAcceptCallback* Listener;
-			ReadEvent* Input;
-			WriteEvent* Output;
 			ssl_st* Device;
 			socket_t Fd;
 
 		public:
-			int64_t Income, Outcome;
+			uint64_t Timeout;
+			int64_t Income;
+			int64_t Outcome;
 			void* UserData;
 
 		public:
 			Socket();
 			Socket(socket_t FromFd);
-			~Socket();
+			int Accept(Socket* Connection, Address* Output);
+			int Accept(socket_t* NewFd);
+			int AcceptAsync(SocketAcceptedCallback&& Callback);
+			int Close(bool Gracefully = true);
+			int CloseAsync(bool Gracefully, SocketClosedCallback&& Callback);
+			int Write(const char* Buffer, int Size);
+			int WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr);
+			int Read(char* Buffer, int Size);
+			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
+			int ReadAsync(size_t Size, SocketReadCallback&& Callback);
+			int ReadUntil(const char* Match, SocketReadCallback&& Callback);
+			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
 			int Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Result);
 			int Open(const std::string& Host, const std::string& Port, DNSType DNS, Address** Result);
 			int Open(addrinfo* Good);
@@ -146,27 +133,9 @@ namespace Tomahawk
 			int Bind(Address* Address);
 			int Connect(Address* Address, uint64_t Timeout);
 			int Listen(int Backlog);
-			int Accept(Socket* Connection, Address* Output);
-			int AcceptAsync(SocketAcceptCallback&& Callback);
-			int Close(bool Gracefully = true);
-			int CloseAsync(bool Gracefully, const SocketAcceptCallback& Callback);
-			int CloseOnExec();
-			int Skip(unsigned int IO, NetEvent Reason);
-			int Clear(bool Gracefully);
-			int Write(const char* Buffer, int Size);
-			int Write(const char* Buffer, int Size, const NetWriteCallback& Callback);
-			int Write(const std::string& Buffer);
-			int WriteAsync(const char* Buffer, size_t Size, NetWriteCallback&& Callback);
-			int fWrite(const char* Format, ...);
-			int fWriteAsync(NetWriteCallback&& Callback, const char* Format, ...);
-			int Read(char* Buffer, int Size);
-			int Read(char* Buffer, int Size, const NetReadCallback& Callback);
-			int ReadAsync(size_t Size, NetReadCallback&& Callback);
-			int ReadUntil(const char* Match, const NetReadCallback& Callback);
-			int ReadUntilAsync(const char* Match, NetReadCallback&& Callback);
-			int SetFd(socket_t Fd);
-			int SetReadNotify(NetReadCallback&& Callback);
-			int SetWriteNotify(NetWriteCallback&& Callback);
+			int ClearEvents(bool Gracefully);
+			int SetFd(socket_t Fd, bool Gracefully = true);
+			int SetCloseOnExec();
 			int SetTimeWait(int Timeout);
 			int SetSocket(int Option, void* Value, int Size);
 			int SetAny(int Level, int Option, void* Value, int Size);
@@ -176,7 +145,6 @@ namespace Tomahawk
 			int SetNodelay(bool Enabled);
 			int SetKeepAlive(bool Enabled);
 			int SetTimeout(int Timeout);
-			int SetAsyncTimeout(int64_t Timeout);
 			int GetError(int Result);
 			int GetAnyFlag(int Level, int Option, int* Value);
 			int GetAny(int Level, int Option, void* Value, int* Size);
@@ -185,19 +153,14 @@ namespace Tomahawk
 			int GetPort();
 			socket_t GetFd();
 			ssl_st* GetDevice();
+			bool IsPendingForRead();
+			bool IsPendingForWrite();
+			bool IsPending();
 			bool IsValid();
-			bool HasIncomingData();
-			bool HasOutcomingData();
-			bool HasPendingData();
 			std::string GetRemoteAddress();
-			int64_t GetAsyncTimeout();
 
 		private:
-			bool CloseSet(const SocketAcceptCallback& Callback, bool OK);
-			bool ReadSet(NetReadCallback&& Callback, const char* Match, size_t Size, size_t Index);
-			bool ReadFlush();
-			bool WriteSet(NetWriteCallback&& Callback, const char* Buffer, size_t Size);
-			bool WriteFlush();
+			int TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying);
 
 		public:
 			template <typename T>
@@ -310,64 +273,116 @@ namespace Tomahawk
 			int64_t GracefulTimeWait = -1;
 			bool EnableNoDelay = false;
 
+			Host& Listen(const std::string& Hostname, int Port, bool Secure = false);
+			Host& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);
 			virtual ~SocketRouter();
+		};
+
+		struct TH_OUT EpollFd
+		{
+			Socket* Base;
+			bool Readable;
+			bool Writeable;
+			bool Closed;
+		};
+
+		struct TH_OUT EpollHandle
+		{
+#ifdef TH_APPLE
+			kevent* Array;
+#else
+			epoll_event* Array;
+#endif
+			epoll_handle Handle;
+			int ArraySize;
+
+			EpollHandle(int ArraySize);
+			~EpollHandle();
+			bool Add(Socket* Fd, bool Readable, bool Writeable);
+			bool Update(Socket* Fd, bool Readable, bool Writeable);
+			bool Remove(Socket* Fd, bool Readable, bool Writeable);
+			int Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout);
 		};
 
 		class TH_OUT Packet
 		{
 		public:
-			static bool IsData(NetEvent Event)
+			static bool IsData(SocketPoll Event)
 			{
-				return Event == NetEvent::Packet;
+				return Event == SocketPoll::Next;
 			}
-			static bool IsSkip(NetEvent Event)
+			static bool IsSkip(SocketPoll Event)
 			{
-				return Event == NetEvent::Cancelled;
+				return Event == SocketPoll::Cancel;
 			}
-			static bool IsDone(NetEvent Event)
+			static bool IsDone(SocketPoll Event)
 			{
-				return Event == NetEvent::Finished;
+				return Event == SocketPoll::Finish;
 			}
-			static bool IsError(NetEvent Event)
+			static bool IsTimeout(SocketPoll Event)
 			{
-				return Event == NetEvent::Closed || Event == NetEvent::Timeout;
+				return Event == SocketPoll::Timeout;
 			}
-			static bool IsErrorOrSkip(NetEvent Event)
+			static bool IsError(SocketPoll Event)
 			{
-				return Event == NetEvent::Closed || Event == NetEvent::Timeout || Event == NetEvent::Cancelled;
+				return Event == SocketPoll::Reset || Event == SocketPoll::Timeout;
 			}
+			static bool IsErrorOrSkip(SocketPoll Event)
+			{
+				return IsError(Event) || Event == SocketPoll::Cancel;
+			}
+			static bool WillContinue(SocketPoll Event)
+			{
+				return !IsData(Event);
+			}
+		};
+
+		class TH_OUT DNS
+		{
+		private:
+			static std::unordered_map<std::string, std::pair<int64_t, Address*>> Names;
+			static std::mutex Exclusive;
+
+		public:
+			static void Release();
+			static std::string FindNameFromAddress(const std::string& IpAddress, uint32_t Port);
+			static Address* FindAddressFromName(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS);
+		};
+
+		class TH_OUT Utils
+		{
+		public:
+			static int Poll(pollfd* Fd, int FdCount, int Timeout);
+			static int64_t Clock();
 		};
 
 		class TH_OUT Driver
 		{
-			friend struct Socket;
-
 		private:
-#ifdef TH_APPLE
-			static kevent* Array;
-#else
-			static epoll_event* Array;
-#endif
-			static std::unordered_set<Socket*>* Sources;
-			static std::unordered_map<std::string, std::pair<int64_t, Address*>> Names;
+			static std::map<std::chrono::microseconds, Socket*>* Timeouts;
+			static std::vector<EpollFd>* Fds;
 			static std::mutex Exclusive;
-			static epoll_handle Handle;
-			static int ArraySize;
+			static EpollHandle* Handle;
 
 		public:
-			static void Create(int MaxEvents = 256);
+			static void Create(size_t MaxEvents = 256);
 			static void Release();
-			static int Dispatch(int64_t Timeout);
-			static int Listen(Socket* Value, bool Always);
-			static int Unlisten(Socket* Value, bool Always);
-			static int Poll(pollfd* Fd, int FdCount, int Timeout);
-			static int64_t Clock();
+			static int Dispatch(uint64_t Timeout);
+			static bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady);
+			static bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady);
+			static bool CancelEvents(Socket* Value, SocketPoll Event = SocketPoll::Cancel, bool Safely = true);
+			static bool ClearEvents(Socket* Value);
+			static bool IsAwaitingEvents(Socket* Value);
+			static bool IsAwaitingReadable(Socket* Value);
+			static bool IsAwaitingWriteable(Socket* Value);
 			static bool IsActive();
-			static std::string ResolveDNSReverse(const std::string& IpAddress, uint32_t Port);
-			static Address* ResolveDNS(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS);
 
 		private:
-			static int Dispatch(Socket* Value, uint32_t Events, int64_t Time);
+			static bool WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable);
+			static bool DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time);
+			static void AddTimeout(Socket* Value, const std::chrono::microseconds& Time);
+			static void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time);
+			static void RemoveTimeout(Socket* Value);
 		};
 
 		class TH_OUT SocketServer : public Core::Object
@@ -413,7 +428,7 @@ namespace Tomahawk
 
 		protected:
 			bool FreeAll();
-			bool Accept(Listener* Host);
+			bool Accept(Listener* Host, socket_t Fd);
 			bool Protect(Socket* Fd, Listener* Host);
 			bool Manage(SocketConnection* Base);
 			void Push(SocketConnection* Base);

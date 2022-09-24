@@ -76,7 +76,7 @@ namespace Tomahawk
 			typedef std::vector<std::string> RangePayload;
 			typedef std::map<std::string, RangePayload, struct HeaderComparator> HeaderMapping;
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
-			typedef std::function<bool(struct Connection*, NetEvent, const char*, size_t)> ContentCallback;
+			typedef std::function<bool(struct Connection*, SocketPoll, const char*, size_t)> ContentCallback;
 			typedef std::function<bool(struct Connection*, struct Resource*)> ResourceCallback;
 			typedef std::function<bool(struct Connection*, struct Credentials*)> AuthorizeCallback;
 			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
@@ -490,6 +490,7 @@ namespace Tomahawk
 
 				MapRouter();
 				virtual ~MapRouter() override;
+				SiteEntry* Site();
 				SiteEntry* Site(const char* Host);
 			};
 

@@ -271,7 +271,7 @@ namespace Tomahawk
 			uint64_t MaxConnections = 0;
 			int64_t KeepAliveMaxCount = 50;
 			int64_t GracefulTimeWait = -1;
-			bool EnableNoDelay = false;
+			bool EnableNoDelay = true;
 
 			Host& Listen(const std::string& Hostname, int Port, bool Secure = false);
 			Host& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);

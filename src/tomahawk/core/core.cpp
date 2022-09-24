@@ -7632,7 +7632,7 @@ namespace Tomahawk
 					Log->ColorBegin(BaseColor);
 					continue;
 				}
-				else if (V == '[' && strstr(Text + Offset, "]") != nullptr)
+				else if (V == '[' && strstr(Text + Offset + 1, "]") != nullptr)
 				{
 					size_t Iterations = 0, Skips = 0;
 					Log->ColorBegin(StdColor::Cyan);
@@ -7646,7 +7646,7 @@ namespace Tomahawk
 					Log->ColorBegin(BaseColor);
 					continue;
 				}
-				else if (V == '\"' && strstr(Text + Offset, "\"") != nullptr)
+				else if (V == '\"' && strstr(Text + Offset + 1, "\"") != nullptr)
 				{
 					Log->ColorBegin(StdColor::LightBlue);
 					do
@@ -7659,7 +7659,7 @@ namespace Tomahawk
 					Log->ColorBegin(BaseColor);
 					continue;
 				}
-				else if (V == '\'' && strstr(Text + Offset, "\'") != nullptr)
+				else if (V == '\'' && strstr(Text + Offset + 1, "\'") != nullptr)
 				{
 					Log->ColorBegin(StdColor::LightBlue);
 					do

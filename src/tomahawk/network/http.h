@@ -267,6 +267,7 @@ namespace Tomahawk
 				std::atomic<bool> Active;
 				std::atomic<bool> Reset;
 				std::atomic<bool> Deadly;
+				std::atomic<bool> Busy;
 				std::mutex Section;
 				Socket* Stream;
 				WebCodec* Codec;
@@ -288,7 +289,9 @@ namespace Tomahawk
 			private:
 				void Finalize();
 				void Dequeue();
+				void Writeable();
 				bool Enqueue(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
+				bool IsWriteable();
 				bool IsIgnore();
 			};
 

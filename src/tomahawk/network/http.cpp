@@ -111,8 +111,11 @@ namespace Tomahawk
 				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				Section.lock();
-				if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
-					return Section.unlock();
+				{
+					if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
+						return Section.unlock();
+					Busy = true;
+				}
 				Section.unlock();
 
 				unsigned char Header[14];
@@ -159,6 +162,8 @@ namespace Tomahawk
 								if (Packet::IsDone(Event) || Packet::IsSkip(Event))
 								{
 									bool Ignore = IsIgnore();
+									Writeable();
+
 									if (Callback)
 										Callback(this);
 
@@ -167,6 +172,7 @@ namespace Tomahawk
 								}
 								else if (Packet::IsError(Event))
 								{
+									Writeable();
 									if (Callback)
 										Callback(this);
 
@@ -182,6 +188,8 @@ namespace Tomahawk
 						else
 						{
 							bool Ignore = IsIgnore();
+							Writeable();
+
 							if (Callback)
 								Callback(this);
 
@@ -191,6 +199,7 @@ namespace Tomahawk
 					}
 					else if (Packet::IsError(Event))
 					{
+						Writeable();
 						if (Callback)
 							Callback(this);
 
@@ -204,6 +213,8 @@ namespace Tomahawk
 					else if (Packet::IsSkip(Event))
 					{
 						bool Ignore = IsIgnore();
+						Writeable();
+
 						if (Callback)
 							Callback(this);
 
@@ -215,7 +226,7 @@ namespace Tomahawk
 			void WebSocketFrame::Dequeue()
 			{
 				Section.lock();
-				if (Stream->IsPendingForWrite() || Messages.empty())
+				if (!IsWriteable() || Messages.empty())
 					return Section.unlock();
 
 				Message Next = std::move(Messages.front());
@@ -393,6 +404,12 @@ namespace Tomahawk
 				}
 				Section.unlock();
 			}
+			void WebSocketFrame::Writeable()
+			{
+				Section.lock();
+				Busy = false;
+				Section.unlock();
+			}
 			bool WebSocketFrame::IsFinished()
 			{
 				return !Active;
@@ -401,9 +418,13 @@ namespace Tomahawk
 			{
 				return Deadly || Reset || State == (uint32_t)WebSocketState::Close;
 			}
+			bool WebSocketFrame::IsWriteable()
+			{
+				return !Busy && !Stream->IsPendingForWrite();
+			}
 			bool WebSocketFrame::Enqueue(unsigned int Mask, const char* Buffer, size_t Size, WebSocketOp Opcode, const WebSocketCallback& Callback)
 			{
-				if (!Stream->IsPendingForWrite())
+				if (IsWriteable())
 					return false;
 
 				Message Next;

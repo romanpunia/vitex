@@ -1353,14 +1353,14 @@ namespace Tomahawk
 			int Result1 = 1;
 			if (Readable)
 			{
-				EV_SET(&Event, Fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+				EV_SET(&Event, Fd->Fd, EVFILT_READ, EV_DELETE, 0, 0, (void*)nullptr);
 				Result1 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 			}
 
 			int Result2 = 1;
 			if (Writeable)
 			{
-				EV_SET(&Event, Fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+				EV_SET(&Event, Fd->Fd, EVFILT_WRITE, EV_DELETE, 0, 0, (void*)nullptr);
 				Result2 = kevent(Handle, &Event, 1, nullptr, 0, nullptr);
 			}
 

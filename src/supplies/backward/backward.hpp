@@ -47,16 +47,16 @@
 // You can define one of the following (or leave it to the auto-detection):
 //
 // #define BACKWARD_SYSTEM_LINUX
-//	- specialization for linux
+//    - specialization for linux
 //
 // #define BACKWARD_SYSTEM_DARWIN
-//	- specialization for Mac OS X 10.5 and later.
+//    - specialization for Mac OS X 10.5 and later.
 //
 // #define BACKWARD_SYSTEM_WINDOWS
 //  - specialization for Windows (Clang 9 and MSVC2017)
 //
 // #define BACKWARD_SYSTEM_UNKNOWN
-//	- placebo implementation, does nothing.
+//    - placebo implementation, does nothing.
 //
 #if defined(BACKWARD_SYSTEM_LINUX)
 #elif defined(BACKWARD_SYSTEM_DARWIN)
@@ -101,7 +101,7 @@
 // #define BACKWARD_HAS_UNWIND 1
 //  - unwind comes from libgcc, but I saw an equivalent inside clang itself.
 //  - with unwind, the stacktrace is as accurate as it can possibly be, since
-//  this is used by the C++ runtine in gcc/clang for stack unwinding on
+//  this is used by the C++ runtime in gcc/clang for stack unwinding on
 //  exception.
 //  - normally libgcc is already linked to your program by default.
 //
@@ -202,14 +202,20 @@
 #include <cxxabi.h>
 #include <fcntl.h>
 #ifdef __ANDROID__
-//		Old Android API levels define _Unwind_Ptr in both link.h and
-// unwind.h 		Rename the one in link.h as we are not going to be using
+//        Old Android API levels define _Unwind_Ptr in both link.h and
+// unwind.h         Rename the one in link.h as we are not going to be using
 // it
 #define _Unwind_Ptr _Unwind_Ptr_Custom
 #include <link.h>
 #undef _Unwind_Ptr
 #else
 #include <link.h>
+#endif
+#if defined(__ppc__) || defined(__powerpc) || defined(__powerpc__) ||        \
+    defined(__POWERPC__)
+// Linux kernel header required for the struct pt_regs definition
+// to access the NIP (Next Instruction Pointer) register value
+#include <asm/ptrace.h>
 #endif
 #include <signal.h>
 #include <sys/stat.h>
@@ -271,7 +277,7 @@
 // #define BACKWARD_HAS_UNWIND 1
 //  - unwind comes from libgcc, but I saw an equivalent inside clang itself.
 //  - with unwind, the stacktrace is as accurate as it can possibly be, since
-//  this is used by the C++ runtine in gcc/clang for stack unwinding on
+//  this is used by the C++ runtime in gcc/clang for stack unwinding on
 //  exception.
 //  - normally libgcc is already linked to your program by default.
 //
@@ -338,7 +344,12 @@
 #include <thread>
 
 #include <basetsd.h>
+
+#ifdef _WIN64
 typedef SSIZE_T ssize_t;
+#else
+typedef int ssize_t;
+#endif
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -517,7 +528,7 @@ template <typename T> struct default_delete {
   void operator()(T &ptr) const { delete ptr; }
 };
 
-template <typename T, typename Deleter = deleter<void, void *, &::free>>
+template <typename T, typename Deleter = deleter<void, void *, &::free> >
 class handle {
   struct dummy;
   T _val;
@@ -827,7 +838,7 @@ private:
     uintptr_t ip = _Unwind_GetIPInfo(ctx, &ip_before_instruction);
 
     if (!ip_before_instruction) {
-      // calculating 0-1 for unsigned, looks like a possible bug to sanitiziers,
+      // calculating 0-1 for unsigned, looks like a possible bug to sanitizers,
       // so let's do it explicitly:
       if (ip == 0) {
         ip = std::numeric_limits<uintptr_t>::max(); // set it to 0xffff... (as
@@ -1224,7 +1235,7 @@ public:
   }
 
   template <class ST> void load_stacktrace(ST &st) {
-    load_addresses(st.begin(), (int)st.size());
+    load_addresses(st.begin(), static_cast<int>(st.size()));
   }
 
   virtual ResolvedTrace resolve(ResolvedTrace t) { return t; }
@@ -1373,14 +1384,14 @@ public:
 
     // Now we get in symbol_info:
     // .dli_fname:
-    //		pathname of the shared object that contains the address.
+    //        pathname of the shared object that contains the address.
     // .dli_fbase:
-    //		where the object is loaded in memory.
+    //        where the object is loaded in memory.
     // .dli_sname:
-    //		the name of the nearest symbol to trace.addr, we expect a
-    //		function name.
+    //        the name of the nearest symbol to trace.addr, we expect a
+    //        function name.
     // .dli_saddr:
-    //		the exact address corresponding to .dli_sname.
+    //        the exact address corresponding to .dli_sname.
 
     if (symbol_info.dli_sname) {
       trace.object_function = demangle(symbol_info.dli_sname);
@@ -1449,7 +1460,7 @@ public:
     // line of the function that was called. But if the code is optimized,
     // we might get something absolutely not related since the compiler
     // can reschedule the return address with inline functions and
-    // tail-call optimisation (among other things that I don't even know
+    // tail-call optimization (among other things that I don't even know
     // or cannot even dream about with my tiny limited brain).
     find_sym_result details_adjusted_call_site = find_symbol_details(
         fobj, (void *)(uintptr_t(trace.addr) - 1), symbol_info.dli_fbase);
@@ -1480,7 +1491,7 @@ public:
         // this time we get the name of the function where the code is
         // located, instead of the function were the address is
         // located. In short, if the code was inlined, we get the
-        // function correspoding to the code. Else we already got in
+        // function corresponding to the code. Else we already got in
         // trace.function.
         trace.source.function = demangle(details_selected->funcname);
 
@@ -1498,47 +1509,47 @@ public:
       trace.inliners = backtrace_inliners(fobj, *details_selected);
 
 #if 0
-			if (trace.inliners.size() == 0) {
-				// Maybe the trace was not inlined... or maybe it was and we
-				// are lacking the debug information. Let's try to make the
-				// world better and see if we can get the line number of the
-				// function (trace.source.function) now.
-				//
-				// We will get the location of where the function start (to be
-				// exact: the first instruction that really start the
-				// function), not where the name of the function is defined.
-				// This can be quite far away from the name of the function
-				// btw.
-				//
-				// If the source of the function is the same as the source of
-				// the trace, we cannot say if the trace was really inlined or
-				// not.  However, if the filename of the source is different
-				// between the function and the trace... we can declare it as
-				// an inliner.  This is not 100% accurate, but better than
-				// nothing.
+            if (trace.inliners.size() == 0) {
+                // Maybe the trace was not inlined... or maybe it was and we
+                // are lacking the debug information. Let's try to make the
+                // world better and see if we can get the line number of the
+                // function (trace.source.function) now.
+                //
+                // We will get the location of where the function start (to be
+                // exact: the first instruction that really start the
+                // function), not where the name of the function is defined.
+                // This can be quite far away from the name of the function
+                // btw.
+                //
+                // If the source of the function is the same as the source of
+                // the trace, we cannot say if the trace was really inlined or
+                // not.  However, if the filename of the source is different
+                // between the function and the trace... we can declare it as
+                // an inliner.  This is not 100% accurate, but better than
+                // nothing.
 
-				if (symbol_info.dli_saddr) {
-					find_sym_result details = find_symbol_details(fobj,
-							symbol_info.dli_saddr,
-							symbol_info.dli_fbase);
+                if (symbol_info.dli_saddr) {
+                    find_sym_result details = find_symbol_details(fobj,
+                            symbol_info.dli_saddr,
+                            symbol_info.dli_fbase);
 
-					if (details.found) {
-						ResolvedTrace::SourceLoc diy_inliner;
-						diy_inliner.line = details.line;
-						if (details.filename) {
-							diy_inliner.filename = details.filename;
-						}
-						if (details.funcname) {
-							diy_inliner.function = demangle(details.funcname);
-						} else {
-							diy_inliner.function = trace.source.function;
-						}
-						if (diy_inliner != trace.source) {
-							trace.inliners.push_back(diy_inliner);
-						}
-					}
-				}
-			}
+                    if (details.found) {
+                        ResolvedTrace::SourceLoc diy_inliner;
+                        diy_inliner.line = details.line;
+                        if (details.filename) {
+                            diy_inliner.filename = details.filename;
+                        }
+                        if (details.funcname) {
+                            diy_inliner.function = demangle(details.funcname);
+                        } else {
+                            diy_inliner.function = trace.source.function;
+                        }
+                        if (diy_inliner != trace.source) {
+                            trace.inliners.push_back(diy_inliner);
+                        }
+                    }
+                }
+            }
 #endif
     }
 
@@ -1549,7 +1560,7 @@ private:
   bool _bfd_loaded;
 
   typedef details::handle<bfd *,
-                          details::deleter<bfd_boolean, bfd *, &bfd_close>>
+                          details::deleter<bfd_boolean, bfd *, &bfd_close> >
       bfd_handle_t;
 
   typedef details::handle<asymbol **> bfd_symtab_t;
@@ -1695,7 +1706,7 @@ private:
 
     // are we in the boundaries of the section?
     if (addr < sec_addr || addr >= sec_addr + size) {
-      addr -= base_addr; // oups, a relocated object, lets try again...
+      addr -= base_addr; // oops, a relocated object, lets try again...
       if (addr < sec_addr || addr >= sec_addr + size) {
         return;
       }
@@ -1774,7 +1785,7 @@ public:
   ResolvedTrace resolve(ResolvedTrace trace) override {
     using namespace details;
 
-    Dwarf_Addr trace_addr = (Dwarf_Addr)trace.addr;
+    Dwarf_Addr trace_addr = reinterpret_cast<Dwarf_Addr>(trace.addr);
 
     if (!_dwfl_handle_initialized) {
       // initialize dwfl...
@@ -1906,8 +1917,8 @@ public:
       int line = 0, col = 0;
       dwarf_lineno(srcloc, &line);
       dwarf_linecol(srcloc, &col);
-      trace.source.line = line;
-      trace.source.col = col;
+      trace.source.line = static_cast<unsigned>(line);
+      trace.source.col = static_cast<unsigned>(col);
     }
 
     deep_first_search_by_pc(cudie, trace_addr - mod_bias,
@@ -1921,9 +1932,9 @@ public:
   }
 
 private:
-  typedef details::handle<Dwfl *, details::deleter<void, Dwfl *, &dwfl_end>>
+  typedef details::handle<Dwfl *, details::deleter<void, Dwfl *, &dwfl_end> >
       dwfl_handle_t;
-  details::handle<Dwfl_Callbacks *, details::default_delete<Dwfl_Callbacks *>>
+  details::handle<Dwfl_Callbacks *, details::default_delete<Dwfl_Callbacks *> >
       _dwfl_cb;
   dwfl_handle_t _dwfl_handle;
   bool _dwfl_handle_initialized;
@@ -1954,8 +1965,8 @@ private:
         Dwarf_Word line = 0, col = 0;
         dwarf_formudata(dwarf_attr(die, DW_AT_call_line, &attr_mem), &line);
         dwarf_formudata(dwarf_attr(die, DW_AT_call_column, &attr_mem), &col);
-        sloc.line = (unsigned)line;
-        sloc.col = (unsigned)col;
+        sloc.line = static_cast<unsigned>(line);
+        sloc.col = static_cast<unsigned>(col);
 
         trace.inliners.push_back(sloc);
         break;
@@ -2245,14 +2256,14 @@ public:
 private:
   bool _dwarf_loaded;
 
-  typedef details::handle<int, details::deleter<int, int, &::close>>
+  typedef details::handle<int, details::deleter<int, int, &::close> >
       dwarf_file_t;
 
-  typedef details::handle<Elf *, details::deleter<int, Elf *, &elf_end>>
+  typedef details::handle<Elf *, details::deleter<int, Elf *, &elf_end> >
       dwarf_elf_t;
 
   typedef details::handle<Dwarf_Debug,
-                          details::deleter<int, Dwarf_Debug, &close_dwarf>>
+                          details::deleter<int, Dwarf_Debug, &close_dwarf> >
       dwarf_handle_t;
 
   typedef std::map<Dwarf_Addr, int> die_linemap_t;
@@ -3341,7 +3352,7 @@ private:
       if (dwarf_srcfiles(cu_die, &srcfiles, &file_count, &error) == DW_DLV_OK) {
         if (file_count > 0 && file_index <= static_cast<Dwarf_Unsigned>(file_count)) {
           file = std::string(srcfiles[file_index - 1]);
-	}
+    }
 
         // Deallocate all strings!
         for (int i = 0; i < file_count; ++i) {
@@ -3686,7 +3697,7 @@ class TraceResolver : public TraceResolverImpl<system_tag::current_tag> {};
 
 class SourceFile {
 public:
-  typedef std::vector<std::pair<unsigned, std::string>> lines_t;
+  typedef std::vector<std::pair<unsigned, std::string> > lines_t;
 
   SourceFile() {}
   SourceFile(const std::string &path) {
@@ -3711,9 +3722,9 @@ public:
   lines_t &get_lines(unsigned line_start, unsigned line_count, lines_t &lines) {
     using namespace std;
     // This function make uses of the dumbest algo ever:
-    //	1) seek(0)
-    //	2) read lines one by one and discard until line_start
-    //	3) read line one by one until line_start + line_count
+    //    1) seek(0)
+    //    2) read lines one by one and discard until line_start
+    //    3) read line one by one until line_start + line_count
     //
     // If you are getting snippets many time from the same file, it is
     // somewhat a waste of CPU, feel free to benchmark and propose a
@@ -3798,7 +3809,7 @@ public:
 #endif
 
 private:
-  details::handle<std::ifstream *, details::default_delete<std::ifstream *>>
+  details::handle<std::ifstream *, details::default_delete<std::ifstream *> >
       _file;
 
   std::vector<std::string> get_paths_from_env_variable_impl() {
@@ -4126,338 +4137,6 @@ private:
     os << "\n";
   }
 };
-
-/*************** SIGNALS HANDLING ***************/
-
-#if defined(BACKWARD_SYSTEM_LINUX) || defined(BACKWARD_SYSTEM_DARWIN)
-
-class SignalHandling {
-public:
-  static std::vector<int> make_default_signals() {
-    const int posix_signals[] = {
-      // Signals for which the default action is "Core".
-      SIGABRT, // Abort signal from abort(3)
-      SIGBUS,  // Bus error (bad memory access)
-      SIGFPE,  // Floating point exception
-      SIGILL,  // Illegal Instruction
-      SIGIOT,  // IOT trap. A synonym for SIGABRT
-      SIGQUIT, // Quit from keyboard
-      SIGSEGV, // Invalid memory reference
-      SIGSYS,  // Bad argument to routine (SVr4)
-      SIGTRAP, // Trace/breakpoint trap
-      SIGXCPU, // CPU time limit exceeded (4.2BSD)
-      SIGXFSZ, // File size limit exceeded (4.2BSD)
-#if defined(BACKWARD_SYSTEM_DARWIN)
-      SIGEMT, // emulation instruction executed
-#endif
-    };
-    return std::vector<int>(posix_signals,
-                            posix_signals +
-                                sizeof posix_signals / sizeof posix_signals[0]);
-  }
-
-  SignalHandling(const std::vector<int> &posix_signals = make_default_signals())
-      : _loaded(false) {
-    bool success = true;
-
-    const size_t stack_size = 1024 * 1024 * 8;
-    _stack_content.reset(static_cast<char *>(malloc(stack_size)));
-    if (_stack_content) {
-      stack_t ss;
-      ss.ss_sp = _stack_content.get();
-      ss.ss_size = stack_size;
-      ss.ss_flags = 0;
-      if (sigaltstack(&ss, nullptr) < 0) {
-        success = false;
-      }
-    } else {
-      success = false;
-    }
-
-    for (size_t i = 0; i < posix_signals.size(); ++i) {
-      struct sigaction action;
-      memset(&action, 0, sizeof action);
-      action.sa_flags =
-          static_cast<int>(SA_SIGINFO | SA_ONSTACK | SA_NODEFER | SA_RESETHAND);
-      sigfillset(&action.sa_mask);
-      sigdelset(&action.sa_mask, posix_signals[i]);
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdisabled-macro-expansion"
-#endif
-      action.sa_sigaction = &sig_handler;
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#endif
-
-      int r = sigaction(posix_signals[i], &action, nullptr);
-      if (r < 0)
-        success = false;
-    }
-
-    _loaded = success;
-  }
-
-  bool loaded() const { return _loaded; }
-
-  static void handleSignal(int, siginfo_t *info, void *_ctx) {
-    ucontext_t *uctx = static_cast<ucontext_t *>(_ctx);
-
-    StackTrace st;
-    void *error_addr = nullptr;
-#ifdef REG_RIP // x86_64
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext.gregs[REG_RIP]);
-#elif defined(REG_EIP) // x86_32
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext.gregs[REG_EIP]);
-#elif defined(__arm__)
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext.arm_pc);
-#elif defined(__aarch64__)
-    #if defined(__APPLE__)
-      error_addr = reinterpret_cast<void *>(uctx->uc_mcontext->__ss.__pc);
-    #else
-      error_addr = reinterpret_cast<void *>(uctx->uc_mcontext.pc);
-    #endif
-#elif defined(__mips__)
-    error_addr = reinterpret_cast<void *>(
-        reinterpret_cast<struct sigcontext *>(&uctx->uc_mcontext)->sc_pc);
-#elif defined(__ppc__) || defined(__powerpc) || defined(__powerpc__) ||        \
-    defined(__POWERPC__)
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext.regs->nip);
-#elif defined(__riscv)
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext.__gregs[REG_PC]);
-#elif defined(__s390x__)
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext.psw.addr);
-#elif defined(__APPLE__) && defined(__x86_64__)
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext->__ss.__rip);
-#elif defined(__APPLE__)
-    error_addr = reinterpret_cast<void *>(uctx->uc_mcontext->__ss.__eip);
-#else
-#warning ":/ sorry, ain't know no nothing none not of your architecture!"
-#endif
-    if (error_addr) {
-      st.load_from(error_addr, 32, reinterpret_cast<void *>(uctx),
-                   info->si_addr);
-    } else {
-      st.load_here(32, reinterpret_cast<void *>(uctx), info->si_addr);
-    }
-
-    Printer printer;
-    printer.address = true;
-    printer.print(st, stderr);
-
-#if _XOPEN_SOURCE >= 700 || _POSIX_C_SOURCE >= 200809L
-    psiginfo(info, nullptr);
-#else
-    (void)info;
-#endif
-  }
-
-private:
-  details::handle<char *> _stack_content;
-  bool _loaded;
-
-#ifdef __GNUC__
-  __attribute__((noreturn))
-#endif
-  static void
-  sig_handler(int signo, siginfo_t *info, void *_ctx) {
-    handleSignal(signo, info, _ctx);
-
-    // try to forward the signal.
-    raise(info->si_signo);
-
-    // terminate the process immediately.
-    puts("watf? exit");
-    _exit(EXIT_FAILURE);
-  }
-};
-
-#endif // BACKWARD_SYSTEM_LINUX || BACKWARD_SYSTEM_DARWIN
-
-#ifdef BACKWARD_SYSTEM_WINDOWS
-
-class SignalHandling {
-public:
-  SignalHandling(const std::vector<int> & = std::vector<int>())
-      : reporter_thread_([]() {
-          /* We handle crashes in a utility thread:
-            backward structures and some Windows functions called here
-            need stack space, which we do not have when we encounter a
-            stack overflow.
-            To support reporting stack traces during a stack overflow,
-            we create a utility thread at startup, which waits until a
-            crash happens or the program exits normally. */
-
-          {
-            std::unique_lock<std::mutex> lk(mtx());
-            cv().wait(lk, [] { return crashed() != crash_status::running; });
-          }
-          if (crashed() == crash_status::crashed) {
-            handle_stacktrace(skip_recs());
-          }
-          {
-            std::unique_lock<std::mutex> lk(mtx());
-            crashed() = crash_status::ending;
-          }
-          cv().notify_one();
-        }) {
-    SetUnhandledExceptionFilter(crash_handler);
-
-    signal(SIGABRT, signal_handler);
-    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
-
-    std::set_terminate(&terminator);
-#ifndef BACKWARD_ATLEAST_CXX17
-    std::set_unexpected(&terminator);
-#endif
-    _set_purecall_handler(&terminator);
-    _set_invalid_parameter_handler(&invalid_parameter_handler);
-  }
-  bool loaded() const { return true; }
-
-  ~SignalHandling() {
-    {
-      std::unique_lock<std::mutex> lk(mtx());
-      crashed() = crash_status::normal_exit;
-    }
-
-    cv().notify_one();
-
-    reporter_thread_.join();
-  }
-
-private:
-  static CONTEXT *ctx() {
-    static CONTEXT data;
-    return &data;
-  }
-
-  enum class crash_status { running, crashed, normal_exit, ending };
-
-  static crash_status &crashed() {
-    static crash_status data;
-    return data;
-  }
-
-  static std::mutex &mtx() {
-    static std::mutex data;
-    return data;
-  }
-
-  static std::condition_variable &cv() {
-    static std::condition_variable data;
-    return data;
-  }
-
-  static HANDLE &thread_handle() {
-    static HANDLE handle;
-    return handle;
-  }
-
-  std::thread reporter_thread_;
-
-  // TODO: how not to hardcode these?
-  static const constexpr int signal_skip_recs =
-#ifdef __clang__
-      // With clang, RtlCaptureContext also captures the stack frame of the
-      // current function Below that, there ar 3 internal Windows functions
-      4
-#else
-      // With MSVC cl, RtlCaptureContext misses the stack frame of the current
-      // function The first entries during StackWalk are the 3 internal Windows
-      // functions
-      3
-#endif
-      ;
-
-  static int &skip_recs() {
-    static int data;
-    return data;
-  }
-
-  static inline void terminator() {
-    crash_handler(signal_skip_recs);
-    abort();
-  }
-
-  static inline void signal_handler(int) {
-    crash_handler(signal_skip_recs);
-    abort();
-  }
-
-  static inline void __cdecl invalid_parameter_handler(const wchar_t *,
-                                                       const wchar_t *,
-                                                       const wchar_t *,
-                                                       unsigned int,
-                                                       uintptr_t) {
-    crash_handler(signal_skip_recs);
-    abort();
-  }
-
-  NOINLINE static LONG WINAPI crash_handler(EXCEPTION_POINTERS *info) {
-    // The exception info supplies a trace from exactly where the issue was,
-    // no need to skip records
-    crash_handler(0, info->ContextRecord);
-    return EXCEPTION_CONTINUE_SEARCH;
-  }
-
-  NOINLINE static void crash_handler(int skip, CONTEXT *ct = nullptr) {
-
-    if (ct == nullptr) {
-      RtlCaptureContext(ctx());
-    } else {
-      memcpy(ctx(), ct, sizeof(CONTEXT));
-    }
-    DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
-                    GetCurrentProcess(), &thread_handle(), 0, FALSE,
-                    DUPLICATE_SAME_ACCESS);
-
-    skip_recs() = skip;
-
-    {
-      std::unique_lock<std::mutex> lk(mtx());
-      crashed() = crash_status::crashed;
-    }
-
-    cv().notify_one();
-
-    {
-      std::unique_lock<std::mutex> lk(mtx());
-      cv().wait(lk, [] { return crashed() != crash_status::crashed; });
-    }
-  }
-
-  static void handle_stacktrace(int skip_frames = 0) {
-    // printer creates the TraceResolver, which can supply us a machine type
-    // for stack walking. Without this, StackTrace can only guess using some
-    // macros.
-    // StackTrace also requires that the PDBs are already loaded, which is done
-    // in the constructor of TraceResolver
-    Printer printer;
-
-    StackTrace st;
-    st.set_machine_type(printer.resolver().machine_type());
-    st.set_thread_handle(thread_handle());
-    st.load_here(32 + skip_frames, ctx());
-    st.skip_n_firsts(skip_frames);
-
-    printer.address = true;
-    printer.print(st, std::cerr);
-  }
-};
-
-#endif // BACKWARD_SYSTEM_WINDOWS
-
-#ifdef BACKWARD_SYSTEM_UNKNOWN
-
-class SignalHandling {
-public:
-  SignalHandling(const std::vector<int> & = std::vector<int>()) {}
-  bool init() { return false; }
-  bool loaded() { return false; }
-};
-
-#endif // BACKWARD_SYSTEM_UNKNOWN
 
 } // namespace backward
 

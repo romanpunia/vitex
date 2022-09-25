@@ -1632,7 +1632,7 @@ namespace Tomahawk
 				Skippable[0] = false;
 				FrameTop[1] = 0;
 				Skippable[1] = false;
-				FrameTop[3] = 0;
+				FrameTop[2] = 0;
 			}
 			virtual ~GeometryRenderer()
 			{

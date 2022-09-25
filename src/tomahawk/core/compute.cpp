@@ -8192,7 +8192,7 @@ namespace Tomahawk
 		}
 		Hybi10Request Common::Hybi10Decode(const std::string& Value)
 		{
-			Hybi10PayloadHeader* Payload = (Hybi10PayloadHeader*)Value.substr(0, 2).c_str();
+			Hybi10PayloadHeader* Payload = (Hybi10PayloadHeader*)Value.c_str();
 			Hybi10Request Decoded;
 			Decoded.Type = Payload->Opcode;
 

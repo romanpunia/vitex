@@ -1141,9 +1141,8 @@ namespace Tomahawk
 				case Tomahawk::Graphics::RenderBackend::OGL:
 					Subresult.Defines.push_back("TARGET_OGL");
 					break;
-				case Tomahawk::Graphics::RenderBackend::None:
-					Subresult.Defines.push_back("TARGET_ANY");
-					break;
+                default:
+                    break;
 			}
 
 			Compute::IncludeDesc Desc = Compute::IncludeDesc();
@@ -1535,6 +1534,8 @@ namespace Tomahawk
 				case Tomahawk::Graphics::RenderBackend::OGL:
 					Prefix = "glsl.";
 					break;
+                default:
+                    break;
 			}
 
 			return Prefix + Compute::Common::MD5Hash(Result) + ".sasm";

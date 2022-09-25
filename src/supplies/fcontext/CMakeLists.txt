@@ -44,6 +44,7 @@ if (FCTX_ACTIVE)
         list (APPEND SOURCE
             ${CMAKE_CURRENT_LIST_DIR}/fcontext.h
             ${FCTX_SOURCE_ASSEMBLY})
+        message(STATUS "FContext platform: ${FCTX_ARCH}_${FCTX_PLATFORM}_${FCTX_COFF}_${FCTX_ASM_COMPILER}")
     endif()
 else()
     set(TH_WITH_FCTX OFF CACHE BOOL "FContext is unavailable")

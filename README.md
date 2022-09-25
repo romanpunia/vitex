@@ -265,7 +265,7 @@ These **will not** alter any interfaces
 These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
 + **TH_WITH_SIMD** will enable simd optimisations (processor-specific), defaults to false
-+ **TH_WITH_FCTX** will enable fcontext library for coroutines, defaults to true if supported
++ **TH_WITH_FCTX** will enable fcontext library for coroutines, defaults to true (most MacOS platforms don't support it so you have to disable it manually if it doesn't compile)
 + **TH_WITH_BULLET3** will enable Bullet3 library and physics interfaces, defaults to true
 + **TH_WITH_RMLUI** will enable RmlUi library and gui interfaces, defaults to true
 

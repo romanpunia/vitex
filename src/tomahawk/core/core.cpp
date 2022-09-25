@@ -24,16 +24,17 @@
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/utsname.h>
 #ifndef TH_APPLE
+#include <sys/types.h>
 #include <sys/sendfile.h>
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #endif
+#include <sys/utsname.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <dlfcn.h>
@@ -309,12 +310,12 @@ namespace
 		{
 			case sizeof(uint16_t) :
 				return SysDecompose<uint16_t>(Data);
-				case sizeof(uint32_t) :
-					return SysDecompose<uint32_t>(Data);
-					case sizeof(uint64_t) :
-						return SysDecompose<uint64_t>(Data);
-					default:
-						return {};
+            case sizeof(uint32_t) :
+                return SysDecompose<uint32_t>(Data);
+            case sizeof(uint64_t) :
+                return SysDecompose<uint64_t>(Data);
+            default:
+                return {};
 		}
 	}
 #else
@@ -8533,6 +8534,8 @@ namespace Tomahawk
 
 					return Count > 0;
 				}
+                default:
+                    break;
 			}
 
 			return false;
@@ -8685,6 +8688,8 @@ namespace Tomahawk
 					} while (ThreadActive(Thread));
 					break;
 				}
+                default:
+                    break;
 			}
 
 			if (Thread->Daemon)

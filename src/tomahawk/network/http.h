@@ -333,6 +333,7 @@ namespace Tomahawk
 				Resource Source;
 				ResourceCallback Callback;
 				bool Close = false;
+				bool Ignore = false;
 			};
 
 			struct TH_OUT QueryToken
@@ -496,6 +497,12 @@ namespace Tomahawk
 
 			struct TH_OUT Connection final : public SocketConnection
 			{
+				struct
+				{
+					HTTP::Parser* Multipart = nullptr;
+					HTTP::Parser* Request = nullptr;
+				} Parsers;
+
 				Core::Resource Resource;
 				WebSocketFrame* WebSocket = nullptr;
 				GatewayFrame* Gateway = nullptr;
@@ -504,7 +511,7 @@ namespace Tomahawk
 				RequestFrame Request;
 				ResponseFrame Response;
 
-				virtual ~Connection() = default;
+				virtual ~Connection() override;
 				void Reset(bool Fully) override;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
@@ -635,11 +642,12 @@ namespace Tomahawk
 				ParserDataCallback OnContentData;
 				ParserNotifyCallback OnResourceBegin;
 				ParserNotifyCallback OnResourceEnd;
-				void* UserPointer = nullptr;
+				ParserFrame Frame;
 
 			public:
 				Parser();
 				virtual ~Parser() override;
+				void PrepareForNextParsing();
 				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
 				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LastLength);
 				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LastLength);

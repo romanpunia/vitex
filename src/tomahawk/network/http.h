@@ -274,6 +274,7 @@ namespace Tomahawk
 
 			public:
 				WebSocketCallback Connect;
+				WebSocketCallback BeforeDisconnect;
 				WebSocketCallback Disconnect;
 				WebSocketReadCallback Receive;
 

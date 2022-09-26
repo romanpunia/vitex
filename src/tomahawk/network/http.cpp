@@ -367,13 +367,18 @@ namespace Tomahawk
 				else if (State == (uint32_t)WebSocketState::Close)
 				{
 					Reset = true;
-					if (!Disconnect)
+					if (BeforeDisconnect)
+					{
+						WebSocketCallback Callback = std::move(BeforeDisconnect);
+						Section.unlock();
+						return Callback(this);
+					}
+					else if (!Disconnect)
 					{
 						Active = false;
 						Section.unlock();
 						if (E.Close)
 							E.Close(this);
-
 						return;
 					}
 					else

@@ -290,7 +290,7 @@ namespace Tomahawk
 			private:
 				void Finalize();
 				void Dequeue();
-				void Writeable();
+				void Writeable(bool IsBusy = false, bool Lockup = true);
 				bool Enqueue(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				bool IsWriteable();
 				bool IsIgnore();

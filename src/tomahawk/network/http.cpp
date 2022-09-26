@@ -111,11 +111,9 @@ namespace Tomahawk
 				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 
 				Section.lock();
-				{
-					if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
-						return Section.unlock();
-					Busy = true;
-				}
+				if (Enqueue(Mask, Buffer, Size, Opcode, Callback))
+					return Section.unlock();
+				Writeable(true, false);
 				Section.unlock();
 
 				unsigned char Header[14];
@@ -409,11 +407,14 @@ namespace Tomahawk
 				}
 				Section.unlock();
 			}
-			void WebSocketFrame::Writeable()
+			void WebSocketFrame::Writeable(bool IsBusy, bool Lockup)
 			{
-				Section.lock();
-				Busy = false;
-				Section.unlock();
+				if (Lockup)
+					Section.lock();
+	
+				Busy = IsBusy;
+				if (Lockup)
+					Section.unlock();
 			}
 			bool WebSocketFrame::IsFinished()
 			{

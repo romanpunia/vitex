@@ -88,7 +88,7 @@ namespace Tomahawk
 				SetExpires(0);
 			}
 
-			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Deadly(false), Stream(NewStream), Codec(new WebCodec())
+			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Busy(false), Reset(false), Deadly(false), Stream(NewStream), Codec(new WebCodec())
 			{
 			}
 			WebSocketFrame::~WebSocketFrame()

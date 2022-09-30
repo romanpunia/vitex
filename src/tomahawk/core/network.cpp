@@ -1273,7 +1273,7 @@ namespace Tomahawk
 		}
 		bool EpollHandle::Add(Socket* Fd, bool Readable, bool Writeable)
 		{
-			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
 			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
 
 #ifdef TH_APPLE
@@ -1309,7 +1309,7 @@ namespace Tomahawk
 		}
 		bool EpollHandle::Update(Socket* Fd, bool Readable, bool Writeable)
 		{
-			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
 			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
 
 #ifdef TH_APPLE
@@ -1345,7 +1345,7 @@ namespace Tomahawk
 		}
 		bool EpollHandle::Remove(Socket* Fd, bool Readable, bool Writeable)
 		{
-			TH_ASSERT(Handle != nullptr, false, "driver should be initialized");
+			TH_ASSERT(Handle != INVALID_EPOLL, false, "epoll should be initialized");
 			TH_ASSERT(Fd != nullptr && Fd->Fd != INVALID_SOCKET, false, "socket should be set and valid");
 
 #ifdef TH_APPLE

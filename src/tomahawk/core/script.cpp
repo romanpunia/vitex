@@ -344,7 +344,7 @@ namespace Tomahawk
 		}
 		bool VMTypeInfo::DerivesFrom(const VMTypeInfo& Type) const
 		{
-			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
+			TH_ASSERT(IsValid(), false, "typeinfo should be valid");
 			return Info->DerivesFrom(Type.GetTypeInfo());
 		}
 		size_t VMTypeInfo::GetFlags() const

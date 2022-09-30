@@ -108,7 +108,7 @@ typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
 #if TH_DLEVEL >= 4
-#ifndef _DEBUG
+#ifdef NDEBUG
 #define TH_TRACE(Format, ...) Tomahawk::Core::OS::Log(4, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
@@ -120,7 +120,7 @@ typedef socklen_t socket_size_t;
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 3
-#ifndef _DEBUG
+#ifdef NDEBUG
 #define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
@@ -134,7 +134,7 @@ typedef socklen_t socket_size_t;
 #elif TH_DLEVEL >= 2
 #define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) ((void)0)
-#ifndef _DEBUG
+#ifdef NDEBUG
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
@@ -145,7 +145,7 @@ typedef socklen_t socket_size_t;
 #define TH_TRACE(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) ((void)0)
 #define TH_WARN(Format, ...) ((void)0)
-#ifndef _DEBUG
+#ifdef NDEBUG
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
@@ -156,7 +156,7 @@ typedef socklen_t socket_size_t;
 #define TH_WARN(...) ((void)0)
 #define TH_ERR(...) ((void)0)
 #endif
-#ifdef _DEBUG
+#ifndef NDEBUG
 #if TH_DLEVEL >= 1
 #define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return Returnable; }
 #define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return; }
@@ -1057,7 +1057,7 @@ namespace Tomahawk
 				StdColor GetLevelColor() const;
 				std::string& GetText();
 			};
-#ifdef _DEBUG
+#ifndef NDEBUG
 		public:
 			struct DbgContext
 			{
@@ -1076,11 +1076,12 @@ namespace Tomahawk
 		private:
 			static std::function<void(Message&)> Callback;
 			static std::mutex Buffer;
+            static bool Pretty;
 			static bool Deferred;
 			static bool Active;
 
 		public:
-#ifdef _DEBUG
+#ifndef NDEBUG
 			static void SpecPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id);
 			static void SpecSignal();
 			static void SpecPop(void* Id);
@@ -1094,6 +1095,7 @@ namespace Tomahawk
 			static void SetLogCallback(const std::function<void(Message&)>& Callback);
 			static void SetLogActive(bool Enabled);
 			static void SetLogDeferred(bool Enabled);
+            static void SetLogPretty(bool Enabled);
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:
@@ -2287,7 +2289,7 @@ namespace Tomahawk
 				return State->Get();
 			}
 		};
-#ifdef _DEBUG
+#ifndef NDEBUG
 		template <typename T>
 		inline T&& Coawait(Async<T>&& Future, const char* File = nullptr, const char* Function = nullptr, const char* Expression = nullptr, int Line = 0) noexcept
 		{

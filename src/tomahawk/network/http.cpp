@@ -368,6 +368,7 @@ namespace Tomahawk
 					if (BeforeDisconnect)
 					{
 						WebSocketCallback Callback = std::move(BeforeDisconnect);
+                        BeforeDisconnect = nullptr;
 						Section.unlock();
 						return Callback(this);
 					}
@@ -382,6 +383,7 @@ namespace Tomahawk
 					else
 					{
 						WebSocketCallback Callback = std::move(Disconnect);
+                        Disconnect = nullptr;
 						Receive = nullptr;
 						Section.unlock();
 						return Callback(this);
@@ -396,6 +398,7 @@ namespace Tomahawk
 							goto Retry;
 
 						WebSocketCallback Callback = std::move(Connect);
+                        Connect = nullptr;
 						Section.unlock();
 						return Callback(this);
 					}

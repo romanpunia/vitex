@@ -2663,8 +2663,8 @@ namespace Tomahawk
 		}
 		bool RenderSystem::CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount)
 		{
-			TH_ASSERT(Result != nullptr, nullptr, "result should be set");
-			TH_ASSERT(!Name.empty(), nullptr, "buffers must have a name");
+			TH_ASSERT(Result != nullptr, false, "result should be set");
+			TH_ASSERT(!Name.empty(), false, "buffers must have a name");
 
 			PrimitiveCache* Cache = Scene->GetPrimitives();
 			if (Cache != nullptr)
@@ -3877,7 +3877,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Conform()
 		{
-#ifdef _DEBUG
+#ifndef NDEBUG
 			ThreadId = std::this_thread::get_id();
 #endif
 			auto* Schedule = Core::Schedule::Get();
@@ -3906,7 +3906,7 @@ namespace Tomahawk
 		}
 		bool SceneGraph::Dispatch(Core::Timer* Time)
 		{
-#ifdef _DEBUG
+#ifndef NDEBUG
 			ThreadId = std::this_thread::get_id();
 #endif
 			TH_PPUSH("scene-dispatch", TH_PERF_FRAME);

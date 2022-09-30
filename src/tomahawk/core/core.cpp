@@ -7117,7 +7117,7 @@ namespace Tomahawk
 		}
 		bool OS::Symbol::Unload(void* Handle)
 		{
-			TH_ASSERT(Handle != nullptr, nullptr, "handle should be set");
+			TH_ASSERT(Handle != nullptr, false, "handle should be set");
 #ifdef TH_MICROSOFT
 			return (FreeLibrary((HMODULE)Handle) != 0);
 #elif defined(TH_UNIX)
@@ -7245,7 +7245,7 @@ namespace Tomahawk
 			return Code > 0;
 #endif
 		}
-#ifdef _DEBUG
+#ifndef NDEBUG
 		static thread_local std::stack<OS::DbgContext> PerfFrame;
 		static thread_local bool DbgIgnore = false;
 		void OS::SpecPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id)
@@ -7390,7 +7390,7 @@ namespace Tomahawk
 
 			std::stringstream Stream;
 			Stream << Date;
-#ifdef _DEBUG
+#ifndef NDEBUG
 			Stream << ' ' << Source << ':' << Line;
 #endif
 			Stream << ' ' << GetLevelName() << ' ';
@@ -7486,7 +7486,7 @@ namespace Tomahawk
 		{
 			if (Callback)
 			{
-#ifdef _DEBUG
+#ifndef NDEBUG
 				if (!DbgIgnore)
 				{
 					DbgIgnore = true;
@@ -7500,10 +7500,10 @@ namespace Tomahawk
 
 			if (Active)
 			{
-#if defined(TH_MICROSOFT) && defined(_DEBUG)
+#if defined(TH_MICROSOFT) && !defined(NDEBUG)
 				OutputDebugStringA(Data.GetText().c_str());
 #endif
-				if (Console::IsPresent())
+				if (Pretty && Console::IsPresent())
 				{
 					Console* Log = Console::Get();
 					Log->Begin();
@@ -7511,7 +7511,7 @@ namespace Tomahawk
 						Log->ColorBegin(Data.Pretty ? StdColor::Cyan : StdColor::Gray);
 						Log->WriteBuffer(Data.Date);
 						Log->WriteBuffer(" ");
-#ifdef _DEBUG
+#ifndef NDEBUG
 						Log->ColorBegin(StdColor::Gray);
 						Log->WriteBuffer(Data.Source);
 						Log->WriteBuffer(":");
@@ -7721,6 +7721,10 @@ namespace Tomahawk
 		{
 			Deferred = Enabled;
 		}
+        void OS::SetLogPretty(bool Enabled)
+        {
+            Pretty = Enabled;
+        }
 		std::string OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
 			backward::StackTrace Stack;
@@ -7729,13 +7733,14 @@ namespace Tomahawk
 
 			return GetStack(Stack);
 		}
-#ifdef _DEBUG
+#ifndef NDEBUG
 		std::vector<OS::DbgContext> OS::SpecFrame;
 #endif
 		std::function<void(OS::Message&)> OS::Callback;
 		std::mutex OS::Buffer;
 		bool OS::Active = false;
 		bool OS::Deferred = true;
+        bool OS::Pretty = true;
 
 		ChangeLog::ChangeLog(const std::string& Root) : Offset(-1), Time(0), Path(Root)
 		{
@@ -8117,8 +8122,8 @@ namespace Tomahawk
 		}
 		bool Costate::GetState(Costate** State, Coroutine** Routine)
 		{
-			TH_ASSERT(State != nullptr, nullptr, "state should be set");
-			TH_ASSERT(Routine != nullptr, nullptr, "state should be set");
+			TH_ASSERT(State != nullptr, false, "state should be set");
+			TH_ASSERT(Routine != nullptr, false, "state should be set");
 			*Routine = (Cothread ? Cothread->Current : nullptr);
 			*State = Cothread;
 

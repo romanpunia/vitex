@@ -924,7 +924,7 @@ namespace Tomahawk
 			} Indexer;
 
 		protected:
-#ifdef _DEBUG
+#ifndef NDEBUG
 			std::thread::id ThreadId;
 #endif
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;

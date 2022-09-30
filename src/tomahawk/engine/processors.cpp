@@ -95,8 +95,8 @@ namespace Tomahawk
 			}
 			bool Material::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
-				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
+				TH_ASSERT(Stream != nullptr, false, "stream should be set");
+				TH_ASSERT(Instance != nullptr, false, "instance should be set");
 
 				Core::Schema* Schema = Core::Var::Set::Object();
 				Schema->Key = "material";
@@ -294,8 +294,8 @@ namespace Tomahawk
 			}
 			bool SceneGraph::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
-				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
+				TH_ASSERT(Stream != nullptr, false, "stream should be set");
+				TH_ASSERT(Instance != nullptr, false, "instance should be set");
 
 				const char* Ext = Core::OS::Path::GetExtension(Stream->GetSource().c_str());
 				if (!Ext)
@@ -1233,9 +1233,9 @@ namespace Tomahawk
 			bool Schema::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
 			{
 				auto Type = Args.find("type");
-				TH_ASSERT(Type != Args.end(), nullptr, "type argument should be set");
-				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				TH_ASSERT(Instance != nullptr, nullptr, "instance should be set");
+				TH_ASSERT(Type != Args.end(), false, "type argument should be set");
+				TH_ASSERT(Stream != nullptr, false, "stream should be set");
+				TH_ASSERT(Instance != nullptr, false, "instance should be set");
 
 				auto Schema = (Core::Schema*)Instance;
 				std::string Offset;

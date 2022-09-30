@@ -1465,11 +1465,11 @@ namespace Tomahawk
 					if (!NMake::Unpack(It->Fetch("gateway.enabled"), &Site->Gateway.Enabled))
 						Site->Gateway.Enabled = false;
 
-					if (NMake::Unpack(It->Find("resource-root"), &Site->ResourceRoot))
-						Core::Parser(&Site->ResourceRoot).Eval(N, D);
-
 					if (!NMake::Unpack(It->Find("max-resources"), &Site->MaxResources))
 						Site->MaxResources = 5;
+
+                    NMake::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
+                    Core::Parser(&Site->ResourceRoot).Eval(N, D);
 
 					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
 					std::vector<Core::Schema*> Groups = It->FindCollection("group", true);

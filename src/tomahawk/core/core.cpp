@@ -1,4 +1,5 @@
 #include "core.h"
+#include "coroutines/fcontext.h"
 #include "../network/http.h"
 #include <cctype>
 #include <ctime>
@@ -14,9 +15,6 @@
 #include <tinyfiledialogs.h>
 #include <concurrentqueue.h>
 #include <backward.hpp>
-#ifdef TH_WITH_FCTX
-#include <fcontext.h>
-#endif
 #ifdef TH_MICROSOFT
 #include <Windows.h>
 #include <io.h>

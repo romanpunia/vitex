@@ -28,6 +28,7 @@ endif()
 
 #Project's inputs and source targets
 include(lib/targets.cmake)
+include(lib/coroutines.cmake)
 include(src/supplies/angelscript/CMakeLists.txt)
 include(src/supplies/bullet3/CMakeLists.txt)
 include(src/supplies/rmlui/CMakeLists.txt)
@@ -39,7 +40,6 @@ include(src/supplies/wepoll/CMakeLists.txt)
 include(src/supplies/vcl/CMakeLists.txt)
 include(src/supplies/backward/CMakeLists.txt)
 include(src/supplies/cqueue/CMakeLists.txt)
-include(src/supplies/fcontext/CMakeLists.txt)
 
 #Group sources from previous stage
 foreach(ITEM IN ITEMS ${SOURCE})

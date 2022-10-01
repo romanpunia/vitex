@@ -265,9 +265,9 @@ These **will not** alter any interfaces
 These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
 + **TH_WITH_SIMD** will enable simd optimisations (processor-specific), defaults to false
-+ **TH_WITH_FCTX** will enable fcontext library for coroutines, defaults to true (most MacOS platforms don't support it so you have to disable it manually if it doesn't compile)
-+ **TH_WITH_BULLET3** will enable Bullet3 library and physics interfaces, defaults to true
-+ **TH_WITH_RMLUI** will enable RmlUi library and gui interfaces, defaults to true
++ **TH_WITH_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
++ **TH_WITH_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
++ **TH_WITH_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
 
 ## Core built-in dependencies from **/src/supplies**
 * [bullet3](https://github.com/bulletphysics/bullet3)
@@ -281,7 +281,6 @@ These **will** alter some interfaces like GUI and Compute
 * [vectorclass](https://github.com/vectorclass/version1)
 * [concurrentqueue](https://github.com/cameron314/concurrentqueue)
 * [backward-cpp](https://github.com/bombela/backward-cpp)
-* [fcontext](https://github.com/lichao2014/fcontext)
 
 ## Optional dependencies from **/lib**
 These are recommended to be installed, but are not required to.

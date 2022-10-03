@@ -7513,53 +7513,54 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Common::MD5Hash(const std::string& Value)
-		{
-			MD5Hasher Hasher;
-			Hasher.Update(Value);
-			Hasher.Finalize();
-
-			return Hasher.ToHex();
-		}
-		std::string Common::MD5HashBinary(const std::string& Value)
-		{
-			MD5Hasher Hasher;
-			Hasher.Update(Value);
-			Hasher.Finalize();
-
-			return Hasher.ToRaw();
-		}
-		std::string Common::SHA256Hash(const std::string& Value)
-		{
-			return Common::HexEncode(Common::SHA256HashBinary(Value));
-		}
-		std::string Common::SHA256HashBinary(const std::string& Value)
-		{
+        std::string Common::Hash(Digest Type, const std::string& Value)
+        {
+            return Common::HexEncode(Common::HashBinary(Type, Value));
+        }
+        std::string Common::HashBinary(Digest Type, const std::string& Value)
+        {
+            TH_ASSERT(Type != nullptr, std::string(), "type should be set");
 #ifdef TH_HAS_OPENSSL
-			unsigned char Hash[SHA256_DIGEST_LENGTH];
-
-			SHA256_CTX Context;
-			SHA256_Init(&Context);
-			SHA256_Update(&Context, Value.c_str(), Value.size());
-			SHA256_Final(Hash, &Context);
-
-			std::string Result(SHA256_DIGEST_LENGTH, ' ');
-			for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
-				Result[i] = Hash[i];
-
-			return Result;
+            EVP_MD* Method = (EVP_MD*)Type;
+            EVP_MD_CTX* Context = EVP_MD_CTX_create();
+            if (!Context)
+                return std::string();
+            
+            std::string Result;
+            Result.resize(EVP_MD_size(Method));
+            
+            unsigned int Size = 0; bool OK = true;
+            OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
+            OK = EVP_DigestUpdate(Context, Value.c_str(), Value.size()) == 1 ? OK : false;
+            OK = EVP_DigestFinal_ex(Context, (unsigned char*)Result.data(), &Size) == 1 ? OK : false;
+            EVP_MD_CTX_destroy(Context);
+            
+            if (!OK)
+                return std::string();
+            
+            Result.resize((size_t)Size);
+            return Result;
 #else
-			return Value;
+            return Value;
 #endif
-		}
-		std::string Common::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
+        }
+        std::string Common::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
-#if OPENSSL_VERSION_NUMBER >= 0x1010000fL
+#if OPENSSL_VERSION_MAJOR >= 3
+            unsigned char Result[EVP_MAX_MD_SIZE];
+            unsigned int Size = sizeof(Result);
+            unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, (const void*)Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size);
+            
+            if (!Pointer)
+                return std::string();
+            
+            return std::string((const char*)Result, Size);
+#elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
 				return "";

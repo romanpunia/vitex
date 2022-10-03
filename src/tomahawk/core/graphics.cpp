@@ -1538,7 +1538,7 @@ namespace Tomahawk
                     break;
 			}
 
-			return Prefix + Compute::Common::MD5Hash(Result) + ".sasm";
+			return Prefix + Compute::Common::Hash(Compute::Digests::MD5(), Result) + ".sasm";
 		}
 		std::string GraphicsDevice::GetShaderMain(ShaderType Type)
 		{

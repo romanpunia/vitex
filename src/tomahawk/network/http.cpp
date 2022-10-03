@@ -1535,7 +1535,7 @@ namespace Tomahawk
 						HTTP::Resource fResource;
 						fResource.Length = Request.ContentLength;
 						fResource.Type = (ContentType ? ContentType : "application/octet-stream");
-						fResource.Path = Core::OS::Directory::Get() + Compute::Common::MD5Hash(Compute::Common::RandomBytes(16));
+						fResource.Path = Core::OS::Directory::Get() + Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(16));
 
 						FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
 						if (!File)
@@ -1927,18 +1927,19 @@ namespace Tomahawk
 				}
 				else
 					*SerialBuffer = '\0';
-
+#if OPENSSL_VERSION_MAJOR < 3
 				unsigned int Size = 0;
 				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 				char FingerBuffer[1024];
 				if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 					*FingerBuffer = '\0';
-
+                
+                Output->Finger = FingerBuffer;
+#endif
 				Output->Subject = SubjectBuffer;
 				Output->Issuer = IssuerBuffer;
 				Output->Serial = SerialBuffer;
-				Output->Finger = FingerBuffer;
 
 				X509_free(Certificate);
 				return true;
@@ -2354,7 +2355,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
 				int64_t Time = time(nullptr);
-				SessionId = Compute::Common::MD5Hash(Base->Request.URI + std::to_string(Time));
+				SessionId = Compute::Common::Hash(Compute::Digests::MD5(), Base->Request.URI + std::to_string(Time));
 				IsNewSession = true;
 
 				if (SessionExpires == 0)
@@ -4235,7 +4236,7 @@ namespace Tomahawk
 					Parser->Frame.Source.Path = Parser->Frame.Route->Site->ResourceRoot;
 					if (Parser->Frame.Source.Path.back() != '/' && Parser->Frame.Source.Path.back() != '\\')
 						Parser->Frame.Source.Path.append(1, '/');
-					Parser->Frame.Source.Path.append(Compute::Common::MD5Hash(Compute::Common::RandomBytes(16)));
+					Parser->Frame.Source.Path.append(Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(16)));
 				}
 
 				Parser->Frame.Stream = (FILE*)Core::OS::File::Open(Parser->Frame.Source.Path.c_str(), "wb");

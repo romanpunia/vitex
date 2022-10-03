@@ -160,8 +160,8 @@ namespace Tomahawk
 				}
 
 				if (!Request.Attachments.empty())
-					Boundary = Compute::Common::MD5Hash(Compute::Common::RandomBytes(64));
-
+					Boundary = Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(64));
+                
 				Core::Parser Content;
 				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
 

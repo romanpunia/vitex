@@ -834,7 +834,7 @@ namespace Tomahawk
 					}
 				}
 				else
-					Blob.Name = Compute::Common::MD5Hash(Compute::Common::RandomBytes(8)).substr(0, 8);
+					Blob.Name = Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(8)).substr(0, 8);
 
 				for (unsigned int v = 0; v < Mesh->mNumVertices; v++)
 				{

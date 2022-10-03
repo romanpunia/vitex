@@ -1162,7 +1162,7 @@ namespace Tomahawk
 			X509_NAME* Subject = X509_get_subject_name(Certificate);
 			X509_NAME* Issuer = X509_get_issuer_name(Certificate);
 			ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
-
+            
 			char SubjectBuffer[1024];
 			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
 
@@ -1182,18 +1182,19 @@ namespace Tomahawk
 			}
 			else
 				*SerialBuffer = '\0';
-
+#if OPENSSL_VERSION_MAJOR < 3
 			unsigned int Size = 0;
 			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
-
+            
 			char FingerBuffer[1024];
 			if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 				*FingerBuffer = '\0';
-
+            
+            Output->Finger = FingerBuffer;
+#endif
 			Output->Subject = SubjectBuffer;
 			Output->Issuer = IssuerBuffer;
 			Output->Serial = SerialBuffer;
-			Output->Finger = FingerBuffer;
 
 			X509_free(Certificate);
 			TH_PPOP();
@@ -2083,7 +2084,7 @@ namespace Tomahawk
 #ifdef SSL_CTX_set_ecdh_auto
 				SSL_CTX_set_ecdh_auto(It.second.Context, 1);
 #endif
-				std::string ContextId = Compute::Common::MD5Hash(Core::Parser((int64_t)time(nullptr)).R());
+				std::string ContextId = Compute::Common::Hash(Compute::Digests::MD5(), Core::Parser((int64_t)time(nullptr)).R());
 				SSL_CTX_set_session_id_context(It.second.Context, (const unsigned char*)ContextId.c_str(), (unsigned int)ContextId.size());
 
 				if (!It.second.Chain.empty() && !It.second.Key.empty())

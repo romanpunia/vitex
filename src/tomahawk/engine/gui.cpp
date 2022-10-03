@@ -680,7 +680,7 @@ namespace Tomahawk
 					if (Function.IsValid())
 						return true;
 
-					std::string Name = "__vf" + Compute::Common::MD5Hash(Memory);
+					std::string Name = "__vf" + Compute::Common::Hash(Compute::Digests::MD5(), Memory);
 					std::string Eval = "void " + Name + "(GUI::Event &in Event){\n";
 					Eval.append(Memory);
 					Eval += "\n;}";

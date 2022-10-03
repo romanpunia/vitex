@@ -1442,10 +1442,8 @@ namespace Tomahawk
 			static Core::Schema* DocDecrypt(const std::string& Value, const char* Key, const char* Salt);
 			static std::string RandomBytes(uint64_t Length);
 			static std::string Move(const std::string& Text, int Offset);
-			static std::string MD5Hash(const std::string& Value);
-			static std::string MD5HashBinary(const std::string& Value);
-			static std::string SHA256Hash(const std::string& Value);
-			static std::string SHA256HashBinary(const std::string& Value);
+			static std::string Hash(Digest Type, const std::string& Value);
+			static std::string HashBinary(Digest Type, const std::string& Value);
 			static std::string Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
 			static std::string Sign(Digest Type, const std::string& Value, const char* Key);
 			static std::string HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);

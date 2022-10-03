@@ -318,7 +318,9 @@ namespace Tomahawk
 #ifdef TH_HAS_OPENSSL
 			SSL_library_init();
 			SSL_load_error_strings();
+#if OPENSSL_VERSION_MAJOR < 3
 			FIPS_mode_set(1);
+#endif
 			RAND_poll();
 
 			int Count = CRYPTO_num_locks();
@@ -474,8 +476,9 @@ namespace Tomahawk
 		if (Modes & (uint64_t)Init::SSL)
 		{
 #ifdef TH_HAS_OPENSSL
-			OPENSSL_VERSION_NUMBER;
+#if OPENSSL_VERSION_MAJOR < 3
 			FIPS_mode_set(0);
+#endif
 			CRYPTO_set_locking_callback(nullptr);
 			CRYPTO_set_id_callback(nullptr);
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10100000L

@@ -7682,7 +7682,7 @@ namespace Tomahawk
 		}
 		std::string Common::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
 		{
-            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.")
+            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
@@ -7748,7 +7748,7 @@ namespace Tomahawk
 		}
 		std::string Common::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
 		{
-            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.")
+            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
             TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");

@@ -192,10 +192,9 @@ namespace Tomahawk
 				std::string Where;
 				Compute::RegexResult Match;
 				Credentials User;
-				char RemoteAddress[48] = { 0 };
 				char Method[10] = { 'G', 'E', 'T' };
 				char Version[10] = { 'H', 'T', 'T', 'P', '/', '1', '.', '1' };
-				uint64_t ContentLength = 0;
+				int64_t ContentLength = 0;
 
 				void SetMethod(const char* Value);
 				void SetVersion(unsigned int Major, unsigned int Minor);
@@ -814,6 +813,9 @@ namespace Tomahawk
 				ResponseFrame Response;
 				Core::Async<bool> Future;
 
+            public:
+                char RemoteAddress[48] = { 0 };
+                
 			public:
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;

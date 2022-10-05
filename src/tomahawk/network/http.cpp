@@ -40,6 +40,7 @@ extern "C"
 #endif
 }
 #define WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+#define MAX_REDIRECTS 128
 
 namespace Tomahawk
 {
@@ -1262,7 +1263,7 @@ namespace Tomahawk
 
 				memset(Request.Method, 0, sizeof(Request.Method));
 				memset(Request.Version, 0, sizeof(Request.Version));
-				memset(Request.RemoteAddress, 0, sizeof(Request.RemoteAddress));
+				memset(RemoteAddress, 0, sizeof(RemoteAddress));
 				SocketConnection::Reset(Fully);
 			}
 			bool Connection::Consume(const ContentCallback& Callback, bool Eat)
@@ -1371,7 +1372,7 @@ namespace Tomahawk
 						return true;
 					}) > 0;
 				}
-				else if (!Request.GetHeader("Content-Length"))
+				else if (Request.ContentLength < 0)
 				{
 					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
@@ -5802,23 +5803,27 @@ namespace Tomahawk
 					{
 						Base->Info.Start = Utils::Clock();
 						Base->Parsers.Request->PrepareForNextParsing();
-						strcpy(Base->Request.RemoteAddress, Base->Stream->GetRemoteAddress().c_str());
-
+                        
 						if (Base->Parsers.Request->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
 						{
 							Base->Request.Buffer.clear();
 							return Base->Error(400, "Invalid request was provided by client");
 						}
-
-						Base->Request.Buffer.clear();
-						if (!Util::ConstructRoute(Conf, Base) || !Base->Route)
+                        
+                        uint32_t Redirects = 0;
+                        Base->Request.Buffer.clear();
+                        
+                    Redirect:
+						if (!Util::ConstructRoute(Conf, Base))
 							return Base->Error(400, "Request cannot be resolved");
 
 						if (!Base->Route->Redirect.empty())
 						{
-							Base->Request.URI = Base->Route->Redirect;
-							if (!Util::ConstructRoute(Conf, Base))
-								Base->Route = Base->Route->Site->Base;
+                            if (Redirects++ > MAX_REDIRECTS)
+                                return Base->Error(500, "Infinite redirects loop detected");
+                            
+                            Base->Request.URI = Base->Route->Redirect;
+                            goto Redirect;
 						}
 
 						const char* ContentLength = Base->Request.GetHeader("Content-Length");
@@ -5827,6 +5832,8 @@ namespace Tomahawk
 							int64_t Len = std::atoll(ContentLength);
 							Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
 						}
+                        else
+                            Base->Request.ContentLength = -1;
 
 						if (!Base->Request.ContentLength)
 							Base->Response.Data = Content::Empty;
@@ -5835,7 +5842,7 @@ namespace Tomahawk
 						{
 							const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
 							if (Address != nullptr)
-								strcpy(Base->Request.RemoteAddress, Address);
+                                strcpy(Base->RemoteAddress, Address);
 						}
 
 						Util::ConstructPath(Base);
@@ -6031,7 +6038,8 @@ namespace Tomahawk
 					Response.Data = Content::Wants_Save;
 					return false;
 				}
-
+                
+                const char* ContentLength = Response.GetHeader("Content-Length");
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
 				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
@@ -6077,7 +6085,7 @@ namespace Tomahawk
 
 					return Result;
 				}
-				else if (!Response.GetHeader("Content-Length"))
+				else if (!ContentLength)
 				{
 					Core::Async<bool> Result;
 					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
@@ -6106,36 +6114,22 @@ namespace Tomahawk
 
 					return Result;
 				}
-
-				const char* HContentLength = Response.GetHeader("Content-Length");
-				if (!HContentLength)
-				{
-					Response.Data = Content::Corrupted;
-					return false;
-				}
-
-				Core::Parser HLength = HContentLength;
-				if (!HLength.HasInteger())
-				{
-					Response.Data = Content::Corrupted;
-					return false;
-				}
-
-				int64_t Length = HLength.ToInt64();
-				if (Length <= 0)
+                
+                uint64_t ContentSize = std::atoll(ContentLength);
+				if (!ContentSize)
 				{
 					Response.Data = Content::Empty;
 					return true;
 				}
 
-				if (Length > MaxSize)
+				if (ContentSize > MaxSize)
 				{
 					Response.Data = Content::Wants_Save;
 					return false;
 				}
 
 				Core::Async<bool> Result;
-				Stream.ReadAsync(Length, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+				Stream.ReadAsync(ContentSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
@@ -6366,7 +6360,7 @@ namespace Tomahawk
 			bool Client::Receive()
 			{
 				Stage("http response receive");
-				strcpy(Request.RemoteAddress, Stream.GetRemoteAddress().c_str());
+				strcpy(RemoteAddress, Stream.GetRemoteAddress().c_str());
 
 				Parser* Parser = new HTTP::Parser();
 				Parser->OnMethodValue = Util::ParseMethodValue;

@@ -18,6 +18,8 @@ namespace Tomahawk
 {
 	namespace Network
 	{
+        struct Address;
+    
 		struct SocketConnection;
 
 		struct EpollHandle;
@@ -78,12 +80,18 @@ namespace Tomahawk
 		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
 		typedef std::function<void()> SocketClosedCallback;
 		typedef std::function<bool(SocketPoll, const char*, size_t)> SocketReadCallback;
-		typedef std::function<bool(socket_t)> SocketAcceptedCallback;
+		typedef std::function<bool(socket_t, char*)> SocketAcceptedCallback;
 
 		struct TH_OUT Address
 		{
-			addrinfo* Addresses = nullptr;
-			addrinfo* Good = nullptr;
+			addrinfo* Pool = nullptr;
+			addrinfo* Usable = nullptr;
+            
+            void Use(Address& Other);
+            void Use();
+            void Free();
+            bool IsUsable() const;
+            std::string GetAddress() const;
 		};
 
 		struct TH_OUT Socket
@@ -114,9 +122,9 @@ namespace Tomahawk
 		public:
 			Socket();
 			Socket(socket_t FromFd);
-			int Accept(Socket* Connection, Address* Output);
-			int Accept(socket_t* NewFd);
-			int AcceptAsync(SocketAcceptedCallback&& Callback);
+			int Accept(Socket* OutConnection, char* OutAddress);
+			int Accept(socket_t* OutFd, char* OutAddress);
+			int AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
 			int Close(bool Gracefully = true);
 			int CloseAsync(bool Gracefully, SocketClosedCallback&& Callback);
 			int Write(const char* Buffer, int Size);
@@ -250,6 +258,7 @@ namespace Tomahawk
 		{
 			Socket* Stream = nullptr;
 			Listener* Host = nullptr;
+            char RemoteAddress[48] = { 0 };
 			DataFrame Info;
 
 			virtual ~SocketConnection();
@@ -428,7 +437,7 @@ namespace Tomahawk
 
 		protected:
 			bool FreeAll();
-			bool Accept(Listener* Host, socket_t Fd);
+			bool Accept(Listener* Host, char* RemoteAddr, socket_t Fd);
 			bool Protect(Socket* Fd, Listener* Host);
 			bool Manage(SocketConnection* Base);
 			void Push(SocketConnection* Base);

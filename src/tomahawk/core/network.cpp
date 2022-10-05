@@ -159,7 +159,39 @@ namespace Tomahawk
 
 			return &(((struct sockaddr_in6*)Info)->sin6_addr);
 		}
-
+    
+        void Address::Use(Address& Other)
+        {
+            Free();
+            Pool = Other.Pool;
+            Usable = Other.Usable;
+            Other.Pool = nullptr;
+            Other.Usable = nullptr;
+        }
+        void Address::Use()
+        {
+            Usable = Pool;
+        }
+        void Address::Free()
+        {
+            if (Pool != nullptr)
+                freeaddrinfo(Pool);
+            
+            Pool = nullptr;
+            Usable = nullptr;
+        }
+        bool Address::IsUsable() const
+        {
+            return Usable != nullptr;
+        }
+        std::string Address::GetAddress() const
+        {
+            if (!Usable)
+                return "127.0.0.1";
+            
+            return Socket::GetAddress(Usable);
+        }
+    
 		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(0)
 		{
 			TH_ASSERT_V(!URL.empty(), "url should not be empty");
@@ -354,60 +386,47 @@ namespace Tomahawk
 		{
 			Fd = FromFd;
 		}
-		int Socket::Accept(Socket* Connection, Address* OutAddr)
+		int Socket::Accept(Socket* OutConnection, char* OutAddr)
 		{
-			TH_ASSERT(Connection != nullptr, -1, "socket should be set");
-
-			sockaddr Address;
-			socket_size_t Length = sizeof(sockaddr);
-			Connection->Fd = accept(Fd, &Address, &Length);
-			if (Connection->Fd == INVALID_SOCKET)
-				return -1;
-
-			TH_TRACE("[net] accept fd %i on %i fd", (int)Connection->Fd, (int)Fd);
-			if (!OutAddr)
-				return 0;
-
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(struct addrinfo));
-			Hints.ai_family = AF_UNSPEC;
-			Hints.ai_socktype = SOCK_STREAM;
-
-			int Port = ((struct sockaddr_in*)&Address)->sin_port;
-			if (getaddrinfo(Address.sa_data, std::to_string(Port).c_str(), &Hints, &OutAddr->Addresses))
-				return -1;
-
-			OutAddr->Good = OutAddr->Addresses;
-			return 0;
+			TH_ASSERT(OutConnection != nullptr, -1, "socket should be set");
+            return Accept(&OutConnection->Fd, OutAddr);
 		}
-		int Socket::Accept(socket_t* NewFd)
+		int Socket::Accept(socket_t* OutFd, char* OutAddr)
 		{
-			TH_ASSERT(NewFd != nullptr, -1, "socket should be set");
+            TH_ASSERT(OutFd != nullptr, -1, "socket should be set");
 
-			*NewFd = accept(Fd, nullptr, nullptr);
-			if (*NewFd == INVALID_SOCKET)
-				return -1;
+            sockaddr Address;
+            socket_size_t Length = sizeof(sockaddr);
+            *OutFd = accept(Fd, &Address, &Length);
+            if (*OutFd == INVALID_SOCKET)
+                return -1;
 
-			TH_TRACE("[net] accept fd %i on %i fd", (int)*NewFd, (int)Fd);
-			return 0;
+            TH_TRACE("[net] accept fd %i on %i fd", (int)*OutFd, (int)Fd);
+            if (OutAddr != nullptr)
+                inet_ntop(Address.sa_family, GetAddressStorage(&Address), OutAddr, INET6_ADDRSTRLEN);
+            
+            return 0;
 		}
-		int Socket::AcceptAsync(SocketAcceptedCallback&& Callback)
+		int Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
 		{
 			TH_ASSERT(Callback != nullptr, -1, "callback should be set");
 
-			bool Success = Driver::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+			bool Success = Driver::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (!Packet::IsDone(Event))
 					return;
-
-				socket_t NewFd = INVALID_SOCKET;
-				while (Accept(&NewFd) == 0)
+                
+                socket_t OutFd = INVALID_SOCKET;
+                char OutAddr[INET6_ADDRSTRLEN] = { 0 };
+                char* RemoteAddr = (WithAddress ? OutAddr : nullptr);
+                
+				while (Accept(&OutFd, RemoteAddr) == 0)
 				{
-					if (!Callback(NewFd))
+					if (!Callback(OutFd, RemoteAddr))
 						break;
 				}
 
-				AcceptAsync(std::move(Callback));
+				AcceptAsync(WithAddress, std::move(Callback));
 			});
 
 			return Success ? 0 : -1;
@@ -824,7 +843,7 @@ namespace Tomahawk
 			if (Subresult != nullptr)
 				*Subresult = Result;
 
-			TH_PRET(Open(Result->Good));
+			TH_PRET(Open(Result->Usable));
 		}
 		int Socket::Open(const std::string& Host, const std::string& Port, DNSType DNS, Address** Result)
 		{
@@ -869,16 +888,16 @@ namespace Tomahawk
 		}
 		int Socket::Bind(Address* Address)
 		{
-			TH_ASSERT(Address && Address->Good, -1, "address should be set and good");
+			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
 			TH_TRACE("[net] bind fd %i", (int)Fd);
-			return bind(Fd, Address->Good->ai_addr, (int)Address->Good->ai_addrlen);
+			return bind(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
 		}
 		int Socket::Connect(Address* Address, uint64_t Timeout)
 		{
-			TH_ASSERT(Address && Address->Good, -1, "address should be set and good");
+			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
 			TH_PPUSH("sock-conn", TH_PERF_NET);
 			TH_TRACE("[net] connect fd %i", (int)Fd);
-			TH_PRET(TryConnect(Fd, Address->Good->ai_addr, (int)Address->Good->ai_addrlen, Timeout, true));
+			TH_PRET(TryConnect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen, Timeout, true));
 		}
 		int Socket::Listen(int Backlog)
 		{
@@ -1089,12 +1108,14 @@ namespace Tomahawk
 		}
 		std::string Socket::GetAddress(addrinfo* Info)
 		{
+            TH_ASSERT(Info != nullptr, std::string(), "address info should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
 			return Buffer;
 		}
 		std::string Socket::GetAddress(sockaddr* Info)
 		{
+            TH_ASSERT(Info != nullptr, std::string(), "socket address should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
 			return Buffer;
@@ -1422,7 +1443,7 @@ namespace Tomahawk
 			Exclusive.lock();
 			for (auto& Item : Names)
 			{
-				freeaddrinfo(Item.second.second->Addresses);
+				Item.second.second->Free();
 				TH_DELETE(Address, Item.second.second);
 			}
 			Names.clear();
@@ -1598,8 +1619,8 @@ namespace Tomahawk
 			}
 
 			Address* Result = TH_NEW(Address);
-			Result->Addresses = Addresses;
-			Result->Good = Good;
+			Result->Pool = Addresses;
+			Result->Usable = Good;
 
 			TH_TRACE("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Socket::GetAddress(Good).c_str());
 			Exclusive.lock();
@@ -1607,7 +1628,7 @@ namespace Tomahawk
 				auto It = Names.find(Identity);
 				if (It != Names.end())
 				{
-					freeaddrinfo(It->second.second->Addresses);
+					It->second.second->Free();
 					TH_DELETE(Address, It->second.second);
 					It->second.first = Time + DNS_TIMEOUT;
 					It->second.second = Result;
@@ -2204,12 +2225,12 @@ namespace Tomahawk
 
 			for (auto&& It : Listeners)
 			{
-				It->Base->AcceptAsync([this, It](socket_t Fd)
+				It->Base->AcceptAsync(true, [this, It](socket_t Fd, char* RemoteAddr)
 				{
 					if (State != ServerState::Working)
 						return false;
 
-					Accept(It, Fd);
+					Accept(It, RemoteAddr, Fd);
 					return State == ServerState::Working;
 				});
 			}
@@ -2231,7 +2252,7 @@ namespace Tomahawk
 			TH_PPOP();
 			return true;
 		}
-		bool SocketServer::Accept(Listener* Host, socket_t Fd)
+		bool SocketServer::Accept(Listener* Host, char* RemoteAddr, socket_t Fd)
 		{
 			TH_PPUSH("sock-accept", TH_PERF_FRAME);
 			auto* Base = Pop(Host);
@@ -2240,7 +2261,8 @@ namespace Tomahawk
 				TH_PPOP();
 				return false;
 			}
-
+            
+            strcpy(Base->RemoteAddress, RemoteAddr);
 			Base->Stream->Timeout = Router->SocketTimeout;
 			Base->Stream->SetFd(Fd, false);
 			Base->Stream->SetCloseOnExec();

@@ -1,8 +1,8 @@
 #ifndef TOMAHAWK_H
 #define TOMAHAWK_H
 #define TH_MAJOR_VERSION 8
-#define TH_MINOR_VERSION 3
-#define TH_PATCH_LEVEL 36
+#define TH_MINOR_VERSION 4
+#define TH_PATCH_LEVEL 37
 #define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/core.h"
@@ -52,7 +52,6 @@ namespace Tomahawk
 	class TH_OUT Library
 	{
 	public:
-		static void Describe();
 		static bool HasDirectX();
 		static bool HasOpenGL();
 		static bool HasOpenSSL();
@@ -63,10 +62,11 @@ namespace Tomahawk
 		static bool HasPostgreSQL();
 		static bool HasOpenAL();
 		static bool HasSDL2();
-		static bool WithSIMD();
-		static bool WithBullet3();
-		static bool WithRmlUi();
-		static bool WithWepoll();
+		static bool WithProcessorSIMD();
+        static bool WithWebBasedUI();
+		static bool WithPhysicsEngine();
+		static bool WithWindowsEpoll();
+        static bool WithFastCoroutines();
 		static int Version();
 		static int DebugLevel();
 		static int Architecture();

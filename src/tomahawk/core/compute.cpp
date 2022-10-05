@@ -23,6 +23,7 @@ extern "C"
 #include <openssl/rand.h>
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
+#include <openssl/err.h>
 }
 #endif
 #define V3_TO_BT(V) btVector3(V.X, V.Y, V.Z)
@@ -7305,6 +7306,14 @@ namespace Tomahawk
 		{
 			LeftHanded = IsLeftHanded;
 		}
+        void Common::DisplayCryptoLog()
+        {
+            ERR_print_errors_cb([](const char* Message, size_t Size, void*)
+            {
+                TH_ERR("[openssl] %.*s", (int)Size, Message);
+                return 0;
+            }, nullptr);
+        }
 		unsigned char Common::RandomUC()
 		{
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -7490,7 +7499,8 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_OPENSSL
 			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
-			RAND_bytes(Buffer, (int)Length);
+			if (RAND_bytes(Buffer, (int)Length) != 1)
+                DisplayCryptoLog();
 
 			std::string Output((const char*)Buffer, Length);
 			TH_FREE(Buffer);
@@ -7524,7 +7534,10 @@ namespace Tomahawk
             EVP_MD* Method = (EVP_MD*)Type;
             EVP_MD_CTX* Context = EVP_MD_CTX_create();
             if (!Context)
+            {
+                DisplayCryptoLog();
                 return std::string();
+            }
             
             std::string Result;
             Result.resize(EVP_MD_size(Method));
@@ -7536,7 +7549,10 @@ namespace Tomahawk
             EVP_MD_CTX_destroy(Context);
             
             if (!OK)
+            {
+                DisplayCryptoLog();
                 return std::string();
+            }
             
             Result.resize((size_t)Size);
             return Result;
@@ -7557,23 +7573,31 @@ namespace Tomahawk
             unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, (const void*)Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size);
             
             if (!Pointer)
+            {
+                DisplayCryptoLog();
                 return std::string();
+            }
             
             return std::string((const char*)Result, Size);
 #elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
 			HMAC_CTX* Context = HMAC_CTX_new();
 			if (!Context)
-				return "";
-
+            {
+                DisplayCryptoLog();
+                return "";
+            }
+            
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			if (1 != HMAC_Init_ex(Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
 			{
+                DisplayCryptoLog();
 				HMAC_CTX_free(Context);
 				return "";
 			}
 
 			if (1 != HMAC_Update(Context, Value, (int)Length))
 			{
+                DisplayCryptoLog();
 				HMAC_CTX_free(Context);
 				return "";
 			}
@@ -7581,6 +7605,7 @@ namespace Tomahawk
 			unsigned int Size = sizeof(Result);
 			if (1 != HMAC_Final(Context, Result, &Size))
 			{
+                DisplayCryptoLog();
 				HMAC_CTX_free(Context);
 				return "";
 			}
@@ -7596,12 +7621,14 @@ namespace Tomahawk
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			if (1 != HMAC_Init_ex(&Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
 			{
+                DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
 				return "";
 			}
 
 			if (1 != HMAC_Update(&Context, Value, (int)Length))
 			{
+                DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
 				return "";
 			}
@@ -7609,6 +7636,7 @@ namespace Tomahawk
 			unsigned int Size = sizeof(Result);
 			if (1 != HMAC_Final(&Context, Result, &Size))
 			{
+                DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
 				return "";
 			}
@@ -7637,8 +7665,11 @@ namespace Tomahawk
 			unsigned int Size = sizeof(Result);
 
 			if (!::HMAC((const EVP_MD*)Type, Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size))
-				return "";
-
+            {
+                DisplayCryptoLog();
+                return "";
+            }
+            
 			std::string Output((const char*)Result, Size);
 			return Output;
 #else
@@ -7649,8 +7680,9 @@ namespace Tomahawk
 		{
 			return Common::HMAC(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
 		}
-		std::string Common::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt)
+		std::string Common::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
 		{
+            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.")
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
@@ -7660,19 +7692,34 @@ namespace Tomahawk
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
-				return "";
-
+            {
+                DisplayCryptoLog();
+                return "";
+            }
+            
+            if (ComplexityBytes > 0)
+            {
+                if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+                {
+                    DisplayCryptoLog();
+                    EVP_CIPHER_CTX_free(Context);
+                    return "";
+                }
+            }
+            
 			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
 			{
+                DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				return "";
 			}
-
+            
 			int Size1 = (int)Length, Size2 = 0;
 			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
 
 			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, Value, Size1))
 			{
+                DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
 				return "";
@@ -7680,6 +7727,7 @@ namespace Tomahawk
 
 			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
 			{
+                DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
 				return "";
@@ -7694,13 +7742,14 @@ namespace Tomahawk
 			return (const char*)Value;
 #endif
 		}
-		std::string Common::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
+		std::string Common::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
 		{
 			return Encrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
 		}
-		std::string Common::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt)
+		std::string Common::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
 		{
-			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.")
+            TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
 
@@ -7709,10 +7758,24 @@ namespace Tomahawk
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
-				return "";
-
+            {
+                DisplayCryptoLog();
+                return "";
+            }
+            
+            if (ComplexityBytes > 0)
+            {
+                if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+                {
+                    DisplayCryptoLog();
+                    EVP_CIPHER_CTX_free(Context);
+                    return "";
+                }
+            }
+            
 			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
 			{
+                DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				return "";
 			}
@@ -7722,6 +7785,7 @@ namespace Tomahawk
 
 			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, Value, Size1))
 			{
+                DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
 				return "";
@@ -7729,6 +7793,7 @@ namespace Tomahawk
 
 			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
 			{
+                DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
 				return "";
@@ -7743,7 +7808,7 @@ namespace Tomahawk
 			return (const char*)Value;
 #endif
 		}
-		std::string Common::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt)
+		std::string Common::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
 		{
 			return Decrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
 		}
@@ -8361,7 +8426,8 @@ namespace Tomahawk
 			if (Min > Max)
 				return Raw;
 #ifdef TH_HAS_OPENSSL
-			RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t));
+			if (RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t)) != 1)
+                DisplayCryptoLog();
 #else
 			Raw = Random();
 #endif

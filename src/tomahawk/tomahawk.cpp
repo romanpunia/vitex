@@ -38,52 +38,24 @@ extern "C"
 #include <openssl/engine.h>
 #include <openssl/conf.h>
 #include <openssl/dh.h>
+#if OPENSSL_VERSION_MAJOR >= 3
+#include <openssl/provider.h>
+#endif
 }
 #endif
 
 namespace Tomahawk
 {
 #ifdef TH_HAS_OPENSSL
-	static std::vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
+    static std::vector<std::shared_ptr<std::mutex>>* CryptoLocks = nullptr;
+#if OPENSSL_VERSION_MAJOR >= 3
+    static OSSL_PROVIDER* CryptoLegacy = nullptr;
+    static OSSL_PROVIDER* CryptoDefault = nullptr;
+#endif
 #endif
 	static uint64_t Modes = 0;
 	static int State = 0;
 
-	void Library::Describe()
-	{
-		TH_INFO("[tomahawk] %i.%i.%i on %s (%s)"
-			"\n\tfeature options"
-			"\n\t\tDirectX: %s"
-			"\n\t\tOpenGL: %s"
-			"\n\t\tOpenSSL: %s"
-			"\n\t\tGLEW: %s"
-			"\n\t\tZLib: %s"
-			"\n\t\tAssimp: %s"
-			"\n\t\tMongoDB: %s"
-			"\n\t\tPostgreSQL: %s"
-			"\n\t\tOpenAL: %s"
-			"\n\t\tSDL2: %s"
-			"\n\tcore options",
-			"\n\t\tSIMD: %s"
-			"\n\t\tBullet3: %s"
-			"\n\t\tRmlUI: %s"
-			"\n\t\tWepoll: %s",
-			TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL, Platform(), Compiler(),
-			HasDirectX() ? "ON" : "OFF",
-			HasOpenGL() ? "ON" : "OFF",
-			HasOpenSSL() ? "ON" : "OFF",
-			HasGLEW() ? "ON" : "OFF",
-			HasZLib() ? "ON" : "OFF",
-			HasAssimp() ? "ON" : "OFF",
-			HasMongoDB() ? "ON" : "OFF",
-			HasPostgreSQL() ? "ON" : "OFF",
-			HasOpenAL() ? "ON" : "OFF",
-			HasSDL2() ? "ON" : "OFF",
-			WithSIMD() ? "ON" : "OFF",
-			WithBullet3() ? "ON" : "OFF",
-			WithRmlUi() ? "ON" : "OFF",
-			WithWepoll() ? "ON" : "OFF");
-	}
 	bool Library::HasDirectX()
 	{
 #ifdef TH_MICROSOFT
@@ -164,7 +136,7 @@ namespace Tomahawk
 		return false;
 #endif
 	}
-	bool Library::WithSIMD()
+	bool Library::WithProcessorSIMD()
 	{
 #ifdef TH_WITH_SIMD
 		return true;
@@ -172,7 +144,7 @@ namespace Tomahawk
 		return false;
 #endif
 	}
-	bool Library::WithBullet3()
+	bool Library::WithPhysicsEngine()
 	{
 #ifdef TH_WITH_BULLET3
 		return true;
@@ -180,7 +152,7 @@ namespace Tomahawk
 		return false;
 #endif
 	}
-	bool Library::WithRmlUi()
+	bool Library::WithWebBasedUI()
 	{
 #ifdef TH_WITH_RMLUI
 		return true;
@@ -188,7 +160,7 @@ namespace Tomahawk
 		return false;
 #endif
 	}
-	bool Library::WithWepoll()
+	bool Library::WithWindowsEpoll()
 	{
 #ifdef TH_WITH_WEPOLL
 		return true;
@@ -196,6 +168,14 @@ namespace Tomahawk
 		return false;
 #endif
 	}
+    bool Library::WithFastCoroutines()
+    {
+    #ifdef TH_WITH_FCTX
+        return true;
+    #else
+        return false;
+    #endif
+    }
 	int Library::Version()
 	{
 		return TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL);
@@ -318,8 +298,14 @@ namespace Tomahawk
 #ifdef TH_HAS_OPENSSL
 			SSL_library_init();
 			SSL_load_error_strings();
-#if OPENSSL_VERSION_MAJOR < 3
-			FIPS_mode_set(1);
+#if OPENSSL_VERSION_MAJOR >= 3
+            CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
+            CryptoDefault = OSSL_PROVIDER_load(nullptr, "default");
+            
+            if (!CryptoLegacy || !CryptoDefault)
+                Compute::Common::DisplayCryptoLog();
+#else
+            FIPS_mode_set(1);
 #endif
 			RAND_poll();
 
@@ -348,7 +334,7 @@ namespace Tomahawk
 			TH_WARN("[tomahawk] openssl ssl cannot be initialized");
 #endif
 		}
-
+        
 		if (Modes & (uint64_t)Init::SDL2)
 		{
 #ifdef TH_HAS_SDL2
@@ -476,7 +462,12 @@ namespace Tomahawk
 		if (Modes & (uint64_t)Init::SSL)
 		{
 #ifdef TH_HAS_OPENSSL
-#if OPENSSL_VERSION_MAJOR < 3
+#if OPENSSL_VERSION_MAJOR >= 3
+            OSSL_PROVIDER_unload(CryptoLegacy);
+            OSSL_PROVIDER_unload(CryptoDefault);
+            CryptoLegacy = nullptr;
+            CryptoDefault = nullptr;
+#else
 			FIPS_mode_set(0);
 #endif
 			CRYPTO_set_locking_callback(nullptr);
@@ -496,7 +487,7 @@ namespace Tomahawk
 			ERR_free_strings();
 			EVP_cleanup();
 			CRYPTO_cleanup_all_ex_data();
-
+            
 			if (CryptoLocks != nullptr)
 			{
 				TH_DELETE(vector, CryptoLocks);

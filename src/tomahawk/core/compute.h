@@ -1435,6 +1435,7 @@ namespace Tomahawk
 			static void TexCoordRhToLh(std::vector<SkinVertex>& Vertices);
 			static void TexCoordRhToLh(std::vector<ShapeVertex>& Vertices);
 			static void SetLeftHanded(bool IsLeftHanded);
+            static void DisplayCryptoLog();
 			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
 			static std::string JWTEncode(WebToken* Src, const char* Key);
 			static WebToken* JWTDecode(const std::string& Value, const char* Key);
@@ -1448,10 +1449,10 @@ namespace Tomahawk
 			static std::string Sign(Digest Type, const std::string& Value, const char* Key);
 			static std::string HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
 			static std::string HMAC(Digest Type, const std::string& Value, const char* Key);
-			static std::string Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt);
-			static std::string Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt);
-			static std::string Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt);
-			static std::string Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt);
+			static std::string Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
+			static std::string Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
+			static std::string Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
+			static std::string Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
 			static std::string Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding);
 			static std::string Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char));
 			static std::string Bep45Encode(const std::string& Value);

@@ -1260,10 +1260,10 @@ namespace Tomahawk
 				Request.Path.clear();
 				Request.URI.clear();
 				Request.Where.clear();
-
+                
+                memset(RemoteAddress, 0, sizeof(RemoteAddress));
 				memset(Request.Method, 0, sizeof(Request.Method));
 				memset(Request.Version, 0, sizeof(Request.Version));
-				memset(RemoteAddress, 0, sizeof(RemoteAddress));
 				SocketConnection::Reset(Fully);
 			}
 			bool Connection::Consume(const ContentCallback& Callback, bool Eat)

@@ -41,6 +41,7 @@ extern "C"
 }
 #define WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define MAX_REDIRECTS 128
+#define GZ_HEADER_SIZE 17
 
 namespace Tomahawk
 {
@@ -1261,7 +1262,6 @@ namespace Tomahawk
 				Request.URI.clear();
 				Request.Where.clear();
                 
-                memset(RemoteAddress, 0, sizeof(RemoteAddress));
 				memset(Request.Method, 0, sizeof(Request.Method));
 				memset(Request.Version, 0, sizeof(Request.Version));
 				SocketConnection::Reset(Fully);
@@ -1271,7 +1271,7 @@ namespace Tomahawk
 				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved || Response.Data == Content::Wants_Save)
 				{
 					if (Callback)
-						Callback(this, SocketPoll::Finish, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, nullptr, 0);
 
 					return true;
 				}
@@ -1291,7 +1291,7 @@ namespace Tomahawk
 						if (!Eat)
 							Callback(this, SocketPoll::Next, Request.Buffer.c_str(), (int)Request.Buffer.size());
 
-						Callback(this, SocketPoll::Finish, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, nullptr, 0);
 					}
 
 					return true;
@@ -1301,7 +1301,7 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Empty;
 					if (Callback)
-						Callback(this, SocketPoll::Finish, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, nullptr, 0);
 
 					return false;
 				}
@@ -1311,7 +1311,7 @@ namespace Tomahawk
 				{
 					Response.Data = Content::Wants_Save;
 					if (Callback)
-						Callback(this, SocketPoll::Finish, nullptr, 0);
+						Callback(this, SocketPoll::FinishSync, nullptr, 0);
 
 					return true;
 				}
@@ -5269,6 +5269,27 @@ namespace Tomahawk
 				if (!Stream)
 					return Base->Error(500, "System denied to open resource stream.");
 
+                if (Base->Route->AllowSendFile)
+                {
+                    int64_t Result = Base->Stream->SendFileAsync(Stream, Range, ContentLength, [Base, Stream](SocketPoll Event)
+                    {
+                        if (Packet::IsDone(Event))
+                        {
+                            TH_CLOSE(Stream);
+                            Base->Finish();
+                        }
+                        else if (Packet::IsError(Event))
+                        {
+                            TH_CLOSE(Stream);
+                            Base->Break();
+                        }
+                        else if (Packet::IsSkip(Event))
+                            TH_CLOSE(Stream);
+                    });
+                    
+                    if (Result != -3)
+                        return true;
+                }
 #ifdef TH_MICROSOFT
 				if (Range > 0 && _lseeki64(TH_FILENO(Stream), Range, SEEK_SET) == -1)
 				{
@@ -5288,27 +5309,7 @@ namespace Tomahawk
 					return Base->Error(400, "Provided content range offset (%llu) is invalid", Range);
 				}
 #endif
-				Server* Router = Base->Root;
-				if (!Base->Route->AllowSendFile)
-					return ProcessFileChunk(Base, Router, Stream, ContentLength);
-
-				Base->Stream->SetBlocking(true);
-				Base->Stream->SetTimeout((int)Base->Root->Router->SocketTimeout);
-				bool Result = Core::OS::Net::SendFile(Stream, Base->Stream->GetFd(), ContentLength);
-				Base->Stream->SetTimeout(0);
-				Base->Stream->SetBlocking(false);
-
-				if (Router->State != ServerState::Working)
-				{
-					TH_CLOSE(Stream);
-					return Base->Break();
-				}
-
-				if (!Result)
-					return ProcessFileChunk(Base, Router, Stream, ContentLength);
-
-				TH_CLOSE(Stream);
-				return Base->Finish();
+                return ProcessFileChunk(Base, Base->Root, Stream, ContentLength);
 			}
 			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
 			{
@@ -5316,6 +5317,8 @@ namespace Tomahawk
 				TH_ASSERT(Router != nullptr, false, "router should be set");
 				TH_ASSERT(Stream != nullptr, false, "stream should be set");
 
+            Retry:
+                char Buffer[8192];
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
@@ -5325,20 +5328,20 @@ namespace Tomahawk
 
 					return Base->Finish() || true;
 				}
-
-				char Buffer[8192]; int Read = sizeof(Buffer);
+                
+                int Read = sizeof(Buffer);
 				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
 					goto Cleanup;
-
+                
 				ContentLength -= (int64_t)Read;
-				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](SocketPoll Event)
+                int Result = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
-						Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
-						{
-							ProcessFileChunk(Base, Router, Stream, ContentLength);
-						}, Core::Difficulty::Heavy);
+                        Core::Schedule::Get()->SetTask([Base, Router, Stream, ContentLength]()
+                        {
+                            ProcessFileChunk(Base, Router, Stream, ContentLength);
+                        }, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
 					{
@@ -5346,9 +5349,12 @@ namespace Tomahawk
 						Base->Break();
 					}
 					else if (Packet::IsSkip(Event))
-						TH_CLOSE(Stream);
+                        TH_CLOSE(Stream);
 				});
-
+                
+                if (Result >= 0 && false)
+                    goto Retry;
+                
 				return false;
 			}
 			bool Util::ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip)
@@ -5441,6 +5447,8 @@ namespace Tomahawk
 #ifdef TH_HAS_ZLIB
 #define FREE_STREAMING { TH_CLOSE(Stream); deflateEnd(ZStream); TH_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
+            Retry:
+                char Buffer[8192 + GZ_HEADER_SIZE], Deflate[8192];
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
@@ -5456,11 +5464,8 @@ namespace Tomahawk
 							Base->Break();
 					}) || true;
 				}
-
-				static const int Head = 17;
-				char Buffer[8192 + Head], Deflate[8192];
-				int Read = sizeof(Buffer) - Head;
-
+                
+                int Read = sizeof(Buffer) - GZ_HEADER_SIZE;
 				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
 					goto Cleanup;
 
@@ -5487,16 +5492,16 @@ namespace Tomahawk
 					Read += sizeof(char) * 2;
 				}
 
-				Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](SocketPoll Event)
+				int Result = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ZStream, ContentLength](SocketPoll Event)
 				{
-					if (Packet::IsDone(Event))
+					if (Packet::IsDoneAsync(Event))
 					{
 						if (ContentLength > 0)
 						{
-							Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
-							{
-								ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
-							}, Core::Difficulty::Heavy);
+                            Core::Schedule::Get()->SetTask([Base, Router, Stream, ZStream, ContentLength]()
+                            {
+                                ProcessFileCompressChunk(Base, Router, Stream, ZStream, ContentLength);
+                            }, Core::Difficulty::Heavy);
 						}
 						else
 						{
@@ -5513,6 +5518,9 @@ namespace Tomahawk
 						FREE_STREAMING;
 				});
 
+                if (Result >= 0)
+                    goto Retry;
+                
 				return false;
 #undef FREE_STREAMING
 #else

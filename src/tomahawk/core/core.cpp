@@ -6837,22 +6837,6 @@ namespace Tomahawk
 			return Buffer;
 		}
 
-		bool OS::Net::SendFile(FILE* Stream, socket_t Socket, int64_t Size)
-		{
-			TH_ASSERT(Stream != nullptr, false, "stream should be set");
-			TH_ASSERT(Size > 0, false, "size should be greater than Zero");
-			TH_PPUSH("os-net-send", TH_PERF_NET);
-#ifdef TH_MICROSOFT
-			TH_PRET(TransmitFile((SOCKET)Socket, (HANDLE)_get_osfhandle(TH_FILENO(Stream)), (DWORD)Size, 8192, nullptr, nullptr, 0) > 0);
-#elif defined(TH_APPLE)
-			TH_PRET(sendfile(TH_FILENO(Stream), Socket, 0, (off_t*)&Size, nullptr, 0));
-#elif defined(TH_UNIX)
-			TH_PRET(sendfile(Socket, TH_FILENO(Stream), nullptr, (size_t)Size) > 0);
-#else
-			TH_PPOP();
-			return false;
-#endif
-		}
 		bool OS::Net::GetETag(char* Buffer, uint64_t Length, Resource* Resource)
 		{
 			TH_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -7044,6 +7028,49 @@ namespace Tomahawk
 
 			return Stream.str();
 		}
+        std::unordered_map<std::string, std::string> OS::Process::GetArgs(int ArgsCount, char** Args, const std::string& WhenNoValue)
+        {
+            std::unordered_map<std::string, std::string> Results;
+            TH_ASSERT(Args != nullptr, Results, "arguments should be set");
+            TH_ASSERT(ArgsCount > 0, Results, "arguments count should be greater than zero");
+            
+            std::vector<std::string> Params;
+            for (int i = 0; i < ArgsCount; i++)
+            {
+                TH_ASSERT(Args[i] != nullptr, Results, "argument %i should be set", i);
+                Params.push_back(Args[i]);
+            }
+        
+            for (size_t i = 1; i < Params.size(); i++)
+            {
+                auto& Item = Params[i];
+                if (Item.empty() || Item.front() != '-')
+                    continue;
+                
+                if (Item.size() > 1 && Item[1] == '-')
+                {
+                    Item = Item.substr(2);
+                    size_t Position = Item.find('=');
+                    if (Position != std::string::npos)
+                    {
+                        std::string Value = Item.substr(Position + 1);
+                        Results[Item.substr(0, Position)] = Value.empty() ? WhenNoValue : Value;
+                    }
+                    else
+                        Results[Item] = WhenNoValue;
+                }
+                else if (i + 1 < Params.size() && Params[i + 1].front() != '-')
+                {
+                    auto& Value = Params[++i];
+                    Results[Item.substr(1)] = Value.empty() ? WhenNoValue : Value;
+                }
+                else
+                    Results[Item.substr(1)] = WhenNoValue;
+            }
+
+            Results["__path__"] = Params.front();
+            return Results;
+        }
 
 		void* OS::Symbol::Load(const std::string& Path)
 		{

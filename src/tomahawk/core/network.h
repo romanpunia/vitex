@@ -48,7 +48,8 @@ namespace Tomahawk
 			Reset = 1,
 			Timeout = 2,
 			Cancel = 3,
-			Finish = 4
+			Finish = 4,
+            FinishSync = 5
 		};
 
 		enum class SocketProtocol
@@ -127,11 +128,13 @@ namespace Tomahawk
 			int AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
 			int Close(bool Gracefully = true);
 			int CloseAsync(bool Gracefully, SocketClosedCallback&& Callback);
+            int64_t SendFile(FILE* Stream, int64_t Offset, int64_t Size);
+            int64_t SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer = 0);
 			int Write(const char* Buffer, int Size);
-			int WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr);
+			int WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr, size_t TempOffset = 0);
 			int Read(char* Buffer, int Size);
 			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
-			int ReadAsync(size_t Size, SocketReadCallback&& Callback);
+			int ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer = 0);
 			int ReadUntil(const char* Match, SocketReadCallback&& Callback);
 			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
 			int Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Result);
@@ -150,7 +153,7 @@ namespace Tomahawk
 			int SetAnyFlag(int Level, int Option, int Value);
 			int SetSocketFlag(int Option, int Value);
 			int SetBlocking(bool Enabled);
-			int SetNodelay(bool Enabled);
+			int SetNoDelay(bool Enabled);
 			int SetKeepAlive(bool Enabled);
 			int SetTimeout(int Timeout);
 			int GetError(int Result);
@@ -280,7 +283,7 @@ namespace Tomahawk
 			uint64_t MaxConnections = 0;
 			int64_t KeepAliveMaxCount = 50;
 			int64_t GracefulTimeWait = -1;
-			bool EnableNoDelay = true;
+			bool EnableNoDelay = false;
 
 			Host& Listen(const std::string& Hostname, int Port, bool Secure = false);
 			Host& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);
@@ -326,8 +329,16 @@ namespace Tomahawk
 			}
 			static bool IsDone(SocketPoll Event)
 			{
-				return Event == SocketPoll::Finish;
+				return Event == SocketPoll::Finish || Event == SocketPoll::FinishSync;
 			}
+            static bool IsDoneSync(SocketPoll Event)
+            {
+                return Event == SocketPoll::FinishSync;
+            }
+            static bool IsDoneAsync(SocketPoll Event)
+            {
+                return Event == SocketPoll::Finish;
+            }
 			static bool IsTimeout(SocketPoll Event)
 			{
 				return Event == SocketPoll::Timeout;

@@ -541,6 +541,76 @@ namespace Tomahawk
 				Callback();
 			return 0;
 		}
+        int64_t Socket::SendFile(FILE* Stream, int64_t Offset, int64_t Size)
+        {
+            TH_ASSERT(Stream != nullptr, -1, "stream should be set");
+            TH_ASSERT(Offset >= 0, -1, "offset should be set and positive");
+            TH_ASSERT(Size > 0, -1, "size should be set and greater than zero");
+            TH_PPUSH("os-net-send", TH_PERF_NET);
+            auto FromFd = TH_FILENO(Stream);
+#ifdef TH_APPLE
+            off_t Seek = (off_t)Offset, Length = (off_t)Size;
+            int64_t Value = (int64_t)sendfile(FromFd, Fd, Seek, &Length, nullptr, 0);
+            Size = Length;
+#elif defined(TH_UNIX)
+            off_t Seek = (off_t)Offset;
+            int64_t Value = (int64_t)sendfile(Fd, FromFd, &Seek, (size_t)Size);
+            Size = Value;
+#else
+            int64_t Value = -3;
+            Size = Value;
+#endif
+            if (Value < 0 && Size <= 0)
+                TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
+            
+            if (Value != Size)
+                Value = Size;
+            
+            Outcome += Value;
+            TH_PPOP();
+            
+            return Value;
+        }
+        int64_t Socket::SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer)
+        {
+            TH_ASSERT(Stream != nullptr, -1, "stream should be set");
+            TH_ASSERT(Offset >= 0, -1, "offset should be set and positive");
+            TH_ASSERT(Size > 0, -1, "size should be set and greater than zero");
+            
+            while (Size > 0)
+            {
+                int64_t Length = SendFile(Stream, Offset, Size);
+                if (Length == -2)
+                {
+                    Driver::WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+                    {
+                        if (Packet::IsDone(Event))
+                            SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
+                        else if (Callback)
+                            Callback(Event);
+                    });
+
+                    return -2;
+                }
+                else if (Length == -1)
+                {
+                    if (Callback)
+                        Callback(SocketPoll::Reset);
+
+                    return -1;
+                }
+                else if (Length == -3)
+                    return -3;
+                
+                Size -= (int64_t)Length;
+                Offset += (int64_t)Length;
+            }
+            
+            if (Callback)
+                Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync);
+
+            return (int)Offset;
+        }
 		int Socket::Write(const char* Buffer, int Size)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
@@ -567,24 +637,25 @@ namespace Tomahawk
 
 			return Value;
 		}
-		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer)
+		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
 		{
 			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
 
-			int64_t Offset = 0;
+            size_t Payload = Size;
+            size_t Written = 0;
+            
 			while (Size > 0)
 			{
-				int Length = Write(Buffer + Offset, (int)Size);
+				int Length = Write(Buffer + TempOffset, (int)Size);
 				if (Length == -2)
 				{
-					Buffer = Buffer + Offset;
 					if (!TempBuffer)
 					{
-						TempBuffer = (char*)TH_MALLOC((size_t)Size);
-						memcpy(TempBuffer, Buffer, (size_t)Size);
+						TempBuffer = (char*)TH_MALLOC(Payload);
+                        memcpy(TempBuffer, Buffer, Payload);
 					}
 
-					Driver::WhenWriteable(this, [this, TempBuffer, Buffer, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Driver::WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -593,7 +664,7 @@ namespace Tomahawk
 								Callback(Event);
 						}
 						else
-							WriteAsync(TempBuffer, Size, std::move(Callback), TempBuffer);
+							WriteAsync(TempBuffer, Size, std::move(Callback), TempBuffer, TempOffset);
 					});
 
 					return -2;
@@ -610,16 +681,17 @@ namespace Tomahawk
 				}
 
 				Size -= (int64_t)Length;
-				Offset += (int64_t)Length;
+                TempOffset += (int64_t)Length;
+                Written += (size_t)Length;
 			}
 
 			if (TempBuffer != nullptr)
 				TH_FREE(TempBuffer);
 
 			if (Callback)
-				Callback(SocketPoll::Finish);
+				Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
 
-			return (int)Size;
+			return (int)Written;
 		}
 		int Socket::Read(char* Buffer, int Size)
 		{
@@ -680,26 +752,27 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(SocketPoll::Finish, nullptr, 0);
+				Callback(SocketPoll::FinishSync, nullptr, 0);
 
 			return Offset;
 		}
-		int Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback)
+		int Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Size > 0, -1, "size should be greater than zero");
 
 			char Buffer[8192];
+            int Offset = 0;
+            
 			while (Size > 0)
 			{
 				int Length = Read(Buffer, (int)(Size > sizeof(Buffer) ? sizeof(Buffer) : Size));
 				if (Length == -2)
 				{
-					TH_TRACE("[net] sock fd %i would block on read", (int)Fd);
-					Driver::WhenReadable(this, [this, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Driver::WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (Packet::IsDone(Event))
-							ReadAsync(Size, std::move(Callback));
+							ReadAsync(Size, std::move(Callback), ++TempBuffer);
 						else if (Callback)
 							Callback(Event, nullptr, 0);
 					});
@@ -715,14 +788,16 @@ namespace Tomahawk
 				}
 
 				Size -= (size_t)Length;
+                Offset += Length;
+                
 				if (Callback && !Callback(SocketPoll::Next, Buffer, (size_t)Length))
 					break;
 			}
 
 			if (Callback)
-				Callback(SocketPoll::Finish, nullptr, 0);
+				Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
 
-			return (int)Size;
+			return Offset;
 		}
 		int Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
 		{
@@ -731,7 +806,7 @@ namespace Tomahawk
 
 			char Buffer = 0;
 			int Size = (int)strlen(Match);
-			int Index = 0;
+			int Offset = 0, Index = 0;
 
 			TH_ASSERT(Size > 0, -1, "match should not be empty");
 			while (true)
@@ -745,6 +820,7 @@ namespace Tomahawk
 					return -1;
 				}
 
+                Offset += Length;
 				if (Callback && !Callback(SocketPoll::Next, &Buffer, 1))
 					break;
 
@@ -758,7 +834,7 @@ namespace Tomahawk
 			}
 
 			if (Callback)
-				Callback(SocketPoll::Finish, nullptr, 0);
+				Callback(SocketPoll::FinishSync, nullptr, 0);
 
 			return 0;
 		}
@@ -771,6 +847,8 @@ namespace Tomahawk
 			TH_ASSERT(Size > 0, -1, "match should not be empty");
 
 			char Buffer = 0;
+            int Offset = 0;
+            
 			while (true)
 			{
 				int Length = Read(&Buffer, 1);
@@ -808,6 +886,7 @@ namespace Tomahawk
 					return -1;
 				}
 
+                Offset += Length;
 				if (Callback && !Callback(SocketPoll::Next, &Buffer, 1))
 					break;
 
@@ -824,9 +903,9 @@ namespace Tomahawk
 				TH_FREE(TempBuffer);
 
 			if (Callback)
-				Callback(SocketPoll::Finish, nullptr, 0);
+				Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
 
-			return 0;
+			return Offset;
 		}
 		int Socket::Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Subresult)
 		{
@@ -966,7 +1045,7 @@ namespace Tomahawk
 			return (fcntl(Fd, F_SETFL, Flags) == 0);
 #endif
 		}
-		int Socket::SetNodelay(bool Enabled)
+		int Socket::SetNoDelay(bool Enabled)
 		{
 			return SetAnyFlag(IPPROTO_TCP, TCP_NODELAY, (Enabled ? 1 : 0));
 		}
@@ -2266,7 +2345,7 @@ namespace Tomahawk
 			Base->Stream->Timeout = Router->SocketTimeout;
 			Base->Stream->SetFd(Fd, false);
 			Base->Stream->SetCloseOnExec();
-			Base->Stream->SetNodelay(Router->EnableNoDelay);
+			Base->Stream->SetNoDelay(Router->EnableNoDelay);
 			Base->Stream->SetKeepAlive(true);
 			Base->Stream->SetBlocking(false);
 

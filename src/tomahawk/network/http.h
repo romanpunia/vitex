@@ -408,7 +408,7 @@ namespace Tomahawk
 				uint64_t Level = 0;
 				bool AllowDirectoryListing = true;
 				bool AllowWebSocket = false;
-				bool AllowSendFile = false;
+				bool AllowSendFile = true;
 				Compute::RegexSource URI;
 				SiteEntry* Site = nullptr;
 			};

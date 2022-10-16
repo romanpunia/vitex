@@ -996,7 +996,6 @@ namespace Tomahawk
 			class TH_OUT Net
 			{
 			public:
-				static bool SendFile(FILE* Stream, socket_t Socket, int64_t Size);
 				static bool GetETag(char* Buffer, uint64_t Length, Resource* Resource);
 				static bool GetETag(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength);
 				static socket_t GetFd(FILE* Stream);
@@ -1004,6 +1003,95 @@ namespace Tomahawk
 
 			class TH_OUT Process
 			{
+            public:
+                struct ArgsContext
+                {
+                    std::unordered_map<std::string, std::string> Base;
+                    
+                    ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue = "1")
+                    {
+                        Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
+                    }
+                    void ForEach(const std::function<void(const std::string&, const std::string&)>& Callback) const
+                    {
+                        TH_ASSERT_V(Callback != nullptr, "callback should not be empty");
+                        for (auto& Item : Base)
+                            Callback(Item.first, Item.second);
+                    }
+                    bool IsEnabled(const std::string& Option, const std::string& Shortcut = "") const
+                    {
+                        auto It = Base.find(Option);
+                        if (It == Base.end() || !IsTrue(It->second))
+                            return Shortcut.empty() ? false : IsEnabled(Shortcut);
+                            
+                        return true;
+                    }
+                    bool IsDisabled(const std::string& Option, const std::string& Shortcut = "") const
+                    {
+                        auto It = Base.find(Option);
+                        if (It == Base.end() || !IsFalse(It->second))
+                            return Shortcut.empty() ? false : IsDisabled(Shortcut);
+                            
+                        return true;
+                    }
+                    bool Has(const std::string& Option, const std::string& Shortcut = "") const
+                    {
+                        if (Base.find(Option) != Base.end())
+                            return true;
+                        
+                        return Shortcut.empty() ? false : Base.find(Shortcut) != Base.end();
+                    }
+                    std::string& Get(const std::string& Option, const std::string& Shortcut = "")
+                    {
+                        if (Base.find(Option) != Base.end())
+                            return Base[Option];
+                        
+                        return Shortcut.empty() ? Base[Option] : Base[Shortcut];
+                    }
+                    std::string& GetIf(const std::string& Option, const std::string& Shortcut, const std::string& WhenEmpty)
+                    {
+                        if (Base.find(Option) != Base.end())
+                            return Base[Option];
+                        
+                        if (!Shortcut.empty() && Base.find(Shortcut) != Base.end())
+                            return Base[Shortcut];
+                        
+                        std::string& Value = Base[Option];
+                        Value = WhenEmpty;
+                        return Value;
+                    }
+                    std::string& GetAppPath()
+                    {
+                        return Get("__path__");
+                    }
+                    
+                private:
+                    bool IsTrue(const std::string& Value) const
+                    {
+                        if (Value.empty())
+                            return false;
+                        
+                        if (Parser((std::string*)&Value).ToUInt64() > 0)
+                            return true;
+                        
+                        Parser Data(Value);
+                        Data.ToLower();
+                        return Data.R() == "on" || Data.R() == "true" || Data.R() == "yes" || Data.R() == "y";
+                    }
+                    bool IsFalse(const std::string& Value) const
+                    {
+                        if (Value.empty())
+                            return true;
+                        
+                        if (Parser((std::string*)&Value).ToUInt64() > 0)
+                            return false;
+                        
+                        Parser Data(Value);
+                        Data.ToLower();
+                        return Data.R() == "off" || Data.R() == "false" || Data.R() == "no" || Data.R() == "n";
+                    }
+                };
+                
 			public:
 				static void Interrupt();
 				static int Execute(const char* Format, ...);
@@ -1011,6 +1099,7 @@ namespace Tomahawk
 				static bool Await(ChildProcess* Process, int* ExitCode);
 				static bool Free(ChildProcess* Process);
                 static std::string GetThreadId(const std::thread::id& Id);
+                static std::unordered_map<std::string, std::string> GetArgs(int Argc, char** Argv, const std::string& WhenNoValue = "1");
 			};
 
 			class TH_OUT Symbol

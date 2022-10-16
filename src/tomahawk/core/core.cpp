@@ -22,11 +22,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <dirent.h>
-#ifndef TH_APPLE
 #include <sys/types.h>
-#include <sys/sendfile.h>
-#else
-#include <sys/types.h>
+#ifdef TH_APPLE
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>

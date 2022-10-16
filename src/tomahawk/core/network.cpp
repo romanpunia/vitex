@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #ifndef TH_APPLE
 #include <sys/epoll.h>
+#include <sys/sendfile.h>
 #else
 #include <sys/event.h>
 #endif

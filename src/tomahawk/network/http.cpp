@@ -19,9 +19,6 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <poll.h>
-#ifndef TH_APPLE
-#include <sys/sendfile.h>
-#endif
 #endif
 #include <future>
 #include <random>

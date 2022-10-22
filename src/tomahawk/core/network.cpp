@@ -558,8 +558,8 @@ namespace Tomahawk
             int64_t Value = (int64_t)sendfile(Fd, FromFd, &Seek, (size_t)Size);
             Size = Value;
 #else
-            int64_t Value = -3;
-            Size = Value;
+			int64_t Value = -3;
+			return Value;
 #endif
             if (Value < 0 && Size <= 0)
                 TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);

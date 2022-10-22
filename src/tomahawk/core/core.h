@@ -1029,10 +1029,10 @@ namespace Tomahawk
                     bool IsDisabled(const std::string& Option, const std::string& Shortcut = "") const
                     {
                         auto It = Base.find(Option);
-                        if (It == Base.end() || !IsFalse(It->second))
-                            return Shortcut.empty() ? false : IsDisabled(Shortcut);
+                        if (It == Base.end())
+                            return Shortcut.empty() ? true : IsDisabled(Shortcut);
                             
-                        return true;
+                        return IsFalse(It->second);
                     }
                     bool Has(const std::string& Option, const std::string& Shortcut = "") const
                     {

@@ -299,11 +299,22 @@ namespace Tomahawk
 			SSL_library_init();
 			SSL_load_error_strings();
 #if OPENSSL_VERSION_MAJOR >= 3
+			CryptoDefault = OSSL_PROVIDER_load(nullptr, "default");
             CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
-            CryptoDefault = OSSL_PROVIDER_load(nullptr, "default");
             
-            if (!CryptoLegacy || !CryptoDefault)
-                Compute::Common::DisplayCryptoLog();
+			if (!CryptoLegacy || !CryptoDefault)
+			{
+				std::string Path = Core::OS::Directory::Get();
+				OSSL_PROVIDER_set_default_search_path(nullptr, Path.c_str());
+
+				if (!CryptoDefault)
+					CryptoDefault = OSSL_PROVIDER_load(nullptr, "default");
+
+				if (!CryptoLegacy)
+					CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
+
+				Compute::Common::DisplayCryptoLog();
+			}
 #else
             FIPS_mode_set(1);
 #endif

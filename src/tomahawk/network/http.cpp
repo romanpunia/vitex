@@ -1462,7 +1462,7 @@ namespace Tomahawk
 				if (!Route || Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Cached || Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
 				{
 					if (Callback)
-						Callback(this, nullptr);
+						Callback(nullptr);
 
 					return false;
 				}
@@ -1475,10 +1475,10 @@ namespace Tomahawk
 					if (!Eat)
 					{
 						for (auto& Item : Request.Resources)
-							Callback(this, &Item);
+							Callback(&Item);
 					}
 
-					Callback(this, nullptr);
+					Callback(nullptr);
 					return true;
 				}
 
@@ -1497,10 +1497,9 @@ namespace Tomahawk
 					std::string Boundary("--");
 					Boundary.append(BoundaryName + 9);
 
-					Parsers.Multipart->Frame.Route = Route;
+					Parsers.Multipart->PrepareForNextParsing(this, true);
 					Parsers.Multipart->Frame.Callback = Callback;
 					Parsers.Multipart->Frame.Ignore = Eat;
-					Parsers.Multipart->PrepareForNextParsing();
 
 					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
@@ -1511,7 +1510,7 @@ namespace Tomahawk
 
 							Response.Data = Content::Saved;
 							if (Parsers.Multipart->Frame.Callback)
-								Parsers.Multipart->Frame.Callback(this, nullptr);
+								Parsers.Multipart->Frame.Callback(nullptr);
 
 							return false;
 						}
@@ -1523,7 +1522,7 @@ namespace Tomahawk
 								Response.Data = Content::Saved;
 
 							if (Parsers.Multipart->Frame.Callback)
-								Parsers.Multipart->Frame.Callback(this, nullptr);
+								Parsers.Multipart->Frame.Callback(nullptr);
 						}
 
 						return true;
@@ -1556,7 +1555,7 @@ namespace Tomahawk
 								TH_CLOSE(File);
 
 								if (Callback)
-									Callback(this, nullptr);
+									Callback(nullptr);
 
 								return false;
 							}
@@ -1568,13 +1567,13 @@ namespace Tomahawk
 									Request.Resources.push_back(fResource);
 
 									if (Callback)
-										Callback(this, &Request.Resources.back());
+										Callback(&Request.Resources.back());
 								}
 								else
 									Response.Data = Content::Corrupted;
 
 								if (Callback)
-									Callback(this, nullptr);
+									Callback(nullptr);
 
 								TH_CLOSE(File);
 								return false;
@@ -1596,14 +1595,14 @@ namespace Tomahawk
 								Response.Data = Content::Corrupted;
 
 							if (Callback)
-								Callback(this, nullptr);
+								Callback(nullptr);
 
 							return true;
 						}) > 0;
 					}
 				}
 				else if (Callback)
-					Callback(this, nullptr);
+					Callback(nullptr);
 
 				return true;
 			}
@@ -1626,12 +1625,11 @@ namespace Tomahawk
 
 					if (Base->Response.Data == Content::Wants_Save)
 					{
-						Base->Store([Callback](HTTP::Connection* Base, HTTP::Resource* Resource)
+						Base->Store([Base, Callback](HTTP::Resource* Resource)
 						{
 							if (Resource != nullptr)
-								return true;
+								Callback(Base);
 
-							Callback(Base);
 							return true;
 						}, true);
 					}
@@ -2402,17 +2400,19 @@ namespace Tomahawk
 			{
 				TH_FREE(Multipart.Boundary);
 			}
-			void Parser::PrepareForNextParsing()
+			void Parser::PrepareForNextParsing(Connection* Base, bool ForMultipart)
 			{
-				Multipart.LookBehind = nullptr;
-				Multipart.Boundary = nullptr;
-				Multipart.State = MultipartState_Start;
-				Multipart.Index = 0;
-				Multipart.Length = 0;
-				Chunked.Length = 0;
-				Chunked.ConsumeTrailer = 1;
-				Chunked.HexCount = 0;
-				Chunked.State = 0;
+				TH_ASSERT_V(Base != nullptr, "base should be set");
+				Multipart = MultipartData();
+				Chunked = ChunkedData();
+				Frame = ParserFrame();
+				Frame.Request = &Base->Request;
+
+				if (!ForMultipart)
+					return;
+
+				Frame.Response = &Base->Response;
+				Frame.Route = Base->Route;
 			}
 			int64_t Parser::MultipartParse(const char* Boundary, const char* Buffer, size_t Length)
 			{
@@ -4163,33 +4163,33 @@ namespace Tomahawk
 				if (!Length || Parser->Frame.Ignore)
 					return true;
 
-				if (!Parser->Frame.Header.empty())
+				if (Parser->Frame.Header.empty())
+					return true;
+
+				std::string Value(Data, Length);
+				if (Parser->Frame.Header == "Content-Disposition")
 				{
-					std::string Value(Data, Length);
-					if (Parser->Frame.Header == "Content-Disposition")
+					Core::Parser::Settle Start = Core::Parser(&Value).Find("name=\"");
+					if (Start.Found)
 					{
-						Core::Parser::Settle Start = Core::Parser(&Value).Find("name=\"");
-						if (Start.Found)
-						{
-							Core::Parser::Settle End = Core::Parser(&Value).Find('\"', Start.End);
-							if (End.Found)
-								Parser->Frame.Source.Key = Value.substr(Start.End, End.End - Start.End - 1);
-						}
-
-						Start = Core::Parser(&Value).Find("filename=\"");
-						if (Start.Found)
-						{
-							Core::Parser::Settle End = Core::Parser(&Value).Find('\"', Start.End);
-							if (End.Found)
-								Parser->Frame.Source.Name = Value.substr(Start.End, End.End - Start.End - 1);
-						}
+						Core::Parser::Settle End = Core::Parser(&Value).Find('\"', Start.End);
+						if (End.Found)
+							Parser->Frame.Source.Key = Value.substr(Start.End, End.End - Start.End - 1);
 					}
-					else if (Parser->Frame.Header == "Content-Type")
-						Parser->Frame.Source.Type = Value;
 
-					Parser->Frame.Source.SetHeader(Parser->Frame.Header.c_str(), Value);
-					Parser->Frame.Header.clear();
+					Start = Core::Parser(&Value).Find("filename=\"");
+					if (Start.Found)
+					{
+						Core::Parser::Settle End = Core::Parser(&Value).Find('\"', Start.End);
+						if (End.Found)
+							Parser->Frame.Source.Name = Value.substr(Start.End, End.End - Start.End - 1);
+					}
 				}
+				else if (Parser->Frame.Header == "Content-Type")
+					Parser->Frame.Source.Type = Value;
+
+				Parser->Frame.Source.SetHeader(Parser->Frame.Header.c_str(), Value);
+				Parser->Frame.Header.clear();
 
 				return true;
 			}
@@ -4198,7 +4198,10 @@ namespace Tomahawk
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
 
-				if (!Length || Parser->Frame.Ignore || !Parser->Frame.Stream)
+				if (!Length)
+					return true;
+
+				if (Parser->Frame.Ignore || !Parser->Frame.Stream)
 					return false;
 
 				if (fwrite(Data, 1, (size_t)Length, Parser->Frame.Stream) != (size_t)Length)
@@ -4216,6 +4219,7 @@ namespace Tomahawk
 				if (Parser->Frame.Stream != nullptr)
 				{
 					TH_CLOSE(Parser->Frame.Stream);
+					Parser->Frame.Stream = nullptr;
 					return false;
 				}
 
@@ -4254,7 +4258,7 @@ namespace Tomahawk
 				Parser->Frame.Request->Resources.push_back(Parser->Frame.Source);
 
 				if (Parser->Frame.Callback)
-					Parser->Frame.Callback(nullptr, &Parser->Frame.Request->Resources.back());
+					Parser->Frame.Callback(&Parser->Frame.Request->Resources.back());
 
 				return true;
 			}
@@ -5810,7 +5814,7 @@ namespace Tomahawk
 					else if (Packet::IsDone(Event))
 					{
 						Base->Info.Start = Utils::Clock();
-						Base->Parsers.Request->PrepareForNextParsing();
+						Base->Parsers.Request->PrepareForNextParsing(Base, false);
                         
 						if (Base->Parsers.Request->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
 						{
@@ -5986,7 +5990,6 @@ namespace Tomahawk
 
 				auto* Base = TH_NEW(HTTP::Connection);
 				Base->Parsers.Request = new HTTP::Parser();
-				Base->Parsers.Request->Frame.Request = &Base->Request;
 				Base->Parsers.Request->OnMethodValue = Util::ParseMethodValue;
 				Base->Parsers.Request->OnPathValue = Util::ParsePathValue;
 				Base->Parsers.Request->OnQueryValue = Util::ParseQueryValue;
@@ -5994,8 +5997,6 @@ namespace Tomahawk
 				Base->Parsers.Request->OnHeaderField = Util::ParseHeaderField;
 				Base->Parsers.Request->OnHeaderValue = Util::ParseHeaderValue;
 				Base->Parsers.Multipart = new HTTP::Parser();
-				Base->Parsers.Multipart->Frame.Request = &Base->Request;
-				Base->Parsers.Multipart->Frame.Response = &Base->Response;
 				Base->Parsers.Multipart->OnContentData = Util::ParseMultipartContentData;
 				Base->Parsers.Multipart->OnHeaderField = Util::ParseMultipartHeaderField;
 				Base->Parsers.Multipart->OnHeaderValue = Util::ParseMultipartHeaderValue;

@@ -77,10 +77,10 @@ namespace Tomahawk
 			typedef std::map<std::string, RangePayload, struct HeaderComparator> HeaderMapping;
 			typedef std::function<bool(struct Connection*)> SuccessCallback;
 			typedef std::function<bool(struct Connection*, SocketPoll, const char*, size_t)> ContentCallback;
-			typedef std::function<bool(struct Connection*, struct Resource*)> ResourceCallback;
 			typedef std::function<bool(struct Connection*, struct Credentials*)> AuthorizeCallback;
 			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
 			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> CompilerCallback;
+			typedef std::function<bool(struct Resource*)> ResourceCallback;
 			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
 			typedef std::function<bool(struct WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
 			typedef std::function<bool(struct WebSocketFrame*)> WebSocketCheckCallback;
@@ -617,7 +617,7 @@ namespace Tomahawk
 				};
 
 			private:
-				struct
+				struct MultipartData
 				{
 					char* LookBehind = nullptr;
 					char* Boundary = nullptr;
@@ -625,7 +625,7 @@ namespace Tomahawk
 					int64_t Index = 0, Length = 0;
 				} Multipart;
 
-				struct
+				struct ChunkedData
 				{
 					size_t Length = 0;
 					char ConsumeTrailer = 1;
@@ -650,7 +650,7 @@ namespace Tomahawk
 			public:
 				Parser();
 				virtual ~Parser() override;
-				void PrepareForNextParsing();
+				void PrepareForNextParsing(Connection* Base, bool ForMultipart);
 				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
 				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LastLength);
 				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LastLength);

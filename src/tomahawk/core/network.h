@@ -105,7 +105,7 @@ namespace Tomahawk
 			{
 				PollEventCallback ReadCallback = nullptr;
 				PollEventCallback WriteCallback = nullptr;
-				std::chrono::microseconds ExpiresAt;
+				std::chrono::microseconds ExpiresAt = std::chrono::microseconds(0);
 				bool Readable = false;
 				bool Writeable = false;
 			} Events;

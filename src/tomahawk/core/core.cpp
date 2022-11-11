@@ -8674,7 +8674,7 @@ namespace Tomahawk
 							if (State->GetCount() >= Policy.Coroutines)
 								return false;
 
-							return Queue->Tasks.size_approx() > 0;
+							return Queue->Tasks.size_approx() > 0 || State->HasActive();
 						});
 					} while (ThreadActive(Thread));
 

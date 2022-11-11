@@ -1409,9 +1409,9 @@ namespace Tomahawk
 			int GetPropertyIndexByName(const char* Name) const;
 			int GetPropertyIndexByDecl(const char* Decl) const;
 			size_t GetObjectsCount() const;
-			VMTypeInfo GetObjectByTypeId(int TypeId) const;
+			VMTypeInfo GetObjectByIndex(size_t Index) const;
 			size_t GetEnumCount() const;
-			VMTypeInfo GetEnumByTypeId(int TypeId) const;
+			VMTypeInfo GetEnumByIndex(size_t Index) const;
 			size_t GetFunctionDefsCount() const;
 			VMTypeInfo GetFunctionDefByIndex(int Index) const;
 			size_t GetModulesCount() const;

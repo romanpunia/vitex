@@ -1708,10 +1708,10 @@ namespace Tomahawk
 				auto It = Names.find(Identity);
 				if (It != Names.end())
 				{
-					It->second.second->Free();
-					TH_DELETE(Address, It->second.second);
+					Result->Free();
+					TH_DELETE(Address, Result);
 					It->second.first = Time + DNS_TIMEOUT;
-					It->second.second = Result;
+					Result = It->second.second;
 				}
 				else
 					Names[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
@@ -1847,7 +1847,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				if (Fd.Base->Timeout > 0)
+				if (Fd.Base->Timeout > 0 && Fd.Base->Events.ExpiresAt > std::chrono::microseconds(0))
 					RemoveTimeout(Fd.Base);
 
 				CancelEvents(Fd.Base, SocketPoll::Finish, false);
@@ -1914,7 +1914,8 @@ namespace Tomahawk
 			
 			if (Safely)
 			{
-				RemoveTimeout(Value);
+				if (Value->Timeout > 0 && Value->Events.ExpiresAt > std::chrono::microseconds(0))
+					RemoveTimeout(Value);
 				Exclusive.unlock();
 			}
 

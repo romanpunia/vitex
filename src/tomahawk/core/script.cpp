@@ -1807,20 +1807,20 @@ namespace Tomahawk
 			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetObjectTypeCount();
 		}
-		VMTypeInfo VMGlobal::GetObjectByTypeId(int TypeId) const
+		VMTypeInfo VMGlobal::GetObjectByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetObjectTypeByIndex(TypeId);
+			return Manager->GetEngine()->GetObjectTypeByIndex(Index);
 		}
 		size_t VMGlobal::GetEnumCount() const
 		{
 			TH_ASSERT(Manager != nullptr, 0, "global should be valid");
 			return Manager->GetEngine()->GetEnumCount();
 		}
-		VMTypeInfo VMGlobal::GetEnumByTypeId(int TypeId) const
+		VMTypeInfo VMGlobal::GetEnumByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetEnumByIndex(TypeId);
+			return Manager->GetEngine()->GetEnumByIndex(Index);
 		}
 		size_t VMGlobal::GetFunctionDefsCount() const
 		{

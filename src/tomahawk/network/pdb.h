@@ -425,6 +425,7 @@ namespace Tomahawk
 				uint64_t Session;
 				OnResult Callback;
 				Cursor Result;
+				bool Restore;
 
 			public:
 				Request(const std::string& Commands);
@@ -477,7 +478,7 @@ namespace Tomahawk
 				Core::Async<bool> Disconnect();
 				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
 				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
-				Core::Async<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, uint64_t Token = 0);
+				Core::Async<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, uint64_t Token = 0, bool Restore = false);
 				TConnection* GetConnection(QueryState State);
 				TConnection* GetConnection() const;
 				bool IsConnected() const;
@@ -486,11 +487,11 @@ namespace Tomahawk
 				std::string GetCacheOid(const std::string& Payload, uint64_t QueryOpts);
 				bool GetCache(const std::string& CacheOid, Cursor* Data);
 				void SetCache(const std::string& CacheOid, Cursor* Data, uint64_t QueryOpts);
-				void Commit(uint64_t Token);
+				void Restore(Connection* Base);
 				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base);
 				bool Reprocess(Connection* Base);
-				bool Flush(Connection* Base, bool Blocked);
+				bool Flush(Connection* Base, bool ListenForResults);
 				bool Dispatch(Connection* Base, bool Connected);
 				bool Transact(Connection* Base, Request* Token);
 			};
@@ -515,6 +516,7 @@ namespace Tomahawk
 
 			private:
 				static std::unordered_map<std::string, Sequence>* Queries;
+				static std::unordered_map<std::string, std::string>* Constants;
 				static std::mutex* Safe;
 				static std::atomic<bool> Active;
 				static std::atomic<int> State;
@@ -525,8 +527,10 @@ namespace Tomahawk
 				static void Release();
 				static void SetQueryLog(const OnQueryLog& Callback);
 				static void LogQuery(const std::string& Command);
+				static bool AddConstant(const std::string& Name, const std::string& Value);
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
+				static bool RemoveConstant(const std::string& Name);
 				static bool RemoveQuery(const std::string& Name);
 				static std::string Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once = true);
 				static std::string GetQuery(Cluster* Base, const std::string& Name, Core::SchemaArgs* Map, bool Once = true);

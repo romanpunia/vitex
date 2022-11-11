@@ -1429,7 +1429,7 @@ namespace Tomahawk
 				return Current != nullptr;
 			}
 
-			Request::Request(const std::string& Commands) : Command(Commands.begin(), Commands.end())
+			Request::Request(const std::string& Commands) : Command(Commands.begin(), Commands.end()), Session(0), Restore(false)
 			{
 				Command.emplace_back('\0');
 			}
@@ -1563,18 +1563,13 @@ namespace Tomahawk
 
 				return Query(Command, 0, Token).Then<uint64_t>([this, Token](Cursor&& Result)
 				{
-					if (Result.OK())
-						return Token;
-
-					Commit(Token);
-					return uint64_t(0);
+					return Result.OK() ? Token : uint64_t(0);
 				});
 			}
 			Core::Async<bool> Cluster::TxEnd(const std::string& Command, uint64_t Token)
 			{
-				return Query(Command, 0, Token).Then<bool>([this, Token](Cursor&& Result)
+				return Query(Command, 0, Token, true).Then<bool>([this, Token](Cursor&& Result)
 				{
-					Commit(Token);
 					return Result.OK();
 				});
 			}
@@ -1690,7 +1685,7 @@ namespace Tomahawk
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
 				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Token);
 			}
-			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, uint64_t Token)
+			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, uint64_t Token, bool Restore)
 			{
 				TH_ASSERT(!Command.empty(), Cursor(), "command should not be empty");
 
@@ -1711,6 +1706,7 @@ namespace Tomahawk
 
 				Request* Next = TH_NEW(Request, Command);
 				Next->Session = Token;
+				Next->Restore = Restore;
 
 				if (!Reference.empty())
 				{
@@ -1721,16 +1717,48 @@ namespace Tomahawk
 				}
 
 				Core::Async<Cursor> Future = Next->Future;
+				bool IsInQueue = true;
+
 				Update.lock();
 				Requests.push_back(Next);
 				for (auto& Item : Pool)
 				{
 					if (Consume(Item.second))
+					{
+						IsInQueue = false;
 						break;
+					}
 				}
 				Update.unlock();
 
 				Driver::LogQuery(Command);
+#ifndef NDEBUG
+				if (!IsInQueue || Next->Session == 0)
+					return Future;
+
+				std::string Tx = Core::Parser(Command).Trim().ToUpper().R();
+				if (Tx != "COMMIT" && Tx != "ROLLBACK")
+					return Future;
+
+				Update.lock();
+				for (auto& Item : Pool)
+				{
+					if (Item.second->Session == Next->Session)
+					{
+						Update.unlock();
+						return Future;
+					}
+				}
+
+				auto It = std::find(Requests.begin(), Requests.end(), Next);
+				if (It != Requests.end())
+					Requests.erase(It);
+				Update.unlock();
+
+				Future.Set(Cursor());
+				TH_DELETE(Request, Next);
+				TH_ASSERT(false, Future, "[pq] transaction %llu does not exist", Token);
+#endif
 				return Future;
 			}
 			TConnection* Cluster::GetConnection(QueryState State)
@@ -1838,19 +1866,10 @@ namespace Tomahawk
 					Cache.Objects[CacheOid] = std::make_pair(Timeout, Data->Copy());
 				Cache.Context.unlock();
 			}
-			void Cluster::Commit(uint64_t Token)
+			void Cluster::Restore(Connection* Base)
 			{
-				Update.lock();
-				for (auto& Item : Pool)
-				{
-					if (Item.second->Session == Token)
-					{
-						TH_TRACE("[pq] end tx-%llu on 0x%" PRIXPTR, Token, (uintptr_t)Item.second);
-						Item.second->Session = 0;
-						break;
-					}
-				}
-				Update.unlock();
+				TH_TRACE("[pq] end tx-%llu on 0x%" PRIXPTR, Base->Session, (uintptr_t)Base);
+				Base->Session = 0;
 			}
 			bool Cluster::Reestablish(Connection* Target)
 			{
@@ -1913,12 +1932,16 @@ namespace Tomahawk
 				if (Base->State != QueryState::Idle || Requests.empty())
 					return false;
 
-				Request* Next = Requests.front();
-				if (!Transact(Base, Next))
-					return false;
+				for (auto It = Requests.begin(); It != Requests.end(); ++It)
+				{
+					if (Transact(Base, *It))
+					{
+						Base->Current = *It;
+						Requests.erase(It);
+						break;
+					}
+				}
 
-				Base->Current = Next;
-				Requests.erase(Requests.begin());
 				if (!Base->Current)
 					return false;
 
@@ -1929,7 +1952,10 @@ namespace Tomahawk
 					TH_TRACE("[pq] execute query on 0x%" PRIXPTR "\n\t%.64s%s", (uintptr_t)Base, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
-					TH_PRET(Flush(Base, false));
+				{
+					Flush(Base, false);
+					TH_PRET(true);
+				}
 
 				Request* Item = Base->Current;
 				Base->Current = nullptr;
@@ -1956,7 +1982,7 @@ namespace Tomahawk
 						Dispatch(Source, !Packet::IsError(Event));
 				});
 			}
-			bool Cluster::Flush(Connection* Base, bool Blocked)
+			bool Cluster::Flush(Connection* Base, bool ListenForResults)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				Base->State = QueryState::Busy;
@@ -1969,14 +1995,11 @@ namespace Tomahawk
 							Flush(Base, true);
 					});
 				}
-
-				if (Blocked)
+#endif
+				if (ListenForResults)
 					return Reprocess(Base);
 
 				return true;
-#else
-				return Reprocess(Base);
-#endif
 			}
 			bool Cluster::Dispatch(Connection* Source, bool Connected)
 			{
@@ -1994,6 +2017,7 @@ namespace Tomahawk
 						Reestablish(Source);
 					}, Core::Difficulty::Heavy) != TH_INVALID_TASK_ID;
 				}
+
 			Retry:
 				Consume(Source);
 
@@ -2029,44 +2053,44 @@ namespace Tomahawk
 						}
 					}
 
-					if (Source->State == QueryState::Busy)
+					Response Frame(PQgetResult(Source->Base));
+					if (Source->Current != nullptr)
 					{
-						Response Frame(PQgetResult(Source->Base));
-						if (Source->Current != nullptr)
+						if (!Frame.IsExists())
 						{
-							if (!Frame.IsExists())
-							{
-								Core::Async<Cursor> Future = Source->Current->Future;
-								Cursor Results(std::move(Source->Current->Result));
-								Request* Item = Source->Current;
-								Source->State = QueryState::Idle;
-								Source->Current = nullptr;
-								PQlogMessage(Source->Base);
+							Core::Async<Cursor> Future = Source->Current->Future;
+							Cursor Results(std::move(Source->Current->Result));
+							Request* Item = Source->Current;
+							Source->State = QueryState::Idle;
+							Source->Current = nullptr;
+							PQlogMessage(Source->Base);
 
-								if (!Results.IsError())
-									TH_TRACE("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
-
-								Update.unlock();
-								Item->Finalize(Results);
-								Future = std::move(Results);
-								Update.lock();
-								TH_DELETE(Request, Item);
-							}
-							else
+							if (!Results.IsError())
 							{
-								Source->Current->Result.Base.emplace_back(Frame);
-								goto Retry;
+								TH_TRACE("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
+								if (Item->Restore)
+									Restore(Source);
 							}
+
+							Update.unlock();
+							Item->Finalize(Results);
+							Future = std::move(Results);
+							Update.lock();
+							TH_DELETE(Request, Item);
 						}
 						else
-						{
-							Source->State = (Frame.IsExists() ? QueryState::Busy : QueryState::Idle);
-							Frame.Release();
-						}
+							Source->Current->Result.Base.emplace_back(Frame);
 					}
+					else
+					{
+						Source->State = (Frame.IsExists() ? QueryState::Busy : QueryState::Idle);
+						Frame.Release();
+					}
+
+					if (Source->State == QueryState::Busy || Consume(Source))
+						goto Retry;
 				}
 
-				Consume(Source);
 			Finalize:
 				Update.unlock();
 				TH_PPOP();
@@ -2104,6 +2128,7 @@ namespace Tomahawk
 				if (State <= 0)
 				{
 					Queries = new std::unordered_map<std::string, Sequence>();
+					Constants = new std::unordered_map<std::string, std::string>();
 					Safe = TH_NEW(std::mutex);
 					State = 1;
 				}
@@ -2145,6 +2170,16 @@ namespace Tomahawk
 			{
 				if (Logger)
 					Logger(Command + '\n');
+			}
+			bool Driver::AddConstant(const std::string& Name, const std::string& Value)
+			{
+				TH_ASSERT(Constants && Safe, false, "driver should be initialized");
+				TH_ASSERT(!Name.empty(), false, "name should not be empty");
+
+				Safe->lock();
+				(*Constants)[Name] = Value;
+				Safe->unlock();
+				return true;
 			}
 			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{
@@ -2217,6 +2252,34 @@ namespace Tomahawk
 						{
 							Spec = false;
 							Base.Erase(Index - 1, 1);
+						}
+						else
+							Index++;
+					}
+					else if (V == '#' && !Lock && !Spec)
+					{
+						uint64_t Next = Index;
+						while (++Next < Base.Size())
+						{
+							char N = Base.R()[Next];
+							if (!Core::Parser::IsDigit(N) && !Core::Parser::IsAlphabetic(N) && N != '_' && N != '.')
+								break;
+						}
+
+						uint64_t Size = Next - (Index + 1);
+						if (Size > 0)
+						{
+							std::string Constant = Base.R().substr(Index + 1, Size);
+							Safe->lock();
+							auto It = Constants->find(Constant);
+							if (It != Constants->end())
+							{
+								Base.ReplacePart(Index, Next, It->second);
+								Index += It->second.size();
+							}
+							else
+								TH_ERR("[pq] template query %s\n\texpects constant: %s", Name.c_str(), Constant.c_str());
+							Safe->unlock();
 						}
 						else
 							Index++;
@@ -2316,6 +2379,21 @@ namespace Tomahawk
 					TH_FREE(Buffer);
 				}
 
+				return true;
+			}
+			bool Driver::RemoveConstant(const std::string& Name)
+			{
+				TH_ASSERT(Constants && Safe, false, "driver should be initialized");
+				Safe->lock();
+				auto It = Constants->find(Name);
+				if (It == Constants->end())
+				{
+					Safe->unlock();
+					return false;
+				}
+
+				Constants->erase(It);
+				Safe->unlock();
 				return true;
 			}
 			bool Driver::RemoveQuery(const std::string& Name)
@@ -2599,6 +2677,7 @@ namespace Tomahawk
 				return "NULL";
 			}
 			std::unordered_map<std::string, Driver::Sequence>* Driver::Queries = nullptr;
+			std::unordered_map<std::string, std::string>* Driver::Constants = nullptr;
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<bool> Driver::Active(false);
 			std::atomic<int> Driver::State(0);

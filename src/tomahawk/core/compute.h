@@ -2663,7 +2663,7 @@ namespace Tomahawk
 			}
 			static T Random()
 			{
-				return T(Common::Random()) / T(std::numeric_limits<uint64_t>::max());
+				return T((double)Common::Random() / (double)std::numeric_limits<uint64_t>::max());
 			}
 			static T RandomMag()
 			{

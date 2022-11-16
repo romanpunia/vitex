@@ -6030,7 +6030,7 @@ namespace Tomahawk
 			if (!Control.Threads)
 			{
 				auto Quantity = Core::OS::CPU::GetQuantityInfo();
-				Control.Threads = std::max<uint32_t>(2, Quantity.Physical) - 1;
+				Control.Threads = std::max<uint32_t>(2, Quantity.Logical) - 1;
 			}
 		
 			Core::Timer* Time = new Core::Timer();

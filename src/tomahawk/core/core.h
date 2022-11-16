@@ -1906,6 +1906,43 @@ namespace Tomahawk
 
 		class TH_OUT Schedule : public Object
 		{
+		private:
+			struct ThreadPtr
+			{
+				std::condition_variable Notify;
+				std::mutex Update;
+				std::thread Handle;
+				std::thread::id Id;
+				Difficulty Type = Difficulty::Count;
+				bool Daemon = false;
+			};
+
+		public:
+			enum class ThreadTask
+			{
+				Spawn,
+				EnqueueTimer,
+				EnqueueChain,
+				EnqueueTask,
+				EnqueueAsync,
+				ProcessTimer,
+				ProcessAsync,
+				ProcessTask,
+				Awake,
+				Sleep,
+				Despawn
+			};
+
+			struct TH_OUT ThreadDebug
+			{
+				std::thread::id Id = std::thread::id();
+				Difficulty Type = Difficulty::Count;
+				ThreadTask State = ThreadTask::Spawn;
+				uint64_t Tasks = 0;
+			};
+
+			typedef std::function<void(const ThreadDebug&)> ThreadDebugCallback;
+
 		public:
 			struct TH_OUT Desc
 			{
@@ -1917,16 +1954,6 @@ namespace Tomahawk
 				bool Async = true;
 
 				void SetThreads(uint64_t Cores);
-			};
-
-		private:
-			struct ThreadPtr
-			{
-				std::condition_variable Notify;
-				std::mutex Update;
-				std::thread Handle;
-				std::thread::id Id;
-				bool Daemon = false;
 			};
 
 		private:
@@ -1942,6 +1969,7 @@ namespace Tomahawk
 			std::vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
 			std::atomic<TaskId> Generation;
 			std::mutex Exclusive;
+			ThreadDebugCallback Debug;
 			Desc Policy;
 			bool Enqueue;
 			bool Terminate;
@@ -1960,6 +1988,7 @@ namespace Tomahawk
 			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
 			bool SetChain(const TaskCallback& Callback);
 			bool SetChain(TaskCallback&& Callback);
+			bool SetDebugCallback(const ThreadDebugCallback& Callback);
 			bool ClearTimeout(TaskId WorkId);
 			bool Start(const Desc& NewPolicy);
 			bool Stop();
@@ -1972,6 +2001,8 @@ namespace Tomahawk
 			const Desc& GetPolicy();
 
 		private:
+			bool PostDebug(Difficulty Type, ThreadTask State, uint64_t Tasks);
+			bool PostDebug(ThreadPtr* Ptr, ThreadTask State, uint64_t Tasks);
 			bool ProcessTick(Difficulty Type);
 			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);

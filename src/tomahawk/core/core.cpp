@@ -8203,7 +8203,7 @@ namespace Tomahawk
 			Coroutines = std::min<uint64_t>(Cores * 8, 256);
 		}
 
-		Schedule::Schedule() : Generation(0), Terminate(false), Active(false), Enqueue(true)
+		Schedule::Schedule() : Generation(0), Debug(nullptr), Terminate(false), Active(false), Enqueue(true)
 		{
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				Queues[i] = TH_NEW(ConcurrentQueuePtr);
@@ -8232,7 +8232,9 @@ namespace Tomahawk
 
 			if (!Enqueue)
 				return TH_INVALID_TASK_ID;
-
+#ifndef NDEBUG
+			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+#endif
 			TH_PPUSH("schedule-interval", TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -8253,7 +8255,9 @@ namespace Tomahawk
 
 			if (!Enqueue)
 				return TH_INVALID_TASK_ID;
-
+#ifndef NDEBUG
+			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+#endif
 			TH_PPUSH("schedule-interval", TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -8274,7 +8278,9 @@ namespace Tomahawk
 
 			if (!Enqueue)
 				return TH_INVALID_TASK_ID;
-
+#ifndef NDEBUG
+			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+#endif
 			TH_PPUSH("schedule-timeout", TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -8295,7 +8301,9 @@ namespace Tomahawk
 
 			if (!Enqueue)
 				return TH_INVALID_TASK_ID;
-
+#ifndef NDEBUG
+			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
+#endif
 			TH_PPUSH("schedule-timeout", TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
@@ -8316,7 +8324,9 @@ namespace Tomahawk
 
 			if (!Enqueue)
 				return false;
-
+#ifndef NDEBUG
+			PostDebug(Type, ThreadTask::EnqueueTask, 1);
+#endif
 			TH_PPUSH("schedule-task", TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Type];
 			std::unique_lock<std::mutex> Lock(Queue->Update);
@@ -8331,7 +8341,9 @@ namespace Tomahawk
 
 			if (!Enqueue)
 				return false;
-
+#ifndef NDEBUG
+			PostDebug(Type, ThreadTask::EnqueueTask, 1);
+#endif
 			TH_PPUSH("schedule-task", TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Type];
 			Queue->Tasks.enqueue(TH_NEW(TaskCallback, std::move(Callback)));
@@ -8356,13 +8368,24 @@ namespace Tomahawk
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
 				return false;
-
+#ifndef NDEBUG
+			PostDebug(Difficulty::Chain, ThreadTask::EnqueueChain, 1);
+#endif
 			TH_PPUSH("schedule-task", TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Chain];
 			Queue->Tasks.enqueue(TH_NEW(TaskCallback, std::move(Callback)));
 			for (auto* Thread : Threads[(size_t)Difficulty::Chain])
 				Thread->Notify.notify_all();
 			TH_PRET(true);
+		}
+		bool Schedule::SetDebugCallback(const ThreadDebugCallback& Callback)
+		{
+#ifndef NDEBUG
+			Debug = Callback;
+			return true;
+#else
+			return false;
+#endif
 		}
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
@@ -8492,7 +8515,9 @@ namespace Tomahawk
 					auto It = Queue->Timers.begin();
 					if (It->first >= Clock)
 						return true;
-
+#ifndef NDEBUG
+					PostDebug(Type, ThreadTask::ProcessTimer, 1);
+#endif
 					if (It->second.Alive && Active)
 					{
 						Timeout Next(std::move(It->second));
@@ -8506,7 +8531,9 @@ namespace Tomahawk
 						SetTask(std::move(It->second.Callback), It->second.Type);
 						Queue->Timers.erase(It);
 					}
-
+#ifndef NDEBUG
+					PostDebug(Type, ThreadTask::Awake, 0);
+#endif
 					return true;
 				}
 				case Difficulty::Chain:
@@ -8525,7 +8552,9 @@ namespace Tomahawk
 						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
 						Left -= Count;
 						Passes += Count;
-
+#ifndef NDEBUG
+						PostDebug(Type, ThreadTask::EnqueueAsync, Count);
+#endif
 						for (size_t i = 0; i < Count; ++i)
 						{
 							TaskCallback* Data = Dispatcher.Events[i];
@@ -8536,10 +8565,14 @@ namespace Tomahawk
 							}
 						}
 					}
-
+#ifndef NDEBUG
+					PostDebug(Type, ThreadTask::ProcessAsync, Dispatcher.State->GetCount());
+#endif
 					while (Dispatcher.State->Dispatch() > 0)
 						++Passes;
-
+#ifndef NDEBUG
+					PostDebug(Type, ThreadTask::Awake, 0);
+#endif
 					return Passes > 0;
 				}
 				case Difficulty::Light:
@@ -8547,6 +8580,9 @@ namespace Tomahawk
 				{
 					memset(Dispatcher.Tasks, 0, sizeof(Dispatcher.Tasks));
 					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, TH_MAX_EVENTS);
+#ifndef NDEBUG
+					PostDebug(Type, ThreadTask::ProcessTask, Count);
+#endif
 					for (size_t i = 0; i < Count; ++i)
 					{
 						TH_PPUSH("dispatch-task", Type == Difficulty::Heavy ? TH_PERF_MAX : TH_PERF_IO);
@@ -8558,7 +8594,9 @@ namespace Tomahawk
 						}
 						TH_PPOP();
 					}
-
+#ifndef NDEBUG
+					PostDebug(Type, ThreadTask::Awake, 0);
+#endif
 					return Count > 0;
 				}
                 default:
@@ -8585,6 +8623,9 @@ namespace Tomahawk
 					{
 						std::unique_lock<std::mutex> Lock(Queue->Update);
 					Retry:
+#ifndef NDEBUG
+						PostDebug(Thread, ThreadTask::Awake, 0);
+#endif
 						std::chrono::microseconds When = std::chrono::microseconds(0);
 						if (!Queue->Timers.empty())
 						{
@@ -8592,6 +8633,9 @@ namespace Tomahawk
 							auto It = Queue->Timers.begin();
 							if (It->first <= Clock)
 							{
+#ifndef NDEBUG
+								PostDebug(Thread, ThreadTask::ProcessTimer, 1);
+#endif
 								if (It->second.Alive)
 								{
 									Timeout Next(std::move(It->second));
@@ -8617,7 +8661,9 @@ namespace Tomahawk
 						}
 						else
 							When = Policy.Timeout;
-
+#ifndef NDEBUG
+						PostDebug(Thread, ThreadTask::Sleep, 0);
+#endif
 						Queue->Notify.wait_for(Lock, When);
 					} while (ThreadActive(Thread));
 					break;
@@ -8643,13 +8689,17 @@ namespace Tomahawk
 					{
 						uint64_t Left = Policy.Coroutines - State->GetCount();
 						size_t Count = Left;
-
+#ifndef NDEBUG
+						PostDebug(Thread, ThreadTask::Awake, 0);
+#endif
 						while (Left > 0 && Count > 0)
 						{
 							memset(Events.data(), 0, sizeof(TaskCallback*) * Events.size());
 							Count = Queue->Tasks.try_dequeue_bulk(Token, Events.begin(), Left);
 							Left -= Count;
-
+#ifndef NDEBUG
+							PostDebug(Type, ThreadTask::EnqueueAsync, Count);
+#endif
 							for (size_t i = 0; i < Count; ++i)
 							{
 								TaskCallback* Data = Events[i];
@@ -8660,11 +8710,15 @@ namespace Tomahawk
 								}
 							}
 						}
-
+#ifndef NDEBUG
+						PostDebug(Type, ThreadTask::ProcessAsync, State->GetCount());
+#endif
 						TH_PPUSH("dispatch-chain", TH_PERF_CORE);
 						State->Dispatch();
 						TH_PPOP();
-
+#ifndef NDEBUG
+						PostDebug(Thread, ThreadTask::Sleep, 0);
+#endif
 						std::unique_lock<std::mutex> Lock(Thread->Update);
 						Thread->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, State, Thread]()
 						{
@@ -8689,11 +8743,17 @@ namespace Tomahawk
 
 					do
 					{
+#ifndef NDEBUG
+						PostDebug(Thread, ThreadTask::Awake, 0);
+#endif
 						size_t Count = 0;
 						do
 						{
 							memset(Events, 0, sizeof(Events));
 							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, TH_MAX_EVENTS);
+#ifndef NDEBUG
+							PostDebug(Thread, ThreadTask::ProcessTask, Count);
+#endif
 							for (size_t i = 0; i < Count; ++i)
 							{
 								TH_PPUSH("dispatch-task", TH_PERF_MAX);
@@ -8706,7 +8766,9 @@ namespace Tomahawk
 								TH_PPOP();
 							}
 						} while (Count > 0);
-
+#ifndef NDEBUG
+						PostDebug(Thread, ThreadTask::Sleep, 0);
+#endif
 						std::unique_lock<std::mutex> Lock(Queue->Update);
 						Queue->Notify.wait_for(Lock, Policy.Timeout, [this, Queue, Thread]()
 						{
@@ -8749,6 +8811,7 @@ namespace Tomahawk
 		{
 			ThreadPtr* Thread = TH_NEW(ThreadPtr);
 			Thread->Daemon = IsDaemon;
+			Thread->Type = Type;
 
 			if (!Thread->Daemon)
 			{
@@ -8757,7 +8820,9 @@ namespace Tomahawk
 			}
 			else
 				Thread->Id = std::this_thread::get_id();
-
+#ifndef NDEBUG
+			PostDebug(Thread, ThreadTask::Spawn, 0);
+#endif
 			Threads[(size_t)Type].emplace_back(Thread);
 			return Thread->Daemon ? ProcessLoop(Type, Thread) : Thread->Handle.joinable();
 		}
@@ -8771,7 +8836,9 @@ namespace Tomahawk
 
 			if (Thread->Handle.joinable())
 				Thread->Handle.join();
-
+#ifndef NDEBUG
+			PostDebug(Thread, ThreadTask::Despawn, 0);
+#endif
 			return true;
 		}
 		bool Schedule::IsActive()
@@ -8793,6 +8860,34 @@ namespace Tomahawk
 				default:
 					return false;
 			}
+		}
+		bool Schedule::PostDebug(Difficulty Type, ThreadTask State, uint64_t Tasks)
+		{
+			if (!Debug)
+				return false;
+
+			ThreadDebug Data;
+			Data.Id = std::this_thread::get_id();
+			Data.Type = Type;
+			Data.State = State;
+			Data.Tasks = Tasks;
+
+			Debug(Data);
+			return true;
+		}
+		bool Schedule::PostDebug(ThreadPtr* Ptr, ThreadTask State, uint64_t Tasks)
+		{
+			if (!Debug)
+				return false;
+
+			ThreadDebug Data;
+			Data.Id = Ptr->Id;
+			Data.Type = Ptr->Type;
+			Data.State = State;
+			Data.Tasks = Tasks;
+
+			Debug(Data);
+			return true;
 		}
 		uint64_t Schedule::GetTotalThreads()
 		{

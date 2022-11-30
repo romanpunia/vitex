@@ -954,7 +954,8 @@ namespace Tomahawk
 			VDecimal.SetConstructor<Core::Decimal, double>("void f(double)");
 			VDecimal.SetConstructor<Core::Decimal, const std::string&>("void f(const String &in)");
 			VDecimal.SetConstructor<Core::Decimal, const Core::Decimal&>("void f(const Decimal &in)");
-			VDecimal.SetMethod("Decimal& Precise(int)", &Core::Decimal::Precise);
+			VDecimal.SetMethod("Decimal& Truncate(int)", &Core::Decimal::Truncate);
+			VDecimal.SetMethod("Decimal& Round(int)", &Core::Decimal::Round);
 			VDecimal.SetMethod("Decimal& Trim()", &Core::Decimal::Trim);
 			VDecimal.SetMethod("Decimal& Unlead()", &Core::Decimal::Unlead);
 			VDecimal.SetMethod("Decimal& Untrail()", &Core::Decimal::Untrail);

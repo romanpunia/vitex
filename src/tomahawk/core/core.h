@@ -388,7 +388,8 @@ namespace Tomahawk
 			Decimal(double Value);
 			Decimal(const Decimal& Value) noexcept;
 			Decimal(Decimal&& Value) noexcept;
-			Decimal& Precise(int Value);
+			Decimal& Truncate(int Value);
+			Decimal& Round(int Value);
 			Decimal& Trim();
 			Decimal& Unlead();
 			Decimal& Untrail();

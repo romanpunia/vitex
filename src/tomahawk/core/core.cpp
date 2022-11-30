@@ -503,7 +503,33 @@ namespace Tomahawk
 		Decimal::Decimal(Decimal&& Value) noexcept : Source(std::move(Value.Source)), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
 		{
 		}
-		Decimal& Decimal::Precise(int Precision)
+		Decimal& Decimal::Truncate(int Precision)
+		{
+			if (Invalid || Precision < 0)
+				return *this;
+
+			if (Length < Precision)
+			{
+				while (Length < Precision)
+				{
+					Length++;
+					Source.push_front('0');
+				}
+			}
+			else if (Length > Precision)
+			{
+				char Last;
+				while (Length > Precision)
+				{
+					Last = Source[0];
+					Length--;
+					Source.pop_front();
+				}
+			}
+
+			return *this;
+		}
+		Decimal& Decimal::Round(int Precision)
 		{
 			if (Invalid || Precision < 0)
 				return *this;

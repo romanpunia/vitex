@@ -6,7 +6,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #endif
-#ifdef TH_HAS_RESHADE
+#ifdef TH_HAS_SPIRV
 #include <spirv_cross/spirv.hpp>
 #include <spirv_cross/spirv_glsl.hpp>
 #include <spirv_cross/spirv_hlsl.hpp>
@@ -1196,7 +1196,7 @@ namespace Tomahawk
 		{
 			if (!HLSL || HLSL->empty())
 				return true;
-#ifdef TH_HAS_RESHADE
+#ifdef TH_HAS_SPIRV
 			const char* Buffer = HLSL->c_str();
 			int Size = (int)HLSL->size();
 
@@ -1345,7 +1345,7 @@ namespace Tomahawk
 			TH_ERR("[graphics] shader source can be transpiled only to GLSL, GLSL_ES, HLSL, MSL or SPV");
 			return false;
 #else
-			TH_ERR("[graphics] cannot transpile shader source without reshade libraries");
+			TH_ERR("[graphics] cannot transpile shader source without spirv-cross and glslang libraries");
 			return false;
 #endif
 		}

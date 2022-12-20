@@ -1376,6 +1376,13 @@ namespace Tomahawk
 			{
 				return Base.size();
 			}
+			size_t Cursor::GetAffectedRows() const
+			{
+				size_t Size = 0;
+				for (auto& Item : Base)
+					Size += Item.GetAffectedRows();
+				return Size;
+			}
 			Cursor Cursor::Copy() const
 			{
 				Cursor Result;

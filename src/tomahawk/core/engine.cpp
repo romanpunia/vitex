@@ -5988,7 +5988,7 @@ namespace Tomahawk
 		void Application::Initialize()
 		{
 		}
-		void Application::Start()
+		int Application::Start()
 		{
 			ComposeEvent();
 			Compose();
@@ -5996,19 +5996,19 @@ namespace Tomahawk
 			if (Control.Usage & (size_t)ApplicationSet::ActivitySet && !Activity)
 			{
 				TH_ERR("[engine] activity was not found");
-				return;
+				return -1;
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::GraphicsSet && !Renderer)
 			{
 				TH_ERR("[engine] graphics device was not found");
-				return;
+				return -2;
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::AudioSet && !Audio)
 			{
 				TH_ERR("[engine] audio device was not found");
-				return;
+				return -3;
 			}
 
 			if (Control.Usage & (size_t)ApplicationSet::ScriptSet)
@@ -6016,7 +6016,7 @@ namespace Tomahawk
 				if (!VM)
 				{
 					TH_ERR("[engine] vm was not found");
-					return;
+					return -4;
 				}
 				else
 					ScriptHook(&VM->Global());
@@ -6024,7 +6024,7 @@ namespace Tomahawk
 
 			Initialize();
 			if (State == ApplicationState::Terminated)
-				return;
+				return -5;
 
 			State = ApplicationState::Active;
 			if (!Control.Threads)
@@ -6101,11 +6101,23 @@ namespace Tomahawk
 			TH_RELEASE(Time);
 			CloseEvent();
 			Queue->Stop();
+
+			bool WantsRestart = (State == ApplicationState::Restart);
+			State = ApplicationState::Terminated;
+
+			return WantsRestart ? 1 : 0;
 		}
 		void Application::Stop()
 		{
 			Core::Schedule* Queue = Core::Schedule::Get();
 			State = ApplicationState::Terminated;
+			Queue->Wakeup();
+		}
+		void Application::Restart()
+		{
+			TH_ASSERT_V(Restartable, "application cannot be restarted");
+			Core::Schedule* Queue = Core::Schedule::Get();
+			State = ApplicationState::Restart;
 			Queue->Wakeup();
 		}
 		void Application::Networking()

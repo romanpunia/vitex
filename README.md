@@ -260,7 +260,7 @@ These **will not** alter any interfaces
 + **TH_USE_OPENSSL** will enable OpenSSL library if any, defaults to true
 + **TH_USE_SDL2** will enable SDL2 library if any, defaults to true
 + **TH_USE_ZLIB** will enable zlib library if any, defaults to true
-+ **TH_USE_RESHADE** will enable SPIRV Cross and Glslang libraries if any, defaults to true
++ **TH_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
 
 These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true

@@ -63,7 +63,8 @@ namespace Tomahawk
 		{
 			Terminated,
 			Staging,
-			Active
+			Active,
+			Restart
 		};
 
 		enum class RenderOpt
@@ -1308,6 +1309,7 @@ namespace Tomahawk
 
 		private:
 			ApplicationState State = ApplicationState::Terminated;
+			bool Restartable = false;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;
@@ -1334,7 +1336,8 @@ namespace Tomahawk
 			virtual void Initialize();
 			virtual void* GetGUI();
 			ApplicationState GetState();
-			void Start();
+			int Start();
+			void Restart();
 			void Stop();
 
 		private:
@@ -1343,6 +1346,35 @@ namespace Tomahawk
 		private:
 			static bool Status(Application* App);
 			static void Compose();
+
+		public:
+			template <typename T, typename ...A>
+			static int StartApp(A... Args)
+			{
+				Application* App = (Application*)new T(Args...);
+				int ExitCode = App->Start();
+				TH_RELEASE(App);
+
+				return ExitCode;
+			}
+			template <typename T, typename ...A>
+			static int StartAppWithRestart(A... Args)
+			{
+				uint32_t Restarts = 0;
+			RestartApp:
+				Application* App = (Application*)new T(Args...);
+				App->Restartable = true;
+				int ExitCode = App->Start();
+				TH_RELEASE(App);
+
+				if (ExitCode > 0)
+				{
+					Restarts++;
+					goto RestartApp;
+				}
+
+				return Restarts;
+			}
 
 		public:
 			static Core::Schedule* Queue();

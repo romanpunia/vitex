@@ -5861,11 +5861,11 @@ namespace Tomahawk
 						if (!Util::MethodAllowed(Base))
 							return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
 
-						if (!Util::Authorize(Base))
-							return false;
-
 						if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
 						{
+							if (!Util::Authorize(Base))
+								return false;
+
 							if (Base->Route->Callbacks.Get)
 								return Base->Route->Callbacks.Get(Base);
 
@@ -5873,6 +5873,9 @@ namespace Tomahawk
 						}
 						else if (!memcmp(Base->Request.Method, "POST", 4))
 						{
+							if (!Util::Authorize(Base))
+								return false;
+
 							if (Base->Route->Callbacks.Post)
 								return Base->Route->Callbacks.Post(Base);
 
@@ -5880,6 +5883,9 @@ namespace Tomahawk
 						}
 						else if (!memcmp(Base->Request.Method, "PUT", 3))
 						{
+							if (!Util::Authorize(Base))
+								return false;
+
 							if (Base->Route->Callbacks.Put)
 								return Base->Route->Callbacks.Put(Base);
 
@@ -5887,6 +5893,9 @@ namespace Tomahawk
 						}
 						else if (!memcmp(Base->Request.Method, "PATCH", 5))
 						{
+							if (!Util::Authorize(Base))
+								return false;
+
 							if (Base->Route->Callbacks.Patch)
 								return Base->Route->Callbacks.Patch(Base);
 
@@ -5894,6 +5903,9 @@ namespace Tomahawk
 						}
 						else if (!memcmp(Base->Request.Method, "DELETE", 6))
 						{
+							if (!Util::Authorize(Base))
+								return false;
+
 							if (Base->Route->Callbacks.Delete)
 								return Base->Route->Callbacks.Delete(Base);
 
@@ -5906,6 +5918,9 @@ namespace Tomahawk
 
 							return Util::RouteOPTIONS(Base);
 						}
+
+						if (!Util::Authorize(Base))
+							return false;
 
 						return Base->Error(405, "Request method \"%s\" is not allowed", Base->Request.Method);
 					}

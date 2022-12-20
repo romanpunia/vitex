@@ -97,4 +97,7 @@ include(lib/freetype/CMakeLists.txt)
 include(lib/assimp/CMakeLists.txt)
 include(lib/mongoc/CMakeLists.txt)
 include(lib/pq/CMakeLists.txt)
-include(lib/reshade/CMakeLists.txt)
+include(lib/spirv/CMakeLists.txt)
+
+#Vcpkg cleanup
+unset(pugixml_DIR CACHE)

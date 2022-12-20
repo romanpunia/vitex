@@ -382,6 +382,7 @@ namespace Tomahawk
 					return IsError() || IsEmpty();
 				}
 				size_t Size() const;
+				size_t GetAffectedRows() const;
 				Cursor Copy() const;
 				Response First() const;
 				Response Last() const;

@@ -7612,6 +7612,7 @@ namespace Tomahawk
 				PrettyToken(StdColor::Yellow, "connect"),
 				PrettyToken(StdColor::Yellow, "reconnect"),
 				PrettyToken(StdColor::DarkRed, "ERR"),
+				PrettyToken(StdColor::DarkRed, "FATAL"),
 				PrettyToken(StdColor::DarkRed, "leak"),
 				PrettyToken(StdColor::DarkRed, "leaking"),
 				PrettyToken(StdColor::DarkRed, "fail"),

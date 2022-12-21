@@ -1740,17 +1740,9 @@ namespace Tomahawk
 					{
 						char Swap[512];
 						if (Cache && Cache->EqFuncReturnCode == asMULTIPLE_FUNCTIONS)
-#if defined(_MSC_VER) && _MSC_VER >= 1500 && !defined(__S3E__)
-							sprintf_s(Swap, 512, "Type '%s' has multiple matching opEquals or opCmp methods", SubType->GetName());
-#else
-							sprintf(Swap, "Type '%s' has multiple matching opEquals or opCmp methods", SubType->GetName());
-#endif
+							snprintf(Swap, 512, "Type '%s' has multiple matching opEquals or opCmp methods", SubType->GetName());
 						else
-#if defined(_MSC_VER) && _MSC_VER >= 1500 && !defined(__S3E__)
-							sprintf_s(Swap, 512, "Type '%s' does not have a matching opEquals or opCmp method", SubType->GetName());
-#else
-							sprintf(Swap, "Type '%s' does not have a matching opEquals or opCmp method", SubType->GetName());
-#endif
+							snprintf(Swap, 512, "Type '%s' does not have a matching opEquals or opCmp method", SubType->GetName());
 						Context->SetException(Swap);
 					}
 
@@ -1846,17 +1838,9 @@ namespace Tomahawk
 					{
 						char Swap[512];
 						if (Cache && Cache->CmpFuncReturnCode == asMULTIPLE_FUNCTIONS)
-#if defined(_MSC_VER) && _MSC_VER >= 1500 && !defined(__S3E__)
-							sprintf_s(Swap, 512, "Type '%s' has multiple matching opCmp methods", SubType->GetName());
-#else
-							sprintf(Swap, "Type '%s' has multiple matching opCmp methods", SubType->GetName());
-#endif
+							snprintf(Swap, 512, "Type '%s' has multiple matching opCmp methods", SubType->GetName());
 						else
-#if defined(_MSC_VER) && _MSC_VER >= 1500 && !defined(__S3E__)
-							sprintf_s(Swap, 512, "Type '%s' does not have a matching opCmp method", SubType->GetName());
-#else
-							sprintf(Swap, "Type '%s' does not have a matching opCmp method", SubType->GetName());
-#endif
+							snprintf(Swap, 512, "Type '%s' does not have a matching opCmp method", SubType->GetName());
 						Context->SetException(Swap);
 					}
 
@@ -2918,7 +2902,7 @@ namespace Tomahawk
 			for (It = Dict.begin(); It != Dict.end(); ++It)
 			{
 				Current++;
-				*(std::string*)Array->At(Current) = It->first;
+				*(std::string*)Array->At((unsigned int)Current) = It->first;
 			}
 
 			return Array;

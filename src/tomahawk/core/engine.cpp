@@ -2674,8 +2674,8 @@ namespace Tomahawk
 			F.AccessFlags = Graphics::CPUAccess::Write;
 			F.Usage = Graphics::ResourceUsage::Dynamic;
 			F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
-			F.ElementWidth = ElementSize;
-			F.ElementCount = ElementsCount;
+			F.ElementWidth = (unsigned int)ElementSize;
+			F.ElementCount = (unsigned int)ElementsCount;
 
 			Graphics::ElementBuffer* VertexBuffer = Device->CreateElementBuffer(F);
 			if (!VertexBuffer)
@@ -2685,8 +2685,8 @@ namespace Tomahawk
 			F.AccessFlags = Graphics::CPUAccess::Write;
 			F.Usage = Graphics::ResourceUsage::Dynamic;
 			F.BindFlags = Graphics::ResourceBind::Index_Buffer;
-			F.ElementWidth = sizeof(int);
-			F.ElementCount = ElementsCount * 3;
+			F.ElementWidth = (unsigned int)sizeof(int);
+			F.ElementCount = (unsigned int)ElementsCount * 3;
 
 			Graphics::ElementBuffer* IndexBuffer = Device->CreateElementBuffer(F);
 			if (!IndexBuffer)
@@ -2938,8 +2938,8 @@ namespace Tomahawk
 			F.AccessFlags = Graphics::CPUAccess::Write;
 			F.Usage = Graphics::ResourceUsage::Dynamic;
 			F.BindFlags = Graphics::ResourceBind::Vertex_Buffer;
-			F.ElementWidth = ElementSize;
-			F.ElementCount = ElementsCount;
+			F.ElementWidth = (unsigned int)ElementSize;
+			F.ElementCount = (unsigned int)ElementsCount;
 
 			Graphics::ElementBuffer* VertexBuffer = Device->CreateElementBuffer(F);
 			if (!VertexBuffer)
@@ -2949,8 +2949,8 @@ namespace Tomahawk
 			F.AccessFlags = Graphics::CPUAccess::Write;
 			F.Usage = Graphics::ResourceUsage::Dynamic;
 			F.BindFlags = Graphics::ResourceBind::Index_Buffer;
-			F.ElementWidth = sizeof(int);
-			F.ElementCount = ElementsCount * 3;
+			F.ElementWidth = (unsigned int)sizeof(int);
+			F.ElementCount = (unsigned int)ElementsCount * 3;
 
 			Graphics::ElementBuffer* IndexBuffer = Device->CreateElementBuffer(F);
 			if (!IndexBuffer)
@@ -4667,10 +4667,10 @@ namespace Tomahawk
 		void SceneGraph::GenerateVoxelBuffers()
 		{
 			Conf.VoxelsSize = Conf.VoxelsSize - Conf.VoxelsSize % 8;
-			Conf.VoxelsMips = Conf.Device->GetMipLevel(Conf.VoxelsSize, Conf.VoxelsSize);
+			Conf.VoxelsMips = Conf.Device->GetMipLevel((unsigned int)Conf.VoxelsSize, (unsigned int)Conf.VoxelsSize);
 
 			Graphics::Texture3D::Desc I;
-			I.Width = I.Height = I.Depth = Conf.VoxelsSize;
+			I.Width = I.Height = I.Depth = (unsigned int)Conf.VoxelsSize;
 			I.MipLevels = 0;
 			I.Writable = true;
 
@@ -4685,7 +4685,7 @@ namespace Tomahawk
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
 			Display.VoxelBuffers[(size_t)VoxelType::Surface] = Conf.Device->CreateTexture3D(I);
 
-			I.MipLevels = Conf.VoxelsMips;
+			I.MipLevels = (unsigned int)Conf.VoxelsMips;
 			Display.Voxels.resize(Conf.VoxelsMax);
 			for (auto& Item : Display.Voxels)
 			{

@@ -889,7 +889,7 @@ namespace Tomahawk
 			int SetProperty(const char* Decl, R T::* Value)
 			{
 				TH_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				return SetPropertyAddress(Decl, reinterpret_cast<std::size_t>(&(((T*)0)->*Value)));
+				return SetPropertyAddress(Decl, (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)));
 			}
 			template <typename T>
 			int SetPropertyStatic(const char* Decl, T* Value)

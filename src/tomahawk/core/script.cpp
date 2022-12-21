@@ -938,7 +938,7 @@ namespace Tomahawk
 		int VMGeneric::SetReturnDWord(size_t Value)
 		{
 			TH_ASSERT(IsValid(), -1, "generic should be valid");
-			return Generic->SetReturnDWord(Value);
+			return Generic->SetReturnDWord((asDWORD)Value);
 		}
 		int VMGeneric::SetReturnQWord(uint64_t Value)
 		{
@@ -1467,12 +1467,12 @@ namespace Tomahawk
 		void* VMModule::GetAddressOfProperty(size_t Index)
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetAddressOfGlobalVar(Index);
+			return Mod->GetAddressOfGlobalVar((asUINT)Index);
 		}
 		int VMModule::RemoveProperty(size_t Index)
 		{
 			TH_ASSERT(IsValid(), -1, "module should be valid");
-			return Mod->RemoveGlobalVar(Index);
+			return Mod->RemoveGlobalVar((asUINT)Index);
 		}
 		size_t VMModule::SetAccessMask(size_t AccessMask)
 		{
@@ -1547,7 +1547,7 @@ namespace Tomahawk
 			const char* NameSpace = nullptr;
 			bool IsConst = false;
 			int TypeId = 0;
-			int Result = Mod->GetGlobalVar(Index, &Name, &NameSpace, &TypeId, &IsConst);
+			int Result = Mod->GetGlobalVar((asUINT)Index, &Name, &NameSpace, &TypeId, &IsConst);
 
 			if (Info != nullptr)
 			{
@@ -1556,7 +1556,7 @@ namespace Tomahawk
 				Info->TypeId = TypeId;
 				Info->IsConst = IsConst;
 				Info->ConfigGroup = nullptr;
-				Info->Pointer = Mod->GetAddressOfGlobalVar(Index);
+				Info->Pointer = Mod->GetAddressOfGlobalVar((asUINT)Index);
 				Info->AccessMask = GetAccessMask();
 			}
 
@@ -1592,7 +1592,7 @@ namespace Tomahawk
 		VMTypeInfo VMModule::GetObjectByIndex(size_t Index) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetObjectTypeByIndex(Index);
+			return Mod->GetObjectTypeByIndex((asUINT)Index);
 		}
 		VMTypeInfo VMModule::GetTypeInfoByName(const char* Name) const
 		{
@@ -1618,12 +1618,12 @@ namespace Tomahawk
 		VMTypeInfo VMModule::GetEnumByIndex(size_t Index) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetEnumByIndex(Index);
+			return Mod->GetEnumByIndex((asUINT)Index);
 		}
 		const char* VMModule::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetGlobalVarDeclaration(Index, IncludeNamespace);
+			return Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace);
 		}
 		const char* VMModule::GetDefaultNamespace() const
 		{
@@ -1633,12 +1633,12 @@ namespace Tomahawk
 		const char* VMModule::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetImportedFunctionDeclaration(ImportIndex);
+			return Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex);
 		}
 		const char* VMModule::GetImportedFunctionModule(size_t ImportIndex) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetImportedFunctionSourceModule(ImportIndex);
+			return Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex);
 		}
 		const char* VMModule::GetName() const
 		{
@@ -1711,7 +1711,7 @@ namespace Tomahawk
 			VMCManager* Engine = Manager->GetEngine();
 			TH_ASSERT(Engine != nullptr, VMTypeClass(nullptr, "", -1), "engine should be set");
 
-			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
+			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, (int)Size, (asDWORD)Flags));
 		}
 		VMTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
@@ -1810,7 +1810,7 @@ namespace Tomahawk
 		VMTypeInfo VMGlobal::GetObjectByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetObjectTypeByIndex(Index);
+			return Manager->GetEngine()->GetObjectTypeByIndex((asUINT)Index);
 		}
 		size_t VMGlobal::GetEnumCount() const
 		{
@@ -1820,7 +1820,7 @@ namespace Tomahawk
 		VMTypeInfo VMGlobal::GetEnumByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetEnumByIndex(Index);
+			return Manager->GetEngine()->GetEnumByIndex((asUINT)Index);
 		}
 		size_t VMGlobal::GetFunctionDefsCount() const
 		{
@@ -2050,7 +2050,7 @@ namespace Tomahawk
 					else if (Key == "NAMESPACE")
 						Module->SetDefaultNamespace(Value.Get());
 					else if (Key == "ACCESS_MASK")
-						Module->SetAccessMask(Result);
+						Module->SetAccessMask((asDWORD)Result);
 				}
 				else if (Name == "cimport" && Args.size() >= 2)
 				{
@@ -2906,7 +2906,12 @@ namespace Tomahawk
 		const char* VMContext::GetPropertyName(unsigned int Index, unsigned int StackLevel)
 		{
 			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
-			return Context->GetVarName(Index, StackLevel);
+            
+            const char* Name;
+            if (Context->GetVar(Index, StackLevel, &Name) != asSUCCESS)
+                return nullptr;
+            
+			return Name;
 		}
 		const char* VMContext::GetPropertyDecl(unsigned int Index, unsigned int StackLevel, bool IncludeNamespace)
 		{
@@ -2916,7 +2921,12 @@ namespace Tomahawk
 		int VMContext::GetPropertyTypeId(unsigned int Index, unsigned int StackLevel)
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
-			return Context->GetVarTypeId(Index, StackLevel);
+            
+            int TypeId;
+            if (Context->GetVar(Index, StackLevel, nullptr, &TypeId) != asSUCCESS)
+                return (int)VMTypeId::VOIDF;
+            
+            return TypeId;
 		}
 		void* VMContext::GetAddressOfProperty(unsigned int Index, unsigned int StackLevel)
 		{
@@ -3240,7 +3250,7 @@ namespace Tomahawk
 		int VMManager::Collect(size_t NumIterations)
 		{
 			Sync.General.lock();
-			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, NumIterations);
+			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, (asUINT)NumIterations);
 			Sync.General.unlock();
 
 			return R;
@@ -3251,19 +3261,19 @@ namespace Tomahawk
 			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
 
 			if (CurrentSize != nullptr)
-				*CurrentSize = (size_t)asCurrentSize;
+				*CurrentSize = (unsigned int)asCurrentSize;
 
 			if (TotalDestroyed != nullptr)
-				*TotalDestroyed = (size_t)asTotalDestroyed;
+				*TotalDestroyed = (unsigned int)asTotalDestroyed;
 
 			if (TotalDetected != nullptr)
-				*TotalDetected = (size_t)asTotalDetected;
+				*TotalDetected = (unsigned int)asTotalDetected;
 
 			if (NewObjects != nullptr)
-				*NewObjects = (size_t)asNewObjects;
+				*NewObjects = (unsigned int)asNewObjects;
 
 			if (TotalNewDestroyed != nullptr)
-				*TotalNewDestroyed = (size_t)asTotalNewDestroyed;
+				*TotalNewDestroyed = (unsigned int)asTotalNewDestroyed;
 		}
 		int VMManager::NotifyOfNewObject(void* Object, const VMTypeInfo& Type)
 		{
@@ -3273,7 +3283,7 @@ namespace Tomahawk
 		{
 			asUINT asSequenceNumber;
 			VMCTypeInfo* OutType = nullptr;
-			int Result = Engine->GetObjectInGC(Index, &asSequenceNumber, Object, &OutType);
+			int Result = Engine->GetObjectInGC((asUINT)Index, &asSequenceNumber, Object, &OutType);
 
 			if (SequenceNumber != nullptr)
 				*SequenceNumber = (size_t)asSequenceNumber;
@@ -3599,11 +3609,11 @@ namespace Tomahawk
 		}
 		size_t VMManager::BeginAccessMask(size_t DefaultMask)
 		{
-			return Engine->SetDefaultAccessMask(DefaultMask);
+			return Engine->SetDefaultAccessMask((asDWORD)DefaultMask);
 		}
 		size_t VMManager::EndAccessMask()
 		{
-			return Engine->SetDefaultAccessMask(VMManager::GetDefaultAccessMask());
+			return Engine->SetDefaultAccessMask((asDWORD)VMManager::GetDefaultAccessMask());
 		}
 		const char* VMManager::GetNamespace() const
 		{
@@ -4274,10 +4284,17 @@ namespace Tomahawk
 			{
 				for (asUINT n = Function->GetVarCount(); n-- > 0;)
 				{
-					if (Base->IsVarInScope(n) && Name == Base->GetVarName(n))
+					if (!Base->IsVarInScope(n))
+                        continue;
+                    
+                    const char* NextName;
+                    int NextTypeId;
+                    Base->GetVar(n, 0, &NextName, &NextTypeId);
+                    
+                    if (Name == NextName)
 					{
 						Pointer = Base->GetAddressOfVar(n);
-						TypeId = Base->GetVarTypeId(n);
+						TypeId = NextTypeId;
 						break;
 					}
 				}
@@ -4392,8 +4409,12 @@ namespace Tomahawk
 			std::stringstream Stream;
 			for (asUINT n = 0; n < Function->GetVarCount(); n++)
 			{
-				if (Base->IsVarInScope(n))
-					Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), Base->GetVarTypeId(n), 3, VMManager::Get(Base->GetEngine())) << std::endl;
+				if (!Base->IsVarInScope(n))
+                    continue;
+                
+                int TypeId;
+                Base->GetVar(n, 0, nullptr, &TypeId);
+                Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), TypeId, 3, VMManager::Get(Base->GetEngine())) << std::endl;
 			}
 			Output(Stream.str());
 		}

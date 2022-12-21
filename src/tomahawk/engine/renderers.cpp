@@ -90,7 +90,7 @@ namespace Tomahawk
 						Device->Render.World = Base->GetEntity()->GetBox();
 						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 
 						Count++;
@@ -346,7 +346,7 @@ namespace Tomahawk
 						Device->Render.World = Base->GetEntity()->GetBox();
 						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 						Count++;
 					}
@@ -373,7 +373,7 @@ namespace Tomahawk
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
 				Device->SetVertexBuffer(nullptr, 1);
@@ -395,7 +395,7 @@ namespace Tomahawk
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
 				Device->SetVertexBuffer(nullptr, 1);
@@ -419,7 +419,7 @@ namespace Tomahawk
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
 				Device->SetVertexBuffer(nullptr, 1);
@@ -445,7 +445,7 @@ namespace Tomahawk
 				{
 					auto* Data = Group.second;
 					System->PostGeometry(Data->MaterialData, true);
-					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, Data->Instances.size());
+					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
 				Device->SetVertexBuffer(nullptr, 1);
@@ -542,7 +542,7 @@ namespace Tomahawk
 						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Animation);
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->DrawIndexed(Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
+						Device->DrawIndexed((unsigned int)Box[(size_t)BufferType::Index]->GetElements(), 0, 0);
 						CullingEnd();
 
 						Count++;
@@ -1185,7 +1185,7 @@ namespace Tomahawk
 					Voxels.LightBuffer = Light->VoxelMap;
 					Light->Regenerate = false;
 
-					size_t Size = State.Scene->GetConf().VoxelsSize;
+                    unsigned int Size = (unsigned int)State.Scene->GetConf().VoxelsSize;
 					State.Device->ClearWritable(In[(size_t)VoxelType::Diffuse]);
 					State.Device->ClearWritable(In[(size_t)VoxelType::Normal]);
 					State.Device->ClearWritable(In[(size_t)VoxelType::Surface]);
@@ -1614,7 +1614,7 @@ namespace Tomahawk
 				Graphics::Cubemap::Desc I;
 				I.Source = Surfaces.Merger;
 				I.MipLevels = F1.MipLevels;
-				I.Size = Surfaces.Size;
+				I.Size = (unsigned int)Surfaces.Size;
 
 				TH_RELEASE(Surfaces.Subresource);
 				Surfaces.Subresource = Device->CreateCubemap(I);
@@ -2414,10 +2414,10 @@ namespace Tomahawk
 				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::RenderTarget2D::Desc RT = Scene->GetDescRT();
-				RT.MipLevels = Device->GetMipLevel(Size, Size);
+				RT.MipLevels = Device->GetMipLevel((unsigned int)Size, (unsigned int)Size);
 				RT.FormatMode = Graphics::Format::R16_Float;
-				RT.Width = Size;
-				RT.Height = Size;
+				RT.Width = (unsigned int)Size;
+				RT.Height = (unsigned int)Size;
 
 				LutTarget = Device->CreateRenderTarget2D(RT);
 				Device->CopyTexture2D(LutTarget, 0, &LutMap);

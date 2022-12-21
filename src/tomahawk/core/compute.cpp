@@ -4800,9 +4800,8 @@ namespace Tomahawk
 			TH_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
 			char* Output = (char*)TH_MALLOC(sizeof(char) * 33);
 			memset((void*)Output, 0, 33);
-
 			for (int i = 0; i < 16; i++)
-				sprintf(Output + i * 2, "%02x", Digest[i]);
+				snprintf(Output + i * 2, 2, "%02x", Digest[i]);
 			Output[32] = '\0';
 
 			return Output;
@@ -4821,7 +4820,7 @@ namespace Tomahawk
 			TH_ASSERT(Finalized, std::string(), "md5 hash should be finalized");
 			char Data[33];
 			for (int i = 0; i < 16; i++)
-				sprintf(Data + i * 2, "%02x", Digest[i]);
+				snprintf(Data + i * 2, 2, "%02x", Digest[i]);
 			Data[32] = 0;
 
 			return Data;
@@ -8300,7 +8299,7 @@ namespace Tomahawk
 				Src.push_back((unsigned int)Index);
 
 			Desc.Faces = Src.data();
-			Desc.NbFaces = Src.size() / 3;
+			Desc.NbFaces = (unsigned int)Src.size() / 3;
 
 			TriangleStrip Strip;
 			if (!Strip.Fill(Desc))
@@ -9659,10 +9658,10 @@ namespace Tomahawk
 		void Area::Recompute()
 		{
 			Volume = 0;
-			for (size_t i = 0; i < 3; i++)
+			for (int i = 0; i < 3; i++)
 			{
 				float Product = 1;
-				for (size_t j = 0; j < 3; j++)
+				for (int j = 0; j < 3; j++)
 				{
 					if (i != j)
 						Product *= Upper[j] - Lower[j];

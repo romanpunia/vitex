@@ -562,7 +562,7 @@ namespace Tomahawk
 			return Value;
 #endif
             if (Value < 0 && Size <= 0)
-                TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
+                TH_PRET(GetError((int)Value) == ERRWOULDBLOCK ? -2 : -1);
             
             if (Value != Size)
                 Value = Size;
@@ -629,7 +629,7 @@ namespace Tomahawk
 				return Value;
 			}
 #endif
-			int Value = send(Fd, Buffer, Size, 0);
+			int Value = (int)send(Fd, Buffer, Size, 0);
 			if (Value <= 0)
 				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
 
@@ -712,7 +712,7 @@ namespace Tomahawk
 				return Value;
 			}
 #endif
-			int Value = recv(Fd, Buffer, Size, 0);
+			int Value = (int)recv(Fd, Buffer, Size, 0);
 			if (Value <= 0)
 				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
 
@@ -1490,10 +1490,10 @@ namespace Tomahawk
 			Wait.tv_nsec = ((int)Timeout % 1000) * 1000000;
 
 			struct kevent* Events = (struct kevent*)Array;
-			int Count = kevent(Handle, nullptr, 0, Events, DataSize, &Wait);
+			int Count = kevent(Handle, nullptr, 0, Events, (int)DataSize, &Wait);
 #else
 			epoll_event* Events = (epoll_event*)Array;
-			int Count = epoll_wait(Handle, Events, DataSize, (int)Timeout);
+			int Count = epoll_wait(Handle, Events, (int)DataSize, (int)Timeout);
 #endif
 			if (Count <= 0)
 				return Count;
@@ -2420,7 +2420,7 @@ namespace Tomahawk
 					case SSL_ERROR_WANT_ACCEPT:
 					case SSL_ERROR_WANT_WRITE:
 					case SSL_ERROR_WANT_READ:
-						Utils::Poll(&SFd, 1, Router->SocketTimeout);
+						Utils::Poll(&SFd, 1, (int)Router->SocketTimeout);
 						break;
 					default:
 						OK = false;

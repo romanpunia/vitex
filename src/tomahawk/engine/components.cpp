@@ -3904,7 +3904,7 @@ namespace Tomahawk
 					return Target;
 
 				Safe.lock();
-				int Count = From.GetPropertiesCount();
+				int Count = (int)From.GetPropertiesCount();
 				for (int i = 0; i < Count; i++)
 				{
 					Script::VMProperty fSource;
@@ -4210,7 +4210,7 @@ namespace Tomahawk
 					return 0;
 				}
 
-				int Result = fModule.GetPropertiesCount();
+				int Result = (int)fModule.GetPropertiesCount();
 				Safe.unlock();
 
 				return Result;
@@ -4232,7 +4232,7 @@ namespace Tomahawk
 					return 0;
 				}
 
-				int Result = fModule.GetFunctionCount();
+				int Result = (int)fModule.GetFunctionCount();
 				Safe.unlock();
 
 				return Result;

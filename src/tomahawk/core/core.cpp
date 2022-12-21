@@ -578,7 +578,7 @@ namespace Tomahawk
 		}
 		Decimal& Decimal::Unlead()
 		{
-			for (int i = Source.size() - 1; i > Length; --i)
+			for (int i = (int)Source.size() - 1; i > Length; --i)
 			{
 				if (Source[i] != '0')
 					break;
@@ -667,7 +667,7 @@ namespace Tomahawk
 				Size--;
 			}
 
-			for (int i = Source.size() - 1; i >= Offset; i--)
+			for (int i = (int)Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
@@ -689,7 +689,7 @@ namespace Tomahawk
 				Size--;
 			}
 
-			for (int i = Source.size() - 1; i >= Offset; i--)
+			for (int i = (int)Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
@@ -714,7 +714,7 @@ namespace Tomahawk
 				Size--;
 			}
 
-			for (int i = Source.size() - 1; i >= Offset; i--)
+			for (int i = (int)Source.size() - 1; i >= Offset; i--)
 			{
 				Result += Source[i];
 				if ((i == Length) && (i != 0) && Offset != Length)
@@ -738,7 +738,7 @@ namespace Tomahawk
 			else if (Compare == 1)
 			{
 				Result += Sign;
-				int i = Source.size() - 1;
+				int i = (int)Source.size() - 1;
 				Result += Source[i];
 				i--;
 
@@ -753,7 +753,7 @@ namespace Tomahawk
 			}
 			else if (Compare == 2)
 			{
-				int Exp = 0, Count = Source.size() - 1;
+				int Exp = 0, Count = (int)Source.size() - 1;
 				while (Count > 0 && Source[Count] == '0')
 				{
 					Count--;
@@ -794,11 +794,11 @@ namespace Tomahawk
 		}
 		int Decimal::Ints() const
 		{
-			return Source.size() - Length;
+			return (int)Source.size() - Length;
 		}
 		int Decimal::Size() const
 		{
-			return sizeof(*this) + Source.size() * sizeof(char);
+			return (int)(sizeof(*this) + Source.size() * sizeof(char));
 		}
 		Decimal Decimal::operator -() const
 		{
@@ -1564,7 +1564,7 @@ namespace Tomahawk
 		{
 			Decimal Temp;
 			int Carry = 0;
-			int LoopSize = (Left.Source.size() > Right.Source.size()) ? Left.Source.size() : Right.Source.size();
+			int LoopSize = (int)(Left.Source.size() > Right.Source.size() ? Left.Source.size() : Right.Source.size());
 
 			for (int i = 0; i < LoopSize; ++i)
 			{
@@ -1674,7 +1674,7 @@ namespace Tomahawk
 					Temp.Source.push_front('0');
 				}
 
-				for (int i = Left.Source.size() - 1; i >= 0; i--)
+				for (int i = (int)Left.Source.size() - 1; i >= 0; i--)
 				{
 					if (Left.Source[i] > Temp.Source[i])
 						return 1;
@@ -1695,7 +1695,7 @@ namespace Tomahawk
 					Temp.Source.push_front('0');
 				}
 
-				for (int i = Temp.Source.size() - 1; i >= 0; i--)
+				for (int i = (int)Temp.Source.size() - 1; i >= 0; i--)
 				{
 					if (Temp.Source[i] > Right.Source[i])
 						return 1;
@@ -1708,7 +1708,7 @@ namespace Tomahawk
 			}
 			else
 			{
-				for (int i = Left.Source.size() - 1; i >= 0; i--)
+				for (int i = (int)Left.Source.size() - 1; i >= 0; i--)
 				{
 					if (Left.Source[i] > Right.Source[i])
 						return 1;
@@ -5447,7 +5447,7 @@ namespace Tomahawk
 			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
 			TH_PPUSH("gz-stream-read", TH_PERF_IO);
-			TH_PRET(gzread((gzFile)Resource, Data, Length));
+			TH_PRET(gzread((gzFile)Resource, Data, (unsigned int)Length));
 #else
 			return 0;
 #endif
@@ -5476,7 +5476,7 @@ namespace Tomahawk
 			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
 			TH_PPUSH("gz-stream-write", TH_PERF_IO);
-			TH_PRET(gzwrite((gzFile)Resource, Data, Length));
+			TH_PRET(gzwrite((gzFile)Resource, Data, (unsigned int)Length));
 #else
 			return 0;
 #endif
@@ -5761,7 +5761,7 @@ namespace Tomahawk
 			{
 				const auto ThreadData = SysExtract(CtlThreadData);
 				if (ThreadData.first)
-					Result.Logical = ThreadData.second;
+					Result.Logical = (unsigned int)ThreadData.second;
 			}
 
 			const auto CtlCoreData = SysControl("machdep.cpu.core_count");
@@ -5769,7 +5769,7 @@ namespace Tomahawk
 			{
 				const auto CoreData = SysExtract(CtlCoreData);
 				if (CoreData.first)
-					Result.Physical = CoreData.second;
+					Result.Physical = (unsigned int)CoreData.second;
 			}
 
 			const auto CtlPackagesData = SysControl("hw.packages");
@@ -5777,7 +5777,7 @@ namespace Tomahawk
 			{
 				const auto PackagesData = SysExtract(CtlPackagesData);
 				if (PackagesData.first)
-					Result.Packages = PackagesData.second;
+					Result.Packages = (unsigned int)PackagesData.second;
 			}
 #else
 			Result.Logical = sysconf(_SC_NPROCESSORS_ONLN);
@@ -7204,7 +7204,7 @@ namespace Tomahawk
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
-			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
+			const char* Data = tinyfd_saveFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str());
 
 			if (!Data)
@@ -7222,7 +7222,7 @@ namespace Tomahawk
 			for (auto& It : Sources)
 				Patterns.push_back((char*)It.c_str());
 
-			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), Patterns.size(),
+			const char* Data = tinyfd_openFileDialog(Title.c_str(), DefaultPath.c_str(), (int)Patterns.size(),
 				Patterns.empty() ? nullptr : Patterns.data(), FilterDescription.empty() ? nullptr : FilterDescription.c_str(), Multiple);
 
 			if (!Data)

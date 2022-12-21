@@ -315,7 +315,7 @@ namespace Tomahawk
 					return;
 
 				if (!(Base->flags & BSON_FLAG_STATIC) && !(Base->flags & BSON_FLAG_RDONLY) && !(Base->flags & BSON_FLAG_INLINE) && !(Base->flags & BSON_FLAG_NO_FREE))
-					bson_destroy(Base);
+					bson_destroy((bson_t*)Base);
 #endif
 			}
 			void Schema::Release()
@@ -325,7 +325,7 @@ namespace Tomahawk
 					return;
 
 				if (!(Base->flags & BSON_FLAG_STATIC) && !(Base->flags & BSON_FLAG_RDONLY) && !(Base->flags & BSON_FLAG_INLINE) && !(Base->flags & BSON_FLAG_NO_FREE))
-					bson_destroy(Base);
+					bson_destroy((bson_t*)Base);
 				Base = nullptr;
 #endif
 			}
@@ -334,7 +334,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT_V(Base != nullptr, "schema should be set");
 				TH_ASSERT_V(Value.Base != nullptr, "other schema should be set");
-				bson_concat(Base, Value.Base);
+				bson_concat((bson_t*)Base, (bson_t*)Value.Base);
 				Value.Release();
 #endif
 			}
@@ -369,7 +369,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_document(Base, Key, -1, Value.Base);
+				bool Result = bson_append_document((bson_t*)Base, Key, -1, (bson_t*)Value.Base);
 				Value.Release();
 
 				return Result;
@@ -387,7 +387,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				bool Result = bson_append_array(Base, Key, -1, Value.Base);
+				bool Result = bson_append_array((bson_t*)Base, Key, -1, (bson_t*)Value.Base);
 				Value.Release();
 
 				return Result;
@@ -405,7 +405,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_utf8(Base, Key, -1, Value, -1);
+				return bson_append_utf8((bson_t*)Base, Key, -1, Value, -1);
 #else
 				return false;
 #endif
@@ -420,7 +420,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_utf8(Base, Key, -1, Value, (int)Length);
+				return bson_append_utf8((bson_t*)Base, Key, -1, Value, (int)Length);
 #else
 				return false;
 #endif
@@ -434,7 +434,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_int64(Base, Key, -1, Value);
+				return bson_append_int64((bson_t*)Base, Key, -1, Value);
 #else
 				return false;
 #endif
@@ -448,7 +448,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_double(Base, Key, -1, Value);
+				return bson_append_double((bson_t*)Base, Key, -1, Value);
 #else
 				return false;
 #endif
@@ -466,7 +466,7 @@ namespace Tomahawk
 				Decimal.high = (uint64_t)High;
 				Decimal.low = (uint64_t)Low;
 
-				return bson_append_decimal128(Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
@@ -483,7 +483,7 @@ namespace Tomahawk
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Value.c_str(), &Decimal);
 
-				return bson_append_decimal128(Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
@@ -498,12 +498,12 @@ namespace Tomahawk
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
 				char Data[64];
-				sprintf(Data, "%lld", Value);
+				snprintf(Data, 64, "%lld", Value);
 
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128(Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
@@ -518,7 +518,7 @@ namespace Tomahawk
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
 				char Data[64];
-				sprintf(Data, "%f", Value);
+				snprintf(Data, 64, "%f", Value);
 
 				for (size_t i = 0; i < 64; i++)
 					Data[i] = (Data[i] == ',' ? '.' : Data[i]);
@@ -526,7 +526,7 @@ namespace Tomahawk
 				bson_decimal128_t Decimal;
 				bson_decimal128_from_string(Data, &Decimal);
 
-				return bson_append_decimal128(Base, Key, -1, &Decimal);
+				return bson_append_decimal128((bson_t*)Base, Key, -1, &Decimal);
 #else
 				return false;
 #endif
@@ -540,7 +540,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_bool(Base, Key, -1, Value);
+				return bson_append_bool((bson_t*)Base, Key, -1, Value);
 #else
 				return false;
 #endif
@@ -557,7 +557,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_oid(Base, Key, -1, &ObjectId);
+				return bson_append_oid((bson_t*)Base, Key, -1, &ObjectId);
 #else
 				return false;
 #endif
@@ -571,7 +571,7 @@ namespace Tomahawk
 				if (Key == nullptr)
 					bson_uint32_to_string((uint32_t)ArrayId, &Key, Index, sizeof(Index));
 
-				return bson_append_null(Base, Key, -1);
+				return bson_append_null((bson_t*)Base, Key, -1);
 #else
 				return false;
 #endif
@@ -976,7 +976,7 @@ namespace Tomahawk
 					return Result;
 
 				if (Result != nullptr)
-					bson_destroy(Result);
+					bson_destroy((bson_t*)Result);
 
 				TH_ERR("[json] %s", Error.message);
 				return nullptr;
@@ -998,7 +998,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Src != nullptr, nullptr, "src should be set");
 				TDocument* Dest = bson_new();
-				bson_steal(Dest, Src);
+				bson_steal((bson_t*)Dest, (bson_t*)Src);
 				return Dest;
 #else
 				return nullptr;
@@ -1388,7 +1388,7 @@ namespace Tomahawk
 				{
 					TDocument Result;
 					State = MongoExecuteQuery(&mongoc_bulk_operation_execute, Base, &Result);
-					bson_destroy(&Result);
+					bson_destroy((bson_t*)&Result);
 
 					if (Source != nullptr)
 						*this = Collection(Source).CreateStream(IOptions);
@@ -1418,7 +1418,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -1435,7 +1435,7 @@ namespace Tomahawk
 				{
 					TDocument Result;
 					bool Subresult = MongoExecuteQuery(&mongoc_bulk_operation_execute, Context.Get(), &Result);
-					bson_destroy(&Result);
+					bson_destroy((bson_t*)&Result);
 					Context.Release();
 
 					Future = Subresult;
@@ -1857,7 +1857,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -1878,7 +1878,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -1900,7 +1900,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -1909,7 +1909,7 @@ namespace Tomahawk
 			Core::Async<Schema> Collection::InsertMany(std::vector<Schema>& List, const Schema& Options)
 			{
 #ifdef TH_HAS_MONGOC
-				TH_ASSERT(!List.empty(), nullptr, "insert array should not be empty");
+				TH_ASSERT(!List.empty(), Schema(nullptr), "insert array should not be empty");
 				std::vector<Schema> Array(std::move(List));
 				auto* Context = Base;
 
@@ -1930,7 +1930,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -1951,7 +1951,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -1973,7 +1973,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -1995,7 +1995,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -2018,7 +2018,7 @@ namespace Tomahawk
 						Future = Schema(nullptr);
 					else
 						Future = Schema::FromSource(&Subresult);
-					bson_destroy(&Subresult);
+					bson_destroy((bson_t*)&Subresult);
 				});
 #else
 				return Schema(nullptr);
@@ -2824,7 +2824,7 @@ namespace Tomahawk
 					QueryOptions = bson_new();
 
 				bson_error_t Error;
-				bool Result = mongoc_client_session_append(Base, QueryOptions.Get(), &Error);
+				bool Result = mongoc_client_session_append(Base, (bson_t*)QueryOptions.Get(), &Error);
 				if (!Result && Error.code != 0)
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
@@ -2841,7 +2841,7 @@ namespace Tomahawk
 					*QueryOptions = bson_new();
 
 				bson_error_t Error;
-				bool Result = mongoc_client_session_append(Base, *QueryOptions, &Error);
+				bool Result = mongoc_client_session_append(Base, (bson_t*)*QueryOptions, &Error);
 				if (!Result && Error.code != 0)
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 

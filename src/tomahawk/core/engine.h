@@ -5,6 +5,8 @@
 #include "script.h"
 #include <atomic>
 #include <cstdarg>
+#define TH_EXIT_JUMP 9600
+#define TH_EXIT_RESTART TH_EXIT_JUMP * 2
 
 namespace Tomahawk
 {
@@ -1309,7 +1311,7 @@ namespace Tomahawk
 
 		private:
 			ApplicationState State = ApplicationState::Terminated;
-			bool Restartable = false;
+			int ExitCode = 0;
 
 		public:
 			Audio::AudioDevice* Audio = nullptr;
@@ -1338,7 +1340,7 @@ namespace Tomahawk
 			ApplicationState GetState();
 			int Start();
 			void Restart();
-			void Stop();
+			void Stop(int ExitCode = 0);
 
 		private:
 			void Networking();
@@ -1355,25 +1357,21 @@ namespace Tomahawk
 				int ExitCode = App->Start();
 				TH_RELEASE(App);
 
+				TH_ASSERT(ExitCode != TH_EXIT_RESTART, ExitCode, "application cannot be restarted");
 				return ExitCode;
 			}
 			template <typename T, typename ...A>
 			static int StartAppWithRestart(A... Args)
 			{
-				uint32_t Restarts = 0;
 			RestartApp:
 				Application* App = (Application*)new T(Args...);
-				App->Restartable = true;
 				int ExitCode = App->Start();
 				TH_RELEASE(App);
 
-				if (ExitCode > 0)
-				{
-					Restarts++;
+				if (ExitCode == TH_EXIT_RESTART)
 					goto RestartApp;
-				}
 
-				return Restarts;
+				return ExitCode;
 			}
 
 		public:

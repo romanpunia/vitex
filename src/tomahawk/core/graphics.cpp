@@ -24,114 +24,117 @@
 
 namespace
 {
-	const TBuiltInResource DriverLimits =
-	{
-		/* .MaxLights = */ 32,
-		/* .MaxClipPlanes = */ 6,
-		/* .MaxTextureUnits = */ 32,
-		/* .MaxTextureCoords = */ 32,
-		/* .MaxVertexAttribs = */ 64,
-		/* .MaxVertexUniformComponents = */ 4096,
-		/* .MaxVaryingFloats = */ 64,
-		/* .MaxVertexTextureImageUnits = */ 32,
-		/* .MaxCombinedTextureImageUnits = */ 80,
-		/* .MaxTextureImageUnits = */ 32,
-		/* .MaxFragmentUniformComponents = */ 4096,
-		/* .MaxDrawBuffers = */ 32,
-		/* .MaxVertexUniformVectors = */ 128,
-		/* .MaxVaryingVectors = */ 8,
-		/* .MaxFragmentUniformVectors = */ 16,
-		/* .MaxVertexOutputVectors = */ 16,
-		/* .MaxFragmentInputVectors = */ 15,
-		/* .MinProgramTexelOffset = */ -8,
-		/* .MaxProgramTexelOffset = */ 7,
-		/* .MaxClipDistances = */ 8,
-		/* .MaxComputeWorkGroupCountX = */ 65535,
-		/* .MaxComputeWorkGroupCountY = */ 65535,
-		/* .MaxComputeWorkGroupCountZ = */ 65535,
-		/* .MaxComputeWorkGroupSizeX = */ 1024,
-		/* .MaxComputeWorkGroupSizeY = */ 1024,
-		/* .MaxComputeWorkGroupSizeZ = */ 64,
-		/* .MaxComputeUniformComponents = */ 1024,
-		/* .MaxComputeTextureImageUnits = */ 16,
-		/* .MaxComputeImageUniforms = */ 8,
-		/* .MaxComputeAtomicCounters = */ 8,
-		/* .MaxComputeAtomicCounterBuffers = */ 1,
-		/* .MaxVaryingComponents = */ 60,
-		/* .MaxVertexOutputComponents = */ 64,
-		/* .MaxGeometryInputComponents = */ 64,
-		/* .MaxGeometryOutputComponents = */ 128,
-		/* .MaxFragmentInputComponents = */ 128,
-		/* .MaxImageUnits = */ 8,
-		/* .MaxCombinedImageUnitsAndFragmentOutputs = */ 8,
-		/* .MaxCombinedShaderOutputResources = */ 8,
-		/* .MaxImageSamples = */ 0,
-		/* .MaxVertexImageUniforms = */ 0,
-		/* .MaxTessControlImageUniforms = */ 0,
-		/* .MaxTessEvaluationImageUniforms = */ 0,
-		/* .MaxGeometryImageUniforms = */ 0,
-		/* .MaxFragmentImageUniforms = */ 8,
-		/* .MaxCombinedImageUniforms = */ 8,
-		/* .MaxGeometryTextureImageUnits = */ 16,
-		/* .MaxGeometryOutputVertices = */ 256,
-		/* .MaxGeometryTotalOutputComponents = */ 1024,
-		/* .MaxGeometryUniformComponents = */ 1024,
-		/* .MaxGeometryVaryingComponents = */ 64,
-		/* .MaxTessControlInputComponents = */ 128,
-		/* .MaxTessControlOutputComponents = */ 128,
-		/* .MaxTessControlTextureImageUnits = */ 16,
-		/* .MaxTessControlUniformComponents = */ 1024,
-		/* .MaxTessControlTotalOutputComponents = */ 4096,
-		/* .MaxTessEvaluationInputComponents = */ 128,
-		/* .MaxTessEvaluationOutputComponents = */ 128,
-		/* .MaxTessEvaluationTextureImageUnits = */ 16,
-		/* .MaxTessEvaluationUniformComponents = */ 1024,
-		/* .MaxTessPatchComponents = */ 120,
-		/* .MaxPatchVertices = */ 32,
-		/* .MaxTessGenLevel = */ 64,
-		/* .MaxViewports = */ 16,
-		/* .MaxVertexAtomicCounters = */ 0,
-		/* .MaxTessControlAtomicCounters = */ 0,
-		/* .MaxTessEvaluationAtomicCounters = */ 0,
-		/* .MaxGeometryAtomicCounters = */ 0,
-		/* .MaxFragmentAtomicCounters = */ 8,
-		/* .MaxCombinedAtomicCounters = */ 8,
-		/* .MaxAtomicCounterBindings = */ 1,
-		/* .MaxVertexAtomicCounterBuffers = */ 0,
-		/* .MaxTessControlAtomicCounterBuffers = */ 0,
-		/* .MaxTessEvaluationAtomicCounterBuffers = */ 0,
-		/* .MaxGeometryAtomicCounterBuffers = */ 0,
-		/* .MaxFragmentAtomicCounterBuffers = */ 1,
-		/* .MaxCombinedAtomicCounterBuffers = */ 1,
-		/* .MaxAtomicCounterBufferSize = */ 16384,
-		/* .MaxTransformFeedbackBuffers = */ 4,
-		/* .MaxTransformFeedbackInterleavedComponents = */ 64,
-		/* .MaxCullDistances = */ 8,
-		/* .MaxCombinedClipAndCullDistances = */ 8,
-		/* .MaxSamples = */ 4,
-		/* .maxMeshOutputVerticesNV = */ 256,
-		/* .maxMeshOutputPrimitivesNV = */ 512,
-		/* .maxMeshWorkGroupSizeX_NV = */ 32,
-		/* .maxMeshWorkGroupSizeY_NV = */ 1,
-		/* .maxMeshWorkGroupSizeZ_NV = */ 1,
-		/* .maxTaskWorkGroupSizeX_NV = */ 32,
-		/* .maxTaskWorkGroupSizeY_NV = */ 1,
-		/* .maxTaskWorkGroupSizeZ_NV = */ 1,
-		/* .maxMeshViewCountNV = */ 4,
-		/* .limits = */
-		{
-			/* .nonInductiveForLoops = */ 1,
-			/* .whileLoops = */ 1,
-			/* .doWhileLoops = */ 1,
-			/* .generalUniformIndexing = */ 1,
-			/* .generalAttributeMatrixVectorIndexing = */ 1,
-			/* .generalVaryingIndexing = */ 1,
-			/* .generalSamplerIndexing = */ 1,
-			/* .generalVariableIndexing = */ 1,
-			/* .generalConstantMatrixVectorIndexing = */ 1,
-		}
-	};
+	static TBuiltInResource DriverLimits = { };
 
+    static void PrepareDriverLimits()
+    {
+        static bool IsReady = false;
+        if (IsReady)
+            return;
+        
+        DriverLimits.maxLights = 32;
+        DriverLimits.maxClipPlanes = 6;
+        DriverLimits.maxTextureUnits = 32;
+        DriverLimits.maxTextureCoords = 32;
+        DriverLimits.maxVertexAttribs = 64;
+        DriverLimits.maxVertexUniformComponents = 4096;
+        DriverLimits.maxVaryingFloats = 64;
+        DriverLimits.maxVertexTextureImageUnits = 32;
+        DriverLimits.maxCombinedTextureImageUnits = 80;
+        DriverLimits.maxTextureImageUnits = 32;
+        DriverLimits.maxFragmentUniformComponents = 4096;
+        DriverLimits.maxDrawBuffers = 32;
+        DriverLimits.maxVertexUniformVectors = 128;
+        DriverLimits.maxVaryingVectors = 8;
+        DriverLimits.maxFragmentUniformVectors = 16;
+        DriverLimits.maxVertexOutputVectors = 16;
+        DriverLimits.maxFragmentInputVectors = 15;
+        DriverLimits.minProgramTexelOffset = -8;
+        DriverLimits.maxProgramTexelOffset = 7;
+        DriverLimits.maxClipDistances = 8;
+        DriverLimits.maxComputeWorkGroupCountX = 65535;
+        DriverLimits.maxComputeWorkGroupCountY = 65535;
+        DriverLimits.maxComputeWorkGroupCountZ = 65535;
+        DriverLimits.maxComputeWorkGroupSizeX = 1024;
+        DriverLimits.maxComputeWorkGroupSizeY = 1024;
+        DriverLimits.maxComputeWorkGroupSizeZ = 64;
+        DriverLimits.maxComputeUniformComponents = 1024;
+        DriverLimits.maxComputeTextureImageUnits = 16;
+        DriverLimits.maxComputeImageUniforms = 8;
+        DriverLimits.maxComputeAtomicCounters = 8;
+        DriverLimits.maxComputeAtomicCounterBuffers = 1;
+        DriverLimits.maxVaryingComponents = 60;
+        DriverLimits.maxVertexOutputComponents = 64;
+        DriverLimits.maxGeometryInputComponents = 64;
+        DriverLimits.maxGeometryOutputComponents = 128;
+        DriverLimits.maxFragmentInputComponents = 128;
+        DriverLimits.maxImageUnits = 8;
+        DriverLimits.maxCombinedImageUnitsAndFragmentOutputs = 8;
+        DriverLimits.maxCombinedShaderOutputResources = 8;
+        DriverLimits.maxImageSamples = 0;
+        DriverLimits.maxVertexImageUniforms = 0;
+        DriverLimits.maxTessControlImageUniforms = 0;
+        DriverLimits.maxTessEvaluationImageUniforms = 0;
+        DriverLimits.maxGeometryImageUniforms = 0;
+        DriverLimits.maxFragmentImageUniforms = 8;
+        DriverLimits.maxCombinedImageUniforms = 8;
+        DriverLimits.maxGeometryTextureImageUnits = 16;
+        DriverLimits.maxGeometryOutputVertices = 256;
+        DriverLimits.maxGeometryTotalOutputComponents = 1024;
+        DriverLimits.maxGeometryUniformComponents = 1024;
+        DriverLimits.maxGeometryVaryingComponents = 64;
+        DriverLimits.maxTessControlInputComponents = 128;
+        DriverLimits.maxTessControlOutputComponents = 128;
+        DriverLimits.maxTessControlTextureImageUnits = 16;
+        DriverLimits.maxTessControlUniformComponents = 1024;
+        DriverLimits.maxTessControlTotalOutputComponents = 4096;
+        DriverLimits.maxTessEvaluationInputComponents = 128;
+        DriverLimits.maxTessEvaluationOutputComponents = 128;
+        DriverLimits.maxTessEvaluationTextureImageUnits = 16;
+        DriverLimits.maxTessEvaluationUniformComponents = 1024;
+        DriverLimits.maxTessPatchComponents = 120;
+        DriverLimits.maxPatchVertices = 32;
+        DriverLimits.maxTessGenLevel = 64;
+        DriverLimits.maxViewports = 16;
+        DriverLimits.maxVertexAtomicCounters = 0;
+        DriverLimits.maxTessControlAtomicCounters = 0;
+        DriverLimits.maxTessEvaluationAtomicCounters = 0;
+        DriverLimits.maxGeometryAtomicCounters = 0;
+        DriverLimits.maxFragmentAtomicCounters = 8;
+        DriverLimits.maxCombinedAtomicCounters = 8;
+        DriverLimits.maxAtomicCounterBindings = 1;
+        DriverLimits.maxVertexAtomicCounterBuffers = 0;
+        DriverLimits.maxTessControlAtomicCounterBuffers = 0;
+        DriverLimits.maxTessEvaluationAtomicCounterBuffers = 0;
+        DriverLimits.maxGeometryAtomicCounterBuffers = 0;
+        DriverLimits.maxFragmentAtomicCounterBuffers = 1;
+        DriverLimits.maxCombinedAtomicCounterBuffers = 1;
+        DriverLimits.maxAtomicCounterBufferSize = 16384;
+        DriverLimits.maxTransformFeedbackBuffers = 4;
+        DriverLimits.maxTransformFeedbackInterleavedComponents = 64;
+        DriverLimits.maxCullDistances = 8;
+        DriverLimits.maxCombinedClipAndCullDistances = 8;
+        DriverLimits.maxSamples = 4;
+        DriverLimits.maxMeshOutputVerticesNV = 256;
+        DriverLimits.maxMeshOutputPrimitivesNV = 512;
+        DriverLimits.maxMeshWorkGroupSizeX_NV = 32;
+        DriverLimits.maxMeshWorkGroupSizeY_NV = 1;
+        DriverLimits.maxMeshWorkGroupSizeZ_NV = 1;
+        DriverLimits.maxTaskWorkGroupSizeX_NV = 32;
+        DriverLimits.maxTaskWorkGroupSizeY_NV = 1;
+        DriverLimits.maxTaskWorkGroupSizeZ_NV = 1;
+        DriverLimits.maxMeshViewCountNV = 4;
+        DriverLimits.limits.nonInductiveForLoops = 1;
+        DriverLimits.limits.whileLoops = 1;
+        DriverLimits.limits.doWhileLoops = 1;
+        DriverLimits.limits.generalUniformIndexing = 1;
+        DriverLimits.limits.generalAttributeMatrixVectorIndexing = 1;
+        DriverLimits.limits.generalVaryingIndexing = 1;
+        DriverLimits.limits.generalSamplerIndexing = 1;
+        DriverLimits.limits.generalVariableIndexing = 1;
+        DriverLimits.limits.generalConstantMatrixVectorIndexing = 1;
+        IsReady = true;
+    }
 	static void PrepareSamplers(spirv_cross::Compiler* Compiler)
 	{
 		for (auto& SamplerId : Compiler->get_combined_image_samplers())
@@ -1247,7 +1250,9 @@ namespace Tomahawk
 			Transpiler.setEntryPoint(Entry.c_str());
 
 			EShMessages Flags = (EShMessages)(EShMsgSpvRules | EShMsgReadHlsl | EShMsgHlslOffsets | EShMsgHlslLegalization | EShMsgKeepUncalled | EShMsgSuppressWarnings);
-			if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
+            PrepareDriverLimits();
+            
+            if (!Transpiler.parse(&DriverLimits, 100, true, Flags))
 			{
 				const char* Output = Transpiler.getInfoLog();
 				TH_ERR("[graphics] cannot transpile shader source\n\t%s", Output);

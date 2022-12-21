@@ -140,7 +140,7 @@ namespace Tomahawk
 					Device->SetVertexBuffer(IBoxShadow->VertexBuffer, 0);
 					Device->UpdateBuffer(IBoxShadow->Shader, &IBoxShadow->RenderPass);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-					Device->Draw(IBoxShadow->VertexBuffer->GetElements(), 0);
+					Device->Draw((unsigned int)IBoxShadow->VertexBuffer->GetElements(), 0);
 				}
 			};
 
@@ -196,7 +196,7 @@ namespace Tomahawk
 					Device->SetVertexBuffer(IBoxBlur->VertexBuffer, 0);
 					Device->UpdateBuffer(IBoxBlur->Shader, &IBoxBlur->RenderPass);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-					Device->Draw(IBoxBlur->VertexBuffer->GetElements(), 0);
+					Device->Draw((unsigned int)IBoxBlur->VertexBuffer->GetElements(), 0);
 				}
 			};
 

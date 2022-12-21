@@ -11201,7 +11201,7 @@ namespace Tomahawk
 
 			for (size_t i = 0; i < Size; i++)
 			{
-				auto* Node = &Instance->m_nodes[i]; Vertex& Position = Result->at(i);
+				auto* Node = &Instance->m_nodes[(int)i]; Vertex& Position = Result->at(i);
 				memcpy(&Position + PositionX, Node->m_x.m_floats, sizeof(float) * 3);
 				memcpy(&Position + NormalX, Node->m_n.m_floats, sizeof(float) * 3);
 			}

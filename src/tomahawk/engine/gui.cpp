@@ -139,7 +139,7 @@ namespace Tomahawk
 					Device->SetVertexBuffer(Buffer->VertexBuffer, 0);
 					Device->SetIndexBuffer(Buffer->IndexBuffer, Graphics::Format::R32_Uint);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-					Device->DrawIndexed(Buffer->IndexBuffer->GetElements(), 0, 0);
+					Device->DrawIndexed((unsigned int)Buffer->IndexBuffer->GetElements(), 0, 0);
 				}
 				virtual void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle Handle) override
 				{
@@ -219,7 +219,7 @@ namespace Tomahawk
 					Device->SetShader(Shader, TH_VS | TH_PS);
 					Device->SetVertexBuffer(VertexBuffer, 0);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-					Device->Draw(VertexBuffer->GetElements(), 0);
+					Device->Draw((unsigned int)VertexBuffer->GetElements(), 0);
 					Device->SetDepthStencilState(ScissorDepthStencil);
 					Device->SetBlendState(AlphaBlend);
 				}
@@ -1125,7 +1125,7 @@ namespace Tomahawk
 			}
 			bool IElement::IsClassSet(const std::string& ClassName) const
 			{
-				TH_ASSERT(IsValid(), nullptr, "element should be valid");
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsClassSet(ClassName);
 			}
 			void IElement::SetClassNames(const std::string& ClassNames)
@@ -1568,7 +1568,7 @@ namespace Tomahawk
 			}
 			bool IElement::HasChildNodes() const
 			{
-				TH_ASSERT(IsValid(), nullptr, "element should be valid");
+				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->HasChildNodes();
 			}
 			IElement IElement::GetElementById(const std::string& Id)

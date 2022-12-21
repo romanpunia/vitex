@@ -2,13 +2,19 @@
 #include "../audio/effects.h"
 #include "../audio/filters.h"
 #ifdef TH_HAS_OPENAL
+#ifdef TH_AL_AT_OPENAL
+#include <OpenAL/al.h>
+#include <OpenAL/alc.h>
+#else
 #include <AL/al.h>
 #include <AL/alc.h>
 #include <AL/efx.h>
 #include <AL/efx-presets.h>
+#define HAS_EFX
+#endif
 #endif
 #define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 namespace
 {
 	LPALGENFILTERS alGenFilters = nullptr;
@@ -55,7 +61,7 @@ namespace Tomahawk
 			if (!Mutex)
 				Mutex = TH_NEW(std::mutex);
 
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			LOAD_PROC(LPALGENFILTERS, alGenFilters);
 			LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
 			LOAD_PROC(LPALISFILTER, alIsFilter);
@@ -347,13 +353,13 @@ namespace Tomahawk
 
 		AudioFilter::AudioFilter()
 		{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			Filter = AL_FILTER_NULL;
 #endif
 		}
 		AudioFilter::~AudioFilter()
 		{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			AudioContext::Lock();
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
@@ -362,7 +368,7 @@ namespace Tomahawk
 		}
 		bool AudioFilter::CreateLocked(const std::function<bool()>& Callback)
 		{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			AudioContext::Lock();
 			if (alDeleteFilters != nullptr && Filter != AL_FILTER_NULL)
 				alDeleteFilters(1, &Filter);
@@ -383,7 +389,7 @@ namespace Tomahawk
 
 		AudioEffect::AudioEffect()
 		{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			Effect = AL_EFFECT_NULL;
 			Slot = AL_EFFECTSLOT_NULL;
 #endif
@@ -391,7 +397,7 @@ namespace Tomahawk
 		AudioEffect::~AudioEffect()
 		{
 			Unbind();
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			AudioContext::Lock();
 			if (alDeleteEffects != nullptr && Effect != AL_EFFECT_NULL)
 				alDeleteEffects(1, &Effect);
@@ -404,7 +410,7 @@ namespace Tomahawk
 		}
 		bool AudioEffect::CreateLocked(const std::function<bool()>& Callback)
 		{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			AudioContext::Lock();
 			if (alDeleteAuxiliaryEffectSlots != nullptr && Slot != AL_EFFECTSLOT_NULL)
 				alDeleteAuxiliaryEffectSlots(1, &Slot);
@@ -444,7 +450,7 @@ namespace Tomahawk
 			TH_ASSERT(Source != nullptr, false, "source should not be empty");
 			Source = NewSource;
 			Zone = NewZone;
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, (ALint)Slot, Zone, (ALint)(Filter ? Filter->Filter : AL_FILTER_NULL));
 			AudioContext::Unlock();
@@ -454,7 +460,7 @@ namespace Tomahawk
 		bool AudioEffect::Unbind()
 		{
 			TH_ASSERT(Source != nullptr, false, "source should not be empty");
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			AudioContext::Lock();
 			alSource3i(Source->GetInstance(), AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, Zone, AL_FILTER_NULL);
 			AudioContext::Unlock();
@@ -623,7 +629,7 @@ namespace Tomahawk
 				Effect->Synchronize();
 				if (Effect->Filter != nullptr)
 					Effect->Filter->Synchronize();
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				if (alAuxiliaryEffectSloti != nullptr && Effect->Effect != AL_EFFECT_NULL && Effect->Slot != AL_EFFECTSLOT_NULL)
 					alAuxiliaryEffectSloti(Effect->Slot, AL_EFFECTSLOT_EFFECT, (ALint)Effect->Effect);
 #endif

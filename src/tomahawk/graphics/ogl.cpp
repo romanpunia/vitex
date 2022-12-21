@@ -1532,7 +1532,7 @@ namespace Tomahawk
 				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
-				glDrawElements(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
+				glDrawElements(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
 			}
 			void OGLDevice::DrawIndexed(SkinMeshBuffer* Resource)
 			{
@@ -1541,7 +1541,7 @@ namespace Tomahawk
 				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
-				glDrawElements(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
+				glDrawElements(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
 			}
 			void OGLDevice::DrawIndexedInstanced(unsigned int IndexCountPerInstance, unsigned int InstanceCount, unsigned int IndexLocation, unsigned int VertexLocation, unsigned int InstanceLocation)
 			{
@@ -3430,7 +3430,7 @@ namespace Tomahawk
 					Result.append(VertexShaderCode);
 
 					const char* Subbuffer = Result.data();
-					GLint BufferSize = Result.size();
+					GLint BufferSize = (GLint)Result.size();
 					Immediate.VertexShader = glCreateShader(GL_VERTEX_SHADER);
 					glShaderSourceARB(Immediate.VertexShader, 1, &Subbuffer, &BufferSize);
 					glCompileShaderARB(Immediate.VertexShader);
@@ -3471,7 +3471,7 @@ namespace Tomahawk
 					Result.append(PixelShaderCode);
 
 					const char* Subbuffer = Result.data();
-					GLint BufferSize = Result.size();
+					GLint BufferSize = (GLint)Result.size();
 					Immediate.PixelShader = glCreateShader(GL_FRAGMENT_SHADER);
 					glShaderSourceARB(Immediate.PixelShader, 1, &Subbuffer, &BufferSize);
 					glCompileShaderARB(Immediate.PixelShader);

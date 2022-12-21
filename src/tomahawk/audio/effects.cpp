@@ -1,12 +1,17 @@
 #include "effects.h"
 #include "filters.h"
 #include "../core/engine.h"
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
+#ifdef TH_AL_AT_OPENAL
+#include <OpenAL/al.h>
+#else
 #include <AL/al.h>
 #include <AL/efx.h>
+#define HAS_EFX
+#endif
 #endif
 #define LOAD_PROC(T, X) ((X) = (T)alGetProcAddress(#X))
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 namespace
 {
 	LPALGENFILTERS alGenFilters = nullptr;
@@ -53,7 +58,7 @@ namespace Tomahawk
 		{
 			void EffectContext::Create()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				LOAD_PROC(LPALGENFILTERS, alGenFilters);
 				LOAD_PROC(LPALDELETEFILTERS, alDeleteFilters);
 				LOAD_PROC(LPALISFILTER, alIsFilter);
@@ -117,7 +122,7 @@ namespace Tomahawk
 
 			Reverb::Reverb()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					EAX = (alGetEnumValue("AL_EFFECT_EAXREVERB") != 0);
@@ -134,7 +139,7 @@ namespace Tomahawk
 			}
 			void Reverb::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				if (EAX)
 				{
@@ -280,7 +285,7 @@ namespace Tomahawk
 
 			Chorus::Chorus()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_CHORUS);
@@ -294,7 +299,7 @@ namespace Tomahawk
 			}
 			void Chorus::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_CHORUS_DELAY, Rate);
 				alEffectf(Effect, AL_CHORUS_DEPTH, Depth);
@@ -347,7 +352,7 @@ namespace Tomahawk
 
 			Distortion::Distortion()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_DISTORTION);
@@ -361,7 +366,7 @@ namespace Tomahawk
 			}
 			void Distortion::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_DISTORTION_EDGE, Edge);
 				alEffectf(Effect, AL_DISTORTION_GAIN, Gain);
@@ -410,7 +415,7 @@ namespace Tomahawk
 
 			Echo::Echo()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_ECHO);
@@ -424,7 +429,7 @@ namespace Tomahawk
 			}
 			void Echo::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_ECHO_DELAY, Delay);
 				alEffectf(Effect, AL_ECHO_LRDELAY, LRDelay);
@@ -473,7 +478,7 @@ namespace Tomahawk
 
 			Flanger::Flanger()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_FLANGER);
@@ -487,7 +492,7 @@ namespace Tomahawk
 			}
 			void Flanger::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_FLANGER_RATE, Rate);
 				alEffectf(Effect, AL_FLANGER_DEPTH, Depth);
@@ -540,7 +545,7 @@ namespace Tomahawk
 
 			FrequencyShifter::FrequencyShifter()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_FREQUENCY_SHIFTER);
@@ -554,7 +559,7 @@ namespace Tomahawk
 			}
 			void FrequencyShifter::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_FREQUENCY_SHIFTER_FREQUENCY, Frequency);
 				alEffecti(Effect, AL_FREQUENCY_SHIFTER_LEFT_DIRECTION, LeftDirection);
@@ -595,7 +600,7 @@ namespace Tomahawk
 
 			VocalMorpher::VocalMorpher()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_VOCAL_MORPHER);
@@ -609,7 +614,7 @@ namespace Tomahawk
 			}
 			void VocalMorpher::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_VOCAL_MORPHER_RATE, Rate);
 				alEffecti(Effect, AL_VOCAL_MORPHER_PHONEMEA, Phonemea);
@@ -662,7 +667,7 @@ namespace Tomahawk
 
 			PitchShifter::PitchShifter()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_PITCH_SHIFTER);
@@ -676,7 +681,7 @@ namespace Tomahawk
 			}
 			void PitchShifter::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffecti(Effect, AL_PITCH_SHIFTER_COARSE_TUNE, CoarseTune);
 				alEffecti(Effect, AL_PITCH_SHIFTER_FINE_TUNE, FineTune);
@@ -713,7 +718,7 @@ namespace Tomahawk
 
 			RingModulator::RingModulator()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_RING_MODULATOR);
@@ -727,7 +732,7 @@ namespace Tomahawk
 			}
 			void RingModulator::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_RING_MODULATOR_FREQUENCY, Frequency);
 				alEffectf(Effect, AL_RING_MODULATOR_HIGHPASS_CUTOFF, HighpassCutOff);
@@ -768,7 +773,7 @@ namespace Tomahawk
 
 			Autowah::Autowah()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_AUTOWAH);
@@ -782,7 +787,7 @@ namespace Tomahawk
 			}
 			void Autowah::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_AUTOWAH_ATTACK_TIME, AttackTime);
 				alEffectf(Effect, AL_AUTOWAH_RELEASE_TIME, ReleaseTime);
@@ -827,7 +832,7 @@ namespace Tomahawk
 
 			Compressor::Compressor()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_COMPRESSOR);
@@ -862,7 +867,7 @@ namespace Tomahawk
 
 			Equalizer::Equalizer()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				CreateLocked([this]()
 				{
 					alEffecti(Effect, AL_EFFECT_TYPE, AL_EFFECT_EQUALIZER);
@@ -876,7 +881,7 @@ namespace Tomahawk
 			}
 			void Equalizer::Synchronize()
 			{
-#ifdef TH_HAS_OPENAL
+#if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 				AudioContext::Lock();
 				alEffectf(Effect, AL_EQUALIZER_LOW_GAIN, LowGain);
 				alEffectf(Effect, AL_EQUALIZER_LOW_CUTOFF, LowCutOff);

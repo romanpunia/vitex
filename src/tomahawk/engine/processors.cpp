@@ -5,7 +5,11 @@
 #include <stb_vorbis.h>
 #include <sstream>
 #ifdef TH_HAS_OPENAL
+#ifdef TH_AL_AT_OPENAL
+#include <OpenAL/al.h>
+#else
 #include <AL/al.h>
+#endif
 #endif
 #ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>

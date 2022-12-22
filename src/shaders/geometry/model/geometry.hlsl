@@ -11,12 +11,12 @@ VOutput vs_main(VInput V)
 	Result.Tangent = normalize(mul(V.Tangent, (float3x3)V.OB_World));
 	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)V.OB_World));
 	Result.TexCoord = V.TexCoord * V.OB_TexCoord;
-    Result.OB_Diffuse = V.OB_Diffuse;
-    Result.OB_Normal = V.OB_Normal;
-    Result.OB_Height = V.OB_Height;
-    Result.OB_MaterialId = V.OB_MaterialId;
+    Result.OB_Diffuse = V.OB_Material.x;
+    Result.OB_Normal = V.OB_Material.y;
+    Result.OB_Height = V.OB_Material.z;
+    Result.OB_MaterialId = V.OB_Material.w;
     
-	[branch] if (V.OB_Height > 0)
+	[branch] if (Result.OB_Height > 0)
 		Result.Direction = GetDirection(Result.Tangent, Result.Bitangent, Result.Normal, mul(float4(V.Position, 1.0), ob_World), ob_TexCoord.xy);
 
 	return Result;

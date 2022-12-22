@@ -136,7 +136,7 @@ namespace Tomahawk
 
 					Device->SetTexture2D(Buffer->Texture, 1, TH_PS);
 					Device->SetShader(Shader, TH_VS | TH_PS);
-					Device->SetVertexBuffer(Buffer->VertexBuffer, 0);
+					Device->SetVertexBuffer(Buffer->VertexBuffer);
 					Device->SetIndexBuffer(Buffer->IndexBuffer, Graphics::Format::R32_Uint);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Buffer->IndexBuffer->GetElements(), 0, 0);
@@ -217,7 +217,7 @@ namespace Tomahawk
 					Device->ClearDepth();
 					Device->SetBlendState(ColorlessBlend);
 					Device->SetShader(Shader, TH_VS | TH_PS);
-					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetVertexBuffer(VertexBuffer);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw((unsigned int)VertexBuffer->GetElements(), 0);
 					Device->SetDepthStencilState(ScissorDepthStencil);

@@ -10,9 +10,9 @@ VOutput vs_main(VInput V)
 	Result.Tangent = normalize(mul(V.Tangent, (float3x3)V.OB_World));
 	Result.Bitangent = normalize(mul(V.Bitangent, (float3x3)V.OB_World));
 	Result.TexCoord = V.TexCoord * V.OB_TexCoord.xy;
-    Result.OB_Diffuse = V.OB_Diffuse;
-    Result.OB_Normal = V.OB_Normal;
-    Result.OB_MaterialId = V.OB_MaterialId;
+    Result.OB_Diffuse = V.OB_Material.x;
+    Result.OB_Normal = V.OB_Material.y;
+    Result.OB_MaterialId = V.OB_Material.w;
 
 	return Result;
 }

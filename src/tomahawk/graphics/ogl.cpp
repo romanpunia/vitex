@@ -132,6 +132,14 @@ namespace Tomahawk
 
 			OGLInputLayout::OGLInputLayout(const Desc& I) : InputLayout(I)
 			{
+				const auto LayoutSize = [this]()
+				{
+					size_t Size = 0;
+					for (auto Item : VertexLayout)
+						Size += Item.second.size();
+					return Size;
+				};
+
 				for (size_t i = 0; i < I.Attributes.size(); i++)
 				{
 					const Attribute& It = I.Attributes[i];
@@ -144,26 +152,28 @@ namespace Tomahawk
 
 					switch (It.Format)
 					{
-						case Tomahawk::Graphics::AttributeType::Byte:
+						case AttributeType::Byte:
 							Format = GL_BYTE;
 							Normalize = GL_TRUE;
 							break;
-						case Tomahawk::Graphics::AttributeType::Ubyte:
+						case AttributeType::Ubyte:
 							Format = GL_UNSIGNED_BYTE;
 							Normalize = GL_TRUE;
 							break;
-						case Tomahawk::Graphics::AttributeType::Half:
+						case AttributeType::Half:
 							Format = GL_HALF_FLOAT;
 							break;
-						case Tomahawk::Graphics::AttributeType::Float:
-						case Tomahawk::Graphics::AttributeType::Matrix:
+						case AttributeType::Float:
 							Format = GL_FLOAT;
-							Size = sizeof(Compute::Matrix4x4);
 							break;
-						case Tomahawk::Graphics::AttributeType::Int:
+						case AttributeType::Matrix:
+							Format = GL_FLOAT;
+							Size = 4;
+							break;
+						case AttributeType::Int:
 							Format = GL_INT;
 							break;
-						case Tomahawk::Graphics::AttributeType::Uint:
+						case AttributeType::Uint:
 							Format = GL_UNSIGNED_INT;
 							break;
 						default:
@@ -171,21 +181,53 @@ namespace Tomahawk
 					}
 
 					auto& Layout = VertexLayout[BufferSlot];
-					size_t Offset = Layout.size();
-					Layout.emplace_back([Offset, Format, Normalize, Stride, Size, PerVertex](uint64_t Width)
+					if (It.Format == AttributeType::Matrix)
 					{
-						glEnableVertexAttribArray(Offset);
-						glVertexAttribPointer(Offset, Size, Format, Normalize, Width, OGL_VOFFSET(Stride));
-						glVertexAttribDivisor(Offset, PerVertex ? 0 : 1);
-					});
+						for (size_t j = 0; j < 4; j++)
+						{
+							size_t Offset = LayoutSize(), Substride = Stride + sizeof(float) * Size * j;
+							Layout.emplace_back([Offset, Format, Normalize, Substride, Size, PerVertex](uint64_t Width)
+							{
+								glEnableVertexAttribArray(Offset);
+								glVertexAttribPointer(Offset, Size, Format, Normalize, Width, OGL_VOFFSET(Substride));
+								glVertexAttribDivisor(Offset, PerVertex ? 0 : 1);
+							});
+						}
+					}
+					else
+					{
+						size_t Offset = LayoutSize();
+						Layout.emplace_back([Offset, Format, Normalize, Stride, Size, PerVertex](uint64_t Width)
+						{
+							glEnableVertexAttribArray(Offset);
+							glVertexAttribPointer(Offset, Size, Format, Normalize, Width, OGL_VOFFSET(Stride));
+							glVertexAttribDivisor(Offset, PerVertex ? 0 : 1);
+						});
+					}
 				}
 			}
 			OGLInputLayout::~OGLInputLayout()
 			{
+				for (auto& Item : Layouts)
+					glDeleteVertexArrays(1, &Item.second);
+
+				if (DynamicResource != GL_NONE)
+					glDeleteVertexArrays(1, &DynamicResource);
 			}
 			void* OGLInputLayout::GetResource()
 			{
 				return (void*)this;
+			}
+			std::string OGLInputLayout::GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count)
+			{
+				std::string Hash;
+				if (!Buffers || !Count)
+					return Hash;
+
+				for (unsigned int i = 0; i < Count; i++)
+					Hash += std::to_string((uintptr_t)(void*)Buffers[i]);
+
+				return Hash;
 			}
 
 			OGLShader::OGLShader(const Desc& I) : Shader(I), Compiled(false)
@@ -210,8 +252,6 @@ namespace Tomahawk
 			}
 			OGLElementBuffer::~OGLElementBuffer()
 			{
-				for (auto& Item : Layouts)
-					glDeleteVertexArrays(1, &Item.second);
 				glDeleteBuffers(1, &Resource);
 			}
 			void* OGLElementBuffer::GetResource()
@@ -795,25 +835,8 @@ namespace Tomahawk
 			}
 			void OGLDevice::SetInputLayout(InputLayout* State)
 			{
-				OGLInputLayout* Prev = Register.Layout;
-				OGLInputLayout* Next = (OGLInputLayout*)State;
-				REG_EXCHANGE(Layout, Next);
-
-				SetVertexBuffer(nullptr, 0);
-
-				size_t Enables = (Next ? Next->VertexLayout.size() : 0);
-				if (Prev != nullptr)
-				{
-					for (size_t i = Enables; i < Prev->VertexLayout.size(); i++)
-						glDisableVertexAttribArray(i);
-				}
-
-				size_t Disables = (Prev ? Prev->VertexLayout.size() : 0);
-				if (Next != nullptr)
-				{
-					for (size_t i = Disables; i < Next->VertexLayout.size(); i++)
-						glEnableVertexAttribArray(i);
-				}
+				REG_EXCHANGE(Layout, (OGLInputLayout*)State);
+				SetVertexBuffers(nullptr, 0);
 			}
 			void OGLDevice::SetShader(Shader* Resource, unsigned int Type)
 			{
@@ -998,30 +1021,62 @@ namespace Tomahawk
 				else
 					Register.IndexFormat = GL_UNSIGNED_INT;
 			}
-			void OGLDevice::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot)
+			void OGLDevice::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage)
 			{
-				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+				TH_ASSERT_V(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
+				TH_ASSERT_V(Count <= TH_MAX_UNITS, "slot should be less than or equal to %i", (int)TH_MAX_UNITS);
 
-				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
-				REG_EXCHANGE_T2(VertexBuffer, IResource, Slot);
+				static OGLElementBuffer* IResources[TH_MAX_UNITS] = { nullptr };
+				bool HasBuffers = false;
+
+				for (unsigned int i = 0; i < Count; i++)
+				{
+					IResources[i] = (OGLElementBuffer*)Resources[i];
+					Register.VertexBuffers[i] = IResources[i];
+					if (IResources[i] != nullptr)
+						HasBuffers = true;
+				}
 
 				SetIndexBuffer(nullptr, Format::Unknown);
-				if (!IResource || !Register.Layout)
+				if (!Count || !HasBuffers || !Register.Layout)
 					return (void)glBindVertexArray(0);
 
-				auto It = IResource->Layouts.find(Register.Layout);
-				if (It == IResource->Layouts.end())
+				if (!DynamicLinkage)
 				{
-					GLuint Buffer;
-					glGenVertexArrays(1, &Buffer);
-					glBindVertexArray(Buffer);
-					glBindBuffer(GL_ARRAY_BUFFER, IResource->Resource);
-					for (auto& Attribute : Register.Layout->VertexLayout[Slot])
-						Attribute(IResource->Stride);
-					IResource->Layouts[Register.Layout] = Buffer;
+					std::string Hash = OGLInputLayout::GetLayoutHash(IResources, Count);
+					auto It = Register.Layout->Layouts.find(Hash);
+					if (It == Register.Layout->Layouts.end())
+					{
+						GLuint Buffer;
+						glGenVertexArrays(1, &Buffer);
+						glBindVertexArray(Buffer);
+						Register.Layout->Layouts[Hash] = Buffer;
+						DynamicLinkage = true;
+					}
+					else
+						glBindVertexArray(It->second);
+
+					if (!DynamicLinkage)
+						return;
 				}
 				else
-					glBindVertexArray(It->second);
+				{
+					if (Register.Layout->DynamicResource == GL_NONE)
+						glGenVertexArrays(1, &Register.Layout->DynamicResource);
+					glBindVertexArray(Register.Layout->DynamicResource);
+				}
+
+				TH_ASSERT_V(Count <= Register.Layout->VertexLayout.size(), "too many vertex buffers are being bound: %llu out of %llu", (uint64_t)Count, (uint64_t)Register.Layout->VertexLayout.size());
+				for (unsigned int i = 0; i < Count; i++)
+				{
+					OGLElementBuffer* IResource = IResources[i];
+					if (!IResource)
+						continue;
+
+					glBindBuffer(GL_ARRAY_BUFFER, IResource->Resource);
+					for (auto& Attribute : Register.Layout->VertexLayout[i])
+						Attribute(IResource->Stride);
+				}
 			}
 			void OGLDevice::SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type)
 			{
@@ -1528,8 +1583,9 @@ namespace Tomahawk
 			void OGLDevice::DrawIndexed(MeshBuffer* Resource)
 			{
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+				ElementBuffer* VertexBuffer = Resource->GetVertexBuffer();
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
-				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
+				SetVertexBuffers(&VertexBuffer, 1);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
 				glDrawElements(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
@@ -1537,8 +1593,9 @@ namespace Tomahawk
 			void OGLDevice::DrawIndexed(SkinMeshBuffer* Resource)
 			{
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
+				ElementBuffer* VertexBuffer = Resource->GetVertexBuffer();
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
-				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
+				SetVertexBuffers(&VertexBuffer, 1);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
 				glDrawElements(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr);
@@ -1552,9 +1609,9 @@ namespace Tomahawk
 				TH_ASSERT_V(Instances != nullptr, "instances should be set");
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 
+				ElementBuffer* VertexBuffers[2] = { Resource->GetVertexBuffer(), Instances };
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
-				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
-				SetVertexBuffer(Instances, 1);
+				SetVertexBuffers(VertexBuffers, 2, true);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
 				glDrawElementsInstanced(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, InstanceCount);
@@ -1564,9 +1621,9 @@ namespace Tomahawk
 				TH_ASSERT_V(Instances != nullptr, "instances should be set");
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 
+				ElementBuffer* VertexBuffers[2] = { Resource->GetVertexBuffer(), Instances };
 				ElementBuffer* IndexBuffer = Resource->GetIndexBuffer();
-				SetVertexBuffer(Resource->GetVertexBuffer(), 0);
-				SetVertexBuffer(Instances, 1);
+				SetVertexBuffers(VertexBuffers, 2, true);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
 				glDrawElementsInstanced(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, InstanceCount);
@@ -3403,7 +3460,7 @@ namespace Tomahawk
 			{
 				MaxElements = Size;
 				SetInputLayout(nullptr);
-				SetVertexBuffer(nullptr, 0);
+				SetVertexBuffers(nullptr, 0);
 				SetIndexBuffer(nullptr, Format::Unknown);
 
 				GLint StatusCode;
@@ -3537,7 +3594,7 @@ namespace Tomahawk
 				glEnableVertexAttribArray(2);
 				glBindVertexArray(0);
 
-				SetVertexBuffer(nullptr, 0);
+				SetVertexBuffers(nullptr, 0);
 				return true;
 			}
 			const char* OGLDevice::GetShaderVersion()

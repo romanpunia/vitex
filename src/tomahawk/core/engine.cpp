@@ -3870,7 +3870,7 @@ namespace Tomahawk
 			Conf.Device->SetSamplerState(Display.Sampler, 1, 1, TH_PS);
 			Conf.Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
 			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
-			Conf.Device->SetVertexBuffer(Conf.Primitives->GetQuad(), 0);
+			Conf.Device->SetVertexBuffer(Conf.Primitives->GetQuad());
 			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 			Conf.Device->Draw(6, 0);
 			Conf.Device->SetTexture2D(nullptr, 1, TH_PS);
@@ -6390,7 +6390,7 @@ namespace Tomahawk
 			Device->SetTexture2D(Input->GetTarget(1), 2, TH_PS);
 			Device->SetTexture2D(Input->GetTarget(2), 3, TH_PS);
 			Device->SetTexture2D(Input->GetTarget(3), 4, TH_PS);
-			Device->SetVertexBuffer(Cache->GetQuad(), 0);
+			Device->SetVertexBuffer(Cache->GetQuad());
 
 			RenderEffect(Time);
 

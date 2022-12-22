@@ -940,16 +940,24 @@ namespace Tomahawk
 				REG_EXCHANGE_T2(IndexBuffer, IResource, FormatMode);
 				ImmediateContext->IASetIndexBuffer(IResource ? IResource->Element : nullptr, (DXGI_FORMAT)FormatMode, 0);
 			}
-			void D3D11Device::SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot)
+			void D3D11Device::SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool)
 			{
-				TH_ASSERT_V(Slot < TH_MAX_UNITS, "slot should be less than %i", (int)TH_MAX_UNITS);
+				TH_ASSERT_V(Resources != nullptr || !Count, "invalid vertex buffer array pointer");
+				TH_ASSERT_V(Count <= TH_MAX_UNITS, "slot should be less than or equal to %i", (int)TH_MAX_UNITS);
 
-				D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resource;
-				REG_EXCHANGE_T2(VertexBuffer, IResource, Slot);
+				static ID3D11Buffer* IBuffers[TH_MAX_UNITS] = { nullptr };
+				static unsigned int Strides[TH_MAX_UNITS] = { 0 };
+				static unsigned int Offsets[TH_MAX_UNITS] = { 0 };
 
-				ID3D11Buffer* IBuffer = (IResource ? IResource->Element : nullptr);
-				unsigned int Stride = (IResource ? IResource->Stride : 0), Offset = 0;
-				ImmediateContext->IASetVertexBuffers(Slot, 1, &IBuffer, &Stride, &Offset);
+				for (unsigned int i = 0; i < Count; i++)
+				{
+					D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resources[i];
+					IBuffers[i] = (IResource ? IResource->Element : nullptr);
+					Strides[i] = (IResource ? IResource->Stride : 0);
+					REG_EXCHANGE_RS(VertexBuffers, IResource, i, i);
+				}
+
+				ImmediateContext->IASetVertexBuffers(0, Count, IBuffers, Strides, Offsets);
 			}
 			void D3D11Device::SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable)
 			{
@@ -1445,9 +1453,9 @@ namespace Tomahawk
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
 				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
 
-				if (std::get<0>(Register.VertexBuffer) != VertexBuffer || std::get<1>(Register.VertexBuffer) != 0)
+				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
-					Register.VertexBuffer = std::make_tuple(VertexBuffer, 0);
+					Register.VertexBuffers[0] = std::make_pair(VertexBuffer, 0);
 					ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
 				}
 
@@ -1466,9 +1474,9 @@ namespace Tomahawk
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
 				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
 
-				if (std::get<0>(Register.VertexBuffer) != VertexBuffer || std::get<1>(Register.VertexBuffer) != 0)
+				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
-					Register.VertexBuffer = std::make_tuple(VertexBuffer, 0);
+					Register.VertexBuffers[0] = std::make_pair(VertexBuffer, 0);
 					ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
 				}
 
@@ -1494,9 +1502,9 @@ namespace Tomahawk
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
 				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
 
-				if (std::get<0>(Register.VertexBuffer) != VertexBuffer || std::get<1>(Register.VertexBuffer) != 0)
+				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
-					Register.VertexBuffer = std::make_tuple(VertexBuffer, 0);
+					Register.VertexBuffers[0] = std::make_pair(VertexBuffer, 0);
 					ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
 				}
 
@@ -1520,9 +1528,9 @@ namespace Tomahawk
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
 				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
 
-				if (std::get<0>(Register.VertexBuffer) != VertexBuffer || std::get<1>(Register.VertexBuffer) != 0)
+				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
-					Register.VertexBuffer = std::make_tuple(VertexBuffer, 0);
+					Register.VertexBuffers[0] = std::make_pair(VertexBuffer, 0);
 					ImmediateContext->IASetVertexBuffers(0, 1, &VertexBuffer->Element, &Stride, &Offset);
 				}
 

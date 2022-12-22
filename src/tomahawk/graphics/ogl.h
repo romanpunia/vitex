@@ -19,6 +19,8 @@ namespace Tomahawk
 	{
 		namespace OGL
 		{
+			class OGLElementBuffer;
+
 			class OGLDevice;
 
 			struct OGLFrameBuffer
@@ -82,11 +84,16 @@ namespace Tomahawk
 
 			public:
 				std::unordered_map<size_t, std::vector<std::function<void(uint64_t)>>> VertexLayout;
+				std::unordered_map<std::string, GLuint> Layouts;
+				GLuint DynamicResource = GL_NONE;
 
 			public:
 				OGLInputLayout(const Desc& I);
 				virtual ~OGLInputLayout() override;
 				void* GetResource() override;
+
+			public:
+				static std::string GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count);
 			};
 
 			class OGLShader final : public Shader
@@ -117,7 +124,6 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			private:
-				std::unordered_map<OGLInputLayout*, GLuint> Layouts;
 				GLuint Resource = GL_NONE;
 				GLenum Flags = GL_NONE;
 
@@ -345,9 +351,9 @@ namespace Tomahawk
 
 				struct
 				{
-					std::tuple<OGLElementBuffer*, unsigned int> VertexBuffer = { nullptr, 0 };
 					std::tuple<OGLElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
 					std::unordered_map<uint64_t, GLuint> Programs;
+					std::array<OGLElementBuffer*, TH_MAX_UNITS> VertexBuffers = { };
 					std::array<GLuint, TH_MAX_UNITS> Bindings = { };
 					std::array<GLuint, TH_MAX_UNITS> Textures = { };
 					std::array<GLuint, TH_MAX_UNITS> Samplers = { };
@@ -385,7 +391,7 @@ namespace Tomahawk
 				void SetBuffer(InstanceBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetStructureBuffer(ElementBuffer* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
-				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) override;
+				void SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage = false) override;
 				void SetTexture2D(Texture2D* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) override;

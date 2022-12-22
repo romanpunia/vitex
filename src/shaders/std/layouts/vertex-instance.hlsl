@@ -8,10 +8,7 @@ struct VInput
     matrix OB_Transform : OB_TRANSFORM;
     matrix OB_World : OB_WORLD;
     float2 OB_TexCoord : OB_TEXCOORD;
-    float OB_Diffuse : OB_DIFFUSE;
-    float OB_Normal : OB_NORMAL;
-    float OB_Height : OB_HEIGHT;
-    float OB_MaterialId : OB_MATERIALID;
+	float4 OB_Material : OB_MATERIAL;
 };
 
 struct VOutput

@@ -7,8 +7,8 @@ VOutputLinear vs_main(VInput V)
 	VOutputLinear Result = (VOutputLinear)0;
 	Result.Position = Result.UV = mul(float4(V.Position, 1.0), V.OB_Transform);
 	Result.TexCoord = V.TexCoord * V.OB_TexCoord.xy;
-    Result.OB_Diffuse = V.OB_Diffuse;
-    Result.OB_MaterialId = V.OB_MaterialId;
+    Result.OB_Diffuse = V.OB_Material.x;
+    Result.OB_MaterialId = V.OB_Material.w;
 
 	return Result;
 }

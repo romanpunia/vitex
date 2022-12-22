@@ -70,7 +70,7 @@ namespace Tomahawk
 						Device->Render.World.Identify();
 						Device->Render.Transform = Device->Render.World * View.ViewProjection;
 						Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-						Device->SetVertexBuffer(VertexBuffer, 0);
+						Device->SetVertexBuffer(VertexBuffer);
 						Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 						Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 						CullingEnd();
@@ -79,7 +79,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
+					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex]);
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 
 					for (auto* Base : Chunk)
@@ -127,7 +127,7 @@ namespace Tomahawk
 					Device->Render.World.Identify();
 					Device->Render.Transform = System->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
-					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
@@ -162,7 +162,7 @@ namespace Tomahawk
 					Device->Render.World.Identify();
 					Device->Render.Transform.Identify();
 					Device->Render.TexCoord = Base->TexCoord;
-					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
@@ -200,7 +200,7 @@ namespace Tomahawk
 					Device->Render.Transform = System->View.ViewProjection;
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 
@@ -239,7 +239,7 @@ namespace Tomahawk
 					Device->Render.World.Identify();
 					Device->Render.TexCoord = Base->TexCoord;
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-					Device->SetVertexBuffer(VertexBuffer, 0);
+					Device->SetVertexBuffer(VertexBuffer);
 					Device->SetIndexBuffer(IndexBuffer, Graphics::Format::R32_Uint);
 					Device->DrawIndexed((unsigned int)Base->GetIndices().size(), 0, 0);
 
@@ -335,7 +335,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
+					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex]);
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 					for (auto* Base : Chunk)
 					{
@@ -376,7 +376,8 @@ namespace Tomahawk
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
-				Device->SetVertexBuffer(nullptr, 1);
+				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
+				Device->SetVertexBuffers(VertexBuffers, 2);
 				return Chunk.size();
 			}
 			size_t Model::RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
@@ -398,7 +399,8 @@ namespace Tomahawk
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
-				Device->SetVertexBuffer(nullptr, 1);
+				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
+				Device->SetVertexBuffers(VertexBuffers, 2);
 				Device->SetShader(nullptr, TH_GS);
 				return Chunk.size();
 			}
@@ -422,7 +424,8 @@ namespace Tomahawk
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
-				Device->SetVertexBuffer(nullptr, 1);
+				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
+				Device->SetVertexBuffers(VertexBuffers, 2);
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				return Chunk.size();
 			}
@@ -448,7 +451,8 @@ namespace Tomahawk
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
-				Device->SetVertexBuffer(nullptr, 1);
+				static Graphics::ElementBuffer* VertexBuffers[2] = { nullptr, nullptr };
+				Device->SetVertexBuffers(VertexBuffers, 2);
 				Device->SetTexture2D(nullptr, 1, TH_PS);
 				Device->SetShader(nullptr, TH_GS);
 				return Chunk.size();
@@ -526,7 +530,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
+					Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex]);
 					Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 					for (auto* Base : Chunk)
 					{
@@ -794,7 +798,7 @@ namespace Tomahawk
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 1, 7, TH_PS);
 				Device->SetShader(BaseShader, TH_VS | TH_PS);
-				Device->SetVertexBuffer(nullptr, 0);
+				Device->SetVertexBuffer(nullptr);
 
 				size_t Count = 0;
 				for (auto* Base : Chunk)
@@ -841,7 +845,7 @@ namespace Tomahawk
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetShader(Shaders.Depth.Linear, TH_VS | TH_PS);
-				Device->SetVertexBuffer(nullptr, 0);
+				Device->SetVertexBuffer(nullptr);
 
 				size_t Count = 0;
 				for (auto* Base : Chunk)
@@ -888,7 +892,7 @@ namespace Tomahawk
 				Device->SetBlendState(OverwriteBlend);
 				Device->SetRasterizerState(Rasterizer);
 				Device->SetInputLayout(Layout);
-				Device->SetVertexBuffer(nullptr, 0);
+				Device->SetVertexBuffer(nullptr);
 				Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 				Device->SetBuffer(Shaders.Depth.Quad, 3, TH_VS | TH_PS | TH_GS);
 				Device->UpdateBuffer(Shaders.Depth.Quad, &Depth);
@@ -953,7 +957,7 @@ namespace Tomahawk
 				Device->SetSamplerState(Sampler, 1, 8, TH_PS);
 				Device->SetShader(Shader, TH_VS | TH_PS);
 				Device->SetTexture2D(MRT->GetTarget(2), 8, TH_PS);
-				Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex], 0);
+				Device->SetVertexBuffer(Box[(size_t)BufferType::Vertex]);
 				Device->SetIndexBuffer(Box[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 
 				size_t Count = 0;
@@ -1130,7 +1134,7 @@ namespace Tomahawk
 				State.Device->SetTexture2D(MRT->GetTarget(1), 2, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(2), 3, TH_PS);
 				State.Device->SetTexture2D(MRT->GetTarget(3), 4, TH_PS);
-				State.Device->SetVertexBuffer(Cube[(size_t)BufferType::Vertex], 0);
+				State.Device->SetVertexBuffer(Cube[(size_t)BufferType::Vertex]);
 				State.Device->SetIndexBuffer(Cube[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 
 				RenderSurfaceLights();
@@ -1451,7 +1455,7 @@ namespace Tomahawk
 				State.Device->SetDepthStencilState(DepthStencilNone);
 				State.Device->SetSamplerState(DepthLessSampler, 5, 6, TH_PS);
 				State.Device->SetBuffer(Shaders.Line[0], 3, TH_VS | TH_PS);
-				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
+				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad());
 
 				for (auto It = Lights.Lines->Begin(); It != Lights.Lines->End(); ++It)
 				{
@@ -1549,7 +1553,7 @@ namespace Tomahawk
 				State.Device->SetTexture2D(RT->GetTarget(), 1, TH_PS);
 				State.Device->SetShader(Shaders.Ambient[1], TH_VS | TH_PS);
 				State.Device->SetBuffer(Shaders.Ambient[1], 3, TH_VS | TH_PS);
-				State.Device->SetVertexBuffer(Cube[(size_t)BufferType::Vertex], 0);
+				State.Device->SetVertexBuffer(Cube[(size_t)BufferType::Vertex]);
 				State.Device->SetIndexBuffer(Cube[(size_t)BufferType::Index], Graphics::Format::R32_Uint);
 
 				Compute::Vector3 Position, Scale;
@@ -1568,7 +1572,7 @@ namespace Tomahawk
 
 				State.Device->SetTexture2D(System->GetRT(TargetType::Main)->GetTarget(), 1, TH_PS);
 				State.Device->SetTexture3D(nullptr, 5, TH_PS);
-				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
+				State.Device->SetVertexBuffer(System->GetPrimitives()->GetQuad());
 
 				if (!State.Backcull)
 					State.Device->SetRasterizerState(BackRasterizer);
@@ -2042,7 +2046,7 @@ namespace Tomahawk
 				Device->SetTexture2D(MRT->GetTarget(3), 8, TH_PS);
 				Device->SetShader(Shader, TH_VS | TH_PS);
 				Device->SetBuffer(Shader, 3, TH_VS | TH_PS);
-				Device->SetVertexBuffer(System->GetPrimitives()->GetQuad(), 0);
+				Device->SetVertexBuffer(System->GetPrimitives()->GetQuad());
 				Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 				Device->Draw(6, 0);
 				Device->FlushTexture(1, 8, TH_PS);

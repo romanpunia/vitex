@@ -347,8 +347,8 @@ namespace Tomahawk
 				{
 					std::array<D3D11Shader*, 6> Shaders = { };
 					std::array<std::pair<ID3D11ShaderResourceView*, unsigned int>, TH_MAX_UNITS> Resources = { };
+					std::array<std::pair<D3D11ElementBuffer*, unsigned int>, TH_MAX_UNITS> VertexBuffers = { };
 					std::tuple<ID3D11SamplerState*, unsigned int, unsigned int> Sampler = { nullptr, 0, 0 };
-					std::tuple<D3D11ElementBuffer*, unsigned int> VertexBuffer = { nullptr, 0 };
 					std::tuple<D3D11ElementBuffer*, Format> IndexBuffer = { nullptr, Format::Unknown };
 					ID3D11BlendState* Blend = nullptr;
 					ID3D11RasterizerState* Rasterizer = nullptr;
@@ -387,7 +387,7 @@ namespace Tomahawk
 				void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) override;
 				void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) override;
-				void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) override;
+				void SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage = false) override;
 				void SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
 				void SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;
 				void SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable) override;

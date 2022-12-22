@@ -1675,7 +1675,7 @@ namespace Tomahawk
 			virtual void SetTexture3D(Texture3D* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetTextureCube(TextureCube* Resource, unsigned int Slot, unsigned int Type) = 0;
 			virtual void SetIndexBuffer(ElementBuffer* Resource, Format FormatMode) = 0;
-			virtual void SetVertexBuffer(ElementBuffer* Resource, unsigned int Slot) = 0;
+			virtual void SetVertexBuffers(ElementBuffer** Resources, unsigned int Count, bool DynamicLinkage = false) = 0;
 			virtual void SetWriteable(ElementBuffer** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
 			virtual void SetWriteable(Texture2D** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
 			virtual void SetWriteable(Texture3D** Resource, unsigned int Slot, unsigned int Count, bool Computable) = 0;
@@ -1795,6 +1795,7 @@ namespace Tomahawk
 			virtual void* GetDevice() = 0;
 			virtual void* GetContext() = 0;
 			virtual bool IsValid() = 0;
+			void SetVertexBuffer(ElementBuffer* Resource);
 			void Lock();
 			void Unlock();
 			bool Preprocess(Shader::Desc& Subresult);

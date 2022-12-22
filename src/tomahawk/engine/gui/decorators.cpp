@@ -137,7 +137,7 @@ namespace Tomahawk
 					SetWorldViewProjection(Device, Element, Position, Size, Offset.Abs() + Radius + 4096.0f);
 					Device->SetShader(IBoxShadow->Shader, TH_VS | TH_PS);
 					Device->SetBuffer(IBoxShadow->Shader, 3, TH_PS);
-					Device->SetVertexBuffer(IBoxShadow->VertexBuffer, 0);
+					Device->SetVertexBuffer(IBoxShadow->VertexBuffer);
 					Device->UpdateBuffer(IBoxShadow->Shader, &IBoxShadow->RenderPass);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw((unsigned int)IBoxShadow->VertexBuffer->GetElements(), 0);
@@ -193,7 +193,7 @@ namespace Tomahawk
 					Device->SetTexture2D(IBoxBlur->Background, 1, TH_PS);
 					Device->SetShader(IBoxBlur->Shader, TH_VS | TH_PS);
 					Device->SetBuffer(IBoxBlur->Shader, 3, TH_PS);
-					Device->SetVertexBuffer(IBoxBlur->VertexBuffer, 0);
+					Device->SetVertexBuffer(IBoxBlur->VertexBuffer);
 					Device->UpdateBuffer(IBoxBlur->Shader, &IBoxBlur->RenderPass);
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->Draw((unsigned int)IBoxBlur->VertexBuffer->GetElements(), 0);

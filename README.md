@@ -1,3 +1,8 @@
+## Tomahawk
+<p align="center">
+  <img width="640" height="320" src="https://github.com/romanpunia/tomahawk/blob/master/var/screenshot.png?raw=true">
+</p>
+
 ## About
 Tomahawk is a cross-platform C++14 framework to create any type of application from a unified interface. In it's core, Tomahawk is based on same concepts as Node.js but made to it's extreme. As in Node, Tomahawk has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
 

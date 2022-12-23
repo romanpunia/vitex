@@ -162,6 +162,7 @@ Another important aspect of Tomahawk is schemas, they are used to serialize and 
 + PBR global illumination volumes (radiance, reflections and ambient occlusion)
 + Bloom for emissive materials
 + Motion blur
++ Screen-space global illumination
 + Screen-space reflections
 + Screen-space ambient occlusion
 + Depth of field

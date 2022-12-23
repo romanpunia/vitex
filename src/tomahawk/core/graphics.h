@@ -1611,6 +1611,7 @@ namespace Tomahawk
 				VSync VSyncMode = VSync::Frequency_X1;
 				std::string CacheDirectory = "./assembly";
 				int IsWindowed = 1;
+				bool ShaderCache = true;
 				bool Debug = false;
 				unsigned int PresentationFlags = 0;
 				unsigned int CompilationFlags = (unsigned int)(ShaderCompile::Enable_Strictness | ShaderCompile::Optimization_Level3 | ShaderCompile::Matrix_Row_Major);
@@ -1648,6 +1649,7 @@ namespace Tomahawk
 			RenderBackend Backend;
 			DirectBuffer Direct;
 			std::mutex Mutex;
+			bool ShaderCache;
 			bool Debug;
 
 		public:
@@ -1796,6 +1798,7 @@ namespace Tomahawk
 			virtual void* GetContext() = 0;
 			virtual bool IsValid() = 0;
 			void SetVertexBuffer(ElementBuffer* Resource);
+			void SetShaderCache(bool Enabled);
 			void Lock();
 			void Unlock();
 			bool Preprocess(Shader::Desc& Subresult);

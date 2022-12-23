@@ -368,6 +368,7 @@ namespace Tomahawk
 				ILineLight LineLight;
 
 			public:
+				Graphics::Texture2D* LightingMap = nullptr;
 				IAmbientLight AmbientLight;
 				IVoxelBuffer VoxelBuffer;
 				bool EnableGI;
@@ -378,6 +379,7 @@ namespace Tomahawk
 				size_t RenderPass(Core::Timer* Time) override;
 				void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				void ResizeBuffers() override;
 				void BeginPass() override;
 				void EndPass() override;
 				void SetSkyMap(Graphics::Texture2D* Cubemap);
@@ -463,15 +465,17 @@ namespace Tomahawk
 				{
 					float Samples = 32.0f;
 					float Mips = 0.0f;
-					float Intensity = 1.4f;
-					float Distance = 4.0f;
+					float Intensity = 1.0f;
+					float Distance = 16.0f;
 				} Reflectance;
 
 				struct GlossBuffer
 				{
+					float Padding[3] = { 0.0f, 0.0f, 0.0f };
+					float Cutoff = 0.95f;
 					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 4.000f;
-					float Blur = 4.000f;
+					float Samples = 32.000f;
+					float Blur = 16.000f;
 				} Gloss;
 
 			public:
@@ -483,6 +487,56 @@ namespace Tomahawk
 
 			public:
 				TH_COMPONENT("ssr-renderer");
+			};
+
+			class TH_OUT SSGI final : public EffectRenderer
+			{
+			private:
+				struct
+				{
+					Graphics::Shader* Stochastic = nullptr;
+					Graphics::Shader* Indirection = nullptr;
+					Graphics::Shader* Denoise[2] = { nullptr };
+					Graphics::Shader* Additive = nullptr;
+				} Shaders;
+
+			public:
+				struct StochasticBuffer
+				{
+					float Texel[2] = { 1.0f, 1.0f };
+					float FrameId = 0.0f;
+					float Padding = 0.0f;
+				} Stochastic;
+
+				struct IndirectionBuffer
+				{
+					float Random[2] = { 0.0f, 0.0f };
+					float Samples = 6.0f;
+					float Distance = 10.0f;
+					float Padding = 0.0f;
+					float Cutoff = -0.2f;
+					float Attenuation = 0.2f;
+					float Swing = 16.0f;
+				} Indirection;
+
+				struct DenoiseBuffer
+				{
+					float Padding[3] = { 0.0f, 0.0f, 0.0f };
+					float Cutoff = 0.95f;
+					float Texel[2] = { 1.0f, 1.0f };
+					float Samples = 32.000f;
+					float Blur = 16.000f;
+				} Denoise;
+
+			public:
+				SSGI(RenderSystem* Lab);
+				virtual ~SSGI() = default;
+				void Deserialize(ContentManager* Content, Core::Schema* Node) override;
+				void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				void RenderEffect(Core::Timer* Time) override;
+
+			public:
+				TH_COMPONENT("ssgi-renderer");
 			};
 
 			class TH_OUT SSAO final : public EffectRenderer

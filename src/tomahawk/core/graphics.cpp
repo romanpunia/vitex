@@ -813,7 +813,7 @@ namespace Tomahawk
 		{
 		}
 
-		GraphicsDevice::GraphicsDevice(const Desc& I) : Primitives(PrimitiveTopology::Triangle_List), ShaderGen(ShaderModel::Invalid), ViewResource(nullptr), PresentFlags(I.PresentationFlags), CompileFlags(I.CompilationFlags), VSyncMode(I.VSyncMode), MaxElements(1), Backend(I.Backend), Debug(I.Debug)
+		GraphicsDevice::GraphicsDevice(const Desc& I) : Primitives(PrimitiveTopology::Triangle_List), ShaderGen(ShaderModel::Invalid), ViewResource(nullptr), PresentFlags(I.PresentationFlags), CompileFlags(I.CompilationFlags), VSyncMode(I.VSyncMode), MaxElements(1), Backend(I.Backend), ShaderCache(I.ShaderCache), Debug(I.Debug)
 		{
 			if (!I.CacheDirectory.empty())
 			{
@@ -837,6 +837,10 @@ namespace Tomahawk
 				SetVertexBuffers(&Resource, 1);
 			else
 				SetVertexBuffers(nullptr, 0);
+		}
+		void GraphicsDevice::SetShaderCache(bool Enabled)
+		{
+			ShaderCache = Enabled;
 		}
 		void GraphicsDevice::Lock()
 		{
@@ -1418,7 +1422,7 @@ namespace Tomahawk
 			TH_ASSERT(Data != nullptr, false, "data should be set");
 			Data->clear();
 
-			if (Caches.empty())
+			if (!ShaderCache || Caches.empty())
 				return false;
 
 			std::string Path = Caches + Name;
@@ -1446,7 +1450,7 @@ namespace Tomahawk
 		}
 		bool GraphicsDevice::SetProgramCache(const std::string& Name, const std::string& Data)
 		{
-			if (Caches.empty())
+			if (!ShaderCache || Caches.empty())
 				return true;
 
 			std::string Path = Caches + Name;

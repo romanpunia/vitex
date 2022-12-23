@@ -6207,6 +6207,7 @@ namespace Tomahawk
 			Core::Composer::Push<Renderers::DoF, RenderSystem*>(AsRenderer);
 			Core::Composer::Push<Renderers::Bloom, RenderSystem*>(AsRenderer);
 			Core::Composer::Push<Renderers::SSR, RenderSystem*>(AsRenderer);
+			Core::Composer::Push<Renderers::SSGI, RenderSystem*>(AsRenderer);
 			Core::Composer::Push<Renderers::SSAO, RenderSystem*>(AsRenderer);
 			Core::Composer::Push<Renderers::MotionBlur, RenderSystem*>(AsRenderer);
 			Core::Composer::Push<Renderers::UserInterface, RenderSystem*>(AsRenderer);

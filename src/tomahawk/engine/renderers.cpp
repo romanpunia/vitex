@@ -1036,6 +1036,7 @@ namespace Tomahawk
 				TH_RELEASE(Surfaces.Merger);
 				TH_RELEASE(SkyBase);
 				TH_RELEASE(SkyMap);
+				TH_RELEASE(LightingMap);
 			}
 			void Lighting::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -1086,6 +1087,10 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("shadow-distance"), Shadows.Distance);
 				NMake::Pack(Node->Set("sf-size"), Surfaces.Size);
 				NMake::Pack(Node->Set("gi"), EnableGI);
+			}
+			void Lighting::ResizeBuffers()
+			{
+				TH_CLEAR(LightingMap);
 			}
 			void Lighting::BeginPass()
 			{
@@ -1582,6 +1587,7 @@ namespace Tomahawk
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::RenderTarget2D* RT = (System->State.IsSubpass() ? Surfaces.Output : System->GetRT(TargetType::Secondary));
 				State.Device->CopyTarget(MRT, 0, RT, 0);
+				State.Device->CopyTexture2D(RT, 0, &LightingMap);
 				State.Device->SetSamplerState(WrapSampler, 1, 6, TH_PS);
 				State.Device->SetTexture2D(RT->GetTarget(), 5, TH_PS);
 				State.Device->SetTextureCube(SkyMap, 6, TH_PS);
@@ -1966,7 +1972,7 @@ namespace Tomahawk
 				Sampler = Device->GetSamplerState("trilinear-x16");
 				Layout = Device->GetInputLayout("shape-vertex");
 
-				Shader = System->CompileShader("merger/transparency", sizeof(RenderData));
+				Shader = System->CompileShader("postprocess/transparency", sizeof(RenderData));
 			}
 			Transparency::~Transparency()
 			{
@@ -2056,10 +2062,10 @@ namespace Tomahawk
 
 			SSR::SSR(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Reflectance = CompileEffect("raytracing/reflectance", sizeof(Reflectance));
-				Shaders.Gloss[0] = CompileEffect("blur/gloss-x", sizeof(Gloss));
-				Shaders.Gloss[1] = CompileEffect("blur/gloss-y");
-				Shaders.Additive = CompileEffect("merger/additive");
+				Shaders.Reflectance = CompileEffect("postprocess/reflectance", sizeof(Reflectance));
+				Shaders.Gloss[0] = CompileEffect("postprocess/gloss-x", sizeof(Gloss));
+				Shaders.Gloss[1] = CompileEffect("postprocess/gloss-y");
+				Shaders.Additive = CompileEffect("postprocess/additive");
 			}
 			void SSR::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -2069,6 +2075,8 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("samples-1"), &Reflectance.Samples);
 				NMake::Unpack(Node->Find("samples-2"), &Gloss.Samples);
 				NMake::Unpack(Node->Find("intensity"), &Reflectance.Intensity);
+				NMake::Unpack(Node->Find("distance"), &Reflectance.Distance);
+				NMake::Unpack(Node->Find("cutoff"), &Gloss.Cutoff);
 				NMake::Unpack(Node->Find("blur"), &Gloss.Blur);
 			}
 			void SSR::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -2079,6 +2087,8 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("samples-1"), Reflectance.Samples);
 				NMake::Pack(Node->Set("samples-2"), Gloss.Samples);
 				NMake::Pack(Node->Set("intensity"), Reflectance.Intensity);
+				NMake::Pack(Node->Set("distance"), Reflectance.Distance);
+				NMake::Pack(Node->Set("cutoff"), Gloss.Cutoff);
 				NMake::Pack(Node->Set("blur"), Gloss.Blur);
 			}
 			void SSR::RenderEffect(Core::Timer* Time)
@@ -2096,12 +2106,63 @@ namespace Tomahawk
 				RenderResult(Shaders.Additive);
 			}
 
+			SSGI::SSGI(RenderSystem* Lab) : EffectRenderer(Lab)
+			{
+				Shaders.Stochastic = CompileEffect("postprocess/stochastic", sizeof(Stochastic));
+				Shaders.Indirection = CompileEffect("postprocess/indirection", sizeof(Indirection));
+				Shaders.Denoise[0] = CompileEffect("postprocess/denoise-x", sizeof(Denoise));
+				Shaders.Denoise[1] = CompileEffect("postprocess/denoise-y");
+				Shaders.Additive = CompileEffect("postprocess/additive");
+			}
+			void SSGI::Deserialize(ContentManager* Content, Core::Schema* Node)
+			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
+
+				NMake::Unpack(Node->Find("samples-1"), &Indirection.Samples);
+				NMake::Unpack(Node->Find("samples-2"), &Denoise.Samples);
+				NMake::Unpack(Node->Find("cutoff-1"), &Indirection.Cutoff);
+				NMake::Unpack(Node->Find("cutoff-2"), &Denoise.Cutoff);
+				NMake::Unpack(Node->Find("attenuation"), &Indirection.Attenuation);
+				NMake::Unpack(Node->Find("swing"), &Indirection.Swing);
+				NMake::Unpack(Node->Find("blur"), &Denoise.Blur);
+			}
+			void SSGI::Serialize(ContentManager* Content, Core::Schema* Node)
+			{
+				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
+
+				NMake::Pack(Node->Set("samples-1"), Indirection.Samples);
+				NMake::Pack(Node->Set("samples-2"), Denoise.Samples);
+				NMake::Pack(Node->Set("cutoff-1"), Indirection.Cutoff);
+				NMake::Pack(Node->Set("cutoff-2"), Denoise.Cutoff);
+				NMake::Pack(Node->Set("attenuation"), Indirection.Attenuation);
+				NMake::Pack(Node->Set("swing"), Indirection.Swing);
+				NMake::Pack(Node->Set("blur"), Denoise.Blur);
+			}
+			void SSGI::RenderEffect(Core::Timer* Time)
+			{
+				Indirection.Random[0] = Compute::Math<float>::Random();
+				Indirection.Random[1] = Compute::Math<float>::Random();
+				Denoise.Texel[0] = 1.0f / GetWidth();
+				Denoise.Texel[1] = 1.0f / GetHeight();
+				Stochastic.Texel[0] = GetWidth();
+				Stochastic.Texel[1] = GetHeight();
+				Stochastic.FrameId++;
+
+				RenderMerge(Shaders.Stochastic, &Stochastic);
+				RenderMerge(Shaders.Indirection, &Indirection);
+				RenderMerge(Shaders.Denoise[0], &Denoise, 3);
+				RenderMerge(Shaders.Denoise[1], nullptr, 3);
+				RenderResult(Shaders.Additive);
+			}
+
 			SSAO::SSAO(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
-				Shaders.Shading = CompileEffect("raytracing/shading", sizeof(Shading));
-				Shaders.Fibo[0] = CompileEffect("blur/fibo-x", sizeof(Fibo));
-				Shaders.Fibo[1] = CompileEffect("blur/fibo-y");
-				Shaders.Multiply = CompileEffect("merger/multiply");
+				Shaders.Shading = CompileEffect("postprocess/shading", sizeof(Shading));
+				Shaders.Fibo[0] = CompileEffect("postprocess/fibo-x", sizeof(Fibo));
+				Shaders.Fibo[1] = CompileEffect("postprocess/fibo-y");
+				Shaders.Multiply = CompileEffect("postprocess/multiply");
 			}
 			void SSAO::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -2252,7 +2313,7 @@ namespace Tomahawk
 			MotionBlur::MotionBlur(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
 				Shaders.Velocity = CompileEffect("postprocess/velocity", sizeof(Velocity));
-				Shaders.Motion = CompileEffect("blur/motion", sizeof(Motion));
+				Shaders.Motion = CompileEffect("postprocess/motion", sizeof(Motion));
 			}
 			void MotionBlur::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -2285,9 +2346,9 @@ namespace Tomahawk
 			Bloom::Bloom(RenderSystem* Lab) : EffectRenderer(Lab)
 			{
 				Shaders.Bloom = CompileEffect("postprocess/bloom", sizeof(Extraction));
-				Shaders.Fibo[0] = CompileEffect("blur/fibo-x", sizeof(Fibo));
-				Shaders.Fibo[1] = CompileEffect("blur/fibo-y");
-				Shaders.Additive = CompileEffect("merger/additive");
+				Shaders.Fibo[0] = CompileEffect("postprocess/fibo-x", sizeof(Fibo));
+				Shaders.Fibo[1] = CompileEffect("postprocess/fibo-y");
+				Shaders.Additive = CompileEffect("postprocess/additive");
 			}
 			void Bloom::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{

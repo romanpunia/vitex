@@ -36,10 +36,9 @@ float3 Raysearch(float3 Ray1, float3 Ray2)
 
 	return Result;
 }
-float3 Raymarch(float3 Position, float3 Direction, float Iterations, float Distance)
+float3 Raymarch(float3 Position, float3 Direction, float Iterations, float Step)
 {
 	const float Bias = 0.00005;
-	float Step = Distance / Iterations;
 	float3 Ray = Direction * Step;
 	float3 Sample = 0.0;
 

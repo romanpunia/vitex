@@ -1,6 +1,6 @@
 /*
    AngelCode Scripting Library
-   Copyright (c) 2003-2022 Andreas Jonsson
+   Copyright (c) 2003-2021 Andreas Jonsson
 
    This software is provided 'as-is', without any express or implied
    warranty. In no event will the authors be held liable for any
@@ -1178,8 +1178,9 @@ asCScriptFunction *asCReader::ReadFunction(bool &isNew, bool addToModule, bool a
 	}
 	savedFunctions.PushLast(func);
 
-	int i;
+	int i, count;
 	asCDataType dt;
+	int num;
 
 	asCObjectType *parentClass = 0;
 	ReadFunctionSignature(func, &parentClass);
@@ -1248,8 +1249,28 @@ asCScriptFunction *asCReader::ReadFunction(bool &isNew, bool addToModule, bool a
 
 				func->scriptData->variableSpace = SanityCheck(ReadEncodedUInt(), 1000000);
 
+				func->scriptData->objVariablesOnHeap = 0;
 				if (bits & 8)
 				{
+					count = SanityCheck(ReadEncodedUInt(), 1000000);
+					func->scriptData->objVariablePos.Allocate(count, false);
+					func->scriptData->objVariableTypes.Allocate(count, false);
+					for (i = 0; i < count; ++i)
+					{
+						func->scriptData->objVariableTypes.PushLast(ReadTypeInfo());
+						num = ReadEncodedUInt();
+						func->scriptData->objVariablePos.PushLast(num);
+
+						if (error)
+						{
+							// No need to continue (the error has already been reported before)
+							func->DestroyHalfCreated();
+							return 0;
+						}
+					}
+					if (count > 0)
+						func->scriptData->objVariablesOnHeap = SanityCheck(ReadEncodedUInt(), 10000);
+
 					int length = SanityCheck(ReadEncodedUInt(), 1000000);
 					func->scriptData->objVariableInfo.SetLength(length);
 					for (i = 0; i < length; ++i)
@@ -1322,38 +1343,33 @@ asCScriptFunction *asCReader::ReadFunction(bool &isNew, bool addToModule, bool a
 				}
 
 				// Read the variable information
-				int length = SanityCheck(ReadEncodedUInt(), 1000000);
-				func->scriptData->variables.Allocate(length, false);
-				for (i = 0; i < length; i++)
+				if (!noDebugInfo)
 				{
-					asSScriptVariable *var = asNEW(asSScriptVariable);
-					if (var == 0)
+					int length = SanityCheck(ReadEncodedUInt(), 1000000);
+					func->scriptData->variables.Allocate(length, false);
+					for (i = 0; i < length; i++)
 					{
-						// Out of memory
-						error = true;
-						func->DestroyHalfCreated();
-						return 0;
-					}
-					func->scriptData->variables.PushLast(var);
+						asSScriptVariable *var = asNEW(asSScriptVariable);
+						if (var == 0)
+						{
+							// Out of memory
+							error = true;
+							func->DestroyHalfCreated();
+							return 0;
+						}
+						func->scriptData->variables.PushLast(var);
 
-					if (!noDebugInfo)
-					{
 						var->declaredAtProgramPos = ReadEncodedUInt();
+						var->stackOffset = SanityCheck(ReadEncodedInt(),10000);
 						ReadString(&var->name);
-					}
-					else
-						var->declaredAtProgramPos = 0;
+						ReadDataType(&var->type);
 
-					var->stackOffset = SanityCheck(ReadEncodedInt(),10000);
-					var->onHeap = var->stackOffset & 1;
-					var->stackOffset >>= 1;
-					ReadDataType(&var->type);
-
-					if (error)
-					{
-						// No need to continue (the error has already been reported before)
-						func->DestroyHalfCreated();
-						return 0;
+						if (error)
+						{
+							// No need to continue (the error has already been reported before)
+							func->DestroyHalfCreated();
+							return 0;
+						}
 					}
 				}
 
@@ -2241,9 +2257,6 @@ void asCReader::ReadDataType(asCDataType *dt)
 	}
 	dt->MakeReadOnly(isReadOnly ? true : false);
 	dt->MakeReference(isReference ? true : false);
-
-	if (tokenType == ttUnrecognizedToken && isObjectHandle && ti == 0)
-		*dt = asCDataType::CreateNullHandle();
 
 	// Update the previously saved slot
 	savedDataTypes[saveSlot] = *dt;
@@ -3169,6 +3182,10 @@ void asCReader::TranslateFunction(asCScriptFunction *func)
 		func->scriptData->variables[n]->stackOffset = AdjustStackPosition(func->scriptData->variables[n]->stackOffset);
 	}
 
+	// objVariablePos
+	for( n = 0; n < func->scriptData->objVariablePos.GetLength(); n++ )
+		func->scriptData->objVariablePos[n] = AdjustStackPosition(func->scriptData->objVariablePos[n]);
+
 	// Adjust the get offsets. This must be done in the second iteration because
 	// it relies on the function ids and variable position already being correct in the
 	// bytecodes that come after the GET instructions.
@@ -3441,7 +3458,7 @@ void asCReader::CalculateStackNeeded(asCScriptFunction *func)
 				bc == asBC_CALLINTF ||
 				bc == asBC_CallPtr )
 			{
-				asCScriptFunction *called = func->GetCalledFunction(pos);
+				asCScriptFunction *called = GetCalledFunction(func, pos);
 				if( called )
 				{
 					stackInc = -called->GetSpaceNeededForArguments();
@@ -3598,29 +3615,31 @@ void asCReader::CalculateAdjustmentByPos(asCScriptFunction *func)
 	// It is necessary to adjust to the size according to the current platform.
 	adjustments.SetLength(0);
 	int highestPos = 0;
-	for (n = 0; n < func->scriptData->variables.GetLength(); n++)
+	for( n = 0; n < func->scriptData->objVariableTypes.GetLength(); n++ )
 	{
-		// Skip function parameters as these are adjusted by adjustNegativeStackByPos
-		if (func->scriptData->variables[n]->stackOffset <= 0)
-			continue;
-
-		asCDataType t = func->scriptData->variables[n]->type;
-		if (!t.IsObject() && !t.IsObjectHandle())
-			continue;
-
-		// Determing the size of the variable currently occupies on the stack
+		// Determine the size the variable currently occupies on the stack
 		int size = AS_PTR_SIZE;
-		if (t.GetTypeInfo() && (t.GetTypeInfo()->GetFlags() & asOBJ_VALUE) && !func->scriptData->variables[n]->onHeap)
-			size = t.GetSizeInMemoryDWords();
+
+		// objVariableTypes is null if the type is a null pointer
+		if( func->scriptData->objVariableTypes[n] &&
+			(func->scriptData->objVariableTypes[n]->GetFlags() & asOBJ_VALUE) &&
+			n >= func->scriptData->objVariablesOnHeap )
+		{
+			size = func->scriptData->objVariableTypes[n]->GetSize();
+			if( size < 4 )
+				size = 1;
+			else
+				size /= 4;
+		}
 
 		// Check if type has a different size than stored
-		if (size > 1)
+		if( size > 1 )
 		{
-			if (func->scriptData->variables[n]->stackOffset > highestPos)
-				highestPos = func->scriptData->variables[n]->stackOffset;
+			if( func->scriptData->objVariablePos[n] > highestPos )
+				highestPos = func->scriptData->objVariablePos[n];
 
-			adjustments.PushLast(func->scriptData->variables[n]->stackOffset);
-			adjustments.PushLast(size - 1);
+			adjustments.PushLast(func->scriptData->objVariablePos[n]);
+			adjustments.PushLast(size-1);
 		}
 	}
 
@@ -3657,6 +3676,66 @@ int asCReader::AdjustStackPosition(int pos)
 	return pos;
 }
 
+asCScriptFunction *asCReader::GetCalledFunction(asCScriptFunction *func, asDWORD programPos)
+{
+	asBYTE bc = *(asBYTE*)&func->scriptData->byteCode[programPos];
+
+	if( bc == asBC_CALL ||
+		bc == asBC_CALLSYS ||
+		bc == asBC_Thiscall1 ||
+		bc == asBC_CALLINTF )
+	{
+		// Find the function from the function id in bytecode
+		int funcId = asBC_INTARG(&func->scriptData->byteCode[programPos]);
+		return engine->scriptFunctions[funcId];
+	}
+	else if( bc == asBC_ALLOC )
+	{
+		// Find the function from the function id in the bytecode
+		int funcId = asBC_INTARG(&func->scriptData->byteCode[programPos+AS_PTR_SIZE]);
+		return engine->scriptFunctions[funcId];
+	}
+	else if( bc == asBC_CALLBND )
+	{
+		// Find the function from the engine's bind array
+		int funcId = asBC_INTARG(&func->scriptData->byteCode[programPos]);
+		return engine->importedFunctions[funcId & ~FUNC_IMPORTED]->importedFunctionSignature;
+	}
+	else if( bc == asBC_CallPtr )
+	{
+		asUINT v;
+		int var = asBC_SWORDARG0(&func->scriptData->byteCode[programPos]);
+
+		// Find the funcdef from the local variable
+		for( v = 0; v < func->scriptData->objVariablePos.GetLength(); v++ )
+			if( func->scriptData->objVariablePos[v] == var )
+				return CastToFuncdefType(func->scriptData->objVariableTypes[v])->funcdef;
+
+		// Look in parameters
+		int paramPos = 0;
+		if( func->objectType )
+			paramPos -= AS_PTR_SIZE;
+		if( func->DoesReturnOnStack() )
+			paramPos -= AS_PTR_SIZE;
+		for( v = 0; v < func->parameterTypes.GetLength(); v++ )
+		{
+			if (var == paramPos)
+			{
+				if (func->parameterTypes[v].IsFuncdef())
+					return CastToFuncdefType(func->parameterTypes[v].GetTypeInfo())->funcdef;
+				else
+				{
+					error = true;
+					return 0;
+				}
+			}
+			paramPos -= func->parameterTypes[v].GetSizeOnStackDWords();
+		}
+	}
+
+	return 0;
+}
+
 int asCReader::AdjustGetOffset(int offset, asCScriptFunction *func, asDWORD programPos)
 {
 	// TODO: optimize: multiple instructions for the same function doesn't need to look for the function everytime
@@ -3668,7 +3747,6 @@ int asCReader::AdjustGetOffset(int offset, asCScriptFunction *func, asDWORD prog
 	bool bcAlloc = false;
 
 	// Find out which function that will be called
-	// TODO: Can the asCScriptFunction::FindNextFunctionCalled be adapted so it can be reused here (support for asBC_ALLOC, asBC_REFCPY and asBC_COPY)?
 	asCScriptFunction *calledFunc = 0;
 	int stackDelta = 0;
 	for( asUINT n = programPos; func->scriptData->byteCode.GetLength(); )
@@ -3687,7 +3765,7 @@ int asCReader::AdjustGetOffset(int offset, asCScriptFunction *func, asDWORD prog
 			if (bc == asBC_ALLOC)
 				bcAlloc = true;
 
-			calledFunc = func->GetCalledFunction(n);
+			calledFunc = GetCalledFunction(func, n);
 			break;
 		}
 		else if( bc == asBC_REFCPY ||
@@ -4203,7 +4281,7 @@ void asCWriter::WriteFunction(asCScriptFunction* func)
 		bits += func->dontCleanUpOnException ? 2 : 0;
 		if (module->m_externalFunctions.IndexOf(func) >= 0)
 			bits += 4;
-		if (func->scriptData->objVariableInfo.GetLength())
+		if (func->scriptData->objVariablePos.GetLength() || func->scriptData->objVariableInfo.GetLength())
 			bits += 8;
 		if (func->scriptData->tryCatchInfo.GetLength())
 			bits += 16;
@@ -4224,6 +4302,16 @@ void asCWriter::WriteFunction(asCScriptFunction* func)
 
 		if (bits & 8)
 		{
+			count = (asUINT)func->scriptData->objVariablePos.GetLength();
+			WriteEncodedInt64(count);
+			for (i = 0; i < count; ++i)
+			{
+				WriteTypeInfo(func->scriptData->objVariableTypes[i]);
+				WriteEncodedInt64(AdjustStackPosition(func->scriptData->objVariablePos[i]));
+			}
+			if (count > 0)
+				WriteEncodedInt64(func->scriptData->objVariablesOnHeap);
+
 			WriteEncodedInt64((asUINT)func->scriptData->objVariableInfo.GetLength());
 			for (i = 0; i < func->scriptData->objVariableInfo.GetLength(); ++i)
 			{
@@ -4281,26 +4369,18 @@ void asCWriter::WriteFunction(asCScriptFunction* func)
 		}
 
 		// Write the variable information
-		// Even without the debug info the type and position of the variables
-		// must be stored, as this is used for serializing contexts
-		// TODO: Store the type info/position in an intelligent way to avoid duplicating info in objVariablePos & objVariableTypes.
-		// TODO: Perhaps objVariablePos & objVariableTypes should be retired now that all variable types must be stored anyway
-		WriteEncodedInt64((asUINT)func->scriptData->variables.GetLength());
-		for( i = 0; i < func->scriptData->variables.GetLength(); i++ )
+		if( !stripDebugInfo )
 		{
-			if (!stripDebugInfo)
+			WriteEncodedInt64((asUINT)func->scriptData->variables.GetLength());
+			for( i = 0; i < func->scriptData->variables.GetLength(); i++ )
 			{
 				// The program position must be adjusted to be in number of instructions
 				WriteEncodedInt64(bytecodeNbrByPos[func->scriptData->variables[i]->declaredAtProgramPos]);
+				// The stack position must be adjusted according to the pointer sizes
+				WriteEncodedInt64(AdjustStackPosition(func->scriptData->variables[i]->stackOffset));
 				WriteString(&func->scriptData->variables[i]->name);
+				WriteDataType(&func->scriptData->variables[i]->type);
 			}
-
-			// The stack position must be adjusted according to the pointer sizes
-			asUINT data = AdjustStackPosition(func->scriptData->variables[i]->stackOffset) << 1;
-			// Encode the onHeap flag in the stackOffset to avoid 1 byte increase
-			data |= func->scriptData->variables[i]->onHeap & 1;
-			WriteEncodedInt64(data);
-			WriteDataType(&func->scriptData->variables[i]->type);
 		}
 
 		// Store script section name
@@ -4750,32 +4830,34 @@ void asCWriter::CalculateAdjustmentByPos(asCScriptFunction *func)
 	// Adjust the offset of all positive variables so that all object types and handles have a size of 1 dword
 	// This is similar to how the adjustment is done in the asCReader::TranslateFunction, only the reverse
 	adjustments.SetLength(0);
-	for (n = 0; n < func->scriptData->variables.GetLength(); n++)
+	for( n = 0; n < func->scriptData->objVariableTypes.GetLength(); n++ )
 	{
-		// Skip function parameters as these are adjusted by adjustNegativeStackByPos
-		if (func->scriptData->variables[n]->stackOffset <= 0)
-			continue;
-
-		asCDataType t = func->scriptData->variables[n]->type;
-		if (!t.IsObject() && !t.IsObjectHandle())
-			continue;
-
-		// Determing the size of the variable currently occupies on the stack
+		// Determine the size the variable currently occupies on the stack
 		int size = AS_PTR_SIZE;
-		if (t.GetTypeInfo() && (t.GetTypeInfo()->GetFlags() & asOBJ_VALUE) && !func->scriptData->variables[n]->onHeap)
-			size = t.GetSizeInMemoryDWords();
+
+		// objVariableTypes is null if the variable type is a null pointer
+		if( func->scriptData->objVariableTypes[n] &&
+			(func->scriptData->objVariableTypes[n]->GetFlags() & asOBJ_VALUE) &&
+			n >= func->scriptData->objVariablesOnHeap )
+		{
+			size = func->scriptData->objVariableTypes[n]->GetSize();
+			if( size < 4 )
+				size = 1;
+			else
+				size /= 4;
+		}
 
 		// If larger than 1 dword, adjust the offsets accordingly
 		if (size > 1)
 		{
 			// How much needs to be adjusted?
-			adjustments.PushLast(func->scriptData->variables[n]->stackOffset);
+			adjustments.PushLast(func->scriptData->objVariablePos[n]);
 			adjustments.PushLast(-(size - 1));
 		}
 	}
 
 	// Build look-up table with the adjustments for each stack position
-	adjustStackByPos.SetLength(func->scriptData->stackNeeded+AS_PTR_SIZE); // Add space for a pointer stored in a temporary variable
+	adjustStackByPos.SetLength(func->scriptData->stackNeeded);
 	memset(adjustStackByPos.AddressOf(), 0, adjustStackByPos.GetLength()*sizeof(int));
 	for( n = 0; n < adjustments.GetLength(); n+=2 )
 	{
@@ -4874,12 +4956,11 @@ int asCWriter::AdjustGetOffset(int offset, asCScriptFunction *func, asDWORD prog
 			int var = asBC_SWORDARG0(&func->scriptData->byteCode[n]);
 			asUINT v;
 			// Find the funcdef from the local variable
-			for (v = 0; v < func->scriptData->variables.GetLength(); v++)
+			for( v = 0; v < func->scriptData->objVariablePos.GetLength(); v++ )
 			{
-				if (func->scriptData->variables[v]->stackOffset == var)
+				if( func->scriptData->objVariablePos[v] == var )
 				{
-					asASSERT(func->scriptData->variables[v]->type.GetTypeInfo());
-					calledFunc = CastToFuncdefType(func->scriptData->variables[v]->type.GetTypeInfo())->funcdef;
+					calledFunc = CastToFuncdefType(func->scriptData->objVariableTypes[v])->funcdef;
 					break;
 				}
 			}

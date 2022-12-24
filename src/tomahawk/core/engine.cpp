@@ -3638,7 +3638,10 @@ namespace Tomahawk
 			{
 				while (Schedule->IsActive() && It->second->Active)
 				{
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					if (Schedule->GetPolicy().Async)
+						std::this_thread::sleep_for(std::chrono::milliseconds(50));
+					else
+						Schedule->Dispatch();
 					TH_PSIG();
 				}
 
@@ -6360,6 +6363,16 @@ namespace Tomahawk
 		}
 		void EffectRenderer::RenderEffect(Core::Timer* Time)
 		{
+		}
+		void EffectRenderer::GenerateMips()
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Graphics::Texture2D** Merger = System->GetMerger();
+
+			if (Swap != nullptr && Output != Swap)
+				Device->GenerateMips(Swap->GetTarget());
+			else if (Merger != nullptr)
+				Device->GenerateMips(*Merger);
 		}
 		size_t EffectRenderer::RenderPass(Core::Timer* Time)
 		{

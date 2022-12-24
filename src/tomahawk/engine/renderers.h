@@ -464,18 +464,20 @@ namespace Tomahawk
 				struct ReflectanceBuffer
 				{
 					float Samples = 32.0f;
-					float Mips = 0.0f;
+					float Padding = 0.0f;
 					float Intensity = 1.0f;
 					float Distance = 16.0f;
 				} Reflectance;
 
 				struct GlossBuffer
 				{
-					float Padding[3] = { 0.0f, 0.0f, 0.0f };
+					float Padding = 0.0f;
+					float Deadzone = 0.05f;
+					float Mips = 0.0f;
 					float Cutoff = 0.95f;
 					float Texel[2] = { 1.0f, 1.0f };
-					float Samples = 32.000f;
-					float Blur = 16.000f;
+					float Samples = 48.000f;
+					float Blur = 64.000f;
 				} Gloss;
 
 			public:

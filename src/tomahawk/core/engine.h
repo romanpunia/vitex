@@ -2008,6 +2008,7 @@ namespace Tomahawk
 			void RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource = nullptr);
 			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
 			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
+			void GenerateMips();
 			Graphics::Shader* GetEffect(const std::string& Name);
 			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileEffect(const std::string& SectionName, size_t BufferSize = 0);

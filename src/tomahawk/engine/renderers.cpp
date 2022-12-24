@@ -2078,6 +2078,8 @@ namespace Tomahawk
 				NMake::Unpack(Node->Find("distance"), &Reflectance.Distance);
 				NMake::Unpack(Node->Find("cutoff"), &Gloss.Cutoff);
 				NMake::Unpack(Node->Find("blur"), &Gloss.Blur);
+				NMake::Unpack(Node->Find("deadzone"), &Gloss.Deadzone);
+				NMake::Unpack(Node->Find("mips"), &Gloss.Mips);
 			}
 			void SSR::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -2090,13 +2092,15 @@ namespace Tomahawk
 				NMake::Pack(Node->Set("distance"), Reflectance.Distance);
 				NMake::Pack(Node->Set("cutoff"), Gloss.Cutoff);
 				NMake::Pack(Node->Set("blur"), Gloss.Blur);
+				NMake::Pack(Node->Set("deadzone"), Gloss.Deadzone);
+				NMake::Pack(Node->Set("mips"), Gloss.Mips);
 			}
 			void SSR::RenderEffect(Core::Timer* Time)
 			{
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				System->GetDevice()->GenerateMips(MRT->GetTarget(0));
 
-				Reflectance.Mips = GetMipLevels();
+				Gloss.Mips = GetMipLevels();
 				Gloss.Texel[0] = 1.0f / GetWidth();
 				Gloss.Texel[1] = 1.0f / GetHeight();
 

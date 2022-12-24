@@ -5,7 +5,9 @@
 
 cbuffer RenderConstant : register(b3)
 {
-	float3 Padding;
+	float Padding;
+	float Deadzone;
+	float Mips;
 	float Cutoff;
 	float2 Texel;
 	float Samples;
@@ -27,21 +29,23 @@ float4 ps_main(VOutput V) : SV_TARGET0
 {
 	Fragment Frag = GetFragment(V.TexCoord.xy);
 	Material Mat = Materials[Frag.Material];
-	float3 C = GetDiffuse(V.TexCoord.xy, 0).xyz;
-	float3 N = GetNormal(V.TexCoord.xy);
-	float3 B = float3(0, 0, 0);
-	float R = GetRoughnessMip(Frag, Mat, 1.0);
-	float G = Samples * R;
-	float I = 0.0;
+	float3 Normal = GetNormal(V.TexCoord.xy);
+	float Roughness = GetRoughness(Frag, Mat);
+	float Power = Roughness < Deadzone ? 0.0 : Roughness;
+	float Force = Blur * Power;
+	float3 Blurring = float3(0, 0, 0);
+	float Count = max(1.0, Samples * Power);
+	float Iterations = 0.0;
 
-	[loop] for (int i = 0; i < G; i++)
+	[loop] for (float i = 0; i < Count; i++)
 	{
-		float2 T = V.TexCoord.xy + float2(0, FiboDisk[i].y) * Texel * Blur * R;
-		[branch] if (dot(GetNormal(T), N) < Cutoff)
+		float2 TexCoord = V.TexCoord.xy + float2(0, FiboDisk[i].x) * Texel * Force;
+		[branch] if (dot(GetNormal(TexCoord), Normal) < Cutoff)
 			continue;
 
-		B += Image.SampleLevel(Sampler, T, 0).xyz; I++;
+		Blurring += Image.SampleLevel(Sampler, TexCoord, 0).xyz;
+		Iterations++;
 	}
 
-	return float4(B / max(1.0, I), 1.0);
+	return float4(Blurring / max(1.0, Iterations), 1.0);
 };

@@ -137,14 +137,14 @@ namespace
 		{
 			auto Copy = It;
 			Stream->WriteAny("%sclass %s%s%s%s%s%s\n%s{\n\t%s",
-				Offset.c_str(),
-				It->first.c_str(),
-				It->second.Types.empty() ? "" : "<",
-				It->second.Types.empty() ? "" : GetCombination(It->second.Types, ", ").c_str(),
-				It->second.Types.empty() ? "" : ">",
-				It->second.Interfaces.empty() ? "" : " : ",
-				It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
-				Offset.c_str(), Offset.c_str());
+							 Offset.c_str(),
+							 It->first.c_str(),
+							 It->second.Types.empty() ? "" : "<",
+							 It->second.Types.empty() ? "" : GetCombination(It->second.Types, ", ").c_str(),
+							 It->second.Types.empty() ? "" : ">",
+							 It->second.Interfaces.empty() ? "" : " : ",
+							 It->second.Interfaces.empty() ? "" : GetCombination(It->second.Interfaces, ", ").c_str(),
+							 Offset.c_str(), Offset.c_str());
 			Stream->WriteAny("%s", GetCombinationAll(It->second.Funcdefs, ";\n\t" + Offset, It->second.Props.empty() && It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
 			Stream->WriteAny("%s", GetCombinationAll(It->second.Props, ";\n\t" + Offset, It->second.Methods.empty() ? ";" : ";\n\n\t" + Offset).c_str());
 			Stream->WriteAny("%s", GetCombinationAll(It->second.Methods, ";\n\t" + Offset, ";").c_str());
@@ -938,7 +938,7 @@ namespace Tomahawk
 		int VMGeneric::SetReturnDWord(size_t Value)
 		{
 			TH_ASSERT(IsValid(), -1, "generic should be valid");
-			return Generic->SetReturnDWord((asDWORD)Value);
+			return Generic->SetReturnDWord(Value);
 		}
 		int VMGeneric::SetReturnQWord(uint64_t Value)
 		{
@@ -1467,12 +1467,12 @@ namespace Tomahawk
 		void* VMModule::GetAddressOfProperty(size_t Index)
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetAddressOfGlobalVar((asUINT)Index);
+			return Mod->GetAddressOfGlobalVar(Index);
 		}
 		int VMModule::RemoveProperty(size_t Index)
 		{
 			TH_ASSERT(IsValid(), -1, "module should be valid");
-			return Mod->RemoveGlobalVar((asUINT)Index);
+			return Mod->RemoveGlobalVar(Index);
 		}
 		size_t VMModule::SetAccessMask(size_t AccessMask)
 		{
@@ -1547,7 +1547,7 @@ namespace Tomahawk
 			const char* NameSpace = nullptr;
 			bool IsConst = false;
 			int TypeId = 0;
-			int Result = Mod->GetGlobalVar((asUINT)Index, &Name, &NameSpace, &TypeId, &IsConst);
+			int Result = Mod->GetGlobalVar(Index, &Name, &NameSpace, &TypeId, &IsConst);
 
 			if (Info != nullptr)
 			{
@@ -1556,7 +1556,7 @@ namespace Tomahawk
 				Info->TypeId = TypeId;
 				Info->IsConst = IsConst;
 				Info->ConfigGroup = nullptr;
-				Info->Pointer = Mod->GetAddressOfGlobalVar((asUINT)Index);
+				Info->Pointer = Mod->GetAddressOfGlobalVar(Index);
 				Info->AccessMask = GetAccessMask();
 			}
 
@@ -1592,7 +1592,7 @@ namespace Tomahawk
 		VMTypeInfo VMModule::GetObjectByIndex(size_t Index) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetObjectTypeByIndex((asUINT)Index);
+			return Mod->GetObjectTypeByIndex(Index);
 		}
 		VMTypeInfo VMModule::GetTypeInfoByName(const char* Name) const
 		{
@@ -1618,12 +1618,12 @@ namespace Tomahawk
 		VMTypeInfo VMModule::GetEnumByIndex(size_t Index) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetEnumByIndex((asUINT)Index);
+			return Mod->GetEnumByIndex(Index);
 		}
 		const char* VMModule::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace);
+			return Mod->GetGlobalVarDeclaration(Index, IncludeNamespace);
 		}
 		const char* VMModule::GetDefaultNamespace() const
 		{
@@ -1633,12 +1633,12 @@ namespace Tomahawk
 		const char* VMModule::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex);
+			return Mod->GetImportedFunctionDeclaration(ImportIndex);
 		}
 		const char* VMModule::GetImportedFunctionModule(size_t ImportIndex) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex);
+			return Mod->GetImportedFunctionSourceModule(ImportIndex);
 		}
 		const char* VMModule::GetName() const
 		{
@@ -1711,7 +1711,7 @@ namespace Tomahawk
 			VMCManager* Engine = Manager->GetEngine();
 			TH_ASSERT(Engine != nullptr, VMTypeClass(nullptr, "", -1), "engine should be set");
 
-			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, (int)Size, (asDWORD)Flags));
+			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
 		}
 		VMTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
@@ -1810,7 +1810,7 @@ namespace Tomahawk
 		VMTypeInfo VMGlobal::GetObjectByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetObjectTypeByIndex((asUINT)Index);
+			return Manager->GetEngine()->GetObjectTypeByIndex(Index);
 		}
 		size_t VMGlobal::GetEnumCount() const
 		{
@@ -1820,7 +1820,7 @@ namespace Tomahawk
 		VMTypeInfo VMGlobal::GetEnumByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetEnumByIndex((asUINT)Index);
+			return Manager->GetEngine()->GetEnumByIndex(Index);
 		}
 		size_t VMGlobal::GetFunctionDefsCount() const
 		{
@@ -1934,144 +1934,144 @@ namespace Tomahawk
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
 			{
 				TH_ASSERT(Manager != nullptr, false, "engine should be set");
-				if (Include && Include(C, File, Out))
-					return true;
+			if (Include && Include(C, File, Out))
+				return true;
 
-				if (File.Module.empty() || !Module)
-					return false;
+			if (File.Module.empty() || !Module)
+				return false;
 
-				if (!File.IsFile && File.IsSystem)
-					return Manager->ImportSubmodule(File.Module);
+			if (!File.IsFile && File.IsSystem)
+				return Manager->ImportSubmodule(File.Module);
 
-				std::string Buffer;
-				if (!Manager->ImportFile(File.Module, &Buffer))
-					return false;
+			std::string Buffer;
+			if (!Manager->ImportFile(File.Module, &Buffer))
+				return false;
 
-				if (!C->Process(File.Module, Buffer))
-					return false;
+			if (!C->Process(File.Module, Buffer))
+				return false;
 
-				return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
+			return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Name, const std::vector<std::string>& Args)
 			{
 				TH_ASSERT(Manager != nullptr, false, "engine should be set");
-				if (Pragma && Pragma(C, Name, Args))
-					return true;
-
-				if (Name == "compile" && Args.size() == 2)
-				{
-					const std::string& Key = Args[0];
-					Core::Parser Value(&Args[1]);
-
-					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
-					if (Key == "ALLOW_UNSAFE_REFERENCES")
-						Manager->SetProperty(VMProp::ALLOW_UNSAFE_REFERENCES, Result);
-					else if (Key == "OPTIMIZE_BYTECODE")
-						Manager->SetProperty(VMProp::OPTIMIZE_BYTECODE, Result);
-					else if (Key == "COPY_SCRIPT_SECTIONS")
-						Manager->SetProperty(VMProp::COPY_SCRIPT_SECTIONS, Result);
-					else if (Key == "MAX_STACK_SIZE")
-						Manager->SetProperty(VMProp::MAX_STACK_SIZE, Result);
-					else if (Key == "USE_CHARACTER_LITERALS")
-						Manager->SetProperty(VMProp::USE_CHARACTER_LITERALS, Result);
-					else if (Key == "ALLOW_MULTILINE_STRINGS")
-						Manager->SetProperty(VMProp::ALLOW_MULTILINE_STRINGS, Result);
-					else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
-						Manager->SetProperty(VMProp::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
-					else if (Key == "BUILD_WITHOUT_LINE_CUES")
-						Manager->SetProperty(VMProp::BUILD_WITHOUT_LINE_CUES, Result);
-					else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
-						Manager->SetProperty(VMProp::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
-					else if (Key == "REQUIRE_ENUM_SCOPE")
-						Manager->SetProperty(VMProp::REQUIRE_ENUM_SCOPE, Result);
-					else if (Key == "SCRIPT_SCANNER")
-						Manager->SetProperty(VMProp::SCRIPT_SCANNER, Result);
-					else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
-						Manager->SetProperty(VMProp::INCLUDE_JIT_INSTRUCTIONS, Result);
-					else if (Key == "STRING_ENCODING")
-						Manager->SetProperty(VMProp::STRING_ENCODING, Result);
-					else if (Key == "PROPERTY_ACCESSOR_MODE")
-						Manager->SetProperty(VMProp::PROPERTY_ACCESSOR_MODE, Result);
-					else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
-						Manager->SetProperty(VMProp::EXPAND_DEF_ARRAY_TO_TMPL, Result);
-					else if (Key == "AUTO_GARBAGE_COLLECT")
-						Manager->SetProperty(VMProp::AUTO_GARBAGE_COLLECT, Result);
-					else if (Key == "DISALLOW_GLOBAL_VARS")
-						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-					else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
-						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-					else if (Key == "COMPILER_WARNINGS")
-						Manager->SetProperty(VMProp::COMPILER_WARNINGS, Result);
-					else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
-						Manager->SetProperty(VMProp::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
-					else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
-						Manager->SetProperty(VMProp::ALTER_SYNTAX_NAMED_ARGS, Result);
-					else if (Key == "DISABLE_INTEGER_DIVISION")
-						Manager->SetProperty(VMProp::DISABLE_INTEGER_DIVISION, Result);
-					else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
-						Manager->SetProperty(VMProp::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
-					else if (Key == "PRIVATE_PROP_AS_PROTECTED")
-						Manager->SetProperty(VMProp::PRIVATE_PROP_AS_PROTECTED, Result);
-					else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
-						Manager->SetProperty(VMProp::ALLOW_UNICODE_IDENTIFIERS, Result);
-					else if (Key == "HEREDOC_TRIM_MODE")
-						Manager->SetProperty(VMProp::HEREDOC_TRIM_MODE, Result);
-					else if (Key == "MAX_NESTED_CALLS")
-						Manager->SetProperty(VMProp::MAX_NESTED_CALLS, Result);
-					else if (Key == "GENERIC_CALL_MODE")
-						Manager->SetProperty(VMProp::GENERIC_CALL_MODE, Result);
-					else if (Key == "INIT_STACK_SIZE")
-						Manager->SetProperty(VMProp::INIT_STACK_SIZE, Result);
-					else if (Key == "INIT_CALL_STACK_SIZE")
-						Manager->SetProperty(VMProp::INIT_CALL_STACK_SIZE, Result);
-					else if (Key == "MAX_CALL_STACK_SIZE")
-						Manager->SetProperty(VMProp::MAX_CALL_STACK_SIZE, Result);
-				}
-				else if (Name == "comment" && Args.size() == 2)
-				{
-					const std::string& Key = Args[0];
-					if (Key == "INFO")
-						TH_INFO("[compiler] %s", Args[1].c_str());
-					else if (Key == "TRACE")
-						TH_TRACE("[compiler] %s", Args[1].c_str());
-					else if (Key == "WARN")
-						TH_WARN("[compiler] %s", Args[1].c_str());
-					else if (Key == "ERR")
-						TH_ERR("[compiler] %s", Args[1].c_str());
-				}
-				else if (Name == "modify" && Args.size() == 2)
-				{
-					const std::string& Key = Args[0];
-					Core::Parser Value(&Args[1]);
-
-					size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
-					if (Key == "NAME")
-						Module->SetName(Value.Get());
-					else if (Key == "NAMESPACE")
-						Module->SetDefaultNamespace(Value.Get());
-					else if (Key == "ACCESS_MASK")
-						Module->SetAccessMask((asDWORD)Result);
-				}
-				else if (Name == "cimport" && Args.size() >= 2)
-				{
-					std::vector<std::string> Sources;
-					if (Args.size() > 2)
-						Sources.assign(Args.begin() + 2, Args.end());
-
-					Manager->ImportSymbol(Sources, Args[1], Args[0]);
-				}
-				else if (Name == "clibrary" && Args.size() == 1)
-				{
-					std::string Path = Args[0];
-					if (!Path.empty())
-						Path = Core::OS::Path::ResolveResource(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
-
-					Manager->ImportLibrary(Path);
-				}
-				else if (Name == "define" && Args.size() == 1)
-					Define(Args[0]);
-
+			if (Pragma && Pragma(C, Name, Args))
 				return true;
+
+			if (Name == "compile" && Args.size() == 2)
+			{
+				const std::string& Key = Args[0];
+				Core::Parser Value(&Args[1]);
+
+				size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
+				if (Key == "ALLOW_UNSAFE_REFERENCES")
+					Manager->SetProperty(VMProp::ALLOW_UNSAFE_REFERENCES, Result);
+				else if (Key == "OPTIMIZE_BYTECODE")
+					Manager->SetProperty(VMProp::OPTIMIZE_BYTECODE, Result);
+				else if (Key == "COPY_SCRIPT_SECTIONS")
+					Manager->SetProperty(VMProp::COPY_SCRIPT_SECTIONS, Result);
+				else if (Key == "MAX_STACK_SIZE")
+					Manager->SetProperty(VMProp::MAX_STACK_SIZE, Result);
+				else if (Key == "USE_CHARACTER_LITERALS")
+					Manager->SetProperty(VMProp::USE_CHARACTER_LITERALS, Result);
+				else if (Key == "ALLOW_MULTILINE_STRINGS")
+					Manager->SetProperty(VMProp::ALLOW_MULTILINE_STRINGS, Result);
+				else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
+					Manager->SetProperty(VMProp::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
+				else if (Key == "BUILD_WITHOUT_LINE_CUES")
+					Manager->SetProperty(VMProp::BUILD_WITHOUT_LINE_CUES, Result);
+				else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
+					Manager->SetProperty(VMProp::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
+				else if (Key == "REQUIRE_ENUM_SCOPE")
+					Manager->SetProperty(VMProp::REQUIRE_ENUM_SCOPE, Result);
+				else if (Key == "SCRIPT_SCANNER")
+					Manager->SetProperty(VMProp::SCRIPT_SCANNER, Result);
+				else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
+					Manager->SetProperty(VMProp::INCLUDE_JIT_INSTRUCTIONS, Result);
+				else if (Key == "STRING_ENCODING")
+					Manager->SetProperty(VMProp::STRING_ENCODING, Result);
+				else if (Key == "PROPERTY_ACCESSOR_MODE")
+					Manager->SetProperty(VMProp::PROPERTY_ACCESSOR_MODE, Result);
+				else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
+					Manager->SetProperty(VMProp::EXPAND_DEF_ARRAY_TO_TMPL, Result);
+				else if (Key == "AUTO_GARBAGE_COLLECT")
+					Manager->SetProperty(VMProp::AUTO_GARBAGE_COLLECT, Result);
+				else if (Key == "DISALLOW_GLOBAL_VARS")
+					Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+				else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
+					Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+				else if (Key == "COMPILER_WARNINGS")
+					Manager->SetProperty(VMProp::COMPILER_WARNINGS, Result);
+				else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
+					Manager->SetProperty(VMProp::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
+				else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
+					Manager->SetProperty(VMProp::ALTER_SYNTAX_NAMED_ARGS, Result);
+				else if (Key == "DISABLE_INTEGER_DIVISION")
+					Manager->SetProperty(VMProp::DISABLE_INTEGER_DIVISION, Result);
+				else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
+					Manager->SetProperty(VMProp::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
+				else if (Key == "PRIVATE_PROP_AS_PROTECTED")
+					Manager->SetProperty(VMProp::PRIVATE_PROP_AS_PROTECTED, Result);
+				else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
+					Manager->SetProperty(VMProp::ALLOW_UNICODE_IDENTIFIERS, Result);
+				else if (Key == "HEREDOC_TRIM_MODE")
+					Manager->SetProperty(VMProp::HEREDOC_TRIM_MODE, Result);
+				else if (Key == "MAX_NESTED_CALLS")
+					Manager->SetProperty(VMProp::MAX_NESTED_CALLS, Result);
+				else if (Key == "GENERIC_CALL_MODE")
+					Manager->SetProperty(VMProp::GENERIC_CALL_MODE, Result);
+				else if (Key == "INIT_STACK_SIZE")
+					Manager->SetProperty(VMProp::INIT_STACK_SIZE, Result);
+				else if (Key == "INIT_CALL_STACK_SIZE")
+					Manager->SetProperty(VMProp::INIT_CALL_STACK_SIZE, Result);
+				else if (Key == "MAX_CALL_STACK_SIZE")
+					Manager->SetProperty(VMProp::MAX_CALL_STACK_SIZE, Result);
+			}
+			else if (Name == "comment" && Args.size() == 2)
+			{
+				const std::string& Key = Args[0];
+				if (Key == "INFO")
+					TH_INFO("[compiler] %s", Args[1].c_str());
+				else if (Key == "TRACE")
+					TH_TRACE("[compiler] %s", Args[1].c_str());
+				else if (Key == "WARN")
+					TH_WARN("[compiler] %s", Args[1].c_str());
+				else if (Key == "ERR")
+					TH_ERR("[compiler] %s", Args[1].c_str());
+			}
+			else if (Name == "modify" && Args.size() == 2)
+			{
+				const std::string& Key = Args[0];
+				Core::Parser Value(&Args[1]);
+
+				size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
+				if (Key == "NAME")
+					Module->SetName(Value.Get());
+				else if (Key == "NAMESPACE")
+					Module->SetDefaultNamespace(Value.Get());
+				else if (Key == "ACCESS_MASK")
+					Module->SetAccessMask(Result);
+			}
+			else if (Name == "cimport" && Args.size() >= 2)
+			{
+				std::vector<std::string> Sources;
+				if (Args.size() > 2)
+					Sources.assign(Args.begin() + 2, Args.end());
+
+				Manager->ImportSymbol(Sources, Args[1], Args[0]);
+			}
+			else if (Name == "clibrary" && Args.size() == 1)
+			{
+				std::string Path = Args[0];
+				if (!Path.empty())
+					Path = Core::OS::Path::ResolveResource(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
+
+				Manager->ImportLibrary(Path);
+			}
+			else if (Name == "define" && Args.size() == 1)
+				Define(Args[0]);
+
+			return true;
 			});
 
 			Context = Manager->CreateContext();
@@ -2309,7 +2309,7 @@ namespace Tomahawk
 			int R = Module->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
 				TH_TRACE("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
-	
+
 			return R;
 		}
 		int VMCompiler::LoadCode(const std::string& Name, const std::string& Data)
@@ -2503,7 +2503,7 @@ namespace Tomahawk
 				Core::Schedule::Get()->SetTask([this, Result, Function, OnArgs = std::move(OnArgs)]() mutable
 				{
 					auto Subresult = TryExecute(Function, std::move(OnArgs));
-					Result = Subresult;
+				Result = Subresult;
 				}, Core::Difficulty::Heavy);
 				return Result;
 			}
@@ -2519,7 +2519,7 @@ namespace Tomahawk
 				}
 				else
 					Tasks.emplace();
-	
+
 				auto Future = Tasks.front().Future;
 				Exchange.unlock();
 
@@ -2906,12 +2906,7 @@ namespace Tomahawk
 		const char* VMContext::GetPropertyName(unsigned int Index, unsigned int StackLevel)
 		{
 			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
-            
-            const char* Name;
-            if (Context->GetVar(Index, StackLevel, &Name) != asSUCCESS)
-                return nullptr;
-            
-			return Name;
+			return Context->GetVarName(Index, StackLevel);
 		}
 		const char* VMContext::GetPropertyDecl(unsigned int Index, unsigned int StackLevel, bool IncludeNamespace)
 		{
@@ -2921,12 +2916,7 @@ namespace Tomahawk
 		int VMContext::GetPropertyTypeId(unsigned int Index, unsigned int StackLevel)
 		{
 			TH_ASSERT(Context != nullptr, -1, "context should be set");
-            
-            int TypeId;
-            if (Context->GetVar(Index, StackLevel, nullptr, &TypeId) != asSUCCESS)
-                return (int)VMTypeId::VOIDF;
-            
-            return TypeId;
+			return Context->GetVarTypeId(Index, StackLevel);
 		}
 		void* VMContext::GetAddressOfProperty(unsigned int Index, unsigned int StackLevel)
 		{
@@ -3019,12 +3009,12 @@ namespace Tomahawk
 				const char* Source = Function->GetModuleName();
 				int Line = Context->GetExceptionLineNumber();
 				std::string Trace = Base->GetStackTrace(3, 64);
-				
+
 				TH_ERR("[vm] %s:%d %s(): runtime exception thrown\n\tdetails: %s\n\texecution flow dump: %.*s\n",
-					Source ? Source : "log", Line,
-					Name ? Name : "anonymous",
-					Message ? Message : "no additional data",
-					(int)Trace.size(), Trace.c_str());
+					   Source ? Source : "log", Line,
+					   Name ? Name : "anonymous",
+					   Message ? Message : "no additional data",
+					   (int)Trace.size(), Trace.c_str());
 
 				Base->Exchange.lock();
 				Base->Stacktrace = Trace;
@@ -3250,7 +3240,7 @@ namespace Tomahawk
 		int VMManager::Collect(size_t NumIterations)
 		{
 			Sync.General.lock();
-			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, (asUINT)NumIterations);
+			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, NumIterations);
 			Sync.General.unlock();
 
 			return R;
@@ -3261,19 +3251,19 @@ namespace Tomahawk
 			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
 
 			if (CurrentSize != nullptr)
-				*CurrentSize = (unsigned int)asCurrentSize;
+				*CurrentSize = (size_t)asCurrentSize;
 
 			if (TotalDestroyed != nullptr)
-				*TotalDestroyed = (unsigned int)asTotalDestroyed;
+				*TotalDestroyed = (size_t)asTotalDestroyed;
 
 			if (TotalDetected != nullptr)
-				*TotalDetected = (unsigned int)asTotalDetected;
+				*TotalDetected = (size_t)asTotalDetected;
 
 			if (NewObjects != nullptr)
-				*NewObjects = (unsigned int)asNewObjects;
+				*NewObjects = (size_t)asNewObjects;
 
 			if (TotalNewDestroyed != nullptr)
-				*TotalNewDestroyed = (unsigned int)asTotalNewDestroyed;
+				*TotalNewDestroyed = (size_t)asTotalNewDestroyed;
 		}
 		int VMManager::NotifyOfNewObject(void* Object, const VMTypeInfo& Type)
 		{
@@ -3283,7 +3273,7 @@ namespace Tomahawk
 		{
 			asUINT asSequenceNumber;
 			VMCTypeInfo* OutType = nullptr;
-			int Result = Engine->GetObjectInGC((asUINT)Index, &asSequenceNumber, Object, &OutType);
+			int Result = Engine->GetObjectInGC(Index, &asSequenceNumber, Object, &OutType);
 
 			if (SequenceNumber != nullptr)
 				*SequenceNumber = (size_t)asSequenceNumber;
@@ -3609,11 +3599,11 @@ namespace Tomahawk
 		}
 		size_t VMManager::BeginAccessMask(size_t DefaultMask)
 		{
-			return Engine->SetDefaultAccessMask((asDWORD)DefaultMask);
+			return Engine->SetDefaultAccessMask(DefaultMask);
 		}
 		size_t VMManager::EndAccessMask()
 		{
-			return Engine->SetDefaultAccessMask((asDWORD)VMManager::GetDefaultAccessMask());
+			return Engine->SetDefaultAccessMask(VMManager::GetDefaultAccessMask());
 		}
 		const char* VMManager::GetNamespace() const
 		{
@@ -4284,17 +4274,10 @@ namespace Tomahawk
 			{
 				for (asUINT n = Function->GetVarCount(); n-- > 0;)
 				{
-					if (!Base->IsVarInScope(n))
-                        continue;
-                    
-                    const char* NextName;
-                    int NextTypeId;
-                    Base->GetVar(n, 0, &NextName, &NextTypeId);
-                    
-                    if (Name == NextName)
+					if (Base->IsVarInScope(n) && Name == Base->GetVarName(n))
 					{
 						Pointer = Base->GetAddressOfVar(n);
-						TypeId = NextTypeId;
+						TypeId = Base->GetVarTypeId(n);
 						break;
 					}
 				}
@@ -4409,12 +4392,8 @@ namespace Tomahawk
 			std::stringstream Stream;
 			for (asUINT n = 0; n < Function->GetVarCount(); n++)
 			{
-				if (!Base->IsVarInScope(n))
-                    continue;
-                
-                int TypeId;
-                Base->GetVar(n, 0, nullptr, &TypeId);
-                Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), TypeId, 3, VMManager::Get(Base->GetEngine())) << std::endl;
+				if (Base->IsVarInScope(n))
+					Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), Base->GetVarTypeId(n), 3, VMManager::Get(Base->GetEngine())) << std::endl;
 			}
 			Output(Stream.str());
 		}
@@ -4518,16 +4497,16 @@ namespace Tomahawk
 		void VMDebugger::PrintHelp()
 		{
 			Output(" c - Continue\n"
-				" s - Step into\n"
-				" n - Next step\n"
-				" o - Step out\n"
-				" b - Set break point\n"
-				" l - List various things\n"
-				" r - Remove break point\n"
-				" p - Print value\n"
-				" w - Where am I?\n"
-				" a - Abort execution\n"
-				" h - Print this help text\n");
+				   " s - Step into\n"
+				   " n - Next step\n"
+				   " o - Step out\n"
+				   " b - Set break point\n"
+				   " l - List various things\n"
+				   " r - Remove break point\n"
+				   " p - Print value\n"
+				   " w - Where am I?\n"
+				   " a - Abort execution\n"
+				   " h - Print this help text\n");
 		}
 		void VMDebugger::Output(const std::string& Data)
 		{
@@ -4656,8 +4635,8 @@ namespace Tomahawk
 					else
 					{
 						Output("Incorrect format for setting break point, expected one of:\n"
-							" b <file name>:<line number>\n"
-							" b <function name>\n");
+							   " b <file name>:<line number>\n"
+							   " b <function name>\n");
 					}
 
 					return false;
@@ -4684,7 +4663,7 @@ namespace Tomahawk
 					else
 					{
 						Output("Incorrect format for removing break points, expected:\n"
-							" r <all|number of break point>\n");
+							   " r <all|number of break point>\n");
 					}
 
 					return false;
@@ -4720,13 +4699,13 @@ namespace Tomahawk
 					if (WantPrintHelp)
 					{
 						Output("Expected format: \n"
-							" l <list option>\n"
-							"Available options: \n"
-							" b - breakpoints\n"
-							" v - local variables\n"
-							" m - member properties\n"
-							" g - global variables\n"
-							" s - statistics\n");
+							   " l <list option>\n"
+							   "Available options: \n"
+							   " b - breakpoints\n"
+							   " v - local variables\n"
+							   " m - member properties\n"
+							   " g - global variables\n"
+							   " s - statistics\n");
 					}
 
 					return false;
@@ -4740,7 +4719,7 @@ namespace Tomahawk
 					if (P == std::string::npos)
 					{
 						Output("Incorrect format for print, expected:\n"
-							" p <expression>\n");
+							   " p <expression>\n");
 					}
 					else
 						PrintValue(Command.substr(P), Context);

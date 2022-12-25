@@ -1,6 +1,6 @@
 ## Tomahawk
 <p align="center">
-  <img width="640" height="320" src="https://github.com/romanpunia/tomahawk/blob/master/var/screenshot.png?raw=true">
+  <img width="640" height="336" src="https://github.com/romanpunia/tomahawk/blob/master/var/screenshot.png?raw=true">
 </p>
 
 ## About

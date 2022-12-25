@@ -1426,9 +1426,10 @@ namespace Tomahawk
 			std::string Buffer;
 			uint64_t Offset;
 			uint64_t Size;
+			bool Async;
 
 		public:
-			WebStream();
+			WebStream(bool IsAsync = false);
 			virtual ~WebStream() override;
 			virtual void Clear() override;
 			virtual bool Open(const char* File, FileMode Mode) override;

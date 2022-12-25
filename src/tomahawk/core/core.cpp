@@ -5500,7 +5500,7 @@ namespace Tomahawk
 			return (void*)Resource;
 		}
 
-		WebStream::WebStream() : Resource(nullptr), Offset(0), Size(0)
+		WebStream::WebStream(bool IsAsync) : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
 		{
 		}
 		WebStream::~WebStream()
@@ -5530,7 +5530,7 @@ namespace Tomahawk
 				case FileMode::Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					if (TH_AWAIT(Client->Connect(&Address, false)) < 0)
+					if (TH_AWAIT(Client->Connect(&Address, Async)) < 0)
 					{
 						TH_RELEASE(Client);
 						break;
@@ -5538,6 +5538,12 @@ namespace Tomahawk
 
 					Network::HTTP::RequestFrame Request;
 					Request.URI.assign('/' + URL.Path);
+					if (!URL.Filename.empty())
+						Request.URI += Request.URI.back() == '/' || Request.URI.back() == '\\' ? URL.Filename : '/' + URL.Filename;
+
+					if (!URL.Extension.empty())
+						Request.URI += Request.URI.back() == '.' ? URL.Extension : '.' + URL.Extension;
+
 					for (auto& Item : URL.Query)
 						Request.Query += Item.first + "=" + Item.second;
 
@@ -5646,8 +5652,7 @@ namespace Tomahawk
 			}
 
 			auto* Client = (Network::HTTP::Client*)Resource;
-			if (!TH_AWAIT(Client->Consume(Length)))
-				return 0;
+			TH_AWAIT(Client->Consume(Length));
 
 			auto* Response = Client->GetResponse();
 			Result = std::min(Length, (uint64_t)Response->Buffer.size());

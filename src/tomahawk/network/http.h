@@ -351,6 +351,7 @@ namespace Tomahawk
 				{
 					struct
 					{
+						SuccessCallback Initiate;
 						WebSocketCallback Connect;
 						WebSocketCallback Disconnect;
 						WebSocketReadCallback Receive;

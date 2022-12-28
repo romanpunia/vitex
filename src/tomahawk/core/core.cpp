@@ -619,6 +619,14 @@ namespace Tomahawk
 		{
 			return Invalid || IsZero();
 		}
+		bool Decimal::IsPositive() const
+		{
+			return !Invalid && *this > 0.0;
+		}
+		bool Decimal::IsNegative() const
+		{
+			return !Invalid && *this < 0.0;
+		}
 		double Decimal::ToDouble() const
 		{
 			if (Invalid)

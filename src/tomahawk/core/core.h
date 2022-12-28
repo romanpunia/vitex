@@ -396,6 +396,8 @@ namespace Tomahawk
 			bool IsNaN() const;
 			bool IsZero() const;
 			bool IsZeroOrNaN() const;
+			bool IsPositive() const;
+			bool IsNegative() const;
 			double ToDouble() const;
 			float ToFloat() const;
 			int64_t ToInt64() const;

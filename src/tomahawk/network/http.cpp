@@ -4625,7 +4625,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route || !Base->Route->AllowWebSocket)
-					return Base->Error(404, "Web Socket protocol is not allowed on this server.");
+					return Base->Error(404, "Websocket protocol is not allowed on this server.");
 
 				const char* WebSocketKey = Base->Request.GetHeader("Sec-WebSocket-Key");
 				if (WebSocketKey != nullptr)
@@ -5696,7 +5696,10 @@ namespace Tomahawk
 
 						Base->Stream->Timeout = Base->Route->WebSocketTimeout;
 						if (!ResourceProvided(Base, &Base->Resource))
-							Base->WebSocket->Next();
+						{
+							if (!Base->Route->Callbacks.WebSocket.Initiate || !Base->Route->Callbacks.WebSocket.Initiate(Base))
+								Base->WebSocket->Next();
+						}
 						else
 							ProcessGateway(Base);
 					}
@@ -5866,8 +5869,8 @@ namespace Tomahawk
 							if (!Util::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Get)
-								return Base->Route->Callbacks.Get(Base);
+							if (Base->Route->Callbacks.Get && Base->Route->Callbacks.Get(Base))
+								return true;
 
 							return Util::RouteGET(Base);
 						}
@@ -5876,8 +5879,8 @@ namespace Tomahawk
 							if (!Util::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Post)
-								return Base->Route->Callbacks.Post(Base);
+							if (Base->Route->Callbacks.Post && Base->Route->Callbacks.Post(Base))
+								return true;
 
 							return Util::RoutePOST(Base);
 						}
@@ -5886,8 +5889,8 @@ namespace Tomahawk
 							if (!Util::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Put)
-								return Base->Route->Callbacks.Put(Base);
+							if (Base->Route->Callbacks.Put && Base->Route->Callbacks.Put(Base))
+								return true;
 
 							return Util::RoutePUT(Base);
 						}
@@ -5896,8 +5899,8 @@ namespace Tomahawk
 							if (!Util::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Patch)
-								return Base->Route->Callbacks.Patch(Base);
+							if (Base->Route->Callbacks.Patch && Base->Route->Callbacks.Patch(Base))
+								return true;
 
 							return Util::RoutePATCH(Base);
 						}
@@ -5906,15 +5909,15 @@ namespace Tomahawk
 							if (!Util::Authorize(Base))
 								return false;
 
-							if (Base->Route->Callbacks.Delete)
-								return Base->Route->Callbacks.Delete(Base);
+							if (Base->Route->Callbacks.Delete && Base->Route->Callbacks.Delete(Base))
+								return true;
 
 							return Util::RouteDELETE(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
 						{
-							if (Base->Route->Callbacks.Options)
-								return Base->Route->Callbacks.Options(Base);
+							if (Base->Route->Callbacks.Options && Base->Route->Callbacks.Options(Base))
+								return true;
 
 							return Util::RouteOPTIONS(Base);
 						}

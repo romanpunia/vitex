@@ -120,11 +120,11 @@ namespace Tomahawk
 					if (&Request != &Root)
 						Request = std::move(Root);
 
-					TH_TRACE("[smtp] message to %s", Root.Receiver.c_str());
+					TH_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
 					Done = [this, Result](SocketClient*, int Code) mutable
 					{
 						if (!Buffer.empty())
-							TH_TRACE("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
+							TH_DEBUG("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
 
 						Buffer.clear();
 						Result = Code;
@@ -160,7 +160,7 @@ namespace Tomahawk
 				}
 
 				if (!Request.Attachments.empty())
-					Boundary = Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(64));
+					Boundary = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(64));
                 
 				Core::Parser Content;
 				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
@@ -436,10 +436,10 @@ namespace Tomahawk
 				{
 					return SendRequest(334, "AUTH LOGIN\r\n", [this, Callback]()
 					{
-						std::string Hash = Compute::Common::Base64Encode(Request.Login);
+						std::string Hash = Compute::Codec::Base64Encode(Request.Login);
 						SendRequest(334, Hash.append("\r\n"), [this, Callback]()
 						{
-							std::string Hash = Compute::Common::Base64Encode(Request.Password);
+							std::string Hash = Compute::Codec::Base64Encode(Request.Password);
 							SendRequest(235, Hash.append("\r\n"), [this, Callback]()
 							{
 								Authorized = true;
@@ -459,7 +459,7 @@ namespace Tomahawk
 							Escape[i] = 0;
 					}
 
-					return SendRequest(235, Core::Form("AUTH PLAIN %s\r\n", Compute::Common::Base64Encode(Hash).c_str()).R(), [this, Callback]()
+					return SendRequest(235, Core::Form("AUTH PLAIN %s\r\n", Compute::Codec::Base64Encode(Hash).c_str()).R(), [this, Callback]()
 					{
 						Authorized = true;
 						Callback();
@@ -470,7 +470,7 @@ namespace Tomahawk
 					return SendRequest(334, "AUTH CRAM-MD5\r\n", [this, Callback]()
 					{
 						std::string EncodedChallenge = Command.c_str() + 4;
-						std::string DecodedChallenge = Compute::Common::Base64Decode(EncodedChallenge);
+						std::string DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
 						unsigned char* UserChallenge = Unicode(DecodedChallenge.c_str());
 						unsigned char* UserPassword = Unicode(Request.Password.c_str());
 
@@ -521,7 +521,7 @@ namespace Tomahawk
 						TH_FREE(UserResult);
 
 						DecodedChallenge = Request.Login + ' ' + UserBase;
-						EncodedChallenge = Compute::Common::Base64Encode(reinterpret_cast<const unsigned char*>(DecodedChallenge.c_str()), DecodedChallenge.size());
+						EncodedChallenge = Compute::Codec::Base64Encode(reinterpret_cast<const unsigned char*>(DecodedChallenge.c_str()), DecodedChallenge.size());
 
 						TH_FREE((void*)UserBase);
 						SendRequest(235, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
@@ -536,7 +536,7 @@ namespace Tomahawk
 					return SendRequest(334, "AUTH DIGEST-MD5\r\n", [this, Callback]()
 					{
 						std::string EncodedChallenge = Command.c_str() + 4;
-						Core::Parser DecodedChallenge = Compute::Common::Base64Decode(EncodedChallenge);
+						Core::Parser DecodedChallenge = Compute::Codec::Base64Decode(EncodedChallenge);
 
 						Core::Parser::Settle Result1 = DecodedChallenge.Find("nonce");
 						if (!Result1.Found)
@@ -662,7 +662,7 @@ namespace Tomahawk
 							",Response=%s"
 							",qop=auth", Nonce.c_str(), NC, CNonce, URI.c_str(), DecodedChallenge.Get());
 
-						EncodedChallenge = Compute::Common::Base64Encode(Content.R());
+						EncodedChallenge = Compute::Codec::Base64Encode(Content.R());
 						SendRequest(334, Core::Form("%s\r\n", EncodedChallenge.c_str()).R(), [this, Callback]()
 						{
 							SendRequest(235, "\r\n", [this, Callback]()
@@ -708,7 +708,7 @@ namespace Tomahawk
 				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
 					Name = Name - 1;
 
-				std::string Hash = Core::Form("=?UTF-8?B?%s?=", Compute::Common::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
+				std::string Hash = Core::Form("=?UTF-8?B?%s?=", Compute::Codec::Base64Encode((unsigned char*)Name, Id + 1).c_str()).R();
 				Core::Parser Content;
 				Content.fAppend("--%s\r\n", Boundary.c_str());
 				Content.fAppend("Content-Type: application/x-msdownload; name=\"%s\"\r\n", Hash.c_str());
@@ -738,7 +738,7 @@ namespace Tomahawk
 				if (Size != Count)
 					return Error("cannot read attachment block from %s", It.Path.c_str());
 
-				std::string Content = Compute::Common::Base64Encode((const unsigned char*)Data, Size);
+				std::string Content = Compute::Codec::Base64Encode((const unsigned char*)Data, Size);
 				Content.append("\r\n");
 
 				It.Length -= Size;
@@ -762,7 +762,7 @@ namespace Tomahawk
 			unsigned char* Client::Unicode(const char* String)
 			{
 				uint64_t Length = strlen(String);
-				auto Output = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (size_t)(Length + 1));
+				auto Output = TH_MALLOC(unsigned char, sizeof(unsigned char) * (size_t)(Length + 1));
 
 				for (uint64_t i = 0; i < Length; i++)
 					Output[i] = (unsigned char)String[i];

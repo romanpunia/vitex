@@ -480,7 +480,7 @@ namespace Tomahawk
 				DataNode& Insert(size_t Where, Core::Variant* Reference, std::pair<void*, size_t>* Top = nullptr);
 				DataNode& Add(const Core::VariantList& Initial, std::pair<void*, size_t>* Top = nullptr);
 				DataNode& Add(const Core::Variant& Initial, std::pair<void*, size_t>* Top = nullptr);
-				DataNode& Add(Core::Variant* Reference, std::pair<void*, size_t>* Top = nullptr);
+				DataNode& Add(Core::Unique<Core::Variant> Reference, std::pair<void*, size_t>* Top = nullptr);
 				DataNode& At(size_t Index);
 				bool Remove(size_t Index);
 				bool Clear();

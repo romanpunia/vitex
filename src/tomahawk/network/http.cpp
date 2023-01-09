@@ -319,9 +319,9 @@ namespace Tomahawk
 					if (Opcode == WebSocketOp::Text || Opcode == WebSocketOp::Binary)
 					{
 						if (Opcode == WebSocketOp::Binary)
-							TH_TRACE("[websocket] sock %i frame binary\n\t%s", (int)Stream->GetFd(), Compute::Common::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
+							TH_DEBUG("[websocket] sock %i frame binary\n\t%s", (int)Stream->GetFd(), Compute::Codec::HexEncode(Codec->Data.data(), Codec->Data.size()).c_str());
 						else
-							TH_TRACE("[websocket] sock %i frame text\n\t%.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
+							TH_DEBUG("[websocket] sock %i frame text\n\t%.*s", (int)Stream->GetFd(), (int)Codec->Data.size(), Codec->Data.data());
 
 						if (Receive)
 						{
@@ -334,7 +334,7 @@ namespace Tomahawk
 					}
 					else if (Opcode == WebSocketOp::Ping)
 					{
-						TH_TRACE("[websocket] sock %i frame ping", (int)Stream->GetFd());
+						TH_DEBUG("[websocket] sock %i frame ping", (int)Stream->GetFd());
 						Section.unlock();
 						if (Receive && Receive(this, Opcode, "", 0))
 							return;
@@ -346,7 +346,7 @@ namespace Tomahawk
 					}
 					else if (Opcode == WebSocketOp::Close)
 					{
-						TH_TRACE("[websocket] sock %i frame close", (int)Stream->GetFd());
+						TH_DEBUG("[websocket] sock %i frame close", (int)Stream->GetFd());
 						Section.unlock();
 						if (Receive && Receive(this, Opcode, "", 0))
 							return;
@@ -440,7 +440,7 @@ namespace Tomahawk
 
 				Message Next;
 				Next.Mask = Mask;
-				Next.Buffer = (Size > 0 ? (char*)TH_MALLOC(sizeof(char) * Size) : nullptr);
+				Next.Buffer = (Size > 0 ? TH_MALLOC(char, sizeof(char) * Size) : nullptr);
 				Next.Size = Size;
 				Next.Opcode = Opcode;
 				Next.Callback = Callback;
@@ -486,7 +486,7 @@ namespace Tomahawk
 						return Error(400, "Method is not allowed.");
 				}
 
-				TH_TRACE("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
+				TH_DEBUG("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
 
 				Script::VMContext* Context = Compiler->GetContext();
 				Context->TryExecute(Entry, nullptr).Await([this, Context](int Result)
@@ -503,7 +503,7 @@ namespace Tomahawk
 							Response = Context->IsThrown() ? 1 : 0;
 					}
 
-					TH_TRACE("[http] %s exit context on 0x%" PRIXPTR, Response == -1 ? "INT" : Response > 0 ? "ERR" : "OK", (uintptr_t)Compiler);
+					TH_DEBUG("[http] %s exit context on 0x%" PRIXPTR, Response == -1 ? "INT" : Response > 0 ? "ERR" : "OK", (uintptr_t)Compiler);
 					if (Response > 0)
 						E.Exception(this);
 
@@ -1535,7 +1535,7 @@ namespace Tomahawk
 						HTTP::Resource fResource;
 						fResource.Length = Request.ContentLength;
 						fResource.Type = (ContentType ? ContentType : "application/octet-stream");
-						fResource.Path = Core::OS::Directory::Get() + Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(16));
+						fResource.Path = Core::OS::Directory::Get() + Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16));
 
 						FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
 						if (!File)
@@ -1686,7 +1686,7 @@ namespace Tomahawk
 
 							Request.Path = Page.Pattern;
 							Response.SetHeader("X-Error", Info.Message);
-							return Util::RouteGET(this);
+							return Routing::RouteGET(this);
 						}
 					}
 
@@ -1694,7 +1694,7 @@ namespace Tomahawk
 					Core::Parser Content;
 					Content.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, StatusText);
 
-					Util::ConstructHeadUncache(this, &Content);
+					Paths::ConstructHeadUncache(this, &Content);
 					if (Route && Route->Callbacks.Headers)
 						Route->Callbacks.Headers(this, nullptr);
 
@@ -1759,7 +1759,7 @@ namespace Tomahawk
 
 					if (Request.GetHeader("Range") != nullptr)
 					{
-						Boundary = Util::ParseMultipartDataBoundary();
+						Boundary = Parsing::ParseMultipartDataBoundary();
 						Content.fAppend("Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
 					}
 					else
@@ -1772,7 +1772,7 @@ namespace Tomahawk
 				{
 #ifdef TH_HAS_ZLIB
 					bool Deflate = false, Gzip = false;
-					if (Util::ResourceCompressed(this, Response.Buffer.size()))
+					if (Resources::ResourceCompressed(this, Response.Buffer.size()))
 					{
 						const char* AcceptEncoding = Request.GetHeader("Accept-Encoding");
 						if (AcceptEncoding != nullptr)
@@ -1822,7 +1822,7 @@ namespace Tomahawk
 							for (auto It = Ranges.begin(); It != Ranges.end(); ++It)
 							{
 								std::pair<uint64_t, uint64_t> Offset = Request.GetRange(It, Response.Buffer.size());
-								std::string ContentRange = Util::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size());
+								std::string ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size());
 
 								Data.append("--", 2);
 								Data.append(Boundary);
@@ -1853,7 +1853,7 @@ namespace Tomahawk
 						{
 							std::pair<uint64_t, uint64_t> Offset = Request.GetRange(Ranges.begin(), Response.Buffer.size());
 							if (!Response.GetHeader("Content-Range"))
-								Content.fAppend("Content-Range: %s\r\n", Util::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size()).c_str());
+								Content.fAppend("Content-Range: %s\r\n", Paths::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size()).c_str());
 
 							TextAssign(Response.Buffer, TextSubstring(Response.Buffer, Offset.first, Offset.second));
 						}
@@ -1865,7 +1865,7 @@ namespace Tomahawk
 				else if (!Response.GetHeader("Content-Length"))
 					Content.Append("Content-Length: 0\r\n", 19);
 
-				Util::ConstructHeadFull(&Request, &Response, false, &Content);
+				Paths::ConstructHeadFull(&Request, &Response, false, &Content);
 				if (Route && Route->Callbacks.Headers)
 					Route->Callbacks.Headers(this, &Content);
 
@@ -1921,7 +1921,7 @@ namespace Tomahawk
 					unsigned char* Pointer = Buffer;
 					int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
 
-					if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
+					if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
 						*SerialBuffer = '\0';
 				}
 				else
@@ -1931,7 +1931,7 @@ namespace Tomahawk
 				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 				char FingerBuffer[1024];
-				if (!Compute::Common::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
+				if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 					*FingerBuffer = '\0';
                 
                 Output->Finger = FingerBuffer;
@@ -1952,7 +1952,7 @@ namespace Tomahawk
 			}
 			std::string QueryParameter::Build()
 			{
-				std::string Output, Label = Compute::Common::URIEncode(Parent != nullptr ? ('[' + Key + ']') : Key);
+				std::string Output, Label = Compute::Codec::URIEncode(Parent != nullptr ? ('[' + Key + ']') : Key);
 				if (Value.IsObject())
 				{
 					if (Nodes != nullptr)
@@ -1970,7 +1970,7 @@ namespace Tomahawk
 				{
 					std::string V = Value.Serialize();
 					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(V));
+						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
 					else
 						Output.append(Label);
 				}
@@ -1979,7 +1979,7 @@ namespace Tomahawk
 			}
 			std::string QueryParameter::BuildFromBase()
 			{
-				std::string Output, Label = Compute::Common::URIEncode(Key);
+				std::string Output, Label = Compute::Codec::URIEncode(Key);
 				if (Value.IsObject())
 				{
 					if (Nodes != nullptr)
@@ -1997,7 +1997,7 @@ namespace Tomahawk
 				{
 					std::string V = Value.Serialize();
 					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Common::URIEncode(V));
+						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
 					else
 						Output.append(Label);
 				}
@@ -2063,7 +2063,7 @@ namespace Tomahawk
 			}
 			void Query::NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value)
 			{
-				std::string URI = Compute::Common::URIDecode(Name.Value, Name.Length);
+				std::string URI = Compute::Codec::URIDecode(Name.Value, Name.Length);
 				char* Data = (char*)URI.c_str();
 
 				uint64_t Offset = 0, Length = URI.size();
@@ -2118,7 +2118,7 @@ namespace Tomahawk
 				}
 
 				if (Parameter != nullptr)
-					Parameter->Value.Deserialize(Compute::Common::URIDecode(Value.Value, Value.Length));
+					Parameter->Value.Deserialize(Compute::Codec::URIDecode(Value.Value, Value.Length));
 			}
 			void Query::Decode(const char* Type, const std::string& URI)
 			{
@@ -2165,7 +2165,7 @@ namespace Tomahawk
 			void Query::DecodeAJSON(const std::string& URI)
 			{
 				TH_CLEAR(Object);
-				Object = (QueryParameter*)Core::Schema::ReadJSON(URI.c_str(), URI.size());
+				Object = (QueryParameter*)Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
 			}
 			std::string Query::Encode(const char* Type)
 			{
@@ -2196,7 +2196,7 @@ namespace Tomahawk
 			std::string Query::EncodeAJSON()
 			{
 				std::string Stream;
-				Core::Schema::WriteJSON(Object, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 				{
 					if (Buffer != nullptr && Length > 0)
 						Stream.append(Buffer, Length);
@@ -2277,7 +2277,7 @@ namespace Tomahawk
 				SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
 
-				Query->WriteJSONB(Query, [Stream](Core::VarForm, const char* Buffer, int64_t Size)
+				Query->ConvertToJSONB(Query, [Stream](Core::VarForm, const char* Buffer, int64_t Size)
 				{
 					if (Buffer != nullptr && Size > 0)
 						fwrite(Buffer, Size, 1, Stream);
@@ -2321,7 +2321,7 @@ namespace Tomahawk
 				}
 
 
-				Core::Schema* V = Core::Schema::ReadJSONB([Stream](char* Buffer, int64_t Size)
+				Core::Schema* V = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, int64_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -2354,7 +2354,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, SessionId, "connection should be set");
 				int64_t Time = time(nullptr);
-				SessionId = Compute::Common::Hash(Compute::Digests::MD5(), Base->Request.URI + std::to_string(Time));
+				SessionId = Compute::Crypto::Hash(Compute::Digests::MD5(), Base->Request.URI + std::to_string(Time));
 				IsNewSession = true;
 
 				if (SessionExpires == 0)
@@ -2425,7 +2425,7 @@ namespace Tomahawk
 						TH_FREE(Multipart.Boundary);
 
 					Multipart.Length = strlen(Boundary);
-					Multipart.Boundary = (char*)TH_MALLOC(sizeof(char) * (size_t)(Multipart.Length * 2 + 9));
+					Multipart.Boundary = TH_MALLOC(char, sizeof(char) * (size_t)(Multipart.Length * 2 + 9));
 					memcpy(Multipart.Boundary, Boundary, sizeof(char) * (size_t)Multipart.Length);
 					Multipart.Boundary[Multipart.Length] = '\0';
 					Multipart.LookBehind = (Multipart.Boundary + Multipart.Length + 1);
@@ -3637,286 +3637,6 @@ namespace Tomahawk
 				return true;
 			}
 
-			void Util::ConstructPath(Connection* Base)
-			{
-				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				if (!Base->Route->Override.empty())
-				{
-					Base->Request.Path.assign(Base->Route->Override);
-					if (Base->Route->Site->Callbacks.OnRewriteURL)
-						Base->Route->Site->Callbacks.OnRewriteURL(Base);
-					return;
-				}
-
-				for (uint64_t i = 0; i < Base->Request.URI.size(); i++)
-				{
-					if (Base->Request.URI[i] == '%' && i + 1 < Base->Request.URI.size())
-					{
-						if (Base->Request.URI[i + 1] == 'u')
-						{
-							int Value = 0;
-							if (Compute::Common::HexToDecimal(Base->Request.URI, i + 2, 4, Value))
-							{
-								char Buffer[4];
-								uint64_t LCount = Compute::Common::Utf8(Value, Buffer);
-								if (LCount > 0)
-									Base->Request.Path.append(Buffer, LCount);
-
-								i += 5;
-							}
-							else
-								Base->Request.Path += Base->Request.URI[i];
-						}
-						else
-						{
-							int Value = 0;
-							if (Compute::Common::HexToDecimal(Base->Request.URI, i + 1, 2, Value))
-							{
-								Base->Request.Path += Value;
-								i += 2;
-							}
-							else
-								Base->Request.Path += Base->Request.URI[i];
-						}
-					}
-					else if (Base->Request.URI[i] == '+')
-						Base->Request.Path += ' ';
-					else
-						Base->Request.Path += Base->Request.URI[i];
-				}
-
-				char* Buffer = (char*)Base->Request.Path.c_str();
-				char* Next = Buffer;
-				while (Buffer[0] == '.' && Buffer[1] == '.')
-					Buffer++;
-
-				while (*Buffer != '\0')
-				{
-					*Next++ = *Buffer++;
-					if (Buffer[-1] != '/' && Buffer[-1] != '\\')
-						continue;
-
-					while (Buffer[0] != '\0')
-					{
-						if (Buffer[0] == '/' || Buffer[0] == '\\')
-							Buffer++;
-						else if (Buffer[0] == '.' && Buffer[1] == '.')
-							Buffer += 2;
-						else
-							break;
-					}
-				}
-
-				*Next = '\0';
-				if (!Base->Request.Match.Empty())
-				{
-					auto& Match = Base->Request.Match.Get()[0];
-					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Match.Start, Match.End).R();
-				}
-				else
-					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
-
-				Base->Request.Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
-				if (Core::Parser(&Base->Request.Path).EndsOf("/\\"))
-				{
-					if (!Core::Parser(&Base->Request.URI).EndsOf("/\\"))
-						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
-				}
-				else if (Core::Parser(&Base->Request.URI).EndsOf("/\\"))
-					Base->Request.Path.append(1, '/');
-
-				if (Base->Route->Site->Callbacks.OnRewriteURL)
-					Base->Route->Site->Callbacks.OnRewriteURL(Base);
-			}
-			void Util::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Parser* Buffer)
-			{
-				TH_ASSERT_V(Request != nullptr, "connection should be set");
-				TH_ASSERT_V(Response != nullptr, "response should be set");
-				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
-
-				HeaderMapping& Headers = (IsRequest ? Request->Headers : Response->Headers);
-				for (auto& Item : Headers)
-				{
-					for (auto& Payload : Item.second)
-						Buffer->fAppend("%s: %s\r\n", Item.first.c_str(), Payload.c_str());
-				}
-
-				if (IsRequest)
-					return;
-
-				for (auto& Item : Response->Cookies)
-				{
-					if (Item.Name.empty())
-						continue;
-
-					std::string Expires = (Item.Expires.empty() ? "" : "; Expires=" + Item.Expires);
-					std::string Domain = (Item.Domain.empty() ? "" : "; Domain=" + Item.Domain);
-					std::string Path = (Item.Path.empty() ? "" : "; Path=" + Item.Path);
-					std::string SameSite = (Item.SameSite.empty() ? "" : "; SameSite=" + Item.SameSite);
-					const char* Secure = (!Item.Secure ? "" : "; Secure");
-					const char* HttpOnly = (!Item.HttpOnly ? "" : "; HttpOnly");
-					Buffer->fAppend("Set-Cookie: %s=%s%s%s%s%s%s%s\r\n",
-						Item.Name.c_str(),
-						Item.Value.c_str(),
-						Expires.c_str(),
-						Domain.c_str(),
-						Path.c_str(),
-						SameSite.c_str(),
-						Secure,
-						HttpOnly);
-				}
-			}
-			void Util::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)
-			{
-				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
-				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
-
-				if (!Base->Route->StaticFileMaxAge)
-					return ConstructHeadUncache(Base, Buffer);
-
-				Buffer->fAppend("Cache-Control: max-age=%llu\r\n", Base->Route->StaticFileMaxAge);
-			}
-			void Util::ConstructHeadUncache(Connection* Base, Core::Parser* Buffer)
-			{
-				TH_ASSERT_V(Base != nullptr, "connection should be set");
-				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
-
-				Buffer->Append(
-					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
-					"Pragma: no-cache\r\n"
-					"Expires: 0\r\n", 102);
-			}
-			bool Util::ConstructRoute(MapRouter* Router, Connection* Base)
-			{
-				TH_ASSERT(Base != nullptr, false, "connection should be set");
-				TH_ASSERT(Router != nullptr, false, "router should be set");
-
-				if (Router->Sites.empty())
-					return false;
-
-				auto* Host = Base->Request.GetHeaderBlob("Host");
-				if (!Host)
-					return false;
-
-				std::unordered_map<std::string, SiteEntry*>::iterator It;
-				if (Router->Listeners.size() > 1)
-				{
-					auto Listen = Router->Listeners.find(*Host);
-					if (Listen == Router->Listeners.end())
-					{
-						Listen = Router->Listeners.find("*");
-						if (Listen == Router->Listeners.end())
-							return false;
-					}
-
-					It = Router->Sites.find(Listen->first);
-					if (It == Router->Sites.end())
-						return false;
-				}
-				else
-				{
-					auto Listen = Router->Listeners.begin();
-					if (Listen->first != "*" && Listen->first != *Host)
-						return false;
-
-					It = Router->Sites.begin();
-				}
-
-				Base->Request.Where = Base->Request.URI;
-				for (auto& Group : It->second->Groups)
-				{
-					if (!Group.Match.empty())
-					{
-						Core::Parser URI(&Base->Request.URI);
-						if (Group.Mode == RouteMode::Start)
-						{
-							if (!URI.StartsWith(Group.Match))
-								continue;
-							URI.Substring((uint64_t)Group.Match.size(), URI.Size());
-						}
-						else if (Group.Mode == RouteMode::Match)
-						{
-							if (!URI.Find(Group.Match).Found)
-								continue;
-						}
-						else if (Group.Mode == RouteMode::End)
-						{
-							if (!URI.EndsWith(Group.Match))
-								continue;
-							URI.Clip(URI.Size() - (uint64_t)Group.Match.size());
-						}
-
-						if (URI.Empty())
-							URI.Append('/');
-
-						for (auto* Basis : Group.Routes)
-						{
-							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
-							{
-								Base->Route = Basis;
-								return true;
-							}
-						}
-
-						URI.Assign(Base->Request.Where);
-					}
-					else
-					{
-						for (auto* Basis : Group.Routes)
-						{
-							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
-							{
-								Base->Route = Basis;
-								return true;
-							}
-						}
-					}
-				}
-
-				Base->Route = It->second->Base;
-				return true;
-			}
-			bool Util::ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B)
-			{
-				if (A.Source.IsDirectory && !B.Source.IsDirectory)
-					return true;
-
-				if (!A.Source.IsDirectory && B.Source.IsDirectory)
-					return false;
-
-				auto Base = (HTTP::Connection*)A.UserData;
-				if (!Base)
-					return false;
-
-				const char* Query = (Base->Request.Query.empty() ? nullptr : Base->Request.Query.c_str());
-				if (Query != nullptr)
-				{
-					int Result = 0;
-					if (*Query == 'n')
-						Result = strcmp(A.Path.c_str(), B.Path.c_str());
-					else if (*Query == 's')
-						Result = (A.Source.Size == B.Source.Size) ? 0 : ((A.Source.Size > B.Source.Size) ? 1 : -1);
-					else if (*Query == 'd')
-						Result = (A.Source.LastModified == B.Source.LastModified) ? 0 : ((A.Source.LastModified > B.Source.LastModified) ? 1 : -1);
-
-					if (Query[1] == 'a')
-						return Result < 0;
-					else if (Query[1] == 'd')
-						return Result > 0;
-
-					return Result < 0;
-				}
-
-				return strcmp(A.Path.c_str(), B.Path.c_str()) < 0;
-			}
-			bool Util::ContentOK(Content State)
-			{
-				return State == Content::Cached || State == Content::Empty || State == Content::Saved;
-			}
-			std::string Util::BasicAuth(const std::string& Username, const std::string& Password)
-			{
-				return "Basic " + Compute::Common::Base64Encode(Username + ':' + Password);
-			}
 			std::string Util::ConnectionResolve(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Root != nullptr && Base->Root->Router != nullptr, "Connection: Close\r\n", "connection should be set");
@@ -3943,17 +3663,6 @@ namespace Tomahawk
 					return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + "\r\n";
 
 				return "Connection: Keep-Alive\r\nKeep-Alive: timeout=" + std::to_string(Base->Root->Router->SocketTimeout / 1000) + ", max=" + std::to_string(Base->Root->Router->KeepAliveMaxCount) + "\r\n";
-			}
-			std::string Util::ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength)
-			{
-				std::string Field = "bytes ";
-				Field += std::to_string(Offset);
-				Field += '-';
-				Field += std::to_string(Offset + Length - 1);
-				Field += '/';
-				Field += std::to_string(ContentLength);
-
-				return Field;
 			}
 			const char* Util::ContentType(const std::string& Path, std::vector<MimeType>* Types)
 			{
@@ -4151,11 +3860,297 @@ namespace Tomahawk
 
 				return "Stateless";
 			}
-			bool Util::ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length)
+			bool Util::ContentOK(Content State)
+			{
+				return State == Content::Cached || State == Content::Empty || State == Content::Saved;
+			}
+
+			void Paths::ConstructPath(Connection* Base)
+			{
+				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				if (!Base->Route->Override.empty())
+				{
+					Base->Request.Path.assign(Base->Route->Override);
+					if (Base->Route->Site->Callbacks.OnRewriteURL)
+						Base->Route->Site->Callbacks.OnRewriteURL(Base);
+					return;
+				}
+
+				for (uint64_t i = 0; i < Base->Request.URI.size(); i++)
+				{
+					if (Base->Request.URI[i] == '%' && i + 1 < Base->Request.URI.size())
+					{
+						if (Base->Request.URI[i + 1] == 'u')
+						{
+							int Value = 0;
+							if (Compute::Codec::HexToDecimal(Base->Request.URI, i + 2, 4, Value))
+							{
+								char Buffer[4];
+								uint64_t LCount = Compute::Codec::Utf8(Value, Buffer);
+								if (LCount > 0)
+									Base->Request.Path.append(Buffer, LCount);
+
+								i += 5;
+							}
+							else
+								Base->Request.Path += Base->Request.URI[i];
+						}
+						else
+						{
+							int Value = 0;
+							if (Compute::Codec::HexToDecimal(Base->Request.URI, i + 1, 2, Value))
+							{
+								Base->Request.Path += Value;
+								i += 2;
+							}
+							else
+								Base->Request.Path += Base->Request.URI[i];
+						}
+					}
+					else if (Base->Request.URI[i] == '+')
+						Base->Request.Path += ' ';
+					else
+						Base->Request.Path += Base->Request.URI[i];
+				}
+
+				char* Buffer = (char*)Base->Request.Path.c_str();
+				char* Next = Buffer;
+				while (Buffer[0] == '.' && Buffer[1] == '.')
+					Buffer++;
+
+				while (*Buffer != '\0')
+				{
+					*Next++ = *Buffer++;
+					if (Buffer[-1] != '/' && Buffer[-1] != '\\')
+						continue;
+
+					while (Buffer[0] != '\0')
+					{
+						if (Buffer[0] == '/' || Buffer[0] == '\\')
+							Buffer++;
+						else if (Buffer[0] == '.' && Buffer[1] == '.')
+							Buffer += 2;
+						else
+							break;
+					}
+				}
+
+				*Next = '\0';
+				if (!Base->Request.Match.Empty())
+				{
+					auto& Match = Base->Request.Match.Get()[0];
+					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Match.Start, Match.End).R();
+				}
+				else
+					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
+
+				Base->Request.Path = Core::OS::Path::Resolve(Base->Request.Path.c_str());
+				if (Core::Parser(&Base->Request.Path).EndsOf("/\\"))
+				{
+					if (!Core::Parser(&Base->Request.URI).EndsOf("/\\"))
+						Base->Request.Path.erase(Base->Request.Path.size() - 1, 1);
+				}
+				else if (Core::Parser(&Base->Request.URI).EndsOf("/\\"))
+					Base->Request.Path.append(1, '/');
+
+				if (Base->Route->Site->Callbacks.OnRewriteURL)
+					Base->Route->Site->Callbacks.OnRewriteURL(Base);
+			}
+			void Paths::ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Parser* Buffer)
+			{
+				TH_ASSERT_V(Request != nullptr, "connection should be set");
+				TH_ASSERT_V(Response != nullptr, "response should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+
+				HeaderMapping& Headers = (IsRequest ? Request->Headers : Response->Headers);
+				for (auto& Item : Headers)
+				{
+					for (auto& Payload : Item.second)
+						Buffer->fAppend("%s: %s\r\n", Item.first.c_str(), Payload.c_str());
+				}
+
+				if (IsRequest)
+					return;
+
+				for (auto& Item : Response->Cookies)
+				{
+					if (Item.Name.empty())
+						continue;
+
+					std::string Expires = (Item.Expires.empty() ? "" : "; Expires=" + Item.Expires);
+					std::string Domain = (Item.Domain.empty() ? "" : "; Domain=" + Item.Domain);
+					std::string Path = (Item.Path.empty() ? "" : "; Path=" + Item.Path);
+					std::string SameSite = (Item.SameSite.empty() ? "" : "; SameSite=" + Item.SameSite);
+					const char* Secure = (!Item.Secure ? "" : "; Secure");
+					const char* HttpOnly = (!Item.HttpOnly ? "" : "; HttpOnly");
+					Buffer->fAppend("Set-Cookie: %s=%s%s%s%s%s%s%s\r\n",
+						Item.Name.c_str(),
+						Item.Value.c_str(),
+						Expires.c_str(),
+						Domain.c_str(),
+						Path.c_str(),
+						SameSite.c_str(),
+						Secure,
+						HttpOnly);
+				}
+			}
+			void Paths::ConstructHeadCache(Connection* Base, Core::Parser* Buffer)
+			{
+				TH_ASSERT_V(Base != nullptr && Base->Route != nullptr, "connection should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+
+				if (!Base->Route->StaticFileMaxAge)
+					return ConstructHeadUncache(Base, Buffer);
+
+				Buffer->fAppend("Cache-Control: max-age=%llu\r\n", Base->Route->StaticFileMaxAge);
+			}
+			void Paths::ConstructHeadUncache(Connection* Base, Core::Parser* Buffer)
+			{
+				TH_ASSERT_V(Base != nullptr, "connection should be set");
+				TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+
+				Buffer->Append(
+					"Cache-Control: no-cache, no-store, must-revalidate, private, max-age=0\r\n"
+					"Pragma: no-cache\r\n"
+					"Expires: 0\r\n", 102);
+			}
+			bool Paths::ConstructRoute(MapRouter* Router, Connection* Base)
+			{
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
+				TH_ASSERT(Router != nullptr, false, "router should be set");
+
+				if (Router->Sites.empty())
+					return false;
+
+				auto* Host = Base->Request.GetHeaderBlob("Host");
+				if (!Host)
+					return false;
+
+				std::unordered_map<std::string, SiteEntry*>::iterator It;
+				if (Router->Listeners.size() > 1)
+				{
+					auto Listen = Router->Listeners.find(*Host);
+					if (Listen == Router->Listeners.end())
+					{
+						Listen = Router->Listeners.find("*");
+						if (Listen == Router->Listeners.end())
+							return false;
+					}
+
+					It = Router->Sites.find(Listen->first);
+					if (It == Router->Sites.end())
+						return false;
+				}
+				else
+				{
+					auto Listen = Router->Listeners.begin();
+					if (Listen->first != "*" && Listen->first != *Host)
+						return false;
+
+					It = Router->Sites.begin();
+				}
+
+				Base->Request.Where = Base->Request.URI;
+				for (auto& Group : It->second->Groups)
+				{
+					if (!Group.Match.empty())
+					{
+						Core::Parser URI(&Base->Request.URI);
+						if (Group.Mode == RouteMode::Start)
+						{
+							if (!URI.StartsWith(Group.Match))
+								continue;
+							URI.Substring((uint64_t)Group.Match.size(), URI.Size());
+						}
+						else if (Group.Mode == RouteMode::Match)
+						{
+							if (!URI.Find(Group.Match).Found)
+								continue;
+						}
+						else if (Group.Mode == RouteMode::End)
+						{
+							if (!URI.EndsWith(Group.Match))
+								continue;
+							URI.Clip(URI.Size() - (uint64_t)Group.Match.size());
+						}
+
+						if (URI.Empty())
+							URI.Append('/');
+
+						for (auto* Basis : Group.Routes)
+						{
+							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
+							{
+								Base->Route = Basis;
+								return true;
+							}
+						}
+
+						URI.Assign(Base->Request.Where);
+					}
+					else
+					{
+						for (auto* Basis : Group.Routes)
+						{
+							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
+							{
+								Base->Route = Basis;
+								return true;
+							}
+						}
+					}
+				}
+
+				Base->Route = It->second->Base;
+				return true;
+			}
+			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::ResourceEntry& A, const Core::ResourceEntry& B)
+			{
+				TH_ASSERT(Base != nullptr, false, "connection should be set");
+				if (A.Source.IsDirectory && !B.Source.IsDirectory)
+					return true;
+
+				if (!A.Source.IsDirectory && B.Source.IsDirectory)
+					return false;
+
+				const char* Query = (Base->Request.Query.empty() ? nullptr : Base->Request.Query.c_str());
+				if (Query != nullptr)
+				{
+					int Result = 0;
+					if (*Query == 'n')
+						Result = strcmp(A.Path.c_str(), B.Path.c_str());
+					else if (*Query == 's')
+						Result = (A.Source.Size == B.Source.Size) ? 0 : ((A.Source.Size > B.Source.Size) ? 1 : -1);
+					else if (*Query == 'd')
+						Result = (A.Source.LastModified == B.Source.LastModified) ? 0 : ((A.Source.LastModified > B.Source.LastModified) ? 1 : -1);
+
+					if (Query[1] == 'a')
+						return Result < 0;
+					else if (Query[1] == 'd')
+						return Result > 0;
+
+					return Result < 0;
+				}
+
+				return strcmp(A.Path.c_str(), B.Path.c_str()) < 0;
+			}
+			std::string Paths::ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength)
+			{
+				std::string Field = "bytes ";
+				Field += std::to_string(Offset);
+				Field += '-';
+				Field += std::to_string(Offset + Length - 1);
+				Field += '/';
+				Field += std::to_string(ContentLength);
+
+				return Field;
+			}
+
+			bool Parsing::ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length)
 			{
 				return ParseHeaderField(Parser, Name, Length);
 			}
-			bool Util::ParseMultipartHeaderValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseMultipartHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
@@ -4193,7 +4188,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Util::ParseMultipartContentData(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseMultipartContentData(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
@@ -4210,7 +4205,7 @@ namespace Tomahawk
 				Parser->Frame.Source.Length += Length;
 				return true;
 			}
-			bool Util::ParseMultipartResourceBegin(Parser* Parser)
+			bool Parsing::ParseMultipartResourceBegin(Parser* Parser)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				if (Parser->Frame.Ignore || !Parser->Frame.Request)
@@ -4241,13 +4236,13 @@ namespace Tomahawk
 					Parser->Frame.Source.Path = Parser->Frame.Route->Site->ResourceRoot;
 					if (Parser->Frame.Source.Path.back() != '/' && Parser->Frame.Source.Path.back() != '\\')
 						Parser->Frame.Source.Path.append(1, '/');
-					Parser->Frame.Source.Path.append(Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(16)));
+					Parser->Frame.Source.Path.append(Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16)));
 				}
 
 				Parser->Frame.Stream = (FILE*)Core::OS::File::Open(Parser->Frame.Source.Path.c_str(), "wb");
 				return Parser->Frame.Stream != nullptr;
 			}
-			bool Util::ParseMultipartResourceEnd(Parser* Parser)
+			bool Parsing::ParseMultipartResourceEnd(Parser* Parser)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				if (Parser->Frame.Ignore || !Parser->Frame.Stream || !Parser->Frame.Request)
@@ -4262,7 +4257,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Util::ParseHeaderField(Parser* Parser, const char* Name, size_t Length)
+			bool Parsing::ParseHeaderField(Parser* Parser, const char* Name, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Name != nullptr, true, "name should be set");
@@ -4273,7 +4268,7 @@ namespace Tomahawk
 				Parser->Frame.Header.assign(Name, Length);
 				return true;
 			}
-			bool Util::ParseHeaderValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseHeaderValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
@@ -4337,7 +4332,7 @@ namespace Tomahawk
 				Parser->Frame.Header.clear();
 				return true;
 			}
-			bool Util::ParseVersion(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseVersion(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
@@ -4348,7 +4343,7 @@ namespace Tomahawk
 				memcpy((void*)Parser->Frame.Request->Version, (void*)Data, std::min<size_t>(Length, sizeof(Parser->Frame.Request->Version)));
 				return true;
 			}
-			bool Util::ParseStatusCode(Parser* Parser, size_t Value)
+			bool Parsing::ParseStatusCode(Parser* Parser, size_t Value)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				if (Parser->Frame.Ignore || !Parser->Frame.Response)
@@ -4357,7 +4352,7 @@ namespace Tomahawk
 				Parser->Frame.Response->StatusCode = (int)Value;
 				return true;
 			}
-			bool Util::ParseMethodValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseMethodValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
@@ -4368,7 +4363,7 @@ namespace Tomahawk
 				memcpy((void*)Parser->Frame.Request->Method, (void*)Data, std::min<size_t>(Length, sizeof(Parser->Frame.Request->Method)));
 				return true;
 			}
-			bool Util::ParsePathValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParsePathValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
@@ -4379,7 +4374,7 @@ namespace Tomahawk
 				Parser->Frame.Request->URI.assign(Data, Length);
 				return true;
 			}
-			bool Util::ParseQueryValue(Parser* Parser, const char* Data, size_t Length)
+			bool Parsing::ParseQueryValue(Parser* Parser, const char* Data, size_t Length)
 			{
 				TH_ASSERT(Parser != nullptr, true, "parser should be set");
 				TH_ASSERT(Data != nullptr, true, "data should be set");
@@ -4390,7 +4385,7 @@ namespace Tomahawk
 				Parser->Frame.Request->Query.assign(Data, Length);
 				return true;
 			}
-			int Util::ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2)
+			int Parsing::ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2)
 			{
 				TH_ASSERT(ContentRange != nullptr, 0, "content range should be set");
 				TH_ASSERT(Range1 != nullptr, 0, "range 1 should be set");
@@ -4398,7 +4393,7 @@ namespace Tomahawk
 
 				return sscanf(ContentRange, "bytes=%lld-%lld", Range1, Range2);
 			}
-			std::string Util::ParseMultipartDataBoundary()
+			std::string Parsing::ParseMultipartDataBoundary()
 			{
 				static const char Data[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
@@ -4411,7 +4406,12 @@ namespace Tomahawk
 
 				return Result;
 			}
-			bool Util::Authorize(Connection* Base)
+
+			std::string Permissions::BasicAuth(const std::string& Username, const std::string& Password)
+			{
+				return "Basic " + Compute::Codec::Base64Encode(Username + ':' + Password);
+			}
+			bool Permissions::Authorize(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (!Base->Route->Callbacks.Authorize || Base->Route->Auth.Type.empty())
@@ -4465,7 +4465,7 @@ namespace Tomahawk
 				Base->Error(401, "Invalid user access credentials were provided. Access denied.");
 				return false;
 			}
-			bool Util::MethodAllowed(Connection* Base)
+			bool Permissions::MethodAllowed(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				for (auto& Item : Base->Route->DisallowedMethods)
@@ -4476,7 +4476,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Util::WebSocketUpgradeAllowed(Connection* Base)
+			bool Permissions::WebSocketUpgradeAllowed(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				const char* Upgrade = Base->Request.GetHeader("Upgrade");
@@ -4495,7 +4495,8 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Util::ResourceHidden(Connection* Base, std::string* Path)
+
+			bool Resources::ResourceHidden(Connection* Base, std::string* Path)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (Base->Route->HiddenFiles.empty())
@@ -4512,7 +4513,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Util::ResourceIndexed(Connection* Base, Core::Resource* Resource)
+			bool Resources::ResourceIndexed(Connection* Base, Core::Resource* Resource)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -4546,7 +4547,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Util::ResourceProvided(Connection* Base, Core::Resource* Resource)
+			bool Resources::ResourceProvided(Connection* Base, Core::Resource* Resource)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -4577,7 +4578,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Util::ResourceModified(Connection* Base, Core::Resource* Resource)
+			bool Resources::ResourceModified(Connection* Base, Core::Resource* Resource)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -4599,7 +4600,7 @@ namespace Tomahawk
 				return !(IfModifiedSince != nullptr && Resource->LastModified <= Core::DateTime::ReadGMTBasedString(IfModifiedSince));
 
 			}
-			bool Util::ResourceCompressed(Connection* Base, uint64_t Size)
+			bool Resources::ResourceCompressed(Connection* Base, uint64_t Size)
 			{
 #ifdef TH_HAS_ZLIB
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
@@ -4621,7 +4622,8 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Util::RouteWEBSOCKET(Connection* Base)
+
+			bool Routing::RouteWEBSOCKET(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route || !Base->Route->AllowWebSocket)
@@ -4629,7 +4631,7 @@ namespace Tomahawk
 
 				const char* WebSocketKey = Base->Request.GetHeader("Sec-WebSocket-Key");
 				if (WebSocketKey != nullptr)
-					return ProcessWebSocket(Base, WebSocketKey);
+					return Logical::ProcessWebSocket(Base, WebSocketKey);
 
 				const char* WebSocketKey1 = Base->Request.GetHeader("Sec-WebSocket-Key1");
 				if (!WebSocketKey1)
@@ -4644,19 +4646,19 @@ namespace Tomahawk
 					if (Packet::IsData(Event))
 						Base->Request.Buffer.append(Buffer, Recv);
 					else if (Packet::IsDone(Event))
-						Util::ProcessWebSocket(Base, Base->Request.Buffer.c_str());
+						Logical::ProcessWebSocket(Base, Base->Request.Buffer.c_str());
 					else if (Packet::IsError(Event))
 						Base->Break();
 
 					return true;
 				});
 			}
-			bool Util::RouteGET(Connection* Base)
+			bool Routing::RouteGET(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 				{
-					if (WebSocketUpgradeAllowed(Base))
+					if (Permissions::WebSocketUpgradeAllowed(Base))
 					{
 						return Core::Schedule::Get()->SetTask([Base]()
 						{
@@ -4667,7 +4669,7 @@ namespace Tomahawk
 					return Base->Error(404, "Requested resource was not found.");
 				}
 
-				if (WebSocketUpgradeAllowed(Base))
+				if (Permissions::WebSocketUpgradeAllowed(Base))
 				{
 					return Core::Schedule::Get()->SetTask([Base]()
 					{
@@ -4675,39 +4677,39 @@ namespace Tomahawk
 					}, Core::Difficulty::Light);
 				}
 
-				if (ResourceHidden(Base, nullptr))
+				if (Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (Base->Resource.IsDirectory && !ResourceIndexed(Base, &Base->Resource))
+				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 				{
 					if (Base->Route->AllowDirectoryListing)
 					{
 						return Core::Schedule::Get()->SetTask([Base]()
 						{
-							ProcessDirectory(Base);
+							Logical::ProcessDirectory(Base);
 						}, Core::Difficulty::Heavy);
 					}
 
 					return Base->Error(403, "Directory listing denied.");
 				}
 
-				if (ResourceProvided(Base, &Base->Resource))
-					return ProcessGateway(Base);
+				if (Resources::ResourceProvided(Base, &Base->Resource))
+					return Logical::ProcessGateway(Base);
 
-				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
+				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
 				{
 					return Core::Schedule::Get()->SetTask([Base]()
 					{
-						ProcessResourceCache(Base);
+						Logical::ProcessResourceCache(Base);
 					}, Core::Difficulty::Light);
 				}
 
 				return Core::Schedule::Get()->SetTask([Base]()
 				{
-					ProcessResource(Base);
+					Logical::ProcessResource(Base);
 				}, Core::Difficulty::Light);
 			}
-			bool Util::RoutePOST(Connection* Base)
+			bool Routing::RoutePOST(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route)
@@ -4716,39 +4718,39 @@ namespace Tomahawk
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (ResourceHidden(Base, nullptr))
+				if (Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (Base->Resource.IsDirectory && !ResourceIndexed(Base, &Base->Resource))
+				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (ResourceProvided(Base, &Base->Resource))
-					return ProcessGateway(Base);
+				if (Resources::ResourceProvided(Base, &Base->Resource))
+					return Logical::ProcessGateway(Base);
 
-				if (Base->Route->StaticFileMaxAge > 0 && !ResourceModified(Base, &Base->Resource))
+				if (Base->Route->StaticFileMaxAge > 0 && !Resources::ResourceModified(Base, &Base->Resource))
 				{
 					return Core::Schedule::Get()->SetTask([Base]()
 					{
-						ProcessResourceCache(Base);
+						Logical::ProcessResourceCache(Base);
 					}, Core::Difficulty::Light);
 				}
 
 				return Core::Schedule::Get()->SetTask([Base]()
 				{
-					ProcessResource(Base);
+					Logical::ProcessResource(Base);
 				}, Core::Difficulty::Light);
 			}
-			bool Util::RoutePUT(Connection* Base)
+			bool Routing::RoutePUT(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
-				if (!Base->Route || ResourceHidden(Base, nullptr))
+				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Resource overwrite denied.");
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 					return Base->Error(403, "Directory overwrite denied.");
 
-				if (ResourceProvided(Base, &Base->Resource))
-					return ProcessGateway(Base);
+				if (Resources::ResourceProvided(Base, &Base->Resource))
+					return Logical::ProcessGateway(Base);
 
 				if (!Base->Resource.IsDirectory)
 					return Base->Error(403, "Directory overwrite denied.");
@@ -4760,7 +4762,7 @@ namespace Tomahawk
 				if (!Stream)
 					return Base->Error(422, "Resource stream cannot be opened.");
 
-				if (Range != nullptr && HTTP::Util::ParseContentRange(Range, &Range1, &Range2))
+				if (Range != nullptr && HTTP::Parsing::ParseContentRange(Range, &Range1, &Range2))
 				{
 					if (Base->Response.StatusCode <= 0)
 						Base->Response.StatusCode = 206;
@@ -4817,7 +4819,7 @@ namespace Tomahawk
 					return true;
 				});
 			}
-			bool Util::RoutePATCH(Connection* Base)
+			bool Routing::RoutePATCH(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				if (!Base->Route)
@@ -4826,14 +4828,14 @@ namespace Tomahawk
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (ResourceHidden(Base, nullptr))
+				if (Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (Base->Resource.IsDirectory && !ResourceIndexed(Base, &Base->Resource))
+				if (Base->Resource.IsDirectory && !Resources::ResourceIndexed(Base, &Base->Resource))
 					return Base->Error(404, "Requested resource cannot be directory.");
 
-				if (ResourceProvided(Base, &Base->Resource))
-					return ProcessGateway(Base);
+				if (Resources::ResourceProvided(Base, &Base->Resource))
+					return Logical::ProcessGateway(Base);
 
 				char Date[64];
 				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
@@ -4853,17 +4855,17 @@ namespace Tomahawk
 						Base->Break();
 				});
 			}
-			bool Util::RouteDELETE(Connection* Base)
+			bool Routing::RouteDELETE(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
-				if (!Base->Route || ResourceHidden(Base, nullptr))
+				if (!Base->Route || Resources::ResourceHidden(Base, nullptr))
 					return Base->Error(403, "Operation denied by server.");
 
 				if (!Core::OS::File::State(Base->Request.Path, &Base->Resource))
 					return Base->Error(404, "Requested resource was not found.");
 
-				if (ResourceProvided(Base, &Base->Resource))
-					return ProcessGateway(Base);
+				if (Resources::ResourceProvided(Base, &Base->Resource))
+					return Logical::ProcessGateway(Base);
 
 				if (!Base->Resource.IsDirectory)
 				{
@@ -4891,7 +4893,7 @@ namespace Tomahawk
 						Base->Break();
 				});
 			}
-			bool Util::RouteOPTIONS(Connection* Base)
+			bool Routing::RouteOPTIONS(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				char Date[64];
@@ -4912,7 +4914,8 @@ namespace Tomahawk
 						Base->Break();
 				});
 			}
-			bool Util::ProcessDirectory(Connection* Base)
+
+			bool Logical::ProcessDirectory(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				std::vector<Core::ResourceEntry> Entries;
@@ -4923,9 +4926,9 @@ namespace Tomahawk
 				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::Parser Content;
-				Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
+				Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
 
-				ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
 
@@ -4938,7 +4941,7 @@ namespace Tomahawk
 					Size--;
 
 				char Direction = (!Base->Request.Query.empty() && Base->Request.Query[1] == 'd') ? 'a' : 'd';
-				std::string Name = Compute::Common::URIDecode(Base->Request.URI);
+				std::string Name = Compute::Codec::URIDecode(Base->Request.URI);
 				std::string Parent(1, '/');
 				if (Base->Request.URI.size() > 1)
 				{
@@ -4957,13 +4960,10 @@ namespace Tomahawk
 					"<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
 					"<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>");
 
-				for (auto& Item : Entries)
-					Item.UserData = Base;
-
-				std::sort(Entries.begin(), Entries.end(), Util::ConstructDirectoryEntries);
+				std::sort(Entries.begin(), Entries.end(), std::bind(&Paths::ConstructDirectoryEntries, Base, std::placeholders::_1, std::placeholders::_2));
 				for (auto& Item : Entries)
 				{
-					if (ResourceHidden(Base, &Item.Path))
+					if (Resources::ResourceHidden(Base, &Item.Path))
 						continue;
 
 					char dSize[64];
@@ -4979,12 +4979,12 @@ namespace Tomahawk
 							snprintf(dSize, sizeof(dSize), "%.1fG", ((double)Item.Source.Size) / 1073741824.0);
 					}
 					else
-						strcpy(dSize, "[DIRECTORY]");
+						strncpy(dSize, "[DIRECTORY]", sizeof(dSize));
 
 					char dDate[64];
 					Core::DateTime::TimeFormatLCL(dDate, sizeof(dDate), Item.Source.LastModified);
 
-					std::string URI = Compute::Common::URIEncode(Item.Path);
+					std::string URI = Compute::Codec::URIEncode(Item.Path);
 					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
 					if (Item.Source.IsDirectory && !Core::Parser(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
@@ -4995,7 +4995,7 @@ namespace Tomahawk
 
 #ifdef TH_HAS_ZLIB
 				bool Deflate = false, Gzip = false;
-				if (Util::ResourceCompressed(Base, Base->Response.Buffer.size()))
+				if (Resources::ResourceCompressed(Base, Base->Response.Buffer.size()))
 				{
 					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
 					if (AcceptEncoding != nullptr)
@@ -5056,7 +5056,7 @@ namespace Tomahawk
 						Base->Break();
 				});
 			}
-			bool Util::ProcessResource(Connection* Base)
+			bool Logical::ProcessResource(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
@@ -5066,7 +5066,7 @@ namespace Tomahawk
 				int64_t ContentLength = Base->Resource.Size;
 
 				char ContentRange[128] = { 0 };
-				if (Range != nullptr && (Count = Util::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
+				if (Range != nullptr && (Count = Parsing::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
 				{
 					if (Count == 2)
 						ContentLength = ((Range2 > ContentLength) ? ContentLength : Range2) - Range1 + 1;
@@ -5077,7 +5077,7 @@ namespace Tomahawk
 					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error ? Base->Response.StatusCode : 206));
 				}
 #ifdef TH_HAS_ZLIB
-				if (Util::ResourceCompressed(Base, (uint64_t)ContentLength))
+				if (Resources::ResourceCompressed(Base, (uint64_t)ContentLength))
 				{
 					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
 					if (AcceptEncoding != nullptr)
@@ -5111,7 +5111,7 @@ namespace Tomahawk
 				Core::Parser Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
-				Util::ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
 
@@ -5142,14 +5142,14 @@ namespace Tomahawk
 					{
 						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
 						{
-							Util::ProcessFile(Base, ContentLength, Range1);
+							Logical::ProcessFile(Base, ContentLength, Range1);
 						}, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
 						Base->Break();
 				});
 			}
-			bool Util::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range)
+			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(ContentRange != nullptr, false, "content tange should be set");
@@ -5180,7 +5180,7 @@ namespace Tomahawk
 				Core::Parser Content;
 				Content.fAppend("%s %d %s\r\n%s%s%sDate: %s\r\n", Base->Request.Version, Base->Response.StatusCode, StatusMessage, CORS1, CORS2, CORS3, Date);
 
-				Util::ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
 
@@ -5212,14 +5212,14 @@ namespace Tomahawk
 					{
 						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
 						{
-							Util::ProcessFileCompress(Base, ContentLength, Range, Gzip);
+							Logical::ProcessFileCompress(Base, ContentLength, Range, Gzip);
 						}, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
 						Base->Break();
 				});
 			}
-			bool Util::ProcessResourceCache(Connection* Base)
+			bool Logical::ProcessResourceCache(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				char Date[64];
@@ -5234,7 +5234,7 @@ namespace Tomahawk
 				Core::Parser Content;
 				Content.fAppend("%s 304 %s\r\nDate: %s\r\n", Base->Request.Version, HTTP::Util::StatusMessage(304), Date);
 
-				Util::ConstructHeadCache(Base, &Content);
+				Paths::ConstructHeadCache(Base, &Content);
 				if (Base->Route->Callbacks.Headers)
 					Base->Route->Callbacks.Headers(Base, &Content);
 
@@ -5247,7 +5247,7 @@ namespace Tomahawk
 						Base->Break();
 				});
 			}
-			bool Util::ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range)
+			bool Logical::ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
@@ -5315,7 +5315,7 @@ namespace Tomahawk
 #endif
                 return ProcessFileChunk(Base, Base->Root, Stream, ContentLength);
 			}
-			bool Util::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
+			bool Logical::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Router != nullptr, false, "router should be set");
@@ -5361,7 +5361,7 @@ namespace Tomahawk
                 
 				return false;
 			}
-			bool Util::ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip)
+			bool Logical::ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
@@ -5424,7 +5424,7 @@ namespace Tomahawk
 #endif
 #ifdef TH_HAS_ZLIB
 				Server* Server = Base->Root;
-				z_stream* ZStream = (z_stream*)TH_MALLOC(sizeof(z_stream));
+				z_stream* ZStream = TH_MALLOC(z_stream, sizeof(z_stream));
 				ZStream->zalloc = Z_NULL;
 				ZStream->zfree = Z_NULL;
 				ZStream->opaque = Z_NULL;
@@ -5442,7 +5442,7 @@ namespace Tomahawk
 				return Base->Error(500, "Cannot process gzip stream.");
 #endif
 			}
-			bool Util::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength)
+			bool Logical::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Router != nullptr, false, "router should be set");
@@ -5531,7 +5531,7 @@ namespace Tomahawk
 				return Base->Finish();
 #endif
 			}
-			bool Util::ProcessGateway(Connection* Base)
+			bool Logical::ProcessGateway(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				if (!Base->Route->Callbacks.Compiler)
@@ -5568,7 +5568,7 @@ namespace Tomahawk
 							return (void)Base->Error(404, "Gateway resource was not found.");
 
 						Size = Base->Resource.Size;
-						Buffer = (char*)TH_MALLOC((size_t)(Size + 1) * sizeof(char));
+						Buffer = TH_MALLOC(char, (size_t)(Size + 1) * sizeof(char));
 
 						if (fread(Buffer, 1, (size_t)Size, Stream) != (size_t)Size)
 						{
@@ -5633,7 +5633,7 @@ namespace Tomahawk
 					}, Core::Difficulty::Heavy);
 				}, Core::Difficulty::Heavy);
 			}
-			bool Util::ProcessWebSocket(Connection* Base, const char* Key)
+			bool Logical::ProcessWebSocket(Connection* Base, const char* Key)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				TH_ASSERT(Key != nullptr, false, "key should be set");
@@ -5647,14 +5647,14 @@ namespace Tomahawk
 				Base->Request.Buffer.clear();
 
 				char Encoded20[20];
-				Compute::Common::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
+				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
 
 				Core::Parser Content;
 				Content.fAppend(
 					"HTTP/1.1 101 Switching Protocols\r\n"
 					"Upgrade: websocket\r\n"
 					"Connection: Upgrade\r\n"
-					"Sec-WebSocket-Accept: %s\r\n", Compute::Common::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
+					"Sec-WebSocket-Accept: %s\r\n", Compute::Codec::Base64Encode((const unsigned char*)Encoded20, 20).c_str());
 
 				const char* Protocol = Base->Request.GetHeader("Sec-WebSocket-Protocol");
 				if (Protocol != nullptr)
@@ -5695,7 +5695,7 @@ namespace Tomahawk
 						};
 
 						Base->Stream->Timeout = Base->Route->WebSocketTimeout;
-						if (!ResourceProvided(Base, &Base->Resource))
+						if (!Resources::ResourceProvided(Base, &Base->Resource))
 						{
 							if (!Base->Route->Callbacks.WebSocket.Initiate || !Base->Route->Callbacks.WebSocket.Initiate(Base))
 								Base->WebSocket->Next();
@@ -5768,7 +5768,7 @@ namespace Tomahawk
 							}
 
 							if (Entry->Gateway.Enabled && !Route->Gateway.Files.empty())
-								TH_TRACE("[vm] modules are verified for: %s", Route->DocumentRoot.c_str());
+								TH_DEBUG("[vm] modules are verified for: %s", Route->DocumentRoot.c_str());
 						}
 					}
 
@@ -5829,7 +5829,7 @@ namespace Tomahawk
                         Base->Request.Buffer.clear();
                         
                     Redirect:
-						if (!Util::ConstructRoute(Conf, Base))
+						if (!Paths::ConstructRoute(Conf, Base))
 							return Base->Error(400, "Request cannot be resolved");
 
 						if (!Base->Route->Redirect.empty())
@@ -5844,7 +5844,7 @@ namespace Tomahawk
 						const char* ContentLength = Base->Request.GetHeader("Content-Length");
 						if (ContentLength != nullptr)
 						{
-							int64_t Len = std::atoll(ContentLength);
+							int64_t Len = strtoll(ContentLength, nullptr, 10);
 							Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
 						}
                         else
@@ -5857,72 +5857,72 @@ namespace Tomahawk
 						{
 							const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
 							if (Address != nullptr)
-                                strcpy(Base->RemoteAddress, Address);
+                                strncpy(Base->RemoteAddress, Address, sizeof(Base->RemoteAddress));
 						}
 
-						Util::ConstructPath(Base);
-						if (!Util::MethodAllowed(Base))
+						Paths::ConstructPath(Base);
+						if (!Permissions::MethodAllowed(Base))
 							return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
 
 						if (!memcmp(Base->Request.Method, "GET", 3) || !memcmp(Base->Request.Method, "HEAD", 4))
 						{
-							if (!Util::Authorize(Base))
+							if (!Permissions::Authorize(Base))
 								return false;
 
 							if (Base->Route->Callbacks.Get && Base->Route->Callbacks.Get(Base))
 								return true;
 
-							return Util::RouteGET(Base);
+							return Routing::RouteGET(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "POST", 4))
 						{
-							if (!Util::Authorize(Base))
+							if (!Permissions::Authorize(Base))
 								return false;
 
 							if (Base->Route->Callbacks.Post && Base->Route->Callbacks.Post(Base))
 								return true;
 
-							return Util::RoutePOST(Base);
+							return Routing::RoutePOST(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "PUT", 3))
 						{
-							if (!Util::Authorize(Base))
+							if (!Permissions::Authorize(Base))
 								return false;
 
 							if (Base->Route->Callbacks.Put && Base->Route->Callbacks.Put(Base))
 								return true;
 
-							return Util::RoutePUT(Base);
+							return Routing::RoutePUT(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "PATCH", 5))
 						{
-							if (!Util::Authorize(Base))
+							if (!Permissions::Authorize(Base))
 								return false;
 
 							if (Base->Route->Callbacks.Patch && Base->Route->Callbacks.Patch(Base))
 								return true;
 
-							return Util::RoutePATCH(Base);
+							return Routing::RoutePATCH(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "DELETE", 6))
 						{
-							if (!Util::Authorize(Base))
+							if (!Permissions::Authorize(Base))
 								return false;
 
 							if (Base->Route->Callbacks.Delete && Base->Route->Callbacks.Delete(Base))
 								return true;
 
-							return Util::RouteDELETE(Base);
+							return Routing::RouteDELETE(Base);
 						}
 						else if (!memcmp(Base->Request.Method, "OPTIONS", 7))
 						{
 							if (Base->Route->Callbacks.Options && Base->Route->Callbacks.Options(Base))
 								return true;
 
-							return Util::RouteOPTIONS(Base);
+							return Routing::RouteOPTIONS(Base);
 						}
 
-						if (!Util::Authorize(Base))
+						if (!Permissions::Authorize(Base))
 							return false;
 
 						return Base->Error(405, "Request method \"%s\" is not allowed", Base->Request.Method);
@@ -5970,7 +5970,7 @@ namespace Tomahawk
 						}
 					}
 
-					TH_TRACE("[stall] connection on fd %i\n%s", (int)Base->Stream->GetFd(),  Status.c_str());
+					TH_DEBUG("[stall] connection on fd %i\n%s", (int)Base->Stream->GetFd(),  Status.c_str());
 				}
 
 				return true;
@@ -6008,18 +6008,18 @@ namespace Tomahawk
 
 				auto* Base = TH_NEW(HTTP::Connection);
 				Base->Parsers.Request = new HTTP::Parser();
-				Base->Parsers.Request->OnMethodValue = Util::ParseMethodValue;
-				Base->Parsers.Request->OnPathValue = Util::ParsePathValue;
-				Base->Parsers.Request->OnQueryValue = Util::ParseQueryValue;
-				Base->Parsers.Request->OnVersion = Util::ParseVersion;
-				Base->Parsers.Request->OnHeaderField = Util::ParseHeaderField;
-				Base->Parsers.Request->OnHeaderValue = Util::ParseHeaderValue;
+				Base->Parsers.Request->OnMethodValue = Parsing::ParseMethodValue;
+				Base->Parsers.Request->OnPathValue = Parsing::ParsePathValue;
+				Base->Parsers.Request->OnQueryValue = Parsing::ParseQueryValue;
+				Base->Parsers.Request->OnVersion = Parsing::ParseVersion;
+				Base->Parsers.Request->OnHeaderField = Parsing::ParseHeaderField;
+				Base->Parsers.Request->OnHeaderValue = Parsing::ParseHeaderValue;
 				Base->Parsers.Multipart = new HTTP::Parser();
-				Base->Parsers.Multipart->OnContentData = Util::ParseMultipartContentData;
-				Base->Parsers.Multipart->OnHeaderField = Util::ParseMultipartHeaderField;
-				Base->Parsers.Multipart->OnHeaderValue = Util::ParseMultipartHeaderValue;
-				Base->Parsers.Multipart->OnResourceBegin = Util::ParseMultipartResourceBegin;
-				Base->Parsers.Multipart->OnResourceEnd = Util::ParseMultipartResourceEnd;
+				Base->Parsers.Multipart->OnContentData = Parsing::ParseMultipartContentData;
+				Base->Parsers.Multipart->OnHeaderField = Parsing::ParseMultipartHeaderField;
+				Base->Parsers.Multipart->OnHeaderValue = Parsing::ParseMultipartHeaderValue;
+				Base->Parsers.Multipart->OnResourceBegin = Parsing::ParseMultipartResourceBegin;
+				Base->Parsers.Multipart->OnResourceEnd = Parsing::ParseMultipartResourceEnd;
 				Base->Root = this;
 
 				return Base;
@@ -6105,7 +6105,7 @@ namespace Tomahawk
 
 						TH_RELEASE(Parser);
 						if (!Response.Buffer.empty())
-							TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
+							TH_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
 						Result = Response.HasBody();
 						return true;
 					});
@@ -6133,7 +6133,7 @@ namespace Tomahawk
 						}
 
 						if (!Response.Buffer.empty())
-							TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
+							TH_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
 
 						Result = Response.HasBody();
 						return false;
@@ -6142,7 +6142,7 @@ namespace Tomahawk
 					return Result;
 				}
                 
-                uint64_t ContentSize = std::atoll(ContentLength);
+                uint64_t ContentSize = strtoll(ContentLength, nullptr, 10);
 				if (!ContentSize)
 				{
 					Response.Data = Content::Empty;
@@ -6174,7 +6174,7 @@ namespace Tomahawk
 					}
 
 					if (!Response.Buffer.empty())
-						TH_TRACE("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
+						TH_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
 
 					Result = Response.HasBody();
 					return false;
@@ -6194,7 +6194,7 @@ namespace Tomahawk
 				TH_ASSERT(WebSocket != nullptr, false, "websocket should be opened");
 				TH_ASSERT(Stream.IsValid(), false, "stream should be opened");
 
-				std::string Key = Compute::Common::Base64Encode(Compute::Common::RandomBytes(16));
+				std::string Key = Compute::Codec::Base64Encode(Compute::Crypto::RandomBytes(16));
 				Root.SetHeader("Pragma", "no-cache");
 				Root.SetHeader("Upgrade", "WebSocket");
 				Root.SetHeader("Connection", "Upgrade");
@@ -6203,7 +6203,7 @@ namespace Tomahawk
 
 				return Send(std::move(Root)).Then<Core::Async<bool>>([this](ResponseFrame*&& Response)
 				{
-					TH_TRACE("[ws] handshake %s", Request.URI.c_str());
+					TH_DEBUG("[ws] handshake %s", Request.URI.c_str());
 					if (Response->StatusCode != 101)
 						return Core::Async<bool>(Error("ws handshake error") && false);
 
@@ -6219,7 +6219,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, nullptr, "cannot send http request over websocket");
 				TH_ASSERT(Stream.IsValid(), nullptr, "stream should be opened");
-				TH_TRACE("[http] %s %s", Root.Method, Root.URI.c_str());
+				TH_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 
 				Core::Async<ResponseFrame*> Result;
 				Request = std::move(Root);
@@ -6284,7 +6284,7 @@ namespace Tomahawk
 				else
 					Content.fAppend("%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
 
-				Util::ConstructHeadFull(&Request, &Response, true, &Content);
+				Paths::ConstructHeadFull(&Request, &Response, true, &Content);
 				Content.Append("\r\n");
 
 				Response.Buffer.clear();
@@ -6342,7 +6342,7 @@ namespace Tomahawk
 					if (!Result)
 						return (Core::Schema*)nullptr;
 
-					return Core::Schema::ReadJSON(Response.Buffer.data(), Response.Buffer.size());
+					return Core::Schema::ConvertFromJSON(Response.Buffer.data(), Response.Buffer.size());
 				});
 			}
 			Core::Async<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
@@ -6352,7 +6352,7 @@ namespace Tomahawk
 					if (!Result)
 						return (Core::Schema*)nullptr;
 
-					return Core::Schema::ReadXML(Response.Buffer.data());
+					return Core::Schema::ConvertFromXML(Response.Buffer.data());
 				});
 			}
 			WebSocketFrame* Client::GetWebSocket()
@@ -6387,16 +6387,16 @@ namespace Tomahawk
 			bool Client::Receive()
 			{
 				Stage("http response receive");
-				strcpy(RemoteAddress, Stream.GetRemoteAddress().c_str());
+				strncpy(RemoteAddress, Stream.GetRemoteAddress().c_str(), sizeof(RemoteAddress));
 
 				Parser* Parser = new HTTP::Parser();
-				Parser->OnMethodValue = Util::ParseMethodValue;
-				Parser->OnPathValue = Util::ParsePathValue;
-				Parser->OnQueryValue = Util::ParseQueryValue;
-				Parser->OnVersion = Util::ParseVersion;
-				Parser->OnStatusCode = Util::ParseStatusCode;
-				Parser->OnHeaderField = Util::ParseHeaderField;
-				Parser->OnHeaderValue = Util::ParseHeaderValue;
+				Parser->OnMethodValue = Parsing::ParseMethodValue;
+				Parser->OnPathValue = Parsing::ParsePathValue;
+				Parser->OnQueryValue = Parsing::ParseQueryValue;
+				Parser->OnVersion = Parsing::ParseVersion;
+				Parser->OnStatusCode = Parsing::ParseStatusCode;
+				Parser->OnHeaderField = Parsing::ParseHeaderField;
+				Parser->OnHeaderValue = Parsing::ParseHeaderValue;
 				Parser->Frame.Response = &Response;
 
 				if (Parser->ParseResponse(Response.Buffer.data(), Response.Buffer.size(), 0) < 0)

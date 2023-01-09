@@ -1186,7 +1186,7 @@ namespace Tomahawk
 					if (!GetIlluminator(&VoxelBuffer, Light))
 						continue;
 
-					bool Inside = Compute::Common::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
+					bool Inside = Compute::Geometric::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
 					auto& Delay = (Inside ? Light->Inside : Light->Outside);
 					if (!Light->Regenerate && !Delay.TickEvent(Time->GetElapsedTime()))
 						continue;
@@ -1910,7 +1910,7 @@ namespace Tomahawk
 				*Position = Transform->GetPosition();
 				*Scale = (Range > 0.0f ? Range : Transform->GetScale());
 
-				bool Front = Compute::Common::HasPointIntersectedCube(*Position, Scale->Mul(1.01f), System->View.Position);
+				bool Front = Compute::Geometric::HasPointIntersectedCube(*Position, Scale->Mul(1.01f), System->View.Position);
 				if (!(Front && State.Backcull) && !(!Front && !State.Backcull))
 					return;
 

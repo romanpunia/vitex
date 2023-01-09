@@ -198,7 +198,7 @@ namespace Tomahawk
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
-				Compute::Vertex* Vertices = (Compute::Vertex*)TH_MALLOC(sizeof(Compute::Vertex) * (unsigned int)VertexBuffer->GetElements());
+				Compute::Vertex* Vertices = TH_MALLOC(Compute::Vertex, sizeof(Compute::Vertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::Vertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -215,7 +215,7 @@ namespace Tomahawk
 				MappedSubresource Resource;
 				Device->Map(VertexBuffer, ResourceMap::Write, &Resource);
 
-				Compute::SkinVertex* Vertices = (Compute::SkinVertex*)TH_MALLOC(sizeof(Compute::SkinVertex) * (unsigned int)VertexBuffer->GetElements());
+				Compute::SkinVertex* Vertices = TH_MALLOC(Compute::SkinVertex, sizeof(Compute::SkinVertex) * (unsigned int)VertexBuffer->GetElements());
 				memcpy(Vertices, Resource.Pointer, (size_t)VertexBuffer->GetElements() * sizeof(Compute::SkinVertex));
 
 				Device->Unmap(VertexBuffer, &Resource);
@@ -2072,7 +2072,7 @@ namespace Tomahawk
 				TH_ASSERT_V(IResource->Resource != nullptr, "resource should be valid");
 				ImmediateContext->GenerateMips(IResource->Resource);
 			}
-			bool D3D11Device::Begin()
+			bool D3D11Device::ImBegin()
 			{
 				if (!Immediate.VertexBuffer && !CreateDirectBuffer(0))
 					return false;
@@ -2085,24 +2085,24 @@ namespace Tomahawk
 				Elements.clear();
 				return true;
 			}
-			void D3D11Device::Transform(const Compute::Matrix4x4& Transform)
+			void D3D11Device::ImTransform(const Compute::Matrix4x4& Transform)
 			{
 				Direct.Transform = Direct.Transform * Transform;
 			}
-			void D3D11Device::Topology(PrimitiveTopology Topology)
+			void D3D11Device::ImTopology(PrimitiveTopology Topology)
 			{
 				Primitives = Topology;
 			}
-			void D3D11Device::Emit()
+			void D3D11Device::ImEmit()
 			{
 				Elements.push_back({ 0, 0, 0, 0, 0, 1, 1, 1, 1 });
 			}
-			void D3D11Device::Texture(Texture2D* In)
+			void D3D11Device::ImTexture(Texture2D* In)
 			{
 				ViewResource = In;
 				Direct.Padding.Z = 1;
 			}
-			void D3D11Device::Color(float X, float Y, float Z, float W)
+			void D3D11Device::ImColor(float X, float Y, float Z, float W)
 			{
 				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
@@ -2111,23 +2111,23 @@ namespace Tomahawk
 				Element.CZ = Z;
 				Element.CW = W;
 			}
-			void D3D11Device::Intensity(float Intensity)
+			void D3D11Device::ImIntensity(float Intensity)
 			{
 				Direct.Padding.W = Intensity;
 			}
-			void D3D11Device::TexCoord(float X, float Y)
+			void D3D11Device::ImTexCoord(float X, float Y)
 			{
 				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
 				Element.TX = X;
 				Element.TY = Y;
 			}
-			void D3D11Device::TexCoordOffset(float X, float Y)
+			void D3D11Device::ImTexCoordOffset(float X, float Y)
 			{
 				Direct.Padding.X = X;
 				Direct.Padding.Y = Y;
 			}
-			void D3D11Device::Position(float X, float Y, float Z)
+			void D3D11Device::ImPosition(float X, float Y, float Z)
 			{
 				TH_ASSERT_V(!Elements.empty(), "vertex should already be emitted");
 				auto& Element = Elements.back();
@@ -2135,7 +2135,7 @@ namespace Tomahawk
 				Element.PY = Y;
 				Element.PZ = Z;
 			}
-			bool D3D11Device::End()
+			bool D3D11Device::ImEnd()
 			{
 				if (Elements.size() > MaxElements && !CreateDirectBuffer(Elements.size()))
 					return false;
@@ -2352,7 +2352,7 @@ namespace Tomahawk
 					std::string Stage = Name + ".vtx", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("[d3d11] compile %s vertex shader source", Stage.c_str());
+						TH_DEBUG("[d3d11] compile %s vertex shader source", Stage.c_str());
 
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, VertexEntry.c_str(), GetVSProfile(), CompileFlags, 0, &Result->Signature, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
@@ -2383,7 +2383,7 @@ namespace Tomahawk
 						memcpy(Buffer, Data, Size);
 					}
 
-					TH_TRACE("[d3d11] load %s vertex shader bytecode", Stage.c_str());
+					TH_DEBUG("[d3d11] load %s vertex shader bytecode", Stage.c_str());
 					State = Context->CreateVertexShader(Data, Size, nullptr, &Result->VertexShader);
 					if (State != S_OK)
 					{
@@ -2398,7 +2398,7 @@ namespace Tomahawk
 					std::string Stage = Name + ".pxl", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("[d3d11] compile %s pixel shader source", Stage.c_str());
+						TH_DEBUG("[d3d11] compile %s pixel shader source", Stage.c_str());
 
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, PixelEntry.c_str(), GetPSProfile(), CompileFlags, 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
@@ -2421,7 +2421,7 @@ namespace Tomahawk
 						Size = Bytecode.size();
 					}
 
-					TH_TRACE("[d3d11] load %s pixel shader bytecode", Stage.c_str());
+					TH_DEBUG("[d3d11] load %s pixel shader bytecode", Stage.c_str());
 					State = Context->CreatePixelShader(Data, Size, nullptr, &Result->PixelShader);
 					D3D_RELEASE(ShaderBlob);
 
@@ -2438,7 +2438,7 @@ namespace Tomahawk
 					std::string Stage = Name + ".geo", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("[d3d11] compile %s geometry shader source", Stage.c_str());
+						TH_DEBUG("[d3d11] compile %s geometry shader source", Stage.c_str());
 
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, GeometryEntry.c_str(), GetGSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
@@ -2461,7 +2461,7 @@ namespace Tomahawk
 						Size = Bytecode.size();
 					}
 
-					TH_TRACE("[d3d11] load %s geometry shader bytecode", Stage.c_str());
+					TH_DEBUG("[d3d11] load %s geometry shader bytecode", Stage.c_str());
 					State = Context->CreateGeometryShader(Data, Size, nullptr, &Result->GeometryShader);
 					D3D_RELEASE(ShaderBlob);
 
@@ -2478,7 +2478,7 @@ namespace Tomahawk
 					std::string Stage = Name + ".cmp", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("[d3d11] compile %s compute shader source", Stage.c_str());
+						TH_DEBUG("[d3d11] compile %s compute shader source", Stage.c_str());
 
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, ComputeEntry.c_str(), GetCSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
@@ -2501,7 +2501,7 @@ namespace Tomahawk
 						Size = Bytecode.size();
 					}
 
-					TH_TRACE("[d3d11] load %s compute shader bytecode", Stage.c_str());
+					TH_DEBUG("[d3d11] load %s compute shader bytecode", Stage.c_str());
 					State = Context->CreateComputeShader(Data, Size, nullptr, &Result->ComputeShader);
 					D3D_RELEASE(ShaderBlob);
 
@@ -2518,7 +2518,7 @@ namespace Tomahawk
 					std::string Stage = Name + ".hlc", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("[d3d11] compile %s hull shader source", Stage.c_str());
+						TH_DEBUG("[d3d11] compile %s hull shader source", Stage.c_str());
 
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, HullEntry.c_str(), GetHSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
@@ -2541,7 +2541,7 @@ namespace Tomahawk
 						Size = Bytecode.size();
 					}
 
-					TH_TRACE("[d3d11] load %s hull shader bytecode", Stage.c_str());
+					TH_DEBUG("[d3d11] load %s hull shader bytecode", Stage.c_str());
 					State = Context->CreateHullShader(Data, Size, nullptr, &Result->HullShader);
 					D3D_RELEASE(ShaderBlob);
 
@@ -2558,7 +2558,7 @@ namespace Tomahawk
 					std::string Stage = Name + ".dmn", Bytecode;
 					if (!GetProgramCache(Stage, &Bytecode))
 					{
-						TH_TRACE("[d3d11] compile %s domain shader source", Stage.c_str());
+						TH_DEBUG("[d3d11] compile %s domain shader source", Stage.c_str());
 
 						State = D3DCompile(F.Data.c_str(), F.Data.size() * sizeof(char), F.Filename.empty() ? nullptr : F.Filename.c_str(), nullptr, nullptr, DomainEntry.c_str(), GetDSProfile(), GetCompileFlags(), 0, &ShaderBlob, &ErrorBlob);
 						if (State != S_OK || GetCompileState(ErrorBlob))
@@ -2581,7 +2581,7 @@ namespace Tomahawk
 						Size = Bytecode.size();
 					}
 
-					TH_TRACE("[d3d11] load %s domain shader bytecode", Stage.c_str());
+					TH_DEBUG("[d3d11] load %s domain shader bytecode", Stage.c_str());
 					State = Context->CreateDomainShader(Data, Size, nullptr, &Result->DomainShader);
 					D3D_RELEASE(ShaderBlob);
 

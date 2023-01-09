@@ -718,19 +718,26 @@ namespace Tomahawk
 			class TH_OUT Util
 			{
 			public:
+				static std::string ConnectionResolve(Connection* Base);
+				static const char* StatusMessage(int StatusCode);
+				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
+				static bool ContentOK(Content State);
+			};
+
+			class TH_OUT Paths
+			{
+			public:
 				static void ConstructPath(Connection* Base);
 				static void ConstructHeadFull(RequestFrame* Request, ResponseFrame* Response, bool IsRequest, Core::Parser* Buffer);
 				static void ConstructHeadCache(Connection* Base, Core::Parser* Buffer);
 				static void ConstructHeadUncache(Connection* Base, Core::Parser* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
-				static bool ConstructDirectoryEntries(const Core::ResourceEntry& A, const Core::ResourceEntry& B);
-				static bool ContentOK(Content State);
-				static std::string BasicAuth(const std::string& Username, const std::string& Password);
-				static std::string ConnectionResolve(Connection* Base);
+				static bool ConstructDirectoryEntries(Connection* Base, const Core::ResourceEntry& A, const Core::ResourceEntry& B);
 				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength);
-				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
-				static const char* StatusMessage(int StatusCode);
+			};
 
+			class TH_OUT Parsing
+			{
 			public:
 				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length);
 				static bool ParseMultipartHeaderValue(Parser* Parser, const char* Name, size_t Length);
@@ -747,19 +754,29 @@ namespace Tomahawk
 				static int ParseContentRange(const char* ContentRange, int64_t* Range1, int64_t* Range2);
 				static std::string ParseMultipartDataBoundary();
 				static void ParseCookie(const std::string& Value);
+			};
 
+			class TH_OUT Permissions
+			{
 			public:
+				static std::string BasicAuth(const std::string& Username, const std::string& Password);
 				static bool Authorize(Connection* Base);
 				static bool MethodAllowed(Connection* Base);
 				static bool WebSocketUpgradeAllowed(Connection* Base);
+			};
 
+			class TH_OUT Resources
+			{
 			public:
 				static bool ResourceHidden(Connection* Base, std::string* Path);
 				static bool ResourceIndexed(Connection* Base, Core::Resource* Resource);
 				static bool ResourceProvided(Connection* Base, Core::Resource* Resource);
 				static bool ResourceModified(Connection* Base, Core::Resource* Resource);
 				static bool ResourceCompressed(Connection* Base, uint64_t Size);
+			};
 
+			class TH_OUT Routing
+			{
 			public:
 				static bool RouteWEBSOCKET(Connection* Base);
 				static bool RouteGET(Connection* Base);
@@ -768,7 +785,10 @@ namespace Tomahawk
 				static bool RoutePATCH(Connection* Base);
 				static bool RouteDELETE(Connection* Base);
 				static bool RouteOPTIONS(Connection* Base);
+			};
 
+			class TH_OUT Logical
+			{
 			public:
 				static bool ProcessDirectory(Connection* Base);
 				static bool ProcessResource(Connection* Base);
@@ -786,6 +806,7 @@ namespace Tomahawk
 			{
 				friend GatewayFrame;
 				friend Connection;
+				friend Logical;
 				friend Util;
 
 			public:
@@ -825,8 +846,8 @@ namespace Tomahawk
 				Core::Async<bool> Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
 				Core::Async<bool> Upgrade(HTTP::RequestFrame&& Root);
 				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::Async<Core::Schema*> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
-				Core::Async<Core::Schema*> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Async<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();

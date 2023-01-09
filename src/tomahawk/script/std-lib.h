@@ -175,8 +175,8 @@ namespace Tomahawk
 			void FreeObject();
 
 		public:
-			static STDAny* Create(int TypeId, void* Ref);
-			static STDAny* Create(const char* Decl, void* Ref);
+			static Core::Unique<STDAny> Create(int TypeId, void* Ref);
+			static Core::Unique<STDAny> Create(const char* Decl, void* Ref);
 			static void Factory1(VMCGeneric* G);
 			static void Factory2(VMCGeneric* G);
 			static STDAny& Assignment(STDAny* Other, STDAny* Self);
@@ -309,10 +309,10 @@ namespace Tomahawk
 			bool Equals(const void* A, const void* B, VMCContext* Ctx, SCache* Cache) const;
 
 		public:
-			static STDArray* Create(VMCTypeInfo* T);
-			static STDArray* Create(VMCTypeInfo* T, as_size_t Length);
-			static STDArray* Create(VMCTypeInfo* T, as_size_t Length, void* DefaultValue);
-			static STDArray* Create(VMCTypeInfo* T, void* ListBuffer);
+			static Core::Unique<STDArray> Create(VMCTypeInfo* T);
+			static Core::Unique<STDArray> Create(VMCTypeInfo* T, as_size_t Length);
+			static Core::Unique<STDArray> Create(VMCTypeInfo* T, as_size_t Length, void* DefaultValue);
+			static Core::Unique<STDArray> Create(VMCTypeInfo* T, void* ListBuffer);
 			static void CleanupTypeInfoCache(VMCTypeInfo* Type);
 			static bool TemplateCallback(VMCTypeInfo* T, bool& DontGarbageCollect);
 
@@ -531,8 +531,8 @@ namespace Tomahawk
 			void Init(VMCManager* Engine);
 
 		public:
-			static STDMap* Create(VMCManager* Engine);
-			static STDMap* Create(unsigned char* Buffer);
+			static Core::Unique<STDMap> Create(VMCManager* Engine);
+			static Core::Unique<STDMap> Create(unsigned char* Buffer);
 			static void Cleanup(VMCManager* engine);
 			static void Setup(VMCManager* engine);
 			static void Factory(VMCGeneric* gen);
@@ -598,10 +598,10 @@ namespace Tomahawk
 			void* At(SBuffer* Buf, as_size_t X, as_size_t Y);
 
 		public:
-			static STDGrid* Create(VMCTypeInfo* T);
-			static STDGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height);
-			static STDGrid* Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height, void* DefaultValue);
-			static STDGrid* Create(VMCTypeInfo* T, void* ListBuffer);
+			static Core::Unique<STDGrid> Create(VMCTypeInfo* T);
+			static Core::Unique<STDGrid> Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height);
+			static Core::Unique<STDGrid> Create(VMCTypeInfo* T, as_size_t Width, as_size_t Height, void* DefaultValue);
+			static Core::Unique<STDGrid> Create(VMCTypeInfo* T, void* ListBuffer);
 			static bool TemplateCallback(VMCTypeInfo* TI, bool& DontGarbageCollect);
 		};
 
@@ -810,7 +810,7 @@ namespace Tomahawk
 			static std::string GetStatus(VMContext* Context);
 
 		private:
-			static STDPromise* Create();
+			static Core::Unique<STDPromise> Create();
 			static STDPromise* JumpIf(STDPromise* Base);
 
 		public:

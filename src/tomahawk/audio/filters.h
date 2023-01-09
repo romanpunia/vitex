@@ -26,7 +26,7 @@ namespace Tomahawk
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
-				AudioFilter* Copy() override;
+				Core::Unique<AudioFilter> Copy() override;
 
 			public:
 				TH_COMPONENT("lowpass-filter");
@@ -44,7 +44,7 @@ namespace Tomahawk
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
-				AudioFilter* Copy() override;
+				Core::Unique<AudioFilter> Copy() override;
 
 			public:
 				TH_COMPONENT("highpass-filter");
@@ -63,7 +63,7 @@ namespace Tomahawk
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
-				AudioFilter* Copy() override;
+				Core::Unique<AudioFilter> Copy() override;
 
 			public:
 				TH_COMPONENT("bandpass-filter");

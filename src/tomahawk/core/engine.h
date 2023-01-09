@@ -167,6 +167,20 @@ namespace Tomahawk
 			return static_cast<RenderOpt>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 		}
 
+		struct TH_OUT Ticker
+		{
+		private:
+			double Time;
+
+		public:
+			double Delay;
+
+		public:
+			Ticker();
+			bool TickEvent(double ElapsedTime);
+			double GetTime();
+		};
+
 		struct TH_OUT Event
 		{
 			std::string Name;
@@ -321,7 +335,7 @@ namespace Tomahawk
 			static void Pack(Core::Schema* V, const Compute::Joint& Value);
 			static void Pack(Core::Schema* V, const Compute::Vertex& Value);
 			static void Pack(Core::Schema* V, const Compute::SkinVertex& Value);
-			static void Pack(Core::Schema* V, const Core::Ticker& Value);
+			static void Pack(Core::Schema* V, const Ticker& Value);
 			static void Pack(Core::Schema* V, const std::string& Value);
 			static void Pack(Core::Schema* V, const std::vector<bool>& Value);
 			static void Pack(Core::Schema* V, const std::vector<int>& Value);
@@ -344,7 +358,7 @@ namespace Tomahawk
 			static void Pack(Core::Schema* V, const std::vector<Compute::Joint>& Value);
 			static void Pack(Core::Schema* V, const std::vector<Compute::Vertex>& Value);
 			static void Pack(Core::Schema* V, const std::vector<Compute::SkinVertex>& Value);
-			static void Pack(Core::Schema* V, const std::vector<Core::Ticker>& Value);
+			static void Pack(Core::Schema* V, const std::vector<Ticker>& Value);
 			static void Pack(Core::Schema* V, const std::vector<std::string>& Value);
 			static bool Unpack(Core::Schema* V, bool* O);
 			static bool Unpack(Core::Schema* V, int* O);
@@ -371,7 +385,7 @@ namespace Tomahawk
 			static bool Unpack(Core::Schema* V, Compute::Joint* O);
 			static bool Unpack(Core::Schema* V, Compute::Vertex* O);
 			static bool Unpack(Core::Schema* V, Compute::SkinVertex* O);
-			static bool Unpack(Core::Schema* V, Core::Ticker* O);
+			static bool Unpack(Core::Schema* V, Ticker* O);
 			static bool Unpack(Core::Schema* V, std::string* O);
 			static bool Unpack(Core::Schema* V, std::vector<bool>* O);
 			static bool Unpack(Core::Schema* V, std::vector<int>* O);
@@ -394,7 +408,7 @@ namespace Tomahawk
 			static bool Unpack(Core::Schema* V, std::vector<Compute::Joint>* O);
 			static bool Unpack(Core::Schema* V, std::vector<Compute::Vertex>* O);
 			static bool Unpack(Core::Schema* V, std::vector<Compute::SkinVertex>* O);
-			static bool Unpack(Core::Schema* V, std::vector<Core::Ticker>* O);
+			static bool Unpack(Core::Schema* V, std::vector<Ticker>* O);
 			static bool Unpack(Core::Schema* V, std::vector<std::string>* O);
 		};
 
@@ -453,8 +467,8 @@ namespace Tomahawk
 			Processor(ContentManager* NewContent);
 			virtual ~Processor() override;
 			virtual void Free(AssetCache* Asset);
-			virtual void* Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
-			virtual void* Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Keys);
+			virtual Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
+			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Keys);
 			virtual bool Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
 			ContentManager* GetContent();
 		};
@@ -486,7 +500,7 @@ namespace Tomahawk
 			virtual void Movement();
 			virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max);
 			virtual float GetVisibility(const Viewer& View, float Distance);
-			virtual Component* Copy(Entity* New) = 0;
+			virtual Core::Unique<Component> Copy(Entity* New) = 0;
 			Entity* GetEntity();
 			void SetActive(bool Enabled);
 			bool IsDrawable();
@@ -526,7 +540,7 @@ namespace Tomahawk
 			void UpdateBounds();
 			void RemoveComponent(uint64_t Id);
 			void RemoveChilds();
-			Component* AddComponent(Component* In);
+			Component* AddComponent(Core::Unique<Component> In);
 			Component* GetComponent(uint64_t Id);
 			uint64_t GetComponentsCount() const;
 			SceneGraph* GetScene() const;
@@ -602,7 +616,7 @@ namespace Tomahawk
 			virtual ~Drawable();
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 			virtual void Movement() override;
-			virtual Component* Copy(Entity* New) override = 0;
+			virtual Core::Unique<Component> Copy(Entity* New) override = 0;
 			bool SetCategory(GeoCategory NewCategory);
 			bool SetMaterial(void* Instance, Material* Value);
 			GeoCategory GetCategory();
@@ -744,7 +758,7 @@ namespace Tomahawk
 			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
 			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
-			Renderer* AddRenderer(Renderer* In);
+			Renderer* AddRenderer(Core::Unique<Renderer> In);
 			Renderer* GetRenderer(uint64_t Id);
 			int64_t GetOffset(uint64_t Id);
 			std::vector<Renderer*>& GetRenderers();
@@ -889,6 +903,8 @@ namespace Tomahawk
 			{
 				Core::Pool<Component*> Data;
 				Compute::Cosmos Index;
+
+				~Table() = default;
 			};
 
 		private:
@@ -963,8 +979,8 @@ namespace Tomahawk
 			void Conform();
 			bool Dispatch(Core::Timer* Time);
 			void Publish(Core::Timer* Time);
-			void RemoveMaterial(Material* Value);
-			void RemoveEntity(Entity* Entity, bool Destroy = true);
+			void RemoveMaterial(Core::Unique<Material> Value);
+			void RemoveEntity(Core::Unique<Entity> Entity, bool Destroy = true);
 			void SetCamera(Entity* Camera);
 			void SortBackToFront(Core::Pool<Drawable*>* Array);
 			void SortFrontToBack(Core::Pool<Drawable*>* Array);
@@ -986,7 +1002,7 @@ namespace Tomahawk
 			void CloneEntity(Entity* Value, CloneCallback&& Callback);
 			void MakeSnapshot(IdxSnapshot* Result);
 			void ClearCulling();
-			void GenerateDepthCascades(CascadedDepthMap** Result, uint32_t Size);
+			void GenerateDepthCascades(Core::Unique<CascadedDepthMap>* Result, uint32_t Size);
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
@@ -994,7 +1010,7 @@ namespace Tomahawk
 			bool SetParallel(const std::string& Name, PacketCallback&& Callback);
 			MessageCallback* SetListener(const std::string& Event, MessageCallback&& Callback);
 			bool ClearListener(const std::string& Event, MessageCallback* Id);
-			Material* AddMaterial(Material* Base, const std::string& Name = "");
+			Material* AddMaterial(Core::Unique<Material> Base, const std::string& Name = "");
 			Material* CloneMaterial(Material* Base, const std::string& Name = "");
 			Entity* GetEntity(uint64_t Entity);
 			Entity* GetLastEntity();
@@ -1017,7 +1033,7 @@ namespace Tomahawk
 			std::vector<LinearDepthMap*>& GetSpotsMapping();
 			std::vector<CascadedDepthMap*>& GetLinesMapping();
 			std::vector<VoxelMapping>& GetVoxelsMapping();
-			bool AddEntity(Entity* Entity);
+			bool AddEntity(Core::Unique<Entity> Entity);
 			bool IsActive();
 			bool IsLeftHanded();
 			bool IsIndexed();
@@ -1151,12 +1167,12 @@ namespace Tomahawk
 
 		public:
 			template <typename T>
-			T* Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			Core::Unique<T> Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 			}
 			template <typename T>
-			Core::Async<T*> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			Core::Async<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				return Core::Async<T*>::Execute([this, Path, Keys](Core::Async<T*>& Future)
 				{
@@ -1254,9 +1270,9 @@ namespace Tomahawk
 			AppData(ContentManager* Manager, const std::string& Path);
 			~AppData();
 			void Migrate(const std::string& Path);
-			void SetKey(const std::string& Name, Core::Schema* Value);
+			void SetKey(const std::string& Name, Core::Unique<Core::Schema> Value);
 			void SetText(const std::string& Name, const std::string& Value);
-			Core::Schema* GetKey(const std::string& Name);
+			Core::Unique<Core::Schema> GetKey(const std::string& Name);
 			std::string GetText(const std::string& Name);
 			bool Has(const std::string& Name);
 
@@ -1754,7 +1770,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				if (System->State.Is(RenderState::Geometry_Result))
 				{
-					TH_PPUSH("geo-renderer-result", TH_PERF_CORE);
+					TH_PPUSH(TH_PERF_CORE);
 					GeoCategory Category = GeoCategory::Opaque;
 					if (System->State.IsSet(RenderOpt::Transparent))
 						Category = GeoCategory::Transparent;
@@ -1789,7 +1805,7 @@ namespace Tomahawk
 					if (System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 						return 0;
 
-					TH_PPUSH("geo-renderer-voxels", TH_PERF_MIX);
+					TH_PPUSH(TH_PERF_MIX);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame = Proxy.Batches(GeoCategory::Opaque);
@@ -1815,7 +1831,7 @@ namespace Tomahawk
 					if (!System->State.IsSubpass())
 						return 0;
 
-					TH_PPUSH("geo-renderer-depth-linear", TH_PERF_FRAME);
+					TH_PPUSH(TH_PERF_FRAME);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
@@ -1849,7 +1865,7 @@ namespace Tomahawk
 					if (!System->State.IsSubpass())
 						return 0;
 
-					TH_PPUSH("geo-renderer-depth-cubic", TH_PERF_FRAME);
+					TH_PPUSH(TH_PERF_FRAME);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
@@ -1889,7 +1905,7 @@ namespace Tomahawk
 				if (!System->OcclusionCulling)
 					return 0;
 
-				TH_PPUSH("geo-renderer-culling", TH_PERF_FRAME);
+				TH_PPUSH(TH_PERF_FRAME);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				size_t Count = 0; uint64_t Fragments = 0;
 

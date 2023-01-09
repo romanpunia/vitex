@@ -290,7 +290,7 @@ namespace Tomahawk
 					case OidType::JSON:
 					case OidType::JSONB:
 					{
-						Core::Schema* Result = Core::Schema::ReadJSON(Data, (size_t)Size);
+						Core::Schema* Result = Core::Schema::ConvertFromJSON(Data, (size_t)Size);
 						if (Result != nullptr)
 							return Result;
 
@@ -582,7 +582,7 @@ namespace Tomahawk
 			}
 			const char** Address::CreateKeys() const
 			{
-				const char** Result = (const char**)TH_MALLOC(sizeof(const char*) * (Params.size() + 1));
+				const char** Result = TH_MALLOC(const char*, sizeof(const char*) * (Params.size() + 1));
 				size_t Index = 0;
 
 				for (auto& Key : Params)
@@ -593,7 +593,7 @@ namespace Tomahawk
 			}
 			const char** Address::CreateValues() const
 			{
-				const char** Result = (const char**)TH_MALLOC(sizeof(const char*) * (Params.size() + 1));
+				const char** Result = TH_MALLOC(const char*, sizeof(const char*) * (Params.size() + 1));
 				size_t Index = 0;
 
 				for (auto& Key : Params)
@@ -624,7 +624,7 @@ namespace Tomahawk
 				if (Data.empty())
 					return nullptr;
 
-				return Core::Schema::ReadJSON(Data.c_str(), Data.size());
+				return Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
 #else
 				return nullptr;
 #endif
@@ -1607,14 +1607,14 @@ namespace Tomahawk
 				Update.unlock();
 				return Core::Async<bool>::Execute([this, Connections](Core::Async<bool>& Future)
 				{
-					TH_PPUSH("postgres-conn", TH_PERF_MAX);
+					TH_PPUSH(TH_PERF_MAX);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
 
 					Update.lock();
 					for (size_t i = 0; i < Connections; i++)
 					{
-						TH_TRACE("[pq] try connect on group %i/%i", (int)i, (int)Connections);
+						TH_DEBUG("[pq] try connect on group %i/%i", (int)i, (int)Connections);
 						TConnection* Base = PQconnectdbParams(Keys, Values, 0);
 						if (!Base || PQstatus(Base) != ConnStatusType::CONNECTION_OK)
 						{
@@ -1633,7 +1633,7 @@ namespace Tomahawk
 							return;
 						}
 
-						TH_TRACE("[pq] OK connect on group %i as 0x%" PRIXPTR, (int)i, (uintptr_t)Base);
+						TH_DEBUG("[pq] OK connect on group %i as 0x%" PRIXPTR, (int)i, (uintptr_t)Base);
 						PQsetnonblocking(Base, 1);
 						PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
 						PQlogMessage(Base);
@@ -1687,7 +1687,7 @@ namespace Tomahawk
 			}
 			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t Opts, uint64_t Token)
 			{
-				TH_TRACE("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
+				TH_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
 				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Token);
@@ -1705,7 +1705,7 @@ namespace Tomahawk
 					if (GetCache(Reference, &Result))
 					{
 						Driver::LogQuery(Command);
-						TH_TRACE("[pq] OK execute on NULL (memory-cache)");
+						TH_DEBUG("[pq] OK execute on NULL (memory-cache)");
 
 						return Result;
 					}
@@ -1793,7 +1793,7 @@ namespace Tomahawk
 			}
 			std::string Cluster::GetCacheOid(const std::string& Payload, uint64_t Opts)
 			{
-				std::string Reference = Compute::Common::HexEncode(Compute::Common::HMAC(Compute::Digests::SHA256(), Payload, CACHE_MAGIC));
+				std::string Reference = Compute::Codec::HexEncode(Compute::Crypto::HMAC(Compute::Digests::SHA256(), Payload, CACHE_MAGIC));
 				if (Opts & (uint64_t)QueryOp::CacheShort)
 					Reference.append(".s");
 				else if (Opts & (uint64_t)QueryOp::CacheMid)
@@ -1875,7 +1875,7 @@ namespace Tomahawk
 			}
 			void Cluster::Restore(Connection* Base)
 			{
-				TH_TRACE("[pq] end tx-%llu on 0x%" PRIXPTR, Base->Session, (uintptr_t)Base);
+				TH_DEBUG("[pq] end tx-%llu on 0x%" PRIXPTR, Base->Session, (uintptr_t)Base);
 				Base->Session = 0;
 			}
 			bool Cluster::Reestablish(Connection* Target)
@@ -1902,7 +1902,7 @@ namespace Tomahawk
 				Target->Stream->ClearEvents(false);
 				PQfinish(Target->Base);
 
-				TH_TRACE("[pq] try reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
+				TH_DEBUG("[pq] try reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
 				Target->Base = PQconnectdbParams(Keys, Values, 0);
 				TH_FREE(Keys);
 				TH_FREE(Values);
@@ -1920,7 +1920,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				TH_TRACE("[pq] OK reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
+				TH_DEBUG("[pq] OK reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
 				Target->State = QueryState::Idle;
 				Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
 				PQsetnonblocking(Target->Base, 1);
@@ -1952,11 +1952,11 @@ namespace Tomahawk
 				if (!Base->Current)
 					return false;
 
-				TH_PPUSH("postgres-send", TH_PERF_MAX);
+				TH_PPUSH(TH_PERF_MAX);
 				if (Base->Session != 0)
-					TH_TRACE("[pq] execute query on 0x%" PRIXPTR " tx-%llu\n\t%.64s%s", (uintptr_t)Base, Base->Session, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
+					TH_DEBUG("[pq] execute query on 0x%" PRIXPTR " tx-%llu\n\t%.64s%s", (uintptr_t)Base, Base->Session, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				else
-					TH_TRACE("[pq] execute query on 0x%" PRIXPTR "\n\t%.64s%s", (uintptr_t)Base, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
+					TH_DEBUG("[pq] execute query on 0x%" PRIXPTR "\n\t%.64s%s", (uintptr_t)Base, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{
@@ -2011,7 +2011,7 @@ namespace Tomahawk
 			bool Cluster::Dispatch(Connection* Source, bool Connected)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_PPUSH("postgres-recv", TH_PERF_MAX);
+				TH_PPUSH(TH_PERF_MAX);
 				Update.lock();
 				if (!Connected)
 				{
@@ -2055,7 +2055,7 @@ namespace Tomahawk
 									}, Core::Difficulty::Light);
 								}
 							}
-							TH_TRACE("[pq] notification on channel @%s:\n\t%s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
+							TH_DEBUG("[pq] notification on channel @%s:\n\t%s", Notification->relname, Notification->extra ? Notification->extra : "[payload]");
 							PQfreeNotify(Notification);
 						}
 					}
@@ -2074,7 +2074,7 @@ namespace Tomahawk
 
 							if (!Results.IsError())
 							{
-								TH_TRACE("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
+								TH_DEBUG("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
 								if (Item->Restore)
 									Restore(Source);
 							}
@@ -2124,7 +2124,7 @@ namespace Tomahawk
 						return false;
 				}
 
-				TH_TRACE("[pq] start tx-%llu on 0x%" PRIXPTR, Next->Session, (uintptr_t)Base);
+				TH_DEBUG("[pq] start tx-%llu on 0x%" PRIXPTR, Next->Session, (uintptr_t)Base);
 				Base->Session = Next->Session;
 				return true;
 			}
@@ -2605,7 +2605,7 @@ namespace Tomahawk
 					return "''";
 
 				if (!Base)
-					return "'\\x" + Compute::Common::HexEncode(Src, Size) + "'::bytea";
+					return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
 
 				size_t Length = 0;
 				char* Subresult = (char*)PQescapeByteaConn(Base, (unsigned char*)Src, Size, &Length);
@@ -2616,7 +2616,7 @@ namespace Tomahawk
 				Result.append("'::bytea");
 				return Result;
 #else
-				return "'\\x" + Compute::Common::HexEncode(Src, Size) + "'::bytea";
+				return "'\\x" + Compute::Codec::HexEncode(Src, Size) + "'::bytea";
 #endif
 			}
 			std::string Driver::GetSQL(TConnection* Base, Core::Schema* Source, bool Escape, bool Negate)
@@ -2630,7 +2630,7 @@ namespace Tomahawk
 					case Core::VarType::Object:
 					{
 						std::string Result;
-						Core::Schema::WriteJSON(Source, [&Result](Core::VarForm, const char* Buffer, int64_t Length)
+						Core::Schema::ConvertToJSON(Source, [&Result](Core::VarForm, const char* Buffer, int64_t Length)
 						{
 							if (Buffer != nullptr && Length > 0)
 								Result.append(Buffer, Length);

@@ -1,6 +1,6 @@
 #ifndef TH_COMPUTE_H
 #define TH_COMPUTE_H
-#define TH_LEFT_HANDED (Tomahawk::Compute::Common::IsLeftHanded())
+#define TH_LEFT_HANDED (Tomahawk::Compute::Geometric::IsLeftHanded())
 #include "core.h"
 #include <cmath>
 #include <map>
@@ -1165,8 +1165,8 @@ namespace Tomahawk
 			void Update(const unsigned char* Buffer, unsigned int Length, unsigned int BlockSize = 64);
 			void Update(const char* Buffer, unsigned int Length, unsigned int BlockSize = 64);
 			void Finalize();
-			char* HexDigest() const;
-			unsigned char* RawDigest() const;
+			Core::Unique<char> HexDigest() const;
+			Core::Unique<unsigned char> RawDigest() const;
 			std::string ToHex() const;
 			std::string ToRaw() const;
 
@@ -1396,53 +1396,10 @@ namespace Tomahawk
 			static Digest SM3();
 		};
 
-		class TH_OUT Common
+		class TH_OUT Crypto
 		{
-		private:
-			static bool LeftHanded;
-
 		public:
-			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
-			static bool IsCubeInFrustum(const Matrix4x4& WorldViewProjection, float Radius);
-			static bool IsBase64URL(unsigned char Value);
-			static bool IsBase64(unsigned char Value);
-			static bool IsLeftHanded();
-			static bool HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1);
-			static bool HasLineIntersected(float DistanceF, float DistanceD, const Vector3& Start, const Vector3& End, Vector3& Hit);
-			static bool HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End);
-			static bool HasPointIntersectedCube(const Vector3& Hit, const Vector3& Position, const Vector3& Scale, int Axis);
-			static bool HasPointIntersectedRectangle(const Vector3& Position, const Vector3& Scale, const Vector3& P0);
-			static bool HasPointIntersectedCube(const Vector3& Position, const Vector3& Scale, const Vector3& P0);
-			static bool HasSBIntersected(Transform* BoxR0, Transform* BoxR1);
-			static bool HasOBBIntersected(Transform* BoxR0, Transform* BoxR1);
-			static bool HasAABBIntersected(Transform* BoxR0, Transform* BoxR1);
-			static bool Hex(char c, int& v);
-			static bool HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength);
-			static bool HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value);
-			static void FlipIndexWindingOrder(std::vector<int>& Indices);
-			static void ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices);
-			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
-			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
-			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
-			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
-			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
-			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
-			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
-			static void MatrixRhToLh(Compute::Matrix4x4* Matrix);
-			static void VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices);
-			static void VertexRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices);
-			static void TexCoordRhToLh(std::vector<Vertex>& Vertices);
-			static void TexCoordRhToLh(std::vector<SkinVertex>& Vertices);
-			static void TexCoordRhToLh(std::vector<ShapeVertex>& Vertices);
-			static void SetLeftHanded(bool IsLeftHanded);
-            static void DisplayCryptoLog();
-			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
-			static std::string JWTEncode(WebToken* Src, const char* Key);
-			static WebToken* JWTDecode(const std::string& Value, const char* Key);
-			static std::string DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt);
-			static Core::Schema* DocDecrypt(const std::string& Value, const char* Key, const char* Salt);
 			static std::string RandomBytes(uint64_t Length);
-			static std::string Move(const std::string& Text, int Offset);
 			static std::string Hash(Digest Type, const std::string& Value);
 			static std::string HashBinary(Digest Type, const std::string& Value);
 			static std::string Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
@@ -1453,6 +1410,26 @@ namespace Tomahawk
 			static std::string Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
 			static std::string Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
 			static std::string Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
+			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
+			static std::string JWTEncode(WebToken* Src, const char* Key);
+			static Core::Unique<WebToken> JWTDecode(const std::string& Value, const char* Key);
+			static std::string DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt);
+			static Core::Unique<Core::Schema> DocDecrypt(const std::string& Value, const char* Key, const char* Salt);
+			static unsigned char RandomUC();
+			static uint64_t CRC32(const std::string& Data);
+			static uint64_t Random(uint64_t Min, uint64_t Max);
+			static uint64_t Random();
+			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
+			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
+			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
+			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
+			static void DisplayCryptoLog();
+		};
+
+		class TH_OUT Codec
+		{
+		public:
+			static std::string Move(const std::string& Text, int Offset);
 			static std::string Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding);
 			static std::string Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char));
 			static std::string Bep45Encode(const std::string& Value);
@@ -1478,9 +1455,45 @@ namespace Tomahawk
 			static std::string URIDecode(const char* Text, uint64_t Length);
 			static std::string Hybi10Encode(const Hybi10Request& hRequest, bool Masked);
 			static std::string DecimalToHex(uint64_t V);
+			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
 			static Hybi10Request Hybi10Decode(const std::string& Data);
-			static unsigned char RandomUC();
 			static uint64_t Utf8(int code, char* Buffer);
+			static bool Hex(char c, int& v);
+			static bool HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength);
+			static bool HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value);
+			static bool IsBase64URL(unsigned char Value);
+			static bool IsBase64(unsigned char Value);
+		};
+
+		class TH_OUT Geometric
+		{
+		private:
+			static bool LeftHanded;
+
+		public:
+			static bool IsCubeInFrustum(const Matrix4x4& WorldViewProjection, float Radius);
+			static bool IsLeftHanded();
+			static bool HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1);
+			static bool HasLineIntersected(float DistanceF, float DistanceD, const Vector3& Start, const Vector3& End, Vector3& Hit);
+			static bool HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End);
+			static bool HasPointIntersectedCube(const Vector3& Hit, const Vector3& Position, const Vector3& Scale, int Axis);
+			static bool HasPointIntersectedRectangle(const Vector3& Position, const Vector3& Scale, const Vector3& P0);
+			static bool HasPointIntersectedCube(const Vector3& Position, const Vector3& Scale, const Vector3& P0);
+			static bool HasSBIntersected(Transform* BoxR0, Transform* BoxR1);
+			static bool HasOBBIntersected(Transform* BoxR0, Transform* BoxR1);
+			static bool HasAABBIntersected(Transform* BoxR0, Transform* BoxR1);
+			static void FlipIndexWindingOrder(std::vector<int>& Indices);
+			static void ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices);
+			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
+			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
+			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
+			static void MatrixRhToLh(Compute::Matrix4x4* Matrix);
+			static void VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices);
+			static void VertexRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices);
+			static void TexCoordRhToLh(std::vector<Vertex>& Vertices);
+			static void TexCoordRhToLh(std::vector<SkinVertex>& Vertices);
+			static void TexCoordRhToLh(std::vector<ShapeVertex>& Vertices);
+			static void SetLeftHanded(bool IsLeftHanded);
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
 			static void CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
@@ -1490,9 +1503,6 @@ namespace Tomahawk
 			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit = nullptr);
 			static float FastInvSqrt(float Value);
 			static float FastSqrt(float Value);
-			static uint64_t CRC32(const std::string& Data);
-			static uint64_t Random(uint64_t Min, uint64_t Max);
-			static uint64_t Random();
 		};
 
 		class TH_OUT Regex
@@ -1626,7 +1636,7 @@ namespace Tomahawk
 
 		class TH_OUT Transform : public Core::Object
 		{
-			friend Common;
+			friend Geometric;
 
 		public:
 			struct Spacing
@@ -1819,7 +1829,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~RigidBody() override;
-			RigidBody* Copy();
+			Core::Unique<RigidBody> Copy();
 			void Push(const Vector3& Velocity);
 			void Push(const Vector3& Velocity, const Vector3& Torque);
 			void Push(const Vector3& Velocity, const Vector3& Torque, const Vector3& Center);
@@ -2012,7 +2022,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~SoftBody() override;
-			SoftBody* Copy();
+			Core::Unique<SoftBody> Copy();
 			void Activate(bool Force);
 			void Synchronize(Transform* Transform, bool Kinematic);
 			void GetIndices(std::vector<int>* Indices);
@@ -2118,7 +2128,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~Constraint() = default;
-			virtual Constraint* Copy() = 0;
+			virtual Core::Unique<Constraint> Copy() = 0;
 			virtual btTypedConstraint* Get() = 0;
 			virtual bool HasCollisions() = 0;
 			void SetBreakingImpulseThreshold(float Value);
@@ -2155,7 +2165,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~PConstraint() override;
-			virtual Constraint* Copy() override;
+			virtual Core::Unique<Constraint> Copy() override;
 			virtual btTypedConstraint* Get() override;
 			virtual bool HasCollisions() override;
 			void SetPivotA(const Vector3& Value);
@@ -2188,7 +2198,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~HConstraint() override;
-			virtual Constraint* Copy() override;
+			virtual Core::Unique<Constraint> Copy() override;
 			virtual btTypedConstraint* Get() override;
 			virtual bool HasCollisions() override;
 			void EnableAngularMotor(bool Enable, float TargetVelocity, float MaxMotorImpulse);
@@ -2245,7 +2255,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~SConstraint() override;
-			virtual Constraint* Copy() override;
+			virtual Core::Unique<Constraint> Copy() override;
 			virtual btTypedConstraint* Get() override;
 			virtual bool HasCollisions() override;
 			void SetAngularMotorVelocity(float Value);
@@ -2329,7 +2339,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~CTConstraint() override;
-			virtual Constraint* Copy() override;
+			virtual Core::Unique<Constraint> Copy() override;
 			virtual btTypedConstraint* Get() override;
 			virtual bool HasCollisions() override;
 			void EnableMotor(bool Value);
@@ -2388,7 +2398,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~DF6Constraint() override;
-			virtual Constraint* Copy() override;
+			virtual Core::Unique<Constraint> Copy() override;
 			virtual btTypedConstraint* Get() override;
 			virtual bool HasCollisions() override;
 			void EnableMotor(int Index, bool OnOff);
@@ -2480,15 +2490,15 @@ namespace Tomahawk
 			void Simulate(float TimeStep);
 			void FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
 			bool FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&));
-			RigidBody* CreateRigidBody(const RigidBody::Desc& I);
-			RigidBody* CreateRigidBody(const RigidBody::Desc& I, Transform* Transform);
-			SoftBody* CreateSoftBody(const SoftBody::Desc& I);
-			SoftBody* CreateSoftBody(const SoftBody::Desc& I, Transform* Transform);
-			PConstraint* CreatePoint2PointConstraint(const PConstraint::Desc& I);
-			HConstraint* CreateHingeConstraint(const HConstraint::Desc& I);
-			SConstraint* CreateSliderConstraint(const SConstraint::Desc& I);
-			CTConstraint* CreateConeTwistConstraint(const CTConstraint::Desc& I);
-			DF6Constraint* Create6DoFConstraint(const DF6Constraint::Desc& I);
+			Core::Unique<RigidBody> CreateRigidBody(const RigidBody::Desc& I);
+			Core::Unique<RigidBody> CreateRigidBody(const RigidBody::Desc& I, Transform* Transform);
+			Core::Unique<SoftBody> CreateSoftBody(const SoftBody::Desc& I);
+			Core::Unique<SoftBody> CreateSoftBody(const SoftBody::Desc& I, Transform* Transform);
+			Core::Unique<PConstraint> CreatePoint2PointConstraint(const PConstraint::Desc& I);
+			Core::Unique<HConstraint> CreateHingeConstraint(const HConstraint::Desc& I);
+			Core::Unique<SConstraint> CreateSliderConstraint(const SConstraint::Desc& I);
+			Core::Unique<CTConstraint> CreateConeTwistConstraint(const CTConstraint::Desc& I);
+			Core::Unique<DF6Constraint> Create6DoFConstraint(const DF6Constraint::Desc& I);
 			btCollisionShape* CreateShape(Shape Type);
 			btCollisionShape* CreateCube(const Vector3& Scale = Vector3(1, 1, 1));
 			btCollisionShape* CreateSphere(float Radius = 1);
@@ -2503,7 +2513,7 @@ namespace Tomahawk
 			btCollisionShape* CreateConvexHull(btCollisionShape* From);
 			btCollisionShape* TryCloneShape(btCollisionShape* Shape);
 			btCollisionShape* ReuseShape(btCollisionShape* Shape);
-			void FreeShape(btCollisionShape** Value);
+			void FreeShape(Core::Unique<btCollisionShape*> Value);
 			std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape);
 			uint64_t GetShapeVerticesCount(btCollisionShape* Shape);
 			float GetMaxDisplacement();
@@ -2526,8 +2536,8 @@ namespace Tomahawk
 		public:
 			static void FreeHullShape(btCollisionShape* Shape);
 			static Simulator* Get(btDiscreteDynamicsWorld* From);
-			static btCollisionShape* CreateHullShape(std::vector<Vertex>& Mesh);
-			static btCollisionShape* CreateHullShape(btCollisionShape* From);
+			static Core::Unique<btCollisionShape> CreateHullShape(std::vector<Vertex>& Mesh);
+			static Core::Unique<btCollisionShape> CreateHullShape(btCollisionShape* From);
 		};
 
 		template <typename T>
@@ -2655,7 +2665,7 @@ namespace Tomahawk
 				if (Number0 == Number1)
 					return Number0;
 
-				return T((double)Number0 + ((double)Number1 - (double)Number0) / std::numeric_limits<uint64_t>::max() * Common::Random());
+				return T((double)Number0 + ((double)Number1 - (double)Number0) / std::numeric_limits<uint64_t>::max() * Crypto::Random());
 			}
 			static T Round(I Value)
 			{
@@ -2663,7 +2673,7 @@ namespace Tomahawk
 			}
 			static T Random()
 			{
-				return T((double)Common::Random() / (double)std::numeric_limits<uint64_t>::max());
+				return T((double)Crypto::Random() / (double)std::numeric_limits<uint64_t>::max());
 			}
 			static T RandomMag()
 			{
@@ -2692,7 +2702,7 @@ namespace Tomahawk
 			}
 			static T Select(I A, I B)
 			{
-				return Common::Random() < std::numeric_limits<uint64_t>::max() / 2 ? B : A;
+				return Crypto::Random() < std::numeric_limits<uint64_t>::max() / 2 ? B : A;
 			}
 			static T Cotan(I Value)
 			{

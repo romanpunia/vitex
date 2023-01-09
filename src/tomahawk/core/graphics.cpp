@@ -1443,7 +1443,7 @@ namespace Tomahawk
 			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer))) > 0)
 				Data->append(std::string(Buffer, Size));
 
-			TH_TRACE("[graphics] load %s program cache", Name.c_str());
+			TH_DEBUG("[graphics] load %s program cache", Name.c_str());
 			TH_RELEASE(Stream);
 
 			return !Data->empty();
@@ -1467,7 +1467,7 @@ namespace Tomahawk
 			uint64_t Size = (uint64_t)Data.size();
 			bool Result = (Stream->Write(Data.c_str(), Size) == Size);
 
-			TH_TRACE("[graphics] save %s program cache", Name.c_str());
+			TH_DEBUG("[graphics] save %s program cache", Name.c_str());
 			TH_RELEASE(Stream);
 
 			return Result;
@@ -1551,7 +1551,7 @@ namespace Tomahawk
                     break;
 			}
 
-			return Prefix + Compute::Common::Hash(Compute::Digests::MD5(), Result) + ".sasm";
+			return Prefix + Compute::Crypto::Hash(Compute::Digests::MD5(), Result) + ".sasm";
 		}
 		std::string GraphicsDevice::GetShaderMain(ShaderType Type)
 		{
@@ -1922,7 +1922,7 @@ namespace Tomahawk
 		bool Activity::Dispatch()
 		{
 			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
-			TH_PPUSH("activity-dispatch", TH_PERF_MIX);
+			TH_PPUSH(TH_PERF_MIX);
 
 			memcpy((void*)Keys[1], (void*)Keys[0], 1024);
 #ifdef TH_HAS_SDL2
@@ -3458,7 +3458,7 @@ namespace Tomahawk
 		void SkinModel::ComputePose(PoseBuffer* Map)
 		{
 			TH_ASSERT_V(Map != nullptr, "pose buffer should be set");
-			TH_PPUSH("pose-buffer-reset", TH_PERF_ATOM);
+			TH_PPUSH(TH_PERF_ATOM);
 
 			if (Map->Pose.empty())
 				Map->SetPose(this);

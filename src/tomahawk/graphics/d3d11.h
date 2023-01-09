@@ -121,7 +121,7 @@ namespace Tomahawk
 
 			public:
 				D3D11MeshBuffer(const Desc& I);
-				Compute::Vertex* GetElements(GraphicsDevice* Device) override;
+				Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) override;
 			};
 
 			class D3D11SkinMeshBuffer final : public SkinMeshBuffer
@@ -130,7 +130,7 @@ namespace Tomahawk
 
 			public:
 				D3D11SkinMeshBuffer(const Desc& I);
-				Compute::SkinVertex* GetElements(GraphicsDevice* Device) override;
+				Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) override;
 			};
 
 			class D3D11InstanceBuffer final : public InstanceBuffer
@@ -464,44 +464,44 @@ namespace Tomahawk
 				void GenerateMips(Texture2D* Resource) override;
 				void GenerateMips(Texture3D* Resource) override;
 				void GenerateMips(TextureCube* Resource) override;
-				bool Begin() override;
-				void Transform(const Compute::Matrix4x4& Transform) override;
-				void Topology(PrimitiveTopology Topology) override;
-				void Emit() override;
-				void Texture(Texture2D* In) override;
-				void Color(float X, float Y, float Z, float W) override;
-				void Intensity(float Intensity) override;
-				void TexCoord(float X, float Y) override;
-				void TexCoordOffset(float X, float Y) override;
-				void Position(float X, float Y, float Z) override;
-				bool End() override;
+				bool ImBegin() override;
+				void ImTransform(const Compute::Matrix4x4& Transform) override;
+				void ImTopology(PrimitiveTopology Topology) override;
+				void ImEmit() override;
+				void ImTexture(Texture2D* In) override;
+				void ImColor(float X, float Y, float Z, float W) override;
+				void ImIntensity(float Intensity) override;
+				void ImTexCoord(float X, float Y) override;
+				void ImTexCoordOffset(float X, float Y) override;
+				void ImPosition(float X, float Y, float Z) override;
+				bool ImEnd() override;
 				bool Submit() override;
-				DepthStencilState* CreateDepthStencilState(const DepthStencilState::Desc& I) override;
-				BlendState* CreateBlendState(const BlendState::Desc& I) override;
-				RasterizerState* CreateRasterizerState(const RasterizerState::Desc& I) override;
-				SamplerState* CreateSamplerState(const SamplerState::Desc& I) override;
-				InputLayout* CreateInputLayout(const InputLayout::Desc& I) override;
-				Shader* CreateShader(const Shader::Desc& I) override;
-				ElementBuffer* CreateElementBuffer(const ElementBuffer::Desc& I) override;
-				MeshBuffer* CreateMeshBuffer(const MeshBuffer::Desc& I) override;
-				SkinMeshBuffer* CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) override;
-				InstanceBuffer* CreateInstanceBuffer(const InstanceBuffer::Desc& I) override;
-				Texture2D* CreateTexture2D() override;
-				Texture2D* CreateTexture2D(const Texture2D::Desc& I) override;
-				Texture3D* CreateTexture3D() override;
-				Texture3D* CreateTexture3D(const Texture3D::Desc& I) override;
-				TextureCube* CreateTextureCube() override;
-				TextureCube* CreateTextureCube(const TextureCube::Desc& I) override;
-				TextureCube* CreateTextureCube(Texture2D* Resource[6]) override;
-				TextureCube* CreateTextureCube(Texture2D* Resource) override;
-				DepthTarget2D* CreateDepthTarget2D(const DepthTarget2D::Desc& I) override;
-				DepthTargetCube* CreateDepthTargetCube(const DepthTargetCube::Desc& I) override;
-				RenderTarget2D* CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
-				MultiRenderTarget2D* CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
-				RenderTargetCube* CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
-				MultiRenderTargetCube* CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
-				Cubemap* CreateCubemap(const Cubemap::Desc& I) override;
-				Query* CreateQuery(const Query::Desc& I) override;
+				Core::Unique<DepthStencilState> CreateDepthStencilState(const DepthStencilState::Desc& I) override;
+				Core::Unique<BlendState> CreateBlendState(const BlendState::Desc& I) override;
+				Core::Unique<RasterizerState> CreateRasterizerState(const RasterizerState::Desc& I) override;
+				Core::Unique<SamplerState> CreateSamplerState(const SamplerState::Desc& I) override;
+				Core::Unique<InputLayout> CreateInputLayout(const InputLayout::Desc& I) override;
+				Core::Unique<Shader> CreateShader(const Shader::Desc& I) override;
+				Core::Unique<ElementBuffer> CreateElementBuffer(const ElementBuffer::Desc& I) override;
+				Core::Unique<MeshBuffer> CreateMeshBuffer(const MeshBuffer::Desc& I) override;
+				Core::Unique<SkinMeshBuffer> CreateSkinMeshBuffer(const SkinMeshBuffer::Desc& I) override;
+				Core::Unique<InstanceBuffer> CreateInstanceBuffer(const InstanceBuffer::Desc& I) override;
+				Core::Unique<Texture2D> CreateTexture2D() override;
+				Core::Unique<Texture2D> CreateTexture2D(const Texture2D::Desc& I) override;
+				Core::Unique<Texture3D> CreateTexture3D() override;
+				Core::Unique<Texture3D> CreateTexture3D(const Texture3D::Desc& I) override;
+				Core::Unique<TextureCube> CreateTextureCube() override;
+				Core::Unique<TextureCube> CreateTextureCube(const TextureCube::Desc& I) override;
+				Core::Unique<TextureCube> CreateTextureCube(Texture2D* Resource[6]) override;
+				Core::Unique<TextureCube> CreateTextureCube(Texture2D* Resource) override;
+				Core::Unique<DepthTarget2D> CreateDepthTarget2D(const DepthTarget2D::Desc& I) override;
+				Core::Unique<DepthTargetCube> CreateDepthTargetCube(const DepthTargetCube::Desc& I) override;
+				Core::Unique<RenderTarget2D> CreateRenderTarget2D(const RenderTarget2D::Desc& I) override;
+				Core::Unique<MultiRenderTarget2D> CreateMultiRenderTarget2D(const MultiRenderTarget2D::Desc& I) override;
+				Core::Unique<RenderTargetCube> CreateRenderTargetCube(const RenderTargetCube::Desc& I) override;
+				Core::Unique<MultiRenderTargetCube> CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
+				Core::Unique<Cubemap> CreateCubemap(const Cubemap::Desc& I) override;
+				Core::Unique<Query> CreateQuery(const Query::Desc& I) override;
 				PrimitiveTopology GetPrimitiveTopology() override;
 				ShaderModel GetSupportedShaderModel() override;
 				void* GetDevice() override;

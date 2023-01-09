@@ -109,30 +109,30 @@ typedef socklen_t socket_size_t;
 #endif
 #if TH_DLEVEL >= 4
 #ifdef NDEBUG
-#define TH_TRACE(Format, ...) Tomahawk::Core::OS::Log(4, 0, nullptr, Format, ##__VA_ARGS__)
+#define TH_DEBUG(Format, ...) Tomahawk::Core::OS::Log(4, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_TRACE(Format, ...) Tomahawk::Core::OS::Log(4, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_DEBUG(Format, ...) Tomahawk::Core::OS::Log(4, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 3
 #ifdef NDEBUG
-#define TH_TRACE(Format, ...) ((void)0)
+#define TH_DEBUG(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_TRACE(Format, ...) ((void)0)
+#define TH_DEBUG(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 2
-#define TH_TRACE(Format, ...) ((void)0)
+#define TH_DEBUG(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) ((void)0)
 #ifdef NDEBUG
 #define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
@@ -142,7 +142,7 @@ typedef socklen_t socket_size_t;
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #elif TH_DLEVEL >= 1
-#define TH_TRACE(Format, ...) ((void)0)
+#define TH_DEBUG(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) ((void)0)
 #define TH_WARN(Format, ...) ((void)0)
 #ifdef NDEBUG
@@ -151,7 +151,7 @@ typedef socklen_t socket_size_t;
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
 #else
-#define TH_TRACE(Format, ...) ((void)0)
+#define TH_DEBUG(Format, ...) ((void)0)
 #define TH_INFO(...) ((void)0)
 #define TH_WARN(...) ((void)0)
 #define TH_ERR(...) ((void)0)
@@ -164,6 +164,34 @@ typedef socklen_t socket_size_t;
 #define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return Returnable; }
 #define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return; }
 #endif
+#define TH_PPUSH(Threshold) Tomahawk::Core::OS::PerfPush(TH_FILE, TH_FUNCTION, TH_LINE, Threshold)
+#define TH_PSIG() Tomahawk::Core::OS::PerfSignal()
+#define TH_PPOP() Tomahawk::Core::OS::PerfPop()
+#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::PerfPop(); return __vfbuf; }
+#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FUNCTION "(): " TH_STRINGIFY(Value))
+#define TH_CLOSE(Stream) { TH_DEBUG("[io] close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
+#define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size, #Type)
+#define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size, #Type)
+#define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
+#else
+#define TH_ASSERT(Condition, Returnable, Format, ...) ((void)0)
+#define TH_ASSERT_V(Condition, Format, ...) ((void)0)
+#define TH_PPUSH(Threshold) ((void)0)
+#define TH_PSIG() ((void)0)
+#define TH_PPOP() ((void)0)
+#define TH_PRET(Value) return Value
+#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
+#define TH_CLOSE(Stream) fclose(Stream)
+#define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size)
+#define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size)
+#define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
+#endif
+#define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE((void*)Var); } }
+#define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
+#define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
+#define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
+#define TH_COUT extern "C" TH_OUT
+#define TH_STACKSIZE (512 * 1024)
 #define TH_PERF_ATOM (1)
 #define TH_PERF_FRAME (5)
 #define TH_PERF_CORE (16)
@@ -172,45 +200,8 @@ typedef socklen_t socket_size_t;
 #define TH_PERF_NET (150)
 #define TH_PERF_MAX (350)
 #define TH_PERF_HANG (5000)
-#define TH_PPUSH(Section, Threshold) Tomahawk::Core::OS::PerfPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold)
-#define TH_PSIG() Tomahawk::Core::OS::PerfSignal()
-#define TH_PPOP() Tomahawk::Core::OS::PerfPop()
-#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::PerfPop(); return __vfbuf; }
-#define TH_SPUSH(Section, Threshold, Id) Tomahawk::Core::OS::SpecPush(TH_FILE, Section, TH_FUNCTION, TH_LINE, Threshold, (void*)(Id))
-#define TH_SSIG() Tomahawk::Core::OS::SpecSignal()
-#define TH_SPOP(Id) Tomahawk::Core::OS::SpecPop((void*)(Id))
-#define TH_ORET(Id, Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::SpecPop((void*)(Id)); return __vfbuf; }
-#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FILE, TH_FUNCTION, "coawait of [ " TH_STRINGIFY(Value) " ]", TH_LINE)
-#define TH_CLOSE(Stream) { TH_TRACE("[io] close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
-#else
-#define TH_ASSERT(Condition, Returnable, Format, ...) ((void)0)
-#define TH_ASSERT_V(Condition, Format, ...) ((void)0)
-#define TH_PPUSH(Section, Threshold) ((void)0)
-#define TH_PSIG() ((void)0)
-#define TH_PPOP() ((void)0)
-#define TH_PRET(Value) return Value
-#define TH_SPUSH(Section, Threshold, Id) ((void)0)
-#define TH_SSIG() ((void)0)
-#define TH_SPOP(Id) ((void)0)
-#define TH_ORET(Id, Value) return Value
-#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
-#define TH_CLOSE(Stream) fclose(Stream)
-#endif
-#define TH_LOG(Format, ...) Tomahawk::Core::OS::Log(0, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_STACKSIZE (512 * 1024)
-#define TH_COUT extern "C" TH_OUT
-#define TH_MALLOC(Size) Tomahawk::Core::Mem::Malloc(Size)
-#define TH_NEW(Type, ...) new(TH_MALLOC(sizeof(Type))) Type(__VA_ARGS__)
-#define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE((void*)Var); } }
-#define TH_DELETE_THIS(Destructor) { (this)->~Destructor(); TH_FREE((void*)this); }
-#define TH_REALLOC(Ptr, Size) Tomahawk::Core::Mem::Realloc(Ptr, Size)
-#define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
-#define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
-#define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
-#define TH_INVALID_TASK_ID 0
-#define TH_MAX_EVENTS 32
-#define TH_PREFIX_CHAR '`'
-#define TH_PREFIX_STR "`"
+#define TH_INVALID_TASK_ID (0)
+#define TH_MAX_EVENTS (32)
 #define TH_SHUFFLE(Name) Tomahawk::Core::Shuffle<sizeof(Name)>(Name)
 #define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
 #define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
@@ -332,6 +323,9 @@ namespace Tomahawk
 			Clock,
 			Count
 		};
+
+		template <typename T>
+		using Unique = T*;
 
 		typedef std::vector<struct Variant> VariantList;
 		typedef std::vector<Schema*> SchemaList;
@@ -514,10 +508,11 @@ namespace Tomahawk
 			bool IsString(const char* Value) const;
 			bool IsObject() const;
 			bool IsEmpty() const;
+			bool Is(VarType Value) const;
 
 		private:
 			Variant(VarType NewType) noexcept;
-			bool Is(const Variant& Value) const;
+			bool Same(const Variant& Value) const;
 			void Copy(const Variant& Other);
 			void Copy(Variant&& Other);
 			void Free();
@@ -567,7 +562,6 @@ namespace Tomahawk
 		{
 			std::string Path;
 			Resource Source;
-			void* UserData = nullptr;
 		};
 
 		struct TH_OUT DirectoryEntry
@@ -584,8 +578,6 @@ namespace Tomahawk
 
 		private:
 			bool Valid = false;
-
-		public:
 #ifdef TH_MICROSOFT
 			void* Process = nullptr;
 			void* Thread = nullptr;
@@ -593,6 +585,9 @@ namespace Tomahawk
 #else
 			pid_t Process;
 #endif
+
+		public:
+			int64_t GetPid();
 		};
 
 		struct TH_OUT DateTime
@@ -807,20 +802,6 @@ namespace Tomahawk
 			static std::string ToString(double Number);
 		};
 
-		struct TH_OUT Ticker
-		{
-		private:
-			double Time;
-
-		public:
-			double Delay;
-
-		public:
-			Ticker();
-			bool TickEvent(double ElapsedTime);
-			double GetTime();
-		};
-
 		struct TH_OUT Spin
 		{
 		private:
@@ -838,25 +819,25 @@ namespace Tomahawk
 			class TH_OUT Set
 			{
 			public:
-				static Schema* Auto(Variant&& Value);
-				static Schema* Auto(const Variant& Value);
-				static Schema* Auto(const std::string& Value, bool Strict = false);
-				static Schema* Null();
-				static Schema* Undefined();
-				static Schema* Object();
-				static Schema* Array();
-				static Schema* Pointer(void* Value);
-				static Schema* String(const std::string& Value);
-				static Schema* String(const char* Value, size_t Size);
-				static Schema* Binary(const std::string& Value);
-				static Schema* Binary(const unsigned char* Value, size_t Size);
-				static Schema* Binary(const char* Value, size_t Size);
-				static Schema* Integer(int64_t Value);
-				static Schema* Number(double Value);
-				static Schema* Decimal(const BigNumber& Value);
-				static Schema* Decimal(BigNumber&& Value);
-				static Schema* DecimalString(const std::string& Value);
-				static Schema* Boolean(bool Value);
+				static Unique<Schema> Auto(Variant&& Value);
+				static Unique<Schema> Auto(const Variant& Value);
+				static Unique<Schema> Auto(const std::string& Value, bool Strict = false);
+				static Unique<Schema> Null();
+				static Unique<Schema> Undefined();
+				static Unique<Schema> Object();
+				static Unique<Schema> Array();
+				static Unique<Schema> Pointer(void* Value);
+				static Unique<Schema> String(const std::string& Value);
+				static Unique<Schema> String(const char* Value, size_t Size);
+				static Unique<Schema> Binary(const std::string& Value);
+				static Unique<Schema> Binary(const unsigned char* Value, size_t Size);
+				static Unique<Schema> Binary(const char* Value, size_t Size);
+				static Unique<Schema> Integer(int64_t Value);
+				static Unique<Schema> Number(double Value);
+				static Unique<Schema> Decimal(const BigNumber& Value);
+				static Unique<Schema> Decimal(BigNumber&& Value);
+				static Unique<Schema> DecimalString(const std::string& Value);
+				static Unique<Schema> Boolean(bool Value);
 			};
 
 		public:
@@ -881,6 +862,19 @@ namespace Tomahawk
 
 		class TH_OUT Mem
 		{
+#ifndef NDEBUG
+		private:
+			struct MemBuffer
+			{
+				std::string TypeName;
+				time_t Time;
+				size_t Size;
+			};
+
+		private:
+			static std::unordered_map<void*, MemBuffer> Buffers;
+			static std::mutex Queue;
+#endif
 		private:
 			static AllocCallback OnAlloc;
 			static ReallocCallback OnRealloc;
@@ -890,9 +884,19 @@ namespace Tomahawk
 			static void SetAlloc(const AllocCallback& Callback);
 			static void SetRealloc(const ReallocCallback& Callback);
 			static void SetFree(const FreeCallback& Callback);
-			static void* Malloc(size_t Size);
-			static void* Realloc(void* Ptr, size_t Size);
-			static void Free(void* Ptr);
+			static void Dump(void* Ptr = nullptr);
+			static void Free(Unique<void> Ptr);
+			static Unique<void> Malloc(size_t Size);
+			static Unique<void> Realloc(Unique<void> Ptr, size_t Size);
+
+		public:
+#ifndef NDEBUG
+			static Unique<void> QueryMalloc(size_t Size, const char* TypeName = nullptr);
+			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size, const char* TypeName = nullptr);
+#else
+			static Unique<void> QueryMalloc(size_t Size);
+			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size);
+#endif
 		};
 
 		class TH_OUT OS
@@ -972,11 +976,11 @@ namespace Tomahawk
 				static int Compare(const std::string& FirstPath, const std::string& SecondPath);
 				static uint64_t GetCheckSum(const std::string& Data);
 				static FileState GetState(const char* Path);
-				static Stream* Open(const std::string& Path, FileMode Mode);
-				static void* Open(const char* Path, const char* Mode);
-				static unsigned char* ReadChunk(Stream* Stream, uint64_t Length);
-				static unsigned char* ReadAll(const char* Path, uint64_t* ByteLength);
-				static unsigned char* ReadAll(Stream* Stream, uint64_t* ByteLength);
+				static Unique<Stream> Open(const std::string& Path, FileMode Mode);
+				static Unique<void> Open(const char* Path, const char* Mode);
+				static Unique<unsigned char> ReadChunk(Stream* Stream, uint64_t Length);
+				static Unique<unsigned char> ReadAll(const char* Path, uint64_t* ByteLength);
+				static Unique<unsigned char> ReadAll(Stream* Stream, uint64_t* ByteLength);
 				static std::string ReadAsString(const char* Path);
 				static std::vector<std::string> ReadAsArray(const char* Path);
 			};
@@ -1108,8 +1112,8 @@ namespace Tomahawk
 			class TH_OUT Symbol
 			{
 			public:
-				static void* Load(const std::string& Path = "");
-				static void* LoadFunction(void* Handle, const std::string& Name);
+				static Unique<void> Load(const std::string& Path = "");
+				static Unique<void> LoadFunction(void* Handle, const std::string& Name);
 				static bool Unload(void* Handle);
 			};
 
@@ -1154,16 +1158,12 @@ namespace Tomahawk
 			struct DbgContext
 			{
 				const char* File = nullptr;
-				const char* Section = nullptr;
 				const char* Function = nullptr;
 				void* Id = nullptr;
 				uint64_t Threshold = 0;
 				uint64_t Time = 0;
 				int Line = 0;
 			};
-
-		private:
-			static std::vector<DbgContext> SpecFrame;
 #endif
 		private:
 			static std::function<void(Message&)> Callback;
@@ -1174,10 +1174,7 @@ namespace Tomahawk
 
 		public:
 #ifndef NDEBUG
-			static void SpecPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS, void* Id);
-			static void SpecSignal();
-			static void SpecPop(void* Id);
-			static void PerfPush(const char* File, const char* Section, const char* Function, int Line, uint64_t ThresholdMS);
+			static void PerfPush(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
 			static void PerfSignal();
 			static void PerfPop();
 #endif
@@ -1188,6 +1185,9 @@ namespace Tomahawk
 			static void SetLogActive(bool Enabled);
 			static void SetLogDeferred(bool Enabled);
             static void SetLogPretty(bool Enabled);
+			static bool IsLogActive();
+			static bool IsLogDeferred();
+			static bool IsLogPretty();
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:
@@ -1203,7 +1203,7 @@ namespace Tomahawk
 
 		public:
 			static void AddRef(Object* Value);
-			static void Release(Object* Value);
+			static void Release(Unique<Object> Value);
 			static int GetRefCount(Object* Value);
 			static bool Clear();
 			static bool Pop(const std::string& Hash);
@@ -1215,12 +1215,12 @@ namespace Tomahawk
 
 		public:
 			template <typename T, typename... Args>
-			static T* Create(const std::string& Hash, Args... Data)
+			static Unique<T> Create(const std::string& Hash, Args... Data)
 			{
 				return Create<T, Args...>(TH_COMPONENT_HASH(Hash), Data...);
 			}
 			template <typename T, typename... Args>
-			static T* Create(uint64_t Id, Args... Data)
+			static Unique<T> Create(uint64_t Id, Args... Data)
 			{
 				void* (*Callable)(Args...) = nullptr;
 				reinterpret_cast<void*&>(Callable) = Find(Id);
@@ -1240,7 +1240,7 @@ namespace Tomahawk
 
 		private:
 			template <typename T, typename... Args>
-			static void* Callee(Args... Data)
+			static Unique<void> Callee(Args... Data)
 			{
 				return (void*)new T(Data...);
 			}
@@ -1259,8 +1259,8 @@ namespace Tomahawk
 			void operator delete(void* Data) noexcept;
 			void* operator new(size_t Size) noexcept;
 			int GetRefCount() noexcept;
-			Object* AddRef() noexcept;
-			Object* Release() noexcept;
+			void AddRef() noexcept;
+			void Release() noexcept;
 		};
 
 		class TH_OUT Console : public Object
@@ -1448,7 +1448,7 @@ namespace Tomahawk
 			virtual void* GetBuffer() override;
 		};
 
-		class TH_OUT ChangeLog : public Object
+		class TH_OUT FileLog : public Object
 		{
 		private:
 			std::string LastValue;
@@ -1460,9 +1460,9 @@ namespace Tomahawk
 			std::string Path, Name;
 
 		public:
-			ChangeLog(const std::string& Root);
-			virtual ~ChangeLog() override;
-			void Process(const std::function<bool(ChangeLog*, const char*, int64_t)>& Callback);
+			FileLog(const std::string& Root);
+			virtual ~FileLog() override;
+			void Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback);
 		};
 
 		class TH_OUT FileTree : public Object
@@ -1564,15 +1564,15 @@ namespace Tomahawk
 			Schema* Set(const std::string& Key);
 			Schema* Set(const std::string& Key, const Variant& Value);
 			Schema* Set(const std::string& Key, Variant&& Value);
-			Schema* Set(const std::string& Key, Schema* Value);
+			Schema* Set(const std::string& Key, Unique<Schema> Value);
 			Schema* SetAttribute(const std::string& Key, const Variant& Value);
 			Schema* SetAttribute(const std::string& Key, Variant&& Value);
 			Schema* Push(const Variant& Value);
 			Schema* Push(Variant&& Value);
-			Schema* Push(Schema* Value);
+			Schema* Push(Unique<Schema> Value);
 			Schema* Pop(size_t Index);
 			Schema* Pop(const std::string& Name);
-			Schema* Copy() const;
+			Unique<Schema> Copy() const;
 			bool Rename(const std::string& Name, const std::string& NewName);
 			bool Has(const std::string& Name) const;
 			bool Has64(const std::string& Name, size_t Size = 12) const;
@@ -1595,19 +1595,143 @@ namespace Tomahawk
 
 		public:
 			static bool Transform(Schema* Value, const SchemaNameCallback& Callback);
-			static bool WriteXML(Schema* Value, const SchemaWriteCallback& Callback);
-			static bool WriteJSON(Schema* Value, const SchemaWriteCallback& Callback);
-			static bool WriteJSONB(Schema* Value, const SchemaWriteCallback& Callback);
-			static Schema* ReadXML(const char* Buffer, bool Assert = true);
-			static Schema* ReadJSON(const char* Buffer, size_t Size, bool Assert = true);
-			static Schema* ReadJSONB(const SchemaReadCallback& Callback, bool Assert = true);
+			static bool ConvertToXML(Schema* Value, const SchemaWriteCallback& Callback);
+			static bool ConvertToJSON(Schema* Value, const SchemaWriteCallback& Callback);
+			static bool ConvertToJSONB(Schema* Value, const SchemaWriteCallback& Callback);
+			static std::string ToXML(Schema* Value);
+			static std::string ToJSON(Schema* Value);
+			static std::vector<char> ToJSONB(Schema* Value);
+			static Unique<Schema> ConvertFromXML(const char* Buffer, bool Assert = true);
+			static Unique<Schema> ConvertFromJSON(const char* Buffer, size_t Size, bool Assert = true);
+			static Unique<Schema> ConvertFromJSONB(const SchemaReadCallback& Callback, bool Assert = true);
+			static Unique<Schema> FromXML(const std::string& Text, bool Assert = true);
+			static Unique<Schema> FromJSON(const std::string& Text, bool Assert = true);
+			static Unique<Schema> FromJSONB(const std::vector<char>& Binary, bool Assert = true);
 
 		private:
-			static bool ProcessXMLRead(void* Base, Schema* Current);
-			static bool ProcessJSONRead(void* Base, Schema* Current);
-			static bool ProcessJSONBWrite(Schema* Current, std::unordered_map<std::string, uint64_t>* Map, const SchemaWriteCallback& Callback);
-			static bool ProcessJSONBRead(Schema* Current, std::unordered_map<uint64_t, std::string>* Map, const SchemaReadCallback& Callback);
-			static bool ProcessNames(const Schema* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
+			static bool ProcessConvertionFromXML(void* Base, Schema* Current);
+			static bool ProcessConvertionFromJSON(void* Base, Schema* Current);
+			static bool ProcessConvertionFromJSONB(Schema* Current, std::unordered_map<uint64_t, std::string>* Map, const SchemaReadCallback& Callback);
+			static bool ProcessConvertionToJSONB(Schema* Current, std::unordered_map<std::string, uint64_t>* Map, const SchemaWriteCallback& Callback);
+			static bool GenerateNamingTable(const Schema* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
+		};
+
+		class TH_OUT Schedule : public Object
+		{
+		private:
+			struct ThreadPtr
+			{
+				std::condition_variable Notify;
+				std::mutex Update;
+				std::thread Handle;
+				std::thread::id Id;
+				Difficulty Type = Difficulty::Count;
+				bool Daemon = false;
+			};
+
+		public:
+			enum class ThreadTask
+			{
+				Spawn,
+				EnqueueTimer,
+				EnqueueChain,
+				EnqueueTask,
+				EnqueueAsync,
+				ProcessTimer,
+				ProcessAsync,
+				ProcessTask,
+				Awake,
+				Sleep,
+				Despawn
+			};
+
+			struct TH_OUT ThreadDebug
+			{
+				std::thread::id Id = std::thread::id();
+				Difficulty Type = Difficulty::Count;
+				ThreadTask State = ThreadTask::Spawn;
+				uint64_t Tasks = 0;
+			};
+
+			typedef std::function<void(const ThreadDebug&)> ThreadDebugCallback;
+
+		public:
+			struct TH_OUT Desc
+			{
+				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
+				uint64_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
+				uint64_t Memory = TH_STACKSIZE;
+				uint64_t Coroutines = 16;
+				ActivityCallback Ping = nullptr;
+				bool Async = true;
+
+				void SetThreads(uint64_t Cores);
+			};
+
+		private:
+			struct
+			{
+				std::vector<TaskCallback*> Events;
+				TaskCallback* Tasks[TH_MAX_EVENTS];
+				Costate* State = nullptr;
+			} Dispatcher;
+
+		private:
+			ConcurrentQueuePtr* Queues[(size_t)Difficulty::Count];
+			std::vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
+			std::atomic<TaskId> Generation;
+			std::mutex Exclusive;
+			ThreadDebugCallback Debug;
+			Desc Policy;
+			bool Enqueue;
+			bool Terminate;
+			bool Active;
+
+		private:
+			Schedule();
+
+		public:
+			virtual ~Schedule() override;
+			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
+			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Heavy);
+			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
+			bool SetChain(const TaskCallback& Callback);
+			bool SetChain(TaskCallback&& Callback);
+			bool SetDebugCallback(const ThreadDebugCallback& Callback);
+			bool ClearTimeout(TaskId WorkId);
+			bool Start(const Desc& NewPolicy);
+			bool Stop();
+			bool Wakeup();
+			bool Dispatch();
+			bool IsActive();
+			bool HasTasks(Difficulty Type);
+			uint64_t GetTotalThreads();
+			uint64_t GetThreads(Difficulty Type);
+			const Desc& GetPolicy();
+
+		private:
+			bool PostDebug(Difficulty Type, ThreadTask State, uint64_t Tasks);
+			bool PostDebug(ThreadPtr* Ptr, ThreadTask State, uint64_t Tasks);
+			bool ProcessTick(Difficulty Type);
+			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
+			bool ThreadActive(ThreadPtr* Thread);
+			bool ChunkCleanup();
+			bool PushThread(Difficulty Type, bool IsDaemon);
+			bool PopThread(ThreadPtr* Thread);
+			std::chrono::microseconds GetTimeout(std::chrono::microseconds Clock);
+			TaskId GetTaskId();
+
+		public:
+			static std::chrono::microseconds GetClock();
+			static Schedule* Get();
+			static bool IsPresentAndActive();
+			static bool Reset();
+
+		private:
+			static Schedule* Singleton;
 		};
 
 		template <typename T>
@@ -1670,7 +1794,7 @@ namespace Tomahawk
 					return;
 
 				Volume = NewCount;
-				T* Raw = (T*)TH_MALLOC((size_t)(Volume * SizeOf()));
+				T* Raw = TH_MALLOC(T, (size_t)(Volume * SizeOf()));
 				memset(Raw, 0, (size_t)(Volume * SizeOf()));
 
 				if (!Data)
@@ -1712,11 +1836,11 @@ namespace Tomahawk
 			{
 				if (Data == nullptr || Volume >= Raw.Volume)
 				{
-					Data = (T*)TH_MALLOC((size_t)(Raw.Count * SizeOf()));
+					Data = TH_MALLOC(T, (size_t)(Raw.Count * SizeOf()));
 					memset(Data, 0, (size_t)(Raw.Count * SizeOf()));
 				}
 				else
-					Data = (T*)TH_REALLOC(Data, (size_t)(Raw.Volume * SizeOf()));
+					Data = TH_REALLOC(Data, T, (size_t)(Raw.Volume * SizeOf()));
 
 				Count = Raw.Count;
 				Volume = Raw.Volume;
@@ -1908,124 +2032,6 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT Schedule : public Object
-		{
-		private:
-			struct ThreadPtr
-			{
-				std::condition_variable Notify;
-				std::mutex Update;
-				std::thread Handle;
-				std::thread::id Id;
-				Difficulty Type = Difficulty::Count;
-				bool Daemon = false;
-			};
-
-		public:
-			enum class ThreadTask
-			{
-				Spawn,
-				EnqueueTimer,
-				EnqueueChain,
-				EnqueueTask,
-				EnqueueAsync,
-				ProcessTimer,
-				ProcessAsync,
-				ProcessTask,
-				Awake,
-				Sleep,
-				Despawn
-			};
-
-			struct TH_OUT ThreadDebug
-			{
-				std::thread::id Id = std::thread::id();
-				Difficulty Type = Difficulty::Count;
-				ThreadTask State = ThreadTask::Spawn;
-				uint64_t Tasks = 0;
-			};
-
-			typedef std::function<void(const ThreadDebug&)> ThreadDebugCallback;
-
-		public:
-			struct TH_OUT Desc
-			{
-				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
-				uint64_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
-				uint64_t Memory = TH_STACKSIZE;
-				uint64_t Coroutines = 16;
-				ActivityCallback Ping = nullptr;
-				bool Async = true;
-
-				void SetThreads(uint64_t Cores);
-			};
-
-		private:
-			struct
-			{
-				std::vector<TaskCallback*> Events;
-				TaskCallback* Tasks[TH_MAX_EVENTS];
-				Costate* State = nullptr;
-			} Dispatcher;
-
-		private:
-			ConcurrentQueuePtr* Queues[(size_t)Difficulty::Count];
-			std::vector<ThreadPtr*> Threads[(size_t)Difficulty::Count];
-			std::atomic<TaskId> Generation;
-			std::mutex Exclusive;
-			ThreadDebugCallback Debug;
-			Desc Policy;
-			bool Enqueue;
-			bool Terminate;
-			bool Active;
-
-		private:
-			Schedule();
-
-		public:
-			virtual ~Schedule() override;
-			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
-			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
-			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Heavy);
-			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
-			bool SetChain(const TaskCallback& Callback);
-			bool SetChain(TaskCallback&& Callback);
-			bool SetDebugCallback(const ThreadDebugCallback& Callback);
-			bool ClearTimeout(TaskId WorkId);
-			bool Start(const Desc& NewPolicy);
-			bool Stop();
-			bool Wakeup();
-			bool Dispatch();
-			bool IsActive();
-			bool HasTasks(Difficulty Type);
-			uint64_t GetTotalThreads();
-			uint64_t GetThreads(Difficulty Type);
-			const Desc& GetPolicy();
-
-		private:
-			bool PostDebug(Difficulty Type, ThreadTask State, uint64_t Tasks);
-			bool PostDebug(ThreadPtr* Ptr, ThreadTask State, uint64_t Tasks);
-			bool ProcessTick(Difficulty Type);
-			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
-			bool ThreadActive(ThreadPtr* Thread);
-			bool ChunkCleanup();
-			bool PushThread(Difficulty Type, bool IsDaemon);
-			bool PopThread(ThreadPtr* Thread);
-			std::chrono::microseconds GetTimeout(std::chrono::microseconds Clock);
-			TaskId GetTaskId();
-
-		public:
-			static std::chrono::microseconds GetClock();
-			static Schedule* Get();
-			static bool IsPresentAndActive();
-			static bool Reset();
-
-		private:
-			static Schedule* Singleton;
-		};
-
 		template <typename T>
 		class Awaitable
 		{
@@ -2088,7 +2094,7 @@ namespace Tomahawk
 			void Free() noexcept
 			{
 				if (!--Count)
-					TH_DELETE_THIS(Awaitable);
+					TH_DELETE(Awaitable, this);
 			}
 
 		private:
@@ -2341,122 +2347,38 @@ namespace Tomahawk
 			}
 		};
 
-		class Conditional
+		template <typename T>
+		inline T&& Coawait(Async<T>&& Future, const char* DebugName = nullptr) noexcept
 		{
-		private:
-			struct Output
-			{
-				std::atomic<size_t> Count;
-				std::atomic<bool> Match;
-				Async<bool> Value;
-				bool Reverse;
-
-				Output(bool Default, size_t Size) : Count(Size + 1), Match(Default), Reverse(Default)
-				{
-				}
-				void Free()
-				{
-					Value = Match;
-					TH_DELETE_THIS(Output);
-				}
-				void Next(bool Statement)
-				{
-					if (Statement != Reverse)
-						Match = !Reverse;
-
-					if (!--Count)
-						Free();
-				}
-				Async<bool> Get()
-				{
-					Async<bool> Result = Value;
-					if (!--Count)
-						Free();
-
-					return Result;
-				}
-			};
-
-		public:
-			template <typename T>
-			static bool ForEach(const std::vector<Async<T>>& Array, std::function<void(T&&)>&& Callback)
-			{
-				TH_ASSERT(Callback && !Array.empty(), false, "array and callback should not be empty");
-				for (auto& Item : Array)
-				{
-					std::function<void(T&&)> Actor = Callback;
-					Item.Await(std::move(Actor));
-				}
-
-				return true;
-			}
-			template <typename T>
-			static Async<bool> And(T&& Value, const std::vector<Async<T>>& Array)
-			{
-				Output* State = TH_NEW(Output, true, Array.size());
-				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
-				{
-					State->Next(Result == Value);
-				});
-
-				return State->Get();
-			}
-			template <typename T>
-			static Async<bool> Or(T&& Value, const std::vector<Async<T>>& Array)
-			{
-				Output* State = TH_NEW(Output, false, Array.size());
-				ForEach<T>(Array, [State, Value = std::move(Value)](T&& Result)
-				{
-					State->Next(Result == Value);
-				});
-
-				return State->Get();
-			}
-		};
+			Costate* State; Coroutine* Base;
+			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
+				return Future.Get();
 #ifndef NDEBUG
-		template <typename T>
-		inline T&& Coawait(Async<T>&& Future, const char* File = nullptr, const char* Function = nullptr, const char* Expression = nullptr, int Line = 0) noexcept
-		{
-			Costate* State; Coroutine* Base;
-			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
-				return Future.Get();
-
-			bool Tracking = (File && Function && Expression && Line >= 0);
-			if (Tracking)
-				OS::SpecPush(File, Expression, Function, Line, TH_PERF_HANG, (void*)&Future);
-
-			State->Deactivate(Base, [&Future, &State, &Base]()
+			int64_t* Start = nullptr;
+			if (DebugName != nullptr)
 			{
-				Future.Await([&State, &Base](T&&)
-				{
-					State->Activate(Base);
-				});
-			});
-
-			if (Tracking)
-				OS::SpecPop((void*)&Future);
-
-			return Future.GetIfAny();
-		}
-#else
-		template <typename T>
-		inline T&& Coawait(Async<T>&& Future) noexcept
-		{
-			Costate* State; Coroutine* Base;
-			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
-				return Future.Get();
-
-			State->Deactivate(Base, [&Future, &State, &Base]()
-			{
-				Future.Await([&State, &Base](T&&)
-				{
-					State->Activate(Base);
-				});
-			});
-
-			return Future.GetIfAny();
-		}
+				Start = (int64_t*)Mem::QueryMalloc(sizeof(int64_t), DebugName);
+				*Start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			}
 #endif
+			State->Deactivate(Base, [&Future, &State, &Base]()
+			{
+				Future.Await([&State, &Base](T&&)
+				{
+					State->Activate(Base);
+				});
+			});
+#ifndef NDEBUG
+			if (Start != nullptr)
+			{
+				int64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - *Start;
+				if (Diff > TH_PERF_HANG)
+					TH_WARN("[stall] async operation took %llu ms (%llu us)\n\tcontext: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, DebugName, TH_PERF_HANG);
+				Mem::Free(Start);
+			}
+#endif
+			return Future.GetIfAny();
+		}
 		template <typename T>
 		inline Async<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{

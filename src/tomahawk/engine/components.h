@@ -29,7 +29,7 @@ namespace Tomahawk
 				virtual void Deactivate() override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				void Create(Compute::HullShape* Shape, float Anticipation);
 				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
 				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
@@ -65,7 +65,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				void Create(btCollisionShape* Shape, float Mass, float Anticipation);
 				void Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
 				void Clear();
@@ -89,7 +89,7 @@ namespace Tomahawk
 				virtual ~SliderConstraint() override;
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
 				Compute::SConstraint* GetConstraint() const;
@@ -119,7 +119,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 				Compute::RigidBody* GetBody() const;
 
 			public:
@@ -141,8 +141,8 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
-				virtual Component* Copy(Entity* New) override;
-				void SetDrawable(Graphics::Model* Drawable);
+				virtual Core::Unique<Component> Copy(Entity* New) override;
+				void SetDrawable(Core::Unique<Graphics::Model> Drawable);
 				Graphics::Model* GetDrawable();
 
 			public:
@@ -166,8 +166,8 @@ namespace Tomahawk
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
-				virtual Component* Copy(Entity* New) override;
-				void SetDrawable(Graphics::SkinModel* Drawable);
+				virtual Core::Unique<Component> Copy(Entity* New) override;
+				void SetDrawable(Core::Unique<Graphics::SkinModel> Drawable);
 				Graphics::SkinModel* GetDrawable();
 
 			public:
@@ -192,7 +192,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				Graphics::InstanceBuffer* GetBuffer();
 
 			public:
@@ -210,7 +210,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 
 			public:
 				TH_COMPONENT("decal");
@@ -236,7 +236,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
 				void GetPose(Compute::SkinAnimatorKey* Result);
 				void ClearAnimation();
@@ -274,7 +274,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
 				void GetPose(Compute::AnimatorKey* Result);
 				void ClearAnimation();
@@ -317,7 +317,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Activate(Component * New) override;
 				virtual void Synchronize(Core::Timer * Time) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 				Emitter* GetEmitter() const;
 
 			protected:
@@ -343,7 +343,7 @@ namespace Tomahawk
 				virtual ~FreeLook() = default;
 				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 				Graphics::Activity* GetActivity() const;
 
 			public:
@@ -374,7 +374,7 @@ namespace Tomahawk
 				virtual ~Fly() = default;
 				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 				Graphics::Activity* GetActivity() const;
 
 			public:
@@ -394,7 +394,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				void ApplyPlayingPosition();
 				Audio::AudioSource* GetSource() const;
 				Audio::AudioSync& GetSync();
@@ -418,7 +418,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 
 			public:
 				TH_COMPONENT("audio-listener");
@@ -455,7 +455,7 @@ namespace Tomahawk
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 				void GenerateOrigin();
 				void SetSize(const Attenuation& Value);
 				const Attenuation& GetSize();
@@ -497,7 +497,7 @@ namespace Tomahawk
 				virtual void Synchronize(Core::Timer * Time) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 				void GenerateOrigin();
 				void SetSize(const Attenuation& Value);
 				const Attenuation& GetSize();
@@ -546,7 +546,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual Component* Copy(Entity * New) override;
+				virtual Core::Unique<Component> Copy(Entity * New) override;
 				void GenerateOrigin();
 
 			public:
@@ -570,7 +570,7 @@ namespace Tomahawk
 				Compute::Matrix4x4 Projection;
 				Compute::Vector3 Offset = Compute::Vector3(1.0f, 1.0f, 1.0f);
 				Compute::Vector3 Diffuse = 1.0f;
-				Core::Ticker Tick;
+				Ticker Tick;
 				float Emission = 1.0f;
 				float Infinity = 0.0f;
 				bool Parallax = false;
@@ -584,8 +584,8 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) override;
-				virtual Component* Copy(Entity* New) override;
-				void SetProbeCache(Graphics::TextureCube* NewCache);
+				virtual Core::Unique<Component> Copy(Entity* New) override;
+				void SetProbeCache(Core::Unique<Graphics::TextureCube> NewCache);
 				void SetSize(const Attenuation& Value);
 				bool SetDiffuseMap(Graphics::Texture2D* Map);
 				bool SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2]);
@@ -608,8 +608,8 @@ namespace Tomahawk
 			{
 			public:
 				Graphics::Texture3D* VoxelMap;
-				Core::Ticker Inside;
-				Core::Ticker Outside;
+				Ticker Inside;
+				Ticker Outside;
 				float RayStep;
 				float MaxSteps;
 				float Distance;
@@ -629,7 +629,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 
 			public:
 				TH_COMPONENT("illuminator");
@@ -665,7 +665,7 @@ namespace Tomahawk
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				void GetViewer(Viewer* View);
 				void ResizeBuffers();
 				Viewer& GetViewer();
@@ -732,7 +732,7 @@ namespace Tomahawk
 				virtual void Deactivate() override;
 				virtual void Update(Core::Timer* Time) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual Component* Copy(Entity* New) override;
+				virtual Core::Unique<Component> Copy(Entity* New) override;
 				Core::Async<int> Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs);
 				Core::Async<int> Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& OnArgs);
 				Core::Async<int> CallEntry(const std::string& Name);

@@ -361,10 +361,10 @@ namespace Tomahawk
 		class TH_OUT VMFuncStore
 		{
 		public:
-			static asSFuncPtr* CreateFunctionBase(void(*Base)(), int Type);
-			static asSFuncPtr* CreateMethodBase(const void* Base, size_t Size, int Type);
-			static asSFuncPtr* CreateDummyBase();
-			static void ReleaseFunctor(asSFuncPtr** Ptr);
+			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
+			static Core::Unique<asSFuncPtr> CreateMethodBase(const void* Base, size_t Size, int Type);
+			static Core::Unique<asSFuncPtr> CreateDummyBase();
+			static void ReleaseFunctor(Core::Unique<asSFuncPtr>* Ptr);
 			static int AtomicNotifyGC(const char* TypeName, void* Object);
 		};
 
@@ -372,7 +372,7 @@ namespace Tomahawk
 		struct TH_OUT VMFuncCall
 		{
 			template <class M>
-			static asSFuncPtr* Bind(M Value)
+			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
 				return VMFuncStore::CreateDummyBase();
 			}
@@ -382,7 +382,7 @@ namespace Tomahawk
 		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr)>
 		{
 			template <class M>
-			static asSFuncPtr* Bind(M Value)
+			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
 				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr), 3);
 			}
@@ -392,7 +392,7 @@ namespace Tomahawk
 		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
 		{
 			template <class M>
-			static asSFuncPtr* Bind(M Value)
+			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
 				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + sizeof(int), 3);
 			}
@@ -402,11 +402,11 @@ namespace Tomahawk
 		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
 		{
 			template <class M>
-			static asSFuncPtr* Bind(M Value)
+			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
 				asSFuncPtr* Ptr = VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 2 * sizeof(int), 3);
 #if defined(_MSC_VER) && !defined(TH_64)
-				* (reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
+				*(reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
 #endif
 				return Ptr;
 			}
@@ -416,7 +416,7 @@ namespace Tomahawk
 		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
 		{
 			template <class M>
-			static asSFuncPtr* Bind(M Value)
+			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
 				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 3 * sizeof(int), 3);
 			}
@@ -426,7 +426,7 @@ namespace Tomahawk
 		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
 		{
 			template <class M>
-			static asSFuncPtr* Bind(M Value)
+			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
 				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 4 * sizeof(int), 3);
 			}
@@ -484,7 +484,7 @@ namespace Tomahawk
 		{
 		public:
 			template <typename T>
-			static asSFuncPtr* Function(T Value)
+			static Core::Unique<asSFuncPtr> Function(T Value)
 			{
 #ifdef TH_64
 				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
@@ -494,7 +494,7 @@ namespace Tomahawk
 				return VMFuncStore::CreateFunctionBase(Address, 2);
 			}
 			template <typename T>
-			static asSFuncPtr* FunctionGeneric(T Value)
+			static Core::Unique<asSFuncPtr> FunctionGeneric(T Value)
 			{
 #ifdef TH_64
 				void(*Address)() = reinterpret_cast<void(*)()>(size_t(Value));
@@ -504,22 +504,22 @@ namespace Tomahawk
 				return VMFuncStore::CreateFunctionBase(Address, 1);
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* Method(R(T::* Value)(Args...))
+			static Core::Unique<asSFuncPtr> Method(R(T::* Value)(Args...))
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* Method(R(T::* Value)(Args...) const)
+			static Core::Unique<asSFuncPtr> Method(R(T::* Value)(Args...) const)
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* MethodOp(R(T::* Value)(Args...))
+			static Core::Unique<asSFuncPtr> MethodOp(R(T::* Value)(Args...))
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
 			template <typename T, typename R, typename... Args>
-			static asSFuncPtr* MethodOp(R(T::* Value)(Args...) const)
+			static Core::Unique<asSFuncPtr> MethodOp(R(T::* Value)(Args...) const)
 			{
 				return VMFuncCall<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
@@ -556,7 +556,7 @@ namespace Tomahawk
 				VMFuncStore::AtomicNotifyGC(TypeName, (void*)Result);
 			}
 			template <typename T, typename... Args>
-			static T* GetUnmanagedCall(Args... Data)
+			static Core::Unique<T> GetUnmanagedCall(Args... Data)
 			{
 				return new T(Data...);
 			}
@@ -1710,8 +1710,8 @@ namespace Tomahawk
 			bool DumpAllInterfaces(const std::string& Path);
 			bool GetByteCodeCache(VMByteCode* Info);
 			void SetByteCodeCache(VMByteCode* Info);
-			VMContext* CreateContext();
-			VMCompiler* CreateCompiler();
+			Core::Unique<VMContext> CreateContext();
+			Core::Unique<VMCompiler> CreateCompiler();
 			VMCModule* CreateScopedModule(const std::string& Name, bool AqLock = true);
 			VMCModule* CreateModule(const std::string& Name, bool AqLock = true);
 			void* CreateObject(const VMTypeInfo& Type);
@@ -1757,6 +1757,7 @@ namespace Tomahawk
 
 		public:
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
+			static void CleanupThisThread();
 			static VMManager* Get(VMCManager* Engine);
 			static VMManager* Get();
 			static size_t GetDefaultAccessMask();

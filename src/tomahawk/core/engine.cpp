@@ -15,6 +15,26 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
+		Ticker::Ticker()
+		{
+			Time = 0.0;
+			Delay = 16.0;
+		}
+		bool Ticker::TickEvent(double ElapsedTime)
+		{
+			if (ElapsedTime - Time > Delay)
+			{
+				Time = ElapsedTime;
+				return true;
+			}
+
+			return false;
+		}
+		double Ticker::GetTime()
+		{
+			return Time;
+		}
+
 		Event::Event(const std::string& NewName) noexcept : Name(NewName)
 		{
 		}
@@ -398,7 +418,7 @@ namespace Tomahawk
 			for (auto& It : Value.Childs)
 				NMake::Pack(Joints->Set("joint"), It);
 		}
-		void NMake::Pack(Core::Schema* V, const Core::Ticker& Value)
+		void NMake::Pack(Core::Schema* V, const Ticker& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("delay", Core::Var::Number(Value.Delay));
@@ -701,7 +721,7 @@ namespace Tomahawk
 			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Core::Ticker>& Value)
+		void NMake::Pack(Core::Schema* V, const std::vector<Ticker>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -1132,7 +1152,7 @@ namespace Tomahawk
 			O->JointBias3 = (float)V->GetVar("[jb3]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Core::Ticker* O)
+		bool NMake::Unpack(Core::Schema* V, Ticker* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1661,7 +1681,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Core::Ticker>* O)
+		bool NMake::Unpack(Core::Schema* V, std::vector<Ticker>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1706,25 +1726,46 @@ namespace Tomahawk
 		{
 			memcpy(&Surface, &Other.Surface, sizeof(Subsurface));
 			if (Other.DiffuseMap != nullptr)
-				DiffuseMap = (Graphics::Texture2D*)Other.DiffuseMap->AddRef();
+			{
+				DiffuseMap = Other.DiffuseMap;
+				DiffuseMap->AddRef();
+			}
 
 			if (Other.NormalMap != nullptr)
-				NormalMap = (Graphics::Texture2D*)Other.NormalMap->AddRef();
+			{
+				NormalMap = Other.NormalMap;
+				NormalMap->AddRef();
+			}
 
 			if (Other.MetallicMap != nullptr)
-				MetallicMap = (Graphics::Texture2D*)Other.MetallicMap->AddRef();
+			{
+				MetallicMap = Other.MetallicMap;
+				MetallicMap->AddRef();
+			}
 
 			if (Other.RoughnessMap != nullptr)
-				RoughnessMap = (Graphics::Texture2D*)Other.RoughnessMap->AddRef();
+			{
+				RoughnessMap = Other.RoughnessMap;
+				RoughnessMap->AddRef();
+			}
 
 			if (Other.HeightMap != nullptr)
-				HeightMap = (Graphics::Texture2D*)Other.HeightMap->AddRef();
+			{
+				HeightMap = Other.HeightMap;
+				HeightMap->AddRef();
+			}
 
 			if (Other.OcclusionMap != nullptr)
-				OcclusionMap = (Graphics::Texture2D*)Other.OcclusionMap->AddRef();
+			{
+				OcclusionMap = Other.OcclusionMap;
+				OcclusionMap->AddRef();
+			}
 
 			if (Other.EmissionMap != nullptr)
-				EmissionMap = (Graphics::Texture2D*)Other.EmissionMap->AddRef();
+			{
+				EmissionMap = Other.EmissionMap;
+				EmissionMap->AddRef();
+			}
 		}
 		Material::~Material()
 		{
@@ -1889,7 +1930,7 @@ namespace Tomahawk
 				return 0.0f;
 
 			const Compute::Matrix4x4& Box = Parent->GetBox();
-			return Compute::Common::IsCubeInFrustum(Box * View.ViewProjection, 1.65f) ? Visibility : 0.0f;
+			return Compute::Geometric::IsCubeInFrustum(Box * View.ViewProjection, 1.65f) ? Visibility : 0.0f;
 		}
 		size_t Component::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
 		{
@@ -3062,7 +3103,7 @@ namespace Tomahawk
 			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
 			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
 			Elements.push_back({ 1.0f, -1.0f, 0, 0, 0 });
-			Compute::Common::TexCoordRhToLh(Elements);
+			Compute::Geometric::TexCoordRhToLh(Elements);
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 			F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3286,7 +3327,7 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
-				Compute::Common::TexCoordRhToLh(Elements);
+				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3392,7 +3433,7 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-				Compute::Common::TexCoordRhToLh(Elements);
+				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3498,7 +3539,7 @@ namespace Tomahawk
 				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
 				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
 				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Compute::Common::TexCoordRhToLh(Elements);
+				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3600,7 +3641,7 @@ namespace Tomahawk
 			auto Components = Core::Composer::Fetch((uint64_t)ComposerTag::Component);
 			for (uint64_t Section : Components)
 			{
-				Registry[Section] = new Table();
+				Registry[Section] = TH_NEW(Table);
 				Indexer.Changes[Section].clear();
 			}
 
@@ -3624,7 +3665,7 @@ namespace Tomahawk
 		}
 		SceneGraph::~SceneGraph()
 		{
-			TH_PPUSH("scene-destroy", TH_PERF_MAX);
+			TH_PPUSH(TH_PERF_MAX);
 			auto* Schedule = Core::Schedule::Get();
 			auto Source = std::move(Listeners);
 			for (auto& Item : Source)
@@ -3649,9 +3690,11 @@ namespace Tomahawk
 				TH_DELETE(Packet, It->second);
 			}
 
+			TH_PPUSH(TH_PERF_HANG);
 			Tasks.clear();
 			while (Dispatch(nullptr))
-				TH_SSIG();
+				TH_PSIG();
+			TH_PPOP();
 
 			auto Begin1 = Entities.Begin(), End1 = Entities.End();
 			for (auto It = Begin1; It != End1; ++It)
@@ -3662,7 +3705,7 @@ namespace Tomahawk
 				TH_RELEASE(*It);
 
 			for (auto& Sparse : Registry)
-				delete Sparse.second;
+				TH_DELETE(Table, Sparse.second);
 
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
@@ -3827,7 +3870,7 @@ namespace Tomahawk
 		{
 			Transaction([this]()
 			{
-				TH_PPUSH("scene-redist", TH_PERF_FRAME);
+				TH_PPUSH(TH_PERF_FRAME);
 				for (auto& Sparse : Registry)
 				{
 					Sparse.second->Data.Clear();
@@ -3849,7 +3892,7 @@ namespace Tomahawk
 		{
 			Transaction([this]()
 			{
-				TH_PPUSH("scene-index", TH_PERF_FRAME);
+				TH_PPUSH(TH_PERF_FRAME);
 				uint64_t Index = 0;
 				auto Begin = Materials.Begin(), End = Materials.End();
 				for (auto It = Begin; It != End; ++It)
@@ -3912,7 +3955,7 @@ namespace Tomahawk
 #ifndef NDEBUG
 			ThreadId = std::this_thread::get_id();
 #endif
-			TH_PPUSH("scene-dispatch", TH_PERF_FRAME);
+			TH_PPUSH(TH_PERF_FRAME);
 			bool Result = false;
 			if (Status != 0)
 			{
@@ -3980,14 +4023,14 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_ASSERT_V(Simulator != nullptr, "simulator should be set");
-			TH_PPUSH("scene-sim", TH_PERF_CORE);
+			TH_PPUSH(TH_PERF_CORE);
 			if (Active)
 				Simulator->Simulate((float)Time->GetTimeStep());
 			TH_PPOP();
 		}
 		void SceneGraph::Synchronize(Core::Timer* Time)
 		{
-			TH_PPUSH("scene-sync", TH_PERF_CORE);
+			TH_PPUSH(TH_PERF_CORE);
 			auto Begin1 = Actors[(size_t)ActorType::Synchronize].Begin();
 			auto End1 = Actors[(size_t)ActorType::Synchronize].End();
 			for (auto It = Begin1; It != End1; ++It)
@@ -4024,7 +4067,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::Culling(Core::Timer* Time)
 		{
-			TH_PPUSH("scene-cull", TH_PERF_CORE);
+			TH_PPUSH(TH_PERF_CORE);
 			auto* Base = (Components::Camera*)Camera.load();
 			if (Base != nullptr)
 			{
@@ -4045,7 +4088,7 @@ namespace Tomahawk
 		void SceneGraph::SortBackToFront(Core::Pool<Drawable*>* Array)
 		{
 			TH_ASSERT_V(Array != nullptr, "array should be set");
-			TH_PPUSH("sort-btf", TH_PERF_FRAME);
+			TH_PPUSH(TH_PERF_FRAME);
 
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
@@ -4057,7 +4100,7 @@ namespace Tomahawk
 		void SceneGraph::SortFrontToBack(Core::Pool<Drawable*>* Array)
 		{
 			TH_ASSERT_V(Array != nullptr, "array should be set");
-			TH_PPUSH("sort-ftb", TH_PERF_FRAME);
+			TH_PPUSH(TH_PERF_FRAME);
 
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
@@ -4232,7 +4275,7 @@ namespace Tomahawk
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
-			TH_PPUSH("ray-test", TH_PERF_FRAME);
+			TH_PPUSH(TH_PERF_FRAME);
 
 			int32_t Distance = 0;
 			auto* Viewer = (Components::Camera*)Camera.load();
@@ -4249,7 +4292,7 @@ namespace Tomahawk
 				if (Distance > 0 && Current->Parent->Distance > Distance)
 					continue;
 
-				if (Compute::Common::CursorRayTest(Base, Current->Parent->Box, &Hit) && !Callback(Current, Hit))
+				if (Compute::Geometric::CursorRayTest(Base, Current->Parent->Box, &Hit) && !Callback(Current, Hit))
 					break;
 			}
 
@@ -5055,7 +5098,7 @@ namespace Tomahawk
 		Entity* SceneGraph::CloneEntity(Entity* Entity)
 		{
 			TH_ASSERT(Entity != nullptr, nullptr, "entity should be set");
-			TH_PPUSH("clone-entity", TH_PERF_FRAME);
+			TH_PPUSH(TH_PERF_FRAME);
 
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
@@ -5854,7 +5897,7 @@ namespace Tomahawk
 							return;
 						}
 
-						Compute::Common::SetLeftHanded(Renderer->IsLeftHanded());
+						Compute::Geometric::SetLeftHanded(Renderer->IsLeftHanded());
 						if (Content != nullptr)
 							Content->SetDevice(Renderer);
 
@@ -6064,7 +6107,6 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_SSIG();
 				}
 			}
 			else if (Activity != nullptr && !Control.Async)
@@ -6076,7 +6118,6 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_SSIG();
 				}
 			}
 			else if (!Activity && Control.Async)
@@ -6086,7 +6127,6 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_SSIG();
 				}
 			}
 			else if (!Activity && !Control.Async)
@@ -6097,7 +6137,6 @@ namespace Tomahawk
 					Time->Synchronize();
 					Dispatch(Time);
 					Publish(Time);
-					TH_SSIG();
 				}
 			}
 
@@ -6390,7 +6429,7 @@ namespace Tomahawk
 			if (!Output)
 				Output = System->GetRT(TargetType::Main);
 
-			TH_PPUSH("render-effect", TH_PERF_FRAME);
+			TH_PPUSH(TH_PERF_FRAME);
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType::Main);
 			PrimitiveCache* Cache = System->GetPrimitives();
 			Graphics::GraphicsDevice* Device = System->GetDevice();

@@ -32,7 +32,6 @@ namespace Tomahawk
 		TH_OUT bool CERegisterFileState(VMManager* Engine);
 		TH_OUT bool CERegisterResource(VMManager* Engine);
 		TH_OUT bool CERegisterDateTime(VMManager* Engine);
-		TH_OUT bool CERegisterTicker(VMManager* Engine);
 		TH_OUT bool CERegisterOS(VMManager* Engine);
 		TH_OUT bool CERegisterConsole(VMManager* Engine);
 		TH_OUT bool CERegisterTimer(VMManager* Engine);

@@ -60,11 +60,11 @@ set_target_properties(tomahawk PROPERTIES
         SOVERSION ${PROJECT_VERSION})
 
 #Project's logging
-set(TH_MSG_TRACE false CACHE BOOL "Enable tracing messages (verbose)")
+set(TH_MSG_DEBUG false CACHE BOOL "Enable tracing messages (verbose)")
 set(TH_MSG_INFO true CACHE BOOL "Enable info messages")
 set(TH_MSG_WARN true CACHE BOOL "Enable warning messages")
 set(TH_MSG_ERROR true CACHE BOOL "Enable error messages")
-if (TH_MSG_TRACE AND TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)
+if (TH_MSG_DEBUG AND TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=4)
     message(STATUS "Debug feature level: 4")
 elseif (TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)

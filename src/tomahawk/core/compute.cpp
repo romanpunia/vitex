@@ -209,9 +209,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
-			return Common::FastSqrt(horizontal_add(square(_r1)));
+			return Geometric::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return Common::FastSqrt(X * X + Y * Y);
+			return Geometric::FastSqrt(X * X + Y * Y);
 #endif
 		}
 		float Vector2::Sum() const
@@ -236,10 +236,10 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV2(_r1); LOD_V2(_r2, Point);
-			return Common::FastSqrt(horizontal_add(square(_r1 - _r2)));
+			return Geometric::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y;
-			return Common::FastSqrt(X1 * X1 + Y1 * Y1);
+			return Geometric::FastSqrt(X1 * X1 + Y1 * Y1);
 #endif
 		}
 		float Vector2::Hypotenuse() const
@@ -300,7 +300,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
-			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
+			_r1 = _r1 * Geometric::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector2(_r1.extract(0), _r1.extract(1));
 #else
 			float F = Length();
@@ -311,7 +311,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV2(_r1);
-			float F = Common::FastSqrt(horizontal_add(square(_r1)));
+			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector2();
 
@@ -653,9 +653,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
-			return Common::FastSqrt(horizontal_add(square(_r1)));
+			return Geometric::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return Common::FastSqrt(X * X + Y * Y + Z * Z);
+			return Geometric::FastSqrt(X * X + Y * Y + Z * Z);
 #endif
 		}
 		float Vector3::Sum() const
@@ -680,23 +680,23 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1); LOD_V3(_r2, Point);
-			return Common::FastSqrt(horizontal_add(square(_r1 - _r2)));
+			return Geometric::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z;
-			return Common::FastSqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1);
+			return Geometric::FastSqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1);
 #endif
 		}
 		float Vector3::Hypotenuse() const
 		{
 #ifdef TH_WITH_SIMD
 			LOD_AV2(_r1, X, Z);
-			float R = Common::FastSqrt(horizontal_add(square(_r1)));
+			float R = Geometric::FastSqrt(horizontal_add(square(_r1)));
 
 			LOD_AV2(_r2, R, Y);
-			return Common::FastSqrt(horizontal_add(square(_r2)));
+			return Geometric::FastSqrt(horizontal_add(square(_r2)));
 #else
-			float R = Common::FastSqrt(X * X + Z * Z);
-			return Common::FastSqrt(R * R + Y * Y);
+			float R = Geometric::FastSqrt(X * X + Z * Z);
+			return Geometric::FastSqrt(R * R + Y * Y);
 #endif
 		}
 		float Vector3::LookAtXY(const Vector3& At) const
@@ -783,7 +783,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
-			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
+			_r1 = _r1 * Geometric::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector3(_r1.extract(0), _r1.extract(1), _r1.extract(2));
 #else
 			float F = Length();
@@ -794,7 +794,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV3(_r1);
-			float F = Common::FastSqrt(horizontal_add(square(_r1)));
+			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector3();
 
@@ -1175,9 +1175,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			return Common::FastSqrt(horizontal_add(square(_r1)));
+			return Geometric::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return Common::FastSqrt(X * X + Y * Y + Z * Z + W * W);
+			return Geometric::FastSqrt(X * X + Y * Y + Z * Z + W * W);
 #endif
 		}
 		float Vector4::Sum() const
@@ -1202,10 +1202,10 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1); LOD_V4(_r2, Point);
-			return Common::FastSqrt(horizontal_add(square(_r1 - _r2)));
+			return Geometric::FastSqrt(horizontal_add(square(_r1 - _r2)));
 #else
 			float X1 = X - Point.X, Y1 = Y - Point.Y, Z1 = Z - Point.Z, W1 = W - Point.W;
-			return Common::FastSqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1 + W1 * W1);
+			return Geometric::FastSqrt(X1 * X1 + Y1 * Y1 + Z1 * Z1 + W1 * W1);
 #endif
 		}
 		Vector4 Vector4::Cross(const Vector4& B) const
@@ -1268,7 +1268,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			_r1 = _r1 * Common::FastInvSqrt(horizontal_add(square(_r1)));
+			_r1 = _r1 * Geometric::FastInvSqrt(horizontal_add(square(_r1)));
 			return Vector4(_r1.extract(0), _r1.extract(1), _r1.extract(2), _r1.extract(3));
 #else
 			float F = Length();
@@ -1279,7 +1279,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			float F = Common::FastSqrt(horizontal_add(square(_r1)));
+			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Vector4();
 
@@ -1677,11 +1677,11 @@ namespace Tomahawk
 
 		Frustum::Frustum()
 		{
-			Common::CreateFrustum(Corners, 90.0f, 1.0f, 0.1f, 1.0f);
+			Geometric::CreateFrustum(Corners, 90.0f, 1.0f, 0.1f, 1.0f);
 		}
 		Frustum::Frustum(float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
-			Common::CreateFrustumRad(Corners, FieldOfView, Aspect, NearZ, FarZ);
+			Geometric::CreateFrustumRad(Corners, FieldOfView, Aspect, NearZ, FarZ);
 		}
 		void Frustum::Transform(const Matrix4x4& Value)
 		{
@@ -2162,13 +2162,13 @@ namespace Tomahawk
 			LOD_AV2(_r4, cX, sX);
 
 			return Vector3(X,
-				-atan2(Row[2], Common::FastSqrt(horizontal_add(square(_r1)))),
+				-atan2(Row[2], Geometric::FastSqrt(horizontal_add(square(_r1)))),
 				-atan2(horizontal_add(_r4 * _r2), horizontal_add(_r4 * _r3)));
 #else
 			float X = -atan2(-Row[6], Row[10]);
 			float sX = sin(X), cX = cos(X);
 			return Vector3(X,
-				-atan2(Row[2], Common::FastSqrt(Row[0] * Row[0] + Row[1] * Row[1])),
+				-atan2(Row[2], Geometric::FastSqrt(Row[0] * Row[0] + Row[1] * Row[1])),
 				-atan2(cX * Row[4] + sX * Row[8], cX * Row[5] + sX * Row[9]));
 #endif
 		}
@@ -2628,7 +2628,7 @@ namespace Tomahawk
 					LOD_AV4(_r2, 1.0f, Value[0], -Value[5], -Value[9]);
 					LOD_AV4(_r3, 0.25f, Value[4], Value[7], Value[6]);
 					LOD_AV4(_r4, 0.0f, Value[1], Value[2], -Value[8]);
-					float F = 0.5f / Common::FastSqrt(horizontal_add(_r2));
+					float F = 0.5f / Geometric::FastSqrt(horizontal_add(_r2));
 					_r3 += _r4;
 					_r3 *= F;
 					_r3.store((float*)this);
@@ -2639,7 +2639,7 @@ namespace Tomahawk
 					LOD_AV4(_r2, 1.0f, Value[5], -Value[0], -Value[9]);
 					LOD_AV4(_r3, Value[4], 0.25f, Value[8], Value[7]);
 					LOD_AV4(_r4, Value[1], 0.0f, Value[6], -Value[2]);
-					float F = 0.5f / Common::FastSqrt(horizontal_add(_r2));
+					float F = 0.5f / Geometric::FastSqrt(horizontal_add(_r2));
 					_r3 += _r4;
 					_r3 *= F;
 					_r3.store((float*)this);
@@ -2650,7 +2650,7 @@ namespace Tomahawk
 					LOD_AV4(_r2, 1.0f, Value[9], -Value[0], -Value[5]);
 					LOD_AV4(_r3, Value[7], Value[6], 0.25f, Value[1]);
 					LOD_AV4(_r4, Value[2], Value[8], 0.0f, -Value[4]);
-					float F = 0.5f / Common::FastSqrt(horizontal_add(_r2));
+					float F = 0.5f / Geometric::FastSqrt(horizontal_add(_r2));
 					_r3 += _r4;
 					_r3 *= F;
 					_r3.store((float*)this);
@@ -2661,7 +2661,7 @@ namespace Tomahawk
 			{
 				LOD_AV4(_r2, 0.0f, Value[8], Value[2], Value[4]);
 				LOD_AV4(_r3, 0.0f, Value[6], Value[7], Value[1]);
-				float F = 0.5f / Common::FastSqrt(T + 1.0f);
+				float F = 0.5f / Geometric::FastSqrt(T + 1.0f);
 				_r3 -= _r2;
 				_r3 *= F;
 				_r3.store((float*)this);
@@ -2669,7 +2669,7 @@ namespace Tomahawk
 			}
 
 			LOD_FV4(_r4);
-			_r4 /= Common::FastSqrt(horizontal_add(square(_r4)));
+			_r4 /= Geometric::FastSqrt(horizontal_add(square(_r4)));
 			_r4.store((float*)this);
 #else
 			float T = Value[0] + Value[5] + Value[9];
@@ -2677,7 +2677,7 @@ namespace Tomahawk
 			{
 				if (Value[0] > Value[5] && Value[0] > Value[9])
 				{
-					float F = 2.0f * Common::FastSqrt(1.0f + Value[0] - Value[5] - Value[9]);
+					float F = 2.0f * Geometric::FastSqrt(1.0f + Value[0] - Value[5] - Value[9]);
 					X = 0.25f * F;
 					Y = (Value[4] + Value[1]) / F;
 					Z = (Value[7] + Value[2]) / F;
@@ -2685,7 +2685,7 @@ namespace Tomahawk
 				}
 				else if (Value[5] > Value[9])
 				{
-					float F = 2.0f * Common::FastSqrt(1.0f + Value[5] - Value[0] - Value[9]);
+					float F = 2.0f * Geometric::FastSqrt(1.0f + Value[5] - Value[0] - Value[9]);
 					X = (Value[4] + Value[1]) / F;
 					Y = 0.25f * F;
 					Z = (Value[8] + Value[6]) / F;
@@ -2693,7 +2693,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					float F = 2.0f * Common::FastSqrt(1.0f + Value[9] - Value[0] - Value[5]);
+					float F = 2.0f * Geometric::FastSqrt(1.0f + Value[9] - Value[0] - Value[5]);
 					X = (Value[7] + Value[2]) / F;
 					Y = (Value[6] + Value[8]) / F;
 					Z = 0.25f * F;
@@ -2702,14 +2702,14 @@ namespace Tomahawk
 			}
 			else
 			{
-				float F = 0.5f / Common::FastSqrt(T + 1.0f);
+				float F = 0.5f / Geometric::FastSqrt(T + 1.0f);
 				X = 0.25f / F;
 				Y = (Value[6] - Value[8]) * F;
 				Z = (Value[7] - Value[2]) * F;
 				W = (Value[1] - Value[4]) * F;
 			}
 
-			float F = Common::FastSqrt(X * X + Y * Y + Z * Z + W * W);
+			float F = Geometric::FastSqrt(X * X + Y * Y + Z * Z + W * W);
 			X /= F;
 			Y /= F;
 			Z /= F;
@@ -2755,7 +2755,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			_r1 /= Common::FastSqrt(horizontal_add(square(_r1)));
+			_r1 /= Geometric::FastSqrt(horizontal_add(square(_r1)));
 
 			Quaternion Result;
 			_r1.store((float*)&Result);
@@ -2769,7 +2769,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			float F = Common::FastSqrt(horizontal_add(square(_r1)));
+			float F = Geometric::FastSqrt(horizontal_add(square(_r1)));
 			if (F == 0.0f)
 				return Quaternion();
 
@@ -2885,7 +2885,7 @@ namespace Tomahawk
 			if (std::abs(Cos) >= 1.0f - 1e3f)
 				return Lerp(Correction, DeltaTime);
 
-			float Sin = Common::FastSqrt(1.0f - Cos * Cos);
+			float Sin = Geometric::FastSqrt(1.0f - Cos * Cos);
 			float Angle = std::atan2(Sin, Cos);
 			float InvedSin = 1.0f / Sin;
 			float Source = std::sin(Angle - DeltaTime * Angle) * InvedSin;
@@ -3038,9 +3038,9 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_SIMD
 			LOD_FV4(_r1);
-			return Common::FastSqrt(horizontal_add(square(_r1)));
+			return Geometric::FastSqrt(horizontal_add(square(_r1)));
 #else
-			return Common::FastSqrt(X * X + Y * Y + Z * Z + W * W);
+			return Geometric::FastSqrt(X * X + Y * Y + Z * Z + W * W);
 #endif
 		}
 
@@ -3752,7 +3752,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
 			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
-			TH_PPUSH("regex-parse", TH_PERF_FRAME);
+			TH_PPUSH(TH_PERF_FRAME);
 
 			int64_t is_anchored = Info->Src->Brackets[0].Pointer[0] == '^', i, result = -1;
 			for (i = 0; i <= BufferLength; i++)
@@ -3859,8 +3859,8 @@ namespace Tomahawk
 		bool Adjacencies::Fill(Adjacencies::Desc& create)
 		{
 			NbFaces = create.NbFaces;
-			Faces = (AdjTriangle*)TH_MALLOC(sizeof(AdjTriangle) * NbFaces);
-			Edges = (AdjEdge*)TH_MALLOC(sizeof(AdjEdge) * NbFaces * 3);
+			Faces = TH_MALLOC(AdjTriangle, sizeof(AdjTriangle) * NbFaces);
+			Edges = TH_MALLOC(AdjEdge, sizeof(AdjEdge) * NbFaces * 3);
 
 			for (unsigned int i = 0; i < NbFaces; i++)
 			{
@@ -3875,9 +3875,9 @@ namespace Tomahawk
 		bool Adjacencies::Resolve()
 		{
 			RadixSorter Core;
-			unsigned int* FaceNb = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
-			unsigned int* VRefs0 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
-			unsigned int* VRefs1 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * NbEdges);
+			unsigned int* FaceNb = TH_MALLOC(unsigned int, sizeof(unsigned int) * NbEdges);
+			unsigned int* VRefs0 = TH_MALLOC(unsigned int, sizeof(unsigned int) * NbEdges);
+			unsigned int* VRefs1 = TH_MALLOC(unsigned int, sizeof(unsigned int) * NbEdges);
 
 			for (unsigned int i = 0; i < NbEdges; i++)
 			{
@@ -4046,8 +4046,8 @@ namespace Tomahawk
 		bool TriangleStrip::Resolve(TriangleStrip::Result& result)
 		{
 			TH_ASSERT(Adj != nullptr, false, "triangle strip should be initialized");
-			Tags = (bool*)TH_MALLOC(sizeof(bool) * Adj->NbFaces);
-			unsigned int* Connectivity = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * Adj->NbFaces);
+			Tags = TH_MALLOC(bool, sizeof(bool) * Adj->NbFaces);
+			unsigned int* Connectivity = TH_MALLOC(unsigned int, sizeof(unsigned int) * Adj->NbFaces);
 
 			memset(Tags, 0, Adj->NbFaces * sizeof(bool));
 			memset(Connectivity, 0, Adj->NbFaces * sizeof(unsigned int));
@@ -4121,12 +4121,12 @@ namespace Tomahawk
 
 			for (unsigned int j = 0; j < 3; j++)
 			{
-				Strip[j] = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * (Adj->NbFaces + 2 + 1 + 2));
-				Faces[j] = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * (Adj->NbFaces + 2));
+				Strip[j] = TH_MALLOC(unsigned int, sizeof(unsigned int) * (Adj->NbFaces + 2 + 1 + 2));
+				Faces[j] = TH_MALLOC(unsigned int, sizeof(unsigned int) * (Adj->NbFaces + 2));
 				memset(Strip[j], 0xff, (Adj->NbFaces + 2 + 1 + 2) * sizeof(unsigned int));
 				memset(Faces[j], 0xff, (Adj->NbFaces + 2) * sizeof(unsigned int));
 
-				bool* vTags = (bool*)TH_MALLOC(sizeof(bool) * Adj->NbFaces);
+				bool* vTags = TH_MALLOC(bool, sizeof(bool) * Adj->NbFaces);
 				memcpy(vTags, Tags, Adj->NbFaces * sizeof(bool));
 
 				Length[j] = TrackStrip(face, Refs0[j], Refs1[j], &Strip[j][0], &Faces[j][0], vTags);
@@ -4331,14 +4331,14 @@ namespace Tomahawk
 
 		RadixSorter::RadixSorter() : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
-			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
-			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
+			Histogram = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
+			Offset = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
 		RadixSorter::RadixSorter(const RadixSorter& Other) : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
-			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
-			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
+			Histogram = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
+			Offset = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
 		RadixSorter::RadixSorter(RadixSorter&& Other) noexcept : Histogram(Other.Histogram), Offset(Other.Offset), CurrentSize(Other.CurrentSize), Indices(Other.Indices), Indices2(Other.Indices2)
@@ -4359,10 +4359,10 @@ namespace Tomahawk
 		RadixSorter& RadixSorter::operator =(const RadixSorter& V)
 		{
 			TH_FREE(Histogram);
-			Histogram = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256 * 4);
+			Histogram = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
 
 			TH_FREE(Offset);
-			Offset = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * 256);
+			Offset = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256);
 			ResetIndices();
 
 			return *this;
@@ -4392,8 +4392,8 @@ namespace Tomahawk
 			{
 				TH_FREE(Indices2);
 				TH_FREE(Indices);
-				Indices = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
-				Indices2 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
+				Indices = TH_MALLOC(unsigned int, sizeof(unsigned int) * nb);
+				Indices2 = TH_MALLOC(unsigned int, sizeof(unsigned int) * nb);
 				CurrentSize = nb;
 				ResetIndices();
 			}
@@ -4515,8 +4515,8 @@ namespace Tomahawk
 			{
 				TH_FREE(Indices2);
 				TH_FREE(Indices);
-				Indices = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
-				Indices2 = (unsigned int*)TH_MALLOC(sizeof(unsigned int) * nb);
+				Indices = TH_MALLOC(unsigned int, sizeof(unsigned int) * nb);
+				Indices2 = TH_MALLOC(unsigned int, sizeof(unsigned int) * nb);
 				CurrentSize = nb;
 				ResetIndices();
 			}
@@ -4798,7 +4798,7 @@ namespace Tomahawk
 		char* MD5Hasher::HexDigest() const
 		{
 			TH_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
-			char* Output = (char*)TH_MALLOC(sizeof(char) * 33);
+			char* Output = TH_MALLOC(char, sizeof(char) * 33);
 			memset((void*)Output, 0, 33);
 			for (int i = 0; i < 16; i++)
 				snprintf(Output + i * 2, 2, "%02x", Digest[i]);
@@ -4809,7 +4809,7 @@ namespace Tomahawk
 		unsigned char* MD5Hasher::RawDigest() const
 		{
 			TH_ASSERT(Finalized, nullptr, "md5 hash should be finalized");
-			UInt1* Output = (UInt1*)TH_MALLOC(sizeof(UInt1) * 17);
+			UInt1* Output = TH_MALLOC(UInt1, sizeof(UInt1) * 17);
 			memcpy(Output, Digest, 16);
 			Output[16] = '\0';
 
@@ -6701,431 +6701,468 @@ namespace Tomahawk
 #endif
 		}
 
-		bool Common::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
+		std::string Crypto::RandomBytes(uint64_t Length)
 		{
-			Radius = -Radius;
-#ifdef TH_WITH_SIMD
-			LOD_AV4(_r1, WVP.Row[3], WVP.Row[7], WVP.Row[11], WVP.Row[15]);
-			LOD_AV4(_r2, WVP.Row[0], WVP.Row[4], WVP.Row[8], WVP.Row[12]);
-			LOD_VAL(_r3, _r1 + _r2);
-			float F = _r3.extract(3); _r3.cutoff(3);
-			F /= Common::FastSqrt(horizontal_add(square(_r3)));
-			if (F <= Radius)
-				return false;
+#ifdef TH_HAS_OPENSSL
+			unsigned char* Buffer = TH_MALLOC(unsigned char, sizeof(unsigned char) * Length);
+			if (RAND_bytes(Buffer, (int)Length) != 1)
+				DisplayCryptoLog();
 
-			_r3 = _r1 - _r2;
-			F = _r3.extract(3); _r3.cutoff(3);
-			F /= Common::FastSqrt(horizontal_add(square(_r3)));
-			if (F <= Radius)
-				return false;
+			std::string Output((const char*)Buffer, Length);
+			TH_FREE(Buffer);
 
-			_r2 = Vec4f(WVP.Row[1], WVP.Row[5], WVP.Row[9], WVP.Row[13]);
-			_r3 = _r1 + _r2;
-			F = _r3.extract(3); _r3.cutoff(3);
-			F /= Common::FastSqrt(horizontal_add(square(_r3)));
-			if (F <= Radius)
-				return false;
-
-			_r3 = _r1 - _r2;
-			F = _r3.extract(3); _r3.cutoff(3);
-			F /= Common::FastSqrt(horizontal_add(square(_r3)));
-			if (F <= Radius)
-				return false;
-
-			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
-			_r3 = _r1 + _r2;
-			F = _r3.extract(3); _r3.cutoff(3);
-			F /= Common::FastSqrt(horizontal_add(square(_r3)));
-			if (F <= Radius)
-				return false;
-
-			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
-			_r3 = _r1 - _r2;
-			F = _r3.extract(3); _r3.cutoff(3);
-			F /= Common::FastSqrt(horizontal_add(square(_r3)));
-			if (F <= Radius)
-				return false;
+			return Output;
 #else
-			float Plane[4];
-			Plane[0] = WVP.Row[3] + WVP.Row[0];
-			Plane[1] = WVP.Row[7] + WVP.Row[4];
-			Plane[2] = WVP.Row[11] + WVP.Row[8];
-			Plane[3] = WVP.Row[15] + WVP.Row[12];
-
-			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= Radius)
-				return false;
-
-			Plane[0] = WVP.Row[3] - WVP.Row[0];
-			Plane[1] = WVP.Row[7] - WVP.Row[4];
-			Plane[2] = WVP.Row[11] - WVP.Row[8];
-			Plane[3] = WVP.Row[15] - WVP.Row[12];
-
-			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= Radius)
-				return false;
-
-			Plane[0] = WVP.Row[3] + WVP.Row[1];
-			Plane[1] = WVP.Row[7] + WVP.Row[5];
-			Plane[2] = WVP.Row[11] + WVP.Row[9];
-			Plane[3] = WVP.Row[15] + WVP.Row[13];
-
-			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= Radius)
-				return false;
-
-			Plane[0] = WVP.Row[3] - WVP.Row[1];
-			Plane[1] = WVP.Row[7] - WVP.Row[5];
-			Plane[2] = WVP.Row[11] - WVP.Row[9];
-			Plane[3] = WVP.Row[15] - WVP.Row[13];
-
-			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= Radius)
-				return false;
-
-			Plane[0] = WVP.Row[3] + WVP.Row[2];
-			Plane[1] = WVP.Row[7] + WVP.Row[6];
-			Plane[2] = WVP.Row[11] + WVP.Row[10];
-			Plane[3] = WVP.Row[15] + WVP.Row[14];
-
-			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= Radius)
-				return false;
-
-			Plane[0] = WVP.Row[3] - WVP.Row[2];
-			Plane[1] = WVP.Row[7] - WVP.Row[6];
-			Plane[2] = WVP.Row[11] - WVP.Row[10];
-			Plane[3] = WVP.Row[15] - WVP.Row[14];
-
-			Plane[3] /= Common::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
-			if (Plane[3] <= Radius)
-				return false;
+			return "";
 #endif
-			return true;
 		}
-		bool Common::IsBase64(unsigned char Value)
+		std::string Crypto::Hash(Digest Type, const std::string& Value)
 		{
-			return (isalnum(Value) || (Value == '+') || (Value == '/'));
+			return Codec::HexEncode(Crypto::HashBinary(Type, Value));
 		}
-		bool Common::IsBase64URL(unsigned char Value)
+		std::string Crypto::HashBinary(Digest Type, const std::string& Value)
 		{
-			return (isalnum(Value) || (Value == '-') || (Value == '_'));
-		}
-		bool Common::IsLeftHanded()
-		{
-			return LeftHanded;
-		}
-		bool Common::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
-		{
-			if (PositionR0.Distance(PositionR1) < RadiusR0 + RadiusR1)
-				return true;
-
-			return false;
-		}
-		bool Common::HasLineIntersected(float Distance0, float Distance1, const Vector3& Point0, const Vector3& Point1, Vector3& Hit)
-		{
-			if ((Distance0 * Distance1) >= 0)
-				return false;
-
-			if (Distance0 == Distance1)
-				return false;
-
-			Hit = Point0 + (Point1 - Point0) * (-Distance0 / (Distance1 - Distance0));
-			return true;
-		}
-		bool Common::HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End)
-		{
-			if (End.X < Min.X && Start.X < Min.X)
-				return false;
-
-			if (End.X > Max.X && Start.X > Max.X)
-				return false;
-
-			if (End.Y < Min.Y && Start.Y < Min.Y)
-				return false;
-
-			if (End.Y > Max.Y && Start.Y > Max.Y)
-				return false;
-
-			if (End.Z < Min.Z && Start.Z < Min.Z)
-				return false;
-
-			if (End.Z > Max.Z && Start.Z > Max.Z)
-				return false;
-
-			if (Start.X > Min.X && Start.X < Max.X && Start.Y > Min.Y && Start.Y < Max.Y && Start.Z > Min.Z && Start.Z < Max.Z)
-				return true;
-
-			Vector3 LastHit;
-			if ((HasLineIntersected(Start.X - Min.X, End.X - Min.X, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 1)) || (HasLineIntersected(Start.Y - Min.Y, End.Y - Min.Y, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 2)) || (HasLineIntersected(Start.Z - Min.Z, End.Z - Min.Z, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 3)) || (HasLineIntersected(Start.X - Max.X, End.X - Max.X, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 1)) || (HasLineIntersected(Start.Y - Max.Y, End.Y - Max.Y, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 2)) || (HasLineIntersected(Start.Z - Max.Z, End.Z - Max.Z, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 3)))
-				return true;
-
-			return false;
-		}
-		bool Common::HasPointIntersectedCube(const Vector3& LastHit, const Vector3& Min, const Vector3& Max, int Axis)
-		{
-			if (Axis == 1 && LastHit.Z > Min.Z && LastHit.Z < Max.Z && LastHit.Y > Min.Y && LastHit.Y < Max.Y)
-				return true;
-
-			if (Axis == 2 && LastHit.Z > Min.Z && LastHit.Z < Max.Z && LastHit.X > Min.X && LastHit.X < Max.X)
-				return true;
-
-			if (Axis == 3 && LastHit.X > Min.X && LastHit.X < Max.X && LastHit.Y > Min.Y && LastHit.Y < Max.Y)
-				return true;
-
-			return false;
-		}
-		bool Common::HasPointIntersectedCube(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
-		{
-			return (P0.X) <= (Position.X + Scale.X) && (Position.X - Scale.X) <= (P0.X) && (P0.Y) <= (Position.Y + Scale.Y) && (Position.Y - Scale.Y) <= (P0.Y) && (P0.Z) <= (Position.Z + Scale.Z) && (Position.Z - Scale.Z) <= (P0.Z);
-		}
-		bool Common::HasPointIntersectedRectangle(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
-		{
-			return P0.X >= Position.X - Scale.X && P0.X < Position.X + Scale.X && P0.Y >= Position.Y - Scale.Y && P0.Y < Position.Y + Scale.Y;
-		}
-		bool Common::HasSBIntersected(Transform* R0, Transform* R1)
-		{
-			if (!HasSphereIntersected(R0->GetPosition(), R0->GetScale().Hypotenuse(), R1->GetPosition(), R1->GetScale().Hypotenuse()))
-				return false;
-
-			return true;
-		}
-		bool Common::HasOBBIntersected(Transform* R0, Transform* R1)
-		{
-			const Vector3& Rotation0 = R0->GetRotation();
-			const Vector3& Rotation1 = R1->GetRotation();
-			if (Rotation0 == 0.0f && Rotation1 == 0.0f)
-				return HasAABBIntersected(R0, R1);
-
-			const Vector3& Position0 = R0->GetPosition();
-			const Vector3& Position1 = R1->GetPosition();
-			const Vector3& Scale0 = R0->GetScale();
-			const Vector3& Scale1 = R1->GetScale();
-			Matrix4x4 Temp0 = Matrix4x4::Create(Position0 - Position1, Scale0, Rotation0) * Matrix4x4::CreateRotation(Rotation1).Inv();
-			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			Temp0 = Matrix4x4::Create(Position1 - Position0, Scale1, Rotation1) * Matrix4x4::CreateRotation(Rotation0).Inv();
-			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
-				return true;
-
-			return false;
-		}
-		bool Common::HasAABBIntersected(Transform* R0, Transform* R1)
-		{
-			TH_ASSERT(R0 != nullptr && R1 != nullptr, false, "transforms should be set");
-			const Vector3& Position0 = R0->GetPosition();
-			const Vector3& Position1 = R1->GetPosition();
-			const Vector3& Scale0 = R0->GetScale();
-			const Vector3& Scale1 = R1->GetScale();
-			return
-				(Position0.X - Scale0.X) <= (Position1.X + Scale1.X) &&
-				(Position1.X - Scale1.X) <= (Position0.X + Scale0.X) &&
-				(Position0.Y - Scale0.Y) <= (Position1.Y + Scale1.Y) &&
-				(Position1.Y - Scale1.Y) <= (Position0.Y + Scale0.Y) &&
-				(Position0.Z - Scale0.Z) <= (Position1.Z + Scale1.Z) &&
-				(Position1.Z - Scale1.Z) <= (Position0.Z + Scale0.Z);
-		}
-		bool Common::Hex(char c, int& v)
-		{
-			if (0x20 <= c && isdigit(c))
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+#ifdef TH_HAS_OPENSSL
+			EVP_MD* Method = (EVP_MD*)Type;
+			EVP_MD_CTX* Context = EVP_MD_CTX_create();
+			if (!Context)
 			{
-				v = c - '0';
-				return true;
-			}
-			else if ('A' <= c && c <= 'F')
-			{
-				v = c - 'A' + 10;
-				return true;
-			}
-			else if ('a' <= c && c <= 'f')
-			{
-				v = c - 'a' + 10;
-				return true;
+				DisplayCryptoLog();
+				return std::string();
 			}
 
-			return false;
-		}
-		bool Common::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
-		{
-			TH_ASSERT(Data != nullptr && Length > 0, false, "data buffer should be set");
-			TH_ASSERT(Buffer != nullptr && BufferLength > 0, false, "buffer should be set");
-			TH_ASSERT(BufferLength >= (3 * Length), false, "buffer is too small");
+			std::string Result;
+			Result.resize(EVP_MD_size(Method));
 
-			static const char HEX[] = "0123456789abcdef";
-			for (int i = 0; i < Length; i++)
+			unsigned int Size = 0; bool OK = true;
+			OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
+			OK = EVP_DigestUpdate(Context, Value.c_str(), Value.size()) == 1 ? OK : false;
+			OK = EVP_DigestFinal_ex(Context, (unsigned char*)Result.data(), &Size) == 1 ? OK : false;
+			EVP_MD_CTX_destroy(Context);
+
+			if (!OK)
 			{
-				if (i > 0)
-					Buffer[3 * i - 1] = ' ';
-
-				Buffer[3 * i] = HEX[(((uint8_t*)Data)[i] >> 4) & 0xF];
-				Buffer[3 * i + 1] = HEX[((uint8_t*)Data)[i] & 0xF];
+				DisplayCryptoLog();
+				return std::string();
 			}
 
-			Buffer[3 * Length - 1] = 0;
-			return true;
+			Result.resize((size_t)Size);
+			return Result;
+#else
+			return Value;
+#endif
 		}
-		bool Common::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
+		std::string Crypto::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
 		{
-			TH_ASSERT(i < s.size(), false, "index outside of range");
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+#ifdef TH_HAS_OPENSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+			unsigned char Result[EVP_MAX_MD_SIZE];
+			unsigned int Size = sizeof(Result);
+			unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, (const void*)Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size);
 
-			Value = 0;
-			for (; cnt; i++, cnt--)
+			if (!Pointer)
 			{
-				if (!s[i])
-					return false;
-
-				int v = 0;
-				if (!Hex(s[i], v))
-					return false;
-
-				Value = Value * 16 + v;
+				DisplayCryptoLog();
+				return std::string();
 			}
 
-			return true;
-		}
-		void Common::FlipIndexWindingOrder(std::vector<int>& Indices)
-		{
-			std::reverse(Indices.begin(), Indices.end());
-		}
-		void Common::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
-		{
-			Vector3 Tangent, Bitangent;
-			for (uint64_t i = 0; i < Vertices.size(); i += 3)
+			return std::string((const char*)Result, Size);
+#elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
+			HMAC_CTX* Context = HMAC_CTX_new();
+			if (!Context)
 			{
-				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
-				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
-				V1.TangentX = Tangent.X;
-				V1.TangentY = Tangent.Y;
-				V1.TangentZ = Tangent.Z;
-				V1.BitangentX = Bitangent.X;
-				V1.BitangentY = Bitangent.Y;
-				V1.BitangentZ = Bitangent.Z;
-				V2.TangentX = Tangent.X;
-				V2.TangentY = Tangent.Y;
-				V2.TangentZ = Tangent.Z;
-				V2.BitangentX = Bitangent.X;
-				V2.BitangentY = Bitangent.Y;
-				V2.BitangentZ = Bitangent.Z;
-				V3.TangentX = Tangent.X;
-				V3.TangentY = Tangent.Y;
-				V3.TangentZ = Tangent.Z;
-				V3.BitangentX = Bitangent.X;
-				V3.BitangentY = Bitangent.Y;
-				V3.BitangentZ = Bitangent.Z;
+				DisplayCryptoLog();
+				return "";
 			}
-		}
-		void Common::ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count)
-		{
-			Vector3 Tangent, Bitangent;
-			for (uint64_t i = 0; i < Count; i += 3)
+
+			unsigned char Result[EVP_MAX_MD_SIZE];
+			if (1 != HMAC_Init_ex(Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
 			{
-				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
-				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
-				V1.TangentX = Tangent.X;
-				V1.TangentY = Tangent.Y;
-				V1.TangentZ = Tangent.Z;
-				V1.BitangentX = Bitangent.X;
-				V1.BitangentY = Bitangent.Y;
-				V1.BitangentZ = Bitangent.Z;
-				V2.TangentX = Tangent.X;
-				V2.TangentY = Tangent.Y;
-				V2.TangentZ = Tangent.Z;
-				V2.BitangentX = Bitangent.X;
-				V2.BitangentY = Bitangent.Y;
-				V2.BitangentZ = Bitangent.Z;
-				V3.TangentX = Tangent.X;
-				V3.TangentY = Tangent.Y;
-				V3.TangentZ = Tangent.Z;
-				V3.BitangentX = Bitangent.X;
-				V3.BitangentY = Bitangent.Y;
-				V3.BitangentZ = Bitangent.Z;
+				DisplayCryptoLog();
+				HMAC_CTX_free(Context);
+				return "";
 			}
+
+			if (1 != HMAC_Update(Context, Value, (int)Length))
+			{
+				DisplayCryptoLog();
+				HMAC_CTX_free(Context);
+				return "";
+			}
+
+			unsigned int Size = sizeof(Result);
+			if (1 != HMAC_Final(Context, Result, &Size))
+			{
+				DisplayCryptoLog();
+				HMAC_CTX_free(Context);
+				return "";
+			}
+
+			std::string Output((const char*)Result, Size);
+			HMAC_CTX_free(Context);
+
+			return Output;
+#else
+			HMAC_CTX Context;
+			HMAC_CTX_init(&Context);
+
+			unsigned char Result[EVP_MAX_MD_SIZE];
+			if (1 != HMAC_Init_ex(&Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
+			{
+				DisplayCryptoLog();
+				HMAC_CTX_cleanup(&Context);
+				return "";
+			}
+
+			if (1 != HMAC_Update(&Context, Value, (int)Length))
+			{
+				DisplayCryptoLog();
+				HMAC_CTX_cleanup(&Context);
+				return "";
+			}
+
+			unsigned int Size = sizeof(Result);
+			if (1 != HMAC_Final(&Context, Result, &Size))
+			{
+				DisplayCryptoLog();
+				HMAC_CTX_cleanup(&Context);
+				return "";
+			}
+
+			std::string Output((const char*)Result, Size);
+			HMAC_CTX_cleanup(&Context);
+
+			return Output;
+#endif
+#else
+			return (const char*)Value;
+#endif
 		}
-		void Common::ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
+		std::string Crypto::Sign(Digest Type, const std::string& Value, const char* Key)
 		{
-			Vector3 Face1(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
-			Vector3 Face2(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
-			Vector2 Coord1(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
-			Vector2 Coord2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
-			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
-
-			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
-			Tangent.Y = (Coord1.Y * Face1.Y - Coord1.X * Face2.Y) * Ray;
-			Tangent.Z = (Coord1.Y * Face1.Z - Coord1.X * Face2.Z) * Ray;
-			Tangent = Tangent.sNormalize();
-
-			Bitangent.X = (Coord2.X * Face2.X - Coord2.Y * Face1.X) * Ray;
-			Bitangent.Y = (Coord2.X * Face2.Y - Coord2.Y * Face1.Y) * Ray;
-			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
-			Bitangent = Bitangent.sNormalize();
-
-			Normal.X = (Tangent.Y * Bitangent.Z) - (Tangent.Z * Bitangent.Y);
-			Normal.Y = (Tangent.Z * Bitangent.X) - (Tangent.X * Bitangent.Z);
-			Normal.Z = (Tangent.X * Bitangent.Y) - (Tangent.Y * Bitangent.X);
-			Normal = -Normal.sNormalize();
+			return Sign(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
 		}
-		void Common::ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent)
+		std::string Crypto::HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
 		{
-			Vector3 Face1(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
-			Vector3 Face2(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
-			Vector2 Coord1(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
-			Vector2 Coord2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
-			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
+#ifdef TH_HAS_OPENSSL
+			unsigned char Result[EVP_MAX_MD_SIZE];
+			unsigned int Size = sizeof(Result);
 
-			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
-			Tangent.Y = (Coord1.Y * Face1.Y - Coord1.X * Face2.Y) * Ray;
-			Tangent.Z = (Coord1.Y * Face1.Z - Coord1.X * Face2.Z) * Ray;
-			Tangent = Tangent.sNormalize();
+			if (!::HMAC((const EVP_MD*)Type, Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size))
+			{
+				DisplayCryptoLog();
+				return "";
+			}
 
-			Bitangent.X = (Coord2.X * Face2.X - Coord2.Y * Face1.X) * Ray;
-			Bitangent.Y = (Coord2.X * Face2.Y - Coord2.Y * Face1.Y) * Ray;
-			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
-			Bitangent = Bitangent.sNormalize();
+			std::string Output((const char*)Result, Size);
+			return Output;
+#else
+			return (const char*)Value;
+#endif
 		}
-		void Common::Sha1CollapseBufferBlock(unsigned int* Buffer)
+		std::string Crypto::HMAC(Digest Type, const std::string& Value, const char* Key)
+		{
+			return Crypto::HMAC(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
+		}
+		std::string Crypto::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
+		{
+			TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+
+			if (!Length)
+				return "";
+#ifdef TH_HAS_OPENSSL
+			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
+			if (!Context)
+			{
+				DisplayCryptoLog();
+				return "";
+			}
+
+			if (ComplexityBytes > 0)
+			{
+				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return "";
+				}
+			}
+
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				return "";
+			}
+
+			int Size1 = (int)Length, Size2 = 0;
+			unsigned char* Buffer = TH_MALLOC(unsigned char, sizeof(unsigned char) * (Size1 + 2048));
+
+			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, Value, Size1))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				TH_FREE(Buffer);
+				return "";
+			}
+
+			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				TH_FREE(Buffer);
+				return "";
+			}
+
+			std::string Output((const char*)Buffer, Size1 + Size2);
+			EVP_CIPHER_CTX_free(Context);
+			TH_FREE(Buffer);
+
+			return Output;
+#else
+			return (const char*)Value;
+#endif
+		}
+		std::string Crypto::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
+		{
+			return Encrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
+		}
+		std::string Crypto::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
+		{
+			TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
+			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
+
+			if (!Length)
+				return "";
+#ifdef TH_HAS_OPENSSL
+			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
+			if (!Context)
+			{
+				DisplayCryptoLog();
+				return "";
+			}
+
+			if (ComplexityBytes > 0)
+			{
+				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
+				{
+					DisplayCryptoLog();
+					EVP_CIPHER_CTX_free(Context);
+					return "";
+				}
+			}
+
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				return "";
+			}
+
+			int Size1 = (int)Length, Size2 = 0;
+			unsigned char* Buffer = TH_MALLOC(unsigned char, sizeof(unsigned char) * (Size1 + 2048));
+
+			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, Value, Size1))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				TH_FREE(Buffer);
+				return "";
+			}
+
+			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
+			{
+				DisplayCryptoLog();
+				EVP_CIPHER_CTX_free(Context);
+				TH_FREE(Buffer);
+				return "";
+			}
+
+			std::string Output((const char*)Buffer, Size1 + Size2);
+			EVP_CIPHER_CTX_free(Context);
+			TH_FREE(Buffer);
+
+			return Output;
+#else
+			return (const char*)Value;
+#endif
+		}
+		std::string Crypto::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
+		{
+			return Decrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
+		}
+		std::string Crypto::JWTSign(const std::string& Alg, const std::string& Payload, const char* Key)
+		{
+			Digest Hash = nullptr;
+			if (Alg == "HS256")
+				Hash = Digests::SHA256();
+			else if (Alg == "HS384")
+				Hash = Digests::SHA384();
+			else if (Alg == "HS512")
+				Hash = Digests::SHA512();
+
+			return Crypto::HMAC(Hash, Payload, Key);
+		}
+		std::string Crypto::JWTEncode(WebToken* Src, const char* Key)
+		{
+			TH_ASSERT(Src != nullptr, std::string(), "web token should be set");
+			TH_ASSERT(Src->Header != nullptr, std::string(), "web token header should be set");
+			TH_ASSERT(Src->Payload != nullptr, std::string(), "web token payload should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+
+			std::string Alg = Src->Header->GetVar("alg").GetBlob();
+			if (Alg.empty())
+				return "";
+
+			std::string Header;
+			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
+			{
+				Header.append(Buffer, Size);
+			});
+
+			std::string Payload;
+			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
+			{
+				Payload.append(Buffer, Size);
+			});
+
+			std::string Data = Codec::Base64URLEncode(Header) + '.' + Codec::Base64URLEncode(Payload);
+			Src->Signature = JWTSign(Alg, Data, Key);
+
+			return Data + '.' + Codec::Base64URLEncode(Src->Signature);
+		}
+		WebToken* Crypto::JWTDecode(const std::string& Value, const char* Key)
+		{
+			TH_ASSERT(Key != nullptr && !Value.empty(), nullptr, "key should be set and value should not be empty");
+			std::vector<std::string> Source = Core::Parser(&Value).Split('.');
+			if (Source.size() != 3)
+				return nullptr;
+
+			size_t Offset = Source[0].size() + Source[1].size() + 1;
+			Source[0] = Codec::Base64URLDecode(Source[0]);
+			Core::Schema* Header = Core::Schema::ConvertFromJSON(Source[0].c_str(), Source[0].size());
+
+			if (!Header)
+				return nullptr;
+
+			Source[1] = Codec::Base64URLDecode(Source[1]);
+			Core::Schema* Payload = Core::Schema::ConvertFromJSON(Source[1].c_str(), Source[1].size());
+
+			if (!Payload)
+			{
+				TH_RELEASE(Header);
+				return nullptr;
+			}
+
+			Source[0] = Header->GetVar("alg").GetBlob();
+			if (Codec::Base64URLEncode(JWTSign(Source[0], Value.substr(0, Offset), Key)) != Source[2])
+			{
+				TH_RELEASE(Header);
+				return nullptr;
+			}
+
+			WebToken* Result = new WebToken();
+			Result->Signature = Codec::Base64URLDecode(Source[2]);
+			Result->Header = Header;
+			Result->Payload = Payload;
+
+			return Result;
+		}
+		std::string Crypto::DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt)
+		{
+			TH_ASSERT(Src != nullptr, std::string(), "schema should be set");
+			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
+			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
+
+			std::string Result;
+			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
+			{
+				Result.append(Buffer, Size);
+			});
+
+			Result = Codec::Bep45Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
+			return Result;
+		}
+		Core::Schema* Crypto::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
+		{
+			TH_ASSERT(!Value.empty(), nullptr, "value should not be empty");
+			TH_ASSERT(Key != nullptr, nullptr, "key should be set");
+			TH_ASSERT(Salt != nullptr, nullptr, "salt should be set");
+
+			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
+			return Core::Schema::ConvertFromJSON(Source.c_str(), Source.size());
+		}
+		unsigned char Crypto::RandomUC()
+		{
+			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+			return Alphabet[(size_t)(Random() % (sizeof(Alphabet) - 1))];
+		}
+		uint64_t Crypto::CRC32(const std::string& Data)
+		{
+			int64_t Result = 0xFFFFFFFF;
+			int64_t Index = 0;
+			int64_t Byte = 0;
+			int64_t Mask = 0;
+			int64_t It = 0;
+
+			while (Data[Index] != 0)
+			{
+				Byte = Data[Index];
+				Result = Result ^ Byte;
+
+				for (It = 7; It >= 0; It--)
+				{
+					Mask = -(Result & 1);
+					Result = (Result >> 1) ^ (0xEDB88320 & Mask);
+				}
+
+				Index++;
+			}
+
+			return (uint64_t)~Result;
+		}
+		uint64_t Crypto::Random(uint64_t Min, uint64_t Max)
+		{
+			uint64_t Raw = 0;
+			if (Min > Max)
+				return Raw;
+#ifdef TH_HAS_OPENSSL
+			if (RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t)) != 1)
+				DisplayCryptoLog();
+#else
+			Raw = Random();
+#endif
+			return Raw % (Max - Min + 1) + Min;
+		}
+		uint64_t Crypto::Random()
+		{
+			static std::random_device Device;
+			static std::mt19937 Engine(Device());
+			static std::uniform_int_distribution<uint64_t> Range;
+
+			return Range(Engine);
+		}
+		void Crypto::Sha1CollapseBufferBlock(unsigned int* Buffer)
 		{
 			TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 			for (int i = 16; --i >= 0;)
 				Buffer[i] = 0;
 		}
-		void Common::Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W)
+		void Crypto::Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W)
 		{
 			TH_ASSERT_V(Result != nullptr, "result should be set");
 			TH_ASSERT_V(W != nullptr, "salt should be set");
@@ -7175,7 +7212,7 @@ namespace Tomahawk
 			Result[3] += D;
 			Result[4] += E;
 		}
-		void Common::Sha1Compute(const void* Value, const int Length, unsigned char* Hash20)
+		void Crypto::Sha1Compute(const void* Value, const int Length, unsigned char* Hash20)
 		{
 			TH_ASSERT_V(Value != nullptr, "value should be set");
 			TH_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
@@ -7215,7 +7252,7 @@ namespace Tomahawk
 			for (int i = 20; --i >= 0;)
 				Hash20[i] = (Result[i >> 2] >> (((3 - i) & 0x3) << 3)) & 0xff;
 		}
-		void Common::Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString)
+		void Crypto::Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString)
 		{
 			TH_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
 			TH_ASSERT_V(HexString != nullptr, "result hex should be set");
@@ -7229,287 +7266,16 @@ namespace Tomahawk
 
 			HexString[40] = 0;
 		}
-		void Common::MatrixRhToLh(Compute::Matrix4x4* Matrix)
+		void Crypto::DisplayCryptoLog()
 		{
-			TH_ASSERT_V(Matrix != nullptr, "matrix should be set");
-			*Matrix = *Matrix * RH_TO_LH;
-		}
-		void Common::VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices)
-		{
-			if (LeftHanded)
+			ERR_print_errors_cb([](const char* Message, size_t Size, void*)
 			{
-				Matrix4x4 RhToLh = RH_TO_LH;
-				for (auto& Item : Vertices)
-				{
-					Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
-					Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-					Item.PositionX = Position.X;
-					Item.PositionY = Position.Y;
-					Item.PositionZ = Position.Z;
-				}
-			}
-			else
-			{
-				for (auto& Item : Vertices)
-				{
-					Item.PositionY = -Item.PositionY;
-					Item.NormalY = -Item.NormalY;
-					Item.TexCoordY = 1.0f - Item.TexCoordY;
-				}
-			}
-
-			FlipIndexWindingOrder(Indices);
-		}
-		void Common::VertexRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices)
-		{
-			if (!LeftHanded)
-				return TexCoordRhToLh(Vertices);
-
-			Matrix4x4 RhToLh = RH_TO_LH;
-			for (auto& Item : Vertices)
-			{
-				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
-				Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
-				Item.PositionX = Position.X;
-				Item.PositionY = Position.Y;
-				Item.PositionZ = Position.Z;
-			}
-
-			FlipIndexWindingOrder(Indices);
-		}
-		void Common::TexCoordRhToLh(std::vector<Vertex>& Vertices)
-		{
-			if (LeftHanded)
-				return;
-
-			for (auto& Item : Vertices)
-				Item.TexCoordY = 1.0f - Item.TexCoordY;
-		}
-		void Common::TexCoordRhToLh(std::vector<SkinVertex>& Vertices)
-		{
-			if (LeftHanded)
-				return;
-
-			for (auto& Item : Vertices)
-				Item.TexCoordY = 1.0f - Item.TexCoordY;
-		}
-		void Common::TexCoordRhToLh(std::vector<ShapeVertex>& Vertices)
-		{
-			if (LeftHanded)
-				return;
-
-			for (auto& Item : Vertices)
-				Item.TexCoordY = 1.0f - Item.TexCoordY;
-		}
-		void Common::SetLeftHanded(bool IsLeftHanded)
-		{
-			LeftHanded = IsLeftHanded;
-		}
-        void Common::DisplayCryptoLog()
-        {
-            ERR_print_errors_cb([](const char* Message, size_t Size, void*)
-            {
-                TH_ERR("[openssl] %.*s", (int)Size, Message);
-                return 0;
-            }, nullptr);
-        }
-		unsigned char Common::RandomUC()
-		{
-			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-			return Alphabet[(size_t)(Random() % (sizeof(Alphabet) - 1))];
-		}
-		uint64_t Common::Utf8(int code, char* Buffer)
-		{
-			TH_ASSERT(Buffer != nullptr, 0, "buffer should be set");
-			if (code < 0x0080)
-			{
-				Buffer[0] = (code & 0x7F);
-				return 1;
-			}
-			else if (code < 0x0800)
-			{
-				Buffer[0] = (0xC0 | ((code >> 6) & 0x1F));
-				Buffer[1] = (0x80 | (code & 0x3F));
-				return 2;
-			}
-			else if (code < 0xD800)
-			{
-				Buffer[0] = (0xE0 | ((code >> 12) & 0xF));
-				Buffer[1] = (0x80 | ((code >> 6) & 0x3F));
-				Buffer[2] = (0x80 | (code & 0x3F));
-				return 3;
-			}
-			else if (code < 0xE000)
-			{
-				return 0;
-			}
-			else if (code < 0x10000)
-			{
-				Buffer[0] = (0xE0 | ((code >> 12) & 0xF));
-				Buffer[1] = (0x80 | ((code >> 6) & 0x3F));
-				Buffer[2] = (0x80 | (code & 0x3F));
-				return 3;
-			}
-			else if (code < 0x110000)
-			{
-				Buffer[0] = (0xF0 | ((code >> 18) & 0x7));
-				Buffer[1] = (0x80 | ((code >> 12) & 0x3F));
-				Buffer[2] = (0x80 | ((code >> 6) & 0x3F));
-				Buffer[3] = (0x80 | (code & 0x3F));
-				return 4;
-			}
-
+				TH_ERR("[openssl] %.*s", (int)Size, Message);
 			return 0;
+			}, nullptr);
 		}
-		std::string Common::JWTSign(const std::string& Alg, const std::string& Payload, const char* Key)
-		{
-			Digest Hash = nullptr;
-			if (Alg == "HS256")
-				Hash = Digests::SHA256();
-			else if (Alg == "HS384")
-				Hash = Digests::SHA384();
-			else if (Alg == "HS512")
-				Hash = Digests::SHA512();
 
-			return Common::HMAC(Hash, Payload, Key);
-		}
-		std::string Common::JWTEncode(WebToken* Src, const char* Key)
-		{
-			TH_ASSERT(Src != nullptr, std::string(), "web token should be set");
-			TH_ASSERT(Src->Header != nullptr, std::string(), "web token header should be set");
-			TH_ASSERT(Src->Payload != nullptr, std::string(), "web token payload should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-
-			std::string Alg = Src->Header->GetVar("alg").GetBlob();
-			if (Alg.empty())
-				return "";
-
-			std::string Header;
-			Core::Schema::WriteJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
-			{
-				Header.append(Buffer, Size);
-			});
-
-			std::string Payload;
-			Core::Schema::WriteJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
-			{
-				Payload.append(Buffer, Size);
-			});
-
-			std::string Data = Base64URLEncode(Header) + '.' + Base64URLEncode(Payload);
-			Src->Signature = JWTSign(Alg, Data, Key);
-
-			return Data + '.' + Base64URLEncode(Src->Signature);
-		}
-		WebToken* Common::JWTDecode(const std::string& Value, const char* Key)
-		{
-			TH_ASSERT(Key != nullptr && !Value.empty(), nullptr, "key should be set and value should not be empty");
-			std::vector<std::string> Source = Core::Parser(&Value).Split('.');
-			if (Source.size() != 3)
-				return nullptr;
-
-			size_t Offset = Source[0].size() + Source[1].size() + 1;
-			Source[0] = Base64URLDecode(Source[0]);
-			Core::Schema* Header = Core::Schema::ReadJSON(Source[0].c_str(), Source[0].size());
-
-			if (!Header)
-				return nullptr;
-
-			Source[1] = Base64URLDecode(Source[1]);
-			Core::Schema* Payload = Core::Schema::ReadJSON(Source[1].c_str(), Source[1].size());
-
-			if (!Payload)
-			{
-				TH_RELEASE(Header);
-				return nullptr;
-			}
-
-			Source[0] = Header->GetVar("alg").GetBlob();
-			if (Base64URLEncode(JWTSign(Source[0], Value.substr(0, Offset), Key)) != Source[2])
-			{
-				TH_RELEASE(Header);
-				return nullptr;
-			}
-
-			WebToken* Result = new WebToken();
-			Result->Signature = Base64URLDecode(Source[2]);
-			Result->Header = Header;
-			Result->Payload = Payload;
-
-			return Result;
-		}
-		std::string Common::DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt)
-		{
-			TH_ASSERT(Src != nullptr, std::string(), "schema should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
-
-			std::string Result;
-			Core::Schema::WriteJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
-			{
-				Result.append(Buffer, Size);
-			});
-
-			Result = Bep45Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
-			return Result;
-		}
-		Core::Schema* Common::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
-		{
-			TH_ASSERT(!Value.empty(), nullptr, "value should not be empty");
-			TH_ASSERT(Key != nullptr, nullptr, "key should be set");
-			TH_ASSERT(Salt != nullptr, nullptr, "salt should be set");
-
-			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Bep45Decode(Value), Key, Salt);
-			return Core::Schema::ReadJSON(Source.c_str(), Source.size());
-		}
-		std::string Common::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
-		{
-			TH_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, std::string(), "base should be between 1 and 64");
-			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
-			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-			if (Value == 0)
-				return "0";
-
-			const char* Base = (BaseLessThan65 == 64 ? Base64 : Base62);
-			std::string Output;
-
-			while (Value > 0)
-			{
-				Output.insert(0, 1, Base[Value % BaseLessThan65]);
-				Value /= BaseLessThan65;
-			}
-
-			return Output;
-		}
-		std::string Common::DecimalToHex(uint64_t n)
-		{
-			const char* Set = "0123456789abcdef";
-			std::string Result;
-
-			do
-			{
-				Result = Set[n & 15] + Result;
-				n >>= 4;
-			} while (n > 0);
-
-			return Result;
-		}
-		std::string Common::RandomBytes(uint64_t Length)
-		{
-#ifdef TH_HAS_OPENSSL
-			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
-			if (RAND_bytes(Buffer, (int)Length) != 1)
-                DisplayCryptoLog();
-
-			std::string Output((const char*)Buffer, Length);
-			TH_FREE(Buffer);
-
-			return Output;
-#else
-			return "";
-#endif
-		}
-		std::string Common::Move(const std::string& Text, int Offset)
+		std::string Codec::Move(const std::string& Text, int Offset)
 		{
 			std::string Result;
 			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
@@ -7522,296 +7288,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-        std::string Common::Hash(Digest Type, const std::string& Value)
-        {
-            return Common::HexEncode(Common::HashBinary(Type, Value));
-        }
-        std::string Common::HashBinary(Digest Type, const std::string& Value)
-        {
-            TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-#ifdef TH_HAS_OPENSSL
-            EVP_MD* Method = (EVP_MD*)Type;
-            EVP_MD_CTX* Context = EVP_MD_CTX_create();
-            if (!Context)
-            {
-                DisplayCryptoLog();
-                return std::string();
-            }
-            
-            std::string Result;
-            Result.resize(EVP_MD_size(Method));
-            
-            unsigned int Size = 0; bool OK = true;
-            OK = EVP_DigestInit_ex(Context, Method, nullptr) == 1 ? OK : false;
-            OK = EVP_DigestUpdate(Context, Value.c_str(), Value.size()) == 1 ? OK : false;
-            OK = EVP_DigestFinal_ex(Context, (unsigned char*)Result.data(), &Size) == 1 ? OK : false;
-            EVP_MD_CTX_destroy(Context);
-            
-            if (!OK)
-            {
-                DisplayCryptoLog();
-                return std::string();
-            }
-            
-            Result.resize((size_t)Size);
-            return Result;
-#else
-            return Value;
-#endif
-        }
-        std::string Common::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
-		{
-			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
-#ifdef TH_HAS_OPENSSL
-#if OPENSSL_VERSION_MAJOR >= 3
-            unsigned char Result[EVP_MAX_MD_SIZE];
-            unsigned int Size = sizeof(Result);
-            unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, (const void*)Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size);
-            
-            if (!Pointer)
-            {
-                DisplayCryptoLog();
-                return std::string();
-            }
-            
-            return std::string((const char*)Result, Size);
-#elif OPENSSL_VERSION_NUMBER >= 0x1010000fL
-			HMAC_CTX* Context = HMAC_CTX_new();
-			if (!Context)
-            {
-                DisplayCryptoLog();
-                return "";
-            }
-            
-			unsigned char Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
-			{
-                DisplayCryptoLog();
-				HMAC_CTX_free(Context);
-				return "";
-			}
-
-			if (1 != HMAC_Update(Context, Value, (int)Length))
-			{
-                DisplayCryptoLog();
-				HMAC_CTX_free(Context);
-				return "";
-			}
-
-			unsigned int Size = sizeof(Result);
-			if (1 != HMAC_Final(Context, Result, &Size))
-			{
-                DisplayCryptoLog();
-				HMAC_CTX_free(Context);
-				return "";
-			}
-
-			std::string Output((const char*)Result, Size);
-			HMAC_CTX_free(Context);
-
-			return Output;
-#else
-			HMAC_CTX Context;
-			HMAC_CTX_init(&Context);
-
-			unsigned char Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(&Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
-			{
-                DisplayCryptoLog();
-				HMAC_CTX_cleanup(&Context);
-				return "";
-			}
-
-			if (1 != HMAC_Update(&Context, Value, (int)Length))
-			{
-                DisplayCryptoLog();
-				HMAC_CTX_cleanup(&Context);
-				return "";
-			}
-
-			unsigned int Size = sizeof(Result);
-			if (1 != HMAC_Final(&Context, Result, &Size))
-			{
-                DisplayCryptoLog();
-				HMAC_CTX_cleanup(&Context);
-				return "";
-			}
-
-			std::string Output((const char*)Result, Size);
-			HMAC_CTX_cleanup(&Context);
-
-			return Output;
-#endif
-#else
-			return (const char*)Value;
-#endif
-		}
-		std::string Common::Sign(Digest Type, const std::string& Value, const char* Key)
-		{
-			return Sign(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
-		}
-		std::string Common::HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
-		{
-			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
-#ifdef TH_HAS_OPENSSL
-			unsigned char Result[EVP_MAX_MD_SIZE];
-			unsigned int Size = sizeof(Result);
-
-			if (!::HMAC((const EVP_MD*)Type, Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size))
-            {
-                DisplayCryptoLog();
-                return "";
-            }
-            
-			std::string Output((const char*)Result, Size);
-			return Output;
-#else
-			return (const char*)Value;
-#endif
-		}
-		std::string Common::HMAC(Digest Type, const std::string& Value, const char* Key)
-		{
-			return Common::HMAC(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
-		}
-		std::string Common::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
-		{
-            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
-			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-
-			if (!Length)
-				return "";
-#ifdef TH_HAS_OPENSSL
-			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
-			if (!Context)
-            {
-                DisplayCryptoLog();
-                return "";
-            }
-            
-            if (ComplexityBytes > 0)
-            {
-                if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
-                {
-                    DisplayCryptoLog();
-                    EVP_CIPHER_CTX_free(Context);
-                    return "";
-                }
-            }
-            
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
-			{
-                DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				return "";
-			}
-            
-			int Size1 = (int)Length, Size2 = 0;
-			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
-
-			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, Value, Size1))
-			{
-                DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
-			{
-                DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			std::string Output((const char*)Buffer, Size1 + Size2);
-			EVP_CIPHER_CTX_free(Context);
-			TH_FREE(Buffer);
-
-			return Output;
-#else
-			return (const char*)Value;
-#endif
-		}
-		std::string Common::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
-		{
-			return Encrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
-		}
-		std::string Common::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
-		{
-            TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
-            TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-
-			if (!Length)
-				return "";
-#ifdef TH_HAS_OPENSSL
-			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
-			if (!Context)
-            {
-                DisplayCryptoLog();
-                return "";
-            }
-            
-            if (ComplexityBytes > 0)
-            {
-                if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
-                {
-                    DisplayCryptoLog();
-                    EVP_CIPHER_CTX_free(Context);
-                    return "";
-                }
-            }
-            
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
-			{
-                DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				return "";
-			}
-
-			int Size1 = (int)Length, Size2 = 0;
-			unsigned char* Buffer = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * (Size1 + 2048));
-
-			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, Value, Size1))
-			{
-                DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
-			{
-                DisplayCryptoLog();
-				EVP_CIPHER_CTX_free(Context);
-				TH_FREE(Buffer);
-				return "";
-			}
-
-			std::string Output((const char*)Buffer, Size1 + Size2);
-			EVP_CIPHER_CTX_free(Context);
-			TH_FREE(Buffer);
-
-			return Output;
-#else
-			return (const char*)Value;
-#endif
-		}
-		std::string Common::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
-		{
-			return Decrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
-		}
-		std::string Common::Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding)
+		std::string Codec::Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
@@ -7860,7 +7337,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Common::Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char))
+		std::string Codec::Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char))
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(IsAlphabetic != nullptr, std::string(), "callback should be set");
@@ -7909,7 +7386,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Common::Bep45Encode(const std::string& Data)
+		std::string Codec::Bep45Encode(const std::string& Data)
 		{
 			static const char From[] = " $%*+-./:";
 			static const char To[] = "abcdefghi";
@@ -7920,7 +7397,7 @@ namespace Tomahawk
 
 			return Result.R();
 		}
-		std::string Common::Bep45Decode(const std::string& Data)
+		std::string Codec::Bep45Decode(const std::string& Data)
 		{
 			static const char From[] = "abcdefghi";
 			static const char To[] = " $%*+-./:";
@@ -7931,7 +7408,7 @@ namespace Tomahawk
 
 			return Base45Decode(Result.R());
 		}
-		std::string Common::Base45Encode(const std::string& Data)
+		std::string Codec::Base45Encode(const std::string& Data)
 		{
 			static const char Alphabet[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 			std::string Result;
@@ -7965,26 +7442,26 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Common::Base45Decode(const std::string& Data)
+		std::string Codec::Base45Decode(const std::string& Data)
 		{
 			static unsigned char CharToInt[256] =
 			{
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				36, 255,255,255,  37, 38,255,255, 255,255, 39, 40, 255, 41, 42, 43,
-				0,   1,  2,  3,   4,  5,  6,  7,   8,  9, 44,255, 255,255,255,255,
-				255, 10, 11, 12,  13, 14, 15, 16,  17, 18, 19, 20,  21, 22, 23, 24,
-				25, 26, 27, 28,  29, 30, 31, 32,  33, 34, 35, 35, 255,255,255,255,
-				255, 10, 11, 12,  13, 14, 15, 16,  17, 18, 19, 20,  21, 22, 23, 24,
-				25, 26, 27, 28,  29, 30, 31, 32,  33, 34, 35, 35, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255,
-				255,255,255,255, 255,255,255,255, 255,255,255,255, 255,255,255,255
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				36, 255, 255, 255, 37, 38, 255, 255, 255, 255, 39, 40, 255, 41, 42, 43,
+				0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 44, 255, 255, 255, 255, 255,
+				255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+				25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 35, 255, 255, 255, 255,
+				255, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+				25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 35, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+				255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
 			};
 
 			size_t Size = Data.size();
@@ -8016,34 +7493,34 @@ namespace Tomahawk
 
 			return std::string(Result.c_str(), Offset);
 		}
-		std::string Common::Base64Encode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64Encode(const unsigned char* Value, uint64_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			return Encode64(Set, Value, Length, true);
 		}
-		std::string Common::Base64Encode(const std::string& Value)
+		std::string Codec::Base64Encode(const std::string& Value)
 		{
 			return Base64Encode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
 		}
-		std::string Common::Base64Decode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64Decode(const unsigned char* Value, uint64_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			return Decode64(Set, Value, Length, IsBase64);
 		}
-		std::string Common::Base64Decode(const std::string& Value)
+		std::string Codec::Base64Decode(const std::string& Value)
 		{
 			return Base64Decode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
 		}
-		std::string Common::Base64URLEncode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64URLEncode(const unsigned char* Value, uint64_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 			return Encode64(Set, Value, Length, false);
 		}
-		std::string Common::Base64URLEncode(const std::string& Value)
+		std::string Codec::Base64URLEncode(const std::string& Value)
 		{
 			return Base64URLEncode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
 		}
-		std::string Common::Base64URLDecode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64URLDecode(const unsigned char* Value, uint64_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 			int64_t Padding = (int64_t)Length % 4;
@@ -8054,11 +7531,11 @@ namespace Tomahawk
 			Padded.append((size_t)(4 - Padding), '=');
 			return Decode64(Set, (const unsigned char*)Padded.c_str(), (uint64_t)Padded.size(), IsBase64URL);
 		}
-		std::string Common::Base64URLDecode(const std::string& Value)
+		std::string Codec::Base64URLDecode(const std::string& Value)
 		{
 			return Base64URLDecode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
 		}
-		std::string Common::Shuffle(const char* Value, size_t Size, uint64_t Mask)
+		std::string Codec::Shuffle(const char* Value, size_t Size, uint64_t Mask)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 
@@ -8075,7 +7552,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Common::HexEncode(const char* Value, size_t Size)
+		std::string Codec::HexEncode(const char* Value, size_t Size)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Size > 0, std::string(), "length should be greater than zero");
@@ -8093,11 +7570,11 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::string Common::HexEncode(const std::string& Value)
+		std::string Codec::HexEncode(const std::string& Value)
 		{
 			return HexEncode(Value.c_str(), Value.size());
 		}
-		std::string Common::HexDecode(const char* Value, size_t Size)
+		std::string Codec::HexDecode(const char* Value, size_t Size)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Size > 0, std::string(), "length should be greater than zero");
@@ -8114,15 +7591,15 @@ namespace Tomahawk
 
 			return Output;
 		}
-		std::string Common::HexDecode(const std::string& Value)
+		std::string Codec::HexDecode(const std::string& Value)
 		{
 			return HexDecode(Value.c_str(), Value.size());
 		}
-		std::string Common::URIEncode(const std::string& Text)
+		std::string Codec::URIEncode(const std::string& Text)
 		{
 			return URIEncode(Text.c_str(), Text.size());
 		}
-		std::string Common::URIEncode(const char* Text, uint64_t Length)
+		std::string Codec::URIEncode(const char* Text, uint64_t Length)
 		{
 			TH_ASSERT(Text != nullptr, std::string(), "text should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
@@ -8149,11 +7626,11 @@ namespace Tomahawk
 
 			return Value;
 		}
-		std::string Common::URIDecode(const std::string& Text)
+		std::string Codec::URIDecode(const std::string& Text)
 		{
 			return URIDecode(Text.c_str(), Text.size());
 		}
-		std::string Common::URIDecode(const char* Text, uint64_t Length)
+		std::string Codec::URIDecode(const char* Text, uint64_t Length)
 		{
 			TH_ASSERT(Text != nullptr, std::string(), "text should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
@@ -8178,7 +7655,7 @@ namespace Tomahawk
 
 			return Value;
 		}
-		std::string Common::Hybi10Encode(const Hybi10Request& Request, bool Masked)
+		std::string Codec::Hybi10Encode(const Hybi10Request& Request, bool Masked)
 		{
 			std::string Stream;
 			size_t Length = (size_t)Request.Payload.size();
@@ -8246,7 +7723,7 @@ namespace Tomahawk
 			unsigned char Mask[4];
 			for (int i = 0; i < 4; i++)
 			{
-				Mask[i] = RandomUC();
+				Mask[i] = Crypto::RandomUC();
 				Stream += (char)Mask[i];
 			}
 
@@ -8255,7 +7732,39 @@ namespace Tomahawk
 
 			return Stream;
 		}
-		Hybi10Request Common::Hybi10Decode(const std::string& Value)
+		std::string Codec::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
+		{
+			TH_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, std::string(), "base should be between 1 and 64");
+			static const char* Base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+/";
+			static const char* Base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+			if (Value == 0)
+				return "0";
+
+			const char* Base = (BaseLessThan65 == 64 ? Base64 : Base62);
+			std::string Output;
+
+			while (Value > 0)
+			{
+				Output.insert(0, 1, Base[Value % BaseLessThan65]);
+				Value /= BaseLessThan65;
+			}
+
+			return Output;
+		}
+		std::string Codec::DecimalToHex(uint64_t n)
+		{
+			const char* Set = "0123456789abcdef";
+			std::string Result;
+
+			do
+			{
+				Result = Set[n & 15] + Result;
+				n >>= 4;
+			} while (n > 0);
+
+			return Result;
+		}
+		Hybi10Request Codec::Hybi10Decode(const std::string& Value)
 		{
 			Hybi10PayloadHeader* Payload = (Hybi10PayloadHeader*)Value.c_str();
 			Hybi10Request Decoded;
@@ -8290,7 +7799,545 @@ namespace Tomahawk
 
 			return Decoded;
 		}
-		std::vector<int> Common::CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices)
+		uint64_t Codec::Utf8(int code, char* Buffer)
+		{
+			TH_ASSERT(Buffer != nullptr, 0, "buffer should be set");
+			if (code < 0x0080)
+			{
+				Buffer[0] = (code & 0x7F);
+				return 1;
+			}
+			else if (code < 0x0800)
+			{
+				Buffer[0] = (0xC0 | ((code >> 6) & 0x1F));
+				Buffer[1] = (0x80 | (code & 0x3F));
+				return 2;
+			}
+			else if (code < 0xD800)
+			{
+				Buffer[0] = (0xE0 | ((code >> 12) & 0xF));
+				Buffer[1] = (0x80 | ((code >> 6) & 0x3F));
+				Buffer[2] = (0x80 | (code & 0x3F));
+				return 3;
+			}
+			else if (code < 0xE000)
+			{
+				return 0;
+			}
+			else if (code < 0x10000)
+			{
+				Buffer[0] = (0xE0 | ((code >> 12) & 0xF));
+				Buffer[1] = (0x80 | ((code >> 6) & 0x3F));
+				Buffer[2] = (0x80 | (code & 0x3F));
+				return 3;
+			}
+			else if (code < 0x110000)
+			{
+				Buffer[0] = (0xF0 | ((code >> 18) & 0x7));
+				Buffer[1] = (0x80 | ((code >> 12) & 0x3F));
+				Buffer[2] = (0x80 | ((code >> 6) & 0x3F));
+				Buffer[3] = (0x80 | (code & 0x3F));
+				return 4;
+			}
+
+			return 0;
+		}
+		bool Codec::Hex(char c, int& v)
+		{
+			if (0x20 <= c && isdigit(c))
+			{
+				v = c - '0';
+				return true;
+			}
+			else if ('A' <= c && c <= 'F')
+			{
+				v = c - 'A' + 10;
+				return true;
+			}
+			else if ('a' <= c && c <= 'f')
+			{
+				v = c - 'a' + 10;
+				return true;
+			}
+
+			return false;
+		}
+		bool Codec::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
+		{
+			TH_ASSERT(Data != nullptr && Length > 0, false, "data buffer should be set");
+			TH_ASSERT(Buffer != nullptr && BufferLength > 0, false, "buffer should be set");
+			TH_ASSERT(BufferLength >= (3 * Length), false, "buffer is too small");
+
+			static const char HEX[] = "0123456789abcdef";
+			for (int i = 0; i < Length; i++)
+			{
+				if (i > 0)
+					Buffer[3 * i - 1] = ' ';
+
+				Buffer[3 * i] = HEX[(((uint8_t*)Data)[i] >> 4) & 0xF];
+				Buffer[3 * i + 1] = HEX[((uint8_t*)Data)[i] & 0xF];
+			}
+
+			Buffer[3 * Length - 1] = 0;
+			return true;
+		}
+		bool Codec::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
+		{
+			TH_ASSERT(i < s.size(), false, "index outside of range");
+
+			Value = 0;
+			for (; cnt; i++, cnt--)
+			{
+				if (!s[i])
+					return false;
+
+				int v = 0;
+				if (!Hex(s[i], v))
+					return false;
+
+				Value = Value * 16 + v;
+			}
+
+			return true;
+		}
+		bool Codec::IsBase64(unsigned char Value)
+		{
+			return (isalnum(Value) || (Value == '+') || (Value == '/'));
+		}
+		bool Codec::IsBase64URL(unsigned char Value)
+		{
+			return (isalnum(Value) || (Value == '-') || (Value == '_'));
+		}
+
+		bool Geometric::IsCubeInFrustum(const Matrix4x4& WVP, float Radius)
+		{
+			Radius = -Radius;
+#ifdef TH_WITH_SIMD
+			LOD_AV4(_r1, WVP.Row[3], WVP.Row[7], WVP.Row[11], WVP.Row[15]);
+			LOD_AV4(_r2, WVP.Row[0], WVP.Row[4], WVP.Row[8], WVP.Row[12]);
+			LOD_VAL(_r3, _r1 + _r2);
+			float F = _r3.extract(3); _r3.cutoff(3);
+			F /= Geometric::FastSqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return false;
+
+			_r3 = _r1 - _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= Geometric::FastSqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return false;
+
+			_r2 = Vec4f(WVP.Row[1], WVP.Row[5], WVP.Row[9], WVP.Row[13]);
+			_r3 = _r1 + _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= Geometric::FastSqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return false;
+
+			_r3 = _r1 - _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= Geometric::FastSqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return false;
+
+			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
+			_r3 = _r1 + _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= Geometric::FastSqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return false;
+
+			_r2 = Vec4f(WVP.Row[2], WVP.Row[6], WVP.Row[10], WVP.Row[14]);
+			_r3 = _r1 - _r2;
+			F = _r3.extract(3); _r3.cutoff(3);
+			F /= Geometric::FastSqrt(horizontal_add(square(_r3)));
+			if (F <= Radius)
+				return false;
+#else
+			float Plane[4];
+			Plane[0] = WVP.Row[3] + WVP.Row[0];
+			Plane[1] = WVP.Row[7] + WVP.Row[4];
+			Plane[2] = WVP.Row[11] + WVP.Row[8];
+			Plane[3] = WVP.Row[15] + WVP.Row[12];
+
+			Plane[3] /= Geometric::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			if (Plane[3] <= Radius)
+				return false;
+
+			Plane[0] = WVP.Row[3] - WVP.Row[0];
+			Plane[1] = WVP.Row[7] - WVP.Row[4];
+			Plane[2] = WVP.Row[11] - WVP.Row[8];
+			Plane[3] = WVP.Row[15] - WVP.Row[12];
+
+			Plane[3] /= Geometric::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			if (Plane[3] <= Radius)
+				return false;
+
+			Plane[0] = WVP.Row[3] + WVP.Row[1];
+			Plane[1] = WVP.Row[7] + WVP.Row[5];
+			Plane[2] = WVP.Row[11] + WVP.Row[9];
+			Plane[3] = WVP.Row[15] + WVP.Row[13];
+
+			Plane[3] /= Geometric::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			if (Plane[3] <= Radius)
+				return false;
+
+			Plane[0] = WVP.Row[3] - WVP.Row[1];
+			Plane[1] = WVP.Row[7] - WVP.Row[5];
+			Plane[2] = WVP.Row[11] - WVP.Row[9];
+			Plane[3] = WVP.Row[15] - WVP.Row[13];
+
+			Plane[3] /= Geometric::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			if (Plane[3] <= Radius)
+				return false;
+
+			Plane[0] = WVP.Row[3] + WVP.Row[2];
+			Plane[1] = WVP.Row[7] + WVP.Row[6];
+			Plane[2] = WVP.Row[11] + WVP.Row[10];
+			Plane[3] = WVP.Row[15] + WVP.Row[14];
+
+			Plane[3] /= Geometric::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			if (Plane[3] <= Radius)
+				return false;
+
+			Plane[0] = WVP.Row[3] - WVP.Row[2];
+			Plane[1] = WVP.Row[7] - WVP.Row[6];
+			Plane[2] = WVP.Row[11] - WVP.Row[10];
+			Plane[3] = WVP.Row[15] - WVP.Row[14];
+
+			Plane[3] /= Geometric::FastSqrt(Plane[0] * Plane[0] + Plane[1] * Plane[1] + Plane[2] * Plane[2]);
+			if (Plane[3] <= Radius)
+				return false;
+#endif
+			return true;
+		}
+		bool Geometric::IsLeftHanded()
+		{
+			return LeftHanded;
+		}
+		bool Geometric::HasSphereIntersected(const Vector3& PositionR0, float RadiusR0, const Vector3& PositionR1, float RadiusR1)
+		{
+			if (PositionR0.Distance(PositionR1) < RadiusR0 + RadiusR1)
+				return true;
+
+			return false;
+		}
+		bool Geometric::HasLineIntersected(float Distance0, float Distance1, const Vector3& Point0, const Vector3& Point1, Vector3& Hit)
+		{
+			if ((Distance0 * Distance1) >= 0)
+				return false;
+
+			if (Distance0 == Distance1)
+				return false;
+
+			Hit = Point0 + (Point1 - Point0) * (-Distance0 / (Distance1 - Distance0));
+			return true;
+		}
+		bool Geometric::HasLineIntersectedCube(const Vector3& Min, const Vector3& Max, const Vector3& Start, const Vector3& End)
+		{
+			if (End.X < Min.X && Start.X < Min.X)
+				return false;
+
+			if (End.X > Max.X && Start.X > Max.X)
+				return false;
+
+			if (End.Y < Min.Y && Start.Y < Min.Y)
+				return false;
+
+			if (End.Y > Max.Y && Start.Y > Max.Y)
+				return false;
+
+			if (End.Z < Min.Z && Start.Z < Min.Z)
+				return false;
+
+			if (End.Z > Max.Z && Start.Z > Max.Z)
+				return false;
+
+			if (Start.X > Min.X && Start.X < Max.X && Start.Y > Min.Y && Start.Y < Max.Y && Start.Z > Min.Z && Start.Z < Max.Z)
+				return true;
+
+			Vector3 LastHit;
+			if ((HasLineIntersected(Start.X - Min.X, End.X - Min.X, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 1)) || (HasLineIntersected(Start.Y - Min.Y, End.Y - Min.Y, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 2)) || (HasLineIntersected(Start.Z - Min.Z, End.Z - Min.Z, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 3)) || (HasLineIntersected(Start.X - Max.X, End.X - Max.X, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 1)) || (HasLineIntersected(Start.Y - Max.Y, End.Y - Max.Y, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 2)) || (HasLineIntersected(Start.Z - Max.Z, End.Z - Max.Z, Start, End, LastHit) && HasPointIntersectedCube(LastHit, Min, Max, 3)))
+				return true;
+
+			return false;
+		}
+		bool Geometric::HasPointIntersectedCube(const Vector3& LastHit, const Vector3& Min, const Vector3& Max, int Axis)
+		{
+			if (Axis == 1 && LastHit.Z > Min.Z && LastHit.Z < Max.Z && LastHit.Y > Min.Y && LastHit.Y < Max.Y)
+				return true;
+
+			if (Axis == 2 && LastHit.Z > Min.Z && LastHit.Z < Max.Z && LastHit.X > Min.X && LastHit.X < Max.X)
+				return true;
+
+			if (Axis == 3 && LastHit.X > Min.X && LastHit.X < Max.X && LastHit.Y > Min.Y && LastHit.Y < Max.Y)
+				return true;
+
+			return false;
+		}
+		bool Geometric::HasPointIntersectedCube(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
+		{
+			return (P0.X) <= (Position.X + Scale.X) && (Position.X - Scale.X) <= (P0.X) && (P0.Y) <= (Position.Y + Scale.Y) && (Position.Y - Scale.Y) <= (P0.Y) && (P0.Z) <= (Position.Z + Scale.Z) && (Position.Z - Scale.Z) <= (P0.Z);
+		}
+		bool Geometric::HasPointIntersectedRectangle(const Vector3& Position, const Vector3& Scale, const Vector3& P0)
+		{
+			return P0.X >= Position.X - Scale.X && P0.X < Position.X + Scale.X && P0.Y >= Position.Y - Scale.Y && P0.Y < Position.Y + Scale.Y;
+		}
+		bool Geometric::HasSBIntersected(Transform* R0, Transform* R1)
+		{
+			if (!HasSphereIntersected(R0->GetPosition(), R0->GetScale().Hypotenuse(), R1->GetPosition(), R1->GetScale().Hypotenuse()))
+				return false;
+
+			return true;
+		}
+		bool Geometric::HasOBBIntersected(Transform* R0, Transform* R1)
+		{
+			const Vector3& Rotation0 = R0->GetRotation();
+			const Vector3& Rotation1 = R1->GetRotation();
+			if (Rotation0 == 0.0f && Rotation1 == 0.0f)
+				return HasAABBIntersected(R0, R1);
+
+			const Vector3& Position0 = R0->GetPosition();
+			const Vector3& Position1 = R1->GetPosition();
+			const Vector3& Scale0 = R0->GetScale();
+			const Vector3& Scale1 = R1->GetScale();
+			Matrix4x4 Temp0 = Matrix4x4::Create(Position0 - Position1, Scale0, Rotation0) * Matrix4x4::CreateRotation(Rotation1).Inv();
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale1, Scale1, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			Temp0 = Matrix4x4::Create(Position1 - Position0, Scale1, Rotation1) * Matrix4x4::CreateRotation(Rotation0).Inv();
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(-1, -1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, 1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(-1, 1, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(1, -1, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(0, 1, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(0, -1, 0, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(1, 0, 0, 1).Transform(Temp0.Row).XYZ(), Vector4(-1, 0, 0, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			if (HasLineIntersectedCube(-Scale0, Scale0, Vector4(0, 0, 1, 1).Transform(Temp0.Row).XYZ(), Vector4(0, 0, -1, 1).Transform(Temp0.Row).XYZ()))
+				return true;
+
+			return false;
+		}
+		bool Geometric::HasAABBIntersected(Transform* R0, Transform* R1)
+		{
+			TH_ASSERT(R0 != nullptr && R1 != nullptr, false, "transforms should be set");
+			const Vector3& Position0 = R0->GetPosition();
+			const Vector3& Position1 = R1->GetPosition();
+			const Vector3& Scale0 = R0->GetScale();
+			const Vector3& Scale1 = R1->GetScale();
+			return
+				(Position0.X - Scale0.X) <= (Position1.X + Scale1.X) &&
+				(Position1.X - Scale1.X) <= (Position0.X + Scale0.X) &&
+				(Position0.Y - Scale0.Y) <= (Position1.Y + Scale1.Y) &&
+				(Position1.Y - Scale1.Y) <= (Position0.Y + Scale0.Y) &&
+				(Position0.Z - Scale0.Z) <= (Position1.Z + Scale1.Z) &&
+				(Position1.Z - Scale1.Z) <= (Position0.Z + Scale0.Z);
+		}
+		void Geometric::FlipIndexWindingOrder(std::vector<int>& Indices)
+		{
+			std::reverse(Indices.begin(), Indices.end());
+		}
+		void Geometric::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
+		{
+			Vector3 Tangent, Bitangent;
+			for (uint64_t i = 0; i < Vertices.size(); i += 3)
+			{
+				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
+				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
+				V1.TangentX = Tangent.X;
+				V1.TangentY = Tangent.Y;
+				V1.TangentZ = Tangent.Z;
+				V1.BitangentX = Bitangent.X;
+				V1.BitangentY = Bitangent.Y;
+				V1.BitangentZ = Bitangent.Z;
+				V2.TangentX = Tangent.X;
+				V2.TangentY = Tangent.Y;
+				V2.TangentZ = Tangent.Z;
+				V2.BitangentX = Bitangent.X;
+				V2.BitangentY = Bitangent.Y;
+				V2.BitangentZ = Bitangent.Z;
+				V3.TangentX = Tangent.X;
+				V3.TangentY = Tangent.Y;
+				V3.TangentZ = Tangent.Z;
+				V3.BitangentX = Bitangent.X;
+				V3.BitangentY = Bitangent.Y;
+				V3.BitangentZ = Bitangent.Z;
+			}
+		}
+		void Geometric::ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count)
+		{
+			Vector3 Tangent, Bitangent;
+			for (uint64_t i = 0; i < Count; i += 3)
+			{
+				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
+				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
+				V1.TangentX = Tangent.X;
+				V1.TangentY = Tangent.Y;
+				V1.TangentZ = Tangent.Z;
+				V1.BitangentX = Bitangent.X;
+				V1.BitangentY = Bitangent.Y;
+				V1.BitangentZ = Bitangent.Z;
+				V2.TangentX = Tangent.X;
+				V2.TangentY = Tangent.Y;
+				V2.TangentZ = Tangent.Z;
+				V2.BitangentX = Bitangent.X;
+				V2.BitangentY = Bitangent.Y;
+				V2.BitangentZ = Bitangent.Z;
+				V3.TangentX = Tangent.X;
+				V3.TangentY = Tangent.Y;
+				V3.TangentZ = Tangent.Z;
+				V3.BitangentX = Bitangent.X;
+				V3.BitangentY = Bitangent.Y;
+				V3.BitangentZ = Bitangent.Z;
+			}
+		}
+		void Geometric::ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal)
+		{
+			Vector3 Face1(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
+			Vector3 Face2(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
+			Vector2 Coord1(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
+			Vector2 Coord2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
+			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
+
+			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
+			Tangent.Y = (Coord1.Y * Face1.Y - Coord1.X * Face2.Y) * Ray;
+			Tangent.Z = (Coord1.Y * Face1.Z - Coord1.X * Face2.Z) * Ray;
+			Tangent = Tangent.sNormalize();
+
+			Bitangent.X = (Coord2.X * Face2.X - Coord2.Y * Face1.X) * Ray;
+			Bitangent.Y = (Coord2.X * Face2.Y - Coord2.Y * Face1.Y) * Ray;
+			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
+			Bitangent = Bitangent.sNormalize();
+
+			Normal.X = (Tangent.Y * Bitangent.Z) - (Tangent.Z * Bitangent.Y);
+			Normal.Y = (Tangent.Z * Bitangent.X) - (Tangent.X * Bitangent.Z);
+			Normal.Z = (Tangent.X * Bitangent.Y) - (Tangent.Y * Bitangent.X);
+			Normal = -Normal.sNormalize();
+		}
+		void Geometric::ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent)
+		{
+			Vector3 Face1(V2.PositionX - V1.PositionX, V2.PositionY - V1.PositionY, V2.PositionZ - V1.PositionZ);
+			Vector3 Face2(V3.PositionX - V1.PositionX, V3.PositionY - V1.PositionY, V3.PositionZ - V1.PositionZ);
+			Vector2 Coord1(V2.TexCoordX - V1.TexCoordX, V3.TexCoordX - V1.TexCoordX);
+			Vector2 Coord2(V2.TexCoordY - V1.TexCoordY, V3.TexCoordY - V1.TexCoordY);
+			float Ray = 1.0f / (Coord1.X * Coord2.Y - Coord1.Y * Coord2.X);
+
+			Tangent.X = (Coord1.Y * Face1.X - Coord1.X * Face2.X) * Ray;
+			Tangent.Y = (Coord1.Y * Face1.Y - Coord1.X * Face2.Y) * Ray;
+			Tangent.Z = (Coord1.Y * Face1.Z - Coord1.X * Face2.Z) * Ray;
+			Tangent = Tangent.sNormalize();
+
+			Bitangent.X = (Coord2.X * Face2.X - Coord2.Y * Face1.X) * Ray;
+			Bitangent.Y = (Coord2.X * Face2.Y - Coord2.Y * Face1.Y) * Ray;
+			Bitangent.Z = (Coord2.X * Face2.Z - Coord2.Y * Face1.Z) * Ray;
+			Bitangent = Bitangent.sNormalize();
+		}
+		void Geometric::MatrixRhToLh(Compute::Matrix4x4* Matrix)
+		{
+			TH_ASSERT_V(Matrix != nullptr, "matrix should be set");
+			*Matrix = *Matrix * RH_TO_LH;
+		}
+		void Geometric::VertexRhToLh(std::vector<Vertex>& Vertices, std::vector<int>& Indices)
+		{
+			if (LeftHanded)
+			{
+				Matrix4x4 RhToLh = RH_TO_LH;
+				for (auto& Item : Vertices)
+				{
+					Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
+					Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
+					Item.PositionX = Position.X;
+					Item.PositionY = Position.Y;
+					Item.PositionZ = Position.Z;
+				}
+			}
+			else
+			{
+				for (auto& Item : Vertices)
+				{
+					Item.PositionY = -Item.PositionY;
+					Item.NormalY = -Item.NormalY;
+					Item.TexCoordY = 1.0f - Item.TexCoordY;
+				}
+			}
+
+			FlipIndexWindingOrder(Indices);
+		}
+		void Geometric::VertexRhToLh(std::vector<SkinVertex>& Vertices, std::vector<int>& Indices)
+		{
+			if (!LeftHanded)
+				return TexCoordRhToLh(Vertices);
+
+			Matrix4x4 RhToLh = RH_TO_LH;
+			for (auto& Item : Vertices)
+			{
+				Compute::Vector3 Position(Item.PositionX, Item.PositionY, Item.PositionZ);
+				Position = (RhToLh * Compute::Matrix4x4::CreateTranslation(Position)).Position();
+				Item.PositionX = Position.X;
+				Item.PositionY = Position.Y;
+				Item.PositionZ = Position.Z;
+			}
+
+			FlipIndexWindingOrder(Indices);
+		}
+		void Geometric::TexCoordRhToLh(std::vector<Vertex>& Vertices)
+		{
+			if (LeftHanded)
+				return;
+
+			for (auto& Item : Vertices)
+				Item.TexCoordY = 1.0f - Item.TexCoordY;
+		}
+		void Geometric::TexCoordRhToLh(std::vector<SkinVertex>& Vertices)
+		{
+			if (LeftHanded)
+				return;
+
+			for (auto& Item : Vertices)
+				Item.TexCoordY = 1.0f - Item.TexCoordY;
+		}
+		void Geometric::TexCoordRhToLh(std::vector<ShapeVertex>& Vertices)
+		{
+			if (LeftHanded)
+				return;
+
+			for (auto& Item : Vertices)
+				Item.TexCoordY = 1.0f - Item.TexCoordY;
+		}
+		void Geometric::SetLeftHanded(bool IsLeftHanded)
+		{
+			LeftHanded = IsLeftHanded;
+		}
+        std::vector<int> Geometric::CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices)
 		{
 			std::vector<unsigned int> Src;
 			Src.reserve(Indices.size());
@@ -8317,7 +8364,7 @@ namespace Tomahawk
 
 			return Result.GetIndices();
 		}
-		std::vector<int> Common::CreateTriangleList(const std::vector<int>& Indices)
+		std::vector<int> Geometric::CreateTriangleList(const std::vector<int>& Indices)
 		{
 			size_t Size = Indices.size() - 2;
 			std::vector<int> Result;
@@ -8341,7 +8388,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		void Common::CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
+		void Geometric::CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
 			TH_ASSERT_V(Result8 != nullptr, "8 sized array should be set");
 			float HalfHFov = std::tan(FieldOfView * 0.5f) * Aspect;
@@ -8360,11 +8407,11 @@ namespace Tomahawk
 			Result8[6] = Vector4(XF, -YF, FarZ, 1.0);
 			Result8[7] = Vector4(-XF, -YF, FarZ, 1.0);
 		}
-		void Common::CreateFrustum(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
+		void Geometric::CreateFrustum(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
 			return CreateFrustumRad(Result8, Mathf::Deg2Rad() * FieldOfView, Aspect, NearZ, FarZ);
 		}
-		Ray Common::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
+		Ray Geometric::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
 		{
 			Vector2 Tmp = Cursor * 2.0f;
 			Tmp /= Screen;
@@ -8373,39 +8420,15 @@ namespace Tomahawk
 			Eye = (Vector4(Eye.X, Eye.Y, 1.0f, 0.0f) * InvView).sNormalize();
 			return Ray(Origin, Vector3(Eye.X, Eye.Y, Eye.Z));
 		}
-		bool Common::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit)
+		bool Geometric::CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit)
 		{
 			return Cursor.IntersectsAABB(Position, Scale, Hit);
 		}
-		bool Common::CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit)
+		bool Geometric::CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit)
 		{
 			return Cursor.IntersectsOBB(World, Hit);
 		}
-		uint64_t Common::CRC32(const std::string& Data)
-		{
-			int64_t Result = 0xFFFFFFFF;
-			int64_t Index = 0;
-			int64_t Byte = 0;
-			int64_t Mask = 0;
-			int64_t It = 0;
-
-			while (Data[Index] != 0)
-			{
-				Byte = Data[Index];
-				Result = Result ^ Byte;
-
-				for (It = 7; It >= 0; It--)
-				{
-					Mask = -(Result & 1);
-					Result = (Result >> 1) ^ (0xEDB88320 & Mask);
-				}
-
-				Index++;
-			}
-
-			return (uint64_t)~Result;
-		}
-		float Common::FastInvSqrt(float Value)
+		float Geometric::FastInvSqrt(float Value)
 		{
 			float F = Value;
 			long I = *(long*)&F;
@@ -8415,32 +8438,11 @@ namespace Tomahawk
 
 			return F;
 		}
-		float Common::FastSqrt(float Value)
+		float Geometric::FastSqrt(float Value)
 		{
 			return 1.0f / FastInvSqrt(Value);
 		}
-		uint64_t Common::Random(uint64_t Min, uint64_t Max)
-		{
-			uint64_t Raw = 0;
-			if (Min > Max)
-				return Raw;
-#ifdef TH_HAS_OPENSSL
-			if (RAND_bytes((unsigned char*)&Raw, sizeof(uint64_t)) != 1)
-                DisplayCryptoLog();
-#else
-			Raw = Random();
-#endif
-			return Raw % (Max - Min + 1) + Min;
-		}
-		uint64_t Common::Random()
-		{
-			static std::random_device Device;
-			static std::mt19937 Engine(Device());
-			static std::uniform_int_distribution<uint64_t> Range;
-
-			return Range(Engine);
-		}
-		bool Common::LeftHanded = true;
+		bool Geometric::LeftHanded = true;
 
 		WebToken::WebToken() : Header(nullptr), Payload(nullptr), Token(nullptr)
 		{
@@ -8551,7 +8553,7 @@ namespace Tomahawk
 		void WebToken::SetRefreshToken(const std::string& Value, const char* Key, const char* Salt)
 		{
 			TH_RELEASE(Token);
-			Token = Common::DocDecrypt(Value, Key, Salt);
+			Token = Crypto::DocDecrypt(Value, Key, Salt);
 			Refresher.assign(Value);
 		}
 		bool WebToken::Sign(const char* Key)
@@ -8561,7 +8563,7 @@ namespace Tomahawk
 			TH_ASSERT(Key != nullptr, false, "key should be set");
 
 			if (Data.empty())
-				Data = Common::JWTEncode(this, Key);
+				Data = Crypto::JWTEncode(this, Key);
 
 			return !Data.empty();
 		}
@@ -8570,7 +8572,7 @@ namespace Tomahawk
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
 
-			Refresher = Common::DocEncrypt(Token, Key, Salt);
+			Refresher = Crypto::DocEncrypt(Token, Key, Salt);
 			return Refresher;
 		}
 		bool WebToken::IsValid() const
@@ -13878,7 +13880,7 @@ namespace Tomahawk
 			if (!Active || TimeSpeed <= 0.0f)
 				return;
 
-			TH_PPUSH("simulator-step", TH_PERF_MIX);
+			TH_PPUSH(TH_PERF_MIX);
 			World->stepSimulation(TimeStep * TimeSpeed, Interpolate, TimeSpeed / 60.0f);
 			TH_PPOP();
 #endif
@@ -13888,7 +13890,7 @@ namespace Tomahawk
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Callback != nullptr, "callback should not be empty");
 			TH_ASSERT_V(Body != nullptr, "body should be set");
-			TH_PPUSH("simulator-ctest", TH_PERF_CORE);
+			TH_PPUSH(TH_PERF_CORE);
 
 			FindContactsHandler Handler;
 			Handler.Callback = Callback;
@@ -13900,7 +13902,7 @@ namespace Tomahawk
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Callback != nullptr, false, "callback should not be empty");
-			TH_PPUSH("simulator-ray-test", TH_PERF_CORE);
+			TH_PPUSH(TH_PERF_CORE);
 
 			FindRayContactsHandler Handler;
 			Handler.Callback = Callback;

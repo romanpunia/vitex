@@ -313,7 +313,7 @@ namespace Tomahawk
 				if (!CryptoLegacy)
 					CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
 
-				Compute::Common::DisplayCryptoLog();
+				Compute::Crypto::DisplayCryptoLog();
 			}
 #else
             FIPS_mode_set(1);
@@ -464,6 +464,7 @@ namespace Tomahawk
 		if (State > 0 || State < 0)
 			return State >= 0;
 
+		Core::OS::SetLogDeferred(false);
 		Core::Schedule::Reset();
 		Core::Console::Reset();
 
@@ -539,6 +540,7 @@ namespace Tomahawk
 #ifdef TH_HAS_ASSIMP
 		Assimp::DefaultLogger::kill();
 #endif
+		Core::Mem::Dump();
 		return true;
 	}
 }

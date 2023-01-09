@@ -10,7 +10,7 @@ Using concept of tasks and queues, in Tomahawk there are two rules for optimal p
 1. Split work in to small pieces.
 2. Use scheduler to process those small pieces.
 
-There are two type of thread workers in a thread pool: light and heavy. Light threads processes non-blocking tasks such as event dispatching, non-blocking IO and coroutines. Heavy threads are in charge of everything else such as CPU bound tasks and blocking IO. Tomahawk is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
+There are two types of thread workers in a thread pool: light and heavy. Light threads processes non-blocking tasks such as event dispatching, non-blocking IO and coroutines. Heavy threads are in charge of everything else such as CPU bound tasks and blocking IO. Tomahawk is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
 
 Originally, Tomahawk was only a game engine but now it isn't. All the features for game development are there but it can be easily stripped out to reduce size of executable and use only needed functionality. There are cases when Tomahawk is used as a framework for building a high performance backend server or a daemon, most of the time all we need in that case is OpenSSL and maybe Zlib with PostgreSQL or MongoDB, so we strip out everything else that way reducing compile time, executable size and runtime memory usage to minimum. Turns out, Tomahawk can easily run in a very limited machines that were slow even in 2006.
 
@@ -20,6 +20,12 @@ For games, Tomahawk is a 3D optimized engine, there is a posibility to render ef
 for example, destroy a rigid body owned by physics engine, we use scene transactions that are just callbacks that are guaranteed to be executed thread safe (in scope of scene) which in turn makes scene eventual consistent as transactions are fired later when all parallel tasks are finished.
 
 Another important aspect of Tomahawk is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
+
+As for memory management, there are no smart pointers, instead raw pointers with reference counting are used. **Unique\<T\>** is just an alias for **T\*** pointer, nothing more. Reference counting is used mostly for script engine virtual machine not for actual C++ code, you can use it within C++ if you want, every heap allocated object is based on **Tomahawk::Core::Object** and every heap allocation goes through **Tomahawk::Core::Mem** malloc, realloc and free.
+
+There are two basic rules of memory ownership:
+1. If function accept a pointer argument like **char\*** then it means that it will not delete it, it may only read or modify the contents. If function returns a pointer like **char\*** then this pointer should not be deleted manually; in some cases manual deletion is considered OK (singletons, tree structures like Schema).
+2. If function accept a pointer alias argument like **Tomahawk::Core::Unique\<char\>** then it will delete it now or later (means ownership is lost). If function returns a pointer like **Tomahawk::Core::Unique\<char\>** then this pointer should be deleted manually.
 
 ![CMake](https://github.com/romanpunia/tomahawk/workflows/CMake/badge.svg)
 
@@ -217,7 +223,7 @@ At this moment all scripting interfaces that can be imported are located at **/s
 + MacOS Catalina 10.15+ x64
 
 ## Building (standalone)
-*Tomahawk uses CMake as building system. Because windows doesn't have default include/src folders [Microsoft's vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.*
+Tomahawk uses CMake as building system. Because Windows doesn't have default include/src folders [Microsoft's vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.
 1. Install [CMake](https://cmake.org/install/).
 2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute
 > /lib/install.sh $triplet
@@ -250,7 +256,7 @@ target_link_libraries(app_name PRIVATE tomahawk)
 You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
 
 There are several build options for this project.
-+ **TH_MSG_TRACE** to allow verbose logs, defaults to false
++ **TH_MSG_DEBUG** to allow verbose logs, defaults to false
 + **TH_MSG_INFO** to allow informational logs, defaults to true
 + **TH_MSG_WARN** to allow warning logs, defaults to true
 + **TH_MSG_ERROR** to allow error logs, defaults to true

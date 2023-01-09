@@ -31,8 +31,8 @@ namespace Tomahawk
 			bool ExecuteQuery(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				TH_ASSERT(Base != nullptr, false, "context should be set");
-				TH_PPUSH("mongoc-send", TH_PERF_MAX);
-				TH_TRACE("[mongoc] execute query schema on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
+				TH_PPUSH(TH_PERF_MAX);
+				TH_DEBUG("[mongoc] execute query schema on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -42,7 +42,7 @@ namespace Tomahawk
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
 				if (Result || Error.code == 0)
-					TH_TRACE("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
+					TH_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
 
 				TH_PPOP();
 				return Result;
@@ -51,8 +51,8 @@ namespace Tomahawk
 			Cursor ExecuteCursor(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
-				TH_PPUSH("mongoc-recv", TH_PERF_MAX);
-				TH_TRACE("[mongoc] execute query cursor on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
+				TH_PPUSH(TH_PERF_MAX);
+				TH_DEBUG("[mongoc] execute query cursor on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
 				memset(&Error, 0, sizeof(bson_error_t));
@@ -62,7 +62,7 @@ namespace Tomahawk
 					TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 					
 				if (Result || Error.code == 0)
-					TH_TRACE("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
+					TH_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
 				
 				TH_PPOP();
 				return Result;
@@ -120,7 +120,7 @@ namespace Tomahawk
 					case Type::Integer:
 						return String.assign(std::to_string(Integer));
 					case Type::ObjectId:
-						return String.assign(Compute::Common::Bep45Encode((const char*)ObjectId));
+						return String.assign(Compute::Codec::Bep45Encode((const char*)ObjectId));
 					case Type::Null:
 						return String.assign("null");
 					case Type::Unknown:
@@ -939,7 +939,7 @@ namespace Tomahawk
 						{
 							if (Node->Value.GetSize() != 12)
 							{
-								std::string Base = Compute::Common::Bep45Encode(Node->Value.GetBlob());
+								std::string Base = Compute::Codec::Bep45Encode(Node->Value.GetBlob());
 								Result.SetBlob(Array ? nullptr : Node->Key.c_str(), Base.c_str(), Base.size(), Index);
 							}
 							else
@@ -1235,7 +1235,7 @@ namespace Tomahawk
 			}
 			bool Stream::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once)
 			{
-				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
+				TH_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::GetQuery(Name, Map, Once));
 			}
 			bool Stream::Query(const Schema& Command)
@@ -1554,7 +1554,7 @@ namespace Tomahawk
 				auto* Context = Base;
 				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future)
 				{
-					TH_PPUSH("mongo-recv", TH_PERF_MAX);
+					TH_PPUSH(TH_PERF_MAX);
 					TDocument* Query = nullptr;
 					Future = mongoc_cursor_next(Context, (const TDocument**)&Query);
 					TH_PPOP();
@@ -1915,7 +1915,7 @@ namespace Tomahawk
 
 				return Core::Async<Schema>::Execute([Context, Array = std::move(Array), Options](Core::Async<Schema>& Future) mutable
 				{
-					TDocument** Subarray = (TDocument**)TH_MALLOC(sizeof(TDocument*) * Array.size());
+					TDocument** Subarray = TH_MALLOC(TDocument*, sizeof(TDocument*) * Array.size());
 					for (size_t i = 0; i < Array.size(); i++)
 						Subarray[i] = Array[i].Get();
 
@@ -2128,7 +2128,7 @@ namespace Tomahawk
 			}
 			Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session)
 			{
-				TH_TRACE("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
+				TH_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::GetQuery(Name, Map, Once), Session);
 			}
 			Core::Async<Response> Collection::Query(const Schema& Command, Transaction* Session)
@@ -3110,7 +3110,7 @@ namespace Tomahawk
 
 				return Core::Async<bool>::Execute([this, Address](Core::Async<bool>& Future)
 				{
-					TH_PPUSH("mongo-conn", TH_PERF_MAX);
+					TH_PPUSH(TH_PERF_MAX);
 
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -3159,7 +3159,7 @@ namespace Tomahawk
 				TAddress* URI = URL->Get();
 				return Core::Async<bool>::Execute([this, URI](Core::Async<bool>& Future)
 				{
-					TH_PPUSH("mongo-conn", TH_PERF_MAX);
+					TH_PPUSH(TH_PERF_MAX);
 					Base = mongoc_client_new_from_uri(URI);
 					if (Base != nullptr)
 					{
@@ -3452,7 +3452,7 @@ namespace Tomahawk
 
 				return Core::Async<bool>::Execute([this, URI](Core::Async<bool>& Future)
 				{
-					TH_PPUSH("mongo-pconn", TH_PERF_MAX);
+					TH_PPUSH(TH_PERF_MAX);
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3500,7 +3500,7 @@ namespace Tomahawk
 
 				return Core::Async<bool>::Execute([this, Context](Core::Async<bool>& Future)
 				{
-					TH_PPUSH("mongo-pconn", TH_PERF_MAX);
+					TH_PPUSH(TH_PERF_MAX);
 
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
@@ -3616,7 +3616,7 @@ namespace Tomahawk
 								TH_ERR("[mongocerr] [%s] %s", Domain, Message);
 								break;
 							case MONGOC_LOG_LEVEL_MESSAGE:
-								TH_TRACE("[mongoc] [%s] %s", Domain, Message);
+								TH_DEBUG("[mongoc] [%s] %s", Domain, Message);
 								break;
 							default:
 								break;
@@ -4007,7 +4007,7 @@ namespace Tomahawk
 					{
 						if (Source->Value.GetSize() != 12)
 						{
-							std::string Base = Compute::Common::Bep45Encode(Source->Value.GetBlob());
+							std::string Base = Compute::Codec::Bep45Encode(Source->Value.GetBlob());
 							return "\"" + Base + "\"";
 						}
 

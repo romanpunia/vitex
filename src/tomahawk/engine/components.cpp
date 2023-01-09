@@ -29,7 +29,7 @@ namespace Tomahawk
 					return 0.0f;
 
 				const Compute::Matrix4x4& Box = Base->GetTransform()->GetBiasUnscaled();
-				return Compute::Common::IsCubeInFrustum(Box * View.ViewProjection, Base->GetRadius()) ? Visibility : 0.0f;
+				return Compute::Geometric::IsCubeInFrustum(Box * View.ViewProjection, Base->GetRadius()) ? Visibility : 0.0f;
 			}
 
 			RigidBody::RigidBody(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
@@ -3513,7 +3513,7 @@ namespace Tomahawk
 					W = V.Width; H = V.Height;
 				}
 
-				return Compute::Common::CreateCursorRay(Parent->GetTransform()->GetPosition(), Position, Compute::Vector2(W, H), Projection.Inv(), GetView().Inv());
+				return Compute::Geometric::CreateCursorRay(Parent->GetTransform()->GetPosition(), Position, Compute::Vector2(W, H), Projection.Inv(), GetView().Inv());
 			}
 			float Camera::GetDistance(Entity* Other)
 			{
@@ -3550,11 +3550,11 @@ namespace Tomahawk
 			bool Camera::RayTest(const Compute::Ray& Ray, Entity* Other)
 			{
 				TH_ASSERT(Other != nullptr, false, "other should be set");
-				return Compute::Common::CursorRayTest(Ray, Other->GetTransform()->GetBias());
+				return Compute::Geometric::CursorRayTest(Ray, Other->GetTransform()->GetBias());
 			}
 			bool Camera::RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World)
 			{
-				return Compute::Common::CursorRayTest(Ray, World);
+				return Compute::Geometric::CursorRayTest(Ray, World);
 			}
 			Component* Camera::Copy(Entity* New)
 			{

@@ -39,11 +39,6 @@ namespace Tomahawk
 
 			class Schema;
 
-			enum class QueryType
-			{
-
-			};
-
 			enum class QueryFlags
 			{
 				None = 0,
@@ -157,7 +152,7 @@ namespace Tomahawk
 				std::string ToExtendedJSON() const;
 				std::string ToJSON() const;
 				std::string ToIndices() const;
-				Core::Schema* ToSchema(bool IsArray = false) const;
+				Core::Unique<Core::Schema> ToSchema(bool IsArray = false) const;
 				TDocument* Get() const;
 				Schema Copy() const;
 				Schema& Persist(bool Keep = true);
@@ -234,7 +229,7 @@ namespace Tomahawk
 				bool InsertOne(const Schema& Result, const Schema& Options);
 				bool UpdateOne(const Schema& Match, const Schema& Result, const Schema& Options);
 				bool UpdateMany(const Schema& Match, const Schema& Result, const Schema& Options);
-				bool TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
+				bool TemplateQuery(const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				bool Query(const Schema& Command);
 				Core::Async<Schema> ExecuteWithReply();
 				Core::Async<bool> Execute();
@@ -293,8 +288,8 @@ namespace Tomahawk
 				Response(const Schema& _Document);
 				Response(bool _Success);
 				void Release();
-				Core::Async<Core::Schema*> Fetch() const;
-				Core::Async<Core::Schema*> FetchAll() const;
+				Core::Async<Core::Unique<Core::Schema>> Fetch() const;
+				Core::Async<Core::Unique<Core::Schema>> FetchAll() const;
 				Property GetProperty(const char* Name);
 				Cursor GetCursor() const;
 				Schema GetDocument() const;
@@ -339,7 +334,7 @@ namespace Tomahawk
 				Core::Async<Cursor> FindMany(const Schema& Match, const Schema& Options) const;
 				Core::Async<Cursor> FindOne(const Schema& Match, const Schema& Options) const;
 				Core::Async<Cursor> Aggregate(QueryFlags Flags, const Schema& Pipeline, const Schema& Options) const;
-				Core::Async<Response> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once = true, Transaction* Session = nullptr);
+				Core::Async<Response> TemplateQuery(const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true, Transaction* Session = nullptr);
 				Core::Async<Response> Query(const Schema& Command, Transaction* Session = nullptr);
 				const char* GetName() const;
 				Stream CreateStream(const Schema& Options);
@@ -419,7 +414,7 @@ namespace Tomahawk
 				Core::Async<Cursor> FindMany(const Collection& Base, const Schema& Match, const Schema& Options) const;
 				Core::Async<Cursor> FindOne(const Collection& Base, const Schema& Match, const Schema& Options) const;
 				Core::Async<Cursor> Aggregate(const Collection& Base, QueryFlags Flags, const Schema& Pipeline, const Schema& Options) const;
-				Core::Async<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
+				Core::Async<Response> TemplateQuery(const Collection& Base, const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				Core::Async<Response> Query(const Collection& Base, const Schema& Command);
 				Core::Async<TransactionState> Commit();
 				TTransaction* Get() const;
@@ -517,7 +512,7 @@ namespace Tomahawk
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveQuery(const std::string& Name);
-				static Schema GetQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
+				static Schema GetQuery(const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 
 			private:

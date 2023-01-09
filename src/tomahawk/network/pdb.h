@@ -208,8 +208,8 @@ namespace Tomahawk
 			class TH_OUT Util
 			{
 			public:
-				static std::string InlineArray(Cluster* Client, Core::Schema* Array);
-				static std::string InlineQuery(Cluster* Client, Core::Schema* Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default = "TRUE");
+				static std::string InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
+				static std::string InlineQuery(Cluster* Client, Core::Unique<Core::Schema> Where, const std::unordered_set<std::string>& Whitelist, const std::string& Default = "TRUE");
 			};
 
 			class TH_OUT Address
@@ -225,8 +225,8 @@ namespace Tomahawk
 				std::string Get(AddressOp Key) const;
 				std::string GetAddress() const;
 				const std::unordered_map<std::string, std::string>& Get() const;
-				const char** CreateKeys() const;
-				const char** CreateValues() const;
+				Core::Unique<const char*> CreateKeys() const;
+				Core::Unique<const char*> CreateValues() const;
 
 			private:
 				static std::string GetKeyName(AddressOp Key);
@@ -241,7 +241,7 @@ namespace Tomahawk
 
 			public:
 				Notify(TNotify* NewBase);
-				Core::Schema* GetSchema() const;
+				Core::Unique<Core::Schema> GetSchema() const;
 				std::string GetName() const;
 				std::string GetData() const;
 				int GetPid() const;
@@ -294,8 +294,8 @@ namespace Tomahawk
 				Row(TResponse* NewBase, size_t fRowIndex);
 
 			public:
-				Core::Schema* GetObject() const;
-				Core::Schema* GetArray() const;
+				Core::Unique<Core::Schema> GetObject() const;
+				Core::Unique<Core::Schema> GetArray() const;
 				size_t GetIndex() const;
 				size_t GetSize() const;
 				Response GetCursor() const;
@@ -326,10 +326,10 @@ namespace Tomahawk
 				Response();
 				Response(TResponse* NewBase);
 				void Release();
-				Core::Schema* GetArrayOfObjects() const;
-				Core::Schema* GetArrayOfArrays() const;
-				Core::Schema* GetObject(size_t Index = 0) const;
-				Core::Schema* GetArray(size_t Index = 0) const;
+				Core::Unique<Core::Schema> GetArrayOfObjects() const;
+				Core::Unique<Core::Schema> GetArrayOfArrays() const;
+				Core::Unique<Core::Schema> GetObject(size_t Index = 0) const;
+				Core::Unique<Core::Schema> GetArray(size_t Index = 0) const;
 				std::string GetCommandStatusText() const;
 				std::string GetStatusText() const;
 				std::string GetErrorText() const;

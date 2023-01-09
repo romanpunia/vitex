@@ -4044,7 +4044,7 @@ namespace Tomahawk
 
 		std::string STDRandom::Getb(uint64_t Size)
 		{
-			return Compute::Common::HexEncode(Compute::Common::RandomBytes(Size)).substr(0, Size);
+			return Compute::Codec::HexEncode(Compute::Crypto::RandomBytes(Size)).substr(0, Size);
 		}
 		double STDRandom::Betweend(double Min, double Max)
 		{
@@ -4143,7 +4143,7 @@ namespace Tomahawk
 			{
 				if (Thread.joinable())
 				{
-					TH_TRACE("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+					TH_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 					Thread.join();
 				}
 
@@ -4201,7 +4201,7 @@ namespace Tomahawk
 				return !((Context && Context->GetState() != VMRuntime::SUSPENDED));
 			}))
 			{
-				TH_TRACE("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+				TH_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 				Thread.join();
 				return 1;
 			}
@@ -4302,13 +4302,13 @@ namespace Tomahawk
 					return false;
 				}
 
-				TH_TRACE("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+				TH_DEBUG("[vm] join thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 				Thread.join();
 			}
 
 			AddRef();
 			Thread = std::thread(&STDThread::Routine, this);
-			TH_TRACE("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
+			TH_DEBUG("[vm] spawn thread %s", Core::OS::Process::GetThreadId(Thread.get_id()).c_str());
 			Mutex.unlock();
 
 			return true;

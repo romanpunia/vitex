@@ -159,7 +159,7 @@ namespace Tomahawk
 			if (Size == 0)
 				return 0;
 
-			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Size);
+			char* Buffer = TH_MALLOC(char, sizeof(char) * Size);
 			memset(Buffer, 0, sizeof(char) * Size);
 			uint64_t L = Base->Read(Buffer, Size);
 			Result->assign(Buffer, (size_t)L);
@@ -172,7 +172,7 @@ namespace Tomahawk
 			if (Size == 0)
 				return 0;
 
-			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Size);
+			char* Buffer = TH_MALLOC(char, sizeof(char) * Size);
 			memset(Buffer, 0, sizeof(char) * Size);
 			uint64_t L = Base->Read(Buffer, Size);
 			Result->assign(Buffer, (size_t)L);
@@ -185,7 +185,7 @@ namespace Tomahawk
 			if (Size == 0)
 				return 0;
 
-			char* Buffer = (char*)TH_MALLOC(sizeof(char) * Size);
+			char* Buffer = TH_MALLOC(char, sizeof(char) * Size);
 			memset(Buffer, 0, sizeof(char) * Size);
 			uint64_t L = Base->Read(Buffer, Size);
 			Result->assign(Buffer, (size_t)L);
@@ -451,7 +451,7 @@ namespace Tomahawk
 		std::string SchemaToJSON(Core::Schema* Base)
 		{
 			std::string Stream;
-			Core::Schema::WriteJSON(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+			Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -462,7 +462,7 @@ namespace Tomahawk
 		std::string SchemaToXML(Core::Schema* Base)
 		{
 			std::string Stream;
-			Core::Schema::WriteXML(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+			Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -517,11 +517,11 @@ namespace Tomahawk
 		}
 		Core::Schema* SchemaFromJSON(const std::string& Value)
 		{
-			return Core::Schema::ReadJSON(Value.c_str(), Value.size());
+			return Core::Schema::ConvertFromJSON(Value.c_str(), Value.size());
 		}
 		Core::Schema* SchemaFromXML(const std::string& Value)
 		{
-			return Core::Schema::ReadXML(Value.c_str());
+			return Core::Schema::ConvertFromXML(Value.c_str());
 		}
 		Core::Schema* SchemaImport(const std::string& Value)
 		{
@@ -1130,19 +1130,6 @@ namespace Tomahawk
 			VDateTime.SetOperatorEx(VMOpFunc::Add, (uint32_t)VMOp::Const, "DateTime", "const DateTime &in", &DateTimeAdd);
 			VDateTime.SetOperatorEx(VMOpFunc::Sub, (uint32_t)VMOp::Const, "DateTime", "const DateTime &in", &DateTimeSub);
 			VDateTime.SetMethodStatic("String GetGMT(int64)", &Core::DateTime::GetGMTBasedString);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterTicker(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMTypeClass VTicker = Register.SetStructUnmanaged<Core::Ticker>("Ticker");
-			VTicker.SetConstructor<Core::Ticker>("void f()");
-			VTicker.SetMethod("bool TickEvent(double)", &Core::Ticker::TickEvent);
-			VTicker.SetMethod("double GetTime()", &Core::Ticker::GetTime);
 			Engine->EndNamespace();
 
 			return true;

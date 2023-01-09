@@ -319,7 +319,7 @@ namespace Tomahawk
 			public:
 				struct
 				{
-					Core::Ticker Tick;
+					Ticker Tick;
 					float Distance = 0.5f;
 				} Shadows;
 

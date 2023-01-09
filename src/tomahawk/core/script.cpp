@@ -2033,7 +2033,7 @@ namespace Tomahawk
 				if (Key == "INFO")
 					TH_INFO("[compiler] %s", Args[1].c_str());
 				else if (Key == "TRACE")
-					TH_TRACE("[compiler] %s", Args[1].c_str());
+					TH_DEBUG("[compiler] %s", Args[1].c_str());
 				else if (Key == "WARN")
 					TH_WARN("[compiler] %s", Args[1].c_str());
 				else if (Key == "ERR")
@@ -2151,7 +2151,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
 			TH_ASSERT(!ModuleName.empty(), -1, "module name should not be empty");
-			TH_TRACE("[vm] prepare %s on 0x%" PRIXPTR, ModuleName.c_str(), (uintptr_t)this);
+			TH_DEBUG("[vm] prepare %s on 0x%" PRIXPTR, ModuleName.c_str(), (uintptr_t)this);
 
 			BuiltOK = false;
 			VCache.Valid = false;
@@ -2210,7 +2210,7 @@ namespace Tomahawk
 				if (BuiltOK)
 				{
 					Module->ResetGlobalVars(Context->GetContext());
-					TH_TRACE("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
+					TH_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
 				}
 
 				return R;
@@ -2233,7 +2233,7 @@ namespace Tomahawk
 			if (!BuiltOK)
 				return R;
 
-			TH_TRACE("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
+			TH_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
 			if (VCache.Name.empty())
 			{
 				Module->ResetGlobalVars(Context->GetContext());
@@ -2266,7 +2266,7 @@ namespace Tomahawk
 			Manager->Unlock();
 
 			if (R >= 0)
-				TH_TRACE("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+				TH_DEBUG("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 
 			return R;
 		}
@@ -2283,7 +2283,7 @@ namespace Tomahawk
 			Manager->Unlock();
 
 			if (R >= 0)
-				TH_TRACE("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+				TH_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 
 			return R;
 		}
@@ -2308,7 +2308,7 @@ namespace Tomahawk
 
 			int R = Module->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
-				TH_TRACE("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
+				TH_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
 
 			return R;
 		}
@@ -2326,7 +2326,7 @@ namespace Tomahawk
 
 			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
-				TH_TRACE("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
+				TH_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 
 			return R;
 		}
@@ -2344,7 +2344,7 @@ namespace Tomahawk
 
 			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
-				TH_TRACE("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
+				TH_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 
 			return R;
 		}
@@ -3030,7 +3030,6 @@ namespace Tomahawk
 
 		VMManager::VMManager() : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports((uint32_t)VMImport::All), Cached(true)
 		{
-			asSetGlobalMemoryFunctions(Tomahawk::Core::Mem::Malloc, Tomahawk::Core::Mem::Free);
 			Include.Exts.push_back(".as");
 			Include.Root = Core::OS::Directory::Get();
 
@@ -3984,7 +3983,7 @@ namespace Tomahawk
 			if (!Cached)
 			{
 				std::string Data = Core::OS::File::ReadAsString(File.c_str());
-				return Core::Schema::ReadJSON(Data.c_str(), Data.size());
+				return Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
 			}
 
 			Sync.General.lock();
@@ -3999,7 +3998,7 @@ namespace Tomahawk
 
 			Core::Schema*& Result = Datas[File];
 			std::string Data = Core::OS::File::ReadAsString(File.c_str());
-			Result = Core::Schema::ReadJSON(Data.c_str(), Data.size());
+			Result = Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
 
 			Core::Schema* Copy = nullptr;
 			if (Result != nullptr)
@@ -4020,6 +4019,7 @@ namespace Tomahawk
 		void VMManager::FreeProxy()
 		{
 			STDFreeCore();
+			CleanupThisThread();
 		}
 		VMManager* VMManager::Get(VMCManager* Engine)
 		{
@@ -4074,6 +4074,10 @@ namespace Tomahawk
 		{
 			asSetGlobalMemoryFunctions(Alloc, Free);
 		}
+		void VMManager::CleanupThisThread()
+		{
+			asThreadCleanup();
+		}
 		void VMManager::ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data)
 		{
 			VMManager* Manager = VMManager::Get(Engine);
@@ -4119,7 +4123,6 @@ namespace Tomahawk
 			Engine->AddSubmodule("ce/filestate", { }, CERegisterFileState);
 			Engine->AddSubmodule("ce/resource", { }, CERegisterResource);
 			Engine->AddSubmodule("ce/datetime", { "std/string" }, CERegisterDateTime);
-			Engine->AddSubmodule("ce/ticker", { }, CERegisterTicker);
 			Engine->AddSubmodule("ce/os", { "std/string", "ce/filestate", "ce/resource" }, CERegisterOS);
 			Engine->AddSubmodule("ce/console", { "ce/format" }, CERegisterConsole);
 			Engine->AddSubmodule("ce/timer", { }, CERegisterTimer);
@@ -4623,7 +4626,7 @@ namespace Tomahawk
 					{
 						std::string File = Command.substr(2, Div - 2);
 						std::string Line = Command.substr(Div + 1);
-						int Number = atoi(Line.c_str());
+						int Number = Core::Parser(&Line).ToInt();
 
 						AddFileBreakPoint(File, Number);
 					}
@@ -4653,7 +4656,7 @@ namespace Tomahawk
 						}
 						else
 						{
-							int NBR = atoi(BR.c_str());
+							int NBR = Core::Parser(&BR).ToInt();
 							if (NBR >= 0 && NBR < (int)BreakPoints.size())
 								BreakPoints.erase(BreakPoints.begin() + NBR);
 

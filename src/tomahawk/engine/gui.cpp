@@ -76,25 +76,25 @@ namespace Tomahawk
 					TH_ASSERT_V(Vertices != nullptr, "vertices should be set");
 					TH_ASSERT_V(Indices != nullptr, "indices should be set");
 
-					Device->Begin();
-					Device->Topology(Graphics::PrimitiveTopology::Triangle_List);
-					Device->Texture((Graphics::Texture2D*)Texture);
+					Device->ImBegin();
+					Device->ImTopology(Graphics::PrimitiveTopology::Triangle_List);
+					Device->ImTexture((Graphics::Texture2D*)Texture);
 
 					if (HasTransform)
-						Device->Transform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho);
+						Device->ImTransform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Transform * Ortho);
 					else
-						Device->Transform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho);
+						Device->ImTransform(Compute::Matrix4x4::CreateTranslation(Compute::Vector3(Translation.x, Translation.y)) * Ortho);
 
 					for (int i = IndicesSize; i-- > 0;)
 					{
 						Rml::Vertex& V = Vertices[Indices[i]];
-						Device->Emit();
-						Device->Position(V.position.x, V.position.y, 0.0f);
-						Device->TexCoord(V.tex_coord.x, V.tex_coord.y);
-						Device->Color(V.colour.red / 255.0f, V.colour.green / 255.0f, V.colour.blue / 255.0f, V.colour.alpha / 255.0f);
+						Device->ImEmit();
+						Device->ImPosition(V.position.x, V.position.y, 0.0f);
+						Device->ImTexCoord(V.tex_coord.x, V.tex_coord.y);
+						Device->ImColor(V.colour.red / 255.0f, V.colour.green / 255.0f, V.colour.blue / 255.0f, V.colour.alpha / 255.0f);
 					}
 
-					Device->End();
+					Device->ImEnd();
 				}
 				virtual Rml::CompiledGeometryHandle CompileGeometry(Rml::Vertex* Vertices, int VerticesCount, int* Indices, int IndicesCount, Rml::TextureHandle Handle) override
 				{
@@ -471,7 +471,7 @@ namespace Tomahawk
 							break;
 						case Rml::Log::LT_INFO:
 						case Rml::Log::LT_ASSERT:
-							TH_TRACE("[gui] %.*s", Message.size(), Message.c_str());
+							TH_DEBUG("[gui] %.*s", Message.size(), Message.c_str());
 							break;
 						default:
 							break;
@@ -569,7 +569,7 @@ namespace Tomahawk
 				}
 				virtual void Release() override
 				{
-					TH_DELETE_THIS(ContextInstancer);
+					TH_DELETE(ContextInstancer, this);
 				}
 			};
 
@@ -647,7 +647,7 @@ namespace Tomahawk
 				void OnDetach(Rml::Element* Element) override
 				{
 					Function.Release();
-					TH_DELETE_THIS(ListenerSubsystem);
+					TH_DELETE(ListenerSubsystem, this);
 				}
 				void ProcessEvent(Rml::Event& Event) override
 				{
@@ -680,7 +680,7 @@ namespace Tomahawk
 					if (Function.IsValid())
 						return true;
 
-					std::string Name = "__vf" + Compute::Common::Hash(Compute::Digests::MD5(), Memory);
+					std::string Name = "__vf" + Compute::Crypto::Hash(Compute::Digests::MD5(), Memory);
 					std::string Eval = "void " + Name + "(GUI::Event &in Event){\n";
 					Eval.append(Memory);
 					Eval += "\n;}";
@@ -718,7 +718,7 @@ namespace Tomahawk
 				virtual void OnDetach(Rml::Element*) override
 				{
 					if (!--RefCount)
-						TH_DELETE_THIS(EventSubsystem);
+						TH_DELETE(EventSubsystem, this);
 				}
 				virtual void ProcessEvent(Rml::Event& Event) override
 				{

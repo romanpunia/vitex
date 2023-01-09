@@ -47,7 +47,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
-				char* Binary = (char*)TH_MALLOC(sizeof(char) * Length);
+				char* Binary = TH_MALLOC(char, sizeof(char) * Length);
 				if (Stream->Read(Binary, Length) != Length)
 				{
 					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
@@ -367,7 +367,7 @@ namespace Tomahawk
 					std::string Path;
 					AssetCache* Asset = Content->Find<Engine::Material>(Material);
 					if (!Asset)
-						Path.assign("./materials/" + Material->GetName() + "_" + Compute::Common::HexEncode(Compute::Common::RandomBytes(6)));
+						Path.assign("./materials/" + Material->GetName() + "_" + Compute::Codec::HexEncode(Compute::Crypto::RandomBytes(6)));
 					else
 						Path.assign(Asset->Path);
 
@@ -469,7 +469,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 #ifdef TH_HAS_SDL2
-				void* Binary = TH_MALLOC(sizeof(char) * Length);
+				void* Binary = TH_MALLOC(void, sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
 					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
@@ -522,7 +522,7 @@ namespace Tomahawk
 			void* AudioClip::DeserializeOGG(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				void* Binary = TH_MALLOC(sizeof(char) * Length);
+				void* Binary = TH_MALLOC(void, sizeof(char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
 					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
@@ -581,7 +581,7 @@ namespace Tomahawk
 			void* Texture2D::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				unsigned char* Binary = (unsigned char*)TH_MALLOC(sizeof(unsigned char) * Length);
+				unsigned char* Binary = TH_MALLOC(unsigned char, sizeof(unsigned char) * Length);
 				if (Stream->Read((char*)Binary, Length) != Length)
 				{
 					TH_ERR("[engine] cannot read %llu bytes from texture 2d file", Length);
@@ -650,7 +650,7 @@ namespace Tomahawk
 			void* Shader::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				char* Code = (char*)TH_MALLOC(sizeof(char) * (unsigned int)Length);
+				char* Code = TH_MALLOC(char, sizeof(char) * (unsigned int)Length);
 				Stream->Read(Code, Length);
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
@@ -724,7 +724,7 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Common::TexCoordRhToLh(F.Elements);
+					Compute::Geometric::TexCoordRhToLh(F.Elements);
 
 					Device->Lock();
 					Object->Meshes.push_back(Device->CreateMeshBuffer(F));
@@ -838,7 +838,7 @@ namespace Tomahawk
 					}
 				}
 				else
-					Blob.Name = Compute::Common::Hash(Compute::Digests::MD5(), Compute::Common::RandomBytes(8)).substr(0, 8);
+					Blob.Name = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(8)).substr(0, 8);
 
 				for (unsigned int v = 0; v < Mesh->mNumVertices; v++)
 				{
@@ -1037,7 +1037,7 @@ namespace Tomahawk
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Common::TexCoordRhToLh(F.Elements);
+					Compute::Geometric::TexCoordRhToLh(F.Elements);
 
 					Device->Lock();
 					Object->Meshes.push_back(Device->CreateSkinMeshBuffer(F));
@@ -1214,7 +1214,7 @@ namespace Tomahawk
 				if (!Length)
 					return nullptr;
 
-				auto* Object = Core::Schema::ReadJSONB([Stream](char* Buffer, int64_t Size)
+				auto* Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, int64_t Size)
 				{
 					return Size > 0 ? Stream->Read(Buffer, Size) == Size : true;
 				}, false);
@@ -1222,14 +1222,14 @@ namespace Tomahawk
 				if (Object != nullptr)
 					return Object;
 
-				char* Buffer = (char*)TH_MALLOC(sizeof(char) * (size_t)(Length + 1));
+				char* Buffer = TH_MALLOC(char, sizeof(char) * (size_t)(Length + 1));
 				Stream->Seek(Core::FileSeek::Begin, Offset);
 				Stream->Read(Buffer, Length);
 				Buffer[(size_t)Length] = '\0';
 
-				Object = Core::Schema::ReadJSON(Buffer, (size_t)Length, false);
+				Object = Core::Schema::ConvertFromJSON(Buffer, (size_t)Length, false);
 				if (!Object)
-					Object = Core::Schema::ReadXML(Buffer, false);
+					Object = Core::Schema::ConvertFromXML(Buffer, false);
 
 				TH_FREE(Buffer);
 				return Object;
@@ -1246,7 +1246,7 @@ namespace Tomahawk
 
 				if (Type->second == Core::Var::String("XML"))
 				{
-					Core::Schema::WriteXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
+					Core::Schema::ConvertToXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1275,7 +1275,7 @@ namespace Tomahawk
 				}
 				else if (Type->second == Core::Var::String("JSON"))
 				{
-					Core::Schema::WriteJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
+					Core::Schema::ConvertToJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1304,7 +1304,7 @@ namespace Tomahawk
 				}
 				else if (Type->second == Core::Var::String("JSONB"))
 				{
-					Core::Schema::WriteJSONB(Schema, [Stream](Core::VarForm, const char* Buffer, int64_t Length)
+					Core::Schema::ConvertToJSONB(Schema, [Stream](Core::VarForm, const char* Buffer, int64_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);

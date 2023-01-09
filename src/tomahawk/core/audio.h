@@ -155,7 +155,7 @@ namespace Tomahawk
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) = 0;
-			virtual AudioFilter* Copy() = 0;
+			virtual Core::Unique<AudioFilter> Copy() = 0;
 			AudioSource* GetSource();
 
 		protected:
@@ -184,7 +184,7 @@ namespace Tomahawk
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) = 0;
-			virtual AudioEffect* Copy() = 0;
+			virtual Core::Unique<AudioEffect> Copy() = 0;
 			bool SetFilter(AudioFilter** Filter);
 			AudioFilter* GetFilter();
 			AudioSource* GetSource();

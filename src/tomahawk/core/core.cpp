@@ -4626,6 +4626,29 @@ namespace Tomahawk
 		{
 			OnFree = Callback;
 		}
+		void Mem::Watch(void* Ptr, const char* TypeName)
+		{
+#ifndef NDEBUG
+			Queue.lock();
+			auto It = Buffers.find(Ptr);
+			TH_ASSERT_V(It == Buffers.end() || !It->second.Owns, "cannot watch memory that is already being tracked");
+			Buffers[Ptr] = { TypeName ? TypeName : "void", time(nullptr), sizeof(void*), false };
+			Queue.unlock();
+#endif
+		}
+		void Mem::Unwatch(void* Ptr)
+		{
+#ifndef NDEBUG
+			Queue.lock();
+			auto It = Buffers.find(Ptr);
+			if (It != Buffers.end())
+			{
+				TH_ASSERT_V(!It->second.Owns, "cannot unwatch memory that was allocated by this allocator");
+				Buffers.erase(It);
+			}
+			Queue.unlock();
+#endif
+		}
 		void Mem::Dump(void* Ptr)
 		{
 #ifndef NDEBUG
@@ -4674,7 +4697,7 @@ namespace Tomahawk
 #ifndef NDEBUG
 			Queue.lock();
 			auto It = Buffers.find(Ptr);
-			TH_ASSERT_V(It != Buffers.end(), "cannot free memory that was not allocated by this allocator");
+			TH_ASSERT_V(It != Buffers.end() && It->second.Owns, "cannot free memory that was not allocated by this allocator");
 			Buffers.erase(It);
 			Queue.unlock();
 #endif
@@ -4698,7 +4721,7 @@ namespace Tomahawk
 			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
 
 			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", time(nullptr), Size };
+			Buffers[Result] = { TypeName ? TypeName : "void", time(nullptr), Size, true };
 			Queue.unlock();
 
 			return Result;
@@ -4712,7 +4735,7 @@ namespace Tomahawk
 			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %llu bytes", (uint64_t)Size);
 
 			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", time(nullptr), Size };
+			Buffers[Result] = { TypeName ? TypeName : "void", time(nullptr), Size, true };
 			if (Result != Ptr)
 			{
 				auto It = Buffers.find(Ptr);
@@ -7388,7 +7411,7 @@ namespace Tomahawk
 			uint64_t Diff = Time - Next.Time;
 			if (Diff > Next.Threshold)
 			{
-				TH_WARN("[stall] operation took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
+				TH_WARN("[stall] operation took %llu ms (%llu us)\n\twhere: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
 				Next.Time = Time;
 			}
 		}
@@ -7401,7 +7424,7 @@ namespace Tomahawk
 			OS::DbgContext& Next = PerfFrame.top();
 			uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Next.Time;
 			if (Diff > Next.Threshold)
-				TH_WARN("[stall] operation took %llu ms (%llu us)\n\tfunction: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
+				TH_WARN("[stall] operation took %llu ms (%llu us)\n\twhere: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
 			PerfFrame.pop();
 		}
 #endif

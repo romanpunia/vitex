@@ -318,14 +318,46 @@ namespace Tomahawk
 
 			class TH_OUT Response
 			{
+			public:
+				struct Iterator
+				{
+					const Response* Source;
+					size_t Index;
+
+					Iterator& operator ++ ()
+					{
+						++Index;
+						return *this;
+					}
+					Row operator * () const
+					{
+						return Source->GetRow(Index);
+					}
+					bool operator != (const Iterator& Other) const
+					{
+						return Index != Other.Index;
+					}
+				};
+
 			private:
 				TResponse* Base;
 				bool Error;
 
 			public:
-				Response();
-				Response(TResponse* NewBase);
-				void Release();
+				Response(TResponse* NewBase = nullptr);
+				Response(const Response& Other) = delete;
+				Response(Response&& Other);
+				~Response();
+				Response& operator =(const Response& Other) = delete;
+				Response& operator =(Response&& Other);
+				Row operator [](size_t Index)
+				{
+					return GetRow(Index);
+				}
+				Row operator [](size_t Index) const
+				{
+					return GetRow(Index);
+				}
 				Core::Unique<Core::Schema> GetArrayOfObjects() const;
 				Core::Unique<Core::Schema> GetArrayOfArrays() const;
 				Core::Unique<Core::Schema> GetObject(size_t Index = 0) const;
@@ -354,13 +386,15 @@ namespace Tomahawk
 				{
 					return Base != nullptr;
 				}
-				Row operator [](size_t Index)
+
+			public:
+				Iterator begin() const
 				{
-					return GetRow(Index);
+					return { this, 0 };
 				}
-				Row operator [](size_t Index) const
+				Iterator end() const
 				{
-					return GetRow(Index);
+					return { this, GetSize() };
 				}
 			};
 
@@ -373,20 +407,11 @@ namespace Tomahawk
 
 			public:
 				Cursor();
-				void Release();
-				bool OK();
-				bool IsEmpty() const;
-				bool IsError() const;
-				bool IsErrorOrEmpty() const
-				{
-					return IsError() || IsEmpty();
-				}
-				size_t Size() const;
-				size_t GetAffectedRows() const;
-				Cursor Copy() const;
-				Response First() const;
-				Response Last() const;
-				Response GetResponse(size_t Index) const;
+				Cursor(const Cursor& Other) = delete;
+				Cursor(Cursor&& Other);
+				~Cursor();
+				Cursor& operator =(const Cursor& Other) = delete;
+				Cursor& operator =(Cursor&& Other);
 				Column operator [](const char* Name)
 				{
 					return First().Front().GetColumn(Name);
@@ -394,6 +419,33 @@ namespace Tomahawk
 				Column operator [](const char* Name) const
 				{
 					return First().Front().GetColumn(Name);
+				}
+				bool IsSuccess() const;
+				bool IsEmpty() const;
+				bool IsError() const;
+				bool IsErrorOrEmpty() const
+				{
+					return IsError() || IsEmpty();
+				}
+				size_t GetSize() const;
+				size_t GetAffectedRows() const;
+				Cursor Copy() const;
+				const Response& First() const;
+				const Response& Last() const;
+				const Response& At(size_t Index) const;
+				Core::Unique<Core::Schema> GetArrayOfObjects(size_t ResponseIndex = 0) const;
+				Core::Unique<Core::Schema> GetArrayOfArrays(size_t ResponseIndex = 0) const;
+				Core::Unique<Core::Schema> GetObject(size_t ResponseIndex = 0, size_t Index = 0) const;
+				Core::Unique<Core::Schema> GetArray(size_t ResponseIndex = 0, size_t Index = 0) const;
+
+			public:
+				std::vector<Response>::iterator begin()
+				{
+					return Base.begin();
+				}
+				std::vector<Response>::iterator end()
+				{
+					return Base.end();
 				}
 			};
 
@@ -431,8 +483,8 @@ namespace Tomahawk
 			public:
 				Request(const std::string& Commands);
 				void Finalize(Cursor& Subresult);
+				Cursor&& GetResult();
 				const std::vector<char>& GetCommand() const;
-				Cursor GetResult() const;
 				uint64_t GetSession() const;
 				bool IsPending() const;
 			};

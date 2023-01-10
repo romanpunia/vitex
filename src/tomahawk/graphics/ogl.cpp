@@ -79,7 +79,7 @@ namespace Tomahawk
 			OGLFrameBuffer::OGLFrameBuffer(GLuint Targets) : Count(Targets)
 			{
 			}
-			void OGLFrameBuffer::Release()
+			void OGLFrameBuffer::Cleanup()
 			{
 				glDeleteFramebuffers(1, &Buffer);
 				glDeleteTextures(Count, Texture);
@@ -392,7 +392,7 @@ namespace Tomahawk
 			OGLRenderTarget2D::~OGLRenderTarget2D()
 			{
 				glDeleteTextures(1, &DepthTexture);
-				FrameBuffer.Release();
+				FrameBuffer.Cleanup();
 			}
 			void* OGLRenderTarget2D::GetTargetBuffer()
 			{
@@ -417,7 +417,7 @@ namespace Tomahawk
 			OGLMultiRenderTarget2D::~OGLMultiRenderTarget2D()
 			{
 				glDeleteTextures(1, &DepthTexture);
-				FrameBuffer.Release();
+				FrameBuffer.Cleanup();
 			}
 			void* OGLMultiRenderTarget2D::GetTargetBuffer()
 			{
@@ -442,7 +442,7 @@ namespace Tomahawk
 			OGLRenderTargetCube::~OGLRenderTargetCube()
 			{
 				glDeleteTextures(1, &DepthTexture);
-				FrameBuffer.Release();
+				FrameBuffer.Cleanup();
 			}
 			void* OGLRenderTargetCube::GetTargetBuffer()
 			{
@@ -467,7 +467,7 @@ namespace Tomahawk
 			OGLMultiRenderTargetCube::~OGLMultiRenderTargetCube()
 			{
 				glDeleteTextures(1, &DepthTexture);
-				FrameBuffer.Release();
+				FrameBuffer.Cleanup();
 			}
 			void* OGLMultiRenderTargetCube::GetTargetBuffer()
 			{

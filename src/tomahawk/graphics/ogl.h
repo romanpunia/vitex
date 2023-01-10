@@ -32,7 +32,7 @@ namespace Tomahawk
 				bool Backbuffer = false;
 
 				OGLFrameBuffer(GLuint Targets);
-				void Release();
+				void Cleanup();
 			};
 
 			class OGLDepthStencilState final : public DepthStencilState

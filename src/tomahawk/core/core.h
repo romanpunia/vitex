@@ -170,6 +170,8 @@ typedef socklen_t socket_size_t;
 #define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::PerfPop(); return __vfbuf; }
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FUNCTION "(): " TH_STRINGIFY(Value))
 #define TH_CLOSE(Stream) { TH_DEBUG("[io] close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
+#define TH_WATCH(Ptr, Label) Tomahawk::Core::Mem::Watch(Ptr, Label)
+#define TH_UNWATCH(Ptr) Tomahawk::Core::Mem::Unwatch(Ptr)
 #define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size, #Type)
 #define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size, #Type)
 #define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
@@ -182,6 +184,8 @@ typedef socklen_t socket_size_t;
 #define TH_PRET(Value) return Value
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
 #define TH_CLOSE(Stream) fclose(Stream)
+#define TH_WATCH(Ptr, Label) ((void)0)
+#define TH_UNWATCH(Ptr) ((void)0)
 #define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size)
 #define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size)
 #define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
@@ -869,6 +873,7 @@ namespace Tomahawk
 				std::string TypeName;
 				time_t Time;
 				size_t Size;
+				bool Owns;
 			};
 
 		private:
@@ -884,6 +889,8 @@ namespace Tomahawk
 			static void SetAlloc(const AllocCallback& Callback);
 			static void SetRealloc(const ReallocCallback& Callback);
 			static void SetFree(const FreeCallback& Callback);
+			static void Watch(void* Ptr, const char* TypeName = nullptr);
+			static void Unwatch(void* Ptr);
 			static void Dump(void* Ptr = nullptr);
 			static void Free(Unique<void> Ptr);
 			static Unique<void> Malloc(size_t Size);
@@ -1772,7 +1779,16 @@ namespace Tomahawk
 			}
 			~Pool()
 			{
-				Release();
+				if (Data != nullptr)
+				{
+					for (auto It = Begin(); It != End(); It++)
+						Dispose(It);
+
+					TH_FREE(Data);
+					Data = nullptr;
+				}
+
+				Count = Volume = 0;
 			}
 			void Swap(Pool<T>& Raw)
 			{
@@ -1811,19 +1827,6 @@ namespace Tomahawk
 
 				TH_FREE(Data);
 				Data = Raw;
-			}
-			void Release()
-			{
-				if (Data != nullptr)
-				{
-					for (auto It = Begin(); It != End(); It++)
-						Dispose(It);
-
-					TH_FREE(Data);
-					Data = nullptr;
-				}
-
-				Count = Volume = 0;
 			}
 			void Resize(size_t NewSize)
 			{
@@ -1932,6 +1935,18 @@ namespace Tomahawk
 			{
 				return Data + Count;
 			}
+			size_t Size() const
+			{
+				return Count;
+			}
+			size_t Capacity() const
+			{
+				return Volume;
+			}
+			bool Empty() const
+			{
+				return !Count;
+			}
 			T* Get() const
 			{
 				return Data;
@@ -1979,17 +1994,13 @@ namespace Tomahawk
 			}
 
 		public:
-			size_t Size() const
+			Iterator begin() const
 			{
-				return Count;
+				return Data;
 			}
-			size_t Capacity() const
+			Iterator end() const
 			{
-				return Volume;
-			}
-			bool Empty() const
-			{
-				return !Count;
+				return Data + Count;
 			}
 
 		private:
@@ -2354,12 +2365,9 @@ namespace Tomahawk
 			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
 				return Future.Get();
 #ifndef NDEBUG
-			int64_t* Start = nullptr;
+			std::chrono::microseconds Time = Schedule::GetClock();
 			if (DebugName != nullptr)
-			{
-				Start = (int64_t*)Mem::QueryMalloc(sizeof(int64_t), DebugName);
-				*Start = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			}
+				TH_WATCH((void*)&Future, DebugName);
 #endif
 			State->Deactivate(Base, [&Future, &State, &Base]()
 			{
@@ -2369,12 +2377,12 @@ namespace Tomahawk
 				});
 			});
 #ifndef NDEBUG
-			if (Start != nullptr)
+			if (DebugName != nullptr)
 			{
-				int64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - *Start;
-				if (Diff > TH_PERF_HANG)
-					TH_WARN("[stall] async operation took %llu ms (%llu us)\n\tcontext: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, DebugName, TH_PERF_HANG);
-				Mem::Free(Start);
+				int64_t Diff = (Schedule::GetClock() - Time).count();
+				if (Diff > TH_PERF_HANG * 1000)
+					TH_WARN("[stall] async operation took %llu ms (%llu us)\n\twhere: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, DebugName, (uint64_t)TH_PERF_HANG);
+				TH_UNWATCH((void*)&Future);
 			}
 #endif
 			return Future.GetIfAny();

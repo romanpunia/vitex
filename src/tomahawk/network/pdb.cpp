@@ -969,21 +969,36 @@ namespace Tomahawk
 #endif
 			}
 
-			Response::Response() : Base(nullptr), Error(false)
-			{
-			}
 			Response::Response(TResponse* NewBase) : Base(NewBase), Error(false)
 			{
 			}
-			void Response::Release()
+			Response::Response(Response&& Other) : Base(Other.Base), Error(Other.Error)
+			{
+				Other.Base = nullptr;
+				Other.Error = false;
+			}
+			Response::~Response()
 			{
 #ifdef TH_HAS_POSTGRESQL
-				if (!Base)
-					return;
-
-				PQclear(Base);
+				if (Base != nullptr)
+					PQclear(Base);
 				Base = nullptr;
 #endif
+			}
+			Response& Response::operator =(Response&& Other)
+			{
+				if (&Other == this)
+					return *this;
+
+#ifdef TH_HAS_POSTGRESQL
+				if (Base != nullptr)
+					PQclear(Base);
+#endif
+				Base = Other.Base;
+				Error = Other.Error;
+				Other.Base = nullptr;
+				Other.Error = false;
+				return *this;
 			}
 			Core::Schema* Response::GetArrayOfObjects() const
 			{
@@ -1332,19 +1347,27 @@ namespace Tomahawk
 
 			Cursor::Cursor()
 			{
+				TH_WATCH(this, "pq-result cursor");
 			}
-			void Cursor::Release()
+			Cursor::Cursor(Cursor&& Other) : Base(std::move(Other.Base))
 			{
-				for (auto& Item : Base)
-					Item.Release();
-				Base.clear();
+				TH_WATCH(this, "pq-result cursor (moved)");
 			}
-			bool Cursor::OK()
+			Cursor::~Cursor()
 			{
-				bool Result = !IsError();
-				Release();
+				TH_UNWATCH(this);
+			}
+			Cursor& Cursor::operator =(Cursor&& Other)
+			{
+				if (&Other == this)
+					return *this;
 
-				return Result;
+				Base = std::move(Other.Base);
+				return *this;
+			}
+			bool Cursor::IsSuccess() const
+			{
+				return !IsError();
 			}
 			bool Cursor::IsEmpty() const
 			{
@@ -1372,7 +1395,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			size_t Cursor::Size() const
+			size_t Cursor::GetSize() const
 			{
 				return Base.size();
 			}
@@ -1389,30 +1412,56 @@ namespace Tomahawk
 				if (Base.empty())
 					return Result;
 
-				Result.Base = Base;
-				for (auto& Item : Result.Base)
-					Item = Item.Copy();
+				Result.Base.clear();
+				Result.Base.reserve(Base.size());
+
+				for (auto& Item : Base)
+					Result.Base.emplace_back(std::move(Item.Copy()));
 
 				return Result;
 			}
-			Response Cursor::First() const
+			const Response& Cursor::First() const
 			{
-				if (Base.empty())
-					return Response(nullptr);
-
+				TH_ASSERT(!Base.empty(), Base.front(), "index outside of range");
 				return Base.front();
 			}
-			Response Cursor::Last() const
+			const Response& Cursor::Last() const
 			{
-				if (Base.empty())
-					return Response(nullptr);
-
+				TH_ASSERT(!Base.empty(), Base.front(), "index outside of range");
 				return Base.back();
 			}
-			Response Cursor::GetResponse(size_t Index) const
+			const Response& Cursor::At(size_t Index) const
 			{
-				TH_ASSERT(Index < Base.size(), Response(nullptr), "index outside of range");
+				TH_ASSERT(Index < Base.size(), Base.front(), "index outside of range");
 				return Base[Index];
+			}
+			Core::Schema* Cursor::GetArrayOfObjects(size_t ResponseIndex) const
+			{
+				if (ResponseIndex >= Base.size())
+					return Core::Var::Set::Array();
+
+				return Base[ResponseIndex].GetArrayOfObjects();
+			}
+			Core::Schema* Cursor::GetArrayOfArrays(size_t ResponseIndex) const
+			{
+				if (ResponseIndex >= Base.size())
+					return Core::Var::Set::Array();
+
+				return Base[ResponseIndex].GetArrayOfArrays();
+			}
+			Core::Schema* Cursor::GetObject(size_t ResponseIndex, size_t Index) const
+			{
+				if (ResponseIndex >= Base.size())
+					return nullptr;
+
+				return Base[ResponseIndex].GetObject(Index);
+			}
+			Core::Schema* Cursor::GetArray(size_t ResponseIndex, size_t Index) const
+			{
+				if (ResponseIndex >= Base.size())
+					return nullptr;
+
+				return Base[ResponseIndex].GetArray(Index);
 			}
 
 			TConnection* Connection::GetBase() const
@@ -1445,13 +1494,13 @@ namespace Tomahawk
 				if (Callback)
 					Callback(Subresult);
 			}
+			Cursor&& Request::GetResult()
+			{
+				return std::move(Result);
+			}
 			const std::vector<char>& Request::GetCommand() const
 			{
 				return Command;
-			}
-			Cursor Request::GetResult() const
-			{
-				return Result;
 			}
 			uint64_t Request::GetSession() const
 			{
@@ -1481,12 +1530,8 @@ namespace Tomahawk
 				for (auto* Item : Requests)
 				{
 					Item->Future = Cursor();
-					Item->Result.Release();
 					TH_DELETE(Request, Item);
 				}
-
-				for (auto& Item : Cache.Objects)
-					Item.second.second.Release();
 
 				Update.unlock();
 				Driver::Release();
@@ -1494,8 +1539,6 @@ namespace Tomahawk
 			void Cluster::ClearCache()
 			{
 				Cache.Context.lock();
-				for (auto Item : Cache.Objects)
-					Item.second.second.Release();
 				Cache.Objects.clear();
 				Cache.Context.unlock();
 			}
@@ -1570,14 +1613,14 @@ namespace Tomahawk
 
 				return Query(Command, 0, Token).Then<uint64_t>([this, Token](Cursor&& Result)
 				{
-					return Result.OK() ? Token : uint64_t(0);
+					return Result.IsSuccess() ? Token : uint64_t(0);
 				});
 			}
 			Core::Async<bool> Cluster::TxEnd(const std::string& Command, uint64_t Token)
 			{
 				return Query(Command, 0, Token, true).Then<bool>([this, Token](Cursor&& Result)
 				{
-					return Result.OK();
+					return Result.IsSuccess();
 				});
 			}
 			Core::Async<bool> Cluster::TxCommit(uint64_t Token)
@@ -1853,10 +1896,7 @@ namespace Tomahawk
 					for (auto It = Cache.Objects.begin(); It != Cache.Objects.end();)
 					{
 						if (It->second.first < Time)
-						{
-							It->second.second.Release();
 							It = Cache.Objects.erase(It);
-						}
 						else
 							++It;
 					}
@@ -1865,7 +1905,6 @@ namespace Tomahawk
 				auto It = Cache.Objects.find(CacheOid);
 				if (It != Cache.Objects.end())
 				{
-					It->second.second.Release();
 					It->second.second = Data->Copy();
 					It->second.first = Timeout;
 				}
@@ -1888,7 +1927,6 @@ namespace Tomahawk
 				if (Target->Current != nullptr)
 				{
 					Request* Current = Target->Current;
-					Current->Result.Release();
 					Target->Current = nullptr;
 
 					Update.unlock();
@@ -1972,7 +2010,6 @@ namespace Tomahawk
 				Item->Future = Cursor();
 				Update.lock();
 
-				Item->Result.Release();
 				TH_DELETE(Request, Item);
 				TH_PPOP();
 
@@ -2086,13 +2123,10 @@ namespace Tomahawk
 							TH_DELETE(Request, Item);
 						}
 						else
-							Source->Current->Result.Base.emplace_back(Frame);
+							Source->Current->Result.Base.emplace_back(std::move(Frame));
 					}
 					else
-					{
 						Source->State = (Frame.IsExists() ? QueryState::Busy : QueryState::Idle);
-						Frame.Release();
-					}
 
 					if (Source->State == QueryState::Busy || Consume(Source))
 						goto Retry;

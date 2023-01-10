@@ -39,6 +39,10 @@ extern "C"
 #include <openssl/dh.h>
 #endif
 }
+#define CSS_DIRECTORY_STYLE "html{background-color:#101010;color:#fff;}th{text-align:left;}a:link{color:#5D80FF;text-decoration:none;}a:visited{color:#F193FF;}a:hover{opacity:0.9; cursor:pointer}a:active{opacity:0.8;cursor:default;}"
+#define CSS_MESSAGE_STYLE "html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;background-color:#101010;color:#fff;}body{display:flex;align-items:center;justify-content:center;height:100%%;}"
+#define CSS_NORMAL_FONT "div{text-align:center;}"
+#define CSS_SMALL_FONT "h1{font-size:16px;font-weight:normal;}"
 #define WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define MAX_REDIRECTS 128
 #define GZ_HEADER_SIZE 17
@@ -1710,7 +1714,7 @@ namespace Tomahawk
 					{
 						char Buffer[8192];
 						std::string Reason = TextHTML(Info.Message);
-						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>html{font-family:\"Helvetica Neue\",Helvetica,Arial,sans-serif;height:95%%;}body{display:flex;align-items:center;justify-content:center;height:100%%;}%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? "div{text-align:center;}" : "h1{font-size:16px;font-weight:normal;}", Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
+						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
 
 						if (Route && Route->Callbacks.Headers)
 							Route->Callbacks.Headers(this, &Content);
@@ -4496,6 +4500,23 @@ namespace Tomahawk
 				return true;
 			}
 
+			bool Resources::ResourceHasAlternative(Connection* Base)
+			{
+				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
+				if (Base->Route->TryFiles.empty())
+					return false;
+
+				for (auto& Item : Base->Route->TryFiles)
+				{
+					if (Core::OS::File::State(Item, &Base->Resource))
+					{
+						Base->Request.Path = Item;
+						return true;
+					}
+				}
+
+				return false;
+			}
 			bool Resources::ResourceHidden(Connection* Base, std::string* Path)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
@@ -4666,7 +4687,8 @@ namespace Tomahawk
 						}, Core::Difficulty::Light);
 					}
 
-					return Base->Error(404, "Requested resource was not found.");
+					if (!Resources::ResourceHasAlternative(Base))
+						return Base->Error(404, "Requested resource was not found.");
 				}
 
 				if (Permissions::WebSocketUpgradeAllowed(Base))
@@ -4951,7 +4973,7 @@ namespace Tomahawk
 
 				TextAssign(Base->Response.Buffer,
 					"<html><head><title>Index of " + Name + "</title>"
-					"<style>th {text-align: left;}</style></head>"
+					"<style>" CSS_DIRECTORY_STYLE "</style></head>"
 					"<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
 					"<tr><th><a href=\"?n" + Direction + "\">Name</a></th>"
 					"<th><a href=\"?d" + Direction + "\">Modified</a></th>"

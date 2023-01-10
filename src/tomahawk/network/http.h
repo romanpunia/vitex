@@ -396,6 +396,7 @@ namespace Tomahawk
 				std::vector<ErrorFile> ErrorFiles;
 				std::vector<MimeType> MimeTypes;
 				std::vector<std::string> IndexFiles;
+				std::vector<std::string> TryFiles;
 				std::vector<std::string> DisallowedMethods;
 				std::string DocumentRoot = "./";
 				std::string CharSet = "utf-8";
@@ -768,6 +769,7 @@ namespace Tomahawk
 			class TH_OUT Resources
 			{
 			public:
+				static bool ResourceHasAlternative(Connection* Base);
 				static bool ResourceHidden(Connection* Base, std::string* Path);
 				static bool ResourceIndexed(Connection* Base, Core::Resource* Resource);
 				static bool ResourceProvided(Connection* Base, Core::Resource* Resource);

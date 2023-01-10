@@ -1586,10 +1586,26 @@ namespace Tomahawk
 								std::string Pattern;
 								if (NMake::Unpack(File, &Pattern))
 								{
-									if (File->GetAttribute("abs") != nullptr)
+									if (!File->GetAttribute("use"))
 										Core::Parser(&Pattern).Eval(N, D);
 
 									Route->IndexFiles.push_back(Pattern);
+								}
+							}
+
+							std::vector<Core::Schema*> TryFiles = Base->FetchCollection("try-files.fallback");
+							if (Base->Fetch("try-files.[clear]") != nullptr)
+								Route->TryFiles.clear();
+
+							for (auto& File : TryFiles)
+							{
+								std::string Pattern;
+								if (NMake::Unpack(File, &Pattern))
+								{
+									if (!File->GetAttribute("use"))
+										Core::Parser(&Pattern).Eval(N, D);
+
+									Route->TryFiles.push_back(Pattern);
 								}
 							}
 

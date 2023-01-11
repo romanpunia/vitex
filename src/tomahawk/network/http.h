@@ -760,7 +760,7 @@ namespace Tomahawk
 			class TH_OUT Permissions
 			{
 			public:
-				static std::string BasicAuth(const std::string& Username, const std::string& Password);
+				static std::string Authorize(const std::string& Username, const std::string& Password, const std::string& Type = "Basic");
 				static bool Authorize(Connection* Base);
 				static bool MethodAllowed(Connection* Base);
 				static bool WebSocketUpgradeAllowed(Connection* Base);

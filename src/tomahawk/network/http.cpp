@@ -4411,9 +4411,9 @@ namespace Tomahawk
 				return Result;
 			}
 
-			std::string Permissions::BasicAuth(const std::string& Username, const std::string& Password)
+			std::string Permissions::Authorize(const std::string& Username, const std::string& Password, const std::string& Type)
 			{
-				return "Basic " + Compute::Codec::Base64Encode(Username + ':' + Password);
+				return Type + ' ' + Compute::Codec::Base64Encode(Username + ':' + Password);
 			}
 			bool Permissions::Authorize(Connection* Base)
 			{

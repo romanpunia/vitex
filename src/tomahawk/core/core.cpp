@@ -1792,12 +1792,6 @@ namespace Tomahawk
 					return true;
 				}
 
-				if (Text == PREFIX_ENUM "nan" PREFIX_ENUM)
-				{
-					Copy(Var::Decimal(Decimal::NaN()));
-					return true;
-				}
-
 				if (Text == "true")
 				{
 					Copy(Var::Boolean(true));
@@ -1855,7 +1849,7 @@ namespace Tomahawk
 				{
 					auto* Data = ((Decimal*)Value.Data);
 					if (Data->IsNaN())
-						return PREFIX_ENUM "nan" PREFIX_ENUM;
+						return PREFIX_ENUM "null" PREFIX_ENUM;
 
 					return Data->ToString();
 				}

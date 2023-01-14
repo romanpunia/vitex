@@ -4620,13 +4620,13 @@ namespace Tomahawk
 		{
 			OnFree = Callback;
 		}
-		void Mem::Watch(void* Ptr, const char* TypeName)
+		void Mem::Watch(void* Ptr, int Line, const char* Source, const char* Function, const char* TypeName)
 		{
 #ifndef NDEBUG
 			Queue.lock();
 			auto It = Buffers.find(Ptr);
 			TH_ASSERT_V(It == Buffers.end() || !It->second.Owns, "cannot watch memory that is already being tracked");
-			Buffers[Ptr] = { TypeName ? TypeName : "void", time(nullptr), sizeof(void*), false };
+			Buffers[Ptr] = { TypeName ? TypeName : "void", Function ? Function : TH_FUNCTION, Source ? Source : TH_FILE, Line > 0 ? Line : TH_LINE, time(nullptr), sizeof(void*), false };
 			Queue.unlock();
 #endif
 		}
@@ -4646,6 +4646,7 @@ namespace Tomahawk
 		void Mem::Dump(void* Ptr)
 		{
 #ifndef NDEBUG
+#if TH_DLEVEL >= 4
 			Queue.lock();
 			if (Ptr != nullptr)
 			{
@@ -4658,7 +4659,7 @@ namespace Tomahawk
 				{
 					char Date[64];
 					GetDateTime(It->second.Time, Date, sizeof(Date));
-					TH_DEBUG("[mem] address at 0x%" PRIXPTR " is active since %s as %s (%llu bytes)", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size);
+					OS::Log(4, It->second.Line, It->second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%llu bytes) at %s()", It->first, Date, It->second.TypeName.c_str(), (uint64_t)It->second.Size, It->second.Function);
 				}
 				OS::SetLogActive(IsLogActive);
 			}
@@ -4677,11 +4678,12 @@ namespace Tomahawk
 				{
 					char Date[64];
 					GetDateTime(Item.second.Time, Date, sizeof(Date));
-					TH_DEBUG("[mem] address at 0x%" PRIXPTR " is active since %s as %s (%llu bytes)", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size);
+					OS::Log(4, Item.second.Line, Item.second.Source, "[mem] address at 0x%" PRIXPTR " is active since %s as %s (%llu bytes) at %s()", Item.first, Date, Item.second.TypeName.c_str(), (uint64_t)Item.second.Size, Item.second.Function);
 				}
 				OS::SetLogActive(IsLogActive);
 			}
 			Queue.unlock();
+#endif
 #endif
 		}
 		void Mem::Free(void* Ptr)
@@ -4709,18 +4711,18 @@ namespace Tomahawk
 			return QueryRealloc(Ptr, Size);
 		}
 #ifndef NDEBUG
-		void* Mem::QueryMalloc(size_t Size, const char* TypeName)
+		void* Mem::QueryMalloc(size_t Size, int Line, const char* Source, const char* Function, const char* TypeName)
 		{
 			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
 			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
 
 			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", time(nullptr), Size, true };
+			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : TH_FUNCTION, Source ? Source : TH_FILE, Line > 0 ? Line : TH_LINE, time(nullptr), Size, true };
 			Queue.unlock();
 
 			return Result;
 		}
-		void* Mem::QueryRealloc(void* Ptr, size_t Size, const char* TypeName)
+		void* Mem::QueryRealloc(void* Ptr, size_t Size, int Line, const char* Source, const char* Function, const char* TypeName)
 		{
 			if (!Ptr)
 				return Malloc(Size);
@@ -4729,7 +4731,7 @@ namespace Tomahawk
 			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %llu bytes", (uint64_t)Size);
 
 			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", time(nullptr), Size, true };
+			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : TH_FUNCTION, Source ? Source : TH_FILE, Line > 0 ? Line : TH_LINE, time(nullptr), Size, true };
 			if (Result != Ptr)
 			{
 				auto It = Buffers.find(Ptr);
@@ -4783,7 +4785,7 @@ namespace Tomahawk
 			if (!Factory)
 				return false;
 
-			delete Factory;
+			TH_DELETE(Mapping, Factory);
 			Factory = nullptr;
 			return true;
 		}
@@ -4791,31 +4793,32 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Factory != nullptr, false, "composer should be initialized");
 
-			auto It = Factory->find(TH_COMPONENT_HASH(Hash));
-			if (It == Factory->end())
+			auto It = Factory->Map.find(TH_COMPONENT_HASH(Hash));
+			if (It == Factory->Map.end())
 				return false;
 
-			Factory->erase(It);
-			if (!Factory->empty())
+			Factory->Map.erase(It);
+			if (!Factory->Map.empty())
 				return true;
 
-			delete Factory;
+			TH_DELETE(Mapping, Factory);
 			Factory = nullptr;
 			return true;
 		}
 		void Composer::Push(uint64_t TypeId, uint64_t Tag, void* Callback)
 		{
+			using Map = Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>;
 			if (!Factory)
-				Factory = new std::unordered_map<uint64_t, std::pair<uint64_t, void*>>;
+				Factory = TH_NEW(Map);
 
-			if (Factory->find(TypeId) == Factory->end())
-				(*Factory)[TypeId] = std::make_pair(Tag, Callback);
+			if (Factory->Map.find(TypeId) == Factory->Map.end())
+				Factory->Map[TypeId] = std::make_pair(Tag, Callback);
 		}
 		void* Composer::Find(uint64_t TypeId)
 		{
 			TH_ASSERT(Factory != nullptr, nullptr, "composer should be initialized");
-			auto It = Factory->find(TypeId);
-			if (It != Factory->end())
+			auto It = Factory->Map.find(TypeId);
+			if (It != Factory->Map.end())
 				return It->second.second;
 
 			return nullptr;
@@ -4825,7 +4828,7 @@ namespace Tomahawk
 			TH_ASSERT(Factory != nullptr, std::unordered_set<uint64_t>(), "composer should be initialized");
 
 			std::unordered_set<uint64_t> Hashes;
-			for (auto& Item : *Factory)
+			for (auto& Item : Factory->Map)
 			{
 				if (Item.second.first == Id)
 					Hashes.insert(Item.first);
@@ -4833,7 +4836,7 @@ namespace Tomahawk
 
 			return Hashes;
 		}
-		std::unordered_map<uint64_t, std::pair<uint64_t, void*>>* Composer::Factory = nullptr;
+		Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>* Composer::Factory = nullptr;
 
 		Object::Object() noexcept : __vcnt(1)
 		{

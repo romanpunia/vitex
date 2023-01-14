@@ -379,7 +379,7 @@ namespace Tomahawk
 		class TH_OUT Driver
 		{
 		private:
-			static std::map<std::chrono::microseconds, Socket*>* Timeouts;
+			static Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Timeouts;
 			static std::vector<EpollFd>* Fds;
 			static std::mutex Exclusive;
 			static EpollHandle* Handle;

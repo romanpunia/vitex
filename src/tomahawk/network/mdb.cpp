@@ -3412,7 +3412,8 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (State <= 0)
 				{
-					Queries = new std::unordered_map<std::string, Sequence>();
+					using Map = Core::Mapping<std::unordered_map<std::string, Sequence>>;
+					Queries = TH_NEW(Map);
 					Safe = TH_NEW(std::mutex);
 					mongoc_log_set_handler([](mongoc_log_level_t Level, const char* Domain, const char* Message, void*)
 					{
@@ -3461,7 +3462,7 @@ namespace Tomahawk
 					State = 0;
 					if (Queries != nullptr)
 					{
-						delete Queries;
+						TH_DELETE(Mapping, Queries);
 						Queries = nullptr;
 					}
 
@@ -3615,7 +3616,7 @@ namespace Tomahawk
 					Result.Cache = Document::FromJSON(Result.Request);
 
 				Safe->lock();
-				(*Queries)[Name] = std::move(Result);
+				Queries->Map[Name] = std::move(Result);
 				Safe->unlock();
 
 				return true;
@@ -3658,14 +3659,14 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
 				Safe->lock();
-				auto It = Queries->find(Name);
-				if (It == Queries->end())
+				auto It = Queries->Map.find(Name);
+				if (It == Queries->Map.end())
 				{
 					Safe->unlock();
 					return false;
 				}
 
-				Queries->erase(It);
+				Queries->Map.erase(It);
 				Safe->unlock();
 				return true;
 			}
@@ -3673,8 +3674,8 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
 				Safe->lock();
-				auto It = Queries->find(Name);
-				if (It == Queries->end())
+				auto It = Queries->Map.find(Name);
+				if (It == Queries->Map.end())
 				{
 					Safe->unlock();
 					if (Once && Map != nullptr)
@@ -3759,8 +3760,8 @@ namespace Tomahawk
 				TH_ASSERT(Queries && Safe, Result, "driver should be initialized");
 
 				Safe->lock();
-				Result.reserve(Queries->size());
-				for (auto& Item : *Queries)
+				Result.reserve(Queries->Map.size());
+				for (auto& Item : Queries->Map)
 					Result.push_back(Item.first);
 				Safe->unlock();
 
@@ -3833,7 +3834,7 @@ namespace Tomahawk
 
 				return "";
 			}
-			std::unordered_map<std::string, Driver::Sequence>* Driver::Queries = nullptr;
+			Core::Mapping<std::unordered_map<std::string, Driver::Sequence>>* Driver::Queries = nullptr;
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<int> Driver::State(0);
 			OnQueryLog Driver::Logger = nullptr;

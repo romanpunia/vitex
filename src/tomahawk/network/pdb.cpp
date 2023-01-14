@@ -2168,8 +2168,10 @@ namespace Tomahawk
 #ifdef TH_HAS_POSTGRESQL
 				if (State <= 0)
 				{
-					Queries = new std::unordered_map<std::string, Sequence>();
-					Constants = new std::unordered_map<std::string, std::string>();
+					using Map1 = Core::Mapping<std::unordered_map<std::string, Sequence>>;
+					using Map2 = Core::Mapping<std::unordered_map<std::string, std::string>>;
+					Queries = TH_NEW(Map1);
+					Constants = TH_NEW(Map2);
 					Safe = TH_NEW(std::mutex);
 					State = 1;
 				}
@@ -2188,8 +2190,14 @@ namespace Tomahawk
 					State = 0;
 					if (Queries != nullptr)
 					{
-						delete Queries;
+						TH_DELETE(Mapping, Queries);
 						Queries = nullptr;
+					}
+
+					if (Constants != nullptr)
+					{
+						TH_DELETE(Mapping, Constants);
+						Constants = nullptr;
 					}
 
 					if (Safe != nullptr)
@@ -2218,7 +2226,7 @@ namespace Tomahawk
 				TH_ASSERT(!Name.empty(), false, "name should not be empty");
 
 				Safe->lock();
-				(*Constants)[Name] = Value;
+				Constants->Map[Name] = Value;
 				Safe->unlock();
 				return true;
 			}
@@ -2312,8 +2320,8 @@ namespace Tomahawk
 						{
 							std::string Constant = Base.R().substr(Index + 1, Size);
 							Safe->lock();
-							auto It = Constants->find(Constant);
-							if (It != Constants->end())
+							auto It = Constants->Map.find(Constant);
+							if (It != Constants->Map.end())
 							{
 								Base.ReplacePart(Index, Next, It->second);
 								Index += It->second.size();
@@ -2380,7 +2388,7 @@ namespace Tomahawk
 					Result.Cache = Result.Request;
 
 				Safe->lock();
-				(*Queries)[Name] = Result;
+				Queries->Map[Name] = Result;
 				Safe->unlock();
 
 				return true;
@@ -2426,14 +2434,14 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Constants && Safe, false, "driver should be initialized");
 				Safe->lock();
-				auto It = Constants->find(Name);
-				if (It == Constants->end())
+				auto It = Constants->Map.find(Name);
+				if (It == Constants->Map.end())
 				{
 					Safe->unlock();
 					return false;
 				}
 
-				Constants->erase(It);
+				Constants->Map.erase(It);
 				Safe->unlock();
 				return true;
 			}
@@ -2441,14 +2449,14 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
 				Safe->lock();
-				auto It = Queries->find(Name);
-				if (It == Queries->end())
+				auto It = Queries->Map.find(Name);
+				if (It == Queries->Map.end())
 				{
 					Safe->unlock();
 					return false;
 				}
 
-				Queries->erase(It);
+				Queries->Map.erase(It);
 				Safe->unlock();
 				return true;
 			}
@@ -2517,8 +2525,8 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Queries && Safe, std::string(), "driver should be initialized");
 				Safe->lock();
-				auto It = Queries->find(Name);
-				if (It == Queries->end())
+				auto It = Queries->Map.find(Name);
+				if (It == Queries->Map.end())
 				{
 					Safe->unlock();
 					if (Once && Map != nullptr)
@@ -2604,8 +2612,8 @@ namespace Tomahawk
 				TH_ASSERT(Queries && Safe, Result, "driver should be initialized");
 
 				Safe->lock();
-				Result.reserve(Queries->size());
-				for (auto& Item : *Queries)
+				Result.reserve(Queries->Map.size());
+				for (auto& Item : Queries->Map)
 					Result.push_back(Item.first);
 				Safe->unlock();
 
@@ -2717,8 +2725,8 @@ namespace Tomahawk
 
 				return "NULL";
 			}
-			std::unordered_map<std::string, Driver::Sequence>* Driver::Queries = nullptr;
-			std::unordered_map<std::string, std::string>* Driver::Constants = nullptr;
+			Core::Mapping<std::unordered_map<std::string, Driver::Sequence>>* Driver::Queries = nullptr;
+			Core::Mapping<std::unordered_map<std::string, std::string>>* Driver::Constants = nullptr;
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<bool> Driver::Active(false);
 			std::atomic<int> Driver::State(0);

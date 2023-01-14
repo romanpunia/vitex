@@ -170,10 +170,10 @@ typedef socklen_t socket_size_t;
 #define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::PerfPop(); return __vfbuf; }
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FUNCTION "(): " TH_STRINGIFY(Value))
 #define TH_CLOSE(Stream) { TH_DEBUG("[io] close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
-#define TH_WATCH(Ptr, Label) Tomahawk::Core::Mem::Watch(Ptr, Label)
+#define TH_WATCH(Ptr, Label) Tomahawk::Core::Mem::Watch(Ptr, TH_LINE, TH_FILE, TH_FUNCTION, Label)
 #define TH_UNWATCH(Ptr) Tomahawk::Core::Mem::Unwatch(Ptr)
-#define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size, #Type)
-#define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size, #Type)
+#define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size, TH_LINE, TH_FILE, TH_FUNCTION, #Type)
+#define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size, TH_LINE, TH_FILE, TH_FUNCTION, #Type)
 #define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #else
 #define TH_ASSERT(Condition, Returnable, Format, ...) ((void)0)
@@ -345,6 +345,15 @@ namespace Tomahawk
 		typedef std::function<bool()> ActivityCallback;
 		typedef uint64_t TaskId;
 		typedef Decimal BigNumber;
+
+		template <typename Type>
+		struct Mapping
+		{
+			Type Map;
+
+			Mapping() = default;
+			~Mapping() = default;
+		};
 
 		struct TH_OUT Coroutine
 		{
@@ -871,6 +880,9 @@ namespace Tomahawk
 			struct MemBuffer
 			{
 				std::string TypeName;
+				const char* Function;
+				const char* Source;
+				int Line;
 				time_t Time;
 				size_t Size;
 				bool Owns;
@@ -889,7 +901,7 @@ namespace Tomahawk
 			static void SetAlloc(const AllocCallback& Callback);
 			static void SetRealloc(const ReallocCallback& Callback);
 			static void SetFree(const FreeCallback& Callback);
-			static void Watch(void* Ptr, const char* TypeName = nullptr);
+			static void Watch(void* Ptr, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
 			static void Unwatch(void* Ptr);
 			static void Dump(void* Ptr = nullptr);
 			static void Free(Unique<void> Ptr);
@@ -898,8 +910,8 @@ namespace Tomahawk
 
 		public:
 #ifndef NDEBUG
-			static Unique<void> QueryMalloc(size_t Size, const char* TypeName = nullptr);
-			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size, const char* TypeName = nullptr);
+			static Unique<void> QueryMalloc(size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
+			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
 #else
 			static Unique<void> QueryMalloc(size_t Size);
 			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size);
@@ -1206,7 +1218,7 @@ namespace Tomahawk
 		class TH_OUT Composer
 		{
 		private:
-			static std::unordered_map<uint64_t, std::pair<uint64_t, void*>>* Factory;
+			static Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>* Factory;
 
 		public:
 			static void AddRef(Object* Value);

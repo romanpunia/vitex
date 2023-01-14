@@ -568,8 +568,8 @@ namespace Tomahawk
 				};
 
 			private:
-				static std::unordered_map<std::string, Sequence>* Queries;
-				static std::unordered_map<std::string, std::string>* Constants;
+				static Core::Mapping<std::unordered_map<std::string, Sequence>>* Queries;
+				static Core::Mapping<std::unordered_map<std::string, std::string>>* Constants;
 				static std::mutex* Safe;
 				static std::atomic<bool> Active;
 				static std::atomic<int> State;

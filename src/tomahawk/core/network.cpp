@@ -1740,8 +1740,9 @@ namespace Tomahawk
 			TH_ASSERT_V(MaxEvents > 0, "array size should be greater than zero");
 			TH_DELETE(EpollHandle, Handle);
 
+			using Map = Core::Mapping<std::map<std::chrono::microseconds, Socket*>>;
 			if (!Timeouts)
-				Timeouts = new std::map<std::chrono::microseconds, Socket*>();
+				Timeouts = TH_NEW(Map);
 
 			if (!Fds)
 				Fds = TH_NEW(std::vector<EpollFd>);
@@ -1753,7 +1754,7 @@ namespace Tomahawk
 		{
 			if (Timeouts != nullptr)
 			{
-				delete Timeouts;
+				TH_DELETE(Mapping, Timeouts);
 				Timeouts = nullptr;
 			}
 
@@ -1790,20 +1791,20 @@ namespace Tomahawk
 			}
 
 			TH_PPOP();
-			if (Timeouts->empty())
+			if (Timeouts->Map.empty())
 				return Count;
 
 			TH_PPUSH(TH_PERF_IO);
 			Exclusive.lock();
-			while (!Timeouts->empty())
+			while (!Timeouts->Map.empty())
 			{
-				auto It = Timeouts->begin();
+				auto It = Timeouts->Map.begin();
 				if (It->first > Time)
 					break;
 
 				TH_DEBUG("[net] sock timeout on fd %i", (int)It->second->Fd);
 				CancelEvents(It->second, SocketPoll::Timeout, false);
-				Timeouts->erase(It);
+				Timeouts->Map.erase(It);
 			}
 			Exclusive.unlock();
 
@@ -2025,7 +2026,7 @@ namespace Tomahawk
 		void Driver::AddTimeout(Socket* Value, const std::chrono::microseconds& Time)
 		{
 			Value->Events.ExpiresAt = Time;
-			Timeouts->insert(std::make_pair(Time, Value));
+			Timeouts->Map.insert(std::make_pair(Time, Value));
 		}
 		void Driver::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time)
 		{
@@ -2034,10 +2035,10 @@ namespace Tomahawk
 		}
 		void Driver::RemoveTimeout(Socket* Value)
 		{
-			auto It = Timeouts->find(Value->Events.ExpiresAt);
-			if (It == Timeouts->end())
+			auto It = Timeouts->Map.find(Value->Events.ExpiresAt);
+			if (It == Timeouts->Map.end())
 			{
-				for (auto I = Timeouts->begin(); I != Timeouts->end(); ++I)
+				for (auto I = Timeouts->Map.begin(); I != Timeouts->Map.end(); ++I)
 				{
 					if (I->second == Value)
 					{
@@ -2047,11 +2048,11 @@ namespace Tomahawk
 				}
 			}
 
-			if (It != Timeouts->end())
-				Timeouts->erase(It);
+			if (It != Timeouts->Map.end())
+				Timeouts->Map.erase(It);
 		}
 		EpollHandle* Driver::Handle = nullptr;
-		std::map<std::chrono::microseconds, Socket*>* Driver::Timeouts = nullptr;
+		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Driver::Timeouts = nullptr;
 		std::vector<EpollFd>* Driver::Fds = nullptr;
 		std::mutex Driver::Exclusive;
 

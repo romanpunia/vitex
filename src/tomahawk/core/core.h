@@ -838,7 +838,7 @@ namespace Tomahawk
 				Guard* Base;
 
 			public:
-				Loaded(Loaded& Other);
+				Loaded(Loaded&& Other);
 				Loaded& operator =(Loaded&& Other);
 				~Loaded();
 				void Close();
@@ -2138,8 +2138,9 @@ namespace Tomahawk
 				Guarded* Base;
 
 			public:
-				Loaded(Loaded& Other) : Base(Other.Base)
+				Loaded(Loaded&& Other) : Base(Other.Base)
 				{
+					Other.Base = nullptr;
 				}
 				Loaded& operator =(Loaded&& Other)
 				{

@@ -4404,8 +4404,9 @@ namespace Tomahawk
 		Guard::Loaded::Loaded(Guard* NewBase) : Base(NewBase)
 		{
 		}
-		Guard::Loaded::Loaded(Loaded& Other) : Base(Other.Base)
+		Guard::Loaded::Loaded(Loaded&& Other) : Base(Other.Base)
 		{
+			Other.Base = nullptr;
 		}
 		Guard::Loaded& Guard::Loaded::operator =(Loaded&& Other)
 		{

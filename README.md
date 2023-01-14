@@ -49,6 +49,7 @@ There are two basic rules of memory ownership:
 + Coasync/Coawait primitives to handle async functions like in JS
 + BigNumber for accuracy sensitive operations of any precision
 + Category-based tasking for event queue to process blocking and non-blocking tasks
++ Synchronization primitives: spin lock (Spin), readers-writer lock (Guard)
 #### Math
 + Vertices
 + Vectors

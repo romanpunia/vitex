@@ -205,7 +205,7 @@ namespace Tomahawk
 				return static_cast<uint64_t>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
 			}
 
-			class TH_OUT Util
+			class TH_OUT_TS Util
 			{
 			public:
 				static std::string InlineArray(Cluster* Client, Core::Unique<Core::Schema> Array);
@@ -489,7 +489,7 @@ namespace Tomahawk
 				bool IsPending() const;
 			};
 
-			class TH_OUT Cluster : public Core::Object
+			class TH_OUT_TS Cluster : public Core::Object
 			{
 				friend Driver;
 
@@ -549,7 +549,7 @@ namespace Tomahawk
 				bool Transact(Connection* Base, Request* Token);
 			};
 
-			class TH_OUT Driver
+			class TH_OUT_TS Driver
 			{
 			private:
 				struct Pose

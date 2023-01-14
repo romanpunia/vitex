@@ -1217,7 +1217,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT Ciphers
+		class TH_OUT_TS Ciphers
 		{
 		public:
 			static Cipher DES_ECB();
@@ -1368,7 +1368,7 @@ namespace Tomahawk
 			static Cipher SM4_CTR();
 		};
 
-		class TH_OUT Digests
+		class TH_OUT_TS Digests
 		{
 		public:
 			static Digest MD2();
@@ -1396,7 +1396,7 @@ namespace Tomahawk
 			static Digest SM3();
 		};
 
-		class TH_OUT Crypto
+		class TH_OUT_TS Crypto
 		{
 		public:
 			static std::string RandomBytes(uint64_t Length);
@@ -1426,7 +1426,7 @@ namespace Tomahawk
 			static void DisplayCryptoLog();
 		};
 
-		class TH_OUT Codec
+		class TH_OUT_TS Codec
 		{
 		public:
 			static std::string Move(const std::string& Text, int Offset);
@@ -1465,7 +1465,7 @@ namespace Tomahawk
 			static bool IsBase64(unsigned char Value);
 		};
 
-		class TH_OUT Geometric
+		class TH_OUT_TS Geometric
 		{
 		private:
 			static bool LeftHanded;
@@ -1505,7 +1505,7 @@ namespace Tomahawk
 			static float FastSqrt(float Value);
 		};
 
-		class TH_OUT Regex
+		class TH_OUT_TS Regex
 		{
 			friend RegexSource;
 
@@ -1594,7 +1594,7 @@ namespace Tomahawk
 			void Clear();
 			bool IsDefined(const char* Name) const;
 			bool Process(const std::string& Path, std::string& Buffer);
-			const std::string& GetCurrentFilePath();
+			const std::string& GetCurrentFilePath() const;
 
 		private:
 			bool SaveResult();
@@ -1682,32 +1682,32 @@ namespace Tomahawk
 			void SetPivot(Transform* Root, Spacing* Pivot);
 			void SetRoot(Transform* Root);
 			void GetBounds(Matrix4x4& World, Vector3& Min, Vector3& Max);
-			bool HasRoot(Transform* Target);
-			bool HasChild(Transform* Target);
-			bool HasScaling();
-			bool IsDirty();
-			const Matrix4x4& GetBias();
-			const Matrix4x4& GetBiasUnscaled();
-			const Vector3& GetPosition();
-			const Vector3& GetRotation();
-			const Vector3& GetScale();
-			Vector3 Forward(bool ViewSpace = false);
-			Vector3 Right(bool ViewSpace = false);
-			Vector3 Up(bool ViewSpace = false);
+			bool HasRoot(const Transform* Target) const;
+			bool HasChild(Transform* Target) const;
+			bool HasScaling() const;
+			bool IsDirty() const;
+			const Matrix4x4& GetBias() const;
+			const Matrix4x4& GetBiasUnscaled() const;
+			const Vector3& GetPosition() const;
+			const Vector3& GetRotation() const;
+			const Vector3& GetScale() const;
+			Vector3 Forward(bool ViewSpace = false) const;
+			Vector3 Right(bool ViewSpace = false) const;
+			Vector3 Up(bool ViewSpace = false) const;
 			Spacing& GetSpacing();
 			Spacing& GetSpacing(Positioning Space);
-			Transform* GetRoot();
-			Transform* GetUpperRoot();
-			Transform* GetChild(size_t Child);
-			size_t GetChildsCount();
+			Transform* GetRoot() const;
+			Transform* GetUpperRoot() const;
+			Transform* GetChild(size_t Child) const;
+			size_t GetChildsCount() const;
 			std::vector<Transform*>& GetChilds();
 
 		protected:
-			bool CanRootBeApplied(Transform* Root);
+			bool CanRootBeApplied(Transform* Root) const;
 
 		public:
 			template <typename In>
-			In* Ptr()
+			In* Ptr() const
 			{
 				return (In*)UserPointer;
 			}
@@ -1866,43 +1866,43 @@ namespace Tomahawk
 			void SetLinearFactor(const Vector3& Value);
 			void SetLinearVelocity(const Vector3& Value);
 			void SetAngularVelocity(const Vector3& Value);
-			MotionState GetActivationState();
-			Shape GetCollisionShapeType();
-			Vector3 GetAngularFactor();
-			Vector3 GetAnisotropicFriction();
-			Vector3 GetGravity();
-			Vector3 GetLinearFactor();
-			Vector3 GetLinearVelocity();
-			Vector3 GetAngularVelocity();
-			Vector3 GetScale();
-			Vector3 GetPosition();
-			Vector3 GetRotation();
-			btTransform* GetWorldTransform();
-			btCollisionShape* GetCollisionShape();
-			btRigidBody* Get();
-			bool IsActive();
-			bool IsStatic();
-			bool IsGhost();
-			bool IsColliding();
-			float GetSpinningFriction();
-			float GetContactStiffness();
-			float GetContactDamping();
-			float GetAngularDamping();
-			float GetAngularSleepingThreshold();
-			float GetFriction();
-			float GetRestitution();
-			float GetHitFraction();
-			float GetLinearDamping();
-			float GetLinearSleepingThreshold();
-			float GetCcdMotionThreshold();
-			float GetCcdSweptSphereRadius();
-			float GetContactProcessingThreshold();
-			float GetDeactivationTime();
-			float GetRollingFriction();
-			float GetMass();
-			uint64_t GetCollisionFlags();
+			MotionState GetActivationState() const;
+			Shape GetCollisionShapeType() const;
+			Vector3 GetAngularFactor() const;
+			Vector3 GetAnisotropicFriction() const;
+			Vector3 GetGravity() const;
+			Vector3 GetLinearFactor() const;
+			Vector3 GetLinearVelocity() const;
+			Vector3 GetAngularVelocity() const;
+			Vector3 GetScale() const;
+			Vector3 GetPosition() const;
+			Vector3 GetRotation() const;
+			btTransform* GetWorldTransform() const;
+			btCollisionShape* GetCollisionShape() const;
+			btRigidBody* Get() const;
+			bool IsActive() const;
+			bool IsStatic() const;
+			bool IsGhost() const;
+			bool IsColliding() const;
+			float GetSpinningFriction() const;
+			float GetContactStiffness() const;
+			float GetContactDamping() const;
+			float GetAngularDamping() const;
+			float GetAngularSleepingThreshold() const;
+			float GetFriction() const;
+			float GetRestitution() const;
+			float GetHitFraction() const;
+			float GetLinearDamping() const;
+			float GetLinearSleepingThreshold() const;
+			float GetCcdMotionThreshold() const;
+			float GetCcdSweptSphereRadius() const;
+			float GetContactProcessingThreshold() const;
+			float GetDeactivationTime() const;
+			float GetRollingFriction() const;
+			float GetMass() const;
+			uint64_t GetCollisionFlags() const;
 			Desc& GetInitialState();
-			Simulator* GetSimulator();
+			Simulator* GetSimulator() const;
 
 		public:
 			static RigidBody* Get(btRigidBody* From);
@@ -2025,9 +2025,9 @@ namespace Tomahawk
 			Core::Unique<SoftBody> Copy();
 			void Activate(bool Force);
 			void Synchronize(Transform* Transform, bool Kinematic);
-			void GetIndices(std::vector<int>* Indices);
-			void GetVertices(std::vector<Vertex>* Vertices);
-			void GetBoundingBox(Vector3* Min, Vector3* Max);
+			void GetIndices(std::vector<int>* Indices) const;
+			void GetVertices(std::vector<Vertex>* Vertices) const;
+			void GetBoundingBox(Vector3* Min, Vector3* Max) const;
 			void SetContactStiffnessAndDamping(float Stiffness, float Damping);
 			void AddAnchor(int Node, RigidBody* Body, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
 			void AddAnchor(int Node, RigidBody* Body, const Vector3& LocalPivot, bool DisableCollisionBetweenLinkedBodies = false, float Influence = 1);
@@ -2050,20 +2050,20 @@ namespace Tomahawk
 			void SetPose(bool Volume, bool Frame);
 			float GetMass(int Node) const;
 			float GetTotalMass() const;
-			float GetRestLengthScale();
+			float GetRestLengthScale() const;
 			float GetVolume() const;
 			int GenerateBendingConstraints(int Distance);
 			void RandomizeConstraints();
 			bool CutLink(int Node0, int Node1, float Position);
 			bool RayTest(const Vector3& From, const Vector3& To, RayCast& Result);
 			void SetWindVelocity(const Vector3& Velocity);
-			Vector3 GetWindVelocity();
+			Vector3 GetWindVelocity() const;
 			void GetAabb(Vector3& Min, Vector3& Max) const;
 			void IndicesToPointers(const int* Map = 0);
 			void SetSpinningFriction(float Value);
-			Vector3 GetLinearVelocity();
-			Vector3 GetAngularVelocity();
-			Vector3 GetCenterPosition();
+			Vector3 GetLinearVelocity() const;
+			Vector3 GetAngularVelocity() const;
+			Vector3 GetCenterPosition() const;
 			void SetActivity(bool Active);
 			void SetAsGhost();
 			void SetAsNormal();
@@ -2082,33 +2082,33 @@ namespace Tomahawk
 			void SetRollingFriction(float Value);
 			void SetAnisotropicFriction(const Vector3& Value);
 			void SetConfig(const Desc::SConfig& Conf);
-			Shape GetCollisionShapeType();
-			MotionState GetActivationState();
-			Vector3 GetAnisotropicFriction();
-			Vector3 GetScale();
-			Vector3 GetPosition();
-			Vector3 GetRotation();
-			btTransform* GetWorldTransform();
-			btSoftBody* Get();
-			bool IsActive();
-			bool IsStatic();
-			bool IsGhost();
-			bool IsColliding();
-			float GetSpinningFriction();
-			float GetContactStiffness();
-			float GetContactDamping();
-			float GetFriction();
-			float GetRestitution();
-			float GetHitFraction();
-			float GetCcdMotionThreshold();
-			float GetCcdSweptSphereRadius();
-			float GetContactProcessingThreshold();
-			float GetDeactivationTime();
-			float GetRollingFriction();
-			uint64_t GetCollisionFlags();
-			uint64_t GetVerticesCount();
+			Shape GetCollisionShapeType() const;
+			MotionState GetActivationState() const;
+			Vector3 GetAnisotropicFriction() const;
+			Vector3 GetScale() const;
+			Vector3 GetPosition() const;
+			Vector3 GetRotation() const;
+			btTransform* GetWorldTransform() const;
+			btSoftBody* Get() const;
+			bool IsActive() const;
+			bool IsStatic() const;
+			bool IsGhost() const;
+			bool IsColliding() const;
+			float GetSpinningFriction() const;
+			float GetContactStiffness() const;
+			float GetContactDamping() const;
+			float GetFriction() const;
+			float GetRestitution() const;
+			float GetHitFraction() const;
+			float GetCcdMotionThreshold() const;
+			float GetCcdSweptSphereRadius() const;
+			float GetContactProcessingThreshold() const;
+			float GetDeactivationTime() const;
+			float GetRollingFriction() const;
+			uint64_t GetCollisionFlags() const;
+			uint64_t GetVerticesCount() const;
 			Desc& GetInitialState();
-			Simulator* GetSimulator();
+			Simulator* GetSimulator() const;
 
 		public:
 			static SoftBody* Get(btSoftBody* From);
@@ -2128,17 +2128,17 @@ namespace Tomahawk
 
 		public:
 			virtual ~Constraint() = default;
-			virtual Core::Unique<Constraint> Copy() = 0;
-			virtual btTypedConstraint* Get() = 0;
-			virtual bool HasCollisions() = 0;
+			virtual Core::Unique<Constraint> Copy() const = 0;
+			virtual btTypedConstraint* Get() const = 0;
+			virtual bool HasCollisions() const = 0;
 			void SetBreakingImpulseThreshold(float Value);
 			void SetEnabled(bool Value);
-			bool IsEnabled();
-			bool IsActive();
-			float GetBreakingImpulseThreshold();
-			btRigidBody* GetFirst();
-			btRigidBody* GetSecond();
-			Simulator* GetSimulator();
+			bool IsEnabled() const;
+			bool IsActive() const;
+			float GetBreakingImpulseThreshold() const;
+			btRigidBody* GetFirst() const;
+			btRigidBody* GetSecond() const;
+			Simulator* GetSimulator() const;
 		};
 
 		class TH_OUT PConstraint : public Constraint
@@ -2165,13 +2165,13 @@ namespace Tomahawk
 
 		public:
 			virtual ~PConstraint() override;
-			virtual Core::Unique<Constraint> Copy() override;
-			virtual btTypedConstraint* Get() override;
-			virtual bool HasCollisions() override;
+			virtual Core::Unique<Constraint> Copy() const override;
+			virtual btTypedConstraint* Get() const override;
+			virtual bool HasCollisions() const override;
 			void SetPivotA(const Vector3& Value);
 			void SetPivotB(const Vector3& Value);
-			Vector3 GetPivotA();
-			Vector3 GetPivotB();
+			Vector3 GetPivotA() const;
+			Vector3 GetPivotB() const;
 			Desc& GetState();
 		};
 
@@ -2198,9 +2198,9 @@ namespace Tomahawk
 
 		public:
 			virtual ~HConstraint() override;
-			virtual Core::Unique<Constraint> Copy() override;
-			virtual btTypedConstraint* Get() override;
-			virtual bool HasCollisions() override;
+			virtual Core::Unique<Constraint> Copy() const override;
+			virtual btTypedConstraint* Get() const override;
+			virtual bool HasCollisions() const override;
 			void EnableAngularMotor(bool Enable, float TargetVelocity, float MaxMotorImpulse);
 			void EnableMotor(bool Enable);
 			void TestLimit(const Matrix4x4& A, const Matrix4x4& B);
@@ -2213,22 +2213,22 @@ namespace Tomahawk
 			void SetOffset(bool Value);
 			void SetReferenceToA(bool Value);
 			void SetAxis(const Vector3& Value);
-			int GetSolveLimit();
-			float GetMotorTargetVelocity();
-			float GetMaxMotorImpulse();
-			float GetLimitSign();
-			float GetHingeAngle();
-			float GetHingeAngle(const Matrix4x4& A, const Matrix4x4& B);
-			float GetLowerLimit();
-			float GetUpperLimit();
-			float GetLimitSoftness();
-			float GetLimitBiasFactor();
-			float GetLimitRelaxationFactor();
-			bool HasLimit();
-			bool IsOffset();
-			bool IsReferenceToA();
-			bool IsAngularOnly();
-			bool IsAngularMotorEnabled();
+			int GetSolveLimit() const;
+			float GetMotorTargetVelocity() const;
+			float GetMaxMotorImpulse() const;
+			float GetLimitSign() const;
+			float GetHingeAngle() const;
+			float GetHingeAngle(const Matrix4x4& A, const Matrix4x4& B) const;
+			float GetLowerLimit() const;
+			float GetUpperLimit() const;
+			float GetLimitSoftness() const;
+			float GetLimitBiasFactor() const;
+			float GetLimitRelaxationFactor() const;
+			bool HasLimit() const;
+			bool IsOffset() const;
+			bool IsReferenceToA() const;
+			bool IsAngularOnly() const;
+			bool IsAngularMotorEnabled() const;
 			Desc& GetState();
 		};
 
@@ -2255,9 +2255,9 @@ namespace Tomahawk
 
 		public:
 			virtual ~SConstraint() override;
-			virtual Core::Unique<Constraint> Copy() override;
-			virtual btTypedConstraint* Get() override;
-			virtual bool HasCollisions() override;
+			virtual Core::Unique<Constraint> Copy() const override;
+			virtual btTypedConstraint* Get() const override;
+			virtual bool HasCollisions() const override;
 			void SetAngularMotorVelocity(float Value);
 			void SetLinearMotorVelocity(float Value);
 			void SetUpperLinearLimit(float Value);
@@ -2286,34 +2286,34 @@ namespace Tomahawk
 			void SetLinearSoftnessOrtho(float Value);
 			void SetPoweredAngularMotor(bool Value);
 			void SetPoweredLinearMotor(bool Value);
-			float GetAngularMotorVelocity();
-			float GetLinearMotorVelocity();
-			float GetUpperLinearLimit();
-			float GetLowerLinearLimit();
-			float GetAngularDampingDirection();
-			float GetLinearDampingDirection();
-			float GetAngularDampingLimit();
-			float GetLinearDampingLimit();
-			float GetAngularDampingOrtho();
-			float GetLinearDampingOrtho();
-			float GetUpperAngularLimit();
-			float GetLowerAngularLimit();
-			float GetMaxAngularMotorForce();
-			float GetMaxLinearMotorForce();
-			float GetAngularRestitutionDirection();
-			float GetLinearRestitutionDirection();
-			float GetAngularRestitutionLimit();
-			float GetLinearRestitutionLimit();
-			float GetAngularRestitutionOrtho();
-			float GetLinearRestitutionOrtho();
-			float GetAngularSoftnessDirection();
-			float GetLinearSoftnessDirection();
-			float GetAngularSoftnessLimit();
-			float GetLinearSoftnessLimit();
-			float GetAngularSoftnessOrtho();
-			float GetLinearSoftnessOrtho();
-			bool GetPoweredAngularMotor();
-			bool GetPoweredLinearMotor();
+			float GetAngularMotorVelocity() const;
+			float GetLinearMotorVelocity() const;
+			float GetUpperLinearLimit() const;
+			float GetLowerLinearLimit() const;
+			float GetAngularDampingDirection() const;
+			float GetLinearDampingDirection() const;
+			float GetAngularDampingLimit() const;
+			float GetLinearDampingLimit() const;
+			float GetAngularDampingOrtho() const;
+			float GetLinearDampingOrtho() const;
+			float GetUpperAngularLimit() const;
+			float GetLowerAngularLimit() const;
+			float GetMaxAngularMotorForce() const;
+			float GetMaxLinearMotorForce() const;
+			float GetAngularRestitutionDirection() const;
+			float GetLinearRestitutionDirection() const;
+			float GetAngularRestitutionLimit() const;
+			float GetLinearRestitutionLimit() const;
+			float GetAngularRestitutionOrtho() const;
+			float GetLinearRestitutionOrtho() const;
+			float GetAngularSoftnessDirection() const;
+			float GetLinearSoftnessDirection() const;
+			float GetAngularSoftnessLimit() const;
+			float GetLinearSoftnessLimit() const;
+			float GetAngularSoftnessOrtho() const;
+			float GetLinearSoftnessOrtho() const;
+			bool GetPoweredAngularMotor() const;
+			bool GetPoweredLinearMotor() const;
 			Desc& GetState();
 		};
 
@@ -2339,9 +2339,9 @@ namespace Tomahawk
 
 		public:
 			virtual ~CTConstraint() override;
-			virtual Core::Unique<Constraint> Copy() override;
-			virtual btTypedConstraint* Get() override;
-			virtual bool HasCollisions() override;
+			virtual Core::Unique<Constraint> Copy() const override;
+			virtual btTypedConstraint* Get() const override;
+			virtual bool HasCollisions() const override;
 			void EnableMotor(bool Value);
 			void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
 			void SetAngularOnly(bool Value);
@@ -2353,26 +2353,26 @@ namespace Tomahawk
 			void SetFixThresh(float Value);
 			void SetMotorTarget(const Quaternion& Value);
 			void SetMotorTargetInConstraintSpace(const Quaternion& Value);
-			Vector3 GetPointForAngle(float AngleInRadians, float Length);
-			Quaternion GetMotorTarget();
-			int GetSolveTwistLimit();
-			int GetSolveSwingLimit();
-			float GetTwistLimitSign();
-			float GetSwingSpan1();
-			float GetSwingSpan2();
-			float GetTwistSpan();
-			float GetLimitSoftness();
-			float GetBiasFactor();
-			float GetRelaxationFactor();
-			float GetTwistAngle();
-			float GetLimit(int Value);
-			float GetDamping();
-			float GetMaxMotorImpulse();
-			float GetFixThresh();
-			bool IsMotorEnabled();
-			bool IsMaxMotorImpulseNormalized();
-			bool IsPastSwingLimit();
-			bool IsAngularOnly();
+			Vector3 GetPointForAngle(float AngleInRadians, float Length) const;
+			Quaternion GetMotorTarget() const;
+			int GetSolveTwistLimit() const;
+			int GetSolveSwingLimit() const;
+			float GetTwistLimitSign() const;
+			float GetSwingSpan1() const;
+			float GetSwingSpan2() const;
+			float GetTwistSpan() const;
+			float GetLimitSoftness() const;
+			float GetBiasFactor() const;
+			float GetRelaxationFactor() const;
+			float GetTwistAngle() const;
+			float GetLimit(int Value) const;
+			float GetDamping() const;
+			float GetMaxMotorImpulse() const;
+			float GetFixThresh() const;
+			bool IsMotorEnabled() const;
+			bool IsMaxMotorImpulseNormalized() const;
+			bool IsPastSwingLimit() const;
+			bool IsAngularOnly() const;
 			Desc& GetState();
 		};
 
@@ -2398,9 +2398,9 @@ namespace Tomahawk
 
 		public:
 			virtual ~DF6Constraint() override;
-			virtual Core::Unique<Constraint> Copy() override;
-			virtual btTypedConstraint* Get() override;
-			virtual bool HasCollisions() override;
+			virtual Core::Unique<Constraint> Copy() const override;
+			virtual btTypedConstraint* Get() const override;
+			virtual bool HasCollisions() const override;
 			void EnableMotor(int Index, bool OnOff);
 			void EnableSpring(int Index, bool OnOff);
 			void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
@@ -2423,17 +2423,17 @@ namespace Tomahawk
 			void SetEquilibriumPoint();
 			void SetEquilibriumPoint(int Index);
 			void SetEquilibriumPoint(int Index, float Value);
-			Vector3 GetAngularUpperLimit();
-			Vector3 GetAngularUpperLimitReversed();
-			Vector3 GetAngularLowerLimit();
-			Vector3 GetAngularLowerLimitReversed();
-			Vector3 GetLinearUpperLimit();
-			Vector3 GetLinearLowerLimit();
-			Vector3 GetAxis(int Value);
-			Rotator GetRotationOrder();
-			float GetAngle(int Value);
-			float GetRelativePivotPosition(int Value);
-			bool IsLimited(int LimitIndex);
+			Vector3 GetAngularUpperLimit() const;
+			Vector3 GetAngularUpperLimitReversed() const;
+			Vector3 GetAngularLowerLimit() const;
+			Vector3 GetAngularLowerLimitReversed() const;
+			Vector3 GetLinearUpperLimit() const;
+			Vector3 GetLinearLowerLimit() const;
+			Vector3 GetAxis(int Value) const;
+			Rotator GetRotationOrder() const;
+			float GetAngle(int Value) const;
+			float GetRelativePivotPosition(int Value) const;
+			bool IsLimited(int LimitIndex) const;
 			Desc& GetState();
 		};
 
@@ -2514,24 +2514,24 @@ namespace Tomahawk
 			btCollisionShape* TryCloneShape(btCollisionShape* Shape);
 			btCollisionShape* ReuseShape(btCollisionShape* Shape);
 			void FreeShape(Core::Unique<btCollisionShape*> Value);
-			std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape);
-			uint64_t GetShapeVerticesCount(btCollisionShape* Shape);
-			float GetMaxDisplacement();
-			float GetAirDensity();
-			float GetWaterOffset();
-			float GetWaterDensity();
-			Vector3 GetWaterNormal();
-			Vector3 GetGravity();
-			ContactStartedCallback GetOnCollisionEnter();
-			ContactEndedCallback GetOnCollisionExit();
-			btCollisionConfiguration* GetCollision();
-			btBroadphaseInterface* GetBroadphase();
-			btConstraintSolver* GetSolver();
-			btDiscreteDynamicsWorld* GetWorld();
-			btCollisionDispatcher* GetDispatcher();
-			btSoftBodySolver* GetSoftSolver();
-			bool HasSoftBodySupport();
-			int GetContactManifoldCount();
+			std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape) const;
+			uint64_t GetShapeVerticesCount(btCollisionShape* Shape) const;
+			float GetMaxDisplacement() const;
+			float GetAirDensity() const;
+			float GetWaterOffset() const;
+			float GetWaterDensity() const;
+			Vector3 GetWaterNormal() const;
+			Vector3 GetGravity() const;
+			ContactStartedCallback GetOnCollisionEnter() const;
+			ContactEndedCallback GetOnCollisionExit() const;
+			btCollisionConfiguration* GetCollision() const;
+			btBroadphaseInterface* GetBroadphase() const;
+			btConstraintSolver* GetSolver() const;
+			btDiscreteDynamicsWorld* GetWorld() const;
+			btCollisionDispatcher* GetDispatcher() const;
+			btSoftBodySolver* GetSoftSolver() const;
+			bool HasSoftBodySupport() const;
+			int GetContactManifoldCount() const;
 
 		public:
 			static void FreeHullShape(btCollisionShape* Shape);
@@ -2541,7 +2541,7 @@ namespace Tomahawk
 		};
 
 		template <typename T>
-		class TH_OUT Math
+		class TH_OUT_TS Math
 		{
 		public:
 			template <typename F, bool = std::is_fundamental<F>::value>

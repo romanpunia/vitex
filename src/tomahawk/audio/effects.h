@@ -49,8 +49,8 @@ namespace Tomahawk
 				virtual ~Reverb() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("reverb-effect");
@@ -71,8 +71,8 @@ namespace Tomahawk
 				virtual ~Chorus() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("chorus-effect");
@@ -92,8 +92,8 @@ namespace Tomahawk
 				virtual ~Distortion() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("distortion-effect");
@@ -113,8 +113,8 @@ namespace Tomahawk
 				virtual ~Echo() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("echo-effect");
@@ -135,8 +135,8 @@ namespace Tomahawk
 				virtual ~Flanger() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("flanger-effect");
@@ -154,8 +154,8 @@ namespace Tomahawk
 				virtual ~FrequencyShifter() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("frequency-shifter-effect");
@@ -176,8 +176,8 @@ namespace Tomahawk
 				virtual ~VocalMorpher() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("vocal-morpher-effect");
@@ -194,8 +194,8 @@ namespace Tomahawk
 				virtual ~PitchShifter() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("pitch-shifter-effect");
@@ -213,8 +213,8 @@ namespace Tomahawk
 				virtual ~RingModulator() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("ring-modulator-effect");
@@ -233,8 +233,8 @@ namespace Tomahawk
 				virtual ~Autowah() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("autowah-effect");
@@ -247,8 +247,8 @@ namespace Tomahawk
 				virtual ~Compressor() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("compressor-effect");
@@ -273,8 +273,8 @@ namespace Tomahawk
 				virtual ~Equalizer() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
-				void Serialize(Core::Schema* Node) override;
-				Core::Unique<AudioEffect> Copy() override;
+				void Serialize(Core::Schema* Node) const override;
+				Core::Unique<AudioEffect> Copy() const override;
 
 			public:
 				TH_COMPONENT("equalizer-effect");

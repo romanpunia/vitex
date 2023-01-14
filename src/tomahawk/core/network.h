@@ -298,7 +298,7 @@ namespace Tomahawk
 			bool Closed;
 		};
 
-		struct TH_OUT EpollHandle
+		struct TH_OUT_TS EpollHandle
 		{
 #ifdef TH_APPLE
 			kevent* Array;
@@ -316,7 +316,7 @@ namespace Tomahawk
 			int Wait(EpollFd* Data, size_t DataSize, uint64_t Timeout);
 		};
 
-		class TH_OUT Packet
+		class TH_OUT_TS Packet
 		{
 		public:
 			static bool IsData(SocketPoll Event)
@@ -357,7 +357,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT DNS
+		class TH_OUT_TS DNS
 		{
 		private:
 			static std::unordered_map<std::string, std::pair<int64_t, Address*>> Names;
@@ -369,14 +369,14 @@ namespace Tomahawk
 			static Address* FindAddressFromName(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS);
 		};
 
-		class TH_OUT Utils
+		class TH_OUT_TS Utils
 		{
 		public:
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
 		};
 
-		class TH_OUT Driver
+		class TH_OUT_TS Driver
 		{
 		private:
 			static Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Timeouts;
@@ -428,8 +428,8 @@ namespace Tomahawk
 			bool Configure(SocketRouter* New);
 			bool Unlisten();
 			bool Listen();
-			size_t GetBacklog();
-			ServerState GetState();
+			size_t GetBacklog() const;
+			ServerState GetState() const;
 			SocketRouter* GetRouter();
 			std::unordered_set<SocketConnection*>* GetClients();
 

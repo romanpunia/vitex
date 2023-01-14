@@ -920,11 +920,11 @@ namespace Tomahawk
 			void SetHandle(SDL_Surface* From);
 			void Lock();
 			void Unlock();
-			int GetWidth();
-			int GetHeight();
-			int GetPitch();
-			void* GetPixels();
-			void* GetResource();
+			int GetWidth() const;
+			int GetHeight() const;
+			int GetPitch() const;
+			void* GetPixels() const;
+			void* GetResource() const;
 		};
 
 		class TH_OUT DepthStencilState : public Core::Object
@@ -956,8 +956,8 @@ namespace Tomahawk
 
 		public:
 			virtual ~DepthStencilState() override;
-			virtual void* GetResource() = 0;
-			Desc GetState();
+			virtual void* GetResource() const = 0;
+			Desc GetState() const;
 		};
 
 		class TH_OUT RasterizerState : public Core::Object
@@ -985,8 +985,8 @@ namespace Tomahawk
 
 		public:
 			virtual ~RasterizerState() override;
-			virtual void* GetResource() = 0;
-			Desc GetState();
+			virtual void* GetResource() const = 0;
+			Desc GetState() const;
 		};
 
 		class TH_OUT BlendState : public Core::Object
@@ -1007,8 +1007,8 @@ namespace Tomahawk
 
 		public:
 			virtual ~BlendState() override;
-			virtual void* GetResource() = 0;
-			Desc GetState();
+			virtual void* GetResource() const = 0;
+			Desc GetState() const;
 		};
 
 		class TH_OUT SamplerState : public Core::Object
@@ -1036,8 +1036,8 @@ namespace Tomahawk
 
 		public:
 			virtual ~SamplerState() override;
-			virtual void* GetResource() = 0;
-			Desc GetState();
+			virtual void* GetResource() const = 0;
+			Desc GetState() const;
 		};
 
 		class TH_OUT InputLayout : public Core::Object
@@ -1069,8 +1069,8 @@ namespace Tomahawk
 
 		public:
 			virtual ~InputLayout() override;
-			virtual void* GetResource() = 0;
-			const std::vector<Attribute>& GetAttributes();
+			virtual void* GetResource() const = 0;
+			const std::vector<Attribute>& GetAttributes() const;
 		};
 
 		class TH_OUT Shader : public Core::Object
@@ -1091,7 +1091,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~Shader() = default;
-			virtual bool IsValid() = 0;
+			virtual bool IsValid() const = 0;
 		};
 
 		class TH_OUT ElementBuffer : public Core::Object
@@ -1119,9 +1119,9 @@ namespace Tomahawk
 
 		public:
 			virtual ~ElementBuffer() = default;
-			virtual void* GetResource() = 0;
-			uint64_t GetElements();
-			uint64_t GetStride();
+			virtual void* GetResource() const = 0;
+			uint64_t GetElements() const;
+			uint64_t GetStride() const;
 		};
 
 		class TH_OUT MeshBuffer : public Core::Object
@@ -1148,9 +1148,9 @@ namespace Tomahawk
 
 		public:
 			virtual ~MeshBuffer() override;
-			virtual Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) = 0;
-			ElementBuffer* GetVertexBuffer();
-			ElementBuffer* GetIndexBuffer();
+			virtual Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) const = 0;
+			ElementBuffer* GetVertexBuffer() const;
+			ElementBuffer* GetIndexBuffer() const;
 		};
 
 		class TH_OUT SkinMeshBuffer : public Core::Object
@@ -1177,9 +1177,9 @@ namespace Tomahawk
 
 		public:
 			virtual ~SkinMeshBuffer() override;
-			virtual Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) = 0;
-			ElementBuffer* GetVertexBuffer();
-			ElementBuffer* GetIndexBuffer();
+			virtual Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) const = 0;
+			ElementBuffer* GetVertexBuffer() const;
+			ElementBuffer* GetIndexBuffer() const;
 		};
 
 		class TH_OUT InstanceBuffer : public Core::Object
@@ -1206,9 +1206,9 @@ namespace Tomahawk
 		public:
 			virtual ~InstanceBuffer();
 			Core::Pool<Compute::ElementVertex>* GetArray();
-			ElementBuffer* GetElements();
-			GraphicsDevice* GetDevice();
-			uint64_t GetElementLimit();
+			ElementBuffer* GetElements() const;
+			GraphicsDevice* GetDevice() const;
+			uint64_t GetElementLimit() const;
 		};
 
 		class TH_OUT Texture2D : public Core::Object
@@ -1243,13 +1243,13 @@ namespace Tomahawk
 
 		public:
 			virtual ~Texture2D() = default;
-			virtual void* GetResource() = 0;
-			CPUAccess GetAccessFlags();
-			Format GetFormatMode();
-			ResourceUsage GetUsage();
-			unsigned int GetWidth();
-			unsigned int GetHeight();
-			unsigned int GetMipLevels();
+			virtual void* GetResource() const = 0;
+			CPUAccess GetAccessFlags() const;
+			Format GetFormatMode() const;
+			ResourceUsage GetUsage() const;
+			unsigned int GetWidth() const;
+			unsigned int GetHeight() const;
+			unsigned int GetMipLevels() const;
 		};
 
 		class TH_OUT Texture3D : public Core::Object
@@ -1283,13 +1283,13 @@ namespace Tomahawk
 		public:
 			virtual ~Texture3D() = default;
 			virtual void* GetResource() = 0;
-			CPUAccess GetAccessFlags();
-			Format GetFormatMode();
-			ResourceUsage GetUsage();
-			unsigned int GetWidth();
-			unsigned int GetHeight();
-			unsigned int GetDepth();
-			unsigned int GetMipLevels();
+			CPUAccess GetAccessFlags() const;
+			Format GetFormatMode() const;
+			ResourceUsage GetUsage() const;
+			unsigned int GetWidth() const;
+			unsigned int GetHeight() const;
+			unsigned int GetDepth() const;
+			unsigned int GetMipLevels() const;
 		};
 
 		class TH_OUT TextureCube : public Core::Object
@@ -1321,13 +1321,13 @@ namespace Tomahawk
 
 		public:
 			virtual ~TextureCube() = default;
-			virtual void* GetResource() = 0;
-			CPUAccess GetAccessFlags();
-			Format GetFormatMode();
-			ResourceUsage GetUsage();
-			unsigned int GetWidth();
-			unsigned int GetHeight();
-			unsigned int GetMipLevels();
+			virtual void* GetResource() const = 0;
+			CPUAccess GetAccessFlags() const;
+			Format GetFormatMode() const;
+			ResourceUsage GetUsage() const;
+			unsigned int GetWidth() const;
+			unsigned int GetHeight() const;
+			unsigned int GetMipLevels() const;
 		};
 
 		class TH_OUT DepthTarget2D : public Core::Object
@@ -1351,11 +1351,11 @@ namespace Tomahawk
 
 		public:
 			virtual ~DepthTarget2D();
-			virtual void* GetResource() = 0;
-			virtual uint32_t GetWidth() = 0;
-			virtual uint32_t GetHeight() = 0;
+			virtual void* GetResource() const = 0;
+			virtual uint32_t GetWidth() const = 0;
+			virtual uint32_t GetHeight() const = 0;
 			Texture2D* GetTarget();
-			const Graphics::Viewport& GetViewport();
+			const Graphics::Viewport& GetViewport() const;
 		};
 
 		class TH_OUT DepthTargetCube : public Core::Object
@@ -1378,11 +1378,11 @@ namespace Tomahawk
 
 		public:
 			virtual ~DepthTargetCube();
-			virtual void* GetResource() = 0;
-			virtual uint32_t GetWidth() = 0;
-			virtual uint32_t GetHeight() = 0;
+			virtual void* GetResource() const = 0;
+			virtual uint32_t GetWidth() const = 0;
+			virtual uint32_t GetHeight() const = 0;
 			TextureCube* GetTarget();
-			const Graphics::Viewport& GetViewport();
+			const Graphics::Viewport& GetViewport() const;
 		};
 
 		class TH_OUT RenderTarget : public Core::Object
@@ -1396,15 +1396,15 @@ namespace Tomahawk
 
 		public:
 			virtual ~RenderTarget();
-			virtual void* GetTargetBuffer() = 0;
-			virtual void* GetDepthBuffer() = 0;
-			virtual uint32_t GetWidth() = 0;
-			virtual uint32_t GetHeight() = 0;
-			virtual uint32_t GetTargetCount() = 0;
+			virtual void* GetTargetBuffer() const = 0;
+			virtual void* GetDepthBuffer() const = 0;
+			virtual uint32_t GetWidth() const = 0;
+			virtual uint32_t GetHeight() const = 0;
+			virtual uint32_t GetTargetCount() const = 0;
 			virtual Texture2D* GetTarget2D(unsigned int Index) = 0;
 			virtual TextureCube* GetTargetCube(unsigned int Index) = 0;
 			Texture2D* GetDepthStencil();
-			const Graphics::Viewport& GetViewport();
+			const Graphics::Viewport& GetViewport() const;
 		};
 
 		class TH_OUT RenderTarget2D : public RenderTarget
@@ -1432,11 +1432,11 @@ namespace Tomahawk
 
 		public:
 			virtual ~RenderTarget2D();
-			virtual void* GetTargetBuffer() = 0;
-			virtual void* GetDepthBuffer() = 0;
-			virtual uint32_t GetWidth() = 0;
-			virtual uint32_t GetHeight() = 0;
-			uint32_t GetTargetCount();
+			virtual void* GetTargetBuffer() const = 0;
+			virtual void* GetDepthBuffer() const = 0;
+			virtual uint32_t GetWidth() const = 0;
+			virtual uint32_t GetHeight() const = 0;
+			uint32_t GetTargetCount() const;
 			Texture2D* GetTarget2D(unsigned int Index);
 			TextureCube* GetTargetCube(unsigned int Index);
 			Texture2D* GetTarget();
@@ -1468,11 +1468,11 @@ namespace Tomahawk
 
 		public:
 			virtual ~MultiRenderTarget2D();
-			virtual void* GetTargetBuffer() = 0;
-			virtual void* GetDepthBuffer() = 0;
-			virtual uint32_t GetWidth() = 0;
-			virtual uint32_t GetHeight() = 0;
-			uint32_t GetTargetCount();
+			virtual void* GetTargetBuffer() const = 0;
+			virtual void* GetDepthBuffer() const = 0;
+			virtual uint32_t GetWidth() const = 0;
+			virtual uint32_t GetHeight() const = 0;
+			uint32_t GetTargetCount() const;
 			Texture2D* GetTarget2D(unsigned int Index);
 			TextureCube* GetTargetCube(unsigned int Index);
 			Texture2D* GetTarget(unsigned int Index);
@@ -1501,11 +1501,11 @@ namespace Tomahawk
 
 		public:
 			virtual ~RenderTargetCube();
-			virtual void* GetTargetBuffer() = 0;
-			virtual void* GetDepthBuffer() = 0;
-			virtual uint32_t GetWidth() = 0;
-			virtual uint32_t GetHeight() = 0;
-			uint32_t GetTargetCount();
+			virtual void* GetTargetBuffer() const = 0;
+			virtual void* GetDepthBuffer() const = 0;
+			virtual uint32_t GetWidth() const = 0;
+			virtual uint32_t GetHeight() const = 0;
+			uint32_t GetTargetCount() const;
 			Texture2D* GetTarget2D(unsigned int Index);
 			TextureCube* GetTargetCube(unsigned int Index);
 			TextureCube* GetTarget();
@@ -1536,11 +1536,11 @@ namespace Tomahawk
 
 		public:
 			virtual ~MultiRenderTargetCube();
-			virtual void* GetTargetBuffer() = 0;
-			virtual void* GetDepthBuffer() = 0;
-			virtual uint32_t GetWidth() = 0;
-			virtual uint32_t GetHeight() = 0;
-			uint32_t GetTargetCount();
+			virtual void* GetTargetBuffer() const = 0;
+			virtual void* GetDepthBuffer() const = 0;
+			virtual uint32_t GetWidth() const = 0;
+			virtual uint32_t GetHeight() const = 0;
+			uint32_t GetTargetCount() const;
 			Texture2D* GetTarget2D(unsigned int Index);
 			TextureCube* GetTargetCube(unsigned int Index);
 			TextureCube* GetTarget(unsigned int Index);
@@ -1566,7 +1566,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~Cubemap() = default;
-			bool IsValid();
+			bool IsValid() const;
 		};
 
 		class TH_OUT Query : public Core::Object
@@ -1583,7 +1583,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~Query() = default;
-			virtual void* GetResource() = 0;
+			virtual void* GetResource() const = 0;
 		};
 
 		class TH_OUT GraphicsDevice : public Core::Object
@@ -1792,11 +1792,11 @@ namespace Tomahawk
 			virtual Core::Unique<MultiRenderTargetCube> CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) = 0;
 			virtual Core::Unique<Cubemap> CreateCubemap(const Cubemap::Desc& I) = 0;
 			virtual Core::Unique<Query> CreateQuery(const Query::Desc& I) = 0;
-			virtual PrimitiveTopology GetPrimitiveTopology() = 0;
-			virtual ShaderModel GetSupportedShaderModel() = 0;
-			virtual void* GetDevice() = 0;
-			virtual void* GetContext() = 0;
-			virtual bool IsValid() = 0;
+			virtual PrimitiveTopology GetPrimitiveTopology() const = 0;
+			virtual ShaderModel GetSupportedShaderModel()  const = 0;
+			virtual void* GetDevice() const = 0;
+			virtual void* GetContext() const = 0;
+			virtual bool IsValid() const = 0;
 			void SetVertexBuffer(ElementBuffer* Resource);
 			void SetShaderCache(bool Enabled);
 			void Lock();
@@ -1807,22 +1807,22 @@ namespace Tomahawk
 			bool RemoveSection(const std::string& Name);
 			bool GetSection(const std::string& Name, Section** Result, bool Internal = false);
 			bool GetSection(const std::string& Name, Shader::Desc* Result);
-			bool IsLeftHanded();
-			std::string GetShaderMain(ShaderType Type);
+			bool IsLeftHanded() const;
+			std::string GetShaderMain(ShaderType Type) const;
 			DepthStencilState* GetDepthStencilState(const std::string& Name);
 			BlendState* GetBlendState(const std::string& Name);
 			RasterizerState* GetRasterizerState(const std::string& Name);
 			SamplerState* GetSamplerState(const std::string& Name);
 			InputLayout* GetInputLayout(const std::string& Name);
-			ShaderModel GetShaderModel();
+			ShaderModel GetShaderModel() const;
 			RenderTarget2D* GetRenderTarget();
 			Shader* GetBasicEffect();
-			RenderBackend GetBackend();
-			unsigned int GetPresentFlags();
-			unsigned int GetCompileFlags();
-			unsigned int GetMipLevel(unsigned int Width, unsigned int Height);
-			VSync GetVSyncMode();
-			bool IsDebug();
+			RenderBackend GetBackend() const;
+			unsigned int GetPresentFlags() const;
+			unsigned int GetCompileFlags() const;
+			unsigned int GetMipLevel(unsigned int Width, unsigned int Height) const;
+			VSync GetVSyncMode() const;
+			bool IsDebug() const;
 
 		protected:
 			virtual TextureCube* CreateTextureCubeInternal(void* Resource[6]) = 0;
@@ -1933,30 +1933,30 @@ namespace Tomahawk
 			void Load(SDL_SysWMinfo* Base);
 			bool CaptureKeyMap(KeyMap* Value);
 			bool Dispatch();
-			bool IsFullscreen();
-			bool IsAnyKeyDown();
-			bool IsKeyDown(const KeyMap& Key);
-			bool IsKeyUp(const KeyMap& Key);
-			bool IsKeyDownHit(const KeyMap& Key);
-			bool IsKeyUpHit(const KeyMap& Key);
-			bool IsScreenKeyboardEnabled();
-			uint32_t GetX();
-			uint32_t GetY();
-			uint32_t GetWidth();
-			uint32_t GetHeight();
-			float GetAspectRatio();
-			KeyMod GetKeyModState();
-			Graphics::Viewport GetViewport();
-			Compute::Vector2 GetOffset();
-			Compute::Vector2 GetSize();
-			Compute::Vector2 GetClientSize();
-			Compute::Vector2 GetGlobalCursorPosition();
-			Compute::Vector2 GetCursorPosition();
-			Compute::Vector2 GetCursorPosition(float ScreenWidth, float ScreenHeight);
-			Compute::Vector2 GetCursorPosition(const Compute::Vector2& ScreenDimensions);
-			std::string GetClipboardText();
-			SDL_Window* GetHandle();
-			std::string GetError();
+			bool IsFullscreen() const;
+			bool IsAnyKeyDown() const;
+			bool IsKeyDown(const KeyMap& Key) const;
+			bool IsKeyUp(const KeyMap& Key) const;
+			bool IsKeyDownHit(const KeyMap& Key) const;
+			bool IsKeyUpHit(const KeyMap& Key) const;
+			bool IsScreenKeyboardEnabled() const;
+			uint32_t GetX() const;
+			uint32_t GetY() const;
+			uint32_t GetWidth() const;
+			uint32_t GetHeight() const;
+			float GetAspectRatio() const;
+			KeyMod GetKeyModState() const;
+			Graphics::Viewport GetViewport() const;
+			Compute::Vector2 GetOffset() const;
+			Compute::Vector2 GetSize() const;
+			Compute::Vector2 GetClientSize() const;
+			Compute::Vector2 GetGlobalCursorPosition() const;
+			Compute::Vector2 GetCursorPosition() const;
+			Compute::Vector2 GetCursorPosition(float ScreenWidth, float ScreenHeight) const;
+			Compute::Vector2 GetCursorPosition(const Compute::Vector2& ScreenDimensions) const;
+			std::string GetClipboardText() const;
+			SDL_Window* GetHandle() const;
+			std::string GetError() const;
 			Desc& GetOptions();
 
 		private:

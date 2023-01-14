@@ -194,8 +194,8 @@ typedef socklen_t socket_size_t;
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
-#define TH_COUT extern "C" TH_OUT
 #define TH_STACKSIZE (512 * 1024)
+#define TH_OUT_TS TH_OUT
 #define TH_PERF_ATOM (1)
 #define TH_PERF_FRAME (5)
 #define TH_PERF_CORE (16)
@@ -815,7 +815,7 @@ namespace Tomahawk
 			static std::string ToString(double Number);
 		};
 
-		struct TH_OUT Spin
+		struct TH_OUT_TS Spin
 		{
 		private:
 			std::atomic_flag Atom;
@@ -826,7 +826,77 @@ namespace Tomahawk
 			void Unlock();
 		};
 
-		class TH_OUT Var
+		class TH_OUT_TS Guard
+		{
+		public:
+			class TH_OUT Loaded
+			{
+			public:
+				friend Guard;
+
+			private:
+				Guard* Base;
+
+			public:
+				Loaded(Loaded& Other);
+				Loaded& operator =(Loaded&& Other);
+				~Loaded();
+				void Close();
+				operator bool() const;
+
+			private:
+				Loaded(Guard* NewBase);
+			};
+
+			class TH_OUT Stored
+			{
+			public:
+				friend Guard;
+
+			private:
+				Guard* Base;
+
+			public:
+				Stored(Stored&& Other);
+				Stored& operator =(Stored&& Other);
+				~Stored();
+				void Close();
+				operator bool() const;
+
+			private:
+				Stored(Guard* NewBase);
+			};
+
+		public:
+			friend Loaded;
+			friend Stored;
+
+		private:
+			std::condition_variable Condition;
+			std::mutex Mutex;
+			uint32_t Readers;
+			uint32_t Writers;
+
+		public:
+			Guard();
+			Guard(const Guard& Other) = delete;
+			Guard(Guard&& Other) = delete;
+			~Guard() = default;
+			Guard& operator =(const Guard& Other) = delete;
+			Guard& operator =(Guard&& Other) = delete;
+			Loaded TryLoad();
+			Loaded Load();
+			Stored TryStore();
+			Stored Store();
+			bool TryLoadLock();
+			void LoadLock();
+			void LoadUnlock();
+			bool TryStoreLock();
+			void StoreLock();
+			void StoreUnlock();
+		};
+
+		class TH_OUT_TS Var
 		{
 		public:
 			class TH_OUT Set
@@ -873,7 +943,7 @@ namespace Tomahawk
 			static Variant Boolean(bool Value);
 		};
 
-		class TH_OUT Mem
+		class TH_OUT_TS Mem
 		{
 #ifndef NDEBUG
 		private:
@@ -918,7 +988,7 @@ namespace Tomahawk
 #endif
 		};
 
-		class TH_OUT OS
+		class TH_OUT_TS OS
 		{
 		public:
 			class TH_OUT CPU
@@ -1215,7 +1285,7 @@ namespace Tomahawk
 			static void PrettyPrintLog(Console* Log, const char* Buffer, StdColor BaseColor);
 		};
 
-		class TH_OUT Composer
+		class TH_OUT_TS Composer
 		{
 		private:
 			static Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>* Factory;
@@ -1265,7 +1335,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT Object
+		class TH_OUT_TS Object
 		{
 			friend class Mem;
 
@@ -1277,12 +1347,12 @@ namespace Tomahawk
 			virtual ~Object() noexcept;
 			void operator delete(void* Data) noexcept;
 			void* operator new(size_t Size) noexcept;
-			int GetRefCount() noexcept;
+			int GetRefCount() const noexcept;
 			void AddRef() noexcept;
 			void Release() noexcept;
 		};
 
-		class TH_OUT Console : public Object
+		class TH_OUT_TS Console : public Object
 		{
 		protected:
 #ifdef TH_MICROSOFT
@@ -1324,7 +1394,7 @@ namespace Tomahawk
 			void sWrite(const std::string& Line);
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
-			double GetCapturedTime();
+			double GetCapturedTime() const;
 			std::string Read(uint64_t Size);
 
 		public:
@@ -1360,13 +1430,13 @@ namespace Tomahawk
 			void Synchronize();
 			void CaptureTime();
 			void Sleep(uint64_t MilliSecs);
-			double GetTimeIncrement();
-			double GetTickCounter();
-			double GetFrameCount();
-			double GetElapsedTime();
-			double GetCapturedTime();
-			double GetDeltaTime();
-			double GetTimeStep();
+			double GetTimeIncrement() const;
+			double GetTickCounter() const;
+			double GetFrameCount() const;
+			double GetElapsedTime() const;
+			double GetCapturedTime() const;
+			double GetDeltaTime() const;
+			double GetTimeStep() const;
 		};
 
 		class TH_OUT Stream : public Object
@@ -1388,8 +1458,8 @@ namespace Tomahawk
 			virtual uint64_t WriteAny(const char* Format, ...) = 0;
 			virtual uint64_t Write(const char* Buffer, uint64_t Length) = 0;
 			virtual uint64_t Tell() = 0;
-			virtual int GetFd() = 0;
-			virtual void* GetBuffer() = 0;
+			virtual int GetFd() const = 0;
+			virtual void* GetBuffer() const = 0;
 			uint64_t GetSize();
 			std::string& GetSource();
 		};
@@ -1413,8 +1483,8 @@ namespace Tomahawk
 			virtual uint64_t WriteAny(const char* Format, ...) override;
 			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
 			virtual uint64_t Tell() override;
-			virtual int GetFd() override;
-			virtual void* GetBuffer() override;
+			virtual int GetFd() const override;
+			virtual void* GetBuffer() const override;
 		};
 
 		class TH_OUT GzStream : public Stream
@@ -1436,8 +1506,8 @@ namespace Tomahawk
 			virtual uint64_t WriteAny(const char* Format, ...) override;
 			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
 			virtual uint64_t Tell() override;
-			virtual int GetFd() override;
-			virtual void* GetBuffer() override;
+			virtual int GetFd() const override;
+			virtual void* GetBuffer() const override;
 		};
 
 		class TH_OUT WebStream : public Stream
@@ -1463,8 +1533,8 @@ namespace Tomahawk
 			virtual uint64_t WriteAny(const char* Format, ...) override;
 			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
 			virtual uint64_t Tell() override;
-			virtual int GetFd() override;
-			virtual void* GetBuffer() override;
+			virtual int GetFd() const override;
+			virtual void* GetBuffer() const override;
 		};
 
 		class TH_OUT FileLog : public Object
@@ -1494,9 +1564,9 @@ namespace Tomahawk
 		public:
 			FileTree(const std::string& Path);
 			virtual ~FileTree() override;
-			void Loop(const std::function<bool(FileTree*)>& Callback);
-			FileTree* Find(const std::string& Path);
-			uint64_t GetFiles();
+			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
+			const FileTree* Find(const std::string& Path) const;
+			uint64_t GetFiles() const;
 		};
 
 		class TH_OUT Costate : public Object
@@ -1534,7 +1604,7 @@ namespace Tomahawk
 			int Dispatch();
 			int Suspend();
 			void Clear();
-			bool HasActive();
+			bool HasActive() const;
 			Coroutine* GetCurrent() const;
 			uint64_t GetCount() const;
 
@@ -1635,7 +1705,7 @@ namespace Tomahawk
 			static bool GenerateNamingTable(const Schema* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
 		};
 
-		class TH_OUT Schedule : public Object
+		class TH_OUT_TS Schedule : public Object
 		{
 		private:
 			struct ThreadPtr
@@ -1725,11 +1795,11 @@ namespace Tomahawk
 			bool Stop();
 			bool Wakeup();
 			bool Dispatch();
-			bool IsActive();
-			bool HasTasks(Difficulty Type);
-			uint64_t GetTotalThreads();
-			uint64_t GetThreads(Difficulty Type);
-			const Desc& GetPolicy();
+			bool IsActive() const;
+			bool HasTasks(Difficulty Type) const;
+			uint64_t GetTotalThreads() const;
+			uint64_t GetThreads(Difficulty Type) const;
+			const Desc& GetPolicy() const;
 
 		private:
 			bool PostDebug(Difficulty Type, ThreadTask State, uint64_t Tasks);
@@ -1754,7 +1824,7 @@ namespace Tomahawk
 		};
 
 		template <typename T>
-		class Pool
+		class TH_OUT Pool
 		{
 		public:
 			typedef T* Iterator;
@@ -2056,7 +2126,157 @@ namespace Tomahawk
 		};
 
 		template <typename T>
-		class Awaitable
+		class TH_OUT_TS Guarded
+		{
+		public:
+			class Loaded
+			{
+			public:
+				friend Guarded;
+
+			private:
+				Guarded* Base;
+
+			public:
+				Loaded(Loaded& Other) : Base(Other.Base)
+				{
+				}
+				Loaded& operator =(Loaded&& Other)
+				{
+					if (&Other == this)
+						return *this;
+
+					Base = Other.Base;
+					Other.Base = nullptr;
+					return *this;
+				}
+				~Loaded()
+				{
+					Close();
+				}
+				void Close()
+				{
+					if (Base != nullptr)
+					{
+						Base->Mutex.LoadUnlock();
+						Base = nullptr;
+					}
+				}
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+				const T& operator*() const
+				{
+					TH_ASSERT(Base != nullptr, Base->Value, "value was not loaded");
+					return Base->Value;
+				}
+				const T& Unwrap() const
+				{
+					TH_ASSERT(Base != nullptr, Base->Value, "value was not loaded");
+					return Base->Value;
+				}
+
+			private:
+				Loaded(Guarded* NewBase) : Base(NewBase)
+				{
+				}
+			};
+
+			class Stored
+			{
+			public:
+				friend Guarded;
+
+			private:
+				Guarded* Base;
+
+			public:
+				Stored(Stored&& Other) : Base(Other.Base)
+				{
+					Other.Base = nullptr;
+				}
+				Stored& operator =(Stored&& Other)
+				{
+					if (&Other == this)
+						return *this;
+
+					Base = Other.Base;
+					Other.Base = nullptr;
+					return *this;
+				}
+				~Stored()
+				{
+					Close();
+				}
+				void Close()
+				{
+					if (Base != nullptr)
+					{
+						Base->Mutex.StoreUnlock();
+						Base = nullptr;
+					}
+				}
+				operator bool() const
+				{
+					return Base != nullptr;
+				}
+				T& operator*()
+				{
+					TH_ASSERT(Base != nullptr, Base->Value, "value was not stored");
+					return Base->Value;
+				}
+				T& Unwrap()
+				{
+					TH_ASSERT(Base != nullptr, Base->Value, "value was not stored");
+					return Base->Value;
+				}
+
+			private:
+				Stored(Guarded* NewBase) : Base(NewBase)
+				{
+				}
+			};
+
+		public:
+			friend Loaded;
+			friend Stored;
+
+		private:
+			Guard Mutex;
+			T Value;
+
+		public:
+			Guarded(const T& NewValue) : Value(NewValue)
+			{
+			}
+			Guarded(const Guarded& Other) = delete;
+			Guarded(Guarded&& Other) = delete;
+			~Guarded() = default;
+			Guarded& operator =(const Guarded& Other) = delete;
+			Guarded& operator =(Guarded&& Other) = delete;
+			Loaded TryLoad()
+			{
+				return Mutex.TryLoadLock() ? Loaded(this) : Loaded(nullptr);
+			}
+			Loaded Load()
+			{
+				Mutex.LoadLock();
+				return Loaded(this);
+			}
+			Stored TryStore()
+			{
+				return Mutex.TryStoreLock() ? Stored(this) : Stored(nullptr);
+			}
+			Stored Store()
+			{
+				Mutex.StoreLock();
+				return Stored(this);
+			}
+		};
+
+		template <typename T>
+		class TH_OUT_TS Awaitable
 		{
 		public:
 			std::function<void()> Event;
@@ -2129,7 +2349,7 @@ namespace Tomahawk
 		};
 
 		template <typename T>
-		class Async
+		class TH_OUT_TS Async
 		{
 			static_assert(!std::is_same<T, void>::value, "async cannot be used with void type");
 			static_assert(std::is_default_constructible<T>::value, "async cannot be used with non default constructible type");
@@ -2371,7 +2591,7 @@ namespace Tomahawk
 		};
 
 		template <typename T>
-		inline T&& Coawait(Async<T>&& Future, const char* DebugName = nullptr) noexcept
+		TH_OUT_TS inline T&& Coawait(Async<T>&& Future, const char* DebugName = nullptr) noexcept
 		{
 			Costate* State; Coroutine* Base;
 			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
@@ -2400,7 +2620,7 @@ namespace Tomahawk
 			return Future.GetIfAny();
 		}
 		template <typename T>
-		inline Async<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		TH_OUT_TS inline Async<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
@@ -2413,7 +2633,7 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		inline Async<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		TH_OUT_TS inline Async<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 
@@ -2426,7 +2646,7 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		inline Async<T> Coasync(const std::function<T()>& Callback, bool AlwaysEnqueue = false) noexcept
+		TH_OUT_TS inline Async<T> Coasync(const std::function<T()>& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
@@ -2441,7 +2661,7 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		inline Async<T> Coasync(std::function<T()>&& Callback, bool AlwaysEnqueue = false) noexcept
+		TH_OUT_TS inline Async<T> Coasync(std::function<T()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
@@ -2455,7 +2675,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		inline Async<bool> Cosleep(uint64_t Ms) noexcept
+		TH_OUT_TS inline Async<bool> Cosleep(uint64_t Ms) noexcept
 		{
 			Async<bool> Result;
 			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
@@ -2465,7 +2685,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		inline bool Coasync(const TaskCallback& Callback, bool AlwaysEnqueue = false) noexcept
+		TH_OUT_TS inline bool Coasync(const TaskCallback& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
@@ -2476,7 +2696,7 @@ namespace Tomahawk
 
 			return Schedule::Get()->SetChain(Callback);
 		}
-		inline bool Coasync(TaskCallback&& Callback, bool AlwaysEnqueue = false) noexcept
+		TH_OUT_TS inline bool Coasync(TaskCallback&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
@@ -2487,14 +2707,14 @@ namespace Tomahawk
 
 			return Schedule::Get()->SetChain(std::move(Callback));
 		}
-		inline bool Cosuspend() noexcept
+		TH_OUT_TS inline bool Cosuspend() noexcept
 		{
 			Costate* State = Costate::Get();
 			TH_ASSERT(State != nullptr, false, "cannot call suspend outside coroutine");
 
 			return State->Suspend();
 		}
-		inline Parser Form(const char* Format, ...)
+		TH_OUT_TS inline Parser Form(const char* Format, ...)
 		{
 			TH_ASSERT(Format != nullptr, Parser(), "format should be set");
 
@@ -2508,7 +2728,7 @@ namespace Tomahawk
 			return Parser(Buffer, Size > 16384 ? 16384 : (size_t)Size);
 		}
 		template <size_t Size>
-		constexpr uint64_t Shuffle(const char Source[Size])
+		TH_OUT_TS constexpr uint64_t Shuffle(const char Source[Size])
 		{
 			uint64_t Result = 0xcbf29ce484222325;
 			for (size_t i = 0; i < Size; i++)

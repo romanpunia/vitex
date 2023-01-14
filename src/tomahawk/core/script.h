@@ -358,7 +358,7 @@ namespace Tomahawk
 		typedef std::function<void(class VMManager*)> SubmoduleCallback;
 		typedef std::function<void(class VMContext*)> ArgsCallback;
 
-		class TH_OUT VMFuncStore
+		class TH_OUT_TS VMFuncStore
 		{
 		public:
 			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
@@ -369,7 +369,7 @@ namespace Tomahawk
 		};
 
 		template <int N>
-		struct TH_OUT VMFuncCall
+		struct TH_OUT_TS VMFuncCall
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -379,7 +379,7 @@ namespace Tomahawk
 		};
 
 		template <>
-		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr)>
+		struct TH_OUT_TS VMFuncCall<sizeof(VMMethodPtr)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -389,7 +389,7 @@ namespace Tomahawk
 		};
 #if defined(_MSC_VER) && !defined(__MWERKS__)
 		template <>
-		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
+		struct TH_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -399,7 +399,7 @@ namespace Tomahawk
 		};
 
 		template <>
-		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
+		struct TH_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -413,7 +413,7 @@ namespace Tomahawk
 		};
 
 		template <>
-		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
+		struct TH_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -423,7 +423,7 @@ namespace Tomahawk
 		};
 
 		template <>
-		struct TH_OUT VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
+		struct TH_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
@@ -1513,9 +1513,9 @@ namespace Tomahawk
 			void Define(const std::string& Word);
 			void Undefine(const std::string& Word);
 			bool Clear();
-			bool IsDefined(const std::string& Word);
-			bool IsBuilt();
-			bool IsCached();
+			bool IsDefined(const std::string& Word) const;
+			bool IsBuilt() const;
+			bool IsCached() const;
 			int Prepare(VMByteCode* Info);
 			int Prepare(const std::string& ModuleName, bool Scoped = false);
 			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true, bool Scoped = false);

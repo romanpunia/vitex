@@ -154,9 +154,9 @@ namespace Tomahawk
 			virtual ~AudioFilter() override;
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
-			virtual void Serialize(Core::Schema* Node) = 0;
-			virtual Core::Unique<AudioFilter> Copy() = 0;
-			AudioSource* GetSource();
+			virtual void Serialize(Core::Schema* Node) const = 0;
+			virtual Core::Unique<AudioFilter> Copy() const = 0;
+			AudioSource* GetSource() const;
 
 		protected:
 			bool CreateLocked(const std::function<bool()>& Callback);
@@ -183,11 +183,11 @@ namespace Tomahawk
 			virtual ~AudioEffect() override;
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
-			virtual void Serialize(Core::Schema* Node) = 0;
-			virtual Core::Unique<AudioEffect> Copy() = 0;
+			virtual void Serialize(Core::Schema* Node) const = 0;
+			virtual Core::Unique<AudioEffect> Copy() const = 0;
 			bool SetFilter(AudioFilter** Filter);
-			AudioFilter* GetFilter();
-			AudioSource* GetSource();
+			AudioFilter* GetFilter() const;
+			AudioSource* GetSource() const;
 
 		protected:
 			bool CreateLocked(const std::function<bool()>& Callback);
@@ -209,10 +209,10 @@ namespace Tomahawk
 		public:
 			AudioClip(int BufferCount, int NewFormat);
 			virtual ~AudioClip() override;
-			float Length();
-			bool IsMono();
-			unsigned int GetBuffer();
-			int GetFormat();
+			float Length() const;
+			bool IsMono() const;
+			unsigned int GetBuffer() const;
+			int GetFormat() const;
 		};
 
 		class TH_OUT AudioSource : public Core::Object
@@ -273,8 +273,8 @@ namespace Tomahawk
 			void Distance(AudioSource* Source, float& Value, bool Get);
 			void RefDistance(AudioSource* Source, float& Value, bool Get);
 			void SetDistanceModel(SoundDistanceModel Model);
-			void GetExceptionCodes(int& ALCCode, int& ALCode);
-			bool IsValid();
+			void GetExceptionCodes(int& ALCCode, int& ALCode) const;
+			bool IsValid() const;
 		};
 	}
 }

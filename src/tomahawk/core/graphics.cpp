@@ -337,7 +337,7 @@ namespace Tomahawk
 			SDL_UnlockSurface(Handle);
 #endif
 		}
-		int Surface::GetWidth()
+		int Surface::GetWidth() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, -1, "handle should be set");
@@ -346,7 +346,7 @@ namespace Tomahawk
 			return -1;
 #endif
 		}
-		int Surface::GetHeight()
+		int Surface::GetHeight() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, -1, "handle should be set");
@@ -355,7 +355,7 @@ namespace Tomahawk
 			return -1;
 #endif
 		}
-		int Surface::GetPitch()
+		int Surface::GetPitch() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, -1, "handle should be set");
@@ -364,7 +364,7 @@ namespace Tomahawk
 			return -1;
 #endif
 		}
-		void* Surface::GetPixels()
+		void* Surface::GetPixels() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, nullptr, "handle should be set");
@@ -373,7 +373,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		void* Surface::GetResource()
+		void* Surface::GetResource() const
 		{
 			return (void*)Handle;
 		}
@@ -384,7 +384,7 @@ namespace Tomahawk
 		DepthStencilState::~DepthStencilState()
 		{
 		}
-		DepthStencilState::Desc DepthStencilState::GetState()
+		DepthStencilState::Desc DepthStencilState::GetState() const
 		{
 			return State;
 		}
@@ -395,7 +395,7 @@ namespace Tomahawk
 		RasterizerState::~RasterizerState()
 		{
 		}
-		RasterizerState::Desc RasterizerState::GetState()
+		RasterizerState::Desc RasterizerState::GetState() const
 		{
 			return State;
 		}
@@ -406,7 +406,7 @@ namespace Tomahawk
 		BlendState::~BlendState()
 		{
 		}
-		BlendState::Desc BlendState::GetState()
+		BlendState::Desc BlendState::GetState() const
 		{
 			return State;
 		}
@@ -417,7 +417,7 @@ namespace Tomahawk
 		SamplerState::~SamplerState()
 		{
 		}
-		SamplerState::Desc SamplerState::GetState()
+		SamplerState::Desc SamplerState::GetState() const
 		{
 			return State;
 		}
@@ -428,7 +428,7 @@ namespace Tomahawk
 		InputLayout::~InputLayout()
 		{
 		}
-		const std::vector<InputLayout::Attribute>& InputLayout::GetAttributes()
+		const std::vector<InputLayout::Attribute>& InputLayout::GetAttributes() const
 		{
 			return Layout;
 		}
@@ -442,11 +442,11 @@ namespace Tomahawk
 			Elements = I.ElementCount;
 			Stride = I.ElementWidth;
 		}
-		uint64_t ElementBuffer::GetElements()
+		uint64_t ElementBuffer::GetElements() const
 		{
 			return Elements;
 		}
-		uint64_t ElementBuffer::GetStride()
+		uint64_t ElementBuffer::GetStride() const
 		{
 			return Stride;
 		}
@@ -459,11 +459,11 @@ namespace Tomahawk
 			TH_RELEASE(VertexBuffer);
 			TH_RELEASE(IndexBuffer);
 		}
-		ElementBuffer* MeshBuffer::GetVertexBuffer()
+		ElementBuffer* MeshBuffer::GetVertexBuffer() const
 		{
 			return VertexBuffer;
 		}
-		ElementBuffer* MeshBuffer::GetIndexBuffer()
+		ElementBuffer* MeshBuffer::GetIndexBuffer() const
 		{
 			return IndexBuffer;
 		}
@@ -476,11 +476,11 @@ namespace Tomahawk
 			TH_RELEASE(VertexBuffer);
 			TH_RELEASE(IndexBuffer);
 		}
-		ElementBuffer* SkinMeshBuffer::GetVertexBuffer()
+		ElementBuffer* SkinMeshBuffer::GetVertexBuffer() const
 		{
 			return VertexBuffer;
 		}
-		ElementBuffer* SkinMeshBuffer::GetIndexBuffer()
+		ElementBuffer* SkinMeshBuffer::GetIndexBuffer() const
 		{
 			return IndexBuffer;
 		}
@@ -503,15 +503,15 @@ namespace Tomahawk
 		{
 			return &Array;
 		}
-		ElementBuffer* InstanceBuffer::GetElements()
+		ElementBuffer* InstanceBuffer::GetElements() const
 		{
 			return Elements;
 		}
-		GraphicsDevice* InstanceBuffer::GetDevice()
+		GraphicsDevice* InstanceBuffer::GetDevice() const
 		{
 			return Device;
 		}
-		uint64_t InstanceBuffer::GetElementLimit()
+		uint64_t InstanceBuffer::GetElementLimit() const
 		{
 			return ElementLimit;
 		}
@@ -534,27 +534,27 @@ namespace Tomahawk
 			Usage = I.Usage;
 			AccessFlags = I.AccessFlags;
 		}
-		CPUAccess Texture2D::GetAccessFlags()
+		CPUAccess Texture2D::GetAccessFlags() const
 		{
 			return AccessFlags;
 		}
-		Format Texture2D::GetFormatMode()
+		Format Texture2D::GetFormatMode() const
 		{
 			return FormatMode;
 		}
-		ResourceUsage Texture2D::GetUsage()
+		ResourceUsage Texture2D::GetUsage() const
 		{
 			return Usage;
 		}
-		unsigned int Texture2D::GetWidth()
+		unsigned int Texture2D::GetWidth() const
 		{
 			return Width;
 		}
-		unsigned int Texture2D::GetHeight()
+		unsigned int Texture2D::GetHeight() const
 		{
 			return Height;
 		}
-		unsigned int Texture2D::GetMipLevels()
+		unsigned int Texture2D::GetMipLevels() const
 		{
 			return MipLevels;
 		}
@@ -569,31 +569,31 @@ namespace Tomahawk
 			Usage = ResourceUsage::Default;
 			AccessFlags = CPUAccess::Invalid;
 		}
-		CPUAccess Texture3D::GetAccessFlags()
+		CPUAccess Texture3D::GetAccessFlags() const
 		{
 			return AccessFlags;
 		}
-		Format Texture3D::GetFormatMode()
+		Format Texture3D::GetFormatMode() const
 		{
 			return FormatMode;
 		}
-		ResourceUsage Texture3D::GetUsage()
+		ResourceUsage Texture3D::GetUsage() const
 		{
 			return Usage;
 		}
-		unsigned int Texture3D::GetWidth()
+		unsigned int Texture3D::GetWidth() const
 		{
 			return Width;
 		}
-		unsigned int Texture3D::GetHeight()
+		unsigned int Texture3D::GetHeight() const
 		{
 			return Height;
 		}
-		unsigned int Texture3D::GetDepth()
+		unsigned int Texture3D::GetDepth() const
 		{
 			return Depth;
 		}
-		unsigned int Texture3D::GetMipLevels()
+		unsigned int Texture3D::GetMipLevels() const
 		{
 			return MipLevels;
 		}
@@ -616,27 +616,27 @@ namespace Tomahawk
 			Usage = I.Usage;
 			AccessFlags = I.AccessFlags;
 		}
-		CPUAccess TextureCube::GetAccessFlags()
+		CPUAccess TextureCube::GetAccessFlags() const
 		{
 			return AccessFlags;
 		}
-		Format TextureCube::GetFormatMode()
+		Format TextureCube::GetFormatMode() const
 		{
 			return FormatMode;
 		}
-		ResourceUsage TextureCube::GetUsage()
+		ResourceUsage TextureCube::GetUsage() const
 		{
 			return Usage;
 		}
-		unsigned int TextureCube::GetWidth()
+		unsigned int TextureCube::GetWidth() const
 		{
 			return Width;
 		}
-		unsigned int TextureCube::GetHeight()
+		unsigned int TextureCube::GetHeight() const
 		{
 			return Height;
 		}
-		unsigned int TextureCube::GetMipLevels()
+		unsigned int TextureCube::GetMipLevels() const
 		{
 			return MipLevels;
 		}
@@ -652,7 +652,7 @@ namespace Tomahawk
 		{
 			return Resource;
 		}
-		const Viewport& DepthTarget2D::GetViewport()
+		const Viewport& DepthTarget2D::GetViewport() const
 		{
 			return Viewarea;
 		}
@@ -668,7 +668,7 @@ namespace Tomahawk
 		{
 			return Resource;
 		}
-		const Viewport& DepthTargetCube::GetViewport()
+		const Viewport& DepthTargetCube::GetViewport() const
 		{
 			return Viewarea;
 		}
@@ -684,7 +684,7 @@ namespace Tomahawk
 		{
 			return DepthStencil;
 		}
-		const Viewport& RenderTarget::GetViewport()
+		const Viewport& RenderTarget::GetViewport() const
 		{
 			return Viewarea;
 		}
@@ -696,7 +696,7 @@ namespace Tomahawk
 		{
 			TH_RELEASE(Resource);
 		}
-		uint32_t RenderTarget2D::GetTargetCount()
+		uint32_t RenderTarget2D::GetTargetCount() const
 		{
 			return 1;
 		}
@@ -727,7 +727,7 @@ namespace Tomahawk
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
 				TH_RELEASE(Resource[i]);
 		}
-		uint32_t MultiRenderTarget2D::GetTargetCount()
+		uint32_t MultiRenderTarget2D::GetTargetCount() const
 		{
 			return (uint32_t)Target;
 		}
@@ -752,7 +752,7 @@ namespace Tomahawk
 		{
 			TH_RELEASE(Resource);
 		}
-		uint32_t RenderTargetCube::GetTargetCount()
+		uint32_t RenderTargetCube::GetTargetCount() const
 		{
 			return 1;
 		}
@@ -783,7 +783,7 @@ namespace Tomahawk
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
 				TH_RELEASE(Resource[i]);
 		}
-		uint32_t MultiRenderTargetCube::GetTargetCount()
+		uint32_t MultiRenderTargetCube::GetTargetCount() const
 		{
 			return (uint32_t)Target;
 		}
@@ -804,7 +804,7 @@ namespace Tomahawk
 		Cubemap::Cubemap(const Desc& I) : Meta(I), Dest(nullptr)
 		{
 		}
-		bool Cubemap::IsValid()
+		bool Cubemap::IsValid() const
 		{
 			return Meta.Source != nullptr;
 		}
@@ -1413,7 +1413,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool GraphicsDevice::IsDebug()
+		bool GraphicsDevice::IsDebug() const
 		{
 			return Debug;
 		}
@@ -1472,11 +1472,11 @@ namespace Tomahawk
 
 			return Result;
 		}
-		bool GraphicsDevice::IsLeftHanded()
+		bool GraphicsDevice::IsLeftHanded() const
 		{
 			return Backend == RenderBackend::D3D11;
 		}
-		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height)
+		unsigned int GraphicsDevice::GetMipLevel(unsigned int Width, unsigned int Height) const
 		{
 			unsigned int MipLevels = 1;
 			while (Width > 1 && Height > 1)
@@ -1488,11 +1488,11 @@ namespace Tomahawk
 
 			return MipLevels;
 		}
-		unsigned int GraphicsDevice::GetPresentFlags()
+		unsigned int GraphicsDevice::GetPresentFlags() const
 		{
 			return PresentFlags;
 		}
-		unsigned int GraphicsDevice::GetCompileFlags()
+		unsigned int GraphicsDevice::GetCompileFlags() const
 		{
 			return CompileFlags;
 		}
@@ -1553,7 +1553,7 @@ namespace Tomahawk
 
 			return Prefix + Compute::Crypto::Hash(Compute::Digests::MD5(), Result) + ".sasm";
 		}
-		std::string GraphicsDevice::GetShaderMain(ShaderType Type)
+		std::string GraphicsDevice::GetShaderMain(ShaderType Type) const
 		{
 			switch (Type)
 			{
@@ -1573,7 +1573,7 @@ namespace Tomahawk
 					return "main";
 			}
 		}
-		ShaderModel GraphicsDevice::GetShaderModel()
+		ShaderModel GraphicsDevice::GetShaderModel() const
 		{
 			return ShaderGen;
 		}
@@ -1625,11 +1625,11 @@ namespace Tomahawk
 		{
 			return BasicEffect;
 		}
-		RenderBackend GraphicsDevice::GetBackend()
+		RenderBackend GraphicsDevice::GetBackend() const
 		{
 			return Backend;
 		}
-		VSync GraphicsDevice::GetVSyncMode()
+		VSync GraphicsDevice::GetVSyncMode() const
 		{
 			return VSyncMode;
 		}
@@ -2361,7 +2361,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Activity::IsFullscreen()
+		bool Activity::IsFullscreen() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
@@ -2371,7 +2371,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool Activity::IsAnyKeyDown()
+		bool Activity::IsAnyKeyDown() const
 		{
 			for (int i = 0; i < 1024; i++)
 			{
@@ -2381,7 +2381,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Activity::IsKeyDown(const KeyMap& Key)
+		bool Activity::IsKeyDown(const KeyMap& Key) const
 		{
 #ifdef TH_HAS_SDL2
 			if (Key.Mod == KeyMod::None)
@@ -2395,11 +2395,11 @@ namespace Tomahawk
 			return Keys[0][(size_t)Key.Key];
 #endif
 		}
-		bool Activity::IsKeyUp(const KeyMap& Key)
+		bool Activity::IsKeyUp(const KeyMap& Key) const
 		{
 			return !IsKeyDown(Key);
 		}
-		bool Activity::IsKeyDownHit(const KeyMap& Key)
+		bool Activity::IsKeyDownHit(const KeyMap& Key) const
 		{
 #ifdef TH_HAS_SDL2
 			if (Key.Mod == KeyMod::None)
@@ -2413,7 +2413,7 @@ namespace Tomahawk
 			return Keys[0][(size_t)Key.Key] && !Keys[1][(size_t)Key.Key];
 #endif
 		}
-		bool Activity::IsKeyUpHit(const KeyMap& Key)
+		bool Activity::IsKeyUpHit(const KeyMap& Key) const
 		{
 #ifdef TH_HAS_SDL2
 			if (Key.Mod == KeyMod::None)
@@ -2427,7 +2427,7 @@ namespace Tomahawk
 			return !Keys[0][(size_t)Key.Key] && Keys[1][(size_t)Key.Key];
 #endif
 		}
-		bool Activity::IsScreenKeyboardEnabled()
+		bool Activity::IsScreenKeyboardEnabled() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
@@ -2436,7 +2436,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		uint32_t Activity::GetX()
+		uint32_t Activity::GetX() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
@@ -2448,7 +2448,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint32_t Activity::GetY()
+		uint32_t Activity::GetY() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
@@ -2460,7 +2460,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint32_t Activity::GetWidth()
+		uint32_t Activity::GetWidth() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
@@ -2472,7 +2472,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint32_t Activity::GetHeight()
+		uint32_t Activity::GetHeight() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0, "activity should be initialized");
@@ -2484,7 +2484,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float Activity::GetAspectRatio()
+		float Activity::GetAspectRatio() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
@@ -2496,7 +2496,7 @@ namespace Tomahawk
 			return 0.0f;
 #endif
 		}
-		KeyMod Activity::GetKeyModState()
+		KeyMod Activity::GetKeyModState() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, KeyMod::None, "activity should be initialized");
@@ -2505,7 +2505,7 @@ namespace Tomahawk
 			return KeyMod::None;
 #endif
 		}
-		Viewport Activity::GetViewport()
+		Viewport Activity::GetViewport() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, Viewport(), "activity should be initialized");
@@ -2525,7 +2525,7 @@ namespace Tomahawk
 			return Viewport();
 #endif
 		}
-		Compute::Vector2 Activity::GetSize()
+		Compute::Vector2 Activity::GetSize() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
@@ -2537,7 +2537,7 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		Compute::Vector2 Activity::GetClientSize()
+		Compute::Vector2 Activity::GetClientSize() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
@@ -2549,7 +2549,7 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		Compute::Vector2 Activity::GetOffset()
+		Compute::Vector2 Activity::GetOffset() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
@@ -2562,7 +2562,7 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		Compute::Vector2 Activity::GetGlobalCursorPosition()
+		Compute::Vector2 Activity::GetGlobalCursorPosition() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
@@ -2577,7 +2577,7 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		Compute::Vector2 Activity::GetCursorPosition()
+		Compute::Vector2 Activity::GetCursorPosition() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, 0.0f, "activity should be initialized");
@@ -2593,7 +2593,7 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		Compute::Vector2 Activity::GetCursorPosition(float ScreenWidth, float ScreenHeight)
+		Compute::Vector2 Activity::GetCursorPosition(float ScreenWidth, float ScreenHeight) const
 		{
 #ifdef TH_HAS_SDL2
 			Compute::Vector2 Size = GetSize();
@@ -2602,7 +2602,7 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		Compute::Vector2 Activity::GetCursorPosition(const Compute::Vector2& ScreenDimensions)
+		Compute::Vector2 Activity::GetCursorPosition(const Compute::Vector2& ScreenDimensions) const
 		{
 #ifdef TH_HAS_SDL2
 			Compute::Vector2 Size = GetSize();
@@ -2611,7 +2611,7 @@ namespace Tomahawk
 			return Compute::Vector2();
 #endif
 		}
-		std::string Activity::GetClipboardText()
+		std::string Activity::GetClipboardText() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, std::string(), "activity should be initialized");
@@ -2626,11 +2626,11 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		SDL_Window* Activity::GetHandle()
+		SDL_Window* Activity::GetHandle() const
 		{
 			return Handle;
 		}
-		std::string Activity::GetError()
+		std::string Activity::GetError() const
 		{
 #ifdef TH_HAS_SDL2
 			TH_ASSERT(Handle != nullptr, std::string(), "activity should be initialized");

@@ -102,7 +102,7 @@ namespace Tomahawk
 					return nullptr;
 
 				uint64_t Id;
-				if (!Engine::NMake::Unpack(Filter->Find("id"), &Id))
+				if (!Engine::Series::Unpack(Filter->Find("id"), &Id))
 					return nullptr;
 
 				AudioFilter* Target = Core::Composer::Create<AudioFilter>(Id);
@@ -199,61 +199,61 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("late-reverb-pan"), &LateReverbPan);
-				Engine::NMake::Unpack(Node->Find("reflections-pan"), &ReflectionsPan);
-				Engine::NMake::Unpack(Node->Find("density"), &Density);
-				Engine::NMake::Unpack(Node->Find("diffusion"), &Diffusion);
-				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
-				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
-				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
-				Engine::NMake::Unpack(Node->Find("decay-time"), &DecayTime);
-				Engine::NMake::Unpack(Node->Find("decay-hg-ratio"), &DecayHFRatio);
-				Engine::NMake::Unpack(Node->Find("decay-lf-ratio"), &DecayLFRatio);
-				Engine::NMake::Unpack(Node->Find("reflections-gain"), &ReflectionsGain);
-				Engine::NMake::Unpack(Node->Find("reflections-delay"), &ReflectionsDelay);
-				Engine::NMake::Unpack(Node->Find("late-reverb-gain"), &LateReverbGain);
-				Engine::NMake::Unpack(Node->Find("late-reverb-delay"), &LateReverbDelay);
-				Engine::NMake::Unpack(Node->Find("echo-time"), &EchoTime);
-				Engine::NMake::Unpack(Node->Find("echo-depth"), &EchoDepth);
-				Engine::NMake::Unpack(Node->Find("modulation-time"), &ModulationTime);
-				Engine::NMake::Unpack(Node->Find("modulation-depth"), &ModulationDepth);
-				Engine::NMake::Unpack(Node->Find("air-absorption-gain-hf"), &AirAbsorptionGainHF);
-				Engine::NMake::Unpack(Node->Find("hf-reference"), &HFReference);
-				Engine::NMake::Unpack(Node->Find("lf-reference"), &LFReference);
-				Engine::NMake::Unpack(Node->Find("room-rolloff-factor"), &RoomRolloffFactor);
-				Engine::NMake::Unpack(Node->Find("decay-hf-limited"), &IsDecayHFLimited);
+				Engine::Series::Unpack(Node->Find("late-reverb-pan"), &LateReverbPan);
+				Engine::Series::Unpack(Node->Find("reflections-pan"), &ReflectionsPan);
+				Engine::Series::Unpack(Node->Find("density"), &Density);
+				Engine::Series::Unpack(Node->Find("diffusion"), &Diffusion);
+				Engine::Series::Unpack(Node->Find("gain"), &Gain);
+				Engine::Series::Unpack(Node->Find("gain-hf"), &GainHF);
+				Engine::Series::Unpack(Node->Find("gain-lf"), &GainLF);
+				Engine::Series::Unpack(Node->Find("decay-time"), &DecayTime);
+				Engine::Series::Unpack(Node->Find("decay-hg-ratio"), &DecayHFRatio);
+				Engine::Series::Unpack(Node->Find("decay-lf-ratio"), &DecayLFRatio);
+				Engine::Series::Unpack(Node->Find("reflections-gain"), &ReflectionsGain);
+				Engine::Series::Unpack(Node->Find("reflections-delay"), &ReflectionsDelay);
+				Engine::Series::Unpack(Node->Find("late-reverb-gain"), &LateReverbGain);
+				Engine::Series::Unpack(Node->Find("late-reverb-delay"), &LateReverbDelay);
+				Engine::Series::Unpack(Node->Find("echo-time"), &EchoTime);
+				Engine::Series::Unpack(Node->Find("echo-depth"), &EchoDepth);
+				Engine::Series::Unpack(Node->Find("modulation-time"), &ModulationTime);
+				Engine::Series::Unpack(Node->Find("modulation-depth"), &ModulationDepth);
+				Engine::Series::Unpack(Node->Find("air-absorption-gain-hf"), &AirAbsorptionGainHF);
+				Engine::Series::Unpack(Node->Find("hf-reference"), &HFReference);
+				Engine::Series::Unpack(Node->Find("lf-reference"), &LFReference);
+				Engine::Series::Unpack(Node->Find("room-rolloff-factor"), &RoomRolloffFactor);
+				Engine::Series::Unpack(Node->Find("decay-hf-limited"), &IsDecayHFLimited);
 			}
-			void Reverb::Serialize(Core::Schema* Node)
+			void Reverb::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("late-reverb-pan"), LateReverbPan);
-				Engine::NMake::Pack(Node->Set("reflections-pan"), ReflectionsPan);
-				Engine::NMake::Pack(Node->Set("density"), Density);
-				Engine::NMake::Pack(Node->Set("diffusion"), Diffusion);
-				Engine::NMake::Pack(Node->Set("gain"), Gain);
-				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);
-				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
-				Engine::NMake::Pack(Node->Set("decay-time"), DecayTime);
-				Engine::NMake::Pack(Node->Set("decay-hg-ratio"), DecayHFRatio);
-				Engine::NMake::Pack(Node->Set("decay-lf-ratio"), DecayLFRatio);
-				Engine::NMake::Pack(Node->Set("reflections-gain"), ReflectionsGain);
-				Engine::NMake::Pack(Node->Set("reflections-delay"), ReflectionsDelay);
-				Engine::NMake::Pack(Node->Set("late-reverb-gain"), LateReverbGain);
-				Engine::NMake::Pack(Node->Set("late-reverb-delay"), LateReverbDelay);
-				Engine::NMake::Pack(Node->Set("echo-time"), EchoTime);
-				Engine::NMake::Pack(Node->Set("echo-depth"), EchoDepth);
-				Engine::NMake::Pack(Node->Set("modulation-time"), ModulationTime);
-				Engine::NMake::Pack(Node->Set("modulation-depth"), ModulationDepth);
-				Engine::NMake::Pack(Node->Set("air-absorption-gain-hf"), AirAbsorptionGainHF);
-				Engine::NMake::Pack(Node->Set("hf-reference"), HFReference);
-				Engine::NMake::Pack(Node->Set("lf-reference"), LFReference);
-				Engine::NMake::Pack(Node->Set("room-rolloff-factor"), RoomRolloffFactor);
-				Engine::NMake::Pack(Node->Set("decay-hf-limited"), IsDecayHFLimited);
+				Engine::Series::Pack(Node->Set("late-reverb-pan"), LateReverbPan);
+				Engine::Series::Pack(Node->Set("reflections-pan"), ReflectionsPan);
+				Engine::Series::Pack(Node->Set("density"), Density);
+				Engine::Series::Pack(Node->Set("diffusion"), Diffusion);
+				Engine::Series::Pack(Node->Set("gain"), Gain);
+				Engine::Series::Pack(Node->Set("gain-hf"), GainHF);
+				Engine::Series::Pack(Node->Set("gain-lf"), GainLF);
+				Engine::Series::Pack(Node->Set("decay-time"), DecayTime);
+				Engine::Series::Pack(Node->Set("decay-hg-ratio"), DecayHFRatio);
+				Engine::Series::Pack(Node->Set("decay-lf-ratio"), DecayLFRatio);
+				Engine::Series::Pack(Node->Set("reflections-gain"), ReflectionsGain);
+				Engine::Series::Pack(Node->Set("reflections-delay"), ReflectionsDelay);
+				Engine::Series::Pack(Node->Set("late-reverb-gain"), LateReverbGain);
+				Engine::Series::Pack(Node->Set("late-reverb-delay"), LateReverbDelay);
+				Engine::Series::Pack(Node->Set("echo-time"), EchoTime);
+				Engine::Series::Pack(Node->Set("echo-depth"), EchoDepth);
+				Engine::Series::Pack(Node->Set("modulation-time"), ModulationTime);
+				Engine::Series::Pack(Node->Set("modulation-depth"), ModulationDepth);
+				Engine::Series::Pack(Node->Set("air-absorption-gain-hf"), AirAbsorptionGainHF);
+				Engine::Series::Pack(Node->Set("hf-reference"), HFReference);
+				Engine::Series::Pack(Node->Set("lf-reference"), LFReference);
+				Engine::Series::Pack(Node->Set("room-rolloff-factor"), RoomRolloffFactor);
+				Engine::Series::Pack(Node->Set("decay-hf-limited"), IsDecayHFLimited);
 			}
-			AudioEffect* Reverb::Copy()
+			AudioEffect* Reverb::Copy() const
 			{
 				Reverb* Target = new Reverb();
 				Target->LateReverbPan = LateReverbPan;
@@ -317,27 +317,27 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("rate"), &Rate);
-				Engine::NMake::Unpack(Node->Find("depth"), &Depth);
-				Engine::NMake::Unpack(Node->Find("feedback"), &Feedback);
-				Engine::NMake::Unpack(Node->Find("delay"), &Delay);
-				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
-				Engine::NMake::Unpack(Node->Find("phase"), &Phase);
+				Engine::Series::Unpack(Node->Find("rate"), &Rate);
+				Engine::Series::Unpack(Node->Find("depth"), &Depth);
+				Engine::Series::Unpack(Node->Find("feedback"), &Feedback);
+				Engine::Series::Unpack(Node->Find("delay"), &Delay);
+				Engine::Series::Unpack(Node->Find("waveform"), &Waveform);
+				Engine::Series::Unpack(Node->Find("phase"), &Phase);
 			}
-			void Chorus::Serialize(Core::Schema* Node)
+			void Chorus::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("rate"), Rate);
-				Engine::NMake::Pack(Node->Set("depth"), Depth);
-				Engine::NMake::Pack(Node->Set("feedback"), Feedback);
-				Engine::NMake::Pack(Node->Set("delay"), Delay);
-				Engine::NMake::Pack(Node->Set("waveform"), Waveform);
-				Engine::NMake::Pack(Node->Set("phase"), Phase);
+				Engine::Series::Pack(Node->Set("rate"), Rate);
+				Engine::Series::Pack(Node->Set("depth"), Depth);
+				Engine::Series::Pack(Node->Set("feedback"), Feedback);
+				Engine::Series::Pack(Node->Set("delay"), Delay);
+				Engine::Series::Pack(Node->Set("waveform"), Waveform);
+				Engine::Series::Pack(Node->Set("phase"), Phase);
 			}
-			AudioEffect* Chorus::Copy()
+			AudioEffect* Chorus::Copy() const
 			{
 				Chorus* Target = new Chorus();
 				Target->Rate = 1.1f;
@@ -383,25 +383,25 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("edge"), &Edge);
-				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
-				Engine::NMake::Unpack(Node->Find("lowpass-cut-off"), &LowpassCutOff);
-				Engine::NMake::Unpack(Node->Find("eq-center"), &EQCenter);
-				Engine::NMake::Unpack(Node->Find("eq-bandwidth"), &EQBandwidth);
+				Engine::Series::Unpack(Node->Find("edge"), &Edge);
+				Engine::Series::Unpack(Node->Find("gain"), &Gain);
+				Engine::Series::Unpack(Node->Find("lowpass-cut-off"), &LowpassCutOff);
+				Engine::Series::Unpack(Node->Find("eq-center"), &EQCenter);
+				Engine::Series::Unpack(Node->Find("eq-bandwidth"), &EQBandwidth);
 			}
-			void Distortion::Serialize(Core::Schema* Node)
+			void Distortion::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("edge"), Edge);
-				Engine::NMake::Pack(Node->Set("gain"), Gain);
-				Engine::NMake::Pack(Node->Set("lowpass-cut-off"), LowpassCutOff);
-				Engine::NMake::Pack(Node->Set("eq-center"), EQCenter);
-				Engine::NMake::Pack(Node->Set("eq-bandwidth"), EQBandwidth);
+				Engine::Series::Pack(Node->Set("edge"), Edge);
+				Engine::Series::Pack(Node->Set("gain"), Gain);
+				Engine::Series::Pack(Node->Set("lowpass-cut-off"), LowpassCutOff);
+				Engine::Series::Pack(Node->Set("eq-center"), EQCenter);
+				Engine::Series::Pack(Node->Set("eq-bandwidth"), EQBandwidth);
 			}
-			AudioEffect* Distortion::Copy()
+			AudioEffect* Distortion::Copy() const
 			{
 				Distortion* Target = new Distortion();
 				Target->Edge = 0.2f;
@@ -446,25 +446,25 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("delay"), &Delay);
-				Engine::NMake::Unpack(Node->Find("lr-delay"), &LRDelay);
-				Engine::NMake::Unpack(Node->Find("damping"), &Damping);
-				Engine::NMake::Unpack(Node->Find("feedback"), &Feedback);
-				Engine::NMake::Unpack(Node->Find("spread"), &Spread);
+				Engine::Series::Unpack(Node->Find("delay"), &Delay);
+				Engine::Series::Unpack(Node->Find("lr-delay"), &LRDelay);
+				Engine::Series::Unpack(Node->Find("damping"), &Damping);
+				Engine::Series::Unpack(Node->Find("feedback"), &Feedback);
+				Engine::Series::Unpack(Node->Find("spread"), &Spread);
 			}
-			void Echo::Serialize(Core::Schema* Node)
+			void Echo::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("delay"), Delay);
-				Engine::NMake::Pack(Node->Set("lr-delay"), LRDelay);
-				Engine::NMake::Pack(Node->Set("damping"), Damping);
-				Engine::NMake::Pack(Node->Set("feedback"), Feedback);
-				Engine::NMake::Pack(Node->Set("spread"), Spread);
+				Engine::Series::Pack(Node->Set("delay"), Delay);
+				Engine::Series::Pack(Node->Set("lr-delay"), LRDelay);
+				Engine::Series::Pack(Node->Set("damping"), Damping);
+				Engine::Series::Pack(Node->Set("feedback"), Feedback);
+				Engine::Series::Pack(Node->Set("spread"), Spread);
 			}
-			AudioEffect* Echo::Copy()
+			AudioEffect* Echo::Copy() const
 			{
 				Echo* Target = new Echo();
 				Target->Delay = 0.1f;
@@ -510,27 +510,27 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("rate"), &Rate);
-				Engine::NMake::Unpack(Node->Find("depth"), &Depth);
-				Engine::NMake::Unpack(Node->Find("feedback"), &Feedback);
-				Engine::NMake::Unpack(Node->Find("delay"), &Delay);
-				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
-				Engine::NMake::Unpack(Node->Find("phase"), &Phase);
+				Engine::Series::Unpack(Node->Find("rate"), &Rate);
+				Engine::Series::Unpack(Node->Find("depth"), &Depth);
+				Engine::Series::Unpack(Node->Find("feedback"), &Feedback);
+				Engine::Series::Unpack(Node->Find("delay"), &Delay);
+				Engine::Series::Unpack(Node->Find("waveform"), &Waveform);
+				Engine::Series::Unpack(Node->Find("phase"), &Phase);
 			}
-			void Flanger::Serialize(Core::Schema* Node)
+			void Flanger::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("rate"), Rate);
-				Engine::NMake::Pack(Node->Set("depth"), Depth);
-				Engine::NMake::Pack(Node->Set("feedback"), Feedback);
-				Engine::NMake::Pack(Node->Set("delay"), Delay);
-				Engine::NMake::Pack(Node->Set("waveform"), Waveform);
-				Engine::NMake::Pack(Node->Set("phase"), Phase);
+				Engine::Series::Pack(Node->Set("rate"), Rate);
+				Engine::Series::Pack(Node->Set("depth"), Depth);
+				Engine::Series::Pack(Node->Set("feedback"), Feedback);
+				Engine::Series::Pack(Node->Set("delay"), Delay);
+				Engine::Series::Pack(Node->Set("waveform"), Waveform);
+				Engine::Series::Pack(Node->Set("phase"), Phase);
 			}
-			AudioEffect* Flanger::Copy()
+			AudioEffect* Flanger::Copy() const
 			{
 				Flanger* Target = new Flanger();
 				Target->Rate = 0.27f;
@@ -574,21 +574,21 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("frequency"), &Frequency);
-				Engine::NMake::Unpack(Node->Find("left-direction"), &LeftDirection);
-				Engine::NMake::Unpack(Node->Find("right-direction"), &RightDirection);
+				Engine::Series::Unpack(Node->Find("frequency"), &Frequency);
+				Engine::Series::Unpack(Node->Find("left-direction"), &LeftDirection);
+				Engine::Series::Unpack(Node->Find("right-direction"), &RightDirection);
 			}
-			void FrequencyShifter::Serialize(Core::Schema* Node)
+			void FrequencyShifter::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("frequency"), Frequency);
-				Engine::NMake::Pack(Node->Set("left-direction"), LeftDirection);
-				Engine::NMake::Pack(Node->Set("right-direction"), RightDirection);
+				Engine::Series::Pack(Node->Set("frequency"), Frequency);
+				Engine::Series::Pack(Node->Set("left-direction"), LeftDirection);
+				Engine::Series::Pack(Node->Set("right-direction"), RightDirection);
 			}
-			AudioEffect* FrequencyShifter::Copy()
+			AudioEffect* FrequencyShifter::Copy() const
 			{
 				FrequencyShifter* Target = new FrequencyShifter();
 				Target->Frequency = 0.0f;
@@ -632,27 +632,27 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("rate"), &Rate);
-				Engine::NMake::Unpack(Node->Find("phonemea"), &Phonemea);
-				Engine::NMake::Unpack(Node->Find("phonemea-coarse-tuning"), &PhonemeaCoarseTuning);
-				Engine::NMake::Unpack(Node->Find("phonemeb"), &Phonemeb);
-				Engine::NMake::Unpack(Node->Find("phonemeb-coarse-tuning"), &PhonemebCoarseTuning);
-				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
+				Engine::Series::Unpack(Node->Find("rate"), &Rate);
+				Engine::Series::Unpack(Node->Find("phonemea"), &Phonemea);
+				Engine::Series::Unpack(Node->Find("phonemea-coarse-tuning"), &PhonemeaCoarseTuning);
+				Engine::Series::Unpack(Node->Find("phonemeb"), &Phonemeb);
+				Engine::Series::Unpack(Node->Find("phonemeb-coarse-tuning"), &PhonemebCoarseTuning);
+				Engine::Series::Unpack(Node->Find("waveform"), &Waveform);
 			}
-			void VocalMorpher::Serialize(Core::Schema* Node)
+			void VocalMorpher::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("rate"), Rate);
-				Engine::NMake::Pack(Node->Set("phonemea"), Phonemea);
-				Engine::NMake::Pack(Node->Set("phonemea-coarse-tuning"), PhonemeaCoarseTuning);
-				Engine::NMake::Pack(Node->Set("phonemeb"), Phonemeb);
-				Engine::NMake::Pack(Node->Set("phonemeb-coarse-tuning"), PhonemebCoarseTuning);
-				Engine::NMake::Pack(Node->Set("waveform"), Waveform);
+				Engine::Series::Pack(Node->Set("rate"), Rate);
+				Engine::Series::Pack(Node->Set("phonemea"), Phonemea);
+				Engine::Series::Pack(Node->Set("phonemea-coarse-tuning"), PhonemeaCoarseTuning);
+				Engine::Series::Pack(Node->Set("phonemeb"), Phonemeb);
+				Engine::Series::Pack(Node->Set("phonemeb-coarse-tuning"), PhonemebCoarseTuning);
+				Engine::Series::Pack(Node->Set("waveform"), Waveform);
 			}
-			AudioEffect* VocalMorpher::Copy()
+			AudioEffect* VocalMorpher::Copy() const
 			{
 				VocalMorpher* Target = new VocalMorpher();
 				Target->Rate = 1.41f;
@@ -695,19 +695,19 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("coarse-tune"), &CoarseTune);
-				Engine::NMake::Unpack(Node->Find("fine-tune"), &FineTune);
+				Engine::Series::Unpack(Node->Find("coarse-tune"), &CoarseTune);
+				Engine::Series::Unpack(Node->Find("fine-tune"), &FineTune);
 			}
-			void PitchShifter::Serialize(Core::Schema* Node)
+			void PitchShifter::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("coarse-tune"), CoarseTune);
-				Engine::NMake::Pack(Node->Set("fine-tune"), FineTune);
+				Engine::Series::Pack(Node->Set("coarse-tune"), CoarseTune);
+				Engine::Series::Pack(Node->Set("fine-tune"), FineTune);
 			}
-			AudioEffect* PitchShifter::Copy()
+			AudioEffect* PitchShifter::Copy() const
 			{
 				PitchShifter* Target = new PitchShifter();
 				Target->CoarseTune = 12;
@@ -747,21 +747,21 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("frequency"), &Frequency);
-				Engine::NMake::Unpack(Node->Find("highpass-cut-off"), &HighpassCutOff);
-				Engine::NMake::Unpack(Node->Find("waveform"), &Waveform);
+				Engine::Series::Unpack(Node->Find("frequency"), &Frequency);
+				Engine::Series::Unpack(Node->Find("highpass-cut-off"), &HighpassCutOff);
+				Engine::Series::Unpack(Node->Find("waveform"), &Waveform);
 			}
-			void RingModulator::Serialize(Core::Schema* Node)
+			void RingModulator::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("frequency"), Frequency);
-				Engine::NMake::Pack(Node->Set("highpass-cut-off"), HighpassCutOff);
-				Engine::NMake::Pack(Node->Set("waveform"), Waveform);
+				Engine::Series::Pack(Node->Set("frequency"), Frequency);
+				Engine::Series::Pack(Node->Set("highpass-cut-off"), HighpassCutOff);
+				Engine::Series::Pack(Node->Set("waveform"), Waveform);
 			}
-			AudioEffect* RingModulator::Copy()
+			AudioEffect* RingModulator::Copy() const
 			{
 				RingModulator* Target = new RingModulator();
 				Target->Frequency = 440.0f;
@@ -803,23 +803,23 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("attack-time"), &AttackTime);
-				Engine::NMake::Unpack(Node->Find("release-time"), &ReleaseTime);
-				Engine::NMake::Unpack(Node->Find("resonance"), &Resonance);
-				Engine::NMake::Unpack(Node->Find("peak-gain"), &PeakGain);
+				Engine::Series::Unpack(Node->Find("attack-time"), &AttackTime);
+				Engine::Series::Unpack(Node->Find("release-time"), &ReleaseTime);
+				Engine::Series::Unpack(Node->Find("resonance"), &Resonance);
+				Engine::Series::Unpack(Node->Find("peak-gain"), &PeakGain);
 			}
-			void Autowah::Serialize(Core::Schema* Node)
+			void Autowah::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Set("attack-time"), AttackTime);
-				Engine::NMake::Pack(Node->Set("release-time"), ReleaseTime);
-				Engine::NMake::Pack(Node->Set("resonance"), Resonance);
-				Engine::NMake::Pack(Node->Set("peak-gain"), PeakGain);
+				Engine::Series::Pack(Node->Set("attack-time"), AttackTime);
+				Engine::Series::Pack(Node->Set("release-time"), ReleaseTime);
+				Engine::Series::Pack(Node->Set("resonance"), Resonance);
+				Engine::Series::Pack(Node->Set("peak-gain"), PeakGain);
 			}
-			AudioEffect* Autowah::Copy()
+			AudioEffect* Autowah::Copy() const
 			{
 				Autowah* Target = new Autowah();
 				Target->AttackTime = 0.06f;
@@ -854,13 +854,13 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 			}
-			void Compressor::Serialize(Core::Schema* Node)
+			void Compressor::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 			}
-			AudioEffect* Compressor::Copy()
+			AudioEffect* Compressor::Copy() const
 			{
 				return new Compressor();
 			}
@@ -902,35 +902,35 @@ namespace Tomahawk
 				if (NewFilter != nullptr)
 					SetFilter(&Filter);
 
-				Engine::NMake::Unpack(Node->Find("low-gain"), &LowGain);
-				Engine::NMake::Unpack(Node->Find("low-cut-off"), &LowCutOff);
-				Engine::NMake::Unpack(Node->Find("mid1-gain"), &Mid1Gain);
-				Engine::NMake::Unpack(Node->Find("mid1-center"), &Mid1Center);
-				Engine::NMake::Unpack(Node->Find("mid1-width"), &Mid1Width);
-				Engine::NMake::Unpack(Node->Find("mid2-gain"), &Mid2Gain);
-				Engine::NMake::Unpack(Node->Find("mid2-center"), &Mid2Center);
-				Engine::NMake::Unpack(Node->Find("mid2-width"), &Mid2Width);
-				Engine::NMake::Unpack(Node->Find("high-gain"), &HighGain);
-				Engine::NMake::Unpack(Node->Find("high-cut-off"), &HighCutOff);
+				Engine::Series::Unpack(Node->Find("low-gain"), &LowGain);
+				Engine::Series::Unpack(Node->Find("low-cut-off"), &LowCutOff);
+				Engine::Series::Unpack(Node->Find("mid1-gain"), &Mid1Gain);
+				Engine::Series::Unpack(Node->Find("mid1-center"), &Mid1Center);
+				Engine::Series::Unpack(Node->Find("mid1-width"), &Mid1Width);
+				Engine::Series::Unpack(Node->Find("mid2-gain"), &Mid2Gain);
+				Engine::Series::Unpack(Node->Find("mid2-center"), &Mid2Center);
+				Engine::Series::Unpack(Node->Find("mid2-width"), &Mid2Width);
+				Engine::Series::Unpack(Node->Find("high-gain"), &HighGain);
+				Engine::Series::Unpack(Node->Find("high-cut-off"), &HighCutOff);
 			}
-			void Equalizer::Serialize(Core::Schema* Node)
+			void Equalizer::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				if (Filter != nullptr)
 					Filter->Serialize(Node->Set("filter"));
 
-				Engine::NMake::Pack(Node->Find("low-gain"), LowGain);
-				Engine::NMake::Pack(Node->Find("low-cut-off"), LowCutOff);
-				Engine::NMake::Pack(Node->Find("mid1-gain"), Mid1Gain);
-				Engine::NMake::Pack(Node->Find("mid1-center"), Mid1Center);
-				Engine::NMake::Pack(Node->Find("mid1-width"), Mid1Width);
-				Engine::NMake::Pack(Node->Find("mid2-gain"), Mid2Gain);
-				Engine::NMake::Pack(Node->Find("mid2-center"), Mid2Center);
-				Engine::NMake::Pack(Node->Find("mid2-width"), Mid2Width);
-				Engine::NMake::Pack(Node->Find("high-gain"), HighGain);
-				Engine::NMake::Pack(Node->Find("high-cut-off"), HighCutOff);
+				Engine::Series::Pack(Node->Find("low-gain"), LowGain);
+				Engine::Series::Pack(Node->Find("low-cut-off"), LowCutOff);
+				Engine::Series::Pack(Node->Find("mid1-gain"), Mid1Gain);
+				Engine::Series::Pack(Node->Find("mid1-center"), Mid1Center);
+				Engine::Series::Pack(Node->Find("mid1-width"), Mid1Width);
+				Engine::Series::Pack(Node->Find("mid2-gain"), Mid2Gain);
+				Engine::Series::Pack(Node->Find("mid2-center"), Mid2Center);
+				Engine::Series::Pack(Node->Find("mid2-width"), Mid2Width);
+				Engine::Series::Pack(Node->Find("high-gain"), HighGain);
+				Engine::Series::Pack(Node->Find("high-cut-off"), HighCutOff);
 			}
-			AudioEffect* Equalizer::Copy()
+			AudioEffect* Equalizer::Copy() const
 			{
 				Equalizer* Target = new Equalizer();
 				Target->LowGain = 1.0f;

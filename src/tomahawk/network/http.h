@@ -531,8 +531,8 @@ namespace Tomahawk
 			public:
 				QueryParameter();
 				virtual ~QueryParameter() = default;
-				std::string Build();
-				std::string BuildFromBase();
+				std::string Build() const;
+				std::string BuildFromBase() const;
 				QueryParameter* Find(QueryToken* Name);
 			};
 
@@ -547,8 +547,8 @@ namespace Tomahawk
 				void Clear();
 				void Steal(Core::Schema** Output);
 				void Decode(const char* ContentType, const std::string& URI);
-				std::string Encode(const char* ContentType);
-				QueryParameter* Get(const char* Name);
+				std::string Encode(const char* ContentType) const;
+				QueryParameter* Get(const char* Name) const;
 				QueryParameter* Set(const char* Name);
 				QueryParameter* Set(const char* Name, const char* Value);
 
@@ -556,8 +556,8 @@ namespace Tomahawk
 				void NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value);
 				void DecodeAXWFD(const std::string& URI);
 				void DecodeAJSON(const std::string& URI);
-				std::string EncodeAXWFD();
-				std::string EncodeAJSON();
+				std::string EncodeAXWFD() const;
+				std::string EncodeAJSON() const;
 				QueryParameter* GetParameter(QueryToken* Name);
 			};
 
@@ -716,7 +716,7 @@ namespace Tomahawk
 				bool GetFrame(WebSocketOp* Op, std::vector<char>* Message);
 			};
 
-			class TH_OUT Util
+			class TH_OUT_TS Util
 			{
 			public:
 				static std::string ConnectionResolve(Connection* Base);
@@ -725,7 +725,7 @@ namespace Tomahawk
 				static bool ContentOK(Content State);
 			};
 
-			class TH_OUT Paths
+			class TH_OUT_TS Paths
 			{
 			public:
 				static void ConstructPath(Connection* Base);
@@ -737,7 +737,7 @@ namespace Tomahawk
 				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength);
 			};
 
-			class TH_OUT Parsing
+			class TH_OUT_TS Parsing
 			{
 			public:
 				static bool ParseMultipartHeaderField(Parser* Parser, const char* Name, size_t Length);
@@ -757,7 +757,7 @@ namespace Tomahawk
 				static void ParseCookie(const std::string& Value);
 			};
 
-			class TH_OUT Permissions
+			class TH_OUT_TS Permissions
 			{
 			public:
 				static std::string Authorize(const std::string& Username, const std::string& Password, const std::string& Type = "Basic");
@@ -766,7 +766,7 @@ namespace Tomahawk
 				static bool WebSocketUpgradeAllowed(Connection* Base);
 			};
 
-			class TH_OUT Resources
+			class TH_OUT_TS Resources
 			{
 			public:
 				static bool ResourceHasAlternative(Connection* Base);
@@ -777,7 +777,7 @@ namespace Tomahawk
 				static bool ResourceCompressed(Connection* Base, uint64_t Size);
 			};
 
-			class TH_OUT Routing
+			class TH_OUT_TS Routing
 			{
 			public:
 				static bool RouteWEBSOCKET(Connection* Base);
@@ -789,7 +789,7 @@ namespace Tomahawk
 				static bool RouteOPTIONS(Connection* Base);
 			};
 
-			class TH_OUT Logical
+			class TH_OUT_TS Logical
 			{
 			public:
 				static bool ProcessDirectory(Connection* Base);
@@ -804,7 +804,7 @@ namespace Tomahawk
 				static bool ProcessWebSocket(Connection* Base, const char* Key);
 			};
 
-			class TH_OUT Server final : public SocketServer
+			class TH_OUT_TS Server final : public SocketServer
 			{
 				friend GatewayFrame;
 				friend Connection;

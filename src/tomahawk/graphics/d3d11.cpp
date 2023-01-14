@@ -90,7 +90,7 @@ namespace Tomahawk
 			{
 				D3D_RELEASE(Resource);
 			}
-			void* D3D11DepthStencilState::GetResource()
+			void* D3D11DepthStencilState::GetResource() const
 			{
 				return Resource;
 			}
@@ -102,7 +102,7 @@ namespace Tomahawk
 			{
 				D3D_RELEASE(Resource);
 			}
-			void* D3D11RasterizerState::GetResource()
+			void* D3D11RasterizerState::GetResource() const
 			{
 				return Resource;
 			}
@@ -114,7 +114,7 @@ namespace Tomahawk
 			{
 				D3D_RELEASE(Resource);
 			}
-			void* D3D11BlendState::GetResource()
+			void* D3D11BlendState::GetResource() const
 			{
 				return Resource;
 			}
@@ -126,7 +126,7 @@ namespace Tomahawk
 			{
 				D3D_RELEASE(Resource);
 			}
-			void* D3D11SamplerState::GetResource()
+			void* D3D11SamplerState::GetResource() const
 			{
 				return Resource;
 			}
@@ -137,7 +137,7 @@ namespace Tomahawk
 			D3D11InputLayout::~D3D11InputLayout()
 			{
 			}
-			void* D3D11InputLayout::GetResource()
+			void* D3D11InputLayout::GetResource() const
 			{
 				return (void*)this;
 			}
@@ -166,7 +166,7 @@ namespace Tomahawk
 				D3D_RELEASE(VertexLayout);
 				D3D_RELEASE(Signature);
 			}
-			bool D3D11Shader::IsValid()
+			bool D3D11Shader::IsValid() const
 			{
 				return Compiled;
 			}
@@ -183,7 +183,7 @@ namespace Tomahawk
 				D3D_RELEASE(Element);
 				D3D_RELEASE(Access);
 			}
-			void* D3D11ElementBuffer::GetResource()
+			void* D3D11ElementBuffer::GetResource() const
 			{
 				return (void*)Element;
 			}
@@ -191,7 +191,7 @@ namespace Tomahawk
 			D3D11MeshBuffer::D3D11MeshBuffer(const Desc& I) : MeshBuffer(I)
 			{
 			}
-			Compute::Vertex* D3D11MeshBuffer::GetElements(GraphicsDevice* Device)
+			Compute::Vertex* D3D11MeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
 				TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 
@@ -208,7 +208,7 @@ namespace Tomahawk
 			D3D11SkinMeshBuffer::D3D11SkinMeshBuffer(const Desc& I) : SkinMeshBuffer(I)
 			{
 			}
-			Compute::SkinVertex* D3D11SkinMeshBuffer::GetElements(GraphicsDevice* Device)
+			Compute::SkinVertex* D3D11SkinMeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
 				TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 
@@ -245,7 +245,7 @@ namespace Tomahawk
 				D3D_RELEASE(Resource);
 				D3D_RELEASE(Access);
 			}
-			void* D3D11Texture2D::GetResource()
+			void* D3D11Texture2D::GetResource() const
 			{
 				return (void*)Resource;
 			}
@@ -276,7 +276,7 @@ namespace Tomahawk
 				D3D_RELEASE(Resource);
 				D3D_RELEASE(Access);
 			}
-			void* D3D11TextureCube::GetResource()
+			void* D3D11TextureCube::GetResource() const
 			{
 				return (void*)Resource;
 			}
@@ -289,15 +289,15 @@ namespace Tomahawk
 			{
 				D3D_RELEASE(DepthStencilView);
 			}
-			void* D3D11DepthTarget2D::GetResource()
+			void* D3D11DepthTarget2D::GetResource() const
 			{
 				return DepthStencilView;
 			}
-			uint32_t D3D11DepthTarget2D::GetWidth()
+			uint32_t D3D11DepthTarget2D::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t D3D11DepthTarget2D::GetHeight()
+			uint32_t D3D11DepthTarget2D::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -310,15 +310,15 @@ namespace Tomahawk
 			{
 				D3D_RELEASE(DepthStencilView);
 			}
-			void* D3D11DepthTargetCube::GetResource()
+			void* D3D11DepthTargetCube::GetResource() const
 			{
 				return DepthStencilView;
 			}
-			uint32_t D3D11DepthTargetCube::GetWidth()
+			uint32_t D3D11DepthTargetCube::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t D3D11DepthTargetCube::GetHeight()
+			uint32_t D3D11DepthTargetCube::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -335,19 +335,19 @@ namespace Tomahawk
 				D3D_RELEASE(DepthStencilView);
 				D3D_RELEASE(RenderTargetView);
 			}
-			void* D3D11RenderTarget2D::GetTargetBuffer()
+			void* D3D11RenderTarget2D::GetTargetBuffer() const
 			{
 				return (void*)&RenderTargetView;
 			}
-			void* D3D11RenderTarget2D::GetDepthBuffer()
+			void* D3D11RenderTarget2D::GetDepthBuffer() const
 			{
 				return (void*)DepthStencilView;
 			}
-			uint32_t D3D11RenderTarget2D::GetWidth()
+			uint32_t D3D11RenderTarget2D::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t D3D11RenderTarget2D::GetHeight()
+			uint32_t D3D11RenderTarget2D::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -370,19 +370,19 @@ namespace Tomahawk
 					D3D_RELEASE(RenderTargetView[i]);
 				}
 			}
-			void* D3D11MultiRenderTarget2D::GetTargetBuffer()
+			void* D3D11MultiRenderTarget2D::GetTargetBuffer() const
 			{
 				return (void*)RenderTargetView;
 			}
-			void* D3D11MultiRenderTarget2D::GetDepthBuffer()
+			void* D3D11MultiRenderTarget2D::GetDepthBuffer() const
 			{
 				return (void*)DepthStencilView;
 			}
-			uint32_t D3D11MultiRenderTarget2D::GetWidth()
+			uint32_t D3D11MultiRenderTarget2D::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t D3D11MultiRenderTarget2D::GetHeight()
+			uint32_t D3D11MultiRenderTarget2D::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -399,19 +399,19 @@ namespace Tomahawk
 				D3D_RELEASE(RenderTargetView);
 				D3D_RELEASE(Texture);
 			}
-			void* D3D11RenderTargetCube::GetTargetBuffer()
+			void* D3D11RenderTargetCube::GetTargetBuffer() const
 			{
 				return (void*)&RenderTargetView;
 			}
-			void* D3D11RenderTargetCube::GetDepthBuffer()
+			void* D3D11RenderTargetCube::GetDepthBuffer() const
 			{
 				return (void*)DepthStencilView;
 			}
-			uint32_t D3D11RenderTargetCube::GetWidth()
+			uint32_t D3D11RenderTargetCube::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t D3D11RenderTargetCube::GetHeight()
+			uint32_t D3D11RenderTargetCube::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -435,19 +435,19 @@ namespace Tomahawk
 				}
 				D3D_RELEASE(DepthStencilView);
 			}
-			void* D3D11MultiRenderTargetCube::GetTargetBuffer()
+			void* D3D11MultiRenderTargetCube::GetTargetBuffer() const
 			{
 				return (void*)RenderTargetView;
 			}
-			void* D3D11MultiRenderTargetCube::GetDepthBuffer()
+			void* D3D11MultiRenderTargetCube::GetDepthBuffer() const
 			{
 				return (void*)DepthStencilView;
 			}
-			uint32_t D3D11MultiRenderTargetCube::GetWidth()
+			uint32_t D3D11MultiRenderTargetCube::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t D3D11MultiRenderTargetCube::GetHeight()
+			uint32_t D3D11MultiRenderTargetCube::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -495,7 +495,7 @@ namespace Tomahawk
 				if (Async != nullptr)
 					Async->Release();
 			}
-			void* D3D11Query::GetResource()
+			void* D3D11Query::GetResource() const
 			{
 				return (void*)Async;
 			}
@@ -3617,14 +3617,14 @@ namespace Tomahawk
 
 				return Result;
 			}
-			PrimitiveTopology D3D11Device::GetPrimitiveTopology()
+			PrimitiveTopology D3D11Device::GetPrimitiveTopology() const
 			{
 				D3D11_PRIMITIVE_TOPOLOGY Topology;
 				ImmediateContext->IAGetPrimitiveTopology(&Topology);
 
 				return (PrimitiveTopology)Topology;
 			}
-			ShaderModel D3D11Device::GetSupportedShaderModel()
+			ShaderModel D3D11Device::GetSupportedShaderModel() const
 			{
 				if (FeatureLevel == D3D_FEATURE_LEVEL::D3D_FEATURE_LEVEL_11_0)
 					return ShaderModel::HLSL_5_0;
@@ -3646,15 +3646,15 @@ namespace Tomahawk
 
 				return ShaderModel::Invalid;
 			}
-			void* D3D11Device::GetDevice()
+			void* D3D11Device::GetDevice() const
 			{
 				return (void*)Context;
 			}
-			void* D3D11Device::GetContext()
+			void* D3D11Device::GetContext() const
 			{
 				return (void*)ImmediateContext;
 			}
-			bool D3D11Device::IsValid()
+			bool D3D11Device::IsValid() const
 			{
 				return BasicEffect != nullptr;
 			}

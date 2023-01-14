@@ -49,7 +49,7 @@ namespace Tomahawk
 		App = (uint64_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale)
 	};
 
-	class TH_OUT Library
+	class TH_OUT_TS Library
 	{
 	public:
 		static bool HasDirectX();

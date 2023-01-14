@@ -6,11 +6,11 @@ namespace Tomahawk
 {
 	namespace Script
 	{
-		TH_OUT bool CURegisterVertices(VMManager* Engine);
-		TH_OUT bool CURegisterRectangle(VMManager* Engine);
-		TH_OUT bool CURegisterVector2(VMManager* Engine);
-		TH_OUT bool CURegisterVector3(VMManager* Engine);
-		TH_OUT bool CURegisterVector4(VMManager* Engine);
+		TH_OUT_TS bool CURegisterVertices(VMManager* Engine);
+		TH_OUT_TS bool CURegisterRectangle(VMManager* Engine);
+		TH_OUT_TS bool CURegisterVector2(VMManager* Engine);
+		TH_OUT_TS bool CURegisterVector3(VMManager* Engine);
+		TH_OUT_TS bool CURegisterVector4(VMManager* Engine);
 	}
 }
 #endif

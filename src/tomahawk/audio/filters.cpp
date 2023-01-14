@@ -119,16 +119,16 @@ namespace Tomahawk
 			void Lowpass::Deserialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
-				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
+				Engine::Series::Unpack(Node->Find("gain"), &Gain);
+				Engine::Series::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void Lowpass::Serialize(Core::Schema* Node)
+			void Lowpass::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				Engine::NMake::Pack(Node->Set("gain"), Gain);
-				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);
+				Engine::Series::Pack(Node->Set("gain"), Gain);
+				Engine::Series::Pack(Node->Set("gain-hf"), GainHF);
 			}
-			AudioFilter* Lowpass::Copy()
+			AudioFilter* Lowpass::Copy() const
 			{
 				Lowpass* Target = new Lowpass();
 				Target->Gain = Gain;
@@ -162,16 +162,16 @@ namespace Tomahawk
 			void Highpass::Deserialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
-				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
+				Engine::Series::Unpack(Node->Find("gain"), &Gain);
+				Engine::Series::Unpack(Node->Find("gain-lf"), &GainLF);
 			}
-			void Highpass::Serialize(Core::Schema* Node)
+			void Highpass::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				Engine::NMake::Pack(Node->Set("gain"), Gain);
-				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
+				Engine::Series::Pack(Node->Set("gain"), Gain);
+				Engine::Series::Pack(Node->Set("gain-lf"), GainLF);
 			}
-			AudioFilter* Highpass::Copy()
+			AudioFilter* Highpass::Copy() const
 			{
 				Highpass* Target = new Highpass();
 				Target->Gain = Gain;
@@ -206,18 +206,18 @@ namespace Tomahawk
 			void Bandpass::Deserialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				Engine::NMake::Unpack(Node->Find("gain"), &Gain);
-				Engine::NMake::Unpack(Node->Find("gain-lf"), &GainLF);
-				Engine::NMake::Unpack(Node->Find("gain-hf"), &GainHF);
+				Engine::Series::Unpack(Node->Find("gain"), &Gain);
+				Engine::Series::Unpack(Node->Find("gain-lf"), &GainLF);
+				Engine::Series::Unpack(Node->Find("gain-hf"), &GainHF);
 			}
-			void Bandpass::Serialize(Core::Schema* Node)
+			void Bandpass::Serialize(Core::Schema* Node) const
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				Engine::NMake::Pack(Node->Set("gain"), Gain);
-				Engine::NMake::Pack(Node->Set("gain-lf"), GainLF);
-				Engine::NMake::Pack(Node->Set("gain-hf"), GainHF);
+				Engine::Series::Pack(Node->Set("gain"), Gain);
+				Engine::Series::Pack(Node->Set("gain-lf"), GainLF);
+				Engine::Series::Pack(Node->Set("gain-hf"), GainHF);
 			}
-			AudioFilter* Bandpass::Copy()
+			AudioFilter* Bandpass::Copy() const
 			{
 				Bandpass* Target = new Bandpass();
 				Target->Gain = Gain;

@@ -46,23 +46,23 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				bool Extended = false;
-				NMake::Unpack(Node->Find("extended"), &Extended);
-				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
-				NMake::Unpack(Node->Find("manage"), &Manage);
+				Series::Unpack(Node->Find("extended"), &Extended);
+				Series::Unpack(Node->Find("kinematic"), &Kinematic);
+				Series::Unpack(Node->Find("manage"), &Manage);
 
 				if (!Extended)
 					return;
 
 				float Mass = 0, CcdMotionThreshold = 0;
-				NMake::Unpack(Node->Find("mass"), &Mass);
-				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
+				Series::Unpack(Node->Find("mass"), &Mass);
+				Series::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
 				SceneGraph* Scene = Parent->GetScene();
 				Core::Schema* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
 					std::string Path; uint64_t Type;
-					if (NMake::Unpack(Node->Find("path"), &Path))
+					if (Series::Unpack(Node->Find("path"), &Path))
 					{
 						auto* Shape = Content->Load<Compute::HullShape>(Path);
 						if (Shape != nullptr)
@@ -71,10 +71,10 @@ namespace Tomahawk
 							TH_RELEASE(Shape);
 						}
 					}
-					else if (!NMake::Unpack(CV->Find("type"), &Type))
+					else if (!Series::Unpack(CV->Find("type"), &Type))
 					{
 						std::vector<Compute::Vector3> Vertices;
-						if (NMake::Unpack(CV->Find("data"), &Vertices))
+						if (Series::Unpack(CV->Find("data"), &Vertices))
 						{
 							btCollisionShape* Shape = Scene->GetSimulator()->CreateConvexHull(Vertices);
 							if (Shape != nullptr)
@@ -93,91 +93,91 @@ namespace Tomahawk
 					return;
 
 				uint64_t ActivationState;
-				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
+				if (Series::Unpack(Node->Find("activation-state"), &ActivationState))
 					Instance->SetActivationState((Compute::MotionState)ActivationState);
 
 				float AngularDamping;
-				if (NMake::Unpack(Node->Find("angular-damping"), &AngularDamping))
+				if (Series::Unpack(Node->Find("angular-damping"), &AngularDamping))
 					Instance->SetAngularDamping(AngularDamping);
 
 				float AngularSleepingThreshold;
-				if (NMake::Unpack(Node->Find("angular-sleeping-threshold"), &AngularSleepingThreshold))
+				if (Series::Unpack(Node->Find("angular-sleeping-threshold"), &AngularSleepingThreshold))
 					Instance->SetAngularSleepingThreshold(AngularSleepingThreshold);
 
 				float Friction;
-				if (NMake::Unpack(Node->Find("friction"), &Friction))
+				if (Series::Unpack(Node->Find("friction"), &Friction))
 					Instance->SetFriction(Friction);
 
 				float Restitution;
-				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
+				if (Series::Unpack(Node->Find("restitution"), &Restitution))
 					Instance->SetRestitution(Restitution);
 
 				float HitFraction;
-				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
+				if (Series::Unpack(Node->Find("hit-fraction"), &HitFraction))
 					Instance->SetHitFraction(HitFraction);
 
 				float LinearDamping;
-				if (NMake::Unpack(Node->Find("linear-damping"), &LinearDamping))
+				if (Series::Unpack(Node->Find("linear-damping"), &LinearDamping))
 					Instance->SetLinearDamping(LinearDamping);
 
 				float LinearSleepingThreshold;
-				if (NMake::Unpack(Node->Find("linear-sleeping-threshold"), &LinearSleepingThreshold))
+				if (Series::Unpack(Node->Find("linear-sleeping-threshold"), &LinearSleepingThreshold))
 					Instance->SetLinearSleepingThreshold(LinearSleepingThreshold);
 
 				float CcdSweptSphereRadius;
-				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
+				if (Series::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
 					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
 
 				float ContactProcessingThreshold;
-				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
+				if (Series::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
 					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
 
 				float DeactivationTime;
-				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
+				if (Series::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
 					Instance->SetDeactivationTime(DeactivationTime);
 
 				float RollingFriction;
-				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
+				if (Series::Unpack(Node->Find("rolling-friction"), &RollingFriction))
 					Instance->SetRollingFriction(RollingFriction);
 
 				float SpinningFriction;
-				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
+				if (Series::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
 					Instance->SetSpinningFriction(SpinningFriction);
 
 				float ContactStiffness;
-				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
+				if (Series::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
 					Instance->SetContactStiffness(ContactStiffness);
 
 				float ContactDamping;
-				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
+				if (Series::Unpack(Node->Find("contact-damping"), &ContactDamping))
 					Instance->SetContactDamping(ContactDamping);
 
 				Compute::Vector3 AngularFactor;
-				if (NMake::Unpack(Node->Find("angular-factor"), &AngularFactor))
+				if (Series::Unpack(Node->Find("angular-factor"), &AngularFactor))
 					Instance->SetAngularFactor(AngularFactor);
 
 				Compute::Vector3 AngularVelocity;
-				if (NMake::Unpack(Node->Find("angular-velocity"), &AngularVelocity))
+				if (Series::Unpack(Node->Find("angular-velocity"), &AngularVelocity))
 					Instance->SetAngularVelocity(AngularVelocity);
 
 				Compute::Vector3 AnisotropicFriction;
-				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
+				if (Series::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
 					Instance->SetAnisotropicFriction(AnisotropicFriction);
 
 				Compute::Vector3 Gravity;
-				if (NMake::Unpack(Node->Find("gravity"), &Gravity))
+				if (Series::Unpack(Node->Find("gravity"), &Gravity))
 					Instance->SetGravity(Gravity);
 
 				Compute::Vector3 LinearFactor;
-				if (NMake::Unpack(Node->Find("linear-factor"), &LinearFactor))
+				if (Series::Unpack(Node->Find("linear-factor"), &LinearFactor))
 					Instance->SetLinearFactor(LinearFactor);
 
 				Compute::Vector3 LinearVelocity;
-				if (NMake::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
+				if (Series::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
 					Instance->SetLinearVelocity(LinearVelocity);
 
 				uint64_t CollisionFlags;
-				if (NMake::Unpack(Node->Find("collision-flags"), &CollisionFlags))
+				if (Series::Unpack(Node->Find("collision-flags"), &CollisionFlags))
 					Instance->SetCollisionFlags(CollisionFlags);
 			}
 			void RigidBody::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -185,9 +185,9 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("kinematic"), Kinematic);
-				NMake::Pack(Node->Set("manage"), Manage);
-				NMake::Pack(Node->Set("extended"), Instance != nullptr);
+				Series::Pack(Node->Set("kinematic"), Kinematic);
+				Series::Pack(Node->Set("manage"), Manage);
+				Series::Pack(Node->Set("extended"), Instance != nullptr);
 
 				if (!Instance)
 					return;
@@ -200,38 +200,38 @@ namespace Tomahawk
 					if (!Asset || !Hull)
 					{
 						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
-						NMake::Pack(CV->Set("data"), Vertices);
+						Series::Pack(CV->Set("data"), Vertices);
 					}
 					else
-						NMake::Pack(CV->Set("path"), Asset->Path);
+						Series::Pack(CV->Set("path"), Asset->Path);
 				}
 				else
-					NMake::Pack(CV->Set("type"), (uint64_t)Instance->GetCollisionShapeType());
+					Series::Pack(CV->Set("type"), (uint64_t)Instance->GetCollisionShapeType());
 
-				NMake::Pack(Node->Set("mass"), Instance->GetMass());
-				NMake::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				NMake::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
-				NMake::Pack(Node->Set("angular-damping"), Instance->GetAngularDamping());
-				NMake::Pack(Node->Set("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
-				NMake::Pack(Node->Set("friction"), Instance->GetFriction());
-				NMake::Pack(Node->Set("restitution"), Instance->GetRestitution());
-				NMake::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
-				NMake::Pack(Node->Set("linear-damping"), Instance->GetLinearDamping());
-				NMake::Pack(Node->Set("linear-sleeping-threshold"), Instance->GetLinearSleepingThreshold());
-				NMake::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
-				NMake::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
-				NMake::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
-				NMake::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
-				NMake::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
-				NMake::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
-				NMake::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
-				NMake::Pack(Node->Set("angular-factor"), Instance->GetAngularFactor());
-				NMake::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
-				NMake::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
-				NMake::Pack(Node->Set("gravity"), Instance->GetGravity());
-				NMake::Pack(Node->Set("linear-factor"), Instance->GetLinearFactor());
-				NMake::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
-				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+				Series::Pack(Node->Set("mass"), Instance->GetMass());
+				Series::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
+				Series::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
+				Series::Pack(Node->Set("angular-damping"), Instance->GetAngularDamping());
+				Series::Pack(Node->Set("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
+				Series::Pack(Node->Set("friction"), Instance->GetFriction());
+				Series::Pack(Node->Set("restitution"), Instance->GetRestitution());
+				Series::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
+				Series::Pack(Node->Set("linear-damping"), Instance->GetLinearDamping());
+				Series::Pack(Node->Set("linear-sleeping-threshold"), Instance->GetLinearSleepingThreshold());
+				Series::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
+				Series::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
+				Series::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
+				Series::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
+				Series::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
+				Series::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
+				Series::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
+				Series::Pack(Node->Set("angular-factor"), Instance->GetAngularFactor());
+				Series::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
+				Series::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
+				Series::Pack(Node->Set("gravity"), Instance->GetGravity());
+				Series::Pack(Node->Set("linear-factor"), Instance->GetLinearFactor());
+				Series::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
+				Series::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
 			}
 			void RigidBody::Synchronize(Core::Timer* Time)
 			{
@@ -324,7 +324,7 @@ namespace Tomahawk
 					Instance->SetMass(Mass);
 				});
 			}
-			Component* RigidBody::Copy(Entity* New)
+			Component* RigidBody::Copy(Entity* New) const
 			{
 				RigidBody* Target = new RigidBody(New);
 				Target->Kinematic = Kinematic;
@@ -355,7 +355,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				uint64_t Slot = -1;
-				if (NMake::Unpack(Node->Find("material"), &Slot))
+				if (Series::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
 
 				bool Extended = false;
@@ -363,24 +363,24 @@ namespace Tomahawk
 				std::string Path;
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
-				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("extended"), &Extended);
-				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
-				NMake::Unpack(Node->Find("manage"), &Manage);
-				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("category"), &NewCategory);
+				Series::Unpack(Node->Find("texcoord"), &TexCoord);
+				Series::Unpack(Node->Find("extended"), &Extended);
+				Series::Unpack(Node->Find("kinematic"), &Kinematic);
+				Series::Unpack(Node->Find("manage"), &Manage);
+				Series::Unpack(Node->Find("static"), &Static);
+				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 
 				if (!Extended)
 					return;
 
 				float CcdMotionThreshold = 0;
-				NMake::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
+				Series::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
 
 				Core::Schema* CV = nullptr;
 				if ((CV = Node->Find("shape")) != nullptr)
 				{
-					if (NMake::Unpack(Node->Find("path"), &Path))
+					if (Series::Unpack(Node->Find("path"), &Path))
 					{
 						auto* Shape = Content->Load<Compute::HullShape>(Path);
 						if (Shape != nullptr)
@@ -393,35 +393,35 @@ namespace Tomahawk
 				else if ((CV = Node->Find("ellipsoid")) != nullptr)
 				{
 					Compute::SoftBody::Desc::CV::SEllipsoid Shape;
-					NMake::Unpack(CV->Get("center"), &Shape.Center);
-					NMake::Unpack(CV->Get("radius"), &Shape.Radius);
-					NMake::Unpack(CV->Get("count"), &Shape.Count);
+					Series::Unpack(CV->Get("center"), &Shape.Center);
+					Series::Unpack(CV->Get("radius"), &Shape.Radius);
+					Series::Unpack(CV->Get("count"), &Shape.Count);
 					CreateEllipsoid(Shape, CcdMotionThreshold);
 				}
 				else if ((CV = Node->Find("patch")) != nullptr)
 				{
 					Compute::SoftBody::Desc::CV::SPatch Shape;
-					NMake::Unpack(CV->Get("corner-00"), &Shape.Corner00);
-					NMake::Unpack(CV->Get("corner-00-fixed"), &Shape.Corner00Fixed);
-					NMake::Unpack(CV->Get("corner-01"), &Shape.Corner01);
-					NMake::Unpack(CV->Get("corner-01-fixed"), &Shape.Corner01Fixed);
-					NMake::Unpack(CV->Get("corner-10"), &Shape.Corner10);
-					NMake::Unpack(CV->Get("corner-10-fixed"), &Shape.Corner10Fixed);
-					NMake::Unpack(CV->Get("corner-11"), &Shape.Corner11);
-					NMake::Unpack(CV->Get("corner-11-fixed"), &Shape.Corner11Fixed);
-					NMake::Unpack(CV->Get("count-x"), &Shape.CountX);
-					NMake::Unpack(CV->Get("count-y"), &Shape.CountY);
-					NMake::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
+					Series::Unpack(CV->Get("corner-00"), &Shape.Corner00);
+					Series::Unpack(CV->Get("corner-00-fixed"), &Shape.Corner00Fixed);
+					Series::Unpack(CV->Get("corner-01"), &Shape.Corner01);
+					Series::Unpack(CV->Get("corner-01-fixed"), &Shape.Corner01Fixed);
+					Series::Unpack(CV->Get("corner-10"), &Shape.Corner10);
+					Series::Unpack(CV->Get("corner-10-fixed"), &Shape.Corner10Fixed);
+					Series::Unpack(CV->Get("corner-11"), &Shape.Corner11);
+					Series::Unpack(CV->Get("corner-11-fixed"), &Shape.Corner11Fixed);
+					Series::Unpack(CV->Get("count-x"), &Shape.CountX);
+					Series::Unpack(CV->Get("count-y"), &Shape.CountY);
+					Series::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
 					CreatePatch(Shape, CcdMotionThreshold);
 				}
 				else if ((CV = Node->Find("rope")) != nullptr)
 				{
 					Compute::SoftBody::Desc::CV::SRope Shape;
-					NMake::Unpack(CV->Get("start"), &Shape.Start);
-					NMake::Unpack(CV->Get("start-fixed"), &Shape.StartFixed);
-					NMake::Unpack(CV->Get("end"), &Shape.End);
-					NMake::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
-					NMake::Unpack(CV->Get("count"), &Shape.Count);
+					Series::Unpack(CV->Get("start"), &Shape.Start);
+					Series::Unpack(CV->Get("start-fixed"), &Shape.StartFixed);
+					Series::Unpack(CV->Get("end"), &Shape.End);
+					Series::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
+					Series::Unpack(CV->Get("count"), &Shape.Count);
 					CreateRope(Shape, CcdMotionThreshold);
 				}
 
@@ -432,101 +432,101 @@ namespace Tomahawk
 				if (Conf != nullptr)
 				{
 					Compute::SoftBody::Desc::SConfig I;
-					NMake::Unpack(Conf->Get("vcf"), &I.VCF);
-					NMake::Unpack(Conf->Get("dp"), &I.DP);
-					NMake::Unpack(Conf->Get("dg"), &I.DG);
-					NMake::Unpack(Conf->Get("lf"), &I.LF);
-					NMake::Unpack(Conf->Get("pr"), &I.PR);
-					NMake::Unpack(Conf->Get("vc"), &I.VC);
-					NMake::Unpack(Conf->Get("df"), &I.DF);
-					NMake::Unpack(Conf->Get("mt"), &I.MT);
-					NMake::Unpack(Conf->Get("chr"), &I.CHR);
-					NMake::Unpack(Conf->Get("khr"), &I.KHR);
-					NMake::Unpack(Conf->Get("shr"), &I.SHR);
-					NMake::Unpack(Conf->Get("ahr"), &I.AHR);
-					NMake::Unpack(Conf->Get("srhr-cl"), &I.SRHR_CL);
-					NMake::Unpack(Conf->Get("skhr-cl"), &I.SKHR_CL);
-					NMake::Unpack(Conf->Get("sshr-cl"), &I.SSHR_CL);
-					NMake::Unpack(Conf->Get("sr-splt-cl"), &I.SR_SPLT_CL);
-					NMake::Unpack(Conf->Get("sk-splt-cl"), &I.SK_SPLT_CL);
-					NMake::Unpack(Conf->Get("ss-splt-cl"), &I.SS_SPLT_CL);
-					NMake::Unpack(Conf->Get("max-volume"), &I.MaxVolume);
-					NMake::Unpack(Conf->Get("time-scale"), &I.TimeScale);
-					NMake::Unpack(Conf->Get("drag"), &I.Drag);
-					NMake::Unpack(Conf->Get("max-stress"), &I.MaxStress);
-					NMake::Unpack(Conf->Get("constraints"), &I.Constraints);
-					NMake::Unpack(Conf->Get("clusters"), &I.Clusters);
-					NMake::Unpack(Conf->Get("v-it"), &I.VIterations);
-					NMake::Unpack(Conf->Get("p-it"), &I.PIterations);
-					NMake::Unpack(Conf->Get("d-it"), &I.DIterations);
-					NMake::Unpack(Conf->Get("c-it"), &I.CIterations);
-					NMake::Unpack(Conf->Get("collisions"), &I.Collisions);
+					Series::Unpack(Conf->Get("vcf"), &I.VCF);
+					Series::Unpack(Conf->Get("dp"), &I.DP);
+					Series::Unpack(Conf->Get("dg"), &I.DG);
+					Series::Unpack(Conf->Get("lf"), &I.LF);
+					Series::Unpack(Conf->Get("pr"), &I.PR);
+					Series::Unpack(Conf->Get("vc"), &I.VC);
+					Series::Unpack(Conf->Get("df"), &I.DF);
+					Series::Unpack(Conf->Get("mt"), &I.MT);
+					Series::Unpack(Conf->Get("chr"), &I.CHR);
+					Series::Unpack(Conf->Get("khr"), &I.KHR);
+					Series::Unpack(Conf->Get("shr"), &I.SHR);
+					Series::Unpack(Conf->Get("ahr"), &I.AHR);
+					Series::Unpack(Conf->Get("srhr-cl"), &I.SRHR_CL);
+					Series::Unpack(Conf->Get("skhr-cl"), &I.SKHR_CL);
+					Series::Unpack(Conf->Get("sshr-cl"), &I.SSHR_CL);
+					Series::Unpack(Conf->Get("sr-splt-cl"), &I.SR_SPLT_CL);
+					Series::Unpack(Conf->Get("sk-splt-cl"), &I.SK_SPLT_CL);
+					Series::Unpack(Conf->Get("ss-splt-cl"), &I.SS_SPLT_CL);
+					Series::Unpack(Conf->Get("max-volume"), &I.MaxVolume);
+					Series::Unpack(Conf->Get("time-scale"), &I.TimeScale);
+					Series::Unpack(Conf->Get("drag"), &I.Drag);
+					Series::Unpack(Conf->Get("max-stress"), &I.MaxStress);
+					Series::Unpack(Conf->Get("constraints"), &I.Constraints);
+					Series::Unpack(Conf->Get("clusters"), &I.Clusters);
+					Series::Unpack(Conf->Get("v-it"), &I.VIterations);
+					Series::Unpack(Conf->Get("p-it"), &I.PIterations);
+					Series::Unpack(Conf->Get("d-it"), &I.DIterations);
+					Series::Unpack(Conf->Get("c-it"), &I.CIterations);
+					Series::Unpack(Conf->Get("collisions"), &I.Collisions);
 
 					uint64_t AeroModel;
-					if (NMake::Unpack(Conf->Get("aero-model"), &AeroModel))
+					if (Series::Unpack(Conf->Get("aero-model"), &AeroModel))
 						I.AeroModel = (Compute::SoftAeroModel)AeroModel;
 
 					Instance->SetConfig(I);
 				}
 
 				uint64_t ActivationState;
-				if (NMake::Unpack(Node->Find("activation-state"), &ActivationState))
+				if (Series::Unpack(Node->Find("activation-state"), &ActivationState))
 					Instance->SetActivationState((Compute::MotionState)ActivationState);
 
 				float Friction;
-				if (NMake::Unpack(Node->Find("friction"), &Friction))
+				if (Series::Unpack(Node->Find("friction"), &Friction))
 					Instance->SetFriction(Friction);
 
 				float Restitution;
-				if (NMake::Unpack(Node->Find("restitution"), &Restitution))
+				if (Series::Unpack(Node->Find("restitution"), &Restitution))
 					Instance->SetRestitution(Restitution);
 
 				float HitFraction;
-				if (NMake::Unpack(Node->Find("hit-fraction"), &HitFraction))
+				if (Series::Unpack(Node->Find("hit-fraction"), &HitFraction))
 					Instance->SetHitFraction(HitFraction);
 
 				float CcdSweptSphereRadius;
-				if (NMake::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
+				if (Series::Unpack(Node->Find("ccd-swept-sphere-radius"), &CcdSweptSphereRadius))
 					Instance->SetCcdSweptSphereRadius(CcdSweptSphereRadius);
 
 				float ContactProcessingThreshold;
-				if (NMake::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
+				if (Series::Unpack(Node->Find("contact-processing-threshold"), &ContactProcessingThreshold))
 					Instance->SetContactProcessingThreshold(ContactProcessingThreshold);
 
 				float DeactivationTime;
-				if (NMake::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
+				if (Series::Unpack(Node->Find("deactivation-time"), &DeactivationTime))
 					Instance->SetDeactivationTime(DeactivationTime);
 
 				float RollingFriction;
-				if (NMake::Unpack(Node->Find("rolling-friction"), &RollingFriction))
+				if (Series::Unpack(Node->Find("rolling-friction"), &RollingFriction))
 					Instance->SetRollingFriction(RollingFriction);
 
 				float SpinningFriction;
-				if (NMake::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
+				if (Series::Unpack(Node->Find("spinning-friction"), &SpinningFriction))
 					Instance->SetSpinningFriction(SpinningFriction);
 
 				float ContactStiffness;
-				if (NMake::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
+				if (Series::Unpack(Node->Find("contact-stiffness"), &ContactStiffness))
 					Instance->SetContactStiffness(ContactStiffness);
 
 				float ContactDamping;
-				if (NMake::Unpack(Node->Find("contact-damping"), &ContactDamping))
+				if (Series::Unpack(Node->Find("contact-damping"), &ContactDamping))
 					Instance->SetContactDamping(ContactDamping);
 
 				Compute::Vector3 AnisotropicFriction;
-				if (NMake::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
+				if (Series::Unpack(Node->Find("anisotropic-friction"), &AnisotropicFriction))
 					Instance->SetAnisotropicFriction(AnisotropicFriction);
 
 				Compute::Vector3 WindVelocity;
-				if (NMake::Unpack(Node->Find("wind-velocity"), &WindVelocity))
+				if (Series::Unpack(Node->Find("wind-velocity"), &WindVelocity))
 					Instance->SetWindVelocity(WindVelocity);
 
 				float TotalMass;
-				if (NMake::Unpack(Node->Find("total-mass"), &TotalMass))
+				if (Series::Unpack(Node->Find("total-mass"), &TotalMass))
 					Instance->SetTotalMass(TotalMass);
 
 				float RestLengthScale;
-				if (NMake::Unpack(Node->Find("core-length-scale"), &RestLengthScale))
+				if (Series::Unpack(Node->Find("core-length-scale"), &RestLengthScale))
 					Instance->SetRestLengthScale(RestLengthScale);
 			}
 			void SoftBody::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -536,50 +536,50 @@ namespace Tomahawk
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
-					NMake::Pack(Node->Set("material"), Slot->Slot);
+					Series::Pack(Node->Set("material"), Slot->Slot);
 
-				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
-				NMake::Pack(Node->Set("kinematic"), Kinematic);
-				NMake::Pack(Node->Set("manage"), Manage);
-				NMake::Pack(Node->Set("extended"), Instance != nullptr);
-				NMake::Pack(Node->Set("static"), Static);
+				Series::Pack(Node->Set("texcoord"), TexCoord);
+				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
+				Series::Pack(Node->Set("kinematic"), Kinematic);
+				Series::Pack(Node->Set("manage"), Manage);
+				Series::Pack(Node->Set("extended"), Instance != nullptr);
+				Series::Pack(Node->Set("static"), Static);
 
 				if (!Instance)
 					return;
 
 				Compute::SoftBody::Desc& I = Instance->GetInitialState();
 				Core::Schema* Conf = Node->Set("config");
-				NMake::Pack(Conf->Set("aero-model"), (uint64_t)I.Config.AeroModel);
-				NMake::Pack(Conf->Set("vcf"), I.Config.VCF);
-				NMake::Pack(Conf->Set("dp"), I.Config.DP);
-				NMake::Pack(Conf->Set("dg"), I.Config.DG);
-				NMake::Pack(Conf->Set("lf"), I.Config.LF);
-				NMake::Pack(Conf->Set("pr"), I.Config.PR);
-				NMake::Pack(Conf->Set("vc"), I.Config.VC);
-				NMake::Pack(Conf->Set("df"), I.Config.DF);
-				NMake::Pack(Conf->Set("mt"), I.Config.MT);
-				NMake::Pack(Conf->Set("chr"), I.Config.CHR);
-				NMake::Pack(Conf->Set("khr"), I.Config.KHR);
-				NMake::Pack(Conf->Set("shr"), I.Config.SHR);
-				NMake::Pack(Conf->Set("ahr"), I.Config.AHR);
-				NMake::Pack(Conf->Set("srhr-cl"), I.Config.SRHR_CL);
-				NMake::Pack(Conf->Set("skhr-cl"), I.Config.SKHR_CL);
-				NMake::Pack(Conf->Set("sshr-cl"), I.Config.SSHR_CL);
-				NMake::Pack(Conf->Set("sr-splt-cl"), I.Config.SR_SPLT_CL);
-				NMake::Pack(Conf->Set("sk-splt-cl"), I.Config.SK_SPLT_CL);
-				NMake::Pack(Conf->Set("ss-splt-cl"), I.Config.SS_SPLT_CL);
-				NMake::Pack(Conf->Set("max-volume"), I.Config.MaxVolume);
-				NMake::Pack(Conf->Set("time-scale"), I.Config.TimeScale);
-				NMake::Pack(Conf->Set("drag"), I.Config.Drag);
-				NMake::Pack(Conf->Set("max-stress"), I.Config.MaxStress);
-				NMake::Pack(Conf->Set("constraints"), I.Config.Constraints);
-				NMake::Pack(Conf->Set("clusters"), I.Config.Clusters);
-				NMake::Pack(Conf->Set("v-it"), I.Config.VIterations);
-				NMake::Pack(Conf->Set("p-it"), I.Config.PIterations);
-				NMake::Pack(Conf->Set("d-it"), I.Config.DIterations);
-				NMake::Pack(Conf->Set("c-it"), I.Config.CIterations);
-				NMake::Pack(Conf->Set("collisions"), I.Config.Collisions);
+				Series::Pack(Conf->Set("aero-model"), (uint64_t)I.Config.AeroModel);
+				Series::Pack(Conf->Set("vcf"), I.Config.VCF);
+				Series::Pack(Conf->Set("dp"), I.Config.DP);
+				Series::Pack(Conf->Set("dg"), I.Config.DG);
+				Series::Pack(Conf->Set("lf"), I.Config.LF);
+				Series::Pack(Conf->Set("pr"), I.Config.PR);
+				Series::Pack(Conf->Set("vc"), I.Config.VC);
+				Series::Pack(Conf->Set("df"), I.Config.DF);
+				Series::Pack(Conf->Set("mt"), I.Config.MT);
+				Series::Pack(Conf->Set("chr"), I.Config.CHR);
+				Series::Pack(Conf->Set("khr"), I.Config.KHR);
+				Series::Pack(Conf->Set("shr"), I.Config.SHR);
+				Series::Pack(Conf->Set("ahr"), I.Config.AHR);
+				Series::Pack(Conf->Set("srhr-cl"), I.Config.SRHR_CL);
+				Series::Pack(Conf->Set("skhr-cl"), I.Config.SKHR_CL);
+				Series::Pack(Conf->Set("sshr-cl"), I.Config.SSHR_CL);
+				Series::Pack(Conf->Set("sr-splt-cl"), I.Config.SR_SPLT_CL);
+				Series::Pack(Conf->Set("sk-splt-cl"), I.Config.SK_SPLT_CL);
+				Series::Pack(Conf->Set("ss-splt-cl"), I.Config.SS_SPLT_CL);
+				Series::Pack(Conf->Set("max-volume"), I.Config.MaxVolume);
+				Series::Pack(Conf->Set("time-scale"), I.Config.TimeScale);
+				Series::Pack(Conf->Set("drag"), I.Config.Drag);
+				Series::Pack(Conf->Set("max-stress"), I.Config.MaxStress);
+				Series::Pack(Conf->Set("constraints"), I.Config.Constraints);
+				Series::Pack(Conf->Set("clusters"), I.Config.Clusters);
+				Series::Pack(Conf->Set("v-it"), I.Config.VIterations);
+				Series::Pack(Conf->Set("p-it"), I.Config.PIterations);
+				Series::Pack(Conf->Set("d-it"), I.Config.DIterations);
+				Series::Pack(Conf->Set("c-it"), I.Config.CIterations);
+				Series::Pack(Conf->Set("collisions"), I.Config.Collisions);
 
 				auto& Desc = Instance->GetInitialState();
 				if (Desc.Shape.Convex.Enabled)
@@ -590,61 +590,61 @@ namespace Tomahawk
 						if (Asset != nullptr)
 						{
 							Core::Schema* Shape = Node->Set("shape");
-							NMake::Pack(Shape->Set("path"), Asset->Path);
+							Series::Pack(Shape->Set("path"), Asset->Path);
 						}
 					}
 				}
 				else if (Desc.Shape.Ellipsoid.Enabled)
 				{
 					Core::Schema* Shape = Node->Set("ellipsoid");
-					NMake::Pack(Shape->Set("center"), Desc.Shape.Ellipsoid.Center);
-					NMake::Pack(Shape->Set("radius"), Desc.Shape.Ellipsoid.Radius);
-					NMake::Pack(Shape->Set("count"), Desc.Shape.Ellipsoid.Count);
+					Series::Pack(Shape->Set("center"), Desc.Shape.Ellipsoid.Center);
+					Series::Pack(Shape->Set("radius"), Desc.Shape.Ellipsoid.Radius);
+					Series::Pack(Shape->Set("count"), Desc.Shape.Ellipsoid.Count);
 				}
 				else if (Desc.Shape.Patch.Enabled)
 				{
 					Core::Schema* Shape = Node->Set("patch");
-					NMake::Pack(Shape->Set("corner-00"), Desc.Shape.Patch.Corner00);
-					NMake::Pack(Shape->Set("corner-00-fixed"), Desc.Shape.Patch.Corner00Fixed);
-					NMake::Pack(Shape->Set("corner-01"), Desc.Shape.Patch.Corner01);
-					NMake::Pack(Shape->Set("corner-01-fixed"), Desc.Shape.Patch.Corner01Fixed);
-					NMake::Pack(Shape->Set("corner-10"), Desc.Shape.Patch.Corner10);
-					NMake::Pack(Shape->Set("corner-10-fixed"), Desc.Shape.Patch.Corner10Fixed);
-					NMake::Pack(Shape->Set("corner-11"), Desc.Shape.Patch.Corner11);
-					NMake::Pack(Shape->Set("corner-11-fixed"), Desc.Shape.Patch.Corner11Fixed);
-					NMake::Pack(Shape->Set("count-x"), Desc.Shape.Patch.CountX);
-					NMake::Pack(Shape->Set("count-y"), Desc.Shape.Patch.CountY);
-					NMake::Pack(Shape->Set("diagonals"), Desc.Shape.Patch.GenerateDiagonals);
+					Series::Pack(Shape->Set("corner-00"), Desc.Shape.Patch.Corner00);
+					Series::Pack(Shape->Set("corner-00-fixed"), Desc.Shape.Patch.Corner00Fixed);
+					Series::Pack(Shape->Set("corner-01"), Desc.Shape.Patch.Corner01);
+					Series::Pack(Shape->Set("corner-01-fixed"), Desc.Shape.Patch.Corner01Fixed);
+					Series::Pack(Shape->Set("corner-10"), Desc.Shape.Patch.Corner10);
+					Series::Pack(Shape->Set("corner-10-fixed"), Desc.Shape.Patch.Corner10Fixed);
+					Series::Pack(Shape->Set("corner-11"), Desc.Shape.Patch.Corner11);
+					Series::Pack(Shape->Set("corner-11-fixed"), Desc.Shape.Patch.Corner11Fixed);
+					Series::Pack(Shape->Set("count-x"), Desc.Shape.Patch.CountX);
+					Series::Pack(Shape->Set("count-y"), Desc.Shape.Patch.CountY);
+					Series::Pack(Shape->Set("diagonals"), Desc.Shape.Patch.GenerateDiagonals);
 				}
 				else if (Desc.Shape.Rope.Enabled)
 				{
 					Core::Schema* Shape = Node->Set("rope");
-					NMake::Pack(Shape->Set("start"), Desc.Shape.Rope.Start);
-					NMake::Pack(Shape->Set("start-fixed"), Desc.Shape.Rope.StartFixed);
-					NMake::Pack(Shape->Set("end"), Desc.Shape.Rope.End);
-					NMake::Pack(Shape->Set("end-fixed"), Desc.Shape.Rope.EndFixed);
-					NMake::Pack(Shape->Set("count"), Desc.Shape.Rope.Count);
+					Series::Pack(Shape->Set("start"), Desc.Shape.Rope.Start);
+					Series::Pack(Shape->Set("start-fixed"), Desc.Shape.Rope.StartFixed);
+					Series::Pack(Shape->Set("end"), Desc.Shape.Rope.End);
+					Series::Pack(Shape->Set("end-fixed"), Desc.Shape.Rope.EndFixed);
+					Series::Pack(Shape->Set("count"), Desc.Shape.Rope.Count);
 				}
 
-				NMake::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				NMake::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
-				NMake::Pack(Node->Set("friction"), Instance->GetFriction());
-				NMake::Pack(Node->Set("restitution"), Instance->GetRestitution());
-				NMake::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
-				NMake::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
-				NMake::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
-				NMake::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
-				NMake::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
-				NMake::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
-				NMake::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
-				NMake::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
-				NMake::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
-				NMake::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
-				NMake::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
-				NMake::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
-				NMake::Pack(Node->Set("wind-velocity"), Instance->GetWindVelocity());
-				NMake::Pack(Node->Set("total-mass"), Instance->GetTotalMass());
-				NMake::Pack(Node->Set("core-length-scale"), Instance->GetRestLengthScale());
+				Series::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
+				Series::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
+				Series::Pack(Node->Set("friction"), Instance->GetFriction());
+				Series::Pack(Node->Set("restitution"), Instance->GetRestitution());
+				Series::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
+				Series::Pack(Node->Set("ccd-swept-sphere-radius"), Instance->GetCcdSweptSphereRadius());
+				Series::Pack(Node->Set("contact-processing-threshold"), Instance->GetContactProcessingThreshold());
+				Series::Pack(Node->Set("deactivation-time"), Instance->GetDeactivationTime());
+				Series::Pack(Node->Set("rolling-friction"), Instance->GetRollingFriction());
+				Series::Pack(Node->Set("spinning-friction"), Instance->GetSpinningFriction());
+				Series::Pack(Node->Set("contact-stiffness"), Instance->GetContactStiffness());
+				Series::Pack(Node->Set("contact-damping"), Instance->GetContactDamping());
+				Series::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
+				Series::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
+				Series::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
+				Series::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+				Series::Pack(Node->Set("wind-velocity"), Instance->GetWindVelocity());
+				Series::Pack(Node->Set("total-mass"), Instance->GetTotalMass());
+				Series::Pack(Node->Set("core-length-scale"), Instance->GetRestLengthScale());
 			}
 			void SoftBody::Synchronize(Core::Timer* Time)
 			{
@@ -862,11 +862,11 @@ namespace Tomahawk
 					Instance->SetActivity(true);
 				});
 			}
-			float SoftBody::GetVisibility(const Viewer& View, float Distance)
+			float SoftBody::GetVisibility(const Viewer& View, float Distance) const
 			{
 				return Instance ? Component::GetVisibility(View, Distance) : 0.0f;
 			}
-			size_t SoftBody::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
+			size_t SoftBody::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 			{
 				if (!Instance)
 					return BOX_NONE;
@@ -878,7 +878,7 @@ namespace Tomahawk
 
 				return BOX_BODY;
 			}
-			Component* SoftBody::Copy(Entity* New)
+			Component* SoftBody::Copy(Entity* New) const
 			{
 				SoftBody* Target = new SoftBody(New);
 				Target->SetCategory(GetCategory());
@@ -918,15 +918,15 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				bool Extended, Ghost, Linear;
-				NMake::Unpack(Node->Find("extended"), &Extended);
-				NMake::Unpack(Node->Find("collision-state"), &Ghost);
-				NMake::Unpack(Node->Find("linear-state"), &Linear);
+				Series::Unpack(Node->Find("extended"), &Extended);
+				Series::Unpack(Node->Find("collision-state"), &Ghost);
+				Series::Unpack(Node->Find("linear-state"), &Linear);
 
 				if (!Extended)
 					return;
 
 				int64_t ConnectionId = -1;
-				if (NMake::Unpack(Node->Find("connection"), &ConnectionId))
+				if (Series::Unpack(Node->Find("connection"), &ConnectionId))
 				{
 					IdxSnapshot* Snapshot = Parent->GetScene()->Snapshot;
 					if (Snapshot != nullptr)
@@ -942,119 +942,119 @@ namespace Tomahawk
 					return;
 
 				float AngularMotorVelocity;
-				if (NMake::Unpack(Node->Find("angular-motor-velocity"), &AngularMotorVelocity))
+				if (Series::Unpack(Node->Find("angular-motor-velocity"), &AngularMotorVelocity))
 					Instance->SetAngularMotorVelocity(AngularMotorVelocity);
 
 				float LinearMotorVelocity;
-				if (NMake::Unpack(Node->Find("linear-motor-velocity"), &LinearMotorVelocity))
+				if (Series::Unpack(Node->Find("linear-motor-velocity"), &LinearMotorVelocity))
 					Instance->SetLinearMotorVelocity(LinearMotorVelocity);
 
 				float UpperLinearLimit;
-				if (NMake::Unpack(Node->Find("upper-linear-limit"), &UpperLinearLimit))
+				if (Series::Unpack(Node->Find("upper-linear-limit"), &UpperLinearLimit))
 					Instance->SetUpperLinearLimit(UpperLinearLimit);
 
 				float LowerLinearLimit;
-				if (NMake::Unpack(Node->Find("lower-linear-limit"), &LowerLinearLimit))
+				if (Series::Unpack(Node->Find("lower-linear-limit"), &LowerLinearLimit))
 					Instance->SetLowerLinearLimit(LowerLinearLimit);
 
 				float AngularDampingDirection;
-				if (NMake::Unpack(Node->Find("angular-damping-direction"), &AngularDampingDirection))
+				if (Series::Unpack(Node->Find("angular-damping-direction"), &AngularDampingDirection))
 					Instance->SetAngularDampingDirection(AngularDampingDirection);
 
 				float LinearDampingDirection;
-				if (NMake::Unpack(Node->Find("linear-damping-direction"), &LinearDampingDirection))
+				if (Series::Unpack(Node->Find("linear-damping-direction"), &LinearDampingDirection))
 					Instance->SetLinearDampingDirection(LinearDampingDirection);
 
 				float AngularDampingLimit;
-				if (NMake::Unpack(Node->Find("angular-damping-limit"), &AngularDampingLimit))
+				if (Series::Unpack(Node->Find("angular-damping-limit"), &AngularDampingLimit))
 					Instance->SetAngularDampingLimit(AngularDampingLimit);
 
 				float LinearDampingLimit;
-				if (NMake::Unpack(Node->Find("linear-damping-limit"), &LinearDampingLimit))
+				if (Series::Unpack(Node->Find("linear-damping-limit"), &LinearDampingLimit))
 					Instance->SetLinearDampingLimit(LinearDampingLimit);
 
 				float AngularDampingOrtho;
-				if (NMake::Unpack(Node->Find("angular-damping-ortho"), &AngularDampingOrtho))
+				if (Series::Unpack(Node->Find("angular-damping-ortho"), &AngularDampingOrtho))
 					Instance->SetAngularDampingOrtho(AngularDampingOrtho);
 
 				float LinearDampingOrtho;
-				if (NMake::Unpack(Node->Find("linear-damping-ortho"), &LinearDampingOrtho))
+				if (Series::Unpack(Node->Find("linear-damping-ortho"), &LinearDampingOrtho))
 					Instance->SetLinearDampingOrtho(LinearDampingOrtho);
 
 				float UpperAngularLimit;
-				if (NMake::Unpack(Node->Find("upper-angular-limit"), &UpperAngularLimit))
+				if (Series::Unpack(Node->Find("upper-angular-limit"), &UpperAngularLimit))
 					Instance->SetUpperAngularLimit(UpperAngularLimit);
 
 				float LowerAngularLimit;
-				if (NMake::Unpack(Node->Find("lower-angular-limit"), &LowerAngularLimit))
+				if (Series::Unpack(Node->Find("lower-angular-limit"), &LowerAngularLimit))
 					Instance->SetLowerAngularLimit(LowerAngularLimit);
 
 				float MaxAngularMotorForce;
-				if (NMake::Unpack(Node->Find("max-angular-motor-force"), &MaxAngularMotorForce))
+				if (Series::Unpack(Node->Find("max-angular-motor-force"), &MaxAngularMotorForce))
 					Instance->SetMaxAngularMotorForce(MaxAngularMotorForce);
 
 				float MaxLinearMotorForce;
-				if (NMake::Unpack(Node->Find("max-linear-motor-force"), &MaxLinearMotorForce))
+				if (Series::Unpack(Node->Find("max-linear-motor-force"), &MaxLinearMotorForce))
 					Instance->SetMaxLinearMotorForce(MaxLinearMotorForce);
 
 				float AngularRestitutionDirection;
-				if (NMake::Unpack(Node->Find("angular-restitution-direction"), &AngularRestitutionDirection))
+				if (Series::Unpack(Node->Find("angular-restitution-direction"), &AngularRestitutionDirection))
 					Instance->SetAngularRestitutionDirection(AngularRestitutionDirection);
 
 				float LinearRestitutionDirection;
-				if (NMake::Unpack(Node->Find("linear-restitution-direction"), &LinearRestitutionDirection))
+				if (Series::Unpack(Node->Find("linear-restitution-direction"), &LinearRestitutionDirection))
 					Instance->SetLinearRestitutionDirection(LinearRestitutionDirection);
 
 				float AngularRestitutionLimit;
-				if (NMake::Unpack(Node->Find("angular-restitution-limit"), &AngularRestitutionLimit))
+				if (Series::Unpack(Node->Find("angular-restitution-limit"), &AngularRestitutionLimit))
 					Instance->SetAngularRestitutionLimit(AngularRestitutionLimit);
 
 				float LinearRestitutionLimit;
-				if (NMake::Unpack(Node->Find("linear-restitution-limit"), &LinearRestitutionLimit))
+				if (Series::Unpack(Node->Find("linear-restitution-limit"), &LinearRestitutionLimit))
 					Instance->SetLinearRestitutionLimit(LinearRestitutionLimit);
 
 				float AngularRestitutionOrtho;
-				if (NMake::Unpack(Node->Find("angular-restitution-ortho"), &AngularRestitutionOrtho))
+				if (Series::Unpack(Node->Find("angular-restitution-ortho"), &AngularRestitutionOrtho))
 					Instance->SetAngularRestitutionOrtho(AngularRestitutionOrtho);
 
 				float LinearRestitutionOrtho;
-				if (NMake::Unpack(Node->Find("linear-restitution-ortho"), &LinearRestitutionOrtho))
+				if (Series::Unpack(Node->Find("linear-restitution-ortho"), &LinearRestitutionOrtho))
 					Instance->SetLinearRestitutionOrtho(LinearRestitutionOrtho);
 
 				float AngularSoftnessDirection;
-				if (NMake::Unpack(Node->Find("angular-softness-direction"), &AngularSoftnessDirection))
+				if (Series::Unpack(Node->Find("angular-softness-direction"), &AngularSoftnessDirection))
 					Instance->SetAngularSoftnessDirection(AngularSoftnessDirection);
 
 				float LinearSoftnessDirection;
-				if (NMake::Unpack(Node->Find("linear-softness-direction"), &LinearSoftnessDirection))
+				if (Series::Unpack(Node->Find("linear-softness-direction"), &LinearSoftnessDirection))
 					Instance->SetLinearSoftnessDirection(LinearSoftnessDirection);
 
 				float AngularSoftnessLimit;
-				if (NMake::Unpack(Node->Find("angular-softness-limit"), &AngularSoftnessLimit))
+				if (Series::Unpack(Node->Find("angular-softness-limit"), &AngularSoftnessLimit))
 					Instance->SetAngularSoftnessLimit(AngularSoftnessLimit);
 
 				float LinearSoftnessLimit;
-				if (NMake::Unpack(Node->Find("linear-softness-limit"), &LinearSoftnessLimit))
+				if (Series::Unpack(Node->Find("linear-softness-limit"), &LinearSoftnessLimit))
 					Instance->SetLinearSoftnessLimit(LinearSoftnessLimit);
 
 				float AngularSoftnessOrtho;
-				if (NMake::Unpack(Node->Find("angular-softness-ortho"), &AngularSoftnessOrtho))
+				if (Series::Unpack(Node->Find("angular-softness-ortho"), &AngularSoftnessOrtho))
 					Instance->SetAngularSoftnessOrtho(AngularSoftnessOrtho);
 
 				float LinearSoftnessOrtho;
-				if (NMake::Unpack(Node->Find("linear-softness-ortho"), &LinearSoftnessOrtho))
+				if (Series::Unpack(Node->Find("linear-softness-ortho"), &LinearSoftnessOrtho))
 					Instance->SetLinearSoftnessOrtho(LinearSoftnessOrtho);
 
 				bool PoweredAngularMotor;
-				if (NMake::Unpack(Node->Find("powered-angular-motor"), &PoweredAngularMotor))
+				if (Series::Unpack(Node->Find("powered-angular-motor"), &PoweredAngularMotor))
 					Instance->SetPoweredAngularMotor(PoweredAngularMotor);
 
 				bool PoweredLinearMotor;
-				if (NMake::Unpack(Node->Find("powered-linear-motor"), &PoweredLinearMotor))
+				if (Series::Unpack(Node->Find("powered-linear-motor"), &PoweredLinearMotor))
 					Instance->SetPoweredLinearMotor(PoweredLinearMotor);
 
 				bool Enabled;
-				if (NMake::Unpack(Node->Find("enabled"), &Enabled))
+				if (Series::Unpack(Node->Find("enabled"), &Enabled))
 					Instance->SetEnabled(Enabled);
 			}
 			void SliderConstraint::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -1062,7 +1062,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("extended"), Instance != nullptr);
+				Series::Pack(Node->Set("extended"), Instance != nullptr);
 				if (!Instance)
 					return;
 
@@ -1078,39 +1078,39 @@ namespace Tomahawk
 					}
 				}
 
-				NMake::Pack(Node->Set("collision-state"), Instance->GetState().Collisions);
-				NMake::Pack(Node->Set("linear-state"), Instance->GetState().Linear);
-				NMake::Pack(Node->Set("connection"), ConnectionId);
-				NMake::Pack(Node->Set("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
-				NMake::Pack(Node->Set("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
-				NMake::Pack(Node->Set("upper-linear-limit"), Instance->GetUpperLinearLimit());
-				NMake::Pack(Node->Set("lower-linear-limit"), Instance->GetLowerLinearLimit());
-				NMake::Pack(Node->Set("breaking-impulse-threshold"), Instance->GetBreakingImpulseThreshold());
-				NMake::Pack(Node->Set("angular-damping-direction"), Instance->GetAngularDampingDirection());
-				NMake::Pack(Node->Set("linear-amping-direction"), Instance->GetLinearDampingDirection());
-				NMake::Pack(Node->Set("angular-damping-limit"), Instance->GetAngularDampingLimit());
-				NMake::Pack(Node->Set("linear-damping-limit"), Instance->GetLinearDampingLimit());
-				NMake::Pack(Node->Set("angular-damping-ortho"), Instance->GetAngularDampingOrtho());
-				NMake::Pack(Node->Set("linear-damping-ortho"), Instance->GetLinearDampingOrtho());
-				NMake::Pack(Node->Set("upper-angular-limit"), Instance->GetUpperAngularLimit());
-				NMake::Pack(Node->Set("lower-angular-limit"), Instance->GetLowerAngularLimit());
-				NMake::Pack(Node->Set("max-angular-motor-force"), Instance->GetMaxAngularMotorForce());
-				NMake::Pack(Node->Set("max-linear-motor-force"), Instance->GetMaxLinearMotorForce());
-				NMake::Pack(Node->Set("angular-restitution-direction"), Instance->GetAngularRestitutionDirection());
-				NMake::Pack(Node->Set("linear-restitution-direction"), Instance->GetLinearRestitutionDirection());
-				NMake::Pack(Node->Set("angular-restitution-limit"), Instance->GetAngularRestitutionLimit());
-				NMake::Pack(Node->Set("linear-restitution-limit"), Instance->GetLinearRestitutionLimit());
-				NMake::Pack(Node->Set("angular-restitution-ortho"), Instance->GetAngularRestitutionOrtho());
-				NMake::Pack(Node->Set("linear-restitution-ortho"), Instance->GetLinearRestitutionOrtho());
-				NMake::Pack(Node->Set("angular-softness-direction"), Instance->GetAngularSoftnessDirection());
-				NMake::Pack(Node->Set("linear-softness-direction"), Instance->GetLinearSoftnessDirection());
-				NMake::Pack(Node->Set("angular-softness-limit"), Instance->GetAngularSoftnessLimit());
-				NMake::Pack(Node->Set("linear-softness-limit"), Instance->GetLinearSoftnessLimit());
-				NMake::Pack(Node->Set("angular-softness-ortho"), Instance->GetAngularSoftnessOrtho());
-				NMake::Pack(Node->Set("linear-softness-ortho"), Instance->GetLinearSoftnessOrtho());
-				NMake::Pack(Node->Set("powered-angular-motor"), Instance->GetPoweredAngularMotor());
-				NMake::Pack(Node->Set("powered-linear-motor"), Instance->GetPoweredLinearMotor());
-				NMake::Pack(Node->Set("enabled"), Instance->IsEnabled());
+				Series::Pack(Node->Set("collision-state"), Instance->GetState().Collisions);
+				Series::Pack(Node->Set("linear-state"), Instance->GetState().Linear);
+				Series::Pack(Node->Set("connection"), ConnectionId);
+				Series::Pack(Node->Set("angular-motor-velocity"), Instance->GetAngularMotorVelocity());
+				Series::Pack(Node->Set("linear-motor-velocity"), Instance->GetLinearMotorVelocity());
+				Series::Pack(Node->Set("upper-linear-limit"), Instance->GetUpperLinearLimit());
+				Series::Pack(Node->Set("lower-linear-limit"), Instance->GetLowerLinearLimit());
+				Series::Pack(Node->Set("breaking-impulse-threshold"), Instance->GetBreakingImpulseThreshold());
+				Series::Pack(Node->Set("angular-damping-direction"), Instance->GetAngularDampingDirection());
+				Series::Pack(Node->Set("linear-amping-direction"), Instance->GetLinearDampingDirection());
+				Series::Pack(Node->Set("angular-damping-limit"), Instance->GetAngularDampingLimit());
+				Series::Pack(Node->Set("linear-damping-limit"), Instance->GetLinearDampingLimit());
+				Series::Pack(Node->Set("angular-damping-ortho"), Instance->GetAngularDampingOrtho());
+				Series::Pack(Node->Set("linear-damping-ortho"), Instance->GetLinearDampingOrtho());
+				Series::Pack(Node->Set("upper-angular-limit"), Instance->GetUpperAngularLimit());
+				Series::Pack(Node->Set("lower-angular-limit"), Instance->GetLowerAngularLimit());
+				Series::Pack(Node->Set("max-angular-motor-force"), Instance->GetMaxAngularMotorForce());
+				Series::Pack(Node->Set("max-linear-motor-force"), Instance->GetMaxLinearMotorForce());
+				Series::Pack(Node->Set("angular-restitution-direction"), Instance->GetAngularRestitutionDirection());
+				Series::Pack(Node->Set("linear-restitution-direction"), Instance->GetLinearRestitutionDirection());
+				Series::Pack(Node->Set("angular-restitution-limit"), Instance->GetAngularRestitutionLimit());
+				Series::Pack(Node->Set("linear-restitution-limit"), Instance->GetLinearRestitutionLimit());
+				Series::Pack(Node->Set("angular-restitution-ortho"), Instance->GetAngularRestitutionOrtho());
+				Series::Pack(Node->Set("linear-restitution-ortho"), Instance->GetLinearRestitutionOrtho());
+				Series::Pack(Node->Set("angular-softness-direction"), Instance->GetAngularSoftnessDirection());
+				Series::Pack(Node->Set("linear-softness-direction"), Instance->GetLinearSoftnessDirection());
+				Series::Pack(Node->Set("angular-softness-limit"), Instance->GetAngularSoftnessLimit());
+				Series::Pack(Node->Set("linear-softness-limit"), Instance->GetLinearSoftnessLimit());
+				Series::Pack(Node->Set("angular-softness-ortho"), Instance->GetAngularSoftnessOrtho());
+				Series::Pack(Node->Set("linear-softness-ortho"), Instance->GetLinearSoftnessOrtho());
+				Series::Pack(Node->Set("powered-angular-motor"), Instance->GetPoweredAngularMotor());
+				Series::Pack(Node->Set("powered-linear-motor"), Instance->GetPoweredLinearMotor());
+				Series::Pack(Node->Set("enabled"), Instance->IsEnabled());
 			}
 			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
@@ -1152,7 +1152,7 @@ namespace Tomahawk
 					Connection = nullptr;
 				});
 			}
-			Component* SliderConstraint::Copy(Entity* New)
+			Component* SliderConstraint::Copy(Entity* New) const
 			{
 				SliderConstraint* Target = new SliderConstraint(New);
 				Target->Connection = Connection;
@@ -1191,24 +1191,24 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
-				NMake::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
-				NMake::Unpack(Node->Find("constant-velocity"), &ConstantVelocity);
-				NMake::Unpack(Node->Find("constant-torque"), &ConstantTorque);
-				NMake::Unpack(Node->Find("constant-center"), &ConstantCenter);
-				NMake::Unpack(Node->Find("kinematic"), &Kinematic);
+				Series::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
+				Series::Unpack(Node->Find("amplitude-torque"), &AmplitudeTorque);
+				Series::Unpack(Node->Find("constant-velocity"), &ConstantVelocity);
+				Series::Unpack(Node->Find("constant-torque"), &ConstantTorque);
+				Series::Unpack(Node->Find("constant-center"), &ConstantCenter);
+				Series::Unpack(Node->Find("kinematic"), &Kinematic);
 			}
 			void Acceleration::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
-				NMake::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
-				NMake::Pack(Node->Set("constant-velocity"), ConstantVelocity);
-				NMake::Pack(Node->Set("constant-torque"), ConstantTorque);
-				NMake::Pack(Node->Set("constant-center"), ConstantCenter);
-				NMake::Pack(Node->Set("kinematic"), Kinematic);
+				Series::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
+				Series::Pack(Node->Set("amplitude-torque"), AmplitudeTorque);
+				Series::Pack(Node->Set("constant-velocity"), ConstantVelocity);
+				Series::Pack(Node->Set("constant-torque"), ConstantTorque);
+				Series::Pack(Node->Set("constant-center"), ConstantCenter);
+				Series::Pack(Node->Set("kinematic"), Kinematic);
 			}
 			void Acceleration::Activate(Component* New)
 			{
@@ -1268,7 +1268,7 @@ namespace Tomahawk
 				else if (AmplitudeTorque.Z > 0 && Torque.Z < -AmplitudeTorque.Z)
 					ConstantTorque.Z = ACT.Z;
 			}
-			Component* Acceleration::Copy(Entity* New)
+			Component* Acceleration::Copy(Entity* New) const
 			{
 				Acceleration* Target = new Acceleration(New);
 				Target->Kinematic = Kinematic;
@@ -1299,7 +1299,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (NMake::Unpack(Node->Find("model"), &Path))
+				if (Series::Unpack(Node->Find("model"), &Path))
 				{
 					TH_RELEASE(Instance);
 					Instance = Content->Load<Graphics::Model>(Path);
@@ -1310,8 +1310,8 @@ namespace Tomahawk
 				for (auto&& Material : Slots)
 				{
 					uint64_t Slot = 0;
-					NMake::Unpack(Material->Find("name"), &Path);
-					NMake::Unpack(Material->Find("slot"), &Slot);
+					Series::Unpack(Material->Find("name"), &Path);
+					Series::Unpack(Material->Find("slot"), &Slot);
 
 					Graphics::MeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
 					if (Surface != nullptr)
@@ -1319,9 +1319,9 @@ namespace Tomahawk
 				}
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
-				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("category"), &NewCategory);
+				Series::Unpack(Node->Find("texcoord"), &TexCoord);
+				Series::Unpack(Node->Find("static"), &Static);
+				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 			}
 			void Model::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -1331,7 +1331,7 @@ namespace Tomahawk
 
 				AssetCache* Asset = Content->Find<Graphics::Model>(Instance);
 				if (Asset != nullptr)
-					NMake::Pack(Node->Set("model"), Asset->Path);
+					Series::Pack(Node->Set("model"), Asset->Path);
 
 				Core::Schema* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
@@ -1339,27 +1339,27 @@ namespace Tomahawk
 					if (Slot.first != nullptr)
 					{
 						Core::Schema* Material = Slots->Set("material");
-						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
+						Series::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
-							NMake::Pack(Material->Set("slot"), Slot.second->Slot);
+							Series::Pack(Material->Set("slot"), Slot.second->Slot);
 					}
 				}
 
-				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
-				NMake::Pack(Node->Set("static"), Static);
+				Series::Pack(Node->Set("texcoord"), TexCoord);
+				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
+				Series::Pack(Node->Set("static"), Static);
 			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
 				TH_RELEASE(Instance);
 				Instance = Drawable;
 			}
-			float Model::GetVisibility(const Viewer& View, float Distance)
+			float Model::GetVisibility(const Viewer& View, float Distance) const
 			{
 				return Instance ? Component::GetVisibility(View, Distance) : 0.0f;
 			}
-			size_t Model::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
+			size_t Model::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 			{
 				if (!Instance)
 					return BOX_NONE;
@@ -1368,7 +1368,7 @@ namespace Tomahawk
 				Max = Instance->Max * 0.5f;
 				return BOX_GEOMETRY;
 			}
-			Component* Model::Copy(Entity* New)
+			Component* Model::Copy(Entity* New) const
 			{
 				Model* Target = new Model(New);
 				Target->SetCategory(GetCategory());
@@ -1398,7 +1398,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (NMake::Unpack(Node->Find("skin-model"), &Path))
+				if (Series::Unpack(Node->Find("skin-model"), &Path))
 				{
 					TH_RELEASE(Instance);
 					Instance = Content->Load<Graphics::SkinModel>(Path);
@@ -1409,8 +1409,8 @@ namespace Tomahawk
 				for (auto&& Material : Slots)
 				{
 					uint64_t Slot = 0;
-					NMake::Unpack(Material->Find("name"), &Path);
-					NMake::Unpack(Material->Find("slot"), &Slot);
+					Series::Unpack(Material->Find("name"), &Path);
+					Series::Unpack(Material->Find("slot"), &Slot);
 
 					Graphics::SkinMeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
 					if (Surface != nullptr)
@@ -1422,17 +1422,17 @@ namespace Tomahawk
 				for (auto&& Pose : Poses)
 				{
 					int64_t Index;
-					NMake::Unpack(Pose->Find("index"), &Index);
+					Series::Unpack(Pose->Find("index"), &Index);
 
 					auto& Offset = Skeleton.Pose[Index];
-					NMake::Unpack(Pose->Find("position"), &Offset.Position);
-					NMake::Unpack(Pose->Find("rotation"), &Offset.Rotation);
+					Series::Unpack(Pose->Find("position"), &Offset.Position);
+					Series::Unpack(Pose->Find("rotation"), &Offset.Rotation);
 				}
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
-				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("category"), &NewCategory);
+				Series::Unpack(Node->Find("texcoord"), &TexCoord);
+				Series::Unpack(Node->Find("static"), &Static);
+				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 			}
 			void Skin::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -1442,7 +1442,7 @@ namespace Tomahawk
 
 				AssetCache* Asset = Content->Find<Graphics::SkinModel>(Instance);
 				if (Asset != nullptr)
-					NMake::Pack(Node->Set("skin-model"), Asset->Path);
+					Series::Pack(Node->Set("skin-model"), Asset->Path);
 
 				Core::Schema* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
@@ -1450,24 +1450,24 @@ namespace Tomahawk
 					if (Slot.first != nullptr)
 					{
 						Core::Schema* Material = Slots->Set("material");
-						NMake::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
+						Series::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
 
 						if (Slot.second != nullptr)
-							NMake::Pack(Material->Set("slot"), Slot.second->Slot);
+							Series::Pack(Material->Set("slot"), Slot.second->Slot);
 					}
 				}
 
-				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
-				NMake::Pack(Node->Set("static"), Static);
+				Series::Pack(Node->Set("texcoord"), TexCoord);
+				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
+				Series::Pack(Node->Set("static"), Static);
 
 				Core::Schema* Poses = Node->Set("poses", Core::Var::Array());
 				for (auto&& Pose : Skeleton.Pose)
 				{
 					Core::Schema* Value = Poses->Set("pose");
-					NMake::Pack(Value->Set("index"), Pose.first);
-					NMake::Pack(Value->Set("position"), Pose.second.Position);
-					NMake::Pack(Value->Set("rotation"), Pose.second.Rotation);
+					Series::Pack(Value->Set("index"), Pose.first);
+					Series::Pack(Value->Set("position"), Pose.second.Position);
+					Series::Pack(Value->Set("rotation"), Pose.second.Rotation);
 				}
 			}
 			void Skin::Synchronize(Core::Timer* Time)
@@ -1480,11 +1480,11 @@ namespace Tomahawk
 				TH_RELEASE(Instance);
 				Instance = Drawable;
 			}
-			float Skin::GetVisibility(const Viewer& View, float Distance)
+			float Skin::GetVisibility(const Viewer& View, float Distance) const
 			{
 				return Instance ? Component::GetVisibility(View, Distance) : 0.0f;
 			}
-			size_t Skin::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
+			size_t Skin::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 			{
 				if (!Instance)
 					return BOX_NONE;
@@ -1493,7 +1493,7 @@ namespace Tomahawk
 				Max = Instance->Max * 0.5f;
 				return BOX_GEOMETRY;
 			}
-			Component* Skin::Copy(Entity* New)
+			Component* Skin::Copy(Entity* New) const
 			{
 				Skin* Target = new Skin(New);
 				Target->SetCategory(GetCategory());
@@ -1523,26 +1523,26 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				SceneGraph* Scene = Parent->GetScene(); uint64_t Slot = -1;
-				if (NMake::Unpack(Node->Find("material"), &Slot))
+				if (Series::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Scene->GetMaterial((uint64_t)Slot));
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
-				NMake::Unpack(Node->Find("category"), &NewCategory);
-				NMake::Unpack(Node->Find("quad-based"), &QuadBased);
-				NMake::Unpack(Node->Find("connected"), &Connected);
-				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("min"), &Min);
-				NMake::Unpack(Node->Find("max"), &Max);
+				Series::Unpack(Node->Find("category"), &NewCategory);
+				Series::Unpack(Node->Find("quad-based"), &QuadBased);
+				Series::Unpack(Node->Find("connected"), &Connected);
+				Series::Unpack(Node->Find("static"), &Static);
+				Series::Unpack(Node->Find("min"), &Min);
+				Series::Unpack(Node->Find("max"), &Max);
 				SetCategory((GeoCategory)NewCategory);
 
 				uint64_t Limit;
-				if (NMake::Unpack(Node->Find("limit"), &Limit))
+				if (Series::Unpack(Node->Find("limit"), &Limit))
 				{
 					std::vector<Compute::ElementVertex> Vertices;
 					if (Instance != nullptr)
 					{
 						Scene->GetDevice()->UpdateBufferSize(Instance, Limit);
-						if (NMake::Unpack(Node->Find("elements"), &Vertices))
+						if (Series::Unpack(Node->Find("elements"), &Vertices))
 						{
 							Instance->GetArray()->Reserve(Vertices.size());
 							for (auto&& Vertex : Vertices)
@@ -1558,14 +1558,14 @@ namespace Tomahawk
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
-					NMake::Pack(Node->Set("material"), Slot->Slot);
+					Series::Pack(Node->Set("material"), Slot->Slot);
 
-				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
-				NMake::Pack(Node->Set("quad-based"), QuadBased);
-				NMake::Pack(Node->Set("connected"), Connected);
-				NMake::Pack(Node->Set("static"), Static);
-				NMake::Pack(Node->Set("min"), Min);
-				NMake::Pack(Node->Set("max"), Max);
+				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
+				Series::Pack(Node->Set("quad-based"), QuadBased);
+				Series::Pack(Node->Set("connected"), Connected);
+				Series::Pack(Node->Set("static"), Static);
+				Series::Pack(Node->Set("min"), Min);
+				Series::Pack(Node->Set("max"), Max);
 
 				if (Instance != nullptr)
 				{
@@ -1576,8 +1576,8 @@ namespace Tomahawk
 					for (auto It = fArray->Begin(); It != fArray->End(); It++)
 						Vertices.emplace_back(*It);
 
-					NMake::Pack(Node->Set("limit"), Instance->GetElementLimit());
-					NMake::Pack(Node->Set("elements"), Vertices);
+					Series::Pack(Node->Set("limit"), Instance->GetElementLimit());
+					Series::Pack(Node->Set("elements"), Vertices);
 				}
 			}
 			void Emitter::Activate(Component* New)
@@ -1591,7 +1591,7 @@ namespace Tomahawk
 
 				Instance = Scene->GetDevice()->CreateInstanceBuffer(I);
 			}
-			size_t Emitter::GetUnitBounds(Compute::Vector3& _Min, Compute::Vector3& _Max)
+			size_t Emitter::GetUnitBounds(Compute::Vector3& _Min, Compute::Vector3& _Max) const
 			{
 				if (!Instance)
 					return BOX_NONE;
@@ -1600,7 +1600,7 @@ namespace Tomahawk
 				_Max = Max * 0.5f;
 				return BOX_DYNAMIC;
 			}
-			Component* Emitter::Copy(Entity* New)
+			Component* Emitter::Copy(Entity* New) const
 			{
 				Emitter* Target = new Emitter(New);
 				Target->SetCategory(GetCategory());
@@ -1626,13 +1626,13 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				uint64_t Slot = -1;
-				if (NMake::Unpack(Node->Find("material"), &Slot))
+				if (Series::Unpack(Node->Find("material"), &Slot))
 					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
-				NMake::Unpack(Node->Find("texcoord"), &TexCoord);
-				NMake::Unpack(Node->Find("static"), &Static);
-				NMake::Unpack(Node->Find("category"), &NewCategory);
+				Series::Unpack(Node->Find("texcoord"), &TexCoord);
+				Series::Unpack(Node->Find("static"), &Static);
+				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 			}
 			void Decal::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -1642,17 +1642,17 @@ namespace Tomahawk
 
 				Material* Slot = GetMaterial();
 				if (Slot != nullptr)
-					NMake::Pack(Node->Set("material"), Slot->Slot);
+					Series::Pack(Node->Set("material"), Slot->Slot);
 
-				NMake::Pack(Node->Set("texcoord"), TexCoord);
-				NMake::Pack(Node->Set("static"), Static);
-				NMake::Pack(Node->Set("category"), (uint32_t)GetCategory());
+				Series::Pack(Node->Set("texcoord"), TexCoord);
+				Series::Pack(Node->Set("static"), Static);
+				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
 			}
-			float Decal::GetVisibility(const Viewer& View, float Distance)
+			float Decal::GetVisibility(const Viewer& View, float Distance) const
 			{
 				return GetVisibilityRadius(Parent, View, Distance);
 			}
-			Component* Decal::Copy(Entity* New)
+			Component* Decal::Copy(Entity* New) const
 			{
 				Decal* Target = new Decal(New);
 				Target->Materials = Materials;
@@ -1675,14 +1675,14 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (!NMake::Unpack(Node->Find("path"), &Path))
-					NMake::Unpack(Node->Find("animation"), &Clips);
+				if (!Series::Unpack(Node->Find("path"), &Path))
+					Series::Unpack(Node->Find("animation"), &Clips);
 				else
 					GetAnimation(Content, Path);
 
-				NMake::Unpack(Node->Find("state"), &State);
-				NMake::Unpack(Node->Find("bind"), &Bind);
-				NMake::Unpack(Node->Find("current"), &Current);
+				Series::Unpack(Node->Find("state"), &State);
+				Series::Unpack(Node->Find("bind"), &Bind);
+				Series::Unpack(Node->Find("current"), &Current);
 			}
 			void SkinAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -1690,13 +1690,13 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				if (!Reference.empty())
-					NMake::Pack(Node->Set("path"), Reference);
+					Series::Pack(Node->Set("path"), Reference);
 				else
-					NMake::Pack(Node->Set("animation"), Clips);
+					Series::Pack(Node->Set("animation"), Clips);
 
-				NMake::Pack(Node->Set("state"), State);
-				NMake::Pack(Node->Set("bind"), Bind);
-				NMake::Pack(Node->Set("current"), Current);
+				Series::Pack(Node->Set("state"), State);
+				Series::Pack(Node->Set("bind"), Bind);
+				Series::Pack(Node->Set("current"), Current);
 			}
 			void SkinAnimator::Activate(Component* New)
 			{
@@ -1812,7 +1812,7 @@ namespace Tomahawk
 					return false;
 
 				ClearAnimation();
-				if (NMake::Unpack(Result, &Clips))
+				if (Series::Unpack(Result, &Clips))
 					Reference = Core::Parser(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
 				TH_RELEASE(Result);
@@ -1918,7 +1918,7 @@ namespace Tomahawk
 			{
 				return Reference;
 			}
-			Component* SkinAnimator::Copy(Entity* New)
+			Component* SkinAnimator::Copy(Entity* New) const
 			{
 				SkinAnimator* Target = new SkinAnimator(New);
 				Target->Clips = Clips;
@@ -1945,14 +1945,14 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (!NMake::Unpack(Node->Find("path"), &Path))
-					NMake::Unpack(Node->Find("animation"), &Clips);
+				if (!Series::Unpack(Node->Find("path"), &Path))
+					Series::Unpack(Node->Find("animation"), &Clips);
 				else
 					GetAnimation(Content, Path);
 
-				NMake::Unpack(Node->Find("state"), &State);
-				NMake::Unpack(Node->Find("bind"), &Bind);
-				NMake::Unpack(Node->Find("current"), &Current);
+				Series::Unpack(Node->Find("state"), &State);
+				Series::Unpack(Node->Find("bind"), &Bind);
+				Series::Unpack(Node->Find("current"), &Current);
 			}
 			void KeyAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -1960,13 +1960,13 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				if (Reference.empty())
-					NMake::Pack(Node->Set("animation"), Clips);
+					Series::Pack(Node->Set("animation"), Clips);
 				else
-					NMake::Pack(Node->Set("path"), Reference);
+					Series::Pack(Node->Set("path"), Reference);
 
-				NMake::Pack(Node->Set("state"), State);
-				NMake::Pack(Node->Set("bind"), Bind);
-				NMake::Pack(Node->Set("current"), Current);
+				Series::Pack(Node->Set("state"), State);
+				Series::Pack(Node->Set("bind"), Bind);
+				Series::Pack(Node->Set("current"), Current);
 			}
 			void KeyAnimator::Synchronize(Core::Timer* Time)
 			{
@@ -2037,7 +2037,7 @@ namespace Tomahawk
 					return false;
 
 				ClearAnimation();
-				if (NMake::Unpack(Result, &Clips))
+				if (Series::Unpack(Result, &Clips))
 					Reference = Core::Parser(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
 
 				TH_RELEASE(Result);
@@ -2153,7 +2153,7 @@ namespace Tomahawk
 			{
 				return Reference;
 			}
-			Component* KeyAnimator::Copy(Entity* New)
+			Component* KeyAnimator::Copy(Entity* New) const
 			{
 				KeyAnimator* Target = new KeyAnimator(New);
 				Target->Clips = Clips;
@@ -2187,28 +2187,28 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("position"), &Position);
-				NMake::Unpack(Node->Find("velocity"), &Velocity);
-				NMake::Unpack(Node->Find("spawner"), &Spawner);
-				NMake::Unpack(Node->Find("noise"), &Noise);
-				NMake::Unpack(Node->Find("rotation-speed"), &RotationSpeed);
-				NMake::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
-				NMake::Unpack(Node->Find("simulate"), &Simulate);
+				Series::Unpack(Node->Find("diffuse"), &Diffuse);
+				Series::Unpack(Node->Find("position"), &Position);
+				Series::Unpack(Node->Find("velocity"), &Velocity);
+				Series::Unpack(Node->Find("spawner"), &Spawner);
+				Series::Unpack(Node->Find("noise"), &Noise);
+				Series::Unpack(Node->Find("rotation-speed"), &RotationSpeed);
+				Series::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
+				Series::Unpack(Node->Find("simulate"), &Simulate);
 			}
 			void EmitterAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("diffuse"), Diffuse);
-				NMake::Pack(Node->Set("position"), Position);
-				NMake::Pack(Node->Set("velocity"), Velocity);
-				NMake::Pack(Node->Set("spawner"), Spawner);
-				NMake::Pack(Node->Set("noise"), Noise);
-				NMake::Pack(Node->Set("rotation-speed"), RotationSpeed);
-				NMake::Pack(Node->Set("scale-speed"), ScaleSpeed);
-				NMake::Pack(Node->Set("simulate"), Simulate);
+				Series::Pack(Node->Set("diffuse"), Diffuse);
+				Series::Pack(Node->Set("position"), Position);
+				Series::Pack(Node->Set("velocity"), Velocity);
+				Series::Pack(Node->Set("spawner"), Spawner);
+				Series::Pack(Node->Set("noise"), Noise);
+				Series::Pack(Node->Set("rotation-speed"), RotationSpeed);
+				Series::Pack(Node->Set("scale-speed"), ScaleSpeed);
+				Series::Pack(Node->Set("simulate"), Simulate);
 			}
 			void EmitterAnimator::Activate(Component* New)
 			{
@@ -2362,7 +2362,7 @@ namespace Tomahawk
 				Base->Min = Compute::Vector3(MinX, MinY, MinZ);
 				Base->Max = Compute::Vector3(MaxX, MaxY, MaxZ);
 			}
-			Component* EmitterAnimator::Copy(Entity* New)
+			Component* EmitterAnimator::Copy(Entity* New) const
 			{
 				EmitterAnimator* Target = new EmitterAnimator(New);
 				Target->Diffuse = Diffuse;
@@ -2419,7 +2419,7 @@ namespace Tomahawk
 				if ((int)Cursor.X != (int)Position.X || (int)Cursor.Y != (int)Position.Y)
 					Activity->SetGlobalCursorPosition(Position);
 			}
-			Component* FreeLook::Copy(Entity* New)
+			Component* FreeLook::Copy(Entity* New) const
 			{
 				FreeLook* Target = new FreeLook(New);
 				Target->Activity = Activity;
@@ -2478,7 +2478,7 @@ namespace Tomahawk
 				if (Activity->IsKeyDown(Down))
 					Transform->Move(-Transform->Up(ViewSpace) * Speed);
 			}
-			Component* Fly::Copy(Entity* New)
+			Component* Fly::Copy(Entity* New) const
 			{
 				Fly* Target = new Fly(New);
 				Target->Activity = Activity;
@@ -2516,31 +2516,31 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (NMake::Unpack(Node->Find("audio-clip"), &Path))
+				if (Series::Unpack(Node->Find("audio-clip"), &Path))
 					Source->SetClip(Content->Load<Audio::AudioClip>(Path));
 
-				NMake::Unpack(Node->Find("velocity"), &Sync.Velocity);
-				NMake::Unpack(Node->Find("direction"), &Sync.Direction);
-				NMake::Unpack(Node->Find("rolloff"), &Sync.Rolloff);
-				NMake::Unpack(Node->Find("cone-inner-angle"), &Sync.ConeInnerAngle);
-				NMake::Unpack(Node->Find("cone-outer-angle"), &Sync.ConeOuterAngle);
-				NMake::Unpack(Node->Find("cone-outer-gain"), &Sync.ConeOuterGain);
-				NMake::Unpack(Node->Find("distance"), &Sync.Distance);
-				NMake::Unpack(Node->Find("gain"), &Sync.Gain);
-				NMake::Unpack(Node->Find("pitch"), &Sync.Pitch);
-				NMake::Unpack(Node->Find("ref-distance"), &Sync.RefDistance);
-				NMake::Unpack(Node->Find("position"), &Sync.Position);
-				NMake::Unpack(Node->Find("relative"), &Sync.IsRelative);
-				NMake::Unpack(Node->Find("looped"), &Sync.IsLooped);
-				NMake::Unpack(Node->Find("distance"), &Sync.Distance);
-				NMake::Unpack(Node->Find("air-absorption"), &Sync.AirAbsorption);
-				NMake::Unpack(Node->Find("room-roll-off"), &Sync.RoomRollOff);
+				Series::Unpack(Node->Find("velocity"), &Sync.Velocity);
+				Series::Unpack(Node->Find("direction"), &Sync.Direction);
+				Series::Unpack(Node->Find("rolloff"), &Sync.Rolloff);
+				Series::Unpack(Node->Find("cone-inner-angle"), &Sync.ConeInnerAngle);
+				Series::Unpack(Node->Find("cone-outer-angle"), &Sync.ConeOuterAngle);
+				Series::Unpack(Node->Find("cone-outer-gain"), &Sync.ConeOuterGain);
+				Series::Unpack(Node->Find("distance"), &Sync.Distance);
+				Series::Unpack(Node->Find("gain"), &Sync.Gain);
+				Series::Unpack(Node->Find("pitch"), &Sync.Pitch);
+				Series::Unpack(Node->Find("ref-distance"), &Sync.RefDistance);
+				Series::Unpack(Node->Find("position"), &Sync.Position);
+				Series::Unpack(Node->Find("relative"), &Sync.IsRelative);
+				Series::Unpack(Node->Find("looped"), &Sync.IsLooped);
+				Series::Unpack(Node->Find("distance"), &Sync.Distance);
+				Series::Unpack(Node->Find("air-absorption"), &Sync.AirAbsorption);
+				Series::Unpack(Node->Find("room-roll-off"), &Sync.RoomRollOff);
 
 				std::vector<Core::Schema*> Effects = Node->FetchCollection("effects.effect");
 				for (auto& Effect : Effects)
 				{
 					uint64_t Id;
-					if (!NMake::Unpack(Effect->Find("id"), &Id))
+					if (!Series::Unpack(Effect->Find("id"), &Id))
 						continue;
 
 					Audio::AudioEffect* Target = Core::Composer::Create<Audio::AudioEffect>(Id);
@@ -2559,7 +2559,7 @@ namespace Tomahawk
 				}
 
 				bool Autoplay;
-				if (NMake::Unpack(Node->Find("autoplay"), &Autoplay) && Autoplay && Source->GetClip())
+				if (Series::Unpack(Node->Find("autoplay"), &Autoplay) && Autoplay && Source->GetClip())
 					Source->Play();
 
 				ApplyPlayingPosition();
@@ -2572,7 +2572,7 @@ namespace Tomahawk
 
 				AssetCache* Asset = Content->Find<Audio::AudioClip>(Source->GetClip());
 				if (Asset != nullptr)
-					NMake::Pack(Node->Set("audio-clip"), Asset->Path);
+					Series::Pack(Node->Set("audio-clip"), Asset->Path);
 
 				Core::Schema* Effects = Node->Set("effects", Core::Var::Array());
 				for (auto* Effect : *Source->GetEffects())
@@ -2581,27 +2581,27 @@ namespace Tomahawk
 						continue;
 
 					Core::Schema* Element = Effects->Set("effect");
-					NMake::Pack(Element->Set("id"), Effect->GetId());
+					Series::Pack(Element->Set("id"), Effect->GetId());
 					Effect->Serialize(Element->Set("metadata"));
 				}
 
-				NMake::Pack(Node->Set("velocity"), Sync.Velocity);
-				NMake::Pack(Node->Set("direction"), Sync.Direction);
-				NMake::Pack(Node->Set("rolloff"), Sync.Rolloff);
-				NMake::Pack(Node->Set("cone-inner-angle"), Sync.ConeInnerAngle);
-				NMake::Pack(Node->Set("cone-outer-angle"), Sync.ConeOuterAngle);
-				NMake::Pack(Node->Set("cone-outer-gain"), Sync.ConeOuterGain);
-				NMake::Pack(Node->Set("distance"), Sync.Distance);
-				NMake::Pack(Node->Set("gain"), Sync.Gain);
-				NMake::Pack(Node->Set("pitch"), Sync.Pitch);
-				NMake::Pack(Node->Set("ref-distance"), Sync.RefDistance);
-				NMake::Pack(Node->Set("position"), Sync.Position);
-				NMake::Pack(Node->Set("relative"), Sync.IsRelative);
-				NMake::Pack(Node->Set("looped"), Sync.IsLooped);
-				NMake::Pack(Node->Set("distance"), Sync.Distance);
-				NMake::Pack(Node->Set("autoplay"), Source->IsPlaying());
-				NMake::Pack(Node->Set("air-absorption"), Sync.AirAbsorption);
-				NMake::Pack(Node->Set("room-roll-off"), Sync.RoomRollOff);
+				Series::Pack(Node->Set("velocity"), Sync.Velocity);
+				Series::Pack(Node->Set("direction"), Sync.Direction);
+				Series::Pack(Node->Set("rolloff"), Sync.Rolloff);
+				Series::Pack(Node->Set("cone-inner-angle"), Sync.ConeInnerAngle);
+				Series::Pack(Node->Set("cone-outer-angle"), Sync.ConeOuterAngle);
+				Series::Pack(Node->Set("cone-outer-gain"), Sync.ConeOuterGain);
+				Series::Pack(Node->Set("distance"), Sync.Distance);
+				Series::Pack(Node->Set("gain"), Sync.Gain);
+				Series::Pack(Node->Set("pitch"), Sync.Pitch);
+				Series::Pack(Node->Set("ref-distance"), Sync.RefDistance);
+				Series::Pack(Node->Set("position"), Sync.Position);
+				Series::Pack(Node->Set("relative"), Sync.IsRelative);
+				Series::Pack(Node->Set("looped"), Sync.IsLooped);
+				Series::Pack(Node->Set("distance"), Sync.Distance);
+				Series::Pack(Node->Set("autoplay"), Source->IsPlaying());
+				Series::Pack(Node->Set("air-absorption"), Sync.AirAbsorption);
+				Series::Pack(Node->Set("room-roll-off"), Sync.RoomRollOff);
 			}
 			void AudioSource::Synchronize(Core::Timer* Time)
 			{
@@ -2622,7 +2622,7 @@ namespace Tomahawk
 			{
 				Audio::AudioContext::SetSourceData1F(Source->GetInstance(), Audio::SoundEx::Seconds_Offset, Sync.Position);
 			}
-			Component* AudioSource::Copy(Entity* New)
+			Component* AudioSource::Copy(Entity* New) const
 			{
 				AudioSource* Target = new AudioSource(New);
 				Target->LastPosition = LastPosition;
@@ -2656,12 +2656,12 @@ namespace Tomahawk
 			void AudioListener::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Unpack(Node->Find("gain"), &Gain);
+				Series::Unpack(Node->Find("gain"), &Gain);
 			}
 			void AudioListener::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Pack(Node->Set("gain"), Gain);
+				Series::Pack(Node->Set("gain"), Gain);
 			}
 			void AudioListener::Synchronize(Core::Timer* Time)
 			{
@@ -2689,7 +2689,7 @@ namespace Tomahawk
 				Audio::AudioContext::SetListenerDataVF(Audio::SoundEx::Orientation, LookAt);
 				Audio::AudioContext::SetListenerData1F(Audio::SoundEx::Gain, 0.0f);
 			}
-			Component* AudioListener::Copy(Entity* New)
+			Component* AudioListener::Copy(Entity* New) const
 			{
 				AudioListener* Target = new AudioListener(New);
 				Target->LastPosition = LastPosition;
@@ -2704,49 +2704,49 @@ namespace Tomahawk
 			void PointLight::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("view"), &View);
-				NMake::Unpack(Node->Find("size"), &Size);
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("disperse"), &Disperse);
-				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
-				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
-				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
-				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
-				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
+				Series::Unpack(Node->Find("projection"), &Projection);
+				Series::Unpack(Node->Find("view"), &View);
+				Series::Unpack(Node->Find("size"), &Size);
+				Series::Unpack(Node->Find("diffuse"), &Diffuse);
+				Series::Unpack(Node->Find("emission"), &Emission);
+				Series::Unpack(Node->Find("disperse"), &Disperse);
+				Series::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
+				Series::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
+				Series::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
+				Series::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				Series::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void PointLight::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Pack(Node->Set("projection"), Projection);
-				NMake::Pack(Node->Set("view"), View);
-				NMake::Pack(Node->Set("size"), Size);
-				NMake::Pack(Node->Set("diffuse"), Diffuse);
-				NMake::Pack(Node->Set("emission"), Emission);
-				NMake::Pack(Node->Set("disperse"), Disperse);
-				NMake::Pack(Node->Set("shadow-softness"), Shadow.Softness);
-				NMake::Pack(Node->Set("shadow-distance"), Shadow.Distance);
-				NMake::Pack(Node->Set("shadow-bias"), Shadow.Bias);
-				NMake::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
-				NMake::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
+				Series::Pack(Node->Set("projection"), Projection);
+				Series::Pack(Node->Set("view"), View);
+				Series::Pack(Node->Set("size"), Size);
+				Series::Pack(Node->Set("diffuse"), Diffuse);
+				Series::Pack(Node->Set("emission"), Emission);
+				Series::Pack(Node->Set("disperse"), Disperse);
+				Series::Pack(Node->Set("shadow-softness"), Shadow.Softness);
+				Series::Pack(Node->Set("shadow-distance"), Shadow.Distance);
+				Series::Pack(Node->Set("shadow-bias"), Shadow.Bias);
+				Series::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
+				Series::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
 			void PointLight::Message(const std::string& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
 			}
-			size_t PointLight::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
+			size_t PointLight::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 			{
 				Min = Size.Radius * -1.25f;
 				Max = Size.Radius * 1.25f;
 				return BOX_LIGHT;
 			}
-			float PointLight::GetVisibility(const Viewer& View, float Distance)
+			float PointLight::GetVisibility(const Viewer& View, float Distance) const
 			{
 				return GetVisibilityRadius(Parent, View, Distance);
 			}
-			Component* PointLight::Copy(Entity* New)
+			Component* PointLight::Copy(Entity* New) const
 			{
 				PointLight* Target = new PointLight(New);
 				Target->Diffuse = Diffuse;
@@ -2781,34 +2781,34 @@ namespace Tomahawk
 			void SpotLight::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("view"), &View);
-				NMake::Unpack(Node->Find("size"), &Size);
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("disperse"), &Disperse);
-				NMake::Unpack(Node->Find("cutoff"), &Cutoff);
-				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
-				NMake::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
-				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
-				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
-				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
+				Series::Unpack(Node->Find("projection"), &Projection);
+				Series::Unpack(Node->Find("view"), &View);
+				Series::Unpack(Node->Find("size"), &Size);
+				Series::Unpack(Node->Find("diffuse"), &Diffuse);
+				Series::Unpack(Node->Find("emission"), &Emission);
+				Series::Unpack(Node->Find("disperse"), &Disperse);
+				Series::Unpack(Node->Find("cutoff"), &Cutoff);
+				Series::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
+				Series::Unpack(Node->Find("shadow-distance"), &Shadow.Distance);
+				Series::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
+				Series::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				Series::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
 			void SpotLight::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Pack(Node->Set("projection"), Projection);
-				NMake::Pack(Node->Set("view"), View);
-				NMake::Pack(Node->Set("size"), Size);
-				NMake::Pack(Node->Set("diffuse"), Diffuse);
-				NMake::Pack(Node->Set("emission"), Emission);
-				NMake::Pack(Node->Set("disperse"), Disperse);
-				NMake::Pack(Node->Set("cutoff"), Cutoff);
-				NMake::Pack(Node->Set("shadow-bias"), Shadow.Bias);
-				NMake::Pack(Node->Set("shadow-distance"), Shadow.Distance);
-				NMake::Pack(Node->Set("shadow-softness"), Shadow.Softness);
-				NMake::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
-				NMake::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
+				Series::Pack(Node->Set("projection"), Projection);
+				Series::Pack(Node->Set("view"), View);
+				Series::Pack(Node->Set("size"), Size);
+				Series::Pack(Node->Set("diffuse"), Diffuse);
+				Series::Pack(Node->Set("emission"), Emission);
+				Series::Pack(Node->Set("disperse"), Disperse);
+				Series::Pack(Node->Set("cutoff"), Cutoff);
+				Series::Pack(Node->Set("shadow-bias"), Shadow.Bias);
+				Series::Pack(Node->Set("shadow-distance"), Shadow.Distance);
+				Series::Pack(Node->Set("shadow-softness"), Shadow.Softness);
+				Series::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
+				Series::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
 			}
 			void SpotLight::Message(const std::string& Name, Core::VariantArgs& Args)
 			{
@@ -2819,17 +2819,17 @@ namespace Tomahawk
 			{
 				Cutoff = Compute::Mathf::Clamp(Cutoff, 0.0f, 180.0f);
 			}
-			size_t SpotLight::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
+			size_t SpotLight::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 			{
 				Min = Size.Radius * -1.25f;
 				Max = Size.Radius * 1.25f;
 				return BOX_LIGHT;
 			}
-			float SpotLight::GetVisibility(const Viewer& View, float Distance)
+			float SpotLight::GetVisibility(const Viewer& View, float Distance) const
 			{
 				return GetVisibilityRadius(Parent, View, Distance);
 			}
-			Component* SpotLight::Copy(Entity* New)
+			Component* SpotLight::Copy(Entity* New) const
 			{
 				SpotLight* Target = new SpotLight(New);
 				Target->Diffuse = Diffuse;
@@ -2868,71 +2868,71 @@ namespace Tomahawk
 			void LineLight::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("emission"), &Emission);
+				Series::Unpack(Node->Find("diffuse"), &Diffuse);
+				Series::Unpack(Node->Find("emission"), &Emission);
 
 				for (uint32_t i = 0; i < 6; i++)
 				{
-					NMake::Unpack(Node->Find("projection-" + std::to_string(i)), &Projection[i]);
-					NMake::Unpack(Node->Find("view-" + std::to_string(i)), &View[i]);
+					Series::Unpack(Node->Find("projection-" + std::to_string(i)), &Projection[i]);
+					Series::Unpack(Node->Find("view-" + std::to_string(i)), &View[i]);
 				}
 
 				for (uint32_t i = 0; i < 6; i++)
-					NMake::Unpack(Node->Find("shadow-distance-" + std::to_string(i)), &Shadow.Distance[i]);
+					Series::Unpack(Node->Find("shadow-distance-" + std::to_string(i)), &Shadow.Distance[i]);
 
-				NMake::Unpack(Node->Find("shadow-cascades"), &Shadow.Cascades);
-				NMake::Unpack(Node->Find("shadow-far"), &Shadow.Far);
-				NMake::Unpack(Node->Find("shadow-near"), &Shadow.Near);
-				NMake::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
-				NMake::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
-				NMake::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
-				NMake::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
-				NMake::Unpack(Node->Find("rlh-emission"), &Sky.RlhEmission);
-				NMake::Unpack(Node->Find("mie-emission"), &Sky.MieEmission);
-				NMake::Unpack(Node->Find("rlh-height"), &Sky.RlhHeight);
-				NMake::Unpack(Node->Find("mie-height"), &Sky.MieEmission);
-				NMake::Unpack(Node->Find("mie-direction"), &Sky.MieDirection);
-				NMake::Unpack(Node->Find("inner-radius"), &Sky.InnerRadius);
-				NMake::Unpack(Node->Find("outer-radius"), &Sky.OuterRadius);
-				NMake::Unpack(Node->Find("sky-intensity"), &Sky.Intensity);
+				Series::Unpack(Node->Find("shadow-cascades"), &Shadow.Cascades);
+				Series::Unpack(Node->Find("shadow-far"), &Shadow.Far);
+				Series::Unpack(Node->Find("shadow-near"), &Shadow.Near);
+				Series::Unpack(Node->Find("shadow-bias"), &Shadow.Bias);
+				Series::Unpack(Node->Find("shadow-softness"), &Shadow.Softness);
+				Series::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
+				Series::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
+				Series::Unpack(Node->Find("rlh-emission"), &Sky.RlhEmission);
+				Series::Unpack(Node->Find("mie-emission"), &Sky.MieEmission);
+				Series::Unpack(Node->Find("rlh-height"), &Sky.RlhHeight);
+				Series::Unpack(Node->Find("mie-height"), &Sky.MieEmission);
+				Series::Unpack(Node->Find("mie-direction"), &Sky.MieDirection);
+				Series::Unpack(Node->Find("inner-radius"), &Sky.InnerRadius);
+				Series::Unpack(Node->Find("outer-radius"), &Sky.OuterRadius);
+				Series::Unpack(Node->Find("sky-intensity"), &Sky.Intensity);
 			}
 			void LineLight::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-				NMake::Pack(Node->Set("diffuse"), Diffuse);
-				NMake::Pack(Node->Set("emission"), Emission);
+				Series::Pack(Node->Set("diffuse"), Diffuse);
+				Series::Pack(Node->Set("emission"), Emission);
 
 				for (uint32_t i = 0; i < 6; i++)
 				{
-					NMake::Pack(Node->Set("projection-" + std::to_string(i)), Projection[i]);
-					NMake::Pack(Node->Set("view-" + std::to_string(i)), View[i]);
+					Series::Pack(Node->Set("projection-" + std::to_string(i)), Projection[i]);
+					Series::Pack(Node->Set("view-" + std::to_string(i)), View[i]);
 				}
 
 				for (uint32_t i = 0; i < 6; i++)
-					NMake::Pack(Node->Set("shadow-distance-" + std::to_string(i)), Shadow.Distance[i]);
+					Series::Pack(Node->Set("shadow-distance-" + std::to_string(i)), Shadow.Distance[i]);
 
-				NMake::Pack(Node->Set("shadow-cascades"), Shadow.Cascades);
-				NMake::Pack(Node->Set("shadow-far"), Shadow.Far);
-				NMake::Pack(Node->Set("shadow-near"), Shadow.Near);
-				NMake::Pack(Node->Set("shadow-bias"), Shadow.Bias);
-				NMake::Pack(Node->Set("shadow-softness"), Shadow.Softness);
-				NMake::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
-				NMake::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
-				NMake::Pack(Node->Set("rlh-emission"), Sky.RlhEmission);
-				NMake::Pack(Node->Set("mie-emission"), Sky.MieEmission);
-				NMake::Pack(Node->Set("rlh-height"), Sky.RlhHeight);
-				NMake::Pack(Node->Set("mie-height"), Sky.MieEmission);
-				NMake::Pack(Node->Set("mie-direction"), Sky.MieDirection);
-				NMake::Pack(Node->Set("inner-radius"), Sky.InnerRadius);
-				NMake::Pack(Node->Set("outer-radius"), Sky.OuterRadius);
-				NMake::Pack(Node->Set("sky-intensity"), Sky.Intensity);
+				Series::Pack(Node->Set("shadow-cascades"), Shadow.Cascades);
+				Series::Pack(Node->Set("shadow-far"), Shadow.Far);
+				Series::Pack(Node->Set("shadow-near"), Shadow.Near);
+				Series::Pack(Node->Set("shadow-bias"), Shadow.Bias);
+				Series::Pack(Node->Set("shadow-softness"), Shadow.Softness);
+				Series::Pack(Node->Set("shadow-iterations"), Shadow.Iterations);
+				Series::Pack(Node->Set("shadow-enabled"), Shadow.Enabled);
+				Series::Pack(Node->Set("rlh-emission"), Sky.RlhEmission);
+				Series::Pack(Node->Set("mie-emission"), Sky.MieEmission);
+				Series::Pack(Node->Set("rlh-height"), Sky.RlhHeight);
+				Series::Pack(Node->Set("mie-height"), Sky.MieEmission);
+				Series::Pack(Node->Set("mie-direction"), Sky.MieDirection);
+				Series::Pack(Node->Set("inner-radius"), Sky.InnerRadius);
+				Series::Pack(Node->Set("outer-radius"), Sky.OuterRadius);
+				Series::Pack(Node->Set("sky-intensity"), Sky.Intensity);
 			}
 			void LineLight::Message(const std::string& Name, Core::VariantArgs& Args)
 			{
 				if (Name == "depth-flush")
 					DepthMap = nullptr;
 			}
-			Component* LineLight::Copy(Entity* New)
+			Component* LineLight::Copy(Entity* New) const
 			{
 				LineLight* Target = new LineLight(New);
 				Target->Diffuse = Diffuse;
@@ -2996,44 +2996,44 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (!NMake::Unpack(Node->Find("diffuse-map"), &Path))
+				if (!Series::Unpack(Node->Find("diffuse-map"), &Path))
 				{
-					if (NMake::Unpack(Node->Find("diffuse-map-px"), &Path))
+					if (Series::Unpack(Node->Find("diffuse-map-px"), &Path))
 					{
 						TH_RELEASE(DiffuseMapX[0]);
 						DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path);
 						DiffuseMapX[0]->AddRef();
 					}
 
-					if (NMake::Unpack(Node->Find("diffuse-map-nx"), &Path))
+					if (Series::Unpack(Node->Find("diffuse-map-nx"), &Path))
 					{
 						TH_RELEASE(DiffuseMapX[1]);
 						DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path);
 						DiffuseMapX[1]->AddRef();
 					}
 
-					if (NMake::Unpack(Node->Find("diffuse-map-py"), &Path))
+					if (Series::Unpack(Node->Find("diffuse-map-py"), &Path))
 					{
 						TH_RELEASE(DiffuseMapY[0]);
 						DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path);
 						DiffuseMapY[0]->AddRef();
 					}
 
-					if (NMake::Unpack(Node->Find("diffuse-map-ny"), &Path))
+					if (Series::Unpack(Node->Find("diffuse-map-ny"), &Path))
 					{
 						TH_RELEASE(DiffuseMapY[1]);
 						DiffuseMapY[1] = Content->Load<Graphics::Texture2D>(Path);
 						DiffuseMapY[1]->AddRef();
 					}
 
-					if (NMake::Unpack(Node->Find("diffuse-map-pz"), &Path))
+					if (Series::Unpack(Node->Find("diffuse-map-pz"), &Path))
 					{
 						TH_RELEASE(DiffuseMapZ[0]);
 						DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path);
 						DiffuseMapZ[0]->AddRef();
 					}
 
-					if (NMake::Unpack(Node->Find("diffuse-map-nz"), &Path))
+					if (Series::Unpack(Node->Find("diffuse-map-nz"), &Path))
 					{
 						TH_RELEASE(DiffuseMapZ[1]);
 						DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path);
@@ -3048,15 +3048,15 @@ namespace Tomahawk
 				}
 
 				std::vector<Compute::Matrix4x4> Views;
-				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("view"), &Views);
-				NMake::Unpack(Node->Find("tick"), &Tick);
-				NMake::Unpack(Node->Find("diffuse"), &Diffuse);
-				NMake::Unpack(Node->Find("size"), &Size);
-				NMake::Unpack(Node->Find("emission"), &Emission);
-				NMake::Unpack(Node->Find("infinity"), &Infinity);
-				NMake::Unpack(Node->Find("parallax"), &Parallax);
-				NMake::Unpack(Node->Find("static-mask"), &StaticMask);
+				Series::Unpack(Node->Find("projection"), &Projection);
+				Series::Unpack(Node->Find("view"), &Views);
+				Series::Unpack(Node->Find("tick"), &Tick);
+				Series::Unpack(Node->Find("diffuse"), &Diffuse);
+				Series::Unpack(Node->Find("size"), &Size);
+				Series::Unpack(Node->Find("emission"), &Emission);
+				Series::Unpack(Node->Find("infinity"), &Infinity);
+				Series::Unpack(Node->Find("parallax"), &Parallax);
+				Series::Unpack(Node->Find("static-mask"), &StaticMask);
 
 				int64_t Count = Compute::Math<int64_t>::Min((int64_t)Views.size(), 6);
 				for (int64_t i = 0; i < Count; i++)
@@ -3077,63 +3077,63 @@ namespace Tomahawk
 				{
 					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapX[0]);
 					if (Asset != nullptr)
-						NMake::Pack(Node->Set("diffuse-map-px"), Asset->Path);
+						Series::Pack(Node->Set("diffuse-map-px"), Asset->Path);
 
 					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapX[1]);
 					if (Asset != nullptr)
-						NMake::Pack(Node->Set("diffuse-map-nx"), Asset->Path);
+						Series::Pack(Node->Set("diffuse-map-nx"), Asset->Path);
 
 					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapY[0]);
 					if (Asset != nullptr)
-						NMake::Pack(Node->Set("diffuse-map-py"), Asset->Path);
+						Series::Pack(Node->Set("diffuse-map-py"), Asset->Path);
 
 					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapY[1]);
 					if (Asset != nullptr)
-						NMake::Pack(Node->Set("diffuse-map-ny"), Asset->Path);
+						Series::Pack(Node->Set("diffuse-map-ny"), Asset->Path);
 
 					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapZ[0]);
 					if (Asset != nullptr)
-						NMake::Pack(Node->Set("diffuse-map-pz"), Asset->Path);
+						Series::Pack(Node->Set("diffuse-map-pz"), Asset->Path);
 
 					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapZ[1]);
 					if (Asset != nullptr)
-						NMake::Pack(Node->Set("diffuse-map-nz"), Asset->Path);
+						Series::Pack(Node->Set("diffuse-map-nz"), Asset->Path);
 				}
 				else
 				{
 					Asset = Content->Find<Graphics::Texture2D>(DiffuseMap);
 					if (Asset != nullptr)
-						NMake::Pack(Node->Set("diffuse-map"), Asset->Path);
+						Series::Pack(Node->Set("diffuse-map"), Asset->Path);
 				}
 
 				std::vector<Compute::Matrix4x4> Views;
 				for (int64_t i = 0; i < 6; i++)
 					Views.push_back(View[i]);
 
-				NMake::Pack(Node->Set("projection"), Projection);
-				NMake::Pack(Node->Set("view"), Views);
-				NMake::Pack(Node->Set("tick"), Tick);
-				NMake::Pack(Node->Set("size"), Size);
-				NMake::Pack(Node->Set("diffuse"), Diffuse);
-				NMake::Pack(Node->Set("emission"), Emission);
-				NMake::Pack(Node->Set("infinity"), Infinity);
-				NMake::Pack(Node->Set("parallax"), Parallax);
-				NMake::Pack(Node->Set("static-mask"), StaticMask);
+				Series::Pack(Node->Set("projection"), Projection);
+				Series::Pack(Node->Set("view"), Views);
+				Series::Pack(Node->Set("tick"), Tick);
+				Series::Pack(Node->Set("size"), Size);
+				Series::Pack(Node->Set("diffuse"), Diffuse);
+				Series::Pack(Node->Set("emission"), Emission);
+				Series::Pack(Node->Set("infinity"), Infinity);
+				Series::Pack(Node->Set("parallax"), Parallax);
+				Series::Pack(Node->Set("static-mask"), StaticMask);
 			}
-			size_t SurfaceLight::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
+			size_t SurfaceLight::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 			{
 				Min = Size.Radius * -1.25f;
 				Max = Size.Radius * 1.25f;
 				return BOX_LIGHT;
 			}
-			float SurfaceLight::GetVisibility(const Viewer& View, float Distance)
+			float SurfaceLight::GetVisibility(const Viewer& View, float Distance) const
 			{
 				if (Infinity > 0.0f)
 					return 1.0f;
 
 				return GetVisibilityRadius(Parent, View, Distance);
 			}
-			Component* SurfaceLight::Copy(Entity* New)
+			Component* SurfaceLight::Copy(Entity* New) const
 			{
 				SurfaceLight* Target = new SurfaceLight(New);
 				Target->Projection = Projection;
@@ -3188,7 +3188,7 @@ namespace Tomahawk
 				Probe = Parent->GetScene()->GetDevice()->CreateTextureCube(DiffuseMap);
 				return Probe != nullptr;
 			}
-			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* MapX[2], Graphics::Texture2D* MapY[2], Graphics::Texture2D* MapZ[2])
+			bool SurfaceLight::SetDiffuseMap(Graphics::Texture2D* const MapX[2], Graphics::Texture2D* const MapY[2], Graphics::Texture2D* const MapZ[2])
 			{
 				TH_ASSERT(Parent->GetScene()->GetDevice() != nullptr, false, "graphics device should be set");
 				if (!MapX[0] || !MapX[1] || !MapY[0] || !MapY[1] || !MapZ[0] || !MapZ[1])
@@ -3285,38 +3285,38 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("inside-delay"), &Inside.Delay);
-				NMake::Unpack(Node->Find("outside-delay"), &Outside.Delay);
-				NMake::Unpack(Node->Find("ray-step"), &RayStep);
-				NMake::Unpack(Node->Find("max-steps"), &MaxSteps);
-				NMake::Unpack(Node->Find("distance"), &Distance);
-				NMake::Unpack(Node->Find("radiance"), &Radiance);
-				NMake::Unpack(Node->Find("length"), &Length);
-				NMake::Unpack(Node->Find("margin"), &Margin);
-				NMake::Unpack(Node->Find("offset"), &Offset);
-				NMake::Unpack(Node->Find("angle"), &Angle);
-				NMake::Unpack(Node->Find("occlusion"), &Occlusion);
-				NMake::Unpack(Node->Find("specular"), &Specular);
-				NMake::Unpack(Node->Find("bleeding"), &Bleeding);
+				Series::Unpack(Node->Find("inside-delay"), &Inside.Delay);
+				Series::Unpack(Node->Find("outside-delay"), &Outside.Delay);
+				Series::Unpack(Node->Find("ray-step"), &RayStep);
+				Series::Unpack(Node->Find("max-steps"), &MaxSteps);
+				Series::Unpack(Node->Find("distance"), &Distance);
+				Series::Unpack(Node->Find("radiance"), &Radiance);
+				Series::Unpack(Node->Find("length"), &Length);
+				Series::Unpack(Node->Find("margin"), &Margin);
+				Series::Unpack(Node->Find("offset"), &Offset);
+				Series::Unpack(Node->Find("angle"), &Angle);
+				Series::Unpack(Node->Find("occlusion"), &Occlusion);
+				Series::Unpack(Node->Find("specular"), &Specular);
+				Series::Unpack(Node->Find("bleeding"), &Bleeding);
 			}
 			void Illuminator::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("inside-delay"), Inside.Delay);
-				NMake::Pack(Node->Set("outside-delay"), Outside.Delay);
-				NMake::Pack(Node->Set("ray-step"), RayStep);
-				NMake::Pack(Node->Set("max-steps"), MaxSteps);
-				NMake::Pack(Node->Set("distance"), Distance);
-				NMake::Pack(Node->Set("radiance"), Radiance);
-				NMake::Pack(Node->Set("length"), Length);
-				NMake::Pack(Node->Set("margin"), Margin);
-				NMake::Pack(Node->Set("offset"), Offset);
-				NMake::Pack(Node->Set("angle"), Angle);
-				NMake::Pack(Node->Set("occlusion"), Occlusion);
-				NMake::Pack(Node->Set("specular"), Specular);
-				NMake::Pack(Node->Set("bleeding"), Bleeding);
+				Series::Pack(Node->Set("inside-delay"), Inside.Delay);
+				Series::Pack(Node->Set("outside-delay"), Outside.Delay);
+				Series::Pack(Node->Set("ray-step"), RayStep);
+				Series::Pack(Node->Set("max-steps"), MaxSteps);
+				Series::Pack(Node->Set("distance"), Distance);
+				Series::Pack(Node->Set("radiance"), Radiance);
+				Series::Pack(Node->Set("length"), Length);
+				Series::Pack(Node->Set("margin"), Margin);
+				Series::Pack(Node->Set("offset"), Offset);
+				Series::Pack(Node->Set("angle"), Angle);
+				Series::Pack(Node->Set("occlusion"), Occlusion);
+				Series::Pack(Node->Set("specular"), Specular);
+				Series::Pack(Node->Set("bleeding"), Bleeding);
 			}
 			void Illuminator::Message(const std::string& Name, Core::VariantArgs& Args)
 			{
@@ -3326,7 +3326,7 @@ namespace Tomahawk
 					Regenerate = true;
 				}
 			}
-			Component* Illuminator::Copy(Entity* New)
+			Component* Illuminator::Copy(Entity* New) const
 			{
 				Illuminator* Target = new Illuminator(New);
 				Target->Inside = Inside;
@@ -3371,29 +3371,29 @@ namespace Tomahawk
 				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
 
 				int _Mode = 0;
-				if (NMake::Unpack(Node->Find("mode"), &_Mode))
+				if (Series::Unpack(Node->Find("mode"), &_Mode))
 					Mode = (ProjectionMode)_Mode;
 
-				NMake::Unpack(Node->Find("projection"), &Projection);
-				NMake::Unpack(Node->Find("field-of-view"), &FieldOfView);
-				NMake::Unpack(Node->Find("far-plane"), &FarPlane);
-				NMake::Unpack(Node->Find("near-plane"), &NearPlane);
-				NMake::Unpack(Node->Find("width"), &Width);
-				NMake::Unpack(Node->Find("height"), &Height);
+				Series::Unpack(Node->Find("projection"), &Projection);
+				Series::Unpack(Node->Find("field-of-view"), &FieldOfView);
+				Series::Unpack(Node->Find("far-plane"), &FarPlane);
+				Series::Unpack(Node->Find("near-plane"), &NearPlane);
+				Series::Unpack(Node->Find("width"), &Width);
+				Series::Unpack(Node->Find("height"), &Height);
 
 				SceneGraph* Scene = Parent->GetScene();
-				NMake::Unpack(Node->Find("occluder-skips"), &Renderer->OccluderSkips);
-				NMake::Unpack(Node->Find("occludee-skips"), &Renderer->OccludeeSkips);
-				NMake::Unpack(Node->Find("occlusion-skips"), &Renderer->OcclusionSkips);
-				NMake::Unpack(Node->Find("frustum-cull"), &Renderer->FrustumCulling);
-				NMake::Unpack(Node->Find("occlusion-cull"), &Renderer->OcclusionCulling);
-				NMake::Unpack(Node->Find("max-queries"), &Renderer->MaxQueries);
+				Series::Unpack(Node->Find("occluder-skips"), &Renderer->OccluderSkips);
+				Series::Unpack(Node->Find("occludee-skips"), &Renderer->OccludeeSkips);
+				Series::Unpack(Node->Find("occlusion-skips"), &Renderer->OcclusionSkips);
+				Series::Unpack(Node->Find("frustum-cull"), &Renderer->FrustumCulling);
+				Series::Unpack(Node->Find("occlusion-cull"), &Renderer->OcclusionCulling);
+				Series::Unpack(Node->Find("max-queries"), &Renderer->MaxQueries);
 
 				std::vector<Core::Schema*> Renderers = Node->FetchCollection("renderers.renderer");
 				for (auto& Render : Renderers)
 				{
 					uint64_t Id;
-					if (!NMake::Unpack(Render->Find("id"), &Id))
+					if (!Series::Unpack(Render->Find("id"), &Id))
 						continue;
 
 					Engine::Renderer* Target = Core::Composer::Create<Engine::Renderer>(Id, Renderer);
@@ -3411,7 +3411,7 @@ namespace Tomahawk
 					Target->Deserialize(Content, Meta);
 					Target->Activate();
 
-					NMake::Unpack(Render->Find("active"), &Target->Active);
+					Series::Unpack(Render->Find("active"), &Target->Active);
 				}
 			}
 			void Camera::Serialize(ContentManager* Content, Core::Schema* Node)
@@ -3419,26 +3419,26 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("mode"), (int)Mode);
-				NMake::Pack(Node->Set("projection"), Projection);
-				NMake::Pack(Node->Set("field-of-view"), FieldOfView);
-				NMake::Pack(Node->Set("far-plane"), FarPlane);
-				NMake::Pack(Node->Set("near-plane"), NearPlane);
-				NMake::Pack(Node->Set("width"), Width);
-				NMake::Pack(Node->Set("height"), Height);
-				NMake::Pack(Node->Set("occluder-skips"), Renderer->OccluderSkips);
-				NMake::Pack(Node->Set("occludee-skips"), Renderer->OccludeeSkips);
-				NMake::Pack(Node->Set("occlusion-skips"), Renderer->OcclusionSkips);
-				NMake::Pack(Node->Set("frustum-cull"), Renderer->FrustumCulling);
-				NMake::Pack(Node->Set("occlusion-cull"), Renderer->OcclusionCulling);
-				NMake::Pack(Node->Set("max-queries"), Renderer->MaxQueries);
+				Series::Pack(Node->Set("mode"), (int)Mode);
+				Series::Pack(Node->Set("projection"), Projection);
+				Series::Pack(Node->Set("field-of-view"), FieldOfView);
+				Series::Pack(Node->Set("far-plane"), FarPlane);
+				Series::Pack(Node->Set("near-plane"), NearPlane);
+				Series::Pack(Node->Set("width"), Width);
+				Series::Pack(Node->Set("height"), Height);
+				Series::Pack(Node->Set("occluder-skips"), Renderer->OccluderSkips);
+				Series::Pack(Node->Set("occludee-skips"), Renderer->OccludeeSkips);
+				Series::Pack(Node->Set("occlusion-skips"), Renderer->OcclusionSkips);
+				Series::Pack(Node->Set("frustum-cull"), Renderer->FrustumCulling);
+				Series::Pack(Node->Set("occlusion-cull"), Renderer->OcclusionCulling);
+				Series::Pack(Node->Set("max-queries"), Renderer->MaxQueries);
 
 				Core::Schema* Renderers = Node->Set("renderers", Core::Var::Array());
 				for (auto* Next : Renderer->GetRenderers())
 				{
 					Core::Schema* Render = Renderers->Set("renderer");
-					NMake::Pack(Render->Set("id"), Next->GetId());
-					NMake::Pack(Render->Set("active"), Next->Active);
+					Series::Pack(Render->Set("id"), Next->GetId());
+					Series::Pack(Render->Set("active"), Next->Active);
 					Next->Serialize(Content, Render->Set("metadata"));
 				}
 			}
@@ -3556,7 +3556,7 @@ namespace Tomahawk
 			{
 				return Compute::Geometric::CursorRayTest(Ray, World);
 			}
-			Component* Camera::Copy(Entity* New)
+			Component* Camera::Copy(Entity* New) const
 			{
 				Camera* Target = new Camera(New);
 				Target->FarPlane = FarPlane;
@@ -3583,7 +3583,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Type;
-				if (NMake::Unpack(Node->Find("source"), &Type))
+				if (Series::Unpack(Node->Find("source"), &Type))
 				{
 					if (Type == "memory")
 						Source = SourceType_Memory;
@@ -3591,7 +3591,7 @@ namespace Tomahawk
 						Source = SourceType_Resource;
 				}
 
-				if (NMake::Unpack(Node->Find("invoke"), &Type))
+				if (Series::Unpack(Node->Find("invoke"), &Type))
 				{
 					if (Type == "typeless")
 						Invoke = InvokeType_Typeless;
@@ -3599,7 +3599,7 @@ namespace Tomahawk
 						Invoke = InvokeType_Normal;
 				}
 
-				if (!NMake::Unpack(Node->Find("resource"), &Type))
+				if (!Series::Unpack(Node->Find("resource"), &Type))
 					return;
 
 				Resource = Core::OS::Path::Resolve(Type.c_str(), Content->GetEnvironment());
@@ -3615,7 +3615,7 @@ namespace Tomahawk
 					for (auto& Var : Cache->GetChilds())
 					{
 						int TypeId = -1;
-						if (!NMake::Unpack(Var->Find("type"), &TypeId))
+						if (!Series::Unpack(Var->Find("type"), &TypeId))
 							continue;
 
 						switch ((Script::VMTypeId)TypeId)
@@ -3623,84 +3623,84 @@ namespace Tomahawk
 							case Script::VMTypeId::BOOL:
 							{
 								bool Result = false;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
 							case Script::VMTypeId::INT8:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (char)Result);
 								break;
 							}
 							case Script::VMTypeId::INT16:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (short)Result);
 								break;
 							}
 							case Script::VMTypeId::INT32:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (int)Result);
 								break;
 							}
 							case Script::VMTypeId::INT64:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
 							case Script::VMTypeId::UINT8:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned char)Result);
 								break;
 							}
 							case Script::VMTypeId::UINT16:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned short)Result);
 								break;
 							}
 							case Script::VMTypeId::UINT32:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned int)Result);
 								break;
 							}
 							case Script::VMTypeId::UINT64:
 							{
 								int64_t Result = 0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (uint64_t)Result);
 								break;
 							}
 							case Script::VMTypeId::FLOAT:
 							{
 								float Result = 0.0f;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
 							case Script::VMTypeId::DOUBLE:
 							{
 								double Result = 0.0;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
 							default:
 							{
 								std::string Result;
-								if (NMake::Unpack(Var->Find("data"), &Result))
+								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
@@ -3725,17 +3725,17 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				if (Source == SourceType_Memory)
-					NMake::Pack(Node->Set("source"), "memory");
+					Series::Pack(Node->Set("source"), "memory");
 				else if (Source == SourceType_Resource)
-					NMake::Pack(Node->Set("source"), "resource");
+					Series::Pack(Node->Set("source"), "resource");
 
 				if (Invoke == InvokeType_Typeless)
-					NMake::Pack(Node->Set("invoke"), "typeless");
+					Series::Pack(Node->Set("invoke"), "typeless");
 				else if (Invoke == InvokeType_Normal)
-					NMake::Pack(Node->Set("invoke"), "normal");
+					Series::Pack(Node->Set("invoke"), "normal");
 
 				int Count = GetPropertiesCount();
-				NMake::Pack(Node->Set("resource"), Core::Parser(Resource).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R());
+				Series::Pack(Node->Set("resource"), Core::Parser(Resource).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R());
 
 				Core::Schema* Cache = Node->Set("cache");
 				for (int i = 0; i < Count; i++)
@@ -3745,48 +3745,48 @@ namespace Tomahawk
 						continue;
 
 					Core::Schema* Var = Core::Var::Set::Object();
-					NMake::Pack(Var->Set("type"), Result.TypeId);
+					Series::Pack(Var->Set("type"), Result.TypeId);
 
 					switch ((Script::VMTypeId)Result.TypeId)
 					{
 						case Script::VMTypeId::BOOL:
-							NMake::Pack(Var->Set("data"), *(bool*)Result.Pointer);
+							Series::Pack(Var->Set("data"), *(bool*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT8:
-							NMake::Pack(Var->Set("data"), (int64_t) * (char*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (int64_t) * (char*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT16:
-							NMake::Pack(Var->Set("data"), (int64_t) * (short*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (int64_t) * (short*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT32:
-							NMake::Pack(Var->Set("data"), (int64_t) * (int*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (int64_t) * (int*)Result.Pointer);
 							break;
 						case Script::VMTypeId::INT64:
-							NMake::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
+							Series::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT8:
-							NMake::Pack(Var->Set("data"), (int64_t) * (unsigned char*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (int64_t) * (unsigned char*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT16:
-							NMake::Pack(Var->Set("data"), (int64_t) * (unsigned short*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (int64_t) * (unsigned short*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT32:
-							NMake::Pack(Var->Set("data"), (int64_t) * (unsigned int*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (int64_t) * (unsigned int*)Result.Pointer);
 							break;
 						case Script::VMTypeId::UINT64:
-							NMake::Pack(Var->Set("data"), (int64_t) * (uint64_t*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (int64_t) * (uint64_t*)Result.Pointer);
 							break;
 						case Script::VMTypeId::FLOAT:
-							NMake::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
+							Series::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
 							break;
 						case Script::VMTypeId::DOUBLE:
-							NMake::Pack(Var->Set("data"), *(double*)Result.Pointer);
+							Series::Pack(Var->Set("data"), *(double*)Result.Pointer);
 							break;
 						default:
 						{
 							Script::VMTypeInfo Type = GetCompiler()->GetManager()->Global().GetTypeInfoById(Result.TypeId);
 							if (Type.IsValid() && strcmp(Type.GetName(), "String") == 0)
-								NMake::Pack(Var->Set("data"), *(std::string*)Result.Pointer);
+								Series::Pack(Var->Set("data"), *(std::string*)Result.Pointer);
 							else
 								TH_CLEAR(Var);
 							break;
@@ -3881,7 +3881,7 @@ namespace Tomahawk
 					Context->SetArgObject(1, Map);
 				});
 			}
-			Component* Scriptable::Copy(Entity* New)
+			Component* Scriptable::Copy(Entity* New) const
 			{
 				Scriptable* Target = new Scriptable(New);
 				Target->Invoke = Invoke;
@@ -3903,7 +3903,6 @@ namespace Tomahawk
 				if (!From.IsValid() || !To.IsValid())
 					return Target;
 
-				Safe.lock();
 				int Count = (int)From.GetPropertiesCount();
 				for (int i = 0; i < Count; i++)
 				{
@@ -3936,7 +3935,6 @@ namespace Tomahawk
 					}
 				}
 
-				Safe.unlock();
 				return Target;
 			}
 			Core::Async<int> Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)

@@ -9059,7 +9059,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		const std::string& Preprocessor::GetCurrentFilePath()
+		const std::string& Preprocessor::GetCurrentFilePath() const
 		{
 			return ExpandedPath;
 		}
@@ -9506,7 +9506,7 @@ namespace Tomahawk
 			Max = Space.Position + Upper;
 			World = GetBias();
 		}
-		bool Transform::HasRoot(Transform* Target)
+		bool Transform::HasRoot(const Transform* Target) const
 		{
 			TH_ASSERT(Target != nullptr, false, "target should be set");
 			Compute::Transform* UpperRoot = Root;
@@ -9520,7 +9520,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Transform::HasChild(Transform* Target)
+		bool Transform::HasChild(Transform* Target) const
 		{
 			TH_ASSERT(Target != nullptr, false, "target should be set");
 			for (auto& Child : Childs)
@@ -9534,11 +9534,11 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool Transform::HasScaling()
+		bool Transform::HasScaling() const
 		{
 			return Scaling;
 		}
-		bool Transform::CanRootBeApplied(Transform* Parent)
+		bool Transform::CanRootBeApplied(Transform* Parent) const
 		{
 			if ((!Root && !Parent) || Root == Parent)
 				return false;
@@ -9551,11 +9551,11 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool Transform::IsDirty()
+		bool Transform::IsDirty() const
 		{
 			return Dirty;
 		}
-		const Matrix4x4& Transform::GetBias()
+		const Matrix4x4& Transform::GetBias() const
 		{
 			TH_ASSERT(!Root || Local != nullptr, Global.Offset, "corrupted root transform");
 			if (Root != nullptr)
@@ -9563,7 +9563,7 @@ namespace Tomahawk
 
 			return Global.Offset;
 		}
-		const Matrix4x4& Transform::GetBiasUnscaled()
+		const Matrix4x4& Transform::GetBiasUnscaled() const
 		{
 			TH_ASSERT(!Root || Local != nullptr, Temporary, "corrupted root transform");
 			if (Root != nullptr)
@@ -9571,19 +9571,19 @@ namespace Tomahawk
 
 			return Temporary;
 		}
-		const Vector3& Transform::GetPosition()
+		const Vector3& Transform::GetPosition() const
 		{
 			return Global.Position;
 		}
-		const Vector3& Transform::GetRotation()
+		const Vector3& Transform::GetRotation() const
 		{
 			return Global.Rotation;
 		}
-		const Vector3& Transform::GetScale()
+		const Vector3& Transform::GetScale() const
 		{
 			return Global.Scale;
 		}
-		Vector3 Transform::Forward(bool ViewSpace)
+		Vector3 Transform::Forward(bool ViewSpace) const
 		{
 			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
@@ -9591,7 +9591,7 @@ namespace Tomahawk
 
 			return Global.Offset.Forward(ViewSpace);
 		}
-		Vector3 Transform::Right(bool ViewSpace)
+		Vector3 Transform::Right(bool ViewSpace) const
 		{
 			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
@@ -9599,7 +9599,7 @@ namespace Tomahawk
 
 			return Global.Offset.Right(ViewSpace);
 		}
-		Vector3 Transform::Up(bool ViewSpace)
+		Vector3 Transform::Up(bool ViewSpace) const
 		{
 			TH_ASSERT(!Root || Local != nullptr, 0, "corrupted root transform");
 			if (Root != nullptr)
@@ -9623,11 +9623,11 @@ namespace Tomahawk
 
 			return Global;
 		}
-		Transform* Transform::GetRoot()
+		Transform* Transform::GetRoot() const
 		{
 			return Root;
 		}
-		Transform* Transform::GetUpperRoot()
+		Transform* Transform::GetUpperRoot() const
 		{
 			Compute::Transform* UpperRoot = Root;
 			while (UpperRoot != nullptr)
@@ -9635,12 +9635,12 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Transform* Transform::GetChild(size_t Child)
+		Transform* Transform::GetChild(size_t Child) const
 		{
 			TH_ASSERT(Child < Childs.size(), nullptr, "index outside of range");
 			return Childs[Child];
 		}
-		size_t Transform::GetChildsCount()
+		size_t Transform::GetChildsCount() const
 		{
 			return Childs.size();
 		}
@@ -10644,7 +10644,7 @@ namespace Tomahawk
 			Instance->setCollisionFlags((int)Flags);
 #endif
 		}
-		MotionState RigidBody::GetActivationState()
+		MotionState RigidBody::GetActivationState() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, MotionState::Active, "rigidbody should be initialized");
@@ -10653,7 +10653,7 @@ namespace Tomahawk
 			return MotionState::Island_Sleeping;
 #endif
 		}
-		Shape RigidBody::GetCollisionShapeType()
+		Shape RigidBody::GetCollisionShapeType() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, Shape::Invalid, "rigidbody should be initialized");
@@ -10662,7 +10662,7 @@ namespace Tomahawk
 			return Shape::Invalid;
 #endif
 		}
-		Vector3 RigidBody::GetAngularFactor()
+		Vector3 RigidBody::GetAngularFactor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10672,7 +10672,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetAnisotropicFriction()
+		Vector3 RigidBody::GetAnisotropicFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10682,7 +10682,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetGravity()
+		Vector3 RigidBody::GetGravity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10692,7 +10692,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetLinearFactor()
+		Vector3 RigidBody::GetLinearFactor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10702,7 +10702,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetLinearVelocity()
+		Vector3 RigidBody::GetLinearVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10712,7 +10712,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetAngularVelocity()
+		Vector3 RigidBody::GetAngularVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10722,7 +10722,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetScale()
+		Vector3 RigidBody::GetScale() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr && Instance->getCollisionShape() != nullptr, 1, "rigidbody should be initialized");
@@ -10732,7 +10732,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetPosition()
+		Vector3 RigidBody::GetPosition() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10742,7 +10742,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 RigidBody::GetRotation()
+		Vector3 RigidBody::GetRotation() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10753,7 +10753,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		btTransform* RigidBody::GetWorldTransform()
+		btTransform* RigidBody::GetWorldTransform() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
@@ -10762,7 +10762,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btCollisionShape* RigidBody::GetCollisionShape()
+		btCollisionShape* RigidBody::GetCollisionShape() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, nullptr, "rigidbody should be initialized");
@@ -10771,7 +10771,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btRigidBody* RigidBody::Get()
+		btRigidBody* RigidBody::Get() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -10779,7 +10779,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool RigidBody::IsGhost()
+		bool RigidBody::IsGhost() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
@@ -10788,7 +10788,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool RigidBody::IsActive()
+		bool RigidBody::IsActive() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
@@ -10797,7 +10797,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool RigidBody::IsStatic()
+		bool RigidBody::IsStatic() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
@@ -10806,7 +10806,7 @@ namespace Tomahawk
 			return true;
 #endif
 		}
-		bool RigidBody::IsColliding()
+		bool RigidBody::IsColliding() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "rigidbody should be initialized");
@@ -10815,7 +10815,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		float RigidBody::GetSpinningFriction()
+		float RigidBody::GetSpinningFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10824,7 +10824,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetContactStiffness()
+		float RigidBody::GetContactStiffness() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10833,7 +10833,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetContactDamping()
+		float RigidBody::GetContactDamping() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10842,7 +10842,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetAngularDamping()
+		float RigidBody::GetAngularDamping() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10851,7 +10851,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetAngularSleepingThreshold()
+		float RigidBody::GetAngularSleepingThreshold() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10860,7 +10860,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetFriction()
+		float RigidBody::GetFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10869,7 +10869,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetRestitution()
+		float RigidBody::GetRestitution() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10878,7 +10878,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetHitFraction()
+		float RigidBody::GetHitFraction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10887,7 +10887,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetLinearDamping()
+		float RigidBody::GetLinearDamping() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10896,7 +10896,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetLinearSleepingThreshold()
+		float RigidBody::GetLinearSleepingThreshold() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10905,7 +10905,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetCcdMotionThreshold()
+		float RigidBody::GetCcdMotionThreshold() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10914,7 +10914,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetCcdSweptSphereRadius()
+		float RigidBody::GetCcdSweptSphereRadius() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10923,7 +10923,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetContactProcessingThreshold()
+		float RigidBody::GetContactProcessingThreshold() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10932,7 +10932,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetDeactivationTime()
+		float RigidBody::GetDeactivationTime() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10941,7 +10941,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetRollingFriction()
+		float RigidBody::GetRollingFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10950,7 +10950,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float RigidBody::GetMass()
+		float RigidBody::GetMass() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10960,7 +10960,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint64_t RigidBody::GetCollisionFlags()
+		uint64_t RigidBody::GetCollisionFlags() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -10973,7 +10973,7 @@ namespace Tomahawk
 		{
 			return Initial;
 		}
-		Simulator* RigidBody::GetSimulator()
+		Simulator* RigidBody::GetSimulator() const
 		{
 			return Engine;
 		}
@@ -11161,7 +11161,7 @@ namespace Tomahawk
 			}
 #endif
 		}
-		void SoftBody::GetIndices(std::vector<int>* Result)
+		void SoftBody::GetIndices(std::vector<int>* Result) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
@@ -11183,7 +11183,7 @@ namespace Tomahawk
 			}
 #endif
 		}
-		void SoftBody::GetVertices(std::vector<Vertex>* Result)
+		void SoftBody::GetVertices(std::vector<Vertex>* Result) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
@@ -11209,7 +11209,7 @@ namespace Tomahawk
 			}
 #endif
 		}
-		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max)
+		void SoftBody::GetBoundingBox(Vector3* Min, Vector3* Max) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Instance != nullptr, "softbody should be initialized");
@@ -11385,7 +11385,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetRestLengthScale()
+		float SoftBody::GetRestLengthScale() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11451,7 +11451,7 @@ namespace Tomahawk
 			Instance->setWindVelocity(V3_TO_BT(Velocity));
 #endif
 		}
-		Vector3 SoftBody::GetWindVelocity()
+		Vector3 SoftBody::GetWindVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11486,7 +11486,7 @@ namespace Tomahawk
 			Instance->setSpinningFriction(Value);
 #endif
 		}
-		Vector3 SoftBody::GetLinearVelocity()
+		Vector3 SoftBody::GetLinearVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11496,7 +11496,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 SoftBody::GetAngularVelocity()
+		Vector3 SoftBody::GetAngularVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11506,7 +11506,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 SoftBody::GetCenterPosition()
+		Vector3 SoftBody::GetCenterPosition() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Center;
@@ -11681,7 +11681,7 @@ namespace Tomahawk
 				Instance->generateClusters(Initial.Config.Clusters);
 #endif
 		}
-		MotionState SoftBody::GetActivationState()
+		MotionState SoftBody::GetActivationState() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, MotionState::Active, "softbody should be initialized");
@@ -11690,7 +11690,7 @@ namespace Tomahawk
 			return MotionState::Island_Sleeping;
 #endif
 		}
-		Shape SoftBody::GetCollisionShapeType()
+		Shape SoftBody::GetCollisionShapeType() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, Shape::Invalid, "softbody should be initialized");
@@ -11702,7 +11702,7 @@ namespace Tomahawk
 			return Shape::Invalid;
 #endif
 		}
-		Vector3 SoftBody::GetAnisotropicFriction()
+		Vector3 SoftBody::GetAnisotropicFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11712,7 +11712,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 SoftBody::GetScale()
+		Vector3 SoftBody::GetScale() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 1, "softbody should be initialized");
@@ -11726,7 +11726,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 SoftBody::GetPosition()
+		Vector3 SoftBody::GetPosition() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11736,7 +11736,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 SoftBody::GetRotation()
+		Vector3 SoftBody::GetRotation() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11747,7 +11747,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		btTransform* SoftBody::GetWorldTransform()
+		btTransform* SoftBody::GetWorldTransform() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, nullptr, "softbody should be initialized");
@@ -11756,7 +11756,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btSoftBody* SoftBody::Get()
+		btSoftBody* SoftBody::Get() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -11764,7 +11764,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool SoftBody::IsGhost()
+		bool SoftBody::IsGhost() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
@@ -11773,7 +11773,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool SoftBody::IsActive()
+		bool SoftBody::IsActive() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
@@ -11782,7 +11782,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool SoftBody::IsStatic()
+		bool SoftBody::IsStatic() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
@@ -11791,7 +11791,7 @@ namespace Tomahawk
 			return true;
 #endif
 		}
-		bool SoftBody::IsColliding()
+		bool SoftBody::IsColliding() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "softbody should be initialized");
@@ -11800,7 +11800,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		float SoftBody::GetSpinningFriction()
+		float SoftBody::GetSpinningFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11809,7 +11809,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetContactStiffness()
+		float SoftBody::GetContactStiffness() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11818,7 +11818,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetContactDamping()
+		float SoftBody::GetContactDamping() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11827,7 +11827,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetFriction()
+		float SoftBody::GetFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11836,7 +11836,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetRestitution()
+		float SoftBody::GetRestitution() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11845,7 +11845,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetHitFraction()
+		float SoftBody::GetHitFraction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11854,7 +11854,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetCcdMotionThreshold()
+		float SoftBody::GetCcdMotionThreshold() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11863,7 +11863,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetCcdSweptSphereRadius()
+		float SoftBody::GetCcdSweptSphereRadius() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11872,7 +11872,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetContactProcessingThreshold()
+		float SoftBody::GetContactProcessingThreshold() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11881,7 +11881,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetDeactivationTime()
+		float SoftBody::GetDeactivationTime() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11890,7 +11890,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SoftBody::GetRollingFriction()
+		float SoftBody::GetRollingFriction() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11899,7 +11899,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint64_t SoftBody::GetCollisionFlags()
+		uint64_t SoftBody::GetCollisionFlags() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11908,7 +11908,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint64_t SoftBody::GetVerticesCount()
+		uint64_t SoftBody::GetVerticesCount() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -11921,7 +11921,7 @@ namespace Tomahawk
 		{
 			return Initial;
 		}
-		Simulator* SoftBody::GetSimulator()
+		Simulator* SoftBody::GetSimulator() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Engine;
@@ -11958,7 +11958,7 @@ namespace Tomahawk
 			Base->setEnabled(Value);
 #endif
 		}
-		btRigidBody* Constraint::GetFirst()
+		btRigidBody* Constraint::GetFirst() const
 		{
 #ifdef TH_WITH_BULLET3
 			return First;
@@ -11966,7 +11966,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btRigidBody* Constraint::GetSecond()
+		btRigidBody* Constraint::GetSecond() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Second;
@@ -11974,7 +11974,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		float Constraint::GetBreakingImpulseThreshold()
+		float Constraint::GetBreakingImpulseThreshold() const
 		{
 #ifdef TH_WITH_BULLET3
 			btTypedConstraint* Base = Get();
@@ -11984,7 +11984,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool Constraint::IsActive()
+		bool Constraint::IsActive() const
 		{
 #ifdef TH_WITH_BULLET3
 			btTypedConstraint* Base = Get();
@@ -12014,7 +12014,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool Constraint::IsEnabled()
+		bool Constraint::IsEnabled() const
 		{
 #ifdef TH_WITH_BULLET3
 			btTypedConstraint* Base = Get();
@@ -12024,7 +12024,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		Simulator* Constraint::GetSimulator()
+		Simulator* Constraint::GetSimulator() const
 		{
 			return Engine;
 		}
@@ -12054,7 +12054,7 @@ namespace Tomahawk
 			TH_DELETE(btPoint2PointConstraint, Instance);
 #endif
 		}
-		Constraint* PConstraint::Copy()
+		Constraint* PConstraint::Copy() const
 		{
 			TH_ASSERT(Instance != nullptr, nullptr, "p2p constraint should be initialized");
 			PConstraint* Target = new PConstraint(Engine, State);
@@ -12065,7 +12065,7 @@ namespace Tomahawk
 
 			return Target;
 		}
-		btTypedConstraint* PConstraint::Get()
+		btTypedConstraint* PConstraint::Get() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -12073,7 +12073,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool PConstraint::HasCollisions()
+		bool PConstraint::HasCollisions() const
 		{
 			return State.Collisions;
 		}
@@ -12093,7 +12093,7 @@ namespace Tomahawk
 			State.PivotB = Value;
 #endif
 		}
-		Vector3 PConstraint::GetPivotA()
+		Vector3 PConstraint::GetPivotA() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "p2p constraint should be initialized");
@@ -12103,7 +12103,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 PConstraint::GetPivotB()
+		Vector3 PConstraint::GetPivotB() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "p2p constraint should be initialized");
@@ -12143,7 +12143,7 @@ namespace Tomahawk
 			TH_DELETE(btHingeConstraint, Instance);
 #endif
 		}
-		Constraint* HConstraint::Copy()
+		Constraint* HConstraint::Copy() const
 		{
 			TH_ASSERT(Instance != nullptr, nullptr, "hinge constraint should be initialized");
 			HConstraint* Target = new HConstraint(Engine, State);
@@ -12156,7 +12156,7 @@ namespace Tomahawk
 
 			return Target;
 		}
-		btTypedConstraint* HConstraint::Get()
+		btTypedConstraint* HConstraint::Get() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -12164,7 +12164,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool HConstraint::HasCollisions()
+		bool HConstraint::HasCollisions() const
 		{
 			return State.Collisions;
 		}
@@ -12253,7 +12253,7 @@ namespace Tomahawk
 			Instance->setAxis(Axis);
 #endif
 		}
-		int HConstraint::GetSolveLimit()
+		int HConstraint::GetSolveLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12262,7 +12262,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetMotorTargetVelocity()
+		float HConstraint::GetMotorTargetVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12271,7 +12271,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetMaxMotorImpulse()
+		float HConstraint::GetMaxMotorImpulse() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12280,7 +12280,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetLimitSign()
+		float HConstraint::GetLimitSign() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12289,7 +12289,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetHingeAngle()
+		float HConstraint::GetHingeAngle() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12298,7 +12298,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetHingeAngle(const Matrix4x4& A, const Matrix4x4& B)
+		float HConstraint::GetHingeAngle(const Matrix4x4& A, const Matrix4x4& B) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12307,7 +12307,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetLowerLimit()
+		float HConstraint::GetLowerLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12316,7 +12316,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetUpperLimit()
+		float HConstraint::GetUpperLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12325,7 +12325,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetLimitSoftness()
+		float HConstraint::GetLimitSoftness() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12334,7 +12334,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetLimitBiasFactor()
+		float HConstraint::GetLimitBiasFactor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12343,7 +12343,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float HConstraint::GetLimitRelaxationFactor()
+		float HConstraint::GetLimitRelaxationFactor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12352,7 +12352,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool HConstraint::HasLimit()
+		bool HConstraint::HasLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12361,7 +12361,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool HConstraint::IsOffset()
+		bool HConstraint::IsOffset() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12370,7 +12370,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool HConstraint::IsReferenceToA()
+		bool HConstraint::IsReferenceToA() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12379,7 +12379,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool HConstraint::IsAngularOnly()
+		bool HConstraint::IsAngularOnly() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12388,7 +12388,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool HConstraint::IsAngularMotorEnabled()
+		bool HConstraint::IsAngularMotorEnabled() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -12427,7 +12427,7 @@ namespace Tomahawk
 			TH_DELETE(btSliderConstraint, Instance);
 #endif
 		}
-		Constraint* SConstraint::Copy()
+		Constraint* SConstraint::Copy() const
 		{
 			TH_ASSERT(Instance != nullptr, nullptr, "slider constraint should be initialized");
 			SConstraint* Target = new SConstraint(Engine, State);
@@ -12464,7 +12464,7 @@ namespace Tomahawk
 
 			return Target;
 		}
-		btTypedConstraint* SConstraint::Get()
+		btTypedConstraint* SConstraint::Get() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -12472,7 +12472,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool SConstraint::HasCollisions()
+		bool SConstraint::HasCollisions() const
 		{
 			return State.Collisions;
 		}
@@ -12672,7 +12672,7 @@ namespace Tomahawk
 			Instance->setPoweredLinMotor(Value);
 #endif
 		}
-		float SConstraint::GetAngularMotorVelocity()
+		float SConstraint::GetAngularMotorVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12681,7 +12681,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearMotorVelocity()
+		float SConstraint::GetLinearMotorVelocity() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12690,7 +12690,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetUpperLinearLimit()
+		float SConstraint::GetUpperLinearLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12699,7 +12699,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLowerLinearLimit()
+		float SConstraint::GetLowerLinearLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12708,7 +12708,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularDampingDirection()
+		float SConstraint::GetAngularDampingDirection() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12717,7 +12717,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearDampingDirection()
+		float SConstraint::GetLinearDampingDirection() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12726,7 +12726,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularDampingLimit()
+		float SConstraint::GetAngularDampingLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12735,7 +12735,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearDampingLimit()
+		float SConstraint::GetLinearDampingLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12744,7 +12744,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularDampingOrtho()
+		float SConstraint::GetAngularDampingOrtho() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12753,7 +12753,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearDampingOrtho()
+		float SConstraint::GetLinearDampingOrtho() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12762,7 +12762,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetUpperAngularLimit()
+		float SConstraint::GetUpperAngularLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12771,7 +12771,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLowerAngularLimit()
+		float SConstraint::GetLowerAngularLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12780,7 +12780,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetMaxAngularMotorForce()
+		float SConstraint::GetMaxAngularMotorForce() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12789,7 +12789,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetMaxLinearMotorForce()
+		float SConstraint::GetMaxLinearMotorForce() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12798,7 +12798,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularRestitutionDirection()
+		float SConstraint::GetAngularRestitutionDirection() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12807,7 +12807,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearRestitutionDirection()
+		float SConstraint::GetLinearRestitutionDirection() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12816,7 +12816,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularRestitutionLimit()
+		float SConstraint::GetAngularRestitutionLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12825,7 +12825,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearRestitutionLimit()
+		float SConstraint::GetLinearRestitutionLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12834,7 +12834,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularRestitutionOrtho()
+		float SConstraint::GetAngularRestitutionOrtho() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12843,7 +12843,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearRestitutionOrtho()
+		float SConstraint::GetLinearRestitutionOrtho() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12852,7 +12852,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularSoftnessDirection()
+		float SConstraint::GetAngularSoftnessDirection() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12861,7 +12861,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearSoftnessDirection()
+		float SConstraint::GetLinearSoftnessDirection() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12870,7 +12870,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularSoftnessLimit()
+		float SConstraint::GetAngularSoftnessLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12879,7 +12879,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearSoftnessLimit()
+		float SConstraint::GetLinearSoftnessLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12888,7 +12888,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetAngularSoftnessOrtho()
+		float SConstraint::GetAngularSoftnessOrtho() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12897,7 +12897,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float SConstraint::GetLinearSoftnessOrtho()
+		float SConstraint::GetLinearSoftnessOrtho() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "slider constraint should be initialized");
@@ -12906,7 +12906,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool SConstraint::GetPoweredAngularMotor()
+		bool SConstraint::GetPoweredAngularMotor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
@@ -12915,7 +12915,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		bool SConstraint::GetPoweredLinearMotor()
+		bool SConstraint::GetPoweredLinearMotor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, false, "slider constraint should be initialized");
@@ -12954,7 +12954,7 @@ namespace Tomahawk
 			TH_DELETE(btConeTwistConstraint, Instance);
 #endif
 		}
-		Constraint* CTConstraint::Copy()
+		Constraint* CTConstraint::Copy() const
 		{
 			TH_ASSERT(Instance != nullptr, nullptr, "cone-twist constraint should be initialized");
 			CTConstraint* Target = new CTConstraint(Engine, State);
@@ -12974,7 +12974,7 @@ namespace Tomahawk
 
 			return Target;
 		}
-		btTypedConstraint* CTConstraint::Get()
+		btTypedConstraint* CTConstraint::Get() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -12982,7 +12982,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool CTConstraint::HasCollisions()
+		bool CTConstraint::HasCollisions() const
 		{
 			return State.Collisions;
 		}
@@ -13063,7 +13063,7 @@ namespace Tomahawk
 			Instance->setMotorTargetInConstraintSpace(Q4_TO_BT(Value));
 #endif
 		}
-		Vector3 CTConstraint::GetPointForAngle(float AngleInRadians, float Length)
+		Vector3 CTConstraint::GetPointForAngle(float AngleInRadians, float Length) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "cone-twist constraint should be initialized");
@@ -13073,7 +13073,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Quaternion CTConstraint::GetMotorTarget()
+		Quaternion CTConstraint::GetMotorTarget() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, Quaternion(), "hinge constraint should be initialized");
@@ -13083,7 +13083,7 @@ namespace Tomahawk
 			return Quaternion();
 #endif
 		}
-		int CTConstraint::GetSolveTwistLimit()
+		int CTConstraint::GetSolveTwistLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13092,7 +13092,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		int CTConstraint::GetSolveSwingLimit()
+		int CTConstraint::GetSolveSwingLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13101,7 +13101,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetTwistLimitSign()
+		float CTConstraint::GetTwistLimitSign() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13110,7 +13110,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetSwingSpan1()
+		float CTConstraint::GetSwingSpan1() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13119,7 +13119,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetSwingSpan2()
+		float CTConstraint::GetSwingSpan2() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13128,7 +13128,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetTwistSpan()
+		float CTConstraint::GetTwistSpan() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13137,7 +13137,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetLimitSoftness()
+		float CTConstraint::GetLimitSoftness() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13146,7 +13146,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetBiasFactor()
+		float CTConstraint::GetBiasFactor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13155,7 +13155,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetRelaxationFactor()
+		float CTConstraint::GetRelaxationFactor() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13164,7 +13164,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetTwistAngle()
+		float CTConstraint::GetTwistAngle() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13173,7 +13173,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetLimit(int Value)
+		float CTConstraint::GetLimit(int Value) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13182,7 +13182,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetDamping()
+		float CTConstraint::GetDamping() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13191,7 +13191,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetMaxMotorImpulse()
+		float CTConstraint::GetMaxMotorImpulse() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13200,7 +13200,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float CTConstraint::GetFixThresh()
+		float CTConstraint::GetFixThresh() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13209,7 +13209,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool CTConstraint::IsMotorEnabled()
+		bool CTConstraint::IsMotorEnabled() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13218,7 +13218,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool CTConstraint::IsMaxMotorImpulseNormalized()
+		bool CTConstraint::IsMaxMotorImpulseNormalized() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13227,7 +13227,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool CTConstraint::IsPastSwingLimit()
+		bool CTConstraint::IsPastSwingLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13236,7 +13236,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool CTConstraint::IsAngularOnly()
+		bool CTConstraint::IsAngularOnly() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "hinge constraint should be initialized");
@@ -13275,7 +13275,7 @@ namespace Tomahawk
 			TH_DELETE(btGeneric6DofSpring2Constraint, Instance);
 #endif
 		}
-		Constraint* DF6Constraint::Copy()
+		Constraint* DF6Constraint::Copy() const
 		{
 			TH_ASSERT(Instance != nullptr, nullptr, "6-dof constraint should be initialized");
 			DF6Constraint* Target = new DF6Constraint(Engine, State);
@@ -13290,7 +13290,7 @@ namespace Tomahawk
 
 			return Target;
 		}
-		btTypedConstraint* DF6Constraint::Get()
+		btTypedConstraint* DF6Constraint::Get() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Instance;
@@ -13298,7 +13298,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool DF6Constraint::HasCollisions()
+		bool DF6Constraint::HasCollisions() const
 		{
 			return State.Collisions;
 		}
@@ -13456,7 +13456,7 @@ namespace Tomahawk
 			Instance->setEquilibriumPoint(Index, Value);
 #endif
 		}
-		Vector3 DF6Constraint::GetAngularUpperLimit()
+		Vector3 DF6Constraint::GetAngularUpperLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13467,7 +13467,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 DF6Constraint::GetAngularUpperLimitReversed()
+		Vector3 DF6Constraint::GetAngularUpperLimitReversed() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13478,7 +13478,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 DF6Constraint::GetAngularLowerLimit()
+		Vector3 DF6Constraint::GetAngularLowerLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13489,7 +13489,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 DF6Constraint::GetAngularLowerLimitReversed()
+		Vector3 DF6Constraint::GetAngularLowerLimitReversed() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13500,7 +13500,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 DF6Constraint::GetLinearUpperLimit()
+		Vector3 DF6Constraint::GetLinearUpperLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13511,7 +13511,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 DF6Constraint::GetLinearLowerLimit()
+		Vector3 DF6Constraint::GetLinearLowerLimit() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13522,7 +13522,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 DF6Constraint::GetAxis(int Value)
+		Vector3 DF6Constraint::GetAxis(int Value) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13532,7 +13532,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Rotator DF6Constraint::GetRotationOrder()
+		Rotator DF6Constraint::GetRotationOrder() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, Rotator::XYZ, "6-dof constraint should be initialized");
@@ -13541,7 +13541,7 @@ namespace Tomahawk
 			return Rotator::XYZ;
 #endif
 		}
-		float DF6Constraint::GetAngle(int Value)
+		float DF6Constraint::GetAngle(int Value) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13550,7 +13550,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float DF6Constraint::GetRelativePivotPosition(int Value)
+		float DF6Constraint::GetRelativePivotPosition(int Value) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -13559,7 +13559,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		bool DF6Constraint::IsLimited(int LimitIndex)
+		bool DF6Constraint::IsLimited(int LimitIndex) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "6-dof constraint should be initialized");
@@ -14296,7 +14296,7 @@ namespace Tomahawk
 			Safe.unlock();
 #endif
 		}
-		std::vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value)
+		std::vector<Vector3> Simulator::GetShapeVertices(btCollisionShape* Value) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Value != nullptr, std::vector<Vector3>(), "shape should be set");
@@ -14321,7 +14321,7 @@ namespace Tomahawk
 			return std::vector<Vector3>();
 #endif
 		}
-		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value)
+		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Value != nullptr, 0, "shape should be set");
@@ -14335,7 +14335,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float Simulator::GetMaxDisplacement()
+		float Simulator::GetMaxDisplacement() const
 		{
 #ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
@@ -14346,7 +14346,7 @@ namespace Tomahawk
 			return 1000;
 #endif
 		}
-		float Simulator::GetAirDensity()
+		float Simulator::GetAirDensity() const
 		{
 #ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
@@ -14357,7 +14357,7 @@ namespace Tomahawk
 			return 1.2f;
 #endif
 		}
-		float Simulator::GetWaterOffset()
+		float Simulator::GetWaterOffset() const
 		{
 #ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
@@ -14368,7 +14368,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		float Simulator::GetWaterDensity()
+		float Simulator::GetWaterDensity() const
 		{
 #ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
@@ -14379,7 +14379,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 Simulator::GetWaterNormal()
+		Vector3 Simulator::GetWaterNormal() const
 		{
 #ifdef TH_WITH_BULLET3
 			if (!SoftSolver || !World)
@@ -14391,7 +14391,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		Vector3 Simulator::GetGravity()
+		Vector3 Simulator::GetGravity() const
 		{
 #ifdef TH_WITH_BULLET3
 			if (!World)
@@ -14403,7 +14403,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		ContactStartedCallback Simulator::GetOnCollisionEnter()
+		ContactStartedCallback Simulator::GetOnCollisionEnter() const
 		{
 #ifdef TH_WITH_BULLET3
 			return gContactStartedCallback;
@@ -14411,7 +14411,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		ContactEndedCallback Simulator::GetOnCollisionExit()
+		ContactEndedCallback Simulator::GetOnCollisionExit() const
 		{
 #ifdef TH_WITH_BULLET3
 			return gContactEndedCallback;
@@ -14419,7 +14419,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btCollisionConfiguration* Simulator::GetCollision()
+		btCollisionConfiguration* Simulator::GetCollision() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Collision;
@@ -14427,7 +14427,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btBroadphaseInterface* Simulator::GetBroadphase()
+		btBroadphaseInterface* Simulator::GetBroadphase() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Broadphase;
@@ -14435,7 +14435,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btConstraintSolver* Simulator::GetSolver()
+		btConstraintSolver* Simulator::GetSolver() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Solver;
@@ -14443,7 +14443,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btDiscreteDynamicsWorld* Simulator::GetWorld()
+		btDiscreteDynamicsWorld* Simulator::GetWorld() const
 		{
 #ifdef TH_WITH_BULLET3
 			return World;
@@ -14451,7 +14451,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btCollisionDispatcher* Simulator::GetDispatcher()
+		btCollisionDispatcher* Simulator::GetDispatcher() const
 		{
 #ifdef TH_WITH_BULLET3
 			return Dispatcher;
@@ -14459,7 +14459,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		btSoftBodySolver* Simulator::GetSoftSolver()
+		btSoftBodySolver* Simulator::GetSoftSolver() const
 		{
 #ifdef TH_WITH_BULLET3
 			return SoftSolver;
@@ -14467,7 +14467,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		bool Simulator::HasSoftBodySupport()
+		bool Simulator::HasSoftBodySupport() const
 		{
 #ifdef TH_WITH_BULLET3
 			return SoftSolver != nullptr;
@@ -14475,7 +14475,7 @@ namespace Tomahawk
 			return false;
 #endif
 		}
-		int Simulator::GetContactManifoldCount()
+		int Simulator::GetContactManifoldCount() const
 		{
 #ifdef TH_WITH_BULLET3
 			if (!Dispatcher)

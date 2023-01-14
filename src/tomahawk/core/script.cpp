@@ -2120,15 +2120,15 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool VMCompiler::IsDefined(const std::string& Word)
+		bool VMCompiler::IsDefined(const std::string& Word) const
 		{
 			return Processor->IsDefined(Word.c_str());
 		}
-		bool VMCompiler::IsBuilt()
+		bool VMCompiler::IsBuilt() const
 		{
 			return BuiltOK;
 		}
-		bool VMCompiler::IsCached()
+		bool VMCompiler::IsCached() const
 		{
 			return VCache.Valid;
 		}

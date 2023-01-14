@@ -2587,7 +2587,7 @@ namespace Tomahawk
 		{
 			return &Active;
 		}
-		ServerState SocketServer::GetState()
+		ServerState SocketServer::GetState() const
 		{
 			return State;
 		}
@@ -2595,7 +2595,7 @@ namespace Tomahawk
 		{
 			return Router;
 		}
-		size_t SocketServer::GetBacklog()
+		size_t SocketServer::GetBacklog() const
 		{
 			return Backlog;
 		}

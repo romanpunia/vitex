@@ -1044,24 +1044,24 @@ namespace Tomahawk
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (NMake::Unpack(Node->Find("sky-map"), &Path))
+				if (Series::Unpack(Node->Find("sky-map"), &Path))
 					SetSkyMap(Content->Load<Graphics::Texture2D>(Path));
 
-				NMake::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
-				NMake::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
-				NMake::Unpack(Node->Find("sky-emission"), &AmbientLight.SkyEmission);
-				NMake::Unpack(Node->Find("light-emission"), &AmbientLight.LightEmission);
-				NMake::Unpack(Node->Find("sky-color"), &AmbientLight.SkyColor);
-				NMake::Unpack(Node->Find("fog-color"), &AmbientLight.FogColor);
-				NMake::Unpack(Node->Find("fog-amount"), &AmbientLight.FogAmount);
-				NMake::Unpack(Node->Find("fog-far-off"), &AmbientLight.FogFarOff);
-				NMake::Unpack(Node->Find("fog-far"), &AmbientLight.FogFar);
-				NMake::Unpack(Node->Find("fog-near-off"), &AmbientLight.FogNearOff);
-				NMake::Unpack(Node->Find("fog-near"), &AmbientLight.FogNear);
-				NMake::Unpack(Node->Find("recursive"), &AmbientLight.Recursive);
-				NMake::Unpack(Node->Find("shadow-distance"), &Shadows.Distance);
-				NMake::Unpack(Node->Find("sf-size"), &Surfaces.Size);
-				NMake::Unpack(Node->Find("gi"), &EnableGI);
+				Series::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
+				Series::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
+				Series::Unpack(Node->Find("sky-emission"), &AmbientLight.SkyEmission);
+				Series::Unpack(Node->Find("light-emission"), &AmbientLight.LightEmission);
+				Series::Unpack(Node->Find("sky-color"), &AmbientLight.SkyColor);
+				Series::Unpack(Node->Find("fog-color"), &AmbientLight.FogColor);
+				Series::Unpack(Node->Find("fog-amount"), &AmbientLight.FogAmount);
+				Series::Unpack(Node->Find("fog-far-off"), &AmbientLight.FogFarOff);
+				Series::Unpack(Node->Find("fog-far"), &AmbientLight.FogFar);
+				Series::Unpack(Node->Find("fog-near-off"), &AmbientLight.FogNearOff);
+				Series::Unpack(Node->Find("fog-near"), &AmbientLight.FogNear);
+				Series::Unpack(Node->Find("recursive"), &AmbientLight.Recursive);
+				Series::Unpack(Node->Find("shadow-distance"), &Shadows.Distance);
+				Series::Unpack(Node->Find("sf-size"), &Surfaces.Size);
+				Series::Unpack(Node->Find("gi"), &EnableGI);
 			}
 			void Lighting::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
@@ -1070,23 +1070,23 @@ namespace Tomahawk
 
 				AssetCache* Asset = Content->Find<Graphics::Texture2D>(SkyBase);
 				if (Asset != nullptr)
-					NMake::Pack(Node->Set("sky-map"), Asset->Path);
+					Series::Pack(Node->Set("sky-map"), Asset->Path);
 
-				NMake::Pack(Node->Set("high-emission"), AmbientLight.HighEmission);
-				NMake::Pack(Node->Set("low-emission"), AmbientLight.LowEmission);
-				NMake::Pack(Node->Set("sky-emission"), AmbientLight.SkyEmission);
-				NMake::Pack(Node->Set("light-emission"), AmbientLight.LightEmission);
-				NMake::Pack(Node->Set("sky-color"), AmbientLight.SkyColor);
-				NMake::Pack(Node->Set("fog-color"), AmbientLight.FogColor);
-				NMake::Pack(Node->Set("fog-amount"), AmbientLight.FogAmount);
-				NMake::Pack(Node->Set("fog-far-off"), AmbientLight.FogFarOff);
-				NMake::Pack(Node->Set("fog-far"), AmbientLight.FogFar);
-				NMake::Pack(Node->Set("fog-near-off"), AmbientLight.FogNearOff);
-				NMake::Pack(Node->Set("fog-near"), AmbientLight.FogNear);
-				NMake::Pack(Node->Set("recursive"), AmbientLight.Recursive);
-				NMake::Pack(Node->Set("shadow-distance"), Shadows.Distance);
-				NMake::Pack(Node->Set("sf-size"), Surfaces.Size);
-				NMake::Pack(Node->Set("gi"), EnableGI);
+				Series::Pack(Node->Set("high-emission"), AmbientLight.HighEmission);
+				Series::Pack(Node->Set("low-emission"), AmbientLight.LowEmission);
+				Series::Pack(Node->Set("sky-emission"), AmbientLight.SkyEmission);
+				Series::Pack(Node->Set("light-emission"), AmbientLight.LightEmission);
+				Series::Pack(Node->Set("sky-color"), AmbientLight.SkyColor);
+				Series::Pack(Node->Set("fog-color"), AmbientLight.FogColor);
+				Series::Pack(Node->Set("fog-amount"), AmbientLight.FogAmount);
+				Series::Pack(Node->Set("fog-far-off"), AmbientLight.FogFarOff);
+				Series::Pack(Node->Set("fog-far"), AmbientLight.FogFar);
+				Series::Pack(Node->Set("fog-near-off"), AmbientLight.FogNearOff);
+				Series::Pack(Node->Set("fog-near"), AmbientLight.FogNear);
+				Series::Pack(Node->Set("recursive"), AmbientLight.Recursive);
+				Series::Pack(Node->Set("shadow-distance"), Shadows.Distance);
+				Series::Pack(Node->Set("sf-size"), Surfaces.Size);
+				Series::Pack(Node->Set("gi"), EnableGI);
 			}
 			void Lighting::ResizeBuffers()
 			{
@@ -2072,28 +2072,28 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("samples-1"), &Reflectance.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &Gloss.Samples);
-				NMake::Unpack(Node->Find("intensity"), &Reflectance.Intensity);
-				NMake::Unpack(Node->Find("distance"), &Reflectance.Distance);
-				NMake::Unpack(Node->Find("cutoff"), &Gloss.Cutoff);
-				NMake::Unpack(Node->Find("blur"), &Gloss.Blur);
-				NMake::Unpack(Node->Find("deadzone"), &Gloss.Deadzone);
-				NMake::Unpack(Node->Find("mips"), &Gloss.Mips);
+				Series::Unpack(Node->Find("samples-1"), &Reflectance.Samples);
+				Series::Unpack(Node->Find("samples-2"), &Gloss.Samples);
+				Series::Unpack(Node->Find("intensity"), &Reflectance.Intensity);
+				Series::Unpack(Node->Find("distance"), &Reflectance.Distance);
+				Series::Unpack(Node->Find("cutoff"), &Gloss.Cutoff);
+				Series::Unpack(Node->Find("blur"), &Gloss.Blur);
+				Series::Unpack(Node->Find("deadzone"), &Gloss.Deadzone);
+				Series::Unpack(Node->Find("mips"), &Gloss.Mips);
 			}
 			void SSR::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("samples-1"), Reflectance.Samples);
-				NMake::Pack(Node->Set("samples-2"), Gloss.Samples);
-				NMake::Pack(Node->Set("intensity"), Reflectance.Intensity);
-				NMake::Pack(Node->Set("distance"), Reflectance.Distance);
-				NMake::Pack(Node->Set("cutoff"), Gloss.Cutoff);
-				NMake::Pack(Node->Set("blur"), Gloss.Blur);
-				NMake::Pack(Node->Set("deadzone"), Gloss.Deadzone);
-				NMake::Pack(Node->Set("mips"), Gloss.Mips);
+				Series::Pack(Node->Set("samples-1"), Reflectance.Samples);
+				Series::Pack(Node->Set("samples-2"), Gloss.Samples);
+				Series::Pack(Node->Set("intensity"), Reflectance.Intensity);
+				Series::Pack(Node->Set("distance"), Reflectance.Distance);
+				Series::Pack(Node->Set("cutoff"), Gloss.Cutoff);
+				Series::Pack(Node->Set("blur"), Gloss.Blur);
+				Series::Pack(Node->Set("deadzone"), Gloss.Deadzone);
+				Series::Pack(Node->Set("mips"), Gloss.Mips);
 			}
 			void SSR::RenderEffect(Core::Timer* Time)
 			{
@@ -2123,26 +2123,26 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("samples-1"), &Indirection.Samples);
-				NMake::Unpack(Node->Find("samples-2"), &Denoise.Samples);
-				NMake::Unpack(Node->Find("cutoff-1"), &Indirection.Cutoff);
-				NMake::Unpack(Node->Find("cutoff-2"), &Denoise.Cutoff);
-				NMake::Unpack(Node->Find("attenuation"), &Indirection.Attenuation);
-				NMake::Unpack(Node->Find("swing"), &Indirection.Swing);
-				NMake::Unpack(Node->Find("blur"), &Denoise.Blur);
+				Series::Unpack(Node->Find("samples-1"), &Indirection.Samples);
+				Series::Unpack(Node->Find("samples-2"), &Denoise.Samples);
+				Series::Unpack(Node->Find("cutoff-1"), &Indirection.Cutoff);
+				Series::Unpack(Node->Find("cutoff-2"), &Denoise.Cutoff);
+				Series::Unpack(Node->Find("attenuation"), &Indirection.Attenuation);
+				Series::Unpack(Node->Find("swing"), &Indirection.Swing);
+				Series::Unpack(Node->Find("blur"), &Denoise.Blur);
 			}
 			void SSGI::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("samples-1"), Indirection.Samples);
-				NMake::Pack(Node->Set("samples-2"), Denoise.Samples);
-				NMake::Pack(Node->Set("cutoff-1"), Indirection.Cutoff);
-				NMake::Pack(Node->Set("cutoff-2"), Denoise.Cutoff);
-				NMake::Pack(Node->Set("attenuation"), Indirection.Attenuation);
-				NMake::Pack(Node->Set("swing"), Indirection.Swing);
-				NMake::Pack(Node->Set("blur"), Denoise.Blur);
+				Series::Pack(Node->Set("samples-1"), Indirection.Samples);
+				Series::Pack(Node->Set("samples-2"), Denoise.Samples);
+				Series::Pack(Node->Set("cutoff-1"), Indirection.Cutoff);
+				Series::Pack(Node->Set("cutoff-2"), Denoise.Cutoff);
+				Series::Pack(Node->Set("attenuation"), Indirection.Attenuation);
+				Series::Pack(Node->Set("swing"), Indirection.Swing);
+				Series::Pack(Node->Set("blur"), Denoise.Blur);
 			}
 			void SSGI::RenderEffect(Core::Timer* Time)
 			{
@@ -2173,32 +2173,32 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("samples-1"), &Shading.Samples);
-				NMake::Unpack(Node->Find("scale"), &Shading.Scale);
-				NMake::Unpack(Node->Find("intensity"), &Shading.Intensity);
-				NMake::Unpack(Node->Find("bias"), &Shading.Bias);
-				NMake::Unpack(Node->Find("radius"), &Shading.Radius);
-				NMake::Unpack(Node->Find("distance"), &Shading.Distance);
-				NMake::Unpack(Node->Find("fade"), &Shading.Fade);
-				NMake::Unpack(Node->Find("power"), &Fibo.Power);
-				NMake::Unpack(Node->Find("samples-2"), &Fibo.Samples);
-				NMake::Unpack(Node->Find("blur"), &Fibo.Blur);
+				Series::Unpack(Node->Find("samples-1"), &Shading.Samples);
+				Series::Unpack(Node->Find("scale"), &Shading.Scale);
+				Series::Unpack(Node->Find("intensity"), &Shading.Intensity);
+				Series::Unpack(Node->Find("bias"), &Shading.Bias);
+				Series::Unpack(Node->Find("radius"), &Shading.Radius);
+				Series::Unpack(Node->Find("distance"), &Shading.Distance);
+				Series::Unpack(Node->Find("fade"), &Shading.Fade);
+				Series::Unpack(Node->Find("power"), &Fibo.Power);
+				Series::Unpack(Node->Find("samples-2"), &Fibo.Samples);
+				Series::Unpack(Node->Find("blur"), &Fibo.Blur);
 			}
 			void SSAO::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("samples-1"), Shading.Samples);
-				NMake::Pack(Node->Set("scale"), Shading.Scale);
-				NMake::Pack(Node->Set("intensity"), Shading.Intensity);
-				NMake::Pack(Node->Set("bias"), Shading.Bias);
-				NMake::Pack(Node->Set("radius"), Shading.Radius);
-				NMake::Pack(Node->Set("distance"), Shading.Distance);
-				NMake::Pack(Node->Set("fade"), Shading.Fade);
-				NMake::Pack(Node->Set("power"), Fibo.Power);
-				NMake::Pack(Node->Set("samples-2"), Fibo.Samples);
-				NMake::Pack(Node->Set("blur"), Fibo.Blur);
+				Series::Pack(Node->Set("samples-1"), Shading.Samples);
+				Series::Pack(Node->Set("scale"), Shading.Scale);
+				Series::Pack(Node->Set("intensity"), Shading.Intensity);
+				Series::Pack(Node->Set("bias"), Shading.Bias);
+				Series::Pack(Node->Set("radius"), Shading.Radius);
+				Series::Pack(Node->Set("distance"), Shading.Distance);
+				Series::Pack(Node->Set("fade"), Shading.Fade);
+				Series::Pack(Node->Set("power"), Fibo.Power);
+				Series::Pack(Node->Set("samples-2"), Fibo.Samples);
+				Series::Pack(Node->Set("blur"), Fibo.Blur);
 			}
 			void SSAO::RenderEffect(Core::Timer* Time)
 			{
@@ -2220,32 +2220,32 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("distance"), &Distance);
-				NMake::Unpack(Node->Find("time"), &Time);
-				NMake::Unpack(Node->Find("radius"), &Radius);
-				NMake::Unpack(Node->Find("radius"), &Focus.Radius);
-				NMake::Unpack(Node->Find("bokeh"), &Focus.Bokeh);
-				NMake::Unpack(Node->Find("scale"), &Focus.Scale);
-				NMake::Unpack(Node->Find("near-distance"), &Focus.NearDistance);
-				NMake::Unpack(Node->Find("near-range"), &Focus.NearRange);
-				NMake::Unpack(Node->Find("far-distance"), &Focus.FarDistance);
-				NMake::Unpack(Node->Find("far-range"), &Focus.FarRange);
+				Series::Unpack(Node->Find("distance"), &Distance);
+				Series::Unpack(Node->Find("time"), &Time);
+				Series::Unpack(Node->Find("radius"), &Radius);
+				Series::Unpack(Node->Find("radius"), &Focus.Radius);
+				Series::Unpack(Node->Find("bokeh"), &Focus.Bokeh);
+				Series::Unpack(Node->Find("scale"), &Focus.Scale);
+				Series::Unpack(Node->Find("near-distance"), &Focus.NearDistance);
+				Series::Unpack(Node->Find("near-range"), &Focus.NearRange);
+				Series::Unpack(Node->Find("far-distance"), &Focus.FarDistance);
+				Series::Unpack(Node->Find("far-range"), &Focus.FarRange);
 			}
 			void DoF::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("distance"), Distance);
-				NMake::Pack(Node->Set("time"), Time);
-				NMake::Pack(Node->Set("radius"), Radius);
-				NMake::Pack(Node->Set("radius"), Focus.Radius);
-				NMake::Pack(Node->Set("bokeh"), Focus.Bokeh);
-				NMake::Pack(Node->Set("scale"), Focus.Scale);
-				NMake::Pack(Node->Set("near-distance"), Focus.NearDistance);
-				NMake::Pack(Node->Set("near-range"), Focus.NearRange);
-				NMake::Pack(Node->Set("far-distance"), Focus.FarDistance);
-				NMake::Pack(Node->Set("far-range"), Focus.FarRange);
+				Series::Pack(Node->Set("distance"), Distance);
+				Series::Pack(Node->Set("time"), Time);
+				Series::Pack(Node->Set("radius"), Radius);
+				Series::Pack(Node->Set("radius"), Focus.Radius);
+				Series::Pack(Node->Set("bokeh"), Focus.Bokeh);
+				Series::Pack(Node->Set("scale"), Focus.Scale);
+				Series::Pack(Node->Set("near-distance"), Focus.NearDistance);
+				Series::Pack(Node->Set("near-range"), Focus.NearRange);
+				Series::Pack(Node->Set("far-distance"), Focus.FarDistance);
+				Series::Pack(Node->Set("far-range"), Focus.FarRange);
 			}
 			void DoF::RenderEffect(Core::Timer* fTime)
 			{
@@ -2324,18 +2324,18 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("samples"), &Motion.Samples);
-				NMake::Unpack(Node->Find("blur"), &Motion.Blur);
-				NMake::Unpack(Node->Find("motion"), &Motion.Motion);
+				Series::Unpack(Node->Find("samples"), &Motion.Samples);
+				Series::Unpack(Node->Find("blur"), &Motion.Blur);
+				Series::Unpack(Node->Find("motion"), &Motion.Motion);
 			}
 			void MotionBlur::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("samples"), Motion.Samples);
-				NMake::Pack(Node->Set("blur"), Motion.Blur);
-				NMake::Pack(Node->Set("motion"), Motion.Motion);
+				Series::Pack(Node->Set("samples"), Motion.Samples);
+				Series::Pack(Node->Set("blur"), Motion.Blur);
+				Series::Pack(Node->Set("motion"), Motion.Motion);
 			}
 			void MotionBlur::RenderEffect(Core::Timer* Time)
 			{
@@ -2356,19 +2356,19 @@ namespace Tomahawk
 			}
 			void Bloom::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
-				NMake::Unpack(Node->Find("intensity"), &Extraction.Intensity);
-				NMake::Unpack(Node->Find("threshold"), &Extraction.Threshold);
-				NMake::Unpack(Node->Find("power"), &Fibo.Power);
-				NMake::Unpack(Node->Find("samples"), &Fibo.Samples);
-				NMake::Unpack(Node->Find("blur"), &Fibo.Blur);
+				Series::Unpack(Node->Find("intensity"), &Extraction.Intensity);
+				Series::Unpack(Node->Find("threshold"), &Extraction.Threshold);
+				Series::Unpack(Node->Find("power"), &Fibo.Power);
+				Series::Unpack(Node->Find("samples"), &Fibo.Samples);
+				Series::Unpack(Node->Find("blur"), &Fibo.Blur);
 			}
 			void Bloom::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
-				NMake::Pack(Node->Set("intensity"), Extraction.Intensity);
-				NMake::Pack(Node->Set("threshold"), Extraction.Threshold);
-				NMake::Pack(Node->Set("power"), Fibo.Power);
-				NMake::Pack(Node->Set("samples"), Fibo.Samples);
-				NMake::Pack(Node->Set("blur"), Fibo.Blur);
+				Series::Pack(Node->Set("intensity"), Extraction.Intensity);
+				Series::Pack(Node->Set("threshold"), Extraction.Threshold);
+				Series::Pack(Node->Set("power"), Fibo.Power);
+				Series::Pack(Node->Set("samples"), Fibo.Samples);
+				Series::Pack(Node->Set("blur"), Fibo.Blur);
 			}
 			void Bloom::RenderEffect(Core::Timer* Time)
 			{
@@ -2396,56 +2396,56 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("grayscale"), &Mapping.Grayscale);
-				NMake::Unpack(Node->Find("aces"), &Mapping.ACES);
-				NMake::Unpack(Node->Find("filmic"), &Mapping.Filmic);
-				NMake::Unpack(Node->Find("lottes"), &Mapping.Lottes);
-				NMake::Unpack(Node->Find("reinhard"), &Mapping.Reinhard);
-				NMake::Unpack(Node->Find("reinhard2"), &Mapping.Reinhard2);
-				NMake::Unpack(Node->Find("unreal"), &Mapping.Unreal);
-				NMake::Unpack(Node->Find("uchimura"), &Mapping.Uchimura);
-				NMake::Unpack(Node->Find("ubrightness"), &Mapping.UBrightness);
-				NMake::Unpack(Node->Find("usontrast"), &Mapping.UContrast);
-				NMake::Unpack(Node->Find("ustart"), &Mapping.UStart);
-				NMake::Unpack(Node->Find("ulength"), &Mapping.ULength);
-				NMake::Unpack(Node->Find("ublack"), &Mapping.UBlack);
-				NMake::Unpack(Node->Find("upedestal"), &Mapping.UPedestal);
-				NMake::Unpack(Node->Find("exposure"), &Mapping.Exposure);
-				NMake::Unpack(Node->Find("eintensity"), &Mapping.EIntensity);
-				NMake::Unpack(Node->Find("egamma"), &Mapping.EGamma);
-				NMake::Unpack(Node->Find("adaptation"), &Mapping.Adaptation);
-				NMake::Unpack(Node->Find("agray"), &Mapping.AGray);
-				NMake::Unpack(Node->Find("awhite"), &Mapping.AWhite);
-				NMake::Unpack(Node->Find("ablack"), &Mapping.ABlack);
-				NMake::Unpack(Node->Find("aspeed"), &Mapping.ASpeed);
+				Series::Unpack(Node->Find("grayscale"), &Mapping.Grayscale);
+				Series::Unpack(Node->Find("aces"), &Mapping.ACES);
+				Series::Unpack(Node->Find("filmic"), &Mapping.Filmic);
+				Series::Unpack(Node->Find("lottes"), &Mapping.Lottes);
+				Series::Unpack(Node->Find("reinhard"), &Mapping.Reinhard);
+				Series::Unpack(Node->Find("reinhard2"), &Mapping.Reinhard2);
+				Series::Unpack(Node->Find("unreal"), &Mapping.Unreal);
+				Series::Unpack(Node->Find("uchimura"), &Mapping.Uchimura);
+				Series::Unpack(Node->Find("ubrightness"), &Mapping.UBrightness);
+				Series::Unpack(Node->Find("usontrast"), &Mapping.UContrast);
+				Series::Unpack(Node->Find("ustart"), &Mapping.UStart);
+				Series::Unpack(Node->Find("ulength"), &Mapping.ULength);
+				Series::Unpack(Node->Find("ublack"), &Mapping.UBlack);
+				Series::Unpack(Node->Find("upedestal"), &Mapping.UPedestal);
+				Series::Unpack(Node->Find("exposure"), &Mapping.Exposure);
+				Series::Unpack(Node->Find("eintensity"), &Mapping.EIntensity);
+				Series::Unpack(Node->Find("egamma"), &Mapping.EGamma);
+				Series::Unpack(Node->Find("adaptation"), &Mapping.Adaptation);
+				Series::Unpack(Node->Find("agray"), &Mapping.AGray);
+				Series::Unpack(Node->Find("awhite"), &Mapping.AWhite);
+				Series::Unpack(Node->Find("ablack"), &Mapping.ABlack);
+				Series::Unpack(Node->Find("aspeed"), &Mapping.ASpeed);
 			}
 			void Tone::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("grayscale"), Mapping.Grayscale);
-				NMake::Pack(Node->Set("aces"), Mapping.ACES);
-				NMake::Pack(Node->Set("filmic"), Mapping.Filmic);
-				NMake::Pack(Node->Set("lottes"), Mapping.Lottes);
-				NMake::Pack(Node->Set("reinhard"), Mapping.Reinhard);
-				NMake::Pack(Node->Set("reinhard2"), Mapping.Reinhard2);
-				NMake::Pack(Node->Set("unreal"), Mapping.Unreal);
-				NMake::Pack(Node->Set("uchimura"), Mapping.Uchimura);
-				NMake::Pack(Node->Set("ubrightness"), Mapping.UBrightness);
-				NMake::Pack(Node->Set("usontrast"), Mapping.UContrast);
-				NMake::Pack(Node->Set("ustart"), Mapping.UStart);
-				NMake::Pack(Node->Set("ulength"), Mapping.ULength);
-				NMake::Pack(Node->Set("ublack"), Mapping.UBlack);
-				NMake::Pack(Node->Set("upedestal"), Mapping.UPedestal);
-				NMake::Pack(Node->Set("exposure"), Mapping.Exposure);
-				NMake::Pack(Node->Set("eintensity"), Mapping.EIntensity);
-				NMake::Pack(Node->Set("egamma"), Mapping.EGamma);
-				NMake::Pack(Node->Set("adaptation"), Mapping.Adaptation);
-				NMake::Pack(Node->Set("agray"), Mapping.AGray);
-				NMake::Pack(Node->Set("awhite"), Mapping.AWhite);
-				NMake::Pack(Node->Set("ablack"), Mapping.ABlack);
-				NMake::Pack(Node->Set("aspeed"), Mapping.ASpeed);
+				Series::Pack(Node->Set("grayscale"), Mapping.Grayscale);
+				Series::Pack(Node->Set("aces"), Mapping.ACES);
+				Series::Pack(Node->Set("filmic"), Mapping.Filmic);
+				Series::Pack(Node->Set("lottes"), Mapping.Lottes);
+				Series::Pack(Node->Set("reinhard"), Mapping.Reinhard);
+				Series::Pack(Node->Set("reinhard2"), Mapping.Reinhard2);
+				Series::Pack(Node->Set("unreal"), Mapping.Unreal);
+				Series::Pack(Node->Set("uchimura"), Mapping.Uchimura);
+				Series::Pack(Node->Set("ubrightness"), Mapping.UBrightness);
+				Series::Pack(Node->Set("usontrast"), Mapping.UContrast);
+				Series::Pack(Node->Set("ustart"), Mapping.UStart);
+				Series::Pack(Node->Set("ulength"), Mapping.ULength);
+				Series::Pack(Node->Set("ublack"), Mapping.UBlack);
+				Series::Pack(Node->Set("upedestal"), Mapping.UPedestal);
+				Series::Pack(Node->Set("exposure"), Mapping.Exposure);
+				Series::Pack(Node->Set("eintensity"), Mapping.EIntensity);
+				Series::Pack(Node->Set("egamma"), Mapping.EGamma);
+				Series::Pack(Node->Set("adaptation"), Mapping.Adaptation);
+				Series::Pack(Node->Set("agray"), Mapping.AGray);
+				Series::Pack(Node->Set("awhite"), Mapping.AWhite);
+				Series::Pack(Node->Set("ablack"), Mapping.ABlack);
+				Series::Pack(Node->Set("aspeed"), Mapping.ASpeed);
 			}
 			void Tone::RenderEffect(Core::Timer* Time)
 			{
@@ -2501,36 +2501,36 @@ namespace Tomahawk
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
-				NMake::Unpack(Node->Find("vertical-jump"), &VerticalJump);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("color-drift"), &ColorDrift);
-				NMake::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
-				NMake::Unpack(Node->Find("elapsed-time"), &Distortion.ElapsedTime);
-				NMake::Unpack(Node->Find("scanline-jitter-displacement"), &Distortion.ScanLineJitterDisplacement);
-				NMake::Unpack(Node->Find("scanline-jitter-threshold"), &Distortion.ScanLineJitterThreshold);
-				NMake::Unpack(Node->Find("vertical-jump-amount"), &Distortion.VerticalJumpAmount);
-				NMake::Unpack(Node->Find("vertical-jump-time"), &Distortion.VerticalJumpTime);
-				NMake::Unpack(Node->Find("color-drift-amount"), &Distortion.ColorDriftAmount);
-				NMake::Unpack(Node->Find("color-drift-time"), &Distortion.ColorDriftTime);
+				Series::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
+				Series::Unpack(Node->Find("vertical-jump"), &VerticalJump);
+				Series::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+				Series::Unpack(Node->Find("color-drift"), &ColorDrift);
+				Series::Unpack(Node->Find("horizontal-shake"), &HorizontalShake);
+				Series::Unpack(Node->Find("elapsed-time"), &Distortion.ElapsedTime);
+				Series::Unpack(Node->Find("scanline-jitter-displacement"), &Distortion.ScanLineJitterDisplacement);
+				Series::Unpack(Node->Find("scanline-jitter-threshold"), &Distortion.ScanLineJitterThreshold);
+				Series::Unpack(Node->Find("vertical-jump-amount"), &Distortion.VerticalJumpAmount);
+				Series::Unpack(Node->Find("vertical-jump-time"), &Distortion.VerticalJumpTime);
+				Series::Unpack(Node->Find("color-drift-amount"), &Distortion.ColorDriftAmount);
+				Series::Unpack(Node->Find("color-drift-time"), &Distortion.ColorDriftTime);
 			}
 			void Glitch::Serialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				NMake::Pack(Node->Set("scanline-jitter"), ScanLineJitter);
-				NMake::Pack(Node->Set("vertical-jump"), VerticalJump);
-				NMake::Pack(Node->Set("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->Set("color-drift"), ColorDrift);
-				NMake::Pack(Node->Set("horizontal-shake"), HorizontalShake);
-				NMake::Pack(Node->Set("elapsed-time"), Distortion.ElapsedTime);
-				NMake::Pack(Node->Set("scanline-jitter-displacement"), Distortion.ScanLineJitterDisplacement);
-				NMake::Pack(Node->Set("scanline-jitter-threshold"), Distortion.ScanLineJitterThreshold);
-				NMake::Pack(Node->Set("vertical-jump-amount"), Distortion.VerticalJumpAmount);
-				NMake::Pack(Node->Set("vertical-jump-time"), Distortion.VerticalJumpTime);
-				NMake::Pack(Node->Set("color-drift-amount"), Distortion.ColorDriftAmount);
-				NMake::Pack(Node->Set("color-drift-time"), Distortion.ColorDriftTime);
+				Series::Pack(Node->Set("scanline-jitter"), ScanLineJitter);
+				Series::Pack(Node->Set("vertical-jump"), VerticalJump);
+				Series::Pack(Node->Set("horizontal-shake"), HorizontalShake);
+				Series::Pack(Node->Set("color-drift"), ColorDrift);
+				Series::Pack(Node->Set("horizontal-shake"), HorizontalShake);
+				Series::Pack(Node->Set("elapsed-time"), Distortion.ElapsedTime);
+				Series::Pack(Node->Set("scanline-jitter-displacement"), Distortion.ScanLineJitterDisplacement);
+				Series::Pack(Node->Set("scanline-jitter-threshold"), Distortion.ScanLineJitterThreshold);
+				Series::Pack(Node->Set("vertical-jump-amount"), Distortion.VerticalJumpAmount);
+				Series::Pack(Node->Set("vertical-jump-time"), Distortion.VerticalJumpTime);
+				Series::Pack(Node->Set("color-drift-amount"), Distortion.ColorDriftAmount);
+				Series::Pack(Node->Set("color-drift-time"), Distortion.ColorDriftTime);
 			}
 			void Glitch::RenderEffect(Core::Timer* Time)
 			{

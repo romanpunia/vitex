@@ -91,7 +91,7 @@ namespace Tomahawk
 			OGLDepthStencilState::~OGLDepthStencilState()
 			{
 			}
-			void* OGLDepthStencilState::GetResource()
+			void* OGLDepthStencilState::GetResource() const
 			{
 				return (void*)&State;
 			}
@@ -102,7 +102,7 @@ namespace Tomahawk
 			OGLRasterizerState::~OGLRasterizerState()
 			{
 			}
-			void* OGLRasterizerState::GetResource()
+			void* OGLRasterizerState::GetResource() const
 			{
 				return (void*)&State;
 			}
@@ -113,7 +113,7 @@ namespace Tomahawk
 			OGLBlendState::~OGLBlendState()
 			{
 			}
-			void* OGLBlendState::GetResource()
+			void* OGLBlendState::GetResource() const
 			{
 				return (void*)&State;
 			}
@@ -125,7 +125,7 @@ namespace Tomahawk
 			{
 				glDeleteSamplers(1, &Resource);
 			}
-			void* OGLSamplerState::GetResource()
+			void* OGLSamplerState::GetResource() const
 			{
 				return (void*)(intptr_t)Resource;
 			}
@@ -214,7 +214,7 @@ namespace Tomahawk
 				if (DynamicResource != GL_NONE)
 					glDeleteVertexArrays(1, &DynamicResource);
 			}
-			void* OGLInputLayout::GetResource()
+			void* OGLInputLayout::GetResource() const
 			{
 				return (void*)this;
 			}
@@ -242,7 +242,7 @@ namespace Tomahawk
 				glDeleteShader(HullShader);
 				glDeleteShader(ComputeShader);
 			}
-			bool OGLShader::IsValid()
+			bool OGLShader::IsValid() const
 			{
 				return Compiled;
 			}
@@ -254,7 +254,7 @@ namespace Tomahawk
 			{
 				glDeleteBuffers(1, &Resource);
 			}
-			void* OGLElementBuffer::GetResource()
+			void* OGLElementBuffer::GetResource() const
 			{
 				return (void*)(intptr_t)Resource;
 			}
@@ -262,7 +262,7 @@ namespace Tomahawk
 			OGLMeshBuffer::OGLMeshBuffer(const Desc& I) : MeshBuffer(I)
 			{
 			}
-			Compute::Vertex* OGLMeshBuffer::GetElements(GraphicsDevice* Device)
+			Compute::Vertex* OGLMeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
 				TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 
@@ -279,7 +279,7 @@ namespace Tomahawk
 			OGLSkinMeshBuffer::OGLSkinMeshBuffer(const Desc& I) : SkinMeshBuffer(I)
 			{
 			}
-			Compute::SkinVertex* OGLSkinMeshBuffer::GetElements(GraphicsDevice* Device)
+			Compute::SkinVertex* OGLSkinMeshBuffer::GetElements(GraphicsDevice* Device) const
 			{
 				TH_ASSERT(Device != nullptr, nullptr, "graphics device should be set");
 
@@ -312,7 +312,7 @@ namespace Tomahawk
 			{
 				glDeleteTextures(1, &Resource);
 			}
-			void* OGLTexture2D::GetResource()
+			void* OGLTexture2D::GetResource() const
 			{
 				return (void*)(intptr_t)Resource;
 			}
@@ -339,7 +339,7 @@ namespace Tomahawk
 			{
 				glDeleteTextures(1, &Resource);
 			}
-			void* OGLTextureCube::GetResource()
+			void* OGLTextureCube::GetResource() const
 			{
 				return (void*)(intptr_t)Resource;
 			}
@@ -352,15 +352,15 @@ namespace Tomahawk
 				glDeleteFramebuffers(1, &FrameBuffer);
 				glDeleteTextures(1, &DepthTexture);
 			}
-			void* OGLDepthTarget2D::GetResource()
+			void* OGLDepthTarget2D::GetResource() const
 			{
 				return (void*)(intptr_t)FrameBuffer;
 			}
-			uint32_t OGLDepthTarget2D::GetWidth()
+			uint32_t OGLDepthTarget2D::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t OGLDepthTarget2D::GetHeight()
+			uint32_t OGLDepthTarget2D::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -373,15 +373,15 @@ namespace Tomahawk
 				glDeleteFramebuffers(1, &FrameBuffer);
 				glDeleteTextures(1, &DepthTexture);
 			}
-			void* OGLDepthTargetCube::GetResource()
+			void* OGLDepthTargetCube::GetResource() const
 			{
 				return (void*)(intptr_t)FrameBuffer;
 			}
-			uint32_t OGLDepthTargetCube::GetWidth()
+			uint32_t OGLDepthTargetCube::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t OGLDepthTargetCube::GetHeight()
+			uint32_t OGLDepthTargetCube::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -394,19 +394,19 @@ namespace Tomahawk
 				glDeleteTextures(1, &DepthTexture);
 				FrameBuffer.Cleanup();
 			}
-			void* OGLRenderTarget2D::GetTargetBuffer()
+			void* OGLRenderTarget2D::GetTargetBuffer() const
 			{
 				return (void*)&FrameBuffer;
 			}
-			void* OGLRenderTarget2D::GetDepthBuffer()
+			void* OGLRenderTarget2D::GetDepthBuffer() const
 			{
 				return (void*)(intptr_t)DepthTexture;
 			}
-			uint32_t OGLRenderTarget2D::GetWidth()
+			uint32_t OGLRenderTarget2D::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t OGLRenderTarget2D::GetHeight()
+			uint32_t OGLRenderTarget2D::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -419,19 +419,19 @@ namespace Tomahawk
 				glDeleteTextures(1, &DepthTexture);
 				FrameBuffer.Cleanup();
 			}
-			void* OGLMultiRenderTarget2D::GetTargetBuffer()
+			void* OGLMultiRenderTarget2D::GetTargetBuffer() const
 			{
 				return (void*)&FrameBuffer;
 			}
-			void* OGLMultiRenderTarget2D::GetDepthBuffer()
+			void* OGLMultiRenderTarget2D::GetDepthBuffer() const
 			{
 				return (void*)(intptr_t)DepthTexture;
 			}
-			uint32_t OGLMultiRenderTarget2D::GetWidth()
+			uint32_t OGLMultiRenderTarget2D::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t OGLMultiRenderTarget2D::GetHeight()
+			uint32_t OGLMultiRenderTarget2D::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -444,19 +444,19 @@ namespace Tomahawk
 				glDeleteTextures(1, &DepthTexture);
 				FrameBuffer.Cleanup();
 			}
-			void* OGLRenderTargetCube::GetTargetBuffer()
+			void* OGLRenderTargetCube::GetTargetBuffer() const
 			{
 				return (void*)&FrameBuffer;
 			}
-			void* OGLRenderTargetCube::GetDepthBuffer()
+			void* OGLRenderTargetCube::GetDepthBuffer() const
 			{
 				return (void*)(intptr_t)DepthTexture;
 			}
-			uint32_t OGLRenderTargetCube::GetWidth()
+			uint32_t OGLRenderTargetCube::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t OGLRenderTargetCube::GetHeight()
+			uint32_t OGLRenderTargetCube::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -469,19 +469,19 @@ namespace Tomahawk
 				glDeleteTextures(1, &DepthTexture);
 				FrameBuffer.Cleanup();
 			}
-			void* OGLMultiRenderTargetCube::GetTargetBuffer()
+			void* OGLMultiRenderTargetCube::GetTargetBuffer() const
 			{
 				return (void*)&FrameBuffer;
 			}
-			void* OGLMultiRenderTargetCube::GetDepthBuffer()
+			void* OGLMultiRenderTargetCube::GetDepthBuffer() const
 			{
 				return (void*)(intptr_t)DepthTexture;
 			}
-			uint32_t OGLMultiRenderTargetCube::GetWidth()
+			uint32_t OGLMultiRenderTargetCube::GetWidth() const
 			{
 				return Viewarea.Width;
 			}
-			uint32_t OGLMultiRenderTargetCube::GetHeight()
+			uint32_t OGLMultiRenderTargetCube::GetHeight() const
 			{
 				return Viewarea.Height;
 			}
@@ -512,7 +512,7 @@ namespace Tomahawk
 			{
 				glDeleteQueries(1, &Async);
 			}
-			void* OGLQuery::GetResource()
+			void* OGLQuery::GetResource() const
 			{
 				return (void*)(intptr_t)Async;
 			}
@@ -3379,11 +3379,11 @@ namespace Tomahawk
 
 				return Result;
 			}
-			PrimitiveTopology OGLDevice::GetPrimitiveTopology()
+			PrimitiveTopology OGLDevice::GetPrimitiveTopology() const
 			{
 				return Register.Primitive;
 			}
-			ShaderModel OGLDevice::GetSupportedShaderModel()
+			ShaderModel OGLDevice::GetSupportedShaderModel() const
 			{
 				const char* Version = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
 				if (!Version)
@@ -3444,15 +3444,15 @@ namespace Tomahawk
 
 				return ShaderModel::Invalid;
 			}
-			void* OGLDevice::GetDevice()
+			void* OGLDevice::GetDevice() const
 			{
 				return Context;
 			}
-			void* OGLDevice::GetContext()
+			void* OGLDevice::GetContext() const
 			{
 				return Context;
 			}
-			bool OGLDevice::IsValid()
+			bool OGLDevice::IsValid() const
 			{
 				return BasicEffect != nullptr;
 			}

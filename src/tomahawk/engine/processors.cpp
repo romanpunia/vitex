@@ -84,7 +84,7 @@ namespace Tomahawk
 					return nullptr;
 
 				Engine::Material* Object = new Engine::Material(nullptr);
-				if (!NMake::Unpack(Schema, Object, Content))
+				if (!Series::Unpack(Schema, Object, Content))
 				{
 					TH_RELEASE(Schema);
 					TH_RELEASE(Object);
@@ -106,7 +106,7 @@ namespace Tomahawk
 				Schema->Key = "material";
 
 				Engine::Material* Object = (Engine::Material*)Instance;
-				NMake::Pack(Schema, Object, Content);
+				Series::Pack(Schema, Object, Content);
 
 				if (!Content->Save<Core::Schema>(Stream->GetSource(), Schema, Args))
 				{
@@ -137,34 +137,34 @@ namespace Tomahawk
 					Core::Schema* Simulator = Metadata->Find("simulator");
 					if (Simulator != nullptr)
 					{
-						NMake::Unpack(Simulator->Find("enable-soft-body"), &I.Simulator.EnableSoftBody);
-						NMake::Unpack(Simulator->Find("max-displacement"), &I.Simulator.MaxDisplacement);
-						NMake::Unpack(Simulator->Find("air-density"), &I.Simulator.AirDensity);
-						NMake::Unpack(Simulator->Find("water-offset"), &I.Simulator.WaterOffset);
-						NMake::Unpack(Simulator->Find("water-density"), &I.Simulator.WaterDensity);
-						NMake::Unpack(Simulator->Find("water-normal"), &I.Simulator.WaterNormal);
-						NMake::Unpack(Simulator->Find("gravity"), &I.Simulator.Gravity);
+						Series::Unpack(Simulator->Find("enable-soft-body"), &I.Simulator.EnableSoftBody);
+						Series::Unpack(Simulator->Find("max-displacement"), &I.Simulator.MaxDisplacement);
+						Series::Unpack(Simulator->Find("air-density"), &I.Simulator.AirDensity);
+						Series::Unpack(Simulator->Find("water-offset"), &I.Simulator.WaterOffset);
+						Series::Unpack(Simulator->Find("water-density"), &I.Simulator.WaterDensity);
+						Series::Unpack(Simulator->Find("water-normal"), &I.Simulator.WaterNormal);
+						Series::Unpack(Simulator->Find("gravity"), &I.Simulator.Gravity);
 					}
 
-					NMake::Unpack(Metadata->Find("materials"), &I.StartMaterials);
-					NMake::Unpack(Metadata->Find("entities"), &I.StartEntities);
-					NMake::Unpack(Metadata->Find("components"), &I.StartComponents);
-					NMake::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
-					NMake::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
-					NMake::Unpack(Metadata->Find("frequency-hz"), &I.FrequencyHZ);
-					NMake::Unpack(Metadata->Find("min-frames"), &I.MinFrames);
-					NMake::Unpack(Metadata->Find("max-frames"), &I.MaxFrames);
-					NMake::Unpack(Metadata->Find("grow-margin"), &I.GrowMargin);
-					NMake::Unpack(Metadata->Find("grow-rate"), &I.GrowRate);
-					NMake::Unpack(Metadata->Find("max-updates"), &I.MaxUpdates);
-					NMake::Unpack(Metadata->Find("voxels-size"), &I.VoxelsSize);
-					NMake::Unpack(Metadata->Find("voxels-max"), &I.VoxelsMax);
-					NMake::Unpack(Metadata->Find("points-size"), &I.PointsSize);
-					NMake::Unpack(Metadata->Find("points-max"), &I.PointsMax);
-					NMake::Unpack(Metadata->Find("spots-size"), &I.SpotsSize);
-					NMake::Unpack(Metadata->Find("spots-max"), &I.SpotsMax);
-					NMake::Unpack(Metadata->Find("line-size"), &I.LinesSize);
-					NMake::Unpack(Metadata->Find("lines-max"), &I.LinesMax);
+					Series::Unpack(Metadata->Find("materials"), &I.StartMaterials);
+					Series::Unpack(Metadata->Find("entities"), &I.StartEntities);
+					Series::Unpack(Metadata->Find("components"), &I.StartComponents);
+					Series::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
+					Series::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
+					Series::Unpack(Metadata->Find("frequency-hz"), &I.FrequencyHZ);
+					Series::Unpack(Metadata->Find("min-frames"), &I.MinFrames);
+					Series::Unpack(Metadata->Find("max-frames"), &I.MaxFrames);
+					Series::Unpack(Metadata->Find("grow-margin"), &I.GrowMargin);
+					Series::Unpack(Metadata->Find("grow-rate"), &I.GrowRate);
+					Series::Unpack(Metadata->Find("max-updates"), &I.MaxUpdates);
+					Series::Unpack(Metadata->Find("voxels-size"), &I.VoxelsSize);
+					Series::Unpack(Metadata->Find("voxels-max"), &I.VoxelsMax);
+					Series::Unpack(Metadata->Find("points-size"), &I.PointsSize);
+					Series::Unpack(Metadata->Find("points-max"), &I.PointsMax);
+					Series::Unpack(Metadata->Find("spots-size"), &I.SpotsSize);
+					Series::Unpack(Metadata->Find("spots-max"), &I.SpotsMax);
+					Series::Unpack(Metadata->Find("line-size"), &I.LinesSize);
+					Series::Unpack(Metadata->Find("lines-max"), &I.LinesMax);
 				}
 
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
@@ -182,13 +182,13 @@ namespace Tomahawk
 					for (auto& It : Collection)
 					{
 						std::string Path;
-						if (!NMake::Unpack(It, &Path) || Path.empty())
+						if (!Series::Unpack(It, &Path) || Path.empty())
 							continue;
 
 						Engine::Material* Value = Content->Load<Engine::Material>(Path);
 						if (Value != nullptr)
 						{
-							NMake::Unpack(It, &Value->Slot);
+							Series::Unpack(It, &Value->Slot);
 							Object->AddMaterial(Value);
 						}
 					}
@@ -204,7 +204,7 @@ namespace Tomahawk
 						Object->AddEntity(Entity);
 
 						int64_t Refer = -1;
-						if (NMake::Unpack(It->Find("refer"), &Refer) && Refer >= 0)
+						if (Series::Unpack(It->Find("refer"), &Refer) && Refer >= 0)
 						{
 							Snapshot.To[Entity] = (uint64_t)Refer;
 							Snapshot.From[(uint64_t)Refer] = Entity;
@@ -219,8 +219,8 @@ namespace Tomahawk
 							continue;
 
 						std::string Name;
-						NMake::Unpack(It->Find("name"), &Name);
-						NMake::Unpack(It->Find("tag"), &Entity->Tag);
+						Series::Unpack(It->Find("name"), &Name);
+						Series::Unpack(It->Find("tag"), &Entity->Tag);
 						Entity->SetName(Name, true);
 
 						Core::Schema* Transform = It->Find("transform");
@@ -229,10 +229,10 @@ namespace Tomahawk
 							Compute::Transform* Offset = Entity->GetTransform();
 							Compute::Transform::Spacing& Space = Offset->GetSpacing(Compute::Positioning::Global);
 							bool Scaling = Offset->HasScaling();
-							NMake::Unpack(Transform->Find("position"), &Space.Position);
-							NMake::Unpack(Transform->Find("rotation"), &Space.Rotation);
-							NMake::Unpack(Transform->Find("scale"), &Space.Scale);
-							NMake::Unpack(Transform->Find("scaling"), &Scaling);
+							Series::Unpack(Transform->Find("position"), &Space.Position);
+							Series::Unpack(Transform->Find("rotation"), &Space.Rotation);
+							Series::Unpack(Transform->Find("scale"), &Space.Scale);
+							Series::Unpack(Transform->Find("scaling"), &Scaling);
 							Offset->SetScaling(Scaling);
 						}
 
@@ -241,13 +241,13 @@ namespace Tomahawk
 						{
 							Compute::Transform* Root = nullptr;
 							Compute::Transform::Spacing* Space = TH_NEW(Compute::Transform::Spacing);
-							NMake::Unpack(Parent->Find("position"), &Space->Position);
-							NMake::Unpack(Parent->Find("rotation"), &Space->Rotation);
-							NMake::Unpack(Parent->Find("scale"), &Space->Scale);
-							NMake::Unpack(Parent->Find("world"), &Space->Offset);
+							Series::Unpack(Parent->Find("position"), &Space->Position);
+							Series::Unpack(Parent->Find("rotation"), &Space->Rotation);
+							Series::Unpack(Parent->Find("scale"), &Space->Scale);
+							Series::Unpack(Parent->Find("world"), &Space->Offset);
 
 							int64_t Where = -1;
-							if (NMake::Unpack(Parent->Find("where"), &Where) && Where >= 0)
+							if (Series::Unpack(Parent->Find("where"), &Where) && Where >= 0)
 							{
 								auto It = Snapshot.From.find(Where);
 								if (It != Snapshot.From.end() && It->second != Entity)
@@ -266,7 +266,7 @@ namespace Tomahawk
 							for (auto& Element : Elements)
 							{
 								uint64_t Id;
-								if (!NMake::Unpack(Element->Find("id"), &Id))
+								if (!Series::Unpack(Element->Find("id"), &Id))
 									continue;
 
 								Component* Target = Core::Composer::Create<Component>(Id, Entity);
@@ -277,7 +277,7 @@ namespace Tomahawk
 								}
 
 								bool Active = true;
-								if (NMake::Unpack(Element->Find("active"), &Active))
+								if (Series::Unpack(Element->Find("active"), &Active))
 									Target->SetActive(Active);
 
 								Core::Schema* Meta = Element->Find("metadata");
@@ -327,35 +327,35 @@ namespace Tomahawk
 
 				auto& Conf = Object->GetConf();
 				Core::Schema* Metadata = Schema->Set("metadata");
-				NMake::Pack(Metadata->Set("materials"), Conf.StartMaterials);
-				NMake::Pack(Metadata->Set("entities"), Conf.StartEntities);
-				NMake::Pack(Metadata->Set("components"), Conf.StartComponents);
-				NMake::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
-				NMake::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
-				NMake::Pack(Metadata->Set("frequency-hz"), Conf.FrequencyHZ);
-				NMake::Pack(Metadata->Set("min-frames"), Conf.MinFrames);
-				NMake::Pack(Metadata->Set("max-frames"), Conf.MaxFrames);
-				NMake::Pack(Metadata->Set("grow-margin"), Conf.GrowMargin);
-				NMake::Pack(Metadata->Set("grow-rate"), Conf.GrowRate);
-				NMake::Pack(Metadata->Set("max-updates"), Conf.MaxUpdates);
-				NMake::Pack(Metadata->Set("voxels-size"), Conf.VoxelsSize);
-				NMake::Pack(Metadata->Set("voxels-max"), Conf.VoxelsMax);
-				NMake::Pack(Metadata->Set("points-size"), Conf.PointsSize);
-				NMake::Pack(Metadata->Set("points-max"), Conf.PointsMax);
-				NMake::Pack(Metadata->Set("spots-size"), Conf.SpotsSize);
-				NMake::Pack(Metadata->Set("spots-max"), Conf.SpotsMax);
-				NMake::Pack(Metadata->Set("line-size"), Conf.LinesSize);
-				NMake::Pack(Metadata->Set("lines-max"), Conf.LinesMax);
+				Series::Pack(Metadata->Set("materials"), Conf.StartMaterials);
+				Series::Pack(Metadata->Set("entities"), Conf.StartEntities);
+				Series::Pack(Metadata->Set("components"), Conf.StartComponents);
+				Series::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
+				Series::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
+				Series::Pack(Metadata->Set("frequency-hz"), Conf.FrequencyHZ);
+				Series::Pack(Metadata->Set("min-frames"), Conf.MinFrames);
+				Series::Pack(Metadata->Set("max-frames"), Conf.MaxFrames);
+				Series::Pack(Metadata->Set("grow-margin"), Conf.GrowMargin);
+				Series::Pack(Metadata->Set("grow-rate"), Conf.GrowRate);
+				Series::Pack(Metadata->Set("max-updates"), Conf.MaxUpdates);
+				Series::Pack(Metadata->Set("voxels-size"), Conf.VoxelsSize);
+				Series::Pack(Metadata->Set("voxels-max"), Conf.VoxelsMax);
+				Series::Pack(Metadata->Set("points-size"), Conf.PointsSize);
+				Series::Pack(Metadata->Set("points-max"), Conf.PointsMax);
+				Series::Pack(Metadata->Set("spots-size"), Conf.SpotsSize);
+				Series::Pack(Metadata->Set("spots-max"), Conf.SpotsMax);
+				Series::Pack(Metadata->Set("line-size"), Conf.LinesSize);
+				Series::Pack(Metadata->Set("lines-max"), Conf.LinesMax);
 
 				auto* fSimulator = Object->GetSimulator();
 				Core::Schema* Simulator = Metadata->Set("simulator");
-				NMake::Pack(Simulator->Set("enable-soft-body"), fSimulator->HasSoftBodySupport());
-				NMake::Pack(Simulator->Set("max-displacement"), fSimulator->GetMaxDisplacement());
-				NMake::Pack(Simulator->Set("air-density"), fSimulator->GetAirDensity());
-				NMake::Pack(Simulator->Set("water-offset"), fSimulator->GetWaterOffset());
-				NMake::Pack(Simulator->Set("water-density"), fSimulator->GetWaterDensity());
-				NMake::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
-				NMake::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
+				Series::Pack(Simulator->Set("enable-soft-body"), fSimulator->HasSoftBodySupport());
+				Series::Pack(Simulator->Set("max-displacement"), fSimulator->GetMaxDisplacement());
+				Series::Pack(Simulator->Set("air-density"), fSimulator->GetAirDensity());
+				Series::Pack(Simulator->Set("water-offset"), fSimulator->GetWaterOffset());
+				Series::Pack(Simulator->Set("water-density"), fSimulator->GetWaterDensity());
+				Series::Pack(Simulator->Set("water-normal"), fSimulator->GetWaterNormal());
+				Series::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
 				Core::Schema* Materials = Schema->Set("materials", Core::Var::Array());
 				for (uint64_t i = 0; i < Object->GetMaterialsCount(); i++)
@@ -377,8 +377,8 @@ namespace Tomahawk
 					if (Content->Save<Engine::Material>(Path, Material, Args))
 					{
 						Core::Schema* Where = Materials->Set("material");
-						NMake::Pack(Where, Material->Slot);
-						NMake::Pack(Where, Path);
+						Series::Pack(Where, Material->Slot);
+						Series::Pack(Where, Path);
 					}
 				}
 
@@ -389,15 +389,15 @@ namespace Tomahawk
 					auto* Offset = Ref->GetTransform();
 
 					Core::Schema* Entity = Entities->Set("entity");
-					NMake::Pack(Entity->Set("name"), Ref->GetName());
-					NMake::Pack(Entity->Set("tag"), Ref->Tag);
-					NMake::Pack(Entity->Set("refer"), i);
+					Series::Pack(Entity->Set("name"), Ref->GetName());
+					Series::Pack(Entity->Set("tag"), Ref->Tag);
+					Series::Pack(Entity->Set("refer"), i);
 
 					Core::Schema* Transform = Entity->Set("transform");
-					NMake::Pack(Transform->Set("position"), Offset->GetPosition());
-					NMake::Pack(Transform->Set("rotation"), Offset->GetRotation());
-					NMake::Pack(Transform->Set("scale"), Offset->GetScale());
-					NMake::Pack(Transform->Set("scaling"), Offset->HasScaling());
+					Series::Pack(Transform->Set("position"), Offset->GetPosition());
+					Series::Pack(Transform->Set("rotation"), Offset->GetRotation());
+					Series::Pack(Transform->Set("scale"), Offset->GetScale());
+					Series::Pack(Transform->Set("scaling"), Offset->HasScaling());
 
 					if (Offset->GetRoot() != nullptr)
 					{
@@ -406,14 +406,14 @@ namespace Tomahawk
 						{
 							auto It = Snapshot.To.find(Offset->GetRoot()->Ptr<Engine::Entity>());
 							if (It != Snapshot.To.end())
-								NMake::Pack(Parent->Set("where"), It->second);
+								Series::Pack(Parent->Set("where"), It->second);
 						}
 
 						Compute::Transform::Spacing& Space = Offset->GetSpacing();
-						NMake::Pack(Parent->Set("position"), Space.Position);
-						NMake::Pack(Parent->Set("rotation"), Space.Rotation);
-						NMake::Pack(Parent->Set("scale"), Space.Scale);
-						NMake::Pack(Parent->Set("world"), Space.Offset);
+						Series::Pack(Parent->Set("position"), Space.Position);
+						Series::Pack(Parent->Set("rotation"), Space.Rotation);
+						Series::Pack(Parent->Set("scale"), Space.Scale);
+						Series::Pack(Parent->Set("world"), Space.Offset);
 					}
 
 					if (!Ref->GetComponentsCount())
@@ -423,8 +423,8 @@ namespace Tomahawk
 					for (auto& Item : *Ref)
 					{
 						Core::Schema* Component = Components->Set("component");
-						NMake::Pack(Component->Set("id"), Item.second->GetId());
-						NMake::Pack(Component->Set("active"), Item.second->IsActive());
+						Series::Pack(Component->Set("id"), Item.second->GetId());
+						Series::Pack(Component->Set("active"), Item.second->IsActive());
 						Item.second->Serialize(Content, Component->Set("metadata"));
 					}
 				}
@@ -700,9 +700,9 @@ namespace Tomahawk
 					return nullptr;
 
 				auto Object = new Graphics::Model();
-				NMake::Unpack(Schema->Find("root"), &Object->Root);
-				NMake::Unpack(Schema->Find("max"), &Object->Max);
-				NMake::Unpack(Schema->Find("min"), &Object->Min);
+				Series::Unpack(Schema->Find("root"), &Object->Root);
+				Series::Unpack(Schema->Find("max"), &Object->Max);
+				Series::Unpack(Schema->Find("min"), &Object->Min);
 
 				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
@@ -711,13 +711,13 @@ namespace Tomahawk
 					F.AccessFlags = Options.AccessFlags;
 					F.Usage = Options.Usage;
 
-					if (!NMake::Unpack(Mesh->Find("indices"), &F.Indices))
+					if (!Series::Unpack(Mesh->Find("indices"), &F.Indices))
 					{
 						TH_RELEASE(Schema);
 						return nullptr;
 					}
 
-					if (!NMake::Unpack(Mesh->Find("vertices"), &F.Elements))
+					if (!Series::Unpack(Mesh->Find("vertices"), &F.Elements))
 					{
 						TH_RELEASE(Schema);
 						return nullptr;
@@ -731,8 +731,8 @@ namespace Tomahawk
 					Device->Unlock();
 
 					auto* Sub = Object->Meshes.back();
-					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
-					NMake::Unpack(Mesh->Find("world"), &Sub->World);
+					Series::Unpack(Mesh->Find("name"), &Sub->Name);
+					Series::Unpack(Mesh->Find("world"), &Sub->World);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -786,20 +786,20 @@ namespace Tomahawk
 				if (Info.PZ > Max)
 					Max = Info.PZ;
 
-				NMake::Pack(Schema->Set("options"), Opts);
-				NMake::Pack(Schema->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
-				NMake::Pack(Schema->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
-				NMake::Pack(Schema->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
-				NMake::Pack(Schema->Set("joints", Core::Var::Array()), Joints);
+				Series::Pack(Schema->Set("options"), Opts);
+				Series::Pack(Schema->Set("root"), ToMatrix(Scene->mRootNode->mTransformation.Inverse()).Transpose());
+				Series::Pack(Schema->Set("max"), Compute::Vector4(Info.PX, Info.PY, Info.PZ, Max));
+				Series::Pack(Schema->Set("min"), Compute::Vector4(Info.NX, Info.NY, Info.NZ, Min));
+				Series::Pack(Schema->Set("joints", Core::Var::Array()), Joints);
 
 				Core::Schema* Meshes = Schema->Set("meshes", Core::Var::Array());
 				for (auto&& It : Info.Meshes)
 				{
 					Core::Schema* Mesh = Meshes->Set("mesh");
-					NMake::Pack(Mesh->Set("name"), It.Name);
-					NMake::Pack(Mesh->Set("world"), It.World);
-					NMake::Pack(Mesh->Set("vertices"), It.Vertices);
-					NMake::Pack(Mesh->Set("indices"), It.Indices);
+					Series::Pack(Mesh->Set("name"), It.Name);
+					Series::Pack(Mesh->Set("world"), It.World);
+					Series::Pack(Mesh->Set("vertices"), It.Vertices);
+					Series::Pack(Mesh->Set("indices"), It.Indices);
 				}
 
 				return Schema;
@@ -1012,10 +1012,10 @@ namespace Tomahawk
 					return nullptr;
 
 				auto Object = new Graphics::SkinModel();
-				NMake::Unpack(Schema->Find("root"), &Object->Root);
-				NMake::Unpack(Schema->Find("max"), &Object->Max);
-				NMake::Unpack(Schema->Find("min"), &Object->Min);
-				NMake::Unpack(Schema->Find("joints"), &Object->Joints);
+				Series::Unpack(Schema->Find("root"), &Object->Root);
+				Series::Unpack(Schema->Find("max"), &Object->Max);
+				Series::Unpack(Schema->Find("min"), &Object->Min);
+				Series::Unpack(Schema->Find("joints"), &Object->Joints);
 
 				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
@@ -1024,13 +1024,13 @@ namespace Tomahawk
 					F.AccessFlags = Options.AccessFlags;
 					F.Usage = Options.Usage;
 
-					if (!NMake::Unpack(Mesh->Find("indices"), &F.Indices))
+					if (!Series::Unpack(Mesh->Find("indices"), &F.Indices))
 					{
 						TH_RELEASE(Schema);
 						return nullptr;
 					}
 
-					if (!NMake::Unpack(Mesh->Find("vertices"), &F.Elements))
+					if (!Series::Unpack(Mesh->Find("vertices"), &F.Elements))
 					{
 						TH_RELEASE(Schema);
 						return nullptr;
@@ -1044,8 +1044,8 @@ namespace Tomahawk
 					Device->Unlock();
 
 					auto* Sub = Object->Meshes.back();
-					NMake::Unpack(Mesh->Find("name"), &Sub->Name);
-					NMake::Unpack(Mesh->Find("world"), &Sub->World);
+					Series::Unpack(Mesh->Find("name"), &Sub->Name);
+					Series::Unpack(Mesh->Find("world"), &Sub->World);
 				}
 
 				Content->Cache(this, Stream->GetSource(), Object);
@@ -1138,7 +1138,7 @@ namespace Tomahawk
 				auto* Schema = Core::Var::Set::Object();
 				Schema->Key = "animation";
 
-				NMake::Pack(Schema, Clips);
+				Series::Pack(Schema, Clips);
 				return Schema;
 #else
 				return nullptr;
@@ -1341,28 +1341,28 @@ namespace Tomahawk
 				Core::Schema* Config = Schema->Find("netstat");
 				if (Config != nullptr)
 				{
-					if (NMake::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
+					if (Series::Unpack(Config->Fetch("module-root"), &Router->ModuleRoot))
 						Core::Parser(&Router->ModuleRoot).Eval(N, D);
 
-					if (!NMake::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
+					if (!Series::Unpack(Config->Find("keep-alive"), &Router->KeepAliveMaxCount))
 						Router->KeepAliveMaxCount = 50;
 
-					if (!NMake::Unpack(Config->Find("payload-max-length"), &Router->PayloadMaxLength))
+					if (!Series::Unpack(Config->Find("payload-max-length"), &Router->PayloadMaxLength))
 						Router->PayloadMaxLength = 12582912;
 
-					if (!NMake::Unpack(Config->Find("backlog-queue"), &Router->BacklogQueue))
+					if (!Series::Unpack(Config->Find("backlog-queue"), &Router->BacklogQueue))
 						Router->BacklogQueue = 20;
 
-					if (!NMake::Unpack(Config->Find("socket-timeout"), &Router->SocketTimeout))
+					if (!Series::Unpack(Config->Find("socket-timeout"), &Router->SocketTimeout))
 						Router->SocketTimeout = 10000;
 
-					if (!NMake::Unpack(Config->Find("graceful-time-wait"), &Router->GracefulTimeWait))
+					if (!Series::Unpack(Config->Find("graceful-time-wait"), &Router->GracefulTimeWait))
 						Router->GracefulTimeWait = -1;
 
-					if (!NMake::Unpack(Config->Find("max-connections"), &Router->MaxConnections))
+					if (!Series::Unpack(Config->Find("max-connections"), &Router->MaxConnections))
 						Router->MaxConnections = 0;
 
-					if (!NMake::Unpack(Config->Find("enable-no-delay"), &Router->EnableNoDelay))
+					if (!Series::Unpack(Config->Find("enable-no-delay"), &Router->EnableNoDelay))
 						Router->EnableNoDelay = false;
 				}
 
@@ -1370,11 +1370,11 @@ namespace Tomahawk
 				for (auto&& It : Certificates)
 				{
 					std::string Name;
-					if (!NMake::Unpack(It, &Name))
+					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
 					Network::SocketCertificate* Cert = &Router->Certificates[Core::Parser(&Name).Eval(N, D).R()];
-					if (NMake::Unpack(It->Find("protocol"), &Name))
+					if (Series::Unpack(It->Find("protocol"), &Name))
 					{
 						if (!strcmp(Name.c_str(), "SSL_V2"))
 							Cert->Protocol = Network::Secure::SSL_V2;
@@ -1388,19 +1388,19 @@ namespace Tomahawk
 							Cert->Protocol = Network::Secure::Any;
 					}
 
-					if (!NMake::Unpack(It->Find("ciphers"), &Cert->Ciphers))
+					if (!Series::Unpack(It->Find("ciphers"), &Cert->Ciphers))
 						Cert->Ciphers = "ALL";
 
-					if (!NMake::Unpack(It->Find("verify-peers"), &Cert->VerifyPeers))
+					if (!Series::Unpack(It->Find("verify-peers"), &Cert->VerifyPeers))
 						Cert->VerifyPeers = true;
 
-					if (!NMake::Unpack(It->Find("depth"), &Cert->Depth))
+					if (!Series::Unpack(It->Find("depth"), &Cert->Depth))
 						Cert->Depth = 9;
 
-					if (!NMake::Unpack(It->Find("key"), &Cert->Key))
+					if (!Series::Unpack(It->Find("key"), &Cert->Key))
 						Cert->Key.clear();
 
-					if (!NMake::Unpack(It->Find("chain"), &Cert->Chain))
+					if (!Series::Unpack(It->Find("chain"), &Cert->Chain))
 						Cert->Chain.clear();
 
 					Core::Parser(&Cert->Key).Eval(N, D).R();
@@ -1411,18 +1411,18 @@ namespace Tomahawk
 				for (auto&& It : Listeners)
 				{
 					std::string Name;
-					if (!NMake::Unpack(It, &Name))
+					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
 					Network::Host* Host = &Router->Listeners[Core::Parser(&Name).Eval(N, D).R()];
-					if (!NMake::Unpack(It->Find("hostname"), &Host->Hostname))
+					if (!Series::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = "127.0.0.1";
 
 					Core::Parser(&Host->Hostname).Eval(N, D).R();
-					if (!NMake::Unpack(It->Find("port"), &Host->Port))
+					if (!Series::Unpack(It->Find("port"), &Host->Port))
 						Host->Port = 80;
 
-					if (!NMake::Unpack(It->Find("secure"), &Host->Secure))
+					if (!Series::Unpack(It->Find("secure"), &Host->Secure))
 						Host->Secure = false;
 				}
 
@@ -1430,49 +1430,49 @@ namespace Tomahawk
 				for (auto&& It : Sites)
 				{
 					std::string Name = "*";
-					NMake::Unpack(It, &Name);
+					Series::Unpack(It, &Name);
 
 					Network::HTTP::SiteEntry* Site = Router->Site(Core::Parser(&Name).Eval(N, D).Get());
 					if (Site == nullptr)
 						continue;
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.name"), &Site->Gateway.Session.Cookie.Name))
+					if (!Series::Unpack(It->Fetch("gateway.session.cookie.name"), &Site->Gateway.Session.Cookie.Name))
 						Site->Gateway.Session.Cookie.Name = "sid";
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.domain"), &Site->Gateway.Session.Cookie.Domain))
+					if (!Series::Unpack(It->Fetch("gateway.session.cookie.domain"), &Site->Gateway.Session.Cookie.Domain))
 						Site->Gateway.Session.Cookie.Domain.clear();
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.path"), &Site->Gateway.Session.Cookie.Path))
+					if (!Series::Unpack(It->Fetch("gateway.session.cookie.path"), &Site->Gateway.Session.Cookie.Path))
 						Site->Gateway.Session.Cookie.Path = "/";
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.same-site"), &Site->Gateway.Session.Cookie.SameSite))
+					if (!Series::Unpack(It->Fetch("gateway.session.cookie.same-site"), &Site->Gateway.Session.Cookie.SameSite))
 						Site->Gateway.Session.Cookie.SameSite = "Strict";
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.expires"), &Site->Gateway.Session.Cookie.Expires))
+					if (!Series::Unpack(It->Fetch("gateway.session.cookie.expires"), &Site->Gateway.Session.Cookie.Expires))
 						Site->Gateway.Session.Cookie.Expires = 31536000;
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.secure"), &Site->Gateway.Session.Cookie.Secure))
+					if (!Series::Unpack(It->Fetch("gateway.session.cookie.secure"), &Site->Gateway.Session.Cookie.Secure))
 						Site->Gateway.Session.Cookie.Secure = false;
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.cookie.http-only"), &Site->Gateway.Session.Cookie.HttpOnly))
+					if (!Series::Unpack(It->Fetch("gateway.session.cookie.http-only"), &Site->Gateway.Session.Cookie.HttpOnly))
 						Site->Gateway.Session.Cookie.HttpOnly = true;
 
-					if (NMake::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
+					if (Series::Unpack(It->Fetch("gateway.session.document-root"), &Site->Gateway.Session.DocumentRoot))
 						Core::Parser(&Site->Gateway.Session.DocumentRoot).Eval(N, D);
 
-					if (!NMake::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
+					if (!Series::Unpack(It->Fetch("gateway.session.expires"), &Site->Gateway.Session.Expires))
 						Site->Gateway.Session.Expires = 604800;
 
-					if (!NMake::Unpack(It->Fetch("gateway.verify"), &Site->Gateway.Verify))
+					if (!Series::Unpack(It->Fetch("gateway.verify"), &Site->Gateway.Verify))
 						Site->Gateway.Verify = false;
 
-					if (!NMake::Unpack(It->Fetch("gateway.enabled"), &Site->Gateway.Enabled))
+					if (!Series::Unpack(It->Fetch("gateway.enabled"), &Site->Gateway.Enabled))
 						Site->Gateway.Enabled = false;
 
-					if (!NMake::Unpack(It->Find("max-resources"), &Site->MaxResources))
+					if (!Series::Unpack(It->Find("max-resources"), &Site->MaxResources))
 						Site->MaxResources = 5;
 
-                    NMake::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
+                    Series::Unpack(It->Find("resource-root"), &Site->ResourceRoot);
                     Core::Parser(&Site->ResourceRoot).Eval(N, D);
 
 					std::unordered_map<std::string, Network::HTTP::RouteEntry*> Aliases;
@@ -1502,7 +1502,7 @@ namespace Tomahawk
 						{
 							Network::HTTP::RouteEntry* Route = nullptr;
 							std::string SourceURL = "*";
-							NMake::Unpack(Base, &SourceURL);
+							Series::Unpack(Base, &SourceURL);
 
 							Core::Schema* From = Base->GetAttribute("from"), * For = Base->GetAttribute("for");
 							if (From != nullptr && From->Value.GetType() == Core::VarType::String)
@@ -1529,7 +1529,7 @@ namespace Tomahawk
 							for (auto& File : GatewayFiles)
 							{
 								std::string Pattern;
-								if (NMake::Unpack(File, &Pattern))
+								if (Series::Unpack(File, &Pattern))
 									Route->Gateway.Files.emplace_back(Pattern, true);
 							}
 
@@ -1540,7 +1540,7 @@ namespace Tomahawk
 							for (auto& Method : GatewayMethods)
 							{
 								std::string Value;
-								if (NMake::Unpack(Method, &Value))
+								if (Series::Unpack(Method, &Value))
 									Route->Gateway.Methods.push_back(Value);
 							}
 
@@ -1551,7 +1551,7 @@ namespace Tomahawk
 							for (auto& Method : AuthMethods)
 							{
 								std::string Value;
-								if (NMake::Unpack(Method, &Value))
+								if (Series::Unpack(Method, &Value))
 									Route->Auth.Methods.push_back(Value);
 							}
 
@@ -1562,7 +1562,7 @@ namespace Tomahawk
 							for (auto& File : CompressionFiles)
 							{
 								std::string Pattern;
-								if (NMake::Unpack(File, &Pattern))
+								if (Series::Unpack(File, &Pattern))
 									Route->Compression.Files.emplace_back(Pattern, true);
 							}
 
@@ -1573,7 +1573,7 @@ namespace Tomahawk
 							for (auto& File : HiddenFiles)
 							{
 								std::string Pattern;
-								if (NMake::Unpack(File, &Pattern))
+								if (Series::Unpack(File, &Pattern))
 									Route->HiddenFiles.emplace_back(Pattern, true);
 							}
 
@@ -1584,7 +1584,7 @@ namespace Tomahawk
 							for (auto& File : IndexFiles)
 							{
 								std::string Pattern;
-								if (NMake::Unpack(File, &Pattern))
+								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
 										Core::Parser(&Pattern).Eval(N, D);
@@ -1600,7 +1600,7 @@ namespace Tomahawk
 							for (auto& File : TryFiles)
 							{
 								std::string Pattern;
-								if (NMake::Unpack(File, &Pattern))
+								if (Series::Unpack(File, &Pattern))
 								{
 									if (!File->GetAttribute("use"))
 										Core::Parser(&Pattern).Eval(N, D);
@@ -1616,10 +1616,10 @@ namespace Tomahawk
 							for (auto& File : ErrorFiles)
 							{
 								Network::HTTP::ErrorFile Source;
-								if (NMake::Unpack(File->Find("file"), &Source.Pattern))
+								if (Series::Unpack(File->Find("file"), &Source.Pattern))
 									Core::Parser(&Source.Pattern).Eval(N, D);
 
-								NMake::Unpack(File->Find("status"), &Source.StatusCode);
+								Series::Unpack(File->Find("status"), &Source.StatusCode);
 								Route->ErrorFiles.push_back(Source);
 							}
 
@@ -1630,8 +1630,8 @@ namespace Tomahawk
 							for (auto& Type : MimeTypes)
 							{
 								Network::HTTP::MimeType Pattern;
-								NMake::Unpack(Type->Find("ext"), &Pattern.Extension);
-								NMake::Unpack(Type->Find("type"), &Pattern.Type);
+								Series::Unpack(Type->Find("ext"), &Pattern.Extension);
+								Series::Unpack(Type->Find("type"), &Pattern.Type);
 								Route->MimeTypes.push_back(Pattern);
 							}
 
@@ -1642,12 +1642,12 @@ namespace Tomahawk
 							for (auto& Method : DisallowedMethods)
 							{
 								std::string Value;
-								if (NMake::Unpack(Method, &Value))
+								if (Series::Unpack(Method, &Value))
 									Route->DisallowedMethods.push_back(Value);
 							}
 
 							std::string Tune;
-							if (NMake::Unpack(Base->Fetch("compression.tune"), &Tune))
+							if (Series::Unpack(Base->Fetch("compression.tune"), &Tune))
 							{
 								if (!strcmp(Tune.c_str(), "Filtered"))
 									Route->Compression.Tune = Network::HTTP::CompressionTune::Filtered;
@@ -1661,32 +1661,32 @@ namespace Tomahawk
 									Route->Compression.Tune = Network::HTTP::CompressionTune::Default;
 							}
 
-							if (NMake::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
+							if (Series::Unpack(Base->Fetch("compression.quality-level"), &Route->Compression.QualityLevel))
 								Route->Compression.QualityLevel = Compute::Mathi::Clamp(Route->Compression.QualityLevel, 0, 9);
 
-							if (NMake::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
+							if (Series::Unpack(Base->Fetch("compression.memory-level"), &Route->Compression.MemoryLevel))
 								Route->Compression.MemoryLevel = Compute::Mathi::Clamp(Route->Compression.MemoryLevel, 1, 9);
 
-							if (NMake::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
+							if (Series::Unpack(Base->Find("document-root"), &Route->DocumentRoot))
 								Core::Parser(&Route->DocumentRoot).Eval(N, D);
 
-							NMake::Unpack(Base->Find("override"), &Route->Override);
-							NMake::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
-							NMake::Unpack(Base->Fetch("gateway.report-stack"), &Route->Gateway.ReportStack);
-							NMake::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
-							NMake::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
-							NMake::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
-							NMake::Unpack(Base->Fetch("compression.enabled"), &Route->Compression.Enabled);
-							NMake::Unpack(Base->Find("char-set"), &Route->CharSet);
-							NMake::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
-							NMake::Unpack(Base->Find("redirect"), &Route->Redirect);
-							NMake::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
-							NMake::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
-							NMake::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength);
-							NMake::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
-							NMake::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
-							NMake::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
-							NMake::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
+							Series::Unpack(Base->Find("override"), &Route->Override);
+							Series::Unpack(Base->Fetch("gateway.report-errors"), &Route->Gateway.ReportErrors);
+							Series::Unpack(Base->Fetch("gateway.report-stack"), &Route->Gateway.ReportStack);
+							Series::Unpack(Base->Fetch("auth.type"), &Route->Auth.Type);
+							Series::Unpack(Base->Fetch("auth.realm"), &Route->Auth.Realm);
+							Series::Unpack(Base->Fetch("compression.min-length"), &Route->Compression.MinLength);
+							Series::Unpack(Base->Fetch("compression.enabled"), &Route->Compression.Enabled);
+							Series::Unpack(Base->Find("char-set"), &Route->CharSet);
+							Series::Unpack(Base->Find("access-control-allow-origin"), &Route->AccessControlAllowOrigin);
+							Series::Unpack(Base->Find("redirect"), &Route->Redirect);
+							Series::Unpack(Base->Find("web-socket-timeout"), &Route->WebSocketTimeout);
+							Series::Unpack(Base->Find("static-file-max-age"), &Route->StaticFileMaxAge);
+							Series::Unpack(Base->Find("max-cache-length"), &Route->MaxCacheLength);
+							Series::Unpack(Base->Find("allow-directory-listing"), &Route->AllowDirectoryListing);
+							Series::Unpack(Base->Find("allow-web-socket"), &Route->AllowWebSocket);
+							Series::Unpack(Base->Find("allow-send-file"), &Route->AllowSendFile);
+							Series::Unpack(Base->Find("proxy-ip-address"), &Route->ProxyIpAddress);
 
 							if (!For || For->Value.GetType() != Core::VarType::String)
 								continue;
@@ -1746,14 +1746,14 @@ namespace Tomahawk
 				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
-					if (!NMake::Unpack(Mesh->Find("indices"), &Object->Indices))
+					if (!Series::Unpack(Mesh->Find("indices"), &Object->Indices))
 					{
 						TH_RELEASE(Schema);
 						TH_RELEASE(Object);
 						return nullptr;
 					}
 
-					if (!NMake::Unpack(Mesh->Find("vertices"), &Object->Vertices))
+					if (!Series::Unpack(Mesh->Find("vertices"), &Object->Vertices))
 					{
 						TH_RELEASE(Schema);
 						TH_RELEASE(Object);

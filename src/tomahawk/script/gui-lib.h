@@ -23,10 +23,10 @@ namespace Tomahawk
 			Engine::GUI::EventCallback Bind(VMCFunction* Callback);
 		};
 #endif
-		TH_OUT bool GUIRegisterVariant(VMManager* Engine);
-		TH_OUT bool GUIRegisterControl(VMManager* Engine);
-		TH_OUT bool GUIRegisterModel(VMManager* Engine);
-		TH_OUT bool GUIRegisterContext(VMManager* Engine);
+		TH_OUT_TS bool GUIRegisterVariant(VMManager* Engine);
+		TH_OUT_TS bool GUIRegisterControl(VMManager* Engine);
+		TH_OUT_TS bool GUIRegisterModel(VMManager* Engine);
+		TH_OUT_TS bool GUIRegisterContext(VMManager* Engine);
 	}
 }
 #endif

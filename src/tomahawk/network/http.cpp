@@ -1954,7 +1954,7 @@ namespace Tomahawk
 			QueryParameter::QueryParameter() : Core::Schema(Core::Var::Object())
 			{
 			}
-			std::string QueryParameter::Build()
+			std::string QueryParameter::Build() const
 			{
 				std::string Output, Label = Compute::Codec::URIEncode(Parent != nullptr ? ('[' + Key + ']') : Key);
 				if (Value.IsObject())
@@ -1981,7 +1981,7 @@ namespace Tomahawk
 
 				return Output;
 			}
-			std::string QueryParameter::BuildFromBase()
+			std::string QueryParameter::BuildFromBase() const
 			{
 				std::string Output, Label = Compute::Codec::URIEncode(Key);
 				if (Value.IsObject())
@@ -2171,7 +2171,7 @@ namespace Tomahawk
 				TH_CLEAR(Object);
 				Object = (QueryParameter*)Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
 			}
-			std::string Query::Encode(const char* Type)
+			std::string Query::Encode(const char* Type) const
 			{
 				if (Type != nullptr)
 				{
@@ -2184,7 +2184,7 @@ namespace Tomahawk
 
 				return "";
 			}
-			std::string Query::EncodeAXWFD()
+			std::string Query::EncodeAXWFD() const
 			{
 				std::string Output; auto& Nodes = Object->GetChilds();
 				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
@@ -2197,7 +2197,7 @@ namespace Tomahawk
 
 				return Output;
 			}
-			std::string Query::EncodeAJSON()
+			std::string Query::EncodeAJSON() const
 			{
 				std::string Stream;
 				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
@@ -2208,7 +2208,7 @@ namespace Tomahawk
 
 				return Stream;
 			}
-			QueryParameter* Query::Get(const char* Name)
+			QueryParameter* Query::Get(const char* Name) const
 			{
 				return (QueryParameter*)Object->Get(Name);
 			}

@@ -382,7 +382,7 @@ namespace Tomahawk
 #endif
 			return true;
 		}
-		AudioSource* AudioFilter::GetSource()
+		AudioSource* AudioFilter::GetSource() const
 		{
 			return Source;
 		}
@@ -467,11 +467,11 @@ namespace Tomahawk
 #endif
 			return true;
 		}
-		AudioFilter* AudioEffect::GetFilter()
+		AudioFilter* AudioEffect::GetFilter() const
 		{
 			return Filter;
 		}
-		AudioSource* AudioEffect::GetSource()
+		AudioSource* AudioEffect::GetSource() const
 		{
 			return Source;
 		}
@@ -490,7 +490,7 @@ namespace Tomahawk
 			Buffer = 0;
 #endif
 		}
-		float AudioClip::Length()
+		float AudioClip::Length() const
 		{
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
@@ -509,7 +509,7 @@ namespace Tomahawk
 			return 0.0f;
 #endif
 		}
-		bool AudioClip::IsMono()
+		bool AudioClip::IsMono() const
 		{
 #ifdef TH_HAS_OPENAL
 			if (Format == AL_FORMAT_MONO8 || Format == AL_FORMAT_MONO16)
@@ -517,11 +517,11 @@ namespace Tomahawk
 #endif
 			return false;
 		}
-		unsigned int AudioClip::GetBuffer()
+		unsigned int AudioClip::GetBuffer() const
 		{
 			return Buffer;
 		}
-		int AudioClip::GetFormat()
+		int AudioClip::GetFormat() const
 		{
 			return Format;
 		}
@@ -964,7 +964,7 @@ namespace Tomahawk
 			AudioContext::Unlock();
 #endif
 		}
-		void AudioDevice::GetExceptionCodes(int& ALCCode, int& ALCode)
+		void AudioDevice::GetExceptionCodes(int& ALCCode, int& ALCode) const
 		{
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
@@ -984,7 +984,7 @@ namespace Tomahawk
 			AudioContext::Unlock();
 #endif
 		}
-		bool AudioDevice::IsValid()
+		bool AudioDevice::IsValid() const
 		{
 			return Context && Device;
 		}

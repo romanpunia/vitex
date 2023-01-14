@@ -877,20 +877,20 @@ namespace Tomahawk
 			};
 		};
 
-		TH_OUT bool STDRegisterAny(VMManager* Manager);
-		TH_OUT bool STDRegisterArray(VMManager* Manager);
-		TH_OUT bool STDRegisterComplex(VMManager* Manager);
-		TH_OUT bool STDRegisterMap(VMManager* Manager);
-		TH_OUT bool STDRegisterGrid(VMManager* Manager);
-		TH_OUT bool STDRegisterRef(VMManager* Manager);
-		TH_OUT bool STDRegisterWeakRef(VMManager* Manager);
-		TH_OUT bool STDRegisterMath(VMManager* Manager);
-		TH_OUT bool STDRegisterString(VMManager* Manager);
-		TH_OUT bool STDRegisterException(VMManager* Manager);
-		TH_OUT bool STDRegisterMutex(VMManager* Manager);
-		TH_OUT bool STDRegisterThread(VMManager* Manager);
-		TH_OUT bool STDRegisterRandom(VMManager* Manager);
-		TH_OUT bool STDRegisterPromise(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterAny(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterArray(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterComplex(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterMap(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterGrid(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterRef(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterWeakRef(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterMath(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterString(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterException(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterMutex(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterThread(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterRandom(VMManager* Manager);
+		TH_OUT_TS bool STDRegisterPromise(VMManager* Manager);
 		TH_OUT bool STDFreeCore();
 	}
 }

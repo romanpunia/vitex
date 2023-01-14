@@ -24,7 +24,7 @@ namespace Tomahawk
 			public:
 				D3D11DepthStencilState(const Desc& I);
 				virtual ~D3D11DepthStencilState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11RasterizerState final : public RasterizerState
@@ -37,7 +37,7 @@ namespace Tomahawk
 			public:
 				D3D11RasterizerState(const Desc& I);
 				virtual ~D3D11RasterizerState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11BlendState final : public BlendState
@@ -50,7 +50,7 @@ namespace Tomahawk
 			public:
 				D3D11BlendState(const Desc& I);
 				virtual ~D3D11BlendState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11SamplerState final : public SamplerState
@@ -63,7 +63,7 @@ namespace Tomahawk
 			public:
 				D3D11SamplerState(const Desc& I);
 				virtual ~D3D11SamplerState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11InputLayout final : public InputLayout
@@ -73,7 +73,7 @@ namespace Tomahawk
 			public:
 				D3D11InputLayout(const Desc& I);
 				virtual ~D3D11InputLayout() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11Shader final : public Shader
@@ -97,7 +97,7 @@ namespace Tomahawk
 			public:
 				D3D11Shader(const Desc& I);
 				virtual ~D3D11Shader() override;
-				bool IsValid() override;
+				bool IsValid() const override;
 			};
 
 			class D3D11ElementBuffer final : public ElementBuffer
@@ -112,7 +112,7 @@ namespace Tomahawk
 			public:
 				D3D11ElementBuffer(const Desc& I);
 				virtual ~D3D11ElementBuffer() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11MeshBuffer final : public MeshBuffer
@@ -121,7 +121,7 @@ namespace Tomahawk
 
 			public:
 				D3D11MeshBuffer(const Desc& I);
-				Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) override;
+				Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) const override;
 			};
 
 			class D3D11SkinMeshBuffer final : public SkinMeshBuffer
@@ -130,7 +130,7 @@ namespace Tomahawk
 
 			public:
 				D3D11SkinMeshBuffer(const Desc& I);
-				Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) override;
+				Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) const override;
 			};
 
 			class D3D11InstanceBuffer final : public InstanceBuffer
@@ -158,7 +158,7 @@ namespace Tomahawk
 				D3D11Texture2D();
 				D3D11Texture2D(const Desc& I);
 				virtual ~D3D11Texture2D() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11Texture3D final : public Texture3D
@@ -189,7 +189,7 @@ namespace Tomahawk
 				D3D11TextureCube();
 				D3D11TextureCube(const Desc& I);
 				virtual ~D3D11TextureCube() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11DepthTarget2D final : public DepthTarget2D
@@ -202,9 +202,9 @@ namespace Tomahawk
 			public:
 				D3D11DepthTarget2D(const Desc& I);
 				virtual ~D3D11DepthTarget2D() override;
-				void* GetResource() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetResource() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class D3D11DepthTargetCube final : public DepthTargetCube
@@ -217,9 +217,9 @@ namespace Tomahawk
 			public:
 				D3D11DepthTargetCube(const Desc& I);
 				virtual ~D3D11DepthTargetCube() override;
-				void* GetResource() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetResource() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class D3D11RenderTarget2D final : public RenderTarget2D
@@ -234,10 +234,10 @@ namespace Tomahawk
 			public:
 				D3D11RenderTarget2D(const Desc& I);
 				virtual ~D3D11RenderTarget2D() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class D3D11MultiRenderTarget2D final : public MultiRenderTarget2D
@@ -253,10 +253,10 @@ namespace Tomahawk
 			public:
 				D3D11MultiRenderTarget2D(const Desc& I);
 				virtual ~D3D11MultiRenderTarget2D() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 
 			private:
 				void FillView(unsigned int Target, unsigned int MipLevels, unsigned int Size);
@@ -274,10 +274,10 @@ namespace Tomahawk
 			public:
 				D3D11RenderTargetCube(const Desc& I);
 				virtual ~D3D11RenderTargetCube() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class D3D11MultiRenderTargetCube final : public MultiRenderTargetCube
@@ -292,10 +292,10 @@ namespace Tomahawk
 			public:
 				D3D11MultiRenderTargetCube(const Desc& I);
 				virtual ~D3D11MultiRenderTargetCube() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class D3D11Cubemap final : public Cubemap
@@ -327,7 +327,7 @@ namespace Tomahawk
 			public:
 				D3D11Query();
 				virtual ~D3D11Query() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class D3D11Device final : public GraphicsDevice
@@ -502,11 +502,11 @@ namespace Tomahawk
 				Core::Unique<MultiRenderTargetCube> CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
 				Core::Unique<Cubemap> CreateCubemap(const Cubemap::Desc& I) override;
 				Core::Unique<Query> CreateQuery(const Query::Desc& I) override;
-				PrimitiveTopology GetPrimitiveTopology() override;
-				ShaderModel GetSupportedShaderModel() override;
-				void* GetDevice() override;
-				void* GetContext() override;
-				bool IsValid() override;
+				PrimitiveTopology GetPrimitiveTopology() const override;
+				ShaderModel GetSupportedShaderModel() const override;
+				void* GetDevice() const override;
+				void* GetContext() const override;
+				bool IsValid() const override;
 				bool CreateDirectBuffer(uint64_t Size);
 				bool CreateTexture2D(Texture2D* Resource, DXGI_FORMAT Format);
 				bool CreateTextureCube(TextureCube* Resource, DXGI_FORMAT Format);

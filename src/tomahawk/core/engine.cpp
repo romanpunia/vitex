@@ -106,70 +106,70 @@ namespace Tomahawk
 			CubicViewProjection[5] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeZ, Position) * Projection;
 		}
 
-		void NMake::Pack(Core::Schema* V, bool Value)
+		void Series::Pack(Core::Schema* V, bool Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("b", Core::Var::Boolean(Value));
 		}
-		void NMake::Pack(Core::Schema* V, int Value)
+		void Series::Pack(Core::Schema* V, int Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Schema* V, unsigned int Value)
+		void Series::Pack(Core::Schema* V, unsigned int Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Schema* V, unsigned long Value)
+		void Series::Pack(Core::Schema* V, unsigned long Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Schema* V, float Value)
+		void Series::Pack(Core::Schema* V, float Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void NMake::Pack(Core::Schema* V, double Value)
+		void Series::Pack(Core::Schema* V, double Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void NMake::Pack(Core::Schema* V, int64_t Value)
+		void Series::Pack(Core::Schema* V, int64_t Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Schema* V, long double Value)
+		void Series::Pack(Core::Schema* V, long double Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("n", Core::Var::Number(Value));
 		}
-		void NMake::Pack(Core::Schema* V, unsigned long long Value)
+		void Series::Pack(Core::Schema* V, unsigned long long Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("i", Core::Var::Integer(Value));
 		}
-		void NMake::Pack(Core::Schema* V, const char* Value)
+		void Series::Pack(Core::Schema* V, const char* Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("s", Core::Var::String(Value ? Value : ""));
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::Vector2& Value)
+		void Series::Pack(Core::Schema* V, const Compute::Vector2& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::Vector3& Value)
+		void Series::Pack(Core::Schema* V, const Compute::Vector3& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
 			V->SetAttribute("y", Core::Var::Number(Value.Y));
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::Vector4& Value)
+		void Series::Pack(Core::Schema* V, const Compute::Vector4& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("x", Core::Var::Number(Value.X));
@@ -177,7 +177,7 @@ namespace Tomahawk
 			V->SetAttribute("z", Core::Var::Number(Value.Z));
 			V->SetAttribute("w", Core::Var::Number(Value.W));
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::Matrix4x4& Value)
+		void Series::Pack(Core::Schema* V, const Compute::Matrix4x4& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("m11", Core::Var::Number(Value.Row[0]));
@@ -197,73 +197,73 @@ namespace Tomahawk
 			V->SetAttribute("m43", Core::Var::Number(Value.Row[14]));
 			V->SetAttribute("m44", Core::Var::Number(Value.Row[15]));
 		}
-		void NMake::Pack(Core::Schema* V, const Attenuation& Value)
+		void Series::Pack(Core::Schema* V, const Attenuation& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("radius"), Value.Radius);
-			NMake::Pack(V->Set("c1"), Value.C1);
-			NMake::Pack(V->Set("c2"), Value.C2);
+			Series::Pack(V->Set("radius"), Value.Radius);
+			Series::Pack(V->Set("c1"), Value.C1);
+			Series::Pack(V->Set("c2"), Value.C2);
 		}
-		void NMake::Pack(Core::Schema* V, const AnimatorState& Value)
+		void Series::Pack(Core::Schema* V, const AnimatorState& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("looped"), Value.Looped);
-			NMake::Pack(V->Set("paused"), Value.Paused);
-			NMake::Pack(V->Set("blended"), Value.Blended);
-			NMake::Pack(V->Set("clip"), Value.Clip);
-			NMake::Pack(V->Set("frame"), Value.Frame);
-			NMake::Pack(V->Set("rate"), Value.Rate);
-			NMake::Pack(V->Set("duration"), Value.Duration);
-			NMake::Pack(V->Set("time"), Value.Time);
+			Series::Pack(V->Set("looped"), Value.Looped);
+			Series::Pack(V->Set("paused"), Value.Paused);
+			Series::Pack(V->Set("blended"), Value.Blended);
+			Series::Pack(V->Set("clip"), Value.Clip);
+			Series::Pack(V->Set("frame"), Value.Frame);
+			Series::Pack(V->Set("rate"), Value.Rate);
+			Series::Pack(V->Set("duration"), Value.Duration);
+			Series::Pack(V->Set("time"), Value.Time);
 		}
-		void NMake::Pack(Core::Schema* V, const SpawnerProperties& Value)
+		void Series::Pack(Core::Schema* V, const SpawnerProperties& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("iterations"), Value.Iterations);
+			Series::Pack(V->Set("iterations"), Value.Iterations);
 
 			Core::Schema* Angular = V->Set("angular");
-			NMake::Pack(Angular->Set("intensity"), Value.Angular.Intensity);
-			NMake::Pack(Angular->Set("accuracy"), Value.Angular.Accuracy);
-			NMake::Pack(Angular->Set("min"), Value.Angular.Min);
-			NMake::Pack(Angular->Set("max"), Value.Angular.Max);
+			Series::Pack(Angular->Set("intensity"), Value.Angular.Intensity);
+			Series::Pack(Angular->Set("accuracy"), Value.Angular.Accuracy);
+			Series::Pack(Angular->Set("min"), Value.Angular.Min);
+			Series::Pack(Angular->Set("max"), Value.Angular.Max);
 
 			Core::Schema* Diffusion = V->Set("diffusion");
-			NMake::Pack(Diffusion->Set("intensity"), Value.Diffusion.Intensity);
-			NMake::Pack(Diffusion->Set("accuracy"), Value.Diffusion.Accuracy);
-			NMake::Pack(Diffusion->Set("min"), Value.Diffusion.Min);
-			NMake::Pack(Diffusion->Set("max"), Value.Diffusion.Max);
+			Series::Pack(Diffusion->Set("intensity"), Value.Diffusion.Intensity);
+			Series::Pack(Diffusion->Set("accuracy"), Value.Diffusion.Accuracy);
+			Series::Pack(Diffusion->Set("min"), Value.Diffusion.Min);
+			Series::Pack(Diffusion->Set("max"), Value.Diffusion.Max);
 
 			Core::Schema* Noise = V->Set("noise");
-			NMake::Pack(Noise->Set("intensity"), Value.Noise.Intensity);
-			NMake::Pack(Noise->Set("accuracy"), Value.Noise.Accuracy);
-			NMake::Pack(Noise->Set("min"), Value.Noise.Min);
-			NMake::Pack(Noise->Set("max"), Value.Noise.Max);
+			Series::Pack(Noise->Set("intensity"), Value.Noise.Intensity);
+			Series::Pack(Noise->Set("accuracy"), Value.Noise.Accuracy);
+			Series::Pack(Noise->Set("min"), Value.Noise.Min);
+			Series::Pack(Noise->Set("max"), Value.Noise.Max);
 
 			Core::Schema* Position = V->Set("position");
-			NMake::Pack(Position->Set("intensity"), Value.Position.Intensity);
-			NMake::Pack(Position->Set("accuracy"), Value.Position.Accuracy);
-			NMake::Pack(Position->Set("min"), Value.Position.Min);
-			NMake::Pack(Position->Set("max"), Value.Position.Max);
+			Series::Pack(Position->Set("intensity"), Value.Position.Intensity);
+			Series::Pack(Position->Set("accuracy"), Value.Position.Accuracy);
+			Series::Pack(Position->Set("min"), Value.Position.Min);
+			Series::Pack(Position->Set("max"), Value.Position.Max);
 
 			Core::Schema* Rotation = V->Set("rotation");
-			NMake::Pack(Rotation->Set("intensity"), Value.Rotation.Intensity);
-			NMake::Pack(Rotation->Set("accuracy"), Value.Rotation.Accuracy);
-			NMake::Pack(Rotation->Set("min"), Value.Rotation.Min);
-			NMake::Pack(Rotation->Set("max"), Value.Rotation.Max);
+			Series::Pack(Rotation->Set("intensity"), Value.Rotation.Intensity);
+			Series::Pack(Rotation->Set("accuracy"), Value.Rotation.Accuracy);
+			Series::Pack(Rotation->Set("min"), Value.Rotation.Min);
+			Series::Pack(Rotation->Set("max"), Value.Rotation.Max);
 
 			Core::Schema* Scale = V->Set("scale");
-			NMake::Pack(Scale->Set("intensity"), Value.Scale.Intensity);
-			NMake::Pack(Scale->Set("accuracy"), Value.Scale.Accuracy);
-			NMake::Pack(Scale->Set("min"), Value.Scale.Min);
-			NMake::Pack(Scale->Set("max"), Value.Scale.Max);
+			Series::Pack(Scale->Set("intensity"), Value.Scale.Intensity);
+			Series::Pack(Scale->Set("accuracy"), Value.Scale.Accuracy);
+			Series::Pack(Scale->Set("min"), Value.Scale.Min);
+			Series::Pack(Scale->Set("max"), Value.Scale.Max);
 
 			Core::Schema* Velocity = V->Set("velocity");
-			NMake::Pack(Velocity->Set("intensity"), Value.Velocity.Intensity);
-			NMake::Pack(Velocity->Set("accuracy"), Value.Velocity.Accuracy);
-			NMake::Pack(Velocity->Set("min"), Value.Velocity.Min);
-			NMake::Pack(Velocity->Set("max"), Value.Velocity.Max);
+			Series::Pack(Velocity->Set("intensity"), Value.Velocity.Intensity);
+			Series::Pack(Velocity->Set("accuracy"), Value.Velocity.Accuracy);
+			Series::Pack(Velocity->Set("min"), Value.Velocity.Min);
+			Series::Pack(Velocity->Set("max"), Value.Velocity.Max);
 		}
-		void NMake::Pack(Core::Schema* V, Material* Value, ContentManager* Content)
+		void Series::Pack(Core::Schema* V, Material* Value, ContentManager* Content)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			TH_ASSERT_V(Content != nullptr, "content manager should be set");
@@ -271,81 +271,81 @@ namespace Tomahawk
 
 			AssetCache* Asset = Content->Find<Graphics::Texture2D>(Value->GetDiffuseMap());
 			if (Asset)
-				NMake::Pack(V->Set("diffuse-map"), Asset->Path);
+				Series::Pack(V->Set("diffuse-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value->GetNormalMap());
 			if (Asset)
-				NMake::Pack(V->Set("normal-map"), Asset->Path);
+				Series::Pack(V->Set("normal-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value->GetMetallicMap());
 			if (Asset)
-				NMake::Pack(V->Set("metallic-map"), Asset->Path);
+				Series::Pack(V->Set("metallic-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value->GetRoughnessMap());
 			if (Asset)
-				NMake::Pack(V->Set("roughness-map"), Asset->Path);
+				Series::Pack(V->Set("roughness-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value->GetHeightMap());
 			if (Asset)
-				NMake::Pack(V->Set("height-map"), Asset->Path);
+				Series::Pack(V->Set("height-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value->GetOcclusionMap());
 			if (Asset)
-				NMake::Pack(V->Set("occlusion-map"), Asset->Path);
+				Series::Pack(V->Set("occlusion-map"), Asset->Path);
 
 			Asset = Content->Find<Graphics::Texture2D>(Value->GetEmissionMap());
 			if (Asset)
-				NMake::Pack(V->Set("emission-map"), Asset->Path);
+				Series::Pack(V->Set("emission-map"), Asset->Path);
 
-			NMake::Pack(V->Set("emission"), Value->Surface.Emission);
-			NMake::Pack(V->Set("metallic"), Value->Surface.Metallic);
-			NMake::Pack(V->Set("diffuse"), Value->Surface.Diffuse);
-			NMake::Pack(V->Set("scatter"), Value->Surface.Scatter);
-			NMake::Pack(V->Set("roughness"), Value->Surface.Roughness);
-			NMake::Pack(V->Set("occlusion"), Value->Surface.Occlusion);
-			NMake::Pack(V->Set("fresnel"), Value->Surface.Fresnel);
-			NMake::Pack(V->Set("refraction"), Value->Surface.Refraction);
-			NMake::Pack(V->Set("transparency"), Value->Surface.Transparency);
-			NMake::Pack(V->Set("environment"), Value->Surface.Environment);
-			NMake::Pack(V->Set("radius"), Value->Surface.Radius);
-			NMake::Pack(V->Set("height"), Value->Surface.Height);
-			NMake::Pack(V->Set("bias"), Value->Surface.Bias);
-			NMake::Pack(V->Set("name"), Value->GetName());
+			Series::Pack(V->Set("emission"), Value->Surface.Emission);
+			Series::Pack(V->Set("metallic"), Value->Surface.Metallic);
+			Series::Pack(V->Set("diffuse"), Value->Surface.Diffuse);
+			Series::Pack(V->Set("scatter"), Value->Surface.Scatter);
+			Series::Pack(V->Set("roughness"), Value->Surface.Roughness);
+			Series::Pack(V->Set("occlusion"), Value->Surface.Occlusion);
+			Series::Pack(V->Set("fresnel"), Value->Surface.Fresnel);
+			Series::Pack(V->Set("refraction"), Value->Surface.Refraction);
+			Series::Pack(V->Set("transparency"), Value->Surface.Transparency);
+			Series::Pack(V->Set("environment"), Value->Surface.Environment);
+			Series::Pack(V->Set("radius"), Value->Surface.Radius);
+			Series::Pack(V->Set("height"), Value->Surface.Height);
+			Series::Pack(V->Set("bias"), Value->Surface.Bias);
+			Series::Pack(V->Set("name"), Value->GetName());
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value)
+		void Series::Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("pose"), Value.Pose);
-			NMake::Pack(V->Set("time"), Value.Time);
+			Series::Pack(V->Set("pose"), Value.Pose);
+			Series::Pack(V->Set("time"), Value.Time);
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::SkinAnimatorClip& Value)
+		void Series::Pack(Core::Schema* V, const Compute::SkinAnimatorClip& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("name"), Value.Name);
-			NMake::Pack(V->Set("duration"), Value.Duration);
-			NMake::Pack(V->Set("rate"), Value.Rate);
+			Series::Pack(V->Set("name"), Value.Name);
+			Series::Pack(V->Set("duration"), Value.Duration);
+			Series::Pack(V->Set("rate"), Value.Rate);
 
 			Core::Schema* Array = V->Set("frames", Core::Var::Array());
 			for (auto&& It : Value.Keys)
-				NMake::Pack(Array->Set("frame"), It);
+				Series::Pack(Array->Set("frame"), It);
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::KeyAnimatorClip& Value)
+		void Series::Pack(Core::Schema* V, const Compute::KeyAnimatorClip& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("name"), Value.Name);
-			NMake::Pack(V->Set("rate"), Value.Rate);
-			NMake::Pack(V->Set("duration"), Value.Duration);
-			NMake::Pack(V->Set("frames"), Value.Keys);
+			Series::Pack(V->Set("name"), Value.Name);
+			Series::Pack(V->Set("rate"), Value.Rate);
+			Series::Pack(V->Set("duration"), Value.Duration);
+			Series::Pack(V->Set("frames"), Value.Keys);
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::AnimatorKey& Value)
+		void Series::Pack(Core::Schema* V, const Compute::AnimatorKey& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("position"), Value.Position);
-			NMake::Pack(V->Set("rotation"), Value.Rotation);
-			NMake::Pack(V->Set("scale"), Value.Scale);
-			NMake::Pack(V->Set("time"), Value.Time);
+			Series::Pack(V->Set("position"), Value.Position);
+			Series::Pack(V->Set("rotation"), Value.Rotation);
+			Series::Pack(V->Set("scale"), Value.Scale);
+			Series::Pack(V->Set("time"), Value.Time);
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::ElementVertex& Value)
+		void Series::Pack(Core::Schema* V, const Compute::ElementVertex& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
@@ -362,7 +362,7 @@ namespace Tomahawk
 			V->SetAttribute("s", Core::Var::Number(Value.Scale));
 			V->SetAttribute("r", Core::Var::Number(Value.Rotation));
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::Vertex& Value)
+		void Series::Pack(Core::Schema* V, const Compute::Vertex& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
@@ -380,7 +380,7 @@ namespace Tomahawk
 			V->SetAttribute("bty", Core::Var::Number(Value.BitangentY));
 			V->SetAttribute("btz", Core::Var::Number(Value.BitangentZ));
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::SkinVertex& Value)
+		void Series::Pack(Core::Schema* V, const Compute::SkinVertex& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("px", Core::Var::Number(Value.PositionX));
@@ -406,29 +406,29 @@ namespace Tomahawk
 			V->SetAttribute("jb2", Core::Var::Number(Value.JointBias2));
 			V->SetAttribute("jb3", Core::Var::Number(Value.JointBias3));
 		}
-		void NMake::Pack(Core::Schema* V, const Compute::Joint& Value)
+		void Series::Pack(Core::Schema* V, const Compute::Joint& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
-			NMake::Pack(V->Set("index"), Value.Index);
-			NMake::Pack(V->Set("name"), Value.Name);
-			NMake::Pack(V->Set("transform"), Value.Transform);
-			NMake::Pack(V->Set("bind-shape"), Value.BindShape);
+			Series::Pack(V->Set("index"), Value.Index);
+			Series::Pack(V->Set("name"), Value.Name);
+			Series::Pack(V->Set("transform"), Value.Transform);
+			Series::Pack(V->Set("bind-shape"), Value.BindShape);
 
 			Core::Schema* Joints = V->Set("childs", Core::Var::Array());
 			for (auto& It : Value.Childs)
-				NMake::Pack(Joints->Set("joint"), It);
+				Series::Pack(Joints->Set("joint"), It);
 		}
-		void NMake::Pack(Core::Schema* V, const Ticker& Value)
+		void Series::Pack(Core::Schema* V, const Ticker& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("delay", Core::Var::Number(Value.Delay));
 		}
-		void NMake::Pack(Core::Schema* V, const std::string& Value)
+		void Series::Pack(Core::Schema* V, const std::string& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			V->SetAttribute("s", Core::Var::String(Value));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<bool>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<bool>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -438,7 +438,7 @@ namespace Tomahawk
 			V->Set("b-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<int>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<int>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -448,7 +448,7 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<unsigned int>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<unsigned int>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -458,7 +458,7 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<float>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<float>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -468,7 +468,7 @@ namespace Tomahawk
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<double>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<double>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -478,7 +478,7 @@ namespace Tomahawk
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<int64_t>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<int64_t>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -488,7 +488,7 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<long double>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<long double>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -498,7 +498,7 @@ namespace Tomahawk
 			V->Set("n-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<uint64_t>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<uint64_t>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -508,7 +508,7 @@ namespace Tomahawk
 			V->Set("i-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vector2>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vector2>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -518,7 +518,7 @@ namespace Tomahawk
 			V->Set("v2-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vector3>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vector3>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -528,7 +528,7 @@ namespace Tomahawk
 			V->Set("v3-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vector4>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vector4>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -538,7 +538,7 @@ namespace Tomahawk
 			V->Set("v4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Matrix4x4>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::Matrix4x4>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -551,7 +551,7 @@ namespace Tomahawk
 			V->Set("m4x4-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<AnimatorState>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<AnimatorState>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -570,7 +570,7 @@ namespace Tomahawk
 			V->Set("as-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<SpawnerProperties>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<SpawnerProperties>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -597,21 +597,21 @@ namespace Tomahawk
 			V->Set("sp-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::SkinAnimatorClip>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::SkinAnimatorClip>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			Core::Schema* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
-				NMake::Pack(Array->Set("clip"), It);
+				Series::Pack(Array->Set("clip"), It);
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::KeyAnimatorClip>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::KeyAnimatorClip>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			Core::Schema* Array = V->Set("clips", Core::Var::Array());
 			for (auto&& It : Value)
-				NMake::Pack(Array->Set("clip"), It);
+				Series::Pack(Array->Set("clip"), It);
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::AnimatorKey>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::AnimatorKey>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -632,7 +632,7 @@ namespace Tomahawk
 			V->Set("ak-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::ElementVertex>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::ElementVertex>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -656,13 +656,13 @@ namespace Tomahawk
 			V->Set("ev-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Joint>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::Joint>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			for (auto&& It : Value)
-				NMake::Pack(V->Set("joint"), It);
+				Series::Pack(V->Set("joint"), It);
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::Vertex>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::Vertex>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -688,7 +688,7 @@ namespace Tomahawk
 			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Compute::SkinVertex>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Compute::SkinVertex>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -721,7 +721,7 @@ namespace Tomahawk
 			V->Set("iv-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<Ticker>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<Ticker>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			std::stringstream Stream;
@@ -731,7 +731,7 @@ namespace Tomahawk
 			V->Set("tt-array", Core::Var::String(Stream.str().substr(0, Stream.str().size() - 1)));
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		void NMake::Pack(Core::Schema* V, const std::vector<std::string>& Value)
+		void Series::Pack(Core::Schema* V, const std::vector<std::string>& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
 			Core::Schema* Array = V->Set("s-array", Core::Var::Array());
@@ -740,7 +740,7 @@ namespace Tomahawk
 
 			V->Set("size", Core::Var::Integer((int64_t)Value.size()));
 		}
-		bool NMake::Unpack(Core::Schema* V, bool* O)
+		bool Series::Unpack(Core::Schema* V, bool* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -749,7 +749,7 @@ namespace Tomahawk
 			*O = V->GetVar("[b]").GetBoolean();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, int* O)
+		bool Series::Unpack(Core::Schema* V, int* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -758,7 +758,7 @@ namespace Tomahawk
 			*O = (int)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, unsigned int* O)
+		bool Series::Unpack(Core::Schema* V, unsigned int* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -767,7 +767,7 @@ namespace Tomahawk
 			*O = (unsigned int)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, unsigned long* O)
+		bool Series::Unpack(Core::Schema* V, unsigned long* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -776,7 +776,7 @@ namespace Tomahawk
 			*O = (unsigned long)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, float* O)
+		bool Series::Unpack(Core::Schema* V, float* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -785,7 +785,7 @@ namespace Tomahawk
 			*O = (float)V->GetVar("[n]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, double* O)
+		bool Series::Unpack(Core::Schema* V, double* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -794,7 +794,7 @@ namespace Tomahawk
 			*O = (int)V->GetVar("[n]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, long double* O)
+		bool Series::Unpack(Core::Schema* V, long double* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -803,7 +803,7 @@ namespace Tomahawk
 			*O = V->GetVar("[n]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, int64_t* O)
+		bool Series::Unpack(Core::Schema* V, int64_t* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -812,7 +812,7 @@ namespace Tomahawk
 			*O = V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, unsigned long long* O)
+		bool Series::Unpack(Core::Schema* V, unsigned long long* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -821,7 +821,7 @@ namespace Tomahawk
 			*O = (unsigned long long)V->GetVar("[i]").GetInteger();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::Vector2* O)
+		bool Series::Unpack(Core::Schema* V, Compute::Vector2* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -831,7 +831,7 @@ namespace Tomahawk
 			O->Y = (float)V->GetVar("[y]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::Vector3* O)
+		bool Series::Unpack(Core::Schema* V, Compute::Vector3* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -842,7 +842,7 @@ namespace Tomahawk
 			O->Z = (float)V->GetVar("[z]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::Vector4* O)
+		bool Series::Unpack(Core::Schema* V, Compute::Vector4* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -854,7 +854,7 @@ namespace Tomahawk
 			O->W = (float)V->GetVar("[w]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::Matrix4x4* O)
+		bool Series::Unpack(Core::Schema* V, Compute::Matrix4x4* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -878,86 +878,86 @@ namespace Tomahawk
 			O->Row[15] = (float)V->GetVar("[m44]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Attenuation* O)
+		bool Series::Unpack(Core::Schema* V, Attenuation* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("radius"), &O->Radius);
-			NMake::Unpack(V->Get("c1"), &O->C1);
-			NMake::Unpack(V->Get("c2"), &O->C2);
+			Series::Unpack(V->Get("radius"), &O->Radius);
+			Series::Unpack(V->Get("c1"), &O->C1);
+			Series::Unpack(V->Get("c2"), &O->C2);
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, AnimatorState* O)
+		bool Series::Unpack(Core::Schema* V, AnimatorState* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("looped"), &O->Looped);
-			NMake::Unpack(V->Get("paused"), &O->Paused);
-			NMake::Unpack(V->Get("blended"), &O->Blended);
-			NMake::Unpack(V->Get("clip"), &O->Clip);
-			NMake::Unpack(V->Get("frame"), &O->Frame);
-			NMake::Unpack(V->Get("rate"), &O->Rate);
-			NMake::Unpack(V->Get("duration"), &O->Duration);
-			NMake::Unpack(V->Get("time"), &O->Time);
+			Series::Unpack(V->Get("looped"), &O->Looped);
+			Series::Unpack(V->Get("paused"), &O->Paused);
+			Series::Unpack(V->Get("blended"), &O->Blended);
+			Series::Unpack(V->Get("clip"), &O->Clip);
+			Series::Unpack(V->Get("frame"), &O->Frame);
+			Series::Unpack(V->Get("rate"), &O->Rate);
+			Series::Unpack(V->Get("duration"), &O->Duration);
+			Series::Unpack(V->Get("time"), &O->Time);
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, SpawnerProperties* O)
+		bool Series::Unpack(Core::Schema* V, SpawnerProperties* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("iterations"), &O->Iterations);
+			Series::Unpack(V->Get("iterations"), &O->Iterations);
 
 			Core::Schema* Angular = V->Get("angular");
-			NMake::Unpack(Angular->Get("intensity"), &O->Angular.Intensity);
-			NMake::Unpack(Angular->Get("accuracy"), &O->Angular.Accuracy);
-			NMake::Unpack(Angular->Get("min"), &O->Angular.Min);
-			NMake::Unpack(Angular->Get("max"), &O->Angular.Max);
+			Series::Unpack(Angular->Get("intensity"), &O->Angular.Intensity);
+			Series::Unpack(Angular->Get("accuracy"), &O->Angular.Accuracy);
+			Series::Unpack(Angular->Get("min"), &O->Angular.Min);
+			Series::Unpack(Angular->Get("max"), &O->Angular.Max);
 
 			Core::Schema* Diffusion = V->Get("diffusion");
-			NMake::Unpack(Diffusion->Get("intensity"), &O->Diffusion.Intensity);
-			NMake::Unpack(Diffusion->Get("accuracy"), &O->Diffusion.Accuracy);
-			NMake::Unpack(Diffusion->Get("min"), &O->Diffusion.Min);
-			NMake::Unpack(Diffusion->Get("max"), &O->Diffusion.Max);
+			Series::Unpack(Diffusion->Get("intensity"), &O->Diffusion.Intensity);
+			Series::Unpack(Diffusion->Get("accuracy"), &O->Diffusion.Accuracy);
+			Series::Unpack(Diffusion->Get("min"), &O->Diffusion.Min);
+			Series::Unpack(Diffusion->Get("max"), &O->Diffusion.Max);
 
 			Core::Schema* Noise = V->Get("noise");
-			NMake::Unpack(Noise->Get("intensity"), &O->Noise.Intensity);
-			NMake::Unpack(Noise->Get("accuracy"), &O->Noise.Accuracy);
-			NMake::Unpack(Noise->Get("min"), &O->Noise.Min);
-			NMake::Unpack(Noise->Get("max"), &O->Noise.Max);
+			Series::Unpack(Noise->Get("intensity"), &O->Noise.Intensity);
+			Series::Unpack(Noise->Get("accuracy"), &O->Noise.Accuracy);
+			Series::Unpack(Noise->Get("min"), &O->Noise.Min);
+			Series::Unpack(Noise->Get("max"), &O->Noise.Max);
 
 			Core::Schema* Position = V->Get("position");
-			NMake::Unpack(Position->Get("intensity"), &O->Position.Intensity);
-			NMake::Unpack(Position->Get("accuracy"), &O->Position.Accuracy);
-			NMake::Unpack(Position->Get("min"), &O->Position.Min);
-			NMake::Unpack(Position->Get("max"), &O->Position.Max);
+			Series::Unpack(Position->Get("intensity"), &O->Position.Intensity);
+			Series::Unpack(Position->Get("accuracy"), &O->Position.Accuracy);
+			Series::Unpack(Position->Get("min"), &O->Position.Min);
+			Series::Unpack(Position->Get("max"), &O->Position.Max);
 
 			Core::Schema* Rotation = V->Get("rotation");
-			NMake::Unpack(Rotation->Get("intensity"), &O->Rotation.Intensity);
-			NMake::Unpack(Rotation->Get("accuracy"), &O->Rotation.Accuracy);
-			NMake::Unpack(Rotation->Get("min"), &O->Rotation.Min);
-			NMake::Unpack(Rotation->Get("max"), &O->Rotation.Max);
+			Series::Unpack(Rotation->Get("intensity"), &O->Rotation.Intensity);
+			Series::Unpack(Rotation->Get("accuracy"), &O->Rotation.Accuracy);
+			Series::Unpack(Rotation->Get("min"), &O->Rotation.Min);
+			Series::Unpack(Rotation->Get("max"), &O->Rotation.Max);
 
 			Core::Schema* Scale = V->Get("scale");
-			NMake::Unpack(Scale->Get("intensity"), &O->Scale.Intensity);
-			NMake::Unpack(Scale->Get("accuracy"), &O->Scale.Accuracy);
-			NMake::Unpack(Scale->Get("min"), &O->Scale.Min);
-			NMake::Unpack(Scale->Get("max"), &O->Scale.Max);
+			Series::Unpack(Scale->Get("intensity"), &O->Scale.Intensity);
+			Series::Unpack(Scale->Get("accuracy"), &O->Scale.Accuracy);
+			Series::Unpack(Scale->Get("min"), &O->Scale.Min);
+			Series::Unpack(Scale->Get("max"), &O->Scale.Max);
 
 			Core::Schema* Velocity = V->Get("velocity");
-			NMake::Unpack(Velocity->Get("intensity"), &O->Velocity.Intensity);
-			NMake::Unpack(Velocity->Get("accuracy"), &O->Velocity.Accuracy);
-			NMake::Unpack(Velocity->Get("min"), &O->Velocity.Min);
-			NMake::Unpack(Velocity->Get("max"), &O->Velocity.Max);
+			Series::Unpack(Velocity->Get("intensity"), &O->Velocity.Intensity);
+			Series::Unpack(Velocity->Get("accuracy"), &O->Velocity.Accuracy);
+			Series::Unpack(Velocity->Get("min"), &O->Velocity.Min);
+			Series::Unpack(Velocity->Get("max"), &O->Velocity.Max);
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Material* O, ContentManager* Content)
+		bool Series::Unpack(Core::Schema* V, Material* O, ContentManager* Content)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			TH_ASSERT(Content != nullptr, false, "content manager should be set");
@@ -965,121 +965,121 @@ namespace Tomahawk
 				return false;
 
 			std::string Path;
-			if (NMake::Unpack(V->Get("diffuse-map"), &Path))
+			if (Series::Unpack(V->Get("diffuse-map"), &Path))
 				O->SetDiffuseMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Get("normal-map"), &Path))
+			if (Series::Unpack(V->Get("normal-map"), &Path))
 				O->SetNormalMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Get("metallic-map"), &Path))
+			if (Series::Unpack(V->Get("metallic-map"), &Path))
 				O->SetMetallicMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Get("roughness-map"), &Path))
+			if (Series::Unpack(V->Get("roughness-map"), &Path))
 				O->SetRoughnessMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Get("height-map"), &Path))
+			if (Series::Unpack(V->Get("height-map"), &Path))
 				O->SetHeightMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Get("occlusion-map"), &Path))
+			if (Series::Unpack(V->Get("occlusion-map"), &Path))
 				O->SetOcclusionMap(Content->Load<Graphics::Texture2D>(Path));
 
-			if (NMake::Unpack(V->Get("emission-map"), &Path))
+			if (Series::Unpack(V->Get("emission-map"), &Path))
 				O->SetEmissionMap(Content->Load<Graphics::Texture2D>(Path));
 
 			Path.clear();
-			NMake::Unpack(V->Get("emission"), &O->Surface.Emission);
-			NMake::Unpack(V->Get("metallic"), &O->Surface.Metallic);
-			NMake::Unpack(V->Get("diffuse"), &O->Surface.Diffuse);
-			NMake::Unpack(V->Get("scatter"), &O->Surface.Scatter);
-			NMake::Unpack(V->Get("roughness"), &O->Surface.Roughness);
-			NMake::Unpack(V->Get("occlusion"), &O->Surface.Occlusion);
-			NMake::Unpack(V->Get("fresnel"), &O->Surface.Fresnel);
-			NMake::Unpack(V->Get("refraction"), &O->Surface.Refraction);
-			NMake::Unpack(V->Get("transparency"), &O->Surface.Transparency);
-			NMake::Unpack(V->Get("environment"), &O->Surface.Environment);
-			NMake::Unpack(V->Get("radius"), &O->Surface.Radius);
-			NMake::Unpack(V->Get("height"), &O->Surface.Height);
-			NMake::Unpack(V->Get("bias"), &O->Surface.Bias);
-			NMake::Unpack(V->Get("name"), &Path);
+			Series::Unpack(V->Get("emission"), &O->Surface.Emission);
+			Series::Unpack(V->Get("metallic"), &O->Surface.Metallic);
+			Series::Unpack(V->Get("diffuse"), &O->Surface.Diffuse);
+			Series::Unpack(V->Get("scatter"), &O->Surface.Scatter);
+			Series::Unpack(V->Get("roughness"), &O->Surface.Roughness);
+			Series::Unpack(V->Get("occlusion"), &O->Surface.Occlusion);
+			Series::Unpack(V->Get("fresnel"), &O->Surface.Fresnel);
+			Series::Unpack(V->Get("refraction"), &O->Surface.Refraction);
+			Series::Unpack(V->Get("transparency"), &O->Surface.Transparency);
+			Series::Unpack(V->Get("environment"), &O->Surface.Environment);
+			Series::Unpack(V->Get("radius"), &O->Surface.Radius);
+			Series::Unpack(V->Get("height"), &O->Surface.Height);
+			Series::Unpack(V->Get("bias"), &O->Surface.Bias);
+			Series::Unpack(V->Get("name"), &Path);
 			O->SetName(Path, true);
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O)
+		bool Series::Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("pose"), &O->Pose);
-			NMake::Unpack(V->Get("time"), &O->Time);
+			Series::Unpack(V->Get("pose"), &O->Pose);
+			Series::Unpack(V->Get("time"), &O->Time);
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::SkinAnimatorClip* O)
+		bool Series::Unpack(Core::Schema* V, Compute::SkinAnimatorClip* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("name"), &O->Name);
-			NMake::Unpack(V->Get("duration"), &O->Duration);
-			NMake::Unpack(V->Get("rate"), &O->Rate);
+			Series::Unpack(V->Get("name"), &O->Name);
+			Series::Unpack(V->Get("duration"), &O->Duration);
+			Series::Unpack(V->Get("rate"), &O->Rate);
 
 			std::vector<Core::Schema*> Frames = V->FetchCollection("frames.frame", false);
 			for (auto&& It : Frames)
 			{
 				O->Keys.emplace_back();
-				NMake::Unpack(It, &O->Keys.back());
+				Series::Unpack(It, &O->Keys.back());
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::KeyAnimatorClip* O)
+		bool Series::Unpack(Core::Schema* V, Compute::KeyAnimatorClip* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("name"), &O->Name);
-			NMake::Unpack(V->Get("duration"), &O->Duration);
-			NMake::Unpack(V->Get("rate"), &O->Rate);
-			NMake::Unpack(V->Get("frames"), &O->Keys);
+			Series::Unpack(V->Get("name"), &O->Name);
+			Series::Unpack(V->Get("duration"), &O->Duration);
+			Series::Unpack(V->Get("rate"), &O->Rate);
+			Series::Unpack(V->Get("frames"), &O->Keys);
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::AnimatorKey* O)
+		bool Series::Unpack(Core::Schema* V, Compute::AnimatorKey* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("position"), &O->Position);
-			NMake::Unpack(V->Get("rotation"), &O->Rotation);
-			NMake::Unpack(V->Get("scale"), &O->Scale);
-			NMake::Unpack(V->Get("time"), &O->Time);
+			Series::Unpack(V->Get("position"), &O->Position);
+			Series::Unpack(V->Get("rotation"), &O->Rotation);
+			Series::Unpack(V->Get("scale"), &O->Scale);
+			Series::Unpack(V->Get("time"), &O->Time);
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::Joint* O)
+		bool Series::Unpack(Core::Schema* V, Compute::Joint* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
 				return false;
 
-			NMake::Unpack(V->Get("index"), &O->Index);
-			NMake::Unpack(V->Get("name"), &O->Name);
-			NMake::Unpack(V->Get("transform"), &O->Transform);
-			NMake::Unpack(V->Get("bind-shape"), &O->BindShape);
+			Series::Unpack(V->Get("index"), &O->Index);
+			Series::Unpack(V->Get("name"), &O->Name);
+			Series::Unpack(V->Get("transform"), &O->Transform);
+			Series::Unpack(V->Get("bind-shape"), &O->BindShape);
 
 			std::vector<Core::Schema*> Joints = V->FetchCollection("childs.joint", false);
 			for (auto& It : Joints)
 			{
 				O->Childs.emplace_back();
-				NMake::Unpack(It, &O->Childs.back());
+				Series::Unpack(It, &O->Childs.back());
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::ElementVertex* O)
+		bool Series::Unpack(Core::Schema* V, Compute::ElementVertex* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1100,7 +1100,7 @@ namespace Tomahawk
 			O->Rotation = (float)V->GetVar("[r]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::Vertex* O)
+		bool Series::Unpack(Core::Schema* V, Compute::Vertex* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1122,7 +1122,7 @@ namespace Tomahawk
 			O->BitangentZ = (float)V->GetVar("[btz]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Compute::SkinVertex* O)
+		bool Series::Unpack(Core::Schema* V, Compute::SkinVertex* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1152,7 +1152,7 @@ namespace Tomahawk
 			O->JointBias3 = (float)V->GetVar("[jb3]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, Ticker* O)
+		bool Series::Unpack(Core::Schema* V, Ticker* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1161,7 +1161,7 @@ namespace Tomahawk
 			O->Delay = (float)V->GetVar("[delay]").GetNumber();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::string* O)
+		bool Series::Unpack(Core::Schema* V, std::string* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1170,7 +1170,7 @@ namespace Tomahawk
 			*O = V->GetVar("[s]").GetBlob();
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<bool>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<bool>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1193,7 +1193,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<int>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<int>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1216,7 +1216,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<unsigned int>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<unsigned int>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1239,7 +1239,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<float>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<float>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1262,7 +1262,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<double>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<double>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1285,7 +1285,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<int64_t>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<int64_t>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1308,7 +1308,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<long double>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<long double>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1331,7 +1331,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<uint64_t>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<uint64_t>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1354,7 +1354,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vector2>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vector2>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1373,7 +1373,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vector3>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vector3>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1392,7 +1392,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vector4>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vector4>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1411,7 +1411,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Matrix4x4>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Matrix4x4>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1433,7 +1433,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<AnimatorState>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<AnimatorState>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1461,7 +1461,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<SpawnerProperties>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<SpawnerProperties>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1497,7 +1497,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::SkinAnimatorClip>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::SkinAnimatorClip>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1507,12 +1507,12 @@ namespace Tomahawk
 			for (auto&& It : Frames)
 			{
 				O->push_back(Compute::SkinAnimatorClip());
-				NMake::Unpack(It, &O->back());
+				Series::Unpack(It, &O->back());
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::KeyAnimatorClip>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::KeyAnimatorClip>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1522,12 +1522,12 @@ namespace Tomahawk
 			for (auto&& It : Frames)
 			{
 				O->push_back(Compute::KeyAnimatorClip());
-				NMake::Unpack(It, &O->back());
+				Series::Unpack(It, &O->back());
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::AnimatorKey>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::AnimatorKey>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1549,7 +1549,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::ElementVertex>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::ElementVertex>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1582,7 +1582,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Joint>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Joint>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1592,12 +1592,12 @@ namespace Tomahawk
 			for (auto&& It : V->GetChilds())
 			{
 				O->push_back(Compute::Joint());
-				NMake::Unpack(It, &O->back());
+				Series::Unpack(It, &O->back());
 			}
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::Vertex>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::Vertex>* O)
 		{
 			if (!V || !O)
 				return false;
@@ -1639,7 +1639,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Compute::SkinVertex>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Compute::SkinVertex>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1681,7 +1681,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<Ticker>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<Ticker>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1700,7 +1700,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool NMake::Unpack(Core::Schema* V, std::vector<std::string>* O)
+		bool Series::Unpack(Core::Schema* V, std::vector<std::string>* O)
 		{
 			TH_ASSERT(O != nullptr, false, "output should be set");
 			if (!V)
@@ -1887,7 +1887,7 @@ namespace Tomahawk
 		{
 			return false;
 		}
-		ContentManager* Processor::GetContent()
+		ContentManager* Processor::GetContent() const
 		{
 			return Content;
 		}
@@ -1923,7 +1923,7 @@ namespace Tomahawk
 		void Component::Movement()
 		{
 		}
-		float Component::GetVisibility(const Viewer& View, float Distance)
+		float Component::GetVisibility(const Viewer& View, float Distance) const
 		{
 			float Visibility = 1.0f - Distance / View.FarPlane;
 			if (Visibility <= 0.0f)
@@ -1932,7 +1932,7 @@ namespace Tomahawk
 			const Compute::Matrix4x4& Box = Parent->GetBox();
 			return Compute::Geometric::IsCubeInFrustum(Box * View.ViewProjection, 1.65f) ? Visibility : 0.0f;
 		}
-		size_t Component::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max)
+		size_t Component::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 		{
 			Min = -0.5f;
 			Max = 0.5f;
@@ -1959,19 +1959,19 @@ namespace Tomahawk
 			else
 				Scene->UpdateCosmos(this);
 		}
-		bool Component::IsDrawable()
+		bool Component::IsDrawable() const
 		{
 			return Set & (uint64_t)ActorSet::Drawable;
 		}
-		bool Component::IsCullable()
+		bool Component::IsCullable() const
 		{
 			return Set & (uint64_t)ActorSet::Cullable;
 		}
-		bool Component::IsActive()
+		bool Component::IsActive() const
 		{
 			return Active;
 		}
-		Entity* Component::GetEntity()
+		Entity* Component::GetEntity() const
 		{
 			return Parent;
 		}
@@ -2256,7 +2256,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		GeoCategory Drawable::GetCategory()
+		GeoCategory Drawable::GetCategory() const
 		{
 			return Category;
 		}
@@ -2346,7 +2346,7 @@ namespace Tomahawk
 		{
 			return 0;
 		}
-		RenderSystem* Renderer::GetRenderer()
+		RenderSystem* Renderer::GetRenderer() const
 		{
 			return System;
 		}
@@ -2796,7 +2796,7 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		int64_t RenderSystem::GetOffset(uint64_t Id)
+		int64_t RenderSystem::GetOffset(uint64_t Id) const
 		{
 			for (size_t i = 0; i < Renderers.size(); i++)
 			{
@@ -2810,15 +2810,15 @@ namespace Tomahawk
 		{
 			return Renderers;
 		}
-		Graphics::MultiRenderTarget2D* RenderSystem::GetMRT(TargetType Type)
+		Graphics::MultiRenderTarget2D* RenderSystem::GetMRT(TargetType Type) const
 		{
 			return Scene->GetMRT(Type);
 		}
-		Graphics::RenderTarget2D* RenderSystem::GetRT(TargetType Type)
+		Graphics::RenderTarget2D* RenderSystem::GetRT(TargetType Type) const
 		{
 			return Scene->GetRT(Type);
 		}
-		Graphics::GraphicsDevice* RenderSystem::GetDevice()
+		Graphics::GraphicsDevice* RenderSystem::GetDevice() const
 		{
 			return Device;
 		}
@@ -2826,11 +2826,11 @@ namespace Tomahawk
 		{
 			return Scene->GetMerger();
 		}
-		PrimitiveCache* RenderSystem::GetPrimitives()
+		PrimitiveCache* RenderSystem::GetPrimitives() const
 		{
 			return Scene->GetPrimitives();
 		}
-		SceneGraph* RenderSystem::GetScene()
+		SceneGraph* RenderSystem::GetScene() const
 		{
 			return Scene;
 		}
@@ -4583,11 +4583,11 @@ namespace Tomahawk
 			Race.unlock();
 			return false;
 		}
-		bool SceneGraph::IsLeftHanded()
+		bool SceneGraph::IsLeftHanded() const
 		{
 			return Conf.Device->IsLeftHanded();
 		}
-		bool SceneGraph::IsIndexed()
+		bool SceneGraph::IsIndexed() const
 		{
 			for (auto& Item : Indexer.Changes)
 			{
@@ -4787,7 +4787,7 @@ namespace Tomahawk
 			Core::VariantArgs Args;
 			SetEvent("depth-flush", std::move(Args), true);
 		}
-		void SceneGraph::GenerateDepthCascades(CascadedDepthMap** Result, uint32_t Size)
+		void SceneGraph::GenerateDepthCascades(CascadedDepthMap** Result, uint32_t Size) const
 		{
 			CascadedDepthMap* Target = (*Result ? *Result : TH_NEW(CascadedDepthMap));
 			for (auto& Item : *Target)
@@ -5042,7 +5042,7 @@ namespace Tomahawk
 
 			return Viewer->GetRenderer();
 		}
-		Viewer SceneGraph::GetCameraViewer()
+		Viewer SceneGraph::GetCameraViewer() const
 		{
 			auto* Result = (Components::Camera*)Camera.load();
 			if (!Result)
@@ -5140,7 +5140,7 @@ namespace Tomahawk
 
 			return Storage;
 		}
-		Graphics::RenderTarget2D::Desc SceneGraph::GetDescRT()
+		Graphics::RenderTarget2D::Desc SceneGraph::GetDescRT() const
 		{
 			TH_ASSERT(Conf.Device != nullptr, Graphics::RenderTarget2D::Desc(), "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
@@ -5155,7 +5155,7 @@ namespace Tomahawk
 
 			return Desc;
 		}
-		Graphics::MultiRenderTarget2D::Desc SceneGraph::GetDescMRT()
+		Graphics::MultiRenderTarget2D::Desc SceneGraph::GetDescMRT() const
 		{
 			TH_ASSERT(Conf.Device != nullptr, Graphics::MultiRenderTarget2D::Desc(), "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
@@ -5174,7 +5174,7 @@ namespace Tomahawk
 
 			return Desc;
 		}
-		Graphics::Format SceneGraph::GetFormatMRT(unsigned int Target)
+		Graphics::Format SceneGraph::GetFormatMRT(unsigned int Target) const
 		{
 			if (Target == 0)
 				return Conf.EnableHDR ? Graphics::Format::R16G16B16A16_Unorm : Graphics::Format::R8G8B8A8_Unorm;
@@ -5190,7 +5190,7 @@ namespace Tomahawk
 
 			return Graphics::Format::Unknown;
 		}
-		std::vector<Entity*> SceneGraph::QueryByParent(Entity* Entity)
+		std::vector<Entity*> SceneGraph::QueryByParent(Entity* Entity) const
 		{
 			std::vector<Engine::Entity*> Array;
 			TH_ASSERT(Entity != nullptr, Array, "entity should be set");
@@ -5204,7 +5204,7 @@ namespace Tomahawk
 
 			return Array;
 		}
-		std::vector<Entity*> SceneGraph::QueryByName(const std::string& Name)
+		std::vector<Entity*> SceneGraph::QueryByName(const std::string& Name) const
 		{
 			std::vector<Entity*> Array;
 			auto Begin = Entities.Begin(), End = Entities.End();
@@ -5216,7 +5216,7 @@ namespace Tomahawk
 
 			return Array;
 		}
-		std::vector<Entity*> SceneGraph::QueryByTag(uint64_t Tag)
+		std::vector<Entity*> SceneGraph::QueryByTag(uint64_t Tag) const
 		{
 			std::vector<Entity*> Array;
 			auto Begin = Entities.Begin(), End = Entities.End();
@@ -5265,7 +5265,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool SceneGraph::HasEntity(Entity* Entity)
+		bool SceneGraph::HasEntity(Entity* Entity) const
 		{
 			TH_ASSERT(Entity != nullptr, false, "entity should be set");
 			for (uint64_t i = 0; i < Entities.Size(); i++)
@@ -5276,15 +5276,15 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool SceneGraph::HasEntity(uint64_t Entity)
+		bool SceneGraph::HasEntity(uint64_t Entity) const
 		{
 			return Entity < Entities.Size() ? Entity : -1;
 		}
-		bool SceneGraph::IsActive()
+		bool SceneGraph::IsActive() const
 		{
 			return Active;
 		}
-		uint64_t SceneGraph::GetEntitiesCount()
+		uint64_t SceneGraph::GetEntitiesCount() const
 		{
 			return Entities.Size();
 		}
@@ -5292,15 +5292,15 @@ namespace Tomahawk
 		{
 			return GetComponents(Section).Size();
 		}
-		uint64_t SceneGraph::GetMaterialsCount()
+		uint64_t SceneGraph::GetMaterialsCount() const
 		{
 			return Materials.Size();
 		}
-		Graphics::MultiRenderTarget2D* SceneGraph::GetMRT(TargetType Type)
+		Graphics::MultiRenderTarget2D* SceneGraph::GetMRT(TargetType Type) const
 		{
 			return Display.MRT[(size_t)Type];
 		}
-		Graphics::RenderTarget2D* SceneGraph::GetRT(TargetType Type)
+		Graphics::RenderTarget2D* SceneGraph::GetRT(TargetType Type) const
 		{
 			return Display.RT[(size_t)Type];
 		}
@@ -5308,11 +5308,11 @@ namespace Tomahawk
 		{
 			return &Display.Merger;
 		}
-		Graphics::ElementBuffer* SceneGraph::GetStructure()
+		Graphics::ElementBuffer* SceneGraph::GetStructure() const
 		{
 			return Display.MaterialBuffer;
 		}
-		Graphics::GraphicsDevice* SceneGraph::GetDevice()
+		Graphics::GraphicsDevice* SceneGraph::GetDevice() const
 		{
 			return Conf.Device;
 		}
@@ -5602,7 +5602,7 @@ namespace Tomahawk
 			Stream->Write((char*)&Size, sizeof(uint64_t));
 
 			uint64_t Offset = 0;
-			Tree->Loop([Stream, &Offset, &DBase, &Name](Core::FileTree* Tree)
+			Tree->Loop([Stream, &Offset, &DBase, &Name](const Core::FileTree* Tree)
 			{
 				for (auto& Resource : Tree->Files)
 				{
@@ -5630,7 +5630,7 @@ namespace Tomahawk
 
 				return true;
 			});
-			Tree->Loop([Stream](Core::FileTree* Tree)
+			Tree->Loop([Stream](const Core::FileTree* Tree)
 			{
 				for (auto& Resource : Tree->Files)
 				{
@@ -5713,11 +5713,11 @@ namespace Tomahawk
 			Mutex.unlock();
 			return nullptr;
 		}
-		Graphics::GraphicsDevice* ContentManager::GetDevice()
+		Graphics::GraphicsDevice* ContentManager::GetDevice() const
 		{
 			return Device;
 		}
-		std::string ContentManager::GetEnvironment()
+		std::string ContentManager::GetEnvironment() const
 		{
 			return Environment;
 		}
@@ -6180,7 +6180,7 @@ namespace Tomahawk
 			if (Queue->IsActive())
 				Queue->SetTask(std::bind(&Application::Networking, this), Core::Difficulty::Heavy);
 		}
-		void* Application::GetGUI()
+		void* Application::GetGUI() const
 		{
 #ifdef TH_WITH_RMLUI
 			if (!Scene)
@@ -6196,7 +6196,7 @@ namespace Tomahawk
 			return nullptr;
 #endif
 		}
-		ApplicationState Application::GetState()
+		ApplicationState Application::GetState() const
 		{
 			return State;
 		}
@@ -6488,19 +6488,19 @@ namespace Tomahawk
 
 			return CompileEffect(I, BufferSize);
 		}
-		unsigned int EffectRenderer::GetMipLevels()
+		unsigned int EffectRenderer::GetMipLevels() const
 		{
 			TH_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return System->GetDevice()->GetMipLevel(RT->GetWidth(), RT->GetHeight());
 		}
-		unsigned int EffectRenderer::GetWidth()
+		unsigned int EffectRenderer::GetWidth() const
 		{
 			TH_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);
 			return RT->GetWidth();
 		}
-		unsigned int EffectRenderer::GetHeight()
+		unsigned int EffectRenderer::GetHeight() const
 		{
 			TH_ASSERT(System->GetRT(TargetType::Main) != nullptr, 0, "main render target should be set");
 			Graphics::RenderTarget2D* RT = System->GetRT(TargetType::Main);

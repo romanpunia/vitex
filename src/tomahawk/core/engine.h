@@ -24,7 +24,7 @@ namespace Tomahawk
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
 		typedef std::function<void(class SceneGraph*, class Entity*)> CloneCallback;
 
-		class NMake;
+		class Series;
 
 		class SceneGraph;
 
@@ -306,7 +306,7 @@ namespace Tomahawk
 			float Height = 0.0f;
 		};
 
-		class TH_OUT NMake
+		class TH_OUT_TS Series
 		{
 		public:
 			static void Pack(Core::Schema* V, bool Value);
@@ -414,7 +414,7 @@ namespace Tomahawk
 
 		class TH_OUT Material : public Core::Object
 		{
-			friend NMake;
+			friend Series;
 			friend RenderSystem;
 			friend SceneGraph;
 
@@ -470,7 +470,7 @@ namespace Tomahawk
 			virtual Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
 			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Keys);
 			virtual bool Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
-			ContentManager* GetContent();
+			ContentManager* GetContent() const;
 		};
 
 		class TH_OUT Component : public Core::Object
@@ -498,14 +498,14 @@ namespace Tomahawk
 			virtual void Update(Core::Timer* Time);
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args);
 			virtual void Movement();
-			virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max);
-			virtual float GetVisibility(const Viewer& View, float Distance);
-			virtual Core::Unique<Component> Copy(Entity* New) = 0;
-			Entity* GetEntity();
+			virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const;
+			virtual float GetVisibility(const Viewer& View, float Distance) const;
+			virtual Core::Unique<Component> Copy(Entity* New) const = 0;
+			Entity* GetEntity() const;
 			void SetActive(bool Enabled);
-			bool IsDrawable();
-			bool IsCullable();
-			bool IsActive();
+			bool IsDrawable() const;
+			bool IsCullable() const;
+			bool IsActive() const;
 
 		public:
 			TH_COMPONENT_ROOT("component");
@@ -616,10 +616,10 @@ namespace Tomahawk
 			virtual ~Drawable();
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 			virtual void Movement() override;
-			virtual Core::Unique<Component> Copy(Entity* New) override = 0;
+			virtual Core::Unique<Component> Copy(Entity* New) const override = 0;
 			bool SetCategory(GeoCategory NewCategory);
 			bool SetMaterial(void* Instance, Material* Value);
-			GeoCategory GetCategory();
+			GeoCategory GetCategory() const;
 			int64_t GetSlot(void* Surface);
 			int64_t GetSlot();
 			Material* GetMaterial(void* Surface);
@@ -654,7 +654,7 @@ namespace Tomahawk
 			virtual bool HasCategory(GeoCategory Category);
 			virtual size_t RenderPass(Core::Timer* Time);
 			void SetRenderer(RenderSystem* NewSystem);
-			RenderSystem* GetRenderer();
+			RenderSystem* GetRenderer() const;
 
 		public:
 			TH_COMPONENT_ROOT("renderer");
@@ -760,14 +760,14 @@ namespace Tomahawk
 			bool CompileBuffers(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
 			Renderer* AddRenderer(Core::Unique<Renderer> In);
 			Renderer* GetRenderer(uint64_t Id);
-			int64_t GetOffset(uint64_t Id);
+			int64_t GetOffset(uint64_t Id) const;
 			std::vector<Renderer*>& GetRenderers();
-			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
-			Graphics::RenderTarget2D* GetRT(TargetType Type);
+			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type) const;
+			Graphics::RenderTarget2D* GetRT(TargetType Type) const;
 			Graphics::Texture2D** GetMerger();
-			Graphics::GraphicsDevice* GetDevice();
-			PrimitiveCache* GetPrimitives();
-			SceneGraph* GetScene();
+			Graphics::GraphicsDevice* GetDevice() const;
+			PrimitiveCache* GetPrimitives() const;
+			SceneGraph* GetScene() const;
 
 		public:
 			template <typename T>
@@ -792,7 +792,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT ShaderCache : public Core::Object
+		class TH_OUT_TS ShaderCache : public Core::Object
 		{
 		private:
 			struct SCache
@@ -817,7 +817,7 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
-		class TH_OUT PrimitiveCache : public Core::Object
+		class TH_OUT_TS PrimitiveCache : public Core::Object
 		{
 		private:
 			struct SCache
@@ -856,7 +856,7 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
-		class TH_OUT SceneGraph : public Core::Object
+		class TH_OUT_TS SceneGraph : public Core::Object
 		{
 			friend RenderSystem;
 			friend Renderer;
@@ -1002,7 +1002,7 @@ namespace Tomahawk
 			void CloneEntity(Entity* Value, CloneCallback&& Callback);
 			void MakeSnapshot(IdxSnapshot* Result);
 			void ClearCulling();
-			void GenerateDepthCascades(Core::Unique<CascadedDepthMap>* Result, uint32_t Size);
+			void GenerateDepthCascades(Core::Unique<CascadedDepthMap>* Result, uint32_t Size) const;
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);
 			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
@@ -1017,37 +1017,37 @@ namespace Tomahawk
 			Component* GetComponent(uint64_t Component, uint64_t Section);
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
-			Viewer GetCameraViewer();
+			Viewer GetCameraViewer() const;
 			Material* GetMaterial(const std::string& Material);
 			Material* GetMaterial(uint64_t Material);
 			Table& GetStorage(uint64_t Section);
 			Core::Pool<Component*>& GetComponents(uint64_t Section);
 			Core::Pool<Component*>& GetActors(ActorType Type);
-			Graphics::RenderTarget2D::Desc GetDescRT();
-			Graphics::MultiRenderTarget2D::Desc GetDescMRT();
-			Graphics::Format GetFormatMRT(unsigned int Target);
-			std::vector<Entity*> QueryByParent(Entity* Parent);
-			std::vector<Entity*> QueryByTag(uint64_t Tag);
-			std::vector<Entity*> QueryByName(const std::string& Name);
+			Graphics::RenderTarget2D::Desc GetDescRT() const;
+			Graphics::MultiRenderTarget2D::Desc GetDescMRT() const;
+			Graphics::Format GetFormatMRT(unsigned int Target) const;
+			std::vector<Entity*> QueryByParent(Entity* Parent) const;
+			std::vector<Entity*> QueryByTag(uint64_t Tag) const;
+			std::vector<Entity*> QueryByName(const std::string& Name) const;
 			std::vector<CubicDepthMap*>& GetPointsMapping();
 			std::vector<LinearDepthMap*>& GetSpotsMapping();
 			std::vector<CascadedDepthMap*>& GetLinesMapping();
 			std::vector<VoxelMapping>& GetVoxelsMapping();
 			bool AddEntity(Core::Unique<Entity> Entity);
-			bool IsActive();
-			bool IsLeftHanded();
-			bool IsIndexed();
-			uint64_t GetMaterialsCount();
-			uint64_t GetEntitiesCount();
+			bool IsActive() const;
+			bool IsLeftHanded() const;
+			bool IsIndexed() const;
+			uint64_t GetMaterialsCount() const;
+			uint64_t GetEntitiesCount() const;
 			uint64_t GetComponentsCount(uint64_t Section);
-			bool HasEntity(Entity* Entity);
-			bool HasEntity(uint64_t Entity);
+			bool HasEntity(Entity* Entity) const;
+			bool HasEntity(uint64_t Entity) const;
 			bool IsUnstable();
-			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type);
-			Graphics::RenderTarget2D* GetRT(TargetType Type);
+			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type) const;
+			Graphics::RenderTarget2D* GetRT(TargetType Type) const;
 			Graphics::Texture2D** GetMerger();
-			Graphics::ElementBuffer* GetStructure();
-			Graphics::GraphicsDevice* GetDevice();
+			Graphics::ElementBuffer* GetStructure() const;
+			Graphics::GraphicsDevice* GetDevice() const;
 			Compute::Simulator* GetSimulator();
 			ShaderCache* GetShaders();
 			PrimitiveCache* GetPrimitives();
@@ -1088,7 +1088,7 @@ namespace Tomahawk
 				RayTest(T::GetTypeId(), Origin, MaxDistance, std::move(Callback));
 			}
 			template <typename T>
-			uint64_t GetEntitisCount()
+			uint64_t GetEntitiesCount()
 			{
 				return GetComponents(T::GetTypeId())->Count();
 			}
@@ -1140,7 +1140,7 @@ namespace Tomahawk
 			}
 		};
 
-		class TH_OUT ContentManager : public Core::Object
+		class TH_OUT_TS ContentManager : public Core::Object
 		{
 		private:
 			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
@@ -1162,8 +1162,8 @@ namespace Tomahawk
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
 			bool Cache(Processor* Root, const std::string& Path, void* Resource);
-			Graphics::GraphicsDevice* GetDevice();
-			std::string GetEnvironment();
+			Graphics::GraphicsDevice* GetDevice() const;
+			std::string GetEnvironment() const;
 
 		public:
 			template <typename T>
@@ -1258,7 +1258,7 @@ namespace Tomahawk
 			AssetCache* Find(Processor* Target, void* Resource);
 		};
 
-		class TH_OUT AppData : public Core::Object
+		class TH_OUT_TS AppData : public Core::Object
 		{
 		private:
 			ContentManager* Content;
@@ -1352,8 +1352,8 @@ namespace Tomahawk
 			virtual void Dispatch(Core::Timer* Time);
 			virtual void Publish(Core::Timer* Time);
 			virtual void Initialize();
-			virtual void* GetGUI();
-			ApplicationState GetState();
+			virtual void* GetGUI() const;
+			ApplicationState GetState() const;
 			int Start();
 			void Restart();
 			void Stop(int ExitCode = 0);
@@ -1899,9 +1899,6 @@ namespace Tomahawk
 			}
 			size_t CullingPass()
 			{
-				if (Application::Get()->Activity->IsKeyDown(Graphics::KeyCode::F))
-					return 0;
-
 				if (!System->OcclusionCulling)
 					return 0;
 
@@ -2013,9 +2010,9 @@ namespace Tomahawk
 			virtual void RenderEffect(Core::Timer* Time) = 0;
 			size_t RenderPass(Core::Timer* Time) override;
 			void ResizeBuffers() override;
-			unsigned int GetMipLevels();
-			unsigned int GetWidth();
-			unsigned int GetHeight();
+			unsigned int GetMipLevels() const;
+			unsigned int GetWidth() const;
+			unsigned int GetHeight() const;
 
 		protected:
 			void RenderOutput(Graphics::RenderTarget2D* Resource = nullptr);

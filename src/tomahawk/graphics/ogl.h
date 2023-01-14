@@ -42,7 +42,7 @@ namespace Tomahawk
 			public:
 				OGLDepthStencilState(const Desc& I);
 				virtual ~OGLDepthStencilState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLRasterizerState final : public RasterizerState
@@ -52,7 +52,7 @@ namespace Tomahawk
 			public:
 				OGLRasterizerState(const Desc& I);
 				virtual ~OGLRasterizerState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLBlendState final : public BlendState
@@ -62,7 +62,7 @@ namespace Tomahawk
 			public:
 				OGLBlendState(const Desc& I);
 				virtual ~OGLBlendState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLSamplerState final : public SamplerState
@@ -75,7 +75,7 @@ namespace Tomahawk
 			public:
 				OGLSamplerState(const Desc& I);
 				virtual ~OGLSamplerState() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLInputLayout final : public InputLayout
@@ -90,7 +90,7 @@ namespace Tomahawk
 			public:
 				OGLInputLayout(const Desc& I);
 				virtual ~OGLInputLayout() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 
 			public:
 				static std::string GetLayoutHash(OGLElementBuffer** Buffers, unsigned int Count);
@@ -116,7 +116,7 @@ namespace Tomahawk
 			public:
 				OGLShader(const Desc& I);
 				virtual ~OGLShader() override;
-				bool IsValid() override;
+				bool IsValid() const override;
 			};
 
 			class OGLElementBuffer final : public ElementBuffer
@@ -130,7 +130,7 @@ namespace Tomahawk
 			public:
 				OGLElementBuffer(const Desc& I);
 				virtual ~OGLElementBuffer() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLMeshBuffer final : public MeshBuffer
@@ -139,7 +139,7 @@ namespace Tomahawk
 
 			public:
 				OGLMeshBuffer(const Desc& I);
-				Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) override;
+				Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) const override;
 			};
 
 			class OGLSkinMeshBuffer final : public SkinMeshBuffer
@@ -148,7 +148,7 @@ namespace Tomahawk
 
 			public:
 				OGLSkinMeshBuffer(const Desc& I);
-				Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) override;
+				Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) const override;
 			};
 
 			class OGLInstanceBuffer final : public InstanceBuffer
@@ -173,7 +173,7 @@ namespace Tomahawk
 				OGLTexture2D();
 				OGLTexture2D(const Desc& I);
 				virtual ~OGLTexture2D() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLTexture3D final : public Texture3D
@@ -202,7 +202,7 @@ namespace Tomahawk
 				OGLTextureCube();
 				OGLTextureCube(const Desc& I);
 				virtual ~OGLTextureCube() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLDepthTarget2D final : public DepthTarget2D
@@ -216,9 +216,9 @@ namespace Tomahawk
 			public:
 				OGLDepthTarget2D(const Desc& I);
 				virtual ~OGLDepthTarget2D() override;
-				void* GetResource() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetResource() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class OGLDepthTargetCube final : public DepthTargetCube
@@ -232,9 +232,9 @@ namespace Tomahawk
 			public:
 				OGLDepthTargetCube(const Desc& I);
 				virtual ~OGLDepthTargetCube() override;
-				void* GetResource() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetResource() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class OGLRenderTarget2D final : public RenderTarget2D
@@ -248,10 +248,10 @@ namespace Tomahawk
 			public:
 				OGLRenderTarget2D(const Desc& I);
 				virtual ~OGLRenderTarget2D() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class OGLMultiRenderTarget2D final : public MultiRenderTarget2D
@@ -265,10 +265,10 @@ namespace Tomahawk
 			public:
 				OGLMultiRenderTarget2D(const Desc& I);
 				virtual ~OGLMultiRenderTarget2D() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class OGLRenderTargetCube final : public RenderTargetCube
@@ -282,10 +282,10 @@ namespace Tomahawk
 			public:
 				OGLRenderTargetCube(const Desc& I);
 				virtual ~OGLRenderTargetCube() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class OGLMultiRenderTargetCube final : public MultiRenderTargetCube
@@ -299,10 +299,10 @@ namespace Tomahawk
 			public:
 				OGLMultiRenderTargetCube(const Desc& I);
 				virtual ~OGLMultiRenderTargetCube() override;
-				void* GetTargetBuffer() override;
-				void* GetDepthBuffer() override;
-				uint32_t GetWidth() override;
-				uint32_t GetHeight() override;
+				void* GetTargetBuffer() const override;
+				void* GetDepthBuffer() const override;
+				uint32_t GetWidth() const override;
+				uint32_t GetHeight() const override;
 			};
 
 			class OGLCubemap final : public Cubemap
@@ -334,7 +334,7 @@ namespace Tomahawk
 			public:
 				OGLQuery();
 				virtual ~OGLQuery() override;
-				void* GetResource() override;
+				void* GetResource() const override;
 			};
 
 			class OGLDevice final : public GraphicsDevice
@@ -509,11 +509,11 @@ namespace Tomahawk
 				Core::Unique<MultiRenderTargetCube> CreateMultiRenderTargetCube(const MultiRenderTargetCube::Desc& I) override;
 				Core::Unique<Cubemap> CreateCubemap(const Cubemap::Desc& I) override;
 				Core::Unique<Query> CreateQuery(const Query::Desc& I) override;
-				PrimitiveTopology GetPrimitiveTopology() override;
-				ShaderModel GetSupportedShaderModel() override;
-				void* GetDevice() override;
-				void* GetContext() override;
-				bool IsValid() override;
+				PrimitiveTopology GetPrimitiveTopology() const override;
+				ShaderModel GetSupportedShaderModel() const override;
+				void* GetDevice() const override;
+				void* GetContext() const override;
+				bool IsValid() const override;
 				const char* GetShaderVersion();
 				void CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size);
 				int CreateConstantBuffer(GLuint* Buffer, size_t Size);

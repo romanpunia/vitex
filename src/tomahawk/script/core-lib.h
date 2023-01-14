@@ -26,20 +26,20 @@ namespace Tomahawk
 			static void FormatJSON(VMGlobal& Global, Core::Parser& Result, void* Ref, int TypeId);
 		};
 
-		TH_OUT bool CERegisterFormat(VMManager* Engine);
-		TH_OUT bool CERegisterDecimal(VMManager* Engine);
-		TH_OUT bool CERegisterVariant(VMManager* Engine);
-		TH_OUT bool CERegisterFileState(VMManager* Engine);
-		TH_OUT bool CERegisterResource(VMManager* Engine);
-		TH_OUT bool CERegisterDateTime(VMManager* Engine);
-		TH_OUT bool CERegisterOS(VMManager* Engine);
-		TH_OUT bool CERegisterConsole(VMManager* Engine);
-		TH_OUT bool CERegisterTimer(VMManager* Engine);
-		TH_OUT bool CERegisterFileStream(VMManager* Engine);
-		TH_OUT bool CERegisterGzStream(VMManager* Engine);
-		TH_OUT bool CERegisterWebStream(VMManager* Engine);
-		TH_OUT bool CERegisterSchedule(VMManager* Engine);
-		TH_OUT bool CERegisterSchema(VMManager* Engine);
+		TH_OUT_TS bool CERegisterFormat(VMManager* Engine);
+		TH_OUT_TS bool CERegisterDecimal(VMManager* Engine);
+		TH_OUT_TS bool CERegisterVariant(VMManager* Engine);
+		TH_OUT_TS bool CERegisterFileState(VMManager* Engine);
+		TH_OUT_TS bool CERegisterResource(VMManager* Engine);
+		TH_OUT_TS bool CERegisterDateTime(VMManager* Engine);
+		TH_OUT_TS bool CERegisterOS(VMManager* Engine);
+		TH_OUT_TS bool CERegisterConsole(VMManager* Engine);
+		TH_OUT_TS bool CERegisterTimer(VMManager* Engine);
+		TH_OUT_TS bool CERegisterFileStream(VMManager* Engine);
+		TH_OUT_TS bool CERegisterGzStream(VMManager* Engine);
+		TH_OUT_TS bool CERegisterWebStream(VMManager* Engine);
+		TH_OUT_TS bool CERegisterSchedule(VMManager* Engine);
+		TH_OUT_TS bool CERegisterSchema(VMManager* Engine);
 	}
 }
 #endif

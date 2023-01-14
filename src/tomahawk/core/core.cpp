@@ -4401,6 +4401,141 @@ namespace Tomahawk
 			Atom.clear(std::memory_order_release);
 		}
 
+		Guard::Loaded::Loaded(Guard* NewBase) : Base(NewBase)
+		{
+		}
+		Guard::Loaded::Loaded(Loaded& Other) : Base(Other.Base)
+		{
+		}
+		Guard::Loaded& Guard::Loaded::operator =(Loaded&& Other)
+		{
+			if (&Other == this)
+				return *this;
+
+			Base = Other.Base;
+			Other.Base = nullptr;
+			return *this;
+		}
+		Guard::Loaded::~Loaded()
+		{
+			Close();
+		}
+		void Guard::Loaded::Close()
+		{
+			if (Base != nullptr)
+			{
+				Base->LoadUnlock();
+				Base = nullptr;
+			}
+		}
+		Guard::Loaded::operator bool() const
+		{
+			return Base != nullptr;
+		}
+
+		Guard::Stored::Stored(Guard* NewBase) : Base(NewBase)
+		{
+		}
+		Guard::Stored::Stored(Stored&& Other) : Base(Other.Base)
+		{
+			Other.Base = nullptr;
+		}
+		Guard::Stored& Guard::Stored::operator =(Stored&& Other)
+		{
+			if (&Other == this)
+				return *this;
+
+			Base = Other.Base;
+			Other.Base = nullptr;
+			return *this;
+		}
+		Guard::Stored::~Stored()
+		{
+			Close();
+		}
+		void Guard::Stored::Close()
+		{
+			if (Base != nullptr)
+			{
+				Base->StoreUnlock();
+				Base = nullptr;
+			}
+		}
+		Guard::Stored::operator bool() const
+		{
+			return Base != nullptr;
+		}
+
+		Guard::Guard() : Readers(0), Writers(0)
+		{
+		}
+		Guard::Loaded Guard::TryLoad()
+		{
+			return TryLoadLock() ? Loaded(this) : Loaded(nullptr);
+		}
+		Guard::Loaded Guard::Load()
+		{
+			LoadLock();
+			return Loaded(this);
+		}
+		Guard::Stored Guard::TryStore()
+		{
+			return TryStoreLock() ? Stored(this) : Stored(nullptr);
+		}
+		Guard::Stored Guard::Store()
+		{
+			StoreLock();
+			return Stored(this);
+		}
+		bool Guard::TryLoadLock()
+		{
+			std::unique_lock<std::mutex> Unique(Mutex);
+			if (Writers > 0)
+				return false;
+
+			++Readers;
+			return true;
+		}
+		void Guard::LoadLock()
+		{
+			std::unique_lock<std::mutex> Unique(Mutex);
+			while (Writers > 0)
+				Condition.wait(Unique);
+			++Readers;
+		}
+		void Guard::LoadUnlock()
+		{
+			std::unique_lock<std::mutex> Unique(Mutex);
+			TH_ASSERT_V(!Readers, "value was not loaded");
+
+			if (!--Readers)
+				Condition.notify_one();
+		}
+		bool Guard::TryStoreLock()
+		{
+			std::unique_lock<std::mutex> Unique(Mutex);
+			if (Readers > 0 || Writers > 0)
+				return false;
+
+			++Writers;
+			return true;
+		}
+		void Guard::StoreLock()
+		{
+			std::unique_lock<std::mutex> Unique(Mutex);
+			while (Readers > 0 || Writers > 0)
+				Condition.wait(Unique);
+			++Writers;
+		}
+		void Guard::StoreUnlock()
+		{
+			std::unique_lock<std::mutex> Unique(Mutex);
+			TH_ASSERT_V(!Writers, "value was not stored");
+
+			--Writers;
+			Condition.notify_all();
+		}
+
 		Schema* Var::Set::Auto(Variant&& Value)
 		{
 			return new Schema(std::move(Value));
@@ -4854,7 +4989,7 @@ namespace Tomahawk
 		{
 			return (void*)TH_MALLOC(Object, Size);
 		}
-		int Object::GetRefCount() noexcept
+		int Object::GetRefCount() const noexcept
 		{
 			return __vcnt.load();
 		}
@@ -5102,7 +5237,7 @@ namespace Tomahawk
 			std::cout << Buffer;
 			Lock.unlock();
 		}
-		double Console::GetCapturedTime()
+		double Console::GetCapturedTime() const
 		{
 			return (double)std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() / 1000.0 - Time;
 		}
@@ -5189,19 +5324,19 @@ namespace Tomahawk
 			TH_DELETE(timespec, sFrequency);
 #endif
 		}
-		double Timer::GetTimeIncrement()
+		double Timer::GetTimeIncrement() const
 		{
 			return TimeIncrement;
 		}
-		double Timer::GetTickCounter()
+		double Timer::GetTickCounter() const
 		{
 			return TickCounter;
 		}
-		double Timer::GetFrameCount()
+		double Timer::GetFrameCount() const
 		{
 			return FrameCount;
 		}
-		double Timer::GetElapsedTime()
+		double Timer::GetElapsedTime() const
 		{
 #ifdef TH_MICROSOFT
 			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
@@ -5211,11 +5346,11 @@ namespace Tomahawk
 			return (((timespec*)PastTime)->tv_nsec - ((timespec*)TimeLimit)->tv_nsec) * 1000.0 / ((timespec*)Frequency)->tv_nsec;
 #endif
 		}
-		double Timer::GetCapturedTime()
+		double Timer::GetCapturedTime() const
 		{
 			return GetElapsedTime() - CapturedTime;
 		}
-		double Timer::GetTimeStep()
+		double Timer::GetTimeStep() const
 		{
 			double TimeStep = 1.0 / FrameCount;
 			if (TimeStep > TimeStepLimit)
@@ -5223,7 +5358,7 @@ namespace Tomahawk
 
 			return TimeStep;
 		}
-		double Timer::GetDeltaTime()
+		double Timer::GetDeltaTime() const
 		{
 			double DeltaTime = FrameRelation / FrameCount;
 			if (DeltaTime > DeltaTimeLimit)
@@ -5429,12 +5564,12 @@ namespace Tomahawk
 			TH_PPUSH(TH_PERF_IO);
 			TH_PRET(ftell(Resource));
 		}
-		int FileStream::GetFd()
+		int FileStream::GetFd() const
 		{
 			TH_ASSERT(Resource != nullptr, -1, "file should be opened");
 			return TH_FILENO(Resource);
 		}
-		void* FileStream::GetBuffer()
+		void* FileStream::GetBuffer() const
 		{
 			return (void*)Resource;
 		}
@@ -5597,11 +5732,11 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		int GzStream::GetFd()
+		int GzStream::GetFd() const
 		{
 			return -1;
 		}
-		void* GzStream::GetBuffer()
+		void* GzStream::GetBuffer() const
 		{
 			return (void*)Resource;
 		}
@@ -5778,12 +5913,12 @@ namespace Tomahawk
 		{
 			return Offset;
 		}
-		int WebStream::GetFd()
+		int WebStream::GetFd() const
 		{
 			TH_ASSERT(Resource != nullptr, -1, "file should be opened");
 			return (int)((Network::HTTP::Client*)Resource)->GetStream()->GetFd();
 		}
-		void* WebStream::GetBuffer()
+		void* WebStream::GetBuffer() const
 		{
 			return (void*)Resource;
 		}
@@ -5815,7 +5950,7 @@ namespace Tomahawk
 			for (auto& Directory : Directories)
 				TH_RELEASE(Directory);
 		}
-		void FileTree::Loop(const std::function<bool(FileTree*)>& Callback)
+		void FileTree::Loop(const std::function<bool(const FileTree*)>& Callback) const
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
 			if (!Callback(this))
@@ -5824,21 +5959,21 @@ namespace Tomahawk
 			for (auto& Directory : Directories)
 				Directory->Loop(Callback);
 		}
-		FileTree* FileTree::Find(const std::string& V)
+		const FileTree* FileTree::Find(const std::string& V) const
 		{
 			if (Path == V)
 				return this;
 
-			for (auto& Directory : Directories)
+			for (const auto& Directory : Directories)
 			{
-				FileTree* Ref = Directory->Find(V);
+				const FileTree* Ref = Directory->Find(V);
 				if (Ref != nullptr)
 					return Ref;
 			}
 
 			return nullptr;
 		}
-		uint64_t FileTree::GetFiles()
+		uint64_t FileTree::GetFiles() const
 		{
 			uint64_t Count = Files.size();
 			for (auto& Directory : Directories)
@@ -8213,10 +8348,10 @@ namespace Tomahawk
 				TH_DELETE(Coroutine, Routine);
 			Cached.clear();
 		}
-		bool Costate::HasActive()
+		bool Costate::HasActive() const
 		{
 			TH_ASSERT(Thread == std::this_thread::get_id(), false, "cannot call outside costate thread");
-			for (auto& Item : Used)
+			for (const auto& Item : Used)
 			{
 				if (Item->Dead == 0 && Item->State != Coactive::Inactive)
 					return true;
@@ -8940,11 +9075,11 @@ namespace Tomahawk
 #endif
 			return true;
 		}
-		bool Schedule::IsActive()
+		bool Schedule::IsActive() const
 		{
 			return Active;
 		}
-		bool Schedule::HasTasks(Difficulty Type)
+		bool Schedule::HasTasks(Difficulty Type) const
 		{
 			TH_ASSERT(Type != Difficulty::Count, false, "difficulty should be set");
 			auto* Queue = Queues[(size_t)Type];
@@ -8988,7 +9123,7 @@ namespace Tomahawk
 			Debug(Data);
 			return true;
 		}
-		uint64_t Schedule::GetTotalThreads()
+		uint64_t Schedule::GetTotalThreads() const
 		{
 			uint64_t Size = 0;
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
@@ -8996,12 +9131,12 @@ namespace Tomahawk
 
 			return Size;
 		}
-		uint64_t Schedule::GetThreads(Difficulty Type)
+		uint64_t Schedule::GetThreads(Difficulty Type) const
 		{
 			TH_ASSERT(Type != Difficulty::Count, false, "difficulty should be set");
 			return (uint64_t)Threads[(size_t)Type].size();
 		}
-		const Schedule::Desc& Schedule::GetPolicy()
+		const Schedule::Desc& Schedule::GetPolicy() const
 		{
 			return Policy;
 		}

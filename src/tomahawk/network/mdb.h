@@ -106,7 +106,7 @@ namespace Tomahawk
 				Property operator [](const char* Name) const;
 			};
 
-			class TH_OUT Util
+			class TH_OUT_TS Util
 			{
 			public:
 				static bool GetId(unsigned char* Id12);
@@ -485,7 +485,7 @@ namespace Tomahawk
 				bool IsConnected() const;
 			};
 
-			class TH_OUT Cluster : public Core::Object
+			class TH_OUT_TS Cluster : public Core::Object
 			{
 			private:
 				std::atomic<bool> Connected;
@@ -505,7 +505,7 @@ namespace Tomahawk
 				Address& GetAddress();
 			};
 
-			class TH_OUT Driver
+			class TH_OUT_TS Driver
 			{
 			private:
 				struct Pose

@@ -30,11 +30,11 @@ namespace Tomahawk
 				virtual float GetVisibility(const Viewer& View, float Distance) const override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
-				void Create(Compute::HullShape* Shape, float Anticipation);
-				void Create(ContentManager* Content, const std::string& Path, float Anticipation);
-				void CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation);
-				void CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation);
-				void CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation);
+				void Load(Compute::HullShape* Shape, float Anticipation = 0.0f);
+				void Load(ContentManager* Content, const std::string& Path, float Anticipation = 0.0f);
+				void LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation = 0.0f);
+				void LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation = 0.0f);
+				void LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation = 0.0f);
 				void Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer);
 				void Regenerate();
 				void Clear();
@@ -66,8 +66,8 @@ namespace Tomahawk
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
-				void Create(btCollisionShape* Shape, float Mass, float Anticipation);
-				void Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation);
+				void Load(btCollisionShape* Shape, float Mass, float Anticipation = 0.0f);
+				void Load(ContentManager* Content, const std::string& Path, float Mass, float Anticipation = 0.0f);
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
@@ -90,7 +90,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
-				void Create(Entity* Other, bool IsGhosted, bool IsLinear);
+				void Load(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
 				Compute::SConstraint* GetConstraint() const;
 				Entity* GetConnection() const;

@@ -22,7 +22,7 @@ namespace Tomahawk
 		typedef std::function<void(const std::string&, Core::VariantArgs&)> MessageCallback;
 		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
-		typedef std::function<void(class SceneGraph*, class Entity*)> CloneCallback;
+		typedef std::function<void(class Entity*)> CloneCallback;
 
 		class Series;
 
@@ -434,7 +434,7 @@ namespace Tomahawk
 			uint64_t Slot;
 
 		public:
-			Material(SceneGraph* Src);
+			Material(SceneGraph* NewScene = nullptr);
 			Material(const Material& Other);
 			virtual ~Material() override;
 			void SetName(const std::string& Value, bool Internal = false);
@@ -488,8 +488,6 @@ namespace Tomahawk
 			bool Active;
 
 		public:
-			Component(Entity* Ref, ActorSet Rule);
-			virtual ~Component() override;
 			virtual void Serialize(ContentManager* Content, Core::Schema* Node);
 			virtual void Deserialize(ContentManager* Content, Core::Schema* Node);
 			virtual void Activate(Component* New);
@@ -507,6 +505,10 @@ namespace Tomahawk
 			bool IsCullable() const;
 			bool IsActive() const;
 
+		protected:
+			Component(Entity* Ref, ActorSet Rule);
+			virtual ~Component() override;
+
 		public:
 			TH_COMPONENT_ROOT("component");
 		};
@@ -516,25 +518,28 @@ namespace Tomahawk
 			friend SceneGraph;
 			friend RenderSystem;
 
-		protected:
-			std::unordered_map<uint64_t, Component*> Components;
-			SceneGraph* Scene;
+		private:
+			struct
+			{
+				Compute::Matrix4x4 Box;
+				Compute::Vector3 Min;
+				Compute::Vector3 Max;
+				float Distance = 0.0f;
+				float Visibility = 0.0f;
+			} Snapshot;
+
+			struct
+			{
+				std::unordered_map<uint64_t, Component*> Components;
+				std::string Name;
+			} Type;
 
 		private:
 			Compute::Transform* Transform;
-			Compute::Matrix4x4 Box;
-			Compute::Vector3 Min, Max;
-			std::string Name;
-			float Distance;
-			float Visibility;
+			SceneGraph* Scene;
 			bool Active;
 
 		public:
-			uint64_t Tag;
-
-		public:
-			Entity(SceneGraph* Ref);
-			virtual ~Entity() override;
 			void SetName(const std::string& Value, bool Internal = false);
 			void SetRoot(Entity* Parent);
 			void UpdateBounds();
@@ -558,14 +563,18 @@ namespace Tomahawk
 			Compute::Vector3 GetRadius3() const;
 			float GetRadius() const;
 
+		private:
+			Entity(SceneGraph* NewScene);
+			virtual ~Entity() override;
+
 		public:
 			std::unordered_map<uint64_t, Component*>::iterator begin()
 			{
-				return Components.begin();
+				return Type.Components.begin();
 			}
 			std::unordered_map<uint64_t, Component*>::iterator end()
 			{
-				return Components.end();
+				return Type.Components.end();
 			}
 
 		public:
@@ -591,7 +600,7 @@ namespace Tomahawk
 			template <typename T>
 			static bool Sortout(T* A, T* B)
 			{
-				return A->Parent->Distance - B->Parent->Distance < 0;
+				return A->Parent->Snapshot.Distance - B->Parent->Snapshot.Distance < 0;
 			}
 		};
 
@@ -619,6 +628,7 @@ namespace Tomahawk
 			virtual Core::Unique<Component> Copy(Entity* New) const override = 0;
 			bool SetCategory(GeoCategory NewCategory);
 			bool SetMaterial(void* Instance, Material* Value);
+			bool SetMaterialAll(Material* Value);
 			GeoCategory GetCategory() const;
 			int64_t GetSlot(void* Surface);
 			int64_t GetSlot();
@@ -939,7 +949,9 @@ namespace Tomahawk
 				Core::Pool<Component*> Components;
 				std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
 				std::vector<Entity*> Heap;
-				std::mutex Transaction;
+				std::mutex Notify;
+				Core::Guard Transaction;
+				size_t Queue = 0;
 			} Indexer;
 
 		protected:
@@ -980,7 +992,8 @@ namespace Tomahawk
 			bool Dispatch(Core::Timer* Time);
 			void Publish(Core::Timer* Time);
 			void RemoveMaterial(Core::Unique<Material> Value);
-			void RemoveEntity(Core::Unique<Entity> Entity, bool Destroy = true);
+			void RemoveEntity(Core::Unique<Entity> Entity);
+			void DeleteEntity(Core::Unique<Entity> Entity);
 			void SetCamera(Entity* Camera);
 			void SortBackToFront(Core::Pool<Drawable*>* Array);
 			void SortFrontToBack(Core::Pool<Drawable*>* Array);
@@ -1010,10 +1023,12 @@ namespace Tomahawk
 			bool SetParallel(const std::string& Name, PacketCallback&& Callback);
 			MessageCallback* SetListener(const std::string& Event, MessageCallback&& Callback);
 			bool ClearListener(const std::string& Event, MessageCallback* Id);
-			Material* AddMaterial(Core::Unique<Material> Base, const std::string& Name = "");
-			Material* CloneMaterial(Material* Base, const std::string& Name = "");
+			bool AddMaterial(Core::Unique<Material> Base);
+			Material* AddMaterial();
+			Material* CloneMaterial(Material* Base);
 			Entity* GetEntity(uint64_t Entity);
 			Entity* GetLastEntity();
+			Entity* GetCameraEntity();
 			Component* GetComponent(uint64_t Component, uint64_t Section);
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
@@ -1027,12 +1042,14 @@ namespace Tomahawk
 			Graphics::MultiRenderTarget2D::Desc GetDescMRT() const;
 			Graphics::Format GetFormatMRT(unsigned int Target) const;
 			std::vector<Entity*> QueryByParent(Entity* Parent) const;
-			std::vector<Entity*> QueryByTag(uint64_t Tag) const;
 			std::vector<Entity*> QueryByName(const std::string& Name) const;
+			std::vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius, bool DrawableOnly = true);
+			std::vector<Component*> QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly = true);
 			std::vector<CubicDepthMap*>& GetPointsMapping();
 			std::vector<LinearDepthMap*>& GetSpotsMapping();
 			std::vector<CascadedDepthMap*>& GetLinesMapping();
 			std::vector<VoxelMapping>& GetVoxelsMapping();
+			Entity* AddEntity();
 			bool AddEntity(Core::Unique<Entity> Entity);
 			bool IsActive() const;
 			bool IsLeftHanded() const;
@@ -1067,9 +1084,9 @@ namespace Tomahawk
 			void GenerateVoxelBuffers();
 			void GenerateDepthBuffers();
 			void NotifyCosmos(Component* Base);
-			void NotifyCosmosBulk();
+			void NotifyCosmosBulk(const std::vector<Entity*>& Base);
 			void UpdateCosmos(Component* Base);
-			void UpdateCosmos();
+			bool UpdateCosmos();
 			void ExecuteTasks();
 			void FillMaterialBuffers();
 			void ResizeRenderBuffers();
@@ -1150,6 +1167,7 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* Device;
 			std::string Environment, Base;
 			std::mutex Mutex;
+			uint64_t Queue;
 
 		public:
 			ContentManager(Graphics::GraphicsDevice* NewDevice);
@@ -1162,21 +1180,26 @@ namespace Tomahawk
 			bool Import(const std::string& Path);
 			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
 			bool Cache(Processor* Root, const std::string& Path, void* Resource);
+			bool IsBusy();
 			Graphics::GraphicsDevice* GetDevice() const;
-			std::string GetEnvironment() const;
+			const std::string& GetEnvironment() const;
 
 		public:
 			template <typename T>
 			Core::Unique<T> Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
+				return (T*)LoadForward(Path, GetProcessor<T>(), Keys, false);
 			}
 			template <typename T>
 			Core::Async<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
+				Enqueue();
 				return Core::Async<T*>::Execute([this, Path, Keys](Core::Async<T*>& Future)
 				{
-					Base = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
+					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys, true);
+				    if (HasAnyPointToDispatch())
+						Future = Result;
+					Dequeue();
 				});
 			}
 			template <typename T>
@@ -1187,9 +1210,11 @@ namespace Tomahawk
 			template <typename T>
 			Core::Async<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
+				Enqueue();
 				return Core::Async<bool>::Execute([this, Path, Object, Keys](Core::Async<bool>& Future)
 				{
 					Base = SaveForward(Path, GetProcessor<T>(), Object, Keys);
+				    Dequeue();
 				});
 			}
 			template <typename T>
@@ -1251,11 +1276,14 @@ namespace Tomahawk
 			}
 
 		private:
-			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
+			void Enqueue();
+			void Dequeue();
+			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys, bool Async);
 			void* LoadStreaming(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
 			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Keys);
 			AssetCache* Find(Processor* Target, const std::string& Path);
 			AssetCache* Find(Processor* Target, void* Resource);
+			bool HasAnyPointToDispatch();
 		};
 
 		class TH_OUT_TS AppData : public Core::Object

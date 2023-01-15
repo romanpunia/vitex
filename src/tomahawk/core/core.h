@@ -1796,6 +1796,7 @@ namespace Tomahawk
 			bool Wakeup();
 			bool Dispatch();
 			bool IsActive() const;
+			bool CanEnqueue() const;
 			bool HasTasks(Difficulty Type) const;
 			uint64_t GetTotalThreads() const;
 			uint64_t GetThreads(Difficulty Type) const;

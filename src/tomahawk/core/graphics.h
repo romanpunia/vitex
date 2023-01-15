@@ -361,11 +361,12 @@ namespace Tomahawk
 
 		enum class VSync
 		{
-			None,
+			Off,
 			Frequency_X1,
 			Frequency_X2,
 			Frequency_X3,
-			Frequency_X4
+			Frequency_X4,
+			On = Frequency_X1
 		};
 
 		enum class SurfaceTarget

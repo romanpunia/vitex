@@ -1719,7 +1719,7 @@ namespace Tomahawk
 			return true;
 		}
 
-		Material::Material(SceneGraph* Src) : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(Src), Slot(0)
+		Material::Material(SceneGraph* NewScene) : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(NewScene), Slot(0)
 		{
 		}
 		Material::Material(const Material& Other) : Material(Other.Scene)
@@ -1779,9 +1779,8 @@ namespace Tomahawk
 		}
 		void Material::SetName(const std::string& Value, bool Internal)
 		{
-			if (!Internal)
+			if (!Internal && Scene != nullptr)
 			{
-				TH_ASSERT_V(Scene != nullptr, "scene should be set");
 				Scene->Transaction([this, Value]()
 				{
 					if (Name == Value)
@@ -1892,7 +1891,7 @@ namespace Tomahawk
 			return Content;
 		}
 
-		Component::Component(Entity* Reference, ActorSet Rule) : Parent(Reference), Set((size_t)Rule), Active(true), Indexed(false)
+		Component::Component(Entity* Reference, ActorSet Rule) : Parent(Reference), Set((size_t)Rule), Active(false), Indexed(false)
 		{
 			TH_ASSERT_V(Reference != nullptr, "entity should be set");
 		}
@@ -1940,12 +1939,11 @@ namespace Tomahawk
 		}
 		void Component::SetActive(bool Status)
 		{
+			auto* Scene = Parent->GetScene();
 			if (Active == Status)
 				return;
 
-			auto* Scene = Parent->GetScene();
 			Active = Status;
-
 			if (Parent->IsActive())
 			{
 				if (Active)
@@ -1976,14 +1974,14 @@ namespace Tomahawk
 			return Parent;
 		}
 
-		Entity::Entity(SceneGraph* Ref) : Scene(Ref), Transform(new Compute::Transform), Active(false), Tag(0), Distance(0)
+		Entity::Entity(SceneGraph* NewScene) : Scene(NewScene), Transform(new Compute::Transform()), Active(false)
 		{
 			Transform->UserPointer = (void*)this;
-			TH_ASSERT_V(Ref != nullptr, "scene should be set");
+			TH_ASSERT_V(Scene != nullptr, "entity should be created within a scene");
 		}
 		Entity::~Entity()
 		{
-			for (auto& Component : Components)
+			for (auto& Component : Type.Components)
 			{
 				if (!Component.second)
 					continue;
@@ -1996,19 +1994,19 @@ namespace Tomahawk
 		}
 		void Entity::SetName(const std::string& Value, bool Internal)
 		{
-			if (!Internal)
+			if (!Internal && Scene != nullptr)
 			{
 				Scene->Transaction([this, Value]()
 				{
-					if (Name == Value)
+					if (Type.Name == Value)
 						return;
 
-					Name = Value;
+				    Type.Name = Value;
 					Scene->Mutate(this, "set");
 				});
 			}
 			else
-				Name = Value;
+				Type.Name = Value;
 		}
 		void Entity::SetRoot(Entity* Parent)
 		{
@@ -2016,20 +2014,20 @@ namespace Tomahawk
 			if (!Parent)
 			{
 				Transform->SetRoot(nullptr);
-				if (Old != nullptr)
+				if (Old != nullptr && Scene != nullptr)
 					Scene->Mutate(Old->Ptr<Entity>(), this, "pop");
 			}
 			else
 			{
 				Transform->SetRoot(Parent->Transform);
-				if (Old != Parent->Transform)
+				if (Old != Parent->Transform && Scene != nullptr)
 					Scene->Mutate(Parent, this, "push");
 			}
 		}
 		void Entity::UpdateBounds()
 		{
 			size_t Index = 0;
-			for (auto& Item : Components)
+			for (auto& Item : Type.Components)
 			{
 				Compute::Vector3 SMin, SMax;
 				size_t SIndex = Item.second->GetUnitBounds(SMin, SMax);
@@ -2038,45 +2036,52 @@ namespace Tomahawk
 				if (SIndex > Index)
 				{
 					Index = SIndex;
-					Min = SMin;
-					Max = SMax;
+					Snapshot.Min = SMin;
+					Snapshot.Max = SMax;
 				}
 			}
 
 			if (!Index)
 			{
-				Min = -0.5f;
-				Max = 0.5f;
+				Snapshot.Min = -0.5f;
+				Snapshot.Max = 0.5f;
 			}
 
-			Transform->GetBounds(Box, Min, Max);
+			Transform->GetBounds(Snapshot.Box, Snapshot.Min, Snapshot.Max);
 		}
 		void Entity::RemoveComponent(uint64_t fId)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(fId);
-			if (It == Components.end())
+			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(fId);
+			if (It == Type.Components.end())
 				return;
 
-			It->second->SetActive(false);
-			if (Scene->Camera == It->second)
-				Scene->Camera = nullptr;
-
-			Scene->Transaction([this, fId]()
+			auto Transaction = [this, fId]()
 			{
-				std::unordered_map<uint64_t, Component*>::iterator It = Components.find(fId);
-				if (It == Components.end())
+				std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(fId);
+				if (It == Type.Components.end())
 					return;
 
 				Component* Base = It->second;
-				Components.erase(It);
+				Type.Components.erase(It);
 
 				TH_RELEASE(Base);
 				Transform->MakeDirty();
-			});
+			};
+
+			It->second->SetActive(false);
+			if (Scene != nullptr)
+			{
+				if (Scene->Camera == It->second)
+					Scene->Camera = nullptr;
+
+				Scene->Transaction(Transaction);
+			}
+			else
+				Transaction();
 		}
 		void Entity::RemoveChilds()
 		{
-			Scene->Transaction([this]()
+			auto Transaction = [this]()
 			{
 				std::vector<Compute::Transform*>& Childs = Transform->GetChilds();
 				for (size_t i = 0; i < Childs.size(); i++)
@@ -2085,13 +2090,22 @@ namespace Tomahawk
 					if (!Entity || Entity == this)
 						continue;
 
-					Scene->RemoveEntity(Entity);
+					if (Scene != nullptr)
+						Scene->DeleteEntity(Entity);
+					else
+						TH_RELEASE(Entity);
+					
 					if (Childs.empty())
 						break;
 
 					i--;
 				}
-			});
+			};
+
+			if (Scene != nullptr)
+				Scene->Transaction(Transaction);
+			else
+				Transaction();
 		}
 		Component* Entity::AddComponent(Component* In)
 		{
@@ -2103,8 +2117,8 @@ namespace Tomahawk
 			In->Active = false;
 			In->Parent = this;
 
-			Components.insert({ In->GetId(), In });
-			for (auto& Component : Components)
+			Type.Components.insert({ In->GetId(), In });
+			for (auto& Component : Type.Components)
 				Component.second->Activate(In == Component.second ? nullptr : In);
 
 			In->SetActive(true);
@@ -2114,15 +2128,15 @@ namespace Tomahawk
 		}
 		Component* Entity::GetComponent(uint64_t fId)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Components.find(fId);
-			if (It != Components.end())
+			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(fId);
+			if (It != Type.Components.end())
 				return It->second;
 
 			return nullptr;
 		}
 		uint64_t Entity::GetComponentsCount() const
 		{
-			return Components.size();
+			return Type.Components.size();
 		}
 		SceneGraph* Entity::GetScene() const
 		{
@@ -2150,26 +2164,23 @@ namespace Tomahawk
 		}
 		const std::string& Entity::GetName() const
 		{
-			return Name;
+			return Type.Name;
 		}
 		std::string Entity::GetSystemName() const
 		{
 			std::string Result;
-			for (auto& Item : Components)
+			for (auto& Item : Type.Components)
 			{
 				Result.append(Item.second->GetName());
 				Result.append(", ");
 			}
 
 			if (!Result.empty())
-				Result = "[" + Result.substr(0, Result.size() - 2) + "] [";
+				Result = "[" + Result.substr(0, Result.size() - 2) + "] " + Type.Name;
 			else
-				Result = "[empty] [";
+				Result = Type.Name;
 
-			Result.append(std::to_string(Tag));
-			Result.append("] ");
-
-			return Result + Name;
+			return Result;
 		}
 		float Entity::GetVisibility(const Viewer& Base) const
 		{
@@ -2178,15 +2189,15 @@ namespace Tomahawk
 		}
 		const Compute::Matrix4x4& Entity::GetBox() const
 		{
-			return Box;
+			return Snapshot.Box;
 		}
 		const Compute::Vector3& Entity::GetMin() const
 		{
-			return Min;
+			return Snapshot.Min;
 		}
 		const Compute::Vector3& Entity::GetMax() const
 		{
-			return Max;
+			return Snapshot.Max;
 		}
 		size_t Entity::GetChildsCount() const
 		{
@@ -2198,7 +2209,7 @@ namespace Tomahawk
 		}
 		Compute::Vector3 Entity::GetRadius3() const
 		{
-			Compute::Vector3 Diameter3 = Max - Min;
+			Compute::Vector3 Diameter3 = Snapshot.Max - Snapshot.Min;
 			return Diameter3.Abs().Mul(0.5f);
 		}
 		float Entity::GetRadius() const
@@ -2253,6 +2264,19 @@ namespace Tomahawk
 				Materials[Instance] = Value;
 			else
 				It->second = Value;
+
+			return true;
+		}
+		bool Drawable::SetMaterialAll(Material* Value)
+		{
+			if (!Complex)
+			{
+				Materials[nullptr] = Value;
+				return true;
+			}
+
+			for (auto& Item : Materials)
+				Item.second = Value;
 
 			return true;
 		}
@@ -2574,7 +2598,7 @@ namespace Tomahawk
 			if (View.Culling == RenderCulling::Line)
 				return;
 
-			Scene->Indexer.Transaction.lock();
+			Scene->Indexer.Transaction.LoadLock();
 			Query.Index->PushQuery();
 		}
 		void RenderSystem::QueryEnd()
@@ -2587,7 +2611,7 @@ namespace Tomahawk
 			if (View.Culling == RenderCulling::Line)
 				return;
 
-			Scene->Indexer.Transaction.unlock();
+			Scene->Indexer.Transaction.LoadUnlock();
 		}
 		void* RenderSystem::QueryNext()
 		{
@@ -2599,9 +2623,9 @@ namespace Tomahawk
 		}
 		float RenderSystem::EnqueueCullable(Component* Base)
 		{
-			Base->Parent->Distance = Base->Parent->Transform->GetPosition().Distance(View.Position);
+			Base->Parent->Snapshot.Distance = Base->Parent->Transform->GetPosition().Distance(View.Position);
 			Scene->ProcessCullable(Base);
-			return Base->Parent->Visibility;
+			return Base->Parent->Snapshot.Visibility;
 		}
 		float RenderSystem::EnqueueDrawable(Drawable* Base, bool& Cullable)
 		{
@@ -2613,16 +2637,16 @@ namespace Tomahawk
 		{
 			float Visibility = Threshold;
 			float Radius = Base->Parent->GetRadius();
-			if (Base->Parent->Distance <= Source.FarPlane + Radius)
+			if (Base->Parent->Snapshot.Distance <= Source.FarPlane + Radius)
 			{
 				if (FrustumCulling && Source.Culling != RenderCulling::Point)
-					Visibility = Base->GetVisibility(Source, Base->Parent->Distance);
+					Visibility = Base->GetVisibility(Source, Base->Parent->Snapshot.Distance);
 			}
 			else
 				Visibility = Threshold;
 
 			if (Target != nullptr)
-				Target->Visibility = Visibility;
+				Target->Snapshot.Visibility = Visibility;
 
 			return Visibility >= Threshold;
 		}
@@ -2636,7 +2660,7 @@ namespace Tomahawk
 				Visibility = Base->Overlapping;
 
 			if (Target != nullptr)
-				Target->Visibility = Visibility;
+				Target->Snapshot.Visibility = Visibility;
 
 			return Visibility >= Threshold;
 		}
@@ -4052,16 +4076,13 @@ namespace Tomahawk
 				}
 
 				if (!Indexer.Heap.empty())
-					NotifyCosmosBulk();
-
-				for (auto& Item : Indexer.Changes)
 				{
-					if (!Item.second.empty())
-					{
-						UpdateCosmos();
-						break;
-					}
+					NotifyCosmosBulk(Indexer.Heap);
+					Indexer.Heap.clear();
 				}
+
+				if (Indexer.Queue > 0)
+					UpdateCosmos();
 			}
 			TH_PPOP();
 		}
@@ -4092,7 +4113,7 @@ namespace Tomahawk
 
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
-				return A->Parent->Distance > B->Parent->Distance;
+				return A->Parent->Snapshot.Distance > B->Parent->Snapshot.Distance;
 			});
 
 			TH_PPOP();
@@ -4104,7 +4125,7 @@ namespace Tomahawk
 
 			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
 			{
-				return A->Parent->Distance < B->Parent->Distance;
+				return A->Parent->Snapshot.Distance < B->Parent->Snapshot.Distance;
 			});
 
 			TH_PPOP();
@@ -4130,10 +4151,15 @@ namespace Tomahawk
 			Target->Activate(nullptr);
 			Camera = Target;
 		}
-		void SceneGraph::RemoveEntity(Entity* Entity, bool Destroy)
+		void SceneGraph::RemoveEntity(Entity* Entity)
 		{
 			TH_ASSERT_V(Entity != nullptr, "entity should be set");
-			if (!UnregisterEntity(Entity) || !Destroy)
+			UnregisterEntity(Entity);
+		}
+		void SceneGraph::DeleteEntity(Entity* Entity)
+		{
+			TH_ASSERT_V(Entity != nullptr, "entity should be set");
+			if (!UnregisterEntity(Entity))
 				return;
 
 			Entity->RemoveChilds();
@@ -4163,10 +4189,12 @@ namespace Tomahawk
 		void SceneGraph::RegisterEntity(Entity* Target)
 		{
 			TH_ASSERT_V(Target != nullptr, "entity should be set");
-			for (auto& Base : Target->Components)
-				RegisterComponent(Base.second, Target->Active, true);
+			TH_ASSERT_V(Target->Scene == this, "entity be created within this scene");
 
 			Target->Active = true;
+			for (auto& Base : Target->Type.Components)
+				RegisterComponent(Base.second, Target->Active, true);
+
 			Mutate(Target, "push");
 		}
 		bool SceneGraph::UnregisterEntity(Entity* Target)
@@ -4178,7 +4206,7 @@ namespace Tomahawk
 			if (Viewer != nullptr && Target == Viewer->Parent)
 				Camera = nullptr;
 
-			for (auto& Base : Target->Components)
+			for (auto& Base : Target->Type.Components)
 				UnregisterComponent(Base.second, true);
 
 			Target->Active = false;
@@ -4289,10 +4317,10 @@ namespace Tomahawk
 			for (auto It = Array.Begin(); It != Array.End(); ++It)
 			{
 				Component* Current = *It;
-				if (Distance > 0 && Current->Parent->Distance > Distance)
+				if (Distance > 0 && Current->Parent->Snapshot.Distance > Distance)
 					continue;
 
-				if (Compute::Geometric::CursorRayTest(Base, Current->Parent->Box, &Hit) && !Callback(Current, Hit))
+				if (Compute::Geometric::CursorRayTest(Base, Current->Parent->Snapshot.Box, &Hit) && !Callback(Current, Hit))
 					break;
 			}
 
@@ -4317,7 +4345,7 @@ namespace Tomahawk
 			for (auto It = Begin; It != End; ++It)
 			{
 				Entity* V = *It;
-				for (auto& Base : V->Components)
+				for (auto& Base : V->Type.Components)
 				{
 					if (Base.second->Active)
 						Base.second->Activate(nullptr);
@@ -4496,15 +4524,18 @@ namespace Tomahawk
 
 				Task->Callback = [this, Task, Callback = std::move(Callback)]()
 				{
-					if (!Acquire && Status == 1)
+					auto* Queue = Core::Schedule::Get();
+					if (!Queue->CanEnqueue())
+						return;
+
+					Task->Active = true;
 					{
 						Callback(Task->Time);
 						Task->Time->Synchronize();
-						Task->Active = Core::Schedule::Get()->SetTask(Task->Callback, Core::Difficulty::Heavy);
-						if (Task->Active)
-							return;
-					}
 
+						if (!Acquire && Status == 1)
+							Queue->SetTask(Task->Callback, Core::Difficulty::Heavy);
+					}
 					Task->Active = false;
 				};
 			}
@@ -4661,7 +4692,7 @@ namespace Tomahawk
 				std::vector<Entity*> Array;
 				CloneEntities(Value, &Array);
 				if (Callback)
-					Callback(this, !Array.empty() ? Array.front() : nullptr);
+					Callback(!Array.empty() ? Array.front() : nullptr);
 			});
 		}
 		void SceneGraph::MakeSnapshot(IdxSnapshot* Result)
@@ -4809,48 +4840,54 @@ namespace Tomahawk
 			if (!Base->IsCullable())
 				return;
 
-			Indexer.Transaction.lock();
+			Indexer.Notify.lock();
 			Indexer.Changes[Base->GetId()].insert(Base);
-			Indexer.Transaction.unlock();
+			Indexer.Queue++;
+			Indexer.Notify.unlock();
 		}
-		void SceneGraph::NotifyCosmosBulk()
+		void SceneGraph::NotifyCosmosBulk(const std::vector<Entity*>& Data)
 		{
-			Indexer.Transaction.lock();
-			for (auto* Base : Indexer.Heap)
+			Indexer.Notify.lock();
+			for (auto* Base : Data)
 			{
-				for (auto& Next : Base->Components)
+				for (auto& Next : Base->Type.Components)
 				{
 					if (Next.second->IsCullable())
+					{
 						Indexer.Changes[Next.first].insert(Next.second);
+						Indexer.Queue++;
+					}
 				}
 			}
-			Indexer.Heap.clear();
-			Indexer.Transaction.unlock();
+			Indexer.Notify.unlock();
 		}
 		void SceneGraph::UpdateCosmos(Component* Base)
 		{
 			auto& Storage = GetStorage(Base->GetId());
-			Indexer.Transaction.lock();
+			Indexer.Transaction.StoreLock();
 			if (Base->Active)
 			{
 				if (!Base->Indexed)
 				{
-					Storage.Index.InsertItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
+					Storage.Index.InsertItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
 					Base->Indexed = true;
 				}
 				else
-					Storage.Index.UpdateItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
+					Storage.Index.UpdateItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
 			}
 			else
 			{
 				Storage.Index.RemoveItem((void*)Base);
 				Base->Indexed = false;
 			}
-			Indexer.Transaction.unlock();
+			Indexer.Transaction.StoreUnlock();
 		}
-		void SceneGraph::UpdateCosmos()
+		bool SceneGraph::UpdateCosmos()
 		{
-			Indexer.Transaction.lock();
+			if (!Indexer.Transaction.TryStoreLock())
+				return false;
+
+			size_t Updates = 0;
 			for (auto& Item : Indexer.Changes)
 			{
 				if (Item.second.empty())
@@ -4867,11 +4904,11 @@ namespace Tomahawk
 					{
 						if (!Base->Indexed)
 						{
-							Storage.Index.InsertItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
+							Storage.Index.InsertItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
 							Base->Indexed = true;
 						}
 						else
-							Storage.Index.UpdateItem((void*)Base, Base->Parent->Min, Base->Parent->Max);
+							Storage.Index.UpdateItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
 					}
 					else
 					{
@@ -4888,8 +4925,13 @@ namespace Tomahawk
 
 				if (Count == Item.second.size())
 					Item.second.clear();
+
+				Updates += Count;
 			}
-			Indexer.Transaction.unlock();
+
+			Indexer.Queue = 0;
+			Indexer.Transaction.StoreUnlock();
+			return Updates > 0;
 		}
 		void SceneGraph::ProcessCullable(Component* Base)
 		{
@@ -4925,7 +4967,7 @@ namespace Tomahawk
 			else if (Bubble == EventTarget::Entity)
 			{
 				Entity* Base = (Entity*)Target;
-				for (auto& Item : Base->Components)
+				for (auto& Item : Base->Type.Components)
 					Item.second->Message(Source.Name, Source.Args);
 			}
 			else if (Bubble == EventTarget::Component)
@@ -4971,38 +5013,43 @@ namespace Tomahawk
 
 			return !Events.empty();
 		}
-		Material* SceneGraph::AddMaterial(Material* Base, const std::string& Name)
+		bool SceneGraph::AddMaterial(Material* Base)
 		{
 			TH_ASSERT(Base != nullptr, nullptr, "base should be set");
-
 			if (Materials.Size() + Conf.GrowMargin > Materials.Capacity())
 			{
-				Transaction([this, Base, Name]()
+				Transaction([this, Base]()
 				{
 					if (Materials.Size() + Conf.GrowMargin > Materials.Capacity())
 					{
 						UpgradeBuffer(Materials, Conf.GrowRate);
 						GenerateMaterialBuffer();
 					}
-					AddMaterial(Base, Name);
+
+					AddMaterial(Base);
 				});
 			}
 			else
 			{
 				Base->Scene = this;
-				if (!Name.empty())
-					Base->Name = Name;
-
 				Materials.AddIfNotExists(Base);
 				Mutate(Base, "push");
 			}
 
-			return Base;
+			return true;
 		}
-		Material* SceneGraph::CloneMaterial(Material* Base, const std::string& Name)
+		Material* SceneGraph::AddMaterial()
+		{
+			Material* Result = new Material(this);
+			AddMaterial(Result);
+			return Result;
+		}
+		Material* SceneGraph::CloneMaterial(Material* Base)
 		{
 			TH_ASSERT(Base != nullptr, nullptr, "material should be set");
-			return AddMaterial(new Material(*Base), Name);
+			Material* Result = new Material(*Base);
+			AddMaterial(Result);
+			return Result;
 		}
 		Component* SceneGraph::GetCamera()
 		{
@@ -5095,6 +5142,11 @@ namespace Tomahawk
 
 			return Entities.Back();
 		}
+		Entity* SceneGraph::GetCameraEntity()
+		{
+			Component* Data = GetCamera();
+			return Data ? Data->Parent : nullptr;
+		}
 		Entity* SceneGraph::CloneEntity(Entity* Entity)
 		{
 			TH_ASSERT(Entity != nullptr, nullptr, "entity should be set");
@@ -5103,11 +5155,10 @@ namespace Tomahawk
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
 			Instance->Transform->UserPointer = Instance;
-			Instance->Tag = Entity->Tag;
-			Instance->Name = Entity->Name;
-			Instance->Components = Entity->Components;
+			Instance->Type.Name = Entity->Type.Name;
+			Instance->Type.Components = Entity->Type.Components;
 
-			for (auto& It : Instance->Components)
+			for (auto& It : Instance->Type.Components)
 			{
 				Component* Source = It.second;
 				It.second = Source->Copy(Instance);
@@ -5210,23 +5261,36 @@ namespace Tomahawk
 			auto Begin = Entities.Begin(), End = Entities.End();
 			for (auto It = Begin; It != End; ++It)
 			{
-				if ((*It)->Name == Name)
+				if ((*It)->Type.Name == Name)
 					Array.push_back(*It);
 			}
 
 			return Array;
 		}
-		std::vector<Entity*> SceneGraph::QueryByTag(uint64_t Tag) const
+		std::vector<Component*> SceneGraph::QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius, bool DrawableOnly)
 		{
-			std::vector<Entity*> Array;
-			auto Begin = Entities.Begin(), End = Entities.End();
-			for (auto It = Begin; It != End; ++It)
-			{
-				if ((*It)->Tag == Tag)
-					Array.push_back(*It);
-			}
+			return QueryByArea(Section, Position - Radius, Position + Radius, DrawableOnly);
+		}
+		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly)
+		{
+			Compute::Area Box;
+			Box.Lower = Min;
+			Box.Upper = Max;
+			Box.Recompute();
 
-			return Array;
+			std::vector<Component*> Result;
+			auto& Storage = GetStorage(Section);
+			void* Base = nullptr;
+
+			Indexer.Transaction.LoadLock();
+			{
+				Storage.Index.PushQuery();
+				while ((Base = Storage.Index.NextQuery(Box)) != nullptr)
+					Result.push_back((Component*)Base);
+			}
+			Indexer.Transaction.LoadUnlock();
+
+			return Result;
 		}
 		std::vector<CubicDepthMap*>& SceneGraph::GetPointsMapping()
 		{
@@ -5243,6 +5307,12 @@ namespace Tomahawk
 		std::vector<VoxelMapping>& SceneGraph::GetVoxelsMapping()
 		{
 			return Display.Voxels;
+		}
+		Entity* SceneGraph::AddEntity()
+		{
+			Entity* Next = new Entity(this);
+			AddEntity(Next);
+			return Next;
 		}
 		bool SceneGraph::AddEntity(Entity* Entity)
 		{
@@ -5333,7 +5403,7 @@ namespace Tomahawk
 			return Conf;
 		}
 
-		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Base(Core::OS::Path::ResolveDirectory(Core::OS::Directory::Get().c_str()))
+		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Base(Core::OS::Path::ResolveDirectory(Core::OS::Directory::Get().c_str())), Queue(0)
 		{
 			SetEnvironment(Base);
 		}
@@ -5403,7 +5473,7 @@ namespace Tomahawk
 		{
 			Device = NewDevice;
 		}
-		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Map)
+		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Map, bool Async)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -5419,7 +5489,10 @@ namespace Tomahawk
 				return Object;
 
 			std::string File = Path;
-			if (!Core::OS::Path::IsRemote(Path.c_str()))
+			bool IsRemote = Core::OS::Path::IsRemote(Path.c_str());
+			TH_ASSERT(!IsRemote || Async, nullptr, "file \"%s\" cannot be loaded immediately, use LoadAsync<T>", Path.c_str());
+
+			if (!IsRemote)
 			{
 				Mutex.lock();
 				File = Core::OS::Path::ResolveResource(Path, Environment);
@@ -5453,17 +5526,24 @@ namespace Tomahawk
 			Core::Parser File(Path);
 			File.Replace('\\', '/').Replace("./", "");
 
+			Mutex.lock();
 			auto Docker = Dockers.find(File.R());
 			if (Docker == Dockers.end() || !Docker->second || !Docker->second->Stream)
+			{
+				Mutex.unlock();
 				return nullptr;
+			}
+			Mutex.unlock();
 
 			AssetCache* Asset = Find(Processor, File.R());
 			if (Asset != nullptr)
 				return Processor->Duplicate(Asset, Map);
 
+			Mutex.lock();
 			auto It = Streams.find(Docker->second->Stream);
 			if (It == Streams.end())
 			{
+				Mutex.unlock();
 				TH_ERR("[engine] cannot resolve stream offset for \"%s\"", Path.c_str());
 				return nullptr;
 			}
@@ -5471,6 +5551,7 @@ namespace Tomahawk
 			auto* Stream = Docker->second->Stream;
 			Stream->Seek(Core::FileSeek::Begin, It->second + Docker->second->Offset);
 			Stream->GetSource() = File.R();
+			Mutex.unlock();
 
 			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, Map);
 		}
@@ -5499,7 +5580,6 @@ namespace Tomahawk
 				if (!Stream)
 				{
 					TH_ERR("[engine] cannot open stream for writing at \"%s\" or \"%s\"", File.c_str(), Path.c_str());
-					TH_RELEASE(Stream);
 					return false;
 				}
 			}
@@ -5594,15 +5674,18 @@ namespace Tomahawk
 				return false;
 			}
 
-			std::string DBase = Core::OS::Path::Resolve(Directory, Environment);
-			auto Tree = new Core::FileTree(DBase);
+			Mutex.lock();
+			std::string DirectoryBase = Core::OS::Path::Resolve(Directory, Environment);
+			Mutex.unlock();
+
+			auto Tree = new Core::FileTree(DirectoryBase);
 			Stream->Write("\0d\0o\0c\0k\0h\0e\0a\0d", sizeof(char) * 16);
 
 			uint64_t Size = Tree->GetFiles();
 			Stream->Write((char*)&Size, sizeof(uint64_t));
 
 			uint64_t Offset = 0;
-			Tree->Loop([Stream, &Offset, &DBase, &Name](const Core::FileTree* Tree)
+			Tree->Loop([Stream, &Offset, &DirectoryBase, &Name](const Core::FileTree* Tree)
 			{
 				for (auto& Resource : Tree->Files)
 				{
@@ -5610,7 +5693,7 @@ namespace Tomahawk
 					if (!File)
 						continue;
 
-					std::string Path = Core::Parser(Resource).Replace(DBase, Name).Replace('\\', '/').R();
+					std::string Path = Core::Parser(Resource).Replace(DirectoryBase, Name).Replace('\\', '/').R();
 					if (Name.empty())
 						Path.assign(Path.substr(1));
 
@@ -5666,16 +5749,50 @@ namespace Tomahawk
 			if (Find(Root, Path) != nullptr)
 				return false;
 
+			Mutex.lock();
 			AssetCache* Asset = TH_NEW(AssetCache);
 			Asset->Path = Core::Parser(Path).Replace('\\', '/').Replace(Environment, "./").R();
 			Asset->Resource = Resource;
 
-			Mutex.lock();
 			auto& Entries = Assets[Asset->Path];
 			Entries[Root] = Asset;
 			Mutex.unlock();
 
 			return true;
+		}
+		bool ContentManager::HasAnyPointToDispatch()
+		{
+			auto* App = Application::Get();
+			if (!App || App->Content != this)
+				return true;
+
+			if (!Application::Queue()->CanEnqueue())
+				return false;
+
+			auto State = App->GetState();
+			if (State == ApplicationState::Staging || State == ApplicationState::Active)
+				return true;
+
+			return false;
+		}
+		bool ContentManager::IsBusy()
+		{
+			Mutex.lock();
+			bool Busy = Queue > 0;
+			Mutex.unlock();
+			return Busy;
+		}
+		void ContentManager::Enqueue()
+		{
+			Mutex.lock();
+			++Queue;
+			Mutex.unlock();
+		}
+		void ContentManager::Dequeue()
+		{
+			Mutex.lock();
+			--Queue;
+			Mutex.unlock();
 		}
 		AssetCache* ContentManager::Find(Processor* Target, const std::string& Path)
 		{
@@ -5717,7 +5834,7 @@ namespace Tomahawk
 		{
 			return Device;
 		}
-		std::string ContentManager::GetEnvironment() const
+		const std::string& ContentManager::GetEnvironment() const
 		{
 			return Environment;
 		}
@@ -6138,6 +6255,12 @@ namespace Tomahawk
 					Dispatch(Time);
 					Publish(Time);
 				}
+			}
+
+			if (Content != nullptr && Control.Async)
+			{
+				while (Content->IsBusy())
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			}
 
 			TH_RELEASE(Time);

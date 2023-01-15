@@ -4507,7 +4507,7 @@ namespace Tomahawk
 		void Guard::LoadUnlock()
 		{
 			std::unique_lock<std::mutex> Unique(Mutex);
-			TH_ASSERT_V(!Readers, "value was not loaded");
+			TH_ASSERT_V(Readers > 0, "value was not loaded");
 
 			if (!--Readers)
 				Condition.notify_one();
@@ -4531,7 +4531,7 @@ namespace Tomahawk
 		void Guard::StoreUnlock()
 		{
 			std::unique_lock<std::mutex> Unique(Mutex);
-			TH_ASSERT_V(!Writers, "value was not stored");
+			TH_ASSERT_V(Writers > 0, "value was not stored");
 
 			--Writers;
 			Condition.notify_all();
@@ -9079,6 +9079,10 @@ namespace Tomahawk
 		bool Schedule::IsActive() const
 		{
 			return Active;
+		}
+		bool Schedule::CanEnqueue() const
+		{
+			return Enqueue;
 		}
 		bool Schedule::HasTasks(Difficulty Type) const
 		{

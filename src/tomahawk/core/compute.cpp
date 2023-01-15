@@ -205,6 +205,10 @@ namespace Tomahawk
 		Vector2::Vector2(const Vector4& Value) : X(Value.X), Y(Value.Y)
 		{
 		}
+		bool Vector2::IsEquals(const Vector2& Other, float MaxDisplacement) const
+		{
+			return abs(X - Other.X) <= MaxDisplacement && abs(Y - Other.Y) <= MaxDisplacement;
+		}
 		float Vector2::Length() const
 		{
 #ifdef TH_WITH_SIMD
@@ -648,6 +652,10 @@ namespace Tomahawk
 		}
 		Vector3::Vector3(const Vector4& Value) : X(Value.X), Y(Value.Y), Z(Value.Z)
 		{
+		}
+		bool Vector3::IsEquals(const Vector3& Other, float MaxDisplacement) const
+		{
+			return abs(X - Other.X) <= MaxDisplacement && abs(Y - Other.Y) <= MaxDisplacement && abs(Z - Other.Z) <= MaxDisplacement;
 		}
 		float Vector3::Length() const
 		{
@@ -1170,6 +1178,10 @@ namespace Tomahawk
 		}
 		Vector4::Vector4(const Vector4& Value) : X(Value.X), Y(Value.Y), Z(Value.Z), W(Value.W)
 		{
+		}
+		bool Vector4::IsEquals(const Vector4& Other, float MaxDisplacement) const
+		{
+			return abs(X - Other.X) <= MaxDisplacement && abs(Y - Other.Y) <= MaxDisplacement && abs(Z - Other.Z) <= MaxDisplacement && abs(W - Other.W) <= MaxDisplacement;
 		}
 		float Vector4::Length() const
 		{
@@ -9391,29 +9403,38 @@ namespace Tomahawk
 		void Transform::SetPosition(const Vector3& Value)
 		{
 			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			bool Updated = !(Root ? Local->Position.IsEquals(Value) : Global.Position.IsEquals(Value));
 			if (Root != nullptr)
 				Local->Position = Value;
 			else
 				Global.Position = Value;
-			MakeDirty();
+
+			if (Updated)
+				MakeDirty();
 		}
 		void Transform::SetRotation(const Vector3& Value)
 		{
 			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			bool Updated = !(Root ? Local->Rotation.IsEquals(Value) : Global.Rotation.IsEquals(Value));
 			if (Root != nullptr)
 				Local->Rotation = Value;
 			else
 				Global.Rotation = Value;
-			MakeDirty();
+
+			if (Updated)
+				MakeDirty();
 		}
 		void Transform::SetScale(const Vector3& Value)
 		{
 			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
+			bool Updated = !(Root ? Local->Scale.IsEquals(Value) : Global.Scale.IsEquals(Value));
 			if (Root != nullptr)
 				Local->Scale = Value;
 			else
 				Global.Scale = Value;
-			MakeDirty();
+
+			if (Updated)
+				MakeDirty();
 		}
 		void Transform::SetSpacing(Positioning Space, Spacing& Where)
 		{
@@ -10397,7 +10418,7 @@ namespace Tomahawk
 				const btVector3& Scale = Instance->getCollisionShape()->getLocalScaling();
 				Base.getRotation().getEulerZYX(Z, Y, X);
 				Transform->SetPosition(BT_TO_V3(Position));
-				Transform->SetRotation(Vector3(-X, -Y, Z));
+				Transform->SetRotation(Vector3(X, Y, Z));
 				Transform->SetScale(BT_TO_V3(Scale));
 			}
 			else
@@ -11151,7 +11172,7 @@ namespace Tomahawk
 				btScalar X, Y, Z;
 				Instance->getWorldTransform().getRotation().getEulerZYX(Z, Y, X);
 				Transform->SetPosition(Center.InvZ());
-				Transform->SetRotation(Vector3(-X, -Y, Z));
+				Transform->SetRotation(Vector3(X, Y, Z));
 			}
 			else
 			{

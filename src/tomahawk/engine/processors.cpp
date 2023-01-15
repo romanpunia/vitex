@@ -200,10 +200,9 @@ namespace Tomahawk
 					std::vector<Core::Schema*> Collection = Entities->FindCollection("entity");
 					for (auto& It : Collection)
 					{
-						Entity* Entity = new Engine::Entity(Object);
-						Object->AddEntity(Entity);
-
+						Entity* Entity = Object->AddEntity();
 						int64_t Refer = -1;
+
 						if (Series::Unpack(It->Find("refer"), &Refer) && Refer >= 0)
 						{
 							Snapshot.To[Entity] = (uint64_t)Refer;
@@ -220,7 +219,6 @@ namespace Tomahawk
 
 						std::string Name;
 						Series::Unpack(It->Find("name"), &Name);
-						Series::Unpack(It->Find("tag"), &Entity->Tag);
 						Entity->SetName(Name, true);
 
 						Core::Schema* Transform = It->Find("transform");
@@ -390,7 +388,6 @@ namespace Tomahawk
 
 					Core::Schema* Entity = Entities->Set("entity");
 					Series::Pack(Entity->Set("name"), Ref->GetName());
-					Series::Pack(Entity->Set("tag"), Ref->Tag);
 					Series::Pack(Entity->Set("refer"), i);
 
 					Core::Schema* Transform = Entity->Set("transform");

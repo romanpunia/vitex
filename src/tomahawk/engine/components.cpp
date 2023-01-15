@@ -67,7 +67,7 @@ namespace Tomahawk
 						auto* Shape = Content->Load<Compute::HullShape>(Path);
 						if (Shape != nullptr)
 						{
-							Create(Shape->Shape, Mass, CcdMotionThreshold);
+							Load(Shape->Shape, Mass, CcdMotionThreshold);
 							TH_RELEASE(Shape);
 						}
 					}
@@ -78,14 +78,14 @@ namespace Tomahawk
 						{
 							btCollisionShape* Shape = Scene->GetSimulator()->CreateConvexHull(Vertices);
 							if (Shape != nullptr)
-								Create(Shape, Mass, CcdMotionThreshold);
+								Load(Shape, Mass, CcdMotionThreshold);
 						}
 					}
 					else
 					{
 						btCollisionShape* Shape = Scene->GetSimulator()->CreateShape((Compute::Shape)Type);
 						if (Shape != nullptr)
-							Create(Shape, Mass, CcdMotionThreshold);
+							Load(Shape, Mass, CcdMotionThreshold);
 					}
 				}
 
@@ -243,7 +243,7 @@ namespace Tomahawk
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
 			}
-			void RigidBody::Create(btCollisionShape* Shape, float Mass, float Anticipation)
+			void RigidBody::Load(btCollisionShape* Shape, float Mass, float Anticipation)
 			{
 				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
 				SceneGraph* Scene = Parent->GetScene();
@@ -260,13 +260,13 @@ namespace Tomahawk
 					Instance->SetActivity(true);
 				});
 			}
-			void RigidBody::Create(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
+			void RigidBody::Load(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_RELEASE(Hull);
 				Hull = Content->Load<Compute::HullShape>(Path);
 				if (Hull != nullptr)
-					Create(Hull->Shape, Mass, Anticipation);
+					Load(Hull->Shape, Mass, Anticipation);
 			}
 			void RigidBody::Clear()
 			{
@@ -385,7 +385,7 @@ namespace Tomahawk
 						auto* Shape = Content->Load<Compute::HullShape>(Path);
 						if (Shape != nullptr)
 						{
-							Create(Shape, CcdMotionThreshold);
+							Load(Shape, CcdMotionThreshold);
 							TH_RELEASE(Shape);
 						}
 					}
@@ -396,7 +396,7 @@ namespace Tomahawk
 					Series::Unpack(CV->Get("center"), &Shape.Center);
 					Series::Unpack(CV->Get("radius"), &Shape.Radius);
 					Series::Unpack(CV->Get("count"), &Shape.Count);
-					CreateEllipsoid(Shape, CcdMotionThreshold);
+					LoadEllipsoid(Shape, CcdMotionThreshold);
 				}
 				else if ((CV = Node->Find("patch")) != nullptr)
 				{
@@ -412,7 +412,7 @@ namespace Tomahawk
 					Series::Unpack(CV->Get("count-x"), &Shape.CountX);
 					Series::Unpack(CV->Get("count-y"), &Shape.CountY);
 					Series::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
-					CreatePatch(Shape, CcdMotionThreshold);
+					LoadPatch(Shape, CcdMotionThreshold);
 				}
 				else if ((CV = Node->Find("rope")) != nullptr)
 				{
@@ -422,7 +422,7 @@ namespace Tomahawk
 					Series::Unpack(CV->Get("end"), &Shape.End);
 					Series::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
 					Series::Unpack(CV->Get("count"), &Shape.Count);
-					CreateRope(Shape, CcdMotionThreshold);
+					LoadRope(Shape, CcdMotionThreshold);
 				}
 
 				if (!Instance)
@@ -668,7 +668,7 @@ namespace Tomahawk
 				if (Instance != nullptr)
 					Instance->SetAsGhost();
 			}
-			void SoftBody::Create(Compute::HullShape* Shape, float Anticipation)
+			void SoftBody::Load(Compute::HullShape* Shape, float Anticipation)
 			{
 				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
 				Shape->AddRef();
@@ -698,17 +698,17 @@ namespace Tomahawk
 					TH_RELEASE(Shape);
 				});
 			}
-			void SoftBody::Create(ContentManager* Content, const std::string& Path, float Anticipation)
+			void SoftBody::Load(ContentManager* Content, const std::string& Path, float Anticipation)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				Compute::HullShape* Hull = Content->Load<Compute::HullShape>(Path);
 				if (Hull != nullptr)
 				{
-					Create(Hull, Anticipation);
+					Load(Hull, Anticipation);
 					TH_RELEASE(Hull);
 				}
 			}
-			void SoftBody::CreateEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
+			void SoftBody::LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				Scene->Transaction([this, Scene, Shape, Anticipation]()
@@ -733,7 +733,7 @@ namespace Tomahawk
 					Instance->SetActivity(true);
 				});
 			}
-			void SoftBody::CreatePatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
+			void SoftBody::LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				Scene->Transaction([this, Scene, Shape, Anticipation]()
@@ -759,7 +759,7 @@ namespace Tomahawk
 					Instance->SetActivity(true);
 				});
 			}
-			void SoftBody::CreateRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
+			void SoftBody::LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				Scene->Transaction([this, Scene, Shape, Anticipation]()
@@ -937,7 +937,7 @@ namespace Tomahawk
 					}
 				}
 
-				Create(Connection, Ghost, Linear);
+				Load(Connection, Ghost, Linear);
 				if (!Instance)
 					return;
 
@@ -1112,7 +1112,7 @@ namespace Tomahawk
 				Series::Pack(Node->Set("powered-linear-motor"), Instance->GetPoweredLinearMotor());
 				Series::Pack(Node->Set("enabled"), Instance->IsEnabled());
 			}
-			void SliderConstraint::Create(Entity* Other, bool IsGhosted, bool IsLinear)
+			void SliderConstraint::Load(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
 				TH_ASSERT_V(Parent != Other, "parent should not be equal to other");
 				SceneGraph* Scene = Parent->GetScene();
@@ -1354,6 +1354,12 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 				Instance = Drawable;
+				Materials.clear();
+				if (!Instance)
+					return;
+
+				for (auto* Item : Instance->Meshes)
+					Materials[(void*)Item] = nullptr;
 			}
 			float Model::GetVisibility(const Viewer& View, float Distance) const
 			{
@@ -1374,6 +1380,7 @@ namespace Tomahawk
 				Target->SetCategory(GetCategory());
 				Target->Instance = Instance;
 				Target->Materials = Materials;
+				Target->TexCoord = TexCoord;
 
 				if (Target->Instance != nullptr)
 					Target->Instance->AddRef();
@@ -1479,6 +1486,11 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 				Instance = Drawable;
+				if (!Instance)
+					return;
+
+				for (auto* Item : Instance->Meshes)
+					Materials[(void*)Item] = nullptr;
 			}
 			float Skin::GetVisibility(const Viewer& View, float Distance) const
 			{
@@ -1499,6 +1511,8 @@ namespace Tomahawk
 				Target->SetCategory(GetCategory());
 				Target->Instance = Instance;
 				Target->Materials = Materials;
+				Target->Skeleton.Pose = Skeleton.Pose;
+				memcpy(Target->Skeleton.Transform, Skeleton.Transform, sizeof(Skeleton.Transform));
 
 				if (Target->Instance != nullptr)
 					Target->Instance->AddRef();

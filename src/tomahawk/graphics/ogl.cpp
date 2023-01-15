@@ -549,7 +549,7 @@ namespace Tomahawk
 				SDL_GL_MakeCurrent(Window->GetHandle(), Context);
 				switch (VSyncMode)
 				{
-					case VSync::None:
+					case VSync::Off:
 						SDL_GL_SetSwapInterval(0);
 						break;
 					case VSync::Frequency_X1:

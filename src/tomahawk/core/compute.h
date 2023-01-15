@@ -316,6 +316,7 @@ namespace Tomahawk
 			Vector2(const Vector2& Value);
 			Vector2(const Vector3& Value);
 			Vector2(const Vector4& Value);
+			bool IsEquals(const Vector2& Other, float MaxDisplacement = 0.000001f) const;
 			float Length() const;
 			float Sum() const;
 			float Dot(const Vector2& B) const;
@@ -417,6 +418,7 @@ namespace Tomahawk
 			Vector3(float x, float y);
 			Vector3(float x, float y, float z);
 			Vector3(float xyz);
+			bool IsEquals(const Vector3& Other, float MaxDisplacement = 0.000001f) const;
 			float Length() const;
 			float Sum() const;
 			float Dot(const Vector3& B) const;
@@ -534,6 +536,7 @@ namespace Tomahawk
 			Vector4(float x, float y, float z);
 			Vector4(float x, float y, float z, float w);
 			Vector4(float xyzw);
+			bool IsEquals(const Vector4& Other, float MaxDisplacement = 0.000001f) const;
 			float Length() const;
 			float Sum() const;
 			float Dot(const Vector4& B) const;

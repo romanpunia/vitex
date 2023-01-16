@@ -31,6 +31,7 @@ namespace Tomahawk
 			typedef std::function<void(const std::string&)> OnQueryLog;
 			typedef std::function<void(const Notify&)> OnNotification;
 			typedef std::function<void(Cursor&)> OnResult;
+			typedef Connection* SessionId;
 			typedef pg_conn TConnection;
 			typedef pg_result TResponse;
 			typedef pgNotify TNotify;
@@ -49,9 +50,12 @@ namespace Tomahawk
 			{
 				DeleteArgs = 0,
 				ReuseArgs = (1 << 0),
-				CacheShort = (1 << 1),
-				CacheMid = (1 << 2),
-				CacheLong = (1 << 3)
+				TransactionAlways = (1 << 1),
+				TransactionStart = (1 << 2),
+				TransactionEnd = (1 << 3),
+				CacheShort = (1 << 4),
+				CacheMid = (1 << 5),
+				CacheLong = (1 << 6)
 			};
 
 			enum class AddressOp
@@ -404,9 +408,11 @@ namespace Tomahawk
 
 			private:
 				std::vector<Response> Base;
+				Connection* Executor;
 
 			public:
 				Cursor();
+				Cursor(Connection* NewExecutor);
 				Cursor(const Cursor& Other) = delete;
 				Cursor(Cursor&& Other);
 				~Cursor();
@@ -433,6 +439,7 @@ namespace Tomahawk
 				const Response& First() const;
 				const Response& Last() const;
 				const Response& At(size_t Index) const;
+				Connection* GetExecutor() const;
 				Core::Unique<Core::Schema> GetArrayOfObjects(size_t ResponseIndex = 0) const;
 				Core::Unique<Core::Schema> GetArrayOfArrays(size_t ResponseIndex = 0) const;
 				Core::Unique<Core::Schema> GetObject(size_t ResponseIndex = 0, size_t Index = 0) const;
@@ -454,17 +461,19 @@ namespace Tomahawk
 				friend Cluster;
 
 			private:
+				std::unordered_set<std::string> Listens;
 				TConnection* Base = nullptr;
 				Socket* Stream = nullptr;
 				Request* Current = nullptr;
-				uint64_t Session = 0;
 				QueryState State = QueryState::Lost;
+				bool InSession = false;
 
 			public:
 				TConnection* GetBase() const;
 				Socket* GetStream() const;
 				Request* GetCurrent() const;
 				QueryState GetState() const;
+				bool IsInSession() const;
 				bool IsBusy() const;
 			};
 
@@ -475,17 +484,17 @@ namespace Tomahawk
 			private:
 				Core::Async<Cursor> Future;
 				std::vector<char> Command;
-				uint64_t Session;
+				SessionId Session;
 				OnResult Callback;
 				Cursor Result;
-				bool Restore;
+				uint64_t Options;
 
 			public:
 				Request(const std::string& Commands);
 				void Finalize(Cursor& Subresult);
 				Cursor&& GetResult();
 				const std::vector<char>& GetCommand() const;
-				uint64_t GetSession() const;
+				SessionId GetSession() const;
 				bool IsPending() const;
 			};
 
@@ -509,7 +518,6 @@ namespace Tomahawk
 				std::unordered_map<std::string, std::unordered_map<uint64_t, OnNotification>> Listeners;
 				std::unordered_map<Socket*, Connection*> Pool;
 				std::vector<Request*> Requests;
-				std::atomic<uint64_t> Session;
 				std::atomic<uint64_t> Channel;
 				std::mutex Update;
 				Address Source;
@@ -522,31 +530,34 @@ namespace Tomahawk
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
 				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);
 				bool RemoveChannel(const std::string& Name, uint64_t Id);
-				Core::Async<uint64_t> TxBegin(Isolation Type);
-				Core::Async<uint64_t> TxBegin(const std::string& Command);
-				Core::Async<bool> TxEnd(const std::string& Command, uint64_t Token);
-				Core::Async<bool> TxCommit(uint64_t Token);
-				Core::Async<bool> TxRollback(uint64_t Token);
+				Core::Async<SessionId> TxBegin(Isolation Type);
+				Core::Async<SessionId> TxBegin(const std::string& Command);
+				Core::Async<bool> TxEnd(const std::string& Command, SessionId Session);
+				Core::Async<bool> TxCommit(SessionId Session);
+				Core::Async<bool> TxRollback(SessionId Session);
 				Core::Async<bool> Connect(const Address& URI, size_t Connections);
 				Core::Async<bool> Disconnect();
-				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
-				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t QueryOps = 0, uint64_t Token = 0);
-				Core::Async<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, uint64_t Token = 0, bool Restore = false);
-				TConnection* GetConnection(QueryState State);
-				TConnection* GetConnection() const;
+				Core::Async<bool> Listen(const std::vector<std::string>& Channels);
+				Core::Async<bool> Unlisten(const std::vector<std::string>& Channels);
+				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Async<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, SessionId Session = nullptr);
+				Connection* GetConnection(QueryState State);
+				Connection* GetConnection() const;
 				bool IsConnected() const;
 
 			private:
 				std::string GetCacheOid(const std::string& Payload, uint64_t QueryOpts);
 				bool GetCache(const std::string& CacheOid, Cursor* Data);
 				void SetCache(const std::string& CacheOid, Cursor* Data, uint64_t QueryOpts);
-				void Restore(Connection* Base);
+				void TryUnassign(Connection* Base, Request* Context);
 				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base);
 				bool Reprocess(Connection* Base);
 				bool Flush(Connection* Base, bool ListenForResults);
 				bool Dispatch(Connection* Base, bool Connected);
-				bool Transact(Connection* Base, Request* Token);
+				bool TryAssign(Connection* Base, Request* Context);
+				Connection* IsListens(const std::string& Name);
 			};
 
 			class TH_OUT_TS Driver

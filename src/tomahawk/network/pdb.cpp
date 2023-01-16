@@ -1345,13 +1345,17 @@ namespace Tomahawk
 #endif
 			}
 
-			Cursor::Cursor()
+			Cursor::Cursor() : Cursor(nullptr)
+			{
+			}
+			Cursor::Cursor(Connection* NewExecutor) : Executor(NewExecutor)
 			{
 				TH_WATCH(this, "pq-result cursor");
 			}
-			Cursor::Cursor(Cursor&& Other) : Base(std::move(Other.Base))
+			Cursor::Cursor(Cursor&& Other) : Base(std::move(Other.Base)), Executor(Other.Executor)
 			{
 				TH_WATCH(this, "pq-result cursor (moved)");
+				Other.Executor = nullptr;
 			}
 			Cursor::~Cursor()
 			{
@@ -1363,6 +1367,9 @@ namespace Tomahawk
 					return *this;
 
 				Base = std::move(Other.Base);
+				Executor = Other.Executor;
+				Other.Executor = nullptr;
+
 				return *this;
 			}
 			bool Cursor::IsSuccess() const
@@ -1408,7 +1415,7 @@ namespace Tomahawk
 			}
 			Cursor Cursor::Copy() const
 			{
-				Cursor Result;
+				Cursor Result(Executor);
 				if (Base.empty())
 					return Result;
 
@@ -1434,6 +1441,10 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Index < Base.size(), Base.front(), "index outside of range");
 				return Base[Index];
+			}
+			Connection* Cursor::GetExecutor() const
+			{
+				return Executor;
 			}
 			Core::Schema* Cursor::GetArrayOfObjects(size_t ResponseIndex) const
 			{
@@ -1480,12 +1491,16 @@ namespace Tomahawk
 			{
 				return State;
 			}
+			bool Connection::IsInSession() const
+			{
+				return InSession;
+			}
 			bool Connection::IsBusy() const
 			{
 				return Current != nullptr;
 			}
 
-			Request::Request(const std::string& Commands) : Command(Commands.begin(), Commands.end()), Session(0), Restore(false)
+			Request::Request(const std::string& Commands) : Command(Commands.begin(), Commands.end()), Session(0), Result(nullptr), Options(0)
 			{
 				Command.emplace_back('\0');
 			}
@@ -1502,7 +1517,7 @@ namespace Tomahawk
 			{
 				return Command;
 			}
-			uint64_t Request::GetSession() const
+			SessionId Request::GetSession() const
 			{
 				return Session;
 			}
@@ -1511,7 +1526,7 @@ namespace Tomahawk
 				return Future.IsPending();
 			}
 
-			Cluster::Cluster() : Session(0)
+			Cluster::Cluster()
 			{
 				Driver::Create();
 			}
@@ -1590,7 +1605,7 @@ namespace Tomahawk
 				Update.unlock();
 				return true;
 			}
-			Core::Async<uint64_t> Cluster::TxBegin(Isolation Type)
+			Core::Async<SessionId> Cluster::TxBegin(Isolation Type)
 			{
 				switch (Type)
 				{
@@ -1605,31 +1620,27 @@ namespace Tomahawk
 						return TxBegin("BEGIN");
 				}
 			}
-			Core::Async<uint64_t> Cluster::TxBegin(const std::string& Command)
+			Core::Async<SessionId> Cluster::TxBegin(const std::string& Command)
 			{
-				uint64_t Token = Session++;
-				if (!Token)
-					Token = Session++;
-
-				return Query(Command, 0, Token).Then<uint64_t>([this, Token](Cursor&& Result)
+				return Query(Command, (uint64_t)QueryOp::TransactionStart).Then<SessionId>([this](Cursor&& Result)
 				{
-					return Result.IsSuccess() ? Token : uint64_t(0);
+					return Result.IsSuccess() ? Result.GetExecutor() : nullptr;
 				});
 			}
-			Core::Async<bool> Cluster::TxEnd(const std::string& Command, uint64_t Token)
+			Core::Async<bool> Cluster::TxEnd(const std::string& Command, SessionId Session)
 			{
-				return Query(Command, 0, Token, true).Then<bool>([this, Token](Cursor&& Result)
+				return Query(Command, (uint64_t)QueryOp::TransactionEnd, Session).Then<bool>([this](Cursor&& Result)
 				{
 					return Result.IsSuccess();
 				});
 			}
-			Core::Async<bool> Cluster::TxCommit(uint64_t Token)
+			Core::Async<bool> Cluster::TxCommit(SessionId Session)
 			{
-				return TxEnd("COMMIT", Token);
+				return TxEnd("COMMIT", Session);
 			}
-			Core::Async<bool> Cluster::TxRollback(uint64_t Token)
+			Core::Async<bool> Cluster::TxRollback(SessionId Session)
 			{
-				return TxEnd("ROLLBACK", Token);
+				return TxEnd("ROLLBACK", Session);
 			}
 			Core::Async<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{
@@ -1723,26 +1734,87 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t Opts, uint64_t Token)
+			Core::Async<bool> Cluster::Listen(const std::vector<std::string>& Channels)
+			{
+				TH_ASSERT(!Channels.empty(), false, "channels should not be empty");
+				Update.lock();
+				std::vector<std::string> Actual;
+				Actual.reserve(Channels.size());
+				for (auto& Item : Channels)
+				{
+					if (!IsListens(Item))
+						Actual.push_back(Item);
+				}
+				Update.unlock();
+
+				if (Actual.empty())
+					return true;
+
+				std::string Command;
+				for (auto& Item : Actual)
+					Command += "LISTEN " + Item + ';';
+
+				return Query(Command).Then<bool>([this, Actual = std::move(Actual)](Cursor&& Result) mutable
+				{
+					Connection* Base = Result.GetExecutor();
+					if (!Base || !Result.IsSuccess())
+					    return false;
+
+					Update.lock();
+					for (auto& Item : Actual)
+						Base->Listens.insert(Item);
+					Update.unlock();
+					return true;
+				});
+			}
+			Core::Async<bool> Cluster::Unlisten(const std::vector<std::string>& Channels)
+			{
+				TH_ASSERT(!Channels.empty(), false, "channels should not be empty");
+				Update.lock();
+				std::unordered_map<Connection*, std::string> Commands;
+				for (auto& Item : Channels)
+				{
+					Connection* Next = IsListens(Item);
+					if (Next != nullptr)
+					{
+						Commands[Next] += "UNLISTEN " + Item + ';';
+						Next->Listens.erase(Item);
+					}
+				}
+
+				Update.unlock();
+				if (Commands.empty())
+					return true;
+
+				return Core::Coasync<bool>([this, Commands = std::move(Commands)]() mutable
+				{
+					size_t Count = 0;
+					for (auto& Next : Commands)
+					    Count += TH_AWAIT(Query(Next.second, (uint64_t)QueryOp::TransactionAlways, Next.first)).IsSuccess() ? 1 : 0;
+
+					return Count > 0;
+				});
+			}
+			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t Opts, SessionId Session)
 			{
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
-				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Token);
+				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Session);
 			}
-			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t Opts, uint64_t Token)
+			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t Opts, SessionId Session)
 			{
 				TH_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
-				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Token);
+				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Session);
 			}
-			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, uint64_t Token, bool Restore)
+			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, SessionId Session)
 			{
 				TH_ASSERT(!Command.empty(), Cursor(), "command should not be empty");
 
 				std::string Reference;
 				if (Opts & (uint64_t)QueryOp::CacheShort || Opts & (uint64_t)QueryOp::CacheMid || Opts & (uint64_t)QueryOp::CacheLong)
 				{
-					Cursor Result;
+					Cursor Result(nullptr);
 					Reference = GetCacheOid(Command, Opts);
 
 					if (GetCache(Reference, &Result))
@@ -1755,8 +1827,8 @@ namespace Tomahawk
 				}
 
 				Request* Next = TH_NEW(Request, Command);
-				Next->Session = Token;
-				Next->Restore = Restore;
+				Next->Session = Session;
+				Next->Options = Opts;
 
 				if (!Reference.empty())
 				{
@@ -1793,7 +1865,7 @@ namespace Tomahawk
 				Update.lock();
 				for (auto& Item : Pool)
 				{
-					if (Item.second->Session == Next->Session)
+					if (Item.second->InSession && Item.second == Next->Session)
 					{
 						Update.unlock();
 						return Future;
@@ -1807,18 +1879,18 @@ namespace Tomahawk
 
 				Future.Set(Cursor());
 				TH_DELETE(Request, Next);
-				TH_ASSERT(false, Future, "[pq] transaction %llu does not exist", Token);
+				TH_ASSERT(false, Future, "[pq] transaction %llu does not exist", (void*)Session);
 #endif
 				return Future;
 			}
-			TConnection* Cluster::GetConnection(QueryState State)
+			Connection* Cluster::GetConnection(QueryState State)
 			{
 				Update.lock();
 				for (auto& Item : Pool)
 				{
 					if (Item.second->State == State)
 					{
-						TConnection* Base = Item.second->Base;
+						Connection* Base = Item.second;
 						Update.unlock();
 						return Base;
 					}
@@ -1827,10 +1899,20 @@ namespace Tomahawk
 				Update.unlock();
 				return nullptr;
 			}
-			TConnection* Cluster::GetConnection() const
+			Connection* Cluster::GetConnection() const
 			{
 				for (auto& Item : Pool)
-					return Item.second->Base;
+					return Item.second;
+
+				return nullptr;
+			}
+			Connection* Cluster::IsListens(const std::string& Name)
+			{
+				for (auto& Item : Pool)
+				{
+					if (Item.second->Listens.count(Name) > 0)
+						return Item.second;
+				}
 
 				return nullptr;
 			}
@@ -1912,10 +1994,13 @@ namespace Tomahawk
 					Cache.Objects[CacheOid] = std::make_pair(Timeout, Data->Copy());
 				Cache.Context.unlock();
 			}
-			void Cluster::Restore(Connection* Base)
+			void Cluster::TryUnassign(Connection* Base, Request* Context)
 			{
-				TH_DEBUG("[pq] end tx-%llu on 0x%" PRIXPTR, Base->Session, (uintptr_t)Base);
-				Base->Session = 0;
+				if (!(Context->Options & (uint64_t)QueryOp::TransactionEnd))
+					return;
+
+				TH_DEBUG("[pq] end transaction on 0x%" PRIXPTR, (uintptr_t)Base);
+				Base->InSession = false;
 			}
 			bool Cluster::Reestablish(Connection* Target)
 			{
@@ -1958,6 +2043,12 @@ namespace Tomahawk
 					return false;
 				}
 
+				std::vector<std::string> Channels;
+				Channels.reserve(Target->Listens.size());
+				for (auto& Item : Target->Listens)
+					Channels.push_back(Item);
+				Target->Listens.clear();
+
 				TH_DEBUG("[pq] OK reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
 				Target->State = QueryState::Idle;
 				Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
@@ -1966,7 +2057,11 @@ namespace Tomahawk
 				Consume(Target);
 				Update.unlock();
 				
-				return Reprocess(Target);
+				bool Success = Reprocess(Target);
+				if (!Channels.empty())
+					Listen(Channels);
+
+				return Success;
 #else
 				return false;
 #endif
@@ -1979,9 +2074,11 @@ namespace Tomahawk
 
 				for (auto It = Requests.begin(); It != Requests.end(); ++It)
 				{
-					if (Transact(Base, *It))
+					Request* Context = *It;
+					if (TryAssign(Base, Context))
 					{
-						Base->Current = *It;
+						Context->Result.Executor = Base;
+						Base->Current = Context;
 						Requests.erase(It);
 						break;
 					}
@@ -1991,10 +2088,7 @@ namespace Tomahawk
 					return false;
 
 				TH_PPUSH(TH_PERF_MAX);
-				if (Base->Session != 0)
-					TH_DEBUG("[pq] execute query on 0x%" PRIXPTR " tx-%llu\n\t%.64s%s", (uintptr_t)Base, Base->Session, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
-				else
-					TH_DEBUG("[pq] execute query on 0x%" PRIXPTR "\n\t%.64s%s", (uintptr_t)Base, Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
+				TH_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s\n\t%.64s%s", (uintptr_t)Base, Base->InSession ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{
@@ -2112,8 +2206,7 @@ namespace Tomahawk
 							if (!Results.IsError())
 							{
 								TH_DEBUG("[pq] OK execute on 0x%" PRIXPTR, (uintptr_t)Source);
-								if (Item->Restore)
-									Restore(Source);
+								TryUnassign(Source, Item);
 							}
 
 							Update.unlock();
@@ -2141,25 +2234,22 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Cluster::Transact(Connection* Base, Request* Next)
+			bool Cluster::TryAssign(Connection* Base, Request* Context)
 			{
-				if (Base->Session != 0)
-					return Base->Session == Next->Session;
+				if (Base->InSession || (Context->Session != nullptr && (Context->Options & (uint64_t)QueryOp::TransactionAlways)))
+					return Base == Context->Session;
 
-				if (Next->Session == 0)
+				if (!Context->Session && !(Context->Options & (uint64_t)QueryOp::TransactionStart))
 					return true;
 
 				for (auto& Item : Pool)
 				{
-					if (Base == Item.second)
-						continue;
-
-					if (Item.second->Session == Next->Session)
+					if (Item.second == Context->Session)
 						return false;
 				}
 
-				TH_DEBUG("[pq] start tx-%llu on 0x%" PRIXPTR, Next->Session, (uintptr_t)Base);
-				Base->Session = Next->Session;
+				TH_DEBUG("[pq] start transaction on 0x%" PRIXPTR, (uintptr_t)Base);
+				Base->InSession = true;
 				return true;
 			}
 
@@ -2465,7 +2555,7 @@ namespace Tomahawk
 				if (!Map || Map->empty())
 					return SQL;
 
-				TConnection* Remote = Base->GetConnection();
+				Connection* Remote = Base->GetConnection();
 				Core::Parser Buffer(SQL);
 				Core::Parser::Settle Set;
 				std::string& Src = Buffer.R();
@@ -2506,7 +2596,7 @@ namespace Tomahawk
 							Set.Start--;
 						}
 					}
-					std::string Value = GetSQL(Remote, (*Map)[Next++], Escape, Negate);
+					std::string Value = GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
 					Buffer.Erase(Set.Start, (Escape ? 1 : 2));
 					Buffer.Insert(Value, Set.Start);
 					Offset = Set.Start + (uint64_t)Value.size();
@@ -2570,7 +2660,7 @@ namespace Tomahawk
 					return Result;
 				}
 
-				TConnection* Remote = Base->GetConnection();
+				Connection* Remote = Base->GetConnection();
 				Sequence Origin = It->second;
 				size_t Offset = 0;
 				Safe->unlock();
@@ -2585,7 +2675,7 @@ namespace Tomahawk
 						continue;
 					}
 
-					std::string Value = GetSQL(Remote, It->second, Word.Escape, Word.Negate);
+					std::string Value = GetSQL(Remote->GetBase(), It->second, Word.Escape, Word.Negate);
 					if (Value.empty())
 						continue;
 

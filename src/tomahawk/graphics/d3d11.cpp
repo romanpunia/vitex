@@ -504,7 +504,7 @@ namespace Tomahawk
 			{
 				if (I.Window != nullptr && !I.Window->GetHandle())
 				{
-					I.Window->Restore(Backend);
+					I.Window->BuildLayer(Backend);
 					if (!I.Window->GetHandle())
 						return;
 				}
@@ -2196,6 +2196,7 @@ namespace Tomahawk
 				D3D_RELEASE(LastVertexShader);
 				D3D_RELEASE(LastPixelShader);
 				D3D_RELEASE(LastTexture);
+				D3D_RELEASE(LastSampler);
 				D3D_RELEASE(LastVertexBuffer);
 				D3D_RELEASE(LastBuffer1);
 				D3D_RELEASE(LastBuffer2);

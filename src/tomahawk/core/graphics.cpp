@@ -2,6 +2,9 @@
 #include "../graphics/d3d11.h"
 #include "../graphics/ogl.h"
 #include "../core/shaders.h"
+#ifdef TH_MICROSOFT
+#include <dwmapi.h>
+#endif
 #ifdef TH_HAS_SDL2
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -223,7 +226,7 @@ namespace Tomahawk
 			AlertData.numbuttons = (int)Buttons.size();
 			AlertData.buttons = Views;
 			AlertData.window = Base->GetHandle();
-
+			
 			int Id = 0;
 			View = AlertType::None;
 			Waiting = false;
@@ -1667,7 +1670,7 @@ namespace Tomahawk
 			memset(Keys[0], 0, 1024 * sizeof(bool));
 			memset(Keys[1], 0, 1024 * sizeof(bool));
 			if (!I.AllowGraphics)
-				Restore(RenderBackend::None);
+				BuildLayer(RenderBackend::None);
 		}
 		Activity::~Activity()
 		{
@@ -1680,6 +1683,39 @@ namespace Tomahawk
 				SDL_DestroyWindow(Handle);
 				Handle = nullptr;
 			}
+#endif
+		}
+		void Activity::ApplySystemTheme()
+		{
+#ifdef TH_HAS_SDL2
+#ifdef TH_MICROSOFT
+			HKEY Target;
+			if (RegOpenKeyEx(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", 0, KEY_QUERY_VALUE, &Target) == ERROR_SUCCESS)
+			{
+				DWORD Value = 0, ValueSize = sizeof(DWORD), Type = REG_DWORD;
+				if (RegQueryValueEx(Target, "SystemUsesLightTheme", NULL, &Type, (LPBYTE)&Value, &ValueSize) == ERROR_SUCCESS && Value == 0)
+				{
+					SDL_SysWMinfo Info;
+					SDL_VERSION(&Info.version);
+					SDL_GetWindowWMInfo(Handle, &Info);
+					HWND WindowHandle = Info.info.win.window;
+					HMODULE Library = LoadLibraryA("dwmapi.dll");
+
+					if (Library != nullptr)
+					{
+						typedef HRESULT(*DwmSetWindowAttributePtr1)(HWND, DWORD, LPCVOID, DWORD);
+						DwmSetWindowAttributePtr1 DWM_SetWindowAttribute = (DwmSetWindowAttributePtr1)GetProcAddress(Library, "DwmSetWindowAttribute");
+						if (DWM_SetWindowAttribute != nullptr)
+						{
+							BOOL DarkMode = true;
+							DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode));
+						}
+						FreeLibrary(Library);
+					}
+				}
+				RegCloseKey(Target);
+			}
+#endif
 #endif
 		}
 		void Activity::SetClipboardText(const std::string& Text)
@@ -1786,7 +1822,7 @@ namespace Tomahawk
 				SDL_StopTextInput();
 #endif
 		}
-		void Activity::Restore(RenderBackend Backend)
+		void Activity::BuildLayer(RenderBackend Backend)
 		{
 #ifdef TH_HAS_SDL2
 			if (Handle != nullptr)
@@ -1841,6 +1877,8 @@ namespace Tomahawk
 			}
 
 			Handle = SDL_CreateWindow(Options.Title, Options.X, Options.Y, Options.Width, Options.Height, Flags);
+			if (Handle != nullptr)
+				ApplySystemTheme();
 #endif
 		}
 		void Activity::Hide()

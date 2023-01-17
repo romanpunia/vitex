@@ -245,20 +245,19 @@ namespace Tomahawk
 			}
 			void RigidBody::Load(btCollisionShape* Shape, float Mass, float Anticipation)
 			{
-				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Scene, Shape, Mass, Anticipation]()
-				{
-					Compute::RigidBody::Desc I;
-					I.Anticipation = Anticipation;
-					I.Mass = Mass;
-					I.Shape = Shape;
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
+				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
 
-					TH_RELEASE(Instance);
-					Instance = Scene->GetSimulator()->CreateRigidBody(I, Parent->GetTransform());
-					Instance->UserPointer = this;
-					Instance->SetActivity(true);
-				});
+				Compute::RigidBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Mass = Mass;
+				I.Shape = Shape;
+
+				TH_RELEASE(Instance);
+				Instance = Scene->GetSimulator()->CreateRigidBody(I, Parent->GetTransform());
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
 			}
 			void RigidBody::Load(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
 			{
@@ -270,14 +269,7 @@ namespace Tomahawk
 			}
 			void RigidBody::Clear()
 			{
-				if (!Instance)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this]()
-				{
-					TH_CLEAR(Instance);
-				});
+				TH_CLEAR(Instance);
 			}
 			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
@@ -292,12 +284,7 @@ namespace Tomahawk
 				auto* Transform = Parent->GetTransform();
 				Transform->SetSpacing(Compute::Positioning::Global, Space);
 				Instance->Synchronize(Transform, true);
-
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this]()
-				{
-					Instance->SetActivity(true);
-				});
+				Instance->SetActivity(true);
 			}
 			void RigidBody::SetTransform(bool Kinematics)
 			{
@@ -306,23 +293,12 @@ namespace Tomahawk
 
 				auto* Transform = Parent->GetTransform();
 				Instance->Synchronize(Transform, Kinematics);
-
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this]()
-				{
-					Instance->SetActivity(true);
-				});
+				Instance->SetActivity(true);
 			}
 			void RigidBody::SetMass(float Mass)
 			{
-				if (!Instance)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Mass]()
-				{
+				if (Instance != nullptr)
 					Instance->SetMass(Mass);
-				});
 			}
 			Component* RigidBody::Copy(Entity* New) const
 			{
@@ -670,33 +646,28 @@ namespace Tomahawk
 			}
 			void SoftBody::Load(Compute::HullShape* Shape, float Anticipation)
 			{
-				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
-				Shape->AddRef();
-
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Scene, Shape, Anticipation]()
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
+				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Convex.Hull = Shape;
+				I.Shape.Convex.Enabled = true;
+
+				TH_RELEASE(Instance);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
+				if (!Instance)
 				{
-					Compute::SoftBody::Desc I;
-					I.Anticipation = Anticipation;
-					I.Shape.Convex.Hull = Shape;
-					I.Shape.Convex.Enabled = true;
+					TH_ERR("[engine] cannot create soft body");
+					return;
+				}
 
-					TH_RELEASE(Instance);
-					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-					if (!Instance)
-					{
-						TH_ERR("[engine] cannot create soft body");
-						TH_RELEASE(Shape);
-						return;
-					}
+				Vertices.clear();
+				Indices.clear();
 
-					Vertices.clear();
-					Indices.clear();
-
-					Instance->UserPointer = this;
-					Instance->SetActivity(true);
-					TH_RELEASE(Shape);
-				});
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
 			}
 			void SoftBody::Load(ContentManager* Content, const std::string& Path, float Anticipation)
 			{
@@ -711,79 +682,74 @@ namespace Tomahawk
 			void SoftBody::LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Scene, Shape, Anticipation]()
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Ellipsoid = Shape;
+				I.Shape.Ellipsoid.Enabled = true;
+
+				TH_RELEASE(Instance);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
+				if (!Instance)
 				{
-					Compute::SoftBody::Desc I;
-					I.Anticipation = Anticipation;
-					I.Shape.Ellipsoid = Shape;
-					I.Shape.Ellipsoid.Enabled = true;
+					TH_ERR("[engine] cannot create soft body");
+					return;
+				}
 
-					TH_RELEASE(Instance);
-					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-					if (!Instance)
-					{
-						TH_ERR("[engine] cannot create soft body");
-						return;
-					}
+				Vertices.clear();
+				Indices.clear();
 
-					Vertices.clear();
-					Indices.clear();
-
-					Instance->UserPointer = this;
-					Instance->SetActivity(true);
-				});
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
 			}
 			void SoftBody::LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Scene, Shape, Anticipation]()
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Patch = Shape;
+				I.Shape.Patch.Enabled = true;
+
+				TH_RELEASE(Instance);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
+				if (!Instance)
 				{
-					TH_RELEASE(Instance);
+					TH_ERR("[engine] cannot create soft body");
+					return;
+				}
 
-					Compute::SoftBody::Desc I;
-					I.Anticipation = Anticipation;
-					I.Shape.Patch = Shape;
-					I.Shape.Patch.Enabled = true;
+				Vertices.clear();
+				Indices.clear();
 
-					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-					if (!Instance)
-					{
-						TH_ERR("[engine] cannot create soft body");
-						return;
-					}
-
-					Vertices.clear();
-					Indices.clear();
-
-					Instance->UserPointer = this;
-					Instance->SetActivity(true);
-				});
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
 			}
 			void SoftBody::LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation)
 			{
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Scene, Shape, Anticipation]()
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
+
+				Compute::SoftBody::Desc I;
+				I.Anticipation = Anticipation;
+				I.Shape.Rope = Shape;
+				I.Shape.Rope.Enabled = true;
+
+				TH_RELEASE(Instance);
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
+				if (!Instance)
 				{
-					TH_RELEASE(Instance);
+					TH_ERR("[engine] cannot create soft body");
+					return;
+				}
 
-					Compute::SoftBody::Desc I;
-					I.Anticipation = Anticipation;
-					I.Shape.Rope = Shape;
-					I.Shape.Rope.Enabled = true;
+				Vertices.clear();
+				Indices.clear();
 
-					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-					if (!Instance)
-					{
-						TH_ERR("[engine] cannot create soft body");
-						return;
-					}
-
-					Vertices.clear();
-					Indices.clear();
-
-					Instance->UserPointer = this;
-					Instance->SetActivity(true);
-				});
+				Instance->UserPointer = this;
+				Instance->SetActivity(true);
 			}
 			void SoftBody::Fill(Graphics::GraphicsDevice* Device, Graphics::ElementBuffer* IndexBuffer, Graphics::ElementBuffer* VertexBuffer)
 			{
@@ -804,49 +770,37 @@ namespace Tomahawk
 			}
 			void SoftBody::Regenerate()
 			{
+				SceneGraph* Scene = Parent->GetScene();
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
+
 				if (!Instance)
 					return;
 
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Scene]()
-				{
-					Compute::SoftBody::Desc I = Instance->GetInitialState();
-					TH_RELEASE(Instance);
+				Compute::SoftBody::Desc I = Instance->GetInitialState();
+				TH_RELEASE(Instance);
 
-					Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
-					if (!Instance)
-						TH_ERR("[engine] cannot regenerate soft body");
-				});
+				Instance = Scene->GetSimulator()->CreateSoftBody(I, Parent->GetTransform());
+				if (!Instance)
+					TH_ERR("[engine] cannot regenerate soft body");
 			}
 			void SoftBody::Clear()
 			{
-				if (!Instance)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this]()
-				{
-					TH_CLEAR(Instance);
-				});
+				TH_CLEAR(Instance);
 			}
 			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
 				if (!Instance)
 					return;
 
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Position, Scale, Rotation]()
-				{
-					Compute::Transform::Spacing Space;
-					Space.Position = Position;
-					Space.Rotation = Rotation;
-					Space.Scale = Scale;
+				Compute::Transform::Spacing Space;
+				Space.Position = Position;
+				Space.Rotation = Rotation;
+				Space.Scale = Scale;
 
-					auto* Transform = Parent->GetTransform();
-					Transform->SetSpacing(Compute::Positioning::Global, Space);
-					Instance->Synchronize(Transform, true);
-					Instance->SetActivity(true);
-				});
+				auto* Transform = Parent->GetTransform();
+				Transform->SetSpacing(Compute::Positioning::Global, Space);
+				Instance->Synchronize(Transform, true);
+				Instance->SetActivity(true);
 			}
 			void SoftBody::SetTransform(bool Kinematics)
 			{
@@ -855,12 +809,7 @@ namespace Tomahawk
 
 				auto* Transform = Parent->GetTransform();
 				Instance->Synchronize(Transform, Kinematics);
-
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Kinematics]()
-				{
-					Instance->SetActivity(true);
-				});
+				Instance->SetActivity(true);
 			}
 			float SoftBody::GetVisibility(const Viewer& View, float Distance) const
 			{
@@ -1114,43 +1063,35 @@ namespace Tomahawk
 			}
 			void SliderConstraint::Load(Entity* Other, bool IsGhosted, bool IsLinear)
 			{
-				TH_ASSERT_V(Parent != Other, "parent should not be equal to other");
 				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this, Scene, Other, IsGhosted, IsLinear]()
+				TH_ASSERT_V(Scene != nullptr, "scene should be set");
+				TH_ASSERT_V(Parent != Other, "parent should not be equal to other");
+
+				Connection = Other;
+				if (!Connection)
+					return;
+
+				RigidBody* FirstBody = Parent->GetComponent<RigidBody>();
+				RigidBody* SecondBody = Connection->GetComponent<RigidBody>();
+				if (!FirstBody || !SecondBody)
+					return;
+
+				Compute::SConstraint::Desc I;
+				I.TargetA = FirstBody->GetBody();
+				I.TargetB = SecondBody->GetBody();
+				I.Collisions = !IsGhosted;
+				I.Linear = IsLinear;
+
+				if (I.TargetA && I.TargetB)
 				{
-					Connection = Other;
-					if (!Connection)
-						return;
-
-					RigidBody* FirstBody = Parent->GetComponent<RigidBody>();
-					RigidBody* SecondBody = Connection->GetComponent<RigidBody>();
-					if (!FirstBody || !SecondBody)
-						return;
-
-					Compute::SConstraint::Desc I;
-					I.TargetA = FirstBody->GetBody();
-					I.TargetB = SecondBody->GetBody();
-					I.Collisions = !IsGhosted;
-					I.Linear = IsLinear;
-
-					if (I.TargetA && I.TargetB)
-					{
-						TH_RELEASE(Instance);
-						Instance = Scene->GetSimulator()->CreateSliderConstraint(I);
-					}
-				});
+					TH_RELEASE(Instance);
+					Instance = Scene->GetSimulator()->CreateSliderConstraint(I);
+				}
 			}
 			void SliderConstraint::Clear()
 			{
-				if (!Instance)
-					return;
-
-				SceneGraph* Scene = Parent->GetScene();
-				Scene->Transaction([this]()
-				{
-					TH_CLEAR(Instance);
-					Connection = nullptr;
-				});
+				TH_CLEAR(Instance);
+				Connection = nullptr;
 			}
 			Component* SliderConstraint::Copy(Entity* New) const
 			{
@@ -1674,7 +1615,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
+			SkinAnimator::SkinAnimator(Entity* Ref) : Component(Ref, ActorSet::Animate)
 			{
 				Current.Pose.resize(96);
 				Bind.Pose.resize(96);
@@ -1725,11 +1666,8 @@ namespace Tomahawk
 
 				SetActive(Instance != nullptr);
 			}
-			void SkinAnimator::Synchronize(Core::Timer* Time)
+			void SkinAnimator::Animate(Core::Timer* Time)
 			{
-				if (!Parent->GetScene()->IsActive())
-					return;
-
 				if (!State.Blended)
 				{
 					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
@@ -1947,7 +1885,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
+			KeyAnimator::KeyAnimator(Entity* Ref) : Component(Ref, ActorSet::Animate)
 			{
 			}
 			KeyAnimator::~KeyAnimator()
@@ -1982,11 +1920,8 @@ namespace Tomahawk
 				Series::Pack(Node->Set("bind"), Bind);
 				Series::Pack(Node->Set("current"), Current);
 			}
-			void KeyAnimator::Synchronize(Core::Timer* Time)
+			void KeyAnimator::Animate(Core::Timer* Time)
 			{
-				if (!Parent->GetScene()->IsActive())
-					return;
-
 				auto* Transform = Parent->GetTransform();
 				if (!State.Blended)
 				{
@@ -2178,7 +2113,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			EmitterAnimator::EmitterAnimator(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
+			EmitterAnimator::EmitterAnimator(Entity* Ref) : Component(Ref, ActorSet::Animate)
 			{
 				Spawner.Scale.Max = 1;
 				Spawner.Scale.Min = 1;
@@ -2229,9 +2164,9 @@ namespace Tomahawk
 				Base = Parent->GetComponent<Emitter>();
 				SetActive(Base != nullptr);
 			}
-			void EmitterAnimator::Synchronize(Core::Timer* Time)
+			void EmitterAnimator::Animate(Core::Timer* Time)
 			{
-				if (!Parent->GetScene()->IsActive() || !Simulate || !Base || !Base->GetBuffer())
+				if (!Simulate || !Base || !Base->GetBuffer())
 					return;
 
 				auto* Transform = Parent->GetTransform();
@@ -3372,12 +3307,6 @@ namespace Tomahawk
 				if (New == this)
 					Renderer->Remount();
 			}
-			void Camera::Deactivate()
-			{
-				SceneGraph* Scene = Parent->GetScene();
-				if (Scene->GetCamera() == this)
-					Scene->SetCamera(nullptr);
-			}
 			void Camera::Deserialize(ContentManager* Content, Core::Schema* Node)
 			{
 				TH_ASSERT_V(Content != nullptr, "content manager should be set");
@@ -3584,7 +3513,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			Scriptable::Scriptable(Entity* Ref) : Component(Ref, ActorSet::Synchronize | ActorSet::Update | ActorSet::Message), Compiler(nullptr), Source(SourceType_Resource), Invoke(InvokeType_Typeless)
+			Scriptable::Scriptable(Entity* Ref) : Component(Ref, ActorSet::Synchronize | ActorSet::Animate | ActorSet::Update | ActorSet::Message), Compiler(nullptr), Source(SourceType_Resource), Invoke(InvokeType_Typeless)
 			{
 			}
 			Scriptable::~Scriptable()
@@ -3837,6 +3766,18 @@ namespace Tomahawk
 					Context->SetArgObject(1, New);
 				});
 			}
+			void Scriptable::Animate(Core::Timer* Time)
+			{
+				Call(Entry.Animate, [this, &Time](Script::VMContext* Context)
+				{
+					if (Invoke == InvokeType_Typeless)
+						return;
+
+					Component* Current = this;
+					Context->SetArgObject(0, Current);
+					Context->SetArgObject(1, Time);
+				});
+			}
 			void Scriptable::Synchronize(Core::Timer* Time)
 			{
 				Call(Entry.Synchronize, [this, &Time](Script::VMContext* Context)
@@ -4007,7 +3948,7 @@ namespace Tomahawk
 				}
 				else
 				{
-					auto* Manager = Scene->GetConf().Manager;
+					auto* Manager = Scene->GetConf().Shared.Manager;
 					if (!Manager)
 						return (int)Script::VMResult::INVALID_CONFIGURATION;
 
@@ -4031,6 +3972,7 @@ namespace Tomahawk
 					Entry.Deserialize = nullptr;
 					Entry.Awake = nullptr;
 					Entry.Asleep = nullptr;
+					Entry.Animate = nullptr;
 					Entry.Synchronize = nullptr;
 					Entry.Update = nullptr;
 					Entry.Message = nullptr;
@@ -4062,6 +4004,7 @@ namespace Tomahawk
 				}
 
 				Safe.unlock();
+				Entry.Animate = GetFunctionByName("Animate", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
 				Entry.Serialize = GetFunctionByName("Serialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
 				Entry.Deserialize = GetFunctionByName("Deserialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
 				Entry.Awake = GetFunctionByName("Awake", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();

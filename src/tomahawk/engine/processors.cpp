@@ -125,7 +125,7 @@ namespace Tomahawk
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				TH_ASSERT(I.Device != nullptr, nullptr, "graphics device should be set");
+				TH_ASSERT(I.Shared.Device != nullptr, nullptr, "graphics device should be set");
 
 				Core::Schema* Schema = Content->Load<Core::Schema>(Stream->GetSource());
 				if (!Schema)
@@ -151,9 +151,6 @@ namespace Tomahawk
 					Series::Unpack(Metadata->Find("components"), &I.StartComponents);
 					Series::Unpack(Metadata->Find("render-quality"), &I.RenderQuality);
 					Series::Unpack(Metadata->Find("enable-hdr"), &I.EnableHDR);
-					Series::Unpack(Metadata->Find("frequency-hz"), &I.FrequencyHZ);
-					Series::Unpack(Metadata->Find("min-frames"), &I.MinFrames);
-					Series::Unpack(Metadata->Find("max-frames"), &I.MaxFrames);
 					Series::Unpack(Metadata->Find("grow-margin"), &I.GrowMargin);
 					Series::Unpack(Metadata->Find("grow-rate"), &I.GrowRate);
 					Series::Unpack(Metadata->Find("max-updates"), &I.MaxUpdates);
@@ -168,6 +165,7 @@ namespace Tomahawk
 				}
 
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
+				Engine::SceneGraph::Desc& Conf = Object->GetConf();
 				Engine::IdxSnapshot Snapshot;
 				Object->Snapshot = &Snapshot;
 
@@ -219,7 +217,7 @@ namespace Tomahawk
 
 						std::string Name;
 						Series::Unpack(It->Find("name"), &Name);
-						Entity->SetName(Name, true);
+						Entity->SetName(Name);
 
 						Core::Schema* Transform = It->Find("transform");
 						if (Transform != nullptr)
@@ -314,7 +312,7 @@ namespace Tomahawk
 				}
 
 				Engine::SceneGraph* Object = (Engine::SceneGraph*)Instance;
-				Object->Conform();
+				Object->Actualize();
 
 				Engine::IdxSnapshot Snapshot;
 				Object->MakeSnapshot(&Snapshot);
@@ -330,9 +328,6 @@ namespace Tomahawk
 				Series::Pack(Metadata->Set("components"), Conf.StartComponents);
 				Series::Pack(Metadata->Set("render-quality"), Conf.RenderQuality);
 				Series::Pack(Metadata->Set("enable-hdr"), Conf.EnableHDR);
-				Series::Pack(Metadata->Set("frequency-hz"), Conf.FrequencyHZ);
-				Series::Pack(Metadata->Set("min-frames"), Conf.MinFrames);
-				Series::Pack(Metadata->Set("max-frames"), Conf.MaxFrames);
 				Series::Pack(Metadata->Set("grow-margin"), Conf.GrowMargin);
 				Series::Pack(Metadata->Set("grow-rate"), Conf.GrowRate);
 				Series::Pack(Metadata->Set("max-updates"), Conf.MaxUpdates);

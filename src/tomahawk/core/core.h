@@ -2491,6 +2491,25 @@ namespace Tomahawk
 					}, Difficulty::Light);
 				});
 			}
+			void Wait()
+			{
+				if (!IsPending())
+					return;
+
+				std::mutex Waitable;
+				std::condition_variable Ready;
+				Await([&](T&&)
+				{
+					std::unique_lock<std::mutex> Lock(Waitable);
+					Ready.notify_all();
+				});
+
+				std::unique_lock<std::mutex> Lock(Waitable);
+				Ready.wait(Lock, [&]()
+				{
+					return !IsPending();
+				});
+			}
 			bool IsPending() const noexcept
 			{
 				if (!Next)
@@ -2514,24 +2533,7 @@ namespace Tomahawk
 			}
 			T&& Get() noexcept
 			{
-				if (!IsPending())
-					return GetIfAny();
-
-				std::mutex Waitable;
-				std::condition_variable Ready;
-
-				Await([&](T&&)
-				{
-					std::unique_lock<std::mutex> Lock(Waitable);
-					Ready.notify_all();
-				});
-
-				std::unique_lock<std::mutex> Lock(Waitable);
-				Ready.wait(Lock, [&]()
-				{
-					return !IsPending();
-				});
-
+				Wait();
 				return GetIfAny();
 			}
 

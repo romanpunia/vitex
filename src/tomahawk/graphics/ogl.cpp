@@ -534,7 +534,7 @@ namespace Tomahawk
 
 				if (!Window->GetHandle())
 				{
-					Window->Restore(Backend);
+					Window->BuildLayer(Backend);
 					if (!Window->GetHandle())
 						return;
 				}

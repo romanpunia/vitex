@@ -235,7 +235,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
-				virtual void Synchronize(Core::Timer* Time) override;
+				virtual void Animate(Core::Timer* Time) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
 				void GetPose(Compute::SkinAnimatorKey* Result);
@@ -273,7 +273,7 @@ namespace Tomahawk
 				virtual ~KeyAnimator() override;
 				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
+				virtual void Animate(Core::Timer* Time) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 				bool GetAnimation(ContentManager* Content, const std::string& Path);
 				void GetPose(Compute::AnimatorKey* Result);
@@ -316,7 +316,7 @@ namespace Tomahawk
 				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
 				virtual void Activate(Component * New) override;
-				virtual void Synchronize(Core::Timer * Time) override;
+				virtual void Animate(Core::Timer * Time) override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
 				Emitter* GetEmitter() const;
 
@@ -664,7 +664,6 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Deactivate() override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 				void GetViewer(Viewer* View);
 				void ResizeBuffers();
@@ -710,6 +709,7 @@ namespace Tomahawk
 					Script::VMCFunction* Awake = nullptr;
 					Script::VMCFunction* Asleep = nullptr;
 					Script::VMCFunction* Synchronize = nullptr;
+					Script::VMCFunction* Animate = nullptr;
 					Script::VMCFunction* Update = nullptr;
 					Script::VMCFunction* Message = nullptr;
 				} Entry;
@@ -729,6 +729,7 @@ namespace Tomahawk
 				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
+				virtual void Animate(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual void Update(Core::Timer* Time) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;

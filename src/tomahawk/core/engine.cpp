@@ -11,6 +11,37 @@
 #undef Complex
 #endif
 
+namespace std
+{
+	template <typename T>
+	struct destructive_copy_constructible
+	{
+		mutable T value;
+
+		destructive_copy_constructible()
+		{
+		}
+		destructive_copy_constructible(T&& v) : value(move(v))
+		{
+		}
+		destructive_copy_constructible(const destructive_copy_constructible<T>& rhs) : value(move(rhs.value))
+		{
+		}
+		destructive_copy_constructible(destructive_copy_constructible<T>&& rhs) = default;
+		destructive_copy_constructible& operator=(const destructive_copy_constructible<T>& rhs) = delete;
+		destructive_copy_constructible& operator=(destructive_copy_constructible<T>&& rhs) = delete;
+	};
+
+	template <typename T>
+	using dcc_t = destructive_copy_constructible<typename remove_reference<T>::type>;
+
+	template <typename T>
+	inline dcc_t<T> move_to_dcc(T&& r)
+	{
+		return dcc_t<T>(move(r));
+	}
+}
+
 namespace Tomahawk
 {
 	namespace Engine
@@ -1001,7 +1032,7 @@ namespace Tomahawk
 			Series::Unpack(V->Get("height"), &O->Surface.Height);
 			Series::Unpack(V->Get("bias"), &O->Surface.Bias);
 			Series::Unpack(V->Get("name"), &Path);
-			O->SetName(Path, true);
+			O->SetName(Path);
 
 			return true;
 		}
@@ -1719,6 +1750,49 @@ namespace Tomahawk
 			return true;
 		}
 
+		Parallel::Task Parallel::Enqueue(const Core::TaskCallback& Callback)
+		{
+			TH_ASSERT(Callback != nullptr, Task(), "callback should be set");
+			auto* Queue = Core::Schedule::Get();
+			if (Queue->GetThreads(Core::Difficulty::Heavy) > 0)
+			{
+				std::promise<void> Promise;
+				std::future<void> Future = Promise.get_future();
+				bool IsQueued = Queue->SetTask([Async = std::move_to_dcc(Promise), Callback]() mutable
+				{
+					Callback();
+				    Async.value.set_value();
+				});
+
+				if (IsQueued)
+					return Future;
+			}
+
+			Callback();
+			return Task();
+		}
+		std::vector<Parallel::Task> Parallel::EnqueueAll(const std::vector<Core::TaskCallback>& Callbacks)
+		{
+			TH_ASSERT(!Callbacks.empty(), std::vector<Task>(), "callbacks should not be empty");
+			std::vector<Task> Result;
+			Result.reserve(Callbacks.size());
+
+			for (auto& Callback : Callbacks)
+				Result.emplace_back(Enqueue(Callback));
+
+			return Result;
+		}
+		void Parallel::Wait(const Task& Value)
+		{
+			if (Value.valid())
+				Value.wait();
+		}
+		void Parallel::WailAll(const std::vector<Task>& Values)
+		{
+			for (auto& Value : Values)
+				Wait(Value);
+		}
+
 		Material::Material(SceneGraph* NewScene) : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(NewScene), Slot(0)
 		{
 		}
@@ -1777,21 +1851,11 @@ namespace Tomahawk
 			TH_RELEASE(OcclusionMap);
 			TH_RELEASE(EmissionMap);
 		}
-		void Material::SetName(const std::string& Value, bool Internal)
+		void Material::SetName(const std::string& Value)
 		{
-			if (!Internal && Scene != nullptr)
-			{
-				Scene->Transaction([this, Value]()
-				{
-					if (Name == Value)
-						return;
-
-					Name = Value;
-					Scene->Mutate(this, "set");
-				});
-			}
-			else
-				Name = Value;
+			Name = Value;
+			if (Scene != nullptr)
+				Scene->Mutate(this, "set");
 		}
 		const std::string& Material::GetName() const
 		{
@@ -1910,6 +1974,9 @@ namespace Tomahawk
 		void Component::Deactivate()
 		{
 		}
+		void Component::Animate(Core::Timer* Time)
+		{
+		}
 		void Component::Synchronize(Core::Timer* Time)
 		{
 		}
@@ -1947,15 +2014,12 @@ namespace Tomahawk
 			if (Parent->IsActive())
 			{
 				if (Active)
-					Scene->RegisterComponent(this, false, false);
+					Scene->RegisterComponent(this, false);
 				else
-					Scene->UnregisterComponent(this, false);
+					Scene->UnregisterComponent(this);
 			}
 
-			if (Active)
-				Scene->NotifyCosmos(this);
-			else
-				Scene->UpdateCosmos(this);
+			Scene->NotifyCosmos(this);
 		}
 		bool Component::IsDrawable() const
 		{
@@ -1983,30 +2047,20 @@ namespace Tomahawk
 		{
 			for (auto& Component : Type.Components)
 			{
-				if (!Component.second)
-					continue;
-
-				Component.second->SetActive(false);
-				TH_RELEASE(Component.second);
+				if (Component.second != nullptr)
+				{
+					Component.second->SetActive(false);
+					Scene->ClearCosmos(Component.second);
+					TH_RELEASE(Component.second);
+				}
 			}
 
 			TH_RELEASE(Transform);
 		}
-		void Entity::SetName(const std::string& Value, bool Internal)
+		void Entity::SetName(const std::string& Value)
 		{
-			if (!Internal && Scene != nullptr)
-			{
-				Scene->Transaction([this, Value]()
-				{
-					if (Type.Name == Value)
-						return;
-
-				    Type.Name = Value;
-					Scene->Mutate(this, "set");
-				});
-			}
-			else
-				Type.Name = Value;
+			Type.Name = Value;
+			Scene->Mutate(this, "set");
 		}
 		void Entity::SetRoot(Entity* Parent)
 		{
@@ -2049,63 +2103,38 @@ namespace Tomahawk
 
 			Transform->GetBounds(Snapshot.Box, Snapshot.Min, Snapshot.Max);
 		}
-		void Entity::RemoveComponent(uint64_t fId)
+		void Entity::RemoveComponent(uint64_t Id)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(fId);
+			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(Id);
 			if (It == Type.Components.end())
 				return;
 
-			auto Transaction = [this, fId]()
+			Component* Base = It->second;
+			Base->SetActive(false);
+			Transform->MakeDirty();
+			Type.Components.erase(It);
+			if (Scene->Camera == Base)
+				Scene->Camera = nullptr;
+
+			auto* Top = Scene;
+			Scene->Transaction([Top, Base]()
 			{
-				std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(fId);
-				if (It == Type.Components.end())
-					return;
-
-				Component* Base = It->second;
-				Type.Components.erase(It);
-
+				Top->ClearCosmos(Base);
 				TH_RELEASE(Base);
-				Transform->MakeDirty();
-			};
-
-			It->second->SetActive(false);
-			if (Scene != nullptr)
-			{
-				if (Scene->Camera == It->second)
-					Scene->Camera = nullptr;
-
-				Scene->Transaction(Transaction);
-			}
-			else
-				Transaction();
+			});
 		}
 		void Entity::RemoveChilds()
 		{
-			auto Transaction = [this]()
+			std::vector<Compute::Transform*>& Childs = Transform->GetChilds();
+			for (size_t i = 0; i < Childs.size(); i++)
 			{
-				std::vector<Compute::Transform*>& Childs = Transform->GetChilds();
-				for (size_t i = 0; i < Childs.size(); i++)
+				Entity* Entity = Transform->GetChild(i)->Ptr<Engine::Entity>();
+				if (Entity != nullptr && Entity != this)
 				{
-					Entity* Entity = Transform->GetChild(i)->Ptr<Engine::Entity>();
-					if (!Entity || Entity == this)
-						continue;
-
-					if (Scene != nullptr)
-						Scene->DeleteEntity(Entity);
-					else
-						TH_RELEASE(Entity);
-					
-					if (Childs.empty())
-						break;
-
+					Scene->DeleteEntity(Entity);
 					i--;
 				}
-			};
-
-			if (Scene != nullptr)
-				Scene->Transaction(Transaction);
-			else
-				Transaction();
+			}
 		}
 		Component* Entity::AddComponent(Component* In)
 		{
@@ -2118,17 +2147,20 @@ namespace Tomahawk
 			In->Parent = this;
 
 			Type.Components.insert({ In->GetId(), In });
-			for (auto& Component : Type.Components)
-				Component.second->Activate(In == Component.second ? nullptr : In);
+			Scene->Transaction([this, In]()
+			{
+				for (auto& Component : Type.Components)
+					Component.second->Activate(In == Component.second ? nullptr : In);
+			});
 
 			In->SetActive(true);
 			Transform->MakeDirty();
 
 			return In;
 		}
-		Component* Entity::GetComponent(uint64_t fId)
+		Component* Entity::GetComponent(uint64_t Id)
 		{
-			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(fId);
+			std::unordered_map<uint64_t, Component*>::iterator It = Type.Components.find(Id);
 			if (It != Type.Components.end())
 				return It->second;
 
@@ -2441,13 +2473,13 @@ namespace Tomahawk
 			Device->View.Near = View.NearPlane;
 			Device->UpdateBuffer(Graphics::RenderBufferType::View);
 		}
-		void RenderSystem::Remount(Renderer* fTarget)
+		void RenderSystem::Remount(Renderer* Target)
 		{
-			TH_ASSERT_V(fTarget != nullptr, "renderer should be set");
-			fTarget->Deactivate();
-			fTarget->SetRenderer(this);
-			fTarget->Activate();
-			fTarget->ResizeBuffers();
+			TH_ASSERT_V(Target != nullptr, "renderer should be set");
+			Target->Deactivate();
+			Target->SetRenderer(this);
+			Target->Activate();
+			Target->ResizeBuffers();
 		}
 		void RenderSystem::Remount()
 		{
@@ -2595,11 +2627,8 @@ namespace Tomahawk
 			Query.Data = &Storage.Data;
 			Query.Index = &Storage.Index;
 
-			if (View.Culling == RenderCulling::Line)
-				return;
-
-			Scene->Indexer.Transaction.LoadLock();
-			Query.Index->PushQuery();
+			if (View.Culling != RenderCulling::Line)
+				Query.Index->PushQuery();
 		}
 		void RenderSystem::QueryEnd()
 		{
@@ -2607,11 +2636,6 @@ namespace Tomahawk
 			Query.Data = nullptr;
 			Query.Index = nullptr;
 			Query.Offset = 0;
-
-			if (View.Culling == RenderCulling::Line)
-				return;
-
-			Scene->Indexer.Transaction.LoadUnlock();
 		}
 		void* RenderSystem::QueryNext()
 		{
@@ -3642,19 +3666,17 @@ namespace Tomahawk
 			SceneGraph::Desc I;
 			if (Base != nullptr)
 			{
-				I.Async = Base->Control.Async;
-				I.MinFrames = Base->Control.MinFrames;
-				I.MaxFrames = Base->Control.MaxFrames;
-				I.Shaders = Base->Cache.Shaders;
-				I.Primitives = Base->Cache.Primitives;
-				I.Device = Base->Renderer;
-				I.Manager = Base->VM;
+				I.Shared.Async = Base->Control.Async;
+				I.Shared.Shaders = Base->Cache.Shaders;
+				I.Shared.Primitives = Base->Cache.Primitives;
+				I.Shared.Device = Base->Renderer;
+				I.Shared.Manager = Base->VM;
 			}
 
 			return I;
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) : Simulator(new Compute::Simulator(I.Simulator)), Camera(nullptr), Conf(I), Status(-1), Acquire(false), Active(true), Snapshot(nullptr)
+		SceneGraph::SceneGraph(const Desc& I) : Simulator(new Compute::Simulator(I.Simulator)), Camera(nullptr), Conf(I), Active(true), Snapshot(nullptr)
 		{
 			for (size_t i = 0; i < (size_t)TargetType::Count * 2; i++)
 			{
@@ -3665,8 +3687,8 @@ namespace Tomahawk
 			auto Components = Core::Composer::Fetch((uint64_t)ComposerTag::Component);
 			for (uint64_t Section : Components)
 			{
-				Registry[Section] = TH_NEW(Table);
-				Indexer.Changes[Section].clear();
+				Registry[Section] = TH_NEW(Indexer);
+				Changes[Section].clear();
 			}
 
 			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = nullptr;
@@ -3682,43 +3704,18 @@ namespace Tomahawk
 
 			Configure(I);
 			ScriptHook();
-			SetParallel("simulate", std::bind(&SceneGraph::Simulate, this, std::placeholders::_1));
-			SetParallel("synchronize", std::bind(&SceneGraph::Synchronize, this, std::placeholders::_1));
-			SetParallel("culling", std::bind(&SceneGraph::Culling, this, std::placeholders::_1));
-			Status = 0;
 		}
 		SceneGraph::~SceneGraph()
 		{
 			TH_PPUSH(TH_PERF_MAX);
-			auto* Schedule = Core::Schedule::Get();
+			StepTransactions();
+
 			auto Source = std::move(Listeners);
 			for (auto& Item : Source)
 			{
 				for (auto* Listener : Item.second)
 					TH_DELETE(function, Listener);
 			}
-
-			Status = -1;
-			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
-			{
-				while (Schedule->IsActive() && It->second->Active)
-				{
-					if (Schedule->GetPolicy().Async)
-						std::this_thread::sleep_for(std::chrono::milliseconds(50));
-					else
-						Schedule->Dispatch();
-					TH_PSIG();
-				}
-
-				TH_RELEASE(It->second->Time);
-				TH_DELETE(Packet, It->second);
-			}
-
-			TH_PPUSH(TH_PERF_HANG);
-			Tasks.clear();
-			while (Dispatch(nullptr))
-				TH_PSIG();
-			TH_PPOP();
 
 			auto Begin1 = Entities.Begin(), End1 = Entities.End();
 			for (auto It = Begin1; It != End1; ++It)
@@ -3729,7 +3726,7 @@ namespace Tomahawk
 				TH_RELEASE(*It);
 
 			for (auto& Sparse : Registry)
-				TH_DELETE(Table, Sparse.second);
+				TH_DELETE(Indexer, Sparse.second);
 
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
@@ -3767,16 +3764,18 @@ namespace Tomahawk
 		}
 		void SceneGraph::Configure(const Desc& NewConf)
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
+			TH_ASSERT_V(NewConf.Shared.Device != nullptr, "graphics device should be set");
 			Transaction([this, NewConf]()
 			{
+				auto* Device = NewConf.Shared.Device;
+				Display.DepthStencil = Device->GetDepthStencilState("none");
+				Display.Rasterizer = Device->GetRasterizerState("cull-back");
+				Display.Blend = Device->GetBlendState("overwrite");
+				Display.Sampler = Device->GetSamplerState("trilinear-x16");
+				Display.Layout = Device->GetInputLayout("shape-vertex");
 				Conf = NewConf;
-				Display.DepthStencil = Conf.Device->GetDepthStencilState("none");
-				Display.Rasterizer = Conf.Device->GetRasterizerState("cull-back");
-				Display.Blend = Conf.Device->GetBlendState("overwrite");
-				Display.Sampler = Conf.Device->GetSamplerState("trilinear-x16");
-				Display.Layout = Conf.Device->GetInputLayout("shape-vertex");
-				Indexer.Components.Reserve(Conf.StartComponents);
+
+				Indices.Reserve(Conf.StartComponents);
 				Materials.Reserve(Conf.StartMaterials);
 				Entities.Reserve(Conf.StartEntities);
 
@@ -3786,15 +3785,16 @@ namespace Tomahawk
 				for (size_t i = 0; i < (size_t)ActorType::Count; i++)
 					Actors[i].Reserve(Conf.StartComponents);
 
-				SetTiming(Conf.MinFrames, Conf.MaxFrames);
 				GenerateMaterialBuffer();
 				GenerateVoxelBuffers();
 				GenerateDepthBuffers();
 				ResizeBuffers();
-
-				auto* Viewer = Camera.load();
-				if (Viewer != nullptr)
-					Viewer->Activate(Viewer);
+				Transaction([this]()
+				{
+					auto* Base = Camera.load();
+					if (Base != nullptr)
+						Base->Activate(Base);
+				});
 
 				auto& Cameras = GetComponents<Components::Camera>();
 				for (auto It = Cameras.Begin(); It != Cameras.End(); ++It)
@@ -3803,37 +3803,6 @@ namespace Tomahawk
 					Base->GetRenderer()->Remount();
 				}
 			});
-		}
-		void SceneGraph::ExclusiveLock()
-		{
-			if (!Conf.Async)
-				return;
-
-			if (Status != 1)
-				return Emulation.lock();
-
-			TH_ASSERT_V(Status == 0 || ThreadId == std::this_thread::get_id(), "exclusive lock should be called in same thread with dispatch");
-			TH_ASSERT_V(!Acquire, "exclusive lock should not be acquired");
-
-			Acquire = true;
-			while (IsUnstable())
-				std::this_thread::sleep_for(std::chrono::microseconds(300));
-		}
-		void SceneGraph::ExclusiveUnlock()
-		{
-			if (!Conf.Async)
-				return;
-
-			if (Status != 1)
-				return Emulation.unlock();
-
-			TH_ASSERT_V(Status == 0 || ThreadId == std::this_thread::get_id(), "exclusive unlock should be called in same thread with dispatch");
-			TH_ASSERT_V(Acquire, "exclusive lock should be acquired");
-
-			Acquire = false;
-			Race.lock();
-			ExecuteTasks();
-			Race.unlock();
 		}
 		void SceneGraph::ResizeBuffers()
 		{
@@ -3850,25 +3819,30 @@ namespace Tomahawk
 		}
 		void SceneGraph::ResizeRenderBuffers()
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
-			Graphics::MultiRenderTarget2D::Desc MRT = GetDescMRT();
-			Graphics::RenderTarget2D::Desc RT = GetDescRT();
-			TH_CLEAR(Display.Merger);
-
-			for (size_t i = 0; i < (size_t)TargetType::Count; i++)
+			Transaction([this]()
 			{
-				TH_RELEASE(Display.MRT[i]);
-				Display.MRT[i] = Conf.Device->CreateMultiRenderTarget2D(MRT);
+				auto* Device = Conf.Shared.Device;
+				TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+				Graphics::MultiRenderTarget2D::Desc MRT = GetDescMRT();
+				Graphics::RenderTarget2D::Desc RT = GetDescRT();
+				TH_CLEAR(Display.Merger);
 
-				TH_RELEASE(Display.RT[i]);
-				Display.RT[i] = Conf.Device->CreateRenderTarget2D(RT);
-			}
+				for (size_t i = 0; i < (size_t)TargetType::Count; i++)
+				{
+					TH_RELEASE(Display.MRT[i]);
+					Display.MRT[i] = Device->CreateMultiRenderTarget2D(MRT);
+
+					TH_RELEASE(Display.RT[i]);
+					Display.RT[i] = Device->CreateRenderTarget2D(RT);
+				}
+			});
 		}
 		void SceneGraph::FillMaterialBuffers()
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 			Graphics::MappedSubresource Stream;
-			if (!Conf.Device->Map(Display.MaterialBuffer, Graphics::ResourceMap::Write_Discard, &Stream))
+			if (!Device->Map(Display.MaterialBuffer, Graphics::ResourceMap::Write_Discard, &Stream))
 				return;
 
 			uint64_t Size = 0;
@@ -3881,212 +3855,160 @@ namespace Tomahawk
 				Next = (*It)->Surface;
 			}
 
-			Conf.Device->Unmap(Display.MaterialBuffer, &Stream);
-			Conf.Device->SetStructureBuffer(Display.MaterialBuffer, 0, TH_PS | TH_CS);
+			Device->Unmap(Display.MaterialBuffer, &Stream);
+			Device->SetStructureBuffer(Display.MaterialBuffer, 0, TH_PS | TH_CS);
 		}
 		void SceneGraph::Actualize()
 		{
-			Redistribute();
-			Reindex();
-			Conform();
-		}
-		void SceneGraph::Redistribute()
-		{
-			Transaction([this]()
+			TH_PPUSH(TH_PERF_FRAME);
+			for (auto& Sparse : Registry)
 			{
-				TH_PPUSH(TH_PERF_FRAME);
-				for (auto& Sparse : Registry)
-				{
-					Sparse.second->Data.Clear();
-					Sparse.second->Index.Clear();
-				}
+				Sparse.second->Data.Clear();
+				Sparse.second->Index.Clear();
+			}
 
-				for (size_t i = 0; i < (size_t)ActorType::Count; i++)
-					Actors[i].Clear();
+			uint64_t Index = 0;
+			for (size_t i = 0; i < (size_t)ActorType::Count; i++)
+				Actors[i].Clear();
 
-				auto Begin = Entities.Begin(), End = Entities.End();
-				for (auto It = Begin; It != End; ++It)
-					RegisterEntity(*It);
+			auto Begin1 = Entities.Begin(), End1 = Entities.End();
+			for (auto It = Begin1; It != End1; ++It)
+				RegisterEntity(*It);
 
-				GetCamera();
-				TH_PPOP();
-			});
-		}
-		void SceneGraph::Reindex()
-		{
-			Transaction([this]()
-			{
-				TH_PPUSH(TH_PERF_FRAME);
-				uint64_t Index = 0;
-				auto Begin = Materials.Begin(), End = Materials.End();
-				for (auto It = Begin; It != End; ++It)
-					(*It)->Slot = Index++;
-				TH_PPOP();
-			});
+			auto Begin2 = Materials.Begin(), End2 = Materials.End();
+			for (auto It = Begin2; It != End2; ++It)
+				(*It)->Slot = Index++;
+
+			StepTransactions();
+			TH_PPOP();
 		}
 		void SceneGraph::Submit()
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
-			TH_ASSERT_V(Conf.Primitives != nullptr, "graphics device should be set");
-			TH_ASSERT_V(ThreadId == std::this_thread::get_id(), "submit should be called in same thread with publish (after)");
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+			TH_ASSERT_V(Conf.Shared.Primitives != nullptr, "graphics device should be set");
 
-			Conf.Device->Render.TexCoord = 1.0f;
-			Conf.Device->Render.Transform.Identify();
-			Conf.Device->SetTarget();
-			Conf.Device->SetDepthStencilState(Display.DepthStencil);
-			Conf.Device->SetBlendState(Display.Blend);
-			Conf.Device->SetRasterizerState(Display.Rasterizer);
-			Conf.Device->SetInputLayout(Display.Layout);
-			Conf.Device->SetSamplerState(Display.Sampler, 1, 1, TH_PS);
-			Conf.Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
-			Conf.Device->SetShader(Conf.Device->GetBasicEffect(), TH_VS | TH_PS);
-			Conf.Device->SetVertexBuffer(Conf.Primitives->GetQuad());
-			Conf.Device->UpdateBuffer(Graphics::RenderBufferType::Render);
-			Conf.Device->Draw(6, 0);
-			Conf.Device->SetTexture2D(nullptr, 1, TH_PS);
+			Device->Render.TexCoord = 1.0f;
+			Device->Render.Transform.Identify();
+			Device->SetTarget();
+			Device->SetDepthStencilState(Display.DepthStencil);
+			Device->SetBlendState(Display.Blend);
+			Device->SetRasterizerState(Display.Rasterizer);
+			Device->SetInputLayout(Display.Layout);
+			Device->SetSamplerState(Display.Sampler, 1, 1, TH_PS);
+			Device->SetTexture2D(Display.MRT[(size_t)TargetType::Main]->GetTarget(0), 1, TH_PS);
+			Device->SetShader(Device->GetBasicEffect(), TH_VS | TH_PS);
+			Device->SetVertexBuffer(Conf.Shared.Primitives->GetQuad());
+			Device->UpdateBuffer(Graphics::RenderBufferType::Render);
+			Device->Draw(6, 0);
+			Device->SetTexture2D(nullptr, 1, TH_PS);
 		}
-		void SceneGraph::Conform()
+		void SceneGraph::Dispatch(Core::Timer* Time)
 		{
-#ifndef NDEBUG
-			ThreadId = std::this_thread::get_id();
-#endif
-			auto* Schedule = Core::Schedule::Get();
-			if (Status == 0 || Queue.empty())
-				return;
-
-			std::queue<Core::TaskCallback> Next;
-			ExclusiveLock();
-		Iterate:
-			while (!Events.empty())
-				ResolveEvents();
-
-			Race.lock();
-			Next.swap(Queue);
-			Race.unlock();
-
-			while (!Next.empty())
-			{
-				Next.front()();
-				Next.pop();
-			}
-
-			if (!Events.empty())
-				goto Iterate;
-			ExclusiveUnlock();
-		}
-		bool SceneGraph::Dispatch(Core::Timer* Time)
-		{
-#ifndef NDEBUG
-			ThreadId = std::this_thread::get_id();
-#endif
+			TH_ASSERT_V(Time != nullptr, "time should be set");
 			TH_PPUSH(TH_PERF_FRAME);
-			bool Result = false;
-			if (Status != 0)
-			{
-				if (ResolveEvents())
-					goto Skip;
-
-				if (Queue.empty())
-					goto Update;
-
-				std::queue<Core::TaskCallback> Next;
-				Race.lock();
-				Next.swap(Queue);
-				Race.unlock();
-
-				if (Next.empty())
-					goto Update;
-
-				ExclusiveLock();
-				while (!Next.empty())
-				{
-					Next.front()();
-					Next.pop();
-				}
-				ExclusiveUnlock();
-			}
-			else
-			{
-				Status = 1;
-				Race.lock();
-				ExecuteTasks();
-				Race.unlock();
-			}
-		Skip:
-			Result = true;
-		Update:
-			if (!Active || !Time)
-				TH_PRET(Result);
-
-			auto Begin = Actors[(size_t)ActorType::Update].Begin();
-			auto End = Actors[(size_t)ActorType::Update].End();
-			for (auto It = Begin; It != End; ++It)
-				(*It)->Update(Time);
-
-			TH_PRET(Result);
+			StepEvents();
+			StepTransactions();
+			StepGameplay(Time);
+			StepSimulate(Time);
+			StepAnimate(Time);
+			StepSynchronize(Time);
+			StepCulling();
+			StepIndexing();
+			StepFinalize();
+			TH_PPOP();
 		}
 		void SceneGraph::Publish(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
-			TH_ASSERT_V(ThreadId == std::this_thread::get_id(), "publish should be called in same thread with dispatch (after)");
-
+			TH_PPUSH(TH_PERF_FRAME);
 			auto* Base = (Components::Camera*)Camera.load();
-			if (!Base)
-				return;
-
-			auto* Renderer = Base->GetRenderer();
-			TH_ASSERT_V(Renderer != nullptr, "render system should be set");
-			
-			Indexer.Components.Clear();
-			FillMaterialBuffers();
-			SetMRT(TargetType::Main, true);
-			Renderer->RestoreViewBuffer(nullptr);
-			Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
+			auto* Renderer = (Base ? Base->GetRenderer() : nullptr);
+			if (Renderer != nullptr)
+			{
+				Indices.Clear();
+				FillMaterialBuffers();
+				SetMRT(TargetType::Main, true);
+				Renderer->RestoreViewBuffer(nullptr);
+				Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
+			}
+			TH_PPOP();
 		}
-		void SceneGraph::Simulate(Core::Timer* Time)
+		void SceneGraph::StepSimulate(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_ASSERT_V(Simulator != nullptr, "simulator should be set");
 			TH_PPUSH(TH_PERF_CORE);
 			if (Active)
-				Simulator->Simulate((float)Time->GetTimeStep());
-			TH_PPOP();
-		}
-		void SceneGraph::Synchronize(Core::Timer* Time)
-		{
-			TH_PPUSH(TH_PERF_CORE);
-			auto Begin1 = Actors[(size_t)ActorType::Synchronize].Begin();
-			auto End1 = Actors[(size_t)ActorType::Synchronize].End();
-			for (auto It = Begin1; It != End1; ++It)
-				(*It)->Synchronize(Time);
-
-			Component* Base = Camera.load();
-			if (Base != nullptr)
 			{
-				auto Begin2 = Entities.Begin(), End2 = Entities.End();
-				for (auto It = Begin2; It != End2; ++It)
+				Watch(Parallel::Enqueue([this, Time]()
 				{
-					Entity* Base = *It;
-					if (Base->Transform->IsDirty())
-					{
-						Base->Transform->Synchronize();
-						Base->UpdateBounds();
-						Indexer.Heap.push_back(Base);
-					}
-				}
-
-				if (!Indexer.Heap.empty())
-				{
-					NotifyCosmosBulk(Indexer.Heap);
-					Indexer.Heap.clear();
-				}
-
-				if (Indexer.Queue > 0)
-					UpdateCosmos();
+					Simulator->Simulate((float)Time->GetTimeStep());
+				}));
 			}
 			TH_PPOP();
 		}
-		void SceneGraph::Culling(Core::Timer* Time)
+		void SceneGraph::StepSynchronize(Core::Timer* Time)
+		{
+			TH_ASSERT_V(Time != nullptr, "timer should be set");
+			TH_PPUSH(TH_PERF_CORE);
+			{
+				auto Begin = Actors[(size_t)ActorType::Synchronize].Begin();
+				auto End = Actors[(size_t)ActorType::Synchronize].End();
+				WatchAll(Parallel::ForEach(Begin, End, [Time](Component* Next)
+				{
+					Next->Synchronize(Time);
+				}));
+			}
+			TH_PPOP();
+		}
+		void SceneGraph::StepAnimate(Core::Timer* Time)
+		{
+			TH_ASSERT_V(Time != nullptr, "timer should be set");
+			TH_PPUSH(TH_PERF_CORE);
+			if (Active)
+			{
+				auto Begin = Actors[(size_t)ActorType::Animate].Begin();
+				auto End = Actors[(size_t)ActorType::Animate].End();
+				WatchAll(Parallel::ForEach(Begin, End, [Time](Component* Next)
+				{
+					Next->Animate(Time);
+				}));
+			}
+			TH_PPOP();
+		}
+		void SceneGraph::StepGameplay(Core::Timer* Time)
+		{
+			TH_PPUSH(TH_PERF_FRAME);
+			if (Active)
+			{
+				auto Begin = Actors[(size_t)ActorType::Update].Begin();
+				auto End = Actors[(size_t)ActorType::Update].End();
+				std::for_each(Begin, End, [Time](Component* Next)
+				{
+					Next->Update(Time);
+				});
+			}
+			TH_PPOP();
+		}
+		void SceneGraph::StepTransactions()
+		{
+			while (!Transactions.empty())
+			{
+				Transactions.front()();
+				Transactions.pop();
+			}
+		}
+		void SceneGraph::StepEvents()
+		{
+			while (!Events.empty())
+			{
+				auto& Source = Events.front();
+				ResolveEvent(Source);
+				Events.pop();
+			}
+		}
+		void SceneGraph::StepCulling()
 		{
 			TH_PPUSH(TH_PERF_CORE);
 			auto* Base = (Components::Camera*)Camera.load();
@@ -4094,14 +4016,64 @@ namespace Tomahawk
 			{
 				Compute::Vector3 Far = Base->Parent->Transform->GetPosition();
 				RenderSystem* System = Base->GetRenderer();
-				auto Begin = Indexer.Components.Begin();
-				auto End = Indexer.Components.End();
 				auto& View = Base->GetViewer();
-
-				for (auto It = Begin; It != End; ++It)
+				auto Begin = Indices.Begin();
+				auto End = Indices.End();
+				WatchAll(Parallel::ForEach(Begin, End, [System, View](Component* Next)
 				{
-					Component* Cullable = *It;
-					System->PushCullable(Cullable->Parent, View, Cullable);
+					System->PushCullable(Next->Parent, View, Next);
+				}));
+			}
+			TH_PPOP();
+		}
+		void SceneGraph::StepIndexing()
+		{
+			TH_PPUSH(TH_PERF_CORE);
+			if (Camera.load())
+			{
+				auto Begin = Entities.Begin();
+				auto End = Entities.End();
+				WatchAll(Parallel::ForEach(Begin, End, [this](Entity* Next)
+				{
+					if (Next->Transform->IsDirty())
+					{
+						Next->Transform->Synchronize();
+						Next->UpdateBounds();
+
+						for (auto& Item : *Next)
+							NotifyCosmos(Item.second);
+					}
+				}));
+			}
+			TH_PPOP();
+		}
+		void SceneGraph::StepFinalize()
+		{
+			TH_PPUSH(TH_PERF_CORE);
+			AwaitAll();
+			if (Camera.load())
+			{
+				for (auto& Item : Changes)
+				{
+					if (Item.second.empty())
+						continue;
+
+					auto& Storage = GetStorage(Item.first);
+					Storage.Index.Reserve(Item.second.size());
+
+					size_t Count = 0;
+					for (auto It = Item.second.begin(); It != Item.second.end(); ++It)
+					{
+						UpdateCosmos(Storage, *It);
+						if (++Count > Conf.MaxUpdates)
+						{
+							Item.second.erase(Item.second.begin(), It);
+							break;
+						}
+					}
+
+					if (Count == Item.second.size())
+						Item.second.clear();
 				}
 			}
 			TH_PPOP();
@@ -4145,11 +4117,11 @@ namespace Tomahawk
 				return;
 			}
 
-			Component* Viewer = Camera.load();
-			if (Viewer != nullptr)
-				Viewer->Activate(Viewer);
-			Target->Activate(nullptr);
 			Camera = Target;
+			Transaction([this, Target]()
+			{
+				Target->Activate(Target);
+			});
 		}
 		void SceneGraph::RemoveEntity(Entity* Entity)
 		{
@@ -4168,22 +4140,24 @@ namespace Tomahawk
 				TH_RELEASE(Entity);
 			});
 		}
-		void SceneGraph::RemoveMaterial(Material* Value)
+		void SceneGraph::DeleteMaterial(Material* Value)
 		{
 			TH_ASSERT_V(Value != nullptr, "entity should be set");
 			Mutate(Value, "pop");
-			Transaction([this, Value]()
+
+			auto Begin = Materials.Begin(), End = Materials.End();
+			for (auto It = Begin; It != End; ++It)
 			{
-				auto Begin = Materials.Begin(), End = Materials.End();
-				for (auto It = Begin; It != End; ++It)
+				if (*It == Value)
 				{
-					if (*It == Value)
-					{
-						TH_RELEASE(Value);
-						Materials.RemoveAt(It);
-						break;
-					}
+					Materials.RemoveAt(It);
+					break;
 				}
+			}
+
+			Transaction([Value]()
+			{
+				TH_RELEASE(Value);
 			});
 		}
 		void SceneGraph::RegisterEntity(Entity* Target)
@@ -4193,7 +4167,7 @@ namespace Tomahawk
 
 			Target->Active = true;
 			for (auto& Base : Target->Type.Components)
-				RegisterComponent(Base.second, Target->Active, true);
+				RegisterComponent(Base.second, Target->Active);
 
 			Mutate(Target, "push");
 		}
@@ -4207,7 +4181,7 @@ namespace Tomahawk
 				Camera = nullptr;
 
 			for (auto& Base : Target->Type.Components)
-				UnregisterComponent(Base.second, true);
+				UnregisterComponent(Base.second);
 
 			Target->Active = false;
 			Entities.Remove(Target);
@@ -4215,19 +4189,26 @@ namespace Tomahawk
 
 			return true;
 		}
-		void SceneGraph::RegisterComponent(Component* Base, bool Check, bool Notify)
+		void SceneGraph::RegisterComponent(Component* Base, bool Verify)
 		{
 			auto& Storage = GetComponents(Base->GetId());
 			if (!Base->Active)
-				Base->Activate(nullptr);
+			{
+				Transaction([Base]()
+				{
+					Base->Activate(nullptr);
+				});
+			}
 
-			if (Check)
+			if (Verify)
 			{
 				Storage.AddIfNotExists(Base);
 				if (Base->Set & (size_t)ActorSet::Update)
 					GetActors(ActorType::Update).AddIfNotExists(Base);
 				if (Base->Set & (size_t)ActorSet::Synchronize)
 					GetActors(ActorType::Synchronize).AddIfNotExists(Base);
+				if (Base->Set & (size_t)ActorSet::Animate)
+					GetActors(ActorType::Animate).AddIfNotExists(Base);
 				if (Base->Set & (size_t)ActorSet::Message)
 					GetActors(ActorType::Message).AddIfNotExists(Base);
 			}
@@ -4238,36 +4219,37 @@ namespace Tomahawk
 					GetActors(ActorType::Update).Add(Base);
 				if (Base->Set & (size_t)ActorSet::Synchronize)
 					GetActors(ActorType::Synchronize).Add(Base);
+				if (Base->Set & (size_t)ActorSet::Animate)
+					GetActors(ActorType::Animate).Add(Base);
 				if (Base->Set & (size_t)ActorSet::Message)
 					GetActors(ActorType::Message).Add(Base);
 			}
-
-			if (Notify)
-				Mutate(Base, "push");
 		}
-		void SceneGraph::UnregisterComponent(Component* Base, bool Notify)
+		void SceneGraph::UnregisterComponent(Component* Base)
 		{
 			auto& Storage = GetComponents(Base->GetId());
 			if (Base->Active)
 				Base->Deactivate();
 
 			Storage.Remove(Base);
+			if (Base->IsCullable())
+				Indices.Remove(Base);
+
 			if (Base->Set & (size_t)ActorSet::Update)
 				GetActors(ActorType::Update).Remove(Base);
 			if (Base->Set & (size_t)ActorSet::Synchronize)
 				GetActors(ActorType::Synchronize).Remove(Base);
+			if (Base->Set & (size_t)ActorSet::Animate)
+				GetActors(ActorType::Animate).Remove(Base);
 			if (Base->Set & (size_t)ActorSet::Message)
 				GetActors(ActorType::Message).Remove(Base);
-
-			if (Notify)
-				Mutate(Base, "pop");
 		}
 		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
 		{
 			TH_ASSERT_V(Instance != nullptr, "entity should be set");
 			TH_ASSERT_V(Array != nullptr, "array should be set");
 
-			Entity* Clone = CloneEntity(Instance);
+			Entity* Clone = CloneEntityInstance(Instance);
 			Array->push_back(Clone);
 
 			Compute::Transform* Root = Clone->Transform->GetRoot();
@@ -4286,18 +4268,10 @@ namespace Tomahawk
 				CloneEntities(Child->Ptr<Entity>(), Array);
 				for (uint64_t j = Offset; j < Array->size(); j++)
 				{
-					if ((*Array)[j]->Transform->GetRoot() == Instance->Transform)
-						(*Array)[j]->Transform->SetRoot(Clone->Transform);
+					Entity* Next = (*Array)[j];
+					if (Next->Transform->GetRoot() == Instance->Transform)
+						Next->Transform->SetRoot(Clone->Transform);
 				}
-			}
-		}
-		void SceneGraph::ExecuteTasks()
-		{
-			auto* Schedule = Core::Schedule::Get();
-			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
-			{
-				if (!It->second->Active)
-					It->second->Active = Schedule->SetTask(It->second->Callback, Core::Difficulty::Heavy);
 			}
 		}
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
@@ -4328,12 +4302,15 @@ namespace Tomahawk
 		}
 		void SceneGraph::ScriptHook(const std::string& Name)
 		{
-			auto& Array = GetComponents<Components::Scriptable>();
-			for (auto It = Array.Begin(); It != Array.End(); ++It)
+			Transaction([this, Name]()
 			{
-				Components::Scriptable* Base = (Components::Scriptable*)*It;
-				Base->CallEntry(Name);
-			}
+				auto& Array = GetComponents<Components::Scriptable>();
+				for (auto It = Array.Begin(); It != Array.End(); ++It)
+				{
+					Components::Scriptable* Base = (Components::Scriptable*)*It;
+					Base->CallEntry(Name);
+				}
+			});
 		}
 		void SceneGraph::SetActive(bool Enabled)
 		{
@@ -4341,50 +4318,48 @@ namespace Tomahawk
 			if (!Active)
 				return;
 
-			auto Begin = Entities.Begin(), End = Entities.End();
-			for (auto It = Begin; It != End; ++It)
+			Transaction([this]()
 			{
-				Entity* V = *It;
-				for (auto& Base : V->Type.Components)
+				auto Begin = Entities.Begin(), End = Entities.End();
+				for (auto It = Begin; It != End; ++It)
 				{
-					if (Base.second->Active)
-						Base.second->Activate(nullptr);
+					Entity* Next = *It;
+					for (auto& Base : Next->Type.Components)
+					{
+						if (Base.second->Active)
+							Base.second->Activate(nullptr);
+					}
 				}
-			}
-		}
-		void SceneGraph::SetTiming(double Min, double Max)
-		{
-			Race.lock();
-			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
-				It->second->Time->SetStepLimitation(Min, Max);
-			Race.unlock();
+			});
 		}
 		void SceneGraph::SetMRT(TargetType Type, bool Clear)
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
-			Conf.Device->SetTarget(Target);
+			Device->SetTarget(Target);
 
 			if (!Clear)
 				return;
 
-			Conf.Device->Clear(Target, 0, 0, 0, 0);
-			Conf.Device->Clear(Target, 1, 0, 0, 0);
-			Conf.Device->Clear(Target, 2, 1, 0, 0);
-			Conf.Device->Clear(Target, 3, 0, 0, 0);
-			Conf.Device->ClearDepth(Target);
+			Device->Clear(Target, 0, 0, 0, 0);
+			Device->Clear(Target, 1, 0, 0, 0);
+			Device->Clear(Target, 2, 1, 0, 0);
+			Device->Clear(Target, 3, 0, 0, 0);
+			Device->ClearDepth(Target);
 		}
 		void SceneGraph::SetRT(TargetType Type, bool Clear)
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
-			Conf.Device->SetTarget(Target);
+			Device->SetTarget(Target);
 
 			if (!Clear)
 				return;
 
-			Conf.Device->Clear(Target, 0, 0, 0, 0);
-			Conf.Device->ClearDepth(Target);
+			Device->Clear(Target, 0, 0, 0, 0);
+			Device->ClearDepth(Target);
 		}
 		void SceneGraph::SwapMRT(TargetType Type, Graphics::MultiRenderTarget2D* New)
 		{
@@ -4427,38 +4402,30 @@ namespace Tomahawk
 		}
 		void SceneGraph::ClearMRT(TargetType Type, bool Color, bool Depth)
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 			Graphics::MultiRenderTarget2D* Target = Display.MRT[(size_t)Type];
 			if (Color)
 			{
-				Conf.Device->Clear(Target, 0, 0, 0, 0);
-				Conf.Device->Clear(Target, 1, 0, 0, 0);
-				Conf.Device->Clear(Target, 2, 1, 0, 0);
-				Conf.Device->Clear(Target, 3, 0, 0, 0);
+				Device->Clear(Target, 0, 0, 0, 0);
+				Device->Clear(Target, 1, 0, 0, 0);
+				Device->Clear(Target, 2, 1, 0, 0);
+				Device->Clear(Target, 3, 0, 0, 0);
 			}
 
 			if (Depth)
-				Conf.Device->ClearDepth(Target);
+				Device->ClearDepth(Target);
 		}
 		void SceneGraph::ClearRT(TargetType Type, bool Color, bool Depth)
 		{
-			TH_ASSERT_V(Conf.Device != nullptr, "graphics device should be set");
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 			Graphics::RenderTarget2D* Target = Display.RT[(size_t)Type];
 			if (Color)
-				Conf.Device->Clear(Target, 0, 0, 0, 0);
+				Device->Clear(Target, 0, 0, 0, 0);
 
 			if (Depth)
-				Conf.Device->ClearDepth(Target);
-		}
-		void SceneGraph::Transaction(Core::TaskCallback&& Callback)
-		{
-			TH_ASSERT_V(Callback, "callback should not be empty");
-			if (Status != 1 || Acquire)
-				return Callback();
-
-			Race.lock();
-			Queue.emplace(std::move(Callback));
-			Race.unlock();
+				Device->ClearDepth(Target);
 		}
 		bool SceneGraph::GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out)
 		{
@@ -4478,10 +4445,9 @@ namespace Tomahawk
 		MessageCallback* SceneGraph::SetListener(const std::string& EventName, MessageCallback&& Callback)
 		{
 			MessageCallback* Id = TH_NEW(MessageCallback, std::move(Callback));
-			Race.lock();
-			auto& Source = Listeners[EventName];
-			Source.insert(Id);
-			Race.unlock();
+			Exclusive.lock();
+			Listeners[EventName].insert(Id);
+			Exclusive.unlock();
 
 			return Id;
 		}
@@ -4490,143 +4456,75 @@ namespace Tomahawk
 			TH_ASSERT(!EventName.empty(), false, "event name should not be empty");
 			TH_ASSERT(Id != nullptr, false, "callback id should be set");
 
-			Race.lock();
+			Exclusive.lock();
 			auto& Source = Listeners[EventName];
-			size_t Last = Source.size();
-			Source.erase(Id);
-			size_t Next = Source.size();
-			Race.unlock();
-
-			if (Last == Next)
+			auto It = Source.find(Id);
+			if (It == Source.end())
+			{
+				Exclusive.unlock();
 				return false;
+			}
+			Source.erase(It);
+			Exclusive.unlock();
 
 			TH_DELETE(function, Id);
 			return true;
 		}
-		bool SceneGraph::SetParallel(const std::string& Name, PacketCallback&& Callback)
-		{
-			ExclusiveLock();
-			Race.lock();
-
-			if (Callback)
-			{
-				auto It = Tasks.find(Name);
-				Packet* Task = (It == Tasks.end() ? TH_NEW(Packet) : It->second);
-				Task->Time = (Task->Time ? Task->Time : new Core::Timer());
-				Task->Time->SetStepLimitation(Conf.MinFrames, Conf.MaxFrames);
-				Task->Active = false;
-
-				if (Conf.Async)
-					Task->Time->FrameLimit = Conf.FrequencyHZ;
-
-				if (It == Tasks.end())
-					Tasks[Name] = Task;
-
-				Task->Callback = [this, Task, Callback = std::move(Callback)]()
-				{
-					auto* Queue = Core::Schedule::Get();
-					if (!Queue->CanEnqueue())
-						return;
-
-					Task->Active = true;
-					{
-						Callback(Task->Time);
-						Task->Time->Synchronize();
-
-						if (!Acquire && Status == 1)
-							Queue->SetTask(Task->Callback, Core::Difficulty::Heavy);
-					}
-					Task->Active = false;
-				};
-			}
-			else
-			{
-				auto It = Tasks.find(Name);
-				if (It == Tasks.end())
-				{
-					Race.unlock();
-					ExclusiveUnlock();
-					return false;
-				}
-
-				TH_RELEASE(It->second->Time);
-				TH_DELETE(Packet, It->second);
-				Tasks.erase(It);
-			}
-
-			Race.unlock();
-			ExclusiveUnlock();
-
-			return true;
-		}
-		bool SceneGraph::SetEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate)
+		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate)
 		{
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)(Propagate ? EventTarget::Scene : EventTarget::Listener));
 			Next.Args["__vt"] = Core::Var::Pointer((void*)this);
 
-			Race.lock();
+			Exclusive.lock();
 			Events.push(std::move(Next));
-			Race.unlock();
+			Exclusive.unlock();
 
-			return false;
+			return true;
 		}
-		bool SceneGraph::SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target)
+		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target)
 		{
 			TH_ASSERT(Target != nullptr, false, "target should be set");
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Component);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
 
-			Race.lock();
+			Exclusive.lock();
 			Events.push(std::move(Next));
-			Race.unlock();
+			Exclusive.unlock();
 
-			return false;
+			return true;
 		}
-		bool SceneGraph::SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target)
+		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target)
 		{
 			TH_ASSERT(Target != nullptr, false, "target should be set");
 			Event Next(EventName, std::move(Args));
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Entity);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
 
-			Race.lock();
+			Exclusive.lock();
 			Events.push(std::move(Next));
-			Race.unlock();
+			Exclusive.unlock();
 
-			return false;
-		}
-		bool SceneGraph::IsUnstable()
-		{
-			if (!Conf.Async)
-				return false;
-
-			Race.lock();
-			for (auto It = Tasks.begin(); It != Tasks.end(); It++)
-			{
-				if (It->second->Active)
-				{
-					Race.unlock();
-					return true;
-				}
-			}
-			Race.unlock();
-			return false;
+			return true;
 		}
 		bool SceneGraph::IsLeftHanded() const
 		{
-			return Conf.Device->IsLeftHanded();
+			return Conf.Shared.Device->IsLeftHanded();
 		}
 		bool SceneGraph::IsIndexed() const
 		{
-			for (auto& Item : Indexer.Changes)
+			for (auto& Item : Changes)
 			{
 				if (!Item.second.empty())
 					return false;
 			}
 
 			return true;
+		}
+		bool SceneGraph::IsBusy() const
+		{
+			return !Tasks.empty();
 		}
 		void SceneGraph::Mutate(Entity* Parent, Entity* Child, const char* Type)
 		{
@@ -4641,7 +4539,7 @@ namespace Tomahawk
 			Args["child"] = Core::Var::Pointer((void*)Child);
 			Args["type"] = Core::Var::String(Type, strlen(Type));
 
-			SetEvent("mutation", std::move(Args), false);
+			PushEvent("mutation", std::move(Args), false);
 		}
 		void SceneGraph::Mutate(Entity* Target, const char* Type)
 		{
@@ -4654,7 +4552,7 @@ namespace Tomahawk
 			Args["entity"] = Core::Var::Pointer((void*)Target);
 			Args["type"] = Core::Var::String(Type, strlen(Type));
 
-			SetEvent("mutation", std::move(Args), false);
+			PushEvent("mutation", std::move(Args), false);
 		}
 		void SceneGraph::Mutate(Component* Target, const char* Type)
 		{
@@ -4669,7 +4567,7 @@ namespace Tomahawk
 			Args["component"] = Core::Var::Pointer((void*)Target);
 			Args["type"] = Core::Var::String(Type, strlen(Type));
 
-			SetEvent("mutation", std::move(Args), false);
+			PushEvent("mutation", std::move(Args), false);
 		}
 		void SceneGraph::Mutate(Material* Target, const char* Type)
 		{
@@ -4682,18 +4580,7 @@ namespace Tomahawk
 			Args["material"] = Core::Var::Pointer((void*)Target);
 			Args["type"] = Core::Var::String(Type, strlen(Type));
 
-			SetEvent("mutation", std::move(Args), false);
-		}
-		void SceneGraph::CloneEntity(Entity* Value, CloneCallback&& Callback)
-		{
-			TH_ASSERT_V(Value != nullptr, "entity should be set");
-			Transaction([this, Value, Callback = std::move(Callback)]()
-			{
-				std::vector<Entity*> Array;
-				CloneEntities(Value, &Array);
-				if (Callback)
-					Callback(!Array.empty() ? Array.front() : nullptr);
-			});
+			PushEvent("mutation", std::move(Args), false);
 		}
 		void SceneGraph::MakeSnapshot(IdxSnapshot* Result)
 		{
@@ -4709,6 +4596,41 @@ namespace Tomahawk
 				Result->From[Index] = *It;
 				Index++;
 			}
+		}
+		void SceneGraph::Transaction(Core::TaskCallback&& Callback)
+		{
+			TH_ASSERT_V(Callback != nullptr, "callback should be set");
+			bool ExecuteNow = false;
+			Exclusive.lock();
+			{
+				if (!Tasks.empty() || !Events.empty())
+					Transactions.emplace(std::move(Callback));
+				else
+					ExecuteNow = true;
+			}
+			Exclusive.unlock();
+			if (ExecuteNow)
+				Callback();
+		}
+		void SceneGraph::Watch(Parallel::Task&& Awaitable)
+		{
+			if (Awaitable.valid())
+				Tasks.emplace(std::move(Awaitable));
+		}
+		void SceneGraph::WatchAll(std::vector<Parallel::Task>&& Awaitables)
+		{
+			for (auto& Awaitable : Awaitables)
+				Watch(std::move(Awaitable));
+		}
+		void SceneGraph::AwaitAll()
+		{
+			TH_PPUSH(TH_PERF_CORE);
+			while (!Tasks.empty())
+			{
+				Tasks.front().wait();
+				Tasks.pop();
+			}
+			TH_PPOP();
 		}
 		void SceneGraph::ClearCulling()
 		{
@@ -4739,12 +4661,15 @@ namespace Tomahawk
 			F.StructureByteStride = F.ElementWidth;
 
 			TH_RELEASE(Display.MaterialBuffer);
-			Display.MaterialBuffer = Conf.Device->CreateElementBuffer(F);
+			Display.MaterialBuffer = Conf.Shared.Device->CreateElementBuffer(F);
 		}
 		void SceneGraph::GenerateVoxelBuffers()
 		{
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+
 			Conf.VoxelsSize = Conf.VoxelsSize - Conf.VoxelsSize % 8;
-			Conf.VoxelsMips = Conf.Device->GetMipLevel((unsigned int)Conf.VoxelsSize, (unsigned int)Conf.VoxelsSize);
+			Conf.VoxelsMips = Device->GetMipLevel((unsigned int)Conf.VoxelsSize, (unsigned int)Conf.VoxelsSize);
 
 			Graphics::Texture3D::Desc I;
 			I.Width = I.Height = I.Depth = (unsigned int)Conf.VoxelsSize;
@@ -4752,30 +4677,33 @@ namespace Tomahawk
 			I.Writable = true;
 
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
-			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = Conf.Device->CreateTexture3D(I);
+			Display.VoxelBuffers[(size_t)VoxelType::Diffuse] = Device->CreateTexture3D(I);
 
 			I.FormatMode = Graphics::Format::R16G16B16A16_Float;
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
-			Display.VoxelBuffers[(size_t)VoxelType::Normal] = Conf.Device->CreateTexture3D(I);
+			Display.VoxelBuffers[(size_t)VoxelType::Normal] = Device->CreateTexture3D(I);
 
 			I.FormatMode = Graphics::Format::R8G8B8A8_Unorm;
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Surface]);
-			Display.VoxelBuffers[(size_t)VoxelType::Surface] = Conf.Device->CreateTexture3D(I);
+			Display.VoxelBuffers[(size_t)VoxelType::Surface] = Device->CreateTexture3D(I);
 
 			I.MipLevels = (unsigned int)Conf.VoxelsMips;
 			Display.Voxels.resize(Conf.VoxelsMax);
 			for (auto& Item : Display.Voxels)
 			{
 				TH_RELEASE(Item.first);
-				Item.first = Conf.Device->CreateTexture3D(I);
+				Item.first = Device->CreateTexture3D(I);
 				Item.second = nullptr;
 			}
 
 			Core::VariantArgs Args;
-			SetEvent("voxel-flush", std::move(Args), true);
+			PushEvent("voxel-flush", std::move(Args), true);
 		}
 		void SceneGraph::GenerateDepthBuffers()
 		{
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
+
 			for (auto& Item : Display.Points)
 				TH_CLEAR(Item);
 
@@ -4799,7 +4727,7 @@ namespace Tomahawk
 				Graphics::DepthTargetCube::Desc F = Graphics::DepthTargetCube::Desc();
 				F.Size = (unsigned int)Conf.PointsSize;
 				F.FormatMode = Graphics::Format::D32_Float;
-				Item = Conf.Device->CreateDepthTargetCube(F);
+				Item = Device->CreateDepthTargetCube(F);
 			}
 
 			Display.Spots.resize(Conf.SpotsMax);
@@ -4808,7 +4736,7 @@ namespace Tomahawk
 				Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
 				F.Width = F.Height = (unsigned int)Conf.SpotsSize;
 				F.FormatMode = Graphics::Format::D32_Float;
-				Item = Conf.Device->CreateDepthTarget2D(F);
+				Item = Device->CreateDepthTarget2D(F);
 			}
 
 			Display.Lines.resize(Conf.LinesMax);
@@ -4816,7 +4744,7 @@ namespace Tomahawk
 				Item = nullptr;
 
 			Core::VariantArgs Args;
-			SetEvent("depth-flush", std::move(Args), true);
+			PushEvent("depth-flush", std::move(Args), true);
 		}
 		void SceneGraph::GenerateDepthCascades(CascadedDepthMap** Result, uint32_t Size) const
 		{
@@ -4830,7 +4758,7 @@ namespace Tomahawk
 				Graphics::DepthTarget2D::Desc F = Graphics::DepthTarget2D::Desc();
 				F.Width = F.Height = (unsigned int)Conf.LinesSize;
 				F.FormatMode = Graphics::Format::D32_Float;
-				Item = Conf.Device->CreateDepthTarget2D(F);
+				Item = Conf.Shared.Device->CreateDepthTarget2D(F);
 			}
 
 			*Result = Target;
@@ -4839,114 +4767,61 @@ namespace Tomahawk
 		{
 			if (!Base->IsCullable())
 				return;
-
-			Indexer.Notify.lock();
-			Indexer.Changes[Base->GetId()].insert(Base);
-			Indexer.Queue++;
-			Indexer.Notify.unlock();
+			
+			Exclusive.lock();
+			Changes[Base->GetId()].insert(Base);
+			Exclusive.unlock();
 		}
-		void SceneGraph::NotifyCosmosBulk(const std::vector<Entity*>& Data)
+		void SceneGraph::ClearCosmos(Component* Base)
 		{
-			Indexer.Notify.lock();
-			for (auto* Base : Data)
+			if (!Base->IsCullable())
+				return;
+
+			Exclusive.lock();
 			{
-				for (auto& Next : Base->Type.Components)
+				uint64_t Id = Base->GetId();
+				Changes[Id].erase(Base);
+
+				if (Base->Indexed)
 				{
-					if (Next.second->IsCullable())
-					{
-						Indexer.Changes[Next.first].insert(Next.second);
-						Indexer.Queue++;
-					}
+					auto& Storage = GetStorage(Id);
+					Storage.Index.RemoveItem((void*)Base);
 				}
 			}
-			Indexer.Notify.unlock();
+			Exclusive.unlock();
 		}
-		void SceneGraph::UpdateCosmos(Component* Base)
+		void SceneGraph::UpdateCosmos(Indexer& Storage, Component* Base)
 		{
-			auto& Storage = GetStorage(Base->GetId());
-			Indexer.Transaction.StoreLock();
 			if (Base->Active)
 			{
+				auto& Bounds = Base->Parent->Snapshot;
 				if (!Base->Indexed)
 				{
-					Storage.Index.InsertItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
+					Storage.Index.InsertItem((void*)Base, Bounds.Min, Bounds.Max);
 					Base->Indexed = true;
 				}
 				else
-					Storage.Index.UpdateItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
+					Storage.Index.UpdateItem((void*)Base, Bounds.Min, Bounds.Max);
 			}
 			else
 			{
 				Storage.Index.RemoveItem((void*)Base);
 				Base->Indexed = false;
 			}
-			Indexer.Transaction.StoreUnlock();
-		}
-		bool SceneGraph::UpdateCosmos()
-		{
-			if (!Indexer.Transaction.TryStoreLock())
-				return false;
-
-			size_t Updates = 0;
-			for (auto& Item : Indexer.Changes)
-			{
-				if (Item.second.empty())
-					continue;
-
-				auto& Storage = GetStorage(Item.first);
-				Storage.Index.Reserve(Item.second.size());
-
-				size_t Count = 0;
-				for (auto It = Item.second.begin(); It != Item.second.end(); ++It)
-				{
-					auto* Base = *It;
-					if (Base->Active)
-					{
-						if (!Base->Indexed)
-						{
-							Storage.Index.InsertItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
-							Base->Indexed = true;
-						}
-						else
-							Storage.Index.UpdateItem((void*)Base, Base->Parent->Snapshot.Min, Base->Parent->Snapshot.Max);
-					}
-					else
-					{
-						Storage.Index.RemoveItem((void*)Base);
-						Base->Indexed = false;
-					}
-
-					if (Count++ > Conf.MaxUpdates)
-					{
-						Item.second.erase(Item.second.begin(), It);
-						break;
-					}
-				}
-
-				if (Count == Item.second.size())
-					Item.second.clear();
-
-				Updates += Count;
-			}
-
-			Indexer.Queue = 0;
-			Indexer.Transaction.StoreUnlock();
-			return Updates > 0;
 		}
 		void SceneGraph::ProcessCullable(Component* Base)
 		{
-			if (Indexer.Components.Size() + Conf.GrowMargin > Indexer.Components.Capacity())
+			if (Indices.Size() + Conf.GrowMargin > Indices.Capacity())
 			{
 				Transaction([this, Base]()
 				{
-					if (Indexer.Components.Size() + Conf.GrowMargin > Indexer.Components.Capacity())
-						UpgradeBuffer(Indexer.Components, Conf.GrowRate);
-
-					Indexer.Components.Add(Base);
+					if (Indices.Size() + Conf.GrowMargin > Indices.Capacity())
+						UpgradeBuffer(Indices, Conf.GrowRate);
+					Indices.Add(Base);
 				});
 			}
 			else
-				Indexer.Components.Add(Base);
+				Indices.Add(Base);
 		}
 		bool SceneGraph::ResolveEvent(Event& Source)
 		{
@@ -4976,42 +4851,15 @@ namespace Tomahawk
 				Base->Message(Source.Name, Source.Args);
 			}
 
-			Race.lock();
 			auto It = Listeners.find(Source.Name);
 			if (It == Listeners.end() || It->second.empty())
-			{
-				Race.unlock();
 				return false;
-			}
-			auto Copy = It->second;
-			Race.unlock();
 
+			auto Copy = It->second;
 			for (auto* Callback : Copy)
 				(*Callback)(Source.Name, Source.Args);
 
 			return true;
-		}
-		bool SceneGraph::ResolveEvents()
-		{
-			if (Events.empty())
-				return false;
-
-			std::queue<Event> Next;
-			Race.lock();
-			Next.swap(Events);
-			Race.unlock();
-
-			if (Next.empty())
-				return false;
-
-			while (!Next.empty())
-			{
-				auto& Source = Next.front();
-				ResolveEvent(Source);
-				Next.pop();
-			}
-
-			return !Events.empty();
 		}
 		bool SceneGraph::AddMaterial(Material* Base)
 		{
@@ -5025,7 +4873,6 @@ namespace Tomahawk
 						UpgradeBuffer(Materials, Conf.GrowRate);
 						GenerateMaterialBuffer();
 					}
-
 					AddMaterial(Base);
 				});
 			}
@@ -5053,25 +4900,28 @@ namespace Tomahawk
 		}
 		Component* SceneGraph::GetCamera()
 		{
-			Component* Result = Camera.load();
-			if (Result != nullptr)
-				return Result;
+			Component* Base = Camera.load();
+			if (Base != nullptr)
+				return Base;
 
-			Result = GetComponent<Components::Camera>();
-			if (!Result || !Result->Active)
+			Base = GetComponent<Components::Camera>();
+			if (!Base || !Base->Active)
 			{
 				Entity* Next = new Entity(this);
-				Result = Next->AddComponent<Components::Camera>();
+				Base = Next->AddComponent<Components::Camera>();
 				AddEntity(Next);
 				SetCamera(Next);
 			}
 			else
 			{
-				Result->Activate(Result);
-				Camera = Result;
+				Transaction([this, Base]()
+				{
+					Base->Activate(Base);
+					Camera = Base;
+				});
 			}
 
-			return Result;
+			return Base;
 		}
 		Component* SceneGraph::GetComponent(uint64_t Component, uint64_t Section)
 		{
@@ -5097,20 +4947,19 @@ namespace Tomahawk
 
 			return Result->GetViewer();
 		}
-		SceneGraph::Table& SceneGraph::GetStorage(uint64_t Section)
+		SceneGraph::Indexer& SceneGraph::GetStorage(uint64_t Section)
 		{
-			Table* Storage = Registry[Section];
+			Indexer* Storage = Registry[Section];
 			TH_ASSERT(Storage != nullptr, *Registry.begin()->second, "component should be registered by composer");
-
-			if (Storage->Data.Size() + Conf.GrowMargin <= Storage->Data.Capacity())
-				return *Storage;
-
-			Transaction([this, Section]()
+			if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
 			{
-				Table* Storage = Registry[Section];
-				if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
-					UpgradeBuffer(Storage->Data, Conf.GrowRate);
-			});
+				Transaction([this, Section]()
+				{
+					Indexer* Storage = Registry[Section];
+					if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
+					    UpgradeBuffer(Storage->Data, Conf.GrowRate);
+				});
+			}
 
 			return *Storage;
 		}
@@ -5147,7 +4996,7 @@ namespace Tomahawk
 			Component* Data = GetCamera();
 			return Data ? Data->Parent : nullptr;
 		}
-		Entity* SceneGraph::CloneEntity(Entity* Entity)
+		Entity* SceneGraph::CloneEntityInstance(Entity* Entity)
 		{
 			TH_ASSERT(Entity != nullptr, nullptr, "entity should be set");
 			TH_PPUSH(TH_PERF_FRAME);
@@ -5171,52 +5020,59 @@ namespace Tomahawk
 
 			return Instance;
 		}
+		Entity* SceneGraph::CloneEntity(Entity* Value)
+		{
+			auto Array = CloneEntityAsArray(Value);
+			return Array.empty() ? nullptr : Array.front();
+		}
 		Core::Pool<Component*>& SceneGraph::GetComponents(uint64_t Section)
 		{
-			Table& Storage = GetStorage(Section);
+			Indexer& Storage = GetStorage(Section);
 			return Storage.Data;
 		}
 		Core::Pool<Component*>& SceneGraph::GetActors(ActorType Type)
 		{
 			auto& Storage = Actors[(size_t)Type];
-			if (Storage.Size() + Conf.GrowMargin <= Storage.Capacity())
-				return Storage;
-
-			Transaction([this, Type]()
+			if (Storage.Size() + Conf.GrowMargin > Storage.Capacity())
 			{
-				auto& Storage = Actors[(size_t)Type];
-				if (Storage.Size() + Conf.GrowMargin > Storage.Capacity())
-					UpgradeBuffer(Storage, Conf.GrowRate);
-			});
+				Transaction([this, Type]()
+				{
+					auto& Storage = Actors[(size_t)Type];
+					if (Storage.Size() + Conf.GrowMargin > Storage.Capacity())
+						UpgradeBuffer(Storage, Conf.GrowRate);
+				});
+			}
 
 			return Storage;
 		}
 		Graphics::RenderTarget2D::Desc SceneGraph::GetDescRT() const
 		{
-			TH_ASSERT(Conf.Device != nullptr, Graphics::RenderTarget2D::Desc(), "graphics device should be set");
-			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT(Device != nullptr, Graphics::RenderTarget2D::Desc(), "graphics device should be set");
+			Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
 
 			TH_ASSERT(Target != nullptr, Graphics::RenderTarget2D::Desc(), "render target should be set");
 			Graphics::RenderTarget2D::Desc Desc;
 			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
 			Desc.Height = (unsigned int)(Target->GetHeight() * Conf.RenderQuality);
-			Desc.MipLevels = Conf.Device->GetMipLevel(Desc.Width, Desc.Height);
+			Desc.MipLevels = Device->GetMipLevel(Desc.Width, Desc.Height);
 			Desc.FormatMode = GetFormatMRT(0);
 
 			return Desc;
 		}
 		Graphics::MultiRenderTarget2D::Desc SceneGraph::GetDescMRT() const
 		{
-			TH_ASSERT(Conf.Device != nullptr, Graphics::MultiRenderTarget2D::Desc(), "graphics device should be set");
-			Graphics::RenderTarget2D* Target = Conf.Device->GetRenderTarget();
+			auto* Device = Conf.Shared.Device;
+			TH_ASSERT(Device != nullptr, Graphics::MultiRenderTarget2D::Desc(), "graphics device should be set");
+			Graphics::RenderTarget2D* Target = Device->GetRenderTarget();
 
 			TH_ASSERT(Target != nullptr, Graphics::MultiRenderTarget2D::Desc(), "render target should be set");
 			Graphics::MultiRenderTarget2D::Desc Desc;
 			Desc.MiscFlags = Graphics::ResourceMisc::Generate_Mips;
 			Desc.Width = (unsigned int)(Target->GetWidth() * Conf.RenderQuality);
 			Desc.Height = (unsigned int)(Target->GetHeight() * Conf.RenderQuality);
-			Desc.MipLevels = Conf.Device->GetMipLevel(Desc.Width, Desc.Height);
+			Desc.MipLevels = Device->GetMipLevel(Desc.Width, Desc.Height);
 			Desc.Target = Graphics::SurfaceTarget::T3;
 			Desc.FormatMode[0] = GetFormatMRT(0);
 			Desc.FormatMode[1] = GetFormatMRT(1);
@@ -5240,6 +5096,13 @@ namespace Tomahawk
 				return Graphics::Format::R8G8B8A8_Unorm;
 
 			return Graphics::Format::Unknown;
+		}
+		std::vector<Entity*> SceneGraph::CloneEntityAsArray(Entity* Value)
+		{
+			std::vector<Entity*> Array;
+			TH_ASSERT(Value != nullptr, Array, "entity should be set");
+			CloneEntities(Value, &Array);
+			return Array;
 		}
 		std::vector<Entity*> SceneGraph::QueryByParent(Entity* Entity) const
 		{
@@ -5282,13 +5145,9 @@ namespace Tomahawk
 			auto& Storage = GetStorage(Section);
 			void* Base = nullptr;
 
-			Indexer.Transaction.LoadLock();
-			{
-				Storage.Index.PushQuery();
-				while ((Base = Storage.Index.NextQuery(Box)) != nullptr)
-					Result.push_back((Component*)Base);
-			}
-			Indexer.Transaction.LoadUnlock();
+			Storage.Index.PushQuery();
+			while ((Base = Storage.Index.NextQuery(Box)) != nullptr)
+				Result.push_back((Component*)Base);
 
 			return Result;
 		}
@@ -5384,15 +5243,15 @@ namespace Tomahawk
 		}
 		Graphics::GraphicsDevice* SceneGraph::GetDevice() const
 		{
-			return Conf.Device;
+			return Conf.Shared.Device;
 		}
 		ShaderCache* SceneGraph::GetShaders()
 		{
-			return Conf.Shaders;
+			return Conf.Shared.Shaders;
 		}
 		PrimitiveCache* SceneGraph::GetPrimitives()
 		{
-			return Conf.Primitives;
+			return Conf.Shared.Primitives;
 		}
 		Compute::Simulator* SceneGraph::GetSimulator()
 		{
@@ -5993,7 +5852,10 @@ namespace Tomahawk
 
 				if (I->Activity.Width > 0 && I->Activity.Height > 0)
 				{
+					bool Maximized = I->Activity.Maximized;
 					I->Activity.AllowGraphics = (I->Usage & (size_t)ApplicationSet::GraphicsSet);
+					I->Activity.Maximized = false;
+
 					Activity = new Graphics::Activity(I->Activity);
 					if (I->Activity.AllowGraphics)
 					{
@@ -6068,7 +5930,7 @@ namespace Tomahawk
 #endif
 						WindowEvent(NewState, X, Y);
 					};
-
+					I->Activity.Maximized = Maximized;
 				}
 				else
 					TH_ERR("[engine] cannot detect display to create activity");
@@ -6094,7 +5956,7 @@ namespace Tomahawk
 			}
 #endif
 			if (I->Usage & (size_t)ApplicationSet::NetworkSet)
-				Network::Driver::Create(256);
+				Network::Driver::Create(I->PollingTimeout, I->PollingEvents);
 
 			State = ApplicationState::Staging;
 		}
@@ -6212,10 +6074,15 @@ namespace Tomahawk
 			Policy.SetThreads(Control.Threads);
 
 			Core::Schedule* Queue = Core::Schedule::Get();
-			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
-				Queue->SetTask(std::bind(&Application::Networking, this), Core::Difficulty::Heavy);
-
 			Queue->Start(Policy);
+
+			if (Activity != nullptr)
+			{
+				Activity->Show();
+				if (Control.Activity.Maximized)
+					Activity->Maximize();
+			}
+
 			if (Activity != nullptr && Control.Async)
 			{
 				while (State == ApplicationState::Active)
@@ -6257,11 +6124,8 @@ namespace Tomahawk
 				}
 			}
 
-			if (Content != nullptr && Control.Async)
-			{
-				while (Content->IsBusy())
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			}
+			while (Control.Async && Content != nullptr && Content->IsBusy())
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 			TH_RELEASE(Time);
 			CloseEvent();
@@ -6283,25 +6147,6 @@ namespace Tomahawk
 			Core::Schedule* Queue = Core::Schedule::Get();
 			State = ApplicationState::Restart;
 			Queue->Wakeup();
-		}
-		void Application::Networking()
-		{
-			Core::Schedule* Queue = Core::Schedule::Get();
-			uint64_t Timeout = 0;
-			if (Control.Async)
-			{
-				if (Queue->GetThreads(Core::Difficulty::Heavy) < 2)
-				{
-					if (Queue->HasTasks(Core::Difficulty::Heavy))
-						Timeout = Control.Networking.FastTimeout;
-				}
-				else
-					Timeout = Control.Networking.SlowTimeout;
-			}
-
-			Network::Driver::Dispatch(Timeout);
-			if (Queue->IsActive())
-				Queue->SetTask(std::bind(&Application::Networking, this), Core::Difficulty::Heavy);
 		}
 		void* Application::GetGUI() const
 		{

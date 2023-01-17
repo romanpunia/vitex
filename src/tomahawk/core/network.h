@@ -308,7 +308,7 @@ namespace Tomahawk
 			epoll_handle Handle;
 			int ArraySize;
 
-			EpollHandle(int ArraySize);
+			EpollHandle(int NewArraySize);
 			~EpollHandle();
 			bool Add(Socket* Fd, bool Readable, bool Writeable);
 			bool Update(Socket* Fd, bool Readable, bool Writeable);
@@ -382,10 +382,14 @@ namespace Tomahawk
 			static Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Timeouts;
 			static std::vector<EpollFd>* Fds;
 			static std::mutex Exclusive;
+			static std::mutex Inclusive;
 			static EpollHandle* Handle;
+			static uint64_t DefaultTimeout;
+			static uint64_t Sockets;
+			static bool Listens;
 
 		public:
-			static void Create(size_t MaxEvents = 256);
+			static void Create(uint64_t DispatchTimeout = 50, size_t MaxEvents = 256);
 			static void Release();
 			static int Dispatch(uint64_t Timeout);
 			static bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady);
@@ -395,6 +399,7 @@ namespace Tomahawk
 			static bool IsAwaitingEvents(Socket* Value);
 			static bool IsAwaitingReadable(Socket* Value);
 			static bool IsAwaitingWriteable(Socket* Value);
+			static bool IsListening();
 			static bool IsActive();
 
 		private:
@@ -403,6 +408,10 @@ namespace Tomahawk
 			static void AddTimeout(Socket* Value, const std::chrono::microseconds& Time);
 			static void UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time);
 			static void RemoveTimeout(Socket* Value);
+			static void TryDispatch();
+			static void TryEnqueue();
+			static void TryListen(bool Updated);
+			static void TryUnlisten();
 		};
 
 		class TH_OUT SocketServer : public Core::Object

@@ -1351,7 +1351,7 @@ namespace Tomahawk
 #endif
 		}
 
-		EpollHandle::EpollHandle(int _ArraySize) : ArraySize(_ArraySize)
+		EpollHandle::EpollHandle(int NewArraySize) : ArraySize(NewArraySize)
 		{
 			TH_ASSERT_V(ArraySize > 0, "array size should be greater than zero");
 #ifdef TH_APPLE
@@ -1735,7 +1735,7 @@ namespace Tomahawk
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
 
-		void Driver::Create(size_t MaxEvents)
+		void Driver::Create(uint64_t DispatchTimeout, size_t MaxEvents)
 		{
 			TH_ASSERT_V(MaxEvents > 0, "array size should be greater than zero");
 			TH_DELETE(EpollHandle, Handle);
@@ -1747,6 +1747,7 @@ namespace Tomahawk
 			if (!Fds)
 				Fds = TH_NEW(std::vector<EpollFd>);
 			
+			DefaultTimeout = DispatchTimeout;
 			Handle = TH_NEW(EpollHandle, (int)MaxEvents);
 			Fds->resize(MaxEvents);
 		}
@@ -1775,7 +1776,6 @@ namespace Tomahawk
 		int Driver::Dispatch(uint64_t EventTimeout)
 		{
 			TH_ASSERT(Handle != nullptr && Timeouts != nullptr, -1, "driver should be initialized");
-
 			int Count = Handle->Wait(Fds->data(), Fds->size(), EventTimeout);
 			if (Count < 0)
 				return Count;
@@ -1928,6 +1928,9 @@ namespace Tomahawk
 				}, Core::Difficulty::Light);
 			}
 
+			if (Success)
+				TryUnlisten();
+
 			return Success;
 		}
 		bool Driver::ClearEvents(Socket* Value)
@@ -1961,16 +1964,58 @@ namespace Tomahawk
 			Exclusive.unlock();
 			return Awaits;
 		}
+		bool Driver::IsListening()
+		{
+			return Listens || Sockets > 0;
+		}
 		bool Driver::IsActive()
 		{
 			return Handle != nullptr;
 		}
+		void Driver::TryDispatch()
+		{
+			Dispatch(DefaultTimeout);
+			{
+				std::unique_lock<std::mutex> Unique(Inclusive);
+				TryEnqueue();
+			}
+		}
+		void Driver::TryEnqueue()
+		{
+			auto* Queue = Core::Schedule::Get();
+			if (Queue->IsActive() && Listens && Sockets > 0)
+				Listens = Queue->SetTask(&Driver::TryDispatch);
+			else
+				Listens = false;
+		}
+		void Driver::TryListen(bool Updated)
+		{
+			std::unique_lock<std::mutex> Unique(Inclusive);
+			if (!Updated)
+				++Sockets;
+
+			if (!Listens)
+			{
+				TH_DEBUG("[net] start events polling", Sockets);
+				Listens = true;
+				TryEnqueue();
+			}
+		}
+		void Driver::TryUnlisten()
+		{
+			std::unique_lock<std::mutex> Unique(Inclusive);
+			if (!--Sockets)
+			{
+				TH_DEBUG("[net] stop events polling", Sockets);
+				Listens = false;
+			}
+		}
 		bool Driver::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable)
 		{
 			bool Success = false;
-			Exclusive.lock();
+			bool Update = false;
 			{
-				bool Update = false;
+				std::unique_lock<std::mutex> Unique(Exclusive);
 				if (Readable)
 				{
 					if (!Value->Events.Readable)
@@ -2007,7 +2052,6 @@ namespace Tomahawk
 				else
 					Success = Handle->Add(Value, Value->Events.Readable, Value->Events.Writeable);
 			}
-			Exclusive.unlock();
 
 			if (WhenWriteable || WhenReadable)
 			{
@@ -2020,6 +2064,9 @@ namespace Tomahawk
 						WhenReadable(SocketPoll::Cancel);
 				}, Core::Difficulty::Light);
 			}
+
+			if (Success)
+				TryListen(Update);
 
 			return Success;
 		}
@@ -2055,6 +2102,10 @@ namespace Tomahawk
 		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Driver::Timeouts = nullptr;
 		std::vector<EpollFd>* Driver::Fds = nullptr;
 		std::mutex Driver::Exclusive;
+		std::mutex Driver::Inclusive;
+		uint64_t Driver::DefaultTimeout = 50;
+		uint64_t Driver::Sockets = 0;
+		bool Driver::Listens = false;
 
 		SocketServer::SocketServer() : Backlog(1024)
 		{

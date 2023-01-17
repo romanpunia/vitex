@@ -1848,7 +1848,7 @@ namespace Tomahawk
 				unsigned int Height = 0;
 				unsigned int X = 0, Y = 0;
 				bool Fullscreen = false;
-				bool Hidden = false;
+				bool Hidden = true;
 				bool Borderless = false;
 				bool Resizable = true;
 				bool Minimized = false;
@@ -1923,7 +1923,7 @@ namespace Tomahawk
 			void SetIcon(Surface* Icon);
 			void SetTitle(const char* Value);
 			void SetScreenKeyboard(bool Enabled);
-			void Restore(RenderBackend Backend);
+			void BuildLayer(RenderBackend Backend);
 			void Hide();
 			void Show();
 			void Maximize();
@@ -1961,6 +1961,7 @@ namespace Tomahawk
 			Desc& GetOptions();
 
 		private:
+			void ApplySystemTheme();
 			bool* GetInputState();
 
 		public:

@@ -75,7 +75,7 @@ namespace Tomahawk
 			public:
 				Model(RenderSystem* Lab);
 				virtual ~Model() override;
-				void BatchGeometry(Components::Model* Base, Graphics::RenderBuffer::Instance& Data, Batching& Batch) override;
+				void BatchGeometry(Components::Model* Base, Batching& Batch) override;
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
 				size_t RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;

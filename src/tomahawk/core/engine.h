@@ -5,6 +5,7 @@
 #include "script.h"
 #include <atomic>
 #include <cstdarg>
+#include <future>
 #define TH_EXIT_JUMP 9600
 #define TH_EXIT_RESTART TH_EXIT_JUMP * 2
 
@@ -16,13 +17,11 @@ namespace Tomahawk
 		typedef Graphics::DepthTarget2D LinearDepthMap;
 		typedef Graphics::DepthTargetCube CubicDepthMap;
 		typedef std::vector<LinearDepthMap*> CascadedDepthMap;
-		typedef std::function<void(Core::Timer*)> PacketCallback;
 		typedef std::function<void(Core::Timer*, struct Viewer*)> RenderCallback;
 		typedef std::function<void(class ContentManager*, bool)> SaveCallback;
 		typedef std::function<void(const std::string&, Core::VariantArgs&)> MessageCallback;
 		typedef std::function<bool(class Component*, const Compute::Vector3&)> RayCallback;
 		typedef std::function<bool(Graphics::RenderTarget*)> TargetCallback;
-		typedef std::function<void(class Entity*)> CloneCallback;
 
 		class Series;
 
@@ -133,15 +132,17 @@ namespace Tomahawk
 			None = 0,
 			Update = 1 << 0,
 			Synchronize = 1 << 1,
-			Message = 1 << 2,
-			Cullable = 1 << 3,
-			Drawable = 1 << 4
+			Animate = 1 << 2,
+			Message = 1 << 3,
+			Cullable = 1 << 4,
+			Drawable = 1 << 5
 		};
 
 		enum class ActorType
 		{
 			Update,
 			Synchronize,
+			Animate,
 			Message,
 			Count
 		};
@@ -412,6 +413,43 @@ namespace Tomahawk
 			static bool Unpack(Core::Schema* V, std::vector<std::string>* O);
 		};
 
+		class TH_OUT_TS Parallel
+		{
+		public:
+			typedef std::future<void> Task;
+
+		public:
+			static Task Enqueue(const Core::TaskCallback& Callback);
+			static std::vector<Task> EnqueueAll(const std::vector<Core::TaskCallback>& Callbacks);
+			static void Wait(const Task& Value);
+			static void WailAll(const std::vector<Task>& Values);
+
+		public:
+			template <typename Iterator, typename Function>
+			static std::vector<Task> ForEach(Iterator Begin, Iterator End, Function&& Callback)
+			{
+				std::vector<Task> Tasks;
+				size_t Size = End - Begin;
+
+				if (!Size)
+					return Tasks;
+
+				size_t Threads = std::max<size_t>(1, (size_t)Core::Schedule::Get()->GetThreads(Core::Difficulty::Heavy));
+				size_t Step = Size / Threads;
+				size_t Remains = Size % Threads;
+				Tasks.reserve(Threads);
+
+				while (Begin != End)
+				{
+					auto It = Begin;
+					Begin += Remains > 0 ? --Remains, Step + 1 : Step;
+					Tasks.emplace_back(Enqueue(std::bind(std::for_each<Iterator, Function>, It, Begin, Callback)));
+				}
+
+				return Tasks;
+			}
+		};
+
 		class TH_OUT Material : public Core::Object
 		{
 			friend Series;
@@ -437,7 +475,7 @@ namespace Tomahawk
 			Material(SceneGraph* NewScene = nullptr);
 			Material(const Material& Other);
 			virtual ~Material() override;
-			void SetName(const std::string& Value, bool Internal = false);
+			void SetName(const std::string& Value);
 			const std::string& GetName() const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
 			Graphics::Texture2D* GetDiffuseMap() const;
@@ -493,6 +531,7 @@ namespace Tomahawk
 			virtual void Activate(Component* New);
 			virtual void Deactivate();
 			virtual void Synchronize(Core::Timer* Time);
+			virtual void Animate(Core::Timer* Time);
 			virtual void Update(Core::Timer* Time);
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args);
 			virtual void Movement();
@@ -540,7 +579,7 @@ namespace Tomahawk
 			bool Active;
 
 		public:
-			void SetName(const std::string& Value, bool Internal = false);
+			void SetName(const std::string& Value);
 			void SetRoot(Entity* Parent);
 			void UpdateBounds();
 			void RemoveComponent(uint64_t Id);
@@ -866,7 +905,7 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
-		class TH_OUT_TS SceneGraph : public Core::Object
+		class TH_OUT SceneGraph : public Core::Object
 		{
 			friend RenderSystem;
 			friend Renderer;
@@ -877,11 +916,16 @@ namespace Tomahawk
 		public:
 			struct TH_OUT Desc
 			{
+				struct
+				{
+					Graphics::GraphicsDevice* Device = nullptr;
+					Script::VMManager* Manager = nullptr;
+					PrimitiveCache* Primitives = nullptr;
+					ShaderCache* Shaders = nullptr;
+					bool Async = true;
+				} Shared;
+
 				Compute::Simulator::Desc Simulator;
-				Graphics::GraphicsDevice* Device = nullptr;
-				Script::VMManager* Manager = nullptr;
-				PrimitiveCache* Primitives = nullptr;
-				ShaderCache* Shaders = nullptr;
 				uint64_t StartMaterials = 1ll << 8;
 				uint64_t StartEntities = 1ll << 12;
 				uint64_t StartComponents = 1ll << 13;
@@ -896,33 +940,19 @@ namespace Tomahawk
 				uint64_t VoxelsSize = 128;
 				uint64_t VoxelsMax = 4;
 				uint64_t VoxelsMips = 0;
-				double MaxFrames = 60.0;
-				double MinFrames = 10.0;
-				double FrequencyHZ = 900.0;
 				double GrowRate = 0.25f;
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
 				bool Mutations = true;
-				bool Async = true;
 
 				static Desc Get(Application* Base);
 			};
 
 		public:
-			struct Table
+			struct Indexer
 			{
 				Core::Pool<Component*> Data;
 				Compute::Cosmos Index;
-
-				~Table() = default;
-			};
-
-		private:
-			struct Packet
-			{
-				std::atomic<bool> Active;
-				Core::TaskCallback Callback;
-				Core::Timer* Time = nullptr;
 			};
 
 		private:
@@ -944,36 +974,21 @@ namespace Tomahawk
 				std::vector<VoxelMapping> Voxels;
 			} Display;
 
-			struct
-			{
-				Core::Pool<Component*> Components;
-				std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
-				std::vector<Entity*> Heap;
-				std::mutex Notify;
-				Core::Guard Transaction;
-				size_t Queue = 0;
-			} Indexer;
-
 		protected:
-#ifndef NDEBUG
-			std::thread::id ThreadId;
-#endif
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
-			std::unordered_map<uint64_t, Table*> Registry;
-			std::unordered_map<std::string, Packet*> Tasks;
-			std::queue<Core::TaskCallback> Queue;
+			std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
+			std::unordered_map<uint64_t, Indexer*> Registry;
+			std::queue<Core::TaskCallback> Transactions;
+			std::queue<Parallel::Task> Tasks;
 			std::queue<Event> Events;
 			Core::Pool<Component*> Actors[(size_t)ActorType::Count];
+			Core::Pool<Component*> Indices;
 			Core::Pool<Material*> Materials;
 			Core::Pool<Entity*> Entities;
 			Compute::Simulator* Simulator;
 			std::atomic<Component*> Camera;
-			std::atomic<int> Status;
-			std::atomic<bool> Acquire;
 			std::atomic<bool> Active;
-			std::atomic<bool> Resolve;
-			std::mutex Emulation;
-			std::mutex Race;
+			std::mutex Exclusive;
 			Desc Conf;
 
 		public:
@@ -984,14 +999,11 @@ namespace Tomahawk
 			virtual ~SceneGraph() override;
 			void Configure(const Desc& Conf);
 			void Actualize();
-			void Redistribute();
-			void Reindex();
 			void ResizeBuffers();
 			void Submit();
-			void Conform();
-			bool Dispatch(Core::Timer* Time);
+			void Dispatch(Core::Timer* Time);
 			void Publish(Core::Timer* Time);
-			void RemoveMaterial(Core::Unique<Material> Value);
+			void DeleteMaterial(Core::Unique<Material> Value);
 			void RemoveEntity(Core::Unique<Entity> Entity);
 			void DeleteEntity(Core::Unique<Entity> Entity);
 			void SetCamera(Entity* Camera);
@@ -1000,27 +1012,27 @@ namespace Tomahawk
 			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback);
 			void ScriptHook(const std::string& Name = "Main");
 			void SetActive(bool Enabled);
-			void SetTiming(double Min, double Max);
 			void SetMRT(TargetType Type, bool Clear);
 			void SetRT(TargetType Type, bool Clear);
 			void SwapMRT(TargetType Type, Graphics::MultiRenderTarget2D* New);
 			void SwapRT(TargetType Type, Graphics::RenderTarget2D* New);
 			void ClearMRT(TargetType Type, bool Color, bool Depth);
 			void ClearRT(TargetType Type, bool Color, bool Depth);
-			void Transaction(Core::TaskCallback&& Callback);
 			void Mutate(Entity* Parent, Entity* Child, const char* Type);
 			void Mutate(Entity* Target, const char* Type);
 			void Mutate(Component* Target, const char* Type);
 			void Mutate(Material* Target, const char* Type);
-			void CloneEntity(Entity* Value, CloneCallback&& Callback);
 			void MakeSnapshot(IdxSnapshot* Result);
+			void Transaction(Core::TaskCallback&& Callback);
+			void Watch(Parallel::Task&& Awaitable);
+			void WatchAll(std::vector<Parallel::Task>&& Awaitables);
+			void AwaitAll();
 			void ClearCulling();
 			void GenerateDepthCascades(Core::Unique<CascadedDepthMap>* Result, uint32_t Size) const;
 			bool GetVoxelBuffer(Graphics::Texture3D** In, Graphics::Texture3D** Out);
-			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);
-			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
-			bool SetEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target);
-			bool SetParallel(const std::string& Name, PacketCallback&& Callback);
+			bool PushEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate);
+			bool PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Component* Target);
+			bool PushEvent(const std::string& EventName, Core::VariantArgs&& Args, Entity* Target);
 			MessageCallback* SetListener(const std::string& Event, MessageCallback&& Callback);
 			bool ClearListener(const std::string& Event, MessageCallback* Id);
 			bool AddMaterial(Core::Unique<Material> Base);
@@ -1035,12 +1047,13 @@ namespace Tomahawk
 			Viewer GetCameraViewer() const;
 			Material* GetMaterial(const std::string& Material);
 			Material* GetMaterial(uint64_t Material);
-			Table& GetStorage(uint64_t Section);
+			Indexer& GetStorage(uint64_t Section);
 			Core::Pool<Component*>& GetComponents(uint64_t Section);
 			Core::Pool<Component*>& GetActors(ActorType Type);
 			Graphics::RenderTarget2D::Desc GetDescRT() const;
 			Graphics::MultiRenderTarget2D::Desc GetDescMRT() const;
 			Graphics::Format GetFormatMRT(unsigned int Target) const;
+			std::vector<Entity*> CloneEntityAsArray(Entity* Value);
 			std::vector<Entity*> QueryByParent(Entity* Parent) const;
 			std::vector<Entity*> QueryByName(const std::string& Name) const;
 			std::vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius, bool DrawableOnly = true);
@@ -1050,16 +1063,17 @@ namespace Tomahawk
 			std::vector<CascadedDepthMap*>& GetLinesMapping();
 			std::vector<VoxelMapping>& GetVoxelsMapping();
 			Entity* AddEntity();
+			Entity* CloneEntity(Entity* Value);
 			bool AddEntity(Core::Unique<Entity> Entity);
 			bool IsActive() const;
 			bool IsLeftHanded() const;
 			bool IsIndexed() const;
+			bool IsBusy() const;
 			uint64_t GetMaterialsCount() const;
 			uint64_t GetEntitiesCount() const;
 			uint64_t GetComponentsCount(uint64_t Section);
 			bool HasEntity(Entity* Entity) const;
 			bool HasEntity(uint64_t Entity) const;
-			bool IsUnstable();
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type) const;
 			Graphics::RenderTarget2D* GetRT(TargetType Type) const;
 			Graphics::Texture2D** GetMerger();
@@ -1071,32 +1085,33 @@ namespace Tomahawk
 			Desc& GetConf();
 
 		private:
-			void Simulate(Core::Timer* Time);
-			void Synchronize(Core::Timer* Time);
-			void Culling(Core::Timer* Time);
+			void StepSimulate(Core::Timer* Time);
+			void StepSynchronize(Core::Timer* Time);
+			void StepAnimate(Core::Timer* Time);
+			void StepGameplay(Core::Timer* Time);
+			void StepTransactions();
+			void StepEvents();
+			void StepCulling();
+			void StepIndexing();
+			void StepFinalize();
 
 		protected:
-			void RegisterComponent(Component* Base, bool Check, bool Notify);
-			void UnregisterComponent(Component* Base, bool Notify);
+			void RegisterComponent(Component* Base, bool Verify);
+			void UnregisterComponent(Component* Base);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
 			void ProcessCullable(Component* Base);
 			void GenerateMaterialBuffer();
 			void GenerateVoxelBuffers();
 			void GenerateDepthBuffers();
 			void NotifyCosmos(Component* Base);
-			void NotifyCosmosBulk(const std::vector<Entity*>& Base);
-			void UpdateCosmos(Component* Base);
-			bool UpdateCosmos();
-			void ExecuteTasks();
+			void ClearCosmos(Component* Base);
+			void UpdateCosmos(Indexer& Storage, Component* Base);
 			void FillMaterialBuffers();
 			void ResizeRenderBuffers();
 			void RegisterEntity(Entity* In);
-			void ExclusiveLock();
-			void ExclusiveUnlock();
 			bool UnregisterEntity(Entity* In);
 			bool ResolveEvent(Event& Data);
-			bool ResolveEvents();
-			Entity* CloneEntity(Entity* Entity);
+			Entity* CloneEntityInstance(Entity* Entity);
 
 		public:
 			template <typename T>
@@ -1132,7 +1147,7 @@ namespace Tomahawk
 				return nullptr;
 			}
 			template <typename T>
-			Table& GetStorage()
+			Indexer& GetStorage()
 			{
 				return GetStorage(T::GetTypeId());
 			}
@@ -1314,18 +1329,14 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
-				struct
-				{
-					uint64_t FastTimeout = 20;
-					uint64_t SlowTimeout = 200;
-				} Networking;
-
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
 				std::string Preferences;
 				std::string Environment;
 				std::string Directory;
 				uint64_t Stack = TH_STACKSIZE;
+				uint64_t PollingTimeout = 100;
+				uint64_t PollingEvents = 256;
 				uint64_t Coroutines = 16;
 				uint64_t Threads = 0;
 				double Framerate = 0;
@@ -1387,9 +1398,6 @@ namespace Tomahawk
 			void Stop(int ExitCode = 0);
 
 		private:
-			void Networking();
-
-		private:
 			static bool Status(Application* App);
 			static void Compose();
 
@@ -1441,6 +1449,7 @@ namespace Tomahawk
 		public:
 			std::unordered_map<size_t, DataGroup*> Groups;
 			std::queue<DataGroup*>* Cache = nullptr;
+			std::mutex Emplacement;
 
 		public:
 			void Clear()
@@ -1456,6 +1465,7 @@ namespace Tomahawk
 			void Emplace(Geometry* Data, Material* Surface, const Instance& Params)
 			{
 				size_t Id = GetKeyId(Data, Surface);
+				Emplacement.lock();
 				auto It = Groups.find(Id);
 				if (It == Groups.end())
 				{
@@ -1467,6 +1477,7 @@ namespace Tomahawk
 				}
 				else
 					It->second->Instances.emplace_back(Params);
+				Emplacement.unlock();
 			}
 			void Compile(Graphics::GraphicsDevice* Device)
 			{
@@ -1616,9 +1627,23 @@ namespace Tomahawk
 				}
 				System->QueryEnd();
 
-				std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
+				auto* Scene = System->GetScene();
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
-					std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
+				{
+					Scene->Watch(Parallel::Enqueue([i, &Top]()
+					{
+						TH_PPUSH(TH_PERF_CORE);
+						std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
+						TH_PPOP();
+					}));
+				}
+				Scene->Watch(Parallel::Enqueue([this]()
+				{
+					TH_PPUSH(TH_PERF_CORE);
+					std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
+					TH_PPOP();
+				}));
+				Scene->AwaitAll();
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
@@ -1634,7 +1659,6 @@ namespace Tomahawk
 						Subframe.push_back(Base);
 				}
 				System->QueryEnd();
-
 				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
 			template<class Q = T>
@@ -1652,8 +1676,15 @@ namespace Tomahawk
 				}
 				System->QueryEnd();
 
+				auto* Scene = System->GetScene();
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
-					std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
+				{
+					Scene->Watch(Parallel::Enqueue([i, &Top]()
+					{
+						std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
+					}));
+				}
+				Scene->AwaitAll();
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
@@ -1669,7 +1700,6 @@ namespace Tomahawk
 						Subframe.push_back(Base);
 				}
 				System->QueryEnd();
-
 				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
 		};
@@ -1732,16 +1762,16 @@ namespace Tomahawk
 				if (Proxy.HasBatching())
 				{
 					Graphics::GraphicsDevice* Device = System->GetDevice();
-					Instance Intermediate;
-
 					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					{
 						auto& Batcher = Proxy.Batcher((GeoCategory)i);
 						auto& Frame = Proxy.Top((GeoCategory)i);
 
 						Batcher.Clear();
-						for (auto* Item : Frame)
-							BatchGeometry(Item, Intermediate, Batcher);
+						Parallel::WailAll(Parallel::ForEach(Frame.begin(), Frame.end(), [this, &Batcher](T* Next)
+						{
+							BatchGeometry(Next, Batcher);
+						}));
 						Batcher.Compile(Device);
 					}
 				}
@@ -1754,7 +1784,7 @@ namespace Tomahawk
 			{
 				return !Proxy.Top(Category).empty();
 			}
-			virtual void BatchGeometry(T* Base, Instance& Data, Batching& Batch)
+			virtual void BatchGeometry(T* Base, Batching& Batch)
 			{
 			}
 			virtual size_t CullGeometry(const Viewer& View, const Objects& Chunk)

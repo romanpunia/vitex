@@ -279,15 +279,16 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			void Model::BatchGeometry(Components::Model* Base, Graphics::RenderBuffer::Instance& Data, GeometryRenderer::Batching& Batch)
+			void Model::BatchGeometry(Components::Model* Base, GeometryRenderer::Batching& Batch)
 			{
 				auto* Drawable = Base->GetDrawable();
 				if (!Drawable || (!Base->Static && !System->State.IsSet(RenderOpt::Static)))
 					return;
 
-				auto& World = Base->GetEntity()->GetBox();
+				Graphics::RenderBuffer::Instance Data;
 				Data.TexCoord = Base->TexCoord;
 
+				auto& World = Base->GetEntity()->GetBox();
 				for (auto* Mesh : Drawable->Meshes)
 				{
 					Material* Source = Base->GetMaterial(Mesh);

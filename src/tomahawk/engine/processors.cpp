@@ -79,19 +79,87 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
-				Core::Schema* Schema = Content->Load<Core::Schema>(Stream->GetSource());
-				if (!Schema)
+				Core::Schema* Data = Content->Load<Core::Schema>(Stream->GetSource());
+				std::string Path;
+
+				if (!Data)
 					return nullptr;
 
 				Engine::Material* Object = new Engine::Material(nullptr);
-				if (!Series::Unpack(Schema, Object, Content))
+				if (Series::Unpack(Data->Get("diffuse-map"), &Path) && !Path.empty())
 				{
-					TH_RELEASE(Schema);
-					TH_RELEASE(Object);
-					return nullptr;
+					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					{
+						Object->SetDiffuseMap(NewTexture);
+					});
 				}
 
-				TH_RELEASE(Schema);
+				if (Series::Unpack(Data->Get("normal-map"), &Path) && !Path.empty())
+				{
+					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					{
+						Object->SetNormalMap(NewTexture);
+					});
+				}
+
+				if (Series::Unpack(Data->Get("metallic-map"), &Path) && !Path.empty())
+				{
+					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					{
+						Object->SetMetallicMap(NewTexture);
+					});
+				}
+
+				if (Series::Unpack(Data->Get("roughness-map"), &Path) && !Path.empty())
+				{
+					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					{
+						Object->SetRoughnessMap(NewTexture);
+					});
+				}
+
+				if (Series::Unpack(Data->Get("height-map"), &Path) && !Path.empty())
+				{
+					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					{
+						Object->SetHeightMap(NewTexture);
+					});
+				}
+
+				if (Series::Unpack(Data->Get("occlusion-map"), &Path) && !Path.empty())
+				{
+					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					{
+						Object->SetOcclusionMap(NewTexture);
+					});
+				}
+
+				if (Series::Unpack(Data->Get("emission-map"), &Path) && !Path.empty())
+				{
+					Content->LoadAsync<Graphics::Texture2D>(Path).Await([Object](Graphics::Texture2D* NewTexture)
+					{
+						Object->SetEmissionMap(NewTexture);
+					});
+				}
+
+				std::string Name;
+				Series::Unpack(Data->Get("emission"), &Object->Surface.Emission);
+				Series::Unpack(Data->Get("metallic"), &Object->Surface.Metallic);
+				Series::Unpack(Data->Get("diffuse"), &Object->Surface.Diffuse);
+				Series::Unpack(Data->Get("scatter"), &Object->Surface.Scatter);
+				Series::Unpack(Data->Get("roughness"), &Object->Surface.Roughness);
+				Series::Unpack(Data->Get("occlusion"), &Object->Surface.Occlusion);
+				Series::Unpack(Data->Get("fresnel"), &Object->Surface.Fresnel);
+				Series::Unpack(Data->Get("refraction"), &Object->Surface.Refraction);
+				Series::Unpack(Data->Get("transparency"), &Object->Surface.Transparency);
+				Series::Unpack(Data->Get("environment"), &Object->Surface.Environment);
+				Series::Unpack(Data->Get("radius"), &Object->Surface.Radius);
+				Series::Unpack(Data->Get("height"), &Object->Surface.Height);
+				Series::Unpack(Data->Get("bias"), &Object->Surface.Bias);
+				Series::Unpack(Data->Get("name"), &Name);
+				Object->SetName(Name);
+
+				TH_RELEASE(Data);
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
 
@@ -102,19 +170,60 @@ namespace Tomahawk
 				TH_ASSERT(Stream != nullptr, false, "stream should be set");
 				TH_ASSERT(Instance != nullptr, false, "instance should be set");
 
-				Core::Schema* Schema = Core::Var::Set::Object();
-				Schema->Key = "material";
-
 				Engine::Material* Object = (Engine::Material*)Instance;
-				Series::Pack(Schema, Object, Content);
+				Core::Schema* Data = Core::Var::Set::Object();
+				Data->Key = "material";
 
-				if (!Content->Save<Core::Schema>(Stream->GetSource(), Schema, Args))
+				AssetCache* Asset = Content->Find<Graphics::Texture2D>(Object->GetDiffuseMap());
+				if (Asset != nullptr)
+					Series::Pack(Data->Set("diffuse-map"), Asset->Path);
+
+				Asset = Content->Find<Graphics::Texture2D>(Object->GetNormalMap());
+				if (Asset != nullptr)
+					Series::Pack(Data->Set("normal-map"), Asset->Path);
+
+				Asset = Content->Find<Graphics::Texture2D>(Object->GetMetallicMap());
+				if (Asset != nullptr)
+					Series::Pack(Data->Set("metallic-map"), Asset->Path);
+
+				Asset = Content->Find<Graphics::Texture2D>(Object->GetRoughnessMap());
+				if (Asset != nullptr)
+					Series::Pack(Data->Set("roughness-map"), Asset->Path);
+
+				Asset = Content->Find<Graphics::Texture2D>(Object->GetHeightMap());
+				if (Asset != nullptr)
+					Series::Pack(Data->Set("height-map"), Asset->Path);
+
+				Asset = Content->Find<Graphics::Texture2D>(Object->GetOcclusionMap());
+				if (Asset != nullptr)
+					Series::Pack(Data->Set("occlusion-map"), Asset->Path);
+
+				Asset = Content->Find<Graphics::Texture2D>(Object->GetEmissionMap());
+				if (Asset != nullptr)
+					Series::Pack(Data->Set("emission-map"), Asset->Path);
+
+				Series::Pack(Data->Set("emission"), Object->Surface.Emission);
+				Series::Pack(Data->Set("metallic"), Object->Surface.Metallic);
+				Series::Pack(Data->Set("diffuse"), Object->Surface.Diffuse);
+				Series::Pack(Data->Set("scatter"), Object->Surface.Scatter);
+				Series::Pack(Data->Set("roughness"), Object->Surface.Roughness);
+				Series::Pack(Data->Set("occlusion"), Object->Surface.Occlusion);
+				Series::Pack(Data->Set("fresnel"), Object->Surface.Fresnel);
+				Series::Pack(Data->Set("refraction"), Object->Surface.Refraction);
+				Series::Pack(Data->Set("transparency"), Object->Surface.Transparency);
+				Series::Pack(Data->Set("environment"), Object->Surface.Environment);
+				Series::Pack(Data->Set("radius"), Object->Surface.Radius);
+				Series::Pack(Data->Set("height"), Object->Surface.Height);
+				Series::Pack(Data->Set("bias"), Object->Surface.Bias);
+				Series::Pack(Data->Set("name"), Object->GetName());
+
+				if (!Content->Save<Core::Schema>(Stream->GetSource(), Data, Args))
 				{
-					TH_RELEASE(Schema);
+					TH_RELEASE(Data);
 					return false;
 				}
 
-				TH_RELEASE(Schema);
+				TH_RELEASE(Data);
 				return true;
 			}
 
@@ -279,8 +388,7 @@ namespace Tomahawk
 								Core::Schema* Meta = Element->Find("metadata");
 								if (!Meta)
 									Meta = Element->Set("metadata");
-
-								Target->Deserialize(Content, Meta);
+								Target->Deserialize(Meta);
 							}
 						}
 					}
@@ -417,7 +525,7 @@ namespace Tomahawk
 						Core::Schema* Component = Components->Set("component");
 						Series::Pack(Component->Set("id"), Item.second->GetId());
 						Series::Pack(Component->Set("active"), Item.second->IsActive());
-						Item.second->Serialize(Content, Component->Set("metadata"));
+						Item.second->Serialize(Component->Set("metadata"));
 					}
 				}
 

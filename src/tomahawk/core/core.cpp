@@ -6840,7 +6840,7 @@ namespace Tomahawk
 			TH_PRET((void*)Stream);
 #endif
 		}
-		Stream* OS::File::Open(const std::string& Path, FileMode Mode)
+		Stream* OS::File::Open(const std::string& Path, FileMode Mode, bool Async)
 		{
 			Network::SourceURL URL(Path);
 			if (URL.Protocol == "file")
@@ -6858,7 +6858,7 @@ namespace Tomahawk
 			}
 			else if (URL.Protocol == "http" || URL.Protocol == "https")
 			{
-				Stream* Result = new WebStream();
+				Stream* Result = new WebStream(Async);
 				if (Result->Open(Path.c_str(), Mode))
 					return Result;
 

@@ -1065,7 +1065,7 @@ namespace Tomahawk
 				static int Compare(const std::string& FirstPath, const std::string& SecondPath);
 				static uint64_t GetCheckSum(const std::string& Data);
 				static FileState GetState(const char* Path);
-				static Unique<Stream> Open(const std::string& Path, FileMode Mode);
+				static Unique<Stream> Open(const std::string& Path, FileMode Mode, bool Async = false);
 				static Unique<void> Open(const char* Path, const char* Mode);
 				static Unique<unsigned char> ReadChunk(Stream* Stream, uint64_t Length);
 				static Unique<unsigned char> ReadAll(const char* Path, uint64_t* ByteLength);
@@ -1520,7 +1520,7 @@ namespace Tomahawk
 			bool Async;
 
 		public:
-			WebStream(bool IsAsync = false);
+			WebStream(bool IsAsync);
 			virtual ~WebStream() override;
 			virtual void Clear() override;
 			virtual bool Open(const char* File, FileMode Mode) override;
@@ -2578,19 +2578,6 @@ namespace Tomahawk
 			static Async Move(context_type* Base = nullptr) noexcept
 			{
 				return Async(Base, true);
-			}
-			static Async Execute(std::function<void(Async&)>&& Callback) noexcept
-			{
-				if (!Callback)
-					return Move();
-
-				Async Result;
-				Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
-				{
-					Callback(Result);
-				}, Difficulty::Heavy);
-
-				return Result;
 			}
 		};
 

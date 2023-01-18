@@ -1385,14 +1385,16 @@ namespace Tomahawk
 					return Document(nullptr);
 
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context](Core::Async<Document>& Future) mutable
+				return Core::Cotask<Document>([Context]() mutable
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_bulk_operation_execute, Context, &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1405,12 +1407,12 @@ namespace Tomahawk
 					return true;
 
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future) mutable
+				return Core::Cotask<bool>([Context]() mutable
 				{
 					TDocument Result;
 					bool Subresult = MongoExecuteQuery(&mongoc_bulk_operation_execute, Context, &Result);
 					bson_destroy((bson_t*)&Result);
-					Future = Subresult;
+					return Subresult;
 				});
 #else
 				return false;
@@ -1539,12 +1541,11 @@ namespace Tomahawk
 					return false;
 
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context]()
 				{
 					TH_PPUSH(TH_PERF_MAX);
 					TDocument* Query = nullptr;
-					Future = mongoc_cursor_next(Context, (const TDocument**)&Query);
-					TH_PPOP();
+					TH_PRET(mongoc_cursor_next(Context, (const TDocument**)&Query));
 				});
 #else
 				return false;
@@ -1758,9 +1759,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName]()
 				{
-					Future = MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false);
+					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false);
 				});
 #else
 				return false;
@@ -1770,9 +1771,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, NewDatabaseName, NewCollectionName, &Options](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName, &Options]()
 				{
-					Future = MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
+					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
 				});
 #else
 				return false;
@@ -1782,9 +1783,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, NewDatabaseName, NewCollectionName](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName]()
 				{
-					Future = MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true);
+					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true);
 				});
 #else
 				return false;
@@ -1794,9 +1795,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, NewDatabaseName, NewCollectionName, &Options](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, NewDatabaseName, NewCollectionName, &Options]()
 				{
-					Future = MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
+					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
 				});
 #else
 				return false;
@@ -1806,9 +1807,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, &Options](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, &Options]()
 				{
-					Future = MongoExecuteQuery(&mongoc_collection_drop_with_opts, Context, Options.Get());
+					return MongoExecuteQuery(&mongoc_collection_drop_with_opts, Context, Options.Get());
 				});
 #else
 				return false;
@@ -1818,9 +1819,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, Name, &Options](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, Name, &Options]()
 				{
-					Future = MongoExecuteQuery(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
+					return MongoExecuteQuery(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
 				});
 #else
 				return false;
@@ -1830,14 +1831,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, &Match, &Options](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Match, &Options]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_collection_delete_many, Context, Match.Get(), Options.Get(), &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1847,14 +1850,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, &Match, &Options](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Match, &Options]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_collection_delete_one, Context, Match.Get(), Options.Get(), &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1864,14 +1869,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, &Match, &Replacement, &Options](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Match, &Replacement, &Options]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_collection_replace_one, Context, Match.Get(), Replacement.Get(), Options.Get(), &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1884,7 +1891,7 @@ namespace Tomahawk
 				std::vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
-				return Core::Async<Document>::Execute([Context, &Array, &Options](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Array, &Options]()
 				{
 					std::vector<TDocument*> Subarray;
 				    Subarray.reserve(Array.size());
@@ -1892,12 +1899,14 @@ namespace Tomahawk
 				    for (auto& Item : Array)
 						Subarray.push_back(Item.Get());
 
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_collection_insert_many, Context, (const TDocument**)Subarray.data(), (size_t)Array.size(), Options.Get(), &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1907,14 +1916,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, &Result, &Options](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Result, &Options]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Returns;
 					if (!MongoExecuteQuery(&mongoc_collection_insert_one, Context, Result.Get(), Options.Get(), &Subresult))
-						Future = Document(nullptr);
+						Returns = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Returns = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Returns;
 				});
 #else
 				return Document(nullptr);
@@ -1924,14 +1935,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, &Match, &Update, &Options](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Match, &Update, &Options]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_collection_update_many, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1941,14 +1954,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, &Match, &Update, &Options](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Match, &Update, &Options]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_collection_update_one, Context, Match.Get(), Update.Get(), Options.Get(), &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1958,14 +1973,16 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Document>::Execute([Context, &Query, &Sort, &Update, &Fields, RemoveAt, Upsert, New](Core::Async<Document>& Future)
+				return Core::Cotask<Document>([Context, &Query, &Sort, &Update, &Fields, RemoveAt, Upsert, New]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; Document Result;
 					if (!MongoExecuteQuery(&mongoc_collection_find_and_modify, Context, Query.Get(), Sort.Get(), Update.Get(), Fields.Get(), RemoveAt, Upsert, New, &Subresult))
-						Future = Document(nullptr);
+						Result = Document(nullptr);
 					else
-						Future = Document::FromSource(&Subresult);
+						Result = Document::FromSource(&Subresult);
+
 					bson_destroy((bson_t*)&Subresult);
+					return Result;
 				});
 #else
 				return Document(nullptr);
@@ -1975,9 +1992,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<uint64_t>::Execute([Context, &Match, &Options](Core::Async<uint64_t>& Future)
+				return Core::Cotask<uint64_t>([Context, &Match, &Options]()
 				{
-					Future = (uint64_t)MongoExecuteQuery(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
+					return (uint64_t)MongoExecuteQuery(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
 				});
 #else
 				return 0;
@@ -1987,9 +2004,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<uint64_t>::Execute([Context, &Options](Core::Async<uint64_t>& Future)
+				return Core::Cotask<uint64_t>([Context, &Options]()
 				{
-					Future = (uint64_t)MongoExecuteQuery(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
+					return (uint64_t)MongoExecuteQuery(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
 				});
 #else
 				return 0;
@@ -1999,9 +2016,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>::Execute([Context, &Options](Core::Async<Cursor>& Future)
+				return Core::Cotask<Cursor>([Context, &Options]()
 				{
-					Future = MongoExecuteCursor(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
+					return MongoExecuteCursor(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
 				});
 #else
 				return Cursor(nullptr);
@@ -2011,9 +2028,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>::Execute([Context, &Match, &Options](Core::Async<Cursor>& Future)
+				return Core::Cotask<Cursor>([Context, &Match, &Options]()
 				{
-					Future = MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Options.Get(), nullptr);
+					return MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Options.Get(), nullptr);
 				});
 #else
 				return Cursor(nullptr);
@@ -2023,7 +2040,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>::Execute([Context, &Match, &Options](Core::Async<Cursor>& Future)
+				return Core::Cotask<Cursor>([Context, &Match, &Options]()
 				{
 					Document Settings;
 					if (Options.Get() != nullptr)
@@ -2034,7 +2051,7 @@ namespace Tomahawk
 					else
 						Settings = Document(BCON_NEW("limit", BCON_INT32(1)));
 
-					Future = MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Settings.Get(), nullptr);
+					return MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Settings.Get(), nullptr);
 				});
 #else
 				return Cursor(nullptr);
@@ -2044,9 +2061,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>::Execute([Context, Flags, &Pipeline, &Options](Core::Async<Cursor>& Future)
+				return Core::Cotask<Cursor>([Context, Flags, &Pipeline, &Options]()
 				{
-					Future = MongoExecuteCursor(&mongoc_collection_aggregate, Context, (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
+					return MongoExecuteCursor(&mongoc_collection_aggregate, Context, (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
 				});
 #else
 				return Cursor(nullptr);
@@ -2423,9 +2440,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context]()
 				{
-					Future = MongoExecuteQuery(&mongoc_database_remove_all_users, Context);
+					return MongoExecuteQuery(&mongoc_database_remove_all_users, Context);
 				});
 #else
 				return false;
@@ -2435,9 +2452,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, Name](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, Name]()
 				{
-					Future = MongoExecuteQuery(&mongoc_database_remove_user, Context, Name.c_str());
+					return MongoExecuteQuery(&mongoc_database_remove_user, Context, Name.c_str());
 				});
 #else
 				return false;
@@ -2447,9 +2464,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context]()
 				{
-					Future = MongoExecuteQuery(&mongoc_database_drop, Context);
+					return MongoExecuteQuery(&mongoc_database_drop, Context);
 				});
 #else
 				return false;
@@ -2462,9 +2479,9 @@ namespace Tomahawk
 					return Remove();
 
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, &Options](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, &Options]()
 				{
-					Future = MongoExecuteQuery(&mongoc_database_drop_with_opts, Context, Options.Get());
+					return MongoExecuteQuery(&mongoc_database_drop_with_opts, Context, Options.Get());
 				});
 #else
 				return false;
@@ -2474,9 +2491,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, Username, Password, &Roles, &Custom](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, Username, Password, &Roles, &Custom]()
 				{
-					Future = MongoExecuteQuery(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
+					return MongoExecuteQuery(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
 				});
 #else
 				return false;
@@ -2486,7 +2503,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, Name](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, Name]()
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2494,7 +2511,7 @@ namespace Tomahawk
 					if (!Subresult && Error.code != 0)
 						TH_ERR("[mongoc:%i] %s", (int)Error.code, Error.message);
 
-					Future = Subresult;
+					return Subresult;
 				});
 #else
 				return false;
@@ -2504,9 +2521,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<Cursor>::Execute([Context, &Options](Core::Async<Cursor>& Future)
+				return Core::Cotask<Cursor>([Context, &Options]()
 				{
-					Future = MongoExecuteCursor(&mongoc_database_find_collections_with_opts, Context, Options.Get());
+					return MongoExecuteCursor(&mongoc_database_find_collections_with_opts, Context, Options.Get());
 				});
 #else
 				return Cursor(nullptr);
@@ -2519,7 +2536,7 @@ namespace Tomahawk
 					return Collection(nullptr);
 
 				auto* Context = Base;
-				return Core::Async<Collection>::Execute([Context, Name, &Options](Core::Async<Collection>& Future)
+				return Core::Cotask<Collection>([Context, Name, &Options]()
 				{
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
@@ -2527,8 +2544,8 @@ namespace Tomahawk
 					TCollection* Collection = mongoc_database_create_collection(Context, Name.c_str(), Options.Get(), &Error);
 					if (Collection == nullptr)
 						TH_ERR("[mongoc] %s", Error.message);
-
-					Future = Collection;
+					
+					return Collection;
 				});
 #else
 				return Collection(nullptr);
@@ -2622,10 +2639,10 @@ namespace Tomahawk
 					return false;
 
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, &Result](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, &Result]()
 				{
 					TDocument* Ptr = Result.Get();
-					Future = mongoc_change_stream_next(Context, (const TDocument**)&Ptr);
+					return mongoc_change_stream_next(Context, (const TDocument**)&Ptr);
 				});
 #else
 				return false;
@@ -2638,10 +2655,10 @@ namespace Tomahawk
 					return false;
 
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context, &Result](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context, &Result]()
 				{
 					TDocument* Ptr = Result.Get();
-					Future = mongoc_change_stream_error_document(Context, nullptr, (const TDocument**)&Ptr);
+					return mongoc_change_stream_error_document(Context, nullptr, (const TDocument**)&Ptr);
 				});
 #else
 				return false;
@@ -2729,9 +2746,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context]()
 				{
-					Future = MongoExecuteQuery(&mongoc_client_session_start_transaction, Context, nullptr);
+					return MongoExecuteQuery(&mongoc_client_session_start_transaction, Context, nullptr);
 				});
 #else
 				return false;
@@ -2741,9 +2758,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<bool>::Execute([Context](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([Context]()
 				{
-					Future = MongoExecuteQuery(&mongoc_client_session_abort_transaction, Context);
+					return MongoExecuteQuery(&mongoc_client_session_abort_transaction, Context);
 				});
 #else
 				return false;
@@ -2875,18 +2892,20 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Async<TransactionState>::Execute([Context](Core::Async<TransactionState>& Future)
+				return Core::Cotask<TransactionState>([Context]()
 				{
-					TDocument Subresult;
+					TDocument Subresult; TransactionState Result;
 					if (MongoExecuteQuery(&mongoc_client_session_commit_transaction, Context, &Subresult))
-						Future = TransactionState::OK;
+						Result = TransactionState::OK;
 					else if (mongoc_error_has_label(&Subresult, "TransientTransactionError"))
-						Future = TransactionState::Retry;
+						Result = TransactionState::Retry;
 					else if (mongoc_error_has_label(&Subresult, "UnknownTransactionCommitResult"))
-						Future = TransactionState::Retry_Commit;
+						Result = TransactionState::Retry_Commit;
 					else
-						Future = TransactionState::Fatal;
+						Result = TransactionState::Fatal;
+
 					bson_free(&Subresult);
+					return Result;
 				});
 #else
 				return TransactionState::Fatal;
@@ -2928,35 +2947,29 @@ namespace Tomahawk
 					});
 				}
 
-				return Core::Async<bool>::Execute([this, Address](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this, Address]()
 				{
 					TH_PPUSH(TH_PERF_MAX);
-
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
 
 					TAddress* URI = mongoc_uri_new_with_error(Address.c_str(), &Error);
 					if (!URI)
 					{
-						Future = false;
 						TH_ERR("[urierr] %s", Error.message);
-						TH_PPOP();
-						return;
+						TH_PRET(false);
 					}
 
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
-						Future = false;
 						TH_ERR("[mongoc] couldn't connect to requested URI");
-						TH_PPOP();
-						return;
+						TH_PRET(false);
 					}
 
 					Driver::AttachQueryLog(Base);
 					Connected = true;
-					Future = true;
-					TH_PPOP();
+					TH_PRET(true);
 				});
 #else
 				return false;
@@ -2977,22 +2990,19 @@ namespace Tomahawk
 				}
 
 				TAddress* URI = URL->Get();
-				return Core::Async<bool>::Execute([this, URI](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this, URI]()
 				{
 					TH_PPUSH(TH_PERF_MAX);
 					Base = mongoc_client_new_from_uri(URI);
-					if (Base != nullptr)
+					if (!Base)
 					{
-						Driver::AttachQueryLog(Base);
-						Future = true;
-						Connected = true;
-					}
-					else
-					{
-						Future = false;
 						TH_ERR("[mongoc] couldn't connect to requested URI");
+						TH_PRET(false);
 					}
-					TH_PPOP();
+
+					Driver::AttachQueryLog(Base);
+					Connected = true;
+					TH_PRET(true);
 				});
 #else
 				return false;
@@ -3002,7 +3012,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Connected && Base, false, "connection should be established");
-				return Core::Async<bool>::Execute([this](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this]()
 				{
 					Connected = false;
 					if (Master != nullptr)
@@ -3021,7 +3031,7 @@ namespace Tomahawk
 						Base = nullptr;
 					}
 
-					Future = true;
+					return true;
 				});
 #else
 				return false;
@@ -3120,9 +3130,9 @@ namespace Tomahawk
 			Core::Async<Cursor> Connection::FindDatabases(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
-				return Core::Async<Cursor>::Execute([this, &Options](Core::Async<Cursor>& Future)
+				return Core::Cotask<Cursor>([this, &Options]()
 				{
-					Future = mongoc_client_find_databases_with_opts(Base, Options.Get());
+					return mongoc_client_find_databases_with_opts(Base, Options.Get());
 				});
 #else
 				return Cursor(nullptr);
@@ -3262,7 +3272,7 @@ namespace Tomahawk
 					});
 				}
 
-				return Core::Async<bool>::Execute([this, URI](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this, URI]()
 				{
 					TH_PPUSH(TH_PERF_MAX);
 					bson_error_t Error;
@@ -3271,25 +3281,20 @@ namespace Tomahawk
 					SrcAddress = mongoc_uri_new_with_error(URI.c_str(), &Error);
 					if (!SrcAddress.Get())
 					{
-						Future = false;
 						TH_ERR("[urierr] %s", Error.message);
-						TH_PPOP();
-						return;
+						TH_PRET(false);
 					}
 
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
-						Future = false;
 						TH_ERR("[mongoc] couldn't connect to requested URI");
-						TH_PPOP();
-						return;
+						TH_PRET(false);
 					}
 
 					Driver::AttachQueryLog(Pool);
 					Connected = true;
-					Future = true;
-					TH_PPOP();
+					TH_PRET(true);
 				});
 #else
 				return false;
@@ -3310,25 +3315,20 @@ namespace Tomahawk
 				TAddress* Context = URI->Get();
 				*URI = nullptr;
 
-				return Core::Async<bool>::Execute([this, Context](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this, Context]()
 				{
 					TH_PPUSH(TH_PERF_MAX);
-
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
-					if (Pool != nullptr)
+					if (!Pool)
 					{
-						Driver::AttachQueryLog(Pool);
-						Future = true;
-						Connected = true;
-					}
-					else
-					{
-						Future = false;
 						TH_ERR("[mongoc] couldn't connect to requested URI");
+						TH_PRET(false);
 					}
 
-					TH_PPOP();
+					Driver::AttachQueryLog(Pool);
+					Connected = true;
+					TH_PRET(true);
 				});
 #else
 				return false;
@@ -3338,7 +3338,7 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Connected && Pool, false, "connection should be established");
-				return Core::Async<bool>::Execute([this](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this]()
 				{
 					if (Pool != nullptr)
 					{
@@ -3348,6 +3348,7 @@ namespace Tomahawk
 
 					SrcAddress.~Address();
 					Connected = false;
+					return true;
 				});
 #else
 				return false;

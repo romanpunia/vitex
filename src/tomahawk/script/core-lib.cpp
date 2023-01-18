@@ -1329,7 +1329,7 @@ namespace Tomahawk
 			VMGlobal& Register = Engine->Global();
 			Engine->BeginNamespace("CE");
 			VMRefClass VWebStream = Register.SetClassUnmanaged<Core::WebStream>("WebStream");
-			VWebStream.SetUnmanagedConstructor<Core::WebStream>("WebStream@ f()");
+			VWebStream.SetUnmanagedConstructor<Core::WebStream, bool>("WebStream@ f(bool)");
 			VWebStream.SetMethod("void Clear()", &Core::WebStream::Clear);
 			VWebStream.SetMethod("bool Open(Address@, FileMode)", &Core::WebStream::Open);
 			VWebStream.SetMethod("bool Close()", &Core::WebStream::Close);

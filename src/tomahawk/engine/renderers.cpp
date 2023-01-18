@@ -1039,14 +1039,13 @@ namespace Tomahawk
 				TH_RELEASE(SkyMap);
 				TH_RELEASE(LightingMap);
 			}
-			void Lighting::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Lighting::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Path;
-				if (Series::Unpack(Node->Find("sky-map"), &Path))
-					SetSkyMap(Content->Load<Graphics::Texture2D>(Path));
+				if (Series::Unpack(Node->Find("sky-map"), &Path) && !Path.empty())
+					System->GetScene()->LoadResource<Graphics::Texture2D>(System->GetComponent(), Path, std::bind(&Lighting::SetSkyMap, this, std::placeholders::_1));
 
 				Series::Unpack(Node->Find("high-emission"), &AmbientLight.HighEmission);
 				Series::Unpack(Node->Find("low-emission"), &AmbientLight.LowEmission);
@@ -1064,15 +1063,11 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("sf-size"), &Surfaces.Size);
 				Series::Unpack(Node->Find("gi"), &EnableGI);
 			}
-			void Lighting::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Lighting::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				AssetCache* Asset = Content->Find<Graphics::Texture2D>(SkyBase);
-				if (Asset != nullptr)
-					Series::Pack(Node->Set("sky-map"), Asset->Path);
-
+				Series::Pack(Node->Set("sky-map"), System->GetScene()->FindResource<Graphics::Texture2D>(SkyBase));
 				Series::Pack(Node->Set("high-emission"), AmbientLight.HighEmission);
 				Series::Pack(Node->Set("low-emission"), AmbientLight.LowEmission);
 				Series::Pack(Node->Set("sky-emission"), AmbientLight.SkyEmission);
@@ -2068,9 +2063,8 @@ namespace Tomahawk
 				Shaders.Gloss[1] = CompileEffect("postprocess/gloss-y");
 				Shaders.Additive = CompileEffect("postprocess/additive");
 			}
-			void SSR::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SSR::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples-1"), &Reflectance.Samples);
@@ -2082,9 +2076,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("deadzone"), &Gloss.Deadzone);
 				Series::Unpack(Node->Find("mips"), &Gloss.Mips);
 			}
-			void SSR::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SSR::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples-1"), Reflectance.Samples);
@@ -2119,9 +2112,8 @@ namespace Tomahawk
 				Shaders.Denoise[1] = CompileEffect("postprocess/denoise-y");
 				Shaders.Additive = CompileEffect("postprocess/additive");
 			}
-			void SSGI::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SSGI::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples-1"), &Indirection.Samples);
@@ -2132,9 +2124,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("swing"), &Indirection.Swing);
 				Series::Unpack(Node->Find("blur"), &Denoise.Blur);
 			}
-			void SSGI::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SSGI::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples-1"), Indirection.Samples);
@@ -2169,9 +2160,8 @@ namespace Tomahawk
 				Shaders.Fibo[1] = CompileEffect("postprocess/fibo-y");
 				Shaders.Multiply = CompileEffect("postprocess/multiply");
 			}
-			void SSAO::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SSAO::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples-1"), &Shading.Samples);
@@ -2185,9 +2175,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("samples-2"), &Fibo.Samples);
 				Series::Unpack(Node->Find("blur"), &Fibo.Blur);
 			}
-			void SSAO::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SSAO::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples-1"), Shading.Samples);
@@ -2216,9 +2205,8 @@ namespace Tomahawk
 			{
 				CompileEffect("postprocess/focus", sizeof(Focus));
 			}
-			void DoF::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void DoF::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("distance"), &Distance);
@@ -2232,9 +2220,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("far-distance"), &Focus.FarDistance);
 				Series::Unpack(Node->Find("far-range"), &Focus.FarRange);
 			}
-			void DoF::Serialize(ContentManager* Content, Core::Schema* Node)
+			void DoF::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("distance"), Distance);
@@ -2320,18 +2307,16 @@ namespace Tomahawk
 				Shaders.Velocity = CompileEffect("postprocess/velocity", sizeof(Velocity));
 				Shaders.Motion = CompileEffect("postprocess/motion", sizeof(Motion));
 			}
-			void MotionBlur::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void MotionBlur::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("samples"), &Motion.Samples);
 				Series::Unpack(Node->Find("blur"), &Motion.Blur);
 				Series::Unpack(Node->Find("motion"), &Motion.Motion);
 			}
-			void MotionBlur::Serialize(ContentManager* Content, Core::Schema* Node)
+			void MotionBlur::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("samples"), Motion.Samples);
@@ -2355,7 +2340,7 @@ namespace Tomahawk
 				Shaders.Fibo[1] = CompileEffect("postprocess/fibo-y");
 				Shaders.Additive = CompileEffect("postprocess/additive");
 			}
-			void Bloom::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Bloom::Deserialize(Core::Schema* Node)
 			{
 				Series::Unpack(Node->Find("intensity"), &Extraction.Intensity);
 				Series::Unpack(Node->Find("threshold"), &Extraction.Threshold);
@@ -2363,7 +2348,7 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("samples"), &Fibo.Samples);
 				Series::Unpack(Node->Find("blur"), &Fibo.Blur);
 			}
-			void Bloom::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Bloom::Serialize(Core::Schema* Node)
 			{
 				Series::Pack(Node->Set("intensity"), Extraction.Intensity);
 				Series::Pack(Node->Set("threshold"), Extraction.Threshold);
@@ -2392,9 +2377,8 @@ namespace Tomahawk
 				TH_RELEASE(LutTarget);
 				TH_RELEASE(LutMap);
 			}
-			void Tone::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Tone::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("grayscale"), &Mapping.Grayscale);
@@ -2420,9 +2404,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("ablack"), &Mapping.ABlack);
 				Series::Unpack(Node->Find("aspeed"), &Mapping.ASpeed);
 			}
-			void Tone::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Tone::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("grayscale"), Mapping.Grayscale);
@@ -2497,9 +2480,8 @@ namespace Tomahawk
 			{
 				CompileEffect("postprocess/glitch", sizeof(Distortion));
 			}
-			void Glitch::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Glitch::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("scanline-jitter"), &ScanLineJitter);
@@ -2515,9 +2497,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("color-drift-amount"), &Distortion.ColorDriftAmount);
 				Series::Unpack(Node->Find("color-drift-time"), &Distortion.ColorDriftTime);
 			}
-			void Glitch::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Glitch::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("scanline-jitter"), ScanLineJitter);

@@ -1659,32 +1659,28 @@ namespace Tomahawk
 				}
 
 				Update.unlock();
-				return Core::Async<bool>::Execute([this, Connections](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this, Connections]()
 				{
 					TH_PPUSH(TH_PERF_MAX);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
+					std::unique_lock<std::mutex> Unique(Update);
 
-					Update.lock();
 					for (size_t i = 0; i < Connections; i++)
 					{
 						TH_DEBUG("[pq] try connect on group %i/%i", (int)i, (int)Connections);
 						TConnection* Base = PQconnectdbParams(Keys, Values, 0);
 						if (!Base || PQstatus(Base) != ConnStatusType::CONNECTION_OK)
 						{
-							Update.unlock();
-							TH_FREE(Keys);
-							TH_FREE(Values);
-
 							if (Base != nullptr)
 							{
 								PQlogMessage(Base);
 								PQfinish(Base);
 							}
 
-							Future = false;
-							TH_PPOP();
-							return;
+							TH_FREE(Keys);
+							TH_FREE(Values);
+							TH_PRET(false);
 						}
 
 						TH_DEBUG("[pq] OK connect on group %i as 0x%" PRIXPTR, (int)i, (uintptr_t)Base);
@@ -1701,12 +1697,10 @@ namespace Tomahawk
 						Pool.insert(std::make_pair(Next->Stream, Next));
 						Reprocess(Next);
 					}
-					Update.unlock();
 
-					Future = true;
 					TH_FREE(Keys);
 					TH_FREE(Values);
-					TH_PPOP();
+					TH_PRET(true);
 				});
 #else
 				return false;
@@ -1716,9 +1710,9 @@ namespace Tomahawk
 			{
 #ifdef TH_HAS_POSTGRESQL
 				TH_ASSERT(!Pool.empty(), false, "connection should be established");
-				return Core::Async<bool>::Execute([this](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this]()
 				{
-					Update.lock();
+					std::unique_lock<std::mutex> Unique(Update);
 					for (auto& Item : Pool)
 					{
 						Item.first->ClearEvents(false);
@@ -1726,9 +1720,9 @@ namespace Tomahawk
 						TH_DELETE(Connection, Item.second);
 						TH_DELETE(Socket, Item.first);
 					}
+
 					Pool.clear();
-					Update.unlock();
-					Future = true;
+					return true;
 				});
 #else
 				return false;

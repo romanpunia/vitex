@@ -327,7 +327,6 @@ namespace Tomahawk
 			static void Pack(Core::Schema* V, const Attenuation& Value);
 			static void Pack(Core::Schema* V, const AnimatorState& Value);
 			static void Pack(Core::Schema* V, const SpawnerProperties& Value);
-			static void Pack(Core::Schema* V, Material* Value, ContentManager* Content);
 			static void Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value);
 			static void Pack(Core::Schema* V, const Compute::SkinAnimatorClip& Value);
 			static void Pack(Core::Schema* V, const Compute::KeyAnimatorClip& Value);
@@ -377,7 +376,6 @@ namespace Tomahawk
 			static bool Unpack(Core::Schema* V, Attenuation* O);
 			static bool Unpack(Core::Schema* V, AnimatorState* O);
 			static bool Unpack(Core::Schema* V, SpawnerProperties* O);
-			static bool Unpack(Core::Schema* V, Material* O, ContentManager* Content);
 			static bool Unpack(Core::Schema* V, Compute::SkinAnimatorKey* O);
 			static bool Unpack(Core::Schema* V, Compute::SkinAnimatorClip* O);
 			static bool Unpack(Core::Schema* V, Compute::KeyAnimatorClip* O);
@@ -526,8 +524,8 @@ namespace Tomahawk
 			bool Active;
 
 		public:
-			virtual void Serialize(ContentManager* Content, Core::Schema* Node);
-			virtual void Deserialize(ContentManager* Content, Core::Schema* Node);
+			virtual void Serialize(Core::Schema* Node);
+			virtual void Deserialize(Core::Schema* Node);
 			virtual void Activate(Component* New);
 			virtual void Deactivate();
 			virtual void Synchronize(Core::Timer* Time);
@@ -692,8 +690,8 @@ namespace Tomahawk
 		public:
 			Renderer(RenderSystem* Lab);
 			virtual ~Renderer() override;
-			virtual void Serialize(ContentManager* Content, Core::Schema* Node);
-			virtual void Deserialize(ContentManager* Content, Core::Schema* Node);
+			virtual void Serialize(Core::Schema* Node);
+			virtual void Deserialize(Core::Schema* Node);
 			virtual void ClearCulling();
 			virtual void ResizeBuffers();
 			virtual void Activate();
@@ -762,6 +760,7 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* Device;
 			Material* BaseMaterial;
 			SceneGraph* Scene;
+			Component* Owner;
 
 		public:
 			Viewer View;
@@ -776,7 +775,7 @@ namespace Tomahawk
 			bool PreciseCulling;
 
 		public:
-			RenderSystem(SceneGraph* NewScene);
+			RenderSystem(SceneGraph* NewScene, Component* NewComponent);
 			virtual ~RenderSystem() override;
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
 			void ClearCulling();
@@ -817,6 +816,7 @@ namespace Tomahawk
 			Graphics::GraphicsDevice* GetDevice() const;
 			PrimitiveCache* GetPrimitives() const;
 			SceneGraph* GetScene() const;
+			Component* GetComponent() const;
 
 		public:
 			template <typename T>
@@ -920,6 +920,7 @@ namespace Tomahawk
 				{
 					Graphics::GraphicsDevice* Device = nullptr;
 					Script::VMManager* Manager = nullptr;
+					ContentManager* Content = nullptr;
 					PrimitiveCache* Primitives = nullptr;
 					ShaderCache* Shaders = nullptr;
 					bool Async = true;
@@ -978,6 +979,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
 			std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
 			std::unordered_map<uint64_t, Indexer*> Registry;
+			std::unordered_map<Component*, uint64_t> Loading;
 			std::queue<Core::TaskCallback> Transactions;
 			std::queue<Parallel::Task> Tasks;
 			std::queue<Event> Events;
@@ -1062,6 +1064,7 @@ namespace Tomahawk
 			std::vector<LinearDepthMap*>& GetSpotsMapping();
 			std::vector<CascadedDepthMap*>& GetLinesMapping();
 			std::vector<VoxelMapping>& GetVoxelsMapping();
+			std::string AsResourcePath(const std::string& Path);
 			Entity* AddEntity();
 			Entity* CloneEntity(Entity* Value);
 			bool AddEntity(Core::Unique<Entity> Entity);
@@ -1096,6 +1099,9 @@ namespace Tomahawk
 			void StepFinalize();
 
 		protected:
+			void LoadComponent(Component* Base);
+			void UnloadComponentAll(Component* Base);
+			bool UnloadComponent(Component* Base);
 			void RegisterComponent(Component* Base, bool Verify);
 			void UnregisterComponent(Component* Base);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
@@ -1118,6 +1124,31 @@ namespace Tomahawk
 			void RayTest(const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
 			{
 				RayTest(T::GetTypeId(), Origin, MaxDistance, std::move(Callback));
+			}
+			template <typename T>
+			void LoadResource(Component* Context, const std::string& Path, const std::function<void(T*)>& Callback)
+			{
+				LoadResource<T>(Context, Path, Core::VariantArgs(), Callback);
+			}
+			template <typename T>
+			void LoadResource(Component* Context, const std::string& Path, const Core::VariantArgs& Keys, const std::function<void(T*)>& Callback)
+			{
+				TH_ASSERT_V(Conf.Shared.Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Context != nullptr, "component calling this function should be set");
+				TH_ASSERT_V(Callback != nullptr, "callback should be set");
+
+				LoadComponent(Context);
+				Conf.Shared.Content->LoadAsync<T>(Path, Keys).Await([this, Context, Callback](T*&& Result)
+				{
+					if (UnloadComponent(Context))
+						Transaction([Callback, Result]() { Callback(Result); });
+				});
+			}
+			template <typename T>
+			std::string FindResource(T* Resource)
+			{
+				AssetCache* Cache = Conf.Shared.Content->Find<T>(Resource);
+				return Cache != nullptr ? AsResourcePath(Cache->Path) : std::string();
 			}
 			template <typename T>
 			uint64_t GetEntitiesCount()
@@ -1203,18 +1234,18 @@ namespace Tomahawk
 			template <typename T>
 			Core::Unique<T> Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return (T*)LoadForward(Path, GetProcessor<T>(), Keys, false);
+				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 			}
 			template <typename T>
 			Core::Async<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
-				return Core::Async<T*>::Execute([this, Path, Keys](Core::Async<T*>& Future)
+				return Core::Cotask<T*>([this, Path, Keys]()
 				{
-					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys, true);
-				    if (HasAnyPointToDispatch())
-						Future = Result;
+					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 					Dequeue();
+
+					return Result;
 				});
 			}
 			template <typename T>
@@ -1226,10 +1257,12 @@ namespace Tomahawk
 			Core::Async<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
-				return Core::Async<bool>::Execute([this, Path, Object, Keys](Core::Async<bool>& Future)
+				return Core::Cotask<bool>([this, Path, Object, Keys]()
 				{
-					Base = SaveForward(Path, GetProcessor<T>(), Object, Keys);
+					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
 				    Dequeue();
+
+					return Result;
 				});
 			}
 			template <typename T>
@@ -1293,7 +1326,7 @@ namespace Tomahawk
 		private:
 			void Enqueue();
 			void Dequeue();
-			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys, bool Async);
+			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
 			void* LoadStreaming(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
 			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Keys);
 			AssetCache* Find(Processor* Target, const std::string& Path);

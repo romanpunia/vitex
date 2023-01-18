@@ -294,55 +294,6 @@ namespace Tomahawk
 			Series::Pack(Velocity->Set("min"), Value.Velocity.Min);
 			Series::Pack(Velocity->Set("max"), Value.Velocity.Max);
 		}
-		void Series::Pack(Core::Schema* V, Material* Value, ContentManager* Content)
-		{
-			TH_ASSERT_V(V != nullptr, "schema should be set");
-			TH_ASSERT_V(Content != nullptr, "content manager should be set");
-			TH_ASSERT_V(Value != nullptr, "value should be set");
-
-			AssetCache* Asset = Content->Find<Graphics::Texture2D>(Value->GetDiffuseMap());
-			if (Asset)
-				Series::Pack(V->Set("diffuse-map"), Asset->Path);
-
-			Asset = Content->Find<Graphics::Texture2D>(Value->GetNormalMap());
-			if (Asset)
-				Series::Pack(V->Set("normal-map"), Asset->Path);
-
-			Asset = Content->Find<Graphics::Texture2D>(Value->GetMetallicMap());
-			if (Asset)
-				Series::Pack(V->Set("metallic-map"), Asset->Path);
-
-			Asset = Content->Find<Graphics::Texture2D>(Value->GetRoughnessMap());
-			if (Asset)
-				Series::Pack(V->Set("roughness-map"), Asset->Path);
-
-			Asset = Content->Find<Graphics::Texture2D>(Value->GetHeightMap());
-			if (Asset)
-				Series::Pack(V->Set("height-map"), Asset->Path);
-
-			Asset = Content->Find<Graphics::Texture2D>(Value->GetOcclusionMap());
-			if (Asset)
-				Series::Pack(V->Set("occlusion-map"), Asset->Path);
-
-			Asset = Content->Find<Graphics::Texture2D>(Value->GetEmissionMap());
-			if (Asset)
-				Series::Pack(V->Set("emission-map"), Asset->Path);
-
-			Series::Pack(V->Set("emission"), Value->Surface.Emission);
-			Series::Pack(V->Set("metallic"), Value->Surface.Metallic);
-			Series::Pack(V->Set("diffuse"), Value->Surface.Diffuse);
-			Series::Pack(V->Set("scatter"), Value->Surface.Scatter);
-			Series::Pack(V->Set("roughness"), Value->Surface.Roughness);
-			Series::Pack(V->Set("occlusion"), Value->Surface.Occlusion);
-			Series::Pack(V->Set("fresnel"), Value->Surface.Fresnel);
-			Series::Pack(V->Set("refraction"), Value->Surface.Refraction);
-			Series::Pack(V->Set("transparency"), Value->Surface.Transparency);
-			Series::Pack(V->Set("environment"), Value->Surface.Environment);
-			Series::Pack(V->Set("radius"), Value->Surface.Radius);
-			Series::Pack(V->Set("height"), Value->Surface.Height);
-			Series::Pack(V->Set("bias"), Value->Surface.Bias);
-			Series::Pack(V->Set("name"), Value->GetName());
-		}
 		void Series::Pack(Core::Schema* V, const Compute::SkinAnimatorKey& Value)
 		{
 			TH_ASSERT_V(V != nullptr, "schema should be set");
@@ -985,54 +936,6 @@ namespace Tomahawk
 			Series::Unpack(Velocity->Get("accuracy"), &O->Velocity.Accuracy);
 			Series::Unpack(Velocity->Get("min"), &O->Velocity.Min);
 			Series::Unpack(Velocity->Get("max"), &O->Velocity.Max);
-
-			return true;
-		}
-		bool Series::Unpack(Core::Schema* V, Material* O, ContentManager* Content)
-		{
-			TH_ASSERT(O != nullptr, false, "output should be set");
-			TH_ASSERT(Content != nullptr, false, "content manager should be set");
-			if (!V)
-				return false;
-
-			std::string Path;
-			if (Series::Unpack(V->Get("diffuse-map"), &Path))
-				O->SetDiffuseMap(Content->Load<Graphics::Texture2D>(Path));
-
-			if (Series::Unpack(V->Get("normal-map"), &Path))
-				O->SetNormalMap(Content->Load<Graphics::Texture2D>(Path));
-
-			if (Series::Unpack(V->Get("metallic-map"), &Path))
-				O->SetMetallicMap(Content->Load<Graphics::Texture2D>(Path));
-
-			if (Series::Unpack(V->Get("roughness-map"), &Path))
-				O->SetRoughnessMap(Content->Load<Graphics::Texture2D>(Path));
-
-			if (Series::Unpack(V->Get("height-map"), &Path))
-				O->SetHeightMap(Content->Load<Graphics::Texture2D>(Path));
-
-			if (Series::Unpack(V->Get("occlusion-map"), &Path))
-				O->SetOcclusionMap(Content->Load<Graphics::Texture2D>(Path));
-
-			if (Series::Unpack(V->Get("emission-map"), &Path))
-				O->SetEmissionMap(Content->Load<Graphics::Texture2D>(Path));
-
-			Path.clear();
-			Series::Unpack(V->Get("emission"), &O->Surface.Emission);
-			Series::Unpack(V->Get("metallic"), &O->Surface.Metallic);
-			Series::Unpack(V->Get("diffuse"), &O->Surface.Diffuse);
-			Series::Unpack(V->Get("scatter"), &O->Surface.Scatter);
-			Series::Unpack(V->Get("roughness"), &O->Surface.Roughness);
-			Series::Unpack(V->Get("occlusion"), &O->Surface.Occlusion);
-			Series::Unpack(V->Get("fresnel"), &O->Surface.Fresnel);
-			Series::Unpack(V->Get("refraction"), &O->Surface.Refraction);
-			Series::Unpack(V->Get("transparency"), &O->Surface.Transparency);
-			Series::Unpack(V->Get("environment"), &O->Surface.Environment);
-			Series::Unpack(V->Get("radius"), &O->Surface.Radius);
-			Series::Unpack(V->Get("height"), &O->Surface.Height);
-			Series::Unpack(V->Get("bias"), &O->Surface.Bias);
-			Series::Unpack(V->Get("name"), &Path);
-			O->SetName(Path);
 
 			return true;
 		}
@@ -1962,10 +1865,10 @@ namespace Tomahawk
 		Component::~Component()
 		{
 		}
-		void Component::Deserialize(ContentManager* Content, Core::Schema* Node)
+		void Component::Deserialize(Core::Schema* Node)
 		{
 		}
-		void Component::Serialize(ContentManager* Content, Core::Schema* Node)
+		void Component::Serialize(Core::Schema* Node)
 		{
 		}
 		void Component::Activate(Component* New)
@@ -2050,6 +1953,7 @@ namespace Tomahawk
 				if (Component.second != nullptr)
 				{
 					Component.second->SetActive(false);
+					Scene->UnloadComponentAll(Component.second);
 					Scene->ClearCosmos(Component.second);
 					TH_RELEASE(Component.second);
 				}
@@ -2370,10 +2274,10 @@ namespace Tomahawk
 			TH_ASSERT_V(NewSystem != nullptr, "render system should be set");
 			System = NewSystem;
 		}
-		void Renderer::Deserialize(ContentManager* Content, Core::Schema* Node)
+		void Renderer::Deserialize(Core::Schema* Node)
 		{
 		}
-		void Renderer::Serialize(ContentManager* Content, Core::Schema* Node)
+		void Renderer::Serialize(Core::Schema* Node)
 		{
 		}
 		void Renderer::ClearCulling()
@@ -2407,11 +2311,10 @@ namespace Tomahawk
 			return System;
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
+		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
 		{
 			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
-			TH_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");
-			
+			TH_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");	
 			Device = NewScene->GetDevice();
 		}
 		RenderSystem::~RenderSystem()
@@ -2881,6 +2784,10 @@ namespace Tomahawk
 		SceneGraph* RenderSystem::GetScene() const
 		{
 			return Scene;
+		}
+		Component* RenderSystem::GetComponent() const
+		{
+			return Owner;
 		}
 
 		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
@@ -3669,6 +3576,7 @@ namespace Tomahawk
 				I.Shared.Async = Base->Control.Async;
 				I.Shared.Shaders = Base->Cache.Shaders;
 				I.Shared.Primitives = Base->Cache.Primitives;
+				I.Shared.Content = Base->Content;
 				I.Shared.Device = Base->Renderer;
 				I.Shared.Manager = Base->VM;
 			}
@@ -3804,6 +3712,10 @@ namespace Tomahawk
 				}
 			});
 		}
+		void SceneGraph::Actualize()
+		{
+			StepTransactions();
+		}
 		void SceneGraph::ResizeBuffers()
 		{
 			Transaction([this]()
@@ -3857,30 +3769,6 @@ namespace Tomahawk
 
 			Device->Unmap(Display.MaterialBuffer, &Stream);
 			Device->SetStructureBuffer(Display.MaterialBuffer, 0, TH_PS | TH_CS);
-		}
-		void SceneGraph::Actualize()
-		{
-			TH_PPUSH(TH_PERF_FRAME);
-			for (auto& Sparse : Registry)
-			{
-				Sparse.second->Data.Clear();
-				Sparse.second->Index.Clear();
-			}
-
-			uint64_t Index = 0;
-			for (size_t i = 0; i < (size_t)ActorType::Count; i++)
-				Actors[i].Clear();
-
-			auto Begin1 = Entities.Begin(), End1 = Entities.End();
-			for (auto It = Begin1; It != End1; ++It)
-				RegisterEntity(*It);
-
-			auto Begin2 = Materials.Begin(), End2 = Materials.End();
-			for (auto It = Begin2; It != End2; ++It)
-				(*It)->Slot = Index++;
-
-			StepTransactions();
-			TH_PPOP();
 		}
 		void SceneGraph::Submit()
 		{
@@ -4243,6 +4131,35 @@ namespace Tomahawk
 				GetActors(ActorType::Animate).Remove(Base);
 			if (Base->Set & (size_t)ActorSet::Message)
 				GetActors(ActorType::Message).Remove(Base);
+		}
+		void SceneGraph::LoadComponent(Component* Base)
+		{
+			TH_ASSERT_V(Base != nullptr, "component should be set");
+			TH_ASSERT_V(Base->Parent != nullptr && Base->Parent->Scene == this, "component should be tied to this scene");
+
+			Exclusive.lock();
+			++Loading[Base];
+			Exclusive.unlock();
+		}
+		void SceneGraph::UnloadComponentAll(Component* Base)
+		{
+			Exclusive.lock();
+			auto It = Loading.find(Base);
+			if (It != Loading.end())
+				Loading.erase(It);
+			Exclusive.unlock();
+		}
+		bool SceneGraph::UnloadComponent(Component* Base)
+		{
+			std::unique_lock<std::mutex> Unique(Exclusive);
+			auto It = Loading.find(Base);
+
+			if (It == Loading.end())
+				return false;
+			else if (!--It->second)
+				Loading.erase(It);
+			
+			return true;
 		}
 		void SceneGraph::CloneEntities(Entity* Instance, std::vector<Entity*>* Array)
 		{
@@ -5167,6 +5084,11 @@ namespace Tomahawk
 		{
 			return Display.Voxels;
 		}
+		std::string SceneGraph::AsResourcePath(const std::string& Path)
+		{
+			TH_ASSERT(Conf.Shared.Content != nullptr, Path, "content manager should be set");
+			return Core::Parser(Path).Replace(Conf.Shared.Content->GetEnvironment(), "./").Replace('\\', '/').R();
+		}
 		Entity* SceneGraph::AddEntity()
 		{
 			Entity* Next = new Entity(this);
@@ -5332,7 +5254,7 @@ namespace Tomahawk
 		{
 			Device = NewDevice;
 		}
-		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Map, bool Async)
+		void* ContentManager::LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Map)
 		{
 			if (Path.empty())
 				return nullptr;
@@ -5349,7 +5271,7 @@ namespace Tomahawk
 
 			std::string File = Path;
 			bool IsRemote = Core::OS::Path::IsRemote(Path.c_str());
-			TH_ASSERT(!IsRemote || Async, nullptr, "file \"%s\" cannot be loaded immediately, use LoadAsync<T>", Path.c_str());
+			TH_ASSERT(!IsRemote, nullptr, "file \"%s\" cannot be loaded immediately, use LoadAsync<T>", Path.c_str());
 
 			if (!IsRemote)
 			{

@@ -11,6 +11,7 @@ namespace Tomahawk
 			class TH_OUT SoftBody final : public Drawable
 			{
 			protected:
+				Compute::HullShape* Hull = nullptr;
 				Compute::SoftBody * Instance = nullptr;
 				std::vector<Compute::Vertex> Vertices;
 				std::vector<int> Indices;
@@ -23,15 +24,15 @@ namespace Tomahawk
 			public:
 				SoftBody(Entity* Ref);
 				virtual ~SoftBody() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual float GetVisibility(const Viewer& View, float Distance) const override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(Compute::HullShape* Shape, float Anticipation = 0.0f);
-				void Load(ContentManager* Content, const std::string& Path, float Anticipation = 0.0f);
+				void Load(const std::string& Path, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation = 0.0f);
 				void LoadPatch(const Compute::SoftBody::Desc::CV::SPatch& Shape, float Anticipation = 0.0f);
 				void LoadRope(const Compute::SoftBody::Desc::CV::SRope& Shape, float Anticipation = 0.0f);
@@ -43,6 +44,9 @@ namespace Tomahawk
 				Compute::SoftBody* GetBody();
 				std::vector<Compute::Vertex>& GetVertices();
 				std::vector<int>& GetIndices();
+
+			private:
+				void DeserializeBody(Core::Schema* Node);
 
 			public:
 				TH_COMPONENT("soft-body");
@@ -61,18 +65,21 @@ namespace Tomahawk
 			public:
 				RigidBody(Entity* Ref);
 				virtual ~RigidBody() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(btCollisionShape* Shape, float Mass, float Anticipation = 0.0f);
-				void Load(ContentManager* Content, const std::string& Path, float Mass, float Anticipation = 0.0f);
+				void Load(const std::string& Path, float Mass, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void Clear();
 				void SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation);
 				void SetTransform(bool Kinematic);
 				void SetMass(float Mass);
 				Compute::RigidBody* GetBody() const;
+
+			private:
+				void DeserializeBody(Core::Schema* Node);
 
 			public:
 				TH_COMPONENT("rigid-body");
@@ -87,8 +94,8 @@ namespace Tomahawk
 			public:
 				SliderConstraint(Entity* Ref);
 				virtual ~SliderConstraint() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
@@ -115,8 +122,8 @@ namespace Tomahawk
 			public:
 				Acceleration(Entity* Ref);
 				virtual ~Acceleration() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Deserialize(Core::Schema * Node) override;
+				virtual void Serialize(Core::Schema * Node) override;
 				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
@@ -137,8 +144,8 @@ namespace Tomahawk
 			public:
 				Model(Entity* Ref);
 				virtual ~Model() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) const override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
@@ -161,8 +168,8 @@ namespace Tomahawk
 			public:
 				Skin(Entity* Ref);
 				virtual ~Skin() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) const override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
@@ -188,8 +195,8 @@ namespace Tomahawk
 			public:
 				Emitter(Entity* Ref);
 				virtual ~Emitter() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
@@ -207,8 +214,8 @@ namespace Tomahawk
 			public:
 				Decal(Entity* Ref);
 				virtual ~Decal() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Deserialize(Core::Schema * Node) override;
+				virtual void Serialize(Core::Schema * Node) override;
 				virtual float GetVisibility(const Viewer& View, float Distance) const override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
 
@@ -232,12 +239,12 @@ namespace Tomahawk
 			public:
 				SkinAnimator(Entity* Ref);
 				virtual ~SkinAnimator() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Animate(Core::Timer* Time) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
-				bool GetAnimation(ContentManager* Content, const std::string& Path);
+				void LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback = nullptr);
 				void GetPose(Compute::SkinAnimatorKey* Result);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
@@ -271,11 +278,11 @@ namespace Tomahawk
 			public:
 				KeyAnimator(Entity* Ref);
 				virtual ~KeyAnimator() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Animate(Core::Timer* Time) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
-				bool GetAnimation(ContentManager* Content, const std::string& Path);
+				void LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback = nullptr);
 				void GetPose(Compute::AnimatorKey* Result);
 				void ClearAnimation();
 				void Play(int64_t Clip = -1, int64_t Frame = -1);
@@ -313,8 +320,8 @@ namespace Tomahawk
 			public:
 				EmitterAnimator(Entity* Ref);
 				virtual ~EmitterAnimator() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Deserialize(Core::Schema * Node) override;
+				virtual void Serialize(Core::Schema * Node) override;
 				virtual void Activate(Component * New) override;
 				virtual void Animate(Core::Timer * Time) override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
@@ -353,7 +360,18 @@ namespace Tomahawk
 			class TH_OUT Fly final : public Component
 			{
 			private:
-				Graphics::Activity * Activity;
+				Graphics::Activity* Activity;
+				Compute::Vector3 Velocity;
+
+			public:
+				struct
+				{
+					Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);
+					float Faster = 2.6f;
+					float Normal = 1.2f;
+					float Slower = 0.25f;
+					float Fading = 0.9f;
+				} Moving;
 
 			public:
 				Graphics::KeyMap Forward = Graphics::KeyCode::W;
@@ -364,10 +382,6 @@ namespace Tomahawk
 				Graphics::KeyMap Down = Graphics::KeyCode::Z;
 				Graphics::KeyMap Fast = Graphics::KeyCode::LSHIFT;
 				Graphics::KeyMap Slow = Graphics::KeyCode::LCTRL;
-				Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);
-				float SpeedNormal = 1.2f;
-				float SpeedUp = 2.6f;
-				float SpeedDown = 0.25f;
 
 			public:
 				Fly(Entity* Ref);
@@ -376,6 +390,9 @@ namespace Tomahawk
 				virtual void Update(Core::Timer * Time) override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
 				Graphics::Activity* GetActivity() const;
+
+			private:
+				Compute::Vector3 GetSpeed();
 
 			public:
 				TH_COMPONENT("fly");
@@ -391,8 +408,8 @@ namespace Tomahawk
 			public:
 				AudioSource(Entity* Ref);
 				virtual ~AudioSource() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 				void ApplyPlayingPosition();
@@ -414,8 +431,8 @@ namespace Tomahawk
 			public:
 				AudioListener(Entity* Ref);
 				virtual ~AudioListener() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
@@ -450,8 +467,8 @@ namespace Tomahawk
 			public:
 				PointLight(Entity* Ref);
 				virtual ~PointLight() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Deserialize(Core::Schema * Node) override;
+				virtual void Serialize(Core::Schema * Node) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				virtual float GetVisibility(const Viewer& View, float Distance) const override;
@@ -491,8 +508,8 @@ namespace Tomahawk
 			public:
 				SpotLight(Entity* Ref);
 				virtual ~SpotLight() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Deserialize(Core::Schema * Node) override;
+				virtual void Serialize(Core::Schema * Node) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual void Synchronize(Core::Timer * Time) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
@@ -543,8 +560,8 @@ namespace Tomahawk
 			public:
 				LineLight(Entity* Ref);
 				virtual ~LineLight() = default;
-				virtual void Deserialize(ContentManager * Content, Core::Schema * Node) override;
-				virtual void Serialize(ContentManager * Content, Core::Schema * Node) override;
+				virtual void Deserialize(Core::Schema * Node) override;
+				virtual void Serialize(Core::Schema * Node) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
 				void GenerateOrigin();
@@ -580,8 +597,8 @@ namespace Tomahawk
 			public:
 				SurfaceLight(Entity* Ref);
 				virtual ~SurfaceLight() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
 				virtual float GetVisibility(const Viewer& View, float Distance) const override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
@@ -626,8 +643,8 @@ namespace Tomahawk
 			public:
 				Illuminator(Entity* Ref);
 				virtual ~Illuminator() = default;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
 
@@ -660,8 +677,8 @@ namespace Tomahawk
 			public:
 				Camera(Entity* Ref);
 				virtual ~Camera() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
 				virtual void Synchronize(Core::Timer* Time) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
@@ -679,8 +696,8 @@ namespace Tomahawk
 				float GetWidth();
 				float GetHeight();
 				float GetAspect();
-				bool RayTest(const Compute::Ray& Ray, Entity* Other);
-				bool RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World);
+				bool RayTest(const Compute::Ray& Ray, Entity* Other, Compute::Vector3* Hit = nullptr);
+				bool RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World, Compute::Vector3* Hit = nullptr);
 
 			public:
 				TH_COMPONENT("camera");
@@ -689,16 +706,16 @@ namespace Tomahawk
 			class TH_OUT Scriptable final : public Component
 			{
 			public:
-				enum SourceType
+				enum class SourceType
 				{
-					SourceType_Resource,
-					SourceType_Memory
+					Resource,
+					Memory
 				};
 
-				enum InvokeType
+				enum class InvokeType
 				{
-					InvokeType_Typeless,
-					InvokeType_Normal
+					Typeless,
+					Normal
 				};
 
 			protected:
@@ -718,18 +735,15 @@ namespace Tomahawk
 				Script::VMCompiler* Compiler;
 				std::string Resource;
 				std::string Module;
-				std::mutex Safe;
 				SourceType Source;
 				InvokeType Invoke;
 
 			public:
 				Scriptable(Entity* Ref);
 				virtual ~Scriptable() override;
-				virtual void Deserialize(ContentManager* Content, Core::Schema* Node) override;
-				virtual void Serialize(ContentManager* Content, Core::Schema* Node) override;
+				virtual void Deserialize(Core::Schema* Node) override;
+				virtual void Serialize(Core::Schema* Node) override;
 				virtual void Activate(Component* New) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Animate(Core::Timer* Time) override;
 				virtual void Deactivate() override;
 				virtual void Update(Core::Timer* Time) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
@@ -737,10 +751,10 @@ namespace Tomahawk
 				Core::Async<int> Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs);
 				Core::Async<int> Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& OnArgs);
 				Core::Async<int> CallEntry(const std::string& Name);
-				int SetSource();
-				int SetSource(SourceType Type, const std::string& Source);
+				int LoadSource();
+				int LoadSource(SourceType Type, const std::string& Source);
 				void SetInvocation(InvokeType Type);
-				void UnsetSource();
+				void UnloadSource();
 				Script::VMCompiler* GetCompiler();
 				bool GetPropertyByName(const char* Name, Script::VMProperty* Result);
 				bool GetPropertyByIndex(int Index, Script::VMProperty* Result);
@@ -764,31 +778,19 @@ namespace Tomahawk
 					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
-					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
 					if (!Src.IsValid())
-					{
-						Safe.unlock();
 						return 0;
-					}
 
 					int Index = Src.GetPropertyIndexByName(Name);
 					if (Index < 0)
-					{
-						Safe.unlock();
 						return Index;
-					}
 
 					T* Address = (T*)Src.GetAddressOfProperty(Index);
 					if (!Address)
-					{
-						Safe.unlock();
 						return -1;
-					}
 
 					*Address = Value;
-					Safe.unlock();
-
 					return 0;
 				}
 				template <typename T>
@@ -801,27 +803,17 @@ namespace Tomahawk
 					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
-					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
 					if (!Src.IsValid())
-					{
-						Safe.unlock();
 						return (int)Script::VMResult::INVALID_CONFIGURATION;
-					}
 
 					int Index = Src.GetPropertyIndexByName(Name);
 					if (Index < 0)
-					{
-						Safe.unlock();
 						return Index;
-					}
 
 					T** Address = (T**)Src.GetAddressOfProperty(Index);
 					if (!Address)
-					{
-						Safe.unlock();
 						return -1;
-					}
 
 					if (*Address != nullptr)
 						(*Address)->Release();
@@ -830,7 +822,6 @@ namespace Tomahawk
 					if (*Address != nullptr)
 						(*Address)->AddRef();
 
-					Safe.unlock();
 					return 0;
 				}
 				template <typename T>
@@ -843,24 +834,15 @@ namespace Tomahawk
 					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
-					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
 					if (!Src.IsValid())
-					{
-						Safe.unlock();
 						return 0;
-					}
 
 					T* Address = (T*)Src.GetAddressOfProperty(Index);
 					if (!Address)
-					{
-						Safe.unlock();
 						return -1;
-					}
 
 					*Address = Value;
-					Safe.unlock();
-
 					return 0;
 				}
 				template <typename T>
@@ -873,20 +855,13 @@ namespace Tomahawk
 					if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 						return (int)Script::VMResult::MODULE_IS_IN_USE;
 
-					Safe.lock();
 					Script::VMModule Src = Compiler->GetModule();
 					if (!Src.IsValid())
-					{
-						Safe.unlock();
 						return (int)Script::VMResult::INVALID_CONFIGURATION;
-					}
 
 					T** Address = (T**)Src.GetAddressOfProperty(Index);
 					if (!Address)
-					{
-						Safe.unlock();
 						return -1;
-					}
 
 					if (*Address != nullptr)
 						(*Address)->Release();
@@ -895,7 +870,6 @@ namespace Tomahawk
 					if (*Address != nullptr)
 						(*Address)->AddRef();
 
-					Safe.unlock();
 					return 0;
 				}
 

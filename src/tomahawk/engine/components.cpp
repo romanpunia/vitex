@@ -37,61 +37,10 @@ namespace Tomahawk
 			}
 			RigidBody::~RigidBody()
 			{
-				TH_RELEASE(Instance);
-				TH_RELEASE(Hull);
+				Clear();
 			}
-			void RigidBody::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void RigidBody::DeserializeBody(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				bool Extended = false;
-				Series::Unpack(Node->Find("extended"), &Extended);
-				Series::Unpack(Node->Find("kinematic"), &Kinematic);
-				Series::Unpack(Node->Find("manage"), &Manage);
-
-				if (!Extended)
-					return;
-
-				float Mass = 0, CcdMotionThreshold = 0;
-				Series::Unpack(Node->Find("mass"), &Mass);
-				Series::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-
-				SceneGraph* Scene = Parent->GetScene();
-				Core::Schema* CV = nullptr;
-				if ((CV = Node->Find("shape")) != nullptr)
-				{
-					std::string Path; uint64_t Type;
-					if (Series::Unpack(Node->Find("path"), &Path))
-					{
-						auto* Shape = Content->Load<Compute::HullShape>(Path);
-						if (Shape != nullptr)
-						{
-							Load(Shape->Shape, Mass, CcdMotionThreshold);
-							TH_RELEASE(Shape);
-						}
-					}
-					else if (!Series::Unpack(CV->Find("type"), &Type))
-					{
-						std::vector<Compute::Vector3> Vertices;
-						if (Series::Unpack(CV->Find("data"), &Vertices))
-						{
-							btCollisionShape* Shape = Scene->GetSimulator()->CreateConvexHull(Vertices);
-							if (Shape != nullptr)
-								Load(Shape, Mass, CcdMotionThreshold);
-						}
-					}
-					else
-					{
-						btCollisionShape* Shape = Scene->GetSimulator()->CreateShape((Compute::Shape)Type);
-						if (Shape != nullptr)
-							Load(Shape, Mass, CcdMotionThreshold);
-					}
-				}
-
-				if (!Instance)
-					return;
-
 				uint64_t ActivationState;
 				if (Series::Unpack(Node->Find("activation-state"), &ActivationState))
 					Instance->SetActivationState((Compute::MotionState)ActivationState);
@@ -180,11 +129,59 @@ namespace Tomahawk
 				if (Series::Unpack(Node->Find("collision-flags"), &CollisionFlags))
 					Instance->SetCollisionFlags(CollisionFlags);
 			}
-			void RigidBody::Serialize(ContentManager* Content, Core::Schema* Node)
+			void RigidBody::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
+				Core::Schema* Shaping = Node->Find("shape");
+				std::vector<Compute::Vector3> Vertices;
+				std::string Path; uint64_t Type;
+				float Mass = 0.0f, Anticipation = 0.0f;
+				bool Extended = false;
+
+				Series::Unpack(Node->Find("mass"), &Mass);
+				Series::Unpack(Node->Find("ccd-motion-threshold"), &Anticipation);
+				Series::Unpack(Node->Find("kinematic"), &Kinematic);
+				Series::Unpack(Node->Find("manage"), &Manage);
+				Series::Unpack(Node->Find("extended"), &Extended);
+
+				if (!Extended)
+					return;
+
+				if (Shaping != nullptr)
+				{
+					if (Series::Unpack(Shaping->Find("path"), &Path))
+					{
+						Node->AddRef();
+						return Load(Path, Mass, Anticipation, [this, Node]()
+						{
+							if (Instance != nullptr)
+								DeserializeBody(Node);
+							Node->Release();
+						});
+					}
+					else if (Series::Unpack(Shaping->Find("type"), &Type))
+					{
+						btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateShape((Compute::Shape)Type);
+						if (Shape != nullptr)
+							Load(Shape, Mass, Anticipation);
+					}
+					else if (Series::Unpack(Shaping->Find("data"), &Vertices))
+					{
+						btCollisionShape* Shape = Parent->GetScene()->GetSimulator()->CreateConvexHull(Vertices);
+						if (Shape != nullptr)
+							Load(Shape, Mass, Anticipation);
+					}
+				}
+
+				if (Instance != nullptr)
+					DeserializeBody(Node);
+			}
+			void RigidBody::Serialize(Core::Schema* Node)
+			{
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
+
+				SceneGraph* Scene = Parent->GetScene();
 				Series::Pack(Node->Set("kinematic"), Kinematic);
 				Series::Pack(Node->Set("manage"), Manage);
 				Series::Pack(Node->Set("extended"), Instance != nullptr);
@@ -192,21 +189,20 @@ namespace Tomahawk
 				if (!Instance)
 					return;
 
-				SceneGraph* Scene = Parent->GetScene();
-				Core::Schema* CV = Node->Set("shape");
+				Core::Schema* Shaping = Node->Set("shape");
 				if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 				{
-					AssetCache* Asset = Content->Find<Compute::HullShape>(Hull);
-					if (!Asset || !Hull)
+					std::string Path = Scene->FindResource<Compute::HullShape>(Hull);
+					if (Path.empty())
 					{
 						std::vector<Compute::Vector3> Vertices = Scene->GetSimulator()->GetShapeVertices(Instance->GetCollisionShape());
-						Series::Pack(CV->Set("data"), Vertices);
+						Series::Pack(Shaping->Set("data"), Vertices);
 					}
 					else
-						Series::Pack(CV->Set("path"), Asset->Path);
+						Series::Pack(Shaping->Set("path"), Path);
 				}
 				else
-					Series::Pack(CV->Set("type"), (uint64_t)Instance->GetCollisionShapeType());
+					Series::Pack(Shaping->Set("type"), (uint64_t)Instance->GetCollisionShapeType());
 
 				Series::Pack(Node->Set("mass"), Instance->GetMass());
 				Series::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
@@ -259,17 +255,25 @@ namespace Tomahawk
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
 			}
-			void RigidBody::Load(ContentManager* Content, const std::string& Path, float Mass, float Anticipation)
+			void RigidBody::Load(const std::string& Path, float Mass, float Anticipation, const std::function<void()>& Callback)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_RELEASE(Hull);
-				Hull = Content->Load<Compute::HullShape>(Path);
-				if (Hull != nullptr)
-					Load(Hull->Shape, Mass, Anticipation);
+				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Mass, Anticipation, Callback](Compute::HullShape* NewHull)
+				{
+					TH_RELEASE(Hull);
+					Hull = NewHull;
+					if (Hull != nullptr)
+						Load(Hull->Shape, Mass, Anticipation);
+					else
+						Clear();
+
+					if (Callback)
+						Callback();
+				});
 			}
 			void RigidBody::Clear()
 			{
 				TH_CLEAR(Instance);
+				TH_CLEAR(Hull);
 			}
 			void RigidBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
@@ -323,87 +327,10 @@ namespace Tomahawk
 			}
 			SoftBody::~SoftBody()
 			{
-				TH_RELEASE(Instance);
+				Clear();
 			}
-			void SoftBody::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SoftBody::DeserializeBody(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				uint64_t Slot = -1;
-				if (Series::Unpack(Node->Find("material"), &Slot))
-					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
-
-				bool Extended = false;
-				bool Transparent = false;
-				std::string Path;
-
-				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
-				Series::Unpack(Node->Find("texcoord"), &TexCoord);
-				Series::Unpack(Node->Find("extended"), &Extended);
-				Series::Unpack(Node->Find("kinematic"), &Kinematic);
-				Series::Unpack(Node->Find("manage"), &Manage);
-				Series::Unpack(Node->Find("static"), &Static);
-				Series::Unpack(Node->Find("category"), &NewCategory);
-				SetCategory((GeoCategory)NewCategory);
-
-				if (!Extended)
-					return;
-
-				float CcdMotionThreshold = 0;
-				Series::Unpack(Node->Find("ccd-motion-threshold"), &CcdMotionThreshold);
-
-				Core::Schema* CV = nullptr;
-				if ((CV = Node->Find("shape")) != nullptr)
-				{
-					if (Series::Unpack(Node->Find("path"), &Path))
-					{
-						auto* Shape = Content->Load<Compute::HullShape>(Path);
-						if (Shape != nullptr)
-						{
-							Load(Shape, CcdMotionThreshold);
-							TH_RELEASE(Shape);
-						}
-					}
-				}
-				else if ((CV = Node->Find("ellipsoid")) != nullptr)
-				{
-					Compute::SoftBody::Desc::CV::SEllipsoid Shape;
-					Series::Unpack(CV->Get("center"), &Shape.Center);
-					Series::Unpack(CV->Get("radius"), &Shape.Radius);
-					Series::Unpack(CV->Get("count"), &Shape.Count);
-					LoadEllipsoid(Shape, CcdMotionThreshold);
-				}
-				else if ((CV = Node->Find("patch")) != nullptr)
-				{
-					Compute::SoftBody::Desc::CV::SPatch Shape;
-					Series::Unpack(CV->Get("corner-00"), &Shape.Corner00);
-					Series::Unpack(CV->Get("corner-00-fixed"), &Shape.Corner00Fixed);
-					Series::Unpack(CV->Get("corner-01"), &Shape.Corner01);
-					Series::Unpack(CV->Get("corner-01-fixed"), &Shape.Corner01Fixed);
-					Series::Unpack(CV->Get("corner-10"), &Shape.Corner10);
-					Series::Unpack(CV->Get("corner-10-fixed"), &Shape.Corner10Fixed);
-					Series::Unpack(CV->Get("corner-11"), &Shape.Corner11);
-					Series::Unpack(CV->Get("corner-11-fixed"), &Shape.Corner11Fixed);
-					Series::Unpack(CV->Get("count-x"), &Shape.CountX);
-					Series::Unpack(CV->Get("count-y"), &Shape.CountY);
-					Series::Unpack(CV->Get("diagonals"), &Shape.GenerateDiagonals);
-					LoadPatch(Shape, CcdMotionThreshold);
-				}
-				else if ((CV = Node->Find("rope")) != nullptr)
-				{
-					Compute::SoftBody::Desc::CV::SRope Shape;
-					Series::Unpack(CV->Get("start"), &Shape.Start);
-					Series::Unpack(CV->Get("start-fixed"), &Shape.StartFixed);
-					Series::Unpack(CV->Get("end"), &Shape.End);
-					Series::Unpack(CV->Get("end-fixed"), &Shape.EndFixed);
-					Series::Unpack(CV->Get("count"), &Shape.Count);
-					LoadRope(Shape, CcdMotionThreshold);
-				}
-
-				if (!Instance)
-					return;
-
 				Core::Schema* Conf = Node->Get("config");
 				if (Conf != nullptr)
 				{
@@ -505,9 +432,85 @@ namespace Tomahawk
 				if (Series::Unpack(Node->Find("core-length-scale"), &RestLengthScale))
 					Instance->SetRestLengthScale(RestLengthScale);
 			}
-			void SoftBody::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SoftBody::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
+				TH_ASSERT_V(Node != nullptr, "schema should be set");
+
+				float Anticipation = 0.0f;
+				bool Extended = false, Transparent = false;
+				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
+				uint64_t Slot = -1;
+
+				Series::Unpack(Node->Find("ccd-motion-threshold"), &Anticipation);
+				Series::Unpack(Node->Find("texcoord"), &TexCoord);
+				Series::Unpack(Node->Find("extended"), &Extended);
+				Series::Unpack(Node->Find("kinematic"), &Kinematic);
+				Series::Unpack(Node->Find("manage"), &Manage);
+				Series::Unpack(Node->Find("static"), &Static);
+				Series::Unpack(Node->Find("category"), &NewCategory);
+				SetCategory((GeoCategory)NewCategory);
+
+				if (Series::Unpack(Node->Find("material"), &Slot))
+					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+
+				if (!Extended)
+					return;
+
+				Core::Schema* Shaping = nullptr;
+				if ((Shaping = Node->Find("shape")) != nullptr)
+				{
+					std::string Path;
+					if (Series::Unpack(Shaping->Find("path"), &Path))
+					{
+						Node->AddRef();
+						return Load(Path, Anticipation, [this, Node]()
+						{
+							if (Instance != nullptr)
+								DeserializeBody(Node);
+							Node->Release();
+						});
+					}
+				}
+				else if ((Shaping = Node->Find("ellipsoid")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SEllipsoid Shape;
+					Series::Unpack(Shaping->Get("center"), &Shape.Center);
+					Series::Unpack(Shaping->Get("radius"), &Shape.Radius);
+					Series::Unpack(Shaping->Get("count"), &Shape.Count);
+					LoadEllipsoid(Shape, Anticipation);
+				}
+				else if ((Shaping = Node->Find("patch")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SPatch Shape;
+					Series::Unpack(Shaping->Get("corner-00"), &Shape.Corner00);
+					Series::Unpack(Shaping->Get("corner-00-fixed"), &Shape.Corner00Fixed);
+					Series::Unpack(Shaping->Get("corner-01"), &Shape.Corner01);
+					Series::Unpack(Shaping->Get("corner-01-fixed"), &Shape.Corner01Fixed);
+					Series::Unpack(Shaping->Get("corner-10"), &Shape.Corner10);
+					Series::Unpack(Shaping->Get("corner-10-fixed"), &Shape.Corner10Fixed);
+					Series::Unpack(Shaping->Get("corner-11"), &Shape.Corner11);
+					Series::Unpack(Shaping->Get("corner-11-fixed"), &Shape.Corner11Fixed);
+					Series::Unpack(Shaping->Get("count-x"), &Shape.CountX);
+					Series::Unpack(Shaping->Get("count-y"), &Shape.CountY);
+					Series::Unpack(Shaping->Get("diagonals"), &Shape.GenerateDiagonals);
+					LoadPatch(Shape, Anticipation);
+				}
+				else if ((Shaping = Node->Find("rope")) != nullptr)
+				{
+					Compute::SoftBody::Desc::CV::SRope Shape;
+					Series::Unpack(Shaping->Get("start"), &Shape.Start);
+					Series::Unpack(Shaping->Get("start-fixed"), &Shape.StartFixed);
+					Series::Unpack(Shaping->Get("end"), &Shape.End);
+					Series::Unpack(Shaping->Get("end-fixed"), &Shape.EndFixed);
+					Series::Unpack(Shaping->Get("count"), &Shape.Count);
+					LoadRope(Shape, Anticipation);
+				}
+
+				if (Instance != nullptr)
+					DeserializeBody(Node);
+			}
+			void SoftBody::Serialize(Core::Schema* Node)
+			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
@@ -558,16 +561,13 @@ namespace Tomahawk
 				Series::Pack(Conf->Set("collisions"), I.Config.Collisions);
 
 				auto& Desc = Instance->GetInitialState();
-				if (Desc.Shape.Convex.Enabled)
+				if (Desc.Shape.Convex.Enabled && Hull != nullptr)
 				{
 					if (Instance->GetCollisionShapeType() == Compute::Shape::Convex_Hull)
 					{
-						AssetCache* Asset = Content->Find<Compute::HullShape>(Desc.Shape.Convex.Hull);
-						if (Asset != nullptr)
-						{
-							Core::Schema* Shape = Node->Set("shape");
-							Series::Pack(Shape->Set("path"), Asset->Path);
-						}
+						std::string Path = Parent->GetScene()->FindResource<Compute::HullShape>(Hull);
+						if (!Path.empty())
+							Series::Pack(Node->Set("shape")->Set("path"), Path);
 					}
 				}
 				else if (Desc.Shape.Ellipsoid.Enabled)
@@ -649,10 +649,12 @@ namespace Tomahawk
 				SceneGraph* Scene = Parent->GetScene();
 				TH_ASSERT_V(Scene != nullptr, "scene should be set");
 				TH_ASSERT_V(Shape != nullptr, "collision shape should be set");
+				TH_RELEASE(Hull);
+				Hull = Shape;
 
 				Compute::SoftBody::Desc I;
 				I.Anticipation = Anticipation;
-				I.Shape.Convex.Hull = Shape;
+				I.Shape.Convex.Hull = Hull;
 				I.Shape.Convex.Enabled = true;
 
 				TH_RELEASE(Instance);
@@ -669,15 +671,18 @@ namespace Tomahawk
 				Instance->UserPointer = this;
 				Instance->SetActivity(true);
 			}
-			void SoftBody::Load(ContentManager* Content, const std::string& Path, float Anticipation)
+			void SoftBody::Load(const std::string& Path, float Anticipation, const std::function<void()>& Callback)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
-				Compute::HullShape* Hull = Content->Load<Compute::HullShape>(Path);
-				if (Hull != nullptr)
+				Parent->GetScene()->LoadResource<Compute::HullShape>(this, Path, [this, Anticipation, Callback](Compute::HullShape* NewHull)
 				{
-					Load(Hull, Anticipation);
-					TH_RELEASE(Hull);
-				}
+					if (NewHull != nullptr)
+						Load(NewHull, Anticipation);
+					else
+						Clear();
+
+					if (Callback)
+						Callback();
+				});
 			}
 			void SoftBody::LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation)
 			{
@@ -786,6 +791,7 @@ namespace Tomahawk
 			void SoftBody::Clear()
 			{
 				TH_CLEAR(Instance);
+				TH_CLEAR(Hull);
 			}
 			void SoftBody::SetTransform(const Compute::Vector3& Position, const Compute::Vector3& Scale, const Compute::Vector3& Rotation)
 			{
@@ -861,9 +867,8 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void SliderConstraint::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SliderConstraint::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				bool Extended, Ghost, Linear;
@@ -1006,9 +1011,8 @@ namespace Tomahawk
 				if (Series::Unpack(Node->Find("enabled"), &Enabled))
 					Instance->SetEnabled(Enabled);
 			}
-			void SliderConstraint::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SliderConstraint::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("extended"), Instance != nullptr);
@@ -1127,9 +1131,8 @@ namespace Tomahawk
 			Acceleration::Acceleration(Entity* Ref) : Component(Ref, ActorSet::Update)
 			{
 			}
-			void Acceleration::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Acceleration::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("amplitude-velocity"), &AmplitudeVelocity);
@@ -1139,9 +1142,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("constant-center"), &ConstantCenter);
 				Series::Unpack(Node->Find("kinematic"), &Kinematic);
 			}
-			void Acceleration::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Acceleration::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("amplitude-velocity"), AmplitudeVelocity);
@@ -1234,62 +1236,64 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Model::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Model::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				std::string Path;
-				if (Series::Unpack(Node->Find("model"), &Path))
-				{
-					TH_RELEASE(Instance);
-					Instance = Content->Load<Graphics::Model>(Path);
-				}
-
-				SceneGraph* Scene = Parent->GetScene();
-				std::vector<Core::Schema*> Slots = Node->FetchCollection("materials.material");
-				for (auto&& Material : Slots)
-				{
-					uint64_t Slot = 0;
-					Series::Unpack(Material->Find("name"), &Path);
-					Series::Unpack(Material->Find("slot"), &Slot);
-
-					Graphics::MeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
-					if (Surface != nullptr)
-						Materials[Surface] = Scene->GetMaterial(Slot);
-				}
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
 				Series::Unpack(Node->Find("static"), &Static);
 				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
+
+				std::string Path;
+				if (!Series::Unpack(Node->Find("model"), &Path) || Path.empty())
+					return;
+				else
+					Node->AddRef();
+
+				SceneGraph* Scene = Parent->GetScene();
+				Scene->LoadResource<Graphics::Model>(this, Path, [this, Node, Scene](Graphics::Model* NewInstance)
+				{
+					TH_RELEASE(Instance);
+					Instance = NewInstance;
+					if (Instance != nullptr)
+					{
+						for (auto&& Material : Node->FetchCollection("materials.material"))
+						{
+							std::string Name; uint64_t Slot = 0;
+							if (Series::Unpack(Material->Find("name"), &Name) && Series::Unpack(Material->Find("slot"), &Slot))
+							{
+								Graphics::MeshBuffer* Surface = Instance->FindMesh(Name);
+								if (Surface != nullptr)
+									Materials[Surface] = Scene->GetMaterial(Slot);
+							}
+						}
+					}
+					Node->Release();
+				});
 			}
-			void Model::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Model::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				AssetCache* Asset = Content->Find<Graphics::Model>(Instance);
-				if (Asset != nullptr)
-					Series::Pack(Node->Set("model"), Asset->Path);
+				Series::Pack(Node->Set("model"), Parent->GetScene()->FindResource<Graphics::Model>(Instance));
+				Series::Pack(Node->Set("texcoord"), TexCoord);
+				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
+				Series::Pack(Node->Set("static"), Static);
 
 				Core::Schema* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
 				{
-					if (Slot.first != nullptr)
+					auto* Buffer = (Graphics::MeshBuffer*)Slot.first;
+					if (Buffer != nullptr)
 					{
 						Core::Schema* Material = Slots->Set("material");
-						Series::Pack(Material->Set("name"), ((Graphics::MeshBuffer*)Slot.first)->Name);
-
+						Series::Pack(Material->Set("name"), Buffer->Name);
 						if (Slot.second != nullptr)
 							Series::Pack(Material->Set("slot"), Slot.second->Slot);
 					}
 				}
-
-				Series::Pack(Node->Set("texcoord"), TexCoord);
-				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
-				Series::Pack(Node->Set("static"), Static);
 			}
 			void Model::SetDrawable(Graphics::Model* Drawable)
 			{
@@ -1340,57 +1344,62 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Skin::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Skin::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				std::string Path;
-				if (Series::Unpack(Node->Find("skin-model"), &Path))
-				{
-					TH_RELEASE(Instance);
-					Instance = Content->Load<Graphics::SkinModel>(Path);
-				}
-
-				SceneGraph* Scene = Parent->GetScene();
-				std::vector<Core::Schema*> Slots = Node->FetchCollection("materials.material");
-				for (auto&& Material : Slots)
-				{
-					uint64_t Slot = 0;
-					Series::Unpack(Material->Find("name"), &Path);
-					Series::Unpack(Material->Find("slot"), &Slot);
-
-					Graphics::SkinMeshBuffer* Surface = (Instance ? Instance->FindMesh(Path) : nullptr);
-					if (Surface != nullptr)
-						Materials[Surface] = Scene->GetMaterial(Slot);
-				}
-
-
-				std::vector<Core::Schema*> Poses = Node->FetchCollection("poses.pose");
-				for (auto&& Pose : Poses)
-				{
-					int64_t Index;
-					Series::Unpack(Pose->Find("index"), &Index);
-
-					auto& Offset = Skeleton.Pose[Index];
-					Series::Unpack(Pose->Find("position"), &Offset.Position);
-					Series::Unpack(Pose->Find("rotation"), &Offset.Rotation);
-				}
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
 				Series::Unpack(Node->Find("static"), &Static);
 				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
+
+				std::string Path;
+				if (!Series::Unpack(Node->Find("skin-model"), &Path) || Path.empty())
+					return;
+				else
+					Node->AddRef();
+
+				SceneGraph* Scene = Parent->GetScene();
+				Scene->LoadResource<Graphics::SkinModel>(this, Path, [this, Node, Scene](Graphics::SkinModel* NewInstance)
+				{
+					TH_RELEASE(Instance);
+					Instance = NewInstance;
+					if (Instance != nullptr)
+					{
+						for (auto&& Material : Node->FetchCollection("materials.material"))
+						{
+							std::string Name; uint64_t Slot = 0;
+							if (Series::Unpack(Material->Find("name"), &Name) && Series::Unpack(Material->Find("slot"), &Slot))
+							{
+								Graphics::SkinMeshBuffer* Surface = Instance->FindMesh(Name);
+								if (Surface != nullptr)
+									Materials[Surface] = Scene->GetMaterial(Slot);
+							}
+						}
+
+						for (auto&& Pose : Node->FetchCollection("poses.pose"))
+						{
+							int64_t Index;
+							if (Series::Unpack(Pose->Find("index"), &Index))
+							{
+								auto& Offset = Skeleton.Pose[Index];
+								Series::Unpack(Pose->Find("position"), &Offset.Position);
+								Series::Unpack(Pose->Find("rotation"), &Offset.Rotation);
+							}
+						}
+					}
+					Node->Release();
+				});
 			}
-			void Skin::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Skin::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				AssetCache* Asset = Content->Find<Graphics::SkinModel>(Instance);
-				if (Asset != nullptr)
-					Series::Pack(Node->Set("skin-model"), Asset->Path);
+				Series::Pack(Node->Set("skin-model"), Parent->GetScene()->FindResource<Graphics::SkinModel>(Instance));
+				Series::Pack(Node->Set("texcoord"), TexCoord);
+				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
+				Series::Pack(Node->Set("static"), Static);
 
 				Core::Schema* Slots = Node->Set("materials", Core::Var::Array());
 				for (auto&& Slot : Materials)
@@ -1404,10 +1413,6 @@ namespace Tomahawk
 							Series::Pack(Material->Set("slot"), Slot.second->Slot);
 					}
 				}
-
-				Series::Pack(Node->Set("texcoord"), TexCoord);
-				Series::Pack(Node->Set("category"), (uint32_t)GetCategory());
-				Series::Pack(Node->Set("static"), Static);
 
 				Core::Schema* Poses = Node->Set("poses", Core::Var::Array());
 				for (auto&& Pose : Skeleton.Pose)
@@ -1472,9 +1477,8 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Instance);
 			}
-			void Emitter::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Emitter::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				SceneGraph* Scene = Parent->GetScene(); uint64_t Slot = -1;
@@ -1506,9 +1510,8 @@ namespace Tomahawk
 					}
 				}
 			}
-			void Emitter::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Emitter::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
@@ -1575,9 +1578,8 @@ namespace Tomahawk
 			Decal::Decal(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Decal::GetTypeId(), false)
 			{
 			}
-			void Decal::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Decal::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				uint64_t Slot = -1;
@@ -1590,9 +1592,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 			}
-			void Decal::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Decal::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Material* Slot = GetMaterial();
@@ -1624,34 +1625,30 @@ namespace Tomahawk
 			SkinAnimator::~SkinAnimator()
 			{
 			}
-			void SkinAnimator::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SkinAnimator::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				std::string Path;
-				if (!Series::Unpack(Node->Find("path"), &Path))
-					Series::Unpack(Node->Find("animation"), &Clips);
-				else
-					GetAnimation(Content, Path);
-
 				Series::Unpack(Node->Find("state"), &State);
 				Series::Unpack(Node->Find("bind"), &Bind);
 				Series::Unpack(Node->Find("current"), &Current);
+
+				std::string Path;
+				if (!Series::Unpack(Node->Find("path"), &Path) || Path.empty())
+					Series::Unpack(Node->Find("animation"), &Clips);
+				else
+					LoadAnimation(Path, nullptr);
 			}
-			void SkinAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SkinAnimator::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
+				Series::Pack(Node->Set("state"), State);
+				Series::Pack(Node->Set("bind"), Bind);
+				Series::Pack(Node->Set("current"), Current);
 
 				if (!Reference.empty())
 					Series::Pack(Node->Set("path"), Reference);
 				else
 					Series::Pack(Node->Set("animation"), Clips);
-
-				Series::Pack(Node->Set("state"), State);
-				Series::Pack(Node->Set("bind"), Bind);
-				Series::Pack(Node->Set("current"), Current);
 			}
 			void SkinAnimator::Activate(Component* New)
 			{
@@ -1756,19 +1753,21 @@ namespace Tomahawk
 				else
 					State.Clip = -1;
 			}
-			bool SkinAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
+			void SkinAnimator::LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback)
 			{
-				TH_ASSERT(Content != nullptr, false, "content manager should be set");
-				Core::Schema* Result = Content->Load<Core::Schema>(Path);
-				if (!Result)
-					return false;
+				auto* Scene = Parent->GetScene();
+				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](Core::Schema* Result)
+				{
+					ClearAnimation();
+					if (Series::Unpack(Result, &Clips))
+						Reference = Scene->AsResourcePath(Path);
+					else
+						Reference.clear();
 
-				ClearAnimation();
-				if (Series::Unpack(Result, &Clips))
-					Reference = Core::Parser(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
-
-				TH_RELEASE(Result);
-				return true;
+					TH_RELEASE(Result);
+					if (Callback)
+						Callback(!Reference.empty());
+				});
 			}
 			void SkinAnimator::GetPose(Compute::SkinAnimatorKey* Result)
 			{
@@ -1891,34 +1890,30 @@ namespace Tomahawk
 			KeyAnimator::~KeyAnimator()
 			{
 			}
-			void KeyAnimator::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void KeyAnimator::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				std::string Path;
-				if (!Series::Unpack(Node->Find("path"), &Path))
-					Series::Unpack(Node->Find("animation"), &Clips);
-				else
-					GetAnimation(Content, Path);
-
 				Series::Unpack(Node->Find("state"), &State);
 				Series::Unpack(Node->Find("bind"), &Bind);
 				Series::Unpack(Node->Find("current"), &Current);
+
+				std::string Path;
+				if (!Series::Unpack(Node->Find("path"), &Path) || Path.empty())
+					Series::Unpack(Node->Find("animation"), &Clips);
+				else
+					LoadAnimation(Path, nullptr);
 			}
-			void KeyAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
+			void KeyAnimator::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
+				Series::Pack(Node->Set("state"), State);
+				Series::Pack(Node->Set("bind"), Bind);
+				Series::Pack(Node->Set("current"), Current);
 
 				if (Reference.empty())
 					Series::Pack(Node->Set("animation"), Clips);
 				else
 					Series::Pack(Node->Set("path"), Reference);
-
-				Series::Pack(Node->Set("state"), State);
-				Series::Pack(Node->Set("bind"), Bind);
-				Series::Pack(Node->Set("current"), Current);
 			}
 			void KeyAnimator::Animate(Core::Timer* Time)
 			{
@@ -1978,19 +1973,21 @@ namespace Tomahawk
 					State.Time = 0.0f;
 				}
 			}
-			bool KeyAnimator::GetAnimation(ContentManager* Content, const std::string& Path)
+			void KeyAnimator::LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback)
 			{
-				TH_ASSERT(Content != nullptr, false, "content manager should be set");
-				Core::Schema* Result = Content->Load<Core::Schema>(Path);
-				if (!Result)
-					return false;
-
-				ClearAnimation();
+				auto* Scene = Parent->GetScene();
+				Scene->LoadResource<Core::Schema>(this, Path, [this, Scene, Path, Callback](Core::Schema* Result)
+				{
+					ClearAnimation();
 				if (Series::Unpack(Result, &Clips))
-					Reference = Core::Parser(Path).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R();
+					Reference = Scene->AsResourcePath(Path);
+				else
+					Reference.clear();
 
 				TH_RELEASE(Result);
-				return true;
+				if (Callback)
+					Callback(!Reference.empty());
+				});
 			}
 			void KeyAnimator::GetPose(Compute::AnimatorKey* Result)
 			{
@@ -2131,9 +2128,8 @@ namespace Tomahawk
 				Spawner.Noise.Max = 1;
 				Spawner.Iterations = 1;
 			}
-			void EmitterAnimator::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void EmitterAnimator::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("diffuse"), &Diffuse);
@@ -2145,9 +2141,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("scale-speed"), &ScaleSpeed);
 				Series::Unpack(Node->Find("simulate"), &Simulate);
 			}
-			void EmitterAnimator::Serialize(ContentManager* Content, Core::Schema* Node)
+			void EmitterAnimator::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("diffuse"), Diffuse);
@@ -2399,38 +2394,39 @@ namespace Tomahawk
 				if (!Activity)
 					return;
 
-				Compute::Vector3 Speed;
-				if (Activity->IsKeyDown(Fast))
-					Speed = Axis * SpeedUp * (float)Time->GetDeltaTime();
-				else if (Activity->IsKeyDown(Slow))
-					Speed = Axis * SpeedDown * (float)Time->GetDeltaTime();
-				else
-					Speed = Axis * SpeedNormal * (float)Time->GetDeltaTime();
-
-				auto* Transform = Parent->GetTransform();
 				bool ViewSpace = (Parent->GetComponent<Camera>() != nullptr);
+				auto* Transform = Parent->GetTransform();
 				if (Activity->IsKeyDown(Forward))
-					Transform->Move(Transform->Forward(ViewSpace) * Speed);
-
-				if (Activity->IsKeyDown(Backward))
-					Transform->Move(-Transform->Forward(ViewSpace) * Speed);
+					Velocity += Transform->Forward(ViewSpace);
+				else if (Activity->IsKeyDown(Backward))
+					Velocity -= Transform->Forward(ViewSpace);
 
 				if (Activity->IsKeyDown(Right))
-					Transform->Move(Transform->Right(ViewSpace) * Speed);
-
-				if (Activity->IsKeyDown(Left))
-					Transform->Move(-Transform->Right(ViewSpace) * Speed);
+					Velocity += Transform->Right(ViewSpace);
+				else if (Activity->IsKeyDown(Left))
+					Velocity -= Transform->Right(ViewSpace);
 
 				if (Activity->IsKeyDown(Up))
-					Transform->Move(Transform->Up(ViewSpace) * Speed);
+					Velocity += Transform->Up(ViewSpace);
+				else if (Activity->IsKeyDown(Down))
+					Velocity -= Transform->Up(ViewSpace);
 
-				if (Activity->IsKeyDown(Down))
-					Transform->Move(-Transform->Up(ViewSpace) * Speed);
+				if (Velocity.Length() > 0.01)
+				{
+					float DeltaTime = (float)Time->GetDeltaTime();
+					Compute::Vector3 Speed = GetSpeed();
+					Transform->Move(Velocity * Speed * DeltaTime);
+					Velocity = Velocity.Lerp(Compute::Vector3::Zero(), Moving.Fading * DeltaTime);
+				}
+				else
+					Velocity = Compute::Vector3::Zero();
 			}
 			Component* Fly::Copy(Entity* New) const
 			{
 				Fly* Target = new Fly(New);
+				Target->Moving = Moving;
 				Target->Activity = Activity;
+				Target->Velocity = Velocity;
 				Target->Forward = Forward;
 				Target->Backward = Backward;
 				Target->Right = Right;
@@ -2439,16 +2435,22 @@ namespace Tomahawk
 				Target->Down = Down;
 				Target->Fast = Fast;
 				Target->Slow = Slow;
-				Target->Axis = Axis;
-				Target->SpeedNormal = SpeedNormal;
-				Target->SpeedUp = SpeedUp;
-				Target->SpeedDown = SpeedDown;
 
 				return Target;
 			}
 			Graphics::Activity* Fly::GetActivity() const
 			{
 				return Activity;
+			}
+			Compute::Vector3 Fly::GetSpeed()
+			{
+				if (Activity->IsKeyDown(Fast))
+					return Moving.Axis * Moving.Faster;
+				
+				if (Activity->IsKeyDown(Slow))
+					return Moving.Axis * Moving.Slower;
+				
+				return Moving.Axis * Moving.Normal;
 			}
 
 			AudioSource::AudioSource(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
@@ -2459,14 +2461,9 @@ namespace Tomahawk
 			{
 				TH_RELEASE(Source);
 			}
-			void AudioSource::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void AudioSource::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				std::string Path;
-				if (Series::Unpack(Node->Find("audio-clip"), &Path))
-					Source->SetClip(Content->Load<Audio::AudioClip>(Path));
 
 				Series::Unpack(Node->Find("velocity"), &Sync.Velocity);
 				Series::Unpack(Node->Find("direction"), &Sync.Direction);
@@ -2485,43 +2482,47 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("air-absorption"), &Sync.AirAbsorption);
 				Series::Unpack(Node->Find("room-roll-off"), &Sync.RoomRollOff);
 
-				std::vector<Core::Schema*> Effects = Node->FetchCollection("effects.effect");
-				for (auto& Effect : Effects)
-				{
-					uint64_t Id;
-					if (!Series::Unpack(Effect->Find("id"), &Id))
-						continue;
+				std::string Path;
+				if (!Series::Unpack(Node->Find("audio-clip"), &Path) || Path.empty())
+					return;
 
-					Audio::AudioEffect* Target = Core::Composer::Create<Audio::AudioEffect>(Id);
-					if (!Target)
+				Node->AddRef();
+				Parent->GetScene()->LoadResource<Audio::AudioClip>(this, Path, [this, Node](Audio::AudioClip* NewClip)
+				{
+					Source->SetClip(NewClip);
+					for (auto& Effect : Node->FetchCollection("effects.effect"))
 					{
-						TH_WARN("[engine] audio effect with id %llu cannot be created", Id);
-						continue;
+						uint64_t Id;
+						if (!Series::Unpack(Effect->Find("id"), &Id))
+							continue;
+
+						Audio::AudioEffect* Target = Core::Composer::Create<Audio::AudioEffect>(Id);
+						if (!Target)
+						{
+							TH_WARN("[engine] audio effect with id %llu cannot be created", Id);
+							continue;
+						}
+
+						Core::Schema* Meta = Effect->Find("metadata");
+						if (!Meta)
+							Meta = Effect->Set("metadata");
+
+						Target->Deserialize(Meta);
+						Source->AddEffect(Target);
 					}
 
-					Core::Schema* Meta = Effect->Find("metadata");
-					if (!Meta)
-						Meta = Effect->Set("metadata");
+					bool Autoplay;
+					if (Series::Unpack(Node->Find("autoplay"), &Autoplay) && Autoplay && Source->GetClip())
+						Source->Play();
 
-					Target->Deserialize(Meta);
-					Source->AddEffect(Target);
-				}
-
-				bool Autoplay;
-				if (Series::Unpack(Node->Find("autoplay"), &Autoplay) && Autoplay && Source->GetClip())
-					Source->Play();
-
-				ApplyPlayingPosition();
-				Synchronize(nullptr);
+					ApplyPlayingPosition();
+					Synchronize(nullptr);
+					Node->Release();
+				});
 			}
-			void AudioSource::Serialize(ContentManager* Content, Core::Schema* Node)
+			void AudioSource::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
-
-				AssetCache* Asset = Content->Find<Audio::AudioClip>(Source->GetClip());
-				if (Asset != nullptr)
-					Series::Pack(Node->Set("audio-clip"), Asset->Path);
 
 				Core::Schema* Effects = Node->Set("effects", Core::Var::Array());
 				for (auto* Effect : *Source->GetEffects())
@@ -2534,6 +2535,7 @@ namespace Tomahawk
 					Effect->Serialize(Element->Set("metadata"));
 				}
 
+				Series::Pack(Node->Set("audio-clip"), Parent->GetScene()->FindResource<Audio::AudioClip>(Source->GetClip()));
 				Series::Pack(Node->Set("velocity"), Sync.Velocity);
 				Series::Pack(Node->Set("direction"), Sync.Direction);
 				Series::Pack(Node->Set("rolloff"), Sync.Rolloff);
@@ -2602,12 +2604,12 @@ namespace Tomahawk
 			{
 				Deactivate();
 			}
-			void AudioListener::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void AudioListener::Deserialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("gain"), &Gain);
 			}
-			void AudioListener::Serialize(ContentManager* Content, Core::Schema* Node)
+			void AudioListener::Serialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("gain"), Gain);
@@ -2650,7 +2652,7 @@ namespace Tomahawk
 			PointLight::PointLight(Entity* Ref) : Component(Ref, ActorSet::Cullable)
 			{
 			}
-			void PointLight::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void PointLight::Deserialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("projection"), &Projection);
@@ -2665,7 +2667,7 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				Series::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
-			void PointLight::Serialize(ContentManager* Content, Core::Schema* Node)
+			void PointLight::Serialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("projection"), Projection);
@@ -2727,7 +2729,7 @@ namespace Tomahawk
 			SpotLight::SpotLight(Entity* Ref) : Component(Ref, ActorSet::Synchronize)
 			{
 			}
-			void SpotLight::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SpotLight::Deserialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("projection"), &Projection);
@@ -2743,7 +2745,7 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("shadow-iterations"), &Shadow.Iterations);
 				Series::Unpack(Node->Find("shadow-enabled"), &Shadow.Enabled);
 			}
-			void SpotLight::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SpotLight::Serialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("projection"), Projection);
@@ -2814,7 +2816,7 @@ namespace Tomahawk
 			LineLight::LineLight(Entity* Ref) : Component(Ref, ActorSet::Cullable)
 			{
 			}
-			void LineLight::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void LineLight::Deserialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Unpack(Node->Find("diffuse"), &Diffuse);
@@ -2845,7 +2847,7 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("outer-radius"), &Sky.OuterRadius);
 				Series::Unpack(Node->Find("sky-intensity"), &Sky.Intensity);
 			}
-			void LineLight::Serialize(ContentManager* Content, Core::Schema* Node)
+			void LineLight::Serialize(Core::Schema* Node)
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				Series::Pack(Node->Set("diffuse"), Diffuse);
@@ -2939,61 +2941,102 @@ namespace Tomahawk
 				TH_RELEASE(DiffuseMap);
 				TH_RELEASE(Probe);
 			}
-			void SurfaceLight::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void SurfaceLight::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				std::string Path;
-				if (!Series::Unpack(Node->Find("diffuse-map"), &Path))
+				auto* Scene = Parent->GetScene(); std::string Path;
+				if (!Series::Unpack(Node->Find("diffuse-map"), &Path) || Path.empty())
 				{
 					if (Series::Unpack(Node->Find("diffuse-map-px"), &Path))
 					{
-						TH_RELEASE(DiffuseMapX[0]);
-						DiffuseMapX[0] = Content->Load<Graphics::Texture2D>(Path);
-						DiffuseMapX[0]->AddRef();
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						{
+							TH_CLEAR(DiffuseMapX[0]);
+							if (NewTexture != nullptr)
+							{
+								DiffuseMapX[0] = NewTexture;
+								DiffuseMapX[0]->AddRef();
+							}
+						});
 					}
 
 					if (Series::Unpack(Node->Find("diffuse-map-nx"), &Path))
 					{
-						TH_RELEASE(DiffuseMapX[1]);
-						DiffuseMapX[1] = Content->Load<Graphics::Texture2D>(Path);
-						DiffuseMapX[1]->AddRef();
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						{
+							TH_CLEAR(DiffuseMapX[1]);
+							if (NewTexture != nullptr)
+							{
+								DiffuseMapX[1] = NewTexture;
+								DiffuseMapX[1]->AddRef();
+							}
+						});
 					}
 
 					if (Series::Unpack(Node->Find("diffuse-map-py"), &Path))
 					{
-						TH_RELEASE(DiffuseMapY[0]);
-						DiffuseMapY[0] = Content->Load<Graphics::Texture2D>(Path);
-						DiffuseMapY[0]->AddRef();
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						{
+							TH_CLEAR(DiffuseMapY[0]);
+							if (NewTexture != nullptr)
+							{
+								DiffuseMapY[0] = NewTexture;
+								DiffuseMapY[0]->AddRef();
+							}
+						});
 					}
 
 					if (Series::Unpack(Node->Find("diffuse-map-ny"), &Path))
 					{
-						TH_RELEASE(DiffuseMapY[1]);
-						DiffuseMapY[1] = Content->Load<Graphics::Texture2D>(Path);
-						DiffuseMapY[1]->AddRef();
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						{
+							TH_CLEAR(DiffuseMapY[1]);
+							if (NewTexture != nullptr)
+							{
+								DiffuseMapY[1] = NewTexture;
+								DiffuseMapY[1]->AddRef();
+							}
+						});
 					}
 
 					if (Series::Unpack(Node->Find("diffuse-map-pz"), &Path))
 					{
-						TH_RELEASE(DiffuseMapZ[0]);
-						DiffuseMapZ[0] = Content->Load<Graphics::Texture2D>(Path);
-						DiffuseMapZ[0]->AddRef();
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						{
+							TH_CLEAR(DiffuseMapZ[0]);
+							if (NewTexture != nullptr)
+							{
+								DiffuseMapZ[0] = NewTexture;
+								DiffuseMapZ[0]->AddRef();
+							}
+						});
 					}
 
 					if (Series::Unpack(Node->Find("diffuse-map-nz"), &Path))
 					{
-						TH_RELEASE(DiffuseMapZ[1]);
-						DiffuseMapZ[1] = Content->Load<Graphics::Texture2D>(Path);
-						DiffuseMapZ[1]->AddRef();
+						Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+						{
+							TH_CLEAR(DiffuseMapZ[1]);
+							if (NewTexture != nullptr)
+							{
+								DiffuseMapZ[1] = NewTexture;
+								DiffuseMapZ[1]->AddRef();
+							}
+						});
 					}
 				}
 				else
 				{
-					TH_RELEASE(DiffuseMap);
-					DiffuseMap = Content->Load<Graphics::Texture2D>(Path);
-					DiffuseMap->AddRef();
+					Scene->LoadResource<Graphics::Texture2D>(this, Path, [this](Graphics::Texture2D* NewTexture)
+					{
+						TH_CLEAR(DiffuseMap);
+						if (NewTexture != nullptr)
+						{
+							DiffuseMap = NewTexture;
+							DiffuseMap->AddRef();
+						}
+					});
 				}
 
 				std::vector<Compute::Matrix4x4> Views;
@@ -3016,44 +3059,22 @@ namespace Tomahawk
 				else
 					SetDiffuseMap(DiffuseMap);
 			}
-			void SurfaceLight::Serialize(ContentManager* Content, Core::Schema* Node)
+			void SurfaceLight::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				AssetCache* Asset = nullptr;
+				auto* Scene = Parent->GetScene();
 				if (!DiffuseMap)
 				{
-					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapX[0]);
-					if (Asset != nullptr)
-						Series::Pack(Node->Set("diffuse-map-px"), Asset->Path);
-
-					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapX[1]);
-					if (Asset != nullptr)
-						Series::Pack(Node->Set("diffuse-map-nx"), Asset->Path);
-
-					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapY[0]);
-					if (Asset != nullptr)
-						Series::Pack(Node->Set("diffuse-map-py"), Asset->Path);
-
-					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapY[1]);
-					if (Asset != nullptr)
-						Series::Pack(Node->Set("diffuse-map-ny"), Asset->Path);
-
-					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapZ[0]);
-					if (Asset != nullptr)
-						Series::Pack(Node->Set("diffuse-map-pz"), Asset->Path);
-
-					Asset = Content->Find<Graphics::Texture2D>(DiffuseMapZ[1]);
-					if (Asset != nullptr)
-						Series::Pack(Node->Set("diffuse-map-nz"), Asset->Path);
+					Series::Pack(Node->Set("diffuse-map-px"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapX[0]));
+					Series::Pack(Node->Set("diffuse-map-nx"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapX[1]));
+					Series::Pack(Node->Set("diffuse-map-py"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapY[0]));
+					Series::Pack(Node->Set("diffuse-map-ny"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapY[1]));
+					Series::Pack(Node->Set("diffuse-map-pz"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapZ[0]));
+					Series::Pack(Node->Set("diffuse-map-nz"), Scene->FindResource<Graphics::Texture2D>(DiffuseMapZ[1]));
 				}
 				else
-				{
-					Asset = Content->Find<Graphics::Texture2D>(DiffuseMap);
-					if (Asset != nullptr)
-						Series::Pack(Node->Set("diffuse-map"), Asset->Path);
-				}
+					Series::Pack(Node->Set("diffuse-map"), Scene->FindResource<Graphics::Texture2D>(DiffuseMap));
 
 				std::vector<Compute::Matrix4x4> Views;
 				for (int64_t i = 0; i < 6; i++)
@@ -3229,9 +3250,8 @@ namespace Tomahawk
 				Angle = 0.5;
 				Bleeding = 0.33f;
 			}
-			void Illuminator::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Illuminator::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Unpack(Node->Find("inside-delay"), &Inside.Delay);
@@ -3248,9 +3268,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("specular"), &Specular);
 				Series::Unpack(Node->Find("bleeding"), &Bleeding);
 			}
-			void Illuminator::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Illuminator::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("inside-delay"), Inside.Delay);
@@ -3290,7 +3309,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			Camera::Camera(Entity* Ref) : Component(Ref, ActorSet::Synchronize), Mode(ProjectionMode_Perspective), Renderer(new RenderSystem(Ref->GetScene())), Viewport({ 0, 0, 512, 512, 0, 1 })
+			Camera::Camera(Entity* Ref) : Component(Ref, ActorSet::Synchronize), Mode(ProjectionMode_Perspective), Renderer(new RenderSystem(Ref->GetScene(), this)), Viewport({ 0, 0, 512, 512, 0, 1 })
 			{
 			}
 			Camera::~Camera()
@@ -3307,9 +3326,8 @@ namespace Tomahawk
 				if (New == this)
 					Renderer->Remount();
 			}
-			void Camera::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Camera::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 				TH_ASSERT_V(Parent->GetScene()->GetDevice() != nullptr, "graphics device should be set");
 
@@ -3351,15 +3369,13 @@ namespace Tomahawk
 						Meta = Render->Set("metadata");
 
 					Target->Deactivate();
-					Target->Deserialize(Content, Meta);
+					Target->Deserialize(Meta);
 					Target->Activate();
-
 					Series::Unpack(Render->Find("active"), &Target->Active);
 				}
 			}
-			void Camera::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Camera::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				Series::Pack(Node->Set("mode"), (int)Mode);
@@ -3382,7 +3398,7 @@ namespace Tomahawk
 					Core::Schema* Render = Renderers->Set("renderer");
 					Series::Pack(Render->Set("id"), Next->GetId());
 					Series::Pack(Render->Set("active"), Next->Active);
-					Next->Serialize(Content, Render->Set("metadata"));
+					Next->Serialize(Render->Set("metadata"));
 				}
 			}
 			void Camera::Synchronize(Core::Timer* Time)
@@ -3490,14 +3506,14 @@ namespace Tomahawk
 
 				return W / H;
 			}
-			bool Camera::RayTest(const Compute::Ray& Ray, Entity* Other)
+			bool Camera::RayTest(const Compute::Ray& Ray, Entity* Other, Compute::Vector3* Hit)
 			{
 				TH_ASSERT(Other != nullptr, false, "other should be set");
-				return Compute::Geometric::CursorRayTest(Ray, Other->GetTransform()->GetBias());
+				return Compute::Geometric::CursorRayTest(Ray, Other->GetTransform()->GetBias(), Hit);
 			}
-			bool Camera::RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World)
+			bool Camera::RayTest(const Compute::Ray& Ray, const Compute::Matrix4x4& World, Compute::Vector3* Hit)
 			{
-				return Compute::Geometric::CursorRayTest(Ray, World);
+				return Compute::Geometric::CursorRayTest(Ray, World, Hit);
 			}
 			Component* Camera::Copy(Entity* New) const
 			{
@@ -3513,43 +3529,35 @@ namespace Tomahawk
 				return Target;
 			}
 
-			Scriptable::Scriptable(Entity* Ref) : Component(Ref, ActorSet::Synchronize | ActorSet::Animate | ActorSet::Update | ActorSet::Message), Compiler(nullptr), Source(SourceType_Resource), Invoke(InvokeType_Typeless)
+			Scriptable::Scriptable(Entity* Ref) : Component(Ref, ActorSet::Update | ActorSet::Message), Compiler(nullptr), Source(SourceType::Resource), Invoke(InvokeType::Typeless)
 			{
 			}
 			Scriptable::~Scriptable()
 			{
 				TH_RELEASE(Compiler);
 			}
-			void Scriptable::Deserialize(ContentManager* Content, Core::Schema* Node)
+			void Scriptable::Deserialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
 				std::string Type;
 				if (Series::Unpack(Node->Find("source"), &Type))
 				{
 					if (Type == "memory")
-						Source = SourceType_Memory;
+						Source = SourceType::Memory;
 					else if (Type == "resource")
-						Source = SourceType_Resource;
+						Source = SourceType::Resource;
 				}
 
 				if (Series::Unpack(Node->Find("invoke"), &Type))
 				{
 					if (Type == "typeless")
-						Invoke = InvokeType_Typeless;
+						Invoke = InvokeType::Typeless;
 					else if (Type == "normal")
-						Invoke = InvokeType_Normal;
+						Invoke = InvokeType::Normal;
 				}
 
-				if (!Series::Unpack(Node->Find("resource"), &Type))
-					return;
-
-				Resource = Core::OS::Path::Resolve(Type.c_str(), Content->GetEnvironment());
-				if (Resource.empty())
-					Resource = std::move(Type);
-
-				if (SetSource() < 0)
+				if (!Series::Unpack(Node->Find("resource"), &Resource) || Resource.empty() || LoadSource() < 0)
 					return;
 
 				Core::Schema* Cache = Node->Find("cache");
@@ -3651,34 +3659,32 @@ namespace Tomahawk
 					}
 				}
 
-				Call(Entry.Deserialize, [this, &Content, &Node](Script::VMContext* Context)
+				Call(Entry.Deserialize, [this, &Node](Script::VMContext* Context)
 				{
-					if (Invoke == InvokeType_Typeless)
+					if (Invoke == InvokeType::Typeless)
 						return;
 
 					Component* Current = this;
 					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, Content);
-					Context->SetArgObject(2, Node);
-				});
+					Context->SetArgObject(1, Node);
+				}).Wait();
 			}
-			void Scriptable::Serialize(ContentManager* Content, Core::Schema* Node)
+			void Scriptable::Serialize(Core::Schema* Node)
 			{
-				TH_ASSERT_V(Content != nullptr, "content manager should be set");
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				if (Source == SourceType_Memory)
+				if (Source == SourceType::Memory)
 					Series::Pack(Node->Set("source"), "memory");
-				else if (Source == SourceType_Resource)
+				else if (Source == SourceType::Resource)
 					Series::Pack(Node->Set("source"), "resource");
 
-				if (Invoke == InvokeType_Typeless)
+				if (Invoke == InvokeType::Typeless)
 					Series::Pack(Node->Set("invoke"), "typeless");
-				else if (Invoke == InvokeType_Normal)
+				else if (Invoke == InvokeType::Normal)
 					Series::Pack(Node->Set("invoke"), "normal");
 
 				int Count = GetPropertiesCount();
-				Series::Pack(Node->Set("resource"), Core::Parser(Resource).Replace(Content->GetEnvironment(), "./").Replace('\\', '/').R());
+				Series::Pack(Node->Set("resource"), Parent->GetScene()->AsResourcePath(Resource));
 
 				Core::Schema* Cache = Node->Set("cache");
 				for (int i = 0; i < Count; i++)
@@ -3740,16 +3746,15 @@ namespace Tomahawk
 						Cache->Set(Result.Name, Var);
 				}
 
-				Call(Entry.Serialize, [this, &Content, &Node](Script::VMContext* Context)
+				Call(Entry.Serialize, [this, &Node](Script::VMContext* Context)
 				{
-					if (Invoke == InvokeType_Typeless)
+					if (Invoke == InvokeType::Typeless)
 						return;
 
 					Component* Current = this;
 					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, Content);
-					Context->SetArgObject(2, Node);
-				});
+					Context->SetArgObject(1, Node);
+				}).Wait();
 			}
 			void Scriptable::Activate(Component* New)
 			{
@@ -3758,7 +3763,7 @@ namespace Tomahawk
 
 				Call(Entry.Awake, [this, &New](Script::VMContext* Context)
 				{
-					if (Invoke == InvokeType_Typeless)
+					if (Invoke == InvokeType::Typeless)
 						return;
 
 					Component* Current = this;
@@ -3766,35 +3771,11 @@ namespace Tomahawk
 					Context->SetArgObject(1, New);
 				});
 			}
-			void Scriptable::Animate(Core::Timer* Time)
-			{
-				Call(Entry.Animate, [this, &Time](Script::VMContext* Context)
-				{
-					if (Invoke == InvokeType_Typeless)
-						return;
-
-					Component* Current = this;
-					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, Time);
-				});
-			}
-			void Scriptable::Synchronize(Core::Timer* Time)
-			{
-				Call(Entry.Synchronize, [this, &Time](Script::VMContext* Context)
-				{
-					if (Invoke == InvokeType_Typeless)
-						return;
-
-					Component* Current = this;
-					Context->SetArgObject(0, Current);
-					Context->SetArgObject(1, Time);
-				});
-			}
 			void Scriptable::Deactivate()
 			{
 				Call(Entry.Asleep, [this](Script::VMContext* Context)
 				{
-					if (Invoke == InvokeType_Typeless)
+					if (Invoke == InvokeType::Typeless)
 						return;
 
 					Component* Current = this;
@@ -3805,7 +3786,7 @@ namespace Tomahawk
 			{
 				Call(Entry.Update, [this, &Time](Script::VMContext* Context)
 				{
-					if (Invoke == InvokeType_Typeless)
+					if (Invoke == InvokeType::Typeless)
 						return;
 
 					Component* Current = this;
@@ -3817,7 +3798,7 @@ namespace Tomahawk
 			{
 				Call(Entry.Message, [this, Name, Args](Script::VMContext* Context)
 				{
-					if (Invoke == InvokeType_Typeless)
+					if (Invoke == InvokeType::Typeless)
 						return;
 
 					Script::STDMap* Map = Script::STDMap::Create(Compiler->GetManager()->GetEngine());
@@ -3840,7 +3821,7 @@ namespace Tomahawk
 			{
 				Scriptable* Target = new Scriptable(New);
 				Target->Invoke = Invoke;
-				Target->SetSource(Source, Resource);
+				Target->LoadSource(Source, Resource);
 
 				if (!Compiler || !Target->Compiler)
 					return Target;
@@ -3907,37 +3888,33 @@ namespace Tomahawk
 				if (!Function)
 					return (int)Script::VMResult::INVALID_ARG;
 
-				Safe.lock();
-				Core::Async<int> Result = Compiler->GetContext()->TryExecute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				Protect();
+				return Compiler->GetContext()->TryExecute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
 				{
-					this->Protect();
 					if (OnArgs)
 						OnArgs(Context);
-				});
-				Safe.unlock();
-
-				return Result.Then<int>([this](int&& Result)
+				}).Then<int>([this](int&& Result)
 				{
-					this->Unprotect();
+					Unprotect();
 					return Result;
 				});;
 			}
 			Core::Async<int> Scriptable::CallEntry(const std::string& Name)
 			{
-				return Call(GetFunctionByName(Name, Invoke == InvokeType_Typeless ? 0 : 1).GetFunction(), [this](Script::VMContext* Context)
+				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Script::VMContext* Context)
 				{
-					if (Invoke == InvokeType_Typeless)
+					if (Invoke == InvokeType::Typeless)
 						return;
 
 					Component* Current = this;
 					Context->SetArgObject(0, Current);
 				});
 			}
-			int Scriptable::SetSource()
+			int Scriptable::LoadSource()
 			{
-				return SetSource(Source, Resource);
+				return LoadSource(Source, Resource);
 			}
-			int Scriptable::SetSource(SourceType Type, const std::string& Data)
+			int Scriptable::LoadSource(SourceType Type, const std::string& Data)
 			{
 				SceneGraph* Scene = Parent->GetScene();
 				if (Compiler != nullptr)
@@ -3962,7 +3939,6 @@ namespace Tomahawk
 					});
 				}
 
-				Safe.lock();
 				Source = Type;
 				Resource = Data;
 
@@ -3977,41 +3953,29 @@ namespace Tomahawk
 					Entry.Update = nullptr;
 					Entry.Message = nullptr;
 					Compiler->Clear();
-					Safe.unlock();
-
 					return (int)Script::VMResult::SUCCESS;
 				}
 
-				int R = Compiler->Prepare("base", Source == SourceType_Resource ? Resource : "anonymous", true, true);
+				int R = Compiler->Prepare("base", Source == SourceType::Resource ? Resource : "anonymous", true, true);
 				if (R < 0)
-				{
-					Safe.unlock();
 					return R;
-				}
 
-				R = (Source == SourceType_Resource ? Compiler->LoadFile(Resource) : Compiler->LoadCode("anonymous", Resource));
+				R = (Source == SourceType::Resource ? Compiler->LoadFile(Resource) : Compiler->LoadCode("anonymous", Resource));
 				if (R < 0)
-				{
-					Safe.unlock();
 					return R;
-				}
 
 				R = Compiler->Compile(true);
 				if (R < 0)
-				{
-					Safe.unlock();
 					return R;
-				}
 
-				Safe.unlock();
-				Entry.Animate = GetFunctionByName("Animate", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
-				Entry.Serialize = GetFunctionByName("Serialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
-				Entry.Deserialize = GetFunctionByName("Deserialize", Invoke == InvokeType_Typeless ? 0 : 3).GetFunction();
-				Entry.Awake = GetFunctionByName("Awake", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-				Entry.Asleep = GetFunctionByName("Asleep", Invoke == InvokeType_Typeless ? 0 : 1).GetFunction();
-				Entry.Synchronize = GetFunctionByName("Synchronize", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-				Entry.Update = GetFunctionByName("Update", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
-				Entry.Message = GetFunctionByName("Message", Invoke == InvokeType_Typeless ? 0 : 2).GetFunction();
+				Entry.Animate = GetFunctionByName("Animate", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+				Entry.Serialize = GetFunctionByName("Serialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+				Entry.Deserialize = GetFunctionByName("Deserialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+				Entry.Awake = GetFunctionByName("Awake", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				Entry.Asleep = GetFunctionByName("Asleep", Invoke == InvokeType::Typeless ? 0 : 1).GetFunction();
+				Entry.Synchronize = GetFunctionByName("Synchronize", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				Entry.Update = GetFunctionByName("Update", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				Entry.Message = GetFunctionByName("Message", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
 
 				return R;
 			}
@@ -4019,9 +3983,9 @@ namespace Tomahawk
 			{
 				Invoke = Type;
 			}
-			void Scriptable::UnsetSource()
+			void Scriptable::UnloadSource()
 			{
-				SetSource(Source, "");
+				LoadSource(Source, "");
 			}
 			void Scriptable::Protect()
 			{
@@ -4047,15 +4011,10 @@ namespace Tomahawk
 				if (VM->GetState() == Script::VMRuntime::ACTIVE)
 					return nullptr;
 
-				Safe.lock();
 				auto Result = Compiler->GetModule().GetFunctionByName(Name.c_str());
 				if (Result.IsValid() && Result.GetArgsCount() != Args)
-				{
-					Safe.unlock();
 					return nullptr;
-				}
 
-				Safe.unlock();
 				return Result;
 			}
 			Script::VMFunction Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
@@ -4068,15 +4027,10 @@ namespace Tomahawk
 				if (VM->GetState() == Script::VMRuntime::ACTIVE)
 					return nullptr;
 
-				Safe.lock();
 				auto Result = Compiler->GetModule().GetFunctionByIndex(Index);
 				if (Result.IsValid() && Result.GetArgsCount() != Args)
-				{
-					Safe.unlock();
 					return nullptr;
-				}
 
-				Safe.unlock();
 				return Result;
 			}
 			bool Scriptable::GetPropertyByName(const char* Name, Script::VMProperty* Result)
@@ -4089,28 +4043,17 @@ namespace Tomahawk
 				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return false;
 
-				Safe.lock();
 				Script::VMModule fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
-				{
-					Safe.unlock();
 					return false;
-				}
 
 				int Index = fModule.GetPropertyIndexByName(Name);
 				if (Index < 0)
-				{
-					Safe.unlock();
 					return false;
-				}
 
 				if (fModule.GetProperty(Index, Result) < 0)
-				{
-					Safe.unlock();
 					return false;
-				}
 
-				Safe.unlock();
 				return true;
 			}
 			bool Scriptable::GetPropertyByIndex(int Index, Script::VMProperty* Result)
@@ -4123,21 +4066,13 @@ namespace Tomahawk
 				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return false;
 
-				Safe.lock();
 				Script::VMModule fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
-				{
-					Safe.unlock();
 					return false;
-				}
 
 				if (fModule.GetProperty(Index, Result) < 0)
-				{
-					Safe.unlock();
 					return false;
-				}
 
-				Safe.unlock();
 				return true;
 			}
 			Scriptable::SourceType Scriptable::GetSourceType()
@@ -4157,18 +4092,11 @@ namespace Tomahawk
 				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return (int)Script::VMResult::MODULE_IS_IN_USE;
 
-				Safe.lock();
 				Script::VMModule fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
-				{
-					Safe.unlock();
 					return 0;
-				}
 
-				int Result = (int)fModule.GetPropertiesCount();
-				Safe.unlock();
-
-				return Result;
+				return (int)fModule.GetPropertiesCount();
 			}
 			int Scriptable::GetFunctionsCount()
 			{
@@ -4179,18 +4107,11 @@ namespace Tomahawk
 				if (VM->GetState() == Tomahawk::Script::VMRuntime::ACTIVE)
 					return (int)Script::VMResult::MODULE_IS_IN_USE;
 
-				Safe.lock();
 				Script::VMModule fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
-				{
-					Safe.unlock();
 					return 0;
-				}
 
-				int Result = (int)fModule.GetFunctionCount();
-				Safe.unlock();
-
-				return Result;
+				return (int)fModule.GetFunctionCount();
 			}
 			const std::string& Scriptable::GetSource()
 			{

@@ -905,6 +905,160 @@ namespace Tomahawk
 			void ClearCache();
 		};
 
+		class TH_OUT_TS ContentManager : public Core::Object
+		{
+		private:
+			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
+			std::unordered_map<std::string, AssetArchive*> Dockers;
+			std::unordered_map<int64_t, Processor*> Processors;
+			std::unordered_map<Core::Stream*, int64_t> Streams;
+			Graphics::GraphicsDevice* Device;
+			std::string Environment, Base;
+			std::mutex Mutex;
+			uint64_t Queue;
+
+		public:
+			ContentManager(Graphics::GraphicsDevice* NewDevice);
+			virtual ~ContentManager() override;
+			void InvalidateDockers();
+			void InvalidateCache();
+			void InvalidatePath(const std::string& Path);
+			void SetEnvironment(const std::string& Path);
+			void SetDevice(Graphics::GraphicsDevice* NewDevice);
+			bool Import(const std::string& Path);
+			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
+			bool Cache(Processor* Root, const std::string& Path, void* Resource);
+			bool IsBusy();
+			Graphics::GraphicsDevice* GetDevice() const;
+			const std::string& GetEnvironment() const;
+
+		public:
+			template <typename T>
+			Core::Unique<T> Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			{
+				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
+			}
+			template <typename T>
+			Core::Async<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			{
+				Enqueue();
+				return Core::Cotask<T*>([this, Path, Keys]()
+				{
+					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
+				Dequeue();
+
+				return Result;
+				});
+			}
+			template <typename T>
+			bool Save(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			{
+				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
+			}
+			template <typename T>
+			Core::Async<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			{
+				Enqueue();
+				return Core::Cotask<bool>([this, Path, Object, Keys]()
+				{
+					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
+				Dequeue();
+
+				return Result;
+				});
+			}
+			template <typename T>
+			bool RemoveProcessor()
+			{
+				Mutex.lock();
+				auto It = Processors.find(typeid(T).hash_code());
+				if (It == Processors.end())
+				{
+					Mutex.unlock();
+					return false;
+				}
+
+				TH_RELEASE(It->second);
+				Processors.erase(It);
+				Mutex.unlock();
+				return true;
+			}
+			template <typename V, typename T>
+			V* AddProcessor()
+			{
+				Mutex.lock();
+				V* Instance = new V(this);
+				auto It = Processors.find(typeid(T).hash_code());
+				if (It != Processors.end())
+				{
+					TH_RELEASE(It->second);
+					It->second = Instance;
+				}
+				else
+					Processors[typeid(T).hash_code()] = Instance;
+
+				Mutex.unlock();
+				return Instance;
+			}
+			template <typename T>
+			Processor* GetProcessor()
+			{
+				Mutex.lock();
+				auto It = Processors.find(typeid(T).hash_code());
+				if (It != Processors.end())
+				{
+					Mutex.unlock();
+					return It->second;
+				}
+
+				Mutex.unlock();
+				return nullptr;
+			}
+			template <typename T>
+			AssetCache* Find(const std::string& Path)
+			{
+				return Find(GetProcessor<T>(), Path);
+			}
+			template <typename T>
+			AssetCache* Find(void* Resource)
+			{
+				return Find(GetProcessor<T>(), Resource);
+			}
+
+		private:
+			void Enqueue();
+			void Dequeue();
+			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
+			void* LoadStreaming(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
+			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Keys);
+			AssetCache* Find(Processor* Target, const std::string& Path);
+			AssetCache* Find(Processor* Target, void* Resource);
+			bool HasAnyPointToDispatch();
+		};
+
+		class TH_OUT_TS AppData : public Core::Object
+		{
+		private:
+			ContentManager* Content;
+			Core::Schema* Data;
+			std::string Path;
+			std::mutex Safe;
+
+		public:
+			AppData(ContentManager* Manager, const std::string& Path);
+			~AppData();
+			void Migrate(const std::string& Path);
+			void SetKey(const std::string& Name, Core::Unique<Core::Schema> Value);
+			void SetText(const std::string& Name, const std::string& Value);
+			Core::Unique<Core::Schema> GetKey(const std::string& Name);
+			std::string GetText(const std::string& Name);
+			bool Has(const std::string& Name);
+
+		private:
+			bool ReadAppData(const std::string& Path);
+			bool WriteAppData(const std::string& Path);
+		};
+
 		class TH_OUT SceneGraph : public Core::Object
 		{
 			friend RenderSystem;
@@ -1201,160 +1355,6 @@ namespace Tomahawk
 
 				return (T*)GetComponent(Array->Count() - 1, T::GetTypeId());
 			}
-		};
-
-		class TH_OUT_TS ContentManager : public Core::Object
-		{
-		private:
-			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
-			std::unordered_map<std::string, AssetArchive*> Dockers;
-			std::unordered_map<int64_t, Processor*> Processors;
-			std::unordered_map<Core::Stream*, int64_t> Streams;
-			Graphics::GraphicsDevice* Device;
-			std::string Environment, Base;
-			std::mutex Mutex;
-			uint64_t Queue;
-
-		public:
-			ContentManager(Graphics::GraphicsDevice* NewDevice);
-			virtual ~ContentManager() override;
-			void InvalidateDockers();
-			void InvalidateCache();
-			void InvalidatePath(const std::string& Path);
-			void SetEnvironment(const std::string& Path);
-			void SetDevice(Graphics::GraphicsDevice* NewDevice);
-			bool Import(const std::string& Path);
-			bool Export(const std::string& Path, const std::string& Directory, const std::string& Name = "");
-			bool Cache(Processor* Root, const std::string& Path, void* Resource);
-			bool IsBusy();
-			Graphics::GraphicsDevice* GetDevice() const;
-			const std::string& GetEnvironment() const;
-
-		public:
-			template <typename T>
-			Core::Unique<T> Load(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
-			{
-				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
-			}
-			template <typename T>
-			Core::Async<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
-			{
-				Enqueue();
-				return Core::Cotask<T*>([this, Path, Keys]()
-				{
-					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
-					Dequeue();
-
-					return Result;
-				});
-			}
-			template <typename T>
-			bool Save(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
-			{
-				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
-			}
-			template <typename T>
-			Core::Async<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
-			{
-				Enqueue();
-				return Core::Cotask<bool>([this, Path, Object, Keys]()
-				{
-					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
-				    Dequeue();
-
-					return Result;
-				});
-			}
-			template <typename T>
-			bool RemoveProcessor()
-			{
-				Mutex.lock();
-				auto It = Processors.find(typeid(T).hash_code());
-				if (It == Processors.end())
-				{
-					Mutex.unlock();
-					return false;
-				}
-
-				TH_RELEASE(It->second);
-				Processors.erase(It);
-				Mutex.unlock();
-				return true;
-			}
-			template <typename V, typename T>
-			V* AddProcessor()
-			{
-				Mutex.lock();
-				V* Instance = new V(this);
-				auto It = Processors.find(typeid(T).hash_code());
-				if (It != Processors.end())
-				{
-					TH_RELEASE(It->second);
-					It->second = Instance;
-				}
-				else
-					Processors[typeid(T).hash_code()] = Instance;
-
-				Mutex.unlock();
-				return Instance;
-			}
-			template <typename T>
-			Processor* GetProcessor()
-			{
-				Mutex.lock();
-				auto It = Processors.find(typeid(T).hash_code());
-				if (It != Processors.end())
-				{
-					Mutex.unlock();
-					return It->second;
-				}
-
-				Mutex.unlock();
-				return nullptr;
-			}
-			template <typename T>
-			AssetCache* Find(const std::string& Path)
-			{
-				return Find(GetProcessor<T>(), Path);
-			}
-			template <typename T>
-			AssetCache* Find(void* Resource)
-			{
-				return Find(GetProcessor<T>(), Resource);
-			}
-
-		private:
-			void Enqueue();
-			void Dequeue();
-			void* LoadForward(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
-			void* LoadStreaming(const std::string& Path, Processor* Processor, const Core::VariantArgs& Keys);
-			bool SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Keys);
-			AssetCache* Find(Processor* Target, const std::string& Path);
-			AssetCache* Find(Processor* Target, void* Resource);
-			bool HasAnyPointToDispatch();
-		};
-
-		class TH_OUT_TS AppData : public Core::Object
-		{
-		private:
-			ContentManager* Content;
-			Core::Schema* Data;
-			std::string Path;
-			std::mutex Safe;
-
-		public:
-			AppData(ContentManager* Manager, const std::string& Path);
-			~AppData();
-			void Migrate(const std::string& Path);
-			void SetKey(const std::string& Name, Core::Unique<Core::Schema> Value);
-			void SetText(const std::string& Name, const std::string& Value);
-			Core::Unique<Core::Schema> GetKey(const std::string& Name);
-			std::string GetText(const std::string& Name);
-			bool Has(const std::string& Name);
-
-		private:
-			bool ReadAppData(const std::string& Path);
-			bool WriteAppData(const std::string& Path);
 		};
 
 		class TH_OUT Application : public Core::Object

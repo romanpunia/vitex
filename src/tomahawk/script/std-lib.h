@@ -820,8 +820,8 @@ namespace Tomahawk
 			template <typename T, T>
 			struct IfyStatic;
 
-			template <typename T, typename R, typename ...Args, Core::Async<R>(T::* F)(Args...)>
-			struct Ify<Core::Async<R>(T::*)(Args...), F>
+			template <typename T, typename R, typename ...Args, Core::Promise<R>(T::* F)(Args...)>
+			struct Ify<Core::Promise<R>(T::*)(Args...), F>
 			{
 				template <VMTypeId TypeId>
 				static STDPromise* Id(T* Base, Args... Data)
@@ -848,8 +848,8 @@ namespace Tomahawk
 				}
 			};
 
-			template <typename R, typename ...Args, Core::Async<R>(*F)(Args...)>
-			struct IfyStatic<Core::Async<R>(*)(Args...), F>
+			template <typename R, typename ...Args, Core::Promise<R>(*F)(Args...)>
+			struct IfyStatic<Core::Promise<R>(*)(Args...), F>
 			{
 				template <VMTypeId TypeId>
 				static STDPromise* Id(Args... Data)

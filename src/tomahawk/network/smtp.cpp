@@ -109,12 +109,12 @@ namespace Tomahawk
 					});
 				}) || true;
 			}
-			Core::Async<int> Client::Send(RequestFrame&& Root)
+			Core::Promise<int> Client::Send(RequestFrame&& Root)
 			{
 				if (!Stream.IsValid())
 					return -1;
 
-				Core::Async<int> Result;
+				Core::Promise<int> Result;
 				if (!Staging)
 				{
 					if (&Request != &Root)

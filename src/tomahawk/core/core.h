@@ -321,7 +321,7 @@ namespace Tomahawk
 
 		enum class Difficulty
 		{
-			Chain,
+			Coroutine,
 			Light,
 			Heavy,
 			Clock,
@@ -1723,11 +1723,11 @@ namespace Tomahawk
 			{
 				Spawn,
 				EnqueueTimer,
-				EnqueueChain,
+				EnqueueCoroutine,
 				EnqueueTask,
-				EnqueueAsync,
+				ConsumeCoroutine,
 				ProcessTimer,
-				ProcessAsync,
+				ProcessCoroutine,
 				ProcessTask,
 				Awake,
 				Sleep,
@@ -1752,7 +1752,7 @@ namespace Tomahawk
 				uint64_t Memory = TH_STACKSIZE;
 				uint64_t Coroutines = 16;
 				ActivityCallback Ping = nullptr;
-				bool Async = true;
+				bool Parallel = true;
 
 				void SetThreads(uint64_t Cores);
 			};
@@ -1787,8 +1787,8 @@ namespace Tomahawk
 			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Heavy);
 			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
-			bool SetChain(const TaskCallback& Callback);
-			bool SetChain(TaskCallback&& Callback);
+			bool SetCoroutine(const TaskCallback& Callback);
+			bool SetCoroutine(TaskCallback&& Callback);
 			bool SetDebugCallback(const ThreadDebugCallback& Callback);
 			bool ClearTimeout(TaskId WorkId);
 			bool Start(const Desc& NewPolicy);
@@ -1817,8 +1817,9 @@ namespace Tomahawk
 		public:
 			static std::chrono::microseconds GetClock();
 			static Schedule* Get();
-			static bool IsPresentAndActive();
+			static void ExecutePromise(TaskCallback&& Callback);
 			static bool Reset();
+			static bool IsPresentAndActive();
 
 		private:
 			static Schedule* Singleton;
@@ -2350,8 +2351,8 @@ namespace Tomahawk
 			}
 		};
 
-		template <typename T>
-		class TH_OUT_TS Async
+		template <typename T, void(*Dispatch)(TaskCallback&&) = &Schedule::ExecutePromise>
+		class TH_OUT_TS Promise
 		{
 			static_assert(!std::is_same<T, void>::value, "async cannot be used with void type");
 			static_assert(std::is_default_constructible<T>::value, "async cannot be used with non default constructible type");
@@ -2366,7 +2367,7 @@ namespace Tomahawk
 			};
 
 			template <typename F>
-			struct Future<Async<F>>
+			struct Future<Promise<F>>
 			{
 				typedef F type;
 			};
@@ -2375,54 +2376,54 @@ namespace Tomahawk
 			context_type* Next;
 
 		private:
-			Async(context_type* Context, bool) noexcept : Next(Context)
+			Promise(context_type* Context, bool) noexcept : Next(Context)
 			{
 				if (Next != nullptr)
 					Next->Count++;
 			}
 
 		public:
-			Async() noexcept : Next(TH_NEW(context_type))
+			Promise() noexcept : Next(TH_NEW(context_type))
 			{
 			}
-			Async(const T& Value) noexcept : Next(TH_NEW(context_type, Value))
+			Promise(const T& Value) noexcept : Next(TH_NEW(context_type, Value))
 			{
 			}
-			Async(T&& Value) noexcept : Next(TH_NEW(context_type, std::move(Value)))
+			Promise(T&& Value) noexcept : Next(TH_NEW(context_type, std::move(Value)))
 			{
 			}
-			Async(const Async& Other) noexcept : Next(Other.Next)
+			Promise(const Promise& Other) noexcept : Next(Other.Next)
 			{
 				if (Next != nullptr)
 					Next->Count++;
 			}
-			Async(Async&& Other) noexcept : Next(Other.Next)
+			Promise(Promise&& Other) noexcept : Next(Other.Next)
 			{
 				Other.Next = nullptr;
 			}
-			~Async()
+			~Promise()
 			{
 				if (Next != nullptr)
 					Next->Free();
 			}
-			Async& operator= (const T& Other)
+			Promise& operator= (const T& Other)
 			{
 				Set(Other);
 				return *this;
 			}
-			Async& operator= (T&& Other) noexcept
+			Promise& operator= (T&& Other) noexcept
 			{
 				Set(std::move(Other));
 				return *this;
 			}
-			Async& operator= (const Async& Other)
+			Promise& operator= (const Promise& Other)
 			{
 				if (&Other != this)
 					Set(Other);
 
 				return *this;
 			}
-			Async& operator= (Async&& Other) noexcept
+			Promise& operator= (Promise&& Other) noexcept
 			{
 				if (&Other == this)
 					return *this;
@@ -2444,7 +2445,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
 				Next->React(std::move(Other));
 			}
-			void Set(const Async& Other)
+			void Set(const Promise& Other)
 			{
 				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
 				context_type* Subresult = Next->Copy();
@@ -2458,7 +2459,7 @@ namespace Tomahawk
 					Subresult->Free();
 				});
 			}
-			void Set(Async&& Other)
+			void Set(Promise&& Other)
 			{
 				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
 				if (!Other.IsPending())
@@ -2482,13 +2483,13 @@ namespace Tomahawk
 					return Callback(std::move(Next->Result));
 
 				context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Callback = std::move(Callback)]()
+				Next->Put([Subresult, Callback = std::move(Callback)]() mutable
 				{
-					Schedule::Get()->SetTask([Subresult, Callback = std::move(Callback)]()
+					Dispatch([Subresult, Callback = std::move(Callback)]() mutable
 					{
 						Callback(std::move(Subresult->Result));
 						Subresult->Free();
-					}, Difficulty::Light);
+					});
 				});
 			}
 			void Wait()
@@ -2539,50 +2540,50 @@ namespace Tomahawk
 
 		public:
 			template <typename R>
-			Async<R> Then(std::function<void(Async<R>&, T&&)>&& Callback) const noexcept
+			Promise<R> Then(std::function<void(Promise<R>&, T&&)>&& Callback) const noexcept
 			{
-				TH_ASSERT(Next != nullptr && Callback, Async<R>::Move(), "async should be pending");
+				TH_ASSERT(Next != nullptr && Callback, Promise<R>::Move(), "async should be pending");
 
-				Async<R> Result; context_type* Subresult = Next->Copy();
+				Promise<R> Result; context_type* Subresult = Next->Copy();
 				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
-					Schedule::Get()->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
+					Dispatch([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
 					{
 						Callback(Result, std::move(Subresult->Result));
 						Subresult->Free();
-					}, Difficulty::Light);
+					});
 				});
 
 				return Result;
 			}
 			template <typename R>
-			Async<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const noexcept
+			Promise<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const noexcept
 			{
 				using F = typename Future<R>::type;
-				TH_ASSERT(Next != nullptr && Callback, Async<F>::Move(), "async should be pending");
+				TH_ASSERT(Next != nullptr && Callback, Promise<F>::Move(), "async should be pending");
 
-				Async<F> Result; context_type* Subresult = Next->Copy();
+				Promise<F> Result; context_type* Subresult = Next->Copy();
 				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
 				{
-					Schedule::Get()->SetTask([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
+					Dispatch([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
 					{
 						Result.Set(std::move(Callback(std::move(Subresult->Result))));
 						Subresult->Free();
-					}, Difficulty::Light);
+					});
 				});
 
 				return Result;
 			}
 
 		public:
-			static Async Move(context_type* Base = nullptr) noexcept
+			static Promise Move(context_type* Base = nullptr) noexcept
 			{
-				return Async(Base, true);
+				return Promise(Base, true);
 			}
 		};
 
 		template <typename T>
-		TH_OUT_TS inline T&& Coawait(Async<T>&& Future, const char* DebugName = nullptr) noexcept
+		TH_OUT_TS inline T&& Coawait(Promise<T>&& Future, const char* DebugName = nullptr) noexcept
 		{
 			Costate* State; Coroutine* Base;
 			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
@@ -2611,11 +2612,11 @@ namespace Tomahawk
 			return Future.GetIfAny();
 		}
 		template <typename T>
-		TH_OUT_TS inline Async<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		TH_OUT_TS inline Promise<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
-			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
 
-			Async<T> Result;
+			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback]() mutable
 			{
 				Result = std::move(Callback());
@@ -2624,11 +2625,11 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		TH_OUT_TS inline Async<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
+		TH_OUT_TS inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
-			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
 
-			Async<T> Result;
+			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
 			{
 				Result = std::move(Callback());
@@ -2637,14 +2638,14 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		TH_OUT_TS inline Async<T> Coasync(const std::function<T()>& Callback, bool AlwaysEnqueue = false) noexcept
+		TH_OUT_TS inline Promise<T> Coasync(const std::function<T()>& Callback, bool AlwaysEnqueue = false) noexcept
 		{
-			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
-				return Async<T>(Callback());
+				return Promise<T>(Callback());
 
-			Async<T> Result;
-			Schedule::Get()->SetChain([Result, Callback]() mutable
+			Promise<T> Result;
+			Schedule::Get()->SetCoroutine([Result, Callback]() mutable
 			{
 				Result = std::move(Callback());
 			});
@@ -2652,23 +2653,23 @@ namespace Tomahawk
 			return Result;
 		}
 		template <typename T>
-		TH_OUT_TS inline Async<T> Coasync(std::function<T()>&& Callback, bool AlwaysEnqueue = false) noexcept
+		TH_OUT_TS inline Promise<T> Coasync(std::function<T()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
-			TH_ASSERT(Callback, Async<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
-				return Async<T>(Callback());
+				return Promise<T>(Callback());
 
-			Async<T> Result;
-			Schedule::Get()->SetChain([Result, Callback = std::move(Callback)]() mutable
+			Promise<T> Result;
+			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
 				Result = std::move(Callback());
 			});
 
 			return Result;
 		}
-		TH_OUT_TS inline Async<bool> Cosleep(uint64_t Ms) noexcept
+		TH_OUT_TS inline Promise<bool> Cosleep(uint64_t Ms) noexcept
 		{
-			Async<bool> Result;
+			Promise<bool> Result;
 			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
 			{
 				Result = true;
@@ -2685,7 +2686,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			return Schedule::Get()->SetChain(Callback);
+			return Schedule::Get()->SetCoroutine(Callback);
 		}
 		TH_OUT_TS inline bool Coasync(TaskCallback&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
@@ -2696,7 +2697,7 @@ namespace Tomahawk
 				return true;
 			}
 
-			return Schedule::Get()->SetChain(std::move(Callback));
+			return Schedule::Get()->SetCoroutine(std::move(Callback));
 		}
 		TH_OUT_TS inline bool Cosuspend() noexcept
 		{

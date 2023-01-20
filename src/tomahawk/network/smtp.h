@@ -67,7 +67,7 @@ namespace Tomahawk
 			public:
 				Client(const std::string& Domain, int64_t ReadTimeout);
 				virtual ~Client() override;
-				Core::Async<int> Send(RequestFrame&& Root);
+				Core::Promise<int> Send(RequestFrame&& Root);
 				RequestFrame* GetRequest();
 
 			private:

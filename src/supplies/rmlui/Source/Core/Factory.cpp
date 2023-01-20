@@ -186,9 +186,8 @@ struct DefaultInstancers {
 	DataViewInstancerDefault<DataViewFor> structural_data_view_for;
 
 	// Data binding controllers
-	DataControllerInstancerDefault<DataControllerValue> data_controller_value;
 	DataControllerInstancerDefault<DataControllerEvent> data_controller_event;
-	DataControllerInstancerDefault<DataControllerChecked> data_controller_checked;
+	DataControllerInstancerDefault<DataControllerValue> data_controller_value;
 };
 
 static UniquePtr<DefaultInstancers> default_instancers;
@@ -279,9 +278,9 @@ bool Factory::Initialise()
 	RegisterDataViewInstancer(&default_instancers->structural_data_view_for, "for",     true );
 
 	// Data binding controllers
-	RegisterDataControllerInstancer(&default_instancers->data_controller_value, "value");
+	RegisterDataControllerInstancer(&default_instancers->data_controller_value, "checked");
 	RegisterDataControllerInstancer(&default_instancers->data_controller_event, "event");
-	RegisterDataControllerInstancer(&default_instancers->data_controller_checked, "checked");
+	RegisterDataControllerInstancer(&default_instancers->data_controller_value, "value");
 
 	// XML node handlers
 	XMLParser::RegisterNodeHandler("", MakeShared<XMLNodeHandlerDefault>());
@@ -387,7 +386,7 @@ bool Factory::InstanceElementText(Element* parent, const String& in_text)
 	const bool only_white_space = std::all_of(text.begin(), text.end(), &StringUtilities::IsWhitespace);
 	if (only_white_space)
 		return true;
-
+	
 	// See if we need to parse it as RML, and whether the text contains data expressions (curly brackets).
 	bool parse_as_rml = false;
 	bool has_data_expression = false;
@@ -454,6 +453,9 @@ bool Factory::InstanceElementText(Element* parent, const String& in_text)
 			return false;
 		}
 
+		// Unescape any escaped entities or unicode symbols
+		text = StringUtilities::DecodeRml(text);
+	
 		text_element->SetText(text);
 
 		// Add to active node.

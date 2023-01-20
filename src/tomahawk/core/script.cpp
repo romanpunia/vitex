@@ -2348,7 +2348,7 @@ namespace Tomahawk
 
 			return R;
 		}
-		Core::Async<int> VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2369,7 +2369,7 @@ namespace Tomahawk
 
 			return ExecuteEntry(EntryName, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(!Buffer.empty(), asINVALID_ARG, "buffer should not be empty");
@@ -2390,7 +2390,7 @@ namespace Tomahawk
 
 			return ExecuteEntry(EntryName, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
@@ -2407,11 +2407,11 @@ namespace Tomahawk
 
 			return Context->TryExecute(Function, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
 		{
 			return ExecuteScoped(Code.c_str(), (uint64_t)Code.size(), Args, std::move(OnArgs));
 		}
-		Core::Async<int> VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
@@ -2437,7 +2437,7 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			Core::Async<int> Result = Context->TryExecute(Function, std::move(OnArgs));
+			Core::Promise<int> Result = Context->TryExecute(Function, std::move(OnArgs));
 			Function->Release();
 
 			return Result;
@@ -2492,14 +2492,14 @@ namespace Tomahawk
 					Context->Release();
 			}
 		}
-		Core::Async<int> VMContext::TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMContext::TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 			TH_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
 			if (Core::Costate::IsCoroutine())
 			{
-				Core::Async<int> Result;
+				Core::Promise<int> Result;
 				Core::Schedule::Get()->SetTask([this, Result, Function, OnArgs = std::move(OnArgs)]() mutable
 				{
 					auto Subresult = TryExecute(Function, std::move(OnArgs));
@@ -2515,7 +2515,7 @@ namespace Tomahawk
 				if (Result < 0)
 				{
 					Exchange.unlock();
-					return Core::Async<int>(Result);
+					return Core::Promise<int>(Result);
 				}
 				else
 					Tasks.emplace();
@@ -2536,7 +2536,7 @@ namespace Tomahawk
 				Next.Callback = Function;
 				Next.Callback.AddRef();
 
-				Core::Async<int> Future = Next.Future;
+				Core::Promise<int> Future = Next.Future;
 				Tasks.emplace(std::move(Next));
 				Exchange.unlock();
 

@@ -1632,6 +1632,10 @@ namespace Tomahawk
 			{
 				glDrawArrays(Register.DrawTopology, (GLint)Location, (GLint)Count);
 			}
+			void OGLDevice::DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation)
+			{
+				glDrawArraysInstanced(Register.DrawTopology, (GLint)VertexLocation, (GLint)VertexCountPerInstance, (GLint)InstanceCount);
+			}
 			void OGLDevice::Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ)
 			{
 				glDispatchCompute(GroupX, GroupY, GroupZ);

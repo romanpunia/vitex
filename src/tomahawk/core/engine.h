@@ -13,6 +13,11 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
+		namespace GUI
+		{
+			class Context;
+		}
+
 		typedef std::pair<Graphics::Texture3D*, class Component*> VoxelMapping;
 		typedef Graphics::DepthTarget2D LinearDepthMap;
 		typedef Graphics::DepthTargetCube CubicDepthMap;
@@ -939,15 +944,15 @@ namespace Tomahawk
 				return (T*)LoadForward(Path, GetProcessor<T>(), Keys);
 			}
 			template <typename T>
-			Core::Async<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
+			Core::Promise<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
 				return Core::Cotask<T*>([this, Path, Keys]()
 				{
 					T* Result = (T*)LoadForward(Path, GetProcessor<T>(), Keys);
-				Dequeue();
+					Dequeue();
 
-				return Result;
+					return Result;
 				});
 			}
 			template <typename T>
@@ -956,15 +961,15 @@ namespace Tomahawk
 				return SaveForward(Path, GetProcessor<T>(), Object, Keys);
 			}
 			template <typename T>
-			Core::Async<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
+			Core::Promise<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
 				Enqueue();
 				return Core::Cotask<bool>([this, Path, Object, Keys]()
 				{
 					bool Result = SaveForward(Path, GetProcessor<T>(), Object, Keys);
-				Dequeue();
+					Dequeue();
 
-				return Result;
+					return Result;
 				});
 			}
 			template <typename T>
@@ -1077,7 +1082,7 @@ namespace Tomahawk
 					ContentManager* Content = nullptr;
 					PrimitiveCache* Primitives = nullptr;
 					ShaderCache* Shaders = nullptr;
-					bool Async = true;
+					bool Parallel = true;
 				} Shared;
 
 				Compute::Simulator::Desc Simulator;
@@ -1098,7 +1103,7 @@ namespace Tomahawk
 				double GrowRate = 0.25f;
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
-				bool Mutations = true;
+				bool Mutations = false;
 
 				static Desc Get(Application* Base);
 			};
@@ -1383,7 +1388,7 @@ namespace Tomahawk
 					(size_t)ApplicationSet::ContentSet |
 					(size_t)ApplicationSet::NetworkSet;
 				bool Daemon = false;
-				bool Async = true;
+				bool Parallel = true;
 				bool Cursor = true;
 			};
 
@@ -1424,7 +1429,7 @@ namespace Tomahawk
 			virtual void Dispatch(Core::Timer* Time);
 			virtual void Publish(Core::Timer* Time);
 			virtual void Initialize();
-			virtual void* GetGUI() const;
+			virtual GUI::Context* GetGUI() const;
 			ApplicationState GetState() const;
 			int Start();
 			void Restart();

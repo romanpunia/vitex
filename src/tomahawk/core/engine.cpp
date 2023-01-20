@@ -1661,10 +1661,10 @@ namespace Tomahawk
 			{
 				std::promise<void> Promise;
 				std::future<void> Future = Promise.get_future();
-				bool IsQueued = Queue->SetTask([Async = std::move_to_dcc(Promise), Callback]() mutable
+				bool IsQueued = Queue->SetTask([Context = std::move_to_dcc(Promise), Callback]() mutable
 				{
 					Callback();
-				    Async.value.set_value();
+				    Context.value.set_value();
 				});
 
 				if (IsQueued)
@@ -3573,7 +3573,7 @@ namespace Tomahawk
 			SceneGraph::Desc I;
 			if (Base != nullptr)
 			{
-				I.Shared.Async = Base->Control.Async;
+				I.Shared.Parallel = Base->Control.Parallel;
 				I.Shared.Shaders = Base->Cache.Shaders;
 				I.Shared.Primitives = Base->Cache.Primitives;
 				I.Shared.Content = Base->Content;
@@ -4613,6 +4613,9 @@ namespace Tomahawk
 				Item.second = nullptr;
 			}
 
+			if (Entities.Empty())
+				return;
+
 			Core::VariantArgs Args;
 			PushEvent("voxel-flush", std::move(Args), true);
 		}
@@ -4659,6 +4662,9 @@ namespace Tomahawk
 			Display.Lines.resize(Conf.LinesMax);
 			for (auto& Item : Display.Lines)
 				Item = nullptr;
+
+			if (Entities.Empty())
+				return;
 
 			Core::VariantArgs Args;
 			PushEvent("depth-flush", std::move(Args), true);
@@ -5270,13 +5276,10 @@ namespace Tomahawk
 				return Object;
 
 			std::string File = Path;
-			bool IsRemote = Core::OS::Path::IsRemote(Path.c_str());
-			TH_ASSERT(!IsRemote, nullptr, "file \"%s\" cannot be loaded immediately, use LoadAsync<T>", Path.c_str());
-
-			if (!IsRemote)
+			if (!Core::OS::Path::IsRemote(File.c_str()))
 			{
 				Mutex.lock();
-				File = Core::OS::Path::ResolveResource(Path, Environment);
+				File = Core::OS::Path::ResolveResource(File, Environment);
 				Mutex.unlock();
 
 				if (File.empty())
@@ -5816,7 +5819,7 @@ namespace Tomahawk
 					Activity->Callbacks.KeyState = [this](Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 					{
 #ifdef TH_WITH_RMLUI
-						GUI::Context* GUI = (GUI::Context*)GetGUI();
+						GUI::Context* GUI = GetGUI();
 						if (GUI != nullptr)
 							GUI->EmitKey(Key, Mod, Virtual, Repeat, Pressed);
 #endif
@@ -5825,7 +5828,7 @@ namespace Tomahawk
 					Activity->Callbacks.Input = [this](char* Buffer, int Length)
 					{
 #ifdef TH_WITH_RMLUI
-						GUI::Context* GUI = (GUI::Context*)GetGUI();
+						GUI::Context* GUI = GetGUI();
 						if (GUI != nullptr)
 							GUI->EmitInput(Buffer, Length);
 #endif
@@ -5834,7 +5837,7 @@ namespace Tomahawk
 					Activity->Callbacks.CursorWheelState = [this](int X, int Y, bool Normal)
 					{
 #ifdef TH_WITH_RMLUI
-						GUI::Context* GUI = (GUI::Context*)GetGUI();
+						GUI::Context* GUI = GetGUI();
 						if (GUI != nullptr)
 							GUI->EmitWheel(X, Y, Normal, Activity->GetKeyModState());
 #endif
@@ -5845,7 +5848,7 @@ namespace Tomahawk
 #ifdef TH_WITH_RMLUI
 						if (NewState == Graphics::WindowState::Resize)
 						{
-							GUI::Context* GUI = (GUI::Context*)GetGUI();
+							GUI::Context* GUI = GetGUI();
 							if (GUI != nullptr)
 								GUI->EmitResize(X, Y);
 						}
@@ -5991,7 +5994,7 @@ namespace Tomahawk
 			Core::Schedule::Desc Policy;
 			Policy.Coroutines = Control.Coroutines;
 			Policy.Memory = Control.Stack;
-			Policy.Async = Control.Async;
+			Policy.Parallel = Control.Parallel;
 			Policy.Ping = Control.Daemon ? std::bind(&Application::Status, this) : (Core::ActivityCallback)nullptr;
 			Policy.SetThreads(Control.Threads);
 
@@ -6005,7 +6008,7 @@ namespace Tomahawk
 					Activity->Maximize();
 			}
 
-			if (Activity != nullptr && Control.Async)
+			if (Activity != nullptr && Control.Parallel)
 			{
 				while (State == ApplicationState::Active)
 				{
@@ -6015,7 +6018,7 @@ namespace Tomahawk
 					Publish(Time);
 				}
 			}
-			else if (Activity != nullptr && !Control.Async)
+			else if (Activity != nullptr && !Control.Parallel)
 			{
 				while (State == ApplicationState::Active)
 				{
@@ -6026,7 +6029,7 @@ namespace Tomahawk
 					Publish(Time);
 				}
 			}
-			else if (!Activity && Control.Async)
+			else if (!Activity && Control.Parallel)
 			{
 				while (State == ApplicationState::Active)
 				{
@@ -6035,7 +6038,7 @@ namespace Tomahawk
 					Publish(Time);
 				}
 			}
-			else if (!Activity && !Control.Async)
+			else if (!Activity && !Control.Parallel)
 			{
 				while (State == ApplicationState::Active)
 				{
@@ -6046,7 +6049,7 @@ namespace Tomahawk
 				}
 			}
 
-			while (Control.Async && Content != nullptr && Content->IsBusy())
+			while (Control.Parallel && Content != nullptr && Content->IsBusy())
 				std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 			TH_RELEASE(Time);
@@ -6070,7 +6073,7 @@ namespace Tomahawk
 			State = ApplicationState::Restart;
 			Queue->Wakeup();
 		}
-		void* Application::GetGUI() const
+		GUI::Context* Application::GetGUI() const
 		{
 #ifdef TH_WITH_RMLUI
 			if (!Scene)

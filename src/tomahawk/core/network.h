@@ -478,8 +478,9 @@ namespace Tomahawk
 		public:
 			SocketClient(int64_t RequestTimeout);
 			virtual ~SocketClient() override;
-			Core::Async<int> Connect(Host* Address, bool Async);
-			Core::Async<int> Close();
+			int ConnectSync(Host* Address);
+			Core::Promise<int> Connect(Host* Address);
+			Core::Promise<int> Close();
 			Socket* GetStream();
 
 		protected:

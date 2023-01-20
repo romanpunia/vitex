@@ -6068,7 +6068,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			Core::Async<bool> Client::Consume(int64_t MaxSize)
+			Core::Promise<bool> Client::Consume(int64_t MaxSize)
 			{
 				TH_ASSERT(!WebSocket, false, "cannot read http over websocket");
 				if (Response.HasBody())
@@ -6092,7 +6092,7 @@ namespace Tomahawk
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
 				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
-					Core::Async<bool> Result;
+					Core::Promise<bool> Result;
 					Parser* Parser = new HTTP::Parser();
 					Stream.ReadAsync(MaxSize, [this, Parser, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
@@ -6136,7 +6136,7 @@ namespace Tomahawk
 				}
 				else if (!ContentLength)
 				{
-					Core::Async<bool> Result;
+					Core::Promise<bool> Result;
 					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
@@ -6177,7 +6177,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				Core::Async<bool> Result;
+				Core::Promise<bool> Result;
 				Stream.ReadAsync(ContentSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
@@ -6204,14 +6204,14 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Core::Async<bool> Client::Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Promise<bool> Client::Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize)
 			{
-				return Send(std::move(Root)).Then<Core::Async<bool>>([this, MaxSize](HTTP::ResponseFrame*&&)
+				return Send(std::move(Root)).Then<Core::Promise<bool>>([this, MaxSize](HTTP::ResponseFrame*&&)
 				{
 					return Consume(MaxSize);
 				});
 			}
-			Core::Async<bool> Client::Upgrade(HTTP::RequestFrame&& Root)
+			Core::Promise<bool> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
 				TH_ASSERT(WebSocket != nullptr, false, "websocket should be opened");
 				TH_ASSERT(Stream.IsValid(), false, "stream should be opened");
@@ -6223,27 +6223,27 @@ namespace Tomahawk
 				Root.SetHeader("Sec-WebSocket-Key", Key);
 				Root.SetHeader("Sec-WebSocket-Version", "13");
 
-				return Send(std::move(Root)).Then<Core::Async<bool>>([this](ResponseFrame*&& Response)
+				return Send(std::move(Root)).Then<Core::Promise<bool>>([this](ResponseFrame*&& Response)
 				{
 					TH_DEBUG("[ws] handshake %s", Request.URI.c_str());
 					if (Response->StatusCode != 101)
-						return Core::Async<bool>(Error("ws handshake error") && false);
+						return Core::Promise<bool>(Error("ws handshake error") && false);
 
 					if (!Response->GetHeader("Sec-WebSocket-Accept"))
-						return Core::Async<bool>(Error("ws handshake was not accepted") && false);
+						return Core::Promise<bool>(Error("ws handshake was not accepted") && false);
 
-					Future = Core::Async<bool>();
+					Future = Core::Promise<bool>();
 					WebSocket->Next();
 					return Future;
 				});
 			}
-			Core::Async<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
+			Core::Promise<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
 				TH_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, nullptr, "cannot send http request over websocket");
 				TH_ASSERT(Stream.IsValid(), nullptr, "stream should be opened");
 				TH_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 
-				Core::Async<ResponseFrame*> Result;
+				Core::Promise<ResponseFrame*> Result;
 				Request = std::move(Root);
 				Response.Data = Content::Not_Loaded;
 				Done = [Result](SocketClient* Client, int Code) mutable
@@ -6357,7 +6357,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Core::Async<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Promise<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, int64_t MaxSize)
 			{
 				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
 				{
@@ -6367,7 +6367,7 @@ namespace Tomahawk
 					return Core::Schema::ConvertFromJSON(Response.Buffer.data(), Response.Buffer.size());
 				});
 			}
-			Core::Async<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Promise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
 			{
 				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
 				{

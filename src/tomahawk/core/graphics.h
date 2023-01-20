@@ -1728,6 +1728,7 @@ namespace Tomahawk
 			virtual void DrawIndexedInstanced(ElementBuffer* Instances, MeshBuffer* Resource, unsigned int InstanceCount) = 0;
 			virtual void DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount) = 0;
 			virtual void Draw(unsigned int Count, unsigned int Location) = 0;
+			virtual void DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation) = 0;
 			virtual void Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ) = 0;
 			virtual bool CopyTexture2D(Texture2D* Resource, Core::Unique<Texture2D>* Result) = 0;
 			virtual bool CopyTexture2D(Graphics::RenderTarget* Resource, unsigned int Target, Core::Unique<Texture2D>* Result) = 0;

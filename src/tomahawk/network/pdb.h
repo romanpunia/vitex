@@ -482,7 +482,7 @@ namespace Tomahawk
 				friend Cluster;
 
 			private:
-				Core::Async<Cursor> Future;
+				Core::Promise<Cursor> Future;
 				std::vector<char> Command;
 				SessionId Session;
 				OnResult Callback;
@@ -530,18 +530,18 @@ namespace Tomahawk
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
 				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);
 				bool RemoveChannel(const std::string& Name, uint64_t Id);
-				Core::Async<SessionId> TxBegin(Isolation Type);
-				Core::Async<SessionId> TxBegin(const std::string& Command);
-				Core::Async<bool> TxEnd(const std::string& Command, SessionId Session);
-				Core::Async<bool> TxCommit(SessionId Session);
-				Core::Async<bool> TxRollback(SessionId Session);
-				Core::Async<bool> Connect(const Address& URI, size_t Connections);
-				Core::Async<bool> Disconnect();
-				Core::Async<bool> Listen(const std::vector<std::string>& Channels);
-				Core::Async<bool> Unlisten(const std::vector<std::string>& Channels);
-				Core::Async<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Async<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Async<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<SessionId> TxBegin(Isolation Type);
+				Core::Promise<SessionId> TxBegin(const std::string& Command);
+				Core::Promise<bool> TxEnd(const std::string& Command, SessionId Session);
+				Core::Promise<bool> TxCommit(SessionId Session);
+				Core::Promise<bool> TxRollback(SessionId Session);
+				Core::Promise<bool> Connect(const Address& URI, size_t Connections);
+				Core::Promise<bool> Disconnect();
+				Core::Promise<bool> Listen(const std::vector<std::string>& Channels);
+				Core::Promise<bool> Unlisten(const std::vector<std::string>& Channels);
+				Core::Promise<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, SessionId Session = nullptr);
 				Connection* GetConnection(QueryState State);
 				Connection* GetConnection() const;
 				bool IsConnected() const;

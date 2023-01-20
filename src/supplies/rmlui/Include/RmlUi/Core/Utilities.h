@@ -26,47 +26,22 @@
  *
  */
 
-#include "StyleSheetNodeSelectorLastOfType.h"
-#include "../../Include/RmlUi/Core/Element.h"
+#ifndef RMLUI_CORE_UTILITIES_H
+#define RMLUI_CORE_UTILITIES_H
+
+#include "Types.h"
 
 namespace Rml {
 
-StyleSheetNodeSelectorLastOfType::StyleSheetNodeSelectorLastOfType()
+namespace Utilities {
+
+template <class T>
+inline void HashCombine(std::size_t& seed, const T& v)
 {
+	Hash<T> hasher;
+	seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-StyleSheetNodeSelectorLastOfType::~StyleSheetNodeSelectorLastOfType()
-{
 }
-
-// Returns true if the element is the last DOM child in its parent.
-bool StyleSheetNodeSelectorLastOfType::IsApplicable(const Element* element, int RMLUI_UNUSED_PARAMETER(a), int RMLUI_UNUSED_PARAMETER(b))
-{
-	RMLUI_UNUSED(a);
-	RMLUI_UNUSED(b);
-
-	Element* parent = element->GetParentNode();
-	if (parent == nullptr)
-		return false;
-
-	int child_index = parent->GetNumChildren() - 1;
-	while (child_index >= 0)
-	{
-		// If this child is our element, then it's the first one we've found with our tag; the selector succeeds.
-		Element* child = parent->GetChild(child_index);
-		if (child == element)
-			return true;
-
-		// Otherwise, if this child shares our element's tag, then our element is not the first tagged child; the
-		// selector fails.
-		if (child->GetTagName() == element->GetTagName() &&
-			child->GetDisplay() != Style::Display::None)
-			return false;
-
-		child_index--;
-	}
-
-	return false;
-}
-
 } // namespace Rml
+#endif

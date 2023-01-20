@@ -835,7 +835,7 @@ namespace Tomahawk
 				WebSocketFrame * WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
-				Core::Async<bool> Future;
+				Core::Promise<bool> Future;
 
             public:
                 char RemoteAddress[48] = { 0 };
@@ -844,12 +844,12 @@ namespace Tomahawk
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
 				bool Downgrade();
-				Core::Async<bool> Consume(int64_t MaxSize = TH_HTTP_PAYLOAD);
-				Core::Async<bool> Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
-				Core::Async<bool> Upgrade(HTTP::RequestFrame&& Root);
-				Core::Async<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::Async<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
-				Core::Async<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<bool> Consume(int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<bool> Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<bool> Upgrade(HTTP::RequestFrame&& Root);
+				Core::Promise<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
+				Core::Promise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();

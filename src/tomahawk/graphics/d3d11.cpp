@@ -1548,6 +1548,10 @@ namespace Tomahawk
 			{
 				ImmediateContext->Draw(Count, Location);
 			}
+			void D3D11Device::DrawInstanced(unsigned int VertexCountPerInstance, unsigned int InstanceCount, unsigned int VertexLocation, unsigned int InstanceLocation)
+			{
+				ImmediateContext->DrawInstanced(VertexCountPerInstance, InstanceCount, VertexLocation, InstanceLocation);
+			}
 			void D3D11Device::Dispatch(unsigned int GroupX, unsigned int GroupY, unsigned int GroupZ)
 			{
 				ImmediateContext->Dispatch(GroupX, GroupY, GroupZ);

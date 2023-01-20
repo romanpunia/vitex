@@ -1352,13 +1352,12 @@ namespace Tomahawk
 			VMGlobal& Register = Engine->Global();
 			Engine->BeginNamespace("CE");
 			VMEnum VDifficulty = Register.SetEnum("Difficulty");
-			VDifficulty.SetValue("Chain", (int)Core::Difficulty::Chain);
+			VDifficulty.SetValue("Coroutine", (int)Core::Difficulty::Coroutine);
 			VDifficulty.SetValue("Clock", (int)Core::Difficulty::Clock);
 			VDifficulty.SetValue("Light", (int)Core::Difficulty::Light);
 			VDifficulty.SetValue("Heavy", (int)Core::Difficulty::Heavy);
 			VDifficulty.SetValue("Count", (int)Core::Difficulty::Count);
 
-			void SetThreads(uint64_t Cores);
 			VMRefClass VSchedule = Register.SetClassUnmanaged<Core::Schedule>("Schedule");
 			VSchedule.SetFunctionDef("void CE::Schedule::TaskCallback()");
 			VSchedule.SetMethodEx("uint64 SetTimeout(uint64, TaskCallback@)", &ScheduleSetTimeout);

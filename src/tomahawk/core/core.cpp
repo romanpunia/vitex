@@ -5772,7 +5772,7 @@ namespace Tomahawk
 				case FileMode::Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					if (TH_AWAIT(Client->Connect(&Address, Async)) < 0)
+					if (Client->ConnectSync(&Address) < 0)
 					{
 						TH_RELEASE(Client);
 						break;
@@ -8431,7 +8431,7 @@ namespace Tomahawk
 			uint64_t Light = (uint64_t)(std::max((double)Cores * 0.30, 1.0));
 			uint64_t Heavy = std::max<uint64_t>(Cores - Light, 1);
 			Threads[((size_t)Difficulty::Clock)] = Clock;
-			Threads[((size_t)Difficulty::Chain)] = Chain;
+			Threads[((size_t)Difficulty::Coroutine)] = Chain;
 			Threads[((size_t)Difficulty::Light)] = Light;
 			Threads[((size_t)Difficulty::Heavy)] = Heavy;
 			Coroutines = std::min<uint64_t>(Cores * 8, 256);
@@ -8584,31 +8584,31 @@ namespace Tomahawk
 			Queue->Notify.notify_all();
 			TH_PRET(true);
 		}
-		bool Schedule::SetChain(const TaskCallback& Callback)
+		bool Schedule::SetCoroutine(const TaskCallback& Callback)
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
 				return false;
 
 			TH_PPUSH(TH_PERF_ATOM);
-			auto Queue = Queues[(size_t)Difficulty::Chain];
+			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(TH_NEW(TaskCallback, Callback));
-			for (auto* Thread : Threads[(size_t)Difficulty::Chain])
+			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
 				Thread->Notify.notify_all();
 			TH_PRET(true);
 		}
-		bool Schedule::SetChain(TaskCallback&& Callback)
+		bool Schedule::SetCoroutine(TaskCallback&& Callback)
 		{
 			TH_ASSERT(Callback, false, "callback should not be empty");
 			if (!Enqueue)
 				return false;
 #ifndef NDEBUG
-			PostDebug(Difficulty::Chain, ThreadTask::EnqueueChain, 1);
+			PostDebug(Difficulty::Coroutine, ThreadTask::EnqueueCoroutine, 1);
 #endif
 			TH_PPUSH(TH_PERF_ATOM);
-			auto Queue = Queues[(size_t)Difficulty::Chain];
+			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(TH_NEW(TaskCallback, std::move(Callback)));
-			for (auto* Thread : Threads[(size_t)Difficulty::Chain])
+			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
 				Thread->Notify.notify_all();
 			TH_PRET(true);
 		}
@@ -8646,14 +8646,14 @@ namespace Tomahawk
 			Policy = NewPolicy;
 			Active = true;
 
-			if (!Policy.Async)
+			if (!Policy.Parallel)
 				return true;
 
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				Policy.Threads[i] = std::max<uint64_t>(Policy.Threads[i], 1);
 
-			for (uint64_t j = 0; j < Policy.Threads[(size_t)Difficulty::Chain]; j++)
-				PushThread(Difficulty::Chain, false);
+			for (uint64_t j = 0; j < Policy.Threads[(size_t)Difficulty::Coroutine]; j++)
+				PushThread(Difficulty::Coroutine, false);
 
 			for (uint64_t j = 0; j < Policy.Threads[(size_t)Difficulty::Light]; j++)
 				PushThread(Difficulty::Light, false);
@@ -8770,7 +8770,7 @@ namespace Tomahawk
 #endif
 					return true;
 				}
-				case Difficulty::Chain:
+				case Difficulty::Coroutine:
 				{
 					Dispatcher.Events.resize(Policy.Coroutines);
 					if (!Dispatcher.State)
@@ -8787,7 +8787,7 @@ namespace Tomahawk
 						Left -= Count;
 						Passes += Count;
 #ifndef NDEBUG
-						PostDebug(Type, ThreadTask::EnqueueAsync, Count);
+						PostDebug(Type, ThreadTask::ConsumeCoroutine, Count);
 #endif
 						for (size_t i = 0; i < Count; ++i)
 						{
@@ -8800,7 +8800,7 @@ namespace Tomahawk
 						}
 					}
 #ifndef NDEBUG
-					PostDebug(Type, ThreadTask::ProcessAsync, Dispatcher.State->GetCount());
+					PostDebug(Type, ThreadTask::ProcessCoroutine, Dispatcher.State->GetCount());
 #endif
 					while (Dispatcher.State->Dispatch() > 0)
 						++Passes;
@@ -8902,7 +8902,7 @@ namespace Tomahawk
 					} while (ThreadActive(Thread));
 					break;
 				}
-				case Difficulty::Chain:
+				case Difficulty::Coroutine:
 				{
 					ReceiveToken Token(Queue->Tasks);
 					Costate* State = new Costate(Policy.Memory);
@@ -8932,7 +8932,7 @@ namespace Tomahawk
 							Count = Queue->Tasks.try_dequeue_bulk(Token, Events.begin(), Left);
 							Left -= Count;
 #ifndef NDEBUG
-							PostDebug(Type, ThreadTask::EnqueueAsync, Count);
+							PostDebug(Type, ThreadTask::EnqueueCoroutine, Count);
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
@@ -8945,7 +8945,7 @@ namespace Tomahawk
 							}
 						}
 #ifndef NDEBUG
-						PostDebug(Type, ThreadTask::ProcessAsync, State->GetCount());
+						PostDebug(Type, ThreadTask::ProcessCoroutine, State->GetCount());
 #endif
 						TH_PPUSH(TH_PERF_CORE);
 						State->Dispatch();
@@ -9090,7 +9090,7 @@ namespace Tomahawk
 			auto* Queue = Queues[(size_t)Type];
 			switch (Type)
 			{
-				case Difficulty::Chain:
+				case Difficulty::Coroutine:
 				case Difficulty::Light:
 				case Difficulty::Heavy:
 					return Queue->Tasks.size_approx() > 0;
@@ -9155,6 +9155,13 @@ namespace Tomahawk
 		std::chrono::microseconds Schedule::GetClock()
 		{
 			return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch());
+		}
+		void Schedule::ExecutePromise(TaskCallback&& Callback)
+		{
+			if (Singleton != nullptr && Singleton->Active)
+				Singleton->SetTask(std::move(Callback), Difficulty::Light);
+			else
+				Callback();
 		}
 		bool Schedule::IsPresentAndActive()
 		{

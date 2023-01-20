@@ -437,8 +437,6 @@ namespace Tomahawk
 			VElement.SetMethod("bool HasChildNodes() const", &Engine::GUI::IElement::HasChildNodes);
 			VElement.SetMethod("Element GetElementById(const String &in)", &Engine::GUI::IElement::GetElementById);
 			VElement.SetMethodEx("Array<Element>@ QuerySelectorAll(const String &in)", &IElementQuerySelectorAll);
-			VElement.SetMethod("int GetClippingIgnoreDepth()", &Engine::GUI::IElement::GetClippingIgnoreDepth);
-			VElement.SetMethod("bool IsClippingEnabled()", &Engine::GUI::IElement::IsClippingEnabled);
 			VElement.SetMethod("bool CastFormColor(CU::Vector4 &out, bool)", &Engine::GUI::IElement::CastFormColor);
 			VElement.SetMethod("bool CastFormString(String &out)", &Engine::GUI::IElement::CastFormString);
 			VElement.SetMethod("bool CastFormPointer(Address@ &out)", &Engine::GUI::IElement::CastFormPointer);
@@ -548,8 +546,6 @@ namespace Tomahawk
 			VDocument.SetMethod("bool HasChildNodes() const", &Engine::GUI::IElementDocument::HasChildNodes);
 			VDocument.SetMethod("Element GetElementById(const String &in)", &Engine::GUI::IElementDocument::GetElementById);
 			VDocument.SetMethodEx("Array<Element>@ QuerySelectorAll(const String &in)", &IElementDocumentQuerySelectorAll);
-			VDocument.SetMethod("int GetClippingIgnoreDepth()", &Engine::GUI::IElementDocument::GetClippingIgnoreDepth);
-			VDocument.SetMethod("bool IsClippingEnabled()", &Engine::GUI::IElementDocument::IsClippingEnabled);
 			VDocument.SetMethod("bool CastFormColor(CU::Vector4 &out, bool)", &Engine::GUI::IElementDocument::CastFormColor);
 			VDocument.SetMethod("bool CastFormString(String &out)", &Engine::GUI::IElementDocument::CastFormString);
 			VDocument.SetMethod("bool CastFormPointer(Address@ &out)", &Engine::GUI::IElementDocument::CastFormPointer);

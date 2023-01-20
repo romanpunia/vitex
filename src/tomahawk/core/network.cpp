@@ -1983,7 +1983,7 @@ namespace Tomahawk
 		void Driver::TryEnqueue()
 		{
 			auto* Queue = Core::Schedule::Get();
-			if (Queue->IsActive() && Listens && Sockets > 0)
+			if (Queue->CanEnqueue() && Listens && Sockets > 0)
 				Listens = Queue->SetTask(&Driver::TryDispatch);
 			else
 				Listens = false;
@@ -2671,7 +2671,7 @@ namespace Tomahawk
 			}
 #endif
 		}
-		Core::Async<int> SocketClient::Connect(Host* Address, bool Async)
+		int SocketClient::ConnectSync(Host* Address)
 		{
 			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), -2, "address should be set");
 			TH_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
@@ -2680,13 +2680,68 @@ namespace Tomahawk
 			if (!OnResolveHost(Address))
 			{
 				Error("cannot resolve host %s:%i", Address->Hostname.c_str(), (int)Address->Port);
-				return Core::Async<int>(-2);
+				return -2;
 			}
 
 			Stage("socket open");
 			Hostname = *Address;
 
-			return Core::Coasync<int>([this, Async]()
+			Tomahawk::Network::Address* Host;
+			if (Stream.Open(Hostname.Hostname.c_str(), std::to_string(Hostname.Port), DNSType::Connect, &Host) == -1)
+			{
+				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				return -2;
+			}
+
+			Stage("socket connect");
+			if (Stream.Connect(Host, Timeout) == -1)
+			{
+				Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+				return -1;
+			}
+
+			Stream.Timeout = Timeout;
+			Stream.SetCloseOnExec();
+			Stream.SetBlocking(true);
+#ifdef TH_HAS_OPENSSL
+			if (Hostname.Secure)
+			{
+				Stage("socket ssl handshake");
+				if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
+				{
+					Error("cannot create ssl context");
+					return -1;
+				}
+
+				if (AutoCertify && !Certify())
+					return -1;
+			}
+#endif
+			Core::Promise<int> Result;
+			Done = [Result](SocketClient*, int Code) mutable
+			{
+				Result = Code;
+			};
+
+			OnConnect();
+			return TH_AWAIT(std::move(Result));
+		}
+		Core::Promise<int> SocketClient::Connect(Host* Address)
+		{
+			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), -2, "address should be set");
+			TH_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
+
+			Stage("dns resolve");
+			if (!OnResolveHost(Address))
+			{
+				Error("cannot resolve host %s:%i", Address->Hostname.c_str(), (int)Address->Port);
+				return Core::Promise<int>(-2);
+			}
+
+			Stage("socket open");
+			Hostname = *Address;
+
+			return Core::Coasync<int>([this]()
 			{
 				Tomahawk::Network::Address* Host;
 				if (TH_AWAIT(Core::Cotask<int>([this, &Host]()
@@ -2710,7 +2765,7 @@ namespace Tomahawk
 
 				Stream.Timeout = Timeout;
 				Stream.SetCloseOnExec();
-				Stream.SetBlocking(!Async);
+				Stream.SetBlocking(false);
 #ifdef TH_HAS_OPENSSL
 				if (Hostname.Secure)
 				{
@@ -2728,7 +2783,7 @@ namespace Tomahawk
 						return -1;
 				}
 #endif
-				Core::Async<int> Result;
+				Core::Promise<int> Result;
 				Done = [Result](SocketClient*, int Code) mutable
 				{
 					Result = Code;
@@ -2738,12 +2793,12 @@ namespace Tomahawk
 				return TH_AWAIT(std::move(Result));
 			});
 		}
-		Core::Async<int> SocketClient::Close()
+		Core::Promise<int> SocketClient::Close()
 		{
 			if (!Stream.IsValid())
 				return -2;
 
-			Core::Async<int> Result;
+			Core::Promise<int> Result;
 			Done = [Result](SocketClient*, int Code) mutable
 			{
 				Result = Code;

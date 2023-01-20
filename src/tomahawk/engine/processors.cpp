@@ -273,6 +273,10 @@ namespace Tomahawk
 					Series::Unpack(Metadata->Find("lines-max"), &I.LinesMax);
 				}
 
+				auto HasMutations = Args.find("mutations");
+				if (HasMutations != Args.end())
+					I.Mutations = HasMutations->second.GetBoolean();
+
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
 				Engine::SceneGraph::Desc& Conf = Object->GetConf();
 				Engine::IdxSnapshot Snapshot;

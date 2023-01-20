@@ -748,9 +748,9 @@ namespace Tomahawk
 				virtual void Update(Core::Timer* Time) override;
 				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				virtual Core::Unique<Component> Copy(Entity* New) const override;
-				Core::Async<int> Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs);
-				Core::Async<int> Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& OnArgs);
-				Core::Async<int> CallEntry(const std::string& Name);
+				Core::Promise<int> Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs);
+				Core::Promise<int> Call(Tomahawk::Script::VMCFunction* Entry, Script::ArgsCallback&& OnArgs);
+				Core::Promise<int> CallEntry(const std::string& Name);
 				int LoadSource();
 				int LoadSource(SourceType Type, const std::string& Source);
 				void SetInvocation(InvokeType Type);

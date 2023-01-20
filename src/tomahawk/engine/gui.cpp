@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "../core/network.h"
 #ifdef TH_WITH_RMLUI
 #include <RmlUi/Core.h>
 #include <RmlUi/Core/Stream.h>
@@ -335,12 +336,18 @@ namespace Tomahawk
 				virtual Rml::FileHandle Open(const Rml::String& Path) override
 				{
 					std::string Target = Path;
-					if (!Core::OS::File::IsExists(Target.c_str()))
+					Network::SourceURL URL(Target);
+					if (URL.Protocol == "file")
 					{
-						ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
-						Target = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment()) : Core::OS::Path::Resolve(Path.c_str()));
-						Target = (Target.empty() ? Path.c_str() : Target.c_str());
+						if (!Core::OS::File::IsExists(Target.c_str()))
+						{
+							ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
+							Target = (Content ? Core::OS::Path::Resolve(Path, Content->GetEnvironment()) : Core::OS::Path::Resolve(Path.c_str()));
+							Target = (Target.empty() ? Path.c_str() : Target.c_str());
+						}
 					}
+					else if (URL.Protocol != "http" && URL.Protocol != "https")
+						return (Rml::FileHandle)nullptr;
 
 					return (Rml::FileHandle)Core::OS::File::Open(Target, Core::FileMode::Binary_Read_Only);
 				}
@@ -421,7 +428,7 @@ namespace Tomahawk
 					TH_ASSERT_V(Activity != nullptr, "activity should be set");
 					Text = Activity->GetClipboardText();
 				}
-				virtual void ActivateKeyboard() override
+				virtual void ActivateKeyboard(Rml::Vector2f CaretPosition, float LineHeight) override
 				{
 					TH_ASSERT_V(Activity != nullptr, "activity should be set");
 					Activity->SetScreenKeyboard(true);
@@ -1594,16 +1601,6 @@ namespace Tomahawk
 					Result.push_back(Item);
 
 				return Result;
-			}
-			int IElement::GetClippingIgnoreDepth()
-			{
-				TH_ASSERT(IsValid(), 0, "element should be valid");
-				return Base->GetClippingIgnoreDepth();
-			}
-			bool IElement::IsClippingEnabled()
-			{
-				TH_ASSERT(IsValid(), false, "element should be valid");
-				return Base->IsClippingEnabled();
 			}
 			bool IElement::CastFormColor(Compute::Vector4* Ptr, bool Alpha)
 			{
@@ -2979,11 +2976,217 @@ namespace Tomahawk
 				Renderer->Background = Target;
 				Base->Render();
 			}
-			void Context::ClearCache()
+			void Context::ClearStyles()
 			{
 				Rml::StyleSheetFactory::ClearStyleSheetCache();
 			}
-			IElementDocument Context::Construct(const std::string& Path)
+			bool Context::ClearDocuments()
+			{
+				bool State = Loading;
+				Loading = true;
+
+				Elements.clear();
+				Base->UnloadAllDocuments();
+				Loading = State;
+
+				return true;
+			}
+			bool Context::Initialize(Core::Schema* Conf, const std::string& Relative)
+			{
+				TH_ASSERT(Conf != nullptr, false, "conf should be set");
+				bool State = Loading;
+				Loading = true;
+
+				for (auto* Face : Conf->FindCollection("font-face", true))
+				{
+					std::string Path = Face->GetVar("[path]").GetBlob();
+					if (Path.empty())
+					{
+						TH_ERR("[gui] path is required for font face");
+						return false;
+					}
+
+					std::string Target = Core::OS::Path::Resolve(Path, Relative);
+					if (!LoadFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
+					{
+						Loading = State;
+						return false;
+					}
+				}
+
+				for (auto* Document : Conf->FindCollection("document", true))
+				{
+					std::string Path = Document->GetVar("[path]").GetBlob();
+					if (Path.empty())
+					{
+						TH_ERR("[gui] path is required for document");
+						return false;
+					}
+
+					std::string Target = Core::OS::Path::Resolve(Path, Relative);
+					IElementDocument Result = LoadDocument(Target.empty() ? Path : Target);
+					if (!Result.IsValid())
+					{
+						Loading = State;
+						return false;
+					}
+					else if (Document->Has("[show]"))
+						Result.Show();
+				}
+
+				Loading = State;
+				return true;
+			}
+			bool Context::Initialize(const std::string& ConfPath)
+			{
+				TH_ASSERT(Subsystem::RenderInterface != nullptr, false, "render interface should be set");
+				TH_ASSERT(Subsystem::RenderInterface->GetContent() != nullptr, false, "content manager should be set");
+
+				bool State = Loading;
+				Loading = true;
+
+				Core::Schema* Sheet = Subsystem::RenderInterface->GetContent()->Load<Core::Schema>(ConfPath);
+				if (!Sheet)
+				{
+					Loading = State;
+					return false;
+				}
+
+				bool Result = Initialize(Sheet, Core::OS::Path::GetDirectory(ConfPath.c_str()));
+				TH_RELEASE(Sheet);
+
+				Loading = State;
+				return Result;
+			}
+			bool Context::IsLoading()
+			{
+				return Loading;
+			}
+			bool Context::IsInputFocused()
+			{
+				Rml::Element* Element = Base->GetFocusElement();
+				if (!Element)
+					return false;
+
+				const Rml::String& Tag = Element->GetTagName();
+				return Tag == "input" || Tag == "textarea" || Tag == "select";
+			}
+			bool Context::LoadFontFace(const std::string& Path, bool UseAsFallback)
+			{
+				TH_ASSERT(Subsystem::GetSystemInterface() != nullptr, false, "system interface should be set");
+				bool State = Loading;
+				Loading = true;
+
+				bool Result = Subsystem::GetSystemInterface()->AddFontFace(Path, UseAsFallback);
+				Loading = State;
+
+				return Result;
+			}
+			const std::unordered_map<std::string, bool>& Context::GetFontFaces()
+			{
+				return Subsystem::GetSystemInterface()->GetFontFaces();
+			}
+			Rml::Context* Context::GetContext()
+			{
+				return Base;
+			}
+			Compute::Vector2 Context::GetDimensions() const
+			{
+				Rml::Vector2i Size = Base->GetDimensions();
+				return Compute::Vector2(Size.x, Size.y);
+			}
+			void Context::SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio)
+			{
+				Base->SetDensityIndependentPixelRatio(DensityIndependentPixelRatio);
+			}
+			void Context::EnableMouseCursor(bool Enable)
+			{
+				Base->EnableMouseCursor(Enable);
+			}
+			float Context::GetDensityIndependentPixelRatio() const
+			{
+				return Base->GetDensityIndependentPixelRatio();
+			}
+			bool Context::ReplaceHTML(const std::string& Selector, const std::string& HTML, int Index)
+			{
+				auto* Current = Base->GetDocument(Index);
+				if (!Current)
+					return false;
+
+				auto TargetPtr = Current->QuerySelector(Selector);
+				if (!TargetPtr)
+					return false;
+
+				TargetPtr->SetInnerRML(HTML);
+				return true;
+			}
+			IElementDocument Context::EvalHTML(const std::string& HTML, int Index)
+			{
+				auto* Current = Base->GetDocument(Index);
+				if (!Current)
+					Current = Base->LoadDocumentFromMemory("<html><body>" + HTML + "</body></html>");
+				else
+					Current->SetInnerRML(HTML);
+
+				return Current;
+			}
+			IElementDocument Context::AddCSS(const std::string& CSS, int Index)
+			{
+				auto* Current = Base->GetDocument(Index);
+				if (Current != nullptr)
+				{
+					auto HeadPtr = Current->QuerySelector("head");
+					if (HeadPtr != nullptr)
+					{
+						auto StylePtr = HeadPtr->QuerySelector("style");
+						if (!StylePtr)
+						{
+							auto Style = Current->CreateElement("style");
+							Style->SetInnerRML(CSS);
+							HeadPtr->AppendChild(std::move(Style));
+						}
+						else
+							StylePtr->SetInnerRML(CSS);
+					}
+					else
+					{
+						auto Head = Current->CreateElement("head");
+						{
+							auto Style = Current->CreateElement("style");
+							Style->SetInnerRML(CSS);
+							Head->AppendChild(std::move(Style));
+						}
+						Current->AppendChild(std::move(Head));
+					}
+				}
+				else
+					Current = Base->LoadDocumentFromMemory("<html><head><style>" + CSS + "</style></head></html>");
+
+				return Current;
+			}
+			IElementDocument Context::LoadCSS(const std::string& Path, int Index)
+			{
+				auto* Current = Base->GetDocument(Index);
+				if (Current != nullptr)
+				{
+					auto HeadPtr = Current->QuerySelector("head");
+					if (!HeadPtr)
+					{
+						auto Head = Current->CreateElement("head");
+						HeadPtr = Current->AppendChild(std::move(Head));
+					}
+
+					auto Link = Current->CreateElement("link");
+					Link->SetAttribute("type", "text/css");
+					Link->SetAttribute("href", Path);
+					HeadPtr = Current->AppendChild(std::move(Link));
+				}
+				else
+					Current = Base->LoadDocumentFromMemory("<html><head><link type=\"text/css\" href=\"" + Path + "\" /></head></html>");
+
+				return Current;
+			}
+			IElementDocument Context::LoadDocument(const std::string& Path)
 			{
 				uint64_t Length = 0;
 				bool State = Loading;
@@ -3021,143 +3224,13 @@ namespace Tomahawk
 
 				return Result;
 			}
-			bool Context::Deconstruct()
-			{
-				bool State = Loading;
-				Loading = true;
-
-				Elements.clear();
-				Base->UnloadAllDocuments();
-				Loading = State;
-
-				return true;
-			}
-			bool Context::Inject(Core::Schema* Conf, const std::string& Relative)
-			{
-				TH_ASSERT(Conf != nullptr, false, "conf should be set");
-				bool State = Loading;
-				Loading = true;
-
-				auto FontFaces = Conf->FindCollection("font-face", true);
-				for (auto* Face : FontFaces)
-				{
-					Core::Schema* IPath = Face->GetAttribute("path");
-					if (!IPath)
-					{
-						TH_ERR("[gui] path is required for font face");
-						return false;
-					}
-
-					std::string Path = IPath->Value.Serialize();
-					std::string Target = Core::OS::Path::Resolve(Path, Relative);
-
-					if (!AddFontFace(Target.empty() ? Path : Target, Face->GetAttribute("fallback") != nullptr))
-					{
-						Loading = State;
-						return false;
-					}
-				}
-
-				auto Documents = Conf->FindCollection("document", true);
-				for (auto* Schema : Documents)
-				{
-					Core::Schema* IPath = Schema->GetAttribute("path");
-					if (!IPath)
-					{
-						TH_ERR("[gui] path is required for document");
-						return false;
-					}
-
-					std::string Path = IPath->Value.Serialize();
-					std::string Target = Core::OS::Path::Resolve(Path, Relative);
-					IElementDocument Result = Construct(Target.empty() ? Path : Target);
-
-					if (!Result.IsValid())
-					{
-						Loading = State;
-						return false;
-					}
-
-					if (Schema->GetAttribute("show") != nullptr)
-						Result.Show();
-				}
-
-				Loading = State;
-				return true;
-			}
-			bool Context::Inject(const std::string& ConfPath)
-			{
-				TH_ASSERT(Subsystem::RenderInterface != nullptr, false, "render interface should be set");
-				TH_ASSERT(Subsystem::RenderInterface->GetContent() != nullptr, false, "content manager should be set");
-
-				bool State = Loading;
-				Loading = true;
-
-				Core::Schema* Sheet = Subsystem::RenderInterface->GetContent()->Load<Core::Schema>(ConfPath);
-				if (!Sheet)
-				{
-					Loading = State;
-					return false;
-				}
-
-				bool Result = Inject(Sheet, Core::OS::Path::GetDirectory(ConfPath.c_str()));
-				TH_RELEASE(Sheet);
-
-				Loading = State;
-				return Result;
-			}
-			bool Context::IsLoading()
-			{
-				return Loading;
-			}
-			bool Context::IsInputFocused()
-			{
-				Rml::Element* Element = Base->GetFocusElement();
-				if (!Element)
-					return false;
-
-				const Rml::String& Tag = Element->GetTagName();
-				return Tag == "input" || Tag == "textarea" || Tag == "select";
-			}
-			bool Context::AddFontFace(const std::string& Path, bool UseAsFallback)
-			{
-				TH_ASSERT(Subsystem::GetSystemInterface() != nullptr, false, "system interface should be set");
-				bool State = Loading;
-				Loading = true;
-
-				bool Result = Subsystem::GetSystemInterface()->AddFontFace(Path, UseAsFallback);
-				Loading = State;
-
-				return Result;
-			}
-			const std::unordered_map<std::string, bool>& Context::GetFontFaces()
-			{
-				return Subsystem::GetSystemInterface()->GetFontFaces();
-			}
-			Rml::Context* Context::GetContext()
-			{
-				return Base;
-			}
-			Compute::Vector2 Context::GetDimensions() const
-			{
-				Rml::Vector2i Size = Base->GetDimensions();
-				return Compute::Vector2(Size.x, Size.y);
-			}
-			void Context::SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio)
-			{
-				Base->SetDensityIndependentPixelRatio(DensityIndependentPixelRatio);
-			}
-			float Context::GetDensityIndependentPixelRatio() const
-			{
-				return Base->GetDensityIndependentPixelRatio();
-			}
-			IElementDocument Context::CreateDocument(const std::string& InstancerName)
+			IElementDocument Context::AddDocumentEmpty(const std::string& InstancerName)
 			{
 				return Base->CreateDocument(InstancerName);
 			}
-			void Context::EnableMouseCursor(bool Enable)
+			IElementDocument Context::AddDocument(const std::string& HTML)
 			{
-				Base->EnableMouseCursor(Enable);
+				return Base->LoadDocumentFromMemory(HTML);
 			}
 			IElementDocument Context::GetDocument(const std::string& Id)
 			{

@@ -1575,7 +1575,7 @@ namespace Tomahawk
 				return Instance;
 			}
 
-			Decal::Decal(Entity* Ref) : Drawable(Ref, ActorSet::Synchronize, Decal::GetTypeId(), false)
+			Decal::Decal(Entity* Ref) : Drawable(Ref, ActorSet::None, Decal::GetTypeId(), false)
 			{
 			}
 			void Decal::Deserialize(Core::Schema* Node)
@@ -1611,6 +1611,7 @@ namespace Tomahawk
 			Component* Decal::Copy(Entity* New) const
 			{
 				Decal* Target = new Decal(New);
+				Target->TexCoord = TexCoord;
 				Target->Materials = Materials;
 
 				return Target;
@@ -3873,14 +3874,14 @@ namespace Tomahawk
 
 				return Target;
 			}
-			Core::Async<int> Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)
+			Core::Promise<int> Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return (int)Script::VMResult::INVALID_CONFIGURATION;
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
-			Core::Async<int> Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& OnArgs)
+			Core::Promise<int> Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
 					return (int)Script::VMResult::INVALID_CONFIGURATION;
@@ -3899,7 +3900,7 @@ namespace Tomahawk
 					return Result;
 				});;
 			}
-			Core::Async<int> Scriptable::CallEntry(const std::string& Name)
+			Core::Promise<int> Scriptable::CallEntry(const std::string& Name)
 			{
 				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Script::VMContext* Context)
 				{

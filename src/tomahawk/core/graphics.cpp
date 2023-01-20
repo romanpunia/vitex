@@ -1710,7 +1710,7 @@ namespace Tomahawk
 							BOOL DarkMode = true;
 							DWM_SetWindowAttribute(WindowHandle, DWMWA_USE_IMMERSIVE_DARK_MODE, &DarkMode, sizeof(DarkMode));
 						}
-						FreeLibrary(Library);
+						//FreeLibrary(Library);
 					}
 				}
 				RegCloseKey(Target);

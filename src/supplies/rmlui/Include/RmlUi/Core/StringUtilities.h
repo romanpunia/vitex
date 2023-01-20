@@ -71,9 +71,9 @@ namespace StringUtilities
 	RMLUICORE_API void JoinString(String& string, const StringList& string_list, const char delimiter = ',');
 
 	/// Converts upper-case characters in string to lower-case.
-	RMLUICORE_API String ToLower(const String& string);
+	RMLUICORE_API String ToLower(String string);
 	/// Converts lower-case characters in string to upper-case.
-	RMLUICORE_API String ToUpper(const String& string);
+	RMLUICORE_API String ToUpper(String string);
 
 	/// Encode RML characters, eg. '<' to '&lt;'
 	RMLUICORE_API String EncodeRml(const String& string);
@@ -131,14 +131,6 @@ namespace StringUtilities
 			--p;
 		return p;
 	}
-
-	/// Converts a string in UTF-8 encoding to a u16string in UTF-16 encoding.
-	/// Reports a warning if some or all characters could not be converted.
-	RMLUICORE_API U16String ToUTF16(const String& str);
-
-	/// Converts a u16string in UTF-16 encoding into a string in UTF-8 encoding.
-	/// Reports a warning if some or all characters could not be converted.
-	RMLUICORE_API String ToUTF8(const U16String& u16str);
 }
 
 

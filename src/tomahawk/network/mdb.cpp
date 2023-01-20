@@ -1378,7 +1378,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Document> Stream::ExecuteWithReply()
+			Core::Promise<Document> Stream::ExecuteWithReply()
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -1400,7 +1400,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<bool> Stream::Execute()
+			Core::Promise<bool> Stream::Execute()
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -1534,7 +1534,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Cursor::Next() const
+			Core::Promise<bool> Cursor::Next() const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -1651,7 +1651,7 @@ namespace Tomahawk
 				Other.NetSuccess = false;
 				return *this;
 			}
-			Core::Async<Core::Schema*> Response::Fetch() const
+			Core::Promise<Core::Schema*> Response::Fetch() const
 			{
 				if (NetDocument)
 					return NetDocument.ToSchema();
@@ -1664,7 +1664,7 @@ namespace Tomahawk
 					return NetCursor.GetCurrent().ToSchema();
 				});
 			}
-			Core::Async<Core::Schema*> Response::FetchAll() const
+			Core::Promise<Core::Schema*> Response::FetchAll() const
 			{
 				if (NetDocument)
 				{
@@ -1755,7 +1755,7 @@ namespace Tomahawk
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Async<bool> Collection::Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName) const
+			Core::Promise<bool> Collection::Rename(const std::string& NewDatabaseName, const std::string& NewCollectionName) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1767,7 +1767,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
+			Core::Promise<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1779,7 +1779,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName) const
+			Core::Promise<bool> Collection::RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1791,7 +1791,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
+			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1803,7 +1803,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::Remove(const Document& Options) const
+			Core::Promise<bool> Collection::Remove(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1815,7 +1815,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Collection::RemoveIndex(const std::string& Name, const Document& Options) const
+			Core::Promise<bool> Collection::RemoveIndex(const std::string& Name, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1827,7 +1827,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Document> Collection::RemoveMany(const Document& Match, const Document& Options) const
+			Core::Promise<Document> Collection::RemoveMany(const Document& Match, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1846,7 +1846,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::RemoveOne(const Document& Match, const Document& Options) const
+			Core::Promise<Document> Collection::RemoveOne(const Document& Match, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1865,7 +1865,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options) const
+			Core::Promise<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1884,7 +1884,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options) const
+			Core::Promise<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(!List.empty(), Document(nullptr), "insert array should not be empty");
@@ -1912,7 +1912,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::InsertOne(const Document& Result, const Document& Options) const
+			Core::Promise<Document> Collection::InsertOne(const Document& Result, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1931,7 +1931,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options) const
+			Core::Promise<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1950,7 +1950,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options) const
+			Core::Promise<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1969,7 +1969,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New) const
+			Core::Promise<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -1988,7 +1988,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<uint64_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
+			Core::Promise<uint64_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2000,7 +2000,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Core::Async<uint64_t> Collection::CountDocumentsEstimated(const Document& Options) const
+			Core::Promise<uint64_t> Collection::CountDocumentsEstimated(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2012,7 +2012,7 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			Core::Async<Cursor> Collection::FindIndexes(const Document& Options) const
+			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2024,7 +2024,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Collection::FindMany(const Document& Match, const Document& Options) const
+			Core::Promise<Cursor> Collection::FindMany(const Document& Match, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2036,7 +2036,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Collection::FindOne(const Document& Match, const Document& Options) const
+			Core::Promise<Cursor> Collection::FindOne(const Document& Match, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2057,7 +2057,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
+			Core::Promise<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2069,12 +2069,12 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Response> Collection::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session) const
+			Core::Promise<Response> Collection::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session) const
 			{
 				TH_DEBUG("[mongoc] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 				return Query(Driver::GetQuery(Name, Map, Once), Session);
 			}
-			Core::Async<Response> Collection::Query(const Document& Command, Transaction* Session) const
+			Core::Promise<Response> Collection::Query(const Document& Command, Transaction* Session) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Command.Get())
@@ -2436,7 +2436,7 @@ namespace Tomahawk
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Async<bool> Database::RemoveAllUsers()
+			Core::Promise<bool> Database::RemoveAllUsers()
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2448,7 +2448,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Database::RemoveUser(const std::string& Name)
+			Core::Promise<bool> Database::RemoveUser(const std::string& Name)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2460,7 +2460,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Database::Remove()
+			Core::Promise<bool> Database::Remove()
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2472,7 +2472,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Database::RemoveWithOptions(const Document& Options)
+			Core::Promise<bool> Database::RemoveWithOptions(const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Options.Get())
@@ -2487,7 +2487,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Database::AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom)
+			Core::Promise<bool> Database::AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom)
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2499,7 +2499,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Database::HasCollection(const std::string& Name) const
+			Core::Promise<bool> Database::HasCollection(const std::string& Name) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2517,7 +2517,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Database::FindCollections(const Document& Options) const
+			Core::Promise<Cursor> Database::FindCollections(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2529,7 +2529,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Collection> Database::CreateCollection(const std::string& Name, const Document& Options)
+			Core::Promise<Collection> Database::CreateCollection(const std::string& Name, const Document& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -2632,7 +2632,7 @@ namespace Tomahawk
 				Other.Base = nullptr;
 				return *this;
 			}
-			Core::Async<bool> Watcher::Next(Document& Result) const
+			Core::Promise<bool> Watcher::Next(Document& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())
@@ -2648,7 +2648,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Watcher::Error(Document& Result) const
+			Core::Promise<bool> Watcher::Error(Document& Result) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base || !Result.Get())
@@ -2742,7 +2742,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Transaction::Start()
+			Core::Promise<bool> Transaction::Start()
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2754,7 +2754,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Transaction::Abort()
+			Core::Promise<bool> Transaction::Abort()
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2766,7 +2766,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Document> Transaction::RemoveMany(const Collection& Source, const Document& Match, Document&& Options)
+			Core::Promise<Document> Transaction::RemoveMany(const Collection& Source, const Document& Match, Document&& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2777,7 +2777,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::RemoveOne(const Collection& Source, const Document& Match, Document&& Options)
+			Core::Promise<Document> Transaction::RemoveOne(const Collection& Source, const Document& Match, Document&& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2788,7 +2788,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::ReplaceOne(const Collection& Source, const Document& Match, const Document& Replacement, Document&& Options)
+			Core::Promise<Document> Transaction::ReplaceOne(const Collection& Source, const Document& Match, const Document& Replacement, Document&& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2799,7 +2799,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::InsertMany(const Collection& Source, std::vector<Document>& List, Document&& Options)
+			Core::Promise<Document> Transaction::InsertMany(const Collection& Source, std::vector<Document>& List, Document&& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2810,7 +2810,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::InsertOne(const Collection& Source, const Document& Result, Document&& Options)
+			Core::Promise<Document> Transaction::InsertOne(const Collection& Source, const Document& Result, Document&& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2821,7 +2821,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::UpdateMany(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
+			Core::Promise<Document> Transaction::UpdateMany(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2832,7 +2832,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Document> Transaction::UpdateOne(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
+			Core::Promise<Document> Transaction::UpdateOne(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2843,7 +2843,7 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Transaction::FindMany(const Collection& Source, const Document& Match, Document&& Options) const
+			Core::Promise<Cursor> Transaction::FindMany(const Collection& Source, const Document& Match, Document&& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2854,7 +2854,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Transaction::FindOne(const Collection& Source, const Document& Match, Document&& Options) const
+			Core::Promise<Cursor> Transaction::FindOne(const Collection& Source, const Document& Match, Document&& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2865,7 +2865,7 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Cursor> Transaction::Aggregate(const Collection& Source, QueryFlags Flags, const Document& Pipeline, Document&& Options) const
+			Core::Promise<Cursor> Transaction::Aggregate(const Collection& Source, QueryFlags Flags, const Document& Pipeline, Document&& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Push(Options))
@@ -2876,11 +2876,11 @@ namespace Tomahawk
 				return Cursor(nullptr);
 #endif
 			}
-			Core::Async<Response> Transaction::TemplateQuery(const Collection& Source, const std::string& Name, Core::SchemaArgs* Map, bool Once)
+			Core::Promise<Response> Transaction::TemplateQuery(const Collection& Source, const std::string& Name, Core::SchemaArgs* Map, bool Once)
 			{
 				return Query(Source, Driver::GetQuery(Name, Map, Once));
 			}
-			Core::Async<Response> Transaction::Query(const Collection& Source, const Document& Command)
+			Core::Promise<Response> Transaction::Query(const Collection& Source, const Document& Command)
 			{
 #ifdef TH_HAS_MONGOC
 				return Source.Query(Command, this);
@@ -2888,7 +2888,7 @@ namespace Tomahawk
 				return Response();
 #endif
 			}
-			Core::Async<TransactionState> Transaction::Commit()
+			Core::Promise<TransactionState> Transaction::Commit()
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
@@ -2935,13 +2935,13 @@ namespace Tomahawk
 					Disconnect();
 				Driver::Release();
 			}
-			Core::Async<bool> Connection::Connect(const std::string& Address)
+			Core::Promise<bool> Connection::Connect(const std::string& Address)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Master != nullptr, false, "connection should be created outside of cluster");
 				if (Connected)
 				{
-					return Disconnect().Then<Core::Async<bool>>([this, Address](bool)
+					return Disconnect().Then<Core::Promise<bool>>([this, Address](bool)
 					{
 						return this->Connect(Address);
 					});
@@ -2975,7 +2975,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Connection::Connect(Address* URL)
+			Core::Promise<bool> Connection::Connect(Address* URL)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Master != nullptr, false, "connection should be created outside of cluster");
@@ -2983,7 +2983,7 @@ namespace Tomahawk
 
 				if (Connected)
 				{
-					return Disconnect().Then<Core::Async<bool>>([this, URL](bool)
+					return Disconnect().Then<Core::Promise<bool>>([this, URL](bool)
 					{
 						return this->Connect(URL);
 					});
@@ -3008,7 +3008,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Connection::Disconnect()
+			Core::Promise<bool> Connection::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Connected && Base, false, "connection should be established");
@@ -3037,7 +3037,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Connection::MakeTransaction(const std::function<Core::Async<bool>(Transaction&)>& Callback)
+			Core::Promise<bool> Connection::MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Callback, false, "callback should not be empty");
@@ -3082,7 +3082,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
+			Core::Promise<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Callback, false, "callback should not be empty");
@@ -3127,7 +3127,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<Cursor> Connection::FindDatabases(const Document& Options) const
+			Core::Promise<Cursor> Connection::FindDatabases(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				return Core::Cotask<Cursor>([this, &Options]()
@@ -3261,12 +3261,12 @@ namespace Tomahawk
 				Disconnect();
 				Driver::Release();
 			}
-			Core::Async<bool> Cluster::Connect(const std::string& URI)
+			Core::Promise<bool> Cluster::Connect(const std::string& URI)
 			{
 #ifdef TH_HAS_MONGOC
 				if (Connected)
 				{
-					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
+					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
 					{
 						return this->Connect(URI);
 					});
@@ -3300,13 +3300,13 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Cluster::Connect(Address* URI)
+			Core::Promise<bool> Cluster::Connect(Address* URI)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(URI && URI->Get(), false, "url should be set");
 				if (Connected)
 				{
-					return Disconnect().Then<Core::Async<bool>>([this, URI](bool)
+					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
 					{
 						return this->Connect(URI);
 					});
@@ -3334,7 +3334,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Cluster::Disconnect()
+			Core::Promise<bool> Cluster::Disconnect()
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Connected && Pool, false, "connection should be established");

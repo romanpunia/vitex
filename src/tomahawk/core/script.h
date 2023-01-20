@@ -1525,11 +1525,11 @@ namespace Tomahawk
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
 			int LoadCode(const std::string& Name, const char* Buffer, uint64_t Length);
-			Core::Async<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
-			Core::Async<int> ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
-			Core::Async<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
-			Core::Async<int> ExecuteScoped(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
-			Core::Async<int> ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteScoped(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
 			VMModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -1547,7 +1547,7 @@ namespace Tomahawk
 		private:
 			struct Task
 			{
-				Core::Async<int> Future;
+				Core::Promise<int> Future;
 				VMFunction Callback = nullptr;
 				ArgsCallback Args;
 			};
@@ -1564,7 +1564,7 @@ namespace Tomahawk
 		public:
 			VMContext(VMCContext* Base);
 			~VMContext();
-			Core::Async<int> TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs);
+			Core::Promise<int> TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs);
 			int SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			int Prepare(const VMFunction& Function);
 			int Unprepare();

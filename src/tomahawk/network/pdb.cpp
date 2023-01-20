@@ -1605,7 +1605,7 @@ namespace Tomahawk
 				Update.unlock();
 				return true;
 			}
-			Core::Async<SessionId> Cluster::TxBegin(Isolation Type)
+			Core::Promise<SessionId> Cluster::TxBegin(Isolation Type)
 			{
 				switch (Type)
 				{
@@ -1620,29 +1620,29 @@ namespace Tomahawk
 						return TxBegin("BEGIN");
 				}
 			}
-			Core::Async<SessionId> Cluster::TxBegin(const std::string& Command)
+			Core::Promise<SessionId> Cluster::TxBegin(const std::string& Command)
 			{
 				return Query(Command, (uint64_t)QueryOp::TransactionStart).Then<SessionId>([this](Cursor&& Result)
 				{
 					return Result.IsSuccess() ? Result.GetExecutor() : nullptr;
 				});
 			}
-			Core::Async<bool> Cluster::TxEnd(const std::string& Command, SessionId Session)
+			Core::Promise<bool> Cluster::TxEnd(const std::string& Command, SessionId Session)
 			{
 				return Query(Command, (uint64_t)QueryOp::TransactionEnd, Session).Then<bool>([this](Cursor&& Result)
 				{
 					return Result.IsSuccess();
 				});
 			}
-			Core::Async<bool> Cluster::TxCommit(SessionId Session)
+			Core::Promise<bool> Cluster::TxCommit(SessionId Session)
 			{
 				return TxEnd("COMMIT", Session);
 			}
-			Core::Async<bool> Cluster::TxRollback(SessionId Session)
+			Core::Promise<bool> Cluster::TxRollback(SessionId Session)
 			{
 				return TxEnd("ROLLBACK", Session);
 			}
-			Core::Async<bool> Cluster::Connect(const Address& URI, size_t Connections)
+			Core::Promise<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{
 #ifdef TH_HAS_POSTGRESQL
 				TH_ASSERT(Connections > 0, false, "connections count should be at least 1");
@@ -1652,7 +1652,7 @@ namespace Tomahawk
 				if (!Pool.empty())
 				{
 					Update.unlock();
-					return Disconnect().Then<Core::Async<bool>>([this, URI, Connections](bool)
+					return Disconnect().Then<Core::Promise<bool>>([this, URI, Connections](bool)
 					{
 						return this->Connect(URI, Connections);
 					});
@@ -1706,7 +1706,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Cluster::Disconnect()
+			Core::Promise<bool> Cluster::Disconnect()
 			{
 #ifdef TH_HAS_POSTGRESQL
 				TH_ASSERT(!Pool.empty(), false, "connection should be established");
@@ -1728,7 +1728,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			Core::Async<bool> Cluster::Listen(const std::vector<std::string>& Channels)
+			Core::Promise<bool> Cluster::Listen(const std::vector<std::string>& Channels)
 			{
 				TH_ASSERT(!Channels.empty(), false, "channels should not be empty");
 				Update.lock();
@@ -1761,7 +1761,7 @@ namespace Tomahawk
 					return true;
 				});
 			}
-			Core::Async<bool> Cluster::Unlisten(const std::vector<std::string>& Channels)
+			Core::Promise<bool> Cluster::Unlisten(const std::vector<std::string>& Channels)
 			{
 				TH_ASSERT(!Channels.empty(), false, "channels should not be empty");
 				Update.lock();
@@ -1789,19 +1789,19 @@ namespace Tomahawk
 					return Count > 0;
 				});
 			}
-			Core::Async<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t Opts, SessionId Session)
 			{
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
 				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Session);
 			}
-			Core::Async<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t Opts, SessionId Session)
 			{
 				TH_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 
 				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
 				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Session);
 			}
-			Core::Async<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, SessionId Session)
 			{
 				TH_ASSERT(!Command.empty(), Cursor(), "command should not be empty");
 
@@ -1832,7 +1832,7 @@ namespace Tomahawk
 					};
 				}
 
-				Core::Async<Cursor> Future = Next->Future;
+				Core::Promise<Cursor> Future = Next->Future;
 				bool IsInQueue = true;
 
 				Update.lock();
@@ -2190,7 +2190,7 @@ namespace Tomahawk
 					{
 						if (!Frame.IsExists())
 						{
-							Core::Async<Cursor> Future = Source->Current->Future;
+							Core::Promise<Cursor> Future = Source->Current->Future;
 							Cursor Results(std::move(Source->Current->Result));
 							Request* Item = Source->Current;
 							Source->State = QueryState::Idle;

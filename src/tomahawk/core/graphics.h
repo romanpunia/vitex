@@ -1194,7 +1194,7 @@ namespace Tomahawk
 			};
 
 		protected:
-			Core::Pool<Compute::ElementVertex> Array;
+			std::vector<Compute::ElementVertex> Array;
 			ElementBuffer* Elements;
 			GraphicsDevice* Device;
 			uint64_t ElementLimit;
@@ -1206,7 +1206,7 @@ namespace Tomahawk
 
 		public:
 			virtual ~InstanceBuffer();
-			Core::Pool<Compute::ElementVertex>* GetArray();
+			std::vector<Compute::ElementVertex>& GetArray();
 			ElementBuffer* GetElements() const;
 			GraphicsDevice* GetDevice() const;
 			uint64_t GetElementLimit() const;

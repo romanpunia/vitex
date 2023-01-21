@@ -826,10 +826,12 @@ namespace Tomahawk
 				if (!Instance)
 					return BOX_NONE;
 
-				Compute::Vector3 Center = Instance->GetCenterPosition();;
+				Compute::Vector3 Center = Instance->GetCenterPosition();
 				Instance->GetBoundingBox(&Min, &Max);
-				Min = (Min - Center) * 0.5f;
-				Max = (Max - Center) * 0.5f;
+				
+				Compute::Vector3 Scale = (Max - Min) * 0.5f;
+				Min = Center - Scale;
+				Max = Center + Scale;
 
 				return BOX_BODY;
 			}
@@ -1315,8 +1317,8 @@ namespace Tomahawk
 				if (!Instance)
 					return BOX_NONE;
 
-				Min = Instance->Min * 0.5f;
-				Max = Instance->Max * 0.5f;
+				Min = Instance->Min;
+				Max = Instance->Max;
 				return BOX_GEOMETRY;
 			}
 			Component* Model::Copy(Entity* New) const
@@ -1447,8 +1449,8 @@ namespace Tomahawk
 				if (!Instance)
 					return BOX_NONE;
 
-				Min = Instance->Min * 0.5f;
-				Max = Instance->Max * 0.5f;
+				Min = Instance->Min;
+				Max = Instance->Max;
 				return BOX_GEOMETRY;
 			}
 			Component* Skin::Copy(Entity* New) const
@@ -1495,19 +1497,11 @@ namespace Tomahawk
 				SetCategory((GeoCategory)NewCategory);
 
 				uint64_t Limit;
-				if (Series::Unpack(Node->Find("limit"), &Limit))
+				if (Series::Unpack(Node->Find("limit"), &Limit) && Instance != nullptr)
 				{
-					std::vector<Compute::ElementVertex> Vertices;
-					if (Instance != nullptr)
-					{
-						Scene->GetDevice()->UpdateBufferSize(Instance, Limit);
-						if (Series::Unpack(Node->Find("elements"), &Vertices))
-						{
-							Instance->GetArray()->Reserve(Vertices.size());
-							for (auto&& Vertex : Vertices)
-								Instance->GetArray()->Add(Vertex);
-						}
-					}
+					auto& Dest = Instance->GetArray();
+					Series::Unpack(Node->Find("elements"), &Dest);
+					Scene->GetDevice()->UpdateBufferSize(Instance, Limit);
 				}
 			}
 			void Emitter::Serialize(Core::Schema* Node)
@@ -1527,15 +1521,8 @@ namespace Tomahawk
 
 				if (Instance != nullptr)
 				{
-					auto* fArray = Instance->GetArray();
-					std::vector<Compute::ElementVertex> Vertices;
-					Vertices.reserve(fArray->Size());
-
-					for (auto It = fArray->Begin(); It != fArray->End(); It++)
-						Vertices.emplace_back(*It);
-
 					Series::Pack(Node->Set("limit"), Instance->GetElementLimit());
-					Series::Pack(Node->Set("elements"), Vertices);
+					Series::Pack(Node->Set("elements"), Instance->GetArray());
 				}
 			}
 			void Emitter::Activate(Component* New)
@@ -1554,8 +1541,8 @@ namespace Tomahawk
 				if (!Instance)
 					return BOX_NONE;
 
-				_Min = Min * 0.5f;
-				_Max = Max * 0.5f;
+				_Min = Min;
+				_Max = Max;
 				return BOX_DYNAMIC;
 			}
 			Component* Emitter::Copy(Entity* New) const
@@ -1566,7 +1553,9 @@ namespace Tomahawk
 				Target->Materials = Materials;
 				Target->Min = Min;
 				Target->Max = Max;
-				Target->Instance->GetArray()->Copy(*Instance->GetArray());
+				
+				auto& Dest = Target->Instance->GetArray();
+				Dest = Instance->GetArray();
 
 				return Target;
 			}
@@ -2166,12 +2155,12 @@ namespace Tomahawk
 					return;
 
 				auto* Transform = Parent->GetTransform();
-				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				auto& Array = Base->GetBuffer()->GetArray();
 				Compute::Vector3 Offset = Transform->GetPosition();
 
 				for (int i = 0; i < Spawner.Iterations; i++)
 				{
-					if (Array->Size() >= Array->Capacity())
+					if (Array.size() + 1 >= Array.capacity())
 						break;
 
 					Compute::Vector3 FPosition = (Base->Connected ? Spawner.Position.Generate() : Spawner.Position.Generate() + Offset);
@@ -2192,7 +2181,7 @@ namespace Tomahawk
 					Element.Angular = Spawner.Angular.Generate();
 					Element.Rotation = Spawner.Rotation.Generate();
 					Element.Scale = Spawner.Scale.Generate();
-					Array->Add(Element);
+					Array.emplace_back(std::move(Element));
 				}
 
 				float DeltaTime = (float)Time->GetDeltaTime();
@@ -2204,13 +2193,15 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::AccurateSynchronization(float DeltaTime)
 			{
-				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				auto& Array = Base->GetBuffer()->GetArray();
 				float MinX = 0.0f, MaxX = 0.0f;
 				float MinY = 0.0f, MaxY = 0.0f;
 				float MinZ = 0.0f, MaxZ = 0.0f;
-				float L = Velocity.Length();
+				float Accelerate = Velocity.Length();
+				auto Begin = Array.begin();
+				auto End = Array.end();
 
-				for (auto It = Array->Begin(); It != Array->End(); It++)
+				for (auto It = Begin; It != End;)
 				{
 					Compute::Vector3 NextVelocity(It->VelocityX, It->VelocityY, It->VelocityZ);
 					Compute::Vector3 NextNoise = Spawner.Noise.Generate() / Noise;
@@ -2223,33 +2214,32 @@ namespace Tomahawk
 					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
 					It->Scale += ScaleSpeed * DeltaTime;
 
-					if (L > 0)
+					if (Accelerate > 0.0f)
 					{
 						NextVelocity -= (NextVelocity / Velocity) * DeltaTime;
 						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					}
 
-					if (It->ColorW <= 0 || It->Scale <= 0)
+					if (It->ColorW > 0.0f && It->Scale > 0.0f)
 					{
-						Array->RemoveAt(It);
-						It--;
-						continue;
+						if (It->PositionX < MinX)
+							MinX = It->PositionX;
+						else if (It->PositionX > MaxX)
+							MaxX = It->PositionX;
+
+						if (It->PositionY < MinY)
+							MinY = It->PositionY;
+						else if (It->PositionY > MaxY)
+							MaxY = It->PositionY;
+
+						if (It->PositionZ < MinZ)
+							MinZ = It->PositionZ;
+						else if (It->PositionZ > MaxZ)
+							MaxZ = It->PositionZ;
+						++It;
 					}
-
-					if (It->PositionX < MinX)
-						MinX = It->PositionX;
-					else if (It->PositionX > MaxX)
-						MaxX = It->PositionX;
-
-					if (It->PositionY < MinY)
-						MinY = It->PositionY;
-					else if (It->PositionY > MaxY)
-						MaxY = It->PositionY;
-
-					if (It->PositionZ < MinZ)
-						MinZ = It->PositionZ;
-					else if (It->PositionZ > MaxZ)
-						MaxZ = It->PositionZ;
+					else
+						It = Array.erase(It);
 				}
 
 				Base->Min = Compute::Vector3(MinX, MinY, MinZ);
@@ -2257,13 +2247,15 @@ namespace Tomahawk
 			}
 			void EmitterAnimator::FastSynchronization(float DeltaTime)
 			{
-				Core::Pool<Compute::ElementVertex>* Array = Base->GetBuffer()->GetArray();
+				auto& Array = Base->GetBuffer()->GetArray();
 				float MinX = 0.0f, MaxX = 0.0f;
 				float MinY = 0.0f, MaxY = 0.0f;
 				float MinZ = 0.0f, MaxZ = 0.0f;
-				float L = Velocity.Length();
+				float Accelerate = Velocity.Length();
+				auto Begin = Array.begin();
+				auto End = Array.end();
 
-				for (auto It = Array->Begin(); It != Array->End(); It++)
+				for (auto It = Begin; It != End;)
 				{
 					Compute::Vector3 NextVelocity(It->VelocityX, It->VelocityY, It->VelocityZ);
 					Compute::Vector3 NextPosition(It->PositionX, It->PositionY, It->PositionZ);
@@ -2275,33 +2267,32 @@ namespace Tomahawk
 					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
 					It->Scale += ScaleSpeed * DeltaTime;
 
-					if (L > 0)
+					if (Accelerate > 0.0f)
 					{
 						NextVelocity -= (NextVelocity / Velocity) * DeltaTime;
 						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					}
 
-					if (It->ColorW <= 0 || It->Scale <= 0)
+					if (It->ColorW > 0.0f && It->Scale > 0.0f)
 					{
-						Array->RemoveAt(It);
-						It--;
-						continue;
+						if (It->PositionX < MinX)
+							MinX = It->PositionX;
+						else if (It->PositionX > MaxX)
+							MaxX = It->PositionX;
+
+						if (It->PositionY < MinY)
+							MinY = It->PositionY;
+						else if (It->PositionY > MaxY)
+							MaxY = It->PositionY;
+
+						if (It->PositionZ < MinZ)
+							MinZ = It->PositionZ;
+						else if (It->PositionZ > MaxZ)
+							MaxZ = It->PositionZ;
+						++It;
 					}
-
-					if (It->PositionX < MinX)
-						MinX = It->PositionX;
-					else if (It->PositionX > MaxX)
-						MaxX = It->PositionX;
-
-					if (It->PositionY < MinY)
-						MinY = It->PositionY;
-					else if (It->PositionY > MaxY)
-						MaxY = It->PositionY;
-
-					if (It->PositionZ < MinZ)
-						MinZ = It->PositionZ;
-					else if (It->PositionZ > MaxZ)
-						MaxZ = It->PositionZ;
+					else
+						It = Array.erase(It);
 				}
 
 				Base->Min = Compute::Vector3(MinX, MinY, MinZ);
@@ -2912,7 +2903,7 @@ namespace Tomahawk
 				for (uint32_t i = 0; i < Shadow.Cascades; i++)
 				{
 					float Near = (i < 1 ? 0.1f : Shadow.Distance[i - 1]), Far = Shadow.Distance[i];
-					Compute::Frustum Frustum(FieldOfView, Aspect, Near, Far);
+					Compute::Frustum8C Frustum(FieldOfView, Aspect, Near, Far);
 					Frustum.Transform(ViewToLight);
 
 					Compute::Vector2 X, Y, Z;
@@ -3310,7 +3301,7 @@ namespace Tomahawk
 				return Target;
 			}
 
-			Camera::Camera(Entity* Ref) : Component(Ref, ActorSet::Synchronize), Mode(ProjectionMode_Perspective), Renderer(new RenderSystem(Ref->GetScene(), this)), Viewport({ 0, 0, 512, 512, 0, 1 })
+			Camera::Camera(Entity* Ref) : Component(Ref, ActorSet::Synchronize), Mode(ProjectionMode::Perspective), Renderer(new RenderSystem(Ref->GetScene(), this)), Viewport({ 0, 0, 512, 512, 0, 1 })
 			{
 			}
 			Camera::~Camera()
@@ -3347,7 +3338,6 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("occluder-skips"), &Renderer->OccluderSkips);
 				Series::Unpack(Node->Find("occludee-skips"), &Renderer->OccludeeSkips);
 				Series::Unpack(Node->Find("occlusion-skips"), &Renderer->OcclusionSkips);
-				Series::Unpack(Node->Find("frustum-cull"), &Renderer->FrustumCulling);
 				Series::Unpack(Node->Find("occlusion-cull"), &Renderer->OcclusionCulling);
 				Series::Unpack(Node->Find("max-queries"), &Renderer->MaxQueries);
 
@@ -3389,7 +3379,6 @@ namespace Tomahawk
 				Series::Pack(Node->Set("occluder-skips"), Renderer->OccluderSkips);
 				Series::Pack(Node->Set("occludee-skips"), Renderer->OccludeeSkips);
 				Series::Pack(Node->Set("occlusion-skips"), Renderer->OcclusionSkips);
-				Series::Pack(Node->Set("frustum-cull"), Renderer->FrustumCulling);
 				Series::Pack(Node->Set("occlusion-cull"), Renderer->OcclusionCulling);
 				Series::Pack(Node->Set("max-queries"), Renderer->MaxQueries);
 
@@ -3411,9 +3400,9 @@ namespace Tomahawk
 					H = Viewport.Height;
 				}
 
-				if (Mode == ProjectionMode_Perspective)
+				if (Mode == ProjectionMode::Perspective)
 					Projection = Compute::Matrix4x4::CreatePerspective(FieldOfView, W / H, NearPlane, FarPlane);
-				else if (Mode == ProjectionMode_Orthographic)
+				else if (Mode == ProjectionMode::Orthographic)
 					Projection = Compute::Matrix4x4::CreateOrthographic(W, H, NearPlane, FarPlane);
 			}
 			void Camera::GetViewer(Viewer* Output)
@@ -3421,7 +3410,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Output != nullptr, "viewer should be set");
 
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
-				RenderCulling Culling = (Mode == ProjectionMode_Perspective ? RenderCulling::Spot : RenderCulling::Line);
+				RenderCulling Culling = (Mode == ProjectionMode::Perspective ? RenderCulling::Linear : RenderCulling::Disable);
 
 				Output->Set(GetView(), Projection, Space.Position, Space.Rotation, FieldOfView, GetAspect(), NearPlane, FarPlane, Culling);
 				Output->Renderer = Renderer;
@@ -3458,10 +3447,15 @@ namespace Tomahawk
 				auto& Space = Parent->GetTransform()->GetSpacing(Compute::Positioning::Global);
 				return Compute::Matrix4x4::CreateOrigin(Space.Position, Space.Rotation);
 			}
-			Compute::Frustum Camera::GetFrustum()
+			Compute::Frustum8C Camera::GetFrustum8C()
 			{
-				Compute::Frustum Result(Compute::Mathf::Deg2Rad() * FieldOfView, GetAspect(), NearPlane, FarPlane * 0.25f);
+				Compute::Frustum8C Result(Compute::Mathf::Deg2Rad() * FieldOfView, GetAspect(), NearPlane, FarPlane * 0.25f);
 				Result.Transform(GetView().Inv());
+				return Result;
+			}
+			Compute::Frustum6P Camera::GetFrustum6P()
+			{
+				Compute::Frustum6P Result(GetViewProjection());
 				return Result;
 			}
 			Compute::Ray Camera::GetScreenRay(const Compute::Vector2& Position)

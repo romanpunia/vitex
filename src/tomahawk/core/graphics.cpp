@@ -496,15 +496,15 @@ namespace Tomahawk
 			if (ElementLimit < 1)
 				ElementLimit = 1;
 
-			Array.Reserve(ElementLimit);
+			Array.reserve(ElementLimit);
 		}
 		InstanceBuffer::~InstanceBuffer()
 		{
 			TH_RELEASE(Elements);
 		}
-		Core::Pool<Compute::ElementVertex>* InstanceBuffer::GetArray()
+		std::vector<Compute::ElementVertex>& InstanceBuffer::GetArray()
 		{
-			return &Array;
+			return Array;
 		}
 		ElementBuffer* InstanceBuffer::GetElements() const
 		{

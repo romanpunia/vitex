@@ -642,14 +642,48 @@ namespace Tomahawk
 			};
 		};
 
-		struct TH_OUT Frustum
+		struct TH_OUT Bounding
+		{
+		public:
+			Vector3 Lower;
+			Vector3 Upper;
+			float Volume;
+
+		public:
+			Bounding();
+			Bounding(const Vector3&, const Vector3&);
+			void Merge(const Bounding&, const Bounding&);
+			bool Contains(const Bounding&) const;
+			bool Overlaps(const Bounding&) const;
+		};
+
+		struct TH_OUT Frustum8C
 		{
 			Vector4 Corners[8];
 
-			Frustum();
-			Frustum(float FieldOfView, float Aspect, float NearZ, float FarZ);
+			Frustum8C();
+			Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ);
 			void Transform(const Matrix4x4& Value);
 			void GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z);
+		};
+
+		struct TH_OUT Frustum6P
+		{
+			enum class Side : size_t
+			{
+				RIGHT = 0,
+				LEFT = 1,
+				BOTTOM = 2,
+				TOP = 3,
+				BACK = 4,
+				FRONT = 5
+			};
+
+			Vector4 Planes[6];
+
+			Frustum6P();
+			Frustum6P(const Matrix4x4& ViewProjection);
+			bool OverlapsAABB(const Bounding& Bounds) const;
 		};
 
 		struct TH_OUT Ray
@@ -1498,13 +1532,14 @@ namespace Tomahawk
 			static void SetLeftHanded(bool IsLeftHanded);
 			static std::vector<int> CreateTriangleStrip(TriangleStrip::Desc& Desc, const std::vector<int>& Indices);
 			static std::vector<int> CreateTriangleList(const std::vector<int>& Indices);
-			static void CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
-			static void CreateFrustum(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
+			static void CreateFrustum8CRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
+			static void CreateFrustum8C(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ);
 			static Ray CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView);
 			static bool CursorRayTest(const Ray& Cursor, const Vector3& Position, const Vector3& Scale, Vector3* Hit = nullptr);
 			static bool CursorRayTest(const Ray& Cursor, const Matrix4x4& World, Vector3* Hit = nullptr);
 			static float FastInvSqrt(float Value);
 			static float FastSqrt(float Value);
+			static float AabbVolume(const Vector3& Min, const Vector3& Max);
 		};
 
 		class TH_OUT_TS Regex
@@ -1713,35 +1748,15 @@ namespace Tomahawk
 			bool CanRootBeApplied(Transform* Root) const;
 		};
 
-		class TH_OUT Area
-		{
-		public:
-			Vector3 Lower;
-			Vector3 Upper;
-			Vector3 Center;
-			float Volume;
-
-		public:
-			Area();
-			Area(const Vector3&, const Vector3&);
-			void Merge(const Area&, const Area&);
-			void Recompute();
-			bool Contains(const Area&) const;
-			bool Overlaps(const Area&) const;
-		};
-
 		class TH_OUT Cosmos
 		{
 		public:
-			enum
-			{
-				NULL_NODE = std::numeric_limits<uint64_t>::max()
-			};
+			typedef std::vector<uint64_t> Iterator;
 
 		public:
-			struct Node
+			struct TH_OUT Node
 			{
-				Area Box;
+				Bounding Bounds;
 				uint64_t Parent;
 				uint64_t Next;
 				uint64_t Left;
@@ -1756,7 +1771,6 @@ namespace Tomahawk
 		private:
 			std::unordered_map<void*, uint64_t> Items;
 			std::vector<Node> Nodes;
-			Core::Pool<uint64_t> Stack;
 			uint64_t Root;
 			uint64_t NodeCount;
 			uint64_t NodeCapacity;
@@ -1769,9 +1783,7 @@ namespace Tomahawk
 			void RemoveItem(void* Item);
 			void InsertItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound);
 			bool UpdateItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound, bool Always = false);
-			void PushQuery();
-			void* NextQuery(const Area& Box);
-			const Area& GetArea(void* Item);
+			const Bounding& GetArea(void* Item);
 			const std::unordered_map<void*, uint64_t>& GetItems() const;
 			const std::vector<Node>& GetNodes() const;
 			uint64_t GetHeight() const;
@@ -1786,6 +1798,48 @@ namespace Tomahawk
 			uint64_t Balance(uint64_t);
 			uint64_t ComputeHeight() const;
 			uint64_t ComputeHeight(uint64_t) const;
+
+		public:
+			template <typename T, typename OverlapsFunction, typename MatchFunction>
+			void Query(Iterator& Context, OverlapsFunction&& Overlaps, MatchFunction&& Match)
+			{
+				Context.clear();
+				if (!Items.empty())
+					Context.push_back(Root);
+
+				while (!Context.empty())
+				{
+					auto& Next = Nodes[(size_t)Context.back()];
+					Context.pop_back();
+
+					if (Overlaps(Next.Bounds))
+					{
+						if (!Next.IsLeaf())
+						{
+							Context.push_back(Next.Left);
+							Context.push_back(Next.Right);
+						}
+						else if (Next.Item != nullptr)
+							Match((T*)Next.Item);
+					}
+				}
+			}
+			template <typename T, typename MatchFunction>
+			void QueryBounding(Iterator& Context, const Bounding& Target, MatchFunction&& Match)
+			{
+				Query<T>(Context, [&Target](Bounding& Bounds)
+				{
+					return Target.Overlaps(Bounds);
+				}, std::move(Match));
+			}
+			template <typename T, typename MatchFunction>
+			void QueryFrustum6P(Iterator& Context, const Frustum6P& Target, MatchFunction&& Match)
+			{
+				Query<T>(Context, [&Target](Bounding& Bounds)
+				{
+					return Target.OverlapsAABB(Bounds);
+				}, std::move(Match));
+			}
 		};
 
 		class TH_OUT HullShape : public Core::Object

@@ -655,10 +655,10 @@ namespace Tomahawk
 			class TH_OUT Camera final : public Component
 			{
 			public:
-				enum ProjectionMode
+				enum class ProjectionMode
 				{
-					ProjectionMode_Perspective,
-					ProjectionMode_Orthographic
+					Perspective,
+					Orthographic
 				} Mode;
 
 			protected:
@@ -690,7 +690,8 @@ namespace Tomahawk
 				Compute::Matrix4x4 GetViewProjection();
 				Compute::Matrix4x4 GetView();
 				Compute::Vector3 GetViewPosition();
-				Compute::Frustum GetFrustum();
+				Compute::Frustum8C GetFrustum8C();
+				Compute::Frustum6P GetFrustum6P();
 				Compute::Ray GetScreenRay(const Compute::Vector2& Position);
 				float GetDistance(Entity* Other);
 				float GetWidth();

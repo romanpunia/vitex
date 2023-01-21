@@ -1903,8 +1903,8 @@ namespace Tomahawk
 		}
 		size_t Component::GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const
 		{
-			Min = -0.5f;
-			Max = 0.5f;
+			Min = -1.0f;
+			Max = 1.0f;
 			return 0;
 		}
 		void Component::SetActive(bool Status)
@@ -1986,15 +1986,15 @@ namespace Tomahawk
 			size_t Index = 0;
 			for (auto& Item : Type.Components)
 			{
-				Compute::Vector3 SMin, SMax;
-				size_t SIndex = Item.second->GetUnitBounds(SMin, SMax);
+				Compute::Vector3 Min, Max;
+				size_t Offset = Item.second->GetUnitBounds(Min, Max);
 				Item.second->Movement();
 
-				if (SIndex > Index)
+				if (Offset > Index)
 				{
-					Index = SIndex;
-					Snapshot.Min = SMin;
-					Snapshot.Max = SMax;
+					Index = Offset;
+					Snapshot.Min = Min;
+					Snapshot.Max = Max;
 				}
 			}
 
@@ -2310,7 +2310,7 @@ namespace Tomahawk
 			return System;
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), OcclusionCulling(false), FrustumCulling(true), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
+		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), OcclusionCulling(false), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
 		{
 			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
 			TH_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");	
@@ -2353,17 +2353,10 @@ namespace Tomahawk
 					View = *Buffer;
 			}
 
-			if (View.Culling != RenderCulling::Line)
-			{
-				float Radius = View.FarPlane;
-				Compute::Vector3 Pivot = View.Position;
-				if (View.Culling == RenderCulling::Spot)
-					Pivot += View.Rotation.dDirection() * Radius * 0.5f;
-
-				Query.Box.Lower = Pivot - Radius;
-				Query.Box.Upper = Pivot + Radius;
-				Query.Box.Recompute();
-			}
+			if (View.Culling == RenderCulling::Linear)
+				Indexing.Frustum = Compute::Frustum6P(View.ViewProjection);
+			else if (View.Culling == RenderCulling::Cubic)
+				Indexing.Bounds = Compute::Bounding(View.Position - View.FarPlane, View.Position + View.FarPlane);
 
 			Device->View.InvViewProj = View.InvViewProjection;
 			Device->View.ViewProj = View.ViewProjection;
@@ -2486,6 +2479,25 @@ namespace Tomahawk
 		{
 			BaseMaterial = nullptr;
 		}
+		void RenderSystem::FetchVisibility(Component* Base, VisibilityQuery& Data)
+		{
+			auto& Snapshot = Base->Parent->Snapshot;
+			Snapshot.Distance = Base->Parent->Transform->GetPosition().Distance(View.Position);
+			Snapshot.Visibility = std::max<float>(0.0f, 1.0f - Snapshot.Distance / (View.FarPlane + Base->Parent->GetRadius()));
+			if (OcclusionCulling && Snapshot.Visibility >= Threshold && State.IsTop() && Base->IsDrawable())
+			{
+				auto* Varying = (Drawable*)Base;
+				Snapshot.Visibility = Varying->Overlapping;
+				Data.Category = Varying->GetCategory();
+				Data.QueryPixels = (Data.Category == GeoCategory::Opaque);
+			}
+			else
+			{
+				Data.Category = GeoCategory::Opaque;
+				Data.QueryPixels = false;
+			}
+			Data.BoundaryVisible = Snapshot.Visibility >= Threshold;
+		}
 		size_t RenderSystem::Render(Core::Timer* Time, RenderState Stage, RenderOpt Options)
 		{
 			TH_ASSERT(Time != nullptr, 0, "timer should be set");
@@ -2521,77 +2533,6 @@ namespace Tomahawk
 			State.Top--;
 
 			return Count;
-		}
-		void RenderSystem::QueryBegin(uint64_t Section)
-		{
-			TH_ASSERT_V(!Query.Data, "query should be inactive");
-			auto& Storage = Scene->GetStorage(Section);
-			Query.Data = &Storage.Data;
-			Query.Index = &Storage.Index;
-
-			if (View.Culling != RenderCulling::Line)
-				Query.Index->PushQuery();
-		}
-		void RenderSystem::QueryEnd()
-		{
-			TH_ASSERT_V(Query.Data, "query should be active");
-			Query.Data = nullptr;
-			Query.Index = nullptr;
-			Query.Offset = 0;
-		}
-		void* RenderSystem::QueryNext()
-		{
-			TH_ASSERT(Query.Index, nullptr, "query should be active");
-			if (View.Culling == RenderCulling::Line)
-				return (*Query.Data)[Query.Offset++];
-
-			return Query.Index->NextQuery(Query.Box);
-		}
-		float RenderSystem::EnqueueCullable(Component* Base)
-		{
-			Base->Parent->Snapshot.Distance = Base->Parent->Transform->GetPosition().Distance(View.Position);
-			Scene->ProcessCullable(Base);
-
-			return Base->Parent->Snapshot.Visibility;
-		}
-		float RenderSystem::EnqueueDrawable(Drawable* Base, bool& Cullable)
-		{
-			Base->Parent->Snapshot.Distance = Base->Parent->Transform->GetPosition().Distance(View.Position);
-			Cullable = (OcclusionCulling && Base->Parent->Snapshot.Visibility >= Threshold);
-			Scene->ProcessCullable(Base);
-
-			return Cullable ? Base->Overlapping : Base->Parent->Snapshot.Visibility;
-		}
-		bool RenderSystem::DispatchCullable(Entity* Target, const Viewer& Source, Component* Base)
-		{
-			float Visibility = Threshold;
-			float Radius = Base->Parent->GetRadius();
-			if (Base->Parent->Snapshot.Distance <= Source.FarPlane + Radius)
-			{
-				if (FrustumCulling && Source.Culling != RenderCulling::Point)
-					Visibility = Base->GetVisibility(Source, Base->Parent->Snapshot.Distance);
-			}
-			else
-				Visibility = Threshold;
-
-			if (Target != nullptr)
-				Target->Snapshot.Visibility = Visibility;
-
-			return Visibility >= Threshold;
-		}
-		bool RenderSystem::DispatchDrawable(Entity* Target, const Viewer& Source, Drawable* Base)
-		{
-			if (!DispatchCullable(Target, Source, Base))
-				return false;
-			
-			float Visibility = Threshold;
-			if (OcclusionCulling && State.IsTop())
-				Visibility = Base->Overlapping;
-
-			if (Target != nullptr)
-				Target->Snapshot.Visibility = Visibility;
-
-			return Visibility >= Threshold;
 		}
 		bool RenderSystem::TryInstance(Material* Next, Graphics::RenderBuffer::Instance& Target)
 		{
@@ -2790,6 +2731,10 @@ namespace Tomahawk
 		Component* RenderSystem::GetComponent() const
 		{
 			return Owner;
+		}
+		SparseIndex& RenderSystem::GetStorageWrapper(uint64_t Section)
+		{
+			return Scene->GetStorage(Section);
 		}
 
 		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
@@ -3489,7 +3434,7 @@ namespace Tomahawk
 			auto Components = Core::Composer::Fetch((uint64_t)ComposerTag::Component);
 			for (uint64_t Section : Components)
 			{
-				Registry[Section] = TH_NEW(Indexer);
+				Registry[Section] = TH_NEW(SparseIndex);
 				Changes[Section].clear();
 			}
 
@@ -3528,7 +3473,7 @@ namespace Tomahawk
 				TH_RELEASE(*It);
 
 			for (auto& Sparse : Registry)
-				TH_DELETE(Indexer, Sparse.second);
+				TH_DELETE(SparseIndex, Sparse.second);
 
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Diffuse]);
 			TH_RELEASE(Display.VoxelBuffers[(size_t)VoxelType::Normal]);
@@ -3577,7 +3522,6 @@ namespace Tomahawk
 				Display.Layout = Device->GetInputLayout("shape-vertex");
 				Conf = NewConf;
 
-				Indices.Reserve(Conf.StartComponents);
 				Materials.Reserve(Conf.StartMaterials);
 				Entities.Reserve(Conf.StartEntities);
 				Dirty.Reserve(Conf.StartEntities);
@@ -3697,7 +3641,6 @@ namespace Tomahawk
 			StepSimulate(Time);
 			StepAnimate(Time);
 			StepSynchronize(Time);
-			StepCulling();
 			StepIndexing();
 			StepFinalize();
 			TH_PPOP();
@@ -3708,16 +3651,17 @@ namespace Tomahawk
 			TH_PPUSH(TH_PERF_FRAME);
 			auto* Base = (Components::Camera*)Camera.load();
 			auto* Renderer = (Base ? Base->GetRenderer() : nullptr);
+
+			Statistics.Instances = 0;
+			Statistics.DrawCalls = 0;
+
 			if (Renderer != nullptr)
 			{
-				Indices.Clear();
 				FillMaterialBuffers();
 				SetMRT(TargetType::Main, true);
 				Renderer->RestoreViewBuffer(nullptr);
-				Statistics.DrawCalls = Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
+				Statistics.DrawCalls += Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 			}
-			else
-				Statistics.DrawCalls = 0;
 			TH_PPOP();
 		}
 		void SceneGraph::StepSimulate(Core::Timer* Time)
@@ -3791,22 +3735,6 @@ namespace Tomahawk
 				ResolveEvent(Source);
 				Events.pop();
 			}
-		}
-		void SceneGraph::StepCulling()
-		{
-			TH_PPUSH(TH_PERF_CORE);
-			auto* Base = (Components::Camera*)Camera.load();
-			if (Base != nullptr && !Indices.Empty())
-			{
-				Compute::Vector3 Far = Base->Parent->Transform->GetPosition();
-				RenderSystem* System = Base->GetRenderer();
-				auto& View = Base->GetViewer();
-				WatchAll(Parallel::ForEach(Indices.Begin(), Indices.End(), [System, View](Component* Next)
-				{
-					System->DispatchCullable(Next->Parent, View, Next);
-				}));
-			}
-			TH_PPOP();
 		}
 		void SceneGraph::StepIndexing()
 		{
@@ -4023,9 +3951,6 @@ namespace Tomahawk
 				Base->Deactivate();
 
 			Storage.Remove(Base);
-			if (Base->IsCullable())
-				Indices.Remove(Base);
-
 			if (Base->Set & (size_t)ActorSet::Update)
 				GetActors(ActorType::Update).Remove(Base);
 			if (Base->Set & (size_t)ActorSet::Synchronize)
@@ -4601,7 +4526,7 @@ namespace Tomahawk
 				Storage.Index.RemoveItem((void*)Base);
 			}
 		}
-		void SceneGraph::UpdateCosmos(Indexer& Storage, Component* Base)
+		void SceneGraph::UpdateCosmos(SparseIndex& Storage, Component* Base)
 		{
 			if (Base->Active)
 			{
@@ -4619,20 +4544,6 @@ namespace Tomahawk
 				Storage.Index.RemoveItem((void*)Base);
 				Base->Indexed = false;
 			}
-		}
-		void SceneGraph::ProcessCullable(Component* Base)
-		{
-			if (Indices.Size() + Conf.GrowMargin > Indices.Capacity())
-			{
-				Transaction([this, Base]()
-				{
-					if (Indices.Size() + Conf.GrowMargin > Indices.Capacity())
-						UpgradeBuffer(Indices, Conf.GrowRate);
-					Indices.Add(Base);
-				});
-			}
-			else
-				Indices.Add(Base);
 		}
 		void SceneGraph::WatchMovement(Entity* Base)
 		{
@@ -4780,15 +4691,15 @@ namespace Tomahawk
 
 			return Result->GetViewer();
 		}
-		SceneGraph::Indexer& SceneGraph::GetStorage(uint64_t Section)
+		SparseIndex& SceneGraph::GetStorage(uint64_t Section)
 		{
-			Indexer* Storage = Registry[Section];
+			SparseIndex* Storage = Registry[Section];
 			TH_ASSERT(Storage != nullptr, *Registry.begin()->second, "component should be registered by composer");
 			if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
 			{
 				Transaction([this, Section]()
 				{
-					Indexer* Storage = Registry[Section];
+					SparseIndex* Storage = Registry[Section];
 					if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
 					    UpgradeBuffer(Storage->Data, Conf.GrowRate);
 				});
@@ -4860,7 +4771,7 @@ namespace Tomahawk
 		}
 		Core::Pool<Component*>& SceneGraph::GetComponents(uint64_t Section)
 		{
-			Indexer& Storage = GetStorage(Section);
+			SparseIndex& Storage = GetStorage(Section);
 			return Storage.Data;
 		}
 		Core::Pool<Component*>& SceneGraph::GetActors(ActorType Type)
@@ -4969,18 +4880,14 @@ namespace Tomahawk
 		}
 		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly)
 		{
-			Compute::Area Box;
-			Box.Lower = Min;
-			Box.Upper = Max;
-			Box.Recompute();
-
 			std::vector<Component*> Result;
+			Compute::Bounding Bounds(Min, Max);
+			Compute::Cosmos::Iterator Context;
 			auto& Storage = GetStorage(Section);
-			void* Base = nullptr;
-
-			Storage.Index.PushQuery();
-			while ((Base = Storage.Index.NextQuery(Box)) != nullptr)
-				Result.push_back((Component*)Base);
+			Storage.Index.QueryBounding<Component>(Context, Bounds, [&Result](Component* Item)
+			{
+				Result.push_back(Item);
+			});
 
 			return Result;
 		}
@@ -6177,6 +6084,9 @@ namespace Tomahawk
 					Device->CopyTexture2D(Output, 0, Merger);
 			}
 
+			auto* Scene = System->GetScene();
+			Scene->Statistics.DrawCalls += Count;
+
 			if (Swap == Output)
 				RenderOutput();
 		}
@@ -6202,6 +6112,9 @@ namespace Tomahawk
 
 			Device->Draw(6, 0);
 			Output = System->GetRT(TargetType::Main);
+
+			auto* Scene = System->GetScene();
+			Scene->Statistics.DrawCalls++;
 		}
 		void EffectRenderer::RenderEffect(Core::Timer* Time)
 		{

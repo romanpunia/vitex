@@ -83,9 +83,9 @@ namespace Tomahawk
 
 		enum class RenderCulling
 		{
-			Spot,
-			Point,
-			Line
+			Linear,
+			Cubic,
+			Disable
 		};
 
 		enum class RenderState
@@ -242,6 +242,13 @@ namespace Tomahawk
 			std::unordered_map<uint64_t, Entity*> From;
 		};
 
+		struct TH_OUT VisibilityQuery
+		{
+			GeoCategory Category = GeoCategory::Opaque;
+			bool BoundaryVisible = false;
+			bool QueryPixels = false;
+		};
+
 		struct TH_OUT AnimatorState
 		{
 			bool Paused = false;
@@ -269,7 +276,7 @@ namespace Tomahawk
 		struct TH_OUT Viewer
 		{
 			RenderSystem* Renderer = nullptr;
-			RenderCulling Culling = RenderCulling::Spot;
+			RenderCulling Culling = RenderCulling::Linear;
 			Compute::Matrix4x4 CubicViewProjection[6];
 			Compute::Matrix4x4 InvViewProjection;
 			Compute::Matrix4x4 ViewProjection;
@@ -310,6 +317,12 @@ namespace Tomahawk
 			Compute::Vector2 Occlusion = { 1.0f, 0.0f };
 			float Radius = 0.0f;
 			float Height = 0.0f;
+		};
+
+		struct TH_OUT SparseIndex
+		{
+			Core::Pool<Component*> Data;
+			Compute::Cosmos Index;
 		};
 
 		class TH_OUT_TS Series
@@ -458,7 +471,10 @@ namespace Tomahawk
 				size_t Size = End - Begin;
 
 				if (!Size)
+				{
+					InitCallback((size_t)0);
 					return Tasks;
+				}
 
 				size_t Threads = std::max<size_t>(1, (size_t)Core::Schedule::Get()->GetThreads(Core::Difficulty::Heavy));
 				size_t Step = Size / Threads;
@@ -752,16 +768,14 @@ namespace Tomahawk
 
 		class TH_OUT RenderSystem : public Core::Object
 		{
-		private:
+		public:
 			struct
 			{
-				Core::Pool<Component*>* Data = nullptr;
-				Compute::Cosmos* Index = nullptr;
-				Compute::Area Box;
-				size_t Offset = 0;
-			} Query;
+				Compute::Cosmos::Iterator Context;
+				Compute::Frustum6P Frustum;
+				Compute::Bounding Bounds;
+			} Indexing;
 
-		public:
 			struct
 			{
 				friend RenderSystem;
@@ -814,7 +828,6 @@ namespace Tomahawk
 			float OverflowVisibility;
 			float Threshold;
 			bool OcclusionCulling;
-			bool FrustumCulling;
 			bool PreciseCulling;
 
 		public:
@@ -835,14 +848,8 @@ namespace Tomahawk
 			void FreeBuffers(const std::string& Name, Graphics::ElementBuffer** Buffers);
 			void FreeBuffers(Graphics::ElementBuffer** Buffers);
 			void ClearMaterials();
+			void FetchVisibility(Component* Base, VisibilityQuery& Data);
 			size_t Render(Core::Timer* Time, RenderState Stage, RenderOpt Options);
-			void QueryBegin(uint64_t Section);
-			void QueryEnd();
-			void* QueryNext();
-			float EnqueueCullable(Component* Base);
-			float EnqueueDrawable(Drawable* Base, bool& Cullable);
-			bool DispatchCullable(Entity* Target, const Viewer& Source, Component* Base);
-			bool DispatchDrawable(Entity* Target, const Viewer& Source, Drawable* Base);
 			bool TryInstance(Material* Next, Graphics::RenderBuffer::Instance& Target);
 			bool TryGeometry(Material* Next, bool WithTextures);
 			bool HasCategory(GeoCategory Category);
@@ -861,7 +868,27 @@ namespace Tomahawk
 			SceneGraph* GetScene() const;
 			Component* GetComponent() const;
 
+		private:
+			SparseIndex& GetStorageWrapper(uint64_t Section);
+
 		public:
+			template <typename T, typename MatchFunction>
+			void QueryBounding(MatchFunction&& Callback)
+			{
+				auto& Storage = GetStorageWrapper(T::GetTypeId());
+				switch (View.Culling)
+				{
+					case RenderCulling::Linear:
+						Storage.Index.QueryFrustum6P<Component>(Indexing.Context, Indexing.Frustum, std::move(Callback));
+						break;
+					case RenderCulling::Cubic:
+						Storage.Index.QueryBounding<Component>(Indexing.Context, Indexing.Bounds, std::move(Callback));
+						break;
+					default:
+						std::for_each(Storage.Data.Begin(), Storage.Data.End(), std::move(Callback));
+						break;
+				}
+			}
 			template <typename T>
 			void RemoveRenderer()
 			{
@@ -1146,13 +1173,6 @@ namespace Tomahawk
 				static Desc Get(Application* Base);
 			};
 
-		public:
-			struct Indexer
-			{
-				Core::Pool<Component*> Data;
-				Compute::Cosmos Index;
-			};
-
 		private:
 			struct
 			{
@@ -1175,13 +1195,12 @@ namespace Tomahawk
 		protected:
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
 			std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
-			std::unordered_map<uint64_t, Indexer*> Registry;
+			std::unordered_map<uint64_t, SparseIndex*> Registry;
 			std::unordered_map<Component*, uint64_t> Incomplete;
 			std::queue<Core::TaskCallback> Transactions;
 			std::queue<Parallel::Task> Tasks;
 			std::queue<Event> Events;
 			Core::Pool<Component*> Actors[(size_t)ActorType::Count];
-			Core::Pool<Component*> Indices;
 			Core::Pool<Material*> Materials;
 			Core::Pool<Entity*> Entities;
 			Core::Pool<Entity*> Dirty;
@@ -1194,6 +1213,7 @@ namespace Tomahawk
 		public:
 			struct
 			{
+				size_t Instances = 0;
 				size_t DrawCalls = 0;
 			} Statistics;
 
@@ -1253,7 +1273,7 @@ namespace Tomahawk
 			Viewer GetCameraViewer() const;
 			Material* GetMaterial(const std::string& Material);
 			Material* GetMaterial(uint64_t Material);
-			Indexer& GetStorage(uint64_t Section);
+			SparseIndex& GetStorage(uint64_t Section);
 			Core::Pool<Component*>& GetComponents(uint64_t Section);
 			Core::Pool<Component*>& GetActors(ActorType Type);
 			Graphics::RenderTarget2D::Desc GetDescRT() const;
@@ -1298,7 +1318,6 @@ namespace Tomahawk
 			void StepGameplay(Core::Timer* Time);
 			void StepTransactions();
 			void StepEvents();
-			void StepCulling();
 			void StepIndexing();
 			void StepFinalize();
 
@@ -1309,13 +1328,12 @@ namespace Tomahawk
 			void RegisterComponent(Component* Base, bool Verify);
 			void UnregisterComponent(Component* Base);
 			void CloneEntities(Entity* Instance, std::vector<Entity*>* Array);
-			void ProcessCullable(Component* Base);
 			void GenerateMaterialBuffer();
 			void GenerateVoxelBuffers();
 			void GenerateDepthBuffers();
 			void NotifyCosmos(Component* Base);
 			void ClearCosmos(Component* Base);
-			void UpdateCosmos(Indexer& Storage, Component* Base);
+			void UpdateCosmos(SparseIndex& Storage, Component* Base);
 			void FillMaterialBuffers();
 			void ResizeRenderBuffers();
 			void RegisterEntity(Entity* In);
@@ -1394,7 +1412,7 @@ namespace Tomahawk
 				return nullptr;
 			}
 			template <typename T>
-			Indexer& GetStorage()
+			SparseIndex& GetStorage()
 			{
 				return GetStorage(T::GetTypeId());
 			}
@@ -1573,7 +1591,9 @@ namespace Tomahawk
 			}
 			void Prepare(size_t MaxSize)
 			{
-				Queue.resize(MaxSize);
+				if (MaxSize > 0)
+					Queue.resize(MaxSize);
+				
 				for (auto& Base : Groups)
 				{
 					auto* Group = Base.second;
@@ -1742,24 +1762,21 @@ namespace Tomahawk
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
-				System->QueryBegin(T::GetTypeId());
+				VisibilityQuery Info;
+				System->QueryBounding<T>([this, &System, &Top, &Info](Component* Item)
 				{
-					T* Base = nullptr;
-					while ((Base = (T*)System->QueryNext()) != nullptr)
-					{
-						bool Cullable;
-						if (System->EnqueueDrawable(Base, Cullable) >= System->Threshold)
-							Top[(size_t)Base->GetCategory()].push_back(Base);
+					System->FetchVisibility(Item, Info);
+					if (Info.BoundaryVisible)
+						Top[(size_t)Info.Category].push_back((T*)Item);
 
-						if (Cullable && Base->GetCategory() == GeoCategory::Opaque)
-							Culling.push_back(Base);
-					}
-				}
-				System->QueryEnd();
+					if (Info.QueryPixels)
+						Culling.push_back((T*)Item);
+				});
 
 				auto* Scene = System->GetScene();
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
+					Scene->Statistics.Instances += Top[i].size();
 					Scene->Watch(Parallel::Enqueue([i, &Top]()
 					{
 						TH_PPUSH(TH_PERF_CORE);
@@ -1767,12 +1784,15 @@ namespace Tomahawk
 						TH_PPOP();
 					}));
 				}
-				Scene->Watch(Parallel::Enqueue([this]()
 				{
-					TH_PPUSH(TH_PERF_CORE);
-					std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
-					TH_PPOP();
-				}));
+					Scene->Statistics.Instances += Culling.size();
+					Scene->Watch(Parallel::Enqueue([this]()
+					{
+						TH_PPUSH(TH_PERF_CORE);
+						std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
+						TH_PPOP();
+					}));
+				}
 				Scene->AwaitAll();
 			}
 			template<class Q = T>
@@ -1781,16 +1801,16 @@ namespace Tomahawk
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
-				System->QueryBegin(T::GetTypeId());
+				VisibilityQuery Info;
+				System->QueryBounding<T>([&System, &Subframe, &Info](Component* Item)
 				{
-					T* Base = nullptr;
-					while ((Base = (T*)System->QueryNext()) != nullptr)
-					{
-						if (System->EnqueueCullable(Base) >= System->Threshold)
-							Subframe.push_back(Base);
-					}
-				}
-				System->QueryEnd();
+					System->FetchVisibility(Item, Info);
+					if (Info.BoundaryVisible)
+						Subframe.push_back((T*)Item);
+				});
+
+				auto* Scene = System->GetScene();
+				Scene->Statistics.Instances += Subframe.size();
 				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
 			template<class Q = T>
@@ -1799,20 +1819,18 @@ namespace Tomahawk
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
-				System->QueryBegin(T::GetTypeId());
+				VisibilityQuery Info;
+				System->QueryBounding<T>([&System, &Top, &Info](Component* Item)
 				{
-					T* Base = nullptr;
-					while ((Base = (T*)System->QueryNext()) != nullptr)
-					{
-						if (System->DispatchCullable(nullptr, System->View, Base))
-							Top[(size_t)Base->GetCategory()].push_back(Base);
-					}
-				}
-				System->QueryEnd();
+					System->FetchVisibility(Item, Info);
+					if (Info.BoundaryVisible)
+						Top[(size_t)Info.Category].push_back((T*)Item);
+				});
 
 				auto* Scene = System->GetScene();
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
+					Scene->Statistics.Instances += Top[i].size();
 					Scene->Watch(Parallel::Enqueue([i, &Top]()
 					{
 						std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
@@ -1826,16 +1844,16 @@ namespace Tomahawk
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
-				System->QueryBegin(T::GetTypeId());
+				VisibilityQuery Info;
+				System->QueryBounding<T>([&System, &Subframe, &Info](Component* Item)
 				{
-					T* Base = nullptr;
-					while ((Base = (T*)System->QueryNext()) != nullptr)
-					{
-						if (System->DispatchCullable(nullptr, System->View, Base))
-							Subframe.push_back(Base);
-					}
-				}
-				System->QueryEnd();
+					System->FetchVisibility(Item, Info);
+					if (Info.BoundaryVisible)
+						Subframe.push_back((T*)Item);
+				});
+
+				auto* Scene = System->GetScene();
+				Scene->Statistics.Instances += Subframe.size();
 				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
 		};

@@ -1441,13 +1441,13 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLInstanceBuffer* IResource = (OGLInstanceBuffer*)Resource;
-				if (IResource->Array.Size() <= 0 || IResource->Array.Size() > IResource->ElementLimit)
+				if (IResource->Array.size() <= 0 || IResource->Array.size() > IResource->ElementLimit)
 					return false;
 
 				OGLElementBuffer* Element = (OGLElementBuffer*)IResource->Elements;
 				glBindBuffer(Element->Flags, Element->Resource);
 				GLvoid* Data = glMapBuffer(Element->Flags, GL_WRITE_ONLY);
-				memcpy(Data, IResource->Array.Get(), (size_t)IResource->Array.Size() * IResource->ElementWidth);
+				memcpy(Data, IResource->Array.data(), (size_t)IResource->Array.size() * IResource->ElementWidth);
 				glUnmapBuffer(Element->Flags);
 				glBindBuffer(Element->Flags, GL_NONE);
 				return true;
@@ -1480,8 +1480,8 @@ namespace Tomahawk
 				ClearBuffer(IResource);
 				TH_RELEASE(IResource->Elements);
 				IResource->ElementLimit = Size;
-				IResource->Array.Clear();
-				IResource->Array.Reserve(IResource->ElementLimit);
+				IResource->Array.clear();
+				IResource->Array.reserve(IResource->ElementLimit);
 
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = CPUAccess::Write;

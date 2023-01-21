@@ -1835,6 +1835,8 @@ namespace Tomahawk
 		template <typename T>
 		class TH_OUT Pool
 		{
+			static_assert(std::is_pointer<T>::value, "pool can be used only for pointer types");
+
 		public:
 			typedef T* Iterator;
 
@@ -1845,79 +1847,46 @@ namespace Tomahawk
 		public:
 			Pool() : Count(0), Volume(0), Data(nullptr)
 			{
-				Reserve(1);
-			}
-			Pool(size_t _Size, size_t _Capacity, T* _Data) : Count(_Size), Volume(_Capacity), Data(_Data)
-			{
-				if (!Data && Volume > 0)
-					Reserve(Volume);
-				else if (!Data || !Volume)
-					Reserve(1);
-			}
-			Pool(size_t _Capacity) : Count(0), Volume(0), Data(nullptr)
-			{
-				if (_Capacity > 0)
-					Reserve(_Capacity);
-				else
-					Reserve(1);
 			}
 			Pool(const Pool<T>& Ref) : Count(0), Volume(0), Data(nullptr)
 			{
 				if (Ref.Data != nullptr)
 					Copy(Ref);
-				else
-					Reserve(1);
+			}
+			Pool(Pool<T>&& Ref) : Count(Ref.Count), Volume(Ref.Volume), Data(Ref.Data)
+			{
+				Ref.Count = 0;
+				Ref.Volume = 0;
+				Ref.Data = nullptr;
 			}
 			~Pool()
 			{
+				Release();
+			}
+			void Release()
+			{
+				TH_FREE(Data);
+				Data = nullptr;
+				Count = 0;
+				Volume = 0;
+			}
+			void Reserve(size_t Capacity)
+			{
+				if (Capacity <= Volume)
+					return;
+
+				size_t Size = Capacity * sizeof(T);
+				T* NewData = TH_MALLOC(T, Size);
+				memset(NewData, 0, Size);
+				
 				if (Data != nullptr)
 				{
-					for (auto It = Begin(); It != End(); It++)
-						Dispose(It);
-
+					memcpy(NewData, Data, Count * sizeof(T));
 					TH_FREE(Data);
-					Data = nullptr;
 				}
 
-				Count = Volume = 0;
-			}
-			void Swap(Pool<T>& Raw)
-			{
-				size_t _Size = Raw.Count;
-				Raw.Count = Count;
-				Count = _Size;
-
-				size_t _Capacity = Raw.Volume;
-				Raw.Volume = Volume;
-				Volume = _Capacity;
-
-				T* _Data = Raw.Data;
-				Raw.Data = Data;
-				Data = _Data;
-			}
-			void Reserve(size_t NewCount)
-			{
-				if (NewCount <= Volume)
-					return;
-
-				Volume = NewCount;
-				T* Raw = TH_MALLOC(T, (size_t)(Volume * SizeOf()));
-				memset(Raw, 0, (size_t)(Volume * SizeOf()));
-
-				if (!Data)
-				{
-					Data = Raw;
-					return;
-				}
-
-				if (!Assign(Begin(), End(), Raw))
-					memcpy(Raw, Data, (size_t)(Count * SizeOf()));
-
-				for (auto It = Begin(); It != End(); It++)
-					Dispose(It);
-
-				TH_FREE(Data);
-				Data = Raw;
+				Volume = Capacity;
+				Data = NewData;
 			}
 			void Resize(size_t NewSize)
 			{
@@ -1926,39 +1895,25 @@ namespace Tomahawk
 
 				Count = NewSize;
 			}
-			void Copy(const Pool<T>& Raw)
+			void Copy(const Pool<T>& Ref)
 			{
-				if (Data == nullptr || Volume >= Raw.Volume)
-				{
-					Data = TH_MALLOC(T, (size_t)(Raw.Count * SizeOf()));
-					memset(Data, 0, (size_t)(Raw.Count * SizeOf()));
-				}
-				else
-					Data = TH_REALLOC(Data, T, (size_t)(Raw.Volume * SizeOf()));
+				if (!Ref.Data)
+					return;
 
-				Count = Raw.Count;
-				Volume = Raw.Volume;
-				if (!Assign(Raw.Begin(), Raw.End(), Data))
-					memcpy(Data, Raw.Data, (size_t)(Count * SizeOf()));
+				if (!Data || Ref.Count > Count)
+				{
+					TH_FREE(Data);
+					Data = TH_MALLOC(T, Ref.Volume * sizeof(T));
+					memset(Data, 0, Ref.Volume * sizeof(T));
+				}
+
+				memcpy(Data, Ref.Data, (size_t)(Ref.Count * sizeof(T)));
+				Count = Ref.Count;
+				Volume = Ref.Volume;
 			}
 			void Clear()
 			{
 				Count = 0;
-			}
-			void PopFront()
-			{
-				TH_ASSERT_V(Count > 0, "pool is empty");
-
-				Count--;
-				Data[0] = Data[Count];
-				Dispose(Data);
-			}
-			void PopBack()
-			{
-				TH_ASSERT_V(Count > 0, "pool is empty");
-
-				Count--;
-				Dispose(Data + Count);
 			}
 			Iterator Add(const T& Ref)
 			{
@@ -1968,11 +1923,10 @@ namespace Tomahawk
 			}
 			Iterator AddUnbounded(const T& Ref)
 			{
-				if (Count >= Volume)
+				if (Count + 1 >= Volume)
 					Reserve(IncreaseCapacity(Count + 1));
 
-				Data[Count++] = Ref;
-				return End() - 1;
+				return Add(Ref);
 			}
 			Iterator AddIfNotExists(const T& Ref)
 			{
@@ -1989,13 +1943,12 @@ namespace Tomahawk
 
 				Count--;
 				Data[It - Data] = Data[Count];
-				Dispose(It);
 				return It;
 			}
 			Iterator Remove(const T& Value)
 			{
-				Iterator It;
-				while ((It = Find(Value)) != End())
+				Iterator It = Find(Value);
+				if (It != End())
 					RemoveAt(It);
 
 				return It;
@@ -2016,13 +1969,19 @@ namespace Tomahawk
 
 				return End;
 			}
-
-		public:
 			Iterator Begin() const
 			{
 				return Data;
 			}
 			Iterator End() const
+			{
+				return Data + Count;
+			}
+			Iterator begin() const
+			{
+				return Data;
+			}
+			Iterator end() const
 			{
 				return Data + Count;
 			}
@@ -2054,9 +2013,30 @@ namespace Tomahawk
 			{
 				return *(Data + Index);
 			}
-			Pool<T>& operator =(const Pool<T>& Raw)
+			T& operator [](size_t Index)
 			{
-				Copy(Raw);
+				return *(Data + Index);
+			}
+			Pool<T>& operator =(const Pool<T>& Ref)
+			{
+				if (this == &Ref)
+					return *this;
+
+				Copy(Ref);
+				return *this;
+			}
+			Pool<T>& operator =(Pool<T>&& Ref)
+			{
+				if (this == &Ref)
+					return *this;
+
+				Release();
+				Count = Ref.Count;
+				Volume = Ref.Volume;
+				Data = Ref.Data;
+				Ref.Count = 0;
+				Ref.Volume = 0;
+				Ref.Data = nullptr;
 				return *this;
 			}
 			bool operator ==(const Pool<T>& Raw)
@@ -2084,52 +2064,10 @@ namespace Tomahawk
 				return Compare(Raw) >= 0;
 			}
 
-		public:
-			Iterator begin() const
-			{
-				return Data;
-			}
-			Iterator end() const
-			{
-				return Data + Count;
-			}
-
-		private:
-			template<class Q = T>
-			typename std::enable_if<std::is_trivially_destructible<Q>::value>::type Dispose(Iterator It)
-			{
-			}
-			template<class Q = T>
-			typename std::enable_if<!std::is_trivially_destructible<Q>::value>::type Dispose(Iterator It)
-			{
-				It->~T();
-			}
-			template<class Q = T>
-			typename std::enable_if<std::is_pointer<Q>::value, size_t>::type SizeOf()
-			{
-				return sizeof(T);
-			}
-			template<class Q = T>
-			typename std::enable_if<!std::is_pointer<Q>::value, size_t>::type SizeOf()
-			{
-				return sizeof(size_t);
-			}
-			template<class Q = T>
-			typename std::enable_if<std::is_trivially_copyable<Q>::value, bool>::type Assign(Iterator A, Iterator B, Iterator C)
-			{
-				return false;
-			}
-			template<class Q = T>
-			typename std::enable_if<!std::is_trivially_copyable<Q>::value, bool>::type Assign(Iterator A, Iterator B, Iterator C)
-			{
-				std::copy(A, B, C);
-				return true;
-			}
-
 		private:
 			size_t IncreaseCapacity(size_t NewSize)
 			{
-				size_t Alpha = Volume ? (Volume + Volume / 2) : 8;
+				size_t Alpha = Volume > 4 ? (Volume + Volume / 2) : 8;
 				return Alpha > NewSize ? Alpha : NewSize;
 			}
 		};

@@ -35,6 +35,7 @@ extern "C"
 #define MAKE_ADJ_TRI(x) ((x) & 0x3fffffff)
 #define IS_BOUNDARY(x) ((x) == 0xff)
 #define RH_TO_LH (Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1))
+#define NULL_NODE ((uint64_t)-1)
 
 namespace
 {
@@ -1673,16 +1674,43 @@ namespace Tomahawk
 		{
 			return Vector4(Mathf::Random(), Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
+		
+		Bounding::Bounding()
+		{
+		}
+		Bounding::Bounding(const Vector3& LowerBound, const Vector3& UpperBound) : Lower(LowerBound), Upper(UpperBound)
+		{
+			TH_ASSERT_V(Lower <= Upper, "lower should be smaller than upper");
+			Volume = Geometric::AabbVolume(Lower, Upper);
+		}
+		void Bounding::Merge(const Bounding& A, const Bounding& B)
+		{
+			Lower.X = std::min(A.Lower.X, B.Lower.X);
+			Lower.Y = std::min(A.Lower.Y, B.Lower.Y);
+			Lower.Z = std::min(A.Lower.Z, B.Lower.Z);
+			Upper.X = std::max(A.Upper.X, B.Upper.X);
+			Upper.Y = std::max(A.Upper.Y, B.Upper.Y);
+			Upper.Z = std::max(A.Upper.Z, B.Upper.Z);
+			Volume = Geometric::AabbVolume(Lower, Upper);
+		}
+		bool Bounding::Contains(const Bounding& Bounds) const
+		{
+			return Bounds.Lower >= Lower && Bounds.Upper <= Upper;
+		}
+		bool Bounding::Overlaps(const Bounding& Bounds) const
+		{
+			return Bounds.Upper >= Lower && Bounds.Lower <= Upper;
+		}
 
-		Frustum::Frustum()
+		Frustum8C::Frustum8C()
 		{
-			Geometric::CreateFrustum(Corners, 90.0f, 1.0f, 0.1f, 1.0f);
+			Geometric::CreateFrustum8C(Corners, 90.0f, 1.0f, 0.1f, 1.0f);
 		}
-		Frustum::Frustum(float FieldOfView, float Aspect, float NearZ, float FarZ)
+		Frustum8C::Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
-			Geometric::CreateFrustumRad(Corners, FieldOfView, Aspect, NearZ, FarZ);
+			Geometric::CreateFrustum8CRad(Corners, FieldOfView, Aspect, NearZ, FarZ);
 		}
-		void Frustum::Transform(const Matrix4x4& Value)
+		void Frustum8C::Transform(const Matrix4x4& Value)
 		{
 			for (uint32_t i = 0; i < 8; i++)
 			{
@@ -1690,7 +1718,7 @@ namespace Tomahawk
 				Corner = Corner * Value;
 			}
 		}
-		void Frustum::GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z)
+		void Frustum8C::GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z)
 		{
 			TH_ASSERT_V(X || Y || Z, "at least one vector of x, y, z should be set");
 			float MinX = std::numeric_limits<float>::max();
@@ -1719,6 +1747,132 @@ namespace Tomahawk
 
 			if (Z != nullptr)
 				*Z = Vector2(MinZ, MaxZ);
+		}
+
+		void NormalizePlane(Vector4& Plane)
+		{
+			float Magnitude = (float)sqrt(Plane.X * Plane.X + Plane.Y * Plane.Y + Plane.Z * Plane.Z);
+			Plane.X /= Magnitude;
+			Plane.Y /= Magnitude;
+			Plane.Z /= Magnitude;
+			Plane.W /= Magnitude;
+		}
+
+		Frustum6P::Frustum6P()
+		{
+		}
+		Frustum6P::Frustum6P(const Matrix4x4& Clip)
+		{
+			Planes[(size_t)Side::RIGHT].X = Clip[3] - Clip[0];
+			Planes[(size_t)Side::RIGHT].Y = Clip[7] - Clip[4];
+			Planes[(size_t)Side::RIGHT].Z = Clip[11] - Clip[8];
+			Planes[(size_t)Side::RIGHT].W = Clip[15] - Clip[12];
+			NormalizePlane(Planes[(size_t)Side::RIGHT]);
+
+			Planes[(size_t)Side::LEFT].X = Clip[3] + Clip[0];
+			Planes[(size_t)Side::LEFT].Y = Clip[7] + Clip[4];
+			Planes[(size_t)Side::LEFT].Z = Clip[11] + Clip[8];
+			Planes[(size_t)Side::LEFT].W = Clip[15] + Clip[12];
+			NormalizePlane(Planes[(size_t)Side::LEFT]);
+
+			Planes[(size_t)Side::BOTTOM].X = Clip[3] + Clip[1];
+			Planes[(size_t)Side::BOTTOM].Y = Clip[7] + Clip[5];
+			Planes[(size_t)Side::BOTTOM].Z = Clip[11] + Clip[9];
+			Planes[(size_t)Side::BOTTOM].W = Clip[15] + Clip[13];
+			NormalizePlane(Planes[(size_t)Side::BOTTOM]);
+
+			Planes[(size_t)Side::TOP].X = Clip[3] - Clip[1];
+			Planes[(size_t)Side::TOP].Y = Clip[7] - Clip[5];
+			Planes[(size_t)Side::TOP].Z = Clip[11] - Clip[9];
+			Planes[(size_t)Side::TOP].W = Clip[15] - Clip[13];
+			NormalizePlane(Planes[(size_t)Side::TOP]);
+
+			Planes[(size_t)Side::BACK].X = Clip[3] - Clip[2];
+			Planes[(size_t)Side::BACK].Y = Clip[7] - Clip[6];
+			Planes[(size_t)Side::BACK].Z = Clip[11] - Clip[10];
+			Planes[(size_t)Side::BACK].W = Clip[15] - Clip[14];
+			NormalizePlane(Planes[(size_t)Side::BACK]);
+
+			Planes[(size_t)Side::FRONT].X = Clip[3] + Clip[2];
+			Planes[(size_t)Side::FRONT].Y = Clip[7] + Clip[6];
+			Planes[(size_t)Side::FRONT].Z = Clip[11] + Clip[10];
+			Planes[(size_t)Side::FRONT].W = Clip[15] + Clip[14];
+			NormalizePlane(Planes[(size_t)Side::FRONT]);
+		}
+		bool Frustum6P::OverlapsAABB(const Bounding& Bounds) const
+		{
+			//Vector3 Size = (Bounds.Upper - Bounds.Lower) * 0.5f;
+			//Vector3 Min = Bounds.Lower - Size;
+			//Vector3 Max = Bounds.Upper + Size;
+			const Vector3& Min = Bounds.Lower;
+			const Vector3& Max = Bounds.Upper;
+#ifdef TH_WITH_SIMD
+			LOD_AV4(_m1, Min.X, Min.Y, Min.Z, 1.0f);
+			LOD_AV4(_m2, Max.X, Min.Y, Min.Z, 1.0f);
+			LOD_AV4(_m3, Min.X, Max.Y, Min.Z, 1.0f);
+			LOD_AV4(_m4, Max.X, Max.Y, Min.Z, 1.0f);
+			LOD_AV4(_m5, Min.X, Min.Y, Max.Z, 1.0f);
+			LOD_AV4(_m6, Max.X, Min.Y, Max.Z, 1.0f);
+			LOD_AV4(_m7, Min.X, Max.Y, Max.Z, 1.0f);
+			LOD_AV4(_m8, Max.X, Max.Y, Max.Z, 1.0f);
+#endif
+			for (size_t i = 0; i < 6; i++)
+			{
+#ifdef TH_WITH_SIMD
+				LOD_V4(_rp, Planes[i]);
+				if (horizontal_add(_rp * _m1) > 0.0f)
+					continue;
+
+				if (horizontal_add(_rp * _m2) > 0.0f)
+					continue;
+
+				if (horizontal_add(_rp * _m3) > 0.0f)
+					continue;
+
+				if (horizontal_add(_rp * _m4) > 0.0f)
+					continue;
+
+				if (horizontal_add(_rp * _m5) > 0.0f)
+					continue;
+
+				if (horizontal_add(_rp * _m6) > 0.0f)
+					continue;
+
+				if (horizontal_add(_rp * _m7) > 0.0f)
+					continue;
+
+				if (horizontal_add(_rp * _m8) > 0.0f)
+					continue;
+#else
+				auto& Plane = Planes[i];
+				if (Plane.X * Min.X + Plane.Y * Min.Y + Plane.Z * Min.Z + Plane.W > 0)
+					continue;
+
+				if (Plane.X * Max.X + Plane.Y * Min.Y + Plane.Z * Min.Z + Plane.W > 0)
+					continue;
+
+				if (Plane.X * Min.X + Plane.Y * Max.Y + Plane.Z * Min.Z + Plane.W > 0)
+					continue;
+
+				if (Plane.X * Max.X + Plane.Y * Max.Y + Plane.Z * Min.Z + Plane.W > 0)
+					continue;
+
+				if (Plane.X * Min.X + Plane.Y * Min.Y + Plane.Z * Max.Z + Plane.W > 0)
+					continue;
+
+				if (Plane.X * Max.X + Plane.Y * Min.Y + Plane.Z * Max.Z + Plane.W > 0)
+					continue;
+
+				if (Plane.X * Min.X + Plane.Y * Max.Y + Plane.Z * Max.Z + Plane.W > 0)
+					continue;
+
+				if (Plane.X * Max.X + Plane.Y * Max.Y + Plane.Z * Max.Z + Plane.W > 0)
+					continue;
+#endif
+				return false;
+			}
+
+			return true;
 		}
 
 		Ray::Ray() : Direction(0, 0, 1)
@@ -8387,7 +8541,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		void Geometric::CreateFrustumRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
+		void Geometric::CreateFrustum8CRad(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
 			TH_ASSERT_V(Result8 != nullptr, "8 sized array should be set");
 			float HalfHFov = std::tan(FieldOfView * 0.5f) * Aspect;
@@ -8406,9 +8560,9 @@ namespace Tomahawk
 			Result8[6] = Vector4(XF, -YF, FarZ, 1.0);
 			Result8[7] = Vector4(-XF, -YF, FarZ, 1.0);
 		}
-		void Geometric::CreateFrustum(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
+		void Geometric::CreateFrustum8C(Vector4* Result8, float FieldOfView, float Aspect, float NearZ, float FarZ)
 		{
-			return CreateFrustumRad(Result8, Mathf::Deg2Rad() * FieldOfView, Aspect, NearZ, FarZ);
+			return CreateFrustum8CRad(Result8, Mathf::Deg2Rad() * FieldOfView, Aspect, NearZ, FarZ);
 		}
 		Ray Geometric::CreateCursorRay(const Vector3& Origin, const Vector2& Cursor, const Vector2& Screen, const Matrix4x4& InvProjection, const Matrix4x4& InvView)
 		{
@@ -8440,6 +8594,14 @@ namespace Tomahawk
 		float Geometric::FastSqrt(float Value)
 		{
 			return 1.0f / FastInvSqrt(Value);
+		}
+		float Geometric::AabbVolume(const Vector3& Min, const Vector3& Max)
+		{
+			float Volume =
+				(Max[1] - Min[1]) * (Max[2] - Min[2]) +
+				(Max[0] - Min[0]) * (Max[2] - Min[2]) +
+				(Max[0] - Min[0]) * (Max[1] - Min[1]);
+			return Volume * 2.0f;
 		}
 		bool Geometric::LeftHanded = true;
 
@@ -9667,50 +9829,6 @@ namespace Tomahawk
 			return Childs;
 		}
 
-		Area::Area()
-		{
-		}
-		Area::Area(const Vector3& LowerBound, const Vector3& UpperBound) : Lower(LowerBound), Upper(UpperBound)
-		{
-			TH_ASSERT_V(Lower <= Upper, "lower should be smaller than upper");
-			Recompute();
-		}
-		void Area::Recompute()
-		{
-			Volume = 0;
-			for (int i = 0; i < 3; i++)
-			{
-				float Product = 1;
-				for (int j = 0; j < 3; j++)
-				{
-					if (i != j)
-						Product *= Upper[j] - Lower[j];
-				}
-				Volume += Product;
-			}
-
-			Volume *= 2.0f;
-			Center = (Lower + Upper) * 0.5f;
-		}
-		void Area::Merge(const Area& A, const Area& B)
-		{
-			Lower.X = std::min(A.Lower.X, B.Lower.X);
-			Lower.Y = std::min(A.Lower.Y, B.Lower.Y);
-			Lower.Z = std::min(A.Lower.Z, B.Lower.Z);
-			Upper.X = std::max(A.Upper.X, B.Upper.X);
-			Upper.Y = std::max(A.Upper.Y, B.Upper.Y);
-			Upper.Z = std::max(A.Upper.Z, B.Upper.Z);
-			Recompute();
-		}
-		bool Area::Contains(const Area& Box) const
-		{
-			return Box.Lower >= Lower && Box.Upper <= Upper;
-		}
-		bool Area::Overlaps(const Area& Box) const
-		{
-			return Box.Upper >= Lower && Box.Lower <= Upper;
-		}
-
 		Cosmos::Node::Node() : Item(nullptr)
 		{
 		}
@@ -9725,7 +9843,6 @@ namespace Tomahawk
 			NodeCount = 0;
 			NodeCapacity = DefaultSize;
 			Nodes.resize(NodeCapacity);
-			Stack.Reserve(256);
 
 			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
 			{
@@ -9754,9 +9871,7 @@ namespace Tomahawk
 		{
 			uint64_t NodeIndex = AllocateNode();
 			auto& Node = Nodes[NodeIndex];
-			Node.Box.Lower = Lower;
-			Node.Box.Upper = Upper;
-			Node.Box.Recompute();
+			Node.Bounds = Bounding(Lower, Upper);
 			Node.Height = 0;
 			Node.Item = Item;
 			InsertLeaf(NodeIndex);
@@ -9788,8 +9903,8 @@ namespace Tomahawk
 			}
 
 			uint64_t NextIndex = Root;
-			Area LeafBox = Nodes[LeafIndex].Box;
-			Area NextBox;
+			Bounding LeafBounds = Nodes[LeafIndex].Bounds;
+			Bounding NextBounds;
 
 			while (!Nodes[NextIndex].IsLeaf())
 			{
@@ -9797,15 +9912,15 @@ namespace Tomahawk
 				auto& Left = Nodes[Next.Left];
 				auto& Right = Nodes[Next.Right];
 
-				NextBox.Merge(LeafBox, Next.Box);
-				float BaseCost = 2.0 * NextBox.Volume;
-				float ParentCost = 2.0 * (NextBox.Volume - Next.Box.Volume);
+				NextBounds.Merge(LeafBounds, Next.Bounds);
+				float BaseCost = 2.0 * NextBounds.Volume;
+				float ParentCost = 2.0 * (NextBounds.Volume - Next.Bounds.Volume);
 
-				NextBox.Merge(LeafBox, Left.Box);
-				float LeftCost = (NextBox.Volume - (Left.IsLeaf() ? 0.0f : Left.Box.Volume)) + ParentCost;
+				NextBounds.Merge(LeafBounds, Left.Bounds);
+				float LeftCost = (NextBounds.Volume - (Left.IsLeaf() ? 0.0f : Left.Bounds.Volume)) + ParentCost;
 
-				NextBox.Merge(LeafBox, Right.Box);
-				float RightCost = (NextBox.Volume - (Right.IsLeaf() ? 0.0f : Right.Box.Volume)) + ParentCost;
+				NextBounds.Merge(LeafBounds, Right.Bounds);
+				float RightCost = (NextBounds.Volume - (Right.IsLeaf() ? 0.0f : Right.Bounds.Volume)) + ParentCost;
 
 				if ((BaseCost < LeftCost) && (BaseCost < RightCost))
 					break;
@@ -9823,7 +9938,7 @@ namespace Tomahawk
 
 			uint64_t OldParentIndex = Sibling.Parent;
 			NewParent.Parent = OldParentIndex;
-			NewParent.Box.Merge(LeafBox, Sibling.Box);
+			NewParent.Bounds.Merge(LeafBounds, Sibling.Bounds);
 			NewParent.Height = Sibling.Height + 1;
 
 			if (OldParentIndex != NULL_NODE)
@@ -9857,7 +9972,7 @@ namespace Tomahawk
 				auto& Right = Nodes[Next.Right];
 
 				Next.Height = 1 + std::max(Left.Height, Right.Height);
-				Next.Box.Merge(Left.Box, Right.Box);
+				Next.Bounds.Merge(Left.Bounds, Right.Bounds);
 				NextIndex = Next.Parent;
 			}
 		}
@@ -9895,7 +10010,7 @@ namespace Tomahawk
 					auto& Left = Nodes[Next.Left];
 					auto& Right = Nodes[Next.Right];
 
-					Next.Box.Merge(Left.Box, Right.Box);
+					Next.Bounds.Merge(Left.Bounds, Right.Bounds);
 					Next.Height = 1 + std::max(Left.Height, Right.Height);
 					NextIndex = Next.Parent;
 				}
@@ -9939,58 +10054,29 @@ namespace Tomahawk
 			auto& Next = Nodes[It->second];
 			if (!Always)
 			{
-				Area Box(Lower, Upper);
-				if (Next.Box.Contains(Box))
+				Bounding Bounds(Lower, Upper);
+				if (Next.Bounds.Contains(Bounds))
 					return true;
 
 				RemoveLeaf(It->second);
-				Next.Box = Box;
+				Next.Bounds = Bounds;
 			}
 			else
 			{
 				RemoveLeaf(It->second);
-				Next.Box.Upper = Upper;
-				Next.Box.Lower = Lower;
-				Next.Box.Recompute();
+				Next.Bounds = Bounding(Lower, Upper);
 			}
 
 			InsertLeaf(It->second);
 			return true;
 		}
-		void Cosmos::PushQuery()
-		{
-			Stack.Clear();
-			if (!Items.empty())
-				Stack.Add(Root);
-		}
-		void* Cosmos::NextQuery(const Area& Box)
-		{
-			while (!Stack.Empty())
-			{
-				auto& Next = Nodes[Stack.Back()];
-				Stack.PopBack();
-
-				if (!Box.Overlaps(Next.Box))
-					continue;
-
-				if (!Next.IsLeaf())
-				{
-					Stack.AddUnbounded(Next.Left);
-					Stack.AddUnbounded(Next.Right);
-				}
-				else if (Next.Item != nullptr)
-					return Next.Item;
-			}
-
-			return nullptr;
-		}
-		const Area& Cosmos::GetArea(void* Item)
+		const Bounding& Cosmos::GetArea(void* Item)
 		{
 			auto It = Items.find(Item);
 			if (It != Items.end())
-				return Nodes[It->second].Box;
+				return Nodes[It->second].Bounds;
 
-			return Nodes[Root].Box;
+			return Nodes[Root].Bounds;
 		}
 		uint64_t Cosmos::AllocateNode()
 		{
@@ -10073,8 +10159,8 @@ namespace Tomahawk
 					Right.Right = RightLeftIndex;
 					Next.Right = RightRightIndex;
 					RightRight.Parent = NodeIndex;
-					Next.Box.Merge(Left.Box, RightRight.Box);
-					Right.Box.Merge(Next.Box, RightLeft.Box);
+					Next.Bounds.Merge(Left.Bounds, RightRight.Bounds);
+					Right.Bounds.Merge(Next.Bounds, RightLeft.Bounds);
 
 					Next.Height = 1 + std::max(Left.Height, RightRight.Height);
 					Right.Height = 1 + std::max(Next.Height, RightLeft.Height);
@@ -10084,8 +10170,8 @@ namespace Tomahawk
 					Right.Right = RightRightIndex;
 					Next.Right = RightLeftIndex;
 					RightLeft.Parent = NodeIndex;
-					Next.Box.Merge(Left.Box, RightLeft.Box);
-					Right.Box.Merge(Next.Box, RightRight.Box);
+					Next.Bounds.Merge(Left.Bounds, RightLeft.Bounds);
+					Right.Bounds.Merge(Next.Bounds, RightRight.Bounds);
 
 					Next.Height = 1 + std::max(Left.Height, RightLeft.Height);
 					Right.Height = 1 + std::max(Next.Height, RightRight.Height);
@@ -10125,8 +10211,8 @@ namespace Tomahawk
 					Left.Right = LeftLeftIndex;
 					Next.Left = LeftRightIndex;
 					LeftRight.Parent = NodeIndex;
-					Next.Box.Merge(Right.Box, LeftRight.Box);
-					Left.Box.Merge(Next.Box, LeftLeft.Box);
+					Next.Bounds.Merge(Right.Bounds, LeftRight.Bounds);
+					Left.Bounds.Merge(Next.Bounds, LeftLeft.Bounds);
 					Next.Height = 1 + std::max(Right.Height, LeftRight.Height);
 					Left.Height = 1 + std::max(Next.Height, LeftLeft.Height);
 				}
@@ -10135,8 +10221,8 @@ namespace Tomahawk
 					Left.Right = LeftRightIndex;
 					Next.Left = LeftLeftIndex;
 					LeftLeft.Parent = NodeIndex;
-					Next.Box.Merge(Right.Box, LeftLeft.Box);
-					Left.Box.Merge(Next.Box, LeftRight.Box);
+					Next.Bounds.Merge(Right.Bounds, LeftLeft.Bounds);
+					Left.Bounds.Merge(Next.Bounds, LeftRight.Bounds);
 					Next.Height = 1 + std::max(Right.Height, LeftLeft.Height);
 					Left.Height = 1 + std::max(Next.Height, LeftRight.Height);
 				}
@@ -10195,14 +10281,14 @@ namespace Tomahawk
 			if (Root == NULL_NODE)
 				return 0.0;
 
-			float RootArea = Nodes[Root].Box.Volume;
+			float RootArea = Nodes[Root].Bounds.Volume;
 			float TotalArea = 0.0;
 
 			for (uint64_t i = 0; i < NodeCapacity; i++)
 			{
 				auto& Next = Nodes[i];
 				if (Next.Height >= 0)
-					TotalArea += Next.Box.Volume;
+					TotalArea += Next.Bounds.Volume;
 			}
 
 			return TotalArea / RootArea;

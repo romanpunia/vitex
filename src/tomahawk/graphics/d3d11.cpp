@@ -1276,7 +1276,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				D3D11InstanceBuffer* IResource = (D3D11InstanceBuffer*)Resource;
-				if (IResource->Array.Empty() || IResource->Array.Size() > IResource->ElementLimit)
+				if (IResource->Array.empty() || IResource->Array.size() > IResource->ElementLimit)
 					return false;
 
 				D3D11ElementBuffer* Element = (D3D11ElementBuffer*)IResource->Elements;
@@ -1286,7 +1286,7 @@ namespace Tomahawk
 				if (ImmediateContext->Map(Element->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource) != S_OK)
 					return false;
 
-				memcpy(MappedResource.pData, IResource->Array.Get(), (size_t)IResource->Array.Size() * IResource->ElementWidth);
+				memcpy(MappedResource.pData, IResource->Array.data(), (size_t)IResource->Array.size() * IResource->ElementWidth);
 				ImmediateContext->Unmap(Element->Element, 0);
 				return true;
 			}
@@ -1315,8 +1315,8 @@ namespace Tomahawk
 
 				D3D_RELEASE(IResource->Resource);
 				IResource->ElementLimit = Size;
-				IResource->Array.Clear();
-				IResource->Array.Reserve(IResource->ElementLimit);
+				IResource->Array.clear();
+				IResource->Array.reserve((size_t)IResource->ElementLimit);
 
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = CPUAccess::Write;

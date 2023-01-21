@@ -875,14 +875,15 @@ namespace Tomahawk
 			template <typename T, typename MatchFunction>
 			void QueryBounding(MatchFunction&& Callback)
 			{
+				using Type = Tomahawk::Engine::Component;
 				auto& Storage = GetStorageWrapper(T::GetTypeId());
 				switch (View.Culling)
 				{
 					case RenderCulling::Linear:
-						Storage.Index.QueryFrustum6P<typename Component, decltype(Callback)>(Indexing.Context, Indexing.Frustum, std::move(Callback));
+						Storage.Index.QueryFrustum6P<Type, decltype(Callback)>(Indexing.Context, Indexing.Frustum, std::move(Callback));
 						break;
 					case RenderCulling::Cubic:
-						Storage.Index.QueryBounding<typename Component, decltype(Callback)>(Indexing.Context, Indexing.Bounds, std::move(Callback));
+						Storage.Index.QueryBounding<Type, decltype(Callback)>(Indexing.Context, Indexing.Bounds, std::move(Callback));
 						break;
 					default:
 						std::for_each(Storage.Data.Begin(), Storage.Data.End(), std::move(Callback));

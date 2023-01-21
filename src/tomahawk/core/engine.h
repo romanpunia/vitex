@@ -879,10 +879,10 @@ namespace Tomahawk
 				switch (View.Culling)
 				{
 					case RenderCulling::Linear:
-						Storage.Index.QueryFrustum6P<Component, decltype(Callback)>(Indexing.Context, Indexing.Frustum, std::move(Callback));
+						Storage.Index.QueryFrustum6P<typename Component, decltype(Callback)>(Indexing.Context, Indexing.Frustum, std::move(Callback));
 						break;
 					case RenderCulling::Cubic:
-						Storage.Index.QueryBounding<Component, decltype(Callback)>(Indexing.Context, Indexing.Bounds, std::move(Callback));
+						Storage.Index.QueryBounding<typename Component, decltype(Callback)>(Indexing.Context, Indexing.Bounds, std::move(Callback));
 						break;
 					default:
 						std::for_each(Storage.Data.Begin(), Storage.Data.End(), std::move(Callback));

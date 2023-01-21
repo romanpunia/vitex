@@ -422,9 +422,8 @@ namespace Tomahawk
 			VVector3.SetMethod("float Dot(const Vector3 &in) const", &Compute::Vector3::Dot);
 			VVector3.SetMethod("float Distance(const Vector3 &in) const", &Compute::Vector3::Distance);
 			VVector3.SetMethod("float Hypotenuse() const", &Compute::Vector3::Hypotenuse);
-			VVector3.SetMethod("float LookAtXY(const Vector3 &in) const", &Compute::Vector3::LookAtXY);
-			VVector3.SetMethod("float LookAtXZ(const Vector3 &in) const", &Compute::Vector3::LookAtXZ);
-			VVector3.SetMethod("float Cross(const Vector3 &in) const", &Compute::Vector3::Cross);
+			VVector3.SetMethod("Vector3 LookAt(const Vector3 &in) const", &Compute::Vector3::LookAt);
+			VVector3.SetMethod("Vector3 Cross(const Vector3 &in) const", &Compute::Vector3::Cross);
 			VVector3.SetMethod("Vector3 hDirection() const", &Compute::Vector3::hDirection);
 			VVector3.SetMethod("Vector3 dDirection() const", &Compute::Vector3::dDirection);
 			VVector3.SetMethod("Vector3 Inv() const", &Compute::Vector3::Inv);

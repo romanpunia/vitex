@@ -367,8 +367,8 @@ namespace Tomahawk
 				struct
 				{
 					Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);
-					float Faster = 2.6f;
-					float Normal = 1.2f;
+					float Faster = 2.2f;
+					float Normal = 0.8f;
 					float Slower = 0.25f;
 					float Fading = 0.9f;
 				} Moving;

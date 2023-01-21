@@ -506,9 +506,9 @@ namespace Tomahawk
 					if (Offset->GetRoot() != nullptr)
 					{
 						Core::Schema* Parent = Entity->Set("parent");
-						if (Offset->GetRoot()->UserPointer != nullptr)
+						if (Offset->GetRoot()->UserData != nullptr)
 						{
-							auto It = Snapshot.To.find(Offset->GetRoot()->Ptr<Engine::Entity>());
+							auto It = Snapshot.To.find((Engine::Entity*)Offset->GetRoot());
 							if (It != Snapshot.To.end())
 								Series::Pack(Parent->Set("where"), It->second);
 						}

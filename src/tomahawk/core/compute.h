@@ -424,8 +424,7 @@ namespace Tomahawk
 			float Dot(const Vector3& B) const;
 			float Distance(const Vector3& Target) const;
 			float Hypotenuse() const;
-			float LookAtXY(const Vector3& At) const;
-			float LookAtXZ(const Vector3& At) const;
+			Vector3 LookAt(const Vector3& Vector) const;
 			Vector3 Cross(const Vector3& Vector) const;
 			Vector3 Transform(const Matrix4x4& V) const;
 			Vector3 hDirection() const;
@@ -1651,6 +1650,7 @@ namespace Tomahawk
 			};
 
 		private:
+			Core::TaskCallback OnDirty;
 			std::vector<Transform*> Childs;
 			Matrix4x4 Temporary;
 			Transform* Root;
@@ -1660,10 +1660,10 @@ namespace Tomahawk
 			bool Dirty;
 
 		public:
-			void* UserPointer;
+			void* UserData;
 
 		public:
-			Transform();
+			Transform(void* NewUserData);
 			virtual ~Transform() override;
 			void Synchronize();
 			void Move(const Vector3& Value);
@@ -1676,6 +1676,7 @@ namespace Tomahawk
 			void AddChild(Transform* Child);
 			void RemoveChild(Transform* Child);
 			void RemoveChilds();
+			void WhenDirty(Core::TaskCallback&& Callback);
 			void MakeDirty();
 			void SetScaling(bool Enabled);
 			void SetPosition(const Vector3& Value);
@@ -1705,15 +1706,11 @@ namespace Tomahawk
 			size_t GetChildsCount() const;
 			std::vector<Transform*>& GetChilds();
 
+		private:
+			void NotifyDirty();
+
 		protected:
 			bool CanRootBeApplied(Transform* Root) const;
-
-		public:
-			template <typename In>
-			In* Ptr() const
-			{
-				return (In*)UserPointer;
-			}
 		};
 
 		class TH_OUT Area

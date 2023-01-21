@@ -707,23 +707,10 @@ namespace Tomahawk
 			return Geometric::FastSqrt(R * R + Y * Y);
 #endif
 		}
-		float Vector3::LookAtXY(const Vector3& At) const
+		Vector3 Vector3::LookAt(const Vector3& B) const
 		{
-#ifdef TH_WITH_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, At); _r1 = _r2 - _r1;
-			return atan2f(_r1.extract(0), _r1.extract(1));
-#else
-			return atan2f(At.X - X, At.Y - Y);
-#endif
-		}
-		float Vector3::LookAtXZ(const Vector3& At) const
-		{
-#ifdef TH_WITH_SIMD
-			LOD_FV3(_r1); LOD_V3(_r2, At); _r1 = _r2 - _r1;
-			return atan2f(_r1.extract(0), -_r1.extract(2));
-#else
-			return atan2f(At.X - X, Z - At.Z);
-#endif
+			Vector2 H1(X, Z), H2(B.X, B.Z);
+			return Vector3(0.0f, -H1.LookAt(H2), 0.0f);
 		}
 		Vector3 Vector3::Cross(const Vector3& B) const
 		{
@@ -9253,25 +9240,18 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Transform::Transform() : Local(nullptr), Root(nullptr), Scaling(false), Dirty(true), UserPointer(nullptr)
+		Transform::Transform(void* NewUserData) : Local(nullptr), Root(nullptr), Scaling(false), Dirty(true), UserData(NewUserData)
 		{
 		}
 		Transform::~Transform()
 		{
 			SetRoot(nullptr);
 			RemoveChilds();
-
 			TH_DELETE(Spacing, Local);
-			UserPointer = nullptr;
-			Local = nullptr;
 		}
 		void Transform::Synchronize()
 		{
 			TH_ASSERT_V(!Root || Local != nullptr, "corrupted root transform");
-			if (!Dirty)
-				return;
-
-			Dirty = false;
 			if (Root != nullptr)
 			{
 				Local->Offset = Matrix4x4::Create(Local->Position, Local->Rotation) * Root->GetBiasUnscaled();
@@ -9285,6 +9265,7 @@ namespace Tomahawk
 				Global.Offset = Matrix4x4::Create(Global.Position, Global.Scale, Global.Rotation);
 				Temporary = Matrix4x4::CreateRotation(Global.Rotation) * Matrix4x4::CreateTranslation(Global.Position);
 			}
+			Dirty = false;
 		}
 		void Transform::Move(const Vector3& Value)
 		{
@@ -9356,7 +9337,7 @@ namespace Tomahawk
 			else
 				Local = nullptr;
 
-			UserPointer = Target->UserPointer;
+			UserData = Target->UserData;
 			Childs = Target->Childs;
 			Global = Target->Global;
 			Scaling = Target->Scaling;
@@ -9386,12 +9367,28 @@ namespace Tomahawk
 					Child->SetRoot(nullptr);
 			}
 		}
+		void Transform::NotifyDirty()
+		{
+			if (Dirty && OnDirty)
+			{
+				auto Callback(std::move(OnDirty));
+				Dirty = false;
+				Callback();
+			}
+		}
+		void Transform::WhenDirty(Core::TaskCallback&& Callback)
+		{
+			OnDirty = std::move(Callback);
+			NotifyDirty();
+		}
 		void Transform::MakeDirty()
 		{
 			if (Dirty)
 				return;
 
 			Dirty = true;
+			NotifyDirty();
+
 			for (auto& Child : Childs)
 				Child->MakeDirty();
 		}

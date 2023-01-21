@@ -243,6 +243,13 @@ namespace Tomahawk
 
 		class Var;
 
+		enum class Deferred : uint8_t
+		{
+			None = 0,
+			Pending = 1,
+			Ready = 2
+		};
+
 		enum class StdColor
 		{
 			Black = 0,
@@ -2282,129 +2289,83 @@ namespace Tomahawk
 		class TH_OUT_TS Awaitable
 		{
 		public:
-			std::function<void()> Event;
-			std::atomic<uint32_t> Count;
-			std::atomic<short> Set;
+			TaskCallback Event;
 			std::mutex Update;
+			std::atomic<uint32_t> Count;
+			std::atomic<Deferred> Code;
 			T Result;
 
 		public:
-			Awaitable() noexcept : Count(1), Set(-1), Result()
+			Awaitable() noexcept : Count(1), Code(Deferred::Pending), Result()
 			{
 			}
-			Awaitable(const T& Value) noexcept : Count(1), Set(1), Result(Value)
+			Awaitable(const T& Value) noexcept : Count(1), Code(Deferred::Ready), Result(Value)
 			{
 			}
-			Awaitable(T&& Value) noexcept : Count(1), Set(1), Result(std::move(Value))
+			Awaitable(T&& Value) noexcept : Count(1), Code(Deferred::Ready), Result(std::move(Value))
 			{
-			}
-			Awaitable* Copy() noexcept
-			{
-				Count++;
-				return this;
-			}
-			void Put(std::function<void()>&& Callback) noexcept
-			{
-				Update.lock();
-				if (Set > 0)
-				{
-					Update.unlock();
-					return Callback();
-				}
-
-				Event = std::move(Callback);
-				Update.unlock();
-			}
-			void React() noexcept
-			{
-				Update.lock();
-				Notify();
-				Update.unlock();
-			}
-			void React(T&& Value) noexcept
-			{
-				Update.lock();
-				Set = 1;
-				Result = std::move(Value);
-				Notify();
-				Update.unlock();
-			}
-			void React(const T& Value) noexcept
-			{
-				Update.lock();
-				Set = 1;
-				Result = Value;
-				Notify();
-				Update.unlock();
-			}
-			void Free() noexcept
-			{
-				if (!--Count)
-					TH_DELETE(Awaitable, this);
-			}
-
-		private:
-			void Notify()
-			{
-				if (Event)
-					Event();
 			}
 		};
 
-		template <typename T, void(*Dispatch)(TaskCallback&&) = &Schedule::ExecutePromise>
-		class TH_OUT_TS Promise
+		template <>
+		class TH_OUT_TS Awaitable<void>
 		{
-			static_assert(!std::is_same<T, void>::value, "async cannot be used with void type");
-			static_assert(std::is_default_constructible<T>::value, "async cannot be used with non default constructible type");
-			typedef Awaitable<T> context_type;
-			typedef T value_type;
-
-		private:
-			template <typename F>
-			struct Future
-			{
-				typedef F type;
-			};
-
-			template <typename F>
-			struct Future<Promise<F>>
-			{
-				typedef F type;
-			};
-
-		private:
-			context_type* Next;
-
-		private:
-			Promise(context_type* Context, bool) noexcept : Next(Context)
-			{
-				if (Next != nullptr)
-					Next->Count++;
-			}
+		public:
+			TaskCallback Event;
+			std::mutex Update;
+			std::atomic<uint32_t> Count;
+			std::atomic<Deferred> Code;
 
 		public:
-			Promise() noexcept : Next(TH_NEW(context_type))
+			Awaitable() noexcept : Count(1), Code(Deferred::Pending)
 			{
 			}
-			Promise(const T& Value) noexcept : Next(TH_NEW(context_type, Value))
+		};
+
+		template <typename T>
+		class TH_OUT_TS Promise
+		{
+			static_assert(std::is_default_constructible<T>::value, "async cannot be used with non default constructible type");
+			typedef Awaitable<T> Status;
+			typedef T Type;
+
+		private:
+			template <typename F>
+			struct Unwrap
+			{
+				typedef F type;
+			};
+
+			template <typename F>
+			struct Unwrap<Promise<F>>
+			{
+				typedef F type;
+			};
+
+		private:
+			Status* Data;
+
+		public:
+			Promise() noexcept : Data(TH_NEW(Status))
 			{
 			}
-			Promise(T&& Value) noexcept : Next(TH_NEW(context_type, std::move(Value)))
+			Promise(const T& Value) noexcept : Data(TH_NEW(Status, Value))
 			{
 			}
-			Promise(const Promise& Other) noexcept : Next(Other.Next)
+			Promise(T&& Value) noexcept : Data(TH_NEW(Status, std::move(Value)))
 			{
-				if (Next != nullptr)
-					Next->Count++;
 			}
-			Promise(Promise&& Other) noexcept : Next(Other.Next)
+			Promise(const Promise& Other) noexcept : Data(Other.Data)
 			{
-				Other.Next = nullptr;
+				AddRef();
+			}
+			Promise(Promise&& Other) noexcept : Data(Other.Data)
+			{
+				Other.Data = nullptr;
 			}
 			~Promise()
 			{
-				if (Next != nullptr)
-					Next->Free();
+				Release(Data);
 			}
 			Promise& operator= (const T& Other)
 			{
@@ -2428,68 +2389,51 @@ namespace Tomahawk
 				if (&Other == this)
 					return *this;
 
-				if (Next != nullptr)
-					Next->Free();
-
-				Next = Other.Next;
-				Other.Next = nullptr;
+				Release(Data);
+				Data = Other.Data;
+				Other.Data = nullptr;
 				return *this;
 			}
 			void Set(const T& Other)
 			{
-				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
-				Next->React(Other);
+				TH_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				std::unique_lock<std::mutex> Unique(Data->Update);
+				Data->Code = Deferred::Ready;
+				Data->Result = Other;
+				Execute(Data);
 			}
 			void Set(T&& Other)
 			{
-				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
-				Next->React(std::move(Other));
+				TH_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				std::unique_lock<std::mutex> Unique(Data->Update);
+				Data->Code = Deferred::Ready;
+				Data->Result = std::move(Other);
+				Execute(Data);
 			}
 			void Set(const Promise& Other)
 			{
-				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
-				context_type* Subresult = Next->Copy();
-				Subresult->Update.lock();
-				Subresult->Set = 0;
-				Subresult->Update.unlock();
-
-				Other.Await([Subresult](T&& Value) mutable
+				TH_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				Status* Copy = AddRef();
+				Other.Await([Copy](T&& Value) mutable
 				{
-					Subresult->React(std::move(Value));
-					Subresult->Free();
-				});
-			}
-			void Set(Promise&& Other)
-			{
-				TH_ASSERT_V(Next != nullptr && Next->Set == -1, "async should be pending");
-				if (!Other.IsPending())
-					return Next->React(std::move(Other.GetIfAny()));
-
-				context_type* Subresult = Next->Copy();
-				Subresult->Update.lock();
-				Subresult->Set = 0;
-				Subresult->Update.unlock();
-
-				Other.Await([Subresult](T&& Value) mutable
-				{
-					Subresult->React(std::move(Value));
-					Subresult->Free();
+					std::unique_lock<std::mutex> Unique(Copy->Update);
+					Copy->Code = Deferred::Ready;
+					Copy->Result = std::move(Value);
+					Execute(Copy);
+					Release(Copy);
 				});
 			}
 			void Await(std::function<void(T&&)>&& Callback) const noexcept
 			{
-				TH_ASSERT_V(Next != nullptr && Callback, "async should be pending");
+				TH_ASSERT_V(Callback, "callback should be set");
 				if (!IsPending())
-					return Callback(std::move(Next->Result));
+					return Callback(std::move(Data->Result));
 
-				context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Callback = std::move(Callback)]() mutable
+				Status* Copy = AddRef();
+				Store([Copy, Callback = std::move(Callback)]() mutable
 				{
-					Dispatch([Subresult, Callback = std::move(Callback)]() mutable
-					{
-						Callback(std::move(Subresult->Result));
-						Subresult->Free();
-					});
+					Callback(std::move(Copy->Result));
+					Release(Copy);
 				});
 			}
 			void Wait()
@@ -2497,8 +2441,8 @@ namespace Tomahawk
 				if (!IsPending())
 					return;
 
-				std::mutex Waitable;
 				std::condition_variable Ready;
+				std::mutex Waitable;
 				Await([&](T&&)
 				{
 					std::unique_lock<std::mutex> Lock(Waitable);
@@ -2511,74 +2455,284 @@ namespace Tomahawk
 					return !IsPending();
 				});
 			}
-			bool IsPending() const noexcept
+			T&& Fetch() noexcept
 			{
-				if (!Next)
-					return false;
+				if (!Data)
+					Data = TH_NEW(Status);
 
-				Next->Update.lock();
-				bool Result = (Next->Set != 1);
-				Next->Update.unlock();
-				return Result;
-			}
-			T&& GetIfAny() noexcept
-			{
-				if (Next != nullptr)
-					return std::move(Next->Result);
-
-				Next = TH_NEW(context_type);
-				Next->Update.lock();
-				Next->Set = 1;
-				Next->Update.unlock();
-				return std::move(Next->Result);
+				return std::move(Data->Result);
 			}
 			T&& Get() noexcept
 			{
 				Wait();
-				return GetIfAny();
+				return Fetch();
 			}
-
-		public:
+			Deferred GetStatus() const noexcept
+			{
+				return Data ? Data->Code.load() : Deferred::None;
+			}
+			bool IsPending() const noexcept
+			{
+				return Data ? Data->Code.load() == Deferred::Pending : false;
+			}
 			template <typename R>
 			Promise<R> Then(std::function<void(Promise<R>&, T&&)>&& Callback) const noexcept
 			{
-				TH_ASSERT(Next != nullptr && Callback, Promise<R>::Move(), "async should be pending");
+				TH_ASSERT(Data != nullptr && Callback, Promise<R>::Empty(), "async should be pending");
 
-				Promise<R> Result; context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
+				Promise<R> Result; Status* Copy = AddRef();
+				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
-					Dispatch([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
-					{
-						Callback(Result, std::move(Subresult->Result));
-						Subresult->Free();
-					});
+					Callback(Result, std::move(Copy->Result));
+					Release(Copy);
 				});
 
 				return Result;
 			}
 			template <typename R>
-			Promise<typename Future<R>::type> Then(std::function<R(T&&)>&& Callback) const noexcept
+			Promise<typename Unwrap<R>::type> Then(std::function<R(T&&)>&& Callback) const noexcept
 			{
-				using F = typename Future<R>::type;
-				TH_ASSERT(Next != nullptr && Callback, Promise<F>::Move(), "async should be pending");
+				using F = typename Unwrap<R>::type;
+				TH_ASSERT(Data != nullptr && Callback, Promise<F>::Empty(), "async should be pending");
 
-				Promise<F> Result; context_type* Subresult = Next->Copy();
-				Next->Put([Subresult, Result, Callback = std::move(Callback)]() mutable
+				Promise<F> Result; Status* Copy = AddRef();
+				Store([Copy, Result, Callback = std::move(Callback)]() mutable
 				{
-					Dispatch([Subresult, Result = std::move(Result), Callback = std::move(Callback)]() mutable
-					{
-						Result.Set(std::move(Callback(std::move(Subresult->Result))));
-						Subresult->Free();
-					});
+					Result.Set(std::move(Callback(std::move(Copy->Result))));
+					Release(Copy);
 				});
 
 				return Result;
 			}
 
-		public:
-			static Promise Move(context_type* Base = nullptr) noexcept
+		private:
+			Promise(Status* Context) noexcept : Data(Context)
 			{
-				return Promise(Base, true);
+				AddRef();
+			}
+			Status* AddRef() const
+			{
+				if (Data != nullptr)
+					++Data->Count;
+				return Data;
+			}
+			void Store(TaskCallback&& Callback) const noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Data->Update);
+				Data->Event = std::move(Callback);
+				if (Data->Code == Deferred::Ready)
+					Execute(Data);
+			}
+
+		public:
+			static Promise Empty() noexcept
+			{
+				return Promise((Status*)nullptr);
+			}
+
+		private:
+			static void Execute(Status* State) noexcept
+			{
+				if (State->Event)
+					Schedule::ExecutePromise(std::move(State->Event));
+			}
+			static void Release(Status* State) noexcept
+			{
+				if (State != nullptr && !--State->Count)
+					TH_DELETE(Status, State);
+			}
+		};
+		
+		template <>
+		class TH_OUT_TS Promise<void>
+		{
+			typedef Awaitable<void> Status;
+			typedef void Type;
+
+		private:
+			template <typename F>
+			struct Unwrap
+			{
+				typedef F type;
+			};
+
+			template <typename F>
+			struct Unwrap<Promise<F>>
+			{
+				typedef F type;
+			};
+
+		private:
+			Status* Data;
+
+		public:
+			Promise() noexcept : Data(TH_NEW(Status))
+			{
+			}
+			Promise(const Promise& Other) noexcept : Data(Other.Data)
+			{
+				AddRef();
+			}
+			Promise(Promise&& Other) noexcept : Data(Other.Data)
+			{
+				Other.Data = nullptr;
+			}
+			~Promise()
+			{
+				Release(Data);
+			}
+			Promise& operator= (const Promise& Other)
+			{
+				if (&Other != this)
+					Set(Other);
+
+				return *this;
+			}
+			Promise& operator= (Promise&& Other) noexcept
+			{
+				if (&Other == this)
+					return *this;
+
+				Release(Data);
+				Data = Other.Data;
+				Other.Data = nullptr;
+				return *this;
+			}
+			void Set()
+			{
+				TH_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				std::unique_lock<std::mutex> Unique(Data->Update);
+				Data->Code = Deferred::Ready;
+				Execute(Data);
+			}
+			void Set(const Promise& Other)
+			{
+				TH_ASSERT_V(Data != nullptr && Data->Code == Deferred::Pending, "async should be pending");
+				Status* Copy = AddRef();
+				Other.Await([Copy]() mutable
+				{
+					std::unique_lock<std::mutex> Unique(Copy->Update);
+					Copy->Code = Deferred::Ready;
+					Execute(Copy);
+					Release(Copy);
+				});
+			}
+			void Await(std::function<void()>&& Callback) const noexcept
+			{
+				TH_ASSERT_V(Callback, "callback should be set");
+				if (!IsPending())
+					return Callback();
+
+				Status* Copy = AddRef();
+				Store([Copy, Callback = std::move(Callback)]() mutable
+				{
+					Callback();
+					Release(Copy);
+				});
+			}
+			void Wait()
+			{
+				if (!IsPending())
+					return;
+
+				std::condition_variable Ready;
+				std::mutex Waitable;
+				Await([&]()
+				{
+					std::unique_lock<std::mutex> Lock(Waitable);
+					Ready.notify_all();
+				});
+
+				std::unique_lock<std::mutex> Lock(Waitable);
+				Ready.wait(Lock, [&]()
+				{
+					return !IsPending();
+				});
+			}
+			void Fetch() noexcept
+			{
+				if (!Data)
+					Data = TH_NEW(Status);
+			}
+			void Get() noexcept
+			{
+				Wait();
+				Fetch();
+			}
+			Deferred GetStatus() const noexcept
+			{
+				return Data ? Data->Code.load() : Deferred::None;
+			}
+			bool IsPending() const noexcept
+			{
+				return Data ? Data->Code.load() == Deferred::Pending : false;
+			}
+			template <typename R>
+			Promise<R> Then(std::function<void(Promise<R>&)>&& Callback) const noexcept
+			{
+				TH_ASSERT(Data != nullptr && Callback, Promise<R>::Empty(), "async should be pending");
+
+				Promise<R> Result; Status* Copy = AddRef();
+				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				{
+					Callback(Result);
+					Release(Copy);
+				});
+
+				return Result;
+			}
+			template <typename R>
+			Promise<typename Unwrap<R>::type> Then(std::function<R()>&& Callback) const noexcept
+			{
+				using F = typename Unwrap<R>::type;
+				TH_ASSERT(Data != nullptr && Callback, Promise<F>::Empty(), "async should be pending");
+
+				Promise<F> Result; Status* Copy = AddRef();
+				Store([Copy, Result, Callback = std::move(Callback)]() mutable
+				{
+					Callback();
+					Result.Set();
+					Release(Copy);
+				});
+
+				return Result;
+			}
+
+		private:
+			Promise(Status* Context) noexcept : Data(Context)
+			{
+				AddRef();
+			}
+			Status* AddRef() const
+			{
+				if (Data != nullptr)
+					++Data->Count;
+				return Data;
+			}
+			void Store(TaskCallback&& Callback) const noexcept
+			{
+				std::unique_lock<std::mutex> Unique(Data->Update);
+				Data->Event = std::move(Callback);
+				if (Data->Code == Deferred::Ready)
+					Execute(Data);
+			}
+
+		public:
+			static Promise Empty() noexcept
+			{
+				return Promise((Status*)nullptr);
+			}
+
+		private:
+			static void Execute(Status* State) noexcept
+			{
+				if (State->Event)
+					Schedule::ExecutePromise(std::move(State->Event));
+			}
+			static void Release(Status* State) noexcept
+			{
+				if (State != nullptr && !--State->Count)
+					TH_DELETE(Status, State);
 			}
 		};
 
@@ -2609,12 +2763,12 @@ namespace Tomahawk
 				TH_UNWATCH((void*)&Future);
 			}
 #endif
-			return Future.GetIfAny();
+			return Future.Fetch();
 		}
 		template <typename T>
 		TH_OUT_TS inline Promise<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
-			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
 
 			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback]() mutable
@@ -2627,7 +2781,7 @@ namespace Tomahawk
 		template <typename T>
 		TH_OUT_TS inline Promise<T> Cotask(std::function<T()>&& Callback, Difficulty Type = Difficulty::Heavy) noexcept
 		{
-			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
 
 			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
@@ -2640,7 +2794,7 @@ namespace Tomahawk
 		template <typename T>
 		TH_OUT_TS inline Promise<T> Coasync(const std::function<T()>& Callback, bool AlwaysEnqueue = false) noexcept
 		{
-			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
 				return Promise<T>(Callback());
 
@@ -2655,7 +2809,7 @@ namespace Tomahawk
 		template <typename T>
 		TH_OUT_TS inline Promise<T> Coasync(std::function<T()>&& Callback, bool AlwaysEnqueue = false) noexcept
 		{
-			TH_ASSERT(Callback, Promise<T>::Move(), "callback should not be empty");
+			TH_ASSERT(Callback, Promise<T>::Empty(), "callback should not be empty");
 			if (!AlwaysEnqueue && Costate::IsCoroutine())
 				return Promise<T>(Callback());
 

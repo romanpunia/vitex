@@ -1997,7 +1997,7 @@ namespace Tomahawk
 					return (uint64_t)MongoExecuteQuery(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
 				});
 #else
-				return 0;
+				return (uint64_t)0;
 #endif
 			}
 			Core::Promise<uint64_t> Collection::CountDocumentsEstimated(const Document& Options) const
@@ -2009,7 +2009,7 @@ namespace Tomahawk
 					return (uint64_t)MongoExecuteQuery(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
 				});
 #else
-				return 0;
+				return (uint64_t)0;
 #endif
 			}
 			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options) const

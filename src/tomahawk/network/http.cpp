@@ -6239,8 +6239,8 @@ namespace Tomahawk
 			}
 			Core::Promise<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
-				TH_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, nullptr, "cannot send http request over websocket");
-				TH_ASSERT(Stream.IsValid(), nullptr, "stream should be opened");
+				TH_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, (ResponseFrame*)nullptr, "cannot send http request over websocket");
+				TH_ASSERT(Stream.IsValid(), (ResponseFrame*)nullptr, "stream should be opened");
 				TH_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 
 				Core::Promise<ResponseFrame*> Result;

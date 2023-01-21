@@ -444,9 +444,47 @@ namespace Tomahawk
 
 				while (Begin != End)
 				{
-					auto It = Begin;
+					auto Offset = Begin;
 					Begin += Remains > 0 ? --Remains, Step + 1 : Step;
-					Tasks.emplace_back(Enqueue(std::bind(std::for_each<Iterator, Function>, It, Begin, Callback)));
+					Tasks.emplace_back(Enqueue(std::bind(std::for_each<Iterator, Function>, Offset, Begin, Callback)));
+				}
+
+				return Tasks;
+			}
+			template <typename Iterator, typename InitFunction, typename ElementFunction>
+			static std::vector<Task> Distribute(Iterator Begin, Iterator End, InitFunction&& InitCallback, ElementFunction&& ElementCallback)
+			{
+				std::vector<Task> Tasks;
+				size_t Size = End - Begin;
+
+				if (!Size)
+					return Tasks;
+
+				size_t Threads = std::max<size_t>(1, (size_t)Core::Schedule::Get()->GetThreads(Core::Difficulty::Heavy));
+				size_t Step = Size / Threads;
+				size_t Remains = Size % Threads;
+				size_t Remainder = Remains;
+				size_t Index = 0, Counting = 0;
+				auto Start = Begin;
+
+				while (Start != End)
+				{
+					Start += Remainder > 0 ? --Remainder, Step + 1 : Step;
+					++Counting;
+				}
+
+				Tasks.reserve(Counting);
+				InitCallback(Counting);
+
+				while (Begin != End)
+				{
+					auto Offset = Begin;
+					auto Bound = std::bind(ElementCallback, Index++, std::placeholders::_1);
+					Begin += Remains > 0 ? --Remains, Step + 1 : Step;
+					Tasks.emplace_back(Enqueue([Offset, Begin, Bound]()
+					{
+						std::for_each<Iterator, decltype(Bound)>(Offset, Begin, Bound);
+					}));
 				}
 
 				return Tasks;
@@ -803,10 +841,10 @@ namespace Tomahawk
 			void* QueryNext();
 			float EnqueueCullable(Component* Base);
 			float EnqueueDrawable(Drawable* Base, bool& Cullable);
-			bool PushCullable(Entity* Target, const Viewer& Source, Component* Base);
-			bool PushDrawable(Entity* Target, const Viewer& Source, Drawable* Base);
-			bool PostInstance(Material* Next, Graphics::RenderBuffer::Instance& Target);
-			bool PostGeometry(Material* Next, bool WithTextures);
+			bool DispatchCullable(Entity* Target, const Viewer& Source, Component* Base);
+			bool DispatchDrawable(Entity* Target, const Viewer& Source, Drawable* Base);
+			bool TryInstance(Material* Next, Graphics::RenderBuffer::Instance& Target);
+			bool TryGeometry(Material* Next, bool WithTextures);
 			bool HasCategory(GeoCategory Category);
 			Graphics::Shader* CompileShader(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* CompileShader(const std::string& SectionName, size_t BufferSize = 0);
@@ -1138,7 +1176,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
 			std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
 			std::unordered_map<uint64_t, Indexer*> Registry;
-			std::unordered_map<Component*, uint64_t> Loading;
+			std::unordered_map<Component*, uint64_t> Incomplete;
 			std::queue<Core::TaskCallback> Transactions;
 			std::queue<Parallel::Task> Tasks;
 			std::queue<Event> Events;
@@ -1146,11 +1184,18 @@ namespace Tomahawk
 			Core::Pool<Component*> Indices;
 			Core::Pool<Material*> Materials;
 			Core::Pool<Entity*> Entities;
+			Core::Pool<Entity*> Dirty;
 			Compute::Simulator* Simulator;
 			std::atomic<Component*> Camera;
 			std::atomic<bool> Active;
 			std::mutex Exclusive;
 			Desc Conf;
+
+		public:
+			struct
+			{
+				size_t DrawCalls = 0;
+			} Statistics;
 
 		public:
 			IdxSnapshot* Snapshot;
@@ -1276,9 +1321,21 @@ namespace Tomahawk
 			void RegisterEntity(Entity* In);
 			bool UnregisterEntity(Entity* In);
 			bool ResolveEvent(Event& Data);
+			void WatchMovement(Entity* Base);
+			void UnwatchMovement(Entity* Base);
 			Entity* CloneEntityInstance(Entity* Entity);
 
 		public:
+			template <typename T>
+			std::vector<Component*> QueryByPosition(const Compute::Vector3& Position, float Radius, bool DrawableOnly = true)
+			{
+				return QueryByPosition(T::GetTypeId(), Position, Radius, DrawableOnly);
+			}
+			template <typename T>
+			std::vector<Component*> QueryByArea(const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly = true)
+			{
+				return QueryByArea(T::GetTypeId(), Min, Max, DrawableOnly);
+			}
 			template <typename T>
 			void RayTest(const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
 			{
@@ -1484,10 +1541,23 @@ namespace Tomahawk
 		public:
 			typedef BatchingGroup<Geometry, Instance> DataGroup;
 
+		private:
+			struct Dispatchable
+			{
+				size_t Name;
+				Geometry* Data;
+				Material* Surface;
+				Instance Params;
+
+				Dispatchable(size_t NewName, Geometry* NewData, Material* NewSurface, const Instance& NewParams) : Name(NewName), Data(NewData), Surface(NewSurface), Params(NewParams)
+				{
+				}
+			};
+
 		public:
+			std::vector<std::vector<Dispatchable>> Queue;
 			std::unordered_map<size_t, DataGroup*> Groups;
 			std::queue<DataGroup*>* Cache = nullptr;
-			std::mutex Emplacement;
 
 		public:
 			void Clear()
@@ -1498,28 +1568,47 @@ namespace Tomahawk
 					Group->Instances.clear();
 					Cache->push(Group);
 				}
+				Queue.clear();
 				Groups.clear();
 			}
-			void Emplace(Geometry* Data, Material* Surface, const Instance& Params)
+			void Prepare(size_t MaxSize)
 			{
-				size_t Id = GetKeyId(Data, Surface);
-				Emplacement.lock();
-				auto It = Groups.find(Id);
-				if (It == Groups.end())
+				Queue.resize(MaxSize);
+				for (auto& Base : Groups)
 				{
-					auto* Group = GetGroup();
-					Group->GeometryBuffer = Data;
-					Group->MaterialData = Surface;
-					Group->Instances.emplace_back(Params);
-					Groups.insert(std::make_pair(Id, Group));
+					auto* Group = Base.second;
+					Group->Instances.clear();
+					Cache->push(Group);
 				}
-				else
-					It->second->Instances.emplace_back(Params);
-				Emplacement.unlock();
+				Groups.clear();
+			}
+			void Emplace(Geometry* Data, Material* Surface, const Instance& Params, size_t Chunk)
+			{
+				TH_ASSERT_V(Chunk < Queue.size(), "chunk index is out of range");
+				Queue[Chunk].emplace_back(GetKeyId(Data, Surface), Data, Surface, Params);
 			}
 			void Compile(Graphics::GraphicsDevice* Device)
 			{
 				TH_ASSERT_V(Device != nullptr, "device should be set");
+				for (auto& Context : Queue)
+				{
+					for (auto& Item : Context)
+					{
+						auto It = Groups.find(Item.Name);
+						if (It == Groups.end())
+						{
+							auto* Group = GetGroup();
+							Group->GeometryBuffer = Item.Data;
+							Group->MaterialData = Item.Surface;
+							Group->Instances.emplace_back(std::move(Item.Params));
+							Groups.insert(std::make_pair(Item.Name, Group));
+						}
+						else
+							It->second->Instances.emplace_back(std::move(Item.Params));
+					}
+					Context.clear();
+				}
+
 				for (auto& Base : Groups)
 				{
 					auto* Group = Base.second;
@@ -1653,15 +1742,18 @@ namespace Tomahawk
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
-				T* Base = nullptr; bool Cullable;
 				System->QueryBegin(T::GetTypeId());
-				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
-					if (System->EnqueueDrawable(Base, Cullable) >= System->Threshold)
-						Top[(size_t)Base->GetCategory()].push_back(Base);
+					T* Base = nullptr;
+					while ((Base = (T*)System->QueryNext()) != nullptr)
+					{
+						bool Cullable;
+						if (System->EnqueueDrawable(Base, Cullable) >= System->Threshold)
+							Top[(size_t)Base->GetCategory()].push_back(Base);
 
-					if (Cullable && Base->GetCategory() == GeoCategory::Opaque)
-						Culling.push_back(Base);
+						if (Cullable && Base->GetCategory() == GeoCategory::Opaque)
+							Culling.push_back(Base);
+					}
 				}
 				System->QueryEnd();
 
@@ -1689,12 +1781,14 @@ namespace Tomahawk
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
-				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
-				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
-					if (System->EnqueueCullable(Base) >= System->Threshold)
-						Subframe.push_back(Base);
+					T* Base = nullptr;
+					while ((Base = (T*)System->QueryNext()) != nullptr)
+					{
+						if (System->EnqueueCullable(Base) >= System->Threshold)
+							Subframe.push_back(Base);
+					}
 				}
 				System->QueryEnd();
 				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
@@ -1705,12 +1799,14 @@ namespace Tomahawk
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
-				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
-				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
-					if (System->PushCullable(nullptr, System->View, Base))
-						Top[(size_t)Base->GetCategory()].push_back(Base);
+					T* Base = nullptr;
+					while ((Base = (T*)System->QueryNext()) != nullptr)
+					{
+						if (System->DispatchCullable(nullptr, System->View, Base))
+							Top[(size_t)Base->GetCategory()].push_back(Base);
+					}
 				}
 				System->QueryEnd();
 
@@ -1730,12 +1826,14 @@ namespace Tomahawk
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
-				T* Base = nullptr;
 				System->QueryBegin(T::GetTypeId());
-				while ((Base = (T*)System->QueryNext()) != nullptr)
 				{
-					if (System->PushCullable(nullptr, System->View, Base))
-						Subframe.push_back(Base);
+					T* Base = nullptr;
+					while ((Base = (T*)System->QueryNext()) != nullptr)
+					{
+						if (System->DispatchCullable(nullptr, System->View, Base))
+							Subframe.push_back(Base);
+					}
 				}
 				System->QueryEnd();
 				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
@@ -1804,11 +1902,12 @@ namespace Tomahawk
 					{
 						auto& Batcher = Proxy.Batcher((GeoCategory)i);
 						auto& Frame = Proxy.Top((GeoCategory)i);
-
-						Batcher.Clear();
-						Parallel::WailAll(Parallel::ForEach(Frame.begin(), Frame.end(), [this, &Batcher](T* Next)
+						Parallel::WailAll(Parallel::Distribute(Frame.begin(), Frame.end(), [&Batcher](size_t Threads)
 						{
-							BatchGeometry(Next, Batcher);
+							Batcher.Prepare(Threads);
+						}, [this, &Batcher](size_t Thread, T* Next)
+						{
+							BatchGeometry(Next, Batcher, Thread);
 						}));
 						Batcher.Compile(Device);
 					}
@@ -1822,7 +1921,7 @@ namespace Tomahawk
 			{
 				return !Proxy.Top(Category).empty();
 			}
-			virtual void BatchGeometry(T* Base, Batching& Batch)
+			virtual void BatchGeometry(T* Base, Batching& Batch, size_t Chunk)
 			{
 			}
 			virtual size_t CullGeometry(const Viewer& View, const Objects& Chunk)

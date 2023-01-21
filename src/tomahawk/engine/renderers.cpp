@@ -120,7 +120,7 @@ namespace Tomahawk
 					if ((Static && !Base->Static) || Base->GetIndices().empty())
 						continue;
 
-					if (!System->PostGeometry(Base->GetMaterial(), true))
+					if (!System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -155,7 +155,7 @@ namespace Tomahawk
 					if (!Base->Static || Base->GetIndices().empty())
 						continue;
 
-					if (!System->PostGeometry(Base->GetMaterial(), true))
+					if (!System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -192,7 +192,7 @@ namespace Tomahawk
 					if (Base->GetIndices().empty())
 						continue;
 
-					if (!System->PostGeometry(Base->GetMaterial(), true))
+					if (!System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -232,7 +232,7 @@ namespace Tomahawk
 					if (!Base->GetBody())
 						continue;
 
-					if (!System->PostGeometry(Base->GetMaterial(), true))
+					if (!System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Base->Fill(Device, IndexBuffer, VertexBuffer);
@@ -279,7 +279,7 @@ namespace Tomahawk
 				System->FreeShader(Shaders.Depth.Linear);
 				System->FreeShader(Shaders.Depth.Cubic);
 			}
-			void Model::BatchGeometry(Components::Model* Base, GeometryRenderer::Batching& Batch)
+			void Model::BatchGeometry(Components::Model* Base, GeometryRenderer::Batching& Batch, size_t Chunk)
 			{
 				auto* Drawable = Base->GetDrawable();
 				if (!Drawable || (!Base->Static && !System->State.IsSet(RenderOpt::Static)))
@@ -292,11 +292,11 @@ namespace Tomahawk
 				for (auto* Mesh : Drawable->Meshes)
 				{
 					Material* Source = Base->GetMaterial(Mesh);
-					if (System->PostInstance(Source, Data))
+					if (System->TryInstance(Source, Data))
 					{
 						Data.World = Mesh->World * World;
 						Data.Transform = Data.World * System->View.ViewProjection;
-						Batch.Emplace(Mesh, Source, Data);
+						Batch.Emplace(Mesh, Source, Data, Chunk);
 					}
 				}
 			}
@@ -373,7 +373,7 @@ namespace Tomahawk
 				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
-					System->PostGeometry(Data->MaterialData, true);
+					System->TryGeometry(Data->MaterialData, true);
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
@@ -396,7 +396,7 @@ namespace Tomahawk
 				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
-					System->PostGeometry(Data->MaterialData, true);
+					System->TryGeometry(Data->MaterialData, true);
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
@@ -421,7 +421,7 @@ namespace Tomahawk
 				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
-					System->PostGeometry(Data->MaterialData, true);
+					System->TryGeometry(Data->MaterialData, true);
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
@@ -448,7 +448,7 @@ namespace Tomahawk
 				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
-					System->PostGeometry(Data->MaterialData, true);
+					System->TryGeometry(Data->MaterialData, true);
 					Device->DrawIndexedInstanced(Data->DataBuffer, Data->GeometryBuffer, (unsigned int)Data->Instances.size());
 				}
 
@@ -589,7 +589,7 @@ namespace Tomahawk
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
+						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
 						Device->Render.World = Mesh->World * World;
@@ -634,7 +634,7 @@ namespace Tomahawk
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
+						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
 						Device->Render.Transform = Device->Render.World = Mesh->World * World;
@@ -679,7 +679,7 @@ namespace Tomahawk
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
+						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
 						Device->Render.World = Mesh->World * World;
@@ -727,7 +727,7 @@ namespace Tomahawk
 
 					for (auto* Mesh : Drawable->Meshes)
 					{
-						if (!System->PostGeometry(Base->GetMaterial(Mesh), true))
+						if (!System->TryGeometry(Base->GetMaterial(Mesh), true))
 							continue;
 
 						Device->Render.World = Mesh->World * World;
@@ -807,7 +807,7 @@ namespace Tomahawk
 					if ((Static && !Base->Static) || !Base->GetBuffer())
 						continue;
 
-					if (!System->PostGeometry(Base->GetMaterial(), true))
+					if (!System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Device->Render.World = View.Projection;
@@ -851,7 +851,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					if (!Base->GetBuffer() || !System->PostGeometry(Base->GetMaterial(), true))
+					if (!Base->GetBuffer() || !System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Device->Render.World = View.Projection;
@@ -901,7 +901,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					if (!Base->GetBuffer() || !System->PostGeometry(Base->GetMaterial(), true))
+					if (!Base->GetBuffer() || !System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Device->Render.World = (Base->Connected ? Base->GetEntity()->GetBox() : Compute::Matrix4x4::Identity());
@@ -964,7 +964,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					if ((Static && !Base->Static) || !System->PostGeometry(Base->GetMaterial(), true))
+					if ((Static && !Base->Static) || !System->TryGeometry(Base->GetMaterial(), true))
 						continue;
 
 					Device->Render.Transform = Base->GetEntity()->GetBox() * System->View.ViewProjection;

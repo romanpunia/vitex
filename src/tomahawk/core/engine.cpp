@@ -1941,9 +1941,8 @@ namespace Tomahawk
 			return Parent;
 		}
 
-		Entity::Entity(SceneGraph* NewScene) : Scene(NewScene), Transform(new Compute::Transform()), Active(false)
+		Entity::Entity(SceneGraph* NewScene) : Scene(NewScene), Transform(new Compute::Transform(this)), Active(false)
 		{
-			Transform->UserPointer = (void*)this;
 			TH_ASSERT_V(Scene != nullptr, "entity should be created within a scene");
 		}
 		Entity::~Entity()
@@ -1973,7 +1972,7 @@ namespace Tomahawk
 			{
 				Transform->SetRoot(nullptr);
 				if (Old != nullptr && Scene != nullptr)
-					Scene->Mutate(Old->Ptr<Entity>(), this, "pop");
+					Scene->Mutate((Entity*)Old->UserData, this, "pop");
 			}
 			else
 			{
@@ -2032,10 +2031,10 @@ namespace Tomahawk
 			std::vector<Compute::Transform*>& Childs = Transform->GetChilds();
 			for (size_t i = 0; i < Childs.size(); i++)
 			{
-				Entity* Entity = Transform->GetChild(i)->Ptr<Engine::Entity>();
-				if (Entity != nullptr && Entity != this)
+				Entity* Next = (Entity*)Transform->GetChild(i)->UserData;
+				if (Next != nullptr && Next != this)
 				{
-					Scene->DeleteEntity(Entity);
+					Scene->DeleteEntity(Next);
 					i--;
 				}
 			}
@@ -2084,7 +2083,7 @@ namespace Tomahawk
 			if (!Root)
 				return nullptr;
 
-			return (Entity*)Root->Ptr<Engine::Entity>();
+			return (Entity*)Root->UserData;
 		}
 		Entity* Entity::GetChild(size_t Index) const
 		{
@@ -2092,7 +2091,7 @@ namespace Tomahawk
 			if (!Child)
 				return nullptr;
 
-			return (Entity*)Child->Ptr<Engine::Entity>();
+			return (Entity*)Child->UserData;
 		}
 		Compute::Transform* Entity::GetTransform() const
 		{
@@ -2552,15 +2551,18 @@ namespace Tomahawk
 		{
 			Base->Parent->Snapshot.Distance = Base->Parent->Transform->GetPosition().Distance(View.Position);
 			Scene->ProcessCullable(Base);
+
 			return Base->Parent->Snapshot.Visibility;
 		}
 		float RenderSystem::EnqueueDrawable(Drawable* Base, bool& Cullable)
 		{
-			float Visibility = EnqueueCullable(Base);
-			Cullable = (OcclusionCulling && Visibility >= Threshold);
-			return Cullable ? Base->Overlapping : Visibility;
+			Base->Parent->Snapshot.Distance = Base->Parent->Transform->GetPosition().Distance(View.Position);
+			Cullable = (OcclusionCulling && Base->Parent->Snapshot.Visibility >= Threshold);
+			Scene->ProcessCullable(Base);
+
+			return Cullable ? Base->Overlapping : Base->Parent->Snapshot.Visibility;
 		}
-		bool RenderSystem::PushCullable(Entity* Target, const Viewer& Source, Component* Base)
+		bool RenderSystem::DispatchCullable(Entity* Target, const Viewer& Source, Component* Base)
 		{
 			float Visibility = Threshold;
 			float Radius = Base->Parent->GetRadius();
@@ -2577,9 +2579,9 @@ namespace Tomahawk
 
 			return Visibility >= Threshold;
 		}
-		bool RenderSystem::PushDrawable(Entity* Target, const Viewer& Source, Drawable* Base)
+		bool RenderSystem::DispatchDrawable(Entity* Target, const Viewer& Source, Drawable* Base)
 		{
-			if (!PushCullable(Target, Source, Base))
+			if (!DispatchCullable(Target, Source, Base))
 				return false;
 			
 			float Visibility = Threshold;
@@ -2591,7 +2593,7 @@ namespace Tomahawk
 
 			return Visibility >= Threshold;
 		}
-		bool RenderSystem::PostInstance(Material* Next, Graphics::RenderBuffer::Instance& Target)
+		bool RenderSystem::TryInstance(Material* Next, Graphics::RenderBuffer::Instance& Target)
 		{
 			if (!Next)
 				return false;
@@ -2603,7 +2605,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool RenderSystem::PostGeometry(Material* Next, bool WithTextures)
+		bool RenderSystem::TryGeometry(Material* Next, bool WithTextures)
 		{
 			if (!Next)
 				return false;
@@ -3051,13 +3053,15 @@ namespace Tomahawk
 			if (Quad != nullptr)
 				return Quad;
 
-			std::vector<Compute::ShapeVertex> Elements;
-			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
-			Elements.push_back({ -1.0f, 1.0f, 0, -1, -1 });
-			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
-			Elements.push_back({ -1.0f, -1.0f, 0, -1, 0 });
-			Elements.push_back({ 1.0f, 1.0f, 0, 0, -1 });
-			Elements.push_back({ 1.0f, -1.0f, 0, 0, 0 });
+			std::vector<Compute::ShapeVertex> Elements =
+			{
+				{ -1.0f, -1.0f, 0, -1, 0 },
+				{ -1.0f, 1.0f, 0, -1, -1 },
+				{ 1.0f, 1.0f, 0, 0, -1 },
+				{ -1.0f, -1.0f, 0, -1, 0 },
+				{ 1.0f, 1.0f, 0, 0, -1 },
+				{ 1.0f, -1.0f, 0, 0, 0 }
+			};
 			Compute::Geometric::TexCoordRhToLh(Elements);
 
 			Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -3082,67 +3086,24 @@ namespace Tomahawk
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices;
-				Indices.push_back(0);
-				Indices.push_back(4);
-				Indices.push_back(1);
-				Indices.push_back(0);
-				Indices.push_back(9);
-				Indices.push_back(4);
-				Indices.push_back(9);
-				Indices.push_back(5);
-				Indices.push_back(4);
-				Indices.push_back(4);
-				Indices.push_back(5);
-				Indices.push_back(8);
-				Indices.push_back(4);
-				Indices.push_back(8);
-				Indices.push_back(1);
-				Indices.push_back(8);
-				Indices.push_back(10);
-				Indices.push_back(1);
-				Indices.push_back(8);
-				Indices.push_back(3);
-				Indices.push_back(10);
-				Indices.push_back(5);
-				Indices.push_back(3);
-				Indices.push_back(8);
-				Indices.push_back(5);
-				Indices.push_back(2);
-				Indices.push_back(3);
-				Indices.push_back(2);
-				Indices.push_back(7);
-				Indices.push_back(3);
-				Indices.push_back(7);
-				Indices.push_back(10);
-				Indices.push_back(3);
-				Indices.push_back(7);
-				Indices.push_back(6);
-				Indices.push_back(10);
-				Indices.push_back(7);
-				Indices.push_back(11);
-				Indices.push_back(6);
-				Indices.push_back(11);
-				Indices.push_back(0);
-				Indices.push_back(6);
-				Indices.push_back(0);
-				Indices.push_back(1);
-				Indices.push_back(6);
-				Indices.push_back(6);
-				Indices.push_back(1);
-				Indices.push_back(10);
-				Indices.push_back(9);
-				Indices.push_back(0);
-				Indices.push_back(11);
-				Indices.push_back(9);
-				Indices.push_back(11);
-				Indices.push_back(2);
-				Indices.push_back(9);
-				Indices.push_back(2);
-				Indices.push_back(5);
-				Indices.push_back(7);
-				Indices.push_back(2);
-				Indices.push_back(11);
+				std::vector<int> Indices =
+				{
+					0, 4, 1, 0,
+					9, 4, 9, 5,
+					4, 4, 5, 8,
+					4, 8, 1, 8,
+					10, 1, 8, 3,
+					10, 5, 3, 8,
+					5, 2, 3, 2,
+					7, 3, 7, 10,
+					3, 7, 6, 10,
+					7, 11, 6, 11,
+					0, 6, 0, 1,
+					6, 6, 1, 10,
+					9, 0, 11, 9,
+					11, 2, 9, 2,
+					5, 7, 2, 11
+				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3164,19 +3125,21 @@ namespace Tomahawk
 				const float Z = 0.850650808352039932;
 				const float N = 0.0f;
 
-				std::vector<Compute::ShapeVertex> Elements;
-				Elements.push_back({ -X, N, Z });
-				Elements.push_back({ X, N, Z });
-				Elements.push_back({ -X, N, -Z });
-				Elements.push_back({ X, N, -Z });
-				Elements.push_back({ N, Z, X });
-				Elements.push_back({ N, Z, -X });
-				Elements.push_back({ N, -Z, X });
-				Elements.push_back({ N, -Z, -X });
-				Elements.push_back({ Z, X, N });
-				Elements.push_back({ -Z, X, N });
-				Elements.push_back({ Z, -X, N });
-				Elements.push_back({ -Z, -X, N });
+				std::vector<Compute::ShapeVertex> Elements =
+				{
+					{ -X, N, Z },
+					{ X, N, Z },
+					{ -X, N, -Z },
+					{ X, N, -Z },
+					{ N, Z, X },
+					{ N, Z, -X },
+					{ N, -Z, X },
+					{ N, -Z, -X },
+					{ Z, X, N },
+					{ -Z, X, N },
+					{ Z, -X, N },
+					{ -Z, -X, N }
+				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3203,43 +3166,18 @@ namespace Tomahawk
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices;
-				Indices.push_back(0);
-				Indices.push_back(1);
-				Indices.push_back(2);
-				Indices.push_back(0);
-				Indices.push_back(18);
-				Indices.push_back(1);
-				Indices.push_back(3);
-				Indices.push_back(4);
-				Indices.push_back(5);
-				Indices.push_back(3);
-				Indices.push_back(19);
-				Indices.push_back(4);
-				Indices.push_back(6);
-				Indices.push_back(7);
-				Indices.push_back(8);
-				Indices.push_back(6);
-				Indices.push_back(20);
-				Indices.push_back(7);
-				Indices.push_back(9);
-				Indices.push_back(10);
-				Indices.push_back(11);
-				Indices.push_back(9);
-				Indices.push_back(21);
-				Indices.push_back(10);
-				Indices.push_back(12);
-				Indices.push_back(13);
-				Indices.push_back(14);
-				Indices.push_back(12);
-				Indices.push_back(22);
-				Indices.push_back(13);
-				Indices.push_back(15);
-				Indices.push_back(16);
-				Indices.push_back(17);
-				Indices.push_back(15);
-				Indices.push_back(23);
-				Indices.push_back(16);
+				std::vector<int> Indices =
+				{
+					0, 1, 2, 0,
+					18, 1, 3, 4,
+					5, 3, 19, 4,
+					6, 7, 8, 6,
+					20, 7, 9, 10,
+					11, 9, 21, 10,
+					12, 13, 14, 12,
+					22, 13, 15, 16,
+					17, 15, 23, 16
+				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3257,31 +3195,33 @@ namespace Tomahawk
 			}
 			else if (Type == BufferType::Vertex)
 			{
-				std::vector<Compute::ShapeVertex> Elements;
-				Elements.push_back({ -1, 1, 1, 0.875, -0.5 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
-				Elements.push_back({ -1, -1, -1, 0.375, -1 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
-				Elements.push_back({ -1, -1, 1, 0.625, -0 });
-				Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
-				Elements.push_back({ -1, -1, -1, 0.375, -0 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
-				Elements.push_back({ -1, -1, -1, 0.125, -0.75 });
-				Elements.push_back({ -1, 1, -1, 0.125, -0.5 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
-				Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5 });
-				Elements.push_back({ -1, 1, -1, 0.375, -0.25 });
-				Elements.push_back({ -1, -1, 1, 0.875, -0.75 });
-				Elements.push_back({ -1, -1, 1, 0.625, -1 });
-				Elements.push_back({ -1, 1, 1, 0.625, -0.25 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5 });
+				std::vector<Compute::ShapeVertex> Elements
+				{
+					{ -1, 1, 1, 0.875, -0.5 },
+					{ 1, -1, 1, 0.625, -0.75 },
+					{ 1, 1, 1, 0.625, -0.5 },
+					{ 1, -1, 1, 0.625, -0.75 },
+					{ -1, -1, -1, 0.375, -1 },
+					{ 1, -1, -1, 0.375, -0.75 },
+					{ -1, -1, 1, 0.625, -0 },
+					{ -1, 1, -1, 0.375, -0.25 },
+					{ -1, -1, -1, 0.375, -0 },
+					{ 1, 1, -1, 0.375, -0.5 },
+					{ -1, -1, -1, 0.125, -0.75 },
+					{ -1, 1, -1, 0.125, -0.5 },
+					{ 1, 1, 1, 0.625, -0.5 },
+					{ 1, -1, -1, 0.375, -0.75 },
+					{ 1, 1, -1, 0.375, -0.5 },
+					{ -1, 1, 1, 0.625, -0.25 },
+					{ 1, 1, -1, 0.375, -0.5 },
+					{ -1, 1, -1, 0.375, -0.25 },
+					{ -1, -1, 1, 0.875, -0.75 },
+					{ -1, -1, 1, 0.625, -1 },
+					{ -1, 1, 1, 0.625, -0.25 },
+					{ 1, -1, -1, 0.375, -0.75 },
+					{ 1, -1, 1, 0.625, -0.75 },
+					{ 1, 1, 1, 0.625, -0.5 }
+				};
 				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -3309,43 +3249,18 @@ namespace Tomahawk
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices;
-				Indices.insert(Indices.begin(), 0);
-				Indices.insert(Indices.begin(), 1);
-				Indices.insert(Indices.begin(), 2);
-				Indices.insert(Indices.begin(), 0);
-				Indices.insert(Indices.begin(), 18);
-				Indices.insert(Indices.begin(), 1);
-				Indices.insert(Indices.begin(), 3);
-				Indices.insert(Indices.begin(), 4);
-				Indices.insert(Indices.begin(), 5);
-				Indices.insert(Indices.begin(), 3);
-				Indices.insert(Indices.begin(), 19);
-				Indices.insert(Indices.begin(), 4);
-				Indices.insert(Indices.begin(), 6);
-				Indices.insert(Indices.begin(), 7);
-				Indices.insert(Indices.begin(), 8);
-				Indices.insert(Indices.begin(), 6);
-				Indices.insert(Indices.begin(), 20);
-				Indices.insert(Indices.begin(), 7);
-				Indices.insert(Indices.begin(), 9);
-				Indices.insert(Indices.begin(), 10);
-				Indices.insert(Indices.begin(), 11);
-				Indices.insert(Indices.begin(), 9);
-				Indices.insert(Indices.begin(), 21);
-				Indices.insert(Indices.begin(), 10);
-				Indices.insert(Indices.begin(), 12);
-				Indices.insert(Indices.begin(), 13);
-				Indices.insert(Indices.begin(), 14);
-				Indices.insert(Indices.begin(), 12);
-				Indices.insert(Indices.begin(), 22);
-				Indices.insert(Indices.begin(), 13);
-				Indices.insert(Indices.begin(), 15);
-				Indices.insert(Indices.begin(), 16);
-				Indices.insert(Indices.begin(), 17);
-				Indices.insert(Indices.begin(), 15);
-				Indices.insert(Indices.begin(), 23);
-				Indices.insert(Indices.begin(), 16);
+				std::vector<int> Indices =
+				{
+					16, 23, 15, 17,
+					16, 15, 13, 22,
+					12, 14, 13, 12,
+					10, 21, 9, 11,
+					10, 9, 7, 20,
+					6, 8, 7, 6,
+					4, 19, 3, 5,
+					4, 3, 1, 18,
+					0, 2, 1, 0
+				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3363,31 +3278,33 @@ namespace Tomahawk
 			}
 			else if (Type == BufferType::Vertex)
 			{
-				std::vector<Compute::Vertex> Elements;
-				Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-				Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-				Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-				Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-				Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-				Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-				Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
-				Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 });
-				Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 });
+				std::vector<Compute::Vertex> Elements =
+				{
+					{ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 },
+					{ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 },
+					{ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0 },
+					{ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 },
+					{ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 },
+					{ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0 },
+					{ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 },
+					{ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 },
+					{ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0 },
+					{ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 },
+					{ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 },
+					{ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0 },
+					{ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 },
+					{ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 },
+					{ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0 },
+					{ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 },
+					{ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 },
+					{ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0 },
+					{ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0 },
+					{ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0 },
+					{ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0 },
+					{ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0 },
+					{ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0 },
+					{ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0 }
+				};
 				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -3415,43 +3332,18 @@ namespace Tomahawk
 
 			if (Type == BufferType::Index)
 			{
-				std::vector<int> Indices;
-				Indices.insert(Indices.begin(), 0);
-				Indices.insert(Indices.begin(), 1);
-				Indices.insert(Indices.begin(), 2);
-				Indices.insert(Indices.begin(), 0);
-				Indices.insert(Indices.begin(), 18);
-				Indices.insert(Indices.begin(), 1);
-				Indices.insert(Indices.begin(), 3);
-				Indices.insert(Indices.begin(), 4);
-				Indices.insert(Indices.begin(), 5);
-				Indices.insert(Indices.begin(), 3);
-				Indices.insert(Indices.begin(), 19);
-				Indices.insert(Indices.begin(), 4);
-				Indices.insert(Indices.begin(), 6);
-				Indices.insert(Indices.begin(), 7);
-				Indices.insert(Indices.begin(), 8);
-				Indices.insert(Indices.begin(), 6);
-				Indices.insert(Indices.begin(), 20);
-				Indices.insert(Indices.begin(), 7);
-				Indices.insert(Indices.begin(), 9);
-				Indices.insert(Indices.begin(), 10);
-				Indices.insert(Indices.begin(), 11);
-				Indices.insert(Indices.begin(), 9);
-				Indices.insert(Indices.begin(), 21);
-				Indices.insert(Indices.begin(), 10);
-				Indices.insert(Indices.begin(), 12);
-				Indices.insert(Indices.begin(), 13);
-				Indices.insert(Indices.begin(), 14);
-				Indices.insert(Indices.begin(), 12);
-				Indices.insert(Indices.begin(), 22);
-				Indices.insert(Indices.begin(), 13);
-				Indices.insert(Indices.begin(), 15);
-				Indices.insert(Indices.begin(), 16);
-				Indices.insert(Indices.begin(), 17);
-				Indices.insert(Indices.begin(), 15);
-				Indices.insert(Indices.begin(), 23);
-				Indices.insert(Indices.begin(), 16);
+				std::vector<int> Indices =
+				{
+					16, 23, 15, 17,
+					16, 15, 13, 22,
+					12, 14, 13, 12,
+					10, 21, 9, 11,
+					10, 9, 7, 20,
+					6, 8, 7, 6,
+					4, 19, 3, 5,
+					4, 3, 1, 18,
+					0, 2, 1, 0
+				};
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
 				F.AccessFlags = Graphics::CPUAccess::Invalid;
@@ -3469,31 +3361,33 @@ namespace Tomahawk
 			}
 			else if (Type == BufferType::Vertex)
 			{
-				std::vector<Compute::SkinVertex> Elements;
-				Elements.push_back({ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
-				Elements.push_back({ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 });
+				std::vector<Compute::SkinVertex> Elements =
+				{
+					{ -1, 1, 1, 0.875, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, -1, 1, 0.625, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, 1, 1, 0.625, -0.5, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, -1, 1, 0.625, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, -1, -1, 0.375, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, -1, -1, 0.375, -0.75, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, -1, 1, 0.625, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, 1, -1, 0.375, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, -1, -1, 0.375, -0, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, 1, -1, 0.375, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, -1, -1, 0.125, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, 1, -1, 0.125, -0.5, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, 1, 1, 0.625, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, -1, -1, 0.375, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, 1, -1, 0.375, -0.5, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, 1, 1, 0.625, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, 1, -1, 0.375, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, 1, -1, 0.375, -0.25, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, -1, 1, 0.875, -0.75, 0, 0, 1, -1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, -1, 1, 0.625, -1, 0, -1, 0, 0, 0, 1, 1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ -1, 1, 1, 0.625, -0.25, -1, 0, 0, 0, 0, 1, 0, -1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, -1, -1, 0.375, -0.75, 0, 0, -1, 1, 0, 0, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, -1, 1, 0.625, -0.75, 1, 0, 0, 0, 0, 1, 0, 1, 0, -1, -1, -1, -1, 0, 0, 0, 0 },
+					{ 1, 1, 1, 0.625, -0.5, 0, 1, 0, 0, 0, 1, -1, 0, 0, -1, -1, -1, -1, 0, 0, 0, 0 }
+				};
 				Compute::Geometric::TexCoordRhToLh(Elements);
 
 				Graphics::ElementBuffer::Desc F = Graphics::ElementBuffer::Desc();
@@ -3686,6 +3580,7 @@ namespace Tomahawk
 				Indices.Reserve(Conf.StartComponents);
 				Materials.Reserve(Conf.StartMaterials);
 				Entities.Reserve(Conf.StartEntities);
+				Dirty.Reserve(Conf.StartEntities);
 
 				for (auto& Sparse : Registry)
 					Sparse.second->Data.Reserve(Conf.StartComponents);
@@ -3790,6 +3685,7 @@ namespace Tomahawk
 			Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 			Device->Draw(6, 0);
 			Device->SetTexture2D(nullptr, 1, TH_PS);
+			Statistics.DrawCalls++;
 		}
 		void SceneGraph::Dispatch(Core::Timer* Time)
 		{
@@ -3818,8 +3714,10 @@ namespace Tomahawk
 				FillMaterialBuffers();
 				SetMRT(TargetType::Main, true);
 				Renderer->RestoreViewBuffer(nullptr);
-				Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
+				Statistics.DrawCalls = Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 			}
+			else
+				Statistics.DrawCalls = 0;
 			TH_PPOP();
 		}
 		void SceneGraph::StepSimulate(Core::Timer* Time)
@@ -3840,10 +3738,10 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_PPUSH(TH_PERF_CORE);
+			auto& Storage = Actors[(size_t)ActorType::Synchronize];
+			if (!Storage.Empty())
 			{
-				auto Begin = Actors[(size_t)ActorType::Synchronize].Begin();
-				auto End = Actors[(size_t)ActorType::Synchronize].End();
-				WatchAll(Parallel::ForEach(Begin, End, [Time](Component* Next)
+				WatchAll(Parallel::ForEach(Storage.Begin(), Storage.End(), [Time](Component* Next)
 				{
 					Next->Synchronize(Time);
 				}));
@@ -3854,11 +3752,10 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_PPUSH(TH_PERF_CORE);
-			if (Active)
+			auto& Storage = Actors[(size_t)ActorType::Animate];
+			if (Active && !Storage.Empty())
 			{
-				auto Begin = Actors[(size_t)ActorType::Animate].Begin();
-				auto End = Actors[(size_t)ActorType::Animate].End();
-				WatchAll(Parallel::ForEach(Begin, End, [Time](Component* Next)
+				WatchAll(Parallel::ForEach(Storage.Begin(), Storage.End(), [Time](Component* Next)
 				{
 					Next->Animate(Time);
 				}));
@@ -3868,11 +3765,10 @@ namespace Tomahawk
 		void SceneGraph::StepGameplay(Core::Timer* Time)
 		{
 			TH_PPUSH(TH_PERF_FRAME);
-			if (Active)
+			auto& Storage = Actors[(size_t)ActorType::Update];
+			if (Active && !Storage.Empty())
 			{
-				auto Begin = Actors[(size_t)ActorType::Update].Begin();
-				auto End = Actors[(size_t)ActorType::Update].End();
-				std::for_each(Begin, End, [Time](Component* Next)
+				std::for_each(Storage.Begin(), Storage.End(), [Time](Component* Next)
 				{
 					Next->Update(Time);
 				});
@@ -3900,16 +3796,14 @@ namespace Tomahawk
 		{
 			TH_PPUSH(TH_PERF_CORE);
 			auto* Base = (Components::Camera*)Camera.load();
-			if (Base != nullptr)
+			if (Base != nullptr && !Indices.Empty())
 			{
 				Compute::Vector3 Far = Base->Parent->Transform->GetPosition();
 				RenderSystem* System = Base->GetRenderer();
 				auto& View = Base->GetViewer();
-				auto Begin = Indices.Begin();
-				auto End = Indices.End();
-				WatchAll(Parallel::ForEach(Begin, End, [System, View](Component* Next)
+				WatchAll(Parallel::ForEach(Indices.Begin(), Indices.End(), [System, View](Component* Next)
 				{
-					System->PushCullable(Next->Parent, View, Next);
+					System->DispatchCullable(Next->Parent, View, Next);
 				}));
 			}
 			TH_PPOP();
@@ -3917,19 +3811,26 @@ namespace Tomahawk
 		void SceneGraph::StepIndexing()
 		{
 			TH_PPUSH(TH_PERF_CORE);
-			if (Camera.load())
+			if (Camera.load() && !Dirty.Empty())
 			{
-				auto Begin = Entities.Begin();
-				auto End = Entities.End();
+				auto Begin = Dirty.Begin();
+				auto End = Dirty.End();
+				Dirty.Clear();
+
 				WatchAll(Parallel::ForEach(Begin, End, [this](Entity* Next)
 				{
-					if (Next->Transform->IsDirty())
-					{
-						Next->Transform->Synchronize();
-						Next->UpdateBounds();
+					Next->Transform->Synchronize();
+					Next->UpdateBounds();		
+					WatchMovement(Next);
 
-						for (auto& Item : *Next)
-							NotifyCosmos(Item.second);
+					if (Next->Type.Components.empty())
+						return;
+
+					std::unique_lock<std::mutex> Unique(Exclusive);
+					for (auto& Item : *Next)
+					{
+						if (Item.second->IsCullable())
+							Changes[Item.second->GetId()].insert(Item.second);
 					}
 				}));
 			}
@@ -4057,6 +3958,7 @@ namespace Tomahawk
 			for (auto& Base : Target->Type.Components)
 				RegisterComponent(Base.second, Target->Active);
 
+			WatchMovement(Target);
 			Mutate(Target, "push");
 		}
 		bool SceneGraph::UnregisterEntity(Entity* Target)
@@ -4073,6 +3975,7 @@ namespace Tomahawk
 
 			Target->Active = false;
 			Entities.Remove(Target);
+			UnwatchMovement(Target);
 			Mutate(Target, "pop");
 
 			return true;
@@ -4136,28 +4039,25 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Base != nullptr, "component should be set");
 			TH_ASSERT_V(Base->Parent != nullptr && Base->Parent->Scene == this, "component should be tied to this scene");
-
-			Exclusive.lock();
-			++Loading[Base];
-			Exclusive.unlock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
+			++Incomplete[Base];
 		}
 		void SceneGraph::UnloadComponentAll(Component* Base)
 		{
-			Exclusive.lock();
-			auto It = Loading.find(Base);
-			if (It != Loading.end())
-				Loading.erase(It);
-			Exclusive.unlock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
+			auto It = Incomplete.find(Base);
+			if (It != Incomplete.end())
+				Incomplete.erase(It);
 		}
 		bool SceneGraph::UnloadComponent(Component* Base)
 		{
 			std::unique_lock<std::mutex> Unique(Exclusive);
-			auto It = Loading.find(Base);
+			auto It = Incomplete.find(Base);
 
-			if (It == Loading.end())
+			if (It == Incomplete.end())
 				return false;
 			else if (!--It->second)
-				Loading.erase(It);
+				Incomplete.erase(It);
 			
 			return true;
 		}
@@ -4182,7 +4082,7 @@ namespace Tomahawk
 			for (auto& Child : Childs)
 			{
 				uint64_t Offset = Array->size();
-				CloneEntities(Child->Ptr<Entity>(), Array);
+				CloneEntities((Entity*)Child->UserData, Array);
 				for (uint64_t j = Offset; j < Array->size(); j++)
 				{
 					Entity* Next = (*Array)[j];
@@ -4362,9 +4262,8 @@ namespace Tomahawk
 		MessageCallback* SceneGraph::SetListener(const std::string& EventName, MessageCallback&& Callback)
 		{
 			MessageCallback* Id = TH_NEW(MessageCallback, std::move(Callback));
-			Exclusive.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Listeners[EventName].insert(Id);
-			Exclusive.unlock();
 
 			return Id;
 		}
@@ -4373,18 +4272,15 @@ namespace Tomahawk
 			TH_ASSERT(!EventName.empty(), false, "event name should not be empty");
 			TH_ASSERT(Id != nullptr, false, "callback id should be set");
 
-			Exclusive.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			auto& Source = Listeners[EventName];
 			auto It = Source.find(Id);
 			if (It == Source.end())
-			{
-				Exclusive.unlock();
 				return false;
-			}
-			Source.erase(It);
-			Exclusive.unlock();
 
+			Source.erase(It);
 			TH_DELETE(function, Id);
+
 			return true;
 		}
 		bool SceneGraph::PushEvent(const std::string& EventName, Core::VariantArgs&& Args, bool Propagate)
@@ -4393,9 +4289,8 @@ namespace Tomahawk
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)(Propagate ? EventTarget::Scene : EventTarget::Listener));
 			Next.Args["__vt"] = Core::Var::Pointer((void*)this);
 
-			Exclusive.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Events.push(std::move(Next));
-			Exclusive.unlock();
 
 			return true;
 		}
@@ -4406,9 +4301,8 @@ namespace Tomahawk
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Component);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
 
-			Exclusive.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Events.push(std::move(Next));
-			Exclusive.unlock();
 
 			return true;
 		}
@@ -4419,9 +4313,8 @@ namespace Tomahawk
 			Next.Args["__vb"] = Core::Var::Integer((int64_t)EventTarget::Entity);
 			Next.Args["__vt"] = Core::Var::Pointer((void*)Target);
 
-			Exclusive.lock();
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Events.push(std::move(Next));
-			Exclusive.unlock();
 
 			return true;
 		}
@@ -4518,14 +4411,13 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Callback != nullptr, "callback should be set");
 			bool ExecuteNow = false;
-			Exclusive.lock();
 			{
+				std::unique_lock<std::mutex> Unique(Exclusive);
 				if (!Tasks.empty() || !Events.empty())
 					Transactions.emplace(std::move(Callback));
 				else
 					ExecuteNow = true;
 			}
-			Exclusive.unlock();
 			if (ExecuteNow)
 				Callback();
 		}
@@ -4690,28 +4582,24 @@ namespace Tomahawk
 		{
 			if (!Base->IsCullable())
 				return;
-			
-			Exclusive.lock();
+
+			std::unique_lock<std::mutex> Unique(Exclusive);
 			Changes[Base->GetId()].insert(Base);
-			Exclusive.unlock();
 		}
 		void SceneGraph::ClearCosmos(Component* Base)
 		{
 			if (!Base->IsCullable())
 				return;
 
-			Exclusive.lock();
-			{
-				uint64_t Id = Base->GetId();
-				Changes[Id].erase(Base);
+			uint64_t Id = Base->GetId();
+			std::unique_lock<std::mutex> Unique(Exclusive);
+			Changes[Id].erase(Base);
 
-				if (Base->Indexed)
-				{
-					auto& Storage = GetStorage(Id);
-					Storage.Index.RemoveItem((void*)Base);
-				}
+			if (Base->Indexed)
+			{
+				auto& Storage = GetStorage(Id);
+				Storage.Index.RemoveItem((void*)Base);
 			}
-			Exclusive.unlock();
 		}
 		void SceneGraph::UpdateCosmos(Indexer& Storage, Component* Base)
 		{
@@ -4745,6 +4633,28 @@ namespace Tomahawk
 			}
 			else
 				Indices.Add(Base);
+		}
+		void SceneGraph::WatchMovement(Entity* Base)
+		{
+			Base->Transform->WhenDirty([this, Base]()
+			{
+				if (Dirty.Size() + Conf.GrowMargin > Dirty.Capacity())
+				{
+					Transaction([this, Base]()
+					{
+						if (Dirty.Size() + Conf.GrowMargin > Dirty.Capacity())
+							UpgradeBuffer(Dirty, Conf.GrowRate);
+						Dirty.Add(Base);
+					});
+				}
+				else
+					Dirty.Add(Base);
+			});
+		}
+		void SceneGraph::UnwatchMovement(Entity* Base)
+		{
+			Base->Transform->WhenDirty(nullptr);
+			Dirty.Remove(Base);
 		}
 		bool SceneGraph::ResolveEvent(Event& Source)
 		{
@@ -4926,7 +4836,7 @@ namespace Tomahawk
 
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
-			Instance->Transform->UserPointer = Instance;
+			Instance->Transform->UserData = Instance;
 			Instance->Type.Name = Entity->Type.Name;
 			Instance->Type.Components = Entity->Type.Components;
 
@@ -5055,7 +4965,7 @@ namespace Tomahawk
 		}
 		std::vector<Component*> SceneGraph::QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius, bool DrawableOnly)
 		{
-			return QueryByArea(Section, Position - Radius, Position + Radius, DrawableOnly);
+			return QueryByArea(Section, Position - Radius * 0.5f, Position + Radius * 0.5f, DrawableOnly);
 		}
 		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly)
 		{

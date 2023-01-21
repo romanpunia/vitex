@@ -2506,9 +2506,8 @@ namespace Tomahawk
 			}
 
 		private:
-			Promise(Status* Context) noexcept : Data(Context)
+			Promise(bool Unused1, bool Unused2) noexcept : Data(nullptr)
 			{
-				AddRef();
 			}
 			Status* AddRef() const
 			{
@@ -2527,7 +2526,7 @@ namespace Tomahawk
 		public:
 			static Promise Empty() noexcept
 			{
-				return Promise((Status*)nullptr);
+				return Promise(false, false);
 			}
 
 		private:

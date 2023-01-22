@@ -907,7 +907,7 @@ namespace Tomahawk
 				Driver::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 				{
 					if (Packet::IsDone(Event))
-						Callback(NULL);
+						Callback(0);
 					else if (Packet::IsTimeout(Event))
 						Callback(ETIMEDOUT);
 					else

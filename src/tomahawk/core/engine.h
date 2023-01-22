@@ -907,13 +907,13 @@ namespace Tomahawk
 					case RenderCulling::Linear:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
-						typename DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					case RenderCulling::Cubic:
 					{
 						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
-						typename DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
+						DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
 					}
 					default:

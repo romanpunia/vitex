@@ -35,7 +35,7 @@ There are two basic rules of memory ownership:
 + File system
 + Process management
 + Timers
-+ Memory management
++ Memory management (custom malloc/realloc/free)
 + OS functionality
 + String utils
 + Variants
@@ -72,7 +72,7 @@ There are two basic rules of memory ownership:
 + File preprocessor (include, pragma, define, ifdef/ifndef/else/endif)
 + Transform hierarchy system
 + SIMD optimisations included
-+ Cosmos to index arbitrary amount of AABBs (BVH, like an octree)
++ Cosmos to index arbitrary amount of AABBs (balanced binary-tree index, mostly constant AABB to \<privitive\> intersection queries)
 #### Audio
 + Configurable audio playback
 + Positional sound with optional velocity
@@ -137,29 +137,28 @@ There are two basic rules of memory ownership:
 + Default and skinned meshes
 + Element instancing for big particle systems
 + Shader preprocessor from Compute module
-+ Immediate renderer (OpenGL legacy like, to draw tools)
++ Immediate renderer (OpenGL legacy like, to draw debug tools)
 #### GUI
-+ Serializable GUI system
-+ CSS paradigm-based styling system with overriding support
-+ HTML-like GUI declarations
-+ Logical nodes for conditional rendering
-+ Read/write dynamic properties
-+ Various widgets
-+ Layouting system
-+ Font system
-+ Dynamic trees (and recursive)
++ Fully dynamic GUI system based on web-stack
++ Styling is done using CSS 3.0 specifications (partial)
++ Layout is done using HTML 5.0 specifications (partial)
++ Scripting is done using angel script (including async)
++ API tries to mimic web browser APIs as much as possible
++ Free type fonts are needed for text rendering (no default)
++ Simple MVC system to conditionally render HTML
++ Added custom HTML elements for GUI specifics
++ Added custom decorators such as box-shadow, background-blur and others
++ Resources may as well be loaded from external web servers
 #### Engine
-+ Thread-safe scene graph based on eventual consistency
-+ Async/sync content management with processors
-+ Entity system
-+ Component system
-+ Event system
-+ Multithreaded scene management with db-like transactions for shared data writing and proper CPU load distribution
-+ Physics, culling, indexing/synchronization, audio and rendering are processed multithreaded
++ Async/sync content management with processors (may load from web server)
++ Entity component renderer system (where entity = set of components, component = data and behaviour, renderer = visualisation of data if possible)
++ Scene management events/mutations and transactions (always thread safe)
++ Scene data is processed in parallel using scheduler
++ Scene is designed to hold and process as much entities as possible by RAM without losing performance
 + Stack-based rendering system with frustum/indexed/occlusion culling and instanced batching
 + Mostly constant time search for drawable components in some area
 + Render system to handle any type of visualisation per camera
-+ Data serialization
++ Application class to simplify usage of engine features (optional to use)
 + Built-in processors (file loader/saver)
 + Built-in components (entity behaviours)
 + Built-in renderers (behaviour visualisations)
@@ -211,10 +210,6 @@ There are two basic rules of memory ownership:
 + Schema processor (XML, JSON, JSONB)
 + Server processor (for HTTP server to load router config)
 
-*Note: some functionality might be stripped without needed dependencies. Also exceptions were not used, it's more C-like with return codes.*
-## Scripting
-At this moment all scripting interfaces that can be imported are located at **/src/scripts**, they are all machine generated. Files there present all available scripting interfaces, they are not intended to be actually compiled because some classes can only be registered from application. From there you can view what functions can be used right now.
-
 ## Cross platform
 + Windows 7/8/8.1/10+ x64/x86
 + Raspberian 3+ ARM
@@ -222,6 +217,8 @@ At this moment all scripting interfaces that can be imported are located at **/s
 + FreeBSD 11+ x64/x86
 + Ubuntu 16.04+ x64/x86
 + MacOS Catalina 10.15+ x64
+
+*Note: some functionality might be stripped without needed dependencies. Also exceptions were not used, it's more C-like with return codes.*
 
 ## Building (standalone)
 Tomahawk uses CMake as building system. Because Windows doesn't have default include/src folders [Microsoft's vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.

@@ -647,6 +647,8 @@ namespace Tomahawk
 		public:
 			Vector3 Lower;
 			Vector3 Upper;
+			Vector3 Center;
+			float Radius;
 			float Volume;
 
 		public:
@@ -684,6 +686,10 @@ namespace Tomahawk
 			Frustum6P();
 			Frustum6P(const Matrix4x4& ViewProjection);
 			bool OverlapsAABB(const Bounding& Bounds) const;
+			bool OverlapsSphere(const Vector3& Center, float Radius) const;
+
+		private:
+			void NormalizePlane(Vector4& Plane);
 		};
 
 		struct TH_OUT Ray
@@ -1788,7 +1794,12 @@ namespace Tomahawk
 			const std::vector<Node>& GetNodes() const;
 			uint64_t GetHeight() const;
 			uint64_t GetMaxBalance() const;
+			uint64_t GetRoot() const;
+			const Node& GetRootNode() const;
+			const Node& GetNode(uint64_t Id) const;
 			float GetVolumeRatio() const;
+			bool IsNull(uint64_t Id) const;
+			bool IsEmpty() const;
 
 		private:
 			uint64_t AllocateNode();
@@ -1823,22 +1834,6 @@ namespace Tomahawk
 							Match((T*)Next.Item);
 					}
 				}
-			}
-			template <typename T, typename MatchFunction>
-			void QueryBounding(Iterator& Context, const Bounding& Target, MatchFunction&& Match)
-			{
-				Query<T>(Context, [&Target](Bounding& Bounds)
-				{
-					return Target.Overlaps(Bounds);
-				}, std::move(Match));
-			}
-			template <typename T, typename MatchFunction>
-			void QueryFrustum6P(Iterator& Context, const Frustum6P& Target, MatchFunction&& Match)
-			{
-				Query<T>(Context, [&Target](Bounding& Bounds)
-				{
-					return Target.OverlapsAABB(Bounds);
-				}, std::move(Match));
 			}
 		};
 

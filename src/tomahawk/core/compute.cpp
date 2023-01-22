@@ -1682,6 +1682,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT_V(Lower <= Upper, "lower should be smaller than upper");
 			Volume = Geometric::AabbVolume(Lower, Upper);
+			Radius = ((Upper - Lower) * 0.5f).Sum();
+			Center = (Lower + Upper) * 0.5f;
 		}
 		void Bounding::Merge(const Bounding& A, const Bounding& B)
 		{
@@ -1692,6 +1694,8 @@ namespace Tomahawk
 			Upper.Y = std::max(A.Upper.Y, B.Upper.Y);
 			Upper.Z = std::max(A.Upper.Z, B.Upper.Z);
 			Volume = Geometric::AabbVolume(Lower, Upper);
+			Radius = ((Upper - Lower) * 0.5f).Sum();
+			Center = (Lower + Upper) * 0.5f;
 		}
 		bool Bounding::Contains(const Bounding& Bounds) const
 		{
@@ -1749,15 +1753,6 @@ namespace Tomahawk
 				*Z = Vector2(MinZ, MaxZ);
 		}
 
-		void NormalizePlane(Vector4& Plane)
-		{
-			float Magnitude = (float)sqrt(Plane.X * Plane.X + Plane.Y * Plane.Y + Plane.Z * Plane.Z);
-			Plane.X /= Magnitude;
-			Plane.Y /= Magnitude;
-			Plane.Z /= Magnitude;
-			Plane.W /= Magnitude;
-		}
-
 		Frustum6P::Frustum6P()
 		{
 		}
@@ -1799,14 +1794,22 @@ namespace Tomahawk
 			Planes[(size_t)Side::FRONT].W = Clip[15] + Clip[14];
 			NormalizePlane(Planes[(size_t)Side::FRONT]);
 		}
+		void Frustum6P::NormalizePlane(Vector4& Plane)
+		{
+			float Magnitude = (float)sqrt(Plane.X * Plane.X + Plane.Y * Plane.Y + Plane.Z * Plane.Z);
+			Plane.X /= Magnitude;
+			Plane.Y /= Magnitude;
+			Plane.Z /= Magnitude;
+			Plane.W /= Magnitude;
+		}
 		bool Frustum6P::OverlapsAABB(const Bounding& Bounds) const
 		{
-			//Vector3 Size = (Bounds.Upper - Bounds.Lower) * 0.5f;
-			//Vector3 Min = Bounds.Lower - Size;
-			//Vector3 Max = Bounds.Upper + Size;
+			const Vector3& Mid = Bounds.Center;
 			const Vector3& Min = Bounds.Lower;
 			const Vector3& Max = Bounds.Upper;
+			float Distance = -Bounds.Radius;
 #ifdef TH_WITH_SIMD
+			LOD_AV4(_rc, Mid.X, Mid.Y, Mid.Z, 1.0f);
 			LOD_AV4(_m1, Min.X, Min.Y, Min.Z, 1.0f);
 			LOD_AV4(_m2, Max.X, Min.Y, Min.Z, 1.0f);
 			LOD_AV4(_m3, Min.X, Max.Y, Min.Z, 1.0f);
@@ -1815,11 +1818,24 @@ namespace Tomahawk
 			LOD_AV4(_m6, Max.X, Min.Y, Max.Z, 1.0f);
 			LOD_AV4(_m7, Min.X, Max.Y, Max.Z, 1.0f);
 			LOD_AV4(_m8, Max.X, Max.Y, Max.Z, 1.0f);
+#else
+			Vector4 RC(Mid.X, Mid.Y, Mid.Z, 1.0f);
+			Vector4 M1(Min.X, Min.Y, Min.Z, 1.0f);
+			Vector4 M2(Max.X, Min.Y, Min.Z, 1.0f);
+			Vector4 M3(Min.X, Max.Y, Min.Z, 1.0f);
+			Vector4 M4(Max.X, Max.Y, Min.Z, 1.0f);
+			Vector4 M5(Min.X, Min.Y, Max.Z, 1.0f);
+			Vector4 M6(Max.X, Min.Y, Max.Z, 1.0f);
+			Vector4 M7(Min.X, Max.Y, Max.Z, 1.0f);
+			Vector4 M8(Max.X, Max.Y, Max.Z, 1.0f);
 #endif
 			for (size_t i = 0; i < 6; i++)
 			{
 #ifdef TH_WITH_SIMD
 				LOD_V4(_rp, Planes[i]);
+				if (horizontal_add(_rc * _rp) < Distance)
+					return false;
+
 				if (horizontal_add(_rp * _m1) > 0.0f)
 					continue;
 
@@ -1845,31 +1861,47 @@ namespace Tomahawk
 					continue;
 #else
 				auto& Plane = Planes[i];
-				if (Plane.X * Min.X + Plane.Y * Min.Y + Plane.Z * Min.Z + Plane.W > 0)
+				if (Plane.Dot(RC) < Distance)
+					return false;
+
+				if (Plane.Dot(M1) > 0)
 					continue;
 
-				if (Plane.X * Max.X + Plane.Y * Min.Y + Plane.Z * Min.Z + Plane.W > 0)
+				if (Plane.Dot(M2) > 0)
 					continue;
 
-				if (Plane.X * Min.X + Plane.Y * Max.Y + Plane.Z * Min.Z + Plane.W > 0)
+				if (Plane.Dot(M3) > 0)
 					continue;
 
-				if (Plane.X * Max.X + Plane.Y * Max.Y + Plane.Z * Min.Z + Plane.W > 0)
+				if (Plane.Dot(M4) > 0)
 					continue;
 
-				if (Plane.X * Min.X + Plane.Y * Min.Y + Plane.Z * Max.Z + Plane.W > 0)
+				if (Plane.Dot(M5) > 0)
 					continue;
 
-				if (Plane.X * Max.X + Plane.Y * Min.Y + Plane.Z * Max.Z + Plane.W > 0)
+				if (Plane.Dot(M6) > 0)
 					continue;
 
-				if (Plane.X * Min.X + Plane.Y * Max.Y + Plane.Z * Max.Z + Plane.W > 0)
+				if (Plane.Dot(M7) > 0)
 					continue;
 
-				if (Plane.X * Max.X + Plane.Y * Max.Y + Plane.Z * Max.Z + Plane.W > 0)
+				if (Plane.Dot(M8) > 0)
 					continue;
 #endif
 				return false;
+			}
+
+			return true;
+		}
+		bool Frustum6P::OverlapsSphere(const Vector3& Center, float Radius) const
+		{
+			Vector4 Position(Center.X, Center.Y, Center.Z, 1.0f);
+			float Distance = -Radius;
+
+			for (size_t i = 0; i < 6; i++)
+			{
+				if (Position.Dot(Planes[i]) < Distance)
+					return false;
 			}
 
 			return true;
@@ -10268,6 +10300,10 @@ namespace Tomahawk
 
 			return MaxBalance;
 		}
+		uint64_t Cosmos::GetRoot() const
+		{
+			return Root;
+		}
 		const std::unordered_map<void*, uint64_t>& Cosmos::GetItems() const
 		{
 			return Items;
@@ -10275,6 +10311,16 @@ namespace Tomahawk
 		const std::vector<Cosmos::Node>& Cosmos::GetNodes() const
 		{
 			return Nodes;
+		}
+		const Cosmos::Node& Cosmos::GetRootNode() const
+		{
+			TH_ASSERT((size_t)Root < Nodes.size(), Nodes.front(), "index out of range");
+			return Nodes[(size_t)Root];
+		}
+		const Cosmos::Node& Cosmos::GetNode(uint64_t Id) const
+		{
+			TH_ASSERT((size_t)Id < Nodes.size(), Nodes.front(), "index out of range");
+			return Nodes[(size_t)Id];
 		}
 		float Cosmos::GetVolumeRatio() const
 		{
@@ -10292,6 +10338,14 @@ namespace Tomahawk
 			}
 
 			return TotalArea / RootArea;
+		}
+		bool Cosmos::IsNull(uint64_t Id) const
+		{
+			return Id == NULL_NODE;
+		}
+		bool Cosmos::IsEmpty() const
+		{
+			return Items.empty();
 		}
 
 		HullShape::HullShape() : Shape(nullptr)

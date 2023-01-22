@@ -4881,10 +4881,13 @@ namespace Tomahawk
 		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly)
 		{
 			std::vector<Component*> Result;
-			Compute::Bounding Bounds(Min, Max);
+			Compute::Bounding Target(Min, Max);
 			Compute::Cosmos::Iterator Context;
 			auto& Storage = GetStorage(Section);
-			Storage.Index.QueryBounding<Component>(Context, Bounds, [&Result](Component* Item)
+			Storage.Index.Query<Component>(Context, [&Target](const Compute::Bounding& Bounds)
+			{
+				return Target.Overlaps(Bounds);
+			}, [&Result](Component* Item)
 			{
 				Result.push_back(Item);
 			});

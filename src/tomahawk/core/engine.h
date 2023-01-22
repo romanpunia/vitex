@@ -771,7 +771,7 @@ namespace Tomahawk
 		public:
 			struct
 			{
-				Compute::Cosmos::Iterator Context;
+				Compute::Cosmos::Iterator Stack;
 				Compute::Frustum6P Frustum;
 				Compute::Bounding Bounds;
 			} Indexing;
@@ -871,19 +871,51 @@ namespace Tomahawk
 		private:
 			SparseIndex& GetStorageWrapper(uint64_t Section);
 
+		private:
+			template <typename T, typename OverlapsFunction, typename MatchFunction>
+			void DispatchQuery(Compute::Cosmos& Index, const OverlapsFunction& Overlaps, const MatchFunction& Match)
+			{
+				Indexing.Stack.clear();
+				if (!Index.IsEmpty())
+					Indexing.Stack.push_back(Index.GetRoot());
+
+				while (!Indexing.Stack.empty())
+				{
+					auto& Next = Index.GetNode(Indexing.Stack.back());
+					Indexing.Stack.pop_back();
+
+					if (Overlaps(Next.Bounds))
+					{
+						if (!Next.IsLeaf())
+						{
+							Indexing.Stack.push_back(Next.Left);
+							Indexing.Stack.push_back(Next.Right);
+						}
+						else if (Next.Item != nullptr)
+							Match((T*)Next.Item);
+					}
+				}
+			}
+
 		public:
 			template <typename T, typename MatchFunction>
-			void QueryBounding(MatchFunction&& Callback)
+			void QueryAsync(MatchFunction&& Callback)
 			{
 				auto& Storage = GetStorageWrapper(T::GetTypeId());
 				switch (View.Culling)
 				{
 					case RenderCulling::Linear:
-						Storage.Index.template QueryFrustum6P<Component, decltype(Callback)>(Indexing.Context, Indexing.Frustum, std::move(Callback));
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Frustum.OverlapsAABB(Bounds); };
+						typename DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
+					}
 					case RenderCulling::Cubic:
-						Storage.Index.template QueryBounding<Component, decltype(Callback)>(Indexing.Context, Indexing.Bounds, std::move(Callback));
+					{
+						auto Overlaps = [this](const Compute::Bounding& Bounds) { return Indexing.Bounds.Overlaps(Bounds); };
+						typename DispatchQuery<T, decltype(Overlaps), decltype(Callback)>(Storage.Index, Overlaps, Callback);
 						break;
+					}
 					default:
 						std::for_each(Storage.Data.Begin(), Storage.Data.End(), std::move(Callback));
 						break;
@@ -1763,7 +1795,7 @@ namespace Tomahawk
 					Top[i].clear();
 
 				VisibilityQuery Info;
-				System->QueryBounding<T>([this, &System, &Top, &Info](Component* Item)
+				System->QueryAsync<T>([this, &System, &Top, &Info](Component* Item)
 				{
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
@@ -1802,7 +1834,7 @@ namespace Tomahawk
 				Subframe.clear();
 
 				VisibilityQuery Info;
-				System->QueryBounding<T>([&System, &Subframe, &Info](Component* Item)
+				System->QueryAsync<T>([this, &System, &Subframe, &Info](Component* Item)
 				{
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
@@ -1820,7 +1852,7 @@ namespace Tomahawk
 					Top[i].clear();
 
 				VisibilityQuery Info;
-				System->QueryBounding<T>([&System, &Top, &Info](Component* Item)
+				System->QueryAsync<T>([this, &System, &Top, &Info](Component* Item)
 				{
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
@@ -1845,7 +1877,7 @@ namespace Tomahawk
 				Subframe.clear();
 
 				VisibilityQuery Info;
-				System->QueryBounding<T>([&System, &Subframe, &Info](Component* Item)
+				System->QueryAsync<T>([this, &System, &Subframe, &Info](Component* Item)
 				{
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)

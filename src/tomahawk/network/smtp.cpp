@@ -45,7 +45,7 @@ namespace Tomahawk
 		{
 			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), Hoster(Domain), AttachmentFile(nullptr), Pending(false), Staging(false), Authorized(false)
 			{
-				AutoCertify = false;
+				AutoEncrypt = false;
 			}
 			Client::~Client()
 			{
@@ -78,12 +78,9 @@ namespace Tomahawk
 
 							SendRequest(220, "STARTTLS\r\n", [this]()
 							{
-								Core::Cotask<bool>([this]()
+								Encrypt([this](bool Encrypted)
 								{
-									return Certify();
-								}).Await([this](bool&& Result)
-								{
-									if (!Result)
+									if (!Encrypted)
 										return;
 
 									SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()

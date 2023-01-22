@@ -62,34 +62,6 @@ namespace Tomahawk
 {
 	namespace Network
 	{
-		static int TryConnect(socket_t Base, const sockaddr* Address, int Length, uint64_t Timeout, bool IsBlocking)
-		{
-			Socket Stream(Base);
-			if (IsBlocking)
-				Stream.SetBlocking(false);
-
-			int Status = connect(Base, Address, Length);
-#ifndef TH_MICROSOFT
-			if (Status != 0 && errno == EINPROGRESS)
-				Status = 0;
-#endif
-			if (Status != 0 && Stream.GetError(Status) != ERRWOULDBLOCK)
-			{
-				if (IsBlocking)
-					Stream.SetBlocking(true);
-
-				return Status;
-			}
-
-			if (IsBlocking)
-				Stream.SetBlocking(true);
-
-			pollfd Fd;
-			Fd.fd = Base;
-			Fd.events = POLLOUT;
-
-			return Utils::Poll(&Fd, 1, (int)Timeout) > 0;
-		}
 		static addrinfo* TryConnectDNS(const std::unordered_map<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
 			TH_PPUSH(TH_PERF_NET);
@@ -905,26 +877,44 @@ namespace Tomahawk
 
 			return Offset;
 		}
-		int Socket::Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Subresult)
+		int Socket::Connect(Address* Address, uint64_t Timeout)
 		{
+			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
 			TH_PPUSH(TH_PERF_NET);
-			TH_DEBUG("[net] open fd %s:%s", Host.c_str(), Port.c_str());
-
-			Address* Result = DNS::FindAddressFromName(Host, Port, Proto, Type, DNS);
-			if (!Result)
-			{
-				TH_PPOP();
-				return -1;
-			}
-
-			if (Subresult != nullptr)
-				*Subresult = Result;
-
-			TH_PRET(Open(Result->Usable));
+			TH_DEBUG("[net] connect fd %i", (int)Fd);
+			TH_PRET(connect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen));
 		}
-		int Socket::Open(const std::string& Host, const std::string& Port, DNSType DNS, Address** Result)
+		int Socket::ConnectAsync(Address* Address, SocketConnectedCallback&& Callback)
 		{
-			return Open(Host, Port, SocketProtocol::TCP, SocketType::Stream, DNS, Result);
+			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
+			TH_PPUSH(TH_PERF_NET);
+			TH_DEBUG("[net] connect fd %i", (int)Fd);
+			int Value = connect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
+			if (Value != 0)
+			{
+				int Code = GetError(Value);
+				if (Code != ERRWOULDBLOCK && Code != EINPROGRESS)
+				{
+					if (Callback)
+						Callback(Value);
+
+					TH_PRET(Value);
+				}
+
+				if (!Callback)
+					TH_PRET(-2);
+
+				Driver::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+				{
+					if (Packet::IsDone(Event))
+						Callback(NULL);
+					else if (Packet::IsTimeout(Event))
+						Callback(ETIMEDOUT);
+					else
+						Callback(ECONNREFUSED);
+				});
+			}
+			TH_PRET(-2);
 		}
 		int Socket::Open(addrinfo* Good)
 		{
@@ -968,13 +958,6 @@ namespace Tomahawk
 			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
 			TH_DEBUG("[net] bind fd %i", (int)Fd);
 			return bind(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
-		}
-		int Socket::Connect(Address* Address, uint64_t Timeout)
-		{
-			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
-			TH_PPUSH(TH_PERF_NET);
-			TH_DEBUG("[net] connect fd %i", (int)Fd);
-			TH_PRET(TryConnect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen, Timeout, true));
 		}
 		int Socket::Listen(int Backlog)
 		{
@@ -1243,7 +1226,7 @@ namespace Tomahawk
 			Info.Message.assign(Buffer, Count);
 			return Finish(StatusCode);
 		}
-		bool SocketConnection::Certify(Certificate* Output)
+		bool SocketConnection::EncryptionInfo(Certificate* Output)
 		{
 #ifdef TH_HAS_OPENSSL
 			TH_ASSERT(Output != nullptr, false, "certificate should be set");
@@ -1526,52 +1509,53 @@ namespace Tomahawk
 			Names.clear();
 			Exclusive.unlock();
 		}
-		std::string DNS::FindNameFromAddress(const std::string& IpAddress, uint32_t Port)
+		std::string DNS::FindNameFromAddress(const std::string& Host, const std::string& Service)
 		{
-			TH_ASSERT(!IpAddress.empty(), std::string(), "ip address should not be empty");
-			TH_ASSERT(Port > 0, std::string(), "port should be greater than zero");
+			TH_ASSERT(!Host.empty(), std::string(), "ip address should not be empty");
+			TH_ASSERT(!Service.empty(), std::string(), "port should be greater than zero");
 			TH_PPUSH(TH_PERF_NET * 3);
 
 			struct sockaddr_storage Storage;
-			int Family = Socket::GetAddressFamily(IpAddress.c_str());
+			int Port = Core::Parser(&Service).ToInt();
+			int Family = Socket::GetAddressFamily(Host.c_str());
 			int Result = -1;
 
 			if (Family == AF_INET)
 			{
 				auto* Base = reinterpret_cast<struct sockaddr_in*>(&Storage);
-				Result = inet_pton(Family, IpAddress.c_str(), &Base->sin_addr.s_addr);
+				Result = inet_pton(Family, Host.c_str(), &Base->sin_addr.s_addr);
 				Base->sin_family = Family;
 				Base->sin_port = htons(Port);
 			}
 			else if (Family == AF_INET6)
 			{
 				auto* Base = reinterpret_cast<struct sockaddr_in6*>(&Storage);
-				Result = inet_pton(Family, IpAddress.c_str(), &Base->sin6_addr);
+				Result = inet_pton(Family, Host.c_str(), &Base->sin6_addr);
 				Base->sin6_family = Family;
 				Base->sin6_port = htons(Port);
 			}
 
 			if (Result == -1)
 			{
-				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i\n\tinvalid address", IpAddress.c_str(), Port);
+				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i\n\tinvalid address", Host.c_str(), Service.c_str());
 				TH_PPOP();
 				return std::string();
 			}
 
-			char Host[NI_MAXHOST], Service[NI_MAXSERV];
-			if (getnameinfo((struct sockaddr*)&Storage, sizeof(struct sockaddr), Host, NI_MAXHOST, Service, NI_MAXSERV, NI_NUMERICSERV) != 0)
+			char Hostname[NI_MAXHOST], ServiceName[NI_MAXSERV];
+			if (getnameinfo((struct sockaddr*)&Storage, sizeof(struct sockaddr), Hostname, NI_MAXHOST, ServiceName, NI_MAXSERV, NI_NUMERICSERV) != 0)
 			{
-				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i", IpAddress.c_str(), Port);
+				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i", Host.c_str(), Service.c_str());
 				TH_PPOP();
 				return std::string();
 			}
 
-			TH_DEBUG("[net] dns reverse resolved for identity %s:%i\n\thost %s:%s is used", IpAddress.c_str(), Port, Host, Service);
+			TH_DEBUG("[net] dns reverse resolved for identity %s:%i\n\thost %s:%s is used", Host.c_str(), Service.c_str(), Hostname, ServiceName);
 			TH_PPOP();
 
-			return Host;
+			return Hostname;
 		}
-		Address* DNS::FindAddressFromName(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS)
+		Address* DNS::FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
 			TH_ASSERT(!Host.empty(), nullptr, "host should not be empty");
 			TH_ASSERT(!Service.empty(), nullptr, "service should not be empty");
@@ -2169,7 +2153,14 @@ namespace Tomahawk
 				Value->Base = TH_NEW(Socket);
 				Value->Base->UserData = this;
 
-				if (Value->Base->Open(It.second.Hostname.c_str(), std::to_string(It.second.Port), DNSType::Listen, &Value->Source))
+				Value->Source = DNS::FindAddressFromName(It.second.Hostname, std::to_string(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
+				if (!Value->Source)
+				{
+					TH_ERR("[net] cannot resolve %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
+					return false;
+				}
+
+				if (Value->Base->Open(Value->Source->Usable) < 0)
 				{
 					TH_ERR("[net] cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
@@ -2180,6 +2171,7 @@ namespace Tomahawk
 					TH_ERR("[net] cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
+
 				if (Value->Base->Listen((int)Router->BacklogQueue))
 				{
 					TH_ERR("[net] cannot listen %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
@@ -2196,7 +2188,6 @@ namespace Tomahawk
 					return false;
 				}
 			}
-
 #ifdef TH_HAS_OPENSSL
 			for (auto&& It : Router->Certificates)
 			{
@@ -2355,14 +2346,18 @@ namespace Tomahawk
 			if (!OnListen())
 				return false;
 
-			for (auto&& It : Listeners)
+			for (auto&& Source : Listeners)
 			{
-				It->Base->AcceptAsync(true, [this, It](socket_t Fd, char* RemoteAddr)
+				Source->Base->AcceptAsync(true, [this, Source](socket_t Fd, char* RemoteAddr)
 				{
 					if (State != ServerState::Working)
 						return false;
-
-					Accept(It, RemoteAddr, Fd);
+				
+					std::string IpAddress = RemoteAddr;
+					Core::Schedule::Get()->SetTask([this, Source, Fd, IpAddress = std::move(IpAddress)]() mutable
+					{
+						Accept(Source, Fd, IpAddress);
+					}, Core::Difficulty::Light);
 					return State == ServerState::Working;
 				});
 			}
@@ -2384,17 +2379,21 @@ namespace Tomahawk
 			TH_PPOP();
 			return true;
 		}
-		bool SocketServer::Accept(Listener* Host, char* RemoteAddr, socket_t Fd)
+		bool SocketServer::Refuse(SocketConnection* Base)
 		{
-			TH_PPUSH(TH_PERF_FRAME);
+			Base->Stream->CloseAsync(false, [this, Base]()
+			{
+				Push(Base);
+			});
+			return false;
+		}
+		bool SocketServer::Accept(Listener* Host, socket_t Fd, const std::string& Address)
+		{
 			auto* Base = Pop(Host);
 			if (!Base)
-			{
-				TH_PPOP();
 				return false;
-			}
             
-			strncpy(Base->RemoteAddress, RemoteAddr, sizeof(Base->RemoteAddress));
+			strncpy(Base->RemoteAddress, Address.c_str(), std::min(Address.size(), sizeof(Base->RemoteAddress)));
 			Base->Stream->Timeout = Router->SocketTimeout;
 			Base->Stream->SetFd(Fd, false);
 			Base->Stream->SetCloseOnExec();
@@ -2406,81 +2405,77 @@ namespace Tomahawk
 				Base->Stream->SetTimeWait((int)Router->GracefulTimeWait);
 
 			if (Router->MaxConnections > 0 && Active.size() >= Router->MaxConnections)
-				goto Refuse;
+				return Refuse(Base);
 
-			if (Host->Hostname->Secure && !Protect(Base->Stream, Host))
-				goto Refuse;
+			if (!Host->Hostname->Secure)
+				return OnRequestBegin(Base);
 
-			TH_PPOP();
-			return Core::Schedule::Get()->SetTask([this, Base]()
-			{
-				OnRequestBegin(Base);
-			}, Core::Difficulty::Light);
-		Refuse:
-			Base->Stream->CloseAsync(false, [this, Base]()
-			{
-				Push(Base);
-			});
-
-			TH_PPOP();
-			return false;
+			if (!EncryptThenBegin(Base, Host))
+				return Refuse(Base);
+			
+			return true;
 		}
-		bool SocketServer::Protect(Socket* Fd, Listener* Host)
+		bool SocketServer::EncryptThenBegin(SocketConnection* Base, Listener* Host)
 		{
-			TH_ASSERT(Fd != nullptr, false, "socket should be set");
+			TH_ASSERT(Base != nullptr, false, "socket should be set");
+			TH_ASSERT(Base->Stream != nullptr, false, "socket should be set");
+			TH_ASSERT(Host != nullptr, false, "host should be set");
 
-			ssl_ctx_st* Context = nullptr;
-			if (!OnProtect(Fd, Host, &Context) || !Context)
+			if (Router->Certificates.empty())
 				return false;
 
-			if (Fd->Secure(Context, nullptr) == -1)
+			auto Source = Router->Certificates.find(Host->Name);
+			if (Source == Router->Certificates.end())
+				return false;
+
+			ssl_ctx_st* Context = Source->second.Context;
+			if (!Context || Base->Stream->Secure(Context, nullptr) == -1)
 				return false;
 
 #ifdef TH_HAS_OPENSSL
-			TH_PPUSH(TH_PERF_NET);
-			int Result = SSL_set_fd(Fd->GetDevice(), (int)Fd->GetFd());
+			int Result = SSL_set_fd(Base->Stream->GetDevice(), (int)Base->Stream->GetFd());
 			if (Result != 1)
-			{
-				TH_PPOP();
 				return false;
-			}
 
-			pollfd SFd { };
-			SFd.fd = Fd->GetFd();
-			SFd.events = POLLIN | POLLOUT;
+			TryEncryptThenBegin(Base);
+			return true;
+#else
+			return false;
+#endif
+		}
+		bool SocketServer::TryEncryptThenBegin(SocketConnection* Base)
+		{
+#ifdef TH_HAS_OPENSSL
+			int ErrorCode = SSL_accept(Base->Stream->GetDevice());
+			if (ErrorCode != -1)
+				return OnRequestBegin(Base);
 
-			int64_t Timeout = Utils::Clock();
-			bool OK = true;
-
-			while (OK)
+			switch (SSL_get_error(Base->Stream->GetDevice(), ErrorCode))
 			{
-				Result = SSL_accept(Fd->GetDevice());
-				if (Result >= 0)
-					break;
-
-				if (Utils::Clock() - Timeout > (int64_t)Router->SocketTimeout)
+				case SSL_ERROR_WANT_ACCEPT:
+				case SSL_ERROR_WANT_READ:
 				{
-					TH_PPOP();
-					return false;
+					return Driver::WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
+					{
+						if (Packet::IsDone(Event))
+							OnRequestBegin(Base);
+						else
+							Refuse(Base);
+					});
 				}
-
-				int Code = SSL_get_error(Fd->GetDevice(), Result);
-				switch (Code)
+				case SSL_ERROR_WANT_WRITE:
 				{
-					case SSL_ERROR_WANT_CONNECT:
-					case SSL_ERROR_WANT_ACCEPT:
-					case SSL_ERROR_WANT_WRITE:
-					case SSL_ERROR_WANT_READ:
-						Utils::Poll(&SFd, 1, (int)Router->SocketTimeout);
-						break;
-					default:
-						OK = false;
-						break;
+					return Driver::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
+					{
+						if (Packet::IsDone(Event))
+							OnRequestBegin(Base);
+						else
+							Refuse(Base);
+					});
 				}
+				default:
+					return Refuse(Base);
 			}
-
-			TH_PPOP();
-			return Result == 1;
 #else
 			return false;
 #endif
@@ -2556,22 +2551,6 @@ namespace Tomahawk
 		}
 		bool SocketServer::OnUnlisten()
 		{
-			return true;
-		}
-		bool SocketServer::OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context)
-		{
-			TH_ASSERT(Fd != nullptr, false, "socket should be set");
-			TH_ASSERT(Host != nullptr, false, "host should be set");
-			TH_ASSERT(Context != nullptr, false, "context should be set");
-
-			if (Router->Certificates.empty())
-				return false;
-
-			auto&& It = Router->Certificates.find(Host->Name);
-			if (It == Router->Certificates.end())
-				return false;
-
-			*Context = It->second.Context;
 			return true;
 		}
 		void SocketServer::Push(SocketConnection* Base)
@@ -2651,7 +2630,7 @@ namespace Tomahawk
 			return Backlog;
 		}
 
-		SocketClient::SocketClient(int64_t RequestTimeout) : Context(nullptr), Timeout(RequestTimeout), AutoCertify(true)
+		SocketClient::SocketClient(int64_t RequestTimeout) : Context(nullptr), Timeout(RequestTimeout), AutoEncrypt(true)
 		{
 			Stream.UserData = this;
 		}
@@ -2662,7 +2641,6 @@ namespace Tomahawk
 				int Result = TH_AWAIT(Close());
 				TH_WARN("[net:%i] socket client leaking\n\tconsider manual termination", Result);
 			}
-
 #ifdef TH_HAS_OPENSSL
 			if (Context != nullptr)
 			{
@@ -2671,127 +2649,99 @@ namespace Tomahawk
 			}
 #endif
 		}
-		int SocketClient::ConnectSync(Host* Address)
+		Core::Promise<int> SocketClient::Connect(Host* Source, bool Async)
 		{
-			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), -2, "address should be set");
+			TH_ASSERT(Source != nullptr && !Source->Hostname.empty(), -2, "address should be set");
 			TH_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
 
 			Stage("dns resolve");
-			if (!OnResolveHost(Address))
+			if (!OnResolveHost(Source))
 			{
-				Error("cannot resolve host %s:%i", Address->Hostname.c_str(), (int)Address->Port);
-				return -2;
-			}
-
-			Stage("socket open");
-			Hostname = *Address;
-
-			Tomahawk::Network::Address* Host;
-			if (Stream.Open(Hostname.Hostname.c_str(), std::to_string(Hostname.Port), DNSType::Connect, &Host) == -1)
-			{
-				Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-				return -2;
-			}
-
-			Stage("socket connect");
-			if (Stream.Connect(Host, Timeout) == -1)
-			{
-				Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-				return -1;
-			}
-
-			Stream.Timeout = Timeout;
-			Stream.SetCloseOnExec();
-			Stream.SetBlocking(true);
-#ifdef TH_HAS_OPENSSL
-			if (Hostname.Secure)
-			{
-				Stage("socket ssl handshake");
-				if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
-				{
-					Error("cannot create ssl context");
-					return -1;
-				}
-
-				if (AutoCertify && !Certify())
-					return -1;
-			}
-#endif
-			Core::Promise<int> Result;
-			Done = [Result](SocketClient*, int Code) mutable
-			{
-				Result = Code;
-			};
-
-			OnConnect();
-			return TH_AWAIT(std::move(Result));
-		}
-		Core::Promise<int> SocketClient::Connect(Host* Address)
-		{
-			TH_ASSERT(Address != nullptr && !Address->Hostname.empty(), -2, "address should be set");
-			TH_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
-
-			Stage("dns resolve");
-			if (!OnResolveHost(Address))
-			{
-				Error("cannot resolve host %s:%i", Address->Hostname.c_str(), (int)Address->Port);
+				Error("cannot resolve host %s:%i", Source->Hostname.c_str(), (int)Source->Port);
 				return Core::Promise<int>(-2);
 			}
 
+			Hostname = *Source;
 			Stage("socket open");
-			Hostname = *Address;
-
-			return Core::Coasync<int>([this]()
+			
+			Core::Promise<int> Future;
+			auto RemoteConnect = [this, Future, Async](Address*&& Host) mutable
 			{
-				Tomahawk::Network::Address* Host;
-				if (TH_AWAIT(Core::Cotask<int>([this, &Host]()
+				if (Host != nullptr && Stream.Open(Host->Usable) == 0)
 				{
-					return Stream.Open(Hostname.Hostname.c_str(), std::to_string(Hostname.Port), DNSType::Connect, &Host);
-				})) == -1)
+					Stage("socket connect");
+					Stream.Timeout = Timeout;
+					Stream.SetCloseOnExec();
+					Stream.SetBlocking(!Async);
+					Stream.ConnectAsync(Host, [this, Future](int Code) mutable
+					{
+						if (Code == 0)
+						{
+							auto Finalize = [this, Future]() mutable
+							{
+								Stage("socket proto-connect");
+								Done = [Future](SocketClient*, int Code) mutable { Future = Code; };
+								OnConnect();
+							};
+#ifdef TH_HAS_OPENSSL
+							if (Hostname.Secure)
+							{
+								Stage("socket ssl handshake");
+								if (Context != nullptr || (Context = SSL_CTX_new(SSLv23_client_method())) != nullptr)
+								{
+									if (AutoEncrypt)
+									{
+										Encrypt([this, Future, Finalize = std::move(Finalize)](bool Success) mutable
+										{
+											if (!Success)
+											{
+												Error("cannot connect ssl context");
+												Future = -1;
+											}
+											else
+												Finalize();
+										});
+									}
+									else
+										Finalize();
+								}
+								else
+								{
+									Error("cannot create ssl context");
+									Future = -1;
+								}
+							}
+							else
+								Finalize();
+#else
+							Finalize();
+#endif
+						}
+						else
+						{
+							Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
+							Future = -1;
+						}
+					});
+				}
+				else
 				{
 					Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-					return -2;
+					Future = -2;
 				}
+			};
 
-				Stage("socket connect");
-				if (TH_AWAIT(Core::Cotask<int>([this, Host]()
+			if (Async)
+			{
+				Core::Cotask<Address*>([this]()
 				{
-					return Stream.Connect(Host, Timeout);
-				})) == -1)
-				{
-					Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-					return -1;
-				}
+					return DNS::FindAddressFromName(Hostname.Hostname, std::to_string(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
+				}).Await(std::move(RemoteConnect));
+			}
+			else
+				RemoteConnect(DNS::FindAddressFromName(Hostname.Hostname, std::to_string(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream));
 
-				Stream.Timeout = Timeout;
-				Stream.SetCloseOnExec();
-				Stream.SetBlocking(false);
-#ifdef TH_HAS_OPENSSL
-				if (Hostname.Secure)
-				{
-					Stage("socket ssl handshake");
-					if (!Context && !(Context = SSL_CTX_new(SSLv23_client_method())))
-					{
-						Error("cannot create ssl context");
-						return -1;
-					}
-
-					if (AutoCertify && !TH_AWAIT(Core::Cotask<bool>([this]()
-					{
-						return Certify();
-					})))
-						return -1;
-				}
-#endif
-				Core::Promise<int> Result;
-				Done = [Result](SocketClient*, int Code) mutable
-				{
-					Result = Code;
-				};
-
-				OnConnect();
-				return TH_AWAIT(std::move(Result));
-			});
+			return Future;
 		}
 		Core::Promise<int> SocketClient::Close()
 		{
@@ -2807,6 +2757,80 @@ namespace Tomahawk
 			OnClose();
 			return Result;
 		}
+		void SocketClient::Encrypt(std::function<void(bool)>&& Callback)
+		{
+			TH_ASSERT_V(Callback != nullptr, "callback should be set");
+#ifdef TH_HAS_OPENSSL
+			Stage("ssl handshake");
+			if (Stream.GetDevice() || !Context)
+			{
+				Error("client does not use ssl");
+				return Callback(false);
+			}
+
+			if (Stream.Secure(Context, Hostname.Hostname.c_str()) == -1)
+			{
+				Error("cannot establish handshake");
+				return Callback(false);
+			}
+
+			int Result = SSL_set_fd(Stream.GetDevice(), (int)Stream.GetFd());
+			if (Result != 1)
+			{
+				Error("cannot set fd");
+				return Callback(false);
+			}
+
+			TryEncrypt(std::move(Callback));
+#else
+			Error("ssl is not supported for clients");
+			Callback(false);
+#endif
+		}
+		void SocketClient::TryEncrypt(std::function<void(bool)>&& Callback)
+		{
+			int ErrorCode = SSL_connect(Stream.GetDevice());
+			if (ErrorCode != -1)
+				return Callback(true);
+
+			switch (SSL_get_error(Stream.GetDevice(), ErrorCode))
+			{
+				case SSL_ERROR_WANT_READ:
+				{
+					Driver::WhenReadable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsDone(Event))
+						{
+							Error("ssl connection timeout\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+							Callback(false);
+						}
+						else
+							TryEncrypt(std::move(Callback));
+					});
+					break;
+				}
+				case SSL_ERROR_WANT_CONNECT:
+				case SSL_ERROR_WANT_WRITE:
+				{
+					Driver::WhenWriteable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsDone(Event))
+						{
+							Error("ssl connection timeout\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
+							Callback(false);
+						}
+						else
+							TryEncrypt(std::move(Callback));
+					});
+					break;
+				}
+				default:
+				{
+					Error("%s", ERR_error_string(ERR_get_error(), nullptr));
+					return Callback(false);
+				}
+			}
+		}
 		bool SocketClient::OnResolveHost(Host* Address)
 		{
 			return Address != nullptr;
@@ -2821,52 +2845,6 @@ namespace Tomahawk
 			{
 				Success(0);
 			}) == 0;
-		}
-		bool SocketClient::Certify()
-		{
-#ifdef TH_HAS_OPENSSL
-			Stage("ssl handshake");
-			if (Stream.GetDevice() || !Context)
-				return Error("client does not use ssl");
-
-			if (Stream.Secure(Context, Hostname.Hostname.c_str()) == -1)
-				return Error("cannot establish handshake");
-
-			int Result = SSL_set_fd(Stream.GetDevice(), (int)Stream.GetFd());
-			if (Result != 1)
-				return Error("cannot set fd");
-
-			pollfd Fd;
-			Fd.fd = Stream.GetFd();
-
-			auto Time = std::chrono::system_clock::now();
-			auto Max = std::chrono::milliseconds(Timeout);
-
-			while ((Result = SSL_connect(Stream.GetDevice())) == -1)
-			{
-				auto Diff = std::chrono::system_clock::now() - Time;
-				if (std::chrono::duration_cast<std::chrono::milliseconds>(Diff) > Max)
-					return Error("ssl connection timeout\n\t%s", ERR_error_string(ERR_get_error(), nullptr));
-
-				switch (SSL_get_error(Stream.GetDevice(), Result))
-				{
-					case SSL_ERROR_WANT_READ:
-						Fd.events = POLLIN;
-						Utils::Poll(&Fd, 1, 5);
-						break;
-					case SSL_ERROR_WANT_WRITE:
-						Fd.events = POLLOUT;
-						Utils::Poll(&Fd, 1, 5);
-						break;
-					default:
-						return Error("%s", ERR_error_string(ERR_get_error(), nullptr));
-				}
-			}
-
-			return true;
-#else
-			return Error("ssl is not supported for clients");
-#endif
 		}
 		bool SocketClient::Stage(const std::string& Name)
 		{

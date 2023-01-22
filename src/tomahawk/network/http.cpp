@@ -1898,7 +1898,7 @@ namespace Tomahawk
 				Response.StatusCode = StatusCode;
 				return Finish();
 			}
-			bool Connection::Certify(Certificate* Output)
+			bool Connection::EncryptionInfo(Certificate* Output)
 			{
 #ifdef TH_HAS_OPENSSL
 				TH_ASSERT(Output != nullptr, false, "certificate should be set");

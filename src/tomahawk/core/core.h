@@ -1761,6 +1761,7 @@ namespace Tomahawk
 				ActivityCallback Ping = nullptr;
 				bool Parallel = true;
 
+				Desc();
 				void SetThreads(uint64_t Cores);
 			};
 

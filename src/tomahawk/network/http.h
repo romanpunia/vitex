@@ -520,7 +520,7 @@ namespace Tomahawk
 				void Reset(bool Fully) override;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
-				bool Certify(Certificate* Output) override;
+				bool EncryptionInfo(Certificate* Output) override;
 				bool Consume(const ContentCallback& Callback = nullptr, bool Eat = false);
 				bool Store(const ResourceCallback& Callback = nullptr, bool Eat = false);
 				bool Skip(const SuccessCallback& Callback);

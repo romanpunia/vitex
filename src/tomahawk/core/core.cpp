@@ -5772,7 +5772,7 @@ namespace Tomahawk
 				case FileMode::Read_Only:
 				{
 					auto* Client = new Network::HTTP::Client(30000);
-					if (Client->ConnectSync(&Address) < 0)
+					if (TH_AWAIT(Client->Connect(&Address, false)) != 0)
 					{
 						TH_RELEASE(Client);
 						break;
@@ -8424,6 +8424,11 @@ namespace Tomahawk
 				goto Reuse;
 		}
 
+		Schedule::Desc::Desc()
+		{
+			auto Quantity = Core::OS::CPU::GetQuantityInfo();
+			SetThreads(std::max<uint32_t>(2, Quantity.Logical) - 1);
+		}
 		void Schedule::Desc::SetThreads(uint64_t Cores)
 		{
 			uint64_t Clock = 1;

@@ -79,6 +79,8 @@ namespace Tomahawk
 		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
 		typedef std::function<void(SocketPoll)> PollEventCallback;
 		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
+		typedef std::function<void(Address*)> SocketOpenedCallback;
+		typedef std::function<void(int)> SocketConnectedCallback;
 		typedef std::function<void()> SocketClosedCallback;
 		typedef std::function<bool(SocketPoll, const char*, size_t)> SocketReadCallback;
 		typedef std::function<bool(socket_t, char*)> SocketAcceptedCallback;
@@ -137,12 +139,11 @@ namespace Tomahawk
 			int ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer = 0);
 			int ReadUntil(const char* Match, SocketReadCallback&& Callback);
 			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
-			int Open(const std::string& Host, const std::string& Port, SocketProtocol Proto, SocketType Type, DNSType DNS, Address** Result);
-			int Open(const std::string& Host, const std::string& Port, DNSType DNS, Address** Result);
-			int Open(addrinfo* Good);
+			int Connect(Address* Address, uint64_t Timeout);
+			int ConnectAsync(Address* Address, SocketConnectedCallback&& Callback);
+			int Open(addrinfo* Address);
 			int Secure(ssl_ctx_st* Context, const char* Hostname);
 			int Bind(Address* Address);
-			int Connect(Address* Address, uint64_t Timeout);
 			int Listen(int Backlog);
 			int ClearEvents(bool Gracefully);
 			int SetFd(socket_t Fd, bool Gracefully = true);
@@ -269,7 +270,7 @@ namespace Tomahawk
 			virtual bool Finish();
 			virtual bool Finish(int);
 			virtual bool Error(int, const char* ErrorMessage, ...);
-			virtual bool Certify(Certificate* Output);
+			virtual bool EncryptionInfo(Certificate* Output);
 			virtual bool Break();
 		};
 
@@ -364,9 +365,9 @@ namespace Tomahawk
 			static std::mutex Exclusive;
 
 		public:
+			static std::string FindNameFromAddress(const std::string& Host, const std::string& Service);
+			static Address* FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type);
 			static void Release();
-			static std::string FindNameFromAddress(const std::string& IpAddress, uint32_t Port);
-			static Address* FindAddressFromName(const std::string& Host, const std::string& Service, SocketProtocol Proto, SocketType Type, DNSType DNS);
 		};
 
 		class TH_OUT_TS Utils
@@ -451,14 +452,17 @@ namespace Tomahawk
 			virtual bool OnStall(std::unordered_set<SocketConnection*>& Base);
 			virtual bool OnListen();
 			virtual bool OnUnlisten();
-			virtual bool OnProtect(Socket* Fd, Listener* Host, ssl_ctx_st** Context);
 			virtual SocketConnection* OnAllocate(Listener* Host);
 			virtual SocketRouter* OnAllocateRouter();
 
+		private:
+			bool TryEncryptThenBegin(SocketConnection* Base);
+
 		protected:
 			bool FreeAll();
-			bool Accept(Listener* Host, char* RemoteAddr, socket_t Fd);
-			bool Protect(Socket* Fd, Listener* Host);
+			bool Refuse(SocketConnection* Base);
+			bool Accept(Listener* Host, socket_t Fd, const std::string& Address);
+			bool EncryptThenBegin(SocketConnection* Fd, Listener* Host);
 			bool Manage(SocketConnection* Base);
 			void Push(SocketConnection* Base);
 			SocketConnection* Pop(Listener* Host);
@@ -473,13 +477,12 @@ namespace Tomahawk
 			Socket Stream;
 			Host Hostname;
 			int64_t Timeout;
-			bool AutoCertify;
+			bool AutoEncrypt;
 
 		public:
 			SocketClient(int64_t RequestTimeout);
 			virtual ~SocketClient() override;
-			int ConnectSync(Host* Address);
-			Core::Promise<int> Connect(Host* Address);
+			Core::Promise<int> Connect(Host* Address, bool Async);
 			Core::Promise<int> Close();
 			Socket* GetStream();
 
@@ -488,8 +491,11 @@ namespace Tomahawk
 			virtual bool OnConnect();
 			virtual bool OnClose();
 
+		private:
+			void TryEncrypt(std::function<void(bool)>&& Callback);
+
 		protected:
-			bool Certify();
+			void Encrypt(std::function<void(bool)>&& Callback);
 			bool Stage(const std::string& Name);
 			bool Error(const char* Message, ...);
 			bool Success(int Code);

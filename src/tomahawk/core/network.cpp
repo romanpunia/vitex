@@ -43,6 +43,8 @@
 #endif
 #define DNS_TIMEOUT 21600
 #define CONNECT_TIMEOUT 2000
+#pragma warning(push)
+#pragma warning(disable: 4996)
 
 extern "C"
 {
@@ -73,13 +75,13 @@ namespace Tomahawk
 				Stream.SetBlocking(false);
 
 				TH_DEBUG("[net] resolve dns on fd %i", (int)Host.first);
-				int Status = connect(Host.first, Host.second->ai_addr, Host.second->ai_addrlen);
-#ifndef TH_MICROSOFT
-				if (Status != 0 && errno == EINPROGRESS)
-					Status = 0;
-#endif
-				if (Status != 0 && Stream.GetError(Status) != ERRWOULDBLOCK)
-					continue;
+				int Status = connect(Host.first, Host.second->ai_addr, (int)Host.second->ai_addrlen);
+				if (Status != 0)
+				{
+					int Code = Stream.GetError(Status);
+					if (Code != EINPROGRESS && Code != ERRWOULDBLOCK)
+						continue;
+				}
 
 				pollfd Fd;
 				Fd.fd = Host.first;
@@ -813,7 +815,7 @@ namespace Tomahawk
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Match != nullptr, -1, "match should be set");
 
-			int64_t Size = (int64_t)strlen(Match);
+			size_t Size = strlen(Match);
 			TH_ASSERT(Size > 0, -1, "match should not be empty");
 
 			char Buffer = 0;
@@ -826,12 +828,12 @@ namespace Tomahawk
 				{
 					if (!TempBuffer)
 					{
-						TempBuffer = TH_MALLOC(char, (size_t)Size + 1);
-						memcpy(TempBuffer, Match, (size_t)Size);
+						TempBuffer = TH_MALLOC(char, Size + 1);
+						memcpy(TempBuffer, Match, Size);
 						TempBuffer[Size] = '\0';
 					}
 
-					Driver::WhenReadable(this, [this, TempBuffer, TempIndex, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Driver::WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -1046,7 +1048,7 @@ namespace Tomahawk
 #endif
 			int Range1 = setsockopt(Fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&Time, sizeof(Time));
 			int Range2 = setsockopt(Fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Time, sizeof(Time));
-			return (Range1 || Range2);
+			return (Range1 == 0 || Range2 == 0);
 		}
 		int Socket::GetError(int Result)
 		{
@@ -1334,7 +1336,7 @@ namespace Tomahawk
 #endif
 		}
 
-		EpollHandle::EpollHandle(int NewArraySize) : ArraySize(NewArraySize)
+		EpollHandle::EpollHandle(size_t NewArraySize) : ArraySize(NewArraySize)
 		{
 			TH_ASSERT_V(ArraySize > 0, "array size should be greater than zero");
 #ifdef TH_APPLE
@@ -2088,7 +2090,7 @@ namespace Tomahawk
 		std::mutex Driver::Exclusive;
 		std::mutex Driver::Inclusive;
 		uint64_t Driver::DefaultTimeout = 50;
-		uint64_t Driver::Sockets = 0;
+		size_t Driver::Sockets = 0;
 		bool Driver::Listens = false;
 
 		SocketServer::SocketServer() : Backlog(1024)
@@ -2881,3 +2883,4 @@ namespace Tomahawk
 		}
 }
 }
+#pragma warning(pop)

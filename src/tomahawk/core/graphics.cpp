@@ -210,7 +210,7 @@ namespace Tomahawk
 				return;
 
 			SDL_MessageBoxButtonData Views[16];
-			for (uint64_t i = 0; i < Buttons.size(); i++)
+			for (size_t i = 0; i < Buttons.size(); i++)
 			{
 				SDL_MessageBoxButtonData* To = Views + i;
 				auto From = Buttons.begin() + i;
@@ -265,7 +265,7 @@ namespace Tomahawk
 			TH_ASSERT_V(Root != nullptr, "root should be set");
 			TH_ASSERT_V(Result != nullptr, "result should be set");
 
-			Compute::AnimatorKey* Key = &Result->at(Root->Index);
+			Compute::AnimatorKey* Key = &Result->at((size_t)Root->Index);
 			Key->Position = Root->Transform.Position();
 			Key->Rotation = Root->Transform.Rotation();
 
@@ -445,11 +445,11 @@ namespace Tomahawk
 			Elements = I.ElementCount;
 			Stride = I.ElementWidth;
 		}
-		uint64_t ElementBuffer::GetElements() const
+		size_t ElementBuffer::GetElements() const
 		{
 			return Elements;
 		}
-		uint64_t ElementBuffer::GetStride() const
+		size_t ElementBuffer::GetStride() const
 		{
 			return Stride;
 		}
@@ -514,7 +514,7 @@ namespace Tomahawk
 		{
 			return Device;
 		}
-		uint64_t InstanceBuffer::GetElementLimit() const
+		size_t InstanceBuffer::GetElementLimit() const
 		{
 			return ElementLimit;
 		}
@@ -1186,7 +1186,7 @@ namespace Tomahawk
 					return true;
 				}
 
-				uint64_t Length;
+				size_t Length;
 				unsigned char* Data = Core::OS::File::ReadAll(File.Module.c_str(), &Length);
 				if (!Data)
 					return false;
@@ -1467,9 +1467,8 @@ namespace Tomahawk
 				return false;
 			}
 
-			uint64_t Size = (uint64_t)Data.size();
+			size_t Size = Data.size();
 			bool Result = (Stream->Write(Data.c_str(), Size) == Size);
-
 			TH_DEBUG("[graphics] save %s program cache", Name.c_str());
 			TH_RELEASE(Stream);
 

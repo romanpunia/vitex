@@ -83,7 +83,7 @@ namespace Tomahawk
 				friend OGLDevice;
 
 			public:
-				std::unordered_map<size_t, std::vector<std::function<void(uint64_t)>>> VertexLayout;
+				std::unordered_map<size_t, std::vector<std::function<void(size_t)>>> VertexLayout;
 				std::unordered_map<std::string, GLuint> Layouts;
 				GLuint DynamicResource = GL_NONE;
 
@@ -416,14 +416,14 @@ namespace Tomahawk
 				void FlushState() override;
 				bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) override;
 				bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) override;
-				bool UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size) override;
+				bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) override;
 				bool UpdateBuffer(Shader* Resource, const void* Data) override;
 				bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) override;
 				bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) override;
 				bool UpdateBuffer(InstanceBuffer* Resource) override;
 				bool UpdateBuffer(RenderBufferType Buffer) override;
 				bool UpdateBufferSize(Shader* Resource, size_t Size) override;
-				bool UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) override;
+				bool UpdateBufferSize(InstanceBuffer* Resource, size_t Size) override;
 				void ClearBuffer(InstanceBuffer* Resource) override;
 				void ClearWritable(Texture2D* Resource) override;
 				void ClearWritable(Texture2D* Resource, float R, float G, float B) override;
@@ -465,7 +465,7 @@ namespace Tomahawk
 				bool GenerateTexture(Texture2D* Resource) override;
 				bool GenerateTexture(Texture3D* Resource) override;
 				bool GenerateTexture(TextureCube* Resource) override;
-				bool GetQueryData(Query* Resource, uint64_t* Result, bool Flush) override;
+				bool GetQueryData(Query* Resource, size_t* Result, bool Flush) override;
 				bool GetQueryData(Query* Resource, bool* Result, bool Flush) override;
 				void QueryBegin(Query* Resource) override;
 				void QueryEnd(Query* Resource) override;
@@ -518,7 +518,7 @@ namespace Tomahawk
 				const char* GetShaderVersion();
 				void CopyConstantBuffer(GLuint Buffer, void* Data, size_t Size);
 				int CreateConstantBuffer(GLuint* Buffer, size_t Size);
-				bool CreateDirectBuffer(uint64_t Size);
+				bool CreateDirectBuffer(size_t Size);
 				std::string CompileState(GLuint Handle);
 
 			private:

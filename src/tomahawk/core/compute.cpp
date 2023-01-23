@@ -2,6 +2,8 @@
 #include <cctype>
 #include <random>
 #ifdef TH_WITH_BULLET3
+#pragma warning(disable: 4244)
+#pragma warning(disable: 4305)
 #include <btBulletDynamicsCommon.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <BulletSoftBody/btDefaultSoftBodySolver.h>
@@ -35,7 +37,7 @@ extern "C"
 #define MAKE_ADJ_TRI(x) ((x) & 0x3fffffff)
 #define IS_BOUNDARY(x) ((x) == 0xff)
 #define RH_TO_LH (Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1))
-#define NULL_NODE ((uint64_t)-1)
+#define NULL_NODE ((size_t)-1)
 
 namespace
 {
@@ -3428,7 +3430,7 @@ namespace Tomahawk
 			int64_t B = (int64_t)Brackets.size();
 			int64_t C = 0;
 
-			for (size_t i = 0; i < B; i++)
+			for (size_t i = 0; i < (size_t)B; i++)
 				C += Brackets[i].Length;
 
 			return (int64_t)Expression.size() + A * B * C;
@@ -3488,7 +3490,7 @@ namespace Tomahawk
 				else if (vPtr[i] == ')')
 				{
 					int64_t Idx = (Brackets[Brackets.size() - 1].Length == -1 ? Brackets.size() - 1 : Depth);
-					Brackets[Idx].Length = (int64_t)(&vPtr[i] - Brackets[Idx].Pointer); Depth--;
+					Brackets[(size_t)Idx].Length = (int64_t)(&vPtr[i] - Brackets[(size_t)Idx].Pointer); Depth--;
 					REGEX_FAIL_IN(Depth < 0, RegexState::Unbalanced_Brackets);
 					REGEX_FAIL_IN(i > 0 && vPtr[i - 1] == '(', RegexState::No_Match);
 				}
@@ -3496,12 +3498,10 @@ namespace Tomahawk
 
 			REGEX_FAIL_IN(Depth != 0, RegexState::Unbalanced_Brackets);
 
-			RegexBranch Branch;
-			int64_t i, j;
-
-			for (i = 0; i < (int64_t)Branches.size(); i++)
+			RegexBranch Branch; size_t i, j;
+			for (i = 0; i < Branches.size(); i++)
 			{
-				for (j = i + 1; j < (int64_t)Branches.size(); j++)
+				for (j = i + 1; j < Branches.size(); j++)
 				{
 					if (Branches[i].BracketIndex > Branches[j].BracketIndex)
 					{
@@ -3512,13 +3512,13 @@ namespace Tomahawk
 				}
 			}
 
-			for (i = j = 0; i < (int64_t)Brackets.size(); i++)
+			for (i = j = 0; i < Brackets.size(); i++)
 			{
 				auto& Bracket = Brackets[i];
 				Bracket.BranchesCount = 0;
 				Bracket.Branches = j;
 
-				while (j < (int64_t)Branches.size() && Branches[j].BracketIndex == i)
+				while (j < Branches.size() && Branches[j].BracketIndex == i)
 				{
 					Bracket.BranchesCount++;
 					j++;
@@ -3640,7 +3640,7 @@ namespace Tomahawk
 				}
 
 				auto& Where = Result.Matches.front();
-				Parser.ReplacePart(Where.Start + Start, Where.End + Start, Emplace.R());
+				Parser.ReplacePart((size_t)Where.Start + Start, (size_t)Where.End + Start, Emplace.R());
 				Start += (size_t)Where.Start + (size_t)Emplace.Size() - (Emplace.Empty() ? 0 : 1);
 			}
 
@@ -3802,7 +3802,7 @@ namespace Tomahawk
 			int64_t i, j, n, Step;
 			for (i = j = 0; i < ValueLength && j <= BufferLength; i += Step)
 			{
-				Step = Value[i] == '(' ? Info->Src->Brackets[Case + 1].Length + 2 : GetOpLength(Value + i, ValueLength - i);
+				Step = Value[i] == '(' ? Info->Src->Brackets[(size_t)Case + 1].Length + 2 : GetOpLength(Value + i, ValueLength - i);
 				REGEX_FAIL(Quantifier(&Value[i]), (int64_t)RegexState::Unexpected_Quantifier);
 				REGEX_FAIL(Step <= 0, (int64_t)RegexState::Invalid_Character_Set);
 				Info->Steps++;
@@ -3887,7 +3887,7 @@ namespace Tomahawk
 							Match = &Info->Matches[Info->Matches.size() - 1];
 						}
 						else
-							Match = &Info->Matches.at(Case - 1);
+							Match = &Info->Matches.at((size_t)Case - 1);
 
 						Match->Pointer = Buffer + j;
 						Match->Length = n;
@@ -3919,14 +3919,14 @@ namespace Tomahawk
 			TH_ASSERT(Buffer != nullptr, 0, "invalid buffer");
 			TH_ASSERT(Info != nullptr, 0, "invalid regex result");
 
-			const RegexBracket* Bk = &Info->Src->Brackets[Case];
+			const RegexBracket* Bk = &Info->Src->Brackets[(size_t)Case];
 			int64_t i = 0, Length, Result;
 			const char* Ptr;
 
 			do
 			{
-				Ptr = i == 0 ? Bk->Pointer : Info->Src->Branches[Bk->Branches + i - 1].Pointer + 1;
-				Length = Bk->BranchesCount == 0 ? Bk->Length : i == Bk->BranchesCount ? (int64_t)(Bk->Pointer + Bk->Length - Ptr) : (int64_t)(Info->Src->Branches[Bk->Branches + i].Pointer - Ptr);
+				Ptr = i == 0 ? Bk->Pointer : Info->Src->Branches[(size_t)(Bk->Branches + i - 1)].Pointer + 1;
+				Length = Bk->BranchesCount == 0 ? Bk->Length : i == Bk->BranchesCount ? (int64_t)(Bk->Pointer + Bk->Length - Ptr) : (int64_t)(Info->Src->Branches[(size_t)(Bk->Branches + i)].Pointer - Ptr);
 				Result = ParseInner(Ptr, Length, Buffer, BufferLength, Info, Case);
 				TH_PSIG();
 			} while (Result <= 0 && i++ < Bk->BranchesCount);
@@ -6886,7 +6886,7 @@ namespace Tomahawk
 #endif
 		}
 
-		std::string Crypto::RandomBytes(uint64_t Length)
+		std::string Crypto::RandomBytes(size_t Length)
 		{
 #ifdef TH_HAS_OPENSSL
 			unsigned char* Buffer = TH_MALLOC(unsigned char, sizeof(unsigned char) * Length);
@@ -6938,7 +6938,7 @@ namespace Tomahawk
 			return Value;
 #endif
 		}
-		std::string Crypto::Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
+		std::string Crypto::Sign(Digest Type, const unsigned char* Value, size_t Length, const char* Key)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
@@ -6948,7 +6948,7 @@ namespace Tomahawk
 #if OPENSSL_VERSION_MAJOR >= 3
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
-			unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, (const void*)Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size);
+			unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, (const void*)Key, (int)strlen(Key), Value, Length, Result, &Size);
 
 			if (!Pointer)
 			{
@@ -7032,7 +7032,7 @@ namespace Tomahawk
 		{
 			return Sign(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
 		}
-		std::string Crypto::HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key)
+		std::string Crypto::HMAC(Digest Type, const unsigned char* Value, size_t Length, const char* Key)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
@@ -7042,7 +7042,7 @@ namespace Tomahawk
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
 
-			if (!::HMAC((const EVP_MD*)Type, Key, (int)strlen(Key), Value, (size_t)Length, Result, &Size))
+			if (!::HMAC((const EVP_MD*)Type, Key, (int)strlen(Key), Value, Length, Result, &Size))
 			{
 				DisplayCryptoLog();
 				return "";
@@ -7056,9 +7056,9 @@ namespace Tomahawk
 		}
 		std::string Crypto::HMAC(Digest Type, const std::string& Value, const char* Key)
 		{
-			return Crypto::HMAC(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
+			return Crypto::HMAC(Type, (const unsigned char*)Value.c_str(), Value.size(), Key);
 		}
-		std::string Crypto::Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
+		std::string Crypto::Encrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes)
 		{
 			TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
@@ -7122,9 +7122,9 @@ namespace Tomahawk
 		}
 		std::string Crypto::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
 		{
-			return Encrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
+			return Encrypt(Type, (const unsigned char*)Value.c_str(), Value.size(), Key, Salt);
 		}
-		std::string Crypto::Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes)
+		std::string Crypto::Decrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes)
 		{
 			TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
@@ -7214,13 +7214,13 @@ namespace Tomahawk
 				return "";
 
 			std::string Header;
-			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, int64_t Size)
+			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, size_t Size)
 			{
 				Header.append(Buffer, Size);
 			});
 
 			std::string Payload;
-			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, int64_t Size)
+			Core::Schema::ConvertToJSON(Src->Payload, [&Payload](Core::VarForm, const char* Buffer, size_t Size)
 			{
 				Payload.append(Buffer, Size);
 			});
@@ -7274,7 +7274,7 @@ namespace Tomahawk
 			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
 
 			std::string Result;
-			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, int64_t Size)
+			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, size_t Size)
 			{
 				Result.append(Buffer, Size);
 			});
@@ -7299,17 +7299,17 @@ namespace Tomahawk
 		uint64_t Crypto::CRC32(const std::string& Data)
 		{
 			int64_t Result = 0xFFFFFFFF;
-			int64_t Index = 0;
 			int64_t Byte = 0;
 			int64_t Mask = 0;
-			int64_t It = 0;
+			int64_t Offset = 0;
+			size_t Index = 0;
 
 			while (Data[Index] != 0)
 			{
 				Byte = Data[Index];
 				Result = Result ^ Byte;
 
-				for (It = 7; It >= 0; It--)
+				for (Offset = 7; Offset >= 0; Offset--)
 				{
 					Mask = -(Result & 1);
 					Result = (Result >> 1) ^ (0xEDB88320 & Mask);
@@ -7463,7 +7463,7 @@ namespace Tomahawk
 		std::string Codec::Move(const std::string& Text, int Offset)
 		{
 			std::string Result;
-			for (uint64_t i = 0; i < (uint64_t)Text.size(); i++)
+			for (size_t i = 0; i < Text.size(); i++)
 			{
 				if (Text[i] != 0)
 					Result += char(Text[i] + Offset);
@@ -7473,7 +7473,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Codec::Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding)
+		std::string Codec::Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
@@ -7522,7 +7522,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Codec::Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char))
+		std::string Codec::Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char))
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
 			TH_ASSERT(IsAlphabetic != nullptr, std::string(), "callback should be set");
@@ -7678,43 +7678,43 @@ namespace Tomahawk
 
 			return std::string(Result.c_str(), Offset);
 		}
-		std::string Codec::Base64Encode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64Encode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			return Encode64(Set, Value, Length, true);
 		}
 		std::string Codec::Base64Encode(const std::string& Value)
 		{
-			return Base64Encode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+			return Base64Encode((const unsigned char*)Value.c_str(), Value.size());
 		}
-		std::string Codec::Base64Decode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64Decode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 			return Decode64(Set, Value, Length, IsBase64);
 		}
 		std::string Codec::Base64Decode(const std::string& Value)
 		{
-			return Base64Decode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+			return Base64Decode((const unsigned char*)Value.c_str(), Value.size());
 		}
-		std::string Codec::Base64URLEncode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64URLEncode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 			return Encode64(Set, Value, Length, false);
 		}
 		std::string Codec::Base64URLEncode(const std::string& Value)
 		{
-			return Base64URLEncode((const unsigned char*)Value.c_str(), (uint64_t)Value.size());
+			return Base64URLEncode((const unsigned char*)Value.c_str(), Value.size());
 		}
-		std::string Codec::Base64URLDecode(const unsigned char* Value, uint64_t Length)
+		std::string Codec::Base64URLDecode(const unsigned char* Value, size_t Length)
 		{
 			static const char Set[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
-			int64_t Padding = (int64_t)Length % 4;
+			size_t Padding = Length % 4;
 			if (Padding == 0)
 				return Decode64(Set, Value, Length, IsBase64URL);
 
-			std::string Padded((const char*)Value, (size_t)Length);
-			Padded.append((size_t)(4 - Padding), '=');
-			return Decode64(Set, (const unsigned char*)Padded.c_str(), (uint64_t)Padded.size(), IsBase64URL);
+			std::string Padded((const char*)Value, Length);
+			Padded.append(4 - Padding, '=');
+			return Decode64(Set, (const unsigned char*)Padded.c_str(), Padded.size(), IsBase64URL);
 		}
 		std::string Codec::Base64URLDecode(const std::string& Value)
 		{
@@ -7784,7 +7784,7 @@ namespace Tomahawk
 		{
 			return URIEncode(Text.c_str(), Text.size());
 		}
-		std::string Codec::URIEncode(const char* Text, uint64_t Length)
+		std::string Codec::URIEncode(const char* Text, size_t Length)
 		{
 			TH_ASSERT(Text != nullptr, std::string(), "text should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
@@ -7815,12 +7815,12 @@ namespace Tomahawk
 		{
 			return URIDecode(Text.c_str(), Text.size());
 		}
-		std::string Codec::URIDecode(const char* Text, uint64_t Length)
+		std::string Codec::URIDecode(const char* Text, size_t Length)
 		{
 			TH_ASSERT(Text != nullptr, std::string(), "text should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 			std::string Value;
-			int i = 0;
+			size_t i = 0;
 
 			while (i < Length)
 			{
@@ -7984,77 +7984,77 @@ namespace Tomahawk
 
 			return Decoded;
 		}
-		uint64_t Codec::Utf8(int code, char* Buffer)
+		size_t Codec::Utf8(int Code, char* Buffer)
 		{
 			TH_ASSERT(Buffer != nullptr, 0, "buffer should be set");
-			if (code < 0x0080)
+			if (Code < 0x0080)
 			{
-				Buffer[0] = (code & 0x7F);
+				Buffer[0] = (Code & 0x7F);
 				return 1;
 			}
-			else if (code < 0x0800)
+			else if (Code < 0x0800)
 			{
-				Buffer[0] = (0xC0 | ((code >> 6) & 0x1F));
-				Buffer[1] = (0x80 | (code & 0x3F));
+				Buffer[0] = (0xC0 | ((Code >> 6) & 0x1F));
+				Buffer[1] = (0x80 | (Code & 0x3F));
 				return 2;
 			}
-			else if (code < 0xD800)
+			else if (Code < 0xD800)
 			{
-				Buffer[0] = (0xE0 | ((code >> 12) & 0xF));
-				Buffer[1] = (0x80 | ((code >> 6) & 0x3F));
-				Buffer[2] = (0x80 | (code & 0x3F));
+				Buffer[0] = (0xE0 | ((Code >> 12) & 0xF));
+				Buffer[1] = (0x80 | ((Code >> 6) & 0x3F));
+				Buffer[2] = (0x80 | (Code & 0x3F));
 				return 3;
 			}
-			else if (code < 0xE000)
+			else if (Code < 0xE000)
 			{
 				return 0;
 			}
-			else if (code < 0x10000)
+			else if (Code < 0x10000)
 			{
-				Buffer[0] = (0xE0 | ((code >> 12) & 0xF));
-				Buffer[1] = (0x80 | ((code >> 6) & 0x3F));
-				Buffer[2] = (0x80 | (code & 0x3F));
+				Buffer[0] = (0xE0 | ((Code >> 12) & 0xF));
+				Buffer[1] = (0x80 | ((Code >> 6) & 0x3F));
+				Buffer[2] = (0x80 | (Code & 0x3F));
 				return 3;
 			}
-			else if (code < 0x110000)
+			else if (Code < 0x110000)
 			{
-				Buffer[0] = (0xF0 | ((code >> 18) & 0x7));
-				Buffer[1] = (0x80 | ((code >> 12) & 0x3F));
-				Buffer[2] = (0x80 | ((code >> 6) & 0x3F));
-				Buffer[3] = (0x80 | (code & 0x3F));
+				Buffer[0] = (0xF0 | ((Code >> 18) & 0x7));
+				Buffer[1] = (0x80 | ((Code >> 12) & 0x3F));
+				Buffer[2] = (0x80 | ((Code >> 6) & 0x3F));
+				Buffer[3] = (0x80 | (Code & 0x3F));
 				return 4;
 			}
 
 			return 0;
 		}
-		bool Codec::Hex(char c, int& v)
+		bool Codec::Hex(char Code, int& Value)
 		{
-			if (0x20 <= c && isdigit(c))
+			if (0x20 <= Code && isdigit(Code))
 			{
-				v = c - '0';
+				Value = Code - '0';
 				return true;
 			}
-			else if ('A' <= c && c <= 'F')
+			else if ('A' <= Code && Code <= 'F')
 			{
-				v = c - 'A' + 10;
+				Value = Code - 'A' + 10;
 				return true;
 			}
-			else if ('a' <= c && c <= 'f')
+			else if ('a' <= Code && Code <= 'f')
 			{
-				v = c - 'a' + 10;
+				Value = Code - 'a' + 10;
 				return true;
 			}
 
 			return false;
 		}
-		bool Codec::HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength)
+		bool Codec::HexToString(void* Data, size_t Length, char* Buffer, size_t BufferLength)
 		{
 			TH_ASSERT(Data != nullptr && Length > 0, false, "data buffer should be set");
 			TH_ASSERT(Buffer != nullptr && BufferLength > 0, false, "buffer should be set");
 			TH_ASSERT(BufferLength >= (3 * Length), false, "buffer is too small");
 
 			static const char HEX[] = "0123456789abcdef";
-			for (int i = 0; i < Length; i++)
+			for (size_t i = 0; i < Length; i++)
 			{
 				if (i > 0)
 					Buffer[3 * i - 1] = ' ';
@@ -8066,18 +8066,18 @@ namespace Tomahawk
 			Buffer[3 * Length - 1] = 0;
 			return true;
 		}
-		bool Codec::HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value)
+		bool Codec::HexToDecimal(const std::string& Text, size_t Index, size_t Count, int& Value)
 		{
-			TH_ASSERT(i < s.size(), false, "index outside of range");
+			TH_ASSERT(Index < Text.size(), false, "index outside of range");
 
 			Value = 0;
-			for (; cnt; i++, cnt--)
+			for (; Count; Index++, Count--)
 			{
-				if (!s[i])
+				if (!Text[Index])
 					return false;
 
 				int v = 0;
-				if (!Hex(s[i], v))
+				if (!Hex(Text[Index], v))
 					return false;
 
 				Value = Value * 16 + v;
@@ -8354,7 +8354,7 @@ namespace Tomahawk
 		void Geometric::ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices)
 		{
 			Vector3 Tangent, Bitangent;
-			for (uint64_t i = 0; i < Vertices.size(); i += 3)
+			for (size_t i = 0; i < Vertices.size(); i += 3)
 			{
 				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
@@ -8378,10 +8378,10 @@ namespace Tomahawk
 				V3.BitangentZ = Bitangent.Z;
 			}
 		}
-		void Geometric::ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count)
+		void Geometric::ComputeInfluenceNormalsArray(SkinVertex* Vertices, size_t Count)
 		{
 			Vector3 Tangent, Bitangent;
-			for (uint64_t i = 0; i < Count; i += 3)
+			for (size_t i = 0; i < Count; i += 3)
 			{
 				SkinVertex& V1 = Vertices[i], & V2 = Vertices[i + 1], & V3 = Vertices[i + 2];
 				ComputeInfluenceTangentBitangent(V1, V2, V3, Tangent, Bitangent);
@@ -8855,7 +8855,7 @@ namespace Tomahawk
 			if (Features.Pragmas && !ProcessPragmaDirective(Path, Buffer))
 				return ReturnResult(false, Nesting);
 
-			uint64_t Offset;
+			size_t Offset;
 			if (Features.Defines && !ProcessDefineDirective(Buffer, 0, Offset, true))
 				return ReturnResult(false, Nesting);
 
@@ -8900,11 +8900,11 @@ namespace Tomahawk
 						continue;
 				}
 
-				uint64_t Start = Result.End;
+				size_t Start = Result.End;
 				while (Start + 1 < Buffer.Size() && Buffer.R()[Start] != '\"')
 					Start++;
 
-				uint64_t End = Start + 1;
+				size_t End = Start + 1;
 				while (End + 1 < Buffer.Size() && Buffer.R()[End] != '\"')
 					End++;
 
@@ -8950,11 +8950,11 @@ namespace Tomahawk
 				return true;
 
 			std::vector<std::string> Args;
-			uint64_t Offset = 0;
+			size_t Offset = 0;
 
 			while (true)
 			{
-				uint64_t Base, Start, End;
+				size_t Base, Start, End;
 				int R = FindDirective(Buffer, "#pragma", &Offset, &Base, &Start, &End);
 				if (R < 0)
 				{
@@ -9011,7 +9011,7 @@ namespace Tomahawk
 			if (Buffer.Empty())
 				return true;
 
-			uint64_t Offset = 0;
+			size_t Offset = 0;
 			while (true)
 			{
 				int R = FindBlockDirective(Buffer, Offset, false);
@@ -9024,12 +9024,12 @@ namespace Tomahawk
 					return true;
 			}
 		}
-		bool Preprocessor::ProcessDefineDirective(Core::Parser& Buffer, uint64_t Base, uint64_t& Offset, bool Endless)
+		bool Preprocessor::ProcessDefineDirective(Core::Parser& Buffer, size_t Base, size_t& Offset, bool Endless)
 		{
 			if (Buffer.Empty())
 				return true;
 
-			uint64_t Size = 0;
+			size_t Size = 0;
 			while (Endless || Base < Offset)
 			{
 				int R = FindDefineDirective(Buffer, Base, &Size);
@@ -9046,10 +9046,9 @@ namespace Tomahawk
 
 			return true;
 		}
-		int Preprocessor::FindDefineDirective(Core::Parser& Buffer, uint64_t& Offset, uint64_t* Size)
+		int Preprocessor::FindDefineDirective(Core::Parser& Buffer, size_t& Offset, size_t* Size)
 		{
-			uint64_t Base, Start, End;
-			Offset--;
+			size_t Base, Start, End; Offset--;
 			int R = FindDirective(Buffer, "#define", &Offset, &Base, &Start, &End);
 			if (R < 0)
 			{
@@ -9068,12 +9067,12 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Preprocessor::FindBlockDirective(Core::Parser& Buffer, uint64_t& Offset, bool Nested)
+		int Preprocessor::FindBlockDirective(Core::Parser& Buffer, size_t& Offset, bool Nested)
 		{
-			uint64_t B1Start = 0, B1End = 0;
-			uint64_t B2Start = 0, B2End = 0;
-			uint64_t Start, End, Base, Size;
-			uint64_t BaseOffset = Offset;
+			size_t B1Start = 0, B1End = 0;
+			size_t B2Start = 0, B2End = 0;
+			size_t Start, End, Base, Size;
+			size_t BaseOffset = Offset;
 			bool Resolved = false, Negate = false;
 
 			int R = FindDirective(Buffer, "#ifdef", &Offset, nullptr, &Start, &End);
@@ -9178,7 +9177,7 @@ namespace Tomahawk
 
 			return 1;
 		}
-		int Preprocessor::FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, uint64_t& Offset, bool Resolved)
+		int Preprocessor::FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, size_t& Offset, bool Resolved)
 		{
 			if (!Hash.Found)
 				return -1;
@@ -9211,17 +9210,17 @@ namespace Tomahawk
 			int R = FindDefineDirective(Buffer, Offset, nullptr);
 			return R == 1 ? 0 : R;
 		}
-		int Preprocessor::FindDirective(Core::Parser& Buffer, const char* V, uint64_t* SOffset, uint64_t* SBase, uint64_t* SStart, uint64_t* SEnd)
+		int Preprocessor::FindDirective(Core::Parser& Buffer, const char* V, size_t* SOffset, size_t* SBase, size_t* SStart, size_t* SEnd)
 		{
 			auto Result = Buffer.Find(V, SOffset ? *SOffset : 0);
 			if (!Result.Found)
 				return 0;
 
-			uint64_t Start = Result.End + 1;
+			size_t Start = Result.End + 1;
 			while (Start + 1 < Buffer.Size() && Buffer.R()[Start] == ' ')
 				Start++;
 
-			uint64_t End = Start;
+			size_t End = Start;
 			while (End + 1 < Buffer.Size() && (Buffer.R()[End] != '\n' && Buffer.R()[End] != '\r'))
 				End++;
 
@@ -9869,14 +9868,14 @@ namespace Tomahawk
 			return (Left == NULL_NODE);
 		}
 
-		Cosmos::Cosmos(uint64_t DefaultSize)
+		Cosmos::Cosmos(size_t DefaultSize)
 		{
 			Root = NULL_NODE;
 			NodeCount = 0;
 			NodeCapacity = DefaultSize;
 			Nodes.resize(NodeCapacity);
 
-			for (uint64_t i = 0; i < NodeCapacity - 1; i++)
+			for (size_t i = 0; i < NodeCapacity - 1; i++)
 			{
 				auto& Node = Nodes[i];
 				Node.Next = i + 1;
@@ -9888,7 +9887,7 @@ namespace Tomahawk
 			Node.Height = -1;
 			FreeList = 0;
 		}
-		void Cosmos::FreeNode(uint64_t NodeIndex)
+		void Cosmos::FreeNode(size_t NodeIndex)
 		{
 			TH_ASSERT_V(NodeIndex < NodeCapacity, "outside of borders");
 			TH_ASSERT_V(NodeCount > 0, "there must be at least one node");
@@ -9901,14 +9900,14 @@ namespace Tomahawk
 		}
 		void Cosmos::InsertItem(void* Item, const Vector3& Lower, const Vector3& Upper)
 		{
-			uint64_t NodeIndex = AllocateNode();
+			size_t NodeIndex = AllocateNode();
 			auto& Node = Nodes[NodeIndex];
 			Node.Bounds = Bounding(Lower, Upper);
 			Node.Height = 0;
 			Node.Item = Item;
 			InsertLeaf(NodeIndex);
 
-			Items.insert(std::unordered_map<void*, uint64_t>::value_type(Item, NodeIndex));
+			Items.insert(std::unordered_map<void*, size_t>::value_type(Item, NodeIndex));
 		}
 		void Cosmos::RemoveItem(void* Item)
 		{
@@ -9916,7 +9915,7 @@ namespace Tomahawk
 			if (It == Items.end())
 				return;
 
-			uint64_t NodeIndex = It->second;
+			size_t NodeIndex = It->second;
 			Items.erase(It);
 
 			TH_ASSERT_V(NodeIndex < NodeCapacity, "outside of borders");
@@ -9925,7 +9924,7 @@ namespace Tomahawk
 			RemoveLeaf(NodeIndex);
 			FreeNode(NodeIndex);
 		}
-		void Cosmos::InsertLeaf(uint64_t LeafIndex)
+		void Cosmos::InsertLeaf(size_t LeafIndex)
 		{
 			if (Root == NULL_NODE)
 			{
@@ -9934,7 +9933,7 @@ namespace Tomahawk
 				return;
 			}
 
-			uint64_t NextIndex = Root;
+			size_t NextIndex = Root;
 			Bounding LeafBounds = Nodes[LeafIndex].Bounds;
 			Bounding NextBounds;
 
@@ -9945,8 +9944,8 @@ namespace Tomahawk
 				auto& Right = Nodes[Next.Right];
 
 				NextBounds.Merge(LeafBounds, Next.Bounds);
-				float BaseCost = 2.0 * NextBounds.Volume;
-				float ParentCost = 2.0 * (NextBounds.Volume - Next.Bounds.Volume);
+				float BaseCost = 2.0f * (float)NextBounds.Volume;
+				float ParentCost = 2.0f * (float)(NextBounds.Volume - Next.Bounds.Volume);
 
 				NextBounds.Merge(LeafBounds, Left.Bounds);
 				float LeftCost = (NextBounds.Volume - (Left.IsLeaf() ? 0.0f : Left.Bounds.Volume)) + ParentCost;
@@ -9963,12 +9962,12 @@ namespace Tomahawk
 					NextIndex = Next.Right;
 			}
 
-			uint64_t NewParentIndex = AllocateNode();
+			size_t NewParentIndex = AllocateNode();
 			auto& Leaf = Nodes[LeafIndex];
 			auto& Sibling = Nodes[NextIndex];
 			auto& NewParent = Nodes[NewParentIndex];
 
-			uint64_t OldParentIndex = Sibling.Parent;
+			size_t OldParentIndex = Sibling.Parent;
 			NewParent.Parent = OldParentIndex;
 			NewParent.Bounds.Merge(LeafBounds, Sibling.Bounds);
 			NewParent.Height = Sibling.Height + 1;
@@ -10008,7 +10007,7 @@ namespace Tomahawk
 				NextIndex = Next.Parent;
 			}
 		}
-		void Cosmos::RemoveLeaf(uint64_t LeafIndex)
+		void Cosmos::RemoveLeaf(size_t LeafIndex)
 		{
 			if (LeafIndex == Root)
 			{
@@ -10016,11 +10015,11 @@ namespace Tomahawk
 				return;
 			}
 
-			uint64_t ParentIndex = Nodes[LeafIndex].Parent;
+			size_t ParentIndex = Nodes[LeafIndex].Parent;
 			auto& Parent = Nodes[ParentIndex];
 
-			uint64_t UpperParentIndex = Parent.Parent;
-			uint64_t SiblingIndex = (Parent.Left == LeafIndex ? Parent.Right : Parent.Left);
+			size_t UpperParentIndex = Parent.Parent;
+			size_t SiblingIndex = (Parent.Left == LeafIndex ? Parent.Right : Parent.Left);
 			auto& Sibling = Nodes[SiblingIndex];
 
 			if (Parent.Parent != NULL_NODE)
@@ -10034,7 +10033,7 @@ namespace Tomahawk
 				Sibling.Parent = Parent.Parent;
 				FreeNode(ParentIndex);
 
-				uint64_t NextIndex = Parent.Parent;
+				size_t NextIndex = Parent.Parent;
 				while (NextIndex != NULL_NODE)
 				{
 					NextIndex = Balance(NextIndex);
@@ -10067,7 +10066,7 @@ namespace Tomahawk
 			auto It = Items.begin();
 			while (It != Items.end())
 			{
-				uint64_t NodeIndex = It->second;
+				size_t NodeIndex = It->second;
 				TH_ASSERT_V(NodeIndex < NodeCapacity, "outside of borders");
 				TH_ASSERT_V(Nodes[NodeIndex].IsLeaf(), "cannot remove root node");
 
@@ -10110,7 +10109,7 @@ namespace Tomahawk
 
 			return Nodes[Root].Bounds;
 		}
-		uint64_t Cosmos::AllocateNode()
+		size_t Cosmos::AllocateNode()
 		{
 			if (FreeList == NULL_NODE)
 			{
@@ -10131,7 +10130,7 @@ namespace Tomahawk
 				FreeList = NodeCount;
 			}
 
-			uint64_t NodeIndex = FreeList;
+			size_t NodeIndex = FreeList;
 			auto& Node = Nodes[NodeIndex];
 			FreeList = Node.Next;
 			Node.Parent = NULL_NODE;
@@ -10142,7 +10141,7 @@ namespace Tomahawk
 
 			return NodeIndex;
 		}
-		uint64_t Cosmos::Balance(uint64_t NodeIndex)
+		size_t Cosmos::Balance(size_t NodeIndex)
 		{
 			TH_ASSERT(NodeIndex != NULL_NODE, NULL_NODE, "node should not be null");
 
@@ -10153,8 +10152,8 @@ namespace Tomahawk
 			TH_ASSERT(Next.Left < NodeCapacity, NULL_NODE, "left outside of borders");
 			TH_ASSERT(Next.Right < NodeCapacity, NULL_NODE, "right outside of borders");
 
-			uint64_t LeftIndex = Next.Left;
-			uint64_t RightIndex = Next.Right;
+			size_t LeftIndex = Next.Left;
+			size_t RightIndex = Next.Right;
 			auto& Left = Nodes[LeftIndex];
 			auto& Right = Nodes[RightIndex];
 
@@ -10164,8 +10163,8 @@ namespace Tomahawk
 				TH_ASSERT(Right.Left < NodeCapacity, NULL_NODE, "subleft outside of borders");
 				TH_ASSERT(Right.Right < NodeCapacity, NULL_NODE, "subright outside of borders");
 
-				uint64_t RightLeftIndex = Right.Left;
-				uint64_t RightRightIndex = Right.Right;
+				size_t RightLeftIndex = Right.Left;
+				size_t RightRightIndex = Right.Right;
 				auto& RightLeft = Nodes[RightLeftIndex];
 				auto& RightRight = Nodes[RightRightIndex];
 
@@ -10216,8 +10215,8 @@ namespace Tomahawk
 				TH_ASSERT(Left.Left < NodeCapacity, NULL_NODE, "subleft outside of borders");
 				TH_ASSERT(Left.Right < NodeCapacity, NULL_NODE, "subright outside of borders");
 
-				uint64_t LeftLeftIndex = Left.Left;
-				uint64_t LeftRightIndex = Left.Right;
+				size_t LeftLeftIndex = Left.Left;
+				size_t LeftRightIndex = Left.Right;
 				auto& LeftLeft = Nodes[LeftLeftIndex];
 				auto& LeftRight = Nodes[LeftRightIndex];
 
@@ -10264,11 +10263,11 @@ namespace Tomahawk
 
 			return NodeIndex;
 		}
-		uint64_t Cosmos::ComputeHeight() const
+		size_t Cosmos::ComputeHeight() const
 		{
 			return ComputeHeight(Root);
 		}
-		uint64_t Cosmos::ComputeHeight(uint64_t NodeIndex) const
+		size_t Cosmos::ComputeHeight(size_t NodeIndex) const
 		{
 			TH_ASSERT(NodeIndex < NodeCapacity, 0, "outside of borders");
 
@@ -10276,35 +10275,35 @@ namespace Tomahawk
 			if (Next.IsLeaf())
 				return 0;
 
-			uint64_t Height1 = ComputeHeight(Next.Left);
-			uint64_t Height2 = ComputeHeight(Next.Right);
+			size_t Height1 = ComputeHeight(Next.Left);
+			size_t Height2 = ComputeHeight(Next.Right);
 			return 1 + std::max(Height1, Height2);
 		}
-		uint64_t Cosmos::GetHeight() const
+		size_t Cosmos::GetHeight() const
 		{
 			return Root == NULL_NODE ? 0 : Nodes[Root].Height;
 		}
-		uint64_t Cosmos::GetMaxBalance() const
+		size_t Cosmos::GetMaxBalance() const
 		{
-			uint64_t MaxBalance = 0;
-			for (uint64_t i = 0; i < NodeCapacity; i++)
+			size_t MaxBalance = 0;
+			for (size_t i = 0; i < NodeCapacity; i++)
 			{
 				auto& Next = Nodes[i];
 				if (Next.Height <= 1)
 					continue;
 
 				TH_ASSERT(!Next.IsLeaf(), 0, "node should be leaf");
-				uint64_t Balance = std::abs(Nodes[Next.Left].Height - Nodes[Next.Right].Height);
+				size_t Balance = std::abs(Nodes[Next.Left].Height - Nodes[Next.Right].Height);
 				MaxBalance = std::max(MaxBalance, Balance);
 			}
 
 			return MaxBalance;
 		}
-		uint64_t Cosmos::GetRoot() const
+		size_t Cosmos::GetRoot() const
 		{
 			return Root;
 		}
-		const std::unordered_map<void*, uint64_t>& Cosmos::GetItems() const
+		const std::unordered_map<void*, size_t>& Cosmos::GetItems() const
 		{
 			return Items;
 		}
@@ -10314,13 +10313,13 @@ namespace Tomahawk
 		}
 		const Cosmos::Node& Cosmos::GetRootNode() const
 		{
-			TH_ASSERT((size_t)Root < Nodes.size(), Nodes.front(), "index out of range");
-			return Nodes[(size_t)Root];
+			TH_ASSERT(Root < Nodes.size(), Nodes.front(), "index out of range");
+			return Nodes[Root];
 		}
-		const Cosmos::Node& Cosmos::GetNode(uint64_t Id) const
+		const Cosmos::Node& Cosmos::GetNode(size_t Id) const
 		{
-			TH_ASSERT((size_t)Id < Nodes.size(), Nodes.front(), "index out of range");
-			return Nodes[(size_t)Id];
+			TH_ASSERT(Id < Nodes.size(), Nodes.front(), "index out of range");
+			return Nodes[Id];
 		}
 		float Cosmos::GetVolumeRatio() const
 		{
@@ -10330,7 +10329,7 @@ namespace Tomahawk
 			float RootArea = Nodes[Root].Bounds.Volume;
 			float TotalArea = 0.0;
 
-			for (uint64_t i = 0; i < NodeCapacity; i++)
+			for (size_t i = 0; i < NodeCapacity; i++)
 			{
 				auto& Next = Nodes[i];
 				if (Next.Height >= 0)
@@ -10339,7 +10338,7 @@ namespace Tomahawk
 
 			return TotalArea / RootArea;
 		}
-		bool Cosmos::IsNull(uint64_t Id) const
+		bool Cosmos::IsNull(size_t Id) const
 		{
 			return Id == NULL_NODE;
 		}
@@ -10795,7 +10794,7 @@ namespace Tomahawk
 			SetActivity(true);
 #endif
 		}
-		void RigidBody::SetCollisionFlags(uint64_t Flags)
+		void RigidBody::SetCollisionFlags(size_t Flags)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Instance != nullptr, "rigidbody should be initialized");
@@ -11118,7 +11117,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint64_t RigidBody::GetCollisionFlags() const
+		size_t RigidBody::GetCollisionFlags() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "rigidbody should be initialized");
@@ -12057,7 +12056,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint64_t SoftBody::GetCollisionFlags() const
+		size_t SoftBody::GetCollisionFlags() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -12066,7 +12065,7 @@ namespace Tomahawk
 			return 0;
 #endif
 		}
-		uint64_t SoftBody::GetVerticesCount() const
+		size_t SoftBody::GetVerticesCount() const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Instance != nullptr, 0, "softbody should be initialized");
@@ -14336,7 +14335,7 @@ namespace Tomahawk
 			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;
 
-			for (size_t i = 0; i < Base->getNumPoints(); i++)
+			for (size_t i = 0; i < (size_t)Base->getNumPoints(); i++)
 				Hull->addPoint(*(Base->getUnscaledPoints() + i), false);
 
 			Hull->recalcLocalAabb();
@@ -14479,7 +14478,7 @@ namespace Tomahawk
 			return std::vector<Vector3>();
 #endif
 		}
-		uint64_t Simulator::GetShapeVerticesCount(btCollisionShape* Value) const
+		size_t Simulator::GetShapeVerticesCount(btCollisionShape* Value) const
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT(Value != nullptr, 0, "shape should be set");
@@ -14686,7 +14685,7 @@ namespace Tomahawk
 			btConvexHullShape* Hull = TH_NEW(btConvexHullShape);
 			btConvexHullShape* Base = (btConvexHullShape*)From;
 
-			for (size_t i = 0; i < Base->getNumPoints(); i++)
+			for (size_t i = 0; i < (size_t)Base->getNumPoints(); i++)
 				Hull->addPoint(*(Base->getUnscaledPoints() + i), false);
 
 			Hull->recalcLocalAabb();

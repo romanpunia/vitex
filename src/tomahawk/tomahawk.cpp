@@ -270,7 +270,7 @@ namespace Tomahawk
 		return "OS with C/C++ support";
 	}
 
-	bool Initialize(uint64_t Modules)
+	bool Initialize(size_t Modules)
 	{
 		State++;
 		if (State > 1)

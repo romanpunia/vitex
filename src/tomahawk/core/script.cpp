@@ -508,12 +508,12 @@ namespace Tomahawk
 			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetFuncdefSignature();
 		}
-		void* VMTypeInfo::SetUserData(void* Data, uint64_t Type)
+		void* VMTypeInfo::SetUserData(void* Data, size_t Type)
 		{
 			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->SetUserData(Data, Type);
 		}
-		void* VMTypeInfo::GetUserData(uint64_t Type) const
+		void* VMTypeInfo::GetUserData(size_t Type) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetUserData(Type);
@@ -739,12 +739,12 @@ namespace Tomahawk
 			TH_ASSERT(IsValid(), -1, "function should be valid");
 			return Function->FindNextLineWithCode(Line);
 		}
-		void* VMFunction::SetUserData(void* UserData, uint64_t Type)
+		void* VMFunction::SetUserData(void* UserData, size_t Type)
 		{
 			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->SetUserData(UserData, Type);
 		}
-		void* VMFunction::GetUserData(uint64_t Type) const
+		void* VMFunction::GetUserData(size_t Type) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "function should be valid");
 			return Function->GetUserData(Type);
@@ -820,12 +820,12 @@ namespace Tomahawk
 			TH_ASSERT(IsValid(), -1, "object should be valid");
 			return Object->CopyFrom(Other.GetObject());
 		}
-		void* VMObject::SetUserData(void* Data, uint64_t Type)
+		void* VMObject::SetUserData(void* Data, size_t Type)
 		{
 			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->SetUserData(Data, (asPWORD)Type);
 		}
-		void* VMObject::GetUserData(uint64_t Type) const
+		void* VMObject::GetUserData(size_t Type) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetUserData((asPWORD)Type);
@@ -938,7 +938,7 @@ namespace Tomahawk
 		int VMGeneric::SetReturnDWord(size_t Value)
 		{
 			TH_ASSERT(IsValid(), -1, "generic should be valid");
-			return Generic->SetReturnDWord(Value);
+			return Generic->SetReturnDWord((asDWORD)Value);
 		}
 		int VMGeneric::SetReturnQWord(uint64_t Value)
 		{
@@ -1467,12 +1467,12 @@ namespace Tomahawk
 		void* VMModule::GetAddressOfProperty(size_t Index)
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetAddressOfGlobalVar(Index);
+			return Mod->GetAddressOfGlobalVar((asUINT)Index);
 		}
 		int VMModule::RemoveProperty(size_t Index)
 		{
 			TH_ASSERT(IsValid(), -1, "module should be valid");
-			return Mod->RemoveGlobalVar(Index);
+			return Mod->RemoveGlobalVar((asUINT)Index);
 		}
 		size_t VMModule::SetAccessMask(size_t AccessMask)
 		{
@@ -1547,7 +1547,7 @@ namespace Tomahawk
 			const char* NameSpace = nullptr;
 			bool IsConst = false;
 			int TypeId = 0;
-			int Result = Mod->GetGlobalVar(Index, &Name, &NameSpace, &TypeId, &IsConst);
+			int Result = Mod->GetGlobalVar((asUINT)Index, &Name, &NameSpace, &TypeId, &IsConst);
 
 			if (Info != nullptr)
 			{
@@ -1556,7 +1556,7 @@ namespace Tomahawk
 				Info->TypeId = TypeId;
 				Info->IsConst = IsConst;
 				Info->ConfigGroup = nullptr;
-				Info->Pointer = Mod->GetAddressOfGlobalVar(Index);
+				Info->Pointer = Mod->GetAddressOfGlobalVar((asUINT)Index);
 				Info->AccessMask = GetAccessMask();
 			}
 
@@ -1592,7 +1592,7 @@ namespace Tomahawk
 		VMTypeInfo VMModule::GetObjectByIndex(size_t Index) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetObjectTypeByIndex(Index);
+			return Mod->GetObjectTypeByIndex((asUINT)Index);
 		}
 		VMTypeInfo VMModule::GetTypeInfoByName(const char* Name) const
 		{
@@ -1618,12 +1618,12 @@ namespace Tomahawk
 		VMTypeInfo VMModule::GetEnumByIndex(size_t Index) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetEnumByIndex(Index);
+			return Mod->GetEnumByIndex((asUINT)Index);
 		}
 		const char* VMModule::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetGlobalVarDeclaration(Index, IncludeNamespace);
+			return Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace);
 		}
 		const char* VMModule::GetDefaultNamespace() const
 		{
@@ -1633,12 +1633,12 @@ namespace Tomahawk
 		const char* VMModule::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetImportedFunctionDeclaration(ImportIndex);
+			return Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex);
 		}
 		const char* VMModule::GetImportedFunctionModule(size_t ImportIndex) const
 		{
 			TH_ASSERT(IsValid(), nullptr, "module should be valid");
-			return Mod->GetImportedFunctionSourceModule(ImportIndex);
+			return Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex);
 		}
 		const char* VMModule::GetName() const
 		{
@@ -1711,7 +1711,7 @@ namespace Tomahawk
 			VMCManager* Engine = Manager->GetEngine();
 			TH_ASSERT(Engine != nullptr, VMTypeClass(nullptr, "", -1), "engine should be set");
 
-			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, Size, (asDWORD)Flags));
+			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags));
 		}
 		VMTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
 		{
@@ -1810,7 +1810,7 @@ namespace Tomahawk
 		VMTypeInfo VMGlobal::GetObjectByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetObjectTypeByIndex(Index);
+			return Manager->GetEngine()->GetObjectTypeByIndex((asUINT)Index);
 		}
 		size_t VMGlobal::GetEnumCount() const
 		{
@@ -1820,7 +1820,7 @@ namespace Tomahawk
 		VMTypeInfo VMGlobal::GetEnumByIndex(size_t Index) const
 		{
 			TH_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetEnumByIndex(Index);
+			return Manager->GetEngine()->GetEnumByIndex((asUINT)Index);
 		}
 		size_t VMGlobal::GetFunctionDefsCount() const
 		{
@@ -1963,7 +1963,7 @@ namespace Tomahawk
 				const std::string& Key = Args[0];
 				Core::Parser Value(&Args[1]);
 
-				size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
+				size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 				if (Key == "ALLOW_UNSAFE_REFERENCES")
 					Manager->SetProperty(VMProp::ALLOW_UNSAFE_REFERENCES, Result);
 				else if (Key == "OPTIMIZE_BYTECODE")
@@ -2044,13 +2044,13 @@ namespace Tomahawk
 				const std::string& Key = Args[0];
 				Core::Parser Value(&Args[1]);
 
-				size_t Result = Value.HasInteger() ? Value.ToUInt64() : 0;
+				size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 				if (Key == "NAME")
 					Module->SetName(Value.Get());
 				else if (Key == "NAMESPACE")
 					Module->SetDefaultNamespace(Value.Get());
 				else if (Key == "ACCESS_MASK")
-					Module->SetAccessMask(Result);
+					Module->SetAccessMask((asDWORD)Result);
 			}
 			else if (Name == "cimport" && Args.size() >= 2)
 			{
@@ -2330,7 +2330,7 @@ namespace Tomahawk
 
 			return R;
 		}
-		int VMCompiler::LoadCode(const std::string& Name, const char* Data, uint64_t Size)
+		int VMCompiler::LoadCode(const std::string& Name, const char* Data, size_t Size)
 		{
 			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
 			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
@@ -2409,9 +2409,9 @@ namespace Tomahawk
 		}
 		Core::Promise<int> VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
 		{
-			return ExecuteScoped(Code.c_str(), (uint64_t)Code.size(), Args, std::move(OnArgs));
+			return ExecuteScoped(Code.c_str(), Code.size(), Args, std::move(OnArgs));
 		}
-		Core::Promise<int> VMCompiler::ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMCompiler::ExecuteScoped(const char* Buffer, size_t Length, const char* Args, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
 			TH_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
@@ -2956,12 +2956,12 @@ namespace Tomahawk
 			TH_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->GetState() == asEXECUTION_SUSPENDED;
 		}
-		void* VMContext::SetUserData(void* Data, uint64_t Type)
+		void* VMContext::SetUserData(void* Data, size_t Type)
 		{
 			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->SetUserData(Data, Type);
 		}
-		void* VMContext::GetUserData(uint64_t Type) const
+		void* VMContext::GetUserData(size_t Type) const
 		{
 			TH_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetUserData(Type);
@@ -3239,7 +3239,7 @@ namespace Tomahawk
 		int VMManager::Collect(size_t NumIterations)
 		{
 			Sync.General.lock();
-			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, NumIterations);
+			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, (asUINT)NumIterations);
 			Sync.General.unlock();
 
 			return R;
@@ -3272,7 +3272,7 @@ namespace Tomahawk
 		{
 			asUINT asSequenceNumber;
 			VMCTypeInfo* OutType = nullptr;
-			int Result = Engine->GetObjectInGC(Index, &asSequenceNumber, Object, &OutType);
+			int Result = Engine->GetObjectInGC((asUINT)Index, &asSequenceNumber, Object, &OutType);
 
 			if (SequenceNumber != nullptr)
 				*SequenceNumber = (size_t)asSequenceNumber;
@@ -3461,7 +3461,7 @@ namespace Tomahawk
 					return false;
 
 				std::string Offset;
-				std::sort(Group.second.second.begin(), Group.second.second.end(), [](const GroupKey& A, const GroupKey& B)
+				TH_SORT(Group.second.second.begin(), Group.second.second.end(), [](const GroupKey& A, const GroupKey& B)
 				{
 					return A.first.size() < B.first.size();
 				});
@@ -3598,11 +3598,11 @@ namespace Tomahawk
 		}
 		size_t VMManager::BeginAccessMask(size_t DefaultMask)
 		{
-			return Engine->SetDefaultAccessMask(DefaultMask);
+			return Engine->SetDefaultAccessMask((asDWORD)DefaultMask);
 		}
 		size_t VMManager::EndAccessMask()
 		{
-			return Engine->SetDefaultAccessMask(VMManager::GetDefaultAccessMask());
+			return Engine->SetDefaultAccessMask((asDWORD)VMManager::GetDefaultAccessMask());
 		}
 		const char* VMManager::GetNamespace() const
 		{
@@ -4120,16 +4120,8 @@ namespace Tomahawk
 			Engine->AddSubmodule("ce/format", { "std/string" }, CERegisterFormat);
 			Engine->AddSubmodule("ce/decimal", { "std/string" }, CERegisterDecimal);
 			Engine->AddSubmodule("ce/variant", { "std/string", "ce/decimal" }, CERegisterVariant);
-			Engine->AddSubmodule("ce/filestate", { }, CERegisterFileState);
-			Engine->AddSubmodule("ce/resource", { }, CERegisterResource);
 			Engine->AddSubmodule("ce/datetime", { "std/string" }, CERegisterDateTime);
-			Engine->AddSubmodule("ce/os", { "std/string", "ce/filestate", "ce/resource" }, CERegisterOS);
 			Engine->AddSubmodule("ce/console", { "ce/format" }, CERegisterConsole);
-			Engine->AddSubmodule("ce/timer", { }, CERegisterTimer);
-			Engine->AddSubmodule("ce/filestream", { "std/string" }, CERegisterFileStream);
-			Engine->AddSubmodule("ce/gzstream", { "std/string", "ce/filestream" }, CERegisterGzStream);
-			Engine->AddSubmodule("ce/webstream", { "std/string", "ce/filestream" }, CERegisterWebStream);
-			Engine->AddSubmodule("ce/schedule", { "std/string" }, CERegisterSchedule);
 			Engine->AddSubmodule("ce/schema", { "std/array", "std/string", "std/map", "ce/variant" }, CERegisterSchema);
 			Engine->AddSubmodule("ce", { }, nullptr);
 

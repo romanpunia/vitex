@@ -729,23 +729,23 @@ namespace Tomahawk
 
 		inline ColorWriteEnable operator |(ColorWriteEnable A, ColorWriteEnable B)
 		{
-			return static_cast<ColorWriteEnable>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ColorWriteEnable>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline ResourceMap operator |(ResourceMap A, ResourceMap B)
 		{
-			return static_cast<ResourceMap>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ResourceMap>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline ShaderCompile operator |(ShaderCompile A, ShaderCompile B)
 		{
-			return static_cast<ShaderCompile>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ShaderCompile>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline ResourceMisc operator |(ResourceMisc A, ResourceMisc B)
 		{
-			return static_cast<ResourceMisc>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ResourceMisc>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline ResourceBind operator |(ResourceBind A, ResourceBind B)
 		{
-			return static_cast<ResourceBind>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ResourceBind>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 
 		typedef std::function<void(AppState)> AppStateChangeCallback;
@@ -1112,8 +1112,8 @@ namespace Tomahawk
 			};
 
 		protected:
-			uint64_t Elements;
-			uint64_t Stride;
+			size_t Elements;
+			size_t Stride;
 
 		protected:
 			ElementBuffer(const Desc& I);
@@ -1121,8 +1121,8 @@ namespace Tomahawk
 		public:
 			virtual ~ElementBuffer() = default;
 			virtual void* GetResource() const = 0;
-			uint64_t GetElements() const;
-			uint64_t GetStride() const;
+			size_t GetElements() const;
+			size_t GetStride() const;
 		};
 
 		class TH_OUT MeshBuffer : public Core::Object
@@ -1197,8 +1197,8 @@ namespace Tomahawk
 			std::vector<Compute::ElementVertex> Array;
 			ElementBuffer* Elements;
 			GraphicsDevice* Device;
-			uint64_t ElementLimit;
-			uint64_t ElementWidth;
+			size_t ElementLimit;
+			size_t ElementWidth;
 			bool Sync;
 
 		protected:
@@ -1209,7 +1209,7 @@ namespace Tomahawk
 			std::vector<Compute::ElementVertex>& GetArray();
 			ElementBuffer* GetElements() const;
 			GraphicsDevice* GetDevice() const;
-			uint64_t GetElementLimit() const;
+			size_t GetElementLimit() const;
 		};
 
 		class TH_OUT Texture2D : public Core::Object
@@ -1646,7 +1646,7 @@ namespace Tomahawk
 			std::vector<Vertex> Elements;
 			std::string Caches;
 			const void* Constants[4];
-			uint64_t MaxElements;
+			size_t MaxElements;
 			RenderBackend Backend;
 			DirectBuffer Direct;
 			std::mutex Mutex;
@@ -1700,14 +1700,14 @@ namespace Tomahawk
 			virtual void FlushState() = 0;
 			virtual bool Map(ElementBuffer* Resource, ResourceMap Mode, MappedSubresource* Map) = 0;
 			virtual bool Unmap(ElementBuffer* Resource, MappedSubresource* Map) = 0;
-			virtual bool UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size) = 0;
+			virtual bool UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size) = 0;
 			virtual bool UpdateBuffer(Shader* Resource, const void* Data) = 0;
 			virtual bool UpdateBuffer(MeshBuffer* Resource, Compute::Vertex* Data) = 0;
 			virtual bool UpdateBuffer(SkinMeshBuffer* Resource, Compute::SkinVertex* Data) = 0;
 			virtual bool UpdateBuffer(InstanceBuffer* Resource) = 0;
 			virtual bool UpdateBuffer(RenderBufferType Buffer) = 0;
 			virtual bool UpdateBufferSize(Shader* Resource, size_t Size) = 0;
-			virtual bool UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size) = 0;
+			virtual bool UpdateBufferSize(InstanceBuffer* Resource, size_t Size) = 0;
 			virtual void ClearBuffer(InstanceBuffer* Resource) = 0;
 			virtual void ClearWritable(Texture2D* Resource) = 0;
 			virtual void ClearWritable(Texture2D* Resource, float R, float G, float B) = 0;
@@ -1749,7 +1749,7 @@ namespace Tomahawk
 			virtual bool GenerateTexture(Texture2D* Resource) = 0;
 			virtual bool GenerateTexture(Texture3D* Resource) = 0;
 			virtual bool GenerateTexture(TextureCube* Resource) = 0;
-			virtual bool GetQueryData(Query* Resource, uint64_t* Result, bool Flush = true) = 0;
+			virtual bool GetQueryData(Query* Resource, size_t* Result, bool Flush = true) = 0;
 			virtual bool GetQueryData(Query* Resource, bool* Result, bool Flush = true) = 0;
 			virtual void QueryBegin(Query* Resource) = 0;
 			virtual void QueryEnd(Query* Resource) = 0;

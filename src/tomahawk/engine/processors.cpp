@@ -43,7 +43,7 @@ namespace Tomahawk
 			Asset::Asset(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Asset::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Asset::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
@@ -75,7 +75,7 @@ namespace Tomahawk
 				((Engine::Material*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Material::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Material::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
@@ -230,7 +230,7 @@ namespace Tomahawk
 			SceneGraph::SceneGraph(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SceneGraph::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* SceneGraph::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
@@ -316,12 +316,12 @@ namespace Tomahawk
 
 						if (Series::Unpack(It->Find("refer"), &Refer) && Refer >= 0)
 						{
-							Snapshot.To[Entity] = (uint64_t)Refer;
-							Snapshot.From[(uint64_t)Refer] = Entity;
+							Snapshot.To[Entity] = (size_t)Refer;
+							Snapshot.From[(size_t)Refer] = Entity;
 						}
 					}
 
-					uint64_t Next = 0;
+					size_t Next = 0;
 					for (auto& It : Collection)
 					{
 						Entity* Entity = Object->GetEntity(Next++);
@@ -355,8 +355,8 @@ namespace Tomahawk
 							Series::Unpack(Parent->Find("scale"), &Space->Scale);
 							Series::Unpack(Parent->Find("world"), &Space->Offset);
 
-							int64_t Where = -1;
-							if (Series::Unpack(Parent->Find("where"), &Where) && Where >= 0)
+							size_t Where = 0;
+							if (Series::Unpack(Parent->Find("where"), &Where))
 							{
 								auto It = Snapshot.From.find(Where);
 								if (It != Snapshot.From.end() && It->second != Entity)
@@ -463,7 +463,7 @@ namespace Tomahawk
 				Series::Pack(Simulator->Set("gravity"), fSimulator->GetGravity());
 
 				Core::Schema* Materials = Schema->Set("materials", Core::Var::Array());
-				for (uint64_t i = 0; i < Object->GetMaterialsCount(); i++)
+				for (size_t i = 0; i < Object->GetMaterialsCount(); i++)
 				{
 					Engine::Material* Material = Object->GetMaterial(i);
 					if (!Material)
@@ -488,7 +488,7 @@ namespace Tomahawk
 				}
 
 				Core::Schema* Entities = Schema->Set("entities", Core::Var::Array());
-				for (uint64_t i = 0; i < Object->GetEntitiesCount(); i++)
+				for (size_t i = 0; i < Object->GetEntitiesCount(); i++)
 				{
 					Entity* Ref = Object->GetEntity(i);
 					auto* Offset = Ref->GetTransform();
@@ -560,7 +560,7 @@ namespace Tomahawk
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* AudioClip::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* AudioClip::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				if (Core::Parser(&Stream->GetSource()).EndsWith(".wav"))
 					return DeserializeWAVE(Stream, Length, Offset, Args);
@@ -569,7 +569,7 @@ namespace Tomahawk
 
 				return nullptr;
 			}
-			void* AudioClip::DeserializeWAVE(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* AudioClip::DeserializeWAVE(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 #ifdef TH_HAS_SDL2
@@ -623,7 +623,7 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void* AudioClip::DeserializeOGG(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* AudioClip::DeserializeOGG(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				void* Binary = TH_MALLOC(void, sizeof(char) * Length);
@@ -682,7 +682,7 @@ namespace Tomahawk
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Texture2D::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Texture2D::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				unsigned char* Binary = TH_MALLOC(unsigned char, sizeof(unsigned char) * Length);
@@ -751,7 +751,7 @@ namespace Tomahawk
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Shader::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Shader::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				char* Code = TH_MALLOC(char, sizeof(char) * (unsigned int)Length);
@@ -796,7 +796,7 @@ namespace Tomahawk
 				((Graphics::Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Model::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Model::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
@@ -845,12 +845,12 @@ namespace Tomahawk
 
 				return (void*)Object;
 			}
-			Core::Schema* Model::Import(const std::string& Path, unsigned int Opts)
+			Core::Schema* Model::Import(const std::string& Path, uint64_t Opts)
 			{
 #ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
 
-				auto* Scene = Importer.ReadFile(Path, Opts);
+				auto* Scene = Importer.ReadFile(Path, (unsigned int)Opts);
 				if (!Scene)
 				{
 					TH_ERR("[engine] cannot import mesh\n\t%s", Importer.GetErrorString());
@@ -1108,7 +1108,7 @@ namespace Tomahawk
 				((Graphics::SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinModel::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* SkinModel::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
@@ -1158,12 +1158,12 @@ namespace Tomahawk
 				TH_RELEASE(Schema);
 				return (void*)Object;
 			}
-			Core::Schema* SkinModel::ImportAnimation(const std::string& Path, unsigned int Opts)
+			Core::Schema* SkinModel::ImportAnimation(const std::string& Path, uint64_t Opts)
 			{
 #ifdef TH_HAS_ASSIMP
 				Assimp::Importer Importer;
 
-				auto* Scene = Importer.ReadFile(Path, Opts);
+				auto* Scene = Importer.ReadFile(Path, (unsigned int)Opts);
 				if (!Scene)
 				{
 					TH_ERR("[engine] cannot import mesh animation because %s", Importer.GetErrorString());
@@ -1178,15 +1178,15 @@ namespace Tomahawk
 				std::vector<Compute::SkinAnimatorClip> Clips;
 				Clips.resize((size_t)Scene->mNumAnimations);
 
-				for (int64_t i = 0; i < Scene->mNumAnimations; i++)
+				for (size_t i = 0; i < (size_t)Scene->mNumAnimations; i++)
 				{
 					aiAnimation* Animation = Scene->mAnimations[i];
 					Compute::SkinAnimatorClip* Clip = &Clips[i];
 					Clip->Name = Animation->mName.C_Str();
-					Clip->Duration = Animation->mDuration;
+					Clip->Duration = (float)Animation->mDuration;
 
 					if (Animation->mTicksPerSecond > 0.0f)
-						Clip->Rate = Animation->mTicksPerSecond;
+						Clip->Rate = (float)Animation->mTicksPerSecond;
 
 					for (int64_t j = 0; j < Animation->mNumChannels; j++)
 					{
@@ -1204,18 +1204,18 @@ namespace Tomahawk
 						if (Clip->Keys.size() < Channel->mNumScalingKeys)
 							Clip->Keys.resize(Channel->mNumScalingKeys);
 
-						for (int64_t k = 0; k < Channel->mNumPositionKeys; k++)
+						for (size_t k = 0; k < (size_t)Channel->mNumPositionKeys; k++)
 						{
 							auto& Keys = Clip->Keys[k].Pose;
 							ProcessKeys(&Keys, &Joints);
 
 							aiVector3D& V = Channel->mPositionKeys[k].mValue;
-							Keys[It->second.Index].Position.X = V.x;
-							Keys[It->second.Index].Position.Y = V.y;
-							Keys[It->second.Index].Position.Z = V.z;
+							Keys[(size_t)It->second.Index].Position.X = V.x;
+							Keys[(size_t)It->second.Index].Position.Y = V.y;
+							Keys[(size_t)It->second.Index].Position.Z = V.z;
 						}
 
-						for (int64_t k = 0; k < Channel->mNumRotationKeys; k++)
+						for (size_t k = 0; k < (size_t)Channel->mNumRotationKeys; k++)
 						{
 							auto& Keys = Clip->Keys[k].Pose;
 							ProcessKeys(&Keys, &Joints);
@@ -1223,18 +1223,18 @@ namespace Tomahawk
 							aiQuaternion Q1 = Channel->mRotationKeys[k].mValue;
 							Compute::Quaternion Q2(Q1.x, Q1.y, Q1.z, Q1.w);
 
-							Keys[It->second.Index].Rotation = Q2.GetEuler().rLerp();
+							Keys[(size_t)It->second.Index].Rotation = Q2.GetEuler().rLerp();
 						}
 
-						for (int64_t k = 0; k < Channel->mNumScalingKeys; k++)
+						for (size_t k = 0; k < (size_t)Channel->mNumScalingKeys; k++)
 						{
 							auto& Keys = Clip->Keys[k].Pose;
 							ProcessKeys(&Keys, &Joints);
 
 							aiVector3D& V = Channel->mScalingKeys[k].mValue;
-							Keys[It->second.Index].Scale.X = V.x;
-							Keys[It->second.Index].Scale.Y = V.y;
-							Keys[It->second.Index].Scale.Z = V.z;
+							Keys[(size_t)It->second.Index].Scale.X = V.x;
+							Keys[(size_t)It->second.Index].Scale.Y = V.y;
+							Keys[(size_t)It->second.Index].Scale.Z = V.z;
 						}
 					}
 				}
@@ -1301,7 +1301,7 @@ namespace Tomahawk
 					Keys->resize(Joints->size());
 					for (auto It = Joints->begin(); It != Joints->end(); ++It)
 					{
-						auto* Key = &Keys->at(It->second.Index);
+						auto* Key = &Keys->at((size_t)It->second.Index);
 						Key->Position = It->second.Transform.Position();
 						Key->Rotation = It->second.Transform.Rotation();
 						Key->Scale = It->second.Transform.Scale();
@@ -1312,13 +1312,13 @@ namespace Tomahawk
 			Schema::Schema(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Schema::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Schema::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				if (!Length)
 					return nullptr;
 
-				auto* Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, int64_t Size)
+				auto* Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
 				{
 					return Size > 0 ? Stream->Read(Buffer, Size) == Size : true;
 				}, false);
@@ -1350,7 +1350,7 @@ namespace Tomahawk
 
 				if (Type->second == Core::Var::String("XML"))
 				{
-					Core::Schema::ConvertToXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
+					Core::Schema::ConvertToXML(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1379,7 +1379,7 @@ namespace Tomahawk
 				}
 				else if (Type->second == Core::Var::String("JSON"))
 				{
-					Core::Schema::ConvertToJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, int64_t Length)
+					Core::Schema::ConvertToJSON(Schema, [Stream, &Offset](Core::VarForm Pretty, const char* Buffer, size_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1408,7 +1408,7 @@ namespace Tomahawk
 				}
 				else if (Type->second == Core::Var::String("JSONB"))
 				{
-					Core::Schema::ConvertToJSONB(Schema, [Stream](Core::VarForm, const char* Buffer, int64_t Length)
+					Core::Schema::ConvertToJSONB(Schema, [Stream](Core::VarForm, const char* Buffer, size_t Length)
 					{
 						if (Buffer != nullptr && Length > 0)
 							Stream->Write(Buffer, Length);
@@ -1421,7 +1421,7 @@ namespace Tomahawk
 			Server::Server(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Server::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* Server::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::string N = Network::Socket::GetLocalAddress();
@@ -1624,7 +1624,7 @@ namespace Tomahawk
 
 							Core::Schema* Level = Base->GetAttribute("level");
 							if (Level != nullptr)
-								Route->Level = (uint64_t)Level->Value.GetInteger();
+								Route->Level = (size_t)Level->Value.GetInteger();
 
 							std::vector<Core::Schema*> GatewayFiles = Base->FetchCollection("gateway.files.file");
 							if (Base->Fetch("gateway.files.[clear]") != nullptr)
@@ -1839,7 +1839,7 @@ namespace Tomahawk
 				((Compute::HullShape*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* HullShape::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+			void* HullShape::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());

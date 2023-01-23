@@ -43,7 +43,7 @@ namespace Tomahawk
 	{
 		namespace SMTP
 		{
-			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), Hoster(Domain), AttachmentFile(nullptr), Pending(false), Staging(false), Authorized(false)
+			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), Hoster(Domain), AttachmentFile(nullptr), Pending(0), Staging(false), Authorized(false)
 			{
 				AutoEncrypt = false;
 			}
@@ -182,7 +182,7 @@ namespace Tomahawk
 							SendRequest(354, "DATA\r\n", [this]()
 							{
 								Core::Parser Content;
-								Content.fAppend("Date: %s\r\nFrom: ", Core::DateTime::GetGMTBasedString(time(nullptr)).c_str());
+								Content.fAppend("Date: %s\r\nFrom: ", Core::DateTime::FetchWebDateGMT(time(nullptr)).c_str());
 
 								if (!Request.SenderName.empty())
 									Content.Append(Request.SenderName.c_str());
@@ -216,7 +216,7 @@ namespace Tomahawk
 								}
 
 								std::string Recipients;
-								for (uint64_t i = 0; i < Request.Recipients.size(); i++)
+								for (size_t i = 0; i < Request.Recipients.size(); i++)
 								{
 									if (i > 0)
 										Recipients += ',';
@@ -236,7 +236,7 @@ namespace Tomahawk
 								if (!Request.CCRecipients.empty())
 								{
 									Recipients.clear();
-									for (uint64_t i = 0; i < Request.CCRecipients.size(); i++)
+									for (size_t i = 0; i < Request.CCRecipients.size(); i++)
 									{
 										if (i > 0)
 											Recipients += ',';
@@ -257,7 +257,7 @@ namespace Tomahawk
 								if (!Request.BCCRecipients.empty())
 								{
 									Recipients.clear();
-									for (uint64_t i = 0; i < Request.BCCRecipients.size(); i++)
+									for (size_t i = 0; i < Request.BCCRecipients.size(); i++)
 									{
 										if (i > 0)
 											Recipients += ',';
@@ -383,17 +383,17 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Keyword != nullptr, false, "keyword should be set");
 
-				uint64_t L1 = Buffer.size(), L2 = strlen(Keyword);
+				size_t L1 = Buffer.size(), L2 = strlen(Keyword);
 				if (L1 < L2)
 					return false;
 
-				for (uint64_t i = 0; i < L1 - L2 + 1; i++)
+				for (size_t i = 0; i < L1 - L2 + 1; i++)
 				{
 #ifdef TH_MICROSOFT
-					if (_strnicmp(Keyword, Buffer.c_str() + i, (size_t)L2) != 0 || !i)
+					if (_strnicmp(Keyword, Buffer.c_str() + i, L2) != 0 || !i)
 						continue;
 #else
-					if (strncmp(Keyword, Buffer.c_str() + i, (size_t)L2) != 0 || !i)
+					if (strncmp(Keyword, Buffer.c_str() + i, L2) != 0 || !i)
 						continue;
 #endif
 					if (Buffer[i - 1] != '-' && Buffer[i - 1] != ' ' && Buffer[i - 1] != '=')
@@ -450,7 +450,7 @@ namespace Tomahawk
 					std::string Hash = Core::Form("%s^%s^%s", Request.Login.c_str(), Request.Login.c_str(), Request.Password.c_str()).R();
 					char* Escape = (char*)Hash.c_str();
 
-					for (uint64_t i = 0; i < Hash.size(); i++)
+					for (size_t i = 0; i < Hash.size(); i++)
 					{
 						if (Escape[i] == 94)
 							Escape[i] = 0;
@@ -478,7 +478,7 @@ namespace Tomahawk
 							return (void)Error("smtp password cannot be used");
 						}
 
-						uint64_t PasswordLength = Request.Password.size();
+						size_t PasswordLength = Request.Password.size();
 						if (PasswordLength > 64)
 						{
 							Compute::MD5Hasher PasswordMD5;
@@ -495,7 +495,7 @@ namespace Tomahawk
 						memcpy(IPad, UserPassword, (size_t)PasswordLength);
 						memcpy(OPad, UserPassword, (size_t)PasswordLength);
 
-						for (uint64_t i = 0; i < 64; i++)
+						for (size_t i = 0; i < 64; i++)
 						{
 							IPad[i] ^= 0x36;
 							OPad[i] ^= 0x5c;
@@ -700,7 +700,7 @@ namespace Tomahawk
 
 				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
 				const char* Name = It.Path.c_str();
-				uint64_t Id = strlen(Name) - 1;
+				size_t Id = strlen(Name) - 1;
 
 				if (Id > 0 && (Name[Id] == '\\' || Name[Id] == '/'))
 					Name = Name - 1;
@@ -731,7 +731,7 @@ namespace Tomahawk
 				char Data[8192];
 				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
 				size_t Count = It.Length > 8192 ? 8192 : It.Length;
-				int64_t Size = fread(Data, sizeof(char), Count, AttachmentFile);
+				size_t Size = (size_t)fread(Data, sizeof(char), Count, AttachmentFile);
 				if (Size != Count)
 					return Error("cannot read attachment block from %s", It.Path.c_str());
 
@@ -758,10 +758,10 @@ namespace Tomahawk
 			}
 			unsigned char* Client::Unicode(const char* String)
 			{
-				uint64_t Length = strlen(String);
-				auto Output = TH_MALLOC(unsigned char, sizeof(unsigned char) * (size_t)(Length + 1));
+				size_t Length = strlen(String);
+				auto* Output = TH_MALLOC(unsigned char, sizeof(unsigned char) * (Length + 1));
 
-				for (uint64_t i = 0; i < Length; i++)
+				for (size_t i = 0; i < Length; i++)
 					Output[i] = (unsigned char)String[i];
 
 				Output[Length] = '\0';

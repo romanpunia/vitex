@@ -204,9 +204,9 @@ namespace Tomahawk
 				Busy
 			};
 
-			inline uint64_t operator |(QueryOp A, QueryOp B)
+			inline size_t operator |(QueryOp A, QueryOp B)
 			{
-				return static_cast<uint64_t>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+				return static_cast<size_t>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
 
 			class TH_OUT_TS Util
@@ -487,7 +487,7 @@ namespace Tomahawk
 				SessionId Session;
 				OnResult Callback;
 				Cursor Result;
-				uint64_t Options;
+				size_t Options;
 
 			public:
 				Request(const std::string& Commands);
@@ -539,17 +539,17 @@ namespace Tomahawk
 				Core::Promise<bool> Disconnect();
 				Core::Promise<bool> Listen(const std::vector<std::string>& Channels);
 				Core::Promise<bool> Unlisten(const std::vector<std::string>& Channels);
-				Core::Promise<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t QueryOps = 0, SessionId Session = nullptr);
-				Core::Promise<Cursor> Query(const std::string& Command, uint64_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<Cursor> EmplaceQuery(const std::string& Command, Core::SchemaList* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<Cursor> TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, size_t QueryOps = 0, SessionId Session = nullptr);
+				Core::Promise<Cursor> Query(const std::string& Command, size_t QueryOps = 0, SessionId Session = nullptr);
 				Connection* GetConnection(QueryState State);
 				Connection* GetConnection() const;
 				bool IsConnected() const;
 
 			private:
-				std::string GetCacheOid(const std::string& Payload, uint64_t QueryOpts);
+				std::string GetCacheOid(const std::string& Payload, size_t QueryOpts);
 				bool GetCache(const std::string& CacheOid, Cursor* Data);
-				void SetCache(const std::string& CacheOid, Cursor* Data, uint64_t QueryOpts);
+				void SetCache(const std::string& CacheOid, Cursor* Data, size_t QueryOpts);
 				void TryUnassign(Connection* Base, Request* Context);
 				bool Reestablish(Connection* Base);
 				bool Consume(Connection* Base);

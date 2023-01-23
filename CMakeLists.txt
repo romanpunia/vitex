@@ -1,9 +1,4 @@
 cmake_minimum_required(VERSION 3.6)
-if (POLICY CMP0077)
-	cmake_policy(SET CMP0077 NEW)
-else()
-	cmake_policy(SET CMP0054 NEW)
-endif()
 
 #Setup toolchain file if needed
 include(lib/toolchain.cmake)
@@ -18,17 +13,20 @@ if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
 #Project's inputs and source targets
 include(lib/targets.cmake)
-include(lib/coroutines.cmake)
+include(lib/async.cmake)
 include(src/supplies/angelscript/CMakeLists.txt)
 include(src/supplies/bullet3/CMakeLists.txt)
 include(src/supplies/rmlui/CMakeLists.txt)
@@ -53,8 +51,8 @@ endforeach()
 add_library(tomahawk SHARED ${SOURCE})
 set_target_properties(tomahawk PROPERTIES
         OUTPUT_NAME "tomahawk"
-		CXX_STANDARD 14
-		CXX_STANDARD_REQUIRED ON
+		CXX_STANDARD 17
+		CXX_STANDARD_REQUIRED OFF
 		CXX_EXTENSIONS OFF
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION})
@@ -66,19 +64,19 @@ set(TH_MSG_WARN true CACHE BOOL "Enable warning messages")
 set(TH_MSG_ERROR true CACHE BOOL "Enable error messages")
 if (TH_MSG_DEBUG AND TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=4)
-    message(STATUS "Debug feature level: 4")
+    message(STATUS "Logging messages: verbose")
 elseif (TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=3)
-    message(STATUS "Debug feature level: 3")
+    message(STATUS "Logging messages: essentials only")
 elseif (TH_MSG_WARN AND TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=2)
-    message(STATUS "Debug feature level: 2")
+    message(STATUS "Logging messages: violations only")
 elseif (TH_MSG_ERROR)
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=1)
-    message(STATUS "Debug feature level: 1")
+    message(STATUS "Logging messages: errors only")
 else()
     target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=0)
-    message(STATUS "Debug feature level: 0")
+    message(STATUS "Logging messages: none")
 endif()
 
 #Project's compile options and directories
@@ -98,6 +96,3 @@ include(lib/assimp/CMakeLists.txt)
 include(lib/mongoc/CMakeLists.txt)
 include(lib/pq/CMakeLists.txt)
 include(lib/spirv/CMakeLists.txt)
-
-#Vcpkg cleanup
-unset(pugixml_DIR CACHE)

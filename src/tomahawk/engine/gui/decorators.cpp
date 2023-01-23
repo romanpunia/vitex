@@ -178,7 +178,7 @@ namespace Tomahawk
 
 					Graphics::GraphicsDevice* Device = IBoxBlur->Device;
 					IBoxBlur->RenderPass.Color = Color;
-					IBoxBlur->RenderPass.Texel = Compute::Vector2(Screen.x, Screen.y);
+					IBoxBlur->RenderPass.Texel = Compute::Vector2((float)Screen.x, (float)Screen.y);
 					IBoxBlur->RenderPass.Position = Compute::Vector2(Position.x, Position.y);
 					IBoxBlur->RenderPass.Size = Compute::Vector2(Size.x, Size.y);
 					IBoxBlur->RenderPass.Softness = Softness;

@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cstdarg>
 #include <future>
+#include <execution>
 #define TH_EXIT_JUMP 9600
 #define TH_EXIT_RESTART TH_EXIT_JUMP * 2
 
@@ -162,15 +163,15 @@ namespace Tomahawk
 
 		inline ActorSet operator |(ActorSet A, ActorSet B)
 		{
-			return static_cast<ActorSet>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ActorSet>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline ApplicationSet operator |(ApplicationSet A, ApplicationSet B)
 		{
-			return static_cast<ApplicationSet>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<ApplicationSet>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline RenderOpt operator |(RenderOpt A, RenderOpt B)
 		{
-			return static_cast<RenderOpt>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<RenderOpt>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 
 		struct TH_OUT Ticker
@@ -219,8 +220,8 @@ namespace Tomahawk
 		{
 			Core::Stream* Stream = nullptr;
 			std::string Path;
-			uint64_t Length = 0;
-			uint64_t Offset = 0;
+			size_t Length = 0;
+			size_t Offset = 0;
 		};
 
 		struct TH_OUT AssetFile : public Core::Object
@@ -238,8 +239,8 @@ namespace Tomahawk
 
 		struct TH_OUT IdxSnapshot
 		{
-			std::unordered_map<Entity*, uint64_t> To;
-			std::unordered_map<uint64_t, Entity*> From;
+			std::unordered_map<Entity*, size_t> To;
+			std::unordered_map<size_t, Entity*> From;
 		};
 
 		struct TH_OUT VisibilityQuery
@@ -526,7 +527,7 @@ namespace Tomahawk
 
 		public:
 			Subsurface Surface;
-			uint64_t Slot;
+			size_t Slot;
 
 		public:
 			Material(SceneGraph* NewScene = nullptr);
@@ -563,7 +564,7 @@ namespace Tomahawk
 			virtual ~Processor() override;
 			virtual void Free(AssetCache* Asset);
 			virtual Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
-			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Keys);
+			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Keys);
 			virtual bool Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
 			ContentManager* GetContent() const;
 		};
@@ -643,7 +644,7 @@ namespace Tomahawk
 			void RemoveChilds();
 			Component* AddComponent(Core::Unique<Component> In);
 			Component* GetComponent(uint64_t Id);
-			uint64_t GetComponentsCount() const;
+			size_t GetComponentsCount() const;
 			SceneGraph* GetScene() const;
 			Entity* GetParent() const;
 			Entity* GetChild(size_t Index) const;
@@ -821,10 +822,10 @@ namespace Tomahawk
 
 		public:
 			Viewer View;
-			uint64_t MaxQueries;
-			uint64_t OcclusionSkips;
-			uint64_t OccluderSkips;
-			uint64_t OccludeeSkips;
+			size_t MaxQueries;
+			size_t OcclusionSkips;
+			size_t OccluderSkips;
+			size_t OccludeeSkips;
 			float OverflowVisibility;
 			float Threshold;
 			bool OcclusionCulling;
@@ -840,7 +841,7 @@ namespace Tomahawk
 			void Remount();
 			void Mount();
 			void Unmount();
-			void MoveRenderer(uint64_t Id, int64_t Offset);
+			void MoveRenderer(uint64_t Id, size_t Offset);
 			void RemoveRenderer(uint64_t Id);
 			void RestoreOutput();
 			void FreeShader(const std::string& Name, Graphics::Shader* Shader);
@@ -949,7 +950,7 @@ namespace Tomahawk
 			struct SCache
 			{
 				Graphics::Shader* Shader;
-				uint64_t Count;
+				size_t Count;
 			};
 
 		private:
@@ -974,7 +975,7 @@ namespace Tomahawk
 			struct SCache
 			{
 				Graphics::ElementBuffer* Buffers[2];
-				uint64_t Count;
+				size_t Count;
 			};
 
 		private:
@@ -1013,11 +1014,11 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
 			std::unordered_map<std::string, AssetArchive*> Dockers;
 			std::unordered_map<int64_t, Processor*> Processors;
-			std::unordered_map<Core::Stream*, int64_t> Streams;
+			std::unordered_map<Core::Stream*, size_t> Streams;
 			Graphics::GraphicsDevice* Device;
 			std::string Environment, Base;
 			std::mutex Mutex;
-			uint64_t Queue;
+			size_t Queue;
 
 		public:
 			ContentManager(Graphics::GraphicsDevice* NewDevice);
@@ -1175,6 +1176,7 @@ namespace Tomahawk
 				struct
 				{
 					Graphics::GraphicsDevice* Device = nullptr;
+					Graphics::Activity* Activity = nullptr;
 					Script::VMManager* Manager = nullptr;
 					ContentManager* Content = nullptr;
 					PrimitiveCache* Primitives = nullptr;
@@ -1183,20 +1185,20 @@ namespace Tomahawk
 				} Shared;
 
 				Compute::Simulator::Desc Simulator;
-				uint64_t StartMaterials = 1ll << 8;
-				uint64_t StartEntities = 1ll << 12;
-				uint64_t StartComponents = 1ll << 13;
-				uint64_t GrowMargin = 128;
-				uint64_t MaxUpdates = 256;
-				uint64_t PointsSize = 256;
-				uint64_t PointsMax = 4;
-				uint64_t SpotsSize = 512;
-				uint64_t SpotsMax = 8;
-				uint64_t LinesSize = 1024;
-				uint64_t LinesMax = 2;
-				uint64_t VoxelsSize = 128;
-				uint64_t VoxelsMax = 4;
-				uint64_t VoxelsMips = 0;
+				size_t StartMaterials = 1ll << 8;
+				size_t StartEntities = 1ll << 12;
+				size_t StartComponents = 1ll << 13;
+				size_t GrowMargin = 128;
+				size_t MaxUpdates = 256;
+				size_t PointsSize = 256;
+				size_t PointsMax = 4;
+				size_t SpotsSize = 512;
+				size_t SpotsMax = 8;
+				size_t LinesSize = 1024;
+				size_t LinesMax = 2;
+				size_t VoxelsSize = 128;
+				size_t VoxelsMax = 4;
+				size_t VoxelsMips = 0;
 				double GrowRate = 0.25f;
 				float RenderQuality = 1.0f;
 				bool EnableHDR = false;
@@ -1228,7 +1230,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::unordered_set<MessageCallback*>> Listeners;
 			std::unordered_map<uint64_t, std::unordered_set<Component*>> Changes;
 			std::unordered_map<uint64_t, SparseIndex*> Registry;
-			std::unordered_map<Component*, uint64_t> Incomplete;
+			std::unordered_map<Component*, size_t> Incomplete;
 			std::queue<Core::TaskCallback> Transactions;
 			std::queue<Parallel::Task> Tasks;
 			std::queue<Event> Events;
@@ -1265,9 +1267,7 @@ namespace Tomahawk
 			void RemoveEntity(Core::Unique<Entity> Entity);
 			void DeleteEntity(Core::Unique<Entity> Entity);
 			void SetCamera(Entity* Camera);
-			void SortBackToFront(Core::Pool<Drawable*>* Array);
-			void SortFrontToBack(Core::Pool<Drawable*>* Array);
-			void RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback);
+			void RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback);
 			void ScriptHook(const std::string& Name = "Main");
 			void SetActive(bool Enabled);
 			void SetMRT(TargetType Type, bool Clear);
@@ -1296,15 +1296,15 @@ namespace Tomahawk
 			bool AddMaterial(Core::Unique<Material> Base);
 			Material* AddMaterial();
 			Material* CloneMaterial(Material* Base);
-			Entity* GetEntity(uint64_t Entity);
+			Entity* GetEntity(size_t Entity);
 			Entity* GetLastEntity();
 			Entity* GetCameraEntity();
-			Component* GetComponent(uint64_t Component, uint64_t Section);
+			Component* GetComponent(size_t Component, uint64_t Section);
 			Component* GetCamera();
 			RenderSystem* GetRenderer();
 			Viewer GetCameraViewer() const;
 			Material* GetMaterial(const std::string& Material);
-			Material* GetMaterial(uint64_t Material);
+			Material* GetMaterial(size_t Material);
 			SparseIndex& GetStorage(uint64_t Section);
 			Core::Pool<Component*>& GetComponents(uint64_t Section);
 			Core::Pool<Component*>& GetActors(ActorType Type);
@@ -1314,8 +1314,9 @@ namespace Tomahawk
 			std::vector<Entity*> CloneEntityAsArray(Entity* Value);
 			std::vector<Entity*> QueryByParent(Entity* Parent) const;
 			std::vector<Entity*> QueryByName(const std::string& Name) const;
-			std::vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius, bool DrawableOnly = true);
-			std::vector<Component*> QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly = true);
+			std::vector<Component*> QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius);
+			std::vector<Component*> QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max);
+			std::vector<std::pair<Component*, Compute::Vector3>> QueryByRay(uint64_t Section, const Compute::Ray& Origin);
 			std::vector<CubicDepthMap*>& GetPointsMapping();
 			std::vector<LinearDepthMap*>& GetSpotsMapping();
 			std::vector<CascadedDepthMap*>& GetLinesMapping();
@@ -1328,19 +1329,20 @@ namespace Tomahawk
 			bool IsLeftHanded() const;
 			bool IsIndexed() const;
 			bool IsBusy() const;
-			uint64_t GetMaterialsCount() const;
-			uint64_t GetEntitiesCount() const;
-			uint64_t GetComponentsCount(uint64_t Section);
+			size_t GetMaterialsCount() const;
+			size_t GetEntitiesCount() const;
+			size_t GetComponentsCount(uint64_t Section);
 			bool HasEntity(Entity* Entity) const;
-			bool HasEntity(uint64_t Entity) const;
+			bool HasEntity(size_t Entity) const;
 			Graphics::MultiRenderTarget2D* GetMRT(TargetType Type) const;
 			Graphics::RenderTarget2D* GetRT(TargetType Type) const;
 			Graphics::Texture2D** GetMerger();
 			Graphics::ElementBuffer* GetStructure() const;
 			Graphics::GraphicsDevice* GetDevice() const;
-			Compute::Simulator* GetSimulator();
-			ShaderCache* GetShaders();
-			PrimitiveCache* GetPrimitives();
+			Compute::Simulator* GetSimulator() const;
+			Graphics::Activity* GetActivity() const;
+			ShaderCache* GetShaders() const;
+			PrimitiveCache* GetPrimitives() const;
 			Desc& GetConf();
 
 		private:
@@ -1376,20 +1378,37 @@ namespace Tomahawk
 			Entity* CloneEntityInstance(Entity* Entity);
 
 		public:
-			template <typename T>
-			std::vector<Component*> QueryByPosition(const Compute::Vector3& Position, float Radius, bool DrawableOnly = true)
+			template <typename T, typename MatchFunction>
+			std::vector<Component*> QueryByMatch(MatchFunction&& MatchCallback)
 			{
-				return QueryByPosition(T::GetTypeId(), Position, Radius, DrawableOnly);
+				std::vector<Component*> Result;
+				Compute::Cosmos::Iterator Context;
+				GetStorage(T::GetTypeId()).Index.Query<Component>(Context, std::move(MatchCallback), [&Result](Component* Item)
+				{
+					Result.push_back(Item);
+				});
+
+				return Result;
 			}
 			template <typename T>
-			std::vector<Component*> QueryByArea(const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly = true)
+			std::vector<Component*> QueryByPosition(const Compute::Vector3& Position, float Radius)
 			{
-				return QueryByArea(T::GetTypeId(), Min, Max, DrawableOnly);
+				return QueryByPosition(T::GetTypeId(), Position, Radius);
 			}
 			template <typename T>
-			void RayTest(const Compute::Ray& Origin, float MaxDistance, RayCallback&& Callback)
+			std::vector<Component*> QueryByArea(const Compute::Vector3& Min, const Compute::Vector3& Max)
 			{
-				RayTest(T::GetTypeId(), Origin, MaxDistance, std::move(Callback));
+				return QueryByArea(T::GetTypeId(), Min, Max);
+			}
+			template <typename T>
+			std::vector<std::pair<Component*, Compute::Vector3>> QueryByRay(const Compute::Ray& Origin)
+			{
+				return QueryByRay(T::GetTypeId(), Origin);
+			}
+			template <typename T>
+			void RayTest(const Compute::Ray& Origin, RayCallback&& Callback)
+			{
+				RayTest(T::GetTypeId(), Origin, std::move(Callback));
 			}
 			template <typename T>
 			void LoadResource(Component* Context, const std::string& Path, const std::function<void(T*)>& Callback)
@@ -1417,7 +1436,7 @@ namespace Tomahawk
 				return Cache != nullptr ? AsResourcePath(Cache->Path) : std::string();
 			}
 			template <typename T>
-			uint64_t GetEntitiesCount()
+			size_t GetEntitiesCount()
 			{
 				return GetComponents(T::GetTypeId())->Count();
 			}
@@ -1479,11 +1498,11 @@ namespace Tomahawk
 				std::string Preferences;
 				std::string Environment;
 				std::string Directory;
-				uint64_t Stack = TH_STACKSIZE;
-				uint64_t PollingTimeout = 100;
-				uint64_t PollingEvents = 256;
-				uint64_t Coroutines = 16;
-				uint64_t Threads = 0;
+				size_t Stack = TH_STACKSIZE;
+				size_t PollingTimeout = 100;
+				size_t PollingEvents = 256;
+				size_t Coroutines = 16;
+				size_t Threads = 0;
 				double Framerate = 0;
 				double MaxFrames = 60;
 				double MinFrames = 10;
@@ -1680,7 +1699,7 @@ namespace Tomahawk
 							Group->Instances.clear();
 					}
 					else
-						Device->UpdateBuffer(Group->DataBuffer, (void*)Group->Instances.data(), (uint64_t)(sizeof(Instance) * Group->Instances.size()));
+						Device->UpdateBuffer(Group->DataBuffer, (void*)Group->Instances.data(), sizeof(Instance) * Group->Instances.size());
 				}
 			}
 
@@ -1790,9 +1809,10 @@ namespace Tomahawk
 			template<class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
 			{
-				Culling.clear();
+				TH_PPUSH(TH_PERF_CORE);
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
+				Culling.clear();
 
 				VisibilityQuery Info;
 				System->QueryAsync<T>([this, &System, &Top, &Info](Component* Item)
@@ -1808,28 +1828,26 @@ namespace Tomahawk
 				auto* Scene = System->GetScene();
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
-					Scene->Statistics.Instances += Top[i].size();
-					Scene->Watch(Parallel::Enqueue([i, &Top]()
+					auto& Array = Top[i];
+					Scene->Statistics.Instances += Array.size();
+					Scene->Watch(Parallel::Enqueue([i, &Array]()
 					{
-						TH_PPUSH(TH_PERF_CORE);
-						std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
-						TH_PPOP();
+						TH_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
 					}));
 				}
+
+				Scene->Statistics.Instances += Culling.size();
+				Scene->Watch(Parallel::Enqueue([this]()
 				{
-					Scene->Statistics.Instances += Culling.size();
-					Scene->Watch(Parallel::Enqueue([this]()
-					{
-						TH_PPUSH(TH_PERF_CORE);
-						std::sort(Culling.begin(), Culling.end(), Entity::Sortout<T>);
-						TH_PPOP();
-					}));
-				}
+					TH_SORT(Culling.begin(), Culling.end(), Entity::Sortout<T>);
+				}));
 				Scene->AwaitAll();
+				TH_PPOP();
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
 			{
+				TH_PPUSH(TH_PERF_CORE);
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
@@ -1843,11 +1861,13 @@ namespace Tomahawk
 
 				auto* Scene = System->GetScene();
 				Scene->Statistics.Instances += Subframe.size();
-				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
+				TH_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
+				TH_PPOP();
 			}
 			template<class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
 			{
+				TH_PPUSH(TH_PERF_CORE);
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
@@ -1862,13 +1882,15 @@ namespace Tomahawk
 				auto* Scene = System->GetScene();
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
-					Scene->Statistics.Instances += Top[i].size();
-					Scene->Watch(Parallel::Enqueue([i, &Top]()
+					auto& Array = Top[i];
+					Scene->Statistics.Instances += Array.size();
+					Scene->Watch(Parallel::Enqueue([i, &Array]()
 					{
-						std::sort(Top[i].begin(), Top[i].end(), Entity::Sortout<T>);
+						TH_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
 					}));
 				}
 				Scene->AwaitAll();
+				TH_PPOP();
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
@@ -1886,7 +1908,7 @@ namespace Tomahawk
 
 				auto* Scene = System->GetScene();
 				Scene->Statistics.Instances += Subframe.size();
-				std::sort(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
+				TH_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
 			}
 		};
 
@@ -1909,7 +1931,7 @@ namespace Tomahawk
 			Graphics::DepthStencilState* DepthStencil;
 			Graphics::BlendState* Blend;
 			Graphics::Query* Current;
-			uint64_t FrameTop[3];
+			size_t FrameTop[3];
 			bool Skippable[2];
 
 		public:
@@ -2149,7 +2171,7 @@ namespace Tomahawk
 
 				TH_PPUSH(TH_PERF_FRAME);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				size_t Count = 0; uint64_t Fragments = 0;
+				size_t Count = 0; size_t Fragments = 0;
 
 				for (auto It = Active.begin(); It != Active.end();)
 				{

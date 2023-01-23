@@ -574,7 +574,7 @@ namespace Tomahawk
 			Effects.push_back(Effect);
 			return Effects.size() - 1;
 		}
-		bool AudioSource::RemoveEffect(uint64_t EffectId)
+		bool AudioSource::RemoveEffect(size_t EffectId)
 		{
 			TH_ASSERT(EffectId < Effects.size(), false, "index outside of range");
 			auto It = Effects.begin() + EffectId;
@@ -593,7 +593,7 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool AudioSource::RemoveEffectById(uint64_t EffectId)
+		bool AudioSource::RemoveEffectById(size_t EffectId)
 		{
 			for (size_t i = 0; i < Effects.size(); i++)
 			{

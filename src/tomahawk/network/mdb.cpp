@@ -355,7 +355,7 @@ namespace Tomahawk
 				}
 #endif
 			}
-			bool Document::SetSchema(const char* Key, const Document& Value, uint64_t ArrayId)
+			bool Document::SetSchema(const char* Key, const Document& Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -370,7 +370,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetArray(const char* Key, const Document& Value, uint64_t ArrayId)
+			bool Document::SetArray(const char* Key, const Document& Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -385,7 +385,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetString(const char* Key, const char* Value, uint64_t ArrayId)
+			bool Document::SetString(const char* Key, const char* Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -400,7 +400,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId)
+			bool Document::SetBlob(const char* Key, const char* Value, size_t Length, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -415,7 +415,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetInteger(const char* Key, int64_t Value, uint64_t ArrayId)
+			bool Document::SetInteger(const char* Key, int64_t Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -429,7 +429,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetNumber(const char* Key, double Value, uint64_t ArrayId)
+			bool Document::SetNumber(const char* Key, double Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -443,7 +443,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId)
+			bool Document::SetDecimal(const char* Key, uint64_t High, uint64_t Low, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -461,7 +461,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimalString(const char* Key, const std::string& Value, uint64_t ArrayId)
+			bool Document::SetDecimalString(const char* Key, const std::string& Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -478,7 +478,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimalInteger(const char* Key, int64_t Value, uint64_t ArrayId)
+			bool Document::SetDecimalInteger(const char* Key, int64_t Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -498,7 +498,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetDecimalNumber(const char* Key, double Value, uint64_t ArrayId)
+			bool Document::SetDecimalNumber(const char* Key, double Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -521,7 +521,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetBoolean(const char* Key, bool Value, uint64_t ArrayId)
+			bool Document::SetBoolean(const char* Key, bool Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -535,7 +535,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId)
+			bool Document::SetObjectId(const char* Key, unsigned char Value[12], size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -552,7 +552,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetNull(const char* Key, uint64_t ArrayId)
+			bool Document::SetNull(const char* Key, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -566,7 +566,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Document::SetProperty(const char* Key, Property* Value, uint64_t ArrayId)
+			bool Document::SetProperty(const char* Key, Property* Value, size_t ArrayId)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "schema should be set");
@@ -734,7 +734,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			uint64_t Document::Count() const
+			size_t Document::Count() const
 			{
 #ifdef TH_HAS_MONGOC
 				if (!Base)
@@ -894,7 +894,7 @@ namespace Tomahawk
 				TH_ASSERT(Src != nullptr && Src->Value.IsObject(), nullptr, "schema should be set");
 				bool Array = (Src->Value.GetType() == Core::VarType::Array);
 				Document Result = bson_new();
-				uint64_t Index = 0;
+				size_t Index = 0;
 
 				for (auto&& Node : Src->GetChilds())
 				{
@@ -973,11 +973,11 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			Document Document::FromBuffer(const unsigned char* Buffer, uint64_t Length)
+			Document Document::FromBuffer(const unsigned char* Buffer, size_t Length)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
-				return bson_new_from_data(Buffer, (size_t)Length);
+				return bson_new_from_data(Buffer, Length);
 #else
 				return nullptr;
 #endif
@@ -1418,11 +1418,11 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			uint64_t Stream::GetHint() const
+			size_t Stream::GetHint() const
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, 0, "context should be set");
-				return (uint64_t)mongoc_bulk_operation_get_hint(Base);
+				return (size_t)mongoc_bulk_operation_get_hint(Base);
 #else
 				return 0;
 #endif
@@ -1473,14 +1473,14 @@ namespace Tomahawk
 				Base = nullptr;
 #endif
 			}
-			void Cursor::SetMaxAwaitTime(uint64_t MaxAwaitTime)
+			void Cursor::SetMaxAwaitTime(size_t MaxAwaitTime)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT_V(Base != nullptr, "context should be set");
 				mongoc_cursor_set_max_await_time_ms(Base, (uint32_t)MaxAwaitTime);
 #endif
 			}
-			void Cursor::SetBatchSize(uint64_t BatchSize)
+			void Cursor::SetBatchSize(size_t BatchSize)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT_V(Base != nullptr, "context should be set");
@@ -1496,7 +1496,7 @@ namespace Tomahawk
 				return false;
 #endif
 			}
-			bool Cursor::SetHint(uint64_t Hint)
+			bool Cursor::SetHint(size_t Hint)
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, false, "context should be set");
@@ -1569,29 +1569,29 @@ namespace Tomahawk
 				return 0;
 #endif
 			}
-			uint64_t Cursor::GetMaxAwaitTime() const
+			size_t Cursor::GetMaxAwaitTime() const
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, 0, "context should be set");
-				return (uint64_t)mongoc_cursor_get_max_await_time_ms(Base);
+				return (size_t)mongoc_cursor_get_max_await_time_ms(Base);
 #else
 				return 0;
 #endif
 			}
-			uint64_t Cursor::GetBatchSize() const
+			size_t Cursor::GetBatchSize() const
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, 0, "context should be set");
-				return (uint64_t)mongoc_cursor_get_batch_size(Base);
+				return (size_t)mongoc_cursor_get_batch_size(Base);
 #else
 				return 0;
 #endif
 			}
-			uint64_t Cursor::GetHint() const
+			size_t Cursor::GetHint() const
 			{
 #ifdef TH_HAS_MONGOC
 				TH_ASSERT(Base != nullptr, 0, "context should be set");
-				return (uint64_t)mongoc_cursor_get_hint(Base);
+				return (size_t)mongoc_cursor_get_hint(Base);
 #else
 				return 0;
 #endif
@@ -1988,28 +1988,28 @@ namespace Tomahawk
 				return Document(nullptr);
 #endif
 			}
-			Core::Promise<uint64_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
+			Core::Promise<size_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<uint64_t>([Context, &Match, &Options]()
+				return Core::Cotask<size_t>([Context, &Match, &Options]()
 				{
-					return (uint64_t)MongoExecuteQuery(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
+					return (size_t)MongoExecuteQuery(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
 				});
 #else
-				return (uint64_t)0;
+				return (size_t)0;
 #endif
 			}
-			Core::Promise<uint64_t> Collection::CountDocumentsEstimated(const Document& Options) const
+			Core::Promise<size_t> Collection::CountDocumentsEstimated(const Document& Options) const
 			{
 #ifdef TH_HAS_MONGOC
 				auto* Context = Base;
-				return Core::Cotask<uint64_t>([Context, &Options]()
+				return Core::Cotask<size_t>([Context, &Options]()
 				{
-					return (uint64_t)MongoExecuteQuery(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
+					return (size_t)MongoExecuteQuery(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
 				});
 #else
-				return (uint64_t)0;
+				return (size_t)0;
 #endif
 			}
 			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options) const
@@ -3529,8 +3529,8 @@ namespace Tomahawk
 				Core::Parser Base(&Result.Request);
 				Base.Trim();
 
-				uint64_t Args = 0;
-				uint64_t Index = 0;
+				size_t Args = 0;
+				size_t Index = 0;
 				int64_t Arg = -1;
 				bool Spec = false;
 				bool Lock = false;
@@ -3559,15 +3559,15 @@ namespace Tomahawk
 					{
 						if (!Spec && Arg >= 0)
 						{
-							if (Arg < Base.Size())
+							if ((size_t)Arg < Base.Size())
 							{
 								Pose Next;
-								Next.Escape = (Base.R()[Arg] == '$');
+								Next.Escape = (Base.R()[(size_t)Arg] == '$');
 								Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
 								Next.Offset = (size_t)Arg;
 								Result.Positions.push_back(std::move(Next));
-								Base.RemovePart(Arg, Index + 1);
-								Index -= Index - Arg + 1; Args++;
+								Base.RemovePart((size_t)Arg, Index + 1);
+								Index -= Index - (size_t)Arg + 1; Args++;
 							}
 
 							Spec = false;
@@ -3632,7 +3632,7 @@ namespace Tomahawk
 				if (Path.back() != '/' && Path.back() != '\\')
 					Path.append(1, '/');
 
-				uint64_t Size = 0;
+				size_t Size = 0;
 				for (auto& File : Entries)
 				{
 					Core::Parser Base(Path + File.Path);

@@ -197,10 +197,10 @@ namespace Tomahawk
 
 		struct TH_OUT Listener
 		{
-			Address* Source;
-			std::string Name;
+			Address* Source = nullptr;
 			Host* Hostname = nullptr;
 			Socket* Base = nullptr;
+			std::string Name;
 		};
 
 		struct TH_OUT SourceURL
@@ -255,7 +255,7 @@ namespace Tomahawk
 			std::string Ciphers = "ALL";
 			Secure Protocol = Secure::Any;
 			bool VerifyPeers = true;
-			uint64_t Depth = 9;
+			size_t Depth = 9;
 		};
 
 		struct TH_OUT SocketConnection
@@ -278,10 +278,10 @@ namespace Tomahawk
 		{
 			std::unordered_map<std::string, SocketCertificate> Certificates;
 			std::unordered_map<std::string, Host> Listeners;
-			uint64_t PayloadMaxLength = 12582912;
-			uint64_t BacklogQueue = 20;
-			uint64_t SocketTimeout = 10000;
-			uint64_t MaxConnections = 0;
+			size_t PayloadMaxLength = 12582912;
+			size_t BacklogQueue = 20;
+			size_t SocketTimeout = 10000;
+			size_t MaxConnections = 0;
 			int64_t KeepAliveMaxCount = 50;
 			int64_t GracefulTimeWait = -1;
 			bool EnableNoDelay = false;
@@ -307,9 +307,9 @@ namespace Tomahawk
 			epoll_event* Array;
 #endif
 			epoll_handle Handle;
-			int ArraySize;
+			size_t ArraySize;
 
-			EpollHandle(int NewArraySize);
+			EpollHandle(size_t NewArraySize);
 			~EpollHandle();
 			bool Add(Socket* Fd, bool Readable, bool Writeable);
 			bool Update(Socket* Fd, bool Readable, bool Writeable);
@@ -386,7 +386,7 @@ namespace Tomahawk
 			static std::mutex Inclusive;
 			static EpollHandle* Handle;
 			static uint64_t DefaultTimeout;
-			static uint64_t Sockets;
+			static size_t Sockets;
 			static bool Listens;
 
 		public:

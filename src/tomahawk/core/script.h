@@ -332,15 +332,15 @@ namespace Tomahawk
 
 		inline VMObjType operator |(VMObjType A, VMObjType B)
 		{
-			return static_cast<VMObjType>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<VMObjType>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline VMOp operator |(VMOp A, VMOp B)
 		{
-			return static_cast<VMOp>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<VMOp>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 		inline VMImport operator |(VMImport A, VMImport B)
 		{
-			return static_cast<VMImport>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+			return static_cast<VMImport>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 
 		typedef asIScriptEngine VMCManager;
@@ -713,8 +713,8 @@ namespace Tomahawk
 			unsigned int GetEnumValueCount() const;
 			const char* GetEnumValueByIndex(unsigned int Index, int* OutValue) const;
 			VMFunction GetFunctionDefSignature() const;
-			void* SetUserData(void* Data, uint64_t Type = 0);
-			void* GetUserData(uint64_t Type = 0) const;
+			void* SetUserData(void* Data, size_t Type = 0);
+			void* GetUserData(size_t Type = 0) const;
 			bool IsHandle() const;
 			bool IsValid() const;
 			VMCTypeInfo* GetTypeInfo() const;
@@ -808,8 +808,8 @@ namespace Tomahawk
 			int GetProperty(unsigned int Index, const char** Name, int* TypeId = nullptr) const;
 			const char* GetPropertyDecl(unsigned int Index, bool IncludeNamespace = false) const;
 			int FindNextLineWithCode(int Line) const;
-			void* SetUserData(void* UserData, uint64_t Type = 0);
-			void* GetUserData(uint64_t Type = 0) const;
+			void* SetUserData(void* UserData, size_t Type = 0);
+			void* GetUserData(size_t Type = 0) const;
 			bool IsValid() const;
 			VMCFunction* GetFunction() const;
 			VMManager* GetManager() const;
@@ -832,8 +832,8 @@ namespace Tomahawk
 			void* GetAddressOfProperty(unsigned int Id);
 			VMManager* GetManager() const;
 			int CopyFrom(const VMObject& Other);
-			void* SetUserData(void* Data, uint64_t Type = 0);
-			void* GetUserData(uint64_t Type = 0) const;
+			void* SetUserData(void* Data, size_t Type = 0);
+			void* GetUserData(size_t Type = 0) const;
 			bool IsValid() const;
 			VMCObject* GetObject() const;
 		};
@@ -1524,12 +1524,12 @@ namespace Tomahawk
 			int LoadByteCode(VMByteCode* Info);
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
-			int LoadCode(const std::string& Name, const char* Buffer, uint64_t Length);
+			int LoadCode(const std::string& Name, const char* Buffer, size_t Length);
 			Core::Promise<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteScoped(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
-			Core::Promise<int> ExecuteScoped(const char* Buffer, uint64_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
+			Core::Promise<int> ExecuteScoped(const char* Buffer, size_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
 			VMModule GetModule() const;
 			VMManager* GetManager() const;
 			VMContext* GetContext() const;
@@ -1625,8 +1625,8 @@ namespace Tomahawk
 			void* GetThisPointer(unsigned int StackLevel = 0);
 			VMFunction GetSystemFunction();
 			bool IsSuspended() const;
-			void* SetUserData(void* Data, uint64_t Type = 0);
-			void* GetUserData(uint64_t Type = 0) const;
+			void* SetUserData(void* Data, size_t Type = 0);
+			void* GetUserData(size_t Type = 0) const;
 			VMCContext* GetContext();
 			VMManager* GetManager();
 

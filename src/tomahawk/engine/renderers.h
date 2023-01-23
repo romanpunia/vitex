@@ -342,7 +342,7 @@ namespace Tomahawk
 					Graphics::RenderTarget2D* Input = nullptr;
 					Graphics::Cubemap* Subresource = nullptr;
 					Graphics::Texture2D* Face = nullptr;
-					uint64_t Size = 128;
+					size_t Size = 128;
 				} Surfaces;
 
 			private:

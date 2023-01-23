@@ -26,7 +26,7 @@ namespace Tomahawk
 			struct TH_OUT Attachment
 			{
 				std::string Path;
-				uint64_t Length = 0;
+				size_t Length = 0;
 			};
 
 			struct TH_OUT RequestFrame
@@ -60,7 +60,7 @@ namespace Tomahawk
 				std::string Boundary;
 				std::string Hoster;
 				RequestFrame Request;
-				int64_t Pending;
+				size_t Pending;
 				bool Staging;
 				bool Authorized;
 

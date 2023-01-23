@@ -105,19 +105,19 @@ namespace Tomahawk
 
 			class WebCodec;
 
-			struct TH_OUT HeaderComparator : std::binary_function<std::string, std::string, bool>
+			struct TH_OUT HeaderComparator
 			{
-				struct Insensitive : public std::binary_function<unsigned char, unsigned char, bool>
+				struct Insensitive
 				{
-					bool operator() (const unsigned char& c1, const unsigned char& c2) const
+					bool operator() (const unsigned char& A, const unsigned char& B) const
 					{
-						return tolower(c1) < tolower(c2);
+						return tolower(A) < tolower(B);
 					}
 				};
 
-				bool operator() (const std::string& s1, const std::string& s2) const
+				bool operator() (const std::string& Left, const std::string& Right) const
 				{
-					return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(), Insensitive());
+					return std::lexicographical_compare(Left.begin(), Left.end(), Right.begin(), Right.end(), Insensitive());
 				}
 			};
 
@@ -154,7 +154,7 @@ namespace Tomahawk
 				std::string Type;
 				std::string Name;
 				std::string Key;
-				uint64_t Length = 0;
+				size_t Length = 0;
 				bool Memory = false;
 
 				void PutHeader(const std::string& Key, const std::string& Value);
@@ -194,7 +194,7 @@ namespace Tomahawk
 				Credentials User;
 				char Method[10] = { 'G', 'E', 'T' };
 				char Version[10] = { 'H', 'T', 'T', 'P', '/', '1', '.', '1' };
-				int64_t ContentLength = 0;
+				size_t ContentLength = 0;
 
 				void SetMethod(const char* Value);
 				void SetVersion(unsigned int Major, unsigned int Minor);
@@ -207,8 +207,8 @@ namespace Tomahawk
 				RangePayload* GetHeaderRanges(const std::string& Key);
 				const std::string* GetHeaderBlob(const std::string& Key) const;
 				const char* GetHeader(const std::string& Key) const;
-				std::vector<std::pair<int64_t, int64_t>> GetRanges() const;
-				std::pair<uint64_t, uint64_t> GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContentLength) const;
+				std::vector<std::pair<size_t, size_t>> GetRanges() const;
+				std::pair<size_t, size_t> GetRange(std::vector<std::pair<size_t, size_t>>::iterator Range, size_t ContentLength) const;
 			};
 
 			struct TH_OUT ResponseFrame
@@ -388,7 +388,7 @@ namespace Tomahawk
 					CompressionTune Tune = CompressionTune::Default;
 					int QualityLevel = 8;
 					int MemoryLevel = 8;
-					uint64_t MinLength = 16384;
+					size_t MinLength = 16384;
 					bool Enabled = false;
 				} Compression;
 
@@ -404,10 +404,10 @@ namespace Tomahawk
 				std::string AccessControlAllowOrigin;
 				std::string Redirect;
 				std::string Override;
-				uint64_t WebSocketTimeout = 30000;
-				uint64_t StaticFileMaxAge = 604800;
-				uint64_t MaxCacheLength = 16384;
-				uint64_t Level = 0;
+				size_t WebSocketTimeout = 30000;
+				size_t StaticFileMaxAge = 604800;
+				size_t MaxCacheLength = 16384;
+				size_t Level = 0;
 				bool AllowDirectoryListing = true;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = true;
@@ -453,7 +453,7 @@ namespace Tomahawk
 
 				std::vector<RouteGroup> Groups;
 				std::string ResourceRoot = "./temp";
-				uint64_t MaxResources = 5;
+				size_t MaxResources = 5;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;
 
@@ -734,7 +734,7 @@ namespace Tomahawk
 				static void ConstructHeadUncache(Connection* Base, Core::Parser* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
 				static bool ConstructDirectoryEntries(Connection* Base, const Core::ResourceEntry& A, const Core::ResourceEntry& B);
-				static std::string ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength);
+				static std::string ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
 			};
 
 			class TH_OUT_TS Parsing
@@ -774,7 +774,7 @@ namespace Tomahawk
 				static bool ResourceIndexed(Connection* Base, Core::Resource* Resource);
 				static bool ResourceProvided(Connection* Base, Core::Resource* Resource);
 				static bool ResourceModified(Connection* Base, Core::Resource* Resource);
-				static bool ResourceCompressed(Connection* Base, uint64_t Size);
+				static bool ResourceCompressed(Connection* Base, size_t Size);
 			};
 
 			class TH_OUT_TS Routing
@@ -794,12 +794,12 @@ namespace Tomahawk
 			public:
 				static bool ProcessDirectory(Connection* Base);
 				static bool ProcessResource(Connection* Base);
-				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range);
+				static bool ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, size_t Range);
 				static bool ProcessResourceCache(Connection* Base);
-				static bool ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range);
-				static bool ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength);
-				static bool ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip);
-				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength);
+				static bool ProcessFile(Connection* Base, size_t ContentLength, size_t Range);
+				static bool ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength);
+				static bool ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip);
+				static bool ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, size_t ContentLength);
 				static bool ProcessGateway(Connection* Base);
 				static bool ProcessWebSocket(Connection* Base, const char* Key);
 			};
@@ -844,12 +844,12 @@ namespace Tomahawk
 				Client(int64_t ReadTimeout);
 				virtual ~Client() override;
 				bool Downgrade();
-				Core::Promise<bool> Consume(int64_t MaxSize = TH_HTTP_PAYLOAD);
-				Core::Promise<bool> Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<bool> Consume(size_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<bool> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = TH_HTTP_PAYLOAD);
 				Core::Promise<bool> Upgrade(HTTP::RequestFrame&& Root);
 				Core::Promise<ResponseFrame*> Send(HTTP::RequestFrame&& Root);
-				Core::Promise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
-				Core::Promise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, int64_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<Core::Unique<Core::Schema>> JSON(HTTP::RequestFrame&& Root, size_t MaxSize = TH_HTTP_PAYLOAD);
+				Core::Promise<Core::Unique<Core::Schema>> XML(HTTP::RequestFrame&& Root, size_t MaxSize = TH_HTTP_PAYLOAD);
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();

@@ -295,11 +295,11 @@ namespace Tomahawk
 			}
 			uint32_t D3D11DepthTarget2D::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t D3D11DepthTarget2D::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			D3D11DepthTargetCube::D3D11DepthTargetCube(const Desc& I) : DepthTargetCube(I)
@@ -316,11 +316,11 @@ namespace Tomahawk
 			}
 			uint32_t D3D11DepthTargetCube::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t D3D11DepthTargetCube::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			D3D11RenderTarget2D::D3D11RenderTarget2D(const Desc& I) : RenderTarget2D(I)
@@ -345,11 +345,11 @@ namespace Tomahawk
 			}
 			uint32_t D3D11RenderTarget2D::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t D3D11RenderTarget2D::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			D3D11MultiRenderTarget2D::D3D11MultiRenderTarget2D(const Desc& I) : MultiRenderTarget2D(I), DepthStencilView(nullptr)
@@ -380,11 +380,11 @@ namespace Tomahawk
 			}
 			uint32_t D3D11MultiRenderTarget2D::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t D3D11MultiRenderTarget2D::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			D3D11RenderTargetCube::D3D11RenderTargetCube(const Desc& I) : RenderTargetCube(I)
@@ -409,11 +409,11 @@ namespace Tomahawk
 			}
 			uint32_t D3D11RenderTargetCube::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t D3D11RenderTargetCube::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			D3D11MultiRenderTargetCube::D3D11MultiRenderTargetCube(const Desc& I) : MultiRenderTargetCube(I), DepthStencilView(nullptr)
@@ -445,11 +445,11 @@ namespace Tomahawk
 			}
 			uint32_t D3D11MultiRenderTargetCube::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t D3D11MultiRenderTargetCube::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			D3D11Cubemap::D3D11Cubemap(const Desc& I) : Cubemap(I), Merger(nullptr), Source(nullptr)
@@ -953,7 +953,7 @@ namespace Tomahawk
 				{
 					D3D11ElementBuffer* IResource = (D3D11ElementBuffer*)Resources[i];
 					IBuffers[i] = (IResource ? IResource->Element : nullptr);
-					Strides[i] = (IResource ? IResource->Stride : 0);
+					Strides[i] = (unsigned int)(IResource ? IResource->Stride : 0);
 					REG_EXCHANGE_RS(VertexBuffers, IResource, i, i);
 				}
 
@@ -1223,7 +1223,7 @@ namespace Tomahawk
 				ImmediateContext->Unmap(IResource->Element, 0);
 				return true;
 			}
-			bool D3D11Device::UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size)
+			bool D3D11Device::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				TH_ASSERT(Data != nullptr, false, "data should be set");
@@ -1233,7 +1233,7 @@ namespace Tomahawk
 				if (ImmediateContext->Map(IResource->Element, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource) != S_OK)
 					return false;
 
-				memcpy(MappedResource.pData, Data, (size_t)Size);
+				memcpy(MappedResource.pData, Data, Size);
 				ImmediateContext->Unmap(IResource->Element, 0);
 				return true;
 			}
@@ -1304,7 +1304,7 @@ namespace Tomahawk
 				D3D_RELEASE(IResource->ConstantBuffer);
 				return CreateConstantBuffer(&IResource->ConstantBuffer, Size) == S_OK;
 			}
-			bool D3D11Device::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
+			bool D3D11Device::UpdateBufferSize(InstanceBuffer* Resource, size_t Size)
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				TH_ASSERT(Size > 0, false, "size should be greater than zero");
@@ -1316,7 +1316,7 @@ namespace Tomahawk
 				D3D_RELEASE(IResource->Resource);
 				IResource->ElementLimit = Size;
 				IResource->Array.clear();
-				IResource->Array.reserve((size_t)IResource->ElementLimit);
+				IResource->Array.reserve(IResource->ElementLimit);
 
 				ElementBuffer::Desc F = ElementBuffer::Desc();
 				F.AccessFlags = CPUAccess::Write;
@@ -1451,7 +1451,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
+				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1472,7 +1472,7 @@ namespace Tomahawk
 				TH_ASSERT_V(Resource != nullptr, "resource should be set");
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
+				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1500,7 +1500,7 @@ namespace Tomahawk
 				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
+				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1514,7 +1514,7 @@ namespace Tomahawk
 					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
 				}
 
-				Stride = InstanceBuffer->Stride;
+				Stride = (unsigned int)InstanceBuffer->Stride;
 				ImmediateContext->IASetVertexBuffers(1, 1, &InstanceBuffer->Element, &Stride, &Offset);
 				ImmediateContext->DrawIndexedInstanced((unsigned int)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
 			}
@@ -1526,7 +1526,7 @@ namespace Tomahawk
 				D3D11ElementBuffer* InstanceBuffer = (D3D11ElementBuffer*)Instances;
 				D3D11ElementBuffer* VertexBuffer = (D3D11ElementBuffer*)Resource->GetVertexBuffer();
 				D3D11ElementBuffer* IndexBuffer = (D3D11ElementBuffer*)Resource->GetIndexBuffer();
-				unsigned int Stride = VertexBuffer->Stride, Offset = 0;
+				unsigned int Stride = (unsigned int)VertexBuffer->Stride, Offset = 0;
 
 				if (Register.VertexBuffers[0].first != VertexBuffer)
 				{
@@ -1540,7 +1540,7 @@ namespace Tomahawk
 					ImmediateContext->IASetIndexBuffer(IndexBuffer->Element, DXGI_FORMAT_R32_UINT, 0);
 				}
 
-				Stride = InstanceBuffer->Stride;
+				Stride = (unsigned int)InstanceBuffer->Stride;
 				ImmediateContext->IASetVertexBuffers(1, 1, &InstanceBuffer->Element, &Stride, &Offset);
 				ImmediateContext->DrawIndexedInstanced((unsigned int)IndexBuffer->GetElements(), InstanceCount, 0, 0, 0);
 			}
@@ -2016,15 +2016,19 @@ namespace Tomahawk
 				TH_ERR("[d3d11] could not generate texture cube resource");
 				return false;
 			}
-			bool D3D11Device::GetQueryData(Query* Resource, uint64_t* Result, bool Flush)
+			bool D3D11Device::GetQueryData(Query* Resource, size_t* Result, bool Flush)
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				TH_ASSERT(Result != nullptr, false, "result should be set");
 
 				D3D11Query* IResource = (D3D11Query*)Resource;
+				uint64_t Passing = 0;
 
 				TH_ASSERT(IResource->Async != nullptr, false, "resource should be valid");
-				return ImmediateContext->GetData(IResource->Async, Result, sizeof(uint64_t), !Flush ? D3D11_ASYNC_GETDATA_DONOTFLUSH : 0) == S_OK;
+				bool Success = ImmediateContext->GetData(IResource->Async, &Passing, sizeof(uint64_t), !Flush ? D3D11_ASYNC_GETDATA_DONOTFLUSH : 0) == S_OK;
+				*Result = (size_t)Passing;
+
+				return Success;
 			}
 			bool D3D11Device::GetQueryData(Query* Resource, bool* Result, bool Flush)
 			{
@@ -3255,8 +3259,8 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result->Viewarea.Width = I.Width;
-				Result->Viewarea.Height = I.Height;
+				Result->Viewarea.Width = (float)I.Width;
+				Result->Viewarea.Height = (float)I.Height;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
@@ -3375,8 +3379,8 @@ namespace Tomahawk
 					}
 				}
 
-				Result->Viewarea.Width = I.Width;
-				Result->Viewarea.Height = I.Height;
+				Result->Viewarea.Width = (float)I.Width;
+				Result->Viewarea.Height = (float)I.Height;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
@@ -3477,8 +3481,8 @@ namespace Tomahawk
 					return Result;
 				}
 
-				Result->Viewarea.Width = I.Size;
-				Result->Viewarea.Height = I.Size;
+				Result->Viewarea.Width = (float)I.Size;
+				Result->Viewarea.Height = (float)I.Size;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
@@ -3583,8 +3587,8 @@ namespace Tomahawk
 					}
 				}
 
-				Result->Viewarea.Width = I.Size;
-				Result->Viewarea.Height = I.Size;
+				Result->Viewarea.Width = (float)I.Size;
+				Result->Viewarea.Height = (float)I.Size;
 				Result->Viewarea.MinDepth = 0.0f;
 				Result->Viewarea.MaxDepth = 1.0f;
 				Result->Viewarea.TopLeftX = 0.0f;
@@ -3663,7 +3667,7 @@ namespace Tomahawk
 			{
 				return BasicEffect != nullptr;
 			}
-			bool D3D11Device::CreateDirectBuffer(uint64_t Size)
+			bool D3D11Device::CreateDirectBuffer(size_t Size)
 			{
 				MaxElements = Size + 1;
 				D3D_RELEASE(Immediate.VertexBuffer);
@@ -4057,7 +4061,7 @@ namespace Tomahawk
 					Result.push_back(std::move(At));
 				}
 
-				if (Context->CreateInputLayout(Result.data(), Result.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
+				if (Context->CreateInputLayout(Result.data(), (unsigned int)Result.size(), Shader->Signature->GetBufferPointer(), Shader->Signature->GetBufferSize(), &Shader->VertexLayout) != S_OK)
 					TH_ERR("[d3d11] couldn't generate input layout for specified shader");
 
 				return Shader->VertexLayout;
@@ -4069,7 +4073,7 @@ namespace Tomahawk
 				D3D11_BUFFER_DESC Description;
 				ZeroMemory(&Description, sizeof(Description));
 				Description.Usage = D3D11_USAGE_DEFAULT;
-				Description.ByteWidth = Size;
+				Description.ByteWidth = (unsigned int)Size;
 				Description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 				Description.CPUAccessFlags = 0;
 

@@ -1441,16 +1441,16 @@ namespace Tomahawk
 		class TH_OUT_TS Crypto
 		{
 		public:
-			static std::string RandomBytes(uint64_t Length);
+			static std::string RandomBytes(size_t Length);
 			static std::string Hash(Digest Type, const std::string& Value);
 			static std::string HashBinary(Digest Type, const std::string& Value);
-			static std::string Sign(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
+			static std::string Sign(Digest Type, const unsigned char* Value, size_t Length, const char* Key);
 			static std::string Sign(Digest Type, const std::string& Value, const char* Key);
-			static std::string HMAC(Digest Type, const unsigned char* Value, uint64_t Length, const char* Key);
+			static std::string HMAC(Digest Type, const unsigned char* Value, size_t Length, const char* Key);
 			static std::string HMAC(Digest Type, const std::string& Value, const char* Key);
-			static std::string Encrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
+			static std::string Encrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
 			static std::string Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
-			static std::string Decrypt(Cipher Type, const unsigned char* Value, uint64_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
+			static std::string Decrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
 			static std::string Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
 			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
 			static std::string JWTEncode(WebToken* Src, const char* Key);
@@ -1472,19 +1472,19 @@ namespace Tomahawk
 		{
 		public:
 			static std::string Move(const std::string& Text, int Offset);
-			static std::string Encode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool Padding);
-			static std::string Decode64(const char Alphabet[65], const unsigned char* Value, uint64_t Length, bool(*IsAlphabetic)(unsigned char));
+			static std::string Encode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool Padding);
+			static std::string Decode64(const char Alphabet[65], const unsigned char* Value, size_t Length, bool(*IsAlphabetic)(unsigned char));
 			static std::string Bep45Encode(const std::string& Value);
 			static std::string Bep45Decode(const std::string& Value);
 			static std::string Base45Encode(const std::string& Value);
 			static std::string Base45Decode(const std::string& Value);
-			static std::string Base64Encode(const unsigned char* Value, uint64_t Length);
+			static std::string Base64Encode(const unsigned char* Value, size_t Length);
 			static std::string Base64Encode(const std::string& Value);
-			static std::string Base64Decode(const unsigned char* Value, uint64_t Length);
+			static std::string Base64Decode(const unsigned char* Value, size_t Length);
 			static std::string Base64Decode(const std::string& Value);
-			static std::string Base64URLEncode(const unsigned char* Value, uint64_t Length);
+			static std::string Base64URLEncode(const unsigned char* Value, size_t Length);
 			static std::string Base64URLEncode(const std::string& Value);
-			static std::string Base64URLDecode(const unsigned char* Value, uint64_t Length);
+			static std::string Base64URLDecode(const unsigned char* Value, size_t Length);
 			static std::string Base64URLDecode(const std::string& Value);
 			static std::string Shuffle(const char* Value, size_t Size, uint64_t Mask);
 			static std::string HexEncode(const char* Value, size_t Size);
@@ -1492,17 +1492,17 @@ namespace Tomahawk
 			static std::string HexDecode(const char* Value, size_t Size);
 			static std::string HexDecode(const std::string& Value);
 			static std::string URIEncode(const std::string& Text);
-			static std::string URIEncode(const char* Text, uint64_t Length);
+			static std::string URIEncode(const char* Text, size_t Length);
 			static std::string URIDecode(const std::string& Text);
-			static std::string URIDecode(const char* Text, uint64_t Length);
+			static std::string URIDecode(const char* Text, size_t Length);
 			static std::string Hybi10Encode(const Hybi10Request& hRequest, bool Masked);
 			static std::string DecimalToHex(uint64_t V);
 			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
 			static Hybi10Request Hybi10Decode(const std::string& Data);
-			static uint64_t Utf8(int code, char* Buffer);
-			static bool Hex(char c, int& v);
-			static bool HexToString(void* Data, uint64_t Length, char* Buffer, uint64_t BufferLength);
-			static bool HexToDecimal(const std::string& s, uint64_t i, uint64_t cnt, int& Value);
+			static size_t Utf8(int Code, char* Buffer);
+			static bool Hex(char Code, int& Value);
+			static bool HexToString(void* Data, size_t Length, char* Buffer, size_t BufferLength);
+			static bool HexToDecimal(const std::string& Text, size_t Index, size_t Size, int& Value);
 			static bool IsBase64URL(unsigned char Value);
 			static bool IsBase64(unsigned char Value);
 		};
@@ -1526,7 +1526,7 @@ namespace Tomahawk
 			static bool HasAABBIntersected(Transform* BoxR0, Transform* BoxR1);
 			static void FlipIndexWindingOrder(std::vector<int>& Indices);
 			static void ComputeInfluenceNormals(std::vector<SkinVertex>& Vertices);
-			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, uint64_t Count);
+			static void ComputeInfluenceNormalsArray(SkinVertex* Vertices, size_t Count);
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent, Vector3& Normal);
 			static void ComputeInfluenceTangentBitangent(const SkinVertex& V1, const SkinVertex& V2, const SkinVertex& V3, Vector3& Tangent, Vector3& Bitangent);
 			static void MatrixRhToLh(Compute::Matrix4x4* Matrix);
@@ -1645,11 +1645,11 @@ namespace Tomahawk
 			bool ProcessIncludeDirective(const std::string& Path, Core::Parser& Buffer);
 			bool ProcessPragmaDirective(const std::string& Path, Core::Parser& Buffer);
 			bool ProcessBlockDirective(Core::Parser& Buffer);
-			bool ProcessDefineDirective(Core::Parser& Buffer, uint64_t Base, uint64_t& Offset, bool Endless);
-			int FindDefineDirective(Core::Parser& Buffer, uint64_t& Offset, uint64_t* Size);
-			int FindBlockDirective(Core::Parser& Buffer, uint64_t& Offset, bool Nested);
-			int FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, uint64_t& Offset, bool Resolved);
-			int FindDirective(Core::Parser& Buffer, const char* V, uint64_t* Offset, uint64_t* Base, uint64_t* Start, uint64_t* End);
+			bool ProcessDefineDirective(Core::Parser& Buffer, size_t Base, size_t& Offset, bool Endless);
+			int FindDefineDirective(Core::Parser& Buffer, size_t& Offset, size_t* Size);
+			int FindBlockDirective(Core::Parser& Buffer, size_t& Offset, bool Nested);
+			int FindBlockNesting(Core::Parser& Buffer, const Core::Parser::Settle& Hash, size_t& Offset, bool Resolved);
+			int FindDirective(Core::Parser& Buffer, const char* V, size_t* Offset, size_t* Base, size_t* Start, size_t* End);
 			bool HasSet(const std::string& Path);
 
 		public:
@@ -1757,16 +1757,16 @@ namespace Tomahawk
 		class TH_OUT Cosmos
 		{
 		public:
-			typedef std::vector<uint64_t> Iterator;
+			typedef std::vector<size_t> Iterator;
 
 		public:
 			struct TH_OUT Node
 			{
 				Bounding Bounds;
-				uint64_t Parent;
-				uint64_t Next;
-				uint64_t Left;
-				uint64_t Right;
+				size_t Parent;
+				size_t Next;
+				size_t Left;
+				size_t Right;
 				void* Item;
 				int Height;
 
@@ -1775,40 +1775,40 @@ namespace Tomahawk
 			};
 
 		private:
-			std::unordered_map<void*, uint64_t> Items;
+			std::unordered_map<void*, size_t> Items;
 			std::vector<Node> Nodes;
-			uint64_t Root;
-			uint64_t NodeCount;
-			uint64_t NodeCapacity;
-			uint64_t FreeList;
+			size_t Root;
+			size_t NodeCount;
+			size_t NodeCapacity;
+			size_t FreeList;
 
 		public:
-			Cosmos(uint64_t DefaultSize = 16);
+			Cosmos(size_t DefaultSize = 16);
 			void Reserve(size_t Size);
 			void Clear();
 			void RemoveItem(void* Item);
 			void InsertItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound);
 			bool UpdateItem(void* Item, const Vector3& LowerBound, const Vector3& UpperBound, bool Always = false);
 			const Bounding& GetArea(void* Item);
-			const std::unordered_map<void*, uint64_t>& GetItems() const;
+			const std::unordered_map<void*, size_t>& GetItems() const;
 			const std::vector<Node>& GetNodes() const;
-			uint64_t GetHeight() const;
-			uint64_t GetMaxBalance() const;
-			uint64_t GetRoot() const;
+			size_t GetHeight() const;
+			size_t GetMaxBalance() const;
+			size_t GetRoot() const;
 			const Node& GetRootNode() const;
-			const Node& GetNode(uint64_t Id) const;
+			const Node& GetNode(size_t Id) const;
 			float GetVolumeRatio() const;
-			bool IsNull(uint64_t Id) const;
+			bool IsNull(size_t Id) const;
 			bool IsEmpty() const;
 
 		private:
-			uint64_t AllocateNode();
-			void FreeNode(uint64_t);
-			void InsertLeaf(uint64_t);
-			void RemoveLeaf(uint64_t);
-			uint64_t Balance(uint64_t);
-			uint64_t ComputeHeight() const;
-			uint64_t ComputeHeight(uint64_t) const;
+			size_t AllocateNode();
+			void FreeNode(size_t);
+			void InsertLeaf(size_t);
+			void RemoveLeaf(size_t);
+			size_t Balance(size_t);
+			size_t ComputeHeight() const;
+			size_t ComputeHeight(size_t) const;
 
 		public:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
@@ -1820,7 +1820,7 @@ namespace Tomahawk
 
 				while (!Context.empty())
 				{
-					auto& Next = Nodes[(size_t)Context.back()];
+					auto& Next = Nodes[Context.back()];
 					Context.pop_back();
 
 					if (Overlaps(Next.Bounds))
@@ -1885,7 +1885,7 @@ namespace Tomahawk
 			void PushKinematic(const Vector3& Velocity);
 			void PushKinematic(const Vector3& Velocity, const Vector3& Torque);
 			void Synchronize(Transform* Transform, bool Kinematic);
-			void SetCollisionFlags(uint64_t Flags);
+			void SetCollisionFlags(size_t Flags);
 			void SetActivity(bool Active);
 			void SetAsGhost();
 			void SetAsNormal();
@@ -1949,7 +1949,7 @@ namespace Tomahawk
 			float GetDeactivationTime() const;
 			float GetRollingFriction() const;
 			float GetMass() const;
-			uint64_t GetCollisionFlags() const;
+			size_t GetCollisionFlags() const;
 			Desc& GetInitialState();
 			Simulator* GetSimulator() const;
 
@@ -2154,8 +2154,8 @@ namespace Tomahawk
 			float GetContactProcessingThreshold() const;
 			float GetDeactivationTime() const;
 			float GetRollingFriction() const;
-			uint64_t GetCollisionFlags() const;
-			uint64_t GetVerticesCount() const;
+			size_t GetCollisionFlags() const;
+			size_t GetVerticesCount() const;
 			Desc& GetInitialState();
 			Simulator* GetSimulator() const;
 
@@ -2501,7 +2501,7 @@ namespace Tomahawk
 			};
 
 		private:
-			std::unordered_map<void*, uint64_t> Shapes;
+			std::unordered_map<void*, size_t> Shapes;
 			btCollisionConfiguration* Collision;
 			btBroadphaseInterface* Broadphase;
 			btConstraintSolver* Solver;
@@ -2564,7 +2564,7 @@ namespace Tomahawk
 			btCollisionShape* ReuseShape(btCollisionShape* Shape);
 			void FreeShape(Core::Unique<btCollisionShape*> Value);
 			std::vector<Vector3> GetShapeVertices(btCollisionShape* Shape) const;
-			uint64_t GetShapeVerticesCount(btCollisionShape* Shape) const;
+			size_t GetShapeVerticesCount(btCollisionShape* Shape) const;
 			float GetMaxDisplacement() const;
 			float GetAirDensity() const;
 			float GetWaterOffset() const;

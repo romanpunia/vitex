@@ -19,6 +19,13 @@
 #include <condition_variable>
 #include <atomic>
 #include <limits>
+#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
+#include <execution>
+#define TH_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
+#define TH_CPP17
+#else
+#define TH_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
+#endif
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef TH_EXPORT
 #define TH_OUT __declspec(dllimport)
@@ -86,11 +93,7 @@
 #define TH_CODATA void* Context
 #endif
 #define TH_FILENO _fileno
-#ifdef TH_64
-typedef uint64_t socket_t;
-#else
-typedef int socket_t;
-#endif
+typedef size_t socket_t;
 typedef int socket_size_t;
 typedef void* epoll_handle;
 #else
@@ -344,8 +347,8 @@ namespace Tomahawk
 		typedef std::unordered_map<std::string, Schema*> SchemaArgs;
 		typedef std::function<void()> TaskCallback;
 		typedef std::function<std::string(const std::string&)> SchemaNameCallback;
-		typedef std::function<void(VarForm, const char*, int64_t)> SchemaWriteCallback;
-		typedef std::function<bool(char*, int64_t)> SchemaReadCallback;
+		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
+		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
 		typedef std::function<void* (size_t)> AllocCallback;
 		typedef std::function<void* (void*, size_t)> ReallocCallback;
 		typedef std::function<void(void*)> FreeCallback;
@@ -540,13 +543,13 @@ namespace Tomahawk
 
 		struct TH_OUT FileState
 		{
-			uint64_t Size = 0;
-			uint64_t Links = 0;
-			uint64_t Permissions = 0;
-			uint64_t IDocument = 0;
-			uint64_t Device = 0;
-			uint64_t UserId = 0;
-			uint64_t GroupId = 0;
+			size_t Size = 0;
+			size_t Links = 0;
+			size_t Permissions = 0;
+			size_t Document = 0;
+			size_t Device = 0;
+			size_t UserId = 0;
+			size_t GroupId = 0;
 			int64_t LastAccess = 0;
 			int64_t LastPermissionChange = 0;
 			int64_t LastModified = 0;
@@ -571,7 +574,7 @@ namespace Tomahawk
 
 		struct TH_OUT Resource
 		{
-			uint64_t Size = 0;
+			size_t Size = 0;
 			int64_t LastModified = 0;
 			int64_t CreationTime = 0;
 			bool IsReferenced = false;
@@ -589,7 +592,7 @@ namespace Tomahawk
 			std::string Path;
 			bool IsDirectory = false;
 			bool IsGood = false;
-			uint64_t Length = 0;
+			size_t Length = 0;
 		};
 
 		struct TH_OUT ChildProcess
@@ -674,10 +677,11 @@ namespace Tomahawk
 			void Rebuild();
 
 		public:
-			static std::string GetGMTBasedString(int64_t TimeStamp);
-			static bool TimeFormatGMT(char* Buffer, uint64_t Length, int64_t Time);
-			static bool TimeFormatLCL(char* Buffer, uint64_t Length, int64_t Time);
-			static int64_t ReadGMTBasedString(const char* Date);
+			static std::string FetchWebDateGMT(int64_t TimeStamp);
+			static std::string FetchWebDateTime(int64_t TimeStamp);
+			static bool FetchWebDateGMT(char* Buffer, size_t Length, int64_t Time);
+			static bool FetchWebDateTime(char* Buffer, size_t Length, int64_t Time);
+			static int64_t ParseWebDate(const char* Date);
 		};
 
 		struct TH_OUT Parser
@@ -685,8 +689,8 @@ namespace Tomahawk
 		public:
 			struct Settle
 			{
-				uint64_t Start = 0;
-				uint64_t End = 0;
+				size_t Start = 0;
+				size_t End = 0;
 				bool Found = false;
 			};
 
@@ -707,79 +711,79 @@ namespace Tomahawk
 			Parser(std::string* Buffer);
 			Parser(const std::string* Buffer);
 			Parser(const char* Buffer);
-			Parser(const char* Buffer, int64_t Length);
+			Parser(const char* Buffer, size_t Length);
 			Parser(const Parser& Value);
 			~Parser();
 			Parser& EscapePrint();
 			Parser& Escape();
 			Parser& Unescape();
-			Parser& Reserve(uint64_t Count = 1);
-			Parser& Resize(uint64_t Count);
-			Parser& Resize(uint64_t Count, char Char);
+			Parser& Reserve(size_t Count = 1);
+			Parser& Resize(size_t Count);
+			Parser& Resize(size_t Count, char Char);
 			Parser& Clear();
 			Parser& ToUpper();
 			Parser& ToLower();
-			Parser& Clip(uint64_t Length);
-			Parser& ReplaceOf(const char* Chars, const char* To, uint64_t Start = 0U);
-			Parser& ReplaceNotOf(const char* Chars, const char* To, uint64_t Start = 0U);
+			Parser& Clip(size_t Length);
+			Parser& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
+			Parser& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
 			Parser& ReplaceGroups(const std::string& FromRegex, const std::string& To);
-			Parser& Replace(const std::string& From, const std::string& To, uint64_t Start = 0U);
-			Parser& Replace(const char* From, const char* To, uint64_t Start = 0U);
-			Parser& Replace(const char& From, const char& To, uint64_t Position = 0U);
-			Parser& Replace(const char& From, const char& To, uint64_t Position, uint64_t Count);
-			Parser& ReplacePart(uint64_t Start, uint64_t End, const std::string& Value);
-			Parser& ReplacePart(uint64_t Start, uint64_t End, const char* Value);
-			Parser& RemovePart(uint64_t Start, uint64_t End);
+			Parser& Replace(const std::string& From, const std::string& To, size_t Start = 0U);
+			Parser& Replace(const char* From, const char* To, size_t Start = 0U);
+			Parser& Replace(const char& From, const char& To, size_t Position = 0U);
+			Parser& Replace(const char& From, const char& To, size_t Position, size_t Count);
+			Parser& ReplacePart(size_t Start, size_t End, const std::string& Value);
+			Parser& ReplacePart(size_t Start, size_t End, const char* Value);
+			Parser& RemovePart(size_t Start, size_t End);
 			Parser& Reverse();
-			Parser& Reverse(uint64_t Start, uint64_t End);
-			Parser& Substring(uint64_t Start);
-			Parser& Substring(uint64_t Start, uint64_t Count);
+			Parser& Reverse(size_t Start, size_t End);
+			Parser& Substring(size_t Start);
+			Parser& Substring(size_t Start, size_t Count);
 			Parser& Substring(const Parser::Settle& Result);
-			Parser& Splice(uint64_t Start, uint64_t End);
+			Parser& Splice(size_t Start, size_t End);
 			Parser& Trim();
 			Parser& Fill(const char& Char);
-			Parser& Fill(const char& Char, uint64_t Count);
-			Parser& Fill(const char& Char, uint64_t Start, uint64_t Count);
+			Parser& Fill(const char& Char, size_t Count);
+			Parser& Fill(const char& Char, size_t Start, size_t Count);
 			Parser& Assign(const char* Raw);
-			Parser& Assign(const char* Raw, uint64_t Length);
+			Parser& Assign(const char* Raw, size_t Length);
 			Parser& Assign(const std::string& Raw);
-			Parser& Assign(const std::string& Raw, uint64_t Start, uint64_t Count);
-			Parser& Assign(const char* Raw, uint64_t Start, uint64_t Count);
+			Parser& Assign(const std::string& Raw, size_t Start, size_t Count);
+			Parser& Assign(const char* Raw, size_t Start, size_t Count);
 			Parser& Append(const char* Raw);
 			Parser& Append(const char& Char);
-			Parser& Append(const char& Char, uint64_t Count);
+			Parser& Append(const char& Char, size_t Count);
 			Parser& Append(const std::string& Raw);
-			Parser& Append(const char* Raw, uint64_t Count);
-			Parser& Append(const char* Raw, uint64_t Start, uint64_t Count);
-			Parser& Append(const std::string& Raw, uint64_t Start, uint64_t Count);
+			Parser& Append(const char* Raw, size_t Count);
+			Parser& Append(const char* Raw, size_t Start, size_t Count);
+			Parser& Append(const std::string& Raw, size_t Start, size_t Count);
 			Parser& fAppend(const char* Format, ...);
-			Parser& Insert(const std::string& Raw, uint64_t Position);
-			Parser& Insert(const std::string& Raw, uint64_t Position, uint64_t Start, uint64_t Count);
-			Parser& Insert(const std::string& Raw, uint64_t Position, uint64_t Count);
-			Parser& Insert(const char& Char, uint64_t Position, uint64_t Count);
-			Parser& Insert(const char& Char, uint64_t Position);
-			Parser& Erase(uint64_t Position);
-			Parser& Erase(uint64_t Position, uint64_t Count);
-			Parser& EraseOffsets(uint64_t Start, uint64_t End);
+			Parser& Insert(const std::string& Raw, size_t Position);
+			Parser& Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count);
+			Parser& Insert(const std::string& Raw, size_t Position, size_t Count);
+			Parser& Insert(const char& Char, size_t Position, size_t Count);
+			Parser& Insert(const char& Char, size_t Position);
+			Parser& Erase(size_t Position);
+			Parser& Erase(size_t Position, size_t Count);
+			Parser& EraseOffsets(size_t Start, size_t End);
 			Parser& Eval(const std::string& Net, const std::string& Dir);
-			Parser::Settle ReverseFind(const std::string& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle ReverseFind(const char* Needle, uint64_t Offset = 0U) const;
-			Parser::Settle ReverseFind(const char& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle ReverseFindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle ReverseFindOf(const std::string& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle ReverseFindOf(const char* Needle, uint64_t Offset = 0U) const;
-			Parser::Settle Find(const std::string& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle Find(const char* Needle, uint64_t Offset = 0U) const;
-			Parser::Settle Find(const char& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle FindUnescaped(const char& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle FindOf(const std::string& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle FindOf(const char* Needle, uint64_t Offset = 0U) const;
-			Parser::Settle FindNotOf(const std::string& Needle, uint64_t Offset = 0U) const;
-			Parser::Settle FindNotOf(const char* Needle, uint64_t Offset = 0U) const;
-			bool StartsWith(const std::string& Value, uint64_t Offset = 0U) const;
-			bool StartsWith(const char* Value, uint64_t Offset = 0U) const;
-			bool StartsOf(const char* Value, uint64_t Offset = 0U) const;
-			bool StartsNotOf(const char* Value, uint64_t Offset = 0U) const;
+			Parser::Settle ReverseFind(const std::string& Needle, size_t Offset = 0U) const;
+			Parser::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
+			Parser::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
+			Parser::Settle ReverseFindUnescaped(const char& Needle, size_t Offset = 0U) const;
+			Parser::Settle ReverseFindOf(const std::string& Needle, size_t Offset = 0U) const;
+			Parser::Settle ReverseFindOf(const char* Needle, size_t Offset = 0U) const;
+			Parser::Settle Find(const std::string& Needle, size_t Offset = 0U) const;
+			Parser::Settle Find(const char* Needle, size_t Offset = 0U) const;
+			Parser::Settle Find(const char& Needle, size_t Offset = 0U) const;
+			Parser::Settle FindUnescaped(const char& Needle, size_t Offset = 0U) const;
+			Parser::Settle FindOf(const std::string& Needle, size_t Offset = 0U) const;
+			Parser::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
+			Parser::Settle FindNotOf(const std::string& Needle, size_t Offset = 0U) const;
+			Parser::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
+			bool StartsWith(const std::string& Value, size_t Offset = 0U) const;
+			bool StartsWith(const char* Value, size_t Offset = 0U) const;
+			bool StartsOf(const char* Value, size_t Offset = 0U) const;
+			bool StartsNotOf(const char* Value, size_t Offset = 0U) const;
 			bool EndsWith(const std::string& Value) const;
 			bool EndsOf(const char* Value) const;
 			bool EndsNotOf(const char* Value) const;
@@ -799,17 +803,17 @@ namespace Tomahawk
 			double ToDouble() const;
 			long double ToLDouble() const;
 			uint64_t ToUInt64() const;
-			uint64_t Size() const;
-			uint64_t Capacity() const;
+			size_t Size() const;
+			size_t Capacity() const;
 			char* Value() const;
 			const char* Get() const;
 			std::string& R();
 			std::wstring ToWide() const;
-			std::vector<std::string> Split(const std::string& With, uint64_t Start = 0U) const;
-			std::vector<std::string> Split(char With, uint64_t Start = 0U) const;
-			std::vector<std::string> SplitMax(char With, uint64_t MaxCount, uint64_t Start = 0U) const;
-			std::vector<std::string> SplitOf(const char* With, uint64_t Start = 0U) const;
-			std::vector<std::string> SplitNotOf(const char* With, uint64_t Start = 0U) const;
+			std::vector<std::string> Split(const std::string& With, size_t Start = 0U) const;
+			std::vector<std::string> Split(char With, size_t Start = 0U) const;
+			std::vector<std::string> SplitMax(char With, size_t MaxCount, size_t Start = 0U) const;
+			std::vector<std::string> SplitOf(const char* With, size_t Start = 0U) const;
+			std::vector<std::string> SplitNotOf(const char* With, size_t Start = 0U) const;
 			Parser& operator = (const Parser& New);
 
 		public:
@@ -817,7 +821,7 @@ namespace Tomahawk
 			static bool IsAlphabetic(char Char);
 			static int CaseCompare(const char* Value1, const char* Value2);
 			static int Match(const char* Pattern, const char* Text);
-			static int Match(const char* Pattern, uint64_t Length, const char* Text);
+			static int Match(const char* Pattern, size_t Length, const char* Text);
 			static std::string ToString(float Number);
 			static std::string ToString(double Number);
 		};
@@ -1043,7 +1047,7 @@ namespace Tomahawk
 				static CacheInfo GetCacheInfo(unsigned int level);
 				static Arch GetArch() noexcept;
 				static Endian GetEndianness() noexcept;
-				static uint64_t GetFrequency() noexcept;
+				static size_t GetFrequency() noexcept;
 			};
 
 			class TH_OUT Directory
@@ -1063,7 +1067,7 @@ namespace Tomahawk
 			class TH_OUT File
 			{
 			public:
-				static bool Write(const char* Path, const char* Data, uint64_t Length);
+				static bool Write(const char* Path, const char* Data, size_t Length);
 				static bool Write(const char* Path, const std::string& Data);
 				static bool State(const std::string& Path, Resource* Resource);
 				static bool Move(const char* From, const char* To);
@@ -1074,9 +1078,9 @@ namespace Tomahawk
 				static FileState GetState(const char* Path);
 				static Unique<Stream> Open(const std::string& Path, FileMode Mode, bool Async = false);
 				static Unique<void> Open(const char* Path, const char* Mode);
-				static Unique<unsigned char> ReadChunk(Stream* Stream, uint64_t Length);
-				static Unique<unsigned char> ReadAll(const char* Path, uint64_t* ByteLength);
-				static Unique<unsigned char> ReadAll(Stream* Stream, uint64_t* ByteLength);
+				static Unique<unsigned char> ReadChunk(Stream* Stream, size_t Length);
+				static Unique<unsigned char> ReadAll(const char* Path, size_t* ByteLength);
+				static Unique<unsigned char> ReadAll(Stream* Stream, size_t* ByteLength);
 				static std::string ReadAsString(const char* Path);
 				static std::vector<std::string> ReadAsArray(const char* Path);
 			};
@@ -1091,7 +1095,7 @@ namespace Tomahawk
 				static std::string ResolveDirectory(const std::string& Path, const std::string& Directory);
 				static std::string ResolveResource(const std::string& Path);
 				static std::string ResolveResource(const std::string& Path, const std::string& Directory);
-				static std::string GetDirectory(const char* Path, uint32_t Level = 0);
+				static std::string GetDirectory(const char* Path, size_t Level = 0);
 				static const char* GetFilename(const char* Path);
 				static const char* GetExtension(const char* Path);
 			};
@@ -1099,8 +1103,8 @@ namespace Tomahawk
 			class TH_OUT Net
 			{
 			public:
-				static bool GetETag(char* Buffer, uint64_t Length, Resource* Resource);
-				static bool GetETag(char* Buffer, uint64_t Length, int64_t LastModified, uint64_t ContentLength);
+				static bool GetETag(char* Buffer, size_t Length, Resource* Resource);
+				static bool GetETag(char* Buffer, size_t Length, int64_t LastModified, size_t ContentLength);
 				static socket_t GetFd(FILE* Stream);
 			};
 
@@ -1402,7 +1406,7 @@ namespace Tomahawk
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
 			double GetCapturedTime() const;
-			std::string Read(uint64_t Size);
+			std::string Read(size_t Size);
 
 		public:
 			static Console* Get();
@@ -1460,14 +1464,14 @@ namespace Tomahawk
 			virtual bool Seek(FileSeek Mode, int64_t Offset) = 0;
 			virtual bool Move(int64_t Offset) = 0;
 			virtual int Flush() = 0;
-			virtual uint64_t ReadAny(const char* Format, ...) = 0;
-			virtual uint64_t Read(char* Buffer, uint64_t Length) = 0;
-			virtual uint64_t WriteAny(const char* Format, ...) = 0;
-			virtual uint64_t Write(const char* Buffer, uint64_t Length) = 0;
-			virtual uint64_t Tell() = 0;
+			virtual size_t ReadAny(const char* Format, ...) = 0;
+			virtual size_t Read(char* Buffer, size_t Length) = 0;
+			virtual size_t WriteAny(const char* Format, ...) = 0;
+			virtual size_t Write(const char* Buffer, size_t Length) = 0;
+			virtual size_t Tell() = 0;
 			virtual int GetFd() const = 0;
 			virtual void* GetBuffer() const = 0;
-			uint64_t GetSize();
+			size_t GetSize();
 			std::string& GetSource();
 		};
 
@@ -1485,11 +1489,11 @@ namespace Tomahawk
 			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
 			virtual bool Move(int64_t Offset) override;
 			virtual int Flush() override;
-			virtual uint64_t ReadAny(const char* Format, ...) override;
-			virtual uint64_t Read(char* Buffer, uint64_t Length) override;
-			virtual uint64_t WriteAny(const char* Format, ...) override;
-			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
-			virtual uint64_t Tell() override;
+			virtual size_t ReadAny(const char* Format, ...) override;
+			virtual size_t Read(char* Buffer, size_t Length) override;
+			virtual size_t WriteAny(const char* Format, ...) override;
+			virtual size_t Write(const char* Buffer, size_t Length) override;
+			virtual size_t Tell() override;
 			virtual int GetFd() const override;
 			virtual void* GetBuffer() const override;
 		};
@@ -1508,11 +1512,11 @@ namespace Tomahawk
 			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
 			virtual bool Move(int64_t Offset) override;
 			virtual int Flush() override;
-			virtual uint64_t ReadAny(const char* Format, ...) override;
-			virtual uint64_t Read(char* Buffer, uint64_t Length) override;
-			virtual uint64_t WriteAny(const char* Format, ...) override;
-			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
-			virtual uint64_t Tell() override;
+			virtual size_t ReadAny(const char* Format, ...) override;
+			virtual size_t Read(char* Buffer, size_t Length) override;
+			virtual size_t WriteAny(const char* Format, ...) override;
+			virtual size_t Write(const char* Buffer, size_t Length) override;
+			virtual size_t Tell() override;
 			virtual int GetFd() const override;
 			virtual void* GetBuffer() const override;
 		};
@@ -1522,8 +1526,8 @@ namespace Tomahawk
 		protected:
 			void* Resource;
 			std::string Buffer;
-			uint64_t Offset;
-			uint64_t Size;
+			int64_t Offset;
+			size_t Size;
 			bool Async;
 
 		public:
@@ -1535,11 +1539,11 @@ namespace Tomahawk
 			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
 			virtual bool Move(int64_t Offset) override;
 			virtual int Flush() override;
-			virtual uint64_t ReadAny(const char* Format, ...) override;
-			virtual uint64_t Read(char* Buffer, uint64_t Length) override;
-			virtual uint64_t WriteAny(const char* Format, ...) override;
-			virtual uint64_t Write(const char* Buffer, uint64_t Length) override;
-			virtual uint64_t Tell() override;
+			virtual size_t ReadAny(const char* Format, ...) override;
+			virtual size_t Read(char* Buffer, size_t Length) override;
+			virtual size_t WriteAny(const char* Format, ...) override;
+			virtual size_t Write(const char* Buffer, size_t Length) override;
+			virtual size_t Tell() override;
 			virtual int GetFd() const override;
 			virtual void* GetBuffer() const override;
 		};
@@ -1548,7 +1552,7 @@ namespace Tomahawk
 		{
 		private:
 			std::string LastValue;
-			uint64_t Offset;
+			size_t Offset;
 			int64_t Time;
 
 		public:
@@ -1573,7 +1577,7 @@ namespace Tomahawk
 			virtual ~FileTree() override;
 			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
 			const FileTree* Find(const std::string& Path) const;
-			uint64_t GetFiles() const;
+			size_t GetFiles() const;
 		};
 
 		class TH_OUT Costate : public Object
@@ -1613,7 +1617,7 @@ namespace Tomahawk
 			void Clear();
 			bool HasActive() const;
 			Coroutine* GetCurrent() const;
-			uint64_t GetCount() const;
+			size_t GetCount() const;
 
 		private:
 			int Swap(Coroutine* Routine);
@@ -1643,7 +1647,7 @@ namespace Tomahawk
 			Schema(const Variant& Base) noexcept;
 			Schema(Variant&& Base) noexcept;
 			virtual ~Schema() override;
-			std::unordered_map<std::string, uint64_t> GetNames() const;
+			std::unordered_map<std::string, size_t> GetNames() const;
 			std::vector<Schema*> FindCollection(const std::string& Name, bool Deep = false) const;
 			std::vector<Schema*> FetchCollection(const std::string& Notation, bool Deep = false) const;
 			std::vector<Schema*> GetAttributes() const;
@@ -1707,9 +1711,9 @@ namespace Tomahawk
 		private:
 			static bool ProcessConvertionFromXML(void* Base, Schema* Current);
 			static bool ProcessConvertionFromJSON(void* Base, Schema* Current);
-			static bool ProcessConvertionFromJSONB(Schema* Current, std::unordered_map<uint64_t, std::string>* Map, const SchemaReadCallback& Callback);
-			static bool ProcessConvertionToJSONB(Schema* Current, std::unordered_map<std::string, uint64_t>* Map, const SchemaWriteCallback& Callback);
-			static bool GenerateNamingTable(const Schema* Current, std::unordered_map<std::string, uint64_t>* Map, uint64_t& Index);
+			static bool ProcessConvertionFromJSONB(Schema* Current, std::unordered_map<size_t, std::string>* Map, const SchemaReadCallback& Callback);
+			static bool ProcessConvertionToJSONB(Schema* Current, std::unordered_map<std::string, size_t>* Map, const SchemaWriteCallback& Callback);
+			static bool GenerateNamingTable(const Schema* Current, std::unordered_map<std::string, size_t>* Map, size_t& Index);
 		};
 
 		class TH_OUT_TS Schedule : public Object
@@ -1746,7 +1750,7 @@ namespace Tomahawk
 				std::thread::id Id = std::thread::id();
 				Difficulty Type = Difficulty::Count;
 				ThreadTask State = ThreadTask::Spawn;
-				uint64_t Tasks = 0;
+				size_t Tasks = 0;
 			};
 
 			typedef std::function<void(const ThreadDebug&)> ThreadDebugCallback;
@@ -1755,14 +1759,14 @@ namespace Tomahawk
 			struct TH_OUT Desc
 			{
 				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
-				uint64_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
-				uint64_t Memory = TH_STACKSIZE;
-				uint64_t Coroutines = 16;
+				size_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
+				size_t Memory = TH_STACKSIZE;
+				size_t Coroutines = 16;
 				ActivityCallback Ping = nullptr;
 				bool Parallel = true;
 
 				Desc();
-				void SetThreads(uint64_t Cores);
+				void SetThreads(size_t Cores);
 			};
 
 		private:
@@ -1806,13 +1810,13 @@ namespace Tomahawk
 			bool IsActive() const;
 			bool CanEnqueue() const;
 			bool HasTasks(Difficulty Type) const;
-			uint64_t GetTotalThreads() const;
-			uint64_t GetThreads(Difficulty Type) const;
+			size_t GetTotalThreads() const;
+			size_t GetThreads(Difficulty Type) const;
 			const Desc& GetPolicy() const;
 
 		private:
-			bool PostDebug(Difficulty Type, ThreadTask State, uint64_t Tasks);
-			bool PostDebug(ThreadPtr* Ptr, ThreadTask State, uint64_t Tasks);
+			bool PostDebug(Difficulty Type, ThreadTask State, size_t Tasks);
+			bool PostDebug(ThreadPtr* Ptr, ThreadTask State, size_t Tasks);
 			bool ProcessTick(Difficulty Type);
 			bool ProcessLoop(Difficulty Type, ThreadPtr* Thread);
 			bool ThreadActive(ThreadPtr* Thread);
@@ -1854,7 +1858,7 @@ namespace Tomahawk
 				if (Ref.Data != nullptr)
 					Copy(Ref);
 			}
-			Pool(Pool<T>&& Ref) : Count(Ref.Count), Volume(Ref.Volume), Data(Ref.Data)
+			Pool(Pool<T>&& Ref) noexcept : Count(Ref.Count), Volume(Ref.Volume), Data(Ref.Data)
 			{
 				Ref.Count = 0;
 				Ref.Volume = 0;
@@ -1940,7 +1944,7 @@ namespace Tomahawk
 			Iterator RemoveAt(Iterator It)
 			{
 				TH_ASSERT(Count > 0, End(), "pool is empty");
-				TH_ASSERT(It - Data >= 0 && It - Data < Count, End(), "iterator ranges out of pool");
+				TH_ASSERT((size_t)(It - Data) >= 0 && (size_t)(It - Data) < Count, End(), "iterator ranges out of pool");
 
 				Count--;
 				Data[It - Data] = Data[Count];
@@ -2026,7 +2030,7 @@ namespace Tomahawk
 				Copy(Ref);
 				return *this;
 			}
-			Pool<T>& operator =(Pool<T>&& Ref)
+			Pool<T>& operator =(Pool<T>&& Ref) noexcept
 			{
 				if (this == &Ref)
 					return *this;

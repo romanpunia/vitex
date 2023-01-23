@@ -218,15 +218,13 @@ There are two basic rules of memory ownership:
 + Ubuntu 16.04+ x64/x86
 + MacOS Catalina 10.15+ x64
 
-*Note: some functionality might be stripped without needed dependencies. Also exceptions were not used, it's more C-like with return codes.*
-
 ## Building (standalone)
-Tomahawk uses CMake as building system. Because Windows doesn't have default include/src folders [Microsoft's vcpkg](https://github.com/Microsoft/vcpkg) is suggested but not required.
+Tomahawk uses CMake as building system. Microsoft [vcpkg](https://github.com/Microsoft/vcpkg) is suggested.
 1. Install [CMake](https://cmake.org/install/).
 2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute
-> /lib/install.sh $triplet
+> vcpkg install zlib assimp glew mongo-c-driver openal-soft openssl libpq sdl2 freetype spirv-cross glslang --triplet=$triplet
 
-where $triplet is a target platform, for example, x86-windows.
+where $triplet is a target platform, for example, x86-windows or x64-windows.
 
 3. Execute CMake command to generate the files or use CMake GUI if you have one.
 If you want to use vcpkg then add VCPKG_ROOT environment variable and if you want to execute install script, add vcpkg executable to PATH environment variable. It should contain full path to vcpkg executable. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg). For example,
@@ -279,7 +277,7 @@ These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
 + **TH_WITH_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
 
-## Core built-in dependencies from **/src/supplies**
+## Static dependencies
 * [bullet3](https://github.com/bulletphysics/bullet3)
 * [angelscript](https://sourceforge.net/projects/angelscript/)
 * [wepoll](https://github.com/piscisaureus/wepoll)
@@ -292,7 +290,7 @@ These **will** alter some interfaces like GUI and Compute
 * [concurrentqueue](https://github.com/cameron314/concurrentqueue)
 * [backward-cpp](https://github.com/bombela/backward-cpp)
 
-## Optional dependencies from **/lib**
+## Dynamic dependencies
 These are recommended to be installed, but are not required to.
 * [d3d11](https://www.microsoft.com/en-us/download/details.aspx?id=6812)
 * [opengl](https://github.com/KhronosGroup/OpenGL-Registry)

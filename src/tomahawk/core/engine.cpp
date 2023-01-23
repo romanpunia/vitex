@@ -10,7 +10,6 @@
 #include <SDL2/SDL_syswm.h>
 #undef Complex
 #endif
-
 namespace std
 {
 	template <typename T>
@@ -1845,7 +1844,7 @@ namespace Tomahawk
 		{
 			return nullptr;
 		}
-		void* Processor::Deserialize(Core::Stream* Stream, uint64_t Length, uint64_t Offset, const Core::VariantArgs& Args)
+		void* Processor::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
 		{
 			return nullptr;
 		}
@@ -2069,7 +2068,7 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		uint64_t Entity::GetComponentsCount() const
+		size_t Entity::GetComponentsCount() const
 		{
 			return Type.Components.size();
 		}
@@ -2393,12 +2392,12 @@ namespace Tomahawk
 			for (auto& Next : Renderers)
 				Next->Deactivate();
 		}
-		void RenderSystem::MoveRenderer(uint64_t Id, int64_t Offset)
+		void RenderSystem::MoveRenderer(uint64_t Id, size_t Offset)
 		{
 			if (Offset == 0)
 				return;
 
-			for (int64_t i = 0; i < Renderers.size(); i++)
+			for (size_t i = 0; i < Renderers.size(); i++)
 			{
 				if (Renderers[i]->GetId() != Id)
 					continue;
@@ -3066,8 +3065,8 @@ namespace Tomahawk
 			}
 			else if (Type == BufferType::Vertex)
 			{
-				const float X = 0.525731112119133606;
-				const float Z = 0.850650808352039932;
+				const float X = 0.525731112119133606f;
+				const float Z = 0.850650808352039932f;
 				const float N = 0.0f;
 
 				std::vector<Compute::ShapeVertex> Elements =
@@ -3404,22 +3403,22 @@ namespace Tomahawk
 			double Size = (double)Storage.Capacity();
 			Size *= 1.0 + Grow;
 
-			Storage.Reserve((uint64_t)Size);
+			Storage.Reserve((size_t)Size);
 		}
 
 		SceneGraph::Desc SceneGraph::Desc::Get(Application* Base)
 		{
 			SceneGraph::Desc I;
-			if (Base != nullptr)
-			{
-				I.Shared.Parallel = Base->Control.Parallel;
-				I.Shared.Shaders = Base->Cache.Shaders;
-				I.Shared.Primitives = Base->Cache.Primitives;
-				I.Shared.Content = Base->Content;
-				I.Shared.Device = Base->Renderer;
-				I.Shared.Manager = Base->VM;
-			}
+			if (!Base)
+				return I;
 
+			I.Shared.Parallel = Base->Control.Parallel;
+			I.Shared.Shaders = Base->Cache.Shaders;
+			I.Shared.Primitives = Base->Cache.Primitives;
+			I.Shared.Content = Base->Content;
+			I.Shared.Device = Base->Renderer;
+			I.Shared.Activity = Base->Activity;
+			I.Shared.Manager = Base->VM;
 			return I;
 		}
 
@@ -3596,7 +3595,7 @@ namespace Tomahawk
 			if (!Device->Map(Display.MaterialBuffer, Graphics::ResourceMap::Write_Discard, &Stream))
 				return;
 
-			uint64_t Size = 0;
+			size_t Size = 0;
 			Subsurface* Array = (Subsurface*)Stream.Pointer;
 			auto Begin = Materials.Begin(), End = Materials.End();
 			for (auto It = Begin; It != End; ++It)
@@ -3613,7 +3612,7 @@ namespace Tomahawk
 		{
 			auto* Device = Conf.Shared.Device;
 			TH_ASSERT_V(Device != nullptr, "graphics device should be set");
-			TH_ASSERT_V(Conf.Shared.Primitives != nullptr, "graphics device should be set");
+			TH_ASSERT_V(Conf.Shared.Primitives != nullptr, "primitive cache should be set");
 
 			Device->Render.TexCoord = 1.0f;
 			Device->Render.Transform.Identify();
@@ -3793,30 +3792,6 @@ namespace Tomahawk
 						Item.second.clear();
 				}
 			}
-			TH_PPOP();
-		}
-		void SceneGraph::SortBackToFront(Core::Pool<Drawable*>* Array)
-		{
-			TH_ASSERT_V(Array != nullptr, "array should be set");
-			TH_PPUSH(TH_PERF_FRAME);
-
-			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
-			{
-				return A->Parent->Snapshot.Distance > B->Parent->Snapshot.Distance;
-			});
-
-			TH_PPOP();
-		}
-		void SceneGraph::SortFrontToBack(Core::Pool<Drawable*>* Array)
-		{
-			TH_ASSERT_V(Array != nullptr, "array should be set");
-			TH_PPUSH(TH_PERF_FRAME);
-
-			std::sort(Array->Begin(), Array->End(), [](Component* A, Component* B)
-			{
-				return A->Parent->Snapshot.Distance < B->Parent->Snapshot.Distance;
-			});
-
 			TH_PPOP();
 		}
 		void SceneGraph::SetCamera(Entity* NewCamera)
@@ -4006,9 +3981,9 @@ namespace Tomahawk
 
 			for (auto& Child : Childs)
 			{
-				uint64_t Offset = Array->size();
+				size_t Offset = Array->size();
 				CloneEntities((Entity*)Child->UserData, Array);
-				for (uint64_t j = Offset; j < Array->size(); j++)
+				for (size_t j = Offset; j < Array->size(); j++)
 				{
 					Entity* Next = (*Array)[j];
 					if (Next->Transform->GetRoot() == Instance->Transform)
@@ -4016,27 +3991,18 @@ namespace Tomahawk
 				}
 			}
 		}
-		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, float MaxDistance, const RayCallback& Callback)
+		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
 			TH_PPUSH(TH_PERF_FRAME);
-
-			int32_t Distance = 0;
-			auto* Viewer = (Components::Camera*)Camera.load();
-			if (Viewer != nullptr)
-				MaxDistance = (int32_t)(MaxDistance * Viewer->FarPlane);
 
 			auto& Array = GetComponents(Section);
 			Compute::Ray Base = Origin;
 			Compute::Vector3 Hit;
 
-			for (auto It = Array.Begin(); It != Array.End(); ++It)
+			for (auto& Next : Array)
 			{
-				Component* Current = *It;
-				if (Distance > 0 && Current->Parent->Snapshot.Distance > Distance)
-					continue;
-
-				if (Compute::Geometric::CursorRayTest(Base, Current->Parent->Snapshot.Box, &Hit) && !Callback(Current, Hit))
+				if (Compute::Geometric::CursorRayTest(Base, Next->Parent->Snapshot.Box, &Hit) && !Callback(Next, Hit))
 					break;
 			}
 
@@ -4323,7 +4289,7 @@ namespace Tomahawk
 			Result->To.clear();
 			Result->From.clear();
 
-			uint64_t Index = 0;
+			size_t Index = 0;
 			auto Begin = Entities.Begin(), End = Entities.End();
 			for (auto It = Begin; It != End; ++It)
 			{
@@ -4554,7 +4520,7 @@ namespace Tomahawk
 					Transaction([this, Base]()
 					{
 						if (Dirty.Size() + Conf.GrowMargin > Dirty.Capacity())
-							UpgradeBuffer(Dirty, Conf.GrowRate);
+							UpgradeBuffer(Dirty, (float)Conf.GrowRate);
 						Dirty.Add(Base);
 					});
 				}
@@ -4614,7 +4580,7 @@ namespace Tomahawk
 				{
 					if (Materials.Size() + Conf.GrowMargin > Materials.Capacity())
 					{
-						UpgradeBuffer(Materials, Conf.GrowRate);
+						UpgradeBuffer(Materials, (float)Conf.GrowRate);
 						GenerateMaterialBuffer();
 					}
 					AddMaterial(Base);
@@ -4667,7 +4633,7 @@ namespace Tomahawk
 
 			return Base;
 		}
-		Component* SceneGraph::GetComponent(uint64_t Component, uint64_t Section)
+		Component* SceneGraph::GetComponent(size_t Component, uint64_t Section)
 		{
 			auto& Array = GetComponents(Section);
 			if (Component >= Array.Size())
@@ -4701,7 +4667,7 @@ namespace Tomahawk
 				{
 					SparseIndex* Storage = Registry[Section];
 					if (Storage->Data.Size() + Conf.GrowMargin > Storage->Data.Capacity())
-					    UpgradeBuffer(Storage->Data, Conf.GrowRate);
+					    UpgradeBuffer(Storage->Data, (float)Conf.GrowRate);
 				});
 			}
 
@@ -4718,12 +4684,12 @@ namespace Tomahawk
 
 			return nullptr;
 		}
-		Material* SceneGraph::GetMaterial(uint64_t Material)
+		Material* SceneGraph::GetMaterial(size_t Material)
 		{
 			TH_ASSERT(Material < Materials.Size(), nullptr, "index outside of range");
 			return Materials[Material];
 		}
-		Entity* SceneGraph::GetEntity(uint64_t Entity)
+		Entity* SceneGraph::GetEntity(size_t Entity)
 		{
 			TH_ASSERT(Entity < Entities.Size(), nullptr, "index outside of range");
 			return Entities[Entity];
@@ -4783,7 +4749,7 @@ namespace Tomahawk
 				{
 					auto& Storage = Actors[(size_t)Type];
 					if (Storage.Size() + Conf.GrowMargin > Storage.Capacity())
-						UpgradeBuffer(Storage, Conf.GrowRate);
+						UpgradeBuffer(Storage, (float)Conf.GrowRate);
 				});
 			}
 
@@ -4874,11 +4840,12 @@ namespace Tomahawk
 
 			return Array;
 		}
-		std::vector<Component*> SceneGraph::QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius, bool DrawableOnly)
+		std::vector<Component*> SceneGraph::QueryByPosition(uint64_t Section, const Compute::Vector3& Position, float Radius)
 		{
-			return QueryByArea(Section, Position - Radius * 0.5f, Position + Radius * 0.5f, DrawableOnly);
+
+			return QueryByArea(Section, Position - Radius * 0.5f, Position + Radius * 0.5f);
 		}
-		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max, bool DrawableOnly)
+		std::vector<Component*> SceneGraph::QueryByArea(uint64_t Section, const Compute::Vector3& Min, const Compute::Vector3& Max)
 		{
 			std::vector<Component*> Result;
 			Compute::Bounding Target(Min, Max);
@@ -4890,6 +4857,38 @@ namespace Tomahawk
 			}, [&Result](Component* Item)
 			{
 				Result.push_back(Item);
+			});
+
+			return Result;
+		}
+		std::vector<std::pair<Component*, Compute::Vector3>> SceneGraph::QueryByRay(uint64_t Section, const Compute::Ray& Origin)
+		{
+			typedef std::pair<Component*, Compute::Vector3> RayHit;
+			std::vector<RayHit> Result;
+			Compute::Ray Target = Origin;
+			Compute::Cosmos::Iterator Context;
+			auto& Storage = GetStorage(Section);
+			Storage.Index.Query<Component>(Context, [&Target](const Compute::Bounding& Bounds)
+			{
+				return Target.IntersectsAABBAt(Bounds.Lower, Bounds.Upper, nullptr);
+			}, [&Result](Component* Item)
+			{
+				Result.emplace_back(Item, Compute::Vector3::Zero());
+			});
+
+			for (auto It = Result.begin(); It != Result.end();)
+			{
+				if (!Compute::Geometric::CursorRayTest(Target, It->first->Parent->Snapshot.Box, &It->second))
+					It = Result.erase(It);
+				else
+					++It;
+			}
+
+			TH_SORT(Result.begin(), Result.end(), [&Target](RayHit& A, RayHit& B)
+			{
+				float D1 = Target.Origin.Distance(A.first->Parent->Transform->GetPosition());
+				float D2 = Target.Origin.Distance(B.first->Parent->Transform->GetPosition());
+				return D1 < D2;
 			});
 
 			return Result;
@@ -4936,7 +4935,7 @@ namespace Tomahawk
 			Transaction([this, Entity]()
 			{
 				if (Entities.Size() + Conf.GrowMargin > Entities.Capacity())
-					UpgradeBuffer(Entities, Conf.GrowRate);
+					UpgradeBuffer(Entities, (float)Conf.GrowRate);
 				AddEntity(Entity);
 			});
 
@@ -4945,7 +4944,7 @@ namespace Tomahawk
 		bool SceneGraph::HasEntity(Entity* Entity) const
 		{
 			TH_ASSERT(Entity != nullptr, false, "entity should be set");
-			for (uint64_t i = 0; i < Entities.Size(); i++)
+			for (size_t i = 0; i < Entities.Size(); i++)
 			{
 				if (Entities[i] == Entity)
 					return true;
@@ -4953,7 +4952,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		bool SceneGraph::HasEntity(uint64_t Entity) const
+		bool SceneGraph::HasEntity(size_t Entity) const
 		{
 			return Entity < Entities.Size() ? Entity : -1;
 		}
@@ -4961,15 +4960,15 @@ namespace Tomahawk
 		{
 			return Active;
 		}
-		uint64_t SceneGraph::GetEntitiesCount() const
+		size_t SceneGraph::GetEntitiesCount() const
 		{
 			return Entities.Size();
 		}
-		uint64_t SceneGraph::GetComponentsCount(uint64_t Section)
+		size_t SceneGraph::GetComponentsCount(uint64_t Section)
 		{
 			return GetComponents(Section).Size();
 		}
-		uint64_t SceneGraph::GetMaterialsCount() const
+		size_t SceneGraph::GetMaterialsCount() const
 		{
 			return Materials.Size();
 		}
@@ -4993,15 +4992,19 @@ namespace Tomahawk
 		{
 			return Conf.Shared.Device;
 		}
-		ShaderCache* SceneGraph::GetShaders()
+		Graphics::Activity* SceneGraph::GetActivity() const
+		{
+			return Conf.Shared.Activity;
+		}
+		ShaderCache* SceneGraph::GetShaders() const
 		{
 			return Conf.Shared.Shaders;
 		}
-		PrimitiveCache* SceneGraph::GetPrimitives()
+		PrimitiveCache* SceneGraph::GetPrimitives() const
 		{
 			return Conf.Shared.Primitives;
 		}
-		Compute::Simulator* SceneGraph::GetSimulator()
+		Compute::Simulator* SceneGraph::GetSimulator() const
 		{
 			return Simulator;
 		}
@@ -5257,12 +5260,12 @@ namespace Tomahawk
 					continue;
 				}
 
-				Docker->Path.resize(Length);
-				Stream->Read((char*)Docker->Path.c_str(), sizeof(char) * Length);
+				Docker->Path.resize((size_t)Length);
+				Stream->Read((char*)Docker->Path.c_str(), sizeof(char) * (size_t)Length);
 				Dockers[Docker->Path] = Docker;
 			}
 
-			Streams[Stream] = (int64_t)Stream->Tell();
+			Streams[Stream] = Stream->Tell();
 			Mutex.unlock();
 
 			return true;
@@ -5310,7 +5313,7 @@ namespace Tomahawk
 
 					Offset += Length;
 					if (Size > 0)
-						Stream->Write((char*)Path.c_str(), sizeof(char) * Size);
+						Stream->Write((char*)Path.c_str(), sizeof(char) * (size_t)Size);
 
 					TH_RELEASE(File);
 				}
@@ -5325,11 +5328,11 @@ namespace Tomahawk
 					if (!File)
 						continue;
 
-					int64_t Size = (int64_t)File->GetSize();
+					size_t Size = File->GetSize();
 					while (Size > 0)
 					{
 						char Buffer[8192];
-						int64_t Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
+						size_t Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
 						if (Offset <= 0)
 							break;
 
@@ -5591,8 +5594,8 @@ namespace Tomahawk
 				{
 					SDL_DisplayMode Display;
 					SDL_GetCurrentDisplayMode(0, &Display);
-					I->Activity.Width = Display.w / 1.1;
-					I->Activity.Height = Display.h / 1.2;
+					I->Activity.Width = (unsigned int)(Display.w / 1.1);
+					I->Activity.Height = (unsigned int)(Display.h / 1.2);
 				}
 
 				if (I->Activity.Width > 0 && I->Activity.Height > 0)

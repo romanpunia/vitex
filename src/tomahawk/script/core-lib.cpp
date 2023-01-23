@@ -130,120 +130,6 @@ namespace Tomahawk
 			return Base;
 		}
 
-		STDArray* OSDirectoryScan(const std::string& Value)
-		{
-			std::vector<Core::ResourceEntry> Resources;
-			if (!Core::OS::Directory::Scan(Value, &Resources))
-				return nullptr;
-
-			std::vector<std::string> Result;
-			Result.reserve(Resources.size());
-			for (auto& Item : Resources)
-				Result.emplace_back(std::move(Item.Path));
-
-			VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl("Array<String>@");
-			return STDArray::Compose(Type.GetTypeInfo(), Result);
-		}
-		STDArray* OSDirectoryGetMounts()
-		{
-			VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl("Array<String>@");
-			return STDArray::Compose(Type.GetTypeInfo(), Core::OS::Directory::GetMounts());
-		}
-		int OSProcessExecute(const std::string& Value)
-		{
-			return Core::OS::Process::Execute("%s", Value.c_str());
-		}
-
-		uint64_t FileStreamRead(Core::FileStream* Base, uint64_t Size, std::string* Result)
-		{
-			if (Size == 0)
-				return 0;
-
-			char* Buffer = TH_MALLOC(char, sizeof(char) * Size);
-			memset(Buffer, 0, sizeof(char) * Size);
-			uint64_t L = Base->Read(Buffer, Size);
-			Result->assign(Buffer, (size_t)L);
-			TH_FREE(Buffer);
-
-			return L;
-		}
-		uint64_t GzStreamRead(Core::GzStream* Base, uint64_t Size, std::string* Result)
-		{
-			if (Size == 0)
-				return 0;
-
-			char* Buffer = TH_MALLOC(char, sizeof(char) * Size);
-			memset(Buffer, 0, sizeof(char) * Size);
-			uint64_t L = Base->Read(Buffer, Size);
-			Result->assign(Buffer, (size_t)L);
-			TH_FREE(Buffer);
-
-			return L;
-		}
-		uint64_t WebStreamRead(Core::WebStream* Base, uint64_t Size, std::string* Result)
-		{
-			if (Size == 0)
-				return 0;
-
-			char* Buffer = TH_MALLOC(char, sizeof(char) * Size);
-			memset(Buffer, 0, sizeof(char) * Size);
-			uint64_t L = Base->Read(Buffer, Size);
-			Result->assign(Buffer, (size_t)L);
-			TH_FREE(Buffer);
-
-			return L;
-		}
-
-		uint64_t ScheduleSetTimeout(Core::Schedule* Base, uint64_t MS, VMCFunction* Callback)
-		{
-			if (!Callback)
-				return TH_INVALID_TASK_ID;
-
-			VMContext* Context = VMContext::Get();
-			if (!Context)
-				return TH_INVALID_TASK_ID;
-
-			Callback->AddRef();
-			Context->AddRef();
-
-			return Base->SetTimeout(MS, [Context, Callback]() mutable
-			{
-				Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
-				{
-					Callback->Release();
-					Context->Release();
-				});
-			}, Core::Difficulty::Light);
-		}
-		bool ScheduleSetTask(Core::Schedule* Base, VMCFunction* Callback)
-		{
-			if (!Callback)
-				return TH_INVALID_TASK_ID;
-
-			VMContext* Context = VMContext::Get();
-			if (!Context)
-				return TH_INVALID_TASK_ID;
-
-			Callback->AddRef();
-			Context->AddRef();
-
-			return Base->SetTask([Context, Callback]() mutable
-			{
-				Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
-				{
-					Callback->Release();
-					Context->Release();
-				});
-			}, Core::Difficulty::Heavy);
-		}
-		bool ScheduleStart(uint64_t Threads)
-		{
-			Core::Schedule::Desc Policy;
-			Policy.SetThreads(Threads);
-
-			return Core::Schedule::Get()->Start(Policy);
-		}
-
 		Core::Schema* SchemaInit(Core::Schema* Base)
 		{
 			return Base;
@@ -367,7 +253,7 @@ namespace Tomahawk
 		}
 		Core::Schema* SchemaGetIndexOffset(Core::Schema* Base, uint64_t Offset)
 		{
-			return Base->Get(Offset);
+			return Base->Get((size_t)Offset);
 		}
 		Core::Schema* SchemaSet(Core::Schema* Base, const std::string& Name, Core::Schema* Value)
 		{
@@ -436,11 +322,14 @@ namespace Tomahawk
 			if (!Manager)
 				return nullptr;
 
-			std::unordered_map<std::string, uint64_t> Mapping = Base->GetNames();
+			std::unordered_map<std::string, size_t> Mapping = Base->GetNames();
 			STDMap* Map = STDMap::Create(Manager->GetEngine());
 
 			for (auto& Item : Mapping)
-				Map->Set(Item.first, &Item.second, (int)VMTypeId::INT64);
+			{
+				int64_t Index = (int64_t)Item.second;
+				Map->Set(Item.first, &Index, (int)VMTypeId::INT64);
+			}
 
 			return Map;
 		}
@@ -451,7 +340,7 @@ namespace Tomahawk
 		std::string SchemaToJSON(Core::Schema* Base)
 		{
 			std::string Stream;
-			Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+			Core::Schema::ConvertToJSON(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -462,7 +351,7 @@ namespace Tomahawk
 		std::string SchemaToXML(Core::Schema* Base)
 		{
 			std::string Stream;
-			Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+			Core::Schema::ConvertToXML(Base, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
 			{
 				if (Buffer != nullptr && Length > 0)
 					Stream.append(Buffer, Length);
@@ -599,7 +488,7 @@ namespace Tomahawk
 		std::string CEFormat::Form(const std::string& F, const CEFormat& Form)
 		{
 			Core::Parser Buffer = F;
-			uint64_t Offset = 0;
+			size_t Offset = 0;
 
 			for (auto& Item : Form.Args)
 			{
@@ -616,7 +505,7 @@ namespace Tomahawk
 		void CEFormat::WriteLine(Core::Console* Base, const std::string& F, CEFormat* Form)
 		{
 			Core::Parser Buffer = F;
-			uint64_t Offset = 0;
+			size_t Offset = 0;
 
 			if (Form != nullptr)
 			{
@@ -636,7 +525,7 @@ namespace Tomahawk
 		void CEFormat::Write(Core::Console* Base, const std::string& F, CEFormat* Form)
 		{
 			Core::Parser Buffer = F;
-			uint64_t Offset = 0;
+			size_t Offset = 0;
 
 			if (Form != nullptr)
 			{
@@ -1040,42 +929,6 @@ namespace Tomahawk
 
 			return true;
 		}
-		bool CERegisterFileState(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMTypeClass VFileState = Register.SetPod<Core::FileState>("FileState");
-			VFileState.SetProperty<Core::FileState>("uint64 Size", &Core::FileState::Size);
-			VFileState.SetProperty<Core::FileState>("uint64 Links", &Core::FileState::Links);
-			VFileState.SetProperty<Core::FileState>("uint64 Permissions", &Core::FileState::Permissions);
-			VFileState.SetProperty<Core::FileState>("uint64 IDocument", &Core::FileState::IDocument);
-			VFileState.SetProperty<Core::FileState>("uint64 Device", &Core::FileState::Device);
-			VFileState.SetProperty<Core::FileState>("uint64 UserId", &Core::FileState::UserId);
-			VFileState.SetProperty<Core::FileState>("uint64 GroupId", &Core::FileState::GroupId);
-			VFileState.SetProperty<Core::FileState>("int64 LastAccess", &Core::FileState::LastAccess);
-			VFileState.SetProperty<Core::FileState>("int64 LastPermissionChange", &Core::FileState::LastPermissionChange);
-			VFileState.SetProperty<Core::FileState>("int64 LastModified", &Core::FileState::LastModified);
-			VFileState.SetProperty<Core::FileState>("bool Exists", &Core::FileState::Exists);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterResource(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMTypeClass VResource = Register.SetPod<Core::Resource>("Resource");
-			VResource.SetProperty<Core::Resource>("uint64 Key", &Core::Resource::Size);
-			VResource.SetProperty<Core::Resource>("int64 LastModified", &Core::Resource::LastModified);
-			VResource.SetProperty<Core::Resource>("int64 CreationTime", &Core::Resource::CreationTime);
-			VResource.SetProperty<Core::Resource>("bool IsReferenced", &Core::Resource::IsReferenced);
-			VResource.SetProperty<Core::Resource>("bool IsDirectory", &Core::Resource::IsDirectory);
-			Engine->EndNamespace();
-
-			return true;
-		}
 		bool CERegisterDateTime(VMManager* Engine)
 		{
 			TH_ASSERT(Engine != nullptr, false, "manager should be set");
@@ -1129,64 +982,7 @@ namespace Tomahawk
 			VDateTime.SetOperatorEx(VMOpFunc::Cmp, (uint32_t)VMOp::Const, "int", "const DateTime &in", &DateTimeCmp);
 			VDateTime.SetOperatorEx(VMOpFunc::Add, (uint32_t)VMOp::Const, "DateTime", "const DateTime &in", &DateTimeAdd);
 			VDateTime.SetOperatorEx(VMOpFunc::Sub, (uint32_t)VMOp::Const, "DateTime", "const DateTime &in", &DateTimeSub);
-			VDateTime.SetMethodStatic("String GetGMT(int64)", &Core::DateTime::GetGMTBasedString);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterOS(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE::OS::Directory");
-			Register.SetFunction("void Set(Address@)", &Core::OS::Directory::Set);
-			Register.SetFunction("void Patch(const String &in)", &Core::OS::Directory::Patch);
-			Register.SetFunction("bool Create(Address@)", &Core::OS::Directory::Create);
-			Register.SetFunction("bool Remove(Address@)", &Core::OS::Directory::Remove);
-			Register.SetFunction("bool IsExists(Address@)", &Core::OS::Directory::IsExists);
-			Register.SetFunction("String Get()", &Core::OS::Directory::Get);
-			Register.SetFunction("Array<String>@ GetMounts()", &OSDirectoryGetMounts);
-			Register.SetFunction("Array<String>@ Scan(const String &in)", &OSDirectoryScan);
-			Engine->EndNamespace();
-			Engine->BeginNamespace("CE::OS::File");
-			Register.SetFunction<bool(const char*, const std::string&)>("bool Write(Address@, const String &in)", &Core::OS::File::Write);
-			Register.SetFunction("bool State(const String &in, Resource &out)", &Core::OS::File::State);
-			Register.SetFunction("bool Move(Address@, Address@)", &Core::OS::File::Move);
-			Register.SetFunction("bool Remove(Address@)", &Core::OS::File::Remove);
-			Register.SetFunction("bool IsExists(Address@)", &Core::OS::File::IsExists);
-			Register.SetFunction("int Compare(const String &in, const String &in)", &Core::OS::File::Compare);
-			Register.SetFunction("uint64 GetCheckSum(const String &in)", &Core::OS::File::GetCheckSum);
-			Register.SetFunction("FileState GetState(Address@)", &Core::OS::File::GetState);
-			Register.SetFunction("String ReadAsString(Address@)", &Core::OS::File::ReadAsString);
-			Engine->EndNamespace();
-			Engine->BeginNamespace("CE::OS::Path");
-			Register.SetFunction<std::string(const char*)>("String Resolve(Address@)", &Core::OS::Path::Resolve);
-			Register.SetFunction<std::string(const std::string&, const std::string&)>("String Resolve(const String &in, const String &in)", &Core::OS::Path::Resolve);
-			Register.SetFunction<std::string(const char*)>("String ResolveDirectory(Address@)", &Core::OS::Path::ResolveDirectory);
-			Register.SetFunction<std::string(const std::string&, const std::string&)>("String ResolveDirectory(const String &in, const String &in)", &Core::OS::Path::ResolveDirectory);
-			Register.SetFunction<std::string(const std::string&)>("String ResolveResource(Address@)", &Core::OS::Path::ResolveResource);
-			Register.SetFunction<std::string(const std::string&, const std::string&)>("String ResolveResource(const String &in, const String &in)", &Core::OS::Path::ResolveResource);
-			Register.SetFunction("String GetDirectory(Address@, uint = 0)", &Core::OS::Path::GetDirectory);
-			Engine->EndNamespace();
-			Engine->BeginNamespace("CE::OS::Process");
-			Register.SetFunction("int Execute(const String &in)", &OSProcessExecute);
-			Engine->EndNamespace();
-			Engine->BeginNamespace("CE::OS::Symbol");
-			Register.SetFunction("Address@ Load(const String &in = \"\")", &Core::OS::Symbol::Load);
-			Register.SetFunction("Address@ LoadFunction(Address@, const String &in)", &Core::OS::Symbol::LoadFunction);
-			Register.SetFunction("bool Unload(Address@)", &Core::OS::Symbol::Unload);
-			Engine->EndNamespace();
-			Engine->BeginNamespace("CE::OS::Input");
-			Register.SetFunction("bool Text(const String &in, const String &in, const String &in, String &out)", &Core::OS::Input::Text);
-			Register.SetFunction("bool Password(const String &in, const String &in, String &out)", &Core::OS::Input::Password);
-			Register.SetFunction("bool Save(const String &in, const String &in, const String &in, const String &in, String &out)", &Core::OS::Input::Save);
-			Register.SetFunction("bool Open(const String &in, const String &in, const String &in, const String &in, bool, String &out)", &Core::OS::Input::Open);
-			Register.SetFunction("bool Folder(const String &in, const String &in, String &out)", &Core::OS::Input::Folder);
-			Register.SetFunction("bool Color(const String &in, const String &in, String &out)", &Core::OS::Input::Color);
-			Engine->EndNamespace();
-			Engine->BeginNamespace("CE::OS::Error");
-			Register.SetFunction("int Get()", &Core::OS::Error::Get);
-			Register.SetFunction("String GetName(int)", &Core::OS::Error::GetName);
+			VDateTime.SetMethodStatic<std::string, int64_t>("String GetGMT(int64)", &Core::DateTime::FetchWebDateGMT);
 			Engine->EndNamespace();
 
 			return true;
@@ -1232,142 +1028,6 @@ namespace Tomahawk
 			VConsole.SetMethodEx("void Trace(uint32 = 32)", &ConsoleTrace);
 			VConsole.SetMethodEx("void WriteLine(const String &in, Format@+)", &CEFormat::WriteLine);
 			VConsole.SetMethodEx("void Write(const String &in, Format@+)", &CEFormat::Write);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterTimer(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMRefClass VTimer = Register.SetClassUnmanaged<Core::Timer>("Timer");
-			VTimer.SetUnmanagedConstructor<Core::Timer>("Timer@ f()");
-			VTimer.SetMethod("void SetStepLimitation(double, double)", &Core::Timer::SetStepLimitation);
-			VTimer.SetMethod("void Synchronize()", &Core::Timer::Synchronize);
-			VTimer.SetMethod("void CaptureTime()", &Core::Timer::CaptureTime);
-			VTimer.SetMethod("void Sleep(uint64)", &Core::Timer::Sleep);
-			VTimer.SetMethod("double GetTimeIncrement() const", &Core::Timer::GetTimeIncrement);
-			VTimer.SetMethod("double GetTickCounter() const", &Core::Timer::GetTickCounter);
-			VTimer.SetMethod("double GetFrameCount() const", &Core::Timer::GetFrameCount);
-			VTimer.SetMethod("double GetElapsedTime() const", &Core::Timer::GetElapsedTime);
-			VTimer.SetMethod("double GetCapturedTime() const", &Core::Timer::GetCapturedTime);
-			VTimer.SetMethod("double GetDeltaTime() const", &Core::Timer::GetDeltaTime);
-			VTimer.SetMethod("double GetTimeStep() const", &Core::Timer::GetTimeStep);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterFileStream(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMEnum VFileMode = Register.SetEnum("FileMode");
-			VFileMode.SetValue("ReadOnly", (int)Core::FileMode::Read_Only);
-			VFileMode.SetValue("WriteOnly", (int)Core::FileMode::Write_Only);
-			VFileMode.SetValue("AppendOnly", (int)Core::FileMode::Append_Only);
-			VFileMode.SetValue("ReadWrite", (int)Core::FileMode::Read_Write);
-			VFileMode.SetValue("WriteRead", (int)Core::FileMode::Write_Read);
-			VFileMode.SetValue("ReadAppendWrite", (int)Core::FileMode::Read_Append_Write);
-			VFileMode.SetValue("BinaryReadOnly", (int)Core::FileMode::Binary_Read_Only);
-			VFileMode.SetValue("BinaryWriteOnly", (int)Core::FileMode::Binary_Write_Only);
-			VFileMode.SetValue("BinaryAppendOnly", (int)Core::FileMode::Binary_Append_Only);
-			VFileMode.SetValue("BinaryRead_Write", (int)Core::FileMode::Binary_Read_Write);
-			VFileMode.SetValue("BinaryWriteRead", (int)Core::FileMode::Binary_Write_Read);
-			VFileMode.SetValue("BinaryReadAppendWrite", (int)Core::FileMode::Binary_Read_Append_Write);
-
-			VMEnum VFileSeek = Register.SetEnum("FileSeek");
-			VFileSeek.SetValue("Begin", (int)Core::FileSeek::Begin);
-			VFileSeek.SetValue("Current", (int)Core::FileSeek::Current);
-			VFileSeek.SetValue("End", (int)Core::FileSeek::End);
-
-			VMRefClass VFileStream = Register.SetClassUnmanaged<Core::FileStream>("FileStream");
-			VFileStream.SetUnmanagedConstructor<Core::FileStream>("FileStream@ f()");
-			VFileStream.SetMethod("void Clear()", &Core::FileStream::Clear);
-			VFileStream.SetMethod("bool Open(Address@, FileMode)", &Core::FileStream::Open);
-			VFileStream.SetMethod("bool Close()", &Core::FileStream::Close);
-			VFileStream.SetMethod("bool Seek(FileSeek, int64)", &Core::FileStream::Seek);
-			VFileStream.SetMethod("bool Move(int64)", &Core::FileStream::Move);
-			VFileStream.SetMethodEx("uint64 Read(uint64, String &out)", &FileStreamRead);
-			VFileStream.SetMethod("uint64 Write(Address@, uint64)", &Core::FileStream::Write);
-			VFileStream.SetMethod("uint64 Tell()", &Core::FileStream::Tell);
-			VFileStream.SetMethod("int Flush()", &Core::FileStream::Flush);
-			VFileStream.SetMethod("int GetFd()", &Core::FileStream::GetFd);
-			VFileStream.SetMethod("uint64 GetSize()", &Core::FileStream::GetSize);
-			VFileStream.SetMethod("String GetSource()", &Core::FileStream::GetSource);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterGzStream(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMRefClass VGzStream = Register.SetClassUnmanaged<Core::GzStream>("GzStream");
-			VGzStream.SetUnmanagedConstructor<Core::GzStream>("GzStream@ f()");
-			VGzStream.SetMethod("void Clear()", &Core::GzStream::Clear);
-			VGzStream.SetMethod("bool Open(Address@, FileMode)", &Core::GzStream::Open);
-			VGzStream.SetMethod("bool Close()", &Core::GzStream::Close);
-			VGzStream.SetMethod("bool Seek(FileSeek, int64)", &Core::GzStream::Seek);
-			VGzStream.SetMethod("bool Move(int64)", &Core::GzStream::Move);
-			VGzStream.SetMethodEx("uint64 Read(uint64, String &out)", &GzStreamRead);
-			VGzStream.SetMethod("uint64 Write(Address@, uint64)", &Core::GzStream::Write);
-			VGzStream.SetMethod("uint64 Tell()", &Core::GzStream::Tell);
-			VGzStream.SetMethod("int Flush()", &Core::GzStream::Flush);
-			VGzStream.SetMethod("int GetFd()", &Core::GzStream::GetFd);
-			VGzStream.SetMethod("uint64 GetSize()", &Core::GzStream::GetSize);
-			VGzStream.SetMethod("String GetSource()", &Core::GzStream::GetSource);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterWebStream(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMRefClass VWebStream = Register.SetClassUnmanaged<Core::WebStream>("WebStream");
-			VWebStream.SetUnmanagedConstructor<Core::WebStream, bool>("WebStream@ f(bool)");
-			VWebStream.SetMethod("void Clear()", &Core::WebStream::Clear);
-			VWebStream.SetMethod("bool Open(Address@, FileMode)", &Core::WebStream::Open);
-			VWebStream.SetMethod("bool Close()", &Core::WebStream::Close);
-			VWebStream.SetMethod("bool Seek(FileSeek, int64)", &Core::WebStream::Seek);
-			VWebStream.SetMethod("bool Move(int64)", &Core::WebStream::Move);
-			VWebStream.SetMethodEx("uint64 Read(uint64, String &out)", &WebStreamRead);
-			VWebStream.SetMethod("uint64 Write(Address@, uint64)", &Core::WebStream::Write);
-			VWebStream.SetMethod("uint64 Tell()", &Core::WebStream::Tell);
-			VWebStream.SetMethod("int Flush()", &Core::WebStream::Flush);
-			VWebStream.SetMethod("int GetFd()", &Core::WebStream::GetFd);
-			VWebStream.SetMethod("uint64 GetSize()", &Core::WebStream::GetSize);
-			VWebStream.SetMethod("String GetSource()", &Core::WebStream::GetSource);
-			Engine->EndNamespace();
-
-			return true;
-		}
-		bool CERegisterSchedule(VMManager* Engine)
-		{
-			TH_ASSERT(Engine != nullptr, false, "manager should be set");
-			VMGlobal& Register = Engine->Global();
-			Engine->BeginNamespace("CE");
-			VMEnum VDifficulty = Register.SetEnum("Difficulty");
-			VDifficulty.SetValue("Coroutine", (int)Core::Difficulty::Coroutine);
-			VDifficulty.SetValue("Clock", (int)Core::Difficulty::Clock);
-			VDifficulty.SetValue("Light", (int)Core::Difficulty::Light);
-			VDifficulty.SetValue("Heavy", (int)Core::Difficulty::Heavy);
-			VDifficulty.SetValue("Count", (int)Core::Difficulty::Count);
-
-			VMRefClass VSchedule = Register.SetClassUnmanaged<Core::Schedule>("Schedule");
-			VSchedule.SetFunctionDef("void CE::Schedule::TaskCallback()");
-			VSchedule.SetMethodEx("uint64 SetTimeout(uint64, TaskCallback@)", &ScheduleSetTimeout);
-			VSchedule.SetMethodEx("bool SetTask(TaskCallback@)", &ScheduleSetTask);
-			VSchedule.SetMethodEx("bool Start(uint64)", &ScheduleStart);
-			VSchedule.SetMethod("bool ClearTimeout(uint64)", &Core::Schedule::ClearTimeout);
-			VSchedule.SetMethod("bool Stop()", &Core::Schedule::Stop);
-			VSchedule.SetMethod("bool IsActive()", &Core::Schedule::IsActive);
-			VSchedule.SetMethod("bool HasTasks(Difficulty)", &Core::Schedule::HasTasks);
-			VSchedule.SetMethod("uint64 GetThreads(Difficulty)", &Core::Schedule::GetThreads);
 			Engine->EndNamespace();
 
 			return true;

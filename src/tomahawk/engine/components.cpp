@@ -41,7 +41,7 @@ namespace Tomahawk
 			}
 			void RigidBody::DeserializeBody(Core::Schema* Node)
 			{
-				uint64_t ActivationState;
+				size_t ActivationState;
 				if (Series::Unpack(Node->Find("activation-state"), &ActivationState))
 					Instance->SetActivationState((Compute::MotionState)ActivationState);
 
@@ -125,7 +125,7 @@ namespace Tomahawk
 				if (Series::Unpack(Node->Find("linear-velocity"), &LinearVelocity))
 					Instance->SetLinearVelocity(LinearVelocity);
 
-				uint64_t CollisionFlags;
+				size_t CollisionFlags;
 				if (Series::Unpack(Node->Find("collision-flags"), &CollisionFlags))
 					Instance->SetCollisionFlags(CollisionFlags);
 			}
@@ -135,7 +135,7 @@ namespace Tomahawk
 
 				Core::Schema* Shaping = Node->Find("shape");
 				std::vector<Compute::Vector3> Vertices;
-				std::string Path; uint64_t Type;
+				std::string Path; size_t Type;
 				float Mass = 0.0f, Anticipation = 0.0f;
 				bool Extended = false;
 
@@ -202,11 +202,11 @@ namespace Tomahawk
 						Series::Pack(Shaping->Set("path"), Path);
 				}
 				else
-					Series::Pack(Shaping->Set("type"), (uint64_t)Instance->GetCollisionShapeType());
+					Series::Pack(Shaping->Set("type"), (size_t)Instance->GetCollisionShapeType());
 
 				Series::Pack(Node->Set("mass"), Instance->GetMass());
 				Series::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				Series::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
+				Series::Pack(Node->Set("activation-state"), (size_t)Instance->GetActivationState());
 				Series::Pack(Node->Set("angular-damping"), Instance->GetAngularDamping());
 				Series::Pack(Node->Set("angular-sleeping-threshold"), Instance->GetAngularSleepingThreshold());
 				Series::Pack(Node->Set("friction"), Instance->GetFriction());
@@ -227,7 +227,7 @@ namespace Tomahawk
 				Series::Pack(Node->Set("gravity"), Instance->GetGravity());
 				Series::Pack(Node->Set("linear-factor"), Instance->GetLinearFactor());
 				Series::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
-				Series::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+				Series::Pack(Node->Set("collision-flags"), Instance->GetCollisionFlags());
 			}
 			void RigidBody::Synchronize(Core::Timer* Time)
 			{
@@ -365,14 +365,14 @@ namespace Tomahawk
 					Series::Unpack(Conf->Get("c-it"), &I.CIterations);
 					Series::Unpack(Conf->Get("collisions"), &I.Collisions);
 
-					uint64_t AeroModel;
+					size_t AeroModel;
 					if (Series::Unpack(Conf->Get("aero-model"), &AeroModel))
 						I.AeroModel = (Compute::SoftAeroModel)AeroModel;
 
 					Instance->SetConfig(I);
 				}
 
-				uint64_t ActivationState;
+				size_t ActivationState;
 				if (Series::Unpack(Node->Find("activation-state"), &ActivationState))
 					Instance->SetActivationState((Compute::MotionState)ActivationState);
 
@@ -439,8 +439,6 @@ namespace Tomahawk
 				float Anticipation = 0.0f;
 				bool Extended = false, Transparent = false;
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
-				uint64_t Slot = -1;
-
 				Series::Unpack(Node->Find("ccd-motion-threshold"), &Anticipation);
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
 				Series::Unpack(Node->Find("extended"), &Extended);
@@ -450,8 +448,9 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("category"), &NewCategory);
 				SetCategory((GeoCategory)NewCategory);
 
+				size_t Slot = 0;
 				if (Series::Unpack(Node->Find("material"), &Slot))
-					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+					SetMaterial(nullptr, Parent->GetScene()->GetMaterial(Slot));
 
 				if (!Extended)
 					return;
@@ -529,7 +528,7 @@ namespace Tomahawk
 
 				Compute::SoftBody::Desc& I = Instance->GetInitialState();
 				Core::Schema* Conf = Node->Set("config");
-				Series::Pack(Conf->Set("aero-model"), (uint64_t)I.Config.AeroModel);
+				Series::Pack(Conf->Set("aero-model"), (size_t)I.Config.AeroModel);
 				Series::Pack(Conf->Set("vcf"), I.Config.VCF);
 				Series::Pack(Conf->Set("dp"), I.Config.DP);
 				Series::Pack(Conf->Set("dg"), I.Config.DG);
@@ -603,7 +602,7 @@ namespace Tomahawk
 				}
 
 				Series::Pack(Node->Set("ccd-motion-threshold"), Instance->GetCcdMotionThreshold());
-				Series::Pack(Node->Set("activation-state"), (uint64_t)Instance->GetActivationState());
+				Series::Pack(Node->Set("activation-state"), (size_t)Instance->GetActivationState());
 				Series::Pack(Node->Set("friction"), Instance->GetFriction());
 				Series::Pack(Node->Set("restitution"), Instance->GetRestitution());
 				Series::Pack(Node->Set("hit-fraction"), Instance->GetHitFraction());
@@ -617,7 +616,7 @@ namespace Tomahawk
 				Series::Pack(Node->Set("angular-velocity"), Instance->GetAngularVelocity());
 				Series::Pack(Node->Set("anisotropic-friction"), Instance->GetAnisotropicFriction());
 				Series::Pack(Node->Set("linear-velocity"), Instance->GetLinearVelocity());
-				Series::Pack(Node->Set("collision-flags"), (uint64_t)Instance->GetCollisionFlags());
+				Series::Pack(Node->Set("collision-flags"), Instance->GetCollisionFlags());
 				Series::Pack(Node->Set("wind-velocity"), Instance->GetWindVelocity());
 				Series::Pack(Node->Set("total-mass"), Instance->GetTotalMass());
 				Series::Pack(Node->Set("core-length-scale"), Instance->GetRestLengthScale());
@@ -881,7 +880,7 @@ namespace Tomahawk
 				if (!Extended)
 					return;
 
-				int64_t ConnectionId = -1;
+				size_t ConnectionId = 0;
 				if (Series::Unpack(Node->Find("connection"), &ConnectionId))
 				{
 					IdxSnapshot* Snapshot = Parent->GetScene()->Snapshot;
@@ -1263,7 +1262,7 @@ namespace Tomahawk
 					{
 						for (auto&& Material : Node->FetchCollection("materials.material"))
 						{
-							std::string Name; uint64_t Slot = 0;
+							std::string Name; size_t Slot = 0;
 							if (Series::Unpack(Material->Find("name"), &Name) && Series::Unpack(Material->Find("slot"), &Slot))
 							{
 								Graphics::MeshBuffer* Surface = Instance->FindMesh(Name);
@@ -1371,7 +1370,7 @@ namespace Tomahawk
 					{
 						for (auto&& Material : Node->FetchCollection("materials.material"))
 						{
-							std::string Name; uint64_t Slot = 0;
+							std::string Name; size_t Slot = 0;
 							if (Series::Unpack(Material->Find("name"), &Name) && Series::Unpack(Material->Find("slot"), &Slot))
 							{
 								Graphics::SkinMeshBuffer* Surface = Instance->FindMesh(Name);
@@ -1483,9 +1482,9 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				SceneGraph* Scene = Parent->GetScene(); uint64_t Slot = -1;
+				SceneGraph* Scene = Parent->GetScene(); size_t Slot = 0;
 				if (Series::Unpack(Node->Find("material"), &Slot))
-					SetMaterial(nullptr, Scene->GetMaterial((uint64_t)Slot));
+					SetMaterial(nullptr, Scene->GetMaterial(Slot));
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("category"), &NewCategory);
@@ -1496,7 +1495,7 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("max"), &Max);
 				SetCategory((GeoCategory)NewCategory);
 
-				uint64_t Limit;
+				size_t Limit;
 				if (Series::Unpack(Node->Find("limit"), &Limit) && Instance != nullptr)
 				{
 					auto& Dest = Instance->GetArray();
@@ -1571,9 +1570,9 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(Node != nullptr, "schema should be set");
 
-				uint64_t Slot = -1;
+				size_t Slot = 0;
 				if (Series::Unpack(Node->Find("material"), &Slot))
-					SetMaterial(nullptr, Parent->GetScene()->GetMaterial((uint64_t)Slot));
+					SetMaterial(nullptr, Parent->GetScene()->GetMaterial(Slot));
 
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
@@ -1657,12 +1656,12 @@ namespace Tomahawk
 			{
 				if (!State.Blended)
 				{
-					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
+					if (State.Paused || State.Clip < 0 || State.Clip >= (int64_t)Clips.size() || State.Frame < 0 || State.Frame >= (int64_t)Clips[(size_t)State.Clip].Keys.size())
 						return;
 
-					Compute::SkinAnimatorClip* Clip = &Clips[State.Clip];
-					auto& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
-					auto& PrevKey = Clip->Keys[State.Frame];
+					Compute::SkinAnimatorClip* Clip = &Clips[(size_t)State.Clip];
+					auto& NextKey = Clip->Keys[(size_t)State.Frame + 1 >= Clip->Keys.size() ? 0 : (size_t)State.Frame + 1];
+					auto& PrevKey = Clip->Keys[(size_t)State.Frame];
 
 					State.Duration = Clip->Duration;
 					State.Rate = Clip->Rate * NextKey.Time;
@@ -1670,9 +1669,9 @@ namespace Tomahawk
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
-						Compute::AnimatorKey* Prev = &PrevKey.Pose[Pose.first];
-						Compute::AnimatorKey* Next = &NextKey.Pose[Pose.first];
-						Compute::AnimatorKey* Set = &Current.Pose[Pose.first];
+						Compute::AnimatorKey* Prev = &PrevKey.Pose[(size_t)Pose.first];
+						Compute::AnimatorKey* Next = &NextKey.Pose[(size_t)Pose.first];
+						Compute::AnimatorKey* Set = &Current.Pose[(size_t)Pose.first];
 						float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
 						Set->Position = Prev->Position.Lerp(Next->Position, T);
@@ -1684,7 +1683,7 @@ namespace Tomahawk
 
 					if (State.Time >= State.Duration)
 					{
-						if (State.Frame + 1 >= Clip->Keys.size())
+						if ((size_t)State.Frame + 1 >= Clip->Keys.size())
 						{
 							if (!State.Looped)
 								BlendAnimation(-1, -1);
@@ -1708,8 +1707,8 @@ namespace Tomahawk
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
-						Compute::AnimatorKey* Prev = &Current.Pose[Pose.first];
-						Compute::AnimatorKey* Next = &Key->Pose[Pose.first];
+						Compute::AnimatorKey* Prev = &Current.Pose[(size_t)Pose.first];
+						Compute::AnimatorKey* Next = &Key->Pose[(size_t)Pose.first];
 
 						Pose.second.Position = Prev->Position.Lerp(Next->Position, T);
 						Pose.second.Rotation = Prev->Rotation.aLerp(Next->Rotation, T);
@@ -1728,10 +1727,10 @@ namespace Tomahawk
 				State.Frame = Frame_;
 				State.Clip = Clip;
 
-				if (State.Clip >= 0 && State.Clip < Clips.size())
+				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
 				{
-					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+					Compute::SkinAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
+					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
 						State.Frame = -1;
 
 					if (State.Duration <= 0.0f)
@@ -1767,7 +1766,7 @@ namespace Tomahawk
 
 				for (auto&& Pose : Instance->Skeleton.Pose)
 				{
-					Compute::AnimatorKey* Frame = &Result->Pose[Pose.first];
+					Compute::AnimatorKey* Frame = &Result->Pose[(size_t)Pose.first];
 					Frame->Position = Pose.second.Position;
 					Frame->Rotation = Pose.second.Rotation;
 				}
@@ -1802,10 +1801,10 @@ namespace Tomahawk
 				if (!IsExists(State.Clip, State.Frame))
 					return;
 
-				if (State.Clip >= 0 && State.Clip < Clips.size())
+				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
 				{
-					Compute::SkinAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+					Compute::SkinAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
+					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
 						State.Frame = -1;
 				}
 				else
@@ -1825,7 +1824,7 @@ namespace Tomahawk
 
 				for (auto&& Pose : Instance->Skeleton.Pose)
 				{
-					Compute::AnimatorKey* Frame = &Key->Pose[Pose.first];
+					Compute::AnimatorKey* Frame = &Key->Pose[(size_t)Pose.first];
 					if (Pose.second.Position != Frame->Position || Pose.second.Rotation != Frame->Rotation)
 						return false;
 				}
@@ -1834,26 +1833,26 @@ namespace Tomahawk
 			}
 			bool SkinAnimator::IsExists(int64_t Clip)
 			{
-				return Clip >= 0 && Clip < Clips.size();
+				return Clip >= 0 && (size_t)Clip < Clips.size();
 			}
 			bool SkinAnimator::IsExists(int64_t Clip, int64_t Frame)
 			{
 				if (!IsExists(Clip))
 					return false;
 
-				return Frame >= 0 && Frame < Clips[Clip].Keys.size();
+				return Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size();
 			}
 			Compute::SkinAnimatorKey* SkinAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
-				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
-				TH_ASSERT(Frame >= 0 && Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
+				TH_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
+				TH_ASSERT(Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size(), nullptr, "frame index outside of range");
 
-				return &Clips[Clip].Keys[Frame];
+				return &Clips[(size_t)Clip].Keys[(size_t)Frame];
 			}
 			std::vector<Compute::SkinAnimatorKey>* SkinAnimator::GetClip(int64_t Clip)
 			{
-				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
-				return &Clips[Clip].Keys;
+				TH_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
+				return &Clips[(size_t)Clip].Keys;
 			}
 			std::string SkinAnimator::GetPath()
 			{
@@ -1910,12 +1909,12 @@ namespace Tomahawk
 				auto* Transform = Parent->GetTransform();
 				if (!State.Blended)
 				{
-					if (State.Paused || State.Clip < 0 || State.Clip >= Clips.size() || State.Frame < 0 || State.Frame >= Clips[State.Clip].Keys.size())
+					if (State.Paused || State.Clip < 0 || (size_t)State.Clip >= Clips.size() || State.Frame < 0 || (size_t)State.Frame >= Clips[(size_t)State.Clip].Keys.size())
 						return;
 
-					Compute::KeyAnimatorClip* Clip = &Clips[State.Clip];
-					Compute::AnimatorKey& NextKey = Clip->Keys[State.Frame + 1 >= Clip->Keys.size() ? 0 : State.Frame + 1];
-					Compute::AnimatorKey& PrevKey = Clip->Keys[State.Frame];
+					Compute::KeyAnimatorClip* Clip = &Clips[(size_t)State.Clip];
+					Compute::AnimatorKey& NextKey = Clip->Keys[(size_t)State.Frame + 1 >= Clip->Keys.size() ? 0 : (size_t)State.Frame + 1];
+					Compute::AnimatorKey& PrevKey = Clip->Keys[(size_t)State.Frame];
 
 					State.Duration = Clip->Duration;
 					State.Rate = Clip->Rate * NextKey.Time;
@@ -1928,7 +1927,7 @@ namespace Tomahawk
 
 					if (State.Time >= State.Duration)
 					{
-						if (State.Frame + 1 >= Clip->Keys.size())
+						if ((size_t)State.Frame + 1 >= Clip->Keys.size())
 						{
 							if (!State.Looped)
 								BlendAnimation(-1, -1);
@@ -1999,10 +1998,10 @@ namespace Tomahawk
 				State.Frame = Frame_;
 				State.Clip = Clip;
 
-				if (State.Clip >= 0 && State.Clip < Clips.size())
+				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
 				{
-					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+					Compute::KeyAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
+					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
 						State.Frame = -1;
 				}
 				else
@@ -2032,10 +2031,10 @@ namespace Tomahawk
 				if (!IsExists(State.Clip, State.Frame))
 					return;
 
-				if (State.Clip >= 0 && State.Clip < Clips.size())
+				if (State.Clip >= 0 && (size_t)State.Clip < Clips.size())
 				{
-					Compute::KeyAnimatorClip* CurrentClip = &Clips[State.Clip];
-					if (State.Frame < 0 || State.Frame >= CurrentClip->Keys.size())
+					Compute::KeyAnimatorClip* CurrentClip = &Clips[(size_t)State.Clip];
+					if (State.Frame < 0 || (size_t)State.Frame >= CurrentClip->Keys.size())
 						State.Frame = -1;
 
 					if (State.Duration <= 0.0f)
@@ -2064,26 +2063,26 @@ namespace Tomahawk
 			}
 			bool KeyAnimator::IsExists(int64_t Clip)
 			{
-				return Clip >= 0 && Clip < Clips.size();
+				return Clip >= 0 && (size_t)Clip < Clips.size();
 			}
 			bool KeyAnimator::IsExists(int64_t Clip, int64_t Frame)
 			{
 				if (!IsExists(Clip))
 					return false;
 
-				return Frame >= 0 && Frame < Clips[Clip].Keys.size();
+				return Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size();
 			}
 			Compute::AnimatorKey* KeyAnimator::GetFrame(int64_t Clip, int64_t Frame)
 			{
-				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
-				TH_ASSERT(Frame >= 0 && Frame < Clips[Clip].Keys.size(), nullptr, "frame index outside of range");
+				TH_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
+				TH_ASSERT(Frame >= 0 && (size_t)Frame < Clips[(size_t)Clip].Keys.size(), nullptr, "frame index outside of range");
 
-				return &Clips[Clip].Keys[Frame];
+				return &Clips[(size_t)Clip].Keys[(size_t)Frame];
 			}
 			std::vector<Compute::AnimatorKey>* KeyAnimator::GetClip(int64_t Clip)
 			{
-				TH_ASSERT(Clip >= 0 && Clip < Clips.size(), nullptr, "clip index outside of range");
-				return &Clips[Clip].Keys;
+				TH_ASSERT(Clip >= 0 && (size_t)Clip < Clips.size(), nullptr, "clip index outside of range");
+				return &Clips[(size_t)Clip].Keys;
 			}
 			std::string KeyAnimator::GetPath()
 			{
@@ -2317,19 +2316,12 @@ namespace Tomahawk
 				return Base;
 			}
 
-			FreeLook::FreeLook(Entity* Ref) : Component(Ref, ActorSet::Update), Activity(nullptr), Rotate(Graphics::KeyCode::CURSORRIGHT), Sensivity(0.005f)
+			FreeLook::FreeLook(Entity* Ref) : Component(Ref, ActorSet::Update), Rotate(Graphics::KeyCode::CURSORRIGHT), Sensivity(0.005f)
 			{
-			}
-			void FreeLook::Activate(Component* New)
-			{
-				Application* App = Application::Get();
-				if (App != nullptr)
-					Activity = App->Activity;
-
-				SetActive(Activity != nullptr);
 			}
 			void FreeLook::Update(Core::Timer* Time)
 			{
+				auto* Activity = Parent->GetScene()->GetActivity();
 				if (!Activity)
 					return;
 
@@ -2358,31 +2350,19 @@ namespace Tomahawk
 			Component* FreeLook::Copy(Entity* New) const
 			{
 				FreeLook* Target = new FreeLook(New);
-				Target->Activity = Activity;
 				Target->Position = Position;
 				Target->Rotate = Rotate;
 				Target->Sensivity = Sensivity;
 
 				return Target;
 			}
-			Graphics::Activity* FreeLook::GetActivity() const
+	
+			Fly::Fly(Entity* Ref) : Component(Ref, ActorSet::Update)
 			{
-				return Activity;
-			}
-
-			Fly::Fly(Entity* Ref) : Component(Ref, ActorSet::Update), Activity(nullptr)
-			{
-			}
-			void Fly::Activate(Component* New)
-			{
-				Application* App = Application::Get();
-				if (App != nullptr)
-					Activity = App->Activity;
-
-				SetActive(Activity != nullptr);
 			}
 			void Fly::Update(Core::Timer* Time)
 			{
+				auto* Activity = Parent->GetScene()->GetActivity();
 				if (!Activity)
 					return;
 
@@ -2406,7 +2386,7 @@ namespace Tomahawk
 				if (Velocity.Length() > 0.01)
 				{
 					float DeltaTime = (float)Time->GetDeltaTime();
-					Compute::Vector3 Speed = GetSpeed();
+					Compute::Vector3 Speed = GetSpeed(Activity);
 					Transform->Move(Velocity * Speed * DeltaTime);
 					Velocity = Velocity.Lerp(Compute::Vector3::Zero(), Moving.Fading * DeltaTime);
 				}
@@ -2417,7 +2397,6 @@ namespace Tomahawk
 			{
 				Fly* Target = new Fly(New);
 				Target->Moving = Moving;
-				Target->Activity = Activity;
 				Target->Velocity = Velocity;
 				Target->Forward = Forward;
 				Target->Backward = Backward;
@@ -2430,11 +2409,7 @@ namespace Tomahawk
 
 				return Target;
 			}
-			Graphics::Activity* Fly::GetActivity() const
-			{
-				return Activity;
-			}
-			Compute::Vector3 Fly::GetSpeed()
+			Compute::Vector3 Fly::GetSpeed(Graphics::Activity* Activity)
 			{
 				if (Activity->IsKeyDown(Fast))
 					return Moving.Axis * Moving.Faster;
@@ -2552,7 +2527,7 @@ namespace Tomahawk
 				if (Transform->IsDirty())
 				{
 					const Compute::Vector3& Position = Transform->GetPosition();
-					Sync.Velocity = (Position - LastPosition) * Time->GetDeltaTime();
+					Sync.Velocity = (Position - LastPosition) * (float)Time->GetDeltaTime();
 					LastPosition = Position;
 				}
 				else
@@ -2612,7 +2587,7 @@ namespace Tomahawk
 				if (Transform->IsDirty())
 				{
 					const Compute::Vector3& Position = Transform->GetPosition();
-					Compute::Vector3 Velocity = (Position - LastPosition) * Time->GetDeltaTime();
+					Compute::Vector3 Velocity = (Position - LastPosition) * (float)Time->GetDeltaTime();
 					Compute::Vector3 Rotation = Transform->GetRotation().dDirection();
 					float LookAt[6] = { Rotation.X, Rotation.Y, Rotation.Z, 0.0f, 1.0f, 0.0f };
 					LastPosition = Position;
@@ -3042,8 +3017,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("parallax"), &Parallax);
 				Series::Unpack(Node->Find("static-mask"), &StaticMask);
 
-				int64_t Count = Compute::Math<int64_t>::Min((int64_t)Views.size(), 6);
-				for (int64_t i = 0; i < Count; i++)
+				size_t Count = Compute::Math<size_t>::Min(Views.size(), 6);
+				for (size_t i = 0; i < Count; i++)
 					View[i] = Views[i];
 
 				if (!DiffuseMap)
@@ -3237,8 +3212,8 @@ namespace Tomahawk
 				Occlusion = 0.33f;
 				Specular = 2.0f;
 				Length = 1.0f;
-				Margin = 3.828424;
-				Offset = -0.01;
+				Margin = 3.828424f;
+				Offset = -0.01f;
 				Angle = 0.5;
 				Bleeding = 0.33f;
 			}
@@ -3468,6 +3443,14 @@ namespace Tomahawk
 				}
 
 				return Compute::Geometric::CreateCursorRay(Parent->GetTransform()->GetPosition(), Position, Compute::Vector2(W, H), Projection.Inv(), GetView().Inv());
+			}
+			Compute::Ray Camera::GetCursorRay()
+			{
+				auto* Activity = Parent->GetScene()->GetActivity();
+				if (!Activity)
+					return Compute::Ray();
+
+				return GetScreenRay(Activity->GetCursorPosition());
 			}
 			float Camera::GetDistance(Entity* Other)
 			{

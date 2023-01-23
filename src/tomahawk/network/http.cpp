@@ -46,6 +46,8 @@ extern "C"
 #define WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 #define MAX_REDIRECTS 128
 #define GZ_HEADER_SIZE 17
+#pragma warning(push)
+#pragma warning(disable: 4996)
 
 namespace Tomahawk
 {
@@ -87,7 +89,7 @@ namespace Tomahawk
 
 			void Cookie::SetExpires(int64_t Time)
 			{
-				Expires = Core::DateTime::GetGMTBasedString(Time);
+				Expires = Core::DateTime::FetchWebDateGMT(Time);
 			}
 			void Cookie::SetExpired()
 			{
@@ -141,7 +143,7 @@ namespace Tomahawk
 				else
 				{
 					uint32_t Length1 = htonl((uint64_t)Size >> 32);
-					uint32_t Length2 = htonl(Size & 0xFFFFFFFF);
+					uint32_t Length2 = htonl((uint64_t)Size & 0xFFFFFFFF);
 					Header[1] = 127;
 					HeaderLength = 10;
 					memcpy(Header + 2, &Length1, 4);
@@ -613,14 +615,14 @@ namespace Tomahawk
 			}
 			void SiteEntry::Sort()
 			{
-				std::sort(Groups.begin(), Groups.end(), [](const RouteGroup& A, const RouteGroup& B)
+				TH_SORT(Groups.begin(), Groups.end(), [](const RouteGroup& A, const RouteGroup& B)
 				{
 					return A.Match.size() > B.Match.size();
 				});
 
 				for (auto& Group : Groups)
 				{
-					std::sort(Group.Routes.begin(), Group.Routes.end(), [](const RouteEntry* A, const RouteEntry* B)
+					static auto Comparator = [](const RouteEntry* A, const RouteEntry* B)
 					{
 						if (A->URI.GetRegex().empty())
 							return false;
@@ -640,7 +642,8 @@ namespace Tomahawk
 							return true;
 
 						return A->URI.GetRegex().size() > B->URI.GetRegex().size();
-					});
+					};
+					TH_SORT(Group.Routes.begin(), Group.Routes.end(), Comparator);
 				}
 			}
 			RouteGroup* SiteEntry::Group(const std::string& Match, RouteMode Mode)
@@ -1041,14 +1044,14 @@ namespace Tomahawk
 
 				return It->second.back().c_str();
 			}
-			std::vector<std::pair<int64_t, int64_t>> RequestFrame::GetRanges() const
+			std::vector<std::pair<size_t, size_t>> RequestFrame::GetRanges() const
 			{
 				const char* Range = GetHeader("Range");
 				if (Range == nullptr)
-					return std::vector<std::pair<int64_t, int64_t>>();
+					return std::vector<std::pair<size_t, size_t>>();
 
 				std::vector<std::string> Bases = Core::Parser(Range).Split(',');
-				std::vector<std::pair<int64_t, int64_t>> Ranges;
+				std::vector<std::pair<size_t, size_t>> Ranges;
 
 				for (auto& Item : Bases)
 				{
@@ -1068,20 +1071,20 @@ namespace Tomahawk
 					while (*End++ != '\0' && isdigit(*End))
 						EndLength++;
 
-					int64_t From = std::stoll(std::string(Start, StartLength));
+					int64_t From = std::stoll(std::string(Start, (size_t)StartLength));
 					if (From == -1)
 						break;
 
-					int64_t To = std::stoll(std::string(End, EndLength));
+					int64_t To = std::stoll(std::string(End, (size_t)EndLength));
 					if (To == -1 || To < From)
 						break;
 
-					Ranges.emplace_back(std::make_pair((uint64_t)From, (uint64_t)To));
+					Ranges.emplace_back(std::make_pair((size_t)From, (size_t)To));
 				}
 
 				return Ranges;
 			}
-			std::pair<uint64_t, uint64_t> RequestFrame::GetRange(std::vector<std::pair<int64_t, int64_t>>::iterator Range, uint64_t ContenLength) const
+			std::pair<size_t, size_t> RequestFrame::GetRange(std::vector<std::pair<size_t, size_t>>::iterator Range, size_t ContenLength) const
 			{
 				if (Range->first == -1 && Range->second == -1)
 					return std::make_pair(0, ContenLength);
@@ -1163,7 +1166,7 @@ namespace Tomahawk
 			Cookie* ResponseFrame::GetCookie(const char* Key)
 			{
 				TH_ASSERT(Key != nullptr, nullptr, "key should be set");
-				for (uint64_t i = 0; i < Cookies.size(); i++)
+				for (size_t i = 0; i < Cookies.size(); i++)
 				{
 					Cookie* Result = &Cookies[i];
 					if (!Core::Parser::CaseCompare(Result->Name.c_str(), Key))
@@ -1703,7 +1706,7 @@ namespace Tomahawk
 						Route->Callbacks.Headers(this, nullptr);
 
 					char Date[64];
-					Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Info.Start / 1000);
+					Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Info.Start / 1000);
 
 					std::string Auth;
 					if (Route && Request.User.Type == Auth::Denied)
@@ -1744,7 +1747,7 @@ namespace Tomahawk
 				if (!Response.GetHeader("Date"))
 				{
 					char Buffer[64];
-					Core::DateTime::TimeFormatGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
+					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
 					Content.fAppend("Date: %s\r\n", Buffer);
 				}
 
@@ -1804,7 +1807,7 @@ namespace Tomahawk
 
 								if (Compress && Flush)
 								{
-									TextAssign(Response.Buffer, Buffer.c_str(), (uint64_t)fStream.total_out);
+									TextAssign(Response.Buffer, Buffer.c_str(), (size_t)fStream.total_out);
 									if (!Response.GetHeader("Content-Encoding"))
 									{
 										if (Gzip)
@@ -1819,13 +1822,13 @@ namespace Tomahawk
 #endif
 					if (Request.GetHeader("Range") != nullptr)
 					{
-						std::vector<std::pair<int64_t, int64_t>> Ranges = Request.GetRanges();
+						std::vector<std::pair<size_t, size_t>> Ranges = Request.GetRanges();
 						if (Ranges.size() > 1)
 						{
 							std::string Data;
 							for (auto It = Ranges.begin(); It != Ranges.end(); ++It)
 							{
-								std::pair<uint64_t, uint64_t> Offset = Request.GetRange(It, Response.Buffer.size());
+								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Buffer.size());
 								std::string ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size());
 
 								Data.append("--", 2);
@@ -1855,7 +1858,7 @@ namespace Tomahawk
 						}
 						else
 						{
-							std::pair<uint64_t, uint64_t> Offset = Request.GetRange(Ranges.begin(), Response.Buffer.size());
+							std::pair<size_t, size_t> Offset = Request.GetRange(Ranges.begin(), Response.Buffer.size());
 							if (!Response.GetHeader("Content-Range"))
 								Content.fAppend("Content-Range: %s\r\n", Paths::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size()).c_str());
 
@@ -1925,7 +1928,7 @@ namespace Tomahawk
 					unsigned char* Pointer = Buffer;
 					int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
 
-					if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
+					if (!Compute::Codec::HexToString(Buffer, Size, SerialBuffer, sizeof(SerialBuffer)))
 						*SerialBuffer = '\0';
 				}
 				else
@@ -1935,7 +1938,7 @@ namespace Tomahawk
 				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 				char FingerBuffer[1024];
-				if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
+				if (!Compute::Codec::HexToString(Buffer, Size, FingerBuffer, sizeof(FingerBuffer)))
 					*FingerBuffer = '\0';
                 
                 Output->Finger = FingerBuffer;
@@ -2070,8 +2073,8 @@ namespace Tomahawk
 				std::string URI = Compute::Codec::URIDecode(Name.Value, Name.Length);
 				char* Data = (char*)URI.c_str();
 
-				uint64_t Offset = 0, Length = URI.size();
-				for (uint64_t i = 0; i < Length; i++)
+				size_t Offset = 0, Length = URI.size();
+				for (size_t i = 0; i < Length; i++)
 				{
 					if (Data[i] != '[')
 					{
@@ -2139,8 +2142,8 @@ namespace Tomahawk
 				std::vector<QueryToken> Tokens;
 				char* Data = (char*)URI.c_str();
 
-				uint64_t Offset = 0, Length = URI.size();
-				for (uint64_t i = 0; i < Length; i++)
+				size_t Offset = 0, Length = URI.size();
+				for (size_t i = 0; i < Length; i++)
 				{
 					if (Data[i] != '&' && Data[i] != '=' && i + 1 < Length)
 						continue;
@@ -2200,7 +2203,7 @@ namespace Tomahawk
 			std::string Query::EncodeAJSON() const
 			{
 				std::string Stream;
-				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const char* Buffer, int64_t Length)
+				Core::Schema::ConvertToJSON(Object, [&Stream](Core::VarForm, const char* Buffer, size_t Length)
 				{
 					if (Buffer != nullptr && Length > 0)
 						Stream.append(Buffer, Length);
@@ -2281,7 +2284,7 @@ namespace Tomahawk
 				SessionExpires = time(nullptr) + Base->Route->Site->Gateway.Session.Expires;
 				fwrite(&SessionExpires, sizeof(int64_t), 1, Stream);
 
-				Query->ConvertToJSONB(Query, [Stream](Core::VarForm, const char* Buffer, int64_t Size)
+				Query->ConvertToJSONB(Query, [Stream](Core::VarForm, const char* Buffer, size_t Size)
 				{
 					if (Buffer != nullptr && Size > 0)
 						fwrite(Buffer, Size, 1, Stream);
@@ -2325,7 +2328,7 @@ namespace Tomahawk
 				}
 
 
-				Core::Schema* V = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, int64_t Size)
+				Core::Schema* V = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
 				{
 					if (!Buffer || !Size)
 						return true;
@@ -2575,7 +2578,7 @@ namespace Tomahawk
 						case MultipartState_Resource_Boundary:
 							if (Multipart.Boundary[Multipart.Index] != Value)
 							{
-								if (OnContentData && !OnContentData(this, Multipart.LookBehind, 2 + Multipart.Index))
+								if (OnContentData && !OnContentData(this, Multipart.LookBehind, 2 + (size_t)Multipart.Index))
 									return i;
 
 								Multipart.State = MultipartState_Resource;
@@ -3087,7 +3090,7 @@ namespace Tomahawk
 							return nullptr;
 						}
 
-						if (OnHeaderField && !OnHeaderField(this, Name, Length))
+						if (OnHeaderField && !OnHeaderField(this, Name, (size_t)Length))
 						{
 							*Out = -1;
 							return nullptr;
@@ -3258,14 +3261,14 @@ namespace Tomahawk
 				{
 					QL = PL - QL - 1;
 					PL -= QL + 1;
-					if (OnQueryValue && !OnQueryValue(this, Path + PL + 1, QL))
+					if (OnQueryValue && !OnQueryValue(this, Path + PL + 1, (size_t)QL))
 					{
 						*Out = -1;
 						return nullptr;
 					}
 				}
 
-				if (OnPathValue && !OnPathValue(this, Path, PL))
+				if (OnPathValue && !OnPathValue(this, Path, (size_t)PL))
 				{
 					*Out = -1;
 					return nullptr;
@@ -3589,8 +3592,8 @@ namespace Tomahawk
 						case Bytecode::End:
 						{
 							size_t Length = Size;
-							if (Length > Remains)
-								Length = Remains;
+							if (Length > (size_t)Remains)
+								Length = (size_t)Remains;
 
 							if (Masked)
 							{
@@ -3673,7 +3676,7 @@ namespace Tomahawk
 				TH_ASSERT(Types != nullptr, nullptr, "types should be set");
 				static MimeStatic MimeTypes[] = { MimeStatic(".3dm", "x-world/x-3dmf"), MimeStatic(".3dmf", "x-world/x-3dmf"), MimeStatic(".a", "application/octet-stream"), MimeStatic(".aab", "application/x-authorware-bin"), MimeStatic(".aac", "audio/aac"), MimeStatic(".aam", "application/x-authorware-map"), MimeStatic(".aas", "application/x-authorware-seg"), MimeStatic(".aat", "application/font-sfnt"), MimeStatic(".abc", "text/vnd.abc"), MimeStatic(".acgi", "text/html"), MimeStatic(".afl", "video/animaflex"), MimeStatic(".ai", "application/postscript"), MimeStatic(".aif", "audio/x-aiff"), MimeStatic(".aifc", "audio/x-aiff"), MimeStatic(".aiff", "audio/x-aiff"), MimeStatic(".aim", "application/x-aim"), MimeStatic(".aip", "text/x-audiosoft-intra"), MimeStatic(".ani", "application/x-navi-animation"), MimeStatic(".aos", "application/x-nokia-9000-communicator-add-on-software"), MimeStatic(".aps", "application/mime"), MimeStatic(".arc", "application/octet-stream"), MimeStatic(".arj", "application/arj"), MimeStatic(".art", "image/x-jg"), MimeStatic(".asf", "video/x-ms-asf"), MimeStatic(".asm", "text/x-asm"), MimeStatic(".asp", "text/asp"), MimeStatic(".asx", "video/x-ms-asf"), MimeStatic(".au", "audio/x-au"), MimeStatic(".avi", "video/x-msvideo"), MimeStatic(".avs", "video/avs-video"), MimeStatic(".bcpio", "application/x-bcpio"), MimeStatic(".bin", "application/x-binary"), MimeStatic(".bm", "image/bmp"), MimeStatic(".bmp", "image/bmp"), MimeStatic(".boo", "application/book"), MimeStatic(".book", "application/book"), MimeStatic(".boz", "application/x-bzip2"), MimeStatic(".bsh", "application/x-bsh"), MimeStatic(".bz", "application/x-bzip"), MimeStatic(".bz2", "application/x-bzip2"), MimeStatic(".c", "text/x-c"), MimeStatic(".c++", "text/x-c"), MimeStatic(".cat", "application/vnd.ms-pki.seccat"), MimeStatic(".cc", "text/x-c"), MimeStatic(".ccad", "application/clariscad"), MimeStatic(".cco", "application/x-cocoa"), MimeStatic(".cdf", "application/x-cdf"), MimeStatic(".cer", "application/pkix-cert"), MimeStatic(".cff", "application/font-sfnt"), MimeStatic(".cha", "application/x-chat"), MimeStatic(".chat", "application/x-chat"), MimeStatic(".class", "application/x-java-class"), MimeStatic(".com", "application/octet-stream"), MimeStatic(".conf", "text/plain"), MimeStatic(".cpio", "application/x-cpio"), MimeStatic(".cpp", "text/x-c"), MimeStatic(".cpt", "application/x-compactpro"), MimeStatic(".crl", "application/pkcs-crl"), MimeStatic(".crt", "application/x-x509-user-cert"), MimeStatic(".csh", "text/x-script.csh"), MimeStatic(".css", "text/css"), MimeStatic(".csv", "text/csv"), MimeStatic(".cxx", "text/plain"), MimeStatic(".dcr", "application/x-director"), MimeStatic(".deepv", "application/x-deepv"), MimeStatic(".def", "text/plain"), MimeStatic(".der", "application/x-x509-ca-cert"), MimeStatic(".dif", "video/x-dv"), MimeStatic(".dir", "application/x-director"), MimeStatic(".dl", "video/x-dl"), MimeStatic(".dll", "application/octet-stream"), MimeStatic(".doc", "application/msword"), MimeStatic(".dot", "application/msword"), MimeStatic(".dp", "application/commonground"), MimeStatic(".drw", "application/drafting"), MimeStatic(".dump", "application/octet-stream"), MimeStatic(".dv", "video/x-dv"), MimeStatic(".dvi", "application/x-dvi"), MimeStatic(".dwf", "model/vnd.dwf"), MimeStatic(".dwg", "image/vnd.dwg"), MimeStatic(".dxf", "image/vnd.dwg"), MimeStatic(".dxr", "application/x-director"), MimeStatic(".el", "text/x-script.elisp"), MimeStatic(".elc", "application/x-bytecode.elisp"), MimeStatic(".env", "application/x-envoy"), MimeStatic(".eps", "application/postscript"), MimeStatic(".es", "application/x-esrehber"), MimeStatic(".etx", "text/x-setext"), MimeStatic(".evy", "application/x-envoy"), MimeStatic(".exe", "application/octet-stream"), MimeStatic(".f", "text/x-fortran"), MimeStatic(".f77", "text/x-fortran"), MimeStatic(".f90", "text/x-fortran"), MimeStatic(".fdf", "application/vnd.fdf"), MimeStatic(".fif", "image/fif"), MimeStatic(".fli", "video/x-fli"), MimeStatic(".flo", "image/florian"), MimeStatic(".flx", "text/vnd.fmi.flexstor"), MimeStatic(".fmf", "video/x-atomic3d-feature"), MimeStatic(".for", "text/x-fortran"), MimeStatic(".fpx", "image/vnd.fpx"), MimeStatic(".frl", "application/freeloader"), MimeStatic(".funk", "audio/make"), MimeStatic(".g", "text/plain"), MimeStatic(".g3", "image/g3fax"), MimeStatic(".gif", "image/gif"), MimeStatic(".gl", "video/x-gl"), MimeStatic(".gsd", "audio/x-gsm"), MimeStatic(".gsm", "audio/x-gsm"), MimeStatic(".gsp", "application/x-gsp"), MimeStatic(".gss", "application/x-gss"), MimeStatic(".gtar", "application/x-gtar"), MimeStatic(".gz", "application/x-gzip"), MimeStatic(".h", "text/x-h"), MimeStatic(".hdf", "application/x-hdf"), MimeStatic(".help", "application/x-helpfile"), MimeStatic(".hgl", "application/vnd.hp-hpgl"), MimeStatic(".hh", "text/x-h"), MimeStatic(".hlb", "text/x-script"), MimeStatic(".hlp", "application/x-helpfile"), MimeStatic(".hpg", "application/vnd.hp-hpgl"), MimeStatic(".hpgl", "application/vnd.hp-hpgl"), MimeStatic(".hqx", "application/binhex"), MimeStatic(".hta", "application/hta"), MimeStatic(".htc", "text/x-component"), MimeStatic(".htm", "text/html"), MimeStatic(".html", "text/html"), MimeStatic(".htmls", "text/html"), MimeStatic(".htt", "text/webviewhtml"), MimeStatic(".htx", "text/html"), MimeStatic(".ice", "x-conference/x-cooltalk"), MimeStatic(".ico", "image/x-icon"), MimeStatic(".idc", "text/plain"), MimeStatic(".ief", "image/ief"), MimeStatic(".iefs", "image/ief"), MimeStatic(".iges", "model/iges"), MimeStatic(".igs", "model/iges"), MimeStatic(".ima", "application/x-ima"), MimeStatic(".imap", "application/x-httpd-imap"), MimeStatic(".inf", "application/inf"), MimeStatic(".ins", "application/x-internett-signup"), MimeStatic(".ip", "application/x-ip2"), MimeStatic(".isu", "video/x-isvideo"), MimeStatic(".it", "audio/it"), MimeStatic(".iv", "application/x-inventor"), MimeStatic(".ivr", "i-world/i-vrml"), MimeStatic(".ivy", "application/x-livescreen"), MimeStatic(".jam", "audio/x-jam"), MimeStatic(".jav", "text/x-java-source"), MimeStatic(".java", "text/x-java-source"), MimeStatic(".jcm", "application/x-java-commerce"), MimeStatic(".jfif", "image/jpeg"), MimeStatic(".jfif-tbnl", "image/jpeg"), MimeStatic(".jpe", "image/jpeg"), MimeStatic(".jpeg", "image/jpeg"), MimeStatic(".jpg", "image/jpeg"), MimeStatic(".jpm", "image/jpm"), MimeStatic(".jps", "image/x-jps"), MimeStatic(".jpx", "image/jpx"), MimeStatic(".js", "application/x-javascript"), MimeStatic(".json", "application/json"), MimeStatic(".jut", "image/jutvision"), MimeStatic(".kar", "music/x-karaoke"), MimeStatic(".kml", "application/vnd.google-earth.kml+xml"), MimeStatic(".kmz", "application/vnd.google-earth.kmz"), MimeStatic(".ksh", "text/x-script.ksh"), MimeStatic(".la", "audio/x-nspaudio"), MimeStatic(".lam", "audio/x-liveaudio"), MimeStatic(".latex", "application/x-latex"), MimeStatic(".lha", "application/x-lha"), MimeStatic(".lhx", "application/octet-stream"), MimeStatic(".lib", "application/octet-stream"), MimeStatic(".list", "text/plain"), MimeStatic(".lma", "audio/x-nspaudio"), MimeStatic(".log", "text/plain"), MimeStatic(".lsp", "text/x-script.lisp"), MimeStatic(".lst", "text/plain"), MimeStatic(".lsx", "text/x-la-asf"), MimeStatic(".ltx", "application/x-latex"), MimeStatic(".lzh", "application/x-lzh"), MimeStatic(".lzx", "application/x-lzx"), MimeStatic(".m", "text/x-m"), MimeStatic(".m1v", "video/mpeg"), MimeStatic(".m2a", "audio/mpeg"), MimeStatic(".m2v", "video/mpeg"), MimeStatic(".m3u", "audio/x-mpegurl"), MimeStatic(".m4v", "video/x-m4v"), MimeStatic(".man", "application/x-troff-man"), MimeStatic(".map", "application/x-navimap"), MimeStatic(".mar", "text/plain"), MimeStatic(".mbd", "application/mbedlet"), MimeStatic(".mc$", "application/x-magic-cap-package-1.0"), MimeStatic(".mcd", "application/x-mathcad"), MimeStatic(".mcf", "text/mcf"), MimeStatic(".mcp", "application/netmc"), MimeStatic(".me", "application/x-troff-me"), MimeStatic(".mht", "message/rfc822"), MimeStatic(".mhtml", "message/rfc822"), MimeStatic(".mid", "audio/x-midi"), MimeStatic(".midi", "audio/x-midi"), MimeStatic(".mif", "application/x-mif"), MimeStatic(".mime", "www/mime"), MimeStatic(".mjf", "audio/x-vnd.audioexplosion.mjuicemediafile"), MimeStatic(".mjpg", "video/x-motion-jpeg"), MimeStatic(".mm", "application/base64"), MimeStatic(".mme", "application/base64"), MimeStatic(".mod", "audio/x-mod"), MimeStatic(".moov", "video/quicktime"), MimeStatic(".mov", "video/quicktime"), MimeStatic(".movie", "video/x-sgi-movie"), MimeStatic(".mp2", "video/x-mpeg"), MimeStatic(".mp3", "audio/x-mpeg-3"), MimeStatic(".mp4", "video/mp4"), MimeStatic(".mpa", "audio/mpeg"), MimeStatic(".mpc", "application/x-project"), MimeStatic(".mpeg", "video/mpeg"), MimeStatic(".mpg", "video/mpeg"), MimeStatic(".mpga", "audio/mpeg"), MimeStatic(".mpp", "application/vnd.ms-project"), MimeStatic(".mpt", "application/x-project"), MimeStatic(".mpv", "application/x-project"), MimeStatic(".mpx", "application/x-project"), MimeStatic(".mrc", "application/marc"), MimeStatic(".ms", "application/x-troff-ms"), MimeStatic(".mv", "video/x-sgi-movie"), MimeStatic(".my", "audio/make"), MimeStatic(".mzz", "application/x-vnd.audioexplosion.mzz"), MimeStatic(".nap", "image/naplps"), MimeStatic(".naplps", "image/naplps"), MimeStatic(".nc", "application/x-netcdf"), MimeStatic(".ncm", "application/vnd.nokia.configuration-message"), MimeStatic(".nif", "image/x-niff"), MimeStatic(".niff", "image/x-niff"), MimeStatic(".nix", "application/x-mix-transfer"), MimeStatic(".nsc", "application/x-conference"), MimeStatic(".nvd", "application/x-navidoc"), MimeStatic(".o", "application/octet-stream"), MimeStatic(".obj", "application/octet-stream"), MimeStatic(".oda", "application/oda"), MimeStatic(".oga", "audio/ogg"), MimeStatic(".ogg", "audio/ogg"), MimeStatic(".ogv", "video/ogg"), MimeStatic(".omc", "application/x-omc"), MimeStatic(".omcd", "application/x-omcdatamaker"), MimeStatic(".omcr", "application/x-omcregerator"), MimeStatic(".otf", "application/font-sfnt"), MimeStatic(".p", "text/x-pascal"), MimeStatic(".p10", "application/x-pkcs10"), MimeStatic(".p12", "application/x-pkcs12"), MimeStatic(".p7a", "application/x-pkcs7-signature"), MimeStatic(".p7c", "application/x-pkcs7-mime"), MimeStatic(".p7m", "application/x-pkcs7-mime"), MimeStatic(".p7r", "application/x-pkcs7-certreqresp"), MimeStatic(".p7s", "application/pkcs7-signature"), MimeStatic(".part", "application/pro_eng"), MimeStatic(".pas", "text/x-pascal"), MimeStatic(".pbm", "image/x-portable-bitmap"), MimeStatic(".pcl", "application/vnd.hp-pcl"), MimeStatic(".pct", "image/x-pct"), MimeStatic(".pcx", "image/x-pcx"), MimeStatic(".pdb", "chemical/x-pdb"), MimeStatic(".pdf", "application/pdf"), MimeStatic(".pfr", "application/font-tdpfr"), MimeStatic(".pfunk", "audio/make"), MimeStatic(".pgm", "image/x-portable-greymap"), MimeStatic(".pic", "image/pict"), MimeStatic(".pict", "image/pict"), MimeStatic(".pkg", "application/x-newton-compatible-pkg"), MimeStatic(".pko", "application/vnd.ms-pki.pko"), MimeStatic(".pl", "text/x-script.perl"), MimeStatic(".plx", "application/x-pixelscript"), MimeStatic(".pm", "text/x-script.perl-module"), MimeStatic(".pm4", "application/x-pagemaker"), MimeStatic(".pm5", "application/x-pagemaker"), MimeStatic(".png", "image/png"), MimeStatic(".pnm", "image/x-portable-anymap"), MimeStatic(".pot", "application/vnd.ms-powerpoint"), MimeStatic(".pov", "model/x-pov"), MimeStatic(".ppa", "application/vnd.ms-powerpoint"), MimeStatic(".ppm", "image/x-portable-pixmap"), MimeStatic(".pps", "application/vnd.ms-powerpoint"), MimeStatic(".ppt", "application/vnd.ms-powerpoint"), MimeStatic(".ppz", "application/vnd.ms-powerpoint"), MimeStatic(".pre", "application/x-freelance"), MimeStatic(".prt", "application/pro_eng"), MimeStatic(".ps", "application/postscript"), MimeStatic(".psd", "application/octet-stream"), MimeStatic(".pvu", "paleovu/x-pv"), MimeStatic(".pwz", "application/vnd.ms-powerpoint"), MimeStatic(".py", "text/x-script.python"), MimeStatic(".pyc", "application/x-bytecode.python"), MimeStatic(".qcp", "audio/vnd.qcelp"), MimeStatic(".qd3", "x-world/x-3dmf"), MimeStatic(".qd3d", "x-world/x-3dmf"), MimeStatic(".qif", "image/x-quicktime"), MimeStatic(".qt", "video/quicktime"), MimeStatic(".qtc", "video/x-qtc"), MimeStatic(".qti", "image/x-quicktime"), MimeStatic(".qtif", "image/x-quicktime"), MimeStatic(".ra", "audio/x-pn-realaudio"), MimeStatic(".ram", "audio/x-pn-realaudio"), MimeStatic(".rar", "application/x-arj-compressed"), MimeStatic(".ras", "image/x-cmu-raster"), MimeStatic(".rast", "image/cmu-raster"), MimeStatic(".rexx", "text/x-script.rexx"), MimeStatic(".rf", "image/vnd.rn-realflash"), MimeStatic(".rgb", "image/x-rgb"), MimeStatic(".rm", "audio/x-pn-realaudio"), MimeStatic(".rmi", "audio/mid"), MimeStatic(".rmm", "audio/x-pn-realaudio"), MimeStatic(".rmp", "audio/x-pn-realaudio"), MimeStatic(".rng", "application/vnd.nokia.ringing-tone"), MimeStatic(".rnx", "application/vnd.rn-realplayer"), MimeStatic(".roff", "application/x-troff"), MimeStatic(".rp", "image/vnd.rn-realpix"), MimeStatic(".rpm", "audio/x-pn-realaudio-plugin"), MimeStatic(".rt", "text/vnd.rn-realtext"), MimeStatic(".rtf", "application/x-rtf"), MimeStatic(".rtx", "application/x-rtf"), MimeStatic(".rv", "video/vnd.rn-realvideo"), MimeStatic(".s", "text/x-asm"), MimeStatic(".s3m", "audio/s3m"), MimeStatic(".saveme", "application/octet-stream"), MimeStatic(".sbk", "application/x-tbook"), MimeStatic(".scm", "text/x-script.scheme"), MimeStatic(".sdml", "text/plain"), MimeStatic(".sdp", "application/x-sdp"), MimeStatic(".sdr", "application/sounder"), MimeStatic(".sea", "application/x-sea"), MimeStatic(".set", "application/set"), MimeStatic(".sgm", "text/x-sgml"), MimeStatic(".sgml", "text/x-sgml"), MimeStatic(".sh", "text/x-script.sh"), MimeStatic(".shar", "application/x-shar"), MimeStatic(".shtm", "text/html"), MimeStatic(".shtml", "text/html"), MimeStatic(".sid", "audio/x-psid"), MimeStatic(".sil", "application/font-sfnt"), MimeStatic(".sit", "application/x-sit"), MimeStatic(".skd", "application/x-koan"), MimeStatic(".skm", "application/x-koan"), MimeStatic(".skp", "application/x-koan"), MimeStatic(".skt", "application/x-koan"), MimeStatic(".sl", "application/x-seelogo"), MimeStatic(".smi", "application/smil"), MimeStatic(".smil", "application/smil"), MimeStatic(".snd", "audio/x-adpcm"), MimeStatic(".so", "application/octet-stream"), MimeStatic(".sol", "application/solids"), MimeStatic(".spc", "text/x-speech"), MimeStatic(".spl", "application/futuresplash"), MimeStatic(".spr", "application/x-sprite"), MimeStatic(".sprite", "application/x-sprite"), MimeStatic(".src", "application/x-wais-source"), MimeStatic(".ssi", "text/x-server-parsed-html"), MimeStatic(".ssm", "application/streamingmedia"), MimeStatic(".sst", "application/vnd.ms-pki.certstore"), MimeStatic(".step", "application/step"), MimeStatic(".stl", "application/vnd.ms-pki.stl"), MimeStatic(".stp", "application/step"), MimeStatic(".sv4cpio", "application/x-sv4cpio"), MimeStatic(".sv4crc", "application/x-sv4crc"), MimeStatic(".svf", "image/x-dwg"), MimeStatic(".svg", "image/svg+xml"), MimeStatic(".svr", "x-world/x-svr"), MimeStatic(".swf", "application/x-shockwave-flash"), MimeStatic(".t", "application/x-troff"), MimeStatic(".talk", "text/x-speech"), MimeStatic(".tar", "application/x-tar"), MimeStatic(".tbk", "application/x-tbook"), MimeStatic(".tcl", "text/x-script.tcl"), MimeStatic(".tcsh", "text/x-script.tcsh"), MimeStatic(".tex", "application/x-tex"), MimeStatic(".texi", "application/x-texinfo"), MimeStatic(".texinfo", "application/x-texinfo"), MimeStatic(".text", "text/plain"), MimeStatic(".tgz", "application/x-compressed"), MimeStatic(".tif", "image/x-tiff"), MimeStatic(".tiff", "image/x-tiff"), MimeStatic(".torrent", "application/x-bittorrent"), MimeStatic(".tr", "application/x-troff"), MimeStatic(".tsi", "audio/tsp-audio"), MimeStatic(".tsp", "audio/tsplayer"), MimeStatic(".tsv", "text/tab-separated-values"), MimeStatic(".ttf", "application/font-sfnt"), MimeStatic(".turbot", "image/florian"), MimeStatic(".txt", "text/plain"), MimeStatic(".uil", "text/x-uil"), MimeStatic(".uni", "text/uri-list"), MimeStatic(".unis", "text/uri-list"), MimeStatic(".unv", "application/i-deas"), MimeStatic(".uri", "text/uri-list"), MimeStatic(".uris", "text/uri-list"), MimeStatic(".ustar", "application/x-ustar"), MimeStatic(".uu", "text/x-uuencode"), MimeStatic(".uue", "text/x-uuencode"), MimeStatic(".vcd", "application/x-cdlink"), MimeStatic(".vcs", "text/x-vcalendar"), MimeStatic(".vda", "application/vda"), MimeStatic(".vdo", "video/vdo"), MimeStatic(".vew", "application/groupwise"), MimeStatic(".viv", "video/vnd.vivo"), MimeStatic(".vivo", "video/vnd.vivo"), MimeStatic(".vmd", "application/vocaltec-media-desc"), MimeStatic(".vmf", "application/vocaltec-media-resource"), MimeStatic(".voc", "audio/x-voc"), MimeStatic(".vos", "video/vosaic"), MimeStatic(".vox", "audio/voxware"), MimeStatic(".vqe", "audio/x-twinvq-plugin"), MimeStatic(".vqf", "audio/x-twinvq"), MimeStatic(".vql", "audio/x-twinvq-plugin"), MimeStatic(".vrml", "model/vrml"), MimeStatic(".vrt", "x-world/x-vrt"), MimeStatic(".vsd", "application/x-visio"), MimeStatic(".vst", "application/x-visio"), MimeStatic(".vsw", "application/x-visio"), MimeStatic(".w60", "application/wordperfect6.0"), MimeStatic(".w61", "application/wordperfect6.1"), MimeStatic(".w6w", "application/msword"), MimeStatic(".wav", "audio/x-wav"), MimeStatic(".wb1", "application/x-qpro"), MimeStatic(".wbmp", "image/vnd.wap.wbmp"), MimeStatic(".web", "application/vnd.xara"), MimeStatic(".webm", "video/webm"), MimeStatic(".wiz", "application/msword"), MimeStatic(".wk1", "application/x-123"), MimeStatic(".wmf", "windows/metafile"), MimeStatic(".wml", "text/vnd.wap.wml"), MimeStatic(".wmlc", "application/vnd.wap.wmlc"), MimeStatic(".wmls", "text/vnd.wap.wmlscript"), MimeStatic(".wmlsc", "application/vnd.wap.wmlscriptc"), MimeStatic(".woff", "application/font-woff"), MimeStatic(".word", "application/msword"), MimeStatic(".wp", "application/wordperfect"), MimeStatic(".wp5", "application/wordperfect"), MimeStatic(".wp6", "application/wordperfect"), MimeStatic(".wpd", "application/wordperfect"), MimeStatic(".wq1", "application/x-lotus"), MimeStatic(".wri", "application/x-wri"), MimeStatic(".wrl", "model/vrml"), MimeStatic(".wrz", "model/vrml"), MimeStatic(".wsc", "text/scriplet"), MimeStatic(".wsrc", "application/x-wais-source"), MimeStatic(".wtk", "application/x-wintalk"), MimeStatic(".x-png", "image/png"), MimeStatic(".xbm", "image/x-xbm"), MimeStatic(".xdr", "video/x-amt-demorun"), MimeStatic(".xgz", "xgl/drawing"), MimeStatic(".xhtml", "application/xhtml+xml"), MimeStatic(".xif", "image/vnd.xiff"), MimeStatic(".xl", "application/vnd.ms-excel"), MimeStatic(".xla", "application/vnd.ms-excel"), MimeStatic(".xlb", "application/vnd.ms-excel"), MimeStatic(".xlc", "application/vnd.ms-excel"), MimeStatic(".xld", "application/vnd.ms-excel"), MimeStatic(".xlk", "application/vnd.ms-excel"), MimeStatic(".xll", "application/vnd.ms-excel"), MimeStatic(".xlm", "application/vnd.ms-excel"), MimeStatic(".xls", "application/vnd.ms-excel"), MimeStatic(".xlt", "application/vnd.ms-excel"), MimeStatic(".xlv", "application/vnd.ms-excel"), MimeStatic(".xlw", "application/vnd.ms-excel"), MimeStatic(".xm", "audio/xm"), MimeStatic(".xml", "text/xml"), MimeStatic(".xmz", "xgl/movie"), MimeStatic(".xpix", "application/x-vnd.ls-xpix"), MimeStatic(".xpm", "image/x-xpixmap"), MimeStatic(".xsl", "application/xml"), MimeStatic(".xslt", "application/xml"), MimeStatic(".xsr", "video/x-amt-showrun"), MimeStatic(".xwd", "image/x-xwd"), MimeStatic(".xyz", "chemical/x-pdb"), MimeStatic(".z", "application/x-compressed"), MimeStatic(".zip", "application/x-zip-compressed"), MimeStatic(".zoo", "application/octet-stream"), MimeStatic(".zsh", "text/x-script.zsh") };
 
-				uint64_t PathLength = Path.size();
+				size_t PathLength = Path.size();
 				while (PathLength >= 1 && Path[PathLength - 1] != '.')
 					PathLength--;
 
@@ -3880,7 +3883,7 @@ namespace Tomahawk
 					return;
 				}
 
-				for (uint64_t i = 0; i < Base->Request.URI.size(); i++)
+				for (size_t i = 0; i < Base->Request.URI.size(); i++)
 				{
 					if (Base->Request.URI[i] == '%' && i + 1 < Base->Request.URI.size())
 					{
@@ -3890,7 +3893,7 @@ namespace Tomahawk
 							if (Compute::Codec::HexToDecimal(Base->Request.URI, i + 2, 4, Value))
 							{
 								char Buffer[4];
-								uint64_t LCount = Compute::Codec::Utf8(Value, Buffer);
+								size_t LCount = Compute::Codec::Utf8(Value, Buffer);
 								if (LCount > 0)
 									Base->Request.Path.append(Buffer, LCount);
 
@@ -3943,7 +3946,7 @@ namespace Tomahawk
 				if (!Base->Request.Match.Empty())
 				{
 					auto& Match = Base->Request.Match.Get()[0];
-					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart(Match.Start, Match.End).R();
+					Base->Request.Path = Base->Route->DocumentRoot + Core::Parser(Base->Request.Path).RemovePart((size_t)Match.Start, (size_t)Match.End).R();
 				}
 				else
 					Base->Request.Path = Base->Route->DocumentRoot + Base->Request.Path;
@@ -4064,7 +4067,8 @@ namespace Tomahawk
 						{
 							if (!URI.StartsWith(Group.Match))
 								continue;
-							URI.Substring((uint64_t)Group.Match.size(), URI.Size());
+
+							URI.Substring(Group.Match.size(), URI.Size());
 						}
 						else if (Group.Mode == RouteMode::Match)
 						{
@@ -4075,7 +4079,8 @@ namespace Tomahawk
 						{
 							if (!URI.EndsWith(Group.Match))
 								continue;
-							URI.Clip(URI.Size() - (uint64_t)Group.Match.size());
+
+							URI.Clip(URI.Size() - Group.Match.size());
 						}
 
 						if (URI.Empty())
@@ -4138,7 +4143,7 @@ namespace Tomahawk
 
 				return strcmp(A.Path.c_str(), B.Path.c_str()) < 0;
 			}
-			std::string Paths::ConstructContentRange(uint64_t Offset, uint64_t Length, uint64_t ContentLength)
+			std::string Paths::ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength)
 			{
 				std::string Field = "bytes ";
 				Field += std::to_string(Offset);
@@ -4285,7 +4290,7 @@ namespace Tomahawk
 					std::vector<std::pair<std::string, std::string>> Cookies;
 					const char* Offset = Data;
 
-					for (uint64_t i = 0; i < Length; i++)
+					for (size_t i = 0; i < Length; i++)
 					{
 						if (Data[i] != '=')
 							continue;
@@ -4446,7 +4451,7 @@ namespace Tomahawk
 					return false;
 				}
 
-				uint64_t Index = 0;
+				size_t Index = 0;
 				while (Authorization[Index] != ' ' && Authorization[Index] != '\0')
 					Index++;
 
@@ -4618,10 +4623,10 @@ namespace Tomahawk
 				}
 
 				const char* IfModifiedSince = Base->Request.GetHeader("If-Modified-Since");
-				return !(IfModifiedSince != nullptr && Resource->LastModified <= Core::DateTime::ReadGMTBasedString(IfModifiedSince));
+				return !(IfModifiedSince != nullptr && Resource->LastModified <= Core::DateTime::ParseWebDate(IfModifiedSince));
 
 			}
-			bool Resources::ResourceCompressed(Connection* Base, uint64_t Size)
+			bool Resources::ResourceCompressed(Connection* Base, size_t Size)
 			{
 #ifdef TH_HAS_ZLIB
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
@@ -4812,7 +4817,7 @@ namespace Tomahawk
 					else if (Packet::IsDone(Event))
 					{
 						char Date[64];
-						Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+						Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 						Core::Parser Content;
 						Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
@@ -4860,7 +4865,7 @@ namespace Tomahawk
 					return Logical::ProcessGateway(Base);
 
 				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::Parser Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sContent-Location: %s\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Request.URI.c_str());
@@ -4898,7 +4903,7 @@ namespace Tomahawk
 					return Base->Error(403, "Operation denied by system.");
 
 				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::Parser Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%s", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
@@ -4919,7 +4924,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
 				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::Parser Content;
 				Content.fAppend("%s 204 No Content\r\nDate: %s\r\n%sAllow: GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str());
@@ -4945,7 +4950,7 @@ namespace Tomahawk
 					return Base->Error(500, "System denied to directory listing.");
 
 				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				Core::Parser Content;
 				Content.fAppend("%s 200 OK\r\nDate: %s\r\n%sContent-Type: text/html; charset=%s\r\nAccept-Ranges: bytes\r\n", Base->Request.Version, Date, Util::ConnectionResolve(Base).c_str(), Base->Route->CharSet.c_str());
@@ -4958,7 +4963,7 @@ namespace Tomahawk
 				if (Message != nullptr)
 					Content.fAppend("X-Error: %s\n\r", Message);
 
-				uint64_t Size = Base->Request.URI.size() - 1;
+				size_t Size = Base->Request.URI.size() - 1;
 				while (Base->Request.URI[Size] != '/')
 					Size--;
 
@@ -4982,7 +4987,7 @@ namespace Tomahawk
 					"<tr><td><a href=\"" + Parent + "\">Parent directory</a></td>"
 					"<td>&nbsp;-</td><td>&nbsp;&nbsp;-</td></tr>");
 
-				std::sort(Entries.begin(), Entries.end(), std::bind(&Paths::ConstructDirectoryEntries, Base, std::placeholders::_1, std::placeholders::_2));
+				TH_SORT(Entries.begin(), Entries.end(), std::bind(&Paths::ConstructDirectoryEntries, Base, std::placeholders::_1, std::placeholders::_2));
 				for (auto& Item : Entries)
 				{
 					if (Resources::ResourceHidden(Base, &Item.Path))
@@ -5004,7 +5009,7 @@ namespace Tomahawk
 						strncpy(dSize, "[DIRECTORY]", sizeof(dSize));
 
 					char dDate[64];
-					Core::DateTime::TimeFormatLCL(dDate, sizeof(dDate), Item.Source.LastModified);
+					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.Source.LastModified);
 
 					std::string URI = Compute::Codec::URIEncode(Item.Path);
 					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
@@ -5045,7 +5050,7 @@ namespace Tomahawk
 
 							if (Compress && Flush)
 							{
-								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)Stream.total_out);
+								TextAssign(Base->Response.Buffer, Buffer.c_str(), Stream.total_out);
 								if (!Base->Response.GetHeader("Content-Encoding"))
 								{
 									if (Gzip)
@@ -5099,7 +5104,7 @@ namespace Tomahawk
 					StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error ? Base->Response.StatusCode : 206));
 				}
 #ifdef TH_HAS_ZLIB
-				if (Resources::ResourceCompressed(Base, (uint64_t)ContentLength))
+				if (Resources::ResourceCompressed(Base, (size_t)ContentLength))
 				{
 					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
 					if (AcceptEncoding != nullptr)
@@ -5108,7 +5113,7 @@ namespace Tomahawk
 						bool Gzip = strstr(AcceptEncoding, "gzip") != nullptr;
 
 						if (Deflate || Gzip)
-							return ProcessResourceCompress(Base, Deflate, Gzip, ContentRange, Range1);
+							return ProcessResourceCompress(Base, Deflate, Gzip, ContentRange, (size_t)Range1);
 					}
 				}
 #endif
@@ -5122,10 +5127,10 @@ namespace Tomahawk
 				}
 
 				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				char LastModified[64];
-				Core::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
+				Core::DateTime::FetchWebDateGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
@@ -5164,14 +5169,14 @@ namespace Tomahawk
 					{
 						Core::Schedule::Get()->SetTask([Base, ContentLength, Range1]()
 						{
-							Logical::ProcessFile(Base, ContentLength, Range1);
+							Logical::ProcessFile(Base, (size_t)ContentLength, (size_t)Range1);
 						}, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
 						Base->Break();
 				});
 			}
-			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, uint64_t Range)
+			bool Logical::ProcessResourceCompress(Connection* Base, bool Deflate, bool Gzip, const char* ContentRange, size_t Range)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(ContentRange != nullptr, false, "content tange should be set");
@@ -5191,10 +5196,10 @@ namespace Tomahawk
 				}
 
 				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				char LastModified[64];
-				Core::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
+				Core::DateTime::FetchWebDateGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
@@ -5234,7 +5239,7 @@ namespace Tomahawk
 					{
 						Core::Schedule::Get()->SetTask([Base, Range, ContentLength, Gzip]()
 						{
-							Logical::ProcessFileCompress(Base, ContentLength, Range, Gzip);
+							Logical::ProcessFileCompress(Base, (size_t)ContentLength, (size_t)Range, Gzip);
 						}, Core::Difficulty::Heavy);
 					}
 					else if (Packet::IsError(Event))
@@ -5245,10 +5250,10 @@ namespace Tomahawk
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				char Date[64];
-				Core::DateTime::TimeFormatGMT(Date, sizeof(Date), Base->Info.Start / 1000);
+				Core::DateTime::FetchWebDateGMT(Date, sizeof(Date), Base->Info.Start / 1000);
 
 				char LastModified[64];
-				Core::DateTime::TimeFormatGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
+				Core::DateTime::FetchWebDateGMT(LastModified, sizeof(LastModified), Base->Resource.LastModified);
 
 				char ETag[64];
 				Core::OS::Net::GetETag(ETag, sizeof(ETag), &Base->Resource);
@@ -5269,13 +5274,13 @@ namespace Tomahawk
 						Base->Break();
 				});
 			}
-			bool Logical::ProcessFile(Connection* Base, uint64_t ContentLength, uint64_t Range)
+			bool Logical::ProcessFile(Connection* Base, size_t ContentLength, size_t Range)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
-					uint64_t sLimit = Base->Resource.Size - Range;
+					size_t sLimit = Base->Resource.Size - Range;
 					if (ContentLength > sLimit)
 						ContentLength = sLimit;
 
@@ -5337,7 +5342,7 @@ namespace Tomahawk
 #endif
                 return ProcessFileChunk(Base, Base->Root, Stream, ContentLength);
 			}
-			bool Logical::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, uint64_t ContentLength)
+			bool Logical::ProcessFileChunk(Connection* Base, Server* Router, FILE* Stream, size_t ContentLength)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Router != nullptr, false, "router should be set");
@@ -5355,11 +5360,11 @@ namespace Tomahawk
 					return Base->Finish() || true;
 				}
                 
-                int Read = sizeof(Buffer);
-				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
+				size_t Read = sizeof(Buffer);
+				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, Stream)) <= 0)
 					goto Cleanup;
                 
-				ContentLength -= (int64_t)Read;
+				ContentLength -= Read;
                 int Result = Base->Stream->WriteAsync(Buffer, Read, [Base, Router, Stream, ContentLength](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
@@ -5383,7 +5388,7 @@ namespace Tomahawk
                 
 				return false;
 			}
-			bool Logical::ProcessFileCompress(Connection* Base, uint64_t ContentLength, uint64_t Range, bool Gzip)
+			bool Logical::ProcessFileCompress(Connection* Base, size_t ContentLength, size_t Range, bool Gzip)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
@@ -5408,7 +5413,7 @@ namespace Tomahawk
 							bool Flush = (deflateEnd(&ZStream) == Z_OK);
 
 							if (Compress && Flush)
-								TextAssign(Base->Response.Buffer, Buffer.c_str(), (uint64_t)ZStream.total_out);
+								TextAssign(Base->Response.Buffer, Buffer.c_str(), ZStream.total_out);
 						}
 #endif
 						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [Base](SocketPoll Event)
@@ -5464,7 +5469,7 @@ namespace Tomahawk
 				return Base->Error(500, "Cannot process gzip stream.");
 #endif
 			}
-			bool Logical::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, uint64_t ContentLength)
+			bool Logical::ProcessFileCompressChunk(Connection* Base, Server* Router, FILE* Stream, void* CStream, size_t ContentLength)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Router != nullptr, false, "router should be set");
@@ -5491,11 +5496,11 @@ namespace Tomahawk
 					}) || true;
 				}
                 
-                int Read = sizeof(Buffer) - GZ_HEADER_SIZE;
-				if ((Read = (int)fread(Buffer, 1, (size_t)(Read > ContentLength ? ContentLength : Read), Stream)) <= 0)
+				size_t Read = sizeof(Buffer) - GZ_HEADER_SIZE;
+				if ((Read = (size_t)fread(Buffer, 1, Read > ContentLength ? ContentLength : Read, Stream)) <= 0)
 					goto Cleanup;
 
-				ContentLength -= (int64_t)Read;
+				ContentLength -= Read;
 				ZStream->avail_in = (uInt)Read;
 				ZStream->next_in = (Bytef*)Buffer;
 				ZStream->avail_out = (uInt)sizeof(Deflate);
@@ -5503,7 +5508,7 @@ namespace Tomahawk
 				deflate(ZStream, Z_SYNC_FLUSH);
 				Read = (int)sizeof(Deflate) - (int)ZStream->avail_out;
 
-				int Next = snprintf(Buffer, sizeof(Buffer), "%X\r\n", Read);
+				int Next = snprintf(Buffer, sizeof(Buffer), "%X\r\n", (unsigned int)Read);
 				memcpy(Buffer + Next, Deflate, Read);
 				Read += Next;
 
@@ -5865,12 +5870,9 @@ namespace Tomahawk
 
 						const char* ContentLength = Base->Request.GetHeader("Content-Length");
 						if (ContentLength != nullptr)
-						{
-							int64_t Len = strtoll(ContentLength, nullptr, 10);
-							Base->Request.ContentLength = (Len <= 0 ? 0 : Len);
-						}
+							Base->Request.ContentLength = (size_t)strtoll(ContentLength, nullptr, 10);
                         else
-                            Base->Request.ContentLength = -1;
+                            Base->Request.ContentLength = 0;
 
 						if (!Base->Request.ContentLength)
 							Base->Response.Data = Content::Empty;
@@ -6068,7 +6070,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			Core::Promise<bool> Client::Consume(int64_t MaxSize)
+			Core::Promise<bool> Client::Consume(size_t MaxSize)
 			{
 				TH_ASSERT(!WebSocket, false, "cannot read http over websocket");
 				if (Response.HasBody())
@@ -6164,7 +6166,7 @@ namespace Tomahawk
 					return Result;
 				}
                 
-                uint64_t ContentSize = strtoll(ContentLength, nullptr, 10);
+				size_t ContentSize = (size_t)strtoll(ContentLength, nullptr, 10);
 				if (!ContentSize)
 				{
 					Response.Data = Content::Empty;
@@ -6204,7 +6206,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Core::Promise<bool> Client::Fetch(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Promise<bool> Client::Fetch(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
 				return Send(std::move(Root)).Then<Core::Promise<bool>>([this, MaxSize](HTTP::ResponseFrame*&&)
 				{
@@ -6357,7 +6359,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			Core::Promise<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Promise<Core::Schema*> Client::JSON(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
 				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
 				{
@@ -6367,7 +6369,7 @@ namespace Tomahawk
 					return Core::Schema::ConvertFromJSON(Response.Buffer.data(), Response.Buffer.size());
 				});
 			}
-			Core::Promise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, int64_t MaxSize)
+			Core::Promise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
 			{
 				return Fetch(std::move(Root), MaxSize).Then<Core::Schema*>([this](bool&& Result)
 				{
@@ -6433,3 +6435,4 @@ namespace Tomahawk
 		}
 	}
 }
+#pragma warning(pop)

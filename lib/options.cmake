@@ -1,9 +1,14 @@
+#Check if compiler supports at least C++ 14
+if (NOT "${CMAKE_CXX_COMPILE_FEATURES}" MATCHES "cxx_std_14")
+    message(FATAL_ERROR "Compiler must have at least C++ 14 standard support")
+endif()
+
 #Resolve needed options for different compilers and refs linkage
 if (NOT MSVC)
     set(CMAKE_CXX_FLAGS_DEBUG "-g")
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
     if (NOT (WIN32 AND MINGW))
-		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=0 -std=c++14 -fexceptions")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat=0 -fexceptions")
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -fexceptions")
 		if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 			if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
@@ -23,30 +28,17 @@ else()
     set(CMAKE_CXX_FLAGS_DEBUG "/MDd /Zi /Ob0 /Od /MP /bigobj")
     set(CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG /MP /bigobj")
     set(CMAKE_C_FLAGS_DEBUG "/MDd /Zi /Ob0 /Od /MP /bigobj")
-    set(CMAKE_C_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG /MP /bigobj")
-    target_compile_definitions(tomahawk PRIVATE
-            -D_CRT_SECURE_NO_WARNINGS
-            -D_SCL_SECURE_NO_WARNINGS)
-    target_compile_options(tomahawk PRIVATE
-            /wd4305
-            /wd4244
-            /wd4316
-            /wd4018
-            /wd4200)
-	if (CMAKE_SIZEOF_VOID_P EQUAL 8)
-		target_compile_options(tomahawk PRIVATE /wd4267)
-	endif()
+    set(CMAKE_C_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG /MP /bigobj") 
+    if (TH_WITH_BULLET3)
+        target_compile_options(tomahawk PRIVATE /wd4305 /wd4244 /wd4018 /wd4267)
+    endif()
 endif()
 
 #Link system libraries libraries
 if (WIN32)
-    target_link_libraries(tomahawk PUBLIC
-            ws2_32.lib
-            mswsock.lib)
+    target_link_libraries(tomahawk PUBLIC  ws2_32.lib mswsock.lib)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	target_link_libraries(tomahawk PUBLIC
-		${CMAKE_DL_LIBS}
-                pthread)
+	target_link_libraries(tomahawk PUBLIC ${CMAKE_DL_LIBS} pthread)
 endif()
 
 #Select compiler for ASM sources

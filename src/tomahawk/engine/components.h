@@ -338,7 +338,6 @@ namespace Tomahawk
 			class TH_OUT FreeLook final : public Component
 			{
 			private:
-				Graphics::Activity * Activity;
 				Compute::Vector2 Position;
 
 			public:
@@ -348,10 +347,8 @@ namespace Tomahawk
 			public:
 				FreeLook(Entity* Ref);
 				virtual ~FreeLook() = default;
-				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
-				Graphics::Activity* GetActivity() const;
 
 			public:
 				TH_COMPONENT("free-look");
@@ -360,7 +357,6 @@ namespace Tomahawk
 			class TH_OUT Fly final : public Component
 			{
 			private:
-				Graphics::Activity* Activity;
 				Compute::Vector3 Velocity;
 
 			public:
@@ -386,13 +382,11 @@ namespace Tomahawk
 			public:
 				Fly(Entity* Ref);
 				virtual ~Fly() = default;
-				virtual void Activate(Component * New) override;
 				virtual void Update(Core::Timer * Time) override;
 				virtual Core::Unique<Component> Copy(Entity * New) const override;
-				Graphics::Activity* GetActivity() const;
 
 			private:
-				Compute::Vector3 GetSpeed();
+				Compute::Vector3 GetSpeed(Graphics::Activity* Activity);
 
 			public:
 				TH_COMPONENT("fly");
@@ -693,6 +687,7 @@ namespace Tomahawk
 				Compute::Frustum8C GetFrustum8C();
 				Compute::Frustum6P GetFrustum6P();
 				Compute::Ray GetScreenRay(const Compute::Vector2& Position);
+				Compute::Ray GetCursorRay();
 				float GetDistance(Entity* Other);
 				float GetWidth();
 				float GetHeight();

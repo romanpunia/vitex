@@ -168,7 +168,7 @@ namespace Tomahawk
 
 			inline InputType operator |(InputType A, InputType B)
 			{
-				return static_cast<InputType>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+				return static_cast<InputType>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
 
 			class TH_OUT IVariant

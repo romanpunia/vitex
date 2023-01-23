@@ -150,10 +150,7 @@ namespace Tomahawk
 				virtual void EnableScissorRegion(bool Enable) override
 				{
 					TH_ASSERT_V(Device != nullptr, "graphics device should be set");
-					Ortho = Compute::Matrix4x4::CreateOrthographicOffCenter(0,
-						Device->GetRenderTarget()->GetWidth(),
-						Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
-
+					Ortho = Compute::Matrix4x4::CreateOrthographicOffCenter(0, (float)Device->GetRenderTarget()->GetWidth(), (float)Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
 					Device->SetSamplerState(Sampler, 1, 1, TH_PS);
 					Device->SetBlendState(AlphaBlend);
 					if (Enable)
@@ -181,7 +178,7 @@ namespace Tomahawk
 					TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 					if (!HasTransform)
 					{
-						float WY = Device->GetRenderTarget()->GetHeight();
+						float WY = (float)Device->GetRenderTarget()->GetHeight();
 						WY -= Y + Height;
 
 						Compute::Rectangle Scissor;
@@ -854,30 +851,36 @@ namespace Tomahawk
 						Buffer[6] = '\0';
 
 						unsigned int R = 0, G = 0, B = 0;
-						sscanf(Buffer, "%02x%02x%02x", &R, &G, &B);
-						Result.X = R / 255.0f;
-						Result.Y = G / 255.0f;
-						Result.Z = B / 255.0f;
-						Result.W = 1.0f;
+						if (sscanf(Buffer, "%02x%02x%02x", &R, &G, &B) == 3)
+						{
+							Result.X = R / 255.0f;
+							Result.Y = G / 255.0f;
+							Result.Z = B / 255.0f;
+							Result.W = 1.0f;
+						}
 					}
 					else
 					{
 						unsigned int R = 0, G = 0, B = 0, A = 255;
-						sscanf(Value.c_str(), "#%02x%02x%02x%02x", &R, &G, &B, &A);
-						Result.X = R / 255.0f;
-						Result.Y = G / 255.0f;
-						Result.Z = B / 255.0f;
-						Result.W = A / 255.0f;
+						if (sscanf(Value.c_str(), "#%02x%02x%02x%02x", &R, &G, &B, &A) == 4)
+						{
+							Result.X = R / 255.0f;
+							Result.Y = G / 255.0f;
+							Result.Z = B / 255.0f;
+							Result.W = A / 255.0f;
+						}
 					}
 				}
 				else
 				{
 					unsigned int R = 0, G = 0, B = 0, A = 255;
-					sscanf(Value.c_str(), "%u %u %u %u", &R, &G, &B, &A);
-					Result.X = R / 255.0f;
-					Result.Y = G / 255.0f;
-					Result.Z = B / 255.0f;
-					Result.W = A / 255.0f;
+					if (sscanf(Value.c_str(), "%u %u %u %u", &R, &G, &B, &A) == 4)
+					{
+						Result.X = R / 255.0f;
+						Result.Y = G / 255.0f;
+						Result.Z = B / 255.0f;
+						Result.W = A / 255.0f;
+					}
 				}
 
 				return Result;
@@ -902,6 +905,8 @@ namespace Tomahawk
 				if (Value[0] == '#')
 				{
 					unsigned int R = 0, G = 0, B = 0;
+					int Fills = 0;
+
 					if (Value.size() == 4)
 					{
 						char Buffer[7];
@@ -912,22 +917,27 @@ namespace Tomahawk
 						Buffer[4] = Value[3];
 						Buffer[5] = Value[3];
 						Buffer[6] = '\0';
-						sscanf(Buffer, "%02x%02x%02x", &R, &G, &B);
+						Fills = sscanf(Buffer, "%02x%02x%02x", &R, &G, &B);
 					}
 					else
-						sscanf(Value.c_str(), "#%02x%02x%02x", &R, &G, &B);
+						Fills = sscanf(Value.c_str(), "#%02x%02x%02x", &R, &G, &B);
 
-					Result.X = R / 255.0f;
-					Result.Y = G / 255.0f;
-					Result.Z = B / 255.0f;
+					if (Fills == 3)
+					{
+						Result.X = R / 255.0f;
+						Result.Y = G / 255.0f;
+						Result.Z = B / 255.0f;
+					}
 				}
 				else
 				{
 					unsigned int R = 0, G = 0, B = 0;
-					sscanf(Value.c_str(), "%u %u %u", &R, &G, &B);
-					Result.X = R / 255.0f;
-					Result.Y = G / 255.0f;
-					Result.Z = B / 255.0f;
+					if (sscanf(Value.c_str(), "%u %u %u", &R, &G, &B) == 3)
+					{
+						Result.X = R / 255.0f;
+						Result.Y = G / 255.0f;
+						Result.Z = B / 255.0f;
+					}
 				}
 
 				return Result;
@@ -961,7 +971,8 @@ namespace Tomahawk
 			Compute::Vector4 IVariant::ToVector4(const std::string& Base)
 			{
 				Compute::Vector4 Result;
-				sscanf(Base.c_str(), "v4 %f %f %f %f", &Result.X, &Result.Y, &Result.Z, &Result.W);
+				if (sscanf(Base.c_str(), "v4 %f %f %f %f", &Result.X, &Result.Y, &Result.Z, &Result.W) != 4)
+					return Result;
 
 				return Result;
 			}
@@ -972,7 +983,8 @@ namespace Tomahawk
 			Compute::Vector3 IVariant::ToVector3(const std::string& Base)
 			{
 				Compute::Vector3 Result;
-				sscanf(Base.c_str(), "v3 %f %f %f", &Result.X, &Result.Y, &Result.Z);
+				if (sscanf(Base.c_str(), "v3 %f %f %f", &Result.X, &Result.Y, &Result.Z) != 3)
+					return Result;
 
 				return Result;
 			}
@@ -983,7 +995,8 @@ namespace Tomahawk
 			Compute::Vector2 IVariant::ToVector2(const std::string& Base)
 			{
 				Compute::Vector2 Result;
-				sscanf(Base.c_str(), "v2 %f %f", &Result.X, &Result.Y);
+				if (sscanf(Base.c_str(), "v2 %f %f", &Result.X, &Result.Y) != 2)
+					return Result;
 
 				return Result;
 			}
@@ -2642,7 +2655,7 @@ namespace Tomahawk
 			}
 			void DataNode::SortTree()
 			{
-				std::sort(Childs.begin(), Childs.end(), [](const DataNode& A, const DataNode& B)
+				TH_SORT(Childs.begin(), Childs.end(), [](const DataNode& A, const DataNode& B)
 				{
 					double D1 = (double)(uintptr_t)A.GetSeqId() + 0.00000001 * (double)A.GetDepth();
 					double D2 = (double)(uintptr_t)B.GetSeqId() + 0.00000001 * (double)B.GetDepth();
@@ -2801,7 +2814,7 @@ namespace Tomahawk
 			}
 			void DataNode::SetValueInt(int64_t Value)
 			{
-				*Ref = std::move(Core::Var::Number(Value));
+				*Ref = std::move(Core::Var::Integer(Value));
 			}
 			int64_t DataNode::GetValueSize()
 			{
@@ -2861,7 +2874,7 @@ namespace Tomahawk
 
 			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
-				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i(Size.X, Size.Y));
+				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 
 				TH_ASSERT_V(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
@@ -2942,7 +2955,7 @@ namespace Tomahawk
 			}
 			void Context::EmitWheel(int X, int Y, bool Normal, Graphics::KeyMod Mod)
 			{
-				if (Base->ProcessMouseWheel(-Y, GetKeyMod(Mod)))
+				if (Base->ProcessMouseWheel((float)-Y, GetKeyMod(Mod)))
 					Inputs.Scroll = true;
 			}
 			void Context::EmitResize(int Width, int Height)
@@ -3093,7 +3106,7 @@ namespace Tomahawk
 			Compute::Vector2 Context::GetDimensions() const
 			{
 				Rml::Vector2i Size = Base->GetDimensions();
-				return Compute::Vector2(Size.x, Size.y);
+				return Compute::Vector2((float)Size.x, (float)Size.y);
 			}
 			void Context::SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio)
 			{
@@ -3188,7 +3201,6 @@ namespace Tomahawk
 			}
 			IElementDocument Context::LoadDocument(const std::string& Path)
 			{
-				uint64_t Length = 0;
 				bool State = Loading;
 				Loading = true;
 
@@ -3198,6 +3210,7 @@ namespace Tomahawk
 				ClearVM();
 				Elements.clear();
 
+				size_t Length = 0;
 				unsigned char* Buffer = Core::OS::File::ReadAll(Path.c_str(), &Length);
 				if (!Buffer)
 				{
@@ -3334,14 +3347,14 @@ namespace Tomahawk
 				Rml::Vector2i O1((int)Origin.X, (int)Origin.Y);
 				Rml::Vector2i O2((int)Dimensions.X, (int)Dimensions.Y);
 				bool Result = Base->GetActiveClipRegion(O1, O2);
-				Origin = Compute::Vector2(O1.x, O1.y);
-				Dimensions = Compute::Vector2(O2.x, O2.y);
+				Origin = Compute::Vector2((float)O1.x, (float)O1.y);
+				Dimensions = Compute::Vector2((float)O2.x, (float)O2.y);
 
 				return Result;
 			}
 			void Context::SetActiveClipRegion(const Compute::Vector2& Origin, const Compute::Vector2& Dimensions)
 			{
-				return Base->SetActiveClipRegion(Rml::Vector2i(Origin.X, Origin.Y), Rml::Vector2i(Dimensions.X, Dimensions.Y));
+				return Base->SetActiveClipRegion(Rml::Vector2i((int)Origin.X, (int)Origin.Y), Rml::Vector2i((int)Dimensions.X, (int)Dimensions.Y));
 			}
 			DataModel* Context::SetDataModel(const std::string& Name)
 			{
@@ -3432,12 +3445,12 @@ namespace Tomahawk
 					if (File.IsSystem && !File.IsFile)
 						return false;
 
-					uint64_t Length;
+					size_t Length;
 					unsigned char* Data = Core::OS::File::ReadAll(File.Module.c_str(), &Length);
 					if (!Data)
 						return false;
 
-					Output->assign((const char*)Data, (size_t)Length);
+					Output->assign((const char*)Data, Length);
 					TH_FREE(Data);
 
 					this->Decompose(*Output);

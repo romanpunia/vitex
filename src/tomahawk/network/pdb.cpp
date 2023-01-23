@@ -653,7 +653,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
 
-				return PQsetvalue(Base, RowIndex, ColumnIndex, Data, Size);
+				return PQsetvalue(Base, (int)RowIndex, (int)ColumnIndex, Data, (int)Size);
 #else
 				return -1;
 #endif
@@ -665,7 +665,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), std::string(), "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), std::string(), "column should be valid");
 
-				char* Text = PQfname(Base, ColumnIndex);
+				char* Text = PQfname(Base, (int)ColumnIndex);
 				if (!Text)
 					return std::string();
 
@@ -680,12 +680,12 @@ namespace Tomahawk
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
 					return Core::Var::Undefined();
 
-				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
+				if (PQgetisnull(Base, (int)RowIndex, (int)ColumnIndex) == 1)
 					return Core::Var::Null();
 
-				char* Data = PQgetvalue(Base, RowIndex, ColumnIndex);
-				int Size = PQgetlength(Base, RowIndex, ColumnIndex);
-				Oid Type = PQftype(Base, ColumnIndex);
+				char* Data = PQgetvalue(Base, (int)RowIndex, (int)ColumnIndex);
+				int Size = PQgetlength(Base, (int)RowIndex, (int)ColumnIndex);
+				Oid Type = PQftype(Base, (int)ColumnIndex);
 
 				return ToVariant(Data, Size, Type);
 #else
@@ -698,12 +698,12 @@ namespace Tomahawk
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
 					return nullptr;
 
-				if (PQgetisnull(Base, RowIndex, ColumnIndex) == 1)
+				if (PQgetisnull(Base, (int)RowIndex, (int)ColumnIndex) == 1)
 					return nullptr;
 
-				char* Data = PQgetvalue(Base, RowIndex, ColumnIndex);
-				int Size = PQgetlength(Base, RowIndex, ColumnIndex);
-				Oid Type = PQftype(Base, ColumnIndex);
+				char* Data = PQgetvalue(Base, (int)RowIndex, (int)ColumnIndex);
+				int Size = PQgetlength(Base, (int)RowIndex, (int)ColumnIndex);
+				Oid Type = PQftype(Base, (int)ColumnIndex);
 
 				return ToSchema(Data, Size, Type);
 #else
@@ -717,7 +717,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), nullptr, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), nullptr, "column should be valid");
 
-				return PQgetvalue(Base, RowIndex, ColumnIndex);
+				return PQgetvalue(Base, (int)RowIndex, (int)ColumnIndex);
 #else
 				return nullptr;
 #endif
@@ -729,7 +729,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), 0, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), 0, "column should be valid");
 
-				return PQfformat(Base, ColumnIndex);
+				return PQfformat(Base, (int)ColumnIndex);
 #else
 				return 0;
 #endif
@@ -741,7 +741,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
 
-				return PQfmod(Base, ColumnIndex);
+				return PQfmod(Base, (int)ColumnIndex);
 #else
 				return -1;
 #endif
@@ -753,7 +753,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), -1, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), -1, "column should be valid");
 
-				return PQftablecol(Base, ColumnIndex);
+				return PQftablecol(Base, (int)ColumnIndex);
 #else
 				return -1;
 #endif
@@ -765,7 +765,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), InvalidOid, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), InvalidOid, "column should be valid");
 
-				return PQftable(Base, ColumnIndex);
+				return PQftable(Base, (int)ColumnIndex);
 #else
 				return 0;
 #endif
@@ -777,7 +777,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), InvalidOid, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), InvalidOid, "column should be valid");
 
-				return PQftype(Base, ColumnIndex);
+				return PQftype(Base, (int)ColumnIndex);
 #else
 				return 0;
 #endif
@@ -808,7 +808,7 @@ namespace Tomahawk
 				TH_ASSERT(RowIndex != std::numeric_limits<size_t>::max(), 0, "row should be valid");
 				TH_ASSERT(ColumnIndex != std::numeric_limits<size_t>::max(), 0, "column should be valid");
 
-				int Size = PQgetlength(Base, RowIndex, ColumnIndex);
+				int Size = PQgetlength(Base, (int)RowIndex, (int)ColumnIndex);
 				if (Size < 0)
 					return 0;
 
@@ -834,7 +834,7 @@ namespace Tomahawk
 				if (!Base || RowIndex == std::numeric_limits<size_t>::max() || ColumnIndex == std::numeric_limits<size_t>::max())
 					return true;
 
-				return PQgetisnull(Base, RowIndex, ColumnIndex) == 1;
+				return PQgetisnull(Base, (int)RowIndex, (int)ColumnIndex) == 1;
 #else
 				return true;
 #endif
@@ -859,9 +859,9 @@ namespace Tomahawk
 				for (int j = 0; j < Size; j++)
 				{
 					char* Name = PQfname(Base, j);
-					char* Data = PQgetvalue(Base, RowIndex, j);
-					int Count = PQgetlength(Base, RowIndex, j);
-					bool Null = PQgetisnull(Base, RowIndex, j) == 1;
+					char* Data = PQgetvalue(Base, (int)RowIndex, j);
+					int Count = PQgetlength(Base, (int)RowIndex, j);
+					bool Null = PQgetisnull(Base, (int)RowIndex, j) == 1;
 					Oid Type = PQftype(Base, j);
 
 					if (!Null)
@@ -890,9 +890,9 @@ namespace Tomahawk
 
 				for (int j = 0; j < Size; j++)
 				{
-					char* Data = PQgetvalue(Base, RowIndex, j);
-					int Count = PQgetlength(Base, RowIndex, j);
-					bool Null = PQgetisnull(Base, RowIndex, j) == 1;
+					char* Data = PQgetvalue(Base, (int)RowIndex, j);
+					int Count = PQgetlength(Base, (int)RowIndex, j);
+					bool Null = PQgetisnull(Base, (int)RowIndex, j) == 1;
 					Oid Type = PQftype(Base, j);
 					Result->Push(Null ? Core::Var::Set::Null() : ToSchema(Data, Count, Type));
 				}
@@ -1622,14 +1622,14 @@ namespace Tomahawk
 			}
 			Core::Promise<SessionId> Cluster::TxBegin(const std::string& Command)
 			{
-				return Query(Command, (uint64_t)QueryOp::TransactionStart).Then<SessionId>([this](Cursor&& Result)
+				return Query(Command, (size_t)QueryOp::TransactionStart).Then<SessionId>([this](Cursor&& Result)
 				{
 					return Result.IsSuccess() ? Result.GetExecutor() : nullptr;
 				});
 			}
 			Core::Promise<bool> Cluster::TxEnd(const std::string& Command, SessionId Session)
 			{
-				return Query(Command, (uint64_t)QueryOp::TransactionEnd, Session).Then<bool>([this](Cursor&& Result)
+				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<bool>([this](Cursor&& Result)
 				{
 					return Result.IsSuccess();
 				});
@@ -1784,29 +1784,29 @@ namespace Tomahawk
 				{
 					size_t Count = 0;
 					for (auto& Next : Commands)
-					    Count += TH_AWAIT(Query(Next.second, (uint64_t)QueryOp::TransactionAlways, Next.first)).IsSuccess() ? 1 : 0;
+					    Count += TH_AWAIT(Query(Next.second, (size_t)QueryOp::TransactionAlways, Next.first)).IsSuccess() ? 1 : 0;
 
 					return Count > 0;
 				});
 			}
-			Core::Promise<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, uint64_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::EmplaceQuery(const std::string& Command, Core::SchemaList* Map, size_t Opts, SessionId Session)
 			{
-				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
+				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
 				return Query(Driver::Emplace(this, Command, Map, Once), Opts, Session);
 			}
-			Core::Promise<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, uint64_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, size_t Opts, SessionId Session)
 			{
 				TH_DEBUG("[pq] template query %s", Name.empty() ? "empty-query-name" : Name.c_str());
 
-				bool Once = !(Opts & (uint64_t)QueryOp::ReuseArgs);
+				bool Once = !(Opts & (size_t)QueryOp::ReuseArgs);
 				return Query(Driver::GetQuery(this, Name, Map, Once), Opts, Session);
 			}
-			Core::Promise<Cursor> Cluster::Query(const std::string& Command, uint64_t Opts, SessionId Session)
+			Core::Promise<Cursor> Cluster::Query(const std::string& Command, size_t Opts, SessionId Session)
 			{
 				TH_ASSERT(!Command.empty(), Cursor(), "command should not be empty");
 
 				std::string Reference;
-				if (Opts & (uint64_t)QueryOp::CacheShort || Opts & (uint64_t)QueryOp::CacheMid || Opts & (uint64_t)QueryOp::CacheLong)
+				if (Opts & (size_t)QueryOp::CacheShort || Opts & (size_t)QueryOp::CacheMid || Opts & (size_t)QueryOp::CacheLong)
 				{
 					Cursor Result(nullptr);
 					Reference = GetCacheOid(Command, Opts);
@@ -1910,14 +1910,14 @@ namespace Tomahawk
 
 				return nullptr;
 			}
-			std::string Cluster::GetCacheOid(const std::string& Payload, uint64_t Opts)
+			std::string Cluster::GetCacheOid(const std::string& Payload, size_t Opts)
 			{
 				std::string Reference = Compute::Codec::HexEncode(Compute::Crypto::HMAC(Compute::Digests::SHA256(), Payload, CACHE_MAGIC));
-				if (Opts & (uint64_t)QueryOp::CacheShort)
+				if (Opts & (size_t)QueryOp::CacheShort)
 					Reference.append(".s");
-				else if (Opts & (uint64_t)QueryOp::CacheMid)
+				else if (Opts & (size_t)QueryOp::CacheMid)
 					Reference.append(".m");
-				else if (Opts & (uint64_t)QueryOp::CacheLong)
+				else if (Opts & (size_t)QueryOp::CacheLong)
 					Reference.append(".l");
 
 				return Reference;
@@ -1951,18 +1951,18 @@ namespace Tomahawk
 				Cache.Context.unlock();
 				return false;
 			}
-			void Cluster::SetCache(const std::string& CacheOid, Cursor* Data, uint64_t Opts)
+			void Cluster::SetCache(const std::string& CacheOid, Cursor* Data, size_t Opts)
 			{
 				TH_ASSERT_V(!CacheOid.empty(), "cache oid should not be empty");
 				TH_ASSERT_V(Data != nullptr, "cursor should be set");
 
 				int64_t Time = time(nullptr);
 				int64_t Timeout = Time;
-				if (Opts & (uint64_t)QueryOp::CacheShort)
+				if (Opts & (size_t)QueryOp::CacheShort)
 					Timeout += Cache.ShortDuration;
-				else if (Opts & (uint64_t)QueryOp::CacheMid)
+				else if (Opts & (size_t)QueryOp::CacheMid)
 					Timeout += Cache.MidDuration;
-				else if (Opts & (uint64_t)QueryOp::CacheLong)
+				else if (Opts & (size_t)QueryOp::CacheLong)
 					Timeout += Cache.LongDuration;
 
 				Cache.Context.lock();
@@ -1990,7 +1990,7 @@ namespace Tomahawk
 			}
 			void Cluster::TryUnassign(Connection* Base, Request* Context)
 			{
-				if (!(Context->Options & (uint64_t)QueryOp::TransactionEnd))
+				if (!(Context->Options & (size_t)QueryOp::TransactionEnd))
 					return;
 
 				TH_DEBUG("[pq] end transaction on 0x%" PRIXPTR, (uintptr_t)Base);
@@ -2230,10 +2230,10 @@ namespace Tomahawk
 			}
 			bool Cluster::TryAssign(Connection* Base, Request* Context)
 			{
-				if (Base->InSession || (Context->Session != nullptr && (Context->Options & (uint64_t)QueryOp::TransactionAlways)))
+				if (Base->InSession || (Context->Session != nullptr && (Context->Options & (size_t)QueryOp::TransactionAlways)))
 					return Base == Context->Session;
 
-				if (!Context->Session && !(Context->Options & (uint64_t)QueryOp::TransactionStart))
+				if (!Context->Session && !(Context->Options & (size_t)QueryOp::TransactionStart))
 					return true;
 
 				for (auto& Item : Pool)
@@ -2330,8 +2330,8 @@ namespace Tomahawk
 				Core::Parser Base(&Result.Request);
 				Base.Trim();
 
-				uint64_t Args = 0;
-				uint64_t Index = 0;
+				size_t Args = 0;
+				size_t Index = 0;
 				int64_t Arg = -1;
 				bool Spec = false;
 				bool Lock = false;
@@ -2360,11 +2360,11 @@ namespace Tomahawk
 					{
 						if (!Spec && Arg >= 0)
 						{
-							if (Arg < Base.Size())
+							if ((size_t)Arg < Base.Size())
 							{
 								Pose Next;
-								Next.Escape = (Base.R()[Arg] == '$');
-								Next.Negate = (Arg >= 1 ? Base.R()[Arg - 1] == '-' : false);
+								Next.Escape = (Base.R()[(size_t)Arg] == '$');
+								Next.Negate = (Arg >= 1 ? Base.R()[(size_t)Arg - 1] == '-' : false);
 								Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
 
 								if (Next.Negate)
@@ -2372,8 +2372,8 @@ namespace Tomahawk
 
 								Next.Offset = (size_t)Arg;
 								Result.Positions.push_back(std::move(Next));
-								Base.RemovePart(Arg, Index + 1);
-								Index -= Index - Arg; Args++;
+								Base.RemovePart((size_t)Arg, Index + 1);
+								Index -= Index - (size_t)Arg; Args++;
 							}
 							else
 								Index++;
@@ -2391,7 +2391,7 @@ namespace Tomahawk
 					}
 					else if (V == '#' && !Lock && !Spec)
 					{
-						uint64_t Next = Index;
+						size_t Next = Index;
 						while (++Next < Base.Size())
 						{
 							char N = Base.R()[Next];
@@ -2399,7 +2399,7 @@ namespace Tomahawk
 								break;
 						}
 
-						uint64_t Size = Next - (Index + 1);
+						size_t Size = Next - (Index + 1);
 						if (Size > 0)
 						{
 							std::string Constant = Base.R().substr(Index + 1, Size);
@@ -2454,7 +2454,7 @@ namespace Tomahawk
 					}
 				}
 
-				uint64_t Offset = 0;
+				size_t Offset = 0;
 				for (auto& Item : Result.Positions)
 				{
 					Item.Offset += Offset;
@@ -2487,7 +2487,7 @@ namespace Tomahawk
 				if (Path.back() != '/' && Path.back() != '\\')
 					Path.append(1, '/');
 
-				uint64_t Size = 0;
+				size_t Size = 0;
 				for (auto& File : Entries)
 				{
 					Core::Parser Base(Path + File.Path);
@@ -2553,7 +2553,7 @@ namespace Tomahawk
 				Core::Parser Buffer(SQL);
 				Core::Parser::Settle Set;
 				std::string& Src = Buffer.R();
-				uint64_t Offset = 0;
+				size_t Offset = 0;
 				size_t Next = 0;
 
 				while ((Set = Buffer.Find('?', Offset)).Found)
@@ -2593,7 +2593,7 @@ namespace Tomahawk
 					std::string Value = GetSQL(Remote->GetBase(), (*Map)[Next++], Escape, Negate);
 					Buffer.Erase(Set.Start, (Escape ? 1 : 2));
 					Buffer.Insert(Value, Set.Start);
-					Offset = Set.Start + (uint64_t)Value.size();
+					Offset = Set.Start + Value.size();
 				}
 
 				if (!Once)
@@ -2673,7 +2673,7 @@ namespace Tomahawk
 					if (Value.empty())
 						continue;
 
-					Result.Insert(Value, (uint64_t)Word.Offset + Offset);
+					Result.Insert(Value, Word.Offset + Offset);
 					Offset += Value.size();
 				}
 
@@ -2756,7 +2756,7 @@ namespace Tomahawk
 					case Core::VarType::Object:
 					{
 						std::string Result;
-						Core::Schema::ConvertToJSON(Source, [&Result](Core::VarForm, const char* Buffer, int64_t Length)
+						Core::Schema::ConvertToJSON(Source, [&Result](Core::VarForm, const char* Buffer, size_t Length)
 						{
 							if (Buffer != nullptr && Length > 0)
 								Result.append(Buffer, Length);

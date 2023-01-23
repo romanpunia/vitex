@@ -76,7 +76,7 @@ namespace Tomahawk
 
 			inline QueryFlags operator |(QueryFlags A, QueryFlags B)
 			{
-				return static_cast<QueryFlags>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+				return static_cast<QueryFlags>(static_cast<size_t>(A) | static_cast<size_t>(B));
 			}
 
 			struct TH_OUT Property
@@ -133,23 +133,23 @@ namespace Tomahawk
 				void Cleanup();
 				void Join(const Document& Value);
 				void Loop(const std::function<bool(Property*)>& Callback) const;
-				bool SetSchema(const char* Key, const Document& Value, uint64_t ArrayId = 0);
-				bool SetArray(const char* Key, const Document& Array, uint64_t ArrayId = 0);
-				bool SetString(const char* Key, const char* Value, uint64_t ArrayId = 0);
-				bool SetBlob(const char* Key, const char* Value, uint64_t Length, uint64_t ArrayId = 0);
-				bool SetInteger(const char* Key, int64_t Value, uint64_t ArrayId = 0);
-				bool SetNumber(const char* Key, double Value, uint64_t ArrayId = 0);
-				bool SetDecimal(const char* Key, uint64_t High, uint64_t Low, uint64_t ArrayId = 0);
-				bool SetDecimalString(const char* Key, const std::string& Value, uint64_t ArrayId = 0);
-				bool SetDecimalInteger(const char* Key, int64_t Value, uint64_t ArrayId = 0);
-				bool SetDecimalNumber(const char* Key, double Value, uint64_t ArrayId = 0);
-				bool SetBoolean(const char* Key, bool Value, uint64_t ArrayId = 0);
-				bool SetObjectId(const char* Key, unsigned char Value[12], uint64_t ArrayId = 0);
-				bool SetNull(const char* Key, uint64_t ArrayId = 0);
-				bool SetProperty(const char* Key, Property* Value, uint64_t ArrayId = 0);
+				bool SetSchema(const char* Key, const Document& Value, size_t ArrayId = 0);
+				bool SetArray(const char* Key, const Document& Array, size_t ArrayId = 0);
+				bool SetString(const char* Key, const char* Value, size_t ArrayId = 0);
+				bool SetBlob(const char* Key, const char* Value, size_t Length, size_t ArrayId = 0);
+				bool SetInteger(const char* Key, int64_t Value, size_t ArrayId = 0);
+				bool SetNumber(const char* Key, double Value, size_t ArrayId = 0);
+				bool SetDecimal(const char* Key, uint64_t High, uint64_t Low, size_t ArrayId = 0);
+				bool SetDecimalString(const char* Key, const std::string& Value, size_t ArrayId = 0);
+				bool SetDecimalInteger(const char* Key, int64_t Value, size_t ArrayId = 0);
+				bool SetDecimalNumber(const char* Key, double Value, size_t ArrayId = 0);
+				bool SetBoolean(const char* Key, bool Value, size_t ArrayId = 0);
+				bool SetObjectId(const char* Key, unsigned char Value[12], size_t ArrayId = 0);
+				bool SetNull(const char* Key, size_t ArrayId = 0);
+				bool SetProperty(const char* Key, Property* Value, size_t ArrayId = 0);
 				bool HasProperty(const char* Key) const;
 				bool GetProperty(const char* Key, Property* Output) const;
-				uint64_t Count() const;
+				size_t Count() const;
 				std::string ToRelaxedJSON() const;
 				std::string ToExtendedJSON() const;
 				std::string ToJSON() const;
@@ -179,7 +179,7 @@ namespace Tomahawk
 				static Document FromEmpty();
 				static Document FromDocument(Core::Schema* Document);
 				static Document FromJSON(const std::string& JSON);
-				static Document FromBuffer(const unsigned char* Buffer, uint64_t Length);
+				static Document FromBuffer(const unsigned char* Buffer, size_t Length);
 				static Document FromSource(TDocument* Src);
 
 			private:
@@ -243,7 +243,7 @@ namespace Tomahawk
 				bool Query(const Document& Command);
 				Core::Promise<Document> ExecuteWithReply();
 				Core::Promise<bool> Execute();
-				uint64_t GetHint() const;
+				size_t GetHint() const;
 				TStream* Get() const;
 				operator bool() const
 				{
@@ -266,18 +266,18 @@ namespace Tomahawk
 				~Cursor();
 				Cursor& operator =(const Cursor& Other) = delete;
 				Cursor& operator =(Cursor&& Other);
-				void SetMaxAwaitTime(uint64_t MaxAwaitTime);
-				void SetBatchSize(uint64_t BatchSize);
+				void SetMaxAwaitTime(size_t MaxAwaitTime);
+				void SetBatchSize(size_t BatchSize);
 				bool SetLimit(int64_t Limit);
-				bool SetHint(uint64_t Hint);
+				bool SetHint(size_t Hint);
 				bool HasError() const;
 				bool HasMoreData() const;
 				Core::Promise<bool> Next() const;
 				int64_t GetId() const;
 				int64_t GetLimit() const;
-				uint64_t GetMaxAwaitTime() const;
-				uint64_t GetBatchSize() const;
-				uint64_t GetHint() const;
+				size_t GetMaxAwaitTime() const;
+				size_t GetBatchSize() const;
+				size_t GetHint() const;
 				Document GetCurrent() const;
 				Cursor Clone();
 				TCursor* Get() const;
@@ -348,8 +348,8 @@ namespace Tomahawk
 				Core::Promise<Document> UpdateMany(const Document& Match, const Document& Update, const Document& Options) const;
 				Core::Promise<Document> UpdateOne(const Document& Match, const Document& Update, const Document& Options) const;
 				Core::Promise<Document> FindAndModify(const Document& Match, const Document& Sort, const Document& Update, const Document& Fields, bool Remove, bool Upsert, bool New) const;
-				Core::Promise<uint64_t> CountDocuments(const Document& Match, const Document& Options) const;
-				Core::Promise<uint64_t> CountDocumentsEstimated(const Document& Options) const;
+				Core::Promise<size_t> CountDocuments(const Document& Match, const Document& Options) const;
+				Core::Promise<size_t> CountDocumentsEstimated(const Document& Options) const;
 				Core::Promise<Cursor> FindIndexes(const Document& Options) const;
 				Core::Promise<Cursor> FindMany(const Document& Match, const Document& Options) const;
 				Core::Promise<Cursor> FindOne(const Document& Match, const Document& Options) const;

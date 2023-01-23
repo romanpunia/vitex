@@ -10,6 +10,8 @@
 #define OGL_OFFSET(i) (GLvoid*)(i)
 #define OGL_VOFFSET(i) ((char*)nullptr + (i))
 #define OGL_INLINE(Code) #Code
+#pragma warning(push)
+#pragma warning(disable: 4996)
 
 namespace
 {
@@ -186,22 +188,22 @@ namespace Tomahawk
 						for (size_t j = 0; j < 4; j++)
 						{
 							size_t Offset = LayoutSize(), Substride = Stride + sizeof(float) * Size * j;
-							Layout.emplace_back([Offset, Format, Normalize, Substride, Size, PerVertex](uint64_t Width)
+							Layout.emplace_back([Offset, Format, Normalize, Substride, Size, PerVertex](size_t Width)
 							{
-								glEnableVertexAttribArray(Offset);
-								glVertexAttribPointer(Offset, Size, Format, Normalize, Width, OGL_VOFFSET(Substride));
-								glVertexAttribDivisor(Offset, PerVertex ? 0 : 1);
+								glEnableVertexAttribArray((GLuint)Offset);
+								glVertexAttribPointer((GLuint)Offset, Size, Format, Normalize, (GLsizei)Width, OGL_VOFFSET(Substride));
+								glVertexAttribDivisor((GLuint)Offset, PerVertex ? 0 : 1);
 							});
 						}
 					}
 					else
 					{
 						size_t Offset = LayoutSize();
-						Layout.emplace_back([Offset, Format, Normalize, Stride, Size, PerVertex](uint64_t Width)
+						Layout.emplace_back([Offset, Format, Normalize, Stride, Size, PerVertex](size_t Width)
 						{
-							glEnableVertexAttribArray(Offset);
-							glVertexAttribPointer(Offset, Size, Format, Normalize, Width, OGL_VOFFSET(Stride));
-							glVertexAttribDivisor(Offset, PerVertex ? 0 : 1);
+							glEnableVertexAttribArray((GLuint)Offset);
+							glVertexAttribPointer((GLuint)Offset, Size, Format, Normalize, (GLsizei)Width, OGL_VOFFSET(Stride));
+							glVertexAttribDivisor((GLuint)Offset, PerVertex ? 0 : 1);
 						});
 					}
 				}
@@ -358,11 +360,11 @@ namespace Tomahawk
 			}
 			uint32_t OGLDepthTarget2D::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t OGLDepthTarget2D::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			OGLDepthTargetCube::OGLDepthTargetCube(const Desc& I) : Graphics::DepthTargetCube(I)
@@ -379,11 +381,11 @@ namespace Tomahawk
 			}
 			uint32_t OGLDepthTargetCube::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t OGLDepthTargetCube::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			OGLRenderTarget2D::OGLRenderTarget2D(const Desc& I) : RenderTarget2D(I), FrameBuffer(1)
@@ -404,11 +406,11 @@ namespace Tomahawk
 			}
 			uint32_t OGLRenderTarget2D::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t OGLRenderTarget2D::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			OGLMultiRenderTarget2D::OGLMultiRenderTarget2D(const Desc& I) : MultiRenderTarget2D(I), FrameBuffer((GLuint)I.Target)
@@ -429,11 +431,11 @@ namespace Tomahawk
 			}
 			uint32_t OGLMultiRenderTarget2D::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t OGLMultiRenderTarget2D::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			OGLRenderTargetCube::OGLRenderTargetCube(const Desc& I) : RenderTargetCube(I), FrameBuffer(1)
@@ -454,11 +456,11 @@ namespace Tomahawk
 			}
 			uint32_t OGLRenderTargetCube::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t OGLRenderTargetCube::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			OGLMultiRenderTargetCube::OGLMultiRenderTargetCube(const Desc& I) : MultiRenderTargetCube(I), FrameBuffer((GLuint)I.Target)
@@ -479,11 +481,11 @@ namespace Tomahawk
 			}
 			uint32_t OGLMultiRenderTargetCube::GetWidth() const
 			{
-				return Viewarea.Width;
+				return (uint32_t)Viewarea.Width;
 			}
 			uint32_t OGLMultiRenderTargetCube::GetHeight() const
 			{
-				return Viewarea.Height;
+				return (uint32_t)Viewarea.Height;
 			}
 
 			OGLCubemap::OGLCubemap(const Desc& I) : Cubemap(I)
@@ -1395,7 +1397,7 @@ namespace Tomahawk
 				glBindBuffer(IResource->Flags, GL_NONE);
 				return true;
 			}
-			bool OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, uint64_t Size)
+			bool OGLDevice::UpdateBuffer(ElementBuffer* Resource, void* Data, size_t Size)
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				OGLElementBuffer* IResource = (OGLElementBuffer*)Resource;
@@ -1471,7 +1473,7 @@ namespace Tomahawk
 
 				return Result;
 			}
-			bool OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, uint64_t Size)
+			bool OGLDevice::UpdateBufferSize(InstanceBuffer* Resource, size_t Size)
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				TH_ASSERT(Size > 0, false, "size should be greater than zero");
@@ -1614,7 +1616,7 @@ namespace Tomahawk
 				SetVertexBuffers(VertexBuffers, 2, true);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
-				glDrawElementsInstanced(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, InstanceCount);
+				glDrawElementsInstanced(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, (GLsizei)InstanceCount);
 			}
 			void OGLDevice::DrawIndexedInstanced(ElementBuffer* Instances, SkinMeshBuffer* Resource, unsigned int InstanceCount)
 			{
@@ -1626,7 +1628,7 @@ namespace Tomahawk
 				SetVertexBuffers(VertexBuffers, 2, true);
 				SetIndexBuffer(IndexBuffer, Format::R32_Uint);
 
-				glDrawElementsInstanced(Register.DrawTopology, IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, InstanceCount);
+				glDrawElementsInstanced(Register.DrawTopology, (GLsizei)IndexBuffer->GetElements(), GL_UNSIGNED_INT, nullptr, (GLsizei)InstanceCount);
 			}
 			void OGLDevice::Draw(unsigned int Count, unsigned int Location)
 			{
@@ -1995,10 +1997,10 @@ namespace Tomahawk
 				if (!Out)
 					return;
 
-				Out->TopLeftX = Viewport[0];
-				Out->TopLeftY = D3D_GetCoordY(Viewport[1], Viewport[3], (int64_t)Window->GetHeight());
-				Out->Width = Viewport[2];
-				Out->Height = Viewport[3];
+				Out->TopLeftX = (float)Viewport[0];
+				Out->TopLeftY = (float)D3D_GetCoordY((int64_t)Viewport[1], (int64_t)Viewport[3], (int64_t)Window->GetHeight());
+				Out->Width = (float)Viewport[2];
+				Out->Height = (float)Viewport[3];
 			}
 			void OGLDevice::GetScissorRects(unsigned int* Count, Compute::Rectangle* Out)
 			{
@@ -2094,7 +2096,7 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool OGLDevice::GetQueryData(Query* Resource, uint64_t* Result, bool Flush)
+			bool OGLDevice::GetQueryData(Query* Resource, size_t* Result, bool Flush)
 			{
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
 				TH_ASSERT(Result != nullptr, false, "result should be set");
@@ -2105,9 +2107,9 @@ namespace Tomahawk
 				if (Available == GL_FALSE)
 					return false;
 
-				GLint64 Data = 0;
-				glGetQueryObjecti64v(IResource->Async, GL_QUERY_RESULT, &Data);
-				*Result = (uint64_t)Data;
+				GLint64 Passing = 0;
+				glGetQueryObjecti64v(IResource->Async, GL_QUERY_RESULT, &Passing);
+				*Result = (size_t)Passing;
 
 				return true;
 			}
@@ -3460,7 +3462,7 @@ namespace Tomahawk
 			{
 				return BasicEffect != nullptr;
 			}
-			bool OGLDevice::CreateDirectBuffer(uint64_t Size)
+			bool OGLDevice::CreateDirectBuffer(size_t Size)
 			{
 				MaxElements = Size;
 				SetInputLayout(nullptr);
@@ -4313,4 +4315,5 @@ namespace Tomahawk
 		}
 	}
 }
+#pragma warning(pop)
 #endif

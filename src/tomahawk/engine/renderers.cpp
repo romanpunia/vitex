@@ -1158,7 +1158,7 @@ namespace Tomahawk
 				auto& Buffers = State.Scene->GetVoxelsMapping();
 				auto& Top = Lights.Illuminators.Top();
 				bool MustRedeploy = true;
-				uint64_t Counter = 0;
+				size_t Counter = 0;
 
 				for (auto It = Top.begin(); It != Top.end(); ++It)
 				{
@@ -1257,7 +1257,7 @@ namespace Tomahawk
 			}
 			void Lighting::RenderPointShadowMaps(Core::Timer* Time)
 			{
-				auto& Buffers = State.Scene->GetPointsMapping(); uint64_t Counter = 0;
+				auto& Buffers = State.Scene->GetPointsMapping(); size_t Counter = 0;
 				for (auto* Light : Lights.Points.Top())
 				{
 					if (Counter >= Buffers.size())
@@ -1279,7 +1279,7 @@ namespace Tomahawk
 			}
 			void Lighting::RenderSpotShadowMaps(Core::Timer* Time)
 			{
-				auto& Buffers = State.Scene->GetSpotsMapping(); uint64_t Counter = 0;
+				auto& Buffers = State.Scene->GetSpotsMapping(); size_t Counter = 0;
 				for (auto* Light : Lights.Spots.Top())
 				{
 					if (Counter >= Buffers.size())
@@ -1301,7 +1301,7 @@ namespace Tomahawk
 			}
 			void Lighting::RenderLineShadowMaps(Core::Timer* Time)
 			{
-				auto& Buffers = State.Scene->GetLinesMapping(); uint64_t Counter = 0;
+				auto& Buffers = State.Scene->GetLinesMapping(); size_t Counter = 0;
 				for (auto It = Lights.Lines->Begin(); It != Lights.Lines->End(); ++It)
 				{
 					auto* Light = (Components::LineLight*)*It;
@@ -2093,7 +2093,7 @@ namespace Tomahawk
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				System->GetDevice()->GenerateMips(MRT->GetTarget(0));
 
-				Gloss.Mips = GetMipLevels();
+				Gloss.Mips = (float)GetMipLevels();
 				Gloss.Texel[0] = 1.0f / GetWidth();
 				Gloss.Texel[1] = 1.0f / GetHeight();
 
@@ -2139,10 +2139,10 @@ namespace Tomahawk
 			{
 				Indirection.Random[0] = Compute::Math<float>::Random();
 				Indirection.Random[1] = Compute::Math<float>::Random();
-				Denoise.Texel[0] = 1.0f / GetWidth();
-				Denoise.Texel[1] = 1.0f / GetHeight();
-				Stochastic.Texel[0] = GetWidth();
-				Stochastic.Texel[1] = GetHeight();
+				Denoise.Texel[0] = 1.0f / (float)GetWidth();
+				Denoise.Texel[1] = 1.0f / (float)GetHeight();
+				Stochastic.Texel[0] = (float)GetWidth();
+				Stochastic.Texel[1] = (float)GetHeight();
 				Stochastic.FrameId++;
 
 				RenderMerge(Shaders.Stochastic, &Stochastic);
@@ -2238,7 +2238,7 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(fTime != nullptr, "time should be set");
 				if (Distance > 0.0f)
-					FocusAtNearestTarget(fTime->GetDeltaTime());
+					FocusAtNearestTarget((float)fTime->GetDeltaTime());
 
 				Focus.Texel[0] = 1.0f / GetWidth();
 				Focus.Texel[1] = 1.0f / GetHeight();
@@ -2248,29 +2248,25 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
 
-				SceneGraph* Scene = System->GetScene();
 				Compute::Ray Origin;
 				Origin.Origin = System->View.Position;
 				Origin.Direction = System->View.Rotation.dDirection();
 
 				bool Change = false;
-				Scene->RayTest<Components::Model>(Origin, Distance, [this, &Origin, &Change](Component* Result, const Compute::Vector3& Hit)
+				for (auto& Hit : System->GetScene()->QueryByRay<Components::Model>(Origin))
 				{
-					float NextRange = Result->GetEntity()->GetRadius();
-					float NextDistance = Origin.Origin.Distance(Hit) + NextRange / 2.0f;
+					float Radius = Hit.first->GetEntity()->GetRadius();
+					float Spacing = Origin.Origin.Distance(Hit.second) + Radius / 2.0f;
+					if (Spacing <= Focus.NearRange || Spacing + Radius / 2.0f >= Distance)
+						continue;
 
-					if (NextDistance <= Focus.NearRange || NextDistance + NextRange / 2.0f >= Distance)
-						return true;
-
-					if (NextDistance >= State.Distance && State.Distance > 0.0f)
-						return true;
-
-					State.Distance = NextDistance;
-					State.Range = NextRange;
-					Change = true;
-
-					return true;
-				});
+					if (Spacing < State.Distance || State.Distance <= 0.0f)
+					{
+						State.Distance = Spacing;
+						State.Range = Radius;
+						Change = true;
+					}
+				};
 
 				if (Change)
 				{
@@ -2448,10 +2444,10 @@ namespace Tomahawk
 				Device->GenerateMips(MRT->GetTarget(0));
 				Device->CopyTexture2D(LutTarget, 0, &LutMap);
 
-				Luminance.Texel[0] = 1.0f / GetWidth();
-				Luminance.Texel[1] = 1.0f / GetHeight();
-				Luminance.Mips = GetMipLevels();
-				Luminance.Time = Time->GetTimeStep() * Mapping.ASpeed;
+				Luminance.Texel[0] = 1.0f / (float)GetWidth();
+				Luminance.Texel[1] = 1.0f / (float)GetHeight();
+				Luminance.Mips = (float)GetMipLevels();
+				Luminance.Time = (float)Time->GetTimeStep() * Mapping.ASpeed;
 
 				RenderTexture(0, LutMap);
 				RenderOutput(LutTarget);

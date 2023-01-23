@@ -1,8 +1,8 @@
 #ifndef TOMAHAWK_H
 #define TOMAHAWK_H
-#define TH_MAJOR_VERSION 11
-#define TH_MINOR_VERSION 4
-#define TH_PATCH_LEVEL 47
+#define TH_MAJOR_VERSION 12
+#define TH_MINOR_VERSION 5
+#define TH_PATCH_LEVEL 48
 #define TH_VERSION(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
 #define TH_AT_LEAST(X, Y, Z) (TH_VERSION(TH_MAJOR_VERSION, TH_MINOR_VERSION, TH_PATCH_LEVEL) >= TH_VERSION(X, Y, Z))
 #include "core/core.h"
@@ -40,13 +40,13 @@ namespace Tomahawk
 
 	constexpr inline Init operator |(Init A, Init B)
 	{
-		return static_cast<Init>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
+		return static_cast<Init>(static_cast<size_t>(A) | static_cast<size_t>(B));
 	}
 
-	enum class Preset : uint64_t
+	enum class Preset : size_t
 	{
-		Game = (uint64_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::SDL2 | Init::Compute | Init::Locale | Init::Audio | Init::GLEW),
-		App = (uint64_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale)
+		Game = (size_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::SDL2 | Init::Compute | Init::Locale | Init::Audio | Init::GLEW),
+		App = (size_t)(Init::Core | Init::Debug | Init::Network | Init::SSL | Init::Compute | Init::Locale)
 	};
 
 	class TH_OUT_TS Library
@@ -75,7 +75,7 @@ namespace Tomahawk
 		static const char* Platform();
 	};
 
-	TH_OUT bool Initialize(uint64_t Modules = (uint64_t)Preset::App);
+	TH_OUT bool Initialize(size_t Modules = (size_t)Preset::App);
 	TH_OUT bool Uninitialize();
 }
 #endif

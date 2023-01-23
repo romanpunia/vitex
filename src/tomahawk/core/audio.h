@@ -228,8 +228,8 @@ namespace Tomahawk
 			AudioSource();
 			virtual ~AudioSource() override;
 			int64_t AddEffect(AudioEffect* Effect);
-			bool RemoveEffect(uint64_t EffectId);
-			bool RemoveEffectById(uint64_t EffectId);
+			bool RemoveEffect(size_t EffectId);
+			bool RemoveEffectById(size_t EffectId);
 			void SetClip(AudioClip* Clip);
 			void Synchronize(AudioSync* Sync, const Compute::Vector3& Position);
 			void Reset();

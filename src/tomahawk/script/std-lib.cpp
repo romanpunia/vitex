@@ -448,7 +448,7 @@ namespace Tomahawk
 		}
 		std::string STDString::Replace(const std::string& A, const std::string& B, uint64_t Offset, const std::string& Base)
 		{
-			return Tomahawk::Core::Parser(Base).Replace(A, B, Offset).R();
+			return Tomahawk::Core::Parser(Base).Replace(A, B, (size_t)Offset).R();
 		}
 		as_int64_t STDString::IntStore(const std::string& Value, as_size_t Base, as_size_t* ByteCount)
 		{
@@ -4046,7 +4046,7 @@ namespace Tomahawk
 
 		std::string STDRandom::Getb(uint64_t Size)
 		{
-			return Compute::Codec::HexEncode(Compute::Crypto::RandomBytes(Size)).substr(0, Size);
+			return Compute::Codec::HexEncode(Compute::Crypto::RandomBytes((size_t)Size)).substr(0, (size_t)Size);
 		}
 		double STDRandom::Betweend(double Min, double Max)
 		{

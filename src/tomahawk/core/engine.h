@@ -6,7 +6,6 @@
 #include <atomic>
 #include <cstdarg>
 #include <future>
-#include <execution>
 #define TH_EXIT_JUMP 9600
 #define TH_EXIT_RESTART TH_EXIT_JUMP * 2
 

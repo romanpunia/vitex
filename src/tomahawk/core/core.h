@@ -94,7 +94,6 @@ typedef size_t socket_t;
 typedef int socket_size_t;
 typedef void* epoll_handle;
 #else
-#define TH_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
 #ifdef TH_WITH_FCTX
 #define TH_COCALL
 #define TH_CODATA void* Context
@@ -190,6 +189,9 @@ typedef socklen_t socket_size_t;
 #define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size)
 #define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size)
 #define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
+#endif
+#ifndef TH_SORT
+#define TH_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
 #endif
 #define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE((void*)Var); } }
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)

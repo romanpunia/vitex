@@ -214,7 +214,7 @@ namespace
 	{
 		tm DateTime { };
 		if (!LocalTime(&Time, &DateTime))
-			strncpy(Date, "??-??-???? ??:??:??", Size);
+			strncpy(Date, "1970-01-01 00:00:00", Size);
 		else
 			strftime(Date, Size, "%Y-%m-%d %H:%M:%S", &DateTime);
 	}

@@ -4851,7 +4851,7 @@ namespace Tomahawk
 			Compute::Bounding Target(Min, Max);
 			Compute::Cosmos::Iterator Context;
 			auto& Storage = GetStorage(Section);
-			Storage.Index.Query<Component>(Context, [&Target](const Compute::Bounding& Bounds)
+			Storage.Index.QueryIndex<Component>(Context, [&Target](const Compute::Bounding& Bounds)
 			{
 				return Target.Overlaps(Bounds);
 			}, [&Result](Component* Item)
@@ -4868,7 +4868,7 @@ namespace Tomahawk
 			Compute::Ray Target = Origin;
 			Compute::Cosmos::Iterator Context;
 			auto& Storage = GetStorage(Section);
-			Storage.Index.Query<Component>(Context, [&Target](const Compute::Bounding& Bounds)
+			Storage.Index.QueryIndex<Component>(Context, [&Target](const Compute::Bounding& Bounds)
 			{
 				return Target.IntersectsAABBAt(Bounds.Lower, Bounds.Upper, nullptr);
 			}, [&Result](Component* Item)

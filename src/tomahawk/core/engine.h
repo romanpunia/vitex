@@ -1382,10 +1382,9 @@ namespace Tomahawk
 			{
 				std::vector<Component*> Result;
 				Compute::Cosmos::Iterator Context;
-				GetStorage(T::GetTypeId()).typename Index.Query<Component>(Context, std::move(MatchCallback), [&Result](Component* Item)
-				{
-					Result.push_back(Item);
-				});
+				auto& Storage = GetStorage(T::GetTypeId());
+				auto Enqueue = [&Result](Component* Item) { Result.push_back(Item); };
+				Storage.Index.template QueryIndex<Component, MatchFunction, decltype(Enqueue)>(Context, std::move(MatchCallback), std::move(Enqueue));
 
 				return Result;
 			}

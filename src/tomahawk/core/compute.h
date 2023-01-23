@@ -1812,7 +1812,7 @@ namespace Tomahawk
 
 		public:
 			template <typename T, typename OverlapsFunction, typename MatchFunction>
-			void Query(Iterator& Context, OverlapsFunction&& Overlaps, MatchFunction&& Match)
+			void QueryIndex(Iterator& Context, OverlapsFunction&& Overlaps, MatchFunction&& Match)
 			{
 				Context.clear();
 				if (!Items.empty())

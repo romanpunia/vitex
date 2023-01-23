@@ -19,13 +19,6 @@
 #include <condition_variable>
 #include <atomic>
 #include <limits>
-#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
-#include <execution>
-#define TH_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
-#define TH_CPP17
-#else
-#define TH_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
-#endif
 #if defined(_WIN32) || defined(_WIN64)
 #ifndef TH_EXPORT
 #define TH_OUT __declspec(dllimport)
@@ -85,6 +78,10 @@
 #undef max
 #endif
 #ifdef TH_MICROSOFT
+#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
+#include <execution>
+#define TH_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
+#endif
 #ifdef TH_WITH_FCTX
 #define TH_COCALL
 #define TH_CODATA void* Context
@@ -97,6 +94,7 @@ typedef size_t socket_t;
 typedef int socket_size_t;
 typedef void* epoll_handle;
 #else
+#define TH_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
 #ifdef TH_WITH_FCTX
 #define TH_COCALL
 #define TH_CODATA void* Context

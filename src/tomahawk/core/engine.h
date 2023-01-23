@@ -1382,7 +1382,7 @@ namespace Tomahawk
 			{
 				std::vector<Component*> Result;
 				Compute::Cosmos::Iterator Context;
-				GetStorage(T::GetTypeId()).Index.Query<Component>(Context, std::move(MatchCallback), [&Result](Component* Item)
+				GetStorage(T::GetTypeId()).typename Index.Query<Component>(Context, std::move(MatchCallback), [&Result](Component* Item)
 				{
 					Result.push_back(Item);
 				});

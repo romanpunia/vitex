@@ -313,7 +313,10 @@ namespace Tomahawk
 				if (!CryptoLegacy)
 					CryptoLegacy = OSSL_PROVIDER_load(nullptr, "legacy");
 
-				Compute::Crypto::DisplayCryptoLog();
+				if (!CryptoLegacy || !CryptoDefault)
+					Compute::Crypto::DisplayCryptoLog();
+				else
+					ERR_clear_error();
 			}
 #else
             FIPS_mode_set(1);

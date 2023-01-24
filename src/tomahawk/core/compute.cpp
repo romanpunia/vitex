@@ -7456,7 +7456,7 @@ namespace Tomahawk
 			ERR_print_errors_cb([](const char* Message, size_t Size, void*)
 			{
 				TH_ERR("[openssl] %.*s", (int)Size, Message);
-			return 0;
+				return 0;
 			}, nullptr);
 		}
 

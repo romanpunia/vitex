@@ -328,6 +328,7 @@ namespace Tomahawk
 				bool CastFormFlag32(uint32_t* Ptr, uint32_t Mask);
 				bool CastFormInt64(int64_t* Ptr);
 				bool CastFormUInt64(uint64_t* Ptr);
+				bool CastFormSize(size_t* Ptr);
 				bool CastFormFlag64(uint64_t* Ptr, uint64_t Mask);
 				bool CastFormFloat(float* Ptr);
 				bool CastFormFloat(float* Ptr, float Mult);

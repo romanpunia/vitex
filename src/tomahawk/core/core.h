@@ -1423,9 +1423,9 @@ namespace Tomahawk
 			double TimeIncrement;
 			double TickCounter;
 			double FrameCount;
+			double TimeStep;
 			double CapturedTime;
 			double DeltaTimeLimit;
-			double TimeStepLimit;
 			void* TimeLimit;
 			void* Frequency;
 			void* PastTime;

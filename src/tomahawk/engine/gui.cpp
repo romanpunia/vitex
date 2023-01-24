@@ -1869,6 +1869,41 @@ namespace Tomahawk
 				Form->SetValue(std::to_string(*Ptr));
 				return false;
 			}
+			bool IElement::CastFormSize(size_t* Ptr)
+			{
+				TH_ASSERT(IsValid(), false, "element should be valid");
+				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
+
+				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
+				Core::Parser Value(Form->GetValue());
+				if (Value.Empty())
+				{
+					if (Form->IsPseudoClassSet("focus"))
+						return false;
+
+					Form->SetValue(std::to_string(*Ptr));
+					return false;
+				}
+
+				if (!Value.HasInteger())
+				{
+					Value.ReplaceNotOf(".0123456789", "");
+					Form->SetValue(Value.R());
+				}
+
+				uint64_t N = Value.ToUInt64();
+				if (N == (uint64_t)*Ptr)
+					return false;
+
+				if (Form->IsPseudoClassSet("focus"))
+				{
+					*Ptr = (size_t)N;
+					return true;
+				}
+
+				Form->SetValue(std::to_string(*Ptr));
+				return false;
+			}
 			bool IElement::CastFormFlag64(uint64_t* Ptr, uint64_t Mask)
 			{
 				TH_ASSERT(IsValid(), false, "element should be valid");

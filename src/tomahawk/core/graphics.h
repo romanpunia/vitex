@@ -1801,6 +1801,7 @@ namespace Tomahawk
 			virtual bool IsValid() const = 0;
 			void SetVertexBuffer(ElementBuffer* Resource);
 			void SetShaderCache(bool Enabled);
+			void SetVSyncMode(VSync Mode);
 			void Lock();
 			void Unlock();
 			bool Preprocess(Shader::Desc& Subresult);

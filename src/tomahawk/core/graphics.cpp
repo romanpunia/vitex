@@ -845,6 +845,10 @@ namespace Tomahawk
 		{
 			ShaderCache = Enabled;
 		}
+		void GraphicsDevice::SetVSyncMode(VSync Mode)
+		{
+			VSyncMode = Mode;
+		}
 		void GraphicsDevice::Lock()
 		{
 			Mutex.lock();

@@ -5349,11 +5349,7 @@ namespace Tomahawk
 		}
 		double Timer::GetTimeStep() const
 		{
-			double TimeStep = 1.0 / FrameCount;
-			if (TimeStep > TimeStepLimit)
-				return TimeStepLimit;
-
-			return TimeStep;
+			return TimeStep / 1000.0;
 		}
 		double Timer::GetDeltaTime() const
 		{
@@ -5366,17 +5362,14 @@ namespace Tomahawk
 		void Timer::SetStepLimitation(double MaxFrames, double MinFrames)
 		{
 			MinFrames = MinFrames >= 0.1 ? MinFrames : 0.1;
+			DeltaTimeLimit = MaxFrames / MinFrames;
 			FrameRelation = MaxFrames;
-
-			TimeStepLimit = 1.0f / MinFrames;
-			DeltaTimeLimit = FrameRelation / MinFrames;
 		}
 		void Timer::Synchronize()
 		{
 			double ElapsedTime = GetElapsedTime();
-			double Tick = ElapsedTime - TickCounter;
-
-			FrameCount = 1000.0 / (Tick >= 0.000001 ? Tick : 0.000001);
+			TimeStep = std::max(0.001, ElapsedTime - TickCounter);
+			FrameCount = 1000.0 / TimeStep;
 			TickCounter = ElapsedTime;
 
 			if (FrameLimit <= 0)

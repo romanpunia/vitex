@@ -620,7 +620,7 @@ namespace Tomahawk
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
-				void FocusAtNearestTarget(float DeltaTime);
+				void FocusAtNearestTarget(float Step);
 
 			public:
 				TH_COMPONENT("dof-renderer");

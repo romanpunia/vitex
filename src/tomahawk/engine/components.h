@@ -328,8 +328,8 @@ namespace Tomahawk
 				Emitter* GetEmitter() const;
 
 			protected:
-				void AccurateSynchronization(float DeltaTime);
-				void FastSynchronization(float DeltaTime);
+				void AccurateSynchronization(float Step);
+				void FastSynchronization(float Step);
 
 			public:
 				TH_COMPONENT("emitter-animator");
@@ -363,10 +363,10 @@ namespace Tomahawk
 				struct
 				{
 					Compute::Vector3 Axis = Compute::Vector3(1.0f, 1.0f, -1.0f);
-					float Faster = 2.2f;
-					float Normal = 0.8f;
-					float Slower = 0.25f;
-					float Fading = 0.9f;
+					float Faster = 320.3f;
+					float Normal = 185.4f;
+					float Slower = 32.6f;
+					float Fading = 5.4f;
 				} Moving;
 
 			public:

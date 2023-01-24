@@ -9560,19 +9560,11 @@ namespace Tomahawk
 					Child->SetRoot(nullptr);
 			}
 		}
-		void Transform::NotifyDirty()
-		{
-			if (Dirty && OnDirty)
-			{
-				auto Callback(std::move(OnDirty));
-				Dirty = false;
-				Callback();
-			}
-		}
 		void Transform::WhenDirty(Core::TaskCallback&& Callback)
 		{
 			OnDirty = std::move(Callback);
-			NotifyDirty();
+			if (Dirty && OnDirty)
+				OnDirty();
 		}
 		void Transform::MakeDirty()
 		{
@@ -9580,7 +9572,8 @@ namespace Tomahawk
 				return;
 
 			Dirty = true;
-			NotifyDirty();
+			if (OnDirty)
+				OnDirty();
 
 			for (auto& Child : Childs)
 				Child->MakeDirty();
@@ -14031,14 +14024,14 @@ namespace Tomahawk
 			}
 #endif
 		}
-		void Simulator::Simulate(float TimeStep)
+		void Simulator::Simulate(int Interpolation, float TimeStep, float FixedTimeStep)
 		{
 #ifdef TH_WITH_BULLET3
 			if (!Active || TimeSpeed <= 0.0f)
 				return;
 
 			TH_PPUSH(TH_PERF_MIX);
-			World->stepSimulation(TimeStep * TimeSpeed, Interpolate, TimeSpeed / 60.0f);
+			World->stepSimulation(TimeStep * TimeSpeed, Interpolation > 0 ? Interpolation : Interpolate, FixedTimeStep > 0.0f ? FixedTimeStep * TimeSpeed : TimeSpeed / 60.0f);
 			TH_PPOP();
 #endif
 		}

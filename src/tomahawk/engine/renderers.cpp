@@ -1183,7 +1183,7 @@ namespace Tomahawk
 
 					bool Inside = Compute::Geometric::HasPointIntersectedCube(VoxelBuffer.Center, VoxelBuffer.Scale, System->View.Position);
 					auto& Delay = (Inside ? Light->Inside : Light->Outside);
-					if (!Light->Regenerate && !Delay.TickEvent(Time->GetElapsedTime()))
+					if (!Light->Regenerate && !Delay.TickEvent(Time->GetElapsedMills()))
 						continue;
 
 					Voxels.LightBuffer = Light->VoxelMap;
@@ -1220,7 +1220,7 @@ namespace Tomahawk
 				State.Scene->SwapMRT(TargetType::Main, Surfaces.Merger);
 				State.Scene->SetMRT(TargetType::Main, false);
 
-				double ElapsedTime = Time->GetElapsedTime();
+				float ElapsedTime = Time->GetElapsedMills();
 				for (auto* Light : Data)
 				{
 					if (Light->IsImageBased())
@@ -1734,8 +1734,7 @@ namespace Tomahawk
 				{
 					if (!System->State.IsSubpass() && !System->State.IsSet(RenderOpt::Transparent))
 					{
-						double ElapsedTime = Time->GetElapsedTime();
-						if (Shadows.Tick.TickEvent(ElapsedTime))
+						if (Shadows.Tick.TickEvent(Time->GetElapsedMills()))
 						{
 							RenderPointShadowMaps(Time);
 							RenderSpotShadowMaps(Time);
@@ -2238,13 +2237,13 @@ namespace Tomahawk
 			{
 				TH_ASSERT_V(fTime != nullptr, "time should be set");
 				if (Distance > 0.0f)
-					FocusAtNearestTarget((float)fTime->GetDeltaTime());
+					FocusAtNearestTarget(fTime->GetStep());
 
 				Focus.Texel[0] = 1.0f / GetWidth();
 				Focus.Texel[1] = 1.0f / GetHeight();
 				RenderResult(nullptr, &Focus);
 			}
-			void DoF::FocusAtNearestTarget(float DeltaTime)
+			void DoF::FocusAtNearestTarget(float Step)
 			{
 				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
 
@@ -2274,7 +2273,7 @@ namespace Tomahawk
 					State.Factor = 0.0f;
 				}
 
-				State.Factor += Time * DeltaTime;
+				State.Factor += Time * Step;
 				if (State.Factor > 1.0f)
 					State.Factor = 1.0f;
 
@@ -2447,7 +2446,7 @@ namespace Tomahawk
 				Luminance.Texel[0] = 1.0f / (float)GetWidth();
 				Luminance.Texel[1] = 1.0f / (float)GetHeight();
 				Luminance.Mips = (float)GetMipLevels();
-				Luminance.Time = (float)Time->GetTimeStep() * Mapping.ASpeed;
+				Luminance.Time = Time->GetStep() * Mapping.ASpeed;
 
 				RenderTexture(0, LutMap);
 				RenderOutput(LutTarget);
@@ -2514,9 +2513,10 @@ namespace Tomahawk
 				if (Distortion.ElapsedTime >= 32000.0f)
 					Distortion.ElapsedTime = 0.0f;
 
-				Distortion.ElapsedTime += (float)Time->GetDeltaTime() * 10.0f;
+				float Step = Time->GetStep() * 10.0f;
+				Distortion.ElapsedTime += Step * 10.0f;
 				Distortion.VerticalJumpAmount = VerticalJump;
-				Distortion.VerticalJumpTime += (float)Time->GetDeltaTime() * VerticalJump * 11.3f;
+				Distortion.VerticalJumpTime += Step * VerticalJump * 11.3f;
 				Distortion.ScanLineJitterThreshold = Compute::Mathf::Saturate(1.0f - ScanLineJitter * 1.2f);
 				Distortion.ScanLineJitterDisplacement = 0.002f + Compute::Mathf::Pow(ScanLineJitter, 3) * 0.05f;
 				Distortion.HorizontalShake = HorizontalShake * 0.2f;

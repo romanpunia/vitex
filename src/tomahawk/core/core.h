@@ -1419,35 +1419,66 @@ namespace Tomahawk
 
 		class TH_OUT Timer : public Object
 		{
-		private:
-			double TimeIncrement;
-			double TickCounter;
-			double FrameCount;
-			double TimeStep;
-			double CapturedTime;
-			double DeltaTimeLimit;
-			void* TimeLimit;
-			void* Frequency;
-			void* PastTime;
+		public:
+			typedef std::chrono::microseconds Units;
 
 		public:
-			double FrameRelation;
-			double FrameLimit;
+			struct Capture
+			{
+				const char* Name;
+				Units Begin = Units(0);
+				Units End = Units(0);
+				Units Delta = Units(0);
+				float Step = 0.0;
+			};
+
+		private:
+			struct
+			{
+				Units Begin = Units(0);
+				Units When = Units(0);
+				Units Delta = Units(0);
+			} Timing;
+
+			struct
+			{
+				Units When = Units(0);
+				Units Delta = Units(0);
+				Units Sum = Units(0);
+				bool InFrame = false;
+			} Fixed;
+
+		private:
+			std::queue<Capture> Captures;
+			Units MinDelta = Units(0);
+			Units MaxDelta = Units(0);
+			float FixedFrames = 0.0f;
+			float MaxFrames = 0.0f;
 
 		public:
 			Timer();
-			virtual ~Timer() override;
-			void SetStepLimitation(double MaxFrames, double MinFrames);
-			void Synchronize();
-			void CaptureTime();
-			void Sleep(uint64_t MilliSecs);
-			double GetTimeIncrement() const;
-			double GetTickCounter() const;
-			double GetFrameCount() const;
-			double GetElapsedTime() const;
-			double GetCapturedTime() const;
-			double GetDeltaTime() const;
-			double GetTimeStep() const;
+			virtual ~Timer() = default;
+			void SetFixedFrames(float Value);
+			void SetMaxFrames(float Value);
+			void Begin();
+			void Finish();
+			void Push(const char* Name = nullptr);
+			bool PopIf(float GreaterThan, Capture* Out = nullptr);
+			Capture Pop();
+			float GetMaxFrames() const;
+			float GetMinStep() const;
+			float GetFrames() const;
+			float GetElapsed() const;
+			float GetElapsedMills() const;
+			float GetStep() const;
+			float GetFixedStep() const;
+			bool IsFixed() const;
+
+		public:
+			static float ToSeconds(const Units& Value);
+			static float ToMills(const Units& Value);
+			static Units ToUnits(float Value);
+			static Units Clock();
 		};
 
 		class TH_OUT Stream : public Object

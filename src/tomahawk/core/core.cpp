@@ -5276,116 +5276,122 @@ namespace Tomahawk
 		}
 		Console* Console::Singleton = nullptr;
 
-		Timer::Timer() : TimeIncrement(0.0), TickCounter(16), FrameCount(0.0), CapturedTime(0.0), FrameLimit(0)
+		static float UnitsToSeconds = 1000000.0f;
+		static float UnitsToMills = 1000.0f;
+		Timer::Timer()
 		{
-#ifdef TH_MICROSOFT
-			Frequency = TH_NEW(LARGE_INTEGER);
-			QueryPerformanceFrequency((LARGE_INTEGER*)Frequency);
-
-			TimeLimit = TH_NEW(LARGE_INTEGER);
-			QueryPerformanceCounter((LARGE_INTEGER*)TimeLimit);
-
-			PastTime = TH_NEW(LARGE_INTEGER);
-			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
-#elif defined TH_UNIX
-			Frequency = TH_NEW(timespec);
-			clock_gettime(CLOCK_REALTIME, (timespec*)Frequency);
-
-			TimeLimit = TH_NEW(timespec);
-			clock_gettime(CLOCK_REALTIME, (timespec*)TimeLimit);
-
-			PastTime = TH_NEW(timespec);
-			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
-#endif
-			SetStepLimitation(60.0f, 10.0f);
+			Timing.Begin = Clock();
+			Timing.When = Timing.Begin;
 		}
-		Timer::~Timer()
+		void Timer::SetFixedFrames(float Value)
 		{
-#ifdef TH_MICROSOFT
-			LARGE_INTEGER* sPastTime = (LARGE_INTEGER*)PastTime;
-			TH_DELETE(LARGE_INTEGER, sPastTime);
-
-			LARGE_INTEGER* sTimeLimit = (LARGE_INTEGER*)TimeLimit;
-			TH_DELETE(LARGE_INTEGER, sTimeLimit);
-
-			LARGE_INTEGER* sFrequency = (LARGE_INTEGER*)Frequency;
-			TH_DELETE(LARGE_INTEGER, sFrequency);
-#elif defined TH_UNIX
-			timespec* sPastTime = (timespec*)PastTime;
-			TH_DELETE(timespec, sPastTime);
-
-			timespec* sTimeLimit = (timespec*)TimeLimit;
-			TH_DELETE(timespec, sTimeLimit);
-
-			timespec* sFrequency = (timespec*)Frequency;
-			TH_DELETE(timespec, sFrequency);
-#endif
+			FixedFrames = Value;
+			if (FixedFrames > 0.0)
+				MaxDelta = ToUnits(1.0f / FixedFrames);
 		}
-		double Timer::GetTimeIncrement() const
+		void Timer::SetMaxFrames(float Value)
 		{
-			return TimeIncrement;
+			MaxFrames = Value;
+			if (MaxFrames > 0.0)
+				MinDelta = ToUnits(1.0f / MaxFrames);
 		}
-		double Timer::GetTickCounter() const
+		void Timer::Begin()
 		{
-			return TickCounter;
-		}
-		double Timer::GetFrameCount() const
-		{
-			return FrameCount;
-		}
-		double Timer::GetElapsedTime() const
-		{
-#ifdef TH_MICROSOFT
-			QueryPerformanceCounter((LARGE_INTEGER*)PastTime);
-			return (((LARGE_INTEGER*)PastTime)->QuadPart - ((LARGE_INTEGER*)TimeLimit)->QuadPart) * 1000.0 / ((LARGE_INTEGER*)Frequency)->QuadPart;
-#elif defined TH_UNIX
-			clock_gettime(CLOCK_REALTIME, (timespec*)PastTime);
-			return (((timespec*)PastTime)->tv_nsec - ((timespec*)TimeLimit)->tv_nsec) * 1000.0 / ((timespec*)Frequency)->tv_nsec;
-#endif
-		}
-		double Timer::GetCapturedTime() const
-		{
-			return GetElapsedTime() - CapturedTime;
-		}
-		double Timer::GetTimeStep() const
-		{
-			return TimeStep / 1000.0;
-		}
-		double Timer::GetDeltaTime() const
-		{
-			double DeltaTime = FrameRelation / FrameCount;
-			if (DeltaTime > DeltaTimeLimit)
-				return DeltaTimeLimit;
-
-			return DeltaTime;
-		}
-		void Timer::SetStepLimitation(double MaxFrames, double MinFrames)
-		{
-			MinFrames = MinFrames >= 0.1 ? MinFrames : 0.1;
-			DeltaTimeLimit = MaxFrames / MinFrames;
-			FrameRelation = MaxFrames;
-		}
-		void Timer::Synchronize()
-		{
-			double ElapsedTime = GetElapsedTime();
-			TimeStep = std::max(0.001, ElapsedTime - TickCounter);
-			FrameCount = 1000.0 / TimeStep;
-			TickCounter = ElapsedTime;
-
-			if (FrameLimit <= 0)
+			Units Time = Clock();
+			Timing.Delta = Time - Timing.When;
+			if (FixedFrames <= 0.0)
 				return;
 
-			if (ElapsedTime - TimeIncrement < 1000.0 / FrameLimit)
-				std::this_thread::sleep_for(std::chrono::milliseconds((uint64_t)(1000.0f / FrameLimit - ElapsedTime + TimeIncrement)));
-			TimeIncrement = GetElapsedTime();
+			Fixed.Sum += Timing.Delta;
+			Fixed.InFrame = Fixed.Sum > MaxDelta;
+			if (Fixed.InFrame)
+			{
+				Fixed.Sum = Units(0);
+				Fixed.Delta = Time - Fixed.When;
+				Fixed.When = Time;
+			}
 		}
-		void Timer::CaptureTime()
+		void Timer::Finish()
 		{
-			CapturedTime = GetElapsedTime();
+			Timing.When = Clock();
+			if (MaxFrames > 0.0 && Timing.Delta < MinDelta)
+				std::this_thread::sleep_for(MinDelta - Timing.Delta);
 		}
-		void Timer::Sleep(uint64_t Ms)
+		void Timer::Push(const char* Name)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(Ms));
+			Capture Next = { Name, Clock() };
+			Captures.emplace(std::move(Next));
+		}
+		bool Timer::PopIf(float GreaterThan, Capture* Out)
+		{
+			Capture Data = Pop();
+			bool Overdue = (Data.Step > GreaterThan);
+			if (Out != nullptr)
+				*Out = std::move(Data);
+
+			return Overdue;
+		}
+		bool Timer::IsFixed() const
+		{
+			return Fixed.InFrame;
+		}
+		Timer::Capture Timer::Pop()
+		{
+			TH_ASSERT(!Captures.empty(), Capture(), "there is no time captured at the moment");
+			Capture Base = Captures.front();
+			Base.End = Clock();
+			Base.Delta = Base.End - Base.Begin;
+			Base.Step = ToSeconds(Base.Delta);
+			Captures.pop();
+
+			return Base;
+		}
+		float Timer::GetMaxFrames() const
+		{
+			return MaxFrames;
+		}
+		float Timer::GetMinStep() const
+		{
+			if (MaxFrames <= 0.0f)
+				return 0.0f;
+
+			return ToSeconds(MinDelta);
+		}
+		float Timer::GetFrames() const
+		{
+			return 1.0f / ToSeconds(Timing.Delta);
+		}
+		float Timer::GetElapsed() const
+		{
+			return ToSeconds(Clock() - Timing.Begin);
+		}
+		float Timer::GetElapsedMills() const
+		{
+			return ToMills(Clock() - Timing.Begin);
+		}
+		float Timer::GetStep() const
+		{
+			return ToSeconds(Timing.Delta);
+		}
+		float Timer::GetFixedStep() const
+		{
+			return ToSeconds(Fixed.Delta);
+		}
+		float Timer::ToSeconds(const Units& Value)
+		{
+			return (float)((double)Value.count() / UnitsToSeconds);
+		}
+		float Timer::ToMills(const Units& Value)
+		{
+			return (float)((double)Value.count() / UnitsToMills);
+		}
+		Timer::Units Timer::ToUnits(float Value)
+		{
+			return Units((uint64_t)(Value * UnitsToSeconds));
+		}
+		Timer::Units Timer::Clock()
+		{
+			return std::chrono::duration_cast<Units>(std::chrono::system_clock::now().time_since_epoch());
 		}
 
 		Stream::Stream()

@@ -1168,14 +1168,14 @@ namespace Tomahawk
 				if (!RigidBody)
 					return;
 
-				float DeltaTime = (float)Time->GetDeltaTime();
+				float Step = Time->GetStep();
 				if (Kinematic)
 				{
 					RigidBody->SetLinearVelocity(ConstantVelocity);
 					RigidBody->SetAngularVelocity(ConstantTorque);
 				}
 				else
-					RigidBody->Push(ConstantVelocity * DeltaTime, ConstantTorque * DeltaTime, ConstantCenter);
+					RigidBody->Push(ConstantVelocity * Step, ConstantTorque * Step, ConstantCenter);
 
 				Compute::Vector3 Force = RigidBody->GetLinearVelocity();
 				Compute::Vector3 Torque = RigidBody->GetAngularVelocity();
@@ -1665,7 +1665,7 @@ namespace Tomahawk
 
 					State.Duration = Clip->Duration;
 					State.Rate = Clip->Rate * NextKey.Time;
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
 					{
@@ -1702,7 +1702,7 @@ namespace Tomahawk
 					if (!Key)
 						Key = &Bind;
 
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
 					for (auto&& Pose : Instance->Skeleton.Pose)
@@ -1918,7 +1918,7 @@ namespace Tomahawk
 
 					State.Duration = Clip->Duration;
 					State.Rate = Clip->Rate * NextKey.Time;
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
 
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 					Transform->SetPosition(Current.Position = PrevKey.Position.Lerp(NextKey.Position, T));
@@ -1949,7 +1949,7 @@ namespace Tomahawk
 					if (State.Paused)
 						return;
 
-					State.Time = Compute::Mathf::Min(State.Time + State.Rate * (float)Time->GetDeltaTime() / State.Duration, State.Duration);
+					State.Time = Compute::Mathf::Min(State.Time + State.Rate * Time->GetStep() / State.Duration, State.Duration);
 					float T = Compute::Mathf::Min(State.Time / State.Duration, 1.0f);
 
 					Transform->SetPosition(Current.Position.Lerp(Key->Position, T));
@@ -2183,14 +2183,14 @@ namespace Tomahawk
 					Array.emplace_back(std::move(Element));
 				}
 
-				float DeltaTime = (float)Time->GetDeltaTime();
+				float Step = Time->GetStep();
 				if (Noise != 0.0f)
-					AccurateSynchronization(DeltaTime);
+					AccurateSynchronization(Step);
 				else
-					FastSynchronization(DeltaTime);
+					FastSynchronization(Step);
 				Transform->MakeDirty();
 			}
-			void EmitterAnimator::AccurateSynchronization(float DeltaTime)
+			void EmitterAnimator::AccurateSynchronization(float Step)
 			{
 				auto& Array = Base->GetBuffer()->GetArray();
 				float MinX = 0.0f, MaxX = 0.0f;
@@ -2206,16 +2206,16 @@ namespace Tomahawk
 					Compute::Vector3 NextNoise = Spawner.Noise.Generate() / Noise;
 					Compute::Vector3 NextPosition(It->PositionX, It->PositionY, It->PositionZ);
 					Compute::Vector4 NextDiffuse(It->ColorX, It->ColorY, It->ColorZ, It->ColorW);
-					NextPosition += (NextVelocity + Position + NextNoise) * DeltaTime;
-					NextDiffuse += Diffuse * DeltaTime;
+					NextPosition += (NextVelocity + Position + NextNoise) * Step;
+					NextDiffuse += Diffuse * Step;
 					memcpy(&It->PositionX, &NextPosition, sizeof(float) * 3);
 					memcpy(&It->ColorX, &NextDiffuse, sizeof(float) * 4);
-					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
-					It->Scale += ScaleSpeed * DeltaTime;
+					It->Rotation += (It->Angular + RotationSpeed) * Step;
+					It->Scale += ScaleSpeed * Step;
 
 					if (Accelerate > 0.0f)
 					{
-						NextVelocity -= (NextVelocity / Velocity) * DeltaTime;
+						NextVelocity -= (NextVelocity / Velocity) * Step;
 						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					}
 
@@ -2244,7 +2244,7 @@ namespace Tomahawk
 				Base->Min = Compute::Vector3(MinX, MinY, MinZ);
 				Base->Max = Compute::Vector3(MaxX, MaxY, MaxZ);
 			}
-			void EmitterAnimator::FastSynchronization(float DeltaTime)
+			void EmitterAnimator::FastSynchronization(float Step)
 			{
 				auto& Array = Base->GetBuffer()->GetArray();
 				float MinX = 0.0f, MaxX = 0.0f;
@@ -2259,16 +2259,16 @@ namespace Tomahawk
 					Compute::Vector3 NextVelocity(It->VelocityX, It->VelocityY, It->VelocityZ);
 					Compute::Vector3 NextPosition(It->PositionX, It->PositionY, It->PositionZ);
 					Compute::Vector4 NextDiffuse(It->ColorX, It->ColorY, It->ColorZ, It->ColorW);
-					NextPosition += (NextVelocity + Position) * DeltaTime;
-					NextDiffuse += Diffuse * DeltaTime;
+					NextPosition += (NextVelocity + Position) * Step;
+					NextDiffuse += Diffuse * Step;
 					memcpy(&It->PositionX, &NextPosition, sizeof(float) * 3);
 					memcpy(&It->ColorX, &NextDiffuse, sizeof(float) * 4);
-					It->Rotation += (It->Angular + RotationSpeed) * DeltaTime;
-					It->Scale += ScaleSpeed * DeltaTime;
+					It->Rotation += (It->Angular + RotationSpeed) * Step;
+					It->Scale += ScaleSpeed * Step;
 
 					if (Accelerate > 0.0f)
 					{
-						NextVelocity -= (NextVelocity / Velocity) * DeltaTime;
+						NextVelocity -= (NextVelocity / Velocity) * Step;
 						memcpy(&It->VelocityX, &NextVelocity, sizeof(float) * 3);
 					}
 
@@ -2368,27 +2368,31 @@ namespace Tomahawk
 
 				bool ViewSpace = (Parent->GetComponent<Camera>() != nullptr);
 				auto* Transform = Parent->GetTransform();
+				Compute::Vector3 NewVelocity;
+
 				if (Activity->IsKeyDown(Forward))
-					Velocity += Transform->Forward(ViewSpace);
+					NewVelocity += Transform->Forward(ViewSpace);
 				else if (Activity->IsKeyDown(Backward))
-					Velocity -= Transform->Forward(ViewSpace);
+					NewVelocity -= Transform->Forward(ViewSpace);
 
 				if (Activity->IsKeyDown(Right))
-					Velocity += Transform->Right(ViewSpace);
+					NewVelocity += Transform->Right(ViewSpace);
 				else if (Activity->IsKeyDown(Left))
-					Velocity -= Transform->Right(ViewSpace);
+					NewVelocity -= Transform->Right(ViewSpace);
 
 				if (Activity->IsKeyDown(Up))
-					Velocity += Transform->Up(ViewSpace);
+					NewVelocity += Transform->Up(ViewSpace);
 				else if (Activity->IsKeyDown(Down))
-					Velocity -= Transform->Up(ViewSpace);
+					NewVelocity -= Transform->Up(ViewSpace);
 
-				if (Velocity.Length() > 0.01)
+				float Step = Time->GetStep();
+				if (NewVelocity.Length() > 0.001f)
+					Velocity += GetSpeed(Activity) * NewVelocity * Step;
+
+				if (Velocity.Length() > 0.001f)
 				{
-					float DeltaTime = (float)Time->GetDeltaTime();
-					Compute::Vector3 Speed = GetSpeed(Activity);
-					Transform->Move(Velocity * Speed * DeltaTime);
-					Velocity = Velocity.Lerp(Compute::Vector3::Zero(), Moving.Fading * DeltaTime);
+					Transform->Move(Velocity * Step);
+					Velocity = Velocity.Lerp(Compute::Vector3::Zero(), Moving.Fading * Step);
 				}
 				else
 					Velocity = Compute::Vector3::Zero();
@@ -2527,7 +2531,7 @@ namespace Tomahawk
 				if (Transform->IsDirty())
 				{
 					const Compute::Vector3& Position = Transform->GetPosition();
-					Sync.Velocity = (Position - LastPosition) * (float)Time->GetDeltaTime();
+					Sync.Velocity = (Position - LastPosition) * Time->GetStep();
 					LastPosition = Position;
 				}
 				else
@@ -2587,7 +2591,7 @@ namespace Tomahawk
 				if (Transform->IsDirty())
 				{
 					const Compute::Vector3& Position = Transform->GetPosition();
-					Compute::Vector3 Velocity = (Position - LastPosition) * (float)Time->GetDeltaTime();
+					Compute::Vector3 Velocity = (Position - LastPosition) * Time->GetStep();
 					Compute::Vector3 Rotation = Transform->GetRotation().dDirection();
 					float LookAt[6] = { Rotation.X, Rotation.Y, Rotation.Z, 0.0f, 1.0f, 0.0f };
 					LastPosition = Position;

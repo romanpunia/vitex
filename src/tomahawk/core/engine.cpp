@@ -45,12 +45,10 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		Ticker::Ticker()
+		Ticker::Ticker() : Time(0.0f), Delay(16.0f)
 		{
-			Time = 0.0;
-			Delay = 16.0;
 		}
-		bool Ticker::TickEvent(double ElapsedTime)
+		bool Ticker::TickEvent(float ElapsedTime)
 		{
 			if (ElapsedTime - Time > Delay)
 			{
@@ -60,7 +58,7 @@ namespace Tomahawk
 
 			return false;
 		}
-		double Ticker::GetTime()
+		float Ticker::GetTime()
 		{
 			return Time;
 		}
@@ -3672,7 +3670,7 @@ namespace Tomahawk
 			{
 				Watch(Parallel::Enqueue([this, Time]()
 				{
-					Simulator->Simulate((float)Time->GetTimeStep());
+					Simulator->Simulate(4, Time->GetStep(), Time->GetFixedStep());
 				}));
 			}
 			TH_PPOP();
@@ -3747,8 +3745,7 @@ namespace Tomahawk
 				WatchAll(Parallel::ForEach(Begin, End, [this](Entity* Next)
 				{
 					Next->Transform->Synchronize();
-					Next->UpdateBounds();		
-					WatchMovement(Next);
+					Next->UpdateBounds();
 
 					if (Next->Type.Components.empty())
 						return;
@@ -4515,17 +4512,12 @@ namespace Tomahawk
 		{
 			Base->Transform->WhenDirty([this, Base]()
 			{
-				if (Dirty.Size() + Conf.GrowMargin > Dirty.Capacity())
+				Transaction([this, Base]()
 				{
-					Transaction([this, Base]()
-					{
-						if (Dirty.Size() + Conf.GrowMargin > Dirty.Capacity())
-							UpgradeBuffer(Dirty, (float)Conf.GrowRate);
-						Dirty.Add(Base);
-					});
-				}
-				else
+					if (Dirty.Size() + Conf.GrowMargin > Dirty.Capacity())
+						UpgradeBuffer(Dirty, (float)Conf.GrowRate);
 					Dirty.Add(Base);
+				});
 			});
 		}
 		void SceneGraph::UnwatchMovement(Entity* Base)
@@ -5807,9 +5799,8 @@ namespace Tomahawk
 			}
 		
 			Core::Timer* Time = new Core::Timer();
-			Time->FrameLimit = Control.Framerate;
-			Time->SetStepLimitation(Control.MinFrames, Control.MaxFrames);
-
+			Time->SetFixedFrames(Control.Framerate.Stable);
+			Time->SetMaxFrames(Control.Framerate.Limit);
 #ifdef TH_WITH_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 				GUI::Subsystem::SetMetadata(Activity, Content, Time);
@@ -5836,8 +5827,11 @@ namespace Tomahawk
 				while (State == ApplicationState::Active)
 				{
 					Activity->Dispatch();
-					Time->Synchronize();
+
+					Time->Begin();
 					Dispatch(Time);
+
+					Time->Finish();
 					Publish(Time);
 				}
 			}
@@ -5845,10 +5839,13 @@ namespace Tomahawk
 			{
 				while (State == ApplicationState::Active)
 				{
-					Queue->Dispatch();
 					Activity->Dispatch();
-					Time->Synchronize();
+					Queue->Dispatch();
+
+					Time->Begin();
 					Dispatch(Time);
+
+					Time->Finish();
 					Publish(Time);
 				}
 			}
@@ -5856,8 +5853,10 @@ namespace Tomahawk
 			{
 				while (State == ApplicationState::Active)
 				{
-					Time->Synchronize();
+					Time->Begin();
 					Dispatch(Time);
+
+					Time->Finish();
 					Publish(Time);
 				}
 			}
@@ -5866,8 +5865,11 @@ namespace Tomahawk
 				while (State == ApplicationState::Active)
 				{
 					Queue->Dispatch();
-					Time->Synchronize();
+
+					Time->Begin();
 					Dispatch(Time);
+
+					Time->Finish();
 					Publish(Time);
 				}
 			}

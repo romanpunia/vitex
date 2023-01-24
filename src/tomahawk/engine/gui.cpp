@@ -503,7 +503,7 @@ namespace Tomahawk
 					if (!Time)
 						return 0.0;
 
-					return Time->GetElapsedTime() / 1000.0;
+					return (double)Time->GetElapsed();
 				}
 				void Attach(Graphics::Activity* NewActivity, Core::Timer* NewTime)
 				{

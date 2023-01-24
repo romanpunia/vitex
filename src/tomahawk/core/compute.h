@@ -1747,9 +1747,6 @@ namespace Tomahawk
 			size_t GetChildsCount() const;
 			std::vector<Transform*>& GetChilds();
 
-		private:
-			void NotifyDirty();
-
 		protected:
 			bool CanRootBeApplied(Transform* Root) const;
 		};
@@ -2536,7 +2533,7 @@ namespace Tomahawk
 			void AddConstraint(Constraint* Constraint);
 			void RemoveConstraint(Constraint* Constraint);
 			void RemoveAll();
-			void Simulate(float TimeStep);
+			void Simulate(int Interpolation, float TimeStep, float FixedTimeStep);
 			void FindContacts(RigidBody* Body, int(*Callback)(ShapeContact*, const CollisionBody&, const CollisionBody&));
 			bool FindRayContacts(const Vector3& Start, const Vector3& End, int(*Callback)(RayContact*, const CollisionBody&));
 			Core::Unique<RigidBody> CreateRigidBody(const RigidBody::Desc& I);

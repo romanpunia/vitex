@@ -176,15 +176,15 @@ namespace Tomahawk
 		struct TH_OUT Ticker
 		{
 		private:
-			double Time;
+			float Time;
 
 		public:
-			double Delay;
+			float Delay;
 
 		public:
 			Ticker();
-			bool TickEvent(double ElapsedTime);
-			double GetTime();
+			bool TickEvent(float ElapsedTime);
+			float GetTime();
 		};
 
 		struct TH_OUT Event
@@ -1491,6 +1491,12 @@ namespace Tomahawk
 		public:
 			struct Desc
 			{
+				struct
+				{
+					float Stable = 120.0f;
+					float Limit = 0.0f;
+				} Framerate;
+
 				Graphics::GraphicsDevice::Desc GraphicsDevice;
 				Graphics::Activity::Desc Activity;
 				std::string Preferences;
@@ -1501,9 +1507,6 @@ namespace Tomahawk
 				size_t PollingEvents = 256;
 				size_t Coroutines = 16;
 				size_t Threads = 0;
-				double Framerate = 0;
-				double MaxFrames = 60;
-				double MinFrames = 10;
 				size_t Usage =
 					(size_t)ApplicationSet::GraphicsSet |
 					(size_t)ApplicationSet::ActivitySet |

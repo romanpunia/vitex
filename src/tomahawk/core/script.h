@@ -1648,6 +1648,9 @@ namespace Tomahawk
 
 		class TH_OUT VMManager : public Core::Object
 		{
+		public:
+			typedef std::function<void(const std::string&)> CompileCallback;
+
 		private:
 			struct Kernel
 			{
@@ -1678,6 +1681,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, VMByteCode> Opcodes;
 			std::unordered_map<std::string, Kernel> Kernels;
 			std::unordered_map<std::string, Submodule> Modules;
+			std::unordered_map<std::string, CompileCallback> Callbacks;
 			std::vector<VMCContext*> Contexts;
 			std::string DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
@@ -1699,6 +1703,7 @@ namespace Tomahawk
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
+			void SetCompileCallback(const std::string& Section, CompileCallback&& Callback);
 			int Collect(size_t NumIterations = 1);
 			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
 			int NotifyOfNewObject(void* Object, const VMTypeInfo& Type);

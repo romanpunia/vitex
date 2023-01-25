@@ -297,6 +297,11 @@ namespace Tomahawk
 			}
 			else
 				Filename = FilenameBegin;
+
+			if (Path.empty() && !Filename.empty())
+				MakePath();
+			else if (!Path.empty() && Path.front() != '/')
+				Path = '/' + Path;
 		}
 		SourceURL::SourceURL(const SourceURL& Other) noexcept :
 			Query(Other.Query), URL(Other.URL), Protocol(Other.Protocol),
@@ -348,10 +353,13 @@ namespace Tomahawk
 		}
 		void SourceURL::MakePath()
 		{
-			if (Filename.empty() && Extension.empty())
+			if (!Path.empty() || Filename.empty())
 				return;
 
-			Path += Filename + (Extension.empty() ? "" : '.' + Extension);
+			if (Extension.empty())
+				Path = Filename.front() == '/' ? Filename : '/' + Filename;
+			else
+				Path = (Filename.front() == '/' ? Filename : '/' + Filename) + '.' + Extension;
 		}
 
 		Socket::Socket() : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)

@@ -217,6 +217,8 @@ namespace Tomahawk
 					}
 					else if (Type && !strcmp("String", Type->GetName()))
 						Result->Set(Name, Core::Var::String(*(std::string*)Ref));
+					else if (Type && !strcmp("Decimal", Type->GetName()))
+						Result->Set(Name, Core::Var::Decimal(*(Core::Decimal*)Ref));
 				}
 
 				if (TypeId & asTYPEID_MASK_OBJECT)
@@ -925,6 +927,7 @@ namespace Tomahawk
 			Register.SetFunction<Core::Variant(const std::string&)>("Variant String(const String &in)", &Core::Var::String);
 			Register.SetFunction<Core::Variant(const std::string&)>("Variant Binary(const String &in)", &Core::Var::Binary);
 			Register.SetFunction<Core::Variant(const std::string&)>("Variant Decimal(const String &in)", &Core::Var::DecimalString);
+			Register.SetFunction<Core::Variant(const Core::Decimal&)>("Variant Decimal(const CE::Decimal &in)", &Core::Var::Decimal);
 			Engine->EndNamespace();
 
 			return true;
@@ -1101,6 +1104,7 @@ namespace Tomahawk
 			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ String(const String &in)", &Core::Var::Set::String);
 			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ Binary(const String &in)", &Core::Var::Set::Binary);
 			Register.SetFunction<Core::Schema* (const std::string&)>("CE::Schema@ Decimal(const String &in)", &Core::Var::Set::DecimalString);
+			Register.SetFunction<Core::Schema* (const Core::Decimal&)>("CE::Schema@ Decimal(const CE::Decimal &in)", &Core::Var::Set::Decimal);
 			Engine->EndNamespace();
 			Engine->BeginNamespace("CE::Var");
 			Register.SetFunction("CE::Schema@+ Init(Schema@+)", &SchemaInit);

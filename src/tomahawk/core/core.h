@@ -971,7 +971,7 @@ namespace Tomahawk
 
 		private:
 			static std::unordered_map<void*, MemBuffer> Buffers;
-			static std::mutex Queue;
+			static std::recursive_mutex Queue;
 #endif
 		private:
 			static AllocCallback OnAlloc;

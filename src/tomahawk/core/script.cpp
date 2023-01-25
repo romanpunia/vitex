@@ -2197,13 +2197,15 @@ namespace Tomahawk
 			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
 			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
 
+			uint32_t Retry = 0;
 			if (VCache.Valid)
 			{
 				int R = LoadByteCode(&VCache);
 				while (Await && R == asBUILD_IN_PROGRESS)
 				{
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
 					R = LoadByteCode(&VCache);
+					if (Retry++ > 0)
+						std::this_thread::sleep_for(std::chrono::microseconds(100));
 				}
 
 				BuiltOK = (R >= 0);
@@ -2222,11 +2224,12 @@ namespace Tomahawk
 
 			while (Await && R == asBUILD_IN_PROGRESS)
 			{
-				std::this_thread::sleep_for(std::chrono::microseconds(100));
-
 				Manager->Lock();
 				R = Module->Build();
 				Manager->Unlock();
+
+				if (Retry++ > 0)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 			}
 
 			BuiltOK = (R >= 0);
@@ -3105,6 +3108,15 @@ namespace Tomahawk
 			Processor->SetFeatures(Proc);
 			Sync.General.unlock();
 		}
+		void VMManager::SetCompileCallback(const std::string& Section, CompileCallback&& Callback)
+		{
+			Sync.General.lock();
+			if (Callback != nullptr)
+				Callbacks[Section] = std::move(Callback);
+			else
+				Callbacks.erase(Section);
+			Sync.General.unlock();
+		}
 		bool VMManager::GetByteCodeCache(VMByteCode* Info)
 		{
 			TH_ASSERT(Info != nullptr, false, "bytecode should be set");
@@ -3699,6 +3711,7 @@ namespace Tomahawk
 			if (Source.empty())
 				return true;
 
+			uint32_t Retry = 0;
 			Sync.General.lock();
 			asIScriptModule* Module = Engine->GetModule("__vfver", asGM_ALWAYS_CREATE);
 			Module->AddScriptSection(Path.c_str(), Source.c_str(), Source.size());
@@ -3706,8 +3719,9 @@ namespace Tomahawk
 			int R = Module->Build();
 			while (R == asBUILD_IN_PROGRESS)
 			{
-				std::this_thread::sleep_for(std::chrono::microseconds(100));
 				R = Module->Build();
+				if (Retry++ > 0)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 			}
 
 			Module->Discard();
@@ -4088,14 +4102,24 @@ namespace Tomahawk
 			Context->Unprepare();
 			Manager->Sync.Pool.unlock();
 		}
-		void VMManager::CompileLogger(asSMessageInfo* Info, void*)
+		void VMManager::CompileLogger(asSMessageInfo* Info, void* This)
 		{
+			VMManager* Engine = (VMManager*)This;
+			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "any");
+
+			if (Engine != nullptr && !Engine->Callbacks.empty())
+			{
+				auto It = Engine->Callbacks.find(Section);
+				if (It != Engine->Callbacks.end())
+					return It->second(Core::Form("%i:%i >> %s", Info->row, Info->col, Info->message).R());
+			}
+
 			if (Info->type == asMSGTYPE_WARNING)
-				TH_WARN("[compiler]\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_WARN("[compiler]\n\t%s (%i, %i): %s", Section, Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_INFORMATION)
-				TH_INFO("[compiler]\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_INFO("[compiler]\n\t%s (%i, %i): %s", Section, Info->row, Info->col, Info->message);
 			else if (Info->type == asMSGTYPE_ERROR)
-				TH_ERR("[compiler]\n\t%s (%i, %i): %s", Info->section && Info->section[0] != '\0' ? Info->section : "any", Info->row, Info->col, Info->message);
+				TH_ERR("[compiler]\n\t%s (%i, %i): %s", Section, Info->row, Info->col, Info->message);
 		}
 		void VMManager::RegisterSubmodules(VMManager* Engine)
 		{

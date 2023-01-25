@@ -4875,7 +4875,7 @@ namespace Tomahawk
 			return Result;
 		}
 		std::unordered_map<void*, Mem::MemBuffer> Mem::Buffers;
-		std::mutex Mem::Queue;
+		std::recursive_mutex Mem::Queue;
 #else
 		void* Mem::QueryMalloc(size_t Size)
 		{

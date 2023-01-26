@@ -605,22 +605,25 @@ namespace Tomahawk
 					if (Compiler->LoadFile(Core::Parser(Path).Replace('|', ':').R()) < 0)
 						return;
 
-					if (Compiler->Compile(true) < 0)
-						return;
-
-					Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
-					if (!Main.IsValid())
-						return;
-
-					Scope->Basis->AddRef();
-					Script::VMContext* Context = Compiler->GetContext();
-					Context->TryExecute(Main, [Main, Scope](Script::VMContext* Context)
+					Compiler->Compile().Await([Scope, Compiler](int&& Status)
 					{
-						if (Main.GetArgsCount() == 1)
-							Context->SetArgObject(0, Scope->Basis);
-					}).Await([Scope](int&&)
-					{
-						Scope->Basis->Release();
+						if (Status < 0)
+							return;
+
+						Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
+						if (!Main.IsValid())
+							return;
+
+						Scope->Basis->AddRef();
+						Script::VMContext* Context = Compiler->GetContext();
+						Context->TryExecute(Main, [Main, Scope](Script::VMContext* Context)
+						{
+							if (Main.GetArgsCount() == 1)
+								Context->SetArgObject(0, Scope->Basis);
+						}).Await([Scope](int&&)
+						{
+							Scope->Basis->Release();
+						});
 					});
 				}
 			};

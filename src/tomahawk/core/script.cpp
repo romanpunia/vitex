@@ -1380,37 +1380,24 @@ namespace Tomahawk
 		int VMModule::Build()
 		{
 			TH_ASSERT(IsValid(), -1, "module should be valid");
-			Manager->Lock();
-			int R = Mod->Build();
-			Manager->Unlock();
-
-			return R;
+			return Mod->Build();
 		}
 		int VMModule::LoadByteCode(VMByteCode* Info)
 		{
 			TH_ASSERT(IsValid(), -1, "module should be valid");
 			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
 
-			int R = -1;
-			Manager->Lock();
-			{
-				CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
-				R = Mod->LoadByteCode(Stream, &Info->Debug);
-				TH_DELETE(CByteCodeStream, Stream);
-			}
-			Manager->Unlock();
+			CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
+			int R = Mod->LoadByteCode(Stream, &Info->Debug);
+			TH_DELETE(CByteCodeStream, Stream);
 
 			return R;
 		}
 		int VMModule::Discard()
 		{
 			TH_ASSERT(IsValid(), -1, "module should be valid");
-			Manager->Lock();
-			{
-				Mod->Discard();
-				Mod = nullptr;
-			}
-			Manager->Unlock();
+			Mod->Discard();
+			Mod = nullptr;
 
 			return 0;
 		}
@@ -1441,10 +1428,7 @@ namespace Tomahawk
 			TH_ASSERT(Code != nullptr, -1, "code should be set");
 
 			VMCFunction* OutFunc = nullptr;
-			Manager->Lock();
 			int R = Mod->CompileFunction(SectionName, Code, LineOffset, (asDWORD)CompileFlags, &OutFunc);
-			Manager->Unlock();
-
 			if (OutFunction != nullptr)
 				*OutFunction = VMFunction(OutFunc);
 
@@ -1453,11 +1437,7 @@ namespace Tomahawk
 		int VMModule::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
 		{
 			TH_ASSERT(IsValid(), -1, "module should be valid");
-			Manager->Lock();
-			int R = Mod->CompileGlobalVar(SectionName, Code, LineOffset);
-			Manager->Unlock();
-
-			return R;
+			return Mod->CompileGlobalVar(SectionName, Code, LineOffset);
 		}
 		int VMModule::SetDefaultNamespace(const char* NameSpace)
 		{
@@ -1514,15 +1494,10 @@ namespace Tomahawk
 			TH_ASSERT(IsValid(), -1, "module should be valid");
 			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
 
-			int R = -1;
-			Manager->Lock();
-			{
-				CByteCodeStream* Stream = TH_NEW(CByteCodeStream);
-				R = Mod->SaveByteCode(Stream, Info->Debug);
-				Info->Data = Stream->GetCode();
-				TH_DELETE(CByteCodeStream, Stream);
-			}
-			Manager->Unlock();
+			CByteCodeStream* Stream = TH_NEW(CByteCodeStream);
+			int R = Mod->SaveByteCode(Stream, Info->Debug);
+			Info->Data = Stream->GetCode();
+			TH_DELETE(CByteCodeStream, Stream);
 
 			return R;
 		}
@@ -2105,19 +2080,14 @@ namespace Tomahawk
 			if (Context != nullptr && Context->IsPending())
 				return false;
 
-			Manager->Lock();
-			{
-				if (Module != nullptr)
-					Module->Discard();
-
-				Module = nullptr;
-				BuiltOK = false;
-			}
-			Manager->Unlock();
+			if (Module != nullptr)
+				Module->Discard();
 
 			if (Processor != nullptr)
 				Processor->Clear();
 
+			Module = nullptr;
+			BuiltOK = false;
 			return true;
 		}
 		bool VMCompiler::IsDefined(const std::string& Word) const
@@ -2157,15 +2127,13 @@ namespace Tomahawk
 			VCache.Valid = false;
 			VCache.Name.clear();
 
-			Manager->Lock();
 			if (Module != nullptr)
 				Module->Discard();
 
 			if (Scoped)
-				Module = Manager->CreateScopedModule(ModuleName, false);
+				Module = Manager->CreateScopedModule(ModuleName);
 			else
-				Module = Manager->CreateModule(ModuleName, false);
-			Manager->Unlock();
+				Module = Manager->CreateModule(ModuleName);
 
 			if (!Module)
 				return -1;
@@ -2192,68 +2160,6 @@ namespace Tomahawk
 
 			return Result;
 		}
-		int VMCompiler::Compile(bool Await)
-		{
-			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
-			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
-
-			uint32_t Retry = 0;
-			if (VCache.Valid)
-			{
-				int R = LoadByteCode(&VCache);
-				while (Await && R == asBUILD_IN_PROGRESS)
-				{
-					R = LoadByteCode(&VCache);
-					if (Retry++ > 0)
-						std::this_thread::sleep_for(std::chrono::microseconds(100));
-				}
-
-				BuiltOK = (R >= 0);
-				if (BuiltOK)
-				{
-					Module->ResetGlobalVars(Context->GetContext());
-					TH_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
-				}
-
-				return R;
-			}
-
-			Manager->Lock();
-			int R = Module->Build();
-			Manager->Unlock();
-
-			while (Await && R == asBUILD_IN_PROGRESS)
-			{
-				Manager->Lock();
-				R = Module->Build();
-				Manager->Unlock();
-
-				if (Retry++ > 0)
-					std::this_thread::sleep_for(std::chrono::microseconds(100));
-			}
-
-			BuiltOK = (R >= 0);
-			if (!BuiltOK)
-				return R;
-
-			TH_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
-			if (VCache.Name.empty())
-			{
-				Module->ResetGlobalVars(Context->GetContext());
-				return R;
-			}
-
-			R = SaveByteCode(&VCache);
-			if (R < 0)
-			{
-				Module->ResetGlobalVars(Context->GetContext());
-				return R;
-			}
-
-			Module->ResetGlobalVars(Context->GetContext());
-			Manager->SetByteCodeCache(&VCache);
-			return 0;
-		}
 		int VMCompiler::SaveByteCode(VMByteCode* Info)
 		{
 			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
@@ -2261,32 +2167,13 @@ namespace Tomahawk
 			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
 			TH_ASSERT(BuiltOK, -1, "module should be built");
 
-			Manager->Lock();
 			CByteCodeStream* Stream = TH_NEW(CByteCodeStream);
 			int R = Module->SaveByteCode(Stream, Info->Debug);
 			Info->Data = Stream->GetCode();
 			TH_DELETE(CByteCodeStream, Stream);
-			Manager->Unlock();
 
 			if (R >= 0)
 				TH_DEBUG("[vm] OK save bytecode on 0x%" PRIXPTR, (uintptr_t)this);
-
-			return R;
-		}
-		int VMCompiler::LoadByteCode(VMByteCode* Info)
-		{
-			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
-			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
-			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
-
-			Manager->Lock();
-			CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
-			int R = Module->LoadByteCode(Stream, &Info->Debug);
-			TH_DELETE(CByteCodeStream, Stream);
-			Manager->Unlock();
-
-			if (R >= 0)
-				TH_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
 
 			return R;
 		}
@@ -2351,6 +2238,73 @@ namespace Tomahawk
 
 			return R;
 		}
+		Core::Promise<int> VMCompiler::Compile()
+		{
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
+
+			uint32_t Retry = 0;
+			if (VCache.Valid)
+			{
+				return LoadByteCode(&VCache).Then<int>([this](int&& R)
+				{
+					BuiltOK = (R >= 0);
+					if (!BuiltOK)
+						return R;
+
+					TH_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
+					Module->ResetGlobalVars(Context->GetContext());
+					return R;
+				});
+			}
+
+			return Core::Cotask<int>([this]()
+			{
+				int R = 0;
+				while ((R = Module->Build()) == asBUILD_IN_PROGRESS)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
+				return R;
+			}).Then<int>([this](int&& R)
+			{
+				BuiltOK = (R >= 0);
+				if (!BuiltOK)
+					return R;
+
+				TH_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
+				Module->ResetGlobalVars(Context->GetContext());
+
+				if (VCache.Name.empty())
+					return R;
+
+				R = SaveByteCode(&VCache);
+				if (R < 0)
+					return R;
+
+				Manager->SetByteCodeCache(&VCache);
+				return R;
+			});
+		}
+		Core::Promise<int> VMCompiler::LoadByteCode(VMByteCode* Info)
+		{
+			TH_ASSERT(Manager != nullptr, -1, "engine should be set");
+			TH_ASSERT(Module != nullptr, -1, "module should not be empty");
+			TH_ASSERT(Info != nullptr, -1, "bytecode should be set");
+
+			CByteCodeStream* Stream = TH_NEW(CByteCodeStream, Info->Data);
+			return Core::Cotask<int>([this, Stream, Info]()
+			{
+				int R = 0;
+				while ((R = Module->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
+				return R;
+			}).Then<int>([this, Stream](int&& R)
+			{
+				TH_DELETE(CByteCodeStream, Stream);
+				if (R >= 0)
+					TH_DEBUG("[vm] OK load bytecode on 0x%" PRIXPTR, (uintptr_t)this);
+				return R;
+			});
+		}
 		Core::Promise<int> VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
 			TH_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
@@ -2366,11 +2320,13 @@ namespace Tomahawk
 			if (R < 0)
 				return R;
 
-			R = Compile(true);
-			if (R < 0)
-				return R;
+			return Compile().Then<Core::Promise<int>>([this, EntryName, OnArgs = std::move(OnArgs)](int&& R) mutable
+			{
+				if (R < 0)
+					return Core::Promise<int>(R);
 
-			return ExecuteEntry(EntryName, std::move(OnArgs));
+				return ExecuteEntry(EntryName, std::move(OnArgs));
+			});
 		}
 		Core::Promise<int> VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
@@ -2386,12 +2342,14 @@ namespace Tomahawk
 			R = LoadCode("anonymous", Buffer);
 			if (R < 0)
 				return R;
+			
+			return Compile().Then<Core::Promise<int>>([this, EntryName, OnArgs = std::move(OnArgs)](int&& R) mutable
+			{
+				if (R < 0)
+					return Core::Promise<int>(R);
 
-			R = Compile(true);
-			if (R < 0)
-				return R;
-
-			return ExecuteEntry(EntryName, std::move(OnArgs));
+				return ExecuteEntry(EntryName, std::move(OnArgs));
+			});
 		}
 		Core::Promise<int> VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
 		{
@@ -2430,20 +2388,24 @@ namespace Tomahawk
 			Eval.append(Buffer, Length);
 			Eval += "\n;}";
 
-			VMCModule* Source = GetModule().GetModule();
-			VMCFunction* Function = nullptr;
+			VMCModule* Source = GetModule().GetModule();	
+			return Core::Cotask<Core::Promise<int>>([this, Source, Eval, OnArgs = std::move(OnArgs)]() mutable
+			{
+				VMCFunction* Function = nullptr; int R = 0;
+				while ((R = Source->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
+					std::this_thread::sleep_for(std::chrono::microseconds(100));
 
-			Manager->Lock();
-			int R = Source->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function);
-			Manager->Unlock();
+				if (R < 0)
+					return Core::Promise<int>(R);
 
-			if (R < 0)
-				return R;
+				Core::Promise<int> Result = Context->TryExecute(Function, std::move(OnArgs));
+				Function->Release();
 
-			Core::Promise<int> Result = Context->TryExecute(Function, std::move(OnArgs));
-			Function->Release();
-
-			return Result;
+				return Result;
+			}).Then<Core::Promise<int>>([](Core::Promise<int>&& Result)
+			{
+				return Result;
+			});
 		}
 		VMManager* VMCompiler::GetManager() const
 		{
@@ -3080,14 +3042,6 @@ namespace Tomahawk
 			Files.clear();
 			Sync.General.unlock();
 		}
-		void VMManager::Lock()
-		{
-			Sync.General.lock();
-		}
-		void VMManager::Unlock()
-		{
-			Sync.General.unlock();
-		}
 		void VMManager::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
 		{
 			Sync.General.lock();
@@ -3168,19 +3122,15 @@ namespace Tomahawk
 		{
 			return new VMCompiler(this);
 		}
-		VMCModule* VMManager::CreateScopedModule(const std::string& Name, bool AqLock)
+		VMCModule* VMManager::CreateScopedModule(const std::string& Name)
 		{
 			TH_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 
-			if (AqLock)
-				Sync.General.lock();
-
+			Sync.General.lock();
 			if (!Engine->GetModule(Name.c_str()))
 			{
-				if (AqLock)
-					Sync.General.unlock();
-
+				Sync.General.unlock();
 				return Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 			}
 
@@ -3190,29 +3140,22 @@ namespace Tomahawk
 				Result = Name + std::to_string(Scope++);
 				if (!Engine->GetModule(Result.c_str()))
 				{
-					if (AqLock)
-						Sync.General.unlock();
-
+					Sync.General.unlock();
 					return Engine->GetModule(Result.c_str(), asGM_ALWAYS_CREATE);
 				}
 			}
 
-			if (AqLock)
-				Sync.General.unlock();
-
+			Sync.General.unlock();
 			return nullptr;
 		}
-		VMCModule* VMManager::CreateModule(const std::string& Name, bool AqLock)
+		VMCModule* VMManager::CreateModule(const std::string& Name)
 		{
 			TH_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			TH_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 
-			if (AqLock)
-				Sync.General.lock();
-
+			Sync.General.lock();
 			VMCModule* Result = Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
-			if (AqLock)
-				Sync.General.unlock();
+			Sync.General.unlock();
 
 			return Result;
 		}
@@ -4111,7 +4054,14 @@ namespace Tomahawk
 			{
 				auto It = Engine->Callbacks.find(Section);
 				if (It != Engine->Callbacks.end())
-					return It->second(Core::Form("%i:%i >> %s", Info->row, Info->col, Info->message).R());
+				{
+					if (Info->type == asMSGTYPE_WARNING)
+						return It->second(Core::Form("WARN anonymous.as (%i, %i): %s", Info->row, Info->col, Info->message).R());
+					else if (Info->type == asMSGTYPE_INFORMATION)
+						return It->second(Core::Form("INFO anonymous.as (%i, %i): %s", Info->row, Info->col, Info->message).R());
+
+					return It->second(Core::Form("ERR anonymous.as (%i, %i): %s", Info->row, Info->col, Info->message).R());
+				}
 			}
 
 			if (Info->type == asMSGTYPE_WARNING)

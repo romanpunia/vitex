@@ -5740,6 +5740,10 @@ namespace Tomahawk
 		WebStream::WebStream(bool IsAsync) : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
 		{
 		}
+		WebStream::WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders) : WebStream(IsAsync)
+		{
+			Headers = std::move(NewHeaders);
+		}
 		WebStream::~WebStream()
 		{
 			Close();
@@ -5783,6 +5787,9 @@ namespace Tomahawk
 
 					for (auto& Item : URL.Query)
 						Request.Query += Item.first + "=" + Item.second;
+
+					for (auto& Item : Headers)
+						Request.SetHeader(Item.first, Item.second);
 
 					Network::HTTP::ResponseFrame* Response = TH_AWAIT(Client->Send(std::move(Request)));
 					if (!Response || Response->StatusCode < 0)

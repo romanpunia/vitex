@@ -1556,6 +1556,7 @@ namespace Tomahawk
 		{
 		protected:
 			void* Resource;
+			std::unordered_map<std::string, std::string> Headers;
 			std::string Buffer;
 			int64_t Offset;
 			size_t Size;
@@ -1563,6 +1564,7 @@ namespace Tomahawk
 
 		public:
 			WebStream(bool IsAsync);
+			WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders);
 			virtual ~WebStream() override;
 			virtual void Clear() override;
 			virtual bool Open(const char* File, FileMode Mode) override;

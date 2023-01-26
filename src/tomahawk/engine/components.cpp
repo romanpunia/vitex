@@ -3946,7 +3946,7 @@ namespace Tomahawk
 				if (R < 0)
 					return R;
 
-				R = Compiler->Compile(true);
+				R = TH_AWAIT(Compiler->Compile());
 				if (R < 0)
 					return R;
 

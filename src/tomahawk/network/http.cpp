@@ -479,46 +479,49 @@ namespace Tomahawk
 				if (Result < 0)
 					return Error(500, "Module cannot be loaded.");
 
-				Result = Compiler->Compile(true);
-				if (Result < 0)
-					return Error(500, "Module cannot be compiled.");
-
-				Script::VMModule Module = Compiler->GetModule();
-				Script::VMFunction Entry = Module.GetFunctionByName("Main");
-				if (!Entry.IsValid())
+				Compiler->Compile().Then<bool>([this, Method](int&& Result)
 				{
-					Entry = Module.GetFunctionByName(Method);
+					if (Result < 0)
+						return Error(500, "Module cannot be compiled.");
+
+					Script::VMModule Module = Compiler->GetModule();
+					Script::VMFunction Entry = Module.GetFunctionByName("Main");
 					if (!Entry.IsValid())
-						return Error(400, "Method is not allowed.");
-				}
-
-				TH_DEBUG("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
-
-				Script::VMContext* Context = Compiler->GetContext();
-				Context->TryExecute(Entry, nullptr).Await([this, Context](int Result)
-				{
-					int Response = -1;
-					if (Result >= 0)
 					{
-						Script::VMRuntime Status = (Script::VMRuntime)Result;
-						if (Status == Script::VMRuntime::FINISHED)
-							Response = 0;
-						else if (Status == Script::VMRuntime::ERR || Status == Script::VMRuntime::ABORTED)
-							Response = 1;
-						else if (Status == Script::VMRuntime::EXCEPTION)
-							Response = Context->IsThrown() ? 1 : 0;
+						Entry = Module.GetFunctionByName(Method);
+						if (!Entry.IsValid())
+							return Error(400, "Method is not allowed.");
 					}
 
-					TH_DEBUG("[http] %s exit context on 0x%" PRIXPTR, Response == -1 ? "INT" : Response > 0 ? "ERR" : "OK", (uintptr_t)Compiler);
-					if (Response > 0)
-						E.Exception(this);
+					TH_DEBUG("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
 
-					if (E.Finish)
-						E.Finish(this);
-					else
-						Finish();
+					Script::VMContext* Context = Compiler->GetContext();
+					Context->TryExecute(Entry, nullptr).Await([this, Context](int Result)
+					{
+						int Response = -1;
+						if (Result >= 0)
+						{
+							Script::VMRuntime Status = (Script::VMRuntime)Result;
+							if (Status == Script::VMRuntime::FINISHED)
+								Response = 0;
+							else if (Status == Script::VMRuntime::ERR || Status == Script::VMRuntime::ABORTED)
+								Response = 1;
+							else if (Status == Script::VMRuntime::EXCEPTION)
+								Response = Context->IsThrown() ? 1 : 0;
+						}
+
+						TH_DEBUG("[http] %s exit context on 0x%" PRIXPTR, Response == -1 ? "INT" : Response > 0 ? "ERR" : "OK", (uintptr_t)Compiler);
+						if (Response > 0)
+							E.Exception(this);
+
+						if (E.Finish)
+							E.Finish(this);
+						else
+							Finish();
+					});
+
+					return true;
 				});
-
 				return true;
 			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)

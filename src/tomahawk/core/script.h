@@ -1519,12 +1519,12 @@ namespace Tomahawk
 			int Prepare(VMByteCode* Info);
 			int Prepare(const std::string& ModuleName, bool Scoped = false);
 			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true, bool Scoped = false);
-			int Compile(bool Await);
 			int SaveByteCode(VMByteCode* Info);
-			int LoadByteCode(VMByteCode* Info);
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
 			int LoadCode(const std::string& Name, const char* Buffer, size_t Length);
+			Core::Promise<int> Compile();
+			Core::Promise<int> LoadByteCode(VMByteCode* Info);
 			Core::Promise<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
@@ -1698,8 +1698,6 @@ namespace Tomahawk
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void ClearCache();
-			void Lock();
-			void Unlock();
 			void SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc);
 			void SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc);
 			void SetProcessorOptions(Compute::Preprocessor* Processor);
@@ -1717,8 +1715,8 @@ namespace Tomahawk
 			void SetByteCodeCache(VMByteCode* Info);
 			Core::Unique<VMContext> CreateContext();
 			Core::Unique<VMCompiler> CreateCompiler();
-			VMCModule* CreateScopedModule(const std::string& Name, bool AqLock = true);
-			VMCModule* CreateModule(const std::string& Name, bool AqLock = true);
+			VMCModule* CreateScopedModule(const std::string& Name);
+			VMCModule* CreateModule(const std::string& Name);
 			void* CreateObject(const VMTypeInfo& Type);
 			void* CreateObjectCopy(void* Object, const VMTypeInfo& Type);
 			void* CreateEmptyObject(const VMTypeInfo& Type);

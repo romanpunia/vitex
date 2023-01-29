@@ -271,6 +271,26 @@ namespace Tomahawk
 
 			return Base->Push(Value);
 		}
+		Core::Schema* SchemaFirst(Core::Schema* Base)
+		{
+			auto& Childs = Base->GetChilds();
+			return Childs.empty() ? nullptr : Childs.front();
+		}
+		Core::Schema* SchemaLast(Core::Schema* Base)
+		{
+			auto& Childs = Base->GetChilds();
+			return Childs.empty() ? nullptr : Childs.back();
+		}
+		Core::Variant SchemaFirstVar(Core::Schema* Base)
+		{
+			auto& Childs = Base->GetChilds();
+			return Childs.empty() ? Core::Var::Undefined() : Childs.front()->Value;
+		}
+		Core::Variant SchemaLastVar(Core::Schema* Base)
+		{
+			auto& Childs = Base->GetChilds();
+			return Childs.empty() ? Core::Var::Undefined() : Childs.back()->Value;
+		}
 		STDArray* SchemaGetCollection(Core::Schema* Base, const std::string& Name, bool Deep)
 		{
 			VMContext* Context = VMContext::Get();
@@ -1066,6 +1086,10 @@ namespace Tomahawk
 			VSchema.SetMethod("void Join(Schema@+)", &Core::Schema::Join);
 			VSchema.SetMethod("void Clear()", &Core::Schema::Clear);
 			VSchema.SetMethod("void Save()", &Core::Schema::Save);
+			VSchema.SetMethodEx("Variant FirstVar() const", &SchemaFirstVar);
+			VSchema.SetMethodEx("Variant LastVar() const", &SchemaLastVar);
+			VSchema.SetMethodEx("Schema@+ First() const", &SchemaFirst);
+			VSchema.SetMethodEx("Schema@+ Last() const", &SchemaLast);
 			VSchema.SetMethodEx("Schema@+ Set(const String &in, Schema@+)", &SchemaSet);
 			VSchema.SetMethodEx("Schema@+ Push(Schema@+)", &SchemaPush);
 			VSchema.SetMethodEx("Array<Schema@>@ GetCollection(const String &in, bool = false) const", &SchemaGetCollection);

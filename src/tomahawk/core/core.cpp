@@ -6568,7 +6568,7 @@ namespace Tomahawk
 				return std::string();
 			}
 #endif
-			int64_t Length = strlen(Buffer);
+			size_t Length = strlen(Buffer);
 			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
 			{
 				Buffer[Length] = '/';

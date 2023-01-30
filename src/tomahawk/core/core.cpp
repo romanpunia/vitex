@@ -5259,7 +5259,7 @@ namespace Tomahawk
 				*Height = (uint32_t)(Size.srWindow.Bottom - Size.srWindow.Top + 1);
 #else
 			struct winsize Size;
-			ioctl(0, TIOCGWINSZ, &Size);
+			ioctl(STDOUT_FILENO, TIOCGWINSZ, &Size);
 
 			if (Width != nullptr)
 				*Width = (uint32_t)Size.ws_col;

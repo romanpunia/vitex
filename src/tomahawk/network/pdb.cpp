@@ -2338,9 +2338,7 @@ namespace Tomahawk
 
 				while (Index < Base.Size())
 				{
-					char V = Base.R()[Index];
-					char L = Base.R()[!Index ? Index : Index - 1];
-
+					char V = Base.R()[Index], L = Index ? Base.R()[Index - 1] : '\0';
 					if (V == '\'')
 					{
 						if (Lock)
@@ -2416,6 +2414,21 @@ namespace Tomahawk
 						}
 						else
 							Index++;
+					}
+					else if (V == '-' && L == '-' && !Lock && !Spec)
+					{
+						size_t Start = Index - 1;
+						while (Base.R()[Index] != '\r' && Base.R()[Index] != '\n')
+						{
+							if (Index + 1 >= Base.Size())
+								break;
+
+							++Index;
+						}
+
+						if (Start < Index)
+							Base.ReplacePart(Start, Index, "");
+						Index = Start;
 					}
 					else if ((L == '@' || L == '$') && V == '<')
 					{

@@ -5258,14 +5258,14 @@ namespace Tomahawk
 			if (Height != nullptr)
 				*Height = (uint32_t)(Size.srWindow.Bottom - Size.srWindow.Top + 1);
 #else
-			struct ttysize Size;
-			ioctl(0, TIOCGSIZE, &Size);
+			struct winsize Size;
+			ioctl(0, TIOCGWINSZ, &Size);
 
 			if (Width != nullptr)
-				*Width = (uint32_t)Size.ts_cols;
+				*Width = (uint32_t)Size.ws_col;
 
 			if (Height != nullptr)
-				*Height = (uint32_t)Size.ts_lines;
+				*Height = (uint32_t)Size.ws_row;
 #endif
 		}
 		double Console::GetCapturedTime() const

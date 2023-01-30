@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #ifdef TH_APPLE
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -93,7 +94,7 @@ namespace
 	}
 	void UnicodePath(const char* Path, wchar_t* Input, size_t InputSize, bool Exists)
 	{
-		char Buffer1[1024];
+		char Buffer1[TH_CHUNK_SIZE];
 		strncpy(Buffer1, Path, sizeof(Buffer1));
 
 		for (unsigned int i = 0; Buffer1[i] != '\0'; i++)
@@ -108,12 +109,12 @@ namespace
 		memset(Input, 0, InputSize * sizeof(wchar_t));
 		MultiByteToWideChar(CP_UTF8, 0, Buffer1, -1, Input, (int)InputSize);
 
-		char Buffer2[1024];
+		char Buffer2[TH_CHUNK_SIZE];
 		WideCharToMultiByte(CP_UTF8, 0, Input, (int)InputSize, Buffer2, sizeof(Buffer2), nullptr, nullptr);
 		if (strcmp(Buffer1, Buffer2) != 0)
 			Input[0] = L'\0';
 
-		wchar_t WBuffer[1024 + 1];
+		wchar_t WBuffer[TH_CHUNK_SIZE + 1];
 		memset(WBuffer, 0, (sizeof(WBuffer) / sizeof(WBuffer[0])) * sizeof(wchar_t));
 
 		DWORD Length = GetLongPathNameW(Input, WBuffer, (sizeof(WBuffer) / sizeof(WBuffer[0])) - 1);
@@ -3484,7 +3485,7 @@ namespace Tomahawk
 			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Format != nullptr, *this, "format should be set");
 
-			char Buffer[8192];
+			char Buffer[TH_BIG_CHUNK_SIZE];
 			va_list Args;
 			va_start(Args, Format);
 			int Count = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -5101,6 +5102,17 @@ namespace Tomahawk
 		{
 			Coloring = Enabled;
 		}
+		void Console::SetCursor(uint32_t X, uint32_t Y)
+		{
+#if defined(_WIN32)
+			HANDLE Wnd = GetStdHandle(STD_OUTPUT_HANDLE);
+			COORD Position = { (short)X, (short)Y };
+
+			SetConsoleCursorPosition(Wnd, Position);
+#else
+			printf("\033[%d;%dH", X, Y);
+#endif
+		}
 		void Console::ColorBegin(StdColor Text, StdColor Background)
 		{
 			TH_ASSERT_V(Handle, "console should be shown at least once");
@@ -5153,7 +5165,7 @@ namespace Tomahawk
 		void Console::fWriteLine(const char* Format, ...)
 		{
 			TH_ASSERT_V(Handle, "console should be shown at least once");
-			char Buffer[8192] = { '\0' };
+			char Buffer[TH_BIG_CHUNK_SIZE] = { '\0' };
 
 			va_list Args;
 			va_start(Args, Format);
@@ -5169,7 +5181,7 @@ namespace Tomahawk
 		void Console::fWrite(const char* Format, ...)
 		{
 			TH_ASSERT_V(Handle, "console should be shown at least once");
-			char Buffer[8192] = { '\0' };
+			char Buffer[TH_BIG_CHUNK_SIZE] = { '\0' };
 
 			va_list Args;
 			va_start(Args, Format);
@@ -5201,7 +5213,7 @@ namespace Tomahawk
 			TH_ASSERT_V(Handle, "console should be shown at least once");
 			TH_ASSERT_V(Format != nullptr, "format should be set");
 
-			char Buffer[8192] = { '\0' };
+			char Buffer[TH_BIG_CHUNK_SIZE] = { '\0' };
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -5220,7 +5232,7 @@ namespace Tomahawk
 			TH_ASSERT_V(Handle, "console should be shown at least once");
 			TH_ASSERT_V(Format != nullptr, "format should be set");
 
-			char Buffer[8192] = { '\0' };
+			char Buffer[TH_BIG_CHUNK_SIZE] = { '\0' };
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -5233,6 +5245,28 @@ namespace Tomahawk
 			Lock.lock();
 			std::cout << Buffer;
 			Lock.unlock();
+		}
+		void Console::GetSize(uint32_t* Width, uint32_t* Height)
+		{
+#ifdef TH_MICROSOFT
+			CONSOLE_SCREEN_BUFFER_INFO Size;
+			GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &Size);
+
+			if (Width != nullptr)
+				*Width = (uint32_t)(Size.srWindow.Right - Size.srWindow.Left + 1);
+
+			if (Height != nullptr)
+				*Height = (uint32_t)(Size.srWindow.Bottom - Size.srWindow.Top + 1);
+#else
+			struct ttysize Size;
+			ioctl(0, TIOCGSIZE, &Size);
+
+			if (Width != nullptr)
+				*Width = (uint32_t)Size.ts_cols;
+
+			if (Height != nullptr)
+				*Height = (uint32_t)Size.ts_lines;
+#endif
 		}
 		double Console::GetCapturedTime() const
 		{
@@ -5801,7 +5835,7 @@ namespace Tomahawk
 					const char* ContentLength = Response->GetHeader("Content-Length");
 					if (!ContentLength)
 					{
-						if (!TH_AWAIT(Client->Consume(1024 * 1024 * 16)))
+						if (!TH_AWAIT(Client->Consume(TH_HTTP_PAYLOAD * 256)))
 						{
 							TH_RELEASE(Client);
 							break;
@@ -6285,7 +6319,7 @@ namespace Tomahawk
 #if defined(TH_MICROSOFT)
 			struct Dirent
 			{
-				char Directory[1024];
+				char Directory[TH_CHUNK_SIZE];
 			};
 
 			struct Directory
@@ -6295,7 +6329,7 @@ namespace Tomahawk
 				Dirent Result;
 			};
 
-			wchar_t WPath[1024];
+			wchar_t WPath[TH_CHUNK_SIZE];
 			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]), true);
 
 			auto* Value = TH_MALLOC(Directory, sizeof(Directory));
@@ -6388,8 +6422,8 @@ namespace Tomahawk
 			TH_PPUSH(TH_PERF_IO);
 			TH_DEBUG("[io] create dir %s", Path);
 #ifdef TH_MICROSOFT
-			wchar_t Buffer[1024];
-			UnicodePath(Path, Buffer, 1024, false);
+			wchar_t Buffer[TH_CHUNK_SIZE];
+			UnicodePath(Path, Buffer, TH_CHUNK_SIZE, false);
 			size_t Length = wcslen(Buffer);
 			if (!Length)
 			{
@@ -6615,7 +6649,7 @@ namespace Tomahawk
 
 			memset(Resource, 0, sizeof(*Resource));
 #if defined(TH_MICROSOFT)
-			wchar_t WBuffer[1024];
+			wchar_t WBuffer[TH_CHUNK_SIZE];
 			UnicodePath(Path.c_str(), WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]), true);
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
@@ -6764,7 +6798,7 @@ namespace Tomahawk
 				return -1;
 			}
 
-			const size_t Size = 4096;
+			const size_t Size = TH_CHUNK_SIZE;
 			char Buffer1[Size];
 			char Buffer2[Size];
 			int Diff = 0;
@@ -6828,7 +6862,7 @@ namespace Tomahawk
 			TH_PPUSH(TH_PERF_IO);
 			TH_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef TH_MICROSOFT
-			wchar_t WBuffer[1024], WMode[20];
+			wchar_t WBuffer[TH_CHUNK_SIZE], WMode[20];
 			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]), true);
 			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
 
@@ -6981,7 +7015,7 @@ namespace Tomahawk
 			TH_ASSERT(Path != nullptr, std::string(), "path should be set");
 			TH_PPUSH(TH_PERF_IO);
 #ifdef TH_MICROSOFT
-			char Buffer[2048] = { 0 };
+			char Buffer[TH_CHUNK_SIZE] = { 0 };
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
 			{
 				TH_PPOP();
@@ -7156,7 +7190,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Format != nullptr, -1, "format should be set");
 
-			char Buffer[8192];
+			char Buffer[TH_BIG_CHUNK_SIZE];
 			va_list Args;
 			va_start(Args, Format);
 #ifdef TH_MICROSOFT
@@ -7662,7 +7696,7 @@ namespace Tomahawk
 			Data.Pretty = true;
 			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 
-			char Buffer[8192] = { '\0' };
+			char Buffer[TH_BIG_CHUNK_SIZE] = { '\0' };
 			Data.Size = snprintf(Buffer, sizeof(Buffer),
 				"%s(): \"%s\" assertion failed\n\tdetails: %s\n\texecution flow dump: %s",
 				Function ? Function : "anonymous",

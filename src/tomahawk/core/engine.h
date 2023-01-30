@@ -1502,7 +1502,7 @@ namespace Tomahawk
 				std::string Preferences;
 				std::string Environment;
 				std::string Directory;
-				size_t Stack = TH_STACKSIZE;
+				size_t Stack = TH_STACK_SIZE;
 				size_t PollingTimeout = 100;
 				size_t PollingEvents = 256;
 				size_t Coroutines = 16;

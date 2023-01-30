@@ -728,9 +728,9 @@ namespace Tomahawk
 			}
 			bool Client::ProcessAttachment()
 			{
-				char Data[8192];
+				char Data[TH_BIG_CHUNK_SIZE];
 				Attachment& It = Request.Attachments.at(Request.Attachments.size() - Pending);
-				size_t Count = It.Length > 8192 ? 8192 : It.Length;
+				size_t Count = It.Length > TH_BIG_CHUNK_SIZE ? TH_BIG_CHUNK_SIZE : It.Length;
 				size_t Size = (size_t)fread(Data, sizeof(char), Count, AttachmentFile);
 				if (Size != Count)
 					return Error("cannot read attachment block from %s", It.Path.c_str());

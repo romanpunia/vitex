@@ -5323,8 +5323,8 @@ namespace Tomahawk
 					size_t Size = File->GetSize();
 					while (Size > 0)
 					{
-						char Buffer[8192];
-						size_t Offset = File->Read(Buffer, Size > 8192 ? 8192 : Size);
+						char Buffer[TH_BIG_CHUNK_SIZE];
+						size_t Offset = File->Read(Buffer, Size > TH_BIG_CHUNK_SIZE ? TH_BIG_CHUNK_SIZE : Size);
 						if (Offset <= 0)
 							break;
 

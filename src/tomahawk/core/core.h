@@ -197,7 +197,9 @@ typedef socklen_t socket_size_t;
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
-#define TH_STACKSIZE (512 * 1024)
+#define TH_STACK_SIZE (512 * 1024)
+#define TH_CHUNK_SIZE (2048)
+#define TH_BIG_CHUNK_SIZE (8192)
 #define TH_OUT_TS TH_OUT
 #define TH_PERF_ATOM (1)
 #define TH_PERF_FRAME (5)
@@ -1239,7 +1241,7 @@ namespace Tomahawk
 		public:
 			struct TH_OUT Message
 			{
-				char Buffer[8192] = { '\0' };
+				char Buffer[TH_BIG_CHUNK_SIZE] = { '\0' };
 				char Date[64] = { '\0' };
 				std::string Temp;
 				const char* Source;
@@ -1393,6 +1395,7 @@ namespace Tomahawk
 			void Trace(uint32_t MaxFrames = 32);
 			void CaptureTime();
 			void SetColoring(bool Enabled);
+			void SetCursor(uint32_t X, uint32_t Y);
 			void ColorBegin(StdColor Text, StdColor Background = StdColor::Black);
 			void ColorEnd();
 			void WriteBuffer(const char* Buffer);
@@ -1405,6 +1408,7 @@ namespace Tomahawk
 			void sWrite(const std::string& Line);
 			void sfWriteLine(const char* Format, ...);
 			void sfWrite(const char* Format, ...);
+			void GetSize(uint32_t* Width, uint32_t* Height);
 			double GetCapturedTime() const;
 			std::string Read(size_t Size);
 
@@ -1628,7 +1632,7 @@ namespace Tomahawk
 			std::function<void()> NotifyUnlock;
 
 		public:
-			Costate(size_t StackSize = TH_STACKSIZE);
+			Costate(size_t StackSize = TH_STACK_SIZE);
 			virtual ~Costate() override;
 			Costate(const Costate&) = delete;
 			Costate(Costate&&) = delete;
@@ -1793,7 +1797,7 @@ namespace Tomahawk
 			{
 				std::chrono::milliseconds Timeout = std::chrono::milliseconds(2000);
 				size_t Threads[(size_t)Difficulty::Count] = { 1, 1, 1, 1 };
-				size_t Memory = TH_STACKSIZE;
+				size_t Memory = TH_STACK_SIZE;
 				size_t Coroutines = 16;
 				ActivityCallback Ping = nullptr;
 				bool Parallel = true;
@@ -2842,11 +2846,11 @@ namespace Tomahawk
 			va_list Args;
 			va_start(Args, Format);
 
-			char Buffer[10240];
+			char Buffer[TH_BIG_CHUNK_SIZE];
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
 			va_end(Args);
 
-			return Parser(Buffer, Size > 16384 ? 16384 : (size_t)Size);
+			return Parser(Buffer, Size > TH_BIG_CHUNK_SIZE ? TH_BIG_CHUNK_SIZE : (size_t)Size);
 		}
 		template <size_t Size>
 		TH_OUT_TS constexpr uint64_t Shuffle(const char Source[Size])

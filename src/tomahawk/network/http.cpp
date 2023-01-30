@@ -294,7 +294,7 @@ namespace Tomahawk
 				}
 				else if (State == (uint32_t)WebSocketState::Process)
 				{
-					char Buffer[8192];
+					char Buffer[TH_BIG_CHUNK_SIZE];
 					while (true)
 					{
 						int Size = Stream->Read(Buffer, sizeof(Buffer), [this](SocketPoll Event, const char* Buffer, size_t Recv)
@@ -1718,7 +1718,7 @@ namespace Tomahawk
 					int HasContents = (Response.StatusCode > 199 && Response.StatusCode != 204 && Response.StatusCode != 304);
 					if (HasContents)
 					{
-						char Buffer[8192];
+						char Buffer[TH_BIG_CHUNK_SIZE];
 						std::string Reason = TextHTML(Info.Message);
 						snprintf(Buffer, sizeof(Buffer), "<html><head><title>%d %s</title><style>" CSS_MESSAGE_STYLE "%s</style></head><body><div><h1>%d %s</h1></div></body></html>\n", Response.StatusCode, StatusText, Reason.size() <= 128 ? CSS_NORMAL_FONT : CSS_SMALL_FONT, Response.StatusCode, Reason.empty() ? StatusText : Reason.c_str());
 
@@ -1917,10 +1917,10 @@ namespace Tomahawk
 				X509_NAME* Issuer = X509_get_issuer_name(Certificate);
 				ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
 
-				char SubjectBuffer[1024];
+				char SubjectBuffer[TH_CHUNK_SIZE];
 				X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
 
-				char IssuerBuffer[1024], SerialBuffer[1024];
+				char IssuerBuffer[TH_CHUNK_SIZE], SerialBuffer[TH_CHUNK_SIZE];
 				X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
 
 				unsigned char Buffer[256];
@@ -1940,7 +1940,7 @@ namespace Tomahawk
 				unsigned int Size = 0;
 				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
-				char FingerBuffer[1024];
+				char FingerBuffer[TH_CHUNK_SIZE];
 				if (!Compute::Codec::HexToString(Buffer, Size, FingerBuffer, sizeof(FingerBuffer)))
 					*FingerBuffer = '\0';
                 
@@ -2642,14 +2642,14 @@ namespace Tomahawk
 
 				return Length;
 			}
-			int64_t Parser::ParseRequest(const char* BufferStart, size_t Length, size_t LastLength)
+			int64_t Parser::ParseRequest(const char* BufferStart, size_t Length, size_t Offset)
 			{
 				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = BufferStart + Length;
 				int Result;
-
-				if (LastLength != 0 && Complete(Buffer, BufferEnd, LastLength, &Result) == nullptr)
+				
+				if (Offset > 0 && IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
 					return (int64_t)Result;
 
 				if ((Buffer = ProcessRequest(Buffer, BufferEnd, &Result)) == nullptr)
@@ -2657,14 +2657,14 @@ namespace Tomahawk
 
 				return (int64_t)(Buffer - BufferStart);
 			}
-			int64_t Parser::ParseResponse(const char* BufferStart, size_t Length, size_t LastLength)
+			int64_t Parser::ParseResponse(const char* BufferStart, size_t Length, size_t Offset)
 			{
 				TH_ASSERT(BufferStart != nullptr, -1, "buffer start should be set");
 				const char* Buffer = BufferStart;
 				const char* BufferEnd = Buffer + Length;
 				int Result;
 
-				if (LastLength != 0 && Complete(Buffer, BufferEnd, LastLength, &Result) == nullptr)
+				if (Offset > 0 && IsCompleted(Buffer, BufferEnd, Offset, &Result) == nullptr)
 					return (int64_t)Result;
 
 				if ((Buffer = ProcessResponse(Buffer, BufferEnd, &Result)) == nullptr)
@@ -2897,14 +2897,14 @@ namespace Tomahawk
 				*Token = TokenStart;
 				return Buffer;
 			}
-			const char* Parser::Complete(const char* Buffer, const char* BufferEnd, size_t LastLength, int* Out)
+			const char* Parser::IsCompleted(const char* Buffer, const char* BufferEnd, size_t Offset, int* Out)
 			{
 				TH_ASSERT(Buffer != nullptr, nullptr, "buffer should be set");
 				TH_ASSERT(BufferEnd != nullptr, nullptr, "buffer end should be set");
 				TH_ASSERT(Out != nullptr, nullptr, "output should be set");
 
 				int Result = 0;
-				Buffer = LastLength < 3 ? Buffer : Buffer + LastLength - 3;
+				Buffer = Offset < 3 ? Buffer : Buffer + Offset - 3;
 
 				while (true)
 				{
@@ -5352,7 +5352,7 @@ namespace Tomahawk
 				TH_ASSERT(Stream != nullptr, false, "stream should be set");
 
             Retry:
-                char Buffer[8192];
+                char Buffer[TH_BIG_CHUNK_SIZE];
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
@@ -5482,7 +5482,7 @@ namespace Tomahawk
 #define FREE_STREAMING { TH_CLOSE(Stream); deflateEnd(ZStream); TH_FREE(ZStream); }
 				z_stream* ZStream = (z_stream*)CStream;
             Retry:
-                char Buffer[8192 + GZ_HEADER_SIZE], Deflate[8192];
+                char Buffer[TH_BIG_CHUNK_SIZE + GZ_HEADER_SIZE], Deflate[TH_BIG_CHUNK_SIZE];
 				if (!ContentLength || Router->State != ServerState::Working)
 				{
 				Cleanup:
@@ -5837,27 +5837,26 @@ namespace Tomahawk
 				auto* Conf = (MapRouter*)Router;
 				auto* Base = (Connection*)Source;
 
-				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Recv)
+				Base->Parsers.Request->PrepareForNextParsing(Base, false);
+				return Base->Stream->ReadUntilAsync("\r\n\r\n", [Base, Conf](SocketPoll Event, const char* Buffer, size_t Size)
 				{
 					if (Packet::IsData(Event))
 					{
-						Base->Request.Buffer.append(Buffer, Recv);
-						return true;
+						size_t LastLength = Base->Request.Buffer.size();
+						Base->Request.Buffer.append(Buffer, Size);
+
+						int64_t Offset = Base->Parsers.Request->ParseRequest(Base->Request.Buffer.data(), Base->Request.Buffer.size(), LastLength);
+						if (Offset >= 0 || Offset == -2)
+							return true;
+
+						Base->Error(400, "Invalid request was provided by client");
+						return false;
 					}
 					else if (Packet::IsDone(Event))
 					{
+						uint32_t Redirects = 0;
+						Base->Request.Buffer.clear();
 						Base->Info.Start = Utils::Clock();
-						Base->Parsers.Request->PrepareForNextParsing(Base, false);
-                        
-						if (Base->Parsers.Request->ParseRequest(Base->Request.Buffer.c_str(), Base->Request.Buffer.size(), 0) < 0)
-						{
-							Base->Request.Buffer.clear();
-							return Base->Error(400, "Invalid request was provided by client");
-						}
-                        
-                        uint32_t Redirects = 0;
-                        Base->Request.Buffer.clear();
-                        
                     Redirect:
 						if (!Paths::ConstructRoute(Conf, Base))
 							return Base->Error(400, "Request cannot be resolved");

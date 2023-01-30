@@ -654,13 +654,13 @@ namespace Tomahawk
 				virtual ~Parser() override;
 				void PrepareForNextParsing(Connection* Base, bool ForMultipart);
 				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
-				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LastLength);
-				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LastLength);
+				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LengthLastTime);
+				int64_t ParseResponse(const char* BufferStart, size_t Length, size_t LengthLastTime);
 				int64_t ParseDecodeChunked(char* Buffer, size_t* BufferLength);
 
 			private:
+				const char* IsCompleted(const char* Buffer, const char* BufferEnd, size_t Offset, int* Out);
 				const char* Tokenize(const char* Buffer, const char* BufferEnd, const char** Token, size_t* TokenLength, int* Out);
-				const char* Complete(const char* Buffer, const char* BufferEnd, size_t LastLength, int* Out);
 				const char* ProcessVersion(const char* Buffer, const char* BufferEnd, int* Out);
 				const char* ProcessHeaders(const char* Buffer, const char* BufferEnd, int* Out);
 				const char* ProcessRequest(const char* Buffer, const char* BufferEnd, int* Out);

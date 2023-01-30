@@ -1446,7 +1446,7 @@ namespace Tomahawk
 				return false;
 			}
 
-			char Buffer[8192]; size_t Size = 0;
+			char Buffer[TH_BIG_CHUNK_SIZE]; size_t Size = 0;
 			while ((Size = (size_t)Stream->Read(Buffer, sizeof(Buffer))) > 0)
 				Data->append(std::string(Buffer, Size));
 
@@ -1670,8 +1670,8 @@ namespace Tomahawk
 			Cursors[(size_t)DisplayCursor::Progress] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAITARROW);
 			Cursors[(size_t)DisplayCursor::No] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_NO);
 #endif
-			memset(Keys[0], 0, 1024 * sizeof(bool));
-			memset(Keys[1], 0, 1024 * sizeof(bool));
+			memset(Keys[0], 0, sizeof(Keys[0]));
+			memset(Keys[1], 0, sizeof(Keys[1]));
 			if (!I.AllowGraphics)
 				BuildLayer(RenderBackend::None);
 		}
@@ -1965,7 +1965,7 @@ namespace Tomahawk
 			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
 			TH_PPUSH(TH_PERF_MIX);
 
-			memcpy((void*)Keys[1], (void*)Keys[0], 1024);
+			memcpy((void*)Keys[1], (void*)Keys[0], sizeof(Keys[0]));
 #ifdef TH_HAS_SDL2
 			int Id = SDL_GetWindowID(Handle);
 			Command = (int)SDL_GetModState();
@@ -2414,7 +2414,7 @@ namespace Tomahawk
 		}
 		bool Activity::IsAnyKeyDown() const
 		{
-			for (int i = 0; i < 1024; i++)
+			for (int i = 0; i < sizeof(Keys[0]) / sizeof(bool); i++)
 			{
 				if (Keys[0][i])
 					return true;
@@ -2693,8 +2693,8 @@ namespace Tomahawk
 #ifdef TH_HAS_SDL2
 			int Count;
 			auto* Map = SDL_GetKeyboardState(&Count);
-			if (Count > 1024)
-				Count = 1024;
+			if (Count > sizeof(Keys[0]) / sizeof(bool))
+				Count = sizeof(Keys[0]) / sizeof(bool);
 
 			for (int i = 0; i < Count; i++)
 				Keys[0][i] = Map[i] > 0;

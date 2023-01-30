@@ -43,6 +43,7 @@
 #endif
 #define DNS_TIMEOUT 21600
 #define CONNECT_TIMEOUT 2000
+#define MAX_READ_UNTIL 512
 #pragma warning(push)
 #pragma warning(disable: 4996)
 
@@ -741,7 +742,7 @@ namespace Tomahawk
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Size > 0, -1, "size should be greater than zero");
 
-			char Buffer[8192];
+			char Buffer[TH_BIG_CHUNK_SIZE];
             int Offset = 0;
             
 			while (Size > 0)
@@ -784,30 +785,40 @@ namespace Tomahawk
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Match != nullptr, -1, "match should be set");
 
-			char Buffer = 0;
-			int Size = (int)strlen(Match);
-			int Offset = 0, Index = 0;
+			char Buffer[MAX_READ_UNTIL];
+			size_t Size = strlen(Match), Offset = 0, Index = 0;
+			auto Publish = [&Callback, &Buffer, &Offset](size_t Size)
+			{
+				Offset = 0;
+				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
+			};
 
 			TH_ASSERT(Size > 0, -1, "match should not be empty");
 			while (true)
 			{
-				int Length = Read(&Buffer, 1);
+				int Length = Read(Buffer + Offset, 1);
 				if (Length <= 0)
 				{
+					if (Offset > 0 && !Publish(Offset))
+						return -1;
+
 					if (Callback)
 						Callback(SocketPoll::Reset, nullptr, 0);
 
 					return -1;
 				}
 
-                Offset += Length;
-				if (Callback && !Callback(SocketPoll::Next, &Buffer, 1))
+				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
 					break;
 
-				if (Match[Index] == Buffer)
+				if (Match[Index] == Buffer[Offset - 1])
 				{
 					if (++Index >= Size)
+					{
+						if (Offset > 0)
+							Publish(Offset);
 						break;
+					}
 				}
 				else
 					Index = 0;
@@ -823,15 +834,18 @@ namespace Tomahawk
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Match != nullptr, -1, "match should be set");
 
-			size_t Size = strlen(Match);
-			TH_ASSERT(Size > 0, -1, "match should not be empty");
+			char Buffer[MAX_READ_UNTIL];
+			size_t Size = strlen(Match), Offset = 0;
+			auto Publish = [&Callback, &Buffer, &Offset](size_t Size)
+			{
+				Offset = 0;
+				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
+			};
 
-			char Buffer = 0;
-            int Offset = 0;
-            
+			TH_ASSERT(Size > 0, -1, "match should not be empty");
 			while (true)
 			{
-				int Length = Read(&Buffer, 1);
+				int Length = Read(Buffer + Offset, 1);
 				if (Length == -2)
 				{
 					if (!TempBuffer)
@@ -860,20 +874,26 @@ namespace Tomahawk
 					if (TempBuffer != nullptr)
 						TH_FREE(TempBuffer);
 
+					if (Offset > 0 && !Publish(Offset))
+						return -1;
+
 					if (Callback)
 						Callback(SocketPoll::Reset, nullptr, 0);
 
 					return -1;
 				}
 
-                Offset += Length;
-				if (Callback && !Callback(SocketPoll::Next, &Buffer, 1))
+				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
 					break;
 
-				if (Match[TempIndex] == Buffer)
+				if (Match[TempIndex] == Buffer[Offset - 1])
 				{
 					if (++TempIndex >= Size)
+					{
+						if (Offset > 0)
+							Publish(Offset);
 						break;
+					}
 				}
 				else
 					TempIndex = 0;
@@ -885,7 +905,7 @@ namespace Tomahawk
 			if (Callback)
 				Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
 
-			return Offset;
+			return 0;
 		}
 		int Socket::Connect(Address* Address, uint64_t Timeout)
 		{
@@ -1146,7 +1166,7 @@ namespace Tomahawk
 		}
 		std::string Socket::GetLocalAddress()
 		{
-			char Buffer[1024];
+			char Buffer[TH_CHUNK_SIZE];
 			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
 				return "127.0.0.1";
 
@@ -1224,7 +1244,7 @@ namespace Tomahawk
 		}
 		bool SocketConnection::Error(int StatusCode, const char* ErrorMessage, ...)
 		{
-			char Buffer[8192];
+			char Buffer[TH_BIG_CHUNK_SIZE];
 			if (Info.Close)
 				return Finish();
 
@@ -1254,10 +1274,10 @@ namespace Tomahawk
 			X509_NAME* Issuer = X509_get_issuer_name(Certificate);
 			ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
             
-			char SubjectBuffer[1024];
+			char SubjectBuffer[TH_CHUNK_SIZE];
 			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
 
-			char IssuerBuffer[1024], SerialBuffer[1024];
+			char IssuerBuffer[TH_CHUNK_SIZE], SerialBuffer[TH_CHUNK_SIZE];
 			X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
 
 			unsigned char Buffer[256];
@@ -1277,7 +1297,7 @@ namespace Tomahawk
 			unsigned int Size = 0;
 			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
             
-			char FingerBuffer[1024];
+			char FingerBuffer[TH_CHUNK_SIZE];
 			if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
 				*FingerBuffer = '\0';
             
@@ -2863,7 +2883,7 @@ namespace Tomahawk
 		}
 		bool SocketClient::Error(const char* Format, ...)
 		{
-			char Buffer[10240];
+			char Buffer[TH_BIG_CHUNK_SIZE];
 			va_list Args;
 			va_start(Args, Format);
 			int Size = vsnprintf(Buffer, sizeof(Buffer), Format, Args);
@@ -2889,6 +2909,6 @@ namespace Tomahawk
 		{
 			return &Stream;
 		}
-}
+	}
 }
 #pragma warning(pop)

@@ -513,12 +513,14 @@ namespace Tomahawk
 				struct IndirectionBuffer
 				{
 					float Random[2] = { 0.0f, 0.0f };
-					float Samples = 6.0f;
-					float Distance = 10.0f;
-					float Padding = 0.0f;
-					float Cutoff = -0.2f;
-					float Attenuation = 0.2f;
-					float Swing = 16.0f;
+					float Samples = 10.0f;
+					float Distance = 3.0f;
+					float Initial = 0.0f;
+					float Cutoff = -0.05f;
+					float Attenuation = 1.0f;
+					float Swing = 0.333333f;
+					float Padding[3] = { 0.0f, 0.0f, 0.0f };
+					float Bias = 2.0f;
 				} Indirection;
 
 				struct DenoiseBuffer
@@ -530,12 +532,19 @@ namespace Tomahawk
 					float Blur = 16.000f;
 				} Denoise;
 
+			private:
+				Graphics::Texture2D* EmissionMap = nullptr;
+
+			public:
+				uint32_t Bounces = 1;
+
 			public:
 				SSGI(RenderSystem* Lab);
-				virtual ~SSGI() = default;
+				virtual ~SSGI() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
 				void RenderEffect(Core::Timer* Time) override;
+				void ResizeEffect() override;
 
 			public:
 				TH_COMPONENT("ssgi-renderer");

@@ -6,16 +6,19 @@
 #include "std/core/random.hlsl"
 
 Texture2D StochasticNormalMap : register(t5);
+Texture2D EmissionMap : register(t6);
 
 cbuffer RenderConstant : register(b3)
 {
     float2 Random;
 	float Samples;
 	float Distance;
-    float Padding;
+    float Initial;
     float Cutoff;
     float Attenuation;
     float Swing;
+    float3 Padding;
+    float Bias;
 }
 
 static const float3 RayCastingSphere[16] =
@@ -40,7 +43,9 @@ static const float3 RayCastingSphere[16] =
 
 float3 GetLightAt(float2 TexCoord)
 {
-    float3 Light = GetDiffuse(TexCoord, 0).xyz;
+    float Emission = SurfaceBuffer.SampleLevel(Sampler, TexCoord, 0).w;
+    float3 Light = EmissionMap.SampleLevel(Sampler, TexCoord, 0).xyz;
+    Light += Light * Emission;
     return Swing * pow(abs(Light), 1.0 / Attenuation);
 }
 
@@ -56,30 +61,41 @@ VOutput vs_main(VInput V)
 float4 ps_main(VOutput V) : SV_TARGET0
 {
     float2 UV = GetTexCoord(V.TexCoord);
+    float3 Color = EmissionMap.SampleLevel(Sampler, UV, 0).xyz;
+    if (Initial > 0.0)
+        Color = float3(0.0, 0.0, 0.0);
+    
 	Fragment Frag = GetFragment(UV);
 	[branch] if (Frag.Depth >= 1.0)
-		return float4(0.0, 0.0, 0.0, 1.0);
+		return float4(Color.xyz, 1.0);
 
 	Material Mat = Materials[Frag.Material];
 	float3 Metallic = 1.0 - GetMetallic(Frag, Mat);
     float3 Accumulation = 0.0;
     float2 Jitter = RandomFloat2(UV + Random) + 0.5;
 	float4 Normal = StochasticNormalMap.SampleLevel(Sampler, UV, 0);
-    float Step = (1.0 / (float)Samples);
+    float Step = (1.0 / (float)Samples), Counter = 0.0;
     Step = Step * (Jitter.x + Jitter.y) + Step;
 
-    const float Steps = 16.0;
-    for (float i = 0; i < Steps; i++)
+    for (float i = 0; i < Samples; i++)
     {
         float3 Direction = normalize(Normal.xyz + RayCastingSphere[i]);
         [branch] if (dot(Frag.Normal, Direction) < Cutoff)
             continue;
 
         float3 TexCoord = Raymarch(Frag.Position, Direction, Samples, Step * Distance);
-        if (TexCoord.z != -1.0)
-            Accumulation += GetLightAt(TexCoord.xy);
+        [branch] if (TexCoord.z == -1.0)
+            continue;
+
+        float3 Light = GetLightAt(TexCoord.xy);
+        float Emission = distance(Frag.Position, GetPosition(TexCoord.xy, TexCoord.z)) / Distance;
+        Emission = Bias * Emission * length(Light) / 3.0;
+        Accumulation += Light * (1.0 - Emission * Emission);
+        Counter++;
     }
 
-    Accumulation /= Steps;
-    return float4(Metallic * Accumulation, 1.0);
+    if (Counter > 0.0)
+        Accumulation /= Counter;
+    
+    return float4(Color + Metallic * Accumulation, 1.0);
 };

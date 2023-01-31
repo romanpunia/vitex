@@ -6026,6 +6026,18 @@ namespace Tomahawk
 		void EffectRenderer::ResizeEffect()
 		{
 		}
+		void EffectRenderer::RenderCopyMain(uint32_t Slot, Graphics::Texture2D* Target)
+		{
+			TH_ASSERT_V(Target != nullptr, "texture should be set");
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->CopyTexture2D(System->GetScene()->GetMRT(TargetType::Main), Slot, &Target);
+		}
+		void EffectRenderer::RenderCopyLast(Graphics::Texture2D* Target)
+		{
+			TH_ASSERT_V(Target != nullptr, "texture should be set");
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Device->CopyTexture2D(Output, 0, &Target);
+		}
 		void EffectRenderer::RenderOutput(Graphics::RenderTarget2D* Resource)
 		{
 			TH_ASSERT_V(System->GetDevice() != nullptr, "graphics device should be set");
@@ -6118,6 +6130,23 @@ namespace Tomahawk
 				Device->SetBuffer(Effect, 3, TH_VS | TH_PS);
 			}
 
+			Device->Draw(6, 0);
+			Output = System->GetRT(TargetType::Main);
+
+			auto* Scene = System->GetScene();
+			Scene->Statistics.DrawCalls++;
+		}
+		void EffectRenderer::RenderResult()
+		{
+			Graphics::GraphicsDevice* Device = System->GetDevice();
+			Graphics::Texture2D** Merger = System->GetMerger();
+
+			if (Swap != nullptr && Output != Swap)
+				Device->SetTexture2D(Swap->GetTarget(), 1, TH_PS);
+			else if (Merger != nullptr)
+				Device->SetTexture2D(*Merger, 1, TH_PS);
+
+			Device->SetShader(Device->GetBasicEffect(), TH_VS | TH_PS);
 			Device->Draw(6, 0);
 			Output = System->GetRT(TargetType::Main);
 

@@ -2066,7 +2066,7 @@ namespace Tomahawk
 				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
 				{
 					if (Hit != nullptr)
-						*Hit = HitPoint;
+						*Hit = HitPoint.Transform(World);
 
 					return true;
 				}
@@ -2080,7 +2080,7 @@ namespace Tomahawk
 				if (HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
 				{
 					if (Hit != nullptr)
-						*Hit = HitPoint;
+						*Hit = HitPoint.Transform(World);
 
 					return true;
 				}
@@ -2094,7 +2094,7 @@ namespace Tomahawk
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
 				{
 					if (Hit != nullptr)
-						*Hit = HitPoint;
+						*Hit = HitPoint.Transform(World);
 
 					return true;
 				}
@@ -2108,7 +2108,7 @@ namespace Tomahawk
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Z >= Min.Z && HitPoint.Z <= Max.Z)
 				{
 					if (Hit != nullptr)
-						*Hit = HitPoint;
+						*Hit = HitPoint.Transform(World);
 
 					return true;
 				}
@@ -2122,7 +2122,7 @@ namespace Tomahawk
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
 				{
 					if (Hit != nullptr)
-						*Hit = HitPoint;
+						*Hit = HitPoint.Transform(World);
 
 					return true;
 				}
@@ -2136,7 +2136,7 @@ namespace Tomahawk
 				if (HitPoint.X >= Min.X && HitPoint.X <= Max.X && HitPoint.Y >= Min.Y && HitPoint.Y <= Max.Y)
 				{
 					if (Hit != nullptr)
-						*Hit = HitPoint;
+						*Hit = HitPoint.Transform(World);
 
 					return true;
 				}

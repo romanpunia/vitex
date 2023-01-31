@@ -13,7 +13,7 @@ VOutput vs_main(VInput V)
 }
 
 float4 ps_main(VOutput V) : SV_TARGET0
-{	
+{
 	float3 A = GetDiffuse(V.TexCoord.xy, 0).xyz;
 	float3 B = Image.SampleLevel(Sampler, V.TexCoord.xy, 0).xyz;
 	return float4(A + B, 1.0);

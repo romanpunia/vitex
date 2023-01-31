@@ -2283,12 +2283,15 @@ namespace Tomahawk
 			unsigned int GetHeight() const;
 
 		protected:
+			void RenderCopyMain(uint32_t Slot, Graphics::Texture2D* Target);
+			void RenderCopyLast(Graphics::Texture2D* Target);
 			void RenderOutput(Graphics::RenderTarget2D* Resource = nullptr);
 			void RenderTexture(uint32_t Slot6, Graphics::Texture2D* Resource = nullptr);
 			void RenderTexture(uint32_t Slot6, Graphics::Texture3D* Resource = nullptr);
 			void RenderTexture(uint32_t Slot6, Graphics::TextureCube* Resource = nullptr);
 			void RenderMerge(Graphics::Shader* Effect, void* Buffer = nullptr, size_t Count = 1);
 			void RenderResult(Graphics::Shader* Effect, void* Buffer = nullptr);
+			void RenderResult();
 			void GenerateMips();
 			Graphics::Shader* GetEffect(const std::string& Name);
 			Graphics::Shader* CompileEffect(Graphics::Shader::Desc& Desc, size_t BufferSize = 0);

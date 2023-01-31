@@ -2102,13 +2102,17 @@ namespace Tomahawk
 				RenderResult(Shaders.Additive);
 			}
 
-			SSGI::SSGI(RenderSystem* Lab) : EffectRenderer(Lab)
+			SSGI::SSGI(RenderSystem* Lab) : EffectRenderer(Lab), EmissionMap(nullptr)
 			{
 				Shaders.Stochastic = CompileEffect("postprocess/stochastic", sizeof(Stochastic));
 				Shaders.Indirection = CompileEffect("postprocess/indirection", sizeof(Indirection));
 				Shaders.Denoise[0] = CompileEffect("postprocess/denoise-x", sizeof(Denoise));
 				Shaders.Denoise[1] = CompileEffect("postprocess/denoise-y");
 				Shaders.Additive = CompileEffect("postprocess/additive");
+			}
+			SSGI::~SSGI()
+			{
+				TH_RELEASE(EmissionMap);
 			}
 			void SSGI::Deserialize(Core::Schema* Node)
 			{
@@ -2120,6 +2124,8 @@ namespace Tomahawk
 				Series::Unpack(Node->Find("cutoff-2"), &Denoise.Cutoff);
 				Series::Unpack(Node->Find("attenuation"), &Indirection.Attenuation);
 				Series::Unpack(Node->Find("swing"), &Indirection.Swing);
+				Series::Unpack(Node->Find("bias"), &Indirection.Bias);
+				Series::Unpack(Node->Find("distance"), &Indirection.Distance);
 				Series::Unpack(Node->Find("blur"), &Denoise.Blur);
 			}
 			void SSGI::Serialize(Core::Schema* Node)
@@ -2132,6 +2138,8 @@ namespace Tomahawk
 				Series::Pack(Node->Set("cutoff-2"), Denoise.Cutoff);
 				Series::Pack(Node->Set("attenuation"), Indirection.Attenuation);
 				Series::Pack(Node->Set("swing"), Indirection.Swing);
+				Series::Pack(Node->Set("bias"), Indirection.Bias);
+				Series::Pack(Node->Set("distance"), Indirection.Distance);
 				Series::Pack(Node->Set("blur"), Denoise.Blur);
 			}
 			void SSGI::RenderEffect(Core::Timer* Time)
@@ -2144,11 +2152,38 @@ namespace Tomahawk
 				Stochastic.Texel[1] = (float)GetHeight();
 				Stochastic.FrameId++;
 
+				float Distance = Indirection.Distance;
+				float Swing = Indirection.Swing;
+				float Bias = Indirection.Bias;
+				RenderTexture(0, EmissionMap);
+				RenderCopyMain(0, EmissionMap);
 				RenderMerge(Shaders.Stochastic, &Stochastic);
-				RenderMerge(Shaders.Indirection, &Indirection);
+				for (uint32_t i = 0; i < Bounces; i++)
+				{
+					float Bounce = (float)(i + 1);
+					Indirection.Distance = Distance * Bounce;
+					Indirection.Swing = Swing / Bounce;
+					Indirection.Bias = Bias * Bounce;
+					Indirection.Initial = i > 0 ? 0.0f : 1.0f;
+					RenderMerge(Shaders.Indirection, &Indirection);
+					if (i + 1 < Bounces)
+						RenderCopyLast(EmissionMap);
+				}
 				RenderMerge(Shaders.Denoise[0], &Denoise, 3);
 				RenderMerge(Shaders.Denoise[1], nullptr, 3);
 				RenderResult(Shaders.Additive);
+				Indirection.Distance = Distance;
+				Indirection.Swing = Swing;
+				Indirection.Bias = Bias;
+			}
+			void SSGI::ResizeEffect()
+			{
+				TH_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
+				TH_CLEAR(EmissionMap);
+
+				SceneGraph* Scene = System->GetScene();
+				Graphics::GraphicsDevice* Device = System->GetDevice();
+				Device->CopyTexture2D(Scene->GetRT(TargetType::Main), 0, &EmissionMap);
 			}
 
 			SSAO::SSAO(RenderSystem* Lab) : EffectRenderer(Lab)

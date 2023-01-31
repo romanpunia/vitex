@@ -3410,6 +3410,7 @@ namespace Tomahawk
 
 			void Driver::Create()
 			{
+				Network::Driver::SetActive(true);
 #ifdef TH_HAS_MONGOC
 				if (State <= 0)
 				{
@@ -3479,6 +3480,7 @@ namespace Tomahawk
 				else if (State > 0)
 					State--;
 #endif
+				Network::Driver::SetActive(false);
 			}
 			void Driver::SetQueryLog(const OnQueryLog& Callback)
 			{

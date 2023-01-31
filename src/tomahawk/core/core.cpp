@@ -80,59 +80,14 @@ namespace
 
 		return TRUE;
 	}
-	int UnicodeCompare(const wchar_t* Value1, const wchar_t* Value2)
-	{
-		int Difference;
-		do
-		{
-			Difference = tolower(*Value1) - tolower(*Value2);
-			Value1++;
-			Value2++;
-		} while (Difference == 0 && Value1[-1] != '\0');
-
-		return Difference;
-	}
-	void UnicodePath(const char* Path, wchar_t* Input, size_t InputSize, bool Exists)
-	{
-		char Buffer1[TH_CHUNK_SIZE];
-		strncpy(Buffer1, Path, sizeof(Buffer1));
-
-		for (unsigned int i = 0; Buffer1[i] != '\0'; i++)
-		{
-			if (!i || (Buffer1[i] != '/' && Buffer1[i] != '\\'))
-				continue;
-
-			while (Buffer1[i + 1] == '\\' || Buffer1[i + 1] == '/')
-				memmove(Buffer1 + i + 1, Buffer1 + i + 2, strlen(Buffer1 + i + 1));
-		}
-
-		memset(Input, 0, InputSize * sizeof(wchar_t));
-		MultiByteToWideChar(CP_UTF8, 0, Buffer1, -1, Input, (int)InputSize);
-
-		char Buffer2[TH_CHUNK_SIZE];
-		WideCharToMultiByte(CP_UTF8, 0, Input, (int)InputSize, Buffer2, sizeof(Buffer2), nullptr, nullptr);
-		if (strcmp(Buffer1, Buffer2) != 0)
-			Input[0] = L'\0';
-
-		wchar_t WBuffer[TH_CHUNK_SIZE + 1];
-		memset(WBuffer, 0, (sizeof(WBuffer) / sizeof(WBuffer[0])) * sizeof(wchar_t));
-
-		DWORD Length = GetLongPathNameW(Input, WBuffer, (sizeof(WBuffer) / sizeof(WBuffer[0])) - 1);
-		if (!Exists)
-			return;
-
-		if (Length == 0)
-		{
-			if (GetLastError() == ERROR_FILE_NOT_FOUND)
-				return;
-		}
-
-		if (Length >= (sizeof(WBuffer) / sizeof(WBuffer[0])) || UnicodeCompare(Input, WBuffer) != 0)
-			Input[0] = L'\0';
-	}
 	bool LocalTime(time_t const* const A, struct tm* const B)
 	{
 		return localtime_s(B, A) == 0;
+	}
+	void ConvertToWideChar(const char* Input, size_t Size, wchar_t* Output, size_t MaxSize)
+	{
+		size_t OutputSize;
+		mbstowcs_s(&OutputSize, Output, MaxSize, Input, Size);
 	}
 }
 #else
@@ -344,7 +299,7 @@ namespace Tomahawk
 {
 	namespace Core
 	{
-		typedef moodycamel::ConcurrentQueue<TaskCallback*> FastQueue;
+		typedef moodycamel::ConcurrentQueue<TaskCallback> FastQueue;
 		typedef moodycamel::ConsumerToken ReceiveToken;
 
 		struct ConcurrentQueuePtr
@@ -6329,15 +6284,15 @@ namespace Tomahawk
 				Dirent Result;
 			};
 
-			wchar_t WPath[TH_CHUNK_SIZE];
-			UnicodePath(Path.c_str(), WPath, sizeof(WPath) / sizeof(WPath[0]), true);
+			wchar_t Buffer[TH_CHUNK_SIZE];
+			ConvertToWideChar(Path.c_str(), Path.size(), Buffer, TH_CHUNK_SIZE);
 
 			auto* Value = TH_MALLOC(Directory, sizeof(Directory));
-			DWORD Attributes = GetFileAttributesW(WPath);
+			DWORD Attributes = GetFileAttributesW(Buffer);
 			if (Attributes != 0xFFFFFFFF && ((Attributes & FILE_ATTRIBUTE_DIRECTORY) == FILE_ATTRIBUTE_DIRECTORY))
 			{
-				wcscat(WPath, L"\\*");
-				Value->Handle = FindFirstFileW(WPath, &Value->Info);
+				wcscat(Buffer, L"\\*");
+				Value->Handle = FindFirstFileW(Buffer, &Value->Info);
 				Value->Result.Directory[0] = '\0';
 			}
 			else
@@ -6423,7 +6378,8 @@ namespace Tomahawk
 			TH_DEBUG("[io] create dir %s", Path);
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[TH_CHUNK_SIZE];
-			UnicodePath(Path, Buffer, TH_CHUNK_SIZE, false);
+			ConvertToWideChar(Path, strlen(Path), Buffer, TH_CHUNK_SIZE);
+
 			size_t Length = wcslen(Buffer);
 			if (!Length)
 			{
@@ -6649,11 +6605,11 @@ namespace Tomahawk
 
 			memset(Resource, 0, sizeof(*Resource));
 #if defined(TH_MICROSOFT)
-			wchar_t WBuffer[TH_CHUNK_SIZE];
-			UnicodePath(Path.c_str(), WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]), true);
+			wchar_t Buffer[TH_CHUNK_SIZE];
+			ConvertToWideChar(Path.c_str(), Path.size(), Buffer, TH_CHUNK_SIZE);
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
-			if (GetFileAttributesExW(WBuffer, GetFileExInfoStandard, &Info) == 0)
+			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
 			{
 				TH_PPOP();
 				return false;
@@ -6862,11 +6818,11 @@ namespace Tomahawk
 			TH_PPUSH(TH_PERF_IO);
 			TH_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef TH_MICROSOFT
-			wchar_t WBuffer[TH_CHUNK_SIZE], WMode[20];
-			UnicodePath(Path, WBuffer, sizeof(WBuffer) / sizeof(WBuffer[0]), true);
-			MultiByteToWideChar(CP_UTF8, 0, Mode, -1, WMode, sizeof(WMode) / sizeof(WMode[0]));
+			wchar_t Buffer[TH_CHUNK_SIZE], Type[20];
+			ConvertToWideChar(Path, strlen(Path), Buffer, TH_CHUNK_SIZE);
+			ConvertToWideChar(Mode, strlen(Mode), Type, 20);
 
-			FILE* Stream = _wfopen(WBuffer, WMode);
+			FILE* Stream = _wfopen(Buffer, Type);
 			TH_DEBUG("[io] open fs %s %s", Mode, Path);
 			TH_PRET((void*)Stream);
 #else
@@ -8606,7 +8562,7 @@ namespace Tomahawk
 			TH_PPUSH(TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Type];
 			std::unique_lock<std::mutex> Lock(Queue->Update);
-			Queue->Tasks.enqueue(TH_NEW(TaskCallback, Callback));
+			Queue->Tasks.enqueue(Callback);
 			Queue->Notify.notify_all();
 			TH_PRET(true);
 		}
@@ -8622,7 +8578,7 @@ namespace Tomahawk
 #endif
 			TH_PPUSH(TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Type];
-			Queue->Tasks.enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+			Queue->Tasks.enqueue(std::move(Callback));
 			Queue->Notify.notify_all();
 			TH_PRET(true);
 		}
@@ -8634,7 +8590,7 @@ namespace Tomahawk
 
 			TH_PPUSH(TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
-			Queue->Tasks.enqueue(TH_NEW(TaskCallback, Callback));
+			Queue->Tasks.enqueue(Callback);
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
 				Thread->Notify.notify_all();
 			TH_PRET(true);
@@ -8649,7 +8605,7 @@ namespace Tomahawk
 #endif
 			TH_PPUSH(TH_PERF_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
-			Queue->Tasks.enqueue(TH_NEW(TaskCallback, std::move(Callback)));
+			Queue->Tasks.enqueue(std::move(Callback));
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
 				Thread->Notify.notify_all();
 			TH_PRET(true);
@@ -8730,13 +8686,9 @@ namespace Tomahawk
 				}
 			}
 
-			TaskCallback* Data = nullptr;
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
-				while (Queue->Tasks.try_dequeue(Data) || Queue->Tasks.size_approx() > 0)
-					TH_DELETE(function, Data);
-
 				std::unique_lock<std::mutex> Lock(Queue->Update);
 				Queue->Timers.clear();
 			}
@@ -8750,7 +8702,7 @@ namespace Tomahawk
 		}
 		bool Schedule::Wakeup()
 		{
-			TaskCallback* Dummy[TH_MAX_EVENTS * 2] = { nullptr };
+			TaskCallback Dummy[TH_MAX_EVENTS * 2] = { nullptr };
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				auto* Queue = Queues[i];
@@ -8824,7 +8776,6 @@ namespace Tomahawk
 
 					while (Left > 0 && Count > 0)
 					{
-						memset(Dispatcher.Events.data(), 0, sizeof(TaskCallback*) * Dispatcher.Events.size());
 						Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Events.begin(), Left);
 						Left -= Count;
 						Passes += Count;
@@ -8833,12 +8784,9 @@ namespace Tomahawk
 #endif
 						for (size_t i = 0; i < Count; ++i)
 						{
-							TaskCallback* Data = Dispatcher.Events[i];
+							TaskCallback& Data = Dispatcher.Events[i];
 							if (Data != nullptr)
-							{
-								Dispatcher.State->Pop(std::move(*Data));
-								TH_DELETE(function, Data);
-							}
+								Dispatcher.State->Pop(std::move(Data));
 						}
 					}
 #ifndef NDEBUG
@@ -8854,7 +8802,6 @@ namespace Tomahawk
 				case Difficulty::Light:
 				case Difficulty::Heavy:
 				{
-					memset(Dispatcher.Tasks, 0, sizeof(Dispatcher.Tasks));
 					size_t Count = Queue->Tasks.try_dequeue_bulk(Dispatcher.Tasks, TH_MAX_EVENTS);
 #ifndef NDEBUG
 					PostDebug(Type, ThreadTask::ProcessTask, Count);
@@ -8862,12 +8809,9 @@ namespace Tomahawk
 					for (size_t i = 0; i < Count; ++i)
 					{
 						TH_PPUSH(Type == Difficulty::Heavy ? TH_PERF_MAX : TH_PERF_IO);
-						TaskCallback* Data = Dispatcher.Tasks[i];
+						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
 						if (Data != nullptr)
-						{
-							(*Data)();
-							TH_DELETE(function, Data);
-						}
+							Data();
 						TH_PPOP();
 					}
 #ifndef NDEBUG
@@ -8958,7 +8902,7 @@ namespace Tomahawk
 						Thread->Update.unlock();
 					};
 
-					std::vector<TaskCallback*> Events;
+					std::vector<TaskCallback> Events;
 					Events.resize(Policy.Coroutines);
 
 					do
@@ -8970,7 +8914,6 @@ namespace Tomahawk
 #endif
 						while (Left > 0 && Count > 0)
 						{
-							memset(Events.data(), 0, sizeof(TaskCallback*) * Events.size());
 							Count = Queue->Tasks.try_dequeue_bulk(Token, Events.begin(), Left);
 							Left -= Count;
 #ifndef NDEBUG
@@ -8978,12 +8921,9 @@ namespace Tomahawk
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
-								TaskCallback* Data = Events[i];
+								TaskCallback& Data = Events[i];
 								if (Data != nullptr)
-								{
-									State->Pop(std::move(*Data));
-									TH_DELETE(function, Data);
-								}
+									State->Pop(std::move(Data));
 							}
 						}
 #ifndef NDEBUG
@@ -9015,7 +8955,7 @@ namespace Tomahawk
 				case Difficulty::Heavy:
 				{
 					ReceiveToken Token(Queue->Tasks);
-					TaskCallback* Events[TH_MAX_EVENTS];
+					TaskCallback Events[TH_MAX_EVENTS];
 
 					do
 					{
@@ -9025,7 +8965,6 @@ namespace Tomahawk
 						size_t Count = 0;
 						do
 						{
-							memset(Events, 0, sizeof(Events));
 							Count = Queue->Tasks.try_dequeue_bulk(Token, Events, TH_MAX_EVENTS);
 #ifndef NDEBUG
 							PostDebug(Thread, ThreadTask::ProcessTask, Count);
@@ -9033,12 +8972,9 @@ namespace Tomahawk
 							for (size_t i = 0; i < Count; ++i)
 							{
 								TH_PPUSH(TH_PERF_MAX);
-								TaskCallback* Data = Events[i];
+								TaskCallback Data(std::move(Events[i]));
 								if (Data != nullptr)
-								{
-									(*Data)();
-									TH_DELETE(function, Data);
-								}
+									Data();
 								TH_PPOP();
 							}
 						} while (Count > 0);

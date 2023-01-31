@@ -1809,8 +1809,8 @@ namespace Tomahawk
 		private:
 			struct
 			{
-				std::vector<TaskCallback*> Events;
-				TaskCallback* Tasks[TH_MAX_EVENTS];
+				std::vector<TaskCallback> Events;
+				TaskCallback Tasks[TH_MAX_EVENTS];
 				Costate* State = nullptr;
 			} Dispatcher;
 

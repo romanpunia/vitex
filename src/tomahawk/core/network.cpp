@@ -1787,6 +1787,13 @@ namespace Tomahawk
 
 			DNS::Release();
 		}
+		void Driver::SetActive(bool Active)
+		{
+			if (Active)
+				TryListen(false);
+			else
+				TryUnlisten();
+		}
 		int Driver::Dispatch(uint64_t EventTimeout)
 		{
 			TH_ASSERT(Handle != nullptr && Timeouts != nullptr, -1, "driver should be initialized");
@@ -1980,7 +1987,7 @@ namespace Tomahawk
 		}
 		bool Driver::IsListening()
 		{
-			return Listens || Sockets > 0;
+			return Sockets > 0;
 		}
 		bool Driver::IsActive()
 		{
@@ -1997,21 +2004,19 @@ namespace Tomahawk
 		void Driver::TryEnqueue()
 		{
 			auto* Queue = Core::Schedule::Get();
-			if (Queue->CanEnqueue() && Listens && Sockets > 0)
-				Listens = Queue->SetTask(&Driver::TryDispatch);
-			else
-				Listens = false;
+			if (Queue->CanEnqueue() && Sockets > 0)
+				Queue->SetTask(&Driver::TryDispatch);
 		}
 		void Driver::TryListen(bool Updated)
 		{
 			std::unique_lock<std::mutex> Unique(Inclusive);
+			bool WasListening = Sockets > 0;
 			if (!Updated)
 				++Sockets;
 
-			if (!Listens)
+			if (!WasListening)
 			{
 				TH_DEBUG("[net] start events polling", Sockets);
-				Listens = true;
 				TryEnqueue();
 			}
 		}
@@ -2019,10 +2024,7 @@ namespace Tomahawk
 		{
 			std::unique_lock<std::mutex> Unique(Inclusive);
 			if (!--Sockets)
-			{
 				TH_DEBUG("[net] stop events polling", Sockets);
-				Listens = false;
-			}
 		}
 		bool Driver::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable)
 		{
@@ -2112,6 +2114,10 @@ namespace Tomahawk
 			if (It != Timeouts->Map.end())
 				Timeouts->Map.erase(It);
 		}
+		size_t Driver::GetSockets()
+		{
+			return Sockets;
+		}
 		EpollHandle* Driver::Handle = nullptr;
 		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Driver::Timeouts = nullptr;
 		std::vector<EpollFd>* Driver::Fds = nullptr;
@@ -2119,10 +2125,10 @@ namespace Tomahawk
 		std::mutex Driver::Inclusive;
 		uint64_t Driver::DefaultTimeout = 50;
 		size_t Driver::Sockets = 0;
-		bool Driver::Listens = false;
 
 		SocketServer::SocketServer() : Backlog(1024)
 		{
+			Driver::SetActive(true);
 #ifndef TH_MICROSOFT
 			signal(SIGPIPE, SIG_IGN);
 #endif
@@ -2130,6 +2136,7 @@ namespace Tomahawk
 		SocketServer::~SocketServer()
 		{
 			Unlisten();
+			Driver::SetActive(false);
 		}
 		void SocketServer::SetRouter(SocketRouter* New)
 		{
@@ -2662,6 +2669,7 @@ namespace Tomahawk
 
 		SocketClient::SocketClient(int64_t RequestTimeout) : Context(nullptr), Timeout(RequestTimeout), AutoEncrypt(true)
 		{
+			Driver::SetActive(true);
 			Stream.UserData = this;
 		}
 		SocketClient::~SocketClient()
@@ -2678,6 +2686,7 @@ namespace Tomahawk
 				Context = nullptr;
 			}
 #endif
+			Driver::SetActive(false);
 		}
 		Core::Promise<int> SocketClient::Connect(Host* Source, bool Async)
 		{

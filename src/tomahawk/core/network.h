@@ -387,11 +387,11 @@ namespace Tomahawk
 			static EpollHandle* Handle;
 			static uint64_t DefaultTimeout;
 			static size_t Sockets;
-			static bool Listens;
 
 		public:
 			static void Create(uint64_t DispatchTimeout = 50, size_t MaxEvents = 256);
 			static void Release();
+			static void SetActive(bool Active);
 			static int Dispatch(uint64_t Timeout);
 			static bool WhenReadable(Socket* Value, PollEventCallback&& WhenReady);
 			static bool WhenWriteable(Socket* Value, PollEventCallback&& WhenReady);
@@ -402,6 +402,7 @@ namespace Tomahawk
 			static bool IsAwaitingWriteable(Socket* Value);
 			static bool IsListening();
 			static bool IsActive();
+			static size_t GetSockets();
 
 		private:
 			static bool WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable);

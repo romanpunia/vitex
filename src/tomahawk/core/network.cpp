@@ -1790,7 +1790,7 @@ namespace Tomahawk
 		void Driver::SetActive(bool Active)
 		{
 			if (Active)
-				TryListen(false);
+				TryListen();
 			else
 				TryUnlisten();
 		}
@@ -1949,9 +1949,6 @@ namespace Tomahawk
 				}, Core::Difficulty::Light);
 			}
 
-			if (Success)
-				TryUnlisten();
-
 			return Success;
 		}
 		bool Driver::ClearEvents(Socket* Value)
@@ -1987,7 +1984,7 @@ namespace Tomahawk
 		}
 		bool Driver::IsListening()
 		{
-			return Sockets > 0;
+			return Activations > 0;
 		}
 		bool Driver::IsActive()
 		{
@@ -1996,35 +1993,27 @@ namespace Tomahawk
 		void Driver::TryDispatch()
 		{
 			Dispatch(DefaultTimeout);
-			{
-				std::unique_lock<std::mutex> Unique(Inclusive);
-				TryEnqueue();
-			}
+			TryEnqueue();
 		}
 		void Driver::TryEnqueue()
 		{
 			auto* Queue = Core::Schedule::Get();
-			if (Queue->CanEnqueue() && Sockets > 0)
+			if (Queue->CanEnqueue() && Activations > 0)
 				Queue->SetTask(&Driver::TryDispatch);
 		}
-		void Driver::TryListen(bool Updated)
+		void Driver::TryListen()
 		{
-			std::unique_lock<std::mutex> Unique(Inclusive);
-			bool WasListening = Sockets > 0;
-			if (!Updated)
-				++Sockets;
-
-			if (!WasListening)
+			if (!Activations++)
 			{
-				TH_DEBUG("[net] start events polling", Sockets);
+				TH_DEBUG("[net] start events polling");
 				TryEnqueue();
 			}
 		}
 		void Driver::TryUnlisten()
 		{
-			std::unique_lock<std::mutex> Unique(Inclusive);
-			if (!--Sockets)
-				TH_DEBUG("[net] stop events polling", Sockets);
+			TH_ASSERT_V(Activations > 0, "events poller is already inactive");
+			if (!--Activations)
+				TH_DEBUG("[net] stop events polling");
 		}
 		bool Driver::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable)
 		{
@@ -2081,9 +2070,6 @@ namespace Tomahawk
 				}, Core::Difficulty::Light);
 			}
 
-			if (Success)
-				TryListen(Update);
-
 			return Success;
 		}
 		void Driver::AddTimeout(Socket* Value, const std::chrono::microseconds& Time)
@@ -2114,17 +2100,16 @@ namespace Tomahawk
 			if (It != Timeouts->Map.end())
 				Timeouts->Map.erase(It);
 		}
-		size_t Driver::GetSockets()
+		size_t Driver::GetActivations()
 		{
-			return Sockets;
+			return Activations;
 		}
 		EpollHandle* Driver::Handle = nullptr;
 		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Driver::Timeouts = nullptr;
 		std::vector<EpollFd>* Driver::Fds = nullptr;
 		std::mutex Driver::Exclusive;
-		std::mutex Driver::Inclusive;
 		uint64_t Driver::DefaultTimeout = 50;
-		size_t Driver::Sockets = 0;
+		size_t Driver::Activations = 0;
 
 		SocketServer::SocketServer() : Backlog(1024)
 		{

@@ -383,10 +383,9 @@ namespace Tomahawk
 			static Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Timeouts;
 			static std::vector<EpollFd>* Fds;
 			static std::mutex Exclusive;
-			static std::mutex Inclusive;
 			static EpollHandle* Handle;
 			static uint64_t DefaultTimeout;
-			static size_t Sockets;
+			static size_t Activations;
 
 		public:
 			static void Create(uint64_t DispatchTimeout = 50, size_t MaxEvents = 256);
@@ -402,7 +401,7 @@ namespace Tomahawk
 			static bool IsAwaitingWriteable(Socket* Value);
 			static bool IsListening();
 			static bool IsActive();
-			static size_t GetSockets();
+			static size_t GetActivations();
 
 		private:
 			static bool WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable);
@@ -412,7 +411,7 @@ namespace Tomahawk
 			static void RemoveTimeout(Socket* Value);
 			static void TryDispatch();
 			static void TryEnqueue();
-			static void TryListen(bool Updated);
+			static void TryListen();
 			static void TryUnlisten();
 		};
 

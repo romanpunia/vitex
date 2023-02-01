@@ -382,10 +382,10 @@ namespace Tomahawk
 		private:
 			static Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Timeouts;
 			static std::vector<EpollFd>* Fds;
+			static std::atomic<size_t> Activations;
 			static std::mutex Exclusive;
 			static EpollHandle* Handle;
 			static uint64_t DefaultTimeout;
-			static size_t Activations;
 
 		public:
 			static void Create(uint64_t DispatchTimeout = 50, size_t MaxEvents = 256);

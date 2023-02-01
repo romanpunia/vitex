@@ -2107,9 +2107,9 @@ namespace Tomahawk
 		EpollHandle* Driver::Handle = nullptr;
 		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Driver::Timeouts = nullptr;
 		std::vector<EpollFd>* Driver::Fds = nullptr;
+		std::atomic<size_t> Driver::Activations(0);
 		std::mutex Driver::Exclusive;
 		uint64_t Driver::DefaultTimeout = 50;
-		size_t Driver::Activations = 0;
 
 		SocketServer::SocketServer() : Backlog(1024)
 		{

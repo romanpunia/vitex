@@ -28,6 +28,7 @@ namespace Tomahawk
 
 			class Connection;
 
+			typedef std::function<Core::Promise<bool>(const std::vector<std::string>&)> OnReconnect;
 			typedef std::function<void(const std::string&)> OnQueryLog;
 			typedef std::function<void(const Notify&)> OnNotification;
 			typedef std::function<void(Cursor&)> OnResult;
@@ -520,6 +521,7 @@ namespace Tomahawk
 				std::vector<Request*> Requests;
 				std::atomic<uint64_t> Channel;
 				std::mutex Update;
+				OnReconnect Reconnected;
 				Address Source;
 
 			public:
@@ -528,6 +530,7 @@ namespace Tomahawk
 				void ClearCache();
 				void SetCacheCleanup(uint64_t Interval);
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);
+				void SetWhenReconnected(const OnReconnect& NewCallback);
 				uint64_t AddChannel(const std::string& Name, const OnNotification& NewCallback);
 				bool RemoveChannel(const std::string& Name, uint64_t Id);
 				Core::Promise<SessionId> TxBegin(Isolation Type);

@@ -3410,11 +3410,12 @@ namespace Tomahawk
 
 			void Driver::Create()
 			{
-				Network::Driver::SetActive(true);
 #ifdef TH_HAS_MONGOC
 				if (State <= 0)
 				{
 					using Map = Core::Mapping<std::unordered_map<std::string, Sequence>>;
+					Network::Driver::SetActive(true);
+
 					Queries = TH_NEW(Map);
 					Safe = TH_NEW(std::mutex);
 					mongoc_log_set_handler([](mongoc_log_level_t Level, const char* Domain, const char* Message, void*)
@@ -3452,6 +3453,7 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (State == 1)
 				{
+					Network::Driver::SetActive(false);
 					if (Safe != nullptr)
 						Safe->lock();
 
@@ -3480,7 +3482,6 @@ namespace Tomahawk
 				else if (State > 0)
 					State--;
 #endif
-				Network::Driver::SetActive(false);
 			}
 			void Driver::SetQueryLog(const OnQueryLog& Callback)
 			{

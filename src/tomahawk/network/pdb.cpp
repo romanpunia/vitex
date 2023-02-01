@@ -1579,6 +1579,12 @@ namespace Tomahawk
 						break;
 				}
 			}
+			void Cluster::SetWhenReconnected(const OnReconnect& NewCallback)
+			{
+				Update.lock();
+				Reconnected = NewCallback;
+				Update.unlock();
+			}
 			uint64_t Cluster::AddChannel(const std::string& Name, const OnNotification& NewCallback)
 			{
 				TH_ASSERT(NewCallback != nullptr, 0, "callback should be set");
@@ -2053,7 +2059,20 @@ namespace Tomahawk
 				
 				bool Success = Reprocess(Target);
 				if (!Channels.empty())
-					Listen(Channels);
+				{
+					if (Reconnected)
+					{
+						Reconnected(Channels).Await([this, Channels](bool&& ListenToChannels)
+						{
+							if (ListenToChannels)
+								Listen(Channels);
+						});
+					}
+					else
+						Listen(Channels);
+				}
+				else if (Reconnected)
+					Reconnected(Channels);
 
 				return Success;
 #else
@@ -2249,12 +2268,13 @@ namespace Tomahawk
 
 			void Driver::Create()
 			{
-				Network::Driver::SetActive(true);
 #ifdef TH_HAS_POSTGRESQL
 				if (State <= 0)
 				{
 					using Map1 = Core::Mapping<std::unordered_map<std::string, Sequence>>;
 					using Map2 = Core::Mapping<std::unordered_map<std::string, std::string>>;
+					Network::Driver::SetActive(true);
+
 					Queries = TH_NEW(Map1);
 					Constants = TH_NEW(Map2);
 					Safe = TH_NEW(std::mutex);
@@ -2269,6 +2289,7 @@ namespace Tomahawk
 #ifdef TH_HAS_POSTGRESQL
 				if (State == 1)
 				{
+					Network::Driver::SetActive(false);
 					if (Safe != nullptr)
 						Safe->lock();
 
@@ -2295,7 +2316,6 @@ namespace Tomahawk
 				else if (State > 0)
 					State--;
 #endif
-				Network::Driver::SetActive(false);
 			}
 			void Driver::SetQueryLog(const OnQueryLog& Callback)
 			{

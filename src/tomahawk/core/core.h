@@ -25,8 +25,6 @@
 #else
 #define TH_OUT __declspec(dllexport)
 #endif
-#define TH_MICROSOFT 1
-#define TH_FUNCTION __FUNCTION__
 #ifdef _WIN64
 #define TH_64 1
 #else
@@ -38,6 +36,7 @@
 #define TH_CDECL __cdecl
 #define TH_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 #define TH_LINE __LINE__
+#define TH_MICROSOFT 1
 #undef TH_UNIX
 #elif defined __linux__ && defined __GNUC__
 #define TH_OUT

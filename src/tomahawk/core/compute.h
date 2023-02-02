@@ -1068,7 +1068,69 @@ namespace Tomahawk
 		{
 			RigidBody* Rigid = nullptr;
 			SoftBody* Soft = nullptr;
+
 			CollisionBody(btCollisionObject* Object);
+		};
+
+		struct TH_OUT PrivateKey
+		{
+		public:
+			template <size_t MaxSize>
+			struct Exposable
+			{
+				char Key[MaxSize];
+				size_t Size;
+
+				~Exposable()
+				{
+					for (size_t i = 0; i < Size; i++)
+						Key[i] = Crypto::Random() % std::numeric_limits<char>::max();
+				}
+			};
+
+		private:
+			std::vector<void*> Blocks;
+			std::string Plain;
+
+		private:
+			PrivateKey(const std::string& Text, bool);
+			PrivateKey(std::string&& Text, bool);
+
+		public:
+			PrivateKey();
+			PrivateKey(const PrivateKey& Other);
+			PrivateKey(PrivateKey&& Other) noexcept;
+			explicit PrivateKey(const std::string& Key);
+			explicit PrivateKey(const char* Buffer);
+			explicit PrivateKey(const char* Buffer, size_t Size);
+			~PrivateKey();
+			PrivateKey& operator =(const PrivateKey& V);
+			PrivateKey& operator =(PrivateKey&& V) noexcept;
+			void Clear();
+			void Secure(const std::string& Key);
+			void Secure(const char* Buffer, size_t Size);
+			void ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize = nullptr) const;
+			std::string ExposeToHeap() const;
+			size_t GetSize() const;
+
+		public:
+			template <size_t MaxSize>
+			Exposable<MaxSize> Expose() const
+			{
+				Exposable<MaxSize> Result;
+				ExposeToStack(Result.Key, MaxSize, &Result.Size);
+				return Result;
+			}
+
+		public:
+			static PrivateKey GetPlain(std::string&& Value);
+			static PrivateKey GetPlain(const std::string& Value);
+
+		private:
+			char LoadPartition(size_t* Dest, size_t Size, size_t Index) const;
+			void RollPartition(size_t* Dest, size_t Size, size_t Index) const;
+			void FillPartition(size_t* Dest, size_t Size, size_t Index, char Source) const;
+			void CopyDistribution(const PrivateKey& Other);
 		};
 
 		class TH_OUT Adjacencies
@@ -1444,27 +1506,27 @@ namespace Tomahawk
 			static std::string RandomBytes(size_t Length);
 			static std::string Hash(Digest Type, const std::string& Value);
 			static std::string HashBinary(Digest Type, const std::string& Value);
-			static std::string Sign(Digest Type, const unsigned char* Value, size_t Length, const char* Key);
-			static std::string Sign(Digest Type, const std::string& Value, const char* Key);
-			static std::string HMAC(Digest Type, const unsigned char* Value, size_t Length, const char* Key);
-			static std::string HMAC(Digest Type, const std::string& Value, const char* Key);
-			static std::string Encrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
-			static std::string Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
-			static std::string Decrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes = -1);
-			static std::string Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes = -1);
-			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const char* Key);
-			static std::string JWTEncode(WebToken* Src, const char* Key);
-			static Core::Unique<WebToken> JWTDecode(const std::string& Value, const char* Key);
-			static std::string DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt);
-			static Core::Unique<Core::Schema> DocDecrypt(const std::string& Value, const char* Key, const char* Salt);
+			static std::string Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static std::string Sign(Digest Type, const std::string& Value, const PrivateKey& Key);
+			static std::string HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key);
+			static std::string HMAC(Digest Type, const std::string& Value, const PrivateKey& Key);
+			static std::string Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static std::string Encrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static std::string Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static std::string Decrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes = -1);
+			static std::string JWTSign(const std::string& Algo, const std::string& Payload, const PrivateKey& Key);
+			static std::string JWTEncode(WebToken* Src, const PrivateKey& Key);
+			static Core::Unique<WebToken> JWTDecode(const std::string& Value, const PrivateKey& Key);
+			static std::string DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt);
+			static Core::Unique<Core::Schema> DocDecrypt(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt);
 			static unsigned char RandomUC();
 			static uint64_t CRC32(const std::string& Data);
 			static uint64_t Random(uint64_t Min, uint64_t Max);
 			static uint64_t Random();
 			static void Sha1CollapseBufferBlock(unsigned int* Buffer);
 			static void Sha1ComputeHashBlock(unsigned int* Result, unsigned int* W);
-			static void Sha1Compute(const void* Value, int Length, unsigned char* Hash20);
-			static void Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString);
+			static void Sha1Compute(const void* Value, int Length, char* Hash20);
+			static void Sha1Hash20ToHex(const char* Hash20, char* HexString);
 			static void DisplayCryptoLog();
 		};
 
@@ -1598,9 +1660,9 @@ namespace Tomahawk
 			void SetExpiration(int64_t Value);
 			void SetNotBefore(int64_t Value);
 			void SetCreated(int64_t Value);
-			void SetRefreshToken(const std::string& Value, const char* Key, const char* Salt);
-			bool Sign(const char* Key);
-			std::string GetRefreshToken(const char* Key, const char* Salt);
+			void SetRefreshToken(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt);
+			bool Sign(const PrivateKey& Key);
+			std::string GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt);
 			bool IsValid() const;
 		};
 

@@ -1918,7 +1918,7 @@ namespace Tomahawk
 			}
 			std::string Cluster::GetCacheOid(const std::string& Payload, size_t Opts)
 			{
-				std::string Reference = Compute::Codec::HexEncode(Compute::Crypto::HMAC(Compute::Digests::SHA256(), Payload, CACHE_MAGIC));
+				std::string Reference = Compute::Codec::HexEncode(Compute::Crypto::Hash(Compute::Digests::SHA256(), Payload));
 				if (Opts & (size_t)QueryOp::CacheShort)
 					Reference.append(".s");
 				else if (Opts & (size_t)QueryOp::CacheMid)

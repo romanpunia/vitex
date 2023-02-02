@@ -38,6 +38,7 @@ extern "C"
 #define IS_BOUNDARY(x) ((x) == 0xff)
 #define RH_TO_LH (Matrix4x4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1))
 #define NULL_NODE ((size_t)-1)
+#define PRIVATE_KEY_SIZE (sizeof(size_t) * 8)
 
 namespace
 {
@@ -4033,6 +4034,154 @@ namespace Tomahawk
 #endif
 		}
 
+		PrivateKey::PrivateKey()
+		{
+		}
+		PrivateKey::PrivateKey(std::string&& Text, bool) : Plain(std::move(Text))
+		{
+		}
+		PrivateKey::PrivateKey(const std::string& Text, bool) : Plain(Text)
+		{
+		}
+		PrivateKey::PrivateKey(const std::string& Key)
+		{
+			Secure(Key);
+		}
+		PrivateKey::PrivateKey(const char* Buffer)
+		{
+			TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			Secure(Buffer, strlen(Buffer));
+		}
+		PrivateKey::PrivateKey(const char* Buffer, size_t Size)
+		{
+			Secure(Buffer, Size);
+		}
+		PrivateKey::PrivateKey(const PrivateKey& Other)
+		{
+			CopyDistribution(Other);
+		}
+		PrivateKey::PrivateKey(PrivateKey&& Other) noexcept : Blocks(std::move(Other.Blocks)), Plain(std::move(Other.Plain))
+		{
+		}
+		PrivateKey::~PrivateKey()
+		{
+			Clear();
+		}
+		PrivateKey& PrivateKey::operator =(const PrivateKey& V)
+		{
+			CopyDistribution(V);
+			return *this;
+		}
+		PrivateKey& PrivateKey::operator =(PrivateKey&& V) noexcept
+		{
+			Blocks = std::move(V.Blocks);
+			Plain = std::move(V.Plain);
+			return *this;
+		}
+		void PrivateKey::Clear()
+		{
+			size_t Size = Blocks.size();
+			for (size_t i = 0; i < Size; i++)
+			{
+				size_t* Partition = (size_t*)Blocks[i];
+				RollPartition(Partition, Size, i);
+				TH_FREE(Partition);
+			}
+			Blocks.clear();
+			Plain.clear();
+		}
+		void PrivateKey::Secure(const std::string& Key)
+		{
+			Secure(Key.c_str(), Key.size());
+		}
+		void PrivateKey::Secure(const char* Buffer, size_t Size)
+		{
+			TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
+			Blocks.reserve(Size);
+			Clear();
+
+			for (size_t i = 0; i < Size; i++)
+			{
+				size_t* Partition = TH_MALLOC(size_t, PRIVATE_KEY_SIZE);
+				FillPartition(Partition, Size, i, Buffer[i]);
+				Blocks.emplace_back(Partition);
+			}
+		}
+		void PrivateKey::ExposeToStack(char* Buffer, size_t MaxSize, size_t* OutSize) const
+		{
+			size_t Size;
+			if (Plain.empty())
+			{
+				Size = (--MaxSize > Blocks.size() ? Blocks.size() : MaxSize);
+				for (size_t i = 0; i < Size; i++)
+					Buffer[i] = LoadPartition((size_t*)Blocks[i], Size, i);
+			}
+			else
+			{
+				Size = (--MaxSize > Plain.size() ? Plain.size() : MaxSize);
+				memcpy(Buffer, Plain.data(), sizeof(char) * Size);
+			}
+
+			Buffer[Size] = '\0';
+			if (OutSize != nullptr)
+				*OutSize = Size;
+		}
+		std::string PrivateKey::ExposeToHeap() const
+		{
+			std::string Result;
+			Result.resize(Blocks.size());
+			ExposeToStack(Result.data(), Result.size() + 1);
+			return Result;
+		}
+		void PrivateKey::CopyDistribution(const PrivateKey& Other)
+		{
+			Clear();
+			if (Other.Plain.empty())
+			{
+				Blocks.reserve(Other.Blocks.size());
+				for (auto* Partition : Other.Blocks)
+				{
+					void* CopiedPartition = TH_MALLOC(void, PRIVATE_KEY_SIZE);
+					memcpy(CopiedPartition, Partition, PRIVATE_KEY_SIZE);
+					Blocks.emplace_back(CopiedPartition);
+				}
+			}
+			else
+				Plain = Other.Plain;
+		}
+		size_t PrivateKey::GetSize() const
+		{
+			return Blocks.size();
+		}
+		char PrivateKey::LoadPartition(size_t* Dest, size_t Size, size_t Index) const
+		{
+			char* Buffer = (char*)Dest + sizeof(size_t);
+			return Buffer[Dest[0]];
+		}
+		void PrivateKey::RollPartition(size_t* Dest, size_t Size, size_t Index) const
+		{
+			char* Buffer = (char*)Dest + sizeof(size_t);
+			Buffer[Dest[0]] = (char)(Crypto::Random() % std::numeric_limits<unsigned char>::max());
+		}
+		void PrivateKey::FillPartition(size_t* Dest, size_t Size, size_t Index, char Source) const
+		{
+			Dest[0] = ((size_t(Source) << 16) + 17) % (PRIVATE_KEY_SIZE - sizeof(size_t));
+			char* Buffer = (char*)Dest + sizeof(size_t);
+			for (size_t i = 0; i < PRIVATE_KEY_SIZE - sizeof(size_t); i++)
+				Buffer[i] = (char)(Crypto::Random() % std::numeric_limits<unsigned char>::max());;
+			Buffer[Dest[0]] = Source;
+		}
+		PrivateKey PrivateKey::GetPlain(std::string&& Value)
+		{
+			PrivateKey Key = PrivateKey(std::move(Value), true);
+			return Key;
+		}
+		PrivateKey PrivateKey::GetPlain(const std::string& Value)
+		{
+			PrivateKey Key = PrivateKey(Value, true);
+			return Key;
+		}
+
 		Adjacencies::Adjacencies() : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
 		{
 		}
@@ -6898,7 +7047,7 @@ namespace Tomahawk
 
 			return Output;
 #else
-			return "";
+			return std::string();
 #endif
 		}
 		std::string Crypto::Hash(Digest Type, const std::string& Value)
@@ -6938,17 +7087,17 @@ namespace Tomahawk
 			return Value;
 #endif
 		}
-		std::string Crypto::Sign(Digest Type, const unsigned char* Value, size_t Length, const char* Key)
+		std::string Crypto::Sign(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
+			auto LocalKey = Key.Expose<TH_CHUNK_SIZE>();
 #if OPENSSL_VERSION_MAJOR >= 3
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
-			unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, (const void*)Key, (int)strlen(Key), Value, Length, Result, &Size);
+			unsigned char* Pointer = ::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size);
 
 			if (!Pointer)
 			{
@@ -6962,22 +7111,22 @@ namespace Tomahawk
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return "";
+				return std::string();
 			}
 
 			unsigned char Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
+			if (1 != HMAC_Init_ex(Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return "";
+				return std::string();
 			}
 
-			if (1 != HMAC_Update(Context, Value, (int)Length))
+			if (1 != HMAC_Update(Context, (const unsigned char*)Value, (int)Length))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return "";
+				return std::string();
 			}
 
 			unsigned int Size = sizeof(Result);
@@ -6985,7 +7134,7 @@ namespace Tomahawk
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_free(Context);
-				return "";
+				return std::string();
 			}
 
 			std::string Output((const char*)Result, Size);
@@ -6997,18 +7146,18 @@ namespace Tomahawk
 			HMAC_CTX_init(&Context);
 
 			unsigned char Result[EVP_MAX_MD_SIZE];
-			if (1 != HMAC_Init_ex(&Context, Key, (int)strlen(Key), (const EVP_MD*)Type, nullptr))
+			if (1 != HMAC_Init_ex(&Context, LocalKey.Key, (int)LocalKey.Size, (const EVP_MD*)Type, nullptr))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return "";
+				return std::string();
 			}
 
-			if (1 != HMAC_Update(&Context, Value, (int)Length))
+			if (1 != HMAC_Update(&Context, (const unsigned char*)Value, (int)Length))
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return "";
+				return std::string();
 			}
 
 			unsigned int Size = sizeof(Result);
@@ -7016,7 +7165,7 @@ namespace Tomahawk
 			{
 				DisplayCryptoLog();
 				HMAC_CTX_cleanup(&Context);
-				return "";
+				return std::string();
 			}
 
 			std::string Output((const char*)Result, Size);
@@ -7025,27 +7174,27 @@ namespace Tomahawk
 			return Output;
 #endif
 #else
-			return (const char*)Value;
+			return Value;
 #endif
 		}
-		std::string Crypto::Sign(Digest Type, const std::string& Value, const char* Key)
+		std::string Crypto::Sign(Digest Type, const std::string& Value, const PrivateKey& Key)
 		{
-			return Sign(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key);
+			return Sign(Type, Value.c_str(), (uint64_t)Value.size(), Key);
 		}
-		std::string Crypto::HMAC(Digest Type, const unsigned char* Value, size_t Length, const char* Key)
+		std::string Crypto::HMAC(Digest Type, const char* Value, size_t Length, const PrivateKey& Key)
 		{
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
 			TH_ASSERT(Length > 0, std::string(), "length should be greater than zero");
 #ifdef TH_HAS_OPENSSL
+			auto LocalKey = Key.Expose<TH_CHUNK_SIZE>();
 			unsigned char Result[EVP_MAX_MD_SIZE];
 			unsigned int Size = sizeof(Result);
 
-			if (!::HMAC((const EVP_MD*)Type, Key, (int)strlen(Key), Value, Length, Result, &Size))
+			if (!::HMAC((const EVP_MD*)Type, LocalKey.Key, (int)LocalKey.Size, (const unsigned char*)Value, Length, Result, &Size))
 			{
 				DisplayCryptoLog();
-				return "";
+				return std::string();
 			}
 
 			std::string Output((const char*)Result, Size);
@@ -7054,53 +7203,53 @@ namespace Tomahawk
 			return (const char*)Value;
 #endif
 		}
-		std::string Crypto::HMAC(Digest Type, const std::string& Value, const char* Key)
+		std::string Crypto::HMAC(Digest Type, const std::string& Value, const PrivateKey& Key)
 		{
-			return Crypto::HMAC(Type, (const unsigned char*)Value.c_str(), Value.size(), Key);
+			return Crypto::HMAC(Type, Value.c_str(), Value.size(), Key);
 		}
-		std::string Crypto::Encrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes)
+		std::string Crypto::Encrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
-
 			if (!Length)
-				return "";
+				return std::string();
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return "";
+				return std::string();
 			}
 
+			auto LocalKey = Key.Expose<TH_CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
 				{
 					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return "";
+					return std::string();
 				}
 			}
 
-			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
+			auto LocalSalt = Salt.Expose<TH_CHUNK_SIZE>();
+			if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return "";
+				return std::string();
 			}
 
 			int Size1 = (int)Length, Size2 = 0;
 			unsigned char* Buffer = TH_MALLOC(unsigned char, sizeof(unsigned char) * (Size1 + 2048));
 
-			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, Value, Size1))
+			if (1 != EVP_EncryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
-				return "";
+				return std::string();
 			}
 
 			if (1 != EVP_EncryptFinal_ex(Context, Buffer + Size2, &Size1))
@@ -7108,7 +7257,7 @@ namespace Tomahawk
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
-				return "";
+				return std::string();
 			}
 
 			std::string Output((const char*)Buffer, Size1 + Size2);
@@ -7120,53 +7269,54 @@ namespace Tomahawk
 			return (const char*)Value;
 #endif
 		}
-		std::string Crypto::Encrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
+		std::string Crypto::Encrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			return Encrypt(Type, (const unsigned char*)Value.c_str(), Value.size(), Key, Salt);
+			return Encrypt(Type, Value.c_str(), Value.size(), Key, Salt);
 		}
-		std::string Crypto::Decrypt(Cipher Type, const unsigned char* Value, size_t Length, const char* Key, const char* Salt, int ComplexityBytes)
+		std::string Crypto::Decrypt(Cipher Type, const char* Value, size_t Length, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
 			TH_ASSERT(ComplexityBytes < 0 || (ComplexityBytes > 0 && ComplexityBytes % 2 == 0), std::string(), "compexity should be valid 64, 128, 256, etc.");
 			TH_ASSERT(Value != nullptr, std::string(), "value should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 			TH_ASSERT(Type != nullptr, std::string(), "type should be set");
 
 			if (!Length)
-				return "";
+				return std::string();
 #ifdef TH_HAS_OPENSSL
 			EVP_CIPHER_CTX* Context = EVP_CIPHER_CTX_new();
 			if (!Context)
 			{
 				DisplayCryptoLog();
-				return "";
+				return std::string();
 			}
 
+			auto LocalKey = Key.Expose<TH_CHUNK_SIZE>();
 			if (ComplexityBytes > 0)
 			{
 				if (1 != EVP_EncryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, nullptr, nullptr) || 1 != EVP_CIPHER_CTX_set_key_length(Context, ComplexityBytes))
 				{
 					DisplayCryptoLog();
 					EVP_CIPHER_CTX_free(Context);
-					return "";
+					return std::string();
 				}
 			}
 
-			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)Key, (const unsigned char*)Salt))
+			auto LocalSalt = Salt.Expose<TH_CHUNK_SIZE>();
+			if (1 != EVP_DecryptInit_ex(Context, (const EVP_CIPHER*)Type, nullptr, (const unsigned char*)LocalKey.Key, (const unsigned char*)LocalSalt.Key))
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
-				return "";
+				return std::string();
 			}
 
 			int Size1 = (int)Length, Size2 = 0;
 			unsigned char* Buffer = TH_MALLOC(unsigned char, sizeof(unsigned char) * (Size1 + 2048));
 
-			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, Value, Size1))
+			if (1 != EVP_DecryptUpdate(Context, Buffer, &Size2, (const unsigned char*)Value, Size1))
 			{
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
-				return "";
+				return std::string();
 			}
 
 			if (1 != EVP_DecryptFinal_ex(Context, Buffer + Size2, &Size1))
@@ -7174,7 +7324,7 @@ namespace Tomahawk
 				DisplayCryptoLog();
 				EVP_CIPHER_CTX_free(Context);
 				TH_FREE(Buffer);
-				return "";
+				return std::string();
 			}
 
 			std::string Output((const char*)Buffer, Size1 + Size2);
@@ -7186,11 +7336,11 @@ namespace Tomahawk
 			return (const char*)Value;
 #endif
 		}
-		std::string Crypto::Decrypt(Cipher Type, const std::string& Value, const char* Key, const char* Salt, int ComplexityBytes)
+		std::string Crypto::Decrypt(Cipher Type, const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt, int ComplexityBytes)
 		{
-			return Decrypt(Type, (const unsigned char*)Value.c_str(), (uint64_t)Value.size(), Key, Salt);
+			return Decrypt(Type, Value.c_str(), (uint64_t)Value.size(), Key, Salt);
 		}
-		std::string Crypto::JWTSign(const std::string& Alg, const std::string& Payload, const char* Key)
+		std::string Crypto::JWTSign(const std::string& Alg, const std::string& Payload, const PrivateKey& Key)
 		{
 			Digest Hash = nullptr;
 			if (Alg == "HS256")
@@ -7202,16 +7352,15 @@ namespace Tomahawk
 
 			return Crypto::HMAC(Hash, Payload, Key);
 		}
-		std::string Crypto::JWTEncode(WebToken* Src, const char* Key)
+		std::string Crypto::JWTEncode(WebToken* Src, const PrivateKey& Key)
 		{
 			TH_ASSERT(Src != nullptr, std::string(), "web token should be set");
 			TH_ASSERT(Src->Header != nullptr, std::string(), "web token header should be set");
 			TH_ASSERT(Src->Payload != nullptr, std::string(), "web token payload should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
 
 			std::string Alg = Src->Header->GetVar("alg").GetBlob();
 			if (Alg.empty())
-				return "";
+				return std::string();
 
 			std::string Header;
 			Core::Schema::ConvertToJSON(Src->Header, [&Header](Core::VarForm, const char* Buffer, size_t Size)
@@ -7230,9 +7379,8 @@ namespace Tomahawk
 
 			return Data + '.' + Codec::Base64URLEncode(Src->Signature);
 		}
-		WebToken* Crypto::JWTDecode(const std::string& Value, const char* Key)
+		WebToken* Crypto::JWTDecode(const std::string& Value, const PrivateKey& Key)
 		{
-			TH_ASSERT(Key != nullptr && !Value.empty(), nullptr, "key should be set and value should not be empty");
 			std::vector<std::string> Source = Core::Parser(&Value).Split('.');
 			if (Source.size() != 3)
 				return nullptr;
@@ -7267,12 +7415,9 @@ namespace Tomahawk
 
 			return Result;
 		}
-		std::string Crypto::DocEncrypt(Core::Schema* Src, const char* Key, const char* Salt)
+		std::string Crypto::DocEncrypt(Core::Schema* Src, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			TH_ASSERT(Src != nullptr, std::string(), "schema should be set");
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
-
 			std::string Result;
 			Core::Schema::ConvertToJSON(Src, [&Result](Core::VarForm, const char* Buffer, size_t Size)
 			{
@@ -7282,12 +7427,9 @@ namespace Tomahawk
 			Result = Codec::Bep45Encode(Encrypt(Ciphers::AES_256_CBC(), Result, Key, Salt));
 			return Result;
 		}
-		Core::Schema* Crypto::DocDecrypt(const std::string& Value, const char* Key, const char* Salt)
+		Core::Schema* Crypto::DocDecrypt(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			TH_ASSERT(!Value.empty(), nullptr, "value should not be empty");
-			TH_ASSERT(Key != nullptr, nullptr, "key should be set");
-			TH_ASSERT(Salt != nullptr, nullptr, "salt should be set");
-
 			std::string Source = Decrypt(Ciphers::AES_256_CBC(), Codec::Bep45Decode(Value), Key, Salt);
 			return Core::Schema::ConvertFromJSON(Source.c_str(), Source.size());
 		}
@@ -7397,7 +7539,7 @@ namespace Tomahawk
 			Result[3] += D;
 			Result[4] += E;
 		}
-		void Crypto::Sha1Compute(const void* Value, const int Length, unsigned char* Hash20)
+		void Crypto::Sha1Compute(const void* Value, const int Length, char* Hash20)
 		{
 			TH_ASSERT_V(Value != nullptr, "value should be set");
 			TH_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
@@ -7437,7 +7579,7 @@ namespace Tomahawk
 			for (int i = 20; --i >= 0;)
 				Hash20[i] = (Result[i >> 2] >> (((3 - i) & 0x3) << 3)) & 0xff;
 		}
-		void Crypto::Sha1Hash20ToHex(const unsigned char* Hash20, char* HexString)
+		void Crypto::Sha1Hash20ToHex(const char* Hash20, char* HexString)
 		{
 			TH_ASSERT_V(Hash20 != nullptr, "hash of size 20 should be set");
 			TH_ASSERT_V(HexString != nullptr, "result hex should be set");
@@ -7881,7 +8023,7 @@ namespace Tomahawk
 					}
 
 					if (i == 7 && Block > 127)
-						return "";
+						return std::string();
 
 					Stream += (char)Block;
 				}
@@ -8743,28 +8885,23 @@ namespace Tomahawk
 			Payload->Set("iat", Core::Var::Integer(Value));
 			Unsign();
 		}
-		void WebToken::SetRefreshToken(const std::string& Value, const char* Key, const char* Salt)
+		void WebToken::SetRefreshToken(const std::string& Value, const PrivateKey& Key, const PrivateKey& Salt)
 		{
 			TH_RELEASE(Token);
 			Token = Crypto::DocDecrypt(Value, Key, Salt);
 			Refresher.assign(Value);
 		}
-		bool WebToken::Sign(const char* Key)
+		bool WebToken::Sign(const PrivateKey& Key)
 		{
 			TH_ASSERT(Header != nullptr, false, "header should be set");
 			TH_ASSERT(Payload != nullptr, false, "payload should be set");
-			TH_ASSERT(Key != nullptr, false, "key should be set");
-
 			if (Data.empty())
 				Data = Crypto::JWTEncode(this, Key);
 
 			return !Data.empty();
 		}
-		std::string WebToken::GetRefreshToken(const char* Key, const char* Salt)
+		std::string WebToken::GetRefreshToken(const PrivateKey& Key, const PrivateKey& Salt)
 		{
-			TH_ASSERT(Key != nullptr, std::string(), "key should be set");
-			TH_ASSERT(Salt != nullptr, std::string(), "salt should be set");
-
 			Refresher = Crypto::DocEncrypt(Token, Key, Salt);
 			return Refresher;
 		}

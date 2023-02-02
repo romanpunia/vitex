@@ -5677,7 +5677,7 @@ namespace Tomahawk
 				Base->Request.Buffer.clear();
 
 				char Encoded20[20];
-				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), (unsigned char*)Encoded20);
+				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), Encoded20);
 
 				Core::Parser Content;
 				Content.fAppend(

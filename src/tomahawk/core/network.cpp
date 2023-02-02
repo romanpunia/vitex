@@ -67,7 +67,7 @@ namespace Tomahawk
 	{
 		static addrinfo* TryConnectDNS(const std::unordered_map<socket_t, addrinfo*>& Hosts, uint64_t Timeout)
 		{
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 
 			std::vector<pollfd> Sockets4, Sockets6;
 			for (auto& Host : Hosts)
@@ -101,10 +101,7 @@ namespace Tomahawk
 					{
 						auto It = Hosts.find(Fd.fd);
 						if (It != Hosts.end())
-						{
-							TH_PPOP();
 							return It->second;
-						}
 					}
 				}
 			}
@@ -117,15 +114,11 @@ namespace Tomahawk
 					{
 						auto It = Hosts.find(Fd.fd);
 						if (It != Hosts.end())
-						{
-							TH_PPOP();
 							return It->second;
-						}
 					}
 				}
 			}
 
-			TH_PPOP();
 			return nullptr;
 		}
 		static void* GetAddressStorage(struct sockaddr* Info)
@@ -433,24 +426,18 @@ namespace Tomahawk
 
 			if (Gracefully)
 			{
-				TH_PPUSH(TH_PERF_NET);
+				TH_MEASURE(TH_TIMING_NET);
 				int Timeout = 100;
 				SetBlocking(true);
 				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
 				shutdown(Fd, SD_SEND);
-
 				while (recv(Fd, (char*)&Error, 1, 0) > 0)
-					TH_PSIG();
-
-				closesocket(Fd);
-				TH_PPOP();
+					TH_MEASURE_LOOP();
 			}
 			else
-			{
 				shutdown(Fd, SD_SEND);
-				closesocket(Fd);
-			}
 
+			closesocket(Fd);
 			TH_DEBUG("[net] sock fd %i closed", (int)Fd);
 			Fd = INVALID_SOCKET;
 			return 0;
@@ -527,7 +514,7 @@ namespace Tomahawk
             TH_ASSERT(Stream != nullptr, -1, "stream should be set");
             TH_ASSERT(Offset >= 0, -1, "offset should be set and positive");
             TH_ASSERT(Size > 0, -1, "size should be set and greater than zero");
-            TH_PPUSH(TH_PERF_NET);
+            TH_MEASURE(TH_TIMING_NET);
             auto FromFd = TH_FILENO(Stream);
 #ifdef TH_APPLE
             off_t Seek = (off_t)Offset, Length = (off_t)Size;
@@ -542,14 +529,12 @@ namespace Tomahawk
 			return Value;
 #endif
             if (Value < 0 && Size <= 0)
-                TH_PRET(GetError((int)Value) == ERRWOULDBLOCK ? -2 : -1);
+                return GetError((int)Value) == ERRWOULDBLOCK ? -2 : -1;
             
             if (Value != Size)
                 Value = Size;
             
             Outcome += Value;
-            TH_PPOP();
-            
             return Value;
         }
         int64_t Socket::SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer)
@@ -595,27 +580,23 @@ namespace Tomahawk
 		int Socket::Write(const char* Buffer, int Size)
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
 				int Value = SSL_write(Device, Buffer, Size);
 				if (Value <= 0)
-					TH_PRET(GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1);
+					return GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1;
 
 				Outcome += (int64_t)Value;
-				TH_PPOP();
-
 				return Value;
 			}
 #endif
 			int Value = (int)send(Fd, Buffer, Size, 0);
 			if (Value <= 0)
-				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
+				return GetError(Value) == ERRWOULDBLOCK ? -2 : -1;
 
 			Outcome += (int64_t)Value;
-			TH_PPOP();
-
 			return Value;
 		}
 		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
@@ -678,27 +659,23 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
 			TH_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 #ifdef TH_HAS_OPENSSL
 			if (Device != nullptr)
 			{
 				int Value = SSL_read(Device, Buffer, Size);
 				if (Value <= 0)
-					TH_PRET(GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1);
+					return GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1;
 
 				Income += (int64_t)Value;
-				TH_PPOP();
-
 				return Value;
 			}
 #endif
 			int Value = (int)recv(Fd, Buffer, Size, 0);
 			if (Value <= 0)
-				TH_PRET(GetError(Value) == ERRWOULDBLOCK ? -2 : -1);
+				return GetError(Value) == ERRWOULDBLOCK ? -2 : -1;
 
 			Income += (int64_t)Value;
-			TH_PPOP();
-
 			return Value;
 		}
 		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
@@ -910,66 +887,66 @@ namespace Tomahawk
 		int Socket::Connect(Address* Address, uint64_t Timeout)
 		{
 			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 			TH_DEBUG("[net] connect fd %i", (int)Fd);
-			TH_PRET(connect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen));
+			return connect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
 		}
 		int Socket::ConnectAsync(Address* Address, SocketConnectedCallback&& Callback)
 		{
 			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 			TH_DEBUG("[net] connect fd %i", (int)Fd);
 			int Value = connect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
-			if (Value != 0)
+			if (Value == 0)
 			{
-				int Code = GetError(Value);
-				if (Code != ERRWOULDBLOCK && Code != EINPROGRESS)
-				{
-					if (Callback)
-						Callback(Value);
+				if (Callback)
+					Callback(0);
 
-					TH_PRET(Value);
-				}
-
-				if (!Callback)
-					TH_PRET(-2);
-
-				Driver::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
-				{
-					if (Packet::IsDone(Event))
-						Callback(0);
-					else if (Packet::IsTimeout(Event))
-						Callback(ETIMEDOUT);
-					else
-						Callback(ECONNREFUSED);
-				});
+				return 0;
 			}
-			else if (Callback)
-				Callback(0);
-			TH_PRET(0);
+
+			int Code = GetError(Value);
+			if (Code != ERRWOULDBLOCK && Code != EINPROGRESS)
+			{
+				if (Callback)
+					Callback(Value);
+
+				return Value;
+			}
+
+			if (!Callback)
+				return -2;
+
+			Driver::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+			{
+				if (Packet::IsDone(Event))
+					Callback(0);
+				else if (Packet::IsTimeout(Event))
+					Callback(ETIMEDOUT);
+				else
+					Callback(ECONNREFUSED);
+			});
+
+			return -2;
 		}
 		int Socket::Open(addrinfo* Good)
 		{
 			TH_ASSERT(Good != nullptr, -1, "addrinfo should be set");
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 			TH_DEBUG("[net] assign fd");
 
 			Fd = socket(Good->ai_family, Good->ai_socktype, Good->ai_protocol);
 			if (Fd == INVALID_SOCKET)
-			{
-				TH_PPOP();
 				return -1;
-			}
 
 			int Option = 1;
 			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
-			TH_PPOP();
 			return 0;
 		}
 		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
 		{
 #ifdef TH_HAS_OPENSSL
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 			if (Device != nullptr)
 				SSL_free(Device);
 
@@ -978,7 +955,6 @@ namespace Tomahawk
 			if (Device != nullptr && Hostname != nullptr)
 				SSL_set_tlsext_host_name(Device, Hostname);
 #endif
-			TH_PPOP();
 #endif
 			if (!Device)
 				return -1;
@@ -988,26 +964,28 @@ namespace Tomahawk
 		int Socket::Bind(Address* Address)
 		{
 			TH_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
+			TH_MEASURE(TH_TIMING_NET);
 			TH_DEBUG("[net] bind fd %i", (int)Fd);
 			return bind(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
 		}
 		int Socket::Listen(int Backlog)
 		{
+			TH_MEASURE(TH_TIMING_NET);
 			TH_DEBUG("[net] listen fd %i", (int)Fd);
 			return listen(Fd, Backlog);
 		}
 		int Socket::ClearEvents(bool Gracefully)
 		{
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 			if (Gracefully)
 				Driver::CancelEvents(this, SocketPoll::Reset);
 			else
 				Driver::ClearEvents(this);
-			TH_PPOP();
 			return 0;
 		}
 		int Socket::SetFd(socket_t NewFd, bool Gracefully)
 		{
+			TH_MEASURE(TH_TIMING_NET);
 			int Result = Gracefully ? ClearEvents(false) : 0;
 			Fd = NewFd;
 			return Result;
@@ -1262,14 +1240,11 @@ namespace Tomahawk
 		{
 #ifdef TH_HAS_OPENSSL
 			TH_ASSERT(Output != nullptr, false, "certificate should be set");
-			TH_PPUSH(TH_PERF_NET);
+			TH_MEASURE(TH_TIMING_NET);
 
 			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
 			if (!Certificate)
-			{
-				TH_PPOP();
 				return false;
-			}
 
 			const EVP_MD* Digest = EVP_get_digestbyname("sha1");
 			X509_NAME* Subject = X509_get_subject_name(Certificate);
@@ -1310,8 +1285,6 @@ namespace Tomahawk
 			Output->Serial = SerialBuffer;
 
 			X509_free(Certificate);
-			TH_PPOP();
-
 			return true;
 #else
 			return false;
@@ -1545,7 +1518,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(!Host.empty(), std::string(), "ip address should not be empty");
 			TH_ASSERT(!Service.empty(), std::string(), "port should be greater than zero");
-			TH_PPUSH(TH_PERF_NET * 3);
+			TH_MEASURE(TH_TIMING_NET * 3);
 
 			struct sockaddr_storage Storage;
 			int Port = Core::Parser(&Service).ToInt();
@@ -1570,7 +1543,6 @@ namespace Tomahawk
 			if (Result == -1)
 			{
 				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i\n\tinvalid address", Host.c_str(), Service.c_str());
-				TH_PPOP();
 				return std::string();
 			}
 
@@ -1578,20 +1550,17 @@ namespace Tomahawk
 			if (getnameinfo((struct sockaddr*)&Storage, sizeof(struct sockaddr), Hostname, NI_MAXHOST, ServiceName, NI_MAXSERV, NI_NUMERICSERV) != 0)
 			{
 				TH_ERR("[dns] cannot reverse resolve dns for identity %s:%i", Host.c_str(), Service.c_str());
-				TH_PPOP();
 				return std::string();
 			}
 
 			TH_DEBUG("[net] dns reverse resolved for identity %s:%i\n\thost %s:%s is used", Host.c_str(), Service.c_str(), Hostname, ServiceName);
-			TH_PPOP();
-
 			return Hostname;
 		}
 		Address* DNS::FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
 			TH_ASSERT(!Host.empty(), nullptr, "host should not be empty");
 			TH_ASSERT(!Service.empty(), nullptr, "service should not be empty");
-			TH_PPUSH(TH_PERF_NET * 3);
+			TH_MEASURE(TH_TIMING_NET * 3);
 
 			struct addrinfo Hints;
 			memset(&Hints, 0, sizeof(struct addrinfo));
@@ -1653,23 +1622,21 @@ namespace Tomahawk
 
 			int64_t Time = time(nullptr);
 			std::string Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
-			Exclusive.lock();
 			{
+				std::unique_lock Unique(Exclusive);
 				auto It = Names.find(Identity);
 				if (It != Names.end() && It->second.first > Time)
 				{
 					Address* Result = It->second.second;
 					Exclusive.unlock();
-					TH_PRET(Result);
+					return Result;
 				}
 			}
-			Exclusive.unlock();
 
 			struct addrinfo* Addresses = nullptr;
 			if (getaddrinfo(Host.c_str(), Service.c_str(), &Hints, &Addresses) != 0)
 			{
 				TH_ERR("[dns] cannot resolve dns for identity %s", Identity.c_str());
-				TH_PPOP();
 				return nullptr;
 			}
 
@@ -1707,7 +1674,6 @@ namespace Tomahawk
 			{
 				freeaddrinfo(Addresses);
 				TH_ERR("[dns] cannot resolve dns for identity %s", Identity.c_str());
-				TH_PPOP();
 				return nullptr;
 			}
 
@@ -1716,22 +1682,19 @@ namespace Tomahawk
 			Result->Usable = Good;
 
 			TH_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Socket::GetAddress(Good).c_str());
-			Exclusive.lock();
-			{
-				auto It = Names.find(Identity);
-				if (It != Names.end())
-				{
-					Result->Free();
-					TH_DELETE(Address, Result);
-					It->second.first = Time + DNS_TIMEOUT;
-					Result = It->second.second;
-				}
-				else
-					Names[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
-			}
-			Exclusive.unlock();
 
-			TH_PPOP();
+			std::unique_lock Unique(Exclusive);
+			auto It = Names.find(Identity);
+			if (It != Names.end())
+			{
+				Result->Free();
+				TH_DELETE(Address, Result);
+				It->second.first = Time + DNS_TIMEOUT;
+				Result = It->second.second;
+			}
+			else
+				Names[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
+
 			return Result;
 		}
 		std::unordered_map<std::string, std::pair<int64_t, Address*>> DNS::Names;
@@ -1803,7 +1766,7 @@ namespace Tomahawk
 			if (Count < 0)
 				return Count;
 
-			TH_PPUSH(EventTimeout + TH_PERF_IO);
+			TH_MEASURE(EventTimeout + TH_TIMING_IO);
 			size_t Size = (size_t)Count, Cleanups = 0;
 			auto Time = Core::Schedule::GetClock();
 
@@ -1813,12 +1776,11 @@ namespace Tomahawk
 					++Cleanups;
 			}
 
-			TH_PPOP();
+			TH_MEASURE(TH_TIMING_IO);
 			if (Timeouts->Map.empty())
 				return Count;
 
-			TH_PPUSH(TH_PERF_IO);
-			Exclusive.lock();
+			std::unique_lock Unique(Exclusive);
 			while (!Timeouts->Map.empty())
 			{
 				auto It = Timeouts->Map.begin();
@@ -1829,9 +1791,7 @@ namespace Tomahawk
 				CancelEvents(It->second, SocketPoll::Timeout, false);
 				Timeouts->Map.erase(It);
 			}
-			Exclusive.unlock();
 
-			TH_PPOP();
 			return Count;
 		}
 		bool Driver::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time)
@@ -2305,12 +2265,13 @@ namespace Tomahawk
 		}
 		bool SocketServer::Unlisten()
 		{
+			TH_MEASURE(TH_TIMING_HANG);
 			if (!Router && State == ServerState::Idle)
 				return false;
 
 			State = ServerState::Stopping;
 			int64_t Timeout = time(nullptr);
-			TH_PPUSH(TH_PERF_HANG);
+
 			do
 			{
 				if (time(nullptr) - Timeout > 5)
@@ -2335,9 +2296,8 @@ namespace Tomahawk
 				}
 
 				FreeAll();
-				TH_PSIG();
+				TH_MEASURE_LOOP();
 			} while (!Inactive.empty() || !Active.empty());
-			TH_PPOP();
 
 			if (!OnUnlisten())
 				return false;
@@ -2390,17 +2350,16 @@ namespace Tomahawk
 		}
 		bool SocketServer::FreeAll()
 		{
+			TH_MEASURE(TH_TIMING_FRAME);
 			if (Inactive.empty())
 				return false;
 
-			TH_PPUSH(TH_PERF_FRAME);
 			Sync.lock();
 			for (auto* Item : Inactive)
 				OnDeallocate(Item);
 			Inactive.clear();
 			Sync.unlock();
 
-			TH_PPOP();
 			return true;
 		}
 		bool SocketServer::Refuse(SocketConnection* Base)
@@ -2579,7 +2538,7 @@ namespace Tomahawk
 		}
 		void SocketServer::Push(SocketConnection* Base)
 		{
-			TH_PPUSH(TH_PERF_FRAME);
+			TH_MEASURE(TH_TIMING_FRAME);
 			Sync.lock();
 			auto It = Active.find(Base);
 			if (It != Active.end())
@@ -2591,7 +2550,6 @@ namespace Tomahawk
 			else
 				OnDeallocate(Base);
 			Sync.unlock();
-			TH_PPOP();
 		}
 		SocketConnection* SocketServer::Pop(Listener* Host)
 		{

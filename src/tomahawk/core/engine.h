@@ -1810,7 +1810,7 @@ namespace Tomahawk
 			template<class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
 			{
-				TH_PPUSH(TH_PERF_CORE);
+				TH_MEASURE(TH_TIMING_CORE);
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 				Culling.clear();
@@ -1843,12 +1843,11 @@ namespace Tomahawk
 					TH_SORT(Culling.begin(), Culling.end(), Entity::Sortout<T>);
 				}));
 				Scene->AwaitAll();
-				TH_PPOP();
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Cullout(RenderSystem* System, Storage* Top)
 			{
-				TH_PPUSH(TH_PERF_CORE);
+				TH_MEASURE(TH_TIMING_CORE);
 				auto& Subframe = Top[(size_t)GeoCategory::Opaque];
 				Subframe.clear();
 
@@ -1863,12 +1862,11 @@ namespace Tomahawk
 				auto* Scene = System->GetScene();
 				Scene->Statistics.Instances += Subframe.size();
 				TH_SORT(Subframe.begin(), Subframe.end(), Entity::Sortout<T>);
-				TH_PPOP();
 			}
 			template<class Q = T>
 			typename std::enable_if<std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
 			{
-				TH_PPUSH(TH_PERF_CORE);
+				TH_MEASURE(TH_TIMING_CORE);
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 					Top[i].clear();
 
@@ -1891,7 +1889,6 @@ namespace Tomahawk
 					}));
 				}
 				Scene->AwaitAll();
-				TH_PPOP();
 			}
 			template<class Q = T>
 			typename std::enable_if<!std::is_base_of<Drawable, Q>::value>::type Subcull(RenderSystem* System, Storage* Top)
@@ -2038,7 +2035,7 @@ namespace Tomahawk
 				size_t Count = 0;
 				if (System->State.Is(RenderState::Geometry_Result))
 				{
-					TH_PPUSH(TH_PERF_CORE);
+					TH_MEASURE(TH_TIMING_CORE);
 					GeoCategory Category = GeoCategory::Opaque;
 					if (System->State.IsSet(RenderOpt::Transparent))
 						Category = GeoCategory::Transparent;
@@ -2063,7 +2060,6 @@ namespace Tomahawk
 							Count += RenderGeometryResult(Time, Frame);
 						}
 					}
-					TH_PPOP();
 
 					if (System->State.IsTop())
 						Count += CullingPass();
@@ -2073,7 +2069,7 @@ namespace Tomahawk
 					if (System->State.IsSet(RenderOpt::Transparent) || System->State.IsSet(RenderOpt::Additive))
 						return 0;
 
-					TH_PPUSH(TH_PERF_MIX);
+					TH_MEASURE(TH_TIMING_MIX);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame = Proxy.Batches(GeoCategory::Opaque);
@@ -2092,14 +2088,13 @@ namespace Tomahawk
 							Count += RenderGeometryVoxels(Time, Frame);
 						}
 					}
-					TH_PPOP();
 				}
 				else if (System->State.Is(RenderState::Depth_Linear))
 				{
 					if (!System->State.IsSubpass())
 						return 0;
 
-					TH_PPUSH(TH_PERF_FRAME);
+					TH_MEASURE(TH_TIMING_FRAME);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
@@ -2126,14 +2121,13 @@ namespace Tomahawk
 						if (!Frame2.empty())
 							Count += RenderDepthLinear(Time, Frame2);
 					}
-					TH_PPOP();
 				}
 				else if (System->State.Is(RenderState::Depth_Cubic))
 				{
 					if (!System->State.IsSubpass())
 						return 0;
 
-					TH_PPUSH(TH_PERF_FRAME);
+					TH_MEASURE(TH_TIMING_FRAME);
 					if (Proxy.HasBatching())
 					{
 						auto& Frame1 = Proxy.Batches(GeoCategory::Opaque);
@@ -2160,7 +2154,6 @@ namespace Tomahawk
 						if (!Frame2.empty())
 							Count += RenderDepthCubic(Time, Frame2, System->View.CubicViewProjection);
 					}
-					TH_PPOP();
 				}
 
 				return Count;
@@ -2170,7 +2163,7 @@ namespace Tomahawk
 				if (!System->OcclusionCulling)
 					return 0;
 
-				TH_PPUSH(TH_PERF_FRAME);
+				TH_MEASURE(TH_TIMING_FRAME);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				size_t Count = 0; size_t Fragments = 0;
 
@@ -2202,7 +2195,6 @@ namespace Tomahawk
 					Count += CullGeometry(System->View, Proxy.Culling);
 				}
 
-				TH_PPOP();
 				return Count;
 			}
 			bool CullingBegin(T* Base)

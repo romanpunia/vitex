@@ -301,7 +301,30 @@ namespace Tomahawk
 	{
 		typedef moodycamel::ConcurrentQueue<TaskCallback> FastQueue;
 		typedef moodycamel::ConsumerToken ReceiveToken;
+#ifndef NDEBUG
+		struct Measurement
+		{
+			const char* File = nullptr;
+			const char* Function = nullptr;
+			void* Id = nullptr;
+			uint64_t Threshold = 0;
+			uint64_t Time = 0;
+			int Line = 0;
 
+			void NotifyOfOverConsumption()
+			{
+				if (Threshold == TH_TIMING_INFINITE)
+					return;
+
+				uint64_t Delta = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Time;
+				if (Delta <= Threshold)
+					return;
+
+				std::string BackTrace = OS::GetMeasureTrace();
+				TH_WARN("[stall] took %llu ms (%llu us), operation back trace %s", Delta / 1000, Delta, BackTrace.c_str());
+			}
+		};
+#endif
 		struct ConcurrentQueuePtr
 		{
 			std::map<std::chrono::microseconds, Timeout> Timers;
@@ -4881,7 +4904,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Factory != nullptr, false, "composer should be initialized");
 
-			auto It = Factory->Map.find(TH_COMPONENT_HASH(Hash));
+			auto It = Factory->Map.find(TH_HASH(Hash));
 			if (It == Factory->Map.end())
 				return false;
 
@@ -4966,7 +4989,6 @@ namespace Tomahawk
 		{
 			if (Singleton == this)
 				Singleton = nullptr;
-
 #ifdef TH_MICROSOFT
 			if (!Handle)
 				return;
@@ -5475,79 +5497,77 @@ namespace Tomahawk
 		bool FileStream::Seek(FileSeek Mode, int64_t Offset)
 		{
 			TH_ASSERT(Resource != nullptr, false, "file should be opened");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
+
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					TH_PRET(fseek(Resource, (long)Offset, SEEK_SET) == 0);
+					return fseek(Resource, (long)Offset, SEEK_SET) == 0;
 				case FileSeek::Current:
-					TH_PRET(fseek(Resource, (long)Offset, SEEK_CUR) == 0);
+					return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
-					TH_PRET(fseek(Resource, (long)Offset, SEEK_END) == 0);
+					return fseek(Resource, (long)Offset, SEEK_END) == 0;
+				default:
+					return false;
 			}
-
-			TH_PPOP();
-			return false;
 		}
 		bool FileStream::Move(int64_t Offset)
 		{
 			TH_ASSERT(Resource != nullptr, false, "file should be opened");
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(fseek(Resource, (long)Offset, SEEK_CUR) == 0);
+			TH_MEASURE(TH_TIMING_IO);
+			return fseek(Resource, (long)Offset, SEEK_CUR) == 0;
 		}
 		int FileStream::Flush()
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(fflush(Resource));
+			TH_MEASURE(TH_TIMING_IO);
+			return fflush(Resource);
 		}
 		size_t FileStream::ReadAny(const char* Format, ...)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Format != nullptr, false, "format should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			va_list Args;
 			va_start(Args, Format);
 			size_t R = (size_t)vfscanf(Resource, Format, Args);
 			va_end(Args);
 
-			TH_PPOP();
 			return R;
 		}
 		size_t FileStream::Read(char* Data, size_t Length)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, false, "data should be set");
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(fread(Data, 1, Length, Resource));
+			TH_MEASURE(TH_TIMING_IO);
+			return fread(Data, 1, Length, Resource);
 		}
 		size_t FileStream::WriteAny(const char* Format, ...)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Format != nullptr, false, "format should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			va_list Args;
 			va_start(Args, Format);
 			size_t R = (size_t)vfprintf(Resource, Format, Args);
 			va_end(Args);
 
-			TH_PPOP();
 			return R;
 		}
 		size_t FileStream::Write(const char* Data, size_t Length)
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, false, "data should be set");
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(fwrite(Data, 1, Length, Resource));
+			TH_MEASURE(TH_TIMING_IO);
+			return fwrite(Data, 1, Length, Resource);
 		}
 		size_t FileStream::Tell()
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(ftell(Resource));
+			TH_MEASURE(TH_TIMING_IO);
+			return ftell(Resource);
 		}
 		int FileStream::GetFd() const
 		{
@@ -5579,7 +5599,9 @@ namespace Tomahawk
 		{
 			TH_ASSERT(File != nullptr, 0, "filename should be set");
 #ifdef TH_HAS_ZLIB
+			TH_MEASURE(TH_TIMING_IO);
 			Close();
+
 			Path = OS::Path::Resolve(File);
 			switch (Mode)
 			{
@@ -5614,14 +5636,13 @@ namespace Tomahawk
 		bool GzStream::Close()
 		{
 #ifdef TH_HAS_ZLIB
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			if (Resource != nullptr)
 			{
 				TH_DEBUG("[gz] close 0x%" PRIXPTR, (uintptr_t)Resource);
 				gzclose((gzFile)Resource);
 				Resource = nullptr;
 			}
-			TH_PPOP();
 #endif
 			return true;
 		}
@@ -5629,17 +5650,16 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			switch (Mode)
 			{
 				case FileSeek::Begin:
-					TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0);
+					return gzseek((gzFile)Resource, (long)Offset, SEEK_SET) == 0;
 				case FileSeek::Current:
-					TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0);
+					return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
-					TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0);
+					return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
 			}
-			TH_PPOP();
 #endif
 			return false;
 		}
@@ -5647,8 +5667,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0);
+			TH_MEASURE(TH_TIMING_IO);
+			return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 #else
 			return false;
 #endif
@@ -5657,8 +5677,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(gzflush((gzFile)Resource, Z_SYNC_FLUSH));
+			TH_MEASURE(TH_TIMING_IO);
+			return gzflush((gzFile)Resource, Z_SYNC_FLUSH);
 #else
 			return 0;
 #endif
@@ -5672,8 +5692,8 @@ namespace Tomahawk
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(gzread((gzFile)Resource, Data, (unsigned int)Length));
+			TH_MEASURE(TH_TIMING_IO);
+			return gzread((gzFile)Resource, Data, (unsigned int)Length);
 #else
 			return 0;
 #endif
@@ -5682,7 +5702,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Format != nullptr, 0, "format should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			va_list Args;
 			va_start(Args, Format);
@@ -5693,7 +5713,6 @@ namespace Tomahawk
 #endif
 			va_end(Args);
 
-			TH_PPOP();
 			return R;
 		}
 		size_t GzStream::Write(const char* Data, size_t Length)
@@ -5701,8 +5720,8 @@ namespace Tomahawk
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 			TH_ASSERT(Data != nullptr, 0, "data should be set");
 #ifdef TH_HAS_ZLIB
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(gzwrite((gzFile)Resource, Data, (unsigned int)Length));
+			TH_MEASURE(TH_TIMING_IO);
+			return gzwrite((gzFile)Resource, Data, (unsigned int)Length);
 #else
 			return 0;
 #endif
@@ -5711,8 +5730,8 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Resource != nullptr, 0, "file should be opened");
 #ifdef TH_HAS_ZLIB
-			TH_PPUSH(TH_PERF_IO);
-			TH_PRET(gztell((gzFile)Resource));
+			TH_MEASURE(TH_TIMING_IO);
+			return gztell((gzFile)Resource);
 #else
 			return 0;
 #endif
@@ -6268,7 +6287,7 @@ namespace Tomahawk
 		bool OS::Directory::Scan(const std::string& Path, std::vector<ResourceEntry>* Entries)
 		{
 			TH_ASSERT(Entries != nullptr, false, "entries should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			ResourceEntry Entry;
 #if defined(TH_MICROSOFT)
@@ -6298,7 +6317,6 @@ namespace Tomahawk
 			else
 			{
 				TH_FREE(Value);
-				TH_PPOP();
 				return false;
 			}
 
@@ -6326,10 +6344,7 @@ namespace Tomahawk
 #else
 			DIR* Value = opendir(Path.c_str());
 			if (!Value)
-			{
-				TH_PPOP();
 				return false;
-			}
 
 			dirent* Dirent = nullptr;
 			while ((Dirent = readdir(Value)) != nullptr)
@@ -6342,7 +6357,6 @@ namespace Tomahawk
 			}
 			closedir(Value);
 #endif
-			TH_PPOP();
 			return true;
 		}
 		bool OS::Directory::Each(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback)
@@ -6374,7 +6388,7 @@ namespace Tomahawk
 		bool OS::Directory::Create(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			TH_DEBUG("[io] create dir %s", Path);
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[TH_CHUNK_SIZE];
@@ -6382,52 +6396,37 @@ namespace Tomahawk
 
 			size_t Length = wcslen(Buffer);
 			if (!Length)
-			{
-				TH_PPOP();
 				return false;
-			}
 
 			if (::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS)
-			{
-				TH_PPOP();
 				return true;
-			}
 
 			size_t Index = Length - 1;
 			while (Index > 0 && Buffer[Index] != '/' && Buffer[Index] != '\\')
 				Index--;
 
 			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
-			{
-				TH_PPOP();
 				return false;
-			}
 
-			TH_PRET(::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS);
+			return ::CreateDirectoryW(Buffer, nullptr) != FALSE || GetLastError() == ERROR_ALREADY_EXISTS;
 #else
 			if (mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST)
-			{
-				TH_PPOP();
 				return true;
-			}
 
 			size_t Index = strlen(Path) - 1;
 			while (Index > 0 && Path[Index] != '/' && Path[Index] != '\\')
 				Index--;
 
 			if (Index > 0 && !Create(std::string(Path).substr(0, Index).c_str()))
-			{
-				TH_PPOP();
 				return false;
-			}
 
-			TH_PRET(mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST);
+			return mkdir(Path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != -1 || errno == EEXIST;
 #endif
 		}
 		bool OS::Directory::Remove(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			TH_DEBUG("[io] remove dir %s", Path);
 
 #ifdef TH_MICROSOFT
@@ -6438,7 +6437,6 @@ namespace Tomahawk
 			if (Handle == INVALID_HANDLE_VALUE)
 			{
 				::FindClose(Handle);
-				TH_PPOP();
 				return false;
 			}
 
@@ -6451,44 +6449,36 @@ namespace Tomahawk
 				if (FileInformation.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				{
 					::FindClose(Handle);
-					TH_PRET(Remove(FilePath.c_str()));
+					return Remove(FilePath.c_str());
 				}
 
 				if (::SetFileAttributes(FilePath.c_str(), FILE_ATTRIBUTE_NORMAL) == FALSE)
 				{
 					::FindClose(Handle);
-					TH_PPOP();
 					return false;
 				}
 
 				if (::DeleteFile(FilePath.c_str()) == FALSE)
 				{
 					::FindClose(Handle);
-					TH_PPOP();
 					return false;
 				}
 			} while (::FindNextFile(Handle, &FileInformation) != FALSE);
 			::FindClose(Handle);
 
 			if (::GetLastError() != ERROR_NO_MORE_FILES)
-			{
-				TH_PPOP();
 				return false;
-			}
 
 			if (::SetFileAttributes(Path, FILE_ATTRIBUTE_NORMAL) == FALSE)
-			{
-				TH_PPOP();
 				return false;
-			}
 
-			TH_PRET(::RemoveDirectory(Path) != FALSE);
+			return ::RemoveDirectory(Path) != FALSE;
 #elif defined TH_UNIX
 			DIR* Root = opendir(Path);
 			size_t Size = strlen(Path);
 
 			if (!Root)
-				TH_PRET(rmdir(Path) == 0);
+				return rmdir(Path) == 0);
 
 			struct dirent* It;
 			while ((It = readdir(Root)))
@@ -6520,27 +6510,23 @@ namespace Tomahawk
 			}
 
 			closedir(Root);
-			TH_PRET(rmdir(Path) == 0);
+			return rmdir(Path) == 0);
 #endif
 		}
 		bool OS::Directory::IsExists(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			struct stat Buffer;
 			if (stat(Path::Resolve(Path).c_str(), &Buffer) != 0)
-			{
-				TH_PPOP();
 				return false;
-			}
 
-			TH_PPOP();
 			return Buffer.st_mode & S_IFDIR;
 		}
 		std::string OS::Directory::Get()
 		{
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 #ifndef TH_HAS_SDL2
 			char Buffer[TH_MAX_PATH + 1] = { 0 };
 #ifdef TH_MICROSOFT
@@ -6553,10 +6539,7 @@ namespace Tomahawk
 				Buffer[Result.size()] = '\0';
 #elif defined TH_UNIX
 			if (!getcwd(Buffer, TH_MAX_PATH))
-			{
-				TH_PPOP();
 				return std::string();
-			}
 #endif
 			size_t Length = strlen(Buffer);
 			if (Length > 0 && Buffer[Length - 1] != '/' && Buffer[Length - 1] != '\\')
@@ -6565,14 +6548,12 @@ namespace Tomahawk
 				Length++;
 			}
 
-			TH_PPOP();
 			return std::string(Buffer, Length);
 #else
 			char* Base = SDL_GetBasePath();
 			std::string Result = Base;
 			SDL_free(Base);
 
-			TH_PPOP();
 			return Result;
 #endif
 		}
@@ -6601,7 +6582,7 @@ namespace Tomahawk
 		bool OS::File::State(const std::string& Path, Resource* Resource)
 		{
 			TH_ASSERT(Resource != nullptr, false, "resource should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			memset(Resource, 0, sizeof(*Resource));
 #if defined(TH_MICROSOFT)
@@ -6610,10 +6591,7 @@ namespace Tomahawk
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
-			{
-				TH_PPOP();
 				return false;
-			}
 
 			Resource->Size = MAKEUQUAD(Info.nFileSizeLow, Info.nFileSizeHigh);
 			Resource->LastModified = SYS2UNIX_TIME(Info.ftLastWriteTime.dwLowDateTime, Info.ftLastWriteTime.dwHighDateTime);
@@ -6623,34 +6601,21 @@ namespace Tomahawk
 
 			Resource->IsDirectory = Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 			if (Resource->IsDirectory)
-			{
-				TH_PPOP();
 				return true;
-			}
 
 			if (Path.empty())
-			{
-				TH_PPOP();
 				return false;
-			}
 
 			int End = Path.back();
 			if (isalnum(End) || strchr("_-", End) != nullptr)
-			{
-				TH_PPOP();
 				return true;
-			}
 
-			TH_PPOP();
 			memset(Resource, 0, sizeof(*Resource));
 			return false;
 #else
 			struct stat State;
 			if (stat(Path.c_str(), &State) != 0)
-			{
-				TH_PPOP();
 				return false;
-			}
 
 			struct tm Time;
 			LocalTime(&State.st_ctime, &Time);
@@ -6659,7 +6624,6 @@ namespace Tomahawk
 			Resource->LastModified = State.st_mtime;
 			Resource->IsDirectory = S_ISDIR(State.st_mode);
 
-			TH_PPOP();
 			return true;
 #endif
 		}
@@ -6672,10 +6636,9 @@ namespace Tomahawk
 			if (!Stream)
 				return false;
 
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			fwrite((const void*)Data, (size_t)Length, 1, Stream);
 			TH_CLOSE(Stream);
-			TH_PPOP();
 
 			return true;
 		}
@@ -6686,49 +6649,46 @@ namespace Tomahawk
 			if (!Stream)
 				return false;
 
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
 			TH_CLOSE(Stream);
-			TH_PPOP();
 
 			return true;
 		}
 		bool OS::File::Move(const char* From, const char* To)
 		{
 			TH_ASSERT(From != nullptr && To != nullptr, false, "from and to should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			TH_DEBUG("[io] move file from %s to %s", From, To);
 #ifdef TH_MICROSOFT
-			TH_PRET(MoveFileA(From, To) != 0);
+			return MoveFileA(From, To) != 0;
 #elif defined TH_UNIX
-			TH_PRET(!rename(From, To));
+			return !rename(From, To);
 #else
-			TH_PPOP();
 			return false;
 #endif
 		}
 		bool OS::File::Remove(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			TH_DEBUG("[io] remove file %s", Path);
 #ifdef TH_MICROSOFT
 			SetFileAttributesA(Path, 0);
-			TH_PRET(DeleteFileA(Path) != 0);
+			return DeleteFileA(Path) != 0;
 #elif defined TH_UNIX
-			TH_PRET(unlink(Path) == 0);
+			return unlink(Path) == 0;
 #else
-			TH_PPOP();
 			return false;
 #endif
 		}
 		bool OS::File::IsExists(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			struct stat Buffer;
-			TH_PRET(stat(Path::Resolve(Path).c_str(), &Buffer) == 0);
+			return stat(Path::Resolve(Path).c_str(), &Buffer) == 0;
 		}
 		int OS::File::Compare(const std::string& FirstPath, const std::string& SecondPath)
 		{
@@ -6761,6 +6721,7 @@ namespace Tomahawk
 
 			do
 			{
+				TH_MEASURE(TH_TIMING_IO);
 				size_t S1 = fread(Buffer1, sizeof(char), Size, First);
 				size_t S2 = fread(Buffer2, sizeof(char), Size, Second);
 				if (S1 == S2)
@@ -6790,13 +6751,10 @@ namespace Tomahawk
 			struct stat Buffer;
 
 			TH_ASSERT(Path != nullptr, State, "path should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 
 			if (stat(Path, &Buffer) != 0)
-			{
-				TH_PPOP();
 				return State;
-			}
 
 			State.Exists = true;
 			State.Size = Buffer.st_size;
@@ -6810,12 +6768,11 @@ namespace Tomahawk
 			State.LastPermissionChange = Buffer.st_ctime;
 			State.LastModified = Buffer.st_mtime;
 
-			TH_PPOP();
 			return State;
 		}
 		void* OS::File::Open(const char* Path, const char* Mode)
 		{
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			TH_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef TH_MICROSOFT
 			wchar_t Buffer[TH_CHUNK_SIZE], Type[20];
@@ -6824,13 +6781,13 @@ namespace Tomahawk
 
 			FILE* Stream = _wfopen(Buffer, Type);
 			TH_DEBUG("[io] open fs %s %s", Mode, Path);
-			TH_PRET((void*)Stream);
+			return (void*)Stream;
 #else
 			FILE* Stream = fopen(Path, Mode);
 			if (Stream != nullptr)
 				fcntl(TH_FILENO(Stream), F_SETFD, FD_CLOEXEC);
 			TH_DEBUG("[io] open fs %s %s", Mode, Path);
-			TH_PRET((void*)Stream);
+			return (void*)Stream;
 #endif
 		}
 		Stream* OS::File::Open(const std::string& Path, FileMode Mode, bool Async)
@@ -6867,7 +6824,7 @@ namespace Tomahawk
 			if (!Stream)
 				return nullptr;
 
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 			fseek(Stream, 0, SEEK_END);
 			size_t Size = ftell(Stream);
 			fseek(Stream, 0, SEEK_SET);
@@ -6881,7 +6838,6 @@ namespace Tomahawk
 				if (Length != nullptr)
 					*Length = 0;
 
-				TH_PPOP();
 				return nullptr;
 			}
 
@@ -6890,8 +6846,6 @@ namespace Tomahawk
 				*Length = Size;
 
 			TH_CLOSE(Stream);
-			TH_PPOP();
-
 			return Bytes;
 		}
 		unsigned char* OS::File::ReadAll(Stream* Stream, size_t* Length)
@@ -6936,6 +6890,7 @@ namespace Tomahawk
 			if (!Stream)
 				return std::vector<std::string>();
 
+			TH_MEASURE(TH_TIMING_IO);
 			fseek(Stream, 0, SEEK_END);
 			size_t Length = ftell(Stream);
 			fseek(Stream, 0, SEEK_SET);
@@ -6969,26 +6924,19 @@ namespace Tomahawk
 		std::string OS::Path::Resolve(const char* Path)
 		{
 			TH_ASSERT(Path != nullptr, std::string(), "path should be set");
-			TH_PPUSH(TH_PERF_IO);
+			TH_MEASURE(TH_TIMING_IO);
 #ifdef TH_MICROSOFT
 			char Buffer[TH_CHUNK_SIZE] = { 0 };
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
-			{
-				TH_PPOP();
 				return Path;
-			}
 #elif defined TH_UNIX
 			char* Data = realpath(Path, nullptr);
 			if (!Data)
-			{
-				TH_PPOP();
 				return Path;
-			}
 
 			std::string Buffer = Data;
 			TH_FREE(Data);
 #endif
-			TH_PPOP();
 			return Buffer;
 		}
 		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
@@ -7161,6 +7109,7 @@ namespace Tomahawk
 		}
 		bool OS::Process::Spawn(const std::string& Path, const std::vector<std::string>& Params, ChildProcess* Child)
 		{
+			TH_MEASURE(TH_TIMING_IO);
 #ifdef TH_MICROSOFT
 			HANDLE Job = CreateJobObject(nullptr, nullptr);
 			if (Job == nullptr)
@@ -7346,6 +7295,7 @@ namespace Tomahawk
 
 		void* OS::Symbol::Load(const std::string& Path)
 		{
+			TH_MEASURE(TH_TIMING_IO);
 			Parser Name(Path);
 #ifdef TH_MICROSOFT
 			if (Path.empty())
@@ -7382,6 +7332,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(Handle != nullptr && !Name.empty(), nullptr, "handle should be set and name should not be empty");
 			TH_DEBUG("[dl] load function %s", Name.c_str());
+			TH_MEASURE(TH_TIMING_IO);
 #ifdef TH_MICROSOFT
 			void* Result = (void*)GetProcAddress((HMODULE)Handle, Name.c_str());
 			if (!Result)
@@ -7415,6 +7366,7 @@ namespace Tomahawk
 		bool OS::Symbol::Unload(void* Handle)
 		{
 			TH_ASSERT(Handle != nullptr, false, "handle should be set");
+			TH_MEASURE(TH_TIMING_IO);
 #ifdef TH_MICROSOFT
 			return (FreeLibrary((HMODULE)Handle) != 0);
 #elif defined(TH_UNIX)
@@ -7505,55 +7457,39 @@ namespace Tomahawk
 
 			return true;
 		}
-
 #ifndef NDEBUG
-		static thread_local std::stack<OS::DbgContext> PerfFrame;
-		static thread_local bool DbgIgnore = false;
-		void OS::PerfPush(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
-		{
-			TH_ASSERT_V(File != nullptr, "file should be set");
-			TH_ASSERT_V(Function != nullptr, "function should be set");
-			TH_ASSERT_V(ThresholdMS > 0, "threshold time should be greater than Zero");
-
-			if (DbgIgnore)
-				return;
-
-			OS::DbgContext Next;
-			Next.File = File;
-			Next.Function = Function;
-			Next.Threshold = ThresholdMS * 1000;
-			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			Next.Line = Line;
-			PerfFrame.emplace(std::move(Next));
-		}
-		void OS::PerfSignal()
-		{
-			if (DbgIgnore)
-				return;
-
-			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
-			OS::DbgContext& Next = PerfFrame.top();
-			uint64_t Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-			uint64_t Diff = Time - Next.Time;
-			if (Diff > Next.Threshold)
-			{
-				TH_WARN("[stall] operation took %llu ms (%llu us)\n\twhere: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
-				Next.Time = Time;
-			}
-		}
-		void OS::PerfPop()
-		{
-			if (DbgIgnore)
-				return;
-
-			TH_ASSERT_V(!PerfFrame.empty(), "debug frame should be set");
-			OS::DbgContext& Next = PerfFrame.top();
-			uint64_t Diff = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count() - Next.Time;
-			if (Diff > Next.Threshold)
-				TH_WARN("[stall] operation took %llu ms (%llu us)\n\twhere: %s()\n\tfile: %s:%i\n\texpected: %llu ms at most", Diff / 1000, Diff, Next.Function, Next.File, Next.Line, Next.Threshold / 1000);
-			PerfFrame.pop();
-		}
+		static thread_local std::stack<Measurement> MeasuringTree;
+		static thread_local bool MeasuringDisabled = false;
 #endif
+		OS::Tick::Tick() : IsCounting(true)
+		{
+		}
+		OS::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
+		{
+			Other.IsCounting = false;
+		}
+		OS::Tick::~Tick()
+		{
+#ifndef NDEBUG
+			if (MeasuringDisabled || !IsCounting)
+				return;
+
+			TH_ASSERT_V(!MeasuringTree.empty(), "debug frame should be set");
+			auto& Next = MeasuringTree.top();
+			Next.NotifyOfOverConsumption();
+			MeasuringTree.pop();
+#endif
+		}
+		OS::Tick& OS::Tick::operator =(Tick&& Other) noexcept
+		{
+			if (&Other == this)
+				return *this;
+
+			IsCounting = Other.IsCounting;
+			Other.IsCounting = false;
+			return *this;
+		}
+
 		int OS::Error::Get()
 		{
 #ifdef TH_MICROSOFT
@@ -7638,7 +7574,37 @@ namespace Tomahawk
 			Temp = Stream.str();
 			return Temp;
 		}
-
+		
+		OS::Tick OS::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
+		{
+#ifndef NDEBUG
+			TH_ASSERT(File != nullptr, OS::Tick(), "file should be set");
+			TH_ASSERT(Function != nullptr, OS::Tick(), "function should be set");
+			TH_ASSERT(ThresholdMS > 0 || ThresholdMS == TH_TIMING_INFINITE, OS::Tick(), "threshold time should be greater than Zero");
+			if (!MeasuringDisabled)
+			{
+				Measurement Next;
+				Next.File = File;
+				Next.Function = Function;
+				Next.Threshold = ThresholdMS * 1000;
+				Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+				Next.Line = Line;
+				MeasuringTree.emplace(std::move(Next));
+			}
+#endif
+			return OS::Tick();
+		}
+		void OS::MeasureLoop()
+		{
+#ifndef NDEBUG
+			if (!MeasuringDisabled)
+			{
+				TH_ASSERT_V(!MeasuringTree.empty(), "debug frame should be set");
+				auto& Next = MeasuringTree.top();
+				Next.NotifyOfOverConsumption();
+			}
+#endif
+		}
 		void OS::Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...)
 		{
 			if (!Active && !Callback)
@@ -7726,11 +7692,11 @@ namespace Tomahawk
 			if (Callback)
 			{
 #ifndef NDEBUG
-				if (!DbgIgnore)
+				if (!MeasuringDisabled)
 				{
-					DbgIgnore = true;
+					MeasuringDisabled = true;
 					Callback(Data);
-					DbgIgnore = false;
+					MeasuringDisabled = false;
 				}
 #else
 				Callback(Data);
@@ -7976,6 +7942,32 @@ namespace Tomahawk
 		bool OS::IsLogPretty()
 		{
 			return Pretty;
+		}
+		std::string OS::GetMeasureTrace()
+		{
+#ifndef NDEBUG
+			auto Source = MeasuringTree;
+			std::stringstream Stream;
+			Stream << "in thread " << std::this_thread::get_id() << ":\n";
+
+			size_t Index = 0;
+			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
+			{
+				auto& Next = Source.top();
+				Stream << "\t#" << TraceIdx << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
+				if (Next.Id != nullptr)
+					Stream << " (0x" << Next.Id;
+				else
+					Stream << " (nullptr";
+				Stream << "), at most " << Next.Threshold / 1000 << " ms\n";
+				Source.pop();
+			}
+
+			std::string Out(Stream.str());
+			return Out.substr(0, Out.size() - 1);
+#else
+			return std::string();
+#endif
 		}
 		std::string OS::GetStackTrace(size_t Skips, size_t MaxFrames)
 		{
@@ -8467,7 +8459,7 @@ namespace Tomahawk
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -8478,7 +8470,7 @@ namespace Tomahawk
 				Queue->Notify.notify_all();
 			}
 			Queue->Notify.notify_all();
-			TH_PRET(Id);
+			return Id;
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
@@ -8490,7 +8482,7 @@ namespace Tomahawk
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -8501,7 +8493,7 @@ namespace Tomahawk
 				Queue->Notify.notify_all();
 			}
 			Queue->Notify.notify_all();
-			TH_PRET(Id);
+			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
@@ -8513,7 +8505,7 @@ namespace Tomahawk
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -8524,7 +8516,7 @@ namespace Tomahawk
 				Queue->Notify.notify_all();
 			}
 			Queue->Notify.notify_all();
-			TH_PRET(Id);
+			return Id;
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
 		{
@@ -8536,7 +8528,7 @@ namespace Tomahawk
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTimer, 1);
 #endif
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			auto Duration = std::chrono::microseconds(Milliseconds * 1000);
 			auto Expires = GetClock() + Duration;
@@ -8547,7 +8539,7 @@ namespace Tomahawk
 				Queue->Notify.notify_all();
 			}
 			Queue->Notify.notify_all();
-			TH_PRET(Id);
+			return Id;
 		}
 		bool Schedule::SetTask(const TaskCallback& Callback, Difficulty Type)
 		{
@@ -8559,12 +8551,12 @@ namespace Tomahawk
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTask, 1);
 #endif
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Type];
 			std::unique_lock<std::mutex> Lock(Queue->Update);
 			Queue->Tasks.enqueue(Callback);
 			Queue->Notify.notify_all();
-			TH_PRET(true);
+			return true;
 		}
 		bool Schedule::SetTask(TaskCallback&& Callback, Difficulty Type)
 		{
@@ -8576,11 +8568,11 @@ namespace Tomahawk
 #ifndef NDEBUG
 			PostDebug(Type, ThreadTask::EnqueueTask, 1);
 #endif
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Type];
 			Queue->Tasks.enqueue(std::move(Callback));
 			Queue->Notify.notify_all();
-			TH_PRET(true);
+			return true;
 		}
 		bool Schedule::SetCoroutine(const TaskCallback& Callback)
 		{
@@ -8588,12 +8580,12 @@ namespace Tomahawk
 			if (!Enqueue)
 				return false;
 
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(Callback);
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
 				Thread->Notify.notify_all();
-			TH_PRET(true);
+			return true;
 		}
 		bool Schedule::SetCoroutine(TaskCallback&& Callback)
 		{
@@ -8603,12 +8595,12 @@ namespace Tomahawk
 #ifndef NDEBUG
 			PostDebug(Difficulty::Coroutine, ThreadTask::EnqueueCoroutine, 1);
 #endif
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Coroutine];
 			Queue->Tasks.enqueue(std::move(Callback));
 			for (auto* Thread : Threads[(size_t)Difficulty::Coroutine])
 				Thread->Notify.notify_all();
-			TH_PRET(true);
+			return true;
 		}
 		bool Schedule::SetDebugCallback(const ThreadDebugCallback& Callback)
 		{
@@ -8621,7 +8613,7 @@ namespace Tomahawk
 		}
 		bool Schedule::ClearTimeout(TaskId Target)
 		{
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 			auto Queue = Queues[(size_t)Difficulty::Clock];
 			std::unique_lock<std::mutex> Lock(Queue->Update);
 			for (auto It = Queue->Timers.begin(); It != Queue->Timers.end(); ++It)
@@ -8630,10 +8622,10 @@ namespace Tomahawk
 				{
 					Queue->Timers.erase(It);
 					Queue->Notify.notify_all();
-					TH_PRET(true);
+					return true;
 				}
 			}
-			TH_PRET(false);
+			return false;
 		}
 		bool Schedule::Start(const Desc& NewPolicy)
 		{
@@ -8720,13 +8712,12 @@ namespace Tomahawk
 		bool Schedule::Dispatch()
 		{
 			size_t Passes = 0;
-			TH_PPUSH(TH_PERF_MAX);
+			TH_MEASURE(TH_TIMING_MAX);
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 			{
 				if (ProcessTick((Difficulty)i))
 					++Passes;
 			}
-			TH_PPOP();
 			return Passes > 0;
 		}
 		bool Schedule::ProcessTick(Difficulty Type)
@@ -8808,11 +8799,10 @@ namespace Tomahawk
 #endif
 					for (size_t i = 0; i < Count; ++i)
 					{
-						TH_PPUSH(Type == Difficulty::Heavy ? TH_PERF_MAX : TH_PERF_IO);
+						TH_MEASURE(Type == Difficulty::Heavy ? TH_TIMING_MAX : TH_TIMING_IO);
 						TaskCallback Data(std::move(Dispatcher.Tasks[i]));
 						if (Data != nullptr)
 							Data();
-						TH_PPOP();
 					}
 #ifndef NDEBUG
 					PostDebug(Type, ThreadTask::Awake, 0);
@@ -8929,9 +8919,10 @@ namespace Tomahawk
 #ifndef NDEBUG
 						PostDebug(Type, ThreadTask::ProcessCoroutine, State->GetCount());
 #endif
-						TH_PPUSH(TH_PERF_CORE);
-						State->Dispatch();
-						TH_PPOP();
+						{
+							TH_MEASURE(TH_TIMING_CORE);
+							State->Dispatch();
+						}
 #ifndef NDEBUG
 						PostDebug(Thread, ThreadTask::Sleep, 0);
 #endif
@@ -8971,11 +8962,10 @@ namespace Tomahawk
 #endif
 							for (size_t i = 0; i < Count; ++i)
 							{
-								TH_PPUSH(TH_PERF_MAX);
+								TH_MEASURE(TH_TIMING_MAX);
 								TaskCallback Data(std::move(Events[i]));
 								if (Data != nullptr)
 									Data();
-								TH_PPOP();
 							}
 						} while (Count > 0);
 #ifndef NDEBUG

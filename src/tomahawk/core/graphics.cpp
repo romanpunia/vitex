@@ -1963,7 +1963,7 @@ namespace Tomahawk
 		bool Activity::Dispatch()
 		{
 			TH_ASSERT(Handle != nullptr, false, "activity should be initialized");
-			TH_PPUSH(TH_PERF_MIX);
+			TH_MEASURE(TH_TIMING_MIX);
 
 			memcpy((void*)Keys[1], (void*)Keys[0], sizeof(Keys[0]));
 #ifdef TH_HAS_SDL2
@@ -2361,7 +2361,6 @@ namespace Tomahawk
 				}
 			}
 
-			TH_PPOP();
 			if (!Options.AllowStalls)
 				return true;
 
@@ -2372,7 +2371,6 @@ namespace Tomahawk
 			std::this_thread::sleep_for(std::chrono::milliseconds(66));
 			return true;
 #else
-			TH_PPOP();
 			return false;
 #endif
 		}
@@ -3499,14 +3497,13 @@ namespace Tomahawk
 		void SkinModel::ComputePose(PoseBuffer* Map)
 		{
 			TH_ASSERT_V(Map != nullptr, "pose buffer should be set");
-			TH_PPUSH(TH_PERF_ATOM);
+			TH_MEASURE(TH_TIMING_ATOM);
 
 			if (Map->Pose.empty())
 				Map->SetPose(this);
 
 			for (auto& Child : Joints)
 				ComputePose(Map, &Child, Compute::Matrix4x4::Identity());
-			TH_PPOP();
 		}
 		void SkinModel::ComputePose(PoseBuffer* Map, Compute::Joint* Base, const Compute::Matrix4x4& World)
 		{

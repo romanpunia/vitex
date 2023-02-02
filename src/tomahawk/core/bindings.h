@@ -2,6 +2,7 @@
 #define TH_BINDINGS_H
 #include "script.h"
 #include "../engine/gui.h"
+#define TH_SHUFFLE(Name) Tomahawk::Core::Shuffle<sizeof(Name)>(Name)
 #define TH_TYPEREF(Name, TypeName) static const uint64_t Name = TH_SHUFFLE(TypeName); Tomahawk::Script::Bindings::TypeCache::Set(Name, TypeName)
 #define TH_PROMISIFY(MemberFunction, TypeId) Tomahawk::Script::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
 #define TH_PROMISIFY_REF(MemberFunction, TypeRef) Tomahawk::Script::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>

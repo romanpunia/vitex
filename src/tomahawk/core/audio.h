@@ -1,6 +1,18 @@
 #ifndef TH_AUDIO_H
 #define TH_AUDIO_H
 #include "compute.h"
+#define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_HASH(Name))
+#define TH_COMPONENT_ROOT(Name) \
+virtual const char* GetName() { return Name; } \
+virtual uint64_t GetId() { static uint64_t V = TH_HASH(Name); return V; } \
+static const char* GetTypeName() { return Name; } \
+static uint64_t GetTypeId() { static uint64_t V = TH_HASH(Name); return V; }
+
+#define TH_COMPONENT(Name) \
+virtual const char* GetName() override { return Name; } \
+virtual uint64_t GetId() override { static uint64_t V = TH_HASH(Name); return V; } \
+static const char* GetTypeName() { return Name; } \
+static uint64_t GetTypeId() { static uint64_t V = TH_HASH(Name); return V; }
 
 namespace Tomahawk
 {

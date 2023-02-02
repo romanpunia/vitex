@@ -1,11 +1,11 @@
 #ifndef TH_COMPUTE_H
 #define TH_COMPUTE_H
-#define TH_LEFT_HANDED (Tomahawk::Compute::Geometric::IsLeftHanded())
 #include "core.h"
 #include <cmath>
 #include <map>
 #include <stack>
 #include <limits>
+#define TH_LEFT_HANDED (Tomahawk::Compute::Geometric::IsLeftHanded())
 
 class btCollisionConfiguration;
 class btBroadphaseInterface;

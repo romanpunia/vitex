@@ -3451,7 +3451,7 @@ namespace Tomahawk
 		}
 		SceneGraph::~SceneGraph()
 		{
-			TH_PPUSH(TH_PERF_MAX);
+			TH_MEASURE(TH_TIMING_MAX);
 			StepTransactions();
 
 			auto Source = std::move(Listeners);
@@ -3504,7 +3504,6 @@ namespace Tomahawk
 
 			TH_RELEASE(Display.MaterialBuffer);
 			TH_RELEASE(Simulator);
-			TH_PPOP();
 		}
 		void SceneGraph::Configure(const Desc& NewConf)
 		{
@@ -3631,7 +3630,8 @@ namespace Tomahawk
 		void SceneGraph::Dispatch(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "time should be set");
-			TH_PPUSH(TH_PERF_FRAME);
+			TH_MEASURE(TH_TIMING_FRAME);
+
 			StepEvents();
 			StepTransactions();
 			StepGameplay(Time);
@@ -3640,15 +3640,14 @@ namespace Tomahawk
 			StepSynchronize(Time);
 			StepIndexing();
 			StepFinalize();
-			TH_PPOP();
 		}
 		void SceneGraph::Publish(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
-			TH_PPUSH(TH_PERF_FRAME);
+			TH_MEASURE(TH_TIMING_FRAME);
+
 			auto* Base = (Components::Camera*)Camera.load();
 			auto* Renderer = (Base ? Base->GetRenderer() : nullptr);
-
 			Statistics.Instances = 0;
 			Statistics.DrawCalls = 0;
 
@@ -3659,26 +3658,26 @@ namespace Tomahawk
 				Renderer->RestoreViewBuffer(nullptr);
 				Statistics.DrawCalls += Renderer->Render(Time, RenderState::Geometry_Result, RenderOpt::None);
 			}
-			TH_PPOP();
 		}
 		void SceneGraph::StepSimulate(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
 			TH_ASSERT_V(Simulator != nullptr, "simulator should be set");
-			TH_PPUSH(TH_PERF_CORE);
-			if (Active)
+			TH_MEASURE(TH_TIMING_CORE);
+
+			if (!Active)
+				return;
+
+			Watch(Parallel::Enqueue([this, Time]()
 			{
-				Watch(Parallel::Enqueue([this, Time]()
-				{
-					Simulator->Simulate(4, Time->GetStep(), Time->GetFixedStep());
-				}));
-			}
-			TH_PPOP();
+				Simulator->Simulate(4, Time->GetStep(), Time->GetFixedStep());
+			}));
 		}
 		void SceneGraph::StepSynchronize(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
-			TH_PPUSH(TH_PERF_CORE);
+			TH_MEASURE(TH_TIMING_CORE);
+
 			auto& Storage = Actors[(size_t)ActorType::Synchronize];
 			if (!Storage.Empty())
 			{
@@ -3687,12 +3686,12 @@ namespace Tomahawk
 					Next->Synchronize(Time);
 				}));
 			}
-			TH_PPOP();
 		}
 		void SceneGraph::StepAnimate(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
-			TH_PPUSH(TH_PERF_CORE);
+			TH_MEASURE(TH_TIMING_CORE);
+
 			auto& Storage = Actors[(size_t)ActorType::Animate];
 			if (Active && !Storage.Empty())
 			{
@@ -3701,11 +3700,12 @@ namespace Tomahawk
 					Next->Animate(Time);
 				}));
 			}
-			TH_PPOP();
 		}
 		void SceneGraph::StepGameplay(Core::Timer* Time)
 		{
-			TH_PPUSH(TH_PERF_FRAME);
+			TH_ASSERT_V(Time != nullptr, "timer should be set");
+			TH_MEASURE(TH_TIMING_FRAME);
+
 			auto& Storage = Actors[(size_t)ActorType::Update];
 			if (Active && !Storage.Empty())
 			{
@@ -3714,10 +3714,10 @@ namespace Tomahawk
 					Next->Update(Time);
 				});
 			}
-			TH_PPOP();
 		}
 		void SceneGraph::StepTransactions()
 		{
+			TH_MEASURE(TH_TIMING_FRAME);
 			while (!Transactions.empty())
 			{
 				Transactions.front()();
@@ -3726,6 +3726,7 @@ namespace Tomahawk
 		}
 		void SceneGraph::StepEvents()
 		{
+			TH_MEASURE(TH_TIMING_FRAME);
 			while (!Events.empty())
 			{
 				auto& Source = Events.front();
@@ -3735,61 +3736,60 @@ namespace Tomahawk
 		}
 		void SceneGraph::StepIndexing()
 		{
-			TH_PPUSH(TH_PERF_CORE);
-			if (Camera.load() && !Dirty.Empty())
+			TH_MEASURE(TH_TIMING_CORE);
+			if (!Camera.load() || Dirty.Empty())
+				return;
+
+			auto Begin = Dirty.Begin();
+			auto End = Dirty.End();
+			Dirty.Clear();
+
+			WatchAll(Parallel::ForEach(Begin, End, [this](Entity* Next)
 			{
-				auto Begin = Dirty.Begin();
-				auto End = Dirty.End();
-				Dirty.Clear();
+				Next->Transform->Synchronize();
+				Next->UpdateBounds();
 
-				WatchAll(Parallel::ForEach(Begin, End, [this](Entity* Next)
+				if (Next->Type.Components.empty())
+					return;
+
+				std::unique_lock<std::mutex> Unique(Exclusive);
+				for (auto& Item : *Next)
 				{
-					Next->Transform->Synchronize();
-					Next->UpdateBounds();
-
-					if (Next->Type.Components.empty())
-						return;
-
-					std::unique_lock<std::mutex> Unique(Exclusive);
-					for (auto& Item : *Next)
-					{
-						if (Item.second->IsCullable())
-							Changes[Item.second->GetId()].insert(Item.second);
-					}
-				}));
-			}
-			TH_PPOP();
+					if (Item.second->IsCullable())
+						Changes[Item.second->GetId()].insert(Item.second);
+				}
+			}));
 		}
 		void SceneGraph::StepFinalize()
 		{
-			TH_PPUSH(TH_PERF_CORE);
+			TH_MEASURE(TH_TIMING_CORE);
+
 			AwaitAll();
-			if (Camera.load())
+			if (!Camera.load())
+				return;
+
+			for (auto& Item : Changes)
 			{
-				for (auto& Item : Changes)
+				if (Item.second.empty())
+					continue;
+
+				auto& Storage = GetStorage(Item.first);
+				Storage.Index.Reserve(Item.second.size());
+
+				size_t Count = 0;
+				for (auto It = Item.second.begin(); It != Item.second.end(); ++It)
 				{
-					if (Item.second.empty())
-						continue;
-
-					auto& Storage = GetStorage(Item.first);
-					Storage.Index.Reserve(Item.second.size());
-
-					size_t Count = 0;
-					for (auto It = Item.second.begin(); It != Item.second.end(); ++It)
+					UpdateCosmos(Storage, *It);
+					if (++Count > Conf.MaxUpdates)
 					{
-						UpdateCosmos(Storage, *It);
-						if (++Count > Conf.MaxUpdates)
-						{
-							Item.second.erase(Item.second.begin(), It);
-							break;
-						}
+						Item.second.erase(Item.second.begin(), It);
+						break;
 					}
-
-					if (Count == Item.second.size())
-						Item.second.clear();
 				}
+
+				if (Count == Item.second.size())
+					Item.second.clear();
 			}
-			TH_PPOP();
 		}
 		void SceneGraph::SetCamera(Entity* NewCamera)
 		{
@@ -3991,7 +3991,7 @@ namespace Tomahawk
 		void SceneGraph::RayTest(uint64_t Section, const Compute::Ray& Origin, const RayCallback& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
-			TH_PPUSH(TH_PERF_FRAME);
+			TH_MEASURE(TH_TIMING_FRAME);
 
 			auto& Array = GetComponents(Section);
 			Compute::Ray Base = Origin;
@@ -4002,8 +4002,6 @@ namespace Tomahawk
 				if (Compute::Geometric::CursorRayTest(Base, Next->Parent->Snapshot.Box, &Hit) && !Callback(Next, Hit))
 					break;
 			}
-
-			TH_PPOP();
 		}
 		void SceneGraph::ScriptHook(const std::string& Name)
 		{
@@ -4321,13 +4319,12 @@ namespace Tomahawk
 		}
 		void SceneGraph::AwaitAll()
 		{
-			TH_PPUSH(TH_PERF_CORE);
+			TH_MEASURE(TH_TIMING_CORE);
 			while (!Tasks.empty())
 			{
 				Tasks.front().wait();
 				Tasks.pop();
 			}
-			TH_PPOP();
 		}
 		void SceneGraph::ClearCulling()
 		{
@@ -4701,7 +4698,7 @@ namespace Tomahawk
 		Entity* SceneGraph::CloneEntityInstance(Entity* Entity)
 		{
 			TH_ASSERT(Entity != nullptr, nullptr, "entity should be set");
-			TH_PPUSH(TH_PERF_FRAME);
+			TH_MEASURE(TH_TIMING_FRAME);
 
 			Engine::Entity* Instance = new Engine::Entity(this);
 			Instance->Transform->Copy(Entity->Transform);
@@ -4718,8 +4715,6 @@ namespace Tomahawk
 			}
 
 			AddEntity(Instance);
-			TH_PPOP();
-
 			return Instance;
 		}
 		Entity* SceneGraph::CloneEntity(Entity* Value)
@@ -5822,6 +5817,7 @@ namespace Tomahawk
 					Activity->Maximize();
 			}
 
+			TH_MEASURE(TH_TIMING_INFINITE);
 			if (Activity != nullptr && Control.Parallel)
 			{
 				while (State == ApplicationState::Active)
@@ -6170,6 +6166,7 @@ namespace Tomahawk
 		{
 			TH_ASSERT(System->GetPrimitives() != nullptr, 0, "primitive cache should be set");
 			TH_ASSERT(System->GetMRT(TargetType::Main) != nullptr, 0, "main render target should be set");
+			TH_MEASURE(TH_TIMING_FRAME);
 
 			if (!System->State.Is(RenderState::Geometry_Result) || System->State.IsSubpass())
 				return 0;
@@ -6182,7 +6179,6 @@ namespace Tomahawk
 			if (!Output)
 				Output = System->GetRT(TargetType::Main);
 
-			TH_PPUSH(TH_PERF_FRAME);
 			Graphics::MultiRenderTarget2D* Input = System->GetMRT(TargetType::Main);
 			PrimitiveCache* Cache = System->GetPrimitives();
 			Graphics::GraphicsDevice* Device = System->GetDevice();
@@ -6203,8 +6199,6 @@ namespace Tomahawk
 			Device->FlushTexture(1, MaxSlot, TH_PS);
 			Device->CopyTarget(Output, 0, Input, 0);
 			System->RestoreOutput();
-
-			TH_PPOP();
 			return 1;
 		}
 		Graphics::Shader* EffectRenderer::GetEffect(const std::string& Name)

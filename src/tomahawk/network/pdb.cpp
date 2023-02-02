@@ -1667,7 +1667,7 @@ namespace Tomahawk
 				Update.unlock();
 				return Core::Cotask<bool>([this, Connections]()
 				{
-					TH_PPUSH(TH_PERF_MAX);
+					TH_MEASURE(TH_TIMING_MAX);
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
 					std::unique_lock<std::mutex> Unique(Update);
@@ -1686,7 +1686,7 @@ namespace Tomahawk
 
 							TH_FREE(Keys);
 							TH_FREE(Values);
-							TH_PRET(false);
+							return false;
 						}
 
 						TH_DEBUG("[pq] OK connect on group %i as 0x%" PRIXPTR, (int)i, (uintptr_t)Base);
@@ -1706,7 +1706,7 @@ namespace Tomahawk
 
 					TH_FREE(Keys);
 					TH_FREE(Values);
-					TH_PRET(true);
+					return true;
 				});
 #else
 				return false;
@@ -2100,13 +2100,13 @@ namespace Tomahawk
 				if (!Base->Current)
 					return false;
 
-				TH_PPUSH(TH_PERF_MAX);
+				TH_MEASURE(TH_TIMING_MAX);
 				TH_DEBUG("[pq] execute query on 0x%" PRIXPTR "%s\n\t%.64s%s", (uintptr_t)Base, Base->InSession ? " (transaction)" : "", Base->Current->Command.data(), Base->Current->Command.size() > 64 ? " ..." : "");
 				
 				if (PQsendQuery(Base->Base, Base->Current->Command.data()) == 1)
 				{
 					Flush(Base, false);
-					TH_PRET(true);
+					return true;
 				}
 
 				Request* Item = Base->Current;
@@ -2118,8 +2118,6 @@ namespace Tomahawk
 				Update.lock();
 
 				TH_DELETE(Request, Item);
-				TH_PPOP();
-
 				return true;
 #else
 				return false;
@@ -2155,13 +2153,12 @@ namespace Tomahawk
 			bool Cluster::Dispatch(Connection* Source, bool Connected)
 			{
 #ifdef TH_HAS_POSTGRESQL
-				TH_PPUSH(TH_PERF_MAX);
+				TH_MEASURE(TH_TIMING_MAX);
 				Update.lock();
 				if (!Connected)
 				{
 					Source->State = QueryState::Lost;
 					Update.unlock();
-					TH_PPOP();
 
 					return Core::Schedule::Get()->SetTask([this, Source]()
 					{
@@ -2240,8 +2237,6 @@ namespace Tomahawk
 
 			Finalize:
 				Update.unlock();
-				TH_PPOP();
-
 				return Reprocess(Source);
 #else
 				return false;

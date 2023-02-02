@@ -1,9 +1,53 @@
 #ifndef TH_CORE_H
 #define TH_CORE_H
-#ifdef __APPLE__
-#define _XOPEN_SOURCE
-#endif
 #pragma warning(disable: 4251)
+#if defined(_WIN32) || defined(_WIN64)
+#define TH_MICROSOFT 1
+#define TH_CDECL __cdecl
+#define TH_MAX_PATH MAX_PATH
+#define TH_FILENO _fileno
+#ifndef TH_EXPORT
+#define TH_OUT __declspec(dllimport)
+#else
+#define TH_OUT __declspec(dllexport)
+#endif
+#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
+#define TH_FAST_SORT
+#endif
+#ifdef _WIN64
+#define TH_64 1
+#else
+#define TH_32 1
+#endif
+#elif defined(__APPLE__)
+#define _XOPEN_SOURCE
+#define TH_APPLE 1
+#define TH_UNIX 1
+#define TH_CDECL
+#define TH_OUT
+#define TH_MAX_PATH _POSIX_PATH_MAX
+#define TH_FILENO fileno
+#if __x86_64__ || __ppc64__
+#define TH_64 1
+#else
+#define TH_32 1
+#endif
+#elif defined __linux__ && defined __GNUC__
+#define TH_UNIX 1
+#define TH_CDECL
+#define TH_OUT
+#define TH_MAX_PATH _POSIX_PATH_MAX
+#define TH_FILENO fileno
+#if __x86_64__ || __ppc64__
+#define TH_64 1
+#else
+#define TH_32 1
+#endif
+#endif
+#define TH_STRINGIFY(X) #X
+#define TH_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+#define TH_FUNCTION __FUNCTION__
+#define TH_LINE __LINE__
 #include <thread>
 #include <algorithm>
 #include <map>
@@ -19,68 +63,13 @@
 #include <condition_variable>
 #include <atomic>
 #include <limits>
-#if defined(_WIN32) || defined(_WIN64)
-#ifndef TH_EXPORT
-#define TH_OUT __declspec(dllimport)
-#else
-#define TH_OUT __declspec(dllexport)
-#endif
-#ifdef _WIN64
-#define TH_64 1
-#else
-#define TH_32 1
-#endif
-#define TH_MAX_PATH MAX_PATH
-#define TH_STRINGIFY(X) #X
-#define TH_FUNCTION __FUNCTION__
-#define TH_CDECL __cdecl
-#define TH_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
-#define TH_LINE __LINE__
-#define TH_MICROSOFT 1
-#undef TH_UNIX
-#elif defined __linux__ && defined __GNUC__
-#define TH_OUT
-#define TH_UNIX 1
-#define TH_MAX_PATH _POSIX_PATH_MAX
-#define TH_STRINGIFY(X) #X
-#define TH_FUNCTION __FUNCTION__
-#define TH_CDECL
-#define TH_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define TH_LINE __LINE__
-#undef TH_MICROSOFT
-#if __x86_64__ || __ppc64__
-#define TH_64 1
-#else
-#define TH_32 1
-#endif
-#elif __APPLE__
-#define TH_OUT
-#define TH_UNIX 1
-#define TH_MAX_PATH _POSIX_PATH_MAX
-#define TH_STRINGIFY(X) #X
-#define TH_FUNCTION __FUNCTION__
-#define TH_CDECL
-#define TH_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define TH_LINE __LINE__
-#define TH_APPLE 1
-#undef TH_MICROSOFT
-#if __x86_64__ || __ppc64__
-#define TH_64 1
-#else
-#define TH_32 1
-#endif
-#endif
-#ifndef TH_MICROSOFT
-#include <sys/types.h>
-#endif
-#ifdef max
-#undef max
-#endif
-#ifdef TH_MICROSOFT
-#if __cplusplus >= 201703L || _MSVC_LANG >= 201703L || defined(_HAS_CXX17)
+#ifdef TH_FAST_SORT
 #include <execution>
 #define TH_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
+#else
+#define TH_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
 #endif
+#ifdef TH_MICROSOFT
 #ifdef TH_WITH_FCTX
 #define TH_COCALL
 #define TH_CODATA void* Context
@@ -88,7 +77,6 @@
 #define TH_COCALL __stdcall
 #define TH_CODATA void* Context
 #endif
-#define TH_FILENO _fileno
 typedef size_t socket_t;
 typedef int socket_size_t;
 typedef void* epoll_handle;
@@ -100,87 +88,37 @@ typedef void* epoll_handle;
 #define TH_COCALL
 #define TH_CODATA int X, int Y
 #endif
-#define TH_FILENO fileno
+#include <sys/types.h>
 #include <sys/socket.h>
 typedef int epoll_handle;
 typedef int socket_t;
 typedef socklen_t socket_size_t;
 #endif
+#ifdef NDEBUG
 #if TH_DLEVEL >= 4
-#ifdef NDEBUG
 #define TH_DEBUG(Format, ...) Tomahawk::Core::OS::Log(4, 0, nullptr, Format, ##__VA_ARGS__)
+#else
+#define TH_DEBUG(Format, ...) ((void)0)
+#endif
+#if TH_DLEVEL >= 3
 #define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_DEBUG(Format, ...) Tomahawk::Core::OS::Log(4, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#endif
-#elif TH_DLEVEL >= 3
-#ifdef NDEBUG
-#define TH_DEBUG(Format, ...) ((void)0)
-#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define TH_DEBUG(Format, ...) ((void)0)
-#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#endif
-#elif TH_DLEVEL >= 2
-#define TH_DEBUG(Format, ...) ((void)0)
 #define TH_INFO(Format, ...) ((void)0)
-#ifdef NDEBUG
-#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
-#else
-#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
-#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
 #endif
-#elif TH_DLEVEL >= 1
-#define TH_DEBUG(Format, ...) ((void)0)
-#define TH_INFO(Format, ...) ((void)0)
+#if TH_DLEVEL >= 2
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, 0, nullptr, Format, ##__VA_ARGS__)
+#else
 #define TH_WARN(Format, ...) ((void)0)
-#ifdef NDEBUG
+#endif
+#if TH_DLEVEL >= 1
 #define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, 0, nullptr, Format, ##__VA_ARGS__)
 #else
-#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ERR(Format, ...) ((void)0)
 #endif
-#else
-#define TH_DEBUG(Format, ...) ((void)0)
-#define TH_INFO(...) ((void)0)
-#define TH_WARN(...) ((void)0)
-#define TH_ERR(...) ((void)0)
-#endif
-#ifndef NDEBUG
-#if TH_DLEVEL >= 1
-#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return Returnable; }
-#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return; }
-#else
-#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return Returnable; }
-#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return; }
-#endif
-#define TH_PPUSH(Threshold) Tomahawk::Core::OS::PerfPush(TH_FILE, TH_FUNCTION, TH_LINE, Threshold)
-#define TH_PSIG() Tomahawk::Core::OS::PerfSignal()
-#define TH_PPOP() Tomahawk::Core::OS::PerfPop()
-#define TH_PRET(Value) { auto __vfbuf = (Value); Tomahawk::Core::OS::PerfPop(); return __vfbuf; }
-#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FUNCTION "(): " TH_STRINGIFY(Value))
-#define TH_CLOSE(Stream) { TH_DEBUG("[io] close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
-#define TH_WATCH(Ptr, Label) Tomahawk::Core::Mem::Watch(Ptr, TH_LINE, TH_FILE, TH_FUNCTION, Label)
-#define TH_UNWATCH(Ptr) Tomahawk::Core::Mem::Unwatch(Ptr)
-#define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size, TH_LINE, TH_FILE, TH_FUNCTION, #Type)
-#define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size, TH_LINE, TH_FILE, TH_FUNCTION, #Type)
-#define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
-#else
 #define TH_ASSERT(Condition, Returnable, Format, ...) ((void)0)
 #define TH_ASSERT_V(Condition, Format, ...) ((void)0)
-#define TH_PPUSH(Threshold) ((void)0)
-#define TH_PSIG() ((void)0)
-#define TH_PPOP() ((void)0)
-#define TH_PRET(Value) return Value
+#define TH_MEASURE(Threshold) ((void)0)
+#define TH_MEASURE_LOOP() ((void)0)
 #define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value)
 #define TH_CLOSE(Stream) fclose(Stream)
 #define TH_WATCH(Ptr, Label) ((void)0)
@@ -188,42 +126,66 @@ typedef socklen_t socket_size_t;
 #define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size)
 #define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size)
 #define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
+#else
+#if TH_DLEVEL >= 4
+#define TH_DEBUG(Format, ...) Tomahawk::Core::OS::Log(4, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#else
+#define TH_DEBUG(Format, ...) ((void)0)
 #endif
-#ifndef TH_SORT
-#define TH_SORT(Begin, End, Comparator) std::sort(Begin, End, Comparator)
+#if TH_DLEVEL >= 3
+#define TH_INFO(Format, ...) Tomahawk::Core::OS::Log(3, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#else
+#define TH_INFO(Format, ...) ((void)0)
+#endif
+#if TH_DLEVEL >= 2
+#define TH_WARN(Format, ...) Tomahawk::Core::OS::Log(2, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#else
+#define TH_WARN(Format, ...) ((void)0)
+#endif
+#if TH_DLEVEL >= 1
+#define TH_ERR(Format, ...) Tomahawk::Core::OS::Log(1, TH_LINE, TH_FILE, Format, ##__VA_ARGS__)
+#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return Returnable; }
+#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Assert(true, TH_LINE, TH_FILE, TH_FUNCTION, TH_STRINGIFY(Condition), Format, ##__VA_ARGS__); return; }
+#else
+#define TH_ERR(Format, ...) ((void)0)
+#define TH_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return Returnable; }
+#define TH_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Tomahawk::Core::OS::Process::Interrupt(); return; }
+#endif
+#define TH_MEASURE_START(X) _measure_line_##X
+#define TH_MEASURE_PREPARE(X) TH_MEASURE_START(X)
+#define TH_MEASURE(Threshold) auto TH_MEASURE_PREPARE(TH_LINE) = Tomahawk::Core::OS::Measure(TH_FILE, TH_FUNCTION, TH_LINE, Threshold)
+#define TH_MEASURE_LOOP() Tomahawk::Core::OS::MeasureLoop()
+#define TH_AWAIT(Value) Tomahawk::Core::Coawait(Value, TH_FUNCTION "(): " TH_STRINGIFY(Value))
+#define TH_CLOSE(Stream) { TH_DEBUG("[io] close fs %i", (int)TH_FILENO(Stream)); fclose(Stream); }
+#define TH_WATCH(Ptr, Label) Tomahawk::Core::Mem::Watch(Ptr, TH_LINE, TH_FILE, TH_FUNCTION, Label)
+#define TH_UNWATCH(Ptr) Tomahawk::Core::Mem::Unwatch(Ptr)
+#define TH_MALLOC(Type, Size) (Type*)Tomahawk::Core::Mem::QueryMalloc(Size, TH_LINE, TH_FILE, TH_FUNCTION, #Type)
+#define TH_REALLOC(Ptr, Type, Size) (Type*)Tomahawk::Core::Mem::QueryRealloc(Ptr, Size, TH_LINE, TH_FILE, TH_FUNCTION, #Type)
+#define TH_NEW(Type, ...) new((void*)TH_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
+#endif
+#ifdef max
+#undef max
 #endif
 #define TH_DELETE(Destructor, Var) { if (Var != nullptr) { (Var)->~Destructor(); TH_FREE((void*)Var); } }
 #define TH_FREE(Ptr) Tomahawk::Core::Mem::Free(Ptr)
 #define TH_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define TH_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
+#define TH_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
+#define TH_TIMING_ATOM (1)
+#define TH_TIMING_FRAME (5)
+#define TH_TIMING_CORE (16)
+#define TH_TIMING_MIX (50)
+#define TH_TIMING_IO (80)
+#define TH_TIMING_NET (150)
+#define TH_TIMING_MAX (350)
+#define TH_TIMING_HANG (5000)
+#define TH_TIMING_INFINITE (0)
 #define TH_STACK_SIZE (512 * 1024)
 #define TH_CHUNK_SIZE (2048)
 #define TH_BIG_CHUNK_SIZE (8192)
-#define TH_OUT_TS TH_OUT
-#define TH_PERF_ATOM (1)
-#define TH_PERF_FRAME (5)
-#define TH_PERF_CORE (16)
-#define TH_PERF_MIX (50)
-#define TH_PERF_IO (80)
-#define TH_PERF_NET (150)
-#define TH_PERF_MAX (350)
-#define TH_PERF_HANG (5000)
-#define TH_INVALID_TASK_ID (0)
 #define TH_MAX_EVENTS (32)
-#define TH_SHUFFLE(Name) Tomahawk::Core::Shuffle<sizeof(Name)>(Name)
-#define TH_COMPONENT_HASH(Name) Tomahawk::Core::OS::File::GetCheckSum(Name)
-#define TH_COMPONENT_IS(Source, Name) (Source->GetId() == TH_COMPONENT_HASH(Name))
-#define TH_COMPONENT_ROOT(Name) \
-virtual const char* GetName() { return Name; } \
-virtual uint64_t GetId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; } \
-static const char* GetTypeName() { return Name; } \
-static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; }
-
-#define TH_COMPONENT(Name) \
-virtual const char* GetName() override { return Name; } \
-virtual uint64_t GetId() override { static uint64_t V = TH_COMPONENT_HASH(Name); return V; } \
-static const char* GetTypeName() { return Name; } \
-static uint64_t GetTypeId() { static uint64_t V = TH_COMPONENT_HASH(Name); return V; }
+#define TH_INVALID_TASK_ID (0)
+#define TH_OUT_TS TH_OUT
 
 namespace Tomahawk
 {
@@ -1254,18 +1216,19 @@ namespace Tomahawk
 				StdColor GetLevelColor() const;
 				std::string& GetText();
 			};
-#ifndef NDEBUG
-		public:
-			struct DbgContext
+
+			struct TH_OUT Tick
 			{
-				const char* File = nullptr;
-				const char* Function = nullptr;
-				void* Id = nullptr;
-				uint64_t Threshold = 0;
-				uint64_t Time = 0;
-				int Line = 0;
+				bool IsCounting;
+
+				Tick();
+				Tick(const Tick& Other) = delete;
+				Tick(Tick&& Other) noexcept;
+				~Tick();
+				Tick& operator =(const Tick& Other) = delete;
+				Tick& operator =(Tick&& Other) noexcept;
 			};
-#endif
+
 		private:
 			static std::function<void(Message&)> Callback;
 			static std::mutex Buffer;
@@ -1274,11 +1237,8 @@ namespace Tomahawk
 			static bool Active;
 
 		public:
-#ifndef NDEBUG
-			static void PerfPush(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
-			static void PerfSignal();
-			static void PerfPop();
-#endif
+			static Tick Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS);
+			static void MeasureLoop();
 			static void Assert(bool Fatal, int Line, const char* Source, const char* Function, const char* Condition, const char* Format, ...);
 			static void Log(int Level, int Line, const char* Source, const char* Format, ...);
 			static void Pause();
@@ -1289,6 +1249,7 @@ namespace Tomahawk
 			static bool IsLogActive();
 			static bool IsLogDeferred();
 			static bool IsLogPretty();
+			static std::string GetMeasureTrace();
 			static std::string GetStackTrace(size_t Skips, size_t MaxFrames = 16);
 
 		private:
@@ -1318,7 +1279,7 @@ namespace Tomahawk
 			template <typename T, typename... Args>
 			static Unique<T> Create(const std::string& Hash, Args... Data)
 			{
-				return Create<T, Args...>(TH_COMPONENT_HASH(Hash), Data...);
+				return Create<T, Args...>(TH_HASH(Hash), Data...);
 			}
 			template <typename T, typename... Args>
 			static Unique<T> Create(uint64_t Id, Args... Data)
@@ -2736,8 +2697,8 @@ namespace Tomahawk
 			if (DebugName != nullptr)
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
-				if (Diff > TH_PERF_HANG * 1000)
-					TH_WARN("[stall] async operation took %llu ms (%llu us)\n\twhere: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, DebugName, (uint64_t)TH_PERF_HANG);
+				if (Diff > TH_TIMING_HANG * 1000)
+					TH_WARN("[stall] async operation took %llu ms (%llu us)\n\twhere: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, DebugName, (uint64_t)TH_TIMING_HANG);
 				TH_UNWATCH((void*)&Future);
 			}
 #endif

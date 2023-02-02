@@ -31,7 +31,7 @@ namespace Tomahawk
 			bool ExecuteQuery(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				TH_ASSERT(Base != nullptr, false, "context should be set");
-				TH_PPUSH(TH_PERF_MAX);
+				TH_MEASURE(TH_TIMING_MAX);
 				TH_DEBUG("[mongoc] execute query schema on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
@@ -44,14 +44,13 @@ namespace Tomahawk
 				if (Result || Error.code == 0)
 					TH_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
 
-				TH_PPOP();
 				return Result;
 			}
 			template <typename R, typename T, typename... Args>
 			Cursor ExecuteCursor(const char* Name, R&& Function, T* Base, Args&&... Data)
 			{
 				TH_ASSERT(Base != nullptr, nullptr, "context should be set");
-				TH_PPUSH(TH_PERF_MAX);
+				TH_MEASURE(TH_TIMING_MAX);
 				TH_DEBUG("[mongoc] execute query cursor on 0x%" PRIXPTR "\n\t%s", (uintptr_t)Base, Name + 1);
 
 				bson_error_t Error;
@@ -64,7 +63,6 @@ namespace Tomahawk
 				if (Result || Error.code == 0)
 					TH_DEBUG("[mongoc] OK execute on 0x%" PRIXPTR, (uintptr_t)Base);
 				
-				TH_PPOP();
 				return Result;
 			}
 #endif
@@ -1543,9 +1541,9 @@ namespace Tomahawk
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]()
 				{
-					TH_PPUSH(TH_PERF_MAX);
+					TH_MEASURE(TH_TIMING_MAX);
 					TDocument* Query = nullptr;
-					TH_PRET(mongoc_cursor_next(Context, (const TDocument**)&Query));
+					return mongoc_cursor_next(Context, (const TDocument**)&Query);
 				});
 #else
 				return false;
@@ -2949,7 +2947,7 @@ namespace Tomahawk
 
 				return Core::Cotask<bool>([this, Address]()
 				{
-					TH_PPUSH(TH_PERF_MAX);
+					TH_MEASURE(TH_TIMING_MAX);
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
 
@@ -2957,19 +2955,19 @@ namespace Tomahawk
 					if (!URI)
 					{
 						TH_ERR("[urierr] %s", Error.message);
-						TH_PRET(false);
+						return false;
 					}
 
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
 						TH_ERR("[mongoc] couldn't connect to requested URI");
-						TH_PRET(false);
+						return false;
 					}
 
 					Driver::AttachQueryLog(Base);
 					Connected = true;
-					TH_PRET(true);
+					return true;
 				});
 #else
 				return false;
@@ -2992,17 +2990,17 @@ namespace Tomahawk
 				TAddress* URI = URL->Get();
 				return Core::Cotask<bool>([this, URI]()
 				{
-					TH_PPUSH(TH_PERF_MAX);
+					TH_MEASURE(TH_TIMING_MAX);
 					Base = mongoc_client_new_from_uri(URI);
 					if (!Base)
 					{
 						TH_ERR("[mongoc] couldn't connect to requested URI");
-						TH_PRET(false);
+						return false;
 					}
 
 					Driver::AttachQueryLog(Base);
 					Connected = true;
-					TH_PRET(true);
+					return true;
 				});
 #else
 				return false;
@@ -3274,7 +3272,7 @@ namespace Tomahawk
 
 				return Core::Cotask<bool>([this, URI]()
 				{
-					TH_PPUSH(TH_PERF_MAX);
+					TH_MEASURE(TH_TIMING_MAX);
 					bson_error_t Error;
 					memset(&Error, 0, sizeof(bson_error_t));
 
@@ -3282,19 +3280,19 @@ namespace Tomahawk
 					if (!SrcAddress.Get())
 					{
 						TH_ERR("[urierr] %s", Error.message);
-						TH_PRET(false);
+						return false;
 					}
 
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
 						TH_ERR("[mongoc] couldn't connect to requested URI");
-						TH_PRET(false);
+						return false;
 					}
 
 					Driver::AttachQueryLog(Pool);
 					Connected = true;
-					TH_PRET(true);
+					return true;
 				});
 #else
 				return false;
@@ -3317,18 +3315,18 @@ namespace Tomahawk
 
 				return Core::Cotask<bool>([this, Context]()
 				{
-					TH_PPUSH(TH_PERF_MAX);
+					TH_MEASURE(TH_TIMING_MAX);
 					SrcAddress = Context;
 					Pool = mongoc_client_pool_new(SrcAddress.Get());
 					if (!Pool)
 					{
 						TH_ERR("[mongoc] couldn't connect to requested URI");
-						TH_PRET(false);
+						return false;
 					}
 
 					Driver::AttachQueryLog(Pool);
 					Connected = true;
-					TH_PRET(true);
+					return true;
 				});
 #else
 				return false;

@@ -6478,7 +6478,7 @@ namespace Tomahawk
 			size_t Size = strlen(Path);
 
 			if (!Root)
-				return rmdir(Path) == 0);
+				return rmdir(Path) == 0;
 
 			struct dirent* It;
 			while ((It = readdir(Root)))
@@ -6510,7 +6510,7 @@ namespace Tomahawk
 			}
 
 			closedir(Root);
-			return rmdir(Path) == 0);
+			return rmdir(Path) == 0;
 #endif
 		}
 		bool OS::Directory::IsExists(const char* Path)

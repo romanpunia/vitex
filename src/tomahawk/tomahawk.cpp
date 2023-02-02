@@ -1,4 +1,10 @@
 #include "tomahawk.h"
+#include "core/compute.h"
+#include "core/audio.h"
+#include "core/network.h"
+#include "core/script.h"
+#include "network/pdb.h"
+#include "network/mdb.h"
 #include <clocale>
 #ifdef TH_MICROSOFT
 #include <WS2tcpip.h>

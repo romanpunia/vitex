@@ -5,6 +5,9 @@
 #include <RmlUi/Core/Stream.h>
 #include <Source/Core/StyleSheetFactory.h>
 #include <Source/Core/ElementStyle.h>
+#endif
+#pragma warning(push)
+#pragma warning(disable: 4996)
 
 namespace Tomahawk
 {
@@ -12,6 +15,7 @@ namespace Tomahawk
 	{
 		namespace GUI
 		{
+#ifdef TH_WITH_RMLUI
 			struct GeometryBuffer
 			{
 				Graphics::ElementBuffer* VertexBuffer;
@@ -530,9 +534,9 @@ namespace Tomahawk
 					Fonts.insert(std::make_pair(Path, UseAsFallback));
 					return true;
 				}
-				const std::unordered_map<std::string, bool>& GetFontFaces()
+				std::unordered_map<std::string, bool>* GetFontFaces()
 				{
-					return Fonts;
+					return &Fonts;
 				}
 				std::string GetFixedURL(const std::string& URL, std::string& Proto)
 				{
@@ -736,9 +740,10 @@ namespace Tomahawk
 					Listener(Basis);
 				}
 			};
-
+#endif
 			void IVariant::Convert(Rml::Variant* From, Core::Variant* To)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(From && To, "from and to should be set");
 				switch (From->GetType())
 				{
@@ -785,9 +790,11 @@ namespace Tomahawk
 						*To = Core::Var::Undefined();
 						break;
 				}
+#endif
 			}
 			void IVariant::Revert(Core::Variant* From, Rml::Variant* To)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(From && To, "from and to should be set");
 				switch (From->GetType())
 				{
@@ -833,6 +840,7 @@ namespace Tomahawk
 						To->Clear();
 						break;
 				}
+#endif
 			}
 			Compute::Vector4 IVariant::ToColor4(const std::string& Value)
 			{
@@ -1008,109 +1016,205 @@ namespace Tomahawk
 				return Core::Form("v2 %f %f", Base.X, Base.Y).R();
 			}
 
-			IEvent::IEvent() : Base(nullptr)
+			IEvent::IEvent() : Base(nullptr), Owned(false)
 			{
 			}
-			IEvent::IEvent(Rml::Event* Ref) : Base(Ref)
+			IEvent::IEvent(Rml::Event* Ref) : Base(Ref), Owned(false)
 			{
+			}
+			IEvent IEvent::Copy()
+			{
+#ifdef TH_WITH_RMLUI
+				Rml::Event* Ptr = Rml::Factory::InstanceEvent(Base->GetTargetElement(), Base->GetId(), Base->GetType(), Base->GetParameters(), Base->IsInterruptible()).release();
+				if (Ptr != nullptr)
+				{
+					Ptr->SetCurrentElement(Base->GetCurrentElement());
+					Ptr->SetPhase(Base->GetPhase());
+				}
+
+				IEvent Result(Ptr);
+				Result.Owned = true;
+				return Result;
+#else
+				return *this;
+#endif
+			}
+			void IEvent::Release()
+			{
+#ifdef TH_WITH_RMLUI
+				if (Owned)
+				{
+					delete Base;
+					Base = nullptr;
+					Owned = false;
+				}
+#endif
 			}
 			EventPhase IEvent::GetPhase() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), EventPhase::None, "event should be valid");
 				return (EventPhase)Base->GetPhase();
+#else
+				return EventPhase::None;
+#endif
 			}
 			void IEvent::SetPhase(EventPhase Phase)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "event should be valid");
 				Base->SetPhase((Rml::EventPhase)Phase);
+#endif
 			}
 			void IEvent::SetCurrentElement(const IElement& Element)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "event should be valid");
 				Base->SetCurrentElement(Element.GetElement());
+#endif
 			}
 			IElement IEvent::GetCurrentElement() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "event should be valid");
 				return Base->GetCurrentElement();
+#else
+				return IElement();
+#endif
 			}
 			IElement IEvent::GetTargetElement() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "event should be valid");
 				return Base->GetTargetElement();
+#else
+				return IElement();
+#endif
 			}
 			std::string IEvent::GetType() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "event should be valid");
 				return Base->GetType();
+#else
+				return std::string();
+#endif
 			}
 			void IEvent::StopPropagation()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "event should be valid");
 				Base->StopPropagation();
+#endif
 			}
 			void IEvent::StopImmediatePropagation()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "event should be valid");
 				Base->StopImmediatePropagation();
+#endif
 			}
 			bool IEvent::IsInterruptible() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->IsInterruptible();
+#else
+				return false;
+#endif
 			}
 			bool IEvent::IsPropagating() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->IsPropagating();
+#else
+				return false;
+#endif
 			}
 			bool IEvent::IsImmediatePropagating() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->IsImmediatePropagating();
+#else
+				return false;
+#endif
 			}
 			bool IEvent::GetBoolean(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "event should be valid");
 				return Base->GetParameter<bool>(Key, false);
+#else
+				return false;
+#endif
 			}
 			int64_t IEvent::GetInteger(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0, "event should be valid");
 				return Base->GetParameter<int64_t>(Key, 0);
+#else
+				return 0;
+#endif
 			}
 			double IEvent::GetNumber(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0, "event should be valid");
 				return Base->GetParameter<double>(Key, 0.0);
+#else
+				return 0.0;
+#endif
 			}
 			std::string IEvent::GetString(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "event should be valid");
 				return Base->GetParameter<Rml::String>(Key, "");
+#else
+				return std::string();
+#endif
 			}
 			Compute::Vector2 IEvent::GetVector2(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Compute::Vector2(), "event should be valid");
 				Rml::Vector2f Result = Base->GetParameter<Rml::Vector2f>(Key, Rml::Vector2f());
 				return Compute::Vector2(Result.x, Result.y);
+#else
+				return Compute::Vector2();
+#endif
 			}
 			Compute::Vector3 IEvent::GetVector3(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Compute::Vector3(), "event should be valid");
 				Rml::Vector3f Result = Base->GetParameter<Rml::Vector3f>(Key, Rml::Vector3f());
 				return Compute::Vector3(Result.x, Result.y, Result.z);
+#else
+				return Compute::Vector3();
+#endif
 			}
 			Compute::Vector4 IEvent::GetVector4(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Compute::Vector4(), "event should be valid");
 				Rml::Vector4f Result = Base->GetParameter<Rml::Vector4f>(Key, Rml::Vector4f());
 				return Compute::Vector4(Result.x, Result.y, Result.z, Result.w);
+#else
+				return Compute::Vector4();
+#endif
 			}
 			void* IEvent::GetPointer(const std::string& Key) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "event should be valid");
 				return Base->GetParameter<void*>(Key, nullptr);
+#else
+				return nullptr;
+#endif
 			}
 			Rml::Event* IEvent::GetEvent() const
 			{
@@ -1129,423 +1233,709 @@ namespace Tomahawk
 			}
 			void IElement::Release()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_DELETE(Element, Base);
 				Base = nullptr;
+#endif
 			}
 			IElement IElement::Clone() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = Base->Clone();
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
 
 				return Result;
+#else
+				return IElement();
+#endif
 			}
 			void IElement::SetClass(const std::string& ClassName, bool Activate)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetClass(ClassName, Activate);
+#endif
 			}
 			bool IElement::IsClassSet(const std::string& ClassName) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsClassSet(ClassName);
+#else
+				return false;
+#endif
 			}
 			void IElement::SetClassNames(const std::string& ClassNames)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetClassNames(ClassNames);
+#endif
 			}
 			std::string IElement::GetClassNames() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetClassNames();
+#else
+				return std::string();
+#endif
+
 			}
 			std::string IElement::GetAddress(bool IncludePseudoClasses, bool IncludeParents) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetAddress(IncludePseudoClasses, IncludeParents);
+#else
+				return std::string();
+#endif
+
 			}
 			void IElement::SetOffset(const Compute::Vector2& Offset, const IElement& OffsetParent, bool OffsetFixed)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetOffset(Rml::Vector2f(Offset.X, Offset.Y), OffsetParent.GetElement(), OffsetFixed);
+#endif
 			}
 			Compute::Vector2 IElement::GetRelativeOffset(Area Type)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
 				Rml::Vector2f Result = Base->GetRelativeOffset((Rml::Box::Area)Type);
 				return Compute::Vector2(Result.x, Result.y);
+#else
+				return Compute::Vector2();
+#endif
+
 			}
 			Compute::Vector2 IElement::GetAbsoluteOffset(Area Type)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
 				Rml::Vector2f Result = Base->GetAbsoluteOffset((Rml::Box::Area)Type);
 				return Compute::Vector2(Result.x, Result.y);
+#else
+				return Compute::Vector2();
+#endif
+
 			}
 			void IElement::SetClientArea(Area ClientArea)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetClientArea((Rml::Box::Area)ClientArea);
+#endif
 			}
 			Area IElement::GetClientArea() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Area::Content, "element should be valid");
 				return (Area)Base->GetClientArea();
+#else
+				return Area::Margin;
+#endif
+
 			}
 			void IElement::SetContentBox(const Compute::Vector2& ContentOffset, const Compute::Vector2& ContentBox)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetContentBox(Rml::Vector2f(ContentOffset.X, ContentOffset.Y), Rml::Vector2f(ContentBox.X, ContentBox.Y));
+#endif
 			}
 			float IElement::GetBaseline() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetBaseline();
+#else
+				return 0.0f;
+#endif
+
 			}
 			bool IElement::GetIntrinsicDimensions(Compute::Vector2& Dimensions, float& Ratio)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				Rml::Vector2f Size;
 				bool Result = Base->GetIntrinsicDimensions(Size, Ratio);
 				Dimensions = Compute::Vector2(Size.x, Size.y);
 
 				return Result;
+#else
+				return false;
+#endif
+
 			}
 			bool IElement::IsPointWithinElement(const Compute::Vector2& Point)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPointWithinElement(Rml::Vector2f(Point.X, Point.Y));
+#else
+				return false;
+#endif
+
 			}
 			bool IElement::IsVisible() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsVisible();
+#else
+				return false;
+#endif
+
 			}
 			float IElement::GetZIndex() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetZIndex();
+#else
+				return 0.0f;
+#endif
+
 			}
 			bool IElement::SetProperty(const std::string& Name, const std::string& Value)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->SetProperty(Name, Value);
+#else
+				return false;
+#endif
+
 			}
 			void IElement::RemoveProperty(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->RemoveProperty(Name);
+#endif
 			}
 			std::string IElement::GetProperty(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				const Rml::Property* Result = Base->GetProperty(Name);
 				if (!Result)
 					return "";
 
 				return Result->ToString();
+#else
+				return std::string();
+#endif
 			}
 			std::string IElement::GetLocalProperty(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				const Rml::Property* Result = Base->GetLocalProperty(Name);
 				if (!Result)
 					return "";
 
 				return Result->ToString();
+#else
+				return std::string();
+#endif
 			}
 			float IElement::ResolveNumericProperty(const std::string& PropertyName)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->ResolveNumericProperty(PropertyName);
+#else
+				return 0.0f;
+#endif
 			}
 			Compute::Vector2 IElement::GetContainingBlock()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Compute::Vector2(), "element should be valid");
 				Rml::Vector2f Result = Base->GetContainingBlock();
 				return Compute::Vector2(Result.x, Result.y);
+#else
+				return Compute::Vector2();
+#endif
 			}
 			Position IElement::GetPosition()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Position::Static, "element should be valid");
 				return (Position)Base->GetPosition();
+#else
+				return Position::Static;
+#endif
 			}
 			Float IElement::GetFloat()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Float::None, "element should be valid");
 				return (Float)Base->GetFloat();
+#else
+				return Float::None;
+#endif
 			}
 			Display IElement::GetDisplay()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), Display::None, "element should be valid");
 				return (Display)Base->GetDisplay();
+#else
+				return Display::None;
+#endif
 			}
 			float IElement::GetLineHeight()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetLineHeight();
+#else
+				return 0.0f;
+#endif
 			}
 			bool IElement::Project(Compute::Vector2& Point) const noexcept
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				Rml::Vector2f Offset(Point.X, Point.Y);
 				bool Result = Base->Project(Offset);
 				Point = Compute::Vector2(Offset.x, Offset.y);
 
 				return Result;
+#else
+				return false;
+#endif
 			}
 			bool IElement::Animate(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir, int NumIterations, bool AlternateDirection, float Delay)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->Animate(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir), NumIterations, AlternateDirection, Delay);
+#else
+				return false;
+#endif
 			}
 			bool IElement::AddAnimationKey(const std::string& PropertyName, const std::string& TargetValue, float Duration, TimingFunc Func, TimingDir Dir)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->AddAnimationKey(PropertyName, Rml::Property(TargetValue, Rml::Property::TRANSFORM), Duration, Rml::Tween((Rml::Tween::Type)Func, (Rml::Tween::Direction)Dir));
+#else
+				return false;
+#endif
 			}
 			void IElement::SetPseudoClass(const std::string& PseudoClass, bool Activate)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetPseudoClass(PseudoClass, Activate);
+#endif
 			}
 			bool IElement::IsPseudoClassSet(const std::string& PseudoClass) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet(PseudoClass);
+#else
+				return false;
+#endif
 			}
 			void IElement::SetAttribute(const std::string& Name, const std::string& Value)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetAttribute(Name, Value);
+#endif
 			}
 			std::string IElement::GetAttribute(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetAttribute<std::string>(Name, "");
+#else
+				return std::string();
+#endif
 			}
 			bool IElement::HasAttribute(const std::string& Name) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->HasAttribute(Name);
+#else
+				return false;
+#endif
 			}
 			void IElement::RemoveAttribute(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->RemoveAttribute(Name);
+#endif
 			}
 			IElement IElement::GetFocusLeafNode()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetFocusLeafNode();
+#else
+				return IElement();
+#endif
 			}
 			std::string IElement::GetTagName() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetTagName();
+#else
+				return std::string();
+#endif
 			}
 			std::string IElement::GetId() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetId();
+#else
+				return std::string();
+#endif
 			}
 			void IElement::SetId(const std::string& Id)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetId(Id);
+#endif
 			}
 			float IElement::GetAbsoluteLeft()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetAbsoluteLeft();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetAbsoluteTop()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetAbsoluteTop();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetClientLeft()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientLeft();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetClientTop()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientTop();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetClientWidth()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientWidth();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetClientHeight()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetClientHeight();
+#else
+				return 0.0f;
+#endif
 			}
 			IElement IElement::GetOffsetParent()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetOffsetParent();
+#else
+				return IElement();
+#endif
 			}
 			float IElement::GetOffsetLeft()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetLeft();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetOffsetTop()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetTop();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetOffsetWidth()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetWidth();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetOffsetHeight()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetOffsetHeight();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetScrollLeft()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollLeft();
+#else
+				return 0.0f;
+#endif
 			}
 			void IElement::SetScrollLeft(float ScrollLeft)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetScrollLeft(ScrollLeft);
+#endif
 			}
 			float IElement::GetScrollTop()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollTop();
+#else
+				return 0.0f;
+#endif
 			}
 			void IElement::SetScrollTop(float ScrollTop)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetScrollTop(ScrollTop);
+#endif
 			}
 			float IElement::GetScrollWidth()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollWidth();
+#else
+				return 0.0f;
+#endif
 			}
 			float IElement::GetScrollHeight()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0.0f, "element should be valid");
 				return Base->GetScrollHeight();
+#else
+				return 0.0f;
+#endif
 			}
 			IElementDocument IElement::GetOwnerDocument() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetOwnerDocument();
+#else
+				return IElementDocument();
+#endif
 			}
 			IElement IElement::GetParentNode() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetParentNode();
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::GetNextSibling() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetNextSibling();
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::GetPreviousSibling() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetPreviousSibling();
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::GetFirstChild() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetFirstChild();
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::GetLastChild() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetLastChild();
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::GetChild(int Index) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetChild(Index);
+#else
+				return IElement();
+#endif
 			}
 			int IElement::GetNumChildren(bool IncludeNonDOMElements) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), 0, "element should be valid");
 				return Base->GetNumChildren(IncludeNonDOMElements);
+#else
+				return 0;
+#endif
 			}
 			void IElement::GetInnerHTML(std::string& Content) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->GetInnerRML(Content);
+#endif
 			}
 			std::string IElement::GetInnerHTML() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return Base->GetInnerRML();
+#else
+				return std::string();
+#endif
 			}
 			void IElement::SetInnerHTML(const std::string& HTML)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->SetInnerRML(HTML);
+#endif
 			}
 			bool IElement::IsFocused()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("focus");
+#else
+				return false;
+#endif
 			}
 			bool IElement::IsHovered()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("hover");
+#else
+				return false;
+#endif
 			}
 			bool IElement::IsActive()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("active");
+#else
+				return false;
+#endif
 			}
 			bool IElement::IsChecked()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->IsPseudoClassSet("checked");
+#else
+				return false;
+#endif
 			}
 			bool IElement::Focus()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->Focus();
+#else
+				return false;
+#endif
 			}
 			void IElement::Blur()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->Blur();
+#endif
 			}
 			void IElement::Click()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->Click();
+#endif
 			}
 			void IElement::AddEventListener(const std::string& Event, Listener* Source, bool InCapturePhase)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				TH_ASSERT_V(Source != nullptr && Source->Base != nullptr, "listener should be set");
 
 				Base->AddEventListener(Event, Source->Base, InCapturePhase);
+#endif
 			}
 			void IElement::RemoveEventListener(const std::string& Event, Listener* Source, bool InCapturePhase)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				TH_ASSERT_V(Source != nullptr && Source->Base != nullptr, "listener should be set");
 
 				Base->RemoveEventListener(Event, Source->Base, InCapturePhase);
+#endif
 			}
 			bool IElement::DispatchEvent(const std::string& Type, const Core::VariantArgs& Args)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				Rml::Dictionary Props;
 				for (auto& Item : Args)
@@ -1555,57 +1945,91 @@ namespace Tomahawk
 				}
 
 				return Base->DispatchEvent(Type, Props);
+#else
+				return false;
+#endif
 			}
 			void IElement::ScrollIntoView(bool AlignWithTop)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Base->ScrollIntoView(AlignWithTop);
+#endif
 			}
 			IElement IElement::AppendChild(const IElement& Element, bool DOMElement)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->AppendChild(Rml::ElementPtr(Element.GetElement()), DOMElement);
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::InsertBefore(const IElement& Element, const IElement& AdjacentElement)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->InsertBefore(Rml::ElementPtr(Element.GetElement()), AdjacentElement.GetElement());
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::ReplaceChild(const IElement& InsertedElement, const IElement& ReplacedElement)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = Base->ReplaceChild(Rml::ElementPtr(InsertedElement.GetElement()), ReplacedElement.GetElement());
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
 
 				return Result;
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::RemoveChild(const IElement& Element)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = Base->RemoveChild(Element.GetElement());
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
 
 				return Result;
+#else
+				return IElement();
+#endif
 			}
 			bool IElement::HasChildNodes() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return Base->HasChildNodes();
+#else
+				return false;
+#endif
 			}
 			IElement IElement::GetElementById(const std::string& Id)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->GetElementById(Id);
+#else
+				return IElement();
+#endif
 			}
 			IElement IElement::QuerySelector(const std::string& Selector)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				return Base->QuerySelector(Selector);
+#else
+				return IElement();
+#endif
 			}
 			std::vector<IElement> IElement::QuerySelectorAll(const std::string& Selectors)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::vector<IElement>(), "element should be valid");
 				Rml::ElementList Elements;
 				Base->QuerySelectorAll(Elements, Selectors);
@@ -1617,9 +2041,13 @@ namespace Tomahawk
 					Result.push_back(Item);
 
 				return Result;
+#else
+				return std::vector<IElement>();
+#endif
 			}
 			bool IElement::CastFormColor(Compute::Vector4* Ptr, bool Alpha)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1677,9 +2105,13 @@ namespace Tomahawk
 					Form->SetValue(IVariant::FromColor3(*Ptr, Value.empty() ? true : Value[0] == '#'));
 
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormString(std::string* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1696,9 +2128,13 @@ namespace Tomahawk
 
 				Form->SetValue(*Ptr);
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormPointer(void** Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1715,9 +2151,13 @@ namespace Tomahawk
 
 				Form->SetValue(FromPointer(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormInt32(int32_t* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1750,9 +2190,13 @@ namespace Tomahawk
 
 				Form->SetValue(std::to_string(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormUInt32(uint32_t* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1785,9 +2229,13 @@ namespace Tomahawk
 
 				Form->SetValue(std::to_string(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormFlag32(uint32_t* Ptr, uint32_t Mask)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1801,9 +2249,13 @@ namespace Tomahawk
 					*Ptr &= ~Mask;
 
 				return true;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormInt64(int64_t* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1836,9 +2288,13 @@ namespace Tomahawk
 
 				Form->SetValue(std::to_string(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormUInt64(uint64_t* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1871,9 +2327,13 @@ namespace Tomahawk
 
 				Form->SetValue(std::to_string(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormSize(size_t* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1906,9 +2366,13 @@ namespace Tomahawk
 
 				Form->SetValue(std::to_string(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormFlag64(uint64_t* Ptr, uint64_t Mask)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1922,9 +2386,13 @@ namespace Tomahawk
 					*Ptr &= ~Mask;
 
 				return true;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormFloat(float* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1957,9 +2425,13 @@ namespace Tomahawk
 
 				Form->SetValue(Core::Parser::ToString(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormFloat(float* Ptr, float Mult)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -1968,9 +2440,13 @@ namespace Tomahawk
 				*Ptr /= Mult;
 
 				return Result;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormDouble(double* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -2003,9 +2479,13 @@ namespace Tomahawk
 
 				Form->SetValue(Core::Parser::ToString(*Ptr));
 				return false;
+#else
+				return false;
+#endif
 			}
 			bool IElement::CastFormBoolean(bool* Ptr)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				TH_ASSERT(Ptr != nullptr, false, "ptr should be set");
 
@@ -2026,42 +2506,63 @@ namespace Tomahawk
 					Form->RemoveAttribute("checked");
 
 				return false;
+#else
+				return false;
+#endif
 			}
 			std::string IElement::GetFormName() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->GetName();
+#else
+				return std::string();
+#endif
 			}
 			void IElement::SetFormName(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Form->SetName(Name);
+#endif
 			}
 			std::string IElement::GetFormValue() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->GetValue();
+#else
+				return std::string();
+#endif
 			}
 			void IElement::SetFormValue(const std::string& Value)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Form->SetValue(Value);
+#endif
 			}
 			bool IElement::IsFormDisabled() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				return Form->IsDisabled();
+#else
+				return false;
+#endif
 			}
 			void IElement::SetFormDisabled(bool Disable)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				Rml::ElementFormControl* Form = (Rml::ElementFormControl*)Base;
 				Form->SetDisabled(Disable);
+#endif
 			}
 			Rml::Element* IElement::GetElement() const
 			{
@@ -2098,63 +2599,93 @@ namespace Tomahawk
 			}
 			void IElementDocument::Release()
 			{
+#ifdef TH_WITH_RMLUI
 				Rml::ElementDocument* Item = (Rml::ElementDocument*)Base;
 				TH_DELETE(ElementDocument, Item);
 				Base = nullptr;
+#endif
 			}
 			void IElementDocument::SetTitle(const std::string& Title)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->SetTitle(Title);
+#endif
 			}
 			void IElementDocument::PullToFront()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->PullToFront();
+#endif
 			}
 			void IElementDocument::PushToBack()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->PushToBack();
+#endif
 			}
 			void IElementDocument::Show(ModalFlag Modal, FocusFlag Focus)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->Show((Rml::ModalFlag)Modal, (Rml::FocusFlag)Focus);
+#endif
 			}
 			void IElementDocument::Hide()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->Hide();
+#endif
 			}
 			void IElementDocument::Close()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "element should be valid");
 				((Rml::ElementDocument*)Base)->Close();
+#endif
 			}
 			std::string IElementDocument::GetTitle() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetTitle();
+#else
+				return std::string();
+#endif
 			}
 			std::string IElementDocument::GetSourceURL() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), std::string(), "element should be valid");
 				return ((Rml::ElementDocument*)Base)->GetSourceURL();
+#else
+				return std::string();
+#endif
 			}
 			IElement IElementDocument::CreateElement(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "element should be valid");
 				Rml::ElementPtr Ptr = ((Rml::ElementDocument*)Base)->CreateElement(Name);
 				Rml::Element* Result = Ptr.get();
 				Ptr.reset();
 
 				return Result;
+#else
+				return IElement();
+#endif
 			}
 			bool IElementDocument::IsModal() const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "element should be valid");
 				return ((Rml::ElementDocument*)Base)->IsModal();
+#else
+				return false;
+#endif
 			}
 			Rml::ElementDocument* IElementDocument::GetElementDocument() const
 			{
@@ -2163,6 +2694,7 @@ namespace Tomahawk
 
 			bool Subsystem::Create()
 			{
+#ifdef TH_WITH_RMLUI
 				State++;
 				if (State > 1)
 					return true;
@@ -2189,9 +2721,13 @@ namespace Tomahawk
 
 				CreateElements();
 				return Result;
+#else
+				return false;
+#endif
 			}
 			bool Subsystem::Release()
 			{
+#ifdef TH_WITH_RMLUI
 				State--;
 				if (State > 0 || State < 0)
 					return State >= 0;
@@ -2228,9 +2764,13 @@ namespace Tomahawk
 
 				ScriptInterface = nullptr;
 				return true;
+#else
+				return false;
+#endif
 			}
 			void Subsystem::SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Core::Timer* Time)
 			{
+#ifdef TH_WITH_RMLUI
 				if (State == 0 && !Create())
 					return;
 
@@ -2246,11 +2786,14 @@ namespace Tomahawk
 
 				if (SystemInterface != nullptr)
 					SystemInterface->Attach(Activity, Time);
+#endif
 			}
 			void Subsystem::SetTranslator(const std::string& Name, const TranslationCallback& Callback)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(SystemInterface != nullptr, "system interface should be valid");
 				SystemInterface->SetTranslator(Name, Callback);
+#endif
 			}
 			void Subsystem::SetManager(Script::VMManager* Manager)
 			{
@@ -2270,26 +2813,43 @@ namespace Tomahawk
 			}
 			Graphics::GraphicsDevice* Subsystem::GetDevice()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
 				return RenderInterface->GetDevice();
+#else
+				return nullptr;
+#endif
 			}
 			Graphics::Texture2D* Subsystem::GetBackground()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
 				return RenderInterface->Background;
+#else
+				return nullptr;
+#endif
 			}
 			Compute::Matrix4x4* Subsystem::GetTransform()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
 				return RenderInterface->GetTransform();
+#else
+				return nullptr;
+#endif
 			}
 			Compute::Matrix4x4* Subsystem::GetProjection()
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(RenderInterface != nullptr, nullptr, "render interface should be valid");
 				return RenderInterface->GetProjection();
+#else
+				return nullptr;
+#endif
 			}
 			Compute::Matrix4x4 Subsystem::ToMatrix(const void* Matrix)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(Matrix != nullptr, Compute::Matrix4x4::Identity(), "matrix should be set");
 				const Rml::Matrix4f* NewTransform = (const Rml::Matrix4f*)Matrix;
 				auto& Row11 = NewTransform->GetRow(0);
@@ -2318,6 +2878,9 @@ namespace Tomahawk
 				Result.Row[15] = Row44.w;
 
 				return Result.Transpose();
+#else
+				return Compute::Matrix4x4();
+#endif
 			}
 			std::string Subsystem::EscapeHTML(const std::string& Text)
 			{
@@ -2336,16 +2899,20 @@ namespace Tomahawk
 
 			DataModel::DataModel(Rml::DataModelConstructor* Ref) : Base(nullptr)
 			{
+#ifdef TH_WITH_RMLUI
 				if (Ref != nullptr)
 					Base = TH_NEW(Rml::DataModelConstructor, *Ref);
+#endif
 			}
 			DataModel::~DataModel()
 			{
+#ifdef TH_WITH_RMLUI
 				Detach();
 				for (auto Item : Props)
 					TH_DELETE(DataNode, Item.second);
 
 				TH_DELETE(DataModelConstructor, Base);
+#endif
 			}
 			void DataModel::SetDetachCallback(std::function<void()>&& Callback)
 			{
@@ -2354,6 +2921,7 @@ namespace Tomahawk
 			}
 			DataNode* DataModel::SetProperty(const std::string& Name, const Core::Variant& Value)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "data node should be valid");
 				DataNode* Result = GetProperty(Name);
 				if (Result != nullptr)
@@ -2379,9 +2947,13 @@ namespace Tomahawk
 
 				TH_DELETE(DataNode, Result);
 				return nullptr;
+#else
+				return nullptr;
+#endif
 			}
 			DataNode* DataModel::SetProperty(const std::string& Name, Core::Variant* Value)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), nullptr, "data node should be valid");
 				TH_ASSERT(Value != nullptr, nullptr, "value should be set");
 
@@ -2401,6 +2973,9 @@ namespace Tomahawk
 
 				TH_DELETE(DataNode, Result);
 				return nullptr;
+#else
+				return nullptr;
+#endif
 			}
 			DataNode* DataModel::SetArray(const std::string& Name)
 			{
@@ -2488,6 +3063,7 @@ namespace Tomahawk
 			}
 			bool DataModel::SetCallback(const std::string& Name, const DataCallback& Callback)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "data node should be valid");
 				TH_ASSERT(Callback, false, "callback should not be empty");
 
@@ -2503,6 +3079,9 @@ namespace Tomahawk
 					IEvent Basis(&Event);
 					Callback(Basis, Args);
 				});
+#else
+				return false;
+#endif
 			}
 			bool DataModel::SetUnmountCallback(const ModelCallback& Callback)
 			{
@@ -2511,13 +3090,19 @@ namespace Tomahawk
 			}
 			void DataModel::Change(const std::string& VariableName)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(IsValid(), "data node should be valid");
 				Base->GetModelHandle().DirtyVariable(VariableName);
+#endif
 			}
 			bool DataModel::HasChanged(const std::string& VariableName) const
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(IsValid(), false, "data node should be valid");
 				return Base->GetModelHandle().IsVariableDirty(VariableName);
+#else
+				return false;
+#endif
 			}
 			void DataModel::Detach()
 			{
@@ -2899,27 +3484,36 @@ namespace Tomahawk
 
 			Listener::Listener(const EventCallback& NewCallback)
 			{
+#ifdef TH_WITH_RMLUI
 				Base = TH_NEW(EventSubsystem, NewCallback);
+#endif
 			}
 			Listener::Listener(const std::string& FunctionName)
 			{
+#ifdef TH_WITH_RMLUI
 				Base = TH_NEW(ListenerSubsystem, FunctionName, nullptr);
+#endif
 			}
 			Listener::~Listener()
 			{
+#ifdef TH_WITH_RMLUI
 				Base->OnDetach(nullptr);
+#endif
 			}
 
 			Context::Context(const Compute::Vector2& Size) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
+#ifdef TH_WITH_RMLUI
 				Base = (ScopedContext*)Rml::CreateContext(std::to_string(Subsystem::Id++), Rml::Vector2i((int)Size.X, (int)Size.Y));
 
 				TH_ASSERT_V(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();
+#endif
 			}
 			Context::Context(Graphics::GraphicsDevice* Device) : Compiler(nullptr), Cursor(-1.0f), Loading(false)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(Device != nullptr, "graphics device should be set");
 				TH_ASSERT_V(Device->GetRenderTarget() != nullptr, "graphics device should be set");
 
@@ -2929,15 +3523,19 @@ namespace Tomahawk
 				TH_ASSERT_V(Base != nullptr, "context cannot be created");
 				Base->Basis = this;
 				CreateVM();
+#endif
 			}
 			Context::~Context()
 			{
+#ifdef TH_WITH_RMLUI
 				RemoveDataModels();
 				Rml::RemoveContext(Base->GetName());
 				TH_RELEASE(Compiler);
+#endif
 			}
 			void Context::EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
 			{
+#ifdef TH_WITH_RMLUI
 				if (Key == Graphics::KeyCode::CURSORLEFT)
 				{
 					if (Pressed)
@@ -2984,28 +3582,36 @@ namespace Tomahawk
 				}
 				else if (Base->ProcessKeyUp((Rml::Input::KeyIdentifier)GetKeyCode(Key), GetKeyMod(Mod)))
 					Inputs.Keys = true;
+#endif
 			}
 			void Context::EmitInput(const char* Buffer, int Length)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(Buffer != nullptr && Length > 0, "buffer should be set");
 				if (Base->ProcessTextInput(std::string(Buffer, Length)))
 					Inputs.Text = true;
+#endif
 			}
 			void Context::EmitWheel(int X, int Y, bool Normal, Graphics::KeyMod Mod)
 			{
+#ifdef TH_WITH_RMLUI
 				if (Base->ProcessMouseWheel((float)-Y, GetKeyMod(Mod)))
 					Inputs.Scroll = true;
+#endif
 			}
 			void Context::EmitResize(int Width, int Height)
 			{
+#ifdef TH_WITH_RMLUI
 				RenderSubsystem* Renderer = Subsystem::GetRenderInterface();
 				if (Renderer != nullptr)
 					Renderer->ResizeBuffers(Width, Height);
 
 				Base->SetDimensions(Rml::Vector2i(Width, Height));
+#endif
 			}
 			void Context::UpdateEvents(Graphics::Activity* Activity)
 			{
+#ifdef TH_WITH_RMLUI
 				Inputs.Keys = false;
 				Inputs.Text = false;
 				Inputs.Scroll = false;
@@ -3019,20 +3625,26 @@ namespace Tomahawk
 				}
 
 				Base->Update();
+#endif
 			}
 			void Context::RenderLists(Graphics::Texture2D* Target)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(Subsystem::GetRenderInterface() != nullptr, "render interface should be valid");
 				RenderSubsystem* Renderer = Subsystem::GetRenderInterface();
 				Renderer->Background = Target;
 				Base->Render();
+#endif
 			}
 			void Context::ClearStyles()
 			{
+#ifdef TH_WITH_RMLUI
 				Rml::StyleSheetFactory::ClearStyleSheetCache();
+#endif
 			}
 			bool Context::ClearDocuments()
 			{
+#ifdef TH_WITH_RMLUI
 				bool State = Loading;
 				Loading = true;
 
@@ -3041,6 +3653,9 @@ namespace Tomahawk
 				Loading = State;
 
 				return true;
+#else
+				return false;
+#endif
 			}
 			bool Context::Initialize(Core::Schema* Conf, const std::string& Relative)
 			{
@@ -3090,6 +3705,7 @@ namespace Tomahawk
 			}
 			bool Context::Initialize(const std::string& ConfPath)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(Subsystem::RenderInterface != nullptr, false, "render interface should be set");
 				TH_ASSERT(Subsystem::RenderInterface->GetContent() != nullptr, false, "content manager should be set");
 
@@ -3108,6 +3724,9 @@ namespace Tomahawk
 
 				Loading = State;
 				return Result;
+#else
+				return false;
+#endif
 			}
 			bool Context::IsLoading()
 			{
@@ -3115,15 +3734,20 @@ namespace Tomahawk
 			}
 			bool Context::IsInputFocused()
 			{
+#ifdef TH_WITH_RMLUI
 				Rml::Element* Element = Base->GetFocusElement();
 				if (!Element)
 					return false;
 
 				const Rml::String& Tag = Element->GetTagName();
 				return Tag == "input" || Tag == "textarea" || Tag == "select";
+#else
+				return false;
+#endif
 			}
 			bool Context::LoadFontFace(const std::string& Path, bool UseAsFallback)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT(Subsystem::GetSystemInterface() != nullptr, false, "system interface should be set");
 				bool State = Loading;
 				Loading = true;
@@ -3132,34 +3756,58 @@ namespace Tomahawk
 				Loading = State;
 
 				return Result;
+#else
+				return false;
+#endif
 			}
-			const std::unordered_map<std::string, bool>& Context::GetFontFaces()
+			std::unordered_map<std::string, bool>* Context::GetFontFaces()
 			{
+#ifdef TH_WITH_RMLUI
 				return Subsystem::GetSystemInterface()->GetFontFaces();
+#else
+				return nullptr;
+#endif
 			}
 			Rml::Context* Context::GetContext()
 			{
+#ifdef TH_WITH_RMLUI
 				return Base;
+#else
+				return nullptr;
+#endif
 			}
 			Compute::Vector2 Context::GetDimensions() const
 			{
+#ifdef TH_WITH_RMLUI
 				Rml::Vector2i Size = Base->GetDimensions();
 				return Compute::Vector2((float)Size.x, (float)Size.y);
+#else
+				return Compute::Vector2();
+#endif
 			}
 			void Context::SetDensityIndependentPixelRatio(float DensityIndependentPixelRatio)
 			{
+#ifdef TH_WITH_RMLUI
 				Base->SetDensityIndependentPixelRatio(DensityIndependentPixelRatio);
+#endif
 			}
 			void Context::EnableMouseCursor(bool Enable)
 			{
+#ifdef TH_WITH_RMLUI
 				Base->EnableMouseCursor(Enable);
+#endif
 			}
 			float Context::GetDensityIndependentPixelRatio() const
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetDensityIndependentPixelRatio();
+#else
+				return 0.0f;
+#endif
 			}
 			bool Context::ReplaceHTML(const std::string& Selector, const std::string& HTML, int Index)
 			{
+#ifdef TH_WITH_RMLUI
 				auto* Current = Base->GetDocument(Index);
 				if (!Current)
 					return false;
@@ -3170,9 +3818,13 @@ namespace Tomahawk
 
 				TargetPtr->SetInnerRML(HTML);
 				return true;
+#else
+				return false;
+#endif
 			}
 			IElementDocument Context::EvalHTML(const std::string& HTML, int Index)
 			{
+#ifdef TH_WITH_RMLUI
 				auto* Current = Base->GetDocument(Index);
 				if (!Current)
 					Current = Base->LoadDocumentFromMemory("<html><body>" + HTML + "</body></html>");
@@ -3180,9 +3832,13 @@ namespace Tomahawk
 					Current->SetInnerRML(HTML);
 
 				return Current;
+#else
+				return IElementDocument();
+#endif
 			}
 			IElementDocument Context::AddCSS(const std::string& CSS, int Index)
 			{
+#ifdef TH_WITH_RMLUI
 				auto* Current = Base->GetDocument(Index);
 				if (Current != nullptr)
 				{
@@ -3214,9 +3870,13 @@ namespace Tomahawk
 					Current = Base->LoadDocumentFromMemory("<html><head><style>" + CSS + "</style></head></html>");
 
 				return Current;
+#else
+				return IElementDocument();
+#endif
 			}
 			IElementDocument Context::LoadCSS(const std::string& Path, int Index)
 			{
+#ifdef TH_WITH_RMLUI
 				auto* Current = Base->GetDocument(Index);
 				if (Current != nullptr)
 				{
@@ -3236,9 +3896,13 @@ namespace Tomahawk
 					Current = Base->LoadDocumentFromMemory("<html><head><link type=\"text/css\" href=\"" + Path + "\" /></head></html>");
 
 				return Current;
+#else
+				return IElementDocument();
+#endif
 			}
 			IElementDocument Context::LoadDocument(const std::string& Path)
 			{
+#ifdef TH_WITH_RMLUI
 				bool State = Loading;
 				Loading = true;
 
@@ -3274,29 +3938,53 @@ namespace Tomahawk
 				Loading = State;
 
 				return Result;
+#else
+				return IElementDocument();
+#endif
 			}
 			IElementDocument Context::AddDocumentEmpty(const std::string& InstancerName)
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->CreateDocument(InstancerName);
+#else
+				return IElementDocument();
+#endif
 			}
 			IElementDocument Context::AddDocument(const std::string& HTML)
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->LoadDocumentFromMemory(HTML);
+#else
+				return IElementDocument();
+#endif
 			}
 			IElementDocument Context::GetDocument(const std::string& Id)
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetDocument(Id);
+#else
+				return IElementDocument();
+#endif
 			}
 			IElementDocument Context::GetDocument(int Index)
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetDocument(Index);
+#else
+				return IElementDocument();
+#endif
 			}
 			int Context::GetNumDocuments() const
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetNumDocuments();
+#else
+				return 0;
+#endif
 			}
-			IElement Context::GetElementById(int DocIndex, const std::string& Id)
+			IElement Context::GetElementById(const std::string& Id, int DocIndex)
 			{
+#ifdef TH_WITH_RMLUI
 				Rml::ElementDocument* Root = Base->GetDocument(DocIndex);
 				if (!Root)
 					return nullptr;
@@ -3320,51 +4008,85 @@ namespace Tomahawk
 				Map->second.insert(std::make_pair(Id, Element));
 
 				return Element;
+#else
+				return IElement();
+#endif
 			}
 			IElement Context::GetHoverElement()
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetHoverElement();
+#else
+				return IElement();
+#endif
 			}
 			IElement Context::GetFocusElement()
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetFocusElement();
+#else
+				return IElement();
+#endif
 			}
 			IElement Context::GetRootElement()
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetRootElement();
+#else
+				return IElement();
+#endif
 			}
 			IElement Context::GetElementAtPoint(const Compute::Vector2& Point, const IElement& IgnoreElement, const IElement& Element) const
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetElementAtPoint(Rml::Vector2f(Point.X, Point.Y), IgnoreElement.GetElement(), Element.GetElement());
+#else
+				return IElement();
+#endif
 			}
 			void Context::PullDocumentToFront(const IElementDocument& Schema)
 			{
-				return Base->PullDocumentToFront(Schema.GetElementDocument());
+#ifdef TH_WITH_RMLUI
+				Base->PullDocumentToFront(Schema.GetElementDocument());
+#endif
 			}
 			void Context::PushDocumentToBack(const IElementDocument& Schema)
 			{
-				return Base->PushDocumentToBack(Schema.GetElementDocument());
+#ifdef TH_WITH_RMLUI
+				Base->PushDocumentToBack(Schema.GetElementDocument());
+#endif
 			}
 			void Context::UnfocusDocument(const IElementDocument& Schema)
 			{
-				return Base->UnfocusDocument(Schema.GetElementDocument());
+#ifdef TH_WITH_RMLUI
+				Base->UnfocusDocument(Schema.GetElementDocument());
+#endif
 			}
 			void Context::AddEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
 				Base->AddEventListener(Event, Listener->Base, InCapturePhase);
+#endif
 			}
 			void Context::RemoveEventListener(const std::string& Event, Listener* Listener, bool InCapturePhase)
 			{
+#ifdef TH_WITH_RMLUI
 				TH_ASSERT_V(Listener != nullptr && Listener->Base != nullptr, "listener should be valid");
 				Base->RemoveEventListener(Event, Listener->Base, InCapturePhase);
+#endif
 			}
 			bool Context::IsMouseInteracting() const
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->IsMouseInteracting();
+#else
+				return false;
+#endif
 			}
 			bool Context::WasInputUsed(uint32_t InputTypeMask)
 			{
+#ifdef TH_WITH_RMLUI
 				bool Result = false;
 				if (InputTypeMask & (uint32_t)InputType::Keys && Inputs.Keys)
 					Result = true;
@@ -3379,9 +4101,13 @@ namespace Tomahawk
 					Result = true;
 
 				return Result;
+#else
+				return false;
+#endif
 			}
 			bool Context::GetActiveClipRegion(Compute::Vector2& Origin, Compute::Vector2& Dimensions) const
 			{
+#ifdef TH_WITH_RMLUI
 				Rml::Vector2i O1((int)Origin.X, (int)Origin.Y);
 				Rml::Vector2i O2((int)Dimensions.X, (int)Dimensions.Y);
 				bool Result = Base->GetActiveClipRegion(O1, O2);
@@ -3389,13 +4115,19 @@ namespace Tomahawk
 				Dimensions = Compute::Vector2((float)O2.x, (float)O2.y);
 
 				return Result;
+#else
+				return false;
+#endif
 			}
 			void Context::SetActiveClipRegion(const Compute::Vector2& Origin, const Compute::Vector2& Dimensions)
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->SetActiveClipRegion(Rml::Vector2i((int)Origin.X, (int)Origin.Y), Rml::Vector2i((int)Dimensions.X, (int)Dimensions.Y));
+#endif
 			}
 			DataModel* Context::SetDataModel(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				Rml::DataModelConstructor Result = Base->CreateDataModel(Name);
 				if (!Result)
 					return nullptr;
@@ -3414,6 +4146,9 @@ namespace Tomahawk
 
 				Models[Name] = Handle;
 				return Handle;
+#else
+				return nullptr;
+#endif
 			}
 			DataModel* Context::GetDataModel(const std::string& Name)
 			{
@@ -3425,6 +4160,7 @@ namespace Tomahawk
 			}
 			bool Context::RemoveDataModel(const std::string& Name)
 			{
+#ifdef TH_WITH_RMLUI
 				if (!Base->RemoveDataModel(Name))
 					return false;
 
@@ -3439,9 +4175,13 @@ namespace Tomahawk
 				}
 
 				return true;
+#else
+				return false;
+#endif
 			}
 			bool Context::RemoveDataModels()
 			{
+#ifdef TH_WITH_RMLUI
 				if (Models.empty())
 					return false;
 
@@ -3453,10 +4193,15 @@ namespace Tomahawk
 
 				Models.clear();
 				return true;
+#else
+				return false;
+#endif
 			}
 			void Context::SetDocumentsBaseTag(const std::string& Tag)
 			{
+#ifdef TH_WITH_RMLUI
 				Base->SetDocumentsBaseTag(Tag);
+#endif
 			}
 			void Context::SetMountCallback(const ModelCallback& Callback)
 			{
@@ -3545,14 +4290,18 @@ namespace Tomahawk
 				Compiler->Clear();
 				Compiler->Prepare("__scope__", true);
 			}
-			const std::string& Context::GetDocumentsBaseTag()
+			std::string Context::GetDocumentsBaseTag()
 			{
+#ifdef TH_WITH_RMLUI
 				return Base->GetDocumentsBaseTag();
+#else
+				return std::string();
+#endif
 			}
 			int Context::GetKeyCode(Graphics::KeyCode Key)
 			{
+#ifdef TH_WITH_RMLUI
 				using namespace Rml::Input;
-
 				switch (Key)
 				{
 					case Graphics::KeyCode::SPACE:
@@ -3766,9 +4515,13 @@ namespace Tomahawk
 					default:
 						return KI_UNKNOWN;
 				}
+#else
+				return 0;
+#endif
 			}
 			int Context::GetKeyMod(Graphics::KeyMod Mod)
 			{
+#ifdef TH_WITH_RMLUI
 				int Result = 0;
 				if ((size_t)Mod & (size_t)Graphics::KeyMod::CTRL)
 					Result |= Rml::Input::KM_CTRL;
@@ -3780,8 +4533,11 @@ namespace Tomahawk
 					Result |= Rml::Input::KM_ALT;
 
 				return Result;
+#else
+				return 0;
+#endif
 			}
 		}
 	}
 }
-#endif
+#pragma warning(pop)

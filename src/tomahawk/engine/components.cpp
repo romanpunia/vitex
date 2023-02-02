@@ -1,7 +1,7 @@
 #include "components.h"
 #include "renderers.h"
+#include "../core/bindings.h"
 #include "../audio/effects.h"
-#include "../script/std-lib.h"
 #include <cstddef>
 
 namespace
@@ -3783,7 +3783,7 @@ namespace Tomahawk
 					if (Invoke == InvokeType::Typeless)
 						return;
 
-					Script::STDMap* Map = Script::STDMap::Create(Compiler->GetManager()->GetEngine());
+					Script::Bindings::Map* Map = Script::Bindings::Map::Create(Compiler->GetManager()->GetEngine());
 					if (Map != nullptr)
 					{
 						int TypeId = Compiler->GetManager()->Global().GetTypeIdByDecl("Variant");

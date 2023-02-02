@@ -1,7 +1,7 @@
 #ifndef TH_ENGINE_GUI_H
 #define TH_ENGINE_GUI_H
 #include "../core/engine.h"
-#ifdef TH_WITH_RMLUI
+
 namespace Rml
 {
 	class Context;
@@ -22,7 +22,6 @@ namespace Rml
 
 	class Variant;
 }
-#endif
 
 namespace Tomahawk
 {
@@ -30,7 +29,6 @@ namespace Tomahawk
 	{
 		namespace GUI
 		{
-#ifdef TH_WITH_RMLUI
 			class RenderSubsystem;
 
 			class FileSubsystem;
@@ -83,7 +81,7 @@ namespace Tomahawk
 			enum class FocusFlag
 			{
 				None,
-				Schema,
+				Document,
 				Keep,
 				Auto
 			};
@@ -102,6 +100,7 @@ namespace Tomahawk
 				Block,
 				Inline,
 				InlineBlock,
+				Flex,
 				Table,
 				TableRow,
 				TableRowGroup,
@@ -196,11 +195,14 @@ namespace Tomahawk
 
 			private:
 				Rml::Event* Base;
+				bool Owned;
 
 			public:
 				IEvent();
 				IEvent(Rml::Event* Ref);
+				IEvent Copy();
 				EventPhase GetPhase() const;
+				void Release();
 				void SetPhase(EventPhase Phase);
 				void SetCurrentElement(const IElement& Element);
 				IElement GetCurrentElement() const;
@@ -589,7 +591,7 @@ namespace Tomahawk
 				IElementDocument AddDocumentEmpty(const std::string& InstancerName = "body");
 				IElementDocument GetDocument(const std::string& Id);
 				IElementDocument GetDocument(int Index);
-				IElement GetElementById(int DocIndex, const std::string& Id);
+				IElement GetElementById(const std::string& Id, int Index = 0);
 				IElement GetHoverElement();
 				IElement GetFocusElement();
 				IElement GetRootElement();
@@ -606,8 +608,8 @@ namespace Tomahawk
 				bool RemoveDataModels();
 				void SetDocumentsBaseTag(const std::string& Tag);
 				void SetMountCallback(const ModelCallback& Callback);
-				const std::string& GetDocumentsBaseTag();
-				const std::unordered_map<std::string, bool>& GetFontFaces();
+				std::string GetDocumentsBaseTag();
+				std::unordered_map<std::string, bool>* GetFontFaces();
 				Compute::Vector2 GetDimensions() const;
 				DataModel* SetDataModel(const std::string& Name);
 				DataModel* GetDataModel(const std::string& Name);
@@ -624,7 +626,6 @@ namespace Tomahawk
 				static int GetKeyCode(Graphics::KeyCode Key);
 				static int GetKeyMod(Graphics::KeyMod Mod);
 			};
-#endif
 		}
 	}
 }

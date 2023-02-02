@@ -1,5 +1,5 @@
 #include "http.h"
-#include "../script/std-lib.h"
+#include "../core/bindings.h"
 #include <inttypes.h>
 #ifdef TH_MICROSOFT
 #include <WS2tcpip.h>
@@ -5986,7 +5986,7 @@ namespace Tomahawk
 						Script::VMContext* Context = Base->Gateway->GetContext();
 						if (Context != nullptr)
 						{
-							Status += "\nvcontext: " + Script::STDPromise::GetStatus(Context);
+							Status += "\nvcontext: " + Script::Bindings::Promise::GetStatus(Context);
 							Status += "\ngateway " + Context->GetStackTrace(0, 64);
 						}
 						else

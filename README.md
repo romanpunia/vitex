@@ -257,7 +257,7 @@ There are several build options for this project.
 + **TH_MSG_WARN** to allow warning logs, defaults to true
 + **TH_MSG_ERROR** to allow error logs, defaults to true
 
-These **will not** alter any interfaces
+These **will not** alter any interfaces but all related functions will return **nullptr** or it's alternative
 + **TH_USE_ASSIMP** will enable Assimp library if any, defaults to true
 + **TH_USE_FREETYPE** will enable FreeType library if any, defaults to true
 + **TH_USE_GLEW** will enable GLEW library if any, defaults to true
@@ -269,8 +269,6 @@ These **will not** alter any interfaces
 + **TH_USE_SDL2** will enable SDL2 library if any, defaults to true
 + **TH_USE_ZLIB** will enable zlib library if any, defaults to true
 + **TH_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
-
-These **will** alter some interfaces like GUI and Compute
 + **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
 + **TH_WITH_SIMD** will enable simd optimisations (processor-specific), defaults to false
 + **TH_WITH_FCTX** will enable internal fcontext implementation for coroutines, defaults to true

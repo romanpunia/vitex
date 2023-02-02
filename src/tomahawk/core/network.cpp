@@ -944,7 +944,9 @@ namespace Tomahawk
 						Callback(ECONNREFUSED);
 				});
 			}
-			TH_PRET(-2);
+			else if (Callback)
+				Callback(0);
+			TH_PRET(0);
 		}
 		int Socket::Open(addrinfo* Good)
 		{

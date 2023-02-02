@@ -1,8 +1,5 @@
 #include "script.h"
-#include "../script/std-lib.h"
-#include "../script/core-lib.h"
-#include "../script/compute-lib.h"
-#include "../script/gui-lib.h"
+#include "bindings.h"
 #include <inttypes.h>
 #include <iostream>
 #include <sstream>
@@ -2588,7 +2585,7 @@ namespace Tomahawk
 			std::string Trace = Core::OS::GetStackTrace(Skips, MaxFrames).append("\n");
 			TH_ASSERT(Context != nullptr, Trace, "context should be set");
 
-			uint64_t ThreadId = STDThread::GetThreadId();
+			uint64_t ThreadId = Bindings::Thread::GetThreadId();
 			std::stringstream Stream;
 			Stream << "vm stack trace (most recent call last)" << (ThreadId ? " in thread " : ":\n");
 			if (ThreadId)
@@ -3005,10 +3002,6 @@ namespace Tomahawk
 			Engine->SetEngineProperty(asEP_USE_CHARACTER_LITERALS, 1);
 			Engine->SetEngineProperty(asEP_DISALLOW_EMPTY_LIST_ELEMENTS, 1);
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
-
-			if (Engine->RegisterObjectType("Address", 0, asOBJ_REF | asOBJ_NOCOUNT) < 0)
-				TH_ERR("[vm] could not register Address type for script engine");
-
 			RegisterSubmodules(this);
 		}
 		VMManager::~VMManager()
@@ -3386,7 +3379,7 @@ namespace Tomahawk
 			std::unordered_map<std::string, std::pair<std::string, std::vector<GroupKey>>> Groups;
 			for (auto& Namespace : Namespaces)
 			{
-				std::string Name = (Namespace.first.empty() ? "STD" : Namespace.first);
+				std::string Name = Namespace.first;
 				std::string Subname = (Namespace.first.empty() ? "" : Name);
 				auto Offset = Core::Parser(&Name).Find("::");
 
@@ -3975,7 +3968,7 @@ namespace Tomahawk
 		}
 		void VMManager::FreeProxy()
 		{
-			STDFreeCore();
+			Bindings::Registry::Release();
 			CleanupThisThread();
 		}
 		VMManager* VMManager::Get(VMCManager* Engine)
@@ -4073,46 +4066,36 @@ namespace Tomahawk
 		}
 		void VMManager::RegisterSubmodules(VMManager* Engine)
 		{
-			/* Standard library */
-			Engine->AddSubmodule("std/any", { }, STDRegisterAny);
-			Engine->AddSubmodule("std/array", { }, STDRegisterArray);
-			Engine->AddSubmodule("std/complex", { }, STDRegisterComplex);
-			Engine->AddSubmodule("std/grid", { }, STDRegisterGrid);
-			Engine->AddSubmodule("std/ref", { }, STDRegisterRef);
-			Engine->AddSubmodule("std/weakref", { }, STDRegisterWeakRef);
-			Engine->AddSubmodule("std/math", { }, STDRegisterMath);
-			Engine->AddSubmodule("std/string", { "std/array" }, STDRegisterString);
-			Engine->AddSubmodule("std/random", { "std/string" }, STDRegisterRandom);
-			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, STDRegisterMap);
-			Engine->AddSubmodule("std/exception", { "std/string" }, STDRegisterException);
-			Engine->AddSubmodule("std/mutex", { }, STDRegisterMutex);
-			Engine->AddSubmodule("std/thread", { "std/any" }, STDRegisterThread);
-			Engine->AddSubmodule("std/promise", { "std/any" }, STDRegisterPromise);
+			Engine->AddSubmodule("std/pointer", { }, Bindings::Registry::LoadPointer);
+			Engine->AddSubmodule("std/any", { }, Bindings::Registry::LoadAny);
+			Engine->AddSubmodule("std/array", { }, Bindings::Registry::LoadArray);
+			Engine->AddSubmodule("std/complex", { }, Bindings::Registry::LoadComplex);
+			Engine->AddSubmodule("std/grid", { }, Bindings::Registry::LoadGrid);
+			Engine->AddSubmodule("std/ref", { }, Bindings::Registry::LoadRef);
+			Engine->AddSubmodule("std/weak_ref", { }, Bindings::Registry::LoadWeakRef);
+			Engine->AddSubmodule("std/math", { }, Bindings::Registry::LoadMath);
+			Engine->AddSubmodule("std/string", { "std/pointer", "std/array" }, Bindings::Registry::LoadString);
+			Engine->AddSubmodule("std/random", { "std/string" }, Bindings::Registry::LoadRandom);
+			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, Bindings::Registry::LoadMap);
+			Engine->AddSubmodule("std/exception", { "std/string" }, Bindings::Registry::LoadException);
+			Engine->AddSubmodule("std/mutex", { }, Bindings::Registry::LoadMutex);
+			Engine->AddSubmodule("std/thread", { "std/any" }, Bindings::Registry::LoadThread);
+			Engine->AddSubmodule("std/promise", { "std/any" }, Bindings::Registry::LoadPromise);
+			Engine->AddSubmodule("std/format", { "std/string" }, Bindings::Registry::LoadFormat);
+			Engine->AddSubmodule("std/decimal", { "std/string" }, Bindings::Registry::LoadDecimal);
+			Engine->AddSubmodule("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::LoadVariant);
+			Engine->AddSubmodule("std/timestamp", { "std/string" }, Bindings::Registry::LoadDateTime);
+			Engine->AddSubmodule("std/console", { "std/format" }, Bindings::Registry::LoadConsole);
+			Engine->AddSubmodule("std/schema", { "std/array", "std/string", "std/map", "std/variant" }, Bindings::Registry::LoadSchema);
+			Engine->AddSubmodule("std/vertices", { }, Bindings::Registry::LoadVertices);
+			Engine->AddSubmodule("std/rectangle", { }, Bindings::Registry::LoadRectangle);
+			Engine->AddSubmodule("std/vector2", { }, Bindings::Registry::LoadVector2);
+			Engine->AddSubmodule("std/vector3", { "std/vector2" }, Bindings::Registry::LoadVector3);
+			Engine->AddSubmodule("std/vector4", { "std/vector3" }, Bindings::Registry::LoadVector4);
+			Engine->AddSubmodule("std/gui_control", { "std/vector2", "std/vector3", "std/vector4", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
+			Engine->AddSubmodule("std/gui_model", { "std/gui_control", }, Bindings::Registry::LoadUiModel);
+			Engine->AddSubmodule("std/gui_context", { "std/gui_model" }, Bindings::Registry::LoadUiContext);
 			Engine->AddSubmodule("std", { }, nullptr);
-
-			/* Core library */
-			Engine->AddSubmodule("ce/format", { "std/string" }, CERegisterFormat);
-			Engine->AddSubmodule("ce/decimal", { "std/string" }, CERegisterDecimal);
-			Engine->AddSubmodule("ce/variant", { "std/string", "ce/decimal" }, CERegisterVariant);
-			Engine->AddSubmodule("ce/datetime", { "std/string" }, CERegisterDateTime);
-			Engine->AddSubmodule("ce/console", { "ce/format" }, CERegisterConsole);
-			Engine->AddSubmodule("ce/schema", { "std/array", "std/string", "std/map", "ce/variant" }, CERegisterSchema);
-			Engine->AddSubmodule("ce", { }, nullptr);
-
-			/* Compute library */
-			Engine->AddSubmodule("cu/vertices", { }, CURegisterVertices);
-			Engine->AddSubmodule("cu/rectangle", { }, CURegisterRectangle);
-			Engine->AddSubmodule("cu/vector2", { }, CURegisterVector2);
-			Engine->AddSubmodule("cu/vector3", { "cu/vector2" }, CURegisterVector3);
-			Engine->AddSubmodule("cu/vector4", { "cu/vector3" }, CURegisterVector4);
-			Engine->AddSubmodule("cu", { }, nullptr);
-
-			/* GUI library */
-			Engine->AddSubmodule("gui/variant", { "std/string", "cu/vector2", "cu/vector3", "cu/vector4" }, GUIRegisterVariant);
-			Engine->AddSubmodule("gui/control", { "gui/variant", "ce/schema", "std/array" }, GUIRegisterControl);
-			Engine->AddSubmodule("gui/model", { "gui/control", }, GUIRegisterModel);
-			Engine->AddSubmodule("gui/context", { "gui/model" }, GUIRegisterContext);
-			Engine->AddSubmodule("gui", { }, nullptr);
 		}
 		size_t VMManager::GetDefaultAccessMask()
 		{

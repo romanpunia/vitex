@@ -1083,8 +1083,7 @@ namespace Tomahawk
 
 				~Exposable()
 				{
-					for (size_t i = 0; i < Size; i++)
-						Key[i] = Crypto::Random() % std::numeric_limits<char>::max();
+					PrivateKey::RandomizeBuffer(Key, Size);
 				}
 			};
 
@@ -1125,6 +1124,7 @@ namespace Tomahawk
 		public:
 			static PrivateKey GetPlain(std::string&& Value);
 			static PrivateKey GetPlain(const std::string& Value);
+			static void RandomizeBuffer(char* Data, size_t Size);
 
 		private:
 			char LoadPartition(size_t* Dest, size_t Size, size_t Index) const;

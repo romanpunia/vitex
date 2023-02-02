@@ -4171,6 +4171,11 @@ namespace Tomahawk
 				Buffer[i] = (char)(Crypto::Random() % std::numeric_limits<unsigned char>::max());;
 			Buffer[Dest[0]] = Source;
 		}
+		void PrivateKey::RandomizeBuffer(char* Buffer, size_t Size)
+		{
+			for (size_t i = 0; i < Size; i++)
+				Buffer[i] = Crypto::Random() % std::numeric_limits<char>::max();
+		}
 		PrivateKey PrivateKey::GetPlain(std::string&& Value)
 		{
 			PrivateKey Key = PrivateKey(std::move(Value), true);

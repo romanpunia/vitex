@@ -175,10 +175,10 @@ namespace Tomahawk
 				{
 					if (Packet::IsDone(Event))
 					{
-						Pending = 1 + Request.Recipients.size() + Request.CCRecipients.size() + Request.BCCRecipients.size();
+						Pending = (int32_t)(1 + Request.Recipients.size() + Request.CCRecipients.size() + Request.BCCRecipients.size());
 						ReadResponses(250, [this]()
 						{
-							Pending = Request.Attachments.size();
+							Pending = (int32_t)Request.Attachments.size();
 							SendRequest(354, "DATA\r\n", [this]()
 							{
 								Core::Parser Content;
@@ -326,8 +326,7 @@ namespace Tomahawk
 			{
 				return ReadResponse(Code, [this, Callback, Code]()
 				{
-					Pending--;
-					if (Pending <= 0)
+					if (--Pending <= 0)
 					{
 						Pending = 0;
 						if (Callback)
@@ -346,7 +345,6 @@ namespace Tomahawk
 					{
 						Buffer.append(Data, Recv);
 						Command.append(Data, Recv);
-						return true;
 					}
 					else if (Packet::IsDone(Event))
 					{

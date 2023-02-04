@@ -321,7 +321,7 @@ namespace Tomahawk
 					return;
 
 				std::string BackTrace = OS::GetMeasureTrace();
-				TH_WARN("[stall] took %llu ms (%llu us), operation back trace %s", Delta / 1000, Delta, BackTrace.c_str());
+				TH_WARN("[stall] operation took %llu ms (%llu us), back trace %s", Delta / 1000, Delta, BackTrace.c_str());
 			}
 		};
 #endif
@@ -7950,11 +7950,11 @@ namespace Tomahawk
 			std::stringstream Stream;
 			Stream << "in thread " << std::this_thread::get_id() << ":\n";
 
-			size_t Index = 0;
+			size_t Index = 0, Size = Source.size();
 			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
 			{
 				auto& Next = Source.top();
-				Stream << "\t#" << TraceIdx << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
+				Stream << "\t#" << (Size - TraceIdx) + 1 << " source \"" << Next.File << "\", line " << Next.Line << ", in " << Next.Function;
 				if (Next.Id != nullptr)
 					Stream << " (0x" << Next.Id;
 				else

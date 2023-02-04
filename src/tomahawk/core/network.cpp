@@ -785,10 +785,11 @@ namespace Tomahawk
 					return -1;
 				}
 
+				char Next = Buffer[Offset];
 				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
 					break;
 
-				if (Match[Index] == Buffer[Offset - 1])
+				if (Match[Index] == Next)
 				{
 					if (++Index >= Size)
 					{
@@ -860,10 +861,11 @@ namespace Tomahawk
 					return -1;
 				}
 
+				char Next = Buffer[Offset];
 				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
 					break;
 
-				if (Match[TempIndex] == Buffer[Offset - 1])
+				if (Match[TempIndex] == Next)
 				{
 					if (++TempIndex >= Size)
 					{

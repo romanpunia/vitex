@@ -60,7 +60,7 @@ namespace Tomahawk
 				std::string Boundary;
 				std::string Hoster;
 				RequestFrame Request;
-				size_t Pending;
+				int32_t Pending;
 				bool Staging;
 				bool Authorized;
 

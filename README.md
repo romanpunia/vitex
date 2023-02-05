@@ -269,7 +269,7 @@ These **will not** alter any interfaces but all related functions will return **
 + **TH_USE_SDL2** will enable SDL2 library if any, defaults to true
 + **TH_USE_ZLIB** will enable zlib library if any, defaults to true
 + **TH_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
-+ **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to this project, defaults to true
++ **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to **/src/tomahawk/graphics/dynamic/shaders.hpp**, defaults to true
 + **TH_WITH_SIMD** will enable simd optimisations (processor-specific), defaults to false
 + **TH_WITH_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
 + **TH_WITH_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true

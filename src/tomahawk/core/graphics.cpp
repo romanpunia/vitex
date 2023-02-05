@@ -1,7 +1,7 @@
 #include "graphics.h"
 #include "../graphics/d3d11.h"
 #include "../graphics/ogl.h"
-#include "../core/shaders.h"
+#include "../graphics/dynamic/shaders.hpp"
 #ifdef TH_MICROSOFT
 #include <dwmapi.h>
 #endif
@@ -168,7 +168,7 @@ namespace Tomahawk
 {
 	namespace Graphics
 	{
-		Alert::Alert(Activity* From) : View(AlertType::None), Base(From), Waiting(false)
+		Alert::Alert(Activity* From) noexcept : View(AlertType::None), Base(From), Waiting(false)
 		{
 		}
 		void Alert::Setup(AlertType Type, const std::string& Title, const std::string& Text)
@@ -237,16 +237,16 @@ namespace Tomahawk
 #endif
 		}
 
-		KeyMap::KeyMap() : Key(KeyCode::None), Mod(KeyMod::None), Normal(false)
+		KeyMap::KeyMap() noexcept : Key(KeyCode::None), Mod(KeyMod::None), Normal(false)
 		{
 		}
-		KeyMap::KeyMap(const KeyCode& Value) : Key(Value), Mod(KeyMod::None), Normal(false)
+		KeyMap::KeyMap(const KeyCode& Value) noexcept : Key(Value), Mod(KeyMod::None), Normal(false)
 		{
 		}
-		KeyMap::KeyMap(const KeyMod& Value) : Key(KeyCode::None), Mod(Value), Normal(false)
+		KeyMap::KeyMap(const KeyMod& Value) noexcept : Key(KeyCode::None), Mod(Value), Normal(false)
 		{
 		}
-		KeyMap::KeyMap(const KeyCode& Value, const KeyMod& Control) : Key(Value), Mod(Control), Normal(false)
+		KeyMap::KeyMap(const KeyCode& Value, const KeyMod& Control) noexcept : Key(Value), Mod(Control), Normal(false)
 		{
 		}
 
@@ -304,13 +304,13 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Surface::Surface() : Handle(nullptr)
+		Surface::Surface() noexcept : Handle(nullptr)
 		{
 		}
-		Surface::Surface(SDL_Surface* From) : Handle(From)
+		Surface::Surface(SDL_Surface* From) noexcept : Handle(From)
 		{
 		}
-		Surface::~Surface()
+		Surface::~Surface() noexcept
 		{
 #ifdef TH_HAS_SDL2
 			if (Handle != nullptr)
@@ -381,10 +381,10 @@ namespace Tomahawk
 			return (void*)Handle;
 		}
 
-		DepthStencilState::DepthStencilState(const Desc& I) : State(I)
+		DepthStencilState::DepthStencilState(const Desc& I) noexcept : State(I)
 		{
 		}
-		DepthStencilState::~DepthStencilState()
+		DepthStencilState::~DepthStencilState() noexcept
 		{
 		}
 		DepthStencilState::Desc DepthStencilState::GetState() const
@@ -392,10 +392,10 @@ namespace Tomahawk
 			return State;
 		}
 
-		RasterizerState::RasterizerState(const Desc& I) : State(I)
+		RasterizerState::RasterizerState(const Desc& I) noexcept : State(I)
 		{
 		}
-		RasterizerState::~RasterizerState()
+		RasterizerState::~RasterizerState() noexcept
 		{
 		}
 		RasterizerState::Desc RasterizerState::GetState() const
@@ -403,10 +403,10 @@ namespace Tomahawk
 			return State;
 		}
 
-		BlendState::BlendState(const Desc& I) : State(I)
+		BlendState::BlendState(const Desc& I) noexcept : State(I)
 		{
 		}
-		BlendState::~BlendState()
+		BlendState::~BlendState() noexcept
 		{
 		}
 		BlendState::Desc BlendState::GetState() const
@@ -414,10 +414,10 @@ namespace Tomahawk
 			return State;
 		}
 
-		SamplerState::SamplerState(const Desc& I) : State(I)
+		SamplerState::SamplerState(const Desc& I) noexcept : State(I)
 		{
 		}
-		SamplerState::~SamplerState()
+		SamplerState::~SamplerState() noexcept
 		{
 		}
 		SamplerState::Desc SamplerState::GetState() const
@@ -425,10 +425,10 @@ namespace Tomahawk
 			return State;
 		}
 
-		InputLayout::InputLayout(const Desc& I) : Layout(I.Attributes)
+		InputLayout::InputLayout(const Desc& I) noexcept : Layout(I.Attributes)
 		{
 		}
-		InputLayout::~InputLayout()
+		InputLayout::~InputLayout() noexcept
 		{
 		}
 		const std::vector<InputLayout::Attribute>& InputLayout::GetAttributes() const
@@ -436,11 +436,11 @@ namespace Tomahawk
 			return Layout;
 		}
 
-		Shader::Shader(const Desc& I)
+		Shader::Shader(const Desc& I) noexcept
 		{
 		}
 
-		ElementBuffer::ElementBuffer(const Desc& I)
+		ElementBuffer::ElementBuffer(const Desc& I) noexcept
 		{
 			Elements = I.ElementCount;
 			Stride = I.ElementWidth;
@@ -454,10 +454,10 @@ namespace Tomahawk
 			return Stride;
 		}
 
-		MeshBuffer::MeshBuffer(const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
+		MeshBuffer::MeshBuffer(const Desc& I) noexcept : VertexBuffer(nullptr), IndexBuffer(nullptr)
 		{
 		}
-		MeshBuffer::~MeshBuffer()
+		MeshBuffer::~MeshBuffer() noexcept
 		{
 			TH_RELEASE(VertexBuffer);
 			TH_RELEASE(IndexBuffer);
@@ -471,10 +471,10 @@ namespace Tomahawk
 			return IndexBuffer;
 		}
 
-		SkinMeshBuffer::SkinMeshBuffer(const Desc& I) : VertexBuffer(nullptr), IndexBuffer(nullptr)
+		SkinMeshBuffer::SkinMeshBuffer(const Desc& I) noexcept : VertexBuffer(nullptr), IndexBuffer(nullptr)
 		{
 		}
-		SkinMeshBuffer::~SkinMeshBuffer()
+		SkinMeshBuffer::~SkinMeshBuffer() noexcept
 		{
 			TH_RELEASE(VertexBuffer);
 			TH_RELEASE(IndexBuffer);
@@ -488,7 +488,7 @@ namespace Tomahawk
 			return IndexBuffer;
 		}
 
-		InstanceBuffer::InstanceBuffer(const Desc& I) : Elements(nullptr), Device(I.Device), Sync(false)
+		InstanceBuffer::InstanceBuffer(const Desc& I) noexcept : Elements(nullptr), Device(I.Device), Sync(false)
 		{
 			ElementLimit = I.ElementLimit;
 			ElementWidth = I.ElementWidth;
@@ -498,7 +498,7 @@ namespace Tomahawk
 
 			Array.reserve(ElementLimit);
 		}
-		InstanceBuffer::~InstanceBuffer()
+		InstanceBuffer::~InstanceBuffer() noexcept
 		{
 			TH_RELEASE(Elements);
 		}
@@ -519,7 +519,7 @@ namespace Tomahawk
 			return ElementLimit;
 		}
 
-		Texture2D::Texture2D()
+		Texture2D::Texture2D() noexcept
 		{
 			Width = 512;
 			Height = 512;
@@ -528,7 +528,7 @@ namespace Tomahawk
 			Usage = ResourceUsage::Default;
 			AccessFlags = CPUAccess::Invalid;
 		}
-		Texture2D::Texture2D(const Desc& I)
+		Texture2D::Texture2D(const Desc& I) noexcept
 		{
 			Width = I.Width;
 			Height = I.Height;
@@ -601,7 +601,7 @@ namespace Tomahawk
 			return MipLevels;
 		}
 
-		TextureCube::TextureCube()
+		TextureCube::TextureCube() noexcept
 		{
 			Width = 512;
 			Height = 512;
@@ -610,7 +610,7 @@ namespace Tomahawk
 			Usage = ResourceUsage::Default;
 			AccessFlags = CPUAccess::Invalid;
 		}
-		TextureCube::TextureCube(const Desc& I)
+		TextureCube::TextureCube(const Desc& I) noexcept
 		{
 			Width = I.Width;
 			Height = I.Height;
@@ -644,10 +644,10 @@ namespace Tomahawk
 			return MipLevels;
 		}
 
-		DepthTarget2D::DepthTarget2D(const Desc& I) : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		DepthTarget2D::DepthTarget2D(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
 		{
 		}
-		DepthTarget2D::~DepthTarget2D()
+		DepthTarget2D::~DepthTarget2D() noexcept
 		{
 			TH_RELEASE(Resource);
 		}
@@ -660,10 +660,10 @@ namespace Tomahawk
 			return Viewarea;
 		}
 
-		DepthTargetCube::DepthTargetCube(const Desc& I) : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		DepthTargetCube::DepthTargetCube(const Desc& I) noexcept : Resource(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
 		{
 		}
-		DepthTargetCube::~DepthTargetCube()
+		DepthTargetCube::~DepthTargetCube() noexcept
 		{
 			TH_RELEASE(Resource);
 		}
@@ -676,10 +676,10 @@ namespace Tomahawk
 			return Viewarea;
 		}
 
-		RenderTarget::RenderTarget() : DepthStencil(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
+		RenderTarget::RenderTarget() noexcept : DepthStencil(nullptr), Viewarea({ 0, 0, 512, 512, 0, 1 })
 		{
 		}
-		RenderTarget::~RenderTarget()
+		RenderTarget::~RenderTarget() noexcept
 		{
 			TH_RELEASE(DepthStencil);
 		}
@@ -692,10 +692,10 @@ namespace Tomahawk
 			return Viewarea;
 		}
 
-		RenderTarget2D::RenderTarget2D(const Desc& I) : RenderTarget(), Resource(nullptr)
+		RenderTarget2D::RenderTarget2D(const Desc& I) noexcept : RenderTarget(), Resource(nullptr)
 		{
 		}
-		RenderTarget2D::~RenderTarget2D()
+		RenderTarget2D::~RenderTarget2D() noexcept
 		{
 			TH_RELEASE(Resource);
 		}
@@ -716,7 +716,7 @@ namespace Tomahawk
 			return Resource;
 		}
 
-		MultiRenderTarget2D::MultiRenderTarget2D(const Desc& I) : RenderTarget()
+		MultiRenderTarget2D::MultiRenderTarget2D(const Desc& I) noexcept : RenderTarget()
 		{
 			TH_ASSERT_V((uint32_t)I.Target <= 8, "target should be less than 9");
 			Target = I.Target;
@@ -724,7 +724,7 @@ namespace Tomahawk
 			for (uint32_t i = 0; i < 8; i++)
 				Resource[i] = nullptr;
 		}
-		MultiRenderTarget2D::~MultiRenderTarget2D()
+		MultiRenderTarget2D::~MultiRenderTarget2D() noexcept
 		{
 			TH_ASSERT_V((uint32_t)Target <= 8, "target should be less than 9");
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
@@ -748,10 +748,10 @@ namespace Tomahawk
 			return Resource[Slot];
 		}
 
-		RenderTargetCube::RenderTargetCube(const Desc& I) : RenderTarget(), Resource(nullptr)
+		RenderTargetCube::RenderTargetCube(const Desc& I) noexcept : RenderTarget(), Resource(nullptr)
 		{
 		}
-		RenderTargetCube::~RenderTargetCube()
+		RenderTargetCube::~RenderTargetCube() noexcept
 		{
 			TH_RELEASE(Resource);
 		}
@@ -772,7 +772,7 @@ namespace Tomahawk
 			return Resource;
 		}
 
-		MultiRenderTargetCube::MultiRenderTargetCube(const Desc& I) : RenderTarget()
+		MultiRenderTargetCube::MultiRenderTargetCube(const Desc& I) noexcept : RenderTarget()
 		{
 			TH_ASSERT_V((uint32_t)I.Target <= 8, "target should be less than 9");
 			Target = I.Target;
@@ -780,7 +780,7 @@ namespace Tomahawk
 			for (uint32_t i = 0; i < 8; i++)
 				Resource[i] = nullptr;
 		}
-		MultiRenderTargetCube::~MultiRenderTargetCube()
+		MultiRenderTargetCube::~MultiRenderTargetCube() noexcept
 		{
 			TH_ASSERT_V((uint32_t)Target <= 8, "target should be less than 9");
 			for (uint32_t i = 0; i < (uint32_t)Target; i++)
@@ -804,7 +804,7 @@ namespace Tomahawk
 			return Resource[Slot];
 		}
 
-		Cubemap::Cubemap(const Desc& I) : Meta(I), Dest(nullptr)
+		Cubemap::Cubemap(const Desc& I) noexcept : Meta(I), Dest(nullptr)
 		{
 		}
 		bool Cubemap::IsValid() const
@@ -812,11 +812,11 @@ namespace Tomahawk
 			return Meta.Source != nullptr;
 		}
 
-		Query::Query()
+		Query::Query() noexcept
 		{
 		}
 
-		GraphicsDevice::GraphicsDevice(const Desc& I) : Primitives(PrimitiveTopology::Triangle_List), ShaderGen(ShaderModel::Invalid), ViewResource(nullptr), PresentFlags(I.PresentationFlags), CompileFlags(I.CompilationFlags), VSyncMode(I.VSyncMode), MaxElements(1), Backend(I.Backend), ShaderCache(I.ShaderCache), Debug(I.Debug)
+		GraphicsDevice::GraphicsDevice(const Desc& I) noexcept : Primitives(PrimitiveTopology::Triangle_List), ShaderGen(ShaderModel::Invalid), ViewResource(nullptr), PresentFlags(I.PresentationFlags), CompileFlags(I.CompilationFlags), VSyncMode(I.VSyncMode), MaxElements(1), Backend(I.Backend), ShaderCache(I.ShaderCache), Debug(I.Debug)
 		{
 			if (!I.CacheDirectory.empty())
 			{
@@ -827,7 +827,7 @@ namespace Tomahawk
 
 			CreateSections();
 		}
-		GraphicsDevice::~GraphicsDevice()
+		GraphicsDevice::~GraphicsDevice() noexcept
 		{
 			ReleaseProxy();
 			for (auto It = Sections.begin(); It != Sections.end(); It++)
@@ -1654,7 +1654,7 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Activity::Activity(const Desc& I) : Handle(nullptr), Options(I), Command(0), CX(0), CY(0), Message(this)
+		Activity::Activity(const Desc& I) noexcept : Handle(nullptr), Options(I), Command(0), CX(0), CY(0), Message(this)
 		{
 #ifdef TH_HAS_SDL2
 			Cursors[(size_t)DisplayCursor::Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
@@ -1675,7 +1675,7 @@ namespace Tomahawk
 			if (!I.AllowGraphics)
 				BuildLayer(RenderBackend::None);
 		}
-		Activity::~Activity()
+		Activity::~Activity() noexcept
 		{
 #ifdef TH_HAS_SDL2
 			for (size_t i = 0; i < (size_t)DisplayCursor::Count; i++)
@@ -3467,10 +3467,10 @@ namespace Tomahawk
 			return Name;
 		}
 
-		Model::Model()
+		Model::Model() noexcept
 		{
 		}
-		Model::~Model()
+		Model::~Model() noexcept
 		{
 			for (auto* Item : Meshes)
 				TH_RELEASE(Item);
@@ -3486,10 +3486,10 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		SkinModel::SkinModel()
+		SkinModel::SkinModel() noexcept
 		{
 		}
-		SkinModel::~SkinModel()
+		SkinModel::~SkinModel() noexcept
 		{
 			for (auto* Item : Meshes)
 				TH_RELEASE(Item);

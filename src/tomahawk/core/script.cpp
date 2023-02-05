@@ -226,7 +226,7 @@ namespace Tomahawk
 			*Ptr = nullptr;
 		}
 
-		VMMessage::VMMessage(asSMessageInfo* Msg) : Info(Msg)
+		VMMessage::VMMessage(asSMessageInfo* Msg) noexcept : Info(Msg)
 		{
 		}
 		const char* VMMessage::GetSection() const
@@ -263,7 +263,7 @@ namespace Tomahawk
 			return Info != nullptr;
 		}
 
-		VMTypeInfo::VMTypeInfo(VMCTypeInfo* TypeInfo) : Info(TypeInfo)
+		VMTypeInfo::VMTypeInfo(VMCTypeInfo* TypeInfo) noexcept : Info(TypeInfo)
 		{
 			Manager = (Info ? VMManager::Get(Info->GetEngine()) : nullptr);
 		}
@@ -541,11 +541,11 @@ namespace Tomahawk
 			return (TypeId & asTYPEID_SCRIPTOBJECT);
 		}
 
-		VMFunction::VMFunction(VMCFunction* Base) : Function(Base)
+		VMFunction::VMFunction(VMCFunction* Base) noexcept : Function(Base)
 		{
 			Manager = (Base ? VMManager::Get(Base->GetEngine()) : nullptr);
 		}
-		VMFunction::VMFunction(const VMFunction& Base) : Function(Base.Function), Manager(Base.Manager)
+		VMFunction::VMFunction(const VMFunction& Base) noexcept : Function(Base.Function), Manager(Base.Manager)
 		{
 		}
 		int VMFunction::AddRef() const
@@ -759,7 +759,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMObject::VMObject(VMCObject* Base) : Object(Base)
+		VMObject::VMObject(VMCObject* Base) noexcept : Object(Base)
 		{
 		}
 		int VMObject::AddRef() const
@@ -836,7 +836,7 @@ namespace Tomahawk
 			return Object;
 		}
 
-		VMGeneric::VMGeneric(VMCGeneric* Base) : Generic(Base)
+		VMGeneric::VMGeneric(VMCGeneric* Base) noexcept : Generic(Base)
 		{
 			Manager = (Generic ? VMManager::Get(Generic->GetEngine()) : nullptr);
 		}
@@ -980,7 +980,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMClass::VMClass(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
+		VMClass::VMClass(VMManager* Engine, const std::string& Name, int Type) noexcept : Manager(Engine), Object(Name), TypeId(Type)
 		{
 		}
 		int VMClass::SetFunctionDef(const char* Decl)
@@ -1286,7 +1286,7 @@ namespace Tomahawk
 			}
 		}
 
-		VMInterface::VMInterface(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
+		VMInterface::VMInterface(VMManager* Engine, const std::string& Name, int Type) noexcept : Manager(Engine), Object(Name), TypeId(Type)
 		{
 		}
 		int VMInterface::SetMethod(const char* Decl)
@@ -1316,7 +1316,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMEnum::VMEnum(VMManager* Engine, const std::string& Name, int Type) : Manager(Engine), Object(Name), TypeId(Type)
+		VMEnum::VMEnum(VMManager* Engine, const std::string& Name, int Type) noexcept : Manager(Engine), Object(Name), TypeId(Type)
 		{
 		}
 		int VMEnum::SetValue(const char* Name, int Value)
@@ -1346,7 +1346,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMModule::VMModule(VMCModule* Type) : Mod(Type)
+		VMModule::VMModule(VMCModule* Type) noexcept : Mod(Type)
 		{
 			Manager = (Mod ? VMManager::Get(Mod->GetEngine()) : nullptr);
 		}
@@ -1630,7 +1630,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMGlobal::VMGlobal(VMManager* Engine) : Manager(Engine)
+		VMGlobal::VMGlobal(VMManager* Engine) noexcept : Manager(Engine)
 		{
 		}
 		int VMGlobal::SetFunctionDef(const char* Decl)
@@ -1898,7 +1898,7 @@ namespace Tomahawk
 			return Manager;
 		}
 
-		VMCompiler::VMCompiler(VMManager* Engine) : Module(nullptr), Manager(Engine), Context(nullptr), BuiltOK(false)
+		VMCompiler::VMCompiler(VMManager* Engine) noexcept : Module(nullptr), Manager(Engine), Context(nullptr), BuiltOK(false)
 		{
 			TH_ASSERT_V(Manager != nullptr, "engine should be set");
 
@@ -2429,7 +2429,7 @@ namespace Tomahawk
 		}
 		int VMCompiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) : Context(Base), Manager(nullptr)
+		VMContext::VMContext(VMCContext* Base) noexcept : Context(Base), Manager(nullptr)
 		{
 			TH_ASSERT_V(Base != nullptr, "context should be set");
 			Manager = VMManager::Get(Base->GetEngine());
@@ -2990,7 +2990,7 @@ namespace Tomahawk
 		}
 		int VMContext::ContextUD = 152;
 
-		VMManager::VMManager() : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports((uint32_t)VMImport::All), Cached(true)
+		VMManager::VMManager() noexcept : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports((uint32_t)VMImport::All), Cached(true)
 		{
 			Include.Exts.push_back(".as");
 			Include.Root = Core::OS::Directory::Get();
@@ -4107,7 +4107,7 @@ namespace Tomahawk
 		}
 		int VMManager::ManagerUD = 553;
 
-		VMDebugger::VMDebugger() : LastFunction(nullptr), Manager(nullptr), Action(DebugAction::CONTINUE)
+		VMDebugger::VMDebugger() noexcept : LastFunction(nullptr), Manager(nullptr), Action(DebugAction::CONTINUE)
 		{
 			LastCommandAtStackLevel = 0;
 		}

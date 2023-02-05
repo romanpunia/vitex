@@ -439,7 +439,7 @@ namespace Tomahawk
 			VMCGeneric* Generic;
 
 		public:
-			VMGeneric(VMCGeneric* Base);
+			VMGeneric(VMCGeneric* Base) noexcept;
 			void* GetObjectAddress();
 			int GetObjectTypeId() const;
 			int GetArgsCount() const;
@@ -657,7 +657,7 @@ namespace Tomahawk
 			asSMessageInfo* Info;
 
 		public:
-			VMMessage(asSMessageInfo* Info);
+			VMMessage(asSMessageInfo* Info) noexcept;
 			const char* GetSection() const;
 			const char* GetText() const;
 			VMLogType GetType() const;
@@ -674,7 +674,7 @@ namespace Tomahawk
 			VMCTypeInfo* Info;
 
 		public:
-			VMTypeInfo(VMCTypeInfo* TypeInfo);
+			VMTypeInfo(VMCTypeInfo* TypeInfo) noexcept;
 			void ForEachProperty(const PropertyCallback& Callback);
 			void ForEachMethod(const MethodCallback& Callback);
 			const char* GetGroup() const;
@@ -772,8 +772,8 @@ namespace Tomahawk
 			VMCFunction* Function;
 
 		public:
-			VMFunction(VMCFunction* Base);
-			VMFunction(const VMFunction& Base);
+			VMFunction(VMCFunction* Base) noexcept;
+			VMFunction(const VMFunction& Base) noexcept;
 			int AddRef() const;
 			int Release();
 			int GetId() const;
@@ -821,7 +821,7 @@ namespace Tomahawk
 			VMCObject* Object;
 
 		public:
-			VMObject(VMCObject* Base);
+			VMObject(VMCObject* Base) noexcept;
 			int AddRef() const;
 			int Release();
 			VMTypeInfo GetObjectType();
@@ -846,7 +846,7 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			VMClass(VMManager* Engine, const std::string& Name, int Type);
+			VMClass(VMManager* Engine, const std::string& Name, int Type) noexcept;
 			int SetFunctionDef(const char* Decl);
 			int SetOperatorCopyAddress(asSFuncPtr* Value);
 			int SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall = VMCall::THISCALL);
@@ -1073,7 +1073,7 @@ namespace Tomahawk
 		struct TH_OUT VMRefClass : public VMClass
 		{
 		public:
-			VMRefClass(VMManager* Engine, const std::string& Name, int Type) : VMClass(Engine, Name, Type)
+			VMRefClass(VMManager* Engine, const std::string& Name, int Type) noexcept : VMClass(Engine, Name, Type)
 			{
 			}
 
@@ -1189,7 +1189,7 @@ namespace Tomahawk
 		struct TH_OUT VMTypeClass : public VMClass
 		{
 		public:
-			VMTypeClass(VMManager* Engine, const std::string& Name, int Type) : VMClass(Engine, Name, Type)
+			VMTypeClass(VMManager* Engine, const std::string& Name, int Type) noexcept : VMClass(Engine, Name, Type)
 			{
 			}
 
@@ -1254,7 +1254,7 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			VMInterface(VMManager* Engine, const std::string& Name, int Type);
+			VMInterface(VMManager* Engine, const std::string& Name, int Type) noexcept;
 			int SetMethod(const char* Decl);
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -1270,7 +1270,7 @@ namespace Tomahawk
 			int TypeId;
 
 		public:
-			VMEnum(VMManager* Engine, const std::string& Name, int Type);
+			VMEnum(VMManager* Engine, const std::string& Name, int Type) noexcept;
 			int SetValue(const char* Name, int Value);
 			int GetTypeId() const;
 			bool IsValid() const;
@@ -1285,7 +1285,7 @@ namespace Tomahawk
 			VMCModule* Mod;
 
 		public:
-			VMModule(VMCModule* Type);
+			VMModule(VMCModule* Type) noexcept;
 			void SetName(const char* Name);
 			int AddSection(const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
 			int RemoveFunction(const VMFunction& Function);
@@ -1391,7 +1391,7 @@ namespace Tomahawk
 			VMManager* Manager;
 
 		public:
-			VMGlobal(VMManager* Engine);
+			VMGlobal(VMManager* Engine) noexcept;
 			int SetFunctionDef(const char* Decl);
 			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECLF);
 			int SetPropertyAddress(const char* Decl, void* Value);
@@ -1506,8 +1506,8 @@ namespace Tomahawk
 			bool BuiltOK;
 
 		public:
-			VMCompiler(VMManager* Engine);
-			~VMCompiler();
+			VMCompiler(VMManager* Engine) noexcept;
+			virtual ~VMCompiler() noexcept override;
 			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
 			void Define(const std::string& Word);
@@ -1562,8 +1562,8 @@ namespace Tomahawk
 			VMManager* Manager;
 
 		public:
-			VMContext(VMCContext* Base);
-			~VMContext();
+			VMContext(VMCContext* Base) noexcept;
+			virtual ~VMContext() noexcept override;
 			Core::Promise<int> TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs);
 			int SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			int Prepare(const VMFunction& Function);
@@ -1693,8 +1693,8 @@ namespace Tomahawk
 			bool Cached;
 
 		public:
-			VMManager();
-			~VMManager();
+			VMManager() noexcept;
+			virtual ~VMManager() noexcept override;
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void ClearCache();
@@ -1796,7 +1796,7 @@ namespace Tomahawk
 				bool Function;
 				int Line;
 
-				BreakPoint(const std::string& N, int L, bool F) : Name(N), NeedsAdjusting(true), Function(F), Line(L)
+				BreakPoint(const std::string& N, int L, bool F) noexcept : Name(N), NeedsAdjusting(true), Function(F), Line(L)
 				{
 				}
 			};
@@ -1810,8 +1810,8 @@ namespace Tomahawk
 			DebugAction Action;
 
 		public:
-			VMDebugger();
-			~VMDebugger();
+			VMDebugger() noexcept;
+			virtual ~VMDebugger() noexcept override;
 			void RegisterToStringCallback(const VMTypeInfo& Type, ToStringCallback Callback);
 			void TakeCommands(VMContext* Context);
 			void Output(const std::string& Data);

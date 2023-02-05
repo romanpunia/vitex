@@ -674,7 +674,7 @@ namespace Tomahawk
 				return Symbol.empty() ? '\0' : Symbol[0];
 			}
 
-			Mutex::Mutex() : Ref(1)
+			Mutex::Mutex() noexcept : Ref(1)
 			{
 			}
 			void Mutex::Release()
@@ -774,7 +774,7 @@ namespace Tomahawk
 				return Message;
 			}
 
-			Any::Any(VMCManager* _Engine)
+			Any::Any(VMCManager* _Engine) noexcept
 			{
 				Engine = _Engine;
 				RefCount = 1;
@@ -784,7 +784,7 @@ namespace Tomahawk
 
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
 			}
-			Any::Any(void* Ref, int RefTypeId, VMCManager* _Engine)
+			Any::Any(void* Ref, int RefTypeId, VMCManager* _Engine) noexcept
 			{
 				Engine = _Engine;
 				RefCount = 1;
@@ -795,7 +795,7 @@ namespace Tomahawk
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_ANY));
 				Store(Ref, RefTypeId);
 			}
-			Any::Any(const Any& Other)
+			Any::Any(const Any& Other) noexcept
 			{
 				Engine = Other.Engine;
 				RefCount = 1;
@@ -822,11 +822,11 @@ namespace Tomahawk
 				else
 					Value.ValueInt = Other.Value.ValueInt;
 			}
-			Any::~Any()
+			Any::~Any() noexcept
 			{
 				FreeObject();
 			}
-			Any& Any::operator=(const Any& Other)
+			Any& Any::operator=(const Any& Other) noexcept
 			{
 				if ((Other.Value.TypeId & asTYPEID_MASK_OBJECT))
 				{
@@ -1030,7 +1030,7 @@ namespace Tomahawk
 				return *Self = *Other;
 			}
 
-			Array& Array::operator=(const Array& Other)
+			Array& Array::operator=(const Array& Other) noexcept
 			{
 				if (&Other != this && Other.GetArrayObjectType() == GetArrayObjectType())
 				{
@@ -1040,7 +1040,7 @@ namespace Tomahawk
 
 				return *this;
 			}
-			Array::Array(VMCTypeInfo* Info, void* BufferPtr)
+			Array::Array(VMCTypeInfo* Info, void* BufferPtr) noexcept
 			{
 				TH_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				RefCount = 1;
@@ -1100,7 +1100,7 @@ namespace Tomahawk
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(as_size_t length, VMCTypeInfo* Info)
+			Array::Array(as_size_t length, VMCTypeInfo* Info) noexcept
 			{
 				TH_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				RefCount = 1;
@@ -1122,7 +1122,7 @@ namespace Tomahawk
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Array::Array(const Array& Other)
+			Array::Array(const Array& Other) noexcept
 			{
 				RefCount = 1;
 				GCFlag = false;
@@ -1138,7 +1138,7 @@ namespace Tomahawk
 				CreateBuffer(&Buffer, 0);
 				*this = Other;
 			}
-			Array::Array(as_size_t Length, void* DefaultValue, VMCTypeInfo* Info)
+			Array::Array(as_size_t Length, void* DefaultValue, VMCTypeInfo* Info) noexcept
 			{
 				TH_ASSERT_V(Info && std::string(Info->GetName()) == TYPENAME_ARRAY, "array type is invalid");
 				RefCount = 1;
@@ -2347,18 +2347,18 @@ namespace Tomahawk
 				return true;
 			}
 
-			MapKey::MapKey()
+			MapKey::MapKey() noexcept
 			{
 				ValueObj = 0;
 				TypeId = 0;
 			}
-			MapKey::MapKey(VMCManager* Engine, void* Value, int _TypeId)
+			MapKey::MapKey(VMCManager* Engine, void* Value, int _TypeId) noexcept
 			{
 				ValueObj = 0;
 				TypeId = 0;
 				Set(Engine, Value, _TypeId);
 			}
-			MapKey::~MapKey()
+			MapKey::~MapKey() noexcept
 			{
 				if (ValueObj && TypeId)
 				{
@@ -2570,7 +2570,7 @@ namespace Tomahawk
 				return TypeId;
 			}
 
-			Map::LocalIterator::LocalIterator(const Map& Dict, InternalMap::const_iterator It) : It(It), Dict(Dict)
+			Map::LocalIterator::LocalIterator(const Map& Dict, InternalMap::const_iterator It) noexcept : It(It), Dict(Dict)
 			{
 			}
 			void Map::LocalIterator::operator++()
@@ -2610,11 +2610,11 @@ namespace Tomahawk
 				return It->second.GetAddressOfValue();
 			}
 
-			Map::Map(VMCManager* _Engine)
+			Map::Map(VMCManager* _Engine) noexcept
 			{
 				Init(_Engine);
 			}
-			Map::Map(unsigned char* buffer)
+			Map::Map(unsigned char* buffer) noexcept
 			{
 				VMCContext* Context = asGetActiveContext();
 				Init(Context->GetEngine());
@@ -2710,7 +2710,7 @@ namespace Tomahawk
 						buffer += Engine->GetSizeOfPrimitiveType(TypeId);
 				}
 			}
-			Map::Map(const Map& Other)
+			Map::Map(const Map& Other) noexcept
 			{
 				Init(Other.Engine);
 				for (auto It = Other.Dict.begin(); It != Other.Dict.end(); ++It)
@@ -2724,7 +2724,7 @@ namespace Tomahawk
 						Set(It->first, (void*)&Key.ValueInt, Key.TypeId);
 				}
 			}
-			Map::~Map()
+			Map::~Map() noexcept
 			{
 				DeleteAll();
 			}
@@ -2773,7 +2773,7 @@ namespace Tomahawk
 			{
 				DeleteAll();
 			}
-			Map& Map::operator =(const Map& Other)
+			Map& Map::operator =(const Map& Other) noexcept
 			{
 				DeleteAll();
 				for (auto It = Other.Dict.begin(); It != Other.Dict.end(); ++It)
@@ -3034,7 +3034,7 @@ namespace Tomahawk
 				return Value;
 			}
 
-			Grid::Grid(VMCTypeInfo* Info, void* BufferPtr)
+			Grid::Grid(VMCTypeInfo* Info, void* BufferPtr) noexcept
 			{
 				RefCount = 1;
 				GCFlag = false;
@@ -3130,7 +3130,7 @@ namespace Tomahawk
 				if (ObjType->GetFlags() & asOBJ_GC)
 					ObjType->GetEngine()->NotifyGarbageCollectorOfNewObject(this, ObjType);
 			}
-			Grid::Grid(as_size_t Width, as_size_t Height, VMCTypeInfo* Info)
+			Grid::Grid(as_size_t Width, as_size_t Height, VMCTypeInfo* Info) noexcept
 			{
 				RefCount = 1;
 				GCFlag = false;
@@ -3176,7 +3176,7 @@ namespace Tomahawk
 
 				Buffer = TempBuffer;
 			}
-			Grid::Grid(as_size_t Width, as_size_t Height, void* DefaultValue, VMCTypeInfo* Info)
+			Grid::Grid(as_size_t Width, as_size_t Height, void* DefaultValue, VMCTypeInfo* Info) noexcept
 			{
 				RefCount = 1;
 				GCFlag = false;
@@ -3582,22 +3582,22 @@ namespace Tomahawk
 				return true;
 			}
 
-			Ref::Ref() : Type(0), Pointer(nullptr)
+			Ref::Ref() noexcept : Type(0), Pointer(nullptr)
 			{
 			}
-			Ref::Ref(const Ref& Other) : Type(Other.Type), Pointer(Other.Pointer)
-			{
-				AddRefHandle();
-			}
-			Ref::Ref(void* RefPtr, VMCTypeInfo* _Type) : Type(_Type), Pointer(RefPtr)
+			Ref::Ref(const Ref& Other) noexcept : Type(Other.Type), Pointer(Other.Pointer)
 			{
 				AddRefHandle();
 			}
-			Ref::Ref(void* RefPtr, int TypeId) : Type(0), Pointer(nullptr)
+			Ref::Ref(void* RefPtr, VMCTypeInfo* _Type) noexcept : Type(_Type), Pointer(RefPtr)
+			{
+				AddRefHandle();
+			}
+			Ref::Ref(void* RefPtr, int TypeId) noexcept : Type(0), Pointer(nullptr)
 			{
 				Assign(RefPtr, TypeId);
 			}
-			Ref::~Ref()
+			Ref::~Ref() noexcept
 			{
 				ReleaseHandle();
 			}
@@ -3621,7 +3621,7 @@ namespace Tomahawk
 					Engine->AddRef();
 				}
 			}
-			Ref& Ref::operator =(const Ref& Other)
+			Ref& Ref::operator =(const Ref& Other) noexcept
 			{
 				Set(Other.Pointer, Other.Type);
 				return *this;
@@ -3755,14 +3755,14 @@ namespace Tomahawk
 				Base->~Ref();
 			}
 
-			WeakRef::WeakRef(VMCTypeInfo* _Type)
+			WeakRef::WeakRef(VMCTypeInfo* _Type) noexcept
 			{
 				Ref = 0;
 				Type = _Type;
 				Type->AddRef();
 				WeakRefFlag = 0;
 			}
-			WeakRef::WeakRef(const WeakRef& Other)
+			WeakRef::WeakRef(const WeakRef& Other) noexcept
 			{
 				Ref = Other.Ref;
 				Type = Other.Type;
@@ -3771,7 +3771,7 @@ namespace Tomahawk
 				if (WeakRefFlag)
 					WeakRefFlag->AddRef();
 			}
-			WeakRef::WeakRef(void* RefPtr, VMCTypeInfo* _Type)
+			WeakRef::WeakRef(void* RefPtr, VMCTypeInfo* _Type) noexcept
 			{
 				if (!_Type || !(strcmp(_Type->GetName(), TYPENAME_WEAKREF) == 0 || strcmp(_Type->GetName(), TYPENAME_CONSTWEAKREF) == 0))
 					return;
@@ -3784,7 +3784,7 @@ namespace Tomahawk
 				if (WeakRefFlag)
 					WeakRefFlag->AddRef();
 			}
-			WeakRef::~WeakRef()
+			WeakRef::~WeakRef() noexcept
 			{
 				if (Type)
 					Type->Release();
@@ -3792,7 +3792,7 @@ namespace Tomahawk
 				if (WeakRefFlag)
 					WeakRefFlag->Release();
 			}
-			WeakRef& WeakRef::operator =(const WeakRef& Other)
+			WeakRef& WeakRef::operator =(const WeakRef& Other) noexcept
 			{
 				if (Ref == Other.Ref && WeakRefFlag == Other.WeakRefFlag)
 					return *this;
@@ -3914,17 +3914,17 @@ namespace Tomahawk
 				return false;
 			}
 
-			Complex::Complex()
+			Complex::Complex() noexcept
 			{
 				R = 0;
 				I = 0;
 			}
-			Complex::Complex(const Complex& Other)
+			Complex::Complex(const Complex& Other) noexcept
 			{
 				R = Other.R;
 				I = Other.I;
 			}
-			Complex::Complex(float _R, float _I)
+			Complex::Complex(float _R, float _I) noexcept
 			{
 				R = _R;
 				I = _I;
@@ -3937,7 +3937,7 @@ namespace Tomahawk
 			{
 				return !(*this == Other);
 			}
-			Complex& Complex::operator=(const Complex& Other)
+			Complex& Complex::operator=(const Complex& Other) noexcept
 			{
 				R = Other.R;
 				I = Other.I;
@@ -4064,7 +4064,7 @@ namespace Tomahawk
 				return Compute::Math<uint64_t>::Random(Min, Max);
 			}
 
-			Thread::Thread(VMCManager* Engine, VMCFunction* Func) : Function(Func), Manager(VMManager::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
+			Thread::Thread(VMCManager* Engine, VMCFunction* Func) noexcept : Function(Func), Manager(VMManager::Get(Engine)), Context(nullptr), GCFlag(false), Ref(1)
 			{
 				Engine->NotifyGarbageCollectorOfNewObject(this, Engine->GetTypeInfoByName(TYPENAME_THREAD));
 			}
@@ -4354,7 +4354,7 @@ namespace Tomahawk
 			int Thread::ContextUD = 550;
 			int Thread::EngineListUD = 551;
 
-			Promise::Promise(VMCContext* _Base, bool IsRef) : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Flag(false), Pending(false)
+			Promise::Promise(VMCContext* _Base, bool IsRef) noexcept : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Flag(false), Pending(false)
 			{
 				if (!Context)
 					return;
@@ -5014,10 +5014,10 @@ namespace Tomahawk
 				return (Type == Core::VarType::Null || Type == Core::VarType::Undefined);
 			}
 
-			Format::Format()
+			Format::Format() noexcept
 			{
 			}
-			Format::Format(unsigned char* Buffer)
+			Format::Format(unsigned char* Buffer) noexcept
 			{
 				VMContext* Context = VMContext::Get();
 				if (!Context || !Buffer)
@@ -5788,13 +5788,13 @@ namespace Tomahawk
 				return Base->GetElementAtPoint(Value);
 			}
 
-			ModelListener::ModelListener(VMCFunction* NewCallback) : Engine::GUI::Listener(Bind(NewCallback)), Source(NewCallback), Context(nullptr)
+			ModelListener::ModelListener(VMCFunction* NewCallback) noexcept : Engine::GUI::Listener(Bind(NewCallback)), Source(NewCallback), Context(nullptr)
 			{
 			}
-			ModelListener::ModelListener(const std::string& FunctionName) : Engine::GUI::Listener(FunctionName), Source(nullptr), Context(nullptr)
+			ModelListener::ModelListener(const std::string& FunctionName) noexcept : Engine::GUI::Listener(FunctionName), Source(nullptr), Context(nullptr)
 			{
 			}
-			ModelListener::~ModelListener()
+			ModelListener::~ModelListener() noexcept
 			{
 				if (Source != nullptr)
 					Source->Release();

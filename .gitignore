@@ -11,5 +11,5 @@ bin/*.pdb
 bin/*.exe
 bin/*.ilk
 bin/*.exp
-vcpkg_installed/
 **/.DS_Store
+src/tomahawk/graphics/dynamic/*.*

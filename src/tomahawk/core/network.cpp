@@ -356,10 +356,10 @@ namespace Tomahawk
 				Path = (Filename.front() == '/' ? Filename : '/' + Filename) + '.' + Extension;
 		}
 
-		Socket::Socket() : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
+		Socket::Socket() noexcept : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
 		{
 		}
-		Socket::Socket(socket_t FromFd) : Socket()
+		Socket::Socket(socket_t FromFd) noexcept : Socket()
 		{
 			Fd = FromFd;
 		}
@@ -1341,7 +1341,7 @@ namespace Tomahawk
 #endif
 		}
 
-		EpollHandle::EpollHandle(size_t NewArraySize) : ArraySize(NewArraySize)
+		EpollHandle::EpollHandle(size_t NewArraySize) noexcept : ArraySize(NewArraySize)
 		{
 			TH_ASSERT_V(ArraySize > 0, "array size should be greater than zero");
 #ifdef TH_APPLE
@@ -1352,7 +1352,7 @@ namespace Tomahawk
 			Array = TH_MALLOC(epoll_event, sizeof(epoll_event) * ArraySize);
 #endif
 		}
-		EpollHandle::~EpollHandle()
+		EpollHandle::~EpollHandle() noexcept
 		{
 			if (Handle != INVALID_EPOLL)
 				epoll_close(Handle);
@@ -2075,14 +2075,14 @@ namespace Tomahawk
 		std::mutex Driver::Exclusive;
 		uint64_t Driver::DefaultTimeout = 50;
 
-		SocketServer::SocketServer() : Backlog(1024)
+		SocketServer::SocketServer() noexcept : Backlog(1024)
 		{
 			Driver::SetActive(true);
 #ifndef TH_MICROSOFT
 			signal(SIGPIPE, SIG_IGN);
 #endif
 		}
-		SocketServer::~SocketServer()
+		SocketServer::~SocketServer() noexcept
 		{
 			Unlisten();
 			Driver::SetActive(false);
@@ -2614,12 +2614,12 @@ namespace Tomahawk
 			return Backlog;
 		}
 
-		SocketClient::SocketClient(int64_t RequestTimeout) : Context(nullptr), Timeout(RequestTimeout), AutoEncrypt(true)
+		SocketClient::SocketClient(int64_t RequestTimeout) noexcept : Context(nullptr), Timeout(RequestTimeout), AutoEncrypt(true)
 		{
 			Driver::SetActive(true);
 			Stream.UserData = this;
 		}
-		SocketClient::~SocketClient()
+		SocketClient::~SocketClient() noexcept
 		{
 			if (Stream.IsValid())
 			{

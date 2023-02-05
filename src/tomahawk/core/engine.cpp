@@ -45,7 +45,7 @@ namespace Tomahawk
 {
 	namespace Engine
 	{
-		Ticker::Ticker() : Time(0.0f), Delay(16.0f)
+		Ticker::Ticker() noexcept : Time(0.0f), Delay(16.0f)
 		{
 		}
 		bool Ticker::TickEvent(float ElapsedTime)
@@ -91,10 +91,10 @@ namespace Tomahawk
 			return *this;
 		}
 
-		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) : Buffer(SrcBuffer), Size(SrcSize)
+		AssetFile::AssetFile(char* SrcBuffer, size_t SrcSize) noexcept : Buffer(SrcBuffer), Size(SrcSize)
 		{
 		}
-		AssetFile::~AssetFile()
+		AssetFile::~AssetFile() noexcept
 		{
 			if (Buffer != nullptr)
 				TH_FREE(Buffer);
@@ -1693,10 +1693,10 @@ namespace Tomahawk
 				Wait(Value);
 		}
 
-		Material::Material(SceneGraph* NewScene) : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(NewScene), Slot(0)
+		Material::Material(SceneGraph* NewScene) noexcept : DiffuseMap(nullptr), NormalMap(nullptr), MetallicMap(nullptr), RoughnessMap(nullptr), HeightMap(nullptr), OcclusionMap(nullptr), EmissionMap(nullptr), Scene(NewScene), Slot(0)
 		{
 		}
-		Material::Material(const Material& Other) : Material(Other.Scene)
+		Material::Material(const Material& Other) noexcept : Material(Other.Scene)
 		{
 			memcpy(&Surface, &Other.Surface, sizeof(Subsurface));
 			if (Other.DiffuseMap != nullptr)
@@ -1829,10 +1829,10 @@ namespace Tomahawk
 			return Scene;
 		}
 
-		Processor::Processor(ContentManager* NewContent) : Content(NewContent)
+		Processor::Processor(ContentManager* NewContent) noexcept : Content(NewContent)
 		{
 		}
-		Processor::~Processor()
+		Processor::~Processor() noexcept
 		{
 		}
 		void Processor::Free(AssetCache* Asset)
@@ -1855,11 +1855,11 @@ namespace Tomahawk
 			return Content;
 		}
 
-		Component::Component(Entity* Reference, ActorSet Rule) : Parent(Reference), Set((size_t)Rule), Active(false), Indexed(false)
+		Component::Component(Entity* Reference, ActorSet Rule) noexcept : Parent(Reference), Set((size_t)Rule), Active(false), Indexed(false)
 		{
 			TH_ASSERT_V(Reference != nullptr, "entity should be set");
 		}
-		Component::~Component()
+		Component::~Component() noexcept
 		{
 		}
 		void Component::Deserialize(Core::Schema* Node)
@@ -1938,11 +1938,11 @@ namespace Tomahawk
 			return Parent;
 		}
 
-		Entity::Entity(SceneGraph* NewScene) : Scene(NewScene), Transform(new Compute::Transform(this)), Active(false)
+		Entity::Entity(SceneGraph* NewScene) noexcept : Scene(NewScene), Transform(new Compute::Transform(this)), Active(false)
 		{
 			TH_ASSERT_V(Scene != nullptr, "entity should be created within a scene");
 		}
-		Entity::~Entity()
+		Entity::~Entity() noexcept
 		{
 			for (auto& Component : Type.Components)
 			{
@@ -2151,12 +2151,12 @@ namespace Tomahawk
 			return (Max > Radius.Z ? Radius.Z : Max);
 		}
 
-		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true), Overlapping(1.0f)
+		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) noexcept : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true), Overlapping(1.0f)
 		{
 			if (!Complex)
 				Materials[nullptr] = nullptr;
 		}
-		Drawable::~Drawable()
+		Drawable::~Drawable() noexcept
 		{
 		}
 		void Drawable::Message(const std::string& Name, Core::VariantArgs& Args)
@@ -2258,11 +2258,11 @@ namespace Tomahawk
 			return Materials;
 		}
 
-		Renderer::Renderer(RenderSystem* Lab) : System(Lab), Active(true)
+		Renderer::Renderer(RenderSystem* Lab) noexcept : System(Lab), Active(true)
 		{
 			TH_ASSERT_V(Lab != nullptr, "render system should be set");
 		}
-		Renderer::~Renderer()
+		Renderer::~Renderer() noexcept
 		{
 		}
 		void Renderer::SetRenderer(RenderSystem* NewSystem)
@@ -2307,13 +2307,13 @@ namespace Tomahawk
 			return System;
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), OcclusionCulling(false), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
+		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), OcclusionCulling(false), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
 		{
 			TH_ASSERT_V(NewScene != nullptr, "scene should be set");
 			TH_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");	
 			Device = NewScene->GetDevice();
 		}
-		RenderSystem::~RenderSystem()
+		RenderSystem::~RenderSystem() noexcept
 		{
 			for (auto& Next : Renderers)
 			{
@@ -2734,10 +2734,10 @@ namespace Tomahawk
 			return Scene->GetStorage(Section);
 		}
 
-		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice)
+		ShaderCache::ShaderCache(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice)
 		{
 		}
-		ShaderCache::~ShaderCache()
+		ShaderCache::~ShaderCache() noexcept
 		{
 			ClearCache();
 		}
@@ -2848,14 +2848,14 @@ namespace Tomahawk
 			Safe.unlock();
 		}
 
-		PrimitiveCache::PrimitiveCache(Graphics::GraphicsDevice* Ref) : Device(Ref), Quad(nullptr)
+		PrimitiveCache::PrimitiveCache(Graphics::GraphicsDevice* Ref) noexcept : Device(Ref), Quad(nullptr)
 		{
 			Sphere[0] = Sphere[1] = nullptr;
 			Cube[0] = Cube[1] = nullptr;
 			Box[0] = Box[1] = nullptr;
 			SkinBox[0] = SkinBox[1] = nullptr;
 		}
-		PrimitiveCache::~PrimitiveCache()
+		PrimitiveCache::~PrimitiveCache() noexcept
 		{
 			TH_RELEASE(Sphere[(size_t)BufferType::Index]);
 			TH_RELEASE(Sphere[(size_t)BufferType::Vertex]);
@@ -3420,7 +3420,7 @@ namespace Tomahawk
 			return I;
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) : Simulator(new Compute::Simulator(I.Simulator)), Camera(nullptr), Conf(I), Active(true), Snapshot(nullptr)
+		SceneGraph::SceneGraph(const Desc& I) noexcept : Simulator(new Compute::Simulator(I.Simulator)), Camera(nullptr), Conf(I), Active(true), Snapshot(nullptr)
 		{
 			for (size_t i = 0; i < (size_t)TargetType::Count * 2; i++)
 			{
@@ -3644,7 +3644,7 @@ namespace Tomahawk
 		void SceneGraph::Publish(Core::Timer* Time)
 		{
 			TH_ASSERT_V(Time != nullptr, "timer should be set");
-			TH_MEASURE(TH_TIMING_FRAME);
+			TH_MEASURE(TH_TIMING_CORE * 2);
 
 			auto* Base = (Components::Camera*)Camera.load();
 			auto* Renderer = (Base ? Base->GetRenderer() : nullptr);
@@ -5000,11 +5000,11 @@ namespace Tomahawk
 			return Conf;
 		}
 
-		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) : Device(NewDevice), Base(Core::OS::Path::ResolveDirectory(Core::OS::Directory::Get().c_str())), Queue(0)
+		ContentManager::ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept : Device(NewDevice), Base(Core::OS::Path::ResolveDirectory(Core::OS::Directory::Get().c_str())), Queue(0)
 		{
 			SetEnvironment(Base);
 		}
-		ContentManager::~ContentManager()
+		ContentManager::~ContentManager() noexcept
 		{
 			InvalidateCache();
 			InvalidateDockers();
@@ -5433,12 +5433,12 @@ namespace Tomahawk
 			return Environment;
 		}
 
-		AppData::AppData(ContentManager* Manager, const std::string& NewPath) : Content(Manager), Data(nullptr)
+		AppData::AppData(ContentManager* Manager, const std::string& NewPath) noexcept : Content(Manager), Data(nullptr)
 		{
 			TH_ASSERT_V(Manager != nullptr, "content manager should be set");
 			Migrate(NewPath);
 		}
-		AppData::~AppData()
+		AppData::~AppData() noexcept
 		{
 			TH_RELEASE(Data);
 		}
@@ -5547,7 +5547,7 @@ namespace Tomahawk
 			return Content->Save<Core::Schema>(Next, Data, Args);
 		}
 
-		Application::Application(Desc* I) : Control(I ? *I : Desc())
+		Application::Application(Desc* I) noexcept : Control(I ? *I : Desc())
 		{
 			TH_ASSERT_V(I != nullptr, "desc should be set");
 			Host = this;
@@ -5695,7 +5695,7 @@ namespace Tomahawk
 
 			State = ApplicationState::Staging;
 		}
-		Application::~Application()
+		Application::~Application() noexcept
 		{
 			if (Renderer != nullptr)
 				Renderer->FlushState();
@@ -5997,7 +5997,7 @@ namespace Tomahawk
 		}
 		Application* Application::Host = nullptr;
 
-		EffectRenderer::EffectRenderer(RenderSystem* Lab) : Renderer(Lab), Output(nullptr), Swap(nullptr), MaxSlot(0)
+		EffectRenderer::EffectRenderer(RenderSystem* Lab) noexcept : Renderer(Lab), Output(nullptr), Swap(nullptr), MaxSlot(0)
 		{
 			TH_ASSERT_V(Lab != nullptr, "render system should be set");
 			TH_ASSERT_V(Lab->GetDevice() != nullptr, "graphics device should be set");
@@ -6009,7 +6009,7 @@ namespace Tomahawk
 			Sampler = Device->GetSamplerState("trilinear-x16");
 			Layout = Device->GetInputLayout("shape-vertex");
 		}
-		EffectRenderer::~EffectRenderer()
+		EffectRenderer::~EffectRenderer() noexcept
 		{
 			for (auto It = Effects.begin(); It != Effects.end(); ++It)
 				System->FreeShader(It->first, It->second);

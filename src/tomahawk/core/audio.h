@@ -162,8 +162,8 @@ namespace Tomahawk
 			unsigned int Filter = 0;
 
 		public:
-			AudioFilter();
-			virtual ~AudioFilter() override;
+			AudioFilter() noexcept;
+			virtual ~AudioFilter() noexcept override;
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) const = 0;
@@ -191,8 +191,8 @@ namespace Tomahawk
 			unsigned int Slot = 0;
 
 		public:
-			AudioEffect();
-			virtual ~AudioEffect() override;
+			AudioEffect() noexcept;
+			virtual ~AudioEffect() noexcept override;
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) const = 0;
@@ -219,8 +219,8 @@ namespace Tomahawk
 			int Format = 0;
 
 		public:
-			AudioClip(int BufferCount, int NewFormat);
-			virtual ~AudioClip() override;
+			AudioClip(int BufferCount, int NewFormat) noexcept;
+			virtual ~AudioClip() noexcept override;
 			float Length() const;
 			bool IsMono() const;
 			unsigned int GetBuffer() const;
@@ -237,8 +237,8 @@ namespace Tomahawk
 			unsigned int Instance = 0;
 
 		public:
-			AudioSource();
-			virtual ~AudioSource() override;
+			AudioSource() noexcept;
+			virtual ~AudioSource() noexcept override;
 			int64_t AddEffect(AudioEffect* Effect);
 			bool RemoveEffect(size_t EffectId);
 			bool RemoveEffectById(size_t EffectId);
@@ -269,8 +269,8 @@ namespace Tomahawk
 			void* Device = nullptr;
 
 		public:
-			AudioDevice();
-			virtual ~AudioDevice() override;
+			AudioDevice() noexcept;
+			virtual ~AudioDevice() noexcept override;
 			void Offset(AudioSource* Source, float& Seconds, bool Get);
 			void Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get);
 			void Position(AudioSource* Source, Compute::Vector3& Position, bool Get);

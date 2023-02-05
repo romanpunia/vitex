@@ -310,12 +310,12 @@ namespace Tomahawk
 			float X;
 			float Y;
 
-			Vector2();
-			Vector2(float x, float y);
-			Vector2(float xy);
-			Vector2(const Vector2& Value);
-			Vector2(const Vector3& Value);
-			Vector2(const Vector4& Value);
+			Vector2() noexcept;
+			Vector2(float x, float y) noexcept;
+			Vector2(float xy) noexcept;
+			Vector2(const Vector2& Value) noexcept;
+			Vector2(const Vector3& Value) noexcept;
+			Vector2(const Vector4& Value) noexcept;
 			bool IsEquals(const Vector2& Other, float MaxDisplacement = 0.000001f) const;
 			float Length() const;
 			float Sum() const;
@@ -367,7 +367,7 @@ namespace Tomahawk
 			Vector2 operator -(const Vector2& V) const;
 			Vector2 operator -(float V) const;
 			Vector2 operator -() const;
-			Vector2& operator =(const Vector2& V);
+			Vector2& operator =(const Vector2& V) noexcept;
 			bool operator ==(const Vector2& V) const;
 			bool operator !=(const Vector2& V) const;
 			bool operator <=(const Vector2& V) const;
@@ -411,13 +411,13 @@ namespace Tomahawk
 			float Y;
 			float Z;
 
-			Vector3();
-			Vector3(const Vector2& Value);
-			Vector3(const Vector3& Value);
-			Vector3(const Vector4& Value);
-			Vector3(float x, float y);
-			Vector3(float x, float y, float z);
-			Vector3(float xyz);
+			Vector3() noexcept;
+			Vector3(const Vector2& Value) noexcept;
+			Vector3(const Vector3& Value) noexcept;
+			Vector3(const Vector4& Value) noexcept;
+			Vector3(float x, float y) noexcept;
+			Vector3(float x, float y, float z) noexcept;
+			Vector3(float xyz) noexcept;
 			bool IsEquals(const Vector3& Other, float MaxDisplacement = 0.000001f) const;
 			float Length() const;
 			float Sum() const;
@@ -475,7 +475,7 @@ namespace Tomahawk
 			Vector3 operator -(const Vector3& V) const;
 			Vector3 operator -(float V) const;
 			Vector3 operator -() const;
-			Vector3& operator =(const Vector3& V);
+			Vector3& operator =(const Vector3& V) noexcept;
 			bool operator ==(const Vector3& V) const;
 			bool operator !=(const Vector3& V) const;
 			bool operator <=(const Vector3& V) const;
@@ -527,14 +527,14 @@ namespace Tomahawk
 			float Z;
 			float W;
 
-			Vector4();
-			Vector4(const Vector2& Value);
-			Vector4(const Vector3& Value);
-			Vector4(const Vector4& Value);
-			Vector4(float x, float y);
-			Vector4(float x, float y, float z);
-			Vector4(float x, float y, float z, float w);
-			Vector4(float xyzw);
+			Vector4() noexcept;
+			Vector4(const Vector2& Value) noexcept;
+			Vector4(const Vector3& Value) noexcept;
+			Vector4(const Vector4& Value) noexcept;
+			Vector4(float x, float y) noexcept;
+			Vector4(float x, float y, float z) noexcept;
+			Vector4(float x, float y, float z, float w) noexcept;
+			Vector4(float xyzw) noexcept;
 			bool IsEquals(const Vector4& Other, float MaxDisplacement = 0.000001f) const;
 			float Length() const;
 			float Sum() const;
@@ -592,7 +592,7 @@ namespace Tomahawk
 			Vector4 operator -(const Vector4& V) const;
 			Vector4 operator -(float V) const;
 			Vector4 operator -() const;
-			Vector4& operator =(const Vector4& V);
+			Vector4& operator =(const Vector4& V) noexcept;
 			bool operator ==(const Vector4& V) const;
 			bool operator !=(const Vector4& V) const;
 			bool operator <=(const Vector4& V) const;
@@ -652,8 +652,8 @@ namespace Tomahawk
 			float Volume;
 
 		public:
-			Bounding();
-			Bounding(const Vector3&, const Vector3&);
+			Bounding() noexcept;
+			Bounding(const Vector3&, const Vector3&) noexcept;
 			void Merge(const Bounding&, const Bounding&);
 			bool Contains(const Bounding&) const;
 			bool Overlaps(const Bounding&) const;
@@ -663,8 +663,8 @@ namespace Tomahawk
 		{
 			Vector4 Corners[8];
 
-			Frustum8C();
-			Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ);
+			Frustum8C() noexcept;
+			Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ) noexcept;
 			void Transform(const Matrix4x4& Value);
 			void GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z);
 		};
@@ -683,8 +683,8 @@ namespace Tomahawk
 
 			Vector4 Planes[6];
 
-			Frustum6P();
-			Frustum6P(const Matrix4x4& ViewProjection);
+			Frustum6P() noexcept;
+			Frustum6P(const Matrix4x4& ViewProjection) noexcept;
 			bool OverlapsAABB(const Bounding& Bounds) const;
 			bool OverlapsSphere(const Vector3& Center, float Radius) const;
 
@@ -697,8 +697,8 @@ namespace Tomahawk
 			Vector3 Origin;
 			Vector3 Direction;
 
-			Ray();
-			Ray(const Vector3& _Origin, const Vector3& _Direction);
+			Ray() noexcept;
+			Ray(const Vector3& _Origin, const Vector3& _Direction) noexcept;
 			Vector3 GetPoint(float T) const;
 			Vector3 operator *(float T) const;
 			bool IntersectsPlane(const Vector3& Normal, float Diameter) const;
@@ -714,18 +714,18 @@ namespace Tomahawk
 			float Row[16];
 
 		public:
-			Matrix4x4();
-			Matrix4x4(float Array[16]);
-			Matrix4x4(const Vector4& Row0, const Vector4& Row1, const Vector4& Row2, const Vector4& Row3);
-			Matrix4x4(float Row00, float Row01, float Row02, float Row03, float Row10, float Row11, float Row12, float Row13, float Row20, float Row21, float Row22, float Row23, float Row30, float Row31, float Row32, float Row33);
-			Matrix4x4(const Matrix4x4& Other);
+			Matrix4x4() noexcept;
+			Matrix4x4(float Array[16]) noexcept;
+			Matrix4x4(const Vector4& Row0, const Vector4& Row1, const Vector4& Row2, const Vector4& Row3) noexcept;
+			Matrix4x4(float Row00, float Row01, float Row02, float Row03, float Row10, float Row11, float Row12, float Row13, float Row20, float Row21, float Row22, float Row23, float Row30, float Row31, float Row32, float Row33) noexcept;
+			Matrix4x4(const Matrix4x4& Other) noexcept;
 			float& operator [](uint32_t Index);
 			float operator [](uint32_t Index) const;
 			bool operator ==(const Matrix4x4& Index) const;
 			bool operator !=(const Matrix4x4& Index) const;
 			Matrix4x4 operator *(const Matrix4x4& V) const;
 			Vector4 operator *(const Vector4& V) const;
-			Matrix4x4& operator =(const Matrix4x4& V);
+			Matrix4x4& operator =(const Matrix4x4& V) noexcept;
 			Matrix4x4 Mul(const Matrix4x4& Right) const;
 			Matrix4x4 Mul(const Vector4& Right) const;
 			Matrix4x4 Inv() const;
@@ -749,7 +749,7 @@ namespace Tomahawk
 			void Set(const Matrix4x4& Value);
 
 		private:
-			Matrix4x4(bool);
+			Matrix4x4(bool) noexcept;
 
 		public:
 			static Matrix4x4 CreateLookAt(const Vector3& Position, const Vector3& Target, const Vector3& Up);
@@ -779,12 +779,12 @@ namespace Tomahawk
 		{
 			float X, Y, Z, W;
 
-			Quaternion();
-			Quaternion(float x, float y, float z, float w);
-			Quaternion(const Quaternion& In);
-			Quaternion(const Vector3& Axis, float Angle);
-			Quaternion(const Vector3& Euler);
-			Quaternion(const Matrix4x4& Value);
+			Quaternion() noexcept;
+			Quaternion(float x, float y, float z, float w) noexcept;
+			Quaternion(const Quaternion& In) noexcept;
+			Quaternion(const Vector3& Axis, float Angle) noexcept;
+			Quaternion(const Vector3& Euler) noexcept;
+			Quaternion(const Matrix4x4& Value) noexcept;
 			void SetAxis(const Vector3& Axis, float Angle);
 			void SetEuler(const Vector3& Euler);
 			void SetMatrix(const Matrix4x4& Value);
@@ -794,7 +794,7 @@ namespace Tomahawk
 			Quaternion operator *(const Quaternion& r) const;
 			Quaternion operator -(const Quaternion& r) const;
 			Quaternion operator +(const Quaternion& r) const;
-			Quaternion& operator =(const Quaternion& r);
+			Quaternion& operator =(const Quaternion& r) noexcept;
 			Quaternion Normalize() const;
 			Quaternion sNormalize() const;
 			Quaternion Conjugate() const;
@@ -862,8 +862,8 @@ namespace Tomahawk
 			bool Intensity;
 			float Accuracy;
 
-			RandomVector2();
-			RandomVector2(const Vector2& MinV, const Vector2& MaxV, bool IntensityV, float AccuracyV);
+			RandomVector2() noexcept;
+			RandomVector2(const Vector2& MinV, const Vector2& MaxV, bool IntensityV, float AccuracyV) noexcept;
 			Vector2 Generate();
 		};
 
@@ -873,8 +873,8 @@ namespace Tomahawk
 			bool Intensity;
 			float Accuracy;
 
-			RandomVector3();
-			RandomVector3(const Vector3& MinV, const Vector3& MaxV, bool IntensityV, float AccuracyV);
+			RandomVector3() noexcept;
+			RandomVector3(const Vector3& MinV, const Vector3& MaxV, bool IntensityV, float AccuracyV) noexcept;
 			Vector3 Generate();
 		};
 
@@ -884,8 +884,8 @@ namespace Tomahawk
 			bool Intensity;
 			float Accuracy;
 
-			RandomVector4();
-			RandomVector4(const Vector4& MinV, const Vector4& MaxV, bool IntensityV, float AccuracyV);
+			RandomVector4() noexcept;
+			RandomVector4(const Vector4& MinV, const Vector4& MaxV, bool IntensityV, float AccuracyV) noexcept;
 			Vector4 Generate();
 		};
 
@@ -895,8 +895,8 @@ namespace Tomahawk
 			bool Intensity;
 			float Accuracy;
 
-			RandomFloat();
-			RandomFloat(float MinV, float MaxV, bool IntensityV, float AccuracyV);
+			RandomFloat() noexcept;
+			RandomFloat(float MinV, float MaxV, bool IntensityV, float AccuracyV) noexcept;
 			float Generate();
 		};
 
@@ -916,7 +916,7 @@ namespace Tomahawk
 			std::string Payload;
 			int ExitCode, Type;
 
-			Hybi10Request();
+			Hybi10Request() noexcept;
 			std::string GetTextType() const;
 			Hybi10_Opcode GetEnumType() const;
 		};
@@ -1005,11 +1005,11 @@ namespace Tomahawk
 			bool IgnoreCase;
 
 		public:
-			RegexSource();
-			RegexSource(const std::string& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1);
-			RegexSource(const RegexSource& Other);
+			RegexSource() noexcept;
+			RegexSource(const std::string& Regexp, bool fIgnoreCase = false, int64_t fMaxMatches = -1, int64_t fMaxBranches = -1, int64_t fMaxBrackets = -1) noexcept;
+			RegexSource(const RegexSource& Other) noexcept;
 			RegexSource(RegexSource&& Other) noexcept;
-			RegexSource& operator =(const RegexSource& V);
+			RegexSource& operator =(const RegexSource& V) noexcept;
 			RegexSource& operator =(RegexSource&& V) noexcept;
 			const std::string& GetRegex() const;
 			int64_t GetMaxBranches() const;
@@ -1036,10 +1036,10 @@ namespace Tomahawk
 			RegexSource* Src;
 
 		public:
-			RegexResult();
-			RegexResult(const RegexResult& Other);
+			RegexResult() noexcept;
+			RegexResult(const RegexResult& Other) noexcept;
 			RegexResult(RegexResult&& Other) noexcept;
-			RegexResult& operator =(const RegexResult& V);
+			RegexResult& operator =(const RegexResult& V) noexcept;
 			RegexResult& operator =(RegexResult&& V) noexcept;
 			bool Empty() const;
 			int64_t GetSteps() const;
@@ -1069,7 +1069,7 @@ namespace Tomahawk
 			RigidBody* Rigid = nullptr;
 			SoftBody* Soft = nullptr;
 
-			CollisionBody(btCollisionObject* Object);
+			CollisionBody(btCollisionObject* Object) noexcept;
 		};
 
 		struct TH_OUT PrivateKey
@@ -1081,7 +1081,7 @@ namespace Tomahawk
 				char Key[MaxSize];
 				size_t Size;
 
-				~Exposable()
+				~Exposable() noexcept
 				{
 					PrivateKey::RandomizeBuffer(Key, Size);
 				}
@@ -1092,18 +1092,18 @@ namespace Tomahawk
 			std::string Plain;
 
 		private:
-			PrivateKey(const std::string& Text, bool);
-			PrivateKey(std::string&& Text, bool);
+			PrivateKey(const std::string& Text, bool) noexcept;
+			PrivateKey(std::string&& Text, bool) noexcept;
 
 		public:
-			PrivateKey();
-			PrivateKey(const PrivateKey& Other);
+			PrivateKey() noexcept;
+			PrivateKey(const PrivateKey& Other) noexcept;
 			PrivateKey(PrivateKey&& Other) noexcept;
-			explicit PrivateKey(const std::string& Key);
-			explicit PrivateKey(const char* Buffer);
-			explicit PrivateKey(const char* Buffer, size_t Size);
-			~PrivateKey();
-			PrivateKey& operator =(const PrivateKey& V);
+			explicit PrivateKey(const std::string& Key) noexcept;
+			explicit PrivateKey(const char* Buffer) noexcept;
+			explicit PrivateKey(const char* Buffer, size_t Size) noexcept;
+			~PrivateKey() noexcept;
+			PrivateKey& operator =(const PrivateKey& V) noexcept;
 			PrivateKey& operator =(PrivateKey&& V) noexcept;
 			void Clear();
 			void Secure(const std::string& Key);
@@ -1152,8 +1152,8 @@ namespace Tomahawk
 			AdjTriangle* Faces;
 
 		public:
-			Adjacencies();
-			~Adjacencies();
+			Adjacencies() noexcept;
+			~Adjacencies() noexcept;
 			bool Fill(Adjacencies::Desc& I);
 			bool Resolve();
 
@@ -1197,8 +1197,8 @@ namespace Tomahawk
 			bool ConnectAllStrips;
 
 		public:
-			TriangleStrip();
-			~TriangleStrip();
+			TriangleStrip() noexcept;
+			~TriangleStrip() noexcept;
 			bool Fill(const TriangleStrip::Desc& I);
 			bool Resolve(TriangleStrip::Result& Result);
 
@@ -1219,10 +1219,10 @@ namespace Tomahawk
 			unsigned int* Indices2;
 
 		public:
-			RadixSorter();
-			RadixSorter(const RadixSorter& Other);
+			RadixSorter() noexcept;
+			RadixSorter(const RadixSorter& Other) noexcept;
 			RadixSorter(RadixSorter&& Other) noexcept;
-			~RadixSorter();
+			~RadixSorter() noexcept;
 			RadixSorter& operator =(const RadixSorter& V);
 			RadixSorter& operator =(RadixSorter&& V) noexcept;
 			RadixSorter& Sort(unsigned int* Input, unsigned int Nb, bool SignedValues = true);
@@ -1263,7 +1263,7 @@ namespace Tomahawk
 			UInt1 Digest[16];
 
 		public:
-			MD5Hasher();
+			MD5Hasher() noexcept;
 			void Transform(const UInt1* Buffer, unsigned int Length = 64);
 			void Update(const std::string& Buffer, unsigned int BlockSize = 64);
 			void Update(const unsigned char* Buffer, unsigned int Length, unsigned int BlockSize = 64);
@@ -1291,10 +1291,10 @@ namespace Tomahawk
 		class TH_OUT S8Hasher
 		{
 		public:
-			S8Hasher() = default;
-			S8Hasher(const S8Hasher&) = default;
+			S8Hasher() noexcept = default;
+			S8Hasher(const S8Hasher&) noexcept = default;
 			S8Hasher(S8Hasher&&) noexcept = default;
-			~S8Hasher() = default;
+			~S8Hasher() noexcept = default;
 			S8Hasher& operator=(const S8Hasher&) = default;
 			S8Hasher& operator=(S8Hasher&&) noexcept = default;
 			inline size_t operator()(uint64_t Value) const noexcept
@@ -1646,9 +1646,9 @@ namespace Tomahawk
 			std::string Data;
 
 		public:
-			WebToken();
-			WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration);
-			virtual ~WebToken() override;
+			WebToken() noexcept;
+			WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) noexcept;
+			virtual ~WebToken() noexcept override;
 			void Unsign();
 			void SetAlgorithm(const std::string& Value);
 			void SetType(const std::string& Value);
@@ -1688,8 +1688,8 @@ namespace Tomahawk
 			bool Nested;
 
 		public:
-			Preprocessor();
-			virtual ~Preprocessor() = default;
+			Preprocessor() noexcept;
+			virtual ~Preprocessor() noexcept = default;
 			void SetIncludeOptions(const IncludeDesc& NewDesc);
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
@@ -1726,8 +1726,8 @@ namespace Tomahawk
 			std::mutex Mutex;
 
 		public:
-			FiniteState();
-			virtual ~FiniteState() override;
+			FiniteState() noexcept;
+			virtual ~FiniteState() noexcept override;
 			FiniteState* Bind(const std::string& Name, const ActionCallback& Callback);
 			FiniteState* Unbind(const std::string& Name);
 			FiniteState* Push(const std::string& Name);
@@ -1766,8 +1766,8 @@ namespace Tomahawk
 			void* UserData;
 
 		public:
-			Transform(void* NewUserData);
-			virtual ~Transform() override;
+			Transform(void* NewUserData) noexcept;
+			virtual ~Transform() noexcept override;
 			void Synchronize();
 			void Move(const Vector3& Value);
 			void Rotate(const Vector3& Value);
@@ -1822,14 +1822,13 @@ namespace Tomahawk
 			struct TH_OUT Node
 			{
 				Bounding Bounds;
-				size_t Parent;
-				size_t Next;
-				size_t Left;
-				size_t Right;
-				void* Item;
-				int Height;
+				size_t Parent = 0;
+				size_t Next = 0;
+				size_t Left = 0;
+				size_t Right = 0;
+				void* Item = nullptr;
+				int Height = 0;
 
-				Node();
 				bool IsLeaf() const;
 			};
 
@@ -1842,7 +1841,7 @@ namespace Tomahawk
 			size_t FreeList;
 
 		public:
-			Cosmos(size_t DefaultSize = 16);
+			Cosmos(size_t DefaultSize = 16) noexcept;
 			void Reserve(size_t Size);
 			void Clear();
 			void RemoveItem(void* Item);
@@ -1904,8 +1903,8 @@ namespace Tomahawk
 			btCollisionShape* Shape;
 
 		public:
-			HullShape();
-			virtual ~HullShape() = default;
+			HullShape() noexcept;
+			virtual ~HullShape() noexcept = default;
 		};
 
 		class TH_OUT RigidBody : public Core::Object
@@ -1933,10 +1932,10 @@ namespace Tomahawk
 			void* UserPointer;
 
 		private:
-			RigidBody(Simulator* Refer, const Desc& I);
+			RigidBody(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~RigidBody() override;
+			virtual ~RigidBody() noexcept override;
 			Core::Unique<RigidBody> Copy();
 			void Push(const Vector3& Velocity);
 			void Push(const Vector3& Velocity, const Vector3& Torque);
@@ -2126,10 +2125,10 @@ namespace Tomahawk
 			void* UserPointer;
 
 		private:
-			SoftBody(Simulator* Refer, const Desc& I);
+			SoftBody(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~SoftBody() override;
+			virtual ~SoftBody() noexcept override;
 			Core::Unique<SoftBody> Copy();
 			void Activate(bool Force);
 			void Synchronize(Transform* Transform, bool Kinematic);
@@ -2232,10 +2231,10 @@ namespace Tomahawk
 			void* UserPointer;
 
 		protected:
-			Constraint(Simulator* Refer);
+			Constraint(Simulator* Refer) noexcept;
 
 		public:
-			virtual ~Constraint() = default;
+			virtual ~Constraint() noexcept = default;
 			virtual Core::Unique<Constraint> Copy() const = 0;
 			virtual btTypedConstraint* Get() const = 0;
 			virtual bool HasCollisions() const = 0;
@@ -2269,10 +2268,10 @@ namespace Tomahawk
 			Desc State;
 
 		private:
-			PConstraint(Simulator* Refer, const Desc& I);
+			PConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~PConstraint() override;
+			virtual ~PConstraint() noexcept override;
 			virtual Core::Unique<Constraint> Copy() const override;
 			virtual btTypedConstraint* Get() const override;
 			virtual bool HasCollisions() const override;
@@ -2302,10 +2301,10 @@ namespace Tomahawk
 			Desc State;
 
 		private:
-			HConstraint(Simulator* Refer, const Desc& I);
+			HConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~HConstraint() override;
+			virtual ~HConstraint() noexcept override;
 			virtual Core::Unique<Constraint> Copy() const override;
 			virtual btTypedConstraint* Get() const override;
 			virtual bool HasCollisions() const override;
@@ -2359,10 +2358,10 @@ namespace Tomahawk
 			Desc State;
 
 		private:
-			SConstraint(Simulator* Refer, const Desc& I);
+			SConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~SConstraint() override;
+			virtual ~SConstraint() noexcept override;
 			virtual Core::Unique<Constraint> Copy() const override;
 			virtual btTypedConstraint* Get() const override;
 			virtual bool HasCollisions() const override;
@@ -2443,10 +2442,10 @@ namespace Tomahawk
 			Desc State;
 
 		private:
-			CTConstraint(Simulator* Refer, const Desc& I);
+			CTConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~CTConstraint() override;
+			virtual ~CTConstraint() noexcept override;
 			virtual Core::Unique<Constraint> Copy() const override;
 			virtual btTypedConstraint* Get() const override;
 			virtual bool HasCollisions() const override;
@@ -2502,10 +2501,10 @@ namespace Tomahawk
 			Desc State;
 
 		private:
-			DF6Constraint(Simulator* Refer, const Desc& I);
+			DF6Constraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~DF6Constraint() override;
+			virtual ~DF6Constraint() noexcept override;
 			virtual Core::Unique<Constraint> Copy() const override;
 			virtual btTypedConstraint* Get() const override;
 			virtual bool HasCollisions() const override;
@@ -2575,8 +2574,8 @@ namespace Tomahawk
 			bool Active;
 
 		public:
-			Simulator(const Desc& I);
-			virtual ~Simulator() override;
+			Simulator(const Desc& I) noexcept;
+			virtual ~Simulator() noexcept override;
 			void SetGravity(const Vector3& Gravity);
 			void SetLinearImpulse(const Vector3& Impulse, bool RandomFactor = false);
 			void SetLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor = false);

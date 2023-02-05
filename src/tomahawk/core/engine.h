@@ -182,7 +182,7 @@ namespace Tomahawk
 			float Delay;
 
 		public:
-			Ticker();
+			Ticker() noexcept;
 			bool TickEvent(float ElapsedTime);
 			float GetTime();
 		};
@@ -230,8 +230,8 @@ namespace Tomahawk
 			size_t Size;
 
 		public:
-			AssetFile(char* SrcBuffer, size_t SrcSize);
-			virtual ~AssetFile() override;
+			AssetFile(char* SrcBuffer, size_t SrcSize) noexcept;
+			virtual ~AssetFile() noexcept override;
 			char* GetBuffer();
 			size_t GetSize();
 		};
@@ -529,9 +529,9 @@ namespace Tomahawk
 			size_t Slot;
 
 		public:
-			Material(SceneGraph* NewScene = nullptr);
-			Material(const Material& Other);
-			virtual ~Material() override;
+			Material(SceneGraph* NewScene = nullptr) noexcept;
+			Material(const Material& Other) noexcept;
+			virtual ~Material() noexcept override;
 			void SetName(const std::string& Value);
 			const std::string& GetName() const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
@@ -559,8 +559,8 @@ namespace Tomahawk
 			ContentManager* Content;
 
 		public:
-			Processor(ContentManager* NewContent);
-			virtual ~Processor() override;
+			Processor(ContentManager* NewContent) noexcept;
+			virtual ~Processor() noexcept override;
 			virtual void Free(AssetCache* Asset);
 			virtual Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
 			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Keys);
@@ -602,8 +602,8 @@ namespace Tomahawk
 			bool IsActive() const;
 
 		protected:
-			Component(Entity* Ref, ActorSet Rule);
-			virtual ~Component() override;
+			Component(Entity* Ref, ActorSet Rule) noexcept;
+			virtual ~Component() noexcept override;
 
 		public:
 			TH_COMPONENT_ROOT("component");
@@ -660,8 +660,8 @@ namespace Tomahawk
 			float GetRadius() const;
 
 		private:
-			Entity(SceneGraph* NewScene);
-			virtual ~Entity() override;
+			Entity(SceneGraph* NewScene) noexcept;
+			virtual ~Entity() noexcept override;
 
 		public:
 			std::unordered_map<uint64_t, Component*>::iterator begin()
@@ -717,8 +717,8 @@ namespace Tomahawk
 			bool Static;
 
 		public:
-			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool Complex);
-			virtual ~Drawable();
+			Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool Complex) noexcept;
+			virtual ~Drawable() noexcept;
 			virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
 			virtual void Movement() override;
 			virtual Core::Unique<Component> Copy(Entity* New) const override = 0;
@@ -747,8 +747,8 @@ namespace Tomahawk
 			bool Active;
 
 		public:
-			Renderer(RenderSystem* Lab);
-			virtual ~Renderer() override;
+			Renderer(RenderSystem* Lab) noexcept;
+			virtual ~Renderer() noexcept override;
 			virtual void Serialize(Core::Schema* Node);
 			virtual void Deserialize(Core::Schema* Node);
 			virtual void ClearCulling();
@@ -831,8 +831,8 @@ namespace Tomahawk
 			bool PreciseCulling;
 
 		public:
-			RenderSystem(SceneGraph* NewScene, Component* NewComponent);
-			virtual ~RenderSystem() override;
+			RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept;
+			virtual ~RenderSystem() noexcept override;
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
 			void ClearCulling();
 			void RestoreViewBuffer(Viewer* View);
@@ -958,8 +958,8 @@ namespace Tomahawk
 			std::mutex Safe;
 
 		public:
-			ShaderCache(Graphics::GraphicsDevice* Device);
-			virtual ~ShaderCache() override;
+			ShaderCache(Graphics::GraphicsDevice* Device) noexcept;
+			virtual ~ShaderCache() noexcept override;
 			Graphics::Shader* Compile(const std::string& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* Get(const std::string& Name);
 			std::string Find(Graphics::Shader* Shader);
@@ -988,8 +988,8 @@ namespace Tomahawk
 			std::mutex Safe;
 
 		public:
-			PrimitiveCache(Graphics::GraphicsDevice* Device);
-			virtual ~PrimitiveCache() override;
+			PrimitiveCache(Graphics::GraphicsDevice* Device) noexcept;
+			virtual ~PrimitiveCache() noexcept override;
 			bool Compile(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
 			bool Get(Graphics::ElementBuffer** Result, const std::string& Name);
 			bool Has(const std::string& Name);
@@ -1020,8 +1020,8 @@ namespace Tomahawk
 			size_t Queue;
 
 		public:
-			ContentManager(Graphics::GraphicsDevice* NewDevice);
-			virtual ~ContentManager() override;
+			ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept;
+			virtual ~ContentManager() noexcept override;
 			void InvalidateDockers();
 			void InvalidateCache();
 			void InvalidatePath(const std::string& Path);
@@ -1147,8 +1147,8 @@ namespace Tomahawk
 			std::mutex Safe;
 
 		public:
-			AppData(ContentManager* Manager, const std::string& Path);
-			~AppData();
+			AppData(ContentManager* Manager, const std::string& Path) noexcept;
+			virtual ~AppData() noexcept;
 			void Migrate(const std::string& Path);
 			void SetKey(const std::string& Name, Core::Unique<Core::Schema> Value);
 			void SetText(const std::string& Name, const std::string& Value);
@@ -1254,8 +1254,8 @@ namespace Tomahawk
 			IdxSnapshot* Snapshot;
 
 		public:
-			SceneGraph(const Desc& I);
-			virtual ~SceneGraph() override;
+			SceneGraph(const Desc& I) noexcept;
+			virtual ~SceneGraph() noexcept override;
 			void Configure(const Desc& Conf);
 			void Actualize();
 			void ResizeBuffers();
@@ -1544,8 +1544,8 @@ namespace Tomahawk
 			Desc Control;
 
 		public:
-			Application(Desc* I);
-			virtual ~Application() override;
+			Application(Desc* I) noexcept;
+			virtual ~Application() noexcept override;
 			virtual void ScriptHook(Script::VMGlobal* Global);
 			virtual void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 			virtual void InputEvent(char* Buffer, int Length);
@@ -1619,7 +1619,7 @@ namespace Tomahawk
 				Material* Surface;
 				Instance Params;
 
-				Dispatchable(size_t NewName, Geometry* NewData, Material* NewSurface, const Instance& NewParams) : Name(NewName), Data(NewData), Surface(NewSurface), Params(NewParams)
+				Dispatchable(size_t NewName, Geometry* NewData, Material* NewSurface, const Instance& NewParams) noexcept : Name(NewName), Data(NewData), Surface(NewSurface), Params(NewParams)
 				{
 				}
 			};
@@ -1747,7 +1747,7 @@ namespace Tomahawk
 			Storage Culling;
 
 		public:
-			RendererProxy() : Offset(0)
+			RendererProxy() noexcept : Offset(0)
 			{
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
@@ -1755,7 +1755,7 @@ namespace Tomahawk
 						Batchers[j][i].Cache = &Cache;
 				}
 			}
-			~RendererProxy()
+			~RendererProxy() noexcept
 			{
 				for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
 				{
@@ -1933,7 +1933,7 @@ namespace Tomahawk
 			bool Skippable[2];
 
 		public:
-			GeometryRenderer(RenderSystem* Lab) : Renderer(Lab), Current(nullptr)
+			GeometryRenderer(RenderSystem* Lab) noexcept : Renderer(Lab), Current(nullptr)
 			{
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				DepthStencil = Device->GetDepthStencilState("less-no-stencil-none");
@@ -1944,7 +1944,7 @@ namespace Tomahawk
 				Skippable[1] = false;
 				FrameTop[2] = 0;
 			}
-			virtual ~GeometryRenderer()
+			virtual ~GeometryRenderer() noexcept override
 			{
 				for (auto& Item : Active)
 					TH_RELEASE(Item.second);
@@ -2264,8 +2264,8 @@ namespace Tomahawk
 			unsigned int MaxSlot;
 
 		public:
-			EffectRenderer(RenderSystem* Lab);
-			virtual ~EffectRenderer() override;
+			EffectRenderer(RenderSystem* Lab) noexcept;
+			virtual ~EffectRenderer() noexcept override;
 			virtual void ResizeEffect();
 			virtual void RenderEffect(Core::Timer* Time) = 0;
 			size_t RenderPass(Core::Timer* Time) override;

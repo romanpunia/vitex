@@ -113,7 +113,7 @@ namespace Tomahawk
 				int Ref;
 
 			public:
-				Mutex();
+				Mutex() noexcept;
 				void AddRef();
 				void Release();
 				bool TryLock();
@@ -158,12 +158,12 @@ namespace Tomahawk
 				ValueStruct Value;
 
 			public:
-				Any(VMCManager* Engine);
-				Any(void* Ref, int RefTypeId, VMCManager* Engine);
-				Any(const Any&);
+				Any(VMCManager* Engine) noexcept;
+				Any(void* Ref, int RefTypeId, VMCManager* Engine) noexcept;
+				Any(const Any&) noexcept;
 				int AddRef() const;
 				int Release() const;
-				Any& operator= (const Any&);
+				Any& operator= (const Any&) noexcept;
 				int CopyFrom(const Any* Other);
 				void Store(void* Ref, int RefTypeId);
 				bool Retrieve(void* Ref, int RefTypeId) const;
@@ -266,7 +266,7 @@ namespace Tomahawk
 				void* At(as_size_t Index);
 				const void* At(as_size_t Index) const;
 				void SetValue(as_size_t Index, void* Value);
-				Array& operator= (const Array&);
+				Array& operator= (const Array&) noexcept;
 				bool operator== (const Array&) const;
 				void InsertAt(as_size_t Index, void* Value);
 				void InsertAt(as_size_t Index, const Array& Other);
@@ -293,11 +293,11 @@ namespace Tomahawk
 				void ReleaseAllHandles(VMCManager* Engine);
 
 			protected:
-				Array(VMCTypeInfo* T, void* InitBuf);
-				Array(as_size_t Length, VMCTypeInfo* T);
-				Array(as_size_t Length, void* DefVal, VMCTypeInfo* T);
-				Array(const Array& Other);
-				virtual ~Array();
+				Array(VMCTypeInfo* T, void* InitBuf) noexcept;
+				Array(as_size_t Length, VMCTypeInfo* T) noexcept;
+				Array(as_size_t Length, void* DefVal, VMCTypeInfo* T) noexcept;
+				Array(const Array& Other) noexcept;
+				virtual ~Array() noexcept;
 				bool Less(const void* A, const void* B, bool Asc, VMCContext* Ctx, SCache* Cache);
 				void* GetArrayItemPointer(int Index);
 				void* GetDataPointer(void* Buffer);
@@ -442,9 +442,9 @@ namespace Tomahawk
 				int TypeId;
 
 			public:
-				MapKey();
-				MapKey(VMCManager* Engine, void* Value, int TypeId);
-				~MapKey();
+				MapKey() noexcept;
+				MapKey(VMCManager* Engine, void* Value, int TypeId) noexcept;
+				~MapKey() noexcept;
 				void Set(VMCManager* Engine, void* Value, int TypeId);
 				void Set(VMCManager* Engine, MapKey& Value);
 				bool Get(VMCManager* Engine, void* Value, int TypeId) const;
@@ -481,9 +481,9 @@ namespace Tomahawk
 					const void* GetAddressOfValue() const;
 
 				protected:
-					LocalIterator();
-					LocalIterator(const Map& Dict, InternalMap::const_iterator It);
-					LocalIterator& operator= (const LocalIterator&)
+					LocalIterator() noexcept;
+					LocalIterator(const Map& Dict, InternalMap::const_iterator It) noexcept;
+					LocalIterator& operator= (const LocalIterator&) noexcept
 					{
 						return *this;
 					}
@@ -505,7 +505,7 @@ namespace Tomahawk
 			public:
 				void AddRef() const;
 				void Release() const;
-				Map& operator= (const Map& Other);
+				Map& operator= (const Map& Other) noexcept;
 				void Set(const std::string& Key, void* Value, int TypeId);
 				bool Get(const std::string& Key, void* Value, int TypeId) const;
 				bool GetIndex(size_t Index, std::string* Key, void** Value, int* TypeId) const;
@@ -528,10 +528,10 @@ namespace Tomahawk
 				void ReleaseAllReferences(VMCManager* Engine);
 
 			protected:
-				Map(VMCManager* Engine);
-				Map(unsigned char* Buffer);
-				Map(const Map&);
-				virtual ~Map();
+				Map(VMCManager* Engine) noexcept;
+				Map(unsigned char* Buffer) noexcept;
+				Map(const Map&) noexcept;
+				virtual ~Map() noexcept;
 				void Init(VMCManager* Engine);
 
 			public:
@@ -589,10 +589,10 @@ namespace Tomahawk
 				void ReleaseAllHandles(VMCManager* Engine);
 
 			protected:
-				Grid(VMCTypeInfo* T, void* InitBuf);
-				Grid(as_size_t W, as_size_t H, VMCTypeInfo* T);
-				Grid(as_size_t W, as_size_t H, void* DefVal, VMCTypeInfo* T);
-				virtual ~Grid();
+				Grid(VMCTypeInfo* T, void* InitBuf) noexcept;
+				Grid(as_size_t W, as_size_t H, VMCTypeInfo* T) noexcept;
+				Grid(as_size_t W, as_size_t H, void* DefVal, VMCTypeInfo* T) noexcept;
+				virtual ~Grid() noexcept;
 				bool CheckMaxSize(as_size_t X, as_size_t Y);
 				void CreateBuffer(SBuffer** Buf, as_size_t W, as_size_t H);
 				void DeleteBuffer(SBuffer* Buf);
@@ -616,12 +616,12 @@ namespace Tomahawk
 				void* Pointer;
 
 			public:
-				Ref();
-				Ref(const Ref& Other);
-				Ref(void* Ref, VMCTypeInfo* Type);
-				Ref(void* Ref, int TypeId);
-				~Ref();
-				Ref& operator=(const Ref& Other);
+				Ref() noexcept;
+				Ref(const Ref& Other) noexcept;
+				Ref(void* Ref, VMCTypeInfo* Type) noexcept;
+				Ref(void* Ref, int TypeId) noexcept;
+				~Ref() noexcept;
+				Ref& operator=(const Ref& Other) noexcept;
 				void Set(void* Ref, VMCTypeInfo* Type);
 				bool operator== (const Ref& Other) const;
 				bool operator!= (const Ref& Other) const;
@@ -653,11 +653,11 @@ namespace Tomahawk
 				void* Ref;
 
 			public:
-				WeakRef(VMCTypeInfo* Type);
-				WeakRef(const WeakRef& Other);
-				WeakRef(void* Ref, VMCTypeInfo* Type);
-				~WeakRef();
-				WeakRef& operator= (const WeakRef& Other);
+				WeakRef(VMCTypeInfo* Type) noexcept;
+				WeakRef(const WeakRef& Other) noexcept;
+				WeakRef(void* Ref, VMCTypeInfo* Type) noexcept;
+				~WeakRef() noexcept;
+				WeakRef& operator= (const WeakRef& Other) noexcept;
 				bool operator== (const WeakRef& Other) const;
 				bool operator!= (const WeakRef& Other) const;
 				WeakRef& Set(void* NewRef);
@@ -679,10 +679,10 @@ namespace Tomahawk
 				float I;
 
 			public:
-				Complex();
-				Complex(const Complex& Other);
-				Complex(float R, float I = 0);
-				Complex& operator= (const Complex& Other);
+				Complex() noexcept;
+				Complex(const Complex& Other) noexcept;
+				Complex(float R, float I = 0) noexcept;
+				Complex& operator= (const Complex& Other) noexcept;
 				Complex& operator+= (const Complex& Other);
 				Complex& operator-= (const Complex& Other);
 				Complex& operator*= (const Complex& Other);
@@ -733,7 +733,7 @@ namespace Tomahawk
 				int Ref;
 
 			public:
-				Thread(VMCManager* Engine, VMCFunction* Function);
+				Thread(VMCManager* Engine, VMCFunction* Function) noexcept;
 				void EnumReferences(VMCManager* Engine);
 				void SetGCFlag();
 				void ReleaseReferences(VMCManager* Engine);
@@ -791,7 +791,7 @@ namespace Tomahawk
 				int Ref;
 
 			private:
-				Promise(VMCContext* Base, bool IsRef);
+				Promise(VMCContext* Base, bool IsRef) noexcept;
 
 			public:
 				void EnumReferences(VMCManager* Engine);
@@ -888,8 +888,8 @@ namespace Tomahawk
 				std::vector<std::string> Args;
 
 			public:
-				Format();
-				Format(unsigned char* Buffer);
+				Format() noexcept;
+				Format(unsigned char* Buffer) noexcept;
 
 			public:
 				static std::string JSON(void* Ref, int TypeId);
@@ -909,9 +909,9 @@ namespace Tomahawk
 				VMContext* Context;
 
 			public:
-				ModelListener(VMCFunction* NewCallback);
-				ModelListener(const std::string& FunctionName);
-				virtual ~ModelListener() override;
+				ModelListener(VMCFunction* NewCallback) noexcept;
+				ModelListener(const std::string& FunctionName) noexcept;
+				virtual ~ModelListener() noexcept override;
 
 			private:
 				Engine::GUI::EventCallback Bind(VMCFunction* Callback);

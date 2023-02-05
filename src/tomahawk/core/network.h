@@ -123,8 +123,8 @@ namespace Tomahawk
 			void* UserData;
 
 		public:
-			Socket();
-			Socket(socket_t FromFd);
+			Socket() noexcept;
+			Socket(socket_t FromFd) noexcept;
 			int Accept(Socket* OutConnection, char* OutAddress);
 			int Accept(socket_t* OutFd, char* OutAddress);
 			int AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
@@ -265,7 +265,7 @@ namespace Tomahawk
             char RemoteAddress[48] = { 0 };
 			DataFrame Info;
 
-			virtual ~SocketConnection();
+			virtual ~SocketConnection() noexcept;
 			virtual void Reset(bool Fully);
 			virtual bool Finish();
 			virtual bool Finish(int);
@@ -288,7 +288,7 @@ namespace Tomahawk
 
 			Host& Listen(const std::string& Hostname, int Port, bool Secure = false);
 			Host& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);
-			virtual ~SocketRouter();
+			virtual ~SocketRouter() noexcept;
 		};
 
 		struct TH_OUT EpollFd
@@ -309,8 +309,8 @@ namespace Tomahawk
 			epoll_handle Handle;
 			size_t ArraySize;
 
-			EpollHandle(size_t NewArraySize);
-			~EpollHandle();
+			EpollHandle(size_t NewArraySize) noexcept;
+			~EpollHandle() noexcept;
 			bool Add(Socket* Fd, bool Readable, bool Writeable);
 			bool Update(Socket* Fd, bool Readable, bool Writeable);
 			bool Remove(Socket* Fd, bool Readable, bool Writeable);
@@ -429,8 +429,8 @@ namespace Tomahawk
 			size_t Backlog;
 			
 		public:
-			SocketServer();
-			virtual ~SocketServer() override;
+			SocketServer() noexcept;
+			virtual ~SocketServer() noexcept override;
 			void SetRouter(SocketRouter* New);
 			void SetBacklog(size_t Value);
 			void Lock();
@@ -480,8 +480,8 @@ namespace Tomahawk
 			bool AutoEncrypt;
 
 		public:
-			SocketClient(int64_t RequestTimeout);
-			virtual ~SocketClient() override;
+			SocketClient(int64_t RequestTimeout) noexcept;
+			virtual ~SocketClient() noexcept override;
 			Core::Promise<int> Connect(Host* Address, bool Async);
 			Core::Promise<int> Close();
 			Socket* GetStream();

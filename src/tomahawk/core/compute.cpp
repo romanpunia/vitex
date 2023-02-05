@@ -191,22 +191,22 @@ namespace Tomahawk
 			return Bottom - Top;
 		}
 
-		Vector2::Vector2() : X(0.0f), Y(0.0f)
+		Vector2::Vector2() noexcept : X(0.0f), Y(0.0f)
 		{
 		}
-		Vector2::Vector2(float x, float y) : X(x), Y(y)
+		Vector2::Vector2(float x, float y) noexcept : X(x), Y(y)
 		{
 		}
-		Vector2::Vector2(float xy) : X(xy), Y(xy)
+		Vector2::Vector2(float xy) noexcept : X(xy), Y(xy)
 		{
 		}
-		Vector2::Vector2(const Vector2& Value) : X(Value.X), Y(Value.Y)
+		Vector2::Vector2(const Vector2& Value) noexcept : X(Value.X), Y(Value.Y)
 		{
 		}
-		Vector2::Vector2(const Vector3& Value) : X(Value.X), Y(Value.Y)
+		Vector2::Vector2(const Vector3& Value) noexcept : X(Value.X), Y(Value.Y)
 		{
 		}
-		Vector2::Vector2(const Vector4& Value) : X(Value.X), Y(Value.Y)
+		Vector2::Vector2(const Vector4& Value) noexcept : X(Value.X), Y(Value.Y)
 		{
 		}
 		bool Vector2::IsEquals(const Vector2& Other, float MaxDisplacement) const
@@ -581,7 +581,7 @@ namespace Tomahawk
 		{
 			return Inv();
 		}
-		Vector2& Vector2::operator =(const Vector2& V)
+		Vector2& Vector2::operator =(const Vector2& V) noexcept
 		{
 			X = V.X;
 			Y = V.Y;
@@ -636,25 +636,25 @@ namespace Tomahawk
 			return Vector2(Mathf::Random(), Mathf::Random());
 		}
 
-		Vector3::Vector3() : X(0.0f), Y(0.0f), Z(0.0f)
+		Vector3::Vector3() noexcept : X(0.0f), Y(0.0f), Z(0.0f)
 		{
 		}
-		Vector3::Vector3(float x, float y) : X(x), Y(y), Z(0.0f)
+		Vector3::Vector3(float x, float y) noexcept : X(x), Y(y), Z(0.0f)
 		{
 		}
-		Vector3::Vector3(float x, float y, float z) : X(x), Y(y), Z(z)
+		Vector3::Vector3(float x, float y, float z) noexcept : X(x), Y(y), Z(z)
 		{
 		}
-		Vector3::Vector3(float xyzw) : X(xyzw), Y(xyzw), Z(xyzw)
+		Vector3::Vector3(float xyzw) noexcept : X(xyzw), Y(xyzw), Z(xyzw)
 		{
 		}
-		Vector3::Vector3(const Vector2& Value) : X(Value.X), Y(Value.Y), Z(0.0f)
+		Vector3::Vector3(const Vector2& Value) noexcept : X(Value.X), Y(Value.Y), Z(0.0f)
 		{
 		}
-		Vector3::Vector3(const Vector3& Value) : X(Value.X), Y(Value.Y), Z(Value.Z)
+		Vector3::Vector3(const Vector3& Value) noexcept : X(Value.X), Y(Value.Y), Z(Value.Z)
 		{
 		}
-		Vector3::Vector3(const Vector4& Value) : X(Value.X), Y(Value.Y), Z(Value.Z)
+		Vector3::Vector3(const Vector4& Value) noexcept : X(Value.X), Y(Value.Y), Z(Value.Z)
 		{
 		}
 		bool Vector3::IsEquals(const Vector3& Other, float MaxDisplacement) const
@@ -1086,7 +1086,7 @@ namespace Tomahawk
 		{
 			return Inv();
 		}
-		Vector3& Vector3::operator =(const Vector3& V)
+		Vector3& Vector3::operator =(const Vector3& V) noexcept
 		{
 			X = V.X;
 			Y = V.Y;
@@ -1146,28 +1146,28 @@ namespace Tomahawk
 			return Vector3(Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
 
-		Vector4::Vector4() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
+		Vector4::Vector4() noexcept : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
 		{
 		}
-		Vector4::Vector4(float x, float y) : X(x), Y(y), Z(0.0f), W(0.0f)
+		Vector4::Vector4(float x, float y) noexcept : X(x), Y(y), Z(0.0f), W(0.0f)
 		{
 		}
-		Vector4::Vector4(float x, float y, float z) : X(x), Y(y), Z(z), W(0.0f)
+		Vector4::Vector4(float x, float y, float z) noexcept : X(x), Y(y), Z(z), W(0.0f)
 		{
 		}
-		Vector4::Vector4(float x, float y, float z, float w) : X(x), Y(y), Z(z), W(w)
+		Vector4::Vector4(float x, float y, float z, float w) noexcept : X(x), Y(y), Z(z), W(w)
 		{
 		}
-		Vector4::Vector4(float xyzw) : X(xyzw), Y(xyzw), Z(xyzw), W(xyzw)
+		Vector4::Vector4(float xyzw) noexcept : X(xyzw), Y(xyzw), Z(xyzw), W(xyzw)
 		{
 		}
-		Vector4::Vector4(const Vector2& Value) : X(Value.X), Y(Value.Y), Z(0.0f), W(0.0f)
+		Vector4::Vector4(const Vector2& Value) noexcept : X(Value.X), Y(Value.Y), Z(0.0f), W(0.0f)
 		{
 		}
-		Vector4::Vector4(const Vector3& Value) : X(Value.X), Y(Value.Y), Z(Value.Z), W(0.0f)
+		Vector4::Vector4(const Vector3& Value) noexcept : X(Value.X), Y(Value.Y), Z(Value.Z), W(0.0f)
 		{
 		}
-		Vector4::Vector4(const Vector4& Value) : X(Value.X), Y(Value.Y), Z(Value.Z), W(Value.W)
+		Vector4::Vector4(const Vector4& Value) noexcept : X(Value.X), Y(Value.Y), Z(Value.Z), W(Value.W)
 		{
 		}
 		bool Vector4::IsEquals(const Vector4& Other, float MaxDisplacement) const
@@ -1613,7 +1613,7 @@ namespace Tomahawk
 		{
 			return Inv();
 		}
-		Vector4& Vector4::operator =(const Vector4& V)
+		Vector4& Vector4::operator =(const Vector4& V) noexcept
 		{
 			X = V.X;
 			Y = V.Y;
@@ -1678,10 +1678,10 @@ namespace Tomahawk
 			return Vector4(Mathf::Random(), Mathf::Random(), Mathf::Random(), Mathf::Random());
 		}
 		
-		Bounding::Bounding()
+		Bounding::Bounding() noexcept
 		{
 		}
-		Bounding::Bounding(const Vector3& LowerBound, const Vector3& UpperBound) : Lower(LowerBound), Upper(UpperBound)
+		Bounding::Bounding(const Vector3& LowerBound, const Vector3& UpperBound) noexcept : Lower(LowerBound), Upper(UpperBound)
 		{
 			TH_ASSERT_V(Lower <= Upper, "lower should be smaller than upper");
 			Volume = Geometric::AabbVolume(Lower, Upper);
@@ -1709,11 +1709,11 @@ namespace Tomahawk
 			return Bounds.Upper >= Lower && Bounds.Lower <= Upper;
 		}
 
-		Frustum8C::Frustum8C()
+		Frustum8C::Frustum8C() noexcept
 		{
 			Geometric::CreateFrustum8C(Corners, 90.0f, 1.0f, 0.1f, 1.0f);
 		}
-		Frustum8C::Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ)
+		Frustum8C::Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ) noexcept
 		{
 			Geometric::CreateFrustum8CRad(Corners, FieldOfView, Aspect, NearZ, FarZ);
 		}
@@ -1756,10 +1756,10 @@ namespace Tomahawk
 				*Z = Vector2(MinZ, MaxZ);
 		}
 
-		Frustum6P::Frustum6P()
+		Frustum6P::Frustum6P() noexcept
 		{
 		}
-		Frustum6P::Frustum6P(const Matrix4x4& Clip)
+		Frustum6P::Frustum6P(const Matrix4x4& Clip) noexcept
 		{
 			Planes[(size_t)Side::RIGHT].X = Clip[3] - Clip[0];
 			Planes[(size_t)Side::RIGHT].Y = Clip[7] - Clip[4];
@@ -1910,10 +1910,10 @@ namespace Tomahawk
 			return true;
 		}
 
-		Ray::Ray() : Direction(0, 0, 1)
+		Ray::Ray() noexcept : Direction(0, 0, 1)
 		{
 		}
-		Ray::Ray(const Vector3& _Origin, const Vector3& _Direction) : Origin(_Origin), Direction(_Direction)
+		Ray::Ray(const Vector3& _Origin, const Vector3& _Direction) noexcept : Origin(_Origin), Direction(_Direction)
 		{
 		}
 		Vector3 Ray::GetPoint(float T) const
@@ -2146,28 +2146,28 @@ namespace Tomahawk
 			return false;
 		}
 
-		Matrix4x4::Matrix4x4() : Row { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
+		Matrix4x4::Matrix4x4() noexcept : Row { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 }
 		{
 		}
-		Matrix4x4::Matrix4x4(float Array[16])
+		Matrix4x4::Matrix4x4(float Array[16]) noexcept
 		{
 			memcpy(Row, Array, sizeof(float) * 16);
 		}
-		Matrix4x4::Matrix4x4(const Vector4& row0, const Vector4& row1, const Vector4& row2, const Vector4& row3)
+		Matrix4x4::Matrix4x4(const Vector4& row0, const Vector4& row1, const Vector4& row2, const Vector4& row3) noexcept
 		{
 			memcpy(Row + 0, &row0, sizeof(Vector4));
 			memcpy(Row + 4, &row1, sizeof(Vector4));
 			memcpy(Row + 8, &row2, sizeof(Vector4));
 			memcpy(Row + 12, &row3, sizeof(Vector4));
 		}
-		Matrix4x4::Matrix4x4(float row00, float row01, float row02, float row03, float row10, float row11, float row12, float row13, float row20, float row21, float row22, float row23, float row30, float row31, float row32, float row33) :
+		Matrix4x4::Matrix4x4(float row00, float row01, float row02, float row03, float row10, float row11, float row12, float row13, float row20, float row21, float row22, float row23, float row30, float row31, float row32, float row33) noexcept :
 			Row { row00, row01, row02, row03, row10, row11, row12, row13, row20, row21, row22, row23, row30, row31, row32, row33 }
 		{
 		}
-		Matrix4x4::Matrix4x4(bool)
+		Matrix4x4::Matrix4x4(bool) noexcept
 		{
 		}
-		Matrix4x4::Matrix4x4(const Matrix4x4& V)
+		Matrix4x4::Matrix4x4(const Matrix4x4& V) noexcept
 		{
 			memcpy(Row, V.Row, sizeof(float) * 16);
 		}
@@ -2196,7 +2196,7 @@ namespace Tomahawk
 			Matrix4x4 Result = this->Mul(V);
 			return Vector4(Row[0], Row[4], Row[8], Row[12]);
 		}
-		Matrix4x4& Matrix4x4::operator =(const Matrix4x4& V)
+		Matrix4x4& Matrix4x4::operator =(const Matrix4x4& V) noexcept
 		{
 			memcpy(Row, V.Row, sizeof(float) * 16);
 			return *this;
@@ -2725,24 +2725,24 @@ namespace Tomahawk
 			}
 		}
 
-		Quaternion::Quaternion() : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
+		Quaternion::Quaternion() noexcept : X(0.0f), Y(0.0f), Z(0.0f), W(0.0f)
 		{
 		}
-		Quaternion::Quaternion(float x, float y, float z, float w) : X(x), Y(y), Z(z), W(w)
+		Quaternion::Quaternion(float x, float y, float z, float w) noexcept : X(x), Y(y), Z(z), W(w)
 		{
 		}
-		Quaternion::Quaternion(const Quaternion& In) : X(In.X), Y(In.Y), Z(In.Z), W(In.W)
+		Quaternion::Quaternion(const Quaternion& In) noexcept : X(In.X), Y(In.Y), Z(In.Z), W(In.W)
 		{
 		}
-		Quaternion::Quaternion(const Vector3& Axis, float Angle)
+		Quaternion::Quaternion(const Vector3& Axis, float Angle) noexcept
 		{
 			SetAxis(Axis, Angle);
 		}
-		Quaternion::Quaternion(const Vector3& Euler)
+		Quaternion::Quaternion(const Vector3& Euler) noexcept
 		{
 			SetEuler(Euler);
 		}
-		Quaternion::Quaternion(const Matrix4x4& Value)
+		Quaternion::Quaternion(const Matrix4x4& Value) noexcept
 		{
 			SetMatrix(Value);
 		}
@@ -2931,7 +2931,7 @@ namespace Tomahawk
 		{
 			return Add(R);
 		}
-		Quaternion& Quaternion::operator =(const Quaternion& R)
+		Quaternion& Quaternion::operator =(const Quaternion& R) noexcept
 		{
 			this->X = R.X;
 			this->Y = R.Y;
@@ -3232,10 +3232,10 @@ namespace Tomahawk
 #endif
 		}
 
-		RandomVector2::RandomVector2() : Min(0), Max(1), Intensity(false), Accuracy(1)
+		RandomVector2::RandomVector2() noexcept : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
 		}
-		RandomVector2::RandomVector2(const Vector2& MinV, const Vector2& MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
+		RandomVector2::RandomVector2(const Vector2& MinV, const Vector2& MaxV, bool IntensityV, float AccuracyV) noexcept : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
 		}
 		Vector2 RandomVector2::Generate()
@@ -3251,10 +3251,10 @@ namespace Tomahawk
 				Mathf::Random(fMin.Y, fMax.Y)) * InvAccuracy;
 		}
 
-		RandomVector3::RandomVector3() : Min(0), Max(1), Intensity(false), Accuracy(1)
+		RandomVector3::RandomVector3() noexcept : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
 		}
-		RandomVector3::RandomVector3(const Vector3& MinV, const Vector3& MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
+		RandomVector3::RandomVector3(const Vector3& MinV, const Vector3& MaxV, bool IntensityV, float AccuracyV) noexcept : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
 		}
 		Vector3 RandomVector3::Generate()
@@ -3271,10 +3271,10 @@ namespace Tomahawk
 				Mathf::Random(fMin.Z, fMax.Z)) * InvAccuracy;
 		}
 
-		RandomVector4::RandomVector4() : Min(0), Max(1), Intensity(false), Accuracy(1)
+		RandomVector4::RandomVector4() noexcept : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
 		}
-		RandomVector4::RandomVector4(const Vector4& MinV, const Vector4& MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
+		RandomVector4::RandomVector4(const Vector4& MinV, const Vector4& MaxV, bool IntensityV, float AccuracyV) noexcept : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
 		}
 		Vector4 RandomVector4::Generate()
@@ -3292,10 +3292,10 @@ namespace Tomahawk
 				Mathf::Random(fMin.W, fMax.W)) * InvAccuracy;
 		}
 
-		RandomFloat::RandomFloat() : Min(0), Max(1), Intensity(false), Accuracy(1)
+		RandomFloat::RandomFloat() noexcept : Min(0), Max(1), Intensity(false), Accuracy(1)
 		{
 		}
-		RandomFloat::RandomFloat(float MinV, float MaxV, bool IntensityV, float AccuracyV) : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
+		RandomFloat::RandomFloat(float MinV, float MaxV, bool IntensityV, float AccuracyV) noexcept : Min(MinV), Max(MaxV), Intensity(IntensityV), Accuracy(AccuracyV)
 		{
 		}
 		float RandomFloat::Generate()
@@ -3303,7 +3303,7 @@ namespace Tomahawk
 			return (Mathf::Random(Min * Accuracy, Max * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
-		Hybi10Request::Hybi10Request()
+		Hybi10Request::Hybi10Request() noexcept
 		{
 			Type = -1;
 			ExitCode = 0;
@@ -3341,12 +3341,12 @@ namespace Tomahawk
 			return Hybi10_Opcode::Invalid;
 		}
 
-		RegexSource::RegexSource() :
+		RegexSource::RegexSource() noexcept :
 			MaxBranches(128), MaxBrackets(128), MaxMatches(128),
 			State(RegexState::No_Match), IgnoreCase(false)
 		{
 		}
-		RegexSource::RegexSource(const std::string& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) :
+		RegexSource::RegexSource(const std::string& Regexp, bool fIgnoreCase, int64_t fMaxMatches, int64_t fMaxBranches, int64_t fMaxBrackets) noexcept :
 			Expression(Regexp),
 			MaxBranches(fMaxBranches >= 1 ? fMaxBranches : 128),
 			MaxBrackets(fMaxBrackets >= 1 ? fMaxBrackets : 128),
@@ -3355,7 +3355,7 @@ namespace Tomahawk
 		{
 			Compile();
 		}
-		RegexSource::RegexSource(const RegexSource& Other) :
+		RegexSource::RegexSource(const RegexSource& Other) noexcept :
 			Expression(Other.Expression),
 			MaxBranches(Other.MaxBranches),
 			MaxBrackets(Other.MaxBrackets),
@@ -3375,7 +3375,7 @@ namespace Tomahawk
 			Branches.reserve(Other.Branches.capacity());
 			Compile();
 		}
-		RegexSource& RegexSource::operator=(const RegexSource& V)
+		RegexSource& RegexSource::operator=(const RegexSource& V) noexcept
 		{
 			TH_ASSERT(this != &V, *this, "cannot set to self");
 			Brackets.clear();
@@ -3527,16 +3527,16 @@ namespace Tomahawk
 			}
 		}
 
-		RegexResult::RegexResult() : State(RegexState::No_Match), Steps(0), Src(nullptr)
+		RegexResult::RegexResult() noexcept : State(RegexState::No_Match), Steps(0), Src(nullptr)
 		{
 		}
-		RegexResult::RegexResult(const RegexResult& Other) : Matches(Other.Matches), State(Other.State), Steps(Other.Steps), Src(Other.Src)
+		RegexResult::RegexResult(const RegexResult& Other) noexcept : Matches(Other.Matches), State(Other.State), Steps(Other.Steps), Src(Other.Src)
 		{
 		}
 		RegexResult::RegexResult(RegexResult&& Other) noexcept : Matches(std::move(Other.Matches)), State(Other.State), Steps(Other.Steps), Src(Other.Src)
 		{
 		}
-		RegexResult& RegexResult::operator =(const RegexResult& V)
+		RegexResult& RegexResult::operator =(const RegexResult& V) noexcept
 		{
 			Matches = V.Matches;
 			Src = V.Src;
@@ -4020,7 +4020,7 @@ namespace Tomahawk
 			return Ref;
 		}
 
-		CollisionBody::CollisionBody(btCollisionObject* Object)
+		CollisionBody::CollisionBody(btCollisionObject* Object) noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			btRigidBody* RigidObject = btRigidBody::upcast(Object);
@@ -4033,40 +4033,40 @@ namespace Tomahawk
 #endif
 		}
 
-		PrivateKey::PrivateKey()
+		PrivateKey::PrivateKey() noexcept
 		{
 		}
-		PrivateKey::PrivateKey(std::string&& Text, bool) : Plain(std::move(Text))
+		PrivateKey::PrivateKey(std::string&& Text, bool) noexcept : Plain(std::move(Text))
 		{
 		}
-		PrivateKey::PrivateKey(const std::string& Text, bool) : Plain(Text)
+		PrivateKey::PrivateKey(const std::string& Text, bool) noexcept : Plain(Text)
 		{
 		}
-		PrivateKey::PrivateKey(const std::string& Key)
+		PrivateKey::PrivateKey(const std::string& Key) noexcept
 		{
 			Secure(Key);
 		}
-		PrivateKey::PrivateKey(const char* Buffer)
+		PrivateKey::PrivateKey(const char* Buffer) noexcept
 		{
 			TH_ASSERT_V(Buffer != nullptr, "buffer should be set");
 			Secure(Buffer, strlen(Buffer));
 		}
-		PrivateKey::PrivateKey(const char* Buffer, size_t Size)
+		PrivateKey::PrivateKey(const char* Buffer, size_t Size) noexcept
 		{
 			Secure(Buffer, Size);
 		}
-		PrivateKey::PrivateKey(const PrivateKey& Other)
+		PrivateKey::PrivateKey(const PrivateKey& Other) noexcept
 		{
 			CopyDistribution(Other);
 		}
 		PrivateKey::PrivateKey(PrivateKey&& Other) noexcept : Blocks(std::move(Other.Blocks)), Plain(std::move(Other.Plain))
 		{
 		}
-		PrivateKey::~PrivateKey()
+		PrivateKey::~PrivateKey() noexcept
 		{
 			Clear();
 		}
-		PrivateKey& PrivateKey::operator =(const PrivateKey& V)
+		PrivateKey& PrivateKey::operator =(const PrivateKey& V) noexcept
 		{
 			CopyDistribution(V);
 			return *this;
@@ -4186,10 +4186,10 @@ namespace Tomahawk
 			return Key;
 		}
 
-		Adjacencies::Adjacencies() : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
+		Adjacencies::Adjacencies() noexcept : NbEdges(0), CurrentNbFaces(0), Edges(nullptr), NbFaces(0), Faces(nullptr)
 		{
 		}
-		Adjacencies::~Adjacencies()
+		Adjacencies::~Adjacencies() noexcept
 		{
 			TH_FREE(Faces);
 			TH_FREE(Edges);
@@ -4333,10 +4333,10 @@ namespace Tomahawk
 			return true;
 		}
 
-		TriangleStrip::TriangleStrip() : Adj(nullptr), Tags(nullptr), NbStrips(0), TotalLength(0), OneSided(false), SGICipher(false), ConnectAllStrips(false)
+		TriangleStrip::TriangleStrip() noexcept : Adj(nullptr), Tags(nullptr), NbStrips(0), TotalLength(0), OneSided(false), SGICipher(false), ConnectAllStrips(false)
 		{
 		}
-		TriangleStrip::~TriangleStrip()
+		TriangleStrip::~TriangleStrip() noexcept
 		{
 			FreeBuffers();
 		}
@@ -4667,13 +4667,13 @@ namespace Tomahawk
 			return Indices;
 		}
 
-		RadixSorter::RadixSorter() : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
+		RadixSorter::RadixSorter() noexcept : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
 			Histogram = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
 			Offset = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256);
 			ResetIndices();
 		}
-		RadixSorter::RadixSorter(const RadixSorter& Other) : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
+		RadixSorter::RadixSorter(const RadixSorter& Other) noexcept : CurrentSize(0), Indices(nullptr), Indices2(nullptr)
 		{
 			Histogram = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256 * 4);
 			Offset = TH_MALLOC(unsigned int, sizeof(unsigned int) * 256);
@@ -4972,7 +4972,7 @@ namespace Tomahawk
 			return Indices;
 		}
 
-		MD5Hasher::MD5Hasher()
+		MD5Hasher::MD5Hasher() noexcept
 		{
 			memset(Buffer, 0, sizeof(Buffer));
 			memset(Digest, 0, sizeof(Digest));
@@ -8783,10 +8783,10 @@ namespace Tomahawk
 		}
 		bool Geometric::LeftHanded = true;
 
-		WebToken::WebToken() : Header(nullptr), Payload(nullptr), Token(nullptr)
+		WebToken::WebToken() noexcept : Header(nullptr), Payload(nullptr), Token(nullptr)
 		{
 		}
-		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
+		WebToken::WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) noexcept : Header(Core::Var::Set::Object()), Payload(Core::Var::Set::Object()), Token(nullptr)
 		{
 			Header->Set("alg", Core::Var::String("HS256"));
 			Header->Set("typ", Core::Var::String("JWT"));
@@ -8794,7 +8794,7 @@ namespace Tomahawk
 			Payload->Set("sub", Core::Var::String(Subject));
 			Payload->Set("exp", Core::Var::Integer(Expiration));
 		}
-		WebToken::~WebToken()
+		WebToken::~WebToken() noexcept
 		{
 			TH_RELEASE(Header);
 			TH_RELEASE(Payload);
@@ -8918,7 +8918,7 @@ namespace Tomahawk
 			return time(nullptr) < Expires;
 		}
 
-		Preprocessor::Preprocessor() : Nested(false)
+		Preprocessor::Preprocessor() noexcept : Nested(false)
 		{
 		}
 		void Preprocessor::SetIncludeOptions(const IncludeDesc& NewDesc)
@@ -9033,13 +9033,6 @@ namespace Tomahawk
 				Result = Buffer.Find("#include", Result.End);
 				if (!Result.Found)
 					return true;
-
-				if (Result.Start > 0)
-				{
-					char P = Buffer.R()[Result.Start - 1];
-					if (P != '\n' && P != '\r' && P != '\t' && P != ' ')
-						continue;
-				}
 
 				size_t Start = Result.End;
 				while (Start + 1 < Buffer.Size() && Buffer.R()[Start] != '\"')
@@ -9324,7 +9317,7 @@ namespace Tomahawk
 				return -1;
 
 			Offset = Hash.End;
-			if (!Hash.Start || (Buffer.R()[Hash.Start - 1] != '\n' && Buffer.R()[Hash.Start - 1] != '\r'))
+			if (!Hash.Start)
 				return 0;
 
 			if (Hash.Start + 5 < Buffer.Size() && strncmp(Buffer.Get() + Hash.Start, "#ifdef", 5) == 0)
@@ -9471,10 +9464,10 @@ namespace Tomahawk
 			return Result;
 		}
 
-		FiniteState::FiniteState()
+		FiniteState::FiniteState() noexcept
 		{
 		}
-		FiniteState::~FiniteState()
+		FiniteState::~FiniteState() noexcept
 		{
 			for (auto& Action : Actions)
 				TH_DELETE(ActionCallback, Action.second);
@@ -9574,10 +9567,10 @@ namespace Tomahawk
 			return nullptr;
 		}
 
-		Transform::Transform(void* NewUserData) : Local(nullptr), Root(nullptr), Scaling(false), Dirty(true), UserData(NewUserData)
+		Transform::Transform(void* NewUserData) noexcept : Local(nullptr), Root(nullptr), Scaling(false), Dirty(true), UserData(NewUserData)
 		{
 		}
-		Transform::~Transform()
+		Transform::~Transform() noexcept
 		{
 			SetRoot(nullptr);
 			RemoveChilds();
@@ -9994,15 +9987,12 @@ namespace Tomahawk
 			return Childs;
 		}
 
-		Cosmos::Node::Node() : Item(nullptr)
-		{
-		}
 		bool Cosmos::Node::IsLeaf() const
 		{
 			return (Left == NULL_NODE);
 		}
 
-		Cosmos::Cosmos(size_t DefaultSize)
+		Cosmos::Cosmos(size_t DefaultSize) noexcept
 		{
 			Root = NULL_NODE;
 			NodeCount = 0;
@@ -10481,11 +10471,11 @@ namespace Tomahawk
 			return Items.empty();
 		}
 
-		HullShape::HullShape() : Shape(nullptr)
+		HullShape::HullShape() noexcept : Shape(nullptr)
 		{
 		}
 
-		RigidBody::RigidBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
+		RigidBody::RigidBody(Simulator* Refer, const Desc& I) noexcept : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 			TH_ASSERT_V(Initial.Shape, "collision shape should be set");
 			TH_ASSERT_V(Engine != nullptr, "simulator should be set");
@@ -10522,7 +10512,7 @@ namespace Tomahawk
 				Engine->GetWorld()->addRigidBody(Instance);
 #endif
 		}
-		RigidBody::~RigidBody()
+		RigidBody::~RigidBody() noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			if (!Instance)
@@ -11278,7 +11268,7 @@ namespace Tomahawk
 #endif
 		}
 
-		SoftBody::SoftBody(Simulator* Refer, const Desc& I) : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
+		SoftBody::SoftBody(Simulator* Refer, const Desc& I) noexcept : Instance(nullptr), Engine(Refer), Initial(I), UserPointer(nullptr)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(Engine != nullptr, "engine should be set");
@@ -11358,7 +11348,7 @@ namespace Tomahawk
 				World->addSoftBody(Instance);
 #endif
 		}
-		SoftBody::~SoftBody()
+		SoftBody::~SoftBody() noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			if (!Instance)
@@ -12230,7 +12220,7 @@ namespace Tomahawk
 #endif
 		}
 
-		Constraint::Constraint(Simulator* Refer) : First(nullptr), Second(nullptr), Engine(Refer), UserPointer(nullptr)
+		Constraint::Constraint(Simulator* Refer) noexcept : First(nullptr), Second(nullptr), Engine(Refer), UserPointer(nullptr)
 		{
 		}
 		void Constraint::SetBreakingImpulseThreshold(float Value)
@@ -12320,7 +12310,7 @@ namespace Tomahawk
 			return Engine;
 		}
 
-		PConstraint::PConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		PConstraint::PConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
@@ -12409,7 +12399,7 @@ namespace Tomahawk
 			return State;
 		}
 
-		HConstraint::HConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		HConstraint::HConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
@@ -12427,7 +12417,7 @@ namespace Tomahawk
 			Engine->AddConstraint(this);
 #endif
 		}
-		HConstraint::~HConstraint()
+		HConstraint::~HConstraint() noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			Engine->RemoveConstraint(this);
@@ -12693,7 +12683,7 @@ namespace Tomahawk
 			return State;
 		}
 
-		SConstraint::SConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		SConstraint::SConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
@@ -12711,7 +12701,7 @@ namespace Tomahawk
 			Engine->AddConstraint(this);
 #endif
 		}
-		SConstraint::~SConstraint()
+		SConstraint::~SConstraint() noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			Engine->RemoveConstraint(this);
@@ -13220,7 +13210,7 @@ namespace Tomahawk
 			return State;
 		}
 
-		CTConstraint::CTConstraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		CTConstraint::CTConstraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
@@ -13238,7 +13228,7 @@ namespace Tomahawk
 			Engine->AddConstraint(this);
 #endif
 		}
-		CTConstraint::~CTConstraint()
+		CTConstraint::~CTConstraint() noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			Engine->RemoveConstraint(this);
@@ -13541,7 +13531,7 @@ namespace Tomahawk
 			return State;
 		}
 
-		DF6Constraint::DF6Constraint(Simulator* Refer, const Desc& I) : Constraint(Refer), Instance(nullptr), State(I)
+		DF6Constraint::DF6Constraint(Simulator* Refer, const Desc& I) noexcept : Constraint(Refer), Instance(nullptr), State(I)
 		{
 #ifdef TH_WITH_BULLET3
 			TH_ASSERT_V(I.TargetA != nullptr, "target A rigidbody should be set");
@@ -13559,7 +13549,7 @@ namespace Tomahawk
 			Engine->AddConstraint(this);
 #endif
 		}
-		DF6Constraint::~DF6Constraint()
+		DF6Constraint::~DF6Constraint() noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			Engine->RemoveConstraint(this);
@@ -13864,7 +13854,7 @@ namespace Tomahawk
 			return State;
 		}
 
-		Simulator::Simulator(const Desc& I) : SoftSolver(nullptr), TimeSpeed(1), Interpolate(1), Active(true)
+		Simulator::Simulator(const Desc& I) noexcept : SoftSolver(nullptr), TimeSpeed(1), Interpolate(1), Active(true)
 		{
 #ifdef TH_WITH_BULLET3
 			Broadphase = TH_NEW(btDbvtBroadphase);
@@ -13940,7 +13930,7 @@ namespace Tomahawk
 			};
 #endif
 		}
-		Simulator::~Simulator()
+		Simulator::~Simulator() noexcept
 		{
 #ifdef TH_WITH_BULLET3
 			RemoveAll();

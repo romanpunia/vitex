@@ -797,7 +797,7 @@ namespace Tomahawk
 			bool Waiting;
 
 		public:
-			Alert(Activity* From);
+			Alert(Activity* From) noexcept;
 			void Setup(AlertType Type, const std::string& Title, const std::string& Text);
 			void Button(AlertConfirm Confirm, const std::string& Text, int Id);
 			void Result(const std::function<void(int)>& Callback);
@@ -812,10 +812,10 @@ namespace Tomahawk
 			KeyMod Mod;
 			bool Normal;
 
-			KeyMap();
-			KeyMap(const KeyCode& Value);
-			KeyMap(const KeyMod& Value);
-			KeyMap(const KeyCode& Value, const KeyMod& Control);
+			KeyMap() noexcept;
+			KeyMap(const KeyCode& Value) noexcept;
+			KeyMap(const KeyMod& Value) noexcept;
+			KeyMap(const KeyCode& Value, const KeyMod& Control) noexcept;
 		};
 
 		struct TH_OUT MappedSubresource
@@ -915,9 +915,9 @@ namespace Tomahawk
 			SDL_Surface* Handle;
 
 		public:
-			Surface();
-			Surface(SDL_Surface* From);
-			~Surface();
+			Surface() noexcept;
+			Surface(SDL_Surface* From) noexcept;
+			~Surface() noexcept;
 			void SetHandle(SDL_Surface* From);
 			void Lock();
 			void Unlock();
@@ -953,10 +953,10 @@ namespace Tomahawk
 			Desc State;
 
 		protected:
-			DepthStencilState(const Desc& I);
+			DepthStencilState(const Desc& I) noexcept;
 
 		public:
-			virtual ~DepthStencilState() override;
+			virtual ~DepthStencilState() noexcept override;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
@@ -982,10 +982,10 @@ namespace Tomahawk
 			Desc State;
 
 		protected:
-			RasterizerState(const Desc& I);
+			RasterizerState(const Desc& I) noexcept;
 
 		public:
-			virtual ~RasterizerState() override;
+			virtual ~RasterizerState() noexcept override;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
@@ -1004,10 +1004,10 @@ namespace Tomahawk
 			Desc State;
 
 		protected:
-			BlendState(const Desc& I);
+			BlendState(const Desc& I) noexcept;
 
 		public:
-			virtual ~BlendState() override;
+			virtual ~BlendState() noexcept override;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
@@ -1033,10 +1033,10 @@ namespace Tomahawk
 			Desc State;
 
 		protected:
-			SamplerState(const Desc& I);
+			SamplerState(const Desc& I) noexcept;
 
 		public:
-			virtual ~SamplerState() override;
+			virtual ~SamplerState() noexcept override;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
@@ -1066,10 +1066,10 @@ namespace Tomahawk
 			std::vector<Attribute> Layout;
 
 		protected:
-			InputLayout(const Desc& I);
+			InputLayout(const Desc& I) noexcept;
 
 		public:
-			virtual ~InputLayout() override;
+			virtual ~InputLayout() noexcept override;
 			virtual void* GetResource() const = 0;
 			const std::vector<Attribute>& GetAttributes() const;
 		};
@@ -1088,10 +1088,10 @@ namespace Tomahawk
 			};
 
 		protected:
-			Shader(const Desc& I);
+			Shader(const Desc& I) noexcept;
 
 		public:
-			virtual ~Shader() = default;
+			virtual ~Shader() noexcept = default;
 			virtual bool IsValid() const = 0;
 		};
 
@@ -1116,10 +1116,10 @@ namespace Tomahawk
 			size_t Stride;
 
 		protected:
-			ElementBuffer(const Desc& I);
+			ElementBuffer(const Desc& I) noexcept;
 
 		public:
-			virtual ~ElementBuffer() = default;
+			virtual ~ElementBuffer() noexcept = default;
 			virtual void* GetResource() const = 0;
 			size_t GetElements() const;
 			size_t GetStride() const;
@@ -1145,10 +1145,10 @@ namespace Tomahawk
 			std::string Name;
 
 		protected:
-			MeshBuffer(const Desc& I);
+			MeshBuffer(const Desc& I) noexcept;
 
 		public:
-			virtual ~MeshBuffer() override;
+			virtual ~MeshBuffer() noexcept override;
 			virtual Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) const = 0;
 			ElementBuffer* GetVertexBuffer() const;
 			ElementBuffer* GetIndexBuffer() const;
@@ -1174,10 +1174,10 @@ namespace Tomahawk
 			std::string Name;
 
 		protected:
-			SkinMeshBuffer(const Desc& I);
+			SkinMeshBuffer(const Desc& I) noexcept;
 
 		public:
-			virtual ~SkinMeshBuffer() override;
+			virtual ~SkinMeshBuffer() noexcept override;
 			virtual Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) const = 0;
 			ElementBuffer* GetVertexBuffer() const;
 			ElementBuffer* GetIndexBuffer() const;
@@ -1202,10 +1202,10 @@ namespace Tomahawk
 			bool Sync;
 
 		protected:
-			InstanceBuffer(const Desc& I);
+			InstanceBuffer(const Desc& I) noexcept;
 
 		public:
-			virtual ~InstanceBuffer();
+			virtual ~InstanceBuffer() noexcept;
 			std::vector<Compute::ElementVertex>& GetArray();
 			ElementBuffer* GetElements() const;
 			GraphicsDevice* GetDevice() const;
@@ -1239,8 +1239,8 @@ namespace Tomahawk
 			unsigned int MipLevels;
 
 		protected:
-			Texture2D();
-			Texture2D(const Desc& I);
+			Texture2D() noexcept;
+			Texture2D(const Desc& I) noexcept;
 
 		public:
 			virtual ~Texture2D() = default;
@@ -1317,8 +1317,8 @@ namespace Tomahawk
 			unsigned int MipLevels;
 
 		protected:
-			TextureCube();
-			TextureCube(const Desc& I);
+			TextureCube() noexcept;
+			TextureCube(const Desc& I) noexcept;
 
 		public:
 			virtual ~TextureCube() = default;
@@ -1348,10 +1348,10 @@ namespace Tomahawk
 			Viewport Viewarea;
 
 		protected:
-			DepthTarget2D(const Desc& I);
+			DepthTarget2D(const Desc& I) noexcept;
 
 		public:
-			virtual ~DepthTarget2D();
+			virtual ~DepthTarget2D() noexcept;
 			virtual void* GetResource() const = 0;
 			virtual uint32_t GetWidth() const = 0;
 			virtual uint32_t GetHeight() const = 0;
@@ -1375,10 +1375,10 @@ namespace Tomahawk
 			Viewport Viewarea;
 
 		protected:
-			DepthTargetCube(const Desc& I);
+			DepthTargetCube(const Desc& I) noexcept;
 
 		public:
-			virtual ~DepthTargetCube();
+			virtual ~DepthTargetCube() noexcept;
 			virtual void* GetResource() const = 0;
 			virtual uint32_t GetWidth() const = 0;
 			virtual uint32_t GetHeight() const = 0;
@@ -1393,10 +1393,10 @@ namespace Tomahawk
 			Viewport Viewarea;
 
 		protected:
-			RenderTarget();
+			RenderTarget() noexcept;
 
 		public:
-			virtual ~RenderTarget();
+			virtual ~RenderTarget() noexcept;
 			virtual void* GetTargetBuffer() const = 0;
 			virtual void* GetDepthBuffer() const = 0;
 			virtual uint32_t GetWidth() const = 0;
@@ -1429,10 +1429,10 @@ namespace Tomahawk
 			Texture2D* Resource;
 
 		protected:
-			RenderTarget2D(const Desc& I);
+			RenderTarget2D(const Desc& I) noexcept;
 
 		public:
-			virtual ~RenderTarget2D();
+			virtual ~RenderTarget2D() noexcept;
 			virtual void* GetTargetBuffer() const = 0;
 			virtual void* GetDepthBuffer() const = 0;
 			virtual uint32_t GetWidth() const = 0;
@@ -1465,10 +1465,10 @@ namespace Tomahawk
 			Texture2D* Resource[8];
 
 		protected:
-			MultiRenderTarget2D(const Desc& I);
+			MultiRenderTarget2D(const Desc& I) noexcept;
 
 		public:
-			virtual ~MultiRenderTarget2D();
+			virtual ~MultiRenderTarget2D() noexcept;
 			virtual void* GetTargetBuffer() const = 0;
 			virtual void* GetDepthBuffer() const = 0;
 			virtual uint32_t GetWidth() const = 0;
@@ -1498,10 +1498,10 @@ namespace Tomahawk
 			TextureCube* Resource;
 
 		protected:
-			RenderTargetCube(const Desc& I);
+			RenderTargetCube(const Desc& I) noexcept;
 
 		public:
-			virtual ~RenderTargetCube();
+			virtual ~RenderTargetCube() noexcept;
 			virtual void* GetTargetBuffer() const = 0;
 			virtual void* GetDepthBuffer() const = 0;
 			virtual uint32_t GetWidth() const = 0;
@@ -1533,10 +1533,10 @@ namespace Tomahawk
 			TextureCube* Resource[8];
 
 		protected:
-			MultiRenderTargetCube(const Desc& I);
+			MultiRenderTargetCube(const Desc& I) noexcept;
 
 		public:
-			virtual ~MultiRenderTargetCube();
+			virtual ~MultiRenderTargetCube() noexcept;
 			virtual void* GetTargetBuffer() const = 0;
 			virtual void* GetDepthBuffer() const = 0;
 			virtual uint32_t GetWidth() const = 0;
@@ -1563,10 +1563,10 @@ namespace Tomahawk
 			Desc Meta;
 
 		protected:
-			Cubemap(const Desc& I);
+			Cubemap(const Desc& I) noexcept;
 
 		public:
-			virtual ~Cubemap() = default;
+			virtual ~Cubemap() noexcept = default;
 			bool IsValid() const;
 		};
 
@@ -1580,10 +1580,10 @@ namespace Tomahawk
 			};
 
 		protected:
-			Query();
+			Query() noexcept;
 
 		public:
-			virtual ~Query() = default;
+			virtual ~Query() noexcept = default;
 			virtual void* GetResource() const = 0;
 		};
 
@@ -1659,10 +1659,10 @@ namespace Tomahawk
 			AnimationBuffer Animation;
 
 		protected:
-			GraphicsDevice(const Desc& I);
+			GraphicsDevice(const Desc& I) noexcept;
 
 		public:
-			virtual ~GraphicsDevice();
+			virtual ~GraphicsDevice() noexcept;
 			virtual void SetConstantBuffers() = 0;
 			virtual void SetShaderModel(ShaderModel Model) = 0;
 			virtual void SetBlendState(BlendState* State) = 0;
@@ -1909,8 +1909,8 @@ namespace Tomahawk
 			Alert Message;
 
 		public:
-			Activity(const Desc& I);
-			~Activity();
+			Activity(const Desc& I) noexcept;
+			virtual ~Activity() noexcept override;
 			void SetClipboardText(const std::string& Text);
 			void SetCursorPosition(const Compute::Vector2& Position);
 			void SetCursorPosition(float X, float Y);
@@ -1980,8 +1980,8 @@ namespace Tomahawk
 			Compute::Vector4 Min;
 
 		public:
-			Model();
-			virtual ~Model() override;
+			Model() noexcept;
+			virtual ~Model() noexcept override;
 			MeshBuffer* FindMesh(const std::string& Name);
 		};
 
@@ -1995,8 +1995,8 @@ namespace Tomahawk
 			Compute::Vector4 Min;
 
 		public:
-			SkinModel();
-			virtual ~SkinModel() override;
+			SkinModel() noexcept;
+			virtual ~SkinModel() noexcept override;
 			void ComputePose(PoseBuffer* Map);
 			SkinMeshBuffer* FindMesh(const std::string& Name);
 			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);

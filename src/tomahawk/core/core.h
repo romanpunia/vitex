@@ -343,9 +343,9 @@ namespace Tomahawk
 			TaskCallback Return;
 
 		private:
-			Coroutine(Costate* Base, const TaskCallback& Procedure);
-			Coroutine(Costate* Base, TaskCallback&& Procedure);
-			~Coroutine();
+			Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept;
+			Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept;
+			~Coroutine() noexcept;
 		};
 
 		struct TH_OUT Decimal
@@ -357,15 +357,15 @@ namespace Tomahawk
 			bool Invalid;
 
 		public:
-			Decimal();
-			Decimal(const char* Value);
-			Decimal(const std::string& Value);
-			Decimal(int32_t Value);
-			Decimal(uint32_t Value);
-			Decimal(int64_t Value);
-			Decimal(uint64_t Value);
-			Decimal(float Value);
-			Decimal(double Value);
+			Decimal() noexcept;
+			Decimal(const char* Value) noexcept;
+			Decimal(const std::string& Value) noexcept;
+			Decimal(int32_t Value) noexcept;
+			Decimal(uint32_t Value) noexcept;
+			Decimal(int64_t Value) noexcept;
+			Decimal(uint64_t Value) noexcept;
+			Decimal(float Value) noexcept;
+			Decimal(double Value) noexcept;
 			Decimal(const Decimal& Value) noexcept;
 			Decimal(Decimal&& Value) noexcept;
 			Decimal& Truncate(int Value);
@@ -473,7 +473,7 @@ namespace Tomahawk
 			Variant() noexcept;
 			Variant(const Variant& Other) noexcept;
 			Variant(Variant&& Other) noexcept;
-			~Variant();
+			~Variant() noexcept;
 			bool Deserialize(const std::string& Value, bool Strict = false);
 			std::string Serialize() const;
 			std::string GetBlob() const;
@@ -584,10 +584,10 @@ namespace Tomahawk
 			bool DateRebuild;
 
 		public:
-			DateTime();
-			DateTime(uint64_t Seconds);
-			DateTime(const DateTime& Value);
-			DateTime& operator= (const DateTime& Other);
+			DateTime() noexcept;
+			DateTime(uint64_t Seconds) noexcept;
+			DateTime(const DateTime& Value) noexcept;
+			DateTime& operator= (const DateTime& Other) noexcept;
 			void operator +=(const DateTime& Right);
 			void operator -=(const DateTime& Right);
 			bool operator >=(const DateTime& Right);
@@ -662,21 +662,22 @@ namespace Tomahawk
 			bool Safe;
 
 		public:
-			Parser();
-			Parser(int Value);
-			Parser(unsigned int Value);
-			Parser(int64_t Value);
-			Parser(uint64_t Value);
-			Parser(float Value);
-			Parser(double Value);
-			Parser(long double Value);
-			Parser(const std::string& Buffer);
-			Parser(std::string* Buffer);
-			Parser(const std::string* Buffer);
-			Parser(const char* Buffer);
-			Parser(const char* Buffer, size_t Length);
-			Parser(const Parser& Value);
-			~Parser();
+			Parser() noexcept;
+			Parser(int Value) noexcept;
+			Parser(unsigned int Value) noexcept;
+			Parser(int64_t Value) noexcept;
+			Parser(uint64_t Value) noexcept;
+			Parser(float Value) noexcept;
+			Parser(double Value) noexcept;
+			Parser(long double Value) noexcept;
+			Parser(const std::string& Buffer) noexcept;
+			Parser(std::string* Buffer) noexcept;
+			Parser(const std::string* Buffer) noexcept;
+			Parser(const char* Buffer) noexcept;
+			Parser(const char* Buffer, size_t Length) noexcept;
+			Parser(Parser&& Value) noexcept;
+			Parser(const Parser& Value) noexcept;
+			~Parser() noexcept;
 			Parser& EscapePrint();
 			Parser& Escape();
 			Parser& Unescape();
@@ -777,7 +778,8 @@ namespace Tomahawk
 			std::vector<std::string> SplitMax(char With, size_t MaxCount, size_t Start = 0U) const;
 			std::vector<std::string> SplitOf(const char* With, size_t Start = 0U) const;
 			std::vector<std::string> SplitNotOf(const char* With, size_t Start = 0U) const;
-			Parser& operator = (const Parser& New);
+			Parser& operator = (Parser&& New) noexcept;
+			Parser& operator = (const Parser& New) noexcept;
 
 		public:
 			static bool IsDigit(char Char);
@@ -795,7 +797,7 @@ namespace Tomahawk
 			std::atomic_flag Atom;
 
 		public:
-			Spin();
+			Spin() noexcept;
 			void Lock();
 			void Unlock();
 		};
@@ -812,14 +814,14 @@ namespace Tomahawk
 				Guard* Base;
 
 			public:
-				Loaded(Loaded&& Other);
-				Loaded& operator =(Loaded&& Other);
-				~Loaded();
+				Loaded(Loaded&& Other) noexcept;
+				Loaded& operator =(Loaded&& Other) noexcept;
+				~Loaded() noexcept;
 				void Close();
 				operator bool() const;
 
 			private:
-				Loaded(Guard* NewBase);
+				Loaded(Guard* NewBase) noexcept;
 			};
 
 			class TH_OUT Stored
@@ -831,14 +833,14 @@ namespace Tomahawk
 				Guard* Base;
 
 			public:
-				Stored(Stored&& Other);
-				Stored& operator =(Stored&& Other);
-				~Stored();
+				Stored(Stored&& Other) noexcept;
+				Stored& operator =(Stored&& Other) noexcept;
+				~Stored() noexcept;
 				void Close();
 				operator bool() const;
 
 			private:
-				Stored(Guard* NewBase);
+				Stored(Guard* NewBase) noexcept;
 			};
 
 		public:
@@ -852,10 +854,10 @@ namespace Tomahawk
 			uint32_t Writers;
 
 		public:
-			Guard();
+			Guard() noexcept;
 			Guard(const Guard& Other) = delete;
 			Guard(Guard&& Other) = delete;
-			~Guard() = default;
+			~Guard() noexcept = default;
 			Guard& operator =(const Guard& Other) = delete;
 			Guard& operator =(Guard&& Other) = delete;
 			Loaded TryLoad();
@@ -948,17 +950,17 @@ namespace Tomahawk
 			static void Watch(void* Ptr, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
 			static void Unwatch(void* Ptr);
 			static void Dump(void* Ptr = nullptr);
-			static void Free(Unique<void> Ptr);
-			static Unique<void> Malloc(size_t Size);
-			static Unique<void> Realloc(Unique<void> Ptr, size_t Size);
+			static void Free(Unique<void> Ptr) noexcept;
+			static Unique<void> Malloc(size_t Size) noexcept;
+			static Unique<void> Realloc(Unique<void> Ptr, size_t Size) noexcept;
 
 		public:
 #ifndef NDEBUG
-			static Unique<void> QueryMalloc(size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
-			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr);
+			static Unique<void> QueryMalloc(size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr) noexcept;
+			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size, int Line = 0, const char* Source = nullptr, const char* Function = nullptr, const char* TypeName = nullptr) noexcept;
 #else
-			static Unique<void> QueryMalloc(size_t Size);
-			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size);
+			static Unique<void> QueryMalloc(size_t Size) noexcept;
+			static Unique<void> QueryRealloc(Unique<void> Ptr, size_t Size) noexcept;
 #endif
 		};
 
@@ -1078,7 +1080,7 @@ namespace Tomahawk
                 {
                     std::unordered_map<std::string, std::string> Base;
                     
-                    ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue = "1")
+                    ArgsContext(int Argc, char** Argv, const std::string& WhenNoValue = "1") noexcept
                     {
                         Base = OS::Process::GetArgs(Argc, Argv, WhenNoValue);
                     }
@@ -1221,10 +1223,10 @@ namespace Tomahawk
 			{
 				bool IsCounting;
 
-				Tick();
+				Tick() noexcept;
 				Tick(const Tick& Other) = delete;
 				Tick(Tick&& Other) noexcept;
-				~Tick();
+				~Tick() noexcept;
 				Tick& operator =(const Tick& Other) = delete;
 				Tick& operator =(Tick&& Other) noexcept;
 			};
@@ -1341,10 +1343,10 @@ namespace Tomahawk
 			double Time;
 
 		private:
-			Console();
+			Console() noexcept;
 
 		public:
-			virtual ~Console() override;
+			virtual ~Console() noexcept override;
 			void Begin();
 			void End();
 			void Hide();
@@ -1420,8 +1422,8 @@ namespace Tomahawk
 			float MaxFrames = 0.0f;
 
 		public:
-			Timer();
-			virtual ~Timer() = default;
+			Timer() noexcept;
+			virtual ~Timer() noexcept = default;
 			void SetFixedFrames(float Value);
 			void SetMaxFrames(float Value);
 			void Begin();
@@ -1451,8 +1453,8 @@ namespace Tomahawk
 			std::string Path;
 
 		public:
-			Stream();
-			virtual ~Stream() = default;
+			Stream() noexcept;
+			virtual ~Stream() noexcept = default;
 			virtual void Clear() = 0;
 			virtual bool Open(const char* File, FileMode Mode) = 0;
 			virtual bool Close() = 0;
@@ -1476,8 +1478,8 @@ namespace Tomahawk
 			FILE* Resource;
 
 		public:
-			FileStream();
-			virtual ~FileStream() override;
+			FileStream() noexcept;
+			virtual ~FileStream() noexcept override;
 			virtual void Clear() override;
 			virtual bool Open(const char* File, FileMode Mode) override;
 			virtual bool Close() override;
@@ -1499,8 +1501,8 @@ namespace Tomahawk
 			void* Resource;
 
 		public:
-			GzStream();
-			virtual ~GzStream() override;
+			GzStream() noexcept;
+			virtual ~GzStream() noexcept override;
 			virtual void Clear() override;
 			virtual bool Open(const char* File, FileMode Mode) override;
 			virtual bool Close() override;
@@ -1527,9 +1529,9 @@ namespace Tomahawk
 			bool Async;
 
 		public:
-			WebStream(bool IsAsync);
-			WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders);
-			virtual ~WebStream() override;
+			WebStream(bool IsAsync) noexcept;
+			WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders) noexcept;
+			virtual ~WebStream() noexcept override;
 			virtual void Clear() override;
 			virtual bool Open(const char* File, FileMode Mode) override;
 			virtual bool Close() override;
@@ -1557,8 +1559,8 @@ namespace Tomahawk
 			std::string Path, Name;
 
 		public:
-			FileLog(const std::string& Root);
-			virtual ~FileLog() override;
+			FileLog(const std::string& Root) noexcept;
+			virtual ~FileLog() noexcept override;
 			void Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback);
 		};
 
@@ -1570,8 +1572,8 @@ namespace Tomahawk
 			std::string Path;
 
 		public:
-			FileTree(const std::string& Path);
-			virtual ~FileTree() override;
+			FileTree(const std::string& Path) noexcept;
+			virtual ~FileTree() noexcept override;
 			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
 			const FileTree* Find(const std::string& Path) const;
 			size_t GetFiles() const;
@@ -1592,8 +1594,8 @@ namespace Tomahawk
 			std::function<void()> NotifyUnlock;
 
 		public:
-			Costate(size_t StackSize = TH_STACK_SIZE);
-			virtual ~Costate() override;
+			Costate(size_t StackSize = TH_STACK_SIZE) noexcept;
+			virtual ~Costate() noexcept override;
 			Costate(const Costate&) = delete;
 			Costate(Costate&&) = delete;
 			Costate& operator= (const Costate&) = delete;
@@ -1643,7 +1645,7 @@ namespace Tomahawk
 		public:
 			Schema(const Variant& Base) noexcept;
 			Schema(Variant&& Base) noexcept;
-			virtual ~Schema() override;
+			virtual ~Schema() noexcept override;
 			std::unordered_map<std::string, size_t> GetNames() const;
 			std::vector<Schema*> FindCollection(const std::string& Name, bool Deep = false) const;
 			std::vector<Schema*> FetchCollection(const std::string& Notation, bool Deep = false) const;
@@ -1786,10 +1788,10 @@ namespace Tomahawk
 			bool Active;
 
 		private:
-			Schedule();
+			Schedule() noexcept;
 
 		public:
-			virtual ~Schedule() override;
+			virtual ~Schedule() noexcept override;
 			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
@@ -1847,10 +1849,10 @@ namespace Tomahawk
 			T* Data;
 
 		public:
-			Pool() : Count(0), Volume(0), Data(nullptr)
+			Pool() noexcept : Count(0), Volume(0), Data(nullptr)
 			{
 			}
-			Pool(const Pool<T>& Ref) : Count(0), Volume(0), Data(nullptr)
+			Pool(const Pool<T>& Ref) noexcept : Count(0), Volume(0), Data(nullptr)
 			{
 				if (Ref.Data != nullptr)
 					Copy(Ref);
@@ -1861,7 +1863,7 @@ namespace Tomahawk
 				Ref.Volume = 0;
 				Ref.Data = nullptr;
 			}
-			~Pool()
+			~Pool() noexcept
 			{
 				Release();
 			}
@@ -2019,7 +2021,7 @@ namespace Tomahawk
 			{
 				return *(Data + Index);
 			}
-			Pool<T>& operator =(const Pool<T>& Ref)
+			Pool<T>& operator =(const Pool<T>& Ref) noexcept
 			{
 				if (this == &Ref)
 					return *this;
@@ -2087,11 +2089,11 @@ namespace Tomahawk
 				Guarded* Base;
 
 			public:
-				Loaded(Loaded&& Other) : Base(Other.Base)
+				Loaded(Loaded&& Other) noexcept : Base(Other.Base)
 				{
 					Other.Base = nullptr;
 				}
-				Loaded& operator =(Loaded&& Other)
+				Loaded& operator =(Loaded&& Other) noexcept
 				{
 					if (&Other == this)
 						return *this;
@@ -2100,7 +2102,7 @@ namespace Tomahawk
 					Other.Base = nullptr;
 					return *this;
 				}
-				~Loaded()
+				~Loaded() noexcept
 				{
 					Close();
 				}
@@ -2128,7 +2130,7 @@ namespace Tomahawk
 				}
 
 			private:
-				Loaded(Guarded* NewBase) : Base(NewBase)
+				Loaded(Guarded* NewBase) noexcept : Base(NewBase)
 				{
 				}
 			};
@@ -2142,11 +2144,11 @@ namespace Tomahawk
 				Guarded* Base;
 
 			public:
-				Stored(Stored&& Other) : Base(Other.Base)
+				Stored(Stored&& Other) noexcept : Base(Other.Base)
 				{
 					Other.Base = nullptr;
 				}
-				Stored& operator =(Stored&& Other)
+				Stored& operator =(Stored&& Other) noexcept
 				{
 					if (&Other == this)
 						return *this;
@@ -2155,7 +2157,7 @@ namespace Tomahawk
 					Other.Base = nullptr;
 					return *this;
 				}
-				~Stored()
+				~Stored() noexcept
 				{
 					Close();
 				}
@@ -2183,7 +2185,7 @@ namespace Tomahawk
 				}
 
 			private:
-				Stored(Guarded* NewBase) : Base(NewBase)
+				Stored(Guarded* NewBase) noexcept : Base(NewBase)
 				{
 				}
 			};
@@ -2197,12 +2199,12 @@ namespace Tomahawk
 			T Value;
 
 		public:
-			Guarded(const T& NewValue) : Value(NewValue)
+			Guarded(const T& NewValue) noexcept : Value(NewValue)
 			{
 			}
 			Guarded(const Guarded& Other) = delete;
 			Guarded(Guarded&& Other) = delete;
-			~Guarded() = default;
+			~Guarded() noexcept = default;
 			Guarded& operator =(const Guarded& Other) = delete;
 			Guarded& operator =(Guarded&& Other) = delete;
 			Loaded TryLoad()
@@ -2303,11 +2305,11 @@ namespace Tomahawk
 			{
 				Other.Data = nullptr;
 			}
-			~Promise()
+			~Promise() noexcept
 			{
 				Release(Data);
 			}
-			Promise& operator= (const T& Other)
+			Promise& operator= (const T& Other) noexcept
 			{
 				Set(Other);
 				return *this;
@@ -2317,7 +2319,7 @@ namespace Tomahawk
 				Set(std::move(Other));
 				return *this;
 			}
-			Promise& operator= (const Promise& Other)
+			Promise& operator= (const Promise& Other) noexcept
 			{
 				if (&Other != this)
 					Set(Other);
@@ -2516,11 +2518,11 @@ namespace Tomahawk
 			{
 				Other.Data = nullptr;
 			}
-			~Promise()
+			~Promise() noexcept
 			{
 				Release(Data);
 			}
-			Promise& operator= (const Promise& Other)
+			Promise& operator= (const Promise& Other) noexcept
 			{
 				if (&Other != this)
 					Set(Other);
@@ -2799,7 +2801,7 @@ namespace Tomahawk
 
 			return State->Suspend();
 		}
-		TH_OUT_TS inline Parser Form(const char* Format, ...)
+		TH_OUT_TS inline Parser Form(const char* Format, ...) noexcept
 		{
 			TH_ASSERT(Format != nullptr, Parser(), "format should be set");
 
@@ -2813,7 +2815,7 @@ namespace Tomahawk
 			return Parser(Buffer, Size > TH_BIG_CHUNK_SIZE ? TH_BIG_CHUNK_SIZE : (size_t)Size);
 		}
 		template <size_t Size>
-		TH_OUT_TS constexpr uint64_t Shuffle(const char Source[Size])
+		TH_OUT_TS constexpr uint64_t Shuffle(const char Source[Size]) noexcept
 		{
 			uint64_t Result = 0xcbf29ce484222325;
 			for (size_t i = 0; i < Size; i++)

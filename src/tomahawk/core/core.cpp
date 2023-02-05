@@ -380,21 +380,21 @@ namespace Tomahawk
 			}
 		};
 #endif
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) : State(Coactive::Active), Callback(Procedure), Slave(TH_NEW(Cocontext)), Master(Base), Dead(0)
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Callback(Procedure), Slave(TH_NEW(Cocontext)), Master(Base), Dead(0)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) : State(Coactive::Active), Callback(std::move(Procedure)), Slave(TH_NEW(Cocontext)), Master(Base), Dead(0)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coactive::Active), Callback(std::move(Procedure)), Slave(TH_NEW(Cocontext)), Master(Base), Dead(0)
 		{
 		}
-		Coroutine::~Coroutine()
+		Coroutine::~Coroutine() noexcept
 		{
 			TH_DELETE(Cocontext, Slave);
 		}
 
-		Decimal::Decimal() : Length(0), Sign('\0'), Invalid(true)
+		Decimal::Decimal() noexcept : Length(0), Sign('\0'), Invalid(true)
 		{
 		}
-		Decimal::Decimal(const char* Value) : Length(0), Sign('\0'), Invalid(false)
+		Decimal::Decimal(const char* Value) noexcept : Length(0), Sign('\0'), Invalid(false)
 		{
 			int Count = 0;
 			if (Value[Count] == '+')
@@ -453,25 +453,25 @@ namespace Tomahawk
 
 			Unlead();
 		}
-		Decimal::Decimal(const std::string& Value) : Decimal(Value.c_str())
+		Decimal::Decimal(const std::string& Value) noexcept : Decimal(Value.c_str())
 		{
 		}
-		Decimal::Decimal(int32_t Value) : Decimal(std::to_string(Value))
+		Decimal::Decimal(int32_t Value) noexcept : Decimal(std::to_string(Value))
 		{
 		}
-		Decimal::Decimal(uint32_t Value) : Decimal(std::to_string(Value))
+		Decimal::Decimal(uint32_t Value) noexcept : Decimal(std::to_string(Value))
 		{
 		}
-		Decimal::Decimal(int64_t Value) : Decimal(std::to_string(Value))
+		Decimal::Decimal(int64_t Value) noexcept : Decimal(std::to_string(Value))
 		{
 		}
-		Decimal::Decimal(uint64_t Value) : Decimal(std::to_string(Value))
+		Decimal::Decimal(uint64_t Value) noexcept : Decimal(std::to_string(Value))
 		{
 		}
-		Decimal::Decimal(float Value) : Decimal(std::to_string(Value))
+		Decimal::Decimal(float Value) noexcept : Decimal(std::to_string(Value))
 		{
 		}
-		Decimal::Decimal(double Value) : Decimal(std::to_string(Value))
+		Decimal::Decimal(double Value) noexcept : Decimal(std::to_string(Value))
 		{
 		}
 		Decimal::Decimal(const Decimal& Value) noexcept : Source(Value.Source), Length(Value.Length), Sign(Value.Sign), Invalid(Value.Invalid)
@@ -2233,7 +2233,7 @@ namespace Tomahawk
 			return *this;
 		}
 
-		DateTime::DateTime() : Time(std::chrono::system_clock::now().time_since_epoch()), DateRebuild(false)
+		DateTime::DateTime() noexcept : Time(std::chrono::system_clock::now().time_since_epoch()), DateRebuild(false)
 		{
 #ifdef TH_MICROSOFT
 			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
@@ -2244,7 +2244,7 @@ namespace Tomahawk
 			LocalTime(&Now, &DateValue);
 			DateRebuild = true;
 		}
-		DateTime::DateTime(uint64_t Seconds) : Time(std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Seconds))), DateRebuild(false)
+		DateTime::DateTime(uint64_t Seconds) noexcept : Time(std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(Seconds))), DateRebuild(false)
 		{
 #ifdef TH_MICROSOFT
 			RtlSecureZeroMemory(&DateValue, sizeof(DateValue));
@@ -2255,7 +2255,7 @@ namespace Tomahawk
 			LocalTime(&Now, &DateValue);
 			DateRebuild = true;
 		}
-		DateTime::DateTime(const DateTime& Value) : Time(Value.Time), DateRebuild(Value.DateRebuild)
+		DateTime::DateTime(const DateTime& Value) noexcept : Time(Value.Time), DateRebuild(Value.DateRebuild)
 		{
 			memcpy(&DateValue, &Value.DateValue, sizeof(DateValue));
 		}
@@ -2267,7 +2267,7 @@ namespace Tomahawk
 			Time = std::chrono::duration_cast<std::chrono::system_clock::duration>(std::chrono::seconds(mktime(&DateValue)));
 			DateRebuild = false;
 		}
-		DateTime& DateTime::operator= (const DateTime& Other)
+		DateTime& DateTime::operator= (const DateTime& Other) noexcept
 		{
 			Time = Other.Time;
 			DateRebuild = false;
@@ -2887,74 +2887,79 @@ namespace Tomahawk
 			return 0;
 		}
 
-		Parser::Parser() : Safe(true)
+		Parser::Parser() noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string);
 		}
-		Parser::Parser(int Value) : Safe(true)
+		Parser::Parser(int Value) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(unsigned int Value) : Safe(true)
+		Parser::Parser(unsigned int Value) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(int64_t Value) : Safe(true)
+		Parser::Parser(int64_t Value) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(uint64_t Value) : Safe(true)
+		Parser::Parser(uint64_t Value) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(float Value) : Safe(true)
+		Parser::Parser(float Value) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(double Value) : Safe(true)
+		Parser::Parser(double Value) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(long double Value) : Safe(true)
+		Parser::Parser(long double Value) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(const std::string& Buffer) : Safe(true)
+		Parser::Parser(const std::string& Buffer) noexcept : Safe(true)
 		{
 			L = TH_NEW(std::string, Buffer);
 		}
-		Parser::Parser(std::string* Buffer)
+		Parser::Parser(std::string* Buffer) noexcept
 		{
 			Safe = (!Buffer);
 			L = (Safe ? TH_NEW(std::string) : Buffer);
 		}
-		Parser::Parser(const std::string* Buffer)
+		Parser::Parser(const std::string* Buffer) noexcept
 		{
 			Safe = (!Buffer);
 			L = (Safe ? TH_NEW(std::string) : (std::string*)Buffer);
 		}
-		Parser::Parser(const char* Buffer) : Safe(true)
+		Parser::Parser(const char* Buffer) noexcept : Safe(true)
 		{
 			if (Buffer != nullptr)
 				L = TH_NEW(std::string, Buffer);
 			else
 				L = TH_NEW(std::string);
 		}
-		Parser::Parser(const char* Buffer, size_t Length) : Safe(true)
+		Parser::Parser(const char* Buffer, size_t Length) noexcept : Safe(true)
 		{
 			if (Buffer != nullptr)
 				L = TH_NEW(std::string, Buffer, Length);
 			else
 				L = TH_NEW(std::string);
 		}
-		Parser::Parser(const Parser& Value) : Safe(true)
+		Parser::Parser(Parser&& Value) noexcept : L(Value.L), Safe(Value.Safe)
+		{
+			Value.L = nullptr;
+			Value.Safe = false;
+		}
+		Parser::Parser(const Parser& Value) noexcept : Safe(true)
 		{
 			if (Value.L != nullptr)
 				L = TH_NEW(std::string, *Value.L);
 			else
 				L = TH_NEW(std::string);
 		}
-		Parser::~Parser()
+		Parser::~Parser() noexcept
 		{
 			if (Safe)
 				TH_DELETE(basic_string, L);
@@ -4330,7 +4335,20 @@ namespace Tomahawk
 
 			return Output;
 		}
-		Parser& Parser::operator= (const Parser& Value)
+		Parser& Parser::operator= (Parser&& Value) noexcept
+		{
+			TH_ASSERT(&Value != this, *this, "cannot set to self");
+			if (Safe)
+				TH_DELETE(basic_string, L);
+
+			L = Value.L;
+			Safe = Value.Safe;
+			Value.L = nullptr;
+			Value.Safe = false;
+
+			return *this;
+		}
+		Parser& Parser::operator= (const Parser& Value) noexcept
 		{
 			TH_ASSERT(&Value != this, *this, "cannot set to self");
 			if (Safe)
@@ -4363,7 +4381,7 @@ namespace Tomahawk
 			return Result;
 		}
 
-		Spin::Spin()
+		Spin::Spin() noexcept
 		{
 		}
 		void Spin::Lock()
@@ -4376,14 +4394,14 @@ namespace Tomahawk
 			Atom.clear(std::memory_order_release);
 		}
 
-		Guard::Loaded::Loaded(Guard* NewBase) : Base(NewBase)
+		Guard::Loaded::Loaded(Guard* NewBase) noexcept : Base(NewBase)
 		{
 		}
-		Guard::Loaded::Loaded(Loaded&& Other) : Base(Other.Base)
+		Guard::Loaded::Loaded(Loaded&& Other) noexcept : Base(Other.Base)
 		{
 			Other.Base = nullptr;
 		}
-		Guard::Loaded& Guard::Loaded::operator =(Loaded&& Other)
+		Guard::Loaded& Guard::Loaded::operator =(Loaded&& Other) noexcept
 		{
 			if (&Other == this)
 				return *this;
@@ -4409,14 +4427,14 @@ namespace Tomahawk
 			return Base != nullptr;
 		}
 
-		Guard::Stored::Stored(Guard* NewBase) : Base(NewBase)
+		Guard::Stored::Stored(Guard* NewBase) noexcept : Base(NewBase)
 		{
 		}
-		Guard::Stored::Stored(Stored&& Other) : Base(Other.Base)
+		Guard::Stored::Stored(Stored&& Other) noexcept : Base(Other.Base)
 		{
 			Other.Base = nullptr;
 		}
-		Guard::Stored& Guard::Stored::operator =(Stored&& Other)
+		Guard::Stored& Guard::Stored::operator =(Stored&& Other) noexcept
 		{
 			if (&Other == this)
 				return *this;
@@ -4425,7 +4443,7 @@ namespace Tomahawk
 			Other.Base = nullptr;
 			return *this;
 		}
-		Guard::Stored::~Stored()
+		Guard::Stored::~Stored() noexcept
 		{
 			Close();
 		}
@@ -4442,7 +4460,7 @@ namespace Tomahawk
 			return Base != nullptr;
 		}
 
-		Guard::Guard() : Readers(0), Writers(0)
+		Guard::Guard() noexcept : Readers(0), Writers(0)
 		{
 		}
 		Guard::Loaded Guard::TryLoad()
@@ -4797,7 +4815,7 @@ namespace Tomahawk
 #endif
 #endif
 		}
-		void Mem::Free(void* Ptr)
+		void Mem::Free(void* Ptr) noexcept
 		{
 			if (!Ptr)
 				return;
@@ -4813,16 +4831,16 @@ namespace Tomahawk
 			else
 				free(Ptr);
 		}
-		void* Mem::Malloc(size_t Size)
+		void* Mem::Malloc(size_t Size) noexcept
 		{
 			return QueryMalloc(Size);
 		}
-		void* Mem::Realloc(void* Ptr, size_t Size)
+		void* Mem::Realloc(void* Ptr, size_t Size) noexcept
 		{
 			return QueryRealloc(Ptr, Size);
 		}
 #ifndef NDEBUG
-		void* Mem::QueryMalloc(size_t Size, int Line, const char* Source, const char* Function, const char* TypeName)
+		void* Mem::QueryMalloc(size_t Size, int Line, const char* Source, const char* Function, const char* TypeName) noexcept
 		{
 			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
 			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
@@ -4833,7 +4851,7 @@ namespace Tomahawk
 
 			return Result;
 		}
-		void* Mem::QueryRealloc(void* Ptr, size_t Size, int Line, const char* Source, const char* Function, const char* TypeName)
+		void* Mem::QueryRealloc(void* Ptr, size_t Size, int Line, const char* Source, const char* Function, const char* TypeName) noexcept
 		{
 			if (!Ptr)
 				return Malloc(Size);
@@ -4856,13 +4874,13 @@ namespace Tomahawk
 		std::unordered_map<void*, Mem::MemBuffer> Mem::Buffers;
 		std::recursive_mutex Mem::Queue;
 #else
-		void* Mem::QueryMalloc(size_t Size)
+		void* Mem::QueryMalloc(size_t Size) noexcept
 		{
 			void* Result = (OnAlloc ? OnAlloc(Size) : malloc(Size));
 			TH_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
 			return Result;
 		}
-		void* Mem::QueryRealloc(void* Ptr, size_t Size)
+		void* Mem::QueryRealloc(void* Ptr, size_t Size) noexcept
 		{
 			if (!Ptr)
 				return Malloc(Size);
@@ -4979,13 +4997,13 @@ namespace Tomahawk
 				delete this;
 		}
 
-		Console::Console() : Coloring(true), Handle(false), Time(0)
+		Console::Console() noexcept : Coloring(true), Handle(false), Time(0)
 #ifdef TH_MICROSOFT
 			, Conin(nullptr), Conout(nullptr), Conerr(nullptr), Attributes(0)
 #endif
 		{
 		}
-		Console::~Console()
+		Console::~Console() noexcept
 		{
 			if (Singleton == this)
 				Singleton = nullptr;
@@ -5289,7 +5307,7 @@ namespace Tomahawk
 
 		static float UnitsToSeconds = 1000000.0f;
 		static float UnitsToMills = 1000.0f;
-		Timer::Timer()
+		Timer::Timer() noexcept
 		{
 			Timing.Begin = Clock();
 			Timing.When = Timing.Begin;
@@ -5405,7 +5423,7 @@ namespace Tomahawk
 			return std::chrono::duration_cast<Units>(std::chrono::system_clock::now().time_since_epoch());
 		}
 
-		Stream::Stream()
+		Stream::Stream() noexcept
 		{
 		}
 		std::string& Stream::GetSource()
@@ -5422,10 +5440,10 @@ namespace Tomahawk
 			return Size;
 		}
 
-		FileStream::FileStream() : Resource(nullptr)
+		FileStream::FileStream() noexcept : Resource(nullptr)
 		{
 		}
-		FileStream::~FileStream()
+		FileStream::~FileStream() noexcept
 		{
 			Close();
 		}
@@ -5579,10 +5597,10 @@ namespace Tomahawk
 			return (void*)Resource;
 		}
 
-		GzStream::GzStream() : Resource(nullptr)
+		GzStream::GzStream() noexcept : Resource(nullptr)
 		{
 		}
-		GzStream::~GzStream()
+		GzStream::~GzStream() noexcept
 		{
 			Close();
 		}
@@ -5745,14 +5763,14 @@ namespace Tomahawk
 			return (void*)Resource;
 		}
 
-		WebStream::WebStream(bool IsAsync) : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
+		WebStream::WebStream(bool IsAsync) noexcept : Resource(nullptr), Offset(0), Size(0), Async(IsAsync)
 		{
 		}
-		WebStream::WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders) : WebStream(IsAsync)
+		WebStream::WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders) noexcept : WebStream(IsAsync)
 		{
 			Headers = std::move(NewHeaders);
 		}
-		WebStream::~WebStream()
+		WebStream::~WebStream() noexcept
 		{
 			Close();
 		}
@@ -5935,7 +5953,7 @@ namespace Tomahawk
 			return (void*)Resource;
 		}
 
-		FileTree::FileTree(const std::string& Folder)
+		FileTree::FileTree(const std::string& Folder) noexcept
 		{
 			Path = OS::Path::Resolve(Folder.c_str());
 			if (!Path.empty())
@@ -5957,7 +5975,7 @@ namespace Tomahawk
 					Directories.push_back(new FileTree(Drive));
 			}
 		}
-		FileTree::~FileTree()
+		FileTree::~FileTree() noexcept
 		{
 			for (auto& Directory : Directories)
 				TH_RELEASE(Directory);
@@ -7461,14 +7479,14 @@ namespace Tomahawk
 		static thread_local std::stack<Measurement> MeasuringTree;
 		static thread_local bool MeasuringDisabled = false;
 #endif
-		OS::Tick::Tick() : IsCounting(true)
+		OS::Tick::Tick() noexcept : IsCounting(true)
 		{
 		}
 		OS::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
 		{
 			Other.IsCounting = false;
 		}
-		OS::Tick::~Tick()
+		OS::Tick::~Tick() noexcept
 		{
 #ifndef NDEBUG
 			if (MeasuringDisabled || !IsCounting)
@@ -7983,14 +8001,14 @@ namespace Tomahawk
 		bool OS::Deferred = false;
         bool OS::Pretty = true;
 
-		FileLog::FileLog(const std::string& Root) : Offset(-1), Time(0), Path(Root)
+		FileLog::FileLog(const std::string& Root) noexcept : Offset(-1), Time(0), Path(Root)
 		{
 			Source = new FileStream();
 			auto V = Parser(&Path).Replace("/", "\\").Split('\\');
 			if (!V.empty())
 				Name = V.back();
 		}
-		FileLog::~FileLog()
+		FileLog::~FileLog() noexcept
 		{
 			TH_RELEASE(Source);
 		}
@@ -8060,7 +8078,7 @@ namespace Tomahawk
 		}
 
 		static thread_local Costate* Cothread = nullptr;
-		Costate::Costate(size_t StackSize) : Thread(std::this_thread::get_id()), Current(nullptr), Master(TH_NEW(Cocontext)), Size(StackSize)
+		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(TH_NEW(Cocontext)), Size(StackSize)
 		{
 #ifndef TH_WITH_FCTX
 #ifdef TH_MICROSOFT
@@ -8068,7 +8086,7 @@ namespace Tomahawk
 #endif
 #endif
 		}
-		Costate::~Costate()
+		Costate::~Costate() noexcept
 		{
 			if (Cothread == this)
 				Cothread = nullptr;
@@ -8427,12 +8445,12 @@ namespace Tomahawk
 			Coroutines = std::min<size_t>(Cores * 8, 256);
 		}
 
-		Schedule::Schedule() : Generation(0), Debug(nullptr), Terminate(false), Active(false), Enqueue(true)
+		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Terminate(false), Active(false), Enqueue(true)
 		{
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				Queues[i] = TH_NEW(ConcurrentQueuePtr);
 		}
-		Schedule::~Schedule()
+		Schedule::~Schedule() noexcept
 		{
 			Stop();
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)

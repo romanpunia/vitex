@@ -351,13 +351,13 @@ namespace Tomahawk
 		std::mutex* AudioContext::Mutex = nullptr;
 		int AudioContext::State = 0;
 
-		AudioFilter::AudioFilter()
+		AudioFilter::AudioFilter() noexcept
 		{
 #if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			Filter = AL_FILTER_NULL;
 #endif
 		}
-		AudioFilter::~AudioFilter()
+		AudioFilter::~AudioFilter() noexcept
 		{
 #if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			AudioContext::Lock();
@@ -387,14 +387,14 @@ namespace Tomahawk
 			return Source;
 		}
 
-		AudioEffect::AudioEffect()
+		AudioEffect::AudioEffect() noexcept
 		{
 #if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
 			Effect = AL_EFFECT_NULL;
 			Slot = AL_EFFECTSLOT_NULL;
 #endif
 		}
-		AudioEffect::~AudioEffect()
+		AudioEffect::~AudioEffect() noexcept
 		{
 			Unbind();
 #if defined(TH_HAS_OPENAL) && defined(HAS_EFX)
@@ -476,12 +476,12 @@ namespace Tomahawk
 			return Source;
 		}
 
-		AudioClip::AudioClip(int BufferCount, int NewFormat) : Format(NewFormat)
+		AudioClip::AudioClip(int BufferCount, int NewFormat) noexcept : Format(NewFormat)
 		{
 			if (BufferCount > 0)
 				AudioContext::GenerateBuffers(BufferCount, &Buffer);
 		}
-		AudioClip::~AudioClip()
+		AudioClip::~AudioClip() noexcept
 		{
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
@@ -526,7 +526,7 @@ namespace Tomahawk
 			return Format;
 		}
 
-		AudioSource::AudioSource()
+		AudioSource::AudioSource() noexcept
 		{
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
@@ -553,7 +553,7 @@ namespace Tomahawk
 			AudioContext::Unlock();
 #endif
 		}
-		AudioSource::~AudioSource()
+		AudioSource::~AudioSource() noexcept
 		{
 			for (auto* Effect : Effects)
 				TH_RELEASE(Effect);
@@ -742,7 +742,7 @@ namespace Tomahawk
 			return &Effects;
 		}
 
-		AudioDevice::AudioDevice()
+		AudioDevice::AudioDevice() noexcept
 		{
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();
@@ -778,7 +778,7 @@ namespace Tomahawk
 			AudioContext::Unlock();
 #endif
 		}
-		AudioDevice::~AudioDevice()
+		AudioDevice::~AudioDevice() noexcept
 		{
 #ifdef TH_HAS_OPENAL
 			AudioContext::Lock();

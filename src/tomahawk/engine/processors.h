@@ -76,7 +76,7 @@ namespace Tomahawk
 			{
 			public:
 				Asset(ContentManager * Manager);
-				void* Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT Material final : public Processor
@@ -85,7 +85,7 @@ namespace Tomahawk
 				Material(ContentManager * Manager);
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
@@ -93,7 +93,7 @@ namespace Tomahawk
 			{
 			public:
 				SceneGraph(ContentManager * Manager);
-				void* Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				void* Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
@@ -104,9 +104,9 @@ namespace Tomahawk
 				virtual ~AudioClip() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> DeserializeWAVE(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args);
-				Core::Unique<void> DeserializeOGG(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args);
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args);
+				Core::Unique<void> DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args);
 			};
 
 			class TH_OUT Texture2D final : public Processor
@@ -116,7 +116,7 @@ namespace Tomahawk
 				virtual ~Texture2D() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT Shader final : public Processor
@@ -126,7 +126,7 @@ namespace Tomahawk
 				virtual ~Shader() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT Model final : public Processor
@@ -139,7 +139,7 @@ namespace Tomahawk
 				virtual ~Model() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
 				static Core::Unique<Core::Schema> Import(const std::string& Path, uint64_t Opts = (uint64_t)(MeshOpt::CalcTangentSpace | MeshOpt::GenSmoothNormals | MeshOpt::JoinIdenticalVertices | MeshOpt::ImproveCacheLocality | MeshOpt::LimitBoneWeights | MeshOpt::RemoveRedundantMaterials | MeshOpt::SplitLargeMeshes | MeshOpt::Triangulate | MeshOpt::GenUVCoords | MeshOpt::SortByPType | MeshOpt::RemoveDegenerates | MeshOpt::RemoveInvalidData | MeshOpt::RemoveInstances | MeshOpt::ValidateDataStructure | MeshOpt::OptimizeMeshes | MeshOpt::TransformUVCoords));
@@ -161,7 +161,7 @@ namespace Tomahawk
 				virtual ~SkinModel() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 
 			public:
 				static Core::Schema* ImportAnimation(const std::string& Path, uint64_t Opts = (uint64_t)(MeshOpt::CalcTangentSpace | MeshOpt::GenSmoothNormals | MeshOpt::JoinIdenticalVertices | MeshOpt::ImproveCacheLocality | MeshOpt::LimitBoneWeights | MeshOpt::RemoveRedundantMaterials | MeshOpt::SplitLargeMeshes | MeshOpt::Triangulate | MeshOpt::GenUVCoords | MeshOpt::SortByPType | MeshOpt::RemoveDegenerates | MeshOpt::RemoveInvalidData | MeshOpt::RemoveInstances | MeshOpt::ValidateDataStructure | MeshOpt::OptimizeMeshes | MeshOpt::TransformUVCoords));
@@ -176,7 +176,7 @@ namespace Tomahawk
 			{
 			public:
 				Schema(ContentManager * Manager);
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 				bool Serialize(Core::Stream* Stream, void* Object, const Core::VariantArgs& Args) override;
 			};
 
@@ -187,7 +187,7 @@ namespace Tomahawk
 
 			public:
 				Server(ContentManager* Manager);
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 
 			class TH_OUT HullShape final : public Processor
@@ -197,7 +197,7 @@ namespace Tomahawk
 				virtual ~HullShape() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
-				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args) override;
+				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
 			};
 		}
 	}

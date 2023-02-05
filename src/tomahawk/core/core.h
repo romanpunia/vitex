@@ -658,8 +658,8 @@ namespace Tomahawk
 			};
 
 		private:
-			std::string* L;
-			bool Safe;
+			std::string* Base;
+			bool Deletable;
 
 		public:
 			Parser() noexcept;
@@ -688,6 +688,7 @@ namespace Tomahawk
 			Parser& ToUpper();
 			Parser& ToLower();
 			Parser& Clip(size_t Length);
+			Parser& Compress(const char* SpaceIfNotFollowedOrPrecededByOf, const char* NotInBetweenOf, size_t Start = 0U);
 			Parser& ReplaceOf(const char* Chars, const char* To, size_t Start = 0U);
 			Parser& ReplaceNotOf(const char* Chars, const char* To, size_t Start = 0U);
 			Parser& ReplaceGroups(const std::string& FromRegex, const std::string& To);
@@ -697,6 +698,11 @@ namespace Tomahawk
 			Parser& Replace(const char& From, const char& To, size_t Position, size_t Count);
 			Parser& ReplacePart(size_t Start, size_t End, const std::string& Value);
 			Parser& ReplacePart(size_t Start, size_t End, const char* Value);
+			Parser& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start = 0U);
+			Parser& ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
+			Parser& ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
+			Parser& ReplaceParts(std::vector<std::pair<std::string, Parser::Settle>>& Inout, const std::string& With, const std::function<char(char)>& Surrounding = nullptr);
+			Parser& ReplaceParts(std::vector<Parser::Settle>& Inout, const std::string& With, const std::function<char(char)>& Surrounding = nullptr);
 			Parser& RemovePart(size_t Start, size_t End);
 			Parser& Reverse();
 			Parser& Reverse(size_t Start, size_t End);
@@ -730,6 +736,8 @@ namespace Tomahawk
 			Parser& Erase(size_t Position, size_t Count);
 			Parser& EraseOffsets(size_t Start, size_t End);
 			Parser& Eval(const std::string& Net, const std::string& Dir);
+			std::vector<std::pair<std::string, Parser::Settle>> FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
+			std::vector<std::pair<std::string, Parser::Settle>> FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset = 0U) const;
 			Parser::Settle ReverseFind(const std::string& Needle, size_t Offset = 0U) const;
 			Parser::Settle ReverseFind(const char* Needle, size_t Offset = 0U) const;
 			Parser::Settle ReverseFind(const char& Needle, size_t Offset = 0U) const;
@@ -744,6 +752,8 @@ namespace Tomahawk
 			Parser::Settle FindOf(const char* Needle, size_t Offset = 0U) const;
 			Parser::Settle FindNotOf(const std::string& Needle, size_t Offset = 0U) const;
 			Parser::Settle FindNotOf(const char* Needle, size_t Offset = 0U) const;
+			bool IsPrecededBy(size_t At, const char* Of) const;
+			bool IsFollowedBy(size_t At, const char* Of) const;
 			bool StartsWith(const std::string& Value, size_t Offset = 0U) const;
 			bool StartsWith(const char* Value, size_t Offset = 0U) const;
 			bool StartsOf(const char* Value, size_t Offset = 0U) const;
@@ -1451,6 +1461,7 @@ namespace Tomahawk
 		{
 		protected:
 			std::string Path;
+			size_t VirtualSize;
 
 		public:
 			Stream() noexcept;
@@ -1468,6 +1479,9 @@ namespace Tomahawk
 			virtual size_t Tell() = 0;
 			virtual int GetFd() const = 0;
 			virtual void* GetBuffer() const = 0;
+			void SetVirtualSize(size_t Size);
+			size_t ReadAll(const std::function<void(char*, size_t)>& Callback);
+			size_t GetVirtualSize() const;
 			size_t GetSize();
 			std::string& GetSource();
 		};

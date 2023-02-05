@@ -52,7 +52,7 @@ extern "C"
 #endif
 #define PREFIX_ENUM "$"
 #define PREFIX_BINARY "`"
-#define JSONB_HEADER "[@schema-jsonb]"
+#define JSONB_HEADER ("tomahawk-jsonb-data")
 #define MAKEUQUAD(L, H) ((uint64_t)(((uint32_t)(L)) | ((uint64_t)((uint32_t)(H))) << 32))
 #define RATE_DIFF (10000000)
 #define EPOCH_DIFF (MAKEUQUAD(0xd53e8000, 0x019db1de))
@@ -2887,102 +2887,102 @@ namespace Tomahawk
 			return 0;
 		}
 
-		Parser::Parser() noexcept : Safe(true)
+		Parser::Parser() noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string);
+			Base = TH_NEW(std::string);
 		}
-		Parser::Parser(int Value) noexcept : Safe(true)
+		Parser::Parser(int Value) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, std::to_string(Value));
+			Base = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(unsigned int Value) noexcept : Safe(true)
+		Parser::Parser(unsigned int Value) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, std::to_string(Value));
+			Base = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(int64_t Value) noexcept : Safe(true)
+		Parser::Parser(int64_t Value) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, std::to_string(Value));
+			Base = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(uint64_t Value) noexcept : Safe(true)
+		Parser::Parser(uint64_t Value) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, std::to_string(Value));
+			Base = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(float Value) noexcept : Safe(true)
+		Parser::Parser(float Value) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, std::to_string(Value));
+			Base = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(double Value) noexcept : Safe(true)
+		Parser::Parser(double Value) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, std::to_string(Value));
+			Base = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(long double Value) noexcept : Safe(true)
+		Parser::Parser(long double Value) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, std::to_string(Value));
+			Base = TH_NEW(std::string, std::to_string(Value));
 		}
-		Parser::Parser(const std::string& Buffer) noexcept : Safe(true)
+		Parser::Parser(const std::string& Buffer) noexcept : Deletable(true)
 		{
-			L = TH_NEW(std::string, Buffer);
+			Base = TH_NEW(std::string, Buffer);
 		}
 		Parser::Parser(std::string* Buffer) noexcept
 		{
-			Safe = (!Buffer);
-			L = (Safe ? TH_NEW(std::string) : Buffer);
+			Deletable = (!Buffer);
+			Base = (Deletable ? TH_NEW(std::string) : Buffer);
 		}
 		Parser::Parser(const std::string* Buffer) noexcept
 		{
-			Safe = (!Buffer);
-			L = (Safe ? TH_NEW(std::string) : (std::string*)Buffer);
+			Deletable = (!Buffer);
+			Base = (Deletable ? TH_NEW(std::string) : (std::string*)Buffer);
 		}
-		Parser::Parser(const char* Buffer) noexcept : Safe(true)
+		Parser::Parser(const char* Buffer) noexcept : Deletable(true)
 		{
 			if (Buffer != nullptr)
-				L = TH_NEW(std::string, Buffer);
+				Base = TH_NEW(std::string, Buffer);
 			else
-				L = TH_NEW(std::string);
+				Base = TH_NEW(std::string);
 		}
-		Parser::Parser(const char* Buffer, size_t Length) noexcept : Safe(true)
+		Parser::Parser(const char* Buffer, size_t Length) noexcept : Deletable(true)
 		{
 			if (Buffer != nullptr)
-				L = TH_NEW(std::string, Buffer, Length);
+				Base = TH_NEW(std::string, Buffer, Length);
 			else
-				L = TH_NEW(std::string);
+				Base = TH_NEW(std::string);
 		}
-		Parser::Parser(Parser&& Value) noexcept : L(Value.L), Safe(Value.Safe)
+		Parser::Parser(Parser&& Value) noexcept : Base(Value.Base), Deletable(Value.Deletable)
 		{
-			Value.L = nullptr;
-			Value.Safe = false;
+			Value.Base = nullptr;
+			Value.Deletable = false;
 		}
-		Parser::Parser(const Parser& Value) noexcept : Safe(true)
+		Parser::Parser(const Parser& Value) noexcept : Deletable(true)
 		{
-			if (Value.L != nullptr)
-				L = TH_NEW(std::string, *Value.L);
+			if (Value.Base != nullptr)
+				Base = TH_NEW(std::string, *Value.Base);
 			else
-				L = TH_NEW(std::string);
+				Base = TH_NEW(std::string);
 		}
 		Parser::~Parser() noexcept
 		{
-			if (Safe)
-				TH_DELETE(basic_string, L);
+			if (Deletable)
+				TH_DELETE(basic_string, Base);
 		}
 		Parser& Parser::EscapePrint()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			for (size_t i = 0; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			for (size_t i = 0; i < Base->size(); i++)
 			{
-				if (L->at(i) != '%')
+				if (Base->at(i) != '%')
 					continue;
 
-				if (i + 1 < L->size())
+				if (i + 1 < Base->size())
 				{
-					if (L->at(i + 1) != '%')
+					if (Base->at(i + 1) != '%')
 					{
-						L->insert(L->begin() + i, '%');
+						Base->insert(Base->begin() + i, '%');
 						i++;
 					}
 				}
 				else
 				{
-					L->append(1, '%');
+					Base->append(1, '%');
 					i++;
 				}
 			}
@@ -2991,13 +2991,13 @@ namespace Tomahawk
 		}
 		Parser& Parser::Escape()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			for (size_t i = 0; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			for (size_t i = 0; i < Base->size(); i++)
 			{
-				char& V = L->at(i);
+				char& V = Base->at(i);
 				if (V == '\"')
 				{
-					if (i > 0 && L->at(i - 1) == '\\')
+					if (i > 0 && Base->at(i - 1) == '\\')
 						continue;
 				}
 				else if (V == '\n')
@@ -3017,7 +3017,7 @@ namespace Tomahawk
 				else
 					continue;
 
-				L->insert(L->begin() + i, '\\');
+				Base->insert(Base->begin() + i, '\\');
 				i++;
 			}
 
@@ -3025,13 +3025,13 @@ namespace Tomahawk
 		}
 		Parser& Parser::Unescape()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			for (size_t i = 0; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			for (size_t i = 0; i < Base->size(); i++)
 			{
-				if (L->at(i) != '\\' || i + 1 >= L->size())
+				if (Base->at(i) != '\\' || i + 1 >= Base->size())
 					continue;
 
-				char& V = L->at(i + 1);
+				char& V = Base->at(i + 1);
 				if (V == 'n')
 					V = '\n';
 				else if (V == 't')
@@ -3049,56 +3049,126 @@ namespace Tomahawk
 				else
 					continue;
 
-				L->erase(L->begin() + i);
+				Base->erase(Base->begin() + i);
 			}
 
 			return *this;
 		}
 		Parser& Parser::Reserve(size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 
-			L->reserve(L->capacity() + Count);
+			Base->reserve(Base->capacity() + Count);
 			return *this;
 		}
 		Parser& Parser::Resize(size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->resize(Count);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			Base->resize(Count);
 			return *this;
 		}
 		Parser& Parser::Resize(size_t Count, char Char)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 
-			L->resize(Count, Char);
+			Base->resize(Count, Char);
 			return *this;
 		}
 		Parser& Parser::Clear()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->clear();
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			Base->clear();
 			return *this;
 		}
 		Parser& Parser::ToUpper()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			std::transform(L->begin(), L->end(), L->begin(), ::toupper);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			std::transform(Base->begin(), Base->end(), Base->begin(), ::toupper);
 			return *this;
 		}
 		Parser& Parser::ToLower()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			std::transform(L->begin(), L->end(), L->begin(), ::tolower);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			std::transform(Base->begin(), Base->end(), Base->begin(), ::tolower);
 			return *this;
 		}
 		Parser& Parser::Clip(size_t Length)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Length < L->size())
-				L->erase(Length, L->size() - Length);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Length < Base->size())
+				Base->erase(Length, Base->size() - Length);
+
+			return *this;
+		}
+		Parser& Parser::Compress(const char* Tokenbase, const char* NotInBetweenOf, size_t Start)
+		{
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+
+			size_t TokenbaseSize = (Tokenbase ? strlen(Tokenbase) : 0);
+			size_t NiboSize = (NotInBetweenOf ? strlen(NotInBetweenOf) : 0);
+			char Skip = '\0';
+
+			for (size_t i = Start; i < Base->size(); i++)
+			{
+				for (size_t j = 0; j < NiboSize; j++)
+				{
+					char& Next = Base->at(i);
+					if (Next == NotInBetweenOf[j])
+					{
+						Skip = Next;
+						++i;
+						break;
+					}
+				}
+
+				while (Skip != '\0' && i < Base->size() && Base->at(i) != Skip)
+					++i;
+
+				if (Skip != '\0')
+				{
+					Skip = '\0';
+					if (i >= Base->size())
+						break;
+				}
+
+				char& Next = Base->at(i);
+				if (Next != ' ' && Next != '\r' && Next != '\n' && Next != '\t')
+					continue;
+
+				bool Removable = false;
+				if (i > 0)
+				{
+					Next = Base->at(i - 1);
+					for (size_t j = 0; j < TokenbaseSize; j++)
+					{
+						if (Next == Tokenbase[j])
+						{
+							Removable = true;
+							break;
+						}
+					}
+				}
+
+				if (!Removable && i + 1 < Base->size())
+				{
+					Next = Base->at(i + 1);
+					for (size_t j = 0; j < TokenbaseSize; j++)
+					{
+						if (Next == Tokenbase[j])
+						{
+							Removable = true;
+							break;
+						}
+					}
+				}
+
+				if (Removable)
+					Base->erase(Base->begin() + i--);
+				else
+					(*Base)[i] = ' ';
+			}
 
 			return *this;
 		}
@@ -3150,7 +3220,7 @@ namespace Tomahawk
 		}
 		Parser& Parser::ReplaceGroups(const std::string& FromRegex, const std::string& To)
 		{
-			Compute::Regex::Replace(*L, FromRegex, To);
+			Compute::Regex::Replace(*Base, FromRegex, To);
 			return *this;
 		}
 		Parser& Parser::Replace(const char* From, const char* To, size_t Start)
@@ -3172,10 +3242,10 @@ namespace Tomahawk
 		}
 		Parser& Parser::Replace(const char& From, const char& To, size_t Position)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			for (size_t i = Position; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			for (size_t i = Position; i < Base->size(); i++)
 			{
-				char& C = L->at(i);
+				char& C = Base->at(i);
 				if (C == From)
 					C = To;
 			}
@@ -3184,13 +3254,13 @@ namespace Tomahawk
 		}
 		Parser& Parser::Replace(const char& From, const char& To, size_t Position, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(L->size() >= (Position + Count), *this, "invalid offset");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base->size() >= (Position + Count), *this, "invalid offset");
 
 			size_t Size = Position + Count;
 			for (size_t i = Position; i < Size; i++)
 			{
-				char& C = L->at(i);
+				char& C = Base->at(i);
 				if (C == From)
 					C = To;
 			}
@@ -3203,269 +3273,550 @@ namespace Tomahawk
 		}
 		Parser& Parser::ReplacePart(size_t Start, size_t End, const char* Value)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Start < L->size(), *this, "invalid start");
-			TH_ASSERT(End <= L->size(), *this, "invalid end");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start < Base->size(), *this, "invalid start");
+			TH_ASSERT(End <= Base->size(), *this, "invalid end");
 			TH_ASSERT(Start < End, *this, "start should be less than end");
 			TH_ASSERT(Value != nullptr, *this, "replacer should not be empty");
 
 			if (Start == 0)
 			{
-				if (L->size() != End)
-					L->assign(Value + L->substr(End, L->size() - End));
+				if (Base->size() != End)
+					Base->assign(Value + Base->substr(End, Base->size() - End));
 				else
-					L->assign(Value);
+					Base->assign(Value);
 			}
-			else if (L->size() == End)
-				L->assign(L->substr(0, Start) + Value);
+			else if (Base->size() == End)
+				Base->assign(Base->substr(0, Start) + Value);
 			else
-				L->assign(L->substr(0, Start) + Value + L->substr(End, L->size() - End));
+				Base->assign(Base->substr(0, Start) + Value + Base->substr(End, Base->size() - End));
+
+			return *this;
+		}
+		Parser& Parser::ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start)
+		{
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
+			TH_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', *this, "end should not be empty");
+
+			size_t BeginsSize = strlen(Begins), EndsOfSize = strlen(EndsOf);
+			for (size_t i = Start; i < Base->size(); i++)
+			{
+				size_t From = i, BeginsOffset = 0;
+				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				{
+					++From;
+					++BeginsOffset;
+				}
+
+				bool Matching = false;
+				if (BeginsOffset != BeginsSize)
+				{
+					i = From;
+					continue;
+				}
+
+				size_t To = From;
+				while (!Matching && To < Base->size())
+				{
+					auto& Next = Base->at(To++);
+					for (size_t j = 0; j < EndsOfSize; j++)
+					{
+						if (Next == EndsOf[j])
+						{
+							Matching = true;
+							break;
+						}
+					}
+				}
+
+				if (To >= Base->size())
+					Matching = true;
+
+				if (!Matching)
+					continue;
+
+				Base->replace(Base->begin() + From - BeginsSize, Base->begin() + To, With);
+				i = With.size();
+			}
+
+			return *this;
+		}
+		Parser& Parser::ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
+		{
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
+			TH_ASSERT(Ends != nullptr && Ends[0] != '\0', *this, "end should not be empty");
+			
+			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
+			for (size_t i = Start; i < Base->size(); i++)
+			{
+				size_t From = i, BeginsOffset = 0;
+				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				{
+					++From;
+					++BeginsOffset;
+				}
+
+				size_t Nesting = 1;
+				if (BeginsOffset != BeginsSize)
+				{
+					i = From;
+					continue;
+				}
+
+				size_t To = From, EndsOffset = 0;
+				while (To < Base->size())
+				{
+					if (Base->at(To++) != Ends[EndsOffset])
+					{
+						if (!Recursive)
+							continue;
+
+						size_t Substep = To - 1, Suboffset = 0;
+						while (Suboffset < BeginsSize && Substep < Base->size() && Base->at(Substep) == Begins[Suboffset])
+						{
+							++Substep;
+							++Suboffset;
+						}
+
+						if (Suboffset == BeginsSize)
+							++Nesting;
+					}
+					else if (++EndsOffset >= EndsSize)
+					{
+						if (!--Nesting)
+							break;
+
+						EndsOffset = 0;
+					}
+				}
+
+				if (EndsOffset != EndsSize)
+				{
+					i = To;
+					continue;
+				}
+
+				if (To > Base->size())
+					To = Base->size();
+
+				Base->replace(Base->begin() + From - BeginsSize, Base->begin() + To, With);
+				i = With.size();
+			}
+
+			return *this;
+		}
+		Parser& Parser::ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start)
+		{
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Begins != nullptr && Begins[0] != '\0', *this, "begin should not be empty");
+			TH_ASSERT(Ends != nullptr && Ends[0] != '\0', *this, "end should not be empty");
+
+			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
+			size_t ReplaceAt = std::string::npos;
+
+			for (size_t i = Start; i < Base->size(); i++)
+			{
+				size_t From = i, BeginsOffset = 0;
+				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				{
+					++From;
+					++BeginsOffset;
+				}
+
+				size_t Nesting = 1;
+				if (BeginsOffset != BeginsSize)
+				{
+					if (ReplaceAt == std::string::npos)
+						ReplaceAt = i;
+
+					continue;
+				}
+
+				if (ReplaceAt != std::string::npos)
+				{
+					Base->replace(Base->begin() + ReplaceAt, Base->begin() + i, With);
+					From = ReplaceAt + BeginsSize + With.size();
+					i = From - BeginsSize;
+					ReplaceAt = std::string::npos;
+				}
+
+				size_t To = From, EndsOffset = 0;
+				while (To < Base->size())
+				{
+					if (Base->at(To++) != Ends[EndsOffset])
+					{
+						if (!Recursive)
+							continue;
+
+						size_t Substep = To - 1, Suboffset = 0;
+						while (Suboffset < BeginsSize && Substep < Base->size() && Base->at(Substep) == Begins[Suboffset])
+						{
+							++Substep;
+							++Suboffset;
+						}
+
+						if (Suboffset == BeginsSize)
+							++Nesting;
+					}
+					else if (++EndsOffset >= EndsSize)
+					{
+						if (!--Nesting)
+							break;
+
+						EndsOffset = 0;
+					}
+				}
+
+				i = To - 1;
+			}
+
+			if (ReplaceAt == std::string::npos)
+				return *this;
+
+			Base->replace(Base->begin() + ReplaceAt, Base->end(), With);
+			return *this;
+		}
+		Parser& Parser::ReplaceParts(std::vector<std::pair<std::string, Parser::Settle>>& Inout, const std::string& With, const std::function<char(char)>& Surrounding)
+		{
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_SORT(Inout.begin(), Inout.end(), [](const std::pair<std::string, Parser::Settle>& A, const std::pair<std::string, Parser::Settle>& B)
+			{
+				return A.second.Start < B.second.Start;
+			});
+
+			int64_t Offset = 0;
+			for (auto& Item : Inout)
+			{
+				size_t Size = Item.second.End - Item.second.Start;
+				if (!Item.second.Found || !Size)
+					continue;
+
+				Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
+				Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
+				if (Surrounding != nullptr)
+				{
+					std::string Replacement = With;
+					if (Item.second.Start > 0)
+					{
+						char Next = Surrounding(Base->at(Item.second.Start - 1));
+						if (Next != '\0')
+							Replacement.insert(Replacement.begin(), Next);
+					}
+
+					if (Item.second.End < Base->size())
+					{
+						char Next = Surrounding(Base->at(Item.second.End));
+						if (Next != '\0')
+							Replacement.push_back(Next);
+					}
+
+					ReplacePart(Item.second.Start, Item.second.End, Replacement);
+					Offset += (int64_t)Replacement.size() - (int64_t)Size;
+					Item.second.End = Item.second.Start + Replacement.size();
+				}
+				else
+				{
+					ReplacePart(Item.second.Start, Item.second.End, With);
+					Offset += (int64_t)With.size() - (int64_t)Size;
+					Item.second.End = Item.second.Start + With.size();
+				}
+			}
+
+			return *this;
+		}
+		Parser& Parser::ReplaceParts(std::vector<Parser::Settle>& Inout, const std::string& With, const std::function<char(char)>& Surrounding)
+		{
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");	
+			TH_SORT(Inout.begin(), Inout.end(), [](const Parser::Settle& A, const Parser::Settle& B)
+			{
+				return A.Start < B.Start;
+			});
+
+			int64_t Offset = 0;
+			for (auto& Item : Inout)
+			{
+				size_t Size = Item.End - Item.Start;
+				if (!Item.Found || !Size)
+					continue;
+
+				Item.Start = (size_t)((int64_t)Item.Start + Offset);
+				Item.End = (size_t)((int64_t)Item.End + Offset);
+				if (Surrounding != nullptr)
+				{
+					std::string Replacement = With;
+					if (Item.Start > 0)
+					{
+						char Next = Surrounding(Base->at(Item.Start - 1));
+						if (Next != '\0')
+							Replacement.insert(Replacement.begin(), Next);
+					}
+
+					if (Item.End < Base->size())
+					{
+						char Next = Surrounding(Base->at(Item.End));
+						if (Next != '\0')
+							Replacement.push_back(Next);
+					}
+
+					ReplacePart(Item.Start, Item.End, Replacement);
+					Offset += (int64_t)Replacement.size() - (int64_t)Size;
+					Item.End = Item.Start + Replacement.size();
+				}
+				else
+				{
+					ReplacePart(Item.Start, Item.End, With);
+					Offset += (int64_t)With.size() - (int64_t)Size;
+					Item.End = Item.Start + With.size();
+				}
+			}
 
 			return *this;
 		}
 		Parser& Parser::RemovePart(size_t Start, size_t End)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Start < L->size(), *this, "invalid start");
-			TH_ASSERT(End <= L->size(), *this, "invalid end");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start < Base->size(), *this, "invalid start");
+			TH_ASSERT(End <= Base->size(), *this, "invalid end");
 			TH_ASSERT(Start < End, *this, "start should be less than end");
 
 			if (Start == 0)
 			{
-				if (L->size() != End)
-					L->assign(L->substr(End, L->size() - End));
+				if (Base->size() != End)
+					Base->assign(Base->substr(End, Base->size() - End));
 				else
-					L->clear();
+					Base->clear();
 			}
-			else if (L->size() == End)
-				L->assign(L->substr(0, Start));
+			else if (Base->size() == End)
+				Base->assign(Base->substr(0, Start));
 			else
-				L->assign(L->substr(0, Start) + L->substr(End, L->size() - End));
+				Base->assign(Base->substr(0, Start) + Base->substr(End, Base->size() - End));
 
 			return *this;
 		}
 		Parser& Parser::Reverse()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (L->empty())
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Base->empty())
 				return *this;
 
-			return Reverse(0, L->size() - 1);
+			return Reverse(0, Base->size() - 1);
 		}
 		Parser& Parser::Reverse(size_t Start, size_t End)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(L->size() >= 2, *this, "length should be at least 2 chars");
-			TH_ASSERT(End <= (L->size() - 1), *this, "end should be less than length - 1");
-			TH_ASSERT(Start <= (L->size() - 1), *this, "start should be less than length - 1");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base->size() >= 2, *this, "length should be at least 2 chars");
+			TH_ASSERT(End <= (Base->size() - 1), *this, "end should be less than length - 1");
+			TH_ASSERT(Start <= (Base->size() - 1), *this, "start should be less than length - 1");
 			TH_ASSERT(Start < End, *this, "start should be less than end");
 
-			std::reverse(L->begin() + Start, L->begin() + End + 1);
+			std::reverse(Base->begin() + Start, Base->begin() + End + 1);
 			return *this;
 		}
 		Parser& Parser::Substring(size_t Start)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Start < L->size())
-				L->assign(L->substr(Start));
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Start < Base->size())
+				Base->assign(Base->substr(Start));
 			else
-				L->clear();
+				Base->clear();
 
 			return *this;
 		}
 		Parser& Parser::Substring(size_t Start, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Count > 0 && Start < L->size())
-				L->assign(L->substr(Start, Count));
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Count > 0 && Start < Base->size())
+				Base->assign(Base->substr(Start, Count));
 			else
-				L->clear();
+				Base->clear();
 
 			return *this;
 		}
 		Parser& Parser::Substring(const Parser::Settle& Result)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Result.Found, *this, "result should be found");
 
-			if (Result.Start >= L->size())
+			if (Result.Start >= Base->size())
 			{
-				L->clear();
+				Base->clear();
 				return *this;
 			}
 
 			auto Offset = (int64_t)Result.End;
-			if (Result.End > L->size())
-				Offset = (int64_t)(L->size() - Result.Start);
+			if (Result.End > Base->size())
+				Offset = (int64_t)(Base->size() - Result.Start);
 
 			Offset = (int64_t)Result.Start - Offset;
-			L->assign(L->substr(Result.Start, (size_t)(Offset < 0 ? -Offset : Offset)));
+			Base->assign(Base->substr(Result.Start, (size_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
 		Parser& Parser::Splice(size_t Start, size_t End)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Start <= (L->size() - 1), *this, "result start should be less or equal than length - 1");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Start <= (Base->size() - 1), *this, "result start should be less or equal than length - 1");
 
-			if (End > L->size())
-				End = (L->size() - Start);
+			if (End > Base->size())
+				End = (Base->size() - Start);
 
 			int64_t Offset = (int64_t)Start - (int64_t)End;
-			L->assign(L->substr(Start, (size_t)(Offset < 0 ? -Offset : Offset)));
+			Base->assign(Base->substr(Start, (size_t)(Offset < 0 ? -Offset : Offset)));
 			return *this;
 		}
 		Parser& Parser::Trim()
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->erase(L->begin(), std::find_if(L->begin(), L->end(), [](int C) -> int
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			Base->erase(Base->begin(), std::find_if(Base->begin(), Base->end(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
 					return 1;
 
 				return std::isspace(C) == 0 ? 1 : 0;
 			}));
-			L->erase(std::find_if(L->rbegin(), L->rend(), [](int C) -> int
+			Base->erase(std::find_if(Base->rbegin(), Base->rend(), [](int C) -> int
 			{
 				if (C < -1 || C > 255)
 					return 1;
 			
 				return std::isspace(C) == 0 ? 1 : 0;
-			}).base(), L->end());
+			}).base(), Base->end());
 
 			return *this;
 		}
 		Parser& Parser::Fill(const char& Char)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(!L->empty(), *this, "length should be greater than Zero");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
 
-			for (char& i : *L)
+			for (char& i : *Base)
 				i = Char;
 
 			return *this;
 		}
 		Parser& Parser::Fill(const char& Char, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(!L->empty(), *this, "length should be greater than Zero");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
 
-			L->assign(Count, Char);
+			Base->assign(Count, Char);
 			return *this;
 		}
 		Parser& Parser::Fill(const char& Char, size_t Start, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(!L->empty(), *this, "length should be greater than Zero");
-			TH_ASSERT(Start <= L->size(), *this, "start should be less or equal than length");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(!Base->empty(), *this, "length should be greater than Zero");
+			TH_ASSERT(Start <= Base->size(), *this, "start should be less or equal than length");
 
-			if (Start + Count > L->size())
-				Count = L->size() - Start;
+			if (Start + Count > Base->size())
+				Count = Base->size() - Start;
 
 			size_t Size = (Start + Count);
 			for (size_t i = Start; i < Size; i++)
-				L->at(i) = Char;
+				Base->at(i) = Char;
 
 			return *this;
 		}
 		Parser& Parser::Assign(const char* Raw)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Raw != nullptr)
-				L->assign(Raw);
+				Base->assign(Raw);
 			else
-				L->clear();
+				Base->clear();
 
 			return *this;
 		}
 		Parser& Parser::Assign(const char* Raw, size_t Length)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Raw != nullptr)
-				L->assign(Raw, Length);
+				Base->assign(Raw, Length);
 			else
-				L->clear();
+				Base->clear();
 
 			return *this;
 		}
 		Parser& Parser::Assign(const std::string& Raw)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->assign(Raw);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			Base->assign(Raw);
 			return *this;
 		}
 		Parser& Parser::Assign(const std::string& Raw, size_t Start, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			if (Start >= Raw.size() || !Count)
-				L->clear();
+				Base->clear();
 			else
-				L->assign(Raw.substr(Start, Count));
+				Base->assign(Raw.substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::Assign(const char* Raw, size_t Start, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Raw != nullptr, *this, "assign string should be set");
 
-			L->assign(Raw);
+			Base->assign(Raw);
 			return Substring(Start, Count);
 		}
 		Parser& Parser::Append(const char* Raw)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
 
-			L->append(Raw);
+			Base->append(Raw);
 			return *this;
 		}
 		Parser& Parser::Append(const char& Char)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->append(1, Char);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			Base->append(1, Char);
 			return *this;
 		}
 		Parser& Parser::Append(const char& Char, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->append(Count, Char);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			Base->append(Count, Char);
 			return *this;
 		}
 		Parser& Parser::Append(const std::string& Raw)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			L->append(Raw);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			Base->append(Raw);
 			return *this;
 		}
 		Parser& Parser::Append(const char* Raw, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
 
-			L->append(Raw, Count);
+			Base->append(Raw, Count);
 			return *this;
 		}
 		Parser& Parser::Append(const char* Raw, size_t Start, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Raw != nullptr, *this, "append string should be set");
 			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 			TH_ASSERT(strlen(Raw) >= Start + Count, *this, "offset should be less than append string length");
 
-			L->append(Raw + Start, Count - Start);
+			Base->append(Raw + Start, Count - Start);
 			return *this;
 		}
 		Parser& Parser::Append(const std::string& Raw, size_t Start, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Count > 0, *this, "count should be greater than Zero");
 			TH_ASSERT(Raw.size() >= Start + Count, *this, "offset should be less than append string length");
 
-			L->append(Raw.substr(Start, Count));
+			Base->append(Raw.substr(Start, Count));
 			return *this;
 		}
 		Parser& Parser::fAppend(const char* Format, ...)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			TH_ASSERT(Format != nullptr, *this, "format should be set");
 
 			char Buffer[TH_BIG_CHUNK_SIZE];
@@ -3478,66 +3829,66 @@ namespace Tomahawk
 		}
 		Parser& Parser::Insert(const std::string& Raw, size_t Position)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Position >= L->size())
-				Position = L->size();
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Position >= Base->size())
+				Position = Base->size();
 
-			L->insert(Position, Raw);
+			Base->insert(Position, Raw);
 			return *this;
 		}
 		Parser& Parser::Insert(const std::string& Raw, size_t Position, size_t Start, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Position >= L->size())
-				Position = L->size();
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Position >= Base->size())
+				Position = Base->size();
 
 			if (Raw.size() >= Start + Count)
-				L->insert(Position, Raw.substr(Start, Count));
+				Base->insert(Position, Raw.substr(Start, Count));
 
 			return *this;
 		}
 		Parser& Parser::Insert(const std::string& Raw, size_t Position, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Position >= L->size())
-				Position = L->size();
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Position >= Base->size())
+				Position = Base->size();
 
 			if (Count >= Raw.size())
 				Count = Raw.size();
 
-			L->insert(Position, Raw.substr(0, Count));
+			Base->insert(Position, Raw.substr(0, Count));
 			return *this;
 		}
 		Parser& Parser::Insert(const char& Char, size_t Position, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Position >= L->size())
-				Position = L->size();
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Position >= Base->size())
+				Position = Base->size();
 
-			L->insert(Position, Count, Char);
+			Base->insert(Position, Count, Char);
 			return *this;
 		}
 		Parser& Parser::Insert(const char& Char, size_t Position)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			if (Position >= L->size())
-				Position = L->size();
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			if (Position >= Base->size())
+				Position = Base->size();
 
-			L->insert(L->begin() + Position, Char);
+			Base->insert(Base->begin() + Position, Char);
 			return *this;
 		}
 		Parser& Parser::Erase(size_t Position)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
-			L->erase(Position);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Position < Base->size(), *this, "position should be less than length");
+			Base->erase(Position);
 			return *this;
 		}
 		Parser& Parser::Erase(size_t Position, size_t Count)
 		{
-			TH_ASSERT(L != nullptr, *this, "cannot parse without context");
-			TH_ASSERT(Position < L->size(), *this, "position should be less than length");
-			L->erase(Position, Count);
+			TH_ASSERT(Base != nullptr, *this, "cannot parse without context");
+			TH_ASSERT(Position < Base->size(), *this, "position should be less than length");
+			Base->erase(Position, Count);
 			return *this;
 		}
 		Parser& Parser::EraseOffsets(size_t Start, size_t End)
@@ -3546,43 +3897,191 @@ namespace Tomahawk
 		}
 		Parser& Parser::Eval(const std::string& Net, const std::string& Dir)
 		{
-			if (L->empty())
+			if (Base->empty())
 				return *this;
 
 			if (StartsOf("./\\"))
 			{
-				std::string Result = Core::OS::Path::Resolve(L->c_str(), Dir);
+				std::string Result = Core::OS::Path::Resolve(Base->c_str(), Dir);
 				if (!Result.empty())
 					Assign(Result);
 			}
-			else if (L->front() == '$' && L->size() > 1)
+			else if (Base->front() == '$' && Base->size() > 1)
 			{
-				const char* Env = std::getenv(L->c_str() + 1);
+				const char* Env = std::getenv(Base->c_str() + 1);
 				if (!Env)
 				{
-					TH_WARN("[env] cannot resolve environmental variable\n\t%s", L->c_str() + 1);
-					L->clear();
+					TH_WARN("[env] cannot resolve environmental variable\n\t%s", Base->c_str() + 1);
+					Base->clear();
 				}
 				else
-					L->assign(Env);
+					Base->assign(Env);
 			}
 			else
 				Replace("[subnet]", Net);
 
 			return *this;
 		}
+		std::vector<std::pair<std::string, Parser::Settle>> Parser::FindInBetween(const char* Begins, const char* Ends, const char* NotInSubBetweenOf, size_t Offset) const
+		{
+			std::vector<std::pair<std::string, Parser::Settle>> Result;
+			TH_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
+			TH_ASSERT(Ends != nullptr && Ends[0] != '\0', Result, "end should not be empty");
+
+			size_t BeginsSize = strlen(Begins), EndsSize = strlen(Ends);
+			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
+			char Skip = '\0';
+
+			for (size_t i = Offset; i < Base->size(); i++)
+			{
+				for (size_t j = 0; j < NisboSize; j++)
+				{
+					char& Next = Base->at(i);
+					if (Next == NotInSubBetweenOf[j])
+					{
+						Skip = Next;
+						++i;
+						break;
+					}
+				}
+				
+				while (Skip != '\0' && i < Base->size() && Base->at(i) != Skip)
+					++i;
+
+				if (Skip != '\0')
+				{
+					Skip = '\0';
+					if (i >= Base->size())
+						break;
+				}
+
+				size_t From = i, BeginsOffset = 0;
+				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				{
+					++From;
+					++BeginsOffset;
+				}
+
+				if (BeginsOffset != BeginsSize)
+				{
+					i = From;
+					continue;
+				}
+
+				size_t To = From, EndsOffset = 0;
+				while (To < Base->size())
+				{
+					if (Base->at(To++) != Ends[EndsOffset])
+						continue;
+					
+					if (++EndsOffset >= EndsSize)
+						break;
+				}
+
+				i = To;
+				if (EndsOffset != EndsSize)
+					continue;
+
+				Settle At;
+				At.Start = From - BeginsSize;
+				At.End = To;
+				At.Found = true;
+
+				Result.push_back(std::make_pair(Base->substr(From, (To - EndsSize) - From), std::move(At)));
+			}
+
+			return Result;
+		}
+		std::vector<std::pair<std::string, Parser::Settle>> Parser::FindStartsWithEndsOf(const char* Begins, const char* EndsOf, const char* NotInSubBetweenOf, size_t Offset) const
+		{
+			std::vector<std::pair<std::string, Parser::Settle>> Result;
+			TH_ASSERT(Begins != nullptr && Begins[0] != '\0', Result, "begin should not be empty");
+			TH_ASSERT(EndsOf != nullptr && EndsOf[0] != '\0', Result, "end should not be empty");
+
+			size_t BeginsSize = strlen(Begins), EndsOfSize = strlen(EndsOf);
+			size_t NisboSize = (NotInSubBetweenOf ? strlen(NotInSubBetweenOf) : 0);
+			char Skip = '\0';
+
+			for (size_t i = Offset; i < Base->size(); i++)
+			{
+				for (size_t j = 0; j < NisboSize; j++)
+				{
+					char& Next = Base->at(i);
+					if (Next == NotInSubBetweenOf[j])
+					{
+						Skip = Next;
+						++i;
+						break;
+					}
+				}
+
+				while (Skip != '\0' && i < Base->size() && Base->at(i) != Skip)
+					++i;
+
+				if (Skip != '\0')
+				{
+					Skip = '\0';
+					if (i >= Base->size())
+						break;
+				}
+
+				size_t From = i, BeginsOffset = 0;
+				while (BeginsOffset < BeginsSize && From < Base->size() && Base->at(From) == Begins[BeginsOffset])
+				{
+					++From;
+					++BeginsOffset;
+				}
+
+				bool Matching = false;
+				if (BeginsOffset != BeginsSize)
+				{
+					i = From;
+					continue;
+				}
+
+				size_t To = From;
+				while (!Matching && To < Base->size())
+				{
+					auto& Next = Base->at(To++);
+					for (size_t j = 0; j < EndsOfSize; j++)
+					{
+						if (Next == EndsOf[j])
+						{
+							Matching = true;
+							--To;
+							break;
+						}
+					}
+				}
+
+				if (To >= Base->size())
+					Matching = true;
+
+				if (!Matching)
+					continue;
+
+				Settle At;
+				At.Start = From - BeginsSize;
+				At.End = To;
+				At.Found = true;
+
+				Result.push_back(std::make_pair(Base->substr(From, To - From), std::move(At)));
+			}
+
+			return Result;
+		}
 		Parser::Settle Parser::ReverseFind(const std::string& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
-			const char* Ptr = L->c_str() - Offset;
+			const char* Ptr = Base->c_str() - Offset;
 			if (Needle.c_str() > Ptr)
-				return { L->size() - 1, L->size(), false };
+				return { Base->size() - 1, Base->size(), false };
 
 			const char* It = nullptr;
-			for (It = Ptr + L->size() - Needle.size(); It > Ptr; --It)
+			for (It = Ptr + Base->size() - Needle.size(); It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle.c_str(), Needle.size()) == 0)
 				{
@@ -3591,191 +4090,191 @@ namespace Tomahawk
 				}
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFind(const char* Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
 			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+				return { Base->size() - 1, Base->size(), false };
 
-			const char* Ptr = L->c_str() - Offset;
+			const char* Ptr = Base->c_str() - Offset;
 			if (Needle > Ptr)
-				return { L->size() - 1, L->size(), false };
+				return { Base->size() - 1, Base->size(), false };
 
 			const char* It = nullptr;
 			size_t Length = strlen(Needle);
-			for (It = Ptr + L->size() - Length; It > Ptr; --It)
+			for (It = Ptr + Base->size() - Length; It > Ptr; --It)
 			{
 				if (strncmp(Ptr, Needle, Length) == 0)
 					return { (size_t)(It - Ptr), (size_t)(It - Ptr + Length), true };
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFind(const char& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
-			size_t Size = L->size() - 1 - Offset;
+			size_t Size = Base->size() - 1 - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
-				if (L->at(i) == Needle)
+				if (Base->at(i) == Needle)
 					return { i, i + 1, true };
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFindUnescaped(const char& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
-			size_t Size = L->size() - 1 - Offset;
+			size_t Size = Base->size() - 1 - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
-				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
+				if (Base->at(i) == Needle && ((int64_t)i - 1 < 0 || Base->at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFindOf(const std::string& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
-			size_t Size = L->size() - 1 - Offset;
+			size_t Size = Base->size() - 1 - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				for (char k : Needle)
 				{
-					if (L->at(i) == k)
+					if (Base->at(i) == k)
 						return { i, i + 1, true };
 				}
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFindOf(const char* Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
 			if (!Needle)
-				return { L->size() - 1, L->size(), false };
+				return { Base->size() - 1, Base->size(), false };
 
 			size_t Length = strlen(Needle);
-			size_t Size = L->size() - 1 - Offset;
+			size_t Size = Base->size() - 1 - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				for (size_t k = 0; k < Length; k++)
 				{
-					if (L->at(i) == Needle[k])
+					if (Base->at(i) == Needle[k])
 						return { i, i + 1, true };
 				}
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::Find(const std::string& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
-			const char* It = strstr(L->c_str() + Offset, Needle.c_str());
+			const char* It = strstr(Base->c_str() + Offset, Needle.c_str());
 			if (It == nullptr)
-				return { L->size() - 1, L->size(), false };
+				return { Base->size() - 1, Base->size(), false };
 
-			size_t Set = (size_t)(It - L->c_str());
+			size_t Set = (size_t)(It - Base->c_str());
 			return { Set, Set + Needle.size(), true };
 		}
 		Parser::Settle Parser::Find(const char* Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			TH_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
 
-			if (L->empty() || Offset >= L->size())
-				return { L->size() - 1, L->size(), false };
+			if (Base->empty() || Offset >= Base->size())
+				return { Base->size() - 1, Base->size(), false };
 
-			const char* It = strstr(L->c_str() + Offset, Needle);
+			const char* It = strstr(Base->c_str() + Offset, Needle);
 			if (It == nullptr)
-				return { L->size() - 1, L->size(), false };
+				return { Base->size() - 1, Base->size(), false };
 
-			size_t Set = (size_t)(It - L->c_str());
+			size_t Set = (size_t)(It - Base->c_str());
 			return { Set, Set + strlen(Needle), true };
 		}
 		Parser::Settle Parser::Find(const char& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			for (size_t i = Offset; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			for (size_t i = Offset; i < Base->size(); i++)
 			{
-				if (L->at(i) == Needle)
+				if (Base->at(i) == Needle)
 					return { i, i + 1, true };
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::FindUnescaped(const char& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			for (size_t i = Offset; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			for (size_t i = Offset; i < Base->size(); i++)
 			{
-				if (L->at(i) == Needle && ((int64_t)i - 1 < 0 || L->at(i - 1) != '\\'))
+				if (Base->at(i) == Needle && ((int64_t)i - 1 < 0 || Base->at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::FindOf(const std::string& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			for (size_t i = Offset; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				for (char k : Needle)
 				{
-					if (L->at(i) == k)
+					if (Base->at(i) == k)
 						return { i, i + 1, true };
 				}
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::FindOf(const char* Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			TH_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
 
 			size_t Length = strlen(Needle);
-			for (size_t i = Offset; i < L->size(); i++)
+			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				for (size_t k = 0; k < Length; k++)
 				{
-					if (L->at(i) == Needle[k])
+					if (Base->at(i) == Needle[k])
 						return { i, i + 1, true };
 				}
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::FindNotOf(const std::string& Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
-			for (size_t i = Offset; i < L->size(); i++)
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
+			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				bool Result = false;
 				for (char k : Needle)
 				{
-					if (L->at(i) == k)
+					if (Base->at(i) == k)
 					{
 						Result = true;
 						break;
@@ -3786,20 +4285,20 @@ namespace Tomahawk
 					return { i, i + 1, true };
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
 		}
 		Parser::Settle Parser::FindNotOf(const char* Needle, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, Parser::Settle(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			TH_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
 
 			size_t Length = strlen(Needle);
-			for (size_t i = Offset; i < L->size(); i++)
+			for (size_t i = Offset; i < Base->size(); i++)
 			{
 				bool Result = false;
 				for (size_t k = 0; k < Length; k++)
 				{
-					if (L->at(i) == Needle[k])
+					if (Base->at(i) == Needle[k])
 					{
 						Result = true;
 						break;
@@ -3810,16 +4309,53 @@ namespace Tomahawk
 					return { i, i + 1, true };
 			}
 
-			return { L->size() - 1, L->size(), false };
+			return { Base->size() - 1, Base->size(), false };
+		}
+		bool Parser::IsPrecededBy(size_t At, const char* Of) const
+		{
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Of != nullptr, false, "tokenbase should be set");
+
+			if (!At || At - 1 >= Base->size())
+				return false;
+
+			size_t Size = strlen(Of);
+			char& Next = Base->at(At - 1);
+			for (size_t i = 0; i < Size; i++)
+			{
+				if (Next == Of[i])
+					return true;
+			}
+
+			return false;
+		}
+		bool Parser::IsFollowedBy(size_t At, const char* Of) const
+		{
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Of != nullptr, false, "tokenbase should be set");
+
+			if (At + 1 >= Base->size())
+				return false;
+
+			size_t Size = strlen(Of);
+			char& Next = Base->at(At + 1);
+			for (size_t i = 0; i < Size; i++)
+			{
+				if (Next == Of[i])
+					return true;
+			}
+
+			return false;
 		}
 		bool Parser::StartsWith(const std::string& Value, size_t Offset) const
 		{
-			if (L->size() < Value.size())
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			if (Base->size() < Value.size())
 				return false;
 
 			for (size_t i = Offset; i < Value.size(); i++)
 			{
-				if (Value[i] != L->at(i))
+				if (Value[i] != Base->at(i))
 					return false;
 			}
 
@@ -3827,16 +4363,16 @@ namespace Tomahawk
 		}
 		bool Parser::StartsWith(const char* Value, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			size_t Length = strlen(Value);
-			if (L->size() < Length)
+			if (Base->size() < Length)
 				return false;
 
 			for (size_t i = Offset; i < Length; i++)
 			{
-				if (Value[i] != L->at(i))
+				if (Value[i] != Base->at(i))
 					return false;
 			}
 
@@ -3844,16 +4380,16 @@ namespace Tomahawk
 		}
 		bool Parser::StartsOf(const char* Value, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			size_t Length = strlen(Value);
-			if (Offset >= L->size())
+			if (Offset >= Base->size())
 				return false;
 
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (L->at(Offset) == Value[j])
+				if (Base->at(Offset) == Value[j])
 					return true;
 			}
 
@@ -3861,17 +4397,17 @@ namespace Tomahawk
 		}
 		bool Parser::StartsNotOf(const char* Value, size_t Offset) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			size_t Length = strlen(Value);
-			if (Offset >= L->size())
+			if (Offset >= Base->size())
 				return false;
 
 			bool Result = true;
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (L->at(Offset) == Value[j])
+				if (Base->at(Offset) == Value[j])
 				{
 					Result = false;
 					break;
@@ -3882,40 +4418,40 @@ namespace Tomahawk
 		}
 		bool Parser::EndsWith(const std::string& Value) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
-			if (L->empty() || Value.size() > L->size())
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			if (Base->empty() || Value.size() > Base->size())
 				return false;
 
-			return strcmp(L->c_str() + L->size() - Value.size(), Value.c_str()) == 0;
+			return strcmp(Base->c_str() + Base->size() - Value.size(), Value.c_str()) == 0;
 		}
 		bool Parser::EndsWith(const char* Value) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
 			size_t Size = strlen(Value);
-			if (L->empty() || Size > L->size())
+			if (Base->empty() || Size > Base->size())
 				return false;
 
-			return strcmp(L->c_str() + L->size() - Size, Value) == 0;
+			return strcmp(Base->c_str() + Base->size() - Size, Value) == 0;
 		}
 		bool Parser::EndsWith(const char& Value) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
-			return !L->empty() && L->back() == Value;
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			return !Base->empty() && Base->back() == Value;
 		}
 		bool Parser::EndsOf(const char* Value) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
-			if (L->empty())
+			if (Base->empty())
 				return false;
 
 			size_t Length = strlen(Value);
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (L->back() == Value[j])
+				if (Base->back() == Value[j])
 					return true;
 			}
 
@@ -3923,16 +4459,16 @@ namespace Tomahawk
 		}
 		bool Parser::EndsNotOf(const char* Value) const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
 			TH_ASSERT(Value != nullptr, false, "value should be set");
 
-			if (L->empty())
+			if (Base->empty())
 				return true;
 
 			size_t Length = strlen(Value);
 			for (size_t j = 0; j < Length; j++)
 			{
-				if (L->back() == Value[j])
+				if (Base->back() == Value[j])
 					return false;
 			}
 
@@ -3940,19 +4476,19 @@ namespace Tomahawk
 		}
 		bool Parser::Empty() const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
-			return L->empty();
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			return Base->empty();
 		}
 		bool Parser::HasInteger() const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
-			if (L->empty())
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			if (Base->empty())
 				return false;
 
 			bool HadSign = false;
-			for (size_t i = 0; i < L->size(); i++)
+			for (size_t i = 0; i < Base->size(); i++)
 			{
-				char& V = (*L)[i];
+				char& V = (*Base)[i];
 				if (IsDigit(V))
 					continue;
 
@@ -3965,21 +4501,21 @@ namespace Tomahawk
 				return false;
 			}
 
-			if (HadSign && L->size() < 2)
+			if (HadSign && Base->size() < 2)
 				return false;
 
 			return true;
 		}
 		bool Parser::HasNumber() const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
-			if (L->empty() || (L->size() == 1 && L->front() == '.'))
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			if (Base->empty() || (Base->size() == 1 && Base->front() == '.'))
 				return false;
 
 			bool HadPoint = false, HadSign = false;
-			for (size_t i = 0; i < L->size(); i++)
+			for (size_t i = 0; i < Base->size(); i++)
 			{
-				char& V = (*L)[i];
+				char& V = (*Base)[i];
 				if (IsDigit(V))
 					continue;
 
@@ -3998,37 +4534,37 @@ namespace Tomahawk
 				return false;
 			}
 
-			if (HadSign && HadPoint && L->size() < 3)
+			if (HadSign && HadPoint && Base->size() < 3)
 				return false;
-			else if ((HadSign || HadPoint) && L->size() < 2)
+			else if ((HadSign || HadPoint) && Base->size() < 2)
 				return false;
 
 			return true;
 		}
 		bool Parser::HasDecimal() const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
 
 			auto F = Find('.');
 			if (F.Found)
 			{
-				auto D1 = Parser(L->c_str(), F.End - 1);
+				auto D1 = Parser(Base->c_str(), F.End - 1);
 				if (D1.Empty() || !D1.HasInteger())
 					return false;
 
-				auto D2 = Parser(L->c_str() + F.End + 1, L->size() - F.End - 1);
+				auto D2 = Parser(Base->c_str() + F.End + 1, Base->size() - F.End - 1);
 				if (D2.Empty() || !D2.HasInteger())
 					return false;
 
 				return D1.Size() >= 19 || D2.Size() > 6;
 			}
 
-			return HasInteger() && L->size() >= 19;
+			return HasInteger() && Base->size() >= 19;
 		}
 		bool Parser::ToBoolean() const
 		{
-			TH_ASSERT(L != nullptr, false, "cannot parse without context");
-			return !strncmp(L->c_str(), "true", 4) || !strncmp(L->c_str(), "1", 1);
+			TH_ASSERT(Base != nullptr, false, "cannot parse without context");
+			return !strncmp(Base->c_str(), "true", 4) || !strncmp(Base->c_str(), "1", 1);
 		}
 		bool Parser::IsDigit(char Char)
 		{
@@ -4107,81 +4643,81 @@ namespace Tomahawk
 		}
 		int Parser::ToInt() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
-			return (int)strtol(L->c_str(), nullptr, 10);
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			return (int)strtol(Base->c_str(), nullptr, 10);
 		}
 		long Parser::ToLong() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
-			return strtol(L->c_str(), nullptr, 10);
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			return strtol(Base->c_str(), nullptr, 10);
 		}
 		float Parser::ToFloat() const
 		{
-			TH_ASSERT(L != nullptr, 0.0f, "cannot parse without context");
-			return strtof(L->c_str(), nullptr);
+			TH_ASSERT(Base != nullptr, 0.0f, "cannot parse without context");
+			return strtof(Base->c_str(), nullptr);
 		}
 		unsigned int Parser::ToUInt() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
 			return (unsigned int)ToULong();
 		}
 		unsigned long Parser::ToULong() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
-			return strtoul(L->c_str(), nullptr, 10);
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			return strtoul(Base->c_str(), nullptr, 10);
 		}
 		int64_t Parser::ToInt64() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
-			return strtoll(L->c_str(), nullptr, 10);
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			return strtoll(Base->c_str(), nullptr, 10);
 		}
 		double Parser::ToDouble() const
 		{
-			TH_ASSERT(L != nullptr, 0.0, "cannot parse without context");
-			return strtod(L->c_str(), nullptr);
+			TH_ASSERT(Base != nullptr, 0.0, "cannot parse without context");
+			return strtod(Base->c_str(), nullptr);
 		}
 		long double Parser::ToLDouble() const
 		{
-			TH_ASSERT(L != nullptr, 0.0, "cannot parse without context");
-			return strtold(L->c_str(), nullptr);
+			TH_ASSERT(Base != nullptr, 0.0, "cannot parse without context");
+			return strtold(Base->c_str(), nullptr);
 		}
 		uint64_t Parser::ToUInt64() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
-			return strtoull(L->c_str(), nullptr, 10);
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			return strtoull(Base->c_str(), nullptr, 10);
 		}
 		size_t Parser::Size() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
-			return L->size();
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			return Base->size();
 		}
 		size_t Parser::Capacity() const
 		{
-			TH_ASSERT(L != nullptr, 0, "cannot parse without context");
-			return L->capacity();
+			TH_ASSERT(Base != nullptr, 0, "cannot parse without context");
+			return Base->capacity();
 		}
 		char* Parser::Value() const
 		{
-			TH_ASSERT(L != nullptr, nullptr, "cannot parse without context");
-			return (char*)L->data();
+			TH_ASSERT(Base != nullptr, nullptr, "cannot parse without context");
+			return (char*)Base->data();
 		}
 		const char* Parser::Get() const
 		{
-			TH_ASSERT(L != nullptr, nullptr, "cannot parse without context");
-			return L->c_str();
+			TH_ASSERT(Base != nullptr, nullptr, "cannot parse without context");
+			return Base->c_str();
 		}
 		std::string& Parser::R()
 		{
-			TH_ASSERT(L != nullptr, *L, "cannot parse without context");
-			return *L;
+			TH_ASSERT(Base != nullptr, *Base, "cannot parse without context");
+			return *Base;
 		}
 		std::wstring Parser::ToWide() const
 		{
-			TH_ASSERT(L != nullptr, std::wstring(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, std::wstring(), "cannot parse without context");
 			std::wstring Output; wchar_t W;
-			for (size_t i = 0; i < L->size();)
+			for (size_t i = 0; i < Base->size();)
 			{
-				char C = L->at(i);
+				char C = Base->at(i);
 				if ((C & 0x80) == 0)
 				{
 					W = C;
@@ -4190,22 +4726,22 @@ namespace Tomahawk
 				else if ((C & 0xE0) == 0xC0)
 				{
 					W = (C & 0x1F) << 6;
-					W |= (L->at(i + 1) & 0x3F);
+					W |= (Base->at(i + 1) & 0x3F);
 					i += 2;
 				}
 				else if ((C & 0xF0) == 0xE0)
 				{
 					W = (C & 0xF) << 12;
-					W |= (L->at(i + 1) & 0x3F) << 6;
-					W |= (L->at(i + 2) & 0x3F);
+					W |= (Base->at(i + 1) & 0x3F) << 6;
+					W |= (Base->at(i + 2) & 0x3F);
 					i += 3;
 				}
 				else if ((C & 0xF8) == 0xF0)
 				{
 					W = (C & 0x7) << 18;
-					W |= (L->at(i + 1) & 0x3F) << 12;
-					W |= (L->at(i + 2) & 0x3F) << 6;
-					W |= (L->at(i + 3) & 0x3F);
+					W |= (Base->at(i + 1) & 0x3F) << 12;
+					W |= (Base->at(i + 2) & 0x3F) << 6;
+					W |= (Base->at(i + 3) & 0x3F);
 					i += 4;
 				}
 				else if ((C & 0xFC) == 0xF8)
@@ -4237,128 +4773,128 @@ namespace Tomahawk
 		}
 		std::vector<std::string> Parser::Split(const std::string& With, size_t Start) const
 		{
-			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
-			if (Start >= L->size())
+			if (Start >= Base->size())
 				return Output;
 
 			size_t Offset = Start;
 			Parser::Settle Result = Find(With, Offset);
 			while (Result.Found)
 			{
-				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
 				Result = Find(With, Offset = Result.End);
 			}
 
-			if (Offset < L->size())
-				Output.emplace_back(L->substr(Offset));
+			if (Offset < Base->size())
+				Output.emplace_back(Base->substr(Offset));
 
 			return Output;
 		}
 		std::vector<std::string> Parser::Split(char With, size_t Start) const
 		{
-			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
-			if (Start >= L->size())
+			if (Start >= Base->size())
 				return Output;
 
 			size_t Offset = Start;
 			Parser::Settle Result = Find(With, Start);
 			while (Result.Found)
 			{
-				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
 				Result = Find(With, Offset = Result.End);
 			}
 
-			if (Offset < L->size())
-				Output.emplace_back(L->substr(Offset));
+			if (Offset < Base->size())
+				Output.emplace_back(Base->substr(Offset));
 
 			return Output;
 		}
 		std::vector<std::string> Parser::SplitMax(char With, size_t Count, size_t Start) const
 		{
-			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
-			if (Start >= L->size())
+			if (Start >= Base->size())
 				return Output;
 
 			size_t Offset = Start;
 			Parser::Settle Result = Find(With, Start);
 			while (Result.Found && Output.size() < Count)
 			{
-				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
 				Result = Find(With, Offset = Result.End);
 			}
 
-			if (Offset < L->size() && Output.size() < Count)
-				Output.emplace_back(L->substr(Offset));
+			if (Offset < Base->size() && Output.size() < Count)
+				Output.emplace_back(Base->substr(Offset));
 
 			return Output;
 		}
 		std::vector<std::string> Parser::SplitOf(const char* With, size_t Start) const
 		{
-			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
-			if (Start >= L->size())
+			if (Start >= Base->size())
 				return Output;
 
 			size_t Offset = Start;
 			Parser::Settle Result = FindOf(With, Start);
 			while (Result.Found)
 			{
-				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
 				Result = FindOf(With, Offset = Result.End);
 			}
 
-			if (Offset < L->size())
-				Output.emplace_back(L->substr(Offset));
+			if (Offset < Base->size())
+				Output.emplace_back(Base->substr(Offset));
 
 			return Output;
 		}
 		std::vector<std::string> Parser::SplitNotOf(const char* With, size_t Start) const
 		{
-			TH_ASSERT(L != nullptr, std::vector<std::string>(), "cannot parse without context");
+			TH_ASSERT(Base != nullptr, std::vector<std::string>(), "cannot parse without context");
 			std::vector<std::string> Output;
-			if (Start >= L->size())
+			if (Start >= Base->size())
 				return Output;
 
 			size_t Offset = Start;
 			Parser::Settle Result = FindNotOf(With, Start);
 			while (Result.Found)
 			{
-				Output.emplace_back(L->substr(Offset, Result.Start - Offset));
+				Output.emplace_back(Base->substr(Offset, Result.Start - Offset));
 				Result = FindNotOf(With, Offset = Result.End);
 			}
 
-			if (Offset < L->size())
-				Output.emplace_back(L->substr(Offset));
+			if (Offset < Base->size())
+				Output.emplace_back(Base->substr(Offset));
 
 			return Output;
 		}
 		Parser& Parser::operator= (Parser&& Value) noexcept
 		{
 			TH_ASSERT(&Value != this, *this, "cannot set to self");
-			if (Safe)
-				TH_DELETE(basic_string, L);
+			if (Deletable)
+				TH_DELETE(basic_string, Base);
 
-			L = Value.L;
-			Safe = Value.Safe;
-			Value.L = nullptr;
-			Value.Safe = false;
+			Base = Value.Base;
+			Deletable = Value.Deletable;
+			Value.Base = nullptr;
+			Value.Deletable = false;
 
 			return *this;
 		}
 		Parser& Parser::operator= (const Parser& Value) noexcept
 		{
 			TH_ASSERT(&Value != this, *this, "cannot set to self");
-			if (Safe)
-				TH_DELETE(basic_string, L);
+			if (Deletable)
+				TH_DELETE(basic_string, Base);
 
-			Safe = true;
-			if (Value.L != nullptr)
-				L = TH_NEW(std::string, *Value.L);
+			Deletable = true;
+			if (Value.Base != nullptr)
+				Base = TH_NEW(std::string, *Value.Base);
 			else
-				L = TH_NEW(std::string);
+				Base = TH_NEW(std::string);
 
 			return *this;
 		}
@@ -5423,12 +5959,39 @@ namespace Tomahawk
 			return std::chrono::duration_cast<Units>(std::chrono::system_clock::now().time_since_epoch());
 		}
 
-		Stream::Stream() noexcept
+		Stream::Stream() noexcept : VirtualSize(0)
 		{
 		}
-		std::string& Stream::GetSource()
+		void Stream::SetVirtualSize(size_t Size)
 		{
-			return Path;
+			VirtualSize = 0;
+		}
+		size_t Stream::ReadAll(const std::function<void(char*, size_t)>& Callback)
+		{
+			TH_ASSERT(Callback != nullptr, 0, "callback should be set");
+
+			char Buffer[TH_CHUNK_SIZE];
+			size_t Size = 0, Total = 0;
+
+			do
+			{
+				size_t Max = sizeof(Buffer);
+				if (VirtualSize > 0 && VirtualSize - Total > Max)
+					Max = VirtualSize - Total;
+
+				Size = Read(Buffer, Max);
+				if (Size > 0)
+				{
+					Callback(Buffer, Size);
+					Total += Size;
+				}
+			} while (Size > 0);
+
+			return Size;
+		}
+		size_t Stream::GetVirtualSize() const
+		{
+			return VirtualSize;
 		}
 		size_t Stream::GetSize()
 		{
@@ -5438,6 +6001,10 @@ namespace Tomahawk
 			Seek(FileSeek::Begin, Position);
 
 			return Size;
+		}
+		std::string& Stream::GetSource()
+		{
+			return Path;
 		}
 
 		FileStream::FileStream() noexcept : Resource(nullptr)
@@ -5676,6 +6243,7 @@ namespace Tomahawk
 				case FileSeek::Current:
 					return gzseek((gzFile)Resource, (long)Offset, SEEK_CUR) == 0;
 				case FileSeek::End:
+					TH_ASSERT(false, false, "gz seek from end is not supported");
 					return gzseek((gzFile)Resource, (long)Offset, SEEK_END) == 0;
 			}
 #endif
@@ -5703,6 +6271,7 @@ namespace Tomahawk
 		}
 		size_t GzStream::ReadAny(const char* Format, ...)
 		{
+			TH_ASSERT(false, -1, "gz read-format is not supported");
 			return 0;
 		}
 		size_t GzStream::Read(char* Data, size_t Length)
@@ -5756,6 +6325,7 @@ namespace Tomahawk
 		}
 		int GzStream::GetFd() const
 		{
+			TH_ASSERT(false, -1, "gz fd fetch is not supported");
 			return -1;
 		}
 		void* GzStream::GetBuffer() const
@@ -5776,6 +6346,7 @@ namespace Tomahawk
 		}
 		void WebStream::Clear()
 		{
+			TH_ASSERT_V(false, "web clear is not supported");
 		}
 		bool WebStream::Open(const char* File, FileMode Mode)
 		{
@@ -5856,8 +6427,8 @@ namespace Tomahawk
 				case FileMode::Binary_Read_Write:
 				case FileMode::Binary_Write_Read:
 				case FileMode::Binary_Read_Append_Write:
-					TH_DEBUG("[http] web stream supports only rb and r modes");
 					Close();
+					TH_ASSERT(false, false, "web stream supports only rb and r modes");
 					break;
 			}
 
@@ -5896,14 +6467,17 @@ namespace Tomahawk
 		}
 		bool WebStream::Move(int64_t Offset)
 		{
+			TH_ASSERT(false, false, "web move is not supported");
 			return false;
 		}
 		int WebStream::Flush()
 		{
+			TH_ASSERT(false, -1, "web flush is not supported");
 			return 0;
 		}
 		size_t WebStream::ReadAny(const char* Format, ...)
 		{
+			TH_ASSERT(false, 0, "web read-format is not supported");
 			return 0;
 		}
 		size_t WebStream::Read(char* Data, size_t Length)
@@ -5933,10 +6507,12 @@ namespace Tomahawk
 		}
 		size_t WebStream::WriteAny(const char* Format, ...)
 		{
+			TH_ASSERT(false, 0, "web write-format is not supported");
 			return 0;
 		}
 		size_t WebStream::Write(const char* Data, size_t Length)
 		{
+			TH_ASSERT(false, 0, "web write is not supported");
 			return 0;
 		}
 		size_t WebStream::Tell()

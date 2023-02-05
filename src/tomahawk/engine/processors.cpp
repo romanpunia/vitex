@@ -43,19 +43,21 @@ namespace Tomahawk
 			Asset::Asset(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Asset::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* Asset::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
-				char* Binary = TH_MALLOC(char, sizeof(char) * Length);
-				if (Stream->Read(Binary, Length) != Length)
+				std::vector<char> Temp;
+				Stream->ReadAll([&Temp](char* Buffer, size_t Size)
 				{
-					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
-					TH_FREE(Binary);
-					return nullptr;
-				}
+					Temp.reserve(Temp.size() + Size);
+					for (size_t i = 0; i < Size; i++)
+						Temp.push_back(Buffer[i]);
+				});
 
-				return new AssetFile(Binary, (size_t)Length);
+				char* Data = TH_MALLOC(char, sizeof(char) * Temp.size());
+				memcpy(Data, Temp.data(), sizeof(char) * Temp.size());
+				return new AssetFile(Data, Temp.size());
 			}
 
 			Material::Material(ContentManager* Manager) : Processor(Manager)
@@ -75,7 +77,7 @@ namespace Tomahawk
 				((Engine::Material*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Material::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* Material::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 
@@ -230,7 +232,7 @@ namespace Tomahawk
 			SceneGraph::SceneGraph(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* SceneGraph::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* SceneGraph::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				Engine::SceneGraph::Desc I = Engine::SceneGraph::Desc::Get(Application::Get());
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
@@ -560,37 +562,34 @@ namespace Tomahawk
 				((Audio::AudioClip*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* AudioClip::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* AudioClip::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				if (Core::Parser(&Stream->GetSource()).EndsWith(".wav"))
-					return DeserializeWAVE(Stream, Length, Offset, Args);
+					return DeserializeWAVE(Stream, Offset, Args);
 				else if (Core::Parser(&Stream->GetSource()).EndsWith(".ogg"))
-					return DeserializeOGG(Stream, Length, Offset, Args);
+					return DeserializeOGG(Stream, Offset, Args);
 
 				return nullptr;
 			}
-			void* AudioClip::DeserializeWAVE(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* AudioClip::DeserializeWAVE(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 #ifdef TH_HAS_SDL2
-				void* Binary = TH_MALLOC(void, sizeof(char) * Length);
-				if (Stream->Read((char*)Binary, Length) != Length)
+				std::vector<char> Data;
+				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
-					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
-					TH_FREE(Binary);
-					return nullptr;
-				}
+					Data.reserve(Data.size() + Size);
+					for (size_t i = 0; i < Size; i++)
+						Data.push_back(Buffer[i]);
+				});
 
-				SDL_RWops* WavData = SDL_RWFromMem(Binary, (int)Length);
+				SDL_RWops* WavData = SDL_RWFromMem(Data.data(), (int)Data.size());
 				SDL_AudioSpec WavInfo;
 				Uint8* WavSamples;
 				Uint32 WavCount;
 
 				if (!SDL_LoadWAV_RW(WavData, 1, &WavInfo, &WavSamples, &WavCount))
-				{
-					TH_FREE(Binary);
 					return nullptr;
-				}
 
 				int Format = 0;
 #ifdef TH_HAS_OPENAL
@@ -606,14 +605,12 @@ namespace Tomahawk
 						break;
 					default:
 						SDL_FreeWAV(WavSamples);
-						TH_FREE(Binary);
 						return nullptr;
 				}
 #endif
 				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)WavSamples, (int)WavCount, (int)WavInfo.freq);
 				SDL_FreeWAV(WavSamples);
-				TH_FREE(Binary);
 
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
@@ -623,24 +620,23 @@ namespace Tomahawk
 				return nullptr;
 #endif
 			}
-			void* AudioClip::DeserializeOGG(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* AudioClip::DeserializeOGG(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				void* Binary = TH_MALLOC(void, sizeof(char) * Length);
-				if (Stream->Read((char*)Binary, Length) != Length)
+				std::vector<char> Data;
+				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
-					TH_ERR("[engine] cannot read %llu bytes from audio clip file", Length);
-					TH_FREE(Binary);
-					return nullptr;
-				}
+					Data.reserve(Data.size() + Size);
+					for (size_t i = 0; i < Size; i++)
+						Data.push_back(Buffer[i]);
+				});
 
 				short* Buffer;
 				int Channels, SampleRate;
-				int Samples = stb_vorbis_decode_memory((const unsigned char*)Binary, (int)Length, &Channels, &SampleRate, &Buffer);
+				int Samples = stb_vorbis_decode_memory((const unsigned char*)Data.data(), (int)Data.size(), &Channels, &SampleRate, &Buffer);
 				if (Samples <= 0)
 				{
 					TH_ERR("[engine] cannot interpret OGG stream");
-					TH_FREE(Binary);
 					return nullptr;
 				}
 
@@ -654,7 +650,6 @@ namespace Tomahawk
 				Audio::AudioClip* Object = new Audio::AudioClip(1, Format);
 				Audio::AudioContext::SetBufferData(Object->GetBuffer(), (int)Format, (const void*)Buffer, Samples * sizeof(short) * Channels, (int)SampleRate);
 				TH_FREE(Buffer);
-				TH_FREE(Binary);
 
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
@@ -682,16 +677,16 @@ namespace Tomahawk
 				((Graphics::Texture2D*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Texture2D::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* Texture2D::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				unsigned char* Binary = TH_MALLOC(unsigned char, sizeof(unsigned char) * Length);
-				if (Stream->Read((char*)Binary, Length) != Length)
+				std::vector<char> Data;
+				Stream->ReadAll([&Data](char* Buffer, size_t Size)
 				{
-					TH_ERR("[engine] cannot read %llu bytes from texture 2d file", Length);
-					TH_FREE(Binary);
-					return nullptr;
-				}
+					Data.reserve(Data.size() + Size);
+					for (size_t i = 0; i < Size; i++)
+						Data.push_back(Buffer[i]);
+				});
 
 				if (TH_LEFT_HANDED)
 					stbi_set_flip_vertically_on_load(0);
@@ -699,12 +694,9 @@ namespace Tomahawk
 					stbi_set_flip_vertically_on_load(1);
 
 				int Width, Height, Channels;
-				unsigned char* Resource = stbi_load_from_memory(Binary, (int)Length, &Width, &Height, &Channels, STBI_rgb_alpha);
+				unsigned char* Resource = stbi_load_from_memory((const unsigned char*)Data.data(), (int)Data.size(), &Width, &Height, &Channels, STBI_rgb_alpha);
 				if (!Resource)
-				{
-					TH_FREE(Binary);
 					return nullptr;
-				}
 
 				auto* Device = Content->GetDevice();
 				Graphics::Texture2D::Desc F = Graphics::Texture2D::Desc();
@@ -720,8 +712,6 @@ namespace Tomahawk
 				Device->Unlock();
 
 				stbi_image_free(Resource);
-				TH_FREE(Binary);
-
 				if (!Object)
 					return nullptr;
 
@@ -751,21 +741,23 @@ namespace Tomahawk
 				((Graphics::Shader*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Shader::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* Shader::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				char* Code = TH_MALLOC(char, sizeof(char) * (unsigned int)Length);
-				Stream->Read(Code, Length);
+				std::string Data;
+				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				{
+					Data.append(Buffer, Size);
+				});
 
 				Graphics::Shader::Desc I = Graphics::Shader::Desc();
 				I.Filename = Stream->GetSource();
-				I.Data = Code;
+				I.Data = Data;
 
 				Graphics::GraphicsDevice* Device = Content->GetDevice();
 				Device->Unlock();
 				Graphics::Shader* Object = Device->CreateShader(I);
 				Device->Lock();
-				TH_FREE(Code);
 
 				if (!Object)
 					return nullptr;
@@ -796,7 +788,7 @@ namespace Tomahawk
 				((Graphics::Model*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* Model::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* Model::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
@@ -1108,7 +1100,7 @@ namespace Tomahawk
 				((Graphics::SkinModel*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* SkinModel::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* SkinModel::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
@@ -1312,12 +1304,9 @@ namespace Tomahawk
 			Schema::Schema(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Schema::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* Schema::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				if (!Length)
-					return nullptr;
-
 				auto* Object = Core::Schema::ConvertFromJSONB([Stream](char* Buffer, size_t Size)
 				{
 					return Size > 0 ? Stream->Read(Buffer, Size) == Size : true;
@@ -1325,17 +1314,18 @@ namespace Tomahawk
 
 				if (Object != nullptr)
 					return Object;
-
-				char* Buffer = TH_MALLOC(char, sizeof(char) * (size_t)(Length + 1));
+				
+				std::string Data;
 				Stream->Seek(Core::FileSeek::Begin, Offset);
-				Stream->Read(Buffer, Length);
-				Buffer[(size_t)Length] = '\0';
+				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				{
+					Data.append(Buffer, Size);
+				});
 
-				Object = Core::Schema::ConvertFromJSON(Buffer, (size_t)Length, false);
+				Object = Core::Schema::ConvertFromJSON(Data.data(), Data.size(), false);
 				if (!Object)
-					Object = Core::Schema::ConvertFromXML(Buffer, false);
+					Object = Core::Schema::ConvertFromXML(Data.data(), false);
 
-				TH_FREE(Buffer);
 				return Object;
 			}
 			bool Schema::Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Args)
@@ -1421,7 +1411,7 @@ namespace Tomahawk
 			Server::Server(ContentManager* Manager) : Processor(Manager)
 			{
 			}
-			void* Server::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* Server::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				std::string N = Network::Socket::GetLocalAddress();
@@ -1839,7 +1829,7 @@ namespace Tomahawk
 				((Compute::HullShape*)Asset->Resource)->AddRef();
 				return Asset->Resource;
 			}
-			void* HullShape::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+			void* HullShape::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				TH_ASSERT(Stream != nullptr, nullptr, "stream should be set");
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());

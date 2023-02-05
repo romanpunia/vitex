@@ -3411,10 +3411,12 @@ namespace Tomahawk
 #ifdef TH_HAS_MONGOC
 				if (State <= 0)
 				{
-					using Map = Core::Mapping<std::unordered_map<std::string, Sequence>>;
+					using Map1 = Core::Mapping<std::unordered_map<std::string, Sequence>>;
+					using Map2 = Core::Mapping<std::unordered_map<std::string, std::string>>;
 					Network::Driver::SetActive(true);
 
-					Queries = TH_NEW(Map);
+					Queries = TH_NEW(Map1);
+					Constants = TH_NEW(Map2);
 					Safe = TH_NEW(std::mutex);
 					mongoc_log_set_handler([](mongoc_log_level_t Level, const char* Domain, const char* Message, void*)
 					{
@@ -3468,6 +3470,12 @@ namespace Tomahawk
 						Queries = nullptr;
 					}
 
+					if (Constants != nullptr)
+					{
+						TH_DELETE(Mapping, Constants);
+						Constants = nullptr;
+					}
+
 					if (Safe != nullptr)
 					{
 						Safe->unlock();
@@ -3515,6 +3523,16 @@ namespace Tomahawk
 				mongoc_client_pool_set_apm_callbacks(Connection, (mongoc_apm_callbacks_t*)APM, nullptr);
 #endif
 			}
+			bool Driver::AddConstant(const std::string& Name, const std::string& Value)
+			{
+				TH_ASSERT(Constants && Safe, false, "driver should be initialized");
+				TH_ASSERT(!Name.empty(), false, "name should not be empty");
+
+				Safe->lock();
+				Constants->Map[Name] = Value;
+				Safe->unlock();
+				return true;
+			}
 			bool Driver::AddQuery(const std::string& Name, const char* Buffer, size_t Size)
 			{
 				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
@@ -3527,94 +3545,70 @@ namespace Tomahawk
 				Sequence Result;
 				Result.Request.assign(Buffer, Size);
 
+				std::string Enums = " \r\n\t\'\"()<>=%&^*/+-,!?:;";
+				std::string Erasable = " \r\n\t\'\"()<>=%&^*/+-,.!?:;";
+				std::string Quotes = "\"'`";
+
 				Core::Parser Base(&Result.Request);
-				Base.Trim();
+				Base.ReplaceInBetween("/*", "*/", "", false);
+				Base.Trim().Compress(Erasable.c_str(), Quotes.c_str());
 
-				size_t Args = 0;
-				size_t Index = 0;
-				int64_t Arg = -1;
-				bool Spec = false;
-				bool Lock = false;
-
-				while (Index < Base.Size())
+				auto Enumerations = Base.FindStartsWithEndsOf("#", Enums.c_str(), Quotes.c_str());
+				if (!Enumerations.empty())
 				{
-					char V = Base.R()[Index];
-					char L = Base.R()[!Index ? Index : Index - 1];
+					int64_t Offset = 0;
+					std::unique_lock<std::mutex> Unique(*Safe);
+					for (auto& Item : Enumerations)
+					{
+						size_t Size = Item.second.End - Item.second.Start, NewSize = 0;
+						Item.second.Start = (size_t)((int64_t)Item.second.Start + Offset);
+						Item.second.End = (size_t)((int64_t)Item.second.End + Offset);
 
-					if (V == '\'')
-					{
-						if (Lock)
+						auto It = Constants->Map.find(Item.first);
+						if (It == Constants->Map.end())
 						{
-							if (Spec)
-								Spec = false;
-							else
-								Lock = false;
+							TH_ERR("[mongoc] template query %s\n\texpects constant: %s", Name.c_str(), Item.first.c_str());
+							Base.ReplacePart(Item.second.Start, Item.second.End, "");
 						}
-						else if (Spec)
-							Spec = false;
 						else
-							Lock = true;
-						Index++;
-					}
-					else if (V == '>')
-					{
-						if (!Spec && Arg >= 0)
 						{
-							if ((size_t)Arg < Base.Size())
-							{
-								Pose Next;
-								Next.Escape = (Base.R()[(size_t)Arg] == '$');
-								Next.Key = Base.R().substr((size_t)Arg + 2, (size_t)Index - (size_t)Arg - 2);
-								Next.Offset = (size_t)Arg;
-								Result.Positions.push_back(std::move(Next));
-								Base.RemovePart((size_t)Arg, Index + 1);
-								Index -= Index - (size_t)Arg + 1; Args++;
-							}
+							Base.ReplacePart(Item.second.Start, Item.second.End, It->second);
+							NewSize = It->second.size();
+						}
 
-							Spec = false;
-							Index++;
-							Arg = -1;
-						}
-						else if (Spec)
-						{
-							Spec = false;
-							Base.Erase(Index - 1, 1);
-						}
-						else
-							Index++;
-					}
-					else if ((L == '@' || L == '$') && V == '<')
-					{
-						if (!Spec && Arg < 0)
-						{
-							Arg = (!Index ? Index : Index - 1);
-							Index++;
-						}
-						else if (Spec)
-						{
-							Spec = false;
-							Base.Erase(Index - 1, 1);
-						}
-						else
-							Index++;
-					}
-					else if (Lock && V == '\\')
-					{
-						Spec = true;
-						Index++;
-					}
-					else if (!Lock && (V == '\n' || V == '\r' || V == '\t' || V == ' '))
-					{
-						Base.Erase(Index, 1);
-					}
-					else
-					{
-						Spec = false;
-						Index++;
+						Offset += (int64_t)NewSize - (int64_t)Size;
+						Item.second.End = Item.second.Start + NewSize;
 					}
 				}
 
-				if (Args < 1)
+				std::vector<std::pair<std::string, Core::Parser::Settle>> Variables;
+				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
+				{
+					Item.first += "__1";
+					Variables.emplace_back(std::move(Item));
+				}
+
+				for (auto& Item : Base.FindInBetween("@<", ">", Quotes.c_str()))
+				{
+					Item.first += "__2";
+					Variables.emplace_back(std::move(Item));
+				}
+
+				Base.ReplaceParts(Variables, "", [&Erasable](char Left)
+				{
+					return Erasable.find(Left) == std::string::npos ? ' ' : '\0';
+				});
+
+				for (auto& Item : Variables)
+				{
+					Pose Position;
+					Position.Escape = Item.first.find("__1") != std::string::npos;
+					Position.Offset = Item.second.Start;
+					Position.Key = Item.first.substr(0, Item.first.size() - 3);
+					Result.Positions.emplace_back(std::move(Position));
+				}
+
+				if (Variables.empty())
 					Result.Cache = Document::FromJSON(Result.Request);
 
 				Safe->lock();
@@ -3657,6 +3651,21 @@ namespace Tomahawk
 
 				return true;
 			}
+			bool Driver::RemoveConstant(const std::string& Name)
+			{
+				TH_ASSERT(Constants && Safe, false, "driver should be initialized");
+				Safe->lock();
+				auto It = Constants->Map.find(Name);
+				if (It == Constants->Map.end())
+				{
+					Safe->unlock();
+					return false;
+				}
+
+				Constants->Map.erase(It);
+				Safe->unlock();
+				return true;
+			}
 			bool Driver::RemoveQuery(const std::string& Name)
 			{
 				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
@@ -3671,6 +3680,79 @@ namespace Tomahawk
 				Queries->Map.erase(It);
 				Safe->unlock();
 				return true;
+			}
+			bool Driver::LoadCacheDump(Core::Schema* Dump)
+			{
+				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
+				TH_ASSERT(Dump != nullptr, false, "dump should be set");
+
+				size_t Count = 0;
+				std::unique_lock<std::mutex> Unique(*Safe);
+				Queries->Map.clear();
+
+				for (auto* Data : Dump->GetChilds())
+				{
+					Sequence Result;
+					Result.Request = Data->GetVar("request").GetBlob();
+
+					auto* Cache = Data->Get("cache");
+					if (Cache != nullptr && Cache->Value.IsObject())
+					{
+						Result.Cache = Document::FromDocument(Cache);
+						Result.Request = Result.Cache.ToJSON();
+					}
+
+					Core::Schema* Positions = Data->Get("positions");
+					if (Positions != nullptr)
+					{
+						for (auto* Position : Positions->GetChilds())
+						{
+							Pose Next;
+							Next.Key = Position->GetVar(0).GetBlob();
+							Next.Offset = (size_t)Position->GetVar(1).GetInteger();
+							Next.Escape = Position->GetVar(2).GetBoolean();
+							Result.Positions.emplace_back(std::move(Next));
+						}
+					}
+
+					std::string Name = Data->GetVar("name").GetBlob();
+					Queries->Map[Name] = std::move(Result);
+					++Count;
+				}
+
+				if (Count > 0)
+					TH_DEBUG("[pq] OK load %llu parsed query templates", (uint64_t)Count);
+
+				return Count > 0;
+			}
+			Core::Schema* Driver::GetCacheDump()
+			{
+				TH_ASSERT(Queries && Safe, false, "driver should be initialized");
+				std::unique_lock<std::mutex> Unique(*Safe);
+				Core::Schema* Result = Core::Var::Set::Array();
+				for (auto& Query : Queries->Map)
+				{
+					Core::Schema* Data = Result->Push(Core::Var::Set::Object());
+					Data->Set("name", Core::Var::String(Query.first));
+
+					auto* Cache = Query.second.Cache.ToSchema();
+					if (Cache != nullptr)
+						Data->Set("cache", Cache);
+					else
+						Data->Set("request", Core::Var::String(Query.second.Request));
+
+					auto* Positions = Data->Set("positions", Core::Var::Set::Array());
+					for (auto& Position : Query.second.Positions)
+					{
+						auto* Next = Positions->Push(Core::Var::Set::Array());
+						Next->Push(Core::Var::String(Position.Key));
+						Next->Push(Core::Var::Integer(Position.Offset));
+						Next->Push(Core::Var::Boolean(Position.Escape));
+					}
+				}
+
+				TH_DEBUG("[pq] OK save %llu parsed query templates", (uint64_t)Queries->Map.size());
+				return Result;
 			}
 			Document Driver::GetQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once)
 			{
@@ -3837,6 +3919,7 @@ namespace Tomahawk
 				return "";
 			}
 			Core::Mapping<std::unordered_map<std::string, Driver::Sequence>>* Driver::Queries = nullptr;
+			Core::Mapping<std::unordered_map<std::string, std::string>>* Driver::Constants = nullptr;
 			std::mutex* Driver::Safe = nullptr;
 			std::atomic<int> Driver::State(0);
 			OnQueryLog Driver::Logger = nullptr;

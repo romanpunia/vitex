@@ -10,6 +10,7 @@
 #include <SDL2/SDL_syswm.h>
 #undef Complex
 #endif
+
 namespace std
 {
 	template <typename T>
@@ -1842,7 +1843,7 @@ namespace Tomahawk
 		{
 			return nullptr;
 		}
-		void* Processor::Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Args)
+		void* Processor::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 		{
 			return nullptr;
 		}
@@ -5107,7 +5108,7 @@ namespace Tomahawk
 			if (!Stream)
 				return nullptr;
 
-			Object = Processor->Deserialize(Stream, Stream->GetSize(), 0, Map);
+			Object = Processor->Deserialize(Stream, 0, Map);
 			TH_RELEASE(Stream);
 
 			return Object;
@@ -5143,11 +5144,12 @@ namespace Tomahawk
 			}
 
 			auto* Stream = Docker->second->Stream;
+			Stream->SetVirtualSize(Docker->second->Length);
 			Stream->Seek(Core::FileSeek::Begin, It->second + Docker->second->Offset);
 			Stream->GetSource() = File.R();
 			Mutex.unlock();
 
-			return Processor->Deserialize(Stream, Docker->second->Length, It->second + Docker->second->Offset, Map);
+			return Processor->Deserialize(Stream, It->second + Docker->second->Offset, Map);
 		}
 		bool ContentManager::SaveForward(const std::string& Path, Processor* Processor, void* Object, const Core::VariantArgs& Map)
 		{
@@ -5166,6 +5168,11 @@ namespace Tomahawk
 			std::string File = Core::OS::Path::Resolve(Directory, Environment);
 			File.append(Path.substr(Directory.size()));
 			Mutex.unlock();
+
+			if (!File.empty())
+				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(File.c_str()));
+			else
+				Core::OS::Directory::Patch(Core::OS::Path::GetDirectory(Path.c_str()));
 
 			auto* Stream = Core::OS::File::Open(File, Core::FileMode::Binary_Write_Only);
 			if (!Stream)

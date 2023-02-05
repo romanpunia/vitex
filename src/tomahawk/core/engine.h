@@ -563,7 +563,7 @@ namespace Tomahawk
 			virtual ~Processor() noexcept override;
 			virtual void Free(AssetCache* Asset);
 			virtual Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
-			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Length, size_t Offset, const Core::VariantArgs& Keys);
+			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Keys);
 			virtual bool Serialize(Core::Stream* Stream, void* Instance, const Core::VariantArgs& Keys);
 			ContentManager* GetContent() const;
 		};

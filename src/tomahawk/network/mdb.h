@@ -528,6 +528,7 @@ namespace Tomahawk
 
 			private:
 				static Core::Mapping<std::unordered_map<std::string, Sequence>>* Queries;
+				static Core::Mapping<std::unordered_map<std::string, std::string>>* Constants;
 				static std::mutex* Safe;
 				static std::atomic<int> State;
 				static OnQueryLog Logger;
@@ -539,9 +540,13 @@ namespace Tomahawk
 				static void SetQueryLog(const OnQueryLog& Callback);
 				static void AttachQueryLog(TConnection* Connection);
 				static void AttachQueryLog(TConnectionPool* Connection);
+				static bool AddConstant(const std::string& Name, const std::string& Value);
 				static bool AddQuery(const std::string& Name, const char* Buffer, size_t Size);
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
+				static bool RemoveConstant(const std::string& Name);
 				static bool RemoveQuery(const std::string& Name);
+				static bool LoadCacheDump(Core::Schema* Dump);
+				static Core::Schema* GetCacheDump();
 				static Document GetQuery(const std::string& Name, Core::Unique<Core::SchemaArgs> Map, bool Once = true);
 				static std::vector<std::string> GetQueries();
 

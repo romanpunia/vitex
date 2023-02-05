@@ -599,6 +599,8 @@ namespace Tomahawk
 				static bool AddDirectory(const std::string& Directory, const std::string& Origin = "");
 				static bool RemoveConstant(const std::string& Name);
 				static bool RemoveQuery(const std::string& Name);
+				static bool LoadCacheDump(Core::Schema* Dump);
+				static Core::Schema* GetCacheDump();
 				static std::string Emplace(Cluster* Base, const std::string& SQL, Core::SchemaList* Map, bool Once = true);
 				static std::string GetQuery(Cluster* Base, const std::string& Name, Core::SchemaArgs* Map, bool Once = true);
 				static std::string GetCharArray(TConnection* Base, const std::string& Src);

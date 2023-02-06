@@ -3220,7 +3220,8 @@ namespace Tomahawk
 		}
 		Parser& Parser::ReplaceGroups(const std::string& FromRegex, const std::string& To)
 		{
-			Compute::Regex::Replace(*Base, FromRegex, To);
+			Compute::RegexSource Source('(' + FromRegex + ')');
+			Compute::Regex::Replace(&Source, To, *Base);
 			return *this;
 		}
 		Parser& Parser::Replace(const char* From, const char* To, size_t Start)

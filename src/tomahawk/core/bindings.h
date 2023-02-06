@@ -946,10 +946,10 @@ namespace Tomahawk
 				static bool LoadOS(VMManager* Engine);
 				static bool LoadScheduler(VMManager* Engine);
 				static bool LoadVertices(VMManager* Engine);
-				static bool LoadRectangle(VMManager* Engine);
-				static bool LoadVector2(VMManager* Engine);
-				static bool LoadVector3(VMManager* Engine);
-				static bool LoadVector4(VMManager* Engine);
+				static bool LoadVectors(VMManager* Engine);
+				static bool LoadShapes(VMManager* Engine);
+				static bool LoadKeyFrames(VMManager* Engine);
+				static bool LoadRegex(VMManager* Engine);
 				static bool LoadUiModel(VMManager* Engine);
 				static bool LoadUiControl(VMManager* Engine);
 				static bool LoadUiContext(VMManager* Engine);

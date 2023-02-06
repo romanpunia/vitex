@@ -3303,44 +3303,6 @@ namespace Tomahawk
 			return (Mathf::Random(Min * Accuracy, Max * Accuracy) / Accuracy) * (Intensity ? Mathf::Random() : 1);
 		}
 
-		Hybi10Request::Hybi10Request() noexcept
-		{
-			Type = -1;
-			ExitCode = 0;
-		}
-		std::string Hybi10Request::GetTextType() const
-		{
-			if (Type == 0 || Type == 1 || Type == 2)
-				return "text";
-
-			if (Type == 8)
-				return "close";
-
-			if (Type == 9)
-				return "ping";
-
-			if (Type == 10)
-				return "pong";
-
-			return "unknown";
-		}
-		Hybi10_Opcode Hybi10Request::GetEnumType() const
-		{
-			if (Type == 0 || Type == 1 || Type == 2)
-				return Hybi10_Opcode::Text;
-
-			if (Type == 8)
-				return Hybi10_Opcode::Close;
-
-			if (Type == 9)
-				return Hybi10_Opcode::Ping;
-
-			if (Type == 10)
-				return Hybi10_Opcode::Pong;
-
-			return Hybi10_Opcode::Invalid;
-		}
-
 		RegexSource::RegexSource() noexcept :
 			MaxBranches(128), MaxBrackets(128), MaxMatches(128),
 			State(RegexState::No_Match), IgnoreCase(false)
@@ -3612,10 +3574,9 @@ namespace Tomahawk
 			Result.State = RegexState::Match_Found;
 			return true;
 		}
-		bool Regex::Replace(std::string& Source, const std::string& From, const std::string& To)
+		bool Regex::Replace(RegexSource* Value, const std::string& To, std::string& Buffer)
 		{
-			Core::Parser Parser(&Source), Emplace;
-			RegexSource Base('(' + From + ')');
+			Core::Parser Parser(&Buffer), Emplace;
 			RegexResult Result;
 			size_t Matches = 0;
 
@@ -3624,7 +3585,7 @@ namespace Tomahawk
 				Emplace.Assign(To);
 
 			size_t Start = 0;
-			while (Match(&Base, Result, Source.c_str() + Start, Source.size() - Start))
+			while (Match(Value, Result, Buffer.c_str() + Start, Buffer.size() - Start))
 			{
 				Matches++;
 				if (Result.Matches.empty())
@@ -7986,83 +7947,6 @@ namespace Tomahawk
 
 			return Value;
 		}
-		std::string Codec::Hybi10Encode(const Hybi10Request& Request, bool Masked)
-		{
-			std::string Stream;
-			size_t Length = (size_t)Request.Payload.size();
-			unsigned char Head = 0;
-
-			switch (Request.GetEnumType())
-			{
-				case Hybi10_Opcode::Text:
-					Head = 129;
-					break;
-				case Hybi10_Opcode::Close:
-					Head = 136;
-					break;
-				case Hybi10_Opcode::Ping:
-					Head = 137;
-					break;
-				case Hybi10_Opcode::Pong:
-					Head = 138;
-					break;
-				default:
-					break;
-			}
-
-			Stream += (char)Head;
-			if (Length > 65535)
-			{
-				unsigned long long Offset = (unsigned long long)Length;
-				Stream += (char)(unsigned char)(Masked ? 255 : 127);
-
-				for (unsigned int i = 7; i > 0; i--)
-				{
-					unsigned char Block = 0;
-					for (unsigned int j = 0; j < 8; j++)
-					{
-						unsigned long long Shift = 0x01ull << j;
-						Shift = Shift << (8 * i);
-						Block += (unsigned char)((unsigned long long)(1ull << j) * (Offset & Shift));
-					}
-
-					if (i == 7 && Block > 127)
-						return std::string();
-
-					Stream += (char)Block;
-				}
-			}
-			else if (Length > 125)
-			{
-				unsigned long Offset = (unsigned long)Length;
-				unsigned char Block2 = (unsigned char)(128 * (Offset & 0x8000) + 64 * (Offset & 0x4000) + 32 * (Offset & 0x2000) + 16 * (Offset & 0x1000) + 8 * (Offset & 0x800) + 4 * (Offset & 0x400) + 2 * (Offset & 0x200) + (Offset & 0x100));
-				unsigned char Block3 = (unsigned char)(128 * (Offset & 0x80) + 64 * (Offset & 0x40) + 32 * (Offset & 0x20) + 16 * (Offset & 0x10) + 8 * (Offset & 0x08) + 4 * (Offset & 0x04) + 2 * (Offset & 0x02) + (Offset & 0x01));
-
-				Stream += (char)(unsigned char)(Masked ? 254 : 126);
-				Stream += Block2;
-				Stream += Block3;
-			}
-			else
-				Stream += (unsigned char)(Masked ? Length + 128 : Length);
-
-			if (!Masked)
-			{
-				Stream += Request.Payload;
-				return Stream;
-			}
-
-			unsigned char Mask[4];
-			for (int i = 0; i < 4; i++)
-			{
-				Mask[i] = Crypto::RandomUC();
-				Stream += (char)Mask[i];
-			}
-
-			for (int i = 0; i < (int)Length; i++)
-				Stream += (char)(unsigned char)(Request.Payload[i] ^ Mask[i % 4]);
-
-			return Stream;
-		}
 		std::string Codec::Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65)
 		{
 			TH_ASSERT(BaseLessThan65 >= 1 && BaseLessThan65 <= 64, std::string(), "base should be between 1 and 64");
@@ -8094,41 +7978,6 @@ namespace Tomahawk
 			} while (n > 0);
 
 			return Result;
-		}
-		Hybi10Request Codec::Hybi10Decode(const std::string& Value)
-		{
-			Hybi10PayloadHeader* Payload = (Hybi10PayloadHeader*)Value.c_str();
-			Hybi10Request Decoded;
-			Decoded.Type = Payload->Opcode;
-
-			if (Decoded.GetEnumType() == Hybi10_Opcode::Invalid)
-			{
-				Decoded.ExitCode = 1003;
-				return Decoded;
-			}
-
-			std::string PayloadBody = Value.substr(2);
-			std::string PayloadMask;
-			int PayloadOffset = 0;
-
-			if (Payload->PayloadLength == 126)
-				PayloadOffset += 2;
-			else if (Payload->PayloadLength == 127)
-				PayloadOffset += 8;
-
-			if (Value[1] & 0x80)
-			{
-				PayloadMask = PayloadBody.substr(PayloadOffset, 4);
-				PayloadOffset += 4;
-			}
-
-			PayloadBody = PayloadBody.substr(PayloadOffset);
-			int Length = (int)PayloadBody.size();
-
-			for (int i = 0; i < Length; i++)
-				Decoded.Payload += (char)(unsigned char)(PayloadBody[i] ^ PayloadMask[i % 4]);
-
-			return Decoded;
 		}
 		size_t Codec::Utf8(int Code, char* Buffer)
 		{

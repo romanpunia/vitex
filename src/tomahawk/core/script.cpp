@@ -4091,11 +4091,11 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/file_system", { "std/string" }, Bindings::Registry::LoadFileSystem);
 			Engine->AddSubmodule("std/os", { "std/file_system" }, Bindings::Registry::LoadOS);
 			Engine->AddSubmodule("std/vertices", { }, Bindings::Registry::LoadVertices);
-			Engine->AddSubmodule("std/rectangle", { }, Bindings::Registry::LoadRectangle);
-			Engine->AddSubmodule("std/vector2", { }, Bindings::Registry::LoadVector2);
-			Engine->AddSubmodule("std/vector3", { "std/vector2" }, Bindings::Registry::LoadVector3);
-			Engine->AddSubmodule("std/vector4", { "std/vector3" }, Bindings::Registry::LoadVector4);
-			Engine->AddSubmodule("std/gui_control", { "std/vector2", "std/vector3", "std/vector4", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
+			Engine->AddSubmodule("std/vectors", { }, Bindings::Registry::LoadVectors);
+			Engine->AddSubmodule("std/shapes", { "std/vectors" }, Bindings::Registry::LoadShapes);
+			Engine->AddSubmodule("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::LoadKeyFrames);
+			Engine->AddSubmodule("std/regex", { "std/string" }, Bindings::Registry::LoadRegex);
+			Engine->AddSubmodule("std/gui_control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
 			Engine->AddSubmodule("std/gui_model", { "std/gui_control", }, Bindings::Registry::LoadUiModel);
 			Engine->AddSubmodule("std/gui_context", { "std/gui_model" }, Bindings::Registry::LoadUiContext);
 			Engine->AddSubmodule("std", { }, nullptr);

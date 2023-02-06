@@ -117,6 +117,7 @@ double frac(double Value)
 #define TYPENAME_DECIMAL "decimal"
 #define TYPENAME_VARIANT "variant"
 #define TYPENAME_FILEENTRY "file_entry"
+#define TYPENAME_REGEXMATCH "regex_match"
 #define TYPENAME_ELEMENTNODE "ui_element"
 
 namespace
@@ -5927,7 +5928,142 @@ namespace Tomahawk
 
 				return A > B ? 1 : -1;
 			}
-			
+
+			Compute::Matrix4x4 Matrix4x4Mul1(Compute::Matrix4x4& A, const Compute::Matrix4x4& B)
+			{
+				return A * B;
+			}
+			Compute::Vector4 Matrix4x4Mul2(Compute::Matrix4x4& A, const Compute::Vector4& B)
+			{
+				return A * B;
+			}
+			bool Matrix4x4Eq(Compute::Matrix4x4& A, const Compute::Matrix4x4& B)
+			{
+				return A == B;
+			}
+			float& Matrix4x4GetRow(Compute::Matrix4x4& Base, uint32_t Index)
+			{
+				return Base.Row[Index % 16];
+			}
+
+			Compute::Vector3 QuaternionMul1(Compute::Quaternion& A, const Compute::Vector3& B)
+			{
+				return A * B;
+			}
+			Compute::Quaternion QuaternionMul2(Compute::Quaternion& A, const Compute::Quaternion& B)
+			{
+				return A * B;
+			}
+			Compute::Quaternion QuaternionMul3(Compute::Quaternion& A, float B)
+			{
+				return A * B;
+			}
+			Compute::Quaternion QuaternionAdd(Compute::Quaternion& A, const Compute::Quaternion& B)
+			{
+				return A + B;
+			}
+			Compute::Quaternion QuaternionSub(Compute::Quaternion& A, const Compute::Quaternion& B)
+			{
+				return A - B;
+			}
+
+			Compute::Vector4& Frustum8CGetCorners(Compute::Frustum8C& Base, uint32_t Index)
+			{
+				return Base.Corners[Index % 8];
+			}
+
+			Compute::Vector4& Frustum6PGetCorners(Compute::Frustum6P& Base, uint32_t Index)
+			{
+				return Base.Planes[Index % 6];
+			}
+
+			uint32_t JointSize(Compute::Joint& Base)
+			{
+				return (uint32_t)Base.Childs.size();
+			}
+			Compute::Joint& JointGetChilds(Compute::Joint& Base, uint32_t Index)
+			{
+				if (Base.Childs.empty())
+					return Base;
+
+				return Base.Childs[Index % Base.Childs.size()];
+			}
+
+			uint32_t SkinAnimatorKeySize(Compute::SkinAnimatorKey& Base)
+			{
+				return (uint32_t)Base.Pose.size();
+			}
+			Compute::AnimatorKey& SkinAnimatorKeyGetPose(Compute::SkinAnimatorKey& Base, uint32_t Index)
+			{
+				if (Base.Pose.empty())
+				{
+					Base.Pose.push_back(Compute::AnimatorKey());
+					return Base.Pose.front();
+				}
+
+				return Base.Pose[Index % Base.Pose.size()];
+			}
+
+			uint32_t SkinAnimatorClipSize(Compute::SkinAnimatorClip& Base)
+			{
+				return (uint32_t)Base.Keys.size();
+			}
+			Compute::SkinAnimatorKey& SkinAnimatorClipGetKeys(Compute::SkinAnimatorClip& Base, uint32_t Index)
+			{
+				if (Base.Keys.empty())
+				{
+					Base.Keys.push_back(Compute::SkinAnimatorKey());
+					return Base.Keys.front();
+				}
+
+				return Base.Keys[Index % Base.Keys.size()];
+			}
+
+			uint32_t KeyAnimatorClipSize(Compute::KeyAnimatorClip& Base)
+			{
+				return (uint32_t)Base.Keys.size();
+			}
+			Compute::AnimatorKey& KeyAnimatorClipGetKeys(Compute::KeyAnimatorClip& Base, uint32_t Index)
+			{
+				if (Base.Keys.empty())
+				{
+					Base.Keys.push_back(Compute::AnimatorKey());
+					return Base.Keys.front();
+				}
+
+				return Base.Keys[Index % Base.Keys.size()];
+			}
+
+			std::string RegexMatchTarget(Compute::RegexMatch& Base)
+			{
+				return Base.Pointer ? Base.Pointer : std::string();
+			}
+
+			Array* RegexResultGet(Compute::RegexResult& Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_REGEXMATCH ">@");
+				return Array::Compose<Compute::RegexMatch>(Type.GetTypeInfo(), Base.Get());
+			}
+			Array* RegexResultToArray(Compute::RegexResult& Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<std::string>(Type.GetTypeInfo(), Base.ToArray());
+			}
+
+			Compute::RegexResult RegexSourceMatch(Compute::RegexSource& Base, const std::string& Text)
+			{
+				Compute::RegexResult Result;
+				Compute::Regex::Match(&Base, Result, Text);
+				return Result;
+			}
+			std::string RegexSourceReplace(Compute::RegexSource& Base, const std::string& Text, const std::string& To)
+			{
+				std::string Copy = Text;
+				Compute::RegexResult Result;
+				Compute::Regex::Replace(&Base, To, Copy);
+				return Copy;
+			}
+
 			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
@@ -7216,22 +7352,19 @@ namespace Tomahawk
 
 				return true;
 			}
-			bool Registry::LoadRectangle(VMManager* Engine)
+			bool Registry::LoadVectors(VMManager* Engine)
 			{
 				TH_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
-				VMTypeClass VRectangle = Register.SetPod<Compute::Rectangle>("rectangle");
-				VRectangle.SetProperty<Compute::Rectangle>("int64 left", &Compute::Rectangle::Left);
-				VRectangle.SetProperty<Compute::Rectangle>("int64 top", &Compute::Rectangle::Top);
-				VRectangle.SetProperty<Compute::Rectangle>("int64 right", &Compute::Rectangle::Right);
-				VRectangle.SetProperty<Compute::Rectangle>("int64 bottom", &Compute::Rectangle::Bottom);
 
-				return true;
-			}
-			bool Registry::LoadVector2(VMManager* Engine)
-			{
-				TH_ASSERT(Engine != nullptr, false, "manager should be set");
-				VMGlobal& Register = Engine->Global();
+				VMEnum VCubeFace = Register.SetEnum("cube_face");
+				VCubeFace.SetValue("positive_x", (int)Compute::CubeFace::PositiveX);
+				VCubeFace.SetValue("negative_x", (int)Compute::CubeFace::NegativeX);
+				VCubeFace.SetValue("positive_y", (int)Compute::CubeFace::PositiveY);
+				VCubeFace.SetValue("negative_y", (int)Compute::CubeFace::NegativeY);
+				VCubeFace.SetValue("positive_z", (int)Compute::CubeFace::PositiveZ);
+				VCubeFace.SetValue("negative_z", (int)Compute::CubeFace::NegativeZ);
+
 				VMTypeClass VVector2 = Register.SetPod<Compute::Vector2>("vector2");
 				VVector2.SetConstructor<Compute::Vector2>("void f()");
 				VVector2.SetConstructor<Compute::Vector2, float, float>("void f(float, float)");
@@ -7297,12 +7430,6 @@ namespace Tomahawk
 				Register.SetFunction("vector2 right()", &Compute::Vector2::Right);
 				Engine->EndNamespace();
 
-				return true;
-			}
-			bool Registry::LoadVector3(VMManager* Engine)
-			{
-				TH_ASSERT(Engine != nullptr, false, "manager should be set");
-				VMGlobal& Register = Engine->Global();
 				VMTypeClass VVector3 = Register.SetPod<Compute::Vector3>("vector3");
 				VVector3.SetConstructor<Compute::Vector3>("void f()");
 				VVector3.SetConstructor<Compute::Vector3, float, float>("void f(float, float)");
@@ -7377,12 +7504,6 @@ namespace Tomahawk
 				Register.SetFunction("vector3 backward()", &Compute::Vector3::Backward);
 				Engine->EndNamespace();
 
-				return true;
-			}
-			bool Registry::LoadVector4(VMManager* Engine)
-			{
-				TH_ASSERT(Engine != nullptr, false, "manager should be set");
-				VMGlobal& Register = Engine->Global();
 				VMTypeClass VVector4 = Register.SetPod<Compute::Vector4>("vector4");
 				VVector4.SetConstructor<Compute::Vector4>("void f()");
 				VVector4.SetConstructor<Compute::Vector4, float, float>("void f(float, float)");
@@ -7460,6 +7581,286 @@ namespace Tomahawk
 				Register.SetFunction("vector4 backward()", &Compute::Vector4::Backward);
 				Register.SetFunction("vector4 unitW()", &Compute::Vector4::UnitW);
 				Engine->EndNamespace();
+
+				VMTypeClass VMatrix4x4 = Register.SetPod<Compute::Matrix4x4>("matrix4x4");
+				VMatrix4x4.SetConstructor<Compute::Matrix4x4>("void f()");
+				VMatrix4x4.SetConstructor<Compute::Matrix4x4, const Compute::Vector4&, const Compute::Vector4&, const Compute::Vector4&, const Compute::Vector4&>("void f(const vector4 &in, const vector4 &in, const vector4 &in, const vector4 &in)");
+				VMatrix4x4.SetConstructor<Compute::Matrix4x4, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float>("void f(float, float, float, float, float, float, float, float, float, float, float, float, float, float, float, float)");
+				VMatrix4x4.SetMethod("matrix4x4 inv() const", &Compute::Matrix4x4::Inv);
+				VMatrix4x4.SetMethod("matrix4x4 transpose() const", &Compute::Matrix4x4::Transpose);
+				VMatrix4x4.SetMethod("matrix4x4 setScale(const vector3 &in) const", &Compute::Matrix4x4::SetScale);
+				VMatrix4x4.SetMethod("vector4 row11() const", &Compute::Matrix4x4::Row11);
+				VMatrix4x4.SetMethod("vector4 row22() const", &Compute::Matrix4x4::Row22);
+				VMatrix4x4.SetMethod("vector4 row33() const", &Compute::Matrix4x4::Row33);
+				VMatrix4x4.SetMethod("vector4 row44() const", &Compute::Matrix4x4::Row44);
+				VMatrix4x4.SetMethod("vector3 up(bool) const", &Compute::Matrix4x4::Up);
+				VMatrix4x4.SetMethod("vector3 right(bool) const", &Compute::Matrix4x4::Right);
+				VMatrix4x4.SetMethod("vector3 forward(bool) const", &Compute::Matrix4x4::Forward);
+				VMatrix4x4.SetMethod("vector3 rotation() const", &Compute::Matrix4x4::Rotation);
+				VMatrix4x4.SetMethod("vector3 position() const", &Compute::Matrix4x4::Position);
+				VMatrix4x4.SetMethod("vector3 scale() const", &Compute::Matrix4x4::Scale);
+				VMatrix4x4.SetMethod("vector3 xy() const", &Compute::Matrix4x4::XY);
+				VMatrix4x4.SetMethod("vector3 xyz() const", &Compute::Matrix4x4::XYZ);
+				VMatrix4x4.SetMethod("vector3 xyzw() const", &Compute::Matrix4x4::XYZW);
+				VMatrix4x4.SetMethod("void identify()", &Compute::Matrix4x4::Identify);
+				VMatrix4x4.SetMethod("void set(const matrix4x4 &in)", &Compute::Matrix4x4::Set);
+				VMatrix4x4.SetMethod<Compute::Matrix4x4, Compute::Matrix4x4, const Compute::Matrix4x4&>("matrix4x4 mul(const matrix4x4 &in) const", &Compute::Matrix4x4::Mul);
+				VMatrix4x4.SetMethod<Compute::Matrix4x4, Compute::Matrix4x4, const Compute::Vector4&>("matrix4x4 mul(const vector4 &in) const", &Compute::Matrix4x4::Mul);
+				VMatrix4x4.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "float&", "uint32", &Matrix4x4GetRow);
+				VMatrix4x4.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const float&", "uint32", &Matrix4x4GetRow);
+				VMatrix4x4.SetOperatorEx(VMOpFunc::Equals, (uint32_t)VMOp::Const, "bool", "const matrix4x4 &in", &Matrix4x4Eq);
+				VMatrix4x4.SetOperatorEx(VMOpFunc::Mul, (uint32_t)VMOp::Const, "matrix4x4", "const matrix4x4 &in", &Matrix4x4Mul1);
+				VMatrix4x4.SetOperatorEx(VMOpFunc::Mul, (uint32_t)VMOp::Const, "vector4", "const vector4 &in", &Matrix4x4Mul2);
+
+				Engine->BeginNamespace("matrix4x4");
+				Register.SetFunction("matrix4x4 identity()", &Compute::Matrix4x4::Identity);
+				Register.SetFunction("matrix4x4 createRotationX(float)", &Compute::Matrix4x4::CreateRotationX);
+				Register.SetFunction("matrix4x4 createRotationY(float)", &Compute::Matrix4x4::CreateRotationY);
+				Register.SetFunction("matrix4x4 createRotationZ(float)", &Compute::Matrix4x4::CreateRotationZ);
+				Register.SetFunction("matrix4x4 createOrigin(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateOrigin);
+				Register.SetFunction("matrix4x4 createScale(const vector3 &in)", &Compute::Matrix4x4::CreateScale);
+				Register.SetFunction("matrix4x4 createTranslatedScale(const vector3& in, const vector3 &in)", &Compute::Matrix4x4::CreateTranslatedScale);
+				Register.SetFunction("matrix4x4 createTranslation(const vector3& in)", &Compute::Matrix4x4::CreateTranslation);
+				Register.SetFunction("matrix4x4 createPerspective(float, float, float, float)", &Compute::Matrix4x4::CreatePerspective);
+				Register.SetFunction("matrix4x4 createPerspectiveRad(float, float, float, float)", &Compute::Matrix4x4::CreatePerspectiveRad);
+				Register.SetFunction("matrix4x4 createOrthographic(float, float, float, float)", &Compute::Matrix4x4::CreateOrthographic);
+				Register.SetFunction("matrix4x4 createOrthographicOffCenter(float, float, float, float, float, float)", &Compute::Matrix4x4::CreateOrthographicOffCenter);
+				Register.SetFunction<Compute::Matrix4x4(const Compute::Vector3&)>("matrix4x4 createRotation(const vector3 &in)", &Compute::Matrix4x4::CreateRotation);
+				Register.SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 createRotation(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateRotation);
+				Register.SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 createLookAt(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::CreateLookAt);
+				Register.SetFunction<Compute::Matrix4x4(Compute::CubeFace, const Compute::Vector3&)>("matrix4x4 createLookAt(cube_face, const vector3 &in)", &Compute::Matrix4x4::CreateLookAt);
+				Register.SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::Create);
+				Register.SetFunction<Compute::Matrix4x4(const Compute::Vector3&, const Compute::Vector3&)>("matrix4x4 create(const vector3 &in, const vector3 &in)", &Compute::Matrix4x4::Create);
+				Engine->EndNamespace();
+
+				VMTypeClass VQuaternion = Register.SetPod<Compute::Vector4>("quaternion");
+				VQuaternion.SetConstructor<Compute::Quaternion>("void f()");
+				VQuaternion.SetConstructor<Compute::Quaternion, float, float, float, float>("void f(float, float, float, float)");
+				VQuaternion.SetConstructor<Compute::Quaternion, const Compute::Vector3&, float>("void f(const vector3 &in, float)");
+				VQuaternion.SetConstructor<Compute::Quaternion, const Compute::Vector3&>("void f(const vector3 &in)");
+				VQuaternion.SetConstructor<Compute::Quaternion, const Compute::Matrix4x4&>("void f(const matrix4x4 &in)");
+				VQuaternion.SetProperty<Compute::Quaternion>("float x", &Compute::Quaternion::X);
+				VQuaternion.SetProperty<Compute::Quaternion>("float y", &Compute::Quaternion::Y);
+				VQuaternion.SetProperty<Compute::Quaternion>("float z", &Compute::Quaternion::Z);
+				VQuaternion.SetProperty<Compute::Quaternion>("float w", &Compute::Quaternion::W);
+				VQuaternion.SetMethod("void setAxis(const vector3 &in, float)", &Compute::Quaternion::SetAxis);
+				VQuaternion.SetMethod("void setEuler(const vector3 &in)", &Compute::Quaternion::SetEuler);
+				VQuaternion.SetMethod("void setMatrix(const matrix4x4 &in)", &Compute::Quaternion::SetMatrix);
+				VQuaternion.SetMethod("void set(const quaternion &in)", &Compute::Quaternion::Set);
+				VQuaternion.SetMethod("quaternion normalize() const", &Compute::Quaternion::Normalize);
+				VQuaternion.SetMethod("quaternion sNormalize() const", &Compute::Quaternion::sNormalize);
+				VQuaternion.SetMethod("quaternion conjugate() const", &Compute::Quaternion::Conjugate);
+				VQuaternion.SetMethod("quaternion sub(const quaternion &in) const", &Compute::Quaternion::Sub);
+				VQuaternion.SetMethod("quaternion add(const quaternion &in) const", &Compute::Quaternion::Add);
+				VQuaternion.SetMethod("quaternion lerp(const quaternion &in, float) const", &Compute::Quaternion::Lerp);
+				VQuaternion.SetMethod("quaternion sLerp(const quaternion &in, float) const", &Compute::Quaternion::sLerp);
+				VQuaternion.SetMethod("vector3 forward() const", &Compute::Quaternion::Forward);
+				VQuaternion.SetMethod("vector3 up() const", &Compute::Quaternion::Up);
+				VQuaternion.SetMethod("vector3 right() const", &Compute::Quaternion::Right);
+				VQuaternion.SetMethod("matrix4x4 getMatrix() const", &Compute::Quaternion::GetMatrix);
+				VQuaternion.SetMethod("vector3 getEuler() const", &Compute::Quaternion::GetEuler);
+				VQuaternion.SetMethod("float dot(const quaternion &in) const", &Compute::Quaternion::Dot);
+				VQuaternion.SetMethod("float length() const", &Compute::Quaternion::Length);
+				VQuaternion.SetMethod<Compute::Quaternion, Compute::Quaternion, float>("quaternion mul(float) const", &Compute::Quaternion::Mul);
+				VQuaternion.SetMethod<Compute::Quaternion, Compute::Quaternion, const Compute::Quaternion&>("quaternion mul(const quaternion &in) const", &Compute::Quaternion::Mul);
+				VQuaternion.SetMethod<Compute::Quaternion, Compute::Vector3, const Compute::Vector3&>("vector3 mul(const vector3 &in) const", &Compute::Quaternion::Mul);
+				VQuaternion.SetOperatorEx(VMOpFunc::Mul, (uint32_t)VMOp::Const, "vector3", "const vector3 &in", &QuaternionMul1);
+				VQuaternion.SetOperatorEx(VMOpFunc::Mul, (uint32_t)VMOp::Const, "quaternion", "const quaternion &in", &QuaternionMul2);
+				VQuaternion.SetOperatorEx(VMOpFunc::Mul, (uint32_t)VMOp::Const, "quaternion", "float", &QuaternionMul3);
+				VQuaternion.SetOperatorEx(VMOpFunc::Add, (uint32_t)VMOp::Const, "quaternion", "const quaternion &in", &QuaternionAdd);
+				VQuaternion.SetOperatorEx(VMOpFunc::Sub, (uint32_t)VMOp::Const, "quaternion", "const quaternion &in", &QuaternionSub);
+
+				Engine->BeginNamespace("quaternion");
+				Register.SetFunction("quaternion createEulerRotation(const vector3 &in)", &Compute::Quaternion::CreateEulerRotation);
+				Register.SetFunction("quaternion createRotation(const matrix4x4 &in)", &Compute::Quaternion::CreateRotation);
+				Engine->EndNamespace();
+
+				return true;
+			}
+			bool Registry::LoadShapes(VMManager* Engine)
+			{
+				TH_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMTypeClass VRectangle = Register.SetPod<Compute::Rectangle>("rectangle");
+				VRectangle.SetProperty<Compute::Rectangle>("int64 left", &Compute::Rectangle::Left);
+				VRectangle.SetProperty<Compute::Rectangle>("int64 top", &Compute::Rectangle::Top);
+				VRectangle.SetProperty<Compute::Rectangle>("int64 right", &Compute::Rectangle::Right);
+				VRectangle.SetProperty<Compute::Rectangle>("int64 bottom", &Compute::Rectangle::Bottom);
+
+				VMTypeClass VBounding = Register.SetPod<Compute::Bounding>("bounding");
+				VBounding.SetProperty<Compute::Bounding>("vector3 lower", &Compute::Bounding::Lower);
+				VBounding.SetProperty<Compute::Bounding>("vector3 upper", &Compute::Bounding::Upper);
+				VBounding.SetProperty<Compute::Bounding>("vector3 center", &Compute::Bounding::Center);
+				VBounding.SetProperty<Compute::Bounding>("float radius", &Compute::Bounding::Radius);
+				VBounding.SetProperty<Compute::Bounding>("float volume", &Compute::Bounding::Volume);
+				VBounding.SetConstructor<Compute::Bounding>("void f()");
+				VBounding.SetConstructor<Compute::Bounding, const Compute::Vector3&, const Compute::Vector3&>("void f(const vector3 &in, const vector3 &in)");
+				VBounding.SetMethod("void merge(const bounding &in, const bounding &in)", &Compute::Bounding::Merge);
+				VBounding.SetMethod("bool contains(const bounding &in) const", &Compute::Bounding::Contains);
+				VBounding.SetMethod("bool overlaps(const bounding &in) const", &Compute::Bounding::Overlaps);
+
+				VMTypeClass VRay = Register.SetPod<Compute::Ray>("ray");
+				VBounding.SetProperty<Compute::Ray>("vector3 origin", &Compute::Ray::Origin);
+				VBounding.SetProperty<Compute::Ray>("vector3 direction", &Compute::Ray::Direction);
+				VBounding.SetConstructor<Compute::Ray>("void f()");
+				VBounding.SetConstructor<Compute::Ray, const Compute::Vector3&, const Compute::Vector3&>("void f(const vector3 &in, const vector3 &in)");
+				VBounding.SetMethod("vector3 getPoint(float) const", &Compute::Ray::GetPoint);
+				VBounding.SetMethod("bool intersectsPlane(const vector3 &in, float) const", &Compute::Ray::IntersectsPlane);
+				VBounding.SetMethod("bool intersectsSphere(const vector3 &in, float, bool = true) const", &Compute::Ray::IntersectsSphere);
+				VBounding.SetMethod("bool intersectsAABBAt(const vector3 &in, const vector3 &in, vector3 &out) const", &Compute::Ray::IntersectsAABBAt);
+				VBounding.SetMethod("bool intersectsAABB(const vector3 &in, const vector3 &in, vector3 &out) const", &Compute::Ray::IntersectsAABB);
+				VBounding.SetMethod("bool intersectsOBB(const matrix4x4 &in, vector3 &out) const", &Compute::Ray::IntersectsOBB);
+
+				VMTypeClass VFrustum8C = Register.SetPod<Compute::Frustum8C>("frustum_8c");
+				VFrustum8C.SetConstructor<Compute::Frustum8C>("void f()");
+				VFrustum8C.SetConstructor<Compute::Frustum8C, float, float, float, float>("void f(float, float, float, float)");
+				VFrustum8C.SetMethod("void transform(const matrix4x4 &in) const", &Compute::Frustum8C::Transform);
+				VFrustum8C.SetMethod("void getBoundingBox(vector2 &out, vector2 &out, vector2 &out) const", &Compute::Frustum8C::GetBoundingBox);
+				VFrustum8C.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "vector4&", "uint32", &Frustum8CGetCorners);
+				VFrustum8C.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const vector4&", "uint32", &Frustum8CGetCorners);
+
+				VMTypeClass VFrustum6P = Register.SetPod<Compute::Frustum6P>("frustum_6p");
+				VFrustum6P.SetConstructor<Compute::Frustum6P>("void f()");
+				VFrustum6P.SetConstructor<Compute::Frustum6P, const Compute::Matrix4x4&>("void f(const matrix4x4 &in)");
+				VFrustum6P.SetMethod("bool overlapsAABB(const bounding &in) const", &Compute::Frustum6P::OverlapsAABB);
+				VFrustum6P.SetMethod("bool overlapsSphere(const vector3 &in, float) const", &Compute::Frustum6P::OverlapsSphere);
+				VFrustum6P.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "vector4&", "uint32", &Frustum6PGetCorners);
+				VFrustum6P.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const vector4&", "uint32", &Frustum6PGetCorners);
+
+				return true;
+			}
+			bool Registry::LoadKeyFrames(VMManager* Engine)
+			{
+				TH_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMTypeClass VJoint = Register.SetStructUnmanaged<Compute::Joint>("joint");
+				VJoint.SetProperty<Compute::Joint>("string name", &Compute::Joint::Name);
+				VJoint.SetProperty<Compute::Joint>("matrix4x4 transform", &Compute::Joint::Transform);
+				VJoint.SetProperty<Compute::Joint>("matrix4x4 bindShape", &Compute::Joint::BindShape);
+				VJoint.SetProperty<Compute::Joint>("int64 index", &Compute::Joint::Index);
+				VJoint.SetConstructor<Compute::Joint>("void f()");
+				VJoint.SetMethodEx("uint32 size() const", &JointSize);
+				VJoint.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "joint&", "uint32", &JointGetChilds);
+				VJoint.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const joint&", "uint32", &JointGetChilds);
+
+				VMTypeClass VAnimatorKey = Register.SetPod<Compute::AnimatorKey>("animator_key");
+				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 position", &Compute::AnimatorKey::Position);
+				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 rotation", &Compute::AnimatorKey::Rotation);
+				VAnimatorKey.SetProperty<Compute::AnimatorKey>("vector3 scale", &Compute::AnimatorKey::Scale);
+				VAnimatorKey.SetProperty<Compute::AnimatorKey>("float time", &Compute::AnimatorKey::Time);
+				VAnimatorKey.SetConstructor<Compute::AnimatorKey>("void f()");
+
+				VMTypeClass VSkinAnimatorKey = Register.SetStructUnmanaged<Compute::SkinAnimatorKey>("skin_animator_key");
+				VSkinAnimatorKey.SetProperty<Compute::SkinAnimatorKey>("float time", &Compute::SkinAnimatorKey::Time);
+				VSkinAnimatorKey.SetConstructor<Compute::AnimatorKey>("void f()");
+				VSkinAnimatorKey.SetMethodEx("uint32 size() const", &SkinAnimatorKeySize);
+				VSkinAnimatorKey.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "animator_key&", "uint32", &SkinAnimatorKeyGetPose);
+				VSkinAnimatorKey.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const animator_key&", "uint32", &SkinAnimatorKeyGetPose);
+
+				VMTypeClass VSkinAnimatorClip = Register.SetStructUnmanaged<Compute::SkinAnimatorClip>("skin_animator_clip");
+				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("string name", &Compute::SkinAnimatorClip::Name);
+				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("float duration", &Compute::SkinAnimatorClip::Duration);
+				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("float rate", &Compute::SkinAnimatorClip::Rate);
+				VSkinAnimatorClip.SetConstructor<Compute::SkinAnimatorClip>("void f()");
+				VSkinAnimatorClip.SetMethodEx("uint32 size() const", &SkinAnimatorClipSize);
+				VSkinAnimatorClip.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "skin_animator_key&", "uint32", &SkinAnimatorClipGetKeys);
+				VSkinAnimatorClip.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const skin_animator_key&", "uint32", &SkinAnimatorClipGetKeys);
+
+				VMTypeClass VKeyAnimatorClip = Register.SetStructUnmanaged<Compute::KeyAnimatorClip>("key_animator_clip");
+				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("string name", &Compute::KeyAnimatorClip::Name);
+				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("float duration", &Compute::KeyAnimatorClip::Duration);
+				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("float rate", &Compute::KeyAnimatorClip::Rate);
+				VKeyAnimatorClip.SetConstructor<Compute::KeyAnimatorClip>("void f()");
+				VKeyAnimatorClip.SetMethodEx("uint32 size() const", &KeyAnimatorClipSize);
+				VKeyAnimatorClip.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "animator_key&", "uint32", &KeyAnimatorClipGetKeys);
+				VKeyAnimatorClip.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const animator_key&", "uint32", &KeyAnimatorClipGetKeys);
+
+				VMTypeClass VRandomVector2 = Register.SetPod<Compute::RandomVector2>("random_vector2");
+				VRandomVector2.SetProperty<Compute::RandomVector2>("vector2 min", &Compute::RandomVector2::Min);
+				VRandomVector2.SetProperty<Compute::RandomVector2>("vector2 max", &Compute::RandomVector2::Max);
+				VRandomVector2.SetProperty<Compute::RandomVector2>("bool intensity", &Compute::RandomVector2::Intensity);
+				VRandomVector2.SetProperty<Compute::RandomVector2>("float accuracy", &Compute::RandomVector2::Accuracy);
+				VRandomVector2.SetConstructor<Compute::RandomVector2>("void f()");
+				VRandomVector2.SetConstructor<Compute::RandomVector2, const Compute::Vector2&, const Compute::Vector2&, bool, float>("void f(const vector2 &in, const vector2 &in, bool, float)");
+				VRandomVector2.SetMethod("vector2 generate()", &Compute::RandomVector2::Generate);
+
+				VMTypeClass VRandomVector3 = Register.SetPod<Compute::RandomVector3>("random_vector3");
+				VRandomVector3.SetProperty<Compute::RandomVector3>("vector3 min", &Compute::RandomVector3::Min);
+				VRandomVector3.SetProperty<Compute::RandomVector3>("vector3 max", &Compute::RandomVector3::Max);
+				VRandomVector3.SetProperty<Compute::RandomVector3>("bool intensity", &Compute::RandomVector3::Intensity);
+				VRandomVector3.SetProperty<Compute::RandomVector3>("float accuracy", &Compute::RandomVector3::Accuracy);
+				VRandomVector3.SetConstructor<Compute::RandomVector3>("void f()");
+				VRandomVector3.SetConstructor<Compute::RandomVector3, const Compute::Vector3&, const Compute::Vector3&, bool, float>("void f(const vector3 &in, const vector3 &in, bool, float)");
+				VRandomVector3.SetMethod("vector3 generate()", &Compute::RandomVector3::Generate);
+
+				VMTypeClass VRandomVector4 = Register.SetPod<Compute::RandomVector4>("random_vector4");
+				VRandomVector4.SetProperty<Compute::RandomVector4>("vector4 min", &Compute::RandomVector4::Min);
+				VRandomVector4.SetProperty<Compute::RandomVector4>("vector4 max", &Compute::RandomVector4::Max);
+				VRandomVector4.SetProperty<Compute::RandomVector4>("bool intensity", &Compute::RandomVector4::Intensity);
+				VRandomVector4.SetProperty<Compute::RandomVector4>("float accuracy", &Compute::RandomVector4::Accuracy);
+				VRandomVector4.SetConstructor<Compute::RandomVector4>("void f()");
+				VRandomVector4.SetConstructor<Compute::RandomVector4, const Compute::Vector4&, const Compute::Vector4&, bool, float>("void f(const vector4 &in, const vector4 &in, bool, float)");
+				VRandomVector4.SetMethod("vector4 generate()", &Compute::RandomVector4::Generate);
+
+				VMTypeClass VRandomFloat = Register.SetPod<Compute::RandomFloat>("random_float");
+				VRandomFloat.SetProperty<Compute::RandomFloat>("float min", &Compute::RandomFloat::Min);
+				VRandomFloat.SetProperty<Compute::RandomFloat>("float max", &Compute::RandomFloat::Max);
+				VRandomFloat.SetProperty<Compute::RandomFloat>("bool intensity", &Compute::RandomFloat::Intensity);
+				VRandomFloat.SetProperty<Compute::RandomFloat>("float accuracy", &Compute::RandomFloat::Accuracy);
+				VRandomFloat.SetConstructor<Compute::RandomFloat>("void f()");
+				VRandomFloat.SetConstructor<Compute::RandomFloat, float, float, bool, float>("void f(float, float, bool, float)");
+				VRandomFloat.SetMethod("float generate()", &Compute::RandomFloat::Generate);
+
+				return true;
+			}
+			bool Registry::LoadRegex(VMManager* Engine)
+			{
+				TH_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMEnum VRegexState = Register.SetEnum("regex_state");
+				VRegexState.SetValue("preprocessed", (int)Compute::RegexState::Preprocessed);
+				VRegexState.SetValue("match_found", (int)Compute::RegexState::Match_Found);
+				VRegexState.SetValue("no_match", (int)Compute::RegexState::No_Match);
+				VRegexState.SetValue("unexpected_quantifier", (int)Compute::RegexState::Unexpected_Quantifier);
+				VRegexState.SetValue("unbalanced_brackets", (int)Compute::RegexState::Unbalanced_Brackets);
+				VRegexState.SetValue("internal_error", (int)Compute::RegexState::Internal_Error);
+				VRegexState.SetValue("invalid_character_set", (int)Compute::RegexState::Invalid_Character_Set);
+				VRegexState.SetValue("invalid_metacharacter", (int)Compute::RegexState::Invalid_Metacharacter);
+				VRegexState.SetValue("sumatch_array_too_small", (int)Compute::RegexState::Sumatch_Array_Too_Small);
+				VRegexState.SetValue("too_many_branches", (int)Compute::RegexState::Too_Many_Branches);
+				VRegexState.SetValue("too_many_brackets", (int)Compute::RegexState::Too_Many_Brackets);
+
+				VMTypeClass VRegexMatch = Register.SetPod<Compute::RegexMatch>("regex_match");
+				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 start", &Compute::RegexMatch::Start);
+				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 end", &Compute::RegexMatch::End);
+				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 length", &Compute::RegexMatch::Length);
+				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 steps", &Compute::RegexMatch::Steps);
+				VRegexMatch.SetMethodEx("string target() const", &RegexMatchTarget);
+
+				VMTypeClass VRegexResult = Register.SetStructUnmanaged<Compute::RegexResult>("regex_result");
+				VRegexResult.SetConstructor<Compute::RegexResult>("void f()");
+				VRegexResult.SetMethod("bool empty() const", &Compute::RegexResult::Empty);
+				VRegexResult.SetMethod("int64 getSteps() const", &Compute::RegexResult::GetSteps);
+				VRegexResult.SetMethod("regex_state getState() const", &Compute::RegexResult::GetState);
+				VRegexResult.SetMethodEx("array<regex_match>@ get() const", &RegexResultGet);
+				VRegexResult.SetMethodEx("array<string>@ toArray() const", &RegexResultToArray);
+
+				VMTypeClass VRegexSource = Register.SetStructUnmanaged<Compute::RegexSource>("regex_source");
+				VRegexSource.SetProperty<Compute::RegexSource>("bool ignoreCase", &Compute::RegexSource::IgnoreCase);
+				VRegexSource.SetConstructor<Compute::RegexSource>("void f()");
+				VRegexSource.SetConstructor<Compute::RegexSource, const std::string&, bool, int64_t, int64_t, int64_t>("void f(const string &in, bool = false, int64 = -1, int64 = -1, int64 = -1)");
+				VRegexSource.SetMethod("const string& getRegex() const", &Compute::RegexSource::GetRegex);
+				VRegexSource.SetMethod("int64 getMaxBranches() const", &Compute::RegexSource::GetMaxBranches);
+				VRegexSource.SetMethod("int64 getMaxBrackets() const", &Compute::RegexSource::GetMaxBrackets);
+				VRegexSource.SetMethod("int64 getMaxMatches() const", &Compute::RegexSource::GetMaxMatches);
+				VRegexSource.SetMethod("int64 getComplexity() const", &Compute::RegexSource::GetComplexity);
+				VRegexSource.SetMethod("regex_state getState() const", &Compute::RegexSource::GetState);
+				VRegexSource.SetMethod("bool isSimple() const", &Compute::RegexSource::IsSimple);
+				VRegexSource.SetMethodEx("regex_result match(const string &in) const", &RegexSourceMatch);
+				VRegexSource.SetMethodEx("string replace(const string &in, const string &in) const", &RegexSourceReplace);
 
 				return true;
 			}

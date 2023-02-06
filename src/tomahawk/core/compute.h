@@ -64,15 +64,6 @@ namespace Tomahawk
 		typedef void* Cipher;
 		typedef void* Digest;
 
-		enum class Hybi10_Opcode
-		{
-			Text,
-			Close,
-			Pong,
-			Ping,
-			Invalid
-		};
-
 		enum class Shape
 		{
 			Box,
@@ -290,19 +281,6 @@ namespace Tomahawk
 			float ColorY;
 			float ColorZ;
 			float ColorW;
-		};
-
-		struct TH_OUT Rectangle
-		{
-			int64_t Left;
-			int64_t Top;
-			int64_t Right;
-			int64_t Bottom;
-
-			int64_t GetX() const;
-			int64_t GetY() const;
-			int64_t GetWidth() const;
-			int64_t GetHeight() const;
 		};
 
 		struct TH_OUT Vector2
@@ -642,72 +620,6 @@ namespace Tomahawk
 			};
 		};
 
-		struct TH_OUT Bounding
-		{
-		public:
-			Vector3 Lower;
-			Vector3 Upper;
-			Vector3 Center;
-			float Radius;
-			float Volume;
-
-		public:
-			Bounding() noexcept;
-			Bounding(const Vector3&, const Vector3&) noexcept;
-			void Merge(const Bounding&, const Bounding&);
-			bool Contains(const Bounding&) const;
-			bool Overlaps(const Bounding&) const;
-		};
-
-		struct TH_OUT Frustum8C
-		{
-			Vector4 Corners[8];
-
-			Frustum8C() noexcept;
-			Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ) noexcept;
-			void Transform(const Matrix4x4& Value);
-			void GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z);
-		};
-
-		struct TH_OUT Frustum6P
-		{
-			enum class Side : size_t
-			{
-				RIGHT = 0,
-				LEFT = 1,
-				BOTTOM = 2,
-				TOP = 3,
-				BACK = 4,
-				FRONT = 5
-			};
-
-			Vector4 Planes[6];
-
-			Frustum6P() noexcept;
-			Frustum6P(const Matrix4x4& ViewProjection) noexcept;
-			bool OverlapsAABB(const Bounding& Bounds) const;
-			bool OverlapsSphere(const Vector3& Center, float Radius) const;
-
-		private:
-			void NormalizePlane(Vector4& Plane);
-		};
-
-		struct TH_OUT Ray
-		{
-			Vector3 Origin;
-			Vector3 Direction;
-
-			Ray() noexcept;
-			Ray(const Vector3& _Origin, const Vector3& _Direction) noexcept;
-			Vector3 GetPoint(float T) const;
-			Vector3 operator *(float T) const;
-			bool IntersectsPlane(const Vector3& Normal, float Diameter) const;
-			bool IntersectsSphere(const Vector3& Position, float Radius, bool DiscardInside = true) const;
-			bool IntersectsAABBAt(const Vector3& Min, const Vector3& Max, Vector3* Hit) const;
-			bool IntersectsAABB(const Vector3& Position, const Vector3& Scale, Vector3* Hit) const;
-			bool IntersectsOBB(const Matrix4x4& World, Vector3* Hit) const;
-		};
-
 		struct TH_OUT Matrix4x4
 		{
 		public:
@@ -744,7 +656,6 @@ namespace Tomahawk
 			Vector2 XY() const;
 			Vector3 XYZ() const;
 			Vector4 XYZW() const;
-			Vector4 ToVector4() const;
 			void Identify();
 			void Set(const Matrix4x4& Value);
 
@@ -817,6 +728,94 @@ namespace Tomahawk
 			static Quaternion CreateRotation(const Matrix4x4& Transform);
 		};
 
+		struct TH_OUT Rectangle
+		{
+			int64_t Left;
+			int64_t Top;
+			int64_t Right;
+			int64_t Bottom;
+
+			int64_t GetX() const;
+			int64_t GetY() const;
+			int64_t GetWidth() const;
+			int64_t GetHeight() const;
+		};
+
+		struct TH_OUT Bounding
+		{
+		public:
+			Vector3 Lower;
+			Vector3 Upper;
+			Vector3 Center;
+			float Radius;
+			float Volume;
+
+		public:
+			Bounding() noexcept;
+			Bounding(const Vector3&, const Vector3&) noexcept;
+			void Merge(const Bounding&, const Bounding&);
+			bool Contains(const Bounding&) const;
+			bool Overlaps(const Bounding&) const;
+		};
+
+		struct TH_OUT Ray
+		{
+			Vector3 Origin;
+			Vector3 Direction;
+
+			Ray() noexcept;
+			Ray(const Vector3& _Origin, const Vector3& _Direction) noexcept;
+			Vector3 GetPoint(float T) const;
+			Vector3 operator *(float T) const;
+			bool IntersectsPlane(const Vector3& Normal, float Diameter) const;
+			bool IntersectsSphere(const Vector3& Position, float Radius, bool DiscardInside = true) const;
+			bool IntersectsAABBAt(const Vector3& Min, const Vector3& Max, Vector3* Hit) const;
+			bool IntersectsAABB(const Vector3& Position, const Vector3& Scale, Vector3* Hit) const;
+			bool IntersectsOBB(const Matrix4x4& World, Vector3* Hit) const;
+		};
+
+		struct TH_OUT Frustum8C
+		{
+			Vector4 Corners[8];
+
+			Frustum8C() noexcept;
+			Frustum8C(float FieldOfView, float Aspect, float NearZ, float FarZ) noexcept;
+			void Transform(const Matrix4x4& Value);
+			void GetBoundingBox(Vector2* X, Vector2* Y, Vector2* Z);
+		};
+
+		struct TH_OUT Frustum6P
+		{
+			enum class Side : size_t
+			{
+				RIGHT = 0,
+				LEFT = 1,
+				BOTTOM = 2,
+				TOP = 3,
+				BACK = 4,
+				FRONT = 5
+			};
+
+			Vector4 Planes[6];
+
+			Frustum6P() noexcept;
+			Frustum6P(const Matrix4x4& ViewProjection) noexcept;
+			bool OverlapsAABB(const Bounding& Bounds) const;
+			bool OverlapsSphere(const Vector3& Center, float Radius) const;
+
+		private:
+			void NormalizePlane(Vector4& Plane);
+		};
+
+		struct TH_OUT Joint
+		{
+			std::vector<Joint> Childs;
+			std::string Name;
+			Matrix4x4 Transform;
+			Matrix4x4 BindShape;
+			int64_t Index = -1;
+		};
+
 		struct TH_OUT AnimatorKey
 		{
 			Compute::Vector3 Position = 0.0f;
@@ -845,15 +844,6 @@ namespace Tomahawk
 			std::string Name;
 			float Duration = 1.0f;
 			float Rate = 1.0f;
-		};
-
-		struct TH_OUT Joint
-		{
-			std::vector<Joint> Childs;
-			std::string Name;
-			Matrix4x4 Transform;
-			Matrix4x4 BindShape;
-			int64_t Index = -1;
 		};
 
 		struct TH_OUT RandomVector2
@@ -898,71 +888,6 @@ namespace Tomahawk
 			RandomFloat() noexcept;
 			RandomFloat(float MinV, float MaxV, bool IntensityV, float AccuracyV) noexcept;
 			float Generate();
-		};
-
-		struct TH_OUT Hybi10PayloadHeader
-		{
-			unsigned short Opcode : 4;
-			unsigned short Rsv1 : 1;
-			unsigned short Rsv2 : 1;
-			unsigned short Rsv3 : 1;
-			unsigned short Fin : 1;
-			unsigned short PayloadLength : 7;
-			unsigned short Mask : 1;
-		};
-
-		struct TH_OUT Hybi10Request
-		{
-			std::string Payload;
-			int ExitCode, Type;
-
-			Hybi10Request() noexcept;
-			std::string GetTextType() const;
-			Hybi10_Opcode GetEnumType() const;
-		};
-
-		struct TH_OUT ShapeContact
-		{
-			Vector3 LocalPoint1;
-			Vector3 LocalPoint2;
-			Vector3 PositionWorld1;
-			Vector3 PositionWorld2;
-			Vector3 NormalWorld;
-			Vector3 LateralFrictionDirection1;
-			Vector3 LateralFrictionDirection2;
-			float Distance = 0.0f;
-			float CombinedFriction = 0.0f;
-			float CombinedRollingFriction = 0.0f;
-			float CombinedSpinningFriction = 0.0f;
-			float CombinedRestitution = 0.0f;
-			float AppliedImpulse = 0.0f;
-			float AppliedImpulseLateral1 = 0.0f;
-			float AppliedImpulseLateral2 = 0.0f;
-			float ContactMotion1 = 0.0f;
-			float ContactMotion2 = 0.0f;
-			float ContactCFM = 0.0f;
-			float CombinedContactStiffness = 0.0f;
-			float ContactERP = 0.0f;
-			float CombinedContactDamping = 0.0f;
-			float FrictionCFM = 0.0f;
-			int PartId1 = 0;
-			int PartId2 = 0;
-			int Index1 = 0;
-			int Index2 = 0;
-			int ContactPointFlags = 0;
-			int LifeTime = 0;
-		};
-
-		struct TH_OUT RayContact
-		{
-			Vector3 HitNormalLocal;
-			Vector3 HitNormalWorld;
-			Vector3 HitPointWorld;
-			Vector3 RayFromWorld;
-			Vector3 RayToWorld;
-			float HitFraction = 0.0f;
-			float ClosestHitFraction = 0.0f;
-			bool NormalInWorldSpace = false;
 		};
 
 		struct TH_OUT RegexBracket
@@ -1048,30 +973,6 @@ namespace Tomahawk
 			std::vector<std::string> ToArray() const;
 		};
 
-		struct TH_OUT AdjTriangle
-		{
-			unsigned int VRef[3];
-			unsigned int ATri[3];
-
-			unsigned char FindEdge(unsigned int VRef0, unsigned int VRef1);
-			unsigned int OppositeVertex(unsigned int VRef0, unsigned int VRef1);
-		};
-
-		struct TH_OUT AdjEdge
-		{
-			unsigned int Ref0;
-			unsigned int Ref1;
-			unsigned int FaceNb;
-		};
-
-		struct TH_OUT CollisionBody
-		{
-			RigidBody* Rigid = nullptr;
-			SoftBody* Soft = nullptr;
-
-			CollisionBody(btCollisionObject* Object) noexcept;
-		};
-
 		struct TH_OUT PrivateKey
 		{
 		public:
@@ -1131,6 +1032,74 @@ namespace Tomahawk
 			void RollPartition(size_t* Dest, size_t Size, size_t Index) const;
 			void FillPartition(size_t* Dest, size_t Size, size_t Index, char Source) const;
 			void CopyDistribution(const PrivateKey& Other);
+		};
+
+		struct TH_OUT ShapeContact
+		{
+			Vector3 LocalPoint1;
+			Vector3 LocalPoint2;
+			Vector3 PositionWorld1;
+			Vector3 PositionWorld2;
+			Vector3 NormalWorld;
+			Vector3 LateralFrictionDirection1;
+			Vector3 LateralFrictionDirection2;
+			float Distance = 0.0f;
+			float CombinedFriction = 0.0f;
+			float CombinedRollingFriction = 0.0f;
+			float CombinedSpinningFriction = 0.0f;
+			float CombinedRestitution = 0.0f;
+			float AppliedImpulse = 0.0f;
+			float AppliedImpulseLateral1 = 0.0f;
+			float AppliedImpulseLateral2 = 0.0f;
+			float ContactMotion1 = 0.0f;
+			float ContactMotion2 = 0.0f;
+			float ContactCFM = 0.0f;
+			float CombinedContactStiffness = 0.0f;
+			float ContactERP = 0.0f;
+			float CombinedContactDamping = 0.0f;
+			float FrictionCFM = 0.0f;
+			int PartId1 = 0;
+			int PartId2 = 0;
+			int Index1 = 0;
+			int Index2 = 0;
+			int ContactPointFlags = 0;
+			int LifeTime = 0;
+		};
+
+		struct TH_OUT RayContact
+		{
+			Vector3 HitNormalLocal;
+			Vector3 HitNormalWorld;
+			Vector3 HitPointWorld;
+			Vector3 RayFromWorld;
+			Vector3 RayToWorld;
+			float HitFraction = 0.0f;
+			float ClosestHitFraction = 0.0f;
+			bool NormalInWorldSpace = false;
+		};
+
+		struct TH_OUT CollisionBody
+		{
+			RigidBody* Rigid = nullptr;
+			SoftBody* Soft = nullptr;
+
+			CollisionBody(btCollisionObject* Object) noexcept;
+		};
+
+		struct TH_OUT AdjTriangle
+		{
+			unsigned int VRef[3];
+			unsigned int ATri[3];
+
+			unsigned char FindEdge(unsigned int VRef0, unsigned int VRef1);
+			unsigned int OppositeVertex(unsigned int VRef0, unsigned int VRef1);
+		};
+
+		struct TH_OUT AdjEdge
+		{
+			unsigned int Ref0;
+			unsigned int Ref1;
+			unsigned int FaceNb;
 		};
 
 		class TH_OUT Adjacencies
@@ -1557,10 +1526,8 @@ namespace Tomahawk
 			static std::string URIEncode(const char* Text, size_t Length);
 			static std::string URIDecode(const std::string& Text);
 			static std::string URIDecode(const char* Text, size_t Length);
-			static std::string Hybi10Encode(const Hybi10Request& hRequest, bool Masked);
 			static std::string DecimalToHex(uint64_t V);
 			static std::string Base10ToBaseN(uint64_t Value, unsigned int BaseLessThan65);
-			static Hybi10Request Hybi10Decode(const std::string& Data);
 			static size_t Utf8(int Code, char* Buffer);
 			static bool Hex(char Code, int& Value);
 			static bool HexToString(void* Data, size_t Length, char* Buffer, size_t BufferLength);
@@ -1631,7 +1598,7 @@ namespace Tomahawk
 		public:
 			static bool Match(RegexSource* Value, RegexResult& Result, const std::string& Buffer);
 			static bool Match(RegexSource* Value, RegexResult& Result, const char* Buffer, int64_t Length);
-			static bool Replace(std::string& Source, const std::string& FromExpression, const std::string& ToExpression);
+			static bool Replace(RegexSource* Value, const std::string& ToExpression, std::string& Buffer);
 			static const char* Syntax();
 		};
 

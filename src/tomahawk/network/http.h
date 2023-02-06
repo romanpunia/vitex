@@ -508,7 +508,7 @@ namespace Tomahawk
 					HTTP::Parser* Request = nullptr;
 				} Parsers;
 
-				Core::Resource Resource;
+				Core::FileEntry Resource;
 				WebSocketFrame* WebSocket = nullptr;
 				GatewayFrame* Gateway = nullptr;
 				RouteEntry* Route = nullptr;
@@ -733,7 +733,7 @@ namespace Tomahawk
 				static void ConstructHeadCache(Connection* Base, Core::Parser* Buffer);
 				static void ConstructHeadUncache(Connection* Base, Core::Parser* Buffer);
 				static bool ConstructRoute(MapRouter* Router, Connection* Base);
-				static bool ConstructDirectoryEntries(Connection* Base, const Core::ResourceEntry& A, const Core::ResourceEntry& B);
+				static bool ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B);
 				static std::string ConstructContentRange(size_t Offset, size_t Length, size_t ContentLength);
 			};
 
@@ -771,9 +771,9 @@ namespace Tomahawk
 			public:
 				static bool ResourceHasAlternative(Connection* Base);
 				static bool ResourceHidden(Connection* Base, std::string* Path);
-				static bool ResourceIndexed(Connection* Base, Core::Resource* Resource);
-				static bool ResourceProvided(Connection* Base, Core::Resource* Resource);
-				static bool ResourceModified(Connection* Base, Core::Resource* Resource);
+				static bool ResourceIndexed(Connection* Base, Core::FileEntry* Resource);
+				static bool ResourceProvided(Connection* Base, Core::FileEntry* Resource);
+				static bool ResourceModified(Connection* Base, Core::FileEntry* Resource);
 				static bool ResourceCompressed(Connection* Base, size_t Size);
 			};
 

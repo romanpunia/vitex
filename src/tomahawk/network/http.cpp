@@ -2385,14 +2385,14 @@ namespace Tomahawk
 			}
 			bool Session::InvalidateCache(const std::string& Path)
 			{
-				std::vector<Core::ResourceEntry> Entries;
+				std::vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Path, &Entries))
 					return false;
 
 				bool Split = (Path.back() != '\\' && Path.back() != '/');
 				for (auto& Item : Entries)
 				{
-					if (Item.Source.IsDirectory)
+					if (Item.IsDirectory)
 						continue;
 
 					std::string Filename = (Split ? Path + '/' : Path) + Item.Path;
@@ -4116,13 +4116,13 @@ namespace Tomahawk
 				Base->Route = It->second->Base;
 				return true;
 			}
-			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::ResourceEntry& A, const Core::ResourceEntry& B)
+			bool Paths::ConstructDirectoryEntries(Connection* Base, const Core::FileEntry& A, const Core::FileEntry& B)
 			{
 				TH_ASSERT(Base != nullptr, false, "connection should be set");
-				if (A.Source.IsDirectory && !B.Source.IsDirectory)
+				if (A.IsDirectory && !B.IsDirectory)
 					return true;
 
-				if (!A.Source.IsDirectory && B.Source.IsDirectory)
+				if (!A.IsDirectory && B.IsDirectory)
 					return false;
 
 				const char* Query = (Base->Request.Query.empty() ? nullptr : Base->Request.Query.c_str());
@@ -4132,9 +4132,9 @@ namespace Tomahawk
 					if (*Query == 'n')
 						Result = strcmp(A.Path.c_str(), B.Path.c_str());
 					else if (*Query == 's')
-						Result = (A.Source.Size == B.Source.Size) ? 0 : ((A.Source.Size > B.Source.Size) ? 1 : -1);
+						Result = (A.Size == B.Size) ? 0 : ((A.Size > B.Size) ? 1 : -1);
 					else if (*Query == 'd')
-						Result = (A.Source.LastModified == B.Source.LastModified) ? 0 : ((A.Source.LastModified > B.Source.LastModified) ? 1 : -1);
+						Result = (A.LastModified == B.LastModified) ? 0 : ((A.LastModified > B.LastModified) ? 1 : -1);
 
 					if (Query[1] == 'a')
 						return Result < 0;
@@ -4542,7 +4542,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Resources::ResourceIndexed(Connection* Base, Core::Resource* Resource)
+			bool Resources::ResourceIndexed(Connection* Base, Core::FileEntry* Resource)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -4576,7 +4576,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Resources::ResourceProvided(Connection* Base, Core::Resource* Resource)
+			bool Resources::ResourceProvided(Connection* Base, Core::FileEntry* Resource)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -4607,7 +4607,7 @@ namespace Tomahawk
 
 				return false;
 			}
-			bool Resources::ResourceModified(Connection* Base, Core::Resource* Resource)
+			bool Resources::ResourceModified(Connection* Base, Core::FileEntry* Resource)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
 				TH_ASSERT(Resource != nullptr, false, "resource should be set");
@@ -4948,7 +4948,7 @@ namespace Tomahawk
 			bool Logical::ProcessDirectory(Connection* Base)
 			{
 				TH_ASSERT(Base != nullptr && Base->Route != nullptr, false, "connection should be set");
-				std::vector<Core::ResourceEntry> Entries;
+				std::vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Base->Request.Path, &Entries))
 					return Base->Error(500, "System denied to directory listing.");
 
@@ -4997,26 +4997,26 @@ namespace Tomahawk
 						continue;
 
 					char dSize[64];
-					if (!Item.Source.IsDirectory)
+					if (!Item.IsDirectory)
 					{
-						if (Item.Source.Size < 1024)
-							snprintf(dSize, sizeof(dSize), "%db", (int)Item.Source.Size);
-						else if (Item.Source.Size < 0x100000)
-							snprintf(dSize, sizeof(dSize), "%.1fk", ((double)Item.Source.Size) / 1024.0);
-						else if (Item.Source.Size < 0x40000000)
-							snprintf(dSize, sizeof(Size), "%.1fM", ((double)Item.Source.Size) / 1048576.0);
+						if (Item.Size < 1024)
+							snprintf(dSize, sizeof(dSize), "%db", (int)Item.Size);
+						else if (Item.Size < 0x100000)
+							snprintf(dSize, sizeof(dSize), "%.1fk", ((double)Item.Size) / 1024.0);
+						else if (Item.Size < 0x40000000)
+							snprintf(dSize, sizeof(Size), "%.1fM", ((double)Item.Size) / 1048576.0);
 						else
-							snprintf(dSize, sizeof(dSize), "%.1fG", ((double)Item.Source.Size) / 1073741824.0);
+							snprintf(dSize, sizeof(dSize), "%.1fG", ((double)Item.Size) / 1073741824.0);
 					}
 					else
 						strncpy(dSize, "[DIRECTORY]", sizeof(dSize));
 
 					char dDate[64];
-					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.Source.LastModified);
+					Core::DateTime::FetchWebDateTime(dDate, sizeof(dDate), Item.LastModified);
 
 					std::string URI = Compute::Codec::URIEncode(Item.Path);
 					std::string HREF = (Base->Request.URI + ((*(Base->Request.URI.c_str() + 1) != '\0' && Base->Request.URI[Base->Request.URI.size() - 1] != '/') ? "/" : "") + URI);
-					if (Item.Source.IsDirectory && !Core::Parser(&HREF).EndsOf("/\\"))
+					if (Item.IsDirectory && !Core::Parser(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
 					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + Item.Path + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");

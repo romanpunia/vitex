@@ -535,27 +535,15 @@ namespace Tomahawk
 			Timeout& operator= (Timeout&& Other) noexcept;
 		};
 
-		struct TH_OUT Resource
+		struct TH_OUT FileEntry
 		{
+			std::string Path;
 			size_t Size = 0;
 			int64_t LastModified = 0;
 			int64_t CreationTime = 0;
 			bool IsReferenced = false;
 			bool IsDirectory = false;
-		};
-
-		struct TH_OUT ResourceEntry
-		{
-			std::string Path;
-			Resource Source;
-		};
-
-		struct TH_OUT DirectoryEntry
-		{
-			std::string Path;
-			bool IsDirectory = false;
-			bool IsGood = false;
-			size_t Length = 0;
+			bool IsExists = false;
 		};
 
 		struct TH_OUT ChildProcess
@@ -1030,8 +1018,8 @@ namespace Tomahawk
 			public:
 				static void Set(const char* Path);
 				static void Patch(const std::string& Path);
-				static bool Scan(const std::string& Path, std::vector<ResourceEntry>* Entries);
-				static bool Each(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback);
+				static bool Scan(const std::string& Path, std::vector<FileEntry>* Entries);
+				static bool Each(const char* Path, const std::function<bool(FileEntry*)>& Callback);
 				static bool Create(const char* Path);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
@@ -1044,13 +1032,13 @@ namespace Tomahawk
 			public:
 				static bool Write(const char* Path, const char* Data, size_t Length);
 				static bool Write(const char* Path, const std::string& Data);
-				static bool State(const std::string& Path, Resource* Resource);
+				static bool State(const std::string& Path, FileEntry* Resource);
 				static bool Move(const char* From, const char* To);
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
 				static int Compare(const std::string& FirstPath, const std::string& SecondPath);
 				static uint64_t GetCheckSum(const std::string& Data);
-				static FileState GetState(const char* Path);
+				static FileState GetProperties(const char* Path);
 				static Unique<Stream> Open(const std::string& Path, FileMode Mode, bool Async = false);
 				static Unique<void> Open(const char* Path, const char* Mode);
 				static Unique<unsigned char> ReadChunk(Stream* Stream, size_t Length);
@@ -1078,7 +1066,7 @@ namespace Tomahawk
 			class TH_OUT Net
 			{
 			public:
-				static bool GetETag(char* Buffer, size_t Length, Resource* Resource);
+				static bool GetETag(char* Buffer, size_t Length, FileEntry* Resource);
 				static bool GetETag(char* Buffer, size_t Length, int64_t LastModified, size_t ContentLength);
 				static socket_t GetFd(FILE* Stream);
 			};

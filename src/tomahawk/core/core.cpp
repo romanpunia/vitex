@@ -6534,7 +6534,7 @@ namespace Tomahawk
 			Path = OS::Path::Resolve(Folder.c_str());
 			if (!Path.empty())
 			{
-				OS::Directory::Each(Path.c_str(), [this](DirectoryEntry* Entry) -> bool
+				OS::Directory::Each(Path.c_str(), [this](FileEntry* Entry) -> bool
 				{
 					if (Entry->IsDirectory)
 						Directories.push_back(new FileTree(Entry->Path));
@@ -6878,12 +6878,12 @@ namespace Tomahawk
 			if (!IsExists(Path.c_str()))
 				Create(Path.c_str());
 		}
-		bool OS::Directory::Scan(const std::string& Path, std::vector<ResourceEntry>* Entries)
+		bool OS::Directory::Scan(const std::string& Path, std::vector<FileEntry>* Entries)
 		{
 			TH_ASSERT(Entries != nullptr, false, "entries should be set");
 			TH_MEASURE(TH_TIMING_IO);
 
-			ResourceEntry Entry;
+			FileEntry Entry;
 #if defined(TH_MICROSOFT)
 			struct Dirent
 			{
@@ -6918,7 +6918,7 @@ namespace Tomahawk
 			{
 				Dirent* Next = &Value->Result;
 				WideCharToMultiByte(CP_UTF8, 0, Value->Info.cFileName, -1, Next->Directory, sizeof(Next->Directory), nullptr, nullptr);
-				if (strcmp(Next->Directory, ".") != 0 && strcmp(Next->Directory, "..") != 0 && File::State(Path + '/' + Next->Directory, &Entry.Source))
+				if (strcmp(Next->Directory, ".") != 0 && strcmp(Next->Directory, "..") != 0 && File::State(Path + '/' + Next->Directory, &Entry))
 				{
 					Entry.Path = Next->Directory;
 					Entries->push_back(Entry);
@@ -6953,10 +6953,10 @@ namespace Tomahawk
 #endif
 			return true;
 		}
-		bool OS::Directory::Each(const char* Path, const std::function<bool(DirectoryEntry*)>& Callback)
+		bool OS::Directory::Each(const char* Path, const std::function<bool(FileEntry*)>& Callback)
 		{
 			TH_ASSERT(Path != nullptr, false, "path should be set");
-			std::vector<ResourceEntry> Entries;
+			std::vector<FileEntry> Entries;
 			std::string Result = Path::Resolve(Path);
 			Scan(Result, &Entries);
 
@@ -6964,15 +6964,8 @@ namespace Tomahawk
 			if (!R.EndsWith('/') && !R.EndsWith('\\'))
 				Result += '/';
 
-			for (auto& Dir : Entries)
+			for (auto& Entry : Entries)
 			{
-				DirectoryEntry Entry;
-				Entry.Path = Result + Dir.Path;
-				Entry.IsGood = true;
-				Entry.IsDirectory = Dir.Source.IsDirectory;
-				if (!Entry.IsDirectory)
-					Entry.Length = Dir.Source.Size;
-
 				if (!Callback(&Entry))
 					break;
 			}
@@ -7173,12 +7166,13 @@ namespace Tomahawk
 #endif
 		}
 
-		bool OS::File::State(const std::string& Path, Resource* Resource)
+		bool OS::File::State(const std::string& Path, FileEntry* Resource)
 		{
 			TH_ASSERT(Resource != nullptr, false, "resource should be set");
 			TH_MEASURE(TH_TIMING_IO);
 
-			memset(Resource, 0, sizeof(*Resource));
+			*Resource = FileEntry();
+			Resource->Path = Path;
 #if defined(TH_MICROSOFT)
 			wchar_t Buffer[TH_CHUNK_SIZE];
 			ConvertToWideChar(Path.c_str(), Path.size(), Buffer, TH_CHUNK_SIZE);
@@ -7195,21 +7189,29 @@ namespace Tomahawk
 
 			Resource->IsDirectory = Info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 			if (Resource->IsDirectory)
+			{
+				Resource->IsExists = true;
 				return true;
+			}
 
 			if (Path.empty())
 				return false;
 
 			int End = Path.back();
 			if (isalnum(End) || strchr("_-", End) != nullptr)
+			{
+				Resource->IsExists = true;
 				return true;
+			}
 
-			memset(Resource, 0, sizeof(*Resource));
 			return false;
 #else
 			struct stat State;
 			if (stat(Path.c_str(), &State) != 0)
+			{
+				Resource->IsExists = true;
 				return false;
+			}
 
 			struct tm Time;
 			LocalTime(&State.st_ctime, &Time);
@@ -7289,8 +7291,8 @@ namespace Tomahawk
 			TH_ASSERT(!FirstPath.empty(), -1, "first path should not be empty");
 			TH_ASSERT(!SecondPath.empty(), 1, "second path should not be empty");
 
-			size_t Size1 = GetState(FirstPath.c_str()).Size;
-			size_t Size2 = GetState(SecondPath.c_str()).Size;
+			size_t Size1 = GetProperties(FirstPath.c_str()).Size;
+			size_t Size2 = GetProperties(SecondPath.c_str()).Size;
 
 			if (Size1 > Size2)
 				return 1;
@@ -7339,7 +7341,7 @@ namespace Tomahawk
 		{
 			return Compute::Crypto::CRC32(Data);
 		}
-		FileState OS::File::GetState(const char* Path)
+		FileState OS::File::GetProperties(const char* Path)
 		{
 			FileState State;
 			struct stat Buffer;
@@ -7651,7 +7653,7 @@ namespace Tomahawk
 			return Buffer;
 		}
 
-		bool OS::Net::GetETag(char* Buffer, size_t Length, Resource* Resource)
+		bool OS::Net::GetETag(char* Buffer, size_t Length, FileEntry* Resource)
 		{
 			TH_ASSERT(Resource != nullptr, false, "resource should be set");
 			return GetETag(Buffer, Length, Resource->LastModified, Resource->Size);
@@ -8591,7 +8593,7 @@ namespace Tomahawk
 		void FileLog::Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback)
 		{
 			TH_ASSERT_V(Callback, "callback should not be empty");
-			Resource State;
+			FileEntry State;
 			if (Source->GetBuffer() && (!OS::File::State(Path, &State) || State.LastModified == Time))
 				return;
 

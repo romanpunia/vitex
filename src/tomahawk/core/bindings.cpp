@@ -116,6 +116,7 @@ double frac(double Value)
 #define TYPENAME_SCHEMA "schema"
 #define TYPENAME_DECIMAL "decimal"
 #define TYPENAME_VARIANT "variant"
+#define TYPENAME_FILEENTRY "file_entry"
 #define TYPENAME_ELEMENTNODE "ui_element"
 
 namespace
@@ -4674,6 +4675,10 @@ namespace Tomahawk
 
 				TH_ERR("[vm] no active context for stack tracing");
 			}
+			void ConsoleGetSize(Core::Console* Base, uint32_t& X, uint32_t& Y)
+			{
+				Base->GetSize(&X, &Y);
+			}
 
 			uint64_t VariantGetSize(Core::Variant& Base)
 			{
@@ -5395,6 +5400,294 @@ namespace Tomahawk
 				}
 			}
 
+			bool StreamOpen(Core::Stream* Base, const std::string& Path, Core::FileMode Mode)
+			{
+				return Base->Open(Path.c_str(), Mode);
+			}
+			std::string StreamRead(Core::Stream* Base, size_t Size)
+			{
+				std::string Result;
+				Result.resize(Size);
+
+				size_t Count = Base->Read(Result.data(), Size);
+				if (Count < Size)
+					Result.resize(Count);
+
+				return Result;
+			}
+			size_t StreamWrite(Core::Stream* Base, const std::string& Data)
+			{
+				return Base->Write(Data.data(), Data.size());
+			}
+			Core::FileStream* StreamToFileStream(Core::Stream* Base)
+			{
+				return dynamic_cast<Core::FileStream*>(Base);
+			}
+			Core::GzStream* StreamToGzStream(Core::Stream* Base)
+			{
+				return dynamic_cast<Core::GzStream*>(Base);
+			}
+			Core::WebStream* StreamToWebStream(Core::Stream* Base)
+			{
+				return dynamic_cast<Core::WebStream*>(Base);
+			}
+
+			bool FileStreamOpen(Core::FileStream* Base, const std::string& Path, Core::FileMode Mode)
+			{
+				return Base->Open(Path.c_str(), Mode);
+			}
+			std::string FileStreamRead(Core::FileStream* Base, size_t Size)
+			{
+				std::string Result;
+				Result.resize(Size);
+
+				size_t Count = Base->Read(Result.data(), Size);
+				if (Count < Size)
+					Result.resize(Count);
+
+				return Result;
+			}
+			size_t FileStreamWrite(Core::FileStream* Base, const std::string& Data)
+			{
+				return Base->Write(Data.data(), Data.size());
+			}
+			Core::Stream* FileStreamToStream(Core::FileStream* Base)
+			{
+				return dynamic_cast<Core::Stream*>(Base);
+			}
+
+			bool GzStreamOpen(Core::GzStream* Base, const std::string& Path, Core::FileMode Mode)
+			{
+				return Base->Open(Path.c_str(), Mode);
+			}
+			std::string GzStreamRead(Core::GzStream* Base, size_t Size)
+			{
+				std::string Result;
+				Result.resize(Size);
+
+				size_t Count = Base->Read(Result.data(), Size);
+				if (Count < Size)
+					Result.resize(Count);
+
+				return Result;
+			}
+			size_t GzStreamWrite(Core::GzStream* Base, const std::string& Data)
+			{
+				return Base->Write(Data.data(), Data.size());
+			}
+			Core::Stream* GzStreamToStream(Core::GzStream* Base)
+			{
+				return dynamic_cast<Core::Stream*>(Base);
+			}
+
+			bool WebStreamOpen(Core::WebStream* Base, const std::string& Path, Core::FileMode Mode)
+			{
+				return Base->Open(Path.c_str(), Mode);
+			}
+			std::string WebStreamRead(Core::WebStream* Base, size_t Size)
+			{
+				std::string Result;
+				Result.resize(Size);
+
+				size_t Count = Base->Read(Result.data(), Size);
+				if (Count < Size)
+					Result.resize(Count);
+
+				return Result;
+			}
+			size_t WebStreamWrite(Core::WebStream* Base, const std::string& Data)
+			{
+				return Base->Write(Data.data(), Data.size());
+			}
+			Core::Stream* WebStreamToStream(Core::WebStream* Base)
+			{
+				return dynamic_cast<Core::Stream*>(Base);
+			}
+			
+			Core::TaskId ScheduleSetInterval(Core::Schedule* Base, uint64_t Mills, VMCFunction* Callback, Core::Difficulty Type)
+			{
+				if (!Callback)
+					return TH_INVALID_TASK_ID;
+
+				VMContext* Context = VMContext::Get();
+				if (!Context)
+					return TH_INVALID_TASK_ID;
+
+				Callback->AddRef();
+				Context->AddRef();
+
+				return Base->SetInterval(Mills, [Context, Callback]() mutable
+				{
+					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				}, Type);
+			}
+			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, VMCFunction* Callback, Core::Difficulty Type)
+			{
+				if (!Callback)
+					return TH_INVALID_TASK_ID;
+
+				VMContext* Context = VMContext::Get();
+				if (!Context)
+					return TH_INVALID_TASK_ID;
+
+				Callback->AddRef();
+				Context->AddRef();
+
+				return Base->SetTimeout(Mills, [Context, Callback]() mutable
+				{
+					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				}, Type);
+			}
+			bool ScheduleSetImmediate(Core::Schedule* Base, VMCFunction* Callback, Core::Difficulty Type)
+			{
+				if (!Callback)
+					return TH_INVALID_TASK_ID;
+
+				VMContext* Context = VMContext::Get();
+				if (!Context)
+					return TH_INVALID_TASK_ID;
+
+				Callback->AddRef();
+				Context->AddRef();
+
+				return Base->SetTask([Context, Callback]() mutable
+				{
+					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
+					{
+						Callback->Release();
+						Context->Release();
+					});
+				}, Type);
+			}
+
+			Array* OSDirectoryScan(const std::string& Path)
+			{
+				std::vector<Core::FileEntry> Entries;
+				Core::OS::Directory::Scan(Path, &Entries);
+
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_FILEENTRY ">@");
+				return Array::Compose<Core::FileEntry>(Type.GetTypeInfo(), Entries);
+			}
+			Array* OSDirectoryGetMounts(const std::string& Path)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<std::string>(Type.GetTypeInfo(), Core::OS::Directory::GetMounts());
+			}
+			bool OSDirectoryCreate(const std::string& Path)
+			{
+				return Core::OS::Directory::Create(Path.c_str());
+			}
+			bool OSDirectoryRemove(const std::string& Path)
+			{
+				return Core::OS::Directory::Remove(Path.c_str());
+			}
+			bool OSDirectoryIsExists(const std::string& Path)
+			{
+				return Core::OS::Directory::IsExists(Path.c_str());
+			}
+			void OSDirectorySet(const std::string& Path)
+			{
+				return Core::OS::Directory::Set(Path.c_str());
+			}
+
+			bool OSFileWrite(const std::string& Path, const std::string& Data)
+			{
+				return Core::OS::File::Write(Path.c_str(), Data);
+			}
+			bool OSFileState(const std::string& Path, Core::FileEntry& Data)
+			{
+				return Core::OS::File::State(Path.c_str(), &Data);
+			}
+			bool OSFileMove(const std::string& From, const std::string& To)
+			{
+				return Core::OS::File::Move(From.c_str(), To.c_str());
+			}
+			bool OSFileRemove(const std::string& Path)
+			{
+				return Core::OS::File::Remove(Path.c_str());
+			}
+			bool OSFileIsExists(const std::string& Path)
+			{
+				return Core::OS::File::IsExists(Path.c_str());
+			}
+			Core::FileState OSFileGetProperties(const std::string& Path)
+			{
+				return Core::OS::File::GetProperties(Path.c_str());
+			}
+			std::string OSFileReadAsString(const std::string& Path)
+			{
+				return Core::OS::File::ReadAsString(Path.c_str());
+			}
+			Array* OSFileReadAsArray(const std::string& Path)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				return Array::Compose<std::string>(Type.GetTypeInfo(), Core::OS::File::ReadAsArray(Path.c_str()));
+			}
+
+			bool OSPathIsRemote(const std::string& Path)
+			{
+				return Core::OS::Path::IsRemote(Path.c_str());
+			}
+			std::string OSPathResolve(const std::string& Path)
+			{
+				return Core::OS::Path::Resolve(Path.c_str());
+			}
+			std::string OSPathResolveDirectory(const std::string& Path)
+			{
+				return Core::OS::Path::ResolveDirectory(Path.c_str());
+			}
+			std::string OSPathGetDirectory(const std::string& Path, size_t Level)
+			{
+				return Core::OS::Path::GetDirectory(Path.c_str(), Level);
+			}
+			std::string OSPathGetFilename(const std::string& Path)
+			{
+				return Core::OS::Path::GetFilename(Path.c_str());
+			}
+			std::string OSPathGetExtension(const std::string& Path)
+			{
+				return Core::OS::Path::GetExtension(Path.c_str());
+			}
+
+			int OSProcessExecute(const std::string& Command)
+			{
+				return Core::OS::Process::Execute("%s", Command.c_str());
+			}
+			int OSProcessAwait(void* ProcessPtr)
+			{
+				int ExitCode = -1;
+				if (!Core::OS::Process::Await((Core::ChildProcess*)ProcessPtr, &ExitCode))
+					return -1;
+
+				return ExitCode;
+			}
+			bool OSProcessFree(void* ProcessPtr)
+			{
+				auto* Result = (Core::ChildProcess*)ProcessPtr;
+				bool Success = Core::OS::Process::Free(Result);
+				TH_DELETE(ChildProcess, Result);
+				return Success;
+			}
+			void* OSProcessSpawn(const std::string& Path, Array* Args)
+			{
+				Core::ChildProcess* Result = TH_NEW(Core::ChildProcess);
+				if (!Core::OS::Process::Spawn(Path, Array::Decompose<std::string>(Args), Result))
+				{
+					TH_DELETE(ChildProcess, Result);
+					return nullptr;
+				}
+
+				return (void*)Result;
+			}
+			
 			Compute::Vector2& Vector2MulEq1(Compute::Vector2& A, const Compute::Vector2& B)
 			{
 				return A *= B;
@@ -5833,11 +6126,16 @@ namespace Tomahawk
 				};
 			}
 
-			bool Registry::LoadPointer(VMManager* Manager)
+			bool Registry::LoadCTypes(VMManager* Manager)
 			{
 				TH_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMCManager* Engine = Manager->GetEngine();
-				return Engine->RegisterObjectType("pointer", 0, asOBJ_REF | asOBJ_NOCOUNT) >= 0;
+#ifdef TH_64
+				Engine->RegisterTypedef("usize", "uint64");
+#else
+				Engine->RegisterTypedef("usize", "uint32");
+#endif
+				return Engine->RegisterObjectType("uptr", 0, asOBJ_REF | asOBJ_NOCOUNT) >= 0;
 			}
 			bool Registry::LoadAny(VMManager* Manager)
 			{
@@ -6170,10 +6468,10 @@ namespace Tomahawk
 				Engine->RegisterObjectMethod("string", "string toLower() const", asFUNCTION(String::ToLower), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string toUpper() const", asFUNCTION(String::ToUpper), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string reverse() const", asFUNCTION(String::Reverse), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "pointer@ getPointer() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "pointer@ opImplCast()", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "pointer@ opImplCast() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "pointer@ opImplConv() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uptr@ getPointer() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("string", "uptr@ opImplCast()", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uptr@ opImplCast() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
+				Engine->RegisterObjectMethod("string", "uptr@ opImplConv() const", asFUNCTION(String::ToPtr), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterGlobalFunction("int64 toInt(const string &in, uint = 10, uint &out = 0)", asFUNCTION(String::IntStore), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("uint64 toUInt(const string &in, uint = 10, uint &out = 0)", asFUNCTION(String::UIntStore), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double toFloat(const string &in, uint &out = 0)", asFUNCTION(String::FloatStore), asCALL_CDECL);
@@ -6368,7 +6666,7 @@ namespace Tomahawk
 				VVariant.SetMethod("string serialize() const", &Core::Variant::Serialize);
 				VVariant.SetMethod("decimal toDecimal() const", &Core::Variant::GetDecimal);
 				VVariant.SetMethod("string toString() const", &Core::Variant::GetBlob);
-				VVariant.SetMethod("pointer@ toPointer() const", &Core::Variant::GetPointer);
+				VVariant.SetMethod("uptr@ toPointer() const", &Core::Variant::GetPointer);
 				VVariant.SetMethod("int64 toInteger() const", &Core::Variant::GetInteger);
 				VVariant.SetMethod("double toNumber() const", &Core::Variant::GetNumber);
 				VVariant.SetMethod("bool toBoolean() const", &Core::Variant::GetBoolean);
@@ -6385,7 +6683,7 @@ namespace Tomahawk
 				Register.SetFunction("variant undefined_t()", &Core::Var::Undefined);
 				Register.SetFunction("variant object_t()", &Core::Var::Object);
 				Register.SetFunction("variant array_t()", &Core::Var::Array);
-				Register.SetFunction("variant pointer_t(pointer@)", &Core::Var::Pointer);
+				Register.SetFunction("variant pointer_t(uptr@)", &Core::Var::Pointer);
 				Register.SetFunction("variant integer_t(int64)", &Core::Var::Integer);
 				Register.SetFunction("variant number_t(double)", &Core::Var::Number);
 				Register.SetFunction("variant boolean_t(bool)", &Core::Var::Boolean);
@@ -6477,11 +6775,14 @@ namespace Tomahawk
 				VStdColor.SetValue("white", (int)Core::StdColor::White);
 
 				VMRefClass VConsole = Register.SetClassUnmanaged<Core::Console>("console");
+				VConsole.SetMethod("void begin()", &Core::Console::Begin);
+				VConsole.SetMethod("void end()", &Core::Console::End);
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
 				VConsole.SetMethod("void show()", &Core::Console::Show);
 				VConsole.SetMethod("void clear()", &Core::Console::Clear);
 				VConsole.SetMethod("void flush()", &Core::Console::Flush);
 				VConsole.SetMethod("void flushWrite()", &Core::Console::FlushWrite);
+				VConsole.SetMethod("void setCursor(uint32, uint32)", &Core::Console::SetCursor);
 				VConsole.SetMethod("void setColoring(bool)", &Core::Console::SetColoring);
 				VConsole.SetMethod("void colorBegin(std_color, std_color)", &Core::Console::ColorBegin);
 				VConsole.SetMethod("void colorEnd()", &Core::Console::ColorEnd);
@@ -6492,6 +6793,7 @@ namespace Tomahawk
 				VConsole.SetMethod("string read(uint64)", &Core::Console::Read);
 				VConsole.SetMethodStatic("console@+ get()", &Core::Console::Get);
 				VConsole.SetMethodEx("void trace(uint32 = 32)", &ConsoleTrace);
+				VConsole.SetMethodEx("void getSize(uint32 &out, uint32 &out)", &ConsoleGetSize);
 				VConsole.SetMethodEx("void writeLine(const string &in, format@+)", &Format::WriteLine);
 				VConsole.SetMethodEx("void write(const string &in, format@+)", &Format::Write);
 
@@ -6561,7 +6863,7 @@ namespace Tomahawk
 				Register.SetFunction("schema@ undefined_t()", &Core::Var::Set::Undefined);
 				Register.SetFunction("schema@ object_t()", &Core::Var::Set::Object);
 				Register.SetFunction("schema@ array_t()", &Core::Var::Set::Array);
-				Register.SetFunction("schema@ pointer_t(pointer@)", &Core::Var::Set::Pointer);
+				Register.SetFunction("schema@ pointer_t(uptr@)", &Core::Var::Set::Pointer);
 				Register.SetFunction("schema@ integer_t(int64)", &Core::Var::Set::Integer);
 				Register.SetFunction("schema@ number_t(double)", &Core::Var::Set::Number);
 				Register.SetFunction("schema@ boolean_t(bool)", &Core::Var::Set::Boolean);
@@ -6571,6 +6873,278 @@ namespace Tomahawk
 				Register.SetFunction<Core::Schema* (const Core::Decimal&)>("schema@ decimal_t(const decimal &in)", &Core::Var::Set::Decimal);
 				Register.SetFunction("schema@+ as(schema@+)", &SchemaInit);
 				Engine->EndNamespace();
+
+				return true;
+			}
+			bool Registry::LoadTickClock(VMManager* Engine)
+			{
+				TH_ASSERT(Engine != nullptr, false, "manager should be set");
+
+				VMRefClass VTimer = Engine->Global().SetClassUnmanaged<Core::Timer>("tick_clock");
+				VTimer.SetUnmanagedConstructor<Core::Timer>("tick_clock@ f()");
+				VTimer.SetMethod("void setFixedFrames(float)", &Core::Timer::SetFixedFrames);
+				VTimer.SetMethod("void begin()", &Core::Timer::Begin);
+				VTimer.SetMethod("void finish()", &Core::Timer::Finish);
+				VTimer.SetMethod("float getMaxFrames() const", &Core::Timer::GetMaxFrames);
+				VTimer.SetMethod("float getMinStep() const", &Core::Timer::GetMinStep);
+				VTimer.SetMethod("float getFrames() const", &Core::Timer::GetFrames);
+				VTimer.SetMethod("float getElapsed() const", &Core::Timer::GetElapsed);
+				VTimer.SetMethod("float getElapsedMills() const", &Core::Timer::GetElapsedMills);
+				VTimer.SetMethod("float getStep() const", &Core::Timer::GetStep);
+				VTimer.SetMethod("float getFixedStep() const", &Core::Timer::GetFixedStep);
+				VTimer.SetMethod("bool isFixed() const", &Core::Timer::IsFixed);
+
+				return true;
+			}
+			bool Registry::LoadFileSystem(VMManager* Engine)
+			{
+				TH_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMEnum VFileMode = Engine->Global().SetEnum("file_mode");
+				VFileMode.SetValue("read_only", (int)Core::FileMode::Read_Only);
+				VFileMode.SetValue("write_only", (int)Core::FileMode::Write_Only);
+				VFileMode.SetValue("append_only", (int)Core::FileMode::Append_Only);
+				VFileMode.SetValue("read_write", (int)Core::FileMode::Read_Write);
+				VFileMode.SetValue("write_read", (int)Core::FileMode::Write_Read);
+				VFileMode.SetValue("read_append_write", (int)Core::FileMode::Read_Append_Write);
+				VFileMode.SetValue("binary_read_only", (int)Core::FileMode::Binary_Read_Only);
+				VFileMode.SetValue("binary_write_only", (int)Core::FileMode::Binary_Write_Only);
+				VFileMode.SetValue("binary_append_only", (int)Core::FileMode::Binary_Append_Only);
+				VFileMode.SetValue("binary_read_write", (int)Core::FileMode::Binary_Read_Write);
+				VFileMode.SetValue("binary_write_read", (int)Core::FileMode::Binary_Write_Read);
+				VFileMode.SetValue("binary_read_append_write", (int)Core::FileMode::Binary_Read_Append_Write);
+
+				VMEnum VFileSeek = Engine->Global().SetEnum("file_seek");
+				VFileSeek.SetValue("begin", (int)Core::FileSeek::Begin);
+				VFileSeek.SetValue("current", (int)Core::FileSeek::Current);
+				VFileSeek.SetValue("end", (int)Core::FileSeek::End);
+
+				VMTypeClass VFileState = Engine->Global().SetPod<Core::FileState>("file_state");
+				VFileState.SetProperty("usize size", &Core::FileState::Size);
+				VFileState.SetProperty("usize links", &Core::FileState::Links);
+				VFileState.SetProperty("usize permissions", &Core::FileState::Permissions);
+				VFileState.SetProperty("usize document", &Core::FileState::Document);
+				VFileState.SetProperty("usize device", &Core::FileState::Device);
+				VFileState.SetProperty("usize userId", &Core::FileState::UserId);
+				VFileState.SetProperty("usize groupId", &Core::FileState::GroupId);
+				VFileState.SetProperty("int64 lastAccess", &Core::FileState::LastAccess);
+				VFileState.SetProperty("int64 lastPermissionChange", &Core::FileState::LastPermissionChange);
+				VFileState.SetProperty("int64 lastModified", &Core::FileState::LastModified);
+				VFileState.SetProperty("bool exists", &Core::FileState::Exists);
+
+				VMTypeClass VFileEntry = Engine->Global().SetStructUnmanaged<Core::FileEntry>("file_entry");
+				VFileEntry.SetConstructor<Core::FileEntry>("void f()");
+				VFileEntry.SetProperty("string path", &Core::FileEntry::Path);
+				VFileEntry.SetProperty("usize size", &Core::FileEntry::Size);
+				VFileEntry.SetProperty("int64 lastModified", &Core::FileEntry::LastModified);
+				VFileEntry.SetProperty("int64 creationTime", &Core::FileEntry::CreationTime);
+				VFileEntry.SetProperty("bool isReferenced", &Core::FileEntry::IsReferenced);
+				VFileEntry.SetProperty("bool isDirectory", &Core::FileEntry::IsDirectory);
+				VFileEntry.SetProperty("bool isExists", &Core::FileEntry::IsExists);
+
+				VMRefClass VStream = Engine->Global().SetClassUnmanaged<Core::Stream>("base_stream");
+				VStream.SetMethod("void clear()", &Core::Stream::Clear);
+				VStream.SetMethod("bool close()", &Core::Stream::Close);
+				VStream.SetMethod("bool seek(file_seek, int64)", &Core::Stream::Seek);
+				VStream.SetMethod("bool move(int64)", &Core::Stream::Move);
+				VStream.SetMethod("int32 flush()", &Core::Stream::Flush);
+				VStream.SetMethod("int32 getFd()", &Core::Stream::GetFd);
+				VStream.SetMethod("usize getSize()", &Core::Stream::GetSize);
+				VStream.SetMethod("usize tell()", &Core::Stream::Tell);
+				VStream.SetMethodEx("bool open(const string &in, file_mode)", &StreamOpen);
+				VStream.SetMethodEx("usize write(const string &in)", &StreamWrite);
+				VStream.SetMethodEx("string read(usize)", &StreamRead);
+
+				VMRefClass VFileStream = Engine->Global().SetClassUnmanaged<Core::FileStream>("file_stream");
+				VFileStream.SetUnmanagedConstructor<Core::FileStream>("file_stream@ f()");
+				VFileStream.SetMethod("void clear()", &Core::FileStream::Clear);
+				VFileStream.SetMethod("bool close()", &Core::FileStream::Close);
+				VFileStream.SetMethod("bool seek(file_seek, int64)", &Core::FileStream::Seek);
+				VFileStream.SetMethod("bool move(int64)", &Core::FileStream::Move);
+				VFileStream.SetMethod("int32 flush()", &Core::FileStream::Flush);
+				VFileStream.SetMethod("int32 getFd()", &Core::FileStream::GetFd);
+				VFileStream.SetMethod("usize getSize()", &Core::FileStream::GetSize);
+				VFileStream.SetMethod("usize tell()", &Core::FileStream::Tell);
+				VFileStream.SetMethodEx("bool open(const string &in, file_mode)", &FileStreamOpen);
+				VFileStream.SetMethodEx("usize write(const string &in)", &FileStreamWrite);
+				VFileStream.SetMethodEx("string read(usize)", &FileStreamRead);
+
+				VMRefClass VGzStream = Engine->Global().SetClassUnmanaged<Core::GzStream>("gz_stream");
+				VGzStream.SetUnmanagedConstructor<Core::GzStream>("gz_stream@ f()");
+				VGzStream.SetMethod("void clear()", &Core::GzStream::Clear);
+				VGzStream.SetMethod("bool close()", &Core::GzStream::Close);
+				VGzStream.SetMethod("bool seek(file_seek, int64)", &Core::GzStream::Seek);
+				VGzStream.SetMethod("bool move(int64)", &Core::GzStream::Move);
+				VGzStream.SetMethod("int32 flush()", &Core::GzStream::Flush);
+				VGzStream.SetMethod("int32 getFd()", &Core::GzStream::GetFd);
+				VGzStream.SetMethod("usize getSize()", &Core::GzStream::GetSize);
+				VGzStream.SetMethod("usize tell()", &Core::GzStream::Tell);
+				VGzStream.SetMethodEx("bool open(const string &in, file_mode)", &GzStreamOpen);
+				VGzStream.SetMethodEx("usize write(const string &in)", &GzStreamWrite);
+				VGzStream.SetMethodEx("string read(usize)", &GzStreamRead);
+
+				VMRefClass VWebStream = Engine->Global().SetClassUnmanaged<Core::WebStream>("web_stream");
+				VWebStream.SetUnmanagedConstructor<Core::WebStream, bool>("web_stream@ f(bool)");
+				VWebStream.SetMethod("void clear()", &Core::WebStream::Clear);
+				VWebStream.SetMethod("bool close()", &Core::WebStream::Close);
+				VWebStream.SetMethod("bool seek(file_seek, int64)", &Core::WebStream::Seek);
+				VWebStream.SetMethod("bool move(int64)", &Core::WebStream::Move);
+				VWebStream.SetMethod("int32 flush()", &Core::WebStream::Flush);
+				VWebStream.SetMethod("int32 getFd()", &Core::WebStream::GetFd);
+				VWebStream.SetMethod("usize getSize()", &Core::WebStream::GetSize);
+				VWebStream.SetMethod("usize tell()", &Core::WebStream::Tell);
+				VWebStream.SetMethodEx("bool open(const string &in, file_mode)", &WebStreamOpen);
+				VWebStream.SetMethodEx("usize write(const string &in)", &WebStreamWrite);
+				VWebStream.SetMethodEx("string read(usize)", &WebStreamRead);
+
+				VStream.SetOperatorEx(VMOpFunc::Cast, 0, "file_stream@+", "", &StreamToFileStream);
+				VStream.SetOperatorEx(VMOpFunc::Cast, 0, "web_stream@+", "", &StreamToWebStream);
+				VStream.SetOperatorEx(VMOpFunc::Cast, 0, "gz_stream@+", "", &StreamToGzStream);
+				VStream.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "file_stream@+", "", &StreamToFileStream);
+				VStream.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "web_stream@+", "", &StreamToWebStream);
+				VStream.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "gz_stream@+", "", &StreamToGzStream);
+				VFileStream.SetOperatorEx(VMOpFunc::ImplCast, 0, "base_stream@+", "", &FileStreamToStream);
+				VFileStream.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "base_stream@+", "", &FileStreamToStream);
+				VGzStream.SetOperatorEx(VMOpFunc::ImplCast, 0, "base_stream@+", "", &GzStreamToStream);
+				VGzStream.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "base_stream@+", "", &GzStreamToStream);
+				VWebStream.SetOperatorEx(VMOpFunc::ImplCast, 0, "base_stream@+", "", &WebStreamToStream);
+				VWebStream.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "base_stream@+", "", &WebStreamToStream);
+
+				return true;
+			}
+			bool Registry::LoadOS(VMManager* Engine)
+			{
+				TH_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				Engine->BeginNamespace("os::cpu");
+				VMEnum VArch = Engine->Global().SetEnum("arch");
+				VArch.SetValue("x64", (int)Core::OS::CPU::Arch::X64);
+				VArch.SetValue("arm", (int)Core::OS::CPU::Arch::ARM);
+				VArch.SetValue("itanium", (int)Core::OS::CPU::Arch::Itanium);
+				VArch.SetValue("x86", (int)Core::OS::CPU::Arch::X86);
+				VArch.SetValue("unknown", (int)Core::OS::CPU::Arch::Unknown);
+
+				VMEnum VEndian = Engine->Global().SetEnum("endian");
+				VEndian.SetValue("little", (int)Core::OS::CPU::Endian::Little);
+				VEndian.SetValue("big", (int)Core::OS::CPU::Endian::Big);
+
+				VMEnum VCache = Engine->Global().SetEnum("cache");
+				VCache.SetValue("unified", (int)Core::OS::CPU::Cache::Unified);
+				VCache.SetValue("instruction", (int)Core::OS::CPU::Cache::Instruction);
+				VCache.SetValue("data", (int)Core::OS::CPU::Cache::Data);
+				VCache.SetValue("trace", (int)Core::OS::CPU::Cache::Trace);
+
+				VMTypeClass VQuantityInfo = Engine->Global().SetPod<Core::OS::CPU::QuantityInfo>("quantity_info");
+				VQuantityInfo.SetProperty("uint32 logical", &Core::OS::CPU::QuantityInfo::Logical);
+				VQuantityInfo.SetProperty("uint32 physical", &Core::OS::CPU::QuantityInfo::Physical);
+				VQuantityInfo.SetProperty("uint32 packages", &Core::OS::CPU::QuantityInfo::Packages);
+
+				VMTypeClass VCacheInfo = Engine->Global().SetPod<Core::OS::CPU::CacheInfo>("cache_info");
+				VCacheInfo.SetProperty("usize size", &Core::OS::CPU::CacheInfo::Size);
+				VCacheInfo.SetProperty("usize lineSize", &Core::OS::CPU::CacheInfo::LineSize);
+				VCacheInfo.SetProperty("uint8 associativity", &Core::OS::CPU::CacheInfo::Associativity);
+				VCacheInfo.SetProperty("cache type", &Core::OS::CPU::CacheInfo::Type);
+
+				Register.SetFunction("quantity_info getQuantityInfo()", &Core::OS::CPU::GetQuantityInfo);
+				Register.SetFunction("cache_info getCacheInfo(uint32)", &Core::OS::CPU::GetCacheInfo);
+				Register.SetFunction("arch getArch()", &Core::OS::CPU::GetArch);
+				Register.SetFunction("endian getEndianness()", &Core::OS::CPU::GetEndianness);
+				Register.SetFunction("usize getFrequency()", &Core::OS::CPU::GetFrequency);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("os::directory");
+				Register.SetFunction("array<file_entry>@ scan(const string &in)", &OSDirectoryScan);
+				Register.SetFunction("array<string>@ getMounts(const string &in)", &OSDirectoryGetMounts);
+				Register.SetFunction("bool create(const string &in)", &OSDirectoryCreate);
+				Register.SetFunction("bool remove(const string &in)", &OSDirectoryRemove);
+				Register.SetFunction("bool isExists(const string &in)", &OSDirectoryIsExists);
+				Register.SetFunction("string get()", &Core::OS::Directory::Get);
+				Register.SetFunction("void set(const string &in)", &OSDirectorySet);
+				Register.SetFunction("void patch(const string &in)", &Core::OS::Directory::Patch);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("os::file");
+				Register.SetFunction("bool write(const string &in, const string &in)", &OSFileWrite);
+				Register.SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
+				Register.SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
+				Register.SetFunction("bool remove(const string &in)", &OSFileRemove);
+				Register.SetFunction("bool isExists(const string &in)", &OSFileIsExists);
+				Register.SetFunction("file_state getProperties(const string &in)", &OSFileGetProperties);
+				Register.SetFunction("string readAsString(const string &in)", &OSFileReadAsString);
+				Register.SetFunction("array<string>@ readAsArray(const string &in)", &OSFileReadAsArray);
+				Register.SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
+				Register.SetFunction("int64 getCheckSum(const string &in)", &Core::OS::File::GetCheckSum);
+				Register.SetFunction<Core::Stream*(const std::string&, Core::FileMode, bool)>("base_stream@+ open(const string &in, file_mode, bool = false)", &Core::OS::File::Open);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("os::path");
+				Register.SetFunction("bool isRemote(const string &in)", &OSPathIsRemote);
+				Register.SetFunction("string resolve(const string &in)", &OSPathResolve);
+				Register.SetFunction("string resolveDirectory(const string &in)", &OSPathResolveDirectory);
+				Register.SetFunction("string getDirectory(const string &in, usize = 0)", &OSPathGetDirectory);
+				Register.SetFunction("string getFilename(const string &in)", &OSPathGetFilename);
+				Register.SetFunction("string getExtension(const string &in)", &OSPathGetExtension);
+				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolve(const string &in, const string &in)", &Core::OS::Path::Resolve);
+				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolveDirectory(const string &in, const string &in)", &Core::OS::Path::ResolveDirectory);
+				Register.SetFunction<std::string(const std::string&)>("string resolveResource(const string &in)", &Core::OS::Path::ResolveResource);
+				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolveResource(const string &in, const string &in)", &Core::OS::Path::ResolveResource);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("os::process");
+				Register.SetFunction("void interrupt()", &Core::OS::Process::Interrupt);
+				Register.SetFunction("int execute(const string &in)", &OSProcessExecute);
+				Register.SetFunction("int await(uptr@)", &OSProcessAwait);
+				Register.SetFunction("bool free(uptr@)", &OSProcessFree);
+				Register.SetFunction("uptr@ spawn(const string &in, array<string>@+)", &OSProcessSpawn);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("os::symbol");
+				Register.SetFunction("uptr@ load(const string &in)", &Core::OS::Symbol::Load);
+				Register.SetFunction("uptr@ loadFunction(uptr@, const string &in)", &Core::OS::Symbol::LoadFunction);
+				Register.SetFunction("bool unload(uptr@)", &Core::OS::Symbol::Unload);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("os::input");
+				Register.SetFunction("bool text(const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Text);
+				Register.SetFunction("bool password(const string &in, const string &in, string &out)", &Core::OS::Input::Password);
+				Register.SetFunction("bool save(const string &in, const string &in, const string &in, const string &in, string &out)", &Core::OS::Input::Save);
+				Register.SetFunction("bool open(const string &in, const string &in, const string &in, const string &in, bool, string &out)", &Core::OS::Input::Open);
+				Register.SetFunction("bool folder(const string &in, const string &in, string &out)", &Core::OS::Input::Folder);
+				Register.SetFunction("bool color(const string &in, const string &in, string &out)", &Core::OS::Input::Color);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("os::error");
+				Register.SetFunction("int32 get()", &Core::OS::Error::Get);
+				Register.SetFunction("string getName(int32)", &Core::OS::Error::GetName);
+				Register.SetFunction("bool isError(int32)", &Core::OS::Error::IsError);
+				Engine->EndNamespace();
+
+				return true;
+			}
+			bool Registry::LoadScheduler(VMManager* Engine)
+			{
+				TH_ASSERT(Engine != nullptr, false, "manager should be set");
+				Engine->GetEngine()->RegisterTypedef("task_id", "uint64");
+
+				VMEnum VDifficulty = Engine->Global().SetEnum("difficulty");
+				VDifficulty.SetValue("coroutine", (int)Core::Difficulty::Coroutine);
+				VDifficulty.SetValue("light", (int)Core::Difficulty::Light);
+				VDifficulty.SetValue("heavy", (int)Core::Difficulty::Heavy);
+				VDifficulty.SetValue("clock", (int)Core::Difficulty::Clock);
+
+				VMRefClass VSchedule = Engine->Global().SetClassUnmanaged<Core::Schedule>("schedule");
+				VSchedule.SetFunctionDef("void schedule::task_event()");
+				VSchedule.SetMethodEx("task_id setInterval(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetInterval);
+				VSchedule.SetMethodEx("task_id setTimeout(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetTimeout);
+				VSchedule.SetMethodEx("bool setImmediate(task_event@, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
+				VSchedule.SetMethod("bool clearTimeout(task_id)", &Core::Schedule::ClearTimeout);
+				VSchedule.SetMethod("bool wakeup()", &Core::Schedule::Wakeup);
+				VSchedule.SetMethod("bool isActive() const", &Core::Schedule::IsActive);
+				VSchedule.SetMethod("bool canEnqueue() const", &Core::Schedule::CanEnqueue);
+				VSchedule.SetMethod("bool hasTasks(difficulty) const", &Core::Schedule::HasTasks);
+				VSchedule.SetMethod("usize getTotalThreads() const", &Core::Schedule::GetTotalThreads);
+				VSchedule.SetMethod("usize getThreads(difficulty) const", &Core::Schedule::GetThreads);
+				VSchedule.SetMethodStatic("schedule@+ get()", &Core::Schedule::Get);
 
 				return true;
 			}
@@ -6924,7 +7498,7 @@ namespace Tomahawk
 				VEventPhase.SetValue("bubble", (int)Engine::GUI::EventPhase::Bubble);
 
 				VEvent.SetConstructor<Engine::GUI::IEvent>("void f()");
-				VEvent.SetConstructor<Engine::GUI::IEvent, Rml::Event*>("void f(pointer@)");
+				VEvent.SetConstructor<Engine::GUI::IEvent, Rml::Event*>("void f(uptr@)");
 				VEvent.SetMethod("ui_event_phase getPhase() const", &Engine::GUI::IEvent::GetPhase);
 				VEvent.SetMethod("void setPhase(ui_event_phase Phase)", &Engine::GUI::IEvent::SetPhase);
 				VEvent.SetMethod("void setCurrentElement(const ui_element &in)", &Engine::GUI::IEvent::SetCurrentElement);
@@ -6943,8 +7517,8 @@ namespace Tomahawk
 				VEvent.SetMethod("vector2 getVector2(const string &in) const", &Engine::GUI::IEvent::GetVector2);
 				VEvent.SetMethod("vector3 getVector3(const string &in) const", &Engine::GUI::IEvent::GetVector3);
 				VEvent.SetMethod("vector4 getVector4(const string &in) const", &Engine::GUI::IEvent::GetVector4);
-				VEvent.SetMethod("pointer@ getPointer(const string &in) const", &Engine::GUI::IEvent::GetPointer);
-				VEvent.SetMethod("pointer@ getEvent() const", &Engine::GUI::IEvent::GetEvent);
+				VEvent.SetMethod("uptr@ getPointer(const string &in) const", &Engine::GUI::IEvent::GetPointer);
+				VEvent.SetMethod("uptr@ getEvent() const", &Engine::GUI::IEvent::GetEvent);
 				VEvent.SetMethod("bool isValid() const", &Engine::GUI::IEvent::IsValid);
 
 				VListener.SetUnmanagedConstructor<ModelListener, VMCFunction*>("ui_listener@ f(model_listener_event@)");
@@ -6994,7 +7568,7 @@ namespace Tomahawk
 				VTimingDir.SetValue("use_in_out", (int)Engine::GUI::TimingDir::InOut);
 				
 				VElement.SetConstructor<Engine::GUI::IElement>("void f()");
-				VElement.SetConstructor<Engine::GUI::IElement, Rml::Element*>("void f(pointer@)");
+				VElement.SetConstructor<Engine::GUI::IElement, Rml::Element*>("void f(uptr@)");
 				VElement.SetMethod("ui_element Clone() const", &Engine::GUI::IElement::Clone);
 				VElement.SetMethod("void setClass(const string &in, bool)", &Engine::GUI::IElement::SetClass);
 				VElement.SetMethod("bool isClassSet(const string &in) const", &Engine::GUI::IElement::IsClassSet);
@@ -7082,7 +7656,7 @@ namespace Tomahawk
 				VElement.SetMethodEx("array<ui_element>@ querySelectorAll(const string &in)", &IElementQuerySelectorAll);
 				VElement.SetMethod("bool castFormColor(vector4 &out, bool)", &Engine::GUI::IElement::CastFormColor);
 				VElement.SetMethod("bool castFormString(string &out)", &Engine::GUI::IElement::CastFormString);
-				VElement.SetMethod("bool castFormPointer(pointer@ &out)", &Engine::GUI::IElement::CastFormPointer);
+				VElement.SetMethod("bool castFormPointer(uptr@ &out)", &Engine::GUI::IElement::CastFormPointer);
 				VElement.SetMethod("bool castFormInt32(int &out)", &Engine::GUI::IElement::CastFormInt32);
 				VElement.SetMethod("bool castFormUInt32(uint &out)", &Engine::GUI::IElement::CastFormUInt32);
 				VElement.SetMethod("bool castFormFlag32(uint &out, uint)", &Engine::GUI::IElement::CastFormFlag32);
@@ -7099,11 +7673,11 @@ namespace Tomahawk
 				VElement.SetMethod("void setFormValue(const string &in)", &Engine::GUI::IElement::SetFormValue);
 				VElement.SetMethod("bool isFormDisabled() const", &Engine::GUI::IElement::IsFormDisabled);
 				VElement.SetMethod("void setFormDisabled(bool)", &Engine::GUI::IElement::SetFormDisabled);
-				VElement.SetMethod("pointer@ getElement() const", &Engine::GUI::IElement::GetElement);
+				VElement.SetMethod("uptr@ getElement() const", &Engine::GUI::IElement::GetElement);
 				VElement.SetMethod("bool isValid() const", &Engine::GUI::IElement::GetElement);
 
 				VDocument.SetConstructor<Engine::GUI::IElementDocument>("void f()");
-				VDocument.SetConstructor<Engine::GUI::IElementDocument, Rml::ElementDocument*>("void f(pointer@)");
+				VDocument.SetConstructor<Engine::GUI::IElementDocument, Rml::ElementDocument*>("void f(uptr@)");
 				VDocument.SetMethod("ui_element clone() const", &Engine::GUI::IElementDocument::Clone);
 				VDocument.SetMethod("void setClass(const string &in, bool)", &Engine::GUI::IElementDocument::SetClass);
 				VDocument.SetMethod("bool isClassSet(const string &in) const", &Engine::GUI::IElementDocument::IsClassSet);
@@ -7191,7 +7765,7 @@ namespace Tomahawk
 				VDocument.SetMethodEx("array<ui_element>@ querySelectorAll(const string &in)", &IElementDocumentQuerySelectorAll);
 				VDocument.SetMethod("bool castFormColor(vector4 &out, bool)", &Engine::GUI::IElementDocument::CastFormColor);
 				VDocument.SetMethod("bool castFormString(string &out)", &Engine::GUI::IElementDocument::CastFormString);
-				VDocument.SetMethod("bool castFormPointer(pointer@ &out)", &Engine::GUI::IElementDocument::CastFormPointer);
+				VDocument.SetMethod("bool castFormPointer(uptr@ &out)", &Engine::GUI::IElementDocument::CastFormPointer);
 				VDocument.SetMethod("bool castFormInt32(int &out)", &Engine::GUI::IElementDocument::CastFormInt32);
 				VDocument.SetMethod("bool castFormUInt32(uint &out)", &Engine::GUI::IElementDocument::CastFormUInt32);
 				VDocument.SetMethod("bool castFormFlag32(uint &out, uint)", &Engine::GUI::IElementDocument::CastFormFlag32);
@@ -7208,7 +7782,7 @@ namespace Tomahawk
 				VDocument.SetMethod("void setFormValue(const string &in)", &Engine::GUI::IElementDocument::SetFormValue);
 				VDocument.SetMethod("bool isFormDisabled() const", &Engine::GUI::IElementDocument::IsFormDisabled);
 				VDocument.SetMethod("void setFormDisabled(bool)", &Engine::GUI::IElementDocument::SetFormDisabled);
-				VDocument.SetMethod("pointer@ getElement() const", &Engine::GUI::IElementDocument::GetElement);
+				VDocument.SetMethod("uptr@ getElement() const", &Engine::GUI::IElementDocument::GetElement);
 				VDocument.SetMethod("bool isValid() const", &Engine::GUI::IElementDocument::GetElement);
 				VDocument.SetMethod("void setTitle(const string &in)", &Engine::GUI::IElementDocument::SetTitle);
 				VDocument.SetMethod("void pullToFront()", &Engine::GUI::IElementDocument::PullToFront);
@@ -7220,7 +7794,7 @@ namespace Tomahawk
 				VDocument.SetMethod("string getSourceURL() const", &Engine::GUI::IElementDocument::GetSourceURL);
 				VDocument.SetMethod("ui_element createElement(const string &in)", &Engine::GUI::IElementDocument::CreateElement);
 				VDocument.SetMethod("bool isModal() const", &Engine::GUI::IElementDocument::IsModal);;
-				VDocument.SetMethod("pointer@ getElementDocument() const", &Engine::GUI::IElementDocument::GetElementDocument);
+				VDocument.SetMethod("uptr@ getElementDocument() const", &Engine::GUI::IElementDocument::GetElementDocument);
 
 				return true;
 			}
@@ -7238,7 +7812,7 @@ namespace Tomahawk
 				VModel.SetMethodEx("bool setFloat(const string &in, float)", &DataModelSetFloat);
 				VModel.SetMethodEx("bool setDouble(const string &in, double)", &DataModelSetDouble);
 				VModel.SetMethodEx("bool setBoolean(const string &in, bool)", &DataModelSetBoolean);
-				VModel.SetMethodEx("bool setPointer(const string &in, pointer@)", &DataModelSetPointer);
+				VModel.SetMethodEx("bool setPointer(const string &in, uptr@)", &DataModelSetPointer);
 				VModel.SetMethodEx("bool setCallback(const string &in, ui_data_event@)", &DataModelSetCallback);
 				VModel.SetMethodEx("schema@+ get(const string &in)", &DataModelGet);
 				VModel.SetMethod("string getString(const string &in)", &Engine::GUI::DataModel::GetString);
@@ -7246,7 +7820,7 @@ namespace Tomahawk
 				VModel.SetMethod("float getFloat(const string &in)", &Engine::GUI::DataModel::GetFloat);
 				VModel.SetMethod("double getDouble(const string &in)", &Engine::GUI::DataModel::GetDouble);
 				VModel.SetMethod("bool getBoolean(const string &in)", &Engine::GUI::DataModel::GetBoolean);
-				VModel.SetMethod("pointer@ getPointer(const string &in)", &Engine::GUI::DataModel::GetPointer);
+				VModel.SetMethod("uptr@ getPointer(const string &in)", &Engine::GUI::DataModel::GetPointer);
 				VModel.SetMethod("bool hasChanged(const string &in)", &Engine::GUI::DataModel::HasChanged);
 				VModel.SetMethod("void change(const string &in)", &Engine::GUI::DataModel::Change);
 				VModel.SetMethod("bool isValid() const", &Engine::GUI::DataModel::IsValid);
@@ -7278,7 +7852,7 @@ namespace Tomahawk
 				VContext.SetMethod("bool replaceHTML(const string &in, const string &in, int = 0)", &Engine::GUI::Context::ReplaceHTML);
 				VContext.SetMethod("bool removeDataModel(const string &in)", &Engine::GUI::Context::RemoveDataModel);
 				VContext.SetMethod("bool removeDataModels()", &Engine::GUI::Context::RemoveDataModels);
-				VContext.SetMethod("pointer@ getContext()", &Engine::GUI::Context::GetContext);
+				VContext.SetMethod("uptr@ getContext()", &Engine::GUI::Context::GetContext);
 				VContext.SetMethod("vector2 getDimensions() const", &Engine::GUI::Context::GetDimensions);
 				VContext.SetMethod("string getDocumentsBaseTag() const", &Engine::GUI::Context::GetDocumentsBaseTag);
 				VContext.SetMethod("void setDensityIndependentPixelRatio(float)", &Engine::GUI::Context::GetDensityIndependentPixelRatio);

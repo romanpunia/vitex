@@ -920,7 +920,7 @@ namespace Tomahawk
 			class TH_OUT_TS Registry
 			{
 			public:
-				static bool LoadPointer(VMManager* Manager);
+				static bool LoadCTypes(VMManager* Manager);
 				static bool LoadAny(VMManager* Manager);
 				static bool LoadArray(VMManager* Manager);
 				static bool LoadComplex(VMManager* Manager);
@@ -941,6 +941,10 @@ namespace Tomahawk
 				static bool LoadDateTime(VMManager* Engine);
 				static bool LoadConsole(VMManager* Engine);
 				static bool LoadSchema(VMManager* Engine);
+				static bool LoadTickClock(VMManager* Engine);
+				static bool LoadFileSystem(VMManager* Engine);
+				static bool LoadOS(VMManager* Engine);
+				static bool LoadScheduler(VMManager* Engine);
 				static bool LoadVertices(VMManager* Engine);
 				static bool LoadRectangle(VMManager* Engine);
 				static bool LoadVector2(VMManager* Engine);

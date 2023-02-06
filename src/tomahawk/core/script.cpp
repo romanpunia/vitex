@@ -3610,7 +3610,7 @@ namespace Tomahawk
 			if (!Core::OS::Directory::IsExists(Directory.c_str()))
 				return Result;
 
-			std::vector<Core::ResourceEntry> Entries;
+			std::vector<Core::FileEntry> Entries;
 			if (!Core::OS::Directory::Scan(Directory, &Entries))
 				return Result;
 
@@ -3622,7 +3622,7 @@ namespace Tomahawk
 				else
 					Entry.Path = Directory + Entry.Path;
 
-				if (!Entry.Source.IsDirectory)
+				if (!Entry.IsDirectory)
 				{
 					if (!Compute::Regex::Match((Compute::RegexSource*)&Exp, fResult, Entry.Path))
 						continue;
@@ -4066,7 +4066,7 @@ namespace Tomahawk
 		}
 		void VMManager::RegisterSubmodules(VMManager* Engine)
 		{
-			Engine->AddSubmodule("std/pointer", { }, Bindings::Registry::LoadPointer);
+			Engine->AddSubmodule("std/ctypes", { }, Bindings::Registry::LoadCTypes);
 			Engine->AddSubmodule("std/any", { }, Bindings::Registry::LoadAny);
 			Engine->AddSubmodule("std/array", { }, Bindings::Registry::LoadArray);
 			Engine->AddSubmodule("std/complex", { }, Bindings::Registry::LoadComplex);
@@ -4074,7 +4074,7 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/ref", { }, Bindings::Registry::LoadRef);
 			Engine->AddSubmodule("std/weak_ref", { }, Bindings::Registry::LoadWeakRef);
 			Engine->AddSubmodule("std/math", { }, Bindings::Registry::LoadMath);
-			Engine->AddSubmodule("std/string", { "std/pointer", "std/array" }, Bindings::Registry::LoadString);
+			Engine->AddSubmodule("std/string", { "std/ctypes", "std/array" }, Bindings::Registry::LoadString);
 			Engine->AddSubmodule("std/random", { "std/string" }, Bindings::Registry::LoadRandom);
 			Engine->AddSubmodule("std/map", { "std/array", "std/string" }, Bindings::Registry::LoadMap);
 			Engine->AddSubmodule("std/exception", { "std/string" }, Bindings::Registry::LoadException);
@@ -4087,6 +4087,9 @@ namespace Tomahawk
 			Engine->AddSubmodule("std/timestamp", { "std/string" }, Bindings::Registry::LoadDateTime);
 			Engine->AddSubmodule("std/console", { "std/format" }, Bindings::Registry::LoadConsole);
 			Engine->AddSubmodule("std/schema", { "std/array", "std/string", "std/map", "std/variant" }, Bindings::Registry::LoadSchema);
+			Engine->AddSubmodule("std/tick_clock", { }, Bindings::Registry::LoadTickClock);
+			Engine->AddSubmodule("std/file_system", { "std/string" }, Bindings::Registry::LoadFileSystem);
+			Engine->AddSubmodule("std/os", { "std/file_system" }, Bindings::Registry::LoadOS);
 			Engine->AddSubmodule("std/vertices", { }, Bindings::Registry::LoadVertices);
 			Engine->AddSubmodule("std/rectangle", { }, Bindings::Registry::LoadRectangle);
 			Engine->AddSubmodule("std/vector2", { }, Bindings::Registry::LoadVector2);

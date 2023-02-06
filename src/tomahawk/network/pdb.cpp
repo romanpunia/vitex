@@ -2419,7 +2419,7 @@ namespace Tomahawk
 			}
 			bool Driver::AddDirectory(const std::string& Directory, const std::string& Origin)
 			{
-				std::vector<Core::ResourceEntry> Entries;
+				std::vector<Core::FileEntry> Entries;
 				if (!Core::OS::Directory::Scan(Directory, &Entries))
 					return false;
 
@@ -2431,7 +2431,7 @@ namespace Tomahawk
 				for (auto& File : Entries)
 				{
 					Core::Parser Base(Path + File.Path);
-					if (File.Source.IsDirectory)
+					if (File.IsDirectory)
 					{
 						AddDirectory(Base.R(), Origin.empty() ? Directory : Origin);
 						continue;

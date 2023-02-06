@@ -6943,7 +6943,7 @@ namespace Tomahawk
 			dirent* Dirent = nullptr;
 			while ((Dirent = readdir(Value)) != nullptr)
 			{
-				if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && File::State(Path + '/' + Dirent->d_name, &Entry.Source))
+				if (strcmp(Dirent->d_name, ".") && strcmp(Dirent->d_name, "..") && File::State(Path + '/' + Dirent->d_name, &Entry))
 				{
 					Entry.Path = Dirent->d_name;
 					Entries->push_back(Entry);

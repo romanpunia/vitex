@@ -179,6 +179,7 @@ namespace Edge
 				void FreeObject();
 
 			public:
+				static Core::Unique<Any> Create();
 				static Core::Unique<Any> Create(int TypeId, void* Ref);
 				static Core::Unique<Any> Create(const char* Decl, void* Ref);
 				static void Factory1(VMCGeneric* G);
@@ -940,13 +941,13 @@ namespace Edge
 				static bool LoadFormat(VMManager* Engine);
 				static bool LoadDecimal(VMManager* Engine);
 				static bool LoadVariant(VMManager* Engine);
-				static bool LoadDateTime(VMManager* Engine);
+				static bool LoadTimestamp(VMManager* Engine);
 				static bool LoadConsole(VMManager* Engine);
 				static bool LoadSchema(VMManager* Engine);
 				static bool LoadTickClock(VMManager* Engine);
 				static bool LoadFileSystem(VMManager* Engine);
 				static bool LoadOS(VMManager* Engine);
-				static bool LoadScheduler(VMManager* Engine);
+				static bool LoadSchedule(VMManager* Engine);
 				static bool LoadVertices(VMManager* Engine);
 				static bool LoadVectors(VMManager* Engine);
 				static bool LoadShapes(VMManager* Engine);

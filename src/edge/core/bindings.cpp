@@ -109,6 +109,7 @@ double frac(double Value)
 #define TYPENAME_STRING "string"
 #define TYPENAME_MAP "map"
 #define TYPENAME_ANY "any"
+#define TYPENAME_CLOSURE "closure"
 #define TYPENAME_THREAD "thread"
 #define TYPENAME_REF "ref"
 #define TYPENAME_WEAKREF "weak_ref"
@@ -288,13 +289,15 @@ namespace Edge
 			{
 				std::ostringstream Stream;
 				Stream << Value;
-				return Current + Stream.str();
+				Stream << Current;
+				return Stream.str();
 			}
 			std::string String::AddInt641(as_int64_t Value, const std::string& Current)
 			{
 				std::ostringstream Stream;
+				Stream << Current;
 				Stream << Value;
-				return Stream.str() + Current;
+				return Stream.str();
 			}
 			std::string& String::AssignInt64To(as_int64_t Value, std::string& Dest)
 			{
@@ -992,6 +995,15 @@ namespace Edge
 			bool Any::GetFlag()
 			{
 				return GCFlag;
+			}
+			Core::Unique<Any> Any::Create()
+			{
+				VMCContext* Context = asGetActiveContext();
+				if (!Context)
+					return nullptr;
+
+				void* Data = asAllocMem(sizeof(Any));
+				return new(Data) Any(Context->GetEngine());
 			}
 			Any* Any::Create(int TypeId, void* Ref)
 			{
@@ -5527,15 +5539,31 @@ namespace Edge
 
 				Callback->AddRef();
 				Context->AddRef();
-
-				return Base->SetInterval(Mills, [Context, Callback]() mutable
+				
+				Core::TaskId Task = Base->SetSeqInterval(Mills, [Context, Callback](size_t InvocationId) mutable
 				{
+					Callback->AddRef();
+					Context->AddRef();
+
+					if (InvocationId == 1)
+					{
+						Callback->Release();
+						Context->Release();
+					}
+
 					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
 					});
 				}, Type);
+
+				if (Task != ED_INVALID_TASK_ID)
+					return Task;
+
+				Callback->Release();
+				Context->Release();
+				return ED_INVALID_TASK_ID;
 			}
 			Core::TaskId ScheduleSetTimeout(Core::Schedule* Base, uint64_t Mills, VMCFunction* Callback, Core::Difficulty Type)
 			{
@@ -5549,7 +5577,7 @@ namespace Edge
 				Callback->AddRef();
 				Context->AddRef();
 
-				return Base->SetTimeout(Mills, [Context, Callback]() mutable
+				Core::TaskId Task = Base->SetTimeout(Mills, [Context, Callback]() mutable
 				{
 					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
 					{
@@ -5557,20 +5585,27 @@ namespace Edge
 						Context->Release();
 					});
 				}, Type);
+
+				if (Task != ED_INVALID_TASK_ID)
+					return Task;
+
+				Callback->Release();
+				Context->Release();
+				return ED_INVALID_TASK_ID;
 			}
 			bool ScheduleSetImmediate(Core::Schedule* Base, VMCFunction* Callback, Core::Difficulty Type)
 			{
 				if (!Callback)
-					return ED_INVALID_TASK_ID;
+					return false;
 
 				VMContext* Context = VMContext::Get();
 				if (!Context)
-					return ED_INVALID_TASK_ID;
+					return false;
 
 				Callback->AddRef();
 				Context->AddRef();
 
-				return Base->SetTask([Context, Callback]() mutable
+				bool Queued = Base->SetTask([Context, Callback]() mutable
 				{
 					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
 					{
@@ -5578,6 +5613,13 @@ namespace Edge
 						Context->Release();
 					});
 				}, Type);
+
+				if (Queued)
+					return true;
+
+				Callback->Release();
+				Context->Release();
+				return false;
 			}
 
 			Array* OSDirectoryScan(const std::string& Path)
@@ -6591,8 +6633,8 @@ namespace Edge
 				Engine->RegisterObjectMethod("string", "string opAdd_r(float) const", asFUNCTION(String::AddFloat2), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string &opAssign(int64)", asFUNCTION(String::AssignInt64To), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string &opAddAssign(int64)", asFUNCTION(String::AddAssignInt64To), asCALL_CDECL_OBJLAST);
-				Engine->RegisterObjectMethod("string", "string opAdd(int64) const", asFUNCTION(String::AddInt641), asCALL_CDECL_OBJFIRST);
-				Engine->RegisterObjectMethod("string", "string opAdd_r(int64) const", asFUNCTION(String::AddInt642), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("string", "string opAdd(int64) const", asFUNCTION(String::AddInt641), asCALL_CDECL_OBJLAST);
+				Engine->RegisterObjectMethod("string", "string opAdd_r(int64) const", asFUNCTION(String::AddInt642), asCALL_CDECL_OBJFIRST);
 				Engine->RegisterObjectMethod("string", "string &opAssign(uint64)", asFUNCTION(String::AssignUInt64To), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string &opAddAssign(uint64)", asFUNCTION(String::AddAssignUInt64To), asCALL_CDECL_OBJLAST);
 				Engine->RegisterObjectMethod("string", "string opAdd(uint64) const", asFUNCTION(String::AddUInt641), asCALL_CDECL_OBJFIRST);
@@ -6847,7 +6889,7 @@ namespace Edge
 
 				return true;
 			}
-			bool Registry::LoadDateTime(VMManager* Engine)
+			bool Registry::LoadTimestamp(VMManager* Engine)
 			{
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
@@ -7272,7 +7314,7 @@ namespace Edge
 
 				return true;
 			}
-			bool Registry::LoadScheduler(VMManager* Engine)
+			bool Registry::LoadSchedule(VMManager* Engine)
 			{
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				Engine->GetEngine()->RegisterTypedef("task_id", "uint64");
@@ -7291,10 +7333,10 @@ namespace Edge
 				VDesc.SetMethod("void setThreads(usize)", &Core::Schedule::Desc::SetThreads);
 
 				VMRefClass VSchedule = Engine->Global().SetClassUnmanaged<Core::Schedule>("schedule");
-				VSchedule.SetFunctionDef("void schedule::task_event()");
-				VSchedule.SetMethodEx("task_id setInterval(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetInterval);
-				VSchedule.SetMethodEx("task_id setTimeout(uint64, task_event@, difficulty = difficulty::light)", &ScheduleSetTimeout);
-				VSchedule.SetMethodEx("bool setImmediate(task_event@, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
+				VSchedule.SetFunctionDef("void task_event()");
+				VSchedule.SetMethodEx("task_id setInterval(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetInterval);
+				VSchedule.SetMethodEx("task_id setTimeout(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetTimeout);
+				VSchedule.SetMethodEx("bool setImmediate(task_event@+, difficulty = difficulty::heavy)", &ScheduleSetImmediate);
 				VSchedule.SetMethod("bool clearTimeout(task_id)", &Core::Schedule::ClearTimeout);
 				VSchedule.SetMethod("bool dispatch()", &Core::Schedule::Dispatch);
 				VSchedule.SetMethod("bool start(const schedule_policy &in)", &Core::Schedule::Start);
@@ -7303,6 +7345,7 @@ namespace Edge
 				VSchedule.SetMethod("bool isActive() const", &Core::Schedule::IsActive);
 				VSchedule.SetMethod("bool canEnqueue() const", &Core::Schedule::CanEnqueue);
 				VSchedule.SetMethod("bool hasTasks(difficulty) const", &Core::Schedule::HasTasks);
+				VSchedule.SetMethod("bool hasAnyTasks() const", &Core::Schedule::HasAnyTasks);
 				VSchedule.SetMethod("usize getTotalThreads() const", &Core::Schedule::GetTotalThreads);
 				VSchedule.SetMethod("usize getThreads(difficulty) const", &Core::Schedule::GetThreads);
 				VSchedule.SetMethod("const schedule_policy& getPolicy() const", &Core::Schedule::GetPolicy);

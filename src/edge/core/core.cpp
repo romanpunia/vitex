@@ -2202,16 +2202,16 @@ namespace Edge
 			}
 		}
 
-		Timeout::Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(NewCallback), Expires(NewTimeout), Id(NewId), Alive(NewAlive), Type(NewType)
+		Timeout::Timeout(const SeqTaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(NewCallback), Expires(NewTimeout), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(std::move(NewCallback)), Expires(NewTimeout), Id(NewId), Alive(NewAlive), Type(NewType)
+		Timeout::Timeout(SeqTaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(std::move(NewCallback)), Expires(NewTimeout), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(const Timeout& Other) noexcept : Callback(Other.Callback), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive), Type(Other.Type)
+		Timeout::Timeout(const Timeout& Other) noexcept : Callback(Other.Callback), Expires(Other.Expires), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
 		{
 		}
-		Timeout::Timeout(Timeout&& Other) noexcept : Callback(std::move(Other.Callback)), Expires(Other.Expires), Id(Other.Id), Alive(Other.Alive), Type(Other.Type)
+		Timeout::Timeout(Timeout&& Other) noexcept : Callback(std::move(Other.Callback)), Expires(Other.Expires), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
 		{
 		}
 		Timeout& Timeout::operator= (const Timeout& Other) noexcept
@@ -2220,6 +2220,7 @@ namespace Edge
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
+			Invocations = Other.Invocations;
 			Type = Other.Type;
 			return *this;
 		}
@@ -2229,6 +2230,7 @@ namespace Edge
 			Expires = Other.Expires;
 			Id = Other.Id;
 			Alive = Other.Alive;
+			Invocations = Other.Invocations;
 			Type = Other.Type;
 			return *this;
 		}
@@ -9052,6 +9054,22 @@ namespace Edge
 		}
 		TaskId Schedule::SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
+			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			return SetSeqInterval(Milliseconds, [Callback](size_t)
+			{
+				Callback();
+			}, Type);
+		}
+		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
+		{
+			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			return SetSeqInterval(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
+			{
+				Callback();
+			}, Type);
+		}
+		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
+		{
 			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
 			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
 
@@ -9073,7 +9091,7 @@ namespace Edge
 			Queue->Notify.notify_all();
 			return Id;
 		}
-		TaskId Schedule::SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
+		TaskId Schedule::SetSeqInterval(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
 		{
 			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
 			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
@@ -9098,6 +9116,22 @@ namespace Edge
 		}
 		TaskId Schedule::SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type)
 		{
+			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			return SetSeqTimeout(Milliseconds, [Callback](size_t)
+			{
+				Callback();
+			}, Type);
+		}
+		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
+		{
+			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
+			return SetSeqTimeout(Milliseconds, [Callback = std::move(Callback)](size_t) mutable
+			{
+				Callback();
+			}, Type);
+		}
+		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type)
+		{
 			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
 			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
 
@@ -9119,7 +9153,7 @@ namespace Edge
 			Queue->Notify.notify_all();
 			return Id;
 		}
-		TaskId Schedule::SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type)
+		TaskId Schedule::SetSeqTimeout(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type)
 		{
 			ED_ASSERT(Type != Difficulty::Count, ED_INVALID_TASK_ID, "difficulty should be set");
 			ED_ASSERT(Callback, ED_INVALID_TASK_ID, "callback should not be empty");
@@ -9361,7 +9395,7 @@ namespace Edge
 			{
 				case Difficulty::Clock:
 				{
-					if (!Active || Queue->Timers.empty())
+					if (Queue->Timers.empty())
 						return false;
 
 					auto Clock = GetClock();
@@ -9376,12 +9410,12 @@ namespace Edge
 						Timeout Next(std::move(It->second));
 						Queue->Timers.erase(It);
 
-						SetTask((const TaskCallback&)Next.Callback, Next.Type);
+						SetTask(std::bind(Next.Callback, ++Next.Invocations), Next.Type);
 						Queue->Timers.emplace(std::make_pair(GetTimeout(Clock + Next.Expires), std::move(Next)));
 					}
 					else
 					{
-						SetTask(std::move(It->second.Callback), It->second.Type);
+						SetTask(std::bind(It->second.Callback, ++It->second.Invocations), It->second.Type);
 						Queue->Timers.erase(It);
 					}
 #ifndef NDEBUG
@@ -9485,12 +9519,12 @@ namespace Edge
 									Timeout Next(std::move(It->second));
 									Queue->Timers.erase(It);
 
-									SetTask((const TaskCallback&)Next.Callback, Next.Type);
+									SetTask(std::bind(Next.Callback, ++Next.Invocations), Next.Type);
 									Queue->Timers.emplace(std::make_pair(GetTimeout(Clock + Next.Expires), std::move(Next)));
 								}
 								else
 								{
-									SetTask(std::move(It->second.Callback), It->second.Type);
+									SetTask(std::bind(It->second.Callback, ++It->second.Invocations), It->second.Type);
 									Queue->Timers.erase(It);
 								}
 
@@ -9701,6 +9735,10 @@ namespace Edge
 				default:
 					return false;
 			}
+		}
+		bool Schedule::HasAnyTasks() const
+		{
+			return HasTasks(Difficulty::Light) || HasTasks(Difficulty::Heavy) || HasTasks(Difficulty::Coroutine) || HasTasks(Difficulty::Clock);
 		}
 		bool Schedule::PostDebug(Difficulty Type, ThreadTask State, size_t Tasks)
 		{

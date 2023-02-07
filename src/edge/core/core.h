@@ -309,6 +309,7 @@ namespace Edge
 		typedef std::unordered_map<std::string, struct Variant> VariantArgs;
 		typedef std::unordered_map<std::string, Schema*> SchemaArgs;
 		typedef std::function<void()> TaskCallback;
+		typedef std::function<void(size_t)> SeqTaskCallback;
 		typedef std::function<std::string(const std::string&)> SchemaNameCallback;
 		typedef std::function<void(VarForm, const char*, size_t)> SchemaWriteCallback;
 		typedef std::function<bool(char*, size_t)> SchemaReadCallback;
@@ -522,13 +523,14 @@ namespace Edge
 		struct ED_OUT Timeout
 		{
 			std::chrono::microseconds Expires;
-			TaskCallback Callback;
+			SeqTaskCallback Callback;
 			Difficulty Type;
 			TaskId Id;
+			size_t Invocations;
 			bool Alive;
 
-			Timeout(const TaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
-			Timeout(TaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(const SeqTaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
+			Timeout(SeqTaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept;
 			Timeout(const Timeout& Other) noexcept;
 			Timeout(Timeout&& Other) noexcept;
 			Timeout& operator= (const Timeout& Other) noexcept;
@@ -1797,8 +1799,12 @@ namespace Edge
 			virtual ~Schedule() noexcept override;
 			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetSeqInterval(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetTimeout(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetTimeout(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetSeqTimeout(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type = Difficulty::Light);
+			TaskId SetSeqTimeout(uint64_t Milliseconds, SeqTaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			bool SetTask(const TaskCallback& Callback, Difficulty Type = Difficulty::Heavy);
 			bool SetTask(TaskCallback&& Callback, Difficulty Type = Difficulty::Heavy);
 			bool SetCoroutine(const TaskCallback& Callback);
@@ -1813,6 +1819,7 @@ namespace Edge
 			bool IsActive() const;
 			bool CanEnqueue() const;
 			bool HasTasks(Difficulty Type) const;
+			bool HasAnyTasks() const;
 			size_t GetTotalThreads() const;
 			size_t GetThreads(Difficulty Type) const;
 			const Desc& GetPolicy() const;

@@ -2465,7 +2465,7 @@ namespace Edge
 				Core::Schedule::Get()->SetTask([this, Result, Function, OnArgs = std::move(OnArgs)]() mutable
 				{
 					auto Subresult = TryExecute(Function, std::move(OnArgs));
-				Result = Subresult;
+					Result = Subresult;
 				}, Core::Difficulty::Heavy);
 				return Result;
 			}
@@ -4093,10 +4093,10 @@ namespace Edge
 			Engine->AddSubmodule("std/format", { "std/string" }, Bindings::Registry::LoadFormat);
 			Engine->AddSubmodule("std/decimal", { "std/string" }, Bindings::Registry::LoadDecimal);
 			Engine->AddSubmodule("std/variant", { "std/string", "std/decimal" }, Bindings::Registry::LoadVariant);
-			Engine->AddSubmodule("std/timestamp", { "std/string" }, Bindings::Registry::LoadDateTime);
+			Engine->AddSubmodule("std/timestamp", { "std/string" }, Bindings::Registry::LoadTimestamp);
 			Engine->AddSubmodule("std/console", { "std/format" }, Bindings::Registry::LoadConsole);
 			Engine->AddSubmodule("std/schema", { "std/array", "std/string", "std/map", "std/variant" }, Bindings::Registry::LoadSchema);
-			Engine->AddSubmodule("std/scheduler", { "std/ctypes" }, Bindings::Registry::LoadScheduler);
+			Engine->AddSubmodule("std/schedule", { "std/ctypes" }, Bindings::Registry::LoadSchedule);
 			Engine->AddSubmodule("std/tick_clock", { }, Bindings::Registry::LoadTickClock);
 			Engine->AddSubmodule("std/file_system", { "std/string" }, Bindings::Registry::LoadFileSystem);
 			Engine->AddSubmodule("std/os", { "std/file_system", "std/array" }, Bindings::Registry::LoadOS);

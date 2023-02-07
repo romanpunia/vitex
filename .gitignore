@@ -12,4 +12,4 @@ bin/*.exe
 bin/*.ilk
 bin/*.exp
 **/.DS_Store
-src/tomahawk/graphics/dynamic/*.*
+src/edge/graphics/dynamic/*.*

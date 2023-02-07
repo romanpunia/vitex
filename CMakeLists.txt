@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.6)
 include(lib/toolchain.cmake)
 
 #Project's metadata
-project(tomahawk)
+project(edge)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo")
 
@@ -48,9 +48,9 @@ foreach(ITEM IN ITEMS ${SOURCE})
 endforeach()
 
 #Project's outputs
-add_library(tomahawk SHARED ${SOURCE})
-set_target_properties(tomahawk PROPERTIES
-        OUTPUT_NAME "tomahawk"
+add_library(edge SHARED ${SOURCE})
+set_target_properties(edge PROPERTIES
+        OUTPUT_NAME "edge"
 		CXX_STANDARD 17
 		CXX_STANDARD_REQUIRED OFF
 		CXX_EXTENSIONS OFF
@@ -58,30 +58,30 @@ set_target_properties(tomahawk PROPERTIES
         SOVERSION ${PROJECT_VERSION})
 
 #Project's logging
-set(TH_MSG_DEBUG false CACHE BOOL "Enable tracing messages (verbose)")
-set(TH_MSG_INFO true CACHE BOOL "Enable info messages")
-set(TH_MSG_WARN true CACHE BOOL "Enable warning messages")
-set(TH_MSG_ERROR true CACHE BOOL "Enable error messages")
-if (TH_MSG_DEBUG AND TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)
-    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=4)
+set(ED_MSG_DEBUG false CACHE BOOL "Enable tracing messages (verbose)")
+set(ED_MSG_INFO true CACHE BOOL "Enable info messages")
+set(ED_MSG_WARN true CACHE BOOL "Enable warning messages")
+set(ED_MSG_ERROR true CACHE BOOL "Enable error messages")
+if (ED_MSG_DEBUG AND ED_MSG_INFO AND ED_MSG_WARN AND ED_MSG_ERROR)
+    target_compile_definitions(edge PUBLIC -DED_DLEVEL=4)
     message(STATUS "Logging messages: verbose")
-elseif (TH_MSG_INFO AND TH_MSG_WARN AND TH_MSG_ERROR)
-    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=3)
+elseif (ED_MSG_INFO AND ED_MSG_WARN AND ED_MSG_ERROR)
+    target_compile_definitions(edge PUBLIC -DED_DLEVEL=3)
     message(STATUS "Logging messages: essentials only")
-elseif (TH_MSG_WARN AND TH_MSG_ERROR)
-    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=2)
+elseif (ED_MSG_WARN AND ED_MSG_ERROR)
+    target_compile_definitions(edge PUBLIC -DED_DLEVEL=2)
     message(STATUS "Logging messages: violations only")
-elseif (TH_MSG_ERROR)
-    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=1)
+elseif (ED_MSG_ERROR)
+    target_compile_definitions(edge PUBLIC -DED_DLEVEL=1)
     message(STATUS "Logging messages: errors only")
 else()
-    target_compile_definitions(tomahawk PUBLIC -DTH_DLEVEL=0)
+    target_compile_definitions(edge PUBLIC -DED_DLEVEL=0)
     message(STATUS "Logging messages: none")
 endif()
 
 #Project's compile options and directories
 include(lib/options.cmake)
-include(src/tomahawk/CMakeLists.txt)
+include(src/edge/CMakeLists.txt)
 
 #Project's dependency resolvers
 include(lib/openssl/CMakeLists.txt)

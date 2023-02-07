@@ -1,5 +1,5 @@
-set(TH_WITH_BULLET3 ON CACHE BOOL "Enable Bullet3 built-in library")
-if (TH_WITH_BULLET3)
+set(ED_USE_BULLET3 ON CACHE BOOL "Enable Bullet3 built-in library")
+if (ED_USE_BULLET3)
 	#Resolve source targets
 	file(GLOB_RECURSE SOURCE_BULLET3
 			${CMAKE_CURRENT_LIST_DIR}/*.inl*

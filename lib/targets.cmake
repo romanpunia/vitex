@@ -1,18 +1,18 @@
 #Query all sources
 file(GLOB_RECURSE SOURCE
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.inl*
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.h*
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.c*
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.cc*
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.hpp*
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.cpp*
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.hxx*
-		${PROJECT_SOURCE_DIR}/src/tomahawk/*.cxx*)
+		${PROJECT_SOURCE_DIR}/src/edge/*.inl*
+		${PROJECT_SOURCE_DIR}/src/edge/*.h*
+		${PROJECT_SOURCE_DIR}/src/edge/*.c*
+		${PROJECT_SOURCE_DIR}/src/edge/*.cc*
+		${PROJECT_SOURCE_DIR}/src/edge/*.hpp*
+		${PROJECT_SOURCE_DIR}/src/edge/*.cpp*
+		${PROJECT_SOURCE_DIR}/src/edge/*.hxx*
+		${PROJECT_SOURCE_DIR}/src/edge/*.cxx*)
 
 #Shader embedding specifics (with compilation)
-set(TH_WITH_SHADERS true CACHE BOOL "Enable built-in shaders")
-set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/tomahawk/graphics/dynamic/shaders")
-if (TH_WITH_SHADERS)
+set(ED_USE_SHADERS true CACHE BOOL "Enable built-in shaders")
+set(BUFFER_OUT "${PROJECT_SOURCE_DIR}/src/edge/graphics/dynamic/shaders")
+if (ED_USE_SHADERS)
 	set(BUFFER_DIR "${PROJECT_SOURCE_DIR}/src/shaders")
     set(BUFFER_DATA "#ifndef HAS_SHADER_BATCH\n#define HAS_SHADER_BATCH\n\nnamespace shader_batch\n{\n\tvoid foreach(void* context, void(*callback)(void*, const char*, const unsigned char*, unsigned))\n\t{\n\t\tif (!callback)\n\t\t\treturn;\n")
     file(GLOB_RECURSE BINARIES ${BUFFER_DIR}/*)

@@ -29,16 +29,16 @@ else()
     set(CMAKE_CXX_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG /MP /bigobj")
     set(CMAKE_C_FLAGS_DEBUG "/MDd /Zi /Ob0 /Od /MP /bigobj")
     set(CMAKE_C_FLAGS_RELEASE "/MD /O2 /Ob2 /DNDEBUG /MP /bigobj") 
-    if (TH_WITH_BULLET3)
-        target_compile_options(tomahawk PRIVATE /wd4305 /wd4244 /wd4018 /wd4267)
+    if (ED_USE_BULLET3)
+        target_compile_options(edge PRIVATE /wd4305 /wd4244 /wd4018 /wd4267)
     endif()
 endif()
 
 #Link system libraries libraries
 if (WIN32)
-    target_link_libraries(tomahawk PUBLIC  ws2_32.lib mswsock.lib)
+    target_link_libraries(edge PUBLIC  ws2_32.lib mswsock.lib)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	target_link_libraries(tomahawk PUBLIC ${CMAKE_DL_LIBS} pthread)
+	target_link_libraries(edge PUBLIC ${CMAKE_DL_LIBS} pthread)
 endif()
 
 #Select compiler for ASM sources
@@ -62,33 +62,33 @@ endif()
 unset(FCTX_SOURCES)
 
 #Installation target
-install(TARGETS tomahawk DESTINATION lib)
+install(TARGETS edge DESTINATION lib)
 install(FILES
-        src/tomahawk/audio/effects.h
-        src/tomahawk/audio/filters.h
-        DESTINATION include/tomahawk/audio)
+        src/edge/audio/effects.h
+        src/edge/audio/filters.h
+        DESTINATION include/edge/audio)
 install(FILES
-        src/tomahawk/core/audio.h
-        src/tomahawk/core/compute.h
-        src/tomahawk/core/core.h
-        src/tomahawk/core/engine.h
-        src/tomahawk/core/graphics.h
-        src/tomahawk/core/network.h
-        src/tomahawk/core/script.h
-        src/tomahawk/core/bindings.h
-        DESTINATION include/tomahawk/core)
+        src/edge/core/audio.h
+        src/edge/core/compute.h
+        src/edge/core/core.h
+        src/edge/core/engine.h
+        src/edge/core/graphics.h
+        src/edge/core/network.h
+        src/edge/core/script.h
+        src/edge/core/bindings.h
+        DESTINATION include/edge/core)
 install(FILES
-        src/tomahawk/engine/components.h
-        src/tomahawk/engine/gui.h
-        src/tomahawk/engine/processors.h
-        src/tomahawk/engine/renderers.h
-        DESTINATION include/tomahawk/engine)
+        src/edge/engine/components.h
+        src/edge/engine/gui.h
+        src/edge/engine/processors.h
+        src/edge/engine/renderers.h
+        DESTINATION include/edge/engine)
 install(FILES
-        src/tomahawk/network/http.h
-        src/tomahawk/network/mdb.h
-        src/tomahawk/network/pdb.h
-        src/tomahawk/network/smtp.h
-        DESTINATION include/tomahawk/network)
+        src/edge/network/http.h
+        src/edge/network/mdb.h
+        src/edge/network/pdb.h
+        src/edge/network/smtp.h
+        DESTINATION include/edge/network)
 install(FILES
-        src/tomahawk/tomahawk.h
-        DESTINATION include/tomahawk)
+        src/edge/edge.h
+        DESTINATION include/edge)

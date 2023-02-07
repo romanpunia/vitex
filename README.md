@@ -1,33 +1,33 @@
-## Tomahawk
+## Edge
 <p align="center">
-  <img width="640" height="336" src="https://github.com/romanpunia/tomahawk/blob/master/var/screenshot.png?raw=true">
+  <img width="640" height="336" src="https://github.com/romanpunia/edge/blob/master/var/screenshot.png?raw=true">
 </p>
 
 ## About
-Tomahawk is a cross-platform C++14 framework to create any type of application from a unified interface. In it's core, Tomahawk is based on same concepts as Node.js but made to it's extreme. As in Node, Tomahawk has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
+Edge is a cross-platform C++14 framework to create any type of application from a unified interface. In it's core, Edge is based on same concepts as Node.js but made to it's extreme. As in Node, Edge has a worker pool that not only consumes but also publishes tasks, here we don't really have a concept of event loop, every thread is on it's own an event loop.
 
-Using concept of tasks and queues, in Tomahawk there are two rules for optimal performace and proper CPU loading:
+Using concept of tasks and queues, in Edge there are two rules for optimal performace and proper CPU loading:
 1. Split work in to small pieces.
 2. Use scheduler to process those small pieces.
 
-There are two types of thread workers in a thread pool: light and heavy. Light threads processes non-blocking tasks such as event dispatching, non-blocking IO and coroutines. Heavy threads are in charge of everything else such as CPU bound tasks and blocking IO. Tomahawk is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
+There are two types of thread workers in a thread pool: light and heavy. Light threads processes non-blocking tasks such as event dispatching, non-blocking IO and coroutines. Heavy threads are in charge of everything else such as CPU bound tasks and blocking IO. Edge is made to be as scalable as possible without even thinking about scalability which in turn makes development of multithreaded systems quite a lot easier.
 
-Originally, Tomahawk was only a game engine but now it isn't. All the features for game development are there but it can be easily stripped out to reduce size of executable and use only needed functionality. There are cases when Tomahawk is used as a framework for building a high performance backend server or a daemon, most of the time all we need in that case is OpenSSL and maybe Zlib with PostgreSQL or MongoDB, so we strip out everything else that way reducing compile time, executable size and runtime memory usage to minimum. Turns out, Tomahawk can easily run in a very limited machines that were slow even in 2006.
+Originally, Edge was only a game engine but now it isn't. All the features for game development are there but it can be easily stripped out to reduce size of executable and use only needed functionality. There are cases when Edge is used as a framework for building a high performance backend server or a daemon, most of the time all we need in that case is OpenSSL and maybe Zlib with PostgreSQL or MongoDB, so we strip out everything else that way reducing compile time, executable size and runtime memory usage to minimum. Turns out, Edge can easily run in a very limited machines that were slow even in 2006.
 
-If your goal is to make a game, Tomahawk is not really a consumer ready product to build AAA games as it is very low level. I tried to make it so that if you need some functionality such as a new entity component, advanced rendering techinque such as Ray-Tracing, a new rendering backend or even a motion capture system to create cutscenes, you can make it in a relatively short time without hurting performance. Why isn't it already contained in this engine? I'm the only developer, physically impossible.
+If your goal is to make a game, Edge is not really a consumer ready product to build AAA games as it is very low level. I tried to make it so that if you need some functionality such as a new entity component, advanced rendering techinque such as Ray-Tracing, a new rendering backend or even a motion capture system to create cutscenes, you can make it in a relatively short time without hurting performance. Why isn't it already contained in this engine? I'm the only developer, physically impossible.
 
-For games, Tomahawk is a 3D optimized engine, there is a posibility to render efficient 2D graphics with batching but that is not a priority. Main shading language is HLSL, it is transpiled or directly compiled and saved to cache when needed. Rendering is based on stacking, that way you specify renderers for a camera (order matters), when rendering is initiated we process each renderer step by step, renderer can initiate sub-pass to render another part of scene for shadows, reflections, transparency and others. Before rendering begins, render lists are prepared for geometry rendering based on culling results, for sub-passes we use frustum and indexed culling, for main passes we also use occlusion culling. Culling, physics, audio and rendering are done multhreaded if possible. In best case, we don't have any synchronization between threads but when we need to write to shared data,
+For games, Edge is a 3D optimized engine, there is a posibility to render efficient 2D graphics with batching but that is not a priority. Main shading language is HLSL, it is transpiled or directly compiled and saved to cache when needed. Rendering is based on stacking, that way you specify renderers for a camera (order matters), when rendering is initiated we process each renderer step by step, renderer can initiate sub-pass to render another part of scene for shadows, reflections, transparency and others. Before rendering begins, render lists are prepared for geometry rendering based on culling results, for sub-passes we use frustum and indexed culling, for main passes we also use occlusion culling. Culling, physics, audio and rendering are done multhreaded if possible. In best case, we don't have any synchronization between threads but when we need to write to shared data,
 for example, destroy a rigid body owned by physics engine, we use scene transactions that are just callbacks that are guaranteed to be executed thread safe (in scope of scene) which in turn makes scene eventual consistent as transactions are fired later when all parallel tasks are finished.
 
-Another important aspect of Tomahawk is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
+Another important aspect of Edge is schemas, they are used to serialize and deserialize data. For game, their main purpose is to provide containers for serialized game states such as meshes, animations, materials, scenes, configurations and other. For services, they can be used as a data transmitting containers to convert between XML, JSON, JSONB, MongoDB documents, PostgreSQL results and others.
 
-As for memory management, there are no smart pointers, instead raw pointers with reference counting are used. **Unique\<T\>** is just an alias for **T\*** pointer, nothing more. Reference counting is used mostly for script engine virtual machine not for actual C++ code, you can use it within C++ if you want, every heap allocated object is based on **Tomahawk::Core::Object** and every heap allocation goes through **Tomahawk::Core::Mem** malloc, realloc and free.
+As for memory management, there are no smart pointers, instead raw pointers with reference counting are used. **Unique\<T\>** is just an alias for **T\*** pointer, nothing more. Reference counting is used mostly for script engine virtual machine not for actual C++ code, you can use it within C++ if you want, every heap allocated object is based on **Edge::Core::Object** and every heap allocation goes through **Edge::Core::Mem** malloc, realloc and free.
 
 There are two basic rules of memory ownership:
 1. If function accept a pointer argument like **char\*** then it means that it will not delete it, it may only read or modify the contents. If function returns a pointer like **char\*** then this pointer should not be deleted manually; in some cases manual deletion is considered OK (singletons, tree structures like Schema).
-2. If function accept a pointer alias argument like **Tomahawk::Core::Unique\<char\>** then it will delete it now or later (means ownership is lost). If function returns a pointer like **Tomahawk::Core::Unique\<char\>** then this pointer should be deleted manually.
+2. If function accept a pointer alias argument like **Edge::Core::Unique\<char\>** then it will delete it now or later (means ownership is lost). If function returns a pointer like **Edge::Core::Unique\<char\>** then this pointer should be deleted manually.
 
-![CMake](https://github.com/romanpunia/tomahawk/workflows/CMake/badge.svg)
+![CMake](https://github.com/romanpunia/edge/workflows/CMake/badge.svg)
 
 ## Features
 #### Core
@@ -219,7 +219,7 @@ There are two basic rules of memory ownership:
 + MacOS Catalina 10.15+ x64
 
 ## Building (standalone)
-Tomahawk uses CMake as building system. Microsoft [vcpkg](https://github.com/Microsoft/vcpkg) is suggested.
+Edge uses CMake as building system. Microsoft [vcpkg](https://github.com/Microsoft/vcpkg) is suggested.
 1. Install [CMake](https://cmake.org/install/).
 2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute
 > vcpkg install zlib assimp glew mongo-c-driver openal-soft openssl libpq sdl2 freetype spirv-cross glslang --triplet=$triplet
@@ -239,41 +239,41 @@ project(app_name)
 ```
 This will apply vcpkg toolchain file if it can be located and none CMAKE_TOOLCHAIN_FILE was set before. This step is not required if you don't use vcpkg at all.
 ```cmake
-include(path/to/th/lib/toolchain.cmake)
+include(path/to/edge/lib/toolchain.cmake)
 ```
-4. Add subproject. This will link your application with Tomahawk.
+4. Add subproject. This will link your application with Edge.
 ```cmake
-add_subdirectory(/path/to/th tomahawk)
-link_directories(/path/to/th)
-target_include_directories(app_name PRIVATE /path/to/th)
-target_link_libraries(app_name PRIVATE tomahawk)
+add_subdirectory(/path/to/edge edge)
+link_directories(/path/to/edge)
+target_include_directories(app_name PRIVATE /path/to/edge)
+target_link_libraries(app_name PRIVATE edge)
 ```
 5. Execute CMake command to generate the files or use CMake GUI if you have one.
 You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
 
 There are several build options for this project.
-+ **TH_MSG_DEBUG** to allow verbose logs, defaults to false
-+ **TH_MSG_INFO** to allow informational logs, defaults to true
-+ **TH_MSG_WARN** to allow warning logs, defaults to true
-+ **TH_MSG_ERROR** to allow error logs, defaults to true
++ **ED_MSG_DEBUG** to allow verbose logs, defaults to false
++ **ED_MSG_INFO** to allow informational logs, defaults to true
++ **ED_MSG_WARN** to allow warning logs, defaults to true
++ **ED_MSG_ERROR** to allow error logs, defaults to true
 
 These **will not** alter any interfaces but all related functions will return **nullptr** or it's alternative
-+ **TH_USE_ASSIMP** will enable Assimp library if any, defaults to true
-+ **TH_USE_FREETYPE** will enable FreeType library if any, defaults to true
-+ **TH_USE_GLEW** will enable GLEW library if any, defaults to true
-+ **TH_USE_MONGOC** will enable MongoDB library if any, defaults to true
-+ **TH_USE_POSTGRESQL** will enable PostgreSQL library if any, defaults to true
-+ **TH_USE_OPENAL** will enable OpenAL library if any, defaults to true
-+ **TH_USE_OPENGL** will enable OpenGL library if any, defaults to true
-+ **TH_USE_OPENSSL** will enable OpenSSL library if any, defaults to true
-+ **TH_USE_SDL2** will enable SDL2 library if any, defaults to true
-+ **TH_USE_ZLIB** will enable zlib library if any, defaults to true
-+ **TH_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
-+ **TH_WITH_SHADERS** to embed shaders from **/src/shaders** to **/src/tomahawk/graphics/dynamic/shaders.hpp**, defaults to true
-+ **TH_WITH_SIMD** will enable simd optimisations (processor-specific), defaults to false
-+ **TH_WITH_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
-+ **TH_WITH_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
-+ **TH_WITH_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
++ **ED_USE_ASSIMP** will enable Assimp library if any, defaults to true
++ **ED_USE_FREETYPE** will enable FreeType library if any, defaults to true
++ **ED_USE_GLEW** will enable GLEW library if any, defaults to true
++ **ED_USE_MONGOC** will enable MongoDB library if any, defaults to true
++ **ED_USE_POSTGRESQL** will enable PostgreSQL library if any, defaults to true
++ **ED_USE_OPENAL** will enable OpenAL library if any, defaults to true
++ **ED_USE_OPENGL** will enable OpenGL library if any, defaults to true
++ **ED_USE_OPENSSL** will enable OpenSSL library if any, defaults to true
++ **ED_USE_SDL2** will enable SDL2 library if any, defaults to true
++ **ED_USE_ZLIB** will enable zlib library if any, defaults to true
++ **ED_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
++ **ED_WIED_SHADERS** to embed shaders from **/src/shaders** to **/src/edge/graphics/dynamic/shaders.hpp**, defaults to true
++ **ED_WIED_SIMD** will enable simd optimisations (processor-specific), defaults to false
++ **ED_WIED_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
++ **ED_WIED_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
++ **ED_WIED_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
 
 ## Static dependencies
 * [bullet3](https://github.com/bulletphysics/bullet3)
@@ -305,7 +305,7 @@ These are recommended to be installed, but are not required to.
 * [glslang](https://github.com/KhronosGroup/glslang)
 
 ## License
-Tomahawk is licensed under the MIT license
+Edge is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing. Script interface covers limited part of Tomahawk.
+This project is under development, bugs aren't the rare thing. Script interface covers limited part of Edge.

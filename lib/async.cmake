@@ -59,20 +59,20 @@ if (FCTX_BIN STREQUAL mach-o)
     set(FCTX_BIN macho)
 endif()
 set(FCTX_SUFFIX ${FCTX_ARCH}_${FCTX_ABI}_${FCTX_BIN}_${FCTX_ASM})
-if (EXISTS ${PROJECT_SOURCE_DIR}/src/tomahawk/async/make_${FCTX_SUFFIX}${FCTX_EXT})
-    set(TH_WITH_FCTX ON CACHE BOOL "Enable fcontext implementation for coroutines (otherwise ucontext or WinAPI)")
-    if (TH_WITH_FCTX)
+if (EXISTS ${PROJECT_SOURCE_DIR}/src/edge/async/make_${FCTX_SUFFIX}${FCTX_EXT})
+    set(ED_USE_FCTX ON CACHE BOOL "Enable fcontext implementation for coroutines (otherwise ucontext or WinAPI)")
+    if (ED_USE_FCTX)
         set(FCTX_SOURCES
-            ${PROJECT_SOURCE_DIR}/src/tomahawk/async/make_${FCTX_SUFFIX}${FCTX_EXT}
-            ${PROJECT_SOURCE_DIR}/src/tomahawk/async/jump_${FCTX_SUFFIX}${FCTX_EXT}
-            ${PROJECT_SOURCE_DIR}/src/tomahawk/async/ontop_${FCTX_SUFFIX}${FCTX_EXT})
+            ${PROJECT_SOURCE_DIR}/src/edge/async/make_${FCTX_SUFFIX}${FCTX_EXT}
+            ${PROJECT_SOURCE_DIR}/src/edge/async/jump_${FCTX_SUFFIX}${FCTX_EXT}
+            ${PROJECT_SOURCE_DIR}/src/edge/async/ontop_${FCTX_SUFFIX}${FCTX_EXT})
         list (APPEND SOURCE ${FCTX_SOURCES})
         message(STATUS "Async fcontext implementation: ${FCTX_SUFFIX}")
     else()
         message(STATUS "Async fcontext implementation: ucontext or WinAPI")
     endif()
 else()
-    set(TH_WITH_FCTX OFF CACHE BOOL "FContext is unavailable")
+    set(ED_USE_FCTX OFF CACHE BOOL "FContext is unavailable")
     message("Async fcontext is unavailable on ${CMAKE_SYSTEM_NAME} ${CMAKE_SYSTEM_PROCESSOR}. Fallback to ucontext or WinAPI")
 endif()
 unset(FCTX_BIN)

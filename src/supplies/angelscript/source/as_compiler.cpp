@@ -3381,7 +3381,7 @@ void asCCompiler::CompileInitList(asCExprValue *var, asCScriptNode *node, asCByt
 		var->dataType.GetBehaviour()->listFactory == 0 )
 	{
 		asCString str;
-		str.Format(TXT_INIT_LIST_CANNOT_BE_USED_WITH_s, var->dataType.Format(outFunc->nameSpace).AddressOf());
+		str.Format(TXT_INIT_LIST_CANNOT_BE_USED_USE_s, var->dataType.Format(outFunc->nameSpace).AddressOf());
 		Error(str, node);
 		return;
 	}
@@ -3724,7 +3724,7 @@ int asCCompiler::CompileInitListElement(asSListPatternNode *&patternNode, asCScr
 				{
 					// Can't use init lists with var type as it is not possible to determine what type should be allocated
 					asCString str;
-					str.Format(TXT_INIT_LIST_CANNOT_BE_USED_WITH_s, "?");
+					str.Format(TXT_INIT_LIST_CANNOT_BE_USED_USE_s, "?");
 					Error(str.AddressOf(), valueNode);
 					rctx.type.SetDummy();
 					dt = rctx.type.dataType;

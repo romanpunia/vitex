@@ -4105,6 +4105,7 @@ namespace Edge
 			Engine->AddSubmodule("std/shapes", { "std/vectors" }, Bindings::Registry::LoadShapes);
 			Engine->AddSubmodule("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::LoadKeyFrames);
 			Engine->AddSubmodule("std/regex", { "std/string" }, Bindings::Registry::LoadRegex);
+			Engine->AddSubmodule("std/crypto", { "std/string" }, Bindings::Registry::LoadCrypto);
 			Engine->AddSubmodule("std/gui_control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
 			Engine->AddSubmodule("std/gui_model", { "std/gui_control", }, Bindings::Registry::LoadUiModel);
 			Engine->AddSubmodule("std/gui_context", { "std/gui_model" }, Bindings::Registry::LoadUiContext);

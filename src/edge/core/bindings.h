@@ -953,6 +953,7 @@ namespace Edge
 				static bool LoadShapes(VMManager* Engine);
 				static bool LoadKeyFrames(VMManager* Engine);
 				static bool LoadRegex(VMManager* Engine);
+				static bool LoadCrypto(VMManager* Engine);
 				static bool LoadUiModel(VMManager* Engine);
 				static bool LoadUiControl(VMManager* Engine);
 				static bool LoadUiContext(VMManager* Engine);

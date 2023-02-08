@@ -620,7 +620,7 @@ namespace Edge
 
 						Scope->Basis->AddRef();
 						Script::VMContext* Context = Compiler->GetContext();
-						Context->TryExecute(Main, [Main, Scope](Script::VMContext* Context)
+						Context->TryExecute(false, Main, [Main, Scope](Script::VMContext* Context)
 						{
 							if (Main.GetArgsCount() == 1)
 								Context->SetArgObject(0, Scope->Basis);
@@ -676,7 +676,7 @@ namespace Edge
 
 					Scope->Basis->AddRef();
 					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->TryExecute(Function, [Ptr](Script::VMContext* Context)
+					Context->TryExecute(false, Function, [Ptr](Script::VMContext* Context)
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);

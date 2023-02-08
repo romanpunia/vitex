@@ -2363,7 +2363,7 @@ namespace Edge
 			if (!Function)
 				return asNO_FUNCTION;
 
-			return Context->TryExecute(Function, std::move(OnArgs));
+			return Context->TryExecute(false, Function, std::move(OnArgs));
 		}
 		Core::Promise<int> VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
 		{
@@ -2395,7 +2395,7 @@ namespace Edge
 				if (R < 0)
 					return Core::Promise<int>(R);
 
-				Core::Promise<int> Result = Context->TryExecute(Function, std::move(OnArgs));
+				Core::Promise<int> Result = Context->TryExecute(false, Function, std::move(OnArgs));
 				Function->Release();
 
 				return Result;
@@ -2454,24 +2454,24 @@ namespace Edge
 					Context->Release();
 			}
 		}
-		Core::Promise<int> VMContext::TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs)
+		Core::Promise<int> VMContext::TryExecute(bool IsNested, const VMFunction& Function, ArgsCallback&& OnArgs)
 		{
 			ED_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
 			ED_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
 
-			if (Core::Costate::IsCoroutine())
+			if (!IsNested && Core::Costate::IsCoroutine())
 			{
 				Core::Promise<int> Result;
 				Core::Schedule::Get()->SetTask([this, Result, Function, OnArgs = std::move(OnArgs)]() mutable
 				{
-					auto Subresult = TryExecute(Function, std::move(OnArgs));
+					auto Subresult = TryExecute(false, Function, std::move(OnArgs));
 					Result = Subresult;
 				}, Core::Difficulty::Heavy);
 				return Result;
 			}
 
 			Exchange.lock();
-			if (Tasks.empty())
+			if (IsNested || Tasks.empty())
 			{
 				int Result = Context->Prepare(Function.GetFunction());
 				if (Result < 0)
@@ -4106,6 +4106,9 @@ namespace Edge
 			Engine->AddSubmodule("std/key_frames", { "std/vectors", "std/string" }, Bindings::Registry::LoadKeyFrames);
 			Engine->AddSubmodule("std/regex", { "std/string" }, Bindings::Registry::LoadRegex);
 			Engine->AddSubmodule("std/crypto", { "std/string" }, Bindings::Registry::LoadCrypto);
+			Engine->AddSubmodule("std/geometric", { "std/vectors", "std/vertices", "std/shapes" }, Bindings::Registry::LoadGeometric);
+			Engine->AddSubmodule("std/preprocessor", { "std/string" }, Bindings::Registry::LoadPreprocessor);
+			Engine->AddSubmodule("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::LoadPhysics);
 			Engine->AddSubmodule("std/gui_control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
 			Engine->AddSubmodule("std/gui_model", { "std/gui_control", }, Bindings::Registry::LoadUiModel);
 			Engine->AddSubmodule("std/gui_context", { "std/gui_model" }, Bindings::Registry::LoadUiContext);

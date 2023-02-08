@@ -496,7 +496,7 @@ namespace Edge
 					ED_DEBUG("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
 
 					Script::VMContext* Context = Compiler->GetContext();
-					Context->TryExecute(Entry, nullptr).Await([this, Context](int Result)
+					Context->TryExecute(false, Entry, nullptr).Await([this, Context](int Result)
 					{
 						int Response = -1;
 						if (Result >= 0)

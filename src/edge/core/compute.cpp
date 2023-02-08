@@ -10252,6 +10252,10 @@ namespace Edge
 			size_t Height2 = ComputeHeight(Next.Right);
 			return 1 + std::max(Height1, Height2);
 		}
+		size_t Cosmos::GetNodesCount() const
+		{
+			return Nodes.size();
+		}
 		size_t Cosmos::GetHeight() const
 		{
 			return Root == NULL_NODE ? 0 : Nodes[Root].Height;

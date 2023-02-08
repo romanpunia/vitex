@@ -117,6 +117,8 @@ double frac(double Value)
 #define TYPENAME_SCHEMA "schema"
 #define TYPENAME_DECIMAL "decimal"
 #define TYPENAME_VARIANT "variant"
+#define TYPENAME_VERTEX "vertex"
+#define TYPENAME_VECTOR3 "vector3"
 #define TYPENAME_FILEENTRY "file_entry"
 #define TYPENAME_REGEXMATCH "regex_match"
 #define TYPENAME_ELEMENTNODE "ui_element"
@@ -4104,7 +4106,7 @@ namespace Edge
 				}
 
 				Mutex.unlock();
-				Context->TryExecute(Function, [this](Script::VMContext* Context)
+				Context->TryExecute(false, Function, [this](Script::VMContext* Context)
 				{
 					Context->SetArgObject(0, this);
 					Context->SetUserData(this, ContextUD);
@@ -5551,7 +5553,7 @@ namespace Edge
 						Context->Release();
 					}
 
-					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -5579,7 +5581,7 @@ namespace Edge
 
 				Core::TaskId Task = Base->SetTimeout(Mills, [Context, Callback]() mutable
 				{
-					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -5607,7 +5609,7 @@ namespace Edge
 
 				bool Queued = Base->SetTask([Context, Callback]() mutable
 				{
-					Context->TryExecute(Callback, nullptr).Await([Context, Callback](int&&)
+					Context->TryExecute(false, Callback, nullptr).Await([Context, Callback](int&&)
 					{
 						Callback->Release();
 						Context->Release();
@@ -6122,6 +6124,190 @@ namespace Edge
 				Base->SetAudience(Array::Decompose<std::string>(Data));
 			}
 
+			void CosmosQueryIndex(Compute::Cosmos* Base, VMCFunction* Overlaps, VMCFunction* Match)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Overlaps || !Match)
+					return;
+
+				Compute::Cosmos::Iterator Iterator;
+				Base->QueryIndex<void>(Iterator, [Context, Overlaps](const Compute::Bounding& Box)
+				{
+					Context->TryExecute(false, Overlaps, [&Box](VMContext* Context)
+					{
+						Context->SetArgObject(0, (void*)&Box);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				}, [Context, Match](void* Item)
+				{
+					Context->TryExecute(true, Match, [Item](VMContext* Context)
+					{
+						Context->SetArgAddress(0, Item);
+					}).Wait();
+				});
+			}
+
+			void IncludeDescAddExt(Compute::IncludeDesc& Base, const std::string& Value)
+			{
+				Base.Exts.push_back(Value);
+			}
+			void IncludeDescRemoveExt(Compute::IncludeDesc& Base, const std::string& Value)
+			{
+				auto It = std::find(Base.Exts.begin(), Base.Exts.end(), Value);
+				if (It != Base.Exts.end())
+					Base.Exts.erase(It);
+			}
+
+			void PreprocessorSetIncludeCallback(Compute::Preprocessor* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return Base->SetIncludeCallback(nullptr);
+
+				Base->SetIncludeCallback([Context, Callback](Compute::Preprocessor* Base, const Compute::IncludeResult& File, std::string* Out)
+				{
+					Context->TryExecute(true, Callback, [Base, &File, &Out](VMContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArgObject(1, (void*)&File);
+						Context->SetArgObject(2, Out);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			void PreprocessorSetPragmaCallback(Compute::Preprocessor* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return Base->SetPragmaCallback(nullptr);
+
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
+				Base->SetPragmaCallback([Type, Context, Callback](Compute::Preprocessor* Base, const std::string& Name, const std::vector<std::string>& Args)
+				{
+					Array* Params = Array::Compose<std::string>(Type.GetTypeInfo(), Args);
+					Context->TryExecute(true, Callback, [Base, &Name, &Params](VMContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArgObject(1, (void*)&Name);
+						Context->SetArgObject(2, Params);
+					}).Wait();
+
+					if (Params != nullptr)
+						Params->Release();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			bool PreprocessorIsDefined(Compute::Preprocessor* Base, const std::string& Name)
+			{
+				return Base->IsDefined(Name.c_str());
+			}
+
+			void HullShapeSetVertices(Compute::HullShape* Base, Array* Data)
+			{
+				Base->Vertices = Array::Decompose<Compute::Vertex>(Data);
+			}
+			void HullShapeSetIndices(Compute::HullShape* Base, Array* Data)
+			{
+				Base->Indices = Array::Decompose<int>(Data);
+			}
+			Array* HullShapeGetVertices(Compute::HullShape* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VERTEX ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->Vertices);
+			}
+			Array* HullShapeGetIndices(Compute::HullShape* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<int>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->Indices);
+			}
+
+			Array* SoftBodyGetIndices(Compute::SoftBody* Base)
+			{
+				std::vector<int> Result;
+				Base->GetIndices(&Result);
+
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<int>@");
+				return Array::Compose(Type.GetTypeInfo(), Result);
+			}
+			Array* SoftBodyGetVertices(Compute::SoftBody* Base)
+			{
+				std::vector<Compute::Vertex> Result;
+				Base->GetVertices(&Result);
+
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VERTEX ">@");
+				return Array::Compose(Type.GetTypeInfo(), Result);
+			}
+
+			Compute::PConstraint* ConstraintToPConstraint(Compute::Constraint* Base)
+			{
+				return dynamic_cast<Compute::PConstraint*>(Base);
+			}
+			Compute::HConstraint* ConstraintToHConstraint(Compute::Constraint* Base)
+			{
+				return dynamic_cast<Compute::HConstraint*>(Base);
+			}
+			Compute::SConstraint* ConstraintToSConstraint(Compute::Constraint* Base)
+			{
+				return dynamic_cast<Compute::SConstraint*>(Base);
+			}
+			Compute::CTConstraint* ConstraintToCTConstraint(Compute::Constraint* Base)
+			{
+				return dynamic_cast<Compute::CTConstraint*>(Base);
+			}
+			Compute::DF6Constraint* ConstraintToDF6Constraint(Compute::Constraint* Base)
+			{
+				return dynamic_cast<Compute::DF6Constraint*>(Base);
+			}
+			Compute::Constraint* PConstraintToConstraint(Compute::PConstraint* Base)
+			{
+				return dynamic_cast<Compute::Constraint*>(Base);
+			}
+			Compute::Constraint* HConstraintToConstraint(Compute::HConstraint* Base)
+			{
+				return dynamic_cast<Compute::Constraint*>(Base);
+			}
+			Compute::Constraint* SConstraintToConstraint(Compute::SConstraint* Base)
+			{
+				return dynamic_cast<Compute::Constraint*>(Base);
+			}
+			Compute::Constraint* CTConstraintToConstraint(Compute::CTConstraint* Base)
+			{
+				return dynamic_cast<Compute::Constraint*>(Base);
+			}
+			Compute::Constraint* DF6ConstraintToConstraint(Compute::DF6Constraint* Base)
+			{
+				return dynamic_cast<Compute::Constraint*>(Base);
+			}
+
+			btCollisionShape* SimulatorCreateConvexHullSkinVertex(Compute::Simulator* Base, Array* Data)
+			{
+				return Base->CreateConvexHull(Array::Decompose<Compute::SkinVertex>(Data));
+			}
+			btCollisionShape* SimulatorCreateConvexHullVertex(Compute::Simulator* Base, Array* Data)
+			{
+				return Base->CreateConvexHull(Array::Decompose<Compute::Vertex>(Data));
+			}
+			btCollisionShape* SimulatorCreateConvexHullVector2(Compute::Simulator* Base, Array* Data)
+			{
+				return Base->CreateConvexHull(Array::Decompose<Compute::Vector2>(Data));
+			}
+			btCollisionShape* SimulatorCreateConvexHullVector3(Compute::Simulator* Base, Array* Data)
+			{
+				return Base->CreateConvexHull(Array::Decompose<Compute::Vector3>(Data));
+			}
+			btCollisionShape* SimulatorCreateConvexHullVector4(Compute::Simulator* Base, Array* Data)
+			{
+				return Base->CreateConvexHull(Array::Decompose<Compute::Vector4>(Data));
+			}
+			Array* SimulatorGetShapeVertices(Compute::Simulator* Base, btCollisionShape* Shape)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VECTOR3 ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetShapeVertices(Shape));
+			}
+
 			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
@@ -6245,7 +6431,7 @@ namespace Edge
 				{
 					Engine::GUI::IEvent Event = Wrapper.Copy();
 					Array* Data = Array::Compose(Type.GetTypeInfo(), Args);
-					Context->TryExecute(Callback, [Event, &Data](VMContext* Context)
+					Context->TryExecute(false, Callback, [Event, &Data](VMContext* Context)
 					{
 						Engine::GUI::IEvent Copy = Event;
 						Context->SetArgObject(0, &Copy);
@@ -6308,7 +6494,7 @@ namespace Edge
 				return [this](Engine::GUI::IEvent& Wrapper)
 				{
 					Engine::GUI::IEvent Event = Wrapper.Copy();
-					Context->TryExecute(Source, [Event](VMContext* Context)
+					Context->TryExecute(false, Source, [Event](VMContext* Context)
 					{
 						Engine::GUI::IEvent Copy = Event;
 						Context->SetArgObject(0, &Copy);
@@ -6566,14 +6752,31 @@ namespace Edge
 				Engine->RegisterGlobalFunction("uint64 fp_to_ieee(double)", asFUNCTIONPR(Math::FpToIEEE, (double), as_uint64_t), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("bool close_to(float, float, float = 0.00001f)", asFUNCTIONPR(Math::CloseTo, (float, float, float), bool), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("bool close_to(double, double, double = 0.0000000001)", asFUNCTIONPR(Math::CloseTo, (double, double, double), bool), asCALL_CDECL);
-	#if !defined(_WIN32_WCE)
+				Engine->RegisterGlobalFunction("float rad2deg()", asFUNCTIONPR(Compute::Mathf::Rad2Deg, (), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float deg2rad()", asFUNCTIONPR(Compute::Mathf::Deg2Rad, (), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float pi_value()", asFUNCTIONPR(Compute::Mathf::Pi, (), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float clamp(float, float, float)", asFUNCTIONPR(Compute::Mathf::Clamp, (float, float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float acotan(float)", asFUNCTIONPR(Compute::Mathf::Acotan, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float cotan(float)", asFUNCTIONPR(Compute::Mathf::Cotan, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float minf(float, float)", asFUNCTIONPR(Compute::Mathf::Min, (float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float maxf(float, float)", asFUNCTIONPR(Compute::Mathf::Max, (float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float saturate(float)", asFUNCTIONPR(Compute::Mathf::Saturate, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float lerp(float, float, float)", asFUNCTIONPR(Compute::Mathf::Lerp, (float, float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float strong_lerp(float, float, float)", asFUNCTIONPR(Compute::Mathf::StrongLerp, (float, float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float angle_saturate(float)", asFUNCTIONPR(Compute::Mathf::SaturateAngle, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float angle_distance(float, float)", asFUNCTIONPR(Compute::Mathf::AngleDistance, (float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float angle_lerp(float, float, float)", asFUNCTIONPR(Compute::Mathf::AngluarLerp, (float, float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float randomf()", asFUNCTIONPR(Compute::Mathf::Random, (), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float randomf_mag()", asFUNCTIONPR(Compute::Mathf::RandomMag, (), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float randomf_range()", asFUNCTIONPR(Compute::Mathf::Random, (float, float), float), asCALL_CDECL);
+#if !defined(_WIN32_WCE)
 				Engine->RegisterGlobalFunction("float cos(float)", asFUNCTIONPR(cosf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float sin(float)", asFUNCTIONPR(sinf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float tan(float)", asFUNCTIONPR(tanf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float acos(float)", asFUNCTIONPR(acosf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float asin(float)", asFUNCTIONPR(asinf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float atan(float)", asFUNCTIONPR(atanf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float atan2(float,float)", asFUNCTIONPR(atan2f, (float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float atan2(float, float)", asFUNCTIONPR(atan2f, (float, float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float cosh(float)", asFUNCTIONPR(coshf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float sinh(float)", asFUNCTIONPR(sinhf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float tanh(float)", asFUNCTIONPR(tanhf, (float), float), asCALL_CDECL);
@@ -6585,14 +6788,14 @@ namespace Edge
 				Engine->RegisterGlobalFunction("float abs(float)", asFUNCTIONPR(fabsf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float floor(float)", asFUNCTIONPR(floorf, (float), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float fraction(float)", asFUNCTIONPR(fracf, (float), float), asCALL_CDECL);
-	#else
+#else
 				Engine->RegisterGlobalFunction("double cos(double)", asFUNCTIONPR(cos, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double sin(double)", asFUNCTIONPR(sin, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double tan(double)", asFUNCTIONPR(tan, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double acos(double)", asFUNCTIONPR(acos, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double asin(double)", asFUNCTIONPR(asin, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double atan(double)", asFUNCTIONPR(atan, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double atan2(double,double)", asFUNCTIONPR(atan2, (double, double), double), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("double atan2(double, double)", asFUNCTIONPR(atan2, (double, double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double cosh(double)", asFUNCTIONPR(cosh, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double sinh(double)", asFUNCTIONPR(sinh, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double tanh(double)", asFUNCTIONPR(tanh, (double), double), asCALL_CDECL);
@@ -6604,7 +6807,7 @@ namespace Edge
 				Engine->RegisterGlobalFunction("double abs(double)", asFUNCTIONPR(fabs, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double floor(double)", asFUNCTIONPR(floor, (double), double), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("double fraction(double)", asFUNCTIONPR(frac, (double), double), asCALL_CDECL);
-	#endif
+#endif
 				return true;
 			}
 			bool Registry::LoadString(VMManager* Manager)
@@ -7130,6 +7333,7 @@ namespace Edge
 				VFileState.SetProperty("int64 last_permission_change", &Core::FileState::LastPermissionChange);
 				VFileState.SetProperty("int64 last_modified", &Core::FileState::LastModified);
 				VFileState.SetProperty("bool exists", &Core::FileState::Exists);
+				VFileState.SetConstructor<Core::FileState>("void f()");
 
 				VMTypeClass VFileEntry = Engine->Global().SetStructUnmanaged<Core::FileEntry>("file_entry");
 				VFileEntry.SetConstructor<Core::FileEntry>("void f()");
@@ -7238,12 +7442,14 @@ namespace Edge
 				VQuantityInfo.SetProperty("uint32 logical", &Core::OS::CPU::QuantityInfo::Logical);
 				VQuantityInfo.SetProperty("uint32 physical", &Core::OS::CPU::QuantityInfo::Physical);
 				VQuantityInfo.SetProperty("uint32 packages", &Core::OS::CPU::QuantityInfo::Packages);
+				VQuantityInfo.SetConstructor<Core::OS::CPU::QuantityInfo>("void f()");
 
 				VMTypeClass VCacheInfo = Engine->Global().SetPod<Core::OS::CPU::CacheInfo>("cache_info");
 				VCacheInfo.SetProperty("usize size", &Core::OS::CPU::CacheInfo::Size);
 				VCacheInfo.SetProperty("usize line_size", &Core::OS::CPU::CacheInfo::LineSize);
 				VCacheInfo.SetProperty("uint8 associativity", &Core::OS::CPU::CacheInfo::Associativity);
 				VCacheInfo.SetProperty("cache type", &Core::OS::CPU::CacheInfo::Type);
+				VCacheInfo.SetConstructor<Core::OS::CPU::CacheInfo>("void f()");
 
 				Register.SetFunction("quantity_info get_quantity_info()", &Core::OS::CPU::GetQuantityInfo);
 				Register.SetFunction("cache_info get_cache_info(uint32)", &Core::OS::CPU::GetCacheInfo);
@@ -7379,6 +7585,7 @@ namespace Edge
 				VVertex.SetProperty<Compute::Vertex>("float bitangent_x", &Compute::Vertex::BitangentX);
 				VVertex.SetProperty<Compute::Vertex>("float bitangent_y", &Compute::Vertex::BitangentY);
 				VVertex.SetProperty<Compute::Vertex>("float bitangent_z", &Compute::Vertex::BitangentZ);
+				VVertex.SetConstructor<Compute::Vertex>("void f()");
 
 				VMTypeClass VSkinVertex = Register.SetPod<Compute::SkinVertex>("skin_vertex");
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float position_x", &Compute::SkinVertex::PositionX);
@@ -7403,6 +7610,7 @@ namespace Edge
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float joint_bias1", &Compute::SkinVertex::JointBias1);
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float joint_bias2", &Compute::SkinVertex::JointBias2);
 				VSkinVertex.SetProperty<Compute::SkinVertex>("float joint_bias3", &Compute::SkinVertex::JointBias3);
+				VSkinVertex.SetConstructor<Compute::SkinVertex>("void f()");
 
 				VMTypeClass VShapeVertex = Register.SetPod<Compute::ShapeVertex>("shape_vertex");
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float position_x", &Compute::ShapeVertex::PositionX);
@@ -7410,6 +7618,7 @@ namespace Edge
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float position_z", &Compute::ShapeVertex::PositionZ);
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float texcoord_x", &Compute::ShapeVertex::TexCoordX);
 				VShapeVertex.SetProperty<Compute::ShapeVertex>("float texcoord_y", &Compute::ShapeVertex::TexCoordY);
+				VShapeVertex.SetConstructor<Compute::ShapeVertex>("void f()");
 
 				VMTypeClass VElementVertex = Register.SetPod<Compute::ElementVertex>("element_vertex");
 				VElementVertex.SetProperty<Compute::ElementVertex>("float position_x", &Compute::ElementVertex::PositionX);
@@ -7425,6 +7634,7 @@ namespace Edge
 				VElementVertex.SetProperty<Compute::ElementVertex>("float scale", &Compute::ElementVertex::Scale);
 				VElementVertex.SetProperty<Compute::ElementVertex>("float rotation", &Compute::ElementVertex::Rotation);
 				VElementVertex.SetProperty<Compute::ElementVertex>("float angular", &Compute::ElementVertex::Angular);
+				VElementVertex.SetConstructor<Compute::ElementVertex>("void f()");
 
 				return true;
 			}
@@ -7763,6 +7973,7 @@ namespace Edge
 				VRectangle.SetProperty<Compute::Rectangle>("int64 top", &Compute::Rectangle::Top);
 				VRectangle.SetProperty<Compute::Rectangle>("int64 right", &Compute::Rectangle::Right);
 				VRectangle.SetProperty<Compute::Rectangle>("int64 bottom", &Compute::Rectangle::Bottom);
+				VRectangle.SetConstructor<Compute::Rectangle>("void f()");
 
 				VMTypeClass VBounding = Register.SetPod<Compute::Bounding>("bounding");
 				VBounding.SetProperty<Compute::Bounding>("vector3 lower", &Compute::Bounding::Lower);
@@ -7914,6 +8125,7 @@ namespace Edge
 				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 end", &Compute::RegexMatch::End);
 				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 length", &Compute::RegexMatch::Length);
 				VRegexMatch.SetProperty<Compute::RegexMatch>("int64 steps", &Compute::RegexMatch::Steps);
+				VRegexMatch.SetConstructor<Compute::RegexMatch>("void f()");
 				VRegexMatch.SetMethodEx("string target() const", &RegexMatchTarget);
 
 				VMTypeClass VRegexResult = Register.SetStructUnmanaged<Compute::RegexResult>("regex_result");
@@ -8191,6 +8403,885 @@ namespace Edge
 				Register.SetFunction("string decimal_to_hex(uint64)", &Compute::Codec::DecimalToHex);
 				Register.SetFunction("string base10_to_base_n(uint64, uint8)", &Compute::Codec::Base10ToBaseN);
 				Engine->EndNamespace();
+
+				return true;
+			}
+			bool Registry::LoadGeometric(VMManager* Engine)
+			{
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMEnum VPositioning = Register.SetEnum("positioning");
+				VPositioning.SetValue("local", (int)Compute::Positioning::Local);
+				VPositioning.SetValue("global", (int)Compute::Positioning::Global);
+
+				VMTypeClass VSpacing = Engine->Global().SetPod<Compute::Transform::Spacing>("transform_spacing");
+				VSpacing.SetProperty<Compute::Transform::Spacing>("matrix4x4 offset", &Compute::Transform::Spacing::Offset);
+				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 position", &Compute::Transform::Spacing::Position);
+				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 rotation", &Compute::Transform::Spacing::Rotation);
+				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 scale", &Compute::Transform::Spacing::Scale);
+				VSpacing.SetConstructor<Compute::Transform::Spacing>("void f()");
+
+				VMRefClass VTransform = Engine->Global().SetClassUnmanaged<Compute::Transform>("transform");
+				VTransform.SetProperty<Compute::Transform>("uptr@ user_data", &Compute::Transform::UserData);
+				VTransform.SetUnmanagedConstructor<Compute::Transform, void*>("transform@ f(uptr@)");
+				VTransform.SetMethod("void synchronize()", &Compute::Transform::Synchronize);
+				VTransform.SetMethod("void move(const vector3 &in)", &Compute::Transform::Move);
+				VTransform.SetMethod("void rotate(const vector3 &in)", &Compute::Transform::Rotate);
+				VTransform.SetMethod("void rescale(const vector3 &in)", &Compute::Transform::Rescale);
+				VTransform.SetMethod("void localize(transform_spacing &in)", &Compute::Transform::Localize);
+				VTransform.SetMethod("void globalize(transform_spacing &in)", &Compute::Transform::Globalize);
+				VTransform.SetMethod("void specialize(transform_spacing &in)", &Compute::Transform::Specialize);
+				VTransform.SetMethod("void copy(transform@+) const", &Compute::Transform::Copy);
+				VTransform.SetMethod("void add_child(transform@+)", &Compute::Transform::AddChild);
+				VTransform.SetMethod("void remove_child(transform@+)", &Compute::Transform::RemoveChild);
+				VTransform.SetMethod("void remove_childs()", &Compute::Transform::RemoveChilds);
+				VTransform.SetMethod("void make_dirty()", &Compute::Transform::MakeDirty);
+				VTransform.SetMethod("void set_scaling(bool)", &Compute::Transform::SetScaling);
+				VTransform.SetMethod("void set_position(const vector3 &in)", &Compute::Transform::SetPosition);
+				VTransform.SetMethod("void set_rotation(const vector3 &in)", &Compute::Transform::SetRotation);
+				VTransform.SetMethod("void set_scale(const vector3 &in)", &Compute::Transform::SetScale);
+				VTransform.SetMethod("void set_spacing(positioning, transform_spacing &in)", &Compute::Transform::SetSpacing);
+				VTransform.SetMethod("void set_pivot(transform@+, transform_spacing &in)", &Compute::Transform::SetPivot);
+				VTransform.SetMethod("void set_root(transform@+)", &Compute::Transform::SetRoot);
+				VTransform.SetMethod("void get_bounds(matrix4x4 &in, vector3 &in, vector3 &in)", &Compute::Transform::GetBounds);
+				VTransform.SetMethod("bool has_root(transform@+) const", &Compute::Transform::HasRoot);
+				VTransform.SetMethod("bool has_child(transform@+) const", &Compute::Transform::HasChild);
+				VTransform.SetMethod("bool has_scaling() const", &Compute::Transform::HasScaling);
+				VTransform.SetMethod("bool is_dirty() const", &Compute::Transform::IsDirty);
+				VTransform.SetMethod("const matrix4x4& get_bias() const", &Compute::Transform::GetBias);
+				VTransform.SetMethod("const matrix4x4& get_bias_unscaled() const", &Compute::Transform::GetBiasUnscaled);
+				VTransform.SetMethod("const vector3& get_position() const", &Compute::Transform::GetPosition);
+				VTransform.SetMethod("const vector3& get_rotation() const", &Compute::Transform::GetRotation);
+				VTransform.SetMethod("const vector3& get_scale() const", &Compute::Transform::GetScale);
+				VTransform.SetMethod("vector3 forward(bool = false) const", &Compute::Transform::Forward);
+				VTransform.SetMethod("vector3 right(bool = false) const", &Compute::Transform::Right);
+				VTransform.SetMethod("vector3 up(bool = false) const", &Compute::Transform::Up);
+				VTransform.SetMethod<Compute::Transform, Compute::Transform::Spacing&>("transform_spacing& get_spacing()", &Compute::Transform::GetSpacing);
+				VTransform.SetMethod<Compute::Transform, Compute::Transform::Spacing&, Compute::Positioning>("transform_spacing& get_spacing(positioning)", &Compute::Transform::GetSpacing);
+				VTransform.SetMethod("transform@+ get_root() const", &Compute::Transform::GetRoot);
+				VTransform.SetMethod("transform@+ get_upper_root() const", &Compute::Transform::GetUpperRoot);
+				VTransform.SetMethod("transform@+ get_child(usize) const", &Compute::Transform::GetChild);
+				VTransform.SetMethod("usize get_childs_count() const", &Compute::Transform::GetChildsCount);
+
+				VMTypeClass VNode = Engine->Global().SetPod<Compute::Cosmos::Node>("cosmos_node");
+				VNode.SetProperty<Compute::Cosmos::Node>("bounding bounds", &Compute::Cosmos::Node::Bounds);
+				VNode.SetProperty<Compute::Cosmos::Node>("usize parent", &Compute::Cosmos::Node::Parent);
+				VNode.SetProperty<Compute::Cosmos::Node>("usize next", &Compute::Cosmos::Node::Next);
+				VNode.SetProperty<Compute::Cosmos::Node>("usize left", &Compute::Cosmos::Node::Left);
+				VNode.SetProperty<Compute::Cosmos::Node>("usize right", &Compute::Cosmos::Node::Right);
+				VNode.SetProperty<Compute::Cosmos::Node>("uptr@ item", &Compute::Cosmos::Node::Item);
+				VNode.SetProperty<Compute::Cosmos::Node>("int32 height", &Compute::Cosmos::Node::Height);
+				VNode.SetConstructor<Compute::Cosmos::Node>("void f()");
+				VNode.SetMethod("bool is_leaf() const", &Compute::Cosmos::Node::IsLeaf);
+
+				VMTypeClass VCosmos = Engine->Global().SetStructUnmanaged<Compute::Cosmos>("cosmos");
+				VCosmos.SetFunctionDef("bool cosmos_query_overlaps(const bounding &in)");
+				VCosmos.SetFunctionDef("void cosmos_query_match(uptr@)");
+				VCosmos.SetConstructor<Compute::Cosmos>("void f(usize = 16)");
+				VCosmos.SetMethod("void reserve(usize)", &Compute::Cosmos::Reserve);
+				VCosmos.SetMethod("void clear()", &Compute::Cosmos::Clear);
+				VCosmos.SetMethod("void remove_item(uptr@)", &Compute::Cosmos::RemoveItem);
+				VCosmos.SetMethod("void insert_item(uptr@, const vector3 &in, const vector3 &in)", &Compute::Cosmos::InsertItem);
+				VCosmos.SetMethod("void update_item(uptr@, const vector3 &in, const vector3 &in, bool = false)", &Compute::Cosmos::UpdateItem);
+				VCosmos.SetMethod("const bounding& get_area(uptr@)", &Compute::Cosmos::GetArea);
+				VCosmos.SetMethod("usize get_nodes_count() const", &Compute::Cosmos::GetNodesCount);
+				VCosmos.SetMethod("usize get_height() const", &Compute::Cosmos::GetHeight);
+				VCosmos.SetMethod("usize get_max_balance() const", &Compute::Cosmos::GetMaxBalance);
+				VCosmos.SetMethod("usize get_root() const", &Compute::Cosmos::GetRoot);
+				VCosmos.SetMethod("const cosmos_node& get_root_node() const", &Compute::Cosmos::GetRootNode);
+				VCosmos.SetMethod("const cosmos_node& get_node(usize) const", &Compute::Cosmos::GetNode);
+				VCosmos.SetMethod("float get_volume_ratio() const", &Compute::Cosmos::GetVolumeRatio);
+				VCosmos.SetMethod("bool is_null(usize) const", &Compute::Cosmos::IsNull);
+				VCosmos.SetMethod("bool is_empty() const", &Compute::Cosmos::IsEmpty);
+				VCosmos.SetMethodEx("void query_index()", &CosmosQueryIndex);
+
+				Engine->BeginNamespace("geometric");
+				Register.SetFunction("bool is_cube_in_frustum(const matrix4x4 &in, float)", &Compute::Geometric::IsCubeInFrustum);
+				Register.SetFunction("bool is_left_handed()", &Compute::Geometric::IsLeftHanded);
+				Register.SetFunction("bool has_sphere_intersected(const vector3 &in, float, const vector3 &in, float)", &Compute::Geometric::HasSphereIntersected);
+				Register.SetFunction("bool has_line_intersected(float, float, const vector3 &in, const vector3 &in, vector3 &out)", &Compute::Geometric::HasLineIntersected);
+				Register.SetFunction("bool has_line_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasLineIntersectedCube);
+				Register.SetFunction<bool(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&, int)>("bool has_point_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in, int32)", &Compute::Geometric::HasPointIntersectedCube);
+				Register.SetFunction("bool has_point_intersected_rectangle(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasPointIntersectedRectangle);
+				Register.SetFunction<bool(const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&)>("bool has_point_intersected_cube(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::Geometric::HasPointIntersectedCube);
+				Register.SetFunction("bool has_sb_intersected(transform@+, transform@+)", &Compute::Geometric::HasSBIntersected);
+				Register.SetFunction("bool has_obb_intersected(transform@+, transform@+)", &Compute::Geometric::HasOBBIntersected);
+				Register.SetFunction("bool has_aabb_intersected(transform@+, transform@+)", &Compute::Geometric::HasAABBIntersected);
+				Register.SetFunction<void(const Compute::SkinVertex&, const Compute::SkinVertex&, const Compute::SkinVertex&, Compute::Vector3&, Compute::Vector3&)>("void compute_influence_tangent_bitangent(const skin_vertex &in, const skin_vertex &in, const skin_vertex &in, vector3 &in, vector3 &in)", &Compute::Geometric::ComputeInfluenceTangentBitangent);
+				Register.SetFunction<void(const Compute::SkinVertex&, const Compute::SkinVertex&, const Compute::SkinVertex&, Compute::Vector3&, Compute::Vector3&, Compute::Vector3&)>("void compute_influence_tangent_bitangent(const skin_vertex &in, const skin_vertex &in, const skin_vertex &in, vector3 &in, vector3 &in, vector3 &in)", &Compute::Geometric::ComputeInfluenceTangentBitangent);
+				Register.SetFunction("void matrix_rh_to_lh(matrix4x4 &out)", &Compute::Geometric::MatrixRhToLh);
+				Register.SetFunction("void set_left_handed(bool)", &Compute::Geometric::SetLeftHanded);
+				Register.SetFunction("ray create_cursor_ray(const vector3 &in, const vector2 &in, const vector2 &in, const matrix4x4 &in, const matrix4x4 &in)", &Compute::Geometric::CreateCursorRay);
+				Register.SetFunction<bool(const Compute::Ray&, const Compute::Vector3&, const Compute::Vector3&, Compute::Vector3*)>("bool cursor_ray_test(const ray &in, const vector3 &in, const vector3 &in, vector3 &out)", &Compute::Geometric::CursorRayTest);
+				Register.SetFunction<bool(const Compute::Ray&, const Compute::Matrix4x4&, Compute::Vector3*)>("bool cursor_ray_test(const ray &in, const matrix4x4 &in, vector3 &out)", &Compute::Geometric::CursorRayTest);
+				Register.SetFunction("float fast_inv_sqrt(float)", &Compute::Geometric::FastInvSqrt);
+				Register.SetFunction("float fast_sqrt(float)", &Compute::Geometric::FastSqrt);
+				Register.SetFunction("float aabb_volume(const vector3 &in, const vector3 &in)", &Compute::Geometric::AabbVolume);
+				Engine->EndNamespace();
+
+				return true;
+			}
+			bool Registry::LoadPreprocessor(VMManager* Engine)
+			{
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMTypeClass VIncludeDesc = Engine->Global().SetStructUnmanaged<Compute::IncludeDesc>("include_desc");
+				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string from", &Compute::IncludeDesc::From);
+				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string path", &Compute::IncludeDesc::Path);
+				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string root", &Compute::IncludeDesc::Root);
+				VIncludeDesc.SetConstructor<Compute::IncludeDesc>("void f()");
+				VIncludeDesc.SetMethodEx("void add_ext(const string &in)", &IncludeDescAddExt);
+				VIncludeDesc.SetMethodEx("void remove_ext(const string &in)", &IncludeDescRemoveExt);
+
+				VMTypeClass VIncludeResult = Engine->Global().SetStructUnmanaged<Compute::IncludeResult>("include_result");
+				VIncludeResult.SetProperty<Compute::IncludeResult>("string module", &Compute::IncludeResult::Module);
+				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_system", &Compute::IncludeResult::IsSystem);
+				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_file", &Compute::IncludeResult::IsFile);
+				VIncludeResult.SetConstructor<Compute::IncludeResult>("void f()");
+
+				VMTypeClass VDesc = Engine->Global().SetPod<Compute::Preprocessor::Desc>("preprocessor_desc");
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Pragmas", &Compute::Preprocessor::Desc::Pragmas);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Includes", &Compute::Preprocessor::Desc::Includes);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Defines", &Compute::Preprocessor::Desc::Defines);
+				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Conditions", &Compute::Preprocessor::Desc::Conditions);
+				VDesc.SetConstructor<Compute::Preprocessor::Desc>("void f()");
+
+				VMRefClass VPreprocessor = Engine->Global().SetClassUnmanaged<Compute::Preprocessor>("preprocessor");
+				VPreprocessor.SetFunctionDef("bool proc_include_event(preprocessor@+, const include_result &in, string &out)");
+				VPreprocessor.SetFunctionDef("bool proc_pragma_event(preprocessor@+, const string &in, array<string>@+)");
+				VPreprocessor.SetUnmanagedConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
+				VPreprocessor.SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
+				VPreprocessor.SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
+				VPreprocessor.SetMethod("void define(const string &in)", &Compute::Preprocessor::Define);
+				VPreprocessor.SetMethod("void undefine(const string &in)", &Compute::Preprocessor::Undefine);
+				VPreprocessor.SetMethod("void clear()", &Compute::Preprocessor::Clear);
+				VPreprocessor.SetMethod("bool process(const string &in, string &out)", &Compute::Preprocessor::Process);
+				VPreprocessor.SetMethod("const string& get_current_file_path() const", &Compute::Preprocessor::GetCurrentFilePath);
+				VPreprocessor.SetMethodEx("void set_include_callback(proc_include_event@+)", &PreprocessorSetIncludeCallback);
+				VPreprocessor.SetMethodEx("void set_pragma_callback(proc_pragma_event@+)", &PreprocessorSetPragmaCallback);
+				VPreprocessor.SetMethodEx("bool is_defined(const string &in) const", &PreprocessorIsDefined);
+
+				return true;
+			}
+			bool Registry::LoadPhysics(VMManager* Engine)
+			{
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMRefClass VSimulator = Engine->Global().SetClassUnmanaged<Compute::Simulator>("physics_simulator");
+				
+				VMEnum VShape = Register.SetEnum("physics_shape");
+				VShape.SetValue("box", (int)Compute::Shape::Box);
+				VShape.SetValue("triangle", (int)Compute::Shape::Triangle);
+				VShape.SetValue("tetrahedral", (int)Compute::Shape::Tetrahedral);
+				VShape.SetValue("convex_triangle_mesh", (int)Compute::Shape::Convex_Triangle_Mesh);
+				VShape.SetValue("convex_hull", (int)Compute::Shape::Convex_Hull);
+				VShape.SetValue("convex_point_cloud", (int)Compute::Shape::Convex_Point_Cloud);
+				VShape.SetValue("convex_polyhedral", (int)Compute::Shape::Convex_Polyhedral);
+				VShape.SetValue("implicit_convex_start", (int)Compute::Shape::Implicit_Convex_Start);
+				VShape.SetValue("sphere", (int)Compute::Shape::Sphere);
+				VShape.SetValue("multi_sphere", (int)Compute::Shape::Multi_Sphere);
+				VShape.SetValue("capsule", (int)Compute::Shape::Capsule);
+				VShape.SetValue("cone", (int)Compute::Shape::Cone);
+				VShape.SetValue("convex", (int)Compute::Shape::Convex);
+				VShape.SetValue("cylinder", (int)Compute::Shape::Cylinder);
+				VShape.SetValue("uniform_scaling", (int)Compute::Shape::Uniform_Scaling);
+				VShape.SetValue("minkowski_sum", (int)Compute::Shape::Minkowski_Sum);
+				VShape.SetValue("minkowski_difference", (int)Compute::Shape::Minkowski_Difference);
+				VShape.SetValue("box_2d", (int)Compute::Shape::Box_2D);
+				VShape.SetValue("convex_2d", (int)Compute::Shape::Convex_2D);
+				VShape.SetValue("custom_convex", (int)Compute::Shape::Custom_Convex);
+				VShape.SetValue("concaves_start", (int)Compute::Shape::Concaves_Start);
+				VShape.SetValue("triangle_mesh", (int)Compute::Shape::Triangle_Mesh);
+				VShape.SetValue("triangle_mesh_scaled", (int)Compute::Shape::Triangle_Mesh_Scaled);
+				VShape.SetValue("fast_concave_mesh", (int)Compute::Shape::Fast_Concave_Mesh);
+				VShape.SetValue("terrain", (int)Compute::Shape::Terrain);
+				VShape.SetValue("triangle_mesh_multimaterial", (int)Compute::Shape::Triangle_Mesh_Multimaterial);
+				VShape.SetValue("empty", (int)Compute::Shape::Empty);
+				VShape.SetValue("static_plane", (int)Compute::Shape::Static_Plane);
+				VShape.SetValue("custom_concave", (int)Compute::Shape::Custom_Concave);
+				VShape.SetValue("concaves_end", (int)Compute::Shape::Concaves_End);
+				VShape.SetValue("compound", (int)Compute::Shape::Compound);
+				VShape.SetValue("softbody", (int)Compute::Shape::Softbody);
+				VShape.SetValue("hf_fluid", (int)Compute::Shape::HF_Fluid);
+				VShape.SetValue("hf_fluid_bouyant_convex", (int)Compute::Shape::HF_Fluid_Bouyant_Convex);
+				VShape.SetValue("invalid", (int)Compute::Shape::Invalid);
+
+				VMEnum VMotionState = Register.SetEnum("physics_motion_state");
+				VMotionState.SetValue("active", (int)Compute::MotionState::Active);
+				VMotionState.SetValue("island_sleeping", (int)Compute::MotionState::Island_Sleeping);
+				VMotionState.SetValue("deactivation_needed", (int)Compute::MotionState::Deactivation_Needed);
+				VMotionState.SetValue("disable_deactivation", (int)Compute::MotionState::Disable_Deactivation);
+				VMotionState.SetValue("disable_simulation", (int)Compute::MotionState::Disable_Simulation);
+
+				VMEnum VSoftFeature = Register.SetEnum("physics_soft_feature");
+				VSoftFeature.SetValue("none", (int)Compute::SoftFeature::None);
+				VSoftFeature.SetValue("node", (int)Compute::SoftFeature::Node);
+				VSoftFeature.SetValue("link", (int)Compute::SoftFeature::Link);
+				VSoftFeature.SetValue("face", (int)Compute::SoftFeature::Face);
+				VSoftFeature.SetValue("tetra", (int)Compute::SoftFeature::Tetra);
+
+				VMEnum VSoftAeroModel = Register.SetEnum("physics_soft_aero_model");
+				VSoftAeroModel.SetValue("vpoint", (int)Compute::SoftAeroModel::VPoint);
+				VSoftAeroModel.SetValue("vtwo_sided", (int)Compute::SoftAeroModel::VTwoSided);
+				VSoftAeroModel.SetValue("vtwo_sided_lift_drag", (int)Compute::SoftAeroModel::VTwoSidedLiftDrag);
+				VSoftAeroModel.SetValue("vone_sided", (int)Compute::SoftAeroModel::VOneSided);
+				VSoftAeroModel.SetValue("ftwo_sided", (int)Compute::SoftAeroModel::FTwoSided);
+				VSoftAeroModel.SetValue("ftwo_sided_lift_drag", (int)Compute::SoftAeroModel::FTwoSidedLiftDrag);
+				VSoftAeroModel.SetValue("fone_sided", (int)Compute::SoftAeroModel::FOneSided);
+
+				VMEnum VSoftCollision = Register.SetEnum("physics_soft_collision");
+				VSoftCollision.SetValue("rvs_mask", (int)Compute::SoftCollision::RVS_Mask);
+				VSoftCollision.SetValue("sdf_rs", (int)Compute::SoftCollision::SDF_RS);
+				VSoftCollision.SetValue("cl_rs", (int)Compute::SoftCollision::CL_RS);
+				VSoftCollision.SetValue("sdf_rd", (int)Compute::SoftCollision::SDF_RD);
+				VSoftCollision.SetValue("sdf_rdf", (int)Compute::SoftCollision::SDF_RDF);
+				VSoftCollision.SetValue("svs_mask", (int)Compute::SoftCollision::SVS_Mask);
+				VSoftCollision.SetValue("vf_ss", (int)Compute::SoftCollision::VF_SS);
+				VSoftCollision.SetValue("cl_ss", (int)Compute::SoftCollision::CL_SS);
+				VSoftCollision.SetValue("cl_self", (int)Compute::SoftCollision::CL_Self);
+				VSoftCollision.SetValue("vf_dd", (int)Compute::SoftCollision::VF_DD);
+				VSoftCollision.SetValue("default_t", (int)Compute::SoftCollision::Default);
+
+				VMEnum VRotator = Register.SetEnum("physics_rotator");
+				VRotator.SetValue("xyz", (int)Compute::Rotator::XYZ);
+				VRotator.SetValue("xzy", (int)Compute::Rotator::XZY);
+				VRotator.SetValue("yxz", (int)Compute::Rotator::YXZ);
+				VRotator.SetValue("yzx", (int)Compute::Rotator::YZX);
+				VRotator.SetValue("zxy", (int)Compute::Rotator::ZXY);
+				VRotator.SetValue("zyx", (int)Compute::Rotator::ZYX);
+
+				VMRefClass VHullShape = Engine->Global().SetClassUnmanaged<Compute::HullShape>("physics_hull_shape");
+				VHullShape.SetProperty<Compute::HullShape>("uptr@ shape", &Compute::HullShape::Shape);
+				VHullShape.SetUnmanagedConstructor<Compute::HullShape>("physics_hull_shape@ f()");
+				VHullShape.SetMethodEx("void set_vertices(array<vertex>@+)", &HullShapeSetVertices);
+				VHullShape.SetMethodEx("void set_indices(array<int>@+)", &HullShapeSetIndices);
+				VHullShape.SetMethodEx("array<vertex>@ get_vertices()", &HullShapeGetVertices);
+				VHullShape.SetMethodEx("array<int>@ get_indices()", &HullShapeGetIndices);
+
+				VMTypeClass VRigidBodyDesc = Engine->Global().SetPod<Compute::RigidBody::Desc>("physics_rigidbody_desc");
+				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("uptr@ shape", &Compute::RigidBody::Desc::Shape);
+				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("float anticipation", &Compute::RigidBody::Desc::Anticipation);
+				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("float mass", &Compute::RigidBody::Desc::Mass);
+				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("vector3 position", &Compute::RigidBody::Desc::Position);
+				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("vector3 rotation", &Compute::RigidBody::Desc::Rotation);
+				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("vector3 scale", &Compute::RigidBody::Desc::Scale);
+				VRigidBodyDesc.SetConstructor<Compute::RigidBody::Desc>("void f()");
+
+				VMRefClass VRigidBody = Engine->Global().SetClassUnmanaged<Compute::RigidBody>("physics_rigidbody");
+				VRigidBody.SetMethod("physics_rigidbody@ copy()", &Compute::RigidBody::Copy);
+				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&>("void push(const vector3 &in)", &Compute::RigidBody::Push);
+				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&>("void push(const vector3 &in, const vector3 &in)", &Compute::RigidBody::Push);
+				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&, const Compute::Vector3&>("void push(const vector3 &in, const vector3 &in, const vector3 &in)", &Compute::RigidBody::Push);
+				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&>("void push_kinematic(const vector3 &in)", &Compute::RigidBody::PushKinematic);
+				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&>("void push_kinematic(const vector3 &in, const vector3 &in)", &Compute::RigidBody::PushKinematic);
+				VRigidBody.SetMethod("void synchronize(transform@+, bool)", &Compute::RigidBody::Synchronize);
+				VRigidBody.SetMethod("void set_collision_flags(usize)", &Compute::RigidBody::SetCollisionFlags);
+				VRigidBody.SetMethod("void set_activity(bool)", &Compute::RigidBody::SetActivity);
+				VRigidBody.SetMethod("void set_as_ghost()", &Compute::RigidBody::SetAsGhost);
+				VRigidBody.SetMethod("void set_as_normal()", &Compute::RigidBody::SetAsNormal);
+				VRigidBody.SetMethod("void set_self_pointer()", &Compute::RigidBody::SetSelfPointer);
+				VRigidBody.SetMethod("void set_world_transform(uptr@)", &Compute::RigidBody::SetWorldTransform);
+				VRigidBody.SetMethod("void set_collision_shape(uptr@, transform@+)", &Compute::RigidBody::SetCollisionShape);
+				VRigidBody.SetMethod("void set_mass(float)", &Compute::RigidBody::SetMass);
+				VRigidBody.SetMethod("void set_activation_state(physics_motion_state)", &Compute::RigidBody::SetActivationState);
+				VRigidBody.SetMethod("void set_angular_damping(float)", &Compute::RigidBody::SetAngularDamping);
+				VRigidBody.SetMethod("void set_angular_sleeping_threshold(float)", &Compute::RigidBody::SetAngularSleepingThreshold);
+				VRigidBody.SetMethod("void set_spinning_friction(float)", &Compute::RigidBody::SetSpinningFriction);
+				VRigidBody.SetMethod("void set_contact_stiffness(float)", &Compute::RigidBody::SetContactStiffness);
+				VRigidBody.SetMethod("void set_contact_damping(float)", &Compute::RigidBody::SetContactDamping);
+				VRigidBody.SetMethod("void set_friction(float)", &Compute::RigidBody::SetFriction);
+				VRigidBody.SetMethod("void set_restitution(float)", &Compute::RigidBody::SetRestitution);
+				VRigidBody.SetMethod("void set_hit_fraction(float)", &Compute::RigidBody::SetHitFraction);
+				VRigidBody.SetMethod("void set_linear_damping(float)", &Compute::RigidBody::SetLinearDamping);
+				VRigidBody.SetMethod("void set_linear_sleeping_threshold(float)", &Compute::RigidBody::SetLinearSleepingThreshold);
+				VRigidBody.SetMethod("void set_ccd_motion_threshold(float)", &Compute::RigidBody::SetCcdMotionThreshold);
+				VRigidBody.SetMethod("void set_ccd_swept_sphere_radius(float)", &Compute::RigidBody::SetCcdSweptSphereRadius);
+				VRigidBody.SetMethod("void set_contact_processing_threshold(float)", &Compute::RigidBody::SetContactProcessingThreshold);
+				VRigidBody.SetMethod("void set_deactivation_time(float)", &Compute::RigidBody::SetDeactivationTime);
+				VRigidBody.SetMethod("void set_rolling_friction(float)", &Compute::RigidBody::SetRollingFriction);
+				VRigidBody.SetMethod("void set_angular_factor(const vector3 &in)", &Compute::RigidBody::SetAngularFactor);
+				VRigidBody.SetMethod("void set_anisotropic_friction(const vector3 &in)", &Compute::RigidBody::SetAnisotropicFriction);
+				VRigidBody.SetMethod("void set_gravity(const vector3 &in)", &Compute::RigidBody::SetGravity);
+				VRigidBody.SetMethod("void set_linear_factor(const vector3 &in)", &Compute::RigidBody::SetLinearFactor);
+				VRigidBody.SetMethod("void set_linear_velocity(const vector3 &in)", &Compute::RigidBody::SetLinearVelocity);
+				VRigidBody.SetMethod("void set_angular_velocity(const vector3 &in)", &Compute::RigidBody::SetAngularVelocity);
+				VRigidBody.SetMethod("physics_motion_state get_activation_state() const", &Compute::RigidBody::GetActivationState);
+				VRigidBody.SetMethod("physics_shape get_collision_shape_type() const", &Compute::RigidBody::GetCollisionShapeType);
+				VRigidBody.SetMethod("vector3 get_angular_factor() const", &Compute::RigidBody::GetAngularFactor);
+				VRigidBody.SetMethod("vector3 get_anisotropic_friction() const", &Compute::RigidBody::GetAnisotropicFriction);
+				VRigidBody.SetMethod("vector3 get_Gravity() const", &Compute::RigidBody::GetGravity);
+				VRigidBody.SetMethod("vector3 get_linear_factor() const", &Compute::RigidBody::GetLinearFactor);
+				VRigidBody.SetMethod("vector3 get_linear_velocity() const", &Compute::RigidBody::GetLinearVelocity);
+				VRigidBody.SetMethod("vector3 get_angular_velocity() const", &Compute::RigidBody::GetAngularVelocity);
+				VRigidBody.SetMethod("vector3 get_scale() const", &Compute::RigidBody::GetScale);
+				VRigidBody.SetMethod("vector3 get_position() const", &Compute::RigidBody::GetPosition);
+				VRigidBody.SetMethod("vector3 get_rotation() const", &Compute::RigidBody::GetRotation);
+				VRigidBody.SetMethod("uptr@ get_world_transform() const", &Compute::RigidBody::GetWorldTransform);
+				VRigidBody.SetMethod("uptr@ get_collision_shape() const", &Compute::RigidBody::GetCollisionShape);
+				VRigidBody.SetMethod("uptr@ get() const", &Compute::RigidBody::Get);
+				VRigidBody.SetMethod("bool is_active() const", &Compute::RigidBody::IsActive);
+				VRigidBody.SetMethod("bool is_static() const", &Compute::RigidBody::IsStatic);
+				VRigidBody.SetMethod("bool is_ghost() const", &Compute::RigidBody::IsGhost);
+				VRigidBody.SetMethod("bool Is_colliding() const", &Compute::RigidBody::IsColliding);
+				VRigidBody.SetMethod("float get_spinning_friction() const", &Compute::RigidBody::GetSpinningFriction);
+				VRigidBody.SetMethod("float get_contact_stiffness() const", &Compute::RigidBody::GetContactStiffness);
+				VRigidBody.SetMethod("float get_contact_damping() const", &Compute::RigidBody::GetContactDamping);
+				VRigidBody.SetMethod("float get_angular_damping() const", &Compute::RigidBody::GetAngularDamping);
+				VRigidBody.SetMethod("float get_angular_sleeping_threshold() const", &Compute::RigidBody::GetAngularSleepingThreshold);
+				VRigidBody.SetMethod("float get_friction() const", &Compute::RigidBody::GetFriction);
+				VRigidBody.SetMethod("float get_restitution() const", &Compute::RigidBody::GetRestitution);
+				VRigidBody.SetMethod("float get_hit_fraction() const", &Compute::RigidBody::GetHitFraction);
+				VRigidBody.SetMethod("float get_linear_damping() const", &Compute::RigidBody::GetLinearDamping);
+				VRigidBody.SetMethod("float get_linear_sleeping_threshold() const", &Compute::RigidBody::GetLinearSleepingThreshold);
+				VRigidBody.SetMethod("float get_ccd_motion_threshold() const", &Compute::RigidBody::GetCcdMotionThreshold);
+				VRigidBody.SetMethod("float get_ccd_swept_sphere_radius() const", &Compute::RigidBody::GetCcdSweptSphereRadius);
+				VRigidBody.SetMethod("float get_contact_processing_threshold() const", &Compute::RigidBody::GetContactProcessingThreshold);
+				VRigidBody.SetMethod("float get_deactivation_time() const", &Compute::RigidBody::GetDeactivationTime);
+				VRigidBody.SetMethod("float get_rolling_friction() const", &Compute::RigidBody::GetRollingFriction);
+				VRigidBody.SetMethod("float get_mass() const", &Compute::RigidBody::GetMass);
+				VRigidBody.SetMethod("usize get_collision_flags() const", &Compute::RigidBody::GetCollisionFlags);
+				VRigidBody.SetMethod("physics_rigidbody_desc& get_initial_state()", &Compute::RigidBody::GetInitialState);
+				VRigidBody.SetMethod("physics_simulator@+ get_simulator() const", &Compute::RigidBody::GetSimulator);
+
+				VMTypeClass VSoftBodySConvex = Engine->Global().SetPod<Compute::SoftBody::Desc::CV::SConvex>("physics_softbody_desc_cv_sconvex");
+				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("physics_hull_shape@ hull", &Compute::SoftBody::Desc::CV::SConvex::Hull);
+				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("bool enabled", &Compute::SoftBody::Desc::CV::SConvex::Enabled);
+				VSoftBodySConvex.SetConstructor<Compute::SoftBody::Desc::CV::SConvex>("void f()");
+
+				VMTypeClass VSoftBodySRope = Engine->Global().SetPod<Compute::SoftBody::Desc::CV::SRope>("physics_softbody_desc_cv_srope");
+				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool start_fixed", &Compute::SoftBody::Desc::CV::SRope::StartFixed);
+				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool end_fixed", &Compute::SoftBody::Desc::CV::SRope::EndFixed);
+				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool enabled", &Compute::SoftBody::Desc::CV::SRope::Enabled);
+				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("int count", &Compute::SoftBody::Desc::CV::SRope::Count);
+				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("vector3 start", &Compute::SoftBody::Desc::CV::SRope::Start);
+				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("vector3 end", &Compute::SoftBody::Desc::CV::SRope::End);
+				VSoftBodySRope.SetConstructor<Compute::SoftBody::Desc::CV::SRope>("void f()");
+
+				VMTypeClass VSoftBodySPatch = Engine->Global().SetPod<Compute::SoftBody::Desc::CV::SPatch>("physics_softbody_desc_cv_spatch");
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool generate_diagonals", &Compute::SoftBody::Desc::CV::SPatch::GenerateDiagonals);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool corner00_fixed", &Compute::SoftBody::Desc::CV::SPatch::Corner00Fixed);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool corner10_fixed", &Compute::SoftBody::Desc::CV::SPatch::Corner10Fixed);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool corner01_fixed", &Compute::SoftBody::Desc::CV::SPatch::Corner01Fixed);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool corner11_fixed", &Compute::SoftBody::Desc::CV::SPatch::Corner11Fixed);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("bool enabled", &Compute::SoftBody::Desc::CV::SPatch::Enabled);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("int count_x", &Compute::SoftBody::Desc::CV::SPatch::CountX);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("int count_y", &Compute::SoftBody::Desc::CV::SPatch::CountY);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("vector3 corner00", &Compute::SoftBody::Desc::CV::SPatch::Corner00);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("vector3 corner10", &Compute::SoftBody::Desc::CV::SPatch::Corner10);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("vector3 corner01", &Compute::SoftBody::Desc::CV::SPatch::Corner01);
+				VSoftBodySPatch.SetProperty<Compute::SoftBody::Desc::CV::SPatch>("vector3 corner11", &Compute::SoftBody::Desc::CV::SPatch::Corner11);
+				VSoftBodySPatch.SetConstructor<Compute::SoftBody::Desc::CV::SPatch>("void f()");
+
+				VMTypeClass VSoftBodySEllipsoid = Engine->Global().SetPod<Compute::SoftBody::Desc::CV::SEllipsoid>("physics_softbody_desc_cv_sellipsoid");
+				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("vector3 center", &Compute::SoftBody::Desc::CV::SEllipsoid::Center);
+				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("vector3 radius", &Compute::SoftBody::Desc::CV::SEllipsoid::Radius);
+				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("int count", &Compute::SoftBody::Desc::CV::SEllipsoid::Count);
+				VSoftBodySEllipsoid.SetProperty<Compute::SoftBody::Desc::CV::SEllipsoid>("bool enabled", &Compute::SoftBody::Desc::CV::SEllipsoid::Enabled);
+				VSoftBodySEllipsoid.SetConstructor<Compute::SoftBody::Desc::CV::SEllipsoid>("void f()");
+
+				VMTypeClass VSoftBodyCV = Engine->Global().SetPod<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv");
+				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_sconvex convex", &Compute::SoftBody::Desc::CV::Convex);
+				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_srope rope", &Compute::SoftBody::Desc::CV::Rope);
+				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_spatch patch", &Compute::SoftBody::Desc::CV::Patch);
+				VSoftBodyCV.SetProperty<Compute::SoftBody::Desc::CV>("physics_softbody_desc_cv_sellipsoid ellipsoid", &Compute::SoftBody::Desc::CV::Ellipsoid);
+				VSoftBodyCV.SetConstructor<Compute::SoftBody::Desc::CV>("void f()");
+
+				VMTypeClass VSoftBodySConfig = Engine->Global().SetPod<Compute::SoftBody::Desc::SConfig>("physics_softbody_desc_config");
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("physics_soft_aero_model aero_model", &Compute::SoftBody::Desc::SConfig::AeroModel);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float vcf", &Compute::SoftBody::Desc::SConfig::VCF);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float dp", &Compute::SoftBody::Desc::SConfig::DP);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float dg", &Compute::SoftBody::Desc::SConfig::DG);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float lf", &Compute::SoftBody::Desc::SConfig::LF);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float pr", &Compute::SoftBody::Desc::SConfig::PR);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float vc", &Compute::SoftBody::Desc::SConfig::VC);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float df", &Compute::SoftBody::Desc::SConfig::DF);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float mt", &Compute::SoftBody::Desc::SConfig::MT);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float chr", &Compute::SoftBody::Desc::SConfig::CHR);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float khr", &Compute::SoftBody::Desc::SConfig::KHR);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float shr", &Compute::SoftBody::Desc::SConfig::SHR);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float ahr", &Compute::SoftBody::Desc::SConfig::AHR);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float srhr_cl", &Compute::SoftBody::Desc::SConfig::SRHR_CL);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float skhr_cl", &Compute::SoftBody::Desc::SConfig::SKHR_CL);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float sshr_cl", &Compute::SoftBody::Desc::SConfig::SSHR_CL);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float sr_splt_cl", &Compute::SoftBody::Desc::SConfig::SR_SPLT_CL);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float sk_splt_cl", &Compute::SoftBody::Desc::SConfig::SK_SPLT_CL);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float ss_splt_cl", &Compute::SoftBody::Desc::SConfig::SS_SPLT_CL);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float max_volume", &Compute::SoftBody::Desc::SConfig::MaxVolume);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float time_scale", &Compute::SoftBody::Desc::SConfig::TimeScale);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float drag", &Compute::SoftBody::Desc::SConfig::Drag);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("float max_stress", &Compute::SoftBody::Desc::SConfig::MaxStress);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int clusters", &Compute::SoftBody::Desc::SConfig::Clusters);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int constraints", &Compute::SoftBody::Desc::SConfig::Constraints);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int viterations", &Compute::SoftBody::Desc::SConfig::VIterations);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int Piterations", &Compute::SoftBody::Desc::SConfig::PIterations);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int diterations", &Compute::SoftBody::Desc::SConfig::DIterations);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int citerations", &Compute::SoftBody::Desc::SConfig::CIterations);
+				VSoftBodySConfig.SetProperty<Compute::SoftBody::Desc::SConfig>("int collisions", &Compute::SoftBody::Desc::SConfig::Collisions);
+				VSoftBodySConfig.SetConstructor<Compute::SoftBody::Desc::SConfig>("void f()");
+
+				VMTypeClass VSoftBodyDesc = Engine->Global().SetPod<Compute::SoftBody::Desc>("physics_softbody_desc");
+				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("physics_softbody_desc_cv shape", &Compute::SoftBody::Desc::Shape);
+				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("physics_softbody_desc_config feature", &Compute::SoftBody::Desc::Config);
+				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("float anticipation", &Compute::SoftBody::SoftBody::Desc::Anticipation);
+				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("vector3 position", &Compute::SoftBody::SoftBody::Desc::Position);
+				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("vector3 rotation", &Compute::SoftBody::SoftBody::Desc::Rotation);
+				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("vector3 scale", &Compute::SoftBody::SoftBody::Desc::Scale);
+				VSoftBodyDesc.SetConstructor<Compute::SoftBody::Desc>("void f()");
+
+				VMRefClass VSoftBody = Engine->Global().SetClassUnmanaged<Compute::SoftBody>("physics_softbody");
+				VMTypeClass VSoftBodyRayCast = Engine->Global().SetPod<Compute::SoftBody::RayCast>("physics_softbody_raycast");
+				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_softbody@ body", &Compute::SoftBody::RayCast::Body);
+				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_soft_feature feature", &Compute::SoftBody::RayCast::Feature);
+				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("float fraction", &Compute::SoftBody::RayCast::Fraction);
+				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("int32 index", &Compute::SoftBody::RayCast::Index);
+				VSoftBodyRayCast.SetConstructor<Compute::SoftBody::RayCast>("void f()");
+
+				VSoftBody.SetMethod("physics_softbody@ copy()", &Compute::SoftBody::Copy);
+				VSoftBody.SetMethod("void activate(bool)", &Compute::SoftBody::Activate);
+				VSoftBody.SetMethod("void synchronize(transform@+, bool)", &Compute::SoftBody::Synchronize);
+				VSoftBody.SetMethodEx("array<int32>@ GetIndices() const", &SoftBodyGetIndices);
+				VSoftBody.SetMethodEx("array<vertex>@ GetVertices() const", &SoftBodyGetVertices);
+				VSoftBody.SetMethod("void get_bounding_box(vector3 &out, vector3 &out) const", &Compute::SoftBody::GetBoundingBox);
+				VSoftBody.SetMethod("void set_contact_stiffness_and_damping(float, float)", &Compute::SoftBody::SetContactStiffnessAndDamping);
+				VSoftBody.SetMethod<Compute::SoftBody, void, int, Compute::RigidBody*, bool, float>("void add_anchor(int32, physics_rigidbody@+, bool = false, float = 1)", &Compute::SoftBody::AddAnchor);
+				VSoftBody.SetMethod<Compute::SoftBody, void, int, Compute::RigidBody*, const Compute::Vector3&, bool, float>("void add_anchor(int32, physics_rigidbody@+, const vector3 &in, bool = false, float = 1)", &Compute::SoftBody::AddAnchor);
+				VSoftBody.SetMethod<Compute::SoftBody, void, const Compute::Vector3&>("void add_force(const vector3 &in)", &Compute::SoftBody::AddForce);
+				VSoftBody.SetMethod<Compute::SoftBody, void, const Compute::Vector3&, int>("void add_force(const vector3 &in, int)", &Compute::SoftBody::AddForce);
+				VSoftBody.SetMethod("void add_aero_force_to_node(const vector3 &in, int)", &Compute::SoftBody::AddAeroForceToNode);
+				VSoftBody.SetMethod("void add_aero_force_to_face(const vector3 &in, int)", &Compute::SoftBody::AddAeroForceToFace);
+				VSoftBody.SetMethod<Compute::SoftBody, void, const Compute::Vector3&>("void add_velocity(const vector3 &in)", &Compute::SoftBody::AddVelocity);
+				VSoftBody.SetMethod<Compute::SoftBody, void, const Compute::Vector3&, int>("void add_velocity(const vector3 &in, int)", &Compute::SoftBody::AddVelocity);
+				VSoftBody.SetMethod("void set_selocity(const vector3 &in)", &Compute::SoftBody::SetVelocity);
+				VSoftBody.SetMethod("void set_mass(int, float)", &Compute::SoftBody::SetMass);
+				VSoftBody.SetMethod("void set_total_mass(float, bool = false)", &Compute::SoftBody::SetTotalMass);
+				VSoftBody.SetMethod("void set_total_density(float)", &Compute::SoftBody::SetTotalDensity);
+				VSoftBody.SetMethod("void set_volume_mass(float)", &Compute::SoftBody::SetVolumeMass);
+				VSoftBody.SetMethod("void set_volume_density(float)", &Compute::SoftBody::SetVolumeDensity);
+				VSoftBody.SetMethod("void translate(const vector3 &in)", &Compute::SoftBody::Translate);
+				VSoftBody.SetMethod("void rotate(const vector3 &in)", &Compute::SoftBody::Rotate);
+				VSoftBody.SetMethod("void scale(const vector3 &in)", &Compute::SoftBody::Scale);
+				VSoftBody.SetMethod("void set_rest_length_scale(float)", &Compute::SoftBody::SetRestLengthScale);
+				VSoftBody.SetMethod("void set_pose(bool, bool)", &Compute::SoftBody::SetPose);
+				VSoftBody.SetMethod("float get_mass(int) const", &Compute::SoftBody::GetMass);
+				VSoftBody.SetMethod("float get_total_mass() const", &Compute::SoftBody::GetTotalMass);
+				VSoftBody.SetMethod("float get_rest_length_scale() const", &Compute::SoftBody::GetRestLengthScale);
+				VSoftBody.SetMethod("float get_volume() const", &Compute::SoftBody::GetVolume);
+				VSoftBody.SetMethod("int generate_bending_constraints(int)", &Compute::SoftBody::GenerateBendingConstraints);
+				VSoftBody.SetMethod("void randomize_constraints()", &Compute::SoftBody::RandomizeConstraints);
+				VSoftBody.SetMethod("bool cut_link(int, int, float)", &Compute::SoftBody::CutLink);
+				VSoftBody.SetMethod("bool ray_test(const vector3 &in, const vector3 &in, physics_softbody_raycast &out)", &Compute::SoftBody::RayTest);
+				VSoftBody.SetMethod("void set_wind_velocity(const vector3 &in)", &Compute::SoftBody::SetWindVelocity);
+				VSoftBody.SetMethod("vector3 get_wind_velocity() const", &Compute::SoftBody::GetWindVelocity);
+				VSoftBody.SetMethod("void get_aabb(vector3 &out, vector3 &out) const", &Compute::SoftBody::GetAabb);
+				VSoftBody.SetMethod("void set_spinning_friction(float)", &Compute::SoftBody::SetSpinningFriction);
+				VSoftBody.SetMethod("vector3 get_linear_velocity() const", &Compute::SoftBody::GetLinearVelocity);
+				VSoftBody.SetMethod("vector3 get_angular_velocity() const", &Compute::SoftBody::GetAngularVelocity);
+				VSoftBody.SetMethod("vector3 get_center_position() const", &Compute::SoftBody::GetCenterPosition);
+				VSoftBody.SetMethod("void set_activity(bool)", &Compute::SoftBody::SetActivity);
+				VSoftBody.SetMethod("void set_as_ghost()", &Compute::SoftBody::SetAsGhost);
+				VSoftBody.SetMethod("void set_as_normal()", &Compute::SoftBody::SetAsNormal);
+				VSoftBody.SetMethod("void set_self_pointer()", &Compute::SoftBody::SetSelfPointer);
+				VSoftBody.SetMethod("void set_world_transform(uptr@)", &Compute::SoftBody::SetWorldTransform);
+				VSoftBody.SetMethod("void set_activation_state(physics_motion_state)", &Compute::SoftBody::SetActivationState);
+				VSoftBody.SetMethod("void set_contact_stiffness(float)", &Compute::SoftBody::SetContactStiffness);
+				VSoftBody.SetMethod("void set_contact_damping(float)", &Compute::SoftBody::SetContactDamping);
+				VSoftBody.SetMethod("void set_friction(float)", &Compute::SoftBody::SetFriction);
+				VSoftBody.SetMethod("void set_restitution(float)", &Compute::SoftBody::SetRestitution);
+				VSoftBody.SetMethod("void set_hit_fraction(float)", &Compute::SoftBody::SetHitFraction);
+				VSoftBody.SetMethod("void set_ccd_motion_threshold(float)", &Compute::SoftBody::SetCcdMotionThreshold);
+				VSoftBody.SetMethod("void set_ccd_swept_sphere_radius(float)", &Compute::SoftBody::SetCcdSweptSphereRadius);
+				VSoftBody.SetMethod("void set_contact_processing_threshold(float)", &Compute::SoftBody::SetContactProcessingThreshold);
+				VSoftBody.SetMethod("void set_reactivation_time(float)", &Compute::SoftBody::SetDeactivationTime);
+				VSoftBody.SetMethod("void set_rolling_friction(float)", &Compute::SoftBody::SetRollingFriction);
+				VSoftBody.SetMethod("void set_anisotropic_friction(const vector3 &in)", &Compute::SoftBody::SetAnisotropicFriction);
+				VSoftBody.SetMethod("void set_config(const physics_softbody_desc_config &in)", &Compute::SoftBody::SetConfig);
+				VSoftBody.SetMethod("physics_shape get_collision_shape_type() const", &Compute::SoftBody::GetCollisionShapeType);
+				VSoftBody.SetMethod("physics_motion_state get_activation_state() const", &Compute::SoftBody::GetActivationState);
+				VSoftBody.SetMethod("vector3 get_anisotropic_friction() const", &Compute::SoftBody::GetAnisotropicFriction);
+				VSoftBody.SetMethod("vector3 get_scale() const", &Compute::SoftBody::GetScale);
+				VSoftBody.SetMethod("vector3 get_position() const", &Compute::SoftBody::GetPosition);
+				VSoftBody.SetMethod("vector3 get_rotation() const", &Compute::SoftBody::GetRotation);
+				VSoftBody.SetMethod("uptr@ get_world_transform() const", &Compute::SoftBody::GetWorldTransform);
+				VSoftBody.SetMethod("uptr@ get() const", &Compute::SoftBody::Get);
+				VSoftBody.SetMethod("bool is_active() const", &Compute::SoftBody::IsActive);
+				VSoftBody.SetMethod("bool is_static() const", &Compute::SoftBody::IsStatic);
+				VSoftBody.SetMethod("bool is_ghost() const", &Compute::SoftBody::IsGhost);
+				VSoftBody.SetMethod("bool is_colliding() const", &Compute::SoftBody::IsColliding);
+				VSoftBody.SetMethod("float get_spinning_friction() const", &Compute::SoftBody::GetSpinningFriction);
+				VSoftBody.SetMethod("float get_contact_stiffness() const", &Compute::SoftBody::GetContactStiffness);
+				VSoftBody.SetMethod("float get_contact_damping() const", &Compute::SoftBody::GetContactDamping);
+				VSoftBody.SetMethod("float get_friction() const", &Compute::SoftBody::GetFriction);
+				VSoftBody.SetMethod("float get_restitution() const", &Compute::SoftBody::GetRestitution);
+				VSoftBody.SetMethod("float get_hit_fraction() const", &Compute::SoftBody::GetHitFraction);
+				VSoftBody.SetMethod("float get_ccd_motion_threshold() const", &Compute::SoftBody::GetCcdMotionThreshold);
+				VSoftBody.SetMethod("float get_ccd_swept_sphere_radius() const", &Compute::SoftBody::GetCcdSweptSphereRadius);
+				VSoftBody.SetMethod("float get_contact_processing_threshold() const", &Compute::SoftBody::GetContactProcessingThreshold);
+				VSoftBody.SetMethod("float get_deactivation_time() const", &Compute::SoftBody::GetDeactivationTime);
+				VSoftBody.SetMethod("float get_rolling_friction() const", &Compute::SoftBody::GetRollingFriction);
+				VSoftBody.SetMethod("usize get_collision_flags() const", &Compute::SoftBody::GetCollisionFlags);
+				VSoftBody.SetMethod("usize get_vertices_count() const", &Compute::SoftBody::GetVerticesCount);
+				VSoftBody.SetMethod("physics_softbody_desc& get_initial_state()", &Compute::SoftBody::GetInitialState);
+				VSoftBody.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SoftBody::GetSimulator);
+
+				VMRefClass VConstraint = Engine->Global().SetClassUnmanaged<Compute::Constraint>("physics_constraint");
+				VConstraint.SetMethod("physics_constraint@ copy() const", &Compute::Constraint::Copy);
+				VConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::Constraint::GetSimulator);
+				VConstraint.SetMethod("uptr@ get() const", &Compute::Constraint::Get);
+				VConstraint.SetMethod("uptr@ get_first() const", &Compute::Constraint::GetFirst);
+				VConstraint.SetMethod("uptr@ get_second() const", &Compute::Constraint::GetSecond);
+				VConstraint.SetMethod("bool has_collisions() const", &Compute::Constraint::HasCollisions);
+				VConstraint.SetMethod("bool is_enabled() const", &Compute::Constraint::IsEnabled);
+				VConstraint.SetMethod("bool is_active() const", &Compute::Constraint::IsActive);
+				VConstraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::Constraint::SetBreakingImpulseThreshold);
+				VConstraint.SetMethod("void set_enabled(bool)", &Compute::Constraint::SetEnabled);
+				VConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::Constraint::GetBreakingImpulseThreshold);
+
+				VMTypeClass VPConstraintDesc = Engine->Global().SetPod<Compute::PConstraint::Desc>("physics_pconstraint_desc");
+				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("physics_rigidbody@ target_a", &Compute::PConstraint::Desc::TargetA);
+				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("physics_rigidbody@ target_b", &Compute::PConstraint::Desc::TargetB);
+				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("vector3 pivot_a", &Compute::PConstraint::Desc::PivotA);
+				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("vector3 pivot_b", &Compute::PConstraint::Desc::PivotB);
+				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("bool collisions", &Compute::PConstraint::Desc::Collisions);
+				VPConstraintDesc.SetConstructor<Compute::PConstraint::Desc>("void f()");
+
+				VMRefClass VPConstraint = Engine->Global().SetClassUnmanaged<Compute::PConstraint>("physics_pconstraint");
+				VPConstraint.SetMethod("physics_pconstraint@ copy() const", &Compute::PConstraint::Copy);
+				VPConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::PConstraint::GetSimulator);
+				VPConstraint.SetMethod("uptr@ get() const", &Compute::PConstraint::Get);
+				VPConstraint.SetMethod("uptr@ get_first() const", &Compute::PConstraint::GetFirst);
+				VPConstraint.SetMethod("uptr@ get_second() const", &Compute::PConstraint::GetSecond);
+				VPConstraint.SetMethod("bool has_collisions() const", &Compute::PConstraint::HasCollisions);
+				VPConstraint.SetMethod("bool is_enabled() const", &Compute::PConstraint::IsEnabled);
+				VPConstraint.SetMethod("bool is_active() const", &Compute::PConstraint::IsActive);
+				VPConstraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::PConstraint::SetBreakingImpulseThreshold);
+				VPConstraint.SetMethod("void set_enabled(bool)", &Compute::PConstraint::SetEnabled);
+				VPConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::PConstraint::GetBreakingImpulseThreshold);
+				VPConstraint.SetMethod("void set_pivot_a(const vector3 &in)", &Compute::PConstraint::SetPivotA);
+				VPConstraint.SetMethod("void set_pivot_b(const vector3 &in)", &Compute::PConstraint::SetPivotB);
+				VPConstraint.SetMethod("vector3 get_pivot_a() const", &Compute::PConstraint::GetPivotA);
+				VPConstraint.SetMethod("vector3 get_pivot_b() const", &Compute::PConstraint::GetPivotB);
+				VPConstraint.SetMethod("physics_pconstraint_desc get_state() const", &Compute::PConstraint::GetState);
+
+				VMTypeClass VHConstraintDesc = Engine->Global().SetPod<Compute::HConstraint::Desc>("physics_hconstraint_desc");
+				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("physics_rigidbody@ target_a", &Compute::HConstraint::Desc::TargetA);
+				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("physics_rigidbody@ target_b", &Compute::HConstraint::Desc::TargetB);
+				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("bool references", &Compute::HConstraint::Desc::References);
+				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("bool collisions", &Compute::HConstraint::Desc::Collisions);
+				VPConstraintDesc.SetConstructor<Compute::HConstraint::Desc>("void f()");
+
+				VMRefClass VHConstraint = Engine->Global().SetClassUnmanaged<Compute::HConstraint>("physics_hconstraint");
+				VHConstraint.SetMethod("physics_hconstraint@ copy() const", &Compute::HConstraint::Copy);
+				VHConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::HConstraint::GetSimulator);
+				VHConstraint.SetMethod("uptr@ get() const", &Compute::HConstraint::Get);
+				VHConstraint.SetMethod("uptr@ get_first() const", &Compute::HConstraint::GetFirst);
+				VHConstraint.SetMethod("uptr@ get_second() const", &Compute::HConstraint::GetSecond);
+				VHConstraint.SetMethod("bool has_collisions() const", &Compute::HConstraint::HasCollisions);
+				VHConstraint.SetMethod("bool is_enabled() const", &Compute::HConstraint::IsEnabled);
+				VHConstraint.SetMethod("bool is_active() const", &Compute::HConstraint::IsActive);
+				VHConstraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::HConstraint::SetBreakingImpulseThreshold);
+				VHConstraint.SetMethod("void set_enabled(bool)", &Compute::HConstraint::SetEnabled);
+				VHConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::HConstraint::GetBreakingImpulseThreshold);
+				VHConstraint.SetMethod("void enable_angular_motor(bool, float, float)", &Compute::HConstraint::EnableAngularMotor);
+				VHConstraint.SetMethod("void enable_motor(bool)", &Compute::HConstraint::EnableMotor);
+				VHConstraint.SetMethod("void test_limit(const matrix4x4 &in, const matrix4x4 &in)", &Compute::HConstraint::TestLimit);
+				VHConstraint.SetMethod("void set_frames(const matrix4x4 &in, const matrix4x4 &in)", &Compute::HConstraint::SetFrames);
+				VHConstraint.SetMethod("void set_angular_only(bool)", &Compute::HConstraint::SetAngularOnly);
+				VHConstraint.SetMethod("void set_max_motor_impulse(float)", &Compute::HConstraint::SetMaxMotorImpulse);
+				VHConstraint.SetMethod("void set_motor_target_velocity(float)", &Compute::HConstraint::SetMotorTargetVelocity);
+				VHConstraint.SetMethod("void set_motor_target(float, float)", &Compute::HConstraint::SetMotorTarget);
+				VHConstraint.SetMethod("void set_limit(float Low, float High, float Softness = 0.9f, float BiasFactor = 0.3f, float RelaxationFactor = 1.0f)", &Compute::HConstraint::SetLimit);
+				VHConstraint.SetMethod("void set_offset(bool Value)", &Compute::HConstraint::SetOffset);
+				VHConstraint.SetMethod("void set_reference_to_a(bool Value)", &Compute::HConstraint::SetReferenceToA);
+				VHConstraint.SetMethod("void set_axis(const vector3 &in)", &Compute::HConstraint::SetAxis);
+				VHConstraint.SetMethod("int get_solve_limit() const", &Compute::HConstraint::GetSolveLimit);
+				VHConstraint.SetMethod("float get_motor_target_velocity() const", &Compute::HConstraint::GetMotorTargetVelocity);
+				VHConstraint.SetMethod("float get_max_motor_impulse() const", &Compute::HConstraint::GetMaxMotorImpulse);
+				VHConstraint.SetMethod("float get_limit_sign() const", &Compute::HConstraint::GetLimitSign);
+				VHConstraint.SetMethod<Compute::HConstraint, float>("float get_hinge_angle() const", &Compute::HConstraint::GetHingeAngle);
+				VHConstraint.SetMethod<Compute::HConstraint, float, const Compute::Matrix4x4&, const Compute::Matrix4x4&>("float get_hinge_angle(const matrix4x4 &in, const matrix4x4 &in) const", &Compute::HConstraint::GetHingeAngle);
+				VHConstraint.SetMethod("float get_lower_limit() const", &Compute::HConstraint::GetLowerLimit);
+				VHConstraint.SetMethod("float get_upper_limit() const", &Compute::HConstraint::GetUpperLimit);
+				VHConstraint.SetMethod("float get_limit_softness() const", &Compute::HConstraint::GetLimitSoftness);
+				VHConstraint.SetMethod("float get_limit_bias_factor() const", &Compute::HConstraint::GetLimitBiasFactor);
+				VHConstraint.SetMethod("float get_limit_relaxation_factor() const", &Compute::HConstraint::GetLimitRelaxationFactor);
+				VHConstraint.SetMethod("bool has_limit() const", &Compute::HConstraint::HasLimit);
+				VHConstraint.SetMethod("bool is_offset() const", &Compute::HConstraint::IsOffset);
+				VHConstraint.SetMethod("bool is_reference_to_a() const", &Compute::HConstraint::IsReferenceToA);
+				VHConstraint.SetMethod("bool is_angular_only() const", &Compute::HConstraint::IsAngularOnly);
+				VHConstraint.SetMethod("bool is_angular_motor_enabled() const", &Compute::HConstraint::IsAngularMotorEnabled);
+				VHConstraint.SetMethod("physics_hconstraint_desc& get_state()", &Compute::HConstraint::GetState);
+
+				VMTypeClass VSConstraintDesc = Engine->Global().SetPod<Compute::SConstraint::Desc>("physics_sconstraint_desc");
+				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("physics_rigidbody@ target_a", &Compute::SConstraint::Desc::TargetA);
+				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("physics_rigidbody@ target_b", &Compute::SConstraint::Desc::TargetB);
+				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("bool linear", &Compute::SConstraint::Desc::Linear);
+				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("bool collisions", &Compute::SConstraint::Desc::Collisions);
+				VSConstraintDesc.SetConstructor<Compute::SConstraint::Desc>("void f()");
+
+				VMRefClass VSConstraint = Engine->Global().SetClassUnmanaged<Compute::SConstraint>("physics_sconstraint");
+				VSConstraint.SetMethod("physics_sconstraint@ copy() const", &Compute::SConstraint::Copy);
+				VSConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SConstraint::GetSimulator);
+				VSConstraint.SetMethod("uptr@ get() const", &Compute::SConstraint::Get);
+				VSConstraint.SetMethod("uptr@ get_first() const", &Compute::SConstraint::GetFirst);
+				VSConstraint.SetMethod("uptr@ get_second() const", &Compute::SConstraint::GetSecond);
+				VSConstraint.SetMethod("bool has_collisions() const", &Compute::SConstraint::HasCollisions);
+				VSConstraint.SetMethod("bool is_enabled() const", &Compute::SConstraint::IsEnabled);
+				VSConstraint.SetMethod("bool is_active() const", &Compute::SConstraint::IsActive);
+				VSConstraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::SConstraint::SetBreakingImpulseThreshold);
+				VSConstraint.SetMethod("void set_enabled(bool)", &Compute::SConstraint::SetEnabled);
+				VSConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::SConstraint::GetBreakingImpulseThreshold);
+				/*
+					void SetAngularMotorVelocity(float Value);
+					void SetLinearMotorVelocity(float Value);
+					void SetUpperLinearLimit(float Value);
+					void SetLowerLinearLimit(float Value);
+					void SetAngularDampingDirection(float Value);
+					void SetLinearDampingDirection(float Value);
+					void SetAngularDampingLimit(float Value);
+					void SetLinearDampingLimit(float Value);
+					void SetAngularDampingOrtho(float Value);
+					void SetLinearDampingOrtho(float Value);
+					void SetUpperAngularLimit(float Value);
+					void SetLowerAngularLimit(float Value);
+					void SetMaxAngularMotorForce(float Value);
+					void SetMaxLinearMotorForce(float Value);
+					void SetAngularRestitutionDirection(float Value);
+					void SetLinearRestitutionDirection(float Value);
+					void SetAngularRestitutionLimit(float Value);
+					void SetLinearRestitutionLimit(float Value);
+					void SetAngularRestitutionOrtho(float Value);
+					void SetLinearRestitutionOrtho(float Value);
+					void SetAngularSoftnessDirection(float Value);
+					void SetLinearSoftnessDirection(float Value);
+					void SetAngularSoftnessLimit(float Value);
+					void SetLinearSoftnessLimit(float Value);
+					void SetAngularSoftnessOrtho(float Value);
+					void SetLinearSoftnessOrtho(float Value);
+					void SetPoweredAngularMotor(bool Value);
+					void SetPoweredLinearMotor(bool Value);
+					float GetAngularMotorVelocity() const;
+					float GetLinearMotorVelocity() const;
+					float GetUpperLinearLimit() const;
+					float GetLowerLinearLimit() const;
+					float GetAngularDampingDirection() const;
+					float GetLinearDampingDirection() const;
+					float GetAngularDampingLimit() const;
+					float GetLinearDampingLimit() const;
+					float GetAngularDampingOrtho() const;
+					float GetLinearDampingOrtho() const;
+					float GetUpperAngularLimit() const;
+					float GetLowerAngularLimit() const;
+					float GetMaxAngularMotorForce() const;
+					float GetMaxLinearMotorForce() const;
+					float GetAngularRestitutionDirection() const;
+					float GetLinearRestitutionDirection() const;
+					float GetAngularRestitutionLimit() const;
+					float GetLinearRestitutionLimit() const;
+					float GetAngularRestitutionOrtho() const;
+					float GetLinearRestitutionOrtho() const;
+					float GetAngularSoftnessDirection() const;
+					float GetLinearSoftnessDirection() const;
+					float GetAngularSoftnessLimit() const;
+					float GetLinearSoftnessLimit() const;
+					float GetAngularSoftnessOrtho() const;
+					float GetLinearSoftnessOrtho() const;
+					bool GetPoweredAngularMotor() const;
+					bool GetPoweredLinearMotor() const;
+					Desc& GetState();
+				*/
+
+				VMTypeClass VCTConstraintDesc = Engine->Global().SetPod<Compute::CTConstraint::Desc>("physics_ctconstraint_desc");
+				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("physics_rigidbody@ target_a", &Compute::CTConstraint::Desc::TargetA);
+				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("physics_rigidbody@ target_b", &Compute::CTConstraint::Desc::TargetB);
+				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("bool collisions", &Compute::CTConstraint::Desc::Collisions);
+				VCTConstraintDesc.SetConstructor<Compute::CTConstraint::Desc>("void f()");
+
+				VMRefClass VCTConstraint = Engine->Global().SetClassUnmanaged<Compute::CTConstraint>("physics_ctconstraint");
+				VCTConstraint.SetMethod("physics_ctconstraint@ copy() const", &Compute::CTConstraint::Copy);
+				VCTConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::CTConstraint::GetSimulator);
+				VCTConstraint.SetMethod("uptr@ get() const", &Compute::CTConstraint::Get);
+				VCTConstraint.SetMethod("uptr@ get_first() const", &Compute::CTConstraint::GetFirst);
+				VCTConstraint.SetMethod("uptr@ get_second() const", &Compute::CTConstraint::GetSecond);
+				VCTConstraint.SetMethod("bool has_collisions() const", &Compute::CTConstraint::HasCollisions);
+				VCTConstraint.SetMethod("bool is_enabled() const", &Compute::CTConstraint::IsEnabled);
+				VCTConstraint.SetMethod("bool is_active() const", &Compute::CTConstraint::IsActive);
+				VCTConstraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::CTConstraint::SetBreakingImpulseThreshold);
+				VCTConstraint.SetMethod("void set_enabled(bool)", &Compute::CTConstraint::SetEnabled);
+				VCTConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::CTConstraint::GetBreakingImpulseThreshold);
+				/*
+					void EnableMotor(bool Value);
+					void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
+					void SetAngularOnly(bool Value);
+					void SetLimit(int LimitIndex, float LimitValue);
+					void SetLimit(float SwingSpan1, float SwingSpan2, float TwistSpan, float Softness = 1.f, float BiasFactor = 0.3f, float RelaxationFactor = 1.0f);
+					void SetDamping(float Value);
+					void SetMaxMotorImpulse(float Value);
+					void SetMaxMotorImpulseNormalized(float Value);
+					void SetFixThresh(float Value);
+					void SetMotorTarget(const Quaternion& Value);
+					void SetMotorTargetInConstraintSpace(const Quaternion& Value);
+					Vector3 GetPointForAngle(float AngleInRadians, float Length) const;
+					Quaternion GetMotorTarget() const;
+					int GetSolveTwistLimit() const;
+					int GetSolveSwingLimit() const;
+					float GetTwistLimitSign() const;
+					float GetSwingSpan1() const;
+					float GetSwingSpan2() const;
+					float GetTwistSpan() const;
+					float GetLimitSoftness() const;
+					float GetBiasFactor() const;
+					float GetRelaxationFactor() const;
+					float GetTwistAngle() const;
+					float GetLimit(int Value) const;
+					float GetDamping() const;
+					float GetMaxMotorImpulse() const;
+					float GetFixThresh() const;
+					bool IsMotorEnabled() const;
+					bool IsMaxMotorImpulseNormalized() const;
+					bool IsPastSwingLimit() const;
+					bool IsAngularOnly() const;
+					Desc& GetState();
+				*/
+
+				VMTypeClass VDF6ConstraintDesc = Engine->Global().SetPod<Compute::DF6Constraint::Desc>("physics_df6constraint_desc");
+				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("physics_rigidbody@ target_a", &Compute::DF6Constraint::Desc::TargetA);
+				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("physics_rigidbody@ target_b", &Compute::DF6Constraint::Desc::TargetB);
+				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("bool collisions", &Compute::DF6Constraint::Desc::Collisions);
+				VDF6ConstraintDesc.SetConstructor<Compute::DF6Constraint::Desc>("void f()");
+
+				VMRefClass VDF6Constraint = Engine->Global().SetClassUnmanaged<Compute::DF6Constraint>("physics_df6constraint");
+				VDF6Constraint.SetMethod("physics_df6constraint@ copy() const", &Compute::DF6Constraint::Copy);
+				VDF6Constraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::DF6Constraint::GetSimulator);
+				VDF6Constraint.SetMethod("uptr@ get() const", &Compute::DF6Constraint::Get);
+				VDF6Constraint.SetMethod("uptr@ get_first() const", &Compute::DF6Constraint::GetFirst);
+				VDF6Constraint.SetMethod("uptr@ get_second() const", &Compute::DF6Constraint::GetSecond);
+				VDF6Constraint.SetMethod("bool has_collisions() const", &Compute::DF6Constraint::HasCollisions);
+				VDF6Constraint.SetMethod("bool is_enabled() const", &Compute::DF6Constraint::IsEnabled);
+				VDF6Constraint.SetMethod("bool is_active() const", &Compute::DF6Constraint::IsActive);
+				VDF6Constraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::DF6Constraint::SetBreakingImpulseThreshold);
+				VDF6Constraint.SetMethod("void set_enabled(bool)", &Compute::DF6Constraint::SetEnabled);
+				VDF6Constraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::DF6Constraint::GetBreakingImpulseThreshold);
+				/*
+					void EnableMotor(int Index, bool OnOff);
+					void EnableSpring(int Index, bool OnOff);
+					void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
+					void SetLinearLowerLimit(const Vector3& Value);
+					void SetLinearUpperLimit(const Vector3& Value);
+					void SetAngularLowerLimit(const Vector3& Value);
+					void SetAngularLowerLimitReversed(const Vector3& Value);
+					void SetAngularUpperLimit(const Vector3& Value);
+					void SetAngularUpperLimitReversed(const Vector3& Value);
+					void SetLimit(int Axis, float Low, float High);
+					void SetLimitReversed(int Axis, float Low, float High);
+					void SetRotationOrder(Rotator Order);
+					void SetAxis(const Vector3& A, const Vector3& B);
+					void SetBounce(int Index, float Bounce);
+					void SetServo(int Index, bool OnOff);
+					void SetTargetVelocity(int Index, float Velocity);
+					void SetServoTarget(int Index, float Target);
+					void SetMaxMotorForce(int Index, float Force);
+					void SetStiffness(int Index, float Stiffness, bool LimitIfNeeded = true);
+					void SetEquilibriumPoint();
+					void SetEquilibriumPoint(int Index);
+					void SetEquilibriumPoint(int Index, float Value);
+					Vector3 GetAngularUpperLimit() const;
+					Vector3 GetAngularUpperLimitReversed() const;
+					Vector3 GetAngularLowerLimit() const;
+					Vector3 GetAngularLowerLimitReversed() const;
+					Vector3 GetLinearUpperLimit() const;
+					Vector3 GetLinearLowerLimit() const;
+					Vector3 GetAxis(int Value) const;
+					Rotator GetRotationOrder() const;
+					float GetAngle(int Value) const;
+					float GetRelativePivotPosition(int Value) const;
+					bool IsLimited(int LimitIndex) const;
+					Desc& GetState();
+				*/
+
+				VMTypeClass VSimulatorDesc = Engine->Global().SetPod<Compute::Simulator::Desc>("physics_simulator_desc");
+				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("vector3 water_normal", &Compute::Simulator::Desc::WaterNormal);
+				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("vector3 gravity", &Compute::Simulator::Desc::Gravity);
+				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("float air_density", &Compute::Simulator::Desc::AirDensity);
+				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("float water_density", &Compute::Simulator::Desc::WaterDensity);
+				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("float water_offset", &Compute::Simulator::Desc::WaterOffset);
+				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("float max_displacement", &Compute::Simulator::Desc::MaxDisplacement);
+				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("bool enable_soft_body", &Compute::Simulator::Desc::EnableSoftBody);
+				VSimulatorDesc.SetConstructor<Compute::Simulator::Desc>("void f()");
+
+				VSimulator.SetProperty<Compute::Simulator>("float time_speed", &Compute::Simulator::TimeSpeed);
+				VSimulator.SetProperty<Compute::Simulator>("int interpolate", &Compute::Simulator::Interpolate);
+				VSimulator.SetProperty<Compute::Simulator>("bool active", &Compute::Simulator::Active);
+				VSimulator.SetUnmanagedConstructor<Compute::Simulator, const Compute::Simulator::Desc&>("physics_simulator@ f(const physics_simulator_desc &in)");
+				VSimulator.SetMethod("void set_gravity(const vector3 &in)", &Compute::Simulator::SetGravity);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, bool>("void set_linear_impulse(const vector3 &in, bool = false)", &Compute::Simulator::SetLinearImpulse);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, int, int, bool>("void set_linear_impulse(const vector3 &in, int, int, bool = false)", &Compute::Simulator::SetLinearImpulse);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, bool>("void set_angular_impulse(const vector3 &in, bool = false)", &Compute::Simulator::SetAngularImpulse);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, int, int, bool>("void set_angular_impulse(const vector3 &in, int, int, bool = false)", &Compute::Simulator::SetAngularImpulse);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, bool>("void create_linear_impulse(const vector3 &in, bool = false)", &Compute::Simulator::CreateLinearImpulse);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, int, int, bool>("void create_linear_impulse(const vector3 &in, int, int, bool = false)", &Compute::Simulator::CreateLinearImpulse);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, bool>("void create_angular_impulse(const vector3 &in, bool = false)", &Compute::Simulator::CreateAngularImpulse);
+				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, int, int, bool>("void create_angular_impulse(const vector3 &in, int, int, bool = false)", &Compute::Simulator::CreateAngularImpulse);
+				VSimulator.SetMethod("void add_softbody(physics_softbody@+)", &Compute::Simulator::AddSoftBody);
+				VSimulator.SetMethod("void remove_softbody(physics_softbody@+)", &Compute::Simulator::RemoveSoftBody);
+				VSimulator.SetMethod("void add_rigidbody(physics_rigidbody@+)", &Compute::Simulator::AddRigidBody);
+				VSimulator.SetMethod("void remove_rigidbody(physics_rigidbody@+)", &Compute::Simulator::RemoveRigidBody);
+				VSimulator.SetMethod("void add_constraint(physics_constraint@+)", &Compute::Simulator::AddConstraint);
+				VSimulator.SetMethod("void remove_constraint(physics_constraint@+)", &Compute::Simulator::RemoveConstraint);
+				VSimulator.SetMethod("void remove_all()", &Compute::Simulator::RemoveAll);
+				VSimulator.SetMethod("void simulate(int, float, float)", &Compute::Simulator::Simulate);
+				VSimulator.SetMethod<Compute::Simulator, Compute::RigidBody*, const Compute::RigidBody::Desc&>("physics_rigidbody@ create_rigidbody(const physics_rigidbody_desc &in)", &Compute::Simulator::CreateRigidBody);
+				VSimulator.SetMethod<Compute::Simulator, Compute::RigidBody*, const Compute::RigidBody::Desc&, Compute::Transform*>("physics_rigidbody@ create_rigidbody(const physics_rigidbody_desc &in, transform@+)", &Compute::Simulator::CreateRigidBody);
+				VSimulator.SetMethod<Compute::Simulator, Compute::SoftBody*, const Compute::SoftBody::Desc&>("physics_softbody@ create_softbody(const physics_softbody_desc &in)", &Compute::Simulator::CreateSoftBody);
+				VSimulator.SetMethod<Compute::Simulator, Compute::SoftBody*, const Compute::SoftBody::Desc&, Compute::Transform*>("physics_softbody@ create_softbody(const physics_softbody_desc &in, transform@+)", &Compute::Simulator::CreateSoftBody);
+				VSimulator.SetMethod("physics_pconstraint@ create_pconstraint(const physics_pconstraint_desc &in)", &Compute::Simulator::CreatePoint2PointConstraint);
+				VSimulator.SetMethod("physics_hconstraint@ create_hconstraint(const physics_hconstraint_desc &in)", &Compute::Simulator::CreateHingeConstraint);
+				VSimulator.SetMethod("physics_sconstraint@ create_sconstraint(const physics_sconstraint_desc &in)", &Compute::Simulator::CreateSliderConstraint);
+				VSimulator.SetMethod("physics_ctconstraint@ create_ctconstraint(const physics_ctconstraint_desc &in)", &Compute::Simulator::CreateConeTwistConstraint);
+				VSimulator.SetMethod("physics_df6constraint@ create_df6constraint(const physics_df6constraint_desc &in)", &Compute::Simulator::Create6DoFConstraint);
+				VSimulator.SetMethod("uptr@ create_shape(physics_shape)", &Compute::Simulator::CreateShape);
+				VSimulator.SetMethod("uptr@ create_cube(const vector3 &in = vector3(1, 1, 1))", &Compute::Simulator::CreateCube);
+				VSimulator.SetMethod("uptr@ create_sphere(float = 1)", &Compute::Simulator::CreateSphere);
+				VSimulator.SetMethod("uptr@ create_capsule(float = 1, float = 1)", &Compute::Simulator::CreateCapsule);
+				VSimulator.SetMethod("uptr@ create_cone(float = 1, float = 1)", &Compute::Simulator::CreateCone);
+				VSimulator.SetMethod("uptr@ create_cylinder(const vector3 &in = vector3(1, 1, 1))", &Compute::Simulator::CreateCylinder);
+				VSimulator.SetMethodEx("uptr@ create_convex_hull(array<skin_vertex>@+)", &SimulatorCreateConvexHullSkinVertex);
+				VSimulator.SetMethodEx("uptr@ create_convex_hull(array<vertex>@+)", &SimulatorCreateConvexHullVertex);
+				VSimulator.SetMethodEx("uptr@ create_convex_hull(array<vector2>@+)", &SimulatorCreateConvexHullVector2);
+				VSimulator.SetMethodEx("uptr@ create_convex_hull(array<vector3>@+)", &SimulatorCreateConvexHullVector3);
+				VSimulator.SetMethodEx("uptr@ create_convex_hull(array<vector4>@+)", &SimulatorCreateConvexHullVector4);
+				VSimulator.SetMethod<Compute::Simulator, btCollisionShape*, btCollisionShape*>("uptr@ create_convex_hull(uptr@)", &Compute::Simulator::CreateConvexHull);
+				VSimulator.SetMethod("uptr@ try_clone_shape(uptr@)", &Compute::Simulator::TryCloneShape);
+				VSimulator.SetMethod("uptr@ reuse_shape(uptr@)", &Compute::Simulator::ReuseShape);
+				VSimulator.SetMethod("void free_shape(uptr@)", &Compute::Simulator::FreeShape);
+				VSimulator.SetMethodEx("array<vector3>@ get_shape_vertices(uptr@) const", &SimulatorGetShapeVertices);
+				VSimulator.SetMethod("usize get_shape_vertices_count(uptr@) const", &Compute::Simulator::GetShapeVerticesCount);
+				VSimulator.SetMethod("float get_max_displacement() const", &Compute::Simulator::GetMaxDisplacement);
+				VSimulator.SetMethod("float get_air_density() const", &Compute::Simulator::GetAirDensity);
+				VSimulator.SetMethod("float get_water_offset() const", &Compute::Simulator::GetWaterOffset);
+				VSimulator.SetMethod("float get_water_density() const", &Compute::Simulator::GetWaterDensity);
+				VSimulator.SetMethod("vector3 get_water_normal() const", &Compute::Simulator::GetWaterNormal);
+				VSimulator.SetMethod("vector3 get_gravity() const", &Compute::Simulator::GetGravity);
+				VSimulator.SetMethod("bool has_softbody_support() const", &Compute::Simulator::HasSoftBodySupport);
+				VSimulator.SetMethod("int get_contact_manifold_count() const", &Compute::Simulator::GetContactManifoldCount);
+
+				VConstraint.SetOperatorEx(VMOpFunc::Cast, 0, "physics_pconstraint@+", "", &ConstraintToPConstraint);
+				VConstraint.SetOperatorEx(VMOpFunc::Cast, 0, "physics_hconstraint@+", "", &ConstraintToHConstraint);
+				VConstraint.SetOperatorEx(VMOpFunc::Cast, 0, "physics_sconstraint@+", "", &ConstraintToSConstraint);
+				VConstraint.SetOperatorEx(VMOpFunc::Cast, 0, "physics_ctconstraint@+", "", &ConstraintToCTConstraint);
+				VConstraint.SetOperatorEx(VMOpFunc::Cast, 0, "physics_df6constraint@+", "", &ConstraintToDF6Constraint);
+				VPConstraint.SetOperatorEx(VMOpFunc::ImplCast, 0, "physics_constraint@+", "", &PConstraintToConstraint);
+				VPConstraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &PConstraintToConstraint);
+				VHConstraint.SetOperatorEx(VMOpFunc::ImplCast, 0, "physics_constraint@+", "", &HConstraintToConstraint);
+				VHConstraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &HConstraintToConstraint);
+				VSConstraint.SetOperatorEx(VMOpFunc::ImplCast, 0, "physics_constraint@+", "", &SConstraintToConstraint);
+				VSConstraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &SConstraintToConstraint);
+				VCTConstraint.SetOperatorEx(VMOpFunc::ImplCast, 0, "physics_constraint@+", "", &CTConstraintToConstraint);
+				VCTConstraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &CTConstraintToConstraint);
+				VDF6Constraint.SetOperatorEx(VMOpFunc::ImplCast, 0, "physics_constraint@+", "", &DF6ConstraintToConstraint);
+				VDF6Constraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &DF6ConstraintToConstraint);
 
 				return true;
 			}

@@ -1564,7 +1564,7 @@ namespace Edge
 		public:
 			VMContext(VMCContext* Base) noexcept;
 			virtual ~VMContext() noexcept override;
-			Core::Promise<int> TryExecute(const VMFunction& Function, ArgsCallback&& OnArgs);
+			Core::Promise<int> TryExecute(bool IsNested, const VMFunction& Function, ArgsCallback&& OnArgs);
 			int SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			int Prepare(const VMFunction& Function);
 			int Unprepare();

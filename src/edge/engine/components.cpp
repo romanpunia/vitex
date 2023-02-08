@@ -3871,7 +3871,7 @@ namespace Edge
 					return (int)Script::VMResult::INVALID_ARG;
 
 				Protect();
-				return Compiler->GetContext()->TryExecute(Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				return Compiler->GetContext()->TryExecute(false, Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
 				{
 					if (OnArgs)
 						OnArgs(Context);

@@ -1817,6 +1817,7 @@ namespace Edge
 			const Bounding& GetArea(void* Item);
 			const std::unordered_map<void*, size_t>& GetItems() const;
 			const std::vector<Node>& GetNodes() const;
+			size_t GetNodesCount() const;
 			size_t GetHeight() const;
 			size_t GetMaxBalance() const;
 			size_t GetRoot() const;

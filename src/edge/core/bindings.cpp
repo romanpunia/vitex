@@ -6284,23 +6284,28 @@ namespace Edge
 
 			btCollisionShape* SimulatorCreateConvexHullSkinVertex(Compute::Simulator* Base, Array* Data)
 			{
-				return Base->CreateConvexHull(Array::Decompose<Compute::SkinVertex>(Data));
+				auto Value = Array::Decompose<Compute::SkinVertex>(Data);
+				return Base->CreateConvexHull(Value);
 			}
 			btCollisionShape* SimulatorCreateConvexHullVertex(Compute::Simulator* Base, Array* Data)
 			{
-				return Base->CreateConvexHull(Array::Decompose<Compute::Vertex>(Data));
+				auto Value = Array::Decompose<Compute::Vertex>(Data);
+				return Base->CreateConvexHull(Value);
 			}
 			btCollisionShape* SimulatorCreateConvexHullVector2(Compute::Simulator* Base, Array* Data)
 			{
-				return Base->CreateConvexHull(Array::Decompose<Compute::Vector2>(Data));
+				auto Value = Array::Decompose<Compute::Vector2>(Data);
+				return Base->CreateConvexHull(Value);
 			}
 			btCollisionShape* SimulatorCreateConvexHullVector3(Compute::Simulator* Base, Array* Data)
 			{
-				return Base->CreateConvexHull(Array::Decompose<Compute::Vector3>(Data));
+				auto Value = Array::Decompose<Compute::Vector3>(Data);
+				return Base->CreateConvexHull(Value);
 			}
 			btCollisionShape* SimulatorCreateConvexHullVector4(Compute::Simulator* Base, Array* Data)
 			{
-				return Base->CreateConvexHull(Array::Decompose<Compute::Vector4>(Data));
+				auto Value = Array::Decompose<Compute::Vector4>(Data);
+				return Base->CreateConvexHull(Value);
 			}
 			Array* SimulatorGetShapeVertices(Compute::Simulator* Base, btCollisionShape* Shape)
 			{

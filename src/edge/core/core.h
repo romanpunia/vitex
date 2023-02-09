@@ -1032,8 +1032,8 @@ namespace Edge
 			class ED_OUT File
 			{
 			public:
-				static bool Write(const char* Path, const char* Data, size_t Length);
-				static bool Write(const char* Path, const std::string& Data);
+				static bool Write(const std::string& Path, const char* Data, size_t Length);
+				static bool Write(const std::string& Path, const std::string& Data);
 				static bool State(const std::string& Path, FileEntry* Resource);
 				static bool Move(const char* From, const char* To);
 				static bool Remove(const char* Path);
@@ -1044,10 +1044,10 @@ namespace Edge
 				static Unique<Stream> Open(const std::string& Path, FileMode Mode, bool Async = false);
 				static Unique<void> Open(const char* Path, const char* Mode);
 				static Unique<unsigned char> ReadChunk(Stream* Stream, size_t Length);
-				static Unique<unsigned char> ReadAll(const char* Path, size_t* ByteLength);
+				static Unique<unsigned char> ReadAll(const std::string& Path, size_t* ByteLength);
 				static Unique<unsigned char> ReadAll(Stream* Stream, size_t* ByteLength);
-				static std::string ReadAsString(const char* Path);
-				static std::vector<std::string> ReadAsArray(const char* Path);
+				static std::string ReadAsString(const std::string& Path);
+				static std::vector<std::string> ReadAsArray(const std::string& Path);
 			};
 
 			class ED_OUT Path

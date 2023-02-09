@@ -3640,7 +3640,7 @@ namespace Edge
 					if (!Base.EndsWith(".json"))
 						continue;
 
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base.Get(), &Size);
+					char* Buffer = (char*)Core::OS::File::ReadAll(Base.R(), &Size);
 					if (!Buffer)
 						continue;
 

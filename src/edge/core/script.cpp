@@ -2189,7 +2189,7 @@ namespace Edge
 				return -1;
 			}
 
-			std::string Buffer = Core::OS::File::ReadAsString(Source.c_str());
+			std::string Buffer = Core::OS::File::ReadAsString(Source);
 			if (!Processor->Process(Source, Buffer))
 				return asINVALID_DECLARATION;
 
@@ -3647,7 +3647,7 @@ namespace Edge
 		bool VMManager::VerifyModule(const std::string& Path)
 		{
 			ED_ASSERT(Engine != nullptr, false, "engine should be set");
-			std::string Source = Core::OS::File::ReadAsString(Path.c_str());
+			std::string Source = Core::OS::File::ReadAsString(Path);
 			if (Source.empty())
 				return true;
 
@@ -3748,7 +3748,7 @@ namespace Edge
 			if (!Cached)
 			{
 				if (Out != nullptr)
-					Out->assign(Core::OS::File::ReadAsString(Path.c_str()));
+					Out->assign(Core::OS::File::ReadAsString(Path));
 
 				return true;
 			}
@@ -3765,7 +3765,7 @@ namespace Edge
 			}
 
 			std::string& Result = Files[Path];
-			Result = Core::OS::File::ReadAsString(Path.c_str());
+			Result = Core::OS::File::ReadAsString(Path);
 			if (Out != nullptr)
 				Out->assign(Result);
 
@@ -3939,7 +3939,7 @@ namespace Edge
 
 			if (!Cached)
 			{
-				std::string Data = Core::OS::File::ReadAsString(File.c_str());
+				std::string Data = Core::OS::File::ReadAsString(File);
 				return Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
 			}
 
@@ -3954,7 +3954,7 @@ namespace Edge
 			}
 
 			Core::Schema*& Result = Datas[File];
-			std::string Data = Core::OS::File::ReadAsString(File.c_str());
+			std::string Data = Core::OS::File::ReadAsString(File);
 			Result = Core::Schema::ConvertFromJSON(Data.c_str(), Data.size());
 
 			Core::Schema* Copy = nullptr;
@@ -4109,6 +4109,7 @@ namespace Edge
 			Engine->AddSubmodule("std/geometric", { "std/vectors", "std/vertices", "std/shapes" }, Bindings::Registry::LoadGeometric);
 			Engine->AddSubmodule("std/preprocessor", { "std/string" }, Bindings::Registry::LoadPreprocessor);
 			Engine->AddSubmodule("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::LoadPhysics);
+			Engine->AddSubmodule("std/audio", { "std/string", "std/vectors" }, Bindings::Registry::LoadAudio);
 			Engine->AddSubmodule("std/gui_control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
 			Engine->AddSubmodule("std/gui_model", { "std/gui_control", }, Bindings::Registry::LoadUiModel);
 			Engine->AddSubmodule("std/gui_context", { "std/gui_model" }, Bindings::Registry::LoadUiContext);

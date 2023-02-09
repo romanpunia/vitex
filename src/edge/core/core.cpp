@@ -7230,33 +7230,30 @@ namespace Edge
 			return true;
 #endif
 		}
-		bool OS::File::Write(const char* Path, const char* Data, size_t Length)
+		bool OS::File::Write(const std::string& Path, const char* Data, size_t Length)
 		{
-			ED_ASSERT(Path != nullptr, false, "path should be set");
 			ED_ASSERT(Data != nullptr, false, "data should be set");
-
-			FILE* Stream = (FILE*)Open(Path, "wb");
+			auto* Stream = Open(Path, FileMode::Binary_Write_Only);
 			if (!Stream)
 				return false;
 
 			ED_MEASURE(ED_TIMING_IO);
-			fwrite((const void*)Data, (size_t)Length, 1, Stream);
-			ED_CLOSE(Stream);
+			size_t Size = Stream->Write(Data, Length);
+			ED_RELEASE(Stream);
 
-			return true;
+			return Size == Length;
 		}
-		bool OS::File::Write(const char* Path, const std::string& Data)
+		bool OS::File::Write(const std::string& Path, const std::string& Data)
 		{
-			ED_ASSERT(Path != nullptr, false, "path should be set");
-			FILE* Stream = (FILE*)Open(Path, "wb");
+			auto* Stream = Open(Path, FileMode::Binary_Write_Only);
 			if (!Stream)
 				return false;
 
 			ED_MEASURE(ED_TIMING_IO);
-			fwrite((const void*)Data.c_str(), (size_t)Data.size(), 1, Stream);
-			ED_CLOSE(Stream);
+			size_t Size = Stream->Write(Data.data(), Data.size());
+			ED_RELEASE(Stream);
 
-			return true;
+			return Size == Data.size();
 		}
 		bool OS::File::Move(const char* From, const char* To)
 		{
@@ -7420,49 +7417,68 @@ namespace Edge
 
 			return nullptr;
 		}
-		unsigned char* OS::File::ReadAll(const char* Path, size_t* Length)
+		unsigned char* OS::File::ReadAll(const std::string& Path, size_t* Length)
 		{
-			ED_ASSERT(Path != nullptr, nullptr, "path should be set");
-			FILE* Stream = (FILE*)Open(Path, "rb");
+			auto* Stream = Open(Path, FileMode::Binary_Read_Only);
 			if (!Stream)
 				return nullptr;
 
-			ED_MEASURE(ED_TIMING_IO);
-			fseek(Stream, 0, SEEK_END);
-			size_t Size = ftell(Stream);
-			fseek(Stream, 0, SEEK_SET);
-
-			auto* Bytes = ED_MALLOC(unsigned char, sizeof(unsigned char) * (Size + 1));
-			if ((size_t)fread((char*)Bytes, sizeof(unsigned char), Size, Stream) != Size)
-			{
-				ED_CLOSE(Stream);
-				ED_FREE(Bytes);
-
-				if (Length != nullptr)
-					*Length = 0;
-
-				return nullptr;
-			}
-
-			Bytes[Size] = '\0';
-			if (Length != nullptr)
-				*Length = Size;
-
-			ED_CLOSE(Stream);
-			return Bytes;
+			return ReadAll(Stream, Length);
 		}
 		unsigned char* OS::File::ReadAll(Stream* Stream, size_t* Length)
 		{
-			ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
+			ED_ASSERT(Stream != nullptr, nullptr, "path should be set");
+			ED_MEASURE(ED_TIMING_IO);
 			size_t Size = Stream->GetSize();
-			auto* Bytes = ED_MALLOC(unsigned char, sizeof(unsigned char) * (Size + 1));
-			Stream->Read((char*)Bytes, Size * sizeof(unsigned char));
-			Bytes[Size] = '\0';
+			if (Size > 0)
+			{
+				auto* Bytes = ED_MALLOC(unsigned char, sizeof(unsigned char) * (Size + 1));
+				if (!Stream->Read((char*)Bytes, Size))
+				{
+					ED_RELEASE(Stream);
+					ED_FREE(Bytes);
 
-			if (Length != nullptr)
-				*Length = Size;
+					if (Length != nullptr)
+						*Length = 0;
 
-			return Bytes;
+					return nullptr;
+				}
+
+				Bytes[Size] = '\0';
+				if (Length != nullptr)
+					*Length = Size;
+
+				ED_RELEASE(Stream);
+				return Bytes;
+			}
+			else
+			{
+				std::string Data;
+				Stream->ReadAll([&Data](char* Buffer, size_t Length)
+				{
+					Data.reserve(Data.size() + Length);
+					Data.append(Buffer, Length);
+				});
+
+				if (Data.empty())
+				{
+					ED_RELEASE(Stream);
+					if (Length != nullptr)
+						*Length = 0;
+
+					return nullptr;
+				}
+
+				auto* Bytes = ED_MALLOC(unsigned char, sizeof(unsigned char) * (Data.size() + 1));
+				memcpy(Bytes, Data.data(), sizeof(unsigned char) * Data.size());
+				Bytes[Size] = '\0';
+
+				if (Length != nullptr)
+					*Length = Size;
+
+				ED_RELEASE(Stream);
+				return Bytes;
+			}
 		}
 		unsigned char* OS::File::ReadChunk(Stream* Stream, size_t Length)
 		{
@@ -7473,9 +7489,8 @@ namespace Edge
 
 			return Bytes;
 		}
-		std::string OS::File::ReadAsString(const char* Path)
+		std::string OS::File::ReadAsString(const std::string& Path)
 		{
-			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
 			size_t Length = 0;
 			char* Data = (char*)ReadAll(Path, &Length);
 			if (!Data)
@@ -7486,36 +7501,9 @@ namespace Edge
 
 			return Output;
 		}
-		std::vector<std::string> OS::File::ReadAsArray(const char* Path)
+		std::vector<std::string> OS::File::ReadAsArray(const std::string& Path)
 		{
-			ED_ASSERT(Path != nullptr, std::vector<std::string>(), "path should be set");
-			FILE* Stream = (FILE*)Open(Path, "rb");
-			if (!Stream)
-				return std::vector<std::string>();
-
-			ED_MEASURE(ED_TIMING_IO);
-			fseek(Stream, 0, SEEK_END);
-			size_t Length = ftell(Stream);
-			fseek(Stream, 0, SEEK_SET);
-
-			char* Buffer = ED_MALLOC(char, sizeof(char) * Length);
-			if (!Buffer)
-			{
-				ED_CLOSE(Stream);
-				return std::vector<std::string>();
-			}
-
-			if ((size_t)fread(Buffer, sizeof(char), Length, Stream) != Length)
-			{
-				ED_CLOSE(Stream);
-				ED_FREE(Buffer);
-				return std::vector<std::string>();
-			}
-
-			std::string Result(Buffer, Length);
-			ED_CLOSE(Stream);
-			ED_FREE(Buffer);
-
+			std::string Result = ReadAsString(Path);
 			return Parser(&Result).Split('\n');
 		}
 

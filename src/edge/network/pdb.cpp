@@ -2440,7 +2440,7 @@ namespace Edge
 					if (!Base.EndsWith(".sql"))
 						continue;
 
-					char* Buffer = (char*)Core::OS::File::ReadAll(Base.Get(), &Size);
+					char* Buffer = (char*)Core::OS::File::ReadAll(Base.R(), &Size);
 					if (!Buffer)
 						continue;
 

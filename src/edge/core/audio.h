@@ -241,7 +241,7 @@ namespace Edge
 			virtual ~AudioSource() noexcept override;
 			int64_t AddEffect(AudioEffect* Effect);
 			bool RemoveEffect(size_t EffectId);
-			bool RemoveEffectById(size_t EffectId);
+			bool RemoveEffectById(uint64_t EffectId);
 			void SetClip(AudioClip* Clip);
 			void Synchronize(AudioSync* Sync, const Compute::Vector3& Position);
 			void Reset();
@@ -249,6 +249,7 @@ namespace Edge
 			void Play();
 			void Stop();
 			bool IsPlaying() const;
+			size_t GetEffectsCount() const;
 			AudioClip* GetClip() const;
 			AudioEffect* GetEffect(uint64_t Section) const;
 			unsigned int GetInstance() const;

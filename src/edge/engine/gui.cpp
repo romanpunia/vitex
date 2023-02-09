@@ -3913,7 +3913,7 @@ namespace Edge
 				Elements.clear();
 
 				size_t Length = 0;
-				unsigned char* Buffer = Core::OS::File::ReadAll(Path.c_str(), &Length);
+				unsigned char* Buffer = Core::OS::File::ReadAll(Path, &Length);
 				if (!Buffer)
 				{
 				ErrorState:
@@ -4229,7 +4229,7 @@ namespace Edge
 						return false;
 
 					size_t Length;
-					unsigned char* Data = Core::OS::File::ReadAll(File.Module.c_str(), &Length);
+					unsigned char* Data = Core::OS::File::ReadAll(File.Module, &Length);
 					if (!Data)
 						return false;
 

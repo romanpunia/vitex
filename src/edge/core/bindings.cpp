@@ -211,6 +211,13 @@ namespace Edge
 	{
 		namespace Bindings
 		{
+			template <typename T, typename V>
+			void PopulateComponent(V& Base)
+			{
+				Base.SetMethod("uptr@ get_name() const", &T::GetName);
+				Base.SetMethod("uint64 get_id() const", &T::GetId);
+			}
+
 			Core::Mapping<std::unordered_map<uint64_t, std::pair<std::string, int>>>* Names = nullptr;
 			uint64_t TypeCache::Set(uint64_t Id, const std::string& Name)
 			{
@@ -639,6 +646,15 @@ namespace Edge
 			std::string String::ToDouble(double Value)
 			{
 				return std::to_string(Value);
+			}
+			std::string String::ToPointer(void* Value)
+			{
+				char* Buffer = (char*)Value;
+				if (!Buffer)
+					return std::string();
+
+				size_t Size = strlen(Buffer);
+				return Size > 1024 * 1024 * 1024 ? std::string() : std::string(Buffer, Size);
 			}
 			Array* String::Split(const std::string& Splitter, const std::string& Current)
 			{
@@ -5654,10 +5670,6 @@ namespace Edge
 				return Core::OS::Directory::Set(Path.c_str());
 			}
 
-			bool OSFileWrite(const std::string& Path, const std::string& Data)
-			{
-				return Core::OS::File::Write(Path.c_str(), Data);
-			}
 			bool OSFileState(const std::string& Path, Core::FileEntry& Data)
 			{
 				return Core::OS::File::State(Path.c_str(), &Data);
@@ -5678,14 +5690,10 @@ namespace Edge
 			{
 				return Core::OS::File::GetProperties(Path.c_str());
 			}
-			std::string OSFileReadAsString(const std::string& Path)
-			{
-				return Core::OS::File::ReadAsString(Path.c_str());
-			}
 			Array* OSFileReadAsArray(const std::string& Path)
 			{
 				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_STRING ">@");
-				return Array::Compose<std::string>(Type.GetTypeInfo(), Core::OS::File::ReadAsArray(Path.c_str()));
+				return Array::Compose<std::string>(Type.GetTypeInfo(), Core::OS::File::ReadAsArray(Path));
 			}
 
 			bool OSPathIsRemote(const std::string& Path)
@@ -6313,6 +6321,12 @@ namespace Edge
 				return Array::Compose(Type.GetTypeInfo(), Base->GetShapeVertices(Shape));
 			}
 
+			bool AudioEffectSetFilter(Audio::AudioEffect* Base, Audio::AudioFilter* New)
+			{
+				Audio::AudioFilter* Copy = New;
+				return Base->SetFilter(&Copy);
+			}
+
 			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
@@ -6889,6 +6903,7 @@ namespace Edge
 				Engine->RegisterGlobalFunction("string to_string(uint64)", asFUNCTION(String::ToUInt64), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(float)", asFUNCTION(String::ToFloat), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("string to_string(double)", asFUNCTION(String::ToDouble), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("string to_string(uptr@)", asFUNCTION(String::ToPointer), asCALL_CDECL);
 
 				return true;
 			}
@@ -7197,6 +7212,7 @@ namespace Edge
 				VConsole.SetMethod("void color_end()", &Core::Console::ColorEnd);
 				VConsole.SetMethod("void capture_time()", &Core::Console::CaptureTime);
 				VConsole.SetMethod("void write_line(const string &in)", &Core::Console::sWriteLine);
+				VConsole.SetMethod("void write_char(uint8)", &Core::Console::WriteChar);
 				VConsole.SetMethod("void write(const string &in)", &Core::Console::sWrite);
 				VConsole.SetMethod("double get_captured_time()", &Core::Console::GetCapturedTime);
 				VConsole.SetMethod("string read(usize)", &Core::Console::Read);
@@ -7475,13 +7491,13 @@ namespace Edge
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::file");
-				Register.SetFunction("bool write(const string &in, const string &in)", &OSFileWrite);
+				Register.SetFunction<bool(const std::string&, const std::string&)>("bool write(const string &in, const string &in)", &Core::OS::File::Write);
 				Register.SetFunction("bool state(const string &in, file_entry &out)", &OSFileState);
 				Register.SetFunction("bool move(const string &in, const string &in)", &OSFileMove);
 				Register.SetFunction("bool remove(const string &in)", &OSFileRemove);
 				Register.SetFunction("bool is_exists(const string &in)", &OSFileIsExists);
 				Register.SetFunction("file_state get_properties(const string &in)", &OSFileGetProperties);
-				Register.SetFunction("string read_as_string(const string &in)", &OSFileReadAsString);
+				Register.SetFunction("string read_as_string(const string &in)", &Core::OS::File::ReadAsString);
 				Register.SetFunction("array<string>@ read_as_array(const string &in)", &OSFileReadAsArray);
 				Register.SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
 				Register.SetFunction("int64 get_check_sum(const string &in)", &Core::OS::File::GetCheckSum);
@@ -9038,65 +9054,63 @@ namespace Edge
 				VSConstraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::SConstraint::SetBreakingImpulseThreshold);
 				VSConstraint.SetMethod("void set_enabled(bool)", &Compute::SConstraint::SetEnabled);
 				VSConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::SConstraint::GetBreakingImpulseThreshold);
-				/*
-					void SetAngularMotorVelocity(float Value);
-					void SetLinearMotorVelocity(float Value);
-					void SetUpperLinearLimit(float Value);
-					void SetLowerLinearLimit(float Value);
-					void SetAngularDampingDirection(float Value);
-					void SetLinearDampingDirection(float Value);
-					void SetAngularDampingLimit(float Value);
-					void SetLinearDampingLimit(float Value);
-					void SetAngularDampingOrtho(float Value);
-					void SetLinearDampingOrtho(float Value);
-					void SetUpperAngularLimit(float Value);
-					void SetLowerAngularLimit(float Value);
-					void SetMaxAngularMotorForce(float Value);
-					void SetMaxLinearMotorForce(float Value);
-					void SetAngularRestitutionDirection(float Value);
-					void SetLinearRestitutionDirection(float Value);
-					void SetAngularRestitutionLimit(float Value);
-					void SetLinearRestitutionLimit(float Value);
-					void SetAngularRestitutionOrtho(float Value);
-					void SetLinearRestitutionOrtho(float Value);
-					void SetAngularSoftnessDirection(float Value);
-					void SetLinearSoftnessDirection(float Value);
-					void SetAngularSoftnessLimit(float Value);
-					void SetLinearSoftnessLimit(float Value);
-					void SetAngularSoftnessOrtho(float Value);
-					void SetLinearSoftnessOrtho(float Value);
-					void SetPoweredAngularMotor(bool Value);
-					void SetPoweredLinearMotor(bool Value);
-					float GetAngularMotorVelocity() const;
-					float GetLinearMotorVelocity() const;
-					float GetUpperLinearLimit() const;
-					float GetLowerLinearLimit() const;
-					float GetAngularDampingDirection() const;
-					float GetLinearDampingDirection() const;
-					float GetAngularDampingLimit() const;
-					float GetLinearDampingLimit() const;
-					float GetAngularDampingOrtho() const;
-					float GetLinearDampingOrtho() const;
-					float GetUpperAngularLimit() const;
-					float GetLowerAngularLimit() const;
-					float GetMaxAngularMotorForce() const;
-					float GetMaxLinearMotorForce() const;
-					float GetAngularRestitutionDirection() const;
-					float GetLinearRestitutionDirection() const;
-					float GetAngularRestitutionLimit() const;
-					float GetLinearRestitutionLimit() const;
-					float GetAngularRestitutionOrtho() const;
-					float GetLinearRestitutionOrtho() const;
-					float GetAngularSoftnessDirection() const;
-					float GetLinearSoftnessDirection() const;
-					float GetAngularSoftnessLimit() const;
-					float GetLinearSoftnessLimit() const;
-					float GetAngularSoftnessOrtho() const;
-					float GetLinearSoftnessOrtho() const;
-					bool GetPoweredAngularMotor() const;
-					bool GetPoweredLinearMotor() const;
-					Desc& GetState();
-				*/
+				VSConstraint.SetMethod("void set_angular_motor_velocity(float)", &Compute::SConstraint::SetAngularMotorVelocity);
+				VSConstraint.SetMethod("void set_linear_motor_velocity(float)", &Compute::SConstraint::SetLinearMotorVelocity);
+				VSConstraint.SetMethod("void set_upper_linear_limit(float)", &Compute::SConstraint::SetUpperLinearLimit);
+				VSConstraint.SetMethod("void set_lower_linear_limit(float)", &Compute::SConstraint::SetLowerLinearLimit);
+				VSConstraint.SetMethod("void set_angular_damping_direction(float)", &Compute::SConstraint::SetAngularDampingDirection);
+				VSConstraint.SetMethod("void set_linear_damping_direction(float)", &Compute::SConstraint::SetLinearDampingDirection);
+				VSConstraint.SetMethod("void set_angular_damping_limit(float)", &Compute::SConstraint::SetAngularDampingLimit);
+				VSConstraint.SetMethod("void set_linear_damping_limit(float)", &Compute::SConstraint::SetLinearDampingLimit);
+				VSConstraint.SetMethod("void set_angular_damping_ortho(float)", &Compute::SConstraint::SetAngularDampingOrtho);
+				VSConstraint.SetMethod("void set_linear_damping_ortho(float)", &Compute::SConstraint::SetLinearDampingOrtho);
+				VSConstraint.SetMethod("void set_upper_angular_limit(float)", &Compute::SConstraint::SetUpperAngularLimit);
+				VSConstraint.SetMethod("void set_lower_angular_limit(float)", &Compute::SConstraint::SetLowerAngularLimit);
+				VSConstraint.SetMethod("void set_max_angular_motor_force(float)", &Compute::SConstraint::SetMaxAngularMotorForce);
+				VSConstraint.SetMethod("void set_max_linear_motor_force(float)", &Compute::SConstraint::SetMaxLinearMotorForce);
+				VSConstraint.SetMethod("void set_angular_restitution_direction(float)", &Compute::SConstraint::SetAngularRestitutionDirection);
+				VSConstraint.SetMethod("void set_linear_restitution_direction(float)", &Compute::SConstraint::SetLinearRestitutionDirection);
+				VSConstraint.SetMethod("void set_angular_restitution_limit(float)", &Compute::SConstraint::SetAngularRestitutionLimit);
+				VSConstraint.SetMethod("void set_linear_restitution_limit(float)", &Compute::SConstraint::SetLinearRestitutionLimit);
+				VSConstraint.SetMethod("void set_angular_restitution_ortho(float)", &Compute::SConstraint::SetAngularRestitutionOrtho);
+				VSConstraint.SetMethod("void set_linear_restitution_ortho(float)", &Compute::SConstraint::SetLinearRestitutionOrtho);
+				VSConstraint.SetMethod("void set_angular_softness_direction(float)", &Compute::SConstraint::SetAngularSoftnessDirection);
+				VSConstraint.SetMethod("void SetLinearSoftness_direction(float)", &Compute::SConstraint::SetLinearSoftnessDirection);
+				VSConstraint.SetMethod("void Set_angular_softness_limit(float)", &Compute::SConstraint::SetAngularSoftnessLimit);
+				VSConstraint.SetMethod("void Set_linear_softness_limit(float)", &Compute::SConstraint::SetLinearSoftnessLimit);
+				VSConstraint.SetMethod("void Set_angular_softness_ortho(float)", &Compute::SConstraint::SetAngularSoftnessOrtho);
+				VSConstraint.SetMethod("void set_linear_softness_ortho(float)", &Compute::SConstraint::SetLinearSoftnessOrtho);
+				VSConstraint.SetMethod("void set_powered_angular_motor(bool)", &Compute::SConstraint::SetPoweredAngularMotor);
+				VSConstraint.SetMethod("void set_powered_linear_motor(bool)", &Compute::SConstraint::SetPoweredLinearMotor);
+				VSConstraint.SetMethod("float getAngularMotorVelocity() const", &Compute::SConstraint::GetAngularMotorVelocity);
+				VSConstraint.SetMethod("float get_linear_motor_velocity() const", &Compute::SConstraint::GetLinearMotorVelocity);
+				VSConstraint.SetMethod("float get_upper_linear_limit() const", &Compute::SConstraint::GetUpperLinearLimit);
+				VSConstraint.SetMethod("float get_lower_linear_limit() const", &Compute::SConstraint::GetLowerLinearLimit);
+				VSConstraint.SetMethod("float get_angular_damping_direction() const", &Compute::SConstraint::GetAngularDampingDirection);
+				VSConstraint.SetMethod("float get_linear_damping_direction() const", &Compute::SConstraint::GetLinearDampingDirection);
+				VSConstraint.SetMethod("float get_angular_damping_limit() const", &Compute::SConstraint::GetAngularDampingLimit);
+				VSConstraint.SetMethod("float get_linear_damping_limit() const", &Compute::SConstraint::GetLinearDampingLimit);
+				VSConstraint.SetMethod("float get_angular_damping_ortho() const", &Compute::SConstraint::GetAngularDampingOrtho);
+				VSConstraint.SetMethod("float get_linear_damping_ortho() const", &Compute::SConstraint::GetLinearDampingOrtho);
+				VSConstraint.SetMethod("float get_upper_angular_limit() const", &Compute::SConstraint::GetUpperAngularLimit);
+				VSConstraint.SetMethod("float get_lower_angular_limit() const", &Compute::SConstraint::GetLowerAngularLimit);
+				VSConstraint.SetMethod("float get_max_angular_motor_force() const", &Compute::SConstraint::GetMaxAngularMotorForce);
+				VSConstraint.SetMethod("float get_max_linear_motor_force() const", &Compute::SConstraint::GetMaxLinearMotorForce);
+				VSConstraint.SetMethod("float get_angular_restitution_direction() const", &Compute::SConstraint::GetAngularRestitutionDirection);
+				VSConstraint.SetMethod("float get_linear_restitution_direction() const", &Compute::SConstraint::GetLinearRestitutionDirection);
+				VSConstraint.SetMethod("float get_angular_restitution_limit() const", &Compute::SConstraint::GetAngularRestitutionLimit);
+				VSConstraint.SetMethod("float get_linear_restitution_limit() const", &Compute::SConstraint::GetLinearRestitutionLimit);
+				VSConstraint.SetMethod("float get_angular_restitution_ortho() const", &Compute::SConstraint::GetAngularRestitutionOrtho);
+				VSConstraint.SetMethod("float get_linearRestitution_ortho() const", &Compute::SConstraint::GetLinearRestitutionOrtho);
+				VSConstraint.SetMethod("float get_angular_softness_direction() const", &Compute::SConstraint::GetAngularSoftnessDirection);
+				VSConstraint.SetMethod("float get_linear_softness_direction() const", &Compute::SConstraint::GetLinearSoftnessDirection);
+				VSConstraint.SetMethod("float get_angular_softness_limit() const", &Compute::SConstraint::GetAngularSoftnessLimit);
+				VSConstraint.SetMethod("float get_linear_softness_limit() const", &Compute::SConstraint::GetLinearSoftnessLimit);
+				VSConstraint.SetMethod("float get_angular_softness_ortho() const", &Compute::SConstraint::GetAngularSoftnessOrtho);
+				VSConstraint.SetMethod("float get_linear_softness_ortho() const", &Compute::SConstraint::GetLinearSoftnessOrtho);
+				VSConstraint.SetMethod("bool get_powered_angular_motor() const", &Compute::SConstraint::GetPoweredAngularMotor);
+				VSConstraint.SetMethod("bool get_powered_linear_motor() const", &Compute::SConstraint::GetPoweredLinearMotor);
+				VSConstraint.SetMethod("physics_sconstraint_desc& get_state()", &Compute::SConstraint::GetState);
 
 				VMTypeClass VCTConstraintDesc = Engine->Global().SetPod<Compute::CTConstraint::Desc>("physics_ctconstraint_desc");
 				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("physics_rigidbody@ target_a", &Compute::CTConstraint::Desc::TargetA);
@@ -9116,40 +9130,38 @@ namespace Edge
 				VCTConstraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::CTConstraint::SetBreakingImpulseThreshold);
 				VCTConstraint.SetMethod("void set_enabled(bool)", &Compute::CTConstraint::SetEnabled);
 				VCTConstraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::CTConstraint::GetBreakingImpulseThreshold);
-				/*
-					void EnableMotor(bool Value);
-					void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
-					void SetAngularOnly(bool Value);
-					void SetLimit(int LimitIndex, float LimitValue);
-					void SetLimit(float SwingSpan1, float SwingSpan2, float TwistSpan, float Softness = 1.f, float BiasFactor = 0.3f, float RelaxationFactor = 1.0f);
-					void SetDamping(float Value);
-					void SetMaxMotorImpulse(float Value);
-					void SetMaxMotorImpulseNormalized(float Value);
-					void SetFixThresh(float Value);
-					void SetMotorTarget(const Quaternion& Value);
-					void SetMotorTargetInConstraintSpace(const Quaternion& Value);
-					Vector3 GetPointForAngle(float AngleInRadians, float Length) const;
-					Quaternion GetMotorTarget() const;
-					int GetSolveTwistLimit() const;
-					int GetSolveSwingLimit() const;
-					float GetTwistLimitSign() const;
-					float GetSwingSpan1() const;
-					float GetSwingSpan2() const;
-					float GetTwistSpan() const;
-					float GetLimitSoftness() const;
-					float GetBiasFactor() const;
-					float GetRelaxationFactor() const;
-					float GetTwistAngle() const;
-					float GetLimit(int Value) const;
-					float GetDamping() const;
-					float GetMaxMotorImpulse() const;
-					float GetFixThresh() const;
-					bool IsMotorEnabled() const;
-					bool IsMaxMotorImpulseNormalized() const;
-					bool IsPastSwingLimit() const;
-					bool IsAngularOnly() const;
-					Desc& GetState();
-				*/
+				VCTConstraint.SetMethod("void enable_motor(bool)", &Compute::CTConstraint::EnableMotor);
+				VCTConstraint.SetMethod("void set_frames(const matrix4x4 &in, const matrix4x4 &in)", &Compute::CTConstraint::SetFrames);
+				VCTConstraint.SetMethod("void set_angular_only(bool)", &Compute::CTConstraint::SetAngularOnly);
+				VCTConstraint.SetMethod<Compute::CTConstraint, void, int, float>("void set_limit(int, float)", &Compute::CTConstraint::SetLimit);
+				VCTConstraint.SetMethod<Compute::CTConstraint, void, float, float, float, float, float, float>("void set_limit(float, float, float, float = 1.f, float = 0.3f, float = 1.0f)", &Compute::CTConstraint::SetLimit);
+				VCTConstraint.SetMethod("void set_damping(float)", &Compute::CTConstraint::SetDamping);
+				VCTConstraint.SetMethod("void set_max_motor_impulse(float)", &Compute::CTConstraint::SetMaxMotorImpulse);
+				VCTConstraint.SetMethod("void set_max_motor_impulse_normalized(float)", &Compute::CTConstraint::SetMaxMotorImpulseNormalized);
+				VCTConstraint.SetMethod("void set_fix_thresh(float)", &Compute::CTConstraint::SetFixThresh);
+				VCTConstraint.SetMethod("void set_motor_target(const quaternion &in)", &Compute::CTConstraint::SetMotorTarget);
+				VCTConstraint.SetMethod("void set_motor_target_in_constraint_space(const quaternion &in)", &Compute::CTConstraint::SetMotorTargetInConstraintSpace);
+				VCTConstraint.SetMethod("vector3 get_point_for_angle(float, float) const", &Compute::CTConstraint::GetPointForAngle);
+				VCTConstraint.SetMethod("quaternion get_motor_target() const", &Compute::CTConstraint::GetMotorTarget);
+				VCTConstraint.SetMethod("int get_solve_twist_limit() const", &Compute::CTConstraint::GetSolveTwistLimit);
+				VCTConstraint.SetMethod("int get_solve_swing_limit() const", &Compute::CTConstraint::GetSolveSwingLimit);
+				VCTConstraint.SetMethod("float get_twist_limit_sign() const", &Compute::CTConstraint::GetTwistLimitSign);
+				VCTConstraint.SetMethod("float get_swing_span1() const", &Compute::CTConstraint::GetSwingSpan1);
+				VCTConstraint.SetMethod("float get_swing_span2() const", &Compute::CTConstraint::GetSwingSpan2);
+				VCTConstraint.SetMethod("float get_twist_span() const", &Compute::CTConstraint::GetTwistSpan);
+				VCTConstraint.SetMethod("float get_limit_softness() const", &Compute::CTConstraint::GetLimitSoftness);
+				VCTConstraint.SetMethod("float get_bias_factor() const", &Compute::CTConstraint::GetBiasFactor);
+				VCTConstraint.SetMethod("float get_relaxation_factor() const", &Compute::CTConstraint::GetRelaxationFactor);
+				VCTConstraint.SetMethod("float get_twist_angle() const", &Compute::CTConstraint::GetTwistAngle);
+				VCTConstraint.SetMethod("float get_limit(int) const", &Compute::CTConstraint::GetLimit);
+				VCTConstraint.SetMethod("float get_damping() const", &Compute::CTConstraint::GetDamping);
+				VCTConstraint.SetMethod("float get_max_motor_impulse() const", &Compute::CTConstraint::GetMaxMotorImpulse);
+				VCTConstraint.SetMethod("float get_fix_thresh() const", &Compute::CTConstraint::GetFixThresh);
+				VCTConstraint.SetMethod("bool is_motor_enabled() const", &Compute::CTConstraint::IsMotorEnabled);
+				VCTConstraint.SetMethod("bool is_max_motor_impulse_normalized() const", &Compute::CTConstraint::IsMaxMotorImpulseNormalized);
+				VCTConstraint.SetMethod("bool is_past_swing_limit() const", &Compute::CTConstraint::IsPastSwingLimit);
+				VCTConstraint.SetMethod("bool is_angular_only() const", &Compute::CTConstraint::IsAngularOnly);
+				VCTConstraint.SetMethod("physics_ctconstraint_desc& get_state()", &Compute::CTConstraint::GetState);
 
 				VMTypeClass VDF6ConstraintDesc = Engine->Global().SetPod<Compute::DF6Constraint::Desc>("physics_df6constraint_desc");
 				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("physics_rigidbody@ target_a", &Compute::DF6Constraint::Desc::TargetA);
@@ -9168,43 +9180,41 @@ namespace Edge
 				VDF6Constraint.SetMethod("bool is_active() const", &Compute::DF6Constraint::IsActive);
 				VDF6Constraint.SetMethod("void set_breaking_impulse_threshold(float)", &Compute::DF6Constraint::SetBreakingImpulseThreshold);
 				VDF6Constraint.SetMethod("void set_enabled(bool)", &Compute::DF6Constraint::SetEnabled);
-				VDF6Constraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::DF6Constraint::GetBreakingImpulseThreshold);
-				/*
-					void EnableMotor(int Index, bool OnOff);
-					void EnableSpring(int Index, bool OnOff);
-					void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
-					void SetLinearLowerLimit(const Vector3& Value);
-					void SetLinearUpperLimit(const Vector3& Value);
-					void SetAngularLowerLimit(const Vector3& Value);
-					void SetAngularLowerLimitReversed(const Vector3& Value);
-					void SetAngularUpperLimit(const Vector3& Value);
-					void SetAngularUpperLimitReversed(const Vector3& Value);
-					void SetLimit(int Axis, float Low, float High);
-					void SetLimitReversed(int Axis, float Low, float High);
-					void SetRotationOrder(Rotator Order);
-					void SetAxis(const Vector3& A, const Vector3& B);
-					void SetBounce(int Index, float Bounce);
-					void SetServo(int Index, bool OnOff);
-					void SetTargetVelocity(int Index, float Velocity);
-					void SetServoTarget(int Index, float Target);
-					void SetMaxMotorForce(int Index, float Force);
-					void SetStiffness(int Index, float Stiffness, bool LimitIfNeeded = true);
-					void SetEquilibriumPoint();
-					void SetEquilibriumPoint(int Index);
-					void SetEquilibriumPoint(int Index, float Value);
-					Vector3 GetAngularUpperLimit() const;
-					Vector3 GetAngularUpperLimitReversed() const;
-					Vector3 GetAngularLowerLimit() const;
-					Vector3 GetAngularLowerLimitReversed() const;
-					Vector3 GetLinearUpperLimit() const;
-					Vector3 GetLinearLowerLimit() const;
-					Vector3 GetAxis(int Value) const;
-					Rotator GetRotationOrder() const;
-					float GetAngle(int Value) const;
-					float GetRelativePivotPosition(int Value) const;
-					bool IsLimited(int LimitIndex) const;
-					Desc& GetState();
-				*/
+				VDF6Constraint.SetMethod("float get_breaking_impulse_threshold() const", &Compute::DF6Constraint::GetBreakingImpulseThreshold);		
+				VDF6Constraint.SetMethod("void enable_motor(int, bool)", &Compute::DF6Constraint::EnableMotor);
+				VDF6Constraint.SetMethod("void enable_spring(int, bool)", &Compute::DF6Constraint::EnableSpring);
+				VDF6Constraint.SetMethod("void set_frames(const matrix4x4 &in, const matrix4x4 &in)", &Compute::DF6Constraint::SetFrames);
+				VDF6Constraint.SetMethod("void set_linear_lower_limit(const vector3 &in)", &Compute::DF6Constraint::SetLinearLowerLimit);
+				VDF6Constraint.SetMethod("void set_linear_upper_limit(const vector3 &in)", &Compute::DF6Constraint::SetLinearUpperLimit);
+				VDF6Constraint.SetMethod("void set_angular_lower_limit(const vector3 &in)", &Compute::DF6Constraint::SetAngularLowerLimit);
+				VDF6Constraint.SetMethod("void set_angular_lower_limit_reversed(const vector3 &in)", &Compute::DF6Constraint::SetAngularLowerLimitReversed);
+				VDF6Constraint.SetMethod("void set_angular_upper_limit(const vector3 &in)", &Compute::DF6Constraint::SetAngularUpperLimit);
+				VDF6Constraint.SetMethod("void set_angular_upper_limit_reversed(const vector3 &in)", &Compute::DF6Constraint::SetAngularUpperLimitReversed);
+				VDF6Constraint.SetMethod("void set_limit(int, float, float)", &Compute::DF6Constraint::SetLimit);
+				VDF6Constraint.SetMethod("void set_limit_reversed(int, float, float)", &Compute::DF6Constraint::SetLimitReversed);
+				VDF6Constraint.SetMethod("void set_rotation_order(physics_rotator)", &Compute::DF6Constraint::SetRotationOrder);
+				VDF6Constraint.SetMethod("void set_axis(const vector3 &in, const vector3 &in)", &Compute::DF6Constraint::SetAxis);
+				VDF6Constraint.SetMethod("void set_bounce(int, float)", &Compute::DF6Constraint::SetBounce);
+				VDF6Constraint.SetMethod("void set_servo(int, bool)", &Compute::DF6Constraint::SetServo);
+				VDF6Constraint.SetMethod("void set_target_velocity(int, float)", &Compute::DF6Constraint::SetTargetVelocity);
+				VDF6Constraint.SetMethod("void set_servo_target(int, float)", &Compute::DF6Constraint::SetServoTarget);
+				VDF6Constraint.SetMethod("void set_max_motor_force(int, float)", &Compute::DF6Constraint::SetMaxMotorForce);
+				VDF6Constraint.SetMethod("void set_stiffness(int, float, bool = true)", &Compute::DF6Constraint::SetStiffness);
+				VDF6Constraint.SetMethod<Compute::DF6Constraint, void>("void set_equilibrium_point()", &Compute::DF6Constraint::SetEquilibriumPoint);
+				VDF6Constraint.SetMethod<Compute::DF6Constraint, void, int>("void set_equilibrium_point(int)", &Compute::DF6Constraint::SetEquilibriumPoint);
+				VDF6Constraint.SetMethod<Compute::DF6Constraint, void, int, float>("void set_equilibrium_point(int, float)", &Compute::DF6Constraint::SetEquilibriumPoint);
+				VDF6Constraint.SetMethod("vector3 get_angular_upper_limit() const", &Compute::DF6Constraint::GetAngularUpperLimit);
+				VDF6Constraint.SetMethod("vector3 get_angular_upper_limit_reversed() const", &Compute::DF6Constraint::GetAngularUpperLimitReversed);
+				VDF6Constraint.SetMethod("vector3 get_angular_lower_limit() const", &Compute::DF6Constraint::GetAngularLowerLimit);
+				VDF6Constraint.SetMethod("vector3 get_angular_lower_limit_reversed() const", &Compute::DF6Constraint::GetAngularLowerLimitReversed);
+				VDF6Constraint.SetMethod("vector3 get_linear_upper_limit() const", &Compute::DF6Constraint::GetLinearUpperLimit);
+				VDF6Constraint.SetMethod("vector3 get_linear_lower_limit() const", &Compute::DF6Constraint::GetLinearLowerLimit);
+				VDF6Constraint.SetMethod("vector3 get_axis(int) const", &Compute::DF6Constraint::GetAxis);
+				VDF6Constraint.SetMethod("physics_rotator get_rotation_order() const", &Compute::DF6Constraint::GetRotationOrder);
+				VDF6Constraint.SetMethod("float get_angle(int) const", &Compute::DF6Constraint::GetAngle);
+				VDF6Constraint.SetMethod("float get_relative_pivot_position(int) const", &Compute::DF6Constraint::GetRelativePivotPosition);
+				VDF6Constraint.SetMethod("bool is_limited(int) const", &Compute::DF6Constraint::IsLimited);
+				VDF6Constraint.SetMethod("physics_df6constraint_desc& get_state()", &Compute::DF6Constraint::GetState);
 
 				VMTypeClass VSimulatorDesc = Engine->Global().SetPod<Compute::Simulator::Desc>("physics_simulator_desc");
 				VSimulatorDesc.SetProperty<Compute::Simulator::Desc>("vector3 water_normal", &Compute::Simulator::Desc::WaterNormal);
@@ -9287,6 +9297,184 @@ namespace Edge
 				VCTConstraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &CTConstraintToConstraint);
 				VDF6Constraint.SetOperatorEx(VMOpFunc::ImplCast, 0, "physics_constraint@+", "", &DF6ConstraintToConstraint);
 				VDF6Constraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &DF6ConstraintToConstraint);
+
+				return true;
+			}
+			bool Registry::LoadAudio(VMManager* Engine)
+			{
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMEnum VSoundDistanceModel = Register.SetEnum("sound_distance_model");
+				VSoundDistanceModel.SetValue("invalid", (int)Audio::SoundDistanceModel::Invalid);
+				VSoundDistanceModel.SetValue("invert", (int)Audio::SoundDistanceModel::Invert);
+				VSoundDistanceModel.SetValue("invert_clamp", (int)Audio::SoundDistanceModel::Invert_Clamp);
+				VSoundDistanceModel.SetValue("linear", (int)Audio::SoundDistanceModel::Linear);
+				VSoundDistanceModel.SetValue("linear_clamp", (int)Audio::SoundDistanceModel::Linear_Clamp);
+				VSoundDistanceModel.SetValue("exponent", (int)Audio::SoundDistanceModel::Exponent);
+				VSoundDistanceModel.SetValue("exponent_clamp", (int)Audio::SoundDistanceModel::Exponent_Clamp);
+
+				VMEnum VSoundEx = Register.SetEnum("sound_ex");
+				VSoundEx.SetValue("source_relative", (int)Audio::SoundEx::Source_Relative);
+				VSoundEx.SetValue("cone_inner_angle", (int)Audio::SoundEx::Cone_Inner_Angle);
+				VSoundEx.SetValue("cone_outer_angle", (int)Audio::SoundEx::Cone_Outer_Angle);
+				VSoundEx.SetValue("pitch", (int)Audio::SoundEx::Pitch);
+				VSoundEx.SetValue("position", (int)Audio::SoundEx::Position);
+				VSoundEx.SetValue("direction", (int)Audio::SoundEx::Direction);
+				VSoundEx.SetValue("velocity", (int)Audio::SoundEx::Velocity);
+				VSoundEx.SetValue("looping", (int)Audio::SoundEx::Looping);
+				VSoundEx.SetValue("buffer", (int)Audio::SoundEx::Buffer);
+				VSoundEx.SetValue("gain", (int)Audio::SoundEx::Gain);
+				VSoundEx.SetValue("min_gain", (int)Audio::SoundEx::Min_Gain);
+				VSoundEx.SetValue("max_gain", (int)Audio::SoundEx::Max_Gain);
+				VSoundEx.SetValue("orientation", (int)Audio::SoundEx::Orientation);
+				VSoundEx.SetValue("channel_mask", (int)Audio::SoundEx::Channel_Mask);
+				VSoundEx.SetValue("source_state", (int)Audio::SoundEx::Source_State);
+				VSoundEx.SetValue("initial", (int)Audio::SoundEx::Initial);
+				VSoundEx.SetValue("playing", (int)Audio::SoundEx::Playing);
+				VSoundEx.SetValue("paused", (int)Audio::SoundEx::Paused);
+				VSoundEx.SetValue("stopped", (int)Audio::SoundEx::Stopped);
+				VSoundEx.SetValue("buffers_queued", (int)Audio::SoundEx::Buffers_Queued);
+				VSoundEx.SetValue("buffers_processed", (int)Audio::SoundEx::Buffers_Processed);
+				VSoundEx.SetValue("seconds_offset", (int)Audio::SoundEx::Seconds_Offset);
+				VSoundEx.SetValue("sample_offset", (int)Audio::SoundEx::Sample_Offset);
+				VSoundEx.SetValue("byte_offset", (int)Audio::SoundEx::Byte_Offset);
+				VSoundEx.SetValue("source_type", (int)Audio::SoundEx::Source_Type);
+				VSoundEx.SetValue("static", (int)Audio::SoundEx::Static);
+				VSoundEx.SetValue("streaming", (int)Audio::SoundEx::Streaming);
+				VSoundEx.SetValue("undetermined", (int)Audio::SoundEx::Undetermined);
+				VSoundEx.SetValue("format_mono8", (int)Audio::SoundEx::Format_Mono8);
+				VSoundEx.SetValue("format_mono16", (int)Audio::SoundEx::Format_Mono16);
+				VSoundEx.SetValue("format_stereo8", (int)Audio::SoundEx::Format_Stereo8);
+				VSoundEx.SetValue("format_stereo16", (int)Audio::SoundEx::Format_Stereo16);
+				VSoundEx.SetValue("reference_distance", (int)Audio::SoundEx::Reference_Distance);
+				VSoundEx.SetValue("rolloff_gactor", (int)Audio::SoundEx::Rolloff_Factor);
+				VSoundEx.SetValue("cone_outer_gain", (int)Audio::SoundEx::Cone_Outer_Gain);
+				VSoundEx.SetValue("max_distance", (int)Audio::SoundEx::Max_Distance);
+				VSoundEx.SetValue("frequency", (int)Audio::SoundEx::Frequency);
+				VSoundEx.SetValue("bits", (int)Audio::SoundEx::Bits);
+				VSoundEx.SetValue("channels", (int)Audio::SoundEx::Channels);
+				VSoundEx.SetValue("size", (int)Audio::SoundEx::Size);
+				VSoundEx.SetValue("unused", (int)Audio::SoundEx::Unused);
+				VSoundEx.SetValue("pending", (int)Audio::SoundEx::Pending);
+				VSoundEx.SetValue("processed", (int)Audio::SoundEx::Processed);
+				VSoundEx.SetValue("invalid_name", (int)Audio::SoundEx::Invalid_Name);
+				VSoundEx.SetValue("illegal_enum", (int)Audio::SoundEx::Illegal_Enum);
+				VSoundEx.SetValue("invalid_enum", (int)Audio::SoundEx::Invalid_Enum);
+				VSoundEx.SetValue("invalid_value", (int)Audio::SoundEx::Invalid_Value);
+				VSoundEx.SetValue("illegal_command", (int)Audio::SoundEx::Illegal_Command);
+				VSoundEx.SetValue("invalid_operation", (int)Audio::SoundEx::Invalid_Operation);
+				VSoundEx.SetValue("out_of_memory", (int)Audio::SoundEx::Out_Of_Memory);
+				VSoundEx.SetValue("vendor", (int)Audio::SoundEx::Vendor);
+				VSoundEx.SetValue("version", (int)Audio::SoundEx::Version);
+				VSoundEx.SetValue("renderer", (int)Audio::SoundEx::Renderer);
+				VSoundEx.SetValue("extentions", (int)Audio::SoundEx::Extentions);
+				VSoundEx.SetValue("doppler_factor", (int)Audio::SoundEx::Doppler_Factor);
+				VSoundEx.SetValue("doppler_velocity", (int)Audio::SoundEx::Doppler_Velocity);
+				VSoundEx.SetValue("speed_of_sound", (int)Audio::SoundEx::Speed_Of_Sound);
+
+				VMTypeClass VAudioSync = Engine->Global().SetPod<Audio::AudioSync>("audio_sync");
+				VAudioSync.SetProperty<Audio::AudioSync>("vector3 direction", &Audio::AudioSync::Direction);
+				VAudioSync.SetProperty<Audio::AudioSync>("vector3 velocity", &Audio::AudioSync::Velocity);
+				VAudioSync.SetProperty<Audio::AudioSync>("float cone_inner_angle", &Audio::AudioSync::ConeInnerAngle);
+				VAudioSync.SetProperty<Audio::AudioSync>("float cone_outer_angle", &Audio::AudioSync::ConeOuterAngle);
+				VAudioSync.SetProperty<Audio::AudioSync>("float cone_outer_gain", &Audio::AudioSync::ConeOuterGain);
+				VAudioSync.SetProperty<Audio::AudioSync>("float pitch", &Audio::AudioSync::Pitch);
+				VAudioSync.SetProperty<Audio::AudioSync>("float gain", &Audio::AudioSync::Gain);
+				VAudioSync.SetProperty<Audio::AudioSync>("float ref_distance", &Audio::AudioSync::RefDistance);
+				VAudioSync.SetProperty<Audio::AudioSync>("float distance", &Audio::AudioSync::Distance);
+				VAudioSync.SetProperty<Audio::AudioSync>("float rolloff", &Audio::AudioSync::Rolloff);
+				VAudioSync.SetProperty<Audio::AudioSync>("float position", &Audio::AudioSync::Position);
+				VAudioSync.SetProperty<Audio::AudioSync>("float air_absorption", &Audio::AudioSync::AirAbsorption);
+				VAudioSync.SetProperty<Audio::AudioSync>("float room_roll_off", &Audio::AudioSync::RoomRollOff);
+				VAudioSync.SetProperty<Audio::AudioSync>("bool is_relative", &Audio::AudioSync::IsRelative);
+				VAudioSync.SetProperty<Audio::AudioSync>("bool is_looped", &Audio::AudioSync::IsLooped);
+				VAudioSync.SetConstructor<Audio::AudioSync>("void f()");
+
+				Engine->BeginNamespace("audio_context");
+				Register.SetFunction("void create()", Audio::AudioContext::Create);
+				Register.SetFunction("void release()", Audio::AudioContext::Release);
+				Register.SetFunction("void lock()", Audio::AudioContext::Lock);
+				Register.SetFunction("void unlock()", Audio::AudioContext::Unlock);
+				Register.SetFunction("void generate_buffers(int32, uint32 &out)", Audio::AudioContext::GenerateBuffers);
+				Register.SetFunction("void set_source_data_3f(uint32, sound_ex, float, float, float)", Audio::AudioContext::SetSourceData3F);
+				Register.SetFunction("void get_source_data_3f(uint32, sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetSourceData3F);
+				Register.SetFunction("void set_source_data_1f(uint32, sound_ex, float)", Audio::AudioContext::SetSourceData1F);
+				Register.SetFunction("void get_source_data_1f(uint32, sound_ex, float &out)", Audio::AudioContext::GetSourceData1F);
+				Register.SetFunction("void set_source_data_3i(uint32, sound_ex, int32, int32, int32)", Audio::AudioContext::SetSourceData3I);
+				Register.SetFunction("void get_source_data_3i(uint32, sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetSourceData3I);
+				Register.SetFunction("void set_source_data_1i(uint32, sound_ex, int32)", Audio::AudioContext::SetSourceData1I);
+				Register.SetFunction("void get_source_data_1i(uint32, sound_ex, int32 &out)", Audio::AudioContext::GetSourceData1I);
+				Register.SetFunction("void set_listener_data_3f(sound_ex, float, float, float)", Audio::AudioContext::SetListenerData3F);
+				Register.SetFunction("void get_listener_data_3f(sound_ex, float &out, float &out, float &out)", Audio::AudioContext::GetListenerData3F);
+				Register.SetFunction("void set_listener_data_1f(sound_ex, float)", Audio::AudioContext::SetListenerData1F);
+				Register.SetFunction("void get_listener_data_1f(sound_ex, float &out)", Audio::AudioContext::GetListenerData1F);
+				Register.SetFunction("void set_listener_data_3i(sound_ex, int32, int32, int32)", Audio::AudioContext::SetListenerData3I);
+				Register.SetFunction("void get_listener_data_3i(sound_ex, int32 &out, int32 &out, int32 &out)", Audio::AudioContext::GetListenerData3I);
+				Register.SetFunction("void set_listener_data_1i(sound_ex, int32)", Audio::AudioContext::SetListenerData1I);
+				Register.SetFunction("void get_listener_data_1i(sound_ex, int32 &out)", Audio::AudioContext::GetListenerData1I);
+				Engine->EndNamespace();
+
+				VMRefClass VAudioSource = Engine->Global().SetClassUnmanaged<Audio::AudioSource>("audio_source");
+				VMRefClass VAudioFilter = Engine->Global().SetClassUnmanaged<Audio::AudioFilter>("audio_filter");
+				VAudioFilter.SetMethod("void synchronize()", &Audio::AudioFilter::Synchronize);
+				VAudioFilter.SetMethod("void deserialize(schema@+)", &Audio::AudioFilter::Deserialize);
+				VAudioFilter.SetMethod("void serialize(schema@+)", &Audio::AudioFilter::Serialize);
+				VAudioFilter.SetMethod("audio_filter@ copy()", &Audio::AudioFilter::Copy);
+				VAudioFilter.SetMethod("audio_source@+ get_source()", &Audio::AudioFilter::GetSource);
+				PopulateComponent<Audio::AudioFilter>(VAudioFilter);
+
+				VMRefClass VAudioEffect = Engine->Global().SetClassUnmanaged<Audio::AudioEffect>("audio_effect");
+				VAudioEffect.SetMethod("void synchronize()", &Audio::AudioEffect::Synchronize);
+				VAudioEffect.SetMethod("void deserialize(schema@+)", &Audio::AudioEffect::Deserialize);
+				VAudioEffect.SetMethod("void serialize(schema@+)", &Audio::AudioEffect::Serialize);
+				VAudioEffect.SetMethodEx("bool set_filter(audio_filter@+)", &AudioEffectSetFilter);
+				VAudioEffect.SetMethod("audio_effect@ copy()", &Audio::AudioEffect::Copy);
+				VAudioEffect.SetMethod("audio_source@+ get_filter()", &Audio::AudioEffect::GetFilter);
+				VAudioEffect.SetMethod("audio_source@+ get_source()", &Audio::AudioEffect::GetSource);
+				PopulateComponent<Audio::AudioEffect>(VAudioEffect);
+
+				VMRefClass VAudioClip = Engine->Global().SetClassUnmanaged<Audio::AudioClip>("audio_clip");
+				VAudioClip.SetUnmanagedConstructor<Audio::AudioClip, int, int>("audio_clip@ f(int, int)");
+				VAudioClip.SetMethod("float length() const", &Audio::AudioClip::Length);
+				VAudioClip.SetMethod("bool is_mono() const", &Audio::AudioClip::IsMono);
+				VAudioClip.SetMethod("uint32 get_buffer() const", &Audio::AudioClip::GetBuffer);
+				VAudioClip.SetMethod("int32 get_format() const", &Audio::AudioClip::GetFormat);
+
+				VAudioSource.SetUnmanagedConstructor<Audio::AudioSource>("audio_source@ f()");
+				VAudioSource.SetMethod("int64 add_effect(audio_effect@+)", &Audio::AudioSource::AddEffect);
+				VAudioSource.SetMethod("bool remove_effect(usize)", &Audio::AudioSource::RemoveEffect);
+				VAudioSource.SetMethod("bool remove_effect_by_id(uint64)", &Audio::AudioSource::RemoveEffectById);
+				VAudioSource.SetMethod("void set_clip(audio_clip@+)", &Audio::AudioSource::SetClip);
+				VAudioSource.SetMethod("void synchronize(audio_sync &in, const vector3 &in)", &Audio::AudioSource::Synchronize);
+				VAudioSource.SetMethod("void reset()", &Audio::AudioSource::Reset);
+				VAudioSource.SetMethod("void pause()", &Audio::AudioSource::Pause);
+				VAudioSource.SetMethod("void play()", &Audio::AudioSource::Play);
+				VAudioSource.SetMethod("void stop()", &Audio::AudioSource::Stop);
+				VAudioSource.SetMethod("bool is_playing() const", &Audio::AudioSource::IsPlaying);
+				VAudioSource.SetMethod("usize get_effects_count() const", &Audio::AudioSource::GetEffectsCount);
+				VAudioSource.SetMethod("uint32 get_instance() const", &Audio::AudioSource::GetInstance);
+				VAudioSource.SetMethod("audio_clip@+ get_clip() const", &Audio::AudioSource::GetClip);
+				VAudioSource.SetMethod<Audio::AudioSource, Audio::AudioEffect*, uint64_t>("audio_effect@+ get_effect(uint64) const", &Audio::AudioSource::GetEffect);
+
+				VMRefClass VAudioDevice = Engine->Global().SetClassUnmanaged<Audio::AudioDevice>("audio_device");
+				VAudioDevice.SetUnmanagedConstructor<Audio::AudioDevice>("audio_device@ f()");
+				VAudioDevice.SetMethod("void offset(audio_source@+, float &out, bool)", &Audio::AudioDevice::Offset);
+				VAudioDevice.SetMethod("void velocity(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Velocity);
+				VAudioDevice.SetMethod("void position(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Position);
+				VAudioDevice.SetMethod("void direction(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Direction);
+				VAudioDevice.SetMethod("void relative(audio_source@+, int &out, bool)", &Audio::AudioDevice::Relative);
+				VAudioDevice.SetMethod("void pitch(audio_source@+, float &out, bool)", &Audio::AudioDevice::Pitch);
+				VAudioDevice.SetMethod("void gain(audio_source@+, float &out, bool)", &Audio::AudioDevice::Gain);
+				VAudioDevice.SetMethod("void loop(audio_source@+, int &out, bool)", &Audio::AudioDevice::Loop);
+				VAudioDevice.SetMethod("void cone_inner_angle(audio_source@+, float &out, bool)", &Audio::AudioDevice::ConeInnerAngle);
+				VAudioDevice.SetMethod("void cone_outer_angle(audio_source@+, float &out, bool)", &Audio::AudioDevice::ConeOuterAngle);
+				VAudioDevice.SetMethod("void cone_outer_gain(audio_source@+, float &out, bool)", &Audio::AudioDevice::ConeOuterGain);
+				VAudioDevice.SetMethod("void distance(audio_source@+, float &out, bool)", &Audio::AudioDevice::Distance);
+				VAudioDevice.SetMethod("void ref_distance(audio_source@+, float &out, bool)", &Audio::AudioDevice::RefDistance);
+				VAudioDevice.SetMethod("void set_distance_model(sound_distance_model)", &Audio::AudioDevice::SetDistanceModel);
+				VAudioDevice.SetMethod("void set_exception_codes(int32 &out, int32 &out) const", &Audio::AudioDevice::GetExceptionCodes);
+				VAudioDevice.SetMethod("bool is_valid() const", &Audio::AudioDevice::IsValid);
 
 				return true;
 			}

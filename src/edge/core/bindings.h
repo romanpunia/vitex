@@ -101,6 +101,7 @@ namespace Edge
 				static std::string ToUInt64(uint64_t Value);
 				static std::string ToFloat(float Value);
 				static std::string ToDouble(double Value);
+				static std::string ToPointer(void* Value);
 				static Array* Split(const std::string& delim, const std::string& str);
 				static std::string Join(const Array& array, const std::string& delim);
 				static char ToChar(const std::string& Symbol);
@@ -957,6 +958,7 @@ namespace Edge
 				static bool LoadGeometric(VMManager* Engine);
 				static bool LoadPreprocessor(VMManager* Engine);
 				static bool LoadPhysics(VMManager* Engine);
+				static bool LoadAudio(VMManager* Engine);
 				static bool LoadUiModel(VMManager* Engine);
 				static bool LoadUiControl(VMManager* Engine);
 				static bool LoadUiContext(VMManager* Engine);

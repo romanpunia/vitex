@@ -593,7 +593,7 @@ namespace Edge
 
 			return true;
 		}
-		bool AudioSource::RemoveEffectById(size_t EffectId)
+		bool AudioSource::RemoveEffectById(uint64_t EffectId)
 		{
 			for (size_t i = 0; i < Effects.size(); i++)
 			{
@@ -718,6 +718,10 @@ namespace Edge
 #else
 			return false;
 #endif
+		}
+		size_t AudioSource::GetEffectsCount() const
+		{
+			return Effects.size();
 		}
 		AudioClip* AudioSource::GetClip() const
 		{

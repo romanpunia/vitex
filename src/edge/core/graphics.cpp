@@ -1191,7 +1191,7 @@ namespace Edge
 				}
 
 				size_t Length;
-				unsigned char* Data = Core::OS::File::ReadAll(File.Module.c_str(), &Length);
+				unsigned char* Data = Core::OS::File::ReadAll(File.Module, &Length);
 				if (!Data)
 					return false;
 

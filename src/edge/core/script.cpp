@@ -4110,6 +4110,7 @@ namespace Edge
 			Engine->AddSubmodule("std/preprocessor", { "std/string" }, Bindings::Registry::LoadPreprocessor);
 			Engine->AddSubmodule("std/physics", { "std/string", "std/geometric" }, Bindings::Registry::LoadPhysics);
 			Engine->AddSubmodule("std/audio", { "std/string", "std/vectors" }, Bindings::Registry::LoadAudio);
+			Engine->AddSubmodule("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::LoadActivity);
 			Engine->AddSubmodule("std/gui_control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
 			Engine->AddSubmodule("std/gui_model", { "std/gui_control", }, Bindings::Registry::LoadUiModel);
 			Engine->AddSubmodule("std/gui_context", { "std/gui_model" }, Bindings::Registry::LoadUiContext);

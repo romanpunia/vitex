@@ -6382,12 +6382,7 @@ namespace Edge
 					}
 
 					Network::HTTP::RequestFrame Request;
-					Request.URI.assign('/' + URL.Path);
-					if (!URL.Filename.empty())
-						Request.URI += Request.URI.back() == '/' || Request.URI.back() == '\\' ? URL.Filename : '/' + URL.Filename;
-
-					if (!URL.Extension.empty())
-						Request.URI += Request.URI.back() == '.' ? URL.Extension : '.' + URL.Extension;
+					Request.URI.assign(URL.FullPath);
 
 					for (auto& Item : URL.Query)
 						Request.Query += Item.first + "=" + Item.second;

@@ -296,17 +296,24 @@ namespace Edge
 				MakePath();
 			else if (!Path.empty() && Path.front() != '/')
 				Path = '/' + Path;
+
+			FullPath = Path;
+			if (!Filename.empty())
+				FullPath += (!Path.empty() && (Path.back() == '/' || Path.back() == '\\')) ? Filename : '/' + Filename;
+
+			if (!Extension.empty())
+				FullPath += (!Path.empty() && Path.back() == '.') ? Extension : '.' + Extension;
 		}
 		SourceURL::SourceURL(const SourceURL& Other) noexcept :
 			Query(Other.Query), URL(Other.URL), Protocol(Other.Protocol),
 			Login(Other.Login), Password(Other.Password), Host(Other.Host),
-			Path(Other.Path), Filename(Other.Filename), Extension(Other.Extension), Port(Other.Port)
+			Path(Other.Path), FullPath(Other.FullPath), Filename(Other.Filename), Extension(Other.Extension), Port(Other.Port)
 		{
 		}
 		SourceURL::SourceURL(SourceURL&& Other) noexcept :
 			Query(std::move(Other.Query)), URL(std::move(Other.URL)), Protocol(std::move(Other.Protocol)),
 			Login(std::move(Other.Login)), Password(std::move(Other.Password)), Host(std::move(Other.Host)),
-			Path(std::move(Other.Path)), Filename(std::move(Other.Filename)), Extension(std::move(Other.Extension)), Port(Other.Port)
+			Path(std::move(Other.Path)), FullPath(std::move(Other.FullPath)), Filename(std::move(Other.Filename)), Extension(std::move(Other.Extension)), Port(Other.Port)
 		{
 		}
 		SourceURL& SourceURL::operator= (const SourceURL& Other) noexcept
@@ -321,6 +328,7 @@ namespace Edge
 			Password = Other.Password;
 			Host = Other.Host;
 			Path = Other.Path;
+			FullPath = Other.FullPath;
 			Filename = Other.Filename;
 			Extension = Other.Extension;
 			Port = Other.Port;
@@ -339,6 +347,7 @@ namespace Edge
 			Password = std::move(Other.Password);
 			Host = std::move(Other.Host);
 			Path = std::move(Other.Path);
+			FullPath = std::move(Other.FullPath);
 			Filename = std::move(Other.Filename);
 			Extension = std::move(Other.Extension);
 			Port = Other.Port;

@@ -213,6 +213,7 @@ namespace Edge
 			std::string Password;
 			std::string Host;
 			std::string Path;
+			std::string FullPath;
 			std::string Filename;
 			std::string Extension;
 			int Port;

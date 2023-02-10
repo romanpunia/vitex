@@ -2700,6 +2700,26 @@ namespace Edge
 			{
 				return Value1 < Value2 ? Value1 : Value2;
 			}
+			static T Log(I Value)
+			{
+				return T(std::log((double)Value));
+			}
+			static T Log2(I Value)
+			{
+				return T(std::log2((double)Value));
+			}
+			static T Log10(I Value)
+			{
+				return T(std::log10((double)Value));
+			}
+			static T Exp(I Value)
+			{
+				return T(std::exp((double)Value));
+			}
+			static T Ceil(I Value)
+			{
+				return T(std::ceil((double)Value));
+			}
 			static T Floor(I Value)
 			{
 				return T(std::floor((double)Value));

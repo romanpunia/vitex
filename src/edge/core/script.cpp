@@ -2471,7 +2471,30 @@ namespace Edge
 			}
 
 			Exchange.lock();
-			if (IsNested || Tasks.empty())
+			if (IsNested)
+			{
+				bool WantsNesting = Context->GetState() == asEXECUTION_ACTIVE;
+				if (WantsNesting)
+					Context->PushState();
+
+				int Result = Context->Prepare(Function.GetFunction());
+				if (Result < 0)
+				{
+					Exchange.unlock();
+					return Core::Promise<int>(Result);
+				}
+
+				Exchange.unlock();
+				if (OnArgs)
+					OnArgs(this);
+
+				Result = Context->Execute();
+				if (WantsNesting)
+					Context->PopState();
+
+				return Core::Promise<int>(Result);
+			}
+			else if (Tasks.empty())
 			{
 				int Result = Context->Prepare(Function.GetFunction());
 				if (Result < 0)

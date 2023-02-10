@@ -1879,7 +1879,7 @@ namespace Edge
 					break;
 			}
 
-			Handle = SDL_CreateWindow(Options.Title, Options.X, Options.Y, Options.Width, Options.Height, Flags);
+			Handle = SDL_CreateWindow(Options.Title.c_str(), Options.X, Options.Y, Options.Width, Options.Height, Flags);
 			if (Handle != nullptr)
 				ApplySystemTheme();
 #endif

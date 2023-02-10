@@ -1845,7 +1845,7 @@ namespace Edge
 		public:
 			struct Desc
 			{
-				const char* Title = "Activity";
+				std::string Title = "Activity";
 				unsigned int Width = 0;
 				unsigned int Height = 0;
 				unsigned int X = 0, Y = 0;

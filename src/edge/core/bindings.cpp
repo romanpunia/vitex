@@ -6261,8 +6261,399 @@ namespace Edge
 			void ActivitySetTitle(Graphics::Activity* Base, const std::string& Value)
 			{
 				Base->SetTitle(Value.c_str());
+			}	
+			void ActivitySetAppStateChange(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.AppStateChange = [Context, Callback](Graphics::AppState Type)
+					{
+						Context->TryExecute(true, Callback, [Type](VMContext* Context)
+						{
+							Context->SetArg32(0, (int)Type);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.AppStateChange = nullptr;
 			}
-
+			void ActivitySetWindowStateChange(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.WindowStateChange = [Context, Callback](Graphics::WindowState State, int X, int Y)
+					{
+						Context->TryExecute(true, Callback, [State, X, Y](VMContext* Context)
+						{
+							Context->SetArg32(0, (int)State);
+							Context->SetArg32(1, X);
+							Context->SetArg32(2, Y);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.WindowStateChange = nullptr;
+			}
+			void ActivitySetKeyState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.KeyState = [Context, Callback](Graphics::KeyCode Code, Graphics::KeyMod Mod, int X, int Y, bool Value)
+					{
+						Context->TryExecute(true, Callback, [Code, Mod, X, Y, Value](VMContext* Context)
+						{
+							Context->SetArg32(0, (int)Code);
+							Context->SetArg32(1, (int)Mod);
+							Context->SetArg32(2, X);
+							Context->SetArg32(3, Y);
+							Context->SetArg8(4, Value);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.KeyState = nullptr;
+			}
+			void ActivitySetInputEdit(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.InputEdit = [Context, Callback](char* Buffer, int X, int Y)
+					{
+						std::string Text = (Buffer ? Buffer : std::string());
+						Context->TryExecute(true, Callback, [Text, X, Y](VMContext* Context)
+						{
+							Context->SetArgObject(0, (void*)&Text);
+							Context->SetArg32(1, X);
+							Context->SetArg32(2, Y);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.InputEdit = nullptr;
+			}
+			void ActivitySetInput(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.Input = [Context, Callback](char* Buffer, int X)
+					{
+						std::string Text = (Buffer ? Buffer : std::string());
+						Context->TryExecute(true, Callback, [Text, X](VMContext* Context)
+						{
+							Context->SetArgObject(0, (void*)&Text);
+							Context->SetArg32(1, X);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.Input = nullptr;
+			}
+			void ActivitySetCursorMove(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.CursorMove = [Context, Callback](int X, int Y, int Z, int W)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z, W](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg32(2, Z);
+							Context->SetArg32(3, W);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.CursorMove = nullptr;
+			}
+			void ActivitySetCursorWheelState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.CursorWheelState = [Context, Callback](int X, int Y, bool Z)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg8(2, Z);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.CursorWheelState = nullptr;
+			}
+			void ActivitySetJoyStickAxisMove(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.JoyStickAxisMove = [Context, Callback](int X, int Y, int Z)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg32(2, Z);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.JoyStickAxisMove = nullptr;
+			}
+			void ActivitySetJoyStickBallMove(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.JoyStickBallMove = [Context, Callback](int X, int Y, int Z, int W)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z, W](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg32(2, Z);
+							Context->SetArg32(3, W);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.JoyStickBallMove = nullptr;
+			}
+			void ActivitySetJoyStickHatMove(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.JoyStickHatMove = [Context, Callback](Graphics::JoyStickHat Type, int X, int Y)
+					{
+						Context->TryExecute(true, Callback, [Type, X, Y](VMContext* Context)
+						{
+							Context->SetArg32(0, (int)Type);
+							Context->SetArg32(1, X);
+							Context->SetArg32(2, Y);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.JoyStickHatMove = nullptr;
+			}
+			void ActivitySetJoyStickKeyState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.JoyStickKeyState = [Context, Callback](int X, int Y, bool Z)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg8(2, Z);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.JoyStickKeyState = nullptr;
+			}
+			void ActivitySetJoyStickState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.JoyStickState = [Context, Callback](int X, bool Y)
+					{
+						Context->TryExecute(true, Callback, [X, Y](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg8(1, Y);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.JoyStickState = nullptr;
+			}
+			void ActivitySetControllerAxisMove(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.ControllerAxisMove = [Context, Callback](int X, int Y, int Z)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg32(2, Z);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.ControllerAxisMove = nullptr;
+			}
+			void ActivitySetControllerKeyState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.ControllerKeyState = [Context, Callback](int X, int Y, bool Z)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg8(2, Z);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.ControllerKeyState = nullptr;
+			}
+			void ActivitySetControllerState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.ControllerState = [Context, Callback](int X, int Y)
+					{
+						Context->TryExecute(true, Callback, [X, Y](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.ControllerState = nullptr;
+			}
+			void ActivitySetTouchMove(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.TouchMove = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1, float Z1)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1, Z1](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArgFloat(2, Z);
+							Context->SetArgFloat(3, W);
+							Context->SetArgFloat(4, X1);
+							Context->SetArgFloat(5, Y1);
+							Context->SetArgFloat(6, Z1);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.TouchMove = nullptr;
+			}
+			void ActivitySetTouchState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.TouchState = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1, float Z1, bool W1)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1, Z1, W1](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArgFloat(2, Z);
+							Context->SetArgFloat(3, W);
+							Context->SetArgFloat(4, X1);
+							Context->SetArgFloat(5, Y1);
+							Context->SetArgFloat(6, Z1);
+							Context->SetArg8(7, W1);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.TouchState = nullptr;
+			}
+			void ActivitySetGestureState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.GestureState = [Context, Callback](int X, int Y, int Z, float W, float X1, float Y1, bool Z1)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1, Z1](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArg32(2, Z);
+							Context->SetArgFloat(3, W);
+							Context->SetArgFloat(4, X1);
+							Context->SetArgFloat(5, Y1);
+							Context->SetArg8(6, Z1);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.GestureState = nullptr;
+			}
+			void ActivitySetMultiGestureState(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.MultiGestureState = [Context, Callback](int X, int Y, float Z, float W, float X1, float Y1)
+					{
+						Context->TryExecute(true, Callback, [X, Y, Z, W, X1, Y1](VMContext* Context)
+						{
+							Context->SetArg32(0, X);
+							Context->SetArg32(1, Y);
+							Context->SetArgFloat(2, Z);
+							Context->SetArgFloat(3, W);
+							Context->SetArgFloat(4, X1);
+							Context->SetArgFloat(5, Y1);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.MultiGestureState = nullptr;
+			}
+			void ActivitySetDropFile(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.DropFile = [Context, Callback](const std::string& Text)
+					{
+						Context->TryExecute(true, Callback, [Text](VMContext* Context)
+						{
+							Context->SetArgObject(0, (void*)&Text);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.DropFile = nullptr;
+			}
+			void ActivitySetDropText(Graphics::Activity* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (Context != nullptr && Callback != nullptr)
+				{
+					Base->Callbacks.DropText = [Context, Callback](const std::string& Text)
+					{
+						Context->TryExecute(true, Callback, [Text](VMContext* Context)
+						{
+							Context->SetArgObject(0, (void*)&Text);
+						}).Wait();
+					};
+				}
+				else
+					Base->Callbacks.DropText = nullptr;
+			}
+			
 			Compute::Matrix4x4& AnimationBufferGetOffsets(Graphics::AnimationBuffer& Base, size_t Index)
 			{
 				return Base.Offsets[Index % 96];
@@ -9856,20 +10247,20 @@ namespace Edge
 				VAppState.SetValue("enter_foreground_end", (int)Graphics::AppState::Enter_Foreground_End);
 
 				VMEnum VWindowState = Register.SetEnum("window_state");
-				VWindowState.SetValue("Show", (int)Graphics::WindowState::Show);
-				VWindowState.SetValue("Hide", (int)Graphics::WindowState::Hide);
-				VWindowState.SetValue("Expose", (int)Graphics::WindowState::Expose);
-				VWindowState.SetValue("Move", (int)Graphics::WindowState::Move);
-				VWindowState.SetValue("Resize", (int)Graphics::WindowState::Resize);
-				VWindowState.SetValue("Size_Change", (int)Graphics::WindowState::Size_Change);
-				VWindowState.SetValue("Minimize", (int)Graphics::WindowState::Minimize);
-				VWindowState.SetValue("Maximize", (int)Graphics::WindowState::Maximize);
-				VWindowState.SetValue("Restore", (int)Graphics::WindowState::Restore);
-				VWindowState.SetValue("Enter", (int)Graphics::WindowState::Enter);
-				VWindowState.SetValue("Leave", (int)Graphics::WindowState::Leave);
-				VWindowState.SetValue("Focus", (int)Graphics::WindowState::Focus);
-				VWindowState.SetValue("Blur", (int)Graphics::WindowState::Blur);
-				VWindowState.SetValue("Close", (int)Graphics::WindowState::Close);
+				VWindowState.SetValue("show", (int)Graphics::WindowState::Show);
+				VWindowState.SetValue("hide", (int)Graphics::WindowState::Hide);
+				VWindowState.SetValue("expose", (int)Graphics::WindowState::Expose);
+				VWindowState.SetValue("move", (int)Graphics::WindowState::Move);
+				VWindowState.SetValue("resize", (int)Graphics::WindowState::Resize);
+				VWindowState.SetValue("size_change", (int)Graphics::WindowState::Size_Change);
+				VWindowState.SetValue("minimize", (int)Graphics::WindowState::Minimize);
+				VWindowState.SetValue("maximize", (int)Graphics::WindowState::Maximize);
+				VWindowState.SetValue("restore", (int)Graphics::WindowState::Restore);
+				VWindowState.SetValue("enter", (int)Graphics::WindowState::Enter);
+				VWindowState.SetValue("leave", (int)Graphics::WindowState::Leave);
+				VWindowState.SetValue("focus", (int)Graphics::WindowState::Focus);
+				VWindowState.SetValue("blur", (int)Graphics::WindowState::Blur);
+				VWindowState.SetValue("close", (int)Graphics::WindowState::Close);
 
 				VMEnum VKeyCode = Register.SetEnum("key_code");
 				VKeyCode.SetValue("A", (int)Graphics::KeyCode::A);
@@ -10210,6 +10601,7 @@ namespace Edge
 				VAlert.SetMethodEx("void result(alert_event@+)", &AlertResult);
 
 				VMTypeClass VActivityDesc = Engine->Global().SetPod<Graphics::Activity::Desc>("activity_desc");
+				VActivityDesc.SetProperty<Graphics::Activity::Desc>("string title", &Graphics::Activity::Desc::Title);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 width", &Graphics::Activity::Desc::Width);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 height", &Graphics::Activity::Desc::Height);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("uint32 x", &Graphics::Activity::Desc::X);
@@ -10226,9 +10618,52 @@ namespace Edge
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool allow_high_dpi", &Graphics::Activity::Desc::AllowHighDPI);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool allow_stalls", &Graphics::Activity::Desc::AllowStalls);
 				VActivityDesc.SetProperty<Graphics::Activity::Desc>("bool allow_graphics", &Graphics::Activity::Desc::AllowGraphics);
+				VActivityDesc.SetConstructor<Graphics::Activity::Desc>("void f()");
 
 				VActivity.SetProperty<Graphics::Activity>("activity_alert message", &Graphics::Activity::Message);
 				VActivity.SetUnmanagedConstructor<Graphics::Activity, const Graphics::Activity::Desc&>("activity@ f(const activity_desc &in)");
+				VActivity.SetFunctionDef("void app_state_change_event(app_state)");
+				VActivity.SetFunctionDef("void window_state_change_event(window_state, int, int)");
+				VActivity.SetFunctionDef("void key_state_event(key_code, key_mod, int, int, bool)");
+				VActivity.SetFunctionDef("void input_edit_event(const string &in, int, int)");
+				VActivity.SetFunctionDef("void input_event(const string &in, int)");
+				VActivity.SetFunctionDef("void cursor_move_event(int, int, int, int)");
+				VActivity.SetFunctionDef("void cursor_wheel_state_event(int, int, bool)");
+				VActivity.SetFunctionDef("void joy_stick_axis_move_event(int, int, int)");
+				VActivity.SetFunctionDef("void joy_stick_ball_move_event(int, int, int, int)");
+				VActivity.SetFunctionDef("void joy_stick_hat_move_event(joy_stick_hat, int, int)");
+				VActivity.SetFunctionDef("void joy_stick_key_state_event(int, int, bool)");
+				VActivity.SetFunctionDef("void joy_stick_state_event(int, bool)");
+				VActivity.SetFunctionDef("void controller_axis_move_event(int, int, int)");
+				VActivity.SetFunctionDef("void controller_key_state_event(int, int, bool)");
+				VActivity.SetFunctionDef("void controller_state_event(int, int)");
+				VActivity.SetFunctionDef("void touch_move_event(int, int, float, float, float, float, float)");
+				VActivity.SetFunctionDef("void touch_state_event(int, int, float, float, float, float, float, bool)");
+				VActivity.SetFunctionDef("void gesture_state_event(int, int, int, float, float, float, bool)");
+				VActivity.SetFunctionDef("void multi_gesture_state_event(int, int, float, float, float, float)");
+				VActivity.SetFunctionDef("void drop_file_event(const string &in)");
+				VActivity.SetFunctionDef("void drop_text_event(const string &in)");
+				VActivity.SetMethodEx("void set_app_state_change(app_state_change_event@+)", &ActivitySetAppStateChange);
+				VActivity.SetMethodEx("void set_window_state_change(window_state_change_event@+)", &ActivitySetWindowStateChange);
+				VActivity.SetMethodEx("void set_key_state(key_state_event@+)", &ActivitySetKeyState);
+				VActivity.SetMethodEx("void set_input_edit(input_edit_event@+)", &ActivitySetInputEdit);
+				VActivity.SetMethodEx("void set_input(input_event@+)", &ActivitySetInput);
+				VActivity.SetMethodEx("void set_cursor_move(cursor_move_event@+)", &ActivitySetCursorMove);
+				VActivity.SetMethodEx("void set_cursor_wheel_state(cursor_wheel_state_event@+)", &ActivitySetCursorWheelState);
+				VActivity.SetMethodEx("void set_joy_stick_axis_move(joy_stick_axis_move_event@+)", &ActivitySetJoyStickAxisMove);
+				VActivity.SetMethodEx("void set_joy_stick_ball_move(joy_stick_ball_move_event@+)", &ActivitySetJoyStickBallMove);
+				VActivity.SetMethodEx("void set_joy_stick_hat_move(joy_stick_hat_move_event@+)", &ActivitySetJoyStickHatMove);
+				VActivity.SetMethodEx("void set_joy_stickKeyState(joy_stick_key_state_event@+)", &ActivitySetJoyStickKeyState);
+				VActivity.SetMethodEx("void set_joy_stickState(joy_stick_state_event@+)", &ActivitySetJoyStickState);
+				VActivity.SetMethodEx("void set_controller_axis_move(controller_axis_move_event@+)", &ActivitySetControllerAxisMove);
+				VActivity.SetMethodEx("void set_controller_key_state(controller_key_state_event@+)", &ActivitySetControllerKeyState);
+				VActivity.SetMethodEx("void set_controller_state(controller_state_event@+)", &ActivitySetControllerState);
+				VActivity.SetMethodEx("void set_touch_move(touch_move_event@+)", &ActivitySetTouchMove);
+				VActivity.SetMethodEx("void set_touch_state(touch_state_event@+)", &ActivitySetTouchState);
+				VActivity.SetMethodEx("void set_gesture_state(gesture_state_event@+)", &ActivitySetGestureState);
+				VActivity.SetMethodEx("void set_multi_gesture_state(multi_gesture_state_event@+)", &ActivitySetMultiGestureState);
+				VActivity.SetMethodEx("void set_drop_file(drop_file_event@+)", &ActivitySetDropFile);
+				VActivity.SetMethodEx("void set_drop_text(drop_text_event@+)", &ActivitySetDropText);
 				VActivity.SetMethod("void set_clipboard_text(const string &in)", &Graphics::Activity::SetClipboardText);
 				VActivity.SetMethod<Graphics::Activity, void, const Compute::Vector2&>("void set_cursor_position(const vector2 &in)", &Graphics::Activity::SetCursorPosition);
 				VActivity.SetMethod<Graphics::Activity, void, float, float>("void set_cursor_position(float, float)", &Graphics::Activity::SetCursorPosition);

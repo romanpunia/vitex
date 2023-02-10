@@ -1046,7 +1046,7 @@ namespace Edge
 		public:
 			struct Attribute
 			{
-				const char* SemanticName;
+				std::string SemanticName;
 				unsigned int SemanticIndex;
 				AttributeType Format;
 				unsigned int Components;

@@ -57,7 +57,8 @@ set_target_properties(edge PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION})
 
-#Project's logging
+#Project's settings
+set(ED_USE_BINDINGS true CACHE BOOL "Enable full script bindings")
 set(ED_MSG_DEBUG false CACHE BOOL "Enable tracing messages (verbose)")
 set(ED_MSG_INFO true CACHE BOOL "Enable info messages")
 set(ED_MSG_WARN true CACHE BOOL "Enable warning messages")
@@ -77,6 +78,12 @@ elseif (ED_MSG_ERROR)
 else()
     target_compile_definitions(edge PUBLIC -DED_DLEVEL=0)
     message(STATUS "Logging messages: none")
+endif()
+if (ED_USE_BINDINGS)
+    target_compile_definitions(edge PUBLIC -DED_HAS_BINDINGS)
+    message(STATUS "Script bindings: full coverage")
+else()
+    message(STATUS "Script bindings: minimal coverage")
 endif()
 
 #Project's compile options and directories

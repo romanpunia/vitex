@@ -3970,15 +3970,15 @@ namespace Edge
 					if (It.Format == AttributeType::Matrix)
 					{
 						DXGI_FORMAT Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-						Result.push_back({ It.SemanticName, It.SemanticIndex + 0, Format, It.Slot, It.AlignedByteOffset + 0, Class, Step });
-						Result.push_back({ It.SemanticName, It.SemanticIndex + 1, Format, It.Slot, It.AlignedByteOffset + 16, Class, Step });
-						Result.push_back({ It.SemanticName, It.SemanticIndex + 2, Format, It.Slot, It.AlignedByteOffset + 32, Class, Step });
-						Result.push_back({ It.SemanticName, It.SemanticIndex + 3, Format, It.Slot, It.AlignedByteOffset + 48, Class, Step });
+						Result.push_back({ It.SemanticName.c_str(), It.SemanticIndex + 0, Format, It.Slot, It.AlignedByteOffset + 0, Class, Step });
+						Result.push_back({ It.SemanticName.c_str(), It.SemanticIndex + 1, Format, It.Slot, It.AlignedByteOffset + 16, Class, Step });
+						Result.push_back({ It.SemanticName.c_str(), It.SemanticIndex + 2, Format, It.Slot, It.AlignedByteOffset + 32, Class, Step });
+						Result.push_back({ It.SemanticName.c_str(), It.SemanticIndex + 3, Format, It.Slot, It.AlignedByteOffset + 48, Class, Step });
 						continue;
 					}
 
 					D3D11_INPUT_ELEMENT_DESC At;
-					At.SemanticName = It.SemanticName;
+					At.SemanticName = It.SemanticName.c_str();
 					At.AlignedByteOffset = It.AlignedByteOffset;
 					At.Format = DXGI_FORMAT_R32_FLOAT;
 					At.SemanticIndex = It.SemanticIndex;

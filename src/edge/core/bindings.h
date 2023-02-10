@@ -960,6 +960,7 @@ namespace Edge
 				static bool LoadPhysics(VMManager* Engine);
 				static bool LoadAudio(VMManager* Engine);
 				static bool LoadActivity(VMManager* Engine);
+				static bool LoadGraphics(VMManager* Engine);
 				static bool LoadUiModel(VMManager* Engine);
 				static bool LoadUiControl(VMManager* Engine);
 				static bool LoadUiContext(VMManager* Engine);

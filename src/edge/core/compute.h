@@ -2783,6 +2783,10 @@ namespace Edge
 			{
 				return T(1.0 / std::tan((double)Value));
 			}
+			static T Map(I Value, I FromMin, I FromMax, I ToMin, I ToMax)
+			{
+				return ToMin + (Value - FromMin) * (ToMax - ToMin) / (FromMax - FromMin);
+			}
 			static void Swap(T& Value0, T& Value1)
 			{
 				T Value2 = Value0;

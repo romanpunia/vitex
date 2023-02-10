@@ -269,11 +269,12 @@ These **will not** alter any interfaces but all related functions will return **
 + **ED_USE_SDL2** will enable SDL2 library if any, defaults to true
 + **ED_USE_ZLIB** will enable zlib library if any, defaults to true
 + **ED_USE_SPIRV** will enable SPIRV Cross and Glslang libraries if any, defaults to true
-+ **ED_WIED_SHADERS** to embed shaders from **/src/shaders** to **/src/edge/graphics/dynamic/shaders.hpp**, defaults to true
-+ **ED_WIED_SIMD** will enable simd optimisations (processor-specific), defaults to false
-+ **ED_WIED_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
-+ **ED_WIED_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
-+ **ED_WIED_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
++ **ED_USE_SHADERS** to embed shaders from **/src/shaders** to **/src/edge/graphics/dynamic/shaders.hpp**, defaults to true
++ **ED_USE_SIMD** will enable simd optimisations (processor-specific), defaults to false
++ **ED_USE_FCTX** will enable internal fcontext implementation for coroutines, defaults to true
++ **ED_USE_BULLET3** will enable built-in Bullet3 library and physics interfaces, defaults to true
++ **ED_USE_RMLUI** will enable built-in RmlUi library and gui interfaces, defaults to true
++ **ED_USE_BINDINGS** will enable script bindings otherwise will only leave string, array and ptr implementations, defaults to true
 
 ## Static dependencies
 * [bullet3](https://github.com/bulletphysics/bullet3)

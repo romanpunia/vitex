@@ -11,98 +11,6 @@
 #ifndef __psp2__
 #include <locale.h>
 #endif
-#ifdef __BORLANDC__
-#include <cmath>
-#if __BORLANDC__ < 0x580
-inline float cosf(float Value)
-{
-	return std::cos(Value);
-}
-inline float sinf(float Value)
-{
-	return std::sin(Value);
-}
-inline float tanf(float Value)
-{
-	return std::tan(Value);
-}
-inline float atan2f(float Y, float X)
-{
-	return std::atan2(Y, X);
-}
-inline float logf(float Value)
-{
-	return std::log(Value);
-}
-inline float powf(float X, float Y)
-{
-	return std::pow(X, Y);
-}
-#endif
-inline float acosf(float Value)
-{
-	return std::acos(Value);
-}
-inline float asinf(float Value)
-{
-	return std::asin(Value);
-}
-inline float atanf(float Value)
-{
-	return std::atan(Value);
-}
-inline float coshf(float Value)
-{
-	return std::cosh(Value);
-}
-inline float sinhf(float Value)
-{
-	return std::sinh(Value);
-}
-inline float tanhf(float Value)
-{
-	return std::tanh(Value);
-}
-inline float log10f(float Value)
-{
-	return std::log10(Value);
-}
-inline float ceilf(float Value)
-{
-	return std::ceil(Value);
-}
-inline float fabsf(float Value)
-{
-	return std::fabs(Value);
-}
-inline float floorf(float Value)
-{
-	return std::floor(Value);
-}
-inline float modff(float X, float* Y)
-{
-	double D;
-	float F = (float)modf((double)X, &D);
-	*Y = (float)D;
-	return F;
-}
-inline float sqrtf(float X)
-{
-	return sqrt(X);
-}
-#endif
-#ifndef _WIN32_WCE
-float fracf(float v)
-{
-	float Part;
-	return modff(v, &Part);
-}
-#else
-double frac(double Value)
-{
-	return Value;
-}
-#endif
 #define ARRAY_CACHE 1000
 #define MAP_CACHE 1003
 #define TYPENAME_ARRAY "array"
@@ -118,9 +26,17 @@ double frac(double Value)
 #define TYPENAME_DECIMAL "decimal"
 #define TYPENAME_VARIANT "variant"
 #define TYPENAME_VERTEX "vertex"
+#define TYPENAME_ELEMENTVERTEX "element_vertex"
 #define TYPENAME_VECTOR3 "vector3"
+#define TYPENAME_JOINT "joint"
+#define TYPENAME_RECTANGLE "rectangle"
+#define TYPENAME_VIEWPORT "viewport"
+#define TYPENAME_MESHBUFFER "mesh_buffer"
+#define TYPENAME_SKINMESHBUFFER "skin_mesh_buffer"
+#define TYPENAME_ANIMATORKEY "animator_key"
 #define TYPENAME_FILEENTRY "file_entry"
 #define TYPENAME_REGEXMATCH "regex_match"
+#define TYPENAME_INPUTLAYOUTATTRIBUTE "input_layout_attribute"
 #define TYPENAME_ELEMENTNODE "ui_element"
 
 namespace
@@ -6342,6 +6258,303 @@ namespace Edge
 				});
 			}
 
+			void ActivitySetTitle(Graphics::Activity* Base, const std::string& Value)
+			{
+				Base->SetTitle(Value.c_str());
+			}
+
+			Compute::Matrix4x4& AnimationBufferGetOffsets(Graphics::AnimationBuffer& Base, size_t Index)
+			{
+				return Base.Offsets[Index % 96];
+			}
+
+			Array* PoseBufferGetPose(Graphics::PoseBuffer& Base, Graphics::SkinModel* Value)
+			{
+				if (!Value)
+					return nullptr;
+
+				std::vector<Compute::AnimatorKey> Keys;
+				Keys.resize(Value->Joints.size());
+				
+				if (!Base.GetPose(Value, &Keys))
+					return nullptr;
+
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ANIMATORKEY ">@");
+				return Array::Compose<Compute::AnimatorKey>(Type.GetTypeInfo(), Keys);
+			}
+			Compute::Matrix4x4& PoseBufferGetTransform(Graphics::PoseBuffer& Base, size_t Index)
+			{
+				return Base.Transform[Index % 96];
+			}
+			Graphics::PoseNode& PoseBufferGetNode(Graphics::PoseBuffer& Base, size_t Index)
+			{
+				return Base.Pose[(int64_t)Index];
+			}
+
+			Graphics::RenderTargetBlendState& BlendStateDescGetRenderTarget(Graphics::BlendState::Desc& Base, size_t Index)
+			{
+				return Base.RenderTarget[Index % 8];
+			}
+
+			float& SamplerStateDescGetBorderColor(Graphics::SamplerState::Desc& Base, size_t Index)
+			{
+				return Base.BorderColor[Index % 4];
+			}
+
+			void InputLayoutDescSetAttributes(Graphics::InputLayout::Desc& Base, Array* Data)
+			{
+				Base.Attributes = Array::Decompose<Graphics::InputLayout::Attribute>(Data);
+			}
+
+			Array* InputLayoutGetAttributes(Graphics::InputLayout* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_INPUTLAYOUTATTRIBUTE ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetAttributes());
+			}
+
+			void ShaderDescSetDefines(Graphics::Shader::Desc& Base, Array* Data)
+			{
+				Base.Defines = Array::Decompose<std::string>(Data);
+			}
+
+			void MeshBufferDescSetElements(Graphics::MeshBuffer::Desc& Base, Array* Data)
+			{
+				Base.Elements = Array::Decompose<Compute::Vertex>(Data);
+			}
+			void MeshBufferDescSetIndices(Graphics::MeshBuffer::Desc& Base, Array* Data)
+			{
+				Base.Indices = Array::Decompose<int>(Data);
+			}
+
+			void SkinMeshBufferDescSetElements(Graphics::SkinMeshBuffer::Desc& Base, Array* Data)
+			{
+				Base.Elements = Array::Decompose<Compute::SkinVertex>(Data);
+			}
+			void SkinMeshBufferDescSetIndices(Graphics::SkinMeshBuffer::Desc& Base, Array* Data)
+			{
+				Base.Indices = Array::Decompose<int>(Data);
+			}
+
+			void InstanceBufferSetArray(Graphics::InstanceBuffer* Base, Array* Data)
+			{
+				auto& Source = Base->GetArray();
+				Source = Array::Decompose<Compute::ElementVertex>(Data);
+			}
+			Array* InstanceBufferGetArray(Graphics::InstanceBuffer* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_ELEMENTVERTEX ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->GetArray());
+			}
+
+			Graphics::RenderTarget2D* RenderTargetToRenderTarget2D(Graphics::RenderTarget* Base)
+			{
+				return dynamic_cast<Graphics::RenderTarget2D*>(Base);
+			}
+			Graphics::RenderTargetCube* RenderTargetToRenderTargetCube(Graphics::RenderTarget* Base)
+			{
+				return dynamic_cast<Graphics::RenderTargetCube*>(Base);
+			}
+			Graphics::MultiRenderTarget2D* RenderTargetToMultiRenderTarget2D(Graphics::RenderTarget* Base)
+			{
+				return dynamic_cast<Graphics::MultiRenderTarget2D*>(Base);
+			}
+			Graphics::MultiRenderTargetCube* RenderTargetToMultiRenderTargetCube(Graphics::RenderTarget* Base)
+			{
+				return dynamic_cast<Graphics::MultiRenderTargetCube*>(Base);
+			}
+			Graphics::RenderTarget* RenderTarget2DToRenderTarget(Graphics::RenderTarget* Base)
+			{
+				return dynamic_cast<Graphics::RenderTarget*>(Base);
+			}
+			Graphics::RenderTarget* RenderTargetCubeToRenderTarget(Graphics::RenderTargetCube* Base)
+			{
+				return dynamic_cast<Graphics::RenderTarget*>(Base);
+			}
+			Graphics::RenderTarget* MultiRenderTarget2DToRenderTarget(Graphics::MultiRenderTarget2D* Base)
+			{
+				return dynamic_cast<Graphics::RenderTarget*>(Base);
+			}
+			Graphics::RenderTarget* MultiRenderTargetCubeToRenderTarget(Graphics::MultiRenderTargetCube* Base)
+			{
+				return dynamic_cast<Graphics::RenderTarget*>(Base);
+			}
+
+			void MultiRenderTarget2DDescSetFormatMode(Graphics::MultiRenderTarget2D::Desc& Base, size_t Index, Graphics::Format Mode)
+			{
+				Base.FormatMode[Index % 8] = Mode;
+			}
+
+			void MultiRenderTargetCubeDescSetFormatMode(Graphics::MultiRenderTargetCube::Desc& Base, size_t Index, Graphics::Format Mode)
+			{
+				Base.FormatMode[Index % 8] = Mode;
+			}
+
+			void GraphicsDeviceSetVertexBuffers(Graphics::GraphicsDevice* Base, Array* Data, bool Value)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffer = Array::Decompose<Graphics::ElementBuffer*>(Data);
+				Base->SetVertexBuffers(Buffer.data(), (uint32_t)Buffer.size(), Value);
+			}
+			void GraphicsDeviceSetWriteable1(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
+			{
+				std::vector<Graphics::ElementBuffer*> Buffer = Array::Decompose<Graphics::ElementBuffer*>(Data);
+				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
+			}
+			void GraphicsDeviceSetWriteable2(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
+			{
+				std::vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
+				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
+			}
+			void GraphicsDeviceSetWriteable3(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
+			{
+				std::vector<Graphics::Texture3D*> Buffer = Array::Decompose<Graphics::Texture3D*>(Data);
+				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
+			}
+			void GraphicsDeviceSetWriteable4(Graphics::GraphicsDevice* Base, Array* Data, uint32_t Slot, bool Value)
+			{
+				std::vector<Graphics::TextureCube*> Buffer = Array::Decompose<Graphics::TextureCube*>(Data);
+				Base->SetWriteable(Buffer.data(), Slot, (uint32_t)Buffer.size(), Value);
+			}
+			void GraphicsDeviceSetTargetMap(Graphics::GraphicsDevice* Base, Graphics::RenderTarget* Target, Array* Data)
+			{
+				std::vector<bool> Buffer = Array::Decompose<bool>(Data);
+				while (Buffer.size() < 8)
+					Buffer.push_back(false);
+
+				bool Map[8];
+				for (size_t i = 0; i < 8; i++)
+					Map[i] = Buffer[i];
+
+				Base->SetTargetMap(Target, Map);
+			}
+			void GraphicsDeviceSetViewports(Graphics::GraphicsDevice* Base, Array* Data)
+			{
+				std::vector<Graphics::Viewport> Buffer = Array::Decompose<Graphics::Viewport>(Data);
+				Base->SetViewports((uint32_t)Buffer.size(), Buffer.data());
+			}
+			void GraphicsDeviceSetScissorRects(Graphics::GraphicsDevice* Base, Array* Data)
+			{
+				std::vector<Compute::Rectangle> Buffer = Array::Decompose<Compute::Rectangle>(Data);
+				Base->SetScissorRects((uint32_t)Buffer.size(), Buffer.data());
+			}
+			Array* GraphicsDeviceGetViewports(Graphics::GraphicsDevice* Base)
+			{
+				std::vector<Graphics::Viewport> Viewports;
+				Viewports.resize(32);
+
+				uint32_t Count = 0;
+				Base->GetViewports(&Count, Viewports.data());
+				Viewports.resize((size_t)Count);
+
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_VIEWPORT ">@");
+				return Array::Compose(Type.GetTypeInfo(), Viewports);
+			}
+			Array* GraphicsDeviceGetScissorRects(Graphics::GraphicsDevice* Base)
+			{
+				std::vector<Compute::Rectangle> Rects;
+				Rects.resize(32);
+
+				uint32_t Count = 0;
+				Base->GetScissorRects(&Count, Rects.data());
+				Rects.resize((size_t)Count);
+
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_RECTANGLE ">@");
+				return Array::Compose(Type.GetTypeInfo(), Rects);
+			}
+			Graphics::TextureCube* GraphicsDeviceCreateTextureCube(Graphics::GraphicsDevice* Base, Array* Data)
+			{
+				std::vector<Graphics::Texture2D*> Buffer = Array::Decompose<Graphics::Texture2D*>(Data);
+				while (Buffer.size() < 6)
+					Buffer.push_back(nullptr);
+
+				Graphics::Texture2D* Map[6];
+				for (size_t i = 0; i < 6; i++)
+					Map[i] = Buffer[i];
+
+				return Base->CreateTextureCube(Map);
+			}
+			Graphics::Texture2D* GraphicsDeviceCopyTexture2D1(Graphics::GraphicsDevice* Base, Graphics::Texture2D* Source)
+			{
+				Graphics::Texture2D* Result = nullptr;
+				Base->CopyTexture2D(Source, &Result);
+				return Result;
+			}
+			Graphics::Texture2D* GraphicsDeviceCopyTexture2D2(Graphics::GraphicsDevice* Base, Graphics::RenderTarget* Source, uint32_t Index)
+			{
+				Graphics::Texture2D* Result = nullptr;
+				Base->CopyTexture2D(Source, Index, &Result);
+				return Result;
+			}
+			Graphics::Texture2D* GraphicsDeviceCopyTexture2D3(Graphics::GraphicsDevice* Base, Graphics::RenderTargetCube* Source, Compute::CubeFace Face)
+			{
+				Graphics::Texture2D* Result = nullptr;
+				Base->CopyTexture2D(Source, Face, &Result);
+				return Result;
+			}
+			Graphics::Texture2D* GraphicsDeviceCopyTexture2D4(Graphics::GraphicsDevice* Base, Graphics::MultiRenderTargetCube* Source, uint32_t Index, Compute::CubeFace Face)
+			{
+				Graphics::Texture2D* Result = nullptr;
+				Base->CopyTexture2D(Source, Index, Face, &Result);
+				return Result;
+			}
+			Graphics::TextureCube* GraphicsDeviceCopyTextureCube1(Graphics::GraphicsDevice* Base, Graphics::RenderTargetCube* Source)
+			{
+				Graphics::TextureCube* Result = nullptr;
+				Base->CopyTextureCube(Source, &Result);
+				return Result;
+			}
+			Graphics::TextureCube* GraphicsDeviceCopyTextureCube2(Graphics::GraphicsDevice* Base, Graphics::MultiRenderTargetCube* Source, uint32_t Index)
+			{
+				Graphics::TextureCube* Result = nullptr;
+				Base->CopyTextureCube(Source, Index, &Result);
+				return Result;
+			}
+			Graphics::Texture2D* GraphicsDeviceCopyBackBuffer(Graphics::GraphicsDevice* Base)
+			{
+				Graphics::Texture2D* Result = nullptr;
+				Base->CopyBackBuffer(&Result);
+				return Result;
+			}
+			Graphics::Texture2D* GraphicsDeviceCopyBackBufferMSAA(Graphics::GraphicsDevice* Base)
+			{
+				Graphics::Texture2D* Result = nullptr;
+				Base->CopyBackBufferMSAA(&Result);
+				return Result;
+			}
+			Graphics::Texture2D* GraphicsDeviceCopyBackBufferNoAA(Graphics::GraphicsDevice* Base)
+			{
+				Graphics::Texture2D* Result = nullptr;
+				Base->CopyBackBufferNoAA(&Result);
+				return Result;
+			}
+
+			Array* ModelGetMeshes(Graphics::Model* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_MESHBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->Meshes);
+			}
+			void ModelSetMeshes(Graphics::Model* Base, Array* Data)
+			{
+				Base->Meshes = Array::Decompose<Graphics::MeshBuffer*>(Data);
+			}
+			Array* SkinModelGetMeshes(Graphics::SkinModel* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_SKINMESHBUFFER "@>@");
+				return Array::Compose(Type.GetTypeInfo(), Base->Meshes);
+			}
+			void SkinModelSetMeshes(Graphics::SkinModel* Base, Array* Data)
+			{
+				Base->Meshes = Array::Decompose<Graphics::SkinMeshBuffer*>(Data);
+			}
+			Array* SkinModelGetJoints(Graphics::SkinModel* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_ARRAY "<" TYPENAME_JOINT ">@");
+				return Array::Compose(Type.GetTypeInfo(), Base->Joints);
+			}
+			void SkinModelSetJoints(Graphics::SkinModel* Base, Array* Data)
+			{
+				Base->Joints = Array::Decompose<Compute::Joint>(Data);
+			}
+
 			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
@@ -6553,6 +6766,7 @@ namespace Edge
 			}
 			bool Registry::LoadAny(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMCManager* Engine = Manager->GetEngine();
 				Engine->RegisterObjectType("any", sizeof(Any), asOBJ_REF | asOBJ_GC);
@@ -6571,6 +6785,10 @@ namespace Edge
 				Engine->RegisterObjectMethod("any", "void store(?&in)", asMETHODPR(Any, Store, (void*, int), void), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("any", "bool retrieve(?&out)", asMETHODPR(Any, Retrieve, (void*, int) const, bool), asCALL_THISCALL);
 				return true;
+#else
+				ED_ASSERT(false, false, "<any> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadArray(VMManager* Manager)
 			{
@@ -6622,6 +6840,7 @@ namespace Edge
 			}
 			bool Registry::LoadComplex(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMCManager* Engine = Manager->GetEngine();
 				Engine->RegisterObjectType("complex", sizeof(Complex), asOBJ_VALUE | asOBJ_POD | asGetTypeTraits<Complex>() | asOBJ_APP_CLASS_ALLFLOATS);
@@ -6647,9 +6866,14 @@ namespace Edge
 				Engine->RegisterObjectMethod("complex", "void set_ri(const complex &in) property", asMETHOD(Complex, SetRI), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("complex", "void set_ir(const complex &in) property", asMETHOD(Complex, SetIR), asCALL_THISCALL);
 				return true;
+#else
+				ED_ASSERT(false, false, "<complex> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadMap(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMCManager* Engine = Manager->GetEngine();
 				Engine->RegisterObjectType("map_key", sizeof(MapKey), asOBJ_VALUE | asOBJ_ASHANDLE | asOBJ_GC | asGetTypeTraits<MapKey>());
@@ -6692,9 +6916,14 @@ namespace Edge
 
 				Map::Setup(Engine);
 				return true;
+#else
+				ED_ASSERT(false, false, "<map> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadGrid(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				VMCManager* Engine = Manager->GetEngine();
 				if (!Engine)
 					return false;
@@ -6719,9 +6948,14 @@ namespace Edge
 				Engine->RegisterObjectBehaviour("grid<T>", asBEHAVE_RELEASEREFS, "void f(int&in)", asMETHOD(Grid, ReleaseAllHandles), asCALL_THISCALL);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<grid> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadRef(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				VMCManager* Engine = Manager->GetEngine();
 				if (!Engine)
 					return false;
@@ -6739,9 +6973,14 @@ namespace Edge
 				Engine->RegisterObjectMethod("ref", "bool opEquals(const ref &in) const", asMETHODPR(Ref, operator==, (const Ref&) const, bool), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("ref", "bool opEquals(const ?&in) const", asMETHODPR(Ref, Equals, (void*, int) const, bool), asCALL_THISCALL);
 				return true;
+#else
+				ED_ASSERT(false, false, "<ref> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadWeakRef(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				VMCManager* Engine = Manager->GetEngine();
 				if (!Engine)
 					return false;
@@ -6773,9 +7012,14 @@ namespace Edge
 				Engine->RegisterObjectMethod("const_weak_ref<T>", "const_weak_ref<T> &opHndlAssign(const weak_ref<T> &in)", asMETHOD(WeakRef, operator=), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("const_weak_ref<T>", "bool opEquals(const weak_ref<T> &in) const", asMETHODPR(WeakRef, operator==, (const WeakRef&) const, bool), asCALL_THISCALL);
 				return true;
+#else
+				ED_ASSERT(false, false, "<weak_ref> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadMath(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				VMCManager* Engine = Manager->GetEngine();
 				if (!Engine)
 					return false;
@@ -6803,46 +7047,30 @@ namespace Edge
 				Engine->RegisterGlobalFunction("float randomf()", asFUNCTIONPR(Compute::Mathf::Random, (), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float randomf_mag()", asFUNCTIONPR(Compute::Mathf::RandomMag, (), float), asCALL_CDECL);
 				Engine->RegisterGlobalFunction("float randomf_range()", asFUNCTIONPR(Compute::Mathf::Random, (float, float), float), asCALL_CDECL);
-#if !defined(_WIN32_WCE)
-				Engine->RegisterGlobalFunction("float cos(float)", asFUNCTIONPR(cosf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float sin(float)", asFUNCTIONPR(sinf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float tan(float)", asFUNCTIONPR(tanf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float acos(float)", asFUNCTIONPR(acosf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float asin(float)", asFUNCTIONPR(asinf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float atan(float)", asFUNCTIONPR(atanf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float atan2(float, float)", asFUNCTIONPR(atan2f, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float cosh(float)", asFUNCTIONPR(coshf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float sinh(float)", asFUNCTIONPR(sinhf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float tanh(float)", asFUNCTIONPR(tanhf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float log(float)", asFUNCTIONPR(logf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float log10(float)", asFUNCTIONPR(log10f, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float pow(float, float)", asFUNCTIONPR(powf, (float, float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float sqrt(float)", asFUNCTIONPR(sqrtf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float ceil(float)", asFUNCTIONPR(ceilf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float abs(float)", asFUNCTIONPR(fabsf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float floor(float)", asFUNCTIONPR(floorf, (float), float), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("float fraction(float)", asFUNCTIONPR(fracf, (float), float), asCALL_CDECL);
-#else
-				Engine->RegisterGlobalFunction("double cos(double)", asFUNCTIONPR(cos, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double sin(double)", asFUNCTIONPR(sin, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double tan(double)", asFUNCTIONPR(tan, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double acos(double)", asFUNCTIONPR(acos, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double asin(double)", asFUNCTIONPR(asin, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double atan(double)", asFUNCTIONPR(atan, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double atan2(double, double)", asFUNCTIONPR(atan2, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double cosh(double)", asFUNCTIONPR(cosh, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double sinh(double)", asFUNCTIONPR(sinh, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double tanh(double)", asFUNCTIONPR(tanh, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double log(double)", asFUNCTIONPR(log, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double log10(double)", asFUNCTIONPR(log10, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double pow(double, double)", asFUNCTIONPR(pow, (double, double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double sqrt(double)", asFUNCTIONPR(sqrt, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double ceil(double)", asFUNCTIONPR(ceil, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double abs(double)", asFUNCTIONPR(fabs, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double floor(double)", asFUNCTIONPR(floor, (double), double), asCALL_CDECL);
-				Engine->RegisterGlobalFunction("double fraction(double)", asFUNCTIONPR(frac, (double), double), asCALL_CDECL);
-#endif
+				Engine->RegisterGlobalFunction("float mapf(float, float, float, float, float)", asFUNCTIONPR(Compute::Mathf::Map, (float, float, float, float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float cos(float)", asFUNCTIONPR(std::cosf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float sin(float)", asFUNCTIONPR(std::sinf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float tan(float)", asFUNCTIONPR(std::tanf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float acos(float)", asFUNCTIONPR(std::acosf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float asin(float)", asFUNCTIONPR(std::asinf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float atan(float)", asFUNCTIONPR(std::atanf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float atan2(float, float)", asFUNCTIONPR(std::atan2f, (float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float cosh(float)", asFUNCTIONPR(std::coshf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float sinh(float)", asFUNCTIONPR(std::sinhf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float tanh(float)", asFUNCTIONPR(std::tanhf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float log(float)", asFUNCTIONPR(std::logf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float log10(float)", asFUNCTIONPR(std::log10f, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float pow(float, float)", asFUNCTIONPR(std::powf, (float, float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float sqrt(float)", asFUNCTIONPR(std::sqrtf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float ceil(float)", asFUNCTIONPR(std::ceilf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float abs(float)", asFUNCTIONPR(std::fabsf, (float), float), asCALL_CDECL);
+				Engine->RegisterGlobalFunction("float floor(float)", asFUNCTIONPR(std::floorf, (float), float), asCALL_CDECL);
+				
 				return true;
+#else
+				ED_ASSERT(false, false, "<math> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadString(VMManager* Manager)
 			{
@@ -6934,6 +7162,7 @@ namespace Edge
 			}
 			bool Registry::LoadMutex(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMCManager* Engine = Manager->GetEngine();
 				Engine->RegisterObjectType("mutex", sizeof(Mutex), asOBJ_REF);
@@ -6944,9 +7173,14 @@ namespace Edge
 				Engine->RegisterObjectMethod("mutex", "void lock()", asMETHOD(Mutex, Lock), asCALL_THISCALL);
 				Engine->RegisterObjectMethod("mutex", "void unlock()", asMETHOD(Mutex, Unlock), asCALL_THISCALL);
 				return true;
+#else
+				ED_ASSERT(false, false, "<mutex> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadThread(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMCManager* Engine = Manager->GetEngine();
 				Engine->RegisterObjectType("thread", 0, asOBJ_REF | asOBJ_GC);
@@ -6977,9 +7211,14 @@ namespace Edge
 				Engine->RegisterGlobalFunction("void suspend()", asFUNCTION(Thread::ThreadSuspend), asCALL_CDECL);
 				Manager->EndNamespace();
 				return true;
+#else
+				ED_ASSERT(false, false, "<thread> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadRandom(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMGlobal& Global = Manager->Global();
 
@@ -6994,9 +7233,14 @@ namespace Edge
 				VRandom.SetMethodStatic("uint64 betweeni(uint64, uint64)", &Random::Betweeni);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<random> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadPromise(VMManager* Manager)
 			{
+#ifdef ED_HAS_BINDINGS
 				VMCManager* Engine = Manager->GetEngine();
 				if (!Engine)
 					return false;
@@ -7025,9 +7269,14 @@ namespace Edge
 				Engine->RegisterObjectMethod("ref_promise<T>", "T@+ await()", asMETHOD(Promise, GetHandle), asCALL_THISCALL);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<promise> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadFormat(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				VMRefClass VFormat = Register.SetClassUnmanaged<Format>("format");
@@ -7036,9 +7285,14 @@ namespace Edge
 				VFormat.SetMethodStatic("string to_json(const ? &in)", &Format::JSON);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<format> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadDecimal(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				VMTypeClass VDecimal = Register.SetStructUnmanaged<Core::Decimal>("decimal");
@@ -7081,9 +7335,14 @@ namespace Edge
 				VDecimal.SetMethodStatic("decimal nan()", &Core::Decimal::NaN);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<decimal> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadVariant(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				VMEnum VVarType = Register.SetEnum("var_type");
@@ -7133,9 +7392,14 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<variant> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadTimestamp(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				VMTypeClass VDateTime = Register.SetStructUnmanaged<Core::DateTime>("timestamp");
@@ -7190,9 +7454,14 @@ namespace Edge
 				VDateTime.SetMethodStatic<std::string, int64_t>("string get_time(int64)", &Core::DateTime::FetchWebDateTime);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<timestamp> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadConsole(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				VMEnum VStdColor = Register.SetEnum("std_color");
@@ -7238,9 +7507,14 @@ namespace Edge
 				VConsole.SetMethodEx("void write(const string &in, format@+)", &Format::Write);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<console> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadSchema(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMRefClass VSchema = Engine->Global().SetClassUnmanaged<Core::Schema>("schema");
 				VSchema.SetProperty<Core::Schema>("string key", &Core::Schema::Key);
@@ -7314,9 +7588,14 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<schema> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadTickClock(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 
 				VMRefClass VTimer = Engine->Global().SetClassUnmanaged<Core::Timer>("tick_clock");
@@ -7334,9 +7613,14 @@ namespace Edge
 				VTimer.SetMethod("bool is_fixed() const", &Core::Timer::IsFixed);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<tick_clock> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadFileSystem(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMEnum VFileMode = Engine->Global().SetEnum("file_mode");
 				VFileMode.SetValue("read_only", (int)Core::FileMode::Read_Only);
@@ -7450,9 +7734,14 @@ namespace Edge
 				VWebStream.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "base_stream@+", "", &WebStreamToStream);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<file_system> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadOS(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -7562,9 +7851,14 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<os> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadSchedule(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				Engine->GetEngine()->RegisterTypedef("task_id", "uint64");
 
@@ -7601,9 +7895,14 @@ namespace Edge
 				VSchedule.SetMethodStatic("schedule@+ get()", &Core::Schedule::Get);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<schedule> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadVertices(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				VMTypeClass VVertex = Register.SetPod<Compute::Vertex>("vertex");
@@ -7673,9 +7972,14 @@ namespace Edge
 				VElementVertex.SetConstructor<Compute::ElementVertex>("void f()");
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<vertices> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadVectors(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -7998,9 +8302,14 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<vectors> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadShapes(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -8052,9 +8361,14 @@ namespace Edge
 				VFrustum6P.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const vector4&", "usize", &Frustum6PGetCorners);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<shapes> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadKeyFrames(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -8137,9 +8451,14 @@ namespace Edge
 				VRandomFloat.SetMethod("float generate()", &Compute::RandomFloat::Generate);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<key_frames> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadRegex(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -8187,9 +8506,14 @@ namespace Edge
 				VRegexSource.SetMethodEx("string replace(const string &in, const string &in) const", &RegexSourceReplace);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<regex> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadCrypto(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -8441,9 +8765,14 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<crypto> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadGeometric(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -8557,9 +8886,14 @@ namespace Edge
 				Engine->EndNamespace();
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<geometric> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadPreprocessor(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -8600,9 +8934,14 @@ namespace Edge
 				VPreprocessor.SetMethodEx("bool is_defined(const string &in) const", &PreprocessorIsDefined);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<preprocessor> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadPhysics(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -9314,9 +9653,14 @@ namespace Edge
 				VDF6Constraint.SetOperatorEx(VMOpFunc::ImplCast, (uint32_t)VMOp::Const, "physics_constraint@+", "", &DF6ConstraintToConstraint);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<physics> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadAudio(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -9492,9 +9836,14 @@ namespace Edge
 				VAudioDevice.SetMethod("bool is_valid() const", &Audio::AudioDevice::IsValid);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<audio> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadActivity(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -9892,7 +10241,7 @@ namespace Edge
 				VActivity.SetMethod("void set_grabbing(bool)", &Graphics::Activity::SetGrabbing);
 				VActivity.SetMethod("void set_fullscreen(bool)", &Graphics::Activity::SetFullscreen);
 				VActivity.SetMethod("void set_borderless(bool)", &Graphics::Activity::SetBorderless);
-				VActivity.SetMethod("void set_title(uptr@)", &Graphics::Activity::SetTitle);
+				VActivity.SetMethodEx("void set_title(const string &in)", &ActivitySetTitle);
 				VActivity.SetMethod("void set_screen_keyboard(bool)", &Graphics::Activity::SetScreenKeyboard);
 				VActivity.SetMethod("void build_layer(render_backend)", &Graphics::Activity::BuildLayer);
 				VActivity.SetMethod("void hide()", &Graphics::Activity::Hide);
@@ -9930,9 +10279,1004 @@ namespace Edge
 				VActivity.SetMethod("activity_desc& get_options()", &Graphics::Activity::GetOptions);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<activity> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::LoadGraphics(VMManager* Engine)
+			{
+#ifdef ED_HAS_BINDINGS
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMEnum VVSync = Register.SetEnum("vsync");
+				VVSync.SetValue("off", (int)Graphics::VSync::Off);
+				VVSync.SetValue("frequency_x1", (int)Graphics::VSync::Frequency_X1);
+				VVSync.SetValue("frequency_x2", (int)Graphics::VSync::Frequency_X2);
+				VVSync.SetValue("frequency_x3", (int)Graphics::VSync::Frequency_X3);
+				VVSync.SetValue("frequency_x4", (int)Graphics::VSync::Frequency_X4);
+				VVSync.SetValue("on", (int)Graphics::VSync::On);
+
+				VMEnum VSurfaceTarget = Register.SetEnum("surface_target");
+				VSurfaceTarget.SetValue("t0", (int)Graphics::SurfaceTarget::T0);
+				VSurfaceTarget.SetValue("t1", (int)Graphics::SurfaceTarget::T1);
+				VSurfaceTarget.SetValue("t2", (int)Graphics::SurfaceTarget::T2);
+				VSurfaceTarget.SetValue("t3", (int)Graphics::SurfaceTarget::T3);
+				VSurfaceTarget.SetValue("t4", (int)Graphics::SurfaceTarget::T4);
+				VSurfaceTarget.SetValue("t5", (int)Graphics::SurfaceTarget::T5);
+				VSurfaceTarget.SetValue("t6", (int)Graphics::SurfaceTarget::T6);
+				VSurfaceTarget.SetValue("t7", (int)Graphics::SurfaceTarget::T7);
+
+				VMEnum VPrimitiveTopology = Register.SetEnum("primitive_topology");
+				VPrimitiveTopology.SetValue("invalid", (int)Graphics::PrimitiveTopology::Invalid);
+				VPrimitiveTopology.SetValue("point_list", (int)Graphics::PrimitiveTopology::Point_List);
+				VPrimitiveTopology.SetValue("line_list", (int)Graphics::PrimitiveTopology::Line_List);
+				VPrimitiveTopology.SetValue("line_strip", (int)Graphics::PrimitiveTopology::Line_Strip);
+				VPrimitiveTopology.SetValue("triangle_list", (int)Graphics::PrimitiveTopology::Triangle_List);
+				VPrimitiveTopology.SetValue("triangle_strip", (int)Graphics::PrimitiveTopology::Triangle_Strip);
+				VPrimitiveTopology.SetValue("line_list_adj", (int)Graphics::PrimitiveTopology::Line_List_Adj);
+				VPrimitiveTopology.SetValue("line_strip_adj", (int)Graphics::PrimitiveTopology::Line_Strip_Adj);
+				VPrimitiveTopology.SetValue("triangle_list_adj", (int)Graphics::PrimitiveTopology::Triangle_List_Adj);
+				VPrimitiveTopology.SetValue("triangle_strip_adj", (int)Graphics::PrimitiveTopology::Triangle_Strip_Adj);
+
+				VMEnum VFormat = Register.SetEnum("surface_format");
+				VFormat.SetValue("unknown", (int)Graphics::Format::Unknown);
+				VFormat.SetValue("A8_unorm", (int)Graphics::Format::A8_Unorm);
+				VFormat.SetValue("D16_unorm", (int)Graphics::Format::D16_Unorm);
+				VFormat.SetValue("D24_unorm_S8_uint", (int)Graphics::Format::D24_Unorm_S8_Uint);
+				VFormat.SetValue("D32_float", (int)Graphics::Format::D32_Float);
+				VFormat.SetValue("R10G10B10A2_uint", (int)Graphics::Format::R10G10B10A2_Uint);
+				VFormat.SetValue("R10G10B10A2_unorm", (int)Graphics::Format::R10G10B10A2_Unorm);
+				VFormat.SetValue("R11G11B10_float", (int)Graphics::Format::R11G11B10_Float);
+				VFormat.SetValue("R16G16B16A16_float", (int)Graphics::Format::R16G16B16A16_Float);
+				VFormat.SetValue("R16G16B16A16_sint", (int)Graphics::Format::R16G16B16A16_Sint);
+				VFormat.SetValue("R16G16B16A16_snorm", (int)Graphics::Format::R16G16B16A16_Snorm);
+				VFormat.SetValue("R16G16B16A16_uint", (int)Graphics::Format::R16G16B16A16_Uint);
+				VFormat.SetValue("R16G16B16A16_unorm", (int)Graphics::Format::R16G16B16A16_Unorm);
+				VFormat.SetValue("R16G16_float", (int)Graphics::Format::R16G16_Float);
+				VFormat.SetValue("R16G16_sint", (int)Graphics::Format::R16G16_Sint);
+				VFormat.SetValue("R16G16_snorm", (int)Graphics::Format::R16G16_Snorm);
+				VFormat.SetValue("R16G16_uint", (int)Graphics::Format::R16G16_Uint);
+				VFormat.SetValue("R16G16_unorm", (int)Graphics::Format::R16G16_Unorm);
+				VFormat.SetValue("R16_float", (int)Graphics::Format::R16_Float);
+				VFormat.SetValue("R16_sint", (int)Graphics::Format::R16_Sint);
+				VFormat.SetValue("R16_snorm", (int)Graphics::Format::R16_Snorm);
+				VFormat.SetValue("R16_uint", (int)Graphics::Format::R16_Uint);
+				VFormat.SetValue("R16_unorm", (int)Graphics::Format::R16_Unorm);
+				VFormat.SetValue("R1_unorm", (int)Graphics::Format::R1_Unorm);
+				VFormat.SetValue("R32G32B32A32_float", (int)Graphics::Format::R32G32B32A32_Float);
+				VFormat.SetValue("R32G32B32A32_sint", (int)Graphics::Format::R32G32B32A32_Sint);
+				VFormat.SetValue("R32G32B32A32_uint", (int)Graphics::Format::R32G32B32A32_Uint);
+				VFormat.SetValue("R32G32B32_float", (int)Graphics::Format::R32G32B32_Float);
+				VFormat.SetValue("R32G32B32_sint", (int)Graphics::Format::R32G32B32_Sint);
+				VFormat.SetValue("R32G32B32_uint", (int)Graphics::Format::R32G32B32_Uint);
+				VFormat.SetValue("R32G32_float", (int)Graphics::Format::R32G32_Float);
+				VFormat.SetValue("R32G32_sint", (int)Graphics::Format::R32G32_Sint);
+				VFormat.SetValue("R32G32_uint", (int)Graphics::Format::R32G32_Uint);
+				VFormat.SetValue("R32_float", (int)Graphics::Format::R32_Float);
+				VFormat.SetValue("R32_sint", (int)Graphics::Format::R32_Sint);
+				VFormat.SetValue("R32_uint", (int)Graphics::Format::R32_Uint);
+				VFormat.SetValue("R8G8B8A8_sint", (int)Graphics::Format::R8G8B8A8_Sint);
+				VFormat.SetValue("R8G8B8A8_snorm", (int)Graphics::Format::R8G8B8A8_Snorm);
+				VFormat.SetValue("R8G8B8A8_uint", (int)Graphics::Format::R8G8B8A8_Uint);
+				VFormat.SetValue("R8G8B8A8_unorm", (int)Graphics::Format::R8G8B8A8_Unorm);
+				VFormat.SetValue("R8G8B8A8_unorm_SRGB", (int)Graphics::Format::R8G8B8A8_Unorm_SRGB);
+				VFormat.SetValue("R8G8_B8G8_unorm", (int)Graphics::Format::R8G8_B8G8_Unorm);
+				VFormat.SetValue("R8G8_sint", (int)Graphics::Format::R8G8_Sint);
+				VFormat.SetValue("R8G8_snorm", (int)Graphics::Format::R8G8_Snorm);
+				VFormat.SetValue("R8G8_uint", (int)Graphics::Format::R8G8_Uint);
+				VFormat.SetValue("R8G8_unorm", (int)Graphics::Format::R8G8_Unorm);
+				VFormat.SetValue("R8_sint", (int)Graphics::Format::R8_Sint);
+				VFormat.SetValue("R8_snorm", (int)Graphics::Format::R8_Snorm);
+				VFormat.SetValue("R8_uint", (int)Graphics::Format::R8_Uint);
+				VFormat.SetValue("R8_unorm", (int)Graphics::Format::R8_Unorm);
+				VFormat.SetValue("R9G9B9E5_share_dexp", (int)Graphics::Format::R9G9B9E5_Share_Dexp);
+
+				VMEnum VResourceMap = Register.SetEnum("resource_map");
+				VResourceMap.SetValue("read", (int)Graphics::ResourceMap::Read);
+				VResourceMap.SetValue("write", (int)Graphics::ResourceMap::Write);
+				VResourceMap.SetValue("read_write", (int)Graphics::ResourceMap::Read_Write);
+				VResourceMap.SetValue("write_discard", (int)Graphics::ResourceMap::Write_Discard);
+				VResourceMap.SetValue("write_no_overwrite", (int)Graphics::ResourceMap::Write_No_Overwrite);
+
+				VMEnum VResourceUsage = Register.SetEnum("resource_usage");
+				VResourceUsage.SetValue("default_t", (int)Graphics::ResourceUsage::Default);
+				VResourceUsage.SetValue("immutable", (int)Graphics::ResourceUsage::Immutable);
+				VResourceUsage.SetValue("dynamic", (int)Graphics::ResourceUsage::Dynamic);
+				VResourceUsage.SetValue("staging", (int)Graphics::ResourceUsage::Staging);
+
+				VMEnum VShaderModel = Register.SetEnum("shader_model");
+				VShaderModel.SetValue("invalid", (int)Graphics::ShaderModel::Invalid);
+				VShaderModel.SetValue("auto_t", (int)Graphics::ShaderModel::Auto);
+				VShaderModel.SetValue("HLSL_1_0", (int)Graphics::ShaderModel::HLSL_1_0);
+				VShaderModel.SetValue("HLSL_2_0", (int)Graphics::ShaderModel::HLSL_2_0);
+				VShaderModel.SetValue("HLSL_3_0", (int)Graphics::ShaderModel::HLSL_3_0);
+				VShaderModel.SetValue("HLSL_4_0", (int)Graphics::ShaderModel::HLSL_4_0);
+				VShaderModel.SetValue("HLSL_4_1", (int)Graphics::ShaderModel::HLSL_4_1);
+				VShaderModel.SetValue("HLSL_5_0", (int)Graphics::ShaderModel::HLSL_5_0);
+				VShaderModel.SetValue("GLSL_1_1_0", (int)Graphics::ShaderModel::GLSL_1_1_0);
+				VShaderModel.SetValue("GLSL_1_2_0", (int)Graphics::ShaderModel::GLSL_1_2_0);
+				VShaderModel.SetValue("GLSL_1_3_0", (int)Graphics::ShaderModel::GLSL_1_3_0);
+				VShaderModel.SetValue("GLSL_1_4_0", (int)Graphics::ShaderModel::GLSL_1_4_0);
+				VShaderModel.SetValue("GLSL_1_5_0", (int)Graphics::ShaderModel::GLSL_1_5_0);
+				VShaderModel.SetValue("GLSL_3_3_0", (int)Graphics::ShaderModel::GLSL_3_3_0);
+				VShaderModel.SetValue("GLSL_4_0_0", (int)Graphics::ShaderModel::GLSL_4_0_0);
+				VShaderModel.SetValue("GLSL_4_1_0", (int)Graphics::ShaderModel::GLSL_4_1_0);
+				VShaderModel.SetValue("GLSL_4_2_0", (int)Graphics::ShaderModel::GLSL_4_2_0);
+				VShaderModel.SetValue("GLSL_4_3_0", (int)Graphics::ShaderModel::GLSL_4_3_0);
+				VShaderModel.SetValue("GLSL_4_4_0", (int)Graphics::ShaderModel::GLSL_4_4_0);
+				VShaderModel.SetValue("GLSL_4_5_0", (int)Graphics::ShaderModel::GLSL_4_5_0);
+				VShaderModel.SetValue("GLSL_4_6_0", (int)Graphics::ShaderModel::GLSL_4_6_0);
+
+				VMEnum VResourceBind = Register.SetEnum("resource_bind");
+				VResourceBind.SetValue("vertex_buffer", (int)Graphics::ResourceBind::Vertex_Buffer);
+				VResourceBind.SetValue("index_buffer", (int)Graphics::ResourceBind::Index_Buffer);
+				VResourceBind.SetValue("constant_buffer", (int)Graphics::ResourceBind::Constant_Buffer);
+				VResourceBind.SetValue("shader_input", (int)Graphics::ResourceBind::Shader_Input);
+				VResourceBind.SetValue("stream_output", (int)Graphics::ResourceBind::Stream_Output);
+				VResourceBind.SetValue("render_target", (int)Graphics::ResourceBind::Render_Target);
+				VResourceBind.SetValue("depth_stencil", (int)Graphics::ResourceBind::Depth_Stencil);
+				VResourceBind.SetValue("unordered_access", (int)Graphics::ResourceBind::Unordered_Access);
+
+				VMEnum VCPUAccess = Register.SetEnum("cpu_access");
+				VCPUAccess.SetValue("invalid", (int)Graphics::CPUAccess::Invalid);
+				VCPUAccess.SetValue("write", (int)Graphics::CPUAccess::Write);
+				VCPUAccess.SetValue("read", (int)Graphics::CPUAccess::Read);
+
+				VMEnum VDepthWrite = Register.SetEnum("depth_write");
+				VDepthWrite.SetValue("zero", (int)Graphics::DepthWrite::Zero);
+				VDepthWrite.SetValue("all", (int)Graphics::DepthWrite::All);
+
+				VMEnum VComparison = Register.SetEnum("comparison");
+				VComparison.SetValue("never", (int)Graphics::Comparison::Never);
+				VComparison.SetValue("less", (int)Graphics::Comparison::Less);
+				VComparison.SetValue("equal", (int)Graphics::Comparison::Equal);
+				VComparison.SetValue("less_equal", (int)Graphics::Comparison::Less_Equal);
+				VComparison.SetValue("greater", (int)Graphics::Comparison::Greater);
+				VComparison.SetValue("not_equal", (int)Graphics::Comparison::Not_Equal);
+				VComparison.SetValue("greater_equal", (int)Graphics::Comparison::Greater_Equal);
+				VComparison.SetValue("always", (int)Graphics::Comparison::Always);
+
+				VMEnum VStencilOperation = Register.SetEnum("stencil_operation");
+				VStencilOperation.SetValue("keep", (int)Graphics::StencilOperation::Keep);
+				VStencilOperation.SetValue("zero", (int)Graphics::StencilOperation::Zero);
+				VStencilOperation.SetValue("replace", (int)Graphics::StencilOperation::Replace);
+				VStencilOperation.SetValue("sat_add", (int)Graphics::StencilOperation::SAT_Add);
+				VStencilOperation.SetValue("sat_subtract", (int)Graphics::StencilOperation::SAT_Subtract);
+				VStencilOperation.SetValue("invert", (int)Graphics::StencilOperation::Invert);
+				VStencilOperation.SetValue("add", (int)Graphics::StencilOperation::Add);
+				VStencilOperation.SetValue("subtract", (int)Graphics::StencilOperation::Subtract);
+
+				VMEnum VBlend = Register.SetEnum("blend_t");
+				VBlend.SetValue("zero", (int)Graphics::Blend::Zero);
+				VBlend.SetValue("one", (int)Graphics::Blend::One);
+				VBlend.SetValue("source_color", (int)Graphics::Blend::Source_Color);
+				VBlend.SetValue("source_color_invert", (int)Graphics::Blend::Source_Color_Invert);
+				VBlend.SetValue("source_alpha", (int)Graphics::Blend::Source_Alpha);
+				VBlend.SetValue("source_alpha_invert", (int)Graphics::Blend::Source_Alpha_Invert);
+				VBlend.SetValue("destination_alpha", (int)Graphics::Blend::Destination_Alpha);
+				VBlend.SetValue("destination_alpha_invert", (int)Graphics::Blend::Destination_Alpha_Invert);
+				VBlend.SetValue("destination_color", (int)Graphics::Blend::Destination_Color);
+				VBlend.SetValue("destination_color_invert", (int)Graphics::Blend::Destination_Color_Invert);
+				VBlend.SetValue("source_alpha_sat", (int)Graphics::Blend::Source_Alpha_SAT);
+				VBlend.SetValue("blend_factor", (int)Graphics::Blend::Blend_Factor);
+				VBlend.SetValue("blend_factor_invert", (int)Graphics::Blend::Blend_Factor_Invert);
+				VBlend.SetValue("source1_color", (int)Graphics::Blend::Source1_Color);
+				VBlend.SetValue("source1_color_invert", (int)Graphics::Blend::Source1_Color_Invert);
+				VBlend.SetValue("source1_alpha", (int)Graphics::Blend::Source1_Alpha);
+				VBlend.SetValue("source1_alpha_invert", (int)Graphics::Blend::Source1_Alpha_Invert);
+
+				VMEnum VSurfaceFill = Register.SetEnum("surface_fill");
+				VSurfaceFill.SetValue("wireframe", (int)Graphics::SurfaceFill::Wireframe);
+				VSurfaceFill.SetValue("solid", (int)Graphics::SurfaceFill::Solid);
+
+				VMEnum VPixelFilter = Register.SetEnum("pixel_filter");
+				VPixelFilter.SetValue("min_mag_mip_point", (int)Graphics::PixelFilter::Min_Mag_Mip_Point);
+				VPixelFilter.SetValue("min_mag_point_mip_linear", (int)Graphics::PixelFilter::Min_Mag_Point_Mip_Linear);
+				VPixelFilter.SetValue("min_point_mag_linear_mip_point", (int)Graphics::PixelFilter::Min_Point_Mag_Linear_Mip_Point);
+				VPixelFilter.SetValue("min_point_mag_mip_linear", (int)Graphics::PixelFilter::Min_Point_Mag_Mip_Linear);
+				VPixelFilter.SetValue("min_linear_mag_mip_point", (int)Graphics::PixelFilter::Min_Linear_Mag_Mip_Point);
+				VPixelFilter.SetValue("min_linear_mag_point_mip_linear", (int)Graphics::PixelFilter::Min_Linear_Mag_Point_Mip_Linear);
+				VPixelFilter.SetValue("min_mag_linear_mip_point", (int)Graphics::PixelFilter::Min_Mag_Linear_Mip_Point);
+				VPixelFilter.SetValue("min_mag_mip_minear", (int)Graphics::PixelFilter::Min_Mag_Mip_Linear);
+				VPixelFilter.SetValue("anistropic", (int)Graphics::PixelFilter::Anistropic);
+				VPixelFilter.SetValue("compare_min_mag_mip_point", (int)Graphics::PixelFilter::Compare_Min_Mag_Mip_Point);
+				VPixelFilter.SetValue("compare_min_mag_point_mip_linear", (int)Graphics::PixelFilter::Compare_Min_Mag_Point_Mip_Linear);
+				VPixelFilter.SetValue("compare_min_point_mag_linear_mip_point", (int)Graphics::PixelFilter::Compare_Min_Point_Mag_Linear_Mip_Point);
+				VPixelFilter.SetValue("compare_min_point_mag_mip_linear", (int)Graphics::PixelFilter::Compare_Min_Point_Mag_Mip_Linear);
+				VPixelFilter.SetValue("compare_min_linear_mag_mip_point", (int)Graphics::PixelFilter::Compare_Min_Linear_Mag_Mip_Point);
+				VPixelFilter.SetValue("compare_min_linear_mag_point_mip_linear", (int)Graphics::PixelFilter::Compare_Min_Linear_Mag_Point_Mip_Linear);
+				VPixelFilter.SetValue("compare_min_mag_linear_mip_point", (int)Graphics::PixelFilter::Compare_Min_Mag_Linear_Mip_Point);
+				VPixelFilter.SetValue("compare_min_mag_mip_linear", (int)Graphics::PixelFilter::Compare_Min_Mag_Mip_Linear);
+				VPixelFilter.SetValue("compare_anistropic", (int)Graphics::PixelFilter::Compare_Anistropic);
+
+				VMEnum VTextureAddress = Register.SetEnum("texture_address");
+				VTextureAddress.SetValue("wrap", (int)Graphics::TextureAddress::Wrap);
+				VTextureAddress.SetValue("mirror", (int)Graphics::TextureAddress::Mirror);
+				VTextureAddress.SetValue("clamp", (int)Graphics::TextureAddress::Clamp);
+				VTextureAddress.SetValue("border", (int)Graphics::TextureAddress::Border);
+				VTextureAddress.SetValue("mirror_once", (int)Graphics::TextureAddress::Mirror_Once);
+
+				VMEnum VColorWriteEnable = Register.SetEnum("color_write_enable");
+				VColorWriteEnable.SetValue("red", (int)Graphics::ColorWriteEnable::Red);
+				VColorWriteEnable.SetValue("green", (int)Graphics::ColorWriteEnable::Green);
+				VColorWriteEnable.SetValue("blue", (int)Graphics::ColorWriteEnable::Blue);
+				VColorWriteEnable.SetValue("alpha", (int)Graphics::ColorWriteEnable::Alpha);
+				VColorWriteEnable.SetValue("all", (int)Graphics::ColorWriteEnable::All);
+
+				VMEnum VBlendOperation = Register.SetEnum("blend_operation");
+				VBlendOperation.SetValue("add", (int)Graphics::BlendOperation::Add);
+				VBlendOperation.SetValue("subtract", (int)Graphics::BlendOperation::Subtract);
+				VBlendOperation.SetValue("subtract_reverse", (int)Graphics::BlendOperation::Subtract_Reverse);
+				VBlendOperation.SetValue("min", (int)Graphics::BlendOperation::Min);
+				VBlendOperation.SetValue("max", (int)Graphics::BlendOperation::Max);
+
+				VMEnum VVertexCull = Register.SetEnum("vertex_cull");
+				VVertexCull.SetValue("none", (int)Graphics::VertexCull::None);
+				VVertexCull.SetValue("front", (int)Graphics::VertexCull::Front);
+				VVertexCull.SetValue("back", (int)Graphics::VertexCull::Back);
+
+				VMEnum VShaderCompile = Register.SetEnum("shader_compile");
+				VShaderCompile.SetValue("debug", (int)Graphics::ShaderCompile::Debug);
+				VShaderCompile.SetValue("skip_validation", (int)Graphics::ShaderCompile::Skip_Validation);
+				VShaderCompile.SetValue("skip_optimization", (int)Graphics::ShaderCompile::Skip_Optimization);
+				VShaderCompile.SetValue("matrix_row_major", (int)Graphics::ShaderCompile::Matrix_Row_Major);
+				VShaderCompile.SetValue("matrix_column_major", (int)Graphics::ShaderCompile::Matrix_Column_Major);
+				VShaderCompile.SetValue("partial_precision", (int)Graphics::ShaderCompile::Partial_Precision);
+				VShaderCompile.SetValue("foe_vs_no_opt", (int)Graphics::ShaderCompile::FOE_VS_No_OPT);
+				VShaderCompile.SetValue("foe_ps_no_opt", (int)Graphics::ShaderCompile::FOE_PS_No_OPT);
+				VShaderCompile.SetValue("no_preshader", (int)Graphics::ShaderCompile::No_Preshader);
+				VShaderCompile.SetValue("avoid_flow_control", (int)Graphics::ShaderCompile::Avoid_Flow_Control);
+				VShaderCompile.SetValue("prefer_flow_control", (int)Graphics::ShaderCompile::Prefer_Flow_Control);
+				VShaderCompile.SetValue("enable_strictness", (int)Graphics::ShaderCompile::Enable_Strictness);
+				VShaderCompile.SetValue("enable_backwards_compatibility", (int)Graphics::ShaderCompile::Enable_Backwards_Compatibility);
+				VShaderCompile.SetValue("ieee_strictness", (int)Graphics::ShaderCompile::IEEE_Strictness);
+				VShaderCompile.SetValue("optimization_level0", (int)Graphics::ShaderCompile::Optimization_Level0);
+				VShaderCompile.SetValue("optimization_level1", (int)Graphics::ShaderCompile::Optimization_Level1);
+				VShaderCompile.SetValue("optimization_level2", (int)Graphics::ShaderCompile::Optimization_Level2);(1ll << 14) | (1ll << 15),
+				VShaderCompile.SetValue("optimization_level3", (int)Graphics::ShaderCompile::Optimization_Level3);
+				VShaderCompile.SetValue("reseed_x16", (int)Graphics::ShaderCompile::Reseed_X16);
+				VShaderCompile.SetValue("reseed_x17", (int)Graphics::ShaderCompile::Reseed_X17);
+				VShaderCompile.SetValue("picky", (int)Graphics::ShaderCompile::Picky);
+
+				VMEnum VRenderBufferType = Register.SetEnum("render_buffer_type");
+				VRenderBufferType.SetValue("Animation", (int)Graphics::RenderBufferType::Animation);
+				VRenderBufferType.SetValue("Render", (int)Graphics::RenderBufferType::Render);
+				VRenderBufferType.SetValue("View", (int)Graphics::RenderBufferType::View);
+
+				VMEnum VResourceMisc = Register.SetEnum("resource_misc");
+				VResourceMisc.SetValue("none", (int)Graphics::ResourceMisc::None);
+				VResourceMisc.SetValue("generate_mips", (int)Graphics::ResourceMisc::Generate_Mips);
+				VResourceMisc.SetValue("shared", (int)Graphics::ResourceMisc::Shared);
+				VResourceMisc.SetValue("texture_cube", (int)Graphics::ResourceMisc::Texture_Cube);
+				VResourceMisc.SetValue("draw_indirect_args", (int)Graphics::ResourceMisc::Draw_Indirect_Args);
+				VResourceMisc.SetValue("buffer_allow_raw_views", (int)Graphics::ResourceMisc::Buffer_Allow_Raw_Views);
+				VResourceMisc.SetValue("buffer_structured", (int)Graphics::ResourceMisc::Buffer_Structured);
+				VResourceMisc.SetValue("clamp", (int)Graphics::ResourceMisc::Clamp);
+				VResourceMisc.SetValue("shared_keyed_mutex", (int)Graphics::ResourceMisc::Shared_Keyed_Mutex);
+				VResourceMisc.SetValue("gdi_compatible", (int)Graphics::ResourceMisc::GDI_Compatible);
+				VResourceMisc.SetValue("shared_nt_handle", (int)Graphics::ResourceMisc::Shared_NT_Handle);
+				VResourceMisc.SetValue("restricted_content", (int)Graphics::ResourceMisc::Restricted_Content);
+				VResourceMisc.SetValue("restrict_shared", (int)Graphics::ResourceMisc::Restrict_Shared);
+				VResourceMisc.SetValue("restrict_shared_driver", (int)Graphics::ResourceMisc::Restrict_Shared_Driver);
+				VResourceMisc.SetValue("guarded", (int)Graphics::ResourceMisc::Guarded);
+				VResourceMisc.SetValue("tile_pool", (int)Graphics::ResourceMisc::Tile_Pool);
+				VResourceMisc.SetValue("tiled", (int)Graphics::ResourceMisc::Tiled);
+
+				VMEnum VShaderType = Register.SetEnum("shader_type");
+				VShaderType.SetValue("vertex", (int)Graphics::ShaderType::Vertex);
+				VShaderType.SetValue("pixel", (int)Graphics::ShaderType::Pixel);
+				VShaderType.SetValue("geometry", (int)Graphics::ShaderType::Geometry);
+				VShaderType.SetValue("hull", (int)Graphics::ShaderType::Hull);
+				VShaderType.SetValue("domain", (int)Graphics::ShaderType::Domain);
+				VShaderType.SetValue("compute", (int)Graphics::ShaderType::Compute);
+				VShaderType.SetValue("all", (int)Graphics::ShaderType::All);
+
+				VMEnum VShaderLang = Register.SetEnum("shader_lang");
+				VShaderLang.SetValue("none", (int)Graphics::ShaderLang::None);
+				VShaderLang.SetValue("spv", (int)Graphics::ShaderLang::SPV);
+				VShaderLang.SetValue("msl", (int)Graphics::ShaderLang::MSL);
+				VShaderLang.SetValue("hlsl", (int)Graphics::ShaderLang::HLSL);
+				VShaderLang.SetValue("glsl", (int)Graphics::ShaderLang::GLSL);
+				VShaderLang.SetValue("glsl_es", (int)Graphics::ShaderLang::GLSL_ES);
+
+				VMEnum VAttributeType = Register.SetEnum("attribute_type");
+				VAttributeType.SetValue("byte_t", (int)Graphics::AttributeType::Byte);
+				VAttributeType.SetValue("ubyte_t", (int)Graphics::AttributeType::Ubyte);
+				VAttributeType.SetValue("half_t", (int)Graphics::AttributeType::Half);
+				VAttributeType.SetValue("float_t", (int)Graphics::AttributeType::Float);
+				VAttributeType.SetValue("int_t", (int)Graphics::AttributeType::Int);
+				VAttributeType.SetValue("uint_t", (int)Graphics::AttributeType::Uint);
+				VAttributeType.SetValue("matrix_t", (int)Graphics::AttributeType::Matrix);
+
+				VMTypeClass VMappedSubresource = Register.SetPod<Graphics::MappedSubresource>("mapped_subresource");
+				VMappedSubresource.SetProperty<Graphics::MappedSubresource>("uptr@ pointer", &Graphics::MappedSubresource::Pointer);
+				VMappedSubresource.SetProperty<Graphics::MappedSubresource>("uint32 row_pitch", &Graphics::MappedSubresource::RowPitch);
+				VMappedSubresource.SetProperty<Graphics::MappedSubresource>("uint32 depth_pitch", &Graphics::MappedSubresource::DepthPitch);
+				VMappedSubresource.SetConstructor<Graphics::MappedSubresource>("void f()");
+
+				VMTypeClass VRenderTargetBlendState = Register.SetPod<Graphics::RenderTargetBlendState>("render_target_blend_state");
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_t src_blend", &Graphics::RenderTargetBlendState::SrcBlend);
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_t dest_blend", &Graphics::RenderTargetBlendState::DestBlend);
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_operation blend_operation_mode", &Graphics::RenderTargetBlendState::BlendOperationMode);
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_t src_blend_alpha", &Graphics::RenderTargetBlendState::SrcBlendAlpha);
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_t dest_blend_alpha", &Graphics::RenderTargetBlendState::DestBlendAlpha);
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("blend_operation blend_operation_alpha", &Graphics::RenderTargetBlendState::BlendOperationAlpha);
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("uint8 render_target_write_mask", &Graphics::RenderTargetBlendState::RenderTargetWriteMask);
+				VRenderTargetBlendState.SetProperty<Graphics::RenderTargetBlendState>("bool blend_enable", &Graphics::RenderTargetBlendState::BlendEnable);
+				VRenderTargetBlendState.SetConstructor<Graphics::RenderTargetBlendState>("void f()");
+
+				VMTypeClass VPoseNode = Register.SetPod<Graphics::PoseNode>("pose_node");
+				VPoseNode.SetProperty<Graphics::PoseNode>("vector3 Position", &Graphics::PoseNode::Position);
+				VPoseNode.SetProperty<Graphics::PoseNode>("vector3 Rotation", &Graphics::PoseNode::Rotation);
+				VPoseNode.SetConstructor<Graphics::PoseNode>("void f()");
+
+				VMTypeClass VAnimationBuffer = Register.SetPod<Graphics::AnimationBuffer>("animation_buffer");
+				VAnimationBuffer.SetProperty<Graphics::AnimationBuffer>("vector3 padding", &Graphics::AnimationBuffer::Padding);
+				VAnimationBuffer.SetProperty<Graphics::AnimationBuffer>("float Animated", &Graphics::AnimationBuffer::Animated);
+				VAnimationBuffer.SetConstructor<Graphics::AnimationBuffer>("void f()");
+				VAnimationBuffer.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "matrix4x4&", "usize", &AnimationBufferGetOffsets);
+				VAnimationBuffer.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const matrix4x4&", "usize", &AnimationBufferGetOffsets);
+
+				VMTypeClass VRenderBufferInstance = Register.SetPod<Graphics::RenderBuffer::Instance>("render_buffer_instance");
+				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("matrix4x4 transform", &Graphics::RenderBuffer::Instance::Transform);
+				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("matrix4x4 world", &Graphics::RenderBuffer::Instance::World);
+				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("vector2 texcoord", &Graphics::RenderBuffer::Instance::TexCoord);
+				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float diffuse", &Graphics::RenderBuffer::Instance::Diffuse);
+				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float normal", &Graphics::RenderBuffer::Instance::Normal);
+				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float height", &Graphics::RenderBuffer::Instance::Height);
+				VRenderBufferInstance.SetProperty<Graphics::RenderBuffer::Instance>("float material_id", &Graphics::RenderBuffer::Instance::MaterialId);
+				VRenderBufferInstance.SetConstructor<Graphics::RenderBuffer::Instance>("void f()");
+
+				VMTypeClass VRenderBuffer = Register.SetPod<Graphics::RenderBuffer>("render_buffer");
+				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("matrix4x4 transform", &Graphics::RenderBuffer::Transform);
+				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("matrix4x4 world", &Graphics::RenderBuffer::World);
+				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("vector4 texcoord", &Graphics::RenderBuffer::TexCoord);
+				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float diffuse", &Graphics::RenderBuffer::Diffuse);
+				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float normal", &Graphics::RenderBuffer::Normal);
+				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float height", &Graphics::RenderBuffer::Height);
+				VRenderBuffer.SetProperty<Graphics::RenderBuffer>("float material_id", &Graphics::RenderBuffer::MaterialId);
+				VRenderBuffer.SetConstructor<Graphics::RenderBuffer>("void f()");
+
+				VMTypeClass VViewBuffer = Register.SetPod<Graphics::ViewBuffer>("view_buffer");
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 inv_view_proj", &Graphics::ViewBuffer::InvViewProj);
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 view_proj", &Graphics::ViewBuffer::ViewProj);
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 proj", &Graphics::ViewBuffer::Proj);
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("matrix4x4 view", &Graphics::ViewBuffer::View);
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("vector3 position", &Graphics::ViewBuffer::Position);
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("float far", &Graphics::ViewBuffer::Far);
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("vector3 direction", &Graphics::ViewBuffer::Direction);
+				VViewBuffer.SetProperty<Graphics::ViewBuffer>("float near", &Graphics::ViewBuffer::Near);
+				VViewBuffer.SetConstructor<Graphics::ViewBuffer>("void f()");
+
+				VMRefClass VSkinModel = Register.SetClassUnmanaged<Graphics::SkinModel>("skin_model");
+				VMTypeClass VPoseBuffer = Register.SetStructUnmanaged<Graphics::PoseBuffer>("pose_buffer");
+				VPoseBuffer.SetMethod("bool set_pose(skin_model@+)", &Graphics::PoseBuffer::SetPose);
+				VPoseBuffer.SetMethodEx("array<animator_key>@ get_pose(skin_model@+)", &PoseBufferGetPose);
+				VPoseBuffer.SetMethod("matrix4x4 get_offset(pose_node &in)", &Graphics::PoseBuffer::GetOffset);
+				VPoseBuffer.SetMethodEx("matrix4x4& get_transform(usize)", &PoseBufferGetTransform);
+				VPoseBuffer.SetMethodEx("pose_node& get_node(usize)", &PoseBufferGetNode);
+				VPoseBuffer.SetConstructor<Graphics::PoseBuffer>("void f()");
+
+				VMRefClass VSurface = Register.SetClassUnmanaged<Graphics::Surface>("surface_handle");
+				VSurface.SetUnmanagedConstructor<Graphics::Surface>("surface_handle@ f()");
+				VSurface.SetUnmanagedConstructor<Graphics::Surface, SDL_Surface*>("surface_handle@ f(uptr@)");
+				VSurface.SetMethod("void set_handle(uptr@)", &Graphics::Surface::SetHandle);
+				VSurface.SetMethod("void lock()", &Graphics::Surface::Lock);
+				VSurface.SetMethod("void unlock()", &Graphics::Surface::Unlock);
+				VSurface.SetMethod("int get_width() const", &Graphics::Surface::GetWidth);
+				VSurface.SetMethod("int get_height() const", &Graphics::Surface::GetHeight);
+				VSurface.SetMethod("int get_pitch() const", &Graphics::Surface::GetPitch);
+				VSurface.SetMethod("uptr@ get_pixels() const", &Graphics::Surface::GetPixels);
+				VSurface.SetMethod("uptr@ get_resource() const", &Graphics::Surface::GetResource);
+
+				VMTypeClass VDepthStencilStateDesc = Register.SetPod<Graphics::DepthStencilState::Desc>("depth_stencil_state_desc");
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation front_face_stencil_fail_operation", &Graphics::DepthStencilState::Desc::FrontFaceStencilFailOperation);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation front_face_stencil_depth_fail_operation", &Graphics::DepthStencilState::Desc::FrontFaceStencilDepthFailOperation);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation front_face_stencil_pass_operation", &Graphics::DepthStencilState::Desc::FrontFaceStencilPassOperation);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("comparison front_face_stencil_function", &Graphics::DepthStencilState::Desc::FrontFaceStencilFunction);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation back_face_stencil_fail_operation", &Graphics::DepthStencilState::Desc::BackFaceStencilFailOperation);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation back_face_stencil_depth_fail_operation", &Graphics::DepthStencilState::Desc::BackFaceStencilDepthFailOperation);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("stencil_operation back_face_stencil_pass_operation", &Graphics::DepthStencilState::Desc::BackFaceStencilPassOperation);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("comparison back_face_stencil_function", &Graphics::DepthStencilState::Desc::BackFaceStencilFunction);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("depth_write depth_write_mask", &Graphics::DepthStencilState::Desc::DepthWriteMask);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("comparison depth_function", &Graphics::DepthStencilState::Desc::DepthFunction);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("uint8 stencil_read_mask", &Graphics::DepthStencilState::Desc::StencilReadMask);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("uint8 stencil_write_mask", &Graphics::DepthStencilState::Desc::StencilWriteMask);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("bool depth_enable", &Graphics::DepthStencilState::Desc::DepthEnable);
+				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("bool stencil_enable", &Graphics::DepthStencilState::Desc::StencilEnable);
+				VDepthStencilStateDesc.SetConstructor<Graphics::DepthStencilState::Desc>("void f()");
+
+				VMRefClass VDepthStencilState = Register.SetClassUnmanaged<Graphics::DepthStencilState>("depth_stencil_state");
+				VDepthStencilState.SetMethod("uptr@ get_resource() const", &Graphics::DepthStencilState::GetResource);
+				VDepthStencilState.SetMethod("depth_stencil_state_desc get_state() const", &Graphics::DepthStencilState::GetState);
+
+				VMTypeClass VRasterizerStateDesc = Register.SetPod<Graphics::RasterizerState::Desc>("rasterizer_state_desc");
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("surface_fill fill_mode", &Graphics::RasterizerState::Desc::FillMode);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("vertex_cull cull_mode", &Graphics::RasterizerState::Desc::CullMode);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("float depth_bias_clamp", &Graphics::RasterizerState::Desc::DepthBiasClamp);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("float slope_scaled_depth_bias", &Graphics::RasterizerState::Desc::SlopeScaledDepthBias);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("int32 depth_bias", &Graphics::RasterizerState::Desc::DepthBias);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool front_counter_clockwise", &Graphics::RasterizerState::Desc::FrontCounterClockwise);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool depth_clip_enable", &Graphics::RasterizerState::Desc::DepthClipEnable);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool scissor_enable", &Graphics::RasterizerState::Desc::ScissorEnable);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool multisample_enable", &Graphics::RasterizerState::Desc::MultisampleEnable);
+				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool antialiased_line_enable", &Graphics::RasterizerState::Desc::AntialiasedLineEnable);
+				VRasterizerStateDesc.SetConstructor<Graphics::RasterizerState::Desc>("void f()");
+
+				VMRefClass VRasterizerState = Register.SetClassUnmanaged<Graphics::RasterizerState>("rasterizer_state");
+				VRasterizerState.SetMethod("uptr@ get_resource() const", &Graphics::RasterizerState::GetResource);
+				VRasterizerState.SetMethod("rasterizer_state_desc get_state() const", &Graphics::RasterizerState::GetState);
+
+				VMTypeClass VBlendStateDesc = Register.SetPod<Graphics::BlendState::Desc>("blend_state_desc");
+				VBlendStateDesc.SetProperty<Graphics::BlendState::Desc>("bool alpha_to_coverage_enable", &Graphics::BlendState::Desc::AlphaToCoverageEnable);
+				VBlendStateDesc.SetProperty<Graphics::BlendState::Desc>("bool independent_blend_enable", &Graphics::BlendState::Desc::IndependentBlendEnable);
+				VBlendStateDesc.SetConstructor<Graphics::BlendState::Desc>("void f()");
+				VBlendStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
+				VBlendStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
+
+				VMRefClass VBlendState = Register.SetClassUnmanaged<Graphics::BlendState>("blend_state");
+				VBlendState.SetMethod("uptr@ get_resource() const", &Graphics::BlendState::GetResource);
+				VBlendState.SetMethod("blend_state_desc get_state() const", &Graphics::BlendState::GetState);
+
+				VMTypeClass VSamplerStateDesc = Register.SetPod<Graphics::SamplerState::Desc>("sampler_state_desc");
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("comparison comparison_function", &Graphics::SamplerState::Desc::ComparisonFunction);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("texture_address address_u", &Graphics::SamplerState::Desc::AddressU);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("texture_address address_v", &Graphics::SamplerState::Desc::AddressV);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("texture_address address_w", &Graphics::SamplerState::Desc::AddressW);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("pixel_filter filter", &Graphics::SamplerState::Desc::Filter);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("float mip_lod_bias", &Graphics::SamplerState::Desc::MipLODBias);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("uint32 max_anisotropy", &Graphics::SamplerState::Desc::MaxAnisotropy);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("float min_lod", &Graphics::SamplerState::Desc::MinLOD);
+				VSamplerStateDesc.SetProperty<Graphics::SamplerState::Desc>("float max_lod", &Graphics::SamplerState::Desc::MaxLOD);
+				VSamplerStateDesc.SetConstructor<Graphics::SamplerState::Desc>("void f()");
+				VSamplerStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "float&", "usize", &SamplerStateDescGetBorderColor);
+				VSamplerStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const float&", "usize", &SamplerStateDescGetBorderColor);
+
+				VMRefClass VSamplerState = Register.SetClassUnmanaged<Graphics::SamplerState>("sampler_state");
+				VSamplerState.SetMethod("uptr@ get_resource() const", &Graphics::SamplerState::GetResource);
+				VSamplerState.SetMethod("sampler_state_desc get_state() const", &Graphics::SamplerState::GetState);
+
+				VMTypeClass VInputLayoutAttribute = Register.SetStructUnmanaged<Graphics::InputLayout::Attribute>("input_layout_attribute");
+				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("string semantic_name", &Graphics::InputLayout::Attribute::SemanticName);
+				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("uint32 semantic_index", &Graphics::InputLayout::Attribute::SemanticIndex);
+				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("attribute_type format", &Graphics::InputLayout::Attribute::Format);
+				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("uint32 components", &Graphics::InputLayout::Attribute::Components);
+				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("uint32 aligned_byte_offset", &Graphics::InputLayout::Attribute::AlignedByteOffset);
+				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("uint32 slot", &Graphics::InputLayout::Attribute::Slot);
+				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("bool per_vertex", &Graphics::InputLayout::Attribute::PerVertex);
+				VInputLayoutAttribute.SetConstructor<Graphics::InputLayout::Attribute>("void f()");
+
+				VMRefClass VShader = Register.SetClassUnmanaged<Graphics::Shader>("shader");
+				VShader.SetMethod("bool is_valid() const", &Graphics::Shader::IsValid);
+
+				VMTypeClass VInputLayoutDesc = Register.SetStructUnmanaged<Graphics::InputLayout::Desc>("input_layout_desc");
+				VInputLayoutDesc.SetProperty<Graphics::InputLayout::Desc>("shader@ source", &Graphics::InputLayout::Desc::Source);
+				VInputLayoutDesc.SetConstructor<Graphics::InputLayout::Desc>("void f()");
+				VInputLayoutDesc.SetMethodEx("void set_attributes(array<input_layout_attribute>@+)", &InputLayoutDescSetAttributes);
+
+				VMRefClass VInputLayout = Register.SetClassUnmanaged<Graphics::InputLayout>("input_layout");
+				VInputLayout.SetMethod("uptr@ get_resource() const", &Graphics::InputLayout::GetResource);
+				VInputLayout.SetMethodEx("array<input_layout_attribute>@ get_attributes() const", &InputLayoutGetAttributes);
+
+				VMTypeClass VShaderDesc = Register.SetStructUnmanaged<Graphics::Shader::Desc>("shader_desc");
+				VShaderDesc.SetProperty<Graphics::Shader::Desc>("string filename", &Graphics::Shader::Desc::Filename);
+				VShaderDesc.SetProperty<Graphics::Shader::Desc>("string data", &Graphics::Shader::Desc::Data);
+				VShaderDesc.SetProperty<Graphics::Shader::Desc>("shader_type stage", &Graphics::Shader::Desc::Stage);
+				VShaderDesc.SetConstructor<Graphics::Shader::Desc>("void f()");
+				VShaderDesc.SetMethodEx("void set_defines(array<input_layout_attribute>@+)", &ShaderDescSetDefines);
+
+				VMTypeClass VElementBufferDesc = Register.SetStructUnmanaged<Graphics::ElementBuffer::Desc>("element_buffer_desc");
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uptr@ elements", &Graphics::ElementBuffer::Desc::Elements);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uint32 structure_byte_stride", &Graphics::ElementBuffer::Desc::StructureByteStride);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uint32 element_width", &Graphics::ElementBuffer::Desc::ElementWidth);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uint32 element_count", &Graphics::ElementBuffer::Desc::ElementCount);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("cpu_access access_flags", &Graphics::ElementBuffer::Desc::AccessFlags);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("resource_usage usage", &Graphics::ElementBuffer::Desc::Usage);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("resource_bind bind_flags", &Graphics::ElementBuffer::Desc::BindFlags);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("resource_misc misc_flags", &Graphics::ElementBuffer::Desc::MiscFlags);
+				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("bool writable", &Graphics::ElementBuffer::Desc::Writable);
+				VElementBufferDesc.SetConstructor<Graphics::ElementBuffer::Desc>("void f()");
+
+				VMRefClass VElementBuffer = Register.SetClassUnmanaged<Graphics::ElementBuffer>("element_buffer");
+				VElementBuffer.SetMethod("uptr@ get_resource() const", &Graphics::ElementBuffer::GetResource);
+				VElementBuffer.SetMethod("usize get_elements() const", &Graphics::ElementBuffer::GetElements);
+				VElementBuffer.SetMethod("usize get_stride() const", &Graphics::ElementBuffer::GetStride);
+
+				VMTypeClass VMeshBufferDesc = Register.SetStructUnmanaged<Graphics::MeshBuffer::Desc>("mesh_buffer_desc");
+				VMeshBufferDesc.SetProperty<Graphics::MeshBuffer::Desc>("cpu_access access_flags", &Graphics::MeshBuffer::Desc::AccessFlags);
+				VMeshBufferDesc.SetProperty<Graphics::MeshBuffer::Desc>("resource_usage usage", &Graphics::MeshBuffer::Desc::Usage);
+				VMeshBufferDesc.SetConstructor<Graphics::MeshBuffer::Desc>("void f()");
+				VMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &MeshBufferDescSetElements);
+				VMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &MeshBufferDescSetIndices);
+
+				VMRefClass VMeshBuffer = Register.SetClassUnmanaged<Graphics::MeshBuffer>("mesh_buffer");
+				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("matrix4x4 world", &Graphics::MeshBuffer::World);
+				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("string name", &Graphics::MeshBuffer::Name);
+				VMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::MeshBuffer::GetVertexBuffer);
+				VMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::MeshBuffer::GetIndexBuffer);
+
+				VMTypeClass VSkinMeshBufferDesc = Register.SetStructUnmanaged<Graphics::SkinMeshBuffer::Desc>("skin_mesh_buffer_desc");
+				VSkinMeshBufferDesc.SetProperty<Graphics::SkinMeshBuffer::Desc>("cpu_access access_flags", &Graphics::SkinMeshBuffer::Desc::AccessFlags);
+				VSkinMeshBufferDesc.SetProperty<Graphics::SkinMeshBuffer::Desc>("resource_usage usage", &Graphics::SkinMeshBuffer::Desc::Usage);
+				VSkinMeshBufferDesc.SetConstructor<Graphics::SkinMeshBuffer::Desc>("void f()");
+				VSkinMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &SkinMeshBufferDescSetElements);
+				VSkinMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &SkinMeshBufferDescSetIndices);
+
+				VMRefClass VSkinMeshBuffer = Register.SetClassUnmanaged<Graphics::SkinMeshBuffer>("skin_mesh_buffer");
+				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("matrix4x4 world", &Graphics::SkinMeshBuffer::World);
+				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("string name", &Graphics::SkinMeshBuffer::Name);
+				VSkinMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::SkinMeshBuffer::GetVertexBuffer);
+				VSkinMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::SkinMeshBuffer::GetIndexBuffer);
+
+				VMRefClass VGraphicsDevice = Register.SetClassUnmanaged<Graphics::GraphicsDevice>("graphics_device");
+				VMTypeClass VInstanceBufferDesc = Register.SetPod<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
+				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("graphics_device@ device", &Graphics::InstanceBuffer::Desc::Device);
+				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_width", &Graphics::InstanceBuffer::Desc::ElementWidth);
+				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_limit", &Graphics::InstanceBuffer::Desc::ElementLimit);
+				VSkinMeshBufferDesc.SetConstructor<Graphics::InstanceBuffer::Desc>("void f()");
+
+				VMRefClass VInstanceBuffer = Register.SetClassUnmanaged<Graphics::InstanceBuffer>("instance_buffer");
+				VInstanceBuffer.SetMethodEx("void set_array(array<element_vertex>@+)", &InstanceBufferSetArray);
+				VInstanceBuffer.SetMethodEx("array<element_vertex>@ get_array() const", &InstanceBufferGetArray);
+				VInstanceBuffer.SetMethod("element_buffer@+ get_elements() const", &Graphics::InstanceBuffer::GetElements);
+				VInstanceBuffer.SetMethod("graphics_device@+ get_device() const", &Graphics::InstanceBuffer::GetDevice);
+				VInstanceBuffer.SetMethod("usize get_element_limit() const", &Graphics::InstanceBuffer::GetElementLimit);
+
+				VMTypeClass VTexture2DDesc = Register.SetPod<Graphics::Texture2D::Desc>("texture_2d_desc");
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("cpu_access access_flags", &Graphics::Texture2D::Desc::AccessFlags);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("surface_format format_mode", &Graphics::Texture2D::Desc::FormatMode);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("resource_usage usage", &Graphics::Texture2D::Desc::Usage);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("resource_bind bind_flags", &Graphics::Texture2D::Desc::BindFlags);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("resource_misc misc_flags", &Graphics::Texture2D::Desc::MiscFlags);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("uptr@ data", &Graphics::Texture2D::Desc::Data);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("uint32 row_pitch", &Graphics::Texture2D::Desc::RowPitch);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("uint32 depth_pitch", &Graphics::Texture2D::Desc::DepthPitch);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("uint32 width", &Graphics::Texture2D::Desc::Width);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("uint32 height", &Graphics::Texture2D::Desc::Height);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("int32 mip_levels", &Graphics::Texture2D::Desc::MipLevels);
+				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("bool writable", &Graphics::Texture2D::Desc::Writable);
+				VTexture2DDesc.SetConstructor<Graphics::Texture2D::Desc>("void f()");
+
+				VMRefClass VTexture2D = Register.SetClassUnmanaged<Graphics::Texture2D>("texture_2d");
+				VTexture2D.SetMethod("uptr@ get_resource() const", &Graphics::Texture2D::GetResource);
+				VTexture2D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture2D::GetAccessFlags);
+				VTexture2D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture2D::GetFormatMode);
+				VTexture2D.SetMethod("resource_usage get_usage() const", &Graphics::Texture2D::GetUsage);
+				VTexture2D.SetMethod("uint32 get_width() const", &Graphics::Texture2D::GetWidth);
+				VTexture2D.SetMethod("uint32 get_height() const", &Graphics::Texture2D::GetHeight);
+				VTexture2D.SetMethod("uint32 get_mip_levels() const", &Graphics::Texture2D::GetMipLevels);
+
+				VMTypeClass VTexture3DDesc = Register.SetPod<Graphics::Texture3D::Desc>("texture_3d_desc");
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("cpu_access access_flags", &Graphics::Texture3D::Desc::AccessFlags);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("surface_format format_mode", &Graphics::Texture3D::Desc::FormatMode);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("resource_usage usage", &Graphics::Texture3D::Desc::Usage);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("resource_bind bind_flags", &Graphics::Texture3D::Desc::BindFlags);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("resource_misc misc_flags", &Graphics::Texture3D::Desc::MiscFlags);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("uint32 width", &Graphics::Texture3D::Desc::Width);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("uint32 height", &Graphics::Texture3D::Desc::Height);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("uint32 depth", &Graphics::Texture3D::Desc::Depth);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("int32 mip_levels", &Graphics::Texture3D::Desc::MipLevels);
+				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("bool writable", &Graphics::Texture3D::Desc::Writable);
+				VTexture3DDesc.SetConstructor<Graphics::Texture3D::Desc>("void f()");
+
+				VMRefClass VTexture3D = Register.SetClassUnmanaged<Graphics::Texture3D>("texture_3d");
+				VTexture3D.SetMethod("uptr@ get_resource() const", &Graphics::Texture3D::GetResource);
+				VTexture3D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture3D::GetAccessFlags);
+				VTexture3D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture3D::GetFormatMode);
+				VTexture3D.SetMethod("resource_usage get_usage() const", &Graphics::Texture3D::GetUsage);
+				VTexture3D.SetMethod("uint32 get_width() const", &Graphics::Texture3D::GetWidth);
+				VTexture3D.SetMethod("uint32 get_height() const", &Graphics::Texture3D::GetHeight);
+				VTexture3D.SetMethod("uint32 get_depth() const", &Graphics::Texture3D::GetDepth);
+				VTexture3D.SetMethod("uint32 get_mip_levels() const", &Graphics::Texture3D::GetMipLevels);
+
+				VMTypeClass VTextureCubeDesc = Register.SetPod<Graphics::TextureCube::Desc>("texture_cube_desc");
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("cpu_access access_flags", &Graphics::TextureCube::Desc::AccessFlags);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("surface_format format_mode", &Graphics::TextureCube::Desc::FormatMode);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("resource_usage usage", &Graphics::TextureCube::Desc::Usage);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("resource_bind bind_flags", &Graphics::TextureCube::Desc::BindFlags);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("resource_misc misc_flags", &Graphics::TextureCube::Desc::MiscFlags);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("uint32 width", &Graphics::TextureCube::Desc::Width);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("uint32 height", &Graphics::TextureCube::Desc::Height);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("int32 mip_levels", &Graphics::TextureCube::Desc::MipLevels);
+				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("bool writable", &Graphics::TextureCube::Desc::Writable);
+				VTextureCubeDesc.SetConstructor<Graphics::TextureCube::Desc>("void f()");
+
+				VMRefClass VTextureCube = Register.SetClassUnmanaged<Graphics::TextureCube>("texture_cube");
+				VTextureCube.SetMethod("uptr@ get_resource() const", &Graphics::TextureCube::GetResource);
+				VTextureCube.SetMethod("cpu_access get_access_flags() const", &Graphics::TextureCube::GetAccessFlags);
+				VTextureCube.SetMethod("surface_format get_format_mode() const", &Graphics::TextureCube::GetFormatMode);
+				VTextureCube.SetMethod("resource_usage get_usage() const", &Graphics::TextureCube::GetUsage);
+				VTextureCube.SetMethod("uint32 get_width() const", &Graphics::TextureCube::GetWidth);
+				VTextureCube.SetMethod("uint32 get_height() const", &Graphics::TextureCube::GetHeight);
+				VTextureCube.SetMethod("uint32 get_mip_levels() const", &Graphics::TextureCube::GetMipLevels);
+
+				VMTypeClass VDepthTarget2DDesc = Register.SetPod<Graphics::DepthTarget2D::Desc>("depth_target_2d_desc");
+				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("cpu_access access_flags", &Graphics::DepthTarget2D::Desc::AccessFlags);
+				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("resource_usage usage", &Graphics::DepthTarget2D::Desc::Usage);
+				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("surface_format format_mode", &Graphics::DepthTarget2D::Desc::FormatMode);
+				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("uint32 width", &Graphics::DepthTarget2D::Desc::Width);
+				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("uint32 height", &Graphics::DepthTarget2D::Desc::Height);
+				VDepthTarget2DDesc.SetConstructor<Graphics::DepthTarget2D::Desc>("void f()");
+
+				VMRefClass VDepthTarget2D = Register.SetClassUnmanaged<Graphics::DepthTarget2D>("depth_target_2d");
+				VDepthTarget2D.SetMethod("uptr@ get_resource() const", &Graphics::DepthTarget2D::GetResource);
+				VDepthTarget2D.SetMethod("uint32 get_width() const", &Graphics::DepthTarget2D::GetWidth);
+				VDepthTarget2D.SetMethod("uint32 get_height() const", &Graphics::DepthTarget2D::GetHeight);
+				VDepthTarget2D.SetMethod("texture_2d@+ get_target() const", &Graphics::DepthTarget2D::GetTarget);
+				VDepthTarget2D.SetMethod("const viewport& get_viewport() const", &Graphics::DepthTarget2D::GetViewport);
+
+				VMTypeClass VDepthTargetCubeDesc = Register.SetPod<Graphics::DepthTargetCube::Desc>("depth_target_cube_desc");
+				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("cpu_access access_flags", &Graphics::DepthTargetCube::Desc::AccessFlags);
+				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("resource_usage usage", &Graphics::DepthTargetCube::Desc::Usage);
+				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("surface_format format_mode", &Graphics::DepthTargetCube::Desc::FormatMode);
+				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("uint32 size", &Graphics::DepthTargetCube::Desc::Size);
+				VDepthTargetCubeDesc.SetConstructor<Graphics::DepthTargetCube::Desc>("void f()");
+
+				VMRefClass VDepthTargetCube = Register.SetClassUnmanaged<Graphics::DepthTargetCube>("depth_target_cube");
+				VDepthTargetCube.SetMethod("uptr@ get_resource() const", &Graphics::DepthTargetCube::GetResource);
+				VDepthTargetCube.SetMethod("uint32 get_width() const", &Graphics::DepthTargetCube::GetWidth);
+				VDepthTargetCube.SetMethod("uint32 get_height() const", &Graphics::DepthTargetCube::GetHeight);
+				VDepthTargetCube.SetMethod("texture_2d@+ get_target() const", &Graphics::DepthTargetCube::GetTarget);
+				VDepthTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::DepthTargetCube::GetViewport);
+
+				VMRefClass VRenderTarget = Register.SetClassUnmanaged<Graphics::RenderTarget>("render_target");
+				VRenderTarget.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget::GetTargetBuffer);
+				VRenderTarget.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget::GetDepthBuffer);
+				VRenderTarget.SetMethod("uint32 get_width() const", &Graphics::RenderTarget::GetWidth);
+				VRenderTarget.SetMethod("uint32 get_height() const", &Graphics::RenderTarget::GetHeight);
+				VRenderTarget.SetMethod("uint32 get_target_count() const", &Graphics::RenderTarget::GetTargetCount);
+				VRenderTarget.SetMethod("texture_2d@+ get_target_2d(uint32) const", &Graphics::RenderTarget::GetTarget2D);
+				VRenderTarget.SetMethod("texture_cube@+ get_target_cube(uint32) const", &Graphics::RenderTarget::GetTargetCube);
+				VRenderTarget.SetMethod("texture_2d@+ get_depth_stencil() const", &Graphics::RenderTarget::GetDepthStencil);
+				VRenderTarget.SetMethod("const viewport& get_viewport() const", &Graphics::RenderTarget::GetViewport);
+
+				VMTypeClass VRenderTarget2DDesc = Register.SetPod<Graphics::RenderTarget2D::Desc>("render_target_2d_desc");
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("cpu_access access_flags", &Graphics::RenderTarget2D::Desc::AccessFlags);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("surface_format format_mode", &Graphics::RenderTarget2D::Desc::FormatMode);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("resource_usage usage", &Graphics::RenderTarget2D::Desc::Usage);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("resource_bind bind_flags", &Graphics::RenderTarget2D::Desc::BindFlags);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("resource_misc misc_flags", &Graphics::RenderTarget2D::Desc::MiscFlags);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("uptr@ render_surface", &Graphics::RenderTarget2D::Desc::RenderSurface);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("uint32 width", &Graphics::RenderTarget2D::Desc::Width);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("uint32 height", &Graphics::RenderTarget2D::Desc::Height);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("uint32 mip_levels", &Graphics::RenderTarget2D::Desc::MipLevels);
+				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("bool depth_stencil", &Graphics::RenderTarget2D::Desc::DepthStencil);
+				VRenderTarget2DDesc.SetConstructor<Graphics::RenderTarget2D::Desc>("void f()");
+
+				VMRefClass VRenderTarget2D = Register.SetClassUnmanaged<Graphics::RenderTarget2D>("render_target_2d");
+				VRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget2D::GetTargetBuffer);
+				VRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget2D::GetDepthBuffer);
+				VRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::RenderTarget2D::GetWidth);
+				VRenderTarget2D.SetMethod("uint32 get_height() const", &Graphics::RenderTarget2D::GetHeight);
+				VRenderTarget2D.SetMethod("uint32 get_target_count() const", &Graphics::RenderTarget2D::GetTargetCount);
+				VRenderTarget2D.SetMethod("texture_2d@+ get_target_2d(uint32) const", &Graphics::RenderTarget2D::GetTarget2D);
+				VRenderTarget2D.SetMethod("texture_cube@+ get_target_cube(uint32) const", &Graphics::RenderTarget2D::GetTargetCube);
+				VRenderTarget2D.SetMethod("texture_2d@+ get_depth_stencil() const", &Graphics::RenderTarget2D::GetDepthStencil);
+				VRenderTarget2D.SetMethod("const viewport& get_viewport() const", &Graphics::RenderTarget2D::GetViewport);
+				VRenderTarget2D.SetMethod("texture_2d@+ get_target() const", &Graphics::RenderTarget2D::GetTarget);
+
+				VMTypeClass VMultiRenderTarget2DDesc = Register.SetPod<Graphics::MultiRenderTarget2D::Desc>("multi_render_target_2d_desc");
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("cpu_access access_flags", &Graphics::MultiRenderTarget2D::Desc::AccessFlags);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("surface_target target", &Graphics::MultiRenderTarget2D::Desc::Target);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("resource_usage usage", &Graphics::MultiRenderTarget2D::Desc::Usage);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("resource_bind bind_flags", &Graphics::MultiRenderTarget2D::Desc::BindFlags);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("resource_misc misc_flags", &Graphics::MultiRenderTarget2D::Desc::MiscFlags);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("uint32 width", &Graphics::MultiRenderTarget2D::Desc::Width);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("uint32 height", &Graphics::MultiRenderTarget2D::Desc::Height);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("uint32 mip_levels", &Graphics::MultiRenderTarget2D::Desc::MipLevels);
+				VMultiRenderTarget2DDesc.SetProperty<Graphics::MultiRenderTarget2D::Desc>("bool depth_stencil", &Graphics::MultiRenderTarget2D::Desc::DepthStencil);
+				VMultiRenderTarget2DDesc.SetConstructor<Graphics::MultiRenderTarget2D::Desc>("void f()");
+				VMultiRenderTarget2DDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTarget2DDescSetFormatMode);
+
+				VMRefClass VMultiRenderTarget2D = Register.SetClassUnmanaged<Graphics::MultiRenderTarget2D>("multi_render_target_2d");
+				VMultiRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTarget2D::GetTargetBuffer);
+				VMultiRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTarget2D::GetDepthBuffer);
+				VMultiRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTarget2D::GetWidth);
+				VMultiRenderTarget2D.SetMethod("uint32 get_height() const", &Graphics::MultiRenderTarget2D::GetHeight);
+				VMultiRenderTarget2D.SetMethod("uint32 get_target_count() const", &Graphics::MultiRenderTarget2D::GetTargetCount);
+				VMultiRenderTarget2D.SetMethod("texture_2d@+ get_target_2d(uint32) const", &Graphics::MultiRenderTarget2D::GetTarget2D);
+				VMultiRenderTarget2D.SetMethod("texture_cube@+ get_target_cube(uint32) const", &Graphics::MultiRenderTarget2D::GetTargetCube);
+				VMultiRenderTarget2D.SetMethod("texture_2d@+ get_depth_stencil() const", &Graphics::MultiRenderTarget2D::GetDepthStencil);
+				VMultiRenderTarget2D.SetMethod("const viewport& get_viewport() const", &Graphics::MultiRenderTarget2D::GetViewport);
+				VMultiRenderTarget2D.SetMethod("texture_2d@+ get_target(uint32) const", &Graphics::MultiRenderTarget2D::GetTarget);
+
+				VMTypeClass VRenderTargetCubeDesc = Register.SetPod<Graphics::RenderTargetCube::Desc>("render_target_cube_desc");
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("cpu_access access_flags", &Graphics::RenderTargetCube::Desc::AccessFlags);
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("surface_format format_mode", &Graphics::RenderTargetCube::Desc::FormatMode);
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("resource_usage usage", &Graphics::RenderTargetCube::Desc::Usage);
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("resource_bind bind_flags", &Graphics::RenderTargetCube::Desc::BindFlags);
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("resource_misc misc_flags", &Graphics::RenderTargetCube::Desc::MiscFlags);
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("uint32 size", &Graphics::RenderTargetCube::Desc::Size);
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("uint32 mip_levels", &Graphics::RenderTargetCube::Desc::MipLevels);
+				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("bool depth_stencil", &Graphics::RenderTargetCube::Desc::DepthStencil);
+				VRenderTargetCubeDesc.SetConstructor<Graphics::RenderTargetCube::Desc>("void f()");
+
+				VMRefClass VRenderTargetCube = Register.SetClassUnmanaged<Graphics::RenderTargetCube>("render_target_cube");
+				VRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTargetCube::GetTargetBuffer);
+				VRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTargetCube::GetDepthBuffer);
+				VRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::RenderTargetCube::GetWidth);
+				VRenderTargetCube.SetMethod("uint32 get_height() const", &Graphics::RenderTargetCube::GetHeight);
+				VRenderTargetCube.SetMethod("uint32 get_target_count() const", &Graphics::RenderTargetCube::GetTargetCount);
+				VRenderTargetCube.SetMethod("texture_2d@+ get_target_2d(uint32) const", &Graphics::RenderTargetCube::GetTarget2D);
+				VRenderTargetCube.SetMethod("texture_cube@+ get_target_cube(uint32) const", &Graphics::RenderTargetCube::GetTargetCube);
+				VRenderTargetCube.SetMethod("texture_2d@+ get_depth_stencil() const", &Graphics::RenderTargetCube::GetDepthStencil);
+				VRenderTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::RenderTargetCube::GetViewport);
+				VRenderTargetCube.SetMethod("texture_cube@+ get_target() const", &Graphics::RenderTargetCube::GetTarget);
+
+				VMTypeClass VMultiRenderTargetCubeDesc = Register.SetPod<Graphics::MultiRenderTargetCube::Desc>("multi_render_target_cube_desc");
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("cpu_access access_flags", &Graphics::MultiRenderTargetCube::Desc::AccessFlags);
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("surface_target target", &Graphics::MultiRenderTargetCube::Desc::Target);
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("resource_usage usage", &Graphics::MultiRenderTargetCube::Desc::Usage);
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("resource_bind bind_flags", &Graphics::MultiRenderTargetCube::Desc::BindFlags);
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("resource_misc misc_flags", &Graphics::MultiRenderTargetCube::Desc::MiscFlags);
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("uint32 size", &Graphics::MultiRenderTargetCube::Desc::Size);
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("uint32 mip_levels", &Graphics::MultiRenderTargetCube::Desc::MipLevels);
+				VMultiRenderTargetCubeDesc.SetProperty<Graphics::MultiRenderTargetCube::Desc>("bool depth_stencil", &Graphics::MultiRenderTargetCube::Desc::DepthStencil);
+				VMultiRenderTargetCubeDesc.SetConstructor<Graphics::MultiRenderTargetCube::Desc>("void f()");
+				VMultiRenderTargetCubeDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTargetCubeDescSetFormatMode);
+
+				VMRefClass VMultiRenderTargetCube = Register.SetClassUnmanaged<Graphics::MultiRenderTargetCube>("multi_render_target_cube");
+				VMultiRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTargetCube::GetTargetBuffer);
+				VMultiRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTargetCube::GetDepthBuffer);
+				VMultiRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTargetCube::GetWidth);
+				VMultiRenderTargetCube.SetMethod("uint32 get_height() const", &Graphics::MultiRenderTargetCube::GetHeight);
+				VMultiRenderTargetCube.SetMethod("uint32 get_target_count() const", &Graphics::MultiRenderTargetCube::GetTargetCount);
+				VMultiRenderTargetCube.SetMethod("texture_2d@+ get_target_2d(uint32) const", &Graphics::MultiRenderTargetCube::GetTarget2D);
+				VMultiRenderTargetCube.SetMethod("texture_cube@+ get_target_cube(uint32) const", &Graphics::MultiRenderTargetCube::GetTargetCube);
+				VMultiRenderTargetCube.SetMethod("texture_2d@+ get_depth_stencil() const", &Graphics::MultiRenderTargetCube::GetDepthStencil);
+				VMultiRenderTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::MultiRenderTargetCube::GetViewport);
+				VMultiRenderTargetCube.SetMethod("texture_cube@+ get_target(uint32) const", &Graphics::MultiRenderTargetCube::GetTarget);
+
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, 0, "render_target_2d@+", "", &RenderTargetToRenderTarget2D);
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, 0, "render_target_cube@+", "", &RenderTargetToRenderTargetCube);
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, 0, "multi_render_target_2d@+", "", &RenderTargetToMultiRenderTarget2D);
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, 0, "multi_render_target_cube@+", "", &RenderTargetToMultiRenderTargetCube);
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target_2d@+", "", &RenderTargetToRenderTarget2D);
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target_cube@+", "", &RenderTargetToRenderTargetCube);
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "multi_render_target_2d@+", "", &RenderTargetToMultiRenderTarget2D);
+				VRenderTarget.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "multi_render_target_cube@+", "", &RenderTargetToMultiRenderTargetCube);
+				VRenderTarget2D.SetOperatorEx(VMOpFunc::Cast, 0, "render_target@+", "", &RenderTarget2DToRenderTarget);
+				VRenderTargetCube.SetOperatorEx(VMOpFunc::Cast, 0, "render_target@+", "", &RenderTargetCubeToRenderTarget);
+				VMultiRenderTarget2D.SetOperatorEx(VMOpFunc::Cast, 0, "render_target@+", "", &MultiRenderTarget2DToRenderTarget);
+				VMultiRenderTargetCube.SetOperatorEx(VMOpFunc::Cast, 0, "render_target@+", "", &MultiRenderTargetCubeToRenderTarget);
+				VRenderTarget2D.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target@+", "", &RenderTarget2DToRenderTarget);
+				VRenderTargetCube.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target@+", "", &RenderTargetCubeToRenderTarget);
+				VMultiRenderTarget2D.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target@+", "", &MultiRenderTarget2DToRenderTarget);
+				VMultiRenderTargetCube.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target@+", "", &MultiRenderTargetCubeToRenderTarget);
+
+				VMTypeClass VCubemapDesc = Register.SetPod<Graphics::Cubemap::Desc>("cubemap_desc");
+				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("render_target@ source", &Graphics::Cubemap::Desc::Source);
+				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 target", &Graphics::Cubemap::Desc::Target);
+				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 size", &Graphics::Cubemap::Desc::Size);
+				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 mip_levels", &Graphics::Cubemap::Desc::MipLevels);
+				VCubemapDesc.SetConstructor<Graphics::Cubemap::Desc>("void f()");
+
+				VMRefClass VCubemap = Register.SetClassUnmanaged<Graphics::Cubemap>("cubemap");
+				VCubemap.SetMethod("bool is_valid() const", &Graphics::Cubemap::IsValid);
+
+				VMTypeClass VQueryDesc = Register.SetPod<Graphics::Query::Desc>("visibility_query_desc");
+				VQueryDesc.SetProperty<Graphics::Query::Desc>("bool predicate", &Graphics::Query::Desc::Predicate);
+				VQueryDesc.SetProperty<Graphics::Query::Desc>("bool auto_pass", &Graphics::Query::Desc::AutoPass);
+				VQueryDesc.SetConstructor<Graphics::Query::Desc>("void f()");
+
+				VMRefClass VQuery = Register.SetClassUnmanaged<Graphics::Query>("visibility_query");
+				VQuery.SetMethod("uptr@ get_resource() const", &Graphics::Query::GetResource);
+
+				VMTypeClass VGraphicsDeviceDesc = Register.SetPod<Graphics::GraphicsDevice::Desc>("graphics_device_desc");
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("render_backend backend", &Graphics::GraphicsDevice::Desc::Backend);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("shader_model shader_mode", &Graphics::GraphicsDevice::Desc::ShaderMode);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("surface_format buffer_format", &Graphics::GraphicsDevice::Desc::BufferFormat);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("vsync vsync_mode", &Graphics::GraphicsDevice::Desc::VSyncMode);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("string cache_directory", &Graphics::GraphicsDevice::Desc::CacheDirectory);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("int32 is_windowed", &Graphics::GraphicsDevice::Desc::IsWindowed);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("bool shader_cache", &Graphics::GraphicsDevice::Desc::ShaderCache);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("bool debug", &Graphics::GraphicsDevice::Desc::Debug);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 presentation_flags", &Graphics::GraphicsDevice::Desc::PresentationFlags);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 compilation_flags", &Graphics::GraphicsDevice::Desc::CompilationFlags);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 creation_flags", &Graphics::GraphicsDevice::Desc::CreationFlags);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 buffer_width", &Graphics::GraphicsDevice::Desc::BufferWidth);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 buffer_height", &Graphics::GraphicsDevice::Desc::BufferHeight);
+				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("activity@ window", &Graphics::GraphicsDevice::Desc::Window);
+				VGraphicsDeviceDesc.SetConstructor<Graphics::GraphicsDevice::Desc>("void f()");
+
+				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("render_buffer render", &Graphics::GraphicsDevice::Render);
+				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("view_buffer view", &Graphics::GraphicsDevice::View);
+				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("animation_buffer animation", &Graphics::GraphicsDevice::Animation);
+				VGraphicsDevice.SetMethod("void set_constant_buffers()", &Graphics::GraphicsDevice::SetConstantBuffers);
+				VGraphicsDevice.SetMethod("void set_shader_model(shader_model)", &Graphics::GraphicsDevice::SetShaderModel);
+				VGraphicsDevice.SetMethod("void set_blend_state(blend_state@+)", &Graphics::GraphicsDevice::SetBlendState);
+				VGraphicsDevice.SetMethod("void set_rasterizer_state(rasterizer_state@+)", &Graphics::GraphicsDevice::SetRasterizerState);
+				VGraphicsDevice.SetMethod("void set_depth_stencil_state(depth_stencil_state@+)", &Graphics::GraphicsDevice::SetDepthStencilState);
+				VGraphicsDevice.SetMethod("void set_input_layout(input_layout@+)", &Graphics::GraphicsDevice::SetInputLayout);
+				VGraphicsDevice.SetMethod("void set_shader(shader@+, uint32)", &Graphics::GraphicsDevice::SetShader);
+				VGraphicsDevice.SetMethod("void set_sampler_state(sampler_state@+, uint32, uint32, uint32)", &Graphics::GraphicsDevice::SetSamplerState);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Shader*, uint32_t, uint32_t>("void set_buffer(shader@+, uint32, uint32)", &Graphics::GraphicsDevice::SetBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::InstanceBuffer*, uint32_t, uint32_t>("void set_buffer(instance_buffer@+, uint32, uint32)", &Graphics::GraphicsDevice::SetBuffer);
+				VGraphicsDevice.SetMethod("void set_structure_buffer(element_buffer@+, uint32, uint32)", &Graphics::GraphicsDevice::SetStructureBuffer);
+				VGraphicsDevice.SetMethod("void set_texture_2d(texture_2d@+, uint32, uint32)", &Graphics::GraphicsDevice::SetTexture2D);
+				VGraphicsDevice.SetMethod("void set_texture_3d(texture_3d@+, uint32, uint32)", &Graphics::GraphicsDevice::SetTexture3D);
+				VGraphicsDevice.SetMethod("void set_texture_cube(texture_cube@+, uint32, uint32)", &Graphics::GraphicsDevice::SetTextureCube);
+				VGraphicsDevice.SetMethod("void set_index_buffer(element_buffer@+, surface_format)", &Graphics::GraphicsDevice::SetIndexBuffer);
+				VGraphicsDevice.SetMethodEx("void set_vertex_buffers(array<element_buffer@>@+, bool = false)", &GraphicsDeviceSetVertexBuffers);
+				VGraphicsDevice.SetMethodEx("void set_writeable(array<element_buffer@>@+, uint32, uint32, bool)", &GraphicsDeviceSetWriteable1);
+				VGraphicsDevice.SetMethodEx("void set_writeable(array<texture_2d@>@+, uint32, uint32, bool)", &GraphicsDeviceSetWriteable2);
+				VGraphicsDevice.SetMethodEx("void set_writeable(array<texture_3d@>@+, uint32, uint32, bool)", &GraphicsDeviceSetWriteable3);
+				VGraphicsDevice.SetMethodEx("void set_writeable(array<texture_cube@>@+, uint32, uint32, bool)", &GraphicsDeviceSetWriteable4);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, float, float, float>("void set_target(float, float, float)", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void>("void set_target()", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::DepthTarget2D*>("void set_target(depth_target_2d@+)", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::DepthTargetCube*>("void set_target(depth_target_cube@+)", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::RenderTarget*, uint32_t, float, float, float>("void set_target(render_target@+, uint32, float, float, float)", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::RenderTarget*, uint32_t>("void set_target(render_target@+, uint32)", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::RenderTarget*, float, float, float>("void set_target(render_target@+, float, float, float)", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::RenderTarget*>("void set_target(render_target@+)", &Graphics::GraphicsDevice::SetTarget);
+				VGraphicsDevice.SetMethodEx("void set_target_map(render_target@+, array<bool>@+)", &GraphicsDeviceSetTargetMap);
+				VGraphicsDevice.SetMethod("void set_target_rect(uint32, uint32)", &Graphics::GraphicsDevice::SetTargetRect);
+				VGraphicsDevice.SetMethodEx("void set_viewports(array<viewport>@+)", &GraphicsDeviceSetViewports);
+				VGraphicsDevice.SetMethodEx("void set_scissor_rects(array<rectangle>@+)", &GraphicsDeviceSetScissorRects);
+				VGraphicsDevice.SetMethod("void set_primitive_topology(primitive_topology)", &Graphics::GraphicsDevice::SetPrimitiveTopology);
+				VGraphicsDevice.SetMethod("void flush_texture(uint32, uint32, uint32)", &Graphics::GraphicsDevice::FlushTexture);
+				VGraphicsDevice.SetMethod("void flush_state()", &Graphics::GraphicsDevice::FlushState);
+				VGraphicsDevice.SetMethod("bool map(element_buffer@+, resource_map, mapped_subresource &out)", &Graphics::GraphicsDevice::Map);
+				VGraphicsDevice.SetMethod("bool mnmap(element_buffer@+, mapped_subresource &in)", &Graphics::GraphicsDevice::Unmap);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::ElementBuffer*, void*, size_t>("bool update_buffer(element_buffer@+, uptr@, usize)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Shader*, const void*>("bool update_buffer(shader@+, uptr@)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::MeshBuffer*, Compute::Vertex*>("bool update_buffer(mesh_buffer@+, uptr@ Data)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::SkinMeshBuffer*, Compute::SkinVertex*>("bool update_buffer(skin_mesh_buffer@+, uptr@ Data)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::InstanceBuffer*>("bool update_buffer(instance_buffer@+)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::RenderBufferType>("bool update_buffer(render_buffer_type)", &Graphics::GraphicsDevice::UpdateBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Shader*, size_t>("bool update_buffer_size(shader@+, usize)", &Graphics::GraphicsDevice::UpdateBufferSize);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::InstanceBuffer*, size_t>("bool update_buffer_size(instance_buffer@+, usize)", &Graphics::GraphicsDevice::UpdateBufferSize);
+				VGraphicsDevice.SetMethod("void clear_buffer(instance_buffer@+)", &Graphics::GraphicsDevice::ClearBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture2D*>("void clear_writable(texture_2d@+)", &Graphics::GraphicsDevice::ClearWritable);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture2D*, float, float, float>("void clear_writable(texture_2d@+, float, float, float)", &Graphics::GraphicsDevice::ClearWritable);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture3D*>("void clear_writable(texture_3d@+)", &Graphics::GraphicsDevice::ClearWritable);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture3D*, float, float, float>("void clear_writable(texture_3d@+, float, float, float)", &Graphics::GraphicsDevice::ClearWritable);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::TextureCube*>("void clear_writable(texture_cube@+)", &Graphics::GraphicsDevice::ClearWritable);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::TextureCube*, float, float, float>("void clear_writable(texture_cube@+, float, float, float)", &Graphics::GraphicsDevice::ClearWritable);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, float, float, float>("void clear(float, float, float)", &Graphics::GraphicsDevice::Clear);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::RenderTarget*, uint32_t, float, float, float>("void clear(render_target@+, uint32, float, float, float)", &Graphics::GraphicsDevice::Clear);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void>("void clear_depth()", &Graphics::GraphicsDevice::ClearDepth);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::DepthTarget2D*>("void clear_depth(depth_target_2d@+)", &Graphics::GraphicsDevice::ClearDepth);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::DepthTargetCube*>("void clear_depth(depth_target_cube@+)", &Graphics::GraphicsDevice::ClearDepth);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::RenderTarget*>("void clear_depth(render_target@+)", &Graphics::GraphicsDevice::ClearDepth);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, uint32_t, uint32_t, uint32_t>("void draw_indexed(uint32, uint32, uint32)", &Graphics::GraphicsDevice::DrawIndexed);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::MeshBuffer*>("void draw_indexed(mesh_buffer@+)", &Graphics::GraphicsDevice::DrawIndexed);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::SkinMeshBuffer*>("void draw_indexed(skin_mesh_buffer@+)", &Graphics::GraphicsDevice::DrawIndexed);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t>("void draw_indexed_instanced(uint32, uint32, uint32, uint32, uint32)", &Graphics::GraphicsDevice::DrawIndexedInstanced);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::ElementBuffer*, Graphics::MeshBuffer*, uint32_t>("void draw_indexed_instanced(element_buffer@+, mesh_buffer@+, uint32)", &Graphics::GraphicsDevice::DrawIndexedInstanced);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::ElementBuffer*, Graphics::SkinMeshBuffer*, uint32_t>("void draw_indexed_instanced(element_buffer@+, skin_mesh_buffer@+, uint32)", &Graphics::GraphicsDevice::DrawIndexedInstanced);
+				VGraphicsDevice.SetMethod("void draw(uint32, uint32)", &Graphics::GraphicsDevice::Draw);
+				VGraphicsDevice.SetMethod("void draw_instanced(uint32, uint32, uint32, uint32)", &Graphics::GraphicsDevice::DrawInstanced);
+				VGraphicsDevice.SetMethod("void dispatch(uint32, uint32, uint32)", &Graphics::GraphicsDevice::Dispatch);
+				VGraphicsDevice.SetMethodEx("texture_2d@ copy_texture_2d(texture_2d@+)", &GraphicsDeviceCopyTexture2D1);
+				VGraphicsDevice.SetMethodEx("texture_2d@ copy_texture_2d(render_target@+, uint32)", &GraphicsDeviceCopyTexture2D2);
+				VGraphicsDevice.SetMethodEx("texture_2d@ copy_texture_2d(render_target_cube@+, cube_face)", &GraphicsDeviceCopyTexture2D3);
+				VGraphicsDevice.SetMethodEx("texture_2d@ copy_texture_2d(multi_render_target_cube@+, uint32, cube_face)", &GraphicsDeviceCopyTexture2D4);
+				VGraphicsDevice.SetMethodEx("texture_cube@ copy_texture_cube(render_target_cube@+)", &GraphicsDeviceCopyTextureCube1);
+				VGraphicsDevice.SetMethodEx("texture_cube@ copy_texture_cube(multi_render_target_cube@+, uint32)", &GraphicsDeviceCopyTextureCube2);
+				VGraphicsDevice.SetMethod("bool copy_target(render_target@+, uint32, render_target@+, uint32)", &Graphics::GraphicsDevice::CopyTarget);
+				VGraphicsDevice.SetMethodEx("texture_2d@ copy_back_buffer()", &GraphicsDeviceCopyBackBuffer);
+				VGraphicsDevice.SetMethodEx("texture_2d@ copy_back_buffer_msaa()", &GraphicsDeviceCopyBackBufferMSAA);
+				VGraphicsDevice.SetMethodEx("texture_2d@ copy_back_buffer_noaa()", &GraphicsDeviceCopyBackBufferNoAA);
+				VGraphicsDevice.SetMethod("bool cubemap_push(cubemap@+, texture_cube@+)", &Graphics::GraphicsDevice::CubemapPush);
+				VGraphicsDevice.SetMethod("bool cubemap_face(cubemap@+, cube_face)", &Graphics::GraphicsDevice::CubemapFace);
+				VGraphicsDevice.SetMethod("bool cubemap_pop(cubemap@+)", &Graphics::GraphicsDevice::CubemapPop);
+				VGraphicsDevice.SetMethodEx("array<viewport>@ get_viewports()", &GraphicsDeviceGetViewports);
+				VGraphicsDevice.SetMethodEx("array<rectangle>@ get_scissor_rects()", &GraphicsDeviceGetScissorRects);
+				VGraphicsDevice.SetMethod("bool resize_buffers(uint32, uint32)", &Graphics::GraphicsDevice::ResizeBuffers);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture2D*>("bool generate_texture(texture_2d@+)", &Graphics::GraphicsDevice::GenerateTexture);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Texture3D*>("bool generate_texture(texture_3d@+)", &Graphics::GraphicsDevice::GenerateTexture);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::TextureCube*>("bool generate_texture(texture_cube@+)", &Graphics::GraphicsDevice::GenerateTexture);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Query*, size_t*, bool>("bool get_query_data(visibility_query@+, usize &out, bool = true)", &Graphics::GraphicsDevice::GetQueryData);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, Graphics::Query*, bool*, bool>("bool get_query_data(visibility_query@+, bool &out, bool = true)", &Graphics::GraphicsDevice::GetQueryData);
+				VGraphicsDevice.SetMethod("void query_begin(visibility_query@+)", &Graphics::GraphicsDevice::QueryBegin);
+				VGraphicsDevice.SetMethod("void query_end(visibility_query@+)", &Graphics::GraphicsDevice::QueryEnd);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture2D*>("void generate_mips(texture_2d@+)", &Graphics::GraphicsDevice::GenerateMips);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::Texture3D*>("void generate_mips(texture_3d@+)", &Graphics::GraphicsDevice::GenerateMips);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, void, Graphics::TextureCube*>("void generate_mips(texture_cube@+)", &Graphics::GraphicsDevice::GenerateMips);
+				VGraphicsDevice.SetMethod("bool im_begin()", &Graphics::GraphicsDevice::ImBegin);
+				VGraphicsDevice.SetMethod("void im_transform(const matrix4x4 &in)", &Graphics::GraphicsDevice::ImTransform);
+				VGraphicsDevice.SetMethod("void im_topology(primitive_topology)", &Graphics::GraphicsDevice::ImTopology);
+				VGraphicsDevice.SetMethod("void im_emit()", &Graphics::GraphicsDevice::ImEmit);
+				VGraphicsDevice.SetMethod("void im_texture(texture_2d@+)", &Graphics::GraphicsDevice::ImTexture);
+				VGraphicsDevice.SetMethod("void im_color(float, float, float, float)", &Graphics::GraphicsDevice::ImColor);
+				VGraphicsDevice.SetMethod("void im_intensity(float)", &Graphics::GraphicsDevice::ImIntensity);
+				VGraphicsDevice.SetMethod("void im_texcoord(float, float)", &Graphics::GraphicsDevice::ImTexCoord);
+				VGraphicsDevice.SetMethod("void im_texcoord_offset(float, float)", &Graphics::GraphicsDevice::ImTexCoordOffset);
+				VGraphicsDevice.SetMethod("void im_position(float, float, float)", &Graphics::GraphicsDevice::ImPosition);
+				VGraphicsDevice.SetMethod("bool im_end()", &Graphics::GraphicsDevice::ImEnd);
+				VGraphicsDevice.SetMethod("bool submit()", &Graphics::GraphicsDevice::Submit);
+				VGraphicsDevice.SetMethod("depth_stencil_state@ create_depth_stencil_state(const depth_stencil_state_desc &in)", &Graphics::GraphicsDevice::CreateDepthStencilState);
+				VGraphicsDevice.SetMethod("blend_state@ create_blend_state(const blend_state_desc &in)", &Graphics::GraphicsDevice::CreateBlendState);
+				VGraphicsDevice.SetMethod("rasterizer_state@ create_rasterizer_state(const rasterizer_state_desc &in)", &Graphics::GraphicsDevice::CreateRasterizerState);
+				VGraphicsDevice.SetMethod("sampler_state@ create_sampler_state(const sampler_state_desc &in)", &Graphics::GraphicsDevice::CreateSamplerState);
+				VGraphicsDevice.SetMethod("input_layout@ create_input_layout(const input_layout_desc &in)", &Graphics::GraphicsDevice::CreateInputLayout);
+				VGraphicsDevice.SetMethod("shader@ create_shader(const shader_desc &in)", &Graphics::GraphicsDevice::CreateShader);
+				VGraphicsDevice.SetMethod("element_buffer@ create_element_buffer(const element_buffer_desc &in)", &Graphics::GraphicsDevice::CreateElementBuffer);
+				VGraphicsDevice.SetMethod("mesh_buffer@ create_mesh_buffer(const mesh_buffer_desc &in)", &Graphics::GraphicsDevice::CreateMeshBuffer);
+				VGraphicsDevice.SetMethod("skin_mesh_buffer@ create_skin_mesh_buffer(const skin_mesh_buffer_desc &in)", &Graphics::GraphicsDevice::CreateSkinMeshBuffer);
+				VGraphicsDevice.SetMethod("instance_buffer@ create_instance_buffer(const instance_buffer_desc &in)", &Graphics::GraphicsDevice::CreateInstanceBuffer);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*>("texture_2d@ create_texture_2d()", &Graphics::GraphicsDevice::CreateTexture2D);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture2D*, const Graphics::Texture2D::Desc&>("texture_2d@ create_texture_2d(const texture_2d_desc &in)", &Graphics::GraphicsDevice::CreateTexture2D);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture3D*>("texture_3d@ create_texture_3d()", &Graphics::GraphicsDevice::CreateTexture3D);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::Texture3D*, const Graphics::Texture3D::Desc&>("texture_3d@ create_texture_3d(const texture_3d_desc &in)", &Graphics::GraphicsDevice::CreateTexture3D);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::TextureCube*>("texture_cube@ create_texture_cube()", &Graphics::GraphicsDevice::CreateTextureCube);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::TextureCube*, const Graphics::TextureCube::Desc&>("texture_cube@ create_texture_cube(const texture_cube_desc &in)", &Graphics::GraphicsDevice::CreateTextureCube);
+				VGraphicsDevice.SetMethodEx("texture_cube@ create_texture_cube(array<texture_2d@>@+)", &GraphicsDeviceCreateTextureCube);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, Graphics::TextureCube*, Graphics::Texture2D*>("texture_cube@ create_texture_cube(texture_2d@+)", &Graphics::GraphicsDevice::CreateTextureCube);
+				VGraphicsDevice.SetMethod("depth_target_2d@ create_depth_target_2d(const depth_target_2d_desc &in)", &Graphics::GraphicsDevice::CreateDepthTarget2D);
+				VGraphicsDevice.SetMethod("depth_target_cube@ create_depth_target_cube(const depth_target_cube_desc &in)", &Graphics::GraphicsDevice::CreateDepthTargetCube);
+				VGraphicsDevice.SetMethod("render_target_2d@ create_render_target_2d(const render_target_2d_desc &in)", &Graphics::GraphicsDevice::CreateRenderTarget2D);
+				VGraphicsDevice.SetMethod("multi_render_target_2d@ create_multi_render_target_2d(const multi_render_target_2d_desc &in)", &Graphics::GraphicsDevice::CreateMultiRenderTarget2D);
+				VGraphicsDevice.SetMethod("render_target_cube@ create_render_target_cube(const render_target_cube_desc &in)", &Graphics::GraphicsDevice::CreateRenderTargetCube);
+				VGraphicsDevice.SetMethod("multi_render_target_cube@ create_multi_render_target_cube(const multi_render_target_cube_desc &in)", &Graphics::GraphicsDevice::CreateMultiRenderTargetCube);
+				VGraphicsDevice.SetMethod("cubemap@ create_cubemap(const cubemap_desc &in)", &Graphics::GraphicsDevice::CreateCubemap);
+				VGraphicsDevice.SetMethod("visibility_query@ create_query(const visibility_query_desc &in)", &Graphics::GraphicsDevice::CreateQuery);
+				VGraphicsDevice.SetMethod("primitive_topology get_primitive_topology() const", &Graphics::GraphicsDevice::GetPrimitiveTopology);
+				VGraphicsDevice.SetMethod("shader_model get_supported_shader_model()  const", &Graphics::GraphicsDevice::GetSupportedShaderModel);
+				VGraphicsDevice.SetMethod("uptr@ get_device() const", &Graphics::GraphicsDevice::GetDevice);
+				VGraphicsDevice.SetMethod("uptr@ get_context() const", &Graphics::GraphicsDevice::GetContext);
+				VGraphicsDevice.SetMethod("bool is_valid() const", &Graphics::GraphicsDevice::IsValid);
+				VGraphicsDevice.SetMethod("void set_vertex_buffer(element_buffer@+)", &Graphics::GraphicsDevice::SetVertexBuffer);
+				VGraphicsDevice.SetMethod("void set_shader_cache(bool)", &Graphics::GraphicsDevice::SetShaderCache);
+				VGraphicsDevice.SetMethod("void set_vsync_mode(vsync)", &Graphics::GraphicsDevice::SetVSyncMode);
+				VGraphicsDevice.SetMethod("void lock()", &Graphics::GraphicsDevice::Lock);
+				VGraphicsDevice.SetMethod("void unlock()", &Graphics::GraphicsDevice::Unlock);
+				VGraphicsDevice.SetMethod("bool preprocess(shader_desc &in)", &Graphics::GraphicsDevice::Preprocess);
+				VGraphicsDevice.SetMethod("bool transpile(string &out, shader_type, shader_lang)", &Graphics::GraphicsDevice::Transpile);
+				VGraphicsDevice.SetMethod("bool add_section(const string &in, const string &in)", &Graphics::GraphicsDevice::AddSection);
+				VGraphicsDevice.SetMethod("bool remove_section(const string &in)", &Graphics::GraphicsDevice::RemoveSection);
+				VGraphicsDevice.SetMethod<Graphics::GraphicsDevice, bool, const std::string&, Graphics::Shader::Desc*>("bool get_section(const string &in, shader_desc &out)", &Graphics::GraphicsDevice::GetSection);
+				VGraphicsDevice.SetMethod("bool is_left_handed() const", &Graphics::GraphicsDevice::IsLeftHanded);
+				VGraphicsDevice.SetMethod("string get_shader_main(shader_type) const", &Graphics::GraphicsDevice::GetShaderMain);
+				VGraphicsDevice.SetMethod("depth_stencil_state@+ get_depth_stencil_state(const string &in)", &Graphics::GraphicsDevice::GetDepthStencilState);
+				VGraphicsDevice.SetMethod("blend_state@+ get_blend_state(const string &in)", &Graphics::GraphicsDevice::GetBlendState);
+				VGraphicsDevice.SetMethod("rasterizer_state@+ get_rasterizer_state(const string &in)", &Graphics::GraphicsDevice::GetRasterizerState);
+				VGraphicsDevice.SetMethod("sampler_state@+ get_sampler_state(const string &in)", &Graphics::GraphicsDevice::GetSamplerState);
+				VGraphicsDevice.SetMethod("input_layout@+ get_input_layout(const string &in)", &Graphics::GraphicsDevice::GetInputLayout);
+				VGraphicsDevice.SetMethod("shader_model get_shader_model() const", &Graphics::GraphicsDevice::GetShaderModel);
+				VGraphicsDevice.SetMethod("render_target_2d@+ get_render_target()", &Graphics::GraphicsDevice::GetRenderTarget);
+				VGraphicsDevice.SetMethod("shader@+ get_basic_effect()", &Graphics::GraphicsDevice::GetBasicEffect);
+				VGraphicsDevice.SetMethod("render_backend get_backend() const", &Graphics::GraphicsDevice::GetBackend);
+				VGraphicsDevice.SetMethod("uint32 get_present_flags() const", &Graphics::GraphicsDevice::GetPresentFlags);
+				VGraphicsDevice.SetMethod("uint32 get_compile_flags() const", &Graphics::GraphicsDevice::GetCompileFlags);
+				VGraphicsDevice.SetMethod("uint32 get_mip_level(uint32, uint32) const", &Graphics::GraphicsDevice::GetMipLevel);
+				VGraphicsDevice.SetMethod("vsync get_vsync_mode() const", &Graphics::GraphicsDevice::GetVSyncMode);
+				VGraphicsDevice.SetMethod("bool is_debug() const", &Graphics::GraphicsDevice::IsDebug);
+				VGraphicsDevice.SetMethodStatic("graphics_device@ create(graphics_device_desc &in)", &Graphics::GraphicsDevice::Create);
+
+				VMRefClass VModel = Register.SetClassUnmanaged<Graphics::Model>("model");
+				VModel.SetProperty<Graphics::Model>("matrix4x4 root", &Graphics::Model::Root);
+				VModel.SetProperty<Graphics::Model>("vector4 max", &Graphics::Model::Max);
+				VModel.SetProperty<Graphics::Model>("vector4 min", &Graphics::Model::Min);
+				VModel.SetUnmanagedConstructor<Graphics::Model>("model@ f()");
+				VModel.SetMethod("mesh_buffer@+ find_mesh(const string &in) const", &Graphics::Model::FindMesh);
+				VModel.SetMethodEx("array<mesh_buffer@>@ get_meshes() const", &ModelGetMeshes);
+				VModel.SetMethodEx("void set_meshes(array<mesh_buffer@>@+)", &ModelSetMeshes);
+
+				VSkinModel.SetProperty<Graphics::SkinModel>("matrix4x4 root", &Graphics::SkinModel::Root);
+				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 max", &Graphics::SkinModel::Max);
+				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 min", &Graphics::SkinModel::Min);
+				VSkinModel.SetUnmanagedConstructor<Graphics::SkinModel>("skin_model@ f()");
+				VSkinModel.SetMethod<Graphics::SkinModel, void, Graphics::PoseBuffer*>("void compute_pose(pose_buffer &out) const", &Graphics::SkinModel::ComputePose);
+				VSkinModel.SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Graphics::SkinModel::FindMesh);
+				VSkinModel.SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
+				VSkinModel.SetMethodEx("void set_meshes(array<skin_mesh_buffer@>@+)", &SkinModelSetMeshes);
+				VSkinModel.SetMethodEx("array<joint>@ get_joints() const", &SkinModelGetJoints);
+				VSkinModel.SetMethodEx("void set_joints(array<joint>@+)", &SkinModelSetJoints);
+
+				return true;
+#else
+				ED_ASSERT(false, false, "<graphics> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadUiControl(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
@@ -10265,9 +11609,14 @@ namespace Edge
 				VDocument.SetMethod("uptr@ get_element_document() const", &Engine::GUI::IElementDocument::GetElementDocument);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<ui_control> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadUiModel(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				Register.SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
@@ -10305,9 +11654,14 @@ namespace Edge
 				VModel.SetMethodStatic("string from_vector2(const vector2 &in)", &Engine::GUI::IVariant::FromVector2);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<ui_model> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::LoadUiContext(VMManager* Engine)
 			{
+#ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 				VMRefClass VContext = Register.SetClassUnmanaged<Engine::GUI::Context>("gui_context");
@@ -10352,6 +11706,10 @@ namespace Edge
 				VContext.SetMethod("ui_model@ get_model(const string &in)", &Engine::GUI::Context::GetDataModel);
 
 				return true;
+#else
+				ED_ASSERT(false, false, "<ui_context> is not loaded");
+				return false;
+#endif
 			}
 			bool Registry::Release()
 			{

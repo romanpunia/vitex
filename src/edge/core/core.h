@@ -170,6 +170,8 @@ typedef socklen_t socket_size_t;
 #define ED_FREE(Ptr) Edge::Core::Mem::Free(Ptr)
 #define ED_RELEASE(Ptr) { if (Ptr != nullptr) (Ptr)->Release(); }
 #define ED_CLEAR(Ptr) { if (Ptr != nullptr) { (Ptr)->Release(); Ptr = nullptr; } }
+#define ED_ASSIGN(FromPtr, ToPtr) { (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
+#define ED_REASSIGN(FromPtr, ToPtr) { ED_RELEASE(FromPtr); (FromPtr) = ToPtr; if (FromPtr != nullptr) (FromPtr)->AddRef(); }
 #define ED_HASH(Name) Edge::Core::OS::File::GetCheckSum(Name)
 #define ED_TIMING_ATOM (1)
 #define ED_TIMING_FRAME (5)

@@ -848,7 +848,7 @@ namespace Edge
 		public:
 			VMClass(VMManager* Engine, const std::string& Name, int Type) noexcept;
 			int SetFunctionDef(const char* Decl);
-			int SetOperatorCopyAddress(asSFuncPtr* Value);
+			int SetOperatorCopyAddress(asSFuncPtr* Value, VMCall = VMCall::THISCALL);
 			int SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall = VMCall::THISCALL);
 			int SetPropertyAddress(const char* Decl, int Offset);
 			int SetPropertyStaticAddress(const char* Decl, void* Value);
@@ -1023,7 +1023,16 @@ namespace Edge
 			int SetOperatorCopy()
 			{
 				asSFuncPtr* Ptr = VMBridge::MethodOp<T, T&, const T&>(&T::operator =);
-				int Result = SetOperatorCopyAddress(Ptr);
+				int Result = SetOperatorCopyAddress(Ptr, VMCall::THISCALL);
+				VMFuncStore::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename R, typename... Args>
+			int SetOperatorCopyStatic(R(*Value)(Args...), VMCall Type = VMCall::CDECLF)
+			{
+				asSFuncPtr* Ptr = (Type == VMCall::GENERIC ? VMBridge::FunctionGeneric<R(*)(Args...)>(Value) : VMBridge::Function<R(*)(Args...)>(Value));
+				int Result = SetOperatorCopyAddress(Ptr, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Ptr);
 
 				return Result;
@@ -1481,6 +1490,12 @@ namespace Edge
 				Struct.SetDestructor<T>("void f()");
 
 				return Struct;
+			}
+			template <typename T>
+			VMTypeClass SetStruct(const char* Name)
+			{
+				ED_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
+				return SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | VMBridge::GetTypeTraits<T>());
 			}
 			template <typename T>
 			VMTypeClass SetPod(const char* Name)

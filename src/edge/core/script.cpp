@@ -993,7 +993,7 @@ namespace Edge
 
 			return Engine->RegisterFuncdef(Decl);;
 		}
-		int VMClass::SetOperatorCopyAddress(asSFuncPtr* Value)
+		int VMClass::SetOperatorCopyAddress(asSFuncPtr* Value, VMCall Type)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
@@ -1002,7 +1002,7 @@ namespace Edge
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			Core::Parser Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
-			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, asCALL_THISCALL);
+			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, (asECallConvTypes)Type);
 		}
 		int VMClass::SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall Type)
 		{

@@ -6151,6 +6151,22 @@ namespace Edge
 				return Array::Compose(Type.GetTypeInfo(), Base->Indices);
 			}
 
+			Compute::SoftBody::Desc::CV::SConvex& SoftBodySConvexCopy(Compute::SoftBody::Desc::CV::SConvex& Base, Compute::SoftBody::Desc::CV::SConvex& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Hull);
+				Base = Other;
+				ED_ASSIGN(Base.Hull, Other.Hull);
+
+				return Base;
+			}
+			void SoftBodySConvexDestructor(Compute::SoftBody::Desc::CV::SConvex& Base)
+			{
+				ED_RELEASE(Base.Hull);
+			}
+
 			Array* SoftBodyGetIndices(Compute::SoftBody* Base)
 			{
 				std::vector<int> Result;
@@ -6695,6 +6711,21 @@ namespace Edge
 				return Base.BorderColor[Index % 4];
 			}
 
+			Graphics::InputLayout::Desc& InputLayoutDescCopy(Graphics::InputLayout::Desc& Base, Graphics::InputLayout::Desc& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Source);
+				Base = Other;
+				ED_ASSIGN(Base.Source, Other.Source);
+
+				return Base;
+			}
+			void InputLayoutDescDestructor(Graphics::InputLayout::Desc& Base)
+			{
+				ED_RELEASE(Base.Source);
+			}
 			void InputLayoutDescSetAttributes(Graphics::InputLayout::Desc& Base, Array* Data)
 			{
 				Base.Attributes = Array::Decompose<Graphics::InputLayout::Attribute>(Data);
@@ -6727,6 +6758,22 @@ namespace Edge
 			void SkinMeshBufferDescSetIndices(Graphics::SkinMeshBuffer::Desc& Base, Array* Data)
 			{
 				Base.Indices = Array::Decompose<int>(Data);
+			}
+
+			Graphics::InstanceBuffer::Desc& InstanceBufferDescCopy(Graphics::InstanceBuffer::Desc& Base, Graphics::InstanceBuffer::Desc& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Device);
+				Base = Other;
+				ED_ASSIGN(Base.Device, Other.Device);
+
+				return Base;
+			}
+			void InstanceBufferDescDestructor(Graphics::InstanceBuffer::Desc& Base)
+			{
+				ED_RELEASE(Base.Device);
 			}
 
 			void InstanceBufferSetArray(Graphics::InstanceBuffer* Base, Array* Data)
@@ -6781,6 +6828,38 @@ namespace Edge
 			void MultiRenderTargetCubeDescSetFormatMode(Graphics::MultiRenderTargetCube::Desc& Base, size_t Index, Graphics::Format Mode)
 			{
 				Base.FormatMode[Index % 8] = Mode;
+			}
+
+			Graphics::Cubemap::Desc& CubemapDescCopy(Graphics::Cubemap::Desc& Base, Graphics::Cubemap::Desc& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Source);
+				Base = Other;
+				ED_ASSIGN(Base.Source, Other.Source);
+
+				return Base;
+			}
+			void CubemapDescDestructor(Graphics::Cubemap::Desc& Base)
+			{
+				ED_RELEASE(Base.Source);
+			}
+
+			Graphics::GraphicsDevice::Desc& GraphicsDeviceDescCopy(Graphics::GraphicsDevice::Desc& Base, Graphics::GraphicsDevice::Desc& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Window);
+				Base = Other;
+				ED_ASSIGN(Base.Window, Other.Window);
+
+				return Base;
+			}
+			void GraphicsDeviceDescDestructor(Graphics::GraphicsDevice::Desc& Base)
+			{
+				ED_RELEASE(Base.Window);
 			}
 
 			void GraphicsDeviceSetVertexBuffers(Graphics::GraphicsDevice* Base, Array* Data, bool Value)
@@ -7131,6 +7210,22 @@ namespace Edge
 			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const std::string& Value)
 			{
 				return Base->Secure(Context, Value.c_str());
+			}
+
+			Network::EpollFd& EpollFdCopy(Network::EpollFd& Base, Network::EpollFd& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Base);
+				Base = Other;
+				ED_ASSIGN(Base.Base, Other.Base);
+
+				return Base;
+			}
+			void EpollFdDestructor(Network::EpollFd& Base)
+			{
+				ED_RELEASE(Base.Base);
 			}
 
 			int EpollHandleWait(Network::EpollHandle& Base, Array* Data, uint64_t Timeout)
@@ -9769,6 +9864,8 @@ namespace Edge
 				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("physics_hull_shape@ hull", &Compute::SoftBody::Desc::CV::SConvex::Hull);
 				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("bool enabled", &Compute::SoftBody::Desc::CV::SConvex::Enabled);
 				VSoftBodySConvex.SetConstructor<Compute::SoftBody::Desc::CV::SConvex>("void f()");
+				VSoftBodySConvex.SetOperatorCopyStatic(&SoftBodySConvexCopy);
+				VSoftBodySConvex.SetDestructorStatic("void f()", &SoftBodySConvexDestructor);
 
 				VMTypeClass VSoftBodySRope = Engine->Global().SetPod<Compute::SoftBody::Desc::CV::SRope>("physics_softbody_desc_cv_srope");
 				VSoftBodySRope.SetProperty<Compute::SoftBody::Desc::CV::SRope>("bool start_fixed", &Compute::SoftBody::Desc::CV::SRope::StartFixed);
@@ -11439,9 +11536,11 @@ namespace Edge
 				VMRefClass VShader = Register.SetClassUnmanaged<Graphics::Shader>("shader");
 				VShader.SetMethod("bool is_valid() const", &Graphics::Shader::IsValid);
 
-				VMTypeClass VInputLayoutDesc = Register.SetStructUnmanaged<Graphics::InputLayout::Desc>("input_layout_desc");
+				VMTypeClass VInputLayoutDesc = Register.SetStruct<Graphics::InputLayout::Desc>("input_layout_desc");
 				VInputLayoutDesc.SetProperty<Graphics::InputLayout::Desc>("shader@ source", &Graphics::InputLayout::Desc::Source);
 				VInputLayoutDesc.SetConstructor<Graphics::InputLayout::Desc>("void f()");
+				VInputLayoutDesc.SetOperatorCopyStatic(&InputLayoutDescCopy);
+				VInputLayoutDesc.SetDestructorStatic("void f()", &InputLayoutDescDestructor);
 				VInputLayoutDesc.SetMethodEx("void set_attributes(array<input_layout_attribute>@+)", &InputLayoutDescSetAttributes);
 
 				VMRefClass VInputLayout = Register.SetClassUnmanaged<Graphics::InputLayout>("input_layout");
@@ -11499,11 +11598,13 @@ namespace Edge
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::SkinMeshBuffer::GetIndexBuffer);
 
 				VMRefClass VGraphicsDevice = Register.SetClassUnmanaged<Graphics::GraphicsDevice>("graphics_device");
-				VMTypeClass VInstanceBufferDesc = Register.SetPod<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
+				VMTypeClass VInstanceBufferDesc = Register.SetStruct<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("graphics_device@ device", &Graphics::InstanceBuffer::Desc::Device);
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_width", &Graphics::InstanceBuffer::Desc::ElementWidth);
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_limit", &Graphics::InstanceBuffer::Desc::ElementLimit);
-				VSkinMeshBufferDesc.SetConstructor<Graphics::InstanceBuffer::Desc>("void f()");
+				VInstanceBufferDesc.SetConstructor<Graphics::InstanceBuffer::Desc>("void f()");
+				VInstanceBufferDesc.SetOperatorCopyStatic(&InstanceBufferDescCopy);
+				VInstanceBufferDesc.SetDestructorStatic("void f()", &InstanceBufferDescDestructor);
 
 				VMRefClass VInstanceBuffer = Register.SetClassUnmanaged<Graphics::InstanceBuffer>("instance_buffer");
 				VInstanceBuffer.SetMethodEx("void set_array(array<element_vertex>@+)", &InstanceBufferSetArray);
@@ -11734,12 +11835,14 @@ namespace Edge
 				VMultiRenderTarget2D.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target@+", "", &MultiRenderTarget2DToRenderTarget);
 				VMultiRenderTargetCube.SetOperatorEx(VMOpFunc::Cast, (uint32_t)VMOp::Const, "render_target@+", "", &MultiRenderTargetCubeToRenderTarget);
 
-				VMTypeClass VCubemapDesc = Register.SetPod<Graphics::Cubemap::Desc>("cubemap_desc");
+				VMTypeClass VCubemapDesc = Register.SetStruct<Graphics::Cubemap::Desc>("cubemap_desc");
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("render_target@ source", &Graphics::Cubemap::Desc::Source);
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 target", &Graphics::Cubemap::Desc::Target);
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 size", &Graphics::Cubemap::Desc::Size);
 				VCubemapDesc.SetProperty<Graphics::Cubemap::Desc>("uint32 mip_levels", &Graphics::Cubemap::Desc::MipLevels);
 				VCubemapDesc.SetConstructor<Graphics::Cubemap::Desc>("void f()");
+				VCubemapDesc.SetOperatorCopyStatic(&CubemapDescCopy);
+				VCubemapDesc.SetDestructorStatic("void f()", &CubemapDescDestructor);
 
 				VMRefClass VCubemap = Register.SetClassUnmanaged<Graphics::Cubemap>("cubemap");
 				VCubemap.SetMethod("bool is_valid() const", &Graphics::Cubemap::IsValid);
@@ -11752,7 +11855,7 @@ namespace Edge
 				VMRefClass VQuery = Register.SetClassUnmanaged<Graphics::Query>("visibility_query");
 				VQuery.SetMethod("uptr@ get_resource() const", &Graphics::Query::GetResource);
 
-				VMTypeClass VGraphicsDeviceDesc = Register.SetPod<Graphics::GraphicsDevice::Desc>("graphics_device_desc");
+				VMTypeClass VGraphicsDeviceDesc = Register.SetStruct<Graphics::GraphicsDevice::Desc>("graphics_device_desc");
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("render_backend backend", &Graphics::GraphicsDevice::Desc::Backend);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("shader_model shader_mode", &Graphics::GraphicsDevice::Desc::ShaderMode);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("surface_format buffer_format", &Graphics::GraphicsDevice::Desc::BufferFormat);
@@ -11768,6 +11871,8 @@ namespace Edge
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("uint32 buffer_height", &Graphics::GraphicsDevice::Desc::BufferHeight);
 				VGraphicsDeviceDesc.SetProperty<Graphics::GraphicsDevice::Desc>("activity@ window", &Graphics::GraphicsDevice::Desc::Window);
 				VGraphicsDeviceDesc.SetConstructor<Graphics::GraphicsDevice::Desc>("void f()");
+				VGraphicsDeviceDesc.SetOperatorCopyStatic(&GraphicsDeviceDescCopy);
+				VGraphicsDeviceDesc.SetDestructorStatic("void f()", &GraphicsDeviceDescDestructor);
 
 				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("render_buffer render", &Graphics::GraphicsDevice::Render);
 				VGraphicsDevice.SetProperty<Graphics::GraphicsDevice>("view_buffer view", &Graphics::GraphicsDevice::View);
@@ -12051,12 +12156,14 @@ namespace Edge
 				VDataFrame.SetConstructor<Network::DataFrame>("void f()");
 
 				VMRefClass VSocket = Register.SetClassUnmanaged<Network::Socket>("socket");
-				VMTypeClass VEpollFd = Register.SetStructUnmanaged<Network::EpollFd>("epoll_fd");
+				VMTypeClass VEpollFd = Register.SetStruct<Network::EpollFd>("epoll_fd");
 				VEpollFd.SetProperty<Network::EpollFd>("socket@ base", &Network::EpollFd::Base);
 				VEpollFd.SetProperty<Network::EpollFd>("bool readable", &Network::EpollFd::Readable);
 				VEpollFd.SetProperty<Network::EpollFd>("bool writeable", &Network::EpollFd::Writeable);
 				VEpollFd.SetProperty<Network::EpollFd>("bool closed", &Network::EpollFd::Closed);
 				VEpollFd.SetConstructor<Network::EpollFd>("void f()");
+				VEpollFd.SetOperatorCopyStatic(&EpollFdCopy);
+				VEpollFd.SetDestructorStatic("void f()", &EpollFdDestructor);
 
 				VMTypeClass VEpollHandle = Register.SetStructUnmanaged<Network::EpollHandle>("epoll_handle");
 				VEpollHandle.SetProperty<Network::EpollHandle>("uptr@ array", &Network::EpollHandle::Array);

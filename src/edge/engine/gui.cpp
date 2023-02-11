@@ -337,7 +337,7 @@ namespace Edge
 				virtual Rml::FileHandle Open(const Rml::String& Path) override
 				{
 					std::string Target = Path;
-					Network::SourceURL URL(Target);
+					Network::Location URL(Target);
 					if (URL.Protocol == "file")
 					{
 						if (!Core::OS::File::IsExists(Target.c_str()))

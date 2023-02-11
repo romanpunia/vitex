@@ -50,7 +50,7 @@ namespace Edge
 			Client::~Client()
 			{
 			}
-			bool Client::OnResolveHost(Host* Address)
+			bool Client::OnResolveHost(RemoteHost* Address)
 			{
 				ED_ASSERT(Address != nullptr, false, "address should be set");
 				if (Address->Port == 0)

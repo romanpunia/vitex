@@ -552,6 +552,52 @@ namespace Edge
 				static void KeyopCast(void* ref, int typeId, MapKey* obj);
 				static as_int64_t KeyopConvInt(MapKey* obj);
 				static double KeyopConvDouble(MapKey* obj);
+
+			public:
+				template <typename T>
+				static Map* Compose(int TypeId, const std::unordered_map<std::string, T>& Objects)
+				{
+					auto* Engine = VMManager::Get();
+					Map* Data = Create(Engine ? Engine->GetEngine() : nullptr);
+					for (auto& Item : Objects)
+						Data->Set(Item.first, (void*)&Item.second, TypeId);
+
+					return Data;
+				}
+				template <typename T>
+				static typename std::enable_if<std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Map* Array)
+				{
+					std::unordered_map<std::string, T> Result;
+					Result.reserve(Array->GetSize());
+
+					int SubTypeId = 0;
+					size_t Size = Array->GetSize();
+					for (size_t i = 0; i < Size; i++)
+					{
+						std::string Key; void* Value = nullptr;
+						if (Array->GetIndex(i, &Key, &Value, &SubTypeId) && SubTypeId == TypeId)
+							Result[Key] = (T*)Value;
+					}
+
+					return Result;
+				}
+				template <typename T>
+				static typename std::enable_if<!std::is_pointer<T>::value, std::unordered_map<std::string, T>>::type Decompose(int TypeId, Map* Array)
+				{
+					std::unordered_map<std::string, T> Result;
+					Result.reserve(Array->GetSize());
+
+					int SubTypeId = 0;
+					size_t Size = Array->GetSize();
+					for (size_t i = 0; i < Size; i++)
+					{
+						std::string Key; void* Value = nullptr;
+						if (Array->GetIndex(i, &Key, &Value, &SubTypeId) && SubTypeId == TypeId)
+							Result[Key] = *(T*)Value;
+					}
+
+					return Result;
+				}
 			};
 
 			class ED_OUT Grid
@@ -961,6 +1007,7 @@ namespace Edge
 				static bool LoadAudio(VMManager* Engine);
 				static bool LoadActivity(VMManager* Engine);
 				static bool LoadGraphics(VMManager* Engine);
+				static bool LoadNetwork(VMManager* Engine);
 				static bool LoadUiModel(VMManager* Engine);
 				static bool LoadUiControl(VMManager* Engine);
 				static bool LoadUiContext(VMManager* Engine);

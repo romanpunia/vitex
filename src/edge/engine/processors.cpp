@@ -1414,10 +1414,10 @@ namespace Edge
 			void* Server::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::string N = Network::Socket::GetLocalAddress();
+				std::string N = Network::Driver::GetLocalAddress();
 				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
-				auto* Router = ED_NEW(Network::HTTP::MapRouter);
+				auto* Router = new Network::HTTP::MapRouter();
 				auto* Object = new Network::HTTP::Server();
 
 				Application* App = Application::Get();
@@ -1426,7 +1426,7 @@ namespace Edge
 
 				if (Schema == nullptr)
 				{
-					ED_DELETE(MapRouter, Router);
+					ED_RELEASE(Router);
 					return (void*)Object;
 				}
 				else if (Callback)
@@ -1508,7 +1508,7 @@ namespace Edge
 					if (!Series::Unpack(It, &Name))
 						Name = "*";
 
-					Network::Host* Host = &Router->Listeners[Core::Parser(&Name).Eval(N, D).R()];
+					Network::RemoteHost* Host = &Router->Listeners[Core::Parser(&Name).Eval(N, D).R()];
 					if (!Series::Unpack(It->Find("hostname"), &Host->Hostname))
 						Host->Hostname = "127.0.0.1";
 

@@ -1475,6 +1475,13 @@ namespace Edge
 				return Base[ResponseIndex].GetArray(Index);
 			}
 
+			Connection::Connection(TConnection* NewBase, socket_t Fd) : Base(NewBase), Stream(new Socket(Fd)), Current(nullptr), State(QueryState::Idle), InSession(false)
+			{
+			}
+			Connection::~Connection()
+			{
+				ED_RELEASE(Stream);
+			}
 			TConnection* Connection::GetBase() const
 			{
 				return Base;
@@ -1509,6 +1516,11 @@ namespace Edge
 				if (Callback)
 					Callback(Subresult);
 			}
+			void Request::Failure()
+			{
+				if (Future.IsPending())
+					Future.Set(Cursor());
+			}
 			Cursor&& Request::GetResult()
 			{
 				return std::move(Result);
@@ -1538,14 +1550,13 @@ namespace Edge
 				{
 					Item.first->ClearEvents(false);
 					PQfinish(Item.second->Base);
-					ED_DELETE(Connection, Item.second);
-					ED_DELETE(Socket, Item.first);
+					ED_RELEASE(Item.second);
 				}
 #endif
 				for (auto* Item : Requests)
 				{
-					Item->Future = Cursor();
-					ED_DELETE(Request, Item);
+					Item->Failure();
+					ED_RELEASE(Item);
 				}
 
 				Update.unlock();
@@ -1694,12 +1705,7 @@ namespace Edge
 						PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
 						PQlogMessage(Base);
 
-						Connection* Next = ED_NEW(Connection);
-						Next->Stream = ED_NEW(Socket, (socket_t)PQsocket(Base));
-						Next->Base = Base;
-						Next->Current = nullptr;
-						Next->State = QueryState::Idle;
-
+						Connection* Next = new Connection(Base, (socket_t)PQsocket(Base));
 						Pool.insert(std::make_pair(Next->Stream, Next));
 						Reprocess(Next);
 					}
@@ -1723,8 +1729,7 @@ namespace Edge
 					{
 						Item.first->ClearEvents(false);
 						PQfinish(Item.second->Base);
-						ED_DELETE(Connection, Item.second);
-						ED_DELETE(Socket, Item.first);
+						ED_RELEASE(Item.second);
 					}
 
 					Pool.clear();
@@ -1826,7 +1831,7 @@ namespace Edge
 					}
 				}
 
-				Request* Next = ED_NEW(Request, Command);
+				Request* Next = new Request(Command);
 				Next->Session = Session;
 				Next->Options = Opts;
 
@@ -1878,7 +1883,7 @@ namespace Edge
 				Update.unlock();
 
 				Future.Set(Cursor());
-				ED_DELETE(Request, Next);
+				ED_RELEASE(Next);
 				ED_ASSERT(false, Future, "[pq] transaction %llu does not exist", (void*)Session);
 #endif
 				return Future;
@@ -2015,11 +2020,11 @@ namespace Edge
 					Target->Current = nullptr;
 
 					Update.unlock();
-					Current->Future = Cursor();
+					Current->Failure();
 					Update.lock();
 
 					ED_ERR("[pqerr] query reset on 0x%" PRIXPTR "\n\tconnection lost", (uintptr_t)Target->Base);
-					ED_DELETE(Request, Current);
+					ED_RELEASE(Current);
 				}
 
 				Target->Stream->ClearEvents(false);
@@ -2051,7 +2056,7 @@ namespace Edge
 
 				ED_DEBUG("[pq] OK reconnect on 0x%" PRIXPTR, (uintptr_t)Target->Base);
 				Target->State = QueryState::Idle;
-				Target->Stream->SetFd((socket_t)PQsocket(Target->Base));
+				Target->Stream->MigrateTo((socket_t)PQsocket(Target->Base));
 				PQsetnonblocking(Target->Base, 1);
 				PQsetNoticeProcessor(Target->Base, PQlogNotice, nullptr);
 				Consume(Target);
@@ -2114,10 +2119,10 @@ namespace Edge
 				PQlogMessage(Base->Base);
 
 				Update.unlock();
-				Item->Future = Cursor();
+				Item->Failure();
 				Update.lock();
 
-				ED_DELETE(Request, Item);
+				ED_RELEASE(Item);
 				return true;
 #else
 				return false;
@@ -2223,7 +2228,7 @@ namespace Edge
 							Item->Finalize(Results);
 							Future = std::move(Results);
 							Update.lock();
-							ED_DELETE(Request, Item);
+							ED_RELEASE(Item);
 						}
 						else
 							Source->Current->Result.Base.emplace_back(std::move(Frame));

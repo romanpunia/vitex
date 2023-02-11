@@ -185,8 +185,8 @@ namespace Edge
 									if (!Reset)
 									{
 										Reset = true;
-										if (E.Reset)
-											E.Reset(this);
+										if (Lifetime.Reset)
+											Lifetime.Reset(this);
 									}
 								}
 							});
@@ -212,8 +212,8 @@ namespace Edge
 						if (!Reset)
 						{
 							Reset = true;
-							if (E.Reset)
-								E.Reset(this);
+							if (Lifetime.Reset)
+								Lifetime.Reset(this);
 						}
 					}
 					else if (Packet::IsSkip(Event))
@@ -273,7 +273,7 @@ namespace Edge
 			Retry:
 				if (State == (uint32_t)WebSocketState::Receive)
 				{
-					if (E.Dead && E.Dead(this))
+					if (Lifetime.Dead && Lifetime.Dead(this))
 					{
 						Finalize();
 						goto Retry;
@@ -384,8 +384,8 @@ namespace Edge
 					{
 						Active = false;
 						Section.unlock();
-						if (E.Close)
-							E.Close(this);
+						if (Lifetime.Close)
+							Lifetime.Close(this);
 						return;
 					}
 					else
@@ -512,10 +512,10 @@ namespace Edge
 
 						ED_DEBUG("[http] %s exit context on 0x%" PRIXPTR, Response == -1 ? "INT" : Response > 0 ? "ERR" : "OK", (uintptr_t)Compiler);
 						if (Response > 0)
-							E.Exception(this);
+							Lifetime.Exception(this);
 
-						if (E.Finish)
-							E.Finish(this);
+						if (Lifetime.Finish)
+							Lifetime.Finish(this);
 						else
 							Finish();
 					});
@@ -526,8 +526,8 @@ namespace Edge
 			}
 			bool GatewayFrame::Error(int StatusCode, const char* Text)
 			{
-				if (E.Status)
-					E.Status(this, StatusCode, Text);
+				if (Lifetime.Status)
+					Lifetime.Status(this, StatusCode, Text);
 
 				return Finish();
 			}
@@ -551,10 +551,10 @@ namespace Edge
 					Active = false;
 				}
 
-				if (!E.Close)
+				if (!Lifetime.Close)
 					return false;
 
-				return E.Close(this);
+				return Lifetime.Close(this);
 			}
 			bool GatewayFrame::IsFinished()
 			{
@@ -600,27 +600,61 @@ namespace Edge
 				return Base;
 			}
 
-			SiteEntry::SiteEntry() : Base(ED_NEW(RouteEntry))
+			RouteGroup::RouteGroup(const std::string& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
+			{
+			}
+			RouteGroup::~RouteGroup()
+			{
+				for (auto* Entry : Routes)
+					ED_RELEASE(Entry);
+			}
+
+			RouteEntry::RouteEntry(RouteEntry* Other, const Compute::RegexSource& Source)
+			{
+				ED_ASSERT_V(Other != nullptr, "other should be set");
+				Callbacks = Other->Callbacks;
+				Gateway = Other->Gateway;
+				Auth = Other->Auth;
+				Compression = Other->Compression;
+				HiddenFiles = Other->HiddenFiles;
+				ErrorFiles = Other->ErrorFiles;
+				MimeTypes = Other->MimeTypes;
+				IndexFiles = Other->IndexFiles;
+				TryFiles = Other->TryFiles;
+				DisallowedMethods = Other->DisallowedMethods;
+				DocumentRoot = Other->DocumentRoot;
+				CharSet = Other->CharSet;
+				ProxyIpAddress = Other->ProxyIpAddress;
+				AccessControlAllowOrigin = Other->AccessControlAllowOrigin;
+				Redirect = Other->Redirect;
+				Override = Other->Override;
+				WebSocketTimeout = Other->WebSocketTimeout;
+				StaticFileMaxAge = Other->StaticFileMaxAge;
+				MaxCacheLength = Other->MaxCacheLength;
+				Level = Other->Level;
+				AllowDirectoryListing = Other->AllowDirectoryListing;
+				AllowWebSocket = Other->AllowWebSocket;
+				AllowSendFile = Other->AllowSendFile;
+				Site = Other->Site;
+				URI = Source;
+			}
+
+			SiteEntry::SiteEntry() : Base(new RouteEntry())
 			{
 				Base->URI = Compute::RegexSource("/");
 				Base->Site = this;
 			}
 			SiteEntry::~SiteEntry()
 			{
-				for (auto& Group : Groups)
-				{
-					for (auto* Entry : Group.Routes)
-						ED_DELETE(RouteEntry, Entry);
-				}
-
-				ED_DELETE(RouteEntry, Base);
-				Base = nullptr;
+				for (auto& Item : Groups)
+					ED_RELEASE(Item);
+				ED_RELEASE(Base);
 			}
 			void SiteEntry::Sort()
 			{
-				ED_SORT(Groups.begin(), Groups.end(), [](const RouteGroup& A, const RouteGroup& B)
+				ED_SORT(Groups.begin(), Groups.end(), [](const RouteGroup* A, const RouteGroup* B)
 				{
-					return A.Match.size() > B.Match.size();
+					return A->Match.size() > B->Match.size();
 				});
 
 				for (auto& Group : Groups)
@@ -646,22 +680,21 @@ namespace Edge
 
 						return A->URI.GetRegex().size() > B->URI.GetRegex().size();
 					};
-					ED_SORT(Group.Routes.begin(), Group.Routes.end(), Comparator);
+					ED_SORT(Group->Routes.begin(), Group->Routes.end(), Comparator);
 				}
 			}
 			RouteGroup* SiteEntry::Group(const std::string& Match, RouteMode Mode)
 			{
 				for (auto& Group : Groups)
 				{
-					if (Group.Match == Match && Group.Mode == Mode)
-						return &Group;
+					if (Group->Match == Match && Group->Mode == Mode)
+						return Group;
 				}
 
-				HTTP::RouteGroup Group;
-				Group.Match = Match;
-				Group.Mode = Mode;
-				Groups.emplace_back(std::move(Group));
-				return &Groups.back();
+				auto* Result = new RouteGroup(Match, Mode);
+				Groups.emplace_back(Result);
+
+				return Result;
 			}
 			RouteEntry* SiteEntry::Route(const std::string& Match, RouteMode Mode, const std::string& Pattern)
 			{
@@ -671,11 +704,11 @@ namespace Edge
 				HTTP::RouteGroup* Source = nullptr;
 				for (auto& Group : Groups)
 				{
-					if (Group.Match != Match || Group.Mode != Mode)
+					if (Group->Match != Match || Group->Mode != Mode)
 						continue;
 
-					Source = &Group;
-					for (auto* Entry : Group.Routes)
+					Source = Group;
+					for (auto* Entry : Group->Routes)
 					{
 						if (Entry->URI.GetRegex() == Pattern)
 							return Entry;
@@ -684,11 +717,9 @@ namespace Edge
 
 				if (!Source)
 				{
-					HTTP::RouteGroup Group;
-					Group.Match = Match;
-					Group.Mode = Mode;
-					Groups.emplace_back(std::move(Group));
-					Source = &Groups.back();
+					auto* Result = new RouteGroup(Match, Mode);
+					Groups.emplace_back(Result);
+					Source = Groups.back();
 				}
 
 				HTTP::RouteEntry* From = Base;
@@ -698,7 +729,7 @@ namespace Edge
 
 				for (auto& Group : Groups)
 				{
-					for (auto* Entry : Group.Routes)
+					for (auto* Entry : Group->Routes)
 					{
 						Core::Parser Dest(Entry->URI.GetRegex());
 						Dest.ToLower();
@@ -721,8 +752,7 @@ namespace Edge
 				ED_ASSERT(Group != nullptr, nullptr, "group should be set");
 				ED_ASSERT(From != nullptr, nullptr, "from should be set");
 
-				HTTP::RouteEntry* Result = ED_NEW(HTTP::RouteEntry, *From);
-				Result->URI = Compute::RegexSource(Pattern);
+				HTTP::RouteEntry* Result = new HTTP::RouteEntry(From, Compute::RegexSource(Pattern));
 				Group->Routes.push_back(Result);
 
 				return Result;
@@ -732,13 +762,13 @@ namespace Edge
 				ED_ASSERT(Source != nullptr, false, "source should be set");
 				for (auto& Group : Groups)
 				{
-					auto It = std::find(Group.Routes.begin(), Group.Routes.end(), Source);
-					if (It == Group.Routes.end())
-						continue;
-
-					ED_DELETE(RouteEntry, *It);
-					Group.Routes.erase(It);
-					return true;
+					auto It = std::find(Group->Routes.begin(), Group->Routes.end(), Source);
+					if (It != Group->Routes.end())
+					{
+						ED_RELEASE(*It);
+						Group->Routes.erase(It);
+						return true;
+					}
 				}
 
 				return false;
@@ -880,7 +910,7 @@ namespace Edge
 			MapRouter::~MapRouter()
 			{
 				for (auto& Entry : Sites)
-					ED_DELETE(SiteEntry, Entry.second);
+					ED_RELEASE(Entry.second);
 			}
 			SiteEntry* MapRouter::Site()
 			{
@@ -897,7 +927,7 @@ namespace Edge
 				if (Name.empty())
 					Name = "*";
 
-				HTTP::SiteEntry* Result = ED_NEW(HTTP::SiteEntry);
+				HTTP::SiteEntry* Result = new HTTP::SiteEntry();
 				Sites[Name] = Result;
 
 				return Result;
@@ -1221,6 +1251,23 @@ namespace Edge
 				return StatusCode >= 200 && StatusCode < 400;
 			}
 
+			Connection::Connection(Server* Source) noexcept : Root(Source)
+			{
+				Parsers.Request = new HTTP::Parser();
+				Parsers.Request->OnMethodValue = Parsing::ParseMethodValue;
+				Parsers.Request->OnPathValue = Parsing::ParsePathValue;
+				Parsers.Request->OnQueryValue = Parsing::ParseQueryValue;
+				Parsers.Request->OnVersion = Parsing::ParseVersion;
+				Parsers.Request->OnHeaderField = Parsing::ParseHeaderField;
+				Parsers.Request->OnHeaderValue = Parsing::ParseHeaderValue;
+
+				Parsers.Multipart = new HTTP::Parser();
+				Parsers.Multipart->OnContentData = Parsing::ParseMultipartContentData;
+				Parsers.Multipart->OnHeaderField = Parsing::ParseMultipartHeaderField;
+				Parsers.Multipart->OnHeaderValue = Parsing::ParseMultipartHeaderValue;
+				Parsers.Multipart->OnResourceBegin = Parsing::ParseMultipartResourceBegin;
+				Parsers.Multipart->OnResourceEnd = Parsing::ParseMultipartResourceEnd;
+			}
 			Connection::~Connection()
 			{
 				ED_RELEASE(Parsers.Request);
@@ -1663,8 +1710,7 @@ namespace Edge
 						return false;
 					}
 
-					ED_DELETE(WebSocketFrame, WebSocket);
-					WebSocket = nullptr;
+					ED_CLEAR(WebSocket);
 				}
 
 				if (Gateway != nullptr)
@@ -1676,8 +1722,7 @@ namespace Edge
 						return false;
 					}
 
-					ED_DELETE(GatewayFrame, Gateway);
-					Gateway = nullptr;
+					ED_CLEAR(Gateway);
 				}
 
 				Info.Sync.unlock();
@@ -1957,100 +2002,7 @@ namespace Edge
 #endif
 			}
 
-			QueryParameter::QueryParameter() : Core::Schema(Core::Var::Object())
-			{
-			}
-			std::string QueryParameter::Build() const
-			{
-				std::string Output, Label = Compute::Codec::URIEncode(Parent != nullptr ? ('[' + Key + ']') : Key);
-				if (Value.IsObject())
-				{
-					if (Nodes != nullptr)
-					{
-						for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
-						{
-							auto* Item = (QueryParameter*)*It;
-							Output.append(Label).append(Item->Build());
-							if (It + 1 < Nodes->end())
-								Output += '&';
-						}
-					}
-				}
-				else
-				{
-					std::string V = Value.Serialize();
-					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
-					else
-						Output.append(Label);
-				}
-
-				return Output;
-			}
-			std::string QueryParameter::BuildFromBase() const
-			{
-				std::string Output, Label = Compute::Codec::URIEncode(Key);
-				if (Value.IsObject())
-				{
-					if (Nodes != nullptr)
-					{
-						for (auto It = Nodes->begin(); It != Nodes->end(); ++It)
-						{
-							auto* Item = (QueryParameter*)*It;
-							Output.append(Label).append(Item->Build());
-							if (It + 1 < Nodes->end())
-								Output += '&';
-						}
-					}
-				}
-				else
-				{
-					std::string V = Value.Serialize();
-					if (!V.empty())
-						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
-					else
-						Output.append(Label);
-				}
-
-				return Output;
-			}
-			QueryParameter* QueryParameter::Find(QueryToken* Name)
-			{
-				ED_ASSERT(Name != nullptr, nullptr, "token should be set");
-				if (Nodes != nullptr && Name->Value && Name->Length > 0)
-				{
-					for (auto* Item : *Nodes)
-					{
-						if (!strncmp(Item->Key.c_str(), Name->Value, (size_t)Name->Length))
-							return (QueryParameter*)Item;
-					}
-				}
-
-				QueryParameter* New = new QueryParameter();
-				Allocate();
-
-				if (Name->Value && Name->Length > 0)
-				{
-					New->Key.assign(Name->Value, (size_t)Name->Length);
-					if (!Core::Parser(&New->Key).HasInteger())
-						Value = Core::Var::Object();
-					else
-						Value = Core::Var::Array();
-				}
-				else
-				{
-					New->Key.assign(std::to_string(Nodes->size()));
-					Value = Core::Var::Array();
-				}
-
-				New->Value = Core::Var::String("", 0);
-				New->Parent = this;
-				Nodes->push_back(New);
-
-				return New;
-			}
-
-			Query::Query() : Object(new QueryParameter())
+			Query::Query() : Object(Core::Var::Set::Object())
 			{
 			}
 			Query::~Query()
@@ -2118,11 +2070,11 @@ namespace Edge
 				if (!Value.Value || !Value.Length)
 					return;
 
-				QueryParameter* Parameter = nullptr;
+				Core::Schema* Parameter = nullptr;
 				for (auto& Item : *Tokens)
 				{
 					if (Parameter != nullptr)
-						Parameter = Parameter->Find(&Item);
+						Parameter = FindParameter(Parameter, &Item);
 					else
 						Parameter = GetParameter(&Item);
 				}
@@ -2175,7 +2127,7 @@ namespace Edge
 			void Query::DecodeAJSON(const std::string& URI)
 			{
 				ED_CLEAR(Object);
-				Object = (QueryParameter*)Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
+				Object = (Core::Schema*)Core::Schema::ConvertFromJSON(URI.c_str(), URI.size());
 			}
 			std::string Query::Encode(const char* Type) const
 			{
@@ -2195,10 +2147,9 @@ namespace Edge
 				std::string Output; auto& Nodes = Object->GetChilds();
 				for (auto It = Nodes.begin(); It != Nodes.end(); ++It)
 				{
+					Output.append(BuildFromBase(*It));
 					if (It + 1 < Nodes.end())
-						Output.append(((QueryParameter*)*It)->BuildFromBase()).append(1, '&');
-					else
-						Output.append(((QueryParameter*)*It)->BuildFromBase());
+						Output.append(1, '&');
 				}
 
 				return Output;
@@ -2214,19 +2165,19 @@ namespace Edge
 
 				return Stream;
 			}
-			QueryParameter* Query::Get(const char* Name) const
+			Core::Schema* Query::Get(const char* Name) const
 			{
-				return (QueryParameter*)Object->Get(Name);
+				return (Core::Schema*)Object->Get(Name);
 			}
-			QueryParameter* Query::Set(const char* Name)
+			Core::Schema* Query::Set(const char* Name)
 			{
-				return (QueryParameter*)Object->Set(Name, Core::Var::String("", 0));
+				return (Core::Schema*)Object->Set(Name, Core::Var::String("", 0));
 			}
-			QueryParameter* Query::Set(const char* Name, const char* Value)
+			Core::Schema* Query::Set(const char* Name, const char* Value)
 			{
-				return (QueryParameter*)Object->Set(Name, Core::Var::String(Value));
+				return (Core::Schema*)Object->Set(Name, Core::Var::String(Value));
 			}
-			QueryParameter* Query::GetParameter(QueryToken* Name)
+			Core::Schema* Query::GetParameter(QueryToken* Name)
 			{
 				ED_ASSERT(Name != nullptr, nullptr, "token should be set");
 				if (Name->Value && Name->Length > 0)
@@ -2237,11 +2188,11 @@ namespace Edge
 							continue;
 
 						if (!strncmp(Item->Key.c_str(), Name->Value, (size_t)Name->Length))
-							return (QueryParameter*)Item;
+							return (Core::Schema*)Item;
 					}
 				}
 
-				QueryParameter* New = new QueryParameter();
+				Core::Schema* New = Core::Var::Set::Object();
 				if (Name->Value && Name->Length > 0)
 				{
 					New->Key.assign(Name->Value, (size_t)Name->Length);
@@ -2260,6 +2211,83 @@ namespace Edge
 				Object->Push(New);
 
 				return New;
+			}
+			std::string Query::Build(Core::Schema* Base)
+			{
+				std::string Output, Label = Compute::Codec::URIEncode(Base->GetParent() != nullptr ? ('[' + Base->Key + ']') : Base->Key);
+				if (!Base->IsEmpty())
+				{
+					auto& Childs = Base->GetChilds();
+					for (auto It = Childs.begin(); It != Childs.end(); ++It)
+					{
+						Output.append(Label).append(Build(*It));
+						if (It + 1 < Childs.end())
+							Output += '&';
+					}
+				}
+				else
+				{
+					std::string V = Base->Value.Serialize();
+					if (!V.empty())
+						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
+					else
+						Output.append(Label);
+				}
+
+				return Output;
+			}
+			std::string Query::BuildFromBase(Core::Schema* Base)
+			{
+				std::string Output, Label = Compute::Codec::URIEncode(Base->Key);
+				if (!Base->IsEmpty())
+				{
+					auto& Childs = Base->GetChilds();
+					for (auto It = Childs.begin(); It != Childs.end(); ++It)
+					{
+						Output.append(Label).append(Build(*It));
+						if (It + 1 < Childs.end())
+							Output += '&';
+					}
+				}
+				else
+				{
+					std::string V = Base->Value.Serialize();
+					if (!V.empty())
+						Output.append(Label).append(1, '=').append(Compute::Codec::URIEncode(V));
+					else
+						Output.append(Label);
+				}
+
+				return Output;
+			}
+			Core::Schema* Query::FindParameter(Core::Schema* Base, QueryToken* Name)
+			{
+				ED_ASSERT(Name != nullptr, nullptr, "token should be set");
+				if (!Base->IsEmpty() && Name->Value && Name->Length > 0)
+				{
+					for (auto* Item : Base->GetChilds())
+					{
+						if (!strncmp(Item->Key.c_str(), Name->Value, (size_t)Name->Length))
+							return (Core::Schema*)Item;
+					}
+				}
+
+				std::string Key;
+				if (Name->Value && Name->Length > 0)
+				{
+					Key.assign(Name->Value, (size_t)Name->Length);
+					if (!Core::Parser(&Key).HasInteger())
+						Base->Value = Core::Var::Object();
+					else
+						Base->Value = Core::Var::Array();
+				}
+				else
+				{
+					Key.assign(std::to_string(Base->Size()));
+					Base->Value = Core::Var::Array();
+				}
+
+				return Base->Set(Key, Core::Var::String("", 0));
 			}
 
 			Session::Session()
@@ -2415,8 +2443,15 @@ namespace Edge
 				ED_ASSERT_V(Base != nullptr, "base should be set");
 				Multipart = MultipartData();
 				Chunked = ChunkedData();
-				Frame = ParserFrame();
 				Frame.Request = &Base->Request;
+				Frame.Response = nullptr;
+				Frame.Route = nullptr;
+				Frame.Stream = nullptr;
+				Frame.Header.clear();
+				Frame.Source = HTTP::Resource();
+				Frame.Callback = nullptr;
+				Frame.Close = false;
+				Frame.Ignore = false;
 
 				if (!ForMultipart)
 					return;
@@ -4063,33 +4098,33 @@ namespace Edge
 				Base->Request.Where = Base->Request.URI;
 				for (auto& Group : It->second->Groups)
 				{
-					if (!Group.Match.empty())
+					if (!Group->Match.empty())
 					{
 						Core::Parser URI(&Base->Request.URI);
-						if (Group.Mode == RouteMode::Start)
+						if (Group->Mode == RouteMode::Start)
 						{
-							if (!URI.StartsWith(Group.Match))
+							if (!URI.StartsWith(Group->Match))
 								continue;
 
-							URI.Substring(Group.Match.size(), URI.Size());
+							URI.Substring(Group->Match.size(), URI.Size());
 						}
-						else if (Group.Mode == RouteMode::Match)
+						else if (Group->Mode == RouteMode::Match)
 						{
-							if (!URI.Find(Group.Match).Found)
+							if (!URI.Find(Group->Match).Found)
 								continue;
 						}
-						else if (Group.Mode == RouteMode::End)
+						else if (Group->Mode == RouteMode::End)
 						{
-							if (!URI.EndsWith(Group.Match))
+							if (!URI.EndsWith(Group->Match))
 								continue;
 
-							URI.Clip(URI.Size() - Group.Match.size());
+							URI.Clip(URI.Size() - Group->Match.size());
 						}
 
 						if (URI.Empty())
 							URI.Append('/');
 
-						for (auto* Basis : Group.Routes)
+						for (auto* Basis : Group->Routes)
 						{
 							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
 							{
@@ -4102,7 +4137,7 @@ namespace Edge
 					}
 					else
 					{
-						for (auto* Basis : Group.Routes)
+						for (auto* Basis : Group->Routes)
 						{
 							if (Compute::Regex::Match(&Basis->URI, Base->Request.Match, Base->Request.URI))
 							{
@@ -5613,8 +5648,8 @@ namespace Edge
 
 					Core::Schedule::Get()->SetTask([Base, Compiler, Buffer, Size]()
 					{
-						Base->Gateway = ED_NEW(GatewayFrame, Base, Compiler);
-						Base->Gateway->E.Exception = [](GatewayFrame* Gateway)
+						Base->Gateway = new GatewayFrame(Base, Compiler);
+						Base->Gateway->Lifetime.Exception = [](GatewayFrame* Gateway)
 						{
 							HTTP::Connection* Base = Gateway->GetBase();
 							Base->Response.StatusCode = 500;
@@ -5639,7 +5674,7 @@ namespace Edge
 							else
 								Base->Info.Message.assign("Internal processing error occurred.");
 						};
-						Base->Gateway->E.Finish = [](GatewayFrame* Gateway)
+						Base->Gateway->Lifetime.Finish = [](GatewayFrame* Gateway)
 						{
 							HTTP::Connection* Base = Gateway->GetBase();
 							if (Base->WebSocket != nullptr && (Base->WebSocket->Connect || Base->WebSocket->Disconnect || Base->WebSocket->Receive))
@@ -5647,7 +5682,7 @@ namespace Edge
 							else
 								Gateway->Finish();
 						};
-						Base->Gateway->E.Close = [](GatewayFrame* Gateway)
+						Base->Gateway->Lifetime.Close = [](GatewayFrame* Gateway)
 						{
 							HTTP::Connection* Base = Gateway->GetBase();
 							if (Base->Response.StatusCode <= 0)
@@ -5704,19 +5739,19 @@ namespace Edge
 				{
 					if (Packet::IsDone(Event))
 					{
-						Base->WebSocket = ED_NEW(WebSocketFrame, Base->Stream);
+						Base->WebSocket = new WebSocketFrame(Base->Stream);
 						Base->WebSocket->Connect = Base->Route->Callbacks.WebSocket.Connect;
 						Base->WebSocket->Receive = Base->Route->Callbacks.WebSocket.Receive;
 						Base->WebSocket->Disconnect = Base->Route->Callbacks.WebSocket.Disconnect;
-						Base->WebSocket->E.Dead = [Base](WebSocketFrame*)
+						Base->WebSocket->Lifetime.Dead = [Base](WebSocketFrame*)
 						{
 							return Base->Info.Close;
 						};
-						Base->WebSocket->E.Reset = [Base](WebSocketFrame*)
+						Base->WebSocket->Lifetime.Reset = [Base](WebSocketFrame*)
 						{
 							Base->Break();
 						};
-						Base->WebSocket->E.Close = [Base](WebSocketFrame*)
+						Base->WebSocket->Lifetime.Close = [Base](WebSocketFrame*)
 						{
 							Base->Info.KeepAlive = 0;
 							if (Base->Response.StatusCode <= 0)
@@ -5769,7 +5804,7 @@ namespace Edge
 
 					for (auto& Group : Entry->Groups)
 					{
-						for (auto* Route : Group.Routes)
+						for (auto* Route : Group->Routes)
 						{
 							Route->Site = Entry;
 							if (!Route->Override.empty())
@@ -5959,18 +5994,6 @@ namespace Edge
 					return true;
 				});
 			}
-			bool Server::OnDeallocate(SocketConnection* Base)
-			{
-				HTTP::Connection* sBase = (HTTP::Connection*)Base;
-				ED_DELETE(Connection, sBase);
-				return true;
-			}
-			bool Server::OnDeallocateRouter(SocketRouter* Base)
-			{
-				HTTP::MapRouter* sBase = (HTTP::MapRouter*)Base;
-				ED_DELETE(MapRouter, sBase);
-				return true;
-			}
 			bool Server::OnStall(std::unordered_set<SocketConnection*>& Data)
 			{
 				for (auto* Item : Data)
@@ -6028,31 +6051,14 @@ namespace Edge
 
 				return true;
 			}
-			SocketConnection* Server::OnAllocate(Listener* Host)
+			SocketConnection* Server::OnAllocate(SocketListener* Host)
 			{
 				ED_ASSERT(Host != nullptr, nullptr, "host should be set");
-
-				auto* Base = ED_NEW(HTTP::Connection);
-				Base->Parsers.Request = new HTTP::Parser();
-				Base->Parsers.Request->OnMethodValue = Parsing::ParseMethodValue;
-				Base->Parsers.Request->OnPathValue = Parsing::ParsePathValue;
-				Base->Parsers.Request->OnQueryValue = Parsing::ParseQueryValue;
-				Base->Parsers.Request->OnVersion = Parsing::ParseVersion;
-				Base->Parsers.Request->OnHeaderField = Parsing::ParseHeaderField;
-				Base->Parsers.Request->OnHeaderValue = Parsing::ParseHeaderValue;
-				Base->Parsers.Multipart = new HTTP::Parser();
-				Base->Parsers.Multipart->OnContentData = Parsing::ParseMultipartContentData;
-				Base->Parsers.Multipart->OnHeaderField = Parsing::ParseMultipartHeaderField;
-				Base->Parsers.Multipart->OnHeaderValue = Parsing::ParseMultipartHeaderValue;
-				Base->Parsers.Multipart->OnResourceBegin = Parsing::ParseMultipartResourceBegin;
-				Base->Parsers.Multipart->OnResourceEnd = Parsing::ParseMultipartResourceEnd;
-				Base->Root = this;
-
-				return Base;
+				return new HTTP::Connection(this);
 			}
 			SocketRouter* Server::OnAllocateRouter()
 			{
-				return ED_NEW(MapRouter);
+				return new MapRouter();
 			}
 
 			Client::Client(int64_t ReadTimeout) : SocketClient(ReadTimeout), WebSocket(nullptr)
@@ -6060,16 +6066,13 @@ namespace Edge
 			}
 			Client::~Client()
 			{
-				ED_DELETE(WebSocketFrame, WebSocket);
+				ED_RELEASE(WebSocket);
 			}
 			bool Client::Downgrade()
 			{
 				ED_ASSERT(WebSocket != nullptr, false, "websocket should be opened");
 				ED_ASSERT(WebSocket->IsFinished(), false, "websocket connection should be finished");
-
-				ED_DELETE(WebSocketFrame, WebSocket);
-				WebSocket = nullptr;
-
+				ED_CLEAR(WebSocket);
 				return true;
 			}
 			Core::Promise<bool> Client::Consume(size_t MaxSize)
@@ -6386,16 +6389,16 @@ namespace Edge
 				if (WebSocket != nullptr)
 					return WebSocket;
 
-				WebSocket = ED_NEW(WebSocketFrame, &Stream);
-				WebSocket->E.Dead = [](WebSocketFrame*)
+				WebSocket = new WebSocketFrame(&Stream);
+				WebSocket->Lifetime.Dead = [](WebSocketFrame*)
 				{
 					return false;
 				};
-				WebSocket->E.Reset = [this](WebSocketFrame*)
+				WebSocket->Lifetime.Reset = [this](WebSocketFrame*)
 				{
 					Stream.Close(false);
 				};
-				WebSocket->E.Close = [this](WebSocketFrame*)
+				WebSocket->Lifetime.Close = [this](WebSocketFrame*)
 				{
 					Future = true;
 				};

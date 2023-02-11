@@ -75,29 +75,29 @@ namespace Edge
 
 			typedef std::vector<std::string> RangePayload;
 			typedef std::map<std::string, RangePayload, struct HeaderComparator> HeaderMapping;
-			typedef std::function<bool(struct Connection*)> SuccessCallback;
-			typedef std::function<bool(struct Connection*, SocketPoll, const char*, size_t)> ContentCallback;
-			typedef std::function<bool(struct Connection*, struct Credentials*)> AuthorizeCallback;
-			typedef std::function<bool(struct Connection*, Core::Parser*)> HeaderCallback;
-			typedef std::function<bool(struct Connection*, Script::VMCompiler*)> CompilerCallback;
+			typedef std::function<bool(class Connection*)> SuccessCallback;
+			typedef std::function<bool(class Connection*, SocketPoll, const char*, size_t)> ContentCallback;
+			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
+			typedef std::function<bool(class Connection*, Core::Parser*)> HeaderCallback;
+			typedef std::function<bool(class Connection*, Script::VMCompiler*)> CompilerCallback;
 			typedef std::function<bool(struct Resource*)> ResourceCallback;
-			typedef std::function<void(struct WebSocketFrame*)> WebSocketCallback;
-			typedef std::function<bool(struct WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
-			typedef std::function<bool(struct WebSocketFrame*)> WebSocketCheckCallback;
-			typedef std::function<void(struct GatewayFrame*)> GatewayCallback;
-			typedef std::function<void(struct GatewayFrame*, int, const char*)> GatewayStatusCallback;
-			typedef std::function<bool(struct GatewayFrame*)> GatewayCloseCallback;
+			typedef std::function<void(class WebSocketFrame*)> WebSocketCallback;
+			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
+			typedef std::function<bool(class WebSocketFrame*)> WebSocketCheckCallback;
+			typedef std::function<void(class GatewayFrame*)> GatewayCallback;
+			typedef std::function<void(class GatewayFrame*, int, const char*)> GatewayStatusCallback;
+			typedef std::function<bool(class GatewayFrame*)> GatewayCloseCallback;
 			typedef std::function<bool(class Parser*, size_t)> ParserCodeCallback;
 			typedef std::function<bool(class Parser*, const char*, size_t)> ParserDataCallback;
 			typedef std::function<bool(class Parser*)> ParserNotifyCallback;
 
-			struct Connection;
+			class Connection;
 
-			struct RouteEntry;
+			class RouteEntry;
 
-			struct SiteEntry;
+			class SiteEntry;
 
-			struct MapRouter;
+			class MapRouter;
 
 			class Server;
 
@@ -236,10 +236,22 @@ namespace Edge
 				bool IsOK() const;
 			};
 
-			struct ED_OUT WebSocketFrame
+			class ED_OUT RouteGroup : public Core::Object
 			{
-				friend struct GatewayFrame;
-				friend struct Connection;
+			public:
+				std::vector<RouteEntry*> Routes;
+				std::string Match;
+				RouteMode Mode;
+
+			public:
+				RouteGroup(const std::string& NewMatch, RouteMode NewMode) noexcept;
+				virtual ~RouteGroup() noexcept override;
+			};
+
+			class ED_OUT WebSocketFrame : public Core::Object
+			{
+				friend class GatewayFrame;
+				friend class Connection;
 				friend class Util;
 
 			private:
@@ -258,7 +270,7 @@ namespace Edge
 					WebSocketCallback Reset;
 					WebSocketCallback Close;
 					WebSocketCheckCallback Dead;
-				} E;
+				} Lifetime;
 
 			private:
 				std::queue<Message> Messages;
@@ -279,7 +291,7 @@ namespace Edge
 
 			public:
 				WebSocketFrame(Socket* NewStream);
-				~WebSocketFrame();
+				virtual ~WebSocketFrame() override;
 				void Send(const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				void Send(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				void Finish();
@@ -295,7 +307,7 @@ namespace Edge
 				bool IsIgnore();
 			};
 
-			struct ED_OUT GatewayFrame
+			class ED_OUT GatewayFrame : public Core::Object
 			{
 				friend WebSocketFrame;
 				friend class Util;
@@ -307,7 +319,7 @@ namespace Edge
 					GatewayCloseCallback Close;
 					GatewayCallback Exception;
 					GatewayCallback Finish;
-				} E;
+				} Lifetime;
 
 			private:
 				HTTP::Connection* Base;
@@ -316,6 +328,7 @@ namespace Edge
 
 			public:
 				GatewayFrame(HTTP::Connection* NewBase, Script::VMCompiler* NewCompiler);
+				virtual ~GatewayFrame() = default;
 				bool Start(const std::string& Path, const char* Method, char* Buffer, size_t Size);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();
@@ -326,27 +339,9 @@ namespace Edge
 				HTTP::Connection* GetBase();
 			};
 
-			struct ED_OUT ParserFrame
+			class ED_OUT RouteEntry : public Core::Object
 			{
-				RequestFrame* Request = nullptr;
-				ResponseFrame* Response = nullptr;
-				RouteEntry* Route = nullptr;
-				FILE* Stream = nullptr;
-				std::string Header;
-				Resource Source;
-				ResourceCallback Callback;
-				bool Close = false;
-				bool Ignore = false;
-			};
-
-			struct ED_OUT QueryToken
-			{
-				char* Value = nullptr;
-				size_t Length = 0;
-			};
-
-			struct ED_OUT RouteEntry
-			{
+			public:
 				struct
 				{
 					struct
@@ -392,6 +387,7 @@ namespace Edge
 					bool Enabled = false;
 				} Compression;
 
+			public:
 				std::vector<Compute::RegexSource> HiddenFiles;
 				std::vector<ErrorFile> ErrorFiles;
 				std::vector<MimeType> MimeTypes;
@@ -400,7 +396,7 @@ namespace Edge
 				std::vector<std::string> DisallowedMethods;
 				std::string DocumentRoot = "./";
 				std::string CharSet = "utf-8";
-				std::string ProxyIpAddress = "";
+				std::string ProxyIpAddress;
 				std::string AccessControlAllowOrigin;
 				std::string Redirect;
 				std::string Override;
@@ -413,17 +409,16 @@ namespace Edge
 				bool AllowSendFile = true;
 				Compute::RegexSource URI;
 				SiteEntry* Site = nullptr;
+
+			public:
+				RouteEntry() = default;
+				RouteEntry(RouteEntry* Other, const Compute::RegexSource& Source);
+				virtual ~RouteEntry() = default;
 			};
 
-			struct ED_OUT RouteGroup
+			class ED_OUT SiteEntry : public Core::Object
 			{
-				std::vector<RouteEntry*> Routes;
-				std::string Match;
-				RouteMode Mode = RouteMode::Start;
-			};
-
-			struct ED_OUT SiteEntry
-			{
+			public:
 				struct
 				{
 					struct
@@ -451,16 +446,16 @@ namespace Edge
 					SuccessCallback OnRewriteURL;
 				} Callbacks;
 
-				std::vector<RouteGroup> Groups;
+			public:
+				std::vector<RouteGroup*> Groups;
 				std::string ResourceRoot = "./temp";
 				size_t MaxResources = 5;
 				RouteEntry* Base = nullptr;
 				MapRouter* Router = nullptr;
 
+			public:
 				SiteEntry();
-				SiteEntry(const SiteEntry&) = delete;
-				SiteEntry(SiteEntry&&) = delete;
-				~SiteEntry();
+				virtual ~SiteEntry() override;
 				void Sort();
 				RouteGroup* Group(const std::string& Match, RouteMode Mode);
 				RouteEntry* Route(const std::string& Match, RouteMode Mode, const std::string& Pattern);
@@ -488,26 +483,30 @@ namespace Edge
 				bool WebSocketReceive(const std::string& Match, RouteMode Mode, const char* Pattern, const WebSocketReadCallback& Callback);
 			};
 
-			struct ED_OUT MapRouter final : public SocketRouter
+			class ED_OUT MapRouter final : public SocketRouter
 			{
+			public:
 				std::unordered_map<std::string, SiteEntry*> Sites;
 				std::string ModuleRoot;
 				Script::VMManager* VM;
 
+			public:
 				MapRouter();
 				virtual ~MapRouter() override;
 				SiteEntry* Site();
 				SiteEntry* Site(const char* Host);
 			};
 
-			struct ED_OUT Connection final : public SocketConnection
+			class ED_OUT Connection final : public SocketConnection
 			{
+			public:
 				struct
 				{
 					HTTP::Parser* Multipart = nullptr;
 					HTTP::Parser* Request = nullptr;
 				} Parsers;
 
+			public:
 				Core::FileEntry Resource;
 				WebSocketFrame* WebSocket = nullptr;
 				GatewayFrame* Gateway = nullptr;
@@ -516,6 +515,8 @@ namespace Edge
 				RequestFrame Request;
 				ResponseFrame Response;
 
+			public:
+				Connection(Server* Source) noexcept;
 				virtual ~Connection() override;
 				void Reset(bool Fully) override;
 				bool Finish() override;
@@ -526,20 +527,17 @@ namespace Edge
 				bool Skip(const SuccessCallback& Callback);
 			};
 
-			class ED_OUT QueryParameter final : public Core::Schema
-			{
-			public:
-				QueryParameter();
-				virtual ~QueryParameter() = default;
-				std::string Build() const;
-				std::string BuildFromBase() const;
-				QueryParameter* Find(QueryToken* Name);
-			};
-
 			class ED_OUT Query : public Core::Object
 			{
+			private:
+				struct QueryToken
+				{
+					char* Value = nullptr;
+					size_t Length = 0;
+				};
+
 			public:
-				QueryParameter* Object;
+				Core::Schema* Object;
 
 			public:
 				Query();
@@ -548,9 +546,9 @@ namespace Edge
 				void Steal(Core::Schema** Output);
 				void Decode(const char* ContentType, const std::string& URI);
 				std::string Encode(const char* ContentType) const;
-				QueryParameter* Get(const char* Name) const;
-				QueryParameter* Set(const char* Name);
-				QueryParameter* Set(const char* Name, const char* Value);
+				Core::Schema* Get(const char* Name) const;
+				Core::Schema* Set(const char* Name);
+				Core::Schema* Set(const char* Name, const char* Value);
 
 			private:
 				void NewParameter(std::vector<QueryToken>* Tokens, const QueryToken& Name, const QueryToken& Value);
@@ -558,7 +556,12 @@ namespace Edge
 				void DecodeAJSON(const std::string& URI);
 				std::string EncodeAXWFD() const;
 				std::string EncodeAJSON() const;
-				QueryParameter* GetParameter(QueryToken* Name);
+				Core::Schema* GetParameter(QueryToken* Name);
+
+			private:
+				static std::string Build(Core::Schema* Base);
+				static std::string BuildFromBase(Core::Schema* Base);
+				static Core::Schema* FindParameter(Core::Schema* Base, QueryToken* Name);
 			};
 
 			class ED_OUT Session : public Core::Object
@@ -636,6 +639,20 @@ namespace Edge
 				} Chunked;
 
 			public:
+				struct
+				{
+					RequestFrame* Request = nullptr;
+					ResponseFrame* Response = nullptr;
+					RouteEntry* Route = nullptr;
+					FILE* Stream = nullptr;
+					std::string Header;
+					Resource Source;
+					ResourceCallback Callback;
+					bool Close = false;
+					bool Ignore = false;
+				} Frame;
+
+			public:
 				ParserCodeCallback OnStatusCode;
 				ParserDataCallback OnStatusMessage;
 				ParserDataCallback OnQueryValue;
@@ -647,7 +664,6 @@ namespace Edge
 				ParserDataCallback OnContentData;
 				ParserNotifyCallback OnResourceBegin;
 				ParserNotifyCallback OnResourceEnd;
-				ParserFrame Frame;
 
 			public:
 				Parser();
@@ -820,12 +836,10 @@ namespace Edge
 				bool OnConfigure(SocketRouter* New) override;
 				bool OnRequestEnded(SocketConnection* Base, bool Check) override;
 				bool OnRequestBegin(SocketConnection* Base) override;
-				bool OnDeallocate(SocketConnection* Base) override;
-				bool OnDeallocateRouter(SocketRouter* Base) override;
 				bool OnStall(std::unordered_set<SocketConnection*>& Data) override;
 				bool OnListen() override;
 				bool OnUnlisten() override;
-				SocketConnection* OnAllocate(Listener* Host) override;
+				SocketConnection* OnAllocate(SocketListener* Host) override;
 				SocketRouter* OnAllocateRouter() override;
 			};
 

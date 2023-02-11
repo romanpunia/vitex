@@ -71,7 +71,7 @@ namespace Edge
 				RequestFrame* GetRequest();
 
 			private:
-				bool OnResolveHost(Host* Address) override;
+				bool OnResolveHost(RemoteHost* Address) override;
 				bool OnConnect() override;
 				bool OnClose() override;
 				bool Authorize(const ReplyCallback& Callback);

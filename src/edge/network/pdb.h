@@ -457,19 +457,21 @@ namespace Edge
 				}
 			};
 
-			class ED_OUT Connection
+			class ED_OUT Connection : public Core::Object
 			{
 				friend Cluster;
 
 			private:
 				std::unordered_set<std::string> Listens;
-				TConnection* Base = nullptr;
-				Socket* Stream = nullptr;
-				Request* Current = nullptr;
-				QueryState State = QueryState::Lost;
-				bool InSession = false;
+				TConnection* Base;
+				Socket* Stream;
+				Request* Current;
+				QueryState State;
+				bool InSession;
 
 			public:
+				Connection(TConnection* NewBase, socket_t Fd);
+				virtual ~Connection() override;
 				TConnection* GetBase() const;
 				Socket* GetStream() const;
 				Request* GetCurrent() const;
@@ -478,7 +480,7 @@ namespace Edge
 				bool IsBusy() const;
 			};
 
-			class ED_OUT Request
+			class ED_OUT Request : public Core::Object
 			{
 				friend Cluster;
 
@@ -492,7 +494,9 @@ namespace Edge
 
 			public:
 				Request(const std::string& Commands);
+				virtual ~Request() = default;
 				void Finalize(Cursor& Subresult);
+				void Failure();
 				Cursor&& GetResult();
 				const std::vector<char>& GetCommand() const;
 				SessionId GetSession() const;

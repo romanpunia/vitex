@@ -18,13 +18,15 @@ namespace Edge
 {
 	namespace Network
 	{
-        struct Address;
-    
-		struct SocketConnection;
-
 		struct EpollHandle;
 
 		class Driver;
+
+		class Socket;
+
+		class SocketAddress;
+
+		class SocketConnection;
 
 		enum class Secure
 		{
@@ -79,154 +81,38 @@ namespace Edge
 		typedef std::function<void(class SocketClient*, int)> SocketClientCallback;
 		typedef std::function<void(SocketPoll)> PollEventCallback;
 		typedef std::function<void(SocketPoll)> SocketWrittenCallback;
-		typedef std::function<void(Address*)> SocketOpenedCallback;
+		typedef std::function<void(SocketAddress*)> SocketOpenedCallback;
 		typedef std::function<void(int)> SocketConnectedCallback;
 		typedef std::function<void()> SocketClosedCallback;
 		typedef std::function<bool(SocketPoll, const char*, size_t)> SocketReadCallback;
 		typedef std::function<bool(socket_t, char*)> SocketAcceptedCallback;
 
-		struct ED_OUT Address
-		{
-			addrinfo* Pool = nullptr;
-			addrinfo* Usable = nullptr;
-            
-            void Use(Address& Other);
-            void Use();
-            void Free();
-            bool IsUsable() const;
-            std::string GetAddress() const;
-		};
-
-		struct ED_OUT Socket
-		{
-			friend EpollHandle;
-			friend Driver;
-			
-		private:
-			struct
-			{
-				PollEventCallback ReadCallback = nullptr;
-				PollEventCallback WriteCallback = nullptr;
-				std::chrono::microseconds ExpiresAt = std::chrono::microseconds(0);
-				bool Readable = false;
-				bool Writeable = false;
-			} Events;
-
-		private:
-			ssl_st* Device;
-			socket_t Fd;
-
-		public:
-			uint64_t Timeout;
-			int64_t Income;
-			int64_t Outcome;
-			void* UserData;
-
-		public:
-			Socket() noexcept;
-			Socket(socket_t FromFd) noexcept;
-			int Accept(Socket* OutConnection, char* OutAddress);
-			int Accept(socket_t* OutFd, char* OutAddress);
-			int AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
-			int Close(bool Gracefully = true);
-			int CloseAsync(bool Gracefully, SocketClosedCallback&& Callback);
-            int64_t SendFile(FILE* Stream, int64_t Offset, int64_t Size);
-            int64_t SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer = 0);
-			int Write(const char* Buffer, int Size);
-			int WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr, size_t TempOffset = 0);
-			int Read(char* Buffer, int Size);
-			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
-			int ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer = 0);
-			int ReadUntil(const char* Match, SocketReadCallback&& Callback);
-			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
-			int Connect(Address* Address, uint64_t Timeout);
-			int ConnectAsync(Address* Address, SocketConnectedCallback&& Callback);
-			int Open(addrinfo* Address);
-			int Secure(ssl_ctx_st* Context, const char* Hostname);
-			int Bind(Address* Address);
-			int Listen(int Backlog);
-			int ClearEvents(bool Gracefully);
-			int SetFd(socket_t Fd, bool Gracefully = true);
-			int SetCloseOnExec();
-			int SetTimeWait(int Timeout);
-			int SetSocket(int Option, void* Value, int Size);
-			int SetAny(int Level, int Option, void* Value, int Size);
-			int SetAnyFlag(int Level, int Option, int Value);
-			int SetSocketFlag(int Option, int Value);
-			int SetBlocking(bool Enabled);
-			int SetNoDelay(bool Enabled);
-			int SetKeepAlive(bool Enabled);
-			int SetTimeout(int Timeout);
-			int GetError(int Result);
-			int GetAnyFlag(int Level, int Option, int* Value);
-			int GetAny(int Level, int Option, void* Value, int* Size);
-			int GetSocket(int Option, void* Value, int* Size);
-			int GetSocketFlag(int Option, int* Value);
-			int GetPort();
-			socket_t GetFd();
-			ssl_st* GetDevice();
-			bool IsPendingForRead();
-			bool IsPendingForWrite();
-			bool IsPending();
-			bool IsValid();
-			std::string GetRemoteAddress();
-
-		private:
-			int TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying);
-
-		public:
-			template <typename T>
-			T* Context()
-			{
-				return (T*)UserData;
-			}
-
-		public:
-			static std::string GetLocalAddress();
-			static std::string GetAddress(addrinfo* Info);
-			static std::string GetAddress(sockaddr* Info);
-			static int GetAddressFamily(const char* Address);
-		};
-
-		struct ED_OUT Host
+		struct ED_OUT RemoteHost
 		{
 			std::string Hostname;
 			int Port = 0;
 			bool Secure = false;
 		};
 
-		struct ED_OUT Listener
-		{
-			Address* Source = nullptr;
-			Host* Hostname = nullptr;
-			Socket* Base = nullptr;
-			std::string Name;
-		};
-
-		struct ED_OUT SourceURL
+		struct ED_OUT Location
 		{
 		public:
 			std::unordered_map<std::string, std::string> Query;
 			std::string URL;
 			std::string Protocol;
-			std::string Login;
+			std::string Username;
 			std::string Password;
-			std::string Host;
+			std::string Hostname;
+			std::string Fragment;
 			std::string Path;
-			std::string FullPath;
-			std::string Filename;
-			std::string Extension;
 			int Port;
 
 		public:
-			SourceURL(const std::string& Src) noexcept;
-			SourceURL(const SourceURL& Other) noexcept;
-			SourceURL(SourceURL&& Other) noexcept;
-			SourceURL& operator= (const SourceURL& Other) noexcept;
-			SourceURL& operator= (SourceURL&& Other) noexcept;
-
-		private:
-			void MakePath();
+			Location(const std::string& Src) noexcept;
+			Location(const Location& Other) noexcept;
+			Location(Location&& Other) noexcept;
+			Location& operator= (const Location& Other) noexcept;
+			Location& operator= (Location&& Other) noexcept;
 		};
 
 		struct ED_OUT Certificate
@@ -246,6 +132,9 @@ namespace Edge
 			int64_t Timeout = 0;
 			int64_t KeepAlive = 1;
 			bool Close = false;
+
+			DataFrame() = default;
+			DataFrame& operator= (const DataFrame& Other);
 		};
 
 		struct ED_OUT SocketCertificate
@@ -257,39 +146,6 @@ namespace Edge
 			Secure Protocol = Secure::Any;
 			bool VerifyPeers = true;
 			size_t Depth = 9;
-		};
-
-		struct ED_OUT SocketConnection
-		{
-			Socket* Stream = nullptr;
-			Listener* Host = nullptr;
-            char RemoteAddress[48] = { 0 };
-			DataFrame Info;
-
-			virtual ~SocketConnection() noexcept;
-			virtual void Reset(bool Fully);
-			virtual bool Finish();
-			virtual bool Finish(int);
-			virtual bool Error(int, const char* ErrorMessage, ...);
-			virtual bool EncryptionInfo(Certificate* Output);
-			virtual bool Break();
-		};
-
-		struct ED_OUT SocketRouter
-		{
-			std::unordered_map<std::string, SocketCertificate> Certificates;
-			std::unordered_map<std::string, Host> Listeners;
-			size_t PayloadMaxLength = 12582912;
-			size_t BacklogQueue = 20;
-			size_t SocketTimeout = 10000;
-			size_t MaxConnections = 0;
-			int64_t KeepAliveMaxCount = 50;
-			int64_t GracefulTimeWait = -1;
-			bool EnableNoDelay = false;
-
-			Host& Listen(const std::string& Hostname, int Port, bool Secure = false);
-			Host& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);
-			virtual ~SocketRouter() noexcept;
 		};
 
 		struct ED_OUT EpollFd
@@ -362,12 +218,12 @@ namespace Edge
 		class ED_OUT_TS DNS
 		{
 		private:
-			static std::unordered_map<std::string, std::pair<int64_t, Address*>> Names;
+			static std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>> Names;
 			static std::mutex Exclusive;
 
 		public:
 			static std::string FindNameFromAddress(const std::string& Host, const std::string& Service);
-			static Address* FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type);
+			static SocketAddress* FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type);
 			static void Release();
 		};
 
@@ -403,6 +259,10 @@ namespace Edge
 			static bool IsListening();
 			static bool IsActive();
 			static size_t GetActivations();
+			static std::string GetLocalAddress();
+			static std::string GetAddress(addrinfo* Info);
+			static std::string GetAddress(sockaddr* Info);
+			static int GetAddressFamily(const char* Address);
 
 		private:
 			static bool WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable);
@@ -416,6 +276,161 @@ namespace Edge
 			static void TryUnlisten();
 		};
 
+		class ED_OUT SocketAddress : public Core::Object
+		{
+			friend DNS;
+
+		private:
+			addrinfo* Names;
+			addrinfo* Usable;
+
+		public:
+			SocketAddress(addrinfo* NewNames, addrinfo* NewUsables);
+			virtual ~SocketAddress() noexcept override;
+			bool IsUsable() const;
+			addrinfo* Get() const;
+			addrinfo* GetAlternatives() const;
+			std::string GetAddress() const;
+		};
+
+		class ED_OUT Socket : public Core::Object
+		{
+			friend EpollHandle;
+			friend Driver;
+
+		private:
+			struct
+			{
+				PollEventCallback ReadCallback = nullptr;
+				PollEventCallback WriteCallback = nullptr;
+				std::chrono::microseconds ExpiresAt = std::chrono::microseconds(0);
+				bool Readable = false;
+				bool Writeable = false;
+			} Events;
+
+		private:
+			ssl_st* Device;
+			socket_t Fd;
+
+		public:
+			uint64_t Timeout;
+			int64_t Income;
+			int64_t Outcome;
+			void* UserData;
+
+		public:
+			Socket() noexcept;
+			Socket(socket_t FromFd) noexcept;
+			virtual ~Socket() = default;
+			int Accept(Socket* OutConnection, char* OutAddress);
+			int Accept(socket_t* OutFd, char* OutAddress);
+			int AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
+			int Close(bool Gracefully = true);
+			int CloseAsync(bool Gracefully, SocketClosedCallback&& Callback);
+			int64_t SendFile(FILE* Stream, int64_t Offset, int64_t Size);
+			int64_t SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer = 0);
+			int Write(const char* Buffer, int Size);
+			int WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer = nullptr, size_t TempOffset = 0);
+			int Read(char* Buffer, int Size);
+			int Read(char* Buffer, int Size, const SocketReadCallback& Callback);
+			int ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer = 0);
+			int ReadUntil(const char* Match, SocketReadCallback&& Callback);
+			int ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer = nullptr, size_t TempIndex = 0);
+			int Connect(SocketAddress* Address, uint64_t Timeout);
+			int ConnectAsync(SocketAddress* Address, SocketConnectedCallback&& Callback);
+			int Open(SocketAddress* Address);
+			int Secure(ssl_ctx_st* Context, const char* Hostname);
+			int Bind(SocketAddress* Address);
+			int Listen(int Backlog);
+			int ClearEvents(bool Gracefully);
+			int MigrateTo(socket_t Fd, bool Gracefully = true);
+			int SetCloseOnExec();
+			int SetTimeWait(int Timeout);
+			int SetSocket(int Option, void* Value, int Size);
+			int SetAny(int Level, int Option, void* Value, int Size);
+			int SetAnyFlag(int Level, int Option, int Value);
+			int SetSocketFlag(int Option, int Value);
+			int SetBlocking(bool Enabled);
+			int SetNoDelay(bool Enabled);
+			int SetKeepAlive(bool Enabled);
+			int SetTimeout(int Timeout);
+			int GetError(int Result);
+			int GetAnyFlag(int Level, int Option, int* Value);
+			int GetAny(int Level, int Option, void* Value, int* Size);
+			int GetSocket(int Option, void* Value, int* Size);
+			int GetSocketFlag(int Option, int* Value);
+			int GetPort();
+			socket_t GetFd();
+			ssl_st* GetDevice();
+			bool IsPendingForRead();
+			bool IsPendingForWrite();
+			bool IsPending();
+			bool IsValid();
+			std::string GetRemoteAddress();
+
+		private:
+			int TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying);
+
+		public:
+			template <typename T>
+			T* Context()
+			{
+				return (T*)UserData;
+			}
+		};
+
+		class ED_OUT SocketListener : public Core::Object
+		{
+		public:
+			std::string Name;
+			RemoteHost Hostname;
+			SocketAddress* Source;
+			Socket* Base;
+
+		public:
+			SocketListener(const std::string& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress);
+			virtual ~SocketListener() noexcept override;
+		};
+
+		class ED_OUT SocketRouter : public Core::Object
+		{
+		public:
+			std::unordered_map<std::string, SocketCertificate> Certificates;
+			std::unordered_map<std::string, RemoteHost> Listeners;
+			size_t PayloadMaxLength = 12582912;
+			size_t BacklogQueue = 20;
+			size_t SocketTimeout = 10000;
+			size_t MaxConnections = 0;
+			int64_t KeepAliveMaxCount = 50;
+			int64_t GracefulTimeWait = -1;
+			bool EnableNoDelay = false;
+
+		public:
+			SocketRouter() = default;
+			virtual ~SocketRouter() noexcept;
+			RemoteHost& Listen(const std::string& Hostname, int Port, bool Secure = false);
+			RemoteHost& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);
+		};
+
+		class ED_OUT SocketConnection : public Core::Object
+		{
+		public:
+			Socket* Stream = nullptr;
+			SocketListener* Host = nullptr;
+			char RemoteAddress[48] = { 0 };
+			DataFrame Info;
+
+		public:
+			SocketConnection() = default;
+			virtual ~SocketConnection() noexcept;
+			virtual void Reset(bool Fully);
+			virtual bool Finish();
+			virtual bool Finish(int);
+			virtual bool Error(int, const char* ErrorMessage, ...);
+			virtual bool EncryptionInfo(Certificate* Output);
+			virtual bool Break();
+		};
+
 		class ED_OUT SocketServer : public Core::Object
 		{
 			friend SocketConnection;
@@ -423,7 +438,7 @@ namespace Edge
 		protected:
 			std::unordered_set<SocketConnection*> Active;
 			std::unordered_set<SocketConnection*> Inactive;
-			std::vector<Listener*> Listeners;
+			std::vector<SocketListener*> Listeners;
 			SocketRouter* Router = nullptr;
 			ServerState State = ServerState::Idle;
 			std::mutex Sync;
@@ -448,12 +463,10 @@ namespace Edge
 			virtual bool OnConfigure(SocketRouter* New);
 			virtual bool OnRequestEnded(SocketConnection* Base, bool Check);
 			virtual bool OnRequestBegin(SocketConnection* Base);
-			virtual bool OnDeallocate(SocketConnection* Base);
-			virtual bool OnDeallocateRouter(SocketRouter* Base);
 			virtual bool OnStall(std::unordered_set<SocketConnection*>& Base);
 			virtual bool OnListen();
 			virtual bool OnUnlisten();
-			virtual SocketConnection* OnAllocate(Listener* Host);
+			virtual SocketConnection* OnAllocate(SocketListener* Host);
 			virtual SocketRouter* OnAllocateRouter();
 
 		private:
@@ -462,11 +475,11 @@ namespace Edge
 		protected:
 			bool FreeAll();
 			bool Refuse(SocketConnection* Base);
-			bool Accept(Listener* Host, socket_t Fd, const std::string& Address);
-			bool EncryptThenBegin(SocketConnection* Fd, Listener* Host);
+			bool Accept(SocketListener* Host, socket_t Fd, const std::string& Address);
+			bool EncryptThenBegin(SocketConnection* Fd, SocketListener* Host);
 			bool Manage(SocketConnection* Base);
 			void Push(SocketConnection* Base);
-			SocketConnection* Pop(Listener* Host);
+			SocketConnection* Pop(SocketListener* Host);
 		};
 
 		class ED_OUT SocketClient : public Core::Object
@@ -476,19 +489,19 @@ namespace Edge
 			ssl_ctx_st* Context;
 			std::string Action;
 			Socket Stream;
-			Host Hostname;
+			RemoteHost Hostname;
 			int64_t Timeout;
 			bool AutoEncrypt;
 
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
 			virtual ~SocketClient() noexcept override;
-			Core::Promise<int> Connect(Host* Address, bool Async);
+			Core::Promise<int> Connect(RemoteHost* Address, bool Async);
 			Core::Promise<int> Close();
 			Socket* GetStream();
 
 		protected:
-			virtual bool OnResolveHost(Host* Address);
+			virtual bool OnResolveHost(RemoteHost* Address);
 			virtual bool OnConnect();
 			virtual bool OnClose();
 

@@ -6360,12 +6360,12 @@ namespace Edge
 			ED_ASSERT(File != nullptr, 0, "filename should be set");
 			Close();
 
-			Network::SourceURL URL(File);
+			Network::Location URL(File);
 			if (URL.Protocol != "http" && URL.Protocol != "https")
 				return false;
 
-			Network::Host Address;
-			Address.Hostname = URL.Host;
+			Network::RemoteHost Address;
+			Address.Hostname = URL.Hostname;
 			Address.Secure = (URL.Protocol == "https");
 			Address.Port = (URL.Port < 0 ? (Address.Secure ? 443 : 80) : URL.Port);
 
@@ -6382,7 +6382,7 @@ namespace Edge
 					}
 
 					Network::HTTP::RequestFrame Request;
-					Request.URI.assign(URL.FullPath);
+					Request.URI.assign(URL.Path);
 
 					for (auto& Item : URL.Query)
 						Request.Query += Item.first + "=" + Item.second;
@@ -7387,7 +7387,7 @@ namespace Edge
 		}
 		Stream* OS::File::Open(const std::string& Path, FileMode Mode, bool Async)
 		{
-			Network::SourceURL URL(Path);
+			Network::Location URL(Path);
 			if (URL.Protocol == "file")
 			{
 				Stream* Result = nullptr;
@@ -7505,7 +7505,7 @@ namespace Edge
 		bool OS::Path::IsRemote(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
-			return Network::SourceURL(Path).Protocol != "file";
+			return Network::Location(Path).Protocol != "file";
 		}
 		std::string OS::Path::Resolve(const char* Path)
 		{

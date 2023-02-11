@@ -1,4 +1,5 @@
 #include "bindings.h"
+#include "network.h"
 #include <new>
 #include <assert.h>
 #include <string.h>
@@ -37,6 +38,8 @@
 #define TYPENAME_FILEENTRY "file_entry"
 #define TYPENAME_REGEXMATCH "regex_match"
 #define TYPENAME_INPUTLAYOUTATTRIBUTE "input_layout_attribute"
+#define TYPENAME_REMOTEHOST "remote_host"
+#define TYPENAME_SOCKETCERTIFICATE "socket_certificate"
 #define TYPENAME_ELEMENTNODE "ui_element"
 
 namespace
@@ -6946,6 +6949,257 @@ namespace Edge
 				Base->Joints = Array::Decompose<Compute::Joint>(Data);
 			}
 
+			Map* LocationGetQuery(Network::Location& Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_STRING ">@");
+				return Map::Compose<std::string>(Type.GetTypeId(), Base.Query);
+			}
+
+			int SocketAccept1(Network::Socket* Base, Network::Socket* Fd, std::string& Address)
+			{
+				char IpAddress[64];
+				int Status = Base->Accept(Fd, IpAddress);
+				Address = IpAddress;
+				return Status;
+			}
+			int SocketAccept2(Network::Socket* Base, socket_t& Fd, std::string& Address)
+			{
+				char IpAddress[64];
+				int Status = Base->Accept(&Fd, IpAddress);
+				Address = IpAddress;
+				return Status;
+			}
+			int SocketAcceptAsync(Network::Socket* Base, bool WithAddress, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->AcceptAsync(WithAddress, [Context, Callback](socket_t Fd, char* Address)
+				{
+					std::string IpAddress = Address;
+					Context->TryExecute(false, Callback, [Fd, IpAddress](VMContext* Context)
+					{
+#ifdef ED_64
+						Context->SetArg64(0, (int64_t)Fd);
+#else
+						Context->SetArg32(0, (int32_t)Fd);
+#endif
+						Context->SetArgObject(1, (void*)&IpAddress);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			int SocketCloseAsync(Network::Socket* Base, bool Graceful, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->CloseAsync(Graceful, [Context, Callback]()
+				{
+					Context->TryExecute(false, Callback, nullptr).Wait();
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			int SocketSendFileAsync(Network::Socket* Base, FILE* Stream, int64_t Offset, int64_t Size, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->SendFileAsync(Stream, Offset, Size, [Context, Callback](Network::SocketPoll Poll)
+				{
+					Context->TryExecute(false, Callback, [Poll](VMContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+					}).Wait();
+				});
+			}
+			int SocketWrite(Network::Socket* Base, const std::string& Data)
+			{
+				return Base->Write(Data.data(), (int)Data.size());
+			}
+			int SocketWriteAsync(Network::Socket* Base, const std::string& Data, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->WriteAsync(Data.data(), Data.size(), [Context, Callback](Network::SocketPoll Poll)
+				{
+					Context->TryExecute(false, Callback, [Poll](VMContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+					}).Wait();
+				});
+			}
+			int SocketRead1(Network::Socket* Base, std::string& Data, int Size)
+			{
+				Data.resize(Size);
+				return Base->Read((char*)Data.data(), Size);
+			}
+			int SocketRead2(Network::Socket* Base, std::string& Data, int Size, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->Read((char*)Data.data(), (int)Data.size(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				{
+					std::string Source(Data, Size);
+					Context->TryExecute(true, Callback, [Poll, Source](VMContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			int SocketReadAsync(Network::Socket* Base, size_t Size, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->ReadAsync(Size, [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				{
+					std::string Source(Data, Size);
+					Context->TryExecute(false, Callback, [Poll, Source](VMContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			int SocketReadUntil(Network::Socket* Base, std::string& Data, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->ReadUntil(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				{
+					std::string Source(Data, Size);
+					Context->TryExecute(true, Callback, [Poll, Source](VMContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			int SocketReadUntilAsync(Network::Socket* Base, std::string& Data, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->ReadUntilAsync(Data.c_str(), [Context, Callback](Network::SocketPoll Poll, const char* Data, size_t Size)
+				{
+					std::string Source(Data, Size);
+					Context->TryExecute(false, Callback, [Poll, Source](VMContext* Context)
+					{
+						Context->SetArg32(0, (int)Poll);
+						Context->SetArgObject(1, (void*)&Source);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			int SocketConnectAsync(Network::Socket* Base, Network::SocketAddress* Address, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return -1;
+
+				return Base->ConnectAsync(Address, [Context, Callback](int Code)
+				{
+					Context->TryExecute(false, Callback, [Code](VMContext* Context)
+					{
+						Context->SetArg32(0, (int)Code);
+					}).Wait();
+
+					return (bool)Context->GetReturnWord();
+				});
+			}
+			int SocketSecure(Network::Socket* Base, ssl_ctx_st* Context, const std::string& Value)
+			{
+				return Base->Secure(Context, Value.c_str());
+			}
+
+			int EpollHandleWait(Network::EpollHandle& Base, Array* Data, uint64_t Timeout)
+			{
+				std::vector<Network::EpollFd> Fds = Array::Decompose<Network::EpollFd>(Data);
+				return Base.Wait(Fds.data(), Fds.size(), Timeout);
+			}
+
+			bool DriverWhenReadable(Network::Socket* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return false;
+
+				return Network::Driver::WhenReadable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
+				{
+					Context->TryExecute(false, Callback, [Base, Poll](VMContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArg32(1, (int)Poll);
+					}).Wait();
+				});
+			}
+			bool DriverWhenWriteable(Network::Socket* Base, VMCFunction* Callback)
+			{
+				VMContext* Context = VMContext::Get();
+				if (!Context || !Callback)
+					return false;
+
+				return Network::Driver::WhenWriteable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
+				{
+					Context->TryExecute(false, Callback, [Base, Poll](VMContext* Context)
+					{
+						Context->SetArgObject(0, Base);
+						Context->SetArg32(1, (int)Poll);
+					}).Wait();
+				});
+			}
+			
+			void SocketRouterSetListeners(Network::SocketRouter* Base, Map* Data)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_REMOTEHOST ">@");
+				Base->Listeners = Map::Decompose<Network::RemoteHost>(Type.GetTypeId(), Data);
+			}
+			Map* SocketRouterGetListeners(Network::SocketRouter* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_REMOTEHOST ">@");
+				return Map::Compose<Network::RemoteHost>(Type.GetTypeId(), Base->Listeners);
+			}
+			void SocketRouterSetCertificates(Network::SocketRouter* Base, Map* Data)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_SOCKETCERTIFICATE ">@");
+				Base->Certificates = Map::Decompose<Network::SocketCertificate>(Type.GetTypeId(), Data);
+			}
+			Map* SocketRouterGetCertificates(Network::SocketRouter* Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_SOCKETCERTIFICATE ">@");
+				return Map::Compose<Network::SocketCertificate>(Type.GetTypeId(), Base->Certificates);
+			}
+
+			std::string SocketConnectionGetRemoteAddress(Network::SocketConnection* Base)
+			{
+				return Base->RemoteAddress;
+			}
+			bool SocketConnectionError(Network::SocketConnection* Base, int Code, const std::string& Message)
+			{
+				return Base->Error(Code, "%s", Message.c_str());
+			}
+
 			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
 			{
 				Core::VariantArgs Data;
@@ -11705,6 +11959,272 @@ namespace Edge
 				return true;
 #else
 				ED_ASSERT(false, false, "<graphics> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::LoadNetwork(VMManager* Engine)
+			{
+#ifdef ED_HAS_BINDINGS
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMEnum VSecure = Register.SetEnum("socket_secure");
+				VSecure.SetValue("unsecure", (int)Network::Secure::Any);
+				VSecure.SetValue("ssl_v2", (int)Network::Secure::SSL_V2);
+				VSecure.SetValue("ssl_v3", (int)Network::Secure::SSL_V3);
+				VSecure.SetValue("tls_v1", (int)Network::Secure::TLS_V1);
+				VSecure.SetValue("tls_v1_1", (int)Network::Secure::TLS_V1_1);
+
+				VMEnum VServerState = Register.SetEnum("server_state");
+				VServerState.SetValue("working", (int)Network::ServerState::Working);
+				VServerState.SetValue("stopping", (int)Network::ServerState::Stopping);
+				VServerState.SetValue("idle", (int)Network::ServerState::Idle);
+
+				VMEnum VSocketPoll = Register.SetEnum("socket_poll");
+				VSocketPoll.SetValue("next", (int)Network::SocketPoll::Next);
+				VSocketPoll.SetValue("reset", (int)Network::SocketPoll::Reset);
+				VSocketPoll.SetValue("timeout", (int)Network::SocketPoll::Timeout);
+				VSocketPoll.SetValue("cancel", (int)Network::SocketPoll::Cancel);
+				VSocketPoll.SetValue("finish", (int)Network::SocketPoll::Finish);
+				VSocketPoll.SetValue("finish_sync", (int)Network::SocketPoll::FinishSync);
+
+				VMEnum VSocketProtocol = Register.SetEnum("socket_protocol");
+				VSocketProtocol.SetValue("ip", (int)Network::SocketProtocol::IP);
+				VSocketProtocol.SetValue("icmp", (int)Network::SocketProtocol::ICMP);
+				VSocketProtocol.SetValue("tcp", (int)Network::SocketProtocol::TCP);
+				VSocketProtocol.SetValue("udp", (int)Network::SocketProtocol::UDP);
+				VSocketProtocol.SetValue("raw", (int)Network::SocketProtocol::RAW);
+
+				VMEnum VSocketType = Register.SetEnum("socket_type");
+				VSocketType.SetValue("stream", (int)Network::SocketType::Stream);
+				VSocketType.SetValue("datagram", (int)Network::SocketType::Datagram);
+				VSocketType.SetValue("raw", (int)Network::SocketType::Raw);
+				VSocketType.SetValue("reliably_delivered_message", (int)Network::SocketType::Reliably_Delivered_Message);
+				VSocketType.SetValue("sequence_packet_stream", (int)Network::SocketType::Sequence_Packet_Stream);
+
+				VMEnum VDNSType = Register.SetEnum("dns_type");
+				VDNSType.SetValue("connect", (int)Network::DNSType::Connect);
+				VDNSType.SetValue("listen", (int)Network::DNSType::Listen);
+
+				VMTypeClass VRemoteHost = Register.SetStructUnmanaged<Network::RemoteHost>("remote_host");
+				VRemoteHost.SetProperty<Network::RemoteHost>("string hostname", &Network::RemoteHost::Hostname);
+				VRemoteHost.SetProperty<Network::RemoteHost>("int32 port", &Network::RemoteHost::Port);
+				VRemoteHost.SetProperty<Network::RemoteHost>("bool secure", &Network::RemoteHost::Secure);
+				VRemoteHost.SetConstructor<Network::RemoteHost>("void f()");
+
+				VMTypeClass VLocation = Register.SetStructUnmanaged<Network::Location>("url_location");
+				VLocation.SetProperty<Network::Location>("string url", &Network::Location::URL);
+				VLocation.SetProperty<Network::Location>("string protocol", &Network::Location::Protocol);
+				VLocation.SetProperty<Network::Location>("string username", &Network::Location::Username);
+				VLocation.SetProperty<Network::Location>("string password", &Network::Location::Password);
+				VLocation.SetProperty<Network::Location>("string hostname", &Network::Location::Hostname);
+				VLocation.SetProperty<Network::Location>("string fragment", &Network::Location::Fragment);
+				VLocation.SetProperty<Network::Location>("string path", &Network::Location::Path);
+				VLocation.SetProperty<Network::Location>("int32 port", &Network::Location::Port);
+				VLocation.SetConstructor<Network::Location, const std::string&>("void f(const string &in)");
+				VLocation.SetMethodEx("map@ get_query() const", &LocationGetQuery);
+
+				VMTypeClass VCertificate = Register.SetStructUnmanaged<Network::Certificate>("certificate");
+				VCertificate.SetProperty<Network::Certificate>("string subject", &Network::Certificate::Subject);
+				VCertificate.SetProperty<Network::Certificate>("string issuer", &Network::Certificate::Issuer);
+				VCertificate.SetProperty<Network::Certificate>("string serial", &Network::Certificate::Serial);
+				VCertificate.SetProperty<Network::Certificate>("string finger", &Network::Certificate::Finger);
+				VCertificate.SetConstructor<Network::Certificate>("void f()");
+
+				VMTypeClass VSocketCertificate = Register.SetStructUnmanaged<Network::SocketCertificate>("socket_certificate");
+				VSocketCertificate.SetProperty<Network::SocketCertificate>("uptr@ context", &Network::SocketCertificate::Context);
+				VSocketCertificate.SetProperty<Network::SocketCertificate>("string key", &Network::SocketCertificate::Key);
+				VSocketCertificate.SetProperty<Network::SocketCertificate>("string chain", &Network::SocketCertificate::Chain);
+				VSocketCertificate.SetProperty<Network::SocketCertificate>("string ciphers", &Network::SocketCertificate::Ciphers);
+				VSocketCertificate.SetProperty<Network::SocketCertificate>("socket_secure protocol", &Network::SocketCertificate::Protocol);
+				VSocketCertificate.SetProperty<Network::SocketCertificate>("bool verify_peers", &Network::SocketCertificate::VerifyPeers);
+				VSocketCertificate.SetProperty<Network::SocketCertificate>("usize depth", &Network::SocketCertificate::Depth);
+				VSocketCertificate.SetConstructor<Network::SocketCertificate>("void f()");
+
+				VMTypeClass VDataFrame = Register.SetStructUnmanaged<Network::DataFrame>("socket_data_frame");
+				VDataFrame.SetProperty<Network::DataFrame>("string message", &Network::DataFrame::Message);
+				VDataFrame.SetProperty<Network::DataFrame>("bool start", &Network::DataFrame::Start);
+				VDataFrame.SetProperty<Network::DataFrame>("bool finish", &Network::DataFrame::Finish);
+				VDataFrame.SetProperty<Network::DataFrame>("bool timeout", &Network::DataFrame::Timeout);
+				VDataFrame.SetProperty<Network::DataFrame>("bool keep_alive", &Network::DataFrame::KeepAlive);
+				VDataFrame.SetProperty<Network::DataFrame>("bool close", &Network::DataFrame::Close);
+				VDataFrame.SetConstructor<Network::DataFrame>("void f()");
+
+				VMRefClass VSocket = Register.SetClassUnmanaged<Network::Socket>("socket");
+				VMTypeClass VEpollFd = Register.SetStructUnmanaged<Network::EpollFd>("epoll_fd");
+				VEpollFd.SetProperty<Network::EpollFd>("socket@ base", &Network::EpollFd::Base);
+				VEpollFd.SetProperty<Network::EpollFd>("bool readable", &Network::EpollFd::Readable);
+				VEpollFd.SetProperty<Network::EpollFd>("bool writeable", &Network::EpollFd::Writeable);
+				VEpollFd.SetProperty<Network::EpollFd>("bool closed", &Network::EpollFd::Closed);
+				VEpollFd.SetConstructor<Network::EpollFd>("void f()");
+
+				VMTypeClass VEpollHandle = Register.SetStructUnmanaged<Network::EpollHandle>("epoll_handle");
+				VEpollHandle.SetProperty<Network::EpollHandle>("uptr@ array", &Network::EpollHandle::Array);
+				VEpollHandle.SetProperty<Network::EpollHandle>("uptr@ handle", &Network::EpollHandle::Handle);
+				VEpollHandle.SetProperty<Network::EpollHandle>("usize array_size", &Network::EpollHandle::ArraySize);
+				VEpollHandle.SetConstructor<Network::EpollHandle, size_t>("void f(usize)");
+				VEpollHandle.SetMethod("bool add(socket@+, bool, bool)", &Network::EpollHandle::Add);
+				VEpollHandle.SetMethod("bool update(socket@+, bool, bool)", &Network::EpollHandle::Update);
+				VEpollHandle.SetMethod("bool remove(socket@+, bool, bool)", &Network::EpollHandle::Remove);
+				VEpollHandle.SetMethodEx("int wait(array<epoll_fd>@+, uint64)", &EpollHandleWait);
+
+				VMRefClass VSocketAddress = Register.SetClassUnmanaged<Network::SocketAddress>("socket_address");
+				VSocketAddress.SetUnmanagedConstructor<Network::SocketAddress, addrinfo*, addrinfo*>("socket_address@ f(uptr@, uptr@)");
+				VSocketAddress.SetMethod("bool is_usable() const", &Network::SocketAddress::IsUsable);
+				VSocketAddress.SetMethod("uptr@ get() const", &Network::SocketAddress::Get);
+				VSocketAddress.SetMethod("uptr@ get_alternatives() const", &Network::SocketAddress::GetAlternatives);
+				VSocketAddress.SetMethod("string get_address() const", &Network::SocketAddress::GetAddress);
+
+				VSocket.SetFunctionDef("void socket_written_event(socket_poll)");
+				VSocket.SetFunctionDef("void socket_opened_event(socket_address@+)");
+				VSocket.SetFunctionDef("void socket_connected_event(int)");
+				VSocket.SetFunctionDef("void socket_closed_event()");
+				VSocket.SetFunctionDef("bool socket_read_event(socket_poll, const string &in)");
+				VSocket.SetFunctionDef("bool socket_accepted_event(usize, const string &in)");
+				VSocket.SetProperty<Network::Socket>("uint64 timeout", &Network::Socket::Timeout);
+				VSocket.SetProperty<Network::Socket>("int64 income", &Network::Socket::Income);
+				VSocket.SetProperty<Network::Socket>("int64 outcome", &Network::Socket::Outcome);
+				VSocket.SetProperty<Network::Socket>("uptr@ user_data", &Network::Socket::UserData);
+				VSocket.SetUnmanagedConstructor<Network::Socket>("socket@ f()");
+				VSocket.SetUnmanagedConstructor<Network::Socket, socket_t>("socket@ f(usize)");
+				VSocket.SetMethodEx("int accept(socket@+, string &out)", &SocketAccept1);
+				VSocket.SetMethodEx("int accept(usize &out, string &out)", &SocketAccept2);
+				VSocket.SetMethodEx("int accept_async(bool, socket_accepted_event@+)", &SocketAcceptAsync);
+				VSocket.SetMethod("int close(bool = true)", &Network::Socket::Close);
+				VSocket.SetMethodEx("int close_async(bool, socket_closed_event@+)", &SocketCloseAsync);
+				VSocket.SetMethod("int64 send_file(uptr@, int64, int64)", &Network::Socket::SendFile);
+				VSocket.SetMethodEx("int64 send_file_async(uptr@, int64, int64, socket_written_event@+)", &SocketSendFileAsync);
+				VSocket.SetMethodEx("int write(const string &in)", &SocketWrite);
+				VSocket.SetMethodEx("int write_async(const string &in, socket_written_event@+)", &SocketWriteAsync);
+				VSocket.SetMethodEx("int read(string &out, int)", &SocketRead1);
+				VSocket.SetMethodEx("int read(string &out, int, socket_read_event@+)", &SocketRead2);
+				VSocket.SetMethodEx("int read_async(usize, socket_read_event@+)", &SocketReadAsync);
+				VSocket.SetMethodEx("int read_until(const string &in, socket_read_event@+)", &SocketReadUntil);
+				VSocket.SetMethodEx("int read_until_async(const string &in, socket_read_event@+)", &SocketReadUntilAsync);
+				VSocket.SetMethod("int connect(socket_address@+, uint64)", &Network::Socket::Connect);
+				VSocket.SetMethodEx("int connect_async(socket_address@+, socket_connected_event@+)", &SocketConnectAsync);
+				VSocket.SetMethod("int open(socket_address@+)", &Network::Socket::Open);
+				VSocket.SetMethodEx("int secure(uptr@, const string &in)", &SocketSecure);
+				VSocket.SetMethod("int bind(socket_address@+)", &Network::Socket::Bind);
+				VSocket.SetMethod("int listen(int)", &Network::Socket::Listen);
+				VSocket.SetMethod("int clear_events(bool)", &Network::Socket::ClearEvents);
+				VSocket.SetMethod("int migrate_to(usize, bool = true)", &Network::Socket::MigrateTo);
+				VSocket.SetMethod("int set_close_on_exec()", &Network::Socket::SetCloseOnExec);
+				VSocket.SetMethod("int set_time_wait(int)", &Network::Socket::SetTimeWait);
+				VSocket.SetMethod("int set_any_flag(int, int, int)", &Network::Socket::SetAnyFlag);
+				VSocket.SetMethod("int set_socket_flag(int, int)", &Network::Socket::SetSocketFlag);
+				VSocket.SetMethod("int set_blocking(bool)", &Network::Socket::SetBlocking);
+				VSocket.SetMethod("int set_no_delay(bool)", &Network::Socket::SetNoDelay);
+				VSocket.SetMethod("int set_keep_alive(bool)", &Network::Socket::SetKeepAlive);
+				VSocket.SetMethod("int set_timeout(int)", &Network::Socket::SetTimeout);
+				VSocket.SetMethod("int get_error(int)", &Network::Socket::GetError);
+				VSocket.SetMethod("int get_any_flag(int, int, int &out)", &Network::Socket::GetAnyFlag);
+				VSocket.SetMethod("int get_socket_flag(int, int &out)", &Network::Socket::GetSocketFlag);
+				VSocket.SetMethod("int get_port()", &Network::Socket::GetPort);
+				VSocket.SetMethod("usize get_fd()", &Network::Socket::GetFd);
+				VSocket.SetMethod("uptr@ get_device()", &Network::Socket::GetDevice);
+				VSocket.SetMethod("bool is_pending_for_read()", &Network::Socket::IsPendingForRead);
+				VSocket.SetMethod("bool is_pending_for_write()", &Network::Socket::IsPendingForWrite);
+				VSocket.SetMethod("bool is_pending()", &Network::Socket::IsPending);
+				VSocket.SetMethod("bool is_valid()", &Network::Socket::IsValid);
+				VSocket.SetMethod("string get_remote_address()", &Network::Socket::GetRemoteAddress);
+				
+				Engine->BeginNamespace("net_packet");
+				Register.SetFunction("bool is_data(socket_poll)", &Network::Packet::IsData);
+				Register.SetFunction("bool is_skip(socket_poll)", &Network::Packet::IsSkip);
+				Register.SetFunction("bool is_done(socket_poll)", &Network::Packet::IsDone);
+				Register.SetFunction("bool is_done_sync(socket_poll)", &Network::Packet::IsDoneSync);
+				Register.SetFunction("bool is_done_async(socket_poll)", &Network::Packet::IsDoneAsync);
+				Register.SetFunction("bool is_timeout(socket_poll)", &Network::Packet::IsTimeout);
+				Register.SetFunction("bool is_error(socket_poll)", &Network::Packet::IsError);
+				Register.SetFunction("bool is_error_or_skip(socket_poll)", &Network::Packet::IsErrorOrSkip);
+				Register.SetFunction("bool will_continue(socket_poll)", &Network::Packet::WillContinue);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("dns");
+				Register.SetFunction("string find_name_from_address(const string &in, const string &in)", &Network::DNS::FindNameFromAddress);
+				Register.SetFunction("string find_address_from_name(const string &in, const string &in, dns_type, socket_protocol, socket_type)", &Network::DNS::FindAddressFromName);
+				Register.SetFunction("void release()", &Network::DNS::Release);
+				Engine->EndNamespace();
+
+				Engine->BeginNamespace("net_driver");
+				Register.SetFunctionDef("void poll_event(socket@+, socket_poll)");
+				Register.SetFunction("void create(uint64 = 50, usize = 256)", &Network::Driver::Create);
+				Register.SetFunction("void release()", &Network::Driver::Release);
+				Register.SetFunction("void set_active(bool)", &Network::Driver::SetActive);
+				Register.SetFunction("int dispatch(uint64)", &Network::Driver::Dispatch);
+				Register.SetFunction("bool when_readable(socket@+, poll_event@+)", &DriverWhenReadable);
+				Register.SetFunction("bool when_writeable(socket@+, poll_event@+)", &DriverWhenWriteable);
+				Register.SetFunction("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Driver::CancelEvents);
+				Register.SetFunction("bool clear_events(socket@+)", &Network::Driver::ClearEvents);
+				Register.SetFunction("bool is_awaiting_events(socket@+)", &Network::Driver::IsAwaitingEvents);
+				Register.SetFunction("bool is_awaiting_readable(socket@+)", &Network::Driver::IsAwaitingReadable);
+				Register.SetFunction("bool is_awaiting_writeable(socket@+)", &Network::Driver::IsAwaitingWriteable);
+				Register.SetFunction("bool is_listening()", &Network::Driver::IsListening);
+				Register.SetFunction("bool is_active()", &Network::Driver::IsActive);
+				Register.SetFunction("usize get_activations()", &Network::Driver::GetActivations);
+				Register.SetFunction("string get_local_address()", &Network::Driver::GetLocalAddress);
+				Register.SetFunction<std::string(addrinfo*)>("string get_address(uptr@)", &Network::Driver::GetAddress);
+				Engine->EndNamespace();
+
+				VMRefClass VSocketListener = Register.SetClassUnmanaged<Network::SocketListener>("socket_listener");
+				VSocketListener.SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
+				VSocketListener.SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
+				VSocketListener.SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
+				VSocketListener.SetProperty<Network::SocketListener>("socket@ base", &Network::SocketListener::Base);
+				VSocketListener.SetUnmanagedConstructor<Network::SocketListener, const std::string&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
+
+				VMRefClass VSocketRouter = Register.SetClassUnmanaged<Network::SocketRouter>("socket_router");
+				VSocketRouter.SetProperty<Network::SocketRouter>("usize payload_max_length", &Network::SocketRouter::PayloadMaxLength);
+				VSocketRouter.SetProperty<Network::SocketRouter>("usize backlog_queue", &Network::SocketRouter::BacklogQueue);
+				VSocketRouter.SetProperty<Network::SocketRouter>("usize socket_timeout", &Network::SocketRouter::SocketTimeout);
+				VSocketRouter.SetProperty<Network::SocketRouter>("usize max_connections", &Network::SocketRouter::MaxConnections);
+				VSocketRouter.SetProperty<Network::SocketRouter>("int64 keep_alive_max_count", &Network::SocketRouter::KeepAliveMaxCount);
+				VSocketRouter.SetProperty<Network::SocketRouter>("int64 graceful_time_wait", &Network::SocketRouter::GracefulTimeWait);
+				VSocketRouter.SetProperty<Network::SocketRouter>("bool enable_no_delay", &Network::SocketRouter::EnableNoDelay);
+				VSocketRouter.SetUnmanagedConstructor<Network::SocketRouter>("socket_router@ f()");
+				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, const std::string&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
+				VSocketRouter.SetMethodEx("void set_listeners(map@ data)", &SocketRouterSetListeners);
+				VSocketRouter.SetMethodEx("map@ get_listeners() const", &SocketRouterGetListeners);
+				VSocketRouter.SetMethodEx("void set_certificates(map@ data)", &SocketRouterSetCertificates);
+				VSocketRouter.SetMethodEx("map@ get_certificates() const", &SocketRouterGetCertificates);
+
+				VMRefClass VSocketConnection = Register.SetClassUnmanaged<Network::SocketConnection>("socket_connection");
+				VSocketConnection.SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
+				VSocketConnection.SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
+				VSocketConnection.SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
+				VSocketConnection.SetUnmanagedConstructor<Network::SocketConnection>("socket_connection@ f()");
+				VSocketConnection.SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
+				VSocketConnection.SetMethod("void reset(bool)", &Network::SocketConnection::Reset);
+				VSocketConnection.SetMethod<Network::SocketConnection, bool>("bool finish()", &Network::SocketConnection::Finish);
+				VSocketConnection.SetMethod<Network::SocketConnection, bool, int>("bool finish(int)", &Network::SocketConnection::Finish);
+				VSocketConnection.SetMethodEx("bool error(int, const string &in)", &SocketConnectionError);
+				VSocketConnection.SetMethod("bool encryption_info(socket_certificate &out)", &Network::SocketConnection::EncryptionInfo);
+				VSocketConnection.SetMethod("bool stop()", &Network::SocketConnection::Break);
+
+				VMRefClass VSocketServer = Register.SetClassUnmanaged<Network::SocketServer>("socket_server");
+				VSocketServer.SetUnmanagedConstructor<Network::SocketServer>("socket_server@ f()");
+				VSocketServer.SetMethod("void set_router(socket_router@+)", &Network::SocketServer::SetRouter);
+				VSocketServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
+				VSocketServer.SetMethod("void lock()", &Network::SocketServer::Lock);
+				VSocketServer.SetMethod("void unlock()", &Network::SocketServer::Unlock);
+				VSocketServer.SetMethod("bool configure(socket_router@+)", &Network::SocketServer::Configure);
+				VSocketServer.SetMethod("bool unlisten()", &Network::SocketServer::Unlisten);
+				VSocketServer.SetMethod("bool listen()", &Network::SocketServer::Listen);
+				VSocketServer.SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
+				VSocketServer.SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
+				VSocketServer.SetMethod("socket_router@+ get_router() const", &Network::SocketServer::GetRouter);
+
+				VMRefClass VSocketClient = Register.SetClassUnmanaged<Network::SocketClient>("socket_client");
+				VSocketClient.SetUnmanagedConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
+				VSocketClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &ED_PROMISIFY(Network::SocketClient::Connect, VMTypeId::INT32));
+				VSocketClient.SetMethodEx("promise<int>@ close()", &ED_PROMISIFY(Network::SocketClient::Close, VMTypeId::INT32));
+				VSocketClient.SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
+
+				return true;
+#else
+				ED_ASSERT(false, false, "<network> is not loaded");
 				return false;
 #endif
 			}

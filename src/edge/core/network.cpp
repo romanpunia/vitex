@@ -129,52 +129,23 @@ namespace Edge
 			return &(((struct sockaddr_in6*)Info)->sin6_addr);
 		}
     
-        void Address::Use(Address& Other)
-        {
-            Free();
-            Pool = Other.Pool;
-            Usable = Other.Usable;
-            Other.Pool = nullptr;
-            Other.Usable = nullptr;
-        }
-        void Address::Use()
-        {
-            Usable = Pool;
-        }
-        void Address::Free()
-        {
-            if (Pool != nullptr)
-                freeaddrinfo(Pool);
-            
-            Pool = nullptr;
-            Usable = nullptr;
-        }
-        bool Address::IsUsable() const
-        {
-            return Usable != nullptr;
-        }
-        std::string Address::GetAddress() const
-        {
-            if (!Usable)
-                return "127.0.0.1";
-            
-            return Socket::GetAddress(Usable);
-        }
-    
-		SourceURL::SourceURL(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(0)
+		Location::Location(const std::string& Src) noexcept : URL(Src), Protocol("file"), Port(-1)
 		{
 			ED_ASSERT_V(!URL.empty(), "url should not be empty");
-			Core::Parser fURL(&URL);
-			fURL.Replace('\\', '/');
+			Core::Parser(&URL).Replace('\\', '/');
 
+			const char* PathBegin = nullptr;
 			const char* HostBegin = strchr(URL.c_str(), ':');
 			if (HostBegin != nullptr)
 			{
 				if (strncmp(HostBegin, "://", 3) != 0)
 				{
-					char Malformed[4] = { 0, 0, 0, 0 };
-					strncpy(Malformed, HostBegin, 3);
-					return;
+					while (*HostBegin != '\0' && *HostBegin != '/' && *HostBegin != ':' && *HostBegin != '?' && *HostBegin != '#')
+						++HostBegin;
+
+					PathBegin = *HostBegin == '\0' || *HostBegin == '/' ? HostBegin : HostBegin + 1;
+					Protocol = std::string(URL.c_str(), HostBegin);
+					goto InlineURL;
 				}
 				else
 				{
@@ -185,7 +156,6 @@ namespace Edge
 			else
 				HostBegin = URL.c_str();
 
-			const char* PathBegin;
 			if (HostBegin != URL.c_str())
 			{
 				const char* AtSymbol = strchr(HostBegin, '@');
@@ -198,11 +168,11 @@ namespace Edge
 					const char* PasswordPtr = strchr(LoginPassword.c_str(), ':');
 					if (PasswordPtr)
 					{
-						Login = std::string(LoginPassword.c_str(), PasswordPtr);
-						Password = std::string(PasswordPtr + 1);
+						Username = Compute::Codec::URIDecode(std::string(LoginPassword.c_str(), PasswordPtr));
+						Password = Compute::Codec::URIDecode(std::string(PasswordPtr + 1));
 					}
 					else
-						Login = LoginPassword;
+						Username = Compute::Codec::URIDecode(LoginPassword);
 				}
 
 				PathBegin = strchr(HostBegin, '/');
@@ -210,50 +180,49 @@ namespace Edge
 				if (PortBegin != nullptr && (PathBegin == nullptr || PortBegin < PathBegin))
 				{
 					if (1 != sscanf(PortBegin, ":%d", &Port))
-					{
-						MakePath();
 						return;
-					}
 
-					Host = std::string(HostBegin, PortBegin);
-					if (nullptr == PathBegin)
-					{
-						MakePath();
+					Hostname = std::string(HostBegin, PortBegin);
+					if (!PathBegin)
 						return;
-					}
-
-					++PathBegin;
 				}
 				else
 				{
-					Port = -1;
 					if (PathBegin == nullptr)
 					{
-						Host = HostBegin;
-						MakePath();
+						Hostname = HostBegin;
 						return;
 					}
 
-					Host = std::string(HostBegin, PathBegin);
-					++PathBegin;
+					Hostname = std::string(HostBegin, PathBegin);
 				}
 			}
 			else
 				PathBegin = URL.c_str();
 
-			std::string PathSegment;
-			const char* Parameters = strchr(PathBegin, '?');
-			if (Parameters != nullptr)
+		InlineURL:
+			const char* ParametersBegin = strchr(PathBegin, '?');
+			if (ParametersBegin != nullptr)
 			{
-				PathSegment = std::string(PathBegin, Parameters);
-				PathBegin = PathSegment.c_str();
+				const char* ParametersEnd = strchr(++ParametersBegin, '#');
+				Core::Parser Parameters(ParametersBegin, ParametersEnd ? ParametersEnd - ParametersBegin : strlen(ParametersBegin));
+				Path = std::string(PathBegin, ParametersBegin - 1);
 
-				Core::Parser fParameters(Parameters + 1);
-				std::vector<std::string> Array = fParameters.Split('&');
-				for (size_t i = 0; i < Array.size(); i++)
+				if (!ParametersEnd)
 				{
-					Core::Parser fParameter(Array[i]);
-					std::vector<std::string> KeyValue = fParameters.Split('=');
+					ParametersEnd = strchr(Path.c_str(), '#');
+					if (ParametersEnd != nullptr && ParametersEnd > Path.c_str())
+					{
+						Fragment = ParametersEnd + 1;
+						Path = std::string(Path.c_str(), ParametersEnd);
+					}
+				}
+				else
+					Fragment = ParametersEnd + 1;
+
+				for (auto& Item : Parameters.Split('&'))
+				{
+					std::vector<std::string> KeyValue = Core::Parser(&Item).Split('=');
 					KeyValue[0] = Compute::Codec::URIDecode(KeyValue[0]);
 
 					if (KeyValue.size() >= 2)
@@ -262,61 +231,63 @@ namespace Edge
 						Query[KeyValue[0]] = "";
 				}
 			}
-
-			const char* FilenameBegin = strrchr(PathBegin, '/');
-			if (FilenameBegin != nullptr)
+			else
 			{
-				Path = std::string(PathBegin, ++FilenameBegin);
-				size_t ParentPos = std::string::npos;
-
-				while ((ParentPos = Path.find("/../")) != std::string::npos && ParentPos != 0)
+				const char* ParametersEnd = strchr(PathBegin, '#');
+				if (ParametersEnd != nullptr)
 				{
-					size_t ParentStartPos = Path.rfind('/', ParentPos - 1);
-					if (ParentStartPos == std::string::npos)
-						ParentStartPos = 0;
-					else
-						ParentStartPos += 1;
-
-					Path.erase(ParentStartPos, ParentPos - ParentStartPos + 4);
+					Fragment = ParametersEnd + 1;
+					Path = std::string(PathBegin, ParametersEnd);
 				}
+				else
+					Path = PathBegin;
 			}
-			else
-				FilenameBegin = PathBegin;
 
-			const char* ExtensionBegin = strrchr(FilenameBegin, '.');
-			if (nullptr != ExtensionBegin)
+			if (Protocol.size() == 1)
 			{
-				Filename = std::string(FilenameBegin, ExtensionBegin);
-				Extension = ExtensionBegin + 1;
+				Path = Protocol + ':' + Path;
+				Protocol = "file";
 			}
-			else
-				Filename = FilenameBegin;
 
-			if (Path.empty() && !Filename.empty())
-				MakePath();
-			else if (!Path.empty() && Path.front() != '/')
-				Path = '/' + Path;
+			if (Port != -1)
+				return;
 
-			FullPath = Path;
-			if (!Filename.empty())
-				FullPath += (!Path.empty() && (Path.back() == '/' || Path.back() == '\\')) ? Filename : '/' + Filename;
-
-			if (!Extension.empty())
-				FullPath += (!Path.empty() && Path.back() == '.') ? Extension : '.' + Extension;
+			if (Protocol == "http" || Protocol == "ws")
+				Port = 80;
+			else if (Protocol == "https" || Protocol == "wss")
+				Port = 443;
+			else if (Protocol == "ftp")
+				Port = 21;
+			else if (Protocol == "gopher")
+				Port = 70;
+			else if (Protocol == "imap")
+				Port = 143;
+			else if (Protocol == "idap")
+				Port = 389;
+			else if (Protocol == "nfs")
+				Port = 2049;
+			else if (Protocol == "nntp")
+				Port = 119;
+			else if (Protocol == "pop")
+				Port = 110;
+			else if (Protocol == "smtp")
+				Port = 25;
+			else if (Protocol == "telnet")
+				Port = 23;
 		}
-		SourceURL::SourceURL(const SourceURL& Other) noexcept :
+		Location::Location(const Location& Other) noexcept :
 			Query(Other.Query), URL(Other.URL), Protocol(Other.Protocol),
-			Login(Other.Login), Password(Other.Password), Host(Other.Host),
-			Path(Other.Path), FullPath(Other.FullPath), Filename(Other.Filename), Extension(Other.Extension), Port(Other.Port)
+			Username(Other.Username), Password(Other.Password), Hostname(Other.Hostname),
+			Path(Other.Path), Fragment(Other.Fragment), Port(Other.Port)
 		{
 		}
-		SourceURL::SourceURL(SourceURL&& Other) noexcept :
+		Location::Location(Location&& Other) noexcept :
 			Query(std::move(Other.Query)), URL(std::move(Other.URL)), Protocol(std::move(Other.Protocol)),
-			Login(std::move(Other.Login)), Password(std::move(Other.Password)), Host(std::move(Other.Host)),
-			Path(std::move(Other.Path)), FullPath(std::move(Other.FullPath)), Filename(std::move(Other.Filename)), Extension(std::move(Other.Extension)), Port(Other.Port)
+			Username(std::move(Other.Username)), Password(std::move(Other.Password)), Hostname(std::move(Other.Hostname)),
+			Path(std::move(Other.Path)), Fragment(std::move(Other.Fragment)), Port(Other.Port)
 		{
 		}
-		SourceURL& SourceURL::operator= (const SourceURL& Other) noexcept
+		Location& Location::operator= (const Location& Other) noexcept
 		{
 			if (this == &Other)
 				return *this;
@@ -324,18 +295,16 @@ namespace Edge
 			Query = Other.Query;
 			URL = Other.URL;
 			Protocol = Other.Protocol;
-			Login = Other.Login;
+			Username = Other.Username;
 			Password = Other.Password;
-			Host = Other.Host;
+			Hostname = Other.Hostname;
 			Path = Other.Path;
-			FullPath = Other.FullPath;
-			Filename = Other.Filename;
-			Extension = Other.Extension;
+			Fragment = Other.Fragment;
 			Port = Other.Port;
 
 			return *this;
 		}
-		SourceURL& SourceURL::operator= (SourceURL&& Other) noexcept
+		Location& Location::operator= (Location&& Other) noexcept
 		{
 			if (this == &Other)
 				return *this;
@@ -343,1011 +312,27 @@ namespace Edge
 			Query = std::move(Other.Query);
 			URL = std::move(Other.URL);
 			Protocol = std::move(Other.Protocol);
-			Login = std::move(Other.Login);
+			Username = std::move(Other.Username);
 			Password = std::move(Other.Password);
-			Host = std::move(Other.Host);
+			Hostname = std::move(Other.Hostname);
 			Path = std::move(Other.Path);
-			FullPath = std::move(Other.FullPath);
-			Filename = std::move(Other.Filename);
-			Extension = std::move(Other.Extension);
+			Fragment = std::move(Other.Fragment);
 			Port = Other.Port;
 
 			return *this;
 		}
-		void SourceURL::MakePath()
+
+		DataFrame& DataFrame::operator= (const DataFrame& Other)
 		{
-			if (!Path.empty() || Filename.empty())
-				return;
-
-			if (Extension.empty())
-				Path = Filename.front() == '/' ? Filename : '/' + Filename;
-			else
-				Path = (Filename.front() == '/' ? Filename : '/' + Filename) + '.' + Extension;
-		}
-
-		Socket::Socket() noexcept : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
-		{
-		}
-		Socket::Socket(socket_t FromFd) noexcept : Socket()
-		{
-			Fd = FromFd;
-		}
-		int Socket::Accept(Socket* OutConnection, char* OutAddr)
-		{
-			ED_ASSERT(OutConnection != nullptr, -1, "socket should be set");
-            return Accept(&OutConnection->Fd, OutAddr);
-		}
-		int Socket::Accept(socket_t* OutFd, char* OutAddr)
-		{
-            ED_ASSERT(OutFd != nullptr, -1, "socket should be set");
-
-            sockaddr Address;
-            socket_size_t Length = sizeof(sockaddr);
-            *OutFd = accept(Fd, &Address, &Length);
-            if (*OutFd == INVALID_SOCKET)
-                return -1;
-
-            ED_DEBUG("[net] accept fd %i on %i fd", (int)*OutFd, (int)Fd);
-            if (OutAddr != nullptr)
-                inet_ntop(Address.sa_family, GetAddressStorage(&Address), OutAddr, INET6_ADDRSTRLEN);
-            
-            return 0;
-		}
-		int Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
-		{
-			ED_ASSERT(Callback != nullptr, -1, "callback should be set");
-
-			bool Success = Driver::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
-			{
-				if (!Packet::IsDone(Event))
-					return;
-                
-                socket_t OutFd = INVALID_SOCKET;
-                char OutAddr[INET6_ADDRSTRLEN] = { 0 };
-                char* RemoteAddr = (WithAddress ? OutAddr : nullptr);
-                
-				while (Accept(&OutFd, RemoteAddr) == 0)
-				{
-					if (!Callback(OutFd, RemoteAddr))
-						break;
-				}
-
-				AcceptAsync(WithAddress, std::move(Callback));
-			});
-
-			return Success ? 0 : -1;
-		}
-		int Socket::Close(bool Gracefully)
-		{
-			ClearEvents(false);
-			if (Fd == INVALID_SOCKET)
-				return -1;
-#ifdef ED_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				SSL_free(Device);
-				Device = nullptr;
-			}
-#endif
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-
-			if (Gracefully)
-			{
-				ED_MEASURE(ED_TIMING_NET);
-				int Timeout = 100;
-				SetBlocking(true);
-				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
-				shutdown(Fd, SD_SEND);
-				while (recv(Fd, (char*)&Error, 1, 0) > 0)
-					ED_MEASURE_LOOP();
-			}
-			else
-				shutdown(Fd, SD_SEND);
-
-			closesocket(Fd);
-			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-			return 0;
-		}
-		int Socket::CloseAsync(bool Gracefully, SocketClosedCallback&& Callback)
-		{
-			if (Fd == INVALID_SOCKET)
-			{
-				if (Callback)
-					Callback();
-
-				return -1;
-			}
-
-			ClearEvents(false);
-#ifdef ED_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				SSL_free(Device);
-				Device = nullptr;
-			}
-#endif
-			int Error = 1;
-			socklen_t Size = sizeof(Error);
-			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
-			shutdown(Fd, SD_SEND);
-
-			if (Gracefully)
-				return TryCloseAsync(std::move(Callback), true);
-
-			closesocket(Fd);
-			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-
-			if (Callback)
-				Callback();
-
-			return 0;
-		}
-		int Socket::TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying)
-		{
-			while (KeepTrying)
-			{
-				char Buffer;
-				int Length = Read(&Buffer, 1);
-				if (Length == -2)
-				{
-					Timeout = 500;
-					Driver::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
-					{
-						if (!Packet::IsSkip(Event))
-							TryCloseAsync(std::move(Callback), Packet::IsDone(Event));
-						else if (Callback)
-							Callback();
-					});
-
-					return 1;
-				}
-				else if (Length == -1)
-					break;
-			}
-
-			ClearEvents(false);
-			closesocket(Fd);
-			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
-			Fd = INVALID_SOCKET;
-
-			if (Callback)
-				Callback();
-			return 0;
-		}
-        int64_t Socket::SendFile(FILE* Stream, int64_t Offset, int64_t Size)
-        {
-            ED_ASSERT(Stream != nullptr, -1, "stream should be set");
-            ED_ASSERT(Offset >= 0, -1, "offset should be set and positive");
-            ED_ASSERT(Size > 0, -1, "size should be set and greater than zero");
-            ED_MEASURE(ED_TIMING_NET);
-            auto FromFd = ED_FILENO(Stream);
-#ifdef ED_APPLE
-            off_t Seek = (off_t)Offset, Length = (off_t)Size;
-            int64_t Value = (int64_t)sendfile(FromFd, Fd, Seek, &Length, nullptr, 0);
-            Size = Length;
-#elif defined(ED_UNIX)
-            off_t Seek = (off_t)Offset;
-            int64_t Value = (int64_t)sendfile(Fd, FromFd, &Seek, (size_t)Size);
-            Size = Value;
-#else
-			int64_t Value = -3;
-			return Value;
-#endif
-            if (Value < 0 && Size <= 0)
-                return GetError((int)Value) == ERRWOULDBLOCK ? -2 : -1;
-            
-            if (Value != Size)
-                Value = Size;
-            
-            Outcome += Value;
-            return Value;
-        }
-        int64_t Socket::SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer)
-        {
-            ED_ASSERT(Stream != nullptr, -1, "stream should be set");
-            ED_ASSERT(Offset >= 0, -1, "offset should be set and positive");
-            ED_ASSERT(Size > 0, -1, "size should be set and greater than zero");
-            
-            while (Size > 0)
-            {
-                int64_t Length = SendFile(Stream, Offset, Size);
-                if (Length == -2)
-                {
-                    Driver::WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
-                    {
-                        if (Packet::IsDone(Event))
-                            SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
-                        else if (Callback)
-                            Callback(Event);
-                    });
-
-                    return -2;
-                }
-                else if (Length == -1)
-                {
-                    if (Callback)
-                        Callback(SocketPoll::Reset);
-
-                    return -1;
-                }
-                else if (Length == -3)
-                    return -3;
-                
-                Size -= (int64_t)Length;
-                Offset += (int64_t)Length;
-            }
-            
-            if (Callback)
-                Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync);
-
-            return (int)Offset;
-        }
-		int Socket::Write(const char* Buffer, int Size)
-		{
-			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			ED_MEASURE(ED_TIMING_NET);
-#ifdef ED_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				int Value = SSL_write(Device, Buffer, Size);
-				if (Value <= 0)
-					return GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1;
-
-				Outcome += (int64_t)Value;
-				return Value;
-			}
-#endif
-			int Value = (int)send(Fd, Buffer, Size, 0);
-			if (Value <= 0)
-				return GetError(Value) == ERRWOULDBLOCK ? -2 : -1;
-
-			Outcome += (int64_t)Value;
-			return Value;
-		}
-		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
-		{
-			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-
-            size_t Payload = Size;
-            size_t Written = 0;
-            
-			while (Size > 0)
-			{
-				int Length = Write(Buffer + TempOffset, (int)Size);
-				if (Length == -2)
-				{
-					if (!TempBuffer)
-					{
-						TempBuffer = ED_MALLOC(char, Payload);
-                        memcpy(TempBuffer, Buffer, Payload);
-					}
-
-					Driver::WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
-					{
-						if (!Packet::IsDone(Event))
-						{
-							ED_FREE(TempBuffer);
-							if (Callback)
-								Callback(Event);
-						}
-						else
-							WriteAsync(TempBuffer, Size, std::move(Callback), TempBuffer, TempOffset);
-					});
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (TempBuffer != nullptr)
-						ED_FREE(TempBuffer);
-
-					if (Callback)
-						Callback(SocketPoll::Reset);
-
-					return -1;
-				}
-
-				Size -= (int64_t)Length;
-                TempOffset += (int64_t)Length;
-                Written += (size_t)Length;
-			}
-
-			if (TempBuffer != nullptr)
-				ED_FREE(TempBuffer);
-
-			if (Callback)
-				Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
-
-			return (int)Written;
-		}
-		int Socket::Read(char* Buffer, int Size)
-		{
-			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-			ED_MEASURE(ED_TIMING_NET);
-#ifdef ED_HAS_OPENSSL
-			if (Device != nullptr)
-			{
-				int Value = SSL_read(Device, Buffer, Size);
-				if (Value <= 0)
-					return GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1;
-
-				Income += (int64_t)Value;
-				return Value;
-			}
-#endif
-			int Value = (int)recv(Fd, Buffer, Size, 0);
-			if (Value <= 0)
-				return GetError(Value) == ERRWOULDBLOCK ? -2 : -1;
-
-			Income += (int64_t)Value;
-			return Value;
-		}
-		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
-		{
-			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
-
-			int Offset = 0;
-			while (Size > 0)
-			{
-				int Length = Read(Buffer + Offset, Size);
-				if (Length == -2)
-				{
-					if (Callback)
-						Callback(SocketPoll::Timeout, nullptr, 0);
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (Callback)
-						Callback(SocketPoll::Reset, nullptr, 0);
-
-					return -1;
-				}
-
-				if (Callback && !Callback(SocketPoll::Next, Buffer + Offset, (size_t)Length))
-					break;
-
-				Size -= Length;
-				Offset += Length;
-			}
-
-			if (Callback)
-				Callback(SocketPoll::FinishSync, nullptr, 0);
-
-			return Offset;
-		}
-		int Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer)
-		{
-			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			ED_ASSERT(Size > 0, -1, "size should be greater than zero");
-
-			char Buffer[ED_BIG_CHUNK_SIZE];
-            int Offset = 0;
-            
-			while (Size > 0)
-			{
-				int Length = Read(Buffer, (int)(Size > sizeof(Buffer) ? sizeof(Buffer) : Size));
-				if (Length == -2)
-				{
-					Driver::WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
-					{
-						if (Packet::IsDone(Event))
-							ReadAsync(Size, std::move(Callback), ++TempBuffer);
-						else if (Callback)
-							Callback(Event, nullptr, 0);
-					});
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (Callback)
-						Callback(SocketPoll::Reset, nullptr, 0);
-
-					return -1;
-				}
-
-				Size -= (size_t)Length;
-                Offset += Length;
-                
-				if (Callback && !Callback(SocketPoll::Next, Buffer, (size_t)Length))
-					break;
-			}
-
-			if (Callback)
-				Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
-
-			return Offset;
-		}
-		int Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
-		{
-			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			ED_ASSERT(Match != nullptr, -1, "match should be set");
-
-			char Buffer[MAX_READ_UNTIL];
-			size_t Size = strlen(Match), Offset = 0, Index = 0;
-			auto Publish = [&Callback, &Buffer, &Offset](size_t Size)
-			{
-				Offset = 0;
-				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
-			};
-
-			ED_ASSERT(Size > 0, -1, "match should not be empty");
-			while (true)
-			{
-				int Length = Read(Buffer + Offset, 1);
-				if (Length <= 0)
-				{
-					if (Offset > 0 && !Publish(Offset))
-						return -1;
-
-					if (Callback)
-						Callback(SocketPoll::Reset, nullptr, 0);
-
-					return -1;
-				}
-
-				char Next = Buffer[Offset];
-				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
-					break;
-
-				if (Match[Index] == Next)
-				{
-					if (++Index >= Size)
-					{
-						if (Offset > 0)
-							Publish(Offset);
-						break;
-					}
-				}
-				else
-					Index = 0;
-			}
-
-			if (Callback)
-				Callback(SocketPoll::FinishSync, nullptr, 0);
-
-			return 0;
-		}
-		int Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer, size_t TempIndex)
-		{
-			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
-			ED_ASSERT(Match != nullptr, -1, "match should be set");
-
-			char Buffer[MAX_READ_UNTIL];
-			size_t Size = strlen(Match), Offset = 0;
-			auto Publish = [&Callback, &Buffer, &Offset](size_t Size)
-			{
-				Offset = 0;
-				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
-			};
-
-			ED_ASSERT(Size > 0, -1, "match should not be empty");
-			while (true)
-			{
-				int Length = Read(Buffer + Offset, 1);
-				if (Length == -2)
-				{
-					if (!TempBuffer)
-					{
-						TempBuffer = ED_MALLOC(char, Size + 1);
-						memcpy(TempBuffer, Match, Size);
-						TempBuffer[Size] = '\0';
-					}
-
-					Driver::WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
-					{
-						if (!Packet::IsDone(Event))
-						{
-							ED_FREE(TempBuffer);
-							if (Callback)
-								Callback(Event, nullptr, 0);
-						}
-						else
-							ReadUntilAsync(TempBuffer, std::move(Callback), TempBuffer, TempIndex);
-					});
-
-					return -2;
-				}
-				else if (Length == -1)
-				{
-					if (TempBuffer != nullptr)
-						ED_FREE(TempBuffer);
-
-					if (Offset > 0 && !Publish(Offset))
-						return -1;
-
-					if (Callback)
-						Callback(SocketPoll::Reset, nullptr, 0);
-
-					return -1;
-				}
-
-				char Next = Buffer[Offset];
-				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
-					break;
-
-				if (Match[TempIndex] == Next)
-				{
-					if (++TempIndex >= Size)
-					{
-						if (Offset > 0)
-							Publish(Offset);
-						break;
-					}
-				}
-				else
-					TempIndex = 0;
-			}
-
-			if (TempBuffer != nullptr)
-				ED_FREE(TempBuffer);
-
-			if (Callback)
-				Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
-
-			return 0;
-		}
-		int Socket::Connect(Address* Address, uint64_t Timeout)
-		{
-			ED_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
-			ED_MEASURE(ED_TIMING_NET);
-			ED_DEBUG("[net] connect fd %i", (int)Fd);
-			return connect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
-		}
-		int Socket::ConnectAsync(Address* Address, SocketConnectedCallback&& Callback)
-		{
-			ED_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
-			ED_MEASURE(ED_TIMING_NET);
-			ED_DEBUG("[net] connect fd %i", (int)Fd);
-			int Value = connect(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
-			if (Value == 0)
-			{
-				if (Callback)
-					Callback(0);
-
-				return 0;
-			}
-
-			int Code = GetError(Value);
-			if (Code != ERRWOULDBLOCK && Code != EINPROGRESS)
-			{
-				if (Callback)
-					Callback(Value);
-
-				return Value;
-			}
-
-			if (!Callback)
-				return -2;
-
-			Driver::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
-			{
-				if (Packet::IsDone(Event))
-					Callback(0);
-				else if (Packet::IsTimeout(Event))
-					Callback(ETIMEDOUT);
-				else
-					Callback(ECONNREFUSED);
-			});
-
-			return -2;
-		}
-		int Socket::Open(addrinfo* Good)
-		{
-			ED_ASSERT(Good != nullptr, -1, "addrinfo should be set");
-			ED_MEASURE(ED_TIMING_NET);
-			ED_DEBUG("[net] assign fd");
-
-			Fd = socket(Good->ai_family, Good->ai_socktype, Good->ai_protocol);
-			if (Fd == INVALID_SOCKET)
-				return -1;
-
-			int Option = 1;
-			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
-			return 0;
-		}
-		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
-		{
-#ifdef ED_HAS_OPENSSL
-			ED_MEASURE(ED_TIMING_NET);
-			if (Device != nullptr)
-				SSL_free(Device);
-
-			Device = SSL_new(Context);
-#ifndef OPENSSL_NO_TLSEXT
-			if (Device != nullptr && Hostname != nullptr)
-				SSL_set_tlsext_host_name(Device, Hostname);
-#endif
-#endif
-			if (!Device)
-				return -1;
-
-			return 0;
-		}
-		int Socket::Bind(Address* Address)
-		{
-			ED_ASSERT(Address && Address->Usable, -1, "address should be set and usable");
-			ED_MEASURE(ED_TIMING_NET);
-			ED_DEBUG("[net] bind fd %i", (int)Fd);
-			return bind(Fd, Address->Usable->ai_addr, (int)Address->Usable->ai_addrlen);
-		}
-		int Socket::Listen(int Backlog)
-		{
-			ED_MEASURE(ED_TIMING_NET);
-			ED_DEBUG("[net] listen fd %i", (int)Fd);
-			return listen(Fd, Backlog);
-		}
-		int Socket::ClearEvents(bool Gracefully)
-		{
-			ED_MEASURE(ED_TIMING_NET);
-			if (Gracefully)
-				Driver::CancelEvents(this, SocketPoll::Reset);
-			else
-				Driver::ClearEvents(this);
-			return 0;
-		}
-		int Socket::SetFd(socket_t NewFd, bool Gracefully)
-		{
-			ED_MEASURE(ED_TIMING_NET);
-			int Result = Gracefully ? ClearEvents(false) : 0;
-			Fd = NewFd;
-			return Result;
-		}
-		int Socket::SetCloseOnExec()
-		{
-#if defined(_WIN32)
-			return 0;
-#else
-			return fcntl(Fd, F_SETFD, FD_CLOEXEC);
-#endif
-		}
-		int Socket::SetTimeWait(int Timeout)
-		{
-			linger Linger;
-			Linger.l_onoff = (Timeout >= 0 ? 1 : 0);
-			Linger.l_linger = Timeout;
-
-			return setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger));
-		}
-		int Socket::SetSocket(int Option, void* Value, int Size)
-		{
-			return ::setsockopt(Fd, SOL_SOCKET, Option, (const char*)Value, Size);
-		}
-		int Socket::SetAny(int Level, int Option, void* Value, int Size)
-		{
-			return ::setsockopt(Fd, Level, Option, (const char*)Value, Size);
-		}
-		int Socket::SetAnyFlag(int Level, int Option, int Value)
-		{
-			return SetAny(Level, Option, (void*)&Value, sizeof(int));
-		}
-		int Socket::SetSocketFlag(int Option, int Value)
-		{
-			return SetSocket(Option, (void*)&Value, sizeof(int));
-		}
-		int Socket::SetBlocking(bool Enabled)
-		{
-#ifdef ED_MICROSOFT
-			unsigned long Mode = (Enabled ? 0 : 1);
-			return ioctlsocket(Fd, (long)FIONBIO, &Mode);
-#else
-			int Flags = fcntl(Fd, F_GETFL, 0);
-			if (Flags == -1)
-				return -1;
-
-			Flags = Enabled ? (Flags & ~O_NONBLOCK) : (Flags | O_NONBLOCK);
-			return (fcntl(Fd, F_SETFL, Flags) == 0);
-#endif
-		}
-		int Socket::SetNoDelay(bool Enabled)
-		{
-			return SetAnyFlag(IPPROTO_TCP, TCP_NODELAY, (Enabled ? 1 : 0));
-		}
-		int Socket::SetKeepAlive(bool Enabled)
-		{
-			return SetSocketFlag(SO_KEEPALIVE, (Enabled ? 1 : 0));
-		}
-		int Socket::SetTimeout(int Timeout)
-		{
-#ifdef ED_MICROSOFT
-			DWORD Time = (DWORD)Timeout;
-#else
-			struct timeval Time;
-			memset(&Time, 0, sizeof(Time));
-			Time.tv_sec = Timeout / 1000;
-			Time.tv_usec = (Timeout * 1000) % 1000000;
-#endif
-			int Range1 = setsockopt(Fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&Time, sizeof(Time));
-			int Range2 = setsockopt(Fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Time, sizeof(Time));
-			return (Range1 == 0 || Range2 == 0);
-		}
-		int Socket::GetError(int Result)
-		{
-#ifdef ED_HAS_OPENSSL
-			if (!Device)
-				return ERRNO;
-
-			return SSL_get_error(Device, Result);
-#else
-			return ERRNO;
-#endif
-		}
-		int Socket::GetAnyFlag(int Level, int Option, int* Value)
-		{
-			return GetAny(Level, Option, (char*)Value, nullptr);
-		}
-		int Socket::GetAny(int Level, int Option, void* Value, int* Size)
-		{
-			socket_size_t Length = (socket_size_t)Level;
-			int Result = ::getsockopt(Fd, Level, Option, (char*)Value, &Length);
-			if (Size != nullptr)
-				*Size = (int)Length;
-
-			return Result;
-		}
-		int Socket::GetSocket(int Option, void* Value, int* Size)
-		{
-			return GetAny(SOL_SOCKET, Option, Value, Size);
-		}
-		int Socket::GetSocketFlag(int Option, int* Value)
-		{
-			int Size = sizeof(int);
-			return GetSocket(Option, (void*)Value, &Size);
-		}
-		int Socket::GetPort()
-		{
-			struct sockaddr_storage Address;
-			socket_size_t Size = sizeof(Address);
-			if (getsockname(Fd, reinterpret_cast<struct sockaddr*>(&Address), &Size) == -1)
-				return -1;
-
-			if (Address.ss_family == AF_INET)
-				return ntohs(reinterpret_cast<struct sockaddr_in*>(&Address)->sin_port);
-
-			if (Address.ss_family == AF_INET6)
-				return ntohs(reinterpret_cast<struct sockaddr_in6*>(&Address)->sin6_port);
-
-			return -1;
-		}
-		socket_t Socket::GetFd()
-		{
-			return Fd;
-		}
-		ssl_st* Socket::GetDevice()
-		{
-			return Device;
-		}
-		bool Socket::IsValid()
-		{
-			return Fd != INVALID_SOCKET;
-		}
-		bool Socket::IsPendingForRead()
-		{
-			return Driver::IsAwaitingReadable(this);
-		}
-		bool Socket::IsPendingForWrite()
-		{
-			return Driver::IsAwaitingWriteable(this);
-		}
-		bool Socket::IsPending()
-		{
-			return Driver::IsAwaitingEvents(this);
-		}
-		std::string Socket::GetRemoteAddress()
-		{
-			struct sockaddr_storage Address;
-			socklen_t Size = sizeof(Address);
-
-			if (!getpeername(Fd, (struct sockaddr*)&Address, &Size))
-			{
-				char Buffer[NI_MAXHOST];
-				if (!getnameinfo((struct sockaddr*)&Address, Size, Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST))
-					return Buffer;
-			}
-
-			return std::string();
-		}
-		std::string Socket::GetLocalAddress()
-		{
-			char Buffer[ED_CHUNK_SIZE];
-			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
-				return "127.0.0.1";
-
-			struct addrinfo Hints = { };
-			Hints.ai_family = AF_INET;
-			Hints.ai_socktype = SOCK_STREAM;
-
-			struct sockaddr_in Address = { };
-			struct addrinfo* Results = nullptr;
-
-			bool Success = (getaddrinfo(Buffer, nullptr, &Hints, &Results) == 0);
-			if (Success)
-			{
-				if (Results != nullptr)
-					memcpy(&Address, Results->ai_addr, sizeof(Address));
-			}
-
-			if (Results != nullptr)
-				freeaddrinfo(Results);
-
-			if (!Success)
-				return "127.0.0.1";
-
-			char Result[INET_ADDRSTRLEN];
-			if (!inet_ntop(AF_INET, &(Address.sin_addr), Result, INET_ADDRSTRLEN))
-				return "127.0.0.1";
-
-			return Result;
-		}
-		std::string Socket::GetAddress(addrinfo* Info)
-		{
-            ED_ASSERT(Info != nullptr, std::string(), "address info should be set");
-			char Buffer[INET6_ADDRSTRLEN];
-			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
-			return Buffer;
-		}
-		std::string Socket::GetAddress(sockaddr* Info)
-		{
-            ED_ASSERT(Info != nullptr, std::string(), "socket address should be set");
-			char Buffer[INET6_ADDRSTRLEN];
-			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
-			return Buffer;
-		}
-		int Socket::GetAddressFamily(const char* Address)
-		{
-			ED_ASSERT(Address != nullptr, AF_UNSPEC, "address should be set");
-
-			struct addrinfo Hints;
-			memset(&Hints, 0, sizeof(Hints));
-			Hints.ai_family = AF_UNSPEC;
-			Hints.ai_socktype = SOCK_STREAM;
-			Hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
-
-			struct addrinfo* Result;
-			if (getaddrinfo(Address, 0, &Hints, &Result) != 0)
-				return AF_UNSPEC;
-
-			int Family = Result->ai_family;
-			freeaddrinfo(Result);
-
-			return Family;
-		}
-
-		SocketConnection::~SocketConnection()
-		{
-			ED_DELETE(Socket, Stream);
-		}
-		bool SocketConnection::Finish()
-		{
-			return false;
-		}
-		bool SocketConnection::Finish(int)
-		{
-			return Finish();
-		}
-		bool SocketConnection::Error(int StatusCode, const char* ErrorMessage, ...)
-		{
-			char Buffer[ED_BIG_CHUNK_SIZE];
-			if (Info.Close)
-				return Finish();
-
-			va_list Args;
-			va_start(Args, ErrorMessage);
-			int Count = vsnprintf(Buffer, sizeof(Buffer), ErrorMessage, Args);
-			va_end(Args);
-
-			Info.Message.assign(Buffer, Count);
-			return Finish(StatusCode);
-		}
-		bool SocketConnection::EncryptionInfo(Certificate* Output)
-		{
-#ifdef ED_HAS_OPENSSL
-			ED_ASSERT(Output != nullptr, false, "certificate should be set");
-			ED_MEASURE(ED_TIMING_NET);
-
-			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
-			if (!Certificate)
-				return false;
-
-			const EVP_MD* Digest = EVP_get_digestbyname("sha1");
-			X509_NAME* Subject = X509_get_subject_name(Certificate);
-			X509_NAME* Issuer = X509_get_issuer_name(Certificate);
-			ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
-            
-			char SubjectBuffer[ED_CHUNK_SIZE];
-			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
-
-			char IssuerBuffer[ED_CHUNK_SIZE], SerialBuffer[ED_CHUNK_SIZE];
-			X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
-
-			unsigned char Buffer[256];
-			int Length = i2d_ASN1_INTEGER(Serial, nullptr);
-
-			if (Length > 0 && (unsigned)Length < (unsigned)sizeof(Buffer))
-			{
-				unsigned char* Pointer = Buffer;
-				int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
-
-				if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
-					*SerialBuffer = '\0';
-			}
-			else
-				*SerialBuffer = '\0';
-#if OPENSSL_VERSION_MAJOR < 3
-			unsigned int Size = 0;
-			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
-            
-			char FingerBuffer[ED_CHUNK_SIZE];
-			if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
-				*FingerBuffer = '\0';
-            
-            Output->Finger = FingerBuffer;
-#endif
-			Output->Subject = SubjectBuffer;
-			Output->Issuer = IssuerBuffer;
-			Output->Serial = SerialBuffer;
-
-			X509_free(Certificate);
-			return true;
-#else
-			return false;
-#endif
-		}
-		bool SocketConnection::Break()
-		{
-			return Finish(-1);
-		}
-		void SocketConnection::Reset(bool Fully)
-		{
-			if (Fully)
-			{
-				Info.Message.clear();
-				Info.Start = 0;
-				Info.Finish = 0;
-				Info.Timeout = 0;
-				Info.KeepAlive = 1;
-				Info.Close = false;
-			}
-
-			if (Stream != nullptr)
-			{
-				Stream->Income = 0;
-				Stream->Outcome = 0;
-			}
-		}
-
-		Host& SocketRouter::Listen(const std::string& Hostname, int Port, bool Secure)
-		{
-			return Listen("*", Hostname, Port, Secure);
-		}
-		Host& SocketRouter::Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure)
-		{
-			Host& Listener = Listeners[Pattern.empty() ? "*" : Pattern];
-			Listener.Hostname = Hostname;
-			Listener.Port = Port;
-			Listener.Secure = Secure;
-			return Listener;
-		}
-		SocketRouter::~SocketRouter()
-		{
-#ifdef ED_HAS_OPENSSL
-			for (auto It = Certificates.begin(); It != Certificates.end(); It++)
-			{
-				if (!It->second.Context)
-					continue;
-
-				SSL_CTX_free(It->second.Context);
-				It->second.Context = nullptr;
-			}
-#endif
+			ED_ASSERT(this != &Other, *this, "this should not be other");
+			Message = Other.Message;
+			Start = Other.Start;
+			Finish = Other.Finish;
+			Timeout = Other.Timeout;
+			KeepAlive = Other.KeepAlive;
+			Close = Other.Close;
+
+			return *this;
 		}
 
 		EpollHandle::EpollHandle(size_t NewArraySize) noexcept : ArraySize(NewArraySize)
@@ -1518,10 +503,7 @@ namespace Edge
 		{
 			Exclusive.lock();
 			for (auto& Item : Names)
-			{
-				Item.second.second->Free();
-				ED_DELETE(Address, Item.second.second);
-			}
+				ED_RELEASE(Item.second.second);
 			Names.clear();
 			Exclusive.unlock();
 		}
@@ -1533,7 +515,7 @@ namespace Edge
 
 			struct sockaddr_storage Storage;
 			int Port = Core::Parser(&Service).ToInt();
-			int Family = Socket::GetAddressFamily(Host.c_str());
+			int Family = Driver::GetAddressFamily(Host.c_str());
 			int Result = -1;
 
 			if (Family == AF_INET)
@@ -1567,7 +549,7 @@ namespace Edge
 			ED_DEBUG("[net] dns reverse resolved for identity %s:%i\n\thost %s:%s is used", Host.c_str(), Service.c_str(), Hostname, ServiceName);
 			return Hostname;
 		}
-		Address* DNS::FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
+		SocketAddress* DNS::FindAddressFromName(const std::string& Host, const std::string& Service, DNSType DNS, SocketProtocol Proto, SocketType Type)
 		{
 			ED_ASSERT(!Host.empty(), nullptr, "host should not be empty");
 			ED_ASSERT(!Service.empty(), nullptr, "service should not be empty");
@@ -1638,7 +620,7 @@ namespace Edge
 				auto It = Names.find(Identity);
 				if (It != Names.end() && It->second.first > Time)
 				{
-					Address* Result = It->second.second;
+					SocketAddress* Result = It->second.second;
 					Exclusive.unlock();
 					return Result;
 				}
@@ -1688,18 +670,14 @@ namespace Edge
 				return nullptr;
 			}
 
-			Address* Result = ED_NEW(Address);
-			Result->Pool = Addresses;
-			Result->Usable = Good;
-
-			ED_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Socket::GetAddress(Good).c_str());
+			SocketAddress* Result = new SocketAddress(Addresses, Good);
+			ED_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Driver::GetAddress(Good).c_str());
 
 			std::unique_lock Unique(Exclusive);
 			auto It = Names.find(Identity);
 			if (It != Names.end())
 			{
-				Result->Free();
-				ED_DELETE(Address, Result);
+				ED_RELEASE(Result);
 				It->second.first = Time + DNS_TIMEOUT;
 				Result = It->second.second;
 			}
@@ -1708,7 +686,7 @@ namespace Edge
 
 			return Result;
 		}
-		std::unordered_map<std::string, std::pair<int64_t, Address*>> DNS::Names;
+		std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>> DNS::Names;
 		std::mutex DNS::Exclusive;
 
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout)
@@ -2077,12 +1055,1039 @@ namespace Edge
 		{
 			return Activations;
 		}
+		std::string Driver::GetLocalAddress()
+		{
+			char Buffer[ED_CHUNK_SIZE];
+			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
+				return "127.0.0.1";
+
+			struct addrinfo Hints = { };
+			Hints.ai_family = AF_INET;
+			Hints.ai_socktype = SOCK_STREAM;
+
+			struct sockaddr_in Address = { };
+			struct addrinfo* Results = nullptr;
+
+			bool Success = (getaddrinfo(Buffer, nullptr, &Hints, &Results) == 0);
+			if (Success)
+			{
+				if (Results != nullptr)
+					memcpy(&Address, Results->ai_addr, sizeof(Address));
+			}
+
+			if (Results != nullptr)
+				freeaddrinfo(Results);
+
+			if (!Success)
+				return "127.0.0.1";
+
+			char Result[INET_ADDRSTRLEN];
+			if (!inet_ntop(AF_INET, &(Address.sin_addr), Result, INET_ADDRSTRLEN))
+				return "127.0.0.1";
+
+			return Result;
+		}
+		std::string Driver::GetAddress(addrinfo* Info)
+		{
+			ED_ASSERT(Info != nullptr, std::string(), "address info should be set");
+			char Buffer[INET6_ADDRSTRLEN];
+			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
+			return Buffer;
+		}
+		std::string Driver::GetAddress(sockaddr* Info)
+		{
+			ED_ASSERT(Info != nullptr, std::string(), "socket address should be set");
+			char Buffer[INET6_ADDRSTRLEN];
+			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
+			return Buffer;
+		}
+		int Driver::GetAddressFamily(const char* Address)
+		{
+			ED_ASSERT(Address != nullptr, AF_UNSPEC, "address should be set");
+
+			struct addrinfo Hints;
+			memset(&Hints, 0, sizeof(Hints));
+			Hints.ai_family = AF_UNSPEC;
+			Hints.ai_socktype = SOCK_STREAM;
+			Hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+
+			struct addrinfo* Result;
+			if (getaddrinfo(Address, 0, &Hints, &Result) != 0)
+				return AF_UNSPEC;
+
+			int Family = Result->ai_family;
+			freeaddrinfo(Result);
+
+			return Family;
+		}
 		EpollHandle* Driver::Handle = nullptr;
 		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Driver::Timeouts = nullptr;
 		std::vector<EpollFd>* Driver::Fds = nullptr;
 		std::atomic<size_t> Driver::Activations(0);
 		std::mutex Driver::Exclusive;
 		uint64_t Driver::DefaultTimeout = 50;
+
+		SocketAddress::SocketAddress(addrinfo* NewNames, addrinfo* NewUsable) : Names(NewNames), Usable(NewUsable)
+		{
+		}
+		SocketAddress::~SocketAddress()
+		{
+			if (Names != nullptr)
+				freeaddrinfo(Names);
+		}
+		bool SocketAddress::IsUsable() const
+		{
+			return Usable != nullptr;
+		}
+		addrinfo* SocketAddress::Get() const
+		{
+			return Usable;
+		}
+		addrinfo* SocketAddress::GetAlternatives() const
+		{
+			return Names;
+		}
+		std::string SocketAddress::GetAddress() const
+		{
+			if (!Usable)
+				return std::string();
+
+			return Driver::GetAddress(Usable);
+		}
+
+		Socket::Socket() noexcept : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
+		{
+		}
+		Socket::Socket(socket_t FromFd) noexcept : Socket()
+		{
+			Fd = FromFd;
+		}
+		int Socket::Accept(Socket* OutConnection, char* OutAddr)
+		{
+			ED_ASSERT(OutConnection != nullptr, -1, "socket should be set");
+			return Accept(&OutConnection->Fd, OutAddr);
+		}
+		int Socket::Accept(socket_t* OutFd, char* OutAddr)
+		{
+			ED_ASSERT(OutFd != nullptr, -1, "socket should be set");
+
+			sockaddr Address;
+			socket_size_t Length = sizeof(sockaddr);
+			*OutFd = accept(Fd, &Address, &Length);
+			if (*OutFd == INVALID_SOCKET)
+				return -1;
+
+			ED_DEBUG("[net] accept fd %i on %i fd", (int)*OutFd, (int)Fd);
+			if (OutAddr != nullptr)
+				inet_ntop(Address.sa_family, GetAddressStorage(&Address), OutAddr, INET6_ADDRSTRLEN);
+
+			return 0;
+		}
+		int Socket::AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback)
+		{
+			ED_ASSERT(Callback != nullptr, -1, "callback should be set");
+
+			bool Success = Driver::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
+			{
+				if (!Packet::IsDone(Event))
+				return;
+
+			socket_t OutFd = INVALID_SOCKET;
+			char OutAddr[INET6_ADDRSTRLEN] = { 0 };
+			char* RemoteAddr = (WithAddress ? OutAddr : nullptr);
+
+			while (Accept(&OutFd, RemoteAddr) == 0)
+			{
+				if (!Callback(OutFd, RemoteAddr))
+					break;
+			}
+
+			AcceptAsync(WithAddress, std::move(Callback));
+			});
+
+			return Success ? 0 : -1;
+		}
+		int Socket::Close(bool Gracefully)
+		{
+			ClearEvents(false);
+			if (Fd == INVALID_SOCKET)
+				return -1;
+#ifdef ED_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				SSL_free(Device);
+				Device = nullptr;
+			}
+#endif
+			int Error = 1;
+			socklen_t Size = sizeof(Error);
+			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
+
+			if (Gracefully)
+			{
+				ED_MEASURE(ED_TIMING_NET);
+				int Timeout = 100;
+				SetBlocking(true);
+				SetSocket(SO_RCVTIMEO, &Timeout, sizeof(int));
+				shutdown(Fd, SD_SEND);
+				while (recv(Fd, (char*)&Error, 1, 0) > 0)
+					ED_MEASURE_LOOP();
+			}
+			else
+				shutdown(Fd, SD_SEND);
+
+			closesocket(Fd);
+			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
+			Fd = INVALID_SOCKET;
+			return 0;
+		}
+		int Socket::CloseAsync(bool Gracefully, SocketClosedCallback&& Callback)
+		{
+			if (Fd == INVALID_SOCKET)
+			{
+				if (Callback)
+					Callback();
+
+				return -1;
+			}
+
+			ClearEvents(false);
+#ifdef ED_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				SSL_free(Device);
+				Device = nullptr;
+			}
+#endif
+			int Error = 1;
+			socklen_t Size = sizeof(Error);
+			getsockopt(Fd, SOL_SOCKET, SO_ERROR, (char*)&Error, &Size);
+			shutdown(Fd, SD_SEND);
+
+			if (Gracefully)
+				return TryCloseAsync(std::move(Callback), true);
+
+			closesocket(Fd);
+			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
+			Fd = INVALID_SOCKET;
+
+			if (Callback)
+				Callback();
+
+			return 0;
+		}
+		int Socket::TryCloseAsync(SocketClosedCallback&& Callback, bool KeepTrying)
+		{
+			while (KeepTrying)
+			{
+				char Buffer;
+				int Length = Read(&Buffer, 1);
+				if (Length == -2)
+				{
+					Timeout = 500;
+					Driver::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsSkip(Event))
+						TryCloseAsync(std::move(Callback), Packet::IsDone(Event));
+						else if (Callback)
+							Callback();
+					});
+
+					return 1;
+				}
+				else if (Length == -1)
+					break;
+			}
+
+			ClearEvents(false);
+			closesocket(Fd);
+			ED_DEBUG("[net] sock fd %i closed", (int)Fd);
+			Fd = INVALID_SOCKET;
+
+			if (Callback)
+				Callback();
+			return 0;
+		}
+		int64_t Socket::SendFile(FILE* Stream, int64_t Offset, int64_t Size)
+		{
+			ED_ASSERT(Stream != nullptr, -1, "stream should be set");
+			ED_ASSERT(Offset >= 0, -1, "offset should be set and positive");
+			ED_ASSERT(Size > 0, -1, "size should be set and greater than zero");
+			ED_MEASURE(ED_TIMING_NET);
+			auto FromFd = ED_FILENO(Stream);
+#ifdef ED_APPLE
+			off_t Seek = (off_t)Offset, Length = (off_t)Size;
+			int64_t Value = (int64_t)sendfile(FromFd, Fd, Seek, &Length, nullptr, 0);
+			Size = Length;
+#elif defined(ED_UNIX)
+			off_t Seek = (off_t)Offset;
+			int64_t Value = (int64_t)sendfile(Fd, FromFd, &Seek, (size_t)Size);
+			Size = Value;
+#else
+			int64_t Value = -3;
+			return Value;
+#endif
+			if (Value < 0 && Size <= 0)
+				return GetError((int)Value) == ERRWOULDBLOCK ? -2 : -1;
+
+			if (Value != Size)
+				Value = Size;
+
+			Outcome += Value;
+			return Value;
+		}
+		int64_t Socket::SendFileAsync(FILE* Stream, int64_t Offset, int64_t Size, SocketWrittenCallback&& Callback, int TempBuffer)
+		{
+			ED_ASSERT(Stream != nullptr, -1, "stream should be set");
+			ED_ASSERT(Offset >= 0, -1, "offset should be set and positive");
+			ED_ASSERT(Size > 0, -1, "size should be set and greater than zero");
+
+			while (Size > 0)
+			{
+				int64_t Length = SendFile(Stream, Offset, Size);
+				if (Length == -2)
+				{
+					Driver::WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (Packet::IsDone(Event))
+						SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
+						else if (Callback)
+							Callback(Event);
+					});
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (Callback)
+						Callback(SocketPoll::Reset);
+
+					return -1;
+				}
+				else if (Length == -3)
+					return -3;
+
+				Size -= (int64_t)Length;
+				Offset += (int64_t)Length;
+			}
+
+			if (Callback)
+				Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync);
+
+			return (int)Offset;
+		}
+		int Socket::Write(const char* Buffer, int Size)
+		{
+			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			ED_MEASURE(ED_TIMING_NET);
+#ifdef ED_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				int Value = SSL_write(Device, Buffer, Size);
+				if (Value <= 0)
+					return GetError(Value) == SSL_ERROR_WANT_WRITE ? -2 : -1;
+
+				Outcome += (int64_t)Value;
+				return Value;
+			}
+#endif
+			int Value = (int)send(Fd, Buffer, Size, 0);
+			if (Value <= 0)
+				return GetError(Value) == ERRWOULDBLOCK ? -2 : -1;
+
+			Outcome += (int64_t)Value;
+			return Value;
+		}
+		int Socket::WriteAsync(const char* Buffer, size_t Size, SocketWrittenCallback&& Callback, char* TempBuffer, size_t TempOffset)
+		{
+			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+
+			size_t Payload = Size;
+			size_t Written = 0;
+
+			while (Size > 0)
+			{
+				int Length = Write(Buffer + TempOffset, (int)Size);
+				if (Length == -2)
+				{
+					if (!TempBuffer)
+					{
+						TempBuffer = ED_MALLOC(char, Payload);
+						memcpy(TempBuffer, Buffer, Payload);
+					}
+
+					Driver::WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsDone(Event))
+						{
+							ED_FREE(TempBuffer);
+							if (Callback)
+								Callback(Event);
+						}
+						else
+							WriteAsync(TempBuffer, Size, std::move(Callback), TempBuffer, TempOffset);
+					});
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (TempBuffer != nullptr)
+						ED_FREE(TempBuffer);
+
+					if (Callback)
+						Callback(SocketPoll::Reset);
+
+					return -1;
+				}
+
+				Size -= (int64_t)Length;
+				TempOffset += (int64_t)Length;
+				Written += (size_t)Length;
+			}
+
+			if (TempBuffer != nullptr)
+				ED_FREE(TempBuffer);
+
+			if (Callback)
+				Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync);
+
+			return (int)Written;
+		}
+		int Socket::Read(char* Buffer, int Size)
+		{
+			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+			ED_MEASURE(ED_TIMING_NET);
+#ifdef ED_HAS_OPENSSL
+			if (Device != nullptr)
+			{
+				int Value = SSL_read(Device, Buffer, Size);
+				if (Value <= 0)
+					return GetError(Value) == SSL_ERROR_WANT_READ ? -2 : -1;
+
+				Income += (int64_t)Value;
+				return Value;
+			}
+#endif
+			int Value = (int)recv(Fd, Buffer, Size, 0);
+			if (Value <= 0)
+				return GetError(Value) == ERRWOULDBLOCK ? -2 : -1;
+
+			Income += (int64_t)Value;
+			return Value;
+		}
+		int Socket::Read(char* Buffer, int Size, const SocketReadCallback& Callback)
+		{
+			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			ED_ASSERT(Buffer != nullptr && Size > 0, -1, "buffer should be set");
+
+			int Offset = 0;
+			while (Size > 0)
+			{
+				int Length = Read(Buffer + Offset, Size);
+				if (Length == -2)
+				{
+					if (Callback)
+						Callback(SocketPoll::Timeout, nullptr, 0);
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				if (Callback && !Callback(SocketPoll::Next, Buffer + Offset, (size_t)Length))
+					break;
+
+				Size -= Length;
+				Offset += Length;
+			}
+
+			if (Callback)
+				Callback(SocketPoll::FinishSync, nullptr, 0);
+
+			return Offset;
+		}
+		int Socket::ReadAsync(size_t Size, SocketReadCallback&& Callback, int TempBuffer)
+		{
+			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			ED_ASSERT(Size > 0, -1, "size should be greater than zero");
+
+			char Buffer[ED_BIG_CHUNK_SIZE];
+			int Offset = 0;
+
+			while (Size > 0)
+			{
+				int Length = Read(Buffer, (int)(Size > sizeof(Buffer) ? sizeof(Buffer) : Size));
+				if (Length == -2)
+				{
+					Driver::WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (Packet::IsDone(Event))
+						ReadAsync(Size, std::move(Callback), ++TempBuffer);
+						else if (Callback)
+							Callback(Event, nullptr, 0);
+					});
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				Size -= (size_t)Length;
+				Offset += Length;
+
+				if (Callback && !Callback(SocketPoll::Next, Buffer, (size_t)Length))
+					break;
+			}
+
+			if (Callback)
+				Callback(TempBuffer != 0 ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
+
+			return Offset;
+		}
+		int Socket::ReadUntil(const char* Match, SocketReadCallback&& Callback)
+		{
+			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			ED_ASSERT(Match != nullptr, -1, "match should be set");
+
+			char Buffer[MAX_READ_UNTIL];
+			size_t Size = strlen(Match), Offset = 0, Index = 0;
+			auto Publish = [&Callback, &Buffer, &Offset](size_t Size)
+			{
+				Offset = 0;
+				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
+			};
+
+			ED_ASSERT(Size > 0, -1, "match should not be empty");
+			while (true)
+			{
+				int Length = Read(Buffer + Offset, 1);
+				if (Length <= 0)
+				{
+					if (Offset > 0 && !Publish(Offset))
+						return -1;
+
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				char Next = Buffer[Offset];
+				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
+					break;
+
+				if (Match[Index] == Next)
+				{
+					if (++Index >= Size)
+					{
+						if (Offset > 0)
+							Publish(Offset);
+						break;
+					}
+				}
+				else
+					Index = 0;
+			}
+
+			if (Callback)
+				Callback(SocketPoll::FinishSync, nullptr, 0);
+
+			return 0;
+		}
+		int Socket::ReadUntilAsync(const char* Match, SocketReadCallback&& Callback, char* TempBuffer, size_t TempIndex)
+		{
+			ED_ASSERT(Fd != INVALID_SOCKET, -1, "socket should be valid");
+			ED_ASSERT(Match != nullptr, -1, "match should be set");
+
+			char Buffer[MAX_READ_UNTIL];
+			size_t Size = strlen(Match), Offset = 0;
+			auto Publish = [&Callback, &Buffer, &Offset](size_t Size)
+			{
+				Offset = 0;
+				return !Callback || Callback(SocketPoll::Next, Buffer, Size);
+			};
+
+			ED_ASSERT(Size > 0, -1, "match should not be empty");
+			while (true)
+			{
+				int Length = Read(Buffer + Offset, 1);
+				if (Length == -2)
+				{
+					if (!TempBuffer)
+					{
+						TempBuffer = ED_MALLOC(char, Size + 1);
+						memcpy(TempBuffer, Match, Size);
+						TempBuffer[Size] = '\0';
+					}
+
+					Driver::WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
+					{
+						if (!Packet::IsDone(Event))
+						{
+							ED_FREE(TempBuffer);
+							if (Callback)
+								Callback(Event, nullptr, 0);
+						}
+						else
+							ReadUntilAsync(TempBuffer, std::move(Callback), TempBuffer, TempIndex);
+					});
+
+					return -2;
+				}
+				else if (Length == -1)
+				{
+					if (TempBuffer != nullptr)
+						ED_FREE(TempBuffer);
+
+					if (Offset > 0 && !Publish(Offset))
+						return -1;
+
+					if (Callback)
+						Callback(SocketPoll::Reset, nullptr, 0);
+
+					return -1;
+				}
+
+				char Next = Buffer[Offset];
+				if (++Offset >= MAX_READ_UNTIL && !Publish(Offset))
+					break;
+
+				if (Match[TempIndex] == Next)
+				{
+					if (++TempIndex >= Size)
+					{
+						if (Offset > 0)
+							Publish(Offset);
+						break;
+					}
+				}
+				else
+					TempIndex = 0;
+			}
+
+			if (TempBuffer != nullptr)
+				ED_FREE(TempBuffer);
+
+			if (Callback)
+				Callback(TempBuffer ? SocketPoll::Finish : SocketPoll::FinishSync, nullptr, 0);
+
+			return 0;
+		}
+		int Socket::Connect(SocketAddress* Address, uint64_t Timeout)
+		{
+			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			ED_MEASURE(ED_TIMING_NET);
+			ED_DEBUG("[net] connect fd %i", (int)Fd);
+			addrinfo* Source = Address->Get();
+			return connect(Fd, Source->ai_addr, (int)Source->ai_addrlen);
+		}
+		int Socket::ConnectAsync(SocketAddress* Address, SocketConnectedCallback&& Callback)
+		{
+			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			ED_MEASURE(ED_TIMING_NET);
+			ED_DEBUG("[net] connect fd %i", (int)Fd);
+
+			addrinfo* Source = Address->Get();
+			int Value = connect(Fd, Source->ai_addr, (int)Source->ai_addrlen);
+			if (Value == 0)
+			{
+				if (Callback)
+					Callback(0);
+
+				return 0;
+			}
+
+			int Code = GetError(Value);
+			if (Code != ERRWOULDBLOCK && Code != EINPROGRESS)
+			{
+				if (Callback)
+					Callback(Value);
+
+				return Value;
+			}
+
+			if (!Callback)
+				return -2;
+
+			Driver::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+			{
+				if (Packet::IsDone(Event))
+				Callback(0);
+				else if (Packet::IsTimeout(Event))
+					Callback(ETIMEDOUT);
+				else
+					Callback(ECONNREFUSED);
+			});
+
+			return -2;
+		}
+		int Socket::Open(SocketAddress* Address)
+		{
+			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			ED_MEASURE(ED_TIMING_NET);
+			ED_DEBUG("[net] assign fd");
+
+			addrinfo* Source = Address->Get();
+			Fd = socket(Source->ai_family, Source->ai_socktype, Source->ai_protocol);
+			if (Fd == INVALID_SOCKET)
+				return -1;
+
+			int Option = 1;
+			setsockopt(Fd, SOL_SOCKET, SO_REUSEADDR, (char*)&Option, sizeof(Option));
+			return 0;
+		}
+		int Socket::Secure(ssl_ctx_st* Context, const char* Hostname)
+		{
+#ifdef ED_HAS_OPENSSL
+			ED_MEASURE(ED_TIMING_NET);
+			if (Device != nullptr)
+				SSL_free(Device);
+
+			Device = SSL_new(Context);
+#ifndef OPENSSL_NO_TLSEXT
+			if (Device != nullptr && Hostname != nullptr)
+				SSL_set_tlsext_host_name(Device, Hostname);
+#endif
+#endif
+			if (!Device)
+				return -1;
+
+			return 0;
+		}
+		int Socket::Bind(SocketAddress* Address)
+		{
+			ED_ASSERT(Address && Address->IsUsable(), -1, "address should be set and usable");
+			ED_MEASURE(ED_TIMING_NET);
+			ED_DEBUG("[net] bind fd %i", (int)Fd);
+
+			addrinfo* Source = Address->Get();
+			return bind(Fd, Source->ai_addr, (int)Source->ai_addrlen);
+		}
+		int Socket::Listen(int Backlog)
+		{
+			ED_MEASURE(ED_TIMING_NET);
+			ED_DEBUG("[net] listen fd %i", (int)Fd);
+			return listen(Fd, Backlog);
+		}
+		int Socket::ClearEvents(bool Gracefully)
+		{
+			ED_MEASURE(ED_TIMING_NET);
+			if (Gracefully)
+				Driver::CancelEvents(this, SocketPoll::Reset);
+			else
+				Driver::ClearEvents(this);
+			return 0;
+		}
+		int Socket::MigrateTo(socket_t NewFd, bool Gracefully)
+		{
+			ED_MEASURE(ED_TIMING_NET);
+			int Result = Gracefully ? ClearEvents(false) : 0;
+			Fd = NewFd;
+			return Result;
+		}
+		int Socket::SetCloseOnExec()
+		{
+#if defined(_WIN32)
+			return 0;
+#else
+			return fcntl(Fd, F_SETFD, FD_CLOEXEC);
+#endif
+		}
+		int Socket::SetTimeWait(int Timeout)
+		{
+			linger Linger;
+			Linger.l_onoff = (Timeout >= 0 ? 1 : 0);
+			Linger.l_linger = Timeout;
+
+			return setsockopt(Fd, SOL_SOCKET, SO_LINGER, (char*)&Linger, sizeof(Linger));
+		}
+		int Socket::SetSocket(int Option, void* Value, int Size)
+		{
+			return ::setsockopt(Fd, SOL_SOCKET, Option, (const char*)Value, Size);
+		}
+		int Socket::SetAny(int Level, int Option, void* Value, int Size)
+		{
+			return ::setsockopt(Fd, Level, Option, (const char*)Value, Size);
+		}
+		int Socket::SetAnyFlag(int Level, int Option, int Value)
+		{
+			return SetAny(Level, Option, (void*)&Value, sizeof(int));
+		}
+		int Socket::SetSocketFlag(int Option, int Value)
+		{
+			return SetSocket(Option, (void*)&Value, sizeof(int));
+		}
+		int Socket::SetBlocking(bool Enabled)
+		{
+#ifdef ED_MICROSOFT
+			unsigned long Mode = (Enabled ? 0 : 1);
+			return ioctlsocket(Fd, (long)FIONBIO, &Mode);
+#else
+			int Flags = fcntl(Fd, F_GETFL, 0);
+			if (Flags == -1)
+				return -1;
+
+			Flags = Enabled ? (Flags & ~O_NONBLOCK) : (Flags | O_NONBLOCK);
+			return (fcntl(Fd, F_SETFL, Flags) == 0);
+#endif
+		}
+		int Socket::SetNoDelay(bool Enabled)
+		{
+			return SetAnyFlag(IPPROTO_TCP, TCP_NODELAY, (Enabled ? 1 : 0));
+		}
+		int Socket::SetKeepAlive(bool Enabled)
+		{
+			return SetSocketFlag(SO_KEEPALIVE, (Enabled ? 1 : 0));
+		}
+		int Socket::SetTimeout(int Timeout)
+		{
+#ifdef ED_MICROSOFT
+			DWORD Time = (DWORD)Timeout;
+#else
+			struct timeval Time;
+			memset(&Time, 0, sizeof(Time));
+			Time.tv_sec = Timeout / 1000;
+			Time.tv_usec = (Timeout * 1000) % 1000000;
+#endif
+			int Range1 = setsockopt(Fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&Time, sizeof(Time));
+			int Range2 = setsockopt(Fd, SOL_SOCKET, SO_SNDTIMEO, (const char*)&Time, sizeof(Time));
+			return (Range1 == 0 || Range2 == 0);
+		}
+		int Socket::GetError(int Result)
+		{
+#ifdef ED_HAS_OPENSSL
+			if (!Device)
+				return ERRNO;
+
+			return SSL_get_error(Device, Result);
+#else
+			return ERRNO;
+#endif
+		}
+		int Socket::GetAnyFlag(int Level, int Option, int* Value)
+		{
+			return GetAny(Level, Option, (char*)Value, nullptr);
+		}
+		int Socket::GetAny(int Level, int Option, void* Value, int* Size)
+		{
+			socket_size_t Length = (socket_size_t)Level;
+			int Result = ::getsockopt(Fd, Level, Option, (char*)Value, &Length);
+			if (Size != nullptr)
+				*Size = (int)Length;
+
+			return Result;
+		}
+		int Socket::GetSocket(int Option, void* Value, int* Size)
+		{
+			return GetAny(SOL_SOCKET, Option, Value, Size);
+		}
+		int Socket::GetSocketFlag(int Option, int* Value)
+		{
+			int Size = sizeof(int);
+			return GetSocket(Option, (void*)Value, &Size);
+		}
+		int Socket::GetPort()
+		{
+			struct sockaddr_storage Address;
+			socket_size_t Size = sizeof(Address);
+			if (getsockname(Fd, reinterpret_cast<struct sockaddr*>(&Address), &Size) == -1)
+				return -1;
+
+			if (Address.ss_family == AF_INET)
+				return ntohs(reinterpret_cast<struct sockaddr_in*>(&Address)->sin_port);
+
+			if (Address.ss_family == AF_INET6)
+				return ntohs(reinterpret_cast<struct sockaddr_in6*>(&Address)->sin6_port);
+
+			return -1;
+		}
+		socket_t Socket::GetFd()
+		{
+			return Fd;
+		}
+		ssl_st* Socket::GetDevice()
+		{
+			return Device;
+		}
+		bool Socket::IsValid()
+		{
+			return Fd != INVALID_SOCKET;
+		}
+		bool Socket::IsPendingForRead()
+		{
+			return Driver::IsAwaitingReadable(this);
+		}
+		bool Socket::IsPendingForWrite()
+		{
+			return Driver::IsAwaitingWriteable(this);
+		}
+		bool Socket::IsPending()
+		{
+			return Driver::IsAwaitingEvents(this);
+		}
+		std::string Socket::GetRemoteAddress()
+		{
+			struct sockaddr_storage Address;
+			socklen_t Size = sizeof(Address);
+
+			if (!getpeername(Fd, (struct sockaddr*)&Address, &Size))
+			{
+				char Buffer[NI_MAXHOST];
+				if (!getnameinfo((struct sockaddr*)&Address, Size, Buffer, sizeof(Buffer), nullptr, 0, NI_NUMERICHOST))
+					return Buffer;
+			}
+
+			return std::string();
+		}
+
+		SocketListener::SocketListener(const std::string& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Base(new Socket())
+		{
+		}
+		SocketListener::~SocketListener()
+		{
+			ED_RELEASE(Base);
+		}
+
+		SocketRouter::~SocketRouter()
+		{
+#ifdef ED_HAS_OPENSSL
+			for (auto It = Certificates.begin(); It != Certificates.end(); It++)
+			{
+				if (!It->second.Context)
+					continue;
+
+				SSL_CTX_free(It->second.Context);
+				It->second.Context = nullptr;
+		}
+#endif
+		}
+		RemoteHost& SocketRouter::Listen(const std::string& Hostname, int Port, bool Secure)
+		{
+			return Listen("*", Hostname, Port, Secure);
+		}
+		RemoteHost& SocketRouter::Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure)
+		{
+			RemoteHost& Listener = Listeners[Pattern.empty() ? "*" : Pattern];
+			Listener.Hostname = Hostname;
+			Listener.Port = Port;
+			Listener.Secure = Secure;
+			return Listener;
+		}
+
+		SocketConnection::~SocketConnection()
+		{
+			ED_RELEASE(Stream);
+		}
+		bool SocketConnection::Finish()
+		{
+			return false;
+		}
+		bool SocketConnection::Finish(int)
+		{
+			return Finish();
+		}
+		bool SocketConnection::Error(int StatusCode, const char* ErrorMessage, ...)
+		{
+			char Buffer[ED_BIG_CHUNK_SIZE];
+			if (Info.Close)
+				return Finish();
+
+			va_list Args;
+			va_start(Args, ErrorMessage);
+			int Count = vsnprintf(Buffer, sizeof(Buffer), ErrorMessage, Args);
+			va_end(Args);
+
+			Info.Message.assign(Buffer, Count);
+			return Finish(StatusCode);
+		}
+		bool SocketConnection::EncryptionInfo(Certificate* Output)
+		{
+#ifdef ED_HAS_OPENSSL
+			ED_ASSERT(Output != nullptr, false, "certificate should be set");
+			ED_MEASURE(ED_TIMING_NET);
+
+			X509* Certificate = SSL_get_peer_certificate(Stream->GetDevice());
+			if (!Certificate)
+				return false;
+
+			const EVP_MD* Digest = EVP_get_digestbyname("sha1");
+			X509_NAME* Subject = X509_get_subject_name(Certificate);
+			X509_NAME* Issuer = X509_get_issuer_name(Certificate);
+			ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
+
+			char SubjectBuffer[ED_CHUNK_SIZE];
+			X509_NAME_oneline(Subject, SubjectBuffer, (int)sizeof(SubjectBuffer));
+
+			char IssuerBuffer[ED_CHUNK_SIZE], SerialBuffer[ED_CHUNK_SIZE];
+			X509_NAME_oneline(Issuer, IssuerBuffer, (int)sizeof(IssuerBuffer));
+
+			unsigned char Buffer[256];
+			int Length = i2d_ASN1_INTEGER(Serial, nullptr);
+
+			if (Length > 0 && (unsigned)Length < (unsigned)sizeof(Buffer))
+			{
+				unsigned char* Pointer = Buffer;
+				int Size = i2d_ASN1_INTEGER(Serial, &Pointer);
+
+				if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, SerialBuffer, sizeof(SerialBuffer)))
+					*SerialBuffer = '\0';
+			}
+			else
+				*SerialBuffer = '\0';
+#if OPENSSL_VERSION_MAJOR < 3
+			unsigned int Size = 0;
+			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
+
+			char FingerBuffer[ED_CHUNK_SIZE];
+			if (!Compute::Codec::HexToString(Buffer, (uint64_t)Size, FingerBuffer, sizeof(FingerBuffer)))
+				*FingerBuffer = '\0';
+
+			Output->Finger = FingerBuffer;
+#endif
+			Output->Subject = SubjectBuffer;
+			Output->Issuer = IssuerBuffer;
+			Output->Serial = SerialBuffer;
+
+			X509_free(Certificate);
+			return true;
+#else
+			return false;
+#endif
+		}
+		bool SocketConnection::Break()
+		{
+			return Finish(-1);
+		}
+		void SocketConnection::Reset(bool Fully)
+		{
+			if (Fully)
+			{
+				Info.Message.clear();
+				Info.Start = 0;
+				Info.Finish = 0;
+				Info.Timeout = 0;
+				Info.KeepAlive = 1;
+				Info.Close = false;
+			}
+
+			if (Stream != nullptr)
+			{
+				Stream->Income = 0;
+				Stream->Outcome = 0;
+			}
+		}
 
 		SocketServer::SocketServer() noexcept : Backlog(1024)
 		{
@@ -2098,7 +2103,7 @@ namespace Edge
 		}
 		void SocketServer::SetRouter(SocketRouter* New)
 		{
-			OnDeallocateRouter(Router);
+			ED_RELEASE(Router);
 			Router = New;
 		}
 		void SocketServer::SetBacklog(size_t Value)
@@ -2119,7 +2124,7 @@ namespace Edge
 			ED_ASSERT(State == ServerState::Idle, false, "server should not be running");
 			if (NewRouter != nullptr)
 			{
-				OnDeallocateRouter(Router);
+				ED_RELEASE(Router);
 				Router = NewRouter;
 			}
 			else if (!Router && !(Router = OnAllocateRouter()))
@@ -2142,26 +2147,21 @@ namespace Edge
 				if (It.second.Hostname.empty())
 					continue;
 
-				Listener* Value = ED_NEW(Listener);
-				Value->Hostname = &It.second;
-				Value->Name = It.first;
-				Value->Base = ED_NEW(Socket);
-				Value->Base->UserData = this;
-
-				Value->Source = DNS::FindAddressFromName(It.second.Hostname, std::to_string(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
-				if (!Value->Source)
+				SocketAddress* Source = DNS::FindAddressFromName(It.second.Hostname, std::to_string(It.second.Port), DNSType::Listen, SocketProtocol::TCP, SocketType::Stream);
+				if (!Source)
 				{
 					ED_ERR("[net] cannot resolve %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
-				if (Value->Base->Open(Value->Source->Usable) < 0)
+				SocketListener* Value = new SocketListener(It.first, It.second, Source);
+				if (Value->Base->Open(Source) < 0)
 				{
 					ED_ERR("[net] cannot open %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
 				}
 
-				if (Value->Base->Bind(Value->Source))
+				if (Value->Base->Bind(Source))
 				{
 					ED_ERR("[net] cannot bind %s:%i", It.second.Hostname.c_str(), (int)It.second.Port);
 					return false;
@@ -2321,12 +2321,9 @@ namespace Edge
 
 			FreeAll();
 			for (auto It : Listeners)
-			{
-				ED_DELETE(Socket, It->Base);
-				ED_DELETE(Listener, It);
-			}
+				ED_RELEASE(It);
 
-			OnDeallocateRouter(Router);
+			ED_RELEASE(Router);
 			State = ServerState::Idle;
 			Router = nullptr;
 
@@ -2367,7 +2364,7 @@ namespace Edge
 
 			Sync.lock();
 			for (auto* Item : Inactive)
-				OnDeallocate(Item);
+				ED_RELEASE(Item);
 			Inactive.clear();
 			Sync.unlock();
 
@@ -2381,7 +2378,7 @@ namespace Edge
 			});
 			return false;
 		}
-		bool SocketServer::Accept(Listener* Host, socket_t Fd, const std::string& Address)
+		bool SocketServer::Accept(SocketListener* Host, socket_t Fd, const std::string& Address)
 		{
 			auto* Base = Pop(Host);
 			if (!Base)
@@ -2389,7 +2386,7 @@ namespace Edge
             
 			strncpy(Base->RemoteAddress, Address.c_str(), std::min(Address.size(), sizeof(Base->RemoteAddress)));
 			Base->Stream->Timeout = Router->SocketTimeout;
-			Base->Stream->SetFd(Fd, false);
+			Base->Stream->MigrateTo(Fd, false);
 			Base->Stream->SetCloseOnExec();
 			Base->Stream->SetNoDelay(Router->EnableNoDelay);
 			Base->Stream->SetKeepAlive(true);
@@ -2401,7 +2398,7 @@ namespace Edge
 			if (Router->MaxConnections > 0 && Active.size() >= Router->MaxConnections)
 				return Refuse(Base);
 
-			if (!Host->Hostname->Secure)
+			if (!Host->Hostname.Secure)
 				return OnRequestBegin(Base);
 
 			if (!EncryptThenBegin(Base, Host))
@@ -2409,7 +2406,7 @@ namespace Edge
 			
 			return true;
 		}
-		bool SocketServer::EncryptThenBegin(SocketConnection* Base, Listener* Host)
+		bool SocketServer::EncryptThenBegin(SocketConnection* Base, SocketListener* Host)
 		{
 			ED_ASSERT(Base != nullptr, false, "socket should be set");
 			ED_ASSERT(Base->Stream != nullptr, false, "socket should be set");
@@ -2519,22 +2516,6 @@ namespace Edge
 		{
 			return true;
 		}
-		bool SocketServer::OnDeallocate(SocketConnection* Base)
-		{
-			if (!Base)
-				return false;
-
-			ED_DELETE(SocketConnection, Base);
-			return true;
-		}
-		bool SocketServer::OnDeallocateRouter(SocketRouter* Base)
-		{
-			if (!Base)
-				return false;
-
-			ED_DELETE(SocketRouter, Base);
-			return true;
-		}
 		bool SocketServer::OnStall(std::unordered_set<SocketConnection*>& Base)
 		{
 			return true;
@@ -2559,10 +2540,10 @@ namespace Edge
 			if (Inactive.size() < Backlog)
 				Inactive.insert(Base);
 			else
-				OnDeallocate(Base);
+				ED_RELEASE(Base);
 			Sync.unlock();
 		}
-		SocketConnection* SocketServer::Pop(Listener* Host)
+		SocketConnection* SocketServer::Pop(SocketListener* Host)
 		{
 			SocketConnection* Result = nullptr;
 			if (!Inactive.empty())
@@ -2584,8 +2565,7 @@ namespace Edge
 				if (!Result)
 					return nullptr;
 
-				Socket* Base = ED_NEW(Socket);
-				Result->Stream = Base;
+				Result->Stream = new Socket();
 				Result->Stream->UserData = Result;
 
 				Sync.lock();
@@ -2598,13 +2578,13 @@ namespace Edge
 
 			return Result;
 		}
-		SocketConnection* SocketServer::OnAllocate(Listener*)
+		SocketConnection* SocketServer::OnAllocate(SocketListener*)
 		{
-			return ED_NEW(SocketConnection);
+			return new SocketConnection();
 		}
 		SocketRouter* SocketServer::OnAllocateRouter()
 		{
-			return ED_NEW(SocketRouter);
+			return new SocketRouter();
 		}
 		std::unordered_set<SocketConnection*>* SocketServer::GetClients()
 		{
@@ -2644,7 +2624,7 @@ namespace Edge
 #endif
 			Driver::SetActive(false);
 		}
-		Core::Promise<int> SocketClient::Connect(Host* Source, bool Async)
+		Core::Promise<int> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
 			ED_ASSERT(Source != nullptr && !Source->Hostname.empty(), -2, "address should be set");
 			ED_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
@@ -2660,9 +2640,9 @@ namespace Edge
 			Stage("socket open");
 			
 			Core::Promise<int> Future;
-			auto RemoteConnect = [this, Future, Async](Address*&& Host) mutable
+			auto RemoteConnect = [this, Future, Async](SocketAddress*&& Host) mutable
 			{
-				if (Host != nullptr && Stream.Open(Host->Usable) == 0)
+				if (Host != nullptr && Stream.Open(Host) == 0)
 				{
 					Stage("socket connect");
 					Stream.Timeout = Timeout;
@@ -2728,7 +2708,7 @@ namespace Edge
 
 			if (Async)
 			{
-				Core::Cotask<Address*>([this]()
+				Core::Cotask<SocketAddress*>([this]()
 				{
 					return DNS::FindAddressFromName(Hostname.Hostname, std::to_string(Hostname.Port), DNSType::Connect, SocketProtocol::TCP, SocketType::Stream);
 				}).Await(std::move(RemoteConnect));
@@ -2826,7 +2806,7 @@ namespace Edge
 				}
 			}
 		}
-		bool SocketClient::OnResolveHost(Host* Address)
+		bool SocketClient::OnResolveHost(RemoteHost* Address)
 		{
 			return Address != nullptr;
 		}

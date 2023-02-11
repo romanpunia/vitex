@@ -7003,7 +7003,7 @@ namespace Edge
 					return (bool)Context->GetReturnWord();
 				});
 			}
-			int SocketSendFileAsync(Network::Socket* Base, FILE* Stream, int64_t Offset, int64_t Size, VMCFunction* Callback)
+			int64_t SocketSendFileAsync(Network::Socket* Base, FILE* Stream, int64_t Offset, int64_t Size, VMCFunction* Callback)
 			{
 				VMContext* Context = VMContext::Get();
 				if (!Context || !Callback)

@@ -515,7 +515,7 @@ namespace Edge
 
 			struct sockaddr_storage Storage;
 			int Port = Core::Parser(&Service).ToInt();
-			int Family = Driver::GetAddressFamily(Host.c_str());
+			int Family = Multiplexer::GetAddressFamily(Host.c_str());
 			int Result = -1;
 
 			if (Family == AF_INET)
@@ -671,7 +671,7 @@ namespace Edge
 			}
 
 			SocketAddress* Result = new SocketAddress(Addresses, Good);
-			ED_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Driver::GetAddress(Good).c_str());
+			ED_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Multiplexer::GetAddress(Good).c_str());
 
 			std::unique_lock Unique(Exclusive);
 			auto It = Names.find(Identity);
@@ -703,7 +703,7 @@ namespace Edge
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		}
 
-		void Driver::Create(uint64_t DispatchTimeout, size_t MaxEvents)
+		void Multiplexer::Create(uint64_t DispatchTimeout, size_t MaxEvents)
 		{
 			ED_ASSERT_V(MaxEvents > 0, "array size should be greater than zero");
 			ED_DELETE(EpollHandle, Handle);
@@ -719,7 +719,7 @@ namespace Edge
 			Handle = ED_NEW(EpollHandle, (int)MaxEvents);
 			Fds->resize(MaxEvents);
 		}
-		void Driver::Release()
+		void Multiplexer::Release()
 		{
 			if (Timeouts != nullptr)
 			{
@@ -741,14 +741,14 @@ namespace Edge
 
 			DNS::Release();
 		}
-		void Driver::SetActive(bool Active)
+		void Multiplexer::SetActive(bool Active)
 		{
 			if (Active)
 				TryListen();
 			else
 				TryUnlisten();
 		}
-		int Driver::Dispatch(uint64_t EventTimeout)
+		int Multiplexer::Dispatch(uint64_t EventTimeout)
 		{
 			ED_ASSERT(Handle != nullptr && Timeouts != nullptr, -1, "driver should be initialized");
 			int Count = Handle->Wait(Fds->data(), Fds->size(), EventTimeout);
@@ -783,7 +783,7 @@ namespace Edge
 
 			return Count;
 		}
-		bool Driver::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time)
+		bool Multiplexer::DispatchEvents(EpollFd& Fd, const std::chrono::microseconds& Time)
 		{
 			ED_ASSERT(Fd.Base != nullptr, false, "no socket is connected to epoll fd");
 			if (Fd.Closed)
@@ -853,21 +853,21 @@ namespace Edge
 
 			return Exists;
 		}
-		bool Driver::WhenReadable(Socket* Value, PollEventCallback&& WhenReady)
+		bool Multiplexer::WhenReadable(Socket* Value, PollEventCallback&& WhenReady)
 		{
 			ED_ASSERT(Handle != nullptr, false, "driver should be initialized");
 			ED_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
 
 			return WhenEvents(Value, true, false, std::move(WhenReady), nullptr);
 		}
-		bool Driver::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady)
+		bool Multiplexer::WhenWriteable(Socket* Value, PollEventCallback&& WhenReady)
 		{
 			ED_ASSERT(Handle != nullptr, false, "driver should be initialized");
 			ED_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
 
 			return WhenEvents(Value, false, true, nullptr, std::move(WhenReady));
 		}
-		bool Driver::CancelEvents(Socket* Value, SocketPoll Event, bool Safely)
+		bool Multiplexer::CancelEvents(Socket* Value, SocketPoll Event, bool Safely)
 		{
 			ED_ASSERT(Handle != nullptr, false, "driver should be initialized");
 			ED_ASSERT(Value != nullptr && Value->Fd != INVALID_SOCKET, false, "socket should be set and valid");
@@ -902,11 +902,11 @@ namespace Edge
 
 			return Success;
 		}
-		bool Driver::ClearEvents(Socket* Value)
+		bool Multiplexer::ClearEvents(Socket* Value)
 		{
 			return CancelEvents(Value, SocketPoll::Finish);
 		}
-		bool Driver::IsAwaitingEvents(Socket* Value)
+		bool Multiplexer::IsAwaitingEvents(Socket* Value)
 		{
 			ED_ASSERT(Value != nullptr, false, "socket should be set");
 
@@ -915,7 +915,7 @@ namespace Edge
 			Exclusive.unlock();
 			return Awaits;
 		}
-		bool Driver::IsAwaitingReadable(Socket* Value)
+		bool Multiplexer::IsAwaitingReadable(Socket* Value)
 		{
 			ED_ASSERT(Value != nullptr, false, "socket should be set");
 
@@ -924,7 +924,7 @@ namespace Edge
 			Exclusive.unlock();
 			return Awaits;
 		}
-		bool Driver::IsAwaitingWriteable(Socket* Value)
+		bool Multiplexer::IsAwaitingWriteable(Socket* Value)
 		{
 			ED_ASSERT(Value != nullptr, false, "socket should be set");
 
@@ -933,26 +933,26 @@ namespace Edge
 			Exclusive.unlock();
 			return Awaits;
 		}
-		bool Driver::IsListening()
+		bool Multiplexer::IsListening()
 		{
 			return Activations > 0;
 		}
-		bool Driver::IsActive()
+		bool Multiplexer::IsActive()
 		{
 			return Handle != nullptr;
 		}
-		void Driver::TryDispatch()
+		void Multiplexer::TryDispatch()
 		{
 			Dispatch(DefaultTimeout);
 			TryEnqueue();
 		}
-		void Driver::TryEnqueue()
+		void Multiplexer::TryEnqueue()
 		{
 			auto* Queue = Core::Schedule::Get();
 			if (Queue->CanEnqueue() && Activations > 0)
-				Queue->SetTask(&Driver::TryDispatch);
+				Queue->SetTask(&Multiplexer::TryDispatch);
 		}
-		void Driver::TryListen()
+		void Multiplexer::TryListen()
 		{
 			if (!Activations++)
 			{
@@ -960,13 +960,13 @@ namespace Edge
 				TryEnqueue();
 			}
 		}
-		void Driver::TryUnlisten()
+		void Multiplexer::TryUnlisten()
 		{
 			ED_ASSERT_V(Activations > 0, "events poller is already inactive");
 			if (!--Activations)
 				ED_DEBUG("[net] stop events polling");
 		}
-		bool Driver::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable)
+		bool Multiplexer::WhenEvents(Socket* Value, bool Readable, bool Writeable, PollEventCallback&& WhenReadable, PollEventCallback&& WhenWriteable)
 		{
 			bool Success = false;
 			bool Update = false;
@@ -1023,17 +1023,17 @@ namespace Edge
 
 			return Success;
 		}
-		void Driver::AddTimeout(Socket* Value, const std::chrono::microseconds& Time)
+		void Multiplexer::AddTimeout(Socket* Value, const std::chrono::microseconds& Time)
 		{
 			Value->Events.ExpiresAt = Time;
 			Timeouts->Map.insert(std::make_pair(Time, Value));
 		}
-		void Driver::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time)
+		void Multiplexer::UpdateTimeout(Socket* Value, const std::chrono::microseconds& Time)
 		{
 			RemoveTimeout(Value);
 			AddTimeout(Value, Time);
 		}
-		void Driver::RemoveTimeout(Socket* Value)
+		void Multiplexer::RemoveTimeout(Socket* Value)
 		{
 			auto It = Timeouts->Map.find(Value->Events.ExpiresAt);
 			if (It == Timeouts->Map.end())
@@ -1051,11 +1051,11 @@ namespace Edge
 			if (It != Timeouts->Map.end())
 				Timeouts->Map.erase(It);
 		}
-		size_t Driver::GetActivations()
+		size_t Multiplexer::GetActivations()
 		{
 			return Activations;
 		}
-		std::string Driver::GetLocalAddress()
+		std::string Multiplexer::GetLocalAddress()
 		{
 			char Buffer[ED_CHUNK_SIZE];
 			if (gethostname(Buffer, sizeof(Buffer)) == SOCKET_ERROR)
@@ -1087,21 +1087,21 @@ namespace Edge
 
 			return Result;
 		}
-		std::string Driver::GetAddress(addrinfo* Info)
+		std::string Multiplexer::GetAddress(addrinfo* Info)
 		{
 			ED_ASSERT(Info != nullptr, std::string(), "address info should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->ai_family, GetAddressStorage(Info->ai_addr), Buffer, sizeof(Buffer));
 			return Buffer;
 		}
-		std::string Driver::GetAddress(sockaddr* Info)
+		std::string Multiplexer::GetAddress(sockaddr* Info)
 		{
 			ED_ASSERT(Info != nullptr, std::string(), "socket address should be set");
 			char Buffer[INET6_ADDRSTRLEN];
 			inet_ntop(Info->sa_family, GetAddressStorage(Info), Buffer, sizeof(Buffer));
 			return Buffer;
 		}
-		int Driver::GetAddressFamily(const char* Address)
+		int Multiplexer::GetAddressFamily(const char* Address)
 		{
 			ED_ASSERT(Address != nullptr, AF_UNSPEC, "address should be set");
 
@@ -1120,12 +1120,12 @@ namespace Edge
 
 			return Family;
 		}
-		EpollHandle* Driver::Handle = nullptr;
-		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Driver::Timeouts = nullptr;
-		std::vector<EpollFd>* Driver::Fds = nullptr;
-		std::atomic<size_t> Driver::Activations(0);
-		std::mutex Driver::Exclusive;
-		uint64_t Driver::DefaultTimeout = 50;
+		EpollHandle* Multiplexer::Handle = nullptr;
+		Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Multiplexer::Timeouts = nullptr;
+		std::vector<EpollFd>* Multiplexer::Fds = nullptr;
+		std::atomic<size_t> Multiplexer::Activations(0);
+		std::mutex Multiplexer::Exclusive;
+		uint64_t Multiplexer::DefaultTimeout = 50;
 
 		SocketAddress::SocketAddress(addrinfo* NewNames, addrinfo* NewUsable) : Names(NewNames), Usable(NewUsable)
 		{
@@ -1152,7 +1152,7 @@ namespace Edge
 			if (!Usable)
 				return std::string();
 
-			return Driver::GetAddress(Usable);
+			return Multiplexer::GetAddress(Usable);
 		}
 
 		Socket::Socket() noexcept : Device(nullptr), Fd(INVALID_SOCKET), Timeout(0), Income(0), Outcome(0), UserData(nullptr)
@@ -1187,7 +1187,7 @@ namespace Edge
 		{
 			ED_ASSERT(Callback != nullptr, -1, "callback should be set");
 
-			bool Success = Driver::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
+			bool Success = Multiplexer::WhenReadable(this, [this, WithAddress, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (!Packet::IsDone(Event))
 				return;
@@ -1285,7 +1285,7 @@ namespace Edge
 				if (Length == -2)
 				{
 					Timeout = 500;
-					Driver::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::WhenReadable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsSkip(Event))
 						TryCloseAsync(std::move(Callback), Packet::IsDone(Event));
@@ -1347,7 +1347,7 @@ namespace Edge
 				int64_t Length = SendFile(Stream, Offset, Size);
 				if (Length == -2)
 				{
-					Driver::WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::WhenWriteable(this, [this, TempBuffer, Stream, Offset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (Packet::IsDone(Event))
 						SendFileAsync(Stream, Offset, Size, std::move(Callback), ++TempBuffer);
@@ -1416,7 +1416,7 @@ namespace Edge
 						memcpy(TempBuffer, Buffer, Payload);
 					}
 
-					Driver::WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::WhenWriteable(this, [this, TempBuffer, TempOffset, Size, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -1526,7 +1526,7 @@ namespace Edge
 				int Length = Read(Buffer, (int)(Size > sizeof(Buffer) ? sizeof(Buffer) : Size));
 				if (Length == -2)
 				{
-					Driver::WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::WhenReadable(this, [this, Size, TempBuffer, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (Packet::IsDone(Event))
 						ReadAsync(Size, std::move(Callback), ++TempBuffer);
@@ -1632,7 +1632,7 @@ namespace Edge
 						TempBuffer[Size] = '\0';
 					}
 
-					Driver::WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::WhenReadable(this, [this, TempBuffer, TempIndex, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -1721,7 +1721,7 @@ namespace Edge
 			if (!Callback)
 				return -2;
 
-			Driver::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+			Multiplexer::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (Packet::IsDone(Event))
 				Callback(0);
@@ -1785,9 +1785,9 @@ namespace Edge
 		{
 			ED_MEASURE(ED_TIMING_NET);
 			if (Gracefully)
-				Driver::CancelEvents(this, SocketPoll::Reset);
+				Multiplexer::CancelEvents(this, SocketPoll::Reset);
 			else
-				Driver::ClearEvents(this);
+				Multiplexer::ClearEvents(this);
 			return 0;
 		}
 		int Socket::MigrateTo(socket_t NewFd, bool Gracefully)
@@ -1927,15 +1927,15 @@ namespace Edge
 		}
 		bool Socket::IsPendingForRead()
 		{
-			return Driver::IsAwaitingReadable(this);
+			return Multiplexer::IsAwaitingReadable(this);
 		}
 		bool Socket::IsPendingForWrite()
 		{
-			return Driver::IsAwaitingWriteable(this);
+			return Multiplexer::IsAwaitingWriteable(this);
 		}
 		bool Socket::IsPending()
 		{
-			return Driver::IsAwaitingEvents(this);
+			return Multiplexer::IsAwaitingEvents(this);
 		}
 		std::string Socket::GetRemoteAddress()
 		{
@@ -2091,7 +2091,7 @@ namespace Edge
 
 		SocketServer::SocketServer() noexcept : Backlog(1024)
 		{
-			Driver::SetActive(true);
+			Multiplexer::SetActive(true);
 #ifndef ED_MICROSOFT
 			signal(SIGPIPE, SIG_IGN);
 #endif
@@ -2099,7 +2099,7 @@ namespace Edge
 		SocketServer::~SocketServer() noexcept
 		{
 			Unlisten();
-			Driver::SetActive(false);
+			Multiplexer::SetActive(false);
 		}
 		void SocketServer::SetRouter(SocketRouter* New)
 		{
@@ -2446,7 +2446,7 @@ namespace Edge
 				case SSL_ERROR_WANT_ACCEPT:
 				case SSL_ERROR_WANT_READ:
 				{
-					return Driver::WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
+					return Multiplexer::WhenReadable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							OnRequestBegin(Base);
@@ -2456,7 +2456,7 @@ namespace Edge
 				}
 				case SSL_ERROR_WANT_WRITE:
 				{
-					return Driver::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
+					return Multiplexer::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (Packet::IsDone(Event))
 							OnRequestBegin(Base);
@@ -2605,7 +2605,7 @@ namespace Edge
 
 		SocketClient::SocketClient(int64_t RequestTimeout) noexcept : Context(nullptr), Timeout(RequestTimeout), AutoEncrypt(true)
 		{
-			Driver::SetActive(true);
+			Multiplexer::SetActive(true);
 			Stream.UserData = this;
 		}
 		SocketClient::~SocketClient() noexcept
@@ -2622,7 +2622,7 @@ namespace Edge
 				Context = nullptr;
 			}
 #endif
-			Driver::SetActive(false);
+			Multiplexer::SetActive(false);
 		}
 		Core::Promise<int> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
@@ -2772,7 +2772,7 @@ namespace Edge
 			{
 				case SSL_ERROR_WANT_READ:
 				{
-					Driver::WhenReadable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::WhenReadable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{
@@ -2787,7 +2787,7 @@ namespace Edge
 				case SSL_ERROR_WANT_CONNECT:
 				case SSL_ERROR_WANT_WRITE:
 				{
-					Driver::WhenWriteable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+					Multiplexer::WhenWriteable(&Stream, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
 					{
 						if (!Packet::IsDone(Event))
 						{

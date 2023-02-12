@@ -2130,7 +2130,7 @@ namespace Edge
 			}
 			bool Cluster::Reprocess(Connection* Source)
 			{
-				return Edge::Network::Driver::WhenReadable(Source->Stream, [this, Source](SocketPoll Event)
+				return Edge::Network::Multiplexer::WhenReadable(Source->Stream, [this, Source](SocketPoll Event)
 				{
 					if (!Packet::IsSkip(Event))
 						Dispatch(Source, !Packet::IsError(Event));
@@ -2142,8 +2142,8 @@ namespace Edge
 				Base->State = QueryState::Busy;
 				if (PQflush(Base->Base) == 1)
 				{
-					Edge::Network::Driver::CancelEvents(Base->Stream);
-					return Edge::Network::Driver::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
+					Edge::Network::Multiplexer::CancelEvents(Base->Stream);
+					return Edge::Network::Multiplexer::WhenWriteable(Base->Stream, [this, Base](SocketPoll Event)
 					{
 						if (!Packet::IsSkip(Event))
 							Flush(Base, true);
@@ -2273,7 +2273,7 @@ namespace Edge
 				{
 					using Map1 = Core::Mapping<std::unordered_map<std::string, Sequence>>;
 					using Map2 = Core::Mapping<std::unordered_map<std::string, std::string>>;
-					Network::Driver::SetActive(true);
+					Network::Multiplexer::SetActive(true);
 
 					Queries = ED_NEW(Map1);
 					Constants = ED_NEW(Map2);
@@ -2289,7 +2289,7 @@ namespace Edge
 #ifdef ED_HAS_POSTGRESQL
 				if (State == 1)
 				{
-					Network::Driver::SetActive(false);
+					Network::Multiplexer::SetActive(false);
 					if (Safe != nullptr)
 						Safe->lock();
 

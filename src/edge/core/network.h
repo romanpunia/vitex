@@ -20,7 +20,7 @@ namespace Edge
 	{
 		struct EpollHandle;
 
-		class Driver;
+		class Multiplexer;
 
 		class Socket;
 
@@ -234,7 +234,7 @@ namespace Edge
 			static int64_t Clock();
 		};
 
-		class ED_OUT_TS Driver
+		class ED_OUT_TS Multiplexer
 		{
 		private:
 			static Core::Mapping<std::map<std::chrono::microseconds, Socket*>>* Timeouts;
@@ -296,7 +296,7 @@ namespace Edge
 		class ED_OUT Socket : public Core::Object
 		{
 			friend EpollHandle;
-			friend Driver;
+			friend Multiplexer;
 
 		private:
 			struct

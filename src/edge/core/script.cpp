@@ -4136,9 +4136,10 @@ namespace Edge
 			Engine->AddSubmodule("std/activity", { "std/string", "std/vectors" }, Bindings::Registry::LoadActivity);
 			Engine->AddSubmodule("std/graphics", { "std/activity", "std/string", "std/vectors", "std/vertices", "std/shapes", "std/key_frames" }, Bindings::Registry::LoadGraphics);
 			Engine->AddSubmodule("std/network", { "std/string", "std/array", "std/map" }, Bindings::Registry::LoadNetwork);
-			Engine->AddSubmodule("std/gui_control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
-			Engine->AddSubmodule("std/gui_model", { "std/gui_control", }, Bindings::Registry::LoadUiModel);
-			Engine->AddSubmodule("std/gui_context", { "std/gui_model" }, Bindings::Registry::LoadUiContext);
+			Engine->AddSubmodule("std/engine", { "std/schema", "std/key_frames", "std/file_system", "std/graphics" }, Bindings::Registry::LoadEngine);
+			Engine->AddSubmodule("std/engine/gui/control", { "std/vectors", "std/schema", "std/array" }, Bindings::Registry::LoadUiControl);
+			Engine->AddSubmodule("std/engine/gui/model", { "std/engine/gui/control", }, Bindings::Registry::LoadUiModel);
+			Engine->AddSubmodule("std/engine/gui/context", { "std/engine/gui/model" }, Bindings::Registry::LoadUiContext);
 			Engine->AddSubmodule("std", { }, nullptr);
 		}
 		size_t VMManager::GetDefaultAccessMask()

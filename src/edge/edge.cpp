@@ -582,7 +582,7 @@ namespace Edge
 		{
 			Network::MDB::Driver::Release();
 			Network::PDB::Driver::Release();
-			Network::Driver::Release();
+			Network::Multiplexer::Release();
 #ifdef ED_MICROSOFT
 			WSACleanup();
 #endif

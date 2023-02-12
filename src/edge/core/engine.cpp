@@ -5698,7 +5698,7 @@ namespace Edge
 			}
 #endif
 			if (I->Usage & (size_t)ApplicationSet::NetworkSet)
-				Network::Driver::Create(I->PollingTimeout, I->PollingEvents);
+				Network::Multiplexer::Create(I->PollingTimeout, I->PollingEvents);
 
 			State = ApplicationState::Staging;
 		}
@@ -5721,7 +5721,7 @@ namespace Edge
 			ED_RELEASE(Activity);
 
 			if (Control.Usage & (size_t)ApplicationSet::NetworkSet)
-				Network::Driver::Release();
+				Network::Multiplexer::Release();
 
 			Host = nullptr;
 		}

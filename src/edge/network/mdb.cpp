@@ -3413,7 +3413,7 @@ namespace Edge
 				{
 					using Map1 = Core::Mapping<std::unordered_map<std::string, Sequence>>;
 					using Map2 = Core::Mapping<std::unordered_map<std::string, std::string>>;
-					Network::Driver::SetActive(true);
+					Network::Multiplexer::SetActive(true);
 
 					Queries = ED_NEW(Map1);
 					Constants = ED_NEW(Map2);
@@ -3453,7 +3453,7 @@ namespace Edge
 #ifdef ED_HAS_MONGOC
 				if (State == 1)
 				{
-					Network::Driver::SetActive(false);
+					Network::Multiplexer::SetActive(false);
 					if (Safe != nullptr)
 						Safe->lock();
 

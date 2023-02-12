@@ -7234,13 +7234,13 @@ namespace Edge
 				return Base.Wait(Fds.data(), Fds.size(), Timeout);
 			}
 
-			bool DriverWhenReadable(Network::Socket* Base, VMCFunction* Callback)
+			bool MultiplexerWhenReadable(Network::Socket* Base, VMCFunction* Callback)
 			{
 				VMContext* Context = VMContext::Get();
 				if (!Context || !Callback)
 					return false;
 
-				return Network::Driver::WhenReadable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
+				return Network::Multiplexer::WhenReadable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
 				{
 					Context->TryExecute(false, Callback, [Base, Poll](VMContext* Context)
 					{
@@ -7249,13 +7249,13 @@ namespace Edge
 					}).Wait();
 				});
 			}
-			bool DriverWhenWriteable(Network::Socket* Base, VMCFunction* Callback)
+			bool MultiplexerWhenWriteable(Network::Socket* Base, VMCFunction* Callback)
 			{
 				VMContext* Context = VMContext::Get();
 				if (!Context || !Callback)
 					return false;
 
-				return Network::Driver::WhenWriteable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
+				return Network::Multiplexer::WhenWriteable(Base, [Base, Context, Callback](Network::SocketPoll Poll)
 				{
 					Context->TryExecute(false, Callback, [Base, Poll](VMContext* Context)
 					{
@@ -7293,6 +7293,33 @@ namespace Edge
 			bool SocketConnectionError(Network::SocketConnection* Base, int Code, const std::string& Message)
 			{
 				return Base->Error(Code, "%s", Message.c_str());
+			}
+
+			void EventSetArgs(Engine::Event& Base, Map* Data)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_VARIANT ">@");
+				Base.Args = Map::Decompose<Core::Variant>(Type.GetTypeId(), Data);
+			}
+			Map* EventGetArgs(Engine::Event& Base)
+			{
+				VMTypeInfo Type = VMManager::Get()->Global().GetTypeInfoByDecl(TYPENAME_MAP "<" TYPENAME_VARIANT ">@");
+				return Map::Compose<Core::Variant>(Type.GetTypeId(), Base.Args);
+			}
+
+			Engine::Viewer& ViewerCopy(Engine::Viewer& Base, Engine::Viewer& Other)
+			{
+				if (&Base == &Other)
+					return Base;
+
+				ED_RELEASE(Base.Renderer);
+				Base = Other;
+				ED_ASSIGN(Base.Renderer, Other.Renderer);
+
+				return Base;
+			}
+			void ViewerDestructor(Engine::Viewer& Base)
+			{
+				ED_RELEASE(Base.Renderer);
 			}
 
 			bool IElementDispatchEvent(Engine::GUI::IElement& Base, const std::string& Name, Core::Schema* Args)
@@ -9860,7 +9887,7 @@ namespace Edge
 				VRigidBody.SetMethod("physics_rigidbody_desc& get_initial_state()", &Compute::RigidBody::GetInitialState);
 				VRigidBody.SetMethod("physics_simulator@+ get_simulator() const", &Compute::RigidBody::GetSimulator);
 
-				VMTypeClass VSoftBodySConvex = Engine->Global().SetPod<Compute::SoftBody::Desc::CV::SConvex>("physics_softbody_desc_cv_sconvex");
+				VMTypeClass VSoftBodySConvex = Engine->Global().SetStruct<Compute::SoftBody::Desc::CV::SConvex>("physics_softbody_desc_cv_sconvex");
 				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("physics_hull_shape@ hull", &Compute::SoftBody::Desc::CV::SConvex::Hull);
 				VSoftBodySConvex.SetProperty<Compute::SoftBody::Desc::CV::SConvex>("bool enabled", &Compute::SoftBody::Desc::CV::SConvex::Enabled);
 				VSoftBodySConvex.SetConstructor<Compute::SoftBody::Desc::CV::SConvex>("void f()");
@@ -12254,24 +12281,24 @@ namespace Edge
 				Register.SetFunction("void release()", &Network::DNS::Release);
 				Engine->EndNamespace();
 
-				Engine->BeginNamespace("net_driver");
+				Engine->BeginNamespace("multiplexer");
 				Register.SetFunctionDef("void poll_event(socket@+, socket_poll)");
-				Register.SetFunction("void create(uint64 = 50, usize = 256)", &Network::Driver::Create);
-				Register.SetFunction("void release()", &Network::Driver::Release);
-				Register.SetFunction("void set_active(bool)", &Network::Driver::SetActive);
-				Register.SetFunction("int dispatch(uint64)", &Network::Driver::Dispatch);
-				Register.SetFunction("bool when_readable(socket@+, poll_event@+)", &DriverWhenReadable);
-				Register.SetFunction("bool when_writeable(socket@+, poll_event@+)", &DriverWhenWriteable);
-				Register.SetFunction("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Driver::CancelEvents);
-				Register.SetFunction("bool clear_events(socket@+)", &Network::Driver::ClearEvents);
-				Register.SetFunction("bool is_awaiting_events(socket@+)", &Network::Driver::IsAwaitingEvents);
-				Register.SetFunction("bool is_awaiting_readable(socket@+)", &Network::Driver::IsAwaitingReadable);
-				Register.SetFunction("bool is_awaiting_writeable(socket@+)", &Network::Driver::IsAwaitingWriteable);
-				Register.SetFunction("bool is_listening()", &Network::Driver::IsListening);
-				Register.SetFunction("bool is_active()", &Network::Driver::IsActive);
-				Register.SetFunction("usize get_activations()", &Network::Driver::GetActivations);
-				Register.SetFunction("string get_local_address()", &Network::Driver::GetLocalAddress);
-				Register.SetFunction<std::string(addrinfo*)>("string get_address(uptr@)", &Network::Driver::GetAddress);
+				Register.SetFunction("void create(uint64 = 50, usize = 256)", &Network::Multiplexer::Create);
+				Register.SetFunction("void release()", &Network::Multiplexer::Release);
+				Register.SetFunction("void set_active(bool)", &Network::Multiplexer::SetActive);
+				Register.SetFunction("int dispatch(uint64)", &Network::Multiplexer::Dispatch);
+				Register.SetFunction("bool when_readable(socket@+, poll_event@+)", &MultiplexerWhenReadable);
+				Register.SetFunction("bool when_writeable(socket@+, poll_event@+)", &MultiplexerWhenWriteable);
+				Register.SetFunction("bool cancel_events(socket@+, socket_poll = socket_poll::cancel, bool = true)", &Network::Multiplexer::CancelEvents);
+				Register.SetFunction("bool clear_events(socket@+)", &Network::Multiplexer::ClearEvents);
+				Register.SetFunction("bool is_awaiting_events(socket@+)", &Network::Multiplexer::IsAwaitingEvents);
+				Register.SetFunction("bool is_awaiting_readable(socket@+)", &Network::Multiplexer::IsAwaitingReadable);
+				Register.SetFunction("bool is_awaiting_writeable(socket@+)", &Network::Multiplexer::IsAwaitingWriteable);
+				Register.SetFunction("bool is_listening()", &Network::Multiplexer::IsListening);
+				Register.SetFunction("bool is_active()", &Network::Multiplexer::IsActive);
+				Register.SetFunction("usize get_activations()", &Network::Multiplexer::GetActivations);
+				Register.SetFunction("string get_local_address()", &Network::Multiplexer::GetLocalAddress);
+				Register.SetFunction<std::string(addrinfo*)>("string get_address(uptr@)", &Network::Multiplexer::GetAddress);
 				Engine->EndNamespace();
 
 				VMRefClass VSocketListener = Register.SetClassUnmanaged<Network::SocketListener>("socket_listener");
@@ -12332,6 +12359,228 @@ namespace Edge
 				return true;
 #else
 				ED_ASSERT(false, false, "<network> is not loaded");
+				return false;
+#endif
+			}
+			bool Registry::LoadEngine(VMManager* Engine)
+			{
+#ifdef ED_HAS_BINDINGS
+				ED_ASSERT(Engine != nullptr, false, "manager should be set");
+				VMGlobal& Register = Engine->Global();
+
+				VMEnum VApplicationSet = Register.SetEnum("application_set");
+				VApplicationSet.SetValue("graphics_set", (int)Engine::ApplicationSet::GraphicsSet);
+				VApplicationSet.SetValue("activity_set", (int)Engine::ApplicationSet::ActivitySet);
+				VApplicationSet.SetValue("audio_set", (int)Engine::ApplicationSet::AudioSet);
+				VApplicationSet.SetValue("script_set", (int)Engine::ApplicationSet::ScriptSet);
+				VApplicationSet.SetValue("content_set", (int)Engine::ApplicationSet::ContentSet);
+				VApplicationSet.SetValue("network_set", (int)Engine::ApplicationSet::NetworkSet);
+
+				VMEnum VApplicationState = Register.SetEnum("application_state");
+				VApplicationState.SetValue("terminated", (int)Engine::ApplicationState::Terminated);
+				VApplicationState.SetValue("staging", (int)Engine::ApplicationState::Staging);
+				VApplicationState.SetValue("active", (int)Engine::ApplicationState::Active);
+				VApplicationState.SetValue("restart", (int)Engine::ApplicationState::Restart);
+
+				VMEnum VRenderOpt = Register.SetEnum("render_opt");
+				VRenderOpt.SetValue("none", (int)Engine::RenderOpt::None);
+				VRenderOpt.SetValue("transparent", (int)Engine::RenderOpt::Transparent);
+				VRenderOpt.SetValue("static", (int)Engine::RenderOpt::Static);
+				VRenderOpt.SetValue("additive", (int)Engine::RenderOpt::Additive);
+
+				VMEnum VRenderCulling = Register.SetEnum("render_culling");
+				VRenderCulling.SetValue("linear", (int)Engine::RenderCulling::Linear);
+				VRenderCulling.SetValue("cubic", (int)Engine::RenderCulling::Cubic);
+				VRenderCulling.SetValue("disable", (int)Engine::RenderCulling::Disable);
+
+				VMEnum VRenderState = Register.SetEnum("render_state");
+				VRenderState.SetValue("geometry_result", (int)Engine::RenderState::Geometry_Result);
+				VRenderState.SetValue("geometry_voxels", (int)Engine::RenderState::Geometry_Voxels);
+				VRenderState.SetValue("depth_linear", (int)Engine::RenderState::Depth_Linear);
+				VRenderState.SetValue("depth_cubic", (int)Engine::RenderState::Depth_Cubic);
+
+				VMEnum VGeoCategory = Register.SetEnum("geo_category");
+				VGeoCategory.SetValue("opaque", (int)Engine::GeoCategory::Opaque);
+				VGeoCategory.SetValue("transparent", (int)Engine::GeoCategory::Transparent);
+				VGeoCategory.SetValue("additive", (int)Engine::GeoCategory::Additive);
+				VGeoCategory.SetValue("count", (int)Engine::GeoCategory::Count);
+
+				VMEnum VBufferType = Register.SetEnum("buffer_type");
+				VBufferType.SetValue("index", (int)Engine::BufferType::Index);
+				VBufferType.SetValue("vertex", (int)Engine::BufferType::Vertex);
+
+				VMEnum VTargetType = Register.SetEnum("target_type");
+				VTargetType.SetValue("main", (int)Engine::TargetType::Main);
+				VTargetType.SetValue("secondary", (int)Engine::TargetType::Secondary);
+				VTargetType.SetValue("count", (int)Engine::TargetType::Count);
+
+				VMEnum VVoxelType = Register.SetEnum("voxel_type");
+				VVoxelType.SetValue("diffuse", (int)Engine::VoxelType::Diffuse);
+				VVoxelType.SetValue("normal", (int)Engine::VoxelType::Normal);
+				VVoxelType.SetValue("surface", (int)Engine::VoxelType::Surface);
+
+				VMEnum VEventTarget = Register.SetEnum("event_target");
+				VEventTarget.SetValue("scene", (int)Engine::EventTarget::Scene);
+				VEventTarget.SetValue("entity", (int)Engine::EventTarget::Entity);
+				VEventTarget.SetValue("component", (int)Engine::EventTarget::Component);
+				VEventTarget.SetValue("listener", (int)Engine::EventTarget::Listener);
+
+				VMEnum VActorSet = Register.SetEnum("actor_set");
+				VActorSet.SetValue("none", (int)Engine::ActorSet::None);
+				VActorSet.SetValue("update", (int)Engine::ActorSet::Update);
+				VActorSet.SetValue("synchronize", (int)Engine::ActorSet::Synchronize);
+				VActorSet.SetValue("animate", (int)Engine::ActorSet::Animate);
+				VActorSet.SetValue("message", (int)Engine::ActorSet::Message);
+				VActorSet.SetValue("cullable", (int)Engine::ActorSet::Cullable);
+				VActorSet.SetValue("drawable", (int)Engine::ActorSet::Drawable);
+
+				VMEnum VActorType = Register.SetEnum("actor_type");
+				VActorType.SetValue("update", (int)Engine::ActorType::Update);
+				VActorType.SetValue("synchronize", (int)Engine::ActorType::Synchronize);
+				VActorType.SetValue("animate", (int)Engine::ActorType::Animate);
+				VActorType.SetValue("message", (int)Engine::ActorType::Message);
+				VActorType.SetValue("count", (int)Engine::ActorType::Count);
+
+				VMEnum VComposerTag = Register.SetEnum("composer_tag");
+				VComposerTag.SetValue("component", (int)Engine::ComposerTag::Component);
+				VComposerTag.SetValue("renderer", (int)Engine::ComposerTag::Renderer);
+				VComposerTag.SetValue("effect", (int)Engine::ComposerTag::Effect);
+				VComposerTag.SetValue("filter", (int)Engine::ComposerTag::Filter);
+
+				VMTypeClass VTicker = Register.SetStructUnmanaged<Engine::Ticker>("clock_ticker");
+				VTicker.SetProperty<Engine::Ticker>("float delay", &Engine::Ticker::Delay);
+				VTicker.SetConstructor<Engine::Ticker>("void f()");
+				VTicker.SetMethod("bool tick_event(float)", &Engine::Ticker::TickEvent);
+				VTicker.SetMethod("float get_time() const", &Engine::Ticker::GetTime);
+
+				VMTypeClass VEvent = Register.SetStructUnmanaged<Engine::Event>("scene_event");
+				VEvent.SetProperty<Engine::Event>("string name", &Engine::Event::Name);
+				VEvent.SetConstructor<Engine::Event, const std::string&>("void f(const string &in)");
+				VEvent.SetMethodEx("void set_args(map@+)", &EventSetArgs);
+				VEvent.SetMethodEx("map@ get_args() const", &EventGetArgs);
+
+				VMRefClass VMaterial = Register.SetClassUnmanaged<Engine::Material>("material");
+				VMTypeClass VBatchData = Register.SetStructUnmanaged<Engine::BatchData>("batch_data");
+				VBatchData.SetProperty<Engine::BatchData>("element_buffer@ instances_buffer", &Engine::BatchData::InstanceBuffer);
+				VBatchData.SetProperty<Engine::BatchData>("uptr@ GeometryBuffer", &Engine::BatchData::GeometryBuffer);
+				VBatchData.SetProperty<Engine::BatchData>("material@ batch_material", &Engine::BatchData::BatchMaterial);
+				VBatchData.SetProperty<Engine::BatchData>("usize instances_count", &Engine::BatchData::InstancesCount);
+				VBatchData.SetConstructor<Engine::BatchData>("void f()");
+
+				VMTypeClass VAssetCache = Register.SetStructUnmanaged<Engine::AssetCache>("asset_cache");
+				VAssetCache.SetProperty<Engine::AssetCache>("string path", &Engine::AssetCache::Path);
+				VAssetCache.SetProperty<Engine::AssetCache>("uptr@ resource", &Engine::AssetCache::Resource);
+				VAssetCache.SetConstructor<Engine::AssetCache>("void f()");
+
+				VMTypeClass VAssetArchive = Register.SetStructUnmanaged<Engine::AssetArchive>("asset_archive");
+				VAssetArchive.SetProperty<Engine::AssetArchive>("base_stream@ stream", &Engine::AssetArchive::Stream);
+				VAssetArchive.SetProperty<Engine::AssetArchive>("string path", &Engine::AssetArchive::Path);
+				VAssetArchive.SetProperty<Engine::AssetArchive>("usize length", &Engine::AssetArchive::Length);
+				VAssetArchive.SetProperty<Engine::AssetArchive>("usize offset", &Engine::AssetArchive::Offset);
+				VAssetArchive.SetConstructor<Engine::AssetArchive>("void f()");
+
+				VMRefClass VAssetFile = Register.SetClassUnmanaged<Engine::AssetFile>("asset_file");
+				VAssetFile.SetUnmanagedConstructor<Engine::AssetFile, char*, size_t>("asset_file@ f(uptr@, usize)");
+				VAssetFile.SetMethod("uptr@ get_buffer() const", &Engine::AssetFile::GetBuffer);
+				VAssetFile.SetMethod("usize get_size() const", &Engine::AssetFile::GetSize);
+
+				VMTypeClass VVisibilityQuery = Register.SetPod<Engine::VisibilityQuery>("visibility_query");
+				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("geo_category category", &Engine::VisibilityQuery::Category);
+				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("bool boundary_visible", &Engine::VisibilityQuery::BoundaryVisible);
+				VVisibilityQuery.SetProperty<Engine::VisibilityQuery>("bool query_pixels", &Engine::VisibilityQuery::QueryPixels);
+				VVisibilityQuery.SetConstructor<Engine::VisibilityQuery>("void f()");
+
+				VMTypeClass VAnimatorState = Register.SetPod<Engine::AnimatorState>("animator_state");
+				VAnimatorState.SetProperty<Engine::AnimatorState>("bool paused", &Engine::AnimatorState::Paused);
+				VAnimatorState.SetProperty<Engine::AnimatorState>("bool looped", &Engine::AnimatorState::Looped);
+				VAnimatorState.SetProperty<Engine::AnimatorState>("bool blended", &Engine::AnimatorState::Blended);
+				VAnimatorState.SetProperty<Engine::AnimatorState>("float duration", &Engine::AnimatorState::Duration);
+				VAnimatorState.SetProperty<Engine::AnimatorState>("float rate", &Engine::AnimatorState::Rate);
+				VAnimatorState.SetProperty<Engine::AnimatorState>("float time", &Engine::AnimatorState::Time);
+				VAnimatorState.SetProperty<Engine::AnimatorState>("int64 frame", &Engine::AnimatorState::Frame);
+				VAnimatorState.SetProperty<Engine::AnimatorState>("int64 clip", &Engine::AnimatorState::Clip);
+				VAnimatorState.SetConstructor<Engine::AnimatorState>("void f()");
+
+				VMTypeClass VSpawnerProperties = Register.SetPod<Engine::SpawnerProperties>("spawner_properties");
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector4 diffusion", &Engine::SpawnerProperties::Diffusion);
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector3 position", &Engine::SpawnerProperties::Position);
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector3 velocity", &Engine::SpawnerProperties::Velocity);
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_vector3 noise", &Engine::SpawnerProperties::Noise);
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_float rotation", &Engine::SpawnerProperties::Rotation);
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_float scale", &Engine::SpawnerProperties::Scale);
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("random_float angular", &Engine::SpawnerProperties::Angular);
+				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("int32 iterations", &Engine::SpawnerProperties::Iterations);
+				VSpawnerProperties.SetConstructor<Engine::SpawnerProperties>("void f()");
+
+				VMRefClass VRenderSystem = Register.SetClassUnmanaged<Engine::RenderSystem>("render_system");
+				VMTypeClass VViewer = Register.SetStruct<Engine::Viewer>("viewer");
+				VViewer.SetProperty<Engine::Viewer>("render_system@ renderer", &Engine::Viewer::Renderer);
+				VViewer.SetProperty<Engine::Viewer>("render_culling Culling", &Engine::Viewer::Culling);
+				VViewer.SetProperty<Engine::Viewer>("matrix4x4 inv_view_projection", &Engine::Viewer::InvViewProjection);
+				VViewer.SetProperty<Engine::Viewer>("matrix4x4 view_projection", &Engine::Viewer::ViewProjection);
+				VViewer.SetProperty<Engine::Viewer>("matrix4x4 projection", &Engine::Viewer::Projection);
+				VViewer.SetProperty<Engine::Viewer>("matrix4x4 view", &Engine::Viewer::View);
+				VViewer.SetProperty<Engine::Viewer>("vector3 inv_position", &Engine::Viewer::InvPosition);
+				VViewer.SetProperty<Engine::Viewer>("vector3 position", &Engine::Viewer::Position);
+				VViewer.SetProperty<Engine::Viewer>("vector3 rotation", &Engine::Viewer::Rotation);
+				VViewer.SetProperty<Engine::Viewer>("float far_plane", &Engine::Viewer::FarPlane);
+				VViewer.SetProperty<Engine::Viewer>("float near_plane", &Engine::Viewer::NearPlane);
+				VViewer.SetProperty<Engine::Viewer>("float ratio", &Engine::Viewer::Ratio);
+				VViewer.SetProperty<Engine::Viewer>("float fov", &Engine::Viewer::Fov);
+				VViewer.SetOperatorCopyStatic(&ViewerCopy);
+				VViewer.SetDestructorStatic("void f()", &ViewerDestructor);
+				VViewer.SetMethod<Engine::Viewer, void, const Compute::Matrix4x4&, const Compute::Matrix4x4&, const Compute::Vector3&, float, float, float, float, Engine::RenderCulling>("void set(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::Viewer::Set);
+				VViewer.SetMethod<Engine::Viewer, void, const Compute::Matrix4x4&, const Compute::Matrix4x4&, const Compute::Vector3&, const Compute::Vector3&, float, float, float, float, Engine::RenderCulling>("void set(const matrix4x4 &in, const matrix4x4 &in, const vector3 &in, const vector3 &in, float, float, float, float, render_culling)", &Engine::Viewer::Set);
+
+				VMTypeClass VAttenuation = Register.SetPod<Engine::Attenuation>("attenuation");
+				VAttenuation.SetProperty<Engine::Attenuation>("float radius", &Engine::Attenuation::Radius);
+				VAttenuation.SetProperty<Engine::Attenuation>("float c1", &Engine::Attenuation::C1);
+				VAttenuation.SetProperty<Engine::Attenuation>("float c2", &Engine::Attenuation::C2);
+				VAttenuation.SetConstructor<Engine::Attenuation>("void f()");
+
+				VMTypeClass VSubsurface = Register.SetPod<Engine::Subsurface>("subsurface");
+				VSubsurface.SetProperty<Engine::Subsurface>("vector4 emission", &Engine::Subsurface::Emission);
+				VSubsurface.SetProperty<Engine::Subsurface>("vector4 metallic", &Engine::Subsurface::Metallic);
+				VSubsurface.SetProperty<Engine::Subsurface>("vector3 diffuse", &Engine::Subsurface::Diffuse);
+				VSubsurface.SetProperty<Engine::Subsurface>("float fresnel", &Engine::Subsurface::Fresnel);
+				VSubsurface.SetProperty<Engine::Subsurface>("vector3 scatter", &Engine::Subsurface::Scatter);
+				VSubsurface.SetProperty<Engine::Subsurface>("float transparency", &Engine::Subsurface::Transparency);
+				VSubsurface.SetProperty<Engine::Subsurface>("vector3 padding", &Engine::Subsurface::Padding);
+				VSubsurface.SetProperty<Engine::Subsurface>("float bias", &Engine::Subsurface::Bias);
+				VSubsurface.SetProperty<Engine::Subsurface>("vector2 roughness", &Engine::Subsurface::Roughness);
+				VSubsurface.SetProperty<Engine::Subsurface>("float refraction", &Engine::Subsurface::Refraction);
+				VSubsurface.SetProperty<Engine::Subsurface>("float environment", &Engine::Subsurface::Environment);
+				VSubsurface.SetProperty<Engine::Subsurface>("vector2 occlusion", &Engine::Subsurface::Occlusion);
+				VSubsurface.SetProperty<Engine::Subsurface>("float radius", &Engine::Subsurface::Radius);
+				VSubsurface.SetProperty<Engine::Subsurface>("float height", &Engine::Subsurface::Height);
+				VSubsurface.SetConstructor<Engine::Subsurface>("void f()");
+
+				VMRefClass VSceneGraph = Register.SetClassUnmanaged<Engine::SceneGraph>("scene_graph");
+				VMaterial.SetProperty<Engine::Material>("subsurface surface", &Engine::Material::Surface);
+				VMaterial.SetProperty<Engine::Material>("usize slot", &Engine::Material::Slot);
+				VMaterial.SetUnmanagedConstructor<Engine::Material, Engine::SceneGraph*>("material@ f(scene_graph@+)");
+				VMaterial.SetMethod("void set_name(const string &in)", &Engine::Material::SetName);
+				VMaterial.SetMethod("const string& get_name(const string &in)", &Engine::Material::GetName);
+				VMaterial.SetMethod("void set_diffuse_map(texture_2d@+)", &Engine::Material::SetDiffuseMap);
+				VMaterial.SetMethod("texture_2d@+ get_diffuse_map() const", &Engine::Material::GetDiffuseMap);
+				VMaterial.SetMethod("void set_normal_map(texture_2d@+)", &Engine::Material::SetNormalMap);
+				VMaterial.SetMethod("texture_2d@+ get_normal_map() const", &Engine::Material::GetNormalMap);
+				VMaterial.SetMethod("void set_metallic_map(texture_2d@+)", &Engine::Material::SetMetallicMap);
+				VMaterial.SetMethod("texture_2d@+ get_metallic_map() const", &Engine::Material::GetMetallicMap);
+				VMaterial.SetMethod("void set_roughness_map(texture_2d@+)", &Engine::Material::SetRoughnessMap);
+				VMaterial.SetMethod("texture_2d@+ get_roughness_map() const", &Engine::Material::GetRoughnessMap);
+				VMaterial.SetMethod("void set_height_map(texture_2d@+)", &Engine::Material::SetHeightMap);
+				VMaterial.SetMethod("texture_2d@+ get_height_map() const", &Engine::Material::GetHeightMap);
+				VMaterial.SetMethod("void set_occlusion_map(texture_2d@+)", &Engine::Material::SetOcclusionMap);
+				VMaterial.SetMethod("texture_2d@+ get_occlusion_map() const", &Engine::Material::GetOcclusionMap);
+				VMaterial.SetMethod("void set_emission_map(texture_2d@+)", &Engine::Material::SetEmissionMap);
+				VMaterial.SetMethod("texture_2d@+ get_emission_map() const", &Engine::Material::GetEmissionMap);
+				VMaterial.SetMethod("scene_graph@+ get_scene() const", &Engine::Material::GetScene);
+
+				// TODO: bind other <engine> interfaces
+				return true;
+#else
+				ED_ASSERT(false, false, "<engine> is not loaded");
 				return false;
 #endif
 			}
@@ -12671,7 +12920,7 @@ namespace Edge
 
 				return true;
 #else
-				ED_ASSERT(false, false, "<ui_control> is not loaded");
+				ED_ASSERT(false, false, "<engine/gui/control> is not loaded");
 				return false;
 #endif
 			}
@@ -12716,7 +12965,7 @@ namespace Edge
 
 				return true;
 #else
-				ED_ASSERT(false, false, "<ui_model> is not loaded");
+				ED_ASSERT(false, false, "<engine/gui/model> is not loaded");
 				return false;
 #endif
 			}
@@ -12768,7 +13017,7 @@ namespace Edge
 
 				return true;
 #else
-				ED_ASSERT(false, false, "<ui_context> is not loaded");
+				ED_ASSERT(false, false, "<engine/gui/context> is not loaded");
 				return false;
 #endif
 			}

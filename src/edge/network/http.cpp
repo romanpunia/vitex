@@ -279,7 +279,7 @@ namespace Edge
 						goto Retry;
 					}
 
-					Driver::WhenReadable(Stream, [this](SocketPoll Event)
+					Multiplexer::WhenReadable(Stream, [this](SocketPoll Event)
 					{
 						bool IsDone = Packet::IsDone(Event);
 						if (!IsDone && !Packet::IsError(Event))

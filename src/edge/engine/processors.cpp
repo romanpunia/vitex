@@ -1414,7 +1414,7 @@ namespace Edge
 			void* Server::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				std::string N = Network::Driver::GetLocalAddress();
+				std::string N = Network::Multiplexer::GetLocalAddress();
 				std::string D = Core::OS::Path::GetDirectory(Stream->GetSource().c_str());
 				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
 				auto* Router = new Network::HTTP::MapRouter();

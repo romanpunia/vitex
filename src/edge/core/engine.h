@@ -769,14 +769,14 @@ namespace Edge
 		class ED_OUT RenderSystem : public Core::Object
 		{
 		public:
-			struct
+			struct RsIndex
 			{
 				Compute::Cosmos::Iterator Stack;
 				Compute::Frustum6P Frustum;
 				Compute::Bounding Bounds;
 			} Indexing;
 
-			struct
+			struct RsState
 			{
 				friend RenderSystem;
 

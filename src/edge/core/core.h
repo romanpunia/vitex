@@ -25,8 +25,12 @@
 #define ED_UNIX 1
 #define ED_CDECL
 #define ED_OUT
-#define ED_MAX_PATH _POSIX_PATH_MAX
 #define ED_FILENO fileno
+#ifdef PATH_MAX
+#define ED_MAX_PATH PATH_MAX
+#else
+#define ED_MAX_PATH _POSIX_PATH_MAX
+#endif
 #if __x86_64__ || __ppc64__
 #define ED_64 1
 #else
@@ -36,8 +40,12 @@
 #define ED_UNIX 1
 #define ED_CDECL
 #define ED_OUT
-#define ED_MAX_PATH _POSIX_PATH_MAX
 #define ED_FILENO fileno
+#ifdef PATH_MAX
+#define ED_MAX_PATH PATH_MAX
+#else
+#define ED_MAX_PATH _POSIX_PATH_MAX
+#endif
 #if __x86_64__ || __ppc64__
 #define ED_64 1
 #else

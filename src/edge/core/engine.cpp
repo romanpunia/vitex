@@ -5087,7 +5087,7 @@ namespace Edge
 				return Object;
 
 			std::string File = Path;
-			if (!Core::OS::Path::IsRemote(File.c_str()))
+			if (!Core::OS::Path::IsRemote(File.c_str()) && !Core::OS::File::IsExists(File.c_str()))
 			{
 				Mutex.lock();
 				File = Core::OS::Path::ResolveResource(File, Environment);

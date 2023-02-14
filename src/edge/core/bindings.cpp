@@ -8583,8 +8583,6 @@ namespace Edge
 				Register.SetFunction("string get_extension(const string &in)", &OSPathGetExtension);
 				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolve(const string &in, const string &in)", &Core::OS::Path::Resolve);
 				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolve_directory(const string &in, const string &in)", &Core::OS::Path::ResolveDirectory);
-				Register.SetFunction<std::string(const std::string&)>("string resolve_resource(const string &in)", &Core::OS::Path::ResolveResource);
-				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolve_resource(const string &in, const string &in)", &Core::OS::Path::ResolveResource);
 				Engine->EndNamespace();
 
 				Engine->BeginNamespace("os::process");

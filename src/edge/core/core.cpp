@@ -166,6 +166,11 @@ namespace
 		}
 	};
 
+	bool IsPathExists(const char* Path)
+	{
+		struct stat Buffer;
+		return stat(Path, &Buffer) == 0;
+	}
 	void GetDateTime(time_t Time, char* Date, size_t Size)
 	{
 		tm DateTime { };
@@ -6963,8 +6968,8 @@ namespace Edge
 			Scan(Result, &Entries);
 
 			Parser R(&Result);
-			if (!R.EndsWith('/') && !R.EndsWith('\\'))
-				Result += '/';
+			if (!R.EndsOf("/\\"))
+				Result += ED_PATH_SPLIT;
 
 			for (auto& Entry : Entries)
 			{
@@ -7281,9 +7286,7 @@ namespace Edge
 		{
 			ED_ASSERT(Path != nullptr, false, "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
-
-			struct stat Buffer;
-			return stat(Path::Resolve(Path).c_str(), &Buffer) == 0;
+			return IsPathExists(OS::Path::Resolve(Path).c_str());
 		}
 		int OS::File::Compare(const std::string& FirstPath, const std::string& SecondPath)
 		{
@@ -7529,22 +7532,34 @@ namespace Edge
 		std::string OS::Path::Resolve(const std::string& Path, const std::string& Directory)
 		{
 			ED_ASSERT(!Path.empty() && !Directory.empty(), "", "path and directory should not be empty");
-			if (Parser(&Path).StartsOf("/\\"))
-				return Resolve(("." + Path).c_str());
+			if (IsPathExists(Path.c_str()))
+				return Path;
 
-			if (Parser(&Directory).EndsOf("/\\"))
-				return Resolve((Directory + Path).c_str());
-#ifdef ED_MICROSOFT
-			return Resolve((Directory + "\\" + Path).c_str());
-#else
-			return Resolve((Directory + "/" + Path).c_str());
-#endif
+			Parser PathData(&Path), DirectoryData(&Directory);
+			bool Prefixed = PathData.StartsOf("/\\");
+			bool Relative = !Prefixed && (PathData.StartsWith("./") || PathData.StartsWith(".\\"));
+			bool Postfixed = DirectoryData.EndsOf("/\\");
+
+			std::string Target = Directory;
+			if (!Prefixed && !Postfixed)
+				Target.append(1, ED_PATH_SPLIT);
+
+			if (Relative)
+				Target.append(Path.c_str() + 2, Path.size() - 2);
+			else
+				Target.append(Path);
+
+			Target.assign(Resolve(Target.c_str()));
+			if (IsPathExists(Target.c_str()))
+				return Target;
+
+			return Path;
 		}
 		std::string OS::Path::ResolveDirectory(const char* Path)
 		{
 			std::string Result = Resolve(Path);
 			if (!Result.empty() && !Parser(&Result).EndsOf("/\\"))
-				Result += '/';
+				Result.append(1, ED_PATH_SPLIT);
 
 			return Result;
 		}
@@ -7552,40 +7567,9 @@ namespace Edge
 		{
 			std::string Result = Resolve(Path, Directory);
 			if (!Result.empty() && !Parser(&Result).EndsOf("/\\"))
-				Result += '/';
+				Result.append(1, ED_PATH_SPLIT);
 
 			return Result;
-		}
-		std::string OS::Path::ResolveResource(const std::string& Path)
-		{
-			if (Path.empty() || OS::File::IsExists(Path.c_str()))
-				return Path;
-
-			std::string fPath = Resolve(Path.c_str());
-			if (!fPath.empty() && OS::File::IsExists(fPath.c_str()))
-				return fPath;
-
-			fPath.clear();
-			return fPath;
-		}
-		std::string OS::Path::ResolveResource(const std::string& Path, const std::string& Directory)
-		{
-			if (Path.empty() || OS::File::IsExists(Path.c_str()))
-				return Path;
-
-			std::string fPath = Resolve(Path.c_str());
-			if (!fPath.empty() && OS::File::IsExists(fPath.c_str()))
-				return fPath;
-
-			if (!Directory.empty())
-			{
-				fPath = Resolve(Path.c_str(), Directory);
-				if (!fPath.empty() && OS::File::IsExists(fPath.c_str()))
-					return fPath;
-			}
-
-			fPath.clear();
-			return fPath;
 		}
 		std::string OS::Path::GetDirectory(const char* Path, size_t Level)
 		{
@@ -8573,7 +8557,7 @@ namespace Edge
 		FileLog::FileLog(const std::string& Root) noexcept : Offset(-1), Time(0), Path(Root)
 		{
 			Source = new FileStream();
-			auto V = Parser(&Path).Replace("/", "\\").Split('\\');
+			auto V = Parser(&Path).Replace('\\', '/').Split('/');
 			if (!V.empty())
 				Name = V.back();
 		}

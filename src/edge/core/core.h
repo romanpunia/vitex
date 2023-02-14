@@ -4,8 +4,9 @@
 #if defined(_WIN32) || defined(_WIN64)
 #define ED_MICROSOFT 1
 #define ED_CDECL __cdecl
-#define ED_MAX_PATH MAX_PATH
 #define ED_FILENO _fileno
+#define ED_PATH_SPLIT '\\'
+#define ED_MAX_PATH MAX_PATH
 #ifndef ED_EXPORT
 #define ED_OUT __declspec(dllimport)
 #else
@@ -26,6 +27,7 @@
 #define ED_CDECL
 #define ED_OUT
 #define ED_FILENO fileno
+#define ED_PATH_SPLIT '/'
 #ifdef PATH_MAX
 #define ED_MAX_PATH PATH_MAX
 #else
@@ -41,6 +43,7 @@
 #define ED_CDECL
 #define ED_OUT
 #define ED_FILENO fileno
+#define ED_PATH_SPLIT '/'
 #ifdef PATH_MAX
 #define ED_MAX_PATH PATH_MAX
 #else
@@ -1068,8 +1071,6 @@ namespace Edge
 				static std::string Resolve(const std::string& Path, const std::string& Directory);
 				static std::string ResolveDirectory(const char* Path);
 				static std::string ResolveDirectory(const std::string& Path, const std::string& Directory);
-				static std::string ResolveResource(const std::string& Path);
-				static std::string ResolveResource(const std::string& Path, const std::string& Directory);
 				static std::string GetDirectory(const char* Path, size_t Level = 0);
 				static const char* GetFilename(const char* Path);
 				static const char* GetExtension(const char* Path);

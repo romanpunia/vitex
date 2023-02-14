@@ -2036,7 +2036,7 @@ namespace Edge
 			{
 				std::string Path = Args[0];
 				if (!Path.empty())
-					Path = Core::OS::Path::ResolveResource(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
+					Path = Core::OS::Path::Resolve(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
 
 				Manager->ImportLibrary(Path);
 			}

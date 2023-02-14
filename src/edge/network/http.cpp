@@ -5800,7 +5800,7 @@ namespace Edge
 						Core::OS::Directory::Patch(Entry->ResourceRoot);
 
 					if (!Entry->Base->Override.empty())
-						Entry->Base->Override = Core::OS::Path::ResolveResource(Entry->Base->Override, Entry->Base->DocumentRoot);
+						Entry->Base->Override = Core::OS::Path::Resolve(Entry->Base->Override, Entry->Base->DocumentRoot);
 
 					for (auto& Group : Entry->Groups)
 					{
@@ -5808,7 +5808,7 @@ namespace Edge
 						{
 							Route->Site = Entry;
 							if (!Route->Override.empty())
-								Route->Override = Core::OS::Path::ResolveResource(Route->Override, Route->DocumentRoot);
+								Route->Override = Core::OS::Path::Resolve(Route->Override, Route->DocumentRoot);
 
 							if (!Root->VM || !Entry->Gateway.Enabled || !Entry->Gateway.Verify)
 								continue;

@@ -5049,7 +5049,7 @@ namespace Edge
 		}
 		void ContentManager::InvalidatePath(const std::string& Path)
 		{
-			std::string File = Core::OS::Path::ResolveResource(Path, Environment);
+			std::string File = Core::OS::Path::Resolve(Path, Environment);
 			if (File.empty())
 				return;
 
@@ -5087,10 +5087,10 @@ namespace Edge
 				return Object;
 
 			std::string File = Path;
-			if (!Core::OS::Path::IsRemote(File.c_str()) && !Core::OS::File::IsExists(File.c_str()))
+			if (!Core::OS::Path::IsRemote(File.c_str()))
 			{
 				Mutex.lock();
-				File = Core::OS::Path::ResolveResource(File, Environment);
+				File = Core::OS::Path::Resolve(File, Environment);
 				Mutex.unlock();
 
 				if (File.empty())
@@ -5193,7 +5193,7 @@ namespace Edge
 		bool ContentManager::Import(const std::string& Path)
 		{
 			Mutex.lock();
-			std::string File = Core::OS::Path::ResolveResource(Path, Environment);
+			std::string File = Core::OS::Path::Resolve(Path, Environment);
 			Mutex.unlock();
 
 			if (File.empty())

@@ -7549,11 +7549,7 @@ namespace Edge
 			else
 				Target.append(Path);
 
-			Target.assign(Resolve(Target.c_str()));
-			if (IsPathExists(Target.c_str()))
-				return Target;
-
-			return Path;
+			return Resolve(Target.c_str());
 		}
 		std::string OS::Path::ResolveDirectory(const char* Path)
 		{

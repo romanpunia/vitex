@@ -619,11 +619,7 @@ namespace Edge
 				std::unique_lock Unique(Exclusive);
 				auto It = Names.find(Identity);
 				if (It != Names.end() && It->second.first > Time)
-				{
-					SocketAddress* Result = It->second.second;
-					Exclusive.unlock();
-					return Result;
-				}
+					return It->second.second;
 			}
 
 			struct addrinfo* Addresses = nullptr;

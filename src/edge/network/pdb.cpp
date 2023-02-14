@@ -2388,28 +2388,43 @@ namespace Edge
 				std::vector<std::pair<std::string, Core::Parser::Settle>> Variables;
 				for (auto& Item : Base.FindInBetween("$<", ">", Quotes.c_str()))
 				{
-					Item.first += "__1";
+					Item.first += ";escape";
+					if (Base.IsPrecededBy(Item.second.Start, "-"))
+					{
+						Item.first += ";negate";
+						--Item.second.Start;
+					}
+
 					Variables.emplace_back(std::move(Item));
 				}
 
 				for (auto& Item : Base.FindInBetween("@<", ">", Quotes.c_str()))
 				{
-					Item.first += "__2";
+					Item.first += ";unsafe";
+					if (Base.IsPrecededBy(Item.second.Start, "-"))
+					{
+						Item.first += ";negate";
+						--Item.second.Start;
+					}
+
 					Variables.emplace_back(std::move(Item));
 				}
 
-				Base.ReplaceParts(Variables, "", [&Erasable](char Left)
+				Base.ReplaceParts(Variables, "", [&Erasable](const std::string& Name, char Left, int Side)
 				{
+					if (Side < 0 && Name.find(";negate") != std::string::npos)
+						return '\0';
+
 					return Erasable.find(Left) == std::string::npos ? ' ' : '\0';
 				});
 
 				for (auto& Item : Variables)
 				{
 					Pose Position;
-					Position.Negate = Base.IsPrecededBy(Item.second.Start, "-");
-					Position.Escape = Item.first.find("__1") != std::string::npos;
+					Position.Negate = Item.first.find(";negate") != std::string::npos;
+					Position.Escape = Item.first.find(";escape") != std::string::npos;
 					Position.Offset = Item.second.Start;
-					Position.Key = Item.first.substr(0, Item.first.size() - 3);
+					Position.Key = Item.first.substr(0, Item.first.find(';'));
 					Result.Positions.emplace_back(std::move(Position));
 				}
 

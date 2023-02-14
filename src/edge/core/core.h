@@ -693,8 +693,8 @@ namespace Edge
 			Parser& ReplaceStartsWithEndsOf(const char* Begins, const char* EndsOf, const std::string& With, size_t Start = 0U);
 			Parser& ReplaceInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
 			Parser& ReplaceNotInBetween(const char* Begins, const char* Ends, const std::string& With, bool Recursive, size_t Start = 0U);
-			Parser& ReplaceParts(std::vector<std::pair<std::string, Parser::Settle>>& Inout, const std::string& With, const std::function<char(char)>& Surrounding = nullptr);
-			Parser& ReplaceParts(std::vector<Parser::Settle>& Inout, const std::string& With, const std::function<char(char)>& Surrounding = nullptr);
+			Parser& ReplaceParts(std::vector<std::pair<std::string, Parser::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding = nullptr);
+			Parser& ReplaceParts(std::vector<Parser::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding = nullptr);
 			Parser& RemovePart(size_t Start, size_t End);
 			Parser& Reverse();
 			Parser& Reverse(size_t Start, size_t End);

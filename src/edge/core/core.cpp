@@ -3481,7 +3481,7 @@ namespace Edge
 			Base->replace(Base->begin() + ReplaceAt, Base->end(), With);
 			return *this;
 		}
-		Parser& Parser::ReplaceParts(std::vector<std::pair<std::string, Parser::Settle>>& Inout, const std::string& With, const std::function<char(char)>& Surrounding)
+		Parser& Parser::ReplaceParts(std::vector<std::pair<std::string, Parser::Settle>>& Inout, const std::string& With, const std::function<char(const std::string&, char, int)>& Surrounding)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_SORT(Inout.begin(), Inout.end(), [](const std::pair<std::string, Parser::Settle>& A, const std::pair<std::string, Parser::Settle>& B)
@@ -3503,14 +3503,14 @@ namespace Edge
 					std::string Replacement = With;
 					if (Item.second.Start > 0)
 					{
-						char Next = Surrounding(Base->at(Item.second.Start - 1));
+						char Next = Surrounding(Item.first, Base->at(Item.second.Start - 1), -1);
 						if (Next != '\0')
 							Replacement.insert(Replacement.begin(), Next);
 					}
 
 					if (Item.second.End < Base->size())
 					{
-						char Next = Surrounding(Base->at(Item.second.End));
+						char Next = Surrounding(Item.first, Base->at(Item.second.End), 1);
 						if (Next != '\0')
 							Replacement.push_back(Next);
 					}
@@ -3529,7 +3529,7 @@ namespace Edge
 
 			return *this;
 		}
-		Parser& Parser::ReplaceParts(std::vector<Parser::Settle>& Inout, const std::string& With, const std::function<char(char)>& Surrounding)
+		Parser& Parser::ReplaceParts(std::vector<Parser::Settle>& Inout, const std::string& With, const std::function<char(char, int)>& Surrounding)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");	
 			ED_SORT(Inout.begin(), Inout.end(), [](const Parser::Settle& A, const Parser::Settle& B)
@@ -3551,14 +3551,14 @@ namespace Edge
 					std::string Replacement = With;
 					if (Item.Start > 0)
 					{
-						char Next = Surrounding(Base->at(Item.Start - 1));
+						char Next = Surrounding(Base->at(Item.Start - 1), -1);
 						if (Next != '\0')
 							Replacement.insert(Replacement.begin(), Next);
 					}
 
 					if (Item.End < Base->size())
 					{
-						char Next = Surrounding(Base->at(Item.End));
+						char Next = Surrounding(Base->at(Item.End), 1);
 						if (Next != '\0')
 							Replacement.push_back(Next);
 					}

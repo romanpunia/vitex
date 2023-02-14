@@ -7511,7 +7511,7 @@ namespace Edge
 		{
 			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
-			char Buffer[ED_BIG_CHUNK_SIZE];
+			char Buffer[ED_BIG_CHUNK_SIZE] = { 0 };
 #ifdef ED_MICROSOFT
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
 				return Path;

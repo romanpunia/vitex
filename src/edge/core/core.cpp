@@ -7522,7 +7522,6 @@ namespace Edge
 			if (!realpath(Path, Buffer))
 				return Path;
 
-			ED_INFO("resolve: %s >> %s", Path, Buffer);
 			return Buffer;
 #endif
 			return Path;

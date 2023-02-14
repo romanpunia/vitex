@@ -50,6 +50,21 @@ extern "C"
 #include <zlib.h>
 }
 #endif
+#define PATIENCE 300
+#define MAX_STORE 16
+#define TRIGGER 1024
+#define DICT 32768U
+#define NO_OP 0
+#define APPEND_OP 1
+#define COMPRESS_OP 2
+#define REPLACE_OP 3
+#define PULL2(p) ((p)[0]+((uint32_t)((p)[1])<<8))
+#define PULL4(p) (PULL2(p)+((uint32_t)PULL2(p+2)<<16))
+#define PULL8(p) (PULL4(p)+((off_t)PULL4(p+4)<<32))
+#define PUT2(p,a) do {(p)[0]=a;(p)[1]=(a)>>8;} while(0)
+#define PUT4(p,a) do {PUT2(p,a);PUT2(p+2,a>>16);} while(0)
+#define PUT8(p,a) do {PUT4(p,a);PUT4(p+4,a>>32);} while(0)
+#define LOGID "\106\035\172"
 #define PREFIX_ENUM "$"
 #define PREFIX_BINARY "`"
 #define JSONB_HEADER ("edge-jsonb-data")
@@ -2318,7 +2333,7 @@ namespace Edge
 			if (DateRebuild)
 				Rebuild();
 
-			char Buffer[256];
+			char Buffer[ED_CHUNK_SIZE];
 			strftime(Buffer, sizeof(Buffer), Value.c_str(), &DateValue);
 			return Buffer;
 		}
@@ -6212,11 +6227,11 @@ namespace Edge
 					Resource = gzopen(Path.c_str(), "wb");
 					ED_DEBUG("[gz] open wb %s", Path.c_str());
 					break;
+				case FileMode::Append_Only:
+				case FileMode::Binary_Append_Only:
 				case FileMode::Read_Write:
 				case FileMode::Write_Read:
-				case FileMode::Append_Only:
 				case FileMode::Read_Append_Write:
-				case FileMode::Binary_Append_Only:
 				case FileMode::Binary_Read_Write:
 				case FileMode::Binary_Write_Read:
 				case FileMode::Binary_Read_Append_Write:

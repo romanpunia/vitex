@@ -7511,17 +7511,13 @@ namespace Edge
 		{
 			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
 			ED_MEASURE(ED_TIMING_IO);
-#ifdef ED_MICROSOFT
 			char Buffer[ED_CHUNK_SIZE] = { 0 };
+#ifdef ED_MICROSOFT
 			if (GetFullPathNameA(Path, sizeof(Buffer), Buffer, nullptr) == 0)
 				return Path;
 #elif defined ED_UNIX
-			char* Data = realpath(Path, nullptr);
-			if (!Data)
+			if (!realpath(Path, Buffer))
 				return Path;
-
-			std::string Buffer = Data;
-			ED_FREE(Data);
 #endif
 			return Buffer;
 		}

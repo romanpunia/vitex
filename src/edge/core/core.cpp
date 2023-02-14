@@ -7518,11 +7518,12 @@ namespace Edge
 
 			return Buffer;
 #elif defined ED_UNIX
+			ED_INFO("resolve: %s", Path);
 			char Buffer[ED_BIG_CHUNK_SIZE] = { 0 };
 			if (!realpath(Path, Buffer))
 				return Path;
 
-			return Parser(Buffer).Replace("/./", "/").R();
+			return Buffer;
 #endif
 			return Path;
 		}

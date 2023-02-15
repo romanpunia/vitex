@@ -1906,146 +1906,156 @@ namespace Edge
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
 			{
 				ED_ASSERT(Manager != nullptr, false, "engine should be set");
-			if (Include && Include(C, File, Out))
-				return true;
+				if (Include && Include(C, File, Out))
+					return true;
 
-			if (File.Module.empty() || !Module)
-				return false;
+				if (File.Module.empty() || !Module)
+					return false;
 
-			if (!File.IsFile && File.IsSystem)
-				return Manager->ImportSubmodule(File.Module);
+				if (!File.IsFile && File.IsSystem)
+					return Manager->ImportSubmodule(File.Module);
 
-			std::string Buffer;
-			if (!Manager->ImportFile(File.Module, &Buffer))
-				return false;
+				std::string Buffer;
+				if (!Manager->ImportFile(File.Module, &Buffer))
+					return false;
 
-			if (!C->Process(File.Module, Buffer))
-				return false;
+				if (!C->Process(File.Module, Buffer))
+					return false;
 
-			return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
+				return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Name, const std::vector<std::string>& Args)
 			{
 				ED_ASSERT(Manager != nullptr, false, "engine should be set");
-			if (Pragma && Pragma(C, Name, Args))
+				if (Pragma && Pragma(C, Name, Args))
+					return true;
+
+				if (Name == "compile" && Args.size() == 2)
+				{
+					const std::string& Key = Args[0];
+					Core::Parser Value(&Args[1]);
+
+					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
+					if (Key == "ALLOW_UNSAFE_REFERENCES")
+						Manager->SetProperty(VMProp::ALLOW_UNSAFE_REFERENCES, Result);
+					else if (Key == "OPTIMIZE_BYTECODE")
+						Manager->SetProperty(VMProp::OPTIMIZE_BYTECODE, Result);
+					else if (Key == "COPY_SCRIPT_SECTIONS")
+						Manager->SetProperty(VMProp::COPY_SCRIPT_SECTIONS, Result);
+					else if (Key == "MAX_STACK_SIZE")
+						Manager->SetProperty(VMProp::MAX_STACK_SIZE, Result);
+					else if (Key == "USE_CHARACTER_LITERALS")
+						Manager->SetProperty(VMProp::USE_CHARACTER_LITERALS, Result);
+					else if (Key == "ALLOW_MULTILINE_STRINGS")
+						Manager->SetProperty(VMProp::ALLOW_MULTILINE_STRINGS, Result);
+					else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
+						Manager->SetProperty(VMProp::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
+					else if (Key == "BUILD_WITHOUT_LINE_CUES")
+						Manager->SetProperty(VMProp::BUILD_WITHOUT_LINE_CUES, Result);
+					else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
+						Manager->SetProperty(VMProp::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
+					else if (Key == "REQUIRE_ENUM_SCOPE")
+						Manager->SetProperty(VMProp::REQUIRE_ENUM_SCOPE, Result);
+					else if (Key == "SCRIPT_SCANNER")
+						Manager->SetProperty(VMProp::SCRIPT_SCANNER, Result);
+					else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
+						Manager->SetProperty(VMProp::INCLUDE_JIT_INSTRUCTIONS, Result);
+					else if (Key == "STRING_ENCODING")
+						Manager->SetProperty(VMProp::STRING_ENCODING, Result);
+					else if (Key == "PROPERTY_ACCESSOR_MODE")
+						Manager->SetProperty(VMProp::PROPERTY_ACCESSOR_MODE, Result);
+					else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
+						Manager->SetProperty(VMProp::EXPAND_DEF_ARRAY_TO_TMPL, Result);
+					else if (Key == "AUTO_GARBAGE_COLLECT")
+						Manager->SetProperty(VMProp::AUTO_GARBAGE_COLLECT, Result);
+					else if (Key == "DISALLOW_GLOBAL_VARS")
+						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+					else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
+						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+					else if (Key == "COMPILER_WARNINGS")
+						Manager->SetProperty(VMProp::COMPILER_WARNINGS, Result);
+					else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
+						Manager->SetProperty(VMProp::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
+					else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
+						Manager->SetProperty(VMProp::ALTER_SYNTAX_NAMED_ARGS, Result);
+					else if (Key == "DISABLE_INTEGER_DIVISION")
+						Manager->SetProperty(VMProp::DISABLE_INTEGER_DIVISION, Result);
+					else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
+						Manager->SetProperty(VMProp::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
+					else if (Key == "PRIVATE_PROP_AS_PROTECTED")
+						Manager->SetProperty(VMProp::PRIVATE_PROP_AS_PROTECTED, Result);
+					else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
+						Manager->SetProperty(VMProp::ALLOW_UNICODE_IDENTIFIERS, Result);
+					else if (Key == "HEREDOC_TRIM_MODE")
+						Manager->SetProperty(VMProp::HEREDOC_TRIM_MODE, Result);
+					else if (Key == "MAX_NESTED_CALLS")
+						Manager->SetProperty(VMProp::MAX_NESTED_CALLS, Result);
+					else if (Key == "GENERIC_CALL_MODE")
+						Manager->SetProperty(VMProp::GENERIC_CALL_MODE, Result);
+					else if (Key == "INIT_STACK_SIZE")
+						Manager->SetProperty(VMProp::INIT_STACK_SIZE, Result);
+					else if (Key == "INIT_CALL_STACK_SIZE")
+						Manager->SetProperty(VMProp::INIT_CALL_STACK_SIZE, Result);
+					else if (Key == "MAX_CALL_STACK_SIZE")
+						Manager->SetProperty(VMProp::MAX_CALL_STACK_SIZE, Result);
+				}
+				else if (Name == "comment" && Args.size() == 2)
+				{
+					const std::string& Key = Args[0];
+					if (Key == "INFO")
+						ED_INFO("[compiler] %s", Args[1].c_str());
+					else if (Key == "TRACE")
+						ED_DEBUG("[compiler] %s", Args[1].c_str());
+					else if (Key == "WARN")
+						ED_WARN("[compiler] %s", Args[1].c_str());
+					else if (Key == "ERR")
+						ED_ERR("[compiler] %s", Args[1].c_str());
+				}
+				else if (Name == "modify" && Args.size() == 2)
+				{
+					const std::string& Key = Args[0];
+					Core::Parser Value(&Args[1]);
+
+					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
+					if (Key == "NAME")
+						Module->SetName(Value.Get());
+					else if (Key == "NAMESPACE")
+						Module->SetDefaultNamespace(Value.Get());
+					else if (Key == "ACCESS_MASK")
+						Module->SetAccessMask((asDWORD)Result);
+				}
+				else if (Name == "cimport" && Args.size() >= 2)
+				{
+					bool Loaded;
+					if (Args.size() == 3)
+						Loaded = Manager->ImportLibrary(Args[0]) && Manager->ImportSymbol({ Args[0] }, Args[1], Args[2]);
+					else
+						Loaded = Manager->ImportSymbol({ }, Args[0], Args[1]);
+
+					if (Loaded)
+						Define("SOF_" + Args[1]);
+				}
+				else if (Name == "clibrary" && Args.size() >= 1)
+				{
+					std::string Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
+					std::string Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::Get() : Directory);
+
+					bool Loaded = Manager->ImportLibrary(Path1) || Manager->ImportLibrary(Path2);
+					if (Loaded && Args.size() == 2 && !Args[1].empty())
+						Define("SOL_" + Args[1]);
+				}
+				else if (Name == "define" && Args.size() == 1)
+					Define(Args[0]);
+
 				return true;
-
-			if (Name == "compile" && Args.size() == 2)
-			{
-				const std::string& Key = Args[0];
-				Core::Parser Value(&Args[1]);
-
-				size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
-				if (Key == "ALLOW_UNSAFE_REFERENCES")
-					Manager->SetProperty(VMProp::ALLOW_UNSAFE_REFERENCES, Result);
-				else if (Key == "OPTIMIZE_BYTECODE")
-					Manager->SetProperty(VMProp::OPTIMIZE_BYTECODE, Result);
-				else if (Key == "COPY_SCRIPT_SECTIONS")
-					Manager->SetProperty(VMProp::COPY_SCRIPT_SECTIONS, Result);
-				else if (Key == "MAX_STACK_SIZE")
-					Manager->SetProperty(VMProp::MAX_STACK_SIZE, Result);
-				else if (Key == "USE_CHARACTER_LITERALS")
-					Manager->SetProperty(VMProp::USE_CHARACTER_LITERALS, Result);
-				else if (Key == "ALLOW_MULTILINE_STRINGS")
-					Manager->SetProperty(VMProp::ALLOW_MULTILINE_STRINGS, Result);
-				else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
-					Manager->SetProperty(VMProp::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
-				else if (Key == "BUILD_WITHOUT_LINE_CUES")
-					Manager->SetProperty(VMProp::BUILD_WITHOUT_LINE_CUES, Result);
-				else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
-					Manager->SetProperty(VMProp::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
-				else if (Key == "REQUIRE_ENUM_SCOPE")
-					Manager->SetProperty(VMProp::REQUIRE_ENUM_SCOPE, Result);
-				else if (Key == "SCRIPT_SCANNER")
-					Manager->SetProperty(VMProp::SCRIPT_SCANNER, Result);
-				else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
-					Manager->SetProperty(VMProp::INCLUDE_JIT_INSTRUCTIONS, Result);
-				else if (Key == "STRING_ENCODING")
-					Manager->SetProperty(VMProp::STRING_ENCODING, Result);
-				else if (Key == "PROPERTY_ACCESSOR_MODE")
-					Manager->SetProperty(VMProp::PROPERTY_ACCESSOR_MODE, Result);
-				else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
-					Manager->SetProperty(VMProp::EXPAND_DEF_ARRAY_TO_TMPL, Result);
-				else if (Key == "AUTO_GARBAGE_COLLECT")
-					Manager->SetProperty(VMProp::AUTO_GARBAGE_COLLECT, Result);
-				else if (Key == "DISALLOW_GLOBAL_VARS")
-					Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-				else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
-					Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
-				else if (Key == "COMPILER_WARNINGS")
-					Manager->SetProperty(VMProp::COMPILER_WARNINGS, Result);
-				else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
-					Manager->SetProperty(VMProp::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
-				else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
-					Manager->SetProperty(VMProp::ALTER_SYNTAX_NAMED_ARGS, Result);
-				else if (Key == "DISABLE_INTEGER_DIVISION")
-					Manager->SetProperty(VMProp::DISABLE_INTEGER_DIVISION, Result);
-				else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
-					Manager->SetProperty(VMProp::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
-				else if (Key == "PRIVATE_PROP_AS_PROTECTED")
-					Manager->SetProperty(VMProp::PRIVATE_PROP_AS_PROTECTED, Result);
-				else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
-					Manager->SetProperty(VMProp::ALLOW_UNICODE_IDENTIFIERS, Result);
-				else if (Key == "HEREDOC_TRIM_MODE")
-					Manager->SetProperty(VMProp::HEREDOC_TRIM_MODE, Result);
-				else if (Key == "MAX_NESTED_CALLS")
-					Manager->SetProperty(VMProp::MAX_NESTED_CALLS, Result);
-				else if (Key == "GENERIC_CALL_MODE")
-					Manager->SetProperty(VMProp::GENERIC_CALL_MODE, Result);
-				else if (Key == "INIT_STACK_SIZE")
-					Manager->SetProperty(VMProp::INIT_STACK_SIZE, Result);
-				else if (Key == "INIT_CALL_STACK_SIZE")
-					Manager->SetProperty(VMProp::INIT_CALL_STACK_SIZE, Result);
-				else if (Key == "MAX_CALL_STACK_SIZE")
-					Manager->SetProperty(VMProp::MAX_CALL_STACK_SIZE, Result);
-			}
-			else if (Name == "comment" && Args.size() == 2)
-			{
-				const std::string& Key = Args[0];
-				if (Key == "INFO")
-					ED_INFO("[compiler] %s", Args[1].c_str());
-				else if (Key == "TRACE")
-					ED_DEBUG("[compiler] %s", Args[1].c_str());
-				else if (Key == "WARN")
-					ED_WARN("[compiler] %s", Args[1].c_str());
-				else if (Key == "ERR")
-					ED_ERR("[compiler] %s", Args[1].c_str());
-			}
-			else if (Name == "modify" && Args.size() == 2)
-			{
-				const std::string& Key = Args[0];
-				Core::Parser Value(&Args[1]);
-
-				size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
-				if (Key == "NAME")
-					Module->SetName(Value.Get());
-				else if (Key == "NAMESPACE")
-					Module->SetDefaultNamespace(Value.Get());
-				else if (Key == "ACCESS_MASK")
-					Module->SetAccessMask((asDWORD)Result);
-			}
-			else if (Name == "cimport" && Args.size() >= 2)
-			{
-				std::vector<std::string> Sources;
-				if (Args.size() > 2)
-					Sources.assign(Args.begin() + 2, Args.end());
-
-				Manager->ImportSymbol(Sources, Args[1], Args[0]);
-			}
-			else if (Name == "clibrary" && Args.size() == 1)
-			{
-				std::string Path = Args[0];
-				if (!Path.empty())
-					Path = Core::OS::Path::Resolve(Path, Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str()));
-
-				Manager->ImportLibrary(Path);
-			}
-			else if (Name == "define" && Args.size() == 1)
-				Define(Args[0]);
-
-			return true;
 			});
-
+#ifdef ED_MICROSOFT
+			Processor->Define("OS_MICROSOFT");
+#elif defined(ED_APPLE)
+			Processor->Define("OS_APPLE");
+#elif defined(ED_UNIX)
+			Processor->Define("OS_UNIX");
+#endif
 			Context = Manager->CreateContext();
 			Context->SetUserData(this, CompilerUD);
 			Manager->SetProcessorOptions(Processor);
@@ -2208,7 +2218,7 @@ namespace Edge
 				return 0;
 
 			std::string Buffer(Data);
-			if (!Processor->Process("", Buffer))
+			if (!Processor->Process(Name, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
@@ -2226,7 +2236,7 @@ namespace Edge
 				return 0;
 
 			std::string Buffer(Data, Size);
-			if (!Processor->Process("", Buffer))
+			if (!Processor->Process(Name, Buffer))
 				return asINVALID_DECLARATION;
 
 			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
@@ -3805,56 +3815,54 @@ namespace Edge
 			if (!Engine || Decl.empty() || Func.empty())
 				return false;
 
-			Sync.General.lock();
-			auto Core = Kernels.end();
+			auto LoadFunction = [this, &Func, &Decl](Kernel& Context, bool Assert) -> bool
+			{
+				auto Handle = Context.Functions.find(Func);
+				if (Handle != Context.Functions.end())
+					return true;
+
+				VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Context.Handle, Func);
+				if (!Function)
+				{
+					if (Assert)
+						ED_ERR("[vm] cannot load shared object function: %s", Func.c_str());
+
+					return false;
+				}
+
+				if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
+				{
+					if (Assert)
+						ED_ERR("[vm] cannot register shared object function: %s", Decl.c_str());
+
+					return false;
+				}
+
+				Context.Functions.insert({ Func, (void*)Function });
+				ED_DEBUG("[vm] load function %s", Func.c_str());
+				return true;
+			};
+
+			std::unique_lock<std::mutex> Unique(Sync.General);
+			auto It = Kernels.end();
 			for (auto& Item : Sources)
 			{
-				Core = Kernels.find(Item);
-				if (Core != Kernels.end())
+				It = Kernels.find(Item);
+				if (It != Kernels.end())
 					break;
 			}
 
-			if (Core == Kernels.end())
-			{
-				Sync.General.unlock();
-				bool Failed = !ImportLibrary("");
-				Sync.General.lock();
+			if (It != Kernels.end())
+				return LoadFunction(It->second, true);
 
-				if (Failed || (Core = Kernels.find("")) == Kernels.end())
-				{
-					Sync.General.unlock();
-					ED_ERR("[vm] cannot load find function in any of presented libraries:\n\t%s", Func.c_str());
-					return false;
-				}
+			for (auto& Item : Kernels)
+			{
+				if (LoadFunction(Item.second, false))
+					return true;
 			}
 
-			auto Handle = Core->second.Functions.find(Func);
-			if (Handle != Core->second.Functions.end())
-			{
-				Sync.General.unlock();
-				return true;
-			}
-
-			VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Core->second.Handle, Func);
-			if (!Function)
-			{
-				ED_ERR("[vm] cannot load shared object function: %s", Func.c_str());
-				Sync.General.unlock();
-				return false;
-			}
-
-			if (Engine->RegisterGlobalFunction(Decl.c_str(), asFUNCTION(Function), asCALL_CDECL) < 0)
-			{
-				ED_ERR("[vm] cannot register shared object function: %s", Decl.c_str());
-				Sync.General.unlock();
-				return false;
-			}
-
-			Core->second.Functions.insert({ Func, (void*)Function });
-			Sync.General.unlock();
-
-			ED_DEBUG("[vm] load function %s", Func.c_str());
-			return true;
+			ED_ERR("[vm] cannot load shared object function: %s\n\tnot found in any of loaded shared objects", Func.c_str());
+			return false;
 		}
 		bool VMManager::ImportLibrary(const std::string& Path)
 		{

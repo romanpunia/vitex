@@ -8829,6 +8829,9 @@ namespace Edge
 				return ReturnResult(true, Nesting);
 
 			Core::Parser Buffer(&Data);
+			if (Features.Pragmas && !ProcessPragmaDirective(Path, Buffer))
+				return ReturnResult(false, Nesting);
+
 			if (Features.Conditions && !ProcessBlockDirective(Buffer))
 				return ReturnResult(false, Nesting);
 
@@ -8841,9 +8844,6 @@ namespace Edge
 				if (!ProcessIncludeDirective(Path, Buffer))
 					return ReturnResult(false, Nesting);
 			}
-
-			if (Features.Pragmas && !ProcessPragmaDirective(Path, Buffer))
-				return ReturnResult(false, Nesting);
 
 			size_t Offset;
 			if (Features.Defines && !ProcessDefineDirective(Buffer, 0, Offset, true))
@@ -8952,30 +8952,45 @@ namespace Edge
 				Args.clear();
 
 				auto fStart = Value.Find('(');
-				if (fStart.Found)
+				auto fEnd = Value.ReverseFind(')');
+				if (fStart.Found && fEnd.Found)
 				{
-					auto fEnd = Value.ReverseFind(')');
-					if (fEnd.Found)
-					{
-						std::string Subvalue;
-						bool Quoted = false;
-						size_t Index = fStart.End;
+					Core::Parser Params(Value);
+					Params.Substring(fStart.End, fEnd.Start - fStart.End);
+					Params.Trim();
+						
+					std::string& Source = Params.R();
+					size_t Word = 0, Index = 0;
 
-						while (Index < fEnd.End)
+					while (Index <= Source.size())
+					{
+						char V = Index == Source.size() ? '\0' : Source[Index];
+						if (V == ',' || Index + 1 >= Source.size())
 						{
-							char V = Value.R()[Index];
-							if (!Quoted && (V == ',' || V == ')'))
-							{
-								Core::Parser(&Subvalue).Trim().Replace("\\\"", "\"");
-								Args.push_back(Subvalue);
-								Subvalue.clear();
-							}
-							else if (V == '"' && (!Index || Value.R()[Index - 1] != '\\'))
-								Quoted = !Quoted;
-							else
-								Subvalue += V;
-							Index++;
+							Core::Parser Data(Source.substr(Word, Index - Word));
+							Data.Trim();
+
+							if (Data.Size() >= 2 && Data.StartsWith("\"") && Data.EndsWith('\"'))
+								Data.Substring(1, Data.Size() - 2);
+							else if (Data.Size() >= 2 && Data.StartsWith("\"") && Data.EndsWith('\"'))
+								Data.Substring(1, Data.Size() - 2);
+
+							Args.push_back(Data.R());
+							Word = ++Index;
 						}
+						else if (V == '\"' || V == '\'')
+						{
+							while (++Index < Source.size())
+							{
+								if (Source[Index] == V && Source[Index - 1] != '\\')
+								{
+									++Index;
+									break;
+								}
+							}
+						}
+						else
+							++Index;
 					}
 				}
 

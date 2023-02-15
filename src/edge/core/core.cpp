@@ -3624,17 +3624,17 @@ namespace Edge
 			if (Base->empty())
 				return *this;
 
-			return Reverse(0, Base->size() - 1);
+			return Reverse(0, Base->size());
 		}
 		Parser& Parser::Reverse(size_t Start, size_t End)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
 			ED_ASSERT(Base->size() >= 2, *this, "length should be at least 2 chars");
-			ED_ASSERT(End <= (Base->size() - 1), *this, "end should be less than length - 1");
-			ED_ASSERT(Start <= (Base->size() - 1), *this, "start should be less than length - 1");
+			ED_ASSERT(End < Base->size(), *this, "end should be less than length - 1");
+			ED_ASSERT(Start < Base->size(), *this, "start should be less than length - 1");
 			ED_ASSERT(Start < End, *this, "start should be less than end");
 
-			std::reverse(Base->begin() + Start, Base->begin() + End + 1);
+			std::reverse(Base->begin() + Start, Base->begin() + End);
 			return *this;
 		}
 		Parser& Parser::Substring(size_t Start)
@@ -3679,7 +3679,7 @@ namespace Edge
 		Parser& Parser::Splice(size_t Start, size_t End)
 		{
 			ED_ASSERT(Base != nullptr, *this, "cannot parse without context");
-			ED_ASSERT(Start <= (Base->size() - 1), *this, "result start should be less or equal than length - 1");
+			ED_ASSERT(Start < Base->size(), *this, "result start should be less or equal than length - 1");
 
 			if (End > Base->size())
 				End = (Base->size() - Start);
@@ -4097,11 +4097,11 @@ namespace Edge
 		{
 			ED_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			const char* Ptr = Base->c_str() - Offset;
 			if (Needle.c_str() > Ptr)
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			const char* It = nullptr;
 			for (It = Ptr + Base->size() - Needle.size(); It > Ptr; --It)
@@ -4113,20 +4113,20 @@ namespace Edge
 				}
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFind(const char* Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			if (!Needle)
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			const char* Ptr = Base->c_str() - Offset;
 			if (Needle > Ptr)
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			const char* It = nullptr;
 			size_t Length = strlen(Needle);
@@ -4136,45 +4136,45 @@ namespace Edge
 					return { (size_t)(It - Ptr), (size_t)(It - Ptr + Length), true };
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFind(const char& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
-			size_t Size = Base->size() - 1 - Offset;
+			size_t Size = Base->size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				if (Base->at(i) == Needle)
 					return { i, i + 1, true };
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFindUnescaped(const char& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
-			size_t Size = Base->size() - 1 - Offset;
+			size_t Size = Base->size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				if (Base->at(i) == Needle && ((int64_t)i - 1 < 0 || Base->at(i - 1) != '\\'))
 					return { i, i + 1, true };
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFindOf(const std::string& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
-			size_t Size = Base->size() - 1 - Offset;
+			size_t Size = Base->size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				for (char k : Needle)
@@ -4184,19 +4184,19 @@ namespace Edge
 				}
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::ReverseFindOf(const char* Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			if (!Needle)
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			size_t Length = strlen(Needle);
-			size_t Size = Base->size() - 1 - Offset;
+			size_t Size = Base->size() - Offset;
 			for (size_t i = Size; i-- > 0;)
 			{
 				for (size_t k = 0; k < Length; k++)
@@ -4206,17 +4206,17 @@ namespace Edge
 				}
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::Find(const std::string& Needle, size_t Offset) const
 		{
 			ED_ASSERT(Base != nullptr, Parser::Settle(), "cannot parse without context");
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			const char* It = strstr(Base->c_str() + Offset, Needle.c_str());
 			if (It == nullptr)
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			size_t Set = (size_t)(It - Base->c_str());
 			return { Set, Set + Needle.size(), true };
@@ -4227,11 +4227,11 @@ namespace Edge
 			ED_ASSERT(Needle != nullptr, Parser::Settle(), "needle should be set");
 
 			if (Base->empty() || Offset >= Base->size())
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			const char* It = strstr(Base->c_str() + Offset, Needle);
 			if (It == nullptr)
-				return { Base->size() - 1, Base->size(), false };
+				return { Base->size(), Base->size(), false };
 
 			size_t Set = (size_t)(It - Base->c_str());
 			return { Set, Set + strlen(Needle), true };
@@ -4245,7 +4245,7 @@ namespace Edge
 					return { i, i + 1, true };
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::FindUnescaped(const char& Needle, size_t Offset) const
 		{
@@ -4256,7 +4256,7 @@ namespace Edge
 					return { i, i + 1, true };
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::FindOf(const std::string& Needle, size_t Offset) const
 		{
@@ -4270,7 +4270,7 @@ namespace Edge
 				}
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::FindOf(const char* Needle, size_t Offset) const
 		{
@@ -4287,7 +4287,7 @@ namespace Edge
 				}
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::FindNotOf(const std::string& Needle, size_t Offset) const
 		{
@@ -4308,7 +4308,7 @@ namespace Edge
 					return { i, i + 1, true };
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		Parser::Settle Parser::FindNotOf(const char* Needle, size_t Offset) const
 		{
@@ -4332,7 +4332,7 @@ namespace Edge
 					return { i, i + 1, true };
 			}
 
-			return { Base->size() - 1, Base->size(), false };
+			return { Base->size(), Base->size(), false };
 		}
 		bool Parser::IsPrecededBy(size_t At, const char* Of) const
 		{

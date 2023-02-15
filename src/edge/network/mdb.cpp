@@ -1380,7 +1380,7 @@ namespace Edge
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Base)
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				auto* Context = Base;
 				return Core::Cotask<Document>([Context]() mutable
@@ -1395,14 +1395,14 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<bool> Stream::Execute()
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Base)
-					return true;
+					return Core::Promise<bool>(true);
 
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]() mutable
@@ -1413,7 +1413,7 @@ namespace Edge
 					return Subresult;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			size_t Stream::GetHint() const
@@ -1536,7 +1536,7 @@ namespace Edge
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Base)
-					return false;
+					return Core::Promise<bool>(false);
 
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context]()
@@ -1546,7 +1546,7 @@ namespace Edge
 					return mongoc_cursor_next(Context, (const TDocument**)&Query);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			int64_t Cursor::GetId() const
@@ -1652,10 +1652,10 @@ namespace Edge
 			Core::Promise<Core::Schema*> Response::Fetch() const
 			{
 				if (NetDocument)
-					return NetDocument.ToSchema();
+					return Core::Promise<Core::Schema*>(NetDocument.ToSchema());
 
 				if (!NetCursor)
-					return (Core::Schema*)nullptr;
+					return Core::Promise<Core::Schema*>(nullptr);
 
 				return NetCursor.Next().Then<Core::Schema*>([this](bool&& Result)
 				{
@@ -1667,11 +1667,11 @@ namespace Edge
 				if (NetDocument)
 				{
 					Core::Schema* Result = NetDocument.ToSchema();
-					return Result ? Result : Core::Var::Set::Array();
+					return Core::Promise<Core::Schema*>(Result ? Result : Core::Var::Set::Array());
 				}
 
 				if (!NetCursor)
-					return Core::Var::Set::Array();
+					return Core::Promise<Core::Schema*>(Core::Var::Set::Array());
 
 				return Core::Coasync<Core::Schema*>([this]()
 				{
@@ -1762,7 +1762,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Collection::RenameWithOptions(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
@@ -1774,7 +1774,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), false, Options.Get());
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Collection::RenameWithRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName) const
@@ -1786,7 +1786,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_collection_rename, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Collection::RenameWithOptionsAndRemove(const std::string& NewDatabaseName, const std::string& NewCollectionName, const Document& Options) const
@@ -1798,7 +1798,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_collection_rename_with_opts, Context, NewDatabaseName.c_str(), NewCollectionName.c_str(), true, Options.Get());
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Collection::Remove(const Document& Options) const
@@ -1810,7 +1810,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_collection_drop_with_opts, Context, Options.Get());
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Collection::RemoveIndex(const std::string& Name, const Document& Options) const
@@ -1822,7 +1822,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_collection_drop_index_with_opts, Context, Name.c_str(), Options.Get());
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<Document> Collection::RemoveMany(const Document& Match, const Document& Options) const
@@ -1841,7 +1841,7 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Collection::RemoveOne(const Document& Match, const Document& Options) const
@@ -1860,7 +1860,7 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Collection::ReplaceOne(const Document& Match, const Document& Replacement, const Document& Options) const
@@ -1879,13 +1879,13 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Collection::InsertMany(std::vector<Document>& List, const Document& Options) const
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(!List.empty(), Document(nullptr), "insert array should not be empty");
+				ED_ASSERT(!List.empty(), Core::Promise<Document>(Document(nullptr)), "insert array should not be empty");
 				std::vector<Document> Array(std::move(List));
 				auto* Context = Base;
 
@@ -1907,7 +1907,7 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Collection::InsertOne(const Document& Result, const Document& Options) const
@@ -1926,7 +1926,7 @@ namespace Edge
 					return Returns;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Collection::UpdateMany(const Document& Match, const Document& Update, const Document& Options) const
@@ -1945,7 +1945,7 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Collection::UpdateOne(const Document& Match, const Document& Update, const Document& Options) const
@@ -1964,7 +1964,7 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Collection::FindAndModify(const Document& Query, const Document& Sort, const Document& Update, const Document& Fields, bool RemoveAt, bool Upsert, bool New) const
@@ -1983,7 +1983,7 @@ namespace Edge
 					return Result;
 				});
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<size_t> Collection::CountDocuments(const Document& Match, const Document& Options) const
@@ -1995,7 +1995,7 @@ namespace Edge
 					return (size_t)MongoExecuteQuery(&mongoc_collection_count_documents, Context, Match.Get(), Options.Get(), nullptr, nullptr);
 				});
 #else
-				return (size_t)0;
+				return Core::Promise<size_t>(0);
 #endif
 			}
 			Core::Promise<size_t> Collection::CountDocumentsEstimated(const Document& Options) const
@@ -2007,7 +2007,7 @@ namespace Edge
 					return (size_t)MongoExecuteQuery(&mongoc_collection_estimated_document_count, Context, Options.Get(), nullptr, nullptr);
 				});
 #else
-				return (size_t)0;
+				return Core::Promise<size_t>(0);
 #endif
 			}
 			Core::Promise<Cursor> Collection::FindIndexes(const Document& Options) const
@@ -2019,7 +2019,7 @@ namespace Edge
 					return MongoExecuteCursor(&mongoc_collection_find_indexes_with_opts, Context, Options.Get());
 				});
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Cursor> Collection::FindMany(const Document& Match, const Document& Options) const
@@ -2031,7 +2031,7 @@ namespace Edge
 					return MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Options.Get(), nullptr);
 				});
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Cursor> Collection::FindOne(const Document& Match, const Document& Options) const
@@ -2052,7 +2052,7 @@ namespace Edge
 					return MongoExecuteCursor(&mongoc_collection_find_with_opts, Context, Match.Get(), Settings.Get(), nullptr);
 				});
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Cursor> Collection::Aggregate(QueryFlags Flags, const Document& Pipeline, const Document& Options) const
@@ -2064,7 +2064,7 @@ namespace Edge
 					return MongoExecuteCursor(&mongoc_collection_aggregate, Context, (mongoc_query_flags_t)Flags, Pipeline.Get(), Options.Get(), nullptr);
 				});
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Response> Collection::TemplateQuery(const std::string& Name, Core::SchemaArgs* Map, bool Once, Transaction* Session) const
@@ -2078,14 +2078,14 @@ namespace Edge
 				if (!Command.Get())
 				{
 					ED_ERR("[mongoc] cannot run empty query");
-					return Response();
+					return Core::Promise<Response>(Response());
 				}
 
 				Property Type;
 				if (!Command.GetProperty("type", &Type) || Type.Mod != Type::String)
 				{
 					ED_ERR("[mongoc] cannot run query without query @type");
-					return Response();
+					return Core::Promise<Response>(Response());
 				}
 
 				if (Type.String == "aggregate")
@@ -2116,14 +2116,14 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run aggregation query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Pipeline;
 					if (!Command.GetProperty("pipeline", &Pipeline) || Pipeline.Mod != Type::Array)
 					{
 						ED_ERR("[mongoc] cannot run aggregation query without @pipeline");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return Aggregate(Flags, Pipeline.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
@@ -2137,14 +2137,14 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run find-one query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run find-one query without @match");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return FindOne(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
@@ -2158,14 +2158,14 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run find-many query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run find-many query without @match");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return FindMany(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Cursor&& Result)
@@ -2179,21 +2179,21 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run update-one query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run update-one query without @match");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Update;
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run update-one query without @update");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return UpdateOne(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
@@ -2207,21 +2207,21 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run update-many query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run update-many query without @match");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Update;
 					if (!Command.GetProperty("update", &Update) || Update.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run update-many query without @update");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return UpdateMany(Match.LoseOwnership(), Update.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
@@ -2235,14 +2235,14 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run insert-one query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Value;
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run insert-one query without @value");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return InsertOne(Value.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
@@ -2256,14 +2256,14 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run insert-many query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Values;
 					if (!Command.GetProperty("values", &Values) || Values.Mod != Type::Array)
 					{
 						ED_ERR("[mongoc] cannot run insert-many query without @values");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					std::vector<Document> Data;
@@ -2284,7 +2284,7 @@ namespace Edge
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run find-and-modify query without @match");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Sort = Command["sort"];
@@ -2305,21 +2305,21 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run replace-one query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run replace-one query without @match");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Value;
 					if (!Command.GetProperty("value", &Value) || Value.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run replace-one query without @value");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return ReplaceOne(Match.LoseOwnership(), Value.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
@@ -2333,14 +2333,14 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run remove-one query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run remove-one query without @value");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return RemoveOne(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
@@ -2354,14 +2354,14 @@ namespace Edge
 					if (Session != nullptr && !Session->Put(&Options.Source))
 					{
 						ED_ERR("[mongoc] cannot run remove-many query in transaction");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					Property Match;
 					if (!Command.GetProperty("match", &Match) || Match.Mod != Type::Document)
 					{
 						ED_ERR("[mongoc] cannot run remove-many query without @value");
-						return Response();
+						return Core::Promise<Response>(Response());
 					}
 
 					return RemoveMany(Match.LoseOwnership(), Options.LoseOwnership()).Then<Response>([](Document&& Result)
@@ -2371,9 +2371,9 @@ namespace Edge
 				}
 
 				ED_ERR("[mongoc] cannot find query of type \"%s\"", Type.String.c_str());
-				return Response();
+				return Core::Promise<Response>(Response());
 #else
-				return Response();
+				return Core::Promise<Response>(Response());
 #endif
 			}
 			const char* Collection::GetName() const
@@ -2443,7 +2443,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_database_remove_all_users, Context);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Database::RemoveUser(const std::string& Name)
@@ -2455,7 +2455,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_database_remove_user, Context, Name.c_str());
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Database::Remove()
@@ -2467,7 +2467,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_database_drop, Context);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Database::RemoveWithOptions(const Document& Options)
@@ -2482,7 +2482,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_database_drop_with_opts, Context, Options.Get());
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Database::AddUser(const std::string& Username, const std::string& Password, const Document& Roles, const Document& Custom)
@@ -2494,7 +2494,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_database_add_user, Context, Username.c_str(), Password.c_str(), Roles.Get(), Custom.Get());
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Database::HasCollection(const std::string& Name) const
@@ -2512,7 +2512,7 @@ namespace Edge
 					return Subresult;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<Cursor> Database::FindCollections(const Document& Options) const
@@ -2524,14 +2524,14 @@ namespace Edge
 					return MongoExecuteCursor(&mongoc_database_find_collections_with_opts, Context, Options.Get());
 				});
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Collection> Database::CreateCollection(const std::string& Name, const Document& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Base)
-					return Collection(nullptr);
+					return Core::Promise<Collection>(Collection(nullptr));
 
 				auto* Context = Base;
 				return Core::Cotask<Collection>([Context, Name, &Options]()
@@ -2546,7 +2546,7 @@ namespace Edge
 					return Collection;
 				});
 #else
-				return Collection(nullptr);
+				return Core::Promise<Collection>(Collection(nullptr));
 #endif
 			}
 			std::vector<std::string> Database::GetCollectionNames(const Document& Options) const
@@ -2634,7 +2634,7 @@ namespace Edge
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Base || !Result.Get())
-					return false;
+					return Core::Promise<bool>(false);
 
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, &Result]()
@@ -2643,14 +2643,14 @@ namespace Edge
 					return mongoc_change_stream_next(Context, (const TDocument**)&Ptr);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Watcher::Error(Document& Result) const
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Base || !Result.Get())
-					return false;
+					return Core::Promise<bool>(false);
 
 				auto* Context = Base;
 				return Core::Cotask<bool>([Context, &Result]()
@@ -2659,7 +2659,7 @@ namespace Edge
 					return mongoc_change_stream_error_document(Context, nullptr, (const TDocument**)&Ptr);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			TWatcher* Watcher::Get() const
@@ -2749,7 +2749,7 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_client_session_start_transaction, Context, nullptr);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Transaction::Abort()
@@ -2761,117 +2761,117 @@ namespace Edge
 					return MongoExecuteQuery(&mongoc_client_session_abort_transaction, Context);
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<Document> Transaction::RemoveMany(const Collection& Source, const Document& Match, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				return Source.RemoveMany(Match, Options);
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Transaction::RemoveOne(const Collection& Source, const Document& Match, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				return Source.RemoveOne(Match, Options);
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Transaction::ReplaceOne(const Collection& Source, const Document& Match, const Document& Replacement, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				return Source.ReplaceOne(Match, Replacement, Options);
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Transaction::InsertMany(const Collection& Source, std::vector<Document>& List, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				return Source.InsertMany(List, Options);
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Transaction::InsertOne(const Collection& Source, const Document& Result, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				return Source.InsertOne(Result, Options);
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Transaction::UpdateMany(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				return Source.UpdateMany(Match, Update, Options);
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Document> Transaction::UpdateOne(const Collection& Source, const Document& Match, const Document& Update, Document&& Options)
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Document(nullptr);
+					return Core::Promise<Document>(Document(nullptr));
 
 				return Source.UpdateOne(Match, Update, Options);
 #else
-				return Document(nullptr);
+				return Core::Promise<Document>(Document(nullptr));
 #endif
 			}
 			Core::Promise<Cursor> Transaction::FindMany(const Collection& Source, const Document& Match, Document&& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Cursor(nullptr);
+					return Core::Promise<Cursor>(Cursor(nullptr));
 
 				return Source.FindMany(Match, Options);
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Cursor> Transaction::FindOne(const Collection& Source, const Document& Match, Document&& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Cursor(nullptr);
+					return Core::Promise<Cursor>(Cursor(nullptr));
 
 				return Source.FindOne(Match, Options);
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Cursor> Transaction::Aggregate(const Collection& Source, QueryFlags Flags, const Document& Pipeline, Document&& Options) const
 			{
 #ifdef ED_HAS_MONGOC
 				if (!Push(Options))
-					return Cursor(nullptr);
+					return Core::Promise<Cursor>(Cursor(nullptr));
 
 				return Source.Aggregate(Flags, Pipeline, Options);
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			Core::Promise<Response> Transaction::TemplateQuery(const Collection& Source, const std::string& Name, Core::SchemaArgs* Map, bool Once)
@@ -2883,7 +2883,7 @@ namespace Edge
 #ifdef ED_HAS_MONGOC
 				return Source.Query(Command, this);
 #else
-				return Response();
+				return Core::Promise<Response>(Response());
 #endif
 			}
 			Core::Promise<TransactionState> Transaction::Commit()
@@ -2906,7 +2906,7 @@ namespace Edge
 					return Result;
 				});
 #else
-				return TransactionState::Fatal;
+				return Core::Promise<TransactionState>(TransactionState::Fatal);
 #endif
 			}
 			TTransaction* Transaction::Get() const
@@ -2936,7 +2936,7 @@ namespace Edge
 			Core::Promise<bool> Connection::Connect(const std::string& Address)
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Master != nullptr, false, "connection should be created outside of cluster");
+				ED_ASSERT(Master != nullptr, Core::Promise<bool>(false), "connection should be created outside of cluster");
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Promise<bool>>([this, Address](bool)
@@ -2970,14 +2970,14 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Connection::Connect(Address* URL)
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Master != nullptr, false, "connection should be created outside of cluster");
-				ED_ASSERT(URL && URL->Get(), false, "url should be valid");
+				ED_ASSERT(Master != nullptr, Core::Promise<bool>(false), "connection should be created outside of cluster");
+				ED_ASSERT(URL && URL->Get(), Core::Promise<bool>(false), "url should be valid");
 
 				if (Connected)
 				{
@@ -3003,13 +3003,13 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Connection::Disconnect()
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Connected && Base, false, "connection should be established");
+				ED_ASSERT(Connected && Base, Core::Promise<bool>(false), "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
 					Connected = false;
@@ -3032,13 +3032,13 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Connection::MakeTransaction(const std::function<Core::Promise<bool>(Transaction&)>& Callback)
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Callback, false, "callback should not be empty");
+				ED_ASSERT(Callback, Core::Promise<bool>(false), "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]()
 				{
 					Transaction Context = GetSession();
@@ -3077,13 +3077,13 @@ namespace Edge
 					return false;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Connection::MakeCotransaction(const std::function<bool(Transaction&)>& Callback)
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Callback, false, "callback should not be empty");
+				ED_ASSERT(Callback, Core::Promise<bool>(false), "callback should not be empty");
 				return Core::Coasync<bool>([this, Callback]()
 				{
 					Transaction Context = GetSession();
@@ -3122,7 +3122,7 @@ namespace Edge
 					return false;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<Cursor> Connection::FindDatabases(const Document& Options) const
@@ -3133,7 +3133,7 @@ namespace Edge
 					return mongoc_client_find_databases_with_opts(Base, Options.Get());
 				});
 #else
-				return Cursor(nullptr);
+				return Core::Promise<Cursor>(Cursor(nullptr));
 #endif
 			}
 			void Connection::SetProfile(const std::string& Name)
@@ -3295,13 +3295,13 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Cluster::Connect(Address* URI)
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(URI && URI->Get(), false, "url should be set");
+				ED_ASSERT(URI && URI->Get(), Core::Promise<bool>(false), "url should be set");
 				if (Connected)
 				{
 					return Disconnect().Then<Core::Promise<bool>>([this, URI](bool)
@@ -3329,13 +3329,13 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Cluster::Disconnect()
 			{
 #ifdef ED_HAS_MONGOC
-				ED_ASSERT(Connected && Pool, false, "connection should be established");
+				ED_ASSERT(Connected && Pool, Core::Promise<bool>(false), "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
 					if (Pool != nullptr)
@@ -3349,7 +3349,7 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			void Cluster::SetProfile(const char* Name)

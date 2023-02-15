@@ -2237,8 +2237,8 @@ namespace Edge
 		}
 		Core::Promise<int> VMCompiler::Compile()
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
-			ED_ASSERT(Module != nullptr, -1, "module should not be empty");
+			ED_ASSERT(Manager != nullptr, Core::Promise<int>(-1), "engine should be set");
+			ED_ASSERT(Module != nullptr, Core::Promise<int>(-1), "module should not be empty");
 
 			uint32_t Retry = 0;
 			if (VCache.Valid)
@@ -2283,9 +2283,9 @@ namespace Edge
 		}
 		Core::Promise<int> VMCompiler::LoadByteCode(VMByteCode* Info)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
-			ED_ASSERT(Module != nullptr, -1, "module should not be empty");
-			ED_ASSERT(Info != nullptr, -1, "bytecode should be set");
+			ED_ASSERT(Manager != nullptr, Core::Promise<int>(-1), "engine should be set");
+			ED_ASSERT(Module != nullptr, Core::Promise<int>(-1), "module should not be empty");
+			ED_ASSERT(Info != nullptr, Core::Promise<int>(-1), "bytecode should be set");
 
 			CByteCodeStream* Stream = ED_NEW(CByteCodeStream, Info->Data);
 			return Core::Cotask<int>([this, Stream, Info]()
@@ -2304,18 +2304,18 @@ namespace Edge
 		}
 		Core::Promise<int> VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
-			ED_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
-			ED_ASSERT(ModuleName != nullptr, asINVALID_ARG, "module name should be set");
-			ED_ASSERT(EntryName != nullptr, asINVALID_ARG, "entry name should be set");
+			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(Name != nullptr, Core::Promise<int>(asINVALID_ARG), "name should be set");
+			ED_ASSERT(ModuleName != nullptr, Core::Promise<int>(asINVALID_ARG), "module name should be set");
+			ED_ASSERT(EntryName != nullptr, Core::Promise<int>(asINVALID_ARG), "entry name should be set");
 
 			int R = Prepare(ModuleName, Name);
 			if (R < 0)
-				return R;
+				return Core::Promise<int>(R);
 
 			R = LoadFile(Name);
 			if (R < 0)
-				return R;
+				return Core::Promise<int>(R);
 
 			return Compile().Then<Core::Promise<int>>([this, EntryName, OnArgs = std::move(OnArgs)](int&& R) mutable
 			{
@@ -2327,18 +2327,18 @@ namespace Edge
 		}
 		Core::Promise<int> VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
-			ED_ASSERT(!Buffer.empty(), asINVALID_ARG, "buffer should not be empty");
-			ED_ASSERT(ModuleName != nullptr, asINVALID_ARG, "module name should be set");
-			ED_ASSERT(EntryName != nullptr, asINVALID_ARG, "entry name should be set");
+			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(!Buffer.empty(), Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
+			ED_ASSERT(ModuleName != nullptr, Core::Promise<int>(asINVALID_ARG), "module name should be set");
+			ED_ASSERT(EntryName != nullptr, Core::Promise<int>(asINVALID_ARG), "entry name should be set");
 
 			int R = Prepare(ModuleName, "anonymous");
 			if (R < 0)
-				return R;
+				return Core::Promise<int>(R);
 
 			R = LoadCode("anonymous", Buffer);
 			if (R < 0)
-				return R;
+				return Core::Promise<int>(R);
 			
 			return Compile().Then<Core::Promise<int>>([this, EntryName, OnArgs = std::move(OnArgs)](int&& R) mutable
 			{
@@ -2350,18 +2350,18 @@ namespace Edge
 		}
 		Core::Promise<int> VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
-			ED_ASSERT(Name != nullptr, asINVALID_ARG, "name should be set");
-			ED_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
-			ED_ASSERT(Module != nullptr, asINVALID_ARG, "module should not be empty");
-			ED_ASSERT(BuiltOK, asINVALID_ARG, "module should be built");
+			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(Name != nullptr, Core::Promise<int>(asINVALID_ARG), "name should be set");
+			ED_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
+			ED_ASSERT(Module != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
+			ED_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
 
 			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, asINVALID_CONFIGURATION, "engine should be set");
+			ED_ASSERT(Engine != nullptr, Core::Promise<int>(asINVALID_CONFIGURATION), "engine should be set");
 
 			VMCFunction* Function = Module->GetFunctionByName(Name);
 			if (!Function)
-				return asNO_FUNCTION;
+				return Core::Promise<int>(asNO_FUNCTION);
 
 			return Context->TryExecute(false, Function, std::move(OnArgs));
 		}
@@ -2371,11 +2371,11 @@ namespace Edge
 		}
 		Core::Promise<int> VMCompiler::ExecuteScoped(const char* Buffer, size_t Length, const char* Args, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, asINVALID_ARG, "engine should be set");
-			ED_ASSERT(Buffer != nullptr && Length > 0, asINVALID_ARG, "buffer should not be empty");
-			ED_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
-			ED_ASSERT(Module != nullptr, asINVALID_ARG, "module should not be empty");
-			ED_ASSERT(BuiltOK, asINVALID_ARG, "module should be built");
+			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(Buffer != nullptr && Length > 0, Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
+			ED_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
+			ED_ASSERT(Module != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
+			ED_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
 
 			VMCManager* Engine = Manager->GetEngine();
 			std::string Eval = "void __vfbdy(";
@@ -2442,7 +2442,7 @@ namespace Edge
 			{
 				auto& Next = Tasks.front();
 				Next.Callback.Release();
-				Next.Future = asCONTEXT_NOT_PREPARED;
+				Next.Future.Set(asCONTEXT_NOT_PREPARED);
 				Tasks.pop();
 			}
 
@@ -2456,16 +2456,15 @@ namespace Edge
 		}
 		Core::Promise<int> VMContext::TryExecute(bool IsNested, const VMFunction& Function, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Context != nullptr, asINVALID_ARG, "context should be set");
-			ED_ASSERT(Function.IsValid(), asINVALID_ARG, "function should be set");
+			ED_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
+			ED_ASSERT(Function.IsValid(), Core::Promise<int>(asINVALID_ARG), "function should be set");
 
 			if (!IsNested && Core::Costate::IsCoroutine())
 			{
 				Core::Promise<int> Result;
 				Core::Schedule::Get()->SetTask([this, Result, Function, OnArgs = std::move(OnArgs)]() mutable
 				{
-					auto Subresult = TryExecute(false, Function, std::move(OnArgs));
-					Result = Subresult;
+					Result.Set(TryExecute(false, Function, std::move(OnArgs)));
 				}, Core::Difficulty::Heavy);
 				return Result;
 			}
@@ -2558,7 +2557,7 @@ namespace Edge
 						Tasks.pop();
 
 						Exchange.unlock();
-						Current.Future = Result;
+						Current.Future.Set(Result);
 						Exchange.lock();
 					}
 
@@ -2579,7 +2578,7 @@ namespace Edge
 								return Result;
 						}
 
-						Next.Future = Subresult;
+						Next.Future.Set(Subresult);
 						Exchange.lock();
 					}
 				}

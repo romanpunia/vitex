@@ -1662,7 +1662,7 @@ namespace Edge
 			Core::Promise<bool> Cluster::Connect(const Address& URI, size_t Connections)
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_ASSERT(Connections > 0, false, "connections count should be at least 1");
+				ED_ASSERT(Connections > 0, Core::Promise<bool>(false), "connections count should be at least 1");
 				Update.lock();
 				Source = URI;
 
@@ -1715,13 +1715,13 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Cluster::Disconnect()
 			{
 #ifdef ED_HAS_POSTGRESQL
-				ED_ASSERT(!Pool.empty(), false, "connection should be established");
+				ED_ASSERT(!Pool.empty(), Core::Promise<bool>(false), "connection should be established");
 				return Core::Cotask<bool>([this]()
 				{
 					std::unique_lock<std::mutex> Unique(Update);
@@ -1736,12 +1736,12 @@ namespace Edge
 					return true;
 				});
 #else
-				return false;
+				return Core::Promise<bool>(false);
 #endif
 			}
 			Core::Promise<bool> Cluster::Listen(const std::vector<std::string>& Channels)
 			{
-				ED_ASSERT(!Channels.empty(), false, "channels should not be empty");
+				ED_ASSERT(!Channels.empty(), Core::Promise<bool>(false), "channels should not be empty");
 				Update.lock();
 				std::vector<std::string> Actual;
 				Actual.reserve(Channels.size());
@@ -1753,7 +1753,7 @@ namespace Edge
 				Update.unlock();
 
 				if (Actual.empty())
-					return true;
+					return Core::Promise<bool>(true);
 
 				std::string Command;
 				for (auto& Item : Actual)
@@ -1774,7 +1774,7 @@ namespace Edge
 			}
 			Core::Promise<bool> Cluster::Unlisten(const std::vector<std::string>& Channels)
 			{
-				ED_ASSERT(!Channels.empty(), false, "channels should not be empty");
+				ED_ASSERT(!Channels.empty(), Core::Promise<bool>(false), "channels should not be empty");
 				Update.lock();
 				std::unordered_map<Connection*, std::string> Commands;
 				for (auto& Item : Channels)
@@ -1789,7 +1789,7 @@ namespace Edge
 
 				Update.unlock();
 				if (Commands.empty())
-					return true;
+					return Core::Promise<bool>(true);
 
 				return Core::Coasync<bool>([this, Commands = std::move(Commands)]() mutable
 				{
@@ -1814,7 +1814,7 @@ namespace Edge
 			}
 			Core::Promise<Cursor> Cluster::Query(const std::string& Command, size_t Opts, SessionId Session)
 			{
-				ED_ASSERT(!Command.empty(), Cursor(), "command should not be empty");
+				ED_ASSERT(!Command.empty(), Core::Promise<Cursor>(Cursor()), "command should not be empty");
 
 				std::string Reference;
 				if (Opts & (size_t)QueryOp::CacheShort || Opts & (size_t)QueryOp::CacheMid || Opts & (size_t)QueryOp::CacheLong)
@@ -1827,7 +1827,7 @@ namespace Edge
 						Driver::LogQuery(Command);
 						ED_DEBUG("[pq] OK execute on NULL (memory-cache)");
 
-						return Result;
+						return Core::Promise<Cursor>(std::move(Result));
 					}
 				}
 
@@ -2226,7 +2226,7 @@ namespace Edge
 
 							Update.unlock();
 							Item->Finalize(Results);
-							Future = std::move(Results);
+							Future.Set(std::move(Results));
 							Update.lock();
 							ED_RELEASE(Item);
 						}

@@ -2317,13 +2317,13 @@ namespace Edge
 			Promise() noexcept : Data(ED_NEW(Status))
 			{
 			}
-			Promise(const T& Value) noexcept : Data(ED_NEW(Status, Value))
+			explicit Promise(const T& Value) noexcept : Data(ED_NEW(Status, Value))
 			{
 			}
-			Promise(T&& Value) noexcept : Data(ED_NEW(Status, std::move(Value)))
+			explicit Promise(T&& Value) noexcept : Data(ED_NEW(Status, std::move(Value)))
 			{
 			}
-			Promise(const Promise& Other) noexcept : Data(Other.Data)
+			Promise(const Promise& Other) : Data(Other.Data)
 			{
 				AddRef();
 			}
@@ -2335,23 +2335,7 @@ namespace Edge
 			{
 				Release(Data);
 			}
-			Promise& operator= (const T& Other) noexcept
-			{
-				Set(Other);
-				return *this;
-			}
-			Promise& operator= (T&& Other) noexcept
-			{
-				Set(std::move(Other));
-				return *this;
-			}
-			Promise& operator= (const Promise& Other) noexcept
-			{
-				if (&Other != this)
-					Set(Other);
-
-				return *this;
-			}
+			Promise& operator= (const Promise& Other) = delete;
 			Promise& operator= (Promise&& Other) noexcept
 			{
 				if (&Other == this)
@@ -2423,17 +2407,10 @@ namespace Edge
 					return !IsPending();
 				});
 			}
-			T&& Fetch() noexcept
-			{
-				if (!Data)
-					Data = ED_NEW(Status);
-
-				return std::move(Data->Result);
-			}
 			T&& Get() noexcept
 			{
 				Wait();
-				return Fetch();
+				return Load();
 			}
 			Deferred GetStatus() const noexcept
 			{
@@ -2482,6 +2459,13 @@ namespace Edge
 				if (Data != nullptr)
 					++Data->Count;
 				return Data;
+			}
+			T&& Load()
+			{
+				if (!Data)
+					Data = ED_NEW(Status);
+
+				return std::move(Data->Result);
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
@@ -2548,13 +2532,7 @@ namespace Edge
 			{
 				Release(Data);
 			}
-			Promise& operator= (const Promise& Other) noexcept
-			{
-				if (&Other != this)
-					Set(Other);
-
-				return *this;
-			}
+			Promise& operator= (const Promise& Other) = delete;
 			Promise& operator= (Promise&& Other) noexcept
 			{
 				if (&Other == this)
@@ -2616,15 +2594,10 @@ namespace Edge
 					return !IsPending();
 				});
 			}
-			void Fetch() noexcept
-			{
-				if (!Data)
-					Data = ED_NEW(Status);
-			}
 			void Get() noexcept
 			{
 				Wait();
-				Fetch();
+				Load();
 			}
 			Deferred GetStatus() const noexcept
 			{
@@ -2675,6 +2648,11 @@ namespace Edge
 				if (Data != nullptr)
 					++Data->Count;
 				return Data;
+			}
+			void Load() noexcept
+			{
+				if (!Data)
+					Data = ED_NEW(Status);
 			}
 			void Store(TaskCallback&& Callback) const noexcept
 			{
@@ -2730,7 +2708,7 @@ namespace Edge
 				ED_UNWATCH((void*)&Future);
 			}
 #endif
-			return Future.Fetch();
+			return Future.Get();
 		}
 		template <typename T>
 		ED_OUT_TS inline Promise<T> Cotask(const std::function<T()>& Callback, Difficulty Type = Difficulty::Heavy) noexcept
@@ -2740,7 +2718,7 @@ namespace Edge
 			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback]() mutable
 			{
-				Result = std::move(Callback());
+				Result.Set(std::move(Callback()));
 			}, Type);
 
 			return Result;
@@ -2753,7 +2731,7 @@ namespace Edge
 			Promise<T> Result;
 			Schedule::Get()->SetTask([Result, Callback = std::move(Callback)]() mutable
 			{
-				Result = std::move(Callback());
+				Result.Set(std::move(Callback()));
 			}, Type);
 
 			return Result;
@@ -2768,7 +2746,7 @@ namespace Edge
 			Promise<T> Result;
 			Schedule::Get()->SetCoroutine([Result, Callback]() mutable
 			{
-				Result = std::move(Callback());
+				Result.Set(std::move(Callback()));
 			});
 
 			return Result;
@@ -2783,7 +2761,7 @@ namespace Edge
 			Promise<T> Result;
 			Schedule::Get()->SetCoroutine([Result, Callback = std::move(Callback)]() mutable
 			{
-				Result = std::move(Callback());
+				Result.Set(std::move(Callback()));
 			});
 
 			return Result;
@@ -2793,7 +2771,7 @@ namespace Edge
 			Promise<bool> Result;
 			Schedule::Get()->SetTimeout(Ms, [Result]() mutable
 			{
-				Result = true;
+				Result.Set(true);
 			}, Difficulty::Light);
 
 			return Result;

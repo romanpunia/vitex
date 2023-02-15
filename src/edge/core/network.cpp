@@ -2622,8 +2622,8 @@ namespace Edge
 		}
 		Core::Promise<int> SocketClient::Connect(RemoteHost* Source, bool Async)
 		{
-			ED_ASSERT(Source != nullptr && !Source->Hostname.empty(), -2, "address should be set");
-			ED_ASSERT(!Stream.IsValid(), -2, "stream should not be connected");
+			ED_ASSERT(Source != nullptr && !Source->Hostname.empty(), Core::Promise<int>(-2), "address should be set");
+			ED_ASSERT(!Stream.IsValid(), Core::Promise<int>(-2), "stream should not be connected");
 
 			Stage("dns resolve");
 			if (!OnResolveHost(Source))
@@ -2651,7 +2651,7 @@ namespace Edge
 							auto Finalize = [this, Future]() mutable
 							{
 								Stage("socket proto-connect");
-								Done = [Future](SocketClient*, int Code) mutable { Future = Code; };
+								Done = [Future](SocketClient*, int Code) mutable { Future.Set(Code); };
 								OnConnect();
 							};
 #ifdef ED_HAS_OPENSSL
@@ -2667,7 +2667,7 @@ namespace Edge
 											if (!Success)
 											{
 												Error("cannot connect ssl context");
-												Future = -1;
+												Future.Set(-1);
 											}
 											else
 												Finalize();
@@ -2679,7 +2679,7 @@ namespace Edge
 								else
 								{
 									Error("cannot create ssl context");
-									Future = -1;
+									Future.Set(-1);
 								}
 							}
 							else
@@ -2691,14 +2691,14 @@ namespace Edge
 						else
 						{
 							Error("cannot connect to %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-							Future = -1;
+							Future.Set(-1);
 						}
 					});
 				}
 				else
 				{
 					Error("cannot open %s:%i", Hostname.Hostname.c_str(), (int)Hostname.Port);
-					Future = -2;
+					Future.Set(-2);
 				}
 			};
 
@@ -2717,12 +2717,12 @@ namespace Edge
 		Core::Promise<int> SocketClient::Close()
 		{
 			if (!Stream.IsValid())
-				return -2;
+				return Core::Promise<int>(-2);
 
 			Core::Promise<int> Result;
 			Done = [Result](SocketClient*, int Code) mutable
 			{
-				Result = Code;
+				Result.Set(Code);
 			};
 
 			OnClose();

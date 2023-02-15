@@ -109,7 +109,7 @@ namespace Edge
 			Core::Promise<int> Client::Send(RequestFrame&& Root)
 			{
 				if (!Stream.IsValid())
-					return -1;
+					return Core::Promise<int>(-1);
 
 				Core::Promise<int> Result;
 				if (!Staging)
@@ -124,7 +124,7 @@ namespace Edge
 							ED_DEBUG("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
 
 						Buffer.clear();
-						Result = Code;
+						Result.Set(Code);
 					};
 				}
 
@@ -135,7 +135,7 @@ namespace Edge
 					{
 						Send(std::move(Request)).Await([Result](int Code) mutable
 						{
-							Result = Code;
+							Result.Set(Code);
 						});
 					});
 

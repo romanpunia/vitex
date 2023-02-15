@@ -3858,17 +3858,17 @@ namespace Edge
 			Core::Promise<int> Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return (int)Script::VMResult::INVALID_CONFIGURATION;
+					return Core::Promise<int>((int)Script::VMResult::INVALID_CONFIGURATION);
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
 			Core::Promise<int> Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return (int)Script::VMResult::INVALID_CONFIGURATION;
+					return Core::Promise<int>((int)Script::VMResult::INVALID_CONFIGURATION);
 
 				if (!Function)
-					return (int)Script::VMResult::INVALID_ARG;
+					return Core::Promise<int>((int)Script::VMResult::INVALID_ARG);
 
 				Protect();
 				return Compiler->GetContext()->TryExecute(false, Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)

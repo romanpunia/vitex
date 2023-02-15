@@ -6077,22 +6077,22 @@ namespace Edge
 			}
 			Core::Promise<bool> Client::Consume(size_t MaxSize)
 			{
-				ED_ASSERT(!WebSocket, false, "cannot read http over websocket");
+				ED_ASSERT(!WebSocket, Core::Promise<bool>(false), "cannot read http over websocket");
 				if (Response.HasBody())
-					return true;
+					return Core::Promise<bool>(true);
 
 				if (Response.Data == Content::Lost || Response.Data == Content::Wants_Save || Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
-					return false;
+					return Core::Promise<bool>(false);
 
 				Response.Buffer.clear();
 				if (!Stream.IsValid())
-					return false;
+					return Core::Promise<bool>(false);
 
 				const char* ContentType = Response.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
 					Response.Data = Content::Wants_Save;
-					return false;
+					return Core::Promise<bool>(false);
 				}
                 
                 const char* ContentLength = Response.GetHeader("Content-Length");
@@ -6110,7 +6110,7 @@ namespace Edge
 							{
 								ED_RELEASE(Parser);
 								Response.Data = Content::Corrupted;
-								Result = false;
+								Result.Set(false);
 
 								return false;
 							}
@@ -6135,7 +6135,8 @@ namespace Edge
 						ED_RELEASE(Parser);
 						if (!Response.Buffer.empty())
 							ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
-						Result = Response.HasBody();
+
+						Result.Set(Response.HasBody());
 						return true;
 					});
 
@@ -6164,7 +6165,7 @@ namespace Edge
 						if (!Response.Buffer.empty())
 							ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
 
-						Result = Response.HasBody();
+						Result.Set(Response.HasBody());
 						return false;
 					});
 
@@ -6175,13 +6176,13 @@ namespace Edge
 				if (!ContentSize)
 				{
 					Response.Data = Content::Empty;
-					return true;
+					return Core::Promise<bool>(true);
 				}
 
 				if (ContentSize > MaxSize)
 				{
 					Response.Data = Content::Wants_Save;
-					return false;
+					return Core::Promise<bool>(false);
 				}
 
 				Core::Promise<bool> Result;
@@ -6205,7 +6206,7 @@ namespace Edge
 					if (!Response.Buffer.empty())
 						ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
 
-					Result = Response.HasBody();
+					Result.Set(Response.HasBody());
 					return false;
 				});
 
@@ -6220,8 +6221,8 @@ namespace Edge
 			}
 			Core::Promise<bool> Client::Upgrade(HTTP::RequestFrame&& Root)
 			{
-				ED_ASSERT(WebSocket != nullptr, false, "websocket should be opened");
-				ED_ASSERT(Stream.IsValid(), false, "stream should be opened");
+				ED_ASSERT(WebSocket != nullptr, Core::Promise<bool>(false), "websocket should be opened");
+				ED_ASSERT(Stream.IsValid(), Core::Promise<bool>(false), "stream should be opened");
 
 				std::string Key = Compute::Codec::Base64Encode(Compute::Crypto::RandomBytes(16));
 				Root.SetHeader("Pragma", "no-cache");
@@ -6246,8 +6247,8 @@ namespace Edge
 			}
 			Core::Promise<ResponseFrame*> Client::Send(HTTP::RequestFrame&& Root)
 			{
-				ED_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, (ResponseFrame*)nullptr, "cannot send http request over websocket");
-				ED_ASSERT(Stream.IsValid(), (ResponseFrame*)nullptr, "stream should be opened");
+				ED_ASSERT(!WebSocket || Root.GetHeader("Sec-WebSocket-Key") != nullptr, Core::Promise<ResponseFrame*>(nullptr), "cannot send http request over websocket");
+				ED_ASSERT(Stream.IsValid(), Core::Promise<ResponseFrame*>(nullptr), "stream should be opened");
 				ED_DEBUG("[http] %s %s", Root.Method, Root.URI.c_str());
 
 				Core::Promise<ResponseFrame*> Result;
@@ -6259,7 +6260,7 @@ namespace Edge
 					if (Code < 0)
 						Base->GetResponse()->StatusCode = -1;
 
-					Result = Base->GetResponse();
+					Result.Set(Base->GetResponse());
 				};
 				Stage("request delivery");
 
@@ -6400,7 +6401,7 @@ namespace Edge
 				};
 				WebSocket->Lifetime.Close = [this](WebSocketFrame*)
 				{
-					Future = true;
+					Future.Set(true);
 				};
 
 				return WebSocket;

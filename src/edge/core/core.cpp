@@ -7653,7 +7653,7 @@ namespace Edge
 		{
 			ED_ASSERT(!Path.empty(), Path, "path should not be empty");
 			const char* Extension = GetExtension(Path.c_str());
-			bool IsTrueFile = Extension && Extension != '\0';
+			bool IsTrueFile = Extension != nullptr && *Extension != '\0';
 			size_t ExtensionAt = IsTrueFile ? Path.rfind(Extension) : Path.size();
 			if (ExtensionAt == std::string::npos)
 				return Path;

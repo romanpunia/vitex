@@ -1052,8 +1052,11 @@ namespace Edge
 				static bool Remove(const char* Path);
 				static bool IsExists(const char* Path);
 				static int Compare(const std::string& FirstPath, const std::string& SecondPath);
+				static size_t Join(const std::string& To, const std::vector<std::string>& Paths);
 				static uint64_t GetCheckSum(const std::string& Data);
 				static FileState GetProperties(const char* Path);
+				static Unique<Stream> OpenJoin(const std::string& Path, const std::vector<std::string>& Paths);
+				static Unique<Stream> OpenArchive(const std::string& Path, size_t UnarchivedMaxSize = 64 * 1024 * 1024);
 				static Unique<Stream> Open(const std::string& Path, FileMode Mode, bool Async = false);
 				static Unique<void> Open(const char* Path, const char* Mode);
 				static Unique<unsigned char> ReadChunk(Stream* Stream, size_t Length);
@@ -1072,6 +1075,7 @@ namespace Edge
 				static std::string ResolveDirectory(const char* Path);
 				static std::string ResolveDirectory(const std::string& Path, const std::string& Directory);
 				static std::string GetDirectory(const char* Path, size_t Level = 0);
+				static std::string GetNonExistant(const std::string& Path);
 				static const char* GetFilename(const char* Path);
 				static const char* GetExtension(const char* Path);
 			};

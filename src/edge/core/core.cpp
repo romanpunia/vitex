@@ -7354,6 +7354,32 @@ namespace Edge
 			ED_CLOSE(Second);
 			return Diff;
 		}
+		size_t OS::File::Join(const std::string& To, const std::vector<std::string>& Paths)
+		{
+			ED_ASSERT(!To.empty(), 0, "to should not be empty");
+			ED_ASSERT(!Paths.empty(), 0, "paths to join should not be empty");
+
+			Stream* Target = Open(To, FileMode::Binary_Write_Only);
+			if (!Target)
+				return 0;
+
+			size_t Total = 0;
+			for (auto& Path : Paths)
+			{
+				Stream* Base = Open(Path, FileMode::Binary_Read_Only);
+				if (!Base)
+					continue;
+
+				Total += Base->ReadAll([&Target](char* Buffer, size_t Size)
+				{
+					Target->Write(Buffer, Size);
+				});
+				ED_RELEASE(Base);
+			}
+
+			ED_RELEASE(Target);
+			return Total;
+		}
 		uint64_t OS::File::GetCheckSum(const std::string& Data)
 		{
 			return Compute::Crypto::CRC32(Data);
@@ -7429,6 +7455,47 @@ namespace Edge
 			}
 
 			return nullptr;
+		}
+		Stream* OS::File::OpenArchive(const std::string& Path, size_t UnarchivedMaxSize)
+		{
+			FileEntry Data;
+			if (!OS::File::State(Path, &Data))
+				return Open(Path, FileMode::Binary_Write_Only);
+
+			std::string Temp = Path::GetNonExistant(Path);
+			Move(Path.c_str(), Temp.c_str());
+
+			if (Data.Size > UnarchivedMaxSize)
+				return Open(Path, FileMode::Binary_Write_Only);
+			
+			Stream* Target = OpenJoin(Path, { Temp });
+			Remove(Temp.c_str());
+
+			return Target;
+		}
+		Stream* OS::File::OpenJoin(const std::string& To, const std::vector<std::string>& Paths)
+		{
+			ED_ASSERT(!To.empty(), nullptr, "to should not be empty");
+			ED_ASSERT(!Paths.empty(), nullptr, "paths to join should not be empty");
+
+			Stream* Target = Open(To, FileMode::Binary_Write_Only);
+			if (!Target)
+				return nullptr;
+
+			for (auto& Path : Paths)
+			{
+				Stream* Base = Open(Path, FileMode::Binary_Read_Only);
+				if (!Base)
+					continue;
+
+				Base->ReadAll([&Target](char* Buffer, size_t Size)
+				{
+					Target->Write(Buffer, Size);
+				});
+				ED_RELEASE(Base);
+			}
+
+			return Target;
 		}
 		unsigned char* OS::File::ReadAll(const std::string& Path, size_t* Length)
 		{
@@ -7582,6 +7649,26 @@ namespace Edge
 
 			return Result;
 		}
+		std::string OS::Path::GetNonExistant(const std::string& Path)
+		{
+			ED_ASSERT(!Path.empty(), Path, "path should not be empty");
+			const char* Extension = GetExtension(Path.c_str());
+			bool IsTrueFile = Extension && Extension != '\0';
+			size_t ExtensionAt = IsTrueFile ? Path.rfind(Extension) : Path.size();
+			if (ExtensionAt == std::string::npos)
+				return Path;
+
+			std::string First = Path.substr(0, ExtensionAt).append(1, '.');
+			std::string Second = IsTrueFile ? Extension : std::string();
+			std::string Filename = Path;
+			size_t Nonce = 0;
+			FileEntry Data;
+
+			while (OS::File::State(Filename, &Data) && Data.Size > 0)
+				Filename = First + std::to_string(++Nonce) + Second;
+
+			return Filename;
+		}
 		std::string OS::Path::GetDirectory(const char* Path, size_t Level)
 		{
 			ED_ASSERT(Path != nullptr, std::string(), "path should be set");
@@ -7614,8 +7701,8 @@ namespace Edge
 		const char* OS::Path::GetFilename(const char* Path)
 		{
 			ED_ASSERT(Path != nullptr, nullptr, "path should be set");
-			int64_t Size = (int64_t)strlen(Path);
-			for (int64_t i = Size; i-- > 0;)
+			size_t Size = strlen(Path);
+			for (size_t i = Size; i-- > 0;)
 			{
 				if (Path[i] == '/' || Path[i] == '\\')
 					return Path + i + 1;

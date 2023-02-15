@@ -5605,9 +5605,17 @@ namespace Edge
 			{
 				return Core::OS::File::IsExists(Path.c_str());
 			}
+			size_t OSFileJoin(const std::string& From, Array* Paths)
+			{
+				return Core::OS::File::Join(From.c_str(), Array::Decompose<std::string>(Paths));
+			}
 			Core::FileState OSFileGetProperties(const std::string& Path)
 			{
 				return Core::OS::File::GetProperties(Path.c_str());
+			}
+			Core::Stream* OSFileOpenJoin(const std::string& From, Array* Paths)
+			{
+				return Core::OS::File::OpenJoin(From.c_str(), Array::Decompose<std::string>(Paths));
 			}
 			Array* OSFileReadAsArray(const std::string& Path)
 			{
@@ -8569,8 +8577,11 @@ namespace Edge
 				Register.SetFunction("file_state get_properties(const string &in)", &OSFileGetProperties);
 				Register.SetFunction("string read_as_string(const string &in)", &Core::OS::File::ReadAsString);
 				Register.SetFunction("array<string>@ read_as_array(const string &in)", &OSFileReadAsArray);
+				Register.SetFunction("usize join(const string &in, array<string>@+)", &OSFileJoin);
 				Register.SetFunction("int32 compare(const string &in, const string &in)", &Core::OS::File::Compare);
 				Register.SetFunction("int64 get_check_sum(const string &in)", &Core::OS::File::GetCheckSum);
+				Register.SetFunction("base_stream@ open_join(const string &in, array<string>@+)", &OSFileOpenJoin);
+				Register.SetFunction("base_stream@ open_archive(const string &in, usize)", &Core::OS::File::OpenArchive);
 				Register.SetFunction<Core::Stream*(const std::string&, Core::FileMode, bool)>("base_stream@ open(const string &in, file_mode, bool = false)", &Core::OS::File::Open);
 				Engine->EndNamespace();
 
@@ -8581,6 +8592,7 @@ namespace Edge
 				Register.SetFunction("string get_directory(const string &in, usize = 0)", &OSPathGetDirectory);
 				Register.SetFunction("string get_filename(const string &in)", &OSPathGetFilename);
 				Register.SetFunction("string get_extension(const string &in)", &OSPathGetExtension);
+				Register.SetFunction("string get_non_existant(const string &in)", &Core::OS::Path::GetNonExistant);
 				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolve(const string &in, const string &in)", &Core::OS::Path::Resolve);
 				Register.SetFunction<std::string(const std::string&, const std::string&)>("string resolve_directory(const string &in, const string &in)", &Core::OS::Path::ResolveDirectory);
 				Engine->EndNamespace();

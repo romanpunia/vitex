@@ -99,11 +99,6 @@ namespace
 	{
 		return localtime_s(B, A) == 0;
 	}
-	void ConvertToWideChar(const char* Input, size_t Size, wchar_t* Output, size_t MaxSize)
-	{
-		size_t OutputSize;
-		mbstowcs_s(&OutputSize, Output, MaxSize, Input, Size);
-	}
 }
 #else
 namespace
@@ -4737,7 +4732,10 @@ namespace Edge
 		std::wstring Parser::ToWide() const
 		{
 			ED_ASSERT(Base != nullptr, std::wstring(), "cannot parse without context");
-			std::wstring Output; wchar_t W;
+			std::wstring Output;
+			Output.reserve(Base->size());
+
+			wchar_t W;
 			for (size_t i = 0; i < Base->size();)
 			{
 				char C = Base->at(i);
@@ -4893,6 +4891,71 @@ namespace Edge
 				Output.emplace_back(Base->substr(Offset));
 
 			return Output;
+		}
+		void Parser::ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize)
+		{
+			ED_ASSERT_V(Input != nullptr, "input should be set");
+			ED_ASSERT_V(Output != nullptr && OutputSize > 0, "output should be set");
+
+			wchar_t W = '\0'; size_t Size = 0;
+			for (size_t i = 0; i < InputSize;)
+			{
+				char C = Input[i];
+				if ((C & 0x80) == 0)
+				{
+					W = C;
+					i++;
+				}
+				else if ((C & 0xE0) == 0xC0)
+				{
+					W = (C & 0x1F) << 6;
+					W |= (Input[i + 1] & 0x3F);
+					i += 2;
+				}
+				else if ((C & 0xF0) == 0xE0)
+				{
+					W = (C & 0xF) << 12;
+					W |= (Input[i + 1] & 0x3F) << 6;
+					W |= (Input[i + 2] & 0x3F);
+					i += 3;
+				}
+				else if ((C & 0xF8) == 0xF0)
+				{
+					W = (C & 0x7) << 18;
+					W |= (Input[i + 1] & 0x3F) << 12;
+					W |= (Input[i + 2] & 0x3F) << 6;
+					W |= (Input[i + 3] & 0x3F);
+					i += 4;
+				}
+				else if ((C & 0xFC) == 0xF8)
+				{
+					W = (C & 0x3) << 24;
+					W |= (C & 0x3F) << 18;
+					W |= (C & 0x3F) << 12;
+					W |= (C & 0x3F) << 6;
+					W |= (C & 0x3F);
+					i += 5;
+				}
+				else if ((C & 0xFE) == 0xFC)
+				{
+					W = (C & 0x1) << 30;
+					W |= (C & 0x3F) << 24;
+					W |= (C & 0x3F) << 18;
+					W |= (C & 0x3F) << 12;
+					W |= (C & 0x3F) << 6;
+					W |= (C & 0x3F);
+					i += 6;
+				}
+				else
+					W = C;
+
+				Output[Size++] = W;
+				if (Size >= OutputSize)
+					break;
+			}
+
+			if (Size < OutputSize)
+				Output[Size] = '\0';
 		}
 		Parser& Parser::operator= (Parser&& Value) noexcept
 		{
@@ -6920,7 +6983,7 @@ namespace Edge
 			};
 
 			wchar_t Buffer[ED_CHUNK_SIZE];
-			ConvertToWideChar(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
+			Parser::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
 
 			auto* Value = ED_MALLOC(Directory, sizeof(Directory));
 			DWORD Attributes = GetFileAttributesW(Buffer);
@@ -7001,7 +7064,7 @@ namespace Edge
 			ED_DEBUG("[io] create dir %s", Path);
 #ifdef ED_MICROSOFT
 			wchar_t Buffer[ED_CHUNK_SIZE];
-			ConvertToWideChar(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
+			Parser::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
 
 			size_t Length = wcslen(Buffer);
 			if (!Length)
@@ -7197,7 +7260,7 @@ namespace Edge
 			Resource->Path = Path;
 #if defined(ED_MICROSOFT)
 			wchar_t Buffer[ED_CHUNK_SIZE];
-			ConvertToWideChar(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
+			Parser::ConvertToWide(Path.c_str(), Path.size(), Buffer, ED_CHUNK_SIZE);
 
 			WIN32_FILE_ATTRIBUTE_DATA Info;
 			if (GetFileAttributesExW(Buffer, GetFileExInfoStandard, &Info) == 0)
@@ -7415,8 +7478,8 @@ namespace Edge
 			ED_ASSERT(Path != nullptr && Mode != nullptr, nullptr, "path and mode should be set");
 #ifdef ED_MICROSOFT
 			wchar_t Buffer[ED_CHUNK_SIZE], Type[20];
-			ConvertToWideChar(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
-			ConvertToWideChar(Mode, strlen(Mode), Type, 20);
+			Parser::ConvertToWide(Path, strlen(Path), Buffer, ED_CHUNK_SIZE);
+			Parser::ConvertToWide(Mode, strlen(Mode), Type, 20);
 
 			FILE* Stream = _wfopen(Buffer, Type);
 			ED_DEBUG("[io] open fs %s %s", Mode, Path);

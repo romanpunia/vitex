@@ -802,6 +802,7 @@ namespace Edge
 			static int Match(const char* Pattern, size_t Length, const char* Text);
 			static std::string ToString(float Number);
 			static std::string ToString(double Number);
+			static void ConvertToWide(const char* Input, size_t InputSize, wchar_t* Output, size_t OutputSize);
 		};
 
 		struct ED_OUT_TS Spin

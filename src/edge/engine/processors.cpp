@@ -1510,7 +1510,7 @@ namespace Edge
 
 					Network::RemoteHost* Host = &Router->Listeners[Core::Parser(&Name).Eval(N, D).R()];
 					if (!Series::Unpack(It->Find("hostname"), &Host->Hostname))
-						Host->Hostname = "127.0.0.1";
+						Host->Hostname = "0.0.0.0";
 
 					Core::Parser(&Host->Hostname).Eval(N, D).R();
 					if (!Series::Unpack(It->Find("port"), &Host->Port))

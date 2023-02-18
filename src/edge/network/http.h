@@ -404,7 +404,7 @@ namespace Edge
 				size_t StaticFileMaxAge = 604800;
 				size_t MaxCacheLength = 16384;
 				size_t Level = 0;
-				bool AllowDirectoryListing = true;
+				bool AllowDirectoryListing = false;
 				bool AllowWebSocket = false;
 				bool AllowSendFile = true;
 				Compute::RegexSource URI;

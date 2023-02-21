@@ -61,7 +61,6 @@ namespace Edge
 				std::string Hoster;
 				RequestFrame Request;
 				int32_t Pending;
-				bool Staging;
 				bool Authorized;
 
 			public:
@@ -75,6 +74,7 @@ namespace Edge
 				bool OnConnect() override;
 				bool OnClose() override;
 				bool Authorize(const ReplyCallback& Callback);
+				bool PrepareAndSend();
 				bool SendAttachment();
 				bool ProcessAttachment();
 				bool ReadResponses(int Code, const ReplyCallback& Callback);

@@ -43,7 +43,7 @@ namespace Edge
 	{
 		namespace SMTP
 		{
-			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), Hoster(Domain), AttachmentFile(nullptr), Pending(0), Staging(false), Authorized(false)
+			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), Hoster(Domain), AttachmentFile(nullptr), Pending(0), Authorized(false)
 			{
 				AutoEncrypt = false;
 			}
@@ -66,7 +66,7 @@ namespace Edge
 			}
 			bool Client::OnConnect()
 			{
-				Authorized = Staging = false;
+				Authorized = false;
 				return ReadResponse(220, [this]()
 				{
 					SendRequest(250, Core::Form("EHLO %s\r\n", Hoster.empty() ? "domain" : Hoster.c_str()).R(), [this]()
@@ -112,213 +112,23 @@ namespace Edge
 					return Core::Promise<int>(-1);
 
 				Core::Promise<int> Result;
-				if (!Staging)
+				if (&Request != &Root)
+					Request = std::move(Root);
+
+				ED_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
+				Done = [this, Result](SocketClient*, int Code) mutable
 				{
-					if (&Request != &Root)
-						Request = std::move(Root);
+					if (!Buffer.empty())
+						ED_DEBUG("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
 
-					ED_DEBUG("[smtp] message to %s", Root.Receiver.c_str());
-					Done = [this, Result](SocketClient*, int Code) mutable
-					{
-						if (!Buffer.empty())
-							ED_DEBUG("[smtp] %i responded\n%.*s", (int)Stream.GetFd(), (int)Buffer.size(), Buffer.data());
-
-						Buffer.clear();
-						Result.Set(Code);
-					};
-				}
+					Buffer.clear();
+					Result.Set(Code);
+				};
 
 				if (!Authorized && Request.Authenticate && CanRequest("AUTH"))
-				{
-					Staging = true;
-					Authorize([this, Result]() mutable
-					{
-						Send(std::move(Request)).Await([Result](int Code) mutable
-						{
-							Result.Set(Code);
-						});
-					});
-
-					return Result;
-				}
-
-				Staging = false;
-				Stage("request dispatching");
-				if (Request.SenderAddress.empty())
-				{
-					Error("empty sender address");
-					return Result;
-				}
-
-				if (Request.Recipients.empty())
-				{
-					Error("no recipients selected");
-					return Result;
-				}
-
-				if (!Request.Attachments.empty())
-					Boundary = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(64));
-                
-				Core::Parser Content;
-				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
-
-				for (auto& Item : Request.Recipients)
-					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
-
-				for (auto& Item : Request.CCRecipients)
-					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
-
-				for (auto& Item : Request.BCCRecipients)
-					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
-
-				Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
-				{
-					if (Packet::IsDone(Event))
-					{
-						Pending = (int32_t)(1 + Request.Recipients.size() + Request.CCRecipients.size() + Request.BCCRecipients.size());
-						ReadResponses(250, [this]()
-						{
-							Pending = (int32_t)Request.Attachments.size();
-							SendRequest(354, "DATA\r\n", [this]()
-							{
-								Core::Parser Content;
-								Content.fAppend("Date: %s\r\nFrom: ", Core::DateTime::FetchWebDateGMT(time(nullptr)).c_str());
-
-								if (!Request.SenderName.empty())
-									Content.Append(Request.SenderName.c_str());
-
-								Content.fAppend(" <%s>\r\n", Request.SenderAddress.c_str());
-								if (!Request.Mailer.empty())
-									Content.fAppend("X-Mailer: %s\r\n", Request.Mailer.c_str());
-								else
-									Content.Append("X-Mailer: Lynx\r\n");
-
-								if (!Request.Receiver.empty())
-									Content.fAppend("Reply-To: %s\r\n", Request.Receiver.c_str());
-
-								if (Request.NoNotification)
-									Content.fAppend("Disposition-Notification-To: %s\r\n", !Request.Receiver.empty() ? Request.Receiver.c_str() : Request.SenderName.c_str());
-
-								switch (Request.Prior)
-								{
-									case Priority::High:
-										Content.Append("X-Priority: 2 (High)\r\n");
-										break;
-									case Priority::Normal:
-										Content.Append("X-Priority: 3 (Normal)\r\n");
-										break;
-									case Priority::Low:
-										Content.Append("X-Priority: 4 (Low)\r\n");
-										break;
-									default:
-										Content.Append("X-Priority: 3 (Normal)\r\n");
-										break;
-								}
-
-								std::string Recipients;
-								for (size_t i = 0; i < Request.Recipients.size(); i++)
-								{
-									if (i > 0)
-										Recipients += ',';
-
-									if (!Request.Recipients[i].Name.empty())
-									{
-										Recipients.append(Request.Recipients[i].Name);
-										Recipients += ' ';
-									}
-
-									Recipients += '<';
-									Recipients.append(Request.Recipients[i].Address);
-									Recipients += '>';
-								}
-
-								Content.fAppend("To: %s\r\n", Recipients.c_str());
-								if (!Request.CCRecipients.empty())
-								{
-									Recipients.clear();
-									for (size_t i = 0; i < Request.CCRecipients.size(); i++)
-									{
-										if (i > 0)
-											Recipients += ',';
-
-										if (!Request.CCRecipients[i].Name.empty())
-										{
-											Recipients.append(Request.CCRecipients[i].Name);
-											Recipients += ' ';
-										}
-
-										Recipients += '<';
-										Recipients.append(Request.CCRecipients[i].Address);
-										Recipients += '>';
-									}
-									Content.fAppend("Cc: %s\r\n", Recipients.c_str());
-								}
-
-								if (!Request.BCCRecipients.empty())
-								{
-									Recipients.clear();
-									for (size_t i = 0; i < Request.BCCRecipients.size(); i++)
-									{
-										if (i > 0)
-											Recipients += ',';
-
-										if (!Request.BCCRecipients[i].Name.empty())
-										{
-											Recipients.append(Request.BCCRecipients[i].Name);
-											Recipients += ' ';
-										}
-
-										Recipients += '<';
-										Recipients.append(Request.BCCRecipients[i].Address);
-										Recipients += '>';
-									}
-									Content.fAppend("Bcc: %s\r\n", Recipients.c_str());
-								}
-
-								Content.fAppend("Subject: %s\r\nMIME-Version: 1.0\r\n", Request.Subject.c_str());
-								if (!Request.Attachments.empty())
-								{
-									Content.fAppend("Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n", Boundary.c_str());
-									Content.fAppend("--%s\r\n", Boundary.c_str());
-								}
-
-								if (Request.AllowHTML)
-									Content.fAppend("Content-Type: text/html; charset=\"%s\"\r\n", Request.Charset.c_str());
-								else
-									Content.fAppend("Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
-
-								Content.Append("Content-Transfer-Encoding: 7bit\r\n\r\n");
-								Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
-								{
-									if (Packet::IsDone(Event))
-									{
-										Core::Parser Content;
-										for (auto& Item : Request.Messages)
-											Content.fAppend("%s\r\n", Item.c_str());
-
-										if (Request.Messages.empty())
-											Content.Assign(" \r\n");
-
-										Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
-										{
-											if (Packet::IsDone(Event))
-											{
-												Stage("smtp attachment delivery");
-												SendAttachment();
-											}
-											else if (Packet::IsErrorOrSkip(Event))
-												Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
-										});
-									}
-									else if (Packet::IsErrorOrSkip(Event))
-										Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
-								});
-							});
-						});
-					}
-					else if (Packet::IsErrorOrSkip(Event))
-						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
-				});
+					Authorize(std::bind(&Client::PrepareAndSend, this));
+				else
+					PrepareAndSend();
 
 				return Result;
 			}
@@ -670,6 +480,187 @@ namespace Edge
 				}
 
 				return Error("smtp server does not support any of active auth types");
+			}
+			bool Client::PrepareAndSend()
+			{
+				Stage("request dispatching");
+				if (Request.SenderAddress.empty())
+				{
+					Error("empty sender address");
+					return false;
+				}
+
+				if (Request.Recipients.empty())
+				{
+					Error("no recipients selected");
+					return false;
+				}
+
+				if (!Request.Attachments.empty())
+					Boundary = Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(64));
+                
+				Core::Parser Content;
+				Content.fAppend("MAIL FROM: <%s>\r\n", Request.SenderAddress.c_str());
+
+				for (auto& Item : Request.Recipients)
+					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
+
+				for (auto& Item : Request.CCRecipients)
+					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
+
+				for (auto& Item : Request.BCCRecipients)
+					Content.fAppend("RCPT TO: <%s>\r\n", Item.Address.c_str());
+
+				Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
+				{
+					if (Packet::IsDone(Event))
+					{
+						Pending = (int32_t)(1 + Request.Recipients.size() + Request.CCRecipients.size() + Request.BCCRecipients.size());
+						ReadResponses(250, [this]()
+						{
+							Pending = (int32_t)Request.Attachments.size();
+							SendRequest(354, "DATA\r\n", [this]()
+							{
+								Core::Parser Content;
+								Content.fAppend("Date: %s\r\nFrom: ", Core::DateTime::FetchWebDateGMT(time(nullptr)).c_str());
+
+								if (!Request.SenderName.empty())
+									Content.Append(Request.SenderName.c_str());
+
+								Content.fAppend(" <%s>\r\n", Request.SenderAddress.c_str());
+								if (!Request.Mailer.empty())
+									Content.fAppend("X-Mailer: %s\r\n", Request.Mailer.c_str());
+								else
+									Content.Append("X-Mailer: Lynx\r\n");
+
+								if (!Request.Receiver.empty())
+									Content.fAppend("Reply-To: %s\r\n", Request.Receiver.c_str());
+
+								if (Request.NoNotification)
+									Content.fAppend("Disposition-Notification-To: %s\r\n", !Request.Receiver.empty() ? Request.Receiver.c_str() : Request.SenderName.c_str());
+
+								switch (Request.Prior)
+								{
+									case Priority::High:
+										Content.Append("X-Priority: 2 (High)\r\n");
+										break;
+									case Priority::Normal:
+										Content.Append("X-Priority: 3 (Normal)\r\n");
+										break;
+									case Priority::Low:
+										Content.Append("X-Priority: 4 (Low)\r\n");
+										break;
+									default:
+										Content.Append("X-Priority: 3 (Normal)\r\n");
+										break;
+								}
+
+								std::string Recipients;
+								for (size_t i = 0; i < Request.Recipients.size(); i++)
+								{
+									if (i > 0)
+										Recipients += ',';
+
+									if (!Request.Recipients[i].Name.empty())
+									{
+										Recipients.append(Request.Recipients[i].Name);
+										Recipients += ' ';
+									}
+
+									Recipients += '<';
+									Recipients.append(Request.Recipients[i].Address);
+									Recipients += '>';
+								}
+
+								Content.fAppend("To: %s\r\n", Recipients.c_str());
+								if (!Request.CCRecipients.empty())
+								{
+									Recipients.clear();
+									for (size_t i = 0; i < Request.CCRecipients.size(); i++)
+									{
+										if (i > 0)
+											Recipients += ',';
+
+										if (!Request.CCRecipients[i].Name.empty())
+										{
+											Recipients.append(Request.CCRecipients[i].Name);
+											Recipients += ' ';
+										}
+
+										Recipients += '<';
+										Recipients.append(Request.CCRecipients[i].Address);
+										Recipients += '>';
+									}
+									Content.fAppend("Cc: %s\r\n", Recipients.c_str());
+								}
+
+								if (!Request.BCCRecipients.empty())
+								{
+									Recipients.clear();
+									for (size_t i = 0; i < Request.BCCRecipients.size(); i++)
+									{
+										if (i > 0)
+											Recipients += ',';
+
+										if (!Request.BCCRecipients[i].Name.empty())
+										{
+											Recipients.append(Request.BCCRecipients[i].Name);
+											Recipients += ' ';
+										}
+
+										Recipients += '<';
+										Recipients.append(Request.BCCRecipients[i].Address);
+										Recipients += '>';
+									}
+									Content.fAppend("Bcc: %s\r\n", Recipients.c_str());
+								}
+
+								Content.fAppend("Subject: %s\r\nMIME-Version: 1.0\r\n", Request.Subject.c_str());
+								if (!Request.Attachments.empty())
+								{
+									Content.fAppend("Content-Type: multipart/mixed; boundary=\"%s\"\r\n\r\n", Boundary.c_str());
+									Content.fAppend("--%s\r\n", Boundary.c_str());
+								}
+
+								if (Request.AllowHTML)
+									Content.fAppend("Content-Type: text/html; charset=\"%s\"\r\n", Request.Charset.c_str());
+								else
+									Content.fAppend("Content-type: text/plain; charset=\"%s\"\r\n", Request.Charset.c_str());
+
+								Content.Append("Content-Transfer-Encoding: 7bit\r\n\r\n");
+								Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
+								{
+									if (Packet::IsDone(Event))
+									{
+										Core::Parser Content;
+										for (auto& Item : Request.Messages)
+											Content.fAppend("%s\r\n", Item.c_str());
+
+										if (Request.Messages.empty())
+											Content.Assign(" \r\n");
+
+										Stream.WriteAsync(Content.Get(), Content.Size(), [this](SocketPoll Event)
+										{
+											if (Packet::IsDone(Event))
+											{
+												Stage("smtp attachment delivery");
+												SendAttachment();
+											}
+											else if (Packet::IsErrorOrSkip(Event))
+												Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+										});
+									}
+									else if (Packet::IsErrorOrSkip(Event))
+										Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+								});
+							});
+						});
+					}
+					else if (Packet::IsErrorOrSkip(Event))
+						Error("smtp socket write %s", (Packet::IsTimeout(Event) ? "timeout" : "error"));
+				});
+
+				return true;
 			}
 			bool Client::SendAttachment()
 			{

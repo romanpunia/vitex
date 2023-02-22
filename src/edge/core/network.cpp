@@ -2270,7 +2270,7 @@ namespace Edge
 #endif
 			return true;
 		}
-		bool SocketServer::Unlisten()
+		bool SocketServer::Unlisten(uint64_t TimeoutSeconds)
 		{
 			ED_MEASURE(ED_TIMING_HANG);
 			if (!Router && State == ServerState::Idle)
@@ -2281,9 +2281,9 @@ namespace Edge
 
 			do
 			{
-				if (time(nullptr) - Timeout > 5)
+				if (TimeoutSeconds > 0 && time(nullptr) - Timeout > (int64_t)TimeoutSeconds)
 				{
-					ED_ERR("[stall] server has stalled connections: %i", (int)Active.size());
+					ED_ERR("[stall] server has stalled connections: %i\n\tthese connections will be ignored", (int)Active.size());
 					Sync.lock();
 					OnStall(Active);
 					Sync.unlock();

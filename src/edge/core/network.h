@@ -452,7 +452,7 @@ namespace Edge
 			void Lock();
 			void Unlock();
 			bool Configure(SocketRouter* New);
-			bool Unlisten();
+			bool Unlisten(uint64_t TimeoutSeconds = 5);
 			bool Listen();
 			size_t GetBacklog() const;
 			ServerState GetState() const;

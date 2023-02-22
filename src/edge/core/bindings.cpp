@@ -12354,7 +12354,7 @@ namespace Edge
 				VSocketServer.SetMethod("void lock()", &Network::SocketServer::Lock);
 				VSocketServer.SetMethod("void unlock()", &Network::SocketServer::Unlock);
 				VSocketServer.SetMethod("bool configure(socket_router@+)", &Network::SocketServer::Configure);
-				VSocketServer.SetMethod("bool unlisten()", &Network::SocketServer::Unlisten);
+				VSocketServer.SetMethod("bool unlisten(uint64 = 5)", &Network::SocketServer::Unlisten);
 				VSocketServer.SetMethod("bool listen()", &Network::SocketServer::Listen);
 				VSocketServer.SetMethod("usize get_backlog() const", &Network::SocketServer::GetBacklog);
 				VSocketServer.SetMethod("server_state get_state() const", &Network::SocketServer::GetState);

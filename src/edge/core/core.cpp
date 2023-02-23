@@ -282,19 +282,6 @@ namespace
                 return {};
 		}
 	}
-#else
-	std::vector<char> SysControl(const char* Name)
-	{
-		return {};
-	}
-	std::vector<char> SysControl(int M1, int M2)
-	{
-		return {};
-	}
-	std::pair<bool, uint64_t> SysExtract(const std::vector<char>& Data)
-	{
-		return {};
-	}
 #endif
 #ifdef ED_MICROSOFT
 	static std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> CPUInfoBuffer()
@@ -395,10 +382,10 @@ namespace Edge
 			}
 		};
 #endif
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Callback(Procedure), Slave(ED_NEW(Cocontext)), Master(Base), Dead(0)
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(Procedure), Slave(ED_NEW(Cocontext)), Master(Base)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coactive::Active), Callback(std::move(Procedure)), Slave(ED_NEW(Cocontext)), Master(Base), Dead(0)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(std::move(Procedure)), Slave(ED_NEW(Cocontext)), Master(Base)
 		{
 		}
 		Coroutine::~Coroutine() noexcept
@@ -510,10 +497,8 @@ namespace Edge
 			}
 			else if (Length > Precision)
 			{
-				char Last;
 				while (Length > Precision)
 				{
-					Last = Source[0];
 					Length--;
 					Source.pop_front();
 				}
@@ -1744,7 +1729,7 @@ namespace Edge
 		{
 			Copy(std::move(Other));
 		}
-		Variant::~Variant()
+		Variant::~Variant() noexcept
 		{
 			Free();
 		}
@@ -2217,16 +2202,16 @@ namespace Edge
 			}
 		}
 
-		Timeout::Timeout(const SeqTaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(NewCallback), Expires(NewTimeout), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
+		Timeout::Timeout(const SeqTaskCallback& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(NewCallback), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(SeqTaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Callback(std::move(NewCallback)), Expires(NewTimeout), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
+		Timeout::Timeout(SeqTaskCallback&& NewCallback, const std::chrono::microseconds& NewTimeout, TaskId NewId, bool NewAlive, Difficulty NewType) noexcept : Expires(NewTimeout), Callback(std::move(NewCallback)), Type(NewType), Id(NewId), Invocations(0), Alive(NewAlive)
 		{
 		}
-		Timeout::Timeout(const Timeout& Other) noexcept : Callback(Other.Callback), Expires(Other.Expires), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
+		Timeout::Timeout(const Timeout& Other) noexcept : Expires(Other.Expires), Callback(Other.Callback), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
 		{
 		}
-		Timeout::Timeout(Timeout&& Other) noexcept : Callback(std::move(Other.Callback)), Expires(Other.Expires), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
+		Timeout::Timeout(Timeout&& Other) noexcept : Expires(Other.Expires), Callback(std::move(Other.Callback)), Type(Other.Type), Id(Other.Id), Invocations(Other.Invocations), Alive(Other.Alive)
 		{
 		}
 		Timeout& Timeout::operator= (const Timeout& Other) noexcept
@@ -5032,7 +5017,7 @@ namespace Edge
 			Other.Base = nullptr;
 			return *this;
 		}
-		Guard::Loaded::~Loaded()
+		Guard::Loaded::~Loaded() noexcept
 		{
 			Close();
 		}
@@ -7850,7 +7835,7 @@ namespace Edge
 				return false;
 			}
 
-			JOBOBJECT_EXTENDED_LIMIT_INFORMATION Info = { 0 };
+			JOBOBJECT_EXTENDED_LIMIT_INFORMATION Info = { };
 			Info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 			if (SetInformationJobObject(Job, JobObjectExtendedLimitInformation, &Info, sizeof(Info)) == 0)
 			{
@@ -8682,7 +8667,7 @@ namespace Edge
 			std::stringstream Stream;
 			Stream << "in thread " << std::this_thread::get_id() << ":\n";
 
-			size_t Index = 0, Size = Source.size();
+			size_t Size = Source.size();
 			for (size_t TraceIdx = Source.size(); TraceIdx > 0; --TraceIdx)
 			{
 				auto& Next = Source.top();
@@ -9159,7 +9144,7 @@ namespace Edge
 			Coroutines = std::min<size_t>(Cores * 8, 256);
 		}
 
-		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Terminate(false), Active(false), Enqueue(true), Immediate(false)
+		Schedule::Schedule() noexcept : Generation(0), Debug(nullptr), Enqueue(true), Terminate(false), Active(false), Immediate(false)
 		{
 			for (size_t i = 0; i < (size_t)Difficulty::Count; i++)
 				Queues[i] = ED_NEW(ConcurrentQueuePtr);
@@ -9679,11 +9664,11 @@ namespace Edge
 				{
 					ReceiveToken Token(Queue->Tasks);
 					Costate* State = new Costate(Policy.Memory);
-					State->NotifyLock = [this, Thread]()
+					State->NotifyLock = [Thread]()
 					{
 						Thread->Update.lock();
 					};
-					State->NotifyUnlock = [this, Thread]()
+					State->NotifyUnlock = [Thread]()
 					{
 						Thread->Notify.notify_all();
 						Thread->Update.unlock();
@@ -9815,7 +9800,7 @@ namespace Edge
 
 			if (!Thread->Daemon)
 			{
-				Thread->Handle = std::move(std::thread(&Schedule::ProcessLoop, this, Type, Thread));
+				Thread->Handle = std::thread(&Schedule::ProcessLoop, this, Type, Thread);
 				Thread->Id = Thread->Handle.get_id();
 			}
 			else
@@ -9959,7 +9944,7 @@ namespace Edge
 		Schema::Schema(Variant&& Base) noexcept : Nodes(nullptr), Parent(nullptr), Saved(true), Value(std::move(Base))
 		{
 		}
-		Schema::~Schema()
+		Schema::~Schema() noexcept
 		{
 			if (Parent != nullptr && Parent->Nodes != nullptr)
 			{

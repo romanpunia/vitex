@@ -96,7 +96,7 @@ namespace Edge
 				SetExpires(0);
 			}
 
-			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Busy(false), Reset(false), Deadly(false), Stream(NewStream), Codec(new WebCodec())
+			WebSocketFrame::WebSocketFrame(Socket* NewStream) : State((uint32_t)WebSocketState::Open), Active(true), Reset(false), Deadly(false), Busy(false), Stream(NewStream), Codec(new WebCodec())
 			{
 			}
 			WebSocketFrame::~WebSocketFrame()
@@ -535,7 +535,6 @@ namespace Edge
 			{
 				if (Active)
 				{
-					void* Where = (void*)Compiler;
 					Base->Info.Sync.lock();
 					if (Compiler != nullptr)
 					{
@@ -603,7 +602,7 @@ namespace Edge
 			RouteGroup::RouteGroup(const std::string& NewMatch, RouteMode NewMode) noexcept : Match(NewMatch), Mode(NewMode)
 			{
 			}
-			RouteGroup::~RouteGroup()
+			RouteGroup::~RouteGroup() noexcept
 			{
 				for (auto* Entry : Routes)
 					ED_RELEASE(Entry);
@@ -1957,7 +1956,6 @@ namespace Edge
 				if (!Certificate)
 					return false;
 
-				const EVP_MD* Digest = EVP_get_digestbyname("sha1");
 				X509_NAME* Subject = X509_get_subject_name(Certificate);
 				X509_NAME* Issuer = X509_get_issuer_name(Certificate);
 				ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
@@ -1983,6 +1981,7 @@ namespace Edge
 					*SerialBuffer = '\0';
 #if OPENSSL_VERSION_MAJOR < 3
 				unsigned int Size = 0;
+				const EVP_MD* Digest = EVP_get_digestbyname("sha1");
 				ASN1_digest((int(*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 				char FingerBuffer[ED_CHUNK_SIZE];
@@ -3440,7 +3439,6 @@ namespace Edge
 
 				memcpy(Payload.data(), Buffer, sizeof(char) * Size);
 				char* Data = Payload.data();
-				bool HasPayload = false;
 			ParsePayload:
 				while (Size)
 				{
@@ -3656,7 +3654,6 @@ namespace Edge
 
 				return !Queue.empty();
 			FetchPayload:
-				HasPayload = true;
 				if (!Control && !Final)
 					return !Queue.empty();
 

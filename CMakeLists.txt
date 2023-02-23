@@ -6,7 +6,6 @@ include(lib/toolchain.cmake)
 #Project's metadata
 project(edge)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo")
 
 #Build directory if not defined
 if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
@@ -86,11 +85,12 @@ else()
     message(STATUS "Script bindings: minimal coverage")
 endif()
 
-#Project's compile options and directories
+#Project's compile options, directories and dependency flags
+include(lib/compiler.cmake)
 include(lib/options.cmake)
-include(src/edge/CMakeLists.txt)
+include(lib/dependencies.cmake)
 
-#Project's dependency resolvers
+#Project's dependencies
 include(lib/openssl/CMakeLists.txt)
 include(lib/openal/CMakeLists.txt)
 include(lib/opengl/CMakeLists.txt)

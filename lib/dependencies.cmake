@@ -25,8 +25,10 @@ if (ED_USE_BULLET3)
 	target_compile_definitions(edge PRIVATE
 		-DBT_NO_PROFILE
 		-DED_USE_BULLET3)
-	target_compile_definitions(edge PUBLIC
-		-DED_USE_BULLET3)
+	target_compile_definitions(edge PUBLIC -DED_USE_BULLET3)
+	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+		target_compile_definitions(edge PRIVATE -DBT_NO_SIMD_OPERATOR_OVERLOADS)
+	endif()
 endif()
 
 #Resolve headers and compile options for RmlUI
@@ -36,13 +38,11 @@ if (ED_USE_RMLUI)
 	target_compile_definitions(edge PRIVATE
 			-DRMLUI_STATIC_LIB
 			-DRMLUI_MATRIX_ROW_MAJOR)
-	target_compile_definitions(edge PUBLIC
-		-DED_USE_RMLUI)
+	target_compile_definitions(edge PUBLIC -DED_USE_RMLUI)
 		
 	#Resolve default font engine
 	if (NOT ED_USE_FREETYPE OR (NOT Freetype_FOUND AND NOT FREETYPE_LIBRARIES))
-		target_compile_definitions(edge PRIVATE
-			-DRMLUI_NO_FONT_INTERFACE_DEFAULT)
+		target_compile_definitions(edge PRIVATE -DRMLUI_NO_FONT_INTERFACE_DEFAULT)
 	else()
 		unset(Freetype_FOUND CACHE)
 		unset(FREETYPE_LIBRARIES CACHE)
@@ -52,15 +52,13 @@ endif()
 #Resolve headers and compile options for VCL
 if (ED_USE_SIMD)
 	target_include_directories(edge PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/vcl)
-	target_compile_definitions(edge PUBLIC
-			-DED_USE_SIMD)
+	target_compile_definitions(edge PUBLIC -DED_USE_SIMD)
 endif()
 
 #Resolve headers and compile options for Wepoll
 if (WIN32)
 	target_include_directories(edge PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/wepoll)
-	target_compile_definitions(edge PUBLIC
-			-DED_WIED_WEPOLL)
+	target_compile_definitions(edge PUBLIC -DED_WIED_WEPOLL)
 endif()
 
 #Resolve headers for FContext
@@ -70,10 +68,7 @@ if (ED_USE_FCTX)
 			-DBOOST_CONTEXT_EXPORT
 			-DED_USE_FCTX)
 	if (MSVC)
-		set_source_files_properties(
-			${FCTX_SOURCE_ASSEMBLY}
-			PROPERTIES
-			COMPILE_FLAGS "/safeseh")
+		set_source_files_properties(${FCTX_SOURCE_ASSEMBLY} PROPERTIES COMPILE_FLAGS "/safeseh")
 	endif()
 	unset(FCTX_SOURCE_ASSEMBLY)
 endif()

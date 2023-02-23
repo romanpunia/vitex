@@ -233,10 +233,10 @@ namespace Edge
 				D3D_RELEASE(Resource);
 			}
 
-			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Resource(nullptr), View(nullptr), Access(nullptr)
+			D3D11Texture2D::D3D11Texture2D() : Texture2D(), Access(nullptr), Resource(nullptr), View(nullptr)
 			{
 			}
-			D3D11Texture2D::D3D11Texture2D(const Desc& I) : Texture2D(I), Resource(nullptr), View(nullptr), Access(nullptr)
+			D3D11Texture2D::D3D11Texture2D(const Desc& I) : Texture2D(I), Access(nullptr), Resource(nullptr), View(nullptr)
 			{
 			}
 			D3D11Texture2D::~D3D11Texture2D()
@@ -250,7 +250,7 @@ namespace Edge
 				return (void*)Resource;
 			}
 
-			D3D11Texture3D::D3D11Texture3D() : Texture3D(), Resource(nullptr), View(nullptr), Access(nullptr)
+			D3D11Texture3D::D3D11Texture3D() : Texture3D(), Access(nullptr), Resource(nullptr), View(nullptr)
 			{
 			}
 			D3D11Texture3D::~D3D11Texture3D()
@@ -264,10 +264,10 @@ namespace Edge
 				return (void*)Resource;
 			}
 
-			D3D11TextureCube::D3D11TextureCube() : TextureCube(), Resource(nullptr), View(nullptr), Access(nullptr)
+			D3D11TextureCube::D3D11TextureCube() : TextureCube(), Access(nullptr), Resource(nullptr), View(nullptr)
 			{
 			}
-			D3D11TextureCube::D3D11TextureCube(const Desc& I) : TextureCube(I), Resource(nullptr), View(nullptr), Access(nullptr)
+			D3D11TextureCube::D3D11TextureCube(const Desc& I) : TextureCube(I), Access(nullptr), Resource(nullptr), View(nullptr)
 			{
 			}
 			D3D11TextureCube::~D3D11TextureCube()
@@ -500,7 +500,7 @@ namespace Edge
 				return (void*)Async;
 			}
 
-			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), SwapChain(nullptr), Context(nullptr), DriverType(D3D_DRIVER_TYPE_HARDWARE), FeatureLevel(D3D_FEATURE_LEVEL_11_0)
+			D3D11Device::D3D11Device(const Desc& I) : GraphicsDevice(I), ImmediateContext(nullptr), Context(nullptr), SwapChain(nullptr), FeatureLevel(D3D_FEATURE_LEVEL_11_0), DriverType(D3D_DRIVER_TYPE_HARDWARE)
 			{
 				if (I.Window != nullptr && !I.Window->GetHandle())
 				{

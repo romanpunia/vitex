@@ -280,7 +280,6 @@ namespace Edge
 					I.Mutations = HasMutations->second.GetBoolean();
 
 				Engine::SceneGraph* Object = new Engine::SceneGraph(I);
-				Engine::SceneGraph::Desc& Conf = Object->GetConf();
 				Engine::IdxSnapshot Snapshot;
 				Object->Snapshot = &Snapshot;
 
@@ -1252,19 +1251,13 @@ namespace Edge
 					for (unsigned int j = 0; j < Mesh->mNumBones; j++)
 					{
 						auto& Joint = Mesh->mBones[j];
-						int64_t Index = 0;
-
 						auto It = Joints->find(Joint->mName.C_Str());
 						if (It == Joints->end())
 						{
 							MeshNode Element;
-							Element.Index = Id;
-							Index = Id;
-							Id++;
+							Element.Index = Id++;
 							Joints->insert(std::make_pair(Joint->mName.C_Str(), Element));
 						}
-						else
-							Index = It->second.Index;
 					}
 				}
 

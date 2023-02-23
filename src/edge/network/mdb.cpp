@@ -3727,7 +3727,7 @@ namespace Edge
 			}
 			Core::Schema* Driver::GetCacheDump()
 			{
-				ED_ASSERT(Queries && Safe, false, "driver should be initialized");
+				ED_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
 				std::unique_lock<std::mutex> Unique(*Safe);
 				Core::Schema* Result = Core::Var::Set::Array();
 				for (auto& Query : Queries->Map)

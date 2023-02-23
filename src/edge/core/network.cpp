@@ -278,13 +278,13 @@ namespace Edge
 		Location::Location(const Location& Other) noexcept :
 			Query(Other.Query), URL(Other.URL), Protocol(Other.Protocol),
 			Username(Other.Username), Password(Other.Password), Hostname(Other.Hostname),
-			Path(Other.Path), Fragment(Other.Fragment), Port(Other.Port)
+			Fragment(Other.Fragment), Path(Other.Path), Port(Other.Port)
 		{
 		}
 		Location::Location(Location&& Other) noexcept :
 			Query(std::move(Other.Query)), URL(std::move(Other.URL)), Protocol(std::move(Other.Protocol)),
 			Username(std::move(Other.Username)), Password(std::move(Other.Password)), Hostname(std::move(Other.Hostname)),
-			Path(std::move(Other.Path)), Fragment(std::move(Other.Fragment)), Port(Other.Port)
+			Fragment(std::move(Other.Fragment)), Path(std::move(Other.Path)), Port(Other.Port)
 		{
 		}
 		Location& Location::operator= (const Location& Other) noexcept
@@ -752,14 +752,11 @@ namespace Edge
 				return Count;
 
 			ED_MEASURE(EventTimeout + ED_TIMING_IO);
-			size_t Size = (size_t)Count, Cleanups = 0;
+			size_t Size = (size_t)Count;
 			auto Time = Core::Schedule::GetClock();
 
 			for (size_t i = 0; i < Size; i++)
-			{
-				if (!DispatchEvents(Fds->at(i), Time))
-					++Cleanups;
-			}
+				DispatchEvents(Fds->at(i), Time);
 
 			ED_MEASURE(ED_TIMING_IO);
 			if (Timeouts->Map.empty())
@@ -1126,7 +1123,7 @@ namespace Edge
 		SocketAddress::SocketAddress(addrinfo* NewNames, addrinfo* NewUsable) : Names(NewNames), Usable(NewUsable)
 		{
 		}
-		SocketAddress::~SocketAddress()
+		SocketAddress::~SocketAddress() noexcept
 		{
 			if (Names != nullptr)
 				freeaddrinfo(Names);
@@ -1310,14 +1307,13 @@ namespace Edge
 			ED_ASSERT(Offset >= 0, -1, "offset should be set and positive");
 			ED_ASSERT(Size > 0, -1, "size should be set and greater than zero");
 			ED_MEASURE(ED_TIMING_NET);
-			auto FromFd = ED_FILENO(Stream);
 #ifdef ED_APPLE
 			off_t Seek = (off_t)Offset, Length = (off_t)Size;
-			int64_t Value = (int64_t)sendfile(FromFd, Fd, Seek, &Length, nullptr, 0);
+			int64_t Value = (int64_t)sendfile(ED_FILENO(Stream), Fd, Seek, &Length, nullptr, 0);
 			Size = Length;
 #elif defined(ED_UNIX)
 			off_t Seek = (off_t)Offset;
-			int64_t Value = (int64_t)sendfile(Fd, FromFd, &Seek, (size_t)Size);
+			int64_t Value = (int64_t)sendfile(Fd, ED_FILENO(Stream), &Seek, (size_t)Size);
 			Size = Value;
 #else
 			int64_t Value = -3;
@@ -1717,10 +1713,10 @@ namespace Edge
 			if (!Callback)
 				return -2;
 
-			Multiplexer::WhenWriteable(this, [this, Callback = std::move(Callback)](SocketPoll Event) mutable
+			Multiplexer::WhenWriteable(this, [Callback = std::move(Callback)](SocketPoll Event) mutable
 			{
 				if (Packet::IsDone(Event))
-				Callback(0);
+					Callback(0);
 				else if (Packet::IsTimeout(Event))
 					Callback(ETIMEDOUT);
 				else
@@ -1951,12 +1947,12 @@ namespace Edge
 		SocketListener::SocketListener(const std::string& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress) : Name(NewName), Hostname(NewHost), Source(NewAddress), Base(new Socket())
 		{
 		}
-		SocketListener::~SocketListener()
+		SocketListener::~SocketListener() noexcept
 		{
 			ED_RELEASE(Base);
 		}
 
-		SocketRouter::~SocketRouter()
+		SocketRouter::~SocketRouter() noexcept
 		{
 #ifdef ED_HAS_OPENSSL
 			for (auto It = Certificates.begin(); It != Certificates.end(); It++)
@@ -1966,7 +1962,7 @@ namespace Edge
 
 				SSL_CTX_free(It->second.Context);
 				It->second.Context = nullptr;
-		}
+			}
 #endif
 		}
 		RemoteHost& SocketRouter::Listen(const std::string& Hostname, int Port, bool Secure)
@@ -1982,7 +1978,7 @@ namespace Edge
 			return Listener;
 		}
 
-		SocketConnection::~SocketConnection()
+		SocketConnection::~SocketConnection() noexcept
 		{
 			ED_RELEASE(Stream);
 		}
@@ -2018,7 +2014,6 @@ namespace Edge
 			if (!Certificate)
 				return false;
 
-			const EVP_MD* Digest = EVP_get_digestbyname("sha1");
 			X509_NAME* Subject = X509_get_subject_name(Certificate);
 			X509_NAME* Issuer = X509_get_issuer_name(Certificate);
 			ASN1_INTEGER* Serial = X509_get_serialNumber(Certificate);
@@ -2044,6 +2039,7 @@ namespace Edge
 				*SerialBuffer = '\0';
 #if OPENSSL_VERSION_MAJOR < 3
 			unsigned int Size = 0;
+			const EVP_MD* Digest = EVP_get_digestbyname("sha1");
 			ASN1_digest((int (*)(void*, unsigned char**))i2d_X509, Digest, (char*)Certificate, Buffer, &Size);
 
 			char FingerBuffer[ED_CHUNK_SIZE];

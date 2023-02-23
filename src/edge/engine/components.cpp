@@ -436,8 +436,7 @@ namespace Edge
 			{
 				ED_ASSERT_V(Node != nullptr, "schema should be set");
 
-				float Anticipation = 0.0f;
-				bool Extended = false, Transparent = false;
+				float Anticipation = 0.0f; bool Extended = false;
 				uint32_t NewCategory = (uint32_t)GeoCategory::Opaque;
 				Series::Unpack(Node->Find("ccd-motion-threshold"), &Anticipation);
 				Series::Unpack(Node->Find("texcoord"), &TexCoord);
@@ -3312,8 +3311,6 @@ namespace Edge
 				Series::Unpack(Node->Find("near-plane"), &NearPlane);
 				Series::Unpack(Node->Find("width"), &Width);
 				Series::Unpack(Node->Find("height"), &Height);
-
-				SceneGraph* Scene = Parent->GetScene();
 				Series::Unpack(Node->Find("occluder-skips"), &Renderer->OccluderSkips);
 				Series::Unpack(Node->Find("occludee-skips"), &Renderer->OccludeeSkips);
 				Series::Unpack(Node->Find("occlusion-skips"), &Renderer->OcclusionSkips);
@@ -3871,7 +3868,7 @@ namespace Edge
 					return Core::Promise<int>((int)Script::VMResult::INVALID_ARG);
 
 				Protect();
-				return Compiler->GetContext()->TryExecute(false, Function, [this, OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				return Compiler->GetContext()->TryExecute(false, Function, [OnArgs = std::move(OnArgs)](Script::VMContext* Context)
 				{
 					if (OnArgs)
 						OnArgs(Context);

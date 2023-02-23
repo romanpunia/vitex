@@ -1423,7 +1423,7 @@ namespace Edge
 				Result.Base.reserve(Base.size());
 
 				for (auto& Item : Base)
-					Result.Base.emplace_back(std::move(Item.Copy()));
+					Result.Base.emplace_back(Item.Copy());
 
 				return Result;
 			}
@@ -1639,14 +1639,14 @@ namespace Edge
 			}
 			Core::Promise<SessionId> Cluster::TxBegin(const std::string& Command)
 			{
-				return Query(Command, (size_t)QueryOp::TransactionStart).Then<SessionId>([this](Cursor&& Result)
+				return Query(Command, (size_t)QueryOp::TransactionStart).Then<SessionId>([](Cursor&& Result)
 				{
 					return Result.IsSuccess() ? Result.GetExecutor() : nullptr;
 				});
 			}
 			Core::Promise<bool> Cluster::TxEnd(const std::string& Command, SessionId Session)
 			{
-				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<bool>([this](Cursor&& Result)
+				return Query(Command, (size_t)QueryOp::TransactionEnd, Session).Then<bool>([](Cursor&& Result)
 				{
 					return Result.IsSuccess();
 				});
@@ -2548,7 +2548,7 @@ namespace Edge
 			}
 			Core::Schema* Driver::GetCacheDump()
 			{
-				ED_ASSERT(Queries && Safe, false, "driver should be initialized");
+				ED_ASSERT(Queries && Safe, nullptr, "driver should be initialized");
 				std::unique_lock<std::mutex> Unique(*Safe);
 				Core::Schema* Result = Core::Var::Set::Array();
 				for (auto& Query : Queries->Map)

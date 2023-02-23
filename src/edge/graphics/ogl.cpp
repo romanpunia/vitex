@@ -24,15 +24,7 @@ namespace
 	{
 		return WindowHeight - Height - Y;
 	}
-	float D3D_GetCoordY(float Y, float Height, float WindowHeight)
-	{
-		return WindowHeight - Height - Y;
-	}
 	int64_t OGL_GetCoordY(int64_t Y, int64_t Height, int64_t WindowHeight)
-	{
-		return WindowHeight - Height - Y;
-	}
-	float OGL_GetCoordY(float Y, float Height, float WindowHeight)
 	{
 		return WindowHeight - Height - Y;
 	}
@@ -2987,7 +2979,6 @@ namespace Edge
 				OGLDepthTargetCube* Result = new OGLDepthTargetCube(I);
 				bool NoStencil = (I.FormatMode == Format::D16_Unorm || I.FormatMode == Format::D32_Float);
 				GLenum SizeFormat = GetSizedFormat(I.FormatMode);
-				GLenum BaseFormat = GetBaseFormat(I.FormatMode);
 				GLenum ComponentFormat = (NoStencil ? GL_DEPTH_COMPONENT : GL_DEPTH_STENCIL);
 
 				glGenTextures(1, &Result->DepthTexture);

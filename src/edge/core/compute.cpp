@@ -114,27 +114,6 @@ namespace
 		}
 	};
 
-	Edge::Compute::Matrix4x4 BT_TO_M16(const btTransform& In)
-	{
-		Edge::Compute::Matrix4x4 Result;
-		const btMatrix3x3& Offset = In.getBasis();
-		Result.Row[0] = Offset[0][0];
-		Result.Row[1] = Offset[1][0];
-		Result.Row[2] = Offset[2][0];
-		Result.Row[4] = Offset[0][1];
-		Result.Row[5] = Offset[1][1];
-		Result.Row[6] = Offset[2][1];
-		Result.Row[8] = Offset[0][2];
-		Result.Row[9] = Offset[1][2];
-		Result.Row[10] = Offset[2][2];
-
-		const btVector3& Origin = In.getOrigin();
-		Result.Row[12] = Origin.x();
-		Result.Row[13] = Origin.y();
-		Result.Row[14] = -Origin.z();
-
-		return Result;
-	}
 	btTransform M16_TO_BT(const Edge::Compute::Matrix4x4& In)
 	{
 		btMatrix3x3 Offset;
@@ -2194,7 +2173,7 @@ namespace Edge
 		Vector4 Matrix4x4::operator *(const Vector4& V) const
 		{
 			Matrix4x4 Result = this->Mul(V);
-			return Vector4(Row[0], Row[4], Row[8], Row[12]);
+			return Vector4(Result.Row[0], Result.Row[4], Result.Row[8], Result.Row[12]);
 		}
 		Matrix4x4& Matrix4x4::operator =(const Matrix4x4& V) noexcept
 		{
@@ -4648,7 +4627,7 @@ namespace Edge
 			Other.Histogram = nullptr;
 			Other.Offset = nullptr;
 		}
-		RadixSorter::~RadixSorter()
+		RadixSorter::~RadixSorter() noexcept
 		{
 			ED_FREE(Offset);
 			ED_FREE(Histogram);
@@ -7766,13 +7745,13 @@ namespace Edge
 				if (Size - i < 2)
 					break;
 
-				if ((255 == (a = (char)CharToInt[Data[i]])) || (255 == (b = (char)CharToInt[Data[i + 1]])))
+				if ((255 == (a = (char)CharToInt[(unsigned char)Data[i]])) || (255 == (b = (char)CharToInt[(unsigned char)Data[i + 1]])))
 					break;
 
 				x = a + 45 * b;
 				if (Size - i >= 3)
 				{
-					if (255 == (a = (char)CharToInt[Data[i + 2]]))
+					if (255 == (a = (char)CharToInt[(unsigned char)Data[i + 2]]))
 						break;
 
 					x += a * 45 * 45;
@@ -9431,7 +9410,7 @@ namespace Edge
 			return nullptr;
 		}
 
-		Transform::Transform(void* NewUserData) noexcept : Local(nullptr), Root(nullptr), Scaling(false), Dirty(true), UserData(NewUserData)
+		Transform::Transform(void* NewUserData) noexcept : Root(nullptr), Local(nullptr), Scaling(false), Dirty(true), UserData(NewUserData)
 		{
 		}
 		Transform::~Transform() noexcept
@@ -10006,7 +9985,6 @@ namespace Edge
 			size_t ParentIndex = Nodes[LeafIndex].Parent;
 			auto& Parent = Nodes[ParentIndex];
 
-			size_t UpperParentIndex = Parent.Parent;
 			size_t SiblingIndex = (Parent.Left == LeafIndex ? Parent.Right : Parent.Left);
 			auto& Sibling = Nodes[SiblingIndex];
 
@@ -12196,7 +12174,7 @@ namespace Edge
 			Engine->AddConstraint(this);
 #endif
 		}
-		PConstraint::~PConstraint()
+		PConstraint::~PConstraint() noexcept
 		{
 #ifdef ED_USE_BULLET3
 			Engine->RemoveConstraint(this);

@@ -2948,7 +2948,7 @@ static inline Vec8f blend8(Vec8f const & a, Vec8f const & b) {
         const int n1 = i2 > 0 ? i2/2 : i3 > 0 ? i3/2 : blank1;
         const int n2 = i4 > 0 ? i4/2 : i5 > 0 ? i5/2 : blank1;
         const int n3 = i6 > 0 ? i6/2 : i7 > 0 ? i7/2 : blank1;
-        t1 = _mm256_castpd_ps (blend4<n0,n1,n2,n3> (_mm256_castps_pd(a), _mm256_castps_pd(b)));
+        t1 = _mm256_castpd_ps (blend4<n0,n1,n2,n3> (Vec4d(_mm256_castps_pd(a)), Vec4d(_mm256_castps_pd(b))));
         if (blank1 == -1 || !do_zero) {
             return  t1;
         }

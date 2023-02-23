@@ -1831,7 +1831,7 @@ namespace Edge
 				{
 					auto& Array = Top[i];
 					Scene->Statistics.Instances += Array.size();
-					Scene->Watch(Parallel::Enqueue([i, &Array]()
+					Scene->Watch(Parallel::Enqueue([&Array]()
 					{
 						ED_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
 					}));
@@ -1852,7 +1852,7 @@ namespace Edge
 				Subframe.clear();
 
 				VisibilityQuery Info;
-				System->QueryAsync<T>([this, &System, &Subframe, &Info](Component* Item)
+				System->QueryAsync<T>([&System, &Subframe, &Info](Component* Item)
 				{
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
@@ -1871,7 +1871,7 @@ namespace Edge
 					Top[i].clear();
 
 				VisibilityQuery Info;
-				System->QueryAsync<T>([this, &System, &Top, &Info](Component* Item)
+				System->QueryAsync<T>([&System, &Top, &Info](Component* Item)
 				{
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
@@ -1883,7 +1883,7 @@ namespace Edge
 				{
 					auto& Array = Top[i];
 					Scene->Statistics.Instances += Array.size();
-					Scene->Watch(Parallel::Enqueue([i, &Array]()
+					Scene->Watch(Parallel::Enqueue([&Array]()
 					{
 						ED_SORT(Array.begin(), Array.end(), Entity::Sortout<T>);
 					}));
@@ -1897,7 +1897,7 @@ namespace Edge
 				Subframe.clear();
 
 				VisibilityQuery Info;
-				System->QueryAsync<T>([this, &System, &Subframe, &Info](Component* Item)
+				System->QueryAsync<T>([&System, &Subframe, &Info](Component* Item)
 				{
 					System->FetchVisibility(Item, Info);
 					if (Info.BoundaryVisible)
@@ -2236,7 +2236,7 @@ namespace Edge
 			}
 			bool CullingEnd()
 			{
-				ED_ASSERT(Skippable || Current != nullptr, false, "culling query must be started");
+				ED_ASSERT(Current != nullptr, false, "culling query must be started");
 				if (!Current)
 					return false;
 

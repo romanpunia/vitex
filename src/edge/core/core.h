@@ -57,7 +57,7 @@
 #endif
 #define ED_STRINGIFY(X) #X
 #define ED_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
-#define ED_FUNCTION __FUNCTION__
+#define ED_FUNCTION __func__
 #define ED_LINE __LINE__
 #include <thread>
 #include <algorithm>
@@ -133,6 +133,7 @@ typedef socklen_t socket_size_t;
 #define ED_AWAIT(Value) Edge::Core::Coawait(Value)
 #define ED_CLOSE(Stream) fclose(Stream)
 #define ED_WATCH(Ptr, Label) ((void)0)
+#define ED_WATCH_AT(Ptr, Function, Label) ((void)0)
 #define ED_UNWATCH(Ptr) ((void)0)
 #define ED_MALLOC(Type, Size) (Type*)Edge::Core::Mem::QueryMalloc(Size)
 #define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::Mem::QueryRealloc(Ptr, Size)
@@ -166,9 +167,10 @@ typedef socklen_t socket_size_t;
 #define ED_MEASURE_PREPARE(X) ED_MEASURE_START(X)
 #define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(ED_LINE) = Edge::Core::OS::Measure(ED_FILE, ED_FUNCTION, ED_LINE, Threshold)
 #define ED_MEASURE_LOOP() Edge::Core::OS::MeasureLoop()
-#define ED_AWAIT(Value) Edge::Core::Coawait(Value, ED_FUNCTION "(): " ED_STRINGIFY(Value))
+#define ED_AWAIT(Value) Edge::Core::Coawait(Value, ED_FUNCTION, ED_STRINGIFY(Value))
 #define ED_CLOSE(Stream) { ED_DEBUG("[io] close fs %i", (int)ED_FILENO(Stream)); fclose(Stream); }
 #define ED_WATCH(Ptr, Label) Edge::Core::Mem::Watch(Ptr, ED_LINE, ED_FILE, ED_FUNCTION, Label)
+#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Mem::Watch(Ptr, ED_LINE, ED_FILE, Function, Label)
 #define ED_UNWATCH(Ptr) Edge::Core::Mem::Unwatch(Ptr)
 #define ED_MALLOC(Type, Size) (Type*)Edge::Core::Mem::QueryMalloc(Size, ED_LINE, ED_FILE, ED_FUNCTION, #Type)
 #define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::Mem::QueryRealloc(Ptr, Size, ED_LINE, ED_FILE, ED_FUNCTION, #Type)
@@ -1346,18 +1348,18 @@ namespace Edge
 		class ED_OUT_TS Console : public Object
 		{
 		protected:
-#ifdef ED_MICROSOFT
-			unsigned short Attributes;
-			FILE* Conin;
-			FILE* Conout;
-			FILE* Conerr;
-#endif
 			std::mutex Session;
 			std::mutex Lock;
 			bool Coloring;
 			bool Allocated;
 			bool Present;
 			double Time;
+#ifdef ED_MICROSOFT
+			FILE* Conin;
+			FILE* Conout;
+			FILE* Conerr;
+			unsigned short Attributes;
+#endif
 
 		private:
 			Console() noexcept;
@@ -2683,15 +2685,15 @@ namespace Edge
 		};
 
 		template <typename T>
-		ED_OUT_TS inline T&& Coawait(Promise<T>&& Future, const char* DebugName = nullptr) noexcept
+		ED_OUT_TS inline T&& Coawait(Promise<T>&& Future, const char* Function = nullptr, const char* Expression = nullptr) noexcept
 		{
 			Costate* State; Coroutine* Base;
 			if (!Costate::GetState(&State, &Base) || !Future.IsPending())
 				return Future.Get();
 #ifndef NDEBUG
 			std::chrono::microseconds Time = Schedule::GetClock();
-			if (DebugName != nullptr)
-				ED_WATCH((void*)&Future, DebugName);
+			if (Function != nullptr && Expression != nullptr)
+				ED_WATCH_AT((void*)&Future, Function, Expression);
 #endif
 			State->Deactivate(Base, [&Future, &State, &Base]()
 			{
@@ -2701,11 +2703,11 @@ namespace Edge
 				});
 			});
 #ifndef NDEBUG
-			if (DebugName != nullptr)
+			if (Function != nullptr && Expression != nullptr)
 			{
 				int64_t Diff = (Schedule::GetClock() - Time).count();
 				if (Diff > ED_TIMING_HANG * 1000)
-					ED_WARN("[stall] async operation took %llu ms (%llu us)\n\twhere: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, DebugName, (uint64_t)ED_TIMING_HANG);
+					ED_WARN("[stall] async operation took %llu ms (%llu us)\t\nwhere: %s\n\texpression: %s\n\texpected: %llu ms at most", Diff / 1000, Diff, Function, Expression, (uint64_t)ED_TIMING_HANG);
 				ED_UNWATCH((void*)&Future);
 			}
 #endif

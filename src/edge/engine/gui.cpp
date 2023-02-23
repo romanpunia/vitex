@@ -182,9 +182,6 @@ namespace Edge
 					ED_ASSERT_V(Device != nullptr, "graphics device should be set");
 					if (!HasTransform)
 					{
-						float WY = (float)Device->GetRenderTarget()->GetHeight();
-						WY -= Y + Height;
-
 						Compute::Rectangle Scissor;
 						Scissor.Left = X;
 						Scissor.Top = Y;
@@ -652,7 +649,7 @@ namespace Edge
 				std::string Memory;
 
 			public:
-				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element) : Memory(Code), Function(nullptr)
+				ListenerSubsystem(const Rml::String& Code, Rml::Element* Element) : Function(nullptr), Memory(Code)
 				{
 				}
 				void OnDetach(Rml::Element* Element) override
@@ -3429,15 +3426,15 @@ namespace Edge
 			}
 			void DataNode::SetValueStr(const std::string& Value)
 			{
-				*Ref = std::move(Core::Var::String(Value));
+				*Ref = Core::Var::String(Value);
 			}
 			void DataNode::SetValueNum(double Value)
 			{
-				*Ref = std::move(Core::Var::Number(Value));
+				*Ref = Core::Var::Number(Value);
 			}
 			void DataNode::SetValueInt(int64_t Value)
 			{
-				*Ref = std::move(Core::Var::Integer(Value));
+				*Ref = Core::Var::Integer(Value);
 			}
 			int64_t DataNode::GetValueSize()
 			{

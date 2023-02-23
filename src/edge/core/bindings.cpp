@@ -1147,7 +1147,7 @@ namespace Edge
 					SubTypeId == asTYPEID_DOUBLE)
 					*(double*)Ptr = *(double*)Value;
 			}
-			Array::~Array()
+			Array::~Array() noexcept
 			{
 				if (Buffer)
 				{
@@ -3192,7 +3192,7 @@ namespace Edge
 					SubTypeId == asTYPEID_DOUBLE)
 					*(double*)Ptr = *(double*)Value;
 			}
-			Grid::~Grid()
+			Grid::~Grid() noexcept
 			{
 				if (Buffer)
 				{
@@ -4316,7 +4316,7 @@ namespace Edge
 			int Thread::ContextUD = 550;
 			int Thread::EngineListUD = 551;
 
-			Promise::Promise(VMCContext* _Base, bool IsRef) noexcept : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Flag(false), Pending(false)
+			Promise::Promise(VMCContext* _Base, bool IsRef) noexcept : Context(VMContext::Get(_Base)), Future(nullptr), Ref(1), Pending(false), Flag(false)
 			{
 				if (!Context)
 					return;
@@ -9671,8 +9671,6 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-				VMGlobal& Register = Engine->Global();
-
 				VMTypeClass VIncludeDesc = Engine->Global().SetStructUnmanaged<Compute::IncludeDesc>("include_desc");
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string from", &Compute::IncludeDesc::From);
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string path", &Compute::IncludeDesc::Path);
@@ -11356,7 +11354,7 @@ namespace Edge
 				VShaderCompile.SetValue("ieee_strictness", (int)Graphics::ShaderCompile::IEEE_Strictness);
 				VShaderCompile.SetValue("optimization_level0", (int)Graphics::ShaderCompile::Optimization_Level0);
 				VShaderCompile.SetValue("optimization_level1", (int)Graphics::ShaderCompile::Optimization_Level1);
-				VShaderCompile.SetValue("optimization_level2", (int)Graphics::ShaderCompile::Optimization_Level2);(1ll << 14) | (1ll << 15),
+				VShaderCompile.SetValue("optimization_level2", (int)Graphics::ShaderCompile::Optimization_Level2);
 				VShaderCompile.SetValue("optimization_level3", (int)Graphics::ShaderCompile::Optimization_Level3);
 				VShaderCompile.SetValue("reseed_x16", (int)Graphics::ShaderCompile::Reseed_X16);
 				VShaderCompile.SetValue("reseed_x17", (int)Graphics::ShaderCompile::Reseed_X17);

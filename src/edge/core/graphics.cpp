@@ -804,7 +804,7 @@ namespace Edge
 			return Resource[Slot];
 		}
 
-		Cubemap::Cubemap(const Desc& I) noexcept : Meta(I), Dest(nullptr)
+		Cubemap::Cubemap(const Desc& I) noexcept : Dest(nullptr), Meta(I)
 		{
 		}
 		bool Cubemap::IsValid() const

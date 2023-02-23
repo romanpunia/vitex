@@ -11,34 +11,34 @@
 #undef Complex
 #endif
 
-namespace std
+namespace
 {
 	template <typename T>
-	struct destructive_copy_constructible
+	struct Movable
 	{
 		mutable T value;
 
-		destructive_copy_constructible()
+		Movable()
 		{
 		}
-		destructive_copy_constructible(T&& v) : value(move(v))
+		Movable(T&& v) : value(std::move(v))
 		{
 		}
-		destructive_copy_constructible(const destructive_copy_constructible<T>& rhs) : value(move(rhs.value))
+		Movable(const Movable<T>& rhs) : value(std::move(rhs.value))
 		{
 		}
-		destructive_copy_constructible(destructive_copy_constructible<T>&& rhs) = default;
-		destructive_copy_constructible& operator=(const destructive_copy_constructible<T>& rhs) = delete;
-		destructive_copy_constructible& operator=(destructive_copy_constructible<T>&& rhs) = delete;
+		Movable(Movable<T>&& rhs) = default;
+		Movable& operator=(const Movable<T>& rhs) = delete;
+		Movable& operator=(Movable<T>&& rhs) = delete;
 	};
 
 	template <typename T>
-	using dcc_t = destructive_copy_constructible<typename remove_reference<T>::type>;
+	using AsMovable = Movable<typename std::remove_reference<T>::type>;
 
 	template <typename T>
-	inline dcc_t<T> move_to_dcc(T&& r)
+	inline AsMovable<T> InterpretAsMove(T&& r)
 	{
-		return dcc_t<T>(move(r));
+		return AsMovable<T>(std::move(r));
 	}
 }
 
@@ -122,7 +122,7 @@ namespace Edge
 			InvPosition = _Position.Inv();
 			Position = _Position;
 			Rotation = _Rotation;
-			FarPlane = (_Far < _Near ? 999999999 : _Far);
+			FarPlane = (_Far < _Near ? 999999999.0f : _Far);
 			NearPlane = _Near;
 			Ratio = _Ratio;
 			Fov = _Fov;
@@ -1659,7 +1659,7 @@ namespace Edge
 			{
 				std::promise<void> Promise;
 				std::future<void> Future = Promise.get_future();
-				bool IsQueued = Queue->SetTask([Context = std::move_to_dcc(Promise), Callback]() mutable
+				bool IsQueued = Queue->SetTask([Context = InterpretAsMove(Promise), Callback]() mutable
 				{
 					Callback();
 				    Context.value.set_value();
@@ -1742,7 +1742,7 @@ namespace Edge
 				EmissionMap->AddRef();
 			}
 		}
-		Material::~Material()
+		Material::~Material() noexcept
 		{
 			ED_RELEASE(DiffuseMap);
 			ED_RELEASE(NormalMap);
@@ -1856,7 +1856,7 @@ namespace Edge
 			return Content;
 		}
 
-		Component::Component(Entity* Reference, ActorSet Rule) noexcept : Parent(Reference), Set((size_t)Rule), Active(false), Indexed(false)
+		Component::Component(Entity* Reference, ActorSet Rule) noexcept : Parent(Reference), Set((size_t)Rule), Indexed(false), Active(false)
 		{
 			ED_ASSERT_V(Reference != nullptr, "entity should be set");
 		}
@@ -1939,7 +1939,7 @@ namespace Edge
 			return Parent;
 		}
 
-		Entity::Entity(SceneGraph* NewScene) noexcept : Scene(NewScene), Transform(new Compute::Transform(this)), Active(false)
+		Entity::Entity(SceneGraph* NewScene) noexcept : Transform(new Compute::Transform(this)), Scene(NewScene), Active(false)
 		{
 			ED_ASSERT_V(Scene != nullptr, "entity should be created within a scene");
 		}
@@ -2152,7 +2152,7 @@ namespace Edge
 			return (Max > Radius.Z ? Radius.Z : Max);
 		}
 
-		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) noexcept : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Static(true), Overlapping(1.0f)
+		Drawable::Drawable(Entity* Ref, ActorSet Rule, uint64_t Hash, bool vComplex) noexcept : Component(Ref, Rule | ActorSet::Cullable | ActorSet::Drawable | ActorSet::Message), Category(GeoCategory::Opaque), Source(Hash), Complex(vComplex), Overlapping(1.0f), Static(true)
 		{
 			if (!Complex)
 				Materials[nullptr] = nullptr;
@@ -2308,7 +2308,7 @@ namespace Edge
 			return System;
 		}
 
-		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), OcclusionCulling(false), PreciseCulling(true), MaxQueries(16384), Threshold(0.1f), OverflowVisibility(0.0f), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3)
+		RenderSystem::RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept : Device(nullptr), BaseMaterial(nullptr), Scene(NewScene), Owner(NewComponent), MaxQueries(16384), OcclusionSkips(2), OccluderSkips(8), OccludeeSkips(3), OverflowVisibility(0.0f), Threshold(0.1f), OcclusionCulling(false), PreciseCulling(true)
 		{
 			ED_ASSERT_V(NewScene != nullptr, "scene should be set");
 			ED_ASSERT_V(NewScene->GetDevice() != nullptr, "graphics device should be set");	
@@ -3421,7 +3421,7 @@ namespace Edge
 			return I;
 		}
 
-		SceneGraph::SceneGraph(const Desc& I) noexcept : Simulator(new Compute::Simulator(I.Simulator)), Camera(nullptr), Conf(I), Active(true), Snapshot(nullptr)
+		SceneGraph::SceneGraph(const Desc& I) noexcept : Simulator(new Compute::Simulator(I.Simulator)), Camera(nullptr), Active(true), Conf(I), Snapshot(nullptr)
 		{
 			for (size_t i = 0; i < (size_t)TargetType::Count * 2; i++)
 			{
@@ -3450,7 +3450,7 @@ namespace Edge
 			Configure(I);
 			ScriptHook();
 		}
-		SceneGraph::~SceneGraph()
+		SceneGraph::~SceneGraph() noexcept
 		{
 			ED_MEASURE(ED_TIMING_MAX);
 			StepTransactions();
@@ -3808,7 +3808,7 @@ namespace Edge
 			}
 
 			Camera = Target;
-			Transaction([this, Target]()
+			Transaction([Target]()
 			{
 				Target->Activate(Target);
 			});
@@ -4563,7 +4563,7 @@ namespace Edge
 		}
 		bool SceneGraph::AddMaterial(Material* Base)
 		{
-			ED_ASSERT(Base != nullptr, nullptr, "base should be set");
+			ED_ASSERT(Base != nullptr, false, "base should be set");
 			if (Materials.Size() + Conf.GrowMargin > Materials.Capacity())
 			{
 				Transaction([this, Base]()

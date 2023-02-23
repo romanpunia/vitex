@@ -545,7 +545,7 @@ namespace Edge
 		{
 			Manager = (Base ? VMManager::Get(Base->GetEngine()) : nullptr);
 		}
-		VMFunction::VMFunction(const VMFunction& Base) noexcept : Function(Base.Function), Manager(Base.Manager)
+		VMFunction::VMFunction(const VMFunction& Base) noexcept : Manager(Base.Manager), Function(Base.Function)
 		{
 		}
 		int VMFunction::AddRef() const
@@ -2060,7 +2060,7 @@ namespace Edge
 			Context->SetUserData(this, CompilerUD);
 			Manager->SetProcessorOptions(Processor);
 		}
-		VMCompiler::~VMCompiler()
+		VMCompiler::~VMCompiler() noexcept
 		{
 			ED_RELEASE(Context);
 			ED_RELEASE(Processor);
@@ -2250,7 +2250,6 @@ namespace Edge
 			ED_ASSERT(Manager != nullptr, Core::Promise<int>(-1), "engine should be set");
 			ED_ASSERT(Module != nullptr, Core::Promise<int>(-1), "module should not be empty");
 
-			uint32_t Retry = 0;
 			if (VCache.Valid)
 			{
 				return LoadByteCode(&VCache).Then<int>([this](int&& R)
@@ -2387,7 +2386,6 @@ namespace Edge
 			ED_ASSERT(Module != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
 			ED_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
 
-			VMCManager* Engine = Manager->GetEngine();
 			std::string Eval = "void __vfbdy(";
 			if (Args != nullptr)
 				Eval.append(Args);
@@ -2446,7 +2444,7 @@ namespace Edge
 			Context->SetUserData(this, ContextUD);
 			Context->SetExceptionCallback(asFUNCTION(ExceptionLogger), this, asCALL_CDECL);
 		}
-		VMContext::~VMContext()
+		VMContext::~VMContext() noexcept
 		{
 			while (!Tasks.empty())
 			{
@@ -3036,7 +3034,7 @@ namespace Edge
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
 			RegisterSubmodules(this);
 		}
-		VMManager::~VMManager()
+		VMManager::~VMManager() noexcept
 		{
 			for (auto& Core : Kernels)
 				Core::OS::Symbol::Unload(Core.second.Handle);
@@ -3340,7 +3338,6 @@ namespace Edge
 				{
 					asITypeInfo* FType = EType->GetChildFuncdef(j);
 					asIScriptFunction* FFunction = FType->GetFuncdefSignature();
-					const char* FNamespace = FType->GetNamespace();
 					const char* FDecl = FFunction->GetDeclaration(false, false, true);
 					Class.Funcdefs.push_back(std::string("funcdef ") + (FDecl ? FDecl : "void __unnamed" + std::to_string(j) + "__()"));
 				}
@@ -4163,7 +4160,7 @@ namespace Edge
 		{
 			LastCommandAtStackLevel = 0;
 		}
-		VMDebugger::~VMDebugger()
+		VMDebugger::~VMDebugger() noexcept
 		{
 			SetEngine(0);
 		}

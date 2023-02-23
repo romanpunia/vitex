@@ -210,47 +210,45 @@ There are two basic rules of memory ownership:
 + Schema processor (XML, JSON, JSONB)
 + Server processor (for HTTP server to load router config)
 
-## Cross platform
-+ Windows 7/8/8.1/10+ x64/x86
-+ Raspberian 3+ ARM
-+ Solaris 9+ x64/x86
-+ FreeBSD 11+ x64/x86
-+ Ubuntu 16.04+ x64/x86
-+ MacOS Catalina 10.15+ x64
+## Cross platform (tested platforms)
++ Windows 7/8/8.1/10+ x64/x86 (MSVC, MSVC ClangCL, MingGW)
++ Raspberian 3+ ARM (GCC)
++ Solaris 9+ x64/x86 (GCC)
++ FreeBSD 11+ x64/x86 (GCC)
++ Debian 11+ x64/x86 (GCC, LLVM)
++ Ubuntu 16.04+ x64/x86 (GCC)
++ MacOS Catalina 10.15+ x64 (Xcode)
 
 ## Building (standalone)
 Edge uses CMake as building system. Microsoft [vcpkg](https://github.com/Microsoft/vcpkg) is suggested.
 1. Install [CMake](https://cmake.org/install/).
-2. Install dependencies listed below to have all the functionality. If you use vcpkg, execute
-> vcpkg install zlib assimp glew mongo-c-driver openal-soft openssl libpq sdl2 freetype spirv-cross glslang --triplet=$triplet
-
-where $triplet is a target platform, for example, x86-windows or x64-windows.
-
+2. Install desired dynamic dependencies listed below to have all the functionality (if you are not using vcpkg).
 3. Execute CMake command to generate the files or use CMake GUI if you have one.
-If you want to use vcpkg then add VCPKG_ROOT environment variable and if you want to execute install script, add vcpkg executable to PATH environment variable. It should contain full path to vcpkg executable. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg). For example,
+If you want to use vcpkg then add VCPKG_ROOT environment variable and execute CMake generate, it will install dependencies automatically using JSON manifest file. Another option is to set CMAKE_TOOLCHAIN_FILE option (standard workflow for vcpkg), dependency installation will also be automatic. For example,
 > cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake ...
 
 ## Building (subproject)
-1-2. Same steps.
-
-3. Add toolchain before first
-```cmake
-project(app_name)
-```
-This will apply vcpkg toolchain file if it can be located and none CMAKE_TOOLCHAIN_FILE was set before. This step is not required if you don't use vcpkg at all.
+1. *Optional* If you use vcpkg then add toolchain file (vcpkg doesn't know how to install dependencies of subproject, you will have to specify needed dependencies in vcpkg.json near your CMakeLists.txt):
 ```cmake
 include(path/to/edge/lib/toolchain.cmake)
+#...
+project(app_name)
 ```
-4. Add subproject. This will link your application with Edge.
+2. *Optional* If you don't specify any compile flags then you may use Edge's compiler flags:
+```cmake
+include(path/to/edge/lib/compiler.cmake)
+```
+3. Add subproject. This will fully link your application with Edge.
 ```cmake
 add_subdirectory(/path/to/edge edge)
 link_directories(/path/to/edge)
 target_include_directories(app_name PRIVATE /path/to/edge)
 target_link_libraries(app_name PRIVATE edge)
 ```
-5. Execute CMake command to generate the files or use CMake GUI if you have one.
+4. Execute CMake command to generate the files or use CMake GUI if you have one.
 You can look at [Lynx's CMakeLists.txt](https://github.com/romanpunia/lynx/blob/master/CMakeLists.txt) to find out how it should be used in practice
 
+## Building options
 There are several build options for this project.
 + **ED_MSG_DEBUG** to allow verbose logs, defaults to false
 + **ED_MSG_INFO** to allow informational logs, defaults to true

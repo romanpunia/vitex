@@ -176,7 +176,7 @@ namespace Edge
 				void ReleaseAllHandles(VMCManager* Engine);
 
 			protected:
-				virtual ~Any();
+				virtual ~Any() noexcept;
 				void FreeObject();
 
 			public:
@@ -836,9 +836,9 @@ namespace Edge
 				VMContext* Context;
 				Any* Future;
 				std::mutex Update;
+				int Ref;
 				bool Pending;
 				bool Flag;
-				int Ref;
 
 			private:
 				Promise(VMCContext* Base, bool IsRef) noexcept;

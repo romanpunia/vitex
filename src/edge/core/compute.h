@@ -2760,7 +2760,7 @@ namespace Edge
 				if (Number0 == Number1)
 					return Number0;
 
-				return T((double)Number0 + ((double)Number1 - (double)Number0) / std::numeric_limits<uint64_t>::max() * Crypto::Random());
+				return T((double)Number0 + ((double)Number1 - (double)Number0) / (double)std::numeric_limits<uint64_t>::max() * (double)Crypto::Random());
 			}
 			static T Round(I Value)
 			{

@@ -102,8 +102,6 @@ namespace Edge
 			size_t SoftBody::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				bool Static = System->State.IsSet(RenderOpt::Static);
 
@@ -139,17 +137,13 @@ namespace Edge
 			size_t SoftBody::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, ED_PS);
 				Device->SetShader(Shaders.Voxelize, ED_VS | ED_PS | ED_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = System->View;
 				size_t Count = 0;
-
 				for (auto* Base : Chunk)
 				{
 					if (!Base->Static || Base->GetIndices().empty())
@@ -176,8 +170,6 @@ namespace Edge
 			size_t SoftBody::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -213,8 +205,6 @@ namespace Edge
 			size_t SoftBody::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -228,7 +218,6 @@ namespace Edge
 				size_t Count = 0;
 				for (auto* Base : Chunk)
 				{
-					auto* Transform = Base->GetEntity()->GetTransform();
 					if (!Base->GetBody())
 						continue;
 
@@ -358,11 +347,7 @@ namespace Edge
 			size_t Model::RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				bool Static = System->State.IsSet(RenderOpt::Static);
-
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
 				Device->SetRasterizerState(BackRasterizer);
@@ -384,15 +369,12 @@ namespace Edge
 			size_t Model::RenderGeometryVoxelsBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout[1]);
 				Device->SetSamplerState(Sampler, 4, 6, ED_PS);
 				Device->SetShader(Shaders.Voxelize, ED_VS | ED_PS | ED_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = System->View;
 				for (auto& Group : Chunk)
 				{
 					auto* Data = Group.second;
@@ -408,8 +390,6 @@ namespace Edge
 			size_t Model::RenderDepthLinearBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -433,8 +413,6 @@ namespace Edge
 			size_t Model::RenderDepthCubicBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -559,8 +537,6 @@ namespace Edge
 			size_t Skin::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				bool Static = System->State.IsSet(RenderOpt::Static);
 
@@ -606,17 +582,13 @@ namespace Edge
 			size_t Skin::RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetInputLayout(Layout);
 				Device->SetSamplerState(Sampler, 4, 6, ED_PS);
 				Device->SetShader(Shaders.Voxelize, ED_VS | ED_PS | ED_GS);
 				Lighting::SetVoxelBuffer(System, Shaders.Voxelize, 3);
 
-				Viewer& View = System->View;
 				size_t Count = 0;
-
 				for (auto* Base : Chunk)
 				{
 					auto* Drawable = Base->GetDrawable();
@@ -651,8 +623,6 @@ namespace Edge
 			size_t Skin::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -697,8 +667,6 @@ namespace Edge
 			size_t Skin::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Device->SetDepthStencilState(DepthStencil);
 				Device->SetBlendState(Blend);
@@ -773,8 +741,6 @@ namespace Edge
 			size_t Emitter::RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::Shader* BaseShader = nullptr;
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
@@ -833,8 +799,6 @@ namespace Edge
 			size_t Emitter::RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				SceneGraph* Scene = System->GetScene();
 				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Viewer& View = System->View;
@@ -876,9 +840,6 @@ namespace Edge
 			size_t Emitter::RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection)
 			{
 				ED_ASSERT(System->GetScene() != nullptr, 0, "scene should be set");
-
-				Graphics::GraphicsDevice* Device = System->GetDevice();
-				SceneGraph* Scene = System->GetScene();
 				auto& Source = System->View;
 				Depth.FaceView[0] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveX, Source.Position);
 				Depth.FaceView[1] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeX, Source.Position);
@@ -887,6 +848,7 @@ namespace Edge
 				Depth.FaceView[4] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::PositiveZ, Source.Position);
 				Depth.FaceView[5] = Compute::Matrix4x4::CreateLookAt(Compute::CubeFace::NegativeZ, Source.Position);
 
+				Graphics::GraphicsDevice* Device = System->GetDevice();
 				Graphics::PrimitiveTopology T = Device->GetPrimitiveTopology();
 				Device->SetPrimitiveTopology(Graphics::PrimitiveTopology::Point_List);
 				Device->SetDepthStencilState(DepthStencilOpaque);
@@ -944,7 +906,6 @@ namespace Edge
 
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::GraphicsDevice* Device = System->GetDevice();
-				SceneGraph* Scene = System->GetScene();
 				bool Static = System->State.IsSet(RenderOpt::Static);
 
 				Graphics::ElementBuffer* Box[2];
@@ -1111,7 +1072,6 @@ namespace Edge
 			}
 			void Lighting::RenderResultBuffers()
 			{
-				SceneGraph* Scene = System->GetScene();
 				Graphics::MultiRenderTarget2D* MRT = System->GetMRT(TargetType::Main);
 				Graphics::RenderTarget2D* RT = (System->State.IsSubpass() ? Surfaces.Input : System->GetRT(TargetType::Main));
 				State.Backcull = true;
@@ -1157,7 +1117,6 @@ namespace Edge
 
 				auto& Buffers = State.Scene->GetVoxelsMapping();
 				auto& Top = Lights.Illuminators.Top();
-				bool MustRedeploy = true;
 				size_t Counter = 0;
 
 				for (auto It = Top.begin(); It != Top.end(); ++It)
@@ -1325,7 +1284,6 @@ namespace Edge
 						State.Device->SetTarget(Cascade);
 						State.Device->ClearDepth(Cascade);
 
-						float Distance = Light->Shadow.Distance[i];
 						System->SetView(Light->View[i], Light->Projection[i], 0.0f, 90.0f, 1.0f, -System->View.FarPlane, System->View.FarPlane, RenderCulling::Disable);
 						System->Render(Time, RenderState::Depth_Linear, RenderOpt::None);
 					}
@@ -2357,8 +2315,6 @@ namespace Edge
 				ED_ASSERT_V(System->GetScene() != nullptr, "scene should be set");
 				RenderMerge(Shaders.Velocity, &Velocity);
 				RenderResult(Shaders.Motion, &Motion);
-
-				SceneGraph* Scene = System->GetScene();
 				Velocity.LastViewProjection = System->View.ViewProjection;
 			}
 

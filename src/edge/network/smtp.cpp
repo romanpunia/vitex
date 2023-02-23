@@ -43,7 +43,7 @@ namespace Edge
 	{
 		namespace SMTP
 		{
-			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), Hoster(Domain), AttachmentFile(nullptr), Pending(0), Authorized(false)
+			Client::Client(const std::string& Domain, int64_t ReadTimeout) : SocketClient(ReadTimeout), AttachmentFile(nullptr), Hoster(Domain), Pending(0), Authorized(false)
 			{
 				AutoEncrypt = false;
 			}

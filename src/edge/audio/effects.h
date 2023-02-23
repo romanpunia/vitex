@@ -16,9 +16,6 @@ namespace Edge
 
 			class ED_OUT Reverb final : public AudioEffect
 			{
-			private:
-				bool EAX = false;
-
 			public:
 				Compute::Vector3 LateReverbPan;
 				Compute::Vector3 ReflectionsPan;

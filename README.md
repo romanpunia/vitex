@@ -307,4 +307,4 @@ These are recommended to be installed, but are not required to.
 Edge is licensed under the MIT license
 
 ## Known Issues
-This project is under development, bugs aren't the rare thing. Script interface covers limited part of Edge.
+Script interface covers only there modules for now: Core, Compute, Audio, Network, Graphics, Engine/GUI.

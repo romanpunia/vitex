@@ -211,7 +211,7 @@ There are two basic rules of memory ownership:
 + Server processor (for HTTP server to load router config)
 
 ## Cross platform (tested platforms)
-+ Windows 7/8/8.1/10+ x64/x86 (MSVC, MSVC ClangCL, MingGW)
++ Windows 7/8/8.1/10+ x64/x86 (MSVC, MSVC ClangCL, MinGW)
 + Raspberian 3+ ARM (GCC)
 + Solaris 9+ x64/x86 (GCC)
 + FreeBSD 11+ x64/x86 (GCC)

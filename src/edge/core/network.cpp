@@ -2756,6 +2756,7 @@ namespace Edge
 		}
 		void SocketClient::TryEncrypt(std::function<void(bool)>&& Callback)
 		{
+#ifdef ED_HAS_OPENSSL
 			int ErrorCode = SSL_connect(Stream.GetDevice());
 			if (ErrorCode != -1)
 				return Callback(true);
@@ -2797,6 +2798,9 @@ namespace Edge
 					return Callback(false);
 				}
 			}
+#else
+			Callback(false);
+#endif
 		}
 		bool SocketClient::OnResolveHost(RemoteHost* Address)
 		{

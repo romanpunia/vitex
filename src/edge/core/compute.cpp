@@ -7539,11 +7539,13 @@ namespace Edge
 		}
 		void Crypto::DisplayCryptoLog()
 		{
+#ifdef ED_HAS_OPENSSL
 			ERR_print_errors_cb([](const char* Message, size_t Size, void*)
 			{
 				ED_ERR("[openssl] %.*s", (int)Size, Message);
 				return 0;
 			}, nullptr);
+#endif
 		}
 
 		std::string Codec::Move(const std::string& Text, int Offset)

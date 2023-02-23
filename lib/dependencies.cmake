@@ -4,7 +4,10 @@ target_compile_definitions(edge PRIVATE
 		-D_GNU_SOURCE
 		-DNOMINMAX
 		-DED_EXPORT)
-		
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+	target_link_libraries(edge PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
 #Resolve headers and compile options for Bullet3
 if (ED_USE_BULLET3)
 	target_include_directories(edge PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/bullet3)
@@ -29,6 +32,9 @@ if (ED_USE_BULLET3)
 	if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 		target_compile_definitions(edge PRIVATE -DBT_NO_SIMD_OPERATOR_OVERLOADS)
 	endif()
+    if (MSVC)
+        target_compile_options(edge PRIVATE /wd4305 /wd4244 /wd4018 /wd4267)
+    endif()
 endif()
 
 #Resolve headers and compile options for RmlUI

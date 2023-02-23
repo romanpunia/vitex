@@ -4,7 +4,9 @@ target_compile_definitions(edge PRIVATE
 		-D_GNU_SOURCE
 		-DNOMINMAX
 		-DED_EXPORT)
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT MSVC)
+	set(THREADS_PREFER_PTHREAD_FLAG ON)
+	target_link_libraries(edge PRIVATE pthread)
 	target_link_libraries(edge PRIVATE ${CMAKE_DL_LIBS})
 endif()
 

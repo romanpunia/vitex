@@ -1,7 +1,6 @@
 #Resolve needed options for different compilers
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -Wno-unused-private-field -lpthread")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lpthread")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -Wno-unused-private-field")
 endif()
 if (MSVC)
     set(CMAKE_SHARED_LINKER_FLAGS "/SUBSYSTEM:WINDOWS")

@@ -31,6 +31,7 @@ namespace Edge
 
 			struct ED_OUT RequestFrame
 			{
+				std::unordered_map<std::string, std::string> Headers;
 				std::vector<Recipient> Recipients;
 				std::vector<Recipient> CCRecipients;
 				std::vector<Recipient> BCCRecipients;

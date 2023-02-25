@@ -528,6 +528,9 @@ namespace Edge
 									Content.Append(Request.SenderName.c_str());
 
 								Content.fAppend(" <%s>\r\n", Request.SenderAddress.c_str());
+								for (auto& Item : Request.Headers)
+									Content.fAppend("%s: %s\r\n", Item.first.c_str(), Item.second.c_str());
+
 								if (!Request.Mailer.empty())
 									Content.fAppend("X-Mailer: %s\r\n", Request.Mailer.c_str());
 								else

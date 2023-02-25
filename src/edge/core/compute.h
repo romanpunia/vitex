@@ -190,6 +190,14 @@ namespace Edge
 			NegativeZ
 		};
 
+		enum class Compression
+		{
+			None = 0,
+			BestSpeed = 1,
+			BestCompression = 9,
+			Default = -1
+		};
+
 		inline SoftCollision operator |(SoftCollision A, SoftCollision B)
 		{
 			return static_cast<SoftCollision>(static_cast<uint64_t>(A) | static_cast<uint64_t>(B));
@@ -1518,6 +1526,8 @@ namespace Edge
 			static std::string Base64URLDecode(const unsigned char* Value, size_t Length);
 			static std::string Base64URLDecode(const std::string& Value);
 			static std::string Shuffle(const char* Value, size_t Size, uint64_t Mask);
+			static std::string Compress(const std::string& Data, Compression Type = Compression::Default);
+			static std::string Decompress(const std::string& Data);
 			static std::string HexEncode(const char* Value, size_t Size);
 			static std::string HexEncode(const std::string& Value);
 			static std::string HexDecode(const char* Value, size_t Size);

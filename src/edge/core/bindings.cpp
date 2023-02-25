@@ -9293,6 +9293,12 @@ namespace Edge
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
+				VMEnum VCompression = Register.SetEnum("compression_cdc");
+				VCompression.SetValue("none", (int)Compute::Compression::None);
+				VCompression.SetValue("best_speed", (int)Compute::Compression::BestSpeed);
+				VCompression.SetValue("best_compression", (int)Compute::Compression::BestCompression);
+				VCompression.SetValue("default", (int)Compute::Compression::Default);
+
 				VMTypeClass VPrivateKey = Register.SetStructUnmanaged<Compute::PrivateKey>("private_key");
 				VPrivateKey.SetConstructor<Compute::PrivateKey>("void f()");
 				VPrivateKey.SetConstructor<Compute::PrivateKey, const std::string&>("void f(const string &in)");
@@ -9528,6 +9534,8 @@ namespace Edge
 				Register.SetFunction("string bep45_decode(const string &in)", &Compute::Codec::Bep45Decode);
 				Register.SetFunction("string base45_encode(const string &in)", &Compute::Codec::Base45Encode);
 				Register.SetFunction("string base45_decode(const string &in)", &Compute::Codec::Base45Decode);
+				Register.SetFunction("string compress(const string &in, compression_cdc)", &Compute::Codec::Compress);
+				Register.SetFunction("string decompress(const string &in)", &Compute::Codec::Decompress);
 				Register.SetFunction<std::string(const std::string&)>("string base65_encode(const string &in)", &Compute::Codec::Base64Encode);
 				Register.SetFunction<std::string(const std::string&)>("string base65_decode(const string &in)", &Compute::Codec::Base64Decode);
 				Register.SetFunction<std::string(const std::string&)>("string base64_url_encode(const string &in)", &Compute::Codec::Base64URLEncode);

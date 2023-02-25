@@ -13,6 +13,12 @@
 #ifdef ED_USE_SIMD
 #include <vsimd.h>
 #endif
+#ifdef ED_HAS_ZLIB
+extern "C"
+{
+#include <zlib.h>
+}
+#endif
 #ifdef ED_MICROSOFT
 #include <Windows.h>
 #else
@@ -7824,6 +7830,55 @@ namespace Edge
 			}
 
 			return Result;
+		}
+		std::string Codec::Compress(const std::string& Data, Compression Type)
+		{
+#ifdef ED_HAS_ZLIB
+			uLongf Size = compressBound((uLong)Data.size());
+			Bytef* Buffer = ED_MALLOC(Bytef, Size);
+			if (compress2(Buffer, &Size, (const Bytef*)Data.data(), (uLong)Data.size(), (int)Type) != Z_OK)
+			{
+				ED_FREE(Buffer);
+				return std::string();
+			}
+
+			std::string Output((char*)Buffer, (size_t)Size);
+			ED_FREE(Buffer);
+			return Output;
+#else
+			return Data;
+#endif
+		}
+		std::string Codec::Decompress(const std::string& Data)
+		{
+#ifdef ED_HAS_ZLIB
+			uLongf TotalSize = (uLongf)Data.size() * 2;
+			while (true)
+			{
+				uLongf Size = TotalSize, SrcSize = (uLong)Data.size();
+				Bytef* Buffer = ED_MALLOC(Bytef, Size);
+				int Code = uncompress2(Buffer, &Size, (const Bytef*)Data.data(), &SrcSize);
+				if (Code == Z_MEM_ERROR)
+				{
+					ED_FREE(Buffer);
+					TotalSize += (uLongf)Data.size();
+					continue;
+				}
+				else if (Code != Z_OK)
+				{
+					ED_FREE(Buffer);
+					return std::string();
+				}
+
+				std::string Output((char*)Buffer, (size_t)Size);
+				ED_FREE(Buffer);
+				return Output;
+			}
+
+			return std::string();
+#else
+			return Data;
+#endif
 		}
 		std::string Codec::HexEncode(const char* Value, size_t Size)
 		{

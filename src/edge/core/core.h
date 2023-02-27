@@ -74,6 +74,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <limits>
+#include <array>
 #ifdef ED_FAST_SORT
 #include <execution>
 #define ED_SORT(Begin, End, Comparator) std::sort(std::execution::par_unseq, Begin, End, Comparator)
@@ -1024,11 +1025,32 @@ namespace Edge
 					Cache Type;
 				};
 
+			public:
 				static QuantityInfo GetQuantityInfo();
 				static CacheInfo GetCacheInfo(unsigned int level);
 				static Arch GetArch() noexcept;
 				static Endian GetEndianness() noexcept;
 				static size_t GetFrequency() noexcept;
+
+			public:
+				template <typename T>
+				static typename std::enable_if<std::is_arithmetic<T>::value, T>::type SwapEndianness(T Value)
+				{
+					union U
+					{
+						T Value;
+						std::array<std::uint8_t, sizeof(T)> Data;
+					} From, To;
+
+					From.Value = Value;
+					std::reverse_copy(From.Data.begin(), From.Data.end(), To.Data.begin());
+					return To.Value;
+				}
+				template <typename T>
+				static typename std::enable_if<std::is_arithmetic<T>::value, T>::type ToEndianness(Endian Type, T Value)
+				{
+					return GetEndianness() == Type ? Value : SwapEndianness(Value);
+				}
 			};
 
 			class ED_OUT Directory

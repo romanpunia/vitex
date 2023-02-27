@@ -6883,8 +6883,8 @@ namespace Edge
 		}
 		OS::CPU::Endian OS::CPU::GetEndianness() noexcept
 		{
-			const uint16_t Value = 0xFF00;
-			const uint8_t Result = *static_cast<const uint8_t*>(static_cast<const void*>(&Value));
+			static const uint16_t Value = 0xFF00;
+			static const uint8_t Result = *static_cast<const uint8_t*>(static_cast<const void*>(&Value));
 
 			return Result == 0xFF ? Endian::Big : Endian::Little;
 		}

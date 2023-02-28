@@ -1,7 +1,7 @@
 {
     "name": "edge",
     "description": "Cross-platform application development framework",
-    "version": "14.12.60",
+    "version": "14.12.61",
     "default-features": ["compression", "imports", "fonts", "windows", "shaders", "audio", "opengl", "openssl", "mongodb", "postgresql"],
     "features": {
         "compression": {

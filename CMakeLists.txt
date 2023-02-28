@@ -23,9 +23,9 @@ if (NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_SOURCE_DIR}/bin)
 endif()
 
-#Project's inputs and source targets
-include(lib/targets.cmake)
-include(lib/async.cmake)
+#Project's embedded dependencies and source files
+include(lib/sources.cmake)
+include(src/supplies/fcontext/CMakeLists.txt)
 include(src/supplies/angelscript/CMakeLists.txt)
 include(src/supplies/bullet3/CMakeLists.txt)
 include(src/supplies/rmlui/CMakeLists.txt)

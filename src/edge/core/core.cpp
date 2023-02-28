@@ -1,5 +1,4 @@
 #include "core.h"
-#include "../async/fcontext.h"
 #include "../network/http.h"
 #include <cctype>
 #include <ctime>
@@ -18,6 +17,9 @@
 #pragma warning(disable: 4996)
 #pragma warning(disable: 4267)
 #include <backward.hpp>
+#ifdef ED_USE_FCTX
+#include <fcontext.h>
+#endif
 #ifdef ED_MICROSOFT
 #include <Windows.h>
 #include <io.h>
@@ -67,7 +69,7 @@ extern "C"
 #define LOGID "\106\035\172"
 #define PREFIX_ENUM "$"
 #define PREFIX_BINARY "`"
-#define JSONB_HEADER ("edge-jsonb-data")
+#define JSONB_VERSION 0xef1033dd
 #define MAKEUQUAD(L, H) ((uint64_t)(((uint32_t)(L)) | ((uint64_t)((uint32_t)(H))) << 32))
 #define RATE_DIFF (10000000)
 #define EPOCH_DIFF (MAKEUQUAD(0xd53e8000, 0x019db1de))
@@ -10649,17 +10651,18 @@ namespace Edge
 		{
 			ED_ASSERT(Base != nullptr && Callback, false, "base should be set and callback should not be empty");
 			std::unordered_map<std::string, size_t> Mapping = Base->GetNames();
-			uint32_t Set = (uint32_t)Mapping.size();
+			uint32_t Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Mapping.size());
+			uint64_t Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, JSONB_VERSION);
 
-			Callback(VarForm::Dummy, JSONB_HEADER, sizeof(JSONB_HEADER));
+			Callback(VarForm::Dummy, (const char*)&Version, sizeof(uint64_t));
 			Callback(VarForm::Dummy, (const char*)&Set, sizeof(uint32_t));
 
 			for (auto It = Mapping.begin(); It != Mapping.end(); ++It)
 			{
-				uint32_t Id = (uint32_t)It->second;
+				uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)It->second);
 				Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
 
-				uint16_t Size = (uint16_t)It->first.size();
+				uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)It->first.size());
 				Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
 
 				if (Size > 0)
@@ -10890,8 +10893,8 @@ namespace Edge
 		Schema* Schema::ConvertFromJSONB(const SchemaReadCallback& Callback, bool Assert)
 		{
 			ED_ASSERT(Callback, nullptr, "callback should not be empty");
-			char Hello[sizeof(JSONB_HEADER)];
-			if (!Callback((char*)Hello, sizeof(JSONB_HEADER)))
+			uint64_t Version = 0;
+			if (!Callback((char*)&Version, sizeof(uint64_t)))
 			{
 				if (Assert)
 					ED_ERR("[jsonb] form cannot be defined");
@@ -10899,10 +10902,11 @@ namespace Edge
 				return nullptr;
 			}
 
-			if (memcmp((void*)Hello, (void*)JSONB_HEADER, sizeof(JSONB_HEADER)) != 0)
+			Version = OS::CPU::ToEndianness<uint64_t>(OS::CPU::Endian::Little, Version);
+			if (Version != JSONB_VERSION)
 			{
 				if (Assert)
-					ED_ERR("[jsonb] version is undefined");
+					ED_ERR("[jsonb] version %llu is not valid", Version);
 
 				return nullptr;
 			}
@@ -10917,6 +10921,8 @@ namespace Edge
 			}
 
 			std::unordered_map<size_t, std::string> Map;
+			Set = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Set);
+
 			for (uint32_t i = 0; i < Set; ++i)
 			{
 				uint32_t Index = 0;
@@ -10936,6 +10942,9 @@ namespace Edge
 
 					return nullptr;
 				}
+
+				Index = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Index);
+				Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 
 				if (Size <= 0)
 					continue;
@@ -11109,7 +11118,7 @@ namespace Edge
 		}
 		bool Schema::ProcessConvertionToJSONB(Schema* Current, std::unordered_map<std::string, size_t>* Map, const SchemaWriteCallback& Callback)
 		{
-			uint32_t Id = (uint32_t)Map->at(Current->Key);
+			uint32_t Id = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Map->at(Current->Key));
 			Callback(VarForm::Dummy, (const char*)&Id, sizeof(uint32_t));
 			Callback(VarForm::Dummy, (const char*)&Current->Value.Type, sizeof(VarType));
 
@@ -11118,7 +11127,7 @@ namespace Edge
 				case VarType::Object:
 				case VarType::Array:
 				{
-					uint32_t Count = (uint32_t)(Current->Nodes ? Current->Nodes->size() : 0);
+					uint32_t Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)(Current->Nodes ? Current->Nodes->size() : 0));
 					Callback(VarForm::Dummy, (const char*)&Count, sizeof(uint32_t));
 					if (Count > 0)
 					{
@@ -11130,7 +11139,7 @@ namespace Edge
 				case VarType::String:
 				case VarType::Binary:
 				{
-					uint32_t Size = (uint32_t)Current->Value.GetSize();
+					uint32_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint32_t)Current->Value.GetSize());
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint32_t));
 					Callback(VarForm::Dummy, Current->Value.GetString(), Size * sizeof(char));
 					break;
@@ -11138,19 +11147,21 @@ namespace Edge
 				case VarType::Decimal:
 				{
 					std::string Number = ((Decimal*)Current->Value.Value.Data)->ToString();
-					uint16_t Size = (uint16_t)Number.size();
+					uint16_t Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, (uint16_t)Number.size());
 					Callback(VarForm::Dummy, (const char*)&Size, sizeof(uint16_t));
 					Callback(VarForm::Dummy, Number.c_str(), (size_t)Size * sizeof(char));
 					break;
 				}
 				case VarType::Integer:
 				{
-					Callback(VarForm::Dummy, (const char*)&Current->Value.Value.Integer, sizeof(int64_t));
+					int64_t Value = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Value.Value.Integer);
+					Callback(VarForm::Dummy, (const char*)&Value, sizeof(int64_t));
 					break;
 				}
 				case VarType::Number:
 				{
-					Callback(VarForm::Dummy, (const char*)&Current->Value.Value.Number, sizeof(double));
+					double Value = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Current->Value.Value.Number);
+					Callback(VarForm::Dummy, (const char*)&Value, sizeof(double));
 					break;
 				}
 				case VarType::Boolean:
@@ -11173,7 +11184,7 @@ namespace Edge
 				return false;
 			}
 
-			auto It = Map->find((size_t)Id);
+			auto It = Map->find((size_t)OS::CPU::ToEndianness(OS::CPU::Endian::Little, Id));
 			if (It != Map->end())
 				Current->Key = It->second;
 
@@ -11195,6 +11206,7 @@ namespace Edge
 						return false;
 					}
 
+					Count = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Count);
 					if (!Count)
 						break;
 
@@ -11221,6 +11233,7 @@ namespace Edge
 					}
 
 					std::string Buffer;
+					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
 					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
@@ -11242,6 +11255,7 @@ namespace Edge
 					}
 
 					std::string Buffer;
+					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize(Size);
 
 					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))
@@ -11262,7 +11276,7 @@ namespace Edge
 						return false;
 					}
 
-					Current->Value = Var::Integer(Integer);
+					Current->Value = Var::Integer(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Integer));
 					break;
 				}
 				case VarType::Number:
@@ -11274,7 +11288,7 @@ namespace Edge
 						return false;
 					}
 
-					Current->Value = Var::Number(Number);
+					Current->Value = Var::Number(OS::CPU::ToEndianness(OS::CPU::Endian::Little, Number));
 					break;
 				}
 				case VarType::Decimal:
@@ -11287,6 +11301,7 @@ namespace Edge
 					}
 
 					std::string Buffer;
+					Size = OS::CPU::ToEndianness(OS::CPU::Endian::Little, Size);
 					Buffer.resize((size_t)Size);
 
 					if (!Callback((char*)Buffer.c_str(), (size_t)Size * sizeof(char)))

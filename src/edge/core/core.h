@@ -1081,7 +1081,7 @@ namespace Edge
 				static uint64_t GetCheckSum(const std::string& Data);
 				static FileState GetProperties(const char* Path);
 				static Unique<Stream> OpenJoin(const std::string& Path, const std::vector<std::string>& Paths);
-				static Unique<Stream> OpenArchive(const std::string& Path, size_t UnarchivedMaxSize = 64 * 1024 * 1024);
+				static Unique<Stream> OpenArchive(const std::string& Path, size_t UnarchivedMaxSize = 128 * 1024 * 1024);
 				static Unique<Stream> Open(const std::string& Path, FileMode Mode, bool Async = false);
 				static Unique<void> Open(const char* Path, const char* Mode);
 				static Unique<unsigned char> ReadChunk(Stream* Stream, size_t Length);

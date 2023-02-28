@@ -7515,11 +7515,24 @@ namespace Edge
 			std::string Temp = Path::GetNonExistant(Path);
 			Move(Path.c_str(), Temp.c_str());
 
+			Stream* Target = nullptr;
 			if (Data.Size > UnarchivedMaxSize)
-				return Open(Path, FileMode::Binary_Write_Only);
-			
-			Stream* Target = OpenJoin(Path, { Temp });
-			Remove(Temp.c_str());
+			{
+				Target = Open(Path, FileMode::Binary_Write_Only);
+				if (Parser(&Temp).EndsWith(".gz"))
+					return Target;
+
+				Stream* Archive = OpenJoin(Temp + ".gz", { Temp });
+				if (Archive != nullptr)
+					Remove(Temp.c_str());
+				ED_RELEASE(Archive);
+			}
+			else
+			{
+				Target = OpenJoin(Path, { Temp });
+				if (Target != nullptr)
+					Remove(Temp.c_str());
+			}
 
 			return Target;
 		}

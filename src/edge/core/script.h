@@ -1087,38 +1087,8 @@ namespace Edge
 			}
 
 		public:
-			template <typename T, const char* TypeName, typename... Args>
-			int SetManagedConstructor(const char* Decl)
-			{
-				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Functor = VMBridge::Function(&VMBridge::GetManagedCall<T, TypeName, Args...>);
-				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::CDECLF);
-				VMFuncStore::ReleaseFunctor(&Functor);
-
-				return Result;
-			}
-			template <typename T, const char* TypeName, VMCGeneric*>
-			int SetManagedConstructor(const char* Decl)
-			{
-				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetManagedCall<T, TypeName, VMCGeneric*>);
-				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Functor);
-
-				return Result;
-			}
-			template <typename T, const char* TypeName>
-			int SetManagedConstructorList(const char* Decl)
-			{
-				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetManagedListCall<T, TypeName>);
-				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Functor);
-
-				return Result;
-			}
 			template <typename T, typename... Args>
-			int SetUnmanagedConstructor(const char* Decl)
+			int SetConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::Function(&VMBridge::GetUnmanagedCall<T, Args...>);
@@ -1128,7 +1098,7 @@ namespace Edge
 				return Result;
 			}
 			template <typename T, VMCGeneric*>
-			int SetUnmanagedConstructor(const char* Decl)
+			int SetConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedCall<T, VMCGeneric*>);
@@ -1138,7 +1108,7 @@ namespace Edge
 				return Result;
 			}
 			template <typename T>
-			int SetUnmanagedConstructorList(const char* Decl)
+			int SetConstructorList(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedListCall<T>);
@@ -1148,7 +1118,7 @@ namespace Edge
 				return Result;
 			}
 			template <typename T>
-			int SetUnmanagedConstructorListEx(const char* Decl, void(*Value)(VMCGeneric*))
+			int SetConstructorListEx(const char* Decl, void(*Value)(VMCGeneric*))
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 				asSFuncPtr* Functor = VMBridge::FunctionGeneric(Value);
@@ -1157,41 +1127,52 @@ namespace Edge
 
 				return Result;
 			}
-			template <typename T>
+			template <typename F>
 			int SetAddRef()
 			{
-				asSFuncPtr* AddRef = VMBridge::Method<T, void>(&T::AddRef);
-				int Result = SetBehaviourAddress("void f()", VMBehave::ADDREF, AddRef, VMCall::THISCALL);
+				auto FactoryPtr = &VMRefClass::GcAddRef<F>;
+				asSFuncPtr* AddRef = VMBridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("void f()", VMBehave::ADDREF, AddRef, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&AddRef);
 
 				return Result;
 			}
-			template <typename T>
+			template <typename F>
 			int SetRelease()
 			{
-				asSFuncPtr* Release = VMBridge::Method<T, void>(&T::Release);
-				int Result = SetBehaviourAddress("void f()", VMBehave::RELEASE, Release, VMCall::THISCALL);
+				auto FactoryPtr = &VMRefClass::GcRelease<F>;
+				asSFuncPtr* Release = VMBridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("void f()", VMBehave::RELEASE, Release, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&Release);
 
 				return Result;
 			}
-			template <typename T>
+			template <typename F>
 			int SetGetRefCount()
 			{
-				asSFuncPtr* GetRefCount = VMBridge::Method<T, int>(&T::GetRefCount);
-				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, VMCall::THISCALL);
+				auto FactoryPtr = &VMRefClass::GcGetRefCount<F>;
+				asSFuncPtr* GetRefCount = VMBridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, VMCall::CDECL_OBJFIRST);
 				VMFuncStore::ReleaseFunctor(&GetRefCount);
 
 				return Result;
 			}
-			template <typename T>
-			int SetUnmanaged()
-			{
-				int R = SetAddRef<T>();
-				if (R < 0)
-					return R;
 
-				return SetRelease<T>();
+		private:
+			template <typename U>
+			static void GcAddRef(U* Base)
+			{
+				Base->AddRef();
+			}
+			template <typename U>
+			static void GcRelease(U* Base)
+			{
+				Base->AddRef();
+			}
+			template <typename U>
+			static int GcGetRefCount(U* Base)
+			{
+				return Base->GetRefCount();
 			}
 		};
 
@@ -1462,27 +1443,18 @@ namespace Edge
 				return SetPropertyAddress(Decl, (void*)Value);
 			}
 			template <typename T>
-			VMRefClass SetClassUnmanaged(const char* Name)
+			VMRefClass SetClass(const char* Name)
 			{
 				ED_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
 				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF);
-				Class.SetUnmanaged<T>();
+				Class.SetAddRef<T>();
+				Class.SetRelease<T>();
+				Class.SetGetRefCount<T>();
 
 				return Class;
 			}
 			template <typename T>
-			VMTypeClass SetStructManaged(const char* Name, void(T::* EnumRefs)(VMCManager*), void(T::* ReleaseRefs)(VMCManager*))
-			{
-				ED_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
-				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | (size_t)VMObjType::GC | VMBridge::GetTypeTraits<T>());
-				Struct.SetEnumRefs(EnumRefs);
-				Struct.SetReleaseRefs(ReleaseRefs);
-				Struct.SetDestructor<T>("void f()");
-
-				return Struct;
-			}
-			template <typename T>
-			VMTypeClass SetStructUnmanaged(const char* Name)
+			VMTypeClass SetStructTrivial(const char* Name)
 			{
 				ED_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
 				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | VMBridge::GetTypeTraits<T>());

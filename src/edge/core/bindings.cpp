@@ -8055,9 +8055,9 @@ namespace Edge
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
-				VMRefClass VFormat = Register.SetClassUnmanaged<Format>("format");
-				VFormat.SetUnmanagedConstructor<Format>("format@ f()");
-				VFormat.SetUnmanagedConstructorList<Format>("format@ f(int &in) {repeat ?}");
+				VMRefClass VFormat = Register.SetClass<Format>("format");
+				VFormat.SetConstructor<Format>("format@ f()");
+				VFormat.SetConstructorList<Format>("format@ f(int &in) {repeat ?}");
 				VFormat.SetMethodStatic("string to_json(const ? &in)", &Format::JSON);
 
 				return true;
@@ -8071,7 +8071,7 @@ namespace Edge
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
-				VMTypeClass VDecimal = Register.SetStructUnmanaged<Core::Decimal>("decimal");
+				VMTypeClass VDecimal = Register.SetStructTrivial<Core::Decimal>("decimal");
 				VDecimal.SetConstructor<Core::Decimal>("void f()");
 				VDecimal.SetConstructor<Core::Decimal, int32_t>("void f(int)");
 				VDecimal.SetConstructor<Core::Decimal, int32_t>("void f(uint)");
@@ -8133,7 +8133,7 @@ namespace Edge
 				VVarType.SetValue("decimal_t", (int)Core::VarType::Decimal);
 				VVarType.SetValue("boolean_t", (int)Core::VarType::Boolean);
 
-				VMTypeClass VVariant = Register.SetStructUnmanaged<Core::Variant>("variant");
+				VMTypeClass VVariant = Register.SetStructTrivial<Core::Variant>("variant");
 				VVariant.SetConstructor<Core::Variant>("void f()");
 				VVariant.SetConstructor<Core::Variant, const Core::Variant&>("void f(const variant &in)");
 				VVariant.SetMethod("bool deserialize(const string &in, bool = false)", &Core::Variant::Deserialize);
@@ -8178,7 +8178,7 @@ namespace Edge
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
-				VMTypeClass VDateTime = Register.SetStructUnmanaged<Core::DateTime>("timestamp");
+				VMTypeClass VDateTime = Register.SetStructTrivial<Core::DateTime>("timestamp");
 				VDateTime.SetConstructor<Core::DateTime>("void f()");
 				VDateTime.SetConstructor<Core::DateTime, uint64_t>("void f(uint64)");
 				VDateTime.SetConstructor<Core::DateTime, const Core::DateTime&>("void f(const timestamp &in)");
@@ -8258,7 +8258,7 @@ namespace Edge
 				VStdColor.SetValue("yellow", (int)Core::StdColor::Yellow);
 				VStdColor.SetValue("white", (int)Core::StdColor::White);
 
-				VMRefClass VConsole = Register.SetClassUnmanaged<Core::Console>("console");
+				VMRefClass VConsole = Register.SetClass<Core::Console>("console");
 				VConsole.SetMethod("void begin()", &Core::Console::Begin);
 				VConsole.SetMethod("void end()", &Core::Console::End);
 				VConsole.SetMethod("void hide()", &Core::Console::Hide);
@@ -8292,11 +8292,11 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-				VMRefClass VSchema = Engine->Global().SetClassUnmanaged<Core::Schema>("schema");
+				VMRefClass VSchema = Engine->Global().SetClass<Core::Schema>("schema");
 				VSchema.SetProperty<Core::Schema>("string key", &Core::Schema::Key);
 				VSchema.SetProperty<Core::Schema>("variant value", &Core::Schema::Value);
-				VSchema.SetUnmanagedConstructor<Core::Schema, const Core::Variant&>("schema@ f(const variant &in)");
-				VSchema.SetUnmanagedConstructorListEx<Core::Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
+				VSchema.SetConstructor<Core::Schema, const Core::Variant&>("schema@ f(const variant &in)");
+				VSchema.SetConstructorListEx<Core::Schema>("schema@ f(int &in) { repeat { string, ? } }", &SchemaConstruct);
 				VSchema.SetMethod<Core::Schema, Core::Variant, size_t>("variant getVar(usize) const", &Core::Schema::GetVar);
 				VSchema.SetMethod<Core::Schema, Core::Variant, const std::string&>("variant get_var(const string &in) const", &Core::Schema::GetVar);
 				VSchema.SetMethod("schema@+ get_parent() const", &Core::Schema::GetParent);
@@ -8374,8 +8374,8 @@ namespace Edge
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 
-				VMRefClass VTimer = Engine->Global().SetClassUnmanaged<Core::Timer>("tick_clock");
-				VTimer.SetUnmanagedConstructor<Core::Timer>("tick_clock@ f()");
+				VMRefClass VTimer = Engine->Global().SetClass<Core::Timer>("tick_clock");
+				VTimer.SetConstructor<Core::Timer>("tick_clock@ f()");
 				VTimer.SetMethod("void set_fixed_frames(float)", &Core::Timer::SetFixedFrames);
 				VTimer.SetMethod("void begin()", &Core::Timer::Begin);
 				VTimer.SetMethod("void finish()", &Core::Timer::Finish);
@@ -8431,7 +8431,7 @@ namespace Edge
 				VFileState.SetProperty("bool exists", &Core::FileState::Exists);
 				VFileState.SetConstructor<Core::FileState>("void f()");
 
-				VMTypeClass VFileEntry = Engine->Global().SetStructUnmanaged<Core::FileEntry>("file_entry");
+				VMTypeClass VFileEntry = Engine->Global().SetStructTrivial<Core::FileEntry>("file_entry");
 				VFileEntry.SetConstructor<Core::FileEntry>("void f()");
 				VFileEntry.SetProperty("string path", &Core::FileEntry::Path);
 				VFileEntry.SetProperty("usize size", &Core::FileEntry::Size);
@@ -8441,7 +8441,7 @@ namespace Edge
 				VFileEntry.SetProperty("bool is_directory", &Core::FileEntry::IsDirectory);
 				VFileEntry.SetProperty("bool is_exists", &Core::FileEntry::IsExists);
 
-				VMRefClass VStream = Engine->Global().SetClassUnmanaged<Core::Stream>("base_stream");
+				VMRefClass VStream = Engine->Global().SetClass<Core::Stream>("base_stream");
 				VStream.SetMethod("void clear()", &Core::Stream::Clear);
 				VStream.SetMethod("bool close()", &Core::Stream::Close);
 				VStream.SetMethod("bool seek(file_seek, int64)", &Core::Stream::Seek);
@@ -8454,8 +8454,8 @@ namespace Edge
 				VStream.SetMethodEx("usize write(const string &in)", &StreamWrite);
 				VStream.SetMethodEx("string read(usize)", &StreamRead);
 
-				VMRefClass VFileStream = Engine->Global().SetClassUnmanaged<Core::FileStream>("file_stream");
-				VFileStream.SetUnmanagedConstructor<Core::FileStream>("file_stream@ f()");
+				VMRefClass VFileStream = Engine->Global().SetClass<Core::FileStream>("file_stream");
+				VFileStream.SetConstructor<Core::FileStream>("file_stream@ f()");
 				VFileStream.SetMethod("void clear()", &Core::FileStream::Clear);
 				VFileStream.SetMethod("bool close()", &Core::FileStream::Close);
 				VFileStream.SetMethod("bool seek(file_seek, int64)", &Core::FileStream::Seek);
@@ -8468,8 +8468,8 @@ namespace Edge
 				VFileStream.SetMethodEx("usize write(const string &in)", &FileStreamWrite);
 				VFileStream.SetMethodEx("string read(usize)", &FileStreamRead);
 
-				VMRefClass VGzStream = Engine->Global().SetClassUnmanaged<Core::GzStream>("gz_stream");
-				VGzStream.SetUnmanagedConstructor<Core::GzStream>("gz_stream@ f()");
+				VMRefClass VGzStream = Engine->Global().SetClass<Core::GzStream>("gz_stream");
+				VGzStream.SetConstructor<Core::GzStream>("gz_stream@ f()");
 				VGzStream.SetMethod("void clear()", &Core::GzStream::Clear);
 				VGzStream.SetMethod("bool close()", &Core::GzStream::Close);
 				VGzStream.SetMethod("bool seek(file_seek, int64)", &Core::GzStream::Seek);
@@ -8482,8 +8482,8 @@ namespace Edge
 				VGzStream.SetMethodEx("usize write(const string &in)", &GzStreamWrite);
 				VGzStream.SetMethodEx("string read(usize)", &GzStreamRead);
 
-				VMRefClass VWebStream = Engine->Global().SetClassUnmanaged<Core::WebStream>("web_stream");
-				VWebStream.SetUnmanagedConstructor<Core::WebStream, bool>("web_stream@ f(bool)");
+				VMRefClass VWebStream = Engine->Global().SetClass<Core::WebStream>("web_stream");
+				VWebStream.SetConstructor<Core::WebStream, bool>("web_stream@ f(bool)");
 				VWebStream.SetMethod("void clear()", &Core::WebStream::Clear);
 				VWebStream.SetMethod("bool close()", &Core::WebStream::Close);
 				VWebStream.SetMethod("bool seek(file_seek, int64)", &Core::WebStream::Seek);
@@ -8646,14 +8646,14 @@ namespace Edge
 				VDifficulty.SetValue("heavy", (int)Core::Difficulty::Heavy);
 				VDifficulty.SetValue("clock", (int)Core::Difficulty::Clock);
 
-				VMTypeClass VDesc = Engine->Global().SetStructUnmanaged<Core::Schedule::Desc>("schedule_policy");
+				VMTypeClass VDesc = Engine->Global().SetStructTrivial<Core::Schedule::Desc>("schedule_policy");
 				VDesc.SetProperty("usize memory", &Core::Schedule::Desc::Memory);
 				VDesc.SetProperty("usize coroutines", &Core::Schedule::Desc::Coroutines);
 				VDesc.SetProperty("bool parallel", &Core::Schedule::Desc::Parallel);
 				VDesc.SetConstructor<Core::Schedule::Desc>("void f()");
 				VDesc.SetMethod("void set_threads(usize)", &Core::Schedule::Desc::SetThreads);
 
-				VMRefClass VSchedule = Engine->Global().SetClassUnmanaged<Core::Schedule>("schedule");
+				VMRefClass VSchedule = Engine->Global().SetClass<Core::Schedule>("schedule");
 				VSchedule.SetFunctionDef("void task_event()");
 				VSchedule.SetMethodEx("task_id set_interval(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetInterval);
 				VSchedule.SetMethodEx("task_id set_timeout(uint64, task_event@+, difficulty = difficulty::light)", &ScheduleSetTimeout);
@@ -9150,7 +9150,7 @@ namespace Edge
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
-				VMTypeClass VJoint = Register.SetStructUnmanaged<Compute::Joint>("joint");
+				VMTypeClass VJoint = Register.SetStructTrivial<Compute::Joint>("joint");
 				VJoint.SetProperty<Compute::Joint>("string name", &Compute::Joint::Name);
 				VJoint.SetProperty<Compute::Joint>("matrix4x4 transform", &Compute::Joint::Transform);
 				VJoint.SetProperty<Compute::Joint>("matrix4x4 bind_shape", &Compute::Joint::BindShape);
@@ -9167,14 +9167,14 @@ namespace Edge
 				VAnimatorKey.SetProperty<Compute::AnimatorKey>("float time", &Compute::AnimatorKey::Time);
 				VAnimatorKey.SetConstructor<Compute::AnimatorKey>("void f()");
 
-				VMTypeClass VSkinAnimatorKey = Register.SetStructUnmanaged<Compute::SkinAnimatorKey>("skin_animator_key");
+				VMTypeClass VSkinAnimatorKey = Register.SetStructTrivial<Compute::SkinAnimatorKey>("skin_animator_key");
 				VSkinAnimatorKey.SetProperty<Compute::SkinAnimatorKey>("float time", &Compute::SkinAnimatorKey::Time);
 				VSkinAnimatorKey.SetConstructor<Compute::AnimatorKey>("void f()");
 				VSkinAnimatorKey.SetMethodEx("usize size() const", &SkinAnimatorKeySize);
 				VSkinAnimatorKey.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "animator_key&", "usize", &SkinAnimatorKeyGetPose);
 				VSkinAnimatorKey.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const animator_key&", "usize", &SkinAnimatorKeyGetPose);
 
-				VMTypeClass VSkinAnimatorClip = Register.SetStructUnmanaged<Compute::SkinAnimatorClip>("skin_animator_clip");
+				VMTypeClass VSkinAnimatorClip = Register.SetStructTrivial<Compute::SkinAnimatorClip>("skin_animator_clip");
 				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("string name", &Compute::SkinAnimatorClip::Name);
 				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("float duration", &Compute::SkinAnimatorClip::Duration);
 				VSkinAnimatorClip.SetProperty<Compute::SkinAnimatorClip>("float rate", &Compute::SkinAnimatorClip::Rate);
@@ -9183,7 +9183,7 @@ namespace Edge
 				VSkinAnimatorClip.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "skin_animator_key&", "usize", &SkinAnimatorClipGetKeys);
 				VSkinAnimatorClip.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const skin_animator_key&", "usize", &SkinAnimatorClipGetKeys);
 
-				VMTypeClass VKeyAnimatorClip = Register.SetStructUnmanaged<Compute::KeyAnimatorClip>("key_animator_clip");
+				VMTypeClass VKeyAnimatorClip = Register.SetStructTrivial<Compute::KeyAnimatorClip>("key_animator_clip");
 				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("string name", &Compute::KeyAnimatorClip::Name);
 				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("float duration", &Compute::KeyAnimatorClip::Duration);
 				VKeyAnimatorClip.SetProperty<Compute::KeyAnimatorClip>("float rate", &Compute::KeyAnimatorClip::Rate);
@@ -9261,7 +9261,7 @@ namespace Edge
 				VRegexMatch.SetConstructor<Compute::RegexMatch>("void f()");
 				VRegexMatch.SetMethodEx("string target() const", &RegexMatchTarget);
 
-				VMTypeClass VRegexResult = Register.SetStructUnmanaged<Compute::RegexResult>("regex_result");
+				VMTypeClass VRegexResult = Register.SetStructTrivial<Compute::RegexResult>("regex_result");
 				VRegexResult.SetConstructor<Compute::RegexResult>("void f()");
 				VRegexResult.SetMethod("bool empty() const", &Compute::RegexResult::Empty);
 				VRegexResult.SetMethod("int64 get_steps() const", &Compute::RegexResult::GetSteps);
@@ -9269,7 +9269,7 @@ namespace Edge
 				VRegexResult.SetMethodEx("array<regex_match>@ get() const", &RegexResultGet);
 				VRegexResult.SetMethodEx("array<string>@ to_array() const", &RegexResultToArray);
 
-				VMTypeClass VRegexSource = Register.SetStructUnmanaged<Compute::RegexSource>("regex_source");
+				VMTypeClass VRegexSource = Register.SetStructTrivial<Compute::RegexSource>("regex_source");
 				VRegexSource.SetProperty<Compute::RegexSource>("bool ignoreCase", &Compute::RegexSource::IgnoreCase);
 				VRegexSource.SetConstructor<Compute::RegexSource>("void f()");
 				VRegexSource.SetConstructor<Compute::RegexSource, const std::string&, bool, int64_t, int64_t, int64_t>("void f(const string &in, bool = false, int64 = -1, int64 = -1, int64 = -1)");
@@ -9301,7 +9301,7 @@ namespace Edge
 				VCompression.SetValue("best_compression", (int)Compute::Compression::BestCompression);
 				VCompression.SetValue("default", (int)Compute::Compression::Default);
 
-				VMTypeClass VPrivateKey = Register.SetStructUnmanaged<Compute::PrivateKey>("private_key");
+				VMTypeClass VPrivateKey = Register.SetStructTrivial<Compute::PrivateKey>("private_key");
 				VPrivateKey.SetConstructor<Compute::PrivateKey>("void f()");
 				VPrivateKey.SetConstructor<Compute::PrivateKey, const std::string&>("void f(const string &in)");
 				VPrivateKey.SetMethod("void clear()", &Compute::PrivateKey::Clear);
@@ -9310,15 +9310,15 @@ namespace Edge
 				VPrivateKey.SetMethod("usize size() const", &Compute::PrivateKey::Clear);
 				VPrivateKey.SetMethodStatic<Compute::PrivateKey, const std::string&>("private_key get_plain(const string &in)", &Compute::PrivateKey::GetPlain);
 
-				VMRefClass VWebToken = Engine->Global().SetClassUnmanaged<Compute::WebToken>("web_token");
+				VMRefClass VWebToken = Engine->Global().SetClass<Compute::WebToken>("web_token");
 				VWebToken.SetProperty<Compute::WebToken>("schema@ header", &Compute::WebToken::Header);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ payload", &Compute::WebToken::Payload);
 				VWebToken.SetProperty<Compute::WebToken>("schema@ token", &Compute::WebToken::Token);
 				VWebToken.SetProperty<Compute::WebToken>("string refresher", &Compute::WebToken::Refresher);
 				VWebToken.SetProperty<Compute::WebToken>("string signature", &Compute::WebToken::Signature);
 				VWebToken.SetProperty<Compute::WebToken>("string data", &Compute::WebToken::Data);
-				VWebToken.SetUnmanagedConstructor<Compute::WebToken>("web_token@ f()");
-				VWebToken.SetUnmanagedConstructor<Compute::WebToken, const std::string&, const std::string&, int64_t>("web_token@ f(const string &in, const string &in, int64)");
+				VWebToken.SetConstructor<Compute::WebToken>("web_token@ f()");
+				VWebToken.SetConstructor<Compute::WebToken, const std::string&, const std::string&, int64_t>("web_token@ f(const string &in, const string &in, int64)");
 				VWebToken.SetMethod("void unsign()", &Compute::WebToken::Unsign);
 				VWebToken.SetMethod("void set_algorithm(const string &in)", &Compute::WebToken::SetAlgorithm);
 				VWebToken.SetMethod("void set_type(const string &in)", &Compute::WebToken::SetType);
@@ -9573,9 +9573,9 @@ namespace Edge
 				VSpacing.SetProperty<Compute::Transform::Spacing>("vector3 scale", &Compute::Transform::Spacing::Scale);
 				VSpacing.SetConstructor<Compute::Transform::Spacing>("void f()");
 
-				VMRefClass VTransform = Engine->Global().SetClassUnmanaged<Compute::Transform>("transform");
+				VMRefClass VTransform = Engine->Global().SetClass<Compute::Transform>("transform");
 				VTransform.SetProperty<Compute::Transform>("uptr@ user_data", &Compute::Transform::UserData);
-				VTransform.SetUnmanagedConstructor<Compute::Transform, void*>("transform@ f(uptr@)");
+				VTransform.SetConstructor<Compute::Transform, void*>("transform@ f(uptr@)");
 				VTransform.SetMethod("void synchronize()", &Compute::Transform::Synchronize);
 				VTransform.SetMethod("void move(const vector3 &in)", &Compute::Transform::Move);
 				VTransform.SetMethod("void rotate(const vector3 &in)", &Compute::Transform::Rotate);
@@ -9626,7 +9626,7 @@ namespace Edge
 				VNode.SetConstructor<Compute::Cosmos::Node>("void f()");
 				VNode.SetMethod("bool is_leaf() const", &Compute::Cosmos::Node::IsLeaf);
 
-				VMTypeClass VCosmos = Engine->Global().SetStructUnmanaged<Compute::Cosmos>("cosmos");
+				VMTypeClass VCosmos = Engine->Global().SetStructTrivial<Compute::Cosmos>("cosmos");
 				VCosmos.SetFunctionDef("bool cosmos_query_overlaps(const bounding &in)");
 				VCosmos.SetFunctionDef("void cosmos_query_match(uptr@)");
 				VCosmos.SetConstructor<Compute::Cosmos>("void f(usize = 16)");
@@ -9681,7 +9681,7 @@ namespace Edge
 			{
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
-				VMTypeClass VIncludeDesc = Engine->Global().SetStructUnmanaged<Compute::IncludeDesc>("include_desc");
+				VMTypeClass VIncludeDesc = Engine->Global().SetStructTrivial<Compute::IncludeDesc>("include_desc");
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string from", &Compute::IncludeDesc::From);
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string path", &Compute::IncludeDesc::Path);
 				VIncludeDesc.SetProperty<Compute::IncludeDesc>("string root", &Compute::IncludeDesc::Root);
@@ -9689,7 +9689,7 @@ namespace Edge
 				VIncludeDesc.SetMethodEx("void add_ext(const string &in)", &IncludeDescAddExt);
 				VIncludeDesc.SetMethodEx("void remove_ext(const string &in)", &IncludeDescRemoveExt);
 
-				VMTypeClass VIncludeResult = Engine->Global().SetStructUnmanaged<Compute::IncludeResult>("include_result");
+				VMTypeClass VIncludeResult = Engine->Global().SetStructTrivial<Compute::IncludeResult>("include_result");
 				VIncludeResult.SetProperty<Compute::IncludeResult>("string module", &Compute::IncludeResult::Module);
 				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_system", &Compute::IncludeResult::IsSystem);
 				VIncludeResult.SetProperty<Compute::IncludeResult>("bool is_file", &Compute::IncludeResult::IsFile);
@@ -9702,10 +9702,10 @@ namespace Edge
 				VDesc.SetProperty<Compute::Preprocessor::Desc>("bool Conditions", &Compute::Preprocessor::Desc::Conditions);
 				VDesc.SetConstructor<Compute::Preprocessor::Desc>("void f()");
 
-				VMRefClass VPreprocessor = Engine->Global().SetClassUnmanaged<Compute::Preprocessor>("preprocessor");
+				VMRefClass VPreprocessor = Engine->Global().SetClass<Compute::Preprocessor>("preprocessor");
 				VPreprocessor.SetFunctionDef("bool proc_include_event(preprocessor@+, const include_result &in, string &out)");
 				VPreprocessor.SetFunctionDef("bool proc_pragma_event(preprocessor@+, const string &in, array<string>@+)");
-				VPreprocessor.SetUnmanagedConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
+				VPreprocessor.SetConstructor<Compute::Preprocessor>("preprocessor@ f(uptr@)");
 				VPreprocessor.SetMethod("void set_include_options(const include_desc &in)", &Compute::Preprocessor::SetIncludeOptions);
 				VPreprocessor.SetMethod("void set_features(const preprocessor_desc &in)", &Compute::Preprocessor::SetFeatures);
 				VPreprocessor.SetMethod("void define(const string &in)", &Compute::Preprocessor::Define);
@@ -9729,7 +9729,7 @@ namespace Edge
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
 
-				VMRefClass VSimulator = Engine->Global().SetClassUnmanaged<Compute::Simulator>("physics_simulator");
+				VMRefClass VSimulator = Engine->Global().SetClass<Compute::Simulator>("physics_simulator");
 				
 				VMEnum VShape = Register.SetEnum("physics_shape");
 				VShape.SetValue("box", (int)Compute::Shape::Box);
@@ -9812,9 +9812,9 @@ namespace Edge
 				VRotator.SetValue("zxy", (int)Compute::Rotator::ZXY);
 				VRotator.SetValue("zyx", (int)Compute::Rotator::ZYX);
 
-				VMRefClass VHullShape = Engine->Global().SetClassUnmanaged<Compute::HullShape>("physics_hull_shape");
+				VMRefClass VHullShape = Engine->Global().SetClass<Compute::HullShape>("physics_hull_shape");
 				VHullShape.SetProperty<Compute::HullShape>("uptr@ shape", &Compute::HullShape::Shape);
-				VHullShape.SetUnmanagedConstructor<Compute::HullShape>("physics_hull_shape@ f()");
+				VHullShape.SetConstructor<Compute::HullShape>("physics_hull_shape@ f()");
 				VHullShape.SetMethodEx("void set_vertices(array<vertex>@+)", &HullShapeSetVertices);
 				VHullShape.SetMethodEx("void set_indices(array<int>@+)", &HullShapeSetIndices);
 				VHullShape.SetMethodEx("array<vertex>@ get_vertices()", &HullShapeGetVertices);
@@ -9829,7 +9829,7 @@ namespace Edge
 				VRigidBodyDesc.SetProperty<Compute::RigidBody::Desc>("vector3 scale", &Compute::RigidBody::Desc::Scale);
 				VRigidBodyDesc.SetConstructor<Compute::RigidBody::Desc>("void f()");
 
-				VMRefClass VRigidBody = Engine->Global().SetClassUnmanaged<Compute::RigidBody>("physics_rigidbody");
+				VMRefClass VRigidBody = Engine->Global().SetClass<Compute::RigidBody>("physics_rigidbody");
 				VRigidBody.SetMethod("physics_rigidbody@ copy()", &Compute::RigidBody::Copy);
 				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&>("void push(const vector3 &in)", &Compute::RigidBody::Push);
 				VRigidBody.SetMethod<Compute::RigidBody, void, const Compute::Vector3&, const Compute::Vector3&>("void push(const vector3 &in, const vector3 &in)", &Compute::RigidBody::Push);
@@ -9992,7 +9992,7 @@ namespace Edge
 				VSoftBodyDesc.SetProperty<Compute::SoftBody::Desc>("vector3 scale", &Compute::SoftBody::SoftBody::Desc::Scale);
 				VSoftBodyDesc.SetConstructor<Compute::SoftBody::Desc>("void f()");
 
-				VMRefClass VSoftBody = Engine->Global().SetClassUnmanaged<Compute::SoftBody>("physics_softbody");
+				VMRefClass VSoftBody = Engine->Global().SetClass<Compute::SoftBody>("physics_softbody");
 				VMTypeClass VSoftBodyRayCast = Engine->Global().SetPod<Compute::SoftBody::RayCast>("physics_softbody_raycast");
 				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_softbody@ body", &Compute::SoftBody::RayCast::Body);
 				VSoftBodyRayCast.SetProperty<Compute::SoftBody::RayCast>("physics_soft_feature feature", &Compute::SoftBody::RayCast::Feature);
@@ -10087,7 +10087,7 @@ namespace Edge
 				VSoftBody.SetMethod("physics_softbody_desc& get_initial_state()", &Compute::SoftBody::GetInitialState);
 				VSoftBody.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SoftBody::GetSimulator);
 
-				VMRefClass VConstraint = Engine->Global().SetClassUnmanaged<Compute::Constraint>("physics_constraint");
+				VMRefClass VConstraint = Engine->Global().SetClass<Compute::Constraint>("physics_constraint");
 				VConstraint.SetMethod("physics_constraint@ copy() const", &Compute::Constraint::Copy);
 				VConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::Constraint::GetSimulator);
 				VConstraint.SetMethod("uptr@ get() const", &Compute::Constraint::Get);
@@ -10108,7 +10108,7 @@ namespace Edge
 				VPConstraintDesc.SetProperty<Compute::PConstraint::Desc>("bool collisions", &Compute::PConstraint::Desc::Collisions);
 				VPConstraintDesc.SetConstructor<Compute::PConstraint::Desc>("void f()");
 
-				VMRefClass VPConstraint = Engine->Global().SetClassUnmanaged<Compute::PConstraint>("physics_pconstraint");
+				VMRefClass VPConstraint = Engine->Global().SetClass<Compute::PConstraint>("physics_pconstraint");
 				VPConstraint.SetMethod("physics_pconstraint@ copy() const", &Compute::PConstraint::Copy);
 				VPConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::PConstraint::GetSimulator);
 				VPConstraint.SetMethod("uptr@ get() const", &Compute::PConstraint::Get);
@@ -10133,7 +10133,7 @@ namespace Edge
 				VHConstraintDesc.SetProperty<Compute::HConstraint::Desc>("bool collisions", &Compute::HConstraint::Desc::Collisions);
 				VPConstraintDesc.SetConstructor<Compute::HConstraint::Desc>("void f()");
 
-				VMRefClass VHConstraint = Engine->Global().SetClassUnmanaged<Compute::HConstraint>("physics_hconstraint");
+				VMRefClass VHConstraint = Engine->Global().SetClass<Compute::HConstraint>("physics_hconstraint");
 				VHConstraint.SetMethod("physics_hconstraint@ copy() const", &Compute::HConstraint::Copy);
 				VHConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::HConstraint::GetSimulator);
 				VHConstraint.SetMethod("uptr@ get() const", &Compute::HConstraint::Get);
@@ -10182,7 +10182,7 @@ namespace Edge
 				VSConstraintDesc.SetProperty<Compute::SConstraint::Desc>("bool collisions", &Compute::SConstraint::Desc::Collisions);
 				VSConstraintDesc.SetConstructor<Compute::SConstraint::Desc>("void f()");
 
-				VMRefClass VSConstraint = Engine->Global().SetClassUnmanaged<Compute::SConstraint>("physics_sconstraint");
+				VMRefClass VSConstraint = Engine->Global().SetClass<Compute::SConstraint>("physics_sconstraint");
 				VSConstraint.SetMethod("physics_sconstraint@ copy() const", &Compute::SConstraint::Copy);
 				VSConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::SConstraint::GetSimulator);
 				VSConstraint.SetMethod("uptr@ get() const", &Compute::SConstraint::Get);
@@ -10258,7 +10258,7 @@ namespace Edge
 				VCTConstraintDesc.SetProperty<Compute::CTConstraint::Desc>("bool collisions", &Compute::CTConstraint::Desc::Collisions);
 				VCTConstraintDesc.SetConstructor<Compute::CTConstraint::Desc>("void f()");
 
-				VMRefClass VCTConstraint = Engine->Global().SetClassUnmanaged<Compute::CTConstraint>("physics_ctconstraint");
+				VMRefClass VCTConstraint = Engine->Global().SetClass<Compute::CTConstraint>("physics_ctconstraint");
 				VCTConstraint.SetMethod("physics_ctconstraint@ copy() const", &Compute::CTConstraint::Copy);
 				VCTConstraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::CTConstraint::GetSimulator);
 				VCTConstraint.SetMethod("uptr@ get() const", &Compute::CTConstraint::Get);
@@ -10309,7 +10309,7 @@ namespace Edge
 				VDF6ConstraintDesc.SetProperty<Compute::DF6Constraint::Desc>("bool collisions", &Compute::DF6Constraint::Desc::Collisions);
 				VDF6ConstraintDesc.SetConstructor<Compute::DF6Constraint::Desc>("void f()");
 
-				VMRefClass VDF6Constraint = Engine->Global().SetClassUnmanaged<Compute::DF6Constraint>("physics_df6constraint");
+				VMRefClass VDF6Constraint = Engine->Global().SetClass<Compute::DF6Constraint>("physics_df6constraint");
 				VDF6Constraint.SetMethod("physics_df6constraint@ copy() const", &Compute::DF6Constraint::Copy);
 				VDF6Constraint.SetMethod("physics_simulator@+ get_simulator() const", &Compute::DF6Constraint::GetSimulator);
 				VDF6Constraint.SetMethod("uptr@ get() const", &Compute::DF6Constraint::Get);
@@ -10369,7 +10369,7 @@ namespace Edge
 				VSimulator.SetProperty<Compute::Simulator>("float time_speed", &Compute::Simulator::TimeSpeed);
 				VSimulator.SetProperty<Compute::Simulator>("int interpolate", &Compute::Simulator::Interpolate);
 				VSimulator.SetProperty<Compute::Simulator>("bool active", &Compute::Simulator::Active);
-				VSimulator.SetUnmanagedConstructor<Compute::Simulator, const Compute::Simulator::Desc&>("physics_simulator@ f(const physics_simulator_desc &in)");
+				VSimulator.SetConstructor<Compute::Simulator, const Compute::Simulator::Desc&>("physics_simulator@ f(const physics_simulator_desc &in)");
 				VSimulator.SetMethod("void set_gravity(const vector3 &in)", &Compute::Simulator::SetGravity);
 				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, bool>("void set_linear_impulse(const vector3 &in, bool = false)", &Compute::Simulator::SetLinearImpulse);
 				VSimulator.SetMethod<Compute::Simulator, void, const Compute::Vector3&, int, int, bool>("void set_linear_impulse(const vector3 &in, int, int, bool = false)", &Compute::Simulator::SetLinearImpulse);
@@ -10560,8 +10560,8 @@ namespace Edge
 				Register.SetFunction("void get_listener_data_1i(sound_ex, int32 &out)", Audio::AudioContext::GetListenerData1I);
 				Engine->EndNamespace();
 
-				VMRefClass VAudioSource = Engine->Global().SetClassUnmanaged<Audio::AudioSource>("audio_source");
-				VMRefClass VAudioFilter = Engine->Global().SetClassUnmanaged<Audio::AudioFilter>("audio_filter");
+				VMRefClass VAudioSource = Engine->Global().SetClass<Audio::AudioSource>("audio_source");
+				VMRefClass VAudioFilter = Engine->Global().SetClass<Audio::AudioFilter>("audio_filter");
 				VAudioFilter.SetMethod("void synchronize()", &Audio::AudioFilter::Synchronize);
 				VAudioFilter.SetMethod("void deserialize(schema@+)", &Audio::AudioFilter::Deserialize);
 				VAudioFilter.SetMethod("void serialize(schema@+)", &Audio::AudioFilter::Serialize);
@@ -10569,7 +10569,7 @@ namespace Edge
 				VAudioFilter.SetMethod("audio_source@+ get_source()", &Audio::AudioFilter::GetSource);
 				PopulateComponent<Audio::AudioFilter>(VAudioFilter);
 
-				VMRefClass VAudioEffect = Engine->Global().SetClassUnmanaged<Audio::AudioEffect>("audio_effect");
+				VMRefClass VAudioEffect = Engine->Global().SetClass<Audio::AudioEffect>("audio_effect");
 				VAudioEffect.SetMethod("void synchronize()", &Audio::AudioEffect::Synchronize);
 				VAudioEffect.SetMethod("void deserialize(schema@+)", &Audio::AudioEffect::Deserialize);
 				VAudioEffect.SetMethod("void serialize(schema@+)", &Audio::AudioEffect::Serialize);
@@ -10579,14 +10579,14 @@ namespace Edge
 				VAudioEffect.SetMethod("audio_source@+ get_source()", &Audio::AudioEffect::GetSource);
 				PopulateComponent<Audio::AudioEffect>(VAudioEffect);
 
-				VMRefClass VAudioClip = Engine->Global().SetClassUnmanaged<Audio::AudioClip>("audio_clip");
-				VAudioClip.SetUnmanagedConstructor<Audio::AudioClip, int, int>("audio_clip@ f(int, int)");
+				VMRefClass VAudioClip = Engine->Global().SetClass<Audio::AudioClip>("audio_clip");
+				VAudioClip.SetConstructor<Audio::AudioClip, int, int>("audio_clip@ f(int, int)");
 				VAudioClip.SetMethod("float length() const", &Audio::AudioClip::Length);
 				VAudioClip.SetMethod("bool is_mono() const", &Audio::AudioClip::IsMono);
 				VAudioClip.SetMethod("uint32 get_buffer() const", &Audio::AudioClip::GetBuffer);
 				VAudioClip.SetMethod("int32 get_format() const", &Audio::AudioClip::GetFormat);
 
-				VAudioSource.SetUnmanagedConstructor<Audio::AudioSource>("audio_source@ f()");
+				VAudioSource.SetConstructor<Audio::AudioSource>("audio_source@ f()");
 				VAudioSource.SetMethod("int64 add_effect(audio_effect@+)", &Audio::AudioSource::AddEffect);
 				VAudioSource.SetMethod("bool remove_effect(usize)", &Audio::AudioSource::RemoveEffect);
 				VAudioSource.SetMethod("bool remove_effect_by_id(uint64)", &Audio::AudioSource::RemoveEffectById);
@@ -10602,8 +10602,8 @@ namespace Edge
 				VAudioSource.SetMethod("audio_clip@+ get_clip() const", &Audio::AudioSource::GetClip);
 				VAudioSource.SetMethod<Audio::AudioSource, Audio::AudioEffect*, uint64_t>("audio_effect@+ get_effect(uint64) const", &Audio::AudioSource::GetEffect);
 
-				VMRefClass VAudioDevice = Engine->Global().SetClassUnmanaged<Audio::AudioDevice>("audio_device");
-				VAudioDevice.SetUnmanagedConstructor<Audio::AudioDevice>("audio_device@ f()");
+				VMRefClass VAudioDevice = Engine->Global().SetClass<Audio::AudioDevice>("audio_device");
+				VAudioDevice.SetConstructor<Audio::AudioDevice>("audio_device@ f()");
 				VAudioDevice.SetMethod("void offset(audio_source@+, float &out, bool)", &Audio::AudioDevice::Offset);
 				VAudioDevice.SetMethod("void velocity(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Velocity);
 				VAudioDevice.SetMethod("void position(audio_source@+, vector3 &out, bool)", &Audio::AudioDevice::Position);
@@ -10988,8 +10988,8 @@ namespace Edge
 				VViewport.SetProperty<Graphics::Viewport>("float max_depth", &Graphics::Viewport::MaxDepth);
 				VViewport.SetConstructor<Graphics::Viewport>("void f()");
 
-				VMRefClass VActivity = Register.SetClassUnmanaged<Graphics::Activity>("activity");
-				VMTypeClass VAlert = Engine->Global().SetStructUnmanaged<Graphics::Alert>("activity_alert");
+				VMRefClass VActivity = Register.SetClass<Graphics::Activity>("activity");
+				VMTypeClass VAlert = Engine->Global().SetStructTrivial<Graphics::Alert>("activity_alert");
 				VAlert.SetFunctionDef("void alert_event(int)");
 				VAlert.SetConstructor<Graphics::Alert, Graphics::Activity*>("void f(activity@+)");
 				VAlert.SetMethod("void setup(alert_type, const string &in, const string &in)", &Graphics::Alert::Setup);
@@ -11017,7 +11017,7 @@ namespace Edge
 				VActivityDesc.SetConstructor<Graphics::Activity::Desc>("void f()");
 
 				VActivity.SetProperty<Graphics::Activity>("activity_alert message", &Graphics::Activity::Message);
-				VActivity.SetUnmanagedConstructor<Graphics::Activity, const Graphics::Activity::Desc&>("activity@ f(const activity_desc &in)");
+				VActivity.SetConstructor<Graphics::Activity, const Graphics::Activity::Desc&>("activity@ f(const activity_desc &in)");
 				VActivity.SetFunctionDef("void app_state_change_event(app_state)");
 				VActivity.SetFunctionDef("void window_state_change_event(window_state, int, int)");
 				VActivity.SetFunctionDef("void key_state_event(key_code, key_mod, int, int, bool)");
@@ -11480,8 +11480,8 @@ namespace Edge
 				VViewBuffer.SetProperty<Graphics::ViewBuffer>("float near", &Graphics::ViewBuffer::Near);
 				VViewBuffer.SetConstructor<Graphics::ViewBuffer>("void f()");
 
-				VMRefClass VSkinModel = Register.SetClassUnmanaged<Graphics::SkinModel>("skin_model");
-				VMTypeClass VPoseBuffer = Register.SetStructUnmanaged<Graphics::PoseBuffer>("pose_buffer");
+				VMRefClass VSkinModel = Register.SetClass<Graphics::SkinModel>("skin_model");
+				VMTypeClass VPoseBuffer = Register.SetStructTrivial<Graphics::PoseBuffer>("pose_buffer");
 				VPoseBuffer.SetMethod("bool set_pose(skin_model@+)", &Graphics::PoseBuffer::SetPose);
 				VPoseBuffer.SetMethodEx("array<animator_key>@ get_pose(skin_model@+)", &PoseBufferGetPose);
 				VPoseBuffer.SetMethod("matrix4x4 get_offset(pose_node &in)", &Graphics::PoseBuffer::GetOffset);
@@ -11489,9 +11489,9 @@ namespace Edge
 				VPoseBuffer.SetMethodEx("pose_node& get_node(usize)", &PoseBufferGetNode);
 				VPoseBuffer.SetConstructor<Graphics::PoseBuffer>("void f()");
 
-				VMRefClass VSurface = Register.SetClassUnmanaged<Graphics::Surface>("surface_handle");
-				VSurface.SetUnmanagedConstructor<Graphics::Surface>("surface_handle@ f()");
-				VSurface.SetUnmanagedConstructor<Graphics::Surface, SDL_Surface*>("surface_handle@ f(uptr@)");
+				VMRefClass VSurface = Register.SetClass<Graphics::Surface>("surface_handle");
+				VSurface.SetConstructor<Graphics::Surface>("surface_handle@ f()");
+				VSurface.SetConstructor<Graphics::Surface, SDL_Surface*>("surface_handle@ f(uptr@)");
 				VSurface.SetMethod("void set_handle(uptr@)", &Graphics::Surface::SetHandle);
 				VSurface.SetMethod("void lock()", &Graphics::Surface::Lock);
 				VSurface.SetMethod("void unlock()", &Graphics::Surface::Unlock);
@@ -11518,7 +11518,7 @@ namespace Edge
 				VDepthStencilStateDesc.SetProperty<Graphics::DepthStencilState::Desc>("bool stencil_enable", &Graphics::DepthStencilState::Desc::StencilEnable);
 				VDepthStencilStateDesc.SetConstructor<Graphics::DepthStencilState::Desc>("void f()");
 
-				VMRefClass VDepthStencilState = Register.SetClassUnmanaged<Graphics::DepthStencilState>("depth_stencil_state");
+				VMRefClass VDepthStencilState = Register.SetClass<Graphics::DepthStencilState>("depth_stencil_state");
 				VDepthStencilState.SetMethod("uptr@ get_resource() const", &Graphics::DepthStencilState::GetResource);
 				VDepthStencilState.SetMethod("depth_stencil_state_desc get_state() const", &Graphics::DepthStencilState::GetState);
 
@@ -11535,7 +11535,7 @@ namespace Edge
 				VRasterizerStateDesc.SetProperty<Graphics::RasterizerState::Desc>("bool antialiased_line_enable", &Graphics::RasterizerState::Desc::AntialiasedLineEnable);
 				VRasterizerStateDesc.SetConstructor<Graphics::RasterizerState::Desc>("void f()");
 
-				VMRefClass VRasterizerState = Register.SetClassUnmanaged<Graphics::RasterizerState>("rasterizer_state");
+				VMRefClass VRasterizerState = Register.SetClass<Graphics::RasterizerState>("rasterizer_state");
 				VRasterizerState.SetMethod("uptr@ get_resource() const", &Graphics::RasterizerState::GetResource);
 				VRasterizerState.SetMethod("rasterizer_state_desc get_state() const", &Graphics::RasterizerState::GetState);
 
@@ -11546,7 +11546,7 @@ namespace Edge
 				VBlendStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
 				VBlendStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const render_target_blend_state&", "usize", &BlendStateDescGetRenderTarget);
 
-				VMRefClass VBlendState = Register.SetClassUnmanaged<Graphics::BlendState>("blend_state");
+				VMRefClass VBlendState = Register.SetClass<Graphics::BlendState>("blend_state");
 				VBlendState.SetMethod("uptr@ get_resource() const", &Graphics::BlendState::GetResource);
 				VBlendState.SetMethod("blend_state_desc get_state() const", &Graphics::BlendState::GetState);
 
@@ -11564,11 +11564,11 @@ namespace Edge
 				VSamplerStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Left, "float&", "usize", &SamplerStateDescGetBorderColor);
 				VSamplerStateDesc.SetOperatorEx(VMOpFunc::Index, (uint32_t)VMOp::Const, "const float&", "usize", &SamplerStateDescGetBorderColor);
 
-				VMRefClass VSamplerState = Register.SetClassUnmanaged<Graphics::SamplerState>("sampler_state");
+				VMRefClass VSamplerState = Register.SetClass<Graphics::SamplerState>("sampler_state");
 				VSamplerState.SetMethod("uptr@ get_resource() const", &Graphics::SamplerState::GetResource);
 				VSamplerState.SetMethod("sampler_state_desc get_state() const", &Graphics::SamplerState::GetState);
 
-				VMTypeClass VInputLayoutAttribute = Register.SetStructUnmanaged<Graphics::InputLayout::Attribute>("input_layout_attribute");
+				VMTypeClass VInputLayoutAttribute = Register.SetStructTrivial<Graphics::InputLayout::Attribute>("input_layout_attribute");
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("string semantic_name", &Graphics::InputLayout::Attribute::SemanticName);
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("uint32 semantic_index", &Graphics::InputLayout::Attribute::SemanticIndex);
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("attribute_type format", &Graphics::InputLayout::Attribute::Format);
@@ -11578,7 +11578,7 @@ namespace Edge
 				VInputLayoutAttribute.SetProperty<Graphics::InputLayout::Attribute>("bool per_vertex", &Graphics::InputLayout::Attribute::PerVertex);
 				VInputLayoutAttribute.SetConstructor<Graphics::InputLayout::Attribute>("void f()");
 
-				VMRefClass VShader = Register.SetClassUnmanaged<Graphics::Shader>("shader");
+				VMRefClass VShader = Register.SetClass<Graphics::Shader>("shader");
 				VShader.SetMethod("bool is_valid() const", &Graphics::Shader::IsValid);
 
 				VMTypeClass VInputLayoutDesc = Register.SetStruct<Graphics::InputLayout::Desc>("input_layout_desc");
@@ -11588,18 +11588,18 @@ namespace Edge
 				VInputLayoutDesc.SetDestructorStatic("void f()", &InputLayoutDescDestructor);
 				VInputLayoutDesc.SetMethodEx("void set_attributes(array<input_layout_attribute>@+)", &InputLayoutDescSetAttributes);
 
-				VMRefClass VInputLayout = Register.SetClassUnmanaged<Graphics::InputLayout>("input_layout");
+				VMRefClass VInputLayout = Register.SetClass<Graphics::InputLayout>("input_layout");
 				VInputLayout.SetMethod("uptr@ get_resource() const", &Graphics::InputLayout::GetResource);
 				VInputLayout.SetMethodEx("array<input_layout_attribute>@ get_attributes() const", &InputLayoutGetAttributes);
 
-				VMTypeClass VShaderDesc = Register.SetStructUnmanaged<Graphics::Shader::Desc>("shader_desc");
+				VMTypeClass VShaderDesc = Register.SetStructTrivial<Graphics::Shader::Desc>("shader_desc");
 				VShaderDesc.SetProperty<Graphics::Shader::Desc>("string filename", &Graphics::Shader::Desc::Filename);
 				VShaderDesc.SetProperty<Graphics::Shader::Desc>("string data", &Graphics::Shader::Desc::Data);
 				VShaderDesc.SetProperty<Graphics::Shader::Desc>("shader_type stage", &Graphics::Shader::Desc::Stage);
 				VShaderDesc.SetConstructor<Graphics::Shader::Desc>("void f()");
 				VShaderDesc.SetMethodEx("void set_defines(array<input_layout_attribute>@+)", &ShaderDescSetDefines);
 
-				VMTypeClass VElementBufferDesc = Register.SetStructUnmanaged<Graphics::ElementBuffer::Desc>("element_buffer_desc");
+				VMTypeClass VElementBufferDesc = Register.SetStructTrivial<Graphics::ElementBuffer::Desc>("element_buffer_desc");
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uptr@ elements", &Graphics::ElementBuffer::Desc::Elements);
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uint32 structure_byte_stride", &Graphics::ElementBuffer::Desc::StructureByteStride);
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("uint32 element_width", &Graphics::ElementBuffer::Desc::ElementWidth);
@@ -11611,38 +11611,38 @@ namespace Edge
 				VElementBufferDesc.SetProperty<Graphics::ElementBuffer::Desc>("bool writable", &Graphics::ElementBuffer::Desc::Writable);
 				VElementBufferDesc.SetConstructor<Graphics::ElementBuffer::Desc>("void f()");
 
-				VMRefClass VElementBuffer = Register.SetClassUnmanaged<Graphics::ElementBuffer>("element_buffer");
+				VMRefClass VElementBuffer = Register.SetClass<Graphics::ElementBuffer>("element_buffer");
 				VElementBuffer.SetMethod("uptr@ get_resource() const", &Graphics::ElementBuffer::GetResource);
 				VElementBuffer.SetMethod("usize get_elements() const", &Graphics::ElementBuffer::GetElements);
 				VElementBuffer.SetMethod("usize get_stride() const", &Graphics::ElementBuffer::GetStride);
 
-				VMTypeClass VMeshBufferDesc = Register.SetStructUnmanaged<Graphics::MeshBuffer::Desc>("mesh_buffer_desc");
+				VMTypeClass VMeshBufferDesc = Register.SetStructTrivial<Graphics::MeshBuffer::Desc>("mesh_buffer_desc");
 				VMeshBufferDesc.SetProperty<Graphics::MeshBuffer::Desc>("cpu_access access_flags", &Graphics::MeshBuffer::Desc::AccessFlags);
 				VMeshBufferDesc.SetProperty<Graphics::MeshBuffer::Desc>("resource_usage usage", &Graphics::MeshBuffer::Desc::Usage);
 				VMeshBufferDesc.SetConstructor<Graphics::MeshBuffer::Desc>("void f()");
 				VMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &MeshBufferDescSetElements);
 				VMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &MeshBufferDescSetIndices);
 
-				VMRefClass VMeshBuffer = Register.SetClassUnmanaged<Graphics::MeshBuffer>("mesh_buffer");
+				VMRefClass VMeshBuffer = Register.SetClass<Graphics::MeshBuffer>("mesh_buffer");
 				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("matrix4x4 world", &Graphics::MeshBuffer::World);
 				VMeshBuffer.SetProperty<Graphics::MeshBuffer>("string name", &Graphics::MeshBuffer::Name);
 				VMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::MeshBuffer::GetVertexBuffer);
 				VMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::MeshBuffer::GetIndexBuffer);
 
-				VMTypeClass VSkinMeshBufferDesc = Register.SetStructUnmanaged<Graphics::SkinMeshBuffer::Desc>("skin_mesh_buffer_desc");
+				VMTypeClass VSkinMeshBufferDesc = Register.SetStructTrivial<Graphics::SkinMeshBuffer::Desc>("skin_mesh_buffer_desc");
 				VSkinMeshBufferDesc.SetProperty<Graphics::SkinMeshBuffer::Desc>("cpu_access access_flags", &Graphics::SkinMeshBuffer::Desc::AccessFlags);
 				VSkinMeshBufferDesc.SetProperty<Graphics::SkinMeshBuffer::Desc>("resource_usage usage", &Graphics::SkinMeshBuffer::Desc::Usage);
 				VSkinMeshBufferDesc.SetConstructor<Graphics::SkinMeshBuffer::Desc>("void f()");
 				VSkinMeshBufferDesc.SetMethodEx("void set_elements(array<vertex>@+)", &SkinMeshBufferDescSetElements);
 				VSkinMeshBufferDesc.SetMethodEx("void set_indices(array<int>@+)", &SkinMeshBufferDescSetIndices);
 
-				VMRefClass VSkinMeshBuffer = Register.SetClassUnmanaged<Graphics::SkinMeshBuffer>("skin_mesh_buffer");
+				VMRefClass VSkinMeshBuffer = Register.SetClass<Graphics::SkinMeshBuffer>("skin_mesh_buffer");
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("matrix4x4 world", &Graphics::SkinMeshBuffer::World);
 				VSkinMeshBuffer.SetProperty<Graphics::SkinMeshBuffer>("string name", &Graphics::SkinMeshBuffer::Name);
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_vertex_buffer() const", &Graphics::SkinMeshBuffer::GetVertexBuffer);
 				VSkinMeshBuffer.SetMethod("element_buffer@+ get_index_buffer() const", &Graphics::SkinMeshBuffer::GetIndexBuffer);
 
-				VMRefClass VGraphicsDevice = Register.SetClassUnmanaged<Graphics::GraphicsDevice>("graphics_device");
+				VMRefClass VGraphicsDevice = Register.SetClass<Graphics::GraphicsDevice>("graphics_device");
 				VMTypeClass VInstanceBufferDesc = Register.SetStruct<Graphics::InstanceBuffer::Desc>("instance_buffer_desc");
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("graphics_device@ device", &Graphics::InstanceBuffer::Desc::Device);
 				VInstanceBufferDesc.SetProperty<Graphics::InstanceBuffer::Desc>("uint32 element_width", &Graphics::InstanceBuffer::Desc::ElementWidth);
@@ -11651,7 +11651,7 @@ namespace Edge
 				VInstanceBufferDesc.SetOperatorCopyStatic(&InstanceBufferDescCopy);
 				VInstanceBufferDesc.SetDestructorStatic("void f()", &InstanceBufferDescDestructor);
 
-				VMRefClass VInstanceBuffer = Register.SetClassUnmanaged<Graphics::InstanceBuffer>("instance_buffer");
+				VMRefClass VInstanceBuffer = Register.SetClass<Graphics::InstanceBuffer>("instance_buffer");
 				VInstanceBuffer.SetMethodEx("void set_array(array<element_vertex>@+)", &InstanceBufferSetArray);
 				VInstanceBuffer.SetMethodEx("array<element_vertex>@ get_array() const", &InstanceBufferGetArray);
 				VInstanceBuffer.SetMethod("element_buffer@+ get_elements() const", &Graphics::InstanceBuffer::GetElements);
@@ -11673,7 +11673,7 @@ namespace Edge
 				VTexture2DDesc.SetProperty<Graphics::Texture2D::Desc>("bool writable", &Graphics::Texture2D::Desc::Writable);
 				VTexture2DDesc.SetConstructor<Graphics::Texture2D::Desc>("void f()");
 
-				VMRefClass VTexture2D = Register.SetClassUnmanaged<Graphics::Texture2D>("texture_2d");
+				VMRefClass VTexture2D = Register.SetClass<Graphics::Texture2D>("texture_2d");
 				VTexture2D.SetMethod("uptr@ get_resource() const", &Graphics::Texture2D::GetResource);
 				VTexture2D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture2D::GetAccessFlags);
 				VTexture2D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture2D::GetFormatMode);
@@ -11695,7 +11695,7 @@ namespace Edge
 				VTexture3DDesc.SetProperty<Graphics::Texture3D::Desc>("bool writable", &Graphics::Texture3D::Desc::Writable);
 				VTexture3DDesc.SetConstructor<Graphics::Texture3D::Desc>("void f()");
 
-				VMRefClass VTexture3D = Register.SetClassUnmanaged<Graphics::Texture3D>("texture_3d");
+				VMRefClass VTexture3D = Register.SetClass<Graphics::Texture3D>("texture_3d");
 				VTexture3D.SetMethod("uptr@ get_resource() const", &Graphics::Texture3D::GetResource);
 				VTexture3D.SetMethod("cpu_access get_access_flags() const", &Graphics::Texture3D::GetAccessFlags);
 				VTexture3D.SetMethod("surface_format get_format_mode() const", &Graphics::Texture3D::GetFormatMode);
@@ -11717,7 +11717,7 @@ namespace Edge
 				VTextureCubeDesc.SetProperty<Graphics::TextureCube::Desc>("bool writable", &Graphics::TextureCube::Desc::Writable);
 				VTextureCubeDesc.SetConstructor<Graphics::TextureCube::Desc>("void f()");
 
-				VMRefClass VTextureCube = Register.SetClassUnmanaged<Graphics::TextureCube>("texture_cube");
+				VMRefClass VTextureCube = Register.SetClass<Graphics::TextureCube>("texture_cube");
 				VTextureCube.SetMethod("uptr@ get_resource() const", &Graphics::TextureCube::GetResource);
 				VTextureCube.SetMethod("cpu_access get_access_flags() const", &Graphics::TextureCube::GetAccessFlags);
 				VTextureCube.SetMethod("surface_format get_format_mode() const", &Graphics::TextureCube::GetFormatMode);
@@ -11734,7 +11734,7 @@ namespace Edge
 				VDepthTarget2DDesc.SetProperty<Graphics::DepthTarget2D::Desc>("uint32 height", &Graphics::DepthTarget2D::Desc::Height);
 				VDepthTarget2DDesc.SetConstructor<Graphics::DepthTarget2D::Desc>("void f()");
 
-				VMRefClass VDepthTarget2D = Register.SetClassUnmanaged<Graphics::DepthTarget2D>("depth_target_2d");
+				VMRefClass VDepthTarget2D = Register.SetClass<Graphics::DepthTarget2D>("depth_target_2d");
 				VDepthTarget2D.SetMethod("uptr@ get_resource() const", &Graphics::DepthTarget2D::GetResource);
 				VDepthTarget2D.SetMethod("uint32 get_width() const", &Graphics::DepthTarget2D::GetWidth);
 				VDepthTarget2D.SetMethod("uint32 get_height() const", &Graphics::DepthTarget2D::GetHeight);
@@ -11748,14 +11748,14 @@ namespace Edge
 				VDepthTargetCubeDesc.SetProperty<Graphics::DepthTargetCube::Desc>("uint32 size", &Graphics::DepthTargetCube::Desc::Size);
 				VDepthTargetCubeDesc.SetConstructor<Graphics::DepthTargetCube::Desc>("void f()");
 
-				VMRefClass VDepthTargetCube = Register.SetClassUnmanaged<Graphics::DepthTargetCube>("depth_target_cube");
+				VMRefClass VDepthTargetCube = Register.SetClass<Graphics::DepthTargetCube>("depth_target_cube");
 				VDepthTargetCube.SetMethod("uptr@ get_resource() const", &Graphics::DepthTargetCube::GetResource);
 				VDepthTargetCube.SetMethod("uint32 get_width() const", &Graphics::DepthTargetCube::GetWidth);
 				VDepthTargetCube.SetMethod("uint32 get_height() const", &Graphics::DepthTargetCube::GetHeight);
 				VDepthTargetCube.SetMethod("texture_2d@+ get_target() const", &Graphics::DepthTargetCube::GetTarget);
 				VDepthTargetCube.SetMethod("const viewport& get_viewport() const", &Graphics::DepthTargetCube::GetViewport);
 
-				VMRefClass VRenderTarget = Register.SetClassUnmanaged<Graphics::RenderTarget>("render_target");
+				VMRefClass VRenderTarget = Register.SetClass<Graphics::RenderTarget>("render_target");
 				VRenderTarget.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget::GetTargetBuffer);
 				VRenderTarget.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget::GetDepthBuffer);
 				VRenderTarget.SetMethod("uint32 get_width() const", &Graphics::RenderTarget::GetWidth);
@@ -11779,7 +11779,7 @@ namespace Edge
 				VRenderTarget2DDesc.SetProperty<Graphics::RenderTarget2D::Desc>("bool depth_stencil", &Graphics::RenderTarget2D::Desc::DepthStencil);
 				VRenderTarget2DDesc.SetConstructor<Graphics::RenderTarget2D::Desc>("void f()");
 
-				VMRefClass VRenderTarget2D = Register.SetClassUnmanaged<Graphics::RenderTarget2D>("render_target_2d");
+				VMRefClass VRenderTarget2D = Register.SetClass<Graphics::RenderTarget2D>("render_target_2d");
 				VRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTarget2D::GetTargetBuffer);
 				VRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTarget2D::GetDepthBuffer);
 				VRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::RenderTarget2D::GetWidth);
@@ -11804,7 +11804,7 @@ namespace Edge
 				VMultiRenderTarget2DDesc.SetConstructor<Graphics::MultiRenderTarget2D::Desc>("void f()");
 				VMultiRenderTarget2DDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTarget2DDescSetFormatMode);
 
-				VMRefClass VMultiRenderTarget2D = Register.SetClassUnmanaged<Graphics::MultiRenderTarget2D>("multi_render_target_2d");
+				VMRefClass VMultiRenderTarget2D = Register.SetClass<Graphics::MultiRenderTarget2D>("multi_render_target_2d");
 				VMultiRenderTarget2D.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTarget2D::GetTargetBuffer);
 				VMultiRenderTarget2D.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTarget2D::GetDepthBuffer);
 				VMultiRenderTarget2D.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTarget2D::GetWidth);
@@ -11827,7 +11827,7 @@ namespace Edge
 				VRenderTargetCubeDesc.SetProperty<Graphics::RenderTargetCube::Desc>("bool depth_stencil", &Graphics::RenderTargetCube::Desc::DepthStencil);
 				VRenderTargetCubeDesc.SetConstructor<Graphics::RenderTargetCube::Desc>("void f()");
 
-				VMRefClass VRenderTargetCube = Register.SetClassUnmanaged<Graphics::RenderTargetCube>("render_target_cube");
+				VMRefClass VRenderTargetCube = Register.SetClass<Graphics::RenderTargetCube>("render_target_cube");
 				VRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::RenderTargetCube::GetTargetBuffer);
 				VRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::RenderTargetCube::GetDepthBuffer);
 				VRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::RenderTargetCube::GetWidth);
@@ -11851,7 +11851,7 @@ namespace Edge
 				VMultiRenderTargetCubeDesc.SetConstructor<Graphics::MultiRenderTargetCube::Desc>("void f()");
 				VMultiRenderTargetCubeDesc.SetMethodEx("void set_format_mode(usize, surface_format)", &MultiRenderTargetCubeDescSetFormatMode);
 
-				VMRefClass VMultiRenderTargetCube = Register.SetClassUnmanaged<Graphics::MultiRenderTargetCube>("multi_render_target_cube");
+				VMRefClass VMultiRenderTargetCube = Register.SetClass<Graphics::MultiRenderTargetCube>("multi_render_target_cube");
 				VMultiRenderTargetCube.SetMethod("uptr@ get_target_buffer() const", &Graphics::MultiRenderTargetCube::GetTargetBuffer);
 				VMultiRenderTargetCube.SetMethod("uptr@ get_depth_buffer() const", &Graphics::MultiRenderTargetCube::GetDepthBuffer);
 				VMultiRenderTargetCube.SetMethod("uint32 get_width() const", &Graphics::MultiRenderTargetCube::GetWidth);
@@ -11889,7 +11889,7 @@ namespace Edge
 				VCubemapDesc.SetOperatorCopyStatic(&CubemapDescCopy);
 				VCubemapDesc.SetDestructorStatic("void f()", &CubemapDescDestructor);
 
-				VMRefClass VCubemap = Register.SetClassUnmanaged<Graphics::Cubemap>("cubemap");
+				VMRefClass VCubemap = Register.SetClass<Graphics::Cubemap>("cubemap");
 				VCubemap.SetMethod("bool is_valid() const", &Graphics::Cubemap::IsValid);
 
 				VMTypeClass VQueryDesc = Register.SetPod<Graphics::Query::Desc>("visibility_query_desc");
@@ -11897,7 +11897,7 @@ namespace Edge
 				VQueryDesc.SetProperty<Graphics::Query::Desc>("bool auto_pass", &Graphics::Query::Desc::AutoPass);
 				VQueryDesc.SetConstructor<Graphics::Query::Desc>("void f()");
 
-				VMRefClass VQuery = Register.SetClassUnmanaged<Graphics::Query>("visibility_query");
+				VMRefClass VQuery = Register.SetClass<Graphics::Query>("visibility_query");
 				VQuery.SetMethod("uptr@ get_resource() const", &Graphics::Query::GetResource);
 
 				VMTypeClass VGraphicsDeviceDesc = Register.SetStruct<Graphics::GraphicsDevice::Desc>("graphics_device_desc");
@@ -12086,11 +12086,11 @@ namespace Edge
 				VGraphicsDevice.SetMethod("bool is_debug() const", &Graphics::GraphicsDevice::IsDebug);
 				VGraphicsDevice.SetMethodStatic("graphics_device@ create(graphics_device_desc &in)", &Graphics::GraphicsDevice::Create);
 
-				VMRefClass VModel = Register.SetClassUnmanaged<Graphics::Model>("model");
+				VMRefClass VModel = Register.SetClass<Graphics::Model>("model");
 				VModel.SetProperty<Graphics::Model>("matrix4x4 root", &Graphics::Model::Root);
 				VModel.SetProperty<Graphics::Model>("vector4 max", &Graphics::Model::Max);
 				VModel.SetProperty<Graphics::Model>("vector4 min", &Graphics::Model::Min);
-				VModel.SetUnmanagedConstructor<Graphics::Model>("model@ f()");
+				VModel.SetConstructor<Graphics::Model>("model@ f()");
 				VModel.SetMethod("mesh_buffer@+ find_mesh(const string &in) const", &Graphics::Model::FindMesh);
 				VModel.SetMethodEx("array<mesh_buffer@>@ get_meshes() const", &ModelGetMeshes);
 				VModel.SetMethodEx("void set_meshes(array<mesh_buffer@>@+)", &ModelSetMeshes);
@@ -12098,7 +12098,7 @@ namespace Edge
 				VSkinModel.SetProperty<Graphics::SkinModel>("matrix4x4 root", &Graphics::SkinModel::Root);
 				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 max", &Graphics::SkinModel::Max);
 				VSkinModel.SetProperty<Graphics::SkinModel>("vector4 min", &Graphics::SkinModel::Min);
-				VSkinModel.SetUnmanagedConstructor<Graphics::SkinModel>("skin_model@ f()");
+				VSkinModel.SetConstructor<Graphics::SkinModel>("skin_model@ f()");
 				VSkinModel.SetMethod<Graphics::SkinModel, void, Graphics::PoseBuffer*>("void compute_pose(pose_buffer &out) const", &Graphics::SkinModel::ComputePose);
 				VSkinModel.SetMethod("skin_mesh_buffer@+ find_mesh(const string &in) const", &Graphics::SkinModel::FindMesh);
 				VSkinModel.SetMethodEx("array<skin_mesh_buffer@>@ get_meshes() const", &SkinModelGetMeshes);
@@ -12156,13 +12156,13 @@ namespace Edge
 				VDNSType.SetValue("connect", (int)Network::DNSType::Connect);
 				VDNSType.SetValue("listen", (int)Network::DNSType::Listen);
 
-				VMTypeClass VRemoteHost = Register.SetStructUnmanaged<Network::RemoteHost>("remote_host");
+				VMTypeClass VRemoteHost = Register.SetStructTrivial<Network::RemoteHost>("remote_host");
 				VRemoteHost.SetProperty<Network::RemoteHost>("string hostname", &Network::RemoteHost::Hostname);
 				VRemoteHost.SetProperty<Network::RemoteHost>("int32 port", &Network::RemoteHost::Port);
 				VRemoteHost.SetProperty<Network::RemoteHost>("bool secure", &Network::RemoteHost::Secure);
 				VRemoteHost.SetConstructor<Network::RemoteHost>("void f()");
 
-				VMTypeClass VLocation = Register.SetStructUnmanaged<Network::Location>("url_location");
+				VMTypeClass VLocation = Register.SetStructTrivial<Network::Location>("url_location");
 				VLocation.SetProperty<Network::Location>("string url", &Network::Location::URL);
 				VLocation.SetProperty<Network::Location>("string protocol", &Network::Location::Protocol);
 				VLocation.SetProperty<Network::Location>("string username", &Network::Location::Username);
@@ -12174,14 +12174,14 @@ namespace Edge
 				VLocation.SetConstructor<Network::Location, const std::string&>("void f(const string &in)");
 				VLocation.SetMethodEx("map@ get_query() const", &LocationGetQuery);
 
-				VMTypeClass VCertificate = Register.SetStructUnmanaged<Network::Certificate>("certificate");
+				VMTypeClass VCertificate = Register.SetStructTrivial<Network::Certificate>("certificate");
 				VCertificate.SetProperty<Network::Certificate>("string subject", &Network::Certificate::Subject);
 				VCertificate.SetProperty<Network::Certificate>("string issuer", &Network::Certificate::Issuer);
 				VCertificate.SetProperty<Network::Certificate>("string serial", &Network::Certificate::Serial);
 				VCertificate.SetProperty<Network::Certificate>("string finger", &Network::Certificate::Finger);
 				VCertificate.SetConstructor<Network::Certificate>("void f()");
 
-				VMTypeClass VSocketCertificate = Register.SetStructUnmanaged<Network::SocketCertificate>("socket_certificate");
+				VMTypeClass VSocketCertificate = Register.SetStructTrivial<Network::SocketCertificate>("socket_certificate");
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("uptr@ context", &Network::SocketCertificate::Context);
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("string key", &Network::SocketCertificate::Key);
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("string chain", &Network::SocketCertificate::Chain);
@@ -12191,7 +12191,7 @@ namespace Edge
 				VSocketCertificate.SetProperty<Network::SocketCertificate>("usize depth", &Network::SocketCertificate::Depth);
 				VSocketCertificate.SetConstructor<Network::SocketCertificate>("void f()");
 
-				VMTypeClass VDataFrame = Register.SetStructUnmanaged<Network::DataFrame>("socket_data_frame");
+				VMTypeClass VDataFrame = Register.SetStructTrivial<Network::DataFrame>("socket_data_frame");
 				VDataFrame.SetProperty<Network::DataFrame>("string message", &Network::DataFrame::Message);
 				VDataFrame.SetProperty<Network::DataFrame>("bool start", &Network::DataFrame::Start);
 				VDataFrame.SetProperty<Network::DataFrame>("bool finish", &Network::DataFrame::Finish);
@@ -12200,7 +12200,7 @@ namespace Edge
 				VDataFrame.SetProperty<Network::DataFrame>("bool close", &Network::DataFrame::Close);
 				VDataFrame.SetConstructor<Network::DataFrame>("void f()");
 
-				VMRefClass VSocket = Register.SetClassUnmanaged<Network::Socket>("socket");
+				VMRefClass VSocket = Register.SetClass<Network::Socket>("socket");
 				VMTypeClass VEpollFd = Register.SetStruct<Network::EpollFd>("epoll_fd");
 				VEpollFd.SetProperty<Network::EpollFd>("socket@ base", &Network::EpollFd::Base);
 				VEpollFd.SetProperty<Network::EpollFd>("bool readable", &Network::EpollFd::Readable);
@@ -12210,7 +12210,7 @@ namespace Edge
 				VEpollFd.SetOperatorCopyStatic(&EpollFdCopy);
 				VEpollFd.SetDestructorStatic("void f()", &EpollFdDestructor);
 
-				VMTypeClass VEpollHandle = Register.SetStructUnmanaged<Network::EpollHandle>("epoll_handle");
+				VMTypeClass VEpollHandle = Register.SetStructTrivial<Network::EpollHandle>("epoll_handle");
 				VEpollHandle.SetProperty<Network::EpollHandle>("uptr@ array", &Network::EpollHandle::Array);
 				VEpollHandle.SetProperty<Network::EpollHandle>("uptr@ handle", &Network::EpollHandle::Handle);
 				VEpollHandle.SetProperty<Network::EpollHandle>("usize array_size", &Network::EpollHandle::ArraySize);
@@ -12220,8 +12220,8 @@ namespace Edge
 				VEpollHandle.SetMethod("bool remove(socket@+, bool, bool)", &Network::EpollHandle::Remove);
 				VEpollHandle.SetMethodEx("int wait(array<epoll_fd>@+, uint64)", &EpollHandleWait);
 
-				VMRefClass VSocketAddress = Register.SetClassUnmanaged<Network::SocketAddress>("socket_address");
-				VSocketAddress.SetUnmanagedConstructor<Network::SocketAddress, addrinfo*, addrinfo*>("socket_address@ f(uptr@, uptr@)");
+				VMRefClass VSocketAddress = Register.SetClass<Network::SocketAddress>("socket_address");
+				VSocketAddress.SetConstructor<Network::SocketAddress, addrinfo*, addrinfo*>("socket_address@ f(uptr@, uptr@)");
 				VSocketAddress.SetMethod("bool is_usable() const", &Network::SocketAddress::IsUsable);
 				VSocketAddress.SetMethod("uptr@ get() const", &Network::SocketAddress::Get);
 				VSocketAddress.SetMethod("uptr@ get_alternatives() const", &Network::SocketAddress::GetAlternatives);
@@ -12237,8 +12237,8 @@ namespace Edge
 				VSocket.SetProperty<Network::Socket>("int64 income", &Network::Socket::Income);
 				VSocket.SetProperty<Network::Socket>("int64 outcome", &Network::Socket::Outcome);
 				VSocket.SetProperty<Network::Socket>("uptr@ user_data", &Network::Socket::UserData);
-				VSocket.SetUnmanagedConstructor<Network::Socket>("socket@ f()");
-				VSocket.SetUnmanagedConstructor<Network::Socket, socket_t>("socket@ f(usize)");
+				VSocket.SetConstructor<Network::Socket>("socket@ f()");
+				VSocket.SetConstructor<Network::Socket, socket_t>("socket@ f(usize)");
 				VSocket.SetMethodEx("int accept(socket@+, string &out)", &SocketAccept1);
 				VSocket.SetMethodEx("int accept(usize &out, string &out)", &SocketAccept2);
 				VSocket.SetMethodEx("int accept_async(bool, socket_accepted_event@+)", &SocketAcceptAsync);
@@ -12319,14 +12319,14 @@ namespace Edge
 				Register.SetFunction<std::string(addrinfo*)>("string get_address(uptr@)", &Network::Multiplexer::GetAddress);
 				Engine->EndNamespace();
 
-				VMRefClass VSocketListener = Register.SetClassUnmanaged<Network::SocketListener>("socket_listener");
+				VMRefClass VSocketListener = Register.SetClass<Network::SocketListener>("socket_listener");
 				VSocketListener.SetProperty<Network::SocketListener>("string name", &Network::SocketListener::Name);
 				VSocketListener.SetProperty<Network::SocketListener>("remote_host hostname", &Network::SocketListener::Hostname);
 				VSocketListener.SetProperty<Network::SocketListener>("socket_address@ source", &Network::SocketListener::Source);
 				VSocketListener.SetProperty<Network::SocketListener>("socket@ base", &Network::SocketListener::Base);
-				VSocketListener.SetUnmanagedConstructor<Network::SocketListener, const std::string&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
+				VSocketListener.SetConstructor<Network::SocketListener, const std::string&, const Network::RemoteHost&, Network::SocketAddress*>("socket_listener@ f(const string &in, const remote_host &in, socket_address@+)");
 
-				VMRefClass VSocketRouter = Register.SetClassUnmanaged<Network::SocketRouter>("socket_router");
+				VMRefClass VSocketRouter = Register.SetClass<Network::SocketRouter>("socket_router");
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize payload_max_length", &Network::SocketRouter::PayloadMaxLength);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize backlog_queue", &Network::SocketRouter::BacklogQueue);
 				VSocketRouter.SetProperty<Network::SocketRouter>("usize socket_timeout", &Network::SocketRouter::SocketTimeout);
@@ -12334,7 +12334,7 @@ namespace Edge
 				VSocketRouter.SetProperty<Network::SocketRouter>("int64 keep_alive_max_count", &Network::SocketRouter::KeepAliveMaxCount);
 				VSocketRouter.SetProperty<Network::SocketRouter>("int64 graceful_time_wait", &Network::SocketRouter::GracefulTimeWait);
 				VSocketRouter.SetProperty<Network::SocketRouter>("bool enable_no_delay", &Network::SocketRouter::EnableNoDelay);
-				VSocketRouter.SetUnmanagedConstructor<Network::SocketRouter>("socket_router@ f()");
+				VSocketRouter.SetConstructor<Network::SocketRouter>("socket_router@ f()");
 				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, int, bool>("remote_host& listen(const string &in, int, bool = false)", &Network::SocketRouter::Listen);
 				VSocketRouter.SetMethod<Network::SocketRouter, Network::RemoteHost&, const std::string&, const std::string&, int, bool>("remote_host& listen(const string &in, const string &in, int, bool = false)", &Network::SocketRouter::Listen);
 				VSocketRouter.SetMethodEx("void set_listeners(map@ data)", &SocketRouterSetListeners);
@@ -12342,11 +12342,11 @@ namespace Edge
 				VSocketRouter.SetMethodEx("void set_certificates(map@ data)", &SocketRouterSetCertificates);
 				VSocketRouter.SetMethodEx("map@ get_certificates() const", &SocketRouterGetCertificates);
 
-				VMRefClass VSocketConnection = Register.SetClassUnmanaged<Network::SocketConnection>("socket_connection");
+				VMRefClass VSocketConnection = Register.SetClass<Network::SocketConnection>("socket_connection");
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket@ stream", &Network::SocketConnection::Stream);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket_listener@ host", &Network::SocketConnection::Host);
 				VSocketConnection.SetProperty<Network::SocketConnection>("socket_data_frame info", &Network::SocketConnection::Info);
-				VSocketConnection.SetUnmanagedConstructor<Network::SocketConnection>("socket_connection@ f()");
+				VSocketConnection.SetConstructor<Network::SocketConnection>("socket_connection@ f()");
 				VSocketConnection.SetMethodEx("string get_remote_address() const", &SocketConnectionGetRemoteAddress);
 				VSocketConnection.SetMethod("void reset(bool)", &Network::SocketConnection::Reset);
 				VSocketConnection.SetMethod<Network::SocketConnection, bool>("bool finish()", &Network::SocketConnection::Finish);
@@ -12355,8 +12355,8 @@ namespace Edge
 				VSocketConnection.SetMethod("bool encryption_info(socket_certificate &out)", &Network::SocketConnection::EncryptionInfo);
 				VSocketConnection.SetMethod("bool stop()", &Network::SocketConnection::Break);
 
-				VMRefClass VSocketServer = Register.SetClassUnmanaged<Network::SocketServer>("socket_server");
-				VSocketServer.SetUnmanagedConstructor<Network::SocketServer>("socket_server@ f()");
+				VMRefClass VSocketServer = Register.SetClass<Network::SocketServer>("socket_server");
+				VSocketServer.SetConstructor<Network::SocketServer>("socket_server@ f()");
 				VSocketServer.SetMethod("void set_router(socket_router@+)", &Network::SocketServer::SetRouter);
 				VSocketServer.SetMethod("void set_backlog(usize)", &Network::SocketServer::SetBacklog);
 				VSocketServer.SetMethod("void lock()", &Network::SocketServer::Lock);
@@ -12368,8 +12368,8 @@ namespace Edge
 				VSocketServer.SetMethod("server_state get_state() const", &Network::SocketServer::GetState);
 				VSocketServer.SetMethod("socket_router@+ get_router() const", &Network::SocketServer::GetRouter);
 
-				VMRefClass VSocketClient = Register.SetClassUnmanaged<Network::SocketClient>("socket_client");
-				VSocketClient.SetUnmanagedConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
+				VMRefClass VSocketClient = Register.SetClass<Network::SocketClient>("socket_client");
+				VSocketClient.SetConstructor<Network::SocketClient, int64_t>("socket_client@ f(int64)");
 				VSocketClient.SetMethodEx("promise<int>@ connect(remote_host &in)", &ED_PROMISIFY(Network::SocketClient::Connect, VMTypeId::INT32));
 				VSocketClient.SetMethodEx("promise<int>@ close()", &ED_PROMISIFY(Network::SocketClient::Close, VMTypeId::INT32));
 				VSocketClient.SetMethod("socket@+ get_stream() const", &Network::SocketClient::GetStream);
@@ -12465,40 +12465,40 @@ namespace Edge
 				VComposerTag.SetValue("effect", (int)Engine::ComposerTag::Effect);
 				VComposerTag.SetValue("filter", (int)Engine::ComposerTag::Filter);
 
-				VMTypeClass VTicker = Register.SetStructUnmanaged<Engine::Ticker>("clock_ticker");
+				VMTypeClass VTicker = Register.SetStructTrivial<Engine::Ticker>("clock_ticker");
 				VTicker.SetProperty<Engine::Ticker>("float delay", &Engine::Ticker::Delay);
 				VTicker.SetConstructor<Engine::Ticker>("void f()");
 				VTicker.SetMethod("bool tick_event(float)", &Engine::Ticker::TickEvent);
 				VTicker.SetMethod("float get_time() const", &Engine::Ticker::GetTime);
 
-				VMTypeClass VEvent = Register.SetStructUnmanaged<Engine::Event>("scene_event");
+				VMTypeClass VEvent = Register.SetStructTrivial<Engine::Event>("scene_event");
 				VEvent.SetProperty<Engine::Event>("string name", &Engine::Event::Name);
 				VEvent.SetConstructor<Engine::Event, const std::string&>("void f(const string &in)");
 				VEvent.SetMethodEx("void set_args(map@+)", &EventSetArgs);
 				VEvent.SetMethodEx("map@ get_args() const", &EventGetArgs);
 
-				VMRefClass VMaterial = Register.SetClassUnmanaged<Engine::Material>("material");
-				VMTypeClass VBatchData = Register.SetStructUnmanaged<Engine::BatchData>("batch_data");
+				VMRefClass VMaterial = Register.SetClass<Engine::Material>("material");
+				VMTypeClass VBatchData = Register.SetStructTrivial<Engine::BatchData>("batch_data");
 				VBatchData.SetProperty<Engine::BatchData>("element_buffer@ instances_buffer", &Engine::BatchData::InstanceBuffer);
 				VBatchData.SetProperty<Engine::BatchData>("uptr@ GeometryBuffer", &Engine::BatchData::GeometryBuffer);
 				VBatchData.SetProperty<Engine::BatchData>("material@ batch_material", &Engine::BatchData::BatchMaterial);
 				VBatchData.SetProperty<Engine::BatchData>("usize instances_count", &Engine::BatchData::InstancesCount);
 				VBatchData.SetConstructor<Engine::BatchData>("void f()");
 
-				VMTypeClass VAssetCache = Register.SetStructUnmanaged<Engine::AssetCache>("asset_cache");
+				VMTypeClass VAssetCache = Register.SetStructTrivial<Engine::AssetCache>("asset_cache");
 				VAssetCache.SetProperty<Engine::AssetCache>("string path", &Engine::AssetCache::Path);
 				VAssetCache.SetProperty<Engine::AssetCache>("uptr@ resource", &Engine::AssetCache::Resource);
 				VAssetCache.SetConstructor<Engine::AssetCache>("void f()");
 
-				VMTypeClass VAssetArchive = Register.SetStructUnmanaged<Engine::AssetArchive>("asset_archive");
+				VMTypeClass VAssetArchive = Register.SetStructTrivial<Engine::AssetArchive>("asset_archive");
 				VAssetArchive.SetProperty<Engine::AssetArchive>("base_stream@ stream", &Engine::AssetArchive::Stream);
 				VAssetArchive.SetProperty<Engine::AssetArchive>("string path", &Engine::AssetArchive::Path);
 				VAssetArchive.SetProperty<Engine::AssetArchive>("usize length", &Engine::AssetArchive::Length);
 				VAssetArchive.SetProperty<Engine::AssetArchive>("usize offset", &Engine::AssetArchive::Offset);
 				VAssetArchive.SetConstructor<Engine::AssetArchive>("void f()");
 
-				VMRefClass VAssetFile = Register.SetClassUnmanaged<Engine::AssetFile>("asset_file");
-				VAssetFile.SetUnmanagedConstructor<Engine::AssetFile, char*, size_t>("asset_file@ f(uptr@, usize)");
+				VMRefClass VAssetFile = Register.SetClass<Engine::AssetFile>("asset_file");
+				VAssetFile.SetConstructor<Engine::AssetFile, char*, size_t>("asset_file@ f(uptr@, usize)");
 				VAssetFile.SetMethod("uptr@ get_buffer() const", &Engine::AssetFile::GetBuffer);
 				VAssetFile.SetMethod("usize get_size() const", &Engine::AssetFile::GetSize);
 
@@ -12530,7 +12530,7 @@ namespace Edge
 				VSpawnerProperties.SetProperty<Engine::SpawnerProperties>("int32 iterations", &Engine::SpawnerProperties::Iterations);
 				VSpawnerProperties.SetConstructor<Engine::SpawnerProperties>("void f()");
 
-				VMRefClass VRenderSystem = Register.SetClassUnmanaged<Engine::RenderSystem>("render_system");
+				VMRefClass VRenderSystem = Register.SetClass<Engine::RenderSystem>("render_system");
 				VMTypeClass VViewer = Register.SetStruct<Engine::Viewer>("viewer");
 				VViewer.SetProperty<Engine::Viewer>("render_system@ renderer", &Engine::Viewer::Renderer);
 				VViewer.SetProperty<Engine::Viewer>("render_culling Culling", &Engine::Viewer::Culling);
@@ -12573,10 +12573,10 @@ namespace Edge
 				VSubsurface.SetProperty<Engine::Subsurface>("float height", &Engine::Subsurface::Height);
 				VSubsurface.SetConstructor<Engine::Subsurface>("void f()");
 
-				VMRefClass VSceneGraph = Register.SetClassUnmanaged<Engine::SceneGraph>("scene_graph");
+				VMRefClass VSceneGraph = Register.SetClass<Engine::SceneGraph>("scene_graph");
 				VMaterial.SetProperty<Engine::Material>("subsurface surface", &Engine::Material::Surface);
 				VMaterial.SetProperty<Engine::Material>("usize slot", &Engine::Material::Slot);
-				VMaterial.SetUnmanagedConstructor<Engine::Material, Engine::SceneGraph*>("material@ f(scene_graph@+)");
+				VMaterial.SetConstructor<Engine::Material, Engine::SceneGraph*>("material@ f(scene_graph@+)");
 				VMaterial.SetMethod("void set_name(const string &in)", &Engine::Material::SetName);
 				VMaterial.SetMethod("const string& get_name(const string &in)", &Engine::Material::GetName);
 				VMaterial.SetMethod("void set_diffuse_map(texture_2d@+)", &Engine::Material::SetDiffuseMap);
@@ -12617,10 +12617,10 @@ namespace Edge
 				VMEnum VTimingDir = Register.SetEnum("ui_timing_dir");
 				VMEnum VFocusFlag = Register.SetEnum("ui_focus_flag");
 				VMEnum VModalFlag = Register.SetEnum("ui_modal_flag");
-				VMTypeClass VElement = Register.SetStructUnmanaged<Engine::GUI::IElement>("ui_element");
-				VMTypeClass VDocument = Register.SetStructUnmanaged<Engine::GUI::IElementDocument>("ui_document");
-				VMTypeClass VEvent = Register.SetStructUnmanaged<Engine::GUI::IEvent>("ui_event");
-				VMRefClass VListener = Register.SetClassUnmanaged<ModelListener>("ui_listener");
+				VMTypeClass VElement = Register.SetStructTrivial<Engine::GUI::IElement>("ui_element");
+				VMTypeClass VDocument = Register.SetStructTrivial<Engine::GUI::IElementDocument>("ui_document");
+				VMTypeClass VEvent = Register.SetStructTrivial<Engine::GUI::IEvent>("ui_event");
+				VMRefClass VListener = Register.SetClass<ModelListener>("ui_listener");
 				Register.SetFunctionDef("void model_listener_event(ui_event &in)");
 
 				VModalFlag.SetValue("none", (int)Engine::GUI::ModalFlag::None);
@@ -12661,8 +12661,8 @@ namespace Edge
 				VEvent.SetMethod("uptr@ get_event() const", &Engine::GUI::IEvent::GetEvent);
 				VEvent.SetMethod("bool is_valid() const", &Engine::GUI::IEvent::IsValid);
 
-				VListener.SetUnmanagedConstructor<ModelListener, VMCFunction*>("ui_listener@ f(model_listener_event@)");
-				VListener.SetUnmanagedConstructor<ModelListener, const std::string&>("ui_listener@ f(const string &in)");
+				VListener.SetConstructor<ModelListener, VMCFunction*>("ui_listener@ f(model_listener_event@)");
+				VListener.SetConstructor<ModelListener, const std::string&>("ui_listener@ f(const string &in)");
 
 				VArea.SetValue("margin", (int)Engine::GUI::Area::Margin);
 				VArea.SetValue("border", (int)Engine::GUI::Area::Border);
@@ -12949,7 +12949,7 @@ namespace Edge
 				VMGlobal& Register = Engine->Global();
 				Register.SetFunctionDef("void ui_data_event(ui_event &in, array<variant>@+)");
 
-				VMRefClass VModel = Register.SetClassUnmanaged<Engine::GUI::DataModel>("ui_model");
+				VMRefClass VModel = Register.SetClass<Engine::GUI::DataModel>("ui_model");
 				VModel.SetMethodEx("bool set(const string &in, schema@+)", &DataModelSet);
 				VModel.SetMethodEx("bool set_var(const string &in, const variant &in)", &DataModelSetVar);
 				VModel.SetMethodEx("bool set_string(const string &in, const string &in)", &DataModelSetString);
@@ -12992,7 +12992,7 @@ namespace Edge
 #ifdef ED_HAS_BINDINGS
 				ED_ASSERT(Engine != nullptr, false, "manager should be set");
 				VMGlobal& Register = Engine->Global();
-				VMRefClass VContext = Register.SetClassUnmanaged<Engine::GUI::Context>("gui_context");
+				VMRefClass VContext = Register.SetClass<Engine::GUI::Context>("gui_context");
 				VContext.SetMethod("void set_documents_base_tag(const string &in)", &Engine::GUI::Context::SetDocumentsBaseTag);
 				VContext.SetMethod("void clear_styles()", &Engine::GUI::Context::ClearStyles);
 				VContext.SetMethod("bool clear_documents()", &Engine::GUI::Context::ClearDocuments);

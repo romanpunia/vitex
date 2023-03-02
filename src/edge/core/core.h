@@ -1359,9 +1359,9 @@ namespace Edge
 			{
 				return (void*)ED_MALLOC(T, Size);
 			}
-			int32_t GetRefCount() const noexcept
+			uint32_t GetRefCount() const noexcept
 			{
-				return (int32_t)__vcnt.load();
+				return __vcnt.load();
 			}
 			void AddRef() noexcept
 			{

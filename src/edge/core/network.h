@@ -218,7 +218,7 @@ namespace Edge
 		class ED_OUT_TS DNS
 		{
 		private:
-			static std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>> Names;
+			static Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>* Names;
 			static std::mutex Exclusive;
 
 		public:
@@ -276,7 +276,7 @@ namespace Edge
 			static void TryUnlisten();
 		};
 
-		class ED_OUT SocketAddress : public Core::Object
+		class ED_OUT SocketAddress final : public Core::Reference<SocketAddress>
 		{
 			friend DNS;
 
@@ -286,14 +286,14 @@ namespace Edge
 
 		public:
 			SocketAddress(addrinfo* NewNames, addrinfo* NewUsables);
-			virtual ~SocketAddress() noexcept override;
+			~SocketAddress() noexcept;
 			bool IsUsable() const;
 			addrinfo* Get() const;
 			addrinfo* GetAlternatives() const;
 			std::string GetAddress() const;
 		};
 
-		class ED_OUT Socket : public Core::Object
+		class ED_OUT Socket final : public Core::Reference<Socket>
 		{
 			friend EpollHandle;
 			friend Multiplexer;
@@ -321,7 +321,6 @@ namespace Edge
 		public:
 			Socket() noexcept;
 			Socket(socket_t FromFd) noexcept;
-			virtual ~Socket() = default;
 			int Accept(Socket* OutConnection, char* OutAddress);
 			int Accept(socket_t* OutFd, char* OutAddress);
 			int AcceptAsync(bool WithAddress, SocketAcceptedCallback&& Callback);
@@ -379,7 +378,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT SocketListener : public Core::Object
+		class ED_OUT SocketListener final : public Core::Reference<SocketListener>
 		{
 		public:
 			std::string Name;
@@ -389,10 +388,10 @@ namespace Edge
 
 		public:
 			SocketListener(const std::string& NewName, const RemoteHost& NewHost, SocketAddress* NewAddress);
-			virtual ~SocketListener() noexcept override;
+			~SocketListener() noexcept;
 		};
 
-		class ED_OUT SocketRouter : public Core::Object
+		class ED_OUT SocketRouter : public Core::Reference<SocketRouter>
 		{
 		public:
 			std::unordered_map<std::string, SocketCertificate> Certificates;
@@ -412,7 +411,7 @@ namespace Edge
 			RemoteHost& Listen(const std::string& Pattern, const std::string& Hostname, int Port, bool Secure = false);
 		};
 
-		class ED_OUT SocketConnection : public Core::Object
+		class ED_OUT SocketConnection : public Core::Reference<SocketConnection>
 		{
 		public:
 			Socket* Stream = nullptr;
@@ -431,7 +430,7 @@ namespace Edge
 			virtual bool Break();
 		};
 
-		class ED_OUT SocketServer : public Core::Object
+		class ED_OUT SocketServer : public Core::Reference<SocketServer>
 		{
 			friend SocketConnection;
 
@@ -446,7 +445,7 @@ namespace Edge
 			
 		public:
 			SocketServer() noexcept;
-			virtual ~SocketServer() noexcept override;
+			virtual ~SocketServer() noexcept;
 			void SetRouter(SocketRouter* New);
 			void SetBacklog(size_t Value);
 			void Lock();
@@ -482,7 +481,7 @@ namespace Edge
 			SocketConnection* Pop(SocketListener* Host);
 		};
 
-		class ED_OUT SocketClient : public Core::Object
+		class ED_OUT SocketClient : public Core::Reference<SocketClient>
 		{
 		protected:
 			SocketClientCallback Done;
@@ -495,7 +494,7 @@ namespace Edge
 
 		public:
 			SocketClient(int64_t RequestTimeout) noexcept;
-			virtual ~SocketClient() noexcept override;
+			virtual ~SocketClient() noexcept;
 			Core::Promise<int> Connect(RemoteHost* Address, bool Async);
 			Core::Promise<int> Close();
 			Socket* GetStream();

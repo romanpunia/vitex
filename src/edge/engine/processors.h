@@ -101,7 +101,7 @@ namespace Edge
 			{
 			public:
 				AudioClip(ContentManager * Manager);
-				virtual ~AudioClip() override;
+				~AudioClip() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -113,7 +113,7 @@ namespace Edge
 			{
 			public:
 				Texture2D(ContentManager * Manager);
-				virtual ~Texture2D() override;
+				~Texture2D() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -123,7 +123,7 @@ namespace Edge
 			{
 			public:
 				Shader(ContentManager * Manager);
-				virtual ~Shader() override;
+				~Shader() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -136,7 +136,7 @@ namespace Edge
 
 			public:
 				Model(ContentManager* Manager);
-				virtual ~Model() override;
+				~Model() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -158,7 +158,7 @@ namespace Edge
 
 			public:
 				SkinModel(ContentManager* Manager);
-				virtual ~SkinModel() override;
+				~SkinModel() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;
@@ -194,7 +194,7 @@ namespace Edge
 			{
 			public:
 				HullShape(ContentManager * Manager);
-				virtual ~HullShape() override;
+				~HullShape() override;
 				void Free(AssetCache* Asset) override;
 				Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Args) override;
 				Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args) override;

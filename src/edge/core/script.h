@@ -1160,8 +1160,8 @@ namespace Edge
 			template <typename T>
 			int SetAddRef()
 			{
-				asSFuncPtr* AddRef = VMBridge::Function(&Core::Composer::AddRef);
-				int Result = SetBehaviourAddress("void f()", VMBehave::ADDREF, AddRef, VMCall::CDECL_OBJFIRST);
+				asSFuncPtr* AddRef = VMBridge::Method<T, void>(&T::AddRef);
+				int Result = SetBehaviourAddress("void f()", VMBehave::ADDREF, AddRef, VMCall::THISCALL);
 				VMFuncStore::ReleaseFunctor(&AddRef);
 
 				return Result;
@@ -1169,8 +1169,8 @@ namespace Edge
 			template <typename T>
 			int SetRelease()
 			{
-				asSFuncPtr* Release = VMBridge::Function(&Core::Composer::Release);
-				int Result = SetBehaviourAddress("void f()", VMBehave::RELEASE, Release, VMCall::CDECL_OBJFIRST);
+				asSFuncPtr* Release = VMBridge::Method<T, void>(&T::Release);
+				int Result = SetBehaviourAddress("void f()", VMBehave::RELEASE, Release, VMCall::THISCALL);
 				VMFuncStore::ReleaseFunctor(&Release);
 
 				return Result;
@@ -1178,8 +1178,8 @@ namespace Edge
 			template <typename T>
 			int SetGetRefCount()
 			{
-				asSFuncPtr* GetRefCount = VMBridge::Function(&Core::Composer::GetRefCount);
-				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, VMCall::CDECL_OBJFIRST);
+				asSFuncPtr* GetRefCount = VMBridge::Method<T, int>(&T::GetRefCount);
+				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, VMCall::THISCALL);
 				VMFuncStore::ReleaseFunctor(&GetRefCount);
 
 				return Result;
@@ -1505,7 +1505,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT VMCompiler : public Core::Object
+		class ED_OUT VMCompiler final : public Core::Reference<VMCompiler>
 		{
 		private:
 			static int CompilerUD;
@@ -1522,7 +1522,7 @@ namespace Edge
 
 		public:
 			VMCompiler(VMManager* Engine) noexcept;
-			virtual ~VMCompiler() noexcept override;
+			~VMCompiler() noexcept;
 			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
 			void Define(const std::string& Word);
@@ -1554,7 +1554,7 @@ namespace Edge
 			static VMCompiler* Get(VMContext* Context);
 		};
 
-		class ED_OUT VMContext : public Core::Object
+		class ED_OUT VMContext final : public Core::Reference<VMContext>
 		{
 		private:
 			static int ContextUD;
@@ -1578,7 +1578,7 @@ namespace Edge
 
 		public:
 			VMContext(VMCContext* Base) noexcept;
-			virtual ~VMContext() noexcept override;
+			~VMContext() noexcept;
 			Core::Promise<int> TryExecute(bool IsNested, const VMFunction& Function, ArgsCallback&& OnArgs);
 			int SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object);
 			int Prepare(const VMFunction& Function);
@@ -1661,7 +1661,7 @@ namespace Edge
 			static void ExceptionLogger(VMCContext* Context, void* Object);
 		};
 
-		class ED_OUT VMManager : public Core::Object
+		class ED_OUT VMManager final : public Core::Reference<VMManager>
 		{
 		public:
 			typedef std::function<void(const std::string&)> CompileCallback;
@@ -1711,7 +1711,7 @@ namespace Edge
 
 		public:
 			VMManager() noexcept;
-			virtual ~VMManager() noexcept override;
+			~VMManager() noexcept;
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void ClearCache();
@@ -1793,7 +1793,7 @@ namespace Edge
 			static void* GetNullable();
 		};
 
-		class ED_OUT VMDebugger : public Core::Object
+		class ED_OUT VMDebugger final : public Core::Reference<VMDebugger>
 		{
 		public:
 			typedef std::string(*ToStringCallback)(void* Object, int ExpandLevel, VMDebugger* Dbg);
@@ -1829,7 +1829,7 @@ namespace Edge
 
 		public:
 			VMDebugger() noexcept;
-			virtual ~VMDebugger() noexcept override;
+			~VMDebugger() noexcept;
 			void RegisterToStringCallback(const VMTypeInfo& Type, ToStringCallback Callback);
 			void TakeCommands(VMContext* Context);
 			void Output(const std::string& Data);

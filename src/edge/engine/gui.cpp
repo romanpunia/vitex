@@ -32,7 +32,7 @@ namespace Edge
 				}
 			};
 
-			class RenderSubsystem : public Rml::RenderInterface
+			class RenderSubsystem final : public Rml::RenderInterface
 			{
 			private:
 				Graphics::RasterizerState* ScissorNoneRasterizer;
@@ -70,12 +70,12 @@ namespace Edge
 					ColorlessBlend = nullptr;
 					Sampler = nullptr;
 				}
-				virtual ~RenderSubsystem() override
+				~RenderSubsystem() override
 				{
 					ED_RELEASE(VertexBuffer);
 					ED_RELEASE(Shader);
 				}
-				virtual void RenderGeometry(Rml::Vertex* Vertices, int VerticesSize, int* Indices, int IndicesSize, Rml::TextureHandle Texture, const Rml::Vector2f& Translation) override
+				void RenderGeometry(Rml::Vertex* Vertices, int VerticesSize, int* Indices, int IndicesSize, Rml::TextureHandle Texture, const Rml::Vector2f& Translation) override
 				{
 					ED_ASSERT_V(Device != nullptr, "graphics device should be set");
 					ED_ASSERT_V(Vertices != nullptr, "vertices should be set");
@@ -101,7 +101,7 @@ namespace Edge
 
 					Device->ImEnd();
 				}
-				virtual Rml::CompiledGeometryHandle CompileGeometry(Rml::Vertex* Vertices, int VerticesCount, int* Indices, int IndicesCount, Rml::TextureHandle Handle) override
+				Rml::CompiledGeometryHandle CompileGeometry(Rml::Vertex* Vertices, int VerticesCount, int* Indices, int IndicesCount, Rml::TextureHandle Handle) override
 				{
 					ED_ASSERT(Device != nullptr, (Rml::CompiledGeometryHandle)nullptr, "graphics device should be set");
 					GeometryBuffer* Result = ED_NEW(GeometryBuffer);
@@ -127,7 +127,7 @@ namespace Edge
 
 					return (Rml::CompiledGeometryHandle)Result;
 				}
-				virtual void RenderCompiledGeometry(Rml::CompiledGeometryHandle Handle, const Rml::Vector2f& Translation) override
+				void RenderCompiledGeometry(Rml::CompiledGeometryHandle Handle, const Rml::Vector2f& Translation) override
 				{
 					GeometryBuffer* Buffer = (GeometryBuffer*)Handle;
 					ED_ASSERT_V(Device != nullptr, "graphics device should be set");
@@ -146,12 +146,12 @@ namespace Edge
 					Device->UpdateBuffer(Graphics::RenderBufferType::Render);
 					Device->DrawIndexed((unsigned int)Buffer->IndexBuffer->GetElements(), 0, 0);
 				}
-				virtual void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle Handle) override
+				void ReleaseCompiledGeometry(Rml::CompiledGeometryHandle Handle) override
 				{
 					GeometryBuffer* Resource = (GeometryBuffer*)Handle;
 					ED_DELETE(GeometryBuffer, Resource);
 				}
-				virtual void EnableScissorRegion(bool Enable) override
+				void EnableScissorRegion(bool Enable) override
 				{
 					ED_ASSERT_V(Device != nullptr, "graphics device should be set");
 					Ortho = Compute::Matrix4x4::CreateOrthographicOffCenter(0, (float)Device->GetRenderTarget()->GetWidth(), (float)Device->GetRenderTarget()->GetHeight(), 0.0f, -30000.0f, 10000.0f);
@@ -177,7 +177,7 @@ namespace Edge
 					}
 					Device->SetInputLayout(Layout);
 				}
-				virtual void SetScissorRegion(int X, int Y, int Width, int Height) override
+				void SetScissorRegion(int X, int Y, int Width, int Height) override
 				{
 					ED_ASSERT_V(Device != nullptr, "graphics device should be set");
 					if (!HasTransform)
@@ -222,7 +222,7 @@ namespace Edge
 					Device->SetDepthStencilState(ScissorDepthStencil);
 					Device->SetBlendState(AlphaBlend);
 				}
-				virtual bool LoadTexture(Rml::TextureHandle& Handle, Rml::Vector2i& TextureDimensions, const Rml::String& Source) override
+				bool LoadTexture(Rml::TextureHandle& Handle, Rml::Vector2i& TextureDimensions, const Rml::String& Source) override
 				{
 					ED_ASSERT(Content != nullptr, false, "content manager should be set");
 					Graphics::Texture2D* Result = Content->Load<Graphics::Texture2D>(Source);
@@ -235,7 +235,7 @@ namespace Edge
 
 					return true;
 				}
-				virtual bool GenerateTexture(Rml::TextureHandle& Handle, const Rml::byte* Source, const Rml::Vector2i& SourceDimensions) override
+				bool GenerateTexture(Rml::TextureHandle& Handle, const Rml::byte* Source, const Rml::Vector2i& SourceDimensions) override
 				{
 					ED_ASSERT(Device != nullptr, false, "graphics device should be set");
 					ED_ASSERT(Source != nullptr, false, "source should be set");
@@ -258,12 +258,12 @@ namespace Edge
 					Handle = (Rml::TextureHandle)Result;
 					return true;
 				}
-				virtual void ReleaseTexture(Rml::TextureHandle Handle) override
+				void ReleaseTexture(Rml::TextureHandle Handle) override
 				{
 					Graphics::Texture2D* Resource = (Graphics::Texture2D*)Handle;
 					ED_RELEASE(Resource);
 				}
-				virtual void SetTransform(const Rml::Matrix4f* NewTransform) override
+				void SetTransform(const Rml::Matrix4f* NewTransform) override
 				{
 					HasTransform = (NewTransform != nullptr);
 					if (HasTransform)
@@ -325,13 +325,13 @@ namespace Edge
 				}
 			};
 
-			class FileSubsystem : public Rml::FileInterface
+			class FileSubsystem final : public Rml::FileInterface
 			{
 			public:
 				FileSubsystem() : Rml::FileInterface()
 				{
 				}
-				virtual Rml::FileHandle Open(const Rml::String& Path) override
+				Rml::FileHandle Open(const Rml::String& Path) override
 				{
 					std::string Target = Path;
 					Network::Location URL(Target);
@@ -349,24 +349,24 @@ namespace Edge
 
 					return (Rml::FileHandle)Core::OS::File::Open(Target, Core::FileMode::Binary_Read_Only);
 				}
-				virtual void Close(Rml::FileHandle File) override
+				void Close(Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					ED_RELEASE(Stream);
 				}
-				virtual size_t Read(void* Buffer, size_t Size, Rml::FileHandle File) override
+				size_t Read(void* Buffer, size_t Size, Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					ED_ASSERT(Stream != nullptr, 0, "stream should be set");
 					return Stream->Read((char*)Buffer, Size);
 				}
-				virtual bool Seek(Rml::FileHandle File, long Offset, int Origin) override
+				bool Seek(Rml::FileHandle File, long Offset, int Origin) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					ED_ASSERT(Stream != nullptr, false, "stream should be set");
 					return Stream->Seek((Core::FileSeek)Origin, Offset) == 0;
 				}
-				virtual size_t Tell(Rml::FileHandle File) override
+				size_t Tell(Rml::FileHandle File) override
 				{
 					Core::Stream* Stream = (Core::Stream*)File;
 					ED_ASSERT(Stream != nullptr, 0, "stream should be set");
@@ -374,7 +374,7 @@ namespace Edge
 				}
 			};
 
-			class MainSubsystem : public Rml::SystemInterface
+			class MainSubsystem final : public Rml::SystemInterface
 			{
 			private:
 				std::unordered_map<std::string, TranslationCallback> Translators;
@@ -386,7 +386,7 @@ namespace Edge
 				MainSubsystem() : Rml::SystemInterface(), Activity(nullptr), Time(nullptr)
 				{
 				}
-				virtual void SetMouseCursor(const Rml::String& CursorName) override
+				void SetMouseCursor(const Rml::String& CursorName) override
 				{
 					ED_ASSERT_V(Activity != nullptr, "activity should be set");
 					if (CursorName == "none")
@@ -416,27 +416,27 @@ namespace Edge
 					else if (CursorName == "nwse-resize")
 						Activity->SetCursor(Graphics::DisplayCursor::ResizeNWSE);
 				}
-				virtual void SetClipboardText(const Rml::String& Text) override
+				void SetClipboardText(const Rml::String& Text) override
 				{
 					ED_ASSERT_V(Activity != nullptr, "activity should be set");
 					Activity->SetClipboardText(Text);
 				}
-				virtual void GetClipboardText(Rml::String& Text) override
+				void GetClipboardText(Rml::String& Text) override
 				{
 					ED_ASSERT_V(Activity != nullptr, "activity should be set");
 					Text = Activity->GetClipboardText();
 				}
-				virtual void ActivateKeyboard(Rml::Vector2f CaretPosition, float LineHeight) override
+				void ActivateKeyboard(Rml::Vector2f CaretPosition, float LineHeight) override
 				{
 					ED_ASSERT_V(Activity != nullptr, "activity should be set");
 					Activity->SetScreenKeyboard(true);
 				}
-				virtual void DeactivateKeyboard() override
+				void DeactivateKeyboard() override
 				{
 					ED_ASSERT_V(Activity != nullptr, "activity should be set");
 					Activity->SetScreenKeyboard(false);
 				}
-				virtual void JoinPath(Rml::String& Result, const Rml::String& Path1, const Rml::String& Path2) override
+				void JoinPath(Rml::String& Result, const Rml::String& Path1, const Rml::String& Path2) override
 				{
 					ContentManager* Content = (Subsystem::GetRenderInterface() ? Subsystem::GetRenderInterface()->GetContent() : nullptr);
 					ED_ASSERT_V(Content != nullptr, "activity should be set");
@@ -464,7 +464,7 @@ namespace Edge
 					else if (Proto1 == "file" && Proto2 != "file")
 						Result = Core::Parser(Path2).Replace("/////", "//").R();
 				}
-				virtual bool LogMessage(Rml::Log::Type Type, const Rml::String& Message) override
+				bool LogMessage(Rml::Log::Type Type, const Rml::String& Message) override
 				{
 					switch (Type)
 					{
@@ -484,7 +484,7 @@ namespace Edge
 
 					return true;
 				}
-				virtual int TranslateString(Rml::String& Result, const Rml::String& KeyName) override
+				int TranslateString(Rml::String& Result, const Rml::String& KeyName) override
 				{
 					for (auto& Item : Translators)
 					{
@@ -499,7 +499,7 @@ namespace Edge
 					Result = KeyName;
 					return 0;
 				}
-				virtual double GetElapsedTime() override
+				double GetElapsedTime() override
 				{
 					if (!Time)
 						return 0.0;
@@ -549,7 +549,7 @@ namespace Edge
 				}
 			};
 
-			class ScopedContext : public Rml::Context
+			class ScopedContext final : public Rml::Context
 			{
 			public:
 				GUI::Context* Basis;
@@ -560,31 +560,30 @@ namespace Edge
 				}
 			};
 
-			class ContextInstancer : public Rml::ContextInstancer
+			class ContextInstancer final : public Rml::ContextInstancer
 			{
 			public:
-				virtual Rml::ContextPtr InstanceContext(const Rml::String& Name) override
+				Rml::ContextPtr InstanceContext(const Rml::String& Name) override
 				{
 					return Rml::ContextPtr(ED_NEW(ScopedContext, Name));
 				}
-				virtual void ReleaseContext(Rml::Context* Context) override
+				void ReleaseContext(Rml::Context* Context) override
 				{
 					ScopedContext* Item = (ScopedContext*)Context;
 					ED_DELETE(ScopedContext, Item);
 				}
-				virtual void Release() override
+				void Release() override
 				{
 					ED_DELETE(ContextInstancer, this);
 				}
 			};
 
-			class DocumentSubsystem : public Rml::ElementDocument
+			class DocumentSubsystem final : public Rml::ElementDocument
 			{
 			public:
 				DocumentSubsystem(const Rml::String& Tag) : Rml::ElementDocument(Tag)
 				{
 				}
-				virtual ~DocumentSubsystem() = default;
 				void LoadInlineScript(const Rml::String& Content, const Rml::String& Path, int Line) override
 				{
 					ScopedContext* Scope = (ScopedContext*)GetContext();
@@ -629,7 +628,7 @@ namespace Edge
 				}
 			};
 
-			class DocumentInstancer : public Rml::ElementInstancer
+			class DocumentInstancer final : public Rml::ElementInstancer
 			{
 			public:
 				Rml::ElementPtr InstanceElement(Rml::Element*, const Rml::String& Tag, const Rml::XMLAttributes&) override
@@ -642,7 +641,7 @@ namespace Edge
 				}
 			};
 
-			class ListenerSubsystem : public Rml::EventListener
+			class ListenerSubsystem final : public Rml::EventListener
 			{
 			public:
 				Script::VMFunction Function;
@@ -698,7 +697,7 @@ namespace Edge
 				}
 			};
 
-			class ListenerInstancer : public Rml::EventListenerInstancer
+			class ListenerInstancer final : public Rml::EventListenerInstancer
 			{
 			public:
 				Rml::EventListener* InstanceEventListener(const Rml::String& Value, Rml::Element* Element) override
@@ -707,7 +706,7 @@ namespace Edge
 				}
 			};
 
-			class EventSubsystem : public Rml::EventListener
+			class EventSubsystem final : public Rml::EventListener
 			{
 				friend IEvent;
 
@@ -719,16 +718,16 @@ namespace Edge
 				EventSubsystem(const EventCallback& Callback) : Rml::EventListener(), Listener(Callback), RefCount(1)
 				{
 				}
-				virtual void OnAttach(Rml::Element*) override
+				void OnAttach(Rml::Element*) override
 				{
 					RefCount++;
 				}
-				virtual void OnDetach(Rml::Element*) override
+				void OnDetach(Rml::Element*) override
 				{
 					if (!--RefCount)
 						ED_DELETE(EventSubsystem, this);
 				}
-				virtual void ProcessEvent(Rml::Event& Event) override
+				void ProcessEvent(Rml::Event& Event) override
 				{
 					if (!Listener)
 						return;

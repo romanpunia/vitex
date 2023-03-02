@@ -55,10 +55,7 @@
 #define ED_32 1
 #endif
 #endif
-#define ED_STRINGIFY(X) #X
-#define ED_FILE (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
-#define ED_FUNCTION __func__
-#define ED_LINE __LINE__
+#include <inttypes.h>
 #include <thread>
 #include <algorithm>
 #include <map>
@@ -141,24 +138,24 @@ typedef socklen_t socket_size_t;
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #else
 #if ED_DLEVEL >= 4
-#define ED_DEBUG(Format, ...) Edge::Core::OS::Log(4, ED_LINE, ED_FILE, Format, ##__VA_ARGS__)
+#define ED_DEBUG(Format, ...) Edge::Core::OS::Log(4, __LINE__, __FILE__, Format, ##__VA_ARGS__)
 #else
 #define ED_DEBUG(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 3
-#define ED_INFO(Format, ...) Edge::Core::OS::Log(3, ED_LINE, ED_FILE, Format, ##__VA_ARGS__)
+#define ED_INFO(Format, ...) Edge::Core::OS::Log(3, __LINE__, __FILE__, Format, ##__VA_ARGS__)
 #else
 #define ED_INFO(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 2
-#define ED_WARN(Format, ...) Edge::Core::OS::Log(2, ED_LINE, ED_FILE, Format, ##__VA_ARGS__)
+#define ED_WARN(Format, ...) Edge::Core::OS::Log(2, __LINE__, __FILE__, Format, ##__VA_ARGS__)
 #else
 #define ED_WARN(Format, ...) ((void)0)
 #endif
 #if ED_DLEVEL >= 1
-#define ED_ERR(Format, ...) Edge::Core::OS::Log(1, ED_LINE, ED_FILE, Format, ##__VA_ARGS__)
-#define ED_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, ED_LINE, ED_FILE, ED_FUNCTION, ED_STRINGIFY(Condition), Format, ##__VA_ARGS__); return Returnable; }
-#define ED_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, ED_LINE, ED_FILE, ED_FUNCTION, ED_STRINGIFY(Condition), Format, ##__VA_ARGS__); return; }
+#define ED_ERR(Format, ...) Edge::Core::OS::Log(1, __LINE__, __FILE__, Format, ##__VA_ARGS__)
+#define ED_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return Returnable; }
+#define ED_ASSERT_V(Condition, Format, ...) if (!(Condition)) { Edge::Core::OS::Assert(true, __LINE__, __FILE__, __func__, #Condition, Format, ##__VA_ARGS__); return; }
 #else
 #define ED_ERR(Format, ...) ((void)0)
 #define ED_ASSERT(Condition, Returnable, Format, ...) if (!(Condition)) { Edge::Core::OS::Process::Interrupt(); return Returnable; }
@@ -166,15 +163,15 @@ typedef socklen_t socket_size_t;
 #endif
 #define ED_MEASURE_START(X) _measure_line_##X
 #define ED_MEASURE_PREPARE(X) ED_MEASURE_START(X)
-#define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(ED_LINE) = Edge::Core::OS::Measure(ED_FILE, ED_FUNCTION, ED_LINE, Threshold)
+#define ED_MEASURE(Threshold) auto ED_MEASURE_PREPARE(__LINE__) = Edge::Core::OS::Measure(__FILE__, __func__, __LINE__, Threshold)
 #define ED_MEASURE_LOOP() Edge::Core::OS::MeasureLoop()
-#define ED_AWAIT(Value) Edge::Core::Coawait(Value, ED_FUNCTION, ED_STRINGIFY(Value))
+#define ED_AWAIT(Value) Edge::Core::Coawait(Value, __func__, #Value)
 #define ED_CLOSE(Stream) { ED_DEBUG("[io] close fs %i", (int)ED_FILENO(Stream)); fclose(Stream); }
-#define ED_WATCH(Ptr, Label) Edge::Core::Mem::Watch(Ptr, ED_LINE, ED_FILE, ED_FUNCTION, Label)
-#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Mem::Watch(Ptr, ED_LINE, ED_FILE, Function, Label)
+#define ED_WATCH(Ptr, Label) Edge::Core::Mem::Watch(Ptr, __LINE__, __FILE__, __func__, Label)
+#define ED_WATCH_AT(Ptr, Function, Label) Edge::Core::Mem::Watch(Ptr, __LINE__, __FILE__, Function, Label)
 #define ED_UNWATCH(Ptr) Edge::Core::Mem::Unwatch(Ptr)
-#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Mem::QueryMalloc(Size, ED_LINE, ED_FILE, ED_FUNCTION, #Type)
-#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::Mem::QueryRealloc(Ptr, Size, ED_LINE, ED_FILE, ED_FUNCTION, #Type)
+#define ED_MALLOC(Type, Size) (Type*)Edge::Core::Mem::QueryMalloc(Size, __LINE__, __FILE__, __func__, typeid(Type).name())
+#define ED_REALLOC(Ptr, Type, Size) (Type*)Edge::Core::Mem::QueryRealloc(Ptr, Size, __LINE__, __FILE__, __func__, typeid(Type).name())
 #define ED_NEW(Type, ...) new((void*)ED_MALLOC(Type, sizeof(Type))) Type(__VA_ARGS__)
 #endif
 #ifdef max
@@ -218,8 +215,6 @@ namespace Edge
 		class Costate;
 
 		class Schema;
-
-		class Object;
 
 		class Stream;
 
@@ -340,9 +335,6 @@ namespace Edge
 		struct Mapping
 		{
 			Type Map;
-
-			Mapping() = default;
-			~Mapping() = default;
 		};
 
 		struct ED_OUT Coroutine
@@ -1263,7 +1255,7 @@ namespace Edge
 			{
 				bool IsCounting;
 
-				Tick() noexcept;
+				Tick(bool Active) noexcept;
 				Tick(const Tick& Other) = delete;
 				Tick(Tick&& Other) noexcept;
 				~Tick() noexcept;
@@ -1306,9 +1298,6 @@ namespace Edge
 			static Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>* Factory;
 
 		public:
-			static void AddRef(Object* Value);
-			static void Release(Unique<Object> Value);
-			static int GetRefCount(Object* Value);
 			static bool Clear();
 			static bool Pop(const std::string& Hash);
 			static std::unordered_set<uint64_t> Fetch(uint64_t Id);
@@ -1350,24 +1339,43 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT_TS Object
+		template <typename T>
+		class ED_OUT_TS Reference
 		{
-			friend class Mem;
-
 		private:
-			std::atomic<int> __vcnt;
+			std::atomic<uint32_t> __vcnt = 1;
 
 		public:
-			Object() noexcept;
-			virtual ~Object() noexcept;
-			void operator delete(void* Data) noexcept;
-			void* operator new(size_t Size) noexcept;
-			int GetRefCount() const noexcept;
-			void AddRef() noexcept;
-			void Release() noexcept;
+			void operator delete(void* Ptr) noexcept
+			{
+				if (Ptr != nullptr)
+				{
+					auto Handle = (T*)Ptr;
+					ED_ASSERT_V(Handle->__vcnt <= 1, "[mem] address at 0x%" PRIXPTR " is still in use but destructor has been called by delete as %s at %s()", Ptr, typeid(T).name(), __func__);
+					ED_FREE(Ptr);
+				}
+			}
+			void* operator new(size_t Size) noexcept
+			{
+				return (void*)ED_MALLOC(T, Size);
+			}
+			int32_t GetRefCount() const noexcept
+			{
+				return (int32_t)__vcnt.load();
+			}
+			void AddRef() noexcept
+			{
+				++__vcnt;
+			}
+			void Release() noexcept
+			{
+				ED_ASSERT_V(__vcnt > 0, "[mem] address at 0x%" PRIXPTR " has already been released as %s at %s()", (void*)this, typeid(T).name(), __func__);
+				if (!--__vcnt)
+					delete (T*)this;
+			}
 		};
 
-		class ED_OUT_TS Console : public Object
+		class ED_OUT_TS Console final : public Reference<Console>
 		{
 		protected:
 			std::mutex Session;
@@ -1382,12 +1390,11 @@ namespace Edge
 			FILE* Conerr;
 			unsigned short Attributes;
 #endif
-
 		private:
 			Console() noexcept;
 
 		public:
-			virtual ~Console() noexcept override;
+			~Console() noexcept;
 			void Begin();
 			void End();
 			void Hide();
@@ -1424,7 +1431,7 @@ namespace Edge
 			static Console* Singleton;
 		};
 
-		class ED_OUT Timer : public Object
+		class ED_OUT Timer final : public Reference<Timer>
 		{
 		public:
 			typedef std::chrono::microseconds Units;
@@ -1464,7 +1471,7 @@ namespace Edge
 
 		public:
 			Timer() noexcept;
-			virtual ~Timer() noexcept = default;
+			~Timer() noexcept = default;
 			void SetFixedFrames(float Value);
 			void SetMaxFrames(float Value);
 			void Begin();
@@ -1488,7 +1495,7 @@ namespace Edge
 			static Units Clock();
 		};
 
-		class ED_OUT Stream : public Object
+		class ED_OUT Stream : public Reference<Stream>
 		{
 		protected:
 			std::string Path;
@@ -1524,20 +1531,20 @@ namespace Edge
 
 		public:
 			FileStream() noexcept;
-			virtual ~FileStream() noexcept override;
-			virtual void Clear() override;
-			virtual bool Open(const char* File, FileMode Mode) override;
-			virtual bool Close() override;
-			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
-			virtual bool Move(int64_t Offset) override;
-			virtual int Flush() override;
-			virtual size_t ReadAny(const char* Format, ...) override;
-			virtual size_t Read(char* Buffer, size_t Length) override;
-			virtual size_t WriteAny(const char* Format, ...) override;
-			virtual size_t Write(const char* Buffer, size_t Length) override;
-			virtual size_t Tell() override;
-			virtual int GetFd() const override;
-			virtual void* GetBuffer() const override;
+			~FileStream() noexcept override;
+			void Clear() override;
+			bool Open(const char* File, FileMode Mode) override;
+			bool Close() override;
+			bool Seek(FileSeek Mode, int64_t Offset) override;
+			bool Move(int64_t Offset) override;
+			int Flush() override;
+			size_t ReadAny(const char* Format, ...) override;
+			size_t Read(char* Buffer, size_t Length) override;
+			size_t WriteAny(const char* Format, ...) override;
+			size_t Write(const char* Buffer, size_t Length) override;
+			size_t Tell() override;
+			int GetFd() const override;
+			void* GetBuffer() const override;
 		};
 
 		class ED_OUT GzStream : public Stream
@@ -1547,20 +1554,20 @@ namespace Edge
 
 		public:
 			GzStream() noexcept;
-			virtual ~GzStream() noexcept override;
-			virtual void Clear() override;
-			virtual bool Open(const char* File, FileMode Mode) override;
-			virtual bool Close() override;
-			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
-			virtual bool Move(int64_t Offset) override;
-			virtual int Flush() override;
-			virtual size_t ReadAny(const char* Format, ...) override;
-			virtual size_t Read(char* Buffer, size_t Length) override;
-			virtual size_t WriteAny(const char* Format, ...) override;
-			virtual size_t Write(const char* Buffer, size_t Length) override;
-			virtual size_t Tell() override;
-			virtual int GetFd() const override;
-			virtual void* GetBuffer() const override;
+			~GzStream() noexcept override;
+			void Clear() override;
+			bool Open(const char* File, FileMode Mode) override;
+			bool Close() override;
+			bool Seek(FileSeek Mode, int64_t Offset) override;
+			bool Move(int64_t Offset) override;
+			int Flush() override;
+			size_t ReadAny(const char* Format, ...) override;
+			size_t Read(char* Buffer, size_t Length) override;
+			size_t WriteAny(const char* Format, ...) override;
+			size_t Write(const char* Buffer, size_t Length) override;
+			size_t Tell() override;
+			int GetFd() const override;
+			void* GetBuffer() const override;
 		};
 
 		class ED_OUT WebStream : public Stream
@@ -1576,23 +1583,23 @@ namespace Edge
 		public:
 			WebStream(bool IsAsync) noexcept;
 			WebStream(bool IsAsync, std::unordered_map<std::string, std::string>&& NewHeaders) noexcept;
-			virtual ~WebStream() noexcept override;
-			virtual void Clear() override;
-			virtual bool Open(const char* File, FileMode Mode) override;
-			virtual bool Close() override;
-			virtual bool Seek(FileSeek Mode, int64_t Offset) override;
-			virtual bool Move(int64_t Offset) override;
-			virtual int Flush() override;
-			virtual size_t ReadAny(const char* Format, ...) override;
-			virtual size_t Read(char* Buffer, size_t Length) override;
-			virtual size_t WriteAny(const char* Format, ...) override;
-			virtual size_t Write(const char* Buffer, size_t Length) override;
-			virtual size_t Tell() override;
-			virtual int GetFd() const override;
-			virtual void* GetBuffer() const override;
+			~WebStream() noexcept override;
+			void Clear() override;
+			bool Open(const char* File, FileMode Mode) override;
+			bool Close() override;
+			bool Seek(FileSeek Mode, int64_t Offset) override;
+			bool Move(int64_t Offset) override;
+			int Flush() override;
+			size_t ReadAny(const char* Format, ...) override;
+			size_t Read(char* Buffer, size_t Length) override;
+			size_t WriteAny(const char* Format, ...) override;
+			size_t Write(const char* Buffer, size_t Length) override;
+			size_t Tell() override;
+			int GetFd() const override;
+			void* GetBuffer() const override;
 		};
 
-		class ED_OUT FileLog : public Object
+		class ED_OUT FileLog final : public Reference<FileLog>
 		{
 		private:
 			std::string LastValue;
@@ -1605,11 +1612,11 @@ namespace Edge
 
 		public:
 			FileLog(const std::string& Root) noexcept;
-			virtual ~FileLog() noexcept override;
+			~FileLog() noexcept;
 			void Process(const std::function<bool(FileLog*, const char*, int64_t)>& Callback);
 		};
 
-		class ED_OUT FileTree : public Object
+		class ED_OUT FileTree final : public Reference<FileTree>
 		{
 		public:
 			std::vector<FileTree*> Directories;
@@ -1618,13 +1625,13 @@ namespace Edge
 
 		public:
 			FileTree(const std::string& Path) noexcept;
-			virtual ~FileTree() noexcept override;
+			~FileTree() noexcept;
 			void Loop(const std::function<bool(const FileTree*)>& Callback) const;
 			const FileTree* Find(const std::string& Path) const;
 			size_t GetFiles() const;
 		};
 
-		class ED_OUT Costate : public Object
+		class ED_OUT Costate final : public Reference<Costate>
 		{
 		private:
 			std::unordered_set<Coroutine*> Cached;
@@ -1640,7 +1647,7 @@ namespace Edge
 
 		public:
 			Costate(size_t StackSize = ED_STACK_SIZE) noexcept;
-			virtual ~Costate() noexcept override;
+			~Costate() noexcept;
 			Costate(const Costate&) = delete;
 			Costate(Costate&&) = delete;
 			Costate& operator= (const Costate&) = delete;
@@ -1676,7 +1683,7 @@ namespace Edge
 			static void ED_COCALL ExecutionEntry(ED_CODATA);
 		};
 
-		class ED_OUT Schema : public Object
+		class ED_OUT Schema final : public Reference<Schema>
 		{
 		protected:
 			std::vector<Schema*>* Nodes;
@@ -1690,7 +1697,7 @@ namespace Edge
 		public:
 			Schema(const Variant& Base) noexcept;
 			Schema(Variant&& Base) noexcept;
-			virtual ~Schema() noexcept override;
+			~Schema() noexcept;
 			std::unordered_map<std::string, size_t> GetNames() const;
 			std::vector<Schema*> FindCollection(const std::string& Name, bool Deep = false) const;
 			std::vector<Schema*> FetchCollection(const std::string& Notation, bool Deep = false) const;
@@ -1759,7 +1766,7 @@ namespace Edge
 			static bool GenerateNamingTable(const Schema* Current, std::unordered_map<std::string, size_t>* Map, size_t& Index);
 		};
 
-		class ED_OUT_TS Schedule : public Object
+		class ED_OUT_TS Schedule final : public Reference<Schedule>
 		{
 		private:
 			struct ThreadPtr
@@ -1836,7 +1843,7 @@ namespace Edge
 			Schedule() noexcept;
 
 		public:
-			virtual ~Schedule() noexcept override;
+			~Schedule() noexcept;
 			TaskId SetInterval(uint64_t Milliseconds, const TaskCallback& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetInterval(uint64_t Milliseconds, TaskCallback&& Callback, Difficulty Type = Difficulty::Light);
 			TaskId SetSeqInterval(uint64_t Milliseconds, const SeqTaskCallback& Callback, Difficulty Type = Difficulty::Light);

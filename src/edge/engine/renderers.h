@@ -37,7 +37,7 @@ namespace Edge
 
 			public:
 				SoftBody(RenderSystem* Lab);
-				virtual ~SoftBody();
+				~SoftBody();
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
@@ -74,7 +74,7 @@ namespace Edge
 
 			public:
 				Model(RenderSystem* Lab);
-				virtual ~Model() override;
+				~Model() override;
 				void BatchGeometry(Components::Model* Base, Batching& Batch, size_t Chunk) override;
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderGeometryResultBatched(Core::Timer* Time, const GeometryRenderer::Groups& Chunk) override;
@@ -112,7 +112,7 @@ namespace Edge
 
 			public:
 				Skin(RenderSystem* Lab);
-				virtual ~Skin();
+				~Skin();
 				size_t CullGeometry(const Viewer& View, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderGeometryVoxels(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
@@ -155,7 +155,7 @@ namespace Edge
 
 			public:
 				Emitter(RenderSystem* Lab);
-				virtual ~Emitter() override;
+				~Emitter() override;
 				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderDepthLinear(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 				size_t RenderDepthCubic(Core::Timer* Time, const GeometryRenderer::Objects& Chunk, Compute::Matrix4x4* ViewProjection) override;
@@ -176,7 +176,7 @@ namespace Edge
 
 			public:
 				Decal(RenderSystem* Lab);
-				virtual ~Decal() override;
+				~Decal() override;
 				size_t RenderGeometryResult(Core::Timer* Time, const GeometryRenderer::Objects& Chunk) override;
 
 			public:
@@ -375,7 +375,7 @@ namespace Edge
 
 			public:
 				Lighting(RenderSystem* Lab);
-				virtual ~Lighting();
+				~Lighting();
 				size_t RenderPass(Core::Timer* Time) override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
@@ -442,7 +442,7 @@ namespace Edge
 
 			public:
 				Transparency(RenderSystem* Lab);
-				virtual ~Transparency();
+				~Transparency();
 				void ResizeBuffers() override;
 				size_t RenderPass(Core::Timer* Time) override;
 
@@ -482,7 +482,6 @@ namespace Edge
 
 			public:
 				SSR(RenderSystem* Lab);
-				virtual ~SSR() = default;
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
@@ -540,7 +539,7 @@ namespace Edge
 
 			public:
 				SSGI(RenderSystem* Lab);
-				virtual ~SSGI() override;
+				~SSGI() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
 				void RenderEffect(Core::Timer* Time) override;
@@ -584,7 +583,6 @@ namespace Edge
 
 			public:
 				SSAO(RenderSystem* Lab);
-				virtual ~SSAO() = default;
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
@@ -625,7 +623,6 @@ namespace Edge
 
 			public:
 				DoF(RenderSystem* Lab);
-				virtual ~DoF() = default;
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
@@ -660,7 +657,6 @@ namespace Edge
 
 			public:
 				MotionBlur(RenderSystem* Lab);
-				virtual ~MotionBlur() = default;
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
@@ -698,7 +694,6 @@ namespace Edge
 
 			public:
 				Bloom(RenderSystem* Lab);
-				virtual ~Bloom() = default;
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
@@ -757,7 +752,7 @@ namespace Edge
 
 			public:
 				Tone(RenderSystem* Lab);
-				virtual ~Tone() override;
+				~Tone() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) override;
 				void RenderEffect(Core::Timer* Time) override;
@@ -793,7 +788,6 @@ namespace Edge
 
 			public:
 				Glitch(RenderSystem* Lab);
-				virtual ~Glitch() = default;
 				void Deserialize(Core::Schema * Node) override;
 				void Serialize(Core::Schema * Node) override;
 				void RenderEffect(Core::Timer * Time) override;
@@ -811,7 +805,7 @@ namespace Edge
 			public:
 				UserInterface(RenderSystem* Lab);
 				UserInterface(RenderSystem* Lab, Graphics::Activity* NewActivity);
-				virtual ~UserInterface() override;
+				~UserInterface() override;
 				size_t RenderPass(Core::Timer* Time) override;
 				GUI::Context* GetContext();
 

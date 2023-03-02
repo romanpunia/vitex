@@ -66,7 +66,7 @@ namespace Edge
 
 			public:
 				Client(const std::string& Domain, int64_t ReadTimeout);
-				virtual ~Client() override;
+				~Client() override;
 				Core::Promise<int> Send(RequestFrame&& Root);
 				RequestFrame* GetRequest();
 

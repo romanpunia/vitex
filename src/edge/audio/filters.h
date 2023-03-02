@@ -22,7 +22,7 @@ namespace Edge
 
 			public:
 				Lowpass();
-				virtual ~Lowpass() override;
+				~Lowpass() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -40,7 +40,7 @@ namespace Edge
 
 			public:
 				Highpass();
-				virtual ~Highpass() override;
+				~Highpass() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -59,7 +59,7 @@ namespace Edge
 
 			public:
 				Bandpass();
-				virtual ~Bandpass() override;
+				~Bandpass() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;

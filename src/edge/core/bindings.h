@@ -176,7 +176,7 @@ namespace Edge
 				void ReleaseAllHandles(VMCManager* Engine);
 
 			protected:
-				virtual ~Any() noexcept;
+				~Any() noexcept;
 				void FreeObject();
 
 			public:
@@ -299,7 +299,7 @@ namespace Edge
 				Array(size_t Length, VMCTypeInfo* T) noexcept;
 				Array(size_t Length, void* DefVal, VMCTypeInfo* T) noexcept;
 				Array(const Array& Other) noexcept;
-				virtual ~Array() noexcept;
+				~Array() noexcept;
 				bool Less(const void* A, const void* B, bool Asc, VMCContext* Ctx, SCache* Cache);
 				void* GetArrayItemPointer(int Index);
 				void* GetDataPointer(void* Buffer);
@@ -533,7 +533,7 @@ namespace Edge
 				Map(VMCManager* Engine) noexcept;
 				Map(unsigned char* Buffer) noexcept;
 				Map(const Map&) noexcept;
-				virtual ~Map() noexcept;
+				~Map() noexcept;
 				void Init(VMCManager* Engine);
 
 			public:
@@ -640,7 +640,7 @@ namespace Edge
 				Grid(VMCTypeInfo* T, void* InitBuf) noexcept;
 				Grid(size_t W, size_t H, VMCTypeInfo* T) noexcept;
 				Grid(size_t W, size_t H, void* DefVal, VMCTypeInfo* T) noexcept;
-				virtual ~Grid() noexcept;
+				~Grid() noexcept;
 				bool CheckMaxSize(size_t X, size_t Y);
 				void CreateBuffer(SBuffer** Buf, size_t W, size_t H);
 				void DeleteBuffer(SBuffer* Buf);
@@ -932,7 +932,7 @@ namespace Edge
 				};
 			};
 
-			class ED_OUT Format : public Core::Object
+			class ED_OUT Format final : public Core::Reference<Format>
 			{
 			public:
 				std::vector<std::string> Args;
@@ -952,16 +952,17 @@ namespace Edge
 				static void FormatJSON(VMGlobal& Global, Core::Parser& Result, void* Ref, int TypeId);
 			};
 
-			class ED_OUT ModelListener : public Engine::GUI::Listener
+			class ED_OUT ModelListener : public Core::Reference<ModelListener>
 			{
 			private:
+				Engine::GUI::Listener* Base;
 				VMCFunction* Source;
 				VMContext* Context;
 
 			public:
 				ModelListener(VMCFunction* NewCallback) noexcept;
 				ModelListener(const std::string& FunctionName) noexcept;
-				virtual ~ModelListener() noexcept override;
+				~ModelListener() noexcept;
 
 			private:
 				Engine::GUI::EventCallback Bind(VMCFunction* Callback);

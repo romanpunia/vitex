@@ -5364,7 +5364,7 @@ namespace Edge
 			Queue.lock();
 			auto It = Buffers.find(Ptr);
 			ED_ASSERT_V(It == Buffers.end() || !It->second.Owns, "cannot watch memory that is already being tracked");
-			Buffers[Ptr] = { TypeName ? TypeName : "void", Function ? Function : ED_FUNCTION, Source ? Source : ED_FILE, Line > 0 ? Line : ED_LINE, time(nullptr), sizeof(void*), false };
+			Buffers[Ptr] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), sizeof(void*), false };
 			Queue.unlock();
 #endif
 		}
@@ -5455,7 +5455,7 @@ namespace Edge
 			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to malloc %llu bytes", (uint64_t)Size);
 
 			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : ED_FUNCTION, Source ? Source : ED_FILE, Line > 0 ? Line : ED_LINE, time(nullptr), Size, true };
+			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
 			Queue.unlock();
 
 			return Result;
@@ -5469,7 +5469,7 @@ namespace Edge
 			ED_ASSERT(Result != nullptr, nullptr, "not enough memory to realloc %llu bytes", (uint64_t)Size);
 
 			Queue.lock();
-			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : ED_FUNCTION, Source ? Source : ED_FILE, Line > 0 ? Line : ED_LINE, time(nullptr), Size, true };
+			Buffers[Result] = { TypeName ? TypeName : "void", Function ? Function : __func__, Source ? Source : __FILE__, Line > 0 ? Line : __LINE__, time(nullptr), Size, true };
 			if (Result != Ptr)
 			{
 				auto It = Buffers.find(Ptr);
@@ -5503,21 +5503,6 @@ namespace Edge
 		ReallocCallback Mem::OnRealloc;
 		FreeCallback Mem::OnFree;
 
-		void Composer::AddRef(Object* Value)
-		{
-			ED_ASSERT_V(Value != nullptr, "object should be set");
-			Value->AddRef();
-		}
-		int Composer::GetRefCount(Object* Value)
-		{
-			ED_ASSERT(Value != nullptr, 1, "object should be set");
-			return Value->GetRefCount();
-		}
-		void Composer::Release(Object* Value)
-		{
-			ED_ASSERT_V(Value != nullptr, "object should be set");
-			Value->Release();
-		}
 		bool Composer::Clear()
 		{
 			if (!Factory)
@@ -5575,36 +5560,6 @@ namespace Edge
 			return Hashes;
 		}
 		Mapping<std::unordered_map<uint64_t, std::pair<uint64_t, void*>>>* Composer::Factory = nullptr;
-
-		Object::Object() noexcept : __vcnt(1)
-		{
-		}
-		Object::~Object() noexcept
-		{
-		}
-		void Object::operator delete(void* Data) noexcept
-		{
-			Object* Ref = (Object*)Data;
-			if (Ref != nullptr && --Ref->__vcnt <= 0)
-				Mem::Free(Data);
-		}
-		void* Object::operator new(size_t Size) noexcept
-		{
-			return (void*)ED_MALLOC(Object, Size);
-		}
-		int Object::GetRefCount() const noexcept
-		{
-			return __vcnt.load();
-		}
-		void Object::AddRef() noexcept
-		{
-			++__vcnt;
-		}
-		void Object::Release() noexcept
-		{
-			if (!--__vcnt)
-				delete this;
-		}
 
 		Console::Console() noexcept : Coloring(true), Allocated(false), Present(false), Time(0)
 #ifdef ED_MICROSOFT
@@ -8193,7 +8148,7 @@ namespace Edge
 		static thread_local std::stack<Measurement> MeasuringTree;
 		static thread_local bool MeasuringDisabled = false;
 #endif
-		OS::Tick::Tick() noexcept : IsCounting(true)
+		OS::Tick::Tick(bool Active) noexcept : IsCounting(Active)
 		{
 		}
 		OS::Tick::Tick(Tick&& Other) noexcept : IsCounting(Other.IsCounting)
@@ -8310,21 +8265,24 @@ namespace Edge
 		OS::Tick OS::Measure(const char* File, const char* Function, int Line, uint64_t ThresholdMS)
 		{
 #ifndef NDEBUG
-			ED_ASSERT(File != nullptr, OS::Tick(), "file should be set");
-			ED_ASSERT(Function != nullptr, OS::Tick(), "function should be set");
-			ED_ASSERT(ThresholdMS > 0 || ThresholdMS == ED_TIMING_INFINITE, OS::Tick(), "threshold time should be greater than Zero");
-			if (!MeasuringDisabled)
-			{
-				Measurement Next;
-				Next.File = File;
-				Next.Function = Function;
-				Next.Threshold = ThresholdMS * 1000;
-				Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-				Next.Line = Line;
-				MeasuringTree.emplace(std::move(Next));
-			}
+			ED_ASSERT(File != nullptr, OS::Tick(false), "file should be set");
+			ED_ASSERT(Function != nullptr, OS::Tick(false), "function should be set");
+			ED_ASSERT(ThresholdMS > 0 || ThresholdMS == ED_TIMING_INFINITE, OS::Tick(false), "threshold time should be greater than Zero");
+			if (MeasuringDisabled)
+				return OS::Tick(false);
+
+			Measurement Next;
+			Next.File = File;
+			Next.Function = Function;
+			Next.Threshold = ThresholdMS * 1000;
+			Next.Time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			Next.Line = Line;
+
+			MeasuringTree.emplace(std::move(Next));
+			return OS::Tick(true);
+#else
+			return OS::Tick(false);
 #endif
-			return OS::Tick();
 		}
 		void OS::MeasureLoop()
 		{
@@ -8346,7 +8304,7 @@ namespace Edge
 			Data.Fatal = Fatal;
 			Data.Level = 1;
 			Data.Line = Line;
-			Data.Source = Source;
+			Data.Source = Source ? OS::Path::GetFilename(Source) : "";
 			Data.Pretty = true;
 			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 
@@ -8383,7 +8341,7 @@ namespace Edge
 			Data.Fatal = false;
 			Data.Level = Level;
 			Data.Line = Line;
-			Data.Source = Source;
+			Data.Source = Source ? OS::Path::GetFilename(Source) : "";
 			Data.Pretty = Level != 4;
 			GetDateTime(time(nullptr), Data.Date, sizeof(Data.Date));
 

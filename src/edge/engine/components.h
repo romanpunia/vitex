@@ -23,14 +23,14 @@ namespace Edge
 
 			public:
 				SoftBody(Entity* Ref);
-				virtual ~SoftBody() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Deactivate() override;
-				virtual float GetVisibility(const Viewer& View, float Distance) const override;
-				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~SoftBody() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Synchronize(Core::Timer* Time) override;
+				void Deactivate() override;
+				float GetVisibility(const Viewer& View, float Distance) const override;
+				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(Compute::HullShape* Shape, float Anticipation = 0.0f);
 				void Load(const std::string& Path, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void LoadEllipsoid(const Compute::SoftBody::Desc::CV::SEllipsoid& Shape, float Anticipation = 0.0f);
@@ -64,12 +64,12 @@ namespace Edge
 
 			public:
 				RigidBody(Entity* Ref);
-				virtual ~RigidBody() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Deactivate() override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~RigidBody() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Synchronize(Core::Timer* Time) override;
+				void Deactivate() override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(btCollisionShape* Shape, float Mass, float Anticipation = 0.0f);
 				void Load(const std::string& Path, float Mass, float Anticipation = 0.0f, const std::function<void()>& Callback = nullptr);
 				void Clear();
@@ -93,10 +93,10 @@ namespace Edge
 
 			public:
 				SliderConstraint(Entity* Ref);
-				virtual ~SliderConstraint() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~SliderConstraint() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void Load(Entity* Other, bool IsGhosted, bool IsLinear);
 				void Clear();
 				Compute::SConstraint* GetConstraint() const;
@@ -121,12 +121,11 @@ namespace Edge
 
 			public:
 				Acceleration(Entity* Ref);
-				virtual ~Acceleration() = default;
-				virtual void Deserialize(Core::Schema * Node) override;
-				virtual void Serialize(Core::Schema * Node) override;
-				virtual void Activate(Component * New) override;
-				virtual void Update(Core::Timer * Time) override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Deserialize(Core::Schema * Node) override;
+				void Serialize(Core::Schema * Node) override;
+				void Activate(Component * New) override;
+				void Update(Core::Timer * Time) override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 				Compute::RigidBody* GetBody() const;
 
 			public:
@@ -143,12 +142,12 @@ namespace Edge
 
 			public:
 				Model(Entity* Ref);
-				virtual ~Model() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual float GetVisibility(const Viewer& View, float Distance) const override;
-				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~Model() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				float GetVisibility(const Viewer& View, float Distance) const override;
+				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Graphics::Model> Drawable);
 				Graphics::Model* GetDrawable();
 
@@ -167,13 +166,13 @@ namespace Edge
 
 			public:
 				Skin(Entity* Ref);
-				virtual ~Skin() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual float GetVisibility(const Viewer& View, float Distance) const override;
-				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~Skin() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Synchronize(Core::Timer* Time) override;
+				float GetVisibility(const Viewer& View, float Distance) const override;
+				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetDrawable(Core::Unique<Graphics::SkinModel> Drawable);
 				Graphics::SkinModel* GetDrawable();
 
@@ -194,12 +193,12 @@ namespace Edge
 
 			public:
 				Emitter(Entity* Ref);
-				virtual ~Emitter() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Activate(Component* New) override;
-				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~Emitter() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Activate(Component* New) override;
+				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				Graphics::InstanceBuffer* GetBuffer();
 
 			public:
@@ -213,11 +212,10 @@ namespace Edge
 
 			public:
 				Decal(Entity* Ref);
-				virtual ~Decal() = default;
-				virtual void Deserialize(Core::Schema * Node) override;
-				virtual void Serialize(Core::Schema * Node) override;
-				virtual float GetVisibility(const Viewer& View, float Distance) const override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Deserialize(Core::Schema * Node) override;
+				void Serialize(Core::Schema * Node) override;
+				float GetVisibility(const Viewer& View, float Distance) const override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 
 			public:
 				ED_COMPONENT("decal");
@@ -238,12 +236,12 @@ namespace Edge
 
 			public:
 				SkinAnimator(Entity* Ref);
-				virtual ~SkinAnimator() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Activate(Component* New) override;
-				virtual void Animate(Core::Timer* Time) override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~SkinAnimator() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Activate(Component* New) override;
+				void Animate(Core::Timer* Time) override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback = nullptr);
 				void GetPose(Compute::SkinAnimatorKey* Result);
 				void ClearAnimation();
@@ -277,11 +275,11 @@ namespace Edge
 
 			public:
 				KeyAnimator(Entity* Ref);
-				virtual ~KeyAnimator() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Animate(Core::Timer* Time) override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~KeyAnimator() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Animate(Core::Timer* Time) override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void LoadAnimation(const std::string& Path, const std::function<void(bool)>& Callback = nullptr);
 				void GetPose(Compute::AnimatorKey* Result);
 				void ClearAnimation();
@@ -319,12 +317,11 @@ namespace Edge
 
 			public:
 				EmitterAnimator(Entity* Ref);
-				virtual ~EmitterAnimator() = default;
-				virtual void Deserialize(Core::Schema * Node) override;
-				virtual void Serialize(Core::Schema * Node) override;
-				virtual void Activate(Component * New) override;
-				virtual void Animate(Core::Timer * Time) override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Deserialize(Core::Schema * Node) override;
+				void Serialize(Core::Schema * Node) override;
+				void Activate(Component * New) override;
+				void Animate(Core::Timer * Time) override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 				Emitter* GetEmitter() const;
 
 			protected:
@@ -346,9 +343,8 @@ namespace Edge
 
 			public:
 				FreeLook(Entity* Ref);
-				virtual ~FreeLook() = default;
-				virtual void Update(Core::Timer * Time) override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Update(Core::Timer * Time) override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 
 			public:
 				ED_COMPONENT("free-look");
@@ -381,9 +377,8 @@ namespace Edge
 
 			public:
 				Fly(Entity* Ref);
-				virtual ~Fly() = default;
-				virtual void Update(Core::Timer * Time) override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Update(Core::Timer * Time) override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 
 			private:
 				Compute::Vector3 GetSpeed(Graphics::Activity* Activity);
@@ -401,11 +396,11 @@ namespace Edge
 
 			public:
 				AudioSource(Entity* Ref);
-				virtual ~AudioSource() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~AudioSource() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Synchronize(Core::Timer* Time) override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void ApplyPlayingPosition();
 				Audio::AudioSource* GetSource() const;
 				Audio::AudioSync& GetSync();
@@ -424,12 +419,12 @@ namespace Edge
 
 			public:
 				AudioListener(Entity* Ref);
-				virtual ~AudioListener() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual void Deactivate() override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~AudioListener() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Synchronize(Core::Timer* Time) override;
+				void Deactivate() override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 
 			public:
 				ED_COMPONENT("audio-listener");
@@ -460,13 +455,12 @@ namespace Edge
 
 			public:
 				PointLight(Entity* Ref);
-				virtual ~PointLight() = default;
-				virtual void Deserialize(Core::Schema * Node) override;
-				virtual void Serialize(Core::Schema * Node) override;
-				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
-				virtual float GetVisibility(const Viewer& View, float Distance) const override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Deserialize(Core::Schema * Node) override;
+				void Serialize(Core::Schema * Node) override;
+				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
+				float GetVisibility(const Viewer& View, float Distance) const override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 				void GenerateOrigin();
 				void SetSize(const Attenuation& Value);
 				const Attenuation& GetSize();
@@ -501,14 +495,13 @@ namespace Edge
 
 			public:
 				SpotLight(Entity* Ref);
-				virtual ~SpotLight() = default;
-				virtual void Deserialize(Core::Schema * Node) override;
-				virtual void Serialize(Core::Schema * Node) override;
-				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual void Synchronize(Core::Timer * Time) override;
-				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
-				virtual float GetVisibility(const Viewer& View, float Distance) const override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Deserialize(Core::Schema * Node) override;
+				void Serialize(Core::Schema * Node) override;
+				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				void Synchronize(Core::Timer * Time) override;
+				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
+				float GetVisibility(const Viewer& View, float Distance) const override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 				void GenerateOrigin();
 				void SetSize(const Attenuation& Value);
 				const Attenuation& GetSize();
@@ -553,11 +546,10 @@ namespace Edge
 
 			public:
 				LineLight(Entity* Ref);
-				virtual ~LineLight() = default;
-				virtual void Deserialize(Core::Schema * Node) override;
-				virtual void Serialize(Core::Schema * Node) override;
-				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual Core::Unique<Component> Copy(Entity * New) const override;
+				void Deserialize(Core::Schema * Node) override;
+				void Serialize(Core::Schema * Node) override;
+				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				Core::Unique<Component> Copy(Entity * New) const override;
 				void GenerateOrigin();
 
 			public:
@@ -590,12 +582,12 @@ namespace Edge
 
 			public:
 				SurfaceLight(Entity* Ref);
-				virtual ~SurfaceLight() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
-				virtual float GetVisibility(const Viewer& View, float Distance) const override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~SurfaceLight() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				size_t GetUnitBounds(Compute::Vector3& Min, Compute::Vector3& Max) const override;
+				float GetVisibility(const Viewer& View, float Distance) const override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void SetProbeCache(Core::Unique<Graphics::TextureCube> NewCache);
 				void SetSize(const Attenuation& Value);
 				bool SetDiffuseMap(Graphics::Texture2D* Map);
@@ -636,11 +628,10 @@ namespace Edge
 
 			public:
 				Illuminator(Entity* Ref);
-				virtual ~Illuminator() = default;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 
 			public:
 				ED_COMPONENT("illuminator");
@@ -670,12 +661,12 @@ namespace Edge
 
 			public:
 				Camera(Entity* Ref);
-				virtual ~Camera() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Activate(Component* New) override;
-				virtual void Synchronize(Core::Timer* Time) override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~Camera() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Activate(Component* New) override;
+				void Synchronize(Core::Timer* Time) override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				void GetViewer(Viewer* View);
 				void ResizeBuffers();
 				Viewer& GetViewer();
@@ -736,14 +727,14 @@ namespace Edge
 
 			public:
 				Scriptable(Entity* Ref);
-				virtual ~Scriptable() override;
-				virtual void Deserialize(Core::Schema* Node) override;
-				virtual void Serialize(Core::Schema* Node) override;
-				virtual void Activate(Component* New) override;
-				virtual void Deactivate() override;
-				virtual void Update(Core::Timer* Time) override;
-				virtual void Message(const std::string& Name, Core::VariantArgs& Args) override;
-				virtual Core::Unique<Component> Copy(Entity* New) const override;
+				~Scriptable() override;
+				void Deserialize(Core::Schema* Node) override;
+				void Serialize(Core::Schema* Node) override;
+				void Activate(Component* New) override;
+				void Deactivate() override;
+				void Update(Core::Timer* Time) override;
+				void Message(const std::string& Name, Core::VariantArgs& Args) override;
+				Core::Unique<Component> Copy(Entity* New) const override;
 				Core::Promise<int> Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs);
 				Core::Promise<int> Call(Edge::Script::VMCFunction* Entry, Script::ArgsCallback&& OnArgs);
 				Core::Promise<int> CallEntry(const std::string& Name);

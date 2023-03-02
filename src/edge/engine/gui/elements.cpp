@@ -19,7 +19,7 @@ namespace Edge
 				{
 					SetPseudoClass("hidden", false);
 				}
-				virtual ~ExpandElement() override
+				~ExpandElement() override
 				{
 				}
 				void ProcessDefaultAction(Rml::Event& Event) override

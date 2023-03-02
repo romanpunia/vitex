@@ -6,8 +6,8 @@ extern "C"
 #include <mongoc.h>
 #endif
 }
-#define MongoExecuteQuery(Function, Context, ...) ExecuteQuery(ED_STRINGIFY(Function), Function, Context, ##__VA_ARGS__)
-#define MongoExecuteCursor(Function, Context, ...) ExecuteCursor(ED_STRINGIFY(Function), Function, Context, ##__VA_ARGS__)
+#define MongoExecuteQuery(Function, Context, ...) ExecuteQuery(#Function, Function, Context, ##__VA_ARGS__)
+#define MongoExecuteCursor(Function, Context, ...) ExecuteCursor(#Function, Function, Context, ##__VA_ARGS__)
 
 namespace Edge
 {

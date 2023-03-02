@@ -502,9 +502,13 @@ namespace Edge
 		void DNS::Release()
 		{
 			Exclusive.lock();
-			for (auto& Item : Names)
-				ED_RELEASE(Item.second.second);
-			Names.clear();
+			if (Names != nullptr)
+			{
+				for (auto& Item : Names->Map)
+					ED_RELEASE(Item.second.second);
+				ED_DELETE(Mapping, Names);
+				Names = nullptr;
+			}
 			Exclusive.unlock();
 		}
 		std::string DNS::FindNameFromAddress(const std::string& Host, const std::string& Service)
@@ -617,8 +621,14 @@ namespace Edge
 			std::string Identity = XProto + '_' + XType + '@' + Host + ':' + Service;
 			{
 				std::unique_lock Unique(Exclusive);
-				auto It = Names.find(Identity);
-				if (It != Names.end() && It->second.first > Time)
+				if (!Names)
+				{
+					using Map = Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>;
+					Names = ED_NEW(Map);
+				}
+
+				auto It = Names->Map.find(Identity);
+				if (It != Names->Map.end() && It->second.first > Time)
 					return It->second.second;
 			}
 
@@ -670,19 +680,25 @@ namespace Edge
 			ED_DEBUG("[net] dns resolved for identity %s\n\taddress %s is used", Identity.c_str(), Multiplexer::GetAddress(Good).c_str());
 
 			std::unique_lock Unique(Exclusive);
-			auto It = Names.find(Identity);
-			if (It != Names.end())
+			if (!Names)
+			{
+				using Map = Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>;
+				Names = ED_NEW(Map);
+			}
+
+			auto It = Names->Map.find(Identity);
+			if (It != Names->Map.end())
 			{
 				ED_RELEASE(Result);
 				It->second.first = Time + DNS_TIMEOUT;
 				Result = It->second.second;
 			}
 			else
-				Names[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
+				Names->Map[Identity] = std::make_pair(Time + DNS_TIMEOUT, Result);
 
 			return Result;
 		}
-		std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>> DNS::Names;
+		Core::Mapping<std::unordered_map<std::string, std::pair<int64_t, SocketAddress*>>>* DNS::Names = nullptr;
 		std::mutex DNS::Exclusive;
 
 		int Utils::Poll(pollfd* Fd, int FdCount, int Timeout)

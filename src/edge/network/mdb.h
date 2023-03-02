@@ -303,7 +303,6 @@ namespace Edge
 				Response(Document&& NewDocument);
 				Response(const Response& Other) = delete;
 				Response(Response&& Other);
-				~Response() = default;
 				Response& operator =(const Response& Other) = delete;
 				Response& operator =(Response&& Other);
 				Core::Promise<Core::Unique<Core::Schema>> Fetch() const;
@@ -452,7 +451,7 @@ namespace Edge
 				}
 			};
 
-			class ED_OUT Connection : public Core::Object
+			class ED_OUT Connection final : public Core::Reference<Connection>
 			{
 				friend Cluster;
 				friend Transaction;
@@ -465,7 +464,7 @@ namespace Edge
 
 			public:
 				Connection();
-				virtual ~Connection() override;
+				~Connection() noexcept;
 				Core::Promise<bool> Connect(const std::string& Address);
 				Core::Promise<bool> Connect(Address* URI);
 				Core::Promise<bool> Disconnect();
@@ -485,7 +484,7 @@ namespace Edge
 				bool IsConnected() const;
 			};
 
-			class ED_OUT_TS Cluster : public Core::Object
+			class ED_OUT_TS Cluster final : public Core::Reference<Cluster>
 			{
 			private:
 				std::atomic<bool> Connected;
@@ -494,7 +493,7 @@ namespace Edge
 
 			public:
 				Cluster();
-				virtual ~Cluster() override;
+				~Cluster() noexcept;
 				Core::Promise<bool> Connect(const std::string& Address);
 				Core::Promise<bool> Connect(Address* URI);
 				Core::Promise<bool> Disconnect();

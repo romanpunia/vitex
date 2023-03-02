@@ -223,7 +223,7 @@ namespace Edge
 			size_t Offset = 0;
 		};
 
-		struct ED_OUT AssetFile : public Core::Object
+		class ED_OUT AssetFile final : public Core::Reference<AssetFile>
 		{
 		private:
 			char* Buffer;
@@ -231,7 +231,7 @@ namespace Edge
 
 		public:
 			AssetFile(char* SrcBuffer, size_t SrcSize) noexcept;
-			virtual ~AssetFile() noexcept override;
+			~AssetFile() noexcept;
 			char* GetBuffer();
 			size_t GetSize();
 		};
@@ -507,7 +507,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT Material : public Core::Object
+		class ED_OUT Material final : public Core::Reference<Material>
 		{
 			friend Series;
 			friend RenderSystem;
@@ -531,7 +531,7 @@ namespace Edge
 		public:
 			Material(SceneGraph* NewScene = nullptr) noexcept;
 			Material(const Material& Other) noexcept;
-			virtual ~Material() noexcept override;
+			~Material() noexcept;
 			void SetName(const std::string& Value);
 			const std::string& GetName() const;
 			void SetDiffuseMap(Graphics::Texture2D* New);
@@ -551,7 +551,7 @@ namespace Edge
 			SceneGraph* GetScene() const;
 		};
 
-		class ED_OUT Processor : public Core::Object
+		class ED_OUT Processor : public Core::Reference<Processor>
 		{
 			friend ContentManager;
 
@@ -560,7 +560,7 @@ namespace Edge
 
 		public:
 			Processor(ContentManager* NewContent) noexcept;
-			virtual ~Processor() noexcept override;
+			virtual ~Processor() noexcept;
 			virtual void Free(AssetCache* Asset);
 			virtual Core::Unique<void> Duplicate(AssetCache* Asset, const Core::VariantArgs& Keys);
 			virtual Core::Unique<void> Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Keys);
@@ -568,8 +568,9 @@ namespace Edge
 			ContentManager* GetContent() const;
 		};
 
-		class ED_OUT Component : public Core::Object
+		class ED_OUT Component : public Core::Reference<Component>
 		{
+			friend Core::Reference<Component>;
 			friend SceneGraph;
 			friend RenderSystem;
 			friend Entity;
@@ -603,14 +604,15 @@ namespace Edge
 
 		protected:
 			Component(Entity* Ref, ActorSet Rule) noexcept;
-			virtual ~Component() noexcept override;
+			virtual ~Component() noexcept;
 
 		public:
 			ED_COMPONENT_ROOT("component");
 		};
 
-		class ED_OUT Entity : public Core::Object
+		class ED_OUT Entity final : public Core::Reference<Entity>
 		{
+			friend Core::Reference<Entity>;
 			friend SceneGraph;
 			friend RenderSystem;
 
@@ -661,7 +663,7 @@ namespace Edge
 
 		private:
 			Entity(SceneGraph* NewScene) noexcept;
-			virtual ~Entity() noexcept override;
+			~Entity() noexcept;
 
 		public:
 			std::unordered_map<uint64_t, Component*>::iterator begin()
@@ -736,7 +738,7 @@ namespace Edge
 			ED_COMPONENT("drawable");
 		};
 
-		class ED_OUT Renderer : public Core::Object
+		class ED_OUT Renderer : public Core::Reference<Renderer>
 		{
 			friend SceneGraph;
 
@@ -748,7 +750,7 @@ namespace Edge
 
 		public:
 			Renderer(RenderSystem* Lab) noexcept;
-			virtual ~Renderer() noexcept override;
+			virtual ~Renderer() noexcept;
 			virtual void Serialize(Core::Schema* Node);
 			virtual void Deserialize(Core::Schema* Node);
 			virtual void ClearCulling();
@@ -766,7 +768,7 @@ namespace Edge
 			ED_COMPONENT_ROOT("renderer");
 		};
 
-		class ED_OUT RenderSystem : public Core::Object
+		class ED_OUT RenderSystem final : public Core::Reference<RenderSystem>
 		{
 		public:
 			struct RsIndex
@@ -832,7 +834,7 @@ namespace Edge
 
 		public:
 			RenderSystem(SceneGraph* NewScene, Component* NewComponent) noexcept;
-			virtual ~RenderSystem() noexcept override;
+			~RenderSystem() noexcept;
 			void SetView(const Compute::Matrix4x4& View, const Compute::Matrix4x4& Projection, const Compute::Vector3& Position, float Fov, float Ratio, float Near, float Far, RenderCulling Type);
 			void ClearCulling();
 			void RestoreViewBuffer(Viewer* View);
@@ -943,7 +945,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT_TS ShaderCache : public Core::Object
+		class ED_OUT_TS ShaderCache final : public Core::Reference<ShaderCache>
 		{
 		private:
 			struct SCache
@@ -959,7 +961,7 @@ namespace Edge
 
 		public:
 			ShaderCache(Graphics::GraphicsDevice* Device) noexcept;
-			virtual ~ShaderCache() noexcept override;
+			~ShaderCache() noexcept;
 			Graphics::Shader* Compile(const std::string& Name, const Graphics::Shader::Desc& Desc, size_t BufferSize = 0);
 			Graphics::Shader* Get(const std::string& Name);
 			std::string Find(Graphics::Shader* Shader);
@@ -968,7 +970,7 @@ namespace Edge
 			void ClearCache();
 		};
 
-		class ED_OUT_TS PrimitiveCache : public Core::Object
+		class ED_OUT_TS PrimitiveCache final : public Core::Reference<PrimitiveCache>
 		{
 		private:
 			struct SCache
@@ -989,7 +991,7 @@ namespace Edge
 
 		public:
 			PrimitiveCache(Graphics::GraphicsDevice* Device) noexcept;
-			virtual ~PrimitiveCache() noexcept override;
+			~PrimitiveCache() noexcept;
 			bool Compile(Graphics::ElementBuffer** Result, const std::string& Name, size_t ElementSize, size_t ElementsCount);
 			bool Get(Graphics::ElementBuffer** Result, const std::string& Name);
 			bool Has(const std::string& Name);
@@ -1007,7 +1009,7 @@ namespace Edge
 			void ClearCache();
 		};
 
-		class ED_OUT_TS ContentManager : public Core::Object
+		class ED_OUT_TS ContentManager final : public Core::Reference<ContentManager>
 		{
 		private:
 			std::unordered_map<std::string, std::unordered_map<Processor*, AssetCache*>> Assets;
@@ -1021,7 +1023,7 @@ namespace Edge
 
 		public:
 			ContentManager(Graphics::GraphicsDevice* NewDevice) noexcept;
-			virtual ~ContentManager() noexcept override;
+			~ContentManager() noexcept;
 			void InvalidateDockers();
 			void InvalidateCache();
 			void InvalidatePath(const std::string& Path);
@@ -1138,7 +1140,7 @@ namespace Edge
 			bool HasAnyPointToDispatch();
 		};
 
-		class ED_OUT_TS AppData : public Core::Object
+		class ED_OUT_TS AppData final : public Core::Reference<AppData>
 		{
 		private:
 			ContentManager* Content;
@@ -1148,7 +1150,7 @@ namespace Edge
 
 		public:
 			AppData(ContentManager* Manager, const std::string& Path) noexcept;
-			virtual ~AppData() noexcept;
+			~AppData() noexcept;
 			void Migrate(const std::string& Path);
 			void SetKey(const std::string& Name, Core::Unique<Core::Schema> Value);
 			void SetText(const std::string& Name, const std::string& Value);
@@ -1161,7 +1163,7 @@ namespace Edge
 			bool WriteAppData(const std::string& Path);
 		};
 
-		class ED_OUT SceneGraph : public Core::Object
+		class ED_OUT SceneGraph final : public Core::Reference<SceneGraph>
 		{
 			friend RenderSystem;
 			friend Renderer;
@@ -1255,7 +1257,7 @@ namespace Edge
 
 		public:
 			SceneGraph(const Desc& I) noexcept;
-			virtual ~SceneGraph() noexcept override;
+			~SceneGraph() noexcept;
 			void Configure(const Desc& Conf);
 			void Actualize();
 			void ResizeBuffers();
@@ -1486,7 +1488,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT Application : public Core::Object
+		class ED_OUT Application : public Core::Reference<Application>
 		{
 		public:
 			struct Desc
@@ -1545,7 +1547,7 @@ namespace Edge
 
 		public:
 			Application(Desc* I) noexcept;
-			virtual ~Application() noexcept override;
+			virtual ~Application() noexcept;
 			virtual void ScriptHook(Script::VMGlobal* Global);
 			virtual void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 			virtual void InputEvent(char* Buffer, int Length);
@@ -1956,41 +1958,6 @@ namespace Edge
 					ED_RELEASE(Item);
 				}
 			}
-			virtual void ClearCulling() override
-			{
-				for (auto& Item : Active)
-					Inactive.push(Item.second);
-				Active.clear();
-			}
-			virtual void BeginPass() override
-			{
-				Proxy.Push(System);
-				if (Proxy.HasBatching())
-				{
-					Graphics::GraphicsDevice* Device = System->GetDevice();
-					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
-					{
-						auto& Batcher = Proxy.Batcher((GeoCategory)i);
-						auto& Frame = Proxy.Top((GeoCategory)i);
-						Parallel::WailAll(Parallel::Distribute(Frame.begin(), Frame.end(), [&Batcher](size_t Threads)
-						{
-							Batcher.Prepare(Threads);
-						}, [this, &Batcher](size_t Thread, T* Next)
-						{
-							BatchGeometry(Next, Batcher, Thread);
-						}));
-						Batcher.Compile(Device);
-					}
-				}
-			}
-			virtual void EndPass() override
-			{
-				Proxy.Pop();
-			}
-			virtual bool HasCategory(GeoCategory Category) override
-			{
-				return !Proxy.Top(Category).empty();
-			}
 			virtual void BatchGeometry(T* Base, Batching& Batch, size_t Chunk)
 			{
 			}
@@ -2029,6 +1996,41 @@ namespace Edge
 			virtual size_t RenderGeometryResultBatched(Core::Timer* TimeStep, const Groups& Chunk)
 			{
 				return 0;
+			}
+			void ClearCulling() override
+			{
+				for (auto& Item : Active)
+					Inactive.push(Item.second);
+				Active.clear();
+			}
+			void BeginPass() override
+			{
+				Proxy.Push(System);
+				if (Proxy.HasBatching())
+				{
+					Graphics::GraphicsDevice* Device = System->GetDevice();
+					for (size_t i = 0; i < (size_t)GeoCategory::Count; ++i)
+					{
+						auto& Batcher = Proxy.Batcher((GeoCategory)i);
+						auto& Frame = Proxy.Top((GeoCategory)i);
+						Parallel::WailAll(Parallel::Distribute(Frame.begin(), Frame.end(), [&Batcher](size_t Threads)
+						{
+							Batcher.Prepare(Threads);
+						}, [this, &Batcher](size_t Thread, T* Next)
+						{
+							BatchGeometry(Next, Batcher, Thread);
+						}));
+						Batcher.Compile(Device);
+					}
+				}
+			}
+			void EndPass() override
+			{
+				Proxy.Pop();
+			}
+			bool HasCategory(GeoCategory Category) override
+			{
+				return !Proxy.Top(Category).empty();
 			}
 			size_t RenderPass(Core::Timer* Time) override
 			{

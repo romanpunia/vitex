@@ -41,7 +41,7 @@ namespace Edge
 
 			public:
 				OGLDepthStencilState(const Desc& I);
-				virtual ~OGLDepthStencilState() override;
+				~OGLDepthStencilState() override;
 				void* GetResource() const override;
 			};
 
@@ -51,7 +51,7 @@ namespace Edge
 
 			public:
 				OGLRasterizerState(const Desc& I);
-				virtual ~OGLRasterizerState() override;
+				~OGLRasterizerState() override;
 				void* GetResource() const override;
 			};
 
@@ -61,7 +61,7 @@ namespace Edge
 
 			public:
 				OGLBlendState(const Desc& I);
-				virtual ~OGLBlendState() override;
+				~OGLBlendState() override;
 				void* GetResource() const override;
 			};
 
@@ -74,7 +74,7 @@ namespace Edge
 
 			public:
 				OGLSamplerState(const Desc& I);
-				virtual ~OGLSamplerState() override;
+				~OGLSamplerState() override;
 				void* GetResource() const override;
 			};
 
@@ -89,7 +89,7 @@ namespace Edge
 
 			public:
 				OGLInputLayout(const Desc& I);
-				virtual ~OGLInputLayout() override;
+				~OGLInputLayout() override;
 				void* GetResource() const override;
 
 			public:
@@ -115,7 +115,7 @@ namespace Edge
 
 			public:
 				OGLShader(const Desc& I);
-				virtual ~OGLShader() override;
+				~OGLShader() override;
 				bool IsValid() const override;
 			};
 
@@ -129,7 +129,7 @@ namespace Edge
 
 			public:
 				OGLElementBuffer(const Desc& I);
-				virtual ~OGLElementBuffer() override;
+				~OGLElementBuffer() override;
 				void* GetResource() const override;
 			};
 
@@ -157,7 +157,7 @@ namespace Edge
 
 			public:
 				OGLInstanceBuffer(const Desc& I);
-				virtual ~OGLInstanceBuffer() override;
+				~OGLInstanceBuffer() override;
 			};
 
 			class OGLTexture2D final : public Texture2D
@@ -172,7 +172,7 @@ namespace Edge
 			public:
 				OGLTexture2D();
 				OGLTexture2D(const Desc& I);
-				virtual ~OGLTexture2D() override;
+				~OGLTexture2D() override;
 				void* GetResource() const override;
 			};
 
@@ -186,7 +186,7 @@ namespace Edge
 
 			public:
 				OGLTexture3D();
-				virtual ~OGLTexture3D() override;
+				~OGLTexture3D() override;
 				void* GetResource() override;
 			};
 
@@ -201,7 +201,7 @@ namespace Edge
 			public:
 				OGLTextureCube();
 				OGLTextureCube(const Desc& I);
-				virtual ~OGLTextureCube() override;
+				~OGLTextureCube() override;
 				void* GetResource() const override;
 			};
 
@@ -215,7 +215,7 @@ namespace Edge
 
 			public:
 				OGLDepthTarget2D(const Desc& I);
-				virtual ~OGLDepthTarget2D() override;
+				~OGLDepthTarget2D() override;
 				void* GetResource() const override;
 				uint32_t GetWidth() const override;
 				uint32_t GetHeight() const override;
@@ -231,7 +231,7 @@ namespace Edge
 
 			public:
 				OGLDepthTargetCube(const Desc& I);
-				virtual ~OGLDepthTargetCube() override;
+				~OGLDepthTargetCube() override;
 				void* GetResource() const override;
 				uint32_t GetWidth() const override;
 				uint32_t GetHeight() const override;
@@ -247,7 +247,7 @@ namespace Edge
 
 			public:
 				OGLRenderTarget2D(const Desc& I);
-				virtual ~OGLRenderTarget2D() override;
+				~OGLRenderTarget2D() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -264,7 +264,7 @@ namespace Edge
 
 			public:
 				OGLMultiRenderTarget2D(const Desc& I);
-				virtual ~OGLMultiRenderTarget2D() override;
+				~OGLMultiRenderTarget2D() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -281,7 +281,7 @@ namespace Edge
 
 			public:
 				OGLRenderTargetCube(const Desc& I);
-				virtual ~OGLRenderTargetCube() override;
+				~OGLRenderTargetCube() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -298,7 +298,7 @@ namespace Edge
 
 			public:
 				OGLMultiRenderTargetCube(const Desc& I);
-				virtual ~OGLMultiRenderTargetCube() override;
+				~OGLMultiRenderTargetCube() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -322,7 +322,7 @@ namespace Edge
 
 			public:
 				OGLCubemap(const Desc& I);
-				virtual ~OGLCubemap() override;
+				~OGLCubemap() override;
 			};
 
 			class OGLQuery final : public Query
@@ -333,7 +333,7 @@ namespace Edge
 
 			public:
 				OGLQuery();
-				virtual ~OGLQuery() override;
+				~OGLQuery() override;
 				void* GetResource() const override;
 			};
 
@@ -378,7 +378,7 @@ namespace Edge
 
 			public:
 				OGLDevice(const Desc& I);
-				virtual ~OGLDevice() override;
+				~OGLDevice() override;
 				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
 				void SetBlendState(BlendState* State) override;

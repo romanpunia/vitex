@@ -32,7 +32,7 @@ namespace Edge
 				}
 			}
 
-			class BoxShadowInstancer : public Rml::DecoratorInstancer
+			class BoxShadowInstancer final : public Rml::DecoratorInstancer
 			{
 			public:
 				struct RenderConstant
@@ -59,11 +59,11 @@ namespace Edge
 
 			public:
 				BoxShadowInstancer(Graphics::GraphicsDevice* NewDevice);
-				virtual ~BoxShadowInstancer() override;
-				virtual Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
+				~BoxShadowInstancer() override;
+				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
 			}*IBoxShadow = nullptr;
 
-			class BoxBlurInstancer : public Rml::DecoratorInstancer
+			class BoxBlurInstancer final : public Rml::DecoratorInstancer
 			{
 			public:
 				struct RenderConstant
@@ -89,11 +89,11 @@ namespace Edge
 
 			public:
 				BoxBlurInstancer(Graphics::GraphicsDevice* NewDevice);
-				virtual ~BoxBlurInstancer() override;
-				virtual Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
+				~BoxBlurInstancer() override;
+				Rml::SharedPtr<Rml::Decorator> InstanceDecorator(const Rml::String& Name, const Rml::PropertyDictionary& Props, const Rml::DecoratorInstancerInterface& Interface) override;
 			}*IBoxBlur = nullptr;
 
-			class BoxShadow : public Rml::Decorator
+			class BoxShadow final : public Rml::Decorator
 			{
 			private:
 				Compute::Vector4 Color;
@@ -104,17 +104,17 @@ namespace Edge
 				BoxShadow(const Compute::Vector4& NewColor, const Compute::Vector2& NewOffset, float NewSoftness) : Color(NewColor.Div(255.0f)), Offset(NewOffset), Softness(NewSoftness)
 				{
 				}
-				virtual ~BoxShadow() override
+				~BoxShadow() override
 				{
 				}
-				virtual Rml::DecoratorDataHandle GenerateElementData(Rml::Element* Element) const override
+				Rml::DecoratorDataHandle GenerateElementData(Rml::Element* Element) const override
 				{
 					return Rml::Decorator::INVALID_DECORATORDATAHANDLE;
 				}
-				virtual void ReleaseElementData(Rml::DecoratorDataHandle ElementData) const override
+				void ReleaseElementData(Rml::DecoratorDataHandle ElementData) const override
 				{
 				}
-				virtual void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
+				void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
 					ED_ASSERT_V(Element != nullptr, "element should be set");
 					Rml::Vector2f Position = Element->GetAbsoluteOffset(Rml::Box::PADDING).Round();
@@ -144,7 +144,7 @@ namespace Edge
 				}
 			};
 
-			class BoxBlur : public Rml::Decorator
+			class BoxBlur final : public Rml::Decorator
 			{
 			private:
 				Compute::Vector4 Color;
@@ -154,17 +154,17 @@ namespace Edge
 				BoxBlur(const Compute::Vector4& NewColor, float NewSoftness) : Color(NewColor.Div(255)), Softness(NewSoftness)
 				{
 				}
-				virtual ~BoxBlur() override
+				~BoxBlur() override
 				{
 				}
-				virtual Rml::DecoratorDataHandle GenerateElementData(Rml::Element* Element) const override
+				Rml::DecoratorDataHandle GenerateElementData(Rml::Element* Element) const override
 				{
 					return Rml::Decorator::INVALID_DECORATORDATAHANDLE;
 				}
-				virtual void ReleaseElementData(Rml::DecoratorDataHandle ElementData) const override
+				void ReleaseElementData(Rml::DecoratorDataHandle ElementData) const override
 				{
 				}
-				virtual void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
+				void RenderElement(Rml::Element* Element, Rml::DecoratorDataHandle ElementData) const override
 				{
 					ED_ASSERT_V(Element != nullptr, "element should be set");
 					Graphics::Texture2D* Background = Subsystem::GetBackground();

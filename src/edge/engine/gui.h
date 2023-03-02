@@ -355,8 +355,7 @@ namespace Edge
 			public:
 				IElementDocument();
 				IElementDocument(Rml::ElementDocument* Ref);
-				virtual ~IElementDocument() = default;
-				virtual void Release() override;
+				void Release() override;
 				void SetTitle(const std::string& Title);
 				void PullToFront();
 				void PushToBack();
@@ -413,7 +412,7 @@ namespace Edge
 				static void ReleaseElements();
 			};
 
-			class ED_OUT DataModel : public Core::Object
+			class ED_OUT DataModel final : public Core::Reference<DataModel>
 			{
 				friend Context;
 
@@ -427,7 +426,7 @@ namespace Edge
 				DataModel(Rml::DataModelConstructor* Ref);
 
 			public:
-				virtual ~DataModel() override;
+				~DataModel() noexcept;
 				DataNode* SetProperty(const std::string& Name, const Core::Variant& Value);
 				DataNode* SetProperty(const std::string& Name, Core::Variant* Reference);
 				DataNode* SetArray(const std::string& Name);
@@ -524,7 +523,7 @@ namespace Edge
 				int64_t GetValueSize();
 			};
 
-			class ED_OUT Listener : public Core::Object
+			class ED_OUT Listener final : public Core::Reference<Listener>
 			{
 				friend IElement;
 				friend Context;
@@ -535,10 +534,10 @@ namespace Edge
 			public:
 				Listener(const EventCallback& NewCallback);
 				Listener(const std::string& FunctionName);
-				virtual ~Listener() override;
+				~Listener() noexcept;
 			};
 
-			class ED_OUT Context : public Core::Object
+			class ED_OUT Context final : public Core::Reference<Context>
 			{
 				friend DocumentSubsystem;
 				friend ListenerSubsystem;
@@ -564,7 +563,7 @@ namespace Edge
 			public:
 				Context(const Compute::Vector2& Size);
 				Context(Graphics::GraphicsDevice* Device);
-				virtual ~Context() override;
+				~Context() noexcept;
 				void EmitKey(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 				void EmitInput(const char* Buffer, int Length);
 				void EmitWheel(int X, int Y, bool Normal, Graphics::KeyMod Mod);

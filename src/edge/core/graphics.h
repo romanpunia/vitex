@@ -909,7 +909,7 @@ namespace Edge
 			void GetJointPose(Compute::Joint* Root, std::vector<Compute::AnimatorKey>* Result);
 		};
 
-		class ED_OUT Surface
+		class ED_OUT Surface : public Core::Reference<Surface>
 		{
 		private:
 			SDL_Surface* Handle;
@@ -928,7 +928,7 @@ namespace Edge
 			void* GetResource() const;
 		};
 
-		class ED_OUT DepthStencilState : public Core::Object
+		class ED_OUT DepthStencilState : public Core::Reference<DepthStencilState>
 		{
 		public:
 			struct Desc
@@ -956,12 +956,12 @@ namespace Edge
 			DepthStencilState(const Desc& I) noexcept;
 
 		public:
-			virtual ~DepthStencilState() noexcept override;
+			virtual ~DepthStencilState() noexcept;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
 
-		class ED_OUT RasterizerState : public Core::Object
+		class ED_OUT RasterizerState : public Core::Reference<RasterizerState>
 		{
 		public:
 			struct Desc
@@ -985,12 +985,12 @@ namespace Edge
 			RasterizerState(const Desc& I) noexcept;
 
 		public:
-			virtual ~RasterizerState() noexcept override;
+			virtual ~RasterizerState() noexcept;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
 
-		class ED_OUT BlendState : public Core::Object
+		class ED_OUT BlendState : public Core::Reference<BlendState>
 		{
 		public:
 			struct Desc
@@ -1007,12 +1007,12 @@ namespace Edge
 			BlendState(const Desc& I) noexcept;
 
 		public:
-			virtual ~BlendState() noexcept override;
+			virtual ~BlendState() noexcept;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
 
-		class ED_OUT SamplerState : public Core::Object
+		class ED_OUT SamplerState : public Core::Reference<SamplerState>
 		{
 		public:
 			struct Desc
@@ -1036,12 +1036,12 @@ namespace Edge
 			SamplerState(const Desc& I) noexcept;
 
 		public:
-			virtual ~SamplerState() noexcept override;
+			virtual ~SamplerState() noexcept;
 			virtual void* GetResource() const = 0;
 			Desc GetState() const;
 		};
 
-		class ED_OUT InputLayout : public Core::Object
+		class ED_OUT InputLayout : public Core::Reference<InputLayout>
 		{
 		public:
 			struct Attribute
@@ -1069,12 +1069,12 @@ namespace Edge
 			InputLayout(const Desc& I) noexcept;
 
 		public:
-			virtual ~InputLayout() noexcept override;
+			virtual ~InputLayout() noexcept;
 			virtual void* GetResource() const = 0;
 			const std::vector<Attribute>& GetAttributes() const;
 		};
 
-		class ED_OUT Shader : public Core::Object
+		class ED_OUT Shader : public Core::Reference<Shader>
 		{
 		public:
 			struct Desc
@@ -1095,7 +1095,7 @@ namespace Edge
 			virtual bool IsValid() const = 0;
 		};
 
-		class ED_OUT ElementBuffer : public Core::Object
+		class ED_OUT ElementBuffer : public Core::Reference<ElementBuffer>
 		{
 		public:
 			struct Desc
@@ -1125,7 +1125,7 @@ namespace Edge
 			size_t GetStride() const;
 		};
 
-		class ED_OUT MeshBuffer : public Core::Object
+		class ED_OUT MeshBuffer : public Core::Reference<MeshBuffer>
 		{
 		public:
 			struct Desc
@@ -1148,13 +1148,13 @@ namespace Edge
 			MeshBuffer(const Desc& I) noexcept;
 
 		public:
-			virtual ~MeshBuffer() noexcept override;
+			virtual ~MeshBuffer() noexcept;
 			virtual Core::Unique<Compute::Vertex> GetElements(GraphicsDevice* Device) const = 0;
 			ElementBuffer* GetVertexBuffer() const;
 			ElementBuffer* GetIndexBuffer() const;
 		};
 
-		class ED_OUT SkinMeshBuffer : public Core::Object
+		class ED_OUT SkinMeshBuffer : public Core::Reference<SkinMeshBuffer>
 		{
 		public:
 			struct Desc
@@ -1177,13 +1177,13 @@ namespace Edge
 			SkinMeshBuffer(const Desc& I) noexcept;
 
 		public:
-			virtual ~SkinMeshBuffer() noexcept override;
+			virtual ~SkinMeshBuffer() noexcept;
 			virtual Core::Unique<Compute::SkinVertex> GetElements(GraphicsDevice* Device) const = 0;
 			ElementBuffer* GetVertexBuffer() const;
 			ElementBuffer* GetIndexBuffer() const;
 		};
 
-		class ED_OUT InstanceBuffer : public Core::Object
+		class ED_OUT InstanceBuffer : public Core::Reference<InstanceBuffer>
 		{
 		public:
 			struct Desc
@@ -1212,7 +1212,7 @@ namespace Edge
 			size_t GetElementLimit() const;
 		};
 
-		class ED_OUT Texture2D : public Core::Object
+		class ED_OUT Texture2D : public Core::Reference<Texture2D>
 		{
 		public:
 			struct Desc
@@ -1253,7 +1253,7 @@ namespace Edge
 			unsigned int GetMipLevels() const;
 		};
 
-		class ED_OUT Texture3D : public Core::Object
+		class ED_OUT Texture3D : public Core::Reference<Texture3D>
 		{
 		public:
 			struct Desc
@@ -1293,7 +1293,7 @@ namespace Edge
 			unsigned int GetMipLevels() const;
 		};
 
-		class ED_OUT TextureCube : public Core::Object
+		class ED_OUT TextureCube : public Core::Reference<TextureCube>
 		{
 		public:
 			struct Desc
@@ -1331,7 +1331,7 @@ namespace Edge
 			unsigned int GetMipLevels() const;
 		};
 
-		class ED_OUT DepthTarget2D : public Core::Object
+		class ED_OUT DepthTarget2D : public Core::Reference<DepthTarget2D>
 		{
 		public:
 			struct Desc
@@ -1359,7 +1359,7 @@ namespace Edge
 			const Graphics::Viewport& GetViewport() const;
 		};
 
-		class ED_OUT DepthTargetCube : public Core::Object
+		class ED_OUT DepthTargetCube : public Core::Reference<DepthTargetCube>
 		{
 		public:
 			struct Desc
@@ -1386,7 +1386,7 @@ namespace Edge
 			const Graphics::Viewport& GetViewport() const;
 		};
 
-		class ED_OUT RenderTarget : public Core::Object
+		class ED_OUT RenderTarget : public Core::Reference<RenderTarget>
 		{
 		protected:
 			Texture2D* DepthStencil;
@@ -1547,7 +1547,7 @@ namespace Edge
 			TextureCube* GetTarget(unsigned int Index);
 		};
 
-		class ED_OUT Cubemap : public Core::Object
+		class ED_OUT Cubemap : public Core::Reference<Cubemap>
 		{
 		public:
 			struct Desc
@@ -1570,7 +1570,7 @@ namespace Edge
 			bool IsValid() const;
 		};
 
-		class ED_OUT Query : public Core::Object
+		class ED_OUT Query : public Core::Reference<Query>
 		{
 		public:
 			struct Desc
@@ -1587,7 +1587,7 @@ namespace Edge
 			virtual void* GetResource() const = 0;
 		};
 
-		class ED_OUT GraphicsDevice : public Core::Object
+		class ED_OUT GraphicsDevice : public Core::Reference<GraphicsDevice>
 		{
 		protected:
 			struct DirectBuffer
@@ -1840,7 +1840,7 @@ namespace Edge
 			static GraphicsDevice* Create(Desc& I);
 		};
 
-		class ED_OUT Activity : public Core::Object
+		class ED_OUT Activity final : public Core::Reference<Activity>
 		{
 		public:
 			struct Desc
@@ -1910,7 +1910,7 @@ namespace Edge
 
 		public:
 			Activity(const Desc& I) noexcept;
-			virtual ~Activity() noexcept override;
+			virtual ~Activity() noexcept;
 			void SetClipboardText(const std::string& Text);
 			void SetCursorPosition(const Compute::Vector2& Position);
 			void SetCursorPosition(float X, float Y);
@@ -1971,7 +1971,7 @@ namespace Edge
 			static const char* GetKeyModName(KeyMod Code);
 		};
 
-		class ED_OUT Model : public Core::Object
+		class ED_OUT Model final : public Core::Reference<Model>
 		{
 		public:
 			std::vector<MeshBuffer*> Meshes;
@@ -1981,11 +1981,11 @@ namespace Edge
 
 		public:
 			Model() noexcept;
-			virtual ~Model() noexcept override;
+			~Model() noexcept;
 			MeshBuffer* FindMesh(const std::string& Name);
 		};
 
-		class ED_OUT SkinModel : public Core::Object
+		class ED_OUT SkinModel final : public Core::Reference<SkinModel>
 		{
 		public:
 			std::vector<SkinMeshBuffer*> Meshes;
@@ -1996,7 +1996,7 @@ namespace Edge
 
 		public:
 			SkinModel() noexcept;
-			virtual ~SkinModel() noexcept override;
+			~SkinModel() noexcept;
 			void ComputePose(PoseBuffer* Map);
 			SkinMeshBuffer* FindMesh(const std::string& Name);
 			Compute::Joint* FindJoint(const std::string& Name, Compute::Joint* Root = nullptr);

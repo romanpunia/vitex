@@ -457,7 +457,7 @@ namespace Edge
 				}
 			};
 
-			class ED_OUT Connection : public Core::Object
+			class ED_OUT Connection final : public Core::Reference<Connection>
 			{
 				friend Cluster;
 
@@ -471,7 +471,7 @@ namespace Edge
 
 			public:
 				Connection(TConnection* NewBase, socket_t Fd);
-				virtual ~Connection() override;
+				~Connection() noexcept;
 				TConnection* GetBase() const;
 				Socket* GetStream() const;
 				Request* GetCurrent() const;
@@ -480,7 +480,7 @@ namespace Edge
 				bool IsBusy() const;
 			};
 
-			class ED_OUT Request : public Core::Object
+			class ED_OUT Request final : public Core::Reference<Request>
 			{
 				friend Cluster;
 
@@ -494,7 +494,6 @@ namespace Edge
 
 			public:
 				Request(const std::string& Commands);
-				virtual ~Request() = default;
 				void Finalize(Cursor& Subresult);
 				void Failure();
 				Cursor&& GetResult();
@@ -503,7 +502,7 @@ namespace Edge
 				bool IsPending() const;
 			};
 
-			class ED_OUT_TS Cluster : public Core::Object
+			class ED_OUT_TS Cluster final : public Core::Reference<Cluster>
 			{
 				friend Driver;
 
@@ -530,7 +529,7 @@ namespace Edge
 
 			public:
 				Cluster();
-				virtual ~Cluster() override;
+				~Cluster() noexcept;
 				void ClearCache();
 				void SetCacheCleanup(uint64_t Interval);
 				void SetCacheDuration(QueryOp CacheId, uint64_t Duration);

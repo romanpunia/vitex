@@ -43,7 +43,7 @@ namespace Edge
 
 			public:
 				Reverb();
-				virtual ~Reverb() override;
+				~Reverb() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -65,7 +65,7 @@ namespace Edge
 
 			public:
 				Chorus();
-				virtual ~Chorus() override;
+				~Chorus() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -86,7 +86,7 @@ namespace Edge
 
 			public:
 				Distortion();
-				virtual ~Distortion() override;
+				~Distortion() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -107,7 +107,7 @@ namespace Edge
 
 			public:
 				Echo();
-				virtual ~Echo() override;
+				~Echo() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -129,7 +129,7 @@ namespace Edge
 
 			public:
 				Flanger();
-				virtual ~Flanger() override;
+				~Flanger() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -148,7 +148,7 @@ namespace Edge
 
 			public:
 				FrequencyShifter();
-				virtual ~FrequencyShifter() override;
+				~FrequencyShifter() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -170,7 +170,7 @@ namespace Edge
 
 			public:
 				VocalMorpher();
-				virtual ~VocalMorpher() override;
+				~VocalMorpher() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -188,7 +188,7 @@ namespace Edge
 
 			public:
 				PitchShifter();
-				virtual ~PitchShifter() override;
+				~PitchShifter() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -207,7 +207,7 @@ namespace Edge
 
 			public:
 				RingModulator();
-				virtual ~RingModulator() override;
+				~RingModulator() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -227,7 +227,7 @@ namespace Edge
 
 			public:
 				Autowah();
-				virtual ~Autowah() override;
+				~Autowah() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -241,7 +241,7 @@ namespace Edge
 			{
 			public:
 				Compressor();
-				virtual ~Compressor() override;
+				~Compressor() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;
@@ -267,7 +267,7 @@ namespace Edge
 
 			public:
 				Equalizer();
-				virtual ~Equalizer() override;
+				~Equalizer() override;
 				void Synchronize() override;
 				void Deserialize(Core::Schema* Node) override;
 				void Serialize(Core::Schema* Node) const override;

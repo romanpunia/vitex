@@ -152,7 +152,7 @@ namespace Edge
 			static void GetListenerData1I(SoundEx Listener, int* F1);
 		};
 
-		class ED_OUT AudioFilter : public Core::Object
+		class ED_OUT AudioFilter : public Core::Reference<AudioFilter>
 		{
 			friend AudioEffect;
 			friend AudioSource;
@@ -163,7 +163,7 @@ namespace Edge
 
 		public:
 			AudioFilter() noexcept;
-			virtual ~AudioFilter() noexcept override;
+			virtual ~AudioFilter() noexcept;
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) const = 0;
@@ -177,7 +177,7 @@ namespace Edge
 			ED_COMPONENT_ROOT("audio-filter");
 		};
 
-		class ED_OUT AudioEffect : public Core::Object
+		class ED_OUT AudioEffect : public Core::Reference<AudioEffect>
 		{
 			friend AudioSource;
 
@@ -192,7 +192,7 @@ namespace Edge
 
 		public:
 			AudioEffect() noexcept;
-			virtual ~AudioEffect() noexcept override;
+			virtual ~AudioEffect() noexcept;
 			virtual void Synchronize() = 0;
 			virtual void Deserialize(Core::Schema* Node) = 0;
 			virtual void Serialize(Core::Schema* Node) const = 0;
@@ -212,7 +212,7 @@ namespace Edge
 			ED_COMPONENT_ROOT("audio-effect");
 		};
 
-		class ED_OUT AudioClip : public Core::Object
+		class ED_OUT AudioClip final : public Core::Reference<AudioClip>
 		{
 		private:
 			unsigned int Buffer = 0;
@@ -220,14 +220,14 @@ namespace Edge
 
 		public:
 			AudioClip(int BufferCount, int NewFormat) noexcept;
-			virtual ~AudioClip() noexcept override;
+			~AudioClip() noexcept;
 			float Length() const;
 			bool IsMono() const;
 			unsigned int GetBuffer() const;
 			int GetFormat() const;
 		};
 
-		class ED_OUT AudioSource : public Core::Object
+		class ED_OUT AudioSource final : public Core::Reference<AudioSource>
 		{
 			friend class AudioDevice;
 
@@ -238,7 +238,7 @@ namespace Edge
 
 		public:
 			AudioSource() noexcept;
-			virtual ~AudioSource() noexcept override;
+			~AudioSource() noexcept;
 			int64_t AddEffect(AudioEffect* Effect);
 			bool RemoveEffect(size_t EffectId);
 			bool RemoveEffectById(uint64_t EffectId);
@@ -263,7 +263,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT AudioDevice : public Core::Object
+		class ED_OUT AudioDevice final : public Core::Reference<AudioDevice>
 		{
 		public:
 			void* Context = nullptr;
@@ -271,7 +271,7 @@ namespace Edge
 
 		public:
 			AudioDevice() noexcept;
-			virtual ~AudioDevice() noexcept override;
+			~AudioDevice() noexcept;
 			void Offset(AudioSource* Source, float& Seconds, bool Get);
 			void Velocity(AudioSource* Source, Compute::Vector3& Velocity, bool Get);
 			void Position(AudioSource* Source, Compute::Vector3& Position, bool Get);

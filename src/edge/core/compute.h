@@ -1612,7 +1612,7 @@ namespace Edge
 			static const char* Syntax();
 		};
 
-		class ED_OUT WebToken : public Core::Object
+		class ED_OUT WebToken final : public Core::Reference<WebToken>
 		{
 		public:
 			Core::Schema* Header;
@@ -1625,7 +1625,7 @@ namespace Edge
 		public:
 			WebToken() noexcept;
 			WebToken(const std::string& Issuer, const std::string& Subject, int64_t Expiration) noexcept;
-			virtual ~WebToken() noexcept override;
+			virtual ~WebToken() noexcept;
 			void Unsign();
 			void SetAlgorithm(const std::string& Value);
 			void SetType(const std::string& Value);
@@ -1643,7 +1643,7 @@ namespace Edge
 			bool IsValid() const;
 		};
 
-		class ED_OUT Preprocessor : public Core::Object
+		class ED_OUT Preprocessor final : public Core::Reference<Preprocessor>
 		{
 		public:
 			struct Desc
@@ -1666,7 +1666,7 @@ namespace Edge
 
 		public:
 			Preprocessor() noexcept;
-			virtual ~Preprocessor() noexcept = default;
+			~Preprocessor() noexcept = default;
 			void SetIncludeOptions(const IncludeDesc& NewDesc);
 			void SetIncludeCallback(const ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const ProcPragmaCallback& Callback);
@@ -1695,7 +1695,7 @@ namespace Edge
 			static IncludeResult ResolveInclude(const IncludeDesc& Desc);
 		};
 
-		class ED_OUT FiniteState : public Core::Object
+		class ED_OUT FiniteState final : public Core::Reference<FiniteState>
 		{
 		private:
 			std::unordered_map<std::string, ActionCallback*> Actions;
@@ -1704,7 +1704,7 @@ namespace Edge
 
 		public:
 			FiniteState() noexcept;
-			virtual ~FiniteState() noexcept override;
+			~FiniteState() noexcept;
 			FiniteState* Bind(const std::string& Name, const ActionCallback& Callback);
 			FiniteState* Unbind(const std::string& Name);
 			FiniteState* Push(const std::string& Name);
@@ -1716,7 +1716,7 @@ namespace Edge
 			ActionCallback* Find(const std::string& Name);
 		};
 
-		class ED_OUT Transform : public Core::Object
+		class ED_OUT Transform final : public Core::Reference<Transform>
 		{
 			friend Geometric;
 
@@ -1744,7 +1744,7 @@ namespace Edge
 
 		public:
 			Transform(void* NewUserData) noexcept;
-			virtual ~Transform() noexcept override;
+			~Transform() noexcept;
 			void Synchronize();
 			void Move(const Vector3& Value);
 			void Rotate(const Vector3& Value);
@@ -1873,7 +1873,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT HullShape : public Core::Object
+		class ED_OUT HullShape final : public Core::Reference<HullShape>
 		{
 		public:
 			std::vector<Vertex> Vertices;
@@ -1882,10 +1882,10 @@ namespace Edge
 
 		public:
 			HullShape() noexcept;
-			virtual ~HullShape() noexcept = default;
+			~HullShape() noexcept = default;
 		};
 
-		class ED_OUT RigidBody : public Core::Object
+		class ED_OUT RigidBody final : public Core::Reference<RigidBody>
 		{
 			friend Simulator;
 
@@ -1913,7 +1913,7 @@ namespace Edge
 			RigidBody(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~RigidBody() noexcept override;
+			~RigidBody() noexcept;
 			Core::Unique<RigidBody> Copy();
 			void Push(const Vector3& Velocity);
 			void Push(const Vector3& Velocity, const Vector3& Torque);
@@ -1993,7 +1993,7 @@ namespace Edge
 			static RigidBody* Get(btRigidBody* From);
 		};
 
-		class ED_OUT SoftBody : public Core::Object
+		class ED_OUT SoftBody final : public Core::Reference<SoftBody>
 		{
 			friend Simulator;
 
@@ -2106,7 +2106,7 @@ namespace Edge
 			SoftBody(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~SoftBody() noexcept override;
+			~SoftBody() noexcept;
 			Core::Unique<SoftBody> Copy();
 			void Activate(bool Force);
 			void Synchronize(Transform* Transform, bool Kinematic);
@@ -2199,7 +2199,7 @@ namespace Edge
 			static SoftBody* Get(btSoftBody* From);
 		};
 
-		class ED_OUT Constraint : public Core::Object
+		class ED_OUT Constraint : public Core::Reference<Constraint>
 		{
 		protected:
 			btRigidBody* First, * Second;
@@ -2249,10 +2249,10 @@ namespace Edge
 			PConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~PConstraint() noexcept override;
-			virtual Core::Unique<Constraint> Copy() const override;
-			virtual btTypedConstraint* Get() const override;
-			virtual bool HasCollisions() const override;
+			~PConstraint() noexcept override;
+			Core::Unique<Constraint> Copy() const override;
+			btTypedConstraint* Get() const override;
+			bool HasCollisions() const override;
 			void SetPivotA(const Vector3& Value);
 			void SetPivotB(const Vector3& Value);
 			Vector3 GetPivotA() const;
@@ -2282,10 +2282,10 @@ namespace Edge
 			HConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~HConstraint() noexcept override;
-			virtual Core::Unique<Constraint> Copy() const override;
-			virtual btTypedConstraint* Get() const override;
-			virtual bool HasCollisions() const override;
+			~HConstraint() noexcept override;
+			Core::Unique<Constraint> Copy() const override;
+			btTypedConstraint* Get() const override;
+			bool HasCollisions() const override;
 			void EnableAngularMotor(bool Enable, float TargetVelocity, float MaxMotorImpulse);
 			void EnableMotor(bool Enable);
 			void TestLimit(const Matrix4x4& A, const Matrix4x4& B);
@@ -2339,10 +2339,10 @@ namespace Edge
 			SConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~SConstraint() noexcept override;
-			virtual Core::Unique<Constraint> Copy() const override;
-			virtual btTypedConstraint* Get() const override;
-			virtual bool HasCollisions() const override;
+			~SConstraint() noexcept override;
+			Core::Unique<Constraint> Copy() const override;
+			btTypedConstraint* Get() const override;
+			bool HasCollisions() const override;
 			void SetAngularMotorVelocity(float Value);
 			void SetLinearMotorVelocity(float Value);
 			void SetUpperLinearLimit(float Value);
@@ -2423,10 +2423,10 @@ namespace Edge
 			CTConstraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~CTConstraint() noexcept override;
-			virtual Core::Unique<Constraint> Copy() const override;
-			virtual btTypedConstraint* Get() const override;
-			virtual bool HasCollisions() const override;
+			~CTConstraint() noexcept override;
+			Core::Unique<Constraint> Copy() const override;
+			btTypedConstraint* Get() const override;
+			bool HasCollisions() const override;
 			void EnableMotor(bool Value);
 			void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
 			void SetAngularOnly(bool Value);
@@ -2482,10 +2482,10 @@ namespace Edge
 			DF6Constraint(Simulator* Refer, const Desc& I) noexcept;
 
 		public:
-			virtual ~DF6Constraint() noexcept override;
-			virtual Core::Unique<Constraint> Copy() const override;
-			virtual btTypedConstraint* Get() const override;
-			virtual bool HasCollisions() const override;
+			~DF6Constraint() noexcept override;
+			Core::Unique<Constraint> Copy() const override;
+			btTypedConstraint* Get() const override;
+			bool HasCollisions() const override;
 			void EnableMotor(int Index, bool OnOff);
 			void EnableSpring(int Index, bool OnOff);
 			void SetFrames(const Matrix4x4& A, const Matrix4x4& B);
@@ -2522,7 +2522,7 @@ namespace Edge
 			Desc& GetState();
 		};
 
-		class ED_OUT Simulator : public Core::Object
+		class ED_OUT Simulator final : public Core::Reference<Simulator>
 		{
 		public:
 			struct Desc
@@ -2553,7 +2553,7 @@ namespace Edge
 
 		public:
 			Simulator(const Desc& I) noexcept;
-			virtual ~Simulator() noexcept override;
+			~Simulator() noexcept;
 			void SetGravity(const Vector3& Gravity);
 			void SetLinearImpulse(const Vector3& Impulse, bool RandomFactor = false);
 			void SetLinearImpulse(const Vector3& Impulse, int Start, int End, bool RandomFactor = false);

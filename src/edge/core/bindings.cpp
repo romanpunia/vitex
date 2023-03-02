@@ -7483,10 +7483,10 @@ namespace Edge
 				return Base->GetElementAtPoint(Value);
 			}
 
-			ModelListener::ModelListener(VMCFunction* NewCallback) noexcept : Engine::GUI::Listener(Bind(NewCallback)), Source(NewCallback), Context(nullptr)
+			ModelListener::ModelListener(VMCFunction* NewCallback) noexcept : Base(new Engine::GUI::Listener(Bind(NewCallback))), Source(NewCallback), Context(nullptr)
 			{
 			}
-			ModelListener::ModelListener(const std::string& FunctionName) noexcept : Engine::GUI::Listener(FunctionName), Source(nullptr), Context(nullptr)
+			ModelListener::ModelListener(const std::string& FunctionName) noexcept : Base(new Engine::GUI::Listener(FunctionName)), Source(nullptr), Context(nullptr)
 			{
 			}
 			ModelListener::~ModelListener() noexcept
@@ -7496,6 +7496,7 @@ namespace Edge
 
 				if (Context != nullptr)
 					Context->Release();
+				ED_RELEASE(Base);
 			}
 			Engine::GUI::EventCallback ModelListener::Bind(VMCFunction* Callback)
 			{
@@ -7996,15 +7997,16 @@ namespace Edge
 				ED_ASSERT(Manager != nullptr && Manager->GetEngine() != nullptr, false, "manager should be set");
 				VMGlobal& Global = Manager->Global();
 
-				VMRefClass VRandom = Global.SetClassUnmanaged<Random>("random");
-				VRandom.SetMethodStatic("string bytes(uint64)", &Random::Getb);
-				VRandom.SetMethodStatic("double betweend(double, double)", &Random::Betweend);
-				VRandom.SetMethodStatic("double magd()", &Random::Magd);
-				VRandom.SetMethodStatic("double getd()", &Random::Getd);
-				VRandom.SetMethodStatic("float betweenf(float, float)", &Random::Betweenf);
-				VRandom.SetMethodStatic("float magf()", &Random::Magf);
-				VRandom.SetMethodStatic("float getf()", &Random::Getf);
-				VRandom.SetMethodStatic("uint64 betweeni(uint64, uint64)", &Random::Betweeni);
+				Manager->BeginNamespace("random");
+				Global.SetFunction("string bytes(uint64)", &Random::Getb);
+				Global.SetFunction("double betweend(double, double)", &Random::Betweend);
+				Global.SetFunction("double magd()", &Random::Magd);
+				Global.SetFunction("double getd()", &Random::Getd);
+				Global.SetFunction("float betweenf(float, float)", &Random::Betweenf);
+				Global.SetFunction("float magf()", &Random::Magf);
+				Global.SetFunction("float getf()", &Random::Getf);
+				Global.SetFunction("uint64 betweeni(uint64, uint64)", &Random::Betweeni);
+				Manager->EndNamespace();
 
 				return true;
 #else

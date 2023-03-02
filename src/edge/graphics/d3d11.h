@@ -23,7 +23,7 @@ namespace Edge
 
 			public:
 				D3D11DepthStencilState(const Desc& I);
-				virtual ~D3D11DepthStencilState() override;
+				~D3D11DepthStencilState() override;
 				void* GetResource() const override;
 			};
 
@@ -36,7 +36,7 @@ namespace Edge
 
 			public:
 				D3D11RasterizerState(const Desc& I);
-				virtual ~D3D11RasterizerState() override;
+				~D3D11RasterizerState() override;
 				void* GetResource() const override;
 			};
 
@@ -49,7 +49,7 @@ namespace Edge
 
 			public:
 				D3D11BlendState(const Desc& I);
-				virtual ~D3D11BlendState() override;
+				~D3D11BlendState() override;
 				void* GetResource() const override;
 			};
 
@@ -62,7 +62,7 @@ namespace Edge
 
 			public:
 				D3D11SamplerState(const Desc& I);
-				virtual ~D3D11SamplerState() override;
+				~D3D11SamplerState() override;
 				void* GetResource() const override;
 			};
 
@@ -72,7 +72,7 @@ namespace Edge
 
 			public:
 				D3D11InputLayout(const Desc& I);
-				virtual ~D3D11InputLayout() override;
+				~D3D11InputLayout() override;
 				void* GetResource() const override;
 			};
 
@@ -96,7 +96,7 @@ namespace Edge
 
 			public:
 				D3D11Shader(const Desc& I);
-				virtual ~D3D11Shader() override;
+				~D3D11Shader() override;
 				bool IsValid() const override;
 			};
 
@@ -111,7 +111,7 @@ namespace Edge
 
 			public:
 				D3D11ElementBuffer(const Desc& I);
-				virtual ~D3D11ElementBuffer() override;
+				~D3D11ElementBuffer() override;
 				void* GetResource() const override;
 			};
 
@@ -142,7 +142,7 @@ namespace Edge
 
 			public:
 				D3D11InstanceBuffer(const Desc& I);
-				virtual ~D3D11InstanceBuffer() override;
+				~D3D11InstanceBuffer() override;
 			};
 
 			class D3D11Texture2D final : public Texture2D
@@ -157,7 +157,7 @@ namespace Edge
 			public:
 				D3D11Texture2D();
 				D3D11Texture2D(const Desc& I);
-				virtual ~D3D11Texture2D() override;
+				~D3D11Texture2D() override;
 				void* GetResource() const override;
 			};
 
@@ -172,7 +172,7 @@ namespace Edge
 
 			public:
 				D3D11Texture3D();
-				virtual ~D3D11Texture3D() override;
+				~D3D11Texture3D() override;
 				void* GetResource() override;
 			};
 
@@ -188,7 +188,7 @@ namespace Edge
 			public:
 				D3D11TextureCube();
 				D3D11TextureCube(const Desc& I);
-				virtual ~D3D11TextureCube() override;
+				~D3D11TextureCube() override;
 				void* GetResource() const override;
 			};
 
@@ -201,7 +201,7 @@ namespace Edge
 
 			public:
 				D3D11DepthTarget2D(const Desc& I);
-				virtual ~D3D11DepthTarget2D() override;
+				~D3D11DepthTarget2D() override;
 				void* GetResource() const override;
 				uint32_t GetWidth() const override;
 				uint32_t GetHeight() const override;
@@ -216,7 +216,7 @@ namespace Edge
 
 			public:
 				D3D11DepthTargetCube(const Desc& I);
-				virtual ~D3D11DepthTargetCube() override;
+				~D3D11DepthTargetCube() override;
 				void* GetResource() const override;
 				uint32_t GetWidth() const override;
 				uint32_t GetHeight() const override;
@@ -233,7 +233,7 @@ namespace Edge
 
 			public:
 				D3D11RenderTarget2D(const Desc& I);
-				virtual ~D3D11RenderTarget2D() override;
+				~D3D11RenderTarget2D() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -252,7 +252,7 @@ namespace Edge
 
 			public:
 				D3D11MultiRenderTarget2D(const Desc& I);
-				virtual ~D3D11MultiRenderTarget2D() override;
+				~D3D11MultiRenderTarget2D() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -273,7 +273,7 @@ namespace Edge
 
 			public:
 				D3D11RenderTargetCube(const Desc& I);
-				virtual ~D3D11RenderTargetCube() override;
+				~D3D11RenderTargetCube() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -291,7 +291,7 @@ namespace Edge
 
 			public:
 				D3D11MultiRenderTargetCube(const Desc& I);
-				virtual ~D3D11MultiRenderTargetCube() override;
+				~D3D11MultiRenderTargetCube() override;
 				void* GetTargetBuffer() const override;
 				void* GetDepthBuffer() const override;
 				uint32_t GetWidth() const override;
@@ -316,7 +316,7 @@ namespace Edge
 
 			public:
 				D3D11Cubemap(const Desc& I);
-				virtual ~D3D11Cubemap() override;
+				~D3D11Cubemap() override;
 			};
 
 			class D3D11Query final : public Query
@@ -326,7 +326,7 @@ namespace Edge
 
 			public:
 				D3D11Query();
-				virtual ~D3D11Query() override;
+				~D3D11Query() override;
 				void* GetResource() const override;
 			};
 
@@ -371,7 +371,7 @@ namespace Edge
 
 			public:
 				D3D11Device(const Desc& I);
-				virtual ~D3D11Device() override;
+				~D3D11Device() override;
 				void SetConstantBuffers() override;
 				void SetShaderModel(ShaderModel Model) override;
 				void SetBlendState(BlendState* State) override;

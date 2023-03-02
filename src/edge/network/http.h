@@ -236,7 +236,7 @@ namespace Edge
 				bool IsOK() const;
 			};
 
-			class ED_OUT RouteGroup : public Core::Object
+			class ED_OUT RouteGroup final : public Core::Reference<RouteGroup>
 			{
 			public:
 				std::vector<RouteEntry*> Routes;
@@ -245,10 +245,10 @@ namespace Edge
 
 			public:
 				RouteGroup(const std::string& NewMatch, RouteMode NewMode) noexcept;
-				virtual ~RouteGroup() noexcept override;
+				~RouteGroup() noexcept;
 			};
 
-			class ED_OUT WebSocketFrame : public Core::Object
+			class ED_OUT WebSocketFrame final : public Core::Reference<WebSocketFrame>
 			{
 				friend class GatewayFrame;
 				friend class Connection;
@@ -291,7 +291,7 @@ namespace Edge
 
 			public:
 				WebSocketFrame(Socket* NewStream);
-				virtual ~WebSocketFrame() override;
+				~WebSocketFrame() noexcept;
 				void Send(const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				void Send(unsigned int Mask, const char* Buffer, size_t Length, WebSocketOp OpCode, const WebSocketCallback& Callback);
 				void Finish();
@@ -307,7 +307,7 @@ namespace Edge
 				bool IsIgnore();
 			};
 
-			class ED_OUT GatewayFrame : public Core::Object
+			class ED_OUT GatewayFrame final : public Core::Reference<GatewayFrame>
 			{
 				friend WebSocketFrame;
 				friend class Util;
@@ -328,7 +328,6 @@ namespace Edge
 
 			public:
 				GatewayFrame(HTTP::Connection* NewBase, Script::VMCompiler* NewCompiler);
-				virtual ~GatewayFrame() = default;
 				bool Start(const std::string& Path, const char* Method, char* Buffer, size_t Size);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();
@@ -339,7 +338,7 @@ namespace Edge
 				HTTP::Connection* GetBase();
 			};
 
-			class ED_OUT RouteEntry : public Core::Object
+			class ED_OUT RouteEntry final : public Core::Reference<RouteEntry>
 			{
 			public:
 				struct
@@ -413,10 +412,9 @@ namespace Edge
 			public:
 				RouteEntry() = default;
 				RouteEntry(RouteEntry* Other, const Compute::RegexSource& Source);
-				virtual ~RouteEntry() = default;
 			};
 
-			class ED_OUT SiteEntry : public Core::Object
+			class ED_OUT SiteEntry final : public Core::Reference<SiteEntry>
 			{
 			public:
 				struct
@@ -455,7 +453,7 @@ namespace Edge
 
 			public:
 				SiteEntry();
-				virtual ~SiteEntry() override;
+				~SiteEntry() noexcept;
 				void Sort();
 				RouteGroup* Group(const std::string& Match, RouteMode Mode);
 				RouteEntry* Route(const std::string& Match, RouteMode Mode, const std::string& Pattern);
@@ -492,7 +490,7 @@ namespace Edge
 
 			public:
 				MapRouter();
-				virtual ~MapRouter() override;
+				~MapRouter() override;
 				SiteEntry* Site();
 				SiteEntry* Site(const char* Host);
 			};
@@ -517,7 +515,7 @@ namespace Edge
 
 			public:
 				Connection(Server* Source) noexcept;
-				virtual ~Connection() override;
+				~Connection() override;
 				void Reset(bool Fully) override;
 				bool Finish() override;
 				bool Finish(int StatusCode) override;
@@ -527,7 +525,7 @@ namespace Edge
 				bool Skip(const SuccessCallback& Callback);
 			};
 
-			class ED_OUT Query : public Core::Object
+			class ED_OUT Query final : public Core::Reference<Query>
 			{
 			private:
 				struct QueryToken
@@ -541,7 +539,7 @@ namespace Edge
 
 			public:
 				Query();
-				virtual ~Query() override;
+				~Query() noexcept;
 				void Clear();
 				void Steal(Core::Schema** Output);
 				void Decode(const char* ContentType, const std::string& URI);
@@ -564,7 +562,7 @@ namespace Edge
 				static Core::Schema* FindParameter(Core::Schema* Base, QueryToken* Name);
 			};
 
-			class ED_OUT Session : public Core::Object
+			class ED_OUT Session final : public Core::Reference<Session>
 			{
 			public:
 				Core::Schema* Query = nullptr;
@@ -574,7 +572,7 @@ namespace Edge
 
 			public:
 				Session();
-				virtual ~Session() override;
+				~Session() noexcept;
 				void Clear();
 				bool Write(Connection* Base);
 				bool Read(Connection* Base);
@@ -587,7 +585,7 @@ namespace Edge
 				static bool InvalidateCache(const std::string& Path);
 			};
 
-			class ED_OUT Parser : public Core::Object
+			class ED_OUT Parser final : public Core::Reference<Parser>
 			{
 			private:
 				enum MultipartState
@@ -667,7 +665,7 @@ namespace Edge
 
 			public:
 				Parser();
-				virtual ~Parser() override;
+				~Parser() noexcept;
 				void PrepareForNextParsing(Connection* Base, bool ForMultipart);
 				int64_t MultipartParse(const char* Boundary, const char* Buffer, size_t Length);
 				int64_t ParseRequest(const char* BufferStart, size_t Length, size_t LengthLastTime);
@@ -683,7 +681,7 @@ namespace Edge
 				const char* ProcessResponse(const char* Buffer, const char* BufferEnd, int* Out);
 			};
 
-			class ED_OUT WebCodec : public Core::Object
+			class ED_OUT WebCodec final : public Core::Reference<WebCodec>
 			{
 			public:
 				typedef std::queue<std::pair<WebSocketOp, std::vector<char>>> MessageQueue;
@@ -829,7 +827,7 @@ namespace Edge
 
 			public:
 				Server();
-				virtual ~Server() override;
+				~Server() override;
 				bool Update();
 
 			private:
@@ -856,7 +854,7 @@ namespace Edge
                 
 			public:
 				Client(int64_t ReadTimeout);
-				virtual ~Client() override;
+				~Client() override;
 				bool Downgrade();
 				Core::Promise<bool> Consume(size_t MaxSize = ED_HTTP_PAYLOAD);
 				Core::Promise<bool> Fetch(HTTP::RequestFrame&& Root, size_t MaxSize = ED_HTTP_PAYLOAD);

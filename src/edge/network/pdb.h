@@ -150,6 +150,13 @@ namespace Edge
 				None
 			};
 
+			enum class Caching
+			{
+				Never,
+				Miss,
+				Cached
+			};
+
 			enum class OidType
 			{
 				JSON = 114,
@@ -410,10 +417,11 @@ namespace Edge
 			private:
 				std::vector<Response> Base;
 				Connection* Executor;
+				Caching Cache;
 
 			public:
 				Cursor();
-				Cursor(Connection* NewExecutor);
+				Cursor(Connection* NewExecutor, Caching Type);
 				Cursor(const Cursor& Other) = delete;
 				Cursor(Cursor&& Other);
 				~Cursor();
@@ -441,6 +449,7 @@ namespace Edge
 				const Response& Last() const;
 				const Response& At(size_t Index) const;
 				Connection* GetExecutor() const;
+				Caching GetCacheStatus() const;
 				Core::Unique<Core::Schema> GetArrayOfObjects(size_t ResponseIndex = 0) const;
 				Core::Unique<Core::Schema> GetArrayOfArrays(size_t ResponseIndex = 0) const;
 				Core::Unique<Core::Schema> GetObject(size_t ResponseIndex = 0, size_t Index = 0) const;
@@ -493,7 +502,7 @@ namespace Edge
 				size_t Options;
 
 			public:
-				Request(const std::string& Commands);
+				Request(const std::string& Commands, Caching Status);
 				void Finalize(Cursor& Subresult);
 				void Failure();
 				Cursor&& GetResult();

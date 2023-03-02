@@ -7,7 +7,6 @@ struct kevent;
 #else
 struct epoll_event;
 #endif
-
 struct ssl_ctx_st;
 struct ssl_st;
 struct addrinfo;
@@ -230,7 +229,29 @@ namespace Edge
 		class ED_OUT_TS Utils
 		{
 		public:
+			enum PollEvent : uint32_t
+			{
+				InputNormal = (1 << 0),
+				InputBand = (1 << 1),
+				InputPriority = (1 << 2),
+				Input = (1 << 3),
+				OutputNormal = (1 << 4),
+				OutputBand = (1 << 5),
+				Output = (1 << 6),
+				Error = (1 << 7),
+				Hangup = (1 << 8)
+			};
+
+			struct PollFd
+			{
+				socket_t Fd = 0;
+				uint32_t Events = 0;
+				uint32_t Returns = 0;
+			};
+
+		public:
 			static int Poll(pollfd* Fd, int FdCount, int Timeout);
+			static int Poll(PollFd* Fd, int FdCount, int Timeout);
 			static int64_t Clock();
 		};
 

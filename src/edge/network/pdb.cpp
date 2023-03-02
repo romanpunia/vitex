@@ -1345,14 +1345,14 @@ namespace Edge
 #endif
 			}
 
-			Cursor::Cursor() : Cursor(nullptr)
+			Cursor::Cursor() : Cursor(nullptr, Caching::Never)
 			{
 			}
-			Cursor::Cursor(Connection* NewExecutor) : Executor(NewExecutor)
+			Cursor::Cursor(Connection* NewExecutor, Caching Status) : Executor(NewExecutor), Cache(Status)
 			{
 				ED_WATCH(this, "pq-result cursor");
 			}
-			Cursor::Cursor(Cursor&& Other) : Base(std::move(Other.Base)), Executor(Other.Executor)
+			Cursor::Cursor(Cursor&& Other) : Base(std::move(Other.Base)), Executor(Other.Executor), Cache(Other.Cache)
 			{
 				ED_WATCH(this, "pq-result cursor (moved)");
 				Other.Executor = nullptr;
@@ -1368,6 +1368,7 @@ namespace Edge
 
 				Base = std::move(Other.Base);
 				Executor = Other.Executor;
+				Cache = Other.Cache;
 				Other.Executor = nullptr;
 
 				return *this;
@@ -1415,7 +1416,7 @@ namespace Edge
 			}
 			Cursor Cursor::Copy() const
 			{
-				Cursor Result(Executor);
+				Cursor Result(Executor, Caching::Cached);
 				if (Base.empty())
 					return Result;
 
@@ -1445,6 +1446,10 @@ namespace Edge
 			Connection* Cursor::GetExecutor() const
 			{
 				return Executor;
+			}
+			Caching Cursor::GetCacheStatus() const
+			{
+				return Cache;
 			}
 			Core::Schema* Cursor::GetArrayOfObjects(size_t ResponseIndex) const
 			{
@@ -1507,7 +1512,7 @@ namespace Edge
 				return Current != nullptr;
 			}
 
-			Request::Request(const std::string& Commands) : Command(Commands.begin(), Commands.end()), Session(0), Result(nullptr), Options(0)
+			Request::Request(const std::string& Commands, Caching Status) : Command(Commands.begin(), Commands.end()), Session(0), Result(nullptr, Status), Options(0)
 			{
 				Command.emplace_back('\0');
 			}
@@ -1682,37 +1687,94 @@ namespace Edge
 					const char** Keys = Source.CreateKeys();
 					const char** Values = Source.CreateValues();
 					std::unique_lock<std::mutex> Unique(Update);
+					std::unordered_map<socket_t, TConnection*> Queue;
+					std::vector<Utils::PollFd> Sockets;
+					TConnection* Error = nullptr;
+
+					ED_DEBUG("[pq] try connect using %i connections", (int)Connections);
+					Queue.reserve(Connections);
 
 					for (size_t i = 0; i < Connections; i++)
 					{
-						ED_DEBUG("[pq] try connect on group %i/%i", (int)i, (int)Connections);
-						TConnection* Base = PQconnectdbParams(Keys, Values, 0);
-						if (!Base || PQstatus(Base) != ConnStatusType::CONNECTION_OK)
-						{
-							if (Base != nullptr)
-							{
-								PQlogMessage(Base);
-								PQfinish(Base);
-							}
+						TConnection* Base = PQconnectStartParams(Keys, Values, 0);
+						if (!Base)
+							goto Failure;
 
-							ED_FREE(Keys);
-							ED_FREE(Values);
-							return false;
+						if (PQstatus(Base) == ConnStatusType::CONNECTION_BAD)
+						{
+							PQfinish(Base);
+							goto Failure;
 						}
 
-						ED_DEBUG("[pq] OK connect on group %i as 0x%" PRIXPTR, (int)i, (uintptr_t)Base);
-						PQsetnonblocking(Base, 1);
-						PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
-						PQlogMessage(Base);
+						Utils::PollFd Fd;
+						Fd.Fd = (socket_t)PQsocket(Base);
 
-						Connection* Next = new Connection(Base, (socket_t)PQsocket(Base));
-						Pool.insert(std::make_pair(Next->Stream, Next));
-						Reprocess(Next);
+						Queue[Fd.Fd] = Base;
+						Sockets.emplace_back(std::move(Fd));
 					}
+
+					do
+					{
+						for (auto& It = Sockets.begin(); It != Sockets.end(); It++)
+						{
+							Utils::PollFd& Fd = *It; TConnection* Base = Queue[Fd.Fd];
+							if (Fd.Events == 0 || Fd.Returns & Utils::Input || Fd.Returns & Utils::Output)
+							{
+								bool Ready = false;
+								switch (PQconnectPoll(Base))
+								{
+									case PGRES_POLLING_FAILED:
+										Error = Base;
+										goto Failure;
+									case PGRES_POLLING_WRITING:
+										Fd.Events = Utils::Output;
+										break;
+									case PGRES_POLLING_READING:
+										Fd.Events = Utils::Input;
+										break;
+									case PGRES_POLLING_OK:
+									{
+										ED_DEBUG("[pq] OK connect on 0x%" PRIXPTR, (uintptr_t)Base);
+										PQsetnonblocking(Base, 1);
+										PQsetNoticeProcessor(Base, PQlogNotice, nullptr);
+										PQlogMessage(Base);
+
+										Connection* Next = new Connection(Base, Fd.Fd);
+										Pool.insert(std::make_pair(Next->Stream, Next));
+										Queue.erase(Fd.Fd);
+										Sockets.erase(It);
+
+										Reprocess(Next);
+										Ready = true;
+
+										break;
+									}
+								}
+
+								if (Ready)
+									break;
+							}
+							else if (Fd.Returns & Utils::Error || Fd.Returns & Utils::Hangup)
+							{
+								Error = Base;
+								goto Failure;
+							}
+						}
+					} while (!Sockets.empty() && Utils::Poll(Sockets.data(), (int)Sockets.size(), 50) >= 0);
 
 					ED_FREE(Keys);
 					ED_FREE(Values);
 					return true;
+				Failure:
+					if (Error != nullptr)
+						PQlogMessage(Error);
+
+					for (auto& Base : Queue)
+						PQfinish(Base.second);
+
+					ED_FREE(Keys);
+					ED_FREE(Values);
+					return false;
 				});
 #else
 				return Core::Promise<bool>(false);
@@ -1816,10 +1878,12 @@ namespace Edge
 			{
 				ED_ASSERT(!Command.empty(), Core::Promise<Cursor>(Cursor()), "command should not be empty");
 
+				bool MayCache = Opts & (size_t)QueryOp::CacheShort || Opts & (size_t)QueryOp::CacheMid || Opts & (size_t)QueryOp::CacheLong;
 				std::string Reference;
-				if (Opts & (size_t)QueryOp::CacheShort || Opts & (size_t)QueryOp::CacheMid || Opts & (size_t)QueryOp::CacheLong)
+
+				if (MayCache)
 				{
-					Cursor Result(nullptr);
+					Cursor Result(nullptr, Caching::Cached);
 					Reference = GetCacheOid(Command, Opts);
 
 					if (GetCache(Reference, &Result))
@@ -1831,7 +1895,7 @@ namespace Edge
 					}
 				}
 
-				Request* Next = new Request(Command);
+				Request* Next = new Request(Command, MayCache ? Caching::Miss : Caching::Never);
 				Next->Session = Session;
 				Next->Options = Opts;
 

@@ -710,6 +710,70 @@ namespace Edge
 			return poll(Fd, FdCount, Timeout);
 #endif
 		}
+		int Utils::Poll(PollFd* Fd, int FdCount, int Timeout)
+		{
+			ED_ASSERT(Fd != nullptr, -1, "poll should be set");
+			std::vector<pollfd> Fds;
+			Fds.resize(FdCount);
+
+			for (size_t i = 0; i < (size_t)FdCount; i++)
+			{
+				auto& Next = Fds[i];
+				Next.revents = 0;
+				Next.events = 0;
+
+				auto& Base = Fd[i];
+				Next.fd = Base.Fd;
+
+				if (Base.Events & InputNormal)
+					Next.events |= POLLRDNORM;
+				if (Base.Events & InputBand)
+					Next.events |= POLLRDBAND;
+				if (Base.Events & InputPriority)
+					Next.events |= POLLPRI;
+				if (Base.Events & Input)
+					Next.events |= POLLIN;
+				if (Base.Events & OutputNormal)
+					Next.events |= POLLWRNORM;
+				if (Base.Events & OutputBand)
+					Next.events |= POLLWRBAND;
+				if (Base.Events & Output)
+					Next.events |= POLLOUT;
+				if (Base.Events & Error)
+					Next.events |= POLLERR;
+				if (Base.Events & Hangup)
+					Next.events |= POLLHUP;
+			}
+
+			int Size = Poll(Fds.data(), FdCount, Timeout);
+			for (size_t i = 0; i < (size_t)FdCount; i++)
+			{
+				auto& Next = Fd[i];
+				Next.Returns = 0;
+
+				auto& Base = Fds[i];
+				if (Base.revents & POLLRDNORM)
+					Next.Returns |= InputNormal;
+				if (Base.revents & POLLRDBAND)
+					Next.Returns |= InputBand;
+				if (Base.revents & POLLPRI)
+					Next.Returns |= InputPriority;
+				if (Base.revents & POLLIN)
+					Next.Returns |= Input;
+				if (Base.revents & POLLWRNORM)
+					Next.Returns |= OutputNormal;
+				if (Base.revents & POLLWRBAND)
+					Next.Returns |= OutputBand;
+				if (Base.revents & POLLOUT)
+					Next.Returns |= Output;
+				if (Base.revents & POLLERR)
+					Next.Returns |= Error;
+				if (Base.revents & POLLHUP)
+					Next.Returns |= Hangup;
+			}
+
+			return Size;
+		}
 		int64_t Utils::Clock()
 		{
 			return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();

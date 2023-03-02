@@ -1715,7 +1715,7 @@ namespace Edge
 
 					do
 					{
-						for (auto& It = Sockets.begin(); It != Sockets.end(); It++)
+						for (auto It = Sockets.begin(); It != Sockets.end(); It++)
 						{
 							Utils::PollFd& Fd = *It; TConnection* Base = Queue[Fd.Fd];
 							if (Fd.Events == 0 || Fd.Returns & Utils::Input || Fd.Returns & Utils::Output)

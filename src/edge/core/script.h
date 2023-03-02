@@ -1147,16 +1147,6 @@ namespace Edge
 
 				return Result;
 			}
-			template <typename F>
-			int SetGetRefCount()
-			{
-				auto FactoryPtr = &VMRefClass::GcGetRefCount<F>;
-				asSFuncPtr* GetRefCount = VMBridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("int f()", VMBehave::GETREFCOUNT, GetRefCount, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&GetRefCount);
-
-				return Result;
-			}
 
 		private:
 			template <typename U>
@@ -1168,11 +1158,6 @@ namespace Edge
 			static void GcRelease(U* Base)
 			{
 				Base->AddRef();
-			}
-			template <typename U>
-			static int GcGetRefCount(U* Base)
-			{
-				return Base->GetRefCount();
 			}
 		};
 
@@ -1449,7 +1434,6 @@ namespace Edge
 				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF);
 				Class.SetAddRef<T>();
 				Class.SetRelease<T>();
-				Class.SetGetRefCount<T>();
 
 				return Class;
 			}

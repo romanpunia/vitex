@@ -787,7 +787,7 @@ namespace Edge
 					ED_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Edge::Scripting::VMRuntime::ACTIVE)
+					if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
 						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
 					Scripting::Module Src = Compiler->GetModule();
@@ -818,7 +818,7 @@ namespace Edge
 					ED_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Edge::Scripting::VMRuntime::ACTIVE)
+					if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
 						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
 					Scripting::Module Src = Compiler->GetModule();
@@ -839,7 +839,7 @@ namespace Edge
 					ED_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Edge::Scripting::VMRuntime::ACTIVE)
+					if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
 						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
 					Scripting::Module Src = Compiler->GetModule();

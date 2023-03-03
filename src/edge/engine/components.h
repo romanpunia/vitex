@@ -708,18 +708,18 @@ namespace Edge
 			protected:
 				struct
 				{
-					Script::VMCFunction* Serialize = nullptr;
-					Script::VMCFunction* Deserialize = nullptr;
-					Script::VMCFunction* Awake = nullptr;
-					Script::VMCFunction* Asleep = nullptr;
-					Script::VMCFunction* Synchronize = nullptr;
-					Script::VMCFunction* Animate = nullptr;
-					Script::VMCFunction* Update = nullptr;
-					Script::VMCFunction* Message = nullptr;
+					asIScriptFunction* Serialize = nullptr;
+					asIScriptFunction* Deserialize = nullptr;
+					asIScriptFunction* Awake = nullptr;
+					asIScriptFunction* Asleep = nullptr;
+					asIScriptFunction* Synchronize = nullptr;
+					asIScriptFunction* Animate = nullptr;
+					asIScriptFunction* Update = nullptr;
+					asIScriptFunction* Message = nullptr;
 				} Entry;
 
 			protected:
-				Script::VMCompiler* Compiler;
+				Scripting::Compiler* Compiler;
 				std::string Resource;
 				std::string Module;
 				SourceType Source;
@@ -735,18 +735,18 @@ namespace Edge
 				void Update(Core::Timer* Time) override;
 				void Message(const std::string& Name, Core::VariantArgs& Args) override;
 				Core::Unique<Component> Copy(Entity* New) const override;
-				Core::Promise<int> Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs);
-				Core::Promise<int> Call(Edge::Script::VMCFunction* Entry, Script::ArgsCallback&& OnArgs);
+				Core::Promise<int> Call(const std::string& Name, unsigned int Args, Scripting::ArgsCallback&& OnArgs);
+				Core::Promise<int> Call(asIScriptFunction* Entry, Scripting::ArgsCallback&& OnArgs);
 				Core::Promise<int> CallEntry(const std::string& Name);
 				int LoadSource();
 				int LoadSource(SourceType Type, const std::string& Source);
 				void SetInvocation(InvokeType Type);
 				void UnloadSource();
-				Script::VMCompiler* GetCompiler();
-				bool GetPropertyByName(const char* Name, Script::VMProperty* Result);
-				bool GetPropertyByIndex(int Index, Script::VMProperty* Result);
-				Script::VMFunction GetFunctionByName(const std::string& Name, unsigned int Args);
-				Script::VMFunction GetFunctionByIndex(int Index, unsigned int Args);
+				Scripting::Compiler* GetCompiler();
+				bool GetPropertyByName(const char* Name, Scripting::PropertyInfo* Result);
+				bool GetPropertyByIndex(int Index, Scripting::PropertyInfo* Result);
+				Scripting::Function GetFunctionByName(const std::string& Name, unsigned int Args);
+				Scripting::Function GetFunctionByIndex(int Index, unsigned int Args);
 				SourceType GetSourceType();
 				InvokeType GetInvokeType();
 				int GetPropertiesCount();
@@ -758,14 +758,14 @@ namespace Edge
 				template <typename T>
 				int SetTypePropertyByName(const char* Name, const T& Value)
 				{
-					ED_ASSERT(Name != nullptr, (int)Script::VMResult::INVALID_ARG, "name should be set");
-					ED_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
+					ED_ASSERT(Name != nullptr, (int)Scripting::Errors::INVALID_ARG, "name should be set");
+					ED_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
-						return (int)Script::VMResult::MODULE_IS_IN_USE;
+					if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
+						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
-					Script::VMModule Src = Compiler->GetModule();
+					Scripting::Module Src = Compiler->GetModule();
 					if (!Src.IsValid())
 						return 0;
 
@@ -783,16 +783,16 @@ namespace Edge
 				template <typename T>
 				int SetRefPropertyByName(const char* Name, T* Value)
 				{
-					ED_ASSERT(Name != nullptr, (int)Script::VMResult::INVALID_ARG, "name should be set");
-					ED_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
+					ED_ASSERT(Name != nullptr, (int)Scripting::Errors::INVALID_ARG, "name should be set");
+					ED_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
-						return (int)Script::VMResult::MODULE_IS_IN_USE;
+					if (VM->GetState() == Edge::Scripting::VMRuntime::ACTIVE)
+						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
-					Script::VMModule Src = Compiler->GetModule();
+					Scripting::Module Src = Compiler->GetModule();
 					if (!Src.IsValid())
-						return (int)Script::VMResult::INVALID_CONFIGURATION;
+						return (int)Scripting::Errors::INVALID_CONFIGURATION;
 
 					int Index = Src.GetPropertyIndexByName(Name);
 					if (Index < 0)
@@ -814,14 +814,14 @@ namespace Edge
 				template <typename T>
 				int SetTypePropertyByIndex(int Index, const T& Value)
 				{
-					ED_ASSERT(Index >= 0, (int)Script::VMResult::INVALID_ARG, "index should be greater or equal to zero");
-					ED_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
+					ED_ASSERT(Index >= 0, (int)Scripting::Errors::INVALID_ARG, "index should be greater or equal to zero");
+					ED_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
-						return (int)Script::VMResult::MODULE_IS_IN_USE;
+					if (VM->GetState() == Edge::Scripting::VMRuntime::ACTIVE)
+						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
-					Script::VMModule Src = Compiler->GetModule();
+					Scripting::Module Src = Compiler->GetModule();
 					if (!Src.IsValid())
 						return 0;
 
@@ -835,16 +835,16 @@ namespace Edge
 				template <typename T>
 				int SetRefPropertyByIndex(int Index, T* Value)
 				{
-					ED_ASSERT(Index >= 0, (int)Script::VMResult::INVALID_ARG, "index should be greater or equal to zero");
-					ED_ASSERT(Compiler != nullptr, (int)Script::VMResult::INVALID_ARG, "compiler should be set");
+					ED_ASSERT(Index >= 0, (int)Scripting::Errors::INVALID_ARG, "index should be greater or equal to zero");
+					ED_ASSERT(Compiler != nullptr, (int)Scripting::Errors::INVALID_ARG, "compiler should be set");
 
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
-						return (int)Script::VMResult::MODULE_IS_IN_USE;
+					if (VM->GetState() == Edge::Scripting::VMRuntime::ACTIVE)
+						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
-					Script::VMModule Src = Compiler->GetModule();
+					Scripting::Module Src = Compiler->GetModule();
 					if (!Src.IsValid())
-						return (int)Script::VMResult::INVALID_CONFIGURATION;
+						return (int)Scripting::Errors::INVALID_CONFIGURATION;
 
 					T** Address = (T**)Src.GetAddressOfProperty(Index);
 					if (!Address)

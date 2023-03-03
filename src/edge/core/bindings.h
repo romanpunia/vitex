@@ -1,25 +1,25 @@
 #ifndef ED_BINDINGS_H
 #define ED_BINDINGS_H
-#include "script.h"
+#include "scripting.h"
 #include "../engine/gui.h"
 #define ED_SHUFFLE(Name) Edge::Core::Shuffle<sizeof(Name)>(Name)
-#define ED_TYPEREF(Name, TypeName) static const uint64_t Name = ED_SHUFFLE(TypeName); Edge::Script::Bindings::TypeCache::Set(Name, TypeName)
-#define ED_PROMISIFY(MemberFunction, TypeId) Edge::Script::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define ED_PROMISIFY_REF(MemberFunction, TypeRef) Edge::Script::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
-#define ED_SPROMISIFY(Function, TypeId) Edge::Script::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
-#define ED_SPROMISIFY_REF(Function, TypeRef) Edge::Script::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
-#define ED_ARRAYIFY(MemberFunction, TypeId) Edge::Script::Bindings::Array::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define ED_ARRAYIFY_REF(MemberFunction, TypeRef) Edge::Script::Bindings::Array::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
-#define ED_SARRAYIFY(Function, TypeId) Edge::Script::Bindings::Array::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
-#define ED_SARRAYIFY_REF(Function, TypeRef) Edge::Script::Bindings::Array::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
-#define ED_ANYIFY(MemberFunction, TypeId) Edge::Script::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
-#define ED_ANYIFY_REF(MemberFunction, TypeRef) Edge::Script::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
-#define ED_SANYIFY(Function, TypeId) Edge::Script::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
-#define ED_SANYIFY_REF(Function, TypeRef) Edge::Script::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
+#define ED_TYPEREF(Name, TypeName) static const uint64_t Name = ED_SHUFFLE(TypeName); Edge::Scripting::Bindings::TypeCache::Set(Name, TypeName)
+#define ED_PROMISIFY(MemberFunction, TypeId) Edge::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define ED_PROMISIFY_REF(MemberFunction, TypeRef) Edge::Scripting::Bindings::Promise::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
+#define ED_SPROMISIFY(Function, TypeId) Edge::Scripting::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
+#define ED_SPROMISIFY_REF(Function, TypeRef) Edge::Scripting::Bindings::Promise::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
+#define ED_ARRAYIFY(MemberFunction, TypeId) Edge::Scripting::Bindings::Array::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define ED_ARRAYIFY_REF(MemberFunction, TypeRef) Edge::Scripting::Bindings::Array::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
+#define ED_SARRAYIFY(Function, TypeId) Edge::Scripting::Bindings::Array::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
+#define ED_SARRAYIFY_REF(Function, TypeRef) Edge::Scripting::Bindings::Array::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
+#define ED_ANYIFY(MemberFunction, TypeId) Edge::Scripting::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Id<TypeId>
+#define ED_ANYIFY_REF(MemberFunction, TypeRef) Edge::Scripting::Bindings::Any::Ify<decltype(&MemberFunction), &MemberFunction>::Decl<TypeRef>
+#define ED_SANYIFY(Function, TypeId) Edge::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Id<TypeId>
+#define ED_SANYIFY_REF(Function, TypeRef) Edge::Scripting::Bindings::Any::IfyStatic<decltype(&Function), &Function>::Decl<TypeRef>
 
 namespace Edge
 {
-	namespace Script
+	namespace Scripting
 	{
 		namespace Bindings
 		{
@@ -155,12 +155,12 @@ namespace Edge
 			protected:
 				mutable int RefCount;
 				mutable bool GCFlag;
-				VMCManager* Engine;
+				asIScriptEngine* Engine;
 				ValueStruct Value;
 
 			public:
-				Any(VMCManager* Engine) noexcept;
-				Any(void* Ref, int RefTypeId, VMCManager* Engine) noexcept;
+				Any(asIScriptEngine* Engine) noexcept;
+				Any(void* Ref, int RefTypeId, asIScriptEngine* Engine) noexcept;
 				Any(const Any&) noexcept;
 				int AddRef() const;
 				int Release() const;
@@ -172,8 +172,8 @@ namespace Edge
 				int GetRefCount();
 				void SetFlag();
 				bool GetFlag();
-				void EnumReferences(VMCManager* Engine);
-				void ReleaseAllHandles(VMCManager* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseAllHandles(asIScriptEngine* Engine);
 
 			protected:
 				~Any() noexcept;
@@ -183,8 +183,8 @@ namespace Edge
 				static Core::Unique<Any> Create();
 				static Core::Unique<Any> Create(int TypeId, void* Ref);
 				static Core::Unique<Any> Create(const char* Decl, void* Ref);
-				static void Factory1(VMCGeneric* G);
-				static void Factory2(VMCGeneric* G);
+				static void Factory1(asIScriptGeneric* G);
+				static void Factory2(asIScriptGeneric* G);
 				static Any& Assignment(Any* Other, Any* Self);
 
 			public:
@@ -197,7 +197,7 @@ namespace Edge
 				template <typename T, typename R, typename ...Args, R(T::* F)(Args...)>
 				struct Ify<R(T::*)(Args...), F>
 				{
-					template <VMTypeId TypeId>
+					template <TypeId TypeId>
 					static Any* Id(T* Base, Args... Data)
 					{
 						R Subresult((Base->*F)(Data...));
@@ -214,7 +214,7 @@ namespace Edge
 				template <typename R, typename ...Args, R(*F)(Args...)>
 				struct IfyStatic<R(*)(Args...), F>
 				{
-					template <VMTypeId TypeId>
+					template <TypeId TypeId>
 					static Any* Id(Args... Data)
 					{
 						R Subresult((*F)(Data...));
@@ -250,7 +250,7 @@ namespace Edge
 			protected:
 				mutable int RefCount;
 				mutable bool GCFlag;
-				VMCTypeInfo* ObjType;
+				asITypeInfo* ObjType;
 				SBuffer* Buffer;
 				int ElementSize;
 				int SubTypeId;
@@ -258,7 +258,7 @@ namespace Edge
 			public:
 				void AddRef() const;
 				void Release() const;
-				VMCTypeInfo* GetArrayObjectType() const;
+				asITypeInfo* GetArrayObjectType() const;
 				int GetArrayTypeId() const;
 				int GetElementTypeId() const;
 				size_t GetSize() const;
@@ -281,7 +281,7 @@ namespace Edge
 				void SortAsc(size_t StartAt, size_t Count);
 				void SortDesc(size_t StartAt, size_t Count);
 				void Sort(size_t StartAt, size_t Count, bool Asc);
-				void Sort(VMCFunction* Less, size_t StartAt, size_t Count);
+				void Sort(asIScriptFunction* Less, size_t StartAt, size_t Count);
 				void Reverse();
 				int Find(void* Value) const;
 				int Find(size_t StartAt, void* Value) const;
@@ -291,16 +291,16 @@ namespace Edge
 				int GetRefCount();
 				void SetFlag();
 				bool GetFlag();
-				void EnumReferences(VMCManager* Engine);
-				void ReleaseAllHandles(VMCManager* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseAllHandles(asIScriptEngine* Engine);
 
 			protected:
-				Array(VMCTypeInfo* T, void* InitBuf) noexcept;
-				Array(size_t Length, VMCTypeInfo* T) noexcept;
-				Array(size_t Length, void* DefVal, VMCTypeInfo* T) noexcept;
+				Array(asITypeInfo* T, void* InitBuf) noexcept;
+				Array(size_t Length, asITypeInfo* T) noexcept;
+				Array(size_t Length, void* DefVal, asITypeInfo* T) noexcept;
 				Array(const Array& Other) noexcept;
 				~Array() noexcept;
-				bool Less(const void* A, const void* B, bool Asc, VMCContext* Ctx, SCache* Cache);
+				bool Less(const void* A, const void* B, bool Asc, asIScriptContext* Ctx, SCache* Cache);
 				void* GetArrayItemPointer(int Index);
 				void* GetDataPointer(void* Buffer);
 				void Copy(void* Dst, void* Src);
@@ -312,19 +312,19 @@ namespace Edge
 				void CopyBuffer(SBuffer* Dst, SBuffer* Src);
 				void Construct(SBuffer* Buf, size_t Start, size_t End);
 				void Destruct(SBuffer* Buf, size_t Start, size_t End);
-				bool Equals(const void* A, const void* B, VMCContext* Ctx, SCache* Cache) const;
+				bool Equals(const void* A, const void* B, asIScriptContext* Ctx, SCache* Cache) const;
 
 			public:
-				static Core::Unique<Array> Create(VMCTypeInfo* T);
-				static Core::Unique<Array> Create(VMCTypeInfo* T, size_t Length);
-				static Core::Unique<Array> Create(VMCTypeInfo* T, size_t Length, void* DefaultValue);
-				static Core::Unique<Array> Create(VMCTypeInfo* T, void* ListBuffer);
-				static void CleanupTypeInfoCache(VMCTypeInfo* Type);
-				static bool TemplateCallback(VMCTypeInfo* T, bool& DontGarbageCollect);
+				static Core::Unique<Array> Create(asITypeInfo* T);
+				static Core::Unique<Array> Create(asITypeInfo* T, size_t Length);
+				static Core::Unique<Array> Create(asITypeInfo* T, size_t Length, void* DefaultValue);
+				static Core::Unique<Array> Create(asITypeInfo* T, void* ListBuffer);
+				static void CleanupTypeInfoCache(asITypeInfo* Type);
+				static bool TemplateCallback(asITypeInfo* T, bool& DontGarbageCollect);
 
 			public:
 				template <typename T>
-				static Array* Compose(VMCTypeInfo* ArrayType, const std::vector<T>& Objects)
+				static Array* Compose(asITypeInfo* ArrayType, const std::vector<T>& Objects)
 				{
 					Array* Array = Create(ArrayType, Objects.size());
 					for (size_t i = 0; i < Objects.size(); i++)
@@ -373,13 +373,13 @@ namespace Edge
 				template <typename T, typename R, typename ...Args, std::vector<R>(T::* F)(Args...)>
 				struct Ify<std::vector<R>(T::*)(Args...), F>
 				{
-					template <VMTypeId TypeId>
+					template <TypeId TypeId>
 					static Array* Id(T* Base, Args... Data)
 					{
-						VMManager* Manager = VMManager::Get();
-						ED_ASSERT(Manager != nullptr, nullptr, "manager should be present");
+						VirtualMachine* VM = VirtualMachine::Get();
+						ED_ASSERT(VM != nullptr, nullptr, "manager should be present");
 
-						VMCTypeInfo* Info = Manager->Global().GetTypeInfoById((int)TypeId).GetTypeInfo();
+						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 						std::vector<R> Source((Base->*F)(Data...));
@@ -388,10 +388,10 @@ namespace Edge
 					template <uint64_t TypeRef>
 					static Array* Decl(T* Base, Args... Data)
 					{
-						VMManager* Manager = VMManager::Get();
-						ED_ASSERT(Manager != nullptr, nullptr, "manager should be present");
+						VirtualMachine* VM = VirtualMachine::Get();
+						ED_ASSERT(VM != nullptr, nullptr, "manager should be present");
 
-						VMCTypeInfo* Info = Manager->Global().GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
+						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 						std::vector<R> Source((Base->*F)(Data...));
@@ -402,13 +402,13 @@ namespace Edge
 				template <typename R, typename ...Args, std::vector<R>(*F)(Args...)>
 				struct IfyStatic<std::vector<R>(*)(Args...), F>
 				{
-					template <VMTypeId TypeId>
+					template <TypeId TypeId>
 					static Array* Id(Args... Data)
 					{
-						VMManager* Manager = VMManager::Get();
-						ED_ASSERT(Manager != nullptr, nullptr, "manager should be present");
+						VirtualMachine* VM = VirtualMachine::Get();
+						ED_ASSERT(VM != nullptr, nullptr, "manager should be present");
 
-						VMCTypeInfo* Info = Manager->Global().GetTypeInfoById((int)TypeId).GetTypeInfo();
+						asITypeInfo* Info = VM->GetTypeInfoById((int)TypeId).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 						std::vector<R> Source((*F)(Data...));
@@ -417,10 +417,10 @@ namespace Edge
 					template <uint64_t TypeRef>
 					static Array* Decl(Args... Data)
 					{
-						VMManager* Manager = VMManager::Get();
-						ED_ASSERT(Manager != nullptr, nullptr, "manager should be present");
+						VirtualMachine* VM = VirtualMachine::Get();
+						ED_ASSERT(VM != nullptr, nullptr, "manager should be present");
 
-						VMCTypeInfo* Info = Manager->Global().GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
+						asITypeInfo* Info = VM->GetTypeInfoById(TypeCache::GetTypeId(TypeRef)).GetTypeInfo();
 						ED_ASSERT(Info != nullptr, nullptr, "typeinfo should be valid");
 
 						std::vector<R> Source((*F)(Data...));
@@ -445,15 +445,15 @@ namespace Edge
 
 			public:
 				MapKey() noexcept;
-				MapKey(VMCManager* Engine, void* Value, int TypeId) noexcept;
+				MapKey(asIScriptEngine* Engine, void* Value, int TypeId) noexcept;
 				~MapKey() noexcept;
-				void Set(VMCManager* Engine, void* Value, int TypeId);
-				void Set(VMCManager* Engine, MapKey& Value);
-				bool Get(VMCManager* Engine, void* Value, int TypeId) const;
+				void Set(asIScriptEngine* Engine, void* Value, int TypeId);
+				void Set(asIScriptEngine* Engine, MapKey& Value);
+				bool Get(asIScriptEngine* Engine, void* Value, int TypeId) const;
 				const void* GetAddressOfValue() const;
 				int GetTypeId() const;
-				void FreeValue(VMCManager* Engine);
-				void EnumReferences(VMCManager* Engine);
+				void FreeValue(asIScriptEngine* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
 			};
 
 			class ED_OUT Map
@@ -493,13 +493,13 @@ namespace Edge
 
 				struct SCache
 				{
-					VMCTypeInfo* DictType;
-					VMCTypeInfo* ArrayType;
-					VMCTypeInfo* KeyType;
+					asITypeInfo* DictType;
+					asITypeInfo* ArrayType;
+					asITypeInfo* KeyType;
 				};
 
 			protected:
-				VMCManager* Engine;
+				asIScriptEngine* Engine;
 				mutable int RefCount;
 				mutable bool GCFlag;
 				InternalMap Dict;
@@ -526,23 +526,23 @@ namespace Edge
 				int GetRefCount();
 				void SetGCFlag();
 				bool GetGCFlag();
-				void EnumReferences(VMCManager* Engine);
-				void ReleaseAllReferences(VMCManager* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseAllReferences(asIScriptEngine* Engine);
 
 			protected:
-				Map(VMCManager* Engine) noexcept;
+				Map(asIScriptEngine* Engine) noexcept;
 				Map(unsigned char* Buffer) noexcept;
 				Map(const Map&) noexcept;
 				~Map() noexcept;
-				void Init(VMCManager* Engine);
+				void Init(asIScriptEngine* Engine);
 
 			public:
-				static Core::Unique<Map> Create(VMCManager* Engine);
+				static Core::Unique<Map> Create(asIScriptEngine* Engine);
 				static Core::Unique<Map> Create(unsigned char* Buffer);
-				static void Cleanup(VMCManager* engine);
-				static void Setup(VMCManager* engine);
-				static void Factory(VMCGeneric* gen);
-				static void ListFactory(VMCGeneric* gen);
+				static void Cleanup(asIScriptEngine* engine);
+				static void Setup(asIScriptEngine* engine);
+				static void Factory(asIScriptGeneric* gen);
+				static void ListFactory(asIScriptGeneric* gen);
 				static void KeyConstruct(void* mem);
 				static void KeyDestruct(MapKey* obj);
 				static MapKey& KeyopAssign(void* ref, int typeId, MapKey* obj);
@@ -557,7 +557,7 @@ namespace Edge
 				template <typename T>
 				static Map* Compose(int TypeId, const std::unordered_map<std::string, T>& Objects)
 				{
-					auto* Engine = VMManager::Get();
+					auto* Engine = VirtualMachine::Get();
 					Map* Data = Create(Engine ? Engine->GetEngine() : nullptr);
 					for (auto& Item : Objects)
 						Data->Set(Item.first, (void*)&Item.second, TypeId);
@@ -613,7 +613,7 @@ namespace Edge
 			protected:
 				mutable int RefCount;
 				mutable bool GCFlag;
-				VMCTypeInfo* ObjType;
+				asITypeInfo* ObjType;
 				SBuffer* Buffer;
 				int ElementSize;
 				int SubTypeId;
@@ -621,7 +621,7 @@ namespace Edge
 			public:
 				void AddRef() const;
 				void Release() const;
-				VMCTypeInfo* GetGridObjectType() const;
+				asITypeInfo* GetGridObjectType() const;
 				int GetGridTypeId() const;
 				int GetElementTypeId() const;
 				size_t GetWidth() const;
@@ -633,13 +633,13 @@ namespace Edge
 				int GetRefCount();
 				void SetFlag();
 				bool GetFlag();
-				void EnumReferences(VMCManager* Engine);
-				void ReleaseAllHandles(VMCManager* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseAllHandles(asIScriptEngine* Engine);
 
 			protected:
-				Grid(VMCTypeInfo* T, void* InitBuf) noexcept;
-				Grid(size_t W, size_t H, VMCTypeInfo* T) noexcept;
-				Grid(size_t W, size_t H, void* DefVal, VMCTypeInfo* T) noexcept;
+				Grid(asITypeInfo* T, void* InitBuf) noexcept;
+				Grid(size_t W, size_t H, asITypeInfo* T) noexcept;
+				Grid(size_t W, size_t H, void* DefVal, asITypeInfo* T) noexcept;
 				~Grid() noexcept;
 				bool CheckMaxSize(size_t X, size_t Y);
 				void CreateBuffer(SBuffer** Buf, size_t W, size_t H);
@@ -650,36 +650,36 @@ namespace Edge
 				void* At(SBuffer* Buf, size_t X, size_t Y);
 
 			public:
-				static Core::Unique<Grid> Create(VMCTypeInfo* T);
-				static Core::Unique<Grid> Create(VMCTypeInfo* T, size_t Width, size_t Height);
-				static Core::Unique<Grid> Create(VMCTypeInfo* T, size_t Width, size_t Height, void* DefaultValue);
-				static Core::Unique<Grid> Create(VMCTypeInfo* T, void* ListBuffer);
-				static bool TemplateCallback(VMCTypeInfo* TI, bool& DontGarbageCollect);
+				static Core::Unique<Grid> Create(asITypeInfo* T);
+				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height);
+				static Core::Unique<Grid> Create(asITypeInfo* T, size_t Width, size_t Height, void* DefaultValue);
+				static Core::Unique<Grid> Create(asITypeInfo* T, void* ListBuffer);
+				static bool TemplateCallback(asITypeInfo* TI, bool& DontGarbageCollect);
 			};
 
 			class ED_OUT Ref
 			{
 			protected:
-				VMCTypeInfo* Type;
+				asITypeInfo* Type;
 				void* Pointer;
 
 			public:
 				Ref() noexcept;
 				Ref(const Ref& Other) noexcept;
-				Ref(void* Ref, VMCTypeInfo* Type) noexcept;
+				Ref(void* Ref, asITypeInfo* Type) noexcept;
 				Ref(void* Ref, int TypeId) noexcept;
 				~Ref() noexcept;
 				Ref& operator=(const Ref& Other) noexcept;
-				void Set(void* Ref, VMCTypeInfo* Type);
+				void Set(void* Ref, asITypeInfo* Type);
 				bool operator== (const Ref& Other) const;
 				bool operator!= (const Ref& Other) const;
 				bool Equals(void* Ref, int TypeId) const;
 				void Cast(void** OutRef, int TypeId);
-				VMCTypeInfo* GetType() const;
+				asITypeInfo* GetType() const;
 				int GetTypeId() const;
 				void* GetRef();
-				void EnumReferences(VMCManager* Engine);
-				void ReleaseReferences(VMCManager* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
 				Ref& Assign(void* Ref, int TypeId);
 
 			protected:
@@ -696,14 +696,14 @@ namespace Edge
 			class ED_OUT WeakRef
 			{
 			protected:
-				VMCLockableSharedBool* WeakRefFlag;
-				VMCTypeInfo* Type;
+				asILockableSharedBool* WeakRefFlag;
+				asITypeInfo* Type;
 				void* Ref;
 
 			public:
-				WeakRef(VMCTypeInfo* Type) noexcept;
+				WeakRef(asITypeInfo* Type) noexcept;
 				WeakRef(const WeakRef& Other) noexcept;
-				WeakRef(void* Ref, VMCTypeInfo* Type) noexcept;
+				WeakRef(void* Ref, asITypeInfo* Type) noexcept;
 				~WeakRef() noexcept;
 				WeakRef& operator= (const WeakRef& Other) noexcept;
 				bool operator== (const WeakRef& Other) const;
@@ -711,13 +711,13 @@ namespace Edge
 				WeakRef& Set(void* NewRef);
 				void* Get() const;
 				bool Equals(void* Ref) const;
-				VMCTypeInfo* GetRefType() const;
+				asITypeInfo* GetRefType() const;
 
 			public:
-				static void Construct(VMCTypeInfo* type, void* mem);
-				static void Construct2(VMCTypeInfo* type, void* ref, void* mem);
+				static void Construct(asITypeInfo* type, void* mem);
+				static void Construct2(asITypeInfo* type, void* ref, void* mem);
 				static void Destruct(WeakRef* obj);
-				static bool TemplateCallback(VMCTypeInfo* TI, bool&);
+				static bool TemplateCallback(asITypeInfo* TI, bool&);
 			};
 
 			class ED_OUT Complex
@@ -774,17 +774,17 @@ namespace Edge
 				std::condition_variable CV;
 				std::thread Procedure;
 				std::mutex Mutex;
-				VMCFunction* Function;
-				VMManager* Manager;
-				VMContext* Context;
+				asIScriptFunction* Function;
+				VirtualMachine* VM;
+				ImmediateContext* Context;
 				bool GCFlag;
 				int Ref;
 
 			public:
-				Thread(VMCManager* Engine, VMCFunction* Function) noexcept;
-				void EnumReferences(VMCManager* Engine);
+				Thread(asIScriptEngine* Engine, asIScriptFunction* Function) noexcept;
+				void EnumReferences(asIScriptEngine* Engine);
 				void SetGCFlag();
-				void ReleaseReferences(VMCManager* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
 				void AddRef();
 				void Release();
 				void Suspend();
@@ -804,7 +804,7 @@ namespace Edge
 				void Routine();
 
 			public:
-				static void Create(VMCGeneric* Generic);
+				static void Create(asIScriptGeneric* Generic);
 				static Thread* GetThread();
 				static std::string GetThreadId();
 				static void ThreadSleep(uint64_t Mills);
@@ -826,14 +826,14 @@ namespace Edge
 
 			class ED_OUT Promise
 			{
-				friend VMContext;
+				friend ImmediateContext;
 
 			private:
 				static int PromiseUD;
 
 			private:
-				VMCManager* Engine;
-				VMContext* Context;
+				asIScriptEngine* Engine;
+				ImmediateContext* Context;
 				Any* Future;
 				std::mutex Update;
 				int Ref;
@@ -841,11 +841,11 @@ namespace Edge
 				bool Flag;
 
 			private:
-				Promise(VMCContext* Base, bool IsRef) noexcept;
+				Promise(asIScriptContext* Base, bool IsRef) noexcept;
 
 			public:
-				void EnumReferences(VMCManager* Engine);
-				void ReleaseReferences(VMCManager* Engine);
+				void EnumReferences(asIScriptEngine* Engine);
+				void ReleaseReferences(asIScriptEngine* Engine);
 				void AddRef();
 				void Release();
 				void SetGCFlag();
@@ -861,7 +861,7 @@ namespace Edge
 				int Notify();
 
 			public:
-				static std::string GetStatus(VMContext* Context);
+				static std::string GetStatus(ImmediateContext* Context);
 
 			private:
 				static Core::Unique<Promise> Create();
@@ -878,7 +878,7 @@ namespace Edge
 				template <typename T, typename R, typename ...Args, Core::Promise<R>(T::* F)(Args...)>
 				struct Ify<Core::Promise<R>(T::*)(Args...), F>
 				{
-					template <VMTypeId TypeId>
+					template <TypeId TypeId>
 					static Promise* Id(T* Base, Args... Data)
 					{
 						Promise* Future = Promise::Create();
@@ -906,7 +906,7 @@ namespace Edge
 				template <typename R, typename ...Args, Core::Promise<R>(*F)(Args...)>
 				struct IfyStatic<Core::Promise<R>(*)(Args...), F>
 				{
-					template <VMTypeId TypeId>
+					template <TypeId TypeId>
 					static Promise* Id(Args... Data)
 					{
 						Promise* Future = Promise::Create();
@@ -948,71 +948,71 @@ namespace Edge
 				static void Write(Core::Console* Base, const std::string& F, Format* Form);
 
 			private:
-				static void FormatBuffer(VMGlobal& Global, Core::Parser& Result, std::string& Offset, void* Ref, int TypeId);
-				static void FormatJSON(VMGlobal& Global, Core::Parser& Result, void* Ref, int TypeId);
+				static void FormatBuffer(VirtualMachine* VM, Core::Parser& Result, std::string& Offset, void* Ref, int TypeId);
+				static void FormatJSON(VirtualMachine* VM, Core::Parser& Result, void* Ref, int TypeId);
 			};
 
 			class ED_OUT ModelListener : public Core::Reference<ModelListener>
 			{
 			private:
 				Engine::GUI::Listener* Base;
-				VMCFunction* Source;
-				VMContext* Context;
+				asIScriptFunction* Source;
+				ImmediateContext* Context;
 
 			public:
-				ModelListener(VMCFunction* NewCallback) noexcept;
+				ModelListener(asIScriptFunction* NewCallback) noexcept;
 				ModelListener(const std::string& FunctionName) noexcept;
 				~ModelListener() noexcept;
 
 			private:
-				Engine::GUI::EventCallback Bind(VMCFunction* Callback);
+				Engine::GUI::EventCallback Bind(asIScriptFunction* Callback);
 			};
 
 			class ED_OUT_TS Registry
 			{
 			public:
-				static bool LoadCTypes(VMManager* Manager);
-				static bool LoadAny(VMManager* Manager);
-				static bool LoadArray(VMManager* Manager);
-				static bool LoadComplex(VMManager* Manager);
-				static bool LoadMap(VMManager* Manager);
-				static bool LoadGrid(VMManager* Manager);
-				static bool LoadRef(VMManager* Manager);
-				static bool LoadWeakRef(VMManager* Manager);
-				static bool LoadMath(VMManager* Manager);
-				static bool LoadString(VMManager* Manager);
-				static bool LoadException(VMManager* Manager);
-				static bool LoadMutex(VMManager* Manager);
-				static bool LoadThread(VMManager* Manager);
-				static bool LoadRandom(VMManager* Manager);
-				static bool LoadPromise(VMManager* Manager);
-				static bool LoadFormat(VMManager* Engine);
-				static bool LoadDecimal(VMManager* Engine);
-				static bool LoadVariant(VMManager* Engine);
-				static bool LoadTimestamp(VMManager* Engine);
-				static bool LoadConsole(VMManager* Engine);
-				static bool LoadSchema(VMManager* Engine);
-				static bool LoadTickClock(VMManager* Engine);
-				static bool LoadFileSystem(VMManager* Engine);
-				static bool LoadOS(VMManager* Engine);
-				static bool LoadSchedule(VMManager* Engine);
-				static bool LoadVertices(VMManager* Engine);
-				static bool LoadVectors(VMManager* Engine);
-				static bool LoadShapes(VMManager* Engine);
-				static bool LoadKeyFrames(VMManager* Engine);
-				static bool LoadRegex(VMManager* Engine);
-				static bool LoadCrypto(VMManager* Engine);
-				static bool LoadGeometric(VMManager* Engine);
-				static bool LoadPreprocessor(VMManager* Engine);
-				static bool LoadPhysics(VMManager* Engine);
-				static bool LoadAudio(VMManager* Engine);
-				static bool LoadActivity(VMManager* Engine);
-				static bool LoadGraphics(VMManager* Engine);
-				static bool LoadNetwork(VMManager* Engine);
-				static bool LoadEngine(VMManager* Engine);
-				static bool LoadUiModel(VMManager* Engine);
-				static bool LoadUiControl(VMManager* Engine);
-				static bool LoadUiContext(VMManager* Engine);
+				static bool LoadCTypes(VirtualMachine* VM);
+				static bool LoadAny(VirtualMachine* VM);
+				static bool LoadArray(VirtualMachine* VM);
+				static bool LoadComplex(VirtualMachine* VM);
+				static bool LoadMap(VirtualMachine* VM);
+				static bool LoadGrid(VirtualMachine* VM);
+				static bool LoadRef(VirtualMachine* VM);
+				static bool LoadWeakRef(VirtualMachine* VM);
+				static bool LoadMath(VirtualMachine* VM);
+				static bool LoadString(VirtualMachine* VM);
+				static bool LoadException(VirtualMachine* VM);
+				static bool LoadMutex(VirtualMachine* VM);
+				static bool LoadThread(VirtualMachine* VM);
+				static bool LoadRandom(VirtualMachine* VM);
+				static bool LoadPromise(VirtualMachine* VM);
+				static bool LoadFormat(VirtualMachine* Engine);
+				static bool LoadDecimal(VirtualMachine* Engine);
+				static bool LoadVariant(VirtualMachine* Engine);
+				static bool LoadTimestamp(VirtualMachine* Engine);
+				static bool LoadConsole(VirtualMachine* Engine);
+				static bool LoadSchema(VirtualMachine* Engine);
+				static bool LoadTickClock(VirtualMachine* Engine);
+				static bool LoadFileSystem(VirtualMachine* Engine);
+				static bool LoadOS(VirtualMachine* Engine);
+				static bool LoadSchedule(VirtualMachine* Engine);
+				static bool LoadVertices(VirtualMachine* Engine);
+				static bool LoadVectors(VirtualMachine* Engine);
+				static bool LoadShapes(VirtualMachine* Engine);
+				static bool LoadKeyFrames(VirtualMachine* Engine);
+				static bool LoadRegex(VirtualMachine* Engine);
+				static bool LoadCrypto(VirtualMachine* Engine);
+				static bool LoadGeometric(VirtualMachine* Engine);
+				static bool LoadPreprocessor(VirtualMachine* Engine);
+				static bool LoadPhysics(VirtualMachine* Engine);
+				static bool LoadAudio(VirtualMachine* Engine);
+				static bool LoadActivity(VirtualMachine* Engine);
+				static bool LoadGraphics(VirtualMachine* Engine);
+				static bool LoadNetwork(VirtualMachine* Engine);
+				static bool LoadEngine(VirtualMachine* Engine);
+				static bool LoadUiModel(VirtualMachine* Engine);
+				static bool LoadUiControl(VirtualMachine* Engine);
+				static bool LoadUiContext(VirtualMachine* Engine);
 				static bool Release();
 			};
 		}

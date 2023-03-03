@@ -458,7 +458,7 @@ namespace Edge
 				return true;
 			}
 
-			GatewayFrame::GatewayFrame(HTTP::Connection* NewBase, Script::VMCompiler* NewCompiler) : Base(NewBase), Compiler(NewCompiler), Active(true)
+			GatewayFrame::GatewayFrame(HTTP::Connection* NewBase, Scripting::Compiler* NewCompiler) : Base(NewBase), Compiler(NewCompiler), Active(true)
 			{
 				ED_ASSERT_V(Base != nullptr, "connection should be set");
 				ED_ASSERT_V(Compiler != nullptr, "compiler should be set");
@@ -484,8 +484,8 @@ namespace Edge
 					if (Result < 0)
 						return Error(500, "Module cannot be compiled.");
 
-					Script::VMModule Module = Compiler->GetModule();
-					Script::VMFunction Entry = Module.GetFunctionByName("Main");
+					Scripting::Module Module = Compiler->GetModule();
+					Scripting::Function Entry = Module.GetFunctionByName("Main");
 					if (!Entry.IsValid())
 					{
 						Entry = Module.GetFunctionByName(Method);
@@ -495,18 +495,18 @@ namespace Edge
 
 					ED_DEBUG("[http] enter context on 0x%" PRIXPTR, (uintptr_t)Compiler);
 
-					Script::VMContext* Context = Compiler->GetContext();
+					Scripting::ImmediateContext* Context = Compiler->GetContext();
 					Context->TryExecute(false, Entry, nullptr).Await([this, Context](int Result)
 					{
 						int Response = -1;
 						if (Result >= 0)
 						{
-							Script::VMRuntime Status = (Script::VMRuntime)Result;
-							if (Status == Script::VMRuntime::FINISHED)
+							Scripting::Activation Status = (Scripting::Activation)Result;
+							if (Status == Scripting::Activation::FINISHED)
 								Response = 0;
-							else if (Status == Script::VMRuntime::ERR || Status == Script::VMRuntime::ABORTED)
+							else if (Status == Scripting::Activation::ERR || Status == Scripting::Activation::ABORTED)
 								Response = 1;
-							else if (Status == Script::VMRuntime::EXCEPTION)
+							else if (Status == Scripting::Activation::EXCEPTION)
 								Response = Context->IsThrown() ? 1 : 0;
 						}
 
@@ -573,7 +573,7 @@ namespace Edge
 					return false;
 				}
 
-				Script::VMContext* Context = Compiler->GetContext();
+				Scripting::ImmediateContext* Context = Compiler->GetContext();
 				if (!Context)
 				{
 					Base->Info.Sync.unlock();
@@ -586,11 +586,11 @@ namespace Edge
 				Base->Info.Sync.unlock();
 				return true;
 			}
-			Script::VMContext* GatewayFrame::GetContext()
+			Scripting::ImmediateContext* GatewayFrame::GetContext()
 			{
 				return (Compiler ? Compiler->GetContext() : nullptr);
 			}
-			Script::VMCompiler* GatewayFrame::GetCompiler()
+			Scripting::Compiler* GatewayFrame::GetCompiler()
 			{
 				return Compiler;
 			}
@@ -5599,13 +5599,13 @@ namespace Edge
 				if (!Base->Route->Callbacks.Compiler)
 					return Base->Error(400, "Gateway cannot be issued.") && false;
 
-				Script::VMManager* VM = ((MapRouter*)Base->Root->GetRouter())->VM;
+				Scripting::VirtualMachine* VM = ((MapRouter*)Base->Root->GetRouter())->VM;
 				if (!VM)
 					return Base->Error(500, "Gateway cannot be issued.") && false;
 
 				return Core::Schedule::Get()->SetTask([Base, VM]()
 				{
-					Script::VMCompiler* Compiler = VM->CreateCompiler();
+					Scripting::Compiler* Compiler = VM->CreateCompiler();
 					if (Compiler->Prepare(Core::OS::Path::GetFilename(Base->Request.Path.c_str()), Base->Request.Path, true, true) < 0)
 					{
 						ED_RELEASE(Compiler);
@@ -5659,7 +5659,7 @@ namespace Edge
 
 								if (Base->Route->Gateway.ReportStack)
 								{
-									Script::VMContext* Context = Gateway->GetContext();
+									Scripting::ImmediateContext* Context = Gateway->GetContext();
 									if (Context != nullptr)
 									{
 										std::string Stack = Context->GetErrorStackTrace();
@@ -6003,10 +6003,10 @@ namespace Edge
 
 					if (Base->Gateway != nullptr)
 					{
-						Script::VMContext* Context = Base->Gateway->GetContext();
+						Scripting::ImmediateContext* Context = Base->Gateway->GetContext();
 						if (Context != nullptr)
 						{
-							Status += "\nvcontext: " + Script::Bindings::Promise::GetStatus(Context);
+							Status += "\nvcontext: " + Scripting::Bindings::Promise::GetStatus(Context);
 							Status += "\ngateway " + Context->GetStackTrace(0, 64);
 						}
 						else

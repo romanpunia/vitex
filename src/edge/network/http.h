@@ -2,7 +2,7 @@
 #define ED_NETWORK_HTTP_H
 #define ED_HTTP_PAYLOAD (1024 * 64)
 #include "../core/network.h"
-#include "../core/script.h"
+#include "../core/scripting.h"
 
 namespace Edge
 {
@@ -79,7 +79,7 @@ namespace Edge
 			typedef std::function<bool(class Connection*, SocketPoll, const char*, size_t)> ContentCallback;
 			typedef std::function<bool(class Connection*, struct Credentials*)> AuthorizeCallback;
 			typedef std::function<bool(class Connection*, Core::Parser*)> HeaderCallback;
-			typedef std::function<bool(class Connection*, Script::VMCompiler*)> CompilerCallback;
+			typedef std::function<bool(class Connection*, Scripting::Compiler*)> CompilerCallback;
 			typedef std::function<bool(struct Resource*)> ResourceCallback;
 			typedef std::function<void(class WebSocketFrame*)> WebSocketCallback;
 			typedef std::function<bool(class WebSocketFrame*, WebSocketOp, const char*, size_t)> WebSocketReadCallback;
@@ -323,18 +323,18 @@ namespace Edge
 
 			private:
 				HTTP::Connection* Base;
-				Script::VMCompiler* Compiler;
+				Scripting::Compiler* Compiler;
 				std::atomic<bool> Active;
 
 			public:
-				GatewayFrame(HTTP::Connection* NewBase, Script::VMCompiler* NewCompiler);
+				GatewayFrame(HTTP::Connection* NewBase, Scripting::Compiler* NewCompiler);
 				bool Start(const std::string& Path, const char* Method, char* Buffer, size_t Size);
 				bool Error(int StatusCode, const char* Text);
 				bool Finish();
 				bool IsFinished();
 				bool GetException(const char** Exception, const char** Function, int* Line, int* Column);
-				Script::VMContext* GetContext();
-				Script::VMCompiler* GetCompiler();
+				Scripting::ImmediateContext* GetContext();
+				Scripting::Compiler* GetCompiler();
 				HTTP::Connection* GetBase();
 			};
 
@@ -486,7 +486,7 @@ namespace Edge
 			public:
 				std::unordered_map<std::string, SiteEntry*> Sites;
 				std::string ModuleRoot;
-				Script::VMManager* VM;
+				Scripting::VirtualMachine* VM;
 
 			public:
 				MapRouter();

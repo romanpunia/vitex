@@ -9743,7 +9743,7 @@ namespace Edge
 			else
 				ED_DEBUG("[schedule] join thread %s", ThreadId.c_str());
 
-			Script::VMManager::CleanupThisThread();
+			Scripting::VirtualMachine::CleanupThisThread();
 			return true;
 		}
 		bool Schedule::ThreadActive(ThreadPtr* Thread)

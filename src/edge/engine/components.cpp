@@ -3548,79 +3548,79 @@ namespace Edge
 						if (!Series::Unpack(Var->Find("type"), &TypeId))
 							continue;
 
-						switch ((Script::VMTypeId)TypeId)
+						switch ((Scripting::TypeId)TypeId)
 						{
-							case Script::VMTypeId::BOOL:
+							case Scripting::TypeId::BOOL:
 							{
 								bool Result = false;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
-							case Script::VMTypeId::INT8:
+							case Scripting::TypeId::INT8:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (char)Result);
 								break;
 							}
-							case Script::VMTypeId::INT16:
+							case Scripting::TypeId::INT16:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (short)Result);
 								break;
 							}
-							case Script::VMTypeId::INT32:
+							case Scripting::TypeId::INT32:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (int)Result);
 								break;
 							}
-							case Script::VMTypeId::INT64:
+							case Scripting::TypeId::INT64:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
-							case Script::VMTypeId::UINT8:
+							case Scripting::TypeId::UINT8:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned char)Result);
 								break;
 							}
-							case Script::VMTypeId::UINT16:
+							case Scripting::TypeId::UINT16:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned short)Result);
 								break;
 							}
-							case Script::VMTypeId::UINT32:
+							case Scripting::TypeId::UINT32:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (unsigned int)Result);
 								break;
 							}
-							case Script::VMTypeId::UINT64:
+							case Scripting::TypeId::UINT64:
 							{
 								int64_t Result = 0;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), (uint64_t)Result);
 								break;
 							}
-							case Script::VMTypeId::FLOAT:
+							case Scripting::TypeId::FLOAT:
 							{
 								float Result = 0.0f;
 								if (Series::Unpack(Var->Find("data"), &Result))
 									SetTypePropertyByName(Var->Key.c_str(), Result);
 								break;
 							}
-							case Script::VMTypeId::DOUBLE:
+							case Scripting::TypeId::DOUBLE:
 							{
 								double Result = 0.0;
 								if (Series::Unpack(Var->Find("data"), &Result))
@@ -3638,7 +3638,7 @@ namespace Edge
 					}
 				}
 
-				Call(Entry.Deserialize, [this, &Node](Script::VMContext* Context)
+				Call(Entry.Deserialize, [this, &Node](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3668,51 +3668,51 @@ namespace Edge
 				Core::Schema* Cache = Node->Set("cache");
 				for (int i = 0; i < Count; i++)
 				{
-					Script::VMProperty Result;
+					Scripting::PropertyInfo Result;
 					if (!GetPropertyByIndex(i, &Result) || !Result.Name || !Result.Pointer)
 						continue;
 
 					Core::Schema* Var = Core::Var::Set::Object();
 					Series::Pack(Var->Set("type"), Result.TypeId);
 
-					switch ((Script::VMTypeId)Result.TypeId)
+					switch ((Scripting::TypeId)Result.TypeId)
 					{
-						case Script::VMTypeId::BOOL:
+						case Scripting::TypeId::BOOL:
 							Series::Pack(Var->Set("data"), *(bool*)Result.Pointer);
 							break;
-						case Script::VMTypeId::INT8:
+						case Scripting::TypeId::INT8:
 							Series::Pack(Var->Set("data"), (int64_t) * (char*)Result.Pointer);
 							break;
-						case Script::VMTypeId::INT16:
+						case Scripting::TypeId::INT16:
 							Series::Pack(Var->Set("data"), (int64_t) * (short*)Result.Pointer);
 							break;
-						case Script::VMTypeId::INT32:
+						case Scripting::TypeId::INT32:
 							Series::Pack(Var->Set("data"), (int64_t) * (int*)Result.Pointer);
 							break;
-						case Script::VMTypeId::INT64:
+						case Scripting::TypeId::INT64:
 							Series::Pack(Var->Set("data"), *(int64_t*)Result.Pointer);
 							break;
-						case Script::VMTypeId::UINT8:
+						case Scripting::TypeId::UINT8:
 							Series::Pack(Var->Set("data"), (int64_t) * (unsigned char*)Result.Pointer);
 							break;
-						case Script::VMTypeId::UINT16:
+						case Scripting::TypeId::UINT16:
 							Series::Pack(Var->Set("data"), (int64_t) * (unsigned short*)Result.Pointer);
 							break;
-						case Script::VMTypeId::UINT32:
+						case Scripting::TypeId::UINT32:
 							Series::Pack(Var->Set("data"), (int64_t) * (unsigned int*)Result.Pointer);
 							break;
-						case Script::VMTypeId::UINT64:
+						case Scripting::TypeId::UINT64:
 							Series::Pack(Var->Set("data"), (int64_t) * (uint64_t*)Result.Pointer);
 							break;
-						case Script::VMTypeId::FLOAT:
+						case Scripting::TypeId::FLOAT:
 							Series::Pack(Var->Set("data"), (double)*(float*)Result.Pointer);
 							break;
-						case Script::VMTypeId::DOUBLE:
+						case Scripting::TypeId::DOUBLE:
 							Series::Pack(Var->Set("data"), *(double*)Result.Pointer);
 							break;
 						default:
 						{
-							Script::VMTypeInfo Type = GetCompiler()->GetManager()->Global().GetTypeInfoById(Result.TypeId);
+							Scripting::TypeInfo Type = GetCompiler()->GetVM()->GetTypeInfoById(Result.TypeId);
 							if (Type.IsValid() && strcmp(Type.GetName(), "String") == 0)
 								Series::Pack(Var->Set("data"), *(std::string*)Result.Pointer);
 							else
@@ -3725,7 +3725,7 @@ namespace Edge
 						Cache->Set(Result.Name, Var);
 				}
 
-				Call(Entry.Serialize, [this, &Node](Script::VMContext* Context)
+				Call(Entry.Serialize, [this, &Node](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3740,7 +3740,7 @@ namespace Edge
 				if (!Parent->GetScene()->IsActive())
 					return;
 
-				Call(Entry.Awake, [this, &New](Script::VMContext* Context)
+				Call(Entry.Awake, [this, &New](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3752,7 +3752,7 @@ namespace Edge
 			}
 			void Scriptable::Deactivate()
 			{
-				Call(Entry.Asleep, [this](Script::VMContext* Context)
+				Call(Entry.Asleep, [this](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3763,7 +3763,7 @@ namespace Edge
 			}
 			void Scriptable::Update(Core::Timer* Time)
 			{
-				Call(Entry.Update, [this, &Time](Script::VMContext* Context)
+				Call(Entry.Update, [this, &Time](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3775,15 +3775,15 @@ namespace Edge
 			}
 			void Scriptable::Message(const std::string& Name, Core::VariantArgs& Args)
 			{
-				Call(Entry.Message, [this, Name, Args](Script::VMContext* Context)
+				Call(Entry.Message, [this, Name, Args](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
 
-					Script::Bindings::Map* Map = Script::Bindings::Map::Create(Compiler->GetManager()->GetEngine());
+					Scripting::Bindings::Map* Map = Scripting::Bindings::Map::Create(Compiler->GetVM()->GetEngine());
 					if (Map != nullptr)
 					{
-						int TypeId = Compiler->GetManager()->Global().GetTypeIdByDecl("Variant");
+						int TypeId = Compiler->GetVM()->GetTypeIdByDecl("Variant");
 						for (auto& Item : Args)
 						{
 							Core::Variant Next = std::move(Item.second);
@@ -3805,15 +3805,15 @@ namespace Edge
 				if (!Compiler || !Target->Compiler)
 					return Target;
 
-				if (Compiler->GetContext()->GetState() == Edge::Script::VMRuntime::ACTIVE)
+				if (Compiler->GetContext()->GetState() == Edge::Scripting::Activation::ACTIVE)
 					return Target;
 
-				if (Target->Compiler->GetContext()->GetState() == Edge::Script::VMRuntime::ACTIVE)
+				if (Target->Compiler->GetContext()->GetState() == Edge::Scripting::Activation::ACTIVE)
 					return Target;
 
-				Script::VMModule From = Compiler->GetModule();
-				Script::VMModule To = Target->Compiler->GetModule();
-				Script::VMManager* Manager = Compiler->GetManager();
+				Scripting::Module From = Compiler->GetModule();
+				Scripting::Module To = Target->Compiler->GetModule();
+				Scripting::VirtualMachine* VM = Compiler->GetVM();
 
 				if (!From.IsValid() || !To.IsValid())
 					return Target;
@@ -3821,30 +3821,30 @@ namespace Edge
 				int Count = (int)From.GetPropertiesCount();
 				for (int i = 0; i < Count; i++)
 				{
-					Script::VMProperty fSource;
+					Scripting::PropertyInfo fSource;
 					if (From.GetProperty(i, &fSource) < 0)
 						continue;
 
-					Script::VMProperty Dest;
+					Scripting::PropertyInfo Dest;
 					if (To.GetProperty(i, &Dest) < 0)
 						continue;
 
 					if (fSource.TypeId != Dest.TypeId)
 						continue;
 
-					if (fSource.TypeId < (int)Script::VMTypeId::BOOL || fSource.TypeId >(int)Script::VMTypeId::DOUBLE)
+					if (fSource.TypeId < (int)Scripting::TypeId::BOOL || fSource.TypeId >(int)Scripting::TypeId::DOUBLE)
 					{
-						Script::VMTypeInfo Type = Manager->Global().GetTypeInfoById(fSource.TypeId);
+						Scripting::TypeInfo Type = VM->GetTypeInfoById(fSource.TypeId);
 						if (fSource.Pointer != nullptr && Type.IsValid())
 						{
-							void* Object = Manager->CreateObjectCopy(fSource.Pointer, Type);
+							void* Object = VM->CreateObjectCopy(fSource.Pointer, Type);
 							if (Object != nullptr)
-								Manager->AssignObject(Dest.Pointer, Object, Type);
+								VM->AssignObject(Dest.Pointer, Object, Type);
 						}
 					}
 					else
 					{
-						int Size = Manager->Global().GetSizeOfPrimitiveType(fSource.TypeId);
+						int Size = VM->GetSizeOfPrimitiveType(fSource.TypeId);
 						if (Size > 0)
 							memcpy(Dest.Pointer, fSource.Pointer, (size_t)Size);
 					}
@@ -3852,23 +3852,23 @@ namespace Edge
 
 				return Target;
 			}
-			Core::Promise<int> Scriptable::Call(const std::string& Name, unsigned int Args, Script::ArgsCallback&& OnArgs)
+			Core::Promise<int> Scriptable::Call(const std::string& Name, unsigned int Args, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Core::Promise<int>((int)Script::VMResult::INVALID_CONFIGURATION);
+					return Core::Promise<int>((int)Scripting::Errors::INVALID_CONFIGURATION);
 
 				return Call(GetFunctionByName(Name, Args).GetFunction(), std::move(OnArgs));
 			}
-			Core::Promise<int> Scriptable::Call(Script::VMCFunction* Function, Script::ArgsCallback&& OnArgs)
+			Core::Promise<int> Scriptable::Call(asIScriptFunction* Function, Scripting::ArgsCallback&& OnArgs)
 			{
 				if (!Compiler)
-					return Core::Promise<int>((int)Script::VMResult::INVALID_CONFIGURATION);
+					return Core::Promise<int>((int)Scripting::Errors::INVALID_CONFIGURATION);
 
 				if (!Function)
-					return Core::Promise<int>((int)Script::VMResult::INVALID_ARG);
+					return Core::Promise<int>((int)Scripting::Errors::INVALID_ARG);
 
 				Protect();
-				return Compiler->GetContext()->TryExecute(false, Function, [OnArgs = std::move(OnArgs)](Script::VMContext* Context)
+				return Compiler->GetContext()->TryExecute(false, Function, [OnArgs = std::move(OnArgs)](Scripting::ImmediateContext* Context)
 				{
 					if (OnArgs)
 						OnArgs(Context);
@@ -3880,7 +3880,7 @@ namespace Edge
 			}
 			Core::Promise<int> Scriptable::CallEntry(const std::string& Name)
 			{
-				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Script::VMContext* Context)
+				return Call(GetFunctionByName(Name, Invoke == InvokeType::Typeless ? 0 : 1).GetFunction(), [this](Scripting::ImmediateContext* Context)
 				{
 					if (Invoke == InvokeType::Typeless)
 						return;
@@ -3899,16 +3899,16 @@ namespace Edge
 				if (Compiler != nullptr)
 				{
 					auto* VM = Compiler->GetContext();
-					if (VM->GetState() == Script::VMRuntime::ACTIVE)
-						return (int)Script::VMResult::MODULE_IS_IN_USE;
+					if (VM->GetState() == Scripting::Activation::ACTIVE)
+						return (int)Scripting::Errors::MODULE_IS_IN_USE;
 				}
 				else
 				{
-					auto* Manager = Scene->GetConf().Shared.Manager;
-					if (!Manager)
-						return (int)Script::VMResult::INVALID_CONFIGURATION;
+					auto* VM = Scene->GetConf().Shared.VM;
+					if (!VM)
+						return (int)Scripting::Errors::INVALID_CONFIGURATION;
 
-					Compiler = Manager->CreateCompiler();
+					Compiler = VM->CreateCompiler();
 					Compiler->SetPragmaCallback([this](Compute::Preprocessor*, const std::string& Name, const std::vector<std::string>& Args)
 					{
 						if (Name == "name" && Args.size() == 1)
@@ -3932,7 +3932,7 @@ namespace Edge
 					Entry.Update = nullptr;
 					Entry.Message = nullptr;
 					Compiler->Clear();
-					return (int)Script::VMResult::SUCCESS;
+					return (int)Scripting::Errors::SUCCESS;
 				}
 
 				int R = Compiler->Prepare("base", Source == SourceType::Resource ? Resource : "anonymous", true, true);
@@ -3947,14 +3947,14 @@ namespace Edge
 				if (R < 0)
 					return R;
 
-				Entry.Animate = GetFunctionByName("Animate", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
-				Entry.Serialize = GetFunctionByName("Serialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
-				Entry.Deserialize = GetFunctionByName("Deserialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
-				Entry.Awake = GetFunctionByName("Awake", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-				Entry.Asleep = GetFunctionByName("Asleep", Invoke == InvokeType::Typeless ? 0 : 1).GetFunction();
-				Entry.Synchronize = GetFunctionByName("Synchronize", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-				Entry.Update = GetFunctionByName("Update", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
-				Entry.Message = GetFunctionByName("Message", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				Entry.Animate = GetFunctionByName("animate", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+				Entry.Serialize = GetFunctionByName("serialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+				Entry.Deserialize = GetFunctionByName("deserialize", Invoke == InvokeType::Typeless ? 0 : 3).GetFunction();
+				Entry.Awake = GetFunctionByName("awake", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				Entry.Asleep = GetFunctionByName("asleep", Invoke == InvokeType::Typeless ? 0 : 1).GetFunction();
+				Entry.Synchronize = GetFunctionByName("synchronize", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				Entry.Update = GetFunctionByName("update", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
+				Entry.Message = GetFunctionByName("message", Invoke == InvokeType::Typeless ? 0 : 2).GetFunction();
 
 				return R;
 			}
@@ -3976,18 +3976,18 @@ namespace Edge
 				GetEntity()->Release();
 				Release();
 			}
-			Script::VMCompiler* Scriptable::GetCompiler()
+			Scripting::Compiler* Scriptable::GetCompiler()
 			{
 				return Compiler;
 			}
-			Script::VMFunction Scriptable::GetFunctionByName(const std::string& Name, unsigned int Args)
+			Scripting::Function Scriptable::GetFunctionByName(const std::string& Name, unsigned int Args)
 			{
 				ED_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 				if (!Compiler)
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Script::VMRuntime::ACTIVE)
+				if (VM->GetState() == Scripting::Activation::ACTIVE)
 					return nullptr;
 
 				auto Result = Compiler->GetModule().GetFunctionByName(Name.c_str());
@@ -3996,14 +3996,14 @@ namespace Edge
 
 				return Result;
 			}
-			Script::VMFunction Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
+			Scripting::Function Scriptable::GetFunctionByIndex(int Index, unsigned int Args)
 			{
 				ED_ASSERT(Index >= 0, nullptr, "index should be greater or equal to zero");
 				if (!Compiler)
 					return nullptr;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Script::VMRuntime::ACTIVE)
+				if (VM->GetState() == Scripting::Activation::ACTIVE)
 					return nullptr;
 
 				auto Result = Compiler->GetModule().GetFunctionByIndex(Index);
@@ -4012,17 +4012,17 @@ namespace Edge
 
 				return Result;
 			}
-			bool Scriptable::GetPropertyByName(const char* Name, Script::VMProperty* Result)
+			bool Scriptable::GetPropertyByName(const char* Name, Scripting::PropertyInfo* Result)
 			{
 				ED_ASSERT(Name != nullptr, false, "name should be set");
 				if (!Compiler)
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
+				if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
 					return false;
 
-				Script::VMModule fModule = Compiler->GetModule();
+				Scripting::Module fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
 					return false;
 
@@ -4035,17 +4035,17 @@ namespace Edge
 
 				return true;
 			}
-			bool Scriptable::GetPropertyByIndex(int Index, Script::VMProperty* Result)
+			bool Scriptable::GetPropertyByIndex(int Index, Scripting::PropertyInfo* Result)
 			{
 				ED_ASSERT(Index >= 0, false, "index should be greater or equal to zero");
 				if (!Compiler)
 					return false;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
+				if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
 					return false;
 
-				Script::VMModule fModule = Compiler->GetModule();
+				Scripting::Module fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
 					return false;
 
@@ -4065,13 +4065,13 @@ namespace Edge
 			int Scriptable::GetPropertiesCount()
 			{
 				if (!Compiler)
-					return (int)Script::VMResult::INVALID_ARG;
+					return (int)Scripting::Errors::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
-					return (int)Script::VMResult::MODULE_IS_IN_USE;
+				if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
+					return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
-				Script::VMModule fModule = Compiler->GetModule();
+				Scripting::Module fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
 					return 0;
 
@@ -4080,13 +4080,13 @@ namespace Edge
 			int Scriptable::GetFunctionsCount()
 			{
 				if (!Compiler)
-					return (int)Script::VMResult::INVALID_ARG;
+					return (int)Scripting::Errors::INVALID_ARG;
 
 				auto* VM = Compiler->GetContext();
-				if (VM->GetState() == Edge::Script::VMRuntime::ACTIVE)
-					return (int)Script::VMResult::MODULE_IS_IN_USE;
+				if (VM->GetState() == Edge::Scripting::Activation::ACTIVE)
+					return (int)Scripting::Errors::MODULE_IS_IN_USE;
 
-				Script::VMModule fModule = Compiler->GetModule();
+				Scripting::Module fModule = Compiler->GetModule();
 				if (!fModule.IsValid())
 					return 0;
 

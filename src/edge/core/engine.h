@@ -2,7 +2,7 @@
 #define ED_ENGINE_H
 #include "graphics.h"
 #include "audio.h"
-#include "script.h"
+#include "scripting.h"
 #include <atomic>
 #include <cstdarg>
 #include <future>
@@ -1178,7 +1178,7 @@ namespace Edge
 				{
 					Graphics::GraphicsDevice* Device = nullptr;
 					Graphics::Activity* Activity = nullptr;
-					Script::VMManager* Manager = nullptr;
+					Scripting::VirtualMachine* VM = nullptr;
 					ContentManager* Content = nullptr;
 					PrimitiveCache* Primitives = nullptr;
 					ShaderCache* Shaders = nullptr;
@@ -1539,7 +1539,7 @@ namespace Edge
 			Audio::AudioDevice* Audio = nullptr;
 			Graphics::GraphicsDevice* Renderer = nullptr;
 			Graphics::Activity* Activity = nullptr;
-			Script::VMManager* VM = nullptr;
+			Scripting::VirtualMachine* VM = nullptr;
 			ContentManager* Content = nullptr;
 			AppData* Database = nullptr;
 			SceneGraph* Scene = nullptr;
@@ -1548,7 +1548,7 @@ namespace Edge
 		public:
 			Application(Desc* I) noexcept;
 			virtual ~Application() noexcept;
-			virtual void ScriptHook(Script::VMGlobal* Global);
+			virtual void ScriptHook();
 			virtual void KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed);
 			virtual void InputEvent(char* Buffer, int Length);
 			virtual void WheelEvent(int X, int Y, bool Normal);

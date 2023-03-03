@@ -377,7 +377,7 @@ namespace Edge
 				friend Context;
 
 			private:
-				static Script::VMManager* ScriptInterface;
+				static Scripting::VirtualMachine* ScriptInterface;
 				static ContextInstancer* ContextFactory;
 				static DocumentInstancer* DocumentFactory;
 				static ListenerInstancer* ListenerFactory;
@@ -393,7 +393,7 @@ namespace Edge
 				static bool Release();
 				static void SetMetadata(Graphics::Activity* Activity, ContentManager* Content, Core::Timer* Time);
 				static void SetTranslator(const std::string& Name, const TranslationCallback& Callback);
-				static void SetManager(Script::VMManager* Manager);
+				static void SetVirtualMachine(Scripting::VirtualMachine* VM);
 				static RenderSubsystem* GetRenderInterface();
 				static FileSubsystem* GetFileInterface();
 				static MainSubsystem* GetSystemInterface();
@@ -554,7 +554,7 @@ namespace Edge
 			private:
 				std::unordered_map<int, std::unordered_map<std::string, Rml::Element*>> Elements;
 				std::unordered_map<std::string, DataModel*> Models;
-				Script::VMCompiler* Compiler;
+				Scripting::Compiler* Compiler;
 				Compute::Vector2 Cursor;
 				ModelCallback OnMount;
 				ScopedContext* Base;

@@ -1,5 +1,5 @@
-#ifndef ED_SCRIPT_H
-#define ED_SCRIPT_H
+#ifndef ED_SCRIPTING_H
+#define ED_SCRIPTING_H
 #include "compute.h"
 #include <type_traits>
 #include <random>
@@ -33,23 +33,23 @@ struct asSMessageInfo;
 
 namespace Edge
 {
-	namespace Script
+	namespace Scripting
 	{
-		struct VMModule;
+		struct Module;
 
-		struct VMFunction;
+		struct Function;
 
-		class VMCompiler;
+		class Compiler;
 
-		class VMManager;
+		class VirtualMachine;
 
-		class VMContext;
+		class ImmediateContext;
 
-		class VMDummy
+		class DummyPtr
 		{
 		};
 
-		enum class VMOptimize
+		enum class Optimizer
 		{
 			No_Suspend = 0x01,
 			Syscall_FPU_No_Reset = 0x02,
@@ -61,14 +61,14 @@ namespace Edge
 			Optimal = Alloc_Simple | Fast_Ref_Counter
 		};
 
-		enum class VMLogType
+		enum class LogCategory
 		{
 			ERR = 0,
 			WARNING = 1,
 			INFORMATION = 2
 		};
 
-		enum class VMProp
+		enum class Features
 		{
 			ALLOW_UNSAFE_REFERENCES = 1,
 			OPTIMIZE_BYTECODE = 2,
@@ -103,7 +103,7 @@ namespace Edge
 			MAX_CALL_STACK_SIZE = 31
 		};
 
-		enum class VMTypeMod
+		enum class Modifiers
 		{
 			NONE = 0,
 			INREF = 1,
@@ -112,12 +112,12 @@ namespace Edge
 			CONSTF = 4
 		};
 
-		enum class VMCompileFlags
+		enum class CompileFlags
 		{
 			ADD_TO_MODULE = 1
 		};
 
-		enum class VMFuncType
+		enum class FunctionType
 		{
 			DUMMY = -1,
 			SYSTEM = 0,
@@ -129,7 +129,7 @@ namespace Edge
 			DELEGATE = 6
 		};
 
-		enum class VMBehave
+		enum class Behaviours
 		{
 			CONSTRUCT,
 			LIST_CONSTRUCT,
@@ -150,7 +150,7 @@ namespace Edge
 			MAX
 		};
 
-		enum class VMRuntime
+		enum class Activation
 		{
 			FINISHED = 0,
 			SUSPENDED = 1,
@@ -162,7 +162,7 @@ namespace Edge
 			ERR = 7
 		};
 
-		enum class VMCall
+		enum class FunctionCall
 		{
 			CDECLF = 0,
 			STDCALL = 1,
@@ -175,7 +175,7 @@ namespace Edge
 			THISCALL_OBJFIRST = 8
 		};
 
-		enum class VMResult
+		enum class Errors
 		{
 			SUCCESS = 0,
 			ERR = -1,
@@ -208,7 +208,7 @@ namespace Edge
 			MODULE_IS_IN_USE = -28
 		};
 
-		enum class VMTypeId
+		enum class TypeId
 		{
 			VOIDF = 0,
 			BOOL = 1,
@@ -231,7 +231,7 @@ namespace Edge
 			MASK_SEQNBR = 0x03FFFFFF
 		};
 
-		enum class VMObjType
+		enum class ObjectBehaviours
 		{
 			REF = (1 << 0),
 			VALUE = (1 << 1),
@@ -272,7 +272,7 @@ namespace Edge
 			MASK_VALID_FLAGS = 0x1FFFFF
 		};
 
-		enum class VMOpFunc
+		enum class Operators
 		{
 			Neg,
 			Com,
@@ -313,14 +313,14 @@ namespace Edge
 			ImplCast
 		};
 
-		enum class VMOp
+		enum class Position
 		{
 			Left = 0,
 			Right = 1,
 			Const = 2
 		};
 
-		enum class VMImport
+		enum class Imports
 		{
 			CLibraries = 1,
 			CSymbols = 2,
@@ -330,35 +330,27 @@ namespace Edge
 			All = (CLibraries | CSymbols | Submodules | Files | JSON)
 		};
 
-		inline VMObjType operator |(VMObjType A, VMObjType B)
+		inline ObjectBehaviours operator |(ObjectBehaviours A, ObjectBehaviours B)
 		{
-			return static_cast<VMObjType>(static_cast<size_t>(A) | static_cast<size_t>(B));
+			return static_cast<ObjectBehaviours>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
-		inline VMOp operator |(VMOp A, VMOp B)
+		inline Position operator |(Position A, Position B)
 		{
-			return static_cast<VMOp>(static_cast<size_t>(A) | static_cast<size_t>(B));
+			return static_cast<Position>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
-		inline VMImport operator |(VMImport A, VMImport B)
+		inline Imports operator |(Imports A, Imports B)
 		{
-			return static_cast<VMImport>(static_cast<size_t>(A) | static_cast<size_t>(B));
+			return static_cast<Imports>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 
-		typedef asIScriptEngine VMCManager;
-		typedef asIScriptContext VMCContext;
-		typedef asIScriptModule VMCModule;
-		typedef asITypeInfo VMCTypeInfo;
-		typedef asIScriptFunction VMCFunction;
-		typedef asIScriptGeneric VMCGeneric;
-		typedef asIScriptObject VMCObject;
-		typedef asILockableSharedBool VMCLockableSharedBool;
-		typedef void(VMDummy::* VMMethodPtr)();
-		typedef void(*VMObjectFunction)();
-		typedef std::function<void(struct VMTypeInfo*, struct VMFuncProperty*)> PropertyCallback;
-		typedef std::function<void(struct VMTypeInfo*, struct VMFunction*)> MethodCallback;
-		typedef std::function<void(class VMManager*)> SubmoduleCallback;
-		typedef std::function<void(class VMContext*)> ArgsCallback;
+		typedef void(DummyPtr::* DummyMethodPtr)();
+		typedef void(*FunctionPtr)();
+		typedef std::function<void(struct TypeInfo*, struct FunctionInfo*)> PropertyCallback;
+		typedef std::function<void(struct TypeInfo*, struct Function*)> MethodCallback;
+		typedef std::function<void(class VirtualMachine*)> SubmoduleCallback;
+		typedef std::function<void(class ImmediateContext*)> ArgsCallback;
 
-		class ED_OUT_TS VMFuncStore
+		class ED_OUT_TS FunctionFactory
 		{
 		public:
 			static Core::Unique<asSFuncPtr> CreateFunctionBase(void(*Base)(), int Type);
@@ -369,42 +361,42 @@ namespace Edge
 		};
 
 		template <int N>
-		struct ED_OUT_TS VMFuncCall
+		struct ED_OUT_TS FunctionBinding
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
-				return VMFuncStore::CreateDummyBase();
+				return FunctionFactory::CreateDummyBase();
 			}
 		};
 
 		template <>
-		struct ED_OUT_TS VMFuncCall<sizeof(VMMethodPtr)>
+		struct ED_OUT_TS FunctionBinding<sizeof(DummyMethodPtr)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
-				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr), 3);
+				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr), 3);
 			}
 		};
 #if defined(_MSC_VER) && !defined(__MWERKS__)
 		template <>
-		struct ED_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 1 * sizeof(int)>
+		struct ED_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 1 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
-				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + sizeof(int), 3);
+				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + sizeof(int), 3);
 			}
 		};
 
 		template <>
-		struct ED_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 2 * sizeof(int)>
+		struct ED_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 2 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
-				asSFuncPtr* Ptr = VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 2 * sizeof(int), 3);
+				asSFuncPtr* Ptr = FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + 2 * sizeof(int), 3);
 #if defined(_MSC_VER) && !defined(ED_64)
 				*(reinterpret_cast<unsigned long*>(Ptr) + 3) = *(reinterpret_cast<unsigned long*>(Ptr) + 2);
 #endif
@@ -413,33 +405,33 @@ namespace Edge
 		};
 
 		template <>
-		struct ED_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 3 * sizeof(int)>
+		struct ED_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 3 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
-				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 3 * sizeof(int), 3);
+				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + 3 * sizeof(int), 3);
 			}
 		};
 
 		template <>
-		struct ED_OUT_TS VMFuncCall<sizeof(VMMethodPtr) + 4 * sizeof(int)>
+		struct ED_OUT_TS FunctionBinding<sizeof(DummyMethodPtr) + 4 * sizeof(int)>
 		{
 			template <class M>
 			static Core::Unique<asSFuncPtr> Bind(M Value)
 			{
-				return VMFuncStore::CreateMethodBase(&Value, sizeof(VMMethodPtr) + 4 * sizeof(int), 3);
+				return FunctionFactory::CreateMethodBase(&Value, sizeof(DummyMethodPtr) + 4 * sizeof(int), 3);
 			}
 		};
 #endif
-		class ED_OUT VMGeneric
+		class ED_OUT GenericContext
 		{
 		private:
-			VMManager* Manager;
-			VMCGeneric* Generic;
+			VirtualMachine* VM;
+			asIScriptGeneric* Generic;
 
 		public:
-			VMGeneric(VMCGeneric* Base) noexcept;
+			GenericContext(asIScriptGeneric* Base) noexcept;
 			void* GetObjectAddress();
 			int GetObjectTypeId() const;
 			int GetArgsCount() const;
@@ -464,8 +456,8 @@ namespace Edge
 			int SetReturnObjectAddress(void* Object);
 			void* GetAddressOfReturnLocation();
 			bool IsValid() const;
-			VMCGeneric* GetGeneric() const;
-			VMManager* GetManager() const;
+			asIScriptGeneric* GetGeneric() const;
+			VirtualMachine* GetVM() const;
 
 		public:
 			template <typename T>
@@ -480,7 +472,7 @@ namespace Edge
 			}
 		};
 
-		class ED_OUT VMBridge
+		class ED_OUT Bridge
 		{
 		public:
 			template <typename T>
@@ -491,7 +483,7 @@ namespace Edge
 #else
 				void (*Address)() = reinterpret_cast<void (*)()>(Value);
 #endif
-				return VMFuncStore::CreateFunctionBase(Address, 2);
+				return FunctionFactory::CreateFunctionBase(Address, 2);
 			}
 			template <typename T>
 			static Core::Unique<asSFuncPtr> FunctionGeneric(T Value)
@@ -501,27 +493,27 @@ namespace Edge
 #else
 				void(*Address)() = reinterpret_cast<void(*)()>(Value);
 #endif
-				return VMFuncStore::CreateFunctionBase(Address, 1);
+				return FunctionFactory::CreateFunctionBase(Address, 1);
 			}
 			template <typename T, typename R, typename... Args>
 			static Core::Unique<asSFuncPtr> Method(R(T::* Value)(Args...))
 			{
-				return VMFuncCall<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
+				return FunctionBinding<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
 			}
 			template <typename T, typename R, typename... Args>
 			static Core::Unique<asSFuncPtr> Method(R(T::* Value)(Args...) const)
 			{
-				return VMFuncCall<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
+				return FunctionBinding<sizeof(void (T::*)())>::Bind((void (T::*)())(Value));
 			}
 			template <typename T, typename R, typename... Args>
 			static Core::Unique<asSFuncPtr> MethodOp(R(T::* Value)(Args...))
 			{
-				return VMFuncCall<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
+				return FunctionBinding<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
 			template <typename T, typename R, typename... Args>
 			static Core::Unique<asSFuncPtr> MethodOp(R(T::* Value)(Args...) const)
 			{
-				return VMFuncCall<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
+				return FunctionBinding<sizeof(void (T::*)())>::Bind(static_cast<R(T::*)(Args...)>(Value));
 			}
 			template <typename T, typename... Args>
 			static void GetConstructorCall(void* Memory, Args... Data)
@@ -529,9 +521,9 @@ namespace Edge
 				new(Memory) T(Data...);
 			}
 			template <typename T>
-			static void GetConstructorListCall(VMCGeneric* Generic)
+			static void GetConstructorListCall(asIScriptGeneric* Generic)
 			{
-				VMGeneric Args(Generic);
+				GenericContext Args(Generic);
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
 			}
 			template <typename T>
@@ -543,17 +535,17 @@ namespace Edge
 			static T* GetManagedCall(Args... Data)
 			{
 				auto* Result = new T(Data...);
-				VMFuncStore::AtomicNotifyGC(TypeName, (void*)Result);
+				FunctionFactory::AtomicNotifyGC(TypeName, (void*)Result);
 
 				return Result;
 			}
 			template <typename T, const char* TypeName>
-			static void GetManagedListCall(VMCGeneric* Generic)
+			static void GetManagedListCall(asIScriptGeneric* Generic)
 			{
-				VMGeneric Args(Generic);
+				GenericContext Args(Generic);
 				T* Result = new T((unsigned char*)Args.GetArgAddress(0));
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = Result;
-				VMFuncStore::AtomicNotifyGC(TypeName, (void*)Result);
+				FunctionFactory::AtomicNotifyGC(TypeName, (void*)Result);
 			}
 			template <typename T, typename... Args>
 			static Core::Unique<T> GetUnmanagedCall(Args... Data)
@@ -561,9 +553,9 @@ namespace Edge
 				return new T(Data...);
 			}
 			template <typename T>
-			static void GetUnmanagedListCall(VMCGeneric* Generic)
+			static void GetUnmanagedListCall(asIScriptGeneric* Generic)
 			{
-				VMGeneric Args(Generic);
+				GenericContext Args(Generic);
 				*reinterpret_cast<T**>(Args.GetAddressOfReturnLocation()) = new T((unsigned char*)Args.GetArgAddress(0));
 			}
 			template <typename T>
@@ -591,37 +583,37 @@ namespace Edge
 				bool IsArray = std::is_array<T>::value;
 
 				if (IsFloat)
-					return (size_t)VMObjType::APP_FLOAT;
+					return (size_t)ObjectBehaviours::APP_FLOAT;
 
 				if (IsPrimitive)
-					return (size_t)VMObjType::APP_PRIMITIVE;
+					return (size_t)ObjectBehaviours::APP_PRIMITIVE;
 
 				if (IsClass)
 				{
-					size_t Flags = (size_t)VMObjType::APP_CLASS;
+					size_t Flags = (size_t)ObjectBehaviours::APP_CLASS;
 					if (HasConstructor)
-						Flags |= (size_t)VMObjType::APP_CLASS_CONSTRUCTOR;
+						Flags |= (size_t)ObjectBehaviours::APP_CLASS_CONSTRUCTOR;
 
 					if (HasDestructor)
-						Flags |= (size_t)VMObjType::APP_CLASS_DESTRUCTOR;
+						Flags |= (size_t)ObjectBehaviours::APP_CLASS_DESTRUCTOR;
 
 					if (HasAssignmentOperator)
-						Flags |= (size_t)VMObjType::APP_CLASS_ASSIGNMENT;
+						Flags |= (size_t)ObjectBehaviours::APP_CLASS_ASSIGNMENT;
 
 					if (HasCopyConstructor)
-						Flags |= (size_t)VMObjType::APP_CLASS_COPY_CONSTRUCTOR;
+						Flags |= (size_t)ObjectBehaviours::APP_CLASS_COPY_CONSTRUCTOR;
 
 					return Flags;
 				}
 
 				if (IsArray)
-					return (size_t)VMObjType::APP_ARRAY;
+					return (size_t)ObjectBehaviours::APP_ARRAY;
 
 				return 0;
 			}
 		};
 
-		struct ED_OUT VMByteCode
+		struct ED_OUT ByteCodeInfo
 		{
 			std::vector<unsigned char> Data;
 			std::string Name;
@@ -629,10 +621,10 @@ namespace Edge
 			bool Debug = true;
 		};
 
-		struct ED_OUT VMProperty
+		struct ED_OUT PropertyInfo
 		{
 			const char* Name;
-			const char* NameSpace;
+			const char* Namespace;
 			int TypeId;
 			bool IsConst;
 			const char* ConfigGroup;
@@ -640,7 +632,7 @@ namespace Edge
 			size_t AccessMask;
 		};
 
-		struct ED_OUT VMFuncProperty
+		struct ED_OUT FunctionInfo
 		{
 			const char* Name;
 			size_t AccessMask;
@@ -651,74 +643,74 @@ namespace Edge
 			bool IsReference;
 		};
 
-		struct ED_OUT VMMessage
+		struct ED_OUT MessageInfo
 		{
 		private:
 			asSMessageInfo* Info;
 
 		public:
-			VMMessage(asSMessageInfo* Info) noexcept;
+			MessageInfo(asSMessageInfo* Info) noexcept;
 			const char* GetSection() const;
 			const char* GetText() const;
-			VMLogType GetType() const;
+			LogCategory GetType() const;
 			int GetRow() const;
 			int GetColumn() const;
 			asSMessageInfo* GetMessageInfo() const;
 			bool IsValid() const;
 		};
 
-		struct ED_OUT VMTypeInfo
+		struct ED_OUT TypeInfo
 		{
 		private:
-			VMManager* Manager;
-			VMCTypeInfo* Info;
+			VirtualMachine* VM;
+			asITypeInfo* Info;
 
 		public:
-			VMTypeInfo(VMCTypeInfo* TypeInfo) noexcept;
+			TypeInfo(asITypeInfo* TypeInfo) noexcept;
 			void ForEachProperty(const PropertyCallback& Callback);
 			void ForEachMethod(const MethodCallback& Callback);
 			const char* GetGroup() const;
 			size_t GetAccessMask() const;
-			VMModule GetModule() const;
+			Module GetModule() const;
 			int AddRef() const;
 			int Release();
 			const char* GetName() const;
 			const char* GetNamespace() const;
-			VMTypeInfo GetBaseType() const;
-			bool DerivesFrom(const VMTypeInfo& Type) const;
+			TypeInfo GetBaseType() const;
+			bool DerivesFrom(const TypeInfo& Type) const;
 			size_t GetFlags() const;
 			unsigned int GetSize() const;
 			int GetTypeId() const;
 			int GetSubTypeId(unsigned int SubTypeIndex = 0) const;
-			VMTypeInfo GetSubType(unsigned int SubTypeIndex = 0) const;
+			TypeInfo GetSubType(unsigned int SubTypeIndex = 0) const;
 			unsigned int GetSubTypeCount() const;
 			unsigned int GetInterfaceCount() const;
-			VMTypeInfo GetInterface(unsigned int Index) const;
-			bool Implements(const VMTypeInfo& Type) const;
+			TypeInfo GetInterface(unsigned int Index) const;
+			bool Implements(const TypeInfo& Type) const;
 			unsigned int GetFactoriesCount() const;
-			VMFunction GetFactoryByIndex(unsigned int Index) const;
-			VMFunction GetFactoryByDecl(const char* Decl) const;
+			Function GetFactoryByIndex(unsigned int Index) const;
+			Function GetFactoryByDecl(const char* Decl) const;
 			unsigned int GetMethodsCount() const;
-			VMFunction GetMethodByIndex(unsigned int Index, bool GetVirtual = true) const;
-			VMFunction GetMethodByName(const char* Name, bool GetVirtual = true) const;
-			VMFunction GetMethodByDecl(const char* Decl, bool GetVirtual = true) const;
+			Function GetMethodByIndex(unsigned int Index, bool GetVirtual = true) const;
+			Function GetMethodByName(const char* Name, bool GetVirtual = true) const;
+			Function GetMethodByDecl(const char* Decl, bool GetVirtual = true) const;
 			unsigned int GetPropertiesCount() const;
-			int GetProperty(unsigned int Index, VMFuncProperty* Out) const;
+			int GetProperty(unsigned int Index, FunctionInfo* Out) const;
 			const char* GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace = false) const;
 			unsigned int GetBehaviourCount() const;
-			VMFunction GetBehaviourByIndex(unsigned int Index, VMBehave* OutBehaviour) const;
+			Function GetBehaviourByIndex(unsigned int Index, Behaviours* OutBehaviour) const;
 			unsigned int GetChildFunctionDefCount() const;
-			VMTypeInfo GetChildFunctionDef(unsigned int Index) const;
-			VMTypeInfo GetParentType() const;
+			TypeInfo GetChildFunctionDef(unsigned int Index) const;
+			TypeInfo GetParentType() const;
 			unsigned int GetEnumValueCount() const;
 			const char* GetEnumValueByIndex(unsigned int Index, int* OutValue) const;
-			VMFunction GetFunctionDefSignature() const;
+			Function GetFunctionDefSignature() const;
 			void* SetUserData(void* Data, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
 			bool IsHandle() const;
 			bool IsValid() const;
-			VMCTypeInfo* GetTypeInfo() const;
-			VMManager* GetManager() const;
+			asITypeInfo* GetTypeInfo() const;
+			VirtualMachine* GetVM() const;
 
 		public:
 			template <typename T>
@@ -765,25 +757,25 @@ namespace Edge
 			static bool IsScriptObject(int TypeId);
 		};
 
-		struct ED_OUT VMFunction
+		struct ED_OUT Function
 		{
 		private:
-			VMManager* Manager;
-			VMCFunction* Function;
+			VirtualMachine* VM;
+			asIScriptFunction* Ptr;
 
 		public:
-			VMFunction(VMCFunction* Base) noexcept;
-			VMFunction(const VMFunction& Base) noexcept;
+			Function(asIScriptFunction* Base) noexcept;
+			Function(const Function& Base) noexcept;
 			int AddRef() const;
 			int Release();
 			int GetId() const;
-			VMFuncType GetType() const;
+			FunctionType GetType() const;
 			const char* GetModuleName() const;
-			VMModule GetModule() const;
+			Module GetModule() const;
 			const char* GetSectionName() const;
 			const char* GetGroup() const;
 			size_t GetAccessMask() const;
-			VMTypeInfo GetObjectType() const;
+			TypeInfo GetObjectType() const;
 			const char* GetObjectName() const;
 			const char* GetName() const;
 			const char* GetNamespace() const;
@@ -802,8 +794,8 @@ namespace Edge
 			int GetTypeId() const;
 			bool IsCompatibleWithTypeId(int TypeId) const;
 			void* GetDelegateObject() const;
-			VMTypeInfo GetDelegateObjectType() const;
-			VMFunction GetDelegateFunction() const;
+			TypeInfo GetDelegateObjectType() const;
+			Function GetDelegateFunction() const;
 			unsigned int GetPropertiesCount() const;
 			int GetProperty(unsigned int Index, const char** Name, int* TypeId = nullptr) const;
 			const char* GetPropertyDecl(unsigned int Index, bool IncludeNamespace = false) const;
@@ -811,77 +803,77 @@ namespace Edge
 			void* SetUserData(void* UserData, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
 			bool IsValid() const;
-			VMCFunction* GetFunction() const;
-			VMManager* GetManager() const;
+			asIScriptFunction* GetFunction() const;
+			VirtualMachine* GetVM() const;
 		};
 
-		struct ED_OUT VMObject
+		struct ED_OUT ScriptObject
 		{
 		private:
-			VMCObject* Object;
+			asIScriptObject* Object;
 
 		public:
-			VMObject(VMCObject* Base) noexcept;
+			ScriptObject(asIScriptObject* Base) noexcept;
 			int AddRef() const;
 			int Release();
-			VMTypeInfo GetObjectType();
+			TypeInfo GetObjectType();
 			int GetTypeId();
 			int GetPropertyTypeId(unsigned int Id) const;
 			unsigned int GetPropertiesCount() const;
 			const char* GetPropertyName(unsigned int Id) const;
 			void* GetAddressOfProperty(unsigned int Id);
-			VMManager* GetManager() const;
-			int CopyFrom(const VMObject& Other);
+			VirtualMachine* GetVM() const;
+			int CopyFrom(const ScriptObject& Other);
 			void* SetUserData(void* Data, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
 			bool IsValid() const;
-			VMCObject* GetObject() const;
+			asIScriptObject* GetObject() const;
 		};
 
-		struct ED_OUT VMClass
+		struct ED_OUT BaseClass
 		{
 		protected:
-			VMManager* Manager;
+			VirtualMachine* VM;
 			std::string Object;
 			int TypeId;
 
 		public:
-			VMClass(VMManager* Engine, const std::string& Name, int Type) noexcept;
+			BaseClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept;
 			int SetFunctionDef(const char* Decl);
-			int SetOperatorCopyAddress(asSFuncPtr* Value, VMCall = VMCall::THISCALL);
-			int SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall = VMCall::THISCALL);
+			int SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
+			int SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall = FunctionCall::THISCALL);
 			int SetPropertyAddress(const char* Decl, int Offset);
 			int SetPropertyStaticAddress(const char* Decl, void* Value);
-			int SetOperatorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::THISCALL);
-			int SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::THISCALL);
-			int SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECLF);
-			int SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECL_OBJFIRST);
-			int SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECL_OBJFIRST);
+			int SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
+			int SetMethodAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::THISCALL);
+			int SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
+			int SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
+			int SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECL_OBJFIRST);
 			int SetDestructorAddress(const char* Decl, asSFuncPtr* Value);
 			int GetTypeId() const;
 			bool IsValid() const;
 			std::string GetName() const;
-			VMManager* GetManager() const;
+			VirtualMachine* GetVM() const;
 
 		private:
-			static Core::Parser GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right);
+			static Core::Parser GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right);
 
 		public:
 			template <typename T>
-			int SetEnumRefs(void(T::* Value)(VMCManager*))
+			int SetEnumRefs(void(T::* Value)(asIScriptEngine*))
 			{
-				asSFuncPtr* EnumRefs = VMBridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::ENUMREFS, EnumRefs, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&EnumRefs);
+				asSFuncPtr* EnumRefs = Bridge::Method<T>(Value);
+				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::ENUMREFS, EnumRefs, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&EnumRefs);
 
 				return Result;
 			}
 			template <typename T>
-			int SetReleaseRefs(void(T::* Value)(VMCManager*))
+			int SetReleaseRefs(void(T::* Value)(asIScriptEngine*))
 			{
-				asSFuncPtr* ReleaseRefs = VMBridge::Method<T>(Value);
-				int Result = SetBehaviourAddress("void f(int &in)", VMBehave::RELEASEREFS, ReleaseRefs, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&ReleaseRefs);
+				asSFuncPtr* ReleaseRefs = Bridge::Method<T>(Value);
+				int Result = SetBehaviourAddress("void f(int &in)", Behaviours::RELEASEREFS, ReleaseRefs, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&ReleaseRefs);
 
 				return Result;
 			}
@@ -903,9 +895,9 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Method<T, R>(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Method<T, R>(Value);
+				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -915,9 +907,9 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Function(Value);
+				int Result = SetMethodAddress(Core::Form("%s get_%s()", Type, Name).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -927,9 +919,9 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Method<T, void, R>(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Method<T, void, R>(Value);
+				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -939,9 +931,9 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Function(Value);
+				int Result = SetMethodAddress(Core::Form("void set_%s(%s)", Name, Type).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -951,9 +943,9 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Method<T, R, unsigned int>(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Method<T, R, unsigned int>(Value);
+				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -963,9 +955,9 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Function(Value);
+				int Result = SetMethodAddress(Core::Form("%s get_%s(uint)", Type, Name).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -975,9 +967,9 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Method<T, void, unsigned int, R>(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Method<T, void, unsigned int, R>(Value);
+				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -987,53 +979,53 @@ namespace Edge
 				ED_ASSERT(Type != nullptr, -1, "type should be set");
 				ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Function(Value);
+				int Result = SetMethodAddress(Core::Form("void set_%s(uint, %s)", Name, Type).Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename T, typename R, typename... A>
-			int SetOperator(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
+			int SetOperator(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(T::* Value)(A...))
 			{
 				ED_ASSERT(Out != nullptr, -1, "output should be set");
-				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
+				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
 				ED_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
-				asSFuncPtr* Ptr = VMBridge::Method<T, R, A...>(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Method<T, R, A...>(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename R, typename... A>
-			int SetOperatorEx(VMOpFunc Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
+			int SetOperatorEx(Operators Type, uint32_t Opts, const char* Out, const char* Args, R(*Value)(A...))
 			{
 				ED_ASSERT(Out != nullptr, -1, "output should be set");
-				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)VMOp::Const, Opts & (uint32_t)VMOp::Right);
+				Core::Parser Operator = GetOperator(Type, Out, Args, Opts & (uint32_t)Position::Const, Opts & (uint32_t)Position::Right);
 
 				ED_ASSERT(!Operator.Empty(), -1, "resulting operator should not be empty");
-				asSFuncPtr* Ptr = VMBridge::Function(Value);
-				int Result = SetOperatorAddress(Operator.Get(), Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Function(Value);
+				int Result = SetOperatorAddress(Operator.Get(), Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename T>
 			int SetOperatorCopy()
 			{
-				asSFuncPtr* Ptr = VMBridge::MethodOp<T, T&, const T&>(&T::operator =);
-				int Result = SetOperatorCopyAddress(Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::MethodOp<T, T&, const T&>(&T::operator =);
+				int Result = SetOperatorCopyAddress(Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetOperatorCopyStatic(R(*Value)(Args...), VMCall Type = VMCall::CDECLF)
+			int SetOperatorCopyStatic(R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
 			{
-				asSFuncPtr* Ptr = (Type == VMCall::GENERIC ? VMBridge::FunctionGeneric<R(*)(Args...)>(Value) : VMBridge::Function<R(*)(Args...)>(Value));
-				int Result = SetOperatorCopyAddress(Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
+				int Result = SetOperatorCopyAddress(Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1041,9 +1033,9 @@ namespace Edge
 			int SetMethod(const char* Decl, R(T::* Value)(Args...))
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
+				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1051,9 +1043,9 @@ namespace Edge
 			int SetMethod(const char* Decl, R(T::* Value)(Args...) const)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Method<T, R, Args...>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, VMCall::THISCALL);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Method<T, R, Args...>(Value);
+				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::THISCALL);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1061,28 +1053,28 @@ namespace Edge
 			int SetMethodEx(const char* Decl, R(*Value)(Args...))
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Function<R(*)(Args...)>(Value);
-				int Result = SetMethodAddress(Decl, Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
+				int Result = SetMethodAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 			template <typename R, typename... Args>
-			int SetMethodStatic(const char* Decl, R(*Value)(Args...), VMCall Type = VMCall::CDECLF)
+			int SetMethodStatic(const char* Decl, R(*Value)(Args...), FunctionCall Type = FunctionCall::CDECLF)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = (Type == VMCall::GENERIC ? VMBridge::FunctionGeneric<R(*)(Args...)>(Value) : VMBridge::Function<R(*)(Args...)>(Value));
+				asSFuncPtr* Ptr = (Type == FunctionCall::GENERIC ? Bridge::FunctionGeneric<R(*)(Args...)>(Value) : Bridge::Function<R(*)(Args...)>(Value));
 				int Result = SetMethodStaticAddress(Decl, Ptr, Type);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 		};
 
-		struct ED_OUT VMRefClass : public VMClass
+		struct ED_OUT RefClass : public BaseClass
 		{
 		public:
-			VMRefClass(VMManager* Engine, const std::string& Name, int Type) noexcept : VMClass(Engine, Name, Type)
+			RefClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
 			{
 			}
 
@@ -1091,19 +1083,19 @@ namespace Edge
 			int SetConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Functor = VMBridge::Function(&VMBridge::GetUnmanagedCall<T, Args...>);
-				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::CDECLF);
-				VMFuncStore::ReleaseFunctor(&Functor);
+				asSFuncPtr* Functor = Bridge::Function(&Bridge::GetUnmanagedCall<T, Args...>);
+				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::CDECLF);
+				FunctionFactory::ReleaseFunctor(&Functor);
 
 				return Result;
 			}
-			template <typename T, VMCGeneric*>
+			template <typename T, asIScriptGeneric*>
 			int SetConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedCall<T, VMCGeneric*>);
-				int Result = SetBehaviourAddress(Decl, VMBehave::FACTORY, Functor, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Functor);
+				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedCall<T, asIScriptGeneric*>);
+				int Result = SetBehaviourAddress(Decl, Behaviours::FACTORY, Functor, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Functor);
 
 				return Result;
 			}
@@ -1111,39 +1103,39 @@ namespace Edge
 			int SetConstructorList(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Functor = VMBridge::FunctionGeneric(&VMBridge::GetUnmanagedListCall<T>);
-				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Functor);
+				asSFuncPtr* Functor = Bridge::FunctionGeneric(&Bridge::GetUnmanagedListCall<T>);
+				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Functor);
 
 				return Result;
 			}
 			template <typename T>
-			int SetConstructorListEx(const char* Decl, void(*Value)(VMCGeneric*))
+			int SetConstructorListEx(const char* Decl, void(*Value)(asIScriptGeneric*))
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Functor = VMBridge::FunctionGeneric(Value);
-				int Result = SetBehaviourAddress(Decl, VMBehave::LIST_FACTORY, Functor, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Functor);
+				asSFuncPtr* Functor = Bridge::FunctionGeneric(Value);
+				int Result = SetBehaviourAddress(Decl, Behaviours::LIST_FACTORY, Functor, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Functor);
 
 				return Result;
 			}
 			template <typename F>
 			int SetAddRef()
 			{
-				auto FactoryPtr = &VMRefClass::GcAddRef<F>;
-				asSFuncPtr* AddRef = VMBridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("void f()", VMBehave::ADDREF, AddRef, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&AddRef);
+				auto FactoryPtr = &RefClass::GcAddRef<F>;
+				asSFuncPtr* AddRef = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("void f()", Behaviours::ADDREF, AddRef, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&AddRef);
 
 				return Result;
 			}
 			template <typename F>
 			int SetRelease()
 			{
-				auto FactoryPtr = &VMRefClass::GcRelease<F>;
-				asSFuncPtr* Release = VMBridge::Function<decltype(FactoryPtr)>(FactoryPtr);
-				int Result = SetBehaviourAddress("void f()", VMBehave::RELEASE, Release, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Release);
+				auto FactoryPtr = &RefClass::GcRelease<F>;
+				asSFuncPtr* Release = Bridge::Function<decltype(FactoryPtr)>(FactoryPtr);
+				int Result = SetBehaviourAddress("void f()", Behaviours::RELEASE, Release, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Release);
 
 				return Result;
 			}
@@ -1157,14 +1149,14 @@ namespace Edge
 			template <typename U>
 			static void GcRelease(U* Base)
 			{
-				Base->AddRef();
+				Base->Release();
 			}
 		};
 
-		struct ED_OUT VMTypeClass : public VMClass
+		struct ED_OUT TypeClass : public BaseClass
 		{
 		public:
-			VMTypeClass(VMManager* Engine, const std::string& Name, int Type) noexcept : VMClass(Engine, Name, Type)
+			TypeClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : BaseClass(Engine, Name, Type)
 			{
 			}
 
@@ -1173,19 +1165,19 @@ namespace Edge
 			int SetConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Function(&VMBridge::GetConstructorCall<T, Args...>);
-				int Result = SetConstructorAddress(Decl, Ptr, VMCall::CDECL_OBJFIRST);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetConstructorCall<T, Args...>);
+				int Result = SetConstructorAddress(Decl, Ptr, FunctionCall::CDECL_OBJFIRST);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
-			template <typename T, VMCGeneric*>
+			template <typename T, asIScriptGeneric*>
 			int SetConstructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::FunctionGeneric(&VMBridge::GetConstructorCall<T, VMCGeneric*>);
-				int Result = SetConstructorAddress(Decl, Ptr, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorCall<T, asIScriptGeneric*>);
+				int Result = SetConstructorAddress(Decl, Ptr, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1193,9 +1185,9 @@ namespace Edge
 			int SetConstructorList(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::FunctionGeneric(&VMBridge::GetConstructorListCall<T>);
-				int Result = SetConstructorListAddress(Decl, Ptr, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				asSFuncPtr* Ptr = Bridge::FunctionGeneric(&Bridge::GetConstructorListCall<T>);
+				int Result = SetConstructorListAddress(Decl, Ptr, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1203,9 +1195,9 @@ namespace Edge
 			int SetDestructor(const char* Decl)
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Function(&VMBridge::GetDestructorCall<T>);
+				asSFuncPtr* Ptr = Bridge::Function(&Bridge::GetDestructorCall<T>);
 				int Result = SetDestructorAddress(Decl, Ptr);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
@@ -1213,98 +1205,98 @@ namespace Edge
 			int SetDestructorStatic(const char* Decl, R(*Value)(Args...))
 			{
 				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Function<R(*)(Args...)>(Value);
+				asSFuncPtr* Ptr = Bridge::Function<R(*)(Args...)>(Value);
 				int Result = SetDestructorAddress(Decl, Ptr);
-				VMFuncStore::ReleaseFunctor(&Ptr);
+				FunctionFactory::ReleaseFunctor(&Ptr);
 
 				return Result;
 			}
 		};
 
-		struct ED_OUT VMInterface
+		struct ED_OUT TypeInterface
 		{
 		private:
-			VMManager* Manager;
+			VirtualMachine* VM;
 			std::string Object;
 			int TypeId;
 
 		public:
-			VMInterface(VMManager* Engine, const std::string& Name, int Type) noexcept;
+			TypeInterface(VirtualMachine* Engine, const std::string& Name, int Type) noexcept;
 			int SetMethod(const char* Decl);
 			int GetTypeId() const;
 			bool IsValid() const;
 			std::string GetName() const;
-			VMManager* GetManager() const;
+			VirtualMachine* GetVM() const;
 		};
 
-		struct ED_OUT VMEnum
+		struct ED_OUT Enumeration
 		{
 		private:
-			VMManager* Manager;
+			VirtualMachine* VM;
 			std::string Object;
 			int TypeId;
 
 		public:
-			VMEnum(VMManager* Engine, const std::string& Name, int Type) noexcept;
+			Enumeration(VirtualMachine* Engine, const std::string& Name, int Type) noexcept;
 			int SetValue(const char* Name, int Value);
 			int GetTypeId() const;
 			bool IsValid() const;
 			std::string GetName() const;
-			VMManager* GetManager() const;
+			VirtualMachine* GetVM() const;
 		};
 
-		struct ED_OUT VMModule
+		struct ED_OUT Module
 		{
 		private:
-			VMManager* Manager;
-			VMCModule* Mod;
+			VirtualMachine* VM;
+			asIScriptModule* Mod;
 
 		public:
-			VMModule(VMCModule* Type) noexcept;
+			Module(asIScriptModule* Type) noexcept;
 			void SetName(const char* Name);
 			int AddSection(const char* Name, const char* Code, size_t CodeLength = 0, int LineOffset = 0);
-			int RemoveFunction(const VMFunction& Function);
-			int ResetProperties(VMCContext* Context = nullptr);
+			int RemoveFunction(const Function& Function);
+			int ResetProperties(asIScriptContext* Context = nullptr);
 			int Build();
-			int LoadByteCode(VMByteCode* Info);
+			int LoadByteCode(ByteCodeInfo* Info);
 			int Discard();
-			int BindImportedFunction(size_t ImportIndex, const VMFunction& Function);
+			int BindImportedFunction(size_t ImportIndex, const Function& Function);
 			int UnbindImportedFunction(size_t ImportIndex);
 			int BindAllImportedFunctions();
 			int UnbindAllImportedFunctions();
-			int CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, VMFunction* OutFunction);
+			int CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction);
 			int CompileProperty(const char* SectionName, const char* Code, int LineOffset);
-			int SetDefaultNamespace(const char* NameSpace);
+			int SetDefaultNamespace(const char* Namespace);
 			void* GetAddressOfProperty(size_t Index);
 			int RemoveProperty(size_t Index);
 			size_t SetAccessMask(size_t AccessMask);
 			size_t GetFunctionCount() const;
-			VMFunction GetFunctionByIndex(size_t Index) const;
-			VMFunction GetFunctionByDecl(const char* Decl) const;
-			VMFunction GetFunctionByName(const char* Name) const;
+			Function GetFunctionByIndex(size_t Index) const;
+			Function GetFunctionByDecl(const char* Decl) const;
+			Function GetFunctionByName(const char* Name) const;
 			int GetTypeIdByDecl(const char* Decl) const;
 			int GetImportedFunctionIndexByDecl(const char* Decl) const;
-			int SaveByteCode(VMByteCode* Info) const;
+			int SaveByteCode(ByteCodeInfo* Info) const;
 			int GetPropertyIndexByName(const char* Name) const;
 			int GetPropertyIndexByDecl(const char* Decl) const;
-			int GetProperty(size_t Index, VMProperty* Out) const;
+			int GetProperty(size_t Index, PropertyInfo* Out) const;
 			size_t GetAccessMask() const;
 			size_t GetObjectsCount() const;
 			size_t GetPropertiesCount() const;
 			size_t GetEnumsCount() const;
 			size_t GetImportedFunctionCount() const;
-			VMTypeInfo GetObjectByIndex(size_t Index) const;
-			VMTypeInfo GetTypeInfoByName(const char* Name) const;
-			VMTypeInfo GetTypeInfoByDecl(const char* Decl) const;
-			VMTypeInfo GetEnumByIndex(size_t Index) const;
+			TypeInfo GetObjectByIndex(size_t Index) const;
+			TypeInfo GetTypeInfoByName(const char* Name) const;
+			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
+			TypeInfo GetEnumByIndex(size_t Index) const;
 			const char* GetPropertyDecl(size_t Index, bool IncludeNamespace = false) const;
 			const char* GetDefaultNamespace() const;
 			const char* GetImportedFunctionDecl(size_t ImportIndex) const;
 			const char* GetImportedFunctionModule(size_t ImportIndex) const;
 			const char* GetName() const;
 			bool IsValid() const;
-			VMCModule* GetModule() const;
-			VMManager* GetManager() const;
+			asIScriptModule* GetModule() const;
+			VirtualMachine* GetVM() const;
 
 		public:
 			template <typename T>
@@ -1360,108 +1352,7 @@ namespace Edge
 			}
 		};
 
-		struct ED_OUT VMGlobal
-		{
-		private:
-			VMManager* Manager;
-
-		public:
-			VMGlobal(VMManager* Engine) noexcept;
-			int SetFunctionDef(const char* Decl);
-			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type = VMCall::CDECLF);
-			int SetPropertyAddress(const char* Decl, void* Value);
-			VMTypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)VMObjType::VALUE);
-			VMTypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)(VMObjType::VALUE | VMObjType::POD));
-			VMRefClass SetClassAddress(const char* Name, uint64_t Flags = (uint64_t)VMObjType::REF);
-			VMInterface SetInterface(const char* Name);
-			VMEnum SetEnum(const char* Name);
-			size_t GetFunctionsCount() const;
-			VMFunction GetFunctionById(int Id) const;
-			VMFunction GetFunctionByIndex(int Index) const;
-			VMFunction GetFunctionByDecl(const char* Decl) const;
-			size_t GetPropertiesCount() const;
-			int GetPropertyByIndex(int Index, VMProperty* Info) const;
-			int GetPropertyIndexByName(const char* Name) const;
-			int GetPropertyIndexByDecl(const char* Decl) const;
-			size_t GetObjectsCount() const;
-			VMTypeInfo GetObjectByIndex(size_t Index) const;
-			size_t GetEnumCount() const;
-			VMTypeInfo GetEnumByIndex(size_t Index) const;
-			size_t GetFunctionDefsCount() const;
-			VMTypeInfo GetFunctionDefByIndex(int Index) const;
-			size_t GetModulesCount() const;
-			VMCModule* GetModuleById(int Id) const;
-			int GetTypeIdByDecl(const char* Decl) const;
-			const char* GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
-			int GetSizeOfPrimitiveType(int TypeId) const;
-			std::string GetObjectView(void* Object, int TypeId);
-			VMTypeInfo GetTypeInfoById(int TypeId) const;
-			VMTypeInfo GetTypeInfoByName(const char* Name) const;
-			VMTypeInfo GetTypeInfoByDecl(const char* Decl) const;
-			VMManager* GetManager() const;
-
-		public:
-			template <typename T>
-			int SetFunction(const char* Decl, T Value)
-			{
-				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Function<T>(Value);
-				int Result = SetFunctionAddress(Decl, Ptr, VMCall::CDECLF);
-				VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <void(*)(VMCGeneric*)>
-			int SetFunction(const char* Decl, void(*Value)(VMCGeneric*))
-			{
-				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				asSFuncPtr* Ptr = VMBridge::Function<void (*)(VMCGeneric*)>(Value);
-				int Result = SetFunctionAddress(Decl, Ptr, VMCall::GENERIC);
-				VMFuncStore::ReleaseFunctor(&Ptr);
-
-				return Result;
-			}
-			template <typename T>
-			int SetProperty(const char* Decl, T* Value)
-			{
-				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-				return SetPropertyAddress(Decl, (void*)Value);
-			}
-			template <typename T>
-			VMRefClass SetClass(const char* Name)
-			{
-				ED_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
-				VMRefClass Class = SetClassAddress(Name, (size_t)VMObjType::REF);
-				Class.SetAddRef<T>();
-				Class.SetRelease<T>();
-
-				return Class;
-			}
-			template <typename T>
-			VMTypeClass SetStructTrivial(const char* Name)
-			{
-				ED_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
-				VMTypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | VMBridge::GetTypeTraits<T>());
-				Struct.SetOperatorCopy<T>();
-				Struct.SetDestructor<T>("void f()");
-
-				return Struct;
-			}
-			template <typename T>
-			VMTypeClass SetStruct(const char* Name)
-			{
-				ED_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
-				return SetStructAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | VMBridge::GetTypeTraits<T>());
-			}
-			template <typename T>
-			VMTypeClass SetPod(const char* Name)
-			{
-				ED_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
-				return SetPodAddress(Name, sizeof(T), (size_t)VMObjType::VALUE | (size_t)VMObjType::POD | VMBridge::GetTypeTraits<T>());
-			}
-		};
-
-		class ED_OUT VMCompiler final : public Core::Reference<VMCompiler>
+		class ED_OUT Compiler final : public Core::Reference<Compiler>
 		{
 		private:
 			static int CompilerUD;
@@ -1470,15 +1361,15 @@ namespace Edge
 			Compute::ProcIncludeCallback Include;
 			Compute::ProcPragmaCallback Pragma;
 			Compute::Preprocessor* Processor;
-			asIScriptModule* Module;
-			VMManager* Manager;
-			VMContext* Context;
-			VMByteCode VCache;
+			asIScriptModule* Scope;
+			VirtualMachine* VM;
+			ImmediateContext* Context;
+			ByteCodeInfo VCache;
 			bool BuiltOK;
 
 		public:
-			VMCompiler(VMManager* Engine) noexcept;
-			~VMCompiler() noexcept;
+			Compiler(VirtualMachine* Engine) noexcept;
+			~Compiler() noexcept;
 			void SetIncludeCallback(const Compute::ProcIncludeCallback& Callback);
 			void SetPragmaCallback(const Compute::ProcPragmaCallback& Callback);
 			void Define(const std::string& Word);
@@ -1487,30 +1378,30 @@ namespace Edge
 			bool IsDefined(const std::string& Word) const;
 			bool IsBuilt() const;
 			bool IsCached() const;
-			int Prepare(VMByteCode* Info);
+			int Prepare(ByteCodeInfo* Info);
 			int Prepare(const std::string& ModuleName, bool Scoped = false);
 			int Prepare(const std::string& ModuleName, const std::string& Cache, bool Debug = true, bool Scoped = false);
-			int SaveByteCode(VMByteCode* Info);
+			int SaveByteCode(ByteCodeInfo* Info);
 			int LoadFile(const std::string& Path);
 			int LoadCode(const std::string& Name, const std::string& Buffer);
 			int LoadCode(const std::string& Name, const char* Buffer, size_t Length);
 			Core::Promise<int> Compile();
-			Core::Promise<int> LoadByteCode(VMByteCode* Info);
+			Core::Promise<int> LoadByteCode(ByteCodeInfo* Info);
 			Core::Promise<int> ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteEntry(const char* Name, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteScoped(const std::string& Code, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
 			Core::Promise<int> ExecuteScoped(const char* Buffer, size_t Length, const char* Args = nullptr, ArgsCallback&& OnArgs = nullptr);
-			VMModule GetModule() const;
-			VMManager* GetManager() const;
-			VMContext* GetContext() const;
+			Module GetModule() const;
+			VirtualMachine* GetVM() const;
+			ImmediateContext* GetContext() const;
 			Compute::Preprocessor* GetProcessor() const;
 
 		private:
-			static VMCompiler* Get(VMContext* Context);
+			static Compiler* Get(ImmediateContext* Context);
 		};
 
-		class ED_OUT VMContext final : public Core::Reference<VMContext>
+		class ED_OUT ImmediateContext final : public Core::Reference<ImmediateContext>
 		{
 		private:
 			static int ContextUD;
@@ -1519,30 +1410,30 @@ namespace Edge
 			struct Task
 			{
 				Core::Promise<int> Future;
-				VMFunction Callback = nullptr;
+				Function Callback = nullptr;
 				ArgsCallback Args;
 			};
 
 		private:
-			std::function<void(VMContext*)> LineCallback;
-			std::function<void(VMContext*)> ExceptionCallback;
+			std::function<void(ImmediateContext*)> LineCallback;
+			std::function<void(ImmediateContext*)> ExceptionCallback;
 			std::queue<Task> Tasks;
 			std::mutex Exchange;
 			std::string Stacktrace;
-			VMCContext* Context;
-			VMManager* Manager;
+			asIScriptContext* Context;
+			VirtualMachine* VM;
 
 		public:
-			VMContext(VMCContext* Base) noexcept;
-			~VMContext() noexcept;
-			Core::Promise<int> TryExecute(bool IsNested, const VMFunction& Function, ArgsCallback&& OnArgs);
-			int SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object);
-			int Prepare(const VMFunction& Function);
+			ImmediateContext(asIScriptContext* Base) noexcept;
+			~ImmediateContext() noexcept;
+			Core::Promise<int> TryExecute(bool IsNested, const Function& Function, ArgsCallback&& OnArgs);
+			int SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
+			int Prepare(const Function& Function);
 			int Unprepare();
 			int Execute();
 			int Abort();
 			int Suspend();
-			VMRuntime GetState() const;
+			Activation GetState() const;
 			std::string GetStackTrace(size_t Skips, size_t MaxFrames) const;
 			int PushState();
 			int PopState();
@@ -1559,7 +1450,7 @@ namespace Edge
 			int SetArgAddress(unsigned int Arg, void* Address);
 			int SetArgObject(unsigned int Arg, void* Object);
 			int SetArgAny(unsigned int Arg, void* Ptr, int TypeId);
-			int GetReturnableByType(void* Return, VMCTypeInfo* ReturnTypeId);
+			int GetReturnableByType(void* Return, asITypeInfo* ReturnTypeId);
 			int GetReturnableByDecl(void* Return, const char* ReturnTypeDecl);
 			int GetReturnableById(void* Return, int ReturnTypeId);
 			void* GetAddressOfArg(unsigned int Arg);
@@ -1574,17 +1465,17 @@ namespace Edge
 			void* GetAddressOfReturnValue();
 			int SetException(const char* Info, bool AllowCatch = true);
 			int GetExceptionLineNumber(int* Column = 0, const char** SectionName = 0);
-			VMFunction GetExceptionFunction();
+			Function GetExceptionFunction();
 			const char* GetExceptionString();
 			bool WillExceptionBeCaught();
 			void ClearExceptionCallback();
-			int SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object);
-			int SetLineCallback(const std::function<void(VMContext*)>& Callback);
-			int SetExceptionCallback(const std::function<void(VMContext*)>& Callback);
+			int SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object);
+			int SetLineCallback(const std::function<void(ImmediateContext*)>& Callback);
+			int SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback);
 			void ClearLineCallback();
 			unsigned int GetCallstackSize() const;
 			std::string GetErrorStackTrace();
-			VMFunction GetFunction(unsigned int StackLevel = 0);
+			Function GetFunction(unsigned int StackLevel = 0);
 			int GetLineNumber(unsigned int StackLevel = 0, int* Column = 0, const char** SectionName = 0);
 			int GetPropertiesCount(unsigned int StackLevel = 0);
 			const char* GetPropertyName(unsigned int Index, unsigned int StackLevel = 0);
@@ -1594,12 +1485,12 @@ namespace Edge
 			bool IsPropertyInScope(unsigned int Index, unsigned int StackLevel = 0);
 			int GetThisTypeId(unsigned int StackLevel = 0);
 			void* GetThisPointer(unsigned int StackLevel = 0);
-			VMFunction GetSystemFunction();
+			Function GetSystemFunction();
 			bool IsSuspended() const;
 			void* SetUserData(void* Data, size_t Type = 0);
 			void* GetUserData(size_t Type = 0) const;
-			VMCContext* GetContext();
-			VMManager* GetManager();
+			asIScriptContext* GetContext();
+			VirtualMachine* GetVM();
 
 		public:
 			template <typename T>
@@ -1609,15 +1500,15 @@ namespace Edge
 			}
 
 		public:
-			static VMContext* Get(VMCContext* Context);
-			static VMContext* Get();
+			static ImmediateContext* Get(asIScriptContext* Context);
+			static ImmediateContext* Get();
 
 		private:
-			static void LineLogger(VMCContext* Context, void* Object);
-			static void ExceptionLogger(VMCContext* Context, void* Object);
+			static void LineLogger(asIScriptContext* Context, void* Object);
+			static void ExceptionLogger(asIScriptContext* Context, void* Object);
 		};
 
-		class ED_OUT VMManager final : public Core::Reference<VMManager>
+		class ED_OUT VirtualMachine final : public Core::Reference<VirtualMachine>
 		{
 		public:
 			typedef std::function<void(const std::string&)> CompileCallback;
@@ -1650,24 +1541,23 @@ namespace Edge
 		private:
 			std::unordered_map<std::string, std::string> Files;
 			std::unordered_map<std::string, Core::Schema*> Datas;
-			std::unordered_map<std::string, VMByteCode> Opcodes;
+			std::unordered_map<std::string, ByteCodeInfo> Opcodes;
 			std::unordered_map<std::string, Kernel> Kernels;
 			std::unordered_map<std::string, Submodule> Modules;
 			std::unordered_map<std::string, CompileCallback> Callbacks;
-			std::vector<VMCContext*> Contexts;
+			std::vector<asIScriptContext*> Contexts;
 			std::string DefaultNamespace;
 			Compute::Preprocessor::Desc Proc;
 			Compute::IncludeDesc Include;
 			WhenErrorCallback WherError;
 			uint64_t Scope;
-			VMCManager* Engine;
-			VMGlobal Globals;
+			asIScriptEngine* Engine;
 			unsigned int Imports;
 			bool Cached;
 
 		public:
-			VMManager() noexcept;
-			~VMManager() noexcept;
+			VirtualMachine() noexcept;
+			~VirtualMachine() noexcept;
 			void SetImports(unsigned int Opts);
 			void SetCache(bool Enabled);
 			void ClearCache();
@@ -1678,27 +1568,27 @@ namespace Edge
 			void SetCompileCallback(const std::string& Section, CompileCallback&& Callback);
 			int Collect(size_t NumIterations = 1);
 			void GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const;
-			int NotifyOfNewObject(void* Object, const VMTypeInfo& Type);
-			int GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, VMTypeInfo* Type = nullptr);
-			void ForwardEnumReferences(void* Reference, const VMTypeInfo& Type);
-			void ForwardReleaseReferences(void* Reference, const VMTypeInfo& Type);
+			int NotifyOfNewObject(void* Object, const TypeInfo& Type);
+			int GetObjectAddress(size_t Index, size_t* SequenceNumber = nullptr, void** Object = nullptr, TypeInfo* Type = nullptr);
+			void ForwardEnumReferences(void* Reference, const TypeInfo& Type);
+			void ForwardReleaseReferences(void* Reference, const TypeInfo& Type);
 			void GCEnumCallback(void* Reference);
 			bool DumpRegisteredInterfaces(const std::string& Path);
 			bool DumpAllInterfaces(const std::string& Path);
-			bool GetByteCodeCache(VMByteCode* Info);
-			void SetByteCodeCache(VMByteCode* Info);
-			Core::Unique<VMContext> CreateContext();
-			Core::Unique<VMCompiler> CreateCompiler();
-			VMCModule* CreateScopedModule(const std::string& Name);
-			VMCModule* CreateModule(const std::string& Name);
-			void* CreateObject(const VMTypeInfo& Type);
-			void* CreateObjectCopy(void* Object, const VMTypeInfo& Type);
-			void* CreateEmptyObject(const VMTypeInfo& Type);
-			VMFunction CreateDelegate(const VMFunction& Function, void* Object);
-			int AssignObject(void* DestObject, void* SrcObject, const VMTypeInfo& Type);
-			void ReleaseObject(void* Object, const VMTypeInfo& Type);
-			void AddRefObject(void* Object, const VMTypeInfo& Type);
-			int RefCastObject(void* Object, const VMTypeInfo& FromType, const VMTypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
+			bool GetByteCodeCache(ByteCodeInfo* Info);
+			void SetByteCodeCache(ByteCodeInfo* Info);
+			Core::Unique<ImmediateContext> CreateContext();
+			Core::Unique<Compiler> CreateCompiler();
+			asIScriptModule* CreateScopedModule(const std::string& Name);
+			asIScriptModule* CreateModule(const std::string& Name);
+			void* CreateObject(const TypeInfo& Type);
+			void* CreateObjectCopy(void* Object, const TypeInfo& Type);
+			void* CreateEmptyObject(const TypeInfo& Type);
+			Function CreateDelegate(const Function& Function, void* Object);
+			int AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type);
+			void ReleaseObject(void* Object, const TypeInfo& Type);
+			void AddRefObject(void* Object, const TypeInfo& Type);
+			int RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast = false);
 			int BeginGroup(const char* GroupName);
 			int EndGroup();
 			int RemoveGroup(const char* GroupName);
@@ -1706,20 +1596,19 @@ namespace Edge
 			int BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask);
 			int EndNamespace();
 			int EndNamespaceIsolated();
-			int Namespace(const char* Namespace, const std::function<int(VMGlobal*)>& Callback);
-			int NamespaceIsolated(const char* Namespace, size_t DefaultMask, const std::function<int(VMGlobal*)>& Callback);
+			int Namespace(const char* Namespace, const std::function<int(VirtualMachine*)>& Callback);
+			int NamespaceIsolated(const char* Namespace, size_t DefaultMask, const std::function<int(VirtualMachine*)>& Callback);
 			int GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const;
 			size_t BeginAccessMask(size_t DefaultMask);
 			size_t EndAccessMask();
 			const char* GetNamespace() const;
-			VMGlobal& Global();
-			VMModule Module(const char* Name);
+			Module GetModule(const char* Name);
 			int SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object);
-			int Log(const char* Section, int Row, int Column, VMLogType Type, const char* Message);
-			int SetProperty(VMProp Property, size_t Value);
+			int Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message);
+			int SetProperty(Features Property, size_t Value);
 			void SetDocumentRoot(const std::string& Root);
-			size_t GetProperty(VMProp Property) const;
-			VMCManager* GetEngine() const;
+			size_t GetProperty(Features Property) const;
+			asIScriptEngine* GetEngine() const;
 			std::string GetDocumentRoot() const;
 			std::vector<std::string> GetSubmodules() const;
 			std::vector<std::string> VerifyModules(const std::string& Directory, const Compute::RegexSource& Exp);
@@ -1731,28 +1620,119 @@ namespace Edge
 			bool ImportLibrary(const std::string& Path);
 			bool ImportSubmodule(const std::string& Name);
 			Core::Schema* ImportJSON(const std::string& Path);
+			int SetFunctionDef(const char* Decl);
+			int SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type = FunctionCall::CDECLF);
+			int SetPropertyAddress(const char* Decl, void* Value);
+			TypeClass SetStructAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)ObjectBehaviours::VALUE);
+			TypeClass SetPodAddress(const char* Name, size_t Size, uint64_t Flags = (uint64_t)(ObjectBehaviours::VALUE | ObjectBehaviours::POD));
+			RefClass SetClassAddress(const char* Name, uint64_t Flags = (uint64_t)ObjectBehaviours::REF);
+			TypeInterface SetInterface(const char* Name);
+			Enumeration SetEnum(const char* Name);
+			size_t GetFunctionsCount() const;
+			Function GetFunctionById(int Id) const;
+			Function GetFunctionByIndex(int Index) const;
+			Function GetFunctionByDecl(const char* Decl) const;
+			size_t GetPropertiesCount() const;
+			int GetPropertyByIndex(int Index, PropertyInfo* Info) const;
+			int GetPropertyIndexByName(const char* Name) const;
+			int GetPropertyIndexByDecl(const char* Decl) const;
+			size_t GetObjectsCount() const;
+			TypeInfo GetObjectByIndex(size_t Index) const;
+			size_t GetEnumCount() const;
+			TypeInfo GetEnumByIndex(size_t Index) const;
+			size_t GetFunctionDefsCount() const;
+			TypeInfo GetFunctionDefByIndex(int Index) const;
+			size_t GetModulesCount() const;
+			asIScriptModule* GetModuleById(int Id) const;
+			int GetTypeIdByDecl(const char* Decl) const;
+			const char* GetTypeIdDecl(int TypeId, bool IncludeNamespace = false) const;
+			int GetSizeOfPrimitiveType(int TypeId) const;
+			std::string GetObjectView(void* Object, int TypeId);
+			TypeInfo GetTypeInfoById(int TypeId) const;
+			TypeInfo GetTypeInfoByName(const char* Name);
+			TypeInfo GetTypeInfoByDecl(const char* Decl) const;
 
 		public:
 			static void SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*));
 			static void CleanupThisThread();
-			static VMManager* Get(VMCManager* Engine);
-			static VMManager* Get();
+			static VirtualMachine* Get(asIScriptEngine* Engine);
+			static VirtualMachine* Get();
 			static size_t GetDefaultAccessMask();
 			static void FreeProxy();
 
 		private:
 			static std::string GetLibraryName(const std::string& Path);
-			static VMCContext* RequestContext(VMCManager* Engine, void* Data);
-			static void ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data);
+			static asIScriptContext* RequestContext(asIScriptEngine* Engine, void* Data);
+			static void ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data);
 			static void CompileLogger(asSMessageInfo* Info, void* Object);
-			static void RegisterSubmodules(VMManager* Engine);
+			static void RegisterSubmodules(VirtualMachine* Engine);
 			static void* GetNullable();
+
+		public:
+			template <typename T>
+			int SetFunction(const char* Decl, T Value)
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				asSFuncPtr* Ptr = Bridge::Function<T>(Value);
+				int Result = SetFunctionAddress(Decl, Ptr, FunctionCall::CDECLF);
+				FunctionFactory::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <void(*)(asIScriptGeneric*)>
+			int SetFunction(const char* Decl, void(*Value)(asIScriptGeneric*))
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				asSFuncPtr* Ptr = Bridge::Function<void (*)(asIScriptGeneric*)>(Value);
+				int Result = SetFunctionAddress(Decl, Ptr, FunctionCall::GENERIC);
+				FunctionFactory::ReleaseFunctor(&Ptr);
+
+				return Result;
+			}
+			template <typename T>
+			int SetProperty(const char* Decl, T* Value)
+			{
+				ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+				return SetPropertyAddress(Decl, (void*)Value);
+			}
+			template <typename T>
+			RefClass SetClass(const char* Name)
+			{
+				ED_ASSERT(Name != nullptr, RefClass(nullptr, "", -1), "name should be set");
+				RefClass Class = SetClassAddress(Name, (size_t)ObjectBehaviours::REF);
+				Class.SetAddRef<T>();
+				Class.SetRelease<T>();
+
+				return Class;
+			}
+			template <typename T>
+			TypeClass SetStructTrivial(const char* Name)
+			{
+				ED_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
+				TypeClass Struct = SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
+				Struct.SetOperatorCopy<T>();
+				Struct.SetDestructor<T>("void f()");
+
+				return Struct;
+			}
+			template <typename T>
+			TypeClass SetStruct(const char* Name)
+			{
+				ED_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
+				return SetStructAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | Bridge::GetTypeTraits<T>());
+			}
+			template <typename T>
+			TypeClass SetPod(const char* Name)
+			{
+				ED_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
+				return SetPodAddress(Name, sizeof(T), (size_t)ObjectBehaviours::VALUE | (size_t)ObjectBehaviours::POD | Bridge::GetTypeTraits<T>());
+			}
 		};
 
-		class ED_OUT VMDebugger final : public Core::Reference<VMDebugger>
+		class ED_OUT Debugger final : public Core::Reference<Debugger>
 		{
 		public:
-			typedef std::string(*ToStringCallback)(void* Object, int ExpandLevel, VMDebugger* Dbg);
+			typedef std::string(*ToStringCallback)(void* Object, int ExpandLevel, Debugger* Dbg);
 
 		protected:
 			enum class DebugAction
@@ -1776,35 +1756,35 @@ namespace Edge
 			};
 
 		protected:
-			std::unordered_map<const VMCTypeInfo*, ToStringCallback> ToStringCallbacks;
+			std::unordered_map<const asITypeInfo*, ToStringCallback> ToStringCallbacks;
 			std::vector<BreakPoint> BreakPoints;
 			unsigned int LastCommandAtStackLevel;
-			VMCFunction* LastFunction;
-			VMManager* Manager;
+			asIScriptFunction* LastFunction;
+			VirtualMachine* VM;
 			DebugAction Action;
 
 		public:
-			VMDebugger() noexcept;
-			~VMDebugger() noexcept;
-			void RegisterToStringCallback(const VMTypeInfo& Type, ToStringCallback Callback);
-			void TakeCommands(VMContext* Context);
+			Debugger() noexcept;
+			~Debugger() noexcept;
+			void RegisterToStringCallback(const TypeInfo& Type, ToStringCallback Callback);
+			void TakeCommands(ImmediateContext* Context);
 			void Output(const std::string& Data);
-			void LineCallback(VMContext* Context);
+			void LineCallback(ImmediateContext* Context);
 			void PrintHelp();
 			void AddFileBreakPoint(const std::string& File, int LineNumber);
 			void AddFuncBreakPoint(const std::string& Function);
 			void ListBreakPoints();
-			void ListLocalVariables(VMContext* Context);
-			void ListGlobalVariables(VMContext* Context);
-			void ListMemberProperties(VMContext* Context);
-			void ListStatistics(VMContext* Context);
-			void PrintCallstack(VMContext* Context);
-			void PrintValue(const std::string& Expression, VMContext* Context);
-			void SetEngine(VMManager* Engine);
-			bool InterpretCommand(const std::string& Command, VMContext* Context);
-			bool CheckBreakPoint(VMContext* Context);
-			std::string ToString(void* Value, unsigned int TypeId, int ExpandMembersLevel, VMManager* Engine);
-			VMManager* GetEngine();
+			void ListLocalVariables(ImmediateContext* Context);
+			void ListGlobalVariables(ImmediateContext* Context);
+			void ListMemberProperties(ImmediateContext* Context);
+			void ListStatistics(ImmediateContext* Context);
+			void PrintCallstack(ImmediateContext* Context);
+			void PrintValue(const std::string& Expression, ImmediateContext* Context);
+			void SetEngine(VirtualMachine* Engine);
+			bool InterpretCommand(const std::string& Command, ImmediateContext* Context);
+			bool CheckBreakPoint(ImmediateContext* Context);
+			std::string ToString(void* Value, unsigned int TypeId, int ExpandMembersLevel, VirtualMachine* Engine);
+			VirtualMachine* GetEngine();
 		};
 	}
 }

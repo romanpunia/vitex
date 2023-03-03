@@ -590,7 +590,7 @@ namespace Edge
 					ED_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
 					Scope->Basis->AddRef();
-					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
+					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
 					Compiler->ExecuteScoped(Content.c_str(), Content.size()).Await([Scope](int&&)
 					{
 						Scope->Basis->Release();
@@ -601,7 +601,7 @@ namespace Edge
 					ScopedContext* Scope = (ScopedContext*)GetContext();
 					ED_ASSERT_V(Scope && Scope->Basis && Scope->Basis->Compiler, "context should be scoped");
 
-					Script::VMCompiler* Compiler = Scope->Basis->Compiler;
+					Scripting::Compiler* Compiler = Scope->Basis->Compiler;
 					if (Compiler->LoadFile(Core::Parser(Path).Replace('|', ':').R()) < 0)
 						return;
 
@@ -610,13 +610,13 @@ namespace Edge
 						if (Status < 0)
 							return;
 
-						Script::VMFunction Main = Compiler->GetModule().GetFunctionByName("Main");
+						Scripting::Function Main = Compiler->GetModule().GetFunctionByName("Main");
 						if (!Main.IsValid())
 							return;
 
 						Scope->Basis->AddRef();
-						Script::VMContext* Context = Compiler->GetContext();
-						Context->TryExecute(false, Main, [Main, Scope](Script::VMContext* Context)
+						Scripting::ImmediateContext* Context = Compiler->GetContext();
+						Context->TryExecute(false, Main, [Main, Scope](Scripting::ImmediateContext* Context)
 						{
 							if (Main.GetArgsCount() == 1)
 								Context->SetArgObject(0, Scope->Basis);
@@ -644,7 +644,7 @@ namespace Edge
 			class ListenerSubsystem final : public Rml::EventListener
 			{
 			public:
-				Script::VMFunction Function;
+				Scripting::Function Function;
 				std::string Memory;
 
 			public:
@@ -671,8 +671,8 @@ namespace Edge
 					}
 
 					Scope->Basis->AddRef();
-					Script::VMContext* Context = Scope->Basis->Compiler->GetContext();
-					Context->TryExecute(false, Function, [Ptr](Script::VMContext* Context)
+					Scripting::ImmediateContext* Context = Scope->Basis->Compiler->GetContext();
+					Context->TryExecute(false, Function, [Ptr](Scripting::ImmediateContext* Context)
 					{
 						IEvent Event(Ptr);
 						Context->SetArgObject(0, &Event);
@@ -692,8 +692,8 @@ namespace Edge
 					Eval.append(Memory);
 					Eval += "\n;}";
 
-					Script::VMModule Module = Scope->Basis->Compiler->GetModule();
-					return Module.CompileFunction(Name.c_str(), Eval.c_str(), -1, (size_t)Script::VMCompileFlags::ADD_TO_MODULE, &Function) >= 0;
+					Scripting::Module Module = Scope->Basis->Compiler->GetModule();
+					return Module.CompileFunction(Name.c_str(), Eval.c_str(), -1, (size_t)Scripting::CompileFlags::ADD_TO_MODULE, &Function) >= 0;
 				}
 			};
 
@@ -2791,9 +2791,9 @@ namespace Edge
 				SystemInterface->SetTranslator(Name, Callback);
 #endif
 			}
-			void Subsystem::SetManager(Script::VMManager* Manager)
+			void Subsystem::SetVirtualMachine(Scripting::VirtualMachine* VM)
 			{
-				ScriptInterface = Manager;
+				ScriptInterface = VM;
 			}
 			RenderSubsystem* Subsystem::GetRenderInterface()
 			{
@@ -2882,7 +2882,7 @@ namespace Edge
 			{
 				return Core::Parser(&Text).Replace("\r\n", "&nbsp;").Replace("\n", "&nbsp;").Replace("<", "&lt;").Replace(">", "&gt;").R();
 			}
-			Script::VMManager* Subsystem::ScriptInterface = nullptr;
+			Scripting::VirtualMachine* Subsystem::ScriptInterface = nullptr;
 			ContextInstancer* Subsystem::ContextFactory = nullptr;
 			DocumentInstancer* Subsystem::DocumentFactory = nullptr;
 			ListenerInstancer* Subsystem::ListenerFactory = nullptr;

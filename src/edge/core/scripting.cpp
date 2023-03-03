@@ -1,4 +1,4 @@
-#include "script.h"
+#include "scripting.h"
 #include "bindings.h"
 #include <inttypes.h>
 #include <iostream>
@@ -183,41 +183,41 @@ namespace
 
 namespace Edge
 {
-	namespace Script
+	namespace Scripting
 	{
-		int VMFuncStore::AtomicNotifyGC(const char* TypeName, void* Object)
+		int FunctionFactory::AtomicNotifyGC(const char* TypeName, void* Object)
 		{
 			ED_ASSERT(TypeName != nullptr, -1, "typename should be set");
 			ED_ASSERT(Object != nullptr, -1, "object should be set");
 
-			VMCContext* Context = asGetActiveContext();
+			asIScriptContext* Context = asGetActiveContext();
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 
-			VMManager* Engine = VMManager::Get(Context->GetEngine());
+			VirtualMachine* Engine = VirtualMachine::Get(Context->GetEngine());
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
-			VMTypeInfo Type = Engine->Global().GetTypeInfoByName(TypeName);
+			TypeInfo Type = Engine->GetTypeInfoByName(TypeName);
 			return Engine->NotifyOfNewObject(Object, Type.GetTypeInfo());
 		}
-		asSFuncPtr* VMFuncStore::CreateFunctionBase(void(*Base)(), int Type)
+		asSFuncPtr* FunctionFactory::CreateFunctionBase(void(*Base)(), int Type)
 		{
 			ED_ASSERT(Base != nullptr, nullptr, "function pointer should be set");
 			asSFuncPtr* Ptr = ED_NEW(asSFuncPtr, Type);
 			Ptr->ptr.f.func = reinterpret_cast<asFUNCTION_t>(Base);
 			return Ptr;
 		}
-		asSFuncPtr* VMFuncStore::CreateMethodBase(const void* Base, size_t Size, int Type)
+		asSFuncPtr* FunctionFactory::CreateMethodBase(const void* Base, size_t Size, int Type)
 		{
 			ED_ASSERT(Base != nullptr, nullptr, "function pointer should be set");
 			asSFuncPtr* Ptr = ED_NEW(asSFuncPtr, Type);
 			Ptr->CopyMethodPtr(Base, Size);
 			return Ptr;
 		}
-		asSFuncPtr* VMFuncStore::CreateDummyBase()
+		asSFuncPtr* FunctionFactory::CreateDummyBase()
 		{
 			return ED_NEW(asSFuncPtr, 0);
 		}
-		void VMFuncStore::ReleaseFunctor(asSFuncPtr** Ptr)
+		void FunctionFactory::ReleaseFunctor(asSFuncPtr** Ptr)
 		{
 			if (!Ptr || !*Ptr)
 				return;
@@ -226,48 +226,48 @@ namespace Edge
 			*Ptr = nullptr;
 		}
 
-		VMMessage::VMMessage(asSMessageInfo* Msg) noexcept : Info(Msg)
+		MessageInfo::MessageInfo(asSMessageInfo* Msg) noexcept : Info(Msg)
 		{
 		}
-		const char* VMMessage::GetSection() const
+		const char* MessageInfo::GetSection() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "message should be valid");
 			return Info->section;
 		}
-		const char* VMMessage::GetText() const
+		const char* MessageInfo::GetText() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "message should be valid");
 			return Info->message;
 		}
-		VMLogType VMMessage::GetType() const
+		LogCategory MessageInfo::GetType() const
 		{
-			ED_ASSERT(IsValid(), VMLogType::INFORMATION, "message should be valid");
-			return (VMLogType)Info->type;
+			ED_ASSERT(IsValid(), LogCategory::INFORMATION, "message should be valid");
+			return (LogCategory)Info->type;
 		}
-		int VMMessage::GetRow() const
+		int MessageInfo::GetRow() const
 		{
 			ED_ASSERT(IsValid(), -1, "message should be valid");
 			return Info->row;
 		}
-		int VMMessage::GetColumn() const
+		int MessageInfo::GetColumn() const
 		{
 			ED_ASSERT(IsValid(), -1, "message should be valid");
 			return Info->col;
 		}
-		asSMessageInfo* VMMessage::GetMessageInfo() const
+		asSMessageInfo* MessageInfo::GetMessageInfo() const
 		{
 			return Info;
 		}
-		bool VMMessage::IsValid() const
+		bool MessageInfo::IsValid() const
 		{
 			return Info != nullptr;
 		}
 
-		VMTypeInfo::VMTypeInfo(VMCTypeInfo* TypeInfo) noexcept : Info(TypeInfo)
+		TypeInfo::TypeInfo(asITypeInfo* TypeInfo) noexcept : Info(TypeInfo)
 		{
-			Manager = (Info ? VMManager::Get(Info->GetEngine()) : nullptr);
+			VM = (Info ? VirtualMachine::Get(Info->GetEngine()) : nullptr);
 		}
-		void VMTypeInfo::ForEachProperty(const PropertyCallback& Callback)
+		void TypeInfo::ForEachProperty(const PropertyCallback& Callback)
 		{
 			ED_ASSERT_V(IsValid(), "typeinfo should be valid");
 			ED_ASSERT_V(Callback, "typeinfo should not be empty");
@@ -275,12 +275,12 @@ namespace Edge
 			unsigned int Count = Info->GetPropertyCount();
 			for (unsigned int i = 0; i < Count; i++)
 			{
-				VMFuncProperty Prop;
+				FunctionInfo Prop;
 				if (GetProperty(i, &Prop) >= 0)
 					Callback(this, &Prop);
 			}
 		}
-		void VMTypeInfo::ForEachMethod(const MethodCallback& Callback)
+		void TypeInfo::ForEachMethod(const MethodCallback& Callback)
 		{
 			ED_ASSERT_V(IsValid(), "typeinfo should be valid");
 			ED_ASSERT_V(Callback, "typeinfo should not be empty");
@@ -288,32 +288,32 @@ namespace Edge
 			unsigned int Count = Info->GetMethodCount();
 			for (unsigned int i = 0; i < Count; i++)
 			{
-				VMFunction Method = Info->GetMethodByIndex(i);
+				Function Method = Info->GetMethodByIndex(i);
 				if (Method.IsValid())
 					Callback(this, &Method);
 			}
 		}
-		const char* VMTypeInfo::GetGroup() const
+		const char* TypeInfo::GetGroup() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetConfigGroup();
 		}
-		size_t VMTypeInfo::GetAccessMask() const
+		size_t TypeInfo::GetAccessMask() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetAccessMask();
 		}
-		VMModule VMTypeInfo::GetModule() const
+		Module TypeInfo::GetModule() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetModule();
 		}
-		int VMTypeInfo::AddRef() const
+		int TypeInfo::AddRef() const
 		{
 			ED_ASSERT(IsValid(), -1, "typeinfo should be valid");
 			return Info->AddRef();
 		}
-		int VMTypeInfo::Release()
+		int TypeInfo::Release()
 		{
 			if (!IsValid())
 				return -1;
@@ -324,112 +324,112 @@ namespace Edge
 
 			return R;
 		}
-		const char* VMTypeInfo::GetName() const
+		const char* TypeInfo::GetName() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetName();
 		}
-		const char* VMTypeInfo::GetNamespace() const
+		const char* TypeInfo::GetNamespace() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetNamespace();
 		}
-		VMTypeInfo VMTypeInfo::GetBaseType() const
+		TypeInfo TypeInfo::GetBaseType() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetBaseType();
 		}
-		bool VMTypeInfo::DerivesFrom(const VMTypeInfo& Type) const
+		bool TypeInfo::DerivesFrom(const TypeInfo& Type) const
 		{
 			ED_ASSERT(IsValid(), false, "typeinfo should be valid");
 			return Info->DerivesFrom(Type.GetTypeInfo());
 		}
-		size_t VMTypeInfo::GetFlags() const
+		size_t TypeInfo::GetFlags() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetFlags();
 		}
-		unsigned int VMTypeInfo::GetSize() const
+		unsigned int TypeInfo::GetSize() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetSize();
 		}
-		int VMTypeInfo::GetTypeId() const
+		int TypeInfo::GetTypeId() const
 		{
 			ED_ASSERT(IsValid(), -1, "typeinfo should be valid");
 			return Info->GetTypeId();
 		}
-		int VMTypeInfo::GetSubTypeId(unsigned int SubTypeIndex) const
+		int TypeInfo::GetSubTypeId(unsigned int SubTypeIndex) const
 		{
 			ED_ASSERT(IsValid(), -1, "typeinfo should be valid");
 			return Info->GetSubTypeId(SubTypeIndex);
 		}
-		VMTypeInfo VMTypeInfo::GetSubType(unsigned int SubTypeIndex) const
+		TypeInfo TypeInfo::GetSubType(unsigned int SubTypeIndex) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetSubType(SubTypeIndex);
 		}
-		unsigned int VMTypeInfo::GetSubTypeCount() const
+		unsigned int TypeInfo::GetSubTypeCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetSubTypeCount();
 		}
-		unsigned int VMTypeInfo::GetInterfaceCount() const
+		unsigned int TypeInfo::GetInterfaceCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetInterfaceCount();
 		}
-		VMTypeInfo VMTypeInfo::GetInterface(unsigned int Index) const
+		TypeInfo TypeInfo::GetInterface(unsigned int Index) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetInterface(Index);
 		}
-		bool VMTypeInfo::Implements(const VMTypeInfo& Type) const
+		bool TypeInfo::Implements(const TypeInfo& Type) const
 		{
 			ED_ASSERT(IsValid(), false, "typeinfo should be valid");
 			return Info->Implements(Type.GetTypeInfo());
 		}
-		unsigned int VMTypeInfo::GetFactoriesCount() const
+		unsigned int TypeInfo::GetFactoriesCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetFactoryCount();
 		}
-		VMFunction VMTypeInfo::GetFactoryByIndex(unsigned int Index) const
+		Function TypeInfo::GetFactoryByIndex(unsigned int Index) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetFactoryByIndex(Index);
 		}
-		VMFunction VMTypeInfo::GetFactoryByDecl(const char* Decl) const
+		Function TypeInfo::GetFactoryByDecl(const char* Decl) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetFactoryByDecl(Decl);
 		}
-		unsigned int VMTypeInfo::GetMethodsCount() const
+		unsigned int TypeInfo::GetMethodsCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetMethodCount();
 		}
-		VMFunction VMTypeInfo::GetMethodByIndex(unsigned int Index, bool GetVirtual) const
+		Function TypeInfo::GetMethodByIndex(unsigned int Index, bool GetVirtual) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetMethodByIndex(Index, GetVirtual);
 		}
-		VMFunction VMTypeInfo::GetMethodByName(const char* Name, bool GetVirtual) const
+		Function TypeInfo::GetMethodByName(const char* Name, bool GetVirtual) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetMethodByName(Name, GetVirtual);
 		}
-		VMFunction VMTypeInfo::GetMethodByDecl(const char* Decl, bool GetVirtual) const
+		Function TypeInfo::GetMethodByDecl(const char* Decl, bool GetVirtual) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetMethodByDecl(Decl, GetVirtual);
 		}
-		unsigned int VMTypeInfo::GetPropertiesCount() const
+		unsigned int TypeInfo::GetPropertiesCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetPropertyCount();
 		}
-		int VMTypeInfo::GetProperty(unsigned int Index, VMFuncProperty* Out) const
+		int TypeInfo::GetProperty(unsigned int Index, FunctionInfo* Out) const
 		{
 			ED_ASSERT(IsValid(), -1, "typeinfo should be valid");
 
@@ -454,320 +454,320 @@ namespace Edge
 
 			return Result;
 		}
-		const char* VMTypeInfo::GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace) const
+		const char* TypeInfo::GetPropertyDeclaration(unsigned int Index, bool IncludeNamespace) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetPropertyDeclaration(Index, IncludeNamespace);
 		}
-		unsigned int VMTypeInfo::GetBehaviourCount() const
+		unsigned int TypeInfo::GetBehaviourCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetBehaviourCount();
 		}
-		VMFunction VMTypeInfo::GetBehaviourByIndex(unsigned int Index, VMBehave* OutBehaviour) const
+		Function TypeInfo::GetBehaviourByIndex(unsigned int Index, Behaviours* OutBehaviour) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 
 			asEBehaviours Out;
-			VMCFunction* Result = Info->GetBehaviourByIndex(Index, &Out);
+			asIScriptFunction* Result = Info->GetBehaviourByIndex(Index, &Out);
 			if (OutBehaviour != nullptr)
-				*OutBehaviour = (VMBehave)Out;
+				*OutBehaviour = (Behaviours)Out;
 
 			return Result;
 		}
-		unsigned int VMTypeInfo::GetChildFunctionDefCount() const
+		unsigned int TypeInfo::GetChildFunctionDefCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetChildFuncdefCount();
 		}
-		VMTypeInfo VMTypeInfo::GetChildFunctionDef(unsigned int Index) const
+		TypeInfo TypeInfo::GetChildFunctionDef(unsigned int Index) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetChildFuncdef(Index);
 		}
-		VMTypeInfo VMTypeInfo::GetParentType() const
+		TypeInfo TypeInfo::GetParentType() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetParentType();
 		}
-		unsigned int VMTypeInfo::GetEnumValueCount() const
+		unsigned int TypeInfo::GetEnumValueCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "typeinfo should be valid");
 			return Info->GetEnumValueCount();
 		}
-		const char* VMTypeInfo::GetEnumValueByIndex(unsigned int Index, int* OutValue) const
+		const char* TypeInfo::GetEnumValueByIndex(unsigned int Index, int* OutValue) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetEnumValueByIndex(Index, OutValue);
 		}
-		VMFunction VMTypeInfo::GetFunctionDefSignature() const
+		Function TypeInfo::GetFunctionDefSignature() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetFuncdefSignature();
 		}
-		void* VMTypeInfo::SetUserData(void* Data, size_t Type)
+		void* TypeInfo::SetUserData(void* Data, size_t Type)
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->SetUserData(Data, Type);
 		}
-		void* VMTypeInfo::GetUserData(size_t Type) const
+		void* TypeInfo::GetUserData(size_t Type) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "typeinfo should be valid");
 			return Info->GetUserData(Type);
 		}
-		bool VMTypeInfo::IsHandle() const
+		bool TypeInfo::IsHandle() const
 		{
 			ED_ASSERT(IsValid(), false, "typeinfo should be valid");
 			return IsHandle(Info->GetTypeId());
 		}
-		bool VMTypeInfo::IsValid() const
+		bool TypeInfo::IsValid() const
 		{
-			return Manager != nullptr && Info != nullptr;
+			return VM != nullptr && Info != nullptr;
 		}
-		VMCTypeInfo* VMTypeInfo::GetTypeInfo() const
+		asITypeInfo* TypeInfo::GetTypeInfo() const
 		{
 			return Info;
 		}
-		VMManager* VMTypeInfo::GetManager() const
+		VirtualMachine* TypeInfo::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
-		bool VMTypeInfo::IsHandle(int TypeId)
+		bool TypeInfo::IsHandle(int TypeId)
 		{
 			return (TypeId & asTYPEID_OBJHANDLE || TypeId & asTYPEID_HANDLETOCONST);
 		}
-		bool VMTypeInfo::IsScriptObject(int TypeId)
+		bool TypeInfo::IsScriptObject(int TypeId)
 		{
 			return (TypeId & asTYPEID_SCRIPTOBJECT);
 		}
 
-		VMFunction::VMFunction(VMCFunction* Base) noexcept : Function(Base)
+		Function::Function(asIScriptFunction* Base) noexcept : Ptr(Base)
 		{
-			Manager = (Base ? VMManager::Get(Base->GetEngine()) : nullptr);
+			VM = (Base ? VirtualMachine::Get(Base->GetEngine()) : nullptr);
 		}
-		VMFunction::VMFunction(const VMFunction& Base) noexcept : Manager(Base.Manager), Function(Base.Function)
+		Function::Function(const Function& Base) noexcept : VM(Base.VM), Ptr(Base.Ptr)
 		{
 		}
-		int VMFunction::AddRef() const
+		int Function::AddRef() const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
-			return Function->AddRef();
+			return Ptr->AddRef();
 		}
-		int VMFunction::Release()
+		int Function::Release()
 		{
 			if (!IsValid())
 				return -1;
 
-			int R = Function->Release();
+			int R = Ptr->Release();
 			if (R <= 0)
-				Function = nullptr;
+				Ptr = nullptr;
 
 			return R;
 		}
-		int VMFunction::GetId() const
+		int Function::GetId() const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
-			return Function->GetId();
+			return Ptr->GetId();
 		}
-		VMFuncType VMFunction::GetType() const
+		FunctionType Function::GetType() const
 		{
-			ED_ASSERT(IsValid(), VMFuncType::DUMMY, "function should be valid");
-			return (VMFuncType)Function->GetFuncType();
+			ED_ASSERT(IsValid(), FunctionType::DUMMY, "function should be valid");
+			return (FunctionType)Ptr->GetFuncType();
 		}
-		const char* VMFunction::GetModuleName() const
-		{
-			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetModuleName();
-		}
-		VMModule VMFunction::GetModule() const
+		const char* Function::GetModuleName() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetModule();
+			return Ptr->GetModuleName();
 		}
-		const char* VMFunction::GetSectionName() const
+		Module Function::GetModule() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetScriptSectionName();
+			return Ptr->GetModule();
 		}
-		const char* VMFunction::GetGroup() const
+		const char* Function::GetSectionName() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetConfigGroup();
+			return Ptr->GetScriptSectionName();
 		}
-		size_t VMFunction::GetAccessMask() const
+		const char* Function::GetGroup() const
+		{
+			ED_ASSERT(IsValid(), nullptr, "function should be valid");
+			return Ptr->GetConfigGroup();
+		}
+		size_t Function::GetAccessMask() const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
-			return Function->GetAccessMask();
+			return Ptr->GetAccessMask();
 		}
-		VMTypeInfo VMFunction::GetObjectType() const
+		TypeInfo Function::GetObjectType() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetObjectType();
+			return Ptr->GetObjectType();
 		}
-		const char* VMFunction::GetObjectName() const
+		const char* Function::GetObjectName() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetObjectName();
+			return Ptr->GetObjectName();
 		}
-		const char* VMFunction::GetName() const
+		const char* Function::GetName() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetName();
+			return Ptr->GetName();
 		}
-		const char* VMFunction::GetNamespace() const
+		const char* Function::GetNamespace() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetNamespace();
+			return Ptr->GetNamespace();
 		}
-		const char* VMFunction::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
+		const char* Function::GetDecl(bool IncludeObjectName, bool IncludeNamespace, bool IncludeArgNames) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames);
+			return Ptr->GetDeclaration(IncludeObjectName, IncludeNamespace, IncludeArgNames);
 		}
-		bool VMFunction::IsReadOnly() const
+		bool Function::IsReadOnly() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsReadOnly();
+			return Ptr->IsReadOnly();
 		}
-		bool VMFunction::IsPrivate() const
+		bool Function::IsPrivate() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsPrivate();
+			return Ptr->IsPrivate();
 		}
-		bool VMFunction::IsProtected() const
+		bool Function::IsProtected() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsProtected();
+			return Ptr->IsProtected();
 		}
-		bool VMFunction::IsFinal() const
+		bool Function::IsFinal() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsFinal();
+			return Ptr->IsFinal();
 		}
-		bool VMFunction::IsOverride() const
+		bool Function::IsOverride() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsOverride();
+			return Ptr->IsOverride();
 		}
-		bool VMFunction::IsShared() const
+		bool Function::IsShared() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsShared();
+			return Ptr->IsShared();
 		}
-		bool VMFunction::IsExplicit() const
+		bool Function::IsExplicit() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsExplicit();
+			return Ptr->IsExplicit();
 		}
-		bool VMFunction::IsProperty() const
+		bool Function::IsProperty() const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsProperty();
+			return Ptr->IsProperty();
 		}
-		unsigned int VMFunction::GetArgsCount() const
+		unsigned int Function::GetArgsCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "function should be valid");
-			return Function->GetParamCount();
+			return Ptr->GetParamCount();
 		}
-		int VMFunction::GetArg(unsigned int Index, int* TypeId, size_t* Flags, const char** Name, const char** DefaultArg) const
+		int Function::GetArg(unsigned int Index, int* TypeId, size_t* Flags, const char** Name, const char** DefaultArg) const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
 
 			asDWORD asFlags;
-			int R = Function->GetParam(Index, TypeId, &asFlags, Name, DefaultArg);
+			int R = Ptr->GetParam(Index, TypeId, &asFlags, Name, DefaultArg);
 			if (Flags != nullptr)
 				*Flags = (size_t)asFlags;
 
 			return R;
 		}
-		int VMFunction::GetReturnTypeId(size_t* Flags) const
+		int Function::GetReturnTypeId(size_t* Flags) const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
 
 			asDWORD asFlags;
-			int R = Function->GetReturnTypeId(&asFlags);
+			int R = Ptr->GetReturnTypeId(&asFlags);
 			if (Flags != nullptr)
 				*Flags = (size_t)asFlags;
 
 			return R;
 		}
-		int VMFunction::GetTypeId() const
+		int Function::GetTypeId() const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
-			return Function->GetTypeId();
+			return Ptr->GetTypeId();
 		}
-		bool VMFunction::IsCompatibleWithTypeId(int TypeId) const
+		bool Function::IsCompatibleWithTypeId(int TypeId) const
 		{
 			ED_ASSERT(IsValid(), false, "function should be valid");
-			return Function->IsCompatibleWithTypeId(TypeId);
+			return Ptr->IsCompatibleWithTypeId(TypeId);
 		}
-		void* VMFunction::GetDelegateObject() const
+		void* Function::GetDelegateObject() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetDelegateObject();
+			return Ptr->GetDelegateObject();
 		}
-		VMTypeInfo VMFunction::GetDelegateObjectType() const
+		TypeInfo Function::GetDelegateObjectType() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetDelegateObjectType();
+			return Ptr->GetDelegateObjectType();
 		}
-		VMFunction VMFunction::GetDelegateFunction() const
+		Function Function::GetDelegateFunction() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetDelegateFunction();
+			return Ptr->GetDelegateFunction();
 		}
-		unsigned int VMFunction::GetPropertiesCount() const
+		unsigned int Function::GetPropertiesCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "function should be valid");
-			return Function->GetVarCount();
+			return Ptr->GetVarCount();
 		}
-		int VMFunction::GetProperty(unsigned int Index, const char** Name, int* TypeId) const
+		int Function::GetProperty(unsigned int Index, const char** Name, int* TypeId) const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
-			return Function->GetVar(Index, Name, TypeId);
+			return Ptr->GetVar(Index, Name, TypeId);
 		}
-		const char* VMFunction::GetPropertyDecl(unsigned int Index, bool IncludeNamespace) const
+		const char* Function::GetPropertyDecl(unsigned int Index, bool IncludeNamespace) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetVarDecl(Index, IncludeNamespace);
+			return Ptr->GetVarDecl(Index, IncludeNamespace);
 		}
-		int VMFunction::FindNextLineWithCode(int Line) const
+		int Function::FindNextLineWithCode(int Line) const
 		{
 			ED_ASSERT(IsValid(), -1, "function should be valid");
-			return Function->FindNextLineWithCode(Line);
+			return Ptr->FindNextLineWithCode(Line);
 		}
-		void* VMFunction::SetUserData(void* UserData, size_t Type)
+		void* Function::SetUserData(void* UserData, size_t Type)
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->SetUserData(UserData, Type);
+			return Ptr->SetUserData(UserData, Type);
 		}
-		void* VMFunction::GetUserData(size_t Type) const
+		void* Function::GetUserData(size_t Type) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "function should be valid");
-			return Function->GetUserData(Type);
+			return Ptr->GetUserData(Type);
 		}
-		bool VMFunction::IsValid() const
+		bool Function::IsValid() const
 		{
-			return Manager != nullptr && Function != nullptr;
+			return VM != nullptr && Ptr != nullptr;
 		}
-		VMCFunction* VMFunction::GetFunction() const
+		asIScriptFunction* Function::GetFunction() const
 		{
-			return Function;
+			return Ptr;
 		}
-		VMManager* VMFunction::GetManager() const
+		VirtualMachine* Function::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
 
-		VMObject::VMObject(VMCObject* Base) noexcept : Object(Base)
+		ScriptObject::ScriptObject(asIScriptObject* Base) noexcept : Object(Base)
 		{
 		}
-		int VMObject::AddRef() const
+		int ScriptObject::AddRef() const
 		{
 			ED_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->AddRef();
 		}
-		int VMObject::Release()
+		int ScriptObject::Release()
 		{
 			if (!IsValid())
 				return -1;
@@ -777,85 +777,85 @@ namespace Edge
 
 			return R;
 		}
-		VMTypeInfo VMObject::GetObjectType()
+		TypeInfo ScriptObject::GetObjectType()
 		{
 			ED_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetObjectType();
 		}
-		int VMObject::GetTypeId()
+		int ScriptObject::GetTypeId()
 		{
 			ED_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->GetTypeId();
 		}
-		int VMObject::GetPropertyTypeId(unsigned int Id) const
+		int ScriptObject::GetPropertyTypeId(unsigned int Id) const
 		{
 			ED_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->GetPropertyTypeId(Id);
 		}
-		unsigned int VMObject::GetPropertiesCount() const
+		unsigned int ScriptObject::GetPropertiesCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "object should be valid");
 			return Object->GetPropertyCount();
 		}
-		const char* VMObject::GetPropertyName(unsigned int Id) const
+		const char* ScriptObject::GetPropertyName(unsigned int Id) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetPropertyName(Id);
 		}
-		void* VMObject::GetAddressOfProperty(unsigned int Id)
+		void* ScriptObject::GetAddressOfProperty(unsigned int Id)
 		{
 			ED_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetAddressOfProperty(Id);
 		}
-		VMManager* VMObject::GetManager() const
+		VirtualMachine* ScriptObject::GetVM() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "object should be valid");
-			return VMManager::Get(Object->GetEngine());
+			return VirtualMachine::Get(Object->GetEngine());
 		}
-		int VMObject::CopyFrom(const VMObject& Other)
+		int ScriptObject::CopyFrom(const ScriptObject& Other)
 		{
 			ED_ASSERT(IsValid(), -1, "object should be valid");
 			return Object->CopyFrom(Other.GetObject());
 		}
-		void* VMObject::SetUserData(void* Data, size_t Type)
+		void* ScriptObject::SetUserData(void* Data, size_t Type)
 		{
 			ED_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->SetUserData(Data, (asPWORD)Type);
 		}
-		void* VMObject::GetUserData(size_t Type) const
+		void* ScriptObject::GetUserData(size_t Type) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "object should be valid");
 			return Object->GetUserData((asPWORD)Type);
 		}
-		bool VMObject::IsValid() const
+		bool ScriptObject::IsValid() const
 		{
 			return Object != nullptr;
 		}
-		VMCObject* VMObject::GetObject() const
+		asIScriptObject* ScriptObject::GetObject() const
 		{
 			return Object;
 		}
 
-		VMGeneric::VMGeneric(VMCGeneric* Base) noexcept : Generic(Base)
+		GenericContext::GenericContext(asIScriptGeneric* Base) noexcept : Generic(Base)
 		{
-			Manager = (Generic ? VMManager::Get(Generic->GetEngine()) : nullptr);
+			VM = (Generic ? VirtualMachine::Get(Generic->GetEngine()) : nullptr);
 		}
-		void* VMGeneric::GetObjectAddress()
+		void* GenericContext::GetObjectAddress()
 		{
 			ED_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetObject();
 		}
-		int VMGeneric::GetObjectTypeId() const
+		int GenericContext::GetObjectTypeId() const
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->GetObjectTypeId();
 		}
-		int VMGeneric::GetArgsCount() const
+		int GenericContext::GetArgsCount() const
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->GetArgCount();
 		}
-		int VMGeneric::GetArgTypeId(unsigned int Argument, size_t* Flags) const
+		int GenericContext::GetArgTypeId(unsigned int Argument, size_t* Flags) const
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 
@@ -866,52 +866,52 @@ namespace Edge
 
 			return R;
 		}
-		unsigned char VMGeneric::GetArgByte(unsigned int Argument)
+		unsigned char GenericContext::GetArgByte(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgByte(Argument);
 		}
-		unsigned short VMGeneric::GetArgWord(unsigned int Argument)
+		unsigned short GenericContext::GetArgWord(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgWord(Argument);
 		}
-		size_t VMGeneric::GetArgDWord(unsigned int Argument)
+		size_t GenericContext::GetArgDWord(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgDWord(Argument);
 		}
-		uint64_t VMGeneric::GetArgQWord(unsigned int Argument)
+		uint64_t GenericContext::GetArgQWord(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), 0, "generic should be valid");
 			return Generic->GetArgQWord(Argument);
 		}
-		float VMGeneric::GetArgFloat(unsigned int Argument)
+		float GenericContext::GetArgFloat(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), 0.0f, "generic should be valid");
 			return Generic->GetArgFloat(Argument);
 		}
-		double VMGeneric::GetArgDouble(unsigned int Argument)
+		double GenericContext::GetArgDouble(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), 0.0, "generic should be valid");
 			return Generic->GetArgDouble(Argument);
 		}
-		void* VMGeneric::GetArgAddress(unsigned int Argument)
+		void* GenericContext::GetArgAddress(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetArgAddress(Argument);
 		}
-		void* VMGeneric::GetArgObjectAddress(unsigned int Argument)
+		void* GenericContext::GetArgObjectAddress(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetArgObject(Argument);
 		}
-		void* VMGeneric::GetAddressOfArg(unsigned int Argument)
+		void* GenericContext::GetAddressOfArg(unsigned int Argument)
 		{
 			ED_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetAddressOfArg(Argument);
 		}
-		int VMGeneric::GetReturnTypeId(size_t* Flags) const
+		int GenericContext::GetReturnTypeId(size_t* Flags) const
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 
@@ -922,119 +922,119 @@ namespace Edge
 
 			return R;
 		}
-		int VMGeneric::SetReturnByte(unsigned char Value)
+		int GenericContext::SetReturnByte(unsigned char Value)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnByte(Value);
 		}
-		int VMGeneric::SetReturnWord(unsigned short Value)
+		int GenericContext::SetReturnWord(unsigned short Value)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnWord(Value);
 		}
-		int VMGeneric::SetReturnDWord(size_t Value)
+		int GenericContext::SetReturnDWord(size_t Value)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnDWord((asDWORD)Value);
 		}
-		int VMGeneric::SetReturnQWord(uint64_t Value)
+		int GenericContext::SetReturnQWord(uint64_t Value)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnQWord(Value);
 		}
-		int VMGeneric::SetReturnFloat(float Value)
+		int GenericContext::SetReturnFloat(float Value)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnFloat(Value);
 		}
-		int VMGeneric::SetReturnDouble(double Value)
+		int GenericContext::SetReturnDouble(double Value)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnDouble(Value);
 		}
-		int VMGeneric::SetReturnAddress(void* Address)
+		int GenericContext::SetReturnAddress(void* Address)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnAddress(Address);
 		}
-		int VMGeneric::SetReturnObjectAddress(void* Object)
+		int GenericContext::SetReturnObjectAddress(void* Object)
 		{
 			ED_ASSERT(IsValid(), -1, "generic should be valid");
 			return Generic->SetReturnObject(Object);
 		}
-		void* VMGeneric::GetAddressOfReturnLocation()
+		void* GenericContext::GetAddressOfReturnLocation()
 		{
 			ED_ASSERT(IsValid(), nullptr, "generic should be valid");
 			return Generic->GetAddressOfReturnLocation();
 		}
-		bool VMGeneric::IsValid() const
+		bool GenericContext::IsValid() const
 		{
-			return Manager != nullptr && Generic != nullptr;
+			return VM != nullptr && Generic != nullptr;
 		}
-		VMCGeneric* VMGeneric::GetGeneric() const
+		asIScriptGeneric* GenericContext::GetGeneric() const
 		{
 			return Generic;
 		}
-		VMManager* VMGeneric::GetManager() const
+		VirtualMachine* GenericContext::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
 
-		VMClass::VMClass(VMManager* Engine, const std::string& Name, int Type) noexcept : Manager(Engine), Object(Name), TypeId(Type)
+		BaseClass::BaseClass(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
 		{
 		}
-		int VMClass::SetFunctionDef(const char* Decl)
+		int BaseClass::SetFunctionDef(const char* Decl)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterFuncdef(Decl);;
 		}
-		int VMClass::SetOperatorCopyAddress(asSFuncPtr* Value, VMCall Type)
+		int BaseClass::SetOperatorCopyAddress(asSFuncPtr* Value, FunctionCall Type)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			Core::Parser Decl = Core::Form("%s& opAssign(const %s &in)", Object.c_str(), Object.c_str());
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl.Get(), *Value, (asECallConvTypes)Type);
 		}
-		int VMClass::SetBehaviourAddress(const char* Decl, VMBehave Behave, asSFuncPtr* Value, VMCall Type)
+		int BaseClass::SetBehaviourAddress(const char* Decl, Behaviours Behave, asSFuncPtr* Value, FunctionCall Type)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), (asEBehaviours)Behave, Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMClass::SetPropertyAddress(const char* Decl, int Offset)
+		int BaseClass::SetPropertyAddress(const char* Decl, int Offset)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectProperty(Object.c_str(), Decl, Offset);
 		}
-		int VMClass::SetPropertyStaticAddress(const char* Decl, void* Value)
+		int BaseClass::SetPropertyStaticAddress(const char* Decl, void* Value)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
-			VMCTypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
+			asITypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Info->GetNamespace();
 
@@ -1044,31 +1044,31 @@ namespace Edge
 
 			return R;
 		}
-		int VMClass::SetOperatorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int BaseClass::SetOperatorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			return SetMethodAddress(Decl, Value, Type);
 		}
-		int VMClass::SetMethodAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int BaseClass::SetMethodAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectMethod(Object.c_str(), Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int BaseClass::SetMethodStaticAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
-			VMCTypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
+			asITypeInfo* Info = Engine->GetTypeInfoByName(Object.c_str());
 			const char* Namespace = Engine->GetDefaultNamespace();
 			const char* Scope = Info->GetNamespace();
 
@@ -1079,204 +1079,204 @@ namespace Edge
 			return R;
 
 		}
-		int VMClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int BaseClass::SetConstructorAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
+		int BaseClass::SetConstructorListAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_LIST_CONSTRUCT, Decl, *Value, (asECallConvTypes)Type);
 		}
-		int VMClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
+		int BaseClass::SetDestructorAddress(const char* Decl, asSFuncPtr* Value)
 		{
 			ED_ASSERT(IsValid(), -1, "class should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 			ED_ASSERT(Value != nullptr, -1, "value should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterObjectBehaviour(Object.c_str(), asBEHAVE_DESTRUCT, Decl, *Value, asCALL_CDECL_OBJFIRST);
 		}
-		int VMClass::GetTypeId() const
+		int BaseClass::GetTypeId() const
 		{
 			return TypeId;
 		}
-		bool VMClass::IsValid() const
+		bool BaseClass::IsValid() const
 		{
-			return Manager != nullptr && TypeId >= 0;
+			return VM != nullptr && TypeId >= 0;
 		}
-		std::string VMClass::GetName() const
+		std::string BaseClass::GetName() const
 		{
 			return Object;
 		}
-		VMManager* VMClass::GetManager() const
+		VirtualMachine* BaseClass::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
-		Core::Parser VMClass::GetOperator(VMOpFunc Op, const char* Out, const char* Args, bool Const, bool Right)
+		Core::Parser BaseClass::GetOperator(Operators Op, const char* Out, const char* Args, bool Const, bool Right)
 		{
 			switch (Op)
 			{
-				case VMOpFunc::Neg:
+				case Operators::Neg:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opNeg()%s", Out, Const ? " const" : "");
-				case VMOpFunc::Com:
+				case Operators::Com:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCom()%s", Out, Const ? " const" : "");
-				case VMOpFunc::PreInc:
+				case Operators::PreInc:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPreInc()%s", Out, Const ? " const" : "");
-				case VMOpFunc::PreDec:
+				case Operators::PreDec:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPreDec()%s", Out, Const ? " const" : "");
-				case VMOpFunc::PostInc:
+				case Operators::PostInc:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPostInc()%s", Out, Const ? " const" : "");
-				case VMOpFunc::PostDec:
+				case Operators::PostDec:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPostDec()%s", Out, Const ? " const" : "");
-				case VMOpFunc::Equals:
+				case Operators::Equals:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opEquals(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Cmp:
+				case Operators::Cmp:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCmp(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Assign:
+				case Operators::Assign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::AddAssign:
+				case Operators::AddAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opAddAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::SubAssign:
+				case Operators::SubAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opSubAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::MulAssign:
+				case Operators::MulAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opMulAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::DivAssign:
+				case Operators::DivAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opDivAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::ModAssign:
+				case Operators::ModAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opModAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::PowAssign:
+				case Operators::PowAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opPowAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::AndAssign:
+				case Operators::AndAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opAndAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::OrAssign:
+				case Operators::OrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opOrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::XOrAssign:
+				case Operators::XOrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opXorAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::ShlAssign:
+				case Operators::ShlAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opShlAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::ShrAssign:
+				case Operators::ShrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opShrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::UshrAssign:
+				case Operators::UshrAssign:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opUshrAssign(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Add:
+				case Operators::Add:
 					return Core::Form("%s opAdd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Sub:
+				case Operators::Sub:
 					return Core::Form("%s opSub%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Mul:
+				case Operators::Mul:
 					return Core::Form("%s opMul%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Div:
+				case Operators::Div:
 					return Core::Form("%s opDiv%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Mod:
+				case Operators::Mod:
 					return Core::Form("%s opMod%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Pow:
+				case Operators::Pow:
 					return Core::Form("%s opPow%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::And:
+				case Operators::And:
 					return Core::Form("%s opAnd%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Or:
+				case Operators::Or:
 					return Core::Form("%s opOr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::XOr:
+				case Operators::XOr:
 					return Core::Form("%s opXor%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Shl:
+				case Operators::Shl:
 					return Core::Form("%s opShl%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Shr:
+				case Operators::Shr:
 					return Core::Form("%s opShr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Ushr:
+				case Operators::Ushr:
 					return Core::Form("%s opUshr%s(%s)%s", Out, Right ? "_r" : "", Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Index:
+				case Operators::Index:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opIndex(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Call:
+				case Operators::Call:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCall(%s)%s", Out, Args ? Args : "", Const ? " const" : "");
-				case VMOpFunc::Cast:
+				case Operators::Cast:
 					if (Right)
 						return "";
 
 					return Core::Form("%s opCast()%s", Out, Const ? " const" : "");
-				case VMOpFunc::ImplCast:
+				case Operators::ImplCast:
 					if (Right)
 						return "";
 
@@ -1286,100 +1286,100 @@ namespace Edge
 			}
 		}
 
-		VMInterface::VMInterface(VMManager* Engine, const std::string& Name, int Type) noexcept : Manager(Engine), Object(Name), TypeId(Type)
+		TypeInterface::TypeInterface(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
 		{
 		}
-		int VMInterface::SetMethod(const char* Decl)
+		int TypeInterface::SetMethod(const char* Decl)
 		{
 			ED_ASSERT(IsValid(), -1, "interface should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterInterfaceMethod(Object.c_str(), Decl);
 		}
-		int VMInterface::GetTypeId() const
+		int TypeInterface::GetTypeId() const
 		{
 			return TypeId;
 		}
-		bool VMInterface::IsValid() const
+		bool TypeInterface::IsValid() const
 		{
-			return Manager != nullptr && TypeId >= 0;
+			return VM != nullptr && TypeId >= 0;
 		}
-		std::string VMInterface::GetName() const
+		std::string TypeInterface::GetName() const
 		{
 			return Object;
 		}
-		VMManager* VMInterface::GetManager() const
+		VirtualMachine* TypeInterface::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
 
-		VMEnum::VMEnum(VMManager* Engine, const std::string& Name, int Type) noexcept : Manager(Engine), Object(Name), TypeId(Type)
+		Enumeration::Enumeration(VirtualMachine* Engine, const std::string& Name, int Type) noexcept : VM(Engine), Object(Name), TypeId(Type)
 		{
 		}
-		int VMEnum::SetValue(const char* Name, int Value)
+		int Enumeration::SetValue(const char* Name, int Value)
 		{
 			ED_ASSERT(IsValid(), -1, "enum should be valid");
 			ED_ASSERT(Name != nullptr, -1, "name should be set");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 
 			return Engine->RegisterEnumValue(Object.c_str(), Name, Value);
 		}
-		int VMEnum::GetTypeId() const
+		int Enumeration::GetTypeId() const
 		{
 			return TypeId;
 		}
-		bool VMEnum::IsValid() const
+		bool Enumeration::IsValid() const
 		{
-			return Manager != nullptr && TypeId >= 0;
+			return VM != nullptr && TypeId >= 0;
 		}
-		std::string VMEnum::GetName() const
+		std::string Enumeration::GetName() const
 		{
 			return Object;
 		}
-		VMManager* VMEnum::GetManager() const
+		VirtualMachine* Enumeration::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
 
-		VMModule::VMModule(VMCModule* Type) noexcept : Mod(Type)
+		Module::Module(asIScriptModule* Type) noexcept : Mod(Type)
 		{
-			Manager = (Mod ? VMManager::Get(Mod->GetEngine()) : nullptr);
+			VM = (Mod ? VirtualMachine::Get(Mod->GetEngine()) : nullptr);
 		}
-		void VMModule::SetName(const char* Name)
+		void Module::SetName(const char* Name)
 		{
 			ED_ASSERT_V(IsValid(), "module should be valid");
 			ED_ASSERT_V(Name != nullptr, "name should be set");
 			return Mod->SetName(Name);
 		}
-		int VMModule::AddSection(const char* Name, const char* Code, size_t CodeLength, int LineOffset)
+		int Module::AddSection(const char* Name, const char* Code, size_t CodeLength, int LineOffset)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			ED_ASSERT(Name != nullptr, -1, "name should be set");
 			ED_ASSERT(Code != nullptr, -1, "code should be set");
 			return Mod->AddScriptSection(Name, Code, CodeLength, LineOffset);
 		}
-		int VMModule::RemoveFunction(const VMFunction& Function)
+		int Module::RemoveFunction(const Function& Function)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->RemoveFunction(Function.GetFunction());
 		}
-		int VMModule::ResetProperties(VMCContext* Context)
+		int Module::ResetProperties(asIScriptContext* Context)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Mod->ResetGlobalVars(Context);
 		}
-		int VMModule::Build()
+		int Module::Build()
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->Build();
 		}
-		int VMModule::LoadByteCode(VMByteCode* Info)
+		int Module::LoadByteCode(ByteCodeInfo* Info)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			ED_ASSERT(Info != nullptr, -1, "bytecode should be set");
@@ -1390,7 +1390,7 @@ namespace Edge
 
 			return R;
 		}
-		int VMModule::Discard()
+		int Module::Discard()
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			Mod->Discard();
@@ -1398,95 +1398,95 @@ namespace Edge
 
 			return 0;
 		}
-		int VMModule::BindImportedFunction(size_t ImportIndex, const VMFunction& Function)
+		int Module::BindImportedFunction(size_t ImportIndex, const Function& Function)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->BindImportedFunction((asUINT)ImportIndex, Function.GetFunction());
 		}
-		int VMModule::UnbindImportedFunction(size_t ImportIndex)
+		int Module::UnbindImportedFunction(size_t ImportIndex)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->UnbindImportedFunction((asUINT)ImportIndex);
 		}
-		int VMModule::BindAllImportedFunctions()
+		int Module::BindAllImportedFunctions()
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->BindAllImportedFunctions();
 		}
-		int VMModule::UnbindAllImportedFunctions()
+		int Module::UnbindAllImportedFunctions()
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->UnbindAllImportedFunctions();
 		}
-		int VMModule::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, VMFunction* OutFunction)
+		int Module::CompileFunction(const char* SectionName, const char* Code, int LineOffset, size_t CompileFlags, Function* OutFunction)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			ED_ASSERT(SectionName != nullptr, -1, "section name should be set");
 			ED_ASSERT(Code != nullptr, -1, "code should be set");
 
-			VMCFunction* OutFunc = nullptr;
+			asIScriptFunction* OutFunc = nullptr;
 			int R = Mod->CompileFunction(SectionName, Code, LineOffset, (asDWORD)CompileFlags, &OutFunc);
 			if (OutFunction != nullptr)
-				*OutFunction = VMFunction(OutFunc);
+				*OutFunction = Function(OutFunc);
 
 			return R;
 		}
-		int VMModule::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
+		int Module::CompileProperty(const char* SectionName, const char* Code, int LineOffset)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->CompileGlobalVar(SectionName, Code, LineOffset);
 		}
-		int VMModule::SetDefaultNamespace(const char* NameSpace)
+		int Module::SetDefaultNamespace(const char* Namespace)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
-			return Mod->SetDefaultNamespace(NameSpace);
+			return Mod->SetDefaultNamespace(Namespace);
 		}
-		void* VMModule::GetAddressOfProperty(size_t Index)
+		void* Module::GetAddressOfProperty(size_t Index)
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetAddressOfGlobalVar((asUINT)Index);
 		}
-		int VMModule::RemoveProperty(size_t Index)
+		int Module::RemoveProperty(size_t Index)
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->RemoveGlobalVar((asUINT)Index);
 		}
-		size_t VMModule::SetAccessMask(size_t AccessMask)
+		size_t Module::SetAccessMask(size_t AccessMask)
 		{
 			ED_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->SetAccessMask((asDWORD)AccessMask);
 		}
-		size_t VMModule::GetFunctionCount() const
+		size_t Module::GetFunctionCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetFunctionCount();
 		}
-		VMFunction VMModule::GetFunctionByIndex(size_t Index) const
+		Function Module::GetFunctionByIndex(size_t Index) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetFunctionByIndex((asUINT)Index);
 		}
-		VMFunction VMModule::GetFunctionByDecl(const char* Decl) const
+		Function Module::GetFunctionByDecl(const char* Decl) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetFunctionByDecl(Decl);
 		}
-		VMFunction VMModule::GetFunctionByName(const char* Name) const
+		Function Module::GetFunctionByName(const char* Name) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetFunctionByName(Name);
 		}
-		int VMModule::GetTypeIdByDecl(const char* Decl) const
+		int Module::GetTypeIdByDecl(const char* Decl) const
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->GetTypeIdByDecl(Decl);
 		}
-		int VMModule::GetImportedFunctionIndexByDecl(const char* Decl) const
+		int Module::GetImportedFunctionIndexByDecl(const char* Decl) const
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			return Mod->GetImportedFunctionIndexByDecl(Decl);
 		}
-		int VMModule::SaveByteCode(VMByteCode* Info) const
+		int Module::SaveByteCode(ByteCodeInfo* Info) const
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			ED_ASSERT(Info != nullptr, -1, "bytecode should be set");
@@ -1498,33 +1498,33 @@ namespace Edge
 
 			return R;
 		}
-		int VMModule::GetPropertyIndexByName(const char* Name) const
+		int Module::GetPropertyIndexByName(const char* Name) const
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			ED_ASSERT(Name != nullptr, -1, "name should be set");
 
 			return Mod->GetGlobalVarIndexByName(Name);
 		}
-		int VMModule::GetPropertyIndexByDecl(const char* Decl) const
+		int Module::GetPropertyIndexByDecl(const char* Decl) const
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
 
 			return Mod->GetGlobalVarIndexByDecl(Decl);
 		}
-		int VMModule::GetProperty(size_t Index, VMProperty* Info) const
+		int Module::GetProperty(size_t Index, PropertyInfo* Info) const
 		{
 			ED_ASSERT(IsValid(), -1, "module should be valid");
 			const char* Name = nullptr;
-			const char* NameSpace = nullptr;
+			const char* Namespace = nullptr;
 			bool IsConst = false;
 			int TypeId = 0;
-			int Result = Mod->GetGlobalVar((asUINT)Index, &Name, &NameSpace, &TypeId, &IsConst);
+			int Result = Mod->GetGlobalVar((asUINT)Index, &Name, &Namespace, &TypeId, &IsConst);
 
 			if (Info != nullptr)
 			{
 				Info->Name = Name;
-				Info->NameSpace = NameSpace;
+				Info->Namespace = Namespace;
 				Info->TypeId = TypeId;
 				Info->IsConst = IsConst;
 				Info->ConfigGroup = nullptr;
@@ -1534,399 +1534,131 @@ namespace Edge
 
 			return Result;
 		}
-		size_t VMModule::GetAccessMask() const
+		size_t Module::GetAccessMask() const
 		{
 			ED_ASSERT(IsValid(), 0, "module should be valid");
 			asDWORD AccessMask = Mod->SetAccessMask(0);
 			Mod->SetAccessMask(AccessMask);
 			return (size_t)AccessMask;
 		}
-		size_t VMModule::GetObjectsCount() const
+		size_t Module::GetObjectsCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetObjectTypeCount();
 		}
-		size_t VMModule::GetPropertiesCount() const
+		size_t Module::GetPropertiesCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetGlobalVarCount();
 		}
-		size_t VMModule::GetEnumsCount() const
+		size_t Module::GetEnumsCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetEnumCount();
 		}
-		size_t VMModule::GetImportedFunctionCount() const
+		size_t Module::GetImportedFunctionCount() const
 		{
 			ED_ASSERT(IsValid(), 0, "module should be valid");
 			return Mod->GetImportedFunctionCount();
 		}
-		VMTypeInfo VMModule::GetObjectByIndex(size_t Index) const
+		TypeInfo Module::GetObjectByIndex(size_t Index) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetObjectTypeByIndex((asUINT)Index);
 		}
-		VMTypeInfo VMModule::GetTypeInfoByName(const char* Name) const
+		TypeInfo Module::GetTypeInfoByName(const char* Name) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			const char* TypeName = Name;
 			const char* Namespace = nullptr;
 			size_t NamespaceSize = 0;
 
-			if (Manager->GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize) != 0)
+			if (VM->GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize) != 0)
 				return Mod->GetTypeInfoByName(Name);
 
-			Manager->BeginNamespace(std::string(Namespace, NamespaceSize).c_str());
-			VMCTypeInfo* Info = Mod->GetTypeInfoByName(TypeName);
-			Manager->EndNamespace();
+			VM->BeginNamespace(std::string(Namespace, NamespaceSize).c_str());
+			asITypeInfo* Info = Mod->GetTypeInfoByName(TypeName);
+			VM->EndNamespace();
 
 			return Info;
 		}
-		VMTypeInfo VMModule::GetTypeInfoByDecl(const char* Decl) const
+		TypeInfo Module::GetTypeInfoByDecl(const char* Decl) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetTypeInfoByDecl(Decl);
 		}
-		VMTypeInfo VMModule::GetEnumByIndex(size_t Index) const
+		TypeInfo Module::GetEnumByIndex(size_t Index) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetEnumByIndex((asUINT)Index);
 		}
-		const char* VMModule::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
+		const char* Module::GetPropertyDecl(size_t Index, bool IncludeNamespace) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetGlobalVarDeclaration((asUINT)Index, IncludeNamespace);
 		}
-		const char* VMModule::GetDefaultNamespace() const
+		const char* Module::GetDefaultNamespace() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetDefaultNamespace();
 		}
-		const char* VMModule::GetImportedFunctionDecl(size_t ImportIndex) const
+		const char* Module::GetImportedFunctionDecl(size_t ImportIndex) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetImportedFunctionDeclaration((asUINT)ImportIndex);
 		}
-		const char* VMModule::GetImportedFunctionModule(size_t ImportIndex) const
+		const char* Module::GetImportedFunctionModule(size_t ImportIndex) const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetImportedFunctionSourceModule((asUINT)ImportIndex);
 		}
-		const char* VMModule::GetName() const
+		const char* Module::GetName() const
 		{
 			ED_ASSERT(IsValid(), nullptr, "module should be valid");
 			return Mod->GetName();
 		}
-		bool VMModule::IsValid() const
+		bool Module::IsValid() const
 		{
-			return Manager != nullptr && Mod != nullptr;
+			return VM != nullptr && Mod != nullptr;
 		}
-		VMCModule* VMModule::GetModule() const
+		asIScriptModule* Module::GetModule() const
 		{
 			return Mod;
 		}
-		VMManager* VMModule::GetManager() const
+		VirtualMachine* Module::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
 
-		VMGlobal::VMGlobal(VMManager* Engine) noexcept : Manager(Engine)
+		Compiler::Compiler(VirtualMachine* Engine) noexcept : Scope(nullptr), VM(Engine), Context(nullptr), BuiltOK(false)
 		{
-		}
-		int VMGlobal::SetFunctionDef(const char* Decl)
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-
-			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
-
-			return Engine->RegisterFuncdef(Decl);
-		}
-		int VMGlobal::SetFunctionAddress(const char* Decl, asSFuncPtr* Value, VMCall Type)
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-			ED_ASSERT(Value != nullptr, -1, "value should be set");
-
-			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
-
-			return Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
-		}
-		int VMGlobal::SetPropertyAddress(const char* Decl, void* Value)
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-			ED_ASSERT(Value != nullptr, -1, "value should be set");
-
-			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
-
-			return Engine->RegisterGlobalProperty(Decl, Value);
-		}
-		VMInterface VMGlobal::SetInterface(const char* Name)
-		{
-			ED_ASSERT(Manager != nullptr, VMInterface(nullptr, "", -1), "global should be valid");
-			ED_ASSERT(Name != nullptr, VMInterface(nullptr, "", -1), "name should be set");
-
-			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, VMInterface(nullptr, "", -1), "engine should be set");
-
-			return VMInterface(Manager, Name, Engine->RegisterInterface(Name));
-		}
-		VMTypeClass VMGlobal::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
-		{
-			ED_ASSERT(Manager != nullptr, VMTypeClass(nullptr, "", -1), "global should be valid");
-			ED_ASSERT(Name != nullptr, VMTypeClass(nullptr, "", -1), "name should be set");
-
-			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, VMTypeClass(nullptr, "", -1), "engine should be set");
-
-			return VMTypeClass(Manager, Name, Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags));
-		}
-		VMTypeClass VMGlobal::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
-		{
-			return SetStructAddress(Name, Size, Flags);
-		}
-		VMRefClass VMGlobal::SetClassAddress(const char* Name, uint64_t Flags)
-		{
-			ED_ASSERT(Manager != nullptr, VMRefClass(nullptr, "", -1), "global should be valid");
-			ED_ASSERT(Name != nullptr, VMRefClass(nullptr, "", -1), "name should be set");
-
-			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, VMRefClass(nullptr, "", -1), "engine should be set");
-
-			return VMRefClass(Manager, Name, Engine->RegisterObjectType(Name, 0, (asDWORD)Flags));
-		}
-		VMEnum VMGlobal::SetEnum(const char* Name)
-		{
-			ED_ASSERT(Manager != nullptr, VMEnum(nullptr, "", -1), "global should be valid");
-			ED_ASSERT(Name != nullptr, VMEnum(nullptr, "", -1), "name should be set");
-
-			VMCManager* Engine = Manager->GetEngine();
-			ED_ASSERT(Engine != nullptr, VMEnum(nullptr, "", -1), "engine should be set");
-
-			return VMEnum(Manager, Name, Engine->RegisterEnum(Name));
-		}
-		size_t VMGlobal::GetFunctionsCount() const
-		{
-			ED_ASSERT(Manager != nullptr, 0, "global should be valid");
-			return Manager->GetEngine()->GetGlobalFunctionCount();
-		}
-		VMFunction VMGlobal::GetFunctionById(int Id) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetFunctionById(Id);
-		}
-		VMFunction VMGlobal::GetFunctionByIndex(int Index) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetGlobalFunctionByIndex(Index);
-		}
-		VMFunction VMGlobal::GetFunctionByDecl(const char* Decl) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			ED_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
-
-			return Manager->GetEngine()->GetGlobalFunctionByDecl(Decl);
-		}
-		size_t VMGlobal::GetPropertiesCount() const
-		{
-			ED_ASSERT(Manager != nullptr, 0, "global should be valid");
-			return Manager->GetEngine()->GetGlobalPropertyCount();
-		}
-		int VMGlobal::GetPropertyByIndex(int Index, VMProperty* Info) const
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			const char* Name = nullptr, * NameSpace = nullptr;
-			const char* ConfigGroup = nullptr;
-			void* Pointer = nullptr;
-			bool IsConst = false;
-			asDWORD AccessMask = 0;
-			int TypeId = 0;
-			int Result = Manager->GetEngine()->GetGlobalPropertyByIndex(Index, &Name, &NameSpace, &TypeId, &IsConst, &ConfigGroup, &Pointer, &AccessMask);
-
-			if (Info != nullptr)
-			{
-				Info->Name = Name;
-				Info->NameSpace = NameSpace;
-				Info->TypeId = TypeId;
-				Info->IsConst = IsConst;
-				Info->ConfigGroup = ConfigGroup;
-				Info->Pointer = Pointer;
-				Info->AccessMask = AccessMask;
-			}
-
-			return Result;
-		}
-		int VMGlobal::GetPropertyIndexByName(const char* Name) const
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			ED_ASSERT(Name != nullptr, -1, "name should be set");
-
-			return Manager->GetEngine()->GetGlobalPropertyIndexByName(Name);
-		}
-		int VMGlobal::GetPropertyIndexByDecl(const char* Decl) const
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-
-			return Manager->GetEngine()->GetGlobalPropertyIndexByDecl(Decl);
-		}
-		size_t VMGlobal::GetObjectsCount() const
-		{
-			ED_ASSERT(Manager != nullptr, 0, "global should be valid");
-			return Manager->GetEngine()->GetObjectTypeCount();
-		}
-		VMTypeInfo VMGlobal::GetObjectByIndex(size_t Index) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetObjectTypeByIndex((asUINT)Index);
-		}
-		size_t VMGlobal::GetEnumCount() const
-		{
-			ED_ASSERT(Manager != nullptr, 0, "global should be valid");
-			return Manager->GetEngine()->GetEnumCount();
-		}
-		VMTypeInfo VMGlobal::GetEnumByIndex(size_t Index) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetEnumByIndex((asUINT)Index);
-		}
-		size_t VMGlobal::GetFunctionDefsCount() const
-		{
-			ED_ASSERT(Manager != nullptr, 0, "global should be valid");
-			return Manager->GetEngine()->GetFuncdefCount();
-		}
-		VMTypeInfo VMGlobal::GetFunctionDefByIndex(int Index) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetFuncdefByIndex(Index);
-		}
-		size_t VMGlobal::GetModulesCount() const
-		{
-			ED_ASSERT(Manager != nullptr, 0, "global should be valid");
-			return Manager->GetEngine()->GetModuleCount();
-		}
-		VMCModule* VMGlobal::GetModuleById(int Id) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetModuleByIndex(Id);
-		}
-		int VMGlobal::GetTypeIdByDecl(const char* Decl) const
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
-
-			return Manager->GetEngine()->GetTypeIdByDecl(Decl);
-		}
-		const char* VMGlobal::GetTypeIdDecl(int TypeId, bool IncludeNamespace) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetTypeDeclaration(TypeId, IncludeNamespace);
-		}
-		int VMGlobal::GetSizeOfPrimitiveType(int TypeId) const
-		{
-			ED_ASSERT(Manager != nullptr, -1, "global should be valid");
-			return Manager->GetEngine()->GetSizeOfPrimitiveType(TypeId);
-		}
-		std::string VMGlobal::GetObjectView(void* Object, int TypeId)
-		{
-			ED_ASSERT(Manager != nullptr, "null", "global should be valid");
-			if (!Object)
-				return "null";
-
-			if (TypeId == (int)VMTypeId::INT8)
-				return "int8(" + std::to_string(*(char*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::INT16)
-				return "int16(" + std::to_string(*(short*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::INT32)
-				return "int32(" + std::to_string(*(int*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::INT64)
-				return "int64(" + std::to_string(*(int64_t*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::UINT8)
-				return "uint8(" + std::to_string(*(unsigned char*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::UINT16)
-				return "uint16(" + std::to_string(*(unsigned short*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::UINT32)
-				return "uint32(" + std::to_string(*(unsigned int*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::UINT64)
-				return "uint64(" + std::to_string(*(uint64_t*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::FLOAT)
-				return "float(" + std::to_string(*(float*)(Object)) + "), ";
-			else if (TypeId == (int)VMTypeId::DOUBLE)
-				return "double(" + std::to_string(*(double*)(Object)) + "), ";
-
-			VMCTypeInfo* Type = Manager->GetEngine()->GetTypeInfoById(TypeId);
-			const char* Name = Type->GetName();
-
-			return Core::Form("%s(0x%" PRIXPTR ")", Name ? Name : "unknown", (uintptr_t)Object).R();
-		}
-		VMTypeInfo VMGlobal::GetTypeInfoById(int TypeId) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			return Manager->GetEngine()->GetTypeInfoById(TypeId);
-		}
-		VMTypeInfo VMGlobal::GetTypeInfoByName(const char* Name) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			ED_ASSERT(Name != nullptr, nullptr, "name should be set");
-
-			const char* TypeName = Name;
-			const char* Namespace = nullptr;
-			size_t NamespaceSize = 0;
-
-			if (Manager->GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize) != 0)
-				return Manager->GetEngine()->GetTypeInfoByName(Name);
-
-			Manager->BeginNamespace(std::string(Namespace, NamespaceSize).c_str());
-			VMCTypeInfo* Info = Manager->GetEngine()->GetTypeInfoByName(TypeName);
-			Manager->EndNamespace();
-
-			return Info;
-		}
-		VMTypeInfo VMGlobal::GetTypeInfoByDecl(const char* Decl) const
-		{
-			ED_ASSERT(Manager != nullptr, nullptr, "global should be valid");
-			ED_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
-
-			return Manager->GetEngine()->GetTypeInfoByDecl(Decl);
-		}
-		VMManager* VMGlobal::GetManager() const
-		{
-			return Manager;
-		}
-
-		VMCompiler::VMCompiler(VMManager* Engine) noexcept : Module(nullptr), Manager(Engine), Context(nullptr), BuiltOK(false)
-		{
-			ED_ASSERT_V(Manager != nullptr, "engine should be set");
+			ED_ASSERT_V(VM != nullptr, "engine should be set");
 
 			Processor = new Compute::Preprocessor();
 			Processor->SetIncludeCallback([this](Compute::Preprocessor* C, const Compute::IncludeResult& File, std::string* Out)
 			{
-				ED_ASSERT(Manager != nullptr, false, "engine should be set");
+				ED_ASSERT(VM != nullptr, false, "engine should be set");
 				if (Include && Include(C, File, Out))
 					return true;
 
-				if (File.Module.empty() || !Module)
+				if (File.Module.empty() || !Scope)
 					return false;
 
 				if (!File.IsFile && File.IsSystem)
-					return Manager->ImportSubmodule(File.Module);
+					return VM->ImportSubmodule(File.Module);
 
 				std::string Buffer;
-				if (!Manager->ImportFile(File.Module, &Buffer))
+				if (!VM->ImportFile(File.Module, &Buffer))
 					return false;
 
 				if (!C->Process(File.Module, Buffer))
 					return false;
 
-				return Module->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
+				return Scope->AddScriptSection(File.Module.c_str(), Buffer.c_str(), Buffer.size()) >= 0;
 			});
 			Processor->SetPragmaCallback([this](Compute::Preprocessor* C, const std::string& Name, const std::vector<std::string>& Args)
 			{
-				ED_ASSERT(Manager != nullptr, false, "engine should be set");
+				ED_ASSERT(VM != nullptr, false, "engine should be set");
 				if (Pragma && Pragma(C, Name, Args))
 					return true;
 
@@ -1937,67 +1669,67 @@ namespace Edge
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 					if (Key == "ALLOW_UNSAFE_REFERENCES")
-						Manager->SetProperty(VMProp::ALLOW_UNSAFE_REFERENCES, Result);
+						VM->SetProperty(Features::ALLOW_UNSAFE_REFERENCES, Result);
 					else if (Key == "OPTIMIZE_BYTECODE")
-						Manager->SetProperty(VMProp::OPTIMIZE_BYTECODE, Result);
+						VM->SetProperty(Features::OPTIMIZE_BYTECODE, Result);
 					else if (Key == "COPY_SCRIPT_SECTIONS")
-						Manager->SetProperty(VMProp::COPY_SCRIPT_SECTIONS, Result);
+						VM->SetProperty(Features::COPY_SCRIPT_SECTIONS, Result);
 					else if (Key == "MAX_STACK_SIZE")
-						Manager->SetProperty(VMProp::MAX_STACK_SIZE, Result);
+						VM->SetProperty(Features::MAX_STACK_SIZE, Result);
 					else if (Key == "USE_CHARACTER_LITERALS")
-						Manager->SetProperty(VMProp::USE_CHARACTER_LITERALS, Result);
+						VM->SetProperty(Features::USE_CHARACTER_LITERALS, Result);
 					else if (Key == "ALLOW_MULTILINE_STRINGS")
-						Manager->SetProperty(VMProp::ALLOW_MULTILINE_STRINGS, Result);
+						VM->SetProperty(Features::ALLOW_MULTILINE_STRINGS, Result);
 					else if (Key == "ALLOW_IMPLICIT_HANDLE_TYPES")
-						Manager->SetProperty(VMProp::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
+						VM->SetProperty(Features::ALLOW_IMPLICIT_HANDLE_TYPES, Result);
 					else if (Key == "BUILD_WITHOUT_LINE_CUES")
-						Manager->SetProperty(VMProp::BUILD_WITHOUT_LINE_CUES, Result);
+						VM->SetProperty(Features::BUILD_WITHOUT_LINE_CUES, Result);
 					else if (Key == "INIT_GLOBAL_VARS_AFTER_BUILD")
-						Manager->SetProperty(VMProp::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
+						VM->SetProperty(Features::INIT_GLOBAL_VARS_AFTER_BUILD, Result);
 					else if (Key == "REQUIRE_ENUM_SCOPE")
-						Manager->SetProperty(VMProp::REQUIRE_ENUM_SCOPE, Result);
+						VM->SetProperty(Features::REQUIRE_ENUM_SCOPE, Result);
 					else if (Key == "SCRIPT_SCANNER")
-						Manager->SetProperty(VMProp::SCRIPT_SCANNER, Result);
+						VM->SetProperty(Features::SCRIPT_SCANNER, Result);
 					else if (Key == "INCLUDE_JIT_INSTRUCTIONS")
-						Manager->SetProperty(VMProp::INCLUDE_JIT_INSTRUCTIONS, Result);
+						VM->SetProperty(Features::INCLUDE_JIT_INSTRUCTIONS, Result);
 					else if (Key == "STRING_ENCODING")
-						Manager->SetProperty(VMProp::STRING_ENCODING, Result);
+						VM->SetProperty(Features::STRING_ENCODING, Result);
 					else if (Key == "PROPERTY_ACCESSOR_MODE")
-						Manager->SetProperty(VMProp::PROPERTY_ACCESSOR_MODE, Result);
+						VM->SetProperty(Features::PROPERTY_ACCESSOR_MODE, Result);
 					else if (Key == "EXPAND_DEF_ARRAY_TO_TMPL")
-						Manager->SetProperty(VMProp::EXPAND_DEF_ARRAY_TO_TMPL, Result);
+						VM->SetProperty(Features::EXPAND_DEF_ARRAY_TO_TMPL, Result);
 					else if (Key == "AUTO_GARBAGE_COLLECT")
-						Manager->SetProperty(VMProp::AUTO_GARBAGE_COLLECT, Result);
+						VM->SetProperty(Features::AUTO_GARBAGE_COLLECT, Result);
 					else if (Key == "DISALLOW_GLOBAL_VARS")
-						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+						VM->SetProperty(Features::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
 					else if (Key == "ALWAYS_IMPL_DEFAULT_CONSTRUCT")
-						Manager->SetProperty(VMProp::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
+						VM->SetProperty(Features::ALWAYS_IMPL_DEFAULT_CONSTRUCT, Result);
 					else if (Key == "COMPILER_WARNINGS")
-						Manager->SetProperty(VMProp::COMPILER_WARNINGS, Result);
+						VM->SetProperty(Features::COMPILER_WARNINGS, Result);
 					else if (Key == "DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE")
-						Manager->SetProperty(VMProp::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
+						VM->SetProperty(Features::DISALLOW_VALUE_ASSIGN_FOR_REF_TYPE, Result);
 					else if (Key == "ALTER_SYNTAX_NAMED_ARGS")
-						Manager->SetProperty(VMProp::ALTER_SYNTAX_NAMED_ARGS, Result);
+						VM->SetProperty(Features::ALTER_SYNTAX_NAMED_ARGS, Result);
 					else if (Key == "DISABLE_INTEGER_DIVISION")
-						Manager->SetProperty(VMProp::DISABLE_INTEGER_DIVISION, Result);
+						VM->SetProperty(Features::DISABLE_INTEGER_DIVISION, Result);
 					else if (Key == "DISALLOW_EMPTY_LIST_ELEMENTS")
-						Manager->SetProperty(VMProp::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
+						VM->SetProperty(Features::DISALLOW_EMPTY_LIST_ELEMENTS, Result);
 					else if (Key == "PRIVATE_PROP_AS_PROTECTED")
-						Manager->SetProperty(VMProp::PRIVATE_PROP_AS_PROTECTED, Result);
+						VM->SetProperty(Features::PRIVATE_PROP_AS_PROTECTED, Result);
 					else if (Key == "ALLOW_UNICODE_IDENTIFIERS")
-						Manager->SetProperty(VMProp::ALLOW_UNICODE_IDENTIFIERS, Result);
+						VM->SetProperty(Features::ALLOW_UNICODE_IDENTIFIERS, Result);
 					else if (Key == "HEREDOC_TRIM_MODE")
-						Manager->SetProperty(VMProp::HEREDOC_TRIM_MODE, Result);
+						VM->SetProperty(Features::HEREDOC_TRIM_MODE, Result);
 					else if (Key == "MAX_NESTED_CALLS")
-						Manager->SetProperty(VMProp::MAX_NESTED_CALLS, Result);
+						VM->SetProperty(Features::MAX_NESTED_CALLS, Result);
 					else if (Key == "GENERIC_CALL_MODE")
-						Manager->SetProperty(VMProp::GENERIC_CALL_MODE, Result);
+						VM->SetProperty(Features::GENERIC_CALL_MODE, Result);
 					else if (Key == "INIT_STACK_SIZE")
-						Manager->SetProperty(VMProp::INIT_STACK_SIZE, Result);
+						VM->SetProperty(Features::INIT_STACK_SIZE, Result);
 					else if (Key == "INIT_CALL_STACK_SIZE")
-						Manager->SetProperty(VMProp::INIT_CALL_STACK_SIZE, Result);
+						VM->SetProperty(Features::INIT_CALL_STACK_SIZE, Result);
 					else if (Key == "MAX_CALL_STACK_SIZE")
-						Manager->SetProperty(VMProp::MAX_CALL_STACK_SIZE, Result);
+						VM->SetProperty(Features::MAX_CALL_STACK_SIZE, Result);
 				}
 				else if (Name == "comment" && Args.size() == 2)
 				{
@@ -2018,19 +1750,19 @@ namespace Edge
 
 					size_t Result = Value.HasInteger() ? (size_t)Value.ToUInt64() : 0;
 					if (Key == "NAME")
-						Module->SetName(Value.Get());
+						Scope->SetName(Value.Get());
 					else if (Key == "NAMESPACE")
-						Module->SetDefaultNamespace(Value.Get());
+						Scope->SetDefaultNamespace(Value.Get());
 					else if (Key == "ACCESS_MASK")
-						Module->SetAccessMask((asDWORD)Result);
+						Scope->SetAccessMask((asDWORD)Result);
 				}
 				else if (Name == "cimport" && Args.size() >= 2)
 				{
 					bool Loaded;
 					if (Args.size() == 3)
-						Loaded = Manager->ImportLibrary(Args[0]) && Manager->ImportSymbol({ Args[0] }, Args[1], Args[2]);
+						Loaded = VM->ImportLibrary(Args[0]) && VM->ImportSymbol({ Args[0] }, Args[1], Args[2]);
 					else
-						Loaded = Manager->ImportSymbol({ }, Args[0], Args[1]);
+						Loaded = VM->ImportSymbol({ }, Args[0], Args[1]);
 
 					if (Loaded)
 						Define("SOF_" + Args[1]);
@@ -2040,7 +1772,7 @@ namespace Edge
 					std::string Directory = Core::OS::Path::GetDirectory(Processor->GetCurrentFilePath().c_str());
 					std::string Path1 = Args[0], Path2 = Core::OS::Path::Resolve(Args[0], Directory.empty() ? Core::OS::Directory::Get() : Directory);
 
-					bool Loaded = Manager->ImportLibrary(Path1) || Manager->ImportLibrary(Path2);
+					bool Loaded = VM->ImportLibrary(Path1) || VM->ImportLibrary(Path2);
 					if (Loaded && Args.size() == 2 && !Args[1].empty())
 						Define("SOL_" + Args[1]);
 				}
@@ -2056,62 +1788,62 @@ namespace Edge
 #elif defined(ED_UNIX)
 			Processor->Define("OS_UNIX");
 #endif
-			Context = Manager->CreateContext();
+			Context = VM->CreateContext();
 			Context->SetUserData(this, CompilerUD);
-			Manager->SetProcessorOptions(Processor);
+			VM->SetProcessorOptions(Processor);
 		}
-		VMCompiler::~VMCompiler() noexcept
+		Compiler::~Compiler() noexcept
 		{
 			ED_RELEASE(Context);
 			ED_RELEASE(Processor);
 		}
-		void VMCompiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
+		void Compiler::SetIncludeCallback(const Compute::ProcIncludeCallback& Callback)
 		{
 			Include = Callback;
 		}
-		void VMCompiler::SetPragmaCallback(const Compute::ProcPragmaCallback& Callback)
+		void Compiler::SetPragmaCallback(const Compute::ProcPragmaCallback& Callback)
 		{
 			Pragma = Callback;
 		}
-		void VMCompiler::Define(const std::string& Word)
+		void Compiler::Define(const std::string& Word)
 		{
 			Processor->Define(Word);
 		}
-		void VMCompiler::Undefine(const std::string& Word)
+		void Compiler::Undefine(const std::string& Word)
 		{
 			Processor->Undefine(Word);
 		}
-		bool VMCompiler::Clear()
+		bool Compiler::Clear()
 		{
-			ED_ASSERT(Manager != nullptr, false, "engine should be set");
+			ED_ASSERT(VM != nullptr, false, "engine should be set");
 			if (Context != nullptr && Context->IsPending())
 				return false;
 
-			if (Module != nullptr)
-				Module->Discard();
+			if (Scope != nullptr)
+				Scope->Discard();
 
 			if (Processor != nullptr)
 				Processor->Clear();
 
-			Module = nullptr;
+			Scope = nullptr;
 			BuiltOK = false;
 			return true;
 		}
-		bool VMCompiler::IsDefined(const std::string& Word) const
+		bool Compiler::IsDefined(const std::string& Word) const
 		{
 			return Processor->IsDefined(Word.c_str());
 		}
-		bool VMCompiler::IsBuilt() const
+		bool Compiler::IsBuilt() const
 		{
 			return BuiltOK;
 		}
-		bool VMCompiler::IsCached() const
+		bool Compiler::IsCached() const
 		{
 			return VCache.Valid;
 		}
-		int VMCompiler::Prepare(VMByteCode* Info)
+		int Compiler::Prepare(ByteCodeInfo* Info)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
+			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 			ED_ASSERT(Info != nullptr, -1, "bytecode should be set");
 
 			if (!Info->Valid || Info->Data.empty())
@@ -2124,9 +1856,9 @@ namespace Edge
 			VCache = *Info;
 			return Result;
 		}
-		int VMCompiler::Prepare(const std::string& ModuleName, bool Scoped)
+		int Compiler::Prepare(const std::string& ModuleName, bool Scoped)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
+			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 			ED_ASSERT(!ModuleName.empty(), -1, "module name should not be empty");
 			ED_DEBUG("[vm] prepare %s on 0x%" PRIXPTR, ModuleName.c_str(), (uintptr_t)this);
 
@@ -2134,31 +1866,31 @@ namespace Edge
 			VCache.Valid = false;
 			VCache.Name.clear();
 
-			if (Module != nullptr)
-				Module->Discard();
+			if (Scope != nullptr)
+				Scope->Discard();
 
 			if (Scoped)
-				Module = Manager->CreateScopedModule(ModuleName);
+				Scope = VM->CreateScopedModule(ModuleName);
 			else
-				Module = Manager->CreateModule(ModuleName);
+				Scope = VM->CreateModule(ModuleName);
 
-			if (!Module)
+			if (!Scope)
 				return -1;
 
-			Module->SetUserData(this, CompilerUD);
-			Manager->SetProcessorOptions(Processor);
+			Scope->SetUserData(this, CompilerUD);
+			VM->SetProcessorOptions(Processor);
 			return 0;
 		}
-		int VMCompiler::Prepare(const std::string& ModuleName, const std::string& Name, bool Debug, bool Scoped)
+		int Compiler::Prepare(const std::string& ModuleName, const std::string& Name, bool Debug, bool Scoped)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
+			ED_ASSERT(VM != nullptr, -1, "engine should be set");
 
 			int Result = Prepare(ModuleName, Scoped);
 			if (Result < 0)
 				return Result;
 
 			VCache.Name = Name;
-			if (!Manager->GetByteCodeCache(&VCache))
+			if (!VM->GetByteCodeCache(&VCache))
 			{
 				VCache.Data.clear();
 				VCache.Debug = Debug;
@@ -2167,15 +1899,15 @@ namespace Edge
 
 			return Result;
 		}
-		int VMCompiler::SaveByteCode(VMByteCode* Info)
+		int Compiler::SaveByteCode(ByteCodeInfo* Info)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
-			ED_ASSERT(Module != nullptr, -1, "module should not be empty");
+			ED_ASSERT(VM != nullptr, -1, "engine should be set");
+			ED_ASSERT(Scope != nullptr, -1, "module should not be empty");
 			ED_ASSERT(Info != nullptr, -1, "bytecode should be set");
 			ED_ASSERT(BuiltOK, -1, "module should be built");
 
 			CByteCodeStream* Stream = ED_NEW(CByteCodeStream);
-			int R = Module->SaveByteCode(Stream, Info->Debug);
+			int R = Scope->SaveByteCode(Stream, Info->Debug);
 			Info->Data = Stream->GetCode();
 			ED_DELETE(CByteCodeStream, Stream);
 
@@ -2184,10 +1916,10 @@ namespace Edge
 
 			return R;
 		}
-		int VMCompiler::LoadFile(const std::string& Path)
+		int Compiler::LoadFile(const std::string& Path)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
-			ED_ASSERT(Module != nullptr, -1, "module should not be empty");
+			ED_ASSERT(VM != nullptr, -1, "engine should be set");
+			ED_ASSERT(Scope != nullptr, -1, "module should not be empty");
 
 			if (VCache.Valid)
 				return 0;
@@ -2203,16 +1935,16 @@ namespace Edge
 			if (!Processor->Process(Source, Buffer))
 				return asINVALID_DECLARATION;
 
-			int R = Module->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
+			int R = Scope->AddScriptSection(Source.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
 				ED_DEBUG("[vm] OK load program on 0x%" PRIXPTR " (file)", (uintptr_t)this);
 
 			return R;
 		}
-		int VMCompiler::LoadCode(const std::string& Name, const std::string& Data)
+		int Compiler::LoadCode(const std::string& Name, const std::string& Data)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
-			ED_ASSERT(Module != nullptr, -1, "module should not be empty");
+			ED_ASSERT(VM != nullptr, -1, "engine should be set");
+			ED_ASSERT(Scope != nullptr, -1, "module should not be empty");
 
 			if (VCache.Valid)
 				return 0;
@@ -2221,16 +1953,16 @@ namespace Edge
 			if (!Processor->Process(Name, Buffer))
 				return asINVALID_DECLARATION;
 
-			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			int R = Scope->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
 				ED_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 
 			return R;
 		}
-		int VMCompiler::LoadCode(const std::string& Name, const char* Data, size_t Size)
+		int Compiler::LoadCode(const std::string& Name, const char* Data, size_t Size)
 		{
-			ED_ASSERT(Manager != nullptr, -1, "engine should be set");
-			ED_ASSERT(Module != nullptr, -1, "module should not be empty");
+			ED_ASSERT(VM != nullptr, -1, "engine should be set");
+			ED_ASSERT(Scope != nullptr, -1, "module should not be empty");
 
 			if (VCache.Valid)
 				return 0;
@@ -2239,16 +1971,16 @@ namespace Edge
 			if (!Processor->Process(Name, Buffer))
 				return asINVALID_DECLARATION;
 
-			int R = Module->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
+			int R = Scope->AddScriptSection(Name.c_str(), Buffer.c_str(), Buffer.size());
 			if (R >= 0)
 				ED_DEBUG("[vm] OK load program on 0x%" PRIXPTR, (uintptr_t)this);
 
 			return R;
 		}
-		Core::Promise<int> VMCompiler::Compile()
+		Core::Promise<int> Compiler::Compile()
 		{
-			ED_ASSERT(Manager != nullptr, Core::Promise<int>(-1), "engine should be set");
-			ED_ASSERT(Module != nullptr, Core::Promise<int>(-1), "module should not be empty");
+			ED_ASSERT(VM != nullptr, Core::Promise<int>(-1), "engine should be set");
+			ED_ASSERT(Scope != nullptr, Core::Promise<int>(-1), "module should not be empty");
 
 			if (VCache.Valid)
 			{
@@ -2259,7 +1991,7 @@ namespace Edge
 						return R;
 
 					ED_DEBUG("[vm] OK compile on 0x%" PRIXPTR " (cache)", (uintptr_t)this);
-					Module->ResetGlobalVars(Context->GetContext());
+					Scope->ResetGlobalVars(Context->GetContext());
 					return R;
 				});
 			}
@@ -2267,7 +1999,7 @@ namespace Edge
 			return Core::Cotask<int>([this]()
 			{
 				int R = 0;
-				while ((R = Module->Build()) == asBUILD_IN_PROGRESS)
+				while ((R = Scope->Build()) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 				return R;
 			}).Then<int>([this](int&& R)
@@ -2277,7 +2009,7 @@ namespace Edge
 					return R;
 
 				ED_DEBUG("[vm] OK compile on 0x%" PRIXPTR, (uintptr_t)this);
-				Module->ResetGlobalVars(Context->GetContext());
+				Scope->ResetGlobalVars(Context->GetContext());
 
 				if (VCache.Name.empty())
 					return R;
@@ -2286,21 +2018,21 @@ namespace Edge
 				if (R < 0)
 					return R;
 
-				Manager->SetByteCodeCache(&VCache);
+				VM->SetByteCodeCache(&VCache);
 				return R;
 			});
 		}
-		Core::Promise<int> VMCompiler::LoadByteCode(VMByteCode* Info)
+		Core::Promise<int> Compiler::LoadByteCode(ByteCodeInfo* Info)
 		{
-			ED_ASSERT(Manager != nullptr, Core::Promise<int>(-1), "engine should be set");
-			ED_ASSERT(Module != nullptr, Core::Promise<int>(-1), "module should not be empty");
+			ED_ASSERT(VM != nullptr, Core::Promise<int>(-1), "engine should be set");
+			ED_ASSERT(Scope != nullptr, Core::Promise<int>(-1), "module should not be empty");
 			ED_ASSERT(Info != nullptr, Core::Promise<int>(-1), "bytecode should be set");
 
 			CByteCodeStream* Stream = ED_NEW(CByteCodeStream, Info->Data);
 			return Core::Cotask<int>([this, Stream, Info]()
 			{
 				int R = 0;
-				while ((R = Module->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
+				while ((R = Scope->LoadByteCode(Stream, &Info->Debug)) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 				return R;
 			}).Then<int>([this, Stream](int&& R)
@@ -2311,9 +2043,9 @@ namespace Edge
 				return R;
 			});
 		}
-		Core::Promise<int> VMCompiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteFile(const char* Name, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
 			ED_ASSERT(Name != nullptr, Core::Promise<int>(asINVALID_ARG), "name should be set");
 			ED_ASSERT(ModuleName != nullptr, Core::Promise<int>(asINVALID_ARG), "module name should be set");
 			ED_ASSERT(EntryName != nullptr, Core::Promise<int>(asINVALID_ARG), "entry name should be set");
@@ -2334,9 +2066,9 @@ namespace Edge
 				return ExecuteEntry(EntryName, std::move(OnArgs));
 			});
 		}
-		Core::Promise<int> VMCompiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteMemory(const std::string& Buffer, const char* ModuleName, const char* EntryName, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
 			ED_ASSERT(!Buffer.empty(), Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
 			ED_ASSERT(ModuleName != nullptr, Core::Promise<int>(asINVALID_ARG), "module name should be set");
 			ED_ASSERT(EntryName != nullptr, Core::Promise<int>(asINVALID_ARG), "entry name should be set");
@@ -2357,33 +2089,33 @@ namespace Edge
 				return ExecuteEntry(EntryName, std::move(OnArgs));
 			});
 		}
-		Core::Promise<int> VMCompiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteEntry(const char* Name, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
 			ED_ASSERT(Name != nullptr, Core::Promise<int>(asINVALID_ARG), "name should be set");
 			ED_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
-			ED_ASSERT(Module != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
+			ED_ASSERT(Scope != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
 			ED_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
 
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			ED_ASSERT(Engine != nullptr, Core::Promise<int>(asINVALID_CONFIGURATION), "engine should be set");
 
-			VMCFunction* Function = Module->GetFunctionByName(Name);
+			asIScriptFunction* Function = Scope->GetFunctionByName(Name);
 			if (!Function)
 				return Core::Promise<int>(asNO_FUNCTION);
 
 			return Context->TryExecute(false, Function, std::move(OnArgs));
 		}
-		Core::Promise<int> VMCompiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteScoped(const std::string& Code, const char* Args, ArgsCallback&& OnArgs)
 		{
 			return ExecuteScoped(Code.c_str(), Code.size(), Args, std::move(OnArgs));
 		}
-		Core::Promise<int> VMCompiler::ExecuteScoped(const char* Buffer, size_t Length, const char* Args, ArgsCallback&& OnArgs)
+		Core::Promise<int> Compiler::ExecuteScoped(const char* Buffer, size_t Length, const char* Args, ArgsCallback&& OnArgs)
 		{
-			ED_ASSERT(Manager != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
+			ED_ASSERT(VM != nullptr, Core::Promise<int>(asINVALID_ARG), "engine should be set");
 			ED_ASSERT(Buffer != nullptr && Length > 0, Core::Promise<int>(asINVALID_ARG), "buffer should not be empty");
 			ED_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
-			ED_ASSERT(Module != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
+			ED_ASSERT(Scope != nullptr, Core::Promise<int>(asINVALID_ARG), "module should not be empty");
 			ED_ASSERT(BuiltOK, Core::Promise<int>(asINVALID_ARG), "module should be built");
 
 			std::string Eval = "void __vfbdy(";
@@ -2393,10 +2125,10 @@ namespace Edge
 			Eval.append(Buffer, Length);
 			Eval += "\n;}";
 
-			VMCModule* Source = GetModule().GetModule();	
+			asIScriptModule* Source = GetModule().GetModule();	
 			return Core::Cotask<Core::Promise<int>>([this, Source, Eval, OnArgs = std::move(OnArgs)]() mutable
 			{
-				VMCFunction* Function = nullptr; int R = 0;
+				asIScriptFunction* Function = nullptr; int R = 0;
 				while ((R = Source->CompileFunction("__vfbdy", Eval.c_str(), -1, asCOMP_ADD_TO_MODULE, &Function)) == asBUILD_IN_PROGRESS)
 					std::this_thread::sleep_for(std::chrono::microseconds(100));
 
@@ -2412,39 +2144,39 @@ namespace Edge
 				return Result;
 			});
 		}
-		VMManager* VMCompiler::GetManager() const
+		VirtualMachine* Compiler::GetVM() const
 		{
-			return Manager;
+			return VM;
 		}
-		VMContext* VMCompiler::GetContext() const
+		ImmediateContext* Compiler::GetContext() const
 		{
 			return Context;
 		}
-		VMModule VMCompiler::GetModule() const
+		Module Compiler::GetModule() const
 		{
-			return Module;
+			return Scope;
 		}
-		Compute::Preprocessor* VMCompiler::GetProcessor() const
+		Compute::Preprocessor* Compiler::GetProcessor() const
 		{
 			return Processor;
 		}
-		VMCompiler* VMCompiler::Get(VMContext* Context)
+		Compiler* Compiler::Get(ImmediateContext* Context)
 		{
 			if (!Context)
 				return nullptr;
 
-			return (VMCompiler*)Context->GetUserData(CompilerUD);
+			return (Compiler*)Context->GetUserData(CompilerUD);
 		}
-		int VMCompiler::CompilerUD = 154;
+		int Compiler::CompilerUD = 154;
 
-		VMContext::VMContext(VMCContext* Base) noexcept : Context(Base), Manager(nullptr)
+		ImmediateContext::ImmediateContext(asIScriptContext* Base) noexcept : Context(Base), VM(nullptr)
 		{
 			ED_ASSERT_V(Base != nullptr, "context should be set");
-			Manager = VMManager::Get(Base->GetEngine());
+			VM = VirtualMachine::Get(Base->GetEngine());
 			Context->SetUserData(this, ContextUD);
 			Context->SetExceptionCallback(asFUNCTION(ExceptionLogger), this, asCALL_CDECL);
 		}
-		VMContext::~VMContext() noexcept
+		ImmediateContext::~ImmediateContext() noexcept
 		{
 			while (!Tasks.empty())
 			{
@@ -2456,13 +2188,13 @@ namespace Edge
 
 			if (Context != nullptr)
 			{
-				if (Manager != nullptr)
-					Manager->GetEngine()->ReturnContext(Context);
+				if (VM != nullptr)
+					VM->GetEngine()->ReturnContext(Context);
 				else
 					Context->Release();
 			}
 		}
-		Core::Promise<int> VMContext::TryExecute(bool IsNested, const VMFunction& Function, ArgsCallback&& OnArgs)
+		Core::Promise<int> ImmediateContext::TryExecute(bool IsNested, const Function& Function, ArgsCallback&& OnArgs)
 		{
 			ED_ASSERT(Context != nullptr, Core::Promise<int>(asINVALID_ARG), "context should be set");
 			ED_ASSERT(Function.IsValid(), Core::Promise<int>(asINVALID_ARG), "function should be set");
@@ -2535,22 +2267,22 @@ namespace Edge
 				return Future;
 			}
 		}
-		int VMContext::SetOnException(void(*Callback)(VMCContext* Context, void* Object), void* Object)
+		int ImmediateContext::SetOnException(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetExceptionCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
 		}
-		int VMContext::Prepare(const VMFunction& Function)
+		int ImmediateContext::Prepare(const Function& Function)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Prepare(Function.GetFunction());
 		}
-		int VMContext::Unprepare()
+		int ImmediateContext::Unprepare()
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Unprepare();
 		}
-		int VMContext::Execute()
+		int ImmediateContext::Execute()
 		{
 			int Result = Context->Execute();
 			if (Result != asEXECUTION_SUSPENDED)
@@ -2595,22 +2327,22 @@ namespace Edge
 
 			return Result;
 		}
-		int VMContext::Abort()
+		int ImmediateContext::Abort()
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Abort();
 		}
-		int VMContext::Suspend()
+		int ImmediateContext::Suspend()
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->Suspend();
 		}
-		VMRuntime VMContext::GetState() const
+		Activation ImmediateContext::GetState() const
 		{
-			ED_ASSERT(Context != nullptr, VMRuntime::UNINITIALIZED, "context should be set");
-			return (VMRuntime)Context->GetState();
+			ED_ASSERT(Context != nullptr, Activation::UNINITIALIZED, "context should be set");
+			return (Activation)Context->GetState();
 		}
-		std::string VMContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
+		std::string ImmediateContext::GetStackTrace(size_t Skips, size_t MaxFrames) const
 		{
 			std::string Trace = Core::OS::GetStackTrace(Skips, MaxFrames).append("\n");
 			ED_ASSERT(Context != nullptr, Trace, "context should be set");
@@ -2623,7 +2355,7 @@ namespace Edge
 
 			for (asUINT TraceIdx = Context->GetCallstackSize(); TraceIdx-- > 0;)
 			{
-				VMCFunction* Function = Context->GetFunction(TraceIdx);
+				asIScriptFunction* Function = Context->GetFunction(TraceIdx);
 				if (Function != nullptr)
 				{
 					void* Address = (void*)(uintptr_t)Function->GetId();
@@ -2647,22 +2379,22 @@ namespace Edge
 			std::string Out(Stream.str());
 			return Trace + Out.substr(0, Out.size() - 1);
 		}
-		int VMContext::PushState()
+		int ImmediateContext::PushState()
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->PushState();
 		}
-		int VMContext::PopState()
+		int ImmediateContext::PopState()
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->PopState();
 		}
-		bool VMContext::IsNested(unsigned int* NestCount) const
+		bool ImmediateContext::IsNested(unsigned int* NestCount) const
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->IsNested(NestCount);
 		}
-		bool VMContext::IsThrown() const
+		bool ImmediateContext::IsThrown() const
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 			const char* Exception = Context->GetExceptionString();
@@ -2671,7 +2403,7 @@ namespace Edge
 
 			return Exception[0] != '\0';
 		}
-		bool VMContext::IsPending()
+		bool ImmediateContext::IsPending()
 		{
 			Exchange.lock();
 			bool Pending = !Tasks.empty();
@@ -2679,69 +2411,69 @@ namespace Edge
 
 			return Pending;
 		}
-		int VMContext::SetObject(void* Object)
+		int ImmediateContext::SetObject(void* Object)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetObject(Object);
 		}
-		int VMContext::SetArg8(unsigned int Arg, unsigned char Value)
+		int ImmediateContext::SetArg8(unsigned int Arg, unsigned char Value)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgByte(Arg, Value);
 		}
-		int VMContext::SetArg16(unsigned int Arg, unsigned short Value)
+		int ImmediateContext::SetArg16(unsigned int Arg, unsigned short Value)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgWord(Arg, Value);
 		}
-		int VMContext::SetArg32(unsigned int Arg, int Value)
+		int ImmediateContext::SetArg32(unsigned int Arg, int Value)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgDWord(Arg, Value);
 		}
-		int VMContext::SetArg64(unsigned int Arg, int64_t Value)
+		int ImmediateContext::SetArg64(unsigned int Arg, int64_t Value)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgQWord(Arg, Value);
 		}
-		int VMContext::SetArgFloat(unsigned int Arg, float Value)
+		int ImmediateContext::SetArgFloat(unsigned int Arg, float Value)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgFloat(Arg, Value);
 		}
-		int VMContext::SetArgDouble(unsigned int Arg, double Value)
+		int ImmediateContext::SetArgDouble(unsigned int Arg, double Value)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgDouble(Arg, Value);
 		}
-		int VMContext::SetArgAddress(unsigned int Arg, void* Address)
+		int ImmediateContext::SetArgAddress(unsigned int Arg, void* Address)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgAddress(Arg, Address);
 		}
-		int VMContext::SetArgObject(unsigned int Arg, void* Object)
+		int ImmediateContext::SetArgObject(unsigned int Arg, void* Object)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgObject(Arg, Object);
 		}
-		int VMContext::SetArgAny(unsigned int Arg, void* Ptr, int TypeId)
+		int ImmediateContext::SetArgAny(unsigned int Arg, void* Ptr, int TypeId)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetArgVarType(Arg, Ptr, TypeId);
 		}
-		int VMContext::GetReturnableByType(void* Return, VMCTypeInfo* ReturnTypeInfo)
+		int ImmediateContext::GetReturnableByType(void* Return, asITypeInfo* ReturnTypeInfo)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			ED_ASSERT(Return != nullptr, -1, "return value should be set");
 			ED_ASSERT(ReturnTypeInfo != nullptr, -1, "return type info should be set");
-			ED_ASSERT(ReturnTypeInfo->GetTypeId() != (int)VMTypeId::VOIDF, -1, "return value type should not be void");
+			ED_ASSERT(ReturnTypeInfo->GetTypeId() != (int)TypeId::VOIDF, -1, "return value type should not be void");
 
 			void* Address = Context->GetAddressOfReturnValue();
 			if (!Address)
 				return -1;
 
 			int TypeId = ReturnTypeInfo->GetTypeId();
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			if (TypeId & asTYPEID_OBJHANDLE)
 			{
 				if (*reinterpret_cast<void**>(Return) == nullptr)
@@ -2761,176 +2493,176 @@ namespace Edge
 			memcpy(Return, Address, Size);
 			return 0;
 		}
-		int VMContext::GetReturnableByDecl(void* Return, const char* ReturnTypeDecl)
+		int ImmediateContext::GetReturnableByDecl(void* Return, const char* ReturnTypeDecl)
 		{
 			ED_ASSERT(ReturnTypeDecl != nullptr, -1, "return type declaration should be set");
-			VMCManager* Engine = Manager->GetEngine();
+			asIScriptEngine* Engine = VM->GetEngine();
 			return GetReturnableByType(Return, Engine->GetTypeInfoByDecl(ReturnTypeDecl));
 		}
-		int VMContext::GetReturnableById(void* Return, int ReturnTypeId)
+		int ImmediateContext::GetReturnableById(void* Return, int ReturnTypeId)
 		{
-			ED_ASSERT(ReturnTypeId != (int)VMTypeId::VOIDF, -1, "return value type should not be void");
-			VMCManager* Engine = Manager->GetEngine();
+			ED_ASSERT(ReturnTypeId != (int)TypeId::VOIDF, -1, "return value type should not be void");
+			asIScriptEngine* Engine = VM->GetEngine();
 			return GetReturnableByType(Return, Engine->GetTypeInfoById(ReturnTypeId));
 		}
-		void* VMContext::GetAddressOfArg(unsigned int Arg)
+		void* ImmediateContext::GetAddressOfArg(unsigned int Arg)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetAddressOfArg(Arg);
 		}
-		unsigned char VMContext::GetReturnByte()
+		unsigned char ImmediateContext::GetReturnByte()
 		{
 			ED_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnByte();
 		}
-		unsigned short VMContext::GetReturnWord()
+		unsigned short ImmediateContext::GetReturnWord()
 		{
 			ED_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnWord();
 		}
-		size_t VMContext::GetReturnDWord()
+		size_t ImmediateContext::GetReturnDWord()
 		{
 			ED_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnDWord();
 		}
-		uint64_t VMContext::GetReturnQWord()
+		uint64_t ImmediateContext::GetReturnQWord()
 		{
 			ED_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetReturnQWord();
 		}
-		float VMContext::GetReturnFloat()
+		float ImmediateContext::GetReturnFloat()
 		{
 			ED_ASSERT(Context != nullptr, 0.0f, "context should be set");
 			return Context->GetReturnFloat();
 		}
-		double VMContext::GetReturnDouble()
+		double ImmediateContext::GetReturnDouble()
 		{
 			ED_ASSERT(Context != nullptr, 0.0, "context should be set");
 			return Context->GetReturnDouble();
 		}
-		void* VMContext::GetReturnAddress()
+		void* ImmediateContext::GetReturnAddress()
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetReturnAddress();
 		}
-		void* VMContext::GetReturnObjectAddress()
+		void* ImmediateContext::GetReturnObjectAddress()
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetReturnObject();
 		}
-		void* VMContext::GetAddressOfReturnValue()
+		void* ImmediateContext::GetAddressOfReturnValue()
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetAddressOfReturnValue();
 		}
-		int VMContext::SetException(const char* Info, bool AllowCatch)
+		int ImmediateContext::SetException(const char* Info, bool AllowCatch)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->SetException(Info, AllowCatch);
 		}
-		int VMContext::GetExceptionLineNumber(int* Column, const char** SectionName)
+		int ImmediateContext::GetExceptionLineNumber(int* Column, const char** SectionName)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetExceptionLineNumber(Column, SectionName);
 		}
-		VMFunction VMContext::GetExceptionFunction()
+		Function ImmediateContext::GetExceptionFunction()
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetExceptionFunction();
 		}
-		const char* VMContext::GetExceptionString()
+		const char* ImmediateContext::GetExceptionString()
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetExceptionString();
 		}
-		bool VMContext::WillExceptionBeCaught()
+		bool ImmediateContext::WillExceptionBeCaught()
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->WillExceptionBeCaught();
 		}
-		int VMContext::SetLineCallback(void(*Callback)(VMCContext* Context, void* Object), void* Object)
+		int ImmediateContext::SetLineCallback(void(*Callback)(asIScriptContext* Context, void* Object), void* Object)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			ED_ASSERT(Callback != nullptr, -1, "callback should be set");
 
 			return Context->SetLineCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
 		}
-		int VMContext::SetLineCallback(const std::function<void(VMContext*)>& Callback)
+		int ImmediateContext::SetLineCallback(const std::function<void(ImmediateContext*)>& Callback)
 		{
 			LineCallback = Callback;
-			return SetLineCallback(&VMContext::LineLogger, this);
+			return SetLineCallback(&ImmediateContext::LineLogger, this);
 		}
-		int VMContext::SetExceptionCallback(const std::function<void(VMContext*)>& Callback)
+		int ImmediateContext::SetExceptionCallback(const std::function<void(ImmediateContext*)>& Callback)
 		{
 			ExceptionCallback = Callback;
 			return 0;
 		}
-		void VMContext::ClearLineCallback()
+		void ImmediateContext::ClearLineCallback()
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 			Context->ClearLineCallback();
 			LineCallback = nullptr;
 		}
-		void VMContext::ClearExceptionCallback()
+		void ImmediateContext::ClearExceptionCallback()
 		{
 			ExceptionCallback = nullptr;
 		}
-		unsigned int VMContext::GetCallstackSize() const
+		unsigned int ImmediateContext::GetCallstackSize() const
 		{
 			ED_ASSERT(Context != nullptr, 0, "context should be set");
 			return Context->GetCallstackSize();
 		}
-		VMFunction VMContext::GetFunction(unsigned int StackLevel)
+		Function ImmediateContext::GetFunction(unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetFunction(StackLevel);
 		}
-		int VMContext::GetLineNumber(unsigned int StackLevel, int* Column, const char** SectionName)
+		int ImmediateContext::GetLineNumber(unsigned int StackLevel, int* Column, const char** SectionName)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetLineNumber(StackLevel, Column, SectionName);
 		}
-		int VMContext::GetPropertiesCount(unsigned int StackLevel)
+		int ImmediateContext::GetPropertiesCount(unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetVarCount(StackLevel);
 		}
-		const char* VMContext::GetPropertyName(unsigned int Index, unsigned int StackLevel)
+		const char* ImmediateContext::GetPropertyName(unsigned int Index, unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetVarName(Index, StackLevel);
 		}
-		const char* VMContext::GetPropertyDecl(unsigned int Index, unsigned int StackLevel, bool IncludeNamespace)
+		const char* ImmediateContext::GetPropertyDecl(unsigned int Index, unsigned int StackLevel, bool IncludeNamespace)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetVarDeclaration(Index, StackLevel, IncludeNamespace);
 		}
-		int VMContext::GetPropertyTypeId(unsigned int Index, unsigned int StackLevel)
+		int ImmediateContext::GetPropertyTypeId(unsigned int Index, unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetVarTypeId(Index, StackLevel);
 		}
-		void* VMContext::GetAddressOfProperty(unsigned int Index, unsigned int StackLevel)
+		void* ImmediateContext::GetAddressOfProperty(unsigned int Index, unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetAddressOfVar(Index, StackLevel);
 		}
-		bool VMContext::IsPropertyInScope(unsigned int Index, unsigned int StackLevel)
+		bool ImmediateContext::IsPropertyInScope(unsigned int Index, unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->IsVarInScope(Index, StackLevel);
 		}
-		int VMContext::GetThisTypeId(unsigned int StackLevel)
+		int ImmediateContext::GetThisTypeId(unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, -1, "context should be set");
 			return Context->GetThisTypeId(StackLevel);
 		}
-		void* VMContext::GetThisPointer(unsigned int StackLevel)
+		void* ImmediateContext::GetThisPointer(unsigned int StackLevel)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetThisPointer(StackLevel);
 		}
-		std::string VMContext::GetErrorStackTrace()
+		std::string ImmediateContext::GetErrorStackTrace()
 		{
 			Exchange.lock();
 			std::string Result = Stacktrace;
@@ -2938,60 +2670,60 @@ namespace Edge
 
 			return Result;
 		}
-		VMFunction VMContext::GetSystemFunction()
+		Function ImmediateContext::GetSystemFunction()
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetSystemFunction();
 		}
-		bool VMContext::IsSuspended() const
+		bool ImmediateContext::IsSuspended() const
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 			return Context->GetState() == asEXECUTION_SUSPENDED;
 		}
-		void* VMContext::SetUserData(void* Data, size_t Type)
+		void* ImmediateContext::SetUserData(void* Data, size_t Type)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->SetUserData(Data, Type);
 		}
-		void* VMContext::GetUserData(size_t Type) const
+		void* ImmediateContext::GetUserData(size_t Type) const
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
 			return Context->GetUserData(Type);
 		}
-		VMCContext* VMContext::GetContext()
+		asIScriptContext* ImmediateContext::GetContext()
 		{
 			return Context;
 		}
-		VMManager* VMContext::GetManager()
+		VirtualMachine* ImmediateContext::GetVM()
 		{
-			return Manager;
+			return VM;
 		}
-		VMContext* VMContext::Get(VMCContext* Context)
+		ImmediateContext* ImmediateContext::Get(asIScriptContext* Context)
 		{
 			ED_ASSERT(Context != nullptr, nullptr, "context should be set");
-			void* Manager = Context->GetUserData(ContextUD);
-			return (VMContext*)Manager;
+			void* VM = Context->GetUserData(ContextUD);
+			return (ImmediateContext*)VM;
 		}
-		VMContext* VMContext::Get()
+		ImmediateContext* ImmediateContext::Get()
 		{
-			VMCContext* Context = asGetActiveContext();
+			asIScriptContext* Context = asGetActiveContext();
 			if (!Context)
 				return nullptr;
 
 			return Get(Context);
 		}
-		void VMContext::LineLogger(VMCContext* Context, void*)
+		void ImmediateContext::LineLogger(asIScriptContext* Context, void*)
 		{
-			VMContext* Base = VMContext::Get(Context);
+			ImmediateContext* Base = ImmediateContext::Get(Context);
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 			ED_ASSERT_V(Base->LineCallback, "context should be set");
 
 			Base->LineCallback(Base);
 		}
-		void VMContext::ExceptionLogger(VMCContext* Context, void*)
+		void ImmediateContext::ExceptionLogger(asIScriptContext* Context, void*)
 		{
-			VMCFunction* Function = Context->GetExceptionFunction();
-			VMContext* Base = VMContext::Get(Context);
+			asIScriptFunction* Function = Context->GetExceptionFunction();
+			ImmediateContext* Base = ImmediateContext::Get(Context);
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
 			const char* Message = Context->GetExceptionString();
@@ -3018,9 +2750,9 @@ namespace Edge
 			else if (Base->ExceptionCallback)
 				Base->ExceptionCallback(Base);
 		}
-		int VMContext::ContextUD = 152;
+		int ImmediateContext::ContextUD = 152;
 
-		VMManager::VMManager() noexcept : Scope(0), Engine(asCreateScriptEngine()), Globals(this), Imports((uint32_t)VMImport::All), Cached(true)
+		VirtualMachine::VirtualMachine() noexcept : Scope(0), Engine(asCreateScriptEngine()), Imports((uint32_t)Imports::All), Cached(true)
 		{
 			Include.Exts.push_back(".as");
 			Include.Root = Core::OS::Directory::Get();
@@ -3034,7 +2766,7 @@ namespace Edge
 			Engine->SetEngineProperty(asEP_COMPILER_WARNINGS, 1);
 			RegisterSubmodules(this);
 		}
-		VMManager::~VMManager() noexcept
+		VirtualMachine::~VirtualMachine() noexcept
 		{
 			for (auto& Core : Kernels)
 				Core::OS::Symbol::Unload(Core.second.Handle);
@@ -3046,15 +2778,225 @@ namespace Edge
 				Engine->ShutDownAndRelease();
 			ClearCache();
 		}
-		void VMManager::SetImports(unsigned int Opts)
+		int VirtualMachine::SetFunctionDef(const char* Decl)
+		{
+			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+
+			return Engine->RegisterFuncdef(Decl);
+		}
+		int VirtualMachine::SetFunctionAddress(const char* Decl, asSFuncPtr* Value, FunctionCall Type)
+		{
+			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			ED_ASSERT(Value != nullptr, -1, "value should be set");
+			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+
+			return Engine->RegisterGlobalFunction(Decl, *Value, (asECallConvTypes)Type);
+		}
+		int VirtualMachine::SetPropertyAddress(const char* Decl, void* Value)
+		{
+			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			ED_ASSERT(Value != nullptr, -1, "value should be set");
+			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
+
+			return Engine->RegisterGlobalProperty(Decl, Value);
+		}
+		TypeInterface VirtualMachine::SetInterface(const char* Name)
+		{
+			ED_ASSERT(Name != nullptr, TypeInterface(nullptr, "", -1), "name should be set");
+			ED_ASSERT(Engine != nullptr, TypeInterface(nullptr, "", -1), "engine should be set");
+
+			return TypeInterface(this, Name, Engine->RegisterInterface(Name));
+		}
+		TypeClass VirtualMachine::SetStructAddress(const char* Name, size_t Size, uint64_t Flags)
+		{
+			ED_ASSERT(Name != nullptr, TypeClass(nullptr, "", -1), "name should be set");
+			ED_ASSERT(Engine != nullptr, TypeClass(nullptr, "", -1), "engine should be set");
+
+			return TypeClass(this, Name, Engine->RegisterObjectType(Name, (asUINT)Size, (asDWORD)Flags));
+		}
+		TypeClass VirtualMachine::SetPodAddress(const char* Name, size_t Size, uint64_t Flags)
+		{
+			return SetStructAddress(Name, Size, Flags);
+		}
+		RefClass VirtualMachine::SetClassAddress(const char* Name, uint64_t Flags)
+		{
+			ED_ASSERT(Name != nullptr, RefClass(nullptr, "", -1), "name should be set");
+			ED_ASSERT(Engine != nullptr, RefClass(nullptr, "", -1), "engine should be set");
+
+			return RefClass(this, Name, Engine->RegisterObjectType(Name, 0, (asDWORD)Flags));
+		}
+		Enumeration VirtualMachine::SetEnum(const char* Name)
+		{
+			ED_ASSERT(Name != nullptr, Enumeration(nullptr, "", -1), "name should be set");
+			ED_ASSERT(Engine != nullptr, Enumeration(nullptr, "", -1), "engine should be set");
+
+			return Enumeration(this, Name, Engine->RegisterEnum(Name));
+		}
+		size_t VirtualMachine::GetFunctionsCount() const
+		{
+			return Engine->GetGlobalFunctionCount();
+		}
+		Function VirtualMachine::GetFunctionById(int Id) const
+		{
+			return Engine->GetFunctionById(Id);
+		}
+		Function VirtualMachine::GetFunctionByIndex(int Index) const
+		{
+			return Engine->GetGlobalFunctionByIndex(Index);
+		}
+		Function VirtualMachine::GetFunctionByDecl(const char* Decl) const
+		{
+			ED_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
+			return Engine->GetGlobalFunctionByDecl(Decl);
+		}
+		size_t VirtualMachine::GetPropertiesCount() const
+		{
+			return Engine->GetGlobalPropertyCount();
+		}
+		int VirtualMachine::GetPropertyByIndex(int Index, PropertyInfo* Info) const
+		{
+			const char* Name = nullptr, * Namespace = nullptr;
+			const char* ConfigGroup = nullptr;
+			void* Pointer = nullptr;
+			bool IsConst = false;
+			asDWORD AccessMask = 0;
+			int TypeId = 0;
+			int Result = Engine->GetGlobalPropertyByIndex(Index, &Name, &Namespace, &TypeId, &IsConst, &ConfigGroup, &Pointer, &AccessMask);
+
+			if (Info != nullptr)
+			{
+				Info->Name = Name;
+				Info->Namespace = Namespace;
+				Info->TypeId = TypeId;
+				Info->IsConst = IsConst;
+				Info->ConfigGroup = ConfigGroup;
+				Info->Pointer = Pointer;
+				Info->AccessMask = AccessMask;
+			}
+
+			return Result;
+		}
+		int VirtualMachine::GetPropertyIndexByName(const char* Name) const
+		{
+			ED_ASSERT(Name != nullptr, -1, "name should be set");
+			return Engine->GetGlobalPropertyIndexByName(Name);
+		}
+		int VirtualMachine::GetPropertyIndexByDecl(const char* Decl) const
+		{
+			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			return Engine->GetGlobalPropertyIndexByDecl(Decl);
+		}
+		size_t VirtualMachine::GetObjectsCount() const
+		{
+			return Engine->GetObjectTypeCount();
+		}
+		TypeInfo VirtualMachine::GetObjectByIndex(size_t Index) const
+		{
+			return Engine->GetObjectTypeByIndex((asUINT)Index);
+		}
+		size_t VirtualMachine::GetEnumCount() const
+		{
+			return Engine->GetEnumCount();
+		}
+		TypeInfo VirtualMachine::GetEnumByIndex(size_t Index) const
+		{
+			return Engine->GetEnumByIndex((asUINT)Index);
+		}
+		size_t VirtualMachine::GetFunctionDefsCount() const
+		{
+			return Engine->GetFuncdefCount();
+		}
+		TypeInfo VirtualMachine::GetFunctionDefByIndex(int Index) const
+		{
+			return Engine->GetFuncdefByIndex(Index);
+		}
+		size_t VirtualMachine::GetModulesCount() const
+		{
+			return Engine->GetModuleCount();
+		}
+		asIScriptModule* VirtualMachine::GetModuleById(int Id) const
+		{
+			return Engine->GetModuleByIndex(Id);
+		}
+		int VirtualMachine::GetTypeIdByDecl(const char* Decl) const
+		{
+			ED_ASSERT(Decl != nullptr, -1, "declaration should be set");
+			return Engine->GetTypeIdByDecl(Decl);
+		}
+		const char* VirtualMachine::GetTypeIdDecl(int TypeId, bool IncludeNamespace) const
+		{
+			return Engine->GetTypeDeclaration(TypeId, IncludeNamespace);
+		}
+		int VirtualMachine::GetSizeOfPrimitiveType(int TypeId) const
+		{
+			return Engine->GetSizeOfPrimitiveType(TypeId);
+		}
+		std::string VirtualMachine::GetObjectView(void* Object, int TypeId)
+		{
+			if (!Object)
+				return "null";
+
+			if (TypeId == (int)TypeId::INT8)
+				return "int8(" + std::to_string(*(char*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::INT16)
+				return "int16(" + std::to_string(*(short*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::INT32)
+				return "int32(" + std::to_string(*(int*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::INT64)
+				return "int64(" + std::to_string(*(int64_t*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::UINT8)
+				return "uint8(" + std::to_string(*(unsigned char*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::UINT16)
+				return "uint16(" + std::to_string(*(unsigned short*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::UINT32)
+				return "uint32(" + std::to_string(*(unsigned int*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::UINT64)
+				return "uint64(" + std::to_string(*(uint64_t*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::FLOAT)
+				return "float(" + std::to_string(*(float*)(Object)) + "), ";
+			else if (TypeId == (int)TypeId::DOUBLE)
+				return "double(" + std::to_string(*(double*)(Object)) + "), ";
+
+			asITypeInfo* Type = Engine->GetTypeInfoById(TypeId);
+			const char* Name = Type->GetName();
+
+			return Core::Form("%s(0x%" PRIXPTR ")", Name ? Name : "unknown", (uintptr_t)Object).R();
+		}
+		TypeInfo VirtualMachine::GetTypeInfoById(int TypeId) const
+		{
+			return Engine->GetTypeInfoById(TypeId);
+		}
+		TypeInfo VirtualMachine::GetTypeInfoByName(const char* Name)
+		{
+			ED_ASSERT(Name != nullptr, nullptr, "name should be set");
+			const char* TypeName = Name;
+			const char* Namespace = nullptr;
+			size_t NamespaceSize = 0;
+
+			if (GetTypeNameScope(&TypeName, &Namespace, &NamespaceSize) != 0)
+				return Engine->GetTypeInfoByName(Name);
+
+			BeginNamespace(std::string(Namespace, NamespaceSize).c_str());
+			asITypeInfo* Info = Engine->GetTypeInfoByName(TypeName);
+			EndNamespace();
+
+			return Info;
+		}
+		TypeInfo VirtualMachine::GetTypeInfoByDecl(const char* Decl) const
+		{
+			ED_ASSERT(Decl != nullptr, nullptr, "declaration should be set");
+			return Engine->GetTypeInfoByDecl(Decl);
+		}
+		void VirtualMachine::SetImports(unsigned int Opts)
 		{
 			Imports = Opts;
 		}
-		void VMManager::SetCache(bool Enabled)
+		void VirtualMachine::SetCache(bool Enabled)
 		{
 			Cached = Enabled;
 		}
-		void VMManager::ClearCache()
+		void VirtualMachine::ClearCache()
 		{
 			Sync.General.lock();
 			for (auto Data : Datas)
@@ -3065,23 +3007,23 @@ namespace Edge
 			Files.clear();
 			Sync.General.unlock();
 		}
-		void VMManager::SetCompilerErrorCallback(const WhenErrorCallback& Callback)
+		void VirtualMachine::SetCompilerErrorCallback(const WhenErrorCallback& Callback)
 		{
 			WherError = Callback;
 		}
-		void VMManager::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
+		void VirtualMachine::SetCompilerIncludeOptions(const Compute::IncludeDesc& NewDesc)
 		{
 			Sync.General.lock();
 			Include = NewDesc;
 			Sync.General.unlock();
 		}
-		void VMManager::SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc)
+		void VirtualMachine::SetCompilerFeatures(const Compute::Preprocessor::Desc& NewDesc)
 		{
 			Sync.General.lock();
 			Proc = NewDesc;
 			Sync.General.unlock();
 		}
-		void VMManager::SetProcessorOptions(Compute::Preprocessor* Processor)
+		void VirtualMachine::SetProcessorOptions(Compute::Preprocessor* Processor)
 		{
 			ED_ASSERT_V(Processor != nullptr, "preprocessor should be set");
 			Sync.General.lock();
@@ -3089,7 +3031,7 @@ namespace Edge
 			Processor->SetFeatures(Proc);
 			Sync.General.unlock();
 		}
-		void VMManager::SetCompileCallback(const std::string& Section, CompileCallback&& Callback)
+		void VirtualMachine::SetCompileCallback(const std::string& Section, CompileCallback&& Callback)
 		{
 			Sync.General.lock();
 			if (Callback != nullptr)
@@ -3098,7 +3040,7 @@ namespace Edge
 				Callbacks.erase(Section);
 			Sync.General.unlock();
 		}
-		bool VMManager::GetByteCodeCache(VMByteCode* Info)
+		bool VirtualMachine::GetByteCodeCache(ByteCodeInfo* Info)
 		{
 			ED_ASSERT(Info != nullptr, false, "bytecode should be set");
 			if (!Cached)
@@ -3119,7 +3061,7 @@ namespace Edge
 			Sync.General.unlock();
 			return true;
 		}
-		void VMManager::SetByteCodeCache(VMByteCode* Info)
+		void VirtualMachine::SetByteCodeCache(ByteCodeInfo* Info)
 		{
 			ED_ASSERT_V(Info != nullptr, "bytecode should be set");
 			Info->Valid = true;
@@ -3130,26 +3072,26 @@ namespace Edge
 			Opcodes[Info->Name] = *Info;
 			Sync.General.unlock();
 		}
-		int VMManager::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
+		int VirtualMachine::SetLogCallback(void(*Callback)(const asSMessageInfo* Message, void* Object), void* Object)
 		{
 			if (!Callback)
 				return Engine->ClearMessageCallback();
 
 			return Engine->SetMessageCallback(asFUNCTION(Callback), Object, asCALL_CDECL);
 		}
-		int VMManager::Log(const char* Section, int Row, int Column, VMLogType Type, const char* Message)
+		int VirtualMachine::Log(const char* Section, int Row, int Column, LogCategory Type, const char* Message)
 		{
 			return Engine->WriteMessage(Section, Row, Column, (asEMsgType)Type, Message);
 		}
-		VMContext* VMManager::CreateContext()
+		ImmediateContext* VirtualMachine::CreateContext()
 		{
-			return new VMContext(Engine->RequestContext());
+			return new ImmediateContext(Engine->RequestContext());
 		}
-		VMCompiler* VMManager::CreateCompiler()
+		Compiler* VirtualMachine::CreateCompiler()
 		{
-			return new VMCompiler(this);
+			return new Compiler(this);
 		}
-		VMCModule* VMManager::CreateScopedModule(const std::string& Name)
+		asIScriptModule* VirtualMachine::CreateScopedModule(const std::string& Name)
 		{
 			ED_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			ED_ASSERT(!Name.empty(), nullptr, "name should not be empty");
@@ -3175,50 +3117,50 @@ namespace Edge
 			Sync.General.unlock();
 			return nullptr;
 		}
-		VMCModule* VMManager::CreateModule(const std::string& Name)
+		asIScriptModule* VirtualMachine::CreateModule(const std::string& Name)
 		{
 			ED_ASSERT(Engine != nullptr, nullptr, "engine should be set");
 			ED_ASSERT(!Name.empty(), nullptr, "name should not be empty");
 
 			Sync.General.lock();
-			VMCModule* Result = Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
+			asIScriptModule* Result = Engine->GetModule(Name.c_str(), asGM_ALWAYS_CREATE);
 			Sync.General.unlock();
 
 			return Result;
 		}
-		void* VMManager::CreateObject(const VMTypeInfo& Type)
+		void* VirtualMachine::CreateObject(const TypeInfo& Type)
 		{
 			return Engine->CreateScriptObject(Type.GetTypeInfo());
 		}
-		void* VMManager::CreateObjectCopy(void* Object, const VMTypeInfo& Type)
+		void* VirtualMachine::CreateObjectCopy(void* Object, const TypeInfo& Type)
 		{
 			return Engine->CreateScriptObjectCopy(Object, Type.GetTypeInfo());
 		}
-		void* VMManager::CreateEmptyObject(const VMTypeInfo& Type)
+		void* VirtualMachine::CreateEmptyObject(const TypeInfo& Type)
 		{
 			return Engine->CreateUninitializedScriptObject(Type.GetTypeInfo());
 		}
-		VMFunction VMManager::CreateDelegate(const VMFunction& Function, void* Object)
+		Function VirtualMachine::CreateDelegate(const Function& Function, void* Object)
 		{
 			return Engine->CreateDelegate(Function.GetFunction(), Object);
 		}
-		int VMManager::AssignObject(void* DestObject, void* SrcObject, const VMTypeInfo& Type)
+		int VirtualMachine::AssignObject(void* DestObject, void* SrcObject, const TypeInfo& Type)
 		{
 			return Engine->AssignScriptObject(DestObject, SrcObject, Type.GetTypeInfo());
 		}
-		void VMManager::ReleaseObject(void* Object, const VMTypeInfo& Type)
+		void VirtualMachine::ReleaseObject(void* Object, const TypeInfo& Type)
 		{
 			return Engine->ReleaseScriptObject(Object, Type.GetTypeInfo());
 		}
-		void VMManager::AddRefObject(void* Object, const VMTypeInfo& Type)
+		void VirtualMachine::AddRefObject(void* Object, const TypeInfo& Type)
 		{
 			return Engine->AddRefScriptObject(Object, Type.GetTypeInfo());
 		}
-		int VMManager::RefCastObject(void* Object, const VMTypeInfo& FromType, const VMTypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast)
+		int VirtualMachine::RefCastObject(void* Object, const TypeInfo& FromType, const TypeInfo& ToType, void** NewPtr, bool UseOnlyImplicitCast)
 		{
 			return Engine->RefCastObject(Object, FromType.GetTypeInfo(), ToType.GetTypeInfo(), NewPtr, UseOnlyImplicitCast);
 		}
-		int VMManager::Collect(size_t NumIterations)
+		int VirtualMachine::Collect(size_t NumIterations)
 		{
 			Sync.General.lock();
 			int R = Engine->GarbageCollect(asGC_FULL_CYCLE | asGC_DETECT_GARBAGE | asGC_DESTROY_GARBAGE, (asUINT)NumIterations);
@@ -3226,7 +3168,7 @@ namespace Edge
 
 			return R;
 		}
-		void VMManager::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
+		void VirtualMachine::GetStatistics(unsigned int* CurrentSize, unsigned int* TotalDestroyed, unsigned int* TotalDetected, unsigned int* NewObjects, unsigned int* TotalNewDestroyed) const
 		{
 			unsigned int asCurrentSize, asTotalDestroyed, asTotalDetected, asNewObjects, asTotalNewDestroyed;
 			Engine->GetGCStatistics(&asCurrentSize, &asTotalDestroyed, &asTotalDetected, &asNewObjects, &asTotalNewDestroyed);
@@ -3246,37 +3188,37 @@ namespace Edge
 			if (TotalNewDestroyed != nullptr)
 				*TotalNewDestroyed = (size_t)asTotalNewDestroyed;
 		}
-		int VMManager::NotifyOfNewObject(void* Object, const VMTypeInfo& Type)
+		int VirtualMachine::NotifyOfNewObject(void* Object, const TypeInfo& Type)
 		{
 			return Engine->NotifyGarbageCollectorOfNewObject(Object, Type.GetTypeInfo());
 		}
-		int VMManager::GetObjectAddress(size_t Index, size_t* SequenceNumber, void** Object, VMTypeInfo* Type)
+		int VirtualMachine::GetObjectAddress(size_t Index, size_t* SequenceNumber, void** Object, TypeInfo* Type)
 		{
 			asUINT asSequenceNumber;
-			VMCTypeInfo* OutType = nullptr;
+			asITypeInfo* OutType = nullptr;
 			int Result = Engine->GetObjectInGC((asUINT)Index, &asSequenceNumber, Object, &OutType);
 
 			if (SequenceNumber != nullptr)
 				*SequenceNumber = (size_t)asSequenceNumber;
 
 			if (Type != nullptr)
-				*Type = VMTypeInfo(OutType);
+				*Type = TypeInfo(OutType);
 
 			return Result;
 		}
-		void VMManager::ForwardEnumReferences(void* Reference, const VMTypeInfo& Type)
+		void VirtualMachine::ForwardEnumReferences(void* Reference, const TypeInfo& Type)
 		{
 			return Engine->ForwardGCEnumReferences(Reference, Type.GetTypeInfo());
 		}
-		void VMManager::ForwardReleaseReferences(void* Reference, const VMTypeInfo& Type)
+		void VirtualMachine::ForwardReleaseReferences(void* Reference, const TypeInfo& Type)
 		{
 			return Engine->ForwardGCReleaseReferences(Reference, Type.GetTypeInfo());
 		}
-		void VMManager::GCEnumCallback(void* Reference)
+		void VirtualMachine::GCEnumCallback(void* Reference)
 		{
 			Engine->GCEnumCallback(Reference);
 		}
-		bool VMManager::DumpRegisteredInterfaces(const std::string& Where)
+		bool VirtualMachine::DumpRegisteredInterfaces(const std::string& Where)
 		{
 			std::unordered_map<std::string, DNamespace> Namespaces;
 			std::string Path = Core::OS::Path::ResolveDirectory(Where.c_str());
@@ -3460,7 +3402,7 @@ namespace Edge
 
 			return true;
 		}
-		bool VMManager::DumpAllInterfaces(const std::string& Where)
+		bool VirtualMachine::DumpAllInterfaces(const std::string& Where)
 		{
 			for (auto& Item : Modules)
 			{
@@ -3470,7 +3412,7 @@ namespace Edge
 
 			return DumpRegisteredInterfaces(Where);
 		}
-		int VMManager::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
+		int VirtualMachine::GetTypeNameScope(const char** TypeName, const char** Namespace, size_t* NamespaceSize) const
 		{
 			ED_ASSERT(TypeName != nullptr && *TypeName != nullptr, -1, "typename should be set");
 
@@ -3501,21 +3443,21 @@ namespace Edge
 			*TypeName = Value + Index + 1;
 			return 0;
 		}
-		int VMManager::BeginGroup(const char* GroupName)
+		int VirtualMachine::BeginGroup(const char* GroupName)
 		{
 			ED_ASSERT(GroupName != nullptr, -1, "group name should be set");
 			return Engine->BeginConfigGroup(GroupName);
 		}
-		int VMManager::EndGroup()
+		int VirtualMachine::EndGroup()
 		{
 			return Engine->EndConfigGroup();
 		}
-		int VMManager::RemoveGroup(const char* GroupName)
+		int VirtualMachine::RemoveGroup(const char* GroupName)
 		{
 			ED_ASSERT(GroupName != nullptr, -1, "group name should be set");
 			return Engine->RemoveConfigGroup(GroupName);
 		}
-		int VMManager::BeginNamespace(const char* Namespace)
+		int VirtualMachine::BeginNamespace(const char* Namespace)
 		{
 			ED_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
 			const char* Prev = Engine->GetDefaultNamespace();
@@ -3528,18 +3470,18 @@ namespace Edge
 
 			return Engine->SetDefaultNamespace(Namespace);
 		}
-		int VMManager::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
+		int VirtualMachine::BeginNamespaceIsolated(const char* Namespace, size_t DefaultMask)
 		{
 			ED_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
 			BeginAccessMask(DefaultMask);
 			return BeginNamespace(Namespace);
 		}
-		int VMManager::EndNamespaceIsolated()
+		int VirtualMachine::EndNamespaceIsolated()
 		{
 			EndAccessMask();
 			return EndNamespace();
 		}
-		int VMManager::EndNamespace()
+		int VirtualMachine::EndNamespace()
 		{
 			Sync.General.lock();
 			int R = Engine->SetDefaultNamespace(DefaultNamespace.c_str());
@@ -3547,7 +3489,7 @@ namespace Edge
 
 			return R;
 		}
-		int VMManager::Namespace(const char* Namespace, const std::function<int(VMGlobal*)>& Callback)
+		int VirtualMachine::Namespace(const char* Namespace, const std::function<int(VirtualMachine*)>& Callback)
 		{
 			ED_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
 			ED_ASSERT(Callback, -1, "callback should not be empty");
@@ -3556,13 +3498,13 @@ namespace Edge
 			if (R < 0)
 				return R;
 
-			R = Callback(&Globals);
+			R = Callback(this);
 			if (R < 0)
 				return R;
 
 			return EndNamespace();
 		}
-		int VMManager::NamespaceIsolated(const char* Namespace, size_t DefaultMask, const std::function<int(VMGlobal*)>& Callback)
+		int VirtualMachine::NamespaceIsolated(const char* Namespace, size_t DefaultMask, const std::function<int(VirtualMachine*)>& Callback)
 		{
 			ED_ASSERT(Namespace != nullptr, -1, "namespace name should be set");
 			ED_ASSERT(Callback, -1, "callback should not be empty");
@@ -3571,41 +3513,37 @@ namespace Edge
 			if (R < 0)
 				return R;
 
-			R = Callback(&Globals);
+			R = Callback(this);
 			if (R < 0)
 				return R;
 
 			return EndNamespaceIsolated();
 		}
-		size_t VMManager::BeginAccessMask(size_t DefaultMask)
+		size_t VirtualMachine::BeginAccessMask(size_t DefaultMask)
 		{
 			return Engine->SetDefaultAccessMask((asDWORD)DefaultMask);
 		}
-		size_t VMManager::EndAccessMask()
+		size_t VirtualMachine::EndAccessMask()
 		{
-			return Engine->SetDefaultAccessMask((asDWORD)VMManager::GetDefaultAccessMask());
+			return Engine->SetDefaultAccessMask((asDWORD)VirtualMachine::GetDefaultAccessMask());
 		}
-		const char* VMManager::GetNamespace() const
+		const char* VirtualMachine::GetNamespace() const
 		{
 			return Engine->GetDefaultNamespace();
 		}
-		VMGlobal& VMManager::Global()
+		Module VirtualMachine::GetModule(const char* Name)
 		{
-			return Globals;
-		}
-		VMModule VMManager::Module(const char* Name)
-		{
-			ED_ASSERT(Engine != nullptr, VMModule(nullptr), "engine should be set");
-			ED_ASSERT(Name != nullptr, VMModule(nullptr), "name should be set");
+			ED_ASSERT(Engine != nullptr, Module(nullptr), "engine should be set");
+			ED_ASSERT(Name != nullptr, Module(nullptr), "name should be set");
 
-			return VMModule(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
+			return Module(Engine->GetModule(Name, asGM_CREATE_IF_NOT_EXISTS));
 		}
-		int VMManager::SetProperty(VMProp Property, size_t Value)
+		int VirtualMachine::SetProperty(Features Property, size_t Value)
 		{
 			ED_ASSERT(Engine != nullptr, -1, "engine should be set");
 			return Engine->SetEngineProperty((asEEngineProp)Property, (asPWORD)Value);
 		}
-		void VMManager::SetDocumentRoot(const std::string& Value)
+		void VirtualMachine::SetDocumentRoot(const std::string& Value)
 		{
 			Sync.General.lock();
 			Include.Root = Value;
@@ -3613,20 +3551,14 @@ namespace Edge
 				return Sync.General.unlock();
 
 			if (!Core::Parser(&Include.Root).EndsOf("/\\"))
-			{
-#ifdef ED_MICROSOFT
-				Include.Root.append(1, '\\');
-#else
-				Include.Root.append(1, '/');
-#endif
-			}
+				Include.Root.append(1, ED_PATH_SPLIT);
 			Sync.General.unlock();
 		}
-		std::string VMManager::GetDocumentRoot() const
+		std::string VirtualMachine::GetDocumentRoot() const
 		{
 			return Include.Root;
 		}
-		std::vector<std::string> VMManager::GetSubmodules() const
+		std::vector<std::string> VirtualMachine::GetSubmodules() const
 		{
 			std::vector<std::string> Result;
 			for (auto& Module : Modules)
@@ -3637,7 +3569,7 @@ namespace Edge
 
 			return Result;
 		}
-		std::vector<std::string> VMManager::VerifyModules(const std::string& Directory, const Compute::RegexSource& Exp)
+		std::vector<std::string> VirtualMachine::VerifyModules(const std::string& Directory, const Compute::RegexSource& Exp)
 		{
 			std::vector<std::string> Result;
 			if (!Core::OS::Directory::IsExists(Directory.c_str()))
@@ -3673,7 +3605,7 @@ namespace Edge
 
 			return Result;
 		}
-		bool VMManager::VerifyModule(const std::string& Path)
+		bool VirtualMachine::VerifyModule(const std::string& Path)
 		{
 			ED_ASSERT(Engine != nullptr, false, "engine should be set");
 			std::string Source = Core::OS::File::ReadAsString(Path);
@@ -3698,11 +3630,11 @@ namespace Edge
 
 			return R >= 0;
 		}
-		bool VMManager::IsNullable(int TypeId)
+		bool VirtualMachine::IsNullable(int TypeId)
 		{
 			return TypeId == 0;
 		}
-		bool VMManager::AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback)
+		bool VirtualMachine::AddSubmodule(const std::string& Name, const std::vector<std::string>& Dependencies, const SubmoduleCallback& Callback)
 		{
 			ED_ASSERT(!Name.empty(), false, "name should not be empty");
 			if (Dependencies.empty() && !Callback)
@@ -3763,9 +3695,9 @@ namespace Edge
 			Sync.General.unlock();
 			return true;
 		}
-		bool VMManager::ImportFile(const std::string& Path, std::string* Out)
+		bool VirtualMachine::ImportFile(const std::string& Path, std::string* Out)
 		{
-			if (!(Imports & (uint32_t)VMImport::Files))
+			if (!(Imports & (uint32_t)Imports::Files))
 			{
 				ED_ERR("[vm] file import is not allowed");
 				return false;
@@ -3801,9 +3733,9 @@ namespace Edge
 			Sync.General.unlock();
 			return true;
 		}
-		bool VMManager::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
+		bool VirtualMachine::ImportSymbol(const std::vector<std::string>& Sources, const std::string& Func, const std::string& Decl)
 		{
-			if (!(Imports & (uint32_t)VMImport::CSymbols))
+			if (!(Imports & (uint32_t)Imports::CSymbols))
 			{
 				ED_ERR("[vm] csymbols import is not allowed");
 				return false;
@@ -3818,7 +3750,7 @@ namespace Edge
 				if (Handle != Context.Functions.end())
 					return true;
 
-				VMObjectFunction Function = (VMObjectFunction)Core::OS::Symbol::LoadFunction(Context.Handle, Func);
+				FunctionPtr Function = (FunctionPtr)Core::OS::Symbol::LoadFunction(Context.Handle, Func);
 				if (!Function)
 				{
 					if (Assert)
@@ -3861,9 +3793,9 @@ namespace Edge
 			ED_ERR("[vm] cannot load shared object function: %s\n\tnot found in any of loaded shared objects", Func.c_str());
 			return false;
 		}
-		bool VMManager::ImportLibrary(const std::string& Path)
+		bool VirtualMachine::ImportLibrary(const std::string& Path)
 		{
-			if (!(Imports & (uint32_t)VMImport::CLibraries) && !Path.empty())
+			if (!(Imports & (uint32_t)Imports::CLibraries) && !Path.empty())
 			{
 				ED_ERR("[vm] clibraries import is not allowed");
 				return false;
@@ -3899,9 +3831,9 @@ namespace Edge
 			ED_DEBUG("[vm] load library %s", Path.c_str());
 			return true;
 		}
-		bool VMManager::ImportSubmodule(const std::string& Name)
+		bool VirtualMachine::ImportSubmodule(const std::string& Name)
 		{
-			if (!(Imports & (uint32_t)VMImport::Submodules))
+			if (!(Imports & (uint32_t)Imports::Submodules))
 			{
 				ED_ERR("[vm] submodules import is not allowed");
 				return false;
@@ -3945,9 +3877,9 @@ namespace Edge
 
 			return true;
 		}
-		Core::Schema* VMManager::ImportJSON(const std::string& Path)
+		Core::Schema* VirtualMachine::ImportJSON(const std::string& Path)
 		{
-			if (!(Imports & (uint32_t)VMImport::JSON))
+			if (!(Imports & (uint32_t)Imports::JSON))
 			{
 				ED_ERR("[vm] json import is not allowed");
 				return nullptr;
@@ -3991,35 +3923,35 @@ namespace Edge
 			Sync.General.unlock();
 			return Copy;
 		}
-		size_t VMManager::GetProperty(VMProp Property) const
+		size_t VirtualMachine::GetProperty(Features Property) const
 		{
 			ED_ASSERT(Engine != nullptr, 0, "engine should be set");
 			return (size_t)Engine->GetEngineProperty((asEEngineProp)Property);
 		}
-		VMCManager* VMManager::GetEngine() const
+		asIScriptEngine* VirtualMachine::GetEngine() const
 		{
 			return Engine;
 		}
-		void VMManager::FreeProxy()
+		void VirtualMachine::FreeProxy()
 		{
 			Bindings::Registry::Release();
 			CleanupThisThread();
 		}
-		VMManager* VMManager::Get(VMCManager* Engine)
+		VirtualMachine* VirtualMachine::Get(asIScriptEngine* Engine)
 		{
 			ED_ASSERT(Engine != nullptr, nullptr, "engine should be set");
-			void* Manager = Engine->GetUserData(ManagerUD);
-			return (VMManager*)Manager;
+			void* VM = Engine->GetUserData(ManagerUD);
+			return (VirtualMachine*)VM;
 		}
-		VMManager* VMManager::Get()
+		VirtualMachine* VirtualMachine::Get()
 		{
-			VMCContext* Context = asGetActiveContext();
+			asIScriptContext* Context = asGetActiveContext();
 			if (!Context)
 				return nullptr;
 
 			return Get(Context->GetEngine());
 		}
-		std::string VMManager::GetLibraryName(const std::string& Path)
+		std::string VirtualMachine::GetLibraryName(const std::string& Path)
 		{
 			if (Path.empty())
 				return Path;
@@ -4035,46 +3967,46 @@ namespace Edge
 
 			return Src.R();
 		}
-		VMCContext* VMManager::RequestContext(VMCManager* Engine, void* Data)
+		asIScriptContext* VirtualMachine::RequestContext(asIScriptEngine* Engine, void* Data)
 		{
-			VMManager* Manager = VMManager::Get(Engine);
-			if (!Manager)
+			VirtualMachine* VM = VirtualMachine::Get(Engine);
+			if (!VM)
 				return Engine->CreateContext();
 
-			Manager->Sync.Pool.lock();
-			if (Manager->Contexts.empty())
+			VM->Sync.Pool.lock();
+			if (VM->Contexts.empty())
 			{
-				Manager->Sync.Pool.unlock();
+				VM->Sync.Pool.unlock();
 				return Engine->CreateContext();
 			}
 
-			VMCContext* Context = *Manager->Contexts.rbegin();
-			Manager->Contexts.pop_back();
-			Manager->Sync.Pool.unlock();
+			asIScriptContext* Context = *VM->Contexts.rbegin();
+			VM->Contexts.pop_back();
+			VM->Sync.Pool.unlock();
 
 			return Context;
 		}
-		void VMManager::SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*))
+		void VirtualMachine::SetMemoryFunctions(void* (*Alloc)(size_t), void(*Free)(void*))
 		{
 			asSetGlobalMemoryFunctions(Alloc, Free);
 		}
-		void VMManager::CleanupThisThread()
+		void VirtualMachine::CleanupThisThread()
 		{
 			asThreadCleanup();
 		}
-		void VMManager::ReturnContext(VMCManager* Engine, VMCContext* Context, void* Data)
+		void VirtualMachine::ReturnContext(asIScriptEngine* Engine, asIScriptContext* Context, void* Data)
 		{
-			VMManager* Manager = VMManager::Get(Engine);
-			ED_ASSERT(Manager != nullptr, (void)Context->Release(), "engine should be set");
+			VirtualMachine* VM = VirtualMachine::Get(Engine);
+			ED_ASSERT(VM != nullptr, (void)Context->Release(), "engine should be set");
 
-			Manager->Sync.Pool.lock();
-			Manager->Contexts.push_back(Context);
+			VM->Sync.Pool.lock();
+			VM->Contexts.push_back(Context);
 			Context->Unprepare();
-			Manager->Sync.Pool.unlock();
+			VM->Sync.Pool.unlock();
 		}
-		void VMManager::CompileLogger(asSMessageInfo* Info, void* This)
+		void VirtualMachine::CompileLogger(asSMessageInfo* Info, void* This)
 		{
-			VMManager* Engine = (VMManager*)This;
+			VirtualMachine* Engine = (VirtualMachine*)This;
 			const char* Section = (Info->section && Info->section[0] != '\0' ? Info->section : "any");
 			if (Engine->WherError)
 				Engine->WherError();
@@ -4100,7 +4032,7 @@ namespace Edge
 			else if (Info->type == asMSGTYPE_ERROR)
 				ED_ERR("[compiler]\n\t%s (%i, %i): %s", Section, Info->row, Info->col, Info->message);
 		}
-		void VMManager::RegisterSubmodules(VMManager* Engine)
+		void VirtualMachine::RegisterSubmodules(VirtualMachine* Engine)
 		{
 			Engine->AddSubmodule("std/ctypes", { }, Bindings::Registry::LoadCTypes);
 			Engine->AddSubmodule("std/any", { }, Bindings::Registry::LoadAny);
@@ -4146,33 +4078,33 @@ namespace Edge
 			Engine->AddSubmodule("std/engine/gui/context", { "std/engine/gui/model" }, Bindings::Registry::LoadUiContext);
 			Engine->AddSubmodule("std", { }, nullptr);
 		}
-		size_t VMManager::GetDefaultAccessMask()
+		size_t VirtualMachine::GetDefaultAccessMask()
 		{
 			return 0xFFFFFFFF;
 		}
-		void* VMManager::GetNullable()
+		void* VirtualMachine::GetNullable()
 		{
 			return nullptr;
 		}
-		int VMManager::ManagerUD = 553;
+		int VirtualMachine::ManagerUD = 553;
 
-		VMDebugger::VMDebugger() noexcept : LastFunction(nullptr), Manager(nullptr), Action(DebugAction::CONTINUE)
+		Debugger::Debugger() noexcept : LastFunction(nullptr), VM(nullptr), Action(DebugAction::CONTINUE)
 		{
 			LastCommandAtStackLevel = 0;
 		}
-		VMDebugger::~VMDebugger() noexcept
+		Debugger::~Debugger() noexcept
 		{
 			SetEngine(0);
 		}
-		void VMDebugger::RegisterToStringCallback(const VMTypeInfo& Type, ToStringCallback Callback)
+		void Debugger::RegisterToStringCallback(const TypeInfo& Type, ToStringCallback Callback)
 		{
 			ED_ASSERT_V(ToStringCallbacks.find(Type.GetTypeInfo()) == ToStringCallbacks.end(), "callback should not already be set");
-			ToStringCallbacks.insert(std::unordered_map<const VMCTypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));
+			ToStringCallbacks.insert(std::unordered_map<const asITypeInfo*, ToStringCallback>::value_type(Type.GetTypeInfo(), Callback));
 		}
-		void VMDebugger::LineCallback(VMContext* Context)
+		void Debugger::LineCallback(ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 			ED_ASSERT_V(Base->GetState() == asEXECUTION_ACTIVE, "context should be active");
@@ -4209,11 +4141,11 @@ namespace Edge
 			Output(Stream.str());
 			TakeCommands(Context);
 		}
-		void VMDebugger::TakeCommands(VMContext* Context)
+		void Debugger::TakeCommands(ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
 			for (;;)
@@ -4226,14 +4158,14 @@ namespace Edge
 					break;
 			}
 		}
-		void VMDebugger::PrintValue(const std::string& Expression, VMContext* Context)
+		void Debugger::PrintValue(const std::string& Expression, ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
-			VMCManager* Engine = Context->GetManager()->GetEngine();
+			asIScriptEngine* Engine = Context->GetVM()->GetEngine();
 			std::string Text = Expression, Scope, Name;
 			asUINT Length = 0;
 
@@ -4267,7 +4199,7 @@ namespace Edge
 			void* Pointer = 0;
 			int TypeId = 0;
 
-			VMCFunction* Function = Base->GetFunction();
+			asIScriptFunction* Function = Base->GetFunction();
 			if (!Function)
 				return;
 
@@ -4292,7 +4224,7 @@ namespace Edge
 					}
 					else
 					{
-						VMCTypeInfo* Type = Engine->GetTypeInfoById(Base->GetThisTypeId());
+						asITypeInfo* Type = Engine->GetTypeInfoById(Base->GetThisTypeId());
 						for (asUINT n = 0; n < Type->GetPropertyCount(); n++)
 						{
 							const char* PropName = 0;
@@ -4326,15 +4258,15 @@ namespace Edge
 				else if (Scope == "::")
 					Scope.clear();
 
-				VMCModule* Mod = Function->GetModule();
+				asIScriptModule* Mod = Function->GetModule();
 				if (Mod != nullptr)
 				{
 					for (asUINT n = 0; n < Mod->GetGlobalVarCount(); n++)
 					{
-						const char* VarName = 0, * NameSpace = 0;
-						Mod->GetGlobalVar(n, &VarName, &NameSpace, &TypeId);
+						const char* VarName = 0, * Namespace = 0;
+						Mod->GetGlobalVar(n, &VarName, &Namespace, &TypeId);
 
-						if (Name == VarName && Scope == NameSpace)
+						if (Name == VarName && Scope == Namespace)
 						{
 							Pointer = Mod->GetAddressOfGlobalVar(n);
 							break;
@@ -4346,13 +4278,13 @@ namespace Edge
 			if (Pointer)
 			{
 				std::stringstream Stream;
-				Stream << ToString(Pointer, TypeId, 3, Manager) << std::endl;
+				Stream << ToString(Pointer, TypeId, 3, VM) << std::endl;
 				Output(Stream.str());
 			}
 			else
 				Output("Invalid expression. No matching symbol\n");
 		}
-		void VMDebugger::ListBreakPoints()
+		void Debugger::ListBreakPoints()
 		{
 			std::stringstream Stream;
 			for (size_t b = 0; b < BreakPoints.size(); b++)
@@ -4364,29 +4296,29 @@ namespace Edge
 			}
 			Output(Stream.str());
 		}
-		void VMDebugger::ListMemberProperties(VMContext* Context)
+		void Debugger::ListMemberProperties(ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
 			void* Pointer = Base->GetThisPointer();
 			if (Pointer != nullptr)
 			{
 				std::stringstream Stream;
-				Stream << "this = " << ToString(Pointer, Base->GetThisTypeId(), 3, VMManager::Get(Base->GetEngine())) << std::endl;
+				Stream << "this = " << ToString(Pointer, Base->GetThisTypeId(), 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
 				Output(Stream.str());
 			}
 		}
-		void VMDebugger::ListLocalVariables(VMContext* Context)
+		void Debugger::ListLocalVariables(ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
-			VMCFunction* Function = Base->GetFunction();
+			asIScriptFunction* Function = Base->GetFunction();
 			if (!Function)
 				return;
 
@@ -4394,22 +4326,22 @@ namespace Edge
 			for (asUINT n = 0; n < Function->GetVarCount(); n++)
 			{
 				if (Base->IsVarInScope(n))
-					Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), Base->GetVarTypeId(n), 3, VMManager::Get(Base->GetEngine())) << std::endl;
+					Stream << Function->GetVarDecl(n) << " = " << ToString(Base->GetAddressOfVar(n), Base->GetVarTypeId(n), 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
 			}
 			Output(Stream.str());
 		}
-		void VMDebugger::ListGlobalVariables(VMContext* Context)
+		void Debugger::ListGlobalVariables(ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
-			VMCFunction* Function = Base->GetFunction();
+			asIScriptFunction* Function = Base->GetFunction();
 			if (!Function)
 				return;
 
-			VMCModule* Mod = Function->GetModule();
+			asIScriptModule* Mod = Function->GetModule();
 			if (!Mod)
 				return;
 
@@ -4418,18 +4350,18 @@ namespace Edge
 			{
 				int TypeId = 0;
 				Mod->GetGlobalVar(n, nullptr, nullptr, &TypeId);
-				Stream << Mod->GetGlobalVarDeclaration(n) << " = " << ToString(Mod->GetAddressOfGlobalVar(n), TypeId, 3, VMManager::Get(Base->GetEngine())) << std::endl;
+				Stream << Mod->GetGlobalVarDeclaration(n) << " = " << ToString(Mod->GetAddressOfGlobalVar(n), TypeId, 3, VirtualMachine::Get(Base->GetEngine())) << std::endl;
 			}
 			Output(Stream.str());
 		}
-		void VMDebugger::ListStatistics(VMContext* Context)
+		void Debugger::ListStatistics(ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
-			VMCManager* Engine = Base->GetEngine();
+			asIScriptEngine* Engine = Base->GetEngine();
 			asUINT GCCurrSize, GCTotalDestr, GCTotalDet, GCNewObjects, GCTotalNewDestr;
 			Engine->GetGCStatistics(&GCCurrSize, &GCTotalDestr, &GCTotalDet, &GCNewObjects, &GCTotalNewDestr);
 
@@ -4442,11 +4374,11 @@ namespace Edge
 			Stream << " new objects destroyed: " << GCTotalNewDestr << std::endl;
 			Output(Stream.str());
 		}
-		void VMDebugger::PrintCallstack(VMContext* Context)
+		void Debugger::PrintCallstack(ImmediateContext* Context)
 		{
 			ED_ASSERT_V(Context != nullptr, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT_V(Base != nullptr, "context should be set");
 
 			std::stringstream Stream;
@@ -4461,7 +4393,7 @@ namespace Edge
 
 			Output(Stream.str());
 		}
-		void VMDebugger::AddFuncBreakPoint(const std::string& Function)
+		void Debugger::AddFuncBreakPoint(const std::string& Function)
 		{
 			size_t B = Function.find_first_not_of(" \t");
 			size_t E = Function.find_last_not_of(" \t");
@@ -4474,7 +4406,7 @@ namespace Edge
 			BreakPoint Point(Actual, 0, true);
 			BreakPoints.push_back(Point);
 		}
-		void VMDebugger::AddFileBreakPoint(const std::string& File, int LineNumber)
+		void Debugger::AddFileBreakPoint(const std::string& File, int LineNumber)
 		{
 			size_t R = File.find_last_of("\\/");
 			std::string Actual;
@@ -4495,7 +4427,7 @@ namespace Edge
 			BreakPoint Point(Actual, LineNumber, false);
 			BreakPoints.push_back(Point);
 		}
-		void VMDebugger::PrintHelp()
+		void Debugger::PrintHelp()
 		{
 			Output(" c - Continue\n"
 				   " s - Step into\n"
@@ -4509,26 +4441,26 @@ namespace Edge
 				   " a - Abort execution\n"
 				   " h - Print this help text\n");
 		}
-		void VMDebugger::Output(const std::string& Data)
+		void Debugger::Output(const std::string& Data)
 		{
 			std::cout << Data;
 		}
-		void VMDebugger::SetEngine(VMManager* Engine)
+		void Debugger::SetEngine(VirtualMachine* Engine)
 		{
-			if (Engine != nullptr && Engine != Manager)
+			if (Engine != nullptr && Engine != VM)
 			{
-				if (Manager != nullptr)
-					Manager->GetEngine()->Release();
+				if (VM != nullptr)
+					VM->GetEngine()->Release();
 
-				Manager = Engine;
-				Manager->GetEngine()->AddRef();
+				VM = Engine;
+				VM->GetEngine()->AddRef();
 			}
 		}
-		bool VMDebugger::CheckBreakPoint(VMContext* Context)
+		bool Debugger::CheckBreakPoint(ImmediateContext* Context)
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT(Base != nullptr, false, "context should be set");
 
 			const char* Temp = 0;
@@ -4539,7 +4471,7 @@ namespace Edge
 			if (R != std::string::npos)
 				File = File.substr(R + 1);
 
-			VMCFunction* Function = Base->GetFunction();
+			asIScriptFunction* Function = Base->GetFunction();
 			if (LastFunction != Function)
 			{
 				for (size_t n = 0; n < BreakPoints.size(); n++)
@@ -4591,11 +4523,11 @@ namespace Edge
 
 			return false;
 		}
-		bool VMDebugger::InterpretCommand(const std::string& Command, VMContext* Context)
+		bool Debugger::InterpretCommand(const std::string& Command, ImmediateContext* Context)
 		{
 			ED_ASSERT(Context != nullptr, false, "context should be set");
 
-			VMCContext* Base = Context->GetContext();
+			asIScriptContext* Base = Context->GetContext();
 			ED_ASSERT(Base != nullptr, false, "context should be set");
 
 			if (Command.length() == 0)
@@ -4740,18 +4672,18 @@ namespace Edge
 
 			return true;
 		}
-		std::string VMDebugger::ToString(void* Value, unsigned int TypeId, int ExpandMembers, VMManager* Engine)
+		std::string Debugger::ToString(void* Value, unsigned int TypeId, int ExpandMembers, VirtualMachine* Engine)
 		{
 			if (Value == 0)
 				return "<null>";
 
 			if (Engine == 0)
-				Engine = Manager;
+				Engine = VM;
 
-			if (!Manager || !Engine)
+			if (!VM || !Engine)
 				return "<null>";
 
-			VMCManager* Base = Engine->GetEngine();
+			asIScriptEngine* Base = Engine->GetEngine();
 			if (!Base)
 				return "<null>";
 
@@ -4792,7 +4724,7 @@ namespace Edge
 			{
 				Stream << *(asUINT*)Value;
 
-				VMCTypeInfo* T = Base->GetTypeInfoById(TypeId);
+				asITypeInfo* T = Base->GetTypeInfoById(TypeId);
 				for (int n = T->GetEnumValueCount(); n-- > 0;)
 				{
 					int EnumVal;
@@ -4815,7 +4747,7 @@ namespace Edge
 
 				if (Object && ExpandMembers > 0)
 				{
-					VMCTypeInfo* Type = Object->GetObjectType();
+					asITypeInfo* Type = Object->GetObjectType();
 					for (asUINT n = 0; n < Object->GetPropertyCount(); n++)
 					{
 						if (n == 0)
@@ -4823,7 +4755,7 @@ namespace Edge
 						else
 							Stream << ", ";
 
-						Stream << Type->GetPropertyDeclaration(n) << " = " << ToString(Object->GetAddressOfProperty(n), Object->GetPropertyTypeId(n), ExpandMembers - 1, VMManager::Get(Type->GetEngine()));
+						Stream << Type->GetPropertyDeclaration(n) << " = " << ToString(Object->GetAddressOfProperty(n), Object->GetPropertyTypeId(n), ExpandMembers - 1, VirtualMachine::Get(Type->GetEngine()));
 					}
 				}
 			}
@@ -4832,7 +4764,7 @@ namespace Edge
 				if (TypeId & asTYPEID_OBJHANDLE)
 					Value = *(void**)Value;
 
-				VMCTypeInfo* Type = Base->GetTypeInfoById(TypeId);
+				asITypeInfo* Type = Base->GetTypeInfoById(TypeId);
 				if (Type->GetFlags() & asOBJ_REF)
 					Stream << "{" << Value << "}";
 
@@ -4843,7 +4775,7 @@ namespace Edge
 					{
 						if (Type->GetFlags() & asOBJ_TEMPLATE)
 						{
-							VMCTypeInfo* TmpType = Base->GetTypeInfoByName(Type->GetName());
+							asITypeInfo* TmpType = Base->GetTypeInfoByName(Type->GetName());
 							It = ToStringCallbacks.find(TmpType);
 						}
 					}
@@ -4861,9 +4793,9 @@ namespace Edge
 
 			return Stream.str();
 		}
-		VMManager* VMDebugger::GetEngine()
+		VirtualMachine* Debugger::GetEngine()
 		{
-			return Manager;
+			return VM;
 		}
 	}
 }

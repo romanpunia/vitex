@@ -2,7 +2,7 @@
 #include "core/compute.h"
 #include "core/audio.h"
 #include "core/network.h"
-#include "core/script.h"
+#include "core/scripting.h"
 #include "network/pdb.h"
 #include "network/mdb.h"
 #include <clocale>
@@ -501,7 +501,7 @@ namespace Edge
 		if (Modes & (uint64_t)Init::Audio)
 			Audio::AudioContext::Create();
 
-		Script::VMManager::SetMemoryFunctions(Core::Mem::Malloc, Core::Mem::Free);
+		Scripting::VirtualMachine::SetMemoryFunctions(Core::Mem::Malloc, Core::Mem::Free);
 #ifdef ED_HAS_OPENSSL
 		if (Modes & (uint64_t)Init::SSL)
 		{
@@ -588,7 +588,7 @@ namespace Edge
 #endif
 		}
 
-		Script::VMManager::FreeProxy();
+		Scripting::VirtualMachine::FreeProxy();
 		Core::Composer::Clear();
 
 		if (Modes & (uint64_t)Init::Core)

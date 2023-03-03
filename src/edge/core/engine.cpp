@@ -3417,7 +3417,7 @@ namespace Edge
 			I.Shared.Content = Base->Content;
 			I.Shared.Device = Base->Renderer;
 			I.Shared.Activity = Base->Activity;
-			I.Shared.Manager = Base->VM;
+			I.Shared.VM = Base->VM;
 			return I;
 		}
 
@@ -5689,12 +5689,12 @@ namespace Edge
 			}
 
 			if (I->Usage & (size_t)ApplicationSet::ScriptSet)
-				VM = new Script::VMManager();
+				VM = new Scripting::VirtualMachine();
 #ifdef ED_USE_RMLUI
 			if (Activity != nullptr && Renderer != nullptr && Content != nullptr)
 			{
 				GUI::Subsystem::SetMetadata(Activity, Content, nullptr);
-				GUI::Subsystem::SetManager(VM);
+				GUI::Subsystem::SetVirtualMachine(VM);
 			}
 #endif
 			if (I->Usage & (size_t)ApplicationSet::NetworkSet)
@@ -5725,7 +5725,7 @@ namespace Edge
 
 			Host = nullptr;
 		}
-		void Application::ScriptHook(Script::VMGlobal* Global)
+		void Application::ScriptHook()
 		{
 		}
 		void Application::KeyEvent(Graphics::KeyCode Key, Graphics::KeyMod Mod, int Virtual, int Repeat, bool Pressed)
@@ -5786,7 +5786,7 @@ namespace Edge
 					return ED_EXIT_JUMP + 4;
 				}
 				else
-					ScriptHook(&VM->Global());
+					ScriptHook();
 			}
 
 			Initialize();

@@ -1633,6 +1633,8 @@ namespace Edge
 
 		class ED_OUT Costate final : public Reference<Costate>
 		{
+			friend Cocontext;
+
 		private:
 			std::unordered_set<Coroutine*> Cached;
 			std::unordered_set<Coroutine*> Used;

@@ -6,7 +6,7 @@
 #include <windows.h>
 #include <ws2tcpip.h>
 #include <io.h>
-#ifdef ED_WIED_WEPOLL
+#ifdef ED_USE_WEPOLL
 #include <wepoll.h>
 #endif
 #define ERRNO WSAGetLastError()

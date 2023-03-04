@@ -66,7 +66,7 @@ endif()
 #Resolve headers and compile options for Wepoll
 if (WIN32)
 	target_include_directories(edge PRIVATE ${PROJECT_SOURCE_DIR}/src/supplies/wepoll)
-	target_compile_definitions(edge PUBLIC -DED_WIED_WEPOLL)
+	target_compile_definitions(edge PUBLIC -DED_USE_WEPOLL)
 endif()
 
 #Resolve headers for FContext

@@ -336,58 +336,71 @@ namespace Edge
 			std::mutex Update;
 			FastQueue Tasks;
 		};
+
+		struct Cocontext
+		{
 #ifdef ED_USE_FCTX
-		struct Cocontext
-		{
-			fcontext_t Context;
+			fcontext_t Context = nullptr;
 			char* Stack = nullptr;
-
-			Cocontext() : Stack(nullptr)
-			{
-			}
-			~Cocontext()
-			{
-				ED_FREE(Stack);
-				Stack = nullptr;
-			}
-		};
 #elif ED_MICROSOFT
-		struct Cocontext
-		{
 			LPVOID Context = nullptr;
-
-			Cocontext() : Context(nullptr)
-			{
-			}
-			~Cocontext()
-			{
-				if (Context != nullptr)
-				{
-					DeleteFiber(Context);
-					Context = nullptr;
-				}
-			}
-		};
+			bool Main = false;
 #else
-		struct Cocontext
-		{
-			ucontext_t Context;
+			ucontext_t Context = nullptr;
 			char* Stack = nullptr;
+#endif
 
-			Cocontext() : Stack(nullptr)
+			Cocontext()
 			{
+#ifndef ED_USE_FCTX
+#ifdef ED_MICROSOFT
+				Context = ConvertThreadToFiber(nullptr);
+				Main = true;
+#endif
+#endif
+			}
+			Cocontext(Costate* State)
+			{
+#ifdef ED_USE_FCTX
+				Stack = ED_MALLOC(char, sizeof(char) * State->Size);
+				Context = make_fcontext(Stack + State->Size, State->Size, [](transfer_t Transfer)
+				{
+					Costate::ExecutionEntry(&Transfer);
+				});
+#elif ED_MICROSOFT
+				Context = CreateFiber(State->Size, &Costate::ExecutionEntry, (LPVOID)State);
+#else
+				getcontext(&Context);
+				Stack = ED_MALLOC(char, sizeof(char) * State->Size);
+				Context.uc_stack.ss_sp = Stack;
+				Context.uc_stack.ss_size = State->Size;
+				Context.uc_stack.ss_flags = 0;
+				Context.uc_link = &State->Master->Context;
+
+				int X, Y;
+				Pack2_64((void*)State, &X, &Y);
+				makecontext(&Context, (void(*)())&Costate::ExecutionEntry, 2, X, Y);
+#endif
 			}
 			~Cocontext()
 			{
+#ifdef ED_USE_FCTX
 				ED_FREE(Stack);
-				Stack = nullptr;
+#elif ED_MICROSOFT
+				if (Main)
+					ConvertFiberToThread();
+				else if (Context != nullptr)
+					DeleteFiber(Context);
+#else
+				ED_FREE(Stack);
+#endif
 			}
 		};
-#endif
-		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(Procedure), Slave(ED_NEW(Cocontext)), Master(Base)
+
+		Coroutine::Coroutine(Costate* Base, const TaskCallback& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(Procedure), Slave(ED_NEW(Cocontext, Base)), Master(Base)
 		{
 		}
-		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(std::move(Procedure)), Slave(ED_NEW(Cocontext)), Master(Base)
+		Coroutine::Coroutine(Costate* Base, TaskCallback&& Procedure) noexcept : State(Coactive::Active), Dead(0), Callback(std::move(Procedure)), Slave(ED_NEW(Cocontext, Base)), Master(Base)
 		{
 		}
 		Coroutine::~Coroutine() noexcept
@@ -8752,11 +8765,6 @@ namespace Edge
 		static thread_local Costate* Cothread = nullptr;
 		Costate::Costate(size_t StackSize) noexcept : Thread(std::this_thread::get_id()), Current(nullptr), Master(ED_NEW(Cocontext)), Size(StackSize)
 		{
-#ifndef ED_USE_FCTX
-#ifdef ED_MICROSOFT
-			Master->Context = ConvertThreadToFiber(nullptr);
-#endif
-#endif
 		}
 		Costate::~Costate() noexcept
 		{
@@ -8768,12 +8776,7 @@ namespace Edge
 
 			for (auto& Routine : Used)
 				ED_DELETE(Coroutine, Routine);
-#ifndef ED_USE_FCTX
-#ifdef ED_MICROSOFT
-			Master->Context = nullptr;
-			ConvertFiberToThread();
-#endif
-#endif
+
 			ED_DELETE(Cocontext, Master);
 		}
 		Coroutine* Costate::Pop(const TaskCallback& Procedure)
@@ -8870,33 +8873,10 @@ namespace Edge
 			Cocontext* Fiber = Routine->Slave;
 			Current = Routine;
 #ifdef ED_USE_FCTX
-			if (Fiber->Stack == nullptr)
-			{
-				Fiber->Stack = ED_MALLOC(char, sizeof(char) * Size);
-				Fiber->Context = make_fcontext(Fiber->Stack + Size, Size, [](transfer_t Transfer)
-				{
-					Costate::ExecutionEntry(&Transfer);
-				});
-			}
 			Fiber->Context = jump_fcontext(Fiber->Context, (void*)this).fctx;
 #elif ED_MICROSOFT
-			if (Fiber->Context == nullptr)
-				Fiber->Context = CreateFiber(Size, ExecutionEntry, (LPVOID)this);
 			SwitchToFiber(Fiber->Context);
 #else
-			if (Fiber->Stack == nullptr)
-			{
-				getcontext(&Fiber->Context);
-				Fiber->Stack = ED_MALLOC(char, sizeof(char) * Size);
-				Fiber->Context.uc_stack.ss_sp = Fiber->Stack;
-				Fiber->Context.uc_stack.ss_size = Size;
-				Fiber->Context.uc_stack.ss_flags = 0;
-				Fiber->Context.uc_link = &Master->Context;
-
-				int X, Y;
-				Pack2_64((void*)this, &X, &Y);
-				makecontext(&Fiber->Context, (void(*)())ExecutionEntry, 2, X, Y);
-			}
 			swapcontext(&Master->Context, &Fiber->Context);
 #endif
 			if (Routine->Return)

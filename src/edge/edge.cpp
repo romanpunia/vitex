@@ -177,7 +177,7 @@ namespace Edge
     }
 	bool Library::HasWindowsEpoll()
 	{
-#ifdef ED_WIED_WEPOLL
+#ifdef ED_USE_WEPOLL
 		return true;
 #else
 		return false;

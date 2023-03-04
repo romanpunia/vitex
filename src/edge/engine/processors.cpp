@@ -28,6 +28,37 @@ extern "C"
 #include <stb_vorbis.h>
 }
 
+namespace
+{
+	template <typename T>
+	struct Movable
+	{
+		mutable T value;
+
+		Movable()
+		{
+		}
+		Movable(T&& v) : value(std::move(v))
+		{
+		}
+		Movable(const Movable<T>& rhs) : value(std::move(rhs.value))
+		{
+		}
+		Movable(Movable<T>&& rhs) = default;
+		Movable& operator=(const Movable<T>& rhs) = delete;
+		Movable& operator=(Movable<T>&& rhs) = delete;
+	};
+
+	template <typename T>
+	using AsMovable = Movable<typename std::remove_reference<T>::type>;
+
+	template <typename T>
+	inline AsMovable<T> InterpretAsMove(T&& r)
+	{
+		return AsMovable<T>(std::move(r));
+	}
+}
+
 namespace Edge
 {
 	namespace Engine
@@ -40,6 +71,25 @@ namespace Edge
 				return Compute::Matrix4x4(Root.a1, Root.a2, Root.a3, Root.a4, Root.b1, Root.b2, Root.b3, Root.b4, Root.c1, Root.c2, Root.c3, Root.c4, Root.d1, Root.d2, Root.d3, Root.d4);
 			}
 #endif
+			template <typename T>
+			T* ProcessRendererJob(Graphics::GraphicsDevice* Device, std::function<T*(Graphics::GraphicsDevice*)>&& Callback)
+			{
+				std::promise<T*> Promise;
+				std::future<T*> Future = Promise.get_future();
+				Graphics::RenderThreadCallback Job = [Context = InterpretAsMove(Promise), Callback = std::move(Callback)](Graphics::GraphicsDevice* Device) mutable
+				{
+					Context.value.set_value(Callback(Device));
+				};
+
+				auto* App = Application::Get();
+				if (!App || App->GetState() != ApplicationState::Active || Device != App->Renderer)
+					Device->Lockup(std::move(Job));
+				else
+					Device->Enqueue(std::move(Job));
+
+				return Future.get();
+			}
+
 			Asset::Asset(ContentManager* Manager) : Processor(Manager)
 			{
 			}
@@ -687,28 +737,26 @@ namespace Edge
 						Data.push_back(Buffer[i]);
 				});
 
-				if (ED_LEFT_HANDED)
-					stbi_set_flip_vertically_on_load(0);
-				else
-					stbi_set_flip_vertically_on_load(1);
-
 				int Width, Height, Channels;
+				stbi_set_flip_vertically_on_load(ED_LEFT_HANDED ? 0 : 1);
+
 				unsigned char* Resource = stbi_load_from_memory((const unsigned char*)Data.data(), (int)Data.size(), &Width, &Height, &Channels, STBI_rgb_alpha);
 				if (!Resource)
 					return nullptr;
 
 				auto* Device = Content->GetDevice();
-				Graphics::Texture2D::Desc F = Graphics::Texture2D::Desc();
-				F.Data = (void*)Resource;
-				F.Width = (unsigned int)Width;
-				F.Height = (unsigned int)Height;
-				F.RowPitch = (Width * 32 + 7) / 8;
-				F.DepthPitch = F.RowPitch * Height;
-				F.MipLevels = Device->GetMipLevel(F.Width, F.Height);
+				Graphics::Texture2D::Desc I = Graphics::Texture2D::Desc();
+				I.Data = (void*)Resource;
+				I.Width = (unsigned int)Width;
+				I.Height = (unsigned int)Height;
+				I.RowPitch = (Width * 32 + 7) / 8;
+				I.DepthPitch = I.RowPitch * Height;
+				I.MipLevels = Device->GetMipLevel(I.Width, I.Height);
 
-				Device->Lock();
-				Graphics::Texture2D* Object = Device->CreateTexture2D(F);
-				Device->Unlock();
+				Graphics::Texture2D* Object = ProcessRendererJob<Graphics::Texture2D>(Device, [&I](Graphics::GraphicsDevice* Device)
+				{
+					return Device->CreateTexture2D(I);
+				});
 
 				stbi_image_free(Resource);
 				if (!Object)
@@ -754,9 +802,10 @@ namespace Edge
 				I.Data = Data;
 
 				Graphics::GraphicsDevice* Device = Content->GetDevice();
-				Device->Unlock();
-				Graphics::Shader* Object = Device->CreateShader(I);
-				Device->Lock();
+				Graphics::Shader* Object = ProcessRendererJob<Graphics::Shader>(Device, [&I](Graphics::GraphicsDevice* Device)
+				{
+					return Device->CreateShader(I);
+				});
 
 				if (!Object)
 					return nullptr;
@@ -790,40 +839,48 @@ namespace Edge
 			void* Model::Deserialize(Core::Stream* Stream, size_t Offset, const Core::VariantArgs& Args)
 			{
 				ED_ASSERT(Stream != nullptr, nullptr, "stream should be set");
-				auto* Schema = Content->Load<Core::Schema>(Stream->GetSource());
-				if (!Schema)
+				std::string& Path = Stream->GetSource();
+				Core::Parser Location(&Path);
+				Core::Schema* Data = nullptr;
+
+				if (Location.EndsWith(".xml") || Location.EndsWith(".json") || Location.EndsWith(".jsonb") || Location.EndsWith(".xml.gz") || Location.EndsWith(".json.gz") || Location.EndsWith(".jsonb.gz"))
+					Data = Content->Load<Core::Schema>(Path);
+				else
+					Data = Import(Stream);
+
+				if (!Data)
 					return nullptr;
 
 				auto Object = new Graphics::Model();
-				Series::Unpack(Schema->Find("root"), &Object->Root);
-				Series::Unpack(Schema->Find("max"), &Object->Max);
-				Series::Unpack(Schema->Find("min"), &Object->Min);
+				Series::Unpack(Data->Find("root"), &Object->Root);
+				Series::Unpack(Data->Find("max"), &Object->Max);
+				Series::Unpack(Data->Find("min"), &Object->Min);
 
-				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
+				std::vector<Core::Schema*> Meshes = Data->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
-					Graphics::MeshBuffer::Desc F;
-					F.AccessFlags = Options.AccessFlags;
-					F.Usage = Options.Usage;
+					Graphics::MeshBuffer::Desc I;
+					I.AccessFlags = Options.AccessFlags;
+					I.Usage = Options.Usage;
 
-					if (!Series::Unpack(Mesh->Find("indices"), &F.Indices))
+					if (!Series::Unpack(Mesh->Find("indices"), &I.Indices))
 					{
-						ED_RELEASE(Schema);
+						ED_RELEASE(Data);
 						return nullptr;
 					}
 
-					if (!Series::Unpack(Mesh->Find("vertices"), &F.Elements))
+					if (!Series::Unpack(Mesh->Find("vertices"), &I.Elements))
 					{
-						ED_RELEASE(Schema);
+						ED_RELEASE(Data);
 						return nullptr;
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Geometric::TexCoordRhToLh(F.Elements);
-
-					Device->Lock();
-					Object->Meshes.push_back(Device->CreateMeshBuffer(F));
-					Device->Unlock();
+					Compute::Geometric::TexCoordRhToLh(I.Elements);
+					Object->Meshes.push_back(ProcessRendererJob<Graphics::MeshBuffer>(Device, [&I](Graphics::GraphicsDevice* Device)
+					{
+						return Device->CreateMeshBuffer(I);
+					}));
 
 					auto* Sub = Object->Meshes.back();
 					Series::Unpack(Mesh->Find("name"), &Sub->Name);
@@ -832,16 +889,23 @@ namespace Edge
 
 				Content->Cache(this, Stream->GetSource(), Object);
 				Object->AddRef();
-				ED_RELEASE(Schema);
+				ED_RELEASE(Data);
 
 				return (void*)Object;
 			}
-			Core::Schema* Model::Import(const std::string& Path, uint64_t Opts)
+			Core::Schema* Model::Import(Core::Stream* Stream, uint64_t Opts)
 			{
 #ifdef ED_HAS_ASSIMP
-				Assimp::Importer Importer;
+				std::vector<char> Data;
+				Stream->ReadAll([&Data](char* Buffer, size_t Size)
+				{
+					Data.reserve(Data.size() + Size);
+					for (size_t i = 0; i < Size; i++)
+						Data.push_back(Buffer[i]);
+				});
 
-				auto* Scene = Importer.ReadFile(Path, (unsigned int)Opts);
+				Assimp::Importer Importer;
+				auto* Scene = Importer.ReadFileFromMemory(Data.data(), Data.size(), (unsigned int)Opts, Core::OS::Path::GetExtension(Stream->GetSource().c_str()));
 				if (!Scene)
 				{
 					ED_ERR("[engine] cannot import mesh\n\t%s", Importer.GetErrorString());
@@ -1115,28 +1179,28 @@ namespace Edge
 				std::vector<Core::Schema*> Meshes = Schema->FetchCollection("meshes.mesh");
 				for (auto&& Mesh : Meshes)
 				{
-					Graphics::SkinMeshBuffer::Desc F;
-					F.AccessFlags = Options.AccessFlags;
-					F.Usage = Options.Usage;
+					Graphics::SkinMeshBuffer::Desc I;
+					I.AccessFlags = Options.AccessFlags;
+					I.Usage = Options.Usage;
 
-					if (!Series::Unpack(Mesh->Find("indices"), &F.Indices))
+					if (!Series::Unpack(Mesh->Find("indices"), &I.Indices))
 					{
 						ED_RELEASE(Schema);
 						return nullptr;
 					}
 
-					if (!Series::Unpack(Mesh->Find("vertices"), &F.Elements))
+					if (!Series::Unpack(Mesh->Find("vertices"), &I.Elements))
 					{
 						ED_RELEASE(Schema);
 						return nullptr;
 					}
 
 					auto* Device = Content->GetDevice();
-					Compute::Geometric::TexCoordRhToLh(F.Elements);
-
-					Device->Lock();
-					Object->Meshes.push_back(Device->CreateSkinMeshBuffer(F));
-					Device->Unlock();
+					Compute::Geometric::TexCoordRhToLh(I.Elements);
+					Object->Meshes.push_back(ProcessRendererJob<Graphics::SkinMeshBuffer>(Device, [&I](Graphics::GraphicsDevice* Device)
+					{
+						return Device->CreateSkinMeshBuffer(I);
+					}));
 
 					auto* Sub = Object->Meshes.back();
 					Series::Unpack(Mesh->Find("name"), &Sub->Name);

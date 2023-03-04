@@ -12026,8 +12026,6 @@ namespace Edge
 				VGraphicsDevice.SetMethod("void set_vertex_buffer(element_buffer@+)", &Graphics::GraphicsDevice::SetVertexBuffer);
 				VGraphicsDevice.SetMethod("void set_shader_cache(bool)", &Graphics::GraphicsDevice::SetShaderCache);
 				VGraphicsDevice.SetMethod("void set_vsync_mode(vsync)", &Graphics::GraphicsDevice::SetVSyncMode);
-				VGraphicsDevice.SetMethod("void lock()", &Graphics::GraphicsDevice::Lock);
-				VGraphicsDevice.SetMethod("void unlock()", &Graphics::GraphicsDevice::Unlock);
 				VGraphicsDevice.SetMethod("bool preprocess(shader_desc &in)", &Graphics::GraphicsDevice::Preprocess);
 				VGraphicsDevice.SetMethod("bool transpile(string &out, shader_type, shader_lang)", &Graphics::GraphicsDevice::Transpile);
 				VGraphicsDevice.SetMethod("bool add_section(const string &in, const string &in)", &Graphics::GraphicsDevice::AddSection);

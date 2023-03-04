@@ -1575,8 +1575,8 @@ namespace Edge
 		protected:
 			void* Resource;
 			std::unordered_map<std::string, std::string> Headers;
-			std::string Buffer;
-			int64_t Offset;
+			std::vector<char> Chunk;
+			size_t Offset;
 			size_t Size;
 			bool Async;
 

@@ -849,13 +849,31 @@ namespace Edge
 		{
 			VSyncMode = Mode;
 		}
-		void GraphicsDevice::Lock()
+		void GraphicsDevice::Lockup(RenderThreadCallback&& Callback)
 		{
+			ED_ASSERT_V(Callback != nullptr, "callback should be set");
 			Mutex.lock();
-		}
-		void GraphicsDevice::Unlock()
-		{
+			Callback(this);
 			Mutex.unlock();
+		}
+		void GraphicsDevice::Enqueue(RenderThreadCallback&& Callback)
+		{
+			ED_ASSERT_V(Callback != nullptr, "callback should be set");
+			Mutex.lock();
+			Queue.emplace(Callback);
+			Mutex.unlock();
+		}
+		void GraphicsDevice::DispatchQueue()
+		{
+			if (Queue.empty())
+				return;
+
+			std::unique_lock<std::recursive_mutex> Unique(Mutex);
+			while (!Queue.empty())
+			{
+				Queue.front()(this);
+				Queue.pop();
+			}
 		}
 		void GraphicsDevice::CreateStates()
 		{

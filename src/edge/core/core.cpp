@@ -183,6 +183,16 @@ namespace
 		struct stat Buffer;
 		return stat(Path, &Buffer) == 0;
 	}
+	void EscapeText(char* Text, size_t Size)
+	{
+		size_t Index = 0;
+		while (Size-- > 0)
+		{
+			char& V = Text[Index++];
+			if (V == '\a' || V == '\b' || V == '\f' || V == '\v' || V == '\0')
+				V = '\?';
+		}
+	}
 	void GetDateTime(time_t Time, char* Date, size_t Size)
 	{
 		tm DateTime { };
@@ -6435,24 +6445,9 @@ namespace Edge
 						break;
 					}
 
-					const char* ContentLength = Response->GetHeader("Content-Length");
-					if (!ContentLength)
-					{
-						if (!ED_AWAIT(Client->Consume(ED_HTTP_PAYLOAD * 256)))
-						{
-							ED_RELEASE(Client);
-							break;
-						}
-
-						Buffer.assign(Response->Buffer.begin(), Response->Buffer.end());
-						Size = Response->Buffer.size();
-						Resource = Client;
-					}
-					else
-					{
-						Size = (size_t)Parser(ContentLength).ToUInt64();
-						Resource = Client;
-					}
+					Resource = Client;
+					if (Response->Content.Limited)
+						Size = Response->Content.Length;
 
 					ED_DEBUG("[http] open ws %s", File);
 					break;
@@ -6482,10 +6477,9 @@ namespace Edge
 
 			ED_RELEASE(Client);
 			Resource = nullptr;
-			Offset = 0;
-			Size = 0;
+			Offset = Size = 0;
+			Chunk.clear();
 
-			std::string().swap(Buffer);
 			return true;
 		}
 		bool WebStream::Seek(FileSeek Mode, int64_t NewOffset)
@@ -6496,10 +6490,23 @@ namespace Edge
 					Offset = NewOffset;
 					return true;
 				case FileSeek::Current:
-					Offset += NewOffset;
+					if (NewOffset < 0)
+					{
+						size_t Pointer = (size_t)(-NewOffset);
+						if (Pointer > Offset)
+						{
+							Pointer -= Offset;
+							if (Pointer > Size)
+								return false;
+
+							Offset = Size - Pointer;
+						}
+					}
+					else
+						Offset += NewOffset;
 					return true;
 				case FileSeek::End:
-					Offset = (int64_t)Size - Offset;
+					Offset = Size - NewOffset;
 					return true;
 			}
 
@@ -6524,24 +6531,24 @@ namespace Edge
 		{
 			ED_ASSERT(Resource != nullptr, 0, "file should be opened");
 			ED_ASSERT(Data != nullptr, 0, "data should be set");
-			ED_ASSERT(Length > 0, 0, "length should be greater than Zero");
+			ED_ASSERT(Length > 0, 0, "length should be greater than zero");
 
 			size_t Result = 0;
-			if (!Buffer.empty())
+			if (Offset + Length > Chunk.size() && (Chunk.size() < Size || !Size))
 			{
-				Result = std::min(Length, Buffer.size() - (size_t)Offset);
-				memcpy(Data, Buffer.c_str() + (size_t)Offset, Result);
-				Offset += (size_t)Result;
+				auto* Client = (Network::HTTP::Client*)Resource;
+				if (!ED_AWAIT(Client->Consume(Length)))
+					return 0;
 
-				return Result;
+				auto* Response = Client->GetResponse();
+				if (Response->Content.Data.empty())
+					return 0;
+
+				Chunk.insert(Chunk.end(), Response->Content.Data.begin(), Response->Content.Data.end());
 			}
 
-			auto* Client = (Network::HTTP::Client*)Resource;
-			ED_AWAIT(Client->Consume(Length));
-
-			auto* Response = Client->GetResponse();
-			Result = std::min(Length, Response->Buffer.size());
-			memcpy(Data, Response->Buffer.data(), Result);
+			Result = std::min(Length, Chunk.size() - (size_t)Offset);
+			memcpy(Data, Chunk.data() + (size_t)Offset, Result);
 			Offset += (size_t)Result;
 			return Result;
 		}
@@ -8340,8 +8347,11 @@ namespace Edge
 				memcpy(Data.Buffer, Buffer, sizeof(Buffer));
 
 			if (Data.Size > 0)
+			{
+				EscapeText(Data.Buffer, (size_t)Data.Size);
 				EnqueueLog(std::move(Data));
-	
+			}
+
 			if (Fatal)
 				Pause();
 		}
@@ -8376,7 +8386,10 @@ namespace Edge
 			va_end(Args);
 
 			if (Data.Size > 0)
+			{
+				EscapeText(Data.Buffer, (size_t)Data.Size);
 				EnqueueLog(std::move(Data));
+			}
 		}
 		void OS::EnqueueLog(Message&& Data)
 		{

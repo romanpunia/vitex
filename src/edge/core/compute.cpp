@@ -8527,7 +8527,7 @@ namespace Edge
 		}
 		void Geometric::TexCoordRhToLh(std::vector<Vertex>& Vertices)
 		{
-			if (LeftHanded)
+			if (!LeftHanded)
 				return;
 
 			for (auto& Item : Vertices)
@@ -8535,7 +8535,7 @@ namespace Edge
 		}
 		void Geometric::TexCoordRhToLh(std::vector<SkinVertex>& Vertices)
 		{
-			if (LeftHanded)
+			if (!LeftHanded)
 				return;
 
 			for (auto& Item : Vertices)
@@ -8543,7 +8543,7 @@ namespace Edge
 		}
 		void Geometric::TexCoordRhToLh(std::vector<ShapeVertex>& Vertices)
 		{
-			if (LeftHanded)
+			if (!LeftHanded)
 				return;
 
 			for (auto& Item : Vertices)

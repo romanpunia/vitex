@@ -17,19 +17,6 @@ namespace Edge
 				Unverified
 			};
 
-			enum class Content
-			{
-				Not_Loaded,
-				Lost,
-				Cached,
-				Empty,
-				Corrupted,
-				Payload_Exceeded,
-				Wants_Save,
-				Saved,
-				Save_Exception
-			};
-
 			enum class QueryValue
 			{
 				Unknown,
@@ -180,12 +167,31 @@ namespace Edge
 				void SetExpired();
 			};
 
+			struct ED_OUT ContentFrame
+			{
+				std::vector<Resource> Resources;
+				std::vector<char> Data;
+				size_t Length = 0;
+				size_t Offset = 0;
+				bool Exceeds = false;
+				bool Limited = false;
+
+				void Append(const std::string& Data);
+				void Append(const char* Data, size_t Size);
+				void Assign(const std::string& Data);
+				void Assign(const char* Data, size_t Size);
+				void Prepare(const char* ContentLength);
+				void Finalize();
+				void Cleanup();
+				std::string GetText() const;
+				bool IsFinalized() const;
+			};
+
 			struct ED_OUT RequestFrame
 			{
 				HeaderMapping Cookies;
 				HeaderMapping Headers;
-				std::vector<Resource> Resources;
-				std::string Buffer;
+				ContentFrame Content;
 				std::string Query;
 				std::string Path;
 				std::string URI;
@@ -194,12 +200,12 @@ namespace Edge
 				Credentials User;
 				char Method[10] = { 'G', 'E', 'T' };
 				char Version[10] = { 'H', 'T', 'T', 'P', '/', '1', '.', '1' };
-				size_t ContentLength = 0;
 
 				void SetMethod(const char* Value);
 				void SetVersion(unsigned int Major, unsigned int Minor);
 				void PutHeader(const std::string& Key, const std::string& Value);
 				void SetHeader(const std::string& Key, const std::string& Value);
+				void Cleanup();
 				std::string ComposeHeader(const std::string& Key) const;
 				RangePayload* GetCookieRanges(const std::string& Key);
 				std::string* GetCookieBlob(const std::string& Key) const;
@@ -214,25 +220,21 @@ namespace Edge
 			struct ED_OUT ResponseFrame
 			{
 				HeaderMapping Headers;
+				ContentFrame Content;
 				std::vector<Cookie> Cookies;
-				std::vector<char> Buffer;
-				Content Data = Content::Not_Loaded;
 				int StatusCode = -1;
 				bool Error = false;
 
-				void PutBuffer(const std::string& Data);
-				void SetBuffer(const std::string& Data);
 				void PutHeader(const std::string& Key, const std::string& Value);
 				void SetHeader(const std::string& Key, const std::string& Value);
 				void SetCookie(const Cookie& Value);
 				void SetCookie(Cookie&& Value);
+				void Cleanup();
 				std::string ComposeHeader(const std::string& Key) const;
 				Cookie* GetCookie(const char* Key);
 				RangePayload* GetHeaderRanges(const std::string& Key);
 				const std::string* GetHeaderBlob(const std::string& Key) const;
 				const char* GetHeader(const std::string& Key) const;
-				std::string GetBuffer() const;
-				bool HasBody() const;
 				bool IsOK() const;
 			};
 
@@ -401,7 +403,7 @@ namespace Edge
 				std::string Override;
 				size_t WebSocketTimeout = 30000;
 				size_t StaticFileMaxAge = 604800;
-				size_t MaxCacheLength = 16384;
+				size_t MaxCacheLength = 1024 * 64;
 				size_t Level = 0;
 				bool AllowDirectoryListing = false;
 				bool AllowWebSocket = false;
@@ -736,7 +738,6 @@ namespace Edge
 				static std::string ConnectionResolve(Connection* Base);
 				static const char* StatusMessage(int StatusCode);
 				static const char* ContentType(const std::string& Path, std::vector<MimeType>* MimeTypes);
-				static bool ContentOK(Content State);
 			};
 
 			class ED_OUT_TS Paths
@@ -844,7 +845,7 @@ namespace Edge
 			class ED_OUT Client final : public SocketClient
 			{
 			private:
-				WebSocketFrame * WebSocket;
+				WebSocketFrame* WebSocket;
 				RequestFrame Request;
 				ResponseFrame Response;
 				Core::Promise<bool> Future;
@@ -865,6 +866,7 @@ namespace Edge
 				WebSocketFrame* GetWebSocket();
 				RequestFrame* GetRequest();
 				ResponseFrame* GetResponse();
+				ContentFrame* GetContent();
 
 			private:
 				bool Receive();

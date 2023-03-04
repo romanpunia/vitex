@@ -2213,7 +2213,9 @@ namespace Edge
 			}
 			bool D3D11Device::Submit()
 			{
-				return SwapChain->Present((unsigned int)VSyncMode, PresentFlags) == S_OK;
+				bool Success = SwapChain->Present((unsigned int)VSyncMode, PresentFlags) == S_OK;
+				DispatchQueue();
+				return Success;
 			}
 			DepthStencilState* D3D11Device::CreateDepthStencilState(const DepthStencilState::Desc& I)
 			{

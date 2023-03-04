@@ -748,6 +748,12 @@ namespace Edge
 			return static_cast<ResourceBind>(static_cast<size_t>(A) | static_cast<size_t>(B));
 		}
 
+		class Shader;
+
+		class GraphicsDevice;
+
+		class Activity;
+
 		typedef std::function<void(AppState)> AppStateChangeCallback;
 		typedef std::function<void(WindowState, int, int)> WindowStateChangeCallback;
 		typedef std::function<void(KeyCode, KeyMod, int, int, bool)> KeyStateCallback;
@@ -769,12 +775,7 @@ namespace Edge
 		typedef std::function<void(int, int, float, float, float, float)> MultiGestureStateCallback;
 		typedef std::function<void(const std::string&)> DropFileCallback;
 		typedef std::function<void(const std::string&)> DropTextCallback;
-
-		class Shader;
-
-		class GraphicsDevice;
-
-		class Activity;
+		typedef std::function<void(GraphicsDevice*)> RenderThreadCallback;
 
 		struct ED_OUT Alert
 		{
@@ -1635,6 +1636,7 @@ namespace Edge
 			std::unordered_map<std::string, SamplerState*> SamplerStates;
 			std::unordered_map<std::string, InputLayout*> InputLayouts;
 			std::unordered_map<std::string, Section*> Sections;
+			std::queue<RenderThreadCallback> Queue;
 			PrimitiveTopology Primitives;
 			ShaderModel ShaderGen;
 			Texture2D* ViewResource = nullptr;
@@ -1649,7 +1651,7 @@ namespace Edge
 			size_t MaxElements;
 			RenderBackend Backend;
 			DirectBuffer Direct;
-			std::mutex Mutex;
+			std::recursive_mutex Mutex;
 			bool ShaderCache;
 			bool Debug;
 
@@ -1802,8 +1804,8 @@ namespace Edge
 			void SetVertexBuffer(ElementBuffer* Resource);
 			void SetShaderCache(bool Enabled);
 			void SetVSyncMode(VSync Mode);
-			void Lock();
-			void Unlock();
+			void Lockup(RenderThreadCallback&& Callback);
+			void Enqueue(RenderThreadCallback&& Callback);
 			bool Preprocess(Shader::Desc& Subresult);
 			bool Transpile(std::string* HLSL, ShaderType Stage, ShaderLang To);
 			bool AddSection(const std::string& Name, const std::string& Code);
@@ -1835,6 +1837,7 @@ namespace Edge
 			void CreateStates();
 			void CreateSections();
 			void ReleaseProxy();
+			void DispatchQueue();
 
 		public:
 			static GraphicsDevice* Create(Desc& I);

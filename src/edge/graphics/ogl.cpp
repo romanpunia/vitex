@@ -2278,6 +2278,7 @@ namespace Edge
 				ED_ASSERT(Window != nullptr, false, "window should be set");
 				SDL_GL_SwapWindow(Window->GetHandle());
 #endif
+				DispatchQueue();
 				return true;
 			}
 			DepthStencilState* OGLDevice::CreateDepthStencilState(const DepthStencilState::Desc& I)

@@ -1013,6 +1013,20 @@ namespace Edge
 				Range.clear();
 				Range.push_back(Value);
 			}
+			void RequestFrame::Cleanup()
+			{
+				memset(Method, 0, sizeof(Method));
+				memset(Version, 0, sizeof(Version));
+				User.Type = Auth::Unverified;
+				User.Token.clear();
+				Content.Cleanup();
+				Headers.clear();
+				Cookies.clear();
+				Query.clear();
+				Path.clear();
+				URI.clear();
+				Where.clear();
+			}
 			std::string RequestFrame::ComposeHeader(const std::string& Label) const
 			{
 				ED_ASSERT(!Label.empty(), std::string(), "label should not be empty");
@@ -1133,14 +1147,6 @@ namespace Edge
 				return std::make_pair(Range->first, Range->second - Range->first + 1);
 			}
 
-			void ResponseFrame::PutBuffer(const std::string& Text)
-			{
-				TextAppend(Buffer, Text);
-			}
-			void ResponseFrame::SetBuffer(const std::string& Text)
-			{
-				TextAssign(Buffer, Text);
-			}
 			void ResponseFrame::PutHeader(const std::string& Key, const std::string& Value)
 			{
 				ED_ASSERT_V(!Key.empty(), "key should not be empty");
@@ -1178,6 +1184,14 @@ namespace Edge
 				}
 
 				Cookies.emplace_back(std::move(Value));
+			}
+			void ResponseFrame::Cleanup()
+			{
+				StatusCode = -1;
+				Error = false;
+				Cookies.clear();
+				Headers.clear();
+				Content.Cleanup();
 			}
 			std::string ResponseFrame::ComposeHeader(const std::string& Label) const
 			{
@@ -1237,17 +1251,71 @@ namespace Edge
 
 				return It->second.back().c_str();
 			}
-			std::string ResponseFrame::GetBuffer() const
-			{
-				return std::string(Buffer.data(), Buffer.size());
-			}
-			bool ResponseFrame::HasBody() const
-			{
-				return Util::ContentOK(Data);
-			}
 			bool ResponseFrame::IsOK() const
 			{
 				return StatusCode >= 200 && StatusCode < 400;
+			}
+
+			void ContentFrame::Append(const std::string& Text)
+			{
+				TextAppend(Data, Text);
+			}
+			void ContentFrame::Append(const char* Buffer, size_t Size)
+			{
+				TextAppend(Data, Buffer, Size);
+			}
+			void ContentFrame::Assign(const std::string& Text)
+			{
+				TextAssign(Data, Text);
+			}
+			void ContentFrame::Assign(const char* Buffer, size_t Size)
+			{
+				TextAssign(Data, Buffer, Size);
+			}
+			void ContentFrame::Prepare(const char* ContentLength)
+			{
+				Limited = (ContentLength != nullptr);
+				if (Limited)
+					Length = (int64_t)strtoll(ContentLength, nullptr, 10);
+			}
+			void ContentFrame::Finalize()
+			{
+				Length = Offset;
+				Limited = true;
+			}
+			void ContentFrame::Cleanup()
+			{
+				if (!Resources.empty())
+				{
+					std::vector<std::string> Paths;
+					Paths.reserve(Resources.size());
+					for (auto& Item : Resources)
+					{
+						if (!Item.Memory)
+							Paths.push_back(Item.Path);
+					}
+
+					for (auto& Path : Paths)
+						Core::Schedule::Get()->SetTask([Path]() { Core::OS::File::Remove(Path.c_str()); });
+				}
+
+				Data.clear();
+				Resources.clear();
+				Length = 0;
+				Offset = 0;
+				Limited = false;
+				Exceeds = false;
+			}
+			std::string ContentFrame::GetText() const
+			{
+				return std::string(Data.data(), Data.size());
+			}
+			bool ContentFrame::IsFinalized() const
+			{
+				if (!Limited)
+					return false;
+
+				return Offset >= Length || Data.size() >= Length;
 			}
 
 			Connection::Connection(Server* Source) noexcept : Root(Source)
@@ -1274,90 +1342,44 @@ namespace Edge
 			}
 			void Connection::Reset(bool Fully)
 			{
-				if (!Request.Resources.empty())
-				{
-					std::vector<std::string> Resources;
-					Resources.reserve(Request.Resources.size());
-					for (auto& Item : Request.Resources)
-					{
-						if (!Item.Memory)
-							Resources.push_back(Item.Path);
-					}
-
-					if (!Resources.empty())
-					{
-						Core::Schedule::Get()->SetTask([Resources = std::move(Resources)]() mutable
-						{
-							for (auto& Item : Resources)
-								Core::OS::File::Remove(Item.c_str());
-						});
-					}
-				}
-
 				if (!Fully)
 					Info.Close = (Info.Close || Response.StatusCode < 0);
 
 				Route = nullptr;
-				Response.Data = Content::Not_Loaded;
-				Response.Error = false;
-				Response.StatusCode = -1;
-				Response.Buffer.shrink_to_fit();
-				Response.Buffer.clear();
-				Response.Cookies.clear();
-				Response.Headers.clear();
-				Request.ContentLength = 0;
-				Request.User.Type = Auth::Unverified;
-				Request.User.Token.clear();
-				Request.Buffer.shrink_to_fit();
-				Request.Buffer.clear();
-				Request.Resources.clear();
-				Request.Headers.clear();
-				Request.Cookies.clear();
-				Request.Query.clear();
-				Request.Path.clear();
-				Request.URI.clear();
-				Request.Where.clear();
-                
-				memset(Request.Method, 0, sizeof(Request.Method));
-				memset(Request.Version, 0, sizeof(Request.Version));
+				Request.Cleanup();
+				Response.Cleanup();
 				SocketConnection::Reset(Fully);
 			}
 			bool Connection::Consume(const ContentCallback& Callback, bool Eat)
 			{
-				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved || Response.Data == Content::Wants_Save)
-				{
-					if (Callback)
-						Callback(this, SocketPoll::FinishSync, nullptr, 0);
-
-					return true;
-				}
-
-				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
+				if (!Request.Content.Resources.empty())
 				{
 					if (Callback)
 						Callback(this, SocketPoll::Timeout, nullptr, 0);
 
-					return true;
+					return false;
 				}
-
-				if (Response.Data == Content::Cached)
+				else if (Request.Content.IsFinalized())
 				{
-					if (Callback)
-					{
-						if (!Eat)
-							Callback(this, SocketPoll::Next, Request.Buffer.c_str(), (int)Request.Buffer.size());
+					if (!Eat && Callback && !Request.Content.Data.empty())
+						Callback(this, SocketPoll::Next, Request.Content.Data.data(), (int)Request.Content.Data.size());
 
+					if (Callback)
 						Callback(this, SocketPoll::FinishSync, nullptr, 0);
-					}
 
 					return true;
 				}
-
-				if ((memcmp(Request.Method, "POST", 4) != 0 && memcmp(Request.Method, "PATCH", 5) != 0 && memcmp(Request.Method, "PUT", 3) != 0) && memcmp(Request.Method, "DELETE", 6) != 0)
+				else if (Request.Content.Exceeds)
 				{
-					Response.Data = Content::Empty;
 					if (Callback)
 						Callback(this, SocketPoll::FinishSync, nullptr, 0);
+
+					return false;
+				}
+				else if (!Stream->IsValid())
+				{
+					if (Callback)
+						Callback(this, SocketPoll::Reset, nullptr, 0);
 
 					return false;
 				}
@@ -1365,7 +1387,7 @@ namespace Edge
 				const char* ContentType = Request.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
-					Response.Data = Content::Wants_Save;
+					Request.Content.Exceeds = true;
 					if (Callback)
 						Callback(this, SocketPoll::FinishSync, nullptr, 0);
 
@@ -1376,50 +1398,37 @@ namespace Edge
 				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+					return Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
 							int64_t Result = Parser->ParseDecodeChunked((char*)Buffer, &Recv);
-							if (Result == -1)
+							if (Result >= 0 || Result == -2)
+							{
+								Request.Content.Offset += Recv;
+								if (Eat)
+									return Result == -2;
+
+								if (Callback)
+									Callback(this, SocketPoll::Next, Buffer, Recv);
+
+								if (!Route || Request.Content.Data.size() < Route->MaxCacheLength)
+									Request.Content.Append(Buffer, Recv);
+							}
+							else if (Result == -1)
 							{
 								ED_RELEASE(Parser);
-								Response.Data = Content::Corrupted;
-
 								if (Callback)
 									Callback(this, SocketPoll::Timeout, nullptr, 0);
 
 								return false;
 							}
-							else if (!Eat && (Result >= 0 || Result == -2))
-							{
-								if (Callback)
-									Callback(this, SocketPoll::Next, Buffer, Recv);
-
-								if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-									Request.Buffer.append(Buffer, Recv);
-							}
 
 							return Result == -2;
 						}
-						else if (Packet::IsDone(Event))
+						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							if (!Eat)
-							{
-								if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-									Response.Data = Content::Cached;
-								else
-									Response.Data = Content::Lost;
-							}
-							else
-								Response.Data = Content::Lost;
-
-							if (Callback)
-								Callback(this, SocketPoll::Finish, nullptr, 0);
-						}
-						else if (Packet::IsErrorOrSkip(Event))
-						{
-							Response.Data = Content::Corrupted;
+							Request.Content.Finalize();
 							if (Callback)
 								Callback(this, Event, nullptr, 0);
 						}
@@ -1428,33 +1437,34 @@ namespace Edge
 						return true;
 					}) > 0;
 				}
-				else if (Request.ContentLength < 0)
+				else if (!Request.Content.Limited)
 				{
-					return Stream->ReadAsync((int64_t)Root->Router->PayloadMaxLength, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+					if (Eat)
+					{
+						Request.Content.Finalize();
+						if (Callback)
+							Callback(this, SocketPoll::FinishSync, nullptr, 0);
+
+						return true;
+					}
+
+					return Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
+							Request.Content.Offset += Recv;
 							if (Eat)
 								return true;
 
 							if (Callback)
 								Callback(this, SocketPoll::Next, Buffer, Recv);
 
-							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-								Request.Buffer.append(Buffer, Recv);
+							if (!Route || Request.Content.Data.size() < Route->MaxCacheLength)
+								Request.Content.Append(Buffer, Recv);
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							if (!Eat)
-							{
-								if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-									Response.Data = Content::Cached;
-								else
-									Response.Data = Content::Lost;
-							}
-							else
-								Response.Data = Content::Lost;
-
+							Request.Content.Finalize();
 							if (Callback)
 								Callback(this, Event, nullptr, 0);
 
@@ -1465,45 +1475,32 @@ namespace Edge
 					}) > 0;
 				}
 
-				if (Request.ContentLength > Root->Router->PayloadMaxLength)
+				if (!Route || Request.Content.Length > Route->MaxCacheLength || Request.Content.Length > Root->Router->PayloadMaxLength)
 				{
-					Response.Data = Content::Payload_Exceeded;
-					Eat = true;
-				}
-				else if (!Route || Request.ContentLength > Route->MaxCacheLength)
-				{
-					Response.Data = Content::Wants_Save;
+					Request.Content.Exceeds = true;
 					if (Callback)
 						Callback(this, SocketPoll::Timeout, nullptr, 0);
 
 					return true;
 				}
 
-				return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+				return Stream->ReadAsync(Request.Content.Length, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
 					{
+						Request.Content.Offset += Recv;
 						if (Eat)
 							return true;
 
 						if (Callback)
 							Callback(this, SocketPoll::Next, Buffer, Recv);
 
-						if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-							Request.Buffer.append(Buffer, Recv);
+						if (!Route || Request.Content.Data.size() < Route->MaxCacheLength)
+							Request.Content.Append(Buffer, Recv);
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 					{
-						if (!Eat)
-						{
-							if (!Route || Request.Buffer.size() < Route->MaxCacheLength)
-								Response.Data = Content::Cached;
-							else
-								Response.Data = Content::Lost;
-						}
-						else
-							Response.Data = Content::Lost;
-
+						Request.Content.Finalize();
 						if (Callback)
 							Callback(this, Event, nullptr, 0);
 
@@ -1515,7 +1512,28 @@ namespace Edge
 			}
 			bool Connection::Store(const ResourceCallback& Callback, bool Eat)
 			{
-				if (!Route || Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Cached || Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
+				if (!Request.Content.Resources.empty())
+				{
+					if (!Callback)
+						return true;
+
+					if (!Eat)
+					{
+						for (auto& Item : Request.Content.Resources)
+							Callback(&Item);
+					}
+
+					Callback(nullptr);
+					return true;
+				}
+				else if (Request.Content.IsFinalized())
+				{
+					if (Callback)
+						Callback(nullptr);
+
+					return true;
+				}
+				else if (!Request.Content.Limited)
 				{
 					if (Callback)
 						Callback(nullptr);
@@ -1523,32 +1541,14 @@ namespace Edge
 					return false;
 				}
 
-				if (Response.Data == Content::Saved)
-				{
-					if (!Callback)
-						return true;
-
-					if (!Eat)
-					{
-						for (auto& Item : Request.Resources)
-							Callback(&Item);
-					}
-
-					Callback(nullptr);
-					return true;
-				}
-
-				const char* ContentType = Request.GetHeader("Content-Type"), * BoundaryName;
-				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
-					Response.Data = Content::Wants_Save;
+				const char* ContentType = Request.GetHeader("Content-Type");
+				const char* BoundaryName;
+				Request.Content.Exceeds = true;
 
 				if (ContentType != nullptr && (BoundaryName = strstr(ContentType, "boundary=")))
 				{
 					if (Route->Site->ResourceRoot.empty())
-					{
-						Response.Data = Content::Payload_Exceeded;
 						Eat = true;
-					}
 
 					std::string Boundary("--");
 					Boundary.append(BoundaryName + 9);
@@ -1557,14 +1557,14 @@ namespace Edge
 					Parsers.Multipart->Frame.Callback = Callback;
 					Parsers.Multipart->Frame.Ignore = Eat;
 
-					return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
+					return Stream->ReadAsync(Request.Content.Length, [this, Boundary](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
 						if (Packet::IsData(Event))
 						{
+							Request.Content.Offset += Recv;
 							if (Parsers.Multipart->MultipartParse(Boundary.c_str(), Buffer, Recv) != -1 && !Parsers.Multipart->Frame.Close)
 								return true;
 
-							Response.Data = Content::Saved;
 							if (Parsers.Multipart->Frame.Callback)
 								Parsers.Multipart->Frame.Callback(nullptr);
 
@@ -1572,11 +1572,7 @@ namespace Edge
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							if (Packet::IsError(Event))
-								Response.Data = Content::Corrupted;
-							else
-								Response.Data = Content::Saved;
-
+							Request.Content.Finalize();
 							if (Parsers.Multipart->Frame.Callback)
 								Parsers.Multipart->Frame.Callback(nullptr);
 						}
@@ -1584,94 +1580,73 @@ namespace Edge
 						return true;
 					}) > 0;
 				}
-				else if (Request.ContentLength > 0)
+				else if (Eat)
 				{
-					if (!Eat)
+					return Stream->ReadAsync(Request.Content.Length, [this, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
 					{
-						HTTP::Resource fResource;
-						fResource.Length = Request.ContentLength;
-						fResource.Type = (ContentType ? ContentType : "application/octet-stream");
-						fResource.Path = Core::OS::Directory::Get() + Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16));
-
-						FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
-						if (!File)
+						if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
 						{
-							Response.Data = Content::Save_Exception;
-							return false;
+							Request.Content.Offset += Recv;
+							return true;
 						}
 
-						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, File, fResource, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
-						{
-							if (Packet::IsData(Event))
-							{
-								if (fwrite(Buffer, 1, Recv, File) == Recv)
-									return true;
+						Request.Content.Finalize();
+						if (Callback)
+							Callback(nullptr);
 
-								Response.Data = Content::Save_Exception;
-								ED_CLOSE(File);
-
-								if (Callback)
-									Callback(nullptr);
-
-								return false;
-							}
-							else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
-							{
-								if (Packet::IsDone(Event))
-								{
-									Response.Data = Content::Saved;
-									Request.Resources.push_back(fResource);
-
-									if (Callback)
-										Callback(&Request.Resources.back());
-								}
-								else
-									Response.Data = Content::Corrupted;
-
-								if (Callback)
-									Callback(nullptr);
-
-								ED_CLOSE(File);
-								return false;
-							}
-
-							return true;
-						}) > 0;
-					}
-					else
-					{
-						return Stream->ReadAsync((int64_t)Request.ContentLength, [this, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
-						{
-							if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
-								return true;
-
-							if (Packet::IsDone(Event))
-								Response.Data = Content::Saved;
-							else
-								Response.Data = Content::Corrupted;
-
-							if (Callback)
-								Callback(nullptr);
-
-							return true;
-						}) > 0;
-					}
+						return true;
+					}) > 0;
 				}
-				else if (Callback)
-					Callback(nullptr);
 
-				return true;
+				HTTP::Resource fResource;
+				fResource.Length = Request.Content.Length;
+				fResource.Type = (ContentType ? ContentType : "application/octet-stream");
+				fResource.Path = Core::OS::Directory::Get() + Compute::Crypto::Hash(Compute::Digests::MD5(), Compute::Crypto::RandomBytes(16));
+
+				FILE* File = (FILE*)Core::OS::File::Open(fResource.Path.c_str(), "wb");
+				if (!File)
+					return false;
+
+				return Stream->ReadAsync(Request.Content.Length, [this, File, fResource, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
+				{
+					if (Packet::IsData(Event))
+					{
+						Request.Content.Offset += Recv;
+						if (fwrite(Buffer, 1, Recv, File) == Recv)
+							return true;
+
+						ED_CLOSE(File);
+						if (Callback)
+							Callback(nullptr);
+
+						return false;
+					}
+					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
+					{
+						Request.Content.Finalize();
+						if (Packet::IsDone(Event))
+						{
+							Request.Content.Resources.push_back(fResource);
+							if (Callback)
+								Callback(&Request.Content.Resources.back());
+						}
+
+						if (Callback)
+							Callback(nullptr);
+
+						ED_CLOSE(File);
+						return false;
+					}
+
+					return true;
+				}) > 0;
 			}
 			bool Connection::Skip(const SuccessCallback& Callback)
 			{
 				ED_ASSERT(Callback != nullptr, false, "callback should be set");
-				if (Response.Data == Content::Lost || Response.Data == Content::Empty || Response.Data == Content::Saved)
+				if (!Request.Content.Resources.empty())
 					return true;
-
-				if (Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
-					return true;
-
-				if (Response.Data == Content::Cached)
+				else if (Request.Content.IsFinalized())
 					return true;
 
 				Consume([Callback](HTTP::Connection* Base, SocketPoll Event, const char*, size_t)
@@ -1679,20 +1654,17 @@ namespace Edge
 					if (!Packet::IsDone(Event) && !Packet::IsErrorOrSkip(Event))
 						return true;
 
-					if (Base->Response.Data == Content::Wants_Save)
+					if (!Base->Request.Content.Exceeds)
 					{
-						Base->Store([Base, Callback](HTTP::Resource* Resource)
-						{
-							if (Resource != nullptr)
-								Callback(Base);
-
-							return true;
-						}, true);
-					}
-					else
 						Callback(Base);
+						return true;
+					}
 
-					return true;
+					return Base->Store([Base, Callback](HTTP::Resource* Resource)
+					{
+						Callback(Base);
+						return true;
+					}, true);
 				}, true);
 
 				return false;
@@ -1728,7 +1700,7 @@ namespace Edge
 				if (Response.StatusCode < 0 || Stream->Outcome > 0 || !Stream->IsValid())
 					return Root->Manage(this);
 
-				if (Response.StatusCode >= 400 && !Response.Error && Response.Buffer.empty())
+				if (Response.StatusCode >= 400 && !Response.Error && Response.Content.Data.empty())
 				{
 					Response.Error = true;
 					if (Route != nullptr)
@@ -1786,23 +1758,23 @@ namespace Edge
 					});
 				}
 
-				Core::Parser Content;
+				Core::Parser Chunked;
 				std::string Boundary;
 				const char* ContentType;
-				Content.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
+				Chunked.fAppend("%s %d %s\r\n", Request.Version, Response.StatusCode, Util::StatusMessage(Response.StatusCode));
 
 				if (!Response.GetHeader("Date"))
 				{
 					char Buffer[64];
 					Core::DateTime::FetchWebDateGMT(Buffer, sizeof(Buffer), Info.Start / 1000);
-					Content.fAppend("Date: %s\r\n", Buffer);
+					Chunked.fAppend("Date: %s\r\n", Buffer);
 				}
 
 				if (!Response.GetHeader("Connection"))
-					Content.Append(Util::ConnectionResolve(this));
+					Chunked.Append(Util::ConnectionResolve(this));
 
 				if (!Response.GetHeader("Accept-Ranges"))
-					Content.Append("Accept-Ranges: bytes\r\n", 22);
+					Chunked.Append("Accept-Ranges: bytes\r\n", 22);
 
 				if (!Response.GetHeader("Content-Type"))
 				{
@@ -1814,19 +1786,19 @@ namespace Edge
 					if (Request.GetHeader("Range") != nullptr)
 					{
 						Boundary = Parsing::ParseMultipartDataBoundary();
-						Content.fAppend("Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
+						Chunked.fAppend("Content-Type: multipart/byteranges; boundary=%s; charset=%s\r\n", ContentType, Boundary.c_str(), Route ? Route->CharSet.c_str() : "utf-8");
 					}
 					else
-						Content.fAppend("Content-Type: %s; charset=%s\r\n", ContentType, Route ? Route->CharSet.c_str() : "utf-8");
+						Chunked.fAppend("Content-Type: %s; charset=%s\r\n", ContentType, Route ? Route->CharSet.c_str() : "utf-8");
 				}
 				else
 					ContentType = Response.GetHeader("Content-Type");
 
-				if (!Response.Buffer.empty())
+				if (!Response.Content.Data.empty())
 				{
 #ifdef ED_HAS_ZLIB
 					bool Deflate = false, Gzip = false;
-					if (Resources::ResourceCompressed(this, Response.Buffer.size()))
+					if (Resources::ResourceCompressed(this, Response.Content.Data.size()))
 					{
 						const char* AcceptEncoding = Request.GetHeader("Accept-Encoding");
 						if (AcceptEncoding != nullptr)
@@ -1841,12 +1813,12 @@ namespace Edge
 							fStream.zalloc = Z_NULL;
 							fStream.zfree = Z_NULL;
 							fStream.opaque = Z_NULL;
-							fStream.avail_in = (uInt)Response.Buffer.size();
-							fStream.next_in = (Bytef*)Response.Buffer.data();
+							fStream.avail_in = (uInt)Response.Content.Data.size();
+							fStream.next_in = (Bytef*)Response.Content.Data.data();
 
 							if (deflateInit2(&fStream, Route ? Route->Compression.QualityLevel : 8, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Route ? Route->Compression.MemoryLevel : 8, Route ? (int)Route->Compression.Tune : 0) == Z_OK)
 							{
-								std::string Buffer(Response.Buffer.size(), '\0');
+								std::string Buffer(Response.Content.Data.size(), '\0');
 								fStream.avail_out = (uInt)Buffer.size();
 								fStream.next_out = (Bytef*)Buffer.c_str();
 								bool Compress = (deflate(&fStream, Z_FINISH) == Z_STREAM_END);
@@ -1854,13 +1826,13 @@ namespace Edge
 
 								if (Compress && Flush)
 								{
-									TextAssign(Response.Buffer, Buffer.c_str(), (size_t)fStream.total_out);
+									Response.Content.Assign(Buffer.c_str(), (size_t)fStream.total_out);
 									if (!Response.GetHeader("Content-Encoding"))
 									{
 										if (Gzip)
-											Content.Append("Content-Encoding: gzip\r\n", 24);
+											Chunked.Append("Content-Encoding: gzip\r\n", 24);
 										else
-											Content.Append("Content-Encoding: deflate\r\n", 27);
+											Chunked.Append("Content-Encoding: deflate\r\n", 27);
 									}
 								}
 							}
@@ -1875,8 +1847,8 @@ namespace Edge
 							std::string Data;
 							for (auto It = Ranges.begin(); It != Ranges.end(); ++It)
 							{
-								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Buffer.size());
-								std::string ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size());
+								std::pair<size_t, size_t> Offset = Request.GetRange(It, Response.Content.Data.size());
+								std::string ContentRange = Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size());
 
 								Data.append("--", 2);
 								Data.append(Boundary);
@@ -1893,44 +1865,43 @@ namespace Edge
 								Data.append(ContentRange.c_str(), ContentRange.size());
 								Data.append("\r\n", 2);
 								Data.append("\r\n", 2);
-								Data.append(TextSubstring(Response.Buffer, Offset.first, Offset.second));
+								Data.append(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
 								Data.append("\r\n", 2);
 							}
 
 							Data.append("--", 2);
 							Data.append(Boundary);
 							Data.append("--\r\n", 4);
-
-							TextAssign(Response.Buffer, Data);
+							Response.Content.Assign(Data);
 						}
 						else
 						{
-							std::pair<size_t, size_t> Offset = Request.GetRange(Ranges.begin(), Response.Buffer.size());
+							std::pair<size_t, size_t> Offset = Request.GetRange(Ranges.begin(), Response.Content.Data.size());
 							if (!Response.GetHeader("Content-Range"))
-								Content.fAppend("Content-Range: %s\r\n", Paths::ConstructContentRange(Offset.first, Offset.second, Response.Buffer.size()).c_str());
+								Chunked.fAppend("Content-Range: %s\r\n", Paths::ConstructContentRange(Offset.first, Offset.second, Response.Content.Data.size()).c_str());
 
-							TextAssign(Response.Buffer, TextSubstring(Response.Buffer, Offset.first, Offset.second));
+							Response.Content.Assign(TextSubstring(Response.Content.Data, Offset.first, Offset.second));
 						}
 					}
 
 					if (!Response.GetHeader("Content-Length"))
-						Content.fAppend("Content-Length: %llu\r\n", (uint64_t)Response.Buffer.size());
+						Chunked.fAppend("Content-Length: %llu\r\n", (uint64_t)Response.Content.Data.size());
 				}
 				else if (!Response.GetHeader("Content-Length"))
-					Content.Append("Content-Length: 0\r\n", 19);
+					Chunked.Append("Content-Length: 0\r\n", 19);
 
-				Paths::ConstructHeadFull(&Request, &Response, false, &Content);
+				Paths::ConstructHeadFull(&Request, &Response, false, &Chunked);
 				if (Route && Route->Callbacks.Headers)
-					Route->Callbacks.Headers(this, &Content);
+					Route->Callbacks.Headers(this, &Chunked);
 
-				Content.Append("\r\n", 2);
-				return Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](SocketPoll Event)
+				Chunked.Append("\r\n", 2);
+				return Stream->WriteAsync(Chunked.Get(), (int64_t)Chunked.Size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
-						if (memcmp(Request.Method, "HEAD", 4) != 0 && !Response.Buffer.empty())
+						if (memcmp(Request.Method, "HEAD", 4) != 0 && !Response.Content.Data.empty())
 						{
-							Stream->WriteAsync(Response.Buffer.data(), (int64_t)Response.Buffer.size(), [this](SocketPoll Event)
+							Stream->WriteAsync(Response.Content.Data.data(), (int64_t)Response.Content.Data.size(), [this](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 									Root->Manage(this);
@@ -3902,10 +3873,6 @@ namespace Edge
 
 				return "Stateless";
 			}
-			bool Util::ContentOK(Content State)
-			{
-				return State == Content::Cached || State == Content::Empty || State == Content::Saved;
-			}
 
 			void Paths::ConstructPath(Connection* Base)
 			{
@@ -4262,7 +4229,7 @@ namespace Edge
 					return false;
 				}
 
-				if (Parser->Frame.Route && Parser->Frame.Request->Resources.size() >= Parser->Frame.Route->Site->MaxResources)
+				if (Parser->Frame.Route && Parser->Frame.Request->Content.Resources.size() >= Parser->Frame.Route->Site->MaxResources)
 				{
 					Parser->Frame.Close = true;
 					return false;
@@ -4294,10 +4261,10 @@ namespace Edge
 
 				ED_CLOSE(Parser->Frame.Stream);
 				Parser->Frame.Stream = nullptr;
-				Parser->Frame.Request->Resources.push_back(Parser->Frame.Source);
+				Parser->Frame.Request->Content.Resources.push_back(Parser->Frame.Source);
 
 				if (Parser->Frame.Callback)
-					Parser->Frame.Callback(&Parser->Frame.Request->Resources.back());
+					Parser->Frame.Callback(&Parser->Frame.Request->Content.Resources.back());
 
 				return true;
 			}
@@ -4705,9 +4672,9 @@ namespace Edge
 				return Base->Stream->ReadAsync(8, [Base](SocketPoll Event, const char* Buffer, size_t Recv)
 				{
 					if (Packet::IsData(Event))
-						Base->Request.Buffer.append(Buffer, Recv);
+						Base->Request.Content.Append(Buffer, Recv);
 					else if (Packet::IsDone(Event))
-						Logical::ProcessWebSocket(Base, Base->Request.Buffer.c_str());
+						Logical::ProcessWebSocket(Base, Base->Request.Content.Data.data());
 					else if (Packet::IsError(Event))
 						Base->Break();
 
@@ -5011,7 +4978,7 @@ namespace Edge
 					Parent = Core::OS::Path::GetDirectory(Parent.c_str());
 				}
 
-				TextAssign(Base->Response.Buffer,
+				Base->Response.Content.Assign(
 					"<html><head><title>Index of " + Name + "</title>"
 					"<style>" CSS_DIRECTORY_STYLE "</style></head>"
 					"<body><h1>Index of " + Name + "</h1><pre><table cellpadding=\"0\">"
@@ -5051,13 +5018,13 @@ namespace Edge
 					if (Item.IsDirectory && !Core::Parser(&HREF).EndsOf("/\\"))
 						HREF.append(1, '/');
 
-					TextAppend(Base->Response.Buffer, "<tr><td><a href=\"" + HREF + "\">" + Item.Path + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
+					Base->Response.Content.Append("<tr><td><a href=\"" + HREF + "\">" + Item.Path + "</a></td><td>&nbsp;" + dDate + "</td><td>&nbsp;&nbsp;" + dSize + "</td></tr>\n");
 				}
-				TextAppend(Base->Response.Buffer, "</table></pre></body></html>");
+				Base->Response.Content.Append("</table></pre></body></html>");
 
 #ifdef ED_HAS_ZLIB
 				bool Deflate = false, Gzip = false;
-				if (Resources::ResourceCompressed(Base, Base->Response.Buffer.size()))
+				if (Resources::ResourceCompressed(Base, Base->Response.Content.Data.size()))
 				{
 					const char* AcceptEncoding = Base->Request.GetHeader("Accept-Encoding");
 					if (AcceptEncoding != nullptr)
@@ -5072,12 +5039,12 @@ namespace Edge
 						Stream.zalloc = Z_NULL;
 						Stream.zfree = Z_NULL;
 						Stream.opaque = Z_NULL;
-						Stream.avail_in = (uInt)Base->Response.Buffer.size();
-						Stream.next_in = (Bytef*)Base->Response.Buffer.data();
+						Stream.avail_in = (uInt)Base->Response.Content.Data.size();
+						Stream.next_in = (Bytef*)Base->Response.Content.Data.data();
 
 						if (deflateInit2(&Stream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
 						{
-							std::string Buffer(Base->Response.Buffer.size(), '\0');
+							std::string Buffer(Base->Response.Content.Data.size(), '\0');
 							Stream.avail_out = (uInt)Buffer.size();
 							Stream.next_out = (Bytef*)Buffer.c_str();
 							bool Compress = (deflate(&Stream, Z_FINISH) == Z_STREAM_END);
@@ -5085,7 +5052,7 @@ namespace Edge
 
 							if (Compress && Flush)
 							{
-								TextAssign(Base->Response.Buffer, Buffer.c_str(), Stream.total_out);
+								Base->Response.Content.Assign(Buffer.c_str(), (size_t)Stream.total_out);
 								if (!Base->Response.GetHeader("Content-Encoding"))
 								{
 									if (Gzip)
@@ -5098,7 +5065,7 @@ namespace Edge
 					}
 				}
 #endif
-				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Buffer.size());
+				Content.fAppend("Content-Length: %llu\r\n\r\n", (uint64_t)Base->Response.Content.Data.size());
 				return Base->Stream->WriteAsync(Content.Get(), (int64_t)Content.Size(), [Base](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
@@ -5106,7 +5073,7 @@ namespace Edge
 						if (memcmp(Base->Request.Method, "HEAD", 4) == 0)
 							return (void)Base->Finish(200);
 
-						Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)Base->Response.Buffer.size(), [Base](SocketPoll Event)
+						Base->Stream->WriteAsync(Base->Response.Content.Data.data(), (int64_t)Base->Response.Content.Data.size(), [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish(200);
@@ -5125,13 +5092,13 @@ namespace Edge
 				const char* Range = Base->Request.GetHeader("Range");
 				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
 				int64_t Range1 = 0, Range2 = 0, Count = 0;
-				int64_t ContentLength = Base->Resource.Size;
+				int64_t ContentLength = (int64_t)Base->Resource.Size;
 
 				char ContentRange[128] = { 0 };
 				if (Range != nullptr && (Count = Parsing::ParseContentRange(Range, &Range1, &Range2)) > 0 && Range1 >= 0 && Range2 >= 0)
 				{
 					if (Count == 2)
-						ContentLength = ((Range2 > ContentLength) ? ContentLength : Range2) - Range1 + 1;
+						ContentLength = (int64_t)(((Range2 > ContentLength) ? ContentLength : Range2) - Range1 + 1);
 					else
 						ContentLength -= Range1;
 
@@ -5219,7 +5186,7 @@ namespace Edge
 
 				const char* ContentType = Util::ContentType(Base->Request.Path, &Base->Route->MimeTypes);
 				const char* StatusMessage = Util::StatusMessage(Base->Response.StatusCode = (Base->Response.Error && Base->Response.StatusCode > 0 ? Base->Response.StatusCode : 200));
-				int64_t ContentLength = Base->Resource.Size;
+				int64_t ContentLength = (int64_t)Base->Resource.Size;
 
 				const char* Origin = Base->Request.GetHeader("Origin");
 				const char* CORS1 = "", * CORS2 = "", * CORS3 = "";
@@ -5315,13 +5282,13 @@ namespace Edge
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
-					size_t sLimit = Base->Resource.Size - Range;
-					if (ContentLength > sLimit)
-						ContentLength = sLimit;
+					size_t Limit = Base->Resource.Size - Range;
+					if (ContentLength > Limit)
+						ContentLength = Limit;
 
-					if (Base->Response.Buffer.size() >= ContentLength)
+					if (Base->Response.Content.Data.size() >= ContentLength)
 					{
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data() + Range, (int64_t)ContentLength, [Base](SocketPoll Event)
+						return Base->Stream->WriteAsync(Base->Response.Content.Data.data() + Range, (int64_t)ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5429,29 +5396,29 @@ namespace Edge
 				Range = (Range > Base->Resource.Size ? Base->Resource.Size : Range);
 				if (ContentLength > 0 && Base->Resource.IsReferenced && Base->Resource.Size > 0)
 				{
-					if (Base->Response.Buffer.size() >= ContentLength)
+					if (Base->Response.Content.Data.size() >= ContentLength)
 					{
 #ifdef ED_HAS_ZLIB
 						z_stream ZStream;
 						ZStream.zalloc = Z_NULL;
 						ZStream.zfree = Z_NULL;
 						ZStream.opaque = Z_NULL;
-						ZStream.avail_in = (uInt)Base->Response.Buffer.size();
-						ZStream.next_in = (Bytef*)Base->Response.Buffer.data();
+						ZStream.avail_in = (uInt)Base->Response.Content.Data.size();
+						ZStream.next_in = (Bytef*)Base->Response.Content.Data.data();
 
 						if (deflateInit2(&ZStream, Base->Route->Compression.QualityLevel, Z_DEFLATED, (Gzip ? 15 | 16 : 15), Base->Route->Compression.MemoryLevel, (int)Base->Route->Compression.Tune) == Z_OK)
 						{
-							std::string Buffer(Base->Response.Buffer.size(), '\0');
+							std::string Buffer(Base->Response.Content.Data.size(), '\0');
 							ZStream.avail_out = (uInt)Buffer.size();
 							ZStream.next_out = (Bytef*)Buffer.c_str();
 							bool Compress = (deflate(&ZStream, Z_FINISH) == Z_STREAM_END);
 							bool Flush = (deflateEnd(&ZStream) == Z_OK);
 
 							if (Compress && Flush)
-								TextAssign(Base->Response.Buffer, Buffer.c_str(), ZStream.total_out);
+								Base->Response.Content.Assign(Buffer.c_str(), (size_t)ZStream.total_out);
 						}
 #endif
-						return Base->Stream->WriteAsync(Base->Response.Buffer.data(), (int64_t)ContentLength, [Base](SocketPoll Event)
+						return Base->Stream->WriteAsync(Base->Response.Content.Data.data(), (int64_t)ContentLength, [Base](SocketPoll Event)
 						{
 							if (Packet::IsDone(Event))
 								Base->Finish();
@@ -5706,7 +5673,7 @@ namespace Edge
 
 				char Buffer[100];
 				snprintf(Buffer, sizeof(Buffer), "%s%s", Key, WEBSOCKET_KEY);
-				Base->Request.Buffer.clear();
+				Base->Request.Content.Data.clear();
 
 				char Encoded20[20];
 				Compute::Crypto::Sha1Compute(Buffer, (int)strlen(Buffer), Encoded20);
@@ -5874,10 +5841,10 @@ namespace Edge
 				{
 					if (Packet::IsData(Event))
 					{
-						size_t LastLength = Base->Request.Buffer.size();
-						Base->Request.Buffer.append(Buffer, Size);
+						size_t LastLength = Base->Request.Content.Data.size();
+						Base->Request.Content.Append(Buffer, Size);
 
-						int64_t Offset = Base->Parsers.Request->ParseRequest(Base->Request.Buffer.data(), Base->Request.Buffer.size(), LastLength);
+						int64_t Offset = Base->Parsers.Request->ParseRequest(Base->Request.Content.Data.data(), Base->Request.Content.Data.size(), LastLength);
 						if (Offset >= 0 || Offset == -2)
 							return true;
 
@@ -5887,7 +5854,7 @@ namespace Edge
 					else if (Packet::IsDone(Event))
 					{
 						uint32_t Redirects = 0;
-						Base->Request.Buffer.clear();
+						Base->Request.Content.Data.clear();
 						Base->Info.Start = Utils::Clock();
                     Redirect:
 						if (!Paths::ConstructRoute(Conf, Base))
@@ -5902,15 +5869,6 @@ namespace Edge
                             goto Redirect;
 						}
 
-						const char* ContentLength = Base->Request.GetHeader("Content-Length");
-						if (ContentLength != nullptr)
-							Base->Request.ContentLength = (size_t)strtoll(ContentLength, nullptr, 10);
-                        else
-                            Base->Request.ContentLength = 0;
-
-						if (!Base->Request.ContentLength)
-							Base->Response.Data = Content::Empty;
-
 						if (!Base->Route->ProxyIpAddress.empty())
 						{
 							const char* Address = Base->Request.GetHeader(Base->Route->ProxyIpAddress.c_str());
@@ -5918,7 +5876,9 @@ namespace Edge
                                 strncpy(Base->RemoteAddress, Address, sizeof(Base->RemoteAddress));
 						}
 
+						Base->Request.Content.Prepare(Base->Request.GetHeader("Content-Length"));
 						Paths::ConstructPath(Base);
+
 						if (!Permissions::MethodAllowed(Base))
 							return Base->Error(405, "Requested method \"%s\" is not allowed on this server", Base->Request.Method);
 
@@ -6075,24 +6035,22 @@ namespace Edge
 			Core::Promise<bool> Client::Consume(size_t MaxSize)
 			{
 				ED_ASSERT(!WebSocket, Core::Promise<bool>(false), "cannot read http over websocket");
-				if (Response.HasBody())
+				if (Response.Content.IsFinalized())
 					return Core::Promise<bool>(true);
-
-				if (Response.Data == Content::Lost || Response.Data == Content::Wants_Save || Response.Data == Content::Corrupted || Response.Data == Content::Payload_Exceeded || Response.Data == Content::Save_Exception)
+				else if (Response.Content.Exceeds)
 					return Core::Promise<bool>(false);
 
-				Response.Buffer.clear();
+				Response.Content.Data.clear();
 				if (!Stream.IsValid())
 					return Core::Promise<bool>(false);
 
 				const char* ContentType = Response.GetHeader("Content-Type");
 				if (ContentType && !strncmp(ContentType, "multipart/form-data", 19))
 				{
-					Response.Data = Content::Wants_Save;
+					Response.Content.Exceeds = true;
 					return Core::Promise<bool>(false);
 				}
                 
-                const char* ContentLength = Response.GetHeader("Content-Length");
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
 				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
@@ -6106,105 +6064,85 @@ namespace Edge
 							if (Subresult == -1)
 							{
 								ED_RELEASE(Parser);
-								Response.Data = Content::Corrupted;
 								Result.Set(false);
 
 								return false;
 							}
 							else if (Subresult >= 0 || Subresult == -2)
 							{
-								if (Response.Buffer.size() < MaxSize)
-									TextAppend(Response.Buffer, Buffer, Recv);
+								Response.Content.Offset += Recv;
+								Response.Content.Append(Buffer, Recv);
 							}
 
 							return Subresult == -2;
 						}
-						else if (Packet::IsDone(Event))
+						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							if (Response.Buffer.size() < MaxSize)
-								Response.Data = Content::Cached;
-							else
-								Response.Data = Content::Lost;
+							if (!Response.Content.Limited)
+								Response.Content.Length += Response.Content.Offset;
+
+							if (!Response.Content.Data.empty())
+								ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+
+							Result.Set(!Packet::IsErrorOrSkip(Event));
+							ED_RELEASE(Parser);
 						}
-						else if (Packet::IsErrorOrSkip(Event))
-							Response.Data = Content::Corrupted;
 
-						ED_RELEASE(Parser);
-						if (!Response.Buffer.empty())
-							ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
-
-						Result.Set(Response.HasBody());
 						return true;
 					});
 
 					return Result;
 				}
-				else if (!ContentLength)
+				else if (!Response.Content.Limited)
 				{
 					Core::Promise<bool> Result;
 					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{
 						if (Packet::IsData(Event))
 						{
-							if (Response.Buffer.size() < MaxSize)
-								TextAppend(Response.Buffer, Buffer, Recv);
+							Response.Content.Offset += Recv;
+							Response.Content.Append(Buffer, Recv);
 
 							return true;
 						}
 						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 						{
-							if (Response.Buffer.size() < MaxSize)
-								Response.Data = Content::Cached;
-							else
-								Response.Data = Content::Lost;
+							Response.Content.Length += Response.Content.Offset;
+							if (!Response.Content.Data.empty())
+								ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+
+							Result.Set(!Packet::IsErrorOrSkip(Event));
 						}
 
-						if (!Response.Buffer.empty())
-							ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
-
-						Result.Set(Response.HasBody());
-						return false;
+						return true;
 					});
 
 					return Result;
 				}
                 
-				size_t ContentSize = (size_t)strtoll(ContentLength, nullptr, 10);
-				if (!ContentSize)
-				{
-					Response.Data = Content::Empty;
-					return Core::Promise<bool>(true);
-				}
-
-				if (ContentSize > MaxSize)
-				{
-					Response.Data = Content::Wants_Save;
+				MaxSize = std::min(MaxSize, Response.Content.Length - Response.Content.Offset);
+				if (!MaxSize || Response.Content.Offset > Response.Content.Length)
 					return Core::Promise<bool>(false);
-				}
 
 				Core::Promise<bool> Result;
-				Stream.ReadAsync(ContentSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
+				Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 				{
 					if (Packet::IsData(Event))
 					{
-						if (Response.Buffer.size() < MaxSize)
-							TextAppend(Response.Buffer, Buffer, Recv);
+						Response.Content.Offset += Recv;
+						Response.Content.Append(Buffer, Recv);
 
 						return true;
 					}
 					else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
 					{
-						if (Response.Buffer.size() < MaxSize)
-							Response.Data = Content::Cached;
-						else
-							Response.Data = Content::Lost;
+						if (!Response.Content.Data.empty())
+							ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Content.Data.size(), Response.Content.Data.data());
+
+						Result.Set(!Packet::IsErrorOrSkip(Event));
 					}
 
-					if (!Response.Buffer.empty())
-						ED_DEBUG("[http] %i responded\n%.*s", (int)Stream.GetFd(), (int)Response.Buffer.size(), Response.Buffer.data());
-
-					Result.Set(Response.HasBody());
-					return false;
+					return true;
 				});
 
 				return Result;
@@ -6250,7 +6188,7 @@ namespace Edge
 
 				Core::Promise<ResponseFrame*> Result;
 				Request = std::move(Root);
-				Response.Data = Content::Not_Loaded;
+				Response.Cleanup();
 				Done = [Result](SocketClient* Client, int Code) mutable
 				{
 					HTTP::Client* Base = (HTTP::Client*)Client;
@@ -6261,7 +6199,7 @@ namespace Edge
 				};
 				Stage("request delivery");
 
-				Core::Parser Content;
+				Core::Parser Chunked;
 				if (!Request.GetHeader("Host"))
 				{
 					if (Context != nullptr)
@@ -6288,47 +6226,46 @@ namespace Edge
 
 				if (!Request.GetHeader("Content-Length"))
 				{
-					Request.ContentLength = Request.Buffer.size();
-					Request.SetHeader("Content-Length", std::to_string(Request.Buffer.size()));
+					Request.Content.Length = Request.Content.Data.size();
+					Request.SetHeader("Content-Length", std::to_string(Request.Content.Data.size()));
 				}
 
 				if (!Request.GetHeader("Connection"))
 					Request.SetHeader("Connection", "Keep-Alive");
 
-				if (!Request.Buffer.empty())
+				if (!Request.Content.Data.empty())
 				{
 					if (!Request.GetHeader("Content-Type"))
 						Request.SetHeader("Content-Type", "application/octet-stream");
 
 					if (!Request.GetHeader("Content-Length"))
-						Request.SetHeader("Content-Length", std::to_string(Request.Buffer.size()).c_str());
+						Request.SetHeader("Content-Length", std::to_string(Request.Content.Data.size()).c_str());
 				}
 				else if (!memcmp(Request.Method, "POST", 4) || !memcmp(Request.Method, "PUT", 3) || !memcmp(Request.Method, "PATCH", 5))
 					Request.SetHeader("Content-Length", "0");
 
 				if (!Request.Query.empty())
-					Content.fAppend("%s %s?%s %s\r\n", Request.Method, Request.URI.c_str(), Request.Query.c_str(), Request.Version);
+					Chunked.fAppend("%s %s?%s %s\r\n", Request.Method, Request.URI.c_str(), Request.Query.c_str(), Request.Version);
 				else
-					Content.fAppend("%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
+					Chunked.fAppend("%s %s %s\r\n", Request.Method, Request.URI.c_str(), Request.Version);
 
-				Paths::ConstructHeadFull(&Request, &Response, true, &Content);
-				Content.Append("\r\n");
+				Paths::ConstructHeadFull(&Request, &Response, true, &Chunked);
+				Chunked.Append("\r\n");
 
-				Response.Buffer.clear();
-				Stream.WriteAsync(Content.Get(), (int64_t)Content.Size(), [this](SocketPoll Event)
+				Stream.WriteAsync(Chunked.Get(), (int64_t)Chunked.Size(), [this](SocketPoll Event)
 				{
 					if (Packet::IsDone(Event))
 					{
-						if (!Request.Buffer.empty())
+						if (!Request.Content.Data.empty())
 						{
-							Stream.WriteAsync(Request.Buffer.c_str(), (int64_t)Request.Buffer.size(), [this](SocketPoll Event)
+							Stream.WriteAsync(Request.Content.Data.data(), (int64_t)Request.Content.Data.size(), [this](SocketPoll Event)
 							{
 								if (Packet::IsDone(Event))
 								{
 									Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 									{
 										if (Packet::IsData(Event))
-											TextAppend(Response.Buffer, Buffer, Recv);
+											Response.Content.Append(Buffer, Recv);
 										else if (Packet::IsDone(Event))
 											Receive();
 										else if (Packet::IsErrorOrSkip(Event))
@@ -6346,7 +6283,7 @@ namespace Edge
 							Stream.ReadUntilAsync("\r\n\r\n", [this](SocketPoll Event, const char* Buffer, size_t Recv)
 							{
 								if (Packet::IsData(Event))
-									TextAppend(Response.Buffer, Buffer, Recv);
+									Response.Content.Append(Buffer, Recv);
 								else if (Packet::IsDone(Event))
 									Receive();
 								else if (Packet::IsErrorOrSkip(Event))
@@ -6369,7 +6306,7 @@ namespace Edge
 					if (!Result)
 						return (Core::Schema*)nullptr;
 
-					return Core::Schema::ConvertFromJSON(Response.Buffer.data(), Response.Buffer.size());
+					return Core::Schema::ConvertFromJSON(Response.Content.Data.data(), Response.Content.Data.size());
 				});
 			}
 			Core::Promise<Core::Schema*> Client::XML(HTTP::RequestFrame&& Root, size_t MaxSize)
@@ -6379,7 +6316,7 @@ namespace Edge
 					if (!Result)
 						return (Core::Schema*)nullptr;
 
-					return Core::Schema::ConvertFromXML(Response.Buffer.data());
+					return Core::Schema::ConvertFromXML(Response.Content.Data.data());
 				});
 			}
 			WebSocketFrame* Client::GetWebSocket()
@@ -6426,12 +6363,13 @@ namespace Edge
 				Parser->OnHeaderValue = Parsing::ParseHeaderValue;
 				Parser->Frame.Response = &Response;
 
-				if (Parser->ParseResponse(Response.Buffer.data(), Response.Buffer.size(), 0) < 0)
+				if (Parser->ParseResponse(Response.Content.Data.data(), Response.Content.Data.size(), 0) < 0)
 				{
 					ED_RELEASE(Parser);
 					return Error("cannot parse http response");
 				}
 
+				Response.Content.Prepare(Response.GetHeader("Content-Length"));
 				ED_RELEASE(Parser);
 				return Success(0);
 			}

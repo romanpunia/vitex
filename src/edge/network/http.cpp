@@ -1395,7 +1395,7 @@ namespace Edge
 				}
 
 				const char* TransferEncoding = Request.GetHeader("Transfer-Encoding");
-				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
+				if (!Request.Content.Limited && TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Parser* Parser = new HTTP::Parser();
 					return Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Parser, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
@@ -1439,43 +1439,13 @@ namespace Edge
 				}
 				else if (!Request.Content.Limited)
 				{
-					if (Eat)
-					{
-						Request.Content.Finalize();
-						if (Callback)
-							Callback(this, SocketPoll::FinishSync, nullptr, 0);
+					Request.Content.Finalize();
+					if (Callback)
+						Callback(this, SocketPoll::FinishSync, nullptr, 0);
 
-						return true;
-					}
-
-					return Stream->ReadAsync(Root->Router->PayloadMaxLength, [this, Eat, Callback](SocketPoll Event, const char* Buffer, size_t Recv)
-					{
-						if (Packet::IsData(Event))
-						{
-							Request.Content.Offset += Recv;
-							if (Eat)
-								return true;
-
-							if (Callback)
-								Callback(this, SocketPoll::Next, Buffer, Recv);
-
-							if (!Route || Request.Content.Data.size() < Route->MaxCacheLength)
-								Request.Content.Append(Buffer, Recv);
-						}
-						else if (Packet::IsDone(Event) || Packet::IsErrorOrSkip(Event))
-						{
-							Request.Content.Finalize();
-							if (Callback)
-								Callback(this, Event, nullptr, 0);
-
-							return false;
-						}
-
-						return true;
-					}) > 0;
+					return true;
 				}
-
-				if (!Route || Request.Content.Length > Route->MaxCacheLength || Request.Content.Length > Root->Router->PayloadMaxLength)
+				else if (!Route || Request.Content.Length > Route->MaxCacheLength || Request.Content.Length > Root->Router->PayloadMaxLength)
 				{
 					Request.Content.Exceeds = true;
 					if (Callback)
@@ -6052,7 +6022,7 @@ namespace Edge
 				}
                 
 				const char* TransferEncoding = Response.GetHeader("Transfer-Encoding");
-				if (TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
+				if (!Response.Content.Limited && TransferEncoding && !Core::Parser::CaseCompare(TransferEncoding, "chunked"))
 				{
 					Core::Promise<bool> Result;
 					Parser* Parser = new HTTP::Parser();
@@ -6095,6 +6065,10 @@ namespace Edge
 				}
 				else if (!Response.Content.Limited)
 				{
+					const char* Connection = Response.GetHeader("Connection");
+					if (!Connection || Core::Parser::CaseCompare(Connection, "close"))
+						return Core::Promise<bool>(false);
+
 					Core::Promise<bool> Result;
 					Stream.ReadAsync(MaxSize, [this, Result, MaxSize](SocketPoll Event, const char* Buffer, size_t Recv) mutable
 					{

@@ -908,9 +908,9 @@ namespace Edge
 				for (size_t i = 0; i < ElementsCount; i++)
 				{
 					std::string ElementDecl = Decl + std::to_string(i);
-					int R = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
-					if (R < 0)
-						return R;
+					int RE = SetPropertyAddress(ElementDecl.c_str(), (int)reinterpret_cast<size_t>(&(((T*)0)->*Value)) + (int)(sizeof(R) * i));
+					if (RE < 0)
+						return RE;
 				}
 
 				return 0;

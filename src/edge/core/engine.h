@@ -1089,7 +1089,7 @@ namespace Edge
 			template <typename T>
 			Core::Promise<Core::Unique<T>> LoadAsync(const std::string& Path, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return LoadAsync(GetProcessor<T>(), Path, Keys).Then<T*>([](void*&& Result)
+				return LoadAsync(GetProcessor<T>(), Path, Keys).Then<typename T*>([](void*&& Result) -> T*
 				{
 					return (T*)Result;
 				});
@@ -1102,10 +1102,7 @@ namespace Edge
 			template <typename T>
 			Core::Promise<bool> SaveAsync(const std::string& Path, T* Object, const Core::VariantArgs& Keys = Core::VariantArgs())
 			{
-				return SaveAsync(GetProcessor<T>(), Path, (void*)Object, Keys).Then<T*>([](void*&& Result)
-				{
-					return (T*)Result;
-				});
+				return SaveAsync(GetProcessor<T>(), Path, (void*)Object, Keys);
 			}
 			template <typename T>
 			bool RemoveProcessor()

@@ -7591,7 +7591,8 @@ namespace Edge
 			template <typename T>
 			void ComponentMessage(T* Base, const std::string& Name, Core::Schema* Args)
 			{
-				return Base->Message(Name, ToVariantKeys(Args));
+				auto Data = ToVariantKeys(Args);
+				return Base->Message(Name, Data);
 			}
 			template <typename T>
 			void PopulateComponentBase(RefClass& Class, bool BaseCast = true)
@@ -14060,15 +14061,15 @@ namespace Edge
 				VApplication.SetFunctionDef("void publish_callback(clock_timer@+)");
 				VApplication.SetFunctionDef("void initialize_callback()");
 				VApplication.SetFunctionDef("gui_context@ fetch_gui_callback()");
-				VApplication.SetProperty<Application>("application_cache_info cache", &Application::Cache);
-				VApplication.SetProperty<Application>("audio_device@ audio", &Application::Audio);
-				VApplication.SetProperty<Application>("graphics_device@ renderer", &Application::Renderer);
-				VApplication.SetProperty<Application>("activity@ window", &Application::Activity);
-				VApplication.SetProperty<Application>("virtual_machine@ vm", &Application::VM);
-				VApplication.SetProperty<Application>("content_manager@ content", &Application::Content);
-				VApplication.SetProperty<Application>("app_data@ database", &Application::Database);
-				VApplication.SetProperty<Application>("scene_graph@ scene", &Application::Scene);
-				VApplication.SetProperty<Application>("application_desc control", &Application::Control);
+				VApplication.SetProperty<Engine::Application>("application_cache_info cache", &Engine::Application::Cache);
+				VApplication.SetProperty<Engine::Application>("audio_device@ audio", &Engine::Application::Audio);
+				VApplication.SetProperty<Engine::Application>("graphics_device@ renderer", &Engine::Application::Renderer);
+				VApplication.SetProperty<Engine::Application>("activity@ window", &Engine::Application::Activity);
+				VApplication.SetProperty<Engine::Application>("virtual_machine@ vm", &Engine::Application::VM);
+				VApplication.SetProperty<Engine::Application>("content_manager@ content", &Engine::Application::Content);
+				VApplication.SetProperty<Engine::Application>("app_data@ database", &Engine::Application::Database);
+				VApplication.SetProperty<Engine::Application>("scene_graph@ scene", &Engine::Application::Scene);
+				VApplication.SetProperty<Engine::Application>("application_desc control", &Engine::Application::Control);
 				VApplication.SetProperty<Application>("script_hook_callback@ script_hook", &Application::OnScriptHook);
 				VApplication.SetProperty<Application>("key_event_callback@ key_event", &Application::OnKeyEvent);
 				VApplication.SetProperty<Application>("input_event_callback@ input_event", &Application::OnInputEvent);
@@ -14081,11 +14082,11 @@ namespace Edge
 				VApplication.SetProperty<Application>("initialize_callback@ initialize", &Application::OnInitialize);
 				VApplication.SetProperty<Application>("fetch_gui_callback@ fetch_gui", &Application::OnGetGUI);
 				VApplication.SetGcConstructor<Application, ApplicationName, Application::Desc&>("application@ f(application_desc &in)");
-				VApplication.SetMethod("int start()", &Application::Start);
-				VApplication.SetMethod("int restart()", &Application::Restart);
-				VApplication.SetMethod("void stop(int = 0)", &Application::Stop);
-				VApplication.SetMethod("application_state get_state() const", &Application::GetState);
-				VApplication.SetMethodStatic("application@+ get()", &Application::Get);
+				VApplication.SetMethod("int start()", &Engine::Application::Start);
+				VApplication.SetMethod("int restart()", &Engine::Application::Restart);
+				VApplication.SetMethod("void stop(int = 0)", &Engine::Application::Stop);
+				VApplication.SetMethod("application_state get_state() const", &Engine::Application::GetState);
+				VApplication.SetMethodStatic("application@+ get()", &Engine::Application::Get);
 				VApplication.SetMethodStatic("bool wants_restart(int)", &Application::WantsRestart);
 				VApplication.SetEnumRefsEx<Application>([](Application* Base, asIScriptEngine* Engine)
 				{
